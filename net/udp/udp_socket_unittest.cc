@@ -171,7 +171,7 @@ TEST_F(UDPSocketTest, Connect) {
   client.reset();
 
   // Check the server's log.
-  CapturingNetLog::EntryList server_entries;
+  CapturingNetLog::CapturedEntryList server_entries;
   server_log.GetEntries(&server_entries);
   EXPECT_EQ(4u, server_entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
@@ -184,7 +184,7 @@ TEST_F(UDPSocketTest, Connect) {
       server_entries, 3, NetLog::TYPE_SOCKET_ALIVE));
 
   // Check the client's log.
-  CapturingNetLog::EntryList client_entries;
+  CapturingNetLog::CapturedEntryList client_entries;
   client_log.GetEntries(&client_entries);
   EXPECT_EQ(6u, client_entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(

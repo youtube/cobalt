@@ -1087,7 +1087,7 @@ TEST_F(SpdySessionSpdy3Test, CloseSessionOnError) {
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 
   // Check that the NetLog was filled reasonably.
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   EXPECT_LT(0u, entries.size());
 
@@ -1097,11 +1097,10 @@ TEST_F(SpdySessionSpdy3Test, CloseSessionOnError) {
       net::NetLog::TYPE_SPDY_SESSION_CLOSE,
       net::NetLog::PHASE_NONE);
 
-  CapturingNetLog::Entry entry = entries[pos];
-  NetLogSpdySessionCloseParameter* request_params =
-      static_cast<NetLogSpdySessionCloseParameter*>(
-          entry.extra_parameters.get());
-  EXPECT_EQ(ERR_CONNECTION_CLOSED, request_params->status());
+  CapturingNetLog::CapturedEntry entry = entries[pos];
+  int error_code = 0;
+  ASSERT_TRUE(entry.GetNetErrorCode(&error_code));
+  EXPECT_EQ(ERR_CONNECTION_CLOSED, error_code);
 }
 
 TEST_F(SpdySessionSpdy3Test, UpdateStreamsSendWindowSize) {

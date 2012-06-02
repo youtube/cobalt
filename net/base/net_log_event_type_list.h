@@ -1039,7 +1039,7 @@ EVENT_TYPE(SPDY_SESSION_SENT_WINDOW_UPDATE)
 // Sending of a SPDY CREDENTIAL frame (which sends a certificate or
 // certificate chain to the server).
 //   {
-//     "slot"     : <The slot that this certificate should be stored in >,
+//     "slot"     : <The slot that this certificate should be stored in>,
 //     "origin"   : <The origin this certificate should be used for>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_CREDENTIAL)
@@ -1065,7 +1065,7 @@ EVENT_TYPE(SPDY_SESSION_STALLED_ON_SEND_WINDOW)
 
 // Session is closing
 //   {
-//     "status"     : <The error status of the closure>,
+//     "net_error"  : <The error status of the closure>,
 //     "description": <The textual description for the closure>,
 //   }
 EVENT_TYPE(SPDY_SESSION_CLOSE)

@@ -13,8 +13,10 @@
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/json/json_writer.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
+#include "base/string_util.h"
 #include "base/test/test_file_util.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
@@ -166,6 +168,21 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(params);
 }
 
+// Takes in a Value created from a NetLogHttpResponseParameter, and returns
+// a JSONified list of headers as a single string.  Uses single quotes instead
+// of double quotes for easier comparison.  Returns false on failure.
+bool GetHeaders(DictionaryValue* params, std::string* headers) {
+  if (!params)
+    return false;
+  ListValue* header_list;
+  if (!params->GetList("headers", &header_list))
+    return false;
+  std::string double_quote_headers;
+  base::JSONWriter::Write(header_list, &double_quote_headers);
+  ReplaceChars(double_quote_headers, "\"", "'", headers);
+  return true;
+}
+
 }  // namespace
 
 class HttpNetworkTransactionSpdy3Test : public PlatformTest {
@@ -242,7 +259,7 @@ class HttpNetworkTransactionSpdy3Test : public PlatformTest {
     rv = ReadTransaction(trans.get(), &out.response_data);
     EXPECT_EQ(OK, rv);
 
-    net::CapturingNetLog::EntryList entries;
+    net::CapturingNetLog::CapturedEntryList entries;
     log.GetEntries(&entries);
     size_t pos = ExpectLogContainsSomewhere(
         entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
@@ -252,13 +269,13 @@ class HttpNetworkTransactionSpdy3Test : public PlatformTest {
         NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
         NetLog::PHASE_NONE);
 
-    CapturingNetLog::Entry entry = entries[pos];
-    NetLogHttpRequestParameter* request_params =
-        static_cast<NetLogHttpRequestParameter*>(entry.extra_parameters.get());
-    EXPECT_EQ("GET / HTTP/1.1\r\n", request_params->GetLine());
-    EXPECT_EQ("Host: www.google.com\r\n"
-              "Connection: keep-alive\r\n\r\n",
-              request_params->GetHeaders().ToString());
+    std::string line;
+    EXPECT_TRUE(entries[pos].GetStringValue("line", &line));
+    EXPECT_EQ("GET / HTTP/1.1\r\n", line);
+
+    std::string headers;
+    EXPECT_TRUE(GetHeaders(entries[pos].params.get(), &headers));
+    EXPECT_EQ("['Host: www.google.com','Connection: keep-alive']", headers);
 
     return out;
   }
@@ -1777,7 +1794,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, BasicAuthProxyNoKeepAlive) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
       entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
@@ -1878,7 +1895,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, BasicAuthProxyKeepAlive) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
       entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
@@ -2072,7 +2089,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test,
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(ERR_UNEXPECTED_PROXY_AUTH, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
       entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
@@ -4987,7 +5004,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, BasicAuthSpdyProxy) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
       entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
@@ -8877,7 +8894,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, ProxyTunnelGet) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
       entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
@@ -8941,7 +8958,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, ProxyTunnelGetHangup) {
 
   rv = callback1.WaitForResult();
   EXPECT_EQ(ERR_EMPTY_RESPONSE, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   size_t pos = ExpectLogContainsSomewhere(
       entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
