@@ -185,7 +185,7 @@ TEST_P(TransportClientSocketTest, Connect) {
 
   int rv = sock_->Connect(callback.callback());
 
-  net::CapturingNetLog::EntryList net_log_entries;
+  net::CapturingNetLog::CapturedEntryList net_log_entries;
   net_log_.GetEntries(&net_log_entries);
   EXPECT_TRUE(net::LogContainsBeginEvent(
       net_log_entries, 0, net::NetLog::TYPE_SOCKET_ALIVE));

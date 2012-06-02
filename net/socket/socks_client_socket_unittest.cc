@@ -147,7 +147,7 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
   int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   EXPECT_TRUE(
       LogContainsBeginEvent(entries, 0, NetLog::TYPE_SOCKS_CONNECT));
@@ -217,7 +217,7 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
     int rv = user_sock_->Connect(callback_.callback());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
-    net::CapturingNetLog::EntryList entries;
+    net::CapturingNetLog::CapturedEntryList entries;
     log.GetEntries(&entries);
     EXPECT_TRUE(LogContainsBeginEvent(
         entries, 0, NetLog::TYPE_SOCKS_CONNECT));
@@ -253,7 +253,7 @@ TEST_F(SOCKSClientSocketTest, PartialServerReads) {
 
   int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsBeginEvent(
       entries, 0, NetLog::TYPE_SOCKS_CONNECT));
@@ -291,7 +291,7 @@ TEST_F(SOCKSClientSocketTest, PartialClientWrites) {
 
   int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsBeginEvent(
       entries, 0, NetLog::TYPE_SOCKS_CONNECT));
@@ -323,7 +323,7 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
 
   int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsBeginEvent(
       entries, 0, NetLog::TYPE_SOCKS_CONNECT));
@@ -353,7 +353,7 @@ TEST_F(SOCKSClientSocketTest, FailedDNS) {
 
   int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   EXPECT_TRUE(LogContainsBeginEvent(
       entries, 0, NetLog::TYPE_SOCKS_CONNECT));

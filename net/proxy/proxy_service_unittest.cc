@@ -171,7 +171,7 @@ TEST_F(ProxyServiceTest, Direct) {
   EXPECT_TRUE(info.is_direct());
 
   // Check the NetLog was filled correctly.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(3u, entries.size());
@@ -218,7 +218,7 @@ TEST_F(ProxyServiceTest, PAC) {
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
 
   // Check the NetLog was filled correctly.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(5u, entries.size());
@@ -1464,7 +1464,7 @@ TEST_F(ProxyServiceTest, CancelWhilePACFetching) {
   EXPECT_FALSE(callback1.have_result());  // Cancelled.
   EXPECT_FALSE(callback2.have_result());  // Cancelled.
 
-  CapturingNetLog::EntryList entries1;
+  CapturingNetLog::CapturedEntryList entries1;
   log1.GetEntries(&entries1);
 
   // Check the NetLog for request 1 (which was cancelled) got filled properly.
@@ -1987,7 +1987,7 @@ TEST_F(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   // Check that the expected events were output to the log stream. In particular
   // PROXY_CONFIG_CHANGED should have only been emitted once (for the initial
   // setup), and NOT a second time when the IP address changed.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_TRUE(LogContainsEntryWithType(entries, 0,

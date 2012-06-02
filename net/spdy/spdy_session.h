@@ -668,10 +668,6 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
                          SpdyStreamId id,
                          SpdyStreamId associated_stream);
 
-  const linked_ptr<SpdyHeaderBlock>& GetHeaders() const {
-    return headers_;
-  }
-
   virtual base::Value* ToValue() const OVERRIDE;
 
  protected:
@@ -704,17 +700,16 @@ class NetLogSpdyCredentialParameter : public NetLog::EventParameters {
 
 class NetLogSpdySessionCloseParameter : public NetLog::EventParameters {
  public:
-  NetLogSpdySessionCloseParameter(int status,
+  NetLogSpdySessionCloseParameter(int net_error,
                                   const std::string& description);
 
-  int status() const { return status_; }
   virtual base::Value* ToValue() const  OVERRIDE;
 
  protected:
   virtual ~NetLogSpdySessionCloseParameter();
 
  private:
-  const int status_;
+  const int net_error_;
   const std::string description_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySessionCloseParameter);
