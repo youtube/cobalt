@@ -1032,7 +1032,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
   }
 
   virtual base::SingleThreadTaskRunner* GetNotificationTaskRunner() OVERRIDE {
-    return file_loop_->message_loop_proxy();
+    return file_loop_ ? file_loop_->message_loop_proxy() : NULL;
   }
 
   // Implement base::MessagePumpLibevent::Watcher.
