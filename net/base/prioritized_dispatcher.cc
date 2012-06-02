@@ -99,5 +99,3 @@ bool PrioritizedDispatcher::MaybeDispatchJob(const Handle& handle,
 }
 
 }  // namespace net
-
-
