@@ -66,7 +66,7 @@ class BASE_EXPORT_PRIVATE JSONParser {
 
   // Parses the input string according to the set options and returns the
   // result as a Value owned by the caller.
-  Value* Parse(const std::string& input);
+  Value* Parse(const StringPiece& input);
 
   // Returns the error code.
   JSONReader::JsonParseError error_code() const;
