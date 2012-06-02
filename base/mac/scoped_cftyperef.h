@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_policy.h"
 
 namespace base {
 namespace mac {
@@ -20,32 +19,18 @@ namespace mac {
 // CFTypeRef.  Style deviations here are solely for compatibility with
 // scoped_ptr<>'s interface, with which everyone is already familiar.
 //
-// By default, ScopedCFTypeRef<> takes ownership of an object (in the
-// constructor or in reset()) by taking over the caller's existing ownership
-// claim.  The caller must own the object it gives to ScopedCFTypeRef<>, and
-// relinquishes an ownership claim to that object.  ScopedCFTypeRef<> does not
-// call CFRetain(). This behavior is parameterized by the |OwnershipPolicy|
-// enum. If the value |RETAIN| is passed (in the constructor or in reset()),
-// then ScopedCFTypeRef<> will call CFRetain() on the object, and the initial
-// ownership is not changed.
-
+// When ScopedCFTypeRef<> takes ownership of an object (in the constructor or
+// in reset()), it takes over the caller's existing ownership claim.  The
+// caller must own the object it gives to ScopedCFTypeRef<>, and relinquishes
+// an ownership claim to that object.  ScopedCFTypeRef<> does not call
+// CFRetain().
 template<typename CFT>
 class ScopedCFTypeRef {
  public:
   typedef CFT element_type;
 
-  explicit ScopedCFTypeRef(
-      CFT object = NULL,
-      base::scoped_policy::OwnershipPolicy policy = base::scoped_policy::ASSUME)
+  explicit ScopedCFTypeRef(CFT object = NULL)
       : object_(object) {
-    if (object_ && policy == base::scoped_policy::RETAIN)
-      CFRetain(object_);
-  }
-
-  ScopedCFTypeRef(const ScopedCFTypeRef<CFT>& that)
-      : object_(that.object_) {
-    if (object_)
-      CFRetain(object_);
   }
 
   ~ScopedCFTypeRef() {
@@ -53,16 +38,7 @@ class ScopedCFTypeRef {
       CFRelease(object_);
   }
 
-  ScopedCFTypeRef& operator=(const ScopedCFTypeRef<CFT>& that) {
-    reset(that.get(), base::scoped_policy::RETAIN);
-    return *this;
-  }
-
-  void reset(CFT object = NULL,
-             base::scoped_policy::OwnershipPolicy policy =
-                base::scoped_policy::ASSUME) {
-    if (object && policy == base::scoped_policy::RETAIN)
-      CFRetain(object);
+  void reset(CFT object = NULL) {
     if (object_)
       CFRelease(object_);
     object_ = object;
@@ -101,6 +77,8 @@ class ScopedCFTypeRef {
 
  private:
   CFT object_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedCFTypeRef);
 };
 
 }  // namespace mac
