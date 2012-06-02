@@ -38,20 +38,20 @@ JSONReader::~JSONReader() {
 }
 
 // static
-Value* JSONReader::Read(const std::string& json) {
+Value* JSONReader::Read(const StringPiece& json) {
   internal::JSONParser parser(JSON_PARSE_RFC);
   return parser.Parse(json);
 }
 
 // static
-Value* JSONReader::Read(const std::string& json,
+Value* JSONReader::Read(const StringPiece& json,
                         int options) {
   internal::JSONParser parser(options);
   return parser.Parse(json);
 }
 
 // static
-Value* JSONReader::ReadAndReturnError(const std::string& json,
+Value* JSONReader::ReadAndReturnError(const StringPiece& json,
                                       int options,
                                       int* error_code_out,
                                       std::string* error_msg_out) {

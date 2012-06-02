@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_number_conversions.h"
+#include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/third_party/icu/icu_utf.h"
@@ -204,7 +205,7 @@ JSONParser::JSONParser(int options)
 JSONParser::~JSONParser() {
 }
 
-Value* JSONParser::Parse(const std::string& input) {
+Value* JSONParser::Parse(const StringPiece& input) {
   // TODO(rsesek): Windows has problems with StringPiece/hidden roots. Fix
   // <http://crbug.com/126107> when my Windows box arrives.
 #if defined(OS_WIN)
@@ -216,7 +217,7 @@ Value* JSONParser::Parse(const std::string& input) {
   // be used, so do not bother copying the input because StringPiece will not
   // be used anywhere.
   if (!(options_ & JSON_DETACHABLE_CHILDREN)) {
-    input_copy = input;
+    input_copy = input.as_string();
     start_pos_ = input_copy.data();
   } else {
     start_pos_ = input.data();
