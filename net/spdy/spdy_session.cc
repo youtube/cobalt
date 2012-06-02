@@ -84,15 +84,15 @@ Value* NetLogSpdyCredentialParameter::ToValue() const {
 NetLogSpdyCredentialParameter::~NetLogSpdyCredentialParameter() {}
 
 NetLogSpdySessionCloseParameter::NetLogSpdySessionCloseParameter(
-    int status,
+    int net_error,
     const std::string& description)
-    : status_(status),
+    : net_error_(net_error),
       description_(description) {
 }
 
 Value* NetLogSpdySessionCloseParameter::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
-  dict->SetInteger("status", status_);
+  dict->SetInteger("net_error", net_error_);
   dict->SetString("description", description_);
   return dict;
 }
