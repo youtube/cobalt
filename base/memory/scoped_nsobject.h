@@ -9,7 +9,6 @@
 #import <Foundation/Foundation.h>
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_policy.h"
 
 // scoped_nsobject<> is patterned after scoped_ptr<>, but maintains ownership
 // of an NSObject subclass object.  Style deviations here are solely for
@@ -34,14 +33,21 @@
 // We check for bad uses of scoped_nsobject and NSAutoreleasePool at compile
 // time with a template specialization (see below).
 
+namespace scoped_policy {
+enum OwnershipPolicy {
+  ASSUME,
+  RETAIN
+};
+}  // namespace scoped_policy
+
 template<typename NST>
 class scoped_nsprotocol {
  public:
   explicit scoped_nsprotocol(
       NST object = nil,
-      base::scoped_policy::OwnershipPolicy policy = base::scoped_policy::ASSUME)
+      scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME)
       : object_(object) {
-    if (policy == base::scoped_policy::RETAIN)
+    if (policy == scoped_policy::RETAIN)
       [object retain];
   }
 
@@ -54,14 +60,13 @@ class scoped_nsprotocol {
   }
 
   scoped_nsprotocol& operator=(const scoped_nsprotocol<NST>& that) {
-    reset(that.get(), base::scoped_policy::RETAIN);
+    reset(that.get(), scoped_policy::RETAIN);
     return *this;
   }
 
   void reset(NST object = nil,
-             base::scoped_policy::OwnershipPolicy policy =
-                base::scoped_policy::ASSUME) {
-    if (policy == base::scoped_policy::RETAIN)
+             scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME) {
+    if (policy == scoped_policy::RETAIN)
       [object retain];
     // We intentionally do not check that object != object_ as the caller must
     // either already have an ownership claim over whatever it passes to this
@@ -122,7 +127,7 @@ class scoped_nsobject : public scoped_nsprotocol<NST*> {
  public:
   explicit scoped_nsobject(
       NST* object = nil,
-      base::scoped_policy::OwnershipPolicy policy = base::scoped_policy::ASSUME)
+      scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME)
       : scoped_nsprotocol<NST*>(object, policy) {
   }
 
@@ -142,7 +147,7 @@ class scoped_nsobject<id> : public scoped_nsprotocol<id> {
  public:
   explicit scoped_nsobject(
       id object = nil,
-      base::scoped_policy::OwnershipPolicy policy = base::scoped_policy::ASSUME)
+      scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME)
       : scoped_nsprotocol<id>(object, policy) {
   }
 
@@ -162,9 +167,9 @@ class scoped_nsobject<id> : public scoped_nsprotocol<id> {
 template<>
 class scoped_nsobject<NSAutoreleasePool> {
  private:
-  explicit scoped_nsobject(NSAutoreleasePool* object = nil,
-                           base::scoped_policy::OwnershipPolicy policy =
-                               base::scoped_policy::ASSUME);
+  explicit scoped_nsobject(
+      NSAutoreleasePool* object = nil,
+      scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME);
   DISALLOW_COPY_AND_ASSIGN(scoped_nsobject);
 };
 #endif  // BASE_MEMORY_SCOPED_NSOBJECT_H_

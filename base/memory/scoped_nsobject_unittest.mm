@@ -29,7 +29,7 @@ TEST(ScopedNSObjectTest, ScopedNSObject) {
     ASSERT_EQ(2u, [p1 retainCount]);
   }
   ASSERT_EQ(1u, [p1 retainCount]);
-  scoped_nsobject<NSObject> p4(p1.get(), base::scoped_policy::RETAIN);
+  scoped_nsobject<NSObject> p4(p1.get(), scoped_policy::RETAIN);
   ASSERT_EQ(2u, [p1 retainCount]);
   ASSERT_TRUE(p1 == p1.get());
   ASSERT_TRUE(p1 == p1);
