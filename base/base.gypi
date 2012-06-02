@@ -205,6 +205,7 @@
           'memory/scoped_handle.h',
           'memory/scoped_nsobject.h',
           'memory/scoped_open_process.h',
+          'memory/scoped_policy.h',
           'memory/scoped_ptr.h',
           'memory/scoped_vector.h',
           'memory/singleton.cc',
