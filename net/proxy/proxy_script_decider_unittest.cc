@@ -134,7 +134,7 @@ TEST(ProxyScriptDeciderTest, CustomPacSucceeds) {
   EXPECT_EQ(rule.text(), decider.script_data()->utf16());
 
   // Check the NetLog was filled correctly.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(4u, entries.size());
@@ -171,7 +171,7 @@ TEST(ProxyScriptDeciderTest, CustomPacFails1) {
   EXPECT_EQ(NULL, decider.script_data());
 
   // Check the NetLog was filled correctly.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(4u, entries.size());
@@ -297,7 +297,7 @@ TEST(ProxyScriptDeciderTest, AutodetectFailCustomSuccess2) {
   // Check the NetLog was filled correctly.
   // (Note that various states are repeated since both WPAD and custom
   // PAC scripts are tried).
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(10u, entries.size());
@@ -397,7 +397,7 @@ TEST(ProxyScriptDeciderTest, CustomPacFails1_WithPositiveDelay) {
   EXPECT_EQ(NULL, decider.script_data());
 
   // Check the NetLog was filled correctly.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(6u, entries.size());
@@ -437,7 +437,7 @@ TEST(ProxyScriptDeciderTest, CustomPacFails1_WithNegativeDelay) {
   EXPECT_EQ(NULL, decider.script_data());
 
   // Check the NetLog was filled correctly.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(4u, entries.size());

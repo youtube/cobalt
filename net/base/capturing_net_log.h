@@ -6,40 +6,67 @@
 #define NET_BASE_CAPTURING_NET_LOG_H_
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "base/atomicops.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
 
+namespace base {
+class DictionaryValue;
+}
+
 namespace net {
 
 // CapturingNetLog is an implementation of NetLog that saves messages to a
-// bounded buffer.
+// bounded buffer.  CapturingNetLogs should only be used in unit tests, never
+// in production code.
+// TODO(mmenke):  Move CapturingNetLog to net_unittests project, once the CL
+//                to remove the use of it in the Jingle unit tests has landed.
 class NET_EXPORT CapturingNetLog : public NetLog {
  public:
-  struct NET_EXPORT Entry {
-    Entry(EventType type,
-          const base::TimeTicks& time,
-          Source source,
-          EventPhase phase,
-          EventParameters* extra_parameters);
-    ~Entry();
+  struct NET_EXPORT_PRIVATE CapturedEntry {
+    CapturedEntry(EventType type,
+                  const base::TimeTicks& time,
+                  Source source,
+                  EventPhase phase,
+                  scoped_ptr<base::DictionaryValue> params);
+    // Copy constructor needed to store in a std::vector because of the
+    // scoped_ptr.
+    CapturedEntry(const CapturedEntry& entry);
+
+    ~CapturedEntry();
+
+    // Equality operator needed to store in a std::vector because of the
+    // scoped_ptr.
+    CapturedEntry& operator=(const CapturedEntry& entry);
+
+    // Attempt to retrieve an value of the specified type with the given name
+    // from |params|.  Returns true on success, false on failure.  Does not
+    // modify |value| on failure.
+    bool GetStringValue(const std::string& name, std::string* value) const;
+    bool GetIntegerValue(const std::string& name, int* value) const;
+
+    // Same as GetIntegerValue, but returns the error code associated with a
+    // log entry.
+    bool GetNetErrorCode(int* value) const;
 
     EventType type;
     base::TimeTicks time;
     Source source;
     EventPhase phase;
-    scoped_refptr<EventParameters> extra_parameters;
+    scoped_ptr<base::DictionaryValue> params;
   };
 
   // Ordered set of entries that were logged.
-  typedef std::vector<Entry> EntryList;
+  typedef std::vector<CapturedEntry> CapturedEntryList;
 
   enum { kUnbounded = -1 };
 
@@ -49,7 +76,7 @@ class NET_EXPORT CapturingNetLog : public NetLog {
   virtual ~CapturingNetLog();
 
   // Returns the list of all entries in the log.
-  void GetEntries(EntryList* entry_list) const;
+  void GetEntries(CapturedEntryList* entry_list) const;
 
   void Clear();
 
@@ -77,7 +104,7 @@ class NET_EXPORT CapturingNetLog : public NetLog {
   base::subtle::Atomic32 last_id_;
 
   size_t max_num_entries_;
-  EntryList entries_;
+  CapturedEntryList captured_entries_;
 
   NetLog::LogLevel log_level_;
 
@@ -99,7 +126,7 @@ class NET_EXPORT_PRIVATE CapturingBoundNetLog {
   BoundNetLog bound() const { return net_log_; }
 
   // Fills |entry_list| with all entries in the log.
-  void GetEntries(CapturingNetLog::EntryList* entry_list) const;
+  void GetEntries(CapturingNetLog::CapturedEntryList* entry_list) const;
 
   void Clear();
 

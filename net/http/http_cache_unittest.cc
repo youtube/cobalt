@@ -436,7 +436,7 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
 
   // Check that the NetLog was filled as expected.
   // (We attempted to both Open and Create entries, but both failed).
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(6u, entries.size());
@@ -579,7 +579,7 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
                             log.bound());
 
   // Check that the NetLog was filled as expected.
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(8u, entries.size());
@@ -710,7 +710,7 @@ TEST(HttpCache, SimpleGET_LoadBypassCache) {
   RunTransactionTestWithLog(cache.http_cache(), transaction, log.bound());
 
   // Check that the NetLog was filled as expected.
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(8u, entries.size());

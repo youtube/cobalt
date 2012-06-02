@@ -281,7 +281,7 @@ TEST(ProxyResolverJSBindingsTest, NetLog) {
   bindings->set_current_request_context(&context);
 
   std::string ip_address;
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   ASSERT_EQ(0u, entries.size());
 
@@ -325,7 +325,7 @@ TEST(ProxyResolverJSBindingsTest, NetLog) {
       entries, 7, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX));
 
   // Nothing has been emitted globally yet.
-  net::CapturingNetLog::EntryList global_log_entries;
+  net::CapturingNetLog::CapturedEntryList global_log_entries;
   global_log.GetEntries(&global_log_entries);
   EXPECT_EQ(0u, global_log_entries.size());
 
