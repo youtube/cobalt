@@ -199,7 +199,6 @@
     { "name": "support.mayfirst.org", "mode": "force-https" },
     { "name": "id.mayfirst.org", "mode": "force-https" },
     { "name": "lists.mayfirst.org", "mode": "force-https" },
-    { "name": "splendidbacon.com", "include_subdomains": true, "mode": "force-https" },
     { "name": "aladdinschools.appspot.com", "mode": "force-https" },
     { "name": "ottospora.nl", "include_subdomains": true, "mode": "force-https" },
     { "name": "www.paycheckrecords.com", "mode": "force-https" },
