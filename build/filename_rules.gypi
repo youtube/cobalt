@@ -42,7 +42,11 @@
       ],
     }],
     ['OS=="win"', {
-       'sources/': [ ['exclude', '_posix(_unittest)?\\.(h|cc)$'] ],
+      'sources/': [
+        ['exclude', '_posix(_unittest)?\\.(h|cc)$'],
+        ['exclude', '(^|/)posix/'],
+      ],
+
     }],
     ['chromeos!=1', {
       'sources/': [ ['exclude', '_chromeos\\.(h|cc)$'] ]
