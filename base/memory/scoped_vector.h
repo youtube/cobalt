@@ -60,6 +60,11 @@ class ScopedVector {
   iterator end() { return v.end(); }
   const_iterator end() const { return v.end(); }
 
+  const_reference front() const { return v.front(); }
+  reference front() { return v.front(); }
+  const_reference back() const { return v.back(); }
+  reference back() { return v.back(); }
+
   void push_back(T* elem) { v.push_back(elem); }
 
   std::vector<T*>& get() { return v; }
