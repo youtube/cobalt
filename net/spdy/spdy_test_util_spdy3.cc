@@ -991,6 +991,10 @@ const SpdyHeaderInfo MakeSpdyHeader(SpdyControlType type) {
 SpdyTestStateHelper::SpdyTestStateHelper() {
   // Pings can be non-deterministic, because they are sent via timer.
   SpdySession::set_enable_ping_based_connection_checking(false);
+  // Avoid sending a non-default initial receive window size settings
+  // frame on every test.
+  SpdySession::set_default_initial_recv_window_size(
+      kSpdyStreamInitialWindowSize);
   // Compression is per-session which makes it impossible to create
   // SPDY frames with static methods.
   BufferedSpdyFramer::set_enable_compression_default(false);
