@@ -232,6 +232,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // server via SETTINGS.
   static void set_init_max_concurrent_streams(size_t value);
 
+  // Sets the initial receive window size for newly created sessions.
+  static void set_default_initial_recv_window_size(size_t value);
+
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
   // size is increased.
   void SendWindowUpdate(SpdyStreamId stream_id, int32 delta_window_size);
@@ -389,7 +392,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   void OnWriteComplete(int result);
 
   // Send relevant SETTINGS.  This is generally called on connection setup.
-  void SendSettings();
+  void SendInitialSettings();
+
+  // Helper method to send SETTINGS a frame.
+  void SendSettings(const SettingsMap& settings);
 
   // Handle SETTING.  Either when we send settings, or when we receive a
   // SETTINGS control frame, update our SpdySession accordingly.

@@ -300,6 +300,7 @@ class NetLogSpdyGoAwayParameter : public NetLog::EventParameters {
 NextProto g_default_protocol = kProtoUnknown;
 size_t g_init_max_concurrent_streams = 10;
 size_t g_max_concurrent_stream_limit = 256;
+size_t g_default_initial_rcv_window_size = 10 * 1024 * 1024;  // 10MB
 bool g_enable_ping_based_connection_checking = true;
 
 }  // namespace
@@ -312,6 +313,11 @@ void SpdySession::set_default_protocol(NextProto default_protocol) {
 // static
 void SpdySession::set_max_concurrent_streams(size_t value) {
   g_max_concurrent_stream_limit = value;
+}
+
+// static
+void SpdySession::set_default_initial_recv_window_size(size_t value) {
+  g_default_initial_rcv_window_size = value;
 }
 
 // static
@@ -331,6 +337,7 @@ void SpdySession::ResetStaticSettingsToInit() {
   g_default_protocol = kProtoUnknown;
   g_init_max_concurrent_streams = 10;
   g_max_concurrent_stream_limit = 256;
+  g_default_initial_rcv_window_size = kSpdyStreamInitialWindowSize;
   g_enable_ping_based_connection_checking = true;
 }
 
@@ -369,7 +376,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       check_ping_status_pending_(false),
       flow_control_(false),
       initial_send_window_size_(kSpdyStreamInitialWindowSize),
-      initial_recv_window_size_(kSpdyStreamInitialWindowSize),
+      initial_recv_window_size_(g_default_initial_rcv_window_size),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
       verify_domain_authentication_(verify_domain_authentication),
       credential_state_(SpdyCredentialState::kDefaultNumSlots),
@@ -447,7 +454,7 @@ net::Error SpdySession::InitializeWithSocket(
 
   buffered_spdy_framer_.reset(new BufferedSpdyFramer(version));
   buffered_spdy_framer_->set_visitor(this);
-  SendSettings();
+  SendInitialSettings();
 
   // Write out any data that we might have to send, such as the settings frame.
   WriteSocketLater();
@@ -1696,7 +1703,22 @@ uint32 ApplyCwndFieldTrialPolicy(int cwnd) {
   return cwnd;
 }
 
-void SpdySession::SendSettings() {
+void SpdySession::SendInitialSettings() {
+  // First notify the server about the settings they should use when
+  // communicating with us.
+  if (GetProtocolVersion() > 2 &&
+      initial_recv_window_size_ != kSpdyStreamInitialWindowSize) {
+    SettingsMap settings_map;
+    // Create a new settings frame notifying the sever of our
+    // initial window size.
+    settings_map[SETTINGS_INITIAL_WINDOW_SIZE] =
+        SettingsFlagsAndValue(SETTINGS_FLAG_NONE, initial_recv_window_size_);
+    sent_settings_ = true;
+    SendSettings(settings_map);
+  }
+
+  // Next notify the server about the settings they have previously
+  // told us to use when communicating with them.
   const SettingsMap& settings_map =
       http_server_properties_->GetSpdySettings(host_port_pair());
   if (settings_map.empty())
@@ -1724,15 +1746,20 @@ void SpdySession::SendSettings() {
     HandleSetting(new_id, new_val);
   }
 
+  sent_settings_ = true;
+  SendSettings(settings_map_new);
+}
+
+
+void SpdySession::SendSettings(const SettingsMap& settings) {
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_SETTINGS,
-      make_scoped_refptr(new NetLogSpdySettingsParameter(settings_map_new)));
+      make_scoped_refptr(new NetLogSpdySettingsParameter(settings)));
 
   // Create the SETTINGS frame and send it.
   DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<SpdySettingsControlFrame> settings_frame(
-      buffered_spdy_framer_->CreateSettings(settings_map_new));
-  sent_settings_ = true;
+      buffered_spdy_framer_->CreateSettings(settings));
   QueueFrame(settings_frame.get(), HIGHEST, NULL);
 }
 
