@@ -24,7 +24,7 @@ namespace files {
 // than on Windows or Linux. FilePathWatcher on Linux and Windows will detect
 // modifications to files in a watched directory. FilePathWatcher on Mac will
 // detect the creation and deletion of files in a watched directory, but will
-// not detect modifications to those files. See file_path_watcher_mac.cc for
+// not detect modifications to those files. See file_path_watcher_kqueue.cc for
 // details.
 class BASE_EXPORT FilePathWatcher {
  public:
