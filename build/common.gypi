@@ -1037,7 +1037,7 @@
                          '-E', 'CHROMIUM_BUILD=chromium'],
       }],
       ['chromeos==1', {
-        'grit_defines': ['-D', 'chromeos'],
+        'grit_defines': ['-D', 'chromeos', '-D', 'scale_factors=2x'],
       }],
       ['toolkit_views==1', {
         'grit_defines': ['-D', 'toolkit_views'],
