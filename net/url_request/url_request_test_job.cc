@@ -247,6 +247,11 @@ void URLRequestTestJob::ProcessNextOperation() {
         if (!ReadRawData(async_buf_, async_buf_size_, &bytes_read))
           NOTREACHED() << "This should not return false in DATA_AVAILABLE.";
         SetStatus(URLRequestStatus());  // clear the io pending flag
+        if (NextReadAsync()) {
+          // Make all future reads return io pending until the next
+          // ProcessNextOperation().
+          stage_ = WAITING;
+        }
         NotifyReadComplete(bytes_read);
       }
       break;
@@ -263,6 +268,10 @@ void URLRequestTestJob::ProcessNextOperation() {
       NOTREACHED() << "Invalid stage";
       return;
   }
+}
+
+bool URLRequestTestJob::NextReadAsync() {
+  return false;
 }
 
 void URLRequestTestJob::AdvanceJob() {
