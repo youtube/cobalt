@@ -50,6 +50,7 @@ enum ProcStatsFields {
 
 // Reads /proc/<pid>/stat into |buffer|. Returns true if successful.
 bool ReadProcStats(pid_t pid, std::string* buffer) {
+  buffer->clear();
   // Synchronously reading files in /proc is safe.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
