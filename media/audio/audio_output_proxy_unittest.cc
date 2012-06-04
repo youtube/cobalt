@@ -465,6 +465,10 @@ TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying_Mixer) {
   EXPECT_TRUE(proxy2->Open());
 
   proxy1->Start(&callback_);
+
+  // Mute the proxy. Resulting stream should still have correct length.
+  proxy1->SetVolume(0.0);
+
   uint8 zeroes[4] = {0, 0, 0, 0};
   uint8 buf1[4] = {0};
   EXPECT_CALL(callback_,
