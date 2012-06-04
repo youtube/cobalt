@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,9 +24,9 @@ FilePath GetXDGUserDirectory(Environment* env, const char* dir_name,
                              const char* fallback_dir) {
   char* xdg_dir = xdg_user_dir_lookup(dir_name);
   if (xdg_dir) {
-    FilePath rv(xdg_dir);
+    FilePath path(xdg_dir);
     free(xdg_dir);
-    return rv;
+    return path.StripTrailingSeparators();
   }
   return file_util::GetHomeDir().Append(fallback_dir);
 }
