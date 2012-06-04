@@ -10,6 +10,7 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/file_path.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop_proxy.h"
@@ -28,9 +29,16 @@ namespace files {
 // details.
 class BASE_EXPORT FilePathWatcher {
  public:
+  // Callback type for Watch(). |path| points to the file that was updated,
+  // and |error| is true if the platform specific code detected an error. In
+  // that case, the callback won't be invoked again.
+  typedef base::Callback<void(const FilePath& path, bool error)> Callback;
+
   // Declares the callback client code implements to receive notifications. Note
   // that implementations of this interface should not keep a reference to the
   // corresponding FileWatcher object to prevent a reference cycle.
+  //
+  // Deprecated: see comment on Watch() below.
   class Delegate : public base::RefCountedThreadSafe<Delegate> {
    public:
     virtual void OnFilePathChanged(const FilePath& path) = 0;
@@ -104,8 +112,17 @@ class BASE_EXPORT FilePathWatcher {
   // back for each change. Returns true on success.
   // OnFilePathChanged() will be called on the same thread as Watch() is called,
   // which should have a MessageLoop of TYPE_IO.
+  //
+  // Deprecated: new code should use the callback interface, declared below.
+  // The FilePathWatcher::Delegate interface will be removed once all client
+  // code has been updated. http://crbug.com/130980
   virtual bool Watch(const FilePath& path, Delegate* delegate)
       WARN_UNUSED_RESULT;
+
+  // Invokes |callback| whenever updates to |path| are detected. This should be
+  // called at most once, and from a MessageLoop of TYPE_IO. The callback will
+  // be invoked on the same loop. Returns true on success.
+  bool Watch(const FilePath& path, const Callback& callback);
 
  private:
   scoped_refptr<PlatformDelegate> impl_;
