@@ -21,6 +21,8 @@ Local changes:
  * Removed examples/, documentation and build related files, keeping only
    the contents of src/.
  * Merged COPYING/PATENTS to LICENSE
+ * Add BGRX and RGBX variants to the WEBPImportPicture API (needs to be
+   upstreamed to libwebp master).
 Upstream cherry-picks:
 7bb6a9c idec: fix internal state corruption
 89cd1bb idec: fix WebPIUpdate failure
