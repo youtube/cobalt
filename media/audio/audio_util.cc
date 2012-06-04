@@ -260,7 +260,7 @@ static void InterleaveFloatToInt(const std::vector<float*>& source,
 
 void InterleaveFloatToInt(const std::vector<float*>& source, void* dst,
                           size_t number_of_frames, int bytes_per_sample) {
-  switch(bytes_per_sample) {
+  switch (bytes_per_sample) {
     case 1:
       InterleaveFloatToInt<uint8, int32>(source, dst, number_of_frames);
       break;
@@ -281,6 +281,8 @@ void InterleaveFloatToInt(const std::vector<float*>& source, void* dst,
 //             when we have to adjust volume as well.
 template<class Format, class Fixed, int min_value, int max_value, int bias>
 static void MixStreams(Format* dst, Format* src, int count, float volume) {
+  if (volume == 0.0f)
+    return;
   if (volume == 1.0f) {
     // Most common case -- no need to adjust volume.
     for (int i = 0; i < count; ++i) {
