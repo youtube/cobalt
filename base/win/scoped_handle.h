@@ -82,11 +82,12 @@ class GenericScopedHandle {
   // Explicitly closes the owned handle.
   void Close() {
     if (Traits::IsHandleValid(handle_)) {
-      if (!Traits::CloseHandle(handle_)) {
-        CHECK(false);
-      }
       Verifier::StopTracking(handle_, this,
-                             tracked_objects::GetProgramCounter());
+                              tracked_objects::GetProgramCounter());
+
+      if (!Traits::CloseHandle(handle_))
+        CHECK(false);
+
       handle_ = Traits::NullHandle();
     }
   }
