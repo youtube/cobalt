@@ -4,6 +4,8 @@
 
 #include "base/nix/xdg_util.h"
 
+#include <string>
+
 #include "base/environment.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -14,21 +16,25 @@ namespace nix {
 
 FilePath GetXDGDirectory(Environment* env, const char* env_name,
                          const char* fallback_dir) {
+  FilePath path;
   std::string env_value;
   if (env->GetVar(env_name, &env_value) && !env_value.empty())
-    return FilePath(env_value);
-  return file_util::GetHomeDir().Append(fallback_dir);
+    path = FilePath(env_value);
+  else
+    path = file_util::GetHomeDir().Append(fallback_dir);
+  return path.StripTrailingSeparators();
 }
 
-FilePath GetXDGUserDirectory(Environment* env, const char* dir_name,
-                             const char* fallback_dir) {
+FilePath GetXDGUserDirectory(const char* dir_name, const char* fallback_dir) {
+  FilePath path;
   char* xdg_dir = xdg_user_dir_lookup(dir_name);
   if (xdg_dir) {
-    FilePath path(xdg_dir);
+    path = FilePath(xdg_dir);
     free(xdg_dir);
-    return path.StripTrailingSeparators();
+  } else {
+    path = file_util::GetHomeDir().Append(fallback_dir);
   }
-  return file_util::GetHomeDir().Append(fallback_dir);
+  return path.StripTrailingSeparators();
 }
 
 DesktopEnvironment GetDesktopEnvironment(Environment* env) {
