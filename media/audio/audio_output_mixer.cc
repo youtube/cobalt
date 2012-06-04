@@ -194,11 +194,7 @@ uint32 AudioOutputMixer::OnMoreData(uint8* dest,
         AudioBuffersState(proxy_data->pending_bytes, 0));
     if (actual_size == 0)
       continue;
-
-    // No need to mix muted stream.
     double volume = proxy_data->volume;
-    if (volume == 0.0)
-      continue;
 
     // Different handling for first and all subsequent streams.
     if (first_stream) {
