@@ -340,7 +340,8 @@ TEST_F(StatsTableTest, StatsCounterTimer) {
 }
 
 // Test some basic StatsRate operations
-TEST_F(StatsTableTest, StatsRate) {
+// Usually fails on all platforms when run alone. http://crbug.com/131024
+TEST_F(StatsTableTest, DISABLED_StatsRate) {
   // Create a stats table.
   const std::string kTableName = "StatTable";
   const int kMaxThreads = 20;
