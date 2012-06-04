@@ -1579,11 +1579,13 @@ EVENT_TYPE(DOWNLOAD_ITEM_CANCELED)
 //   }
 EVENT_TYPE(DOWNLOAD_FILE_OPENED)
 
-// This event is created when a download file is written to.
+// This event is created when the stream between download source
+// and download file is drained.
 //   {
-//     "byte_count": <Number of bytes written in this call>,
+//     "stream_size": <Total size of all bytes drained from the stream>
+//     "num_buffers": <How many separate buffers those bytes were in>
 //   }
-EVENT_TYPE(DOWNLOAD_FILE_WRITTEN)
+EVENT_TYPE(DOWNLOAD_STREAM_DRAINED)
 
 // This event is created when a download file is renamed.
 //   {
