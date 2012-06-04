@@ -146,7 +146,7 @@ class BASE_EXPORT VerifierTraits {
   DISALLOW_IMPLICIT_CONSTRUCTORS(VerifierTraits);
 };
 
-typedef GenericScopedHandle<HandleTraits, DummyVerifierTraits> ScopedHandle;
+typedef GenericScopedHandle<HandleTraits, VerifierTraits> ScopedHandle;
 
 }  // namespace win
 }  // namespace base
