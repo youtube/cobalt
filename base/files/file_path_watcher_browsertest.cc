@@ -119,13 +119,32 @@ class TestDelegate : public FilePathWatcher::Delegate {
   DISALLOW_COPY_AND_ASSIGN(TestDelegate);
 };
 
-void SetupWatchCallback(const FilePath& target,
+void SetupWatchDelegate(const FilePath& target,
                         FilePathWatcher* watcher,
                         FilePathWatcher::Delegate* delegate,
                         bool* result,
                         base::WaitableEvent* completion) {
   *result = watcher->Watch(target, delegate);
   completion->Signal();
+}
+
+void SetupWatchCallback(const FilePath& target,
+                        FilePathWatcher* watcher,
+                        const FilePathWatcher::Callback& callback) {
+  ASSERT_TRUE(watcher->Watch(target, callback));
+}
+
+void QuitLoopWatchCallback(MessageLoop* loop,
+                           const FilePath& expected_path,
+                           bool expected_error,
+                           bool* flag,
+                           const FilePath& path,
+                           bool error) {
+  ASSERT_TRUE(flag);
+  *flag = true;
+  EXPECT_EQ(expected_path, path);
+  EXPECT_EQ(expected_error, error);
+  loop->PostTask(FROM_HERE, loop->QuitClosure());
 }
 
 class FilePathWatcherTest : public testing::Test {
@@ -170,7 +189,7 @@ class FilePathWatcherTest : public testing::Test {
     bool result;
     file_thread_.message_loop_proxy()->PostTask(
         FROM_HERE,
-        base::Bind(SetupWatchCallback, target, watcher,
+        base::Bind(SetupWatchDelegate, target, watcher,
                    make_scoped_refptr(delegate), &result, &completion));
     completion.Wait();
     return result;
@@ -237,6 +256,32 @@ TEST_F(FilePathWatcherTest, DeletedFile) {
   // Now make sure we get notified if the file is deleted.
   file_util::Delete(test_file(), false);
   ASSERT_TRUE(WaitForEvents());
+}
+
+TEST_F(FilePathWatcherTest, Callback) {
+  FilePathWatcher watcher;
+  bool called_back = false;
+
+  MessageLoop* file_loop = file_thread_.message_loop();
+  ASSERT_TRUE(file_loop);
+  // The callback makes |loop_| quit on file events, and flips |called_back|
+  // to true.
+  FilePathWatcher::Callback callback = base::Bind(
+      QuitLoopWatchCallback, &loop_, test_file(), false, &called_back);
+
+  // Start watching on the file thread, and unblock the loop once the callback
+  // has been installed.
+  file_thread_.message_loop_proxy()->PostTaskAndReply(
+      FROM_HERE,
+      base::Bind(SetupWatchCallback, test_file(), &watcher, callback),
+      base::Bind(&MessageLoop::Quit, base::Unretained(&loop_)));
+  loop_.Run();
+
+  // The watch has been installed. Trigger a file event now, which will unblock
+  // the loop again.
+  ASSERT_TRUE(WriteFile(test_file(), "content"));
+  loop_.Run();
+  EXPECT_TRUE(called_back);
 }
 
 // Used by the DeleteDuringNotify test below.
