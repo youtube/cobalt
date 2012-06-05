@@ -328,6 +328,8 @@ typedef struct {
 #define ssl_V3_SUITES_IMPLEMENTED 30
 #endif /* NSS_ENABLE_ECC */
 
+#define MAX_DTLS_SRTP_CIPHER_SUITES 4
+
 typedef struct sslOptionsStr {
     /* If SSL_SetNextProtoNego has been called, then this contains the
      * list of supported protocols. */
@@ -951,6 +953,11 @@ struct ssl3StateStr {
     SSLNextProtoState    nextProtoState;
 
     PRUint16             mtu;   /* Our estimate of the MTU */
+
+    /* DTLS-SRTP cipher suite preferences (if any) */
+    PRUint16             dtlsSRTPCiphers[MAX_DTLS_SRTP_CIPHER_SUITES];
+    PRUint16             dtlsSRTPCipherCount;
+    PRUint16             dtlsSRTPCipherSuite;	/* 0 if not selected */
 };
 
 #define DTLS_MAX_MTU  1500      /* Ethernet MTU but without subtracting the

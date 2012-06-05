@@ -88,6 +88,10 @@ static PRInt32 ssl3_ClientSendNextProtoNegoXtn(sslSocket *ss, PRBool append,
 					       PRUint32 maxBytes);
 static PRInt32 ssl3_ClientSendChannelIDXtn(sslSocket *ss, PRBool append,
 					  PRUint32 maxBytes);
+static PRInt32 ssl3_SendUseSRTPXtn(sslSocket *ss, PRBool append,
+    PRUint32 maxBytes);
+static SECStatus ssl3_HandleUseSRTPXtn(sslSocket * ss, PRUint16 ex_type,
+    SECItem *data);
 
 /*
  * Write bytes.  Using this function means the SECItem structure
@@ -246,6 +250,7 @@ static const ssl3HelloExtensionHandler clientHelloHandlers[] = {
     { ssl_session_ticket_xtn,     &ssl3_ServerHandleSessionTicketXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_nego_xtn,    &ssl3_ServerHandleNextProtoNegoXtn },
+    { ssl_use_srtp_xtn,           &ssl3_HandleUseSRTPXtn },
     { -1, NULL }
 };
 
@@ -259,6 +264,7 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_next_proto_nego_xtn,    &ssl3_ClientHandleNextProtoNegoXtn },
     { ssl_channel_id_xtn,          &ssl3_ClientHandleChannelIDXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientHandleStatusRequestXtn },
+    { ssl_use_srtp_xtn,           &ssl3_HandleUseSRTPXtn},
     { -1, NULL }
 };
 
@@ -284,7 +290,8 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
     { ssl_next_proto_nego_xtn,    &ssl3_ClientSendNextProtoNegoXtn },
     { ssl_channel_id_xtn,         &ssl3_ClientSendChannelIDXtn },
-    { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn }
+    { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn },
+    { ssl_use_srtp_xtn,           &ssl3_SendUseSRTPXtn }
     /* any extra entries will appear as { 0, NULL }    */
 };
 
@@ -1782,3 +1789,206 @@ ssl3_HandleRenegotiationInfoXtn(sslSocket *ss, PRUint16 ex_type, SECItem *data)
     return rv;
 }
 
+static PRInt32
+ssl3_SendUseSRTPXtn(sslSocket *ss, PRBool append, PRUint32 maxBytes)
+{
+    PRUint32 ext_data_len;
+    PRInt16 i;
+    SECStatus rv;
+
+    if (!ss)
+	return 0;
+
+    if (!ss->sec.isServer) {
+	/* Client side */
+
+	if (!IS_DTLS(ss) || !ss->ssl3.dtlsSRTPCipherCount)
+	    return 0;  /* Not relevant */
+
+	ext_data_len = 2 + 2 * ss->ssl3.dtlsSRTPCipherCount + 1;
+
+	if (append && maxBytes >= 4 + ext_data_len) {
+	    /* Extension type */
+	    rv = ssl3_AppendHandshakeNumber(ss, ssl_use_srtp_xtn, 2);
+	    if (rv != SECSuccess) return -1;
+	    /* Length of extension data */
+	    rv = ssl3_AppendHandshakeNumber(ss, ext_data_len, 2);
+	    if (rv != SECSuccess) return -1;
+	    /* Length of the SRTP cipher list */
+	    rv = ssl3_AppendHandshakeNumber(ss,
+					    2 * ss->ssl3.dtlsSRTPCipherCount,
+					    2);
+	    if (rv != SECSuccess) return -1;
+	    /* The SRTP ciphers */
+	    for (i = 0; i < ss->ssl3.dtlsSRTPCipherCount; i++) {
+		rv = ssl3_AppendHandshakeNumber(ss,
+						ss->ssl3.dtlsSRTPCiphers[i],
+						2);
+	    }
+	    /* Empty MKI value */
+	    ssl3_AppendHandshakeVariable(ss, NULL, 0, 1);
+
+	    ss->xtnData.advertised[ss->xtnData.numAdvertised++] =
+		ssl_use_srtp_xtn;
+	}
+
+	return 4 + ext_data_len;
+    }
+
+    /* Server side */
+    if (append && maxBytes >= 9) {
+	/* Extension type */
+	rv = ssl3_AppendHandshakeNumber(ss, ssl_use_srtp_xtn, 2);
+	if (rv != SECSuccess) return -1;
+	/* Length of extension data */
+	rv = ssl3_AppendHandshakeNumber(ss, 5, 2);
+	if (rv != SECSuccess) return -1;
+	/* Length of the SRTP cipher list */
+	rv = ssl3_AppendHandshakeNumber(ss, 2, 2);
+	if (rv != SECSuccess) return -1;
+	/* The selected cipher */
+	rv = ssl3_AppendHandshakeNumber(ss, ss->ssl3.dtlsSRTPCipherSuite, 2);
+	if (rv != SECSuccess) return -1;
+	/* Empty MKI value */
+	ssl3_AppendHandshakeVariable(ss, NULL, 0, 1);
+    }
+
+    return 9;
+}
+
+static SECStatus
+ssl3_HandleUseSRTPXtn(sslSocket * ss, PRUint16 ex_type, SECItem *data)
+{
+    SECStatus rv;
+    SECItem ciphers = {siBuffer, NULL, 0};
+    PRInt16 i;
+    PRInt16 j;
+    PRUint16 cipher = 0;
+    PRBool found = PR_FALSE;
+    SECItem litem;
+
+    if (!ss->sec.isServer) {
+	/* Client side */
+	if (!data->data || !data->len) {
+            /* malformed */
+            return SECFailure;
+	}
+
+	/* Get the cipher list */
+	rv = ssl3_ConsumeHandshakeVariable(ss, &ciphers, 2,
+					   &data->data, &data->len);
+	if (rv != SECSuccess) {
+	    return SECFailure;
+	}
+	/* Now check that the number of ciphers listed is 1 (len = 2) */
+	if (ciphers.len != 2) {
+	    return SECFailure;
+	}
+
+	/* Get the selected cipher */
+	cipher = (ciphers.data[0] << 8) | ciphers.data[1];
+
+	/* Now check that this is one of the ciphers we offered */
+	for (i = 0; i < ss->ssl3.dtlsSRTPCipherCount; i++) {
+	    if (cipher == ss->ssl3.dtlsSRTPCiphers[i]) {
+		found = PR_TRUE;
+		break;
+	    }
+	}
+
+	if (!found) {
+	    return SECFailure;
+	}
+
+	/* Get the srtp_mki value */
+        rv = ssl3_ConsumeHandshakeVariable(ss, &litem, 1,
+					   &data->data, &data->len);
+        if (rv != SECSuccess) {
+            return SECFailure;
+        }
+
+	/* We didn't offer an MKI, so this must be 0 length */
+	/* XXX RFC 5764 Section 4.1.3 says:
+	 *   If the client detects a nonzero-length MKI in the server's
+	 *   response that is different than the one the client offered,
+	 *   then the client MUST abort the handshake and SHOULD send an
+	 *   invalid_parameter alert.
+	 *
+	 * Due to a limitation of the ssl3_HandleHelloExtensions function,
+	 * returning SECFailure here won't abort the handshake.  It will
+	 * merely cause the use_srtp extension to be not negotiated.  We
+	 * should fix this.  See NSS bug 753136.
+	 */
+	if (litem.len != 0) {
+	    return SECFailure;
+	}
+
+	if (data->len != 0) {
+            /* malformed */
+            return SECFailure;
+	}
+
+	/* OK, this looks fine. */
+	ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ssl_use_srtp_xtn;
+	ss->ssl3.dtlsSRTPCipherSuite = cipher;
+	return SECSuccess;
+    }
+
+    /* Server side */
+    if (!IS_DTLS(ss) || !ss->ssl3.dtlsSRTPCipherCount) {
+	/* Ignore the extension if we aren't doing DTLS or no DTLS-SRTP
+	 * preferences have been set. */
+	return SECSuccess;
+    }
+
+    if (!data->data || data->len < 5) {
+	/* malformed */
+	return SECFailure;
+    }
+
+    /* Get the cipher list */
+    rv = ssl3_ConsumeHandshakeVariable(ss, &ciphers, 2,
+				       &data->data, &data->len);
+    if (rv != SECSuccess) {
+	return SECFailure;
+    }
+    /* Check that the list is even length */
+    if (ciphers.len % 2) {
+	return SECFailure;
+    }
+
+    /* Walk through the offered list and pick the most preferred of our
+     * ciphers, if any */
+    for (i = 0; !found && i < ss->ssl3.dtlsSRTPCipherCount; i++) {
+	for (j = 0; j + 1 < ciphers.len; j += 2) {
+	    cipher = (ciphers.data[j] << 8) | ciphers.data[j + 1];
+	    if (cipher == ss->ssl3.dtlsSRTPCiphers[i]) {
+		found = PR_TRUE;
+		break;
+	    }
+	}
+    }
+
+    /* Get the srtp_mki value */
+    rv = ssl3_ConsumeHandshakeVariable(ss, &litem, 1, &data->data, &data->len);
+    if (rv != SECSuccess) {
+	return SECFailure;
+    }
+
+    if (data->len != 0) {
+	return SECFailure; /* Malformed */
+    }
+
+    /* Now figure out what to do */
+    if (!found) {
+	/* No matching ciphers */
+	return SECSuccess;
+    }
+
+    /* OK, we have a valid cipher and we've selected it */
+    ss->ssl3.dtlsSRTPCipherSuite = cipher;
+    ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ssl_use_srtp_xtn;
+
+    return ssl3_RegisterServerHelloExtensionSender(ss, ssl_use_srtp_xtn,
+						   ssl3_SendUseSRTPXtn);
+}
