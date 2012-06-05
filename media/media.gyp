@@ -226,8 +226,6 @@
         'filters/gpu_video_decoder.h',
         'filters/in_memory_url_protocol.cc',
         'filters/in_memory_url_protocol.h',
-        'filters/source_buffer.cc',
-        'filters/source_buffer.h',
         'filters/source_buffer_stream.cc',
         'filters/source_buffer_stream.h',
         'filters/video_frame_generator.cc',
