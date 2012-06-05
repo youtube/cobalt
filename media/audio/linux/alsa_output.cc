@@ -335,9 +335,6 @@ void AlsaPcmOutputStream::Stop() {
   // Reset the callback, so that it is not called anymore.
   set_source_callback(NULL);
 
-  // Finish playing samples and pause the pcm.
-  wrapper_->PcmDrain(playback_handle_);
-
   TransitionTo(kIsStopped);
 }
 
