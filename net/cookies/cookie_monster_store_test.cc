@@ -78,9 +78,7 @@ void MockPersistentCookieStore::Flush(const base::Closure& callback) {
     MessageLoop::current()->PostTask(FROM_HERE, callback);
 }
 
-// No files are created so nothing to clear either
-void
-MockPersistentCookieStore::SetClearLocalStateOnExit(bool clear_local_state) {
+void MockPersistentCookieStore::SetForceKeepSessionState() {
 }
 
 MockPersistentCookieStore::~MockPersistentCookieStore() {}
@@ -193,8 +191,7 @@ void MockSimplePersistentCookieStore::Flush(const base::Closure& callback) {
     MessageLoop::current()->PostTask(FROM_HERE, callback);
 }
 
-void MockSimplePersistentCookieStore::SetClearLocalStateOnExit(
-    bool clear_local_state) {
+void MockSimplePersistentCookieStore::SetForceKeepSessionState() {
 }
 
 CookieMonster* CreateMonsterFromStoreForGC(
