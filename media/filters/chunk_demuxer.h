@@ -13,8 +13,7 @@
 #include "base/synchronization/lock.h"
 #include "media/base/byte_queue.h"
 #include "media/base/demuxer.h"
-#include "media/base/stream_parser.h"
-#include "media/filters/source_buffer_stream.h"
+#include "media/filters/source_buffer.h"
 
 namespace media {
 
@@ -78,6 +77,26 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // it can accept a new segment.
   void Abort(const std::string& id);
 
+  // Accesses the configs associated with the current playback buffers.
+  const AudioDecoderConfig& GetCurrentAudioDecoderConfig();
+  const VideoDecoderConfig& GetCurrentVideoDecoderConfig();
+
+  // Fills |out_buffer| with a new buffer from the current SourceBufferStream
+  // indicated by |type|.
+  // Returns true if |out_buffer| is filled with a valid buffer.
+  // Returns false if SourceBuffer can not fulfill the request or if |type| is
+  // not AUDIO or VIDEO.
+  // Two versions needed (Locked and not Locked) because this method is called
+  // during a Read() when ChunkDemuxer IS NOT locked and from
+  // ChunkDemuxerStream::CreateReadDoneClosures_Locked() when
+  // OnBuffersAvailable() is called and ChunkDemuxer IS locked.
+  // TODO(acolwell): Investigate a cleaner solution to SourceBufferRead locking
+  // requirements. crbug.com/129849
+  bool SourceBufferRead_Locked(DemuxerStream::Type type,
+                               scoped_refptr<StreamParserBuffer>* out_buffer);
+  bool SourceBufferRead(DemuxerStream::Type type,
+                        scoped_refptr<StreamParserBuffer>* out_buffer);
+
   // Signals an EndOfStream request.
   // Returns false if called in an unexpected state or if there is a gap between
   // the current position and the end of the buffered data.
@@ -103,19 +122,12 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // data.
   void ReportError_Locked(PipelineStatus error);
 
-  // Returns true if any stream has seeked to a time without buffered data.
-  bool IsSeekPending_Locked() const;
-
-  // Returns true if all streams can successfully call EndOfStream,
-  // false if any can not.
-  bool CanEndOfStream_Locked() const;
-
-  // StreamParser callbacks.
-  void OnStreamParserInitDone(bool success, base::TimeDelta duration);
+  // SourceBuffer callbacks.
+  void OnSourceBufferInitDone(bool success, base::TimeDelta duration);
   bool OnNewConfigs(const AudioDecoderConfig& audio_config,
                     const VideoDecoderConfig& video_config);
-  bool OnAudioBuffers(const StreamParser::BufferQueue& buffers);
-  bool OnVideoBuffers(const StreamParser::BufferQueue& buffers);
+  bool OnAudioBuffers();
+  bool OnVideoBuffers();
   bool OnKeyNeeded(scoped_array<uint8> init_data, int init_data_size);
 
   mutable base::Lock lock_;
@@ -133,12 +145,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   base::TimeDelta duration_;
 
-  scoped_ptr<StreamParser> stream_parser_;
-
-  // TODO(annacc): Remove these when fixing: http://crbug.com/122909
-  // Used to ensure config data matches the type and codec provided in AddId().
-  bool has_audio_;
-  bool has_video_;
+  scoped_ptr<SourceBuffer> source_buffer_;
 
   // TODO(acolwell): Remove this when fixing http://crbug.com/122909
   std::string source_id_;
