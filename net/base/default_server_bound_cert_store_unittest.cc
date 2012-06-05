@@ -29,7 +29,7 @@ class MockPersistentStore
       const DefaultServerBoundCertStore::ServerBoundCert& cert) OVERRIDE;
   virtual void DeleteServerBoundCert(
       const DefaultServerBoundCertStore::ServerBoundCert& cert) OVERRIDE;
-  virtual void SetClearLocalStateOnExit(bool clear_local_state) OVERRIDE;
+  virtual void SetForceKeepSessionState() OVERRIDE;
   virtual void Flush(const base::Closure& completion_task) OVERRIDE;
 
  protected:
@@ -66,7 +66,7 @@ void MockPersistentStore::DeleteServerBoundCert(
   origin_certs_.erase(cert.server_identifier());
 }
 
-void MockPersistentStore::SetClearLocalStateOnExit(bool clear_local_state) {}
+void MockPersistentStore::SetForceKeepSessionState() {}
 
 void MockPersistentStore::Flush(const base::Closure& completion_task) {
   NOTREACHED();
