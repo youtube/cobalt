@@ -34,7 +34,7 @@ struct timespec TimeDelta::ToTimeSpec() const {
   }
   struct timespec result =
       {seconds,
-       microseconds * Time::kNanosecondsPerMicrosecond};
+       static_cast<long>(microseconds * Time::kNanosecondsPerMicrosecond)};
   return result;
 }
 
