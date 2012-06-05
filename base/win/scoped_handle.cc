@@ -40,7 +40,7 @@ void VerifierTraits::StartTracking(HANDLE handle, const void* owner,
   // Grab the thread id before the lock.
   DWORD thread_id = GetCurrentThreadId();
 
-  AutoLock(g_lock.Get());
+  AutoLock lock(g_lock.Get());
 
   if (handle == INVALID_HANDLE_VALUE) {
     // Cannot track this handle.
@@ -64,7 +64,7 @@ void VerifierTraits::StopTracking(HANDLE handle, const void* owner,
   if (OSInfo::GetInstance()->version() > VERSION_XP)
     return;
 
-  AutoLock(g_lock.Get());
+  AutoLock lock(g_lock.Get());
   HandleMap::iterator i = g_handle_map.Get().find(handle);
   if (i == g_handle_map.Get().end()) {
     std::set<const void*>::iterator j = g_owner_set.Get().find(owner);
