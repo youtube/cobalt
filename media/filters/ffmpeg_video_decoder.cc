@@ -57,7 +57,8 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(
       codec_context_(NULL),
       av_frame_(NULL),
       frame_rate_numerator_(0),
-      frame_rate_denominator_(0) {
+      frame_rate_denominator_(0),
+      decryptor_(NULL) {
 }
 
 void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -172,8 +173,9 @@ const gfx::Size& FFmpegVideoDecoder::natural_size() {
   return natural_size_;
 }
 
-AesDecryptor* FFmpegVideoDecoder::decryptor() {
-  return &decryptor_;
+void FFmpegVideoDecoder::set_decryptor(AesDecryptor* decryptor) {
+  DCHECK_EQ(state_, kUninitialized);
+  decryptor_ = decryptor;
 }
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder() {
@@ -267,7 +269,8 @@ void FFmpegVideoDecoder::DoDecodeBuffer(
 
   scoped_refptr<DecoderBuffer> unencrypted_buffer = buffer;
   if (buffer->GetDecryptConfig() && buffer->GetDataSize()) {
-    unencrypted_buffer = decryptor_.Decrypt(buffer);
+    unencrypted_buffer = decryptor_->Decrypt(buffer);
+
     if (!unencrypted_buffer || !unencrypted_buffer->GetDataSize()) {
       state_ = kDecodeFinished;
       base::ResetAndReturn(&read_cb_).Run(kDecryptError, NULL);

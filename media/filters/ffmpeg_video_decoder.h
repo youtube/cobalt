@@ -33,7 +33,9 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   virtual void Stop(const base::Closure& closure) OVERRIDE;
   virtual const gfx::Size& natural_size() OVERRIDE;
 
-  AesDecryptor* decryptor();
+  // Must be called prior to initialization if decrypted buffers will be
+  // encountered.
+  void set_decryptor(AesDecryptor* decryptor);
 
  protected:
   virtual ~FFmpegVideoDecoder();
@@ -99,7 +101,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // Pointer to the demuxer stream that will feed us compressed buffers.
   scoped_refptr<DemuxerStream> demuxer_stream_;
 
-  AesDecryptor decryptor_;
+  AesDecryptor* decryptor_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoder);
 };
