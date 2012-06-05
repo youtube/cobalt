@@ -169,13 +169,14 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       stop_stream_(false),
       wrapper_(wrapper),
       manager_(manager),
+      message_loop_(MessageLoop::current()),
       playback_handle_(NULL),
       frames_per_packet_(packet_size_ / bytes_per_frame_),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       state_(kCreated),
       volume_(1.0f),
       source_callback_(NULL) {
-  DCHECK(IsOnAudioThread());
+  DCHECK(manager_->GetMessageLoop()->BelongsToCurrentThread());
 
   // Sanity check input values.
   if (params.sample_rate() > kAlsaMaxSampleRate ||
@@ -548,7 +549,7 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
 
   // Only schedule more reads/writes if we are still in the playing state.
   if (state() == kIsPlaying) {
-    manager_->GetMessageLoop()->PostDelayedTask(
+    message_loop_->PostDelayedTask(
         FROM_HERE,
         base::Bind(&AlsaPcmOutputStream::WriteTask,
                    weak_factory_.GetWeakPtr()),
@@ -780,8 +781,7 @@ AlsaPcmOutputStream::InternalState AlsaPcmOutputStream::state() {
 }
 
 bool AlsaPcmOutputStream::IsOnAudioThread() const {
-  return !manager_->GetMessageLoop() ||
-         manager_->GetMessageLoop()->BelongsToCurrentThread();
+  return message_loop_ && message_loop_ == MessageLoop::current();
 }
 
 uint32 AlsaPcmOutputStream::RunDataCallback(uint8* dest,
