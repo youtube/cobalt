@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,6 +16,11 @@
 namespace base {
 
 static const char kFindInodeSwitch[] = "--find-inode";
+
+// This should be kept in sync with sandbox/linux/suid/sandbox.c
+static const long kSUIDSandboxApiNumber = 0;
+static const char kSandboxEnvironmentApiRequest[] = "SBX_CHROME_API_RQ";
+static const char kSandboxEnvironmentApiProvides[] = "SBX_CHROME_API_PRV";
 
 // This is declared here so the crash reporter can access the memory directly
 // in compromised context without going through the standard library.
