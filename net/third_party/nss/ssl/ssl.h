@@ -834,6 +834,28 @@ NSS_GetClientAuthData(void *                       arg,
                       struct SECKEYPrivateKeyStr **pRetKey);
 
 /*
+** Configure DTLS-SRTP (RFC 5764) cipher suite preferences.
+** Input is a list of ciphers in descending preference order and a length
+** of the list. As a side effect, this causes the use_srtp extension to be
+** negotiated.
+**
+** Invalid or unimplemented cipher suites in |ciphers| are ignored. If at
+** least one cipher suite in |ciphers| is implemented, returns SECSuccess.
+** Otherwise returns SECFailure.
+*/
+SSL_IMPORT SECStatus SSL_SetSRTPCiphers(PRFileDesc *fd,
+					const PRUint16 *ciphers,
+					unsigned int numCiphers);
+
+/*
+** Get the selected DTLS-SRTP cipher suite (if any).
+** To be called after the handshake completes.
+** Returns SECFailure if not negotiated.
+*/
+SSL_IMPORT SECStatus SSL_GetSRTPCipher(PRFileDesc *fd,
+				       PRUint16 *cipher);
+
+/*
  * Look to see if any of the signers in the cert chain for "cert" are found
  * in the list of caNames.  
  * Returns SECSuccess if so, SECFailure if not.

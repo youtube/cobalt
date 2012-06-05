@@ -223,6 +223,13 @@ FILE *                  ssl_keylog_iob;
 char lockStatus[] = "Locks are ENABLED.  ";
 #define LOCKSTATUS_OFFSET 10 /* offset of ENABLED */
 
+/* SRTP_NULL_HMAC_SHA1_80 and SRTP_NULL_HMAC_SHA1_32 are not implemented. */
+static const PRUint16 srtpCiphers[] = {
+    SRTP_AES128_CM_HMAC_SHA1_80,
+    SRTP_AES128_CM_HMAC_SHA1_32,
+    0
+};
+
 /* forward declarations. */
 static sslSocket *ssl_NewSocket(PRBool makeLocks, SSLProtocolVariant variant);
 static SECStatus  ssl_MakeLocks(sslSocket *ss);
@@ -288,12 +295,6 @@ ssl_DupSocket(sslSocket *os)
     sslSocket *ss;
     SECStatus rv;
 
-    /* Not implemented for datagram */
-    if (IS_DTLS(os)) {
-	PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
-	return NULL;
-    }
-
     ss = ssl_NewSocket((PRBool)(!os->opt.noLocks), os->protocolVariant);
     if (ss) {
 	ss->opt                = os->opt;
@@ -314,6 +315,9 @@ ssl_DupSocket(sslSocket *os)
 	ss->maybeAllowedByPolicy= os->maybeAllowedByPolicy;
 	ss->chosenPreference 	= os->chosenPreference;
 	PORT_Memcpy(ss->cipherSuites, os->cipherSuites, sizeof os->cipherSuites);
+	PORT_Memcpy(ss->ssl3.dtlsSRTPCiphers, os->ssl3.dtlsSRTPCiphers,
+		    sizeof(PRUint16) * os->ssl3.dtlsSRTPCipherCount);
+	ss->ssl3.dtlsSRTPCipherCount = os->ssl3.dtlsSRTPCipherCount;
 
 	if (os->cipherSpecs) {
 	    ss->cipherSpecs  = (unsigned char*)PORT_Alloc(os->sizeCipherSpecs);
@@ -1574,6 +1578,75 @@ SSL_GetNextProto(PRFileDesc *fd, SSLNextProtoState *state, unsigned char *buf,
     return SECSuccess;
 }
 
+SECStatus SSL_SetSRTPCiphers(PRFileDesc *fd,
+			     const PRUint16 *ciphers,
+			     unsigned int numCiphers)
+{
+    sslSocket *ss;
+    int i;
+
+    ss = ssl_FindSocket(fd);
+    if (!ss || !IS_DTLS(ss)) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetSRTPCiphers",
+		 SSL_GETPID(), fd));
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    if (numCiphers > MAX_DTLS_SRTP_CIPHER_SUITES) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    ss->ssl3.dtlsSRTPCipherCount = 0;
+    for (i = 0; i < numCiphers; i++) {
+	const PRUint16 *srtpCipher = srtpCiphers;
+
+	while (*srtpCipher) {
+	    if (ciphers[i] == *srtpCipher)
+		break;
+	    srtpCipher++;
+	}
+	if (*srtpCipher) {
+	    ss->ssl3.dtlsSRTPCiphers[ss->ssl3.dtlsSRTPCipherCount++] =
+		ciphers[i];
+	} else {
+	    SSL_DBG(("%d: SSL[%d]: invalid or unimplemented SRTP cipher "
+		    "suite specified: 0x%04hx", SSL_GETPID(), fd,
+		    ciphers[i]));
+	}
+    }
+
+    if (ss->ssl3.dtlsSRTPCipherCount == 0) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    return SECSuccess;
+}
+
+SECStatus
+SSL_GetSRTPCipher(PRFileDesc *fd, PRUint16 *cipher)
+{
+    sslSocket * ss;
+
+    ss = ssl_FindSocket(fd);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_GetSRTPCipher",
+		 SSL_GETPID(), fd));
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    if (!ss->ssl3.dtlsSRTPCipherSuite) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    *cipher = ss->ssl3.dtlsSRTPCipherSuite;
+    return SECSuccess;
+}
+
 PRFileDesc *
 SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
 {
@@ -1607,6 +1680,9 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
     ss->opt  = sm->opt;
     ss->vrange = sm->vrange;
     PORT_Memcpy(ss->cipherSuites, sm->cipherSuites, sizeof sm->cipherSuites);
+    PORT_Memcpy(ss->ssl3.dtlsSRTPCiphers, sm->ssl3.dtlsSRTPCiphers,
+                sizeof(PRUint16) * sm->ssl3.dtlsSRTPCipherCount);
+    ss->ssl3.dtlsSRTPCipherCount = sm->ssl3.dtlsSRTPCipherCount;
 
     if (!ss->opt.useSecurity) {
         PORT_SetError(SEC_ERROR_INVALID_ARGS);
