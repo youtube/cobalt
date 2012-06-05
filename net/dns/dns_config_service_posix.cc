@@ -13,7 +13,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
-#include "net/dns/file_path_watcher_wrapper.h"
 #include "net/dns/serial_worker.h"
 
 namespace net {
