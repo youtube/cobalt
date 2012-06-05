@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -128,7 +128,7 @@ bool ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
   SECItem encoded_epki = {
     siBuffer,
     const_cast<unsigned char*>(encrypted_private_key_info),
-    encrypted_private_key_info_len
+    static_cast<unsigned>(encrypted_private_key_info_len)
   };
   SECKEYEncryptedPrivateKeyInfo epki;
   memset(&epki, 0, sizeof(epki));
@@ -150,7 +150,7 @@ bool ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
   SECItem password_item = {
     siBuffer,
     reinterpret_cast<unsigned char*>(const_cast<char*>(password.data())),
-    password.size()
+    static_cast<unsigned>(password.size())
   };
 
   rv = ImportEncryptedECPrivateKeyInfoAndReturnKey(
@@ -185,7 +185,7 @@ bool ECPrivateKey::ExportEncryptedPrivateKey(
   SECItem password_item = {
     siBuffer,
     reinterpret_cast<unsigned char*>(const_cast<char*>(password.data())),
-    password.size()
+    static_cast<unsigned>(password.size())
   };
 
   SECKEYEncryptedPrivateKeyInfo* encrypted = PK11_ExportEncryptedPrivKeyInfo(
@@ -264,7 +264,8 @@ ECPrivateKey* ECPrivateKey::CreateWithParams(bool permanent,
   DCHECK_LE(oid_data->oid.len, 127U);
   std::vector<unsigned char> parameters_buf(2 + oid_data->oid.len);
   SECKEYECParams ec_parameters = {
-    siDEROID, &parameters_buf[0], parameters_buf.size()
+    siDEROID, &parameters_buf[0],
+    static_cast<unsigned>(parameters_buf.size())
   };
 
   ec_parameters.data[0] = SEC_ASN1_OBJECT_ID;
@@ -300,7 +301,7 @@ ECPrivateKey* ECPrivateKey::CreateFromEncryptedPrivateKeyInfoWithParams(
   SECItem encoded_spki = {
     siBuffer,
     const_cast<unsigned char*>(&subject_public_key_info[0]),
-    subject_public_key_info.size()
+    static_cast<unsigned>(subject_public_key_info.size())
   };
   CERTSubjectPublicKeyInfo* decoded_spki = SECKEY_DecodeDERSubjectPublicKeyInfo(
       &encoded_spki);

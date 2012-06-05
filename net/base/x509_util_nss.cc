@@ -196,7 +196,7 @@ bool CreateDomainBoundCertInternal(
   SECItem domain_string_item = {
     siAsciiString,
     (unsigned char*)domain.data(),
-    domain.size()
+    static_cast<unsigned>(domain.size())
   };
 
   // IA5Encode and arena allocate SECItem
