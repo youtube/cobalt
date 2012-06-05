@@ -967,20 +967,29 @@ SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
 SSL_IMPORT SECStatus SSL_HandshakeResumedSession(PRFileDesc *fd,
                                                  PRBool *last_handshake_resumed);
 
-/* See SSL_SetClientChannelIDCallback for usage. The callback must return
- * SECFailure or SECSuccess (not SECWouldBlock). On SECSuccess, the callback
- * must have written a P-256, EC key pair to |*out_public_key| and
- * |*out_private_key|. */
+/* See SSL_SetClientChannelIDCallback for usage. If the callback returns
+ * SECWouldBlock then SSL_RestartHandshakeAfterChannelIDReq should be called in
+ * the future to restart the handshake.  On SECSuccess, the callback must have
+ * written a P-256, EC key pair to |*out_public_key| and |*out_private_key|. */
 typedef SECStatus (PR_CALLBACK *SSLClientChannelIDCallback)(
     void *arg,
     PRFileDesc *fd,
     SECKEYPublicKey **out_public_key,
     SECKEYPrivateKey **out_private_key);
 
+/* SSL_RestartHandshakeAfterChannelIDReq attempts to restart the handshake
+ * after a ChannelID callback returned SECWouldBlock.
+ *
+ * This function takes ownership of |channelIDPub| and |channelID|. */
+SSL_IMPORT SECStatus SSL_RestartHandshakeAfterChannelIDReq(
+    PRFileDesc *fd,
+    SECKEYPublicKey *channelIDPub,
+    SECKEYPrivateKey *channelID);
+
 /* SSL_SetClientChannelIDCallback sets a callback function that will be called
- * just before a Channel ID is sent. This is only applicable to a client socket
- * and setting this callback causes the TLS Channel ID extension to be
- * advertised. */
+ * once the server's ServerHello has been processed. This is only applicable to
+ * a client socket and setting this callback causes the TLS Channel ID
+ * extension to be advertised. */
 SSL_IMPORT SECStatus SSL_SetClientChannelIDCallback(
     PRFileDesc *fd,
     SSLClientChannelIDCallback callback,
