@@ -17,7 +17,7 @@ using ::testing::AnyNumber;
 
 namespace media {
 
-const char kNullVideoHash[] = "d41d8cd98f00b204e9800998ecf8427e";
+const char kNullHash[] = "d41d8cd98f00b204e9800998ecf8427e";
 
 PipelineIntegrationTestBase::PipelineIntegrationTestBase()
     : hashing_enabled_(false),
