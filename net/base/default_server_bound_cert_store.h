@@ -76,6 +76,7 @@ class NET_EXPORT DefaultServerBoundCertStore : public ServerBoundCertStore {
   virtual void GetAllServerBoundCerts(
       ServerBoundCertList* server_bound_certs) OVERRIDE;
   virtual int GetCertCount() OVERRIDE;
+  virtual void SetForceKeepSessionState() OVERRIDE;
 
  private:
   static const size_t kMaxCerts;
@@ -139,9 +140,9 @@ class NET_EXPORT DefaultServerBoundCertStore::PersistentStore
 
   virtual void DeleteServerBoundCert(const ServerBoundCert& cert) = 0;
 
-  // Sets the value of the user preference whether the persistent storage
-  // must be deleted upon destruction.
-  virtual void SetClearLocalStateOnExit(bool clear_local_state) = 0;
+  // When invoked, instructs the store to keep session related data on
+  // destruction.
+  virtual void SetForceKeepSessionState() = 0;
 
   // Flush the store and post the given Task when complete.
   virtual void Flush(const base::Closure& completion_task) = 0;

@@ -43,8 +43,8 @@ class NewMockPersistentCookieStore
   MOCK_METHOD1(UpdateCookieAccessTime,
                void(const CookieMonster::CanonicalCookie& cc));
   MOCK_METHOD1(DeleteCookie, void(const CookieMonster::CanonicalCookie& cc));
-  MOCK_METHOD1(SetClearLocalStateOnExit, void(bool clear_local_state));
   MOCK_METHOD1(Flush, void(const base::Closure& callback));
+  MOCK_METHOD0(SetForceKeepSessionState, void());
 
  private:
   virtual ~NewMockPersistentCookieStore() {}
@@ -2220,7 +2220,7 @@ class FlushablePersistentStore : public CookieMonster::PersistentCookieStore {
   void AddCookie(const CookieMonster::CanonicalCookie&) {}
   void UpdateCookieAccessTime(const CookieMonster::CanonicalCookie&) {}
   void DeleteCookie(const CookieMonster::CanonicalCookie&) {}
-  void SetClearLocalStateOnExit(bool clear_local_state) {}
+  void SetForceKeepSessionState() {}
 
   void Flush(const base::Closure& callback) {
     ++flush_count_;

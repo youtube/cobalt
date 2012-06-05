@@ -98,8 +98,7 @@ class MockPersistentCookieStore
 
   virtual void Flush(const base::Closure& callback) OVERRIDE;
 
-  // No files are created so nothing to clear either
-  virtual void SetClearLocalStateOnExit(bool clear_local_state) OVERRIDE;
+  virtual void SetForceKeepSessionState() OVERRIDE;
 
  protected:
   virtual ~MockPersistentCookieStore();
@@ -178,7 +177,7 @@ class MockSimplePersistentCookieStore
 
   virtual void Flush(const base::Closure& callback) OVERRIDE;
 
-  virtual void SetClearLocalStateOnExit(bool clear_local_state) OVERRIDE;
+  virtual void SetForceKeepSessionState() OVERRIDE;
 
  protected:
   virtual ~MockSimplePersistentCookieStore();
