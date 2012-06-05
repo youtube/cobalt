@@ -117,7 +117,7 @@ class PipelineIntegrationTest
         NetworkEventCB(), QuitOnStatusCB(PIPELINE_OK));
 
     ASSERT_TRUE(decoder_.get());
-    source.set_decryptor(decoder_->decryptor());
+    source.set_decryptor(decryptor_.get());
 
     message_loop_.Run();
   }
