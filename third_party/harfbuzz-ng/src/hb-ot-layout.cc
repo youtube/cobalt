@@ -460,7 +460,8 @@ hb_ot_layout_substitute_lookup (hb_face_t    *face,
 				unsigned int  lookup_index,
 				hb_mask_t     mask)
 {
-  return _get_gsub (face).substitute_lookup (face, buffer, lookup_index, mask);
+  hb_apply_context_t c (NULL, face, buffer, mask);
+  return _get_gsub (face).substitute_lookup (&c, lookup_index);
 }
 
 void
@@ -469,6 +470,14 @@ hb_ot_layout_substitute_finish (hb_buffer_t  *buffer HB_UNUSED)
   GSUB::substitute_finish (buffer);
 }
 
+void
+hb_ot_layout_substitute_closure_lookup (hb_face_t    *face,
+				        hb_set_t     *glyphs,
+				        unsigned int  lookup_index)
+{
+  hb_closure_context_t c (face, glyphs);
+  _get_gsub (face).closure_lookup (&c, lookup_index);
+}
 
 /*
  * GPOS
@@ -492,7 +501,8 @@ hb_ot_layout_position_lookup   (hb_font_t    *font,
 				unsigned int  lookup_index,
 				hb_mask_t     mask)
 {
-  return _get_gpos (font->face).position_lookup (font, buffer, lookup_index, mask);
+  hb_apply_context_t c (font, font->face, buffer, mask);
+  return _get_gpos (font->face).position_lookup (&c, lookup_index);
 }
 
 void

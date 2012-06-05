@@ -223,6 +223,7 @@ hb_buffer_t::swap_buffers (void)
   if (unlikely (in_error)) return;
 
   assert (have_output);
+  have_output = FALSE;
 
   if (out_info != info)
   {
@@ -270,7 +271,7 @@ hb_buffer_t::replace_glyphs_be16 (unsigned int num_in,
 void
 hb_buffer_t::replace_glyphs (unsigned int num_in,
 			     unsigned int num_out,
-			     const uint16_t *glyph_data)
+			     const uint32_t *glyph_data)
 {
   if (!make_room_for (num_in, num_out)) return;
 
@@ -428,6 +429,29 @@ hb_buffer_t::reverse_clusters (void)
     }
   }
   reverse_range (start, i);
+}
+
+void
+hb_buffer_t::merge_clusters (unsigned int start,
+			     unsigned int end)
+{
+  unsigned int cluster = this->info[start].cluster;
+
+  for (unsigned int i = start + 1; i < end; i++)
+    cluster = MIN (cluster, this->info[i].cluster);
+  for (unsigned int i = start; i < end; i++)
+    this->info[i].cluster = cluster;
+}
+void
+hb_buffer_t::merge_out_clusters (unsigned int start,
+				 unsigned int end)
+{
+  unsigned int cluster = this->out_info[start].cluster;
+
+  for (unsigned int i = start + 1; i < end; i++)
+    cluster = MIN (cluster, this->out_info[i].cluster);
+  for (unsigned int i = start; i < end; i++)
+    this->out_info[i].cluster = cluster;
 }
 
 void

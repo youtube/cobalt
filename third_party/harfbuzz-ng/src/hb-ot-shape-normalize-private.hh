@@ -1,5 +1,5 @@
 /*
- * Copyright © 2010  Red Hat, Inc.
+ * Copyright © 2012  Google, Inc.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -21,27 +21,26 @@
  * ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
  * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
- * Red Hat Author(s): Behdad Esfahbod
+ * Google Author(s): Behdad Esfahbod
  */
 
-#ifndef HB_OT_SHAPE_H
-#define HB_OT_SHAPE_H
+#ifndef HB_OT_SHAPE_NORMALIZE_PRIVATE_HH
+#define HB_OT_SHAPE_NORMALIZE_PRIVATE_HH
 
-#include "hb-common.h"
-#include "hb-shape.h"
+#include "hb-private.hh"
 
-
-HB_BEGIN_DECLS
-
-
-hb_bool_t
-hb_ot_shape (hb_font_t          *font,
-	     hb_buffer_t        *buffer,
-	     const hb_feature_t *features,
-	     unsigned int        num_features,
-	     const char * const *shaper_options);
+#include "hb-font.h"
+#include "hb-buffer.h"
 
 
-HB_END_DECLS
+enum hb_ot_shape_normalization_mode_t {
+  HB_OT_SHAPE_NORMALIZATION_MODE_DECOMPOSED,
+  HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS, /* never composes base-to-base */
+  HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_FULL /* including base-to-base composition */
+};
 
-#endif /* HB_OT_SHAPE_H */
+HB_INTERNAL void _hb_ot_shape_normalize (hb_font_t *font,
+					 hb_buffer_t *buffer,
+					 hb_ot_shape_normalization_mode_t mode);
+
+#endif /* HB_OT_SHAPE_NORMALIZE_PRIVATE_HH */
