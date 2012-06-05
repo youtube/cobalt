@@ -237,4 +237,11 @@
 #define SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA 	0xfeff
 #define SSL_RSA_FIPS_WITH_DES_CBC_SHA      	0xfefe
 
+/* DTLS-SRTP cipher suites from RFC 5764 */
+/* If you modify this, also modify MAX_DTLS_SRTP_CIPHER_SUITES in sslimpl.h */
+#define SRTP_AES128_CM_HMAC_SHA1_80		0x0001
+#define SRTP_AES128_CM_HMAC_SHA1_32		0x0002
+#define SRTP_NULL_HMAC_SHA1_80			0x0005
+#define SRTP_NULL_HMAC_SHA1_32			0x0006
+
 #endif /* __sslproto_h_ */
