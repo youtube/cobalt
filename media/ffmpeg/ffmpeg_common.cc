@@ -31,7 +31,7 @@ AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
       return kCodecVorbis;
     case CODEC_ID_PCM_U8:
     case CODEC_ID_PCM_S16LE:
-    case CODEC_ID_PCM_S32LE:
+    case CODEC_ID_PCM_S24LE:
       return kCodecPCM;
     case CODEC_ID_FLAC:
       return kCodecFLAC;
@@ -61,7 +61,7 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
         case 16:
           return CODEC_ID_PCM_S16LE;
         case 32:
-          return CODEC_ID_PCM_S32LE;
+          return CODEC_ID_PCM_S24LE;
         default:
           DVLOG(1) << "Unsupported bits per channel: " << bits_per_channel;
       }
