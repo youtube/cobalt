@@ -18,6 +18,8 @@
 
 namespace media {
 
+class AesDecryptor;
+
 // Empty MD5 hash string.  Used to verify empty audio or video tracks.
 extern const char kNullHash[];
 
@@ -68,6 +70,7 @@ class PipelineIntegrationTestBase {
   bool hashing_enabled_;
   scoped_ptr<MessageLoopFactory> message_loop_factory_;
   scoped_refptr<Pipeline> pipeline_;
+  scoped_ptr<AesDecryptor> decryptor_;
   scoped_refptr<FFmpegVideoDecoder> decoder_;
   scoped_refptr<VideoRendererBase> renderer_;
   scoped_refptr<NullAudioSink> audio_sink_;

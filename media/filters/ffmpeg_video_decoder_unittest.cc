@@ -48,12 +48,15 @@ ACTION_P(ReturnBuffer, buffer) {
 class FFmpegVideoDecoderTest : public testing::Test {
  public:
   FFmpegVideoDecoderTest()
-      : decoder_(new FFmpegVideoDecoder(base::Bind(&Identity<MessageLoop*>,
+      : decryptor_(new AesDecryptor()),
+        decoder_(new FFmpegVideoDecoder(base::Bind(&Identity<MessageLoop*>,
                                                    &message_loop_))),
         demuxer_(new StrictMock<MockDemuxerStream>()),
         read_cb_(base::Bind(&FFmpegVideoDecoderTest::FrameReady,
                             base::Unretained(this))) {
     CHECK(FFmpegGlue::GetInstance());
+
+    decoder_->set_decryptor(decryptor_.get());
 
     // Initialize various test buffers.
     frame_buffer_.reset(new uint8[kCodedSize.GetArea()]);
@@ -194,6 +197,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
                                 scoped_refptr<VideoFrame>));
 
   MessageLoop message_loop_;
+  scoped_ptr<AesDecryptor> decryptor_;
   scoped_refptr<FFmpegVideoDecoder> decoder_;
   scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
   MockStatisticsCB statistics_cb_;
@@ -371,8 +375,8 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_SmallerHeight) {
 
 TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_Normal) {
   Initialize();
-  decoder_->decryptor()->AddKey(kKeyId, arraysize(kKeyId) - 1,
-                                kRawKey, arraysize(kRawKey) - 1);
+  decryptor_->AddKey(kKeyId, arraysize(kKeyId) - 1,
+                     kRawKey, arraysize(kRawKey) - 1);
 
   // Simulate decoding a single encrypted frame.
   encrypted_i_frame_buffer_->SetDecryptConfig(scoped_ptr<DecryptConfig>(
@@ -411,8 +415,8 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoKey) {
 // Test decrypting an encrypted frame with a wrong key.
 TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_WrongKey) {
   Initialize();
-  decoder_->decryptor()->AddKey(kKeyId, arraysize(kKeyId) - 1,
-                                kWrongKey, arraysize(kWrongKey) - 1);
+  decryptor_->AddKey(kKeyId, arraysize(kKeyId) - 1,
+                     kWrongKey, arraysize(kWrongKey) - 1);
 
   encrypted_i_frame_buffer_->SetDecryptConfig(scoped_ptr<DecryptConfig>(
       new DecryptConfig(kKeyId, arraysize(kKeyId) - 1)));
