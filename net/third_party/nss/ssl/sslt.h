@@ -213,12 +213,13 @@ typedef enum {
     ssl_elliptic_curves_xtn          = 10,
     ssl_ec_point_formats_xtn         = 11,
 #endif
+    ssl_use_srtp_xtn                 = 14,
     ssl_session_ticket_xtn           = 35,
     ssl_next_proto_nego_xtn          = 13172,
     ssl_channel_id_xtn               = 30031,
     ssl_renegotiation_info_xtn       = 0xff01	/* experimental number */
 } SSLExtensionType;
 
-#define SSL_MAX_EXTENSIONS             8
+#define SSL_MAX_EXTENSIONS             9
 
 #endif /* __sslt_h_ */
