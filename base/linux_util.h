@@ -18,7 +18,7 @@ namespace base {
 static const char kFindInodeSwitch[] = "--find-inode";
 
 // This should be kept in sync with sandbox/linux/suid/sandbox.c
-static const long kSUIDSandboxApiNumber = 0;
+static const long kSUIDSandboxApiNumber = 1;
 static const char kSandboxEnvironmentApiRequest[] = "SBX_CHROME_API_RQ";
 static const char kSandboxEnvironmentApiProvides[] = "SBX_CHROME_API_PRV";
 
