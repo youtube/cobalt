@@ -1373,11 +1373,6 @@ void CookieMonster::SetKeepExpiredCookies() {
   keep_expired_cookies_ = true;
 }
 
-void CookieMonster::SetClearPersistentStoreOnExit(bool clear_local_store) {
-  if (store_)
-    store_->SetClearLocalStateOnExit(clear_local_store);
-}
-
 // static
 void CookieMonster::EnableFileScheme() {
   enable_file_scheme_ = true;
@@ -1513,9 +1508,9 @@ void CookieMonster::SetPersistSessionCookies(bool persist_session_cookies) {
   persist_session_cookies_ = persist_session_cookies;
 }
 
-void CookieMonster::SaveSessionCookies() {
+void CookieMonster::SetForceKeepSessionState() {
   if (store_) {
-    store_->SetClearLocalStateOnExit(false);
+    store_->SetForceKeepSessionState();
   }
 }
 

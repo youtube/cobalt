@@ -112,6 +112,10 @@ class NET_EXPORT ServerBoundCertStore {
   // Returns the number of certs in the store.
   // Public only for unit testing.
   virtual int GetCertCount() = 0;
+
+  // When invoked, instructs the store to keep session related data on
+  // destruction.
+  virtual void SetForceKeepSessionState() = 0;
 };
 
 }  // namespace net
