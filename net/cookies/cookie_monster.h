@@ -192,9 +192,8 @@ class NET_EXPORT CookieMonster : public CookieStore {
   // arbitrary cookies.
   void SetKeepExpiredCookies();
 
-  // Delegates the call to set the |clear_local_store_on_exit_| flag of the
-  // PersistentStore if it exists.
-  void SetClearPersistentStoreOnExit(bool clear_local_store);
+  // Protects session cookies from deletion on shutdown.
+  void SetForceKeepSessionState();
 
   // There are some unknowns about how to correctly handle file:// cookies,
   // and our implementation for this is not robust enough. This allows you
@@ -254,9 +253,6 @@ class NET_EXPORT CookieMonster : public CookieStore {
   // method is called, it must be called before first use of the instance
   // (i.e. as part of the instance initialization process).
   void SetPersistSessionCookies(bool persist_session_cookies);
-
-  // Protects session cookies from deletion on shutdown.
-  void SaveSessionCookies();
 
   // Debugging method to perform various validation checks on the map.
   // Currently just checking that there are no null CanonicalCookie pointers
@@ -952,9 +948,8 @@ class CookieMonster::PersistentCookieStore
   virtual void UpdateCookieAccessTime(const CanonicalCookie& cc) = 0;
   virtual void DeleteCookie(const CanonicalCookie& cc) = 0;
 
-  // Sets the value of the user preference whether the persistent storage
-  // must be deleted upon destruction.
-  virtual void SetClearLocalStateOnExit(bool clear_local_state) = 0;
+  // Instructs the store to not discard session only cookies on shutdown.
+  virtual void SetForceKeepSessionState() = 0;
 
   // Flushes the store and posts |callback| when complete.
   virtual void Flush(const base::Closure& callback) = 0;
