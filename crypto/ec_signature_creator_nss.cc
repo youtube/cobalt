@@ -8,6 +8,9 @@
 #include <pk11pub.h>
 #include <secerr.h>
 #include <sechash.h>
+#if defined(OS_POSIX)
+#include <unistd.h>
+#endif
 
 #include "base/logging.h"
 #include "crypto/ec_private_key.h"
@@ -34,12 +37,14 @@ SECStatus SignData(SECItem* result,
       hash_type, &hash_data[0], input->data, input->len);
   if (rv != SECSuccess)
     return rv;
-  SECItem hash = {siBuffer, &hash_data[0], hash_data.size()};
+  SECItem hash = {siBuffer, &hash_data[0],
+                  static_cast<unsigned int>(hash_data.size())};
 
   // Compute signature of hash.
   int signature_len = PK11_SignatureLen(key);
   std::vector<uint8> signature_data(signature_len);
-  SECItem sig = {siBuffer, &signature_data[0], signature_len};
+  SECItem sig = {siBuffer, &signature_data[0],
+                 static_cast<unsigned int>(signature_len)};
   rv = PK11_Sign(key, &sig, &hash);
   if (rv != SECSuccess)
     return rv;
