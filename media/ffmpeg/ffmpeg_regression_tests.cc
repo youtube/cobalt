@@ -42,14 +42,17 @@ namespace media {
 
 struct RegressionTestData {
   RegressionTestData(const char* filename, PipelineStatus init_status,
-                     PipelineStatus end_status, const char *md5)
-      : md5(md5),
+                     PipelineStatus end_status, const char* video_md5,
+                     const char* audio_md5)
+      : video_md5(video_md5),
+        audio_md5(audio_md5),
         filename(filename),
         init_status(init_status),
         end_status(end_status) {
   }
 
-  const char* md5;
+  const char* video_md5;
+  const char* audio_md5;
   const char* filename;
   PipelineStatus init_status;
   PipelineStatus end_status;
@@ -60,167 +63,233 @@ class FFmpegRegressionTest
       public PipelineIntegrationTestBase {
 };
 
-#define FFMPEG_TEST_CASE(name, fn, init_status, end_status, md5) \
+#define FFMPEG_TEST_CASE(name, fn, init_status, end_status, video_md5, \
+                         audio_md5) \
     INSTANTIATE_TEST_CASE_P(name, FFmpegRegressionTest, \
                             testing::Values(RegressionTestData(fn, \
                                                                init_status, \
                                                                end_status, \
-                                                               md5)));
+                                                               video_md5, \
+                                                               audio_md5)));
 
 // Test cases from issues.
 FFMPEG_TEST_CASE(Cr47325, "security/47325.mp4", PIPELINE_OK, PIPELINE_OK,
-                 "2a7a938c6b5979621cec998f02d9bbb6");
+                 "2a7a938c6b5979621cec998f02d9bbb6",
+                 "511bbbfd42f5bedc1a11670a5b3299c7");
 FFMPEG_TEST_CASE(Cr47761, "content/crbug47761.ogg", PIPELINE_OK, PIPELINE_OK,
-                 kNullVideoHash);
+                 kNullHash,
+                 "f281adf4c7531d1664e92eb05bf10aa8");
 FFMPEG_TEST_CASE(Cr50045, "content/crbug50045.mp4", PIPELINE_OK, PIPELINE_OK,
-                 "c345e9ef9ebfc6bfbcbe3f0ddc3125ba");
-FFMPEG_TEST_CASE(Cr62127, "content/crbug62127.webm", PIPELINE_OK, PIPELINE_OK,
-                 "a064b2776fc5aef3e9cba47967a75db9");
+                 "c345e9ef9ebfc6bfbcbe3f0ddc3125ba",
+                 "d429bc20b7f1eafd0d8179fd128a94ed");
+FFMPEG_TEST_CASE(Cr62127, "content/crbug62127.webm",
+                 PIPELINE_OK, PIPELINE_OK,
+                 "a064b2776fc5aef3e9cba47967a75db9", kNullHash);
 FFMPEG_TEST_CASE(Cr93620, "security/93620.ogg", PIPELINE_OK, PIPELINE_OK,
-                 kNullVideoHash);
+                 kNullHash,
+                 "a12b7a96d02f3ab68532995464275682");
 FFMPEG_TEST_CASE(Cr100492, "security/100492.webm", DECODER_ERROR_NOT_SUPPORTED,
-                 DECODER_ERROR_NOT_SUPPORTED, kNullVideoHash);
+                 DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr100543, "security/100543.webm", PIPELINE_OK, PIPELINE_OK,
-                 "c16691cc9178db3adbf7e562cadcd6e6");
+                 "c16691cc9178db3adbf7e562cadcd6e6",
+                 "51347b4b4ce86562a833df3ff6af0fff");
 FFMPEG_TEST_CASE(Cr101458, "security/101458.webm", DECODER_ERROR_NOT_SUPPORTED,
-                 DECODER_ERROR_NOT_SUPPORTED, kNullVideoHash);
+                 DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr108416, "security/108416.webm", PIPELINE_OK, PIPELINE_OK,
-                 "5cb3a934795cd552753dec7687928291");
-FFMPEG_TEST_CASE(Cr110849, "security/110849.mkv", DECODER_ERROR_NOT_SUPPORTED,
-                 DECODER_ERROR_NOT_SUPPORTED, kNullVideoHash);
+                 "5cb3a934795cd552753dec7687928291",
+                 "5ad0c25fb915022824dc65e4fe15bffc");
+FFMPEG_TEST_CASE(Cr110849, "security/110849.mkv",
+                 DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
+                 DEMUXER_ERROR_NO_SUPPORTED_STREAMS, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr112384, "security/112384.webm",
                  DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr112670, "security/112670.mp4", PIPELINE_ERROR_DECODE,
-                 PIPELINE_ERROR_DECODE, kNullVideoHash);
+                 PIPELINE_ERROR_DECODE, kNullHash,
+                 "59adb24ef3cdbe0297f05b395827453f");
 FFMPEG_TEST_CASE(Cr112976, "security/112976.ogg", PIPELINE_OK, PIPELINE_OK,
-                 kNullVideoHash);
+                 kNullHash,
+                 "d23bacec582c94b8a6dc53b0971bf67e");
 FFMPEG_TEST_CASE(Cr116927, "security/116927.ogv", PIPELINE_ERROR_DECODE,
-                 PIPELINE_ERROR_DECODE, kNullVideoHash);
+                 PIPELINE_ERROR_DECODE, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr123481, "security/123481.ogv", PIPELINE_OK,
-                 PIPELINE_OK, "e6dd853fcbd746c8bb2ab2b8fc376fc7");
+                 PIPELINE_OK, "e6dd853fcbd746c8bb2ab2b8fc376fc7",
+                 "da909399f17e8f8ad7f1fcb3c4ccc33a");
 
 // General MKV test cases.
 FFMPEG_TEST_CASE(MKV_0, "security/nested_tags_lang.mka.627.628", PIPELINE_OK,
-                 PIPELINE_OK, kNullVideoHash);
+                 PIPELINE_OK, kNullHash, "29b9dd707e75eb0a8cf29ec6213fd8c8");
 FFMPEG_TEST_CASE(MKV_1, "security/nested_tags_lang.mka.667.628", PIPELINE_OK,
-                 PIPELINE_OK, kNullVideoHash);
+                 PIPELINE_OK, kNullHash, "117643fcab3ef06461c769686d05ccfb");
 
 // General MP4 test cases.
 FFMPEG_TEST_CASE(MP4_0, "security/aac.10419.mp4", PIPELINE_OK, PIPELINE_OK,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_1, "security/clockh264aac_200021889.mp4",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_2, "security/clockh264aac_200701257.mp4", PIPELINE_OK,
-                 PIPELINE_OK, kNullVideoHash);
+                 PIPELINE_OK, kNullHash, "d8bee104916f9f10db767d13400296b6");
 FFMPEG_TEST_CASE(MP4_5, "security/clockh264aac_3022500.mp4",
                  DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
-                 DEMUXER_ERROR_NO_SUPPORTED_STREAMS, kNullVideoHash);
+                 DEMUXER_ERROR_NO_SUPPORTED_STREAMS, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_6, "security/clockh264aac_344289.mp4", PIPELINE_OK,
-                 PIPELINE_OK, kNullVideoHash);
+                 PIPELINE_OK, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_7, "security/clockh264mp3_187697.mp4",
-                 DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
+                 DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_8, "security/h264.705767.mp4",
                  DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_9, "security/smclockmp4aac_1_0.mp4",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 
 // General OGV test cases.
 FFMPEG_TEST_CASE(OGV_1, "security/out.163.ogv", DECODER_ERROR_NOT_SUPPORTED,
-                 DECODER_ERROR_NOT_SUPPORTED, kNullVideoHash);
+                 DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_2, "security/out.391.ogv", DECODER_ERROR_NOT_SUPPORTED,
-                 DECODER_ERROR_NOT_SUPPORTED, kNullVideoHash);
+                 DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_5, "security/smclocktheora_1_0.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_7, "security/smclocktheora_1_102.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_8, "security/smclocktheora_1_104.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_9, "security/smclocktheora_1_110.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_10, "security/smclocktheora_1_179.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_11, "security/smclocktheora_1_20.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_12, "security/smclocktheora_1_723.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_14, "security/smclocktheora_2_10405.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_15, "security/smclocktheora_2_10619.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_16, "security/smclocktheora_2_1075.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_17, "security/vorbis.482086.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_18, "security/wav.711.ogv", DECODER_ERROR_NOT_SUPPORTED,
-                 DECODER_ERROR_NOT_SUPPORTED, kNullVideoHash);
+                 DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
 
 // General WebM test cases.
 FFMPEG_TEST_CASE(WEBM_1, "security/no-bug.webm", PIPELINE_OK, PIPELINE_OK,
-                 "39e92700cbb77478fd63f49db855e7e5");
+                 "39e92700cbb77478fd63f49db855e7e5", kNullHash);
 FFMPEG_TEST_CASE(WEBM_2, "security/uninitialize.webm", PIPELINE_ERROR_DECODE,
-                 PIPELINE_ERROR_DECODE, kNullVideoHash);
+                 PIPELINE_ERROR_DECODE, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(WEBM_3, "security/out.webm.139771.2965",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(WEBM_4, "security/out.webm.68798.1929",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullVideoHash);
+                 kNullHash, kNullHash);
 FFMPEG_TEST_CASE(WEBM_5, "content/frame_size_change.webm", PIPELINE_OK,
-                 PIPELINE_OK, "d8fcf2896b7400a2261bac9e9ea930f8");
+                 PIPELINE_OK, "d8fcf2896b7400a2261bac9e9ea930f8", kNullHash);
 FFMPEG_TEST_CASE(WEBM_6, "security/117912.webm", DEMUXER_ERROR_COULD_NOT_OPEN,
-                 DEMUXER_ERROR_COULD_NOT_OPEN, kNullVideoHash);
+                 DEMUXER_ERROR_COULD_NOT_OPEN, kNullHash, kNullHash);
 
 // Flaky under threading, maybe larger issues.  Values were set with
 // --video-threads=1 under the hope that they may one day pass with threading.
 FFMPEG_TEST_CASE(FLAKY_Cr99652, "security/99652.webm", PIPELINE_OK,
-                 PIPELINE_ERROR_DECODE, "97956dca8897484fbd0dd1169578adbf");
+                 PIPELINE_ERROR_DECODE, "97956dca8897484fbd0dd1169578adbf",
+                 kNullHash);
 FFMPEG_TEST_CASE(FLAKY_Cr100464, "security/100464.webm", PIPELINE_OK,
-                 PIPELINE_OK, "a32ddb4ac5ca89429e1a3c968e876ce8");
+                 PIPELINE_OK, "a32ddb4ac5ca89429e1a3c968e876ce8",
+                 "0cd51b7ff41c1c760719d1b3a06c5ce8");
+FFMPEG_TEST_CASE(FLAKY_OGV_0, "security/big_dims.ogv", PIPELINE_ERROR_DECODE,
+                 PIPELINE_ERROR_DECODE, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(FLAKY_OGV_3, "security/smclock_1_0.ogv", PIPELINE_OK,
-                 PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679");
+                 PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679",
+                 "cc7b61321df57874dba5ff780786a04d");
 FFMPEG_TEST_CASE(FLAKY_OGV_4, "security/smclock.ogv.1.0.ogv",
-                 PIPELINE_OK, PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679");
+                 PIPELINE_OK, PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679",
+                 "cc7b61321df57874dba5ff780786a04d");
+FFMPEG_TEST_CASE(FLAKY_OGV_6, "security/smclocktheora_1_10000.ogv",
+                 PIPELINE_ERROR_DECODE, PIPELINE_ERROR_DECODE, kNullHash,
+                 kNullHash);
 FFMPEG_TEST_CASE(FLAKY_OGV_13, "security/smclocktheora_1_790.ogv",
-                 PIPELINE_OK, PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679");
+                 PIPELINE_OK, PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679",
+                 "cc7b61321df57874dba5ff780786a04d");
+FFMPEG_TEST_CASE(FLAKY_MP4_3, "security/clockh264aac_300413969.mp4",
+                 PIPELINE_OK, PIPELINE_ERROR_DECODE,
+                 "b7659b127be88829a68d8a9aa625795e", kNullHash);
 FFMPEG_TEST_CASE(FLAKY_MP4_4, "security/clockh264aac_301350139.mp4",
-                 PIPELINE_OK, PIPELINE_OK, "bf1dbeb4ee6edb1b6c78742f4943c162");
+                 PIPELINE_OK, PIPELINE_OK, "bf1dbeb4ee6edb1b6c78742f4943c162",
+                 "98731537a560cda29b7f46f2fb5d7f0b");
 
 // Flaky due to other non-threading related reasons.
 FFMPEG_TEST_CASE(FLAKY_Cr111342, "security/111342.ogm", PIPELINE_OK,
-                 PIPELINE_ERROR_DECODE, "8a14eb9ce0671194a0b04fee8b0b5368");
-FFMPEG_TEST_CASE(FLAKY_OGV_0, "security/big_dims.ogv", PIPELINE_OK,
-                 PIPELINE_OK, "c76ac9c5e9f3b8edaa341d9ee74739f4");
-FFMPEG_TEST_CASE(FLAKY_OGV_6, "security/smclocktheora_1_10000.ogv",
-                 PIPELINE_OK, PIPELINE_OK, "b16734719247275c9d9c828d25ffd4bf");
-FFMPEG_TEST_CASE(FLAKY_MP4_3, "security/clockh264aac_300413969.mp4",
-                 PIPELINE_OK, PIPELINE_OK, "b7659b127be88829a68d8a9aa625795e");
+                 PIPELINE_ERROR_DECODE, "8a14eb9ce0671194a0b04fee8b0b5368",
+                 "aa348fa026a6ce22b781daf94ece20c0");
 
 // Hangs. http://crbug.com/117038
 // FFMPEG_TEST_CASE(WEBM_0, "security/memcpy.webm", PIPELINE_OK, PIPELINE_OK);
 
+// Audio Functional Tests
+FFMPEG_TEST_CASE(AUDIO_GAMING_0, "content/gaming/a_220_00.mp3", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "5e60018ab1b30a82d53dccb759ab25b2");
+FFMPEG_TEST_CASE(AUDIO_GAMING_1, "content/gaming/a_220_00_v2.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "6a79b3c593609f3bdfbea3727c658c73");
+FFMPEG_TEST_CASE(AUDIO_GAMING_2, "content/gaming/ai_laser1.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "0d1e07b4374f54e3ae18dc15d7497183");
+FFMPEG_TEST_CASE(AUDIO_GAMING_3, "content/gaming/ai_laser2.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "46dfe271f7e7b72225e754dd7ab8ad1c");
+FFMPEG_TEST_CASE(AUDIO_GAMING_4, "content/gaming/ai_laser3.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "ef018d911c9941b778e13e1af5bec449");
+FFMPEG_TEST_CASE(AUDIO_GAMING_5, "content/gaming/ai_laser4.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "14ff475a7355826077ffad191cc09665");
+FFMPEG_TEST_CASE(AUDIO_GAMING_6, "content/gaming/ai_laser5.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "351cd543f0a001b2eb5ca5fad6e384b9");
+FFMPEG_TEST_CASE(AUDIO_GAMING_7, "content/gaming/footstep1.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "6edde5a895c900cf7dcd68e56abf0b0b");
+FFMPEG_TEST_CASE(AUDIO_GAMING_8, "content/gaming/footstep3.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "59c29eb093a3a6b4bbe5b269837914b9");
+FFMPEG_TEST_CASE(AUDIO_GAMING_9, "content/gaming/footstep4.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "3bd5c2b4618f189bc49f7cfd5dae91a9");
+FFMPEG_TEST_CASE(AUDIO_GAMING_10, "content/gaming/laser1.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "199f2ccd92c278c4203665dba752b6ef");
+FFMPEG_TEST_CASE(AUDIO_GAMING_11, "content/gaming/laser2.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "a1cdedcda4edabded9c4197a374b53dd");
+FFMPEG_TEST_CASE(AUDIO_GAMING_12, "content/gaming/laser3.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "6ce272b185e3e6309b9878b543d1b83b");
+FFMPEG_TEST_CASE(AUDIO_GAMING_13, "content/gaming/leg1.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "7a426c86203cf6073e8c08b23f5ee57d");
+FFMPEG_TEST_CASE(AUDIO_GAMING_14, "content/gaming/leg2.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "d2f81558cea012adbc4cc8aafdbbfa55");
+FFMPEG_TEST_CASE(AUDIO_GAMING_15, "content/gaming/leg3.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "9665107f7be378111b9e1928f6ac6dce");
+FFMPEG_TEST_CASE(AUDIO_GAMING_16, "content/gaming/lock_on.ogg", PIPELINE_OK,
+                 PIPELINE_OK, kNullHash, "2193dc2c9c811f96950a8615f7bf47e9");
+FFMPEG_TEST_CASE(AUDIO_GAMING_17, "content/gaming/enemy_lock_on.ogg",
+                 PIPELINE_OK, PIPELINE_OK, kNullHash,
+                 "d9d2d8b26335efc8e5589c5c44d2a979");
+FFMPEG_TEST_CASE(AUDIO_GAMING_18, "content/gaming/rocket_launcher.mp3",
+                 PIPELINE_OK, PIPELINE_OK, kNullHash,
+                 "05289a50acd15fa1357fe6234f82c3fe");
+
 TEST_P(FFmpegRegressionTest, BasicPlayback) {
   if (GetParam().init_status == PIPELINE_OK) {
     ASSERT_TRUE(Start(GetTestDataURL(GetParam().filename),
-                      GetParam().init_status));
+                      GetParam().init_status, true));
     Play();
     ASSERT_EQ(WaitUntilEndedOrError(), GetParam().end_status);
-    ASSERT_EQ(GetVideoHash(), GetParam().md5);
+    EXPECT_EQ(GetVideoHash(), GetParam().video_md5);
+    EXPECT_EQ(GetAudioHash(), GetParam().audio_md5);
 
     // Check for ended if the pipeline is expected to finish okay.
     if (GetParam().end_status == PIPELINE_OK) {
@@ -231,8 +300,9 @@ TEST_P(FFmpegRegressionTest, BasicPlayback) {
     }
   } else {
     ASSERT_FALSE(Start(GetTestDataURL(GetParam().filename),
-                       GetParam().init_status));
-    ASSERT_EQ(GetVideoHash(), GetParam().md5);
+                       GetParam().init_status, true));
+    EXPECT_EQ(GetVideoHash(), GetParam().video_md5);
+    EXPECT_EQ(GetAudioHash(), GetParam().audio_md5);
   }
 }
 
