@@ -932,6 +932,9 @@ struct ssl3StateStr {
     CERTCertificateList *clientCertChain;    /* used by client */
     PRBool               sendEmptyCert;      /* used by client */
 
+    SECKEYPrivateKey    *channelID;          /* used by client */
+    SECKEYPublicKey     *channelIDPub;       /* used by client */
+
     int                  policy;
 			/* This says what cipher suites we can do, and should 
 			 * be either SSL_ALLOWED or SSL_RESTRICTED 
@@ -1537,6 +1540,11 @@ extern SECStatus ssl3_RestartHandshakeAfterCertReq(sslSocket *    ss,
 					     CERTCertificate *    cert, 
 					     SECKEYPrivateKey *   key,
 					     CERTCertificateList *certChain);
+
+extern SECStatus ssl3_RestartHandshakeAfterChannelIDReq(
+    sslSocket *ss,
+    SECKEYPublicKey *channelIDPub,
+    SECKEYPrivateKey *channelID);
 
 extern SECStatus ssl3_AuthCertificateComplete(sslSocket *ss, PRErrorCode error);
 
