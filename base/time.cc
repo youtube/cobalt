@@ -1,14 +1,26 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/time.h"
+
+#include <math.h>
+#if defined(OS_WIN)
+#include <float.h>
+#endif
+
 #include "base/sys_string_conversions.h"
 #include "base/third_party/nspr/prtime.h"
 
 #include "base/logging.h"
 
 namespace base {
+
+namespace {
+#if defined(OS_WIN)
+inline bool isnan(double num) { return !!_isnan(num); }
+#endif
+}
 
 // TimeDelta ------------------------------------------------------------------
 
@@ -66,7 +78,7 @@ time_t Time::ToTimeT() const {
 
 // static
 Time Time::FromDoubleT(double dt) {
-  if (dt == 0)
+  if (dt == 0 || isnan(dt))
     return Time();  // Preserve 0 so we can tell it doesn't exist.
   return Time(static_cast<int64>((dt *
                                   static_cast<double>(kMicrosecondsPerSecond)) +
