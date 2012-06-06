@@ -67,17 +67,13 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/build_time.h"
-#include "base/callback_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/histogram.h"
-#include "base/single_thread_task_runner.h"
-#include "base/stl_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "base/thread_task_runner_handle.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "crypto/ec_private_key.h"
@@ -250,6 +246,60 @@ BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
 
 #endif
 
+// PeerCertificateChain is a helper object which extracts the certificate
+// chain, as given by the server, from an NSS socket and performs the needed
+// resource management. The first element of the chain is the leaf certificate
+// and the other elements are in the order given by the server.
+class PeerCertificateChain {
+ public:
+  explicit PeerCertificateChain(PRFileDesc* nss_fd)
+      : num_certs_(0),
+        certs_(NULL) {
+    SECStatus rv = SSL_PeerCertificateChain(nss_fd, NULL, &num_certs_, 0);
+    DCHECK_EQ(rv, SECSuccess);
+
+    certs_ = new CERTCertificate*[num_certs_];
+    const unsigned expected_num_certs = num_certs_;
+    rv = SSL_PeerCertificateChain(nss_fd, certs_, &num_certs_,
+                                  expected_num_certs);
+    DCHECK_EQ(rv, SECSuccess);
+    DCHECK_EQ(num_certs_, expected_num_certs);
+  }
+
+  ~PeerCertificateChain() {
+    for (unsigned i = 0; i < num_certs_; i++)
+      CERT_DestroyCertificate(certs_[i]);
+    delete[] certs_;
+  }
+
+  unsigned size() const { return num_certs_; }
+
+  CERTCertificate* operator[](unsigned i) {
+    DCHECK_LT(i, num_certs_);
+    return certs_[i];
+  }
+
+  std::vector<base::StringPiece> AsStringPieceVector() const {
+    std::vector<base::StringPiece> v(size());
+    for (unsigned i = 0; i < size(); i++) {
+      v[i] = base::StringPiece(
+          reinterpret_cast<const char*>(certs_[i]->derCert.data),
+          certs_[i]->derCert.len);
+    }
+
+    return v;
+  }
+
+ private:
+  unsigned num_certs_;
+  CERTCertificate** certs_;
+};
+
+void DestroyCertificates(CERTCertificate** certs, unsigned len) {
+  for (unsigned i = 0; i < len; i++)
+    CERT_DestroyCertificate(certs[i]);
+}
+
 // DNSValidationResult enumerates the possible outcomes from processing a
 // set of DNS records.
 enum DNSValidationResult {
@@ -309,7 +359,7 @@ DNSValidationResult VerifyCAARecords(
 }
 
 // CheckDNSSECChain tries to validate a DNSSEC chain embedded in
-// |server_cert_nss|. It returns true iff a chain is found that proves the
+// |server_cert_nss_|. It returns true iff a chain is found that proves the
 // value of a CAA record that contains a valid public key fingerprint.
 // |port| contains the TCP port number that we connected to as CAA records can
 // be specific to a given port.
@@ -371,2394 +421,43 @@ DNSValidationResult CheckDNSSECChain(
   return r;
 }
 
-bool DomainBoundCertNegotiated(PRFileDesc* socket) {
-  // TODO(wtc,mattm): this is temporary while DBC support is changed into
-  // Channel ID.
-  return false;
-}
-
-void DestroyCertificates(CERTCertificate** certs, size_t len) {
-  for (size_t i = 0; i < len; i++)
-    CERT_DestroyCertificate(certs[i]);
-}
-
-// Helper function to make it easier to call BoundNetLog::AddByteTransferEvent
-// from within the SSLClientSocketNSS::Core.
-// AddByteTransferEvent expects to receive a const char*, which within the
-// Core is backed by an IOBuffer. If the "const char*" is bound via
-// base::Bind and posted to another thread, and the IOBuffer that backs that
-// pointer then goes out of scope on the origin thread, this would result in
-// an invalid read of a stale pointer.
-// Instead, provide a signature that accepts an IOBuffer*, so that a reference
-// to the owning IOBuffer can be bound to the Callback. This ensures that the
-// IOBuffer will stay alive long enough to cross threads if needed.
-void LogByteTransferEvent(BoundNetLog* net_log, NetLog::EventType event_type,
-                          int len, IOBuffer* buffer) {
-  if (!net_log)
-    return;
-  net_log->AddByteTransferEvent(event_type, len, buffer->data());
-}
-
-// PeerCertificateChain is a helper object which extracts the certificate
-// chain, as given by the server, from an NSS socket and performs the needed
-// resource management. The first element of the chain is the leaf certificate
-// and the other elements are in the order given by the server.
-class PeerCertificateChain {
- public:
-  PeerCertificateChain() {}
-  PeerCertificateChain(const PeerCertificateChain& other);
-  ~PeerCertificateChain();
-  PeerCertificateChain& operator=(const PeerCertificateChain& other);
-
-  // Resets the current chain, freeing any resources, and updates the current
-  // chain to be a copy of the chain stored in |nss_fd|.
-  // If |nss_fd| is NULL, then the current certificate chain will be freed.
-  void Reset(PRFileDesc* nss_fd);
-
-  // Returns the current certificate chain as a vector of DER-encoded
-  // base::StringPieces. The returned vector remains valid until Reset is
-  // called.
-  std::vector<base::StringPiece> AsStringPieceVector() const;
-
-  bool empty() const { return certs_.empty(); }
-  size_t size() const { return certs_.size(); }
-
-  CERTCertificate* operator[](size_t index) const {
-    DCHECK_LT(index, certs_.size());
-    return certs_[index];
-  }
-
- private:
-  std::vector<CERTCertificate*> certs_;
-};
-
-PeerCertificateChain::PeerCertificateChain(
-    const PeerCertificateChain& other) {
-  *this = other;
-}
-
-PeerCertificateChain::~PeerCertificateChain() {
-  Reset(NULL);
-}
-
-PeerCertificateChain& PeerCertificateChain::operator=(
-    const PeerCertificateChain& other) {
-  if (this == &other)
-    return *this;
-
-  Reset(NULL);
-  certs_.reserve(other.certs_.size());
-  for (size_t i = 0; i < other.certs_.size(); ++i)
-    certs_.push_back(CERT_DupCertificate(other.certs_[i]));
-
-  return *this;
-}
-
-void PeerCertificateChain::Reset(PRFileDesc* nss_fd) {
-  for (size_t i = 0; i < certs_.size(); ++i)
-    CERT_DestroyCertificate(certs_[i]);
-  certs_.clear();
-
-  if (nss_fd == NULL)
-    return;
-
-  unsigned int num_certs = 0;
-  SECStatus rv = SSL_PeerCertificateChain(nss_fd, NULL, &num_certs, 0);
-  DCHECK_EQ(SECSuccess, rv);
-
-  // The handshake on |nss_fd| may not have completed.
-  if (num_certs == 0)
-    return;
-
-  certs_.resize(num_certs);
-  const unsigned int expected_num_certs = num_certs;
-  rv = SSL_PeerCertificateChain(nss_fd, vector_as_array(&certs_),
-                                &num_certs, expected_num_certs);
-  DCHECK_EQ(SECSuccess, rv);
-  DCHECK_EQ(expected_num_certs, num_certs);
-}
-
-std::vector<base::StringPiece>
-PeerCertificateChain::AsStringPieceVector() const {
-  std::vector<base::StringPiece> v(certs_.size());
-  for (unsigned i = 0; i < certs_.size(); i++) {
-    v[i] = base::StringPiece(
-        reinterpret_cast<const char*>(certs_[i]->derCert.data),
-        certs_[i]->derCert.len);
-  }
-
-  return v;
-}
-
-// HandshakeState is a helper struct used to pass handshake state between
-// the NSS task runner and the network task runner.
-//
-// It contains members that may be read or written on the NSS task runner,
-// but which also need to be read from the network task runner. The NSS task
-// runner will notify the network task runner whenever this state changes, so
-// that the network task runner can safely make a copy, which avoids the need
-// for locking.
-struct HandshakeState {
-  HandshakeState() { Reset(); }
-
-  void Reset() {
-    next_proto_status = SSLClientSocket::kNextProtoUnsupported;
-    next_proto.clear();
-    server_protos.clear();
-    domain_bound_cert_type = CLIENT_CERT_INVALID_TYPE;
-    client_certs.clear();
-    server_cert_chain.Reset(NULL);
-    server_cert = NULL;
-    predicted_cert_chain_correct = false;
-    resumed_handshake = false;
-    ssl_connection_status = 0;
-  }
-
-  // Set to kNextProtoNegotiated if NPN was successfully negotiated, with the
-  // negotiated protocol stored in |next_proto|.
-  SSLClientSocket::NextProtoStatus next_proto_status;
-  std::string next_proto;
-  // If the server supports NPN, the protocols supported by the server.
-  std::string server_protos;
-
-  // The type of domain bound cert that was exchanged, or
-  // CLIENT_CERT_INVALID_TYPE if no domain bound cert was negotiated or sent.
-  SSLClientCertType domain_bound_cert_type;
-
-  // If the peer requests client certificate authentication, the set of
-  // certificates that matched the peer's criteria.
-  CertificateList client_certs;
-
-  // Set when the handshake fully completes.
-  //
-  // The server certificate is first received from NSS as an NSS certificate
-  // chain (|server_cert_chain|) and then converted into a platform-specific
-  // X509Certificate object (|server_cert|). It's possible for some
-  // certificates to be successfully parsed by NSS, and not by the platform
-  // libraries (i.e.: when running within a sandbox, different parsing
-  // algorithms, etc), so it's not safe to assume that |server_cert| will
-  // always be non-NULL.
-  PeerCertificateChain server_cert_chain;
-  scoped_refptr<X509Certificate> server_cert;
-
-  // True if we predicted a certificate chain (via
-  // Core::SetPredictedCertificates) and that prediction matched what the
-  // server sent.
-  bool predicted_cert_chain_correct;
-
-  // True if the current handshake was the result of TLS session resumption.
-  bool resumed_handshake;
-
-  // The negotiated security parameters (TLS version, cipher, extensions) of
-  // the SSL connection.
-  int ssl_connection_status;
-};
-
 }  // namespace
 
-// SSLClientSocketNSS::Core provides a thread-safe, ref-counted core that is
-// able to marshal data between NSS functions and an underlying transport
-// socket.
-//
-// All public functions are meant to be called from the network task runner,
-// and any callbacks supplied will be invoked there as well, provided that
-// Detach() has not been called yet.
-//
-/////////////////////////////////////////////////////////////////////////////
-//
-// Threading within SSLClientSocketNSS and SSLClientSocketNSS::Core:
-//
-// Because NSS may block on either hardware or user input during operations
-// such as signing, creating certificates, or locating private keys, the Core
-// handles all of the interactions with the underlying NSS SSL socket, so
-// that these blocking calls can be executed on a dedicated task runner.
-//
-// Note that the network task runner and the NSS task runner may be executing
-// on the same thread. If that happens, then it's more performant to try to
-// complete as much work as possible synchronously, even if it might block,
-// rather than continually PostTask-ing to the same thread.
-//
-// Because NSS functions should only be called on the NSS task runner, while
-// I/O resources should only be accessed on the network task runner, most
-// public functions are implemented via three methods, each with different
-// task runner affinities.
-//
-// In the single-threaded mode (where the network and NSS task runners run on
-// the same thread), these are all attempted synchronously, while in the
-// multi-threaded mode, message passing is used.
-//
-// 1) NSS Task Runner: Execute NSS function (DoPayloadRead, DoPayloadWrite,
-//    DoHandshake)
-// 2) NSS Task Runner: Prepare data to go from NSS to an IO function:
-//    (BufferRecv, BufferSend)
-// 3) Network Task Runner: Perform IO on that data (DoBufferRecv,
-//    DoBufferSend, DoGetDomainBoundCert, OnGetDomainBoundCertComplete)
-// 4) Both Task Runners: Callback for asynchronous completion or to marshal
-//    data from the network task runner back to NSS (BufferRecvComplete,
-//    BufferSendComplete, OnHandshakeIOComplete)
-//
-/////////////////////////////////////////////////////////////////////////////
-// Single-threaded example
-//
-// |--------------------------Network Task Runner--------------------------|
-//  SSLClientSocketNSS              Core               (Transport Socket)
-//       Read()
-//         |-------------------------V
-//                                 Read()
-//                                   |
-//                            DoPayloadRead()
-//                                   |
-//                               BufferRecv()
-//                                   |
-//                              DoBufferRecv()
-//                                   |-------------------------V
-//                                                           Read()
-//                                   V-------------------------|
-//                          BufferRecvComplete()
-//                                   |
-//                           PostOrRunCallback()
-//         V-------------------------|
-//    (Read Callback)
-//
-/////////////////////////////////////////////////////////////////////////////
-// Multi-threaded example:
-//
-// |--------------------Network Task Runner-------------|--NSS Task Runner--|
-//  SSLClientSocketNSS          Core            Socket         Core
-//       Read()
-//         |---------------------V
-//                             Read()
-//                               |-------------------------------V
-//                                                             Read()
-//                                                               |
-//                                                         DoPayloadRead()
-//                                                               |
-//                                                          BufferRecv
-//                               V-------------------------------|
-//                          DoBufferRecv
-//                               |----------------V
-//                                              Read()
-//                               V----------------|
-//                        BufferRecvComplete()
-//                               |-------------------------------V
-//                                                      BufferRecvComplete()
-//                                                               |
-//                                                       PostOrRunCallback()
-//                               V-------------------------------|
-//                        PostOrRunCallback()
-//         V---------------------|
-//    (Read Callback)
-//
-/////////////////////////////////////////////////////////////////////////////
-class SSLClientSocketNSS::Core : public base::RefCountedThreadSafe<Core> {
- public:
-  // Creates a new Core.
-  //
-  // Any calls to NSS are executed on the |nss_task_runner|, while any calls
-  // that need to operate on the underlying transport, net log, or server
-  // bound certificate fetching will happen on the |network_task_runner|, so
-  // that their lifetimes match that of the owning SSLClientSocketNSS.
-  //
-  // The caller retains ownership of |transport|, |net_log|, and
-  // |server_bound_cert_service|, and they will not be accessed once Detach()
-  // has been called.
-  Core(base::SequencedTaskRunner* network_task_runner,
-       base::SingleThreadTaskRunner* nss_task_runner,
-       ClientSocketHandle* transport,
-       const HostPortPair& host_and_port,
-       const SSLConfig& ssl_config,
-       BoundNetLog* net_log,
-       ServerBoundCertService* server_bound_cert_service);
-
-  // Called on the network task runner.
-  // Transfers ownership of |socket|, an NSS SSL socket, and |buffers|, the
-  // underlying memio implementation, to the Core. Returns true if the Core
-  // was successfully registered with the socket.
-  bool Init(PRFileDesc* socket, memio_Private* buffers);
-
-  // Called on the network task runner.
-  // Sets the predicted certificate chain that the peer will send, for use
-  // with the TLS CachedInfo extension. If called, it must not be called
-  // before Init() or after Connect().
-  void SetPredictedCertificates(
-      const std::vector<std::string>& predicted_certificates);
-
-  // Called on the network task runner.
-  //
-  // Attempts to perform an SSL handshake. If the handshake cannot be
-  // completed synchronously, returns ERR_IO_PENDING, invoking |callback| on
-  // the network task runner once the handshake has completed. Otherwise,
-  // returns OK on success or a network error code on failure.
-  int Connect(const CompletionCallback& callback);
-
-  // Called on the network task runner.
-  // Signals that the resources owned by the network task runner are going
-  // away. No further callbacks will be invoked on the network task runner.
-  // May be called at any time.
-  void Detach();
-
-  // Called on the network task runner.
-  // Returns the current state of the underlying SSL socket. May be called at
-  // any time.
-  const HandshakeState& state() const { return network_handshake_state_; }
-
-  // Called on the network task runner.
-  // Read() and Write() mirror the net::Socket functions of the same name.
-  // If ERR_IO_PENDING is returned, |callback| will be invoked on the network
-  // task runner at a later point, unless the caller calls Detach().
-  int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
-  int Write(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
-
- private:
-  friend class base::RefCountedThreadSafe<Core>;
-  ~Core();
-
-  enum State {
-    STATE_NONE,
-    STATE_HANDSHAKE,
-    STATE_GET_DOMAIN_BOUND_CERT_COMPLETE,
-  };
-
-  bool OnNSSTaskRunner() const;
-  bool OnNetworkTaskRunner() const;
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Methods that are ONLY called on the NSS task runner:
-  ////////////////////////////////////////////////////////////////////////////
-
-  // Called by NSS during full handshakes to allow the application to
-  // verify the certificate. Instead of verifying the certificate in the midst
-  // of the handshake, SECSuccess is always returned and the peer's certificate
-  // is verified afterwards.
-  // This behaviour is an artifact of the original SSLClientSocketWin
-  // implementation, which could not verify the peer's certificate until after
-  // the handshake had completed, as well as bugs in NSS that prevent
-  // SSL_RestartHandshakeAfterCertReq from working.
-  static SECStatus OwnAuthCertHandler(void* arg,
-                                      PRFileDesc* socket,
-                                      PRBool checksig,
-                                      PRBool is_server);
-
-  // Callbacks called by NSS when the peer requests client certificate
-  // authentication.
-  // See the documentation in third_party/nss/ssl/ssl.h for the meanings of
-  // the arguments.
-#if defined(NSS_PLATFORM_CLIENT_AUTH)
-  // When NSS has been integrated with awareness of the underlying system
-  // cryptographic libraries, this callback allows the caller to supply a
-  // native platform certificate and key for use by NSS. At most, one of
-  // either (result_certs, result_private_key) or (result_nss_certificate,
-  // result_nss_private_key) should be set.
-  // |arg| contains a pointer to the current SSLClientSocketNSS::Core.
-  static SECStatus PlatformClientAuthHandler(
-      void* arg,
-      PRFileDesc* socket,
-      CERTDistNames* ca_names,
-      CERTCertList** result_certs,
-      void** result_private_key,
-      CERTCertificate** result_nss_certificate,
-      SECKEYPrivateKey** result_nss_private_key);
-#else
-  static SECStatus ClientAuthHandler(void* arg,
-                                     PRFileDesc* socket,
-                                     CERTDistNames* ca_names,
-                                     CERTCertificate** result_certificate,
-                                     SECKEYPrivateKey** result_private_key);
-#endif
-
-  // Called by NSS once the handshake has completed.
-  // |arg| contains a pointer to the current SSLClientSocketNSS::Core.
-  static void HandshakeCallback(PRFileDesc* socket, void* arg);
-
-  // Called by NSS if the peer supports the NPN handshake extension, to allow
-  // the application to select the protocol to use.
-  // See the documentation for SSLNextProtocolCallback in
-  // third_party/nss/ssl/ssl.h for the meanings of the arguments.
-  // |arg| contains a pointer to the current SSLClientSocketNSS::Core.
-  static SECStatus NextProtoCallback(void* arg,
-                                     PRFileDesc* fd,
-                                     const unsigned char* protos,
-                                     unsigned int protos_len,
-                                     unsigned char* proto_out,
-                                     unsigned int* proto_out_len,
-                                     unsigned int proto_max_len);
-
-  // Handles an NSS error generated while handshaking or performing IO.
-  // Returns a network error code mapped from the original NSS error.
-  int HandleNSSError(PRErrorCode error, bool handshake_error);
-
-  int DoHandshakeLoop(int last_io_result);
-  int DoReadLoop(int result);
-  int DoWriteLoop(int result);
-
-  int DoHandshake();
-  int DoGetDBCertComplete(int result);
-
-  int DoPayloadRead();
-  int DoPayloadWrite();
-
-  bool DoTransportIO();
-  int BufferRecv();
-  int BufferSend();
-
-  void OnRecvComplete(int result);
-  void OnSendComplete(int result);
-
-  void DoConnectCallback(int result);
-  void DoReadCallback(int result);
-  void DoWriteCallback(int result);
-
-  // Domain bound cert client auth handler.
-  // Returns the value the ClientAuthHandler function should return.
-  SECStatus DomainBoundClientAuthHandler(
-      const SECItem* cert_types,
-      CERTCertificate** result_certificate,
-      SECKEYPrivateKey** result_private_key);
-
-  // ImportDBCertAndKey is a helper function for turning a DER-encoded cert and
-  // key into a CERTCertificate and SECKEYPrivateKey. Returns OK upon success
-  // and an error code otherwise.
-  // Requires |domain_bound_private_key_| and |domain_bound_cert_| to have been
-  // set by a call to ServerBoundCertService->GetDomainBoundCert. The caller
-  // takes ownership of the |*cert| and |*key|.
-  int ImportDBCertAndKey(CERTCertificate** cert, SECKEYPrivateKey** key);
-
-  // Updates the NSS and platform specific certificates.
-  void UpdateServerCert();
-  // Updates the nss_handshake_state_ with the negotiated security parameters.
-  void UpdateConnectionStatus();
-  // Record histograms for DBC support during full handshakes - resumed
-  // handshakes are ignored.
-  void RecordDomainBoundCertSupport() const;
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Methods that are ONLY called on the network task runner:
-  ////////////////////////////////////////////////////////////////////////////
-  int DoBufferRecv(IOBuffer* buffer, int len);
-  int DoBufferSend(IOBuffer* buffer, int len);
-  int DoGetDomainBoundCert(const std::string& origin,
-                           const std::vector<uint8>& requested_cert_types);
-
-  void OnGetDomainBoundCertComplete(int result);
-  void OnHandshakeStateUpdated(const HandshakeState& state);
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Methods that are called on both the network task runner and the NSS
-  // task runner.
-  ////////////////////////////////////////////////////////////////////////////
-  void OnHandshakeIOComplete(int result);
-  void BufferRecvComplete(IOBuffer* buffer, int result);
-  void BufferSendComplete(int result);
-
-  // PostOrRunCallback is a helper function to ensure that |callback| is
-  // invoked on the network task runner, but only if Detach() has not yet
-  // been called.
-  void PostOrRunCallback(const tracked_objects::Location& location,
-                         const base::Closure& callback);
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Members that are ONLY accessed on the network task runner:
-  ////////////////////////////////////////////////////////////////////////////
-
-  // True if the owning SSLClientSocketNSS has called Detach(). No further
-  // callbacks will be invoked nor access to members owned by the network
-  // task runner.
-  bool detached_;
-
-  // The underlying transport to use for network IO.
-  ClientSocketHandle* transport_;
-  base::WeakPtrFactory<BoundNetLog> weak_net_log_factory_;
-
-  // The current handshake state. Mirrors |nss_handshake_state_|.
-  HandshakeState network_handshake_state_;
-
-  ServerBoundCertService* server_bound_cert_service_;
-  ServerBoundCertService::RequestHandle domain_bound_cert_request_handle_;
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Members that are ONLY accessed on the NSS task runner:
-  ////////////////////////////////////////////////////////////////////////////
-  HostPortPair host_and_port_;
-  SSLConfig ssl_config_;
-
-  // NSS SSL socket.
-  PRFileDesc* nss_fd_;
-
-  // Buffers for the network end of the SSL state machine
-  memio_Private* nss_bufs_;
-
-  // The certificate chain, in DER form, that is expected to be received from
-  // the server.
-  std::vector<std::string> predicted_certs_;
-
-  State next_handshake_state_;
-
-  // True if domain bound certs were negotiated.
-  bool domain_bound_cert_xtn_negotiated_;
-  // True if the handshake state machine was interrupted for client auth.
-  bool client_auth_cert_needed_;
-  // True if NSS has called HandshakeCallback.
-  bool handshake_callback_called_;
-
-  HandshakeState nss_handshake_state_;
-
-  bool transport_recv_busy_;
-  bool transport_recv_eof_;
-  bool transport_send_busy_;
-
-  // Used by Read function.
-  scoped_refptr<IOBuffer> user_read_buf_;
-  int user_read_buf_len_;
-
-  // Used by Write function.
-  scoped_refptr<IOBuffer> user_write_buf_;
-  int user_write_buf_len_;
-
-  CompletionCallback user_connect_callback_;
-  CompletionCallback user_read_callback_;
-  CompletionCallback user_write_callback_;
-
-  ////////////////////////////////////////////////////////////////////////////
-  // Members that are accessed on both the network task runner and the NSS
-  // task runner.
-  ////////////////////////////////////////////////////////////////////////////
-  scoped_refptr<base::SequencedTaskRunner> network_task_runner_;
-  scoped_refptr<base::SingleThreadTaskRunner> nss_task_runner_;
-
-  // Dereferenced only on the network task runner, but bound to tasks destined
-  // for the network task runner from the NSS task runner.
-  base::WeakPtr<BoundNetLog> weak_net_log_;
-
-  // Written on the network task runner by the |server_bound_cert_service_|,
-  // prior to invoking OnHandshakeIOComplete.
-  // Read on the NSS task runner when once OnHandshakeIOComplete is invoked
-  // on the NSS task runner.
-  SSLClientCertType domain_bound_cert_type_;
-  std::string domain_bound_private_key_;
-  std::string domain_bound_cert_;
-
-  DISALLOW_COPY_AND_ASSIGN(Core);
-};
-
-SSLClientSocketNSS::Core::Core(
-    base::SequencedTaskRunner* network_task_runner,
-    base::SingleThreadTaskRunner* nss_task_runner,
-    ClientSocketHandle* transport,
-    const HostPortPair& host_and_port,
-    const SSLConfig& ssl_config,
-    BoundNetLog* net_log,
-    ServerBoundCertService* server_bound_cert_service)
-    : detached_(false),
-      transport_(transport),
-      weak_net_log_factory_(net_log),
-      server_bound_cert_service_(server_bound_cert_service),
-      domain_bound_cert_request_handle_(NULL),
-      host_and_port_(host_and_port),
-      ssl_config_(ssl_config),
-      nss_fd_(NULL),
-      nss_bufs_(NULL),
-      next_handshake_state_(STATE_NONE),
-      domain_bound_cert_xtn_negotiated_(false),
-      client_auth_cert_needed_(false),
-      handshake_callback_called_(false),
+SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
+                                       const HostPortPair& host_and_port,
+                                       const SSLConfig& ssl_config,
+                                       SSLHostInfo* ssl_host_info,
+                                       const SSLClientSocketContext& context)
+    : transport_send_busy_(false),
       transport_recv_busy_(false),
       transport_recv_eof_(false),
-      transport_send_busy_(false),
-      user_read_buf_len_(0),
-      user_write_buf_len_(0),
-      network_task_runner_(network_task_runner),
-      nss_task_runner_(nss_task_runner),
-      weak_net_log_(weak_net_log_factory_.GetWeakPtr()),
-      domain_bound_cert_type_(CLIENT_CERT_INVALID_TYPE) {
-}
-
-SSLClientSocketNSS::Core::~Core() {
-  // TODO(wtc): Send SSL close_notify alert.
-  if (nss_fd_ != NULL) {
-    PR_Close(nss_fd_);
-    nss_fd_ = NULL;
-  }
-}
-
-bool SSLClientSocketNSS::Core::Init(PRFileDesc* socket,
-                                    memio_Private* buffers) {
-  DCHECK(OnNetworkTaskRunner());
-  DCHECK(!nss_fd_);
-  DCHECK(!nss_bufs_);
-
-  nss_fd_ = socket;
-  nss_bufs_ = buffers;
-
-  SECStatus rv = SECSuccess;
-
-  if (!ssl_config_.next_protos.empty()) {
-    rv = SSL_SetNextProtoCallback(
-        nss_fd_, SSLClientSocketNSS::Core::NextProtoCallback, this);
-    if (rv != SECSuccess)
-      LogFailedNSSFunction(*weak_net_log_, "SSL_SetNextProtoCallback", "");
-  }
-
-  rv = SSL_AuthCertificateHook(
-      nss_fd_, SSLClientSocketNSS::Core::OwnAuthCertHandler, this);
-  if (rv != SECSuccess) {
-    LogFailedNSSFunction(*weak_net_log_, "SSL_AuthCertificateHook", "");
-    return false;
-  }
-
-#if defined(NSS_PLATFORM_CLIENT_AUTH)
-  rv = SSL_GetPlatformClientAuthDataHook(
-      nss_fd_, SSLClientSocketNSS::Core::PlatformClientAuthHandler,
-      this);
-#else
-  rv = SSL_GetClientAuthDataHook(
-      nss_fd_, SSLClientSocketNSS::Core::ClientAuthHandler, this);
-#endif
-  if (rv != SECSuccess) {
-    LogFailedNSSFunction(*weak_net_log_, "SSL_GetClientAuthDataHook", "");
-    return false;
-  }
-
-  rv = SSL_HandshakeCallback(
-      nss_fd_, SSLClientSocketNSS::Core::HandshakeCallback, this);
-  if (rv != SECSuccess) {
-    LogFailedNSSFunction(*weak_net_log_, "SSL_HandshakeCallback", "");
-    return false;
-  }
-
-  return true;
-}
-
-void SSLClientSocketNSS::Core::SetPredictedCertificates(
-    const std::vector<std::string>& predicted_certs) {
-  if (predicted_certs.empty())
-    return;
-
-  if (!OnNSSTaskRunner()) {
-    DCHECK(!detached_);
-    nss_task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(&Core::SetPredictedCertificates, this, predicted_certs));
-    return;
-  }
-
-  DCHECK(nss_fd_);
-
-  predicted_certs_ = predicted_certs;
-
-  scoped_array<CERTCertificate*> certs(
-      new CERTCertificate*[predicted_certs.size()]);
-
-  for (size_t i = 0; i < predicted_certs.size(); i++) {
-    SECItem derCert;
-    derCert.data = const_cast<uint8*>(reinterpret_cast<const uint8*>(
-        predicted_certs[i].data()));
-    derCert.len = predicted_certs[i].size();
-    certs[i] = CERT_NewTempCertificate(
-        CERT_GetDefaultCertDB(), &derCert, NULL /* no nickname given */,
-        PR_FALSE /* not permanent */, PR_TRUE /* copy DER data */);
-    if (!certs[i]) {
-      DestroyCertificates(&certs[0], i);
-      NOTREACHED();
-      return;
-    }
-  }
-
-  SECStatus rv;
-#ifdef SSL_ENABLE_CACHED_INFO
-  rv = SSL_SetPredictedPeerCertificates(nss_fd_, certs.get(),
-                                        predicted_certs.size());
-  DCHECK_EQ(SECSuccess, rv);
-#else
-  rv = SECFailure;  // Not implemented.
-#endif
-  DestroyCertificates(&certs[0], predicted_certs.size());
-
-  if (rv != SECSuccess) {
-    LOG(WARNING) << "SetPredictedCertificates failed: "
-                 << host_and_port_.ToString();
-  }
-}
-
-int SSLClientSocketNSS::Core::Connect(const CompletionCallback& callback) {
-  if (!OnNSSTaskRunner()) {
-    DCHECK(!detached_);
-    bool posted = nss_task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(IgnoreResult(&Core::Connect), this, callback));
-    return posted ? ERR_IO_PENDING : ERR_ABORTED;
-  }
-
-  DCHECK(OnNSSTaskRunner());
-  DCHECK_EQ(STATE_NONE, next_handshake_state_);
-  DCHECK(user_read_callback_.is_null());
-  DCHECK(user_write_callback_.is_null());
-  DCHECK(user_connect_callback_.is_null());
-  DCHECK(!user_read_buf_);
-  DCHECK(!user_write_buf_);
-
-  next_handshake_state_ = STATE_HANDSHAKE;
-  int rv = DoHandshakeLoop(OK);
-  if (rv == ERR_IO_PENDING) {
-    user_connect_callback_ = callback;
-  } else if (rv > OK) {
-    rv = OK;
-  }
-  if (rv != ERR_IO_PENDING && !OnNetworkTaskRunner()) {
-    PostOrRunCallback(FROM_HERE, base::Bind(callback, rv));
-    return ERR_IO_PENDING;
-  }
-
-  return rv;
-}
-
-void SSLClientSocketNSS::Core::Detach() {
-  DCHECK(OnNetworkTaskRunner());
-
-  detached_ = true;
-  transport_ = NULL;
-  weak_net_log_factory_.InvalidateWeakPtrs();
-
-  network_handshake_state_.Reset();
-
-  if (domain_bound_cert_request_handle_ != NULL) {
-    server_bound_cert_service_->CancelRequest(
-        domain_bound_cert_request_handle_);
-    domain_bound_cert_request_handle_ = NULL;
-  }
-}
-
-int SSLClientSocketNSS::Core::Read(IOBuffer* buf, int buf_len,
-                                   const CompletionCallback& callback) {
-  if (!OnNSSTaskRunner()) {
-    DCHECK(OnNetworkTaskRunner());
-    DCHECK(!detached_);
-    DCHECK(transport_);
-
-    bool posted = nss_task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(IgnoreResult(&Core::Read), this, make_scoped_refptr(buf),
-                   buf_len, callback));
-    return posted ? ERR_IO_PENDING : ERR_ABORTED;
-  }
-
-  DCHECK(OnNSSTaskRunner());
-  DCHECK(handshake_callback_called_);
-  DCHECK_EQ(STATE_NONE, next_handshake_state_);
-  DCHECK(user_read_callback_.is_null());
-  DCHECK(user_connect_callback_.is_null());
-  DCHECK(!user_read_buf_);
-  DCHECK(nss_bufs_);
-
-  user_read_buf_ = buf;
-  user_read_buf_len_ = buf_len;
-
-  int rv = DoReadLoop(OK);
-  if (rv == ERR_IO_PENDING) {
-    user_read_callback_ = callback;
-  } else {
-    user_read_buf_ = NULL;
-    user_read_buf_len_ = 0;
-
-    if (!OnNetworkTaskRunner()) {
-      PostOrRunCallback(FROM_HERE, base::Bind(callback, rv));
-      return ERR_IO_PENDING;
-    }
-  }
-
-  return rv;
-}
-
-int SSLClientSocketNSS::Core::Write(IOBuffer* buf, int buf_len,
-                                    const CompletionCallback& callback) {
-  if (!OnNSSTaskRunner()) {
-    DCHECK(OnNetworkTaskRunner());
-    DCHECK(!detached_);
-    DCHECK(transport_);
-
-    bool posted = nss_task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(IgnoreResult(&Core::Write), this, make_scoped_refptr(buf),
-                   buf_len, callback));
-    int rv = posted ? ERR_IO_PENDING : ERR_ABORTED;
-    return rv;
-  }
-
-  DCHECK(OnNSSTaskRunner());
-  DCHECK(handshake_callback_called_);
-  DCHECK_EQ(STATE_NONE, next_handshake_state_);
-  DCHECK(user_write_callback_.is_null());
-  DCHECK(user_connect_callback_.is_null());
-  DCHECK(!user_write_buf_);
-  DCHECK(nss_bufs_);
-
-  user_write_buf_ = buf;
-  user_write_buf_len_ = buf_len;
-
-  int rv = DoWriteLoop(OK);
-  if (rv == ERR_IO_PENDING) {
-    user_write_callback_ = callback;
-  } else {
-    user_write_buf_ = NULL;
-    user_write_buf_len_ = 0;
-
-    if (!OnNetworkTaskRunner()) {
-      PostOrRunCallback(FROM_HERE, base::Bind(callback, rv));
-      return ERR_IO_PENDING;
-    }
-  }
-
-  return rv;
-}
-
-bool SSLClientSocketNSS::Core::OnNSSTaskRunner() const {
-  return nss_task_runner_->RunsTasksOnCurrentThread();
-}
-
-bool SSLClientSocketNSS::Core::OnNetworkTaskRunner() const {
-  return network_task_runner_->RunsTasksOnCurrentThread();
-}
-
-// static
-SECStatus SSLClientSocketNSS::Core::OwnAuthCertHandler(
-    void* arg,
-    PRFileDesc* socket,
-    PRBool checksig,
-    PRBool is_server) {
-#ifdef SSL_ENABLE_FALSE_START
-  Core* core = reinterpret_cast<Core*>(arg);
-  if (!core->handshake_callback_called_) {
-    // Only need to turn off False Start in the initial handshake. Also, it is
-    // unsafe to call SSL_OptionSet in a renegotiation because the "first
-    // handshake" lock isn't already held, which will result in an assertion
-    // failure in the ssl_Get1stHandshakeLock call in SSL_OptionSet.
-    PRBool npn;
-    SECStatus rv = SSL_HandshakeNegotiatedExtension(socket,
-                                                    ssl_next_proto_nego_xtn,
-                                                    &npn);
-    if (rv != SECSuccess || !npn) {
-      // If the server doesn't support NPN, then we don't do False Start with
-      // it.
-      SSL_OptionSet(socket, SSL_ENABLE_FALSE_START, PR_FALSE);
-    }
-  }
-#endif
-
-  // Tell NSS to not verify the certificate.
-  return SECSuccess;
-}
-
-#if defined(NSS_PLATFORM_CLIENT_AUTH)
-// static
-SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
-    void* arg,
-    PRFileDesc* socket,
-    CERTDistNames* ca_names,
-    CERTCertList** result_certs,
-    void** result_private_key,
-    CERTCertificate** result_nss_certificate,
-    SECKEYPrivateKey** result_nss_private_key) {
-  Core* core = reinterpret_cast<Core*>(arg);
-  DCHECK(core->OnNSSTaskRunner());
-
-  core->PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                 NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED,
-                 scoped_refptr<NetLog::EventParameters>()));
-
-  const SECItem* cert_types = SSL_GetRequestedClientCertificateTypes(socket);
-
-  // Check if a domain-bound certificate is requested.
-  if (DomainBoundCertNegotiated(socket)) {
-    return core->DomainBoundClientAuthHandler(cert_types,
-                                              result_nss_certificate,
-                                              result_nss_private_key);
-  }
-
-  core->client_auth_cert_needed_ = !core->ssl_config_.send_client_cert;
-#if defined(OS_WIN)
-  if (core->ssl_config_.send_client_cert) {
-    if (core->ssl_config_.client_cert) {
-      PCCERT_CONTEXT cert_context =
-          core->ssl_config_.client_cert->os_cert_handle();
-
-      HCRYPTPROV_OR_NCRYPT_KEY_HANDLE crypt_prov = 0;
-      DWORD key_spec = 0;
-      BOOL must_free = FALSE;
-      BOOL acquired_key = CryptAcquireCertificatePrivateKey(
-          cert_context, CRYPT_ACQUIRE_CACHE_FLAG, NULL,
-          &crypt_prov, &key_spec, &must_free);
-
-      if (acquired_key) {
-        // Since we passed CRYPT_ACQUIRE_CACHE_FLAG, |must_free| must be false
-        // according to the MSDN documentation.
-        CHECK_EQ(must_free, FALSE);
-        DCHECK_NE(key_spec, CERT_NCRYPT_KEY_SPEC);
-
-        SECItem der_cert;
-        der_cert.type = siDERCertBuffer;
-        der_cert.data = cert_context->pbCertEncoded;
-        der_cert.len  = cert_context->cbCertEncoded;
-
-        // TODO(rsleevi): Error checking for NSS allocation errors.
-        CERTCertDBHandle* db_handle = CERT_GetDefaultCertDB();
-        CERTCertificate* user_cert = CERT_NewTempCertificate(
-            db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
-        if (!user_cert) {
-          // Importing the certificate can fail for reasons including a serial
-          // number collision. See crbug.com/97355.
-          core->PostOrRunCallback(
-              FROM_HERE,
-              base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                         NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                         make_scoped_refptr(
-                             new NetLogIntegerParameter("cert_count", 0))));
-          return SECFailure;
-        }
-        CERTCertList* cert_chain = CERT_NewCertList();
-        CERT_AddCertToListTail(cert_chain, user_cert);
-
-        // Add the intermediates.
-        X509Certificate::OSCertHandles intermediates =
-            core->ssl_config_.client_cert->GetIntermediateCertificates();
-        for (X509Certificate::OSCertHandles::const_iterator it =
-            intermediates.begin(); it != intermediates.end(); ++it) {
-          der_cert.data = (*it)->pbCertEncoded;
-          der_cert.len = (*it)->cbCertEncoded;
-
-          CERTCertificate* intermediate = CERT_NewTempCertificate(
-              db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
-          if (!intermediate) {
-            CERT_DestroyCertList(cert_chain);
-            core->PostOrRunCallback(
-                FROM_HERE,
-                base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                           NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                           make_scoped_refptr(
-                               new NetLogIntegerParameter("cert_count", 0))));
-            return SECFailure;
-          }
-          CERT_AddCertToListTail(cert_chain, intermediate);
-        }
-        PCERT_KEY_CONTEXT key_context = reinterpret_cast<PCERT_KEY_CONTEXT>(
-            PORT_ZAlloc(sizeof(CERT_KEY_CONTEXT)));
-        key_context->cbSize = sizeof(*key_context);
-        // NSS will free this context when no longer in use, but the
-        // |must_free| result from CryptAcquireCertificatePrivateKey was false
-        // so we increment the refcount to negate NSS's future decrement.
-        CryptContextAddRef(crypt_prov, NULL, 0);
-        key_context->hCryptProv = crypt_prov;
-        key_context->dwKeySpec = key_spec;
-        *result_private_key = key_context;
-        *result_certs = cert_chain;
-
-        int cert_count = 1 + intermediates.size();
-        core->PostOrRunCallback(
-            FROM_HERE,
-            base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                       NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                       make_scoped_refptr(
-                           new NetLogIntegerParameter("cert_count",
-                                                       cert_count))));
-        return SECSuccess;
-      }
-      LOG(WARNING) << "Client cert found without private key";
-    }
-
-    // Send no client certificate.
-    core->PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                   NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                   make_scoped_refptr(
-                       new NetLogIntegerParameter("cert_count", 0))));
-    return SECFailure;
-  }
-
-  core->nss_handshake_state_.client_certs.clear();
-
-  std::vector<CERT_NAME_BLOB> issuer_list(ca_names->nnames);
-  for (int i = 0; i < ca_names->nnames; ++i) {
-    issuer_list[i].cbData = ca_names->names[i].len;
-    issuer_list[i].pbData = ca_names->names[i].data;
-  }
-
-  // Client certificates of the user are in the "MY" system certificate store.
-  HCERTSTORE my_cert_store = CertOpenSystemStore(NULL, L"MY");
-  if (!my_cert_store) {
-    PLOG(ERROR) << "Could not open the \"MY\" system certificate store";
-
-    core->PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                   NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                   make_scoped_refptr(
-                       new NetLogIntegerParameter("cert_count", 0))));
-    return SECFailure;
-  }
-
-  // Enumerate the client certificates.
-  CERT_CHAIN_FIND_BY_ISSUER_PARA find_by_issuer_para;
-  memset(&find_by_issuer_para, 0, sizeof(find_by_issuer_para));
-  find_by_issuer_para.cbSize = sizeof(find_by_issuer_para);
-  find_by_issuer_para.pszUsageIdentifier = szOID_PKIX_KP_CLIENT_AUTH;
-  find_by_issuer_para.cIssuer = ca_names->nnames;
-  find_by_issuer_para.rgIssuer = ca_names->nnames ? &issuer_list[0] : NULL;
-  find_by_issuer_para.pfnFindCallback = ClientCertFindCallback;
-
-  PCCERT_CHAIN_CONTEXT chain_context = NULL;
-  DWORD find_flags = CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_FLAG |
-                     CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_URL_FLAG;
-
-  for (;;) {
-    // Find a certificate chain.
-    chain_context = CertFindChainInStore(my_cert_store,
-                                         X509_ASN_ENCODING,
-                                         find_flags,
-                                         CERT_CHAIN_FIND_BY_ISSUER,
-                                         &find_by_issuer_para,
-                                         chain_context);
-    if (!chain_context) {
-      DWORD err = GetLastError();
-      if (err != CRYPT_E_NOT_FOUND)
-        DLOG(ERROR) << "CertFindChainInStore failed: " << err;
-      break;
-    }
-
-    // Get the leaf certificate.
-    PCCERT_CONTEXT cert_context =
-        chain_context->rgpChain[0]->rgpElement[0]->pCertContext;
-    // Create a copy the handle, so that we can close the "MY" certificate store
-    // before returning from this function.
-    PCCERT_CONTEXT cert_context2;
-    BOOL ok = CertAddCertificateContextToStore(NULL, cert_context,
-                                               CERT_STORE_ADD_USE_EXISTING,
-                                               &cert_context2);
-    if (!ok) {
-      NOTREACHED();
-      continue;
-    }
-
-    // Copy the rest of the chain. Copying the chain stops gracefully if an
-    // error is encountered, with the partial chain being used as the
-    // intermediates, as opposed to failing to consider the client certificate
-    // at all.
-    net::X509Certificate::OSCertHandles intermediates;
-    for (DWORD i = 1; i < chain_context->rgpChain[0]->cElement; i++) {
-      PCCERT_CONTEXT intermediate_copy;
-      ok = CertAddCertificateContextToStore(
-          NULL, chain_context->rgpChain[0]->rgpElement[i]->pCertContext,
-          CERT_STORE_ADD_USE_EXISTING, &intermediate_copy);
-      if (!ok) {
-        NOTREACHED();
-        break;
-      }
-      intermediates.push_back(intermediate_copy);
-    }
-
-    scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
-        cert_context2, intermediates);
-    core->nss_handshake_state_.client_certs.push_back(cert);
-
-    X509Certificate::FreeOSCertHandle(cert_context2);
-    for (net::X509Certificate::OSCertHandles::iterator it =
-        intermediates.begin(); it != intermediates.end(); ++it) {
-      net::X509Certificate::FreeOSCertHandle(*it);
-    }
-  }
-
-  BOOL ok = CertCloseStore(my_cert_store, CERT_CLOSE_STORE_CHECK_FLAG);
-  DCHECK(ok);
-
-  // Update the network task runner's view of the handshake state now that
-  // client certs have been detected.
-  core->PostOrRunCallback(
-      FROM_HERE, base::Bind(&Core::OnHandshakeStateUpdated, core,
-                            core->nss_handshake_state_));
-
-  // Tell NSS to suspend the client authentication.  We will then abort the
-  // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
-  return SECWouldBlock;
-#elif defined(OS_MACOSX)
-  if (core->ssl_config_.send_client_cert) {
-    if (core->ssl_config_.client_cert) {
-      OSStatus os_error = noErr;
-      SecIdentityRef identity = NULL;
-      SecKeyRef private_key = NULL;
-      CFArrayRef chain =
-          core->ssl_config_.client_cert->CreateClientCertificateChain();
-      if (chain) {
-        identity = reinterpret_cast<SecIdentityRef>(
-            const_cast<void*>(CFArrayGetValueAtIndex(chain, 0)));
-      }
-      if (identity)
-        os_error = SecIdentityCopyPrivateKey(identity, &private_key);
-
-      if (chain && identity && os_error == noErr) {
-        // TODO(rsleevi): Error checking for NSS allocation errors.
-        *result_certs = CERT_NewCertList();
-        *result_private_key = private_key;
-
-        for (CFIndex i = 0; i < CFArrayGetCount(chain); ++i) {
-          CSSM_DATA cert_data;
-          SecCertificateRef cert_ref;
-          if (i == 0) {
-            cert_ref = core->ssl_config_.client_cert->os_cert_handle();
-          } else {
-            cert_ref = reinterpret_cast<SecCertificateRef>(
-                const_cast<void*>(CFArrayGetValueAtIndex(chain, i)));
-          }
-          os_error = SecCertificateGetData(cert_ref, &cert_data);
-          if (os_error != noErr)
-            break;
-
-          SECItem der_cert;
-          der_cert.type = siDERCertBuffer;
-          der_cert.data = cert_data.Data;
-          der_cert.len = cert_data.Length;
-          CERTCertificate* nss_cert = CERT_NewTempCertificate(
-              CERT_GetDefaultCertDB(), &der_cert, NULL, PR_FALSE, PR_TRUE);
-          if (!nss_cert) {
-            // In the event of an NSS error we make up an OS error and reuse
-            // the error handling, below.
-            os_error = errSecCreateChainFailed;
-            break;
-          }
-          CERT_AddCertToListTail(*result_certs, nss_cert);
-        }
-      }
-      if (os_error == noErr) {
-        int cert_count = 0;
-        if (chain) {
-          cert_count = CFArrayGetCount(chain);
-          CFRelease(chain);
-        }
-        core->PostOrRunCallback(
-            FROM_HERE,
-            base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                       NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                       make_scoped_refptr(
-                           new NetLogIntegerParameter("cert_count",
-                                                      cert_count))));
-        return SECSuccess;
-      }
-      OSSTATUS_LOG(WARNING, os_error)
-          << "Client cert found, but could not be used";
-      if (*result_certs) {
-        CERT_DestroyCertList(*result_certs);
-        *result_certs = NULL;
-      }
-      if (*result_private_key)
-        *result_private_key = NULL;
-      if (private_key)
-        CFRelease(private_key);
-      if (chain)
-        CFRelease(chain);
-    }
-
-    // Send no client certificate.
-    core->PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                   NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                   make_scoped_refptr(
-                       new NetLogIntegerParameter("cert_count", 0))));
-    return SECFailure;
-  }
-
-  core->nss_handshake_state_.client_certs.clear();
-
-  // First, get the cert issuer names allowed by the server.
-  std::vector<CertPrincipal> valid_issuers;
-  int n = ca_names->nnames;
-  for (int i = 0; i < n; i++) {
-    // Parse each name into a CertPrincipal object.
-    CertPrincipal p;
-    if (p.ParseDistinguishedName(ca_names->names[i].data,
-                                 ca_names->names[i].len)) {
-      valid_issuers.push_back(p);
-    }
-  }
-
-  // Now get the available client certs whose issuers are allowed by the server.
-  X509Certificate::GetSSLClientCertificates(
-      core->host_and_port_.host(), valid_issuers,
-      &core->nss_handshake_state_.client_certs);
-
-  // Update the network task runner's view of the handshake state now that
-  // client certs have been detected.
-  core->PostOrRunCallback(
-      FROM_HERE, base::Bind(&Core::OnHandshakeStateUpdated, core,
-                            core->nss_handshake_state_));
-
-  // Tell NSS to suspend the client authentication.  We will then abort the
-  // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
-  return SECWouldBlock;
-#else
-  return SECFailure;
-#endif
-}
-
-#else  // NSS_PLATFORM_CLIENT_AUTH
-
-// static
-// Based on Mozilla's NSS_GetClientAuthData.
-SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
-    void* arg,
-    PRFileDesc* socket,
-    CERTDistNames* ca_names,
-    CERTCertificate** result_certificate,
-    SECKEYPrivateKey** result_private_key) {
-  Core* core = reinterpret_cast<Core*>(arg);
-  DCHECK(core->OnNSSTaskRunner());
-
-  core->PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                 NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED,
-                 scoped_refptr<NetLog::EventParameters>()));
-
-  const SECItem* cert_types = SSL_GetRequestedClientCertificateTypes(socket);
-
-  // Check if a domain-bound certificate is requested.
-  if (DomainBoundCertNegotiated(socket)) {
-    return core->DomainBoundClientAuthHandler(
-        cert_types, result_certificate, result_private_key);
-  }
-
-  // Regular client certificate requested.
-  core->client_auth_cert_needed_ = !core->ssl_config_.send_client_cert;
-  void* wincx  = SSL_RevealPinArg(socket);
-
-  // Second pass: a client certificate should have been selected.
-  if (core->ssl_config_.send_client_cert) {
-    if (core->ssl_config_.client_cert) {
-      CERTCertificate* cert = CERT_DupCertificate(
-          core->ssl_config_.client_cert->os_cert_handle());
-      SECKEYPrivateKey* privkey = PK11_FindKeyByAnyCert(cert, wincx);
-      if (privkey) {
-        // TODO(jsorianopastor): We should wait for server certificate
-        // verification before sending our credentials.  See
-        // http://crbug.com/13934.
-        *result_certificate = cert;
-        *result_private_key = privkey;
-        // A cert_count of -1 means the number of certificates is unknown.
-        // NSS will construct the certificate chain.
-        core->PostOrRunCallback(
-            FROM_HERE,
-            base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                       NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                       make_scoped_refptr(
-                           new NetLogIntegerParameter("cert_count", -1))));
-
-        return SECSuccess;
-      }
-      LOG(WARNING) << "Client cert found without private key";
-    }
-    // Send no client certificate.
-    core->PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
-                   NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                   make_scoped_refptr(
-                       new NetLogIntegerParameter("cert_count", 0))));
-    return SECFailure;
-  }
-
-  core->nss_handshake_state_.client_certs.clear();
-
-  // Iterate over all client certificates.
-  CERTCertList* client_certs = CERT_FindUserCertsByUsage(
-      CERT_GetDefaultCertDB(), certUsageSSLClient,
-      PR_FALSE, PR_FALSE, wincx);
-  if (client_certs) {
-    for (CERTCertListNode* node = CERT_LIST_HEAD(client_certs);
-         !CERT_LIST_END(node, client_certs);
-         node = CERT_LIST_NEXT(node)) {
-      // Only offer unexpired certificates.
-      if (CERT_CheckCertValidTimes(node->cert, PR_Now(), PR_TRUE) !=
-          secCertTimeValid) {
-        continue;
-      }
-      // Filter by issuer.
-      //
-      // TODO(davidben): This does a binary comparison of the DER-encoded
-      // issuers. We should match according to RFC 5280 sec. 7.1. We should find
-      // an appropriate NSS function or add one if needbe.
-      if (ca_names->nnames &&
-          NSS_CmpCertChainWCANames(node->cert, ca_names) != SECSuccess) {
-        continue;
-      }
-
-      X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
-          node->cert, net::X509Certificate::OSCertHandles());
-      core->nss_handshake_state_.client_certs.push_back(x509_cert);
-    }
-    CERT_DestroyCertList(client_certs);
-  }
-
-  // Update the network task runner's view of the handshake state now that
-  // client certs have been detected.
-  core->PostOrRunCallback(
-      FROM_HERE, base::Bind(&Core::OnHandshakeStateUpdated, core,
-                            core->nss_handshake_state_));
-
-  // Tell NSS to suspend the client authentication.  We will then abort the
-  // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
-  return SECWouldBlock;
-}
-#endif  // NSS_PLATFORM_CLIENT_AUTH
-
-// static
-void SSLClientSocketNSS::Core::HandshakeCallback(
-    PRFileDesc* socket,
-    void* arg) {
-  Core* core = reinterpret_cast<Core*>(arg);
-  DCHECK(core->OnNSSTaskRunner());
-
-  core->handshake_callback_called_ = true;
-
-  HandshakeState* nss_state = &core->nss_handshake_state_;
-
-  PRBool last_handshake_resumed;
-  SECStatus rv = SSL_HandshakeResumedSession(socket, &last_handshake_resumed);
-  if (rv == SECSuccess && last_handshake_resumed) {
-    nss_state->resumed_handshake = true;
-  } else {
-    nss_state->resumed_handshake = false;
-  }
-
-  core->RecordDomainBoundCertSupport();
-  core->UpdateServerCert();
-  core->UpdateConnectionStatus();
-
-  // We need to see if the predicted certificate chain (from
-  // SetPredictedCertificates) matches the actual certificate chain.
-  nss_state->predicted_cert_chain_correct = false;
-  if (!core->predicted_certs_.empty()) {
-    PeerCertificateChain& certs = nss_state->server_cert_chain;
-    nss_state->predicted_cert_chain_correct =
-        certs.size() == core->predicted_certs_.size();
-
-    if (nss_state->predicted_cert_chain_correct) {
-      for (unsigned i = 0; i < certs.size(); i++) {
-        if (certs[i]->derCert.len != core->predicted_certs_[i].size() ||
-            memcmp(certs[i]->derCert.data, core->predicted_certs_[i].data(),
-                   certs[i]->derCert.len) != 0) {
-          nss_state->predicted_cert_chain_correct = false;
-          break;
-        }
-      }
-    }
-  }
-
-  // Update the network task runners view of the handshake state whenever
-  // a handshake has completed.
-  core->PostOrRunCallback(
-      FROM_HERE, base::Bind(&Core::OnHandshakeStateUpdated, core,
-                            *nss_state));
-}
-
-// static
-SECStatus SSLClientSocketNSS::Core::NextProtoCallback(
-    void* arg,
-    PRFileDesc* nss_fd,
-    const unsigned char* protos,
-    unsigned int protos_len,
-    unsigned char* proto_out,
-    unsigned int* proto_out_len,
-    unsigned int proto_max_len) {
-  Core* core = reinterpret_cast<Core*>(arg);
-  DCHECK(core->OnNSSTaskRunner());
-
-  HandshakeState* nss_state = &core->nss_handshake_state_;
-
-  // For each protocol in server preference, see if we support it.
-  for (unsigned int i = 0; i < protos_len; ) {
-    const size_t len = protos[i];
-    for (std::vector<std::string>::const_iterator
-         j = core->ssl_config_.next_protos.begin();
-         j != core->ssl_config_.next_protos.end(); j++) {
-      // Having very long elements in the |next_protos| vector isn't a disaster
-      // because they'll never be selected, but it does indicate an error
-      // somewhere.
-      DCHECK_LT(j->size(), 256u);
-
-      if (j->size() == len &&
-          memcmp(&protos[i + 1], j->data(), len) == 0) {
-        nss_state->next_proto_status = kNextProtoNegotiated;
-        nss_state->next_proto = *j;
-        break;
-      }
-    }
-
-    if (nss_state->next_proto_status == kNextProtoNegotiated)
-      break;
-
-    // NSS ensures that the data in |protos| is well formed, so this will not
-    // cause a jump past the end of the buffer.
-    i += len + 1;
-  }
-
-  nss_state->server_protos.assign(
-      reinterpret_cast<const char*>(protos), protos_len);
-
-  // If we didn't find a protocol, we select the first one from our list.
-  if (nss_state->next_proto_status != kNextProtoNegotiated) {
-    nss_state->next_proto_status = kNextProtoNoOverlap;
-    nss_state->next_proto = core->ssl_config_.next_protos[0];
-  }
-
-  if (nss_state->next_proto.size() > proto_max_len) {
-    PORT_SetError(SEC_ERROR_OUTPUT_LEN);
-    return SECFailure;
-  }
-  memcpy(proto_out, nss_state->next_proto.data(),
-         nss_state->next_proto.size());
-  *proto_out_len = nss_state->next_proto.size();
-
-  // Update the network task runner's view of the handshake state now that
-  // NPN negotiation has occurred.
-  core->PostOrRunCallback(
-      FROM_HERE, base::Bind(&Core::OnHandshakeStateUpdated, core,
-                            *nss_state));
-
-  return SECSuccess;
-}
-
-int SSLClientSocketNSS::Core::HandleNSSError(PRErrorCode nss_error,
-                                             bool handshake_error) {
-  DCHECK(OnNSSTaskRunner());
-
-  int net_error = handshake_error ? MapNSSHandshakeError(nss_error) :
-                                    MapNSSError(nss_error);
-
-#if defined(OS_WIN)
-  // On Windows, a handle to the HCRYPTPROV is cached in the X509Certificate
-  // os_cert_handle() as an optimization. However, if the certificate
-  // private key is stored on a smart card, and the smart card is removed,
-  // the cached HCRYPTPROV will not be able to obtain the HCRYPTKEY again,
-  // preventing client certificate authentication. Because the
-  // X509Certificate may outlive the individual SSLClientSocketNSS, due to
-  // caching in X509Certificate, this failure ends up preventing client
-  // certificate authentication with the same certificate for all future
-  // attempts, even after the smart card has been re-inserted. By setting
-  // the CERT_KEY_PROV_HANDLE_PROP_ID to NULL, the cached HCRYPTPROV will
-  // typically be freed. This allows a new HCRYPTPROV to be obtained from
-  // the certificate on the next attempt, which should succeed if the smart
-  // card has been re-inserted, or will typically prompt the user to
-  // re-insert the smart card if not.
-  if ((net_error == ERR_SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY ||
-       net_error == ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED) &&
-      ssl_config_.send_client_cert && ssl_config_.client_cert) {
-    CertSetCertificateContextProperty(
-        ssl_config_.client_cert->os_cert_handle(),
-        CERT_KEY_PROV_HANDLE_PROP_ID, 0, NULL);
-  }
-#endif
-
-  return net_error;
-}
-
-int SSLClientSocketNSS::Core::DoHandshakeLoop(int last_io_result) {
-  DCHECK(OnNSSTaskRunner());
-
-  int rv = last_io_result;
-  do {
-    // Default to STATE_NONE for next state.
-    State state = next_handshake_state_;
-    GotoState(STATE_NONE);
-
-    switch (state) {
-      case STATE_HANDSHAKE:
-        rv = DoHandshake();
-        break;
-      case STATE_GET_DOMAIN_BOUND_CERT_COMPLETE:
-        rv = DoGetDBCertComplete(rv);
-        break;
-      case STATE_NONE:
-      default:
-        rv = ERR_UNEXPECTED;
-        LOG(DFATAL) << "unexpected state " << state;
-        break;
-    }
-
-    // Do the actual network I/O
-    bool network_moved = DoTransportIO();
-    if (network_moved && next_handshake_state_ == STATE_HANDSHAKE) {
-      // In general we exit the loop if rv is ERR_IO_PENDING.  In this
-      // special case we keep looping even if rv is ERR_IO_PENDING because
-      // the transport IO may allow DoHandshake to make progress.
-      DCHECK(rv == OK || rv == ERR_IO_PENDING);
-      rv = OK;  // This causes us to stay in the loop.
-    }
-  } while (rv != ERR_IO_PENDING && next_handshake_state_ != STATE_NONE);
-  return rv;
-}
-
-int SSLClientSocketNSS::Core::DoReadLoop(int result) {
-  DCHECK(OnNSSTaskRunner());
-  DCHECK(handshake_callback_called_);
-  DCHECK_EQ(STATE_NONE, next_handshake_state_);
-
-  if (result < 0)
-    return result;
-
-  if (!nss_bufs_) {
-    LOG(DFATAL) << "!nss_bufs_";
-    int rv = ERR_UNEXPECTED;
-    PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                   NetLog::TYPE_SSL_READ_ERROR,
-                   make_scoped_refptr(new SSLErrorParams(rv, 0))));
-    return rv;
-  }
-
-  bool network_moved;
-  int rv;
-  do {
-    rv = DoPayloadRead();
-    network_moved = DoTransportIO();
-  } while (rv == ERR_IO_PENDING && network_moved);
-
-  return rv;
-}
-
-int SSLClientSocketNSS::Core::DoWriteLoop(int result) {
-  DCHECK(OnNSSTaskRunner());
-  DCHECK(handshake_callback_called_);
-  DCHECK_EQ(STATE_NONE, next_handshake_state_);
-
-  if (result < 0)
-    return result;
-
-  if (!nss_bufs_) {
-    LOG(DFATAL) << "!nss_bufs_";
-    int rv = ERR_UNEXPECTED;
-    PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                   NetLog::TYPE_SSL_READ_ERROR,
-                   make_scoped_refptr(new SSLErrorParams(rv, 0))));
-    return rv;
-  }
-
-  bool network_moved;
-  int rv;
-  do {
-    rv = DoPayloadWrite();
-    network_moved = DoTransportIO();
-  } while (rv == ERR_IO_PENDING && network_moved);
-
-  LeaveFunction(rv);
-  return rv;
-}
-
-int SSLClientSocketNSS::Core::DoHandshake() {
-  DCHECK(OnNSSTaskRunner());
-
-  int net_error = net::OK;
-  SECStatus rv = SSL_ForceHandshake(nss_fd_);
-
-  // TODO(rkn): Handle the case in which server-bound cert generation takes
-  // too long and the server has closed the connection. Report some new error
-  // code so that the higher level code will attempt to delete the socket and
-  // redo the handshake.
-  if (client_auth_cert_needed_) {
-    if (domain_bound_cert_xtn_negotiated_) {
-      GotoState(STATE_GET_DOMAIN_BOUND_CERT_COMPLETE);
-      net_error = ERR_IO_PENDING;
-    } else {
-      net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
-      PostOrRunCallback(
-          FROM_HERE,
-          base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                     NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                     make_scoped_refptr(new SSLErrorParams(net_error, 0))));
-
-      // If the handshake already succeeded (because the server requests but
-      // doesn't require a client cert), we need to invalidate the SSL session
-      // so that we won't try to resume the non-client-authenticated session in
-      // the next handshake.  This will cause the server to ask for a client
-      // cert again.
-      if (rv == SECSuccess && SSL_InvalidateSession(nss_fd_) != SECSuccess)
-        LOG(WARNING) << "Couldn't invalidate SSL session: " << PR_GetError();
-    }
-  } else if (rv == SECSuccess) {
-    if (!handshake_callback_called_) {
-      // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=562434 -
-      // SSL_ForceHandshake returned SECSuccess prematurely.
-      rv = SECFailure;
-      net_error = ERR_SSL_PROTOCOL_ERROR;
-      PostOrRunCallback(
-          FROM_HERE,
-          base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                     NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                     make_scoped_refptr(
-                         new SSLErrorParams(net_error, 0))));
-    } else {
-  #if defined(SSL_ENABLE_OCSP_STAPLING)
-      // TODO(agl): figure out how to plumb an OCSP response into the Mac
-      // system library and update IsOCSPStaplingSupported for Mac.
-      if (!nss_handshake_state_.predicted_cert_chain_correct &&
-          IsOCSPStaplingSupported()) {
-        unsigned int len = 0;
-        SSL_GetStapledOCSPResponse(nss_fd_, NULL, &len);
-        if (len) {
-          const unsigned int orig_len = len;
-          scoped_array<uint8> ocsp_response(new uint8[orig_len]);
-          SSL_GetStapledOCSPResponse(nss_fd_, ocsp_response.get(), &len);
-          DCHECK_EQ(orig_len, len);
-
-  #if defined(OS_WIN)
-          if (nss_handshake_state_.server_cert) {
-            CRYPT_DATA_BLOB ocsp_response_blob;
-            ocsp_response_blob.cbData = len;
-            ocsp_response_blob.pbData = ocsp_response.get();
-            BOOL ok = CertSetCertificateContextProperty(
-                nss_handshake_state_.server_cert->os_cert_handle(),
-                CERT_OCSP_RESPONSE_PROP_ID,
-                CERT_SET_PROPERTY_IGNORE_PERSIST_ERROR_FLAG,
-                &ocsp_response_blob);
-            if (!ok) {
-              VLOG(1) << "Failed to set OCSP response property: "
-                      << GetLastError();
-            }
-          }
-  #elif defined(USE_NSS)
-          CacheOCSPResponseFromSideChannelFunction cache_ocsp_response =
-              GetCacheOCSPResponseFromSideChannelFunction();
-          SECItem ocsp_response_item;
-          ocsp_response_item.type = siBuffer;
-          ocsp_response_item.data = ocsp_response.get();
-          ocsp_response_item.len = len;
-
-          cache_ocsp_response(
-              CERT_GetDefaultCertDB(),
-              nss_handshake_state_.server_cert_chain[0], PR_Now(),
-              &ocsp_response_item, NULL);
-  #endif
-        }
-      }
-  #endif
-    }
-    // Done!
-  } else {
-    PRErrorCode prerr = PR_GetError();
-    net_error = HandleNSSError(prerr, true);
-
-    // If not done, stay in this state
-    if (net_error == ERR_IO_PENDING) {
-      GotoState(STATE_HANDSHAKE);
-    } else {
-      PostOrRunCallback(
-          FROM_HERE,
-          base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                     NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                     make_scoped_refptr(
-                         new SSLErrorParams(net_error, prerr))));
-    }
-  }
-
-  return net_error;
-}
-
-int SSLClientSocketNSS::Core::DoGetDBCertComplete(int result) {
-  SECStatus rv;
-  PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&BoundNetLog::EndEventWithNetErrorCode, weak_net_log_,
-                 NetLog::TYPE_SSL_GET_DOMAIN_BOUND_CERT, result));
-
-  client_auth_cert_needed_ = false;
-  domain_bound_cert_type_ = CLIENT_CERT_INVALID_TYPE;
-
-  if (result != OK) {
-    // Failed to get a DBC.  Proceed without.
-    rv = SSL_RestartHandshakeAfterCertReq(nss_fd_, NULL, NULL, NULL);
-    if (rv != SECSuccess)
-      return MapNSSError(PORT_GetError());
-
-    GotoState(STATE_HANDSHAKE);
-    return OK;
-  }
-
-  CERTCertificate* cert;
-  SECKEYPrivateKey* key;
-  int error = ImportDBCertAndKey(&cert, &key);
-  if (error != OK)
-    return error;
-
-  CERTCertificateList* cert_chain =
-      CERT_CertChainFromCert(cert, certUsageSSLClient, PR_FALSE);
-
-  PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                 NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                 make_scoped_refptr(
-                     new NetLogIntegerParameter("cert_count",
-                                                cert_chain->len))));
-
-  rv = SSL_RestartHandshakeAfterCertReq(nss_fd_, cert, key, cert_chain);
-  if (rv != SECSuccess)
-    return MapNSSError(PORT_GetError());
-
-  GotoState(STATE_HANDSHAKE);
-  return OK;
-}
-
-int SSLClientSocketNSS::Core::DoPayloadRead() {
-  DCHECK(OnNSSTaskRunner());
-  DCHECK(user_read_buf_);
-  DCHECK_GT(user_read_buf_len_, 0);
-
-  int rv = PR_Read(nss_fd_, user_read_buf_->data(), user_read_buf_len_);
-  if (client_auth_cert_needed_) {
-    // We don't need to invalidate the non-client-authenticated SSL session
-    // because the server will renegotiate anyway.
-    rv = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
-    PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                   NetLog::TYPE_SSL_READ_ERROR,
-                   make_scoped_refptr(new SSLErrorParams(rv, 0))));
-    return rv;
-  }
-  if (rv >= 0) {
-    PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&LogByteTransferEvent, weak_net_log_,
-                   NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
-                   scoped_refptr<IOBuffer>(user_read_buf_)));
-    return rv;
-  }
-  PRErrorCode prerr = PR_GetError();
-  if (prerr == PR_WOULD_BLOCK_ERROR)
-    return ERR_IO_PENDING;
-
-  rv = HandleNSSError(prerr, false);
-  PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                 NetLog::TYPE_SSL_READ_ERROR,
-                 make_scoped_refptr(new SSLErrorParams(rv, prerr))));
-  return rv;
-}
-
-int SSLClientSocketNSS::Core::DoPayloadWrite() {
-  DCHECK(OnNSSTaskRunner());
-
-  DCHECK(user_write_buf_);
-
-  int rv = PR_Write(nss_fd_, user_write_buf_->data(), user_write_buf_len_);
-  if (rv >= 0) {
-    PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&LogByteTransferEvent, weak_net_log_,
-                   NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
-                   scoped_refptr<IOBuffer>(user_write_buf_)));
-    return rv;
-  }
-  PRErrorCode prerr = PR_GetError();
-  if (prerr == PR_WOULD_BLOCK_ERROR)
-    return ERR_IO_PENDING;
-
-  rv = HandleNSSError(prerr, false);
-  PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                 NetLog::TYPE_SSL_WRITE_ERROR,
-                 make_scoped_refptr(new SSLErrorParams(rv, prerr))));
-  return rv;
-}
-
-// Do as much network I/O as possible between the buffer and the
-// transport socket. Return true if some I/O performed, false
-// otherwise (error or ERR_IO_PENDING).
-bool SSLClientSocketNSS::Core::DoTransportIO() {
-  DCHECK(OnNSSTaskRunner());
-
-  bool network_moved = false;
-  if (nss_bufs_ != NULL) {
-    int rv;
-    // Read and write as much data as we can. The loop is neccessary
-    // because Write() may return synchronously.
-    do {
-      rv = BufferSend();
-      if (rv > 0)
-        network_moved = true;
-    } while (rv > 0);
-    if (!transport_recv_eof_ && BufferRecv() >= 0)
-      network_moved = true;
-  }
-  return network_moved;
-}
-
-int SSLClientSocketNSS::Core::BufferRecv() {
-  DCHECK(OnNSSTaskRunner());
-
-  if (transport_recv_busy_)
-    return ERR_IO_PENDING;
-
-  char* buf;
-  int nb = memio_GetReadParams(nss_bufs_, &buf);
-  int rv;
-  if (!nb) {
-    // buffer too full to read into, so no I/O possible at moment
-    rv = ERR_IO_PENDING;
-  } else {
-    scoped_refptr<IOBuffer> read_buffer(new IOBuffer(nb));
-    if (OnNetworkTaskRunner()) {
-      rv = DoBufferRecv(read_buffer, nb);
-    } else {
-      bool posted = network_task_runner_->PostTask(
-          FROM_HERE,
-          base::Bind(IgnoreResult(&Core::DoBufferRecv), this, read_buffer,
-                     nb));
-      rv = posted ? ERR_IO_PENDING : ERR_ABORTED;
-    }
-
-    if (rv == ERR_IO_PENDING) {
-      transport_recv_busy_ = true;
-    } else {
-      if (rv > 0) {
-        memcpy(buf, read_buffer->data(), rv);
-      } else if (rv == 0) {
-        transport_recv_eof_ = true;
-      }
-      memio_PutReadResult(nss_bufs_, MapErrorToNSS(rv));
-    }
-  }
-  return rv;
-}
-
-// Return 0 for EOF,
-// > 0 for bytes transferred immediately,
-// < 0 for error (or the non-error ERR_IO_PENDING).
-int SSLClientSocketNSS::Core::BufferSend() {
-  DCHECK(OnNSSTaskRunner());
-
-  if (transport_send_busy_)
-    return ERR_IO_PENDING;
-
-  const char* buf1;
-  const char* buf2;
-  unsigned int len1, len2;
-  memio_GetWriteParams(nss_bufs_, &buf1, &len1, &buf2, &len2);
-  const unsigned int len = len1 + len2;
-
-  int rv = 0;
-  if (len) {
-    scoped_refptr<IOBuffer> send_buffer(new IOBuffer(len));
-    memcpy(send_buffer->data(), buf1, len1);
-    memcpy(send_buffer->data() + len1, buf2, len2);
-
-    if (OnNetworkTaskRunner()) {
-      rv = DoBufferSend(send_buffer, len);
-    } else {
-      bool posted = network_task_runner_->PostTask(
-          FROM_HERE,
-          base::Bind(IgnoreResult(&Core::DoBufferSend), this, send_buffer,
-                     len));
-      rv = posted ? ERR_IO_PENDING : ERR_ABORTED;
-    }
-
-    if (rv == ERR_IO_PENDING) {
-      transport_send_busy_ = true;
-    } else {
-      memio_PutWriteResult(nss_bufs_, MapErrorToNSS(rv));
-    }
-  }
-
-  return rv;
-}
-
-void SSLClientSocketNSS::Core::OnRecvComplete(int result) {
-  DCHECK(OnNSSTaskRunner());
-
-  if (next_handshake_state_ == STATE_HANDSHAKE) {
-    OnHandshakeIOComplete(result);
-    return;
-  }
-
-  // Network layer received some data, check if client requested to read
-  // decrypted data.
-  if (!user_read_buf_)
-    return;
-
-  int rv = DoReadLoop(result);
-  if (rv != ERR_IO_PENDING)
-    DoReadCallback(rv);
-}
-
-void SSLClientSocketNSS::Core::OnSendComplete(int result) {
-  DCHECK(OnNSSTaskRunner());
-
-  if (next_handshake_state_ == STATE_HANDSHAKE) {
-    OnHandshakeIOComplete(result);
-    return;
-  }
-
-  // OnSendComplete may need to call DoPayloadRead while the renegotiation
-  // handshake is in progress.
-  int rv_read = ERR_IO_PENDING;
-  int rv_write = ERR_IO_PENDING;
-  bool network_moved;
-  do {
-      if (user_read_buf_)
-          rv_read = DoPayloadRead();
-      if (user_write_buf_)
-          rv_write = DoPayloadWrite();
-      network_moved = DoTransportIO();
-  } while (rv_read == ERR_IO_PENDING &&
-           rv_write == ERR_IO_PENDING &&
-           (user_read_buf_ || user_write_buf_) &&
-           network_moved);
-
-  if (user_read_buf_ && rv_read != ERR_IO_PENDING)
-      DoReadCallback(rv_read);
-  if (user_write_buf_ && rv_write != ERR_IO_PENDING)
-      DoWriteCallback(rv_write);
-}
-
-// As part of Connect(), the SSLClientSocketNSS object performs an SSL
-// handshake. This requires network IO, which in turn calls
-// BufferRecvComplete() with a non-zero byte count. This byte count eventually
-// winds its way through the state machine and ends up being passed to the
-// callback. For Read() and Write(), that's what we want. But for Connect(),
-// the caller expects OK (i.e. 0) for success.
-void SSLClientSocketNSS::Core::DoConnectCallback(int rv) {
-  DCHECK(OnNSSTaskRunner());
-  DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(!user_connect_callback_.is_null());
-
-  base::Closure c = base::Bind(
-      base::ResetAndReturn(&user_connect_callback_),
-      rv > OK ? OK : rv);
-  PostOrRunCallback(FROM_HERE, c);
-}
-
-void SSLClientSocketNSS::Core::DoReadCallback(int rv) {
-  DCHECK(OnNSSTaskRunner());
-  DCHECK_NE(ERR_IO_PENDING, rv);
-  DCHECK(!user_read_callback_.is_null());
-
-  user_read_buf_ = NULL;
-  user_read_buf_len_ = 0;
-  base::Closure c = base::Bind(
-      base::ResetAndReturn(&user_read_callback_),
-      rv);
-  PostOrRunCallback(FROM_HERE, c);
-}
-
-void SSLClientSocketNSS::Core::DoWriteCallback(int rv) {
-  DCHECK(OnNSSTaskRunner());
-  DCHECK_NE(ERR_IO_PENDING, rv);
-  DCHECK(!user_write_callback_.is_null());
-
-  // Since Run may result in Write being called, clear |user_write_callback_|
-  // up front.
-  user_write_buf_ = NULL;
-  user_write_buf_len_ = 0;
-  base::Closure c = base::Bind(
-      base::ResetAndReturn(&user_write_callback_),
-      rv);
-  PostOrRunCallback(FROM_HERE, c);
-}
-
-SECStatus SSLClientSocketNSS::Core::DomainBoundClientAuthHandler(
-    const SECItem* cert_types,
-    CERTCertificate** result_certificate,
-    SECKEYPrivateKey** result_private_key) {
-  DCHECK(OnNSSTaskRunner());
-
-  domain_bound_cert_xtn_negotiated_ = true;
-
-  // We have negotiated the domain-bound certificate extension.
-  std::string origin = "https://" + host_and_port_.ToString();
-  std::vector<uint8> requested_cert_types(cert_types->data,
-                                          cert_types->data + cert_types->len);
-  int error = ERR_UNEXPECTED;
-  if (OnNetworkTaskRunner()) {
-    error = DoGetDomainBoundCert(origin, requested_cert_types);
-  } else {
-    bool posted = network_task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(IgnoreResult(&Core::DoGetDomainBoundCert), this, origin,
-                   requested_cert_types));
-    error = posted ? ERR_IO_PENDING : ERR_ABORTED;
-  }
-
-  if (error == ERR_IO_PENDING) {
-    // Asynchronous case.
-    client_auth_cert_needed_ = true;
-    return SECWouldBlock;
-  }
-
-  PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&BoundNetLog::EndEventWithNetErrorCode, weak_net_log_,
-                 NetLog::TYPE_SSL_GET_DOMAIN_BOUND_CERT, error));
-  SECStatus rv = SECSuccess;
-  if (error == OK) {
-    // Synchronous success.
-    int result = ImportDBCertAndKey(result_certificate, result_private_key);
-    if (result != OK) {
-      domain_bound_cert_type_ = CLIENT_CERT_INVALID_TYPE;
-      rv = SECFailure;
-    }
-  } else {
-    rv = SECFailure;
-  }
-
-  int cert_count = (rv == SECSuccess) ? 1 : 0;
-  PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                 NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                 make_scoped_refptr(
-                     new NetLogIntegerParameter("cert_count",
-                                                cert_count))));
-  return rv;
-}
-
-int SSLClientSocketNSS::Core::ImportDBCertAndKey(CERTCertificate** cert,
-                                                 SECKEYPrivateKey** key) {
-  // Set the certificate.
-  SECItem cert_item;
-  cert_item.data = (unsigned char*) domain_bound_cert_.data();
-  cert_item.len = domain_bound_cert_.size();
-  *cert = CERT_NewTempCertificate(CERT_GetDefaultCertDB(),
-                                  &cert_item,
-                                  NULL,
-                                  PR_FALSE,
-                                  PR_TRUE);
-  if (*cert == NULL)
-    return MapNSSError(PORT_GetError());
-
-  // Set the private key.
-  switch (domain_bound_cert_type_) {
-    case CLIENT_CERT_ECDSA_SIGN: {
-      SECKEYPublicKey* public_key = NULL;
-      if (!crypto::ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
-          ServerBoundCertService::kEPKIPassword,
-          reinterpret_cast<const unsigned char*>(
-              domain_bound_private_key_.data()),
-          domain_bound_private_key_.size(),
-          &(*cert)->subjectPublicKeyInfo,
-          false,
-          false,
-          key,
-          &public_key)) {
-        CERT_DestroyCertificate(*cert);
-        *cert = NULL;
-        return MapNSSError(PORT_GetError());
-      }
-      SECKEY_DestroyPublicKey(public_key);
-      break;
-    }
-
-    default:
-      NOTREACHED();
-      return ERR_INVALID_ARGUMENT;
-  }
-
-  return OK;
-}
-
-void SSLClientSocketNSS::Core::UpdateServerCert() {
-  nss_handshake_state_.server_cert_chain.Reset(nss_fd_);
-  nss_handshake_state_.server_cert = X509Certificate::CreateFromDERCertChain(
-      nss_handshake_state_.server_cert_chain.AsStringPieceVector());
-  if (nss_handshake_state_.server_cert) {
-    PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
-                   NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
-                   make_scoped_refptr(
-                       new X509CertificateNetLogParam(
-                           nss_handshake_state_.server_cert))));
-  }
-}
-
-void SSLClientSocketNSS::Core::UpdateConnectionStatus() {
-  SSLChannelInfo channel_info;
-  SECStatus ok = SSL_GetChannelInfo(nss_fd_,
-                                    &channel_info, sizeof(channel_info));
-  if (ok == SECSuccess &&
-      channel_info.length == sizeof(channel_info) &&
-      channel_info.cipherSuite) {
-    nss_handshake_state_.ssl_connection_status |=
-        (static_cast<int>(channel_info.cipherSuite) &
-         SSL_CONNECTION_CIPHERSUITE_MASK) <<
-        SSL_CONNECTION_CIPHERSUITE_SHIFT;
-
-    nss_handshake_state_.ssl_connection_status |=
-        (static_cast<int>(channel_info.compressionMethod) &
-         SSL_CONNECTION_COMPRESSION_MASK) <<
-        SSL_CONNECTION_COMPRESSION_SHIFT;
-
-    // NSS 3.12.x doesn't have version macros for TLS 1.1 and 1.2 (because NSS
-    // doesn't support them yet), so we use 0x0302 and 0x0303 directly.
-    int version = SSL_CONNECTION_VERSION_UNKNOWN;
-    if (channel_info.protocolVersion < SSL_LIBRARY_VERSION_3_0) {
-      // All versions less than SSL_LIBRARY_VERSION_3_0 are treated as SSL
-      // version 2.
-      version = SSL_CONNECTION_VERSION_SSL2;
-    } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_0) {
-      version = SSL_CONNECTION_VERSION_SSL3;
-    } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_1_TLS) {
-      version = SSL_CONNECTION_VERSION_TLS1;
-    } else if (channel_info.protocolVersion == 0x0302) {
-      version = SSL_CONNECTION_VERSION_TLS1_1;
-    } else if (channel_info.protocolVersion == 0x0303) {
-      version = SSL_CONNECTION_VERSION_TLS1_2;
-    }
-    nss_handshake_state_.ssl_connection_status |=
-        (version & SSL_CONNECTION_VERSION_MASK) <<
-        SSL_CONNECTION_VERSION_SHIFT;
-  }
-
-  // SSL_HandshakeNegotiatedExtension was added in NSS 3.12.6.
-  // Since SSL_MAX_EXTENSIONS was added at the same time, we can test
-  // SSL_MAX_EXTENSIONS for the presence of SSL_HandshakeNegotiatedExtension.
-#if defined(SSL_MAX_EXTENSIONS)
-  PRBool peer_supports_renego_ext;
-  ok = SSL_HandshakeNegotiatedExtension(nss_fd_, ssl_renegotiation_info_xtn,
-                                        &peer_supports_renego_ext);
-  if (ok == SECSuccess) {
-    if (!peer_supports_renego_ext) {
-      nss_handshake_state_.ssl_connection_status |=
-          SSL_CONNECTION_NO_RENEGOTIATION_EXTENSION;
-      // Log an informational message if the server does not support secure
-      // renegotiation (RFC 5746).
-      VLOG(1) << "The server " << host_and_port_.ToString()
-              << " does not support the TLS renegotiation_info extension.";
-    }
-    UMA_HISTOGRAM_ENUMERATION("Net.RenegotiationExtensionSupported",
-                              peer_supports_renego_ext, 2);
-  }
-#endif
-
-  if (ssl_config_.version_fallback) {
-    nss_handshake_state_.ssl_connection_status |=
-        SSL_CONNECTION_VERSION_FALLBACK;
-  }
-}
-
-void SSLClientSocketNSS::Core::RecordDomainBoundCertSupport() const {
-  if (nss_handshake_state_.resumed_handshake)
-    return;
-
-  // Since this enum is used for a histogram, do not change or re-use values.
-  enum {
-    DISABLED = 0,
-    CLIENT_ONLY = 1,
-    CLIENT_AND_SERVER = 2,
-    DOMAIN_BOUND_CERT_USAGE_MAX
-  } supported = DISABLED;
-#ifdef SSL_ENABLE_OB_CERTS
-  if (domain_bound_cert_xtn_negotiated_)
-    supported = CLIENT_AND_SERVER;
-  else if (ssl_config_.domain_bound_certs_enabled)
-    supported = CLIENT_ONLY;
-#endif
-  UMA_HISTOGRAM_ENUMERATION("DomainBoundCerts.Support", supported,
-                            DOMAIN_BOUND_CERT_USAGE_MAX);
-}
-
-int SSLClientSocketNSS::Core::DoBufferRecv(IOBuffer* read_buffer, int len) {
-  DCHECK(OnNetworkTaskRunner());
-  DCHECK_GT(len, 0);
-
-  if (detached_)
-    return ERR_ABORTED;
-
-  int rv = transport_->socket()->Read(
-      read_buffer, len,
-      base::Bind(&Core::BufferRecvComplete, base::Unretained(this),
-                 scoped_refptr<IOBuffer>(read_buffer)));
-
-  if (!OnNSSTaskRunner() && rv != ERR_IO_PENDING) {
-    nss_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&Core::BufferRecvComplete, this,
-                              scoped_refptr<IOBuffer>(read_buffer), rv));
-    return rv;
-  }
-
-  return rv;
-}
-
-int SSLClientSocketNSS::Core::DoBufferSend(IOBuffer* send_buffer, int len) {
-  DCHECK(OnNetworkTaskRunner());
-  DCHECK_GT(len, 0);
-
-  if (detached_)
-    return ERR_ABORTED;
-
-  int rv = transport_->socket()->Write(
-        send_buffer, len,
-        base::Bind(&Core::BufferSendComplete,
-                   base::Unretained(this)));
-
-  if (!OnNSSTaskRunner() && rv != ERR_IO_PENDING) {
-    nss_task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(&Core::BufferSendComplete, this, rv));
-    return rv;
-  }
-
-  return rv;
-}
-
-int SSLClientSocketNSS::Core::DoGetDomainBoundCert(
-    const std::string& origin,
-    const std::vector<uint8>& requested_cert_types) {
-  DCHECK(OnNetworkTaskRunner());
-
-  if (detached_)
-    return ERR_FAILED;
-
-  weak_net_log_->BeginEvent(NetLog::TYPE_SSL_GET_DOMAIN_BOUND_CERT, NULL);
-
-  int rv = server_bound_cert_service_->GetDomainBoundCert(
-      origin,
-      requested_cert_types,
-      &domain_bound_cert_type_,
-      &domain_bound_private_key_,
-      &domain_bound_cert_,
-      base::Bind(&Core::OnGetDomainBoundCertComplete, base::Unretained(this)),
-      &domain_bound_cert_request_handle_);
-
-  if (rv != ERR_IO_PENDING && !OnNSSTaskRunner()) {
-    nss_task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(&Core::OnHandshakeIOComplete, this, rv));
-    return ERR_IO_PENDING;
-  }
-
-  return rv;
-}
-
-void SSLClientSocketNSS::Core::OnHandshakeStateUpdated(
-    const HandshakeState& state) {
-  network_handshake_state_ = state;
-}
-
-void SSLClientSocketNSS::Core::BufferSendComplete(int result) {
-  if (!OnNSSTaskRunner()) {
-    if (detached_)
-      return;
-
-    nss_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&Core::BufferSendComplete, this, result));
-    return;
-  }
-
-  DCHECK(OnNSSTaskRunner());
-
-  memio_PutWriteResult(nss_bufs_, MapErrorToNSS(result));
-  transport_send_busy_ = false;
-  OnSendComplete(result);
-}
-
-void SSLClientSocketNSS::Core::OnHandshakeIOComplete(int result) {
-  if (!OnNSSTaskRunner()) {
-    if (detached_)
-      return;
-
-    nss_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&Core::OnHandshakeIOComplete, this, result));
-    return;
-  }
-
-  DCHECK(OnNSSTaskRunner());
-
-  int rv = DoHandshakeLoop(result);
-  if (rv != ERR_IO_PENDING)
-    DoConnectCallback(rv);
-}
-
-void SSLClientSocketNSS::Core::OnGetDomainBoundCertComplete(int result) {
-  DCHECK(OnNetworkTaskRunner());
-
-  domain_bound_cert_request_handle_ = NULL;
-  OnHandshakeIOComplete(result);
-}
-
-void SSLClientSocketNSS::Core::BufferRecvComplete(
-    IOBuffer* read_buffer,
-    int result) {
-  DCHECK(read_buffer);
-
-  if (!OnNSSTaskRunner()) {
-    if (detached_)
-      return;
-
-    nss_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&Core::BufferRecvComplete, this,
-                              scoped_refptr<IOBuffer>(read_buffer), result));
-    return;
-  }
-
-  DCHECK(OnNSSTaskRunner());
-
-  if (result > 0) {
-    char* buf;
-    int nb = memio_GetReadParams(nss_bufs_, &buf);
-    CHECK_GE(nb, result);
-    memcpy(buf, read_buffer->data(), result);
-  } else if (result == 0) {
-    transport_recv_eof_ = true;
-  }
-
-  memio_PutReadResult(nss_bufs_, MapErrorToNSS(result));
-  transport_recv_busy_ = false;
-  OnRecvComplete(result);
-}
-
-void SSLClientSocketNSS::Core::PostOrRunCallback(
-    const tracked_objects::Location& location,
-    const base::Closure& task) {
-  if (!OnNetworkTaskRunner()) {
-    network_task_runner_->PostTask(
-        FROM_HERE,
-        base::Bind(&Core::PostOrRunCallback, this, location, task));
-    return;
-  }
-
-  if (detached_ || task.is_null())
-    return;
-  task.Run();
-}
-
-SSLClientSocketNSS::SSLClientSocketNSS(
-    base::SingleThreadTaskRunner* nss_task_runner,
-    ClientSocketHandle* transport_socket,
-    const HostPortPair& host_and_port,
-    const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info,
-    const SSLClientSocketContext& context)
-    : nss_task_runner_(nss_task_runner),
       transport_(transport_socket),
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
+      user_read_buf_len_(0),
+      user_write_buf_len_(0),
+      server_cert_nss_(NULL),
       server_cert_verify_result_(NULL),
+      ssl_connection_status_(0),
+      client_auth_cert_needed_(false),
       cert_verifier_(context.cert_verifier),
+      domain_bound_cert_xtn_negotiated_(false),
       server_bound_cert_service_(context.server_bound_cert_service),
-      ssl_session_cache_shard_(context.ssl_session_cache_shard),
+      domain_bound_cert_type_(CLIENT_CERT_INVALID_TYPE),
+      domain_bound_cert_request_handle_(NULL),
+      handshake_callback_called_(false),
       completed_handshake_(false),
+      ssl_session_cache_shard_(context.ssl_session_cache_shard),
+      predicted_cert_chain_correct_(false),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
+      nss_bufs_(NULL),
       net_log_(transport_socket->socket()->NetLog()),
       ssl_host_info_(ssl_host_info),
       transport_security_state_(context.transport_security_state),
+      next_proto_status_(kNextProtoUnsupported),
       valid_thread_id_(base::kInvalidThreadId) {
   EnterFunction("");
-  InitCore();
-  LeaveFunction("");
 }
 
 SSLClientSocketNSS::~SSLClientSocketNSS() {
@@ -2780,15 +479,12 @@ void SSLClientSocket::ClearSessionCache() {
 void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   EnterFunction("");
   ssl_info->Reset();
-  if (core_->state().server_cert_chain.empty() ||
-      !core_->state().server_cert_chain[0]) {
+  if (!server_cert_nss_)
     return;
-  }
 
   ssl_info->cert_status = server_cert_verify_result_->cert_status;
   ssl_info->cert = server_cert_verify_result_->verified_cert;
-  ssl_info->connection_status =
-      core_->state().ssl_connection_status;
+  ssl_info->connection_status = ssl_connection_status_;
   ssl_info->public_key_hashes = server_cert_verify_result_->public_key_hashes;
   for (std::vector<SHA1Fingerprint>::const_iterator
        i = side_pinned_public_keys_.begin();
@@ -2800,8 +496,8 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->client_cert_sent = WasDomainBoundCertSent() ||
       (ssl_config_.send_client_cert && ssl_config_.client_cert);
 
-  PRUint16 cipher_suite = SSLConnectionStatusToCipherSuite(
-      core_->state().ssl_connection_status);
+  PRUint16 cipher_suite =
+      SSLConnectionStatusToCipherSuite(ssl_connection_status_);
   SSLCipherSuiteInfo cipher_info;
   SECStatus ok = SSL_GetCipherSuiteInfo(cipher_suite,
                                         &cipher_info, sizeof(cipher_info));
@@ -2813,8 +509,15 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
                 << " for cipherSuite " << cipher_suite;
   }
 
-  ssl_info->handshake_type = core_->state().resumed_handshake ?
-      SSLInfo::HANDSHAKE_RESUME : SSLInfo::HANDSHAKE_FULL;
+  PRBool last_handshake_resumed;
+  ok = SSL_HandshakeResumedSession(nss_fd_, &last_handshake_resumed);
+  if (ok == SECSuccess) {
+    if (last_handshake_resumed) {
+      ssl_info->handshake_type = SSLInfo::HANDSHAKE_RESUME;
+    } else {
+      ssl_info->handshake_type = SSLInfo::HANDSHAKE_FULL;
+    }
+  }
 
   LeaveFunction("");
 }
@@ -2824,7 +527,7 @@ void SSLClientSocketNSS::GetSSLCertRequestInfo(
   EnterFunction("");
   // TODO(rch): switch SSLCertRequestInfo.host_and_port to a HostPortPair
   cert_request_info->host_and_port = host_and_port_.ToString();
-  cert_request_info->client_certs = core_->state().client_certs;
+  cert_request_info->client_certs = client_certs_;
   LeaveFunction(cert_request_info->client_certs.size());
 }
 
@@ -2835,9 +538,6 @@ int SSLClientSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
                                              unsigned int outlen) {
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
-
-  // SSL_ExportKeyingMaterial may block the current thread if |core_| is in
-  // the midst of a handshake.
   SECStatus result = SSL_ExportKeyingMaterial(
       nss_fd_, label.data(), label.size(), has_context,
       reinterpret_cast<const unsigned char*>(context.data()),
@@ -2852,16 +552,20 @@ int SSLClientSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
 SSLClientSocket::NextProtoStatus
 SSLClientSocketNSS::GetNextProto(std::string* proto,
                                  std::string* server_protos) {
-  *proto = core_->state().next_proto;
-  *server_protos = core_->state().server_protos;
-  return core_->state().next_proto_status;
+  *proto = next_proto_;
+  *server_protos = server_protos_;
+  return next_proto_status_;
 }
 
 int SSLClientSocketNSS::Connect(const CompletionCallback& callback) {
   EnterFunction("");
   DCHECK(transport_.get());
-  DCHECK_EQ(STATE_NONE, next_handshake_state_);
+  DCHECK(next_handshake_state_ == STATE_NONE);
+  DCHECK(user_read_callback_.is_null());
+  DCHECK(user_write_callback_.is_null());
   DCHECK(user_connect_callback_.is_null());
+  DCHECK(!user_read_buf_);
+  DCHECK(!user_write_buf_);
 
   EnsureThreadIdAssigned();
 
@@ -2908,17 +612,47 @@ void SSLClientSocketNSS::Disconnect() {
   CHECK(CalledOnValidThread());
 
   // Shut down anything that may call us back.
-  core_->Detach();
   verifier_.reset();
   transport_->socket()->Disconnect();
 
+  if (domain_bound_cert_request_handle_ != NULL) {
+    server_bound_cert_service_->CancelRequest(
+        domain_bound_cert_request_handle_);
+    domain_bound_cert_request_handle_ = NULL;
+  }
+
+  // TODO(wtc): Send SSL close_notify alert.
+  if (nss_fd_ != NULL) {
+    PR_Close(nss_fd_);
+    nss_fd_ = NULL;
+  }
+
   // Reset object state.
   user_connect_callback_.Reset();
+  user_read_callback_.Reset();
+  user_write_callback_.Reset();
+  transport_send_busy_   = false;
+  transport_recv_busy_   = false;
+  transport_recv_eof_    = false;
+  user_read_buf_         = NULL;
+  user_read_buf_len_     = 0;
+  user_write_buf_        = NULL;
+  user_write_buf_len_    = 0;
+  server_cert_           = NULL;
+  if (server_cert_nss_) {
+    CERT_DestroyCertificate(server_cert_nss_);
+    server_cert_nss_     = NULL;
+  }
   local_server_cert_verify_result_.Reset();
   server_cert_verify_result_ = NULL;
+  ssl_connection_status_ = 0;
   completed_handshake_   = false;
   start_cert_verification_time_ = base::TimeTicks();
-  InitCore();
+  predicted_cert_chain_correct_ = false;
+  nss_bufs_              = NULL;
+  client_certs_.clear();
+  client_auth_cert_needed_ = false;
+  domain_bound_cert_xtn_negotiated_ = false;
 
   LeaveFunction("");
 }
@@ -3013,23 +747,51 @@ base::TimeDelta SSLClientSocketNSS::GetConnectTimeMicros() const {
 
 int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
                              const CompletionCallback& callback) {
-  DCHECK(core_);
-
   EnterFunction(buf_len);
-  int rv = core_->Read(buf, buf_len, callback);
-  LeaveFunction(rv);
+  DCHECK(completed_handshake_);
+  DCHECK(next_handshake_state_ == STATE_NONE);
+  DCHECK(user_read_callback_.is_null());
+  DCHECK(user_connect_callback_.is_null());
+  DCHECK(!user_read_buf_);
+  DCHECK(nss_bufs_);
 
+  user_read_buf_ = buf;
+  user_read_buf_len_ = buf_len;
+
+  int rv = DoReadLoop(OK);
+
+  if (rv == ERR_IO_PENDING) {
+    user_read_callback_ = callback;
+  } else {
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
+  }
+  LeaveFunction(rv);
   return rv;
 }
 
 int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
                               const CompletionCallback& callback) {
-  DCHECK(core_);
-
   EnterFunction(buf_len);
-  int rv = core_->Write(buf, buf_len, callback);
-  LeaveFunction(rv);
+  DCHECK(completed_handshake_);
+  DCHECK(next_handshake_state_ == STATE_NONE);
+  DCHECK(user_write_callback_.is_null());
+  DCHECK(user_connect_callback_.is_null());
+  DCHECK(!user_write_buf_);
+  DCHECK(nss_bufs_);
 
+  user_write_buf_ = buf;
+  user_write_buf_len_ = buf_len;
+
+  int rv = DoWriteLoop(OK);
+
+  if (rv == ERR_IO_PENDING) {
+    user_write_callback_ = callback;
+  } else {
+    user_write_buf_ = NULL;
+    user_write_buf_len_ = 0;
+  }
+  LeaveFunction(rv);
   return rv;
 }
 
@@ -3061,12 +823,6 @@ int SSLClientSocketNSS::Init() {
   return OK;
 }
 
-void SSLClientSocketNSS::InitCore() {
-  core_ = new Core(base::ThreadTaskRunnerHandle::Get(), nss_task_runner_,
-                   transport_.get(), host_and_port_, ssl_config_, &net_log_,
-                   server_bound_cert_service_);
-}
-
 int SSLClientSocketNSS::InitializeSSLOptions() {
   // Transport connected, now hook it up to nss
   // TODO(port): specify rx and tx buffer sizes separately
@@ -3076,7 +832,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   }
 
   // Grab pointer to buffers
-  memio_Private* nss_bufs = memio_GetSecret(nss_fd_);
+  nss_bufs_ = memio_GetSecret(nss_fd_);
 
   /* Create SSL state machine */
   /* Push SSL onto our fake I/O socket */
@@ -3168,6 +924,13 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   }
 #endif  // SSL_ENABLE_RENEGOTIATION
 
+  if (!ssl_config_.next_protos.empty()) {
+    rv = SSL_SetNextProtoCallback(
+        nss_fd_, SSLClientSocketNSS::NextProtoCallback, this);
+    if (rv != SECSuccess)
+      LogFailedNSSFunction(net_log_, "SSL_SetNextProtoCallback", "");
+  }
+
 #ifdef SSL_CBC_RANDOM_IV
   rv = SSL_OptionSet(nss_fd_, SSL_CBC_RANDOM_IV,
                      ssl_config_.false_start_enabled);
@@ -3214,8 +977,28 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     return ERR_UNEXPECTED;
   }
 
-  if (!core_->Init(nss_fd_, nss_bufs))
+  rv = SSL_AuthCertificateHook(nss_fd_, OwnAuthCertHandler, this);
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_AuthCertificateHook", "");
     return ERR_UNEXPECTED;
+  }
+
+#if defined(NSS_PLATFORM_CLIENT_AUTH)
+  rv = SSL_GetPlatformClientAuthDataHook(nss_fd_, PlatformClientAuthHandler,
+                                         this);
+#else
+  rv = SSL_GetClientAuthDataHook(nss_fd_, ClientAuthHandler, this);
+#endif
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_GetClientAuthDataHook", "");
+    return ERR_UNEXPECTED;
+  }
+
+  rv = SSL_HandshakeCallback(nss_fd_, HandshakeCallback, this);
+  if (rv != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_HandshakeCallback", "");
+    return ERR_UNEXPECTED;
+  }
 
   // Tell SSL the hostname we're trying to connect to.
   SSL_SetURL(nss_fd_, host_and_port_.host().c_str());
@@ -3270,12 +1053,135 @@ int SSLClientSocketNSS::InitializeSSLPeerName() {
   return OK;
 }
 
+
+// Sets server_cert_ and server_cert_nss_ if not yet set.
+void SSLClientSocketNSS::UpdateServerCert() {
+  // We set the server_cert_ from HandshakeCallback().
+  if (server_cert_ == NULL) {
+    server_cert_nss_ = SSL_PeerCertificate(nss_fd_);
+    if (server_cert_nss_) {
+      PeerCertificateChain certs(nss_fd_);
+      // This call may fail when SSL is used inside sandbox. In that
+      // case CreateFromDERCertChain() returns NULL.
+      server_cert_ = X509Certificate::CreateFromDERCertChain(
+          certs.AsStringPieceVector());
+      if (server_cert_) {
+        net_log_.AddEvent(
+            NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
+            make_scoped_refptr(new X509CertificateNetLogParam(server_cert_)));
+      }
+    }
+  }
+}
+
+// Sets ssl_connection_status_.
+void SSLClientSocketNSS::UpdateConnectionStatus() {
+  SSLChannelInfo channel_info;
+  SECStatus ok = SSL_GetChannelInfo(nss_fd_,
+                                    &channel_info, sizeof(channel_info));
+  if (ok == SECSuccess &&
+      channel_info.length == sizeof(channel_info) &&
+      channel_info.cipherSuite) {
+    ssl_connection_status_ |=
+        (static_cast<int>(channel_info.cipherSuite) &
+         SSL_CONNECTION_CIPHERSUITE_MASK) <<
+        SSL_CONNECTION_CIPHERSUITE_SHIFT;
+
+    ssl_connection_status_ |=
+        (static_cast<int>(channel_info.compressionMethod) &
+         SSL_CONNECTION_COMPRESSION_MASK) <<
+        SSL_CONNECTION_COMPRESSION_SHIFT;
+
+    // NSS 3.12.x doesn't have version macros for TLS 1.1 and 1.2 (because NSS
+    // doesn't support them yet), so we use 0x0302 and 0x0303 directly.
+    int version = SSL_CONNECTION_VERSION_UNKNOWN;
+    if (channel_info.protocolVersion < SSL_LIBRARY_VERSION_3_0) {
+      // All versions less than SSL_LIBRARY_VERSION_3_0 are treated as SSL
+      // version 2.
+      version = SSL_CONNECTION_VERSION_SSL2;
+    } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_0) {
+      version = SSL_CONNECTION_VERSION_SSL3;
+    } else if (channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_1_TLS) {
+      version = SSL_CONNECTION_VERSION_TLS1;
+    } else if (channel_info.protocolVersion == 0x0302) {
+      version = SSL_CONNECTION_VERSION_TLS1_1;
+    } else if (channel_info.protocolVersion == 0x0303) {
+      version = SSL_CONNECTION_VERSION_TLS1_2;
+    }
+    ssl_connection_status_ |=
+        (version & SSL_CONNECTION_VERSION_MASK) <<
+        SSL_CONNECTION_VERSION_SHIFT;
+  }
+
+  // SSL_HandshakeNegotiatedExtension was added in NSS 3.12.6.
+  // Since SSL_MAX_EXTENSIONS was added at the same time, we can test
+  // SSL_MAX_EXTENSIONS for the presence of SSL_HandshakeNegotiatedExtension.
+#if defined(SSL_MAX_EXTENSIONS)
+  PRBool peer_supports_renego_ext;
+  ok = SSL_HandshakeNegotiatedExtension(nss_fd_, ssl_renegotiation_info_xtn,
+                                        &peer_supports_renego_ext);
+  if (ok == SECSuccess) {
+    if (!peer_supports_renego_ext) {
+      ssl_connection_status_ |= SSL_CONNECTION_NO_RENEGOTIATION_EXTENSION;
+      // Log an informational message if the server does not support secure
+      // renegotiation (RFC 5746).
+      VLOG(1) << "The server " << host_and_port_.ToString()
+              << " does not support the TLS renegotiation_info extension.";
+    }
+    UMA_HISTOGRAM_ENUMERATION("Net.RenegotiationExtensionSupported",
+                              peer_supports_renego_ext, 2);
+  }
+#endif
+
+  if (ssl_config_.version_fallback)
+    ssl_connection_status_ |= SSL_CONNECTION_VERSION_FALLBACK;
+}
+
+void SSLClientSocketNSS::DoReadCallback(int rv) {
+  EnterFunction(rv);
+  DCHECK(rv != ERR_IO_PENDING);
+  DCHECK(!user_read_callback_.is_null());
+
+  // Since Run may result in Read being called, clear |user_read_callback_|
+  // up front.
+  CompletionCallback c = user_read_callback_;
+  user_read_callback_.Reset();
+  user_read_buf_ = NULL;
+  user_read_buf_len_ = 0;
+  c.Run(rv);
+  LeaveFunction("");
+}
+
+void SSLClientSocketNSS::DoWriteCallback(int rv) {
+  EnterFunction(rv);
+  DCHECK(rv != ERR_IO_PENDING);
+  DCHECK(!user_write_callback_.is_null());
+
+  // Since Run may result in Write being called, clear |user_write_callback_|
+  // up front.
+  CompletionCallback c = user_write_callback_;
+  user_write_callback_.Reset();
+  user_write_buf_ = NULL;
+  user_write_buf_len_ = 0;
+  c.Run(rv);
+  LeaveFunction("");
+}
+
+// As part of Connect(), the SSLClientSocketNSS object performs an SSL
+// handshake. This requires network IO, which in turn calls
+// BufferRecvComplete() with a non-zero byte count. This byte count eventually
+// winds its way through the state machine and ends up being passed to the
+// callback. For Read() and Write(), that's what we want. But for Connect(),
+// the caller expects OK (i.e. 0) for success.
+//
 void SSLClientSocketNSS::DoConnectCallback(int rv) {
   EnterFunction(rv);
-  DCHECK_NE(ERR_IO_PENDING, rv);
+  DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(!user_connect_callback_.is_null());
 
-  base::ResetAndReturn(&user_connect_callback_).Run(rv > OK ? OK : rv);
+  CompletionCallback c = user_connect_callback_;
+  user_connect_callback_.Reset();
+  c.Run(rv > OK ? OK : rv);
   LeaveFunction("");
 }
 
@@ -3283,38 +1189,65 @@ void SSLClientSocketNSS::OnHandshakeIOComplete(int result) {
   EnterFunction(result);
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_CONNECT, rv);
+    net_log_.EndEventWithNetErrorCode(net::NetLog::TYPE_SSL_CONNECT, rv);
     DoConnectCallback(rv);
   }
   LeaveFunction("");
 }
 
-void SSLClientSocketNSS::LoadSSLHostInfo() {
-  const SSLHostInfo::State& state(ssl_host_info_->state());
-
-  if (state.certs.empty())
+void SSLClientSocketNSS::OnSendComplete(int result) {
+  EnterFunction(result);
+  if (next_handshake_state_ == STATE_HANDSHAKE) {
+    // In handshake phase.
+    OnHandshakeIOComplete(result);
+    LeaveFunction("");
     return;
-
-  const std::vector<std::string>& certs_in = state.certs;
-  core_->SetPredictedCertificates(certs_in);
-}
-
-int SSLClientSocketNSS::DoLoadSSLHostInfo() {
-  EnterFunction("");
-  int rv = ssl_host_info_->WaitForDataReady(
-      base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
-                 base::Unretained(this)));
-  GotoState(STATE_HANDSHAKE);
-
-  if (rv == OK) {
-    LoadSSLHostInfo();
-  } else {
-    DCHECK_EQ(ERR_IO_PENDING, rv);
-    GotoState(STATE_LOAD_SSL_HOST_INFO);
   }
 
+  // OnSendComplete may need to call DoPayloadRead while the renegotiation
+  // handshake is in progress.
+  int rv_read = ERR_IO_PENDING;
+  int rv_write = ERR_IO_PENDING;
+  bool network_moved;
+  do {
+      if (user_read_buf_)
+          rv_read = DoPayloadRead();
+      if (user_write_buf_)
+          rv_write = DoPayloadWrite();
+      network_moved = DoTransportIO();
+  } while (rv_read == ERR_IO_PENDING &&
+           rv_write == ERR_IO_PENDING &&
+           (user_read_buf_ || user_write_buf_) &&
+           network_moved);
+
+  if (user_read_buf_ && rv_read != ERR_IO_PENDING)
+      DoReadCallback(rv_read);
+  if (user_write_buf_ && rv_write != ERR_IO_PENDING)
+      DoWriteCallback(rv_write);
+
   LeaveFunction("");
-  return rv;
+}
+
+void SSLClientSocketNSS::OnRecvComplete(int result) {
+  EnterFunction(result);
+  if (next_handshake_state_ == STATE_HANDSHAKE) {
+    // In handshake phase.
+    OnHandshakeIOComplete(result);
+    LeaveFunction("");
+    return;
+  }
+
+  // Network layer received some data, check if client requested to read
+  // decrypted data.
+  if (!user_read_buf_) {
+    LeaveFunction("");
+    return;
+  }
+
+  int rv = DoReadLoop(result);
+  if (rv != ERR_IO_PENDING)
+    DoReadCallback(rv);
+  LeaveFunction("");
 }
 
 int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
@@ -3336,8 +1269,8 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
       case STATE_HANDSHAKE:
         rv = DoHandshake();
         break;
-      case STATE_HANDSHAKE_COMPLETE:
-        rv = DoHandshakeComplete(rv);
+      case STATE_GET_DOMAIN_BOUND_CERT_COMPLETE:
+        rv = DoGetDBCertComplete(rv);
         break;
       case STATE_VERIFY_DNSSEC:
         rv = DoVerifyDNSSEC(rv);
@@ -3355,50 +1288,338 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
         LOG(DFATAL) << "unexpected state " << state;
         break;
     }
+
+    // Do the actual network I/O
+    bool network_moved = DoTransportIO();
+    if (network_moved && next_handshake_state_ == STATE_HANDSHAKE) {
+      // In general we exit the loop if rv is ERR_IO_PENDING.  In this
+      // special case we keep looping even if rv is ERR_IO_PENDING because
+      // the transport IO may allow DoHandshake to make progress.
+      DCHECK(rv == OK || rv == ERR_IO_PENDING);
+      rv = OK;  // This causes us to stay in the loop.
+    }
   } while (rv != ERR_IO_PENDING && next_handshake_state_ != STATE_NONE);
+  LeaveFunction("");
+  return rv;
+}
+
+int SSLClientSocketNSS::DoReadLoop(int result) {
+  EnterFunction("");
+  DCHECK(completed_handshake_);
+  DCHECK(next_handshake_state_ == STATE_NONE);
+
+  if (result < 0)
+    return result;
+
+  if (!nss_bufs_) {
+    LOG(DFATAL) << "!nss_bufs_";
+    int rv = ERR_UNEXPECTED;
+    net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
+                      make_scoped_refptr(new SSLErrorParams(rv, 0)));
+    return rv;
+  }
+
+  bool network_moved;
+  int rv;
+  do {
+    rv = DoPayloadRead();
+    network_moved = DoTransportIO();
+  } while (rv == ERR_IO_PENDING && network_moved);
+
+  LeaveFunction("");
+  return rv;
+}
+
+int SSLClientSocketNSS::DoWriteLoop(int result) {
+  EnterFunction("");
+  DCHECK(completed_handshake_);
+  DCHECK(next_handshake_state_ == STATE_NONE);
+
+  if (result < 0)
+    return result;
+
+  if (!nss_bufs_) {
+    LOG(DFATAL) << "!nss_bufs_";
+    int rv = ERR_UNEXPECTED;
+    net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR,
+                      make_scoped_refptr(new SSLErrorParams(rv, 0)));
+    return rv;
+  }
+
+  bool network_moved;
+  int rv;
+  do {
+    rv = DoPayloadWrite();
+    network_moved = DoTransportIO();
+  } while (rv == ERR_IO_PENDING && network_moved);
+
+  LeaveFunction("");
+  return rv;
+}
+
+bool SSLClientSocketNSS::LoadSSLHostInfo() {
+  const SSLHostInfo::State& state(ssl_host_info_->state());
+
+  if (state.certs.empty())
+    return true;
+
+  const std::vector<std::string>& certs_in = state.certs;
+  scoped_array<CERTCertificate*> certs(new CERTCertificate*[certs_in.size()]);
+
+  for (size_t i = 0; i < certs_in.size(); i++) {
+    SECItem derCert;
+    derCert.data =
+      const_cast<uint8*>(reinterpret_cast<const uint8*>(certs_in[i].data()));
+    derCert.len = certs_in[i].size();
+    certs[i] = CERT_NewTempCertificate(
+        CERT_GetDefaultCertDB(), &derCert, NULL /* no nickname given */,
+        PR_FALSE /* not permanent */, PR_TRUE /* copy DER data */);
+    if (!certs[i]) {
+      DestroyCertificates(&certs[0], i);
+      NOTREACHED();
+      return false;
+    }
+  }
+
+  SECStatus rv;
+#ifdef SSL_ENABLE_CACHED_INFO
+  rv = SSL_SetPredictedPeerCertificates(nss_fd_, certs.get(), certs_in.size());
+  DCHECK_EQ(SECSuccess, rv);
+#else
+  rv = SECFailure;  // Not implemented.
+#endif
+  DestroyCertificates(&certs[0], certs_in.size());
+
+  return rv == SECSuccess;
+}
+
+int SSLClientSocketNSS::DoLoadSSLHostInfo() {
+  EnterFunction("");
+  int rv = ssl_host_info_->WaitForDataReady(
+      base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
+                 base::Unretained(this)));
+  GotoState(STATE_HANDSHAKE);
+
+  if (rv == OK) {
+    if (!LoadSSLHostInfo())
+      LOG(WARNING) << "LoadSSLHostInfo failed: " << host_and_port_.ToString();
+  } else {
+    DCHECK_EQ(ERR_IO_PENDING, rv);
+    GotoState(STATE_LOAD_SSL_HOST_INFO);
+  }
+
   LeaveFunction("");
   return rv;
 }
 
 int SSLClientSocketNSS::DoHandshake() {
   EnterFunction("");
-  int rv = core_->Connect(
-      base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
-                 base::Unretained(this)));
-  GotoState(STATE_HANDSHAKE_COMPLETE);
+  int net_error = net::OK;
+  SECStatus rv = SSL_ForceHandshake(nss_fd_);
 
-  LeaveFunction(rv);
-  return rv;
-}
+  // TODO(rkn): Handle the case in which server-bound cert generation takes
+  // too long and the server has closed the connection. Report some new error
+  // code so that the higher level code will attempt to delete the socket and
+  // redo the handshake.
 
-int SSLClientSocketNSS::DoHandshakeComplete(int result) {
-  EnterFunction(result);
+  if (client_auth_cert_needed_) {
+    if (domain_bound_cert_xtn_negotiated_) {
+      GotoState(STATE_GET_DOMAIN_BOUND_CERT_COMPLETE);
+      net_error = ERR_IO_PENDING;
+    } else {
+      net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+      net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+                        make_scoped_refptr(new SSLErrorParams(net_error, 0)));
+      // If the handshake already succeeded (because the server requests but
+      // doesn't require a client cert), we need to invalidate the SSL session
+      // so that we won't try to resume the non-client-authenticated session in
+      // the next handshake.  This will cause the server to ask for a client
+      // cert again.
+      if (rv == SECSuccess && SSL_InvalidateSession(nss_fd_) != SECSuccess) {
+        LOG(WARNING) << "Couldn't invalidate SSL session: " << PR_GetError();
+      }
+    }
+  } else if (rv == SECSuccess) {
+    if (handshake_callback_called_) {
+      // We need to see if the predicted certificate chain (in
+      // |ssl_host_info_->state().certs) matches the actual certificate chain
+      // before we call SaveSSLHostInfo, as that will update
+      // |ssl_host_info_|.
+      if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty()) {
+        PeerCertificateChain certs(nss_fd_);
+        const SSLHostInfo::State& state = ssl_host_info_->state();
+        predicted_cert_chain_correct_ = certs.size() == state.certs.size();
+        if (predicted_cert_chain_correct_) {
+          for (unsigned i = 0; i < certs.size(); i++) {
+            if (certs[i]->derCert.len != state.certs[i].size() ||
+                memcmp(certs[i]->derCert.data, state.certs[i].data(),
+                       certs[i]->derCert.len) != 0) {
+              predicted_cert_chain_correct_ = false;
+              break;
+            }
+          }
+        }
+      }
 
-  if (result == OK) {
-    SaveSSLHostInfo();
-    // SSL handshake is completed. Let's verify the certificate.
-    GotoState(STATE_VERIFY_DNSSEC);
-    // Done!
+#if defined(SSL_ENABLE_OCSP_STAPLING)
+      // TODO(agl): figure out how to plumb an OCSP response into the Mac
+      // system library and update IsOCSPStaplingSupported for Mac.
+      if (!predicted_cert_chain_correct_ && IsOCSPStaplingSupported()) {
+        unsigned int len = 0;
+        SSL_GetStapledOCSPResponse(nss_fd_, NULL, &len);
+        if (len) {
+          const unsigned int orig_len = len;
+          scoped_array<uint8> ocsp_response(new uint8[orig_len]);
+          SSL_GetStapledOCSPResponse(nss_fd_, ocsp_response.get(), &len);
+          DCHECK_EQ(orig_len, len);
+
+#if defined(OS_WIN)
+          CRYPT_DATA_BLOB ocsp_response_blob;
+          ocsp_response_blob.cbData = len;
+          ocsp_response_blob.pbData = ocsp_response.get();
+          BOOL ok = CertSetCertificateContextProperty(
+              server_cert_->os_cert_handle(),
+              CERT_OCSP_RESPONSE_PROP_ID,
+              CERT_SET_PROPERTY_IGNORE_PERSIST_ERROR_FLAG,
+              &ocsp_response_blob);
+          if (!ok) {
+            VLOG(1) << "Failed to set OCSP response property: "
+                    << GetLastError();
+          }
+#elif defined(USE_NSS)
+          CacheOCSPResponseFromSideChannelFunction cache_ocsp_response =
+              GetCacheOCSPResponseFromSideChannelFunction();
+          SECItem ocsp_response_item;
+          ocsp_response_item.type = siBuffer;
+          ocsp_response_item.data = ocsp_response.get();
+          ocsp_response_item.len = len;
+
+          cache_ocsp_response(
+              CERT_GetDefaultCertDB(), server_cert_nss_, PR_Now(),
+              &ocsp_response_item, NULL);
+#endif
+        }
+      }
+#endif
+
+      SaveSSLHostInfo();
+      // SSL handshake is completed. Let's verify the certificate.
+      GotoState(STATE_VERIFY_DNSSEC);
+      // Done!
+    } else {
+      // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=562434 -
+      // SSL_ForceHandshake returned SECSuccess prematurely.
+      rv = SECFailure;
+      net_error = ERR_SSL_PROTOCOL_ERROR;
+      net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+                        make_scoped_refptr(new SSLErrorParams(net_error, 0)));
+    }
+  } else {
+    PRErrorCode prerr = PR_GetError();
+    net_error = HandleNSSError(prerr, true);
+
+    // If not done, stay in this state
+    if (net_error == ERR_IO_PENDING) {
+      GotoState(STATE_HANDSHAKE);
+    } else {
+      net_log_.AddEvent(
+          NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+          make_scoped_refptr(new SSLErrorParams(net_error, prerr)));
+    }
   }
-  if (core_->state().domain_bound_cert_type != CLIENT_CERT_INVALID_TYPE)
-    set_domain_bound_cert_type(core_->state().domain_bound_cert_type);
 
-  LeaveFunction(result);
-  return result;
+  LeaveFunction("");
+  return net_error;
 }
 
+int SSLClientSocketNSS::ImportDBCertAndKey(CERTCertificate** cert,
+                                           SECKEYPrivateKey** key) {
+  // Set the certificate.
+  SECItem cert_item;
+  cert_item.data = (unsigned char*) domain_bound_cert_.data();
+  cert_item.len = domain_bound_cert_.size();
+  *cert = CERT_NewTempCertificate(CERT_GetDefaultCertDB(),
+                                  &cert_item,
+                                  NULL,
+                                  PR_FALSE,
+                                  PR_TRUE);
+  if (*cert == NULL)
+    return MapNSSError(PORT_GetError());
+
+  // Set the private key.
+  switch (domain_bound_cert_type_) {
+    case CLIENT_CERT_ECDSA_SIGN: {
+      SECKEYPublicKey* public_key = NULL;
+      if (!crypto::ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
+          ServerBoundCertService::kEPKIPassword,
+          reinterpret_cast<const unsigned char*>(
+              domain_bound_private_key_.data()),
+          domain_bound_private_key_.size(),
+          &(*cert)->subjectPublicKeyInfo,
+          false,
+          false,
+          key,
+          &public_key)) {
+        CERT_DestroyCertificate(*cert);
+        *cert = NULL;
+        return MapNSSError(PORT_GetError());
+      }
+      SECKEY_DestroyPublicKey(public_key);
+      break;
+    }
+
+    default:
+      NOTREACHED();
+      return ERR_INVALID_ARGUMENT;
+  }
+
+  return OK;
+}
+
+int SSLClientSocketNSS::DoGetDBCertComplete(int result) {
+  SECStatus rv;
+  net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_GET_DOMAIN_BOUND_CERT,
+                                    result);
+  client_auth_cert_needed_ = false;
+  domain_bound_cert_request_handle_ = NULL;
+
+  if (result != OK) {
+    // Failed to get a DBC.  Proceed without.
+    rv = SSL_RestartHandshakeAfterCertReq(nss_fd_, NULL, NULL, NULL);
+    if (rv != SECSuccess)
+      return MapNSSError(PORT_GetError());
+    GotoState(STATE_HANDSHAKE);
+    return OK;
+  }
+
+  CERTCertificate* cert;
+  SECKEYPrivateKey* key;
+  int error = ImportDBCertAndKey(&cert, &key);
+  if (error != OK)
+    return error;
+
+  CERTCertificateList* cert_chain = CERT_CertChainFromCert(cert,
+                                                           certUsageSSLClient,
+                                                           PR_FALSE);
+  net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+      make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                    cert_chain->len)));
+  rv = SSL_RestartHandshakeAfterCertReq(nss_fd_, cert, key, cert_chain);
+  if (rv != SECSuccess)
+    return MapNSSError(PORT_GetError());
+
+  GotoState(STATE_HANDSHAKE);
+  set_domain_bound_cert_type(domain_bound_cert_type_);
+  return OK;
+}
 
 int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
-  DCHECK(!core_->state().server_cert_chain.empty());
-  DCHECK(core_->state().server_cert_chain[0]);
-
-  DNSValidationResult r = CheckDNSSECChain(
-      host_and_port_.host(), core_->state().server_cert_chain[0],
-      host_and_port_.port());
+  DNSValidationResult r = CheckDNSSECChain(host_and_port_.host(),
+                                           server_cert_nss_,
+                                           host_and_port_.port());
   if (r == DNSVR_SUCCESS) {
     local_server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
-    local_server_cert_verify_result_.verified_cert =
-        core_->state().server_cert;
+    local_server_cert_verify_result_.verified_cert = server_cert_;
     server_cert_verify_result_ = &local_server_cert_verify_result_;
     GotoState(STATE_VERIFY_CERT_COMPLETE);
     return OK;
@@ -3410,17 +1631,18 @@ int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
 }
 
 int SSLClientSocketNSS::DoVerifyCert(int result) {
-  DCHECK(!core_->state().server_cert_chain.empty());
-  DCHECK(core_->state().server_cert_chain[0]);
+  DCHECK(server_cert_nss_);
 
   GotoState(STATE_VERIFY_CERT_COMPLETE);
 
-  // If the certificate is expected to be bad we can use the expectation as
-  // the cert status.
+  // If the certificate is expected to be bad we can use the
+  // expectation as the cert status. Don't use |server_cert_| here
+  // because it can be set to NULL in case we failed to create
+  // X509Certificate in UpdateServerCert(). This may happen when this
+  // code is used inside sandbox.
   base::StringPiece der_cert(
-      reinterpret_cast<char*>(
-          core_->state().server_cert_chain[0]->derCert.data),
-      core_->state().server_cert_chain[0]->derCert.len);
+      reinterpret_cast<char*>(server_cert_nss_->derCert.data),
+      server_cert_nss_->derCert.len);
   CertStatus cert_status;
   if (ssl_config_.IsAllowedBadCert(der_cert, &cert_status)) {
     DCHECK(start_cert_verification_time_.is_null());
@@ -3428,14 +1650,13 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
     server_cert_verify_result_ = &local_server_cert_verify_result_;
     local_server_cert_verify_result_.Reset();
     local_server_cert_verify_result_.cert_status = cert_status;
-    local_server_cert_verify_result_.verified_cert =
-        core_->state().server_cert;
+    local_server_cert_verify_result_.verified_cert = server_cert_;
     return OK;
   }
 
   // We may have failed to create X509Certificate object if we are
   // running inside sandbox.
-  if (!core_->state().server_cert) {
+  if (!server_cert_) {
     server_cert_verify_result_ = &local_server_cert_verify_result_;
     local_server_cert_verify_result_.Reset();
     local_server_cert_verify_result_.cert_status = CERT_STATUS_INVALID;
@@ -3445,7 +1666,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   start_cert_verification_time_ = base::TimeTicks::Now();
 
   if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty() &&
-      core_->state().predicted_cert_chain_correct) {
+      predicted_cert_chain_correct_) {
     // If the SSLHostInfo had a prediction for the certificate chain of this
     // server then it will have optimistically started a verification of that
     // chain. So, if the prediction was correct, we should wait for that
@@ -3475,8 +1696,9 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   server_cert_verify_result_ = &local_server_cert_verify_result_;
   return verifier_->Verify(
-      core_->state().server_cert, host_and_port_.host(), flags,
-      SSLConfigService::GetCRLSet(), &local_server_cert_verify_result_,
+      server_cert_, host_and_port_.host(), flags,
+      SSLConfigService::GetCRLSet(),
+      &local_server_cert_verify_result_,
       base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
                  base::Unretained(this)),
       net_log_);
@@ -3513,6 +1735,12 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
     LogConnectionTypeMetrics();
 
   completed_handshake_ = true;
+
+  if (!user_read_callback_.is_null()) {
+    int rv = DoReadLoop(OK);
+    if (rv != ERR_IO_PENDING)
+      DoReadCallback(rv);
+  }
 
 #if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
   // Take care of any mandates for public key pinning.
@@ -3559,8 +1787,62 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
 #endif
 
   // Exit DoHandshakeLoop and return the result to the caller to Connect.
-  DCHECK_EQ(STATE_NONE, next_handshake_state_);
+  DCHECK(next_handshake_state_ == STATE_NONE);
   return result;
+}
+
+int SSLClientSocketNSS::DoPayloadRead() {
+  EnterFunction(user_read_buf_len_);
+  DCHECK(user_read_buf_);
+  DCHECK_GT(user_read_buf_len_, 0);
+  int rv = PR_Read(nss_fd_, user_read_buf_->data(), user_read_buf_len_);
+  if (client_auth_cert_needed_) {
+    // We don't need to invalidate the non-client-authenticated SSL session
+    // because the server will renegotiate anyway.
+    LeaveFunction("");
+    rv = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+    net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
+                      make_scoped_refptr(new SSLErrorParams(rv, 0)));
+    return rv;
+  }
+  if (rv >= 0) {
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_RECEIVED, rv,
+                                  user_read_buf_->data());
+    LeaveFunction("");
+    return rv;
+  }
+  PRErrorCode prerr = PR_GetError();
+  if (prerr == PR_WOULD_BLOCK_ERROR) {
+    LeaveFunction("");
+    return ERR_IO_PENDING;
+  }
+  LeaveFunction("");
+  rv = HandleNSSError(prerr, false);
+  net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
+                    make_scoped_refptr(new SSLErrorParams(rv, prerr)));
+  return rv;
+}
+
+int SSLClientSocketNSS::DoPayloadWrite() {
+  EnterFunction(user_write_buf_len_);
+  DCHECK(user_write_buf_);
+  int rv = PR_Write(nss_fd_, user_write_buf_->data(), user_write_buf_len_);
+  if (rv >= 0) {
+    net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
+                                  user_write_buf_->data());
+    LeaveFunction("");
+    return rv;
+  }
+  PRErrorCode prerr = PR_GetError();
+  if (prerr == PR_WOULD_BLOCK_ERROR) {
+    LeaveFunction("");
+    return ERR_IO_PENDING;
+  }
+  LeaveFunction("");
+  rv = HandleNSSError(prerr, false);
+  net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR,
+                    make_scoped_refptr(new SSLErrorParams(rv, prerr)));
+  return rv;
 }
 
 void SSLClientSocketNSS::LogConnectionTypeMetrics() const {
@@ -3575,8 +1857,7 @@ void SSLClientSocketNSS::LogConnectionTypeMetrics() const {
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5_CA);
   if (server_cert_verify_result_->has_md2_ca)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2_CA);
-  int ssl_version = SSLConnectionStatusToVersion(
-      core_->state().ssl_connection_status);
+  int ssl_version = SSLConnectionStatusToVersion(ssl_connection_status_);
   switch (ssl_version) {
     case SSL_CONNECTION_VERSION_SSL2:
       UpdateConnectionTypeHistograms(CONNECTION_SSL_SSL2);
@@ -3610,12 +1891,10 @@ void SSLClientSocketNSS::SaveSSLHostInfo() {
   SSLHostInfo::State* state = ssl_host_info_->mutable_state();
 
   state->certs.clear();
-  const PeerCertificateChain& certs = core_->state().server_cert_chain;
+  PeerCertificateChain certs(nss_fd_);
   for (unsigned i = 0; i < certs.size(); i++) {
-    if (certs[i] == NULL ||
-        certs[i]->derCert.len > std::numeric_limits<uint16>::max()) {
+    if (certs[i]->derCert.len > std::numeric_limits<uint16>::max())
       return;
-    }
 
     state->certs.push_back(std::string(
           reinterpret_cast<char*>(certs[i]->derCert.data),
@@ -3623,6 +1902,730 @@ void SSLClientSocketNSS::SaveSSLHostInfo() {
   }
 
   ssl_host_info_->Persist();
+}
+
+// Do as much network I/O as possible between the buffer and the
+// transport socket. Return true if some I/O performed, false
+// otherwise (error or ERR_IO_PENDING).
+bool SSLClientSocketNSS::DoTransportIO() {
+  EnterFunction("");
+  bool network_moved = false;
+  if (nss_bufs_ != NULL) {
+    int rv;
+    // Read and write as much data as we can. The loop is neccessary
+    // because Write() may return synchronously.
+    do {
+      rv = BufferSend();
+      if (rv > 0)
+        network_moved = true;
+    } while (rv > 0);
+    if (!transport_recv_eof_ && BufferRecv() >= 0)
+      network_moved = true;
+  }
+  LeaveFunction(network_moved);
+  return network_moved;
+}
+
+// Return 0 for EOF,
+// > 0 for bytes transferred immediately,
+// < 0 for error (or the non-error ERR_IO_PENDING).
+int SSLClientSocketNSS::BufferSend() {
+  if (transport_send_busy_)
+    return ERR_IO_PENDING;
+
+  EnterFunction("");
+  const char* buf1;
+  const char* buf2;
+  unsigned int len1, len2;
+  memio_GetWriteParams(nss_bufs_, &buf1, &len1, &buf2, &len2);
+  const unsigned int len = len1 + len2;
+
+  int rv = 0;
+  if (len) {
+    scoped_refptr<IOBuffer> send_buffer(new IOBuffer(len));
+    memcpy(send_buffer->data(), buf1, len1);
+    memcpy(send_buffer->data() + len1, buf2, len2);
+    rv = transport_->socket()->Write(
+        send_buffer, len,
+        base::Bind(&SSLClientSocketNSS::BufferSendComplete,
+                   base::Unretained(this)));
+    if (rv == ERR_IO_PENDING) {
+      transport_send_busy_ = true;
+    } else {
+      memio_PutWriteResult(nss_bufs_, MapErrorToNSS(rv));
+    }
+  }
+
+  LeaveFunction(rv);
+  return rv;
+}
+
+void SSLClientSocketNSS::BufferSendComplete(int result) {
+  EnterFunction(result);
+  memio_PutWriteResult(nss_bufs_, MapErrorToNSS(result));
+  transport_send_busy_ = false;
+  OnSendComplete(result);
+  LeaveFunction("");
+}
+
+int SSLClientSocketNSS::BufferRecv() {
+  if (transport_recv_busy_) return ERR_IO_PENDING;
+
+  char* buf;
+  int nb = memio_GetReadParams(nss_bufs_, &buf);
+  EnterFunction(nb);
+  int rv;
+  if (!nb) {
+    // buffer too full to read into, so no I/O possible at moment
+    rv = ERR_IO_PENDING;
+  } else {
+    recv_buffer_ = new IOBuffer(nb);
+    rv = transport_->socket()->Read(
+        recv_buffer_, nb,
+        base::Bind(&SSLClientSocketNSS::BufferRecvComplete,
+                   base::Unretained(this)));
+    if (rv == ERR_IO_PENDING) {
+      transport_recv_busy_ = true;
+    } else {
+      if (rv > 0) {
+        memcpy(buf, recv_buffer_->data(), rv);
+      } else if (rv == 0) {
+        transport_recv_eof_ = true;
+      }
+      memio_PutReadResult(nss_bufs_, MapErrorToNSS(rv));
+      recv_buffer_ = NULL;
+    }
+  }
+  LeaveFunction(rv);
+  return rv;
+}
+
+void SSLClientSocketNSS::BufferRecvComplete(int result) {
+  EnterFunction(result);
+  if (result > 0) {
+    char* buf;
+    memio_GetReadParams(nss_bufs_, &buf);
+    memcpy(buf, recv_buffer_->data(), result);
+  } else if (result == 0) {
+    transport_recv_eof_ = true;
+  }
+  recv_buffer_ = NULL;
+  memio_PutReadResult(nss_bufs_, MapErrorToNSS(result));
+  transport_recv_busy_ = false;
+  OnRecvComplete(result);
+  LeaveFunction("");
+}
+
+int SSLClientSocketNSS::HandleNSSError(PRErrorCode nss_error,
+                                       bool handshake_error) {
+  int net_error = handshake_error ? MapNSSHandshakeError(nss_error) :
+                                    MapNSSError(nss_error);
+
+#if defined(OS_WIN)
+  // On Windows, a handle to the HCRYPTPROV is cached in the X509Certificate
+  // os_cert_handle() as an optimization. However, if the certificate
+  // private key is stored on a smart card, and the smart card is removed,
+  // the cached HCRYPTPROV will not be able to obtain the HCRYPTKEY again,
+  // preventing client certificate authentication. Because the
+  // X509Certificate may outlive the individual SSLClientSocketNSS, due to
+  // caching in X509Certificate, this failure ends up preventing client
+  // certificate authentication with the same certificate for all future
+  // attempts, even after the smart card has been re-inserted. By setting
+  // the CERT_KEY_PROV_HANDLE_PROP_ID to NULL, the cached HCRYPTPROV will
+  // typically be freed. This allows a new HCRYPTPROV to be obtained from
+  // the certificate on the next attempt, which should succeed if the smart
+  // card has been re-inserted, or will typically prompt the user to
+  // re-insert the smart card if not.
+  if ((net_error == ERR_SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY ||
+       net_error == ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED) &&
+      ssl_config_.send_client_cert && ssl_config_.client_cert) {
+    CertSetCertificateContextProperty(
+        ssl_config_.client_cert->os_cert_handle(),
+        CERT_KEY_PROV_HANDLE_PROP_ID, 0, NULL);
+  }
+#endif
+
+  return net_error;
+}
+
+// static
+// NSS calls this if an incoming certificate needs to be verified.
+// Do nothing but return SECSuccess.
+// This is called only in full handshake mode.
+// Peer certificate is retrieved in HandshakeCallback() later, which is called
+// in full handshake mode or in resumption handshake mode.
+SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
+                                                 PRFileDesc* socket,
+                                                 PRBool checksig,
+                                                 PRBool is_server) {
+#ifdef SSL_ENABLE_FALSE_START
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+  if (!that->server_cert_nss_) {
+    // Only need to turn off False Start in the initial handshake. Also, it is
+    // unsafe to call SSL_OptionSet in a renegotiation because the "first
+    // handshake" lock isn't already held, which will result in an assertion
+    // failure in the ssl_Get1stHandshakeLock call in SSL_OptionSet.
+    PRBool npn;
+    SECStatus rv = SSL_HandshakeNegotiatedExtension(socket,
+                                                    ssl_next_proto_nego_xtn,
+                                                    &npn);
+    if (rv != SECSuccess || !npn) {
+      // If the server doesn't support NPN, then we don't do False Start with
+      // it.
+      SSL_OptionSet(socket, SSL_ENABLE_FALSE_START, PR_FALSE);
+    }
+  }
+#endif
+
+  // Tell NSS to not verify the certificate.
+  return SECSuccess;
+}
+
+// static
+bool SSLClientSocketNSS::DomainBoundCertNegotiated(PRFileDesc* socket) {
+  // TODO(wtc,mattm): this is temporary while DBC support is changed into
+  // Channel ID.
+  return false;
+}
+
+SECStatus SSLClientSocketNSS::DomainBoundClientAuthHandler(
+    const SECItem* cert_types,
+    CERTCertificate** result_certificate,
+    SECKEYPrivateKey** result_private_key) {
+  domain_bound_cert_xtn_negotiated_ = true;
+
+  // We have negotiated the domain-bound certificate extension.
+  std::string origin = "https://" + host_and_port_.ToString();
+  std::vector<uint8> requested_cert_types(cert_types->data,
+                                          cert_types->data + cert_types->len);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_GET_DOMAIN_BOUND_CERT, NULL);
+  int error = server_bound_cert_service_->GetDomainBoundCert(
+      origin,
+      requested_cert_types,
+      &domain_bound_cert_type_,
+      &domain_bound_private_key_,
+      &domain_bound_cert_,
+      base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
+                 base::Unretained(this)),
+      &domain_bound_cert_request_handle_);
+
+  if (error == ERR_IO_PENDING) {
+    // Asynchronous case.
+    client_auth_cert_needed_ = true;
+    return SECWouldBlock;
+  }
+  net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_GET_DOMAIN_BOUND_CERT,
+                                    error);
+
+  SECStatus rv = SECSuccess;
+  if (error == OK) {
+    // Synchronous success.
+    int result = ImportDBCertAndKey(result_certificate,
+                                    result_private_key);
+    if (result == OK) {
+      set_domain_bound_cert_type(domain_bound_cert_type_);
+    } else {
+      rv = SECFailure;
+    }
+  } else {
+    rv = SECFailure;  // Synchronous failure.
+  }
+
+  int cert_count = (rv == SECSuccess) ? 1 : 0;
+  net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+      make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                    cert_count)));
+  return rv;
+}
+
+#if defined(NSS_PLATFORM_CLIENT_AUTH)
+// static
+// NSS calls this if a client certificate is needed.
+SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
+    void* arg,
+    PRFileDesc* socket,
+    CERTDistNames* ca_names,
+    CERTCertList** result_certs,
+    void** result_private_key,
+    CERTCertificate** result_nss_certificate,
+    SECKEYPrivateKey** result_nss_private_key) {
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+
+  that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED, NULL);
+
+  const SECItem* cert_types = SSL_GetRequestedClientCertificateTypes(socket);
+
+  // Check if a domain-bound certificate is requested.
+  if (DomainBoundCertNegotiated(socket)) {
+    return that->DomainBoundClientAuthHandler(
+        cert_types, result_nss_certificate, result_nss_private_key);
+  }
+
+  that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
+#if defined(OS_WIN)
+  if (that->ssl_config_.send_client_cert) {
+    if (that->ssl_config_.client_cert) {
+      PCCERT_CONTEXT cert_context =
+          that->ssl_config_.client_cert->os_cert_handle();
+
+      HCRYPTPROV_OR_NCRYPT_KEY_HANDLE crypt_prov = 0;
+      DWORD key_spec = 0;
+      BOOL must_free = FALSE;
+      BOOL acquired_key = CryptAcquireCertificatePrivateKey(
+          cert_context, CRYPT_ACQUIRE_CACHE_FLAG, NULL,
+          &crypt_prov, &key_spec, &must_free);
+
+      if (acquired_key) {
+        // Since we passed CRYPT_ACQUIRE_CACHE_FLAG, |must_free| must be false
+        // according to the MSDN documentation.
+        CHECK_EQ(must_free, FALSE);
+        DCHECK_NE(key_spec, CERT_NCRYPT_KEY_SPEC);
+
+        SECItem der_cert;
+        der_cert.type = siDERCertBuffer;
+        der_cert.data = cert_context->pbCertEncoded;
+        der_cert.len  = cert_context->cbCertEncoded;
+
+        // TODO(rsleevi): Error checking for NSS allocation errors.
+        CERTCertDBHandle* db_handle = CERT_GetDefaultCertDB();
+        CERTCertificate* user_cert = CERT_NewTempCertificate(
+            db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
+        if (!user_cert) {
+          // Importing the certificate can fail for reasons including a serial
+          // number collision. See crbug.com/97355.
+          that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+              make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
+          return SECFailure;
+        }
+        CERTCertList* cert_chain = CERT_NewCertList();
+        CERT_AddCertToListTail(cert_chain, user_cert);
+
+        // Add the intermediates.
+        X509Certificate::OSCertHandles intermediates =
+            that->ssl_config_.client_cert->GetIntermediateCertificates();
+        for (X509Certificate::OSCertHandles::const_iterator it =
+            intermediates.begin(); it != intermediates.end(); ++it) {
+          der_cert.data = (*it)->pbCertEncoded;
+          der_cert.len = (*it)->cbCertEncoded;
+
+          CERTCertificate* intermediate = CERT_NewTempCertificate(
+              db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
+          if (!intermediate) {
+            CERT_DestroyCertList(cert_chain);
+            that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+                make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                              0)));
+            return SECFailure;
+          }
+          CERT_AddCertToListTail(cert_chain, intermediate);
+        }
+        PCERT_KEY_CONTEXT key_context = reinterpret_cast<PCERT_KEY_CONTEXT>(
+            PORT_ZAlloc(sizeof(CERT_KEY_CONTEXT)));
+        key_context->cbSize = sizeof(*key_context);
+        // NSS will free this context when no longer in use, but the
+        // |must_free| result from CryptAcquireCertificatePrivateKey was false
+        // so we increment the refcount to negate NSS's future decrement.
+        CryptContextAddRef(crypt_prov, NULL, 0);
+        key_context->hCryptProv = crypt_prov;
+        key_context->dwKeySpec = key_spec;
+        *result_private_key = key_context;
+        *result_certs = cert_chain;
+
+        int cert_count = 1 + intermediates.size();
+        that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+            make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                          cert_count)));
+        return SECSuccess;
+      }
+      LOG(WARNING) << "Client cert found without private key";
+    }
+    // Send no client certificate.
+    that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+        make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
+    return SECFailure;
+  }
+
+  that->client_certs_.clear();
+
+  std::vector<CERT_NAME_BLOB> issuer_list(ca_names->nnames);
+  for (int i = 0; i < ca_names->nnames; ++i) {
+    issuer_list[i].cbData = ca_names->names[i].len;
+    issuer_list[i].pbData = ca_names->names[i].data;
+  }
+
+  // Client certificates of the user are in the "MY" system certificate store.
+  HCERTSTORE my_cert_store = CertOpenSystemStore(NULL, L"MY");
+  if (!my_cert_store) {
+    LOG(ERROR) << "Could not open the \"MY\" system certificate store: "
+               << GetLastError();
+    that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+        make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
+    return SECFailure;
+  }
+
+  // Enumerate the client certificates.
+  CERT_CHAIN_FIND_BY_ISSUER_PARA find_by_issuer_para;
+  memset(&find_by_issuer_para, 0, sizeof(find_by_issuer_para));
+  find_by_issuer_para.cbSize = sizeof(find_by_issuer_para);
+  find_by_issuer_para.pszUsageIdentifier = szOID_PKIX_KP_CLIENT_AUTH;
+  find_by_issuer_para.cIssuer = ca_names->nnames;
+  find_by_issuer_para.rgIssuer = ca_names->nnames ? &issuer_list[0] : NULL;
+  find_by_issuer_para.pfnFindCallback = ClientCertFindCallback;
+
+  PCCERT_CHAIN_CONTEXT chain_context = NULL;
+  DWORD find_flags = CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_FLAG |
+                     CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_URL_FLAG;
+
+  for (;;) {
+    // Find a certificate chain.
+    chain_context = CertFindChainInStore(my_cert_store,
+                                         X509_ASN_ENCODING,
+                                         find_flags,
+                                         CERT_CHAIN_FIND_BY_ISSUER,
+                                         &find_by_issuer_para,
+                                         chain_context);
+    if (!chain_context) {
+      DWORD err = GetLastError();
+      if (err != CRYPT_E_NOT_FOUND)
+        DLOG(ERROR) << "CertFindChainInStore failed: " << err;
+      break;
+    }
+
+    // Get the leaf certificate.
+    PCCERT_CONTEXT cert_context =
+        chain_context->rgpChain[0]->rgpElement[0]->pCertContext;
+    // Create a copy the handle, so that we can close the "MY" certificate store
+    // before returning from this function.
+    PCCERT_CONTEXT cert_context2;
+    BOOL ok = CertAddCertificateContextToStore(NULL, cert_context,
+                                               CERT_STORE_ADD_USE_EXISTING,
+                                               &cert_context2);
+    if (!ok) {
+      NOTREACHED();
+      continue;
+    }
+
+    // Copy the rest of the chain. Copying the chain stops gracefully if an
+    // error is encountered, with the partial chain being used as the
+    // intermediates, as opposed to failing to consider the client certificate
+    // at all.
+    net::X509Certificate::OSCertHandles intermediates;
+    for (DWORD i = 1; i < chain_context->rgpChain[0]->cElement; i++) {
+      PCCERT_CONTEXT intermediate_copy;
+      ok = CertAddCertificateContextToStore(
+          NULL, chain_context->rgpChain[0]->rgpElement[i]->pCertContext,
+          CERT_STORE_ADD_USE_EXISTING, &intermediate_copy);
+      if (!ok) {
+        NOTREACHED();
+        break;
+      }
+      intermediates.push_back(intermediate_copy);
+    }
+
+    scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
+        cert_context2, intermediates);
+    that->client_certs_.push_back(cert);
+
+    X509Certificate::FreeOSCertHandle(cert_context2);
+    for (net::X509Certificate::OSCertHandles::iterator it =
+        intermediates.begin(); it != intermediates.end(); ++it) {
+      net::X509Certificate::FreeOSCertHandle(*it);
+    }
+  }
+
+  BOOL ok = CertCloseStore(my_cert_store, CERT_CLOSE_STORE_CHECK_FLAG);
+  DCHECK(ok);
+
+  // Tell NSS to suspend the client authentication.  We will then abort the
+  // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
+  return SECWouldBlock;
+#elif defined(OS_MACOSX)
+  if (that->ssl_config_.send_client_cert) {
+    if (that->ssl_config_.client_cert) {
+      OSStatus os_error = noErr;
+      SecIdentityRef identity = NULL;
+      SecKeyRef private_key = NULL;
+      CFArrayRef chain =
+          that->ssl_config_.client_cert->CreateClientCertificateChain();
+      if (chain) {
+        identity = reinterpret_cast<SecIdentityRef>(
+            const_cast<void*>(CFArrayGetValueAtIndex(chain, 0)));
+      }
+      if (identity)
+        os_error = SecIdentityCopyPrivateKey(identity, &private_key);
+
+      if (chain && identity && os_error == noErr) {
+        // TODO(rsleevi): Error checking for NSS allocation errors.
+        *result_certs = CERT_NewCertList();
+        *result_private_key = private_key;
+
+        for (CFIndex i = 0; i < CFArrayGetCount(chain); ++i) {
+          CSSM_DATA cert_data;
+          SecCertificateRef cert_ref;
+          if (i == 0) {
+            cert_ref = that->ssl_config_.client_cert->os_cert_handle();
+          } else {
+            cert_ref = reinterpret_cast<SecCertificateRef>(
+                const_cast<void*>(CFArrayGetValueAtIndex(chain, i)));
+          }
+          os_error = SecCertificateGetData(cert_ref, &cert_data);
+          if (os_error != noErr)
+            break;
+
+          SECItem der_cert;
+          der_cert.type = siDERCertBuffer;
+          der_cert.data = cert_data.Data;
+          der_cert.len = cert_data.Length;
+          CERTCertificate* nss_cert = CERT_NewTempCertificate(
+              CERT_GetDefaultCertDB(), &der_cert, NULL, PR_FALSE, PR_TRUE);
+          if (!nss_cert) {
+            // In the event of an NSS error we make up an OS error and reuse
+            // the error handling, below.
+            os_error = errSecCreateChainFailed;
+            break;
+          }
+          CERT_AddCertToListTail(*result_certs, nss_cert);
+        }
+      }
+      if (os_error == noErr) {
+        int cert_count = 0;
+        if (chain) {
+          cert_count = CFArrayGetCount(chain);
+          CFRelease(chain);
+        }
+        that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+            make_scoped_refptr(new NetLogIntegerParameter("cert_count",
+                                                          cert_count)));
+        return SECSuccess;
+      }
+      OSSTATUS_LOG(WARNING, os_error)
+          << "Client cert found, but could not be used";
+      if (*result_certs) {
+        CERT_DestroyCertList(*result_certs);
+        *result_certs = NULL;
+      }
+      if (*result_private_key)
+        *result_private_key = NULL;
+      if (private_key)
+        CFRelease(private_key);
+      if (chain)
+        CFRelease(chain);
+    }
+    // Send no client certificate.
+    that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+        make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
+    return SECFailure;
+  }
+
+  that->client_certs_.clear();
+
+  // First, get the cert issuer names allowed by the server.
+  std::vector<CertPrincipal> valid_issuers;
+  int n = ca_names->nnames;
+  for (int i = 0; i < n; i++) {
+    // Parse each name into a CertPrincipal object.
+    CertPrincipal p;
+    if (p.ParseDistinguishedName(ca_names->names[i].data,
+                                 ca_names->names[i].len)) {
+      valid_issuers.push_back(p);
+    }
+  }
+
+  // Now get the available client certs whose issuers are allowed by the server.
+  X509Certificate::GetSSLClientCertificates(that->host_and_port_.host(),
+                                            valid_issuers,
+                                            &that->client_certs_);
+
+  // Tell NSS to suspend the client authentication.  We will then abort the
+  // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
+  return SECWouldBlock;
+#else
+  return SECFailure;
+#endif
+}
+
+#else  // NSS_PLATFORM_CLIENT_AUTH
+
+// static
+// NSS calls this if a client certificate is needed.
+// Based on Mozilla's NSS_GetClientAuthData.
+SECStatus SSLClientSocketNSS::ClientAuthHandler(
+    void* arg,
+    PRFileDesc* socket,
+    CERTDistNames* ca_names,
+    CERTCertificate** result_certificate,
+    SECKEYPrivateKey** result_private_key) {
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+
+  that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED, NULL);
+
+  const SECItem* cert_types = SSL_GetRequestedClientCertificateTypes(socket);
+
+  // Check if a domain-bound certificate is requested.
+  if (DomainBoundCertNegotiated(socket)) {
+    return that->DomainBoundClientAuthHandler(
+        cert_types, result_certificate, result_private_key);
+  }
+
+  // Regular client certificate requested.
+  that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
+  void* wincx  = SSL_RevealPinArg(socket);
+
+  // Second pass: a client certificate should have been selected.
+  if (that->ssl_config_.send_client_cert) {
+    if (that->ssl_config_.client_cert) {
+      CERTCertificate* cert = CERT_DupCertificate(
+          that->ssl_config_.client_cert->os_cert_handle());
+      SECKEYPrivateKey* privkey = PK11_FindKeyByAnyCert(cert, wincx);
+      if (privkey) {
+        // TODO(jsorianopastor): We should wait for server certificate
+        // verification before sending our credentials.  See
+        // http://crbug.com/13934.
+        *result_certificate = cert;
+        *result_private_key = privkey;
+        // A cert_count of -1 means the number of certificates is unknown.
+        // NSS will construct the certificate chain.
+        that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+            make_scoped_refptr(new NetLogIntegerParameter("cert_count", -1)));
+        return SECSuccess;
+      }
+      LOG(WARNING) << "Client cert found without private key";
+    }
+    // Send no client certificate.
+    that->net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+        make_scoped_refptr(new NetLogIntegerParameter("cert_count", 0)));
+    return SECFailure;
+  }
+
+  // Iterate over all client certificates.
+  CERTCertList* client_certs = CERT_FindUserCertsByUsage(
+      CERT_GetDefaultCertDB(), certUsageSSLClient,
+      PR_FALSE, PR_FALSE, wincx);
+  if (client_certs) {
+    for (CERTCertListNode* node = CERT_LIST_HEAD(client_certs);
+         !CERT_LIST_END(node, client_certs);
+         node = CERT_LIST_NEXT(node)) {
+      // Only offer unexpired certificates.
+      if (CERT_CheckCertValidTimes(node->cert, PR_Now(), PR_TRUE) !=
+          secCertTimeValid)
+        continue;
+      // Filter by issuer.
+      //
+      // TODO(davidben): This does a binary comparison of the DER-encoded
+      // issuers. We should match according to RFC 5280 sec. 7.1. We should find
+      // an appropriate NSS function or add one if needbe.
+      if (ca_names->nnames &&
+          NSS_CmpCertChainWCANames(node->cert, ca_names) != SECSuccess)
+        continue;
+      X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
+          node->cert, net::X509Certificate::OSCertHandles());
+      that->client_certs_.push_back(x509_cert);
+    }
+    CERT_DestroyCertList(client_certs);
+  }
+
+  // Tell NSS to suspend the client authentication.  We will then abort the
+  // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
+  return SECWouldBlock;
+}
+#endif  // NSS_PLATFORM_CLIENT_AUTH
+
+void SSLClientSocketNSS::RecordDomainBoundCertSupport() const {
+  PRBool last_handshake_resumed;
+  SECStatus ok = SSL_HandshakeResumedSession(nss_fd_, &last_handshake_resumed);
+  if (ok != SECSuccess || last_handshake_resumed)
+    return;
+
+  // Since this enum is used for a histogram, do not change or re-use values.
+  enum {
+    DISABLED = 0,
+    CLIENT_ONLY = 1,
+    CLIENT_AND_SERVER = 2,
+    DOMAIN_BOUND_CERT_USAGE_MAX
+  } supported = DISABLED;
+#ifdef SSL_ENABLE_OB_CERTS
+  if (domain_bound_cert_xtn_negotiated_)
+    supported = CLIENT_AND_SERVER;
+  else if (ssl_config_.domain_bound_certs_enabled)
+    supported = CLIENT_ONLY;
+#endif
+  UMA_HISTOGRAM_ENUMERATION("DomainBoundCerts.Support", supported,
+                            DOMAIN_BOUND_CERT_USAGE_MAX);
+}
+
+// static
+// NSS calls this when handshake is completed.
+// After the SSL handshake is finished, use CertVerifier to verify
+// the saved server certificate.
+void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
+                                           void* arg) {
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+
+  that->handshake_callback_called_ = true;
+
+  that->RecordDomainBoundCertSupport();
+  that->UpdateServerCert();
+  that->UpdateConnectionStatus();
+}
+
+// NextProtoCallback is called by NSS during the handshake, if the server
+// supports NPN, to select a protocol from the list that the server offered.
+// See the comment in net/third_party/nss/ssl/ssl.h for the meanings of the
+// arguments.
+// static
+SECStatus
+SSLClientSocketNSS::NextProtoCallback(void* arg,
+                                      PRFileDesc* nss_fd,
+                                      const unsigned char* protos,
+                                      unsigned int protos_len,
+                                      unsigned char* proto_out,
+                                      unsigned int* proto_out_len,
+                                      unsigned int proto_max_len) {
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+
+  // For each protocol in server preference, see if we support it.
+  for (unsigned int i = 0; i < protos_len; ) {
+    const size_t len = protos[i];
+    for (std::vector<std::string>::const_iterator
+         j = that->ssl_config_.next_protos.begin();
+         j != that->ssl_config_.next_protos.end(); j++) {
+      // Having very long elements in the |next_protos| vector isn't a disaster
+      // because they'll never be selected, but it does indicate an error
+      // somewhere.
+      DCHECK_LT(j->size(), 256u);
+
+      if (j->size() == len &&
+          memcmp(&protos[i + 1], j->data(), len) == 0) {
+        that->next_proto_status_ = kNextProtoNegotiated;
+        that->next_proto_ = *j;
+        break;
+      }
+    }
+
+    if (that->next_proto_status_ == kNextProtoNegotiated)
+      break;
+
+    // NSS checks that the data in |protos| is well formed, so we know that
+    // this doesn't cause us to jump off the end of the buffer.
+    i += len + 1;
+  }
+
+  that->server_protos_.assign(
+      reinterpret_cast<const char*>(protos), protos_len);
+
+  // If we didn't find a protocol, we select the first one from our list.
+  if (that->next_proto_status_ != kNextProtoNegotiated) {
+    that->next_proto_status_ = kNextProtoNoOverlap;
+    that->next_proto_ = that->ssl_config_.next_protos[0];
+  }
+
+  if (that->next_proto_.size() > proto_max_len) {
+    PORT_SetError(SEC_ERROR_OUTPUT_LEN);
+    return SECFailure;
+  }
+  memcpy(proto_out, that->next_proto_.data(), that->next_proto_.size());
+  *proto_out_len = that->next_proto_.size();
+  return SECSuccess;
 }
 
 void SSLClientSocketNSS::EnsureThreadIdAssigned() const {
