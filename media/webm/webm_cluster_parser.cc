@@ -230,38 +230,77 @@ bool WebMClusterParser::Track::AddBuffer(
     return false;
   }
 
-  if (delayed_buffer_) {
+  if (!delayed_buffers_.empty()) {
     // Update the duration of the delayed buffer and place it into the queue.
+    scoped_refptr<StreamParserBuffer> delayed_buffer = delayed_buffers_.front();
+
+    // If we get another buffer with the same timestamp, put it in the delay
+    // queue.
+    if (buffer->GetTimestamp() == delayed_buffer->GetTimestamp()) {
+      delayed_buffers_.push_back(buffer);
+
+      // If this buffer happens to have a duration, use it to set the
+      // duration on all the other buffers in the queue.
+      if (buffer->GetDuration() != kNoTimestamp())
+        SetDelayedBufferDurations(buffer->GetDuration());
+
+      return true;
+    }
+
     base::TimeDelta new_duration =
-        buffer->GetTimestamp() - delayed_buffer_->GetTimestamp();
+        buffer->GetTimestamp() - delayed_buffer->GetTimestamp();
 
-    if (new_duration <= base::TimeDelta())
+    if (new_duration < base::TimeDelta()) {
+      DVLOG(1) << "Detected out of order timestamps.";
       return false;
+    }
 
-    delayed_buffer_->SetDuration(new_duration);
-    buffers_.push_back(delayed_buffer_);
-
-    delayed_buffer_ = NULL;
+    SetDelayedBufferDurations(new_duration);
   }
 
   // Place the buffer in delayed buffer slot if we don't know
   // its duration.
   if (buffer->GetDuration() == kNoTimestamp()) {
-    delayed_buffer_ = buffer;
+    delayed_buffers_.push_back(buffer);
     return true;
   }
 
-  buffers_.push_back(buffer);
+  AddToBufferQueue(buffer);
   return true;
 }
 
 void WebMClusterParser::Track::Reset() {
   buffers_.clear();
-  delayed_buffer_ = NULL;
+  delayed_buffers_.clear();
 }
 
 void WebMClusterParser::Track::ClearBufferQueue() {
   buffers_.clear();
+}
+
+void WebMClusterParser::Track::SetDelayedBufferDurations(
+    base::TimeDelta duration) {
+
+  for (BufferQueue::iterator itr = delayed_buffers_.begin();
+       itr < delayed_buffers_.end(); ++itr) {
+    (*itr)->SetDuration(duration);
+
+    AddToBufferQueue(*itr);
+  }
+  delayed_buffers_.clear();
+}
+
+void WebMClusterParser::Track::AddToBufferQueue(
+    const scoped_refptr<StreamParserBuffer>& buffer) {
+  DCHECK(buffer->GetDuration() > base::TimeDelta());
+
+  DVLOG(2) << "AddToBufferQueue() : " << track_num_
+           << " ts " << buffer->GetTimestamp().InSecondsF()
+           << " dur " << buffer->GetDuration().InSecondsF()
+           << " kf " << buffer->IsKeyframe()
+           << " size " << buffer->GetDataSize();
+
+  buffers_.push_back(buffer);
 }
 
 }  // namespace media

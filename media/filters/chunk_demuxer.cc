@@ -606,6 +606,7 @@ bool ChunkDemuxer::AppendData(const std::string& id,
 }
 
 void ChunkDemuxer::Abort(const std::string& id) {
+  DVLOG(1) << "Abort(" << id << ")";
   DCHECK(!id.empty());
   DCHECK_EQ(source_id_, id);
 
@@ -673,6 +674,8 @@ void ChunkDemuxer::Shutdown() {
 
 void ChunkDemuxer::ChangeState_Locked(State new_state) {
   lock_.AssertAcquired();
+  DVLOG(1) << "ChunkDemuxer::ChangeState_Locked() : "
+           << state_ << " -> " << new_state;
   state_ = new_state;
 }
 
@@ -681,6 +684,7 @@ ChunkDemuxer::~ChunkDemuxer() {
 }
 
 void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {
+  DVLOG(1) << "ReportError_Locked(" << error << ")";
   lock_.AssertAcquired();
   DCHECK_NE(error, PIPELINE_OK);
 
@@ -732,6 +736,8 @@ bool ChunkDemuxer::CanEndOfStream_Locked() const {
 
 void ChunkDemuxer::OnStreamParserInitDone(bool success,
                                           base::TimeDelta duration) {
+  DVLOG(1) << "OnSourceBufferInitDone(" << success << ", "
+           << duration.InSecondsF() << ")";
   lock_.AssertAcquired();
   DCHECK_EQ(state_, INITIALIZING);
   if (!success || (!audio_ && !video_)) {
