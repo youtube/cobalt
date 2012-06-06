@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -37,11 +37,25 @@
 #
 # The resulting framework bundles aren't strictly conforming, but they work
 # as well as normal versioned framework bundles.
+#
+# An option to skip running install_name_tool is available. By passing -I as
+# the first argument to this script, install_name_tool will be skipped. This
+# is only suitable for copied frameworks that will not be linked against, or
+# when install_name_tool will be run on any linker output when something is
+# linked against the copied framework. This option exists to allow signed
+# frameworks to pass through without subjecting them to any modifications that
+# would break their signatures.
 
 set -e
 
+RUN_INSTALL_NAME_TOOL=1
+if [ $# -eq 3 ] && [ "${1}" = "-I" ] ; then
+  shift
+  RUN_INSTALL_NAME_TOOL=
+fi
+
 if [ $# -ne 2 ] ; then
-  echo "usage: ${0} FRAMEWORK DESTINATION_DIR" >& 2
+  echo "usage: ${0} [-I] FRAMEWORK DESTINATION_DIR" >& 2
   exit 1
 fi
 
@@ -79,24 +93,26 @@ mkdir -p "${DESTINATION_DIR}"
 rsync -acC --delete --exclude Headers --exclude PrivateHeaders \
     --include '*.so' "${CURRENT_VERSION}/" "${DESTINATION}"
 
-# Adjust the Mach-O LC_ID_DYLIB load command in the framework.  This does not
-# change the LC_LOAD_DYLIB load commands in anything that may have already
-# linked against the framework.  Not all frameworks will actually need this
-# to be changed.  Some frameworks may already be built with the proper
-# LC_ID_DYLIB for use as an unversioned framework.  Xcode users can do this
-# by setting LD_DYLIB_INSTALL_NAME to
-# $(DYLIB_INSTALL_NAME_BASE:standardizepath)/$(WRAPPER_NAME)/$(PRODUCT_NAME)
-# If invoking ld via gcc or g++, pass the desired path to -Wl,-install_name
-# at link time.
-FRAMEWORK_DYLIB="${DESTINATION}/${FRAMEWORK_NAME_NOEXT}"
-LC_ID_DYLIB_OLD="$(otool -l "${FRAMEWORK_DYLIB}" |
-                       grep -A10 "^ *cmd LC_ID_DYLIB$" |
-                       grep -m1 "^ *name" |
-                       sed -Ee 's/^ *name (.*) \(offset [0-9]+\)$/\1/')"
-VERSION_PATH="/Versions/${CURRENT_VERSION_ID}/${FRAMEWORK_NAME_NOEXT}"
-LC_ID_DYLIB_NEW="$(echo "${LC_ID_DYLIB_OLD}" |
-                       sed -Ee "s%${VERSION_PATH}$%/${FRAMEWORK_NAME_NOEXT}%")"
+if [[ -n "${RUN_INSTALL_NAME_TOOL}" ]]; then
+  # Adjust the Mach-O LC_ID_DYLIB load command in the framework.  This does not
+  # change the LC_LOAD_DYLIB load commands in anything that may have already
+  # linked against the framework.  Not all frameworks will actually need this
+  # to be changed.  Some frameworks may already be built with the proper
+  # LC_ID_DYLIB for use as an unversioned framework.  Xcode users can do this
+  # by setting LD_DYLIB_INSTALL_NAME to
+  # $(DYLIB_INSTALL_NAME_BASE:standardizepath)/$(WRAPPER_NAME)/$(PRODUCT_NAME)
+  # If invoking ld via gcc or g++, pass the desired path to -Wl,-install_name
+  # at link time.
+  FRAMEWORK_DYLIB="${DESTINATION}/${FRAMEWORK_NAME_NOEXT}"
+  LC_ID_DYLIB_OLD="$(otool -l "${FRAMEWORK_DYLIB}" |
+                         grep -A10 "^ *cmd LC_ID_DYLIB$" |
+                         grep -m1 "^ *name" |
+                         sed -Ee 's/^ *name (.*) \(offset [0-9]+\)$/\1/')"
+  VERSION_PATH="/Versions/${CURRENT_VERSION_ID}/${FRAMEWORK_NAME_NOEXT}"
+  LC_ID_DYLIB_NEW="$(echo "${LC_ID_DYLIB_OLD}" |
+                     sed -Ee "s%${VERSION_PATH}$%/${FRAMEWORK_NAME_NOEXT}%")"
 
-if [ "${LC_ID_DYLIB_NEW}" != "${LC_ID_DYLIB_OLD}" ] ; then
-  install_name_tool -id "${LC_ID_DYLIB_NEW}" "${FRAMEWORK_DYLIB}"
+  if [ "${LC_ID_DYLIB_NEW}" != "${LC_ID_DYLIB_OLD}" ] ; then
+    install_name_tool -id "${LC_ID_DYLIB_NEW}" "${FRAMEWORK_DYLIB}"
+  fi
 fi
