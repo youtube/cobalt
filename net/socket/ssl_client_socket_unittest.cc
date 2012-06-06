@@ -652,6 +652,8 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
                             kDefaultSSLConfig));
 
   rv = sock->Connect(callback.callback());
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
   EXPECT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
 }
 
