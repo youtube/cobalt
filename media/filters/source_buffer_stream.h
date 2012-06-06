@@ -40,8 +40,6 @@ class MEDIA_EXPORT SourceBufferStream {
   // of order or overlapping. Assumes all buffers within |buffers| are in
   // presentation order and are non-overlapping.
   // Returns true if Append() was successful, false if |buffers| are not added.
-  // TODO(vrk): Implement proper end-overlapping. (crbug.com/125072)
-  // This may trigger garbage collection.
   // TODO(vrk): Implement garbage collection. (crbug.com/125070)
   bool Append(const BufferQueue& buffers);
 
@@ -84,20 +82,37 @@ class MEDIA_EXPORT SourceBufferStream {
  private:
   typedef std::list<SourceBufferRange*> RangeList;
 
-  // Resolve overlapping ranges such that no ranges overlap anymore.
-  // |range_itr| points to the iterator in |ranges_| immediately after
-  // |new_range|. Returns the iterator in |ranges_| immediately after
-  // |new_range|, which may be different from the original |range_itr|.
-  RangeList::iterator ResolveCompleteOverlaps(
-      const RangeList::iterator& range_itr, SourceBufferRange* new_range);
-  RangeList::iterator ResolveEndOverlaps(
-      const RangeList::iterator& range_itr, SourceBufferRange* new_range);
+  // Appends |new_buffers| into |range_for_new_buffers_itr|, handling start and
+  // end overlaps if necessary.
+  void InsertIntoExistingRange(
+      const RangeList::iterator& range_for_new_buffers_itr,
+      const BufferQueue& new_buffers);
 
-  // Checks to see if the range pointed to by |range_itr| can be appended to the
-  // end of |new_range|, and if so, appends the range and updates |ranges_| to
-  // reflect this.
+  // Resolve overlapping ranges such that no ranges overlap anymore.
+  // |range_with_new_buffers_itr| points to the range that has newly appended
+  // buffers.
+  void ResolveCompleteOverlaps(
+      const RangeList::iterator& range_with_new_buffers_itr);
+  void ResolveEndOverlap(const RangeList::iterator& range_with_new_buffers_itr);
+
+  // Adds buffers to |track_buffer_| and updates |selected_range_| accordingly.
+  // |range_with_new_buffers_itr| points to the range containing the newly
+  // appended buffers.
+  // |deleted_buffers| contains all the buffers that were deleted as a result
+  // of appending new buffers into |range_with_new_buffers_itr|. |next_buffer|
+  // points to the buffer in |deleted_buffers| that should be returned by the
+  // next call to GetNextBuffer(). Assumes |deleted_buffers| and |next_buffer|
+  // are valid.
+  // TODO(vrk): This is a little crazy! Ideas for cleanup in crbug.com/129623.
+  void UpdateTrackBuffer(
+      const RangeList::iterator& range_with_new_buffers_itr,
+      const BufferQueue& deleted_buffers,
+      const BufferQueue::iterator& next_buffer);
+
+  // Checks to see if |range_with_new_buffers_itr| can be merged with the range
+  // next to it, and merges them if so.
   void MergeWithAdjacentRangeIfNecessary(
-      const RangeList::iterator& range_itr, SourceBufferRange* new_range);
+      const RangeList::iterator& range_with_new_buffers_itr);
 
   // List of disjoint buffered ranges, ordered by start time.
   RangeList ranges_;
@@ -120,11 +135,6 @@ class MEDIA_EXPORT SourceBufferStream {
   // Queue of the next buffers to be returned from calls to GetNextBuffer(). If
   // |track_buffer_| is empty, return buffers from |selected_range_|.
   BufferQueue track_buffer_;
-
-  // True if the next buffer after the end of the |track_buffer_| is not
-  // buffered yet and we need to wait for the next keyframe after
-  // |track_buffer_| to be appended.
-  bool waiting_for_keyframe_;
 
   // True when EndOfStream() has been called and GetNextBuffer() should return
   // EOS buffers for read requests beyond the buffered data.  False initially.
