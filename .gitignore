@@ -53,6 +53,7 @@ v8.log
 /chrome/browser/autofill/internal
 /chrome/browser/extensions/default_extensions/chromeos
 /chrome/browser/intents/internal/
+/chrome/browser/performance_monitor/performance_monitor.xml
 /chrome/browser/protector/internal
 /chrome/browser/resources/software_rendering_list
 /chrome/browser/spellchecker/internal
