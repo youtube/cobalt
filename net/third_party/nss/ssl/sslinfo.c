@@ -376,13 +376,8 @@ SSL_ExportKeyingMaterial(PRFileDesc *fd,
 	return SECFailure;
     }
 
-    ssl_GetRecvBufLock(ss);
-    ssl_GetSSL3HandshakeLock(ss);
-
     if (ss->version < SSL_LIBRARY_VERSION_3_1_TLS) {
 	PORT_SetError(SSL_ERROR_UNSUPPORTED_VERSION);
-	ssl_ReleaseSSL3HandshakeLock(ss);
-	ssl_ReleaseRecvBufLock(ss);
 	return SECFailure;
     }
 
@@ -393,17 +388,13 @@ SSL_ExportKeyingMaterial(PRFileDesc *fd,
     }
     val = PORT_Alloc(valLen);
     if (!val) {
-	ssl_ReleaseSSL3HandshakeLock(ss);
-	ssl_ReleaseRecvBufLock(ss);
 	return SECFailure;
     }
     i = 0;
-
     PORT_Memcpy(val + i, &ss->ssl3.hs.client_random.rand, SSL3_RANDOM_LENGTH);
     i += SSL3_RANDOM_LENGTH;
     PORT_Memcpy(val + i, &ss->ssl3.hs.server_random.rand, SSL3_RANDOM_LENGTH);
     i += SSL3_RANDOM_LENGTH;
-
     if (hasContext) {
 	val[i++] = contextLen >> 8;
 	val[i++] = contextLen;
@@ -424,8 +415,6 @@ SSL_ExportKeyingMaterial(PRFileDesc *fd,
 					 valLen, out, outLen);
     }
     ssl_ReleaseSpecReadLock(ss);
-    ssl_ReleaseSSL3HandshakeLock(ss);
-    ssl_ReleaseRecvBufLock(ss);
 
     PORT_ZFree(val, valLen);
     return rv;
