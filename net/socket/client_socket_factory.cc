@@ -5,8 +5,6 @@
 #include "net/socket/client_socket_factory.h"
 
 #include "base/lazy_instance.h"
-#include "base/thread_task_runner_handle.h"
-#include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "net/base/cert_database.h"
 #include "net/socket/client_socket_handle.h"
@@ -33,31 +31,14 @@ namespace {
 
 bool g_use_system_ssl = false;
 
-// ChromeOS uses a hardware TPM module that may cause NSS operations to
-// block for upwards of several seconds. To avoid blocking all network and
-// IPC activity, run NSS SSL functions on a dedicated thread.
-#if defined(OS_CHROMEOS)
-bool g_use_dedicated_nss_thread = true;
-#else
-bool g_use_dedicated_nss_thread = false;
-#endif
-
 class DefaultClientSocketFactory : public ClientSocketFactory,
                                    public CertDatabase::Observer {
  public:
   DefaultClientSocketFactory() {
-    if (g_use_dedicated_nss_thread) {
-      nss_thread_.reset(new base::Thread("NSS SSL Thread"));
-      if (nss_thread_->Start())
-        nss_thread_task_runner_ = nss_thread_->message_loop_proxy();
-    }
-
     CertDatabase::AddObserver(this);
   }
 
   virtual ~DefaultClientSocketFactory() {
-    // Note: This code never runs, as the factory is defined as a Leaky
-    // singleton.
     CertDatabase::RemoveObserver(this);
   }
 
@@ -95,43 +76,26 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       const SSLClientSocketContext& context) {
     scoped_ptr<SSLHostInfo> shi(ssl_host_info);
 
-    // nss_thread_task_runner_ may be NULL if g_use_dedicated_nss_thread is
-    // false or if the dedicated NSS thread failed to start. If so, cause NSS
-    // functions to execute on the current task runner.
-    //
-    // Note: The current task runner is obtained on each call due to unit
-    // tests, which may create and tear down the current thread's TaskRunner
-    // between each test. Because the DefaultClientSocketFactory is leaky, it
-    // may span multiple tests, and thus the current task runner may change
-    // from call to call.
-    scoped_refptr<base::SingleThreadTaskRunner> nss_task_runner(
-        nss_thread_task_runner_);
-    if (!nss_task_runner)
-      nss_task_runner = base::ThreadTaskRunnerHandle::Get();
-
-#if defined(USE_OPENSSL)
-    return new SSLClientSocketOpenSSL(transport_socket, host_and_port,
-                                      ssl_config, context);
-#elif defined(USE_NSS)
-    return new SSLClientSocketNSS(nss_task_runner, transport_socket,
-                                  host_and_port, ssl_config, shi.release(),
-                                  context);
-#elif defined(OS_WIN)
+#if defined(OS_WIN)
     if (g_use_system_ssl) {
       return new SSLClientSocketWin(transport_socket, host_and_port,
                                     ssl_config, context);
     }
-    return new SSLClientSocketNSS(nss_task_runner, transport_socket,
-                                  host_and_port, ssl_config, shi.release(),
-                                  context);
+    return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
+                                  shi.release(), context);
+#elif defined(USE_OPENSSL)
+    return new SSLClientSocketOpenSSL(transport_socket, host_and_port,
+                                      ssl_config, context);
+#elif defined(USE_NSS)
+    return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
+                                  shi.release(), context);
 #elif defined(OS_MACOSX)
     if (g_use_system_ssl) {
       return new SSLClientSocketMac(transport_socket, host_and_port,
                                     ssl_config, context);
     }
-    return new SSLClientSocketNSS(nss_task_runner, transport_socket,
-                                  host_and_port, ssl_config, shi.release(),
-                                  context);
+    return new SSLClientSocketNSS(transport_socket, host_and_port, ssl_config,
+                                  shi.release(), context);
 #else
     NOTIMPLEMENTED();
     return NULL;
@@ -142,12 +106,9 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
     SSLClientSocket::ClearSessionCache();
   }
 
- private:
-  scoped_ptr<base::Thread> nss_thread_;
-  scoped_refptr<base::SingleThreadTaskRunner> nss_thread_task_runner_;
 };
 
-static base::LazyInstance<DefaultClientSocketFactory>::Leaky
+static base::LazyInstance<DefaultClientSocketFactory>
     g_default_client_socket_factory = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
