@@ -43,6 +43,8 @@ class MimeUtil : public PlatformMimeUtil {
   bool MatchesMimeType(const std::string &mime_type_pattern,
                        const std::string &mime_type) const;
 
+  bool IsMimeType(const std::string& type_string) const;
+
   bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs) const;
 
   void ParseCodecString(const std::string& codecs,
@@ -486,6 +488,49 @@ bool MimeUtil::MatchesMimeType(const std::string& mime_type_pattern,
   return true;
 }
 
+// See http://www.iana.org/assignments/media-types/index.html
+static const char* legal_top_level_types[] = {
+  "application/",
+  "audio/",
+  "example/",
+  "image/",
+  "message/",
+  "model/",
+  "multipart/",
+  "text/",
+  "video/",
+};
+
+bool MimeUtil::IsMimeType(const std::string& type_string) const {
+  // MIME types are always ASCII and case-insensitive (at least, the top-level
+  // and secondary types we care about).
+  if (!IsStringASCII(type_string))
+    return false;
+
+  if (type_string == "*/*" || type_string == "*")
+    return true;
+
+  for (size_t i = 0; i < arraysize(legal_top_level_types); ++i) {
+    if (StartsWithASCII(type_string, legal_top_level_types[i], false) &&
+        type_string.length() > strlen(legal_top_level_types[i])) {
+      return true;
+    }
+  }
+
+  // If there's a "/" separator character, and the token before it is
+  // "x-" + (ascii characters), it is also a MIME type.
+  size_t slash = type_string.find('/');
+  if (slash < 3 ||
+      slash == std::string::npos || slash == type_string.length() - 1) {
+    return false;
+  }
+
+  if (StartsWithASCII(type_string, "x-", false))
+    return true;
+
+  return false;
+}
+
 bool MimeUtil::AreSupportedMediaCodecs(
     const std::vector<std::string>& codecs) const {
   return AreSupportedCodecs(codecs_map_, codecs);
@@ -576,6 +621,10 @@ bool IsSupportedMimeType(const std::string& mime_type) {
 bool MatchesMimeType(const std::string& mime_type_pattern,
                      const std::string& mime_type) {
   return g_mime_util.Get().MatchesMimeType(mime_type_pattern, mime_type);
+}
+
+bool IsMimeType(const std::string& type_string) {
+  return g_mime_util.Get().IsMimeType(type_string);
 }
 
 bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs) {

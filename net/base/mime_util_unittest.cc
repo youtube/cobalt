@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/mime_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -124,6 +125,40 @@ TEST(MimeUtilTest, ParseCodecString) {
   ASSERT_EQ(2u, codecs_out.size());
   EXPECT_EQ("avc1.42E01E", codecs_out[0]);
   EXPECT_EQ("mp4a.40.2", codecs_out[1]);
+}
+
+TEST(MimeUtilTest, TestIsMimeType) {
+  std::string nonAscii("application/nonutf8");
+  EXPECT_TRUE(IsMimeType(nonAscii));
+#if defined(OS_WIN)
+  nonAscii.append(WideToUTF8(std::wstring(L"\u2603")));
+#else
+  nonAscii.append("\u2603");  // unicode snowman
+#endif
+  EXPECT_FALSE(IsMimeType(nonAscii));
+
+  EXPECT_TRUE(IsMimeType("application/mime"));
+  EXPECT_TRUE(IsMimeType("audio/mime"));
+  EXPECT_TRUE(IsMimeType("example/mime"));
+  EXPECT_TRUE(IsMimeType("image/mime"));
+  EXPECT_TRUE(IsMimeType("message/mime"));
+  EXPECT_TRUE(IsMimeType("model/mime"));
+  EXPECT_TRUE(IsMimeType("multipart/mime"));
+  EXPECT_TRUE(IsMimeType("text/mime"));
+  EXPECT_TRUE(IsMimeType("TEXT/mime"));
+  EXPECT_TRUE(IsMimeType("Text/mime"));
+  EXPECT_TRUE(IsMimeType("TeXt/mime"));
+  EXPECT_TRUE(IsMimeType("video/mime"));
+  EXPECT_TRUE(IsMimeType("video/mime;parameter"));
+  EXPECT_TRUE(IsMimeType("*/*"));
+  EXPECT_TRUE(IsMimeType("*"));
+
+  EXPECT_TRUE(IsMimeType("x-video/mime"));
+  EXPECT_TRUE(IsMimeType("X-Video/mime"));
+  EXPECT_FALSE(IsMimeType("x-video/"));
+  EXPECT_FALSE(IsMimeType("x-/mime"));
+  EXPECT_FALSE(IsMimeType("mime/looking"));
+  EXPECT_FALSE(IsMimeType("text/"));
 }
 
 }  // namespace net
