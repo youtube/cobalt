@@ -652,12 +652,12 @@ TEST_F(ChunkDemuxerTest, TestPerStreamMonotonicallyIncreasingTimestamps) {
 
   ClusterBuilder cb;
 
-  // Test strict monotonic increasing timestamps on a per stream
+  // Test monotonic increasing timestamps on a per stream
   // basis.
   cb.SetClusterTimecode(5);
   AddSimpleBlock(&cb, kAudioTrackNum, 5);
   AddSimpleBlock(&cb, kVideoTrackNum, 5);
-  AddSimpleBlock(&cb, kAudioTrackNum, 5);
+  AddSimpleBlock(&cb, kAudioTrackNum, 4);
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
   scoped_ptr<Cluster> cluster(cb.Finish());
 
@@ -670,7 +670,7 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
 
   ClusterBuilder cb;
 
-  // Test strict monotonic increasing timestamps on a per stream
+  // Test monotonic increasing timestamps on a per stream
   // basis across clusters.
   cb.SetClusterTimecode(5);
   AddSimpleBlock(&cb, kAudioTrackNum, 5);
@@ -679,8 +679,8 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
 
   ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
 
-  cb.SetClusterTimecode(5);
-  AddSimpleBlock(&cb, kAudioTrackNum, 5);
+  cb.SetClusterTimecode(4);
+  AddSimpleBlock(&cb, kAudioTrackNum, 4);
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
   scoped_ptr<Cluster> cluster_b(cb.Finish());
 
@@ -966,6 +966,20 @@ TEST_F(ChunkDemuxerTest, TestWebMFile_VideoOnly) {
 
   ASSERT_TRUE(ParseWebMFile("bear-320x240-video-only.webm", buffer_timestamps,
                             base::TimeDelta::FromMilliseconds(2703)));
+}
+
+TEST_F(ChunkDemuxerTest, TestWebMFile_AltRefFrames) {
+  struct BufferTimestamps buffer_timestamps[] = {
+    {0, 0},
+    {33, 3},
+    {33, 6},
+    {67, 9},
+    {100, 12},
+    {kSkip, kSkip},
+  };
+
+  ASSERT_TRUE(ParseWebMFile("bear-320x240-altref.webm", buffer_timestamps,
+                            base::TimeDelta::FromMilliseconds(2767)));
 }
 
 // Verify that we output buffers before the entire cluster has been parsed.
