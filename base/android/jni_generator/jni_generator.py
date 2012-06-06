@@ -186,7 +186,6 @@ def JavaParamToJni(param):
       'Lorg/chromium/media/MediaPlayerListener',
       'Lorg/chromium/net/NetworkChangeNotifier',
       'Lorg/chromium/net/ProxyChangeListener',
-      'Lorg/chromium/net/NetworkChangeNotifier',
   ]
   if param == 'byte[][]':
     return '[[B'

@@ -41,6 +41,8 @@
 #include "net/proxy/proxy_resolver_mac.h"
 #elif defined(OS_LINUX) && !defined(OS_CHROMEOS)
 #include "net/proxy/proxy_config_service_linux.h"
+#elif defined(OS_ANDROID)
+#include "net/proxy/proxy_config_service_android.h"
 #endif
 
 using base::TimeDelta;
@@ -1453,6 +1455,10 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
       static_cast<MessageLoopForIO*>(file_loop));
 
   return linux_config_service;
+#elif defined(OS_ANDROID)
+  return new ProxyConfigServiceAndroid(
+      io_thread_task_runner,
+      MessageLoopForUI::current()->message_loop_proxy());
 #else
   LOG(WARNING) << "Failed to choose a system proxy settings fetcher "
                   "for this platform.";
