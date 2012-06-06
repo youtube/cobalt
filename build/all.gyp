@@ -107,8 +107,7 @@
           'dependencies': [
             '../breakpad/breakpad.gyp:*',
             '../chrome_frame/chrome_frame.gyp:*',
-            '../cloud_print/service/win/service.gyp:*',
-            '../cloud_print/virtual_driver/virtual_driver.gyp:*',
+            '../cloud_print/cloud_print.gyp:*',
             '../courgette/courgette.gyp:*',
             '../rlz/rlz.gyp:*',
             '../sandbox/sandbox.gyp:*',
@@ -179,6 +178,7 @@
         '../chrome/chrome.gyp:safe_browsing_tests',
         '../chrome/chrome.gyp:sync_integration_tests',
         '../chrome/chrome.gyp:unit_tests',
+        '../cloud_print/cloud_print.gyp:cloud_print_unittests',
         '../content/content.gyp:content_browsertests',
         '../content/content.gyp:content_unittests',
         '../crypto/crypto.gyp:crypto_unittests',
@@ -308,6 +308,7 @@
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
             '../chrome/chrome.gyp:unit_tests',
+            '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
             '../ui/ui.gyp:gfx_unittests',
@@ -335,6 +336,7 @@
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
             '../chrome/chrome.gyp:unit_tests',
+            '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
             '../ui/ui.gyp:gfx_unittests',
@@ -356,6 +358,7 @@
           'type': 'none',
           'dependencies': [
             '../base/base.gyp:base_unittests',
+            '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../crypto/crypto.gyp:crypto_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
             '../net/net.gyp:net_unittests',
@@ -373,6 +376,7 @@
           'type': 'none',
           'dependencies': [
             '../base/base.gyp:base_unittests',
+            '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../crypto/crypto.gyp:crypto_unittests',
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
@@ -410,6 +414,7 @@
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
             '../chrome/chrome.gyp:unit_tests',
+            '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
             # mini_installer_tests depends on mini_installer. This should be
@@ -455,6 +460,7 @@
           'type': 'none',
           'dependencies': [
             '../base/base.gyp:base_unittests',
+            '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../content/content.gyp:content_unittests',
             '../crypto/crypto.gyp:crypto_unittests',
             '../ipc/ipc.gyp:ipc_tests',
@@ -475,6 +481,7 @@
           'dependencies': [
             '../base/base.gyp:base_unittests',
             '../chrome/chrome.gyp:unit_tests',
+            '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../content/content.gyp:content_unittests',
             '../crypto/crypto.gyp:crypto_unittests',
             '../ipc/ipc.gyp:ipc_tests',
@@ -519,7 +526,7 @@
                 '../chrome_frame/chrome_frame.gyp:npchrome_frame',
                 '../courgette/courgette.gyp:courgette',
                 '../courgette/courgette.gyp:courgette64',
-                '../cloud_print/virtual_driver/virtual_driver.gyp:virtual_driver',
+                '../cloud_print/cloud_print.gyp:cloud_print',
                 '../remoting/remoting.gyp:remoting_webapp',
                 '../third_party/adobe/flash/flash_player.gyp:flash_player',
               ],
