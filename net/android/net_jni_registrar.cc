@@ -7,8 +7,9 @@
 #include "base/basictypes.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_registrar.h"
-#include "net/android/network_library.h"
 #include "net/android/network_change_notifier_android.h"
+#include "net/android/network_library.h"
+#include "net/proxy/proxy_config_service_android.h"
 
 namespace net {
 namespace android {
@@ -16,6 +17,7 @@ namespace android {
 static base::android::RegistrationMethod kNetRegisteredMethods[] = {
   { "AndroidNetworkLibrary", net::android::RegisterNetworkLibrary },
   { "NetworkChangeNotifier", net::android::NetworkChangeNotifier::Register },
+  { "ProxyConfigService",  net::ProxyConfigServiceAndroid::Register },
 };
 
 bool RegisterJni(JNIEnv* env) {
