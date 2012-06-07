@@ -477,6 +477,12 @@
             ['exclude', '^base/gestures/*'],
           ]
         }],
+        ['use_aura==1 and use_ash==0 and OS=="linux"', {
+          'sources': [
+            'base/linux_ui.cc',
+            'base/linux_ui.h',
+          ]
+        }],
         ['use_ibus==1', {
           'dependencies': [
             '../build/linux/system.gyp:ibus',
