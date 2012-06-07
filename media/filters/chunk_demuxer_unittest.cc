@@ -505,8 +505,7 @@ TEST_F(ChunkDemuxerTest, TestAppendDataAfterSeek) {
 
 // Test the case where a Seek() is requested while the parser
 // is in the middle of cluster. This is to verify that the parser
-// resets itself on seek and is in the right state when data from
-// the new seek point arrives.
+// does not reset itself on a seek.
 TEST_F(ChunkDemuxerTest, TestSeekWhileParsingCluster) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
@@ -518,11 +517,13 @@ TEST_F(ChunkDemuxerTest, TestSeekWhileParsingCluster) {
   InSequence s;
 
   scoped_ptr<Cluster> cluster_a(GenerateCluster(0, 6));
-  scoped_ptr<Cluster> cluster_b(GenerateCluster(5000, 6));
 
-  // Append all but the last byte so that everything but
-  // the last block can be parsed.
-  ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size() - 1));
+  // Split the cluster into two appends at an arbitrary point near the end.
+  int first_append_size = cluster_a->size() - 11;
+  int second_append_size = cluster_a->size() - first_append_size;
+
+  // Append the first part of the cluster.
+  ASSERT_TRUE(AppendData(cluster_a->data(), first_append_size));
 
   ExpectRead(audio, 0);
   ExpectRead(video, 0);
@@ -536,9 +537,13 @@ TEST_F(ChunkDemuxerTest, TestSeekWhileParsingCluster) {
   demuxer_->Seek(base::TimeDelta::FromSeconds(5),
                  NewExpectedStatusCB(PIPELINE_OK));
 
+  // Append the rest of the cluster.
+  ASSERT_TRUE(AppendData(cluster_a->data() + first_append_size,
+                         second_append_size));
 
   // Append the new cluster and verify that only the blocks
   // in the new cluster are returned.
+  scoped_ptr<Cluster> cluster_b(GenerateCluster(5000, 6));
   ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
   GenerateExpectedReads(5000, 6, audio, video);
 }
