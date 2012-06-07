@@ -929,7 +929,7 @@ int SocketStream::DoSecureProxyHandleCertErrorComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
   // Reconnect with client authentication.
   if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
-    return HandleCertificateRequest(result);
+    return HandleCertificateRequest(result, &proxy_ssl_config_);
 
   if (result == OK) {
     if (!socket_->IsConnectedAndIdle())
@@ -987,7 +987,7 @@ int SocketStream::DoSSLHandleCertErrorComplete(int result) {
 
   // Reconnect with client authentication.
   if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
-    return HandleCertificateRequest(result);
+    return HandleCertificateRequest(result, &server_ssl_config_);
   if (result == OK) {
     if (!socket_->IsConnectedAndIdle())
       return AllowCertErrorForReconnection(&server_ssl_config_);
@@ -1125,8 +1125,8 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
   return ERR_TUNNEL_CONNECTION_FAILED;
 }
 
-int SocketStream::HandleCertificateRequest(int result) {
-  if (proxy_ssl_config_.send_client_cert)
+int SocketStream::HandleCertificateRequest(int result, SSLConfig* ssl_config) {
+  if (ssl_config->send_client_cert)
     // We already have performed SSL client authentication once and failed.
     return result;
 
@@ -1163,12 +1163,8 @@ int SocketStream::HandleCertificateRequest(int result) {
   if (!cert_still_valid)
     return result;
 
-  // TODO(toyoshim): To support SSL client authentication for not only secure
-  // proxy but also secure server, we must modify this function to take a
-  // SSLConfig* argument.
-  // http://crbug.com/63158 .
-  proxy_ssl_config_.send_client_cert = true;
-  proxy_ssl_config_.client_cert = client_cert;
+  ssl_config->send_client_cert = true;
+  ssl_config->client_cert = client_cert;
   next_state_ = STATE_TCP_CONNECT;
   return OK;
 }
