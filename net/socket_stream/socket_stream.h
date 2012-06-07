@@ -313,7 +313,7 @@ class NET_EXPORT SocketStream
 
   GURL ProxyAuthOrigin() const;
   int HandleAuthChallenge(const HttpResponseHeaders* headers);
-  int HandleCertificateRequest(int result);
+  int HandleCertificateRequest(int result, SSLConfig* ssl_config);
   void DoAuthRequired();
   void DoRestartWithAuth();
 
