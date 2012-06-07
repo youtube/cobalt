@@ -16,8 +16,7 @@ namespace {
 
 struct Info {
   const void* owner;
-  const void* pc1;
-  const void* pc2;
+  const void* pc;
   DWORD thread_id;
 };
 typedef std::map<HANDLE, Info> HandleMap;
@@ -34,7 +33,7 @@ namespace win {
 
 // Static.
 void VerifierTraits::StartTracking(HANDLE handle, const void* owner,
-                                   const void* pc1, const void* pc2) {
+                                   const void* pc) {
   if (OSInfo::GetInstance()->version() > VERSION_XP)
     return;
 
@@ -49,7 +48,7 @@ void VerifierTraits::StartTracking(HANDLE handle, const void* owner,
     return;
   }
 
-  Info handle_info = { owner, pc1, pc2, thread_id };
+  Info handle_info = { owner, pc, thread_id };
   std::pair<HANDLE, Info> item(handle, handle_info);
   std::pair<HandleMap::iterator, bool> result = g_handle_map.Get().insert(item);
   if (!result.second) {
@@ -61,7 +60,7 @@ void VerifierTraits::StartTracking(HANDLE handle, const void* owner,
 
 // Static.
 void VerifierTraits::StopTracking(HANDLE handle, const void* owner,
-                                  const void* pc1, const void* pc2) {
+                                  const void* pc) {
   if (OSInfo::GetInstance()->version() > VERSION_XP)
     return;
 
