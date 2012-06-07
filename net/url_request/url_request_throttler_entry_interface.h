@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 
 namespace net {
 
+class URLRequest;
 class URLRequestThrottlerHeaderInterface;
 
 // Interface provided on entries of the URL request throttler manager.
@@ -24,13 +25,13 @@ class NET_EXPORT URLRequestThrottlerEntryInterface
   URLRequestThrottlerEntryInterface() {}
 
   // Returns true when we have encountered server errors and are doing
-  // exponential back-off, unless the request has |load_flags| (from
-  // net/base/load_flags.h) that mean it is likely to be
-  // user-initiated.
+  // exponential back-off, unless the request has load flags that mean
+  // it is likely to be user-initiated, or the NetworkDelegate returns
+  // false for |CanThrottleRequest(request)|.
   //
   // URLRequestHttpJob checks this method prior to every request; it
   // cancels requests if this method returns true.
-  virtual bool ShouldRejectRequest(int load_flags) const = 0;
+  virtual bool ShouldRejectRequest(const URLRequest& request) const = 0;
 
   // Calculates a recommended sending time for the next request and reserves it.
   // The sending time is not earlier than the current exponential back-off
