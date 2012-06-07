@@ -58,8 +58,23 @@ struct RegressionTestData {
   PipelineStatus end_status;
 };
 
+// Used for tests which just need to run without crashing or tooling errors, but
+// which may have undefined behavior for hashing, etc.
+struct FlakyRegressionTestData {
+  FlakyRegressionTestData(const char* filename)
+      : filename(filename) {
+  }
+
+  const char* filename;
+};
+
 class FFmpegRegressionTest
     : public testing::TestWithParam<RegressionTestData>,
+      public PipelineIntegrationTestBase {
+};
+
+class FlakyFFmpegRegressionTest
+    : public testing::TestWithParam<FlakyRegressionTestData>,
       public PipelineIntegrationTestBase {
 };
 
@@ -71,6 +86,10 @@ class FFmpegRegressionTest
                                                                end_status, \
                                                                video_md5, \
                                                                audio_md5)));
+
+#define FLAKY_FFMPEG_TEST_CASE(name, fn) \
+    INSTANTIATE_TEST_CASE_P(FLAKY_##name, FlakyFFmpegRegressionTest, \
+                            testing::Values(FlakyRegressionTestData(fn)));
 
 // Test cases from issues.
 FFMPEG_TEST_CASE(Cr47325, "security/47325.mp4", PIPELINE_OK, PIPELINE_OK,
@@ -145,6 +164,13 @@ FFMPEG_TEST_CASE(MP4_8, "security/h264.705767.mp4",
 FFMPEG_TEST_CASE(MP4_9, "security/smclockmp4aac_1_0.mp4",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
+FFMPEG_TEST_CASE(MP4_10, "security/null1.m4a", PIPELINE_OK, PIPELINE_OK,
+                 kNullHash, "287b6f06b6b45ac9e2839f4f397036af");
+FFMPEG_TEST_CASE(MP4_11, "security/null1.mp4", PIPELINE_OK, PIPELINE_OK,
+                 kNullHash, "f20676c5de9b3c7c174c141762afb957");
+FFMPEG_TEST_CASE(MP4_16, "security/looping2.mov",
+                 DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
+                 kNullHash, kNullHash);
 
 // General OGV test cases.
 FFMPEG_TEST_CASE(OGV_1, "security/out.163.ogv", DECODER_ERROR_NOT_SUPPORTED,
@@ -186,6 +212,14 @@ FFMPEG_TEST_CASE(OGV_17, "security/vorbis.482086.ogv",
                  kNullHash, kNullHash);
 FFMPEG_TEST_CASE(OGV_18, "security/wav.711.ogv", DECODER_ERROR_NOT_SUPPORTED,
                  DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
+FFMPEG_TEST_CASE(OGV_19, "security/null1.ogv", DECODER_ERROR_NOT_SUPPORTED,
+                 DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
+FFMPEG_TEST_CASE(OGV_20, "security/null2.ogv", DECODER_ERROR_NOT_SUPPORTED,
+                 DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
+FFMPEG_TEST_CASE(OGV_21, "security/assert1.ogv", DECODER_ERROR_NOT_SUPPORTED,
+                 DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
+FFMPEG_TEST_CASE(OGV_22, "security/assert2.ogv", DECODER_ERROR_NOT_SUPPORTED,
+                 DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
 
 // General WebM test cases.
 FFMPEG_TEST_CASE(WEBM_1, "security/no-bug.webm", PIPELINE_OK, PIPELINE_OK,
@@ -202,43 +236,6 @@ FFMPEG_TEST_CASE(WEBM_5, "content/frame_size_change.webm", PIPELINE_OK,
                  PIPELINE_OK, "d8fcf2896b7400a2261bac9e9ea930f8", kNullHash);
 FFMPEG_TEST_CASE(WEBM_6, "security/117912.webm", DEMUXER_ERROR_COULD_NOT_OPEN,
                  DEMUXER_ERROR_COULD_NOT_OPEN, kNullHash, kNullHash);
-
-// Flaky under threading, maybe larger issues.  Values were set with
-// --video-threads=1 under the hope that they may one day pass with threading.
-FFMPEG_TEST_CASE(FLAKY_Cr99652, "security/99652.webm", PIPELINE_OK,
-                 PIPELINE_ERROR_DECODE, "97956dca8897484fbd0dd1169578adbf",
-                 kNullHash);
-FFMPEG_TEST_CASE(FLAKY_Cr100464, "security/100464.webm", PIPELINE_OK,
-                 PIPELINE_OK, "a32ddb4ac5ca89429e1a3c968e876ce8",
-                 "0cd51b7ff41c1c760719d1b3a06c5ce8");
-FFMPEG_TEST_CASE(FLAKY_OGV_0, "security/big_dims.ogv", PIPELINE_ERROR_DECODE,
-                 PIPELINE_ERROR_DECODE, kNullHash, kNullHash);
-FFMPEG_TEST_CASE(FLAKY_OGV_3, "security/smclock_1_0.ogv", PIPELINE_OK,
-                 PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679",
-                 "cc7b61321df57874dba5ff780786a04d");
-FFMPEG_TEST_CASE(FLAKY_OGV_4, "security/smclock.ogv.1.0.ogv",
-                 PIPELINE_OK, PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679",
-                 "cc7b61321df57874dba5ff780786a04d");
-FFMPEG_TEST_CASE(FLAKY_OGV_6, "security/smclocktheora_1_10000.ogv",
-                 PIPELINE_ERROR_DECODE, PIPELINE_ERROR_DECODE, kNullHash,
-                 kNullHash);
-FFMPEG_TEST_CASE(FLAKY_OGV_13, "security/smclocktheora_1_790.ogv",
-                 PIPELINE_OK, PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679",
-                 "cc7b61321df57874dba5ff780786a04d");
-FFMPEG_TEST_CASE(FLAKY_MP4_3, "security/clockh264aac_300413969.mp4",
-                 PIPELINE_OK, PIPELINE_ERROR_DECODE,
-                 "b7659b127be88829a68d8a9aa625795e", kNullHash);
-FFMPEG_TEST_CASE(FLAKY_MP4_4, "security/clockh264aac_301350139.mp4",
-                 PIPELINE_OK, PIPELINE_OK, "bf1dbeb4ee6edb1b6c78742f4943c162",
-                 "98731537a560cda29b7f46f2fb5d7f0b");
-
-// Flaky due to other non-threading related reasons.
-FFMPEG_TEST_CASE(FLAKY_Cr111342, "security/111342.ogm", PIPELINE_OK,
-                 PIPELINE_ERROR_DECODE, "8a14eb9ce0671194a0b04fee8b0b5368",
-                 "aa348fa026a6ce22b781daf94ece20c0");
-
-// Hangs. http://crbug.com/117038
-// FFMPEG_TEST_CASE(WEBM_0, "security/memcpy.webm", PIPELINE_OK, PIPELINE_OK);
 
 // Audio Functional Tests
 FFMPEG_TEST_CASE(AUDIO_GAMING_0, "content/gaming/a_220_00.mp3", PIPELINE_OK,
@@ -282,6 +279,43 @@ FFMPEG_TEST_CASE(AUDIO_GAMING_18, "content/gaming/rocket_launcher.mp3",
                  PIPELINE_OK, PIPELINE_OK, kNullHash,
                  "05289a50acd15fa1357fe6234f82c3fe");
 
+// Allocate gigabytes of memory, likely can't be run on 32bit machines.
+FFMPEG_TEST_CASE(BIG_MEM_1, "security/bigmem1.mov",
+                 DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
+                 kNullHash, kNullHash);
+FFMPEG_TEST_CASE(BIG_MEM_2, "security/looping1.mov",
+                 DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE,
+                 kNullHash, kNullHash);
+FFMPEG_TEST_CASE(BIG_MEM_5, "security/looping5.mov",
+                 DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE,
+                 kNullHash, kNullHash);
+
+// Flaky under threading or for other reasons.  Per rbultje, most of these will
+// never be reliable since FFmpeg does not guarantee consistency in error cases.
+// We only really care that these don't cause crashes or errors under tooling.
+FLAKY_FFMPEG_TEST_CASE(Cr99652, "security/99652.webm");
+FLAKY_FFMPEG_TEST_CASE(Cr100464, "security/100464.webm");
+FLAKY_FFMPEG_TEST_CASE(Cr111342, "security/111342.ogm");
+FLAKY_FFMPEG_TEST_CASE(OGV_0, "security/big_dims.ogv");
+FLAKY_FFMPEG_TEST_CASE(OGV_3, "security/smclock_1_0.ogv");
+FLAKY_FFMPEG_TEST_CASE(OGV_4, "security/smclock.ogv.1.0.ogv");
+FLAKY_FFMPEG_TEST_CASE(OGV_6, "security/smclocktheora_1_10000.ogv");
+FLAKY_FFMPEG_TEST_CASE(OGV_13, "security/smclocktheora_1_790.ogv");
+FLAKY_FFMPEG_TEST_CASE(MP4_3, "security/clockh264aac_300413969.mp4");
+FLAKY_FFMPEG_TEST_CASE(MP4_4, "security/clockh264aac_301350139.mp4");
+FLAKY_FFMPEG_TEST_CASE(MP4_12, "security/assert1.mov");
+FLAKY_FFMPEG_TEST_CASE(BIG_MEM_3, "security/looping3.mov");
+FLAKY_FFMPEG_TEST_CASE(BIG_MEM_4, "security/looping4.mov");
+
+// Videos with massive gaps between frame timestamps that result in long hangs
+// with our pipeline.  Should be uncommented when we support clockless playback.
+// FFMPEG_TEST_CASE(WEBM_0, "security/memcpy.webm", PIPELINE_OK, PIPELINE_OK,
+//                  kNullHash, kNullHash);
+// FFMPEG_TEST_CASE(MP4_17, "security/assert2.mov", PIPELINE_OK, PIPELINE_OK,
+//                  kNullHash, kNullHash);
+// FFMPEG_TEST_CASE(OGV_23, "security/assert2.ogv", PIPELINE_OK, PIPELINE_OK,
+//                  kNullHash, kNullHash);
+
 TEST_P(FFmpegRegressionTest, BasicPlayback) {
   if (GetParam().init_status == PIPELINE_OK) {
     ASSERT_TRUE(Start(GetTestDataURL(GetParam().filename),
@@ -303,6 +337,13 @@ TEST_P(FFmpegRegressionTest, BasicPlayback) {
                        GetParam().init_status, true));
     EXPECT_EQ(GetVideoHash(), GetParam().video_md5);
     EXPECT_EQ(GetAudioHash(), GetParam().audio_md5);
+  }
+}
+
+TEST_P(FlakyFFmpegRegressionTest, BasicPlayback) {
+  if (Start(GetTestDataURL(GetParam().filename))) {
+    Play();
+    WaitUntilEndedOrError();
   }
 }
 

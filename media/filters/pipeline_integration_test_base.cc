@@ -38,16 +38,21 @@ PipelineIntegrationTestBase::~PipelineIntegrationTestBase() {
 }
 
 void PipelineIntegrationTestBase::OnStatusCallback(
-    PipelineStatus expected_status,
     PipelineStatus status) {
-  EXPECT_EQ(status, expected_status);
   pipeline_status_ = status;
   message_loop_.PostTask(FROM_HERE, MessageLoop::QuitClosure());
 }
 
+void PipelineIntegrationTestBase::OnStatusCallbackChecked(
+    PipelineStatus expected_status,
+    PipelineStatus status) {
+  EXPECT_EQ(status, expected_status);
+  OnStatusCallback(status);
+}
+
 PipelineStatusCB PipelineIntegrationTestBase::QuitOnStatusCB(
     PipelineStatus expected_status) {
-  return base::Bind(&PipelineIntegrationTestBase::OnStatusCallback,
+  return base::Bind(&PipelineIntegrationTestBase::OnStatusCallbackChecked,
                     base::Unretained(this),
                     expected_status);
 }
@@ -69,6 +74,8 @@ bool PipelineIntegrationTestBase::WaitUntilOnEnded() {
 }
 
 PipelineStatus PipelineIntegrationTestBase::WaitUntilEndedOrError() {
+  if (ended_ || pipeline_status_ != PIPELINE_OK)
+    return pipeline_status_;
   message_loop_.Run();
   return pipeline_status_;
 }
@@ -96,6 +103,18 @@ bool PipelineIntegrationTestBase::Start(const std::string& url,
                                         bool hashing_enabled) {
   hashing_enabled_ = hashing_enabled;
   return Start(url, expected_status);
+}
+
+bool PipelineIntegrationTestBase::Start(const std::string& url) {
+  pipeline_->Start(
+      CreateFilterCollection(url),
+      base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),
+      base::Bind(&PipelineIntegrationTestBase::OnError, base::Unretained(this)),
+      NetworkEventCB(),
+      base::Bind(&PipelineIntegrationTestBase::OnStatusCallback,
+                 base::Unretained(this)));
+  message_loop_.Run();
+  return (pipeline_status_ == PIPELINE_OK);
 }
 
 void PipelineIntegrationTestBase::Play() {
