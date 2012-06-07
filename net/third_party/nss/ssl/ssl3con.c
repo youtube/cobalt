@@ -4793,6 +4793,17 @@ done:
     return unwrappedWrappingKey;
 }
 
+/* hexEncode hex encodes |length| bytes from |in| and writes it as |length*2|
+ * bytes to |out|. */
+static void hexEncode(char *out, const unsigned char *in, size_t length) {
+    static const char hextable[] = "0123456789abcdef";
+    size_t i;
+
+    for (i = 0; i < length; i++) {
+	*(out++) = hextable[in[i] >> 4];
+	*(out++) = hextable[in[i] & 15];
+    }
+}
 
 /* Called from ssl3_SendClientKeyExchange(). */
 /* Presently, this always uses PKCS11.  There is no bypass for this. */
@@ -4832,16 +4843,17 @@ sendRSAClientKeyExchange(sslSocket * ss, SECKEYPublicKey * svrPubKey)
 	goto loser;
     }
 
-#if defined(TRACE)
-    if (ssl_trace >= 100 || ssl_keylog_iob) {
+    if (ssl_keylog_iob) {
 	SECStatus extractRV = PK11_ExtractKeyValue(pms);
 	if (extractRV == SECSuccess) {
 	    SECItem * keyData = PK11_GetKeyData(pms);
 	    if (keyData && keyData->data && keyData->len) {
+#ifdef TRACE
 		if (ssl_trace >= 100) {
 		    ssl_PrintBuf(ss, "Pre-Master Secret",
 				 keyData->data, keyData->len);
 		}
+#endif
 		if (ssl_keylog_iob && enc_pms.len >= 8 && keyData->len == 48) {
 		    /* https://developer.mozilla.org/en/NSS_Key_Log_Format */
 
@@ -4849,21 +4861,11 @@ sendRSAClientKeyExchange(sslSocket * ss, SECKEYPublicKey * svrPubKey)
 		     * keylog, so we have to do everything in a single call to
 		     * fwrite. */
 		    char buf[4 + 8*2 + 1 + 48*2 + 1];
-		    static const char hextable[16] = "0123456789abcdef";
-		    unsigned int i;
 
 		    strcpy(buf, "RSA ");
-
-		    for (i = 0; i < 8; i++) {
-			buf[4 + i*2] = hextable[enc_pms.data[i] >> 4];
-			buf[4 + i*2 + 1] = hextable[enc_pms.data[i] & 15];
-		    }
+		    hexEncode(buf + 4, enc_pms.data, 8);
 		    buf[20] = ' ';
-
-		    for (i = 0; i < 48; i++) {
-			buf[21 + i*2] = hextable[keyData->data[i] >> 4];
-			buf[21 + i*2 + 1] = hextable[keyData->data[i] & 15];
-		    }
+		    hexEncode(buf + 21, keyData->data, 48);
 		    buf[sizeof(buf) - 1] = '\n';
 
 		    fwrite(buf, sizeof(buf), 1, ssl_keylog_iob);
@@ -4872,7 +4874,6 @@ sendRSAClientKeyExchange(sslSocket * ss, SECKEYPublicKey * svrPubKey)
 	    }
 	}
     }
-#endif
 
     rv = ssl3_InitPendingCipherSpec(ss,  pms);
     PK11_FreeSymKey(pms); pms = NULL;
@@ -9046,6 +9047,69 @@ ssl3_RestartHandshakeAfterChannelIDReq(sslSocket *ss,
     return SECSuccess;
 }
 
+/* called from ssl3_SendFinished
+ *
+ * Caller must already hold the SpecReadLock. (wish we could assert that!).
+ * This function is simply a debugging aid and therefore does not return a
+ * SECStatus. */
+static void
+ssl3_RecordKeyLog(sslSocket *ss)
+{
+    sslSessionID *sid;
+    SECStatus rv;
+    SECItem *keyData;
+    char buf[14 /* "CLIENT_RANDOM " */ +
+	     SSL3_RANDOM_LENGTH*2 /* client_random */ +
+	     1 /* " " */ +
+	     48*2 /* master secret */ +
+             1 /* new line */];
+    unsigned int j;
+
+    PORT_Assert( ss->opt.noLocks || ssl_HaveSSL3HandshakeLock(ss));
+
+    sid = ss->sec.ci.sid;
+
+    if (!ssl_keylog_iob)
+	return;
+
+    rv = PK11_ExtractKeyValue(ss->ssl3.cwSpec->master_secret);
+    if (rv != SECSuccess)
+	return;
+
+    ssl_GetSpecReadLock(ss);
+
+    /* keyData does not need to be freed. */
+    keyData = PK11_GetKeyData(ss->ssl3.cwSpec->master_secret);
+    if (!keyData || !keyData->data || keyData->len != 48) {
+	ssl_ReleaseSpecReadLock(ss);
+	return;
+    }
+
+    /* https://developer.mozilla.org/en/NSS_Key_Log_Format */
+
+    /* There could be multiple, concurrent writers to the
+     * keylog, so we have to do everything in a single call to
+     * fwrite. */
+
+    memcpy(buf, "CLIENT_RANDOM ", 14);
+    j = 14;
+    hexEncode(buf + j, ss->ssl3.hs.client_random.rand, SSL3_RANDOM_LENGTH);
+    j += SSL3_RANDOM_LENGTH*2;
+    buf[j++] = ' ';
+    hexEncode(buf + j, keyData->data, 48);
+    j += 48*2;
+    buf[j++] = '\n';
+
+    PORT_Assert(j == sizeof(buf));
+
+    ssl_ReleaseSpecReadLock(ss);
+
+    if (fwrite(buf, sizeof(buf), 1, ssl_keylog_iob) != 1)
+        return;
+    fflush(ssl_keylog_iob);
+    return;
+}
+
 /* called from ssl3_HandleServerHelloDone
  *             ssl3_HandleClientHello
  *             ssl3_HandleFinished
@@ -9107,6 +9171,9 @@ ssl3_SendFinished(sslSocket *ss, PRInt32 flags)
     if (rv != SECSuccess) {
 	goto fail;	/* error code set by ssl3_FlushHandshake */
     }
+
+    ssl3_RecordKeyLog(ss);
+
     return SECSuccess;
 
 fail:
