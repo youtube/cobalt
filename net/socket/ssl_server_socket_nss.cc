@@ -689,7 +689,7 @@ int SSLServerSocketNSS::DoHandshake() {
     completed_handshake_ = true;
   } else {
     PRErrorCode prerr = PR_GetError();
-    net_error = MapNSSHandshakeError(prerr);
+    net_error = MapNSSError(prerr);
 
     // If not done, stay in this state
     if (net_error == ERR_IO_PENDING) {
