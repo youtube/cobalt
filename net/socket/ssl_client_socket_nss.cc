@@ -554,6 +554,36 @@ struct HandshakeState {
   int ssl_connection_status;
 };
 
+// Client-side error mapping functions.
+
+// Map NSS error code to network error code.
+int MapNSSClientError(PRErrorCode err) {
+  switch (err) {
+    case SSL_ERROR_BAD_CERT_ALERT:
+    case SSL_ERROR_UNSUPPORTED_CERT_ALERT:
+    case SSL_ERROR_REVOKED_CERT_ALERT:
+    case SSL_ERROR_EXPIRED_CERT_ALERT:
+    case SSL_ERROR_CERTIFICATE_UNKNOWN_ALERT:
+    case SSL_ERROR_UNKNOWN_CA_ALERT:
+    case SSL_ERROR_ACCESS_DENIED_ALERT:
+      return ERR_BAD_SSL_CLIENT_AUTH_CERT;
+    default:
+      return MapNSSError(err);
+  }
+}
+
+// Map NSS error code from the first SSL handshake to network error code.
+int MapNSSClientHandshakeError(PRErrorCode err) {
+  switch (err) {
+    // If the server closed on us, it is a protocol error.
+    // Some TLS-intolerant servers do this when we request TLS.
+    case PR_END_OF_FILE_ERROR:
+      return ERR_SSL_PROTOCOL_ERROR;
+    default:
+      return MapNSSClientError(err);
+  }
+}
+
 }  // namespace
 
 // SSLClientSocketNSS::Core provides a thread-safe, ref-counted core that is
@@ -1830,8 +1860,8 @@ int SSLClientSocketNSS::Core::HandleNSSError(PRErrorCode nss_error,
                                              bool handshake_error) {
   DCHECK(OnNSSTaskRunner());
 
-  int net_error = handshake_error ? MapNSSHandshakeError(nss_error) :
-                                    MapNSSError(nss_error);
+  int net_error = handshake_error ? MapNSSClientHandshakeError(nss_error) :
+                                    MapNSSClientError(nss_error);
 
 #if defined(OS_WIN)
   // On Windows, a handle to the HCRYPTPROV is cached in the X509Certificate
@@ -2452,9 +2482,10 @@ int SSLClientSocketNSS::Core::ImportDBCertAndKey(CERTCertificate** cert,
           false,
           key,
           &public_key)) {
+        int error = MapNSSError(PORT_GetError());
         CERT_DestroyCertificate(*cert);
         *cert = NULL;
-        return MapNSSError(PORT_GetError());
+        return error;
       }
       SECKEY_DestroyPublicKey(public_key);
       break;
