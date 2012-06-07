@@ -16,14 +16,6 @@
 namespace base {
 namespace win {
 
-// TODO(rvargas): remove this with the rest of the verifier.
-#if defined(COMPILER_MSVC)
-#define BASE_WIN_GET_CALLER _ReturnAddress()
-#elif defined(COMPILER_GCC)
-#define BASE_WIN_GET_CALLER __builtin_extract_return_addr(\\
-    __builtin_return_address(0))
-#endif
-
 // Generic wrapper for raw handles that takes care of closing handles
 // automatically. The class interface follows the style of
 // the ScopedStdioHandle class with a few additions:
@@ -56,7 +48,7 @@ class GenericScopedHandle {
 
       if (Traits::IsHandleValid(handle)) {
         handle_ = handle;
-        Verifier::StartTracking(handle, this, BASE_WIN_GET_CALLER,
+        Verifier::StartTracking(handle, this,
                                 tracked_objects::GetProgramCounter());
       }
     }
@@ -74,7 +66,7 @@ class GenericScopedHandle {
     DCHECK(!Traits::IsHandleValid(handle_)) << "Handle must be NULL";
 
     // We cannot track this case :(. Just tell the verifier about it.
-    Verifier::StartTracking(INVALID_HANDLE_VALUE, this, BASE_WIN_GET_CALLER,
+    Verifier::StartTracking(INVALID_HANDLE_VALUE, this,
                             tracked_objects::GetProgramCounter());
     return &handle_;
   }
@@ -83,16 +75,15 @@ class GenericScopedHandle {
   Handle Take() {
     Handle temp = handle_;
     handle_ = Traits::NullHandle();
-    Verifier::StopTracking(temp, this, BASE_WIN_GET_CALLER,
-                           tracked_objects::GetProgramCounter());
+    Verifier::StopTracking(temp, this, tracked_objects::GetProgramCounter());
     return temp;
   }
 
   // Explicitly closes the owned handle.
   void Close() {
     if (Traits::IsHandleValid(handle_)) {
-      Verifier::StopTracking(handle_, this, BASE_WIN_GET_CALLER,
-                             tracked_objects::GetProgramCounter());
+      Verifier::StopTracking(handle_, this,
+                              tracked_objects::GetProgramCounter());
 
       if (!Traits::CloseHandle(handle_))
         CHECK(false);
@@ -106,8 +97,6 @@ class GenericScopedHandle {
 
   DISALLOW_COPY_AND_ASSIGN(GenericScopedHandle);
 };
-
-#undef BASE_WIN_GET_CALLER
 
 // The traits class for Win32 handles that can be closed via CloseHandle() API.
 class HandleTraits {
@@ -138,10 +127,8 @@ class DummyVerifierTraits {
  public:
   typedef HANDLE Handle;
 
-  static void StartTracking(HANDLE handle, const void* owner,
-                            const void* pc1, const void* pc2) {}
-  static void StopTracking(HANDLE handle, const void* owner,
-                           const void* pc1, const void* pc2) {}
+  static void StartTracking(HANDLE handle, const void* owner, const void* pc) {}
+  static void StopTracking(HANDLE handle, const void* owner, const void* pc) {}
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(DummyVerifierTraits);
@@ -152,10 +139,8 @@ class BASE_EXPORT VerifierTraits {
  public:
   typedef HANDLE Handle;
 
-  static void StartTracking(HANDLE handle, const void* owner,
-                            const void* pc1, const void* pc2);
-  static void StopTracking(HANDLE handle, const void* owner,
-                           const void* pc1, const void* pc2);
+  static void StartTracking(HANDLE handle, const void* owner, const void* pc);
+  static void StopTracking(HANDLE handle, const void* owner, const void* pc);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(VerifierTraits);
