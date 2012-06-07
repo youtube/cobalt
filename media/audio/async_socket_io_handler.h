@@ -50,8 +50,8 @@ typedef MessageLoopForIO::Watcher MessageLoopIOHandler;
 // };
 //
 class MEDIA_EXPORT AsyncSocketIoHandler
-    : public base::NonThreadSafe,
-      public MessageLoopIOHandler {
+    : public NON_EXPORTED_BASE(base::NonThreadSafe),
+      public NON_EXPORTED_BASE(MessageLoopIOHandler) {
  public:
   AsyncSocketIoHandler();
   virtual ~AsyncSocketIoHandler();
