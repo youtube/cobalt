@@ -74,8 +74,7 @@ ConnectJob::ConnectJob(const std::string& group_name,
       timeout_duration_(timeout_duration),
       delegate_(delegate),
       net_log_(net_log),
-      idle_(true),
-      preconnect_state_(NOT_PRECONNECT) {
+      idle_(true) {
   DCHECK(!group_name.empty());
   DCHECK(delegate);
   net_log.BeginEvent(NetLog::TYPE_SOCKET_POOL_CONNECT_JOB, NULL);
@@ -83,13 +82,6 @@ ConnectJob::ConnectJob(const std::string& group_name,
 
 ConnectJob::~ConnectJob() {
   net_log().EndEvent(NetLog::TYPE_SOCKET_POOL_CONNECT_JOB, NULL);
-}
-
-void ConnectJob::Initialize(bool is_preconnect) {
-  if (is_preconnect)
-    preconnect_state_ = UNUSED_PRECONNECT;
-  else
-    preconnect_state_ = NOT_PRECONNECT;
 }
 
 int ConnectJob::Connect() {
@@ -108,11 +100,6 @@ int ConnectJob::Connect() {
   }
 
   return rv;
-}
-
-void ConnectJob::UseForNormalRequest() {
-  DCHECK_EQ(UNUSED_PRECONNECT, preconnect_state_);
-  preconnect_state_ = USED_PRECONNECT;
 }
 
 void ConnectJob::set_socket(StreamSocket* socket) {
@@ -338,11 +325,14 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
 
   if (!(request->flags() & NO_IDLE_SOCKETS)) {
     // Try to reuse a socket.
-    if (AssignIdleSocketToGroup(request, group))
+    if (AssignIdleSocketToRequest(request, group))
       return OK;
   }
 
-  if (!preconnecting && group->TryToUsePreconnectConnectJob())
+  // If there are more ConnectJobs than pending requests, don't need to do
+  // anything.  Can just wait for the extra job to connect, and then assign it
+  // to the request.
+  if (!preconnecting && group->TryToUseUnassignedConnectJob())
     return ERR_IO_PENDING;
 
   // Can we make another active socket now?
@@ -381,7 +371,6 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
   scoped_ptr<ConnectJob> connect_job(
       connect_job_factory_->NewConnectJob(group_name, *request, this));
 
-  connect_job->Initialize(preconnecting);
   int rv = connect_job->Connect();
   if (rv == OK) {
     LogBoundConnectJobToRequest(connect_job->net_log().source(), request);
@@ -402,7 +391,7 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
 
     connecting_socket_count_++;
 
-    group->AddJob(connect_job.release());
+    group->AddJob(connect_job.release(), preconnecting);
   } else {
     LogBoundConnectJobToRequest(connect_job->net_log().source(), request);
     StreamSocket* error_socket = NULL;
@@ -422,7 +411,7 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
   return rv;
 }
 
-bool ClientSocketPoolBaseHelper::AssignIdleSocketToGroup(
+bool ClientSocketPoolBaseHelper::AssignIdleSocketToRequest(
     const Request* request, Group* group) {
   std::list<IdleSocket>* idle_sockets = group->mutable_idle_sockets();
   std::list<IdleSocket>::iterator idle_socket_it = idle_sockets->end();
@@ -1142,11 +1131,13 @@ void ClientSocketPoolBaseHelper::InvokeUserCallback(
 }
 
 ClientSocketPoolBaseHelper::Group::Group()
-    : active_socket_count_(0),
+    : unassigned_job_count_(0),
+      active_socket_count_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
 ClientSocketPoolBaseHelper::Group::~Group() {
   CleanupBackupJob();
+  DCHECK_EQ(0u, unassigned_job_count_);
 }
 
 void ClientSocketPoolBaseHelper::Group::StartBackupSocketTimer(
@@ -1163,16 +1154,31 @@ void ClientSocketPoolBaseHelper::Group::StartBackupSocketTimer(
       pool->ConnectRetryInterval());
 }
 
-bool ClientSocketPoolBaseHelper::Group::TryToUsePreconnectConnectJob() {
-  for (std::set<ConnectJob*>::iterator it = jobs_.begin();
-       it != jobs_.end(); ++it) {
-    ConnectJob* job = *it;
-    if (job->is_unused_preconnect()) {
-      job->UseForNormalRequest();
-      return true;
-    }
-  }
-  return false;
+bool ClientSocketPoolBaseHelper::Group::TryToUseUnassignedConnectJob() {
+  SanityCheck();
+
+  if (unassigned_job_count_ == 0)
+    return false;
+  --unassigned_job_count_;
+  return true;
+}
+
+void ClientSocketPoolBaseHelper::Group::AddJob(ConnectJob* job,
+                                               bool is_preconnect) {
+  SanityCheck();
+
+  if (is_preconnect)
+    ++unassigned_job_count_;
+  jobs_.insert(job);
+}
+
+void ClientSocketPoolBaseHelper::Group::RemoveJob(ConnectJob* job) {
+  SanityCheck();
+
+  jobs_.erase(job);
+  size_t job_count = jobs_.size();
+  if (job_count < unassigned_job_count_)
+    unassigned_job_count_ = job_count;
 }
 
 void ClientSocketPoolBaseHelper::Group::OnBackupSocketTimerFired(
@@ -1185,7 +1191,7 @@ void ClientSocketPoolBaseHelper::Group::OnBackupSocketTimerFired(
     return;
   }
 
-  // If our backup job is waiting on DNS, or if we can't create any sockets
+  // If our old job is waiting on DNS, or if we can't create any sockets
   // right now due to limits, just reset the timer.
   if (pool->ReachedMaxSocketsLimit() ||
       !HasAvailableSocketSlot(pool->max_sockets_per_group_) ||
@@ -1203,14 +1209,21 @@ void ClientSocketPoolBaseHelper::Group::OnBackupSocketTimerFired(
   SIMPLE_STATS_COUNTER("socket.backup_created");
   int rv = backup_job->Connect();
   pool->connecting_socket_count_++;
-  AddJob(backup_job);
+  AddJob(backup_job, false);
   if (rv != ERR_IO_PENDING)
     pool->OnConnectJobComplete(rv, backup_job);
 }
 
+void ClientSocketPoolBaseHelper::Group::SanityCheck() {
+  DCHECK_LE(unassigned_job_count_, jobs_.size());
+}
+
 void ClientSocketPoolBaseHelper::Group::RemoveAllJobs() {
+  SanityCheck();
+
   // Delete active jobs.
   STLDeleteElements(&jobs_);
+  unassigned_job_count_ = 0;
 
   // Cancel pending backup job.
   weak_factory_.InvalidateWeakPtrs();
