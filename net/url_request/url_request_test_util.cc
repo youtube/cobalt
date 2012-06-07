@@ -493,6 +493,11 @@ bool TestNetworkDelegate::OnCanAccessFile(const net::URLRequest& request,
   return true;
 }
 
+bool TestNetworkDelegate::OnCanThrottleRequest(
+    const net::URLRequest& request) const {
+  return true;
+}
+
 // static
 std::string ScopedCustomUrlRequestTestHttpHost::value_("127.0.0.1");
 
