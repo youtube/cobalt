@@ -148,7 +148,7 @@
  "xp-release-dual-core/moz/times/t": {"reva": 140198, "revb": 140538, "improve": -29, "regress": 53, "sha1": "f680f0ab"},
  "xp-release-dual-core/moz/total_byte_b/IO_b": {"reva": 137781, "revb": 138227, "improve": -376, "regress": 2664, "sha1": "126b76f1"},
  "xp-release-dual-core/moz/total_byte_r/IO_r": {"reva": 137781, "revb": 138227, "improve": -260, "regress": 324, "sha1": "8a480733"},
- "xp-release-dual-core/moz/total_op_b/IO_op_b": {"reva": 137781, "revb": 138227, "improve": 19, "regress": 1932, "sha1": "a503be5e"},
+ "xp-release-dual-core/moz/total_op_b/IO_op_b": {"reva": 140199, "revb": 141011, "improve": 941, "regress": 4030, "sha1": "fb5085fa"},
  "xp-release-dual-core/moz/total_op_r/IO_op_r": {"reva": 137781, "revb": 138227, "improve": -450, "regress": 248, "sha1": "fd8104ac"},
  "xp-release-dual-core/moz/vm_peak_b/vm_pk_b": {"reva": 137781, "revb": 138227, "improve": -1565492, "regress": 2464359, "sha1": "0e00a85f"},
  "xp-release-dual-core/moz/vm_peak_r/vm_pk_r": {"reva": 137781, "revb": 138227, "improve": -3324519, "regress": 3165389, "sha1": "d697aded"},
