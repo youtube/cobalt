@@ -179,6 +179,7 @@ int MapNSSError(PRErrorCode err) {
     case SSL_ERROR_SSL_DISABLED:
       return ERR_NO_SSL_VERSIONS_ENABLED;
     case SSL_ERROR_NO_CYPHER_OVERLAP:
+    case SSL_ERROR_PROTOCOL_VERSION_ALERT:
     case SSL_ERROR_UNSUPPORTED_VERSION:
       return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
     case SSL_ERROR_HANDSHAKE_FAILURE_ALERT:
@@ -216,18 +217,6 @@ int MapNSSError(PRErrorCode err) {
       LOG(WARNING) << "Unknown error " << err << " mapped to net::ERR_FAILED";
       return ERR_FAILED;
     }
-  }
-}
-
-// Context-sensitive error mapping functions.
-int MapNSSHandshakeError(PRErrorCode err) {
-  switch (err) {
-    // If the server closed on us, it is a protocol error.
-    // Some TLS-intolerant servers do this when we request TLS.
-    case PR_END_OF_FILE_ERROR:
-      return ERR_SSL_PROTOCOL_ERROR;
-    default:
-      return MapNSSError(err);
   }
 }
 
