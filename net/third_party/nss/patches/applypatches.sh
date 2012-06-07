@@ -37,3 +37,5 @@ patch -p5 < $patches_dir/falsestartnpn.patch
 patch -p5 < $patches_dir/dhvalues.patch
 
 patch -p4 < $patches_dir/channelid.patch
+
+patch -p4 < $patches_dir/keylog.patch
