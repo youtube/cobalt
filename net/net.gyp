@@ -1610,6 +1610,17 @@
       'includes': [ '../build/grit_target.gypi' ],
     },
     {
+      'target_name': 'gdig',
+      'type': 'executable',
+      'dependencies': [
+        '../base/base.gyp:base',
+        'net',
+      ],
+      'sources': [
+        'tools/gdig/gdig.cc',
+      ],
+    },
+    {
       'target_name': 'fetch_client',
       'type': 'executable',
       'variables': { 'enable_wexit_time_destructors': 1, },
