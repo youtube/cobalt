@@ -22,6 +22,7 @@
 #include "net/base/network_change_notifier.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
+#include "net/socket/socket_error_params.h"
 
 namespace net {
 
@@ -721,8 +722,12 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
     }
   } else {
     int os_error = WSAGetLastError();
-    if (os_error != WSA_IO_PENDING)
-      return MapSystemError(os_error);
+    if (os_error != WSA_IO_PENDING) {
+      int net_error = MapSystemError(os_error);
+      net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
+          make_scoped_refptr(new SocketErrorParams(net_error, os_error)));
+      return net_error;
+    }
   }
   core_->WatchForRead();
   waiting_read_ = true;
@@ -773,8 +778,12 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
     }
   } else {
     int os_error = WSAGetLastError();
-    if (os_error != WSA_IO_PENDING)
-      return MapSystemError(os_error);
+    if (os_error != WSA_IO_PENDING) {
+      int net_error = MapSystemError(os_error);
+      net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
+          make_scoped_refptr(new SocketErrorParams(net_error, os_error)));
+      return net_error;
+    }
   }
   core_->WatchForWrite();
   waiting_write_ = true;
@@ -888,6 +897,7 @@ void TCPClientSocketWin::DidCompleteRead() {
   WSAResetEvent(core_->read_overlapped_.hEvent);
   waiting_read_ = false;
   core_->read_iobuffer_ = NULL;
+  int rv;
   if (ok) {
     base::StatsCounter read_bytes("tcp.read_bytes");
     read_bytes.Add(num_bytes);
@@ -896,8 +906,14 @@ void TCPClientSocketWin::DidCompleteRead() {
       use_history_.set_was_used_to_convey_data();
     net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
                                   num_bytes, core_->read_buffer_.buf);
+    rv = static_cast<int>(num_bytes);
+  } else {
+    int os_error = WSAGetLastError();
+    rv = MapSystemError(os_error);
+    net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
+        make_scoped_refptr(new SocketErrorParams(rv, os_error)));
   }
-  DoReadCallback(ok ? num_bytes : MapSystemError(WSAGetLastError()));
+  DoReadCallback(rv);
 }
 
 void TCPClientSocketWin::DidCompleteWrite() {
@@ -910,7 +926,10 @@ void TCPClientSocketWin::DidCompleteWrite() {
   waiting_write_ = false;
   int rv;
   if (!ok) {
-    rv = MapSystemError(WSAGetLastError());
+    int os_error = WSAGetLastError();
+    rv = MapSystemError(os_error);
+    net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
+        make_scoped_refptr(new SocketErrorParams(rv, os_error)));
   } else {
     rv = static_cast<int>(num_bytes);
     if (rv > core_->write_buffer_length_ || rv < 0) {

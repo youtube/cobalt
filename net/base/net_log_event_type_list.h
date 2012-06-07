@@ -532,6 +532,15 @@ EVENT_TYPE(SSL_SOCKET_BYTES_SENT)
 EVENT_TYPE(SOCKET_BYTES_RECEIVED)
 EVENT_TYPE(SSL_SOCKET_BYTES_RECEIVED)
 
+// A socket error occurred while trying to do the indicated activity.
+// The following parameters are attached to the event:
+//   {
+//     "net_error": <Integer code for the specific error type>,
+//     "os_error": <Integer error code the operating system returned>
+//   }
+EVENT_TYPE(SOCKET_READ_ERROR)
+EVENT_TYPE(SOCKET_WRITE_ERROR)
+
 // Certificates were received from the SSL server (during a handshake or
 // renegotiation). This event is only present when logging at LOG_ALL.
 // The following parameters are attached to the event:

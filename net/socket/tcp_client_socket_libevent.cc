@@ -26,6 +26,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
+#include "net/socket/socket_error_params.h"
 
 namespace net {
 
@@ -452,8 +453,10 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
     return nread;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK) {
-    DVLOG(1) << "read failed, errno " << errno;
-    return MapSystemError(errno);
+    int net_error = MapSystemError(errno);
+    net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
+        make_scoped_refptr(new SocketErrorParams(net_error, errno)));
+    return net_error;
   }
 
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
@@ -490,8 +493,12 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
                                   buf->data());
     return nwrite;
   }
-  if (errno != EAGAIN && errno != EWOULDBLOCK)
-    return MapSystemError(errno);
+  if (errno != EAGAIN && errno != EWOULDBLOCK) {
+    int net_error = MapSystemError(errno);
+    net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
+        make_scoped_refptr(new SocketErrorParams(net_error, errno)));
+    return net_error;
+  }
 
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_WRITE,
@@ -512,7 +519,8 @@ int TCPClientSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
     SockaddrStorage storage;
     if (!addresses_[current_address_index_].ToSockAddr(storage.addr,
                                                        &storage.addr_len)) {
-      return ERR_INVALID_ARGUMENT;
+      errno = EINVAL;
+      return -1;
     }
 
     // We have a limited amount of data to send in the SYN packet.
@@ -536,6 +544,8 @@ int TCPClientSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
 
       // Unlike "normal" nonblocking sockets, the data is already queued,
       // so tell the app that we've consumed it.
+      // TODO(wtc): should we test if errno is EAGAIN or EWOULDBLOCK?
+      // Otherwise, returning buf_len here will mask a real error.
       return buf_len;
     }
   } else {
@@ -658,6 +668,10 @@ void TCPClientSocketLibevent::DidCompleteRead() {
                                   read_buf_->data());
   } else {
     result = MapSystemError(errno);
+    if (result != ERR_IO_PENDING) {
+      net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
+          make_scoped_refptr(new SocketErrorParams(result, errno)));
+    }
   }
 
   if (result != ERR_IO_PENDING) {
@@ -685,6 +699,10 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
                                   write_buf_->data());
   } else {
     result = MapSystemError(errno);
+    if (result != ERR_IO_PENDING) {
+      net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
+          make_scoped_refptr(new SocketErrorParams(result, errno)));
+    }
   }
 
   if (result != ERR_IO_PENDING) {
