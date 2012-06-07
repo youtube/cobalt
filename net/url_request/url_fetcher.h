@@ -139,7 +139,15 @@ class NET_EXPORT URLFetcher {
   // Set the key and data callback that is used when setting the user
   // data on any URLRequest objects this object creates.
   virtual void SetURLRequestUserData(
-      const void* key, const CreateDataCallback& create_data_callback) = 0;
+      const void* key,
+      const CreateDataCallback& create_data_callback) = 0;
+
+  // If |stop_on_redirect| is true, 3xx responses will cause the fetch to halt
+  // immediately rather than continue through the redirect.  OnURLFetchComplete
+  // will be called, with the URLFetcher's URL set to the redirect destination,
+  // its status set to CANCELED, and its response code set to the relevant 3xx
+  // server response code.
+  virtual void SetStopOnRedirect(bool stop_on_redirect) = 0;
 
   // If |retry| is false, 5xx responses will be propagated to the observer,
   // if it is true URLFetcher will automatically re-execute the request,
