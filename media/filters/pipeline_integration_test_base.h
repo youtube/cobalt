@@ -44,6 +44,10 @@ class PipelineIntegrationTestBase {
   // audio underflow will be disabled to ensure consistent hashes.
   bool Start(const std::string& url, PipelineStatus expected_status,
              bool hashing_enabled);
+  // Initialize the pipeline and ignore any status updates.  Useful for testing
+  // invalid audio/video clips which don't have deterministic results.
+  bool Start(const std::string& url);
+
   void Play();
   void Pause();
   bool Seek(base::TimeDelta seek_time);
@@ -77,8 +81,9 @@ class PipelineIntegrationTestBase {
   bool ended_;
   PipelineStatus pipeline_status_;
 
-  void OnStatusCallback(PipelineStatus expected_status,
-                        PipelineStatus status);
+  void OnStatusCallbackChecked(PipelineStatus expected_status,
+                               PipelineStatus status);
+  void OnStatusCallback(PipelineStatus status);
   PipelineStatusCB QuitOnStatusCB(PipelineStatus expected_status);
   void OnEnded(PipelineStatus status);
   void OnError(PipelineStatus status);
