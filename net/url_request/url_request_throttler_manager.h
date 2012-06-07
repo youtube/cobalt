@@ -141,10 +141,6 @@ class NET_EXPORT URLRequestThrottlerManager
   // Valid after construction.
   GURL::Replacements url_id_replacements_;
 
-  // Whether we would like to reject outgoing HTTP requests during the back-off
-  // period.
-  bool enforce_throttling_;
-
   // Certain tests do not obey the net component's threading policy, so we
   // keep track of whether we're being used by tests, and turn off certain
   // checks.

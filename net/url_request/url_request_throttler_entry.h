@@ -93,7 +93,7 @@ class NET_EXPORT URLRequestThrottlerEntry
   void DetachManager();
 
   // Implementation of URLRequestThrottlerEntryInterface.
-  virtual bool ShouldRejectRequest(int load_flags) const OVERRIDE;
+  virtual bool ShouldRejectRequest(const URLRequest& request) const OVERRIDE;
   virtual int64 ReserveSendingTimeForNextRequest(
       const base::TimeTicks& earliest_time) OVERRIDE;
   virtual base::TimeTicks GetExponentialBackoffReleaseTime() const OVERRIDE;
@@ -117,10 +117,6 @@ class NET_EXPORT URLRequestThrottlerEntry
   // Used internally to handle the opt-out header.
   void HandleThrottlingHeader(const std::string& header_value,
                               const std::string& host);
-
-  // Used internally to keep track of failure->success transitions and
-  // generate statistics about them.
-  void HandleMetricsTracking(int response_code);
 
   // Retrieves the back-off entry object we're using. Used to enable a
   // unit testing seam for dependency injection in tests.
@@ -163,15 +159,6 @@ class NET_EXPORT URLRequestThrottlerEntry
 
   // Access it through GetBackoffEntry() to allow a unit test seam.
   BackoffEntry backoff_entry_;
-
-  // The time of the last successful response, plus knowledge of whether
-  // the last response was successful or not, let us generate statistics on
-  // the length of perceived downtime for a given URL, and the error count
-  // when such transitions occur. This is useful for experiments with
-  // throttling but will likely become redundant after they are finished.
-  // TODO(joi): Remove when the time is right
-  base::TimeTicks last_successful_response_time_;
-  bool last_response_was_success_;
 
   // Weak back-reference to the manager object managing us.
   URLRequestThrottlerManager* manager_;

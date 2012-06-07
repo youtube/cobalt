@@ -183,6 +183,9 @@ class BasicNetworkDelegate : public NetworkDelegate {
                                const FilePath& path) const OVERRIDE {
     return true;
   }
+  virtual bool OnCanThrottleRequest(const URLRequest& request) const OVERRIDE {
+    return false;
+  }
 
   DISALLOW_COPY_AND_ASSIGN(BasicNetworkDelegate);
 };

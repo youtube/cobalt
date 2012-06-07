@@ -18,7 +18,6 @@ const unsigned int URLRequestThrottlerManager::kRequestsBetweenCollecting = 200;
 
 URLRequestThrottlerManager::URLRequestThrottlerManager()
     : requests_since_last_gc_(0),
-      enforce_throttling_(true),
       enable_thread_checks_(false),
       logged_for_localhost_disabled_(false),
       registered_from_thread_(base::kInvalidThreadId) {
@@ -35,10 +34,8 @@ URLRequestThrottlerManager::~URLRequestThrottlerManager() {
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
   NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
 
-  // Since, for now, the manager object might conceivably go away before
-  // the entries, detach the entries' back-pointer to the manager.
-  //
-  // TODO(joi): Revisit whether to make entries non-refcounted.
+  // Since the manager object might conceivably go away before the
+  // entries, detach the entries' back-pointer to the manager.
   UrlEntryMap::iterator i = url_entries_.begin();
   while (i != url_entries_.end()) {
     if (i->second != NULL) {
@@ -142,14 +139,6 @@ void URLRequestThrottlerManager::set_enable_thread_checks(bool enable) {
 
 bool URLRequestThrottlerManager::enable_thread_checks() const {
   return enable_thread_checks_;
-}
-
-void URLRequestThrottlerManager::set_enforce_throttling(bool enforce) {
-  enforce_throttling_ = enforce;
-}
-
-bool URLRequestThrottlerManager::enforce_throttling() {
-  return enforce_throttling_;
 }
 
 void URLRequestThrottlerManager::set_net_log(NetLog* net_log) {
