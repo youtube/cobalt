@@ -85,16 +85,6 @@ class NET_EXPORT_PRIVATE ConnectJob {
   // Accessors
   const std::string& group_name() const { return group_name_; }
   const BoundNetLog& net_log() { return net_log_; }
-  bool is_preconnect() const { return preconnect_state_ != NOT_PRECONNECT; }
-  bool is_unused_preconnect() const {
-    return preconnect_state_ == UNUSED_PRECONNECT;
-  }
-
-  // Initialized by the ClientSocketPoolBaseHelper.
-  // TODO(willchan): Move most of the constructor arguments over here.  We
-  // shouldn't give the ConnectJobFactory (subclasses) the ability to screw up
-  // the initialization.
-  void Initialize(bool is_preconnect);
 
   // Releases |socket_| to the client.  On connection error, this should return
   // NULL.
@@ -107,10 +97,6 @@ class NET_EXPORT_PRIVATE ConnectJob {
   // completion, ReleaseSocket() can be called to acquire the connected socket
   // if it succeeded.
   int Connect();
-
-  // Precondition: is_unused_preconnect() must be true.  Marks the job as a
-  // used preconnect job.
-  void UseForNormalRequest();
 
   virtual LoadState GetLoadState() const = 0;
 
@@ -128,12 +114,6 @@ class NET_EXPORT_PRIVATE ConnectJob {
   void ResetTimer(base::TimeDelta remainingTime);
 
  private:
-  enum PreconnectState {
-    NOT_PRECONNECT,
-    UNUSED_PRECONNECT,
-    USED_PRECONNECT,
-  };
-
   virtual int ConnectInternal() = 0;
 
   void LogConnectStart();
@@ -151,7 +131,6 @@ class NET_EXPORT_PRIVATE ConnectJob {
   BoundNetLog net_log_;
   // A ConnectJob is idle until Connect() has been called.
   bool idle_;
-  PreconnectState preconnect_state_;
 
   DISALLOW_COPY_AND_ASSIGN(ConnectJob);
 };
@@ -293,6 +272,10 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
         ClientSocketPool::kMaxConnectRetryIntervalMs);
   }
 
+  int NumUnassignedConnectJobsInGroup(const std::string& group_name) const {
+    return group_map_.find(group_name)->second->unassigned_job_count();
+  }
+
   int NumConnectJobsInGroup(const std::string& group_name) const {
     return group_map_.find(group_name)->second->jobs().size();
   }
@@ -409,17 +392,19 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     void StartBackupSocketTimer(const std::string& group_name,
                                 ClientSocketPoolBaseHelper* pool);
 
-    // Searches |jobs_| to see if there's a preconnect ConnectJob, and if so,
-    // uses it.  Returns true on success.  Otherwise, returns false.
-    bool TryToUsePreconnectConnectJob();
+    // If there's a ConnectJob that's never been assigned to Request,
+    // decrements |unassigned_job_count_| and returns true.
+    // Otherwise, returns false.
+    bool TryToUseUnassignedConnectJob();
 
-    void AddJob(ConnectJob* job) { jobs_.insert(job); }
-    void RemoveJob(ConnectJob* job) { jobs_.erase(job); }
+    void AddJob(ConnectJob* job, bool is_preconnect);
+    void RemoveJob(ConnectJob* job);
     void RemoveAllJobs();
 
     void IncrementActiveSocketCount() { active_socket_count_++; }
     void DecrementActiveSocketCount() { active_socket_count_--; }
 
+    int unassigned_job_count() const { return unassigned_job_count_; }
     const std::set<ConnectJob*>& jobs() const { return jobs_; }
     const std::list<IdleSocket>& idle_sockets() const { return idle_sockets_; }
     const RequestQueue& pending_requests() const { return pending_requests_; }
@@ -432,6 +417,18 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     void OnBackupSocketTimerFired(
         std::string group_name,
         ClientSocketPoolBaseHelper* pool);
+
+    // Checks that |unassigned_job_count_| does not execeed the number of
+    // ConnectJobs.
+    void SanityCheck();
+
+    // Total number of ConnectJobs that have never been assigned to a Request.
+    // Since jobs use late binding to requests, which ConnectJobs have or have
+    // not been assigned to a request are not tracked.  This is incremented on
+    // preconnect and decremented when a preconnect is assigned, or when there
+    // are fewer than |unassigned_job_count_| ConnectJobs.  Not incremented
+    // when a request is cancelled.
+    size_t unassigned_job_count_;
 
     std::list<IdleSocket> idle_sockets_;
     std::set<ConnectJob*> jobs_;
@@ -525,7 +522,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   // Assigns an idle socket for the group to the request.
   // Returns |true| if an idle socket is available, false otherwise.
-  bool AssignIdleSocketToGroup(const Request* request, Group* group);
+  bool AssignIdleSocketToRequest(const Request* request, Group* group);
 
   static void LogBoundConnectJobToRequest(
       const NetLog::Source& connect_job_source, const Request* request);
@@ -732,6 +729,10 @@ class ClientSocketPoolBase {
 
   virtual void OnConnectJobComplete(int result, ConnectJob* job) {
     return helper_.OnConnectJobComplete(result, job);
+  }
+
+  int NumUnassignedConnectJobsInGroup(const std::string& group_name) const {
+    return helper_.NumUnassignedConnectJobsInGroup(group_name);
   }
 
   int NumConnectJobsInGroup(const std::string& group_name) const {
