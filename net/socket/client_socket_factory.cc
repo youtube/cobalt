@@ -33,10 +33,11 @@ namespace {
 
 bool g_use_system_ssl = false;
 
-// ChromeOS uses a hardware TPM module that may cause NSS operations to
-// block for upwards of several seconds. To avoid blocking all network and
-// IPC activity, run NSS SSL functions on a dedicated thread.
-#if defined(OS_CHROMEOS)
+// ChromeOS and Linux may require interaction with smart cards or TPMs, which
+// may cause NSS functions to block for upwards of several seconds. To avoid
+// blocking all activity on the current task runner, such as network or IPC
+// traffic, run NSS SSL functions on a dedicated thread.
+#if defined(OS_CHROMEOS) || defined(OS_LINUX)
 bool g_use_dedicated_nss_thread = true;
 #else
 bool g_use_dedicated_nss_thread = false;
