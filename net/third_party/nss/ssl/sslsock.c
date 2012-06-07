@@ -2903,6 +2903,13 @@ ssl_SetDefaultsFromEnvironment(void)
 	    ssl_trace = atoi(ev);
 	    SSL_TRACE(("SSL: tracing set to %d", ssl_trace));
 	}
+#endif /* TRACE */
+	ev = getenv("SSLDEBUG");
+	if (ev && ev[0]) {
+	    ssl_debug = atoi(ev);
+	    SSL_TRACE(("SSL: debugging set to %d", ssl_debug));
+	}
+#endif /* DEBUG */
 	ev = getenv("SSLKEYLOGFILE");
 	if (ev && ev[0]) {
 	    ssl_keylog_iob = fopen(ev, "a");
@@ -2912,13 +2919,6 @@ ssl_SetDefaultsFromEnvironment(void)
 	    }
 	    SSL_TRACE(("SSL: logging pre-master secrets to %s", ev));
 	}
-#endif /* TRACE */
-	ev = getenv("SSLDEBUG");
-	if (ev && ev[0]) {
-	    ssl_debug = atoi(ev);
-	    SSL_TRACE(("SSL: debugging set to %d", ssl_debug));
-	}
-#endif /* DEBUG */
 	ev = getenv("SSLBYPASS");
 	if (ev && ev[0]) {
 	    ssl_defaults.bypassPKCS11 = (ev[0] == '1');
