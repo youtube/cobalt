@@ -45,6 +45,8 @@ class MockMediaSource : public ChunkDemuxerClient {
   void Seek(int new_position, int seek_append_size) {
     chunk_demuxer_->StartWaitingForSeek();
 
+    chunk_demuxer_->Abort(kSourceId);
+
     DCHECK_GE(new_position, 0);
     DCHECK_LT(new_position, file_data_->GetDataSize());
     current_position_ = new_position;

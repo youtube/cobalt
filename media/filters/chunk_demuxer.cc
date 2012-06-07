@@ -458,8 +458,6 @@ void ChunkDemuxer::StartWaitingForSeek() {
   if (video_)
     video_->StartWaitingForSeek();
 
-  stream_parser_->Flush();
-
   ChangeState_Locked(INITIALIZED);
 }
 
