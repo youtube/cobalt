@@ -85,6 +85,7 @@ class NetworkDelegate : public base::NonThreadSafe {
                     CookieOptions* options);
   bool CanAccessFile(const URLRequest& request,
                      const FilePath& path) const;
+  bool CanThrottleRequest(const URLRequest& request) const;
 
  private:
   // This is the interface for subclasses of NetworkDelegate to implement. These
@@ -202,6 +203,10 @@ class NetworkDelegate : public base::NonThreadSafe {
   virtual bool OnCanAccessFile(const URLRequest& request,
                                const FilePath& path) const = 0;
 
+  // Returns true if the given request may be rejected when the
+  // URLRequestThrottlerManager believes the server servicing the
+  // request is overloaded or down.
+  virtual bool OnCanThrottleRequest(const URLRequest& request) const = 0;
 };
 
 }  // namespace net

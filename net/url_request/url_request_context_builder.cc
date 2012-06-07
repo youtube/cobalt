@@ -101,6 +101,10 @@ class BasicNetworkDelegate : public NetworkDelegate {
     return true;
   }
 
+  virtual bool OnCanThrottleRequest(const URLRequest& request) const OVERRIDE {
+    return false;
+  }
+
   DISALLOW_COPY_AND_ASSIGN(BasicNetworkDelegate);
 };
 

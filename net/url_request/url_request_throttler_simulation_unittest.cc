@@ -20,6 +20,7 @@
 #include "base/memory/scoped_vector.h"
 #include "base/rand_util.h"
 #include "base/time.h"
+#include "net/url_request/url_request_test_util.h"
 #include "net/url_request/url_request_throttler_manager.h"
 #include "net/url_request/url_request_throttler_test_support.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -122,7 +123,8 @@ class Server : public DiscreteTimeSimulation::Actor {
         num_overloaded_ticks_remaining_(0),
         num_current_tick_queries_(0),
         num_overloaded_ticks_(0),
-        max_experienced_queries_per_tick_(0) {
+        max_experienced_queries_per_tick_(0),
+        mock_request_(GURL(), NULL) {
   }
 
   void SetDowntime(const TimeTicks& start_time, const TimeDelta& duration) {
@@ -159,7 +161,7 @@ class Server : public DiscreteTimeSimulation::Actor {
     ++num_current_tick_queries_;
     if (!start_downtime_.is_null() &&
         start_downtime_ < now_ && now_ < end_downtime_) {
-      // TODO(joi): For the simulation measuring the increase in perceived
+      // For the simulation measuring the increase in perceived
       // downtime, it might be interesting to count separately the
       // queries seen by the server (assuming a front-end reverse proxy
       // is what actually serves up the 503s in this case) so that we could
@@ -184,6 +186,10 @@ class Server : public DiscreteTimeSimulation::Actor {
 
   int max_experienced_queries_per_tick() const {
     return max_experienced_queries_per_tick_;
+  }
+
+  const URLRequest& mock_request() const {
+    return mock_request_;
   }
 
   std::string VisualizeASCII(int terminal_width) {
@@ -281,14 +287,9 @@ class Server : public DiscreteTimeSimulation::Actor {
   int num_overloaded_ticks_;
   int max_experienced_queries_per_tick_;
   std::vector<int> requests_per_tick_;
+  TestURLRequest mock_request_;
 
   DISALLOW_COPY_AND_ASSIGN(Server);
-};
-
-class TestingURLRequestThrottlerManager : public URLRequestThrottlerManager {
- public:
-  TestingURLRequestThrottlerManager() : URLRequestThrottlerManager() {
-  }
 };
 
 // Mock throttler entry used by Requester class.
@@ -427,7 +428,7 @@ class Requester : public DiscreteTimeSimulation::Actor {
 
     if (throttler_entry_->fake_now() - time_of_last_attempt_ >
         effective_delay) {
-      if (!throttler_entry_->ShouldRejectRequest(0)) {
+      if (!throttler_entry_->ShouldRejectRequest(server_->mock_request())) {
         int status_code = server_->HandleRequest();
         MockURLRequestThrottlerHeaderAdapter response_headers(status_code);
         throttler_entry_->UpdateWithResponse("", &response_headers);
@@ -493,7 +494,7 @@ void SimulateAttack(Server* server,
   const size_t kNumAttackers = 50;
   const size_t kNumClients = 50;
   DiscreteTimeSimulation simulation;
-  TestingURLRequestThrottlerManager manager;
+  URLRequestThrottlerManager manager;
   ScopedVector<Requester> requesters;
   for (size_t i = 0; i < kNumAttackers; ++i) {
     // Use a tiny time_between_requests so the attackers will ping the
@@ -596,7 +597,7 @@ double SimulateDowntime(const TimeDelta& duration,
   Server server(std::numeric_limits<int>::max(), 1.0);
   server.SetDowntime(start_downtime, duration);
 
-  TestingURLRequestThrottlerManager manager;
+  URLRequestThrottlerManager manager;
   scoped_refptr<MockURLRequestThrottlerEntry> throttler_entry(
       new MockURLRequestThrottlerEntry(&manager));
   if (!enable_throttling)

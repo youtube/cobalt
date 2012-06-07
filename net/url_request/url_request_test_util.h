@@ -244,6 +244,8 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                               net::CookieOptions* options) OVERRIDE;
   virtual bool OnCanAccessFile(const net::URLRequest& request,
                                const FilePath& path) const OVERRIDE;
+  virtual bool OnCanThrottleRequest(
+      const net::URLRequest& request) const OVERRIDE;
 
   void InitRequestStatesIfNew(int request_id);
 

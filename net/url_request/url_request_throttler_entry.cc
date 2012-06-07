@@ -14,6 +14,8 @@
 #include "base/values.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_log.h"
+#include "net/url_request/url_request.h"
+#include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_throttler_header_interface.h"
 #include "net/url_request/url_request_throttler_manager.h"
 
@@ -138,8 +140,10 @@ bool URLRequestThrottlerEntry::IsEntryOutdated() const {
   // if an entry has more than one reference (the map will always hold one),
   // it should not be considered outdated.
   //
-  // TODO(joi): Once the manager is not a Singleton, revisit whether
-  // refcounting is needed at all.
+  // We considered whether to make URLRequestThrottlerEntry objects
+  // non-refcounted, but since any means of knowing whether they are
+  // currently in use by others than the manager would be more or less
+  // equivalent to a refcount, we kept them refcounted.
   if (!HasOneRef())
     return false;
 
@@ -161,9 +165,12 @@ void URLRequestThrottlerEntry::DetachManager() {
   manager_ = NULL;
 }
 
-bool URLRequestThrottlerEntry::ShouldRejectRequest(int load_flags) const {
+bool URLRequestThrottlerEntry::ShouldRejectRequest(
+    const URLRequest& request) const {
   bool reject_request = false;
-  if (!is_backoff_disabled_ && !ExplicitUserRequest(load_flags) &&
+  if (!is_backoff_disabled_ && !ExplicitUserRequest(request.load_flags()) &&
+      (!request.context() || !request.context()->network_delegate() ||
+       request.context()->network_delegate()->CanThrottleRequest(request)) &&
       GetBackoffEntry()->ShouldRejectRequest()) {
     int num_failures = GetBackoffEntry()->failure_count();
     int release_after_ms =
@@ -237,10 +244,7 @@ base::TimeTicks
 void URLRequestThrottlerEntry::UpdateWithResponse(
     const std::string& host,
     const URLRequestThrottlerHeaderInterface* response) {
-  int response_code = response->GetResponseCode();
-  HandleMetricsTracking(response_code);
-
-  if (IsConsideredError(response_code)) {
+  if (IsConsideredError(response->GetResponseCode())) {
     GetBackoffEntry()->InformOfRequest(false);
   } else {
     GetBackoffEntry()->InformOfRequest(true);
@@ -280,12 +284,6 @@ void URLRequestThrottlerEntry::Initialize() {
   backoff_policy_.maximum_backoff_ms = kDefaultMaximumBackoffMs;
   backoff_policy_.entry_lifetime_ms = kDefaultEntryLifetimeMs;
   backoff_policy_.always_use_initial_delay = false;
-
-  // We pretend we just had a successful response so that we have a
-  // starting point to our tracking. This is called from the
-  // constructor so we do not use the virtual ImplGetTimeNow().
-  last_successful_response_time_ = base::TimeTicks::Now();
-  last_response_was_success_ = true;
 }
 
 bool URLRequestThrottlerEntry::IsConsideredError(int response_code) {
@@ -322,34 +320,6 @@ void URLRequestThrottlerEntry::HandleThrottlingHeader(
     DisableBackoffThrottling();
     if (manager_)
       manager_->AddToOptOutList(host);
-  } else {
-    // TODO(joi): Log this.
-  }
-}
-
-void URLRequestThrottlerEntry::HandleMetricsTracking(int response_code) {
-  // Note that we are not interested in whether the code is considered
-  // an error for the backoff logic, but whether it is a 5xx error in
-  // general.  This is because here, we are tracking the apparent total
-  // downtime of a server.
-  if (response_code >= 500) {
-    last_response_was_success_ = false;
-  } else {
-    base::TimeTicks now = ImplGetTimeNow();
-    if (!last_response_was_success_) {
-      // We are transitioning from failure to success, so generate our stats.
-      base::TimeDelta down_time = now - last_successful_response_time_;
-      int failure_count = GetBackoffEntry()->failure_count();
-
-      UMA_HISTOGRAM_COUNTS("Throttling.FailureCountAtSuccess", failure_count);
-      UMA_HISTOGRAM_CUSTOM_TIMES(
-          "Throttling.PerceivedDowntime", down_time,
-          base::TimeDelta::FromMilliseconds(10),
-          base::TimeDelta::FromHours(6), 50);
-    }
-
-    last_successful_response_time_ = now;
-    last_response_was_success_ = true;
   }
 }
 
