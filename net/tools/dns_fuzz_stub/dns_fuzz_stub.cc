@@ -7,8 +7,12 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/time.h"
+#include "base/file_path.h"
+#include "base/file_util.h"
+#include "base/json/json_reader.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/time.h"
+#include "base/values.h"
 #include "net/base/address_list.h"
 #include "net/base/dns_util.h"
 #include "net/base/io_buffer.h"
@@ -19,20 +23,86 @@
 
 namespace {
 
-// TODO(ttuttle): This should read from the file, probably in JSON.
+bool FitsUint8(int num) {
+  return (num >= 0) && (num <= kuint8max);
+}
+
+bool FitsUint16(int num) {
+  return (num >= 0) && (num <= kuint16max);
+}
+
 bool ReadTestCase(const char* filename,
                   uint16* id, std::string* qname, uint16* qtype,
                   std::vector<char>* resp_buf) {
-  static const unsigned char resp_bytes[] = {
-    0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-    0x01, 0x61, 0x00, 0x00, 0x01, 0x00, 0x01,
-    0x01, 0x61, 0x00, 0x00, 0x01, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0xff, 0x00, 0x04, 0x0a, 0x0a, 0x0a, 0x0a };
+  FilePath filepath = FilePath::FromUTF8Unsafe(filename);
 
-  *id = 0x0000;
-  *qname = "a";
-  *qtype = 0x0001;
-  resp_buf->assign(resp_bytes, resp_bytes + arraysize(resp_bytes));
+  std::string json;
+  if (!file_util::ReadFileToString(filepath, &json)) {
+    LOG(ERROR) << "Couldn't read file " << filename << ".";
+    return false;
+  }
+
+  scoped_ptr<Value> value(base::JSONReader::Read(json));
+  if (!value.get()) {
+    LOG(ERROR) << "Couldn't parse JSON in " << filename << ".";
+    return false;
+  }
+
+  DictionaryValue* dict;
+  if (!value->GetAsDictionary(&dict)) {
+    LOG(ERROR) << "Test case is not a dictionary.";
+    return false;
+  }
+
+  int id_int;
+  if (!dict->GetInteger("id", &id_int)) {
+    LOG(ERROR) << "id is missing or not an integer.";
+    return false;
+  }
+  if (!FitsUint16(id_int)) {
+    LOG(ERROR) << "id is out of range.";
+    return false;
+  }
+  *id = static_cast<uint16>(id_int);
+
+  if (!dict->GetStringASCII("qname", qname)) {
+    LOG(ERROR) << "qname is missing or not a string.";
+    return false;
+  }
+
+  int qtype_int;
+  if (!dict->GetInteger("qtype", &qtype_int)) {
+    LOG(ERROR) << "qtype is missing or not an integer.";
+    return false;
+  }
+  if (!FitsUint16(qtype_int)) {
+    LOG(ERROR) << "qtype is out of range.";
+    return false;
+  }
+  *qtype = static_cast<uint16>(qtype_int);
+
+  ListValue* resp_list;
+  if (!dict->GetList("response", &resp_list)) {
+    LOG(ERROR) << "response is missing or not a list.";
+    return false;
+  }
+
+  size_t resp_size = resp_list->GetSize();
+  resp_buf->clear();
+  resp_buf->reserve(resp_size);
+  for (size_t i = 0; i < resp_size; i++) {
+    int resp_byte_int;
+    if ((!resp_list->GetInteger(i, &resp_byte_int))) {
+      LOG(ERROR) << "response[" << i << "] is not an integer.";
+      return false;
+    }
+    if (!FitsUint8(resp_byte_int)) {
+      LOG(ERROR) << "response[" << i << "] is out of range.";
+      return false;
+    }
+    resp_buf->push_back(static_cast<char>(resp_byte_int));
+  }
+  DCHECK(resp_buf->size() == resp_size);
 
   return true;
 }
