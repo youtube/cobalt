@@ -2893,6 +2893,7 @@ int SSLClientSocketNSS::Connect(const CompletionCallback& callback) {
   DCHECK(transport_.get());
   DCHECK_EQ(STATE_NONE, next_handshake_state_);
   DCHECK(user_connect_callback_.is_null());
+  DCHECK(!callback.is_null());
 
   EnsureThreadIdAssigned();
 
@@ -3045,6 +3046,7 @@ base::TimeDelta SSLClientSocketNSS::GetConnectTimeMicros() const {
 int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
                              const CompletionCallback& callback) {
   DCHECK(core_);
+  DCHECK(!callback.is_null());
 
   EnterFunction(buf_len);
   int rv = core_->Read(buf, buf_len, callback);
@@ -3056,6 +3058,7 @@ int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
 int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
                               const CompletionCallback& callback) {
   DCHECK(core_);
+  DCHECK(!callback.is_null());
 
   EnterFunction(buf_len);
   int rv = core_->Write(buf, buf_len, callback);
