@@ -266,6 +266,12 @@ class BASE_EXPORT Time {
   static Time FromDoubleT(double dt);
   double ToDoubleT() const;
 
+  // Converts to/from the Javascript convention for times, a number of
+  // milliseconds since the epoch:
+  // https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime.
+  static Time FromJsTime(double ms_since_epoch);
+  double ToJsTime() const;
+
 #if defined(OS_POSIX)
   struct timeval ToTimeVal() const;
 #endif
