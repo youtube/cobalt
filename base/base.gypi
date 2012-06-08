@@ -331,7 +331,7 @@
           'synchronization/waitable_event.h',
           'synchronization/waitable_event_posix.cc',
           'synchronization/waitable_event_watcher.h',
-          'synchronization/waitable_event_watcher_posix.cc',
+          'synchronization/waitable_event_watcher_posix.cc',     
           'synchronization/waitable_event_watcher_win.cc',
           'synchronization/waitable_event_win.cc',
           'system_monitor/system_monitor.cc',
@@ -481,8 +481,8 @@
         'mac_framework_dirs': [
           '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
         ],
-        'conditions': [
-          [ 'use_glib==0', {
+        'target_conditions': [
+          ['<(use_glib)==0 or >(nacl_untrusted_build)==1', {
               'sources/': [
                 ['exclude', '^nix/'],
               ],
@@ -492,17 +492,23 @@
                 'message_pump_aurax11.cc',
               ],
           }],
-          [ 'toolkit_uses_gtk==0', {
-            'sources!': [ 'message_pump_gtk.cc', ],
+          ['<(toolkit_uses_gtk)==0 or >(nacl_untrusted_build)==1', {
+            'sources!': ['message_pump_gtk.cc'],
           }],
-          [ 'OS != "linux" and os_bsd != 1', {
+          ['(OS != "linux" and <(os_bsd) != 1) or >(nacl_untrusted_build)==1', {
               'sources!': [
                 # Not automatically excluded by the *linux.cc rules.
                 'linux_util.cc',
               ],
             },
           ],
-          [ 'OS == "android"', {
+          ['>(nacl_untrusted_build)==1', {
+            'sources!': [
+              'file_util.cc',
+              'files/file_path_watcher_kqueue.cc',
+            ],
+          }],
+          ['OS == "android" and >(nacl_untrusted_build)==0', {
             'sources!': [
               'files/file_path_watcher_kqueue.cc',
               'system_monitor/system_monitor_posix.cc',
@@ -514,30 +520,30 @@
               ['include', '^worker_pool_linux\\.cc$'],
             ],
           }],
-          [ 'OS != "mac"', {
+          ['OS != "mac" or >(nacl_untrusted_build)==1', {
               'sources!': [
                 'mac/scoped_aedesc.h'
               ],
           }],
           # For now, just test the *BSD platforms enough to exclude them.
           # Subsequent changes will include them further.
-          [ 'OS != "freebsd"', {
+          ['OS != "freebsd" or >(nacl_untrusted_build)==1', {
               'sources/': [ ['exclude', '_freebsd\\.cc$'] ],
             },
           ],
-          [ 'OS != "openbsd"', {
+          ['OS != "openbsd" or >(nacl_untrusted_build)==1', {
               'sources/': [ ['exclude', '_openbsd\\.cc$'] ],
             },
           ],
-          ['OS != "win"', {
+          ['OS != "win" or >(nacl_untrusted_build)==1', {
               'sources/': [ ['exclude', '^win/'] ],
             },
           ],
-          ['OS != "android"', {
+          ['OS != "android" or >(nacl_untrusted_build)==1', {
               'sources/': [ ['exclude', '^android/'] ],
             },
           ],
-          [ 'OS == "win"', {
+          ['OS == "win" and >(nacl_untrusted_build)==0', {
             'include_dirs': [
               '<(DEPTH)/third_party/wtl/include',
             ],
@@ -553,13 +559,13 @@
               'string16.cc',
             ],
           },],
-          [ 'OS == "linux"', {
+          ['OS == "linux" and >(nacl_untrusted_build)==0', {
             'sources!': [
               'files/file_path_watcher_kqueue.cc',
               'files/file_path_watcher_stub.cc',
             ],
           }],
-          [ 'OS == "mac"', {
+          ['OS == "mac" and >(nacl_untrusted_build)==0', {
             'sources/': [
               ['exclude', '^files/file_path_watcher_stub\\.cc$'],
               ['exclude', '^base_paths_posix\\.cc$'],
@@ -567,7 +573,7 @@
               ['exclude', '^sys_string_conversions_posix\\.cc$'],
             ],
           }],
-          [ 'os_bsd==1', {
+          ['<(os_bsd)==1 and >(nacl_untrusted_build)==0', {
             'sources/': [
               ['exclude', '^files/file_path_watcher_linux\\.cc$'],
               ['exclude', '^files/file_path_watcher_stub\\.cc$'],
@@ -577,7 +583,7 @@
               ['exclude', '^sys_info_linux\\.cc$'],
             ],
           }],
-          [ 'chromeos != 1', {
+          ['<(chromeos)!=1 or >(nacl_untrusted_build)==1', {
             'sources/': [
               ['exclude', '^chromeos/'],
             ],
