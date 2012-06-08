@@ -660,11 +660,11 @@ bool MockClientSocket::IsConnectedAndIdle() const {
   return connected_;
 }
 
-int MockClientSocket::GetPeerAddress(AddressList* address) const {
+int MockClientSocket::GetPeerAddress(IPEndPoint* address) const {
   IPAddressNumber ip;
   bool rv = ParseIPLiteralToNumber("192.0.2.33", &ip);
   CHECK(rv);
-  *address = AddressList::CreateFromIPAddress(ip, 0);
+  *address = IPEndPoint(ip, 0);
   return OK;
 }
 
@@ -824,7 +824,7 @@ bool MockTCPClientSocket::IsConnectedAndIdle() const {
   return IsConnected();
 }
 
-int MockTCPClientSocket::GetPeerAddress(AddressList* address) const {
+int MockTCPClientSocket::GetPeerAddress(IPEndPoint* address) const {
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
   return MockClientSocket::GetPeerAddress(address);

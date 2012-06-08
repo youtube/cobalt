@@ -609,7 +609,7 @@ bool SSLClientSocketMac::IsConnectedAndIdle() const {
   return completed_handshake() && transport_->socket()->IsConnectedAndIdle();
 }
 
-int SSLClientSocketMac::GetPeerAddress(AddressList* address) const {
+int SSLClientSocketMac::GetPeerAddress(IPEndPoint* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 
@@ -884,11 +884,10 @@ int SSLClientSocketMac::InitializeSSLContext() {
   // using the same hostname (i.e., localhost and 127.0.0.1 are considered
   // different peers, which puts us through certificate validation again
   // and catches hostname/certificate name mismatches.
-  AddressList address;
-  int rv = transport_->socket()->GetPeerAddress(&address);
+  IPEndPoint endpoint;
+  int rv = transport_->socket()->GetPeerAddress(&endpoint);
   if (rv != OK)
     return rv;
-  const IPEndPoint& endpoint = address.front();
   std::string peer_id(host_and_port_.ToString());
   peer_id += std::string(reinterpret_cast<const char*>(&endpoint.address()[0]),
                          endpoint.address().size());

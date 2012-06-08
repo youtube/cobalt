@@ -157,7 +157,7 @@ class NET_EXPORT_PRIVATE SpdyStream
   // Decreases |send_window_size_| by the given number of bytes.
   void DecreaseSendWindowSize(int32 delta_window_size);
 
-  int GetPeerAddress(AddressList* address) const;
+  int GetPeerAddress(IPEndPoint* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
 
   // Returns true if the underlying transport socket ever had any reads or

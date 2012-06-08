@@ -284,7 +284,7 @@ void SpdyStream::DecreaseRecvWindowSize(int32 delta_window_size) {
   }
 }
 
-int SpdyStream::GetPeerAddress(AddressList* address) const {
+int SpdyStream::GetPeerAddress(IPEndPoint* address) const {
   return session_->GetPeerAddress(address);
 }
 

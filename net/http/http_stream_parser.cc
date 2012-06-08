@@ -209,11 +209,11 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   response_ = response;
 
   // Put the peer's IP address and port into the response.
-  AddressList address;
-  int result = connection_->socket()->GetPeerAddress(&address);
+  IPEndPoint ip_endpoint;
+  int result = connection_->socket()->GetPeerAddress(&ip_endpoint);
   if (result != OK)
     return result;
-  response_->socket_address = HostPortPair::FromIPEndPoint(address.front());
+  response_->socket_address = HostPortPair::FromIPEndPoint(ip_endpoint);
 
   std::string request = request_line + headers.ToString();
   request_body_.reset(request_body);

@@ -711,7 +711,7 @@ bool SSLClientSocketWin::IsConnectedAndIdle() const {
   return completed_handshake() && transport_->socket()->IsConnectedAndIdle();
 }
 
-int SSLClientSocketWin::GetPeerAddress(AddressList* address) const {
+int SSLClientSocketWin::GetPeerAddress(IPEndPoint* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 
