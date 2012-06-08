@@ -329,8 +329,7 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
     // Should be called on WorkerPool.
     success_ = false;
 
-    DnsSystemSettings settings;
-    memset(&settings, 0, sizeof(settings));
+    DnsSystemSettings settings = {};
     settings.addresses = ReadIpHelper(GAA_FLAG_SKIP_ANYCAST |
                                       GAA_FLAG_SKIP_UNICAST |
                                       GAA_FLAG_SKIP_MULTICAST |
