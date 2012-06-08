@@ -427,7 +427,7 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
 
   cache.disk_cache()->set_fail_requests();
 
-  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingBoundNetLog log;
   log.SetLogLevel(net::NetLog::LOG_BASIC);
 
   // Read from the network, and don't use the cache.
@@ -569,7 +569,7 @@ TEST(HttpCache, SimpleGETWithDiskFailures3) {
 TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   MockHttpCache cache;
 
-  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingBoundNetLog log;
 
   // This prevents a number of write events from being logged.
   log.SetLogLevel(net::NetLog::LOG_BASIC);
@@ -702,7 +702,7 @@ TEST(HttpCache, SimpleGET_LoadBypassCache) {
   MockTransaction transaction(kSimpleGET_Transaction);
   transaction.load_flags |= net::LOAD_BYPASS_CACHE;
 
-  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingBoundNetLog log;
 
   // This prevents a number of write events from being logged.
   log.SetLogLevel(net::NetLog::LOG_BASIC);

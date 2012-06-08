@@ -39,7 +39,6 @@ class TransportClientSocketTest
  public:
   TransportClientSocketTest()
       : listen_port_(0),
-        net_log_(CapturingNetLog::kUnbounded),
         socket_factory_(ClientSocketFactory::GetDefaultFactory()),
         close_server_socket_on_next_send_(false) {
   }

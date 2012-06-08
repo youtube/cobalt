@@ -79,7 +79,7 @@ TEST_F(SSLClientSocketTest, Connect) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   net::TestCompletionCallback callback;
-  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingNetLog log;
   net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(callback.callback());
@@ -122,7 +122,7 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   net::TestCompletionCallback callback;
-  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingNetLog log;
   net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(callback.callback());
@@ -167,7 +167,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   net::TestCompletionCallback callback;
-  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingNetLog log;
   net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(callback.callback());
@@ -212,7 +212,7 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthCertRequested) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   net::TestCompletionCallback callback;
-  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingNetLog log;
   net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(callback.callback());
@@ -272,7 +272,7 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   net::TestCompletionCallback callback;
-  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingNetLog log;
   net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(callback.callback());
@@ -549,7 +549,7 @@ TEST_F(SSLClientSocketTest, Read_FullLogging) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   net::TestCompletionCallback callback;
-  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingNetLog log;
   log.SetLogLevel(net::NetLog::LOG_ALL);
   net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
@@ -679,7 +679,7 @@ TEST_F(SSLClientSocketTest, CipherSuiteDisables) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   net::TestCompletionCallback callback;
-  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingNetLog log;
   net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(callback.callback());
@@ -880,7 +880,7 @@ TEST_F(SSLClientSocketTest, VerifyReturnChainProperlyOrdered) {
   ASSERT_TRUE(test_server.GetAddressList(&addr));
 
   net::TestCompletionCallback callback;
-  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::CapturingNetLog log;
   net::StreamSocket* transport = new net::TCPClientSocket(
       addr, &log, net::NetLog::Source());
   int rv = transport->Connect(callback.callback());

@@ -58,9 +58,8 @@ bool CapturingNetLog::CapturedEntry::GetNetErrorCode(int* value) const {
   return GetIntegerValue("net_error", value);
 }
 
-CapturingNetLog::CapturingNetLog(size_t max_num_entries)
+CapturingNetLog::CapturingNetLog()
     : last_id_(0),
-      max_num_entries_(max_num_entries),
       log_level_(LOG_ALL_BUT_BYTES) {
 }
 
@@ -86,10 +85,9 @@ void CapturingNetLog::AddEntry(
     const Source& source,
     EventPhase phase,
     const scoped_refptr<EventParameters>& extra_parameters) {
+  // Only BoundNetLogs without a NetLog should have an invalid source.
   DCHECK(source.is_valid());
-  base::AutoLock lock(lock_);
-  if (captured_entries_.size() >= max_num_entries_)
-    return;
+
   // Using Dictionaries instead of Values makes checking values a little
   // simpler.
   DictionaryValue* param_dict = NULL;
@@ -98,6 +96,9 @@ void CapturingNetLog::AddEntry(
     if (param_value && !param_value->GetAsDictionary(&param_dict))
       delete param_value;
   }
+
+  // Only need to acquire the lock when accessing class variables.
+  base::AutoLock lock(lock_);
   captured_entries_.push_back(
       CapturedEntry(type,
                     base::TimeTicks::Now(),
@@ -131,9 +132,8 @@ void CapturingNetLog::RemoveThreadSafeObserver(
   NOTIMPLEMENTED() << "Not currently used by net unit tests.";
 }
 
-CapturingBoundNetLog::CapturingBoundNetLog(size_t max_num_entries)
-    : capturing_net_log_(max_num_entries),
-      net_log_(BoundNetLog::Make(&capturing_net_log_,
+CapturingBoundNetLog::CapturingBoundNetLog()
+    : net_log_(BoundNetLog::Make(&capturing_net_log_,
                                  net::NetLog::SOURCE_NONE)) {
 }
 

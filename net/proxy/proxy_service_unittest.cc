@@ -162,7 +162,7 @@ TEST_F(ProxyServiceTest, Direct) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   int rv = service.ResolveProxy(
       url, &info, callback.callback(), NULL, log.bound());
   EXPECT_EQ(OK, rv);
@@ -196,7 +196,7 @@ TEST_F(ProxyServiceTest, PAC) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
 
   int rv = service.ResolveProxy(
       url, &info, callback.callback(), NULL, log.bound());
@@ -1409,7 +1409,7 @@ TEST_F(ProxyServiceTest, CancelWhilePACFetching) {
   ProxyInfo info1;
   TestCompletionCallback callback1;
   ProxyService::PacRequest* request1;
-  CapturingBoundNetLog log1(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log1;
   int rv = service.ResolveProxy(GURL("http://request1"), &info1,
                                 callback1.callback(), &request1, log1.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -1893,7 +1893,7 @@ TEST_F(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
+  CapturingNetLog log;
 
   ProxyService service(config_service, resolver, &log);
 
@@ -2013,9 +2013,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterFailure) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,
@@ -2120,9 +2118,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterContentChange) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,
@@ -2232,9 +2228,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterContentUnchanged) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,
@@ -2340,9 +2334,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterSuccess) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,
@@ -2494,9 +2486,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterActivity) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,
