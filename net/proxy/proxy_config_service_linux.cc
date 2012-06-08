@@ -1125,12 +1125,6 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
   }
 
   void AddKDESetting(const std::string& key, const std::string& value) {
-    // The astute reader may notice that there is no mention of SOCKS
-    // here. That's because KDE handles socks is a strange way, and we
-    // don't support it. Rather than just a setting for the SOCKS server,
-    // it has a setting for a library to LD_PRELOAD in all your programs
-    // that will transparently SOCKSify them. Such libraries each have
-    // their own configuration, and thus, we can't get it from KDE.
     if (key == "ProxyType") {
       const char* mode = "none";
       indirect_manual_ = false;
@@ -1164,6 +1158,11 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
       AddProxy(PROXY_HTTPS_HOST, value);
     } else if (key == "ftpProxy") {
       AddProxy(PROXY_FTP_HOST, value);
+    } else if (key == "socksProxy") {
+      // Older versions of KDE configure SOCKS in a weird way involving
+      // LD_PRELOAD and a library that intercepts network calls to SOCKSify
+      // them. We don't support it. KDE 4.8 added a proper SOCKS setting.
+      AddProxy(PROXY_SOCKS_HOST, value);
     } else if (key == "ReversedException") {
       // We count "true" or any nonzero number as true, otherwise false.
       // Note that if the value is not actually numeric StringToInt()
