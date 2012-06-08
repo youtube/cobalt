@@ -11,6 +11,7 @@
       'dependencies': [
         'some.gyp:*',
         '../base/base.gyp:*',
+        '../base/base_untrusted.gyp:*',
         '../chrome/chrome.gyp:*',
         '../content/content.gyp:*',
         '../crypto/crypto.gyp:*',
@@ -173,6 +174,9 @@
       'type': 'none',
       'dependencies': [
         '../base/base.gyp:base_unittests',
+        # TODO(bbudge): drop this when something meaningful depends on
+        # base_untrusted.
+        '../base/base_untrusted.gyp:base_untrusted',
         '../chrome/chrome.gyp:browser_tests',
         '../chrome/chrome.gyp:interactive_ui_tests',
         '../chrome/chrome.gyp:safe_browsing_tests',

@@ -7,13 +7,13 @@
 # included by common.gypi for chromium_code.
 
 {
-  'conditions': [
-    ['OS!="win"', {
+  'target_conditions': [
+    ['OS!="win" or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_win(_unittest)?\\.(h|cc)$'],
                     ['exclude', '(^|/)win/'],
                     ['exclude', '(^|/)win_[^/]*\\.(h|cc)$'] ],
     }],
-    ['OS!="mac"', {
+    ['OS!="mac" or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.(h|cc)$'],
                     ['exclude', '(^|/)(cocoa|mac)/'],
                     ['exclude', '\\.mm?$' ] ],
@@ -23,13 +23,13 @@
     # In case a file is not needed, it is going to be excluded later on.
     # TODO(evan): the above is not correct; we shouldn't build _linux
     # files on non-linux.
-    ['OS!="linux" and OS!="openbsd" and OS!="freebsd"', {
+    ['OS!="linux" and OS!="openbsd" and OS!="freebsd" or >(nacl_untrusted_build)==1', {
       'sources/': [
         ['exclude', '_linux(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)linux/'],
       ],
     }],
-    ['OS!="android" and OS!="linux" and OS!="openbsd" and OS!="freebsd"', {
+    ['OS!="android" and OS!="linux" and OS!="openbsd" and OS!="freebsd" or >(nacl_untrusted_build)==1', {
       'sources/': [
         ['exclude', '_linuxish(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)linuxish/'],
@@ -41,51 +41,48 @@
         ['exclude', '(^|/)android/'],
       ],
     }],
-    ['OS=="win"', {
+    ['OS=="win" or >(nacl_untrusted_build)==1', {
       'sources/': [
         ['exclude', '_posix(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)posix/'],
       ],
-
     }],
-    ['chromeos!=1', {
+    ['<(chromeos)!=1 or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_chromeos\\.(h|cc)$'] ]
     }],
-    ['OS!="linux" and OS!="openbsd" and OS!="freebsd"', {
+    ['OS!="linux" and OS!="openbsd" and OS!="freebsd" or >(nacl_untrusted_build)==1', {
       'sources/': [
         ['exclude', '_xdg(_unittest)?\\.(h|cc)$'],
       ],
     }],
-
-
-    ['use_x11!=1', {
+    ['<(use_x11)!=1 or >(nacl_untrusted_build)==1', {
       'sources/': [
         ['exclude', '_(chromeos|x|x11)(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)x11_[^/]*\\.(h|cc)$'],
       ],
     }],
-    ['toolkit_uses_gtk!=1', {
+    ['<(toolkit_uses_gtk)!=1 or >(nacl_untrusted_build)==1', {
       'sources/': [
         ['exclude', '_gtk(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)gtk/'],
         ['exclude', '(^|/)gtk_[^/]*\\.(h|cc)$'],
       ],
     }],
-    ['toolkit_views==0', {
+    ['<(toolkit_views)==0 or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_views\\.(h|cc)$'] ]
     }],
-    ['use_aura==0', {
+    ['<(use_aura)==0 or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_aura(_unittest)?\\.(h|cc)$'],
                     ['exclude', '(^|/)aura/'],
       ]
     }],
-    ['use_aura==0 or use_x11==0', {
+    ['<(use_aura)==0 or <(use_x11)==0 or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_aurax11\\.(h|cc)$'] ]
     }],
-    ['use_aura==0 or OS!="win"', {
+    ['<(use_aura)==0 or OS!="win" or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_aurawin\\.(h|cc)$'] ]
     }],
-    ['use_ash==0', {
+    ['<(use_ash)==0 or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_ash(_unittest)?\\.(h|cc)$'],
                     ['exclude', '(^|/)ash/'],
       ]

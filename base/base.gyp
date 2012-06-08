@@ -35,24 +35,22 @@
         ],
       },
       'conditions': [
-        [ 'use_glib==1', {
+        ['use_glib==1', {
           'conditions': [
-            [ 'chromeos==1', {
-                'sources/': [ ['include', '_chromeos\\.cc$'] ]
-              },
-            ],
-            [ 'linux_use_tcmalloc==0', {
+            ['chromeos==1', {
+              'sources/': [ ['include', '_chromeos\\.cc$'] ]
+            }],
+            ['linux_use_tcmalloc==0', {
+              'defines': [
+                'NO_TCMALLOC',
+              ],
+              'direct_dependent_settings': {
                 'defines': [
                   'NO_TCMALLOC',
                 ],
-                'direct_dependent_settings': {
-                  'defines': [
-                    'NO_TCMALLOC',
-                  ],
-                },
               },
-            ],
-            [ 'toolkit_uses_gtk==1', {
+            }],
+            ['toolkit_uses_gtk==1', {
               'dependencies': [
                 '../build/linux/system.gyp:gtk',
               ],
@@ -83,7 +81,7 @@
               ['exclude', '_nss\.cc$'],
             ],
         }],
-        [ 'OS == "android" and _toolset == "host"', {
+        ['OS == "android" and _toolset == "host"', {
           # Base for host support is the minimum required to run the
           # ssl false start blacklist tool. It requires further changes
           # to generically support host builds (and tests).
@@ -115,7 +113,7 @@
             }],
           ],
         }],
-        [ 'OS == "android" and _toolset == "target"', {
+        ['OS == "android" and _toolset == "target"', {
           'conditions': [
             ['target_arch == "ia32"', {
               'sources/': [
@@ -146,28 +144,27 @@
             'debug/stack_trace_posix.cc',
           ],
         }],
-        [ 'os_bsd==1', {
+        ['os_bsd==1', {
           'include_dirs': [
             '/usr/local/include',
           ],
           'link_settings': {
             'libraries': [
               '-L/usr/local/lib -lexecinfo',
-              ],
-            },
+            ],
           },
-        ],
-        [ 'OS == "linux"', {
-          'link_settings': {
-             'libraries': [
-             # We need rt for clock_gettime().
-             '-lrt',
-             # For 'native_library_linux.cc'
-             '-ldl',
-           ],
-         },
         }],
-        [ 'OS == "mac"', {
+        ['OS == "linux"', {
+          'link_settings': {
+            'libraries': [
+              # We need rt for clock_gettime().
+              '-lrt',
+              # For 'native_library_linux.cc'
+              '-ldl',
+            ],
+          },
+        }],
+        ['OS == "mac"', {
           'link_settings': {
             'libraries': [
               '$(SDKROOT)/System/Library/Frameworks/AppKit.framework',
@@ -182,10 +179,10 @@
             '../third_party/mach_override/mach_override.gyp:mach_override',
           ],
         }],
-        [ 'OS != "win"', {
+        ['OS != "win"', {
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
         },],
-        [ 'component=="shared_library"', {
+        ['component=="shared_library"', {
           'conditions': [
             ['OS=="win"', {
               'sources!': [
@@ -761,7 +758,7 @@
     },
   ],
   'conditions': [
-    [ 'OS == "win"', {
+    ['OS == "win"', {
       'targets': [
         {
           'target_name': 'base_nacl_win64',
@@ -790,7 +787,7 @@
             },
           },
           'conditions': [
-            [ 'component == "shared_library"', {
+            ['component == "shared_library"', {
               'sources!': [
                 'debug/debug_on_start_win.cc',
               ],
@@ -825,7 +822,7 @@
         },
       ],
     }],
-    [ 'os_posix==1 and OS!="mac"', {
+    ['os_posix==1 and OS!="mac"', {
       'targets': [
         {
           'target_name': 'symbolize',
@@ -835,7 +832,7 @@
             'chromium_code': 0,
           },
           'conditions': [
-            [ 'OS == "solaris"', {
+            ['OS == "solaris"', {
               'include_dirs': [
                 '/usr/gnu/include',
                 '/usr/gnu/include/libelf',
@@ -942,41 +939,41 @@
       ],
     }],
     ['OS=="mac"', {
-     'targets': [
-       {
-         'target_name': 'closure_blocks_leopard_compat',
-         'sources': [
-           'mac/closure_blocks_leopard_compat.h',
-         ],
-         'conditions': [
-           ['mac_sdk == "10.5"', {
-             'type': 'shared_library',
-             'product_name': 'closure_blocks_leopard_compat_stub',
-             'variables': {
-               # This target controls stripping directly. See below.
-               'mac_strip': 0,
-             },
-             'sources': [
-               'mac/closure_blocks_leopard_compat.S',
-             ],
-             'xcode_settings': {
-               # These values are taken from libSystem.dylib in the 10.5
-               # SDK. Setting LD_DYLIB_INSTALL_NAME causes anything linked
-               # against this stub library to look for the symbols it
-               # provides in the real libSystem at runtime. When using ld
-               # from Xcode 4 or later (ld64-123.2 and up), giving two
-               # libraries with the same "install name" to the linker will
-               # cause it to print "ld: warning: dylibs with same install
-               # name". This is harmless, and ld will behave as intended
-               # here.
-               #
-               # The real library's compatibility version is used, and the
-               # value of the current version from the SDK is used to make
-               # it appear as though anything linked against this stub was
-               # linked against the real thing.
-               'LD_DYLIB_INSTALL_NAME': '/usr/lib/libSystem.B.dylib',
-               'DYLIB_COMPATIBILITY_VERSION': '1.0.0',
-               'DYLIB_CURRENT_VERSION': '111.1.4',
+      'targets': [
+        {
+          'target_name': 'closure_blocks_leopard_compat',
+          'sources': [
+            'mac/closure_blocks_leopard_compat.h',
+          ],
+          'conditions': [
+            ['mac_sdk == "10.5"', {
+              'type': 'shared_library',
+              'product_name': 'closure_blocks_leopard_compat_stub',
+              'variables': {
+                # This target controls stripping directly. See below.
+                'mac_strip': 0,
+              },
+              'sources': [
+                'mac/closure_blocks_leopard_compat.S',
+              ],
+              'xcode_settings': {
+                # These values are taken from libSystem.dylib in the 10.5
+                # SDK. Setting LD_DYLIB_INSTALL_NAME causes anything linked
+                # against this stub library to look for the symbols it
+                # provides in the real libSystem at runtime. When using ld
+                # from Xcode 4 or later (ld64-123.2 and up), giving two
+                # libraries with the same "install name" to the linker will
+                # cause it to print "ld: warning: dylibs with same install
+                # name". This is harmless, and ld will behave as intended
+                # here.
+                #
+                # The real library's compatibility version is used, and the
+                # value of the current version from the SDK is used to make
+                # it appear as though anything linked against this stub was
+                # linked against the real thing.
+                'LD_DYLIB_INSTALL_NAME': '/usr/lib/libSystem.B.dylib',
+                'DYLIB_COMPATIBILITY_VERSION': '1.0.0',
+                'DYLIB_CURRENT_VERSION': '111.1.4',
 
                # Turn on stripping (yes, even in debug mode), and add the -c
                # flag. This is what produces a stub library (MH_DYLIB_STUB)
@@ -1025,7 +1022,8 @@
             'input_jars_paths': ['<(PRODUCT_DIR)/lib.java/chromium_base.jar',],
           },
           'includes': [ '../build/apk_test.gypi' ],
-        }],
+        },
+      ],
     }],
   ],
 }
