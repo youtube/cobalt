@@ -197,7 +197,8 @@ void VideoCaptureDeviceLinux::OnAllocate(int width,
 
   observer_ = observer;
 
-  if ((device_fd_ = open(device_name_.unique_id.c_str(), O_RDONLY)) < 0) {
+  // Need to open camera with O_RDWR after Linux kernel 3.3.
+  if ((device_fd_ = open(device_name_.unique_id.c_str(), O_RDWR)) < 0) {
     SetErrorState("Failed to open V4L2 device driver.");
     return;
   }
