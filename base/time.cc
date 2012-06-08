@@ -93,6 +93,23 @@ double Time::ToDoubleT() const {
 }
 
 // static
+Time Time::FromJsTime(double ms_since_epoch) {
+  // The epoch is a valid time, so this constructor doesn't interpret
+  // 0 as the null time.
+  return Time(static_cast<int64>(ms_since_epoch * kMicrosecondsPerMillisecond) +
+              kTimeTToMicrosecondsOffset);
+}
+
+double Time::ToJsTime() const {
+  if (us_ == 0) {
+    // Preserve 0 so the invalid result doesn't depend on the platform.
+    return 0;
+  }
+  return (static_cast<double>(us_ - kTimeTToMicrosecondsOffset) /
+          kMicrosecondsPerMillisecond);
+}
+
+// static
 Time Time::UnixEpoch() {
   Time time;
   time.us_ = kTimeTToMicrosecondsOffset;
