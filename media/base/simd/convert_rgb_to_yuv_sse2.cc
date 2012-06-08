@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,14 +18,19 @@ namespace media {
 #define FIX_SHIFT 12
 #define FIX(x) ((x) * (1 << FIX_SHIFT))
 
+// Define a convenient macro to do static cast.
+#define INT16_FIX(x) static_cast<int16>(FIX(x))
+
 SIMD_ALIGNED(const int16 ConvertRGBAToYUV_kTable[8 * 3]) = {
-  FIX(0.098), FIX(0.504), FIX(0.257), 0,
-  FIX(0.098), FIX(0.504), FIX(0.257), 0,
-  FIX(0.439), -FIX(0.291), -FIX(0.148), 0,
-  FIX(0.439), -FIX(0.291), -FIX(0.148), 0,
- -FIX(0.071), -FIX(0.368), FIX(0.439), 0,
-  -FIX(0.071), -FIX(0.368), FIX(0.439), 0,
+  INT16_FIX(0.098), INT16_FIX(0.504), INT16_FIX(0.257), 0,
+  INT16_FIX(0.098), INT16_FIX(0.504), INT16_FIX(0.257), 0,
+  INT16_FIX(0.439), -INT16_FIX(0.291), -INT16_FIX(0.148), 0,
+  INT16_FIX(0.439), -INT16_FIX(0.291), -INT16_FIX(0.148), 0,
+  -INT16_FIX(0.071), -INT16_FIX(0.368), INT16_FIX(0.439), 0,
+  -INT16_FIX(0.071), -INT16_FIX(0.368), INT16_FIX(0.439), 0,
 };
+
+#undef INT16_FIX
 
 // This is the final offset for the conversion from signed yuv values to
 // unsigned values. It is arranged so that offset of 16 is applied to Y
