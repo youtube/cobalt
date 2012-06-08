@@ -16,7 +16,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
-#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 
 namespace base {
@@ -26,13 +25,11 @@ class DictionaryValue;
 namespace net {
 
 // CapturingNetLog is an implementation of NetLog that saves messages to a
-// bounded buffer.  CapturingNetLogs should only be used in unit tests, never
-// in production code.
-// TODO(mmenke):  Move CapturingNetLog to net_unittests project, once the CL
-//                to remove the use of it in the Jingle unit tests has landed.
-class NET_EXPORT CapturingNetLog : public NetLog {
+// bounded buffer.  It is intended for testing only, and is part of the
+// net_test_support project.
+class CapturingNetLog : public NetLog {
  public:
-  struct NET_EXPORT_PRIVATE CapturedEntry {
+  struct CapturedEntry {
     CapturedEntry(EventType type,
                   const base::TimeTicks& time,
                   Source source,
@@ -116,7 +113,7 @@ class NET_EXPORT CapturingNetLog : public NetLog {
 //
 // CapturingBoundNetLog can easily be converted to a BoundNetLog using the
 // bound() method.
-class NET_EXPORT_PRIVATE CapturingBoundNetLog {
+class CapturingBoundNetLog {
  public:
   explicit CapturingBoundNetLog(size_t max_num_entries);
 
