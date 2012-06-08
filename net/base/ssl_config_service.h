@@ -180,9 +180,6 @@ class NET_EXPORT SSLConfigService
   static void SetDefaultVersionMax(uint16 version_max);
   static uint16 default_version_max();
 
-  // Force domain bound cert support to be enabled.
-  static void EnableDomainBoundCertsTrial();
-
   // Is SNI available in this configuration?
   static bool IsSNIAvailable(SSLConfigService* service);
 
