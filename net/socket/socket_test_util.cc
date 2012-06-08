@@ -117,6 +117,26 @@ void DumpMockRead(const MockRead& r) {
 
 }  // namespace
 
+MockConnect::MockConnect() : mode(ASYNC), result(OK) {
+  IPAddressNumber ip;
+  CHECK(ParseIPLiteralToNumber("192.0.2.33", &ip));
+  peer_addr = IPEndPoint(ip, 0);
+}
+
+MockConnect::MockConnect(IoMode io_mode, int r) : mode(io_mode), result(r) {
+  IPAddressNumber ip;
+  CHECK(ParseIPLiteralToNumber("192.0.2.33", &ip));
+  peer_addr = IPEndPoint(ip, 0);
+}
+
+MockConnect::MockConnect(IoMode io_mode, int r, IPEndPoint addr) :
+    mode(io_mode),
+    result(r),
+    peer_addr(addr) {
+}
+
+MockConnect::~MockConnect() {}
+
 StaticSocketDataProvider::StaticSocketDataProvider()
     : reads_(NULL),
       read_index_(0),
@@ -638,6 +658,9 @@ MockClientSocket::MockClientSocket(net::NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       connected_(false),
       net_log_(BoundNetLog::Make(net_log, net::NetLog::SOURCE_NONE)) {
+  IPAddressNumber ip;
+  CHECK(ParseIPLiteralToNumber("192.0.2.33", &ip));
+  peer_addr_ = IPEndPoint(ip, 0);
 }
 
 bool MockClientSocket::SetReceiveBufferSize(int32 size) {
@@ -661,10 +684,7 @@ bool MockClientSocket::IsConnectedAndIdle() const {
 }
 
 int MockClientSocket::GetPeerAddress(IPEndPoint* address) const {
-  IPAddressNumber ip;
-  bool rv = ParseIPLiteralToNumber("192.0.2.33", &ip);
-  CHECK(rv);
-  *address = IPEndPoint(ip, 0);
+  *address = peer_addr_;
   return OK;
 }
 
@@ -739,6 +759,7 @@ MockTCPClientSocket::MockTCPClientSocket(const AddressList& addresses,
       pending_buf_len_(0),
       was_used_to_convey_data_(false) {
   DCHECK(data_);
+  peer_addr_ = data->connect_data().peer_addr;
   data_->Reset();
 }
 
@@ -825,8 +846,6 @@ bool MockTCPClientSocket::IsConnectedAndIdle() const {
 }
 
 int MockTCPClientSocket::GetPeerAddress(IPEndPoint* address) const {
-  if (!IsConnected())
-    return ERR_SOCKET_NOT_CONNECTED;
   return MockClientSocket::GetPeerAddress(address);
 }
 
@@ -1072,6 +1091,7 @@ MockSSLClientSocket::MockSSLClientSocket(
       is_protocol_negotiated_set_(false),
       protocol_negotiated_(kProtoUnknown) {
   DCHECK(data_);
+  peer_addr_ = data->connect.peer_addr;
   delete ssl_host_info;  // we take ownership but don't use it.
 }
 
@@ -1124,6 +1144,10 @@ bool MockSSLClientSocket::UsingTCPFastOpen() const {
 
 int64 MockSSLClientSocket::NumBytesRead() const {
   return -1;
+}
+
+int MockSSLClientSocket::GetPeerAddress(IPEndPoint* address) const {
+  return transport_->socket()->GetPeerAddress(address);
 }
 
 base::TimeDelta MockSSLClientSocket::GetConnectTimeMicros() const {

@@ -49,8 +49,11 @@ TransportSocketParams::TransportSocketParams(
     const HostPortPair& host_port_pair,
     RequestPriority priority,
     bool disable_resolver_cache,
-    bool ignore_limits)
-    : destination_(host_port_pair), ignore_limits_(ignore_limits) {
+    bool ignore_limits,
+    const OnHostResolutionCallback& host_resolution_callback)
+    : destination_(host_port_pair),
+      ignore_limits_(ignore_limits),
+      host_resolution_callback_(host_resolution_callback) {
   Initialize(priority, disable_resolver_cache);
 }
 
@@ -166,8 +169,14 @@ int TransportConnectJob::DoResolveHost() {
 }
 
 int TransportConnectJob::DoResolveHostComplete(int result) {
-  if (result == OK)
-    next_state_ = STATE_TRANSPORT_CONNECT;
+  if (result == OK) {
+    // Invoke callback, and abort if it fails.
+    if (!params_->host_resolution_callback().is_null())
+      result = params_->host_resolution_callback().Run(addresses_, net_log());
+
+    if (result == OK)
+      next_state_ = STATE_TRANSPORT_CONNECT;
+  }
   return result;
 }
 

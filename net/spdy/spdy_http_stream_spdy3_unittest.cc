@@ -46,7 +46,8 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
     http_session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps_);
     session_ = http_session_->spdy_session_pool()->Get(pair, BoundNetLog());
     transport_params_ = new TransportSocketParams(host_port_pair,
-                                      MEDIUM, false, false);
+                                                  MEDIUM, false, false,
+                                                  OnHostResolutionCallback());
     TestCompletionCallback callback;
     scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
     EXPECT_EQ(ERR_IO_PENDING,
@@ -390,7 +391,8 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
       &session_deps_);
   session_ = http_session_->spdy_session_pool()->Get(pair, BoundNetLog());
   transport_params_ = new TransportSocketParams(host_port_pair,
-                                                MEDIUM, false, false);
+                                                MEDIUM, false, false,
+                                                OnHostResolutionCallback());
   TestCompletionCallback callback;
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   SSLConfig ssl_config;
