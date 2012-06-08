@@ -7744,7 +7744,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test,
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(pair, BoundNetLog());
   scoped_refptr<TransportSocketParams> transport_params(
-      new TransportSocketParams(host_port_pair, MEDIUM, false, false));
+      new TransportSocketParams(host_port_pair, MEDIUM, false, false,
+                                OnHostResolutionCallback()));
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(ERR_IO_PENDING,
@@ -9004,7 +9005,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test, PreconnectWithExistingSpdySession) {
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(pair, BoundNetLog());
   scoped_refptr<TransportSocketParams> transport_params(
-      new TransportSocketParams(host_port_pair, MEDIUM, false, false));
+      new TransportSocketParams(host_port_pair, MEDIUM, false, false,
+                                OnHostResolutionCallback()));
   TestCompletionCallback callback;
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
@@ -9395,42 +9397,6 @@ TEST_F(HttpNetworkTransactionSpdy3Test, ClientAuthCertCache_Proxy_Fail) {
   }
 }
 
-namespace {
-
-void IPPoolingAddAlias(MockCachingHostResolver* host_resolver,
-                       SpdySessionPoolPeer* pool_peer,
-                       std::string host,
-                       int port,
-                       std::string iplist) {
-  // Create a host resolver dependency that returns address |iplist| for
-  // resolutions of |host|.
-  host_resolver->rules()->AddIPLiteralRule(host, iplist, "");
-
-  // Setup a HostPortProxyPair.
-  HostPortPair host_port_pair(host, port);
-  HostPortProxyPair pair = HostPortProxyPair(host_port_pair,
-                                             ProxyServer::Direct());
-
-  // Resolve the host and port.
-  AddressList addresses;
-  HostResolver::RequestInfo info(host_port_pair);
-  TestCompletionCallback callback;
-  int rv = host_resolver->Resolve(info, &addresses, callback.callback(), NULL,
-                                  BoundNetLog());
-  if (rv == ERR_IO_PENDING)
-    rv = callback.WaitForResult();
-  DCHECK_EQ(OK, rv);
-
-  // Add the first address as an alias. It would have been better to call
-  // MockClientSocket::GetPeerAddress but that returns 192.0.2.33 whereas
-  // MockHostResolver returns 127.0.0.1 (MockHostResolverBase::Reset). So we use
-  // the first address (127.0.0.1) returned by MockHostResolver as an alias for
-  // the |pair|.
-  pool_peer->AddAlias(addresses.front(), pair);
-}
-
-}  // namespace
-
 TEST_F(HttpNetworkTransactionSpdy3Test, UseIPConnectionPooling) {
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::SetNextProtos(SpdyNextProtos());
@@ -9476,8 +9442,13 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UseIPConnectionPooling) {
     MockRead(ASYNC, 0, 7),
   };
 
+  IPAddressNumber ip;
+  ASSERT_TRUE(ParseIPLiteralToNumber("127.0.0.1", &ip));
+  IPEndPoint peer_addr = IPEndPoint(ip, 443);
+  MockConnect connect(ASYNC, OK, peer_addr);
   scoped_ptr<OrderedSocketData> spdy_data(
       new OrderedSocketData(
+          connect,
           spdy_reads, arraysize(spdy_reads),
           spdy_writes, arraysize(spdy_writes)));
   session_deps.socket_factory.AddSocketDataProvider(spdy_data.get());
@@ -9512,11 +9483,104 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UseIPConnectionPooling) {
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
 
-  // MockHostResolver returns 127.0.0.1, port 443 for https://www.google.com/
-  // and https://www.gmail.com/. Add 127.0.0.1 as alias for host_port_pair:
-  // (www.google.com, 443).
-  IPPoolingAddAlias(&host_resolver, &pool_peer, "www.google.com", 443,
-                    "127.0.0.1");
+  HttpRequestInfo request2;
+  request2.method = "GET";
+  request2.url = GURL("https://www.gmail.com/");
+  request2.load_flags = 0;
+  HttpNetworkTransaction trans2(session);
+
+  rv = trans2.Start(&request2, callback.callback(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  response = trans2.GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  EXPECT_TRUE(response->was_npn_negotiated);
+  ASSERT_EQ(OK, ReadTransaction(&trans2, &response_data));
+  EXPECT_EQ("hello!", response_data);
+
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
+  HttpStreamFactory::set_use_alternate_protocols(false);
+}
+
+TEST_F(HttpNetworkTransactionSpdy3Test, UseIPConnectionPoolingAfterResolution) {
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
+
+  // Set up a special HttpNetworkSession with a MockCachingHostResolver.
+  SessionDependencies session_deps;
+  MockCachingHostResolver host_resolver;
+  net::HttpNetworkSession::Params params;
+  params.client_socket_factory = &session_deps.socket_factory;
+  params.host_resolver = &host_resolver;
+  params.cert_verifier = session_deps.cert_verifier.get();
+  params.proxy_service = session_deps.proxy_service.get();
+  params.ssl_config_service = session_deps.ssl_config_service;
+  params.http_auth_handler_factory =
+      session_deps.http_auth_handler_factory.get();
+  params.http_server_properties = &session_deps.http_server_properties;
+  params.net_log = session_deps.net_log;
+  scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
+  SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
+  pool_peer.DisableDomainAuthenticationVerification();
+
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.SetNextProto(kProtoSPDY3);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  scoped_ptr<SpdyFrame> host1_req(ConstructSpdyGet(
+      "https://www.google.com", false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> host2_req(ConstructSpdyGet(
+      "https://www.gmail.com", false, 3, LOWEST));
+  MockWrite spdy_writes[] = {
+    CreateMockWrite(*host1_req, 1),
+    CreateMockWrite(*host2_req, 4),
+  };
+  scoped_ptr<SpdyFrame> host1_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<SpdyFrame> host1_resp_body(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<SpdyFrame> host2_resp(ConstructSpdyGetSynReply(NULL, 0, 3));
+  scoped_ptr<SpdyFrame> host2_resp_body(ConstructSpdyBodyFrame(3, true));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*host1_resp, 2),
+    CreateMockRead(*host1_resp_body, 3),
+    CreateMockRead(*host2_resp, 5),
+    CreateMockRead(*host2_resp_body, 6),
+    MockRead(ASYNC, 0, 7),
+  };
+
+  IPAddressNumber ip;
+  ASSERT_TRUE(ParseIPLiteralToNumber("127.0.0.1", &ip));
+  IPEndPoint peer_addr = IPEndPoint(ip, 443);
+  MockConnect connect(ASYNC, OK, peer_addr);
+  scoped_ptr<OrderedSocketData> spdy_data(
+      new OrderedSocketData(
+          connect,
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data.get());
+
+  TestCompletionCallback callback;
+  HttpRequestInfo request1;
+  request1.method = "GET";
+  request1.url = GURL("https://www.google.com/");
+  request1.load_flags = 0;
+  HttpNetworkTransaction trans1(session);
+
+  int rv = trans1.Start(&request1, callback.callback(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans1.GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(&trans1, &response_data));
+  EXPECT_EQ("hello!", response_data);
 
   HttpRequestInfo request2;
   request2.method = "GET";
@@ -9627,8 +9691,13 @@ TEST_F(HttpNetworkTransactionSpdy3Test,
     MockRead(ASYNC, 0, 7),
   };
 
+  IPAddressNumber ip;
+  ASSERT_TRUE(ParseIPLiteralToNumber("127.0.0.1", &ip));
+  IPEndPoint peer_addr = IPEndPoint(ip, 443);
+  MockConnect connect(ASYNC, OK, peer_addr);
   scoped_ptr<OrderedSocketData> spdy_data(
       new OrderedSocketData(
+          connect,
           spdy_reads, arraysize(spdy_reads),
           spdy_writes, arraysize(spdy_writes)));
   session_deps.socket_factory.AddSocketDataProvider(spdy_data.get());
@@ -9667,12 +9736,6 @@ TEST_F(HttpNetworkTransactionSpdy3Test,
   request2.url = GURL("https://www.gmail.com/");
   request2.load_flags = 0;
   HttpNetworkTransaction trans2(session);
-
-  // MockHostResolver returns 127.0.0.1, port 443 for https://www.google.com/
-  // and https://www.gmail.com/. Add 127.0.0.1 as alias for host_port_pair:
-  // (www.google.com, 443).
-  IPPoolingAddAlias(host_resolver.GetMockHostResolver(), &pool_peer,
-                    "www.google.com", 443, "127.0.0.1");
 
   rv = trans2.Start(&request2, callback.callback(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);

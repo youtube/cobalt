@@ -48,7 +48,8 @@ class SSLClientSocketPoolTest : public testing::Test {
             &host_resolver_)),
         session_(CreateNetworkSession()),
         direct_transport_socket_params_(new TransportSocketParams(
-            HostPortPair("host", 443), MEDIUM, false, false)),
+            HostPortPair("host", 443), MEDIUM, false, false,
+            OnHostResolutionCallback())),
         transport_histograms_("MockTCP"),
         transport_socket_pool_(
             kMaxSockets,
@@ -56,7 +57,8 @@ class SSLClientSocketPoolTest : public testing::Test {
             &transport_histograms_,
             &socket_factory_),
         proxy_transport_socket_params_(new TransportSocketParams(
-            HostPortPair("proxy", 443), MEDIUM, false, false)),
+            HostPortPair("proxy", 443), MEDIUM, false, false,
+            OnHostResolutionCallback())),
         socks_socket_params_(new SOCKSSocketParams(
             proxy_transport_socket_params_, true,
             HostPortPair("sockshost", 443), MEDIUM)),

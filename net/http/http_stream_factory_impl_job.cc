@@ -285,6 +285,15 @@ void HttpStreamFactoryImpl::Job::GetSSLInfo() {
   ssl_socket->GetSSLInfo(&ssl_info_);
 }
 
+HostPortProxyPair HttpStreamFactoryImpl::Job::GetSpdySessionKey() const {
+  if (IsHttpsProxyAndHttpUrl()) {
+    return HostPortProxyPair(proxy_info_.proxy_server().host_port_pair(),
+                             ProxyServer::Direct());
+  } else {
+    return HostPortProxyPair(origin_, proxy_info_.proxy_server());
+  }
+}
+
 void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
   DCHECK(stream_.get());
   DCHECK(!IsPreconnecting());
@@ -382,6 +391,20 @@ void HttpStreamFactoryImpl::Job::OnPreconnectsComplete() {
   }
   stream_factory_->OnPreconnectsComplete(this);
   // |this| may be deleted after this call.
+}
+
+// static
+int HttpStreamFactoryImpl::Job::OnHostResolution(
+    SpdySessionPool* spdy_session_pool,
+    const HostPortProxyPair spdy_session_key,
+    const AddressList& addresses,
+    const BoundNetLog& net_log) {
+  // It is OK to dereference spdy_session_pool, because the
+  // ClientSocketPoolManager will be destroyed in the same callback that
+  // destroys the SpdySessionPool.
+  bool has_session =
+      spdy_session_pool->GetIfExists(spdy_session_key, net_log) != NULL;
+  return has_session ? ERR_SPDY_SESSION_ALREADY_EXISTS  : OK;
 }
 
 void HttpStreamFactoryImpl::Job::OnIOComplete(int result) {
@@ -670,14 +693,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
 
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
-  HostPortProxyPair spdy_session_key;
-  if (IsHttpsProxyAndHttpUrl()) {
-    spdy_session_key =
-        HostPortProxyPair(proxy_info_.proxy_server().host_port_pair(),
-                          ProxyServer::Direct());
-  } else {
-    spdy_session_key = HostPortProxyPair(origin_, proxy_info_.proxy_server());
-  }
+  HostPortProxyPair spdy_session_key = GetSpdySessionKey();
   scoped_refptr<SpdySession> spdy_session =
       session_->spdy_session_pool()->GetIfExists(spdy_session_key, net_log_);
   if (spdy_session) {
@@ -757,13 +773,33 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
         origin_url_, request_info_.extra_headers, request_info_.load_flags,
         request_info_.priority, session_, proxy_info_, ShouldForceSpdySSL(),
         want_spdy_over_npn, server_ssl_config_, proxy_ssl_config_, net_log_,
-        connection_.get(), io_callback_);
+        connection_.get(),
+        //OnHostResolutionCallback(),
+        base::Bind(&Job::OnHostResolution, session_->spdy_session_pool(),
+                   GetSpdySessionKey()),
+        io_callback_);
   }
 }
 
 int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
   if (IsPreconnecting()) {
     DCHECK_EQ(OK, result);
+    return OK;
+  }
+
+  if (result == ERR_SPDY_SESSION_ALREADY_EXISTS) {
+    // We found a SPDY connection after resolving the host.  This is
+    // probably an IP pooled connection.
+    HostPortProxyPair spdy_session_key = GetSpdySessionKey();
+    existing_spdy_session_ =
+        session_->spdy_session_pool()->GetIfExists(spdy_session_key, net_log_);
+    if (existing_spdy_session_) {
+      using_spdy_ = true;
+      next_state_ = STATE_CREATE_STREAM;
+    } else {
+      // It is possible that the spdy session no longer exists.
+      ReturnToStateInitConnection(true /* close connection */);
+    }
     return OK;
   }
 
@@ -1042,7 +1078,7 @@ void HttpStreamFactoryImpl::Job::SetSocketMotivation() {
   // TODO(mbelshe): Add other motivations (like EARLY_LOAD_MOTIVATED).
 }
 
-bool HttpStreamFactoryImpl::Job::IsHttpsProxyAndHttpUrl() {
+bool HttpStreamFactoryImpl::Job::IsHttpsProxyAndHttpUrl() const {
   if (!proxy_info_.is_https())
     return false;
   if (original_url_.get()) {

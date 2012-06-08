@@ -69,7 +69,8 @@ DeterministicSocketDataTest::DeterministicSocketDataTest()
       tcp_params_(new TransportSocketParams(endpoint_,
                                             LOWEST,
                                             false,
-                                            false)),
+                                            false,
+                                            OnHostResolutionCallback())),
       histograms_(""),
       socket_pool_(10, 10, &histograms_, &socket_factory_) {
 }

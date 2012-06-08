@@ -23,6 +23,9 @@ class Value;
 
 namespace net {
 
+typedef base::Callback<int(const AddressList&, const BoundNetLog& net_log)>
+OnHostResolutionCallback;
+
 class BoundNetLog;
 class ClientSocketHandle;
 class HostPortPair;
@@ -84,6 +87,9 @@ class NET_EXPORT_PRIVATE ClientSocketPoolManager {
 // ClientSocketHandle with the relevant socket pool. Use this method for
 // HTTP/HTTPS requests. |ssl_config_for_origin| is only used if the request
 // uses SSL and |ssl_config_for_proxy| is used if the proxy server is HTTPS.
+// |resolution_callback| will be invoked after the the hostname is
+// resolved.  If |resolution_callback| does not return OK, then the
+// connection will be aborted with that value.
 int InitSocketHandleForHttpRequest(
     const GURL& request_url,
     const HttpRequestHeaders& request_extra_headers,
@@ -97,6 +103,7 @@ int InitSocketHandleForHttpRequest(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
+    const OnHostResolutionCallback& resolution_callback,
     const CompletionCallback& callback);
 
 // A helper method that uses the passed in proxy information to initialize a

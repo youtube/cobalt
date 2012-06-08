@@ -138,7 +138,8 @@ TEST_F(SpdySessionSpdy2Test, GoAway) {
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
                                 false,
-                                false));
+                                false,
+                                OnHostResolutionCallback()));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
                                  transport_params, MEDIUM, CompletionCallback(),
@@ -207,7 +208,8 @@ TEST_F(SpdySessionSpdy2Test, Ping) {
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
                                 false,
-                                false));
+                                false,
+                                OnHostResolutionCallback()));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
                                  transport_params, MEDIUM, CompletionCallback(),
@@ -294,7 +296,8 @@ TEST_F(SpdySessionSpdy2Test, FailedPing) {
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
                                 false,
-                                false));
+                                false,
+                                OnHostResolutionCallback()));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
                                  transport_params, MEDIUM, CompletionCallback(),
@@ -538,7 +541,8 @@ TEST_F(SpdySessionSpdy2Test, OnSettings) {
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
                                 false,
-                                false));
+                                false,
+                                OnHostResolutionCallback()));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
                                  transport_params, MEDIUM, CompletionCallback(),
@@ -621,7 +625,8 @@ TEST_F(SpdySessionSpdy2Test, CancelPendingCreateStream) {
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
                                 false,
-                                false));
+                                false,
+                                OnHostResolutionCallback()));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
                                  transport_params, MEDIUM, CompletionCallback(),
@@ -718,7 +723,8 @@ TEST_F(SpdySessionSpdy2Test, SendSettingsOnNewSession) {
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
                                 false,
-                                false));
+                                false,
+                                OnHostResolutionCallback()));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
                                  transport_params, MEDIUM, CompletionCallback(),
@@ -791,9 +797,10 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
   HostPortPair test_host_port_pair(test_hosts[0].name, kTestPort);
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(test_host_port_pair,
-                          MEDIUM,
-                          false,
-                          false));
+                                MEDIUM,
+                                false,
+                                false,
+                                OnHostResolutionCallback()));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
                                  transport_params, MEDIUM, CompletionCallback(),
@@ -935,7 +942,8 @@ TEST_F(SpdySessionSpdy2Test, NeedsCredentials) {
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
                                 false,
-                                false));
+                                false,
+                                OnHostResolutionCallback()));
   scoped_refptr<SOCKSSocketParams> socks_params;
   scoped_refptr<HttpProxySocketParams> http_proxy_params;
   scoped_refptr<SSLSocketParams> ssl_params(
@@ -1004,7 +1012,8 @@ TEST_F(SpdySessionSpdy2Test, CloseSessionOnError) {
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
                                 false,
-                                false));
+                                false,
+                                OnHostResolutionCallback()));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
                                  transport_params, MEDIUM, CompletionCallback(),
@@ -1088,7 +1097,8 @@ TEST_F(SpdySessionSpdy2Test, OutOfOrderSynStreams) {
       new TransportSocketParams(test_host_port_pair,
                                 MEDIUM,
                                 false,
-                                false));
+                                false,
+                                OnHostResolutionCallback()));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
                                  transport_params, MEDIUM, CompletionCallback(),
