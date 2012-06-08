@@ -52,8 +52,10 @@
 
         # all tcmalloc native and forked files
         '<(tcmalloc_dir)/src/addressmap-inl.h',
-        '<(tcmalloc_dir)/src/base/atomicops-internals-linuxppc.h',
+        '<(tcmalloc_dir)/src/base/abort.cc',
+        '<(tcmalloc_dir)/src/base/abort.h',
         '<(tcmalloc_dir)/src/base/arm_instruction_set_select.h',
+        '<(tcmalloc_dir)/src/base/atomicops-internals-linuxppc.h',
         '<(tcmalloc_dir)/src/base/atomicops-internals-arm-generic.h',
         '<(tcmalloc_dir)/src/base/atomicops-internals-arm-v6plus.h',
         '<(tcmalloc_dir)/src/base/atomicops-internals-macosx.h',
