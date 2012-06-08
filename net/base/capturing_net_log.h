@@ -65,11 +65,7 @@ class CapturingNetLog : public NetLog {
   // Ordered set of entries that were logged.
   typedef std::vector<CapturedEntry> CapturedEntryList;
 
-  enum { kUnbounded = -1 };
-
-  // Creates a CapturingNetLog that logs a maximum of |max_num_entries|
-  // messages.
-  explicit CapturingNetLog(size_t max_num_entries);
+  CapturingNetLog();
   virtual ~CapturingNetLog();
 
   // Returns the list of all entries in the log.
@@ -100,7 +96,6 @@ class CapturingNetLog : public NetLog {
   // Last assigned source ID.  Incremented to get the next one.
   base::subtle::Atomic32 last_id_;
 
-  size_t max_num_entries_;
   CapturedEntryList captured_entries_;
 
   NetLog::LogLevel log_level_;
@@ -115,8 +110,7 @@ class CapturingNetLog : public NetLog {
 // bound() method.
 class CapturingBoundNetLog {
  public:
-  explicit CapturingBoundNetLog(size_t max_num_entries);
-
+  CapturingBoundNetLog();
   ~CapturingBoundNetLog();
 
   // The returned BoundNetLog is only valid while |this| is alive.

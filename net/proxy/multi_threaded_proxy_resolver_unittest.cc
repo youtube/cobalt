@@ -276,7 +276,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_Basic) {
 
   // Start request 0.
   TestCompletionCallback callback0;
-  CapturingBoundNetLog log0(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log0;
   ProxyInfo results0;
   rv = resolver.GetProxyForURL(GURL("http://request0"), &results0,
                                callback0.callback(), NULL, log0.bound());
@@ -291,7 +291,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_Basic) {
   // on completion, this should have been copied into |log0|.
   // We also have 1 log entry that was emitted by the
   // MultiThreadedProxyResolver.
-  net::CapturingNetLog::CapturedEntryList entries0;
+  CapturingNetLog::CapturedEntryList entries0;
   log0.GetEntries(&entries0);
 
   ASSERT_EQ(2u, entries0.size());
@@ -370,7 +370,7 @@ TEST(MultiThreadedProxyResolverTest,
   ProxyResolver::RequestHandle request0;
   TestCompletionCallback callback0;
   ProxyInfo results0;
-  CapturingBoundNetLog log0(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log0;
   rv = resolver.GetProxyForURL(GURL("http://request0"), &results0,
                                callback0.callback(), &request0, log0.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -379,7 +379,7 @@ TEST(MultiThreadedProxyResolverTest,
 
   TestCompletionCallback callback1;
   ProxyInfo results1;
-  CapturingBoundNetLog log1(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log1;
   rv = resolver.GetProxyForURL(GURL("http://request1"), &results1,
                                callback1.callback(), NULL, log1.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -387,7 +387,7 @@ TEST(MultiThreadedProxyResolverTest,
   ProxyResolver::RequestHandle request2;
   TestCompletionCallback callback2;
   ProxyInfo results2;
-  CapturingBoundNetLog log2(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log2;
   rv = resolver.GetProxyForURL(GURL("http://request2"), &results2,
                                callback2.callback(), &request2, log2.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -402,7 +402,7 @@ TEST(MultiThreadedProxyResolverTest,
   EXPECT_EQ(0, callback0.WaitForResult());
   EXPECT_EQ("PROXY request0:80", results0.ToPacString());
 
-  net::CapturingNetLog::CapturedEntryList entries0;
+  CapturingNetLog::CapturedEntryList entries0;
   log0.GetEntries(&entries0);
 
   ASSERT_EQ(2u, entries0.size());
@@ -413,7 +413,7 @@ TEST(MultiThreadedProxyResolverTest,
   EXPECT_EQ(1, callback1.WaitForResult());
   EXPECT_EQ("PROXY request1:80", results1.ToPacString());
 
-  net::CapturingNetLog::CapturedEntryList entries1;
+  CapturingNetLog::CapturedEntryList entries1;
   log1.GetEntries(&entries1);
 
   ASSERT_EQ(4u, entries1.size());
@@ -428,7 +428,7 @@ TEST(MultiThreadedProxyResolverTest,
   EXPECT_EQ(2, callback2.WaitForResult());
   EXPECT_EQ("PROXY request2:80", results2.ToPacString());
 
-  net::CapturingNetLog::CapturedEntryList entries2;
+  CapturingNetLog::CapturedEntryList entries2;
   log2.GetEntries(&entries2);
 
   ASSERT_EQ(4u, entries2.size());

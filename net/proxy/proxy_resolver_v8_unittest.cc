@@ -130,7 +130,7 @@ TEST(ProxyResolverV8Test, Direct) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   result = resolver.GetProxyForURL(
       kQueryUrl, &proxy_info, CompletionCallback(), NULL, log.bound());
 
@@ -475,9 +475,8 @@ TEST(ProxyResolverV8Test, EndsWithCommentNoNewline) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   result = resolver.GetProxyForURL(
-      kQueryUrl, &proxy_info, CompletionCallback(), NULL, log.bound());
+      kQueryUrl, &proxy_info, CompletionCallback(), NULL, BoundNetLog());
 
   EXPECT_EQ(OK, result);
   EXPECT_FALSE(proxy_info.is_direct());
@@ -495,9 +494,8 @@ TEST(ProxyResolverV8Test, EndsWithStatementNoNewline) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   result = resolver.GetProxyForURL(
-      kQueryUrl, &proxy_info, CompletionCallback(), NULL, log.bound());
+      kQueryUrl, &proxy_info, CompletionCallback(), NULL, BoundNetLog());
 
   EXPECT_EQ(OK, result);
   EXPECT_FALSE(proxy_info.is_direct());

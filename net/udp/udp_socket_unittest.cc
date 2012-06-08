@@ -132,7 +132,7 @@ TEST_F(UDPSocketTest, Connect) {
   // Setup the server to listen.
   IPEndPoint bind_address;
   CreateUDPAddress("0.0.0.0", kPort, &bind_address);
-  CapturingNetLog server_log(CapturingNetLog::kUnbounded);
+  CapturingNetLog server_log;
   scoped_ptr<UDPServerSocket> server(
       new UDPServerSocket(&server_log, NetLog::Source()));
   int rv = server->Listen(bind_address);
@@ -141,7 +141,7 @@ TEST_F(UDPSocketTest, Connect) {
   // Setup the client.
   IPEndPoint server_address;
   CreateUDPAddress("127.0.0.1", kPort, &server_address);
-  CapturingNetLog client_log(CapturingNetLog::kUnbounded);
+  CapturingNetLog client_log;
   scoped_ptr<UDPClientSocket> client(
       new UDPClientSocket(DatagramSocket::DEFAULT_BIND,
                           RandIntCallback(),
