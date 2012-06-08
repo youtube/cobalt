@@ -3541,7 +3541,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, NetLog) {
     MockRead(ASYNC, 0, 0)  // EOF
   };
 
-  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
 
   scoped_ptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
