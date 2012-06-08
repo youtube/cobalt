@@ -93,7 +93,7 @@ class MockClientSocket : public StreamSocket {
   virtual bool IsConnected() const { return connected_; }
   virtual bool IsConnectedAndIdle() const { return connected_; }
 
-  virtual int GetPeerAddress(AddressList* /* address */) const {
+  virtual int GetPeerAddress(IPEndPoint* /* address */) const {
     return ERR_UNEXPECTED;
   }
 

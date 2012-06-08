@@ -651,10 +651,10 @@ int FtpNetworkTransaction::DoCtrlConnect() {
 int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
   if (result == OK) {
     // Put the peer's IP address and port into the response.
-    AddressList address;
-    result = ctrl_socket_->GetPeerAddress(&address);
+    IPEndPoint ip_endpoint;
+    result = ctrl_socket_->GetPeerAddress(&ip_endpoint);
     if (result == OK) {
-      response_.socket_address = HostPortPair::FromIPEndPoint(address.front());
+      response_.socket_address = HostPortPair::FromIPEndPoint(ip_endpoint);
       next_state_ = STATE_CTRL_READ;
     }
   }
@@ -1188,14 +1188,15 @@ int FtpNetworkTransaction::ProcessResponseQUIT(
 
 int FtpNetworkTransaction::DoDataConnect() {
   next_state_ = STATE_DATA_CONNECT_COMPLETE;
+  IPEndPoint ip_endpoint;
   AddressList data_address;
   // Connect to the same host as the control socket to prevent PASV port
   // scanning attacks.
-  int rv = ctrl_socket_->GetPeerAddress(&data_address);
+  int rv = ctrl_socket_->GetPeerAddress(&ip_endpoint);
   if (rv != OK)
     return Stop(rv);
   data_address = AddressList::CreateFromIPAddress(
-      data_address.front().address(), data_connection_port_);
+      ip_endpoint.address(), data_connection_port_);
   data_socket_.reset(socket_factory_->CreateTransportClientSocket(
         data_address, net_log_.net_log(), net_log_.source()));
   return data_socket_->Connect(io_callback_);

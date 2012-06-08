@@ -170,9 +170,9 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
   // proxy's address instead of the origin server, check to see if this is a
   // direct connection.
   if (g_enable_ip_pooling  && host_port_proxy_pair.second.is_direct()) {
-    AddressList addresses;
-    if (connection->socket()->GetPeerAddress(&addresses) == OK)
-      AddAlias(addresses.front(), host_port_proxy_pair);
+    IPEndPoint address;
+    if (connection->socket()->GetPeerAddress(&address) == OK)
+      AddAlias(address, host_port_proxy_pair);
   }
 
   // Now we can initialize the session with the SSL socket.

@@ -59,9 +59,9 @@ class TCPServerSocketTest : public PlatformTest {
   }
 
   static IPEndPoint GetPeerAddress(StreamSocket* socket) {
-    AddressList address;
+    IPEndPoint address;
     EXPECT_EQ(OK, socket->GetPeerAddress(&address));
-    return address.front();
+    return address;
   }
 
   AddressList local_address_list() const {

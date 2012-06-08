@@ -83,7 +83,7 @@ bool BufferedWriteStreamSocket::IsConnectedAndIdle() const {
   return wrapped_socket_->IsConnectedAndIdle();
 }
 
-int BufferedWriteStreamSocket::GetPeerAddress(AddressList* address) const {
+int BufferedWriteStreamSocket::GetPeerAddress(IPEndPoint* address) const {
   return wrapped_socket_->GetPeerAddress(address);
 }
 

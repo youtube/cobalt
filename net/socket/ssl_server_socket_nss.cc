@@ -205,7 +205,7 @@ bool SSLServerSocketNSS::IsConnectedAndIdle() const {
   return completed_handshake_ && transport_socket_->IsConnectedAndIdle();
 }
 
-int SSLServerSocketNSS::GetPeerAddress(AddressList* address) const {
+int SSLServerSocketNSS::GetPeerAddress(IPEndPoint* address) const {
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
   return transport_socket_->GetPeerAddress(address);

@@ -431,7 +431,7 @@ int SOCKSClientSocket::DoHandshakeReadComplete(int result) {
   // Note: we ignore the last 6 bytes as specified by the SOCKS protocol
 }
 
-int SOCKSClientSocket::GetPeerAddress(AddressList* address) const {
+int SOCKSClientSocket::GetPeerAddress(IPEndPoint* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 
