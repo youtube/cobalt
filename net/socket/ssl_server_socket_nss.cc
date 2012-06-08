@@ -148,6 +148,7 @@ int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
   DCHECK(user_handshake_callback_.is_null());
   DCHECK(!user_read_buf_);
   DCHECK(nss_bufs_);
+  DCHECK(!callback.is_null());
 
   user_read_buf_ = buf;
   user_read_buf_len_ = buf_len;
@@ -170,6 +171,7 @@ int SSLServerSocketNSS::Write(IOBuffer* buf, int buf_len,
   DCHECK(user_write_callback_.is_null());
   DCHECK(!user_write_buf_);
   DCHECK(nss_bufs_);
+  DCHECK(!callback.is_null());
 
   user_write_buf_ = buf;
   user_write_buf_len_ = buf_len;
