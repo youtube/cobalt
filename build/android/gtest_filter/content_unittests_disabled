@@ -17,6 +17,7 @@ URLFetcherCancelTest.CancelWhileDelayedStartTaskPending
 URLFetcherMultipleAttemptTest.SameData
 URLFetcherDownloadProgressTest.Basic
 URLFetcherUploadProgressTest.Basic
+URLFetcherStopOnRedirectTest.StopOnRedirect
 BaseFileTest.ReadonlyBaseFile
 GPUTestConfigTest.LoadCurrentConfig
 URLFetcherFileTest.SmallGet
