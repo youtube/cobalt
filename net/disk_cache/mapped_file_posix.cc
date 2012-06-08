@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,17 +18,23 @@ void* MappedFile::Init(const FilePath& name, size_t size) {
   if (init_ || !File::Init(name))
     return NULL;
 
+  size_t temp_len = size ? size : 4096;
   if (!size)
     size = GetLength();
 
   buffer_ = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED,
                  platform_file(), 0);
   init_ = true;
+  view_size_ = size;
   DCHECK(reinterpret_cast<intptr_t>(buffer_) != -1);
   if (reinterpret_cast<intptr_t>(buffer_) == -1)
     buffer_ = 0;
 
-  view_size_ = size;
+  // Make sure we detect hardware failures reading the headers.
+  scoped_array<char> temp(new char[temp_len]);
+  if (!Read(temp.get(), temp_len, 0))
+    return NULL;
+
   return buffer_;
 }
 
