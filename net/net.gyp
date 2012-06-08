@@ -63,8 +63,6 @@
         'base/big_endian.cc',
         'base/big_endian.h',
         'base/cache_type.h',
-        'base/capturing_net_log.cc',
-        'base/capturing_net_log.h',
         'base/cert_database.cc',
         'base/cert_database.h',
         'base/cert_database_mac.cc',
@@ -1503,6 +1501,8 @@
         '../testing/gtest.gyp:gtest',
       ],
       'sources': [
+        'base/capturing_net_log.cc',
+        'base/capturing_net_log.h',
         'base/cert_test_util.cc',
         'base/cert_test_util.h',
         'base/mock_cert_verifier.cc',
