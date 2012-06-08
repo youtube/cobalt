@@ -356,7 +356,7 @@ TEST_F(SpdyStreamSpdy3Test, StreamError) {
   reads[1].sequence_number = 3;
   reads[2].sequence_number = 4;
 
-  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
 
   scoped_ptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),

@@ -33,7 +33,7 @@ class MockHostResolverWithMultipleResults : public SyncHostResolver {
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const net::BoundNetLog& bound_net_log) OVERRIDE {
+                      const BoundNetLog& bound_net_log) OVERRIDE {
     return ParseAddressList("192.168.1.1,172.22.34.1,200.100.1.2", "",
                             addresses);
   }
@@ -51,7 +51,7 @@ class MockFailingHostResolver : public SyncHostResolver {
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const net::BoundNetLog& bound_net_log) OVERRIDE {
+                      const BoundNetLog& bound_net_log) OVERRIDE {
     count_++;
     return ERR_NAME_NOT_RESOLVED;
   }
@@ -74,7 +74,7 @@ class MockSyncHostResolver : public SyncHostResolver {
 
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const net::BoundNetLog& bound_net_log) OVERRIDE {
+                      const BoundNetLog& bound_net_log) OVERRIDE {
     return resolver_.Resolve(info, addresses, CompletionCallback(), NULL,
                              bound_net_log);
   }
@@ -267,7 +267,7 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
 TEST(ProxyResolverJSBindingsTest, NetLog) {
   MockFailingHostResolver* host_resolver = new MockFailingHostResolver;
 
-  CapturingNetLog global_log(CapturingNetLog::kUnbounded);
+  CapturingNetLog global_log;
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
@@ -275,7 +275,7 @@ TEST(ProxyResolverJSBindingsTest, NetLog) {
           host_resolver, &global_log, NULL));
 
   // Attach a capturing NetLog as the current request's log stream.
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
+  CapturingNetLog log;
   BoundNetLog bound_log(BoundNetLog::Make(&log, NetLog::SOURCE_NONE));
   ProxyResolverRequestContext context(&bound_log, NULL);
   bindings->set_current_request_context(&context);
