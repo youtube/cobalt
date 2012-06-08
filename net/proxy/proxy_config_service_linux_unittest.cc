@@ -1231,6 +1231,38 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     },
 
     {
+      TEST_DESC("socks"),
+
+      // Input.
+      "[Proxy Settings]\nProxyType=1\nsocksProxy=socks.com 888\n",
+      {},                                      // env_values
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                   // auto_detect
+      GURL(),                                  // pac_url
+      ProxyRulesExpectation::Single(
+          "socks5://socks.com:888",  // single proxy
+          ""),                       // bypass rules
+    },
+
+    {
+      TEST_DESC("socks4"),
+
+      // Input.
+      "[Proxy Settings]\nProxyType=1\nsocksProxy=socks4://socks.com 888\n",
+      {},                                      // env_values
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                   // auto_detect
+      GURL(),                                  // pac_url
+      ProxyRulesExpectation::Single(
+          "socks4://socks.com:888",  // single proxy
+          ""),                       // bypass rules
+    },
+
+    {
       TEST_DESC("Treat all hostname patterns as wildcard patterns"),
 
       // Input.
