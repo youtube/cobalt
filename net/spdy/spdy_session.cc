@@ -1212,7 +1212,7 @@ bool SpdySession::IsReused() const {
   return buffered_spdy_framer_->frames_received() > 0;
 }
 
-int SpdySession::GetPeerAddress(AddressList* address) const {
+int SpdySession::GetPeerAddress(IPEndPoint* address) const {
   if (!connection_->socket())
     return ERR_SOCKET_NOT_CONNECTED;
 

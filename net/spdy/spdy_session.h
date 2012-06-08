@@ -303,7 +303,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   const BoundNetLog& net_log() const { return net_log_; }
 
-  int GetPeerAddress(AddressList* address) const;
+  int GetPeerAddress(IPEndPoint* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
 
   // Returns true if requests on this session require credentials.

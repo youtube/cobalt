@@ -713,12 +713,12 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
   }
 }
 
-int TCPClientSocketLibevent::GetPeerAddress(AddressList* address) const {
+int TCPClientSocketLibevent::GetPeerAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
-  *address = AddressList(addresses_[current_address_index_]);
+  *address = addresses_[current_address_index_];
   return OK;
 }
 

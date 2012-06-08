@@ -245,7 +245,7 @@ bool HttpProxyClientSocket::SetSendBufferSize(int32 size) {
   return transport_->socket()->SetSendBufferSize(size);
 }
 
-int HttpProxyClientSocket::GetPeerAddress(AddressList* address) const {
+int HttpProxyClientSocket::GetPeerAddress(IPEndPoint* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 

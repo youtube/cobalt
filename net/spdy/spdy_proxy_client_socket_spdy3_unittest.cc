@@ -554,7 +554,7 @@ TEST_F(SpdyProxyClientSocketSpdy3Test, GetPeerAddressReturnsCorrectValues) {
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
-  net::AddressList addr;
+  net::IPEndPoint addr;
   EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->GetPeerAddress(&addr));
 
   AssertConnectSucceeds();
