@@ -1235,6 +1235,9 @@
       # output files in src/build/VS2010_{Debug,Release}.
       'build_dir_prefix%': '',
 
+      # Targets are by default not nacl untrusted code.
+      'nacl_untrusted_build%': 0,
+
       'conditions': [
         ['OS=="win" and component=="shared_library"', {
           # See http://msdn.microsoft.com/en-us/library/aa652367.aspx
