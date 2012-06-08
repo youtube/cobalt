@@ -36,7 +36,7 @@ TEST(HttpAuthHandlerTest, NetLog) {
         HttpAuth::ChallengeTokenizer tokenizer(
             challenge.begin(), challenge.end());
         HttpAuthHandlerMock mock_handler;
-        CapturingNetLog capturing_net_log(CapturingNetLog::kUnbounded);
+        CapturingNetLog capturing_net_log;
         BoundNetLog bound_net_log(BoundNetLog::Make(&capturing_net_log,
                                                     net::NetLog::SOURCE_NONE));
 
@@ -48,7 +48,7 @@ TEST(HttpAuthHandlerTest, NetLog) {
         if (async)
           test_callback.WaitForResult();
 
-        net::CapturingNetLog::CapturedEntryList entries;
+        CapturingNetLog::CapturedEntryList entries;
         capturing_net_log.GetEntries(&entries);
 
         EXPECT_EQ(2u, entries.size());

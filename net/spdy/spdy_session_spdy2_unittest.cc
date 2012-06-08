@@ -977,7 +977,7 @@ TEST_F(SpdySessionSpdy2Test, CloseSessionOnError) {
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
 
-  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
 
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   data.set_connect_data(connect_data);

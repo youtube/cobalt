@@ -235,7 +235,7 @@ class HttpNetworkTransactionSpdy2Test : public PlatformTest {
 
     TestCompletionCallback callback;
 
-    CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+    CapturingBoundNetLog log;
     EXPECT_TRUE(log.bound().IsLoggingAllEvents());
     int rv = trans->Start(&request, callback.callback(), log.bound());
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -1741,7 +1741,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, BasicAuthProxyNoKeepAlive) {
 
   // Configure against proxy server "myproxy:70".
   SessionDependencies session_deps(ProxyService::CreateFixed("myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -1847,7 +1847,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, BasicAuthProxyKeepAlive) {
 
   // Configure against proxy server "myproxy:70".
   SessionDependencies session_deps(ProxyService::CreateFixed("myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -2050,7 +2050,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
   request.url = GURL("https://www.google.com/");
 
   SessionDependencies session_deps(ProxyService::CreateFixed("myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -2109,7 +2109,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, HttpsProxyGet) {
   // Configure against https proxy server "proxy:70".
   SessionDependencies session_deps(ProxyService::CreateFixed(
       "https://proxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -2165,7 +2165,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, HttpsProxySpdyGet) {
   // Configure against https proxy server "proxy:70".
   SessionDependencies session_deps(ProxyService::CreateFixed(
       "https://proxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -2223,7 +2223,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, HttpsProxySpdyGetWithProxyAuth) {
   // Configure against https proxy server "myproxy:70".
   SessionDependencies session_deps(
       ProxyService::CreateFixed("https://myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -2323,7 +2323,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, HttpsProxySpdyConnectHttps) {
   // Configure against https proxy server "proxy:70".
   SessionDependencies session_deps(ProxyService::CreateFixed(
       "https://proxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -2404,7 +2404,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, HttpsProxySpdyConnectSpdy) {
   // Configure against https proxy server "proxy:70".
   SessionDependencies session_deps(ProxyService::CreateFixed(
       "https://proxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -2483,7 +2483,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, HttpsProxySpdyConnectFailure) {
   // Configure against https proxy server "proxy:70".
   SessionDependencies session_deps(ProxyService::CreateFixed(
       "https://proxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -2542,7 +2542,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, HttpsProxyAuthRetry) {
   // Configure against https proxy server "myproxy:70".
   SessionDependencies session_deps(
       ProxyService::CreateFixed("https://myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -4918,7 +4918,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, BasicAuthSpdyProxy) {
   // Configure against https proxy server "myproxy:70".
   SessionDependencies session_deps(
       ProxyService::CreateFixed("https://myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -5066,7 +5066,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, CrossOriginProxyPush) {
   // Configure against https proxy server "myproxy:70".
   SessionDependencies session_deps(
       ProxyService::CreateFixed("https://myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
 
   // Enable cross-origin push.
@@ -5164,7 +5164,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, CrossOriginProxyPushCorrectness) {
   // Configure against https proxy server "myproxy:70".
   SessionDependencies session_deps(
       ProxyService::CreateFixed("https://myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
 
   // Enable cross-origin push.
@@ -8793,7 +8793,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, SimpleCancel) {
 
   TestCompletionCallback callback;
 
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   int rv = trans->Start(&request, callback.callback(), log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   trans.reset();  // Cancel the transaction here.
@@ -8804,7 +8804,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, SimpleCancel) {
 // Test a basic GET request through a proxy.
 TEST_F(HttpNetworkTransactionSpdy2Test, ProxyGet) {
   SessionDependencies session_deps(ProxyService::CreateFixed("myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -8852,7 +8852,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, ProxyGet) {
 // Test a basic HTTPS GET request through a proxy.
 TEST_F(HttpNetworkTransactionSpdy2Test, ProxyTunnelGet) {
   SessionDependencies session_deps(ProxyService::CreateFixed("myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -8919,7 +8919,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, ProxyTunnelGet) {
 // while establishing the tunnel.
 TEST_F(HttpNetworkTransactionSpdy2Test, ProxyTunnelGetHangup) {
   SessionDependencies session_deps(ProxyService::CreateFixed("myproxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
@@ -9307,7 +9307,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
 TEST_F(HttpNetworkTransactionSpdy2Test, ClientAuthCertCache_Proxy_Fail) {
   SessionDependencies session_deps(
       ProxyService::CreateFixed("https://proxy:70"));
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   session_deps.net_log = log.bound().net_log();
 
   scoped_refptr<SSLCertRequestInfo> cert_request(new SSLCertRequestInfo());

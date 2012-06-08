@@ -127,7 +127,7 @@ TEST(ProxyScriptDeciderTest, CustomPacSucceeds) {
   Rules::Rule rule = rules.AddSuccessRule("http://custom/proxy.pac");
 
   TestCompletionCallback callback;
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
+  CapturingNetLog log;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(OK, decider.Start(
       config, base::TimeDelta(), true, callback.callback()));
@@ -163,7 +163,7 @@ TEST(ProxyScriptDeciderTest, CustomPacFails1) {
   rules.AddFailDownloadRule("http://custom/proxy.pac");
 
   TestCompletionCallback callback;
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
+  CapturingNetLog log;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(kFailedDownloading,
             decider.Start(config, base::TimeDelta(), true,
@@ -282,7 +282,7 @@ TEST(ProxyScriptDeciderTest, AutodetectFailCustomSuccess2) {
   Rules::Rule rule = rules.AddSuccessRule("http://custom/proxy.pac");
 
   TestCompletionCallback callback;
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
+  CapturingNetLog log;
 
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(OK, decider.Start(config, base::TimeDelta(),
@@ -387,7 +387,7 @@ TEST(ProxyScriptDeciderTest, CustomPacFails1_WithPositiveDelay) {
   rules.AddFailDownloadRule("http://custom/proxy.pac");
 
   TestCompletionCallback callback;
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
+  CapturingNetLog log;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(ERR_IO_PENDING,
             decider.Start(config, base::TimeDelta::FromMilliseconds(1),
@@ -429,7 +429,7 @@ TEST(ProxyScriptDeciderTest, CustomPacFails1_WithNegativeDelay) {
   rules.AddFailDownloadRule("http://custom/proxy.pac");
 
   TestCompletionCallback callback;
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
+  CapturingNetLog log;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(kFailedDownloading,
             decider.Start(config, base::TimeDelta::FromSeconds(-5),
