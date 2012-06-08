@@ -52,8 +52,9 @@ class MEDIA_EXPORT VideoDecodeAccelerator
     virtual void NotifyInitializeDone() = 0;
 
     // Callback to tell client how many and what size of buffers to provide.
-    virtual void ProvidePictureBuffers(
-        uint32 requested_num_of_buffers, const gfx::Size& dimensions) = 0;
+    virtual void ProvidePictureBuffers(uint32 requested_num_of_buffers,
+                                       const gfx::Size& dimensions,
+                                       uint32 texture_target) = 0;
 
     // Callback to dismiss picture buffer that was assigned earlier.
     virtual void DismissPictureBuffer(int32 picture_buffer_id) = 0;
