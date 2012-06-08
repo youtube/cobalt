@@ -19,7 +19,7 @@
 // object is re-created.
 // Note: These macros are only run on one thread, so the declarations of
 // |counter| was made static (i.e., there will be no race for reinitialization).
-
+#if !defined(__LB_SHELL__)
 #define CACHE_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
     do { \
       static base::Histogram* counter(NULL); \
@@ -118,5 +118,12 @@
         break;\
     }\
   }
+#else  // #if !defined(__LB_SHELL__)
+#define CACHE_HISTOGRAM_COUNTS_10000(name, sample) (0)
+
+#define CACHE_HISTOGRAM_COUNTS_50000(name, sample) (0)
+#define CACHE_UMA(type, name, experiment, sample) (0)
+
+#endif  // #if !defined(__LB_SHELL__)
 
 #endif  // NET_DISK_CACHE_HISTOGRAM_MACROS_H_
