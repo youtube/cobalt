@@ -88,6 +88,16 @@ TEST_F(TimeTest, TimeT) {
   EXPECT_EQ(0, Time::FromTimeT(0).ToInternalValue());
 }
 
+// Test conversions to/from javascript time.
+TEST_F(TimeTest, JsTime) {
+  Time epoch = Time::FromJsTime(0.0);
+  EXPECT_EQ(epoch, Time::UnixEpoch());
+  Time t = Time::FromJsTime(700000.3);
+  EXPECT_EQ(700.0003, t.ToDoubleT());
+  t = Time::FromDoubleT(800.73);
+  EXPECT_EQ(800730.0, t.ToJsTime());
+}
+
 TEST_F(TimeTest, FromExplodedWithMilliseconds) {
   // Some platform implementations of FromExploded are liable to drop
   // milliseconds if we aren't careful.
