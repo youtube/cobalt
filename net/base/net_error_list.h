@@ -246,7 +246,8 @@ NET_ERROR(SSL_CLIENT_AUTH_SIGNATURE_FAILED, -141)
 // which exceeds size threshold).
 NET_ERROR(MSG_TOO_BIG, -142)
 
-// Error cdoe -143 available.
+// A SPDY session already exists, and should be used instead of this connection.
+NET_ERROR(SPDY_SESSION_ALREADY_EXISTS, -143)
 
 // Violation of limits (e.g. imposed to prevent DoS).
 NET_ERROR(LIMIT_VIOLATION, -144)

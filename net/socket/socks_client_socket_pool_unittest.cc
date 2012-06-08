@@ -54,7 +54,8 @@ class SOCKSClientSocketPoolTest : public testing::Test {
 
   SOCKSClientSocketPoolTest()
       : ignored_transport_socket_params_(new TransportSocketParams(
-            HostPortPair("proxy", 80), MEDIUM, false, false)),
+          HostPortPair("proxy", 80), MEDIUM, false, false,
+          OnHostResolutionCallback())),
         transport_histograms_("MockTCP"),
         transport_socket_pool_(
             kMaxSockets, kMaxSocketsPerGroup,

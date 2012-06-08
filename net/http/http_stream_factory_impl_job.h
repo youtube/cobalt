@@ -26,6 +26,7 @@ class ClientSocketHandle;
 class HttpAuthController;
 class HttpNetworkSession;
 class HttpStream;
+class SpdySessionPool;
 
 // An HttpStreamRequestImpl exists for each stream which is in progress of being
 // created for the StreamFactory.
@@ -157,7 +158,7 @@ class HttpStreamFactoryImpl::Job {
   // Set the motivation for this request onto the underlying socket.
   void SetSocketMotivation();
 
-  bool IsHttpsProxyAndHttpUrl();
+  bool IsHttpsProxyAndHttpUrl() const;
 
 // Sets several fields of ssl_config for the given origin_server based on the
 // proxy info and other factors.
@@ -171,6 +172,8 @@ class HttpStreamFactoryImpl::Job {
   // This must only be called when we are using an SSLSocket.
   // After calling, the caller can use ssl_info_.
   void GetSSLInfo();
+
+  HostPortProxyPair GetSpdySessionKey() const;
 
   // Called when we encounter a network error that could be resolved by trying
   // a new proxy configuration.  If there is another proxy configuration to try
@@ -201,6 +204,15 @@ class HttpStreamFactoryImpl::Job {
 
   // Record histograms of latency until Connect() completes.
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
+
+  // Invoked by the transport socket pool after host resolution is complete
+  // to allow the connection to be aborted, if a matching SPDY session can
+  // be found.  Will return ERR_SPDY_SESSION_ALREADY_EXISTS if such a
+  // session is found, and OK otherwise.
+  static int OnHostResolution(SpdySessionPool* spdy_session_pool,
+                              const HostPortProxyPair spdy_session_key,
+                              const AddressList& addresses,
+                              const BoundNetLog& net_log);
 
   Request* request_;
 

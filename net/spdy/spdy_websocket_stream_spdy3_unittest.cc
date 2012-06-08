@@ -267,7 +267,8 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
     session_ = spdy_session_pool->Get(host_port_proxy_pair_, BoundNetLog());
     EXPECT_TRUE(spdy_session_pool->HasSession(host_port_proxy_pair_));
     transport_params_ = new TransportSocketParams(host_port_pair_, MEDIUM,
-                                                  false, false);
+                                                  false, false,
+                                                  OnHostResolutionCallback());
     TestCompletionCallback callback;
     scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
     EXPECT_EQ(ERR_IO_PENDING,

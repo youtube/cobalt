@@ -194,7 +194,8 @@ TEST_F(SpdyStreamSpdy2Test, SendDataAfterOpen) {
 
   HostPortPair host_port_pair("www.google.com", 80);
   scoped_refptr<TransportSocketParams> transport_params(
-      new TransportSocketParams(host_port_pair, LOWEST, false, false));
+      new TransportSocketParams(host_port_pair, LOWEST, false, false,
+                                OnHostResolutionCallback()));
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
@@ -262,7 +263,9 @@ TEST_F(SpdyStreamSpdy2Test, PushedStream) {
 
   HostPortPair host_port_pair("www.google.com", 80);
   scoped_refptr<TransportSocketParams> transport_params(
-      new TransportSocketParams(host_port_pair, LOWEST, false, false));
+      new TransportSocketParams(host_port_pair, LOWEST, false, false,
+                                OnHostResolutionCallback()));
+
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
                                  LOWEST, CompletionCallback(),
@@ -367,7 +370,8 @@ TEST_F(SpdyStreamSpdy2Test, StreamError) {
 
   HostPortPair host_port_pair("www.google.com", 80);
   scoped_refptr<TransportSocketParams> transport_params(
-      new TransportSocketParams(host_port_pair, LOWEST, false, false));
+      new TransportSocketParams(host_port_pair, LOWEST, false, false,
+                                OnHostResolutionCallback()));
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
