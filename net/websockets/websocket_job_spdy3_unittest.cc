@@ -290,10 +290,12 @@ class MockHttpTransactionFactory : public net::HttpTransactionFactory {
         spdy_session_pool->Get(host_port_proxy_pair_, net::BoundNetLog());
     EXPECT_TRUE(spdy_session_pool->HasSession(host_port_proxy_pair_));
 
-    transport_params_ = new net::TransportSocketParams(host_port_pair_,
-                                                       net::MEDIUM,
-                                                       false,
-                                                       false);
+    transport_params_ =
+        new net::TransportSocketParams(host_port_pair_,
+                                       net::MEDIUM,
+                                       false,
+                                       false,
+                                       net::OnHostResolutionCallback());
     net::ClientSocketHandle* connection = new net::ClientSocketHandle;
     EXPECT_EQ(net::OK,
               connection->Init(host_port_pair_.ToString(), transport_params_,
