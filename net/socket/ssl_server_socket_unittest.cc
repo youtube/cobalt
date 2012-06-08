@@ -201,9 +201,9 @@ class FakeSocket : public StreamSocket {
     return true;
   }
 
-  virtual int GetPeerAddress(AddressList* address) const OVERRIDE {
-    net::IPAddressNumber ip_address(4);
-    *address = net::AddressList::CreateFromIPAddress(ip_address, 0 /*port*/);
+  virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE {
+      net::IPAddressNumber ip_address(net::kIPv4AddressSize);
+    *address = net::IPEndPoint(ip_address, 0 /*port*/);
     return net::OK;
   }
 

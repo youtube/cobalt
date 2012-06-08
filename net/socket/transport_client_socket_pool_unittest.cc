@@ -66,7 +66,7 @@ class MockClientSocket : public StreamSocket {
   virtual bool IsConnectedAndIdle() const {
     return connected_;
   }
-  virtual int GetPeerAddress(AddressList* address) const {
+  virtual int GetPeerAddress(IPEndPoint* address) const {
     return ERR_UNEXPECTED;
   }
   virtual int GetLocalAddress(IPEndPoint* address) const {
@@ -129,7 +129,7 @@ class MockFailingClientSocket : public StreamSocket {
   virtual bool IsConnectedAndIdle() const {
     return false;
   }
-  virtual int GetPeerAddress(AddressList* address) const {
+  virtual int GetPeerAddress(IPEndPoint* address) const {
     return ERR_UNEXPECTED;
   }
   virtual int GetLocalAddress(IPEndPoint* address) const {
@@ -205,7 +205,7 @@ class MockPendingClientSocket : public StreamSocket {
   virtual bool IsConnectedAndIdle() const {
     return is_connected_;
   }
-  virtual int GetPeerAddress(AddressList* address) const {
+  virtual int GetPeerAddress(IPEndPoint* address) const {
     return ERR_UNEXPECTED;
   }
   virtual int GetLocalAddress(IPEndPoint* address) const {
