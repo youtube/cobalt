@@ -53,7 +53,8 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
   HttpProxyClientSocketPoolSpdy2Test()
       : ssl_config_(),
         ignored_transport_socket_params_(new TransportSocketParams(
-            HostPortPair("proxy", 80), LOWEST, false, false)),
+            HostPortPair("proxy", 80), LOWEST, false, false,
+            OnHostResolutionCallback())),
         ignored_ssl_socket_params_(new SSLSocketParams(
             ignored_transport_socket_params_, NULL, NULL,
             ProxyServer::SCHEME_DIRECT, HostPortPair("www.google.com", 443),

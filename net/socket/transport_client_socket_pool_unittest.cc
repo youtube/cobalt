@@ -380,10 +380,12 @@ class TransportClientSocketPoolTest : public testing::Test {
             ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(true)),
         params_(
             new TransportSocketParams(HostPortPair("www.google.com", 80),
-                                     kDefaultPriority, false, false)),
+                                      kDefaultPriority, false, false,
+                                      OnHostResolutionCallback())),
         low_params_(
             new TransportSocketParams(HostPortPair("www.google.com", 80),
-                                      LOW, false, false)),
+                                      LOW, false, false,
+                                      OnHostResolutionCallback())),
         histograms_(new ClientSocketPoolHistograms("TCPUnitTest")),
         host_resolver_(new MockHostResolver),
         pool_(kMaxSockets,
@@ -401,7 +403,8 @@ class TransportClientSocketPoolTest : public testing::Test {
 
   int StartRequest(const std::string& group_name, RequestPriority priority) {
     scoped_refptr<TransportSocketParams> params(new TransportSocketParams(
-        HostPortPair("www.google.com", 80), MEDIUM, false, false));
+        HostPortPair("www.google.com", 80), MEDIUM, false, false,
+        OnHostResolutionCallback()));
     return test_base_.StartRequestUsingPool(
         &pool_, group_name, priority, params);
   }
@@ -524,7 +527,8 @@ TEST_F(TransportClientSocketPoolTest, InitHostResolutionFailure) {
   ClientSocketHandle handle;
   HostPortPair host_port_pair("unresolvable.host.name", 80);
   scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
-          host_port_pair, kDefaultPriority, false, false));
+      host_port_pair, kDefaultPriority, false, false,
+      OnHostResolutionCallback()));
   EXPECT_EQ(ERR_IO_PENDING,
             handle.Init("a", dest, kDefaultPriority, callback.callback(),
                         &pool_, BoundNetLog()));
@@ -798,7 +802,8 @@ class RequestSocketCallback : public TestCompletionCallbackBase {
       }
       within_callback_ = true;
       scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
-          HostPortPair("www.google.com", 80), LOWEST, false, false));
+          HostPortPair("www.google.com", 80), LOWEST, false, false,
+          OnHostResolutionCallback()));
       int rv = handle_->Init("a", dest, LOWEST, callback(), pool_,
                              BoundNetLog());
       EXPECT_EQ(OK, rv);
@@ -817,7 +822,8 @@ TEST_F(TransportClientSocketPoolTest, RequestTwice) {
   ClientSocketHandle handle;
   RequestSocketCallback callback(&handle, &pool_);
   scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
-      HostPortPair("www.google.com", 80), LOWEST, false, false));
+      HostPortPair("www.google.com", 80), LOWEST, false, false,
+      OnHostResolutionCallback()));
   int rv = handle.Init("a", dest, LOWEST, callback.callback(), &pool_,
                        BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);

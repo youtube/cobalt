@@ -24,16 +24,27 @@ namespace net {
 
 class ClientSocketFactory;
 
+typedef base::Callback<int(const AddressList&, const BoundNetLog& net_log)>
+OnHostResolutionCallback;
+
 class NET_EXPORT_PRIVATE TransportSocketParams
     : public base::RefCounted<TransportSocketParams> {
  public:
-  TransportSocketParams(const HostPortPair& host_port_pair,
-                        RequestPriority priority,
-                        bool disable_resolver_cache,
-                        bool ignore_limits);
+  // |host_resolution_callback| will be invoked after the the hostname is
+  // resolved.  If |host_resolution_callback| does not return OK, then the
+  // connection will be aborted with that value.
+  TransportSocketParams(
+      const HostPortPair& host_port_pair,
+      RequestPriority priority,
+      bool disable_resolver_cache,
+      bool ignore_limits,
+      const OnHostResolutionCallback& host_resolution_callback);
 
   const HostResolver::RequestInfo& destination() const { return destination_; }
   bool ignore_limits() const { return ignore_limits_; }
+  const OnHostResolutionCallback& host_resolution_callback() const {
+    return host_resolution_callback_;
+  }
 
  private:
   friend class base::RefCounted<TransportSocketParams>;
@@ -43,6 +54,7 @@ class NET_EXPORT_PRIVATE TransportSocketParams
 
   HostResolver::RequestInfo destination_;
   bool ignore_limits_;
+  const OnHostResolutionCallback host_resolution_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(TransportSocketParams);
 };
