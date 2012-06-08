@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -107,6 +108,33 @@ bool ReadTestCase(const char* filename,
   return true;
 }
 
+void RunTestCase(uint16 id, std::string& qname, uint16 qtype,
+                 std::vector<char>& resp_buf) {
+  net::DnsQuery query(id, qname, qtype);
+  net::DnsResponse response;
+  std::copy(resp_buf.begin(), resp_buf.end(), response.io_buffer()->data());
+
+  if (!response.InitParse(resp_buf.size(), query)) {
+    LOG(INFO) << "InitParse failed.";
+    return;
+  }
+
+  net::AddressList address_list;
+  base::TimeDelta ttl;
+  net::DnsResponse::Result result = response.ParseToAddressList(
+      &address_list, &ttl);
+  if (result != net::DnsResponse::DNS_SUCCESS) {
+    LOG(INFO) << "ParseToAddressList failed: " << result;
+    return;
+  }
+
+  LOG(INFO) << "Address List:";
+  for (unsigned int i = 0; i < address_list.size(); i++) {
+    LOG(INFO) << "\t" << address_list[i].ToString();
+  }
+  LOG(INFO) << "TTL: " << ttl.InSeconds() << " seconds";
+}
+
 }
 
 int main(int argc, char** argv) {
@@ -119,9 +147,9 @@ int main(int argc, char** argv) {
 
   LOG(INFO) << "Test case: " << filename;
 
-  uint16 id;
+  uint16 id = 0;
   std::string qname_dotted;
-  uint16 qtype;
+  uint16 qtype = 0;
   std::vector<char> resp_buf;
 
   if (!ReadTestCase(filename, &id, &qname_dotted, &qtype, &resp_buf)) {
@@ -140,29 +168,9 @@ int main(int argc, char** argv) {
     return 3;
   }
 
-  net::DnsQuery query(id, qname, qtype);
-  net::DnsResponse response;
-  std::copy(resp_buf.begin(), resp_buf.end(), response.io_buffer()->data());
+  RunTestCase(id, qname, qtype, resp_buf);
 
-  if (!response.InitParse(resp_buf.size(), query)) {
-    LOG(INFO) << "InitParse failed.";
-    return 0;
-  }
-
-  net::AddressList address_list;
-  base::TimeDelta ttl;
-  net::DnsResponse::Result result = response.ParseToAddressList(
-      &address_list, &ttl);
-  if (result != net::DnsResponse::DNS_SUCCESS) {
-    LOG(INFO) << "ParseToAddressList failed: " << result;
-    return 0;
-  }
-
-  LOG(INFO) << "Address List:";
-  for (unsigned int i = 0; i < address_list.size(); i++) {
-    LOG(INFO) << "\t" << address_list[i].ToString();
-  }
-  LOG(INFO) << "TTL: " << ttl.InSeconds() << " seconds";
+  std::cout << "#EOF" << std::endl;
 
   return 0;
 }
