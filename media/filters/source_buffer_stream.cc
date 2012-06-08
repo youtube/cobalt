@@ -112,7 +112,7 @@ class SourceBufferRange {
  private:
   // Helper method to delete buffers in |buffers_| starting from
   // |starting_point|, an iterator in |buffers_|.
-  void DeleteAfter(BufferQueue::iterator starting_point,
+  void DeleteAfter(const BufferQueue::iterator& starting_point,
                    BufferQueue* deleted_buffers,
                    BufferQueue::iterator* next_buffer);
 
@@ -608,7 +608,7 @@ void SourceBufferRange::DeleteAfter(
 }
 
 void SourceBufferRange::DeleteAfter(
-    BufferQueue::iterator starting_point,
+    const BufferQueue::iterator& starting_point,
     BufferQueue* removed_buffers,
     BufferQueue::iterator* next_buffer) {
   // Return if we're not deleting anything.
