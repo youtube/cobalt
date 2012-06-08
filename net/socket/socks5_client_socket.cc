@@ -503,7 +503,7 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
   return OK;
 }
 
-int SOCKS5ClientSocket::GetPeerAddress(AddressList* address) const {
+int SOCKS5ClientSocket::GetPeerAddress(IPEndPoint* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 

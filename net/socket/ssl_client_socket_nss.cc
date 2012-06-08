@@ -2982,7 +2982,7 @@ bool SSLClientSocketNSS::IsConnectedAndIdle() const {
   return ret;
 }
 
-int SSLClientSocketNSS::GetPeerAddress(AddressList* address) const {
+int SSLClientSocketNSS::GetPeerAddress(IPEndPoint* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 
@@ -3259,13 +3259,13 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 
 int SSLClientSocketNSS::InitializeSSLPeerName() {
   // Tell NSS who we're connected to
-  AddressList peer_address;
+  IPEndPoint peer_address;
   int err = transport_->socket()->GetPeerAddress(&peer_address);
   if (err != OK)
     return err;
 
   SockaddrStorage storage;
-  if (!peer_address.front().ToSockAddr(storage.addr, &storage.addr_len))
+  if (!peer_address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_UNEXPECTED;
 
   PRNetAddr peername;

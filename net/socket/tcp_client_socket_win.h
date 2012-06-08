@@ -46,7 +46,7 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerAddress(AddressList* address) const;
+  virtual int GetPeerAddress(IPEndPoint* address) const;
   virtual int GetLocalAddress(IPEndPoint* address) const;
   virtual const BoundNetLog& NetLog() const { return net_log_; }
   virtual void SetSubresourceSpeculation();
