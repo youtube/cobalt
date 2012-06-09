@@ -529,7 +529,6 @@
             # TODO(michaelbai): Removed the below once the fix upstreamed.
             'debug/stack_trace_unittest.cc',
             'memory/mru_cache_unittest.cc',
-            'process_util_unittest.cc',
             'synchronization/cancellation_flag_unittest.cc',
           ],
           'dependencies': [
