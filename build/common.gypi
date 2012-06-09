@@ -246,6 +246,12 @@
       # Enable Chrome browser extensions
       'enable_extensions%': 1,
 
+      # Enable browser automation.
+      'enable_automation%': 1,
+
+      # Enable printing support and UI.
+      'enable_printing%': 1,
+
       # Enable Web Intents web content registration via HTML element
       # and WebUI managing such registrations.
       'enable_web_intents_tag%': 0,
@@ -473,13 +479,6 @@
           'linux_use_gold_flags%': 0,
         }],
 
-        # Enable automation on platforms other than Android.
-        ['OS=="android"', {
-          'enable_automation%': 0,
-        }, {
-          'enable_automation%': 1,
-        }],
-
         # Enable Skia UI text drawing incrementally on different platforms.
         # http://crbug.com/105550
         #
@@ -559,6 +558,7 @@
     'test_isolation_mode%': '<(test_isolation_mode)',
     'test_isolation_outdir%': '<(test_isolation_outdir)',
     'enable_automation%': '<(enable_automation)',
+    'enable_printing%': '<(enable_printing)',
     'force_rlz_use_chrome_net%': '<(force_rlz_use_chrome_net)',
     'enable_task_manager%': '<(enable_task_manager)',
     'platformsdk_path%': '<(platformsdk_path)',
@@ -875,7 +875,10 @@
         'input_speech%': 0,
         'enable_web_intents%': 0,
         'enable_extensions%': 0,
+        'enable_automation%': 0,
+        'enable_printing%': 0,
         'java_bridge%': 1,
+
         # Android does not support themes.
         'enable_themes%': 0,
 
@@ -1072,6 +1075,9 @@
       }],
       ['enable_extensions==1', {
         'grit_defines': ['-D', 'enable_extensions'],
+      }],
+      ['enable_printing==1', {
+        'grit_defines': ['-D', 'enable_printing'],
       }],
       ['clang_use_chrome_plugins==1 and OS!="win"', {
         'variables': {
@@ -1506,6 +1512,9 @@
       }],
       ['enable_automation==1', {
         'defines': ['ENABLE_AUTOMATION=1'],
+      }],
+      ['enable_printing==1', {
+        'defines': ['ENABLE_PRINTING=1'],
       }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [
