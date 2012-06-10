@@ -14,10 +14,12 @@
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/pickle.h"
+#include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "base/values.h"
 #include "net/base/escape.h"
 #include "net/http/http_util.h"
 
@@ -1303,6 +1305,55 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
       *instance_length < 0 || *instance_length - 1 < *last_byte_position)
     return false;
 
+  return true;
+}
+
+Value* HttpResponseHeaders::NetLogCallback(
+    NetLog::LogLevel /* log_level */) const {
+  DictionaryValue* dict = new DictionaryValue();
+  ListValue* headers = new ListValue();
+  headers->Append(new StringValue(GetStatusLine()));
+  void* iterator = NULL;
+  std::string name;
+  std::string value;
+  while (EnumerateHeaderLines(&iterator, &name, &value)) {
+    headers->Append(
+      new StringValue(base::StringPrintf("%s: %s",
+                                         name.c_str(),
+                                         value.c_str())));
+  }
+  dict->Set("headers", headers);
+  return dict;
+}
+
+// static
+bool HttpResponseHeaders::FromNetLogParam(
+    const base::Value* event_param,
+    scoped_refptr<HttpResponseHeaders>* http_response_headers) {
+  http_response_headers->release();
+
+  const base::DictionaryValue* dict;
+  base::ListValue* header_list;
+
+  if (!event_param ||
+      !event_param->GetAsDictionary(&dict) ||
+      !dict->GetList("headers", &header_list)) {
+    return false;
+  }
+
+  std::string raw_headers;
+  for (base::ListValue::const_iterator it = header_list->begin();
+       it != header_list->end();
+       ++it) {
+    std::string header_line;
+    if (!(*it)->GetAsString(&header_line))
+      return false;
+
+    raw_headers.append(header_line);
+    raw_headers.push_back('\0');
+  }
+  raw_headers.push_back('\0');
+  *http_response_headers = new HttpResponseHeaders(raw_headers);
   return true;
 }
 

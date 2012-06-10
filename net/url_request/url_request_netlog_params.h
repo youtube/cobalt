@@ -8,44 +8,32 @@
 
 #include <string>
 
-#include "base/basictypes.h"
-#include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 
+class GURL;
+
+namespace base {
+class Value;
+}
+
 namespace net {
 
-// Holds the parameters to emit to the NetLog when starting a URLRequest.
-class NET_EXPORT URLRequestStartEventParameters
-    : public NetLog::EventParameters {
- public:
-  URLRequestStartEventParameters(const GURL& url,
-                                 const std::string& method,
-                                 int load_flags,
-                                 RequestPriority priority);
+// Returns a Value containing NetLog parameters for starting a URLRequest.
+NET_EXPORT base::Value* NetLogURLRequestStartCallback(
+    const GURL* url,
+    const std::string* method,
+    int load_flags,
+    RequestPriority priority,
+    NetLog::LogLevel /* log_level */);
 
-  const GURL& url() const {
-    return url_;
-  }
-
-  int load_flags() const {
-    return load_flags_;
-  }
-
-  virtual base::Value* ToValue() const OVERRIDE;
-
- protected:
-  virtual ~URLRequestStartEventParameters();
-
- private:
-  const GURL url_;
-  const std::string method_;
-  const int load_flags_;
-  const RequestPriority priority_;
-
-  DISALLOW_COPY_AND_ASSIGN(URLRequestStartEventParameters);
-};
+// Attempts to extract the load flags from a Value created by the above
+// function.  On success, sets |load_flags| accordingly and returns true.
+// On failure, sets |load_flags| to 0.
+NET_EXPORT bool StartEventLoadFlagsFromEventParams(
+    const base::Value* event_params,
+    int* load_flags);
 
 }  // namespace net
 
