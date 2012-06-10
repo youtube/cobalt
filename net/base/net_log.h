@@ -9,11 +9,14 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/callback_forward.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 
 namespace base {
+class DictionaryValue;
 class TimeTicks;
 class Value;
 }
@@ -29,6 +32,7 @@ namespace net {
 // is usually accessed through a BoundNetLog, which will always pass in a
 // specific source ID.
 //
+// All NetLog methods must be thread-safe.
 class NET_EXPORT NetLog {
  public:
   enum EventType {
@@ -54,6 +58,26 @@ class NET_EXPORT NetLog {
     SOURCE_COUNT
   };
 
+  // Specifies the granularity of events that should be emitted to the log.
+  enum LogLevel {
+    // Log everything possible, even if it is slow and memory expensive.
+    // Includes logging of transferred bytes.
+    LOG_ALL,
+
+    // Log all events, but do not include the actual transferred bytes as
+    // parameters for bytes sent/received events.
+    LOG_ALL_BUT_BYTES,
+
+    // Only log events which are cheap, and don't consume much memory.
+    LOG_BASIC,
+  };
+
+  // A callback function that return a Value representation of the parameters
+  // associated with an event.  If called, it will be called synchonously,
+  // so it need not have owning references.  May be called more than once, or
+  // not at all.  May return NULL.
+  typedef base::Callback<base::Value*(LogLevel)> ParametersCallback;
+
   // Identifies the entity that generated this log. The |id| field should
   // uniquely identify the source, and is used by log observers to infer
   // message groupings. Can use NetLog::NextID() to create unique IDs.
@@ -64,8 +88,23 @@ class NET_EXPORT NetLog {
     Source(SourceType type, uint32 id) : type(type), id(id) {}
     bool is_valid() const { return id != kInvalidId; }
 
-    // The caller takes ownership of the returned Value*.
+    // Obsolete.  The caller takes ownership of the returned Value*.
+    // TODO(mmenke):  Remove this.
     base::Value* ToValue() const;
+
+    // Adds the source to a DictionaryValue containing event parameters,
+    // using the name "source_dependency".
+    void AddToEventParameters(base::DictionaryValue* event_params) const;
+
+    // Returns a callback that returns a dictionary with a single entry
+    // named "source_dependecy" that describes |this|.
+    ParametersCallback ToEventParametersCallback() const;
+
+    // Attempts to extract a Source from a set of event parameters.  Returns
+    // true and writes the result to |source| on success.  Returns false and
+    // makes |source| an invalid source on failure.
+    // TODO(mmenke):  Long term, we want to remove this.
+    static bool FromEventParameters(base::Value* event_params, Source* source);
 
     SourceType type;
     uint32 id;
@@ -74,6 +113,8 @@ class NET_EXPORT NetLog {
   // Base class for associating additional parameters with an event. Log
   // observers need to know what specific derivations of EventParameters a
   // particular EventType uses, in order to get at the individual components.
+  // This class is obsolete.  New code should use ParametersCallbacks.
+  // TODO(mmenke):  Update users of this class and get rid of it.
   class NET_EXPORT EventParameters
       : public base::RefCountedThreadSafe<EventParameters> {
    public:
@@ -93,18 +134,40 @@ class NET_EXPORT NetLog {
     DISALLOW_COPY_AND_ASSIGN(EventParameters);
   };
 
-  // Specifies the granularity of events that should be emitted to the log.
-  enum LogLevel {
-    // Log everything possible, even if it is slow and memory expensive.
-    // Includes logging of transferred bytes.
-    LOG_ALL,
+  class NET_EXPORT Entry {
+   public:
+    Entry(EventType type,
+          Source source,
+          EventPhase phase,
+          const ParametersCallback* parameters_callback,
+          LogLevel log_level);
+    ~Entry();
 
-    // Log all events, but do not include the actual transferred bytes as
-    // parameters for bytes sent/received events.
-    LOG_ALL_BUT_BYTES,
+    EventType type() const { return type_; }
+    Source source() const { return source_; }
+    EventPhase phase() const { return phase_; }
 
-    // Only log events which are cheap, and don't consume much memory.
-    LOG_BASIC,
+    // Serializes the specified event to a Value.  The Value also includes the
+    // current time.  Caller takes ownership of returned Value.
+    base::Value* ToValue() const;
+
+    // Returns the parameters as a Value.  Returns NULL if there are no
+    // parameters.  Caller takes ownership of returned Value.
+    base::Value* ParametersToValue() const;
+
+   private:
+    const EventType type_;
+    const Source source_;
+    const EventPhase phase_;
+    const ParametersCallback* parameters_callback_;
+
+    // Log level when the event occurred.
+    const LogLevel log_level_;
+
+    // It is not safe to copy this class, since |parameters_callback_| may
+    // include pointers that become stale immediately after the event is added,
+    // even if the code were modified to keep its own copy of the callback.
+    DISALLOW_COPY_AND_ASSIGN(Entry);
   };
 
   // An observer, that must ensure its own thread safety, for events
@@ -136,21 +199,7 @@ class NET_EXPORT NetLog {
     //
     // It is illegal for an Observer to call any NetLog or
     // NetLog::Observer functions in response to a call to OnAddEntry.
-    //
-    // |type| - The type of the event.
-    // |time| - The time when the event occurred.
-    // |source| - The source that generated the event.
-    // |phase| - An optional parameter indicating whether this is the start/end
-    //           of an action.
-    // |params| - Optional (may be NULL) parameters for this event.
-    //            The specific subclass of EventParameters is defined
-    //            by the contract for events of this |type|.
-    // TODO(eroman): Take a scoped_refptr<EventParameters> instead.
-    virtual void OnAddEntry(EventType type,
-                            const base::TimeTicks& time,
-                            const Source& source,
-                            EventPhase phase,
-                            EventParameters* params) = 0;
+    virtual void OnAddEntry(const Entry& entry) = 0;
 
    protected:
     virtual ~ThreadSafeObserver();
@@ -169,10 +218,18 @@ class NET_EXPORT NetLog {
   virtual ~NetLog() {}
 
   // Emits a global event to the log stream, with its own unique source ID.
+  void AddGlobalEntry(EventType type);
+  void AddGlobalEntry(EventType type,
+                      const NetLog::ParametersCallback& parameters_callback);
+
+  // Older, obsolete version of above functions.  Use the ParametersCallback
+  // versions instead.
+  // TODO(mmenke):  Remove this.
   void AddGlobalEntry(EventType type,
                       const scoped_refptr<EventParameters>& params);
 
-  // Returns a unique ID which can be used as a source ID.
+  // Returns a unique ID which can be used as a source ID.  All returned IDs
+  // will be unique and greater than 0.
   virtual uint32 NextID() = 0;
 
   // Returns the logging level for this NetLog. This is used to avoid computing
@@ -226,22 +283,23 @@ class NET_EXPORT NetLog {
   // Returns a C-String symbolic name for |event_phase|.
   static const char* EventPhaseToString(EventPhase event_phase);
 
-  // Serializes the specified event to a DictionaryValue.
-  // If |use_strings| is true, uses strings rather than numeric ids.
-  static base::Value* EntryToDictionaryValue(NetLog::EventType type,
-                                             const base::TimeTicks& time,
-                                             const NetLog::Source& source,
-                                             NetLog::EventPhase phase,
-                                             NetLog::EventParameters* params,
-                                             bool use_strings);
+  // Returns true if |log_level| indicates the actual bytes transferred should
+  // be logged.  This is only the case when |log_level| is LOG_ALL.
+  static bool IsLoggingBytes(LogLevel log_level);
+
+  // Returns true if |log_level| indicates that all events should be logged,
+  // including frequently occuring ones that may impact performances.
+  // This is the case when |log_level| is LOG_ALL or LOG_ALL_BUT_BYTES.
+  static bool IsLoggingAllEvents(LogLevel log_level);
+
+  // Creates a ParametersCallback that encapsulates a single integer.
+  // Warning: |name| must remain valid for the life of the callback.
+  static ParametersCallback IntegerCallback(const char* name, int value);
 
  protected:
-  // This is the internal function used by AddGlobalEntry and BoundNetLogs.
-  virtual void AddEntry(
-      EventType type,
-      const Source& source,
-      EventPhase phase,
-      const scoped_refptr<NetLog::EventParameters>& params) = 0;
+  // Child classes should respond to the new entry here.  This includes
+  // creating the Entry object and alerting their observers.
+  virtual void OnAddEntry(const Entry& entry) = 0;
 
   // Subclasses must call these in the corresponding functions to set an
   // observer's |net_log_| and |log_level_| values.
@@ -253,6 +311,11 @@ class NET_EXPORT NetLog {
  private:
   friend class BoundNetLog;
 
+  void AddEntry(EventType type,
+                const Source& source,
+                EventPhase phase,
+                const NetLog::ParametersCallback* parameters_callback);
+
   DISALLOW_COPY_AND_ASSIGN(NetLog);
 };
 
@@ -262,15 +325,32 @@ class NET_EXPORT BoundNetLog {
  public:
   BoundNetLog() : net_log_(NULL) {}
 
-  // Convenience methods that call through to the NetLog, passing in the
-  // currently bound source.
+  // Add a log entry to the NetLog for the bound source.
+  void AddEntry(NetLog::EventType type, NetLog::EventPhase phase) const;
+  void AddEntry(NetLog::EventType type,
+                NetLog::EventPhase phase,
+                const NetLog::ParametersCallback& get_parameters) const;
+
+  // Convenience methods that call AddEntry with a fixed "capture phase"
+  // (begin, end, or none).
+  void BeginEvent(NetLog::EventType type) const;
+  void BeginEvent(NetLog::EventType type,
+                  const NetLog::ParametersCallback& get_parameters) const;
+
+  void EndEvent(NetLog::EventType type) const;
+  void EndEvent(NetLog::EventType type,
+                const NetLog::ParametersCallback& get_parameters) const;
+
+  void AddEvent(NetLog::EventType type) const;
+  void AddEvent(NetLog::EventType type,
+                const NetLog::ParametersCallback& get_parameters) const;
+
+  // Obsolete versions of the above functions.
+  // Use the ParametersCallback versions of these functions instead.
+  // TODO(mmenke):  Remove these.
   void AddEntry(NetLog::EventType type,
                 NetLog::EventPhase phase,
                 const scoped_refptr<NetLog::EventParameters>& params) const;
-
-  // Convenience methods that call through to the NetLog, passing in the
-  // currently bound source, current time, and a fixed "capture phase"
-  // (begin, end, or none).
   void AddEvent(NetLog::EventType event_type,
                 const scoped_refptr<NetLog::EventParameters>& params) const;
   void BeginEvent(NetLog::EventType event_type,
@@ -299,10 +379,10 @@ class NET_EXPORT BoundNetLog {
 
   NetLog::LogLevel GetLogLevel() const;
 
-  // Returns true if the log level is LOG_ALL.
+  // Shortcut for NetLog::IsLoggingBytes(this->GetLogLevel()).
   bool IsLoggingBytes() const;
 
-  // Returns true if the log level is LOG_ALL or LOG_ALL_BUT_BYTES.
+  // Shortcut for NetLog::IsLoggingAllEvents(this->GetLogLevel()).
   bool IsLoggingAllEvents() const;
 
   // Helper to create a BoundNetLog given a NetLog and a SourceType. Takes care
@@ -320,6 +400,9 @@ class NET_EXPORT BoundNetLog {
   NetLog::Source source_;
   NetLog* net_log_;
 };
+
+// All the classes below are obsolete.  New code should use ParametersCallbacks.
+// TODO(mmenke):  Update users these classes and get rid of them.
 
 // NetLogStringParameter is a subclass of EventParameters that encapsulates a
 // single std::string parameter.
@@ -384,30 +467,6 @@ class NET_EXPORT NetLogSourceParameter : public NetLog::EventParameters {
  private:
   const char* name_;
   const NetLog::Source value_;
-};
-
-// ScopedNetLogEvent logs a begin event on creation, and the corresponding end
-// event on destruction.
-class NET_EXPORT_PRIVATE ScopedNetLogEvent {
- public:
-  ScopedNetLogEvent(const BoundNetLog& net_log,
-                    NetLog::EventType event_type,
-                    const scoped_refptr<NetLog::EventParameters>& params);
-
-  ~ScopedNetLogEvent();
-
-  // Sets the parameters that will logged on object destruction.  Can be called
-  // at most once for a given ScopedNetLogEvent object.  If not called, the end
-  // event will have no parameters.
-  void SetEndEventParameters(
-      const scoped_refptr<NetLog::EventParameters>& end_event_params);
-
-  const BoundNetLog& net_log() const;
-
- private:
-  BoundNetLog net_log_;
-  const NetLog::EventType event_type_;
-  scoped_refptr<NetLog::EventParameters> end_event_params_;
 };
 
 }  // namespace net

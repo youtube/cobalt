@@ -4,6 +4,7 @@
 
 #include "net/http/http_stream_parser.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
@@ -11,7 +12,6 @@
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ssl_cert_request_info.h"
-#include "net/http/http_net_log_params.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
@@ -197,12 +197,12 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   DCHECK(!callback.is_null());
   DCHECK(response);
 
-  if (net_log_.IsLoggingAllEvents()) {
-    net_log_.AddEvent(
-        NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
-        make_scoped_refptr(new NetLogHttpRequestParameter(
-            request_line, headers)));
-  }
+  net_log_.AddEvent(
+      NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
+      base::Bind(&HttpRequestHeaders::NetLogCallback,
+                 base::Unretained(&headers),
+                 &request_line));
+
   DVLOG(1) << __FUNCTION__ << "()"
            << " request_line = \"" << request_line << "\""
            << " headers = \"" << headers.ToString() << "\"";

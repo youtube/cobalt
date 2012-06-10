@@ -7,6 +7,7 @@
 #include "base/basictypes.h"
 #include "base/pickle.h"
 #include "base/time.h"
+#include "base/values.h"
 #include "net/http/http_response_headers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -1755,4 +1756,31 @@ TEST(HttpResponseHeadersTest, ReplaceStatus) {
     parsed->GetNormalizedHeaders(&resulting_headers);
     EXPECT_EQ(std::string(tests[i].expected_headers), resulting_headers);
   }
+}
+
+TEST(HttpResponseHeadersTest, ToNetLogParamAndBackAgain) {
+  std::string headers("HTTP/1.1 404\n"
+                      "Content-Length: 450\n"
+                      "Connection: keep-alive\n");
+  HeadersToRaw(&headers);
+  scoped_refptr<net::HttpResponseHeaders> parsed(
+      new net::HttpResponseHeaders(headers));
+
+  scoped_ptr<base::Value> event_param(
+      parsed->NetLogCallback(net::NetLog::LOG_ALL_BUT_BYTES));
+  scoped_refptr<net::HttpResponseHeaders> recreated;
+
+  ASSERT_TRUE(net::HttpResponseHeaders::FromNetLogParam(event_param.get(),
+                                                        &recreated));
+  ASSERT_TRUE(recreated.get());
+  EXPECT_EQ(parsed->GetHttpVersion(), recreated->GetHttpVersion());
+  EXPECT_EQ(parsed->response_code(), recreated->response_code());
+  EXPECT_EQ(parsed->GetContentLength(), recreated->GetContentLength());
+  EXPECT_EQ(parsed->IsKeepAlive(), recreated->IsKeepAlive());
+
+  std::string normalized_parsed;
+  parsed->GetNormalizedHeaders(&normalized_parsed);
+  std::string normalized_recreated;
+  parsed->GetNormalizedHeaders(&normalized_recreated);
+  EXPECT_EQ(normalized_parsed, normalized_recreated);
 }

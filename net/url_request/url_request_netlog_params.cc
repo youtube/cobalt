@@ -5,29 +5,32 @@
 #include "net/url_request/url_request_netlog_params.h"
 
 #include "base/values.h"
+#include "googleurl/src/gurl.h"
 
 namespace net {
 
-URLRequestStartEventParameters::URLRequestStartEventParameters(
-    const GURL& url,
-    const std::string& method,
-    int load_flags,
-    RequestPriority priority)
-    : url_(url),
-      method_(method),
-      load_flags_(load_flags),
-      priority_(priority) {
-}
-
-Value* URLRequestStartEventParameters::ToValue() const {
+Value* NetLogURLRequestStartCallback(const GURL* url,
+                                     const std::string* method,
+                                     int load_flags,
+                                     RequestPriority priority,
+                                     NetLog::LogLevel /* log_level */) {
   DictionaryValue* dict = new DictionaryValue();
-  dict->SetString("url", url_.possibly_invalid_spec());
-  dict->SetString("method", method_);
-  dict->SetInteger("load_flags", load_flags_);
-  dict->SetInteger("priority", static_cast<int>(priority_));
+  dict->SetString("url", url->possibly_invalid_spec());
+  dict->SetString("method", *method);
+  dict->SetInteger("load_flags", load_flags);
+  dict->SetInteger("priority", static_cast<int>(priority));
   return dict;
 }
 
-URLRequestStartEventParameters::~URLRequestStartEventParameters() {}
+bool StartEventLoadFlagsFromEventParams(const Value* event_params,
+                                        int* load_flags) {
+  const DictionaryValue* dict;
+  if (!event_params->GetAsDictionary(&dict) ||
+      !dict->GetInteger("load_flags", load_flags)) {
+    *load_flags = 0;
+    return false;
+  }
+  return true;
+}
 
 }  // namespace net
