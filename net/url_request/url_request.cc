@@ -445,8 +445,8 @@ void URLRequest::StartJob(URLRequestJob* job) {
 
   net_log_.BeginEvent(
       NetLog::TYPE_URL_REQUEST_START_JOB,
-      make_scoped_refptr(new URLRequestStartEventParameters(
-          url(), method_, load_flags_, priority_)));
+      base::Bind(&NetLogURLRequestStartCallback,
+                 &url(), &method_, load_flags_, priority_));
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);

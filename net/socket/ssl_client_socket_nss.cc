@@ -382,6 +382,17 @@ void DestroyCertificates(CERTCertificate** certs, size_t len) {
     CERT_DestroyCertificate(certs[i]);
 }
 
+// Helper function to make it possible to log events from within the
+// SSLClientSocketNSS::Core.  Can't use Bind with BoundNetLog::AddEntry directly
+// on Windows because it is overloaded.
+void AddLogEvent(BoundNetLog* net_log,
+                 NetLog::EventType event_type,
+                 const scoped_refptr<NetLog::EventParameters>& event_params) {
+  if (!net_log)
+    return;
+  net_log->AddEvent(event_type, event_params);
+}
+
 // Helper function to make it easier to call BoundNetLog::AddByteTransferEvent
 // from within the SSLClientSocketNSS::Core.
 // AddByteTransferEvent expects to receive a const char*, which within the
@@ -1292,7 +1303,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
 
   core->PostOrRunCallback(
       FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+      base::Bind(&AddLogEvent, core->weak_net_log_,
                  NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED,
                  scoped_refptr<NetLog::EventParameters>()));
 
@@ -1339,7 +1350,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
           // number collision. See crbug.com/97355.
           core->PostOrRunCallback(
               FROM_HERE,
-              base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+              base::Bind(&AddLogEvent, core->weak_net_log_,
                          NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                          make_scoped_refptr(
                              new NetLogIntegerParameter("cert_count", 0))));
@@ -1362,7 +1373,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
             CERT_DestroyCertList(cert_chain);
             core->PostOrRunCallback(
                 FROM_HERE,
-                base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+                base::Bind(&AddLogEvent, core->weak_net_log_,
                            NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                            make_scoped_refptr(
                                new NetLogIntegerParameter("cert_count", 0))));
@@ -1385,7 +1396,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
         int cert_count = 1 + intermediates.size();
         core->PostOrRunCallback(
             FROM_HERE,
-            base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+            base::Bind(&AddLogEvent, core->weak_net_log_,
                        NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                        make_scoped_refptr(
                            new NetLogIntegerParameter("cert_count",
@@ -1398,7 +1409,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
     // Send no client certificate.
     core->PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+        base::Bind(&AddLogEvent, core->weak_net_log_,
                    NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                    make_scoped_refptr(
                        new NetLogIntegerParameter("cert_count", 0))));
@@ -1420,7 +1431,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
 
     core->PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+        base::Bind(&AddLogEvent, core->weak_net_log_,
                    NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                    make_scoped_refptr(
                        new NetLogIntegerParameter("cert_count", 0))));
@@ -1565,7 +1576,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
         }
         core->PostOrRunCallback(
             FROM_HERE,
-            base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+            base::Bind(&AddLogEvent, core->weak_net_log_,
                        NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                        make_scoped_refptr(
                            new NetLogIntegerParameter("cert_count",
@@ -1589,7 +1600,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
     // Send no client certificate.
     core->PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+        base::Bind(&AddLogEvent, core->weak_net_log_,
                    NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                    make_scoped_refptr(
                        new NetLogIntegerParameter("cert_count", 0))));
@@ -1644,7 +1655,7 @@ SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
 
   core->PostOrRunCallback(
       FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+      base::Bind(&AddLogEvent, core->weak_net_log_,
                  NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED,
                  scoped_refptr<NetLog::EventParameters>()));
 
@@ -1676,7 +1687,7 @@ SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
         // NSS will construct the certificate chain.
         core->PostOrRunCallback(
             FROM_HERE,
-            base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+            base::Bind(&AddLogEvent, core->weak_net_log_,
                        NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                        make_scoped_refptr(
                            new NetLogIntegerParameter("cert_count", -1))));
@@ -1688,7 +1699,7 @@ SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
     // Send no client certificate.
     core->PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, core->weak_net_log_,
+        base::Bind(&AddLogEvent, core->weak_net_log_,
                    NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                    make_scoped_refptr(
                        new NetLogIntegerParameter("cert_count", 0))));
@@ -1939,7 +1950,7 @@ int SSLClientSocketNSS::Core::DoReadLoop(int result) {
     int rv = ERR_UNEXPECTED;
     PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+        base::Bind(&AddLogEvent, weak_net_log_,
                    NetLog::TYPE_SSL_READ_ERROR,
                    make_scoped_refptr(new SSLErrorParams(rv, 0))));
     return rv;
@@ -1968,7 +1979,7 @@ int SSLClientSocketNSS::Core::DoWriteLoop(int result) {
     int rv = ERR_UNEXPECTED;
     PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+        base::Bind(&AddLogEvent, weak_net_log_,
                    NetLog::TYPE_SSL_READ_ERROR,
                    make_scoped_refptr(new SSLErrorParams(rv, 0))));
     return rv;
@@ -2003,7 +2014,7 @@ int SSLClientSocketNSS::Core::DoHandshake() {
       net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
       PostOrRunCallback(
           FROM_HERE,
-          base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+          base::Bind(&AddLogEvent, weak_net_log_,
                      NetLog::TYPE_SSL_HANDSHAKE_ERROR,
                      make_scoped_refptr(new SSLErrorParams(net_error, 0))));
 
@@ -2023,7 +2034,7 @@ int SSLClientSocketNSS::Core::DoHandshake() {
       net_error = ERR_SSL_PROTOCOL_ERROR;
       PostOrRunCallback(
           FROM_HERE,
-          base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+          base::Bind(&AddLogEvent, weak_net_log_,
                      NetLog::TYPE_SSL_HANDSHAKE_ERROR,
                      make_scoped_refptr(
                          new SSLErrorParams(net_error, 0))));
@@ -2084,7 +2095,7 @@ int SSLClientSocketNSS::Core::DoHandshake() {
     } else {
       PostOrRunCallback(
           FROM_HERE,
-          base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+          base::Bind(&AddLogEvent, weak_net_log_,
                      NetLog::TYPE_SSL_HANDSHAKE_ERROR,
                      make_scoped_refptr(
                          new SSLErrorParams(net_error, prerr))));
@@ -2125,7 +2136,7 @@ int SSLClientSocketNSS::Core::DoGetDBCertComplete(int result) {
 
   PostOrRunCallback(
       FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+      base::Bind(&AddLogEvent, weak_net_log_,
                  NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                  make_scoped_refptr(
                      new NetLogIntegerParameter("cert_count",
@@ -2151,7 +2162,7 @@ int SSLClientSocketNSS::Core::DoPayloadRead() {
     rv = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
     PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+        base::Bind(&AddLogEvent, weak_net_log_,
                    NetLog::TYPE_SSL_READ_ERROR,
                    make_scoped_refptr(new SSLErrorParams(rv, 0))));
     return rv;
@@ -2171,7 +2182,7 @@ int SSLClientSocketNSS::Core::DoPayloadRead() {
   rv = HandleNSSError(prerr, false);
   PostOrRunCallback(
       FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+      base::Bind(&AddLogEvent, weak_net_log_,
                  NetLog::TYPE_SSL_READ_ERROR,
                  make_scoped_refptr(new SSLErrorParams(rv, prerr))));
   return rv;
@@ -2198,7 +2209,7 @@ int SSLClientSocketNSS::Core::DoPayloadWrite() {
   rv = HandleNSSError(prerr, false);
   PostOrRunCallback(
       FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+      base::Bind(&AddLogEvent, weak_net_log_,
                  NetLog::TYPE_SSL_WRITE_ERROR,
                  make_scoped_refptr(new SSLErrorParams(rv, prerr))));
   return rv;
@@ -2446,7 +2457,7 @@ SECStatus SSLClientSocketNSS::Core::DomainBoundClientAuthHandler(
   int cert_count = (rv == SECSuccess) ? 1 : 0;
   PostOrRunCallback(
       FROM_HERE,
-      base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+      base::Bind(&AddLogEvent, weak_net_log_,
                  NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
                  make_scoped_refptr(
                      new NetLogIntegerParameter("cert_count",
@@ -2506,7 +2517,7 @@ void SSLClientSocketNSS::Core::UpdateServerCert() {
   if (nss_handshake_state_.server_cert) {
     PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&BoundNetLog::AddEvent, weak_net_log_,
+        base::Bind(&AddLogEvent, weak_net_log_,
                    NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
                    make_scoped_refptr(
                        new X509CertificateNetLogParam(
