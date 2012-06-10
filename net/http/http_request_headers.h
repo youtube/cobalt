@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,6 +17,7 @@
 #include "base/basictypes.h"
 #include "base/string_piece.h"
 #include "net/base/net_export.h"
+#include "net/base/net_log.h"
 
 namespace net {
 
@@ -145,6 +146,20 @@ class NET_EXPORT HttpRequestHeaders {
   // line, and adds the trailing "\r\n".
   std::string ToString() const;
 
+  // Takes in the request line and returns a Value for use with the NetLog
+  // containing both the request line and all headers fields.
+  base::Value* NetLogCallback(const std::string* request_line,
+                              NetLog::LogLevel log_level) const;
+
+  // Takes in a Value created by the above function, and attempts to extract the
+  // request line and create a copy of the original headers.  Returns true on
+  // success.  On failure, clears |headers| and |request_line|.
+  // TODO(mmenke):  Long term, we want to remove this, and migrate external
+  //                consumers to be NetworkDelegates.
+  static bool FromNetLogParam(const base::Value* event_param,
+                              HttpRequestHeaders* headers,
+                              std::string* request_line);
+
  private:
   HeaderVector::iterator FindHeader(const base::StringPiece& key);
   HeaderVector::const_iterator FindHeader(const base::StringPiece& key) const;
@@ -152,9 +167,9 @@ class NET_EXPORT HttpRequestHeaders {
   HeaderVector headers_;
 
   // Allow the copy construction and operator= to facilitate copying in
-  // HttpRequestInfo.
+  // HttpRequestHeaders.
   // TODO(willchan): Investigate to see if we can remove the need to copy
-  // HttpRequestInfo.
+  // HttpRequestHeaders.
   // DISALLOW_COPY_AND_ASSIGN(HttpRequestHeaders);
 };
 

@@ -80,30 +80,24 @@ void CapturingNetLog::SetLogLevel(NetLog::LogLevel log_level) {
   log_level_ = log_level;
 }
 
-void CapturingNetLog::AddEntry(
-    EventType type,
-    const Source& source,
-    EventPhase phase,
-    const scoped_refptr<EventParameters>& extra_parameters) {
+void CapturingNetLog::OnAddEntry(const net::NetLog::Entry& entry) {
   // Only BoundNetLogs without a NetLog should have an invalid source.
-  DCHECK(source.is_valid());
+  DCHECK(entry.source().is_valid());
 
   // Using Dictionaries instead of Values makes checking values a little
   // simpler.
   DictionaryValue* param_dict = NULL;
-  if (extra_parameters) {
-    Value* param_value = extra_parameters->ToValue();
-    if (param_value && !param_value->GetAsDictionary(&param_dict))
-      delete param_value;
-  }
+  Value* param_value = entry.ParametersToValue();
+  if (param_value && !param_value->GetAsDictionary(&param_dict))
+    delete param_value;
 
   // Only need to acquire the lock when accessing class variables.
   base::AutoLock lock(lock_);
   captured_entries_.push_back(
-      CapturedEntry(type,
+      CapturedEntry(entry.type(),
                     base::TimeTicks::Now(),
-                    source,
-                    phase,
+                    entry.source(),
+                    entry.phase(),
                     scoped_ptr<DictionaryValue>(param_dict)));
 }
 

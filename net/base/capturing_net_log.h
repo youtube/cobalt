@@ -76,11 +76,7 @@ class CapturingNetLog : public NetLog {
   void SetLogLevel(NetLog::LogLevel log_level);
 
   // NetLog implementation:
-  virtual void AddEntry(
-      EventType type,
-      const Source& source,
-      EventPhase phase,
-      const scoped_refptr<EventParameters>& extra_parameters) OVERRIDE;
+  virtual void OnAddEntry(const net::NetLog::Entry& entry) OVERRIDE;
   virtual uint32 NextID() OVERRIDE;
   virtual LogLevel GetLogLevel() const OVERRIDE;
   virtual void AddThreadSafeObserver(ThreadSafeObserver* observer,
