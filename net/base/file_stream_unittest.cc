@@ -38,7 +38,7 @@ IOBufferWithSize* CreateTestDataBuffer() {
 class NetLogForNotifyingFileClosure : public NetLog {
  public:
   NetLogForNotifyingFileClosure()
-      : id_(0),
+      : last_id_(0),
         on_closure_(false /* manual_reset */, false /* initially_signaled */) {
   }
 
@@ -51,17 +51,12 @@ class NetLogForNotifyingFileClosure : public NetLog {
   }
 
   // NetLog overrides:
-  virtual void AddEntry(
-      EventType type,
-      const Source& source,
-      EventPhase phase,
-      const scoped_refptr<EventParameters>& params) OVERRIDE {
-    if (type == TYPE_FILE_STREAM_CLOSE) {
+  virtual void OnAddEntry(const net::NetLog::Entry& entry) OVERRIDE {
+    if (entry.type() == TYPE_FILE_STREAM_CLOSE)
       on_closure_.Signal();
-    }
   }
 
-  virtual uint32 NextID() OVERRIDE { return id_++; }
+  virtual uint32 NextID() OVERRIDE { return ++last_id_; }
   virtual LogLevel GetLogLevel() const OVERRIDE { return LOG_ALL; }
   virtual void AddThreadSafeObserver(ThreadSafeObserver* observer,
                                      LogLevel log_level) OVERRIDE {
@@ -76,7 +71,7 @@ class NetLogForNotifyingFileClosure : public NetLog {
   }
 
  private:
-  uint32 id_;
+  uint32 last_id_;
   base::WaitableEvent on_closure_;
 };
 

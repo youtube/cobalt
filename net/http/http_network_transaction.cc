@@ -36,7 +36,6 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_chunked_decoder.h"
-#include "net/http/http_net_log_params.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_proxy_client_socket_pool.h"
@@ -872,11 +871,9 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
         "Net.HttpResponseCode_Nxx_MainFrame", response_code/100, 10);
   }
 
-  if (net_log_.IsLoggingAllEvents()) {
-    net_log_.AddEvent(
-        NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
-        make_scoped_refptr(new NetLogHttpResponseParameter(response_.headers)));
-  }
+  net_log_.AddEvent(
+      NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
+      base::Bind(&HttpResponseHeaders::NetLogCallback, response_.headers));
 
   if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
     // HTTP/0.9 doesn't support the PUT method, so lack of response headers
