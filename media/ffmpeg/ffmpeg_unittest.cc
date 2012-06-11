@@ -90,8 +90,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
         duration_(AV_NOPTS_VALUE) {
     InitializeFFmpeg();
 
-    audio_buffer_.reset(
-        reinterpret_cast<int16*>(av_malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE)));
+    audio_buffer_.reset(avcodec_alloc_frame());
     video_buffer_.reset(avcodec_alloc_frame());
   }
 
@@ -239,7 +238,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     // Decode until output is produced, end of stream, or error.
     while (true) {
       int result = 0;
-      int size_out = AVCODEC_MAX_AUDIO_FRAME_SIZE;
+      int got_audio = 0;
       bool end_of_stream = false;
 
       AVPacket packet;
@@ -250,25 +249,22 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
         memcpy(&packet, audio_packets_.peek(), sizeof(packet));
       }
 
-      result = avcodec_decode_audio3(av_audio_context(), audio_buffer_.get(),
-                                     &size_out, audio_packets_.peek());
+      avcodec_get_frame_defaults(audio_buffer_.get());
+      result = avcodec_decode_audio4(av_audio_context(), audio_buffer_.get(),
+                                     &got_audio, &packet);
       if (!audio_packets_.empty()) {
         audio_packets_.pop();
       }
 
       EXPECT_GE(result, 0) << "Audio decode error.";
-      if (result < 0 || (size_out == 0 && end_of_stream)) {
+      if (result < 0 || (got_audio == 0 && end_of_stream)) {
         return false;
       }
 
       if (result > 0) {
-        // TODO(scherkus): move this to ffmpeg_common.h and dedup.
-        int64 denominator = av_audio_context()->channels *
-            av_get_bytes_per_sample(av_audio_context()->sample_fmt) *
-            av_audio_context()->sample_rate;
-        double microseconds = size_out /
-            (denominator /
-             static_cast<double>(base::Time::kMicrosecondsPerSecond));
+        double microseconds = 1.0L * audio_buffer_->nb_samples /
+            av_audio_context()->sample_rate *
+            base::Time::kMicrosecondsPerSecond;
         decoded_audio_duration_ = static_cast<int64>(microseconds);
 
         if (packet.pts == static_cast<int64>(AV_NOPTS_VALUE)) {
@@ -307,6 +303,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
         memcpy(&packet, video_packets_.peek(), sizeof(packet));
       }
 
+      avcodec_get_frame_defaults(video_buffer_.get());
       av_video_context()->reordered_opaque = packet.pts;
       result = avcodec_decode_video2(av_video_context(), video_buffer_.get(),
                                      &got_picture, &packet);
@@ -407,7 +404,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
   AVPacketQueue audio_packets_;
   AVPacketQueue video_packets_;
 
-  scoped_ptr_malloc<int16, media::ScopedPtrAVFree> audio_buffer_;
+  scoped_ptr_malloc<AVFrame, media::ScopedPtrAVFree> audio_buffer_;
   scoped_ptr_malloc<AVFrame, media::ScopedPtrAVFree> video_buffer_;
 
   int64 decoded_audio_time_;

@@ -96,7 +96,7 @@ void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
   }
 
   // Initialize AVCodecContext structure.
-  codec_context_ = avcodec_alloc_context();
+  codec_context_ = avcodec_alloc_context3(NULL);
   VideoDecoderConfigToAVCodecContext(config, codec_context_);
 
   // Enable motion vector search (potentially slow), strong deblocking filter
@@ -322,6 +322,9 @@ bool FFmpegVideoDecoder::Decode(
 
   // Let FFmpeg handle presentation timestamp reordering.
   codec_context_->reordered_opaque = buffer->GetTimestamp().InMicroseconds();
+
+  // Reset frame to default values.
+  avcodec_get_frame_defaults(av_frame_);
 
   // This is for codecs not using get_buffer to initialize
   // |av_frame_->reordered_opaque|

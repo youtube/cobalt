@@ -14,21 +14,9 @@
 
 namespace media {
 
-// Returns true if the decode result was an error.
-static bool IsErrorResult(int result, int decoded_size) {
-  return result < 0 ||
-      decoded_size < 0 ||
-      decoded_size > AVCODEC_MAX_AUDIO_FRAME_SIZE;
-}
-
-// Returns true if the decode result produced audio samples.
-static bool ProducedAudioSamples(int decoded_size) {
-  return decoded_size > 0;
-}
-
 // Returns true if the decode result was a timestamp packet and not actual audio
 // data.
-static bool IsTimestampMarkerPacket(int result, Buffer* input) {
+static inline bool IsTimestampMarkerPacket(int result, Buffer* input) {
   // We can get a positive result but no decoded data.  This is ok because this
   // this can be a marker packet that only contains timestamp.
   return result > 0 && !input->IsEndOfStream() &&
@@ -37,7 +25,7 @@ static bool IsTimestampMarkerPacket(int result, Buffer* input) {
 }
 
 // Returns true if the decode result was end of stream.
-static bool IsEndOfStream(int result, int decoded_size, Buffer* input) {
+static inline bool IsEndOfStream(int result, int decoded_size, Buffer* input) {
   // Three conditions to meet to declare end of stream for this decoder:
   // 1. FFmpeg didn't read anything.
   // 2. FFmpeg didn't output anything.
@@ -54,8 +42,7 @@ FFmpegAudioDecoder::FFmpegAudioDecoder(
       bits_per_channel_(0),
       channel_layout_(CHANNEL_LAYOUT_NONE),
       samples_per_second_(0),
-      decoded_audio_size_(AVCODEC_MAX_AUDIO_FRAME_SIZE),
-      decoded_audio_(static_cast<uint8*>(av_malloc(decoded_audio_size_))) {
+      av_frame_(NULL) {
 }
 
 void FFmpegAudioDecoder::Initialize(
@@ -101,14 +88,17 @@ void FFmpegAudioDecoder::Reset(const base::Closure& closure) {
 }
 
 FFmpegAudioDecoder::~FFmpegAudioDecoder() {
-  av_free(decoded_audio_);
-
   // TODO(scherkus): should we require Stop() to be called? this might end up
   // getting called on a random thread due to refcounting.
   if (codec_context_) {
     av_free(codec_context_->extradata);
     avcodec_close(codec_context_);
     av_free(codec_context_);
+  }
+
+  if (av_frame_) {
+    av_free(av_frame_);
+    av_frame_ = NULL;
   }
 }
 
@@ -134,7 +124,7 @@ void FFmpegAudioDecoder::DoInitialize(
   }
 
   // Initialize AVCodecContext structure.
-  codec_context_ = avcodec_alloc_context();
+  codec_context_ = avcodec_alloc_context3(NULL);
   AudioDecoderConfigToAVCodecContext(config, codec_context_);
 
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
@@ -147,6 +137,7 @@ void FFmpegAudioDecoder::DoInitialize(
   }
 
   // Success!
+  av_frame_ = avcodec_alloc_frame();
   bits_per_channel_ = config.bits_per_channel();
   channel_layout_ = config.channel_layout();
   samples_per_second_ = config.samples_per_second();
@@ -198,12 +189,14 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
   PipelineStatistics statistics;
   statistics.audio_bytes_decoded = input->GetDataSize();
 
-  int decoded_audio_size = decoded_audio_size_;
-  int result = avcodec_decode_audio3(
-      codec_context_, reinterpret_cast<int16_t*>(decoded_audio_),
-      &decoded_audio_size, &packet);
+  // Reset frame to default values.
+  avcodec_get_frame_defaults(av_frame_);
 
-  if (IsErrorResult(result, decoded_audio_size)) {
+  int frame_decoded = 0;
+  int result = avcodec_decode_audio4(
+      codec_context_, av_frame_, &frame_decoded, &packet);
+
+  if (result < 0) {
     DCHECK(!input->IsEndOfStream())
         << "End of stream buffer produced an error! "
         << "This is quite possibly a bug in the audio decoder not handling "
@@ -218,14 +211,21 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
     return;
   }
 
+  int decoded_audio_size = 0;
+  if (frame_decoded) {
+    decoded_audio_size = av_samples_get_buffer_size(
+        NULL, codec_context_->channels, av_frame_->nb_samples,
+        codec_context_->sample_fmt, 1);
+  }
+
   scoped_refptr<DataBuffer> output;
 
-  if (ProducedAudioSamples(decoded_audio_size)) {
+  if (decoded_audio_size > 0) {
     // Copy the audio samples into an output buffer.
     output = new DataBuffer(decoded_audio_size);
     output->SetDataSize(decoded_audio_size);
     uint8* data = output->GetWritableData();
-    memcpy(data, decoded_audio_, decoded_audio_size);
+    memcpy(data, av_frame_->data[0], decoded_audio_size);
 
     UpdateDurationAndTimestamp(input, output);
   } else if (IsTimestampMarkerPacket(result, input)) {
