@@ -5,6 +5,8 @@
 #ifndef BASE_TEST_TEST_SUPPORT_ANDROID_H_
 #define BASE_TEST_TEST_SUPPORT_ANDROID_H_
 
+namespace base {
+
 // Init logging for tests on Android. Logs will be output into Android's logcat.
 void InitAndroidTestLogging();
 
@@ -16,5 +18,7 @@ void InitAndroidTestMessageLoop();
 
 // Do all of the initializations above.
 void InitAndroidTest();
+
+}  // namespace base
 
 #endif  // BASE_TEST_TEST_SUPPORT_ANDROID_H_
