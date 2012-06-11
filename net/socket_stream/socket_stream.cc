@@ -905,10 +905,14 @@ int SocketStream::DoSecureProxyConnect() {
 
 int SocketStream::DoSecureProxyConnectComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
+  // Reconnect with client authentication.
+  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
+    return HandleCertificateRequest(result, &proxy_ssl_config_);
+
   if (IsCertificateError(result))
     next_state_ = STATE_SECURE_PROXY_HANDLE_CERT_ERROR;
-  else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED || result == OK)
-    next_state_ = STATE_SECURE_PROXY_HANDLE_CERT_ERROR_COMPLETE;
+  else if (result == OK)
+    next_state_ = STATE_WRITE_TUNNEL_HEADERS;
   else
     next_state_ = STATE_CLOSE;
   return result;
@@ -927,10 +931,6 @@ int SocketStream::DoSecureProxyHandleCertError(int result) {
 
 int SocketStream::DoSecureProxyHandleCertErrorComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
-  // Reconnect with client authentication.
-  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
-    return HandleCertificateRequest(result, &proxy_ssl_config_);
-
   if (result == OK) {
     if (!socket_->IsConnectedAndIdle())
       return AllowCertErrorForReconnection(&proxy_ssl_config_);
@@ -959,10 +959,14 @@ int SocketStream::DoSSLConnect() {
 
 int SocketStream::DoSSLConnectComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
+  // Reconnect with client authentication.
+  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
+    return HandleCertificateRequest(result, &server_ssl_config_);
+
   if (IsCertificateError(result))
     next_state_ = STATE_SSL_HANDLE_CERT_ERROR;
-  else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED || result == OK)
-    next_state_ = STATE_SSL_HANDLE_CERT_ERROR_COMPLETE;
+  else if (result == OK)
+    result = DidEstablishConnection();
   else
     next_state_ = STATE_CLOSE;
   return result;
@@ -985,9 +989,6 @@ int SocketStream::DoSSLHandleCertErrorComplete(int result) {
   // If we use HTTPS and this is the first connection to the SPDY server,
   // we should take care of TLS NPN extension here.
 
-  // Reconnect with client authentication.
-  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
-    return HandleCertificateRequest(result, &server_ssl_config_);
   if (result == OK) {
     if (!socket_->IsConnectedAndIdle())
       return AllowCertErrorForReconnection(&server_ssl_config_);
@@ -1185,7 +1186,7 @@ int SocketStream::AllowCertErrorForReconnection(SSLConfig* ssl_config) {
     // certificates, we did try it and failed again, so we should not
     // retry again: the connection should fail at last.
     next_state_ = STATE_CLOSE;
-    return OK;
+    return ERR_UNEXPECTED;
   }
   // Add the bad certificate to the set of allowed certificates in the
   // SSL config object.
@@ -1193,7 +1194,7 @@ int SocketStream::AllowCertErrorForReconnection(SSLConfig* ssl_config) {
   if (!X509Certificate::GetDEREncoded(ssl_info.cert->os_cert_handle(),
                                       &bad_cert.der_cert)) {
     next_state_ = STATE_CLOSE;
-    return OK;
+    return ERR_UNEXPECTED;
   }
   bad_cert.cert_status = ssl_info.cert_status;
   ssl_config->allowed_bad_certs.push_back(bad_cert);
