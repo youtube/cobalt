@@ -124,22 +124,21 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
     return false;
   }
 
-  scoped_ptr_malloc<int16, ScopedPtrAVFree> output_buffer(
-      static_cast<int16*>(av_malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE)));
+  // Holds decoded audio.
+  scoped_ptr_malloc<AVFrame, ScopedPtrAVFree> av_frame(avcodec_alloc_frame());
 
   // Read until we hit EOF or we've read the requested number of frames.
-  AVPacket avpkt;
+  AVPacket packet;
   int result = 0;
   size_t current_frame = 0;
 
   while (current_frame < number_of_frames &&
-         (result = av_read_frame(format_context_, &avpkt)) >= 0) {
-    int out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;
-    result = avcodec_decode_audio3(codec_context_,
-                                   output_buffer.get(),
-                                   &out_size,
-                                   &avpkt);
-    av_free_packet(&avpkt);
+         (result = av_read_frame(format_context_, &packet)) >= 0) {
+    avcodec_get_frame_defaults(av_frame.get());
+    int frame_decoded = 0;
+    int result = avcodec_decode_audio4(
+        codec_context_, av_frame.get(), &frame_decoded, &packet);
+    av_free_packet(&packet);
 
     if (result < 0) {
       DLOG(WARNING)
@@ -150,10 +149,13 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
       return current_frame > 0;
     }
 
+    if (!frame_decoded)
+      continue;
+
     // Determine the number of sample-frames we just decoded.
     size_t bytes_per_sample =
         av_get_bytes_per_sample(codec_context_->sample_fmt);
-    size_t frames_read = out_size / (channels * bytes_per_sample);
+    size_t frames_read = av_frame->nb_samples;
 
     // Truncate, if necessary, if the destination isn't big enough.
     if (current_frame + frames_read > number_of_frames)
@@ -163,7 +165,7 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
     // with nominal range -1.0 -> +1.0.
     for (size_t channel_index = 0; channel_index < channels;
          ++channel_index) {
-      if (!DeinterleaveAudioChannel(output_buffer.get(),
+      if (!DeinterleaveAudioChannel(av_frame->data[0],
                                     audio_data[channel_index] + current_frame,
                                     channels,
                                     channel_index,

@@ -12,6 +12,7 @@
 #include "media/base/audio_decoder.h"
 
 struct AVCodecContext;
+struct AVFrame;
 
 namespace media {
 
@@ -74,11 +75,8 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
 
   base::TimeDelta estimated_next_timestamp_;
 
-  // Holds decoded audio. As required by FFmpeg, input/output buffers should
-  // be allocated with suitable padding and alignment. av_malloc() provides
-  // us that guarantee.
-  const int decoded_audio_size_;
-  uint8* decoded_audio_;  // Allocated via av_malloc().
+  // Holds decoded audio.
+  AVFrame* av_frame_;
 
   ReadCB read_cb_;
 
