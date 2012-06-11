@@ -261,6 +261,7 @@ bool WebMStreamParser::Parse(const uint8* buf, int size) {
 }
 
 void WebMStreamParser::ChangeState(State new_state) {
+  DVLOG(1) << "ChangeState() : " << state_ << " -> " << new_state;
   state_ = new_state;
 }
 
@@ -332,10 +333,16 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
 
   FFmpegConfigHelper config_helper;
 
-  if (!config_helper.Parse(data, bytes_parsed))
+  if (!config_helper.Parse(data, bytes_parsed)) {
+    DVLOG(1) << "Failed to parse config data.";
     return -1;
+  }
 
-  config_cb_.Run(config_helper.audio_config(),config_helper.video_config());
+  if (!config_cb_.Run(config_helper.audio_config(),
+                      config_helper.video_config())) {
+    DVLOG(1) << "New config data isn't allowed.";
+    return -1;
+  }
 
   // TODO(xhwang): Support decryption of audio (see http://crbug.com/123421).
   if (tracks_parser.video_encryption_key_id()) {
@@ -354,8 +361,11 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
       tracks_parser.video_encryption_key_id_size()));
 
   ChangeState(kParsingClusters);
-  init_cb_.Run(true, duration);
-  init_cb_.Reset();
+
+  if (!init_cb_.is_null()) {
+    init_cb_.Run(true, duration);
+    init_cb_.Reset();
+  }
 
   return bytes_parsed;
 }
@@ -378,6 +388,11 @@ int WebMStreamParser::ParseCluster(const uint8* data, int size) {
     }
     // Skip the element.
     return result + element_size;
+  }
+
+  if (id == kWebMIdEBMLHeader) {
+    ChangeState(kParsingHeaders);
+    return 0;
   }
 
   int bytes_parsed = cluster_parser_->Parse(data, size);
