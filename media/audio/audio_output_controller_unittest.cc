@@ -196,7 +196,7 @@ TEST_F(AudioOutputControllerTest, PlayPausePlayClose) {
 
   MockAudioOutputControllerSyncReader sync_reader;
   EXPECT_CALL(sync_reader, UpdatePendingBytes(_))
-      .Times(AtLeast(1));
+      .Times(AtLeast(2));
   EXPECT_CALL(sync_reader, Read(_, kHardwareBufferSize))
       .WillRepeatedly(DoAll(SignalEvent(&event), Return(4)));
   EXPECT_CALL(sync_reader, DataReady())
