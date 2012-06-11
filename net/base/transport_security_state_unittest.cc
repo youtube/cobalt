@@ -643,10 +643,6 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(ShouldRedirect("lists.mayfirst.org"));
   EXPECT_FALSE(HasState("www.mayfirst.org"));
 
-  EXPECT_TRUE(ShouldRedirect("splendidbacon.com"));
-  EXPECT_TRUE(ShouldRedirect("www.splendidbacon.com"));
-  EXPECT_TRUE(ShouldRedirect("foo.splendidbacon.com"));
-
   EXPECT_TRUE(ShouldRedirect("romab.com"));
   EXPECT_TRUE(ShouldRedirect("www.romab.com"));
   EXPECT_TRUE(ShouldRedirect("foo.romab.com"));
