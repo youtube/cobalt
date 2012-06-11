@@ -170,6 +170,8 @@ void InitPathProvider(int key) {
 
 }  // namespace
 
+namespace base {
+
 void InitAndroidTestLogging() {
   logging::InitLogging(NULL,
                        logging::LOG_ONLY_TO_SYSTEM_DEBUG_LOG,
@@ -184,9 +186,9 @@ void InitAndroidTestLogging() {
 }
 
 void InitAndroidTestPaths() {
-  InitPathProvider(base::DIR_MODULE);
-  InitPathProvider(base::DIR_CACHE);
-  InitPathProvider(base::DIR_ANDROID_APP_DATA);
+  InitPathProvider(DIR_MODULE);
+  InitPathProvider(DIR_CACHE);
+  InitPathProvider(DIR_ANDROID_APP_DATA);
 }
 
 void InitAndroidTestMessageLoop() {
@@ -198,3 +200,4 @@ void InitAndroidTest() {
   InitAndroidTestPaths();
   InitAndroidTestMessageLoop();
 }
+}  // namespace base
