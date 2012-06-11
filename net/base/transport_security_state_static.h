@@ -1488,7 +1488,6 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {22, false, "\007support\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
   {17, false, "\002id\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
   {20, false, "\005lists\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
-  {19, true, "\015splendidbacon\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {28, false, "\016aladdinschools\007appspot\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {14, true, "\011ottospora\002nl", true, kNoPins, DOMAIN_NOT_PINNED },
   {25, false, "\003www\017paycheckrecords\003com", true, kNoPins, DOMAIN_NOT_PINNED },
