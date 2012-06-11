@@ -103,6 +103,20 @@ class ChunkDemuxerTest : public testing::Test {
     MAX_CODECS_INDEX
   };
 
+  // Default cluster to append first for simple tests.
+  scoped_ptr<Cluster> kDefaultFirstCluster() {
+    return GenerateCluster(0, 4);
+  }
+
+  // Default cluster to append after kDefaultFirstCluster()
+  // has been appended. This cluster starts with blocks that
+  // have timestamps consistent with the end times of the blocks
+  // in kDefaultFirstCluster() so that these two clusters represent
+  // a continuous region.
+  scoped_ptr<Cluster> kDefaultSecondCluster() {
+    return GenerateCluster(46, 66, 5);
+  }
+
   ChunkDemuxerTest()
       : buffered_bytes_(0),
         client_(new MockChunkDemuxerClient()),
@@ -113,13 +127,17 @@ class ChunkDemuxerTest : public testing::Test {
     ShutdownDemuxer();
   }
 
-  void CreateInfoTracks(bool has_audio, bool has_video,
-                        bool video_content_encoded, scoped_array<uint8>* buffer,
-                        int* size) {
+  void CreateInitSegment(bool has_audio, bool has_video,
+                         bool video_content_encoded,
+                         scoped_array<uint8>* buffer,
+                         int* size) {
+    scoped_refptr<DecoderBuffer> ebml_header;
     scoped_refptr<DecoderBuffer> info;
     scoped_refptr<DecoderBuffer> audio_track_entry;
     scoped_refptr<DecoderBuffer> video_track_entry;
     scoped_refptr<DecoderBuffer> video_content_encodings;
+
+    ebml_header = ReadTestDataFile("webm_ebml_element");
 
     info = ReadTestDataFile("webm_info_element");
 
@@ -139,11 +157,15 @@ class ChunkDemuxerTest : public testing::Test {
       }
     }
 
-    *size = info->GetDataSize() + kTracksHeaderSize + tracks_element_size;
+    *size = ebml_header->GetDataSize() + info->GetDataSize() +
+        kTracksHeaderSize + tracks_element_size;
 
     buffer->reset(new uint8[*size]);
 
     uint8* buf = buffer->get();
+    memcpy(buf, ebml_header->GetData(), ebml_header->GetDataSize());
+    buf += ebml_header->GetDataSize();
+
     memcpy(buf, info->GetData(), info->GetDataSize());
     buf += info->GetDataSize();
 
@@ -210,12 +232,12 @@ class ChunkDemuxerTest : public testing::Test {
     return true;
   }
 
-  bool AppendInfoTracks(bool has_audio, bool has_video,
-                        bool video_content_encoded) {
+  bool AppendInitSegment(bool has_audio, bool has_video,
+                         bool video_content_encoded) {
     scoped_array<uint8> info_tracks;
     int info_tracks_size = 0;
-    CreateInfoTracks(has_audio, has_video, video_content_encoded,
-                     &info_tracks, &info_tracks_size);
+    CreateInitSegment(has_audio, has_video, video_content_encoded,
+                      &info_tracks, &info_tracks_size);
     return AppendData(info_tracks.get(), info_tracks_size);
   }
 
@@ -246,7 +268,7 @@ class ChunkDemuxerTest : public testing::Test {
     if (AddId() != ChunkDemuxer::kOk)
       return false;
 
-    return AppendInfoTracks(has_audio, has_video, video_content_encoded);
+    return AppendInitSegment(has_audio, has_video, video_content_encoded);
   }
 
   void ShutdownDemuxer() {
@@ -494,7 +516,7 @@ TEST_F(ChunkDemuxerTest, TestAppendDataAfterSeek) {
 
   EXPECT_CALL(*this, Checkpoint(2));
 
-  scoped_ptr<Cluster> cluster(GenerateCluster(0, 4));
+  scoped_ptr<Cluster> cluster(kDefaultFirstCluster());
 
   Checkpoint(1);
 
@@ -552,7 +574,7 @@ TEST_F(ChunkDemuxerTest, TestSeekWhileParsingCluster) {
 TEST_F(ChunkDemuxerTest, TestAppendDataBeforeInit) {
   scoped_array<uint8> info_tracks;
   int info_tracks_size = 0;
-  CreateInfoTracks(true, true, false, &info_tracks, &info_tracks_size);
+  CreateInitSegment(true, true, false, &info_tracks, &info_tracks_size);
 
   EXPECT_FALSE(demuxer_->AppendData(kSourceId, info_tracks.get(),
                                     info_tracks_size));
@@ -577,7 +599,7 @@ TEST_F(ChunkDemuxerTest, TestRead) {
                          base::TimeDelta::FromMilliseconds(0),
                          &video_read_done));
 
-  scoped_ptr<Cluster> cluster(GenerateCluster(0, 4));
+  scoped_ptr<Cluster> cluster(kDefaultFirstCluster());
 
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
@@ -700,7 +722,7 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
 
 // Test the case where a cluster is passed to AppendData() before
 // INFO & TRACKS data.
-TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
+TEST_F(ChunkDemuxerTest, TestClusterBeforeInitSegment) {
   EXPECT_CALL(*client_, DemuxerOpened(_));
   demuxer_->Initialize(
       &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
@@ -723,7 +745,7 @@ TEST_F(ChunkDemuxerTest, TestEOSDuringInit) {
 TEST_F(ChunkDemuxerTest, TestDecodeErrorEndOfStream) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
-  scoped_ptr<Cluster> cluster(GenerateCluster(0, 4));
+  scoped_ptr<Cluster> cluster(kDefaultFirstCluster());
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
   EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
@@ -733,7 +755,7 @@ TEST_F(ChunkDemuxerTest, TestDecodeErrorEndOfStream) {
 TEST_F(ChunkDemuxerTest, TestNetworkErrorEndOfStream) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
-  scoped_ptr<Cluster> cluster(GenerateCluster(0, 4));
+  scoped_ptr<Cluster> cluster(kDefaultFirstCluster());
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
   EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_NETWORK));
@@ -887,10 +909,10 @@ TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
 
   scoped_array<uint8> info_tracks;
   int info_tracks_size = 0;
-  CreateInfoTracks(true, true, false, &info_tracks, &info_tracks_size);
+  CreateInitSegment(true, true, false, &info_tracks, &info_tracks_size);
 
-  scoped_ptr<Cluster> cluster_a(GenerateCluster(0, 4));
-  scoped_ptr<Cluster> cluster_b(GenerateCluster(46, 66, 5));
+  scoped_ptr<Cluster> cluster_a(kDefaultFirstCluster());
+  scoped_ptr<Cluster> cluster_b(kDefaultSecondCluster());
 
   size_t buffer_size = info_tracks_size + cluster_a->size() + cluster_b->size();
   scoped_array<uint8> buffer(new uint8[buffer_size]);
@@ -1062,7 +1084,7 @@ TEST_F(ChunkDemuxerTest, TestParseErrorDuringInit) {
 
   ASSERT_EQ(AddId(), ChunkDemuxer::kOk);
 
-  ASSERT_TRUE(AppendInfoTracks(true, true, false));
+  ASSERT_TRUE(AppendInitSegment(true, true, false));
 
   uint8 tmp = 0;
   ASSERT_TRUE(demuxer_->AppendData(kSourceId, &tmp, 1));
@@ -1079,7 +1101,7 @@ TEST_F(ChunkDemuxerTest, TestAVHeadersWithAudioOnlyType) {
   ASSERT_EQ(demuxer_->AddId(kSourceId, "audio/webm", codecs),
             ChunkDemuxer::kOk);
 
-  ASSERT_TRUE(AppendInfoTracks(true, true, false));
+  ASSERT_TRUE(AppendInitSegment(true, true, false));
 }
 
 TEST_F(ChunkDemuxerTest, TestAVHeadersWithVideoOnlyType) {
@@ -1093,7 +1115,27 @@ TEST_F(ChunkDemuxerTest, TestAVHeadersWithVideoOnlyType) {
   ASSERT_EQ(demuxer_->AddId(kSourceId, "video/webm", codecs),
             ChunkDemuxer::kOk);
 
-  ASSERT_TRUE(AppendInfoTracks(true, true, false));
+  ASSERT_TRUE(AppendInitSegment(true, true, false));
+}
+
+TEST_F(ChunkDemuxerTest, TestMultipleHeaders) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  scoped_ptr<Cluster> cluster_a(kDefaultFirstCluster());
+  ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
+
+  // Append another identical initialization segment.
+  ASSERT_TRUE(AppendInitSegment(true, true, false));
+
+  scoped_ptr<Cluster> cluster_b(kDefaultSecondCluster());
+  ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
+
+  GenerateExpectedReads(0, 9, audio, video);
 }
 
 }  // namespace media

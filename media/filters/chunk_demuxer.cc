@@ -133,6 +133,12 @@ class ChunkDemuxerStream : public DemuxerStream {
   // Returns true if buffers were successfully added.
   bool Append(const StreamParser::BufferQueue& buffers);
 
+  // Called when mid-stream config updates occur.
+  // Returns true if the new config is accepted.
+  // Returns false if the new config should trigger an error.
+  bool UpdateAudioConfig(const AudioDecoderConfig& config);
+  bool UpdateVideoConfig(const VideoDecoderConfig& config);
+
   void EndOfStream();
   bool CanEndOfStream() const;
   void Shutdown();
@@ -227,8 +233,10 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   {
     base::AutoLock auto_lock(lock_);
     DCHECK_NE(state_, SHUTDOWN);
-    if (!stream_->Append(buffers))
+    if (!stream_->Append(buffers)) {
+      DVLOG(1) << "ChunkDemuxerStream::Append() : stream append failed";
       return false;
+    }
     CreateReadDoneClosures_Locked(&closures);
   }
 
@@ -236,6 +244,51 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
     it->Run();
 
   return true;
+}
+
+bool ChunkDemuxerStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
+  DCHECK(config.IsValidConfig());
+  DCHECK_EQ(type_, AUDIO);
+
+  const AudioDecoderConfig& current_config =
+      stream_->GetCurrentAudioDecoderConfig();
+
+  bool success = (current_config.codec() == config.codec()) &&
+      (current_config.bits_per_channel() == config.bits_per_channel()) &&
+      (current_config.channel_layout() == config.channel_layout()) &&
+      (current_config.samples_per_second() == config.samples_per_second()) &&
+      (current_config.extra_data_size() == config.extra_data_size()) &&
+      (!current_config.extra_data() ||
+       !memcmp(current_config.extra_data(), config.extra_data(),
+               current_config.extra_data_size()));
+
+  if (!success)
+    DVLOG(1) << "UpdateAudioConfig() : Failed to update audio config.";
+
+  return success;
+}
+
+bool ChunkDemuxerStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
+  DCHECK(config.IsValidConfig());
+  DCHECK_EQ(type_, VIDEO);
+  const VideoDecoderConfig& current_config =
+      stream_->GetCurrentVideoDecoderConfig();
+
+  bool success = (current_config.codec() == config.codec()) &&
+      (current_config.format() == config.format()) &&
+      (current_config.profile() == config.profile()) &&
+      (current_config.coded_size() == config.coded_size()) &&
+      (current_config.visible_rect() == config.visible_rect()) &&
+      (current_config.natural_size() == config.natural_size()) &&
+      (current_config.extra_data_size() == config.extra_data_size()) &&
+      (!current_config.extra_data() ||
+       !memcmp(current_config.extra_data(), config.extra_data(),
+               current_config.extra_data_size()));
+
+  if (!success)
+    DVLOG(1) << "UpdateVideoConfig() : Failed to update video config.";
+
+  return success;
 }
 
 void ChunkDemuxerStream::EndOfStream() {
@@ -754,26 +807,44 @@ void ChunkDemuxer::OnStreamParserInitDone(bool success,
 
 bool ChunkDemuxer::OnNewConfigs(const AudioDecoderConfig& audio_config,
                                 const VideoDecoderConfig& video_config) {
+  DVLOG(1) << "OnNewConfigs(" << audio_config.IsValidConfig()
+           << ", " << video_config.IsValidConfig() << ")";
   CHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   lock_.AssertAcquired();
 
   // Signal an error if we get configuration info for stream types that weren't
   // specified in AddId() or more configs after a stream is initialized.
   // Only allow a single audio config for now.
-  if (audio_config.IsValidConfig() && (!has_audio_ || audio_))
+  if (audio_config.IsValidConfig() && !has_audio_) {
+    DVLOG(1) << "OnNewConfigs() : Got unexpected audio config.";
     return false;
+  }
 
   // Only allow a single video config for now.
-  if (video_config.IsValidConfig() && (!has_video_ || video_))
+  if (video_config.IsValidConfig() && !has_video_) {
+    DVLOG(1) << "OnNewConfigs() : Got unexpected video config.";
     return false;
+  }
 
-  if (audio_config.IsValidConfig())
-    audio_ = new ChunkDemuxerStream(audio_config);
+  bool success = true;
+  if (audio_config.IsValidConfig()) {
+    if (audio_) {
+      success &= audio_->UpdateAudioConfig(audio_config);
+    } else {
+      audio_ = new ChunkDemuxerStream(audio_config);
+    }
+  }
 
-  if (video_config.IsValidConfig())
-    video_ = new ChunkDemuxerStream(video_config);
+  if (video_config.IsValidConfig()) {
+    if (video_) {
+      success &= video_->UpdateVideoConfig(video_config);
+    } else {
+      video_ = new ChunkDemuxerStream(video_config);
+    }
+  }
 
-  return true;
+  DVLOG(1) << "OnNewConfigs() : success " << success;
+  return success;
 }
 
 bool ChunkDemuxer::OnAudioBuffers(const StreamParser::BufferQueue& buffers) {
