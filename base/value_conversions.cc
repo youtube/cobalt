@@ -1,10 +1,12 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/value_conversions.h"
 
 #include "base/file_path.h"
+#include "base/string_number_conversions.h"
+#include "base/time.h"
 #include "base/values.h"
 
 namespace base {
@@ -21,6 +23,23 @@ bool GetValueAsFilePath(const Value& value, FilePath* file_path) {
     return false;
   if (file_path)
     *file_path = FilePath::FromUTF8Unsafe(str);
+  return true;
+}
+
+// |Value| does not support 64-bit integers, and doubles do not have enough
+// precision, so we store the 64-bit time value as a string instead.
+StringValue* CreateTimeValue(const Time& time) {
+  std::string string_value = base::Int64ToString(time.ToInternalValue());
+  return new StringValue(string_value);
+}
+
+bool GetValueAsTime(const Value& value, Time* time) {
+  std::string str;
+  int64 int_value;
+  if (!value.GetAsString(&str) || !base::StringToInt64(str, &int_value))
+    return false;
+  if (time)
+    *time = base::Time::FromInternalValue(int_value);
   return true;
 }
 
