@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
-#include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -23,6 +23,10 @@
 #include "net/dns/dns_response.h"
 
 namespace {
+
+void Usage(const char* program_name) {
+  LOG(ERROR) << "Usage: " << program_name << " test_case ...";
+}
 
 bool FitsUint8(int num) {
   return (num >= 0) && (num <= kuint8max);
@@ -51,40 +55,40 @@ bool ReadTestCase(const char* filename,
 
   DictionaryValue* dict;
   if (!value->GetAsDictionary(&dict)) {
-    LOG(ERROR) << "Test case is not a dictionary.";
+    LOG(ERROR) << filename << ": Test case is not a dictionary.";
     return false;
   }
 
   int id_int;
   if (!dict->GetInteger("id", &id_int)) {
-    LOG(ERROR) << "id is missing or not an integer.";
+    LOG(ERROR) << filename << ": id is missing or not an integer.";
     return false;
   }
   if (!FitsUint16(id_int)) {
-    LOG(ERROR) << "id is out of range.";
+    LOG(ERROR) << filename << ": id is out of range.";
     return false;
   }
   *id = static_cast<uint16>(id_int);
 
   if (!dict->GetStringASCII("qname", qname)) {
-    LOG(ERROR) << "qname is missing or not a string.";
+    LOG(ERROR) << filename << ": qname is missing or not a string.";
     return false;
   }
 
   int qtype_int;
   if (!dict->GetInteger("qtype", &qtype_int)) {
-    LOG(ERROR) << "qtype is missing or not an integer.";
+    LOG(ERROR) << filename << ": qtype is missing or not an integer.";
     return false;
   }
   if (!FitsUint16(qtype_int)) {
-    LOG(ERROR) << "qtype is out of range.";
+    LOG(ERROR) << filename << ": qtype is out of range.";
     return false;
   }
   *qtype = static_cast<uint16>(qtype_int);
 
   ListValue* resp_list;
   if (!dict->GetList("response", &resp_list)) {
-    LOG(ERROR) << "response is missing or not a list.";
+    LOG(ERROR) << filename << ": response is missing or not a list.";
     return false;
   }
 
@@ -94,16 +98,21 @@ bool ReadTestCase(const char* filename,
   for (size_t i = 0; i < resp_size; i++) {
     int resp_byte_int;
     if ((!resp_list->GetInteger(i, &resp_byte_int))) {
-      LOG(ERROR) << "response[" << i << "] is not an integer.";
+      LOG(ERROR) << filename << ": response[" << i << "] is not an integer.";
       return false;
     }
     if (!FitsUint8(resp_byte_int)) {
-      LOG(ERROR) << "response[" << i << "] is out of range.";
+      LOG(ERROR) << filename << ": response[" << i << "] is out of range.";
       return false;
     }
     resp_buf->push_back(static_cast<char>(resp_byte_int));
   }
   DCHECK(resp_buf->size() == resp_size);
+
+  LOG(INFO) << "Query: id=" << id_int << ", "
+            << "qname=" << *qname << ", "
+            << "qtype=" << qtype_int << ", "
+            << "resp_size=" << resp_size;
 
   return true;
 }
@@ -128,50 +137,59 @@ void RunTestCase(uint16 id, std::string& qname, uint16 qtype,
     return;
   }
 
-  LOG(INFO) << "Address List:";
-  for (unsigned int i = 0; i < address_list.size(); i++) {
-    LOG(INFO) << "\t" << address_list[i].ToString();
-  }
-  LOG(INFO) << "TTL: " << ttl.InSeconds() << " seconds";
+  // Print the response in one compact line.
+  std::stringstream result_line;
+  result_line << "Response: address_list={ ";
+  for (unsigned int i = 0; i < address_list.size(); i++)
+    result_line << address_list[i].ToString() << " ";
+  result_line << "}, ttl=" << ttl.InSeconds() << "s";
+
+  LOG(INFO) << result_line.str();
 }
 
-}
-
-int main(int argc, char** argv) {
-  if (argc != 2) {
-    LOG(ERROR) << "Usage: " << argv[0] << " test_case_filename";
-    return 1;
-  }
-
-  const char* filename = argv[1];
-
-  LOG(INFO) << "Test case: " << filename;
-
+bool ReadAndRunTestCase(const char* filename) {
   uint16 id = 0;
   std::string qname_dotted;
   uint16 qtype = 0;
   std::vector<char> resp_buf;
 
-  if (!ReadTestCase(filename, &id, &qname_dotted, &qtype, &resp_buf)) {
-    LOG(ERROR) << "Test case format invalid";
-    return 2;
-  }
+  LOG(INFO) << "Test case: " << filename;
 
-  LOG(INFO) << "Query: id=" << id
-            << " qname=" << qname_dotted
-            << " qtype=" << qtype;
-  LOG(INFO) << "Response: " << resp_buf.size() << " bytes";
+  if (!ReadTestCase(filename, &id, &qname_dotted, &qtype, &resp_buf)) {
+    // ReadTestCase will print a useful error message.
+    return false;
+  }
 
   std::string qname;
   if (!net::DNSDomainFromDot(qname_dotted, &qname)) {
-    LOG(ERROR) << "DNSDomainFromDot(" << qname_dotted << ") failed.";
-    return 3;
+    LOG(ERROR) << filename << ": "
+               << "DNSDomainFromDot(" << qname_dotted << ") failed.";
+    return false;
   }
 
   RunTestCase(id, qname, qtype, resp_buf);
 
-  std::cout << "#EOF" << std::endl;
+  return true;
+}
 
-  return 0;
+}
+
+int main(int argc, char** argv) {
+  int ret = 0;
+
+  if (argc < 2) {
+    Usage(argv[0]);
+    ret = 1;
+  }
+
+  for (int i = 1; i < argc; i++)
+    if (!ReadAndRunTestCase(argv[i]))
+      ret = 2;
+
+  // Cluster-Fuzz likes "#EOF" as the last line of output to help distunguish
+  // successful runs from crashes.
+  printf("#EOF\n");
+
+  return ret;
 }
 
