@@ -61,12 +61,6 @@
 # define NULL ((void *) 0)
 #endif
 
-#undef FALSE
-#define FALSE 0
-
-#undef TRUE
-#define TRUE 1
-
 
 /* Basics */
 
@@ -84,11 +78,11 @@ template <typename Type> static inline Type MAX (const Type &a, const Type &b) {
 #define HB_STMT_START do
 #define HB_STMT_END   while (0)
 
-#define _ASSERT_STATIC1(_line, _cond) typedef int _static_assert_on_line_##_line##_failed[(_cond)?1:-1]
-#define _ASSERT_STATIC0(_line, _cond) _ASSERT_STATIC1 (_line, (_cond))
-#define ASSERT_STATIC(_cond) _ASSERT_STATIC0 (__LINE__, (_cond))
+#define _ASSERT_STATIC1(_line, _cond)	typedef int _static_assert_on_line_##_line##_failed[(_cond)?1:-1]
+#define _ASSERT_STATIC0(_line, _cond)	_ASSERT_STATIC1 (_line, (_cond))
+#define ASSERT_STATIC(_cond)		_ASSERT_STATIC0 (__LINE__, (_cond))
 
-#define ASSERT_STATIC_EXPR(_cond) ((void) sizeof (char[(_cond) ? 1 : -1]))
+#define ASSERT_STATIC_EXPR(_cond)((void) sizeof (char[(_cond) ? 1 : -1]))
 #define ASSERT_STATIC_EXPR_ZERO(_cond) (0 * sizeof (char[(_cond) ? 1 : -1]))
 
 #define _PASTE1(a,b) a##b
@@ -109,6 +103,34 @@ ASSERT_STATIC (sizeof (hb_codepoint_t) == 4);
 ASSERT_STATIC (sizeof (hb_position_t) == 4);
 ASSERT_STATIC (sizeof (hb_mask_t) == 4);
 ASSERT_STATIC (sizeof (hb_var_int_t) == 4);
+
+
+/* We like our types POD */
+
+#define _ASSERT_TYPE_POD1(_line, _type)	union _type_##_type##_on_line_##_line##_is_not_POD { _type instance; }
+#define _ASSERT_TYPE_POD0(_line, _type)	_ASSERT_TYPE_POD1 (_line, _type)
+#define ASSERT_TYPE_POD(_type)		_ASSERT_TYPE_POD0 (__LINE__, _type)
+
+#ifdef __GNUC__
+# define _ASSERT_INSTANCE_POD1(_line, _instance) \
+	HB_STMT_START { \
+		typedef __typeof__(_instance) _type_##_line; \
+		_ASSERT_TYPE_POD1 (_line, _type_##_line); \
+	} HB_STMT_END
+#else
+# define _ASSERT_INSTANCE_POD1(_line, _instance)	typedef int _assertion_on_line_##_line##_not_tested
+#endif
+# define _ASSERT_INSTANCE_POD0(_line, _instance)	_ASSERT_INSTANCE_POD1 (_line, _instance)
+# define ASSERT_INSTANCE_POD(_instance)			_ASSERT_INSTANCE_POD0 (__LINE__, _instance)
+
+/* Check _assertion in a method environment */
+#define _ASSERT_POD1(_line) \
+	inline void _static_assertion_on_line_##_line (void) const \
+	{ _ASSERT_INSTANCE_POD1 (_line, *this); /* Make sure it's POD. */ }
+# define _ASSERT_POD0(_line)	_ASSERT_POD1 (_line)
+# define ASSERT_POD()		_ASSERT_POD0 (__LINE__)
+
+
 
 /* Misc */
 
@@ -239,15 +261,16 @@ typedef int (*hb_compare_func_t) (const void *, const void *);
 /* arrays and maps */
 
 
+#define HB_PREALLOCED_ARRAY_INIT {0}
 template <typename Type, unsigned int StaticSize>
-struct hb_prealloced_array_t {
-
+struct hb_prealloced_array_t
+{
   unsigned int len;
   unsigned int allocated;
   Type *array;
   Type static_array[StaticSize];
 
-  hb_prealloced_array_t (void) { memset (this, 0, sizeof (*this)); }
+  void init (void) { memset (this, 0, sizeof (*this)); }
 
   inline Type& operator [] (unsigned int i) { return array[i]; }
   inline const Type& operator [] (unsigned int i) const { return array[i]; }
@@ -342,14 +365,14 @@ struct hb_prealloced_array_t {
   }
 };
 
-template <typename Type>
-struct hb_array_t : hb_prealloced_array_t<Type, 2> {};
 
-
+#define HB_LOCKABLE_SET_INIT {HB_PREALLOCED_ARRAY_INIT}
 template <typename item_t, typename lock_t>
 struct hb_lockable_set_t
 {
-  hb_array_t <item_t> items;
+  hb_prealloced_array_t <item_t, 2> items;
+
+  inline void init (void) { items.init (); }
 
   template <typename T>
   inline item_t *replace_or_insert (T v, lock_t &l, bool replace)
@@ -600,9 +623,9 @@ _hb_debug_msg<0> (const char *what HB_UNUSED,
 		  const char *message HB_UNUSED,
 		  ...) {}
 
-#define DEBUG_MSG_LEVEL(WHAT, OBJ, LEVEL, LEVEL_DIR, ...)	_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), NULL,    TRUE, (LEVEL), (LEVEL_DIR), __VA_ARGS__)
-#define DEBUG_MSG(WHAT, OBJ, ...) 				_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), NULL,    FALSE, 0, 0, __VA_ARGS__)
-#define DEBUG_MSG_FUNC(WHAT, OBJ, ...)				_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), HB_FUNC, FALSE, 0, 0, __VA_ARGS__)
+#define DEBUG_MSG_LEVEL(WHAT, OBJ, LEVEL, LEVEL_DIR, ...)	_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), NULL,    true, (LEVEL), (LEVEL_DIR), __VA_ARGS__)
+#define DEBUG_MSG(WHAT, OBJ, ...) 				_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), NULL,    false, 0, 0, __VA_ARGS__)
+#define DEBUG_MSG_FUNC(WHAT, OBJ, ...)				_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), HB_FUNC, false, 0, 0, __VA_ARGS__)
 
 
 /*
@@ -622,14 +645,14 @@ struct hb_auto_trace_t {
 
     va_list ap;
     va_start (ap, message);
-    _hb_debug_msg_va<max_level> (what, obj, func, TRUE, plevel ? *plevel : 0, +1, message, ap);
+    _hb_debug_msg_va<max_level> (what, obj, func, true, plevel ? *plevel : 0, +1, message, ap);
     va_end (ap);
   }
   inline ~hb_auto_trace_t (void)
   {
     if (unlikely (!returned)) {
       fprintf (stderr, "OUCH, returned with no call to TRACE_RETURN.  This is a bug, please report.  Level was %d.\n", plevel ? *plevel : -1);
-      _hb_debug_msg<max_level> (what, obj, NULL, TRUE, plevel ? *plevel : 1, -1, " ");
+      _hb_debug_msg<max_level> (what, obj, NULL, true, plevel ? *plevel : 1, -1, " ");
       return;
     }
 
@@ -643,7 +666,7 @@ struct hb_auto_trace_t {
       return v;
     }
 
-    _hb_debug_msg<max_level> (what, obj, NULL, TRUE, plevel ? *plevel : 1, -1, "return %s", v ? "true" : "false");
+    _hb_debug_msg<max_level> (what, obj, NULL, true, plevel ? *plevel : 1, -1, "return %s", v ? "true" : "false");
     if (plevel) --*plevel;
     plevel = NULL;
     returned = true;

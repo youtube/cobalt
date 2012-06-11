@@ -44,11 +44,13 @@ typedef struct _hb_segment_properties_t {
     hb_direction_t      direction;
     hb_script_t         script;
     hb_language_t       language;
+    ASSERT_POD ();
 } hb_segment_properties_t;
 
 
 struct _hb_buffer_t {
   hb_object_header_t header;
+  ASSERT_POD ();
 
   /* Information about how the text in the buffer should be treated */
 
@@ -110,7 +112,7 @@ struct _hb_buffer_t {
   HB_INTERNAL void clear_positions (void);
   HB_INTERNAL void replace_glyphs_be16 (unsigned int num_in,
 					unsigned int num_out,
-					const uint16_t *glyph_data_be);
+					const char *glyph_data_be);
   HB_INTERNAL void replace_glyphs (unsigned int num_in,
 				   unsigned int num_out,
 				   const hb_codepoint_t *glyph_data);
@@ -149,7 +151,7 @@ struct _hb_buffer_t {
   HB_INTERNAL bool enlarge (unsigned int size);
 
   inline bool ensure (unsigned int size)
-  { return likely (size <= allocated) ? TRUE : enlarge (size); }
+  { return likely (size <= allocated) ? true : enlarge (size); }
 
   HB_INTERNAL bool make_room_for (unsigned int num_in, unsigned int num_out);
 
