@@ -193,32 +193,6 @@ TEST_F(SystemMonitorTest, GetAttachedMediaDevicesAttachDetach) {
   EXPECT_EQ(0U, devices.size());
 }
 
-TEST_F(SystemMonitorTest, PowerRequirements) {
-#if defined(OS_WIN)
-  ASSERT_EQ(0, system_monitor_->GetPowerRequirementsCountForTest());
-
-  system_monitor_->BeginPowerRequirement(SystemMonitor::TEST_REQUIRED, "foo");
-  ASSERT_EQ(1, system_monitor_->GetPowerRequirementsCountForTest());
-
-  system_monitor_->BeginPowerRequirement(SystemMonitor::TEST_REQUIRED, "bar");
-  ASSERT_EQ(2, system_monitor_->GetPowerRequirementsCountForTest());
-
-  // A second identical request should not increase the request count.
-  system_monitor_->BeginPowerRequirement(SystemMonitor::TEST_REQUIRED, "bar");
-  ASSERT_EQ(2, system_monitor_->GetPowerRequirementsCountForTest());
-
-  system_monitor_->EndPowerRequirement(SystemMonitor::TEST_REQUIRED, "foo");
-  ASSERT_EQ(1, system_monitor_->GetPowerRequirementsCountForTest());
-
-  // The request count should not decrease until all identical requests end.
-  system_monitor_->EndPowerRequirement(SystemMonitor::TEST_REQUIRED, "bar");
-  ASSERT_EQ(1, system_monitor_->GetPowerRequirementsCountForTest());
-
-  system_monitor_->EndPowerRequirement(SystemMonitor::TEST_REQUIRED, "bar");
-  ASSERT_EQ(0, system_monitor_->GetPowerRequirementsCountForTest());
-#endif  // defined(OS_WIN)
-}
-
 }  // namespace
 
 }  // namespace base
