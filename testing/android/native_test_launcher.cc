@@ -26,7 +26,6 @@
 #include "base/stringprintf.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
-#include "base/test/test_support_android.h"
 #include "gtest/gtest.h"
 #include "testing/android/jni/chrome_native_test_activity_jni.h"
 
@@ -179,8 +178,6 @@ static void RunTests(JNIEnv* env,
 
   base::android::RegisterLocaleUtils(env);
   base::android::RegisterPathUtils(env);
-
-  InitAndroidTest();
 
   FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
   // A few options, such "--gtest_list_tests", will just use printf directly

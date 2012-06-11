@@ -211,10 +211,6 @@ def main(argv):
   if options.jars:
     jar_list = options.jars.replace('"', '').split()
 
-  # Ignore --ant-compile when building with Android source.
-  if 'ANDROID_BUILD_TOP' in os.environ:
-    options.ant_compile = False
-
   ntag = NativeTestApkGenerator(native_library=options.native_library,
                                 jars=jar_list,
                                 output_directory=options.output,
