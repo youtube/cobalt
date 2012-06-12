@@ -1,9 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/cpu.h"
 #include "base/memory/scoped_ptr.h"
-#include "media/base/cpu_features.h"
 #include "media/base/simd/convert_rgb_to_yuv.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -52,7 +52,8 @@ int ConvertRGBToV(const uint8* rgb, int size, bool subsampling) {
 TEST(YUVConvertTest, SideBySideRGB) {
   // We skip this test on PCs which does not support SSE3 because this test
   // needs it.
-  if (!media::hasSSSE3())
+  base::CPU cpu;
+  if (!cpu.has_ssse3())
     return;
 
   // This test checks a subset of all RGB values so this test does not take so

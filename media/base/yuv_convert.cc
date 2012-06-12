@@ -17,10 +17,10 @@
 
 #include "media/base/yuv_convert.h"
 
+#include "base/cpu.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "build/build_config.h"
-#include "media/base/cpu_features.h"
 #include "media/base/simd/convert_rgb_to_yuv.h"
 #include "media/base/simd/convert_yuv_to_rgb.h"
 #include "media/base/simd/filter_yuv.h"
@@ -37,9 +37,10 @@ namespace media {
 
 static FilterYUVRowsProc ChooseFilterYUVRowsProc() {
 #if defined(ARCH_CPU_X86_FAMILY)
-  if (hasSSE2())
+  base::CPU cpu;
+  if (cpu.has_sse2())
     return &FilterYUVRows_SSE2;
-  if (hasMMX())
+  if (cpu.has_mmx())
     return &FilterYUVRows_MMX;
 #endif
   return &FilterYUVRows_C;
@@ -47,9 +48,10 @@ static FilterYUVRowsProc ChooseFilterYUVRowsProc() {
 
 static ConvertYUVToRGB32RowProc ChooseConvertYUVToRGB32RowProc() {
 #if defined(ARCH_CPU_X86_FAMILY)
-  if (hasSSE())
+  base::CPU cpu;
+  if (cpu.has_sse())
     return &ConvertYUVToRGB32Row_SSE;
-  if (hasMMX())
+  if (cpu.has_mmx())
     return &ConvertYUVToRGB32Row_MMX;
 #endif
   return &ConvertYUVToRGB32Row_C;
@@ -60,10 +62,11 @@ static ScaleYUVToRGB32RowProc ChooseScaleYUVToRGB32RowProc() {
   // Use 64-bits version if possible.
   return &ScaleYUVToRGB32Row_SSE2_X64;
 #elif defined(ARCH_CPU_X86_FAMILY)
+  base::CPU cpu;
   // Choose the best one on 32-bits system.
-  if (hasSSE())
+  if (cpu.has_sse())
     return &ScaleYUVToRGB32Row_SSE;
-  if (hasMMX())
+  if (cpu.has_mmx())
     return &ScaleYUVToRGB32Row_MMX;
 #endif  // defined(ARCH_CPU_X86_64)
   return &ScaleYUVToRGB32Row_C;
@@ -74,10 +77,11 @@ static ScaleYUVToRGB32RowProc ChooseLinearScaleYUVToRGB32RowProc() {
   // Use 64-bits version if possible.
   return &LinearScaleYUVToRGB32Row_MMX_X64;
 #elif defined(ARCH_CPU_X86_FAMILY)
+  base::CPU cpu;
   // 32-bits system.
-  if (hasSSE())
+  if (cpu.has_sse())
     return &LinearScaleYUVToRGB32Row_SSE;
-  if (hasMMX())
+  if (cpu.has_mmx())
     return &LinearScaleYUVToRGB32Row_MMX;
 #endif  // defined(ARCH_CPU_X86_64)
   return &LinearScaleYUVToRGB32Row_C;
@@ -89,7 +93,8 @@ void EmptyRegisterState() {
   static bool checked = false;
   static bool has_mmx = false;
   if (!checked) {
-    has_mmx = hasMMX();
+    base::CPU cpu;
+    has_mmx = cpu.has_mmx();
     checked = true;
   }
   if (has_mmx)
@@ -445,7 +450,8 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
 #else
     // TODO(hclam): Switch to SSSE3 version when the cyan problem is solved.
     // See: crbug.com/100462
-      if (hasSSE2())
+    base::CPU cpu;
+    if (cpu.has_sse2())
       convert_proc = &ConvertRGB32ToYUV_SSE2;
     else
       convert_proc = &ConvertRGB32ToYUV_C;
@@ -472,7 +478,8 @@ void ConvertRGB24ToYUV(const uint8* rgbframe,
   static void (*convert_proc)(const uint8*, uint8*, uint8*, uint8*,
                               int, int, int, int, int) = NULL;
   if (!convert_proc) {
-    if (hasSSSE3())
+    base::CPU cpu;
+    if (cpu.has_ssse3())
       convert_proc = &ConvertRGB24ToYUV_SSSE3;
     else
       convert_proc = &ConvertRGB24ToYUV_C;
@@ -541,9 +548,10 @@ void ConvertYUVToRGB32(const uint8* yplane,
 #else
   static ConvertYUVToRGB32Proc convert_proc = NULL;
   if (!convert_proc) {
-    if (hasSSE())
+    base::CPU cpu;
+    if (cpu.has_sse())
       convert_proc = &ConvertYUVToRGB32_SSE;
-    else if (hasMMX())
+    else if (cpu.has_mmx())
       convert_proc = &ConvertYUVToRGB32_MMX;
     else
       convert_proc = &ConvertYUVToRGB32_C;

@@ -445,35 +445,10 @@
       ],
     },
     {
-      'target_name': 'cpu_features',
-      'type': 'static_library',
-      'include_dirs': [
-        '..',
-      ],
-      'conditions': [
-        [ 'target_arch == "ia32" or target_arch == "x64"', {
-          'sources': [
-            'base/cpu_features_x86.cc',
-          ],
-        }],
-        [ 'target_arch == "arm"', {
-          'sources': [
-            'base/cpu_features_arm.cc',
-          ],
-        }],
-      ],
-      'sources': [
-        'base/cpu_features.h',
-      ],
-    },
-    {
       'target_name': 'yuv_convert',
       'type': 'static_library',
       'include_dirs': [
         '..',
-      ],
-      'dependencies': [
-        'cpu_features',
       ],
       'conditions': [
         ['order_profiling != 0', {
