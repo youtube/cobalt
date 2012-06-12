@@ -774,7 +774,8 @@ TEST(NetUtilTest, CompliantHost) {
     {"a.9a", "", false},
     {"a+9a", "", false},
     {"-a.a9", "", true},
-    {"1-.a-b", "", false},
+    {"1-.a-b", "", true},
+    {"1_.a-b", "", false},
     {"1-2.a_b", "", true},
     {"a.b.c.d.e", "", true},
     {"1.2.3.4.e", "", true},
@@ -786,7 +787,7 @@ TEST(NetUtilTest, CompliantHost) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(compliant_host_cases); ++i) {
     EXPECT_EQ(compliant_host_cases[i].expected_output,
         IsCanonicalizedHostCompliant(compliant_host_cases[i].host,
-                                          compliant_host_cases[i].desired_tld));
+                                     compliant_host_cases[i].desired_tld));
   }
 }
 
