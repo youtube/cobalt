@@ -75,7 +75,8 @@ base::Value* DnsConfig::ToValue() const {
 DnsConfigService::DnsConfigService()
     : have_config_(false),
       have_hosts_(false),
-      need_update_(false) {}
+      need_update_(false),
+      last_sent_empty_(true) {}
 
 DnsConfigService::~DnsConfigService() {
   // Must always clean up.
@@ -146,6 +147,10 @@ void DnsConfigService::OnHostsRead(const DnsHosts& hosts) {
 
 void DnsConfigService::StartTimer() {
   DCHECK(CalledOnValidThread());
+  if (last_sent_empty_) {
+    DCHECK(!timer_.IsRunning());
+    return;  // No need to withdraw again.
+  }
   timer_.Stop();
 
   // Give it a short timeout to come up with a valid config. Otherwise withdraw
@@ -167,19 +172,22 @@ void DnsConfigService::StartTimer() {
 
 void DnsConfigService::OnTimeout() {
   DCHECK(CalledOnValidThread());
+  DCHECK(!last_sent_empty_);
   // Indicate that even if there is no change in On*Read, we will need to
   // update the receiver when the config becomes complete.
   need_update_ = true;
   // Empty config is considered invalid.
+  last_sent_empty_ = true;
   callback_.Run(DnsConfig());
 }
 
 void DnsConfigService::OnCompleteConfig() {
   timer_.Stop();
-  if (need_update_) {
-    need_update_ = false;
-    callback_.Run(dns_config_);
-  }
+  if (!need_update_)
+    return;
+  need_update_ = false;
+  last_sent_empty_ = false;
+  callback_.Run(dns_config_);
 }
 
 }  // namespace net
