@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,11 @@
 
 namespace net {
 
-ProxyInfo::ProxyInfo() : config_id_(ProxyConfig::kInvalidConfigID) {
+ProxyInfo::ProxyInfo()
+    : config_id_(ProxyConfig::kInvalidConfigID),
+      config_source_(PROXY_CONFIG_SOURCE_UNKNOWN),
+      did_bypass_proxy_(false),
+      did_use_pac_script_(false) {
 }
 
 ProxyInfo::~ProxyInfo() {
@@ -17,21 +21,30 @@ ProxyInfo::~ProxyInfo() {
 void ProxyInfo::Use(const ProxyInfo& other) {
   proxy_list_ = other.proxy_list_;
   proxy_retry_info_ = other.proxy_retry_info_;
+  config_id_ = other.config_id_;
+  config_source_ = other.config_source_;
+  did_bypass_proxy_ = other.did_bypass_proxy_;
+  did_use_pac_script_ = other.did_use_pac_script_;
 }
 
 void ProxyInfo::UseDirect() {
+  Reset();
   proxy_list_.SetSingleProxyServer(ProxyServer::Direct());
-  proxy_retry_info_.clear();
+}
+
+void ProxyInfo::UseDirectWithBypassedProxy() {
+  UseDirect();
+  did_bypass_proxy_ = true;
 }
 
 void ProxyInfo::UseNamedProxy(const std::string& proxy_uri_list) {
+  Reset();
   proxy_list_.Set(proxy_uri_list);
-  proxy_retry_info_.clear();
 }
 
 void ProxyInfo::UseProxyServer(const ProxyServer& proxy_server) {
+  Reset();
   proxy_list_.SetSingleProxyServer(proxy_server);
-  proxy_retry_info_.clear();
 }
 
 std::string ProxyInfo::ToPacString() const {
@@ -49,6 +62,15 @@ void ProxyInfo::DeprioritizeBadProxies(
 
 void ProxyInfo::RemoveProxiesWithoutScheme(int scheme_bit_field) {
   proxy_list_.RemoveProxiesWithoutScheme(scheme_bit_field);
+}
+
+void ProxyInfo::Reset() {
+  proxy_list_.Clear();
+  proxy_retry_info_.clear();
+  config_id_ = ProxyConfig::kInvalidConfigID;
+  config_source_ = PROXY_CONFIG_SOURCE_UNKNOWN;
+  did_bypass_proxy_ = false;
+  did_use_pac_script_ = false;
 }
 
 }  // namespace net

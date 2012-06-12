@@ -68,9 +68,8 @@ class NET_EXPORT_PRIVATE ProxyConfigServiceLinux : public ProxyConfigService {
     // Returns NULL if it does not matter.
     virtual base::SingleThreadTaskRunner* GetNotificationTaskRunner() = 0;
 
-    // Returns the data source's name (e.g. "gconf", "gsettings", "KDE",
-    // "test"). Used only for diagnostic purposes (e.g. VLOG(1) etc.).
-    virtual const char* GetDataSource() = 0;
+    // Returns the source of proxy settings.
+    virtual ProxyConfigSource GetConfigSource() = 0;
 
     // These are all the values that can be fetched. We used to just use the
     // corresponding paths in gconf for these, but gconf is now obsolete and
