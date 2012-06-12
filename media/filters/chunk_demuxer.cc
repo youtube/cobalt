@@ -867,10 +867,7 @@ bool ChunkDemuxer::OnAudioBuffers(const StreamParser::BufferQueue& buffers) {
   if (!audio_)
     return false;
 
-  // TODO(annacc): return Append's result after http://crbug.com/125072 is fixed
-  audio_->Append(buffers);
-
-  return true;
+  return audio_->Append(buffers);
 }
 
 bool ChunkDemuxer::OnVideoBuffers(const StreamParser::BufferQueue& buffers) {
@@ -879,10 +876,7 @@ bool ChunkDemuxer::OnVideoBuffers(const StreamParser::BufferQueue& buffers) {
   if (!video_)
     return false;
 
-  // TODO(annacc): return Append's result after http://crbug.com/125072 is fixed
-  video_->Append(buffers);
-
-  return true;
+  return video_->Append(buffers);
 }
 
 bool ChunkDemuxer::OnKeyNeeded(scoped_array<uint8> init_data,
