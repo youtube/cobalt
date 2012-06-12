@@ -35,9 +35,6 @@ namespace win {
 // Static.
 void VerifierTraits::StartTracking(HANDLE handle, const void* owner,
                                    const void* pc1, const void* pc2) {
-  if (OSInfo::GetInstance()->version() > VERSION_XP)
-    return;
-
   // Grab the thread id before the lock.
   DWORD thread_id = GetCurrentThreadId();
 
@@ -62,9 +59,6 @@ void VerifierTraits::StartTracking(HANDLE handle, const void* owner,
 // Static.
 void VerifierTraits::StopTracking(HANDLE handle, const void* owner,
                                   const void* pc1, const void* pc2) {
-  if (OSInfo::GetInstance()->version() > VERSION_XP)
-    return;
-
   AutoLock lock(g_lock.Get());
   HandleMap::iterator i = g_handle_map.Get().find(handle);
   if (i == g_handle_map.Get().end()) {
