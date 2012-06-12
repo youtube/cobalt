@@ -172,7 +172,7 @@ NET_EXPORT std::string CanonicalizeHost(const std::string& host,
 //   * One or more components separated by '.'
 //   * Each component begins with an alphanumeric character or '-'
 //   * Each component contains only alphanumeric characters and '-' or '_'
-//   * Each component ends with an alphanumeric character
+//   * Each component ends with an alphanumeric character or '-'
 //   * The last component begins with an alphabetic character
 //   * Optional trailing dot after last component (means "treat as FQDN")
 // If |desired_tld| is non-NULL, the host will only be considered invalid if
