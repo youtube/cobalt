@@ -11,7 +11,6 @@
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "base/rand_util.h"
-#include "net/base/address_list_net_log_param.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"

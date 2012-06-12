@@ -385,6 +385,20 @@ void DestroyCertificates(CERTCertificate** certs, size_t len) {
 // Helper function to make it possible to log events from within the
 // SSLClientSocketNSS::Core.  Can't use Bind with BoundNetLog::AddEntry directly
 // on Windows because it is overloaded.
+// TODO(mmenke):  Other than shutdown, NetLog is threadsafe.  Figure out if this
+//                is needed.
+void AddLogEventWithCallback(BoundNetLog* net_log,
+                             NetLog::EventType event_type,
+                             const NetLog::ParametersCallback& callback) {
+  if (!net_log)
+    return;
+  net_log->AddEvent(event_type, callback);
+}
+
+// Helper functions to make it possible to log events from within the
+// SSLClientSocketNSS::Core.  Can't use Bind with BoundNetLog::AddEntry directly
+// on Windows because it is overloaded.
+// TODO(mmenke):  This function is deprecated, delete it.
 void AddLogEvent(BoundNetLog* net_log,
                  NetLog::EventType event_type,
                  const scoped_refptr<NetLog::EventParameters>& event_params) {
@@ -2515,13 +2529,14 @@ void SSLClientSocketNSS::Core::UpdateServerCert() {
   nss_handshake_state_.server_cert = X509Certificate::CreateFromDERCertChain(
       nss_handshake_state_.server_cert_chain.AsStringPieceVector());
   if (nss_handshake_state_.server_cert) {
+    NetLog::ParametersCallback net_log_callback =
+        base::Bind(&NetLogX509CertificateCallback,
+                   base::Unretained(nss_handshake_state_.server_cert.get()));
     PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&AddLogEvent, weak_net_log_,
+        base::Bind(&AddLogEventWithCallback, weak_net_log_,
                    NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
-                   make_scoped_refptr(
-                       new X509CertificateNetLogParam(
-                           nss_handshake_state_.server_cert))));
+                   net_log_callback));
   }
 }
 

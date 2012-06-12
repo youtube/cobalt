@@ -822,7 +822,8 @@ int SSLClientSocketOpenSSL::DoHandshake() {
     DCHECK(got_cert);
     net_log_.AddEvent(
         NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
-        make_scoped_refptr(new X509CertificateNetLogParam(server_cert_)));
+        base::Bind(&NetLogX509CertificateCallback,
+                   base::Unretained(server_cert_.get())));
     GotoState(STATE_VERIFY_CERT);
   } else {
     int ssl_error = SSL_get_error(ssl_, rv);

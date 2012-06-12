@@ -8,19 +8,16 @@
 
 namespace net {
 
-FileStreamErrorParameters::FileStreamErrorParameters(
-    const std::string& operation, int os_error, net::Error net_error)
-        : operation_(operation), os_error_(os_error), net_error_(net_error) {
-}
-
-FileStreamErrorParameters::~FileStreamErrorParameters() {}
-
-Value* FileStreamErrorParameters::ToValue() const {
+base::Value* NetLogFileStreamErrorCallback(
+    FileErrorSource source,
+    int os_error,
+    net::Error net_error,
+    NetLog::LogLevel /* log_level */) {
   DictionaryValue* dict = new DictionaryValue();
 
-  dict->SetString("operation", operation_);
-  dict->SetInteger("os_error", os_error_);
-  dict->SetInteger("net_error", net_error_);
+  dict->SetString("operation", GetFileErrorSourceName(source));
+  dict->SetInteger("os_error", os_error);
+  dict->SetInteger("net_error", net_error);
 
   return dict;
 }

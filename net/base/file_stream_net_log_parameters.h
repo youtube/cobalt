@@ -10,29 +10,18 @@
 
 #include <string>
 
+#include "net/base/file_stream_metrics.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 
 namespace net {
 
-// NetLog parameters when a FileStream has an error.
-class FileStreamErrorParameters : public net::NetLog::EventParameters {
- public:
-  FileStreamErrorParameters(const std::string& operation,
-                            int os_error,
-                            net::Error net_error);
-  virtual base::Value* ToValue() const OVERRIDE;
-
- protected:
-  virtual ~FileStreamErrorParameters();
-
- private:
-  std::string operation_;
-  int os_error_;
-  net::Error net_error_;
-
-  DISALLOW_COPY_AND_ASSIGN(FileStreamErrorParameters);
-};
+// Creates NetLog parameters when a FileStream has an error.
+base::Value* NetLogFileStreamErrorCallback(
+    FileErrorSource source,
+    int os_error,
+    net::Error net_error,
+    NetLog::LogLevel log_level);
 
 }  // namespace net
 

@@ -4,11 +4,31 @@
 
 #include "net/base/address_list.h"
 
+#include "base/bind.h"
 #include "base/logging.h"
+#include "base/values.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 
 namespace net {
+
+namespace {
+
+base::Value* NetLogAddressListCallback(const AddressList* address_list,
+                                       NetLog::LogLevel log_level) {
+  DictionaryValue* dict = new DictionaryValue();
+  ListValue* list = new ListValue();
+
+  for (AddressList::const_iterator it = address_list->begin();
+       it != address_list->end(); ++it) {
+    list->Append(Value::CreateStringValue(it->ToString()));
+  }
+
+  dict->Set("address_list", list);
+  return dict;
+}
+
+}  // namespace
 
 AddressList::AddressList() {}
 
@@ -59,11 +79,14 @@ void AddressList::SetDefaultCanonicalName() {
   set_canonical_name(front().ToStringWithoutPort());
 }
 
+NetLog::ParametersCallback AddressList::CreateNetLogCallback() const {
+  return base::Bind(&NetLogAddressListCallback, this);
+}
+
 void SetPortOnAddressList(uint16 port, AddressList* list) {
   DCHECK(list);
-  for (AddressList::iterator it = list->begin(); it != list->end(); ++it) {
+  for (AddressList::iterator it = list->begin(); it != list->end(); ++it)
     *it = IPEndPoint(it->address(), port);
-  }
 }
 
 }  // namespace net
