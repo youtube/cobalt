@@ -265,7 +265,7 @@ int SparseControl::StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
   if (entry_->net_log().IsLoggingAllEvents()) {
     entry_->net_log().BeginEvent(
         GetSparseEventType(operation_),
-        make_scoped_refptr(new SparseOperationParameters(offset_, buf_len_)));
+        CreateNetLogSparseOperationCallback(offset_, buf_len_));
   }
   DoChildrenIO();
 
@@ -337,7 +337,7 @@ void SparseControl::DeleteChildren(EntryImpl* entry) {
   if (!buffer && !address.is_initialized())
     return;
 
-  entry->net_log().AddEvent(net::NetLog::TYPE_SPARSE_DELETE_CHILDREN, NULL);
+  entry->net_log().AddEvent(net::NetLog::TYPE_SPARSE_DELETE_CHILDREN);
 
   DCHECK(entry && entry->backend_);
   ChildrenDeleter* deleter = new ChildrenDeleter(entry->backend_,
@@ -674,13 +674,12 @@ void SparseControl::DoChildrenIO() {
       entry_->net_log().IsLoggingAllEvents()) {
     entry_->net_log().EndEvent(
         net::NetLog::TYPE_SPARSE_GET_RANGE,
-        make_scoped_refptr(
-            new GetAvailableRangeResultParameters(offset_, result_)));
+        CreateNetLogGetAvailableRangeResultCallback(offset_, result_));
   }
   if (finished_) {
     if (kGetRangeOperation != operation_ &&
         entry_->net_log().IsLoggingAllEvents()) {
-      entry_->net_log().EndEvent(GetSparseEventType(operation_), NULL);
+      entry_->net_log().EndEvent(GetSparseEventType(operation_));
     }
     if (pending_)
       DoUserCallback();  // Don't touch this object after this point.
@@ -712,9 +711,8 @@ bool SparseControl::DoChildIO() {
       if (entry_->net_log().IsLoggingAllEvents()) {
         entry_->net_log().BeginEvent(
             net::NetLog::TYPE_SPARSE_READ_CHILD_DATA,
-            make_scoped_refptr(new SparseReadWriteParameters(
-                child_->net_log().source(),
-                child_len_)));
+            CreateNetLogSparseReadWriteCallback(child_->net_log().source(),
+                                                child_len_));
       }
       rv = child_->ReadDataImpl(kSparseData, child_offset_, user_buf_,
                                 child_len_, callback);
@@ -723,9 +721,8 @@ bool SparseControl::DoChildIO() {
       if (entry_->net_log().IsLoggingAllEvents()) {
         entry_->net_log().BeginEvent(
             net::NetLog::TYPE_SPARSE_WRITE_CHILD_DATA,
-            make_scoped_refptr(new SparseReadWriteParameters(
-                child_->net_log().source(),
-                child_len_)));
+            CreateNetLogSparseReadWriteCallback(child_->net_log().source(),
+                                                child_len_));
       }
       rv = child_->WriteDataImpl(kSparseData, child_offset_, user_buf_,
                                  child_len_, callback, false);
@@ -830,8 +827,8 @@ void SparseControl::OnChildIOCompleted(int result) {
     // the bytes to read or write, but the user cancelled the operation.
     abort_ = false;
     if (entry_->net_log().IsLoggingAllEvents()) {
-      entry_->net_log().AddEvent(net::NetLog::TYPE_CANCELLED, NULL);
-      entry_->net_log().EndEvent(GetSparseEventType(operation_), NULL);
+      entry_->net_log().AddEvent(net::NetLog::TYPE_CANCELLED);
+      entry_->net_log().EndEvent(GetSparseEventType(operation_));
     }
     // We have an indirect reference to this object for every callback so if
     // there is only one callback, we may delete this object before reaching
