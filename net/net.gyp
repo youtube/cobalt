@@ -1257,6 +1257,7 @@
         'url_request/url_request_unittest.cc',
         'url_request/view_cache_helper_unittest.cc',
         'websockets/websocket_frame_parser_unittest.cc',
+        'websockets/websocket_frame_unittest.cc',
         'websockets/websocket_handshake_handler_unittest.cc',
         'websockets/websocket_job_spdy2_unittest.cc',
         'websockets/websocket_job_spdy3_unittest.cc',
