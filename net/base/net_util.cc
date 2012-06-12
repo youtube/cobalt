@@ -1305,7 +1305,7 @@ bool IsCanonicalizedHostCompliant(const std::string& host,
 
   bool in_component = false;
   bool most_recent_component_started_alpha = false;
-  bool last_char_was_hyphen_or_underscore = false;
+  bool last_char_was_underscore = false;
 
   for (std::string::const_iterator i(host.begin()); i != host.end(); ++i) {
     const char c = *i;
@@ -1317,13 +1317,13 @@ bool IsCanonicalizedHostCompliant(const std::string& host,
       in_component = true;
     } else {
       if (c == '.') {
-        if (last_char_was_hyphen_or_underscore)
+        if (last_char_was_underscore)
           return false;
         in_component = false;
-      } else if (IsHostCharAlpha(c) || IsHostCharDigit(c)) {
-        last_char_was_hyphen_or_underscore = false;
-      } else if ((c == '-') || (c == '_')) {
-        last_char_was_hyphen_or_underscore = true;
+      } else if (IsHostCharAlpha(c) || IsHostCharDigit(c) || (c == '-')) {
+        last_char_was_underscore = false;
+      } else if (c == '_') {
+        last_char_was_underscore = true;
       } else {
         return false;
       }
