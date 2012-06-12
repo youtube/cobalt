@@ -45,13 +45,19 @@ Value* SourceEventParametersCallback(const NetLog::Source source,
   return event_params;
 }
 
-Value* SingleIntegerCallback(const char* name,
+Value* NetLogIntegerCallback(const char* name,
                              int value,
                              NetLog::LogLevel /* log_level */) {
-  if (!value)
-    return NULL;
   DictionaryValue* event_params = new DictionaryValue();
   event_params->SetInteger(name, value);
+  return event_params;
+}
+
+Value* NetLogStringCallback(const char* name,
+                            const std::string* value,
+                            NetLog::LogLevel /* log_level */) {
+  DictionaryValue* event_params = new DictionaryValue();
+  event_params->SetString(name, *value);
   return event_params;
 }
 
@@ -263,7 +269,14 @@ bool NetLog::IsLoggingAllEvents(LogLevel log_level) {
 // static
 NetLog::ParametersCallback NetLog::IntegerCallback(const char* name,
                                                    int value) {
-  return base::Bind(&SingleIntegerCallback, name, value);
+  return base::Bind(&NetLogIntegerCallback, name, value);
+}
+
+// static
+NetLog::ParametersCallback NetLog::StringCallback(const char* name,
+                                                  const std::string* value) {
+  DCHECK(value);
+  return base::Bind(&NetLogStringCallback, name, value);
 }
 
 void NetLog::OnAddObserver(ThreadSafeObserver* observer, LogLevel log_level) {
@@ -376,7 +389,11 @@ void BoundNetLog::AddEventWithNetErrorCode(NetLog::EventType event_type,
 void BoundNetLog::EndEventWithNetErrorCode(NetLog::EventType event_type,
                                            int net_error) const {
   DCHECK_NE(ERR_IO_PENDING, net_error);
-  EndEvent(event_type, NetLog::IntegerCallback("net_error", net_error));
+  if (net_error >= 0) {
+    EndEvent(event_type);
+  } else {
+    EndEvent(event_type, NetLog::IntegerCallback("net_error", net_error));
+  }
 }
 
 void BoundNetLog::AddByteTransferEvent(NetLog::EventType event_type,

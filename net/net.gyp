@@ -50,8 +50,6 @@
         'base/address_family.h',
         'base/address_list.cc',
         'base/address_list.h',
-        'base/address_list_net_log_param.cc',
-        'base/address_list_net_log_param.h',
         'base/asn1_util.cc',
         'base/asn1_util.h',
         'base/auth.cc',

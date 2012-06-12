@@ -18,7 +18,6 @@
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "base/string_util.h"
-#include "net/base/address_list_net_log_param.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
@@ -213,9 +212,8 @@ int TCPClientSocketLibevent::Connect(const CompletionCallback& callback) {
 
   DCHECK(!waiting_connect());
 
-  net_log_.BeginEvent(
-      NetLog::TYPE_TCP_CONNECT,
-      make_scoped_refptr(new AddressListNetLogParam(addresses_)));
+  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT,
+                      addresses_.CreateNetLogCallback());
 
   // We will try to connect to each address in addresses_. Start with the
   // first one in the list.
