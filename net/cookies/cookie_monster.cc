@@ -359,7 +359,7 @@ void BuildCookieInfoList(const CanonicalCookieVector& cookies,
 }  // namespace
 
 // static
-bool CookieMonster::enable_file_scheme_ = false;
+bool CookieMonster::default_enable_file_scheme_ = false;
 
 CookieMonster::CookieMonster(PersistentCookieStore* store, Delegate* delegate)
     : initialized_(false),
@@ -1369,13 +1369,21 @@ void CookieMonster::SetCookieableSchemes(
                              schemes, schemes + num_schemes);
 }
 
+void CookieMonster::SetEnableFileScheme(bool accept) {
+  // This assumes "file" is always at the end of the array. See the comment
+  // above kDefaultCookieableSchemes.
+  int num_schemes = accept ? kDefaultCookieableSchemesCount :
+      kDefaultCookieableSchemesCount - 1;
+  SetCookieableSchemes(kDefaultCookieableSchemes, num_schemes);
+}
+
 void CookieMonster::SetKeepExpiredCookies() {
   keep_expired_cookies_ = true;
 }
 
 // static
 void CookieMonster::EnableFileScheme() {
-  enable_file_scheme_ = true;
+  default_enable_file_scheme_ = true;
 }
 
 void CookieMonster::FlushStore(const base::Closure& callback) {
@@ -1746,7 +1754,7 @@ const int CookieMonster::kDefaultCookieableSchemesCount =
     arraysize(CookieMonster::kDefaultCookieableSchemes);
 
 void CookieMonster::SetDefaultCookieableSchemes() {
-  int num_schemes = enable_file_scheme_ ?
+  int num_schemes = default_enable_file_scheme_ ?
       kDefaultCookieableSchemesCount : kDefaultCookieableSchemesCount - 1;
   SetCookieableSchemes(kDefaultCookieableSchemes, num_schemes);
 }
@@ -2165,6 +2173,13 @@ std::string CookieMonster::GetKey(const std::string& domain) const {
   if (!effective_domain.empty() && effective_domain[0] == '.')
     return effective_domain.substr(1);
   return effective_domain;
+}
+
+bool CookieMonster::IsCookieableScheme(const std::string& scheme) {
+  base::AutoLock autolock(lock_);
+
+  return std::find(cookieable_schemes_.begin(), cookieable_schemes_.end(),
+                   scheme) != cookieable_schemes_.end();
 }
 
 bool CookieMonster::HasCookieableScheme(const GURL& url) {
