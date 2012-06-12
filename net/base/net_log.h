@@ -33,6 +33,9 @@ namespace net {
 // specific source ID.
 //
 // All NetLog methods must be thread-safe.
+//
+// For a broader introduction see the design document:
+// https://sites.google.com/a/chromium.org/dev/developers/design-documents/network-stack/netlog
 class NET_EXPORT NetLog {
  public:
   enum EventType {
