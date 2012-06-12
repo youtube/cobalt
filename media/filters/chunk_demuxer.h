@@ -5,7 +5,7 @@
 #ifndef MEDIA_FILTERS_CHUNK_DEMUXER_H_
 #define MEDIA_FILTERS_CHUNK_DEMUXER_H_
 
-#include <list>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -112,7 +112,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   // StreamParser callbacks.
   void OnStreamParserInitDone(bool success, base::TimeDelta duration);
-  bool OnNewConfigs(const AudioDecoderConfig& audio_config,
+  bool OnNewConfigs(bool has_audio, bool has_video,
+                    const AudioDecoderConfig& audio_config,
                     const VideoDecoderConfig& video_config);
   bool OnAudioBuffers(const StreamParser::BufferQueue& buffers);
   bool OnVideoBuffers(const StreamParser::BufferQueue& buffers);
@@ -133,15 +134,14 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   base::TimeDelta duration_;
 
-  scoped_ptr<StreamParser> stream_parser_;
+  typedef std::map<std::string, StreamParser*> StreamParserMap;
+  StreamParserMap stream_parser_map_;
 
-  // TODO(annacc): Remove these when fixing: http://crbug.com/122909
-  // Used to ensure config data matches the type and codec provided in AddId().
-  bool has_audio_;
-  bool has_video_;
-
-  // TODO(acolwell): Remove this when fixing http://crbug.com/122909
-  std::string source_id_;
+  // Used to ensure that (1) config data matches the type and codec provided in
+  // AddId(), (2) only 1 audio and 1 video sources are added, and (3) ids may be
+  // removed with RemoveID() but can not be re-added (yet).
+  std::string source_id_audio_;
+  std::string source_id_video_;
 
   DISALLOW_COPY_AND_ASSIGN(ChunkDemuxer);
 };
