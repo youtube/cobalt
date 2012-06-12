@@ -196,6 +196,7 @@ v8.log
 /third_party/swig
 /third_party/syzygy
 /third_party/syzygy/binaries
+/third_party/trace-viewer
 /third_party/undoview
 /third_party/v8-i18n
 /third_party/valgrind
