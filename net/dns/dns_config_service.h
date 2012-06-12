@@ -135,6 +135,8 @@ class NET_EXPORT_PRIVATE DnsConfigService
   bool have_hosts_;
   // True if receiver needs to be updated when the config becomes complete.
   bool need_update_;
+  // True if the last config sent was empty (instead of |dns_config_|).
+  bool last_sent_empty_;
 
   // Started in Invalidate*, cleared in On*Read.
   base::OneShotTimer<DnsConfigService> timer_;
