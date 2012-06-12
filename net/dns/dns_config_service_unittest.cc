@@ -114,6 +114,7 @@ TEST_F(DnsConfigServiceTest, FirstConfig) {
 TEST_F(DnsConfigServiceTest, Timeout) {
   DnsConfig config = MakeConfig(1);
   config.hosts = MakeHosts(1);
+  ASSERT_TRUE(config.IsValid());
 
   service_->OnConfigRead(config);
   service_->OnHostsRead(config.hosts);
@@ -131,6 +132,14 @@ TEST_F(DnsConfigServiceTest, Timeout) {
   WaitForConfig(TestTimeouts::action_timeout());
   EXPECT_FALSE(last_config_.IsValid());
 
+  service_->InvalidateConfig();
+  // We don't expect an update. This should time out. If we get an update,
+  // we'll detect unchanged config.
+  WaitForConfig(base::TimeDelta::FromMilliseconds(100) +
+                TestTimeouts::tiny_timeout());
+  EXPECT_FALSE(last_config_.IsValid());
+
+  service_->OnConfigRead(config);
   service_->OnHostsRead(config.hosts);
   EXPECT_TRUE(last_config_.Equals(config));
 }
