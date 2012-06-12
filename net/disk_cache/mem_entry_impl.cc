@@ -4,8 +4,10 @@
 
 #include "net/disk_cache/mem_entry_impl.h"
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
+#include "base/values.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/mem_backend_impl.h"
@@ -41,6 +43,17 @@ std::string GenerateChildName(const std::string& base_name, int child_id) {
   return base::StringPrintf("Range_%s:%i", base_name.c_str(), child_id);
 }
 
+// Returns NetLog parameters for the creation of a child MemEntryImpl.  Separate
+// function needed because child entries don't suppport GetKey().
+Value* NetLogChildEntryCreationCallback(const disk_cache::MemEntryImpl* parent,
+                                        int child_id,
+                                        net::NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString("key", GenerateChildName(parent->GetKey(), child_id));
+  dict->SetBoolean("created", true);
+  return dict;
+}
+
 }  // namespace
 
 namespace disk_cache {
@@ -61,22 +74,25 @@ MemEntryImpl::MemEntryImpl(MemBackendImpl* backend) {
 // ------------------------------------------------------------------------
 
 bool MemEntryImpl::CreateEntry(const std::string& key, net::NetLog* net_log) {
-  net_log_ = net::BoundNetLog::Make(net_log,
-                                    net::NetLog::SOURCE_MEMORY_CACHE_ENTRY);
-  net_log_.BeginEvent(
-      net::NetLog::TYPE_DISK_CACHE_MEM_ENTRY_IMPL,
-      make_scoped_refptr(new EntryCreationParameters(key, true)));
   key_ = key;
   Time current = Time::Now();
   last_modified_ = current;
   last_used_ = current;
+
+  net_log_ = net::BoundNetLog::Make(net_log,
+                                    net::NetLog::SOURCE_MEMORY_CACHE_ENTRY);
+  // Must be called after |key_| is set, so GetKey() works.
+  net_log_.BeginEvent(
+      net::NetLog::TYPE_DISK_CACHE_MEM_ENTRY_IMPL,
+      CreateNetLogEntryCreationCallback(this, true));
+
   Open();
   backend_->ModifyStorageSize(0, static_cast<int32>(key.size()));
   return true;
 }
 
 void MemEntryImpl::InternalDoom() {
-  net_log_.AddEvent(net::NetLog::TYPE_ENTRY_DOOM, NULL);
+  net_log_.AddEvent(net::NetLog::TYPE_ENTRY_DOOM);
   doomed_ = true;
   if (!ref_count_) {
     if (type() == kParentEntry) {
@@ -171,8 +187,7 @@ int MemEntryImpl::ReadData(int index, int offset, IOBuffer* buf, int buf_len,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_ENTRY_READ_DATA,
-        make_scoped_refptr(
-            new ReadWriteDataParameters(index, offset, buf_len, false)));
+        CreateNetLogReadWriteDataCallback(index, offset, buf_len, false));
   }
 
   int result = InternalReadData(index, offset, buf, buf_len);
@@ -180,7 +195,7 @@ int MemEntryImpl::ReadData(int index, int offset, IOBuffer* buf, int buf_len,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.EndEvent(
         net::NetLog::TYPE_ENTRY_READ_DATA,
-        make_scoped_refptr(new ReadWriteCompleteParameters(result)));
+        CreateNetLogReadWriteCompleteCallback(result));
   }
   return result;
 }
@@ -190,8 +205,7 @@ int MemEntryImpl::WriteData(int index, int offset, IOBuffer* buf, int buf_len,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_ENTRY_WRITE_DATA,
-        make_scoped_refptr(
-            new ReadWriteDataParameters(index, offset, buf_len, truncate)));
+        CreateNetLogReadWriteDataCallback(index, offset, buf_len, truncate));
   }
 
   int result = InternalWriteData(index, offset, buf, buf_len, truncate);
@@ -199,7 +213,7 @@ int MemEntryImpl::WriteData(int index, int offset, IOBuffer* buf, int buf_len,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.EndEvent(
         net::NetLog::TYPE_ENTRY_WRITE_DATA,
-        make_scoped_refptr(new ReadWriteCompleteParameters(result)));
+        CreateNetLogReadWriteCompleteCallback(result));
   }
   return result;
 }
@@ -209,25 +223,24 @@ int MemEntryImpl::ReadSparseData(int64 offset, IOBuffer* buf, int buf_len,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_SPARSE_READ,
-        make_scoped_refptr(
-            new SparseOperationParameters(offset, buf_len)));
+        CreateNetLogSparseOperationCallback(offset, buf_len));
   }
   int result = InternalReadSparseData(offset, buf, buf_len);
   if (net_log_.IsLoggingAllEvents())
-    net_log_.EndEvent(net::NetLog::TYPE_SPARSE_READ, NULL);
+    net_log_.EndEvent(net::NetLog::TYPE_SPARSE_READ);
   return result;
 }
 
 int MemEntryImpl::WriteSparseData(int64 offset, IOBuffer* buf, int buf_len,
                                   const CompletionCallback& callback) {
   if (net_log_.IsLoggingAllEvents()) {
-    net_log_.BeginEvent(net::NetLog::TYPE_SPARSE_WRITE,
-        make_scoped_refptr(
-            new SparseOperationParameters(offset, buf_len)));
+    net_log_.BeginEvent(
+        net::NetLog::TYPE_SPARSE_WRITE,
+        CreateNetLogSparseOperationCallback(offset, buf_len));
   }
   int result = InternalWriteSparseData(offset, buf, buf_len);
   if (net_log_.IsLoggingAllEvents())
-    net_log_.EndEvent(net::NetLog::TYPE_SPARSE_WRITE, NULL);
+    net_log_.EndEvent(net::NetLog::TYPE_SPARSE_WRITE);
   return result;
 }
 
@@ -236,15 +249,13 @@ int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.BeginEvent(
         net::NetLog::TYPE_SPARSE_GET_RANGE,
-        make_scoped_refptr(
-            new SparseOperationParameters(offset, len)));
+        CreateNetLogSparseOperationCallback(offset, len));
   }
   int result = GetAvailableRange(offset, len, start);
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.EndEvent(
         net::NetLog::TYPE_SPARSE_GET_RANGE,
-        make_scoped_refptr(
-            new GetAvailableRangeResultParameters(*start, result)));
+        CreateNetLogGetAvailableRangeResultCallback(*start, result));
   }
   return result;
 }
@@ -264,7 +275,7 @@ MemEntryImpl::~MemEntryImpl() {
   for (int i = 0; i < NUM_STREAMS; i++)
     backend_->ModifyStorageSize(data_size_[i], 0);
   backend_->ModifyStorageSize(static_cast<int32>(key_.size()), 0);
-  net_log_.EndEvent(net::NetLog::TYPE_DISK_CACHE_MEM_ENTRY_IMPL, NULL);
+  net_log_.EndEvent(net::NetLog::TYPE_DISK_CACHE_MEM_ENTRY_IMPL);
 }
 
 int MemEntryImpl::InternalReadData(int index, int offset, IOBuffer* buf,
@@ -364,9 +375,8 @@ int MemEntryImpl::InternalReadSparseData(int64 offset, IOBuffer* buf,
     if (net_log_.IsLoggingAllEvents()) {
       net_log_.BeginEvent(
           net::NetLog::TYPE_SPARSE_READ_CHILD_DATA,
-          make_scoped_refptr(new SparseReadWriteParameters(
-              child->net_log().source(),
-              io_buf->BytesRemaining())));
+          CreateNetLogSparseReadWriteCallback(child->net_log().source(),
+                                              io_buf->BytesRemaining()));
     }
     int ret = child->ReadData(kSparseData, child_offset, io_buf,
                               io_buf->BytesRemaining(), CompletionCallback());
@@ -422,9 +432,8 @@ int MemEntryImpl::InternalWriteSparseData(int64 offset, IOBuffer* buf,
     if (net_log_.IsLoggingAllEvents()) {
       net_log_.BeginEvent(
           net::NetLog::TYPE_SPARSE_WRITE_CHILD_DATA,
-          make_scoped_refptr(new SparseReadWriteParameters(
-              child->net_log().source(),
-              write_len)));
+          CreateNetLogSparseReadWriteCallback(child->net_log().source(),
+                                              write_len));
     }
 
     // Always writes to the child entry. This operation may overwrite data
@@ -555,9 +564,7 @@ bool MemEntryImpl::InitChildEntry(MemEntryImpl* parent, int child_id,
                                     net::NetLog::SOURCE_MEMORY_CACHE_ENTRY);
   net_log_.BeginEvent(
       net::NetLog::TYPE_DISK_CACHE_MEM_ENTRY_IMPL,
-      make_scoped_refptr(new EntryCreationParameters(
-          GenerateChildName(parent->key(), child_id_),
-          true)));
+      base::Bind(&NetLogChildEntryCreationCallback, parent, child_id_));
 
   parent_ = parent;
   child_id_ = child_id;
