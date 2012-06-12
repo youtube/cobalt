@@ -11,7 +11,8 @@
 namespace {
 
 // Internal version that does not use a scoped local pointer.
-jstring ConvertUTF16ToJavaStringImpl(JNIEnv* env, const string16& str) {
+jstring ConvertUTF16ToJavaStringImpl(JNIEnv* env,
+                                     const base::StringPiece16& str) {
   jstring result = env->NewString(str.data(), str.length());
   base::android::CheckException(env);
   return result;
@@ -33,7 +34,8 @@ std::string ConvertJavaStringToUTF8(const JavaRef<jstring>& str) {
 }
 
 ScopedJavaLocalRef<jstring> ConvertUTF8ToJavaString(
-    JNIEnv* env, const base::StringPiece& str) {
+    JNIEnv* env,
+    const base::StringPiece& str) {
   // JNI's NewStringUTF expects "modified" UTF8 so instead create the string
   // via our own UTF16 conversion utility.
   // Further, Dalvik requires the string passed into NewStringUTF() to come from
@@ -60,9 +62,9 @@ string16 ConvertJavaStringToUTF16(const JavaRef<jstring>& str) {
   return ConvertJavaStringToUTF16(AttachCurrentThread(), str.obj());
 }
 
-// TODO(joth): change this to accept const StringPiece16&.
-ScopedJavaLocalRef<jstring> ConvertUTF16ToJavaString(JNIEnv* env,
-                                                     const string16& str) {
+ScopedJavaLocalRef<jstring> ConvertUTF16ToJavaString(
+    JNIEnv* env,
+    const base::StringPiece16& str) {
   return ScopedJavaLocalRef<jstring>(env,
                                      ConvertUTF16ToJavaStringImpl(env, str));
 }
