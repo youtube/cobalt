@@ -1297,7 +1297,8 @@ int SSLClientSocketMac::DidCompleteHandshake() {
     return ERR_UNEXPECTED;
   net_log_.AddEvent(
       NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
-      make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
+      base::Bind(&NetLogX509CertificateCallback,
+                 base::Unretained(new_server_cert.get())));
 
   if (renegotiating_ &&
       X509Certificate::IsSameOSCert(server_cert_->os_cert_handle(),
