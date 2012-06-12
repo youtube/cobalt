@@ -132,6 +132,9 @@ MEDIA_EXPORT bool IsUnknownDataSize(base::SharedMemory* shared_memory,
 // sometimes check was written incorrectly, so move into separate function.
 MEDIA_EXPORT bool IsWASAPISupported();
 
+// Returns number of buffers to be used by wave out.
+MEDIA_EXPORT int NumberOfWaveOutBuffers();
+
 #endif  // defined(OS_WIN)
 
 }  // namespace media
