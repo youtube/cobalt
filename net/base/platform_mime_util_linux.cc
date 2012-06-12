@@ -20,13 +20,7 @@ namespace net {
 #if defined(OS_ANDROID)
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const FilePath::StringType& ext, std::string* result) const {
-  // TODO(jingzhao): Recover the original implementation once we support JNI.
-#if 0
   return android::GetMimeTypeFromExtension(ext, result);
-#else
-  NOTIMPLEMENTED();
-  return false;
-#endif
 }
 #else
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
