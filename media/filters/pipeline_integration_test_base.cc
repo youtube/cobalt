@@ -92,7 +92,6 @@ bool PipelineIntegrationTestBase::Start(const std::string& url,
       CreateFilterCollection(url),
       base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnError, base::Unretained(this)),
-      NetworkEventCB(),
       QuitOnStatusCB(expected_status));
   message_loop_.Run();
   return (pipeline_status_ == PIPELINE_OK);
@@ -110,7 +109,6 @@ bool PipelineIntegrationTestBase::Start(const std::string& url) {
       CreateFilterCollection(url),
       base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnError, base::Unretained(this)),
-      NetworkEventCB(),
       base::Bind(&PipelineIntegrationTestBase::OnStatusCallback,
                  base::Unretained(this)));
   message_loop_.Run();

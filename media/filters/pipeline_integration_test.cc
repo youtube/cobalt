@@ -116,7 +116,7 @@ class PipelineIntegrationTest
         CreateFilterCollection(&source),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
-        NetworkEventCB(), QuitOnStatusCB(PIPELINE_OK));
+        QuitOnStatusCB(PIPELINE_OK));
 
     ASSERT_TRUE(decoder_.get());
     source.set_decryptor(decryptor_.get());

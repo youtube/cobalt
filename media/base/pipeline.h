@@ -35,16 +35,6 @@ class MediaLog;
 class VideoDecoder;
 class VideoRenderer;
 
-enum NetworkEvent {
-  DOWNLOAD_CONTINUED,
-  DOWNLOAD_PAUSED,
-  CAN_PLAY_THROUGH
-};
-
-// Callback that executes when a network event occurs.
-// The parameter specifies the type of event that is being signalled.
-typedef base::Callback<void(NetworkEvent)> NetworkEventCB;
-
 // Adapter for using asynchronous Pipeline methods in code that wants to run
 // synchronously.  To use, construct an instance of this class and pass the
 // |Callback()| to the Pipeline method requiring a callback.  Then Wait() for
@@ -126,7 +116,6 @@ class MEDIA_EXPORT Pipeline
   //
   // The following permanent callbacks will be executed as follows:
   //   |start_cb_| will be executed when Start is done (successfully or not).
-  //   |network_cb_| will be executed whenever there's a network activity.
   //   |ended_cb| will be executed whenever the media reaches the end.
   //   |error_cb_| will be executed whenever an error occurs but hasn't
   //               been reported already through another callback.
@@ -140,7 +129,6 @@ class MEDIA_EXPORT Pipeline
   void Start(scoped_ptr<FilterCollection> filter_collection,
              const PipelineStatusCB& ended_cb,
              const PipelineStatusCB& error_cb,
-             const NetworkEventCB& network_cb,
              const PipelineStatusCB& start_cb);
 
   // Asynchronously stops the pipeline and resets it to an uninitialized state.
@@ -300,7 +288,6 @@ class MEDIA_EXPORT Pipeline
   // DataSourceHost (by way of DemuxerHost) implementation.
   virtual void SetTotalBytes(int64 total_bytes) OVERRIDE;
   virtual void AddBufferedByteRange(int64 start, int64 end) OVERRIDE;
-  virtual void SetNetworkActivity(bool is_downloading_data) OVERRIDE;
 
   // DemuxerHost implementaion.
   virtual void SetDuration(base::TimeDelta duration) OVERRIDE;
@@ -341,7 +328,6 @@ class MEDIA_EXPORT Pipeline
   void StartTask(scoped_ptr<FilterCollection> filter_collection,
                  const PipelineStatusCB& ended_cb,
                  const PipelineStatusCB& error_cb,
-                 const NetworkEventCB& network_cb,
                  const PipelineStatusCB& start_cb);
 
   // InitializeTask() performs initialization in multiple passes. It is executed
@@ -369,9 +355,6 @@ class MEDIA_EXPORT Pipeline
 
   // Carries out handling a notification from a filter that it has ended.
   void NotifyEndedTask();
-
-  // Carries out handling a notification of network event.
-  void NotifyNetworkEventTask(NetworkEvent type);
 
   // Carries out disabling the audio renderer.
   void DisableAudioRendererTask();
@@ -545,7 +528,6 @@ class MEDIA_EXPORT Pipeline
   base::Closure stop_cb_;
   PipelineStatusCB ended_cb_;
   PipelineStatusCB error_cb_;
-  NetworkEventCB network_cb_;
 
   // Reference to the filter(s) that constitute the pipeline.
   scoped_refptr<Filter> pipeline_filter_;
