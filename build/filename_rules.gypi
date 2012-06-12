@@ -41,7 +41,7 @@
         ['exclude', '(^|/)android/'],
       ],
     }],
-    ['OS=="win" or >(nacl_untrusted_build)==1', {
+    ['OS=="win" and >(nacl_untrusted_build)==0', {
       'sources/': [
         ['exclude', '_posix(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)posix/'],
@@ -49,6 +49,11 @@
     }],
     ['<(chromeos)!=1 or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_chromeos\\.(h|cc)$'] ]
+    }],
+    ['>(nacl_untrusted_build)==0', {
+      'sources/': [
+        ['exclude', '_nacl(_unittest)?\\.(h|cc)$'],
+      ],
     }],
     ['OS!="linux" and OS!="openbsd" and OS!="freebsd" or >(nacl_untrusted_build)==1', {
       'sources/': [
