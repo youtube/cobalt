@@ -120,6 +120,7 @@ bool CrasOutputStream::Open() {
   int err = cras_client_create(&client_);
   if (err < 0) {
     LOG(WARNING) << "Couldn't create CRAS client.\n";
+    client_ = NULL;
     TransitionTo(kInError);
     return false;
   }
@@ -127,6 +128,7 @@ bool CrasOutputStream::Open() {
   if (err) {
     LOG(WARNING) << "Couldn't connect CRAS client.\n";
     cras_client_destroy(client_);
+    client_ = NULL;
     TransitionTo(kInError);
     return false;
   }
@@ -135,6 +137,7 @@ bool CrasOutputStream::Open() {
   if (err) {
     LOG(WARNING) << "Couldn't run CRAS client.\n";
     cras_client_destroy(client_);
+    client_ = NULL;
     TransitionTo(kInError);
     return false;
   }
@@ -149,8 +152,11 @@ void CrasOutputStream::Close() {
     return;
   }
 
-  cras_client_stop(client_);
-  cras_client_destroy(client_);
+  if (client_) {
+    cras_client_stop(client_);
+    cras_client_destroy(client_);
+    client_ = NULL;
+  }
 
   // Signal to the manager that we're closed and can be removed.
   // Should be last call in the method as it deletes "this".
