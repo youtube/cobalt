@@ -112,12 +112,26 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
 }  // namespace
 
 class ProcessUtilTest : public base::MultiProcessTest {
-#if defined(OS_POSIX)
  public:
+#if defined(OS_POSIX)
   // Spawn a child process that counts how many file descriptors are open.
   int CountOpenFDsInChild();
 #endif
+  // Converts the filename to a platform specific filepath.
+  // On Android files can not be created in arbitrary directories.
+  static std::string GetSignalFilePath(const char* filename);
 };
+
+std::string ProcessUtilTest::GetSignalFilePath(const char* filename) {
+#if !defined(OS_ANDROID)
+  return filename;
+#else
+  FilePath tmp_dir;
+  PathService::Get(base::DIR_CACHE, &tmp_dir);
+  tmp_dir = tmp_dir.Append(filename);
+  return tmp_dir.value();
+#endif
+}
 
 MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
   return 0;
@@ -132,24 +146,28 @@ TEST_F(ProcessUtilTest, SpawnChild) {
 }
 
 MULTIPROCESS_TEST_MAIN(SlowChildProcess) {
-  WaitToDie(kSignalFileSlow);
+  WaitToDie(ProcessUtilTest::GetSignalFilePath(kSignalFileSlow).c_str());
   return 0;
 }
 
 TEST_F(ProcessUtilTest, KillSlowChild) {
-  remove(kSignalFileSlow);
+  const std::string signal_file =
+      ProcessUtilTest::GetSignalFilePath(kSignalFileSlow);
+  remove(signal_file.c_str());
   base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
-  SignalChildren(kSignalFileSlow);
+  SignalChildren(signal_file.c_str());
   EXPECT_TRUE(base::WaitForSingleProcess(
                   handle, TestTimeouts::action_max_timeout_ms()));
   base::CloseProcessHandle(handle);
-  remove(kSignalFileSlow);
+  remove(signal_file.c_str());
 }
 
 // Times out on Linux and Win, flakes on other platforms, http://crbug.com/95058
 TEST_F(ProcessUtilTest, DISABLED_GetTerminationStatusExit) {
-  remove(kSignalFileSlow);
+  const std::string signal_file =
+      ProcessUtilTest::GetSignalFilePath(kSignalFileSlow);
+  remove(signal_file.c_str());
   base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
 
@@ -158,14 +176,14 @@ TEST_F(ProcessUtilTest, DISABLED_GetTerminationStatusExit) {
             base::GetTerminationStatus(handle, &exit_code));
   EXPECT_EQ(kExpectedStillRunningExitCode, exit_code);
 
-  SignalChildren(kSignalFileSlow);
+  SignalChildren(signal_file.c_str());
   exit_code = 42;
   base::TerminationStatus status =
       WaitForChildTermination(handle, &exit_code);
   EXPECT_EQ(base::TERMINATION_STATUS_NORMAL_TERMINATION, status);
   EXPECT_EQ(0, exit_code);
   base::CloseProcessHandle(handle);
-  remove(kSignalFileSlow);
+  remove(signal_file.c_str());
 }
 
 #if defined(OS_WIN)
@@ -212,7 +230,7 @@ TEST_F(ProcessUtilTest, GetModuleFromAddress) {
 // framework) to reduce the ReportCrash overhead.
 
 MULTIPROCESS_TEST_MAIN(CrashingChildProcess) {
-  WaitToDie(kSignalFileCrash);
+  WaitToDie(ProcessUtilTest::GetSignalFilePath(kSignalFileCrash).c_str());
 #if defined(OS_POSIX)
   // Have to disable to signal handler for segv so we can get a crash
   // instead of an abnormal termination through the crash dump handler.
@@ -232,7 +250,9 @@ MULTIPROCESS_TEST_MAIN(CrashingChildProcess) {
 #define MAYBE_GetTerminationStatusCrash GetTerminationStatusCrash
 #endif
 TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
-  remove(kSignalFileCrash);
+  const std::string signal_file =
+    ProcessUtilTest::GetSignalFilePath(kSignalFileCrash);
+  remove(signal_file.c_str());
   base::ProcessHandle handle = this->SpawnChild("CrashingChildProcess",
                                                 false);
   ASSERT_NE(base::kNullProcessHandle, handle);
@@ -242,7 +262,7 @@ TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
             base::GetTerminationStatus(handle, &exit_code));
   EXPECT_EQ(kExpectedStillRunningExitCode, exit_code);
 
-  SignalChildren(kSignalFileCrash);
+  SignalChildren(signal_file.c_str());
   exit_code = 42;
   base::TerminationStatus status =
       WaitForChildTermination(handle, &exit_code);
@@ -260,12 +280,12 @@ TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
 
   // Reset signal handlers back to "normal".
   base::EnableInProcessStackDumping();
-  remove(kSignalFileCrash);
+  remove(signal_file.c_str());
 }
 #endif  // !defined(OS_MACOSX)
 
 MULTIPROCESS_TEST_MAIN(KilledChildProcess) {
-  WaitToDie(kSignalFileKill);
+  WaitToDie(ProcessUtilTest::GetSignalFilePath(kSignalFileKill).c_str());
 #if defined(OS_WIN)
   // Kill ourselves.
   HANDLE handle = ::OpenProcess(PROCESS_ALL_ACCESS, 0, ::GetCurrentProcessId());
@@ -278,7 +298,9 @@ MULTIPROCESS_TEST_MAIN(KilledChildProcess) {
 }
 
 TEST_F(ProcessUtilTest, GetTerminationStatusKill) {
-  remove(kSignalFileKill);
+  const std::string signal_file =
+    ProcessUtilTest::GetSignalFilePath(kSignalFileKill);
+  remove(signal_file.c_str());
   base::ProcessHandle handle = this->SpawnChild("KilledChildProcess",
                                                 false);
   ASSERT_NE(base::kNullProcessHandle, handle);
@@ -288,7 +310,7 @@ TEST_F(ProcessUtilTest, GetTerminationStatusKill) {
             base::GetTerminationStatus(handle, &exit_code));
   EXPECT_EQ(kExpectedStillRunningExitCode, exit_code);
 
-  SignalChildren(kSignalFileKill);
+  SignalChildren(signal_file.c_str());
   exit_code = 42;
   base::TerminationStatus status =
       WaitForChildTermination(handle, &exit_code);
@@ -302,7 +324,7 @@ TEST_F(ProcessUtilTest, GetTerminationStatusKill) {
   EXPECT_EQ(SIGKILL, signal);
 #endif
   base::CloseProcessHandle(handle);
-  remove(kSignalFileKill);
+  remove(signal_file.c_str());
 }
 
 // Ensure that the priority of a process is restored correctly after
