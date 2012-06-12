@@ -428,8 +428,8 @@
           'file_manager_extension%': 0,
         }],
 
-        ['OS=="win" or OS=="mac" or (OS=="linux" and use_aura==0)', {	
-          'enable_one_click_signin%': 1,	
+        ['OS=="win" or OS=="mac" or (OS=="linux" and use_aura==0)', {
+          'enable_one_click_signin%': 1,
         }],
 
         ['OS=="android"', {
@@ -1171,12 +1171,14 @@
     # is added or removed from the list, the chrome/browser/resources/
     # default_apps/external_extensions.json file must also be updated.
     'default_apps_list': [
+      'browser/resources/default_apps/docs.crx',
       'browser/resources/default_apps/external_extensions.json',
       'browser/resources/default_apps/gmail.crx',
       'browser/resources/default_apps/search.crx',
       'browser/resources/default_apps/youtube.crx',
     ],
     'default_apps_list_linux_dest': [
+      '<(PRODUCT_DIR)/default_apps/docs.crx',
       '<(PRODUCT_DIR)/default_apps/external_extensions.json',
       '<(PRODUCT_DIR)/default_apps/gmail.crx',
       '<(PRODUCT_DIR)/default_apps/search.crx',
