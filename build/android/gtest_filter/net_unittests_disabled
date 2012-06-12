@@ -94,3 +94,6 @@ URLRequestContextBuilderTest.*
 
 # Depends on JNI for certificate code.
 DiskCacheEntryTest.*
+
+MimeUtilTest.ExtensionTest
+MimeUtilTest.FileTest
