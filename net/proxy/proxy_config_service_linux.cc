@@ -320,8 +320,8 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     return task_runner_;
   }
 
-  virtual const char* GetDataSource() OVERRIDE {
-    return "gconf";
+  virtual ProxyConfigSource GetConfigSource() OVERRIDE {
+    return PROXY_CONFIG_SOURCE_GCONF;
   }
 
   virtual bool GetString(StringSetting key, std::string* result) OVERRIDE {
@@ -637,8 +637,8 @@ class SettingGetterImplGSettings
     return task_runner_;
   }
 
-  virtual const char* GetDataSource() OVERRIDE {
-    return "gsettings";
+  virtual ProxyConfigSource GetConfigSource() OVERRIDE {
+    return PROXY_CONFIG_SOURCE_GSETTINGS;
   }
 
   virtual bool GetString(StringSetting key, std::string* result) OVERRIDE {
@@ -1045,8 +1045,8 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     NOTREACHED();
   }
 
-  virtual const char* GetDataSource() OVERRIDE {
-    return "KDE";
+  virtual ProxyConfigSource GetConfigSource() OVERRIDE {
+    return PROXY_CONFIG_SOURCE_KDE;
   }
 
   virtual bool GetString(StringSetting key, std::string* result) OVERRIDE {
@@ -1634,8 +1634,9 @@ void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
       setting_getter_->Init(glib_thread_task_runner, file_loop) &&
       GetConfigFromSettings(&cached_config_)) {
     cached_config_.set_id(1);  // Mark it as valid.
+    cached_config_.set_source(setting_getter_->GetConfigSource());
     VLOG(1) << "Obtained proxy settings from "
-            << setting_getter_->GetDataSource();
+            << ProxyConfigSourceToString(cached_config_.source());
 
     // If gconf proxy mode is "none", meaning direct, then we take
     // that to be a valid config and will not check environment
@@ -1675,6 +1676,7 @@ void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
     // Consulting environment variables doesn't need to be done from the
     // default glib main loop, but it's a tiny enough amount of work.
     if (GetConfigFromEnv(&cached_config_)) {
+      cached_config_.set_source(PROXY_CONFIG_SOURCE_ENV);
       cached_config_.set_id(1);  // Mark it as valid.
       VLOG(1) << "Obtained proxy settings from environment variables";
     }
@@ -1708,8 +1710,12 @@ ProxyConfigService::ConfigAvailability
 
   // Simply return the last proxy configuration that glib_default_loop
   // notified us of.
-  *config = cached_config_.is_valid() ?
-      cached_config_ : ProxyConfig::CreateDirect();
+  if (cached_config_.is_valid()) {
+    *config = cached_config_;
+  } else {
+    *config = ProxyConfig::CreateDirect();
+    config->set_source(PROXY_CONFIG_SOURCE_SYSTEM_FAILED);
+  }
 
   // We return CONFIG_VALID to indicate that *config was filled in. It is always
   // going to be available since we initialized eagerly on the UI thread.

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -159,6 +159,7 @@ void ProxyConfigServiceWin::GetCurrentProxyConfig(ProxyConfig* config) {
     LOG(ERROR) << "WinHttpGetIEProxyConfigForCurrentUser failed: " <<
         GetLastError();
     *config = ProxyConfig::CreateDirect();
+    config->set_source(PROXY_CONFIG_SOURCE_SYSTEM_FAILED);
     return;
   }
   SetFromIEConfig(config, ie_config);
@@ -187,6 +188,7 @@ void ProxyConfigServiceWin::SetFromIEConfig(
   }
   if (ie_config.lpszAutoConfigUrl)
     config->set_pac_url(GURL(ie_config.lpszAutoConfigUrl));
+  config->set_source(PROXY_CONFIG_SOURCE_SYSTEM);
 }
 
 }  // namespace net

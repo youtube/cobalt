@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -77,8 +77,16 @@ void ProxyList::RemoveProxiesWithoutScheme(int scheme_bit_field) {
   }
 }
 
+void ProxyList::Clear() {
+  proxies_.clear();
+}
+
 bool ProxyList::IsEmpty() const {
   return proxies_.empty();
+}
+
+size_t ProxyList::size() const {
+  return proxies_.size();
 }
 
 const ProxyServer& ProxyList::Get() const {
