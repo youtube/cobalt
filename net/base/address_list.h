@@ -13,6 +13,7 @@
 #include "base/compiler_specific.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
+#include "net/base/net_log.h"
 #include "net/base/net_util.h"
 
 struct addrinfo;
@@ -50,6 +51,11 @@ class NET_EXPORT AddressList
   // Sets canonical name to the literal of the first IP address on the list.
   void SetDefaultCanonicalName();
 
+  // Creates a callback for use with the NetLog that returns a Value
+  // representation of the address list.  The callback must be destroyed before
+  // |this| is.
+  NetLog::ParametersCallback CreateNetLogCallback() const;
+
   // Exposed methods from std::vector.
   using std::vector<IPEndPoint>::size;
   using std::vector<IPEndPoint>::empty;
@@ -70,7 +76,7 @@ class NET_EXPORT AddressList
   using std::vector<IPEndPoint>::rend;
 
  private:
-   // TODO(szym): Remove. http://crbug.com/126134
+  // TODO(szym): Remove. http://crbug.com/126134
   std::string canonical_name_;
 };
 

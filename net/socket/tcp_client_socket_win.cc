@@ -12,7 +12,6 @@
 #include "base/string_util.h"
 #include "base/win/object_watcher.h"
 #include "base/win/windows_version.h"
-#include "net/base/address_list_net_log_param.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
@@ -406,7 +405,7 @@ int TCPClientSocketWin::Connect(const CompletionCallback& callback) {
   connects.Increment();
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT,
-                      new AddressListNetLogParam(addresses_));
+                      addresses_.CreateNetLogCallback());
 
   // We will try to connect to each address in addresses_. Start with the
   // first one in the list.

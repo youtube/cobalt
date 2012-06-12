@@ -1563,7 +1563,8 @@ int SSLClientSocketWin::DidCompleteHandshake() {
       X509Certificate::CreateFromHandle(server_cert_handle, intermediates));
   net_log_.AddEvent(
       NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
-      make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
+      base::Bind(&NetLogX509CertificateCallback,
+                 base::Unretained(new_server_cert.get())));
   if (renegotiating_ && IsCertificateChainIdentical(server_cert_,
                                                     new_server_cert)) {
     // We already verified the server certificate.  Either it is good or the

@@ -296,6 +296,13 @@ class NET_EXPORT NetLog {
   // Warning: |name| must remain valid for the life of the callback.
   static ParametersCallback IntegerCallback(const char* name, int value);
 
+  // Creates a ParametersCallback that encapsulates a single UTF8 string.  Takes
+  // |value| as a pointer to avoid copying, and emphasize it must be valid for
+  // the life of the callback.  |value| may not be NULL.
+  // Warning: |name| and |value| must remain valid for the life of the callback.
+  static ParametersCallback StringCallback(const char* name,
+                                           const std::string* value);
+
  protected:
   // Child classes should respond to the new entry here.  This includes
   // creating the Entry object and alerting their observers.

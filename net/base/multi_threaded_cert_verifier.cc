@@ -263,9 +263,10 @@ class CertVerifierJob {
       : start_time_(base::TimeTicks::Now()),
         worker_(worker),
         net_log_(net_log) {
-    scoped_refptr<NetLog::EventParameters> params(
-        new X509CertificateNetLogParam(worker_->certificate()));
-    net_log_.BeginEvent(NetLog::TYPE_CERT_VERIFIER_JOB, params);
+    net_log_.BeginEvent(
+        NetLog::TYPE_CERT_VERIFIER_JOB,
+        base::Bind(&NetLogX509CertificateCallback,
+                   base::Unretained(worker_->certificate())));
   }
 
   ~CertVerifierJob() {
@@ -280,8 +281,7 @@ class CertVerifierJob {
   void AddRequest(CertVerifierRequest* request) {
     request->net_log().AddEvent(
         NetLog::TYPE_CERT_VERIFIER_REQUEST_BOUND_TO_JOB,
-        make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", net_log_.source())));
+        net_log_.source().ToEventParametersCallback());
 
     requests_.push_back(request);
   }

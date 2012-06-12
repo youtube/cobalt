@@ -32,7 +32,6 @@
 #include "base/values.h"
 #include "net/base/address_family.h"
 #include "net/base/address_list.h"
-#include "net/base/address_list_net_log_param.h"
 #include "net/base/dns_reloader.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/host_resolver_proc.h"
@@ -177,177 +176,93 @@ void EnsurePortOnAddressList(uint16 port, AddressList* list) {
   SetPortOnAddressList(port, list);
 }
 
-// Extra parameters to attach to the NetLog when the resolve failed.
-class ProcTaskFailedParams : public NetLog::EventParameters {
- public:
-  ProcTaskFailedParams(uint32 attempt_number, int net_error, int os_error)
-      : attempt_number_(attempt_number),
-        net_error_(net_error),
-        os_error_(os_error) {
-  }
+// Creates NetLog parameters when the resolve failed.
+base::Value* NetLogProcTaskFailedCallback(uint32 attempt_number,
+                                          int net_error,
+                                          int os_error,
+                                          NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  if (attempt_number)
+    dict->SetInteger("attempt_number", attempt_number);
 
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-    if (attempt_number_)
-      dict->SetInteger("attempt_number", attempt_number_);
+  dict->SetInteger("net_error", net_error);
 
-    dict->SetInteger("net_error", net_error_);
-
-    if (os_error_) {
-      dict->SetInteger("os_error", os_error_);
+  if (os_error) {
+    dict->SetInteger("os_error", os_error);
 #if defined(OS_POSIX)
-      dict->SetString("os_error_string", gai_strerror(os_error_));
+    dict->SetString("os_error_string", gai_strerror(os_error));
 #elif defined(OS_WIN)
-      // Map the error code to a human-readable string.
-      LPWSTR error_string = NULL;
-      int size = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                               FORMAT_MESSAGE_FROM_SYSTEM,
-                               0,  // Use the internal message table.
-                               os_error_,
-                               0,  // Use default language.
-                               (LPWSTR)&error_string,
-                               0,  // Buffer size.
-                               0);  // Arguments (unused).
-      dict->SetString("os_error_string", WideToUTF8(error_string));
-      LocalFree(error_string);
+    // Map the error code to a human-readable string.
+    LPWSTR error_string = NULL;
+    int size = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                             FORMAT_MESSAGE_FROM_SYSTEM,
+                             0,  // Use the internal message table.
+                             os_error,
+                             0,  // Use default language.
+                             (LPWSTR)&error_string,
+                             0,  // Buffer size.
+                             0);  // Arguments (unused).
+    dict->SetString("os_error_string", WideToUTF8(error_string));
+    LocalFree(error_string);
 #endif
-    }
-
-    return dict;
   }
 
- protected:
-  virtual ~ProcTaskFailedParams() {}
+  return dict;
+}
 
- private:
-  const uint32 attempt_number_;
-  const int net_error_;
-  const int os_error_;
+// Creates NetLog parameters when the DnsTask failed.
+base::Value* NetLogDnsTaskFailedCallback(int net_error,
+                                         int dns_error,
+                                         NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("net_error", net_error);
+  if (dns_error)
+    dict->SetInteger("dns_error", dns_error);
+  return dict;
 };
 
-// Extra parameters to attach to the NetLog when the DnsTask failed.
-class DnsTaskFailedParams : public NetLog::EventParameters {
- public:
-  DnsTaskFailedParams(int net_error, int dns_error)
-      : net_error_(net_error), dns_error_(dns_error) {
-  }
+// Creates NetLog parameters containing the information in a RequestInfo object,
+// along with the associated NetLog::Source.
+base::Value* NetLogRequestInfoCallback(const NetLog::Source& source,
+                                       const HostResolver::RequestInfo* info,
+                                       NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  source.AddToEventParameters(dict);
 
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetInteger("net_error", net_error_);
-    if (dns_error_)
-      dict->SetInteger("dns_error", dns_error_);
-    return dict;
-  }
+  dict->SetString("host", info->host_port_pair().ToString());
+  dict->SetInteger("address_family",
+                   static_cast<int>(info->address_family()));
+  dict->SetBoolean("allow_cached_response", info->allow_cached_response());
+  dict->SetBoolean("is_speculative", info->is_speculative());
+  dict->SetInteger("priority", info->priority());
+  return dict;
+}
 
- protected:
-  virtual ~DnsTaskFailedParams() {}
+// Creates NetLog parameters for the creation of a HostResolverImpl::Job.
+base::Value* NetLogJobCreationCallback(const NetLog::Source& source,
+                                       const std::string* host,
+                                       NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  source.AddToEventParameters(dict);
+  dict->SetString("host", *host);
+  return dict;
+}
 
- private:
-  const int net_error_;
-  const int dns_error_;
-};
+// Creates NetLog parameters for HOST_RESOLVER_IMPL_JOB_ATTACH/DETACH events.
+base::Value* NetLogJobAttachCallback(const NetLog::Source& source,
+                                     RequestPriority priority,
+                                     NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  source.AddToEventParameters(dict);
+  dict->SetInteger("priority", priority);
+  return dict;
+}
 
-// Parameters representing the information in a RequestInfo object, along with
-// the associated NetLog::Source.
-class RequestInfoParameters : public NetLog::EventParameters {
- public:
-  RequestInfoParameters(const HostResolver::RequestInfo& info,
-                        const NetLog::Source& source)
-      : info_(info), source_(source) {}
-
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("host", info_.host_port_pair().ToString());
-    dict->SetInteger("address_family",
-                     static_cast<int>(info_.address_family()));
-    dict->SetBoolean("allow_cached_response", info_.allow_cached_response());
-    dict->SetBoolean("is_speculative", info_.is_speculative());
-    dict->SetInteger("priority", info_.priority());
-
-    if (source_.is_valid())
-      dict->Set("source_dependency", source_.ToValue());
-
-    return dict;
-  }
-
- protected:
-  virtual ~RequestInfoParameters() {}
-
- private:
-  const HostResolver::RequestInfo info_;
-  const NetLog::Source source_;
-};
-
-// Parameters associated with the creation of a HostResolverImpl::Job.
-class JobCreationParameters : public NetLog::EventParameters {
- public:
-  JobCreationParameters(const std::string& host,
-                        const NetLog::Source& source)
-      : host_(host), source_(source) {}
-
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("host", host_);
-    dict->Set("source_dependency", source_.ToValue());
-    return dict;
-  }
-
- protected:
-  virtual ~JobCreationParameters() {}
-
- private:
-  const std::string host_;
-  const NetLog::Source source_;
-};
-
-// Parameters of the HOST_RESOLVER_IMPL_JOB_ATTACH/DETACH event.
-class JobAttachParameters : public NetLog::EventParameters {
- public:
-  JobAttachParameters(const NetLog::Source& source,
-                      RequestPriority priority)
-      : source_(source), priority_(priority) {}
-
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->Set("source_dependency", source_.ToValue());
-    dict->SetInteger("priority", priority_);
-    return dict;
-  }
-
- protected:
-  virtual ~JobAttachParameters() {}
-
- private:
-  const NetLog::Source source_;
-  const RequestPriority priority_;
-};
-
-// Parameters of the DNS_CONFIG_CHANGED event.
-class DnsConfigParameters : public NetLog::EventParameters {
- public:
-  explicit DnsConfigParameters(const DnsConfig& config)
-      : num_hosts_(config.hosts.size()) {
-    config_.CopyIgnoreHosts(config);
-  }
-
-  virtual Value* ToValue() const OVERRIDE {
-    Value* value = config_.ToValue();
-    if (!value)
-      return NULL;
-    DictionaryValue* dict;
-    if (value->GetAsDictionary(&dict))
-      dict->SetInteger("num_hosts", num_hosts_);
-    return value;
-  }
-
- protected:
-  virtual ~DnsConfigParameters() {}
-
- private:
-  DnsConfig config_;  // Does not include DnsHosts to save memory and work.
-  const size_t num_hosts_;
-};
+// Creates NetLog parameters for the DNS_CONFIG_CHANGED event.
+base::Value* NetLogDnsConfigCallback(const DnsConfig* config,
+                                     NetLog::LogLevel /* log_level */) {
+  return config->ToValue();
+}
 
 // The logging routines are defined here because some requests are resolved
 // without a Request object.
@@ -358,13 +273,11 @@ void LogStartRequest(const BoundNetLog& source_net_log,
                      const HostResolver::RequestInfo& info) {
   source_net_log.BeginEvent(
       NetLog::TYPE_HOST_RESOLVER_IMPL,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", request_net_log.source())));
+      request_net_log.source().ToEventParametersCallback());
 
   request_net_log.BeginEvent(
       NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
-      make_scoped_refptr(new RequestInfoParameters(
-          info, source_net_log.source())));
+      base::Bind(&NetLogRequestInfoCallback, source_net_log.source(), &info));
 }
 
 // Logs when a request has just completed (before its callback is run).
@@ -684,8 +597,7 @@ class HostResolverImpl::ProcTask
 
     net_log_.AddEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_ATTEMPT_STARTED,
-        make_scoped_refptr(new NetLogIntegerParameter(
-            "attempt_number", attempt_number_)));
+        NetLog::IntegerCallback("attempt_number", attempt_number_));
 
     // If we don't get the results within a given time, RetryIfNotComplete
     // will start a new attempt on a different worker thread if none of our
@@ -758,13 +670,18 @@ class HostResolverImpl::ProcTask
     if (was_canceled())
       return;
 
-    scoped_refptr<NetLog::EventParameters> params;
+    NetLog::ParametersCallback net_log_callback;
     if (error != OK) {
-      params = new ProcTaskFailedParams(attempt_number, error, os_error);
+      net_log_callback = base::Bind(&NetLogProcTaskFailedCallback,
+                                    attempt_number,
+                                    error,
+                                    os_error);
     } else {
-      params = new NetLogIntegerParameter("attempt_number", attempt_number);
+      net_log_callback = NetLog::IntegerCallback("attempt_number",
+                                                 attempt_number);
     }
-    net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_ATTEMPT_FINISHED, params);
+    net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_ATTEMPT_FINISHED,
+                      net_log_callback);
 
     if (was_completed())
       return;
@@ -781,11 +698,13 @@ class HostResolverImpl::ProcTask
     }
 
     if (error != OK) {
-      params = new ProcTaskFailedParams(0, error, os_error);
+      net_log_callback = base::Bind(&NetLogProcTaskFailedCallback,
+                                    0, error, os_error);
     } else {
-      params = new AddressListNetLogParam(results_);
+      net_log_callback = results_.CreateNetLogCallback();
     }
-    net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK, params);
+    net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK,
+                      net_log_callback);
 
     callback_.Run(error, results_);
   }
@@ -1099,7 +1018,7 @@ class HostResolverImpl::DnsTask {
                                 DnsResponse::DNS_PARSE_RESULT_MAX);
       if (result == DnsResponse::DNS_SUCCESS) {
         net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_DNS_TASK,
-                          new AddressListNetLogParam(addr_list));
+                          addr_list.CreateNetLogCallback());
         callback_.Run(net_error, addr_list, ttl);
         return;
       }
@@ -1108,8 +1027,9 @@ class HostResolverImpl::DnsTask {
       DNS_HISTOGRAM("AsyncDNS.TransactionFailure",
                     base::TimeTicks::Now() - start_time);
     }
-    net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_DNS_TASK,
-                      new DnsTaskFailedParams(net_error, result));
+    net_log_.EndEvent(
+        NetLog::TYPE_HOST_RESOLVER_IMPL_DNS_TASK,
+        base::Bind(&NetLogDnsTaskFailedCallback, net_error, result));
     callback_.Run(net_error, AddressList(), base::TimeDelta());
   }
 
@@ -1142,8 +1062,9 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
 
     net_log_.BeginEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
-        make_scoped_refptr(new JobCreationParameters(
-            key_.hostname, request_net_log.source())));
+        base::Bind(&NetLogJobCreationCallback,
+                   request_net_log.source(),
+                   &key_.hostname));
   }
 
   virtual ~Job() {
@@ -1191,13 +1112,13 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
 
     req->request_net_log().AddEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_ATTACH,
-        make_scoped_refptr(new NetLogSourceParameter(
-            "source_dependency", net_log_.source())));
+        net_log_.source().ToEventParametersCallback());
 
     net_log_.AddEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_REQUEST_ATTACH,
-        make_scoped_refptr(new JobAttachParameters(
-            req->request_net_log().source(), priority())));
+        base::Bind(&NetLogJobAttachCallback,
+                   req->request_net_log().source(),
+                   priority()));
 
     // TODO(szym): Check if this is still needed.
     if (!req->info().is_speculative()) {
@@ -1226,8 +1147,9 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     priority_tracker_.Remove(req->info().priority());
     net_log_.AddEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_REQUEST_DETACH,
-        make_scoped_refptr(new JobAttachParameters(
-            req->request_net_log().source(), priority())));
+        base::Bind(&NetLogJobAttachCallback,
+                   req->request_net_log().source(),
+                   priority()));
 
     if (num_active_requests() > 0) {
       if (is_queued())
@@ -1962,7 +1884,7 @@ void HostResolverImpl::OnDnsConfigChanged(const DnsConfig& dns_config) {
   if (net_log_) {
     net_log_->AddGlobalEntry(
         NetLog::TYPE_DNS_CONFIG_CHANGED,
-        make_scoped_refptr(new DnsConfigParameters(dns_config)));
+        base::Bind(&NetLogDnsConfigCallback, &dns_config));
   }
 
   // TODO(szym): Remove once http://crbug.com/125599 is resolved.
