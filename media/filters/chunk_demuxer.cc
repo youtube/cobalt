@@ -415,9 +415,7 @@ ChunkDemuxer::ChunkDemuxer(ChunkDemuxerClient* client)
     : state_(WAITING_FOR_INIT),
       host_(NULL),
       client_(client),
-      buffered_bytes_(0),
-      has_audio_(false),
-      has_video_(false) {
+      buffered_bytes_(0) {
   DCHECK(client);
 }
 
@@ -518,6 +516,10 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                                          const std::string& type,
                                          std::vector<std::string>& codecs) {
   DCHECK_GT(codecs.size(), 0u);
+  base::AutoLock auto_lock(lock_);
+
+  if (state_ != WAITING_FOR_INIT && state_ != INITIALIZING)
+    return kReachedIdLimit;
 
   bool has_audio = false;
   bool has_video = false;
@@ -525,55 +527,59 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   if (!IsSupported(type, codecs, &factory_function, &has_audio, &has_video))
     return kNotSupported;
 
-  // TODO(acolwell): Support for more than one ID
-  // will be added as part of http://crbug.com/122909
-  if (!source_id_.empty() ||
-      (has_audio && has_audio_) ||
-      (has_video && has_video_))
+  if ((has_audio && !source_id_audio_.empty()) ||
+      (has_video && !source_id_video_.empty()))
     return kReachedIdLimit;
-
-  source_id_ = id;
 
   StreamParser::NewBuffersCB audio_cb;
   StreamParser::NewBuffersCB video_cb;
 
   if (has_audio) {
-    has_audio_ = true;
+    source_id_audio_ = id;
     audio_cb = base::Bind(&ChunkDemuxer::OnAudioBuffers,
                           base::Unretained(this));
   }
 
   if (has_video) {
-    has_video_ = true;
+    source_id_video_ = id;
     video_cb = base::Bind(&ChunkDemuxer::OnVideoBuffers,
                           base::Unretained(this));
   }
 
-  stream_parser_.reset(factory_function());
-  CHECK(stream_parser_.get());
+  scoped_ptr<StreamParser> stream_parser(factory_function());
+  CHECK(stream_parser.get());
 
-  stream_parser_->Init(
+  stream_parser->Init(
       base::Bind(&ChunkDemuxer::OnStreamParserInitDone, this),
-      base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this)),
+      base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this),
+                 has_audio, has_video),
       audio_cb,
       video_cb,
       base::Bind(&ChunkDemuxer::OnKeyNeeded, base::Unretained(this)));
+
+  stream_parser_map_[id] = stream_parser.release();
 
   return kOk;
 }
 
 void ChunkDemuxer::RemoveId(const std::string& id) {
-  CHECK(!source_id_.empty());
-  CHECK_EQ(source_id_, id);
-  source_id_ = "";
-  has_audio_ = false;
-  has_video_ = false;
+  CHECK_GT(stream_parser_map_.count(id), 0u);
+  base::AutoLock auto_lock(lock_);
+
+  delete stream_parser_map_[id];
+  stream_parser_map_.erase(id);
+
+  if (source_id_audio_ == id && audio_)
+    audio_->Shutdown();
+
+  if (source_id_video_ == id && video_)
+    video_->Shutdown();
 }
 
 bool ChunkDemuxer::GetBufferedRanges(const std::string& id,
                                      Ranges* ranges_out) const {
   DCHECK(!id.empty());
-  DCHECK_EQ(source_id_, id);
+  DCHECK_GT(stream_parser_map_.count(id), 0u);
   DCHECK(ranges_out);
 
   base::AutoLock auto_lock(lock_);
@@ -587,16 +593,6 @@ bool ChunkDemuxer::AppendData(const std::string& id,
                               size_t length) {
   DVLOG(1) << "AppendData(" << id << ", " << length << ")";
 
-  // TODO(acolwell): Remove when http://webk.it/83788 fix lands.
-  if (source_id_.empty()) {
-    std::vector<std::string> codecs(2);
-    codecs[0] = "vp8";
-    codecs[1] = "vorbis";
-    AddId(id, "video/webm", codecs);
-  }
-
-  DCHECK(!source_id_.empty());
-  DCHECK_EQ(source_id_, id);
   DCHECK(!id.empty());
   DCHECK(data);
   DCHECK_GT(length, 0u);
@@ -612,7 +608,8 @@ bool ChunkDemuxer::AppendData(const std::string& id,
 
     switch (state_) {
       case INITIALIZING:
-        if (!stream_parser_->Parse(data, length)) {
+        DCHECK_GT(stream_parser_map_.count(id), 0u);
+        if (!stream_parser_map_[id]->Parse(data, length)) {
           DCHECK_EQ(state_, INITIALIZING);
           ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
           return true;
@@ -620,7 +617,8 @@ bool ChunkDemuxer::AppendData(const std::string& id,
         break;
 
       case INITIALIZED: {
-        if (!stream_parser_->Parse(data, length)) {
+        DCHECK_GT(stream_parser_map_.count(id), 0u);
+        if (!stream_parser_map_[id]->Parse(data, length)) {
           ReportError_Locked(PIPELINE_ERROR_DECODE);
           return true;
         }
@@ -657,9 +655,9 @@ bool ChunkDemuxer::AppendData(const std::string& id,
 void ChunkDemuxer::Abort(const std::string& id) {
   DVLOG(1) << "Abort(" << id << ")";
   DCHECK(!id.empty());
-  DCHECK_EQ(source_id_, id);
+  DCHECK_GT(stream_parser_map_.count(id), 0u);
 
-  stream_parser_->Flush();
+  stream_parser_map_[id]->Flush();
 }
 
 bool ChunkDemuxer::EndOfStream(PipelineStatus status) {
@@ -710,7 +708,11 @@ void ChunkDemuxer::Shutdown() {
     if (video_)
       video_->Shutdown();
 
-    stream_parser_.reset();
+    for (StreamParserMap::iterator it = stream_parser_map_.begin();
+         it != stream_parser_map_.end(); ++it) {
+      delete it->second;
+    }
+    stream_parser_map_.clear();
 
     ChangeState_Locked(SHUTDOWN);
   }
@@ -730,6 +732,11 @@ void ChunkDemuxer::ChangeState_Locked(State new_state) {
 
 ChunkDemuxer::~ChunkDemuxer() {
   DCHECK_NE(state_, INITIALIZED);
+  for (StreamParserMap::iterator it = stream_parser_map_.begin();
+       it != stream_parser_map_.end(); ++it) {
+    delete it->second;
+  }
+  stream_parser_map_.clear();
 }
 
 void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {
@@ -794,7 +801,14 @@ void ChunkDemuxer::OnStreamParserInitDone(bool success,
     return;
   }
 
-  duration_ = duration;
+  if (duration > duration_)
+    duration_ = duration;
+
+  // Wait until all streams have initialized.
+  if ((!source_id_audio_.empty() && !audio_) ||
+      (!source_id_video_.empty() && !video_))
+    return;
+
   host_->SetDuration(duration_);
 
   ChangeState_Locked(INITIALIZED);
@@ -803,9 +817,11 @@ void ChunkDemuxer::OnStreamParserInitDone(bool success,
   cb.Run(PIPELINE_OK);
 }
 
-bool ChunkDemuxer::OnNewConfigs(const AudioDecoderConfig& audio_config,
+bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
+                                const AudioDecoderConfig& audio_config,
                                 const VideoDecoderConfig& video_config) {
-  DVLOG(1) << "OnNewConfigs(" << audio_config.IsValidConfig()
+  DVLOG(1) << "OnNewConfigs(" << has_audio << ", " << has_video
+           << ", " << audio_config.IsValidConfig()
            << ", " << video_config.IsValidConfig() << ")";
   CHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   lock_.AssertAcquired();
@@ -813,13 +829,13 @@ bool ChunkDemuxer::OnNewConfigs(const AudioDecoderConfig& audio_config,
   // Signal an error if we get configuration info for stream types that weren't
   // specified in AddId() or more configs after a stream is initialized.
   // Only allow a single audio config for now.
-  if (audio_config.IsValidConfig() && !has_audio_) {
+  if (has_audio != audio_config.IsValidConfig()) {
     DVLOG(1) << "OnNewConfigs() : Got unexpected audio config.";
     return false;
   }
 
   // Only allow a single video config for now.
-  if (video_config.IsValidConfig() && !has_video_) {
+  if (has_video != video_config.IsValidConfig()) {
     DVLOG(1) << "OnNewConfigs() : Got unexpected video config.";
     return false;
   }
