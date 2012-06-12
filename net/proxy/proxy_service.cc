@@ -167,6 +167,7 @@ class ProxyConfigServiceDirect : public ProxyConfigService {
   virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config)
       OVERRIDE {
     *config = ProxyConfig::CreateDirect();
+    config->set_source(PROXY_CONFIG_SOURCE_UNKNOWN);
     return CONFIG_VALID;
   }
 };
@@ -802,6 +803,7 @@ class ProxyService::PacRequest
         url_(url),
         resolve_job_(NULL),
         config_id_(ProxyConfig::kInvalidConfigID),
+        config_source_(PROXY_CONFIG_SOURCE_UNKNOWN),
         net_log_(net_log) {
     DCHECK(!user_callback.is_null());
   }
@@ -814,6 +816,7 @@ class ProxyService::PacRequest
     DCHECK(service_->config_.is_valid());
 
     config_id_ = service_->config_.id();
+    config_source_ = service_->config_.source();
 
     return resolver()->GetProxyForURL(
         url_, results_,
@@ -869,10 +872,13 @@ class ProxyService::PacRequest
     // Make a note in the results which configuration was in use at the
     // time of the resolve.
     results_->config_id_ = config_id_;
+    results_->config_source_ = config_source_;
+    results_->did_use_pac_script_ = true;
 
     // Reset the state associated with in-progress-resolve.
     resolve_job_ = NULL;
     config_id_ = ProxyConfig::kInvalidConfigID;
+    config_source_ = PROXY_CONFIG_SOURCE_UNKNOWN;
 
     return service_->DidFinishResolvingProxy(results_, result_code, net_log_);
   }
@@ -914,6 +920,7 @@ class ProxyService::PacRequest
   GURL url_;
   ProxyResolver::RequestHandle resolve_job_;
   ProxyConfig::ID config_id_;  // The config id when the resolve was started.
+  ProxyConfigSource config_source_;  // The source of proxy settings.
   BoundNetLog net_log_;
 };
 
@@ -1116,6 +1123,7 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
 
   // Use the manual proxy settings.
   config_.proxy_rules().Apply(url, result);
+  result->config_source_ = config_.source();
   result->config_id_ = config_.id();
   return OK;
 }
@@ -1237,6 +1245,7 @@ void ProxyService::OnInitProxyResolverComplete(int result) {
   // TODO(eroman): Make this ID unique in the case where configuration changed
   //               due to ProxyScriptDeciderPoller.
   config_.set_id(fetched_config_.id());
+  config_.set_source(fetched_config_.source());
 
   // Resume any requests which we had to defer until the PAC script was
   // downloaded.

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
 #include "net/proxy/proxy_bypass_rules.h"
+#include "net/proxy/proxy_config_source.h"
 #include "net/proxy/proxy_server.h"
 
 namespace base {
@@ -53,7 +54,7 @@ class NET_EXPORT ProxyConfig {
     }
 
     // Sets |result| with the proxy to use for |url| based on the current rules.
-    void Apply(const GURL& url, ProxyInfo* result);
+    void Apply(const GURL& url, ProxyInfo* result) const;
 
     // Parses the rules from a string, indicating which proxies to use.
     //
@@ -122,7 +123,8 @@ class NET_EXPORT ProxyConfig {
   void set_id(ID id) { id_ = id; }
   bool is_valid() const { return id_ != kInvalidConfigID; }
 
-  // Returns true if the given config is equivalent to this config.
+  // Returns true if the given config is equivalent to this config.  The
+  // comparison ignores differences in |id()| and |source()|.
   bool Equals(const ProxyConfig& other) const;
 
   // Returns true if this config contains any "automatic" settings. See the
@@ -171,6 +173,14 @@ class NET_EXPORT ProxyConfig {
     return auto_detect_;
   }
 
+  void set_source(ProxyConfigSource source) {
+    source_ = source;
+  }
+
+  ProxyConfigSource source() const {
+    return source_;
+  }
+
   // Helpers to construct some common proxy configurations.
 
   static ProxyConfig CreateDirect() {
@@ -204,6 +214,9 @@ class NET_EXPORT ProxyConfig {
 
   // Manual proxy settings.
   ProxyRules proxy_rules_;
+
+  // Source of proxy settings.
+  ProxyConfigSource source_;
 
   ID id_;
 };

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,6 +30,10 @@ class NET_EXPORT ProxyInfo {
   // Uses a direct connection.
   void UseDirect();
 
+  // Uses a direct connection. did_bypass_proxy() will return true to indicate
+  // that the direct connection is the result of configured proxy bypass rules.
+  void UseDirectWithBypassedProxy();
+
   // Uses a specific proxy server, of the form:
   //   proxy-uri = [<scheme> "://"] <hostname> [":" <port>]
   // This may optionally be a semi-colon delimited list of <proxy-uri>.
@@ -50,6 +54,10 @@ class NET_EXPORT ProxyInfo {
     if (is_empty())
       return false;
     return proxy_list_.Get().is_direct();
+  }
+
+  bool is_direct_only() const {
+    return is_direct() && proxy_list_.size() == 1 && proxy_retry_info_.empty();
   }
 
   // Returns true if the first valid proxy server is an https proxy.
@@ -78,9 +86,23 @@ class NET_EXPORT ProxyInfo {
     return proxy_list_.IsEmpty();
   }
 
+  // Returns true if this proxy resolution is using a direct connection due to
+  // proxy bypass rules.
+  bool did_bypass_proxy() const {
+    return did_bypass_proxy_;
+  }
+
+  // Returns true if the proxy resolution was done using a PAC script.
+  bool did_use_pac_script() const {
+    return did_use_pac_script_;
+  }
+
   // Returns the first valid proxy server. is_empty() must be false to be able
   // to call this function.
   const ProxyServer& proxy_server() const { return proxy_list_.Get(); }
+
+  // Returns the source for configuration settings used for proxy resolution.
+  ProxyConfigSource config_source() const { return config_source_; }
 
   // See description in ProxyList::ToPacString().
   std::string ToPacString() const;
@@ -103,6 +125,9 @@ class NET_EXPORT ProxyInfo {
     return proxy_retry_info_;
   }
 
+  // Reset proxy and config settings.
+  void Reset();
+
   // The ordered list of proxy servers (including DIRECT attempts) remaining to
   // try. If proxy_list_ is empty, then there is nothing left to fall back to.
   ProxyList proxy_list_;
@@ -112,6 +137,15 @@ class NET_EXPORT ProxyInfo {
 
   // This value identifies the proxy config used to initialize this object.
   ProxyConfig::ID config_id_;
+
+  // The source of the proxy settings used,
+  ProxyConfigSource config_source_;
+
+  // Whether the proxy result represent a proxy bypass.
+  bool did_bypass_proxy_;
+
+  // Whether we used a PAC script for resolving the proxy.
+  bool did_use_pac_script_;
 };
 
 }  // namespace net
