@@ -76,6 +76,12 @@ static void OnReadDone(const base::TimeDelta& expected_time,
   *called = true;
 }
 
+static void OnReadDone_EOSExpected(bool* called,
+                                   const scoped_refptr<DecoderBuffer>& buffer) {
+  EXPECT_TRUE(buffer->IsEndOfStream());
+  *called = true;
+}
+
 class MockChunkDemuxerClient : public ChunkDemuxerClient {
  public:
   MockChunkDemuxerClient() {}
@@ -197,17 +203,41 @@ class ChunkDemuxerTest : public testing::Test {
   }
 
   ChunkDemuxer::Status AddId() {
-    std::vector<std::string> codecs(2);
-    codecs[0] = "vp8";
-    codecs[1] = "vorbis";
-    return demuxer_->AddId(kSourceId, "video/webm", codecs);
+    return AddId(kSourceId, true, true);
+  }
+
+  ChunkDemuxer::Status AddId(const std::string& source_id,
+                             bool has_audio, bool has_video) {
+    std::vector<std::string> codecs;
+    std::string type;
+
+    if (has_audio) {
+      codecs.push_back("vorbis");
+      type = "audio/webm";
+    }
+
+    if (has_video) {
+      codecs.push_back("vp8");
+      type = "video/webm";
+    }
+
+    if (!has_audio && !has_video) {
+      return AddId(kSourceId, true, true);
+    }
+
+    return demuxer_->AddId(source_id, type, codecs);
   }
 
   bool AppendData(const uint8* data, size_t length) {
+    return AppendData(kSourceId, data, length);
+  }
+
+  bool AppendData(const std::string& source_id,
+                  const uint8* data, size_t length) {
     CHECK(length);
     EXPECT_CALL(host_, AddBufferedByteRange(_, _)).Times(AnyNumber())
         .WillRepeatedly(SaveArg<1>(&buffered_bytes_));
-    return demuxer_->AppendData(kSourceId, data, length);
+    return demuxer_->AppendData(source_id, data, length);
   }
 
   bool AppendDataInPieces(const uint8* data, size_t length) {
@@ -232,11 +262,18 @@ class ChunkDemuxerTest : public testing::Test {
 
   bool AppendInitSegment(bool has_audio, bool has_video,
                          bool video_content_encoded) {
+    return AppendInitSegment(kSourceId, has_audio, has_video,
+                             video_content_encoded);
+  }
+
+  bool AppendInitSegment(const std::string& source_id,
+                         bool has_audio, bool has_video,
+                         bool video_content_encoded) {
     scoped_array<uint8> info_tracks;
     int info_tracks_size = 0;
     CreateInitSegment(has_audio, has_video, video_content_encoded,
                       &info_tracks, &info_tracks_size);
-    return AppendData(info_tracks.get(), info_tracks_size);
+    return AppendData(source_id, info_tracks.get(), info_tracks_size);
   }
 
   void InitDoneCalled(PipelineStatus expected_status,
@@ -263,10 +300,26 @@ class ChunkDemuxerTest : public testing::Test {
     demuxer_->Initialize(
         &host_, CreateInitDoneCB(kDefaultDuration(), expected_status));
 
-    if (AddId() != ChunkDemuxer::kOk)
+    if (AddId(kSourceId, has_audio, has_video) != ChunkDemuxer::kOk)
       return false;
 
     return AppendInitSegment(has_audio, has_video, video_content_encoded);
+  }
+
+  bool InitDemuxerAudioAndVideoSources(const std::string& audio_id,
+                                       const std::string& video_id) {
+    EXPECT_CALL(*client_, DemuxerOpened(_));
+    demuxer_->Initialize(
+        &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
+
+    if (AddId(audio_id, true, false) != ChunkDemuxer::kOk)
+      return false;
+    if (AddId(video_id, false, true) != ChunkDemuxer::kOk)
+      return false;
+
+    bool success = AppendInitSegment(audio_id, true, false, false);
+    success &= AppendInitSegment(video_id, false, true, false);
+    return success;
   }
 
   void ShutdownDemuxer() {
@@ -335,6 +388,32 @@ class ChunkDemuxerTest : public testing::Test {
     return cb.Finish();
   }
 
+  scoped_ptr<Cluster> GenerateSingleStreamCluster(int timecode,
+                                                  int block_count,
+                                                  int track_number,
+                                                  int block_duration) {
+    CHECK_GT(block_count, 0);
+
+    int size = 10;
+    scoped_array<uint8> data(new uint8[size]);
+
+    ClusterBuilder cb;
+    cb.SetClusterTimecode(timecode);
+
+    // Create simple blocks for everything except the last block.
+    for (int i = 0; i < block_count - 1; i++) {
+      cb.AddSimpleBlock(track_number, timecode, kWebMFlagKeyframe,
+                        data.get(), size);
+      timecode += block_duration;
+    }
+
+    // Make the last block a BlockGroup so that it doesn't get delayed by the
+    // block duration calculation logic.
+    cb.AddBlockGroup(track_number, timecode, block_duration,
+                      kWebMFlagKeyframe, data.get(), size);
+    return cb.Finish();
+  }
+
   void GenerateExpectedReads(int timecode, int block_count,
                              DemuxerStream* audio,
                              DemuxerStream* video) {
@@ -356,6 +435,17 @@ class ChunkDemuxerTest : public testing::Test {
 
       ExpectRead(video, video_timecode);
       video_timecode += kVideoBlockDuration;
+    }
+  }
+
+  void GenerateExpectedReads(int timecode, int block_count,
+                             DemuxerStream* stream, int block_duration) {
+    CHECK_GT(block_count, 0);
+    int stream_timecode = timecode;
+
+    for (int i = 0; i < block_count; i++) {
+      ExpectRead(stream, stream_timecode);
+      stream_timecode += block_duration;
     }
   }
 
@@ -384,11 +474,18 @@ class ChunkDemuxerTest : public testing::Test {
   bool ParseWebMFile(const std::string& filename,
                      const BufferTimestamps* timestamps,
                      const base::TimeDelta& duration) {
+    return ParseWebMFile(filename, timestamps, duration, true, true);
+  }
+
+  bool ParseWebMFile(const std::string& filename,
+                     const BufferTimestamps* timestamps,
+                     const base::TimeDelta& duration,
+                     bool has_audio, bool has_video) {
     EXPECT_CALL(*client_, DemuxerOpened(_));
     demuxer_->Initialize(
         &host_, CreateInitDoneCB(duration, PIPELINE_OK));
 
-    if (AddId() != ChunkDemuxer::kOk)
+    if (AddId(kSourceId, has_audio, has_video) != ChunkDemuxer::kOk)
       return false;
 
     // Read a WebM file into memory and send the data to the demuxer.
@@ -976,7 +1073,8 @@ TEST_F(ChunkDemuxerTest, TestWebMFile_AudioOnly) {
   };
 
   ASSERT_TRUE(ParseWebMFile("bear-320x240-audio-only.webm", buffer_timestamps,
-                            base::TimeDelta::FromMilliseconds(2744)));
+                            base::TimeDelta::FromMilliseconds(2744),
+                            true, false));
 }
 
 TEST_F(ChunkDemuxerTest, TestWebMFile_VideoOnly) {
@@ -990,7 +1088,8 @@ TEST_F(ChunkDemuxerTest, TestWebMFile_VideoOnly) {
   };
 
   ASSERT_TRUE(ParseWebMFile("bear-320x240-video-only.webm", buffer_timestamps,
-                            base::TimeDelta::FromMilliseconds(2703)));
+                            base::TimeDelta::FromMilliseconds(2703),
+                            false, true));
 }
 
 TEST_F(ChunkDemuxerTest, TestWebMFile_AltRefFrames) {
@@ -1134,6 +1233,150 @@ TEST_F(ChunkDemuxerTest, TestMultipleHeaders) {
   ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
 
   GenerateExpectedReads(0, 9, audio, video);
+}
+
+TEST_F(ChunkDemuxerTest, TestAddSeparateSourcesForAudioAndVideo) {
+  std::string audio_id = "audio1";
+  std::string video_id = "video1";
+  ASSERT_TRUE(InitDemuxerAudioAndVideoSources(audio_id, video_id));
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  scoped_ptr<Cluster> cluster_a(
+      GenerateSingleStreamCluster(0, 4, kAudioTrackNum, kAudioBlockDuration));
+
+  scoped_ptr<Cluster> cluster_v(
+      GenerateSingleStreamCluster(0, 4, kVideoTrackNum, kVideoBlockDuration));
+
+  // Append audio and video data into separate source ids.
+  ASSERT_TRUE(AppendData(audio_id, cluster_a->data(), cluster_a->size()));
+  GenerateExpectedReads(0, 4, audio, kAudioBlockDuration);
+  ASSERT_TRUE(AppendData(video_id, cluster_v->data(), cluster_v->size()));
+  GenerateExpectedReads(0, 4, video, kVideoBlockDuration);
+}
+
+TEST_F(ChunkDemuxerTest, TestAddIdFailures) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Initialize(
+      &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
+
+  std::string audio_id = "audio1";
+  std::string video_id = "video1";
+
+  ASSERT_EQ(AddId(audio_id, true, false), ChunkDemuxer::kOk);
+
+  // Adding an id with audio/video should fail because we already added audio.
+  ASSERT_EQ(AddId(), ChunkDemuxer::kReachedIdLimit);
+
+  ASSERT_TRUE(AppendInitSegment(audio_id, true, false, false));
+
+  // Adding an id after append should fail.
+  ASSERT_EQ(AddId(video_id, false, true), ChunkDemuxer::kReachedIdLimit);
+}
+
+// Test that Read() calls after a RemoveId() return "end of stream" buffers.
+TEST_F(ChunkDemuxerTest, TestRemoveId) {
+  std::string audio_id = "audio1";
+  std::string video_id = "video1";
+  ASSERT_TRUE(InitDemuxerAudioAndVideoSources(audio_id, video_id));
+
+  scoped_ptr<Cluster> cluster_a(
+      GenerateSingleStreamCluster(0, 4, kAudioTrackNum, kAudioBlockDuration));
+
+  scoped_ptr<Cluster> cluster_v(
+      GenerateSingleStreamCluster(0, 4, kVideoTrackNum, kVideoBlockDuration));
+
+  // Append audio and video data into separate source ids.
+  ASSERT_TRUE(AppendData(audio_id, cluster_a->data(), cluster_a->size()));
+  ASSERT_TRUE(AppendData(video_id, cluster_v->data(), cluster_v->size()));
+
+  // Read() from audio should return normal buffers.
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  GenerateExpectedReads(0, 4, audio, kAudioBlockDuration);
+
+  // Remove the audio id.
+  demuxer_->RemoveId(audio_id);
+
+  // Read() from audio should return "end of stream" buffers.
+  bool audio_read_done = false;
+  audio->Read(base::Bind(&OnReadDone_EOSExpected,
+                         &audio_read_done));
+  EXPECT_TRUE(audio_read_done);
+
+  // Read() from video should still return normal buffers.
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  GenerateExpectedReads(0, 4, video, kVideoBlockDuration);
+}
+
+// Test that Seek() successfully seeks to all source IDs.
+TEST_F(ChunkDemuxerTest, TestSeekAudioAndVideoSources) {
+  std::string audio_id = "audio1";
+  std::string video_id = "video1";
+  ASSERT_TRUE(InitDemuxerAudioAndVideoSources(audio_id, video_id));
+
+  scoped_ptr<Cluster> cluster_a1(
+      GenerateSingleStreamCluster(0, 4, kAudioTrackNum, kAudioBlockDuration));
+
+  scoped_ptr<Cluster> cluster_v1(
+      GenerateSingleStreamCluster(0, 4, kVideoTrackNum, kVideoBlockDuration));
+
+  ASSERT_TRUE(AppendData(audio_id, cluster_a1->data(), cluster_a1->size()));
+  ASSERT_TRUE(AppendData(video_id, cluster_v1->data(), cluster_v1->size()));
+
+  // Read() should return buffers at 0.
+  bool audio_read_done = false;
+  bool video_read_done = false;
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  audio->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(0),
+                         &audio_read_done));
+  video->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(0),
+                         &video_read_done));
+  EXPECT_TRUE(audio_read_done);
+  EXPECT_TRUE(video_read_done);
+
+  // Seek to 3 (an unbuffered region).
+  demuxer_->StartWaitingForSeek();
+  demuxer_->Seek(base::TimeDelta::FromSeconds(3),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  audio_read_done = false;
+  video_read_done = false;
+  audio->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromSeconds(3),
+                         &audio_read_done));
+  video->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromSeconds(3),
+                         &video_read_done));
+
+  // Read()s should not return until after data is appended at the Seek point.
+  EXPECT_FALSE(audio_read_done);
+  EXPECT_FALSE(video_read_done);
+
+  scoped_ptr<Cluster> cluster_a2(
+      GenerateSingleStreamCluster(3000, 4, kAudioTrackNum,
+                                  kAudioBlockDuration));
+
+  scoped_ptr<Cluster> cluster_v2(
+      GenerateSingleStreamCluster(3000, 4, kVideoTrackNum,
+                                  kVideoBlockDuration));
+
+  ASSERT_TRUE(AppendData(audio_id, cluster_a2->data(), cluster_a2->size()));
+  ASSERT_TRUE(AppendData(video_id, cluster_v2->data(), cluster_v2->size()));
+
+  // Read() should return buffers at 3.
+  EXPECT_TRUE(audio_read_done);
+  EXPECT_TRUE(video_read_done);
 }
 
 }  // namespace media

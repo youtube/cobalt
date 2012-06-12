@@ -21,10 +21,13 @@ static const char* kSourceId = "SourceId";
 // Media Source API.
 class MockMediaSource : public ChunkDemuxerClient {
  public:
-  MockMediaSource(const std::string& filename, int initial_append_size)
+  MockMediaSource(const std::string& filename, int initial_append_size,
+                  bool has_audio, bool has_video)
       : url_(GetTestDataURL(filename)),
         current_position_(0),
-        initial_append_size_(initial_append_size) {
+        initial_append_size_(initial_append_size),
+        has_audio_(has_audio),
+        has_video_(has_video) {
     file_data_ = ReadTestDataFile(filename);
 
     DCHECK_GT(initial_append_size_, 0);
@@ -77,9 +80,13 @@ class MockMediaSource : public ChunkDemuxerClient {
   virtual void DemuxerOpened(ChunkDemuxer* demuxer) {
     chunk_demuxer_ = demuxer;
 
-    std::vector<std::string> codecs(2);
-    codecs[0] = "vp8";
-    codecs[1] = "vorbis";
+    std::vector<std::string> codecs;
+    if (has_audio_)
+      codecs.push_back("vorbis");
+
+    if (has_video_)
+      codecs.push_back("vp8");
+
     chunk_demuxer_->AddId(kSourceId, "video/webm", codecs);
     AppendData(initial_append_size_);
   }
@@ -103,6 +110,8 @@ class MockMediaSource : public ChunkDemuxerClient {
   scoped_refptr<DecoderBuffer> file_data_;
   int current_position_;
   int initial_append_size_;
+  bool has_audio_;
+  bool has_video_;
   scoped_refptr<ChunkDemuxer> chunk_demuxer_;
   AesDecryptor* decryptor_;
 };
@@ -132,8 +141,10 @@ class PipelineIntegrationTest
                           base::TimeDelta start_seek_time,
                           base::TimeDelta seek_time,
                           int seek_file_position,
-                          int seek_append_size) {
-    MockMediaSource source(filename, initial_append_size);
+                          int seek_append_size,
+                          bool has_audio,
+                          bool has_video) {
+    MockMediaSource source(filename, initial_append_size, has_audio, has_video);
     StartPipelineWithMediaSource(source);
 
     if (pipeline_status_ != PIPELINE_OK)
@@ -176,7 +187,7 @@ TEST_F(PipelineIntegrationTest, BasicPlaybackHashed) {
 }
 
 TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
-  MockMediaSource source("bear-320x240-encrypted.webm", 219726);
+  MockMediaSource source("bear-320x240-encrypted.webm", 219726, true, true);
   StartPipelineWithMediaSource(source);
 
   source.EndOfStream();
@@ -238,7 +249,7 @@ TEST_F(PipelineIntegrationTest, ChunkDemuxerAbortRead_AudioOnly) {
   ASSERT_TRUE(TestSeekDuringRead("bear-320x240-audio-only.webm", 8192,
                                  base::TimeDelta::FromMilliseconds(464),
                                  base::TimeDelta::FromMilliseconds(617),
-                                 0x10CA, 19730));
+                                 0x10CA, 19730, true, false));
 }
 
 // Verify video decoder & renderer can handle aborted demuxer reads.
@@ -246,7 +257,7 @@ TEST_F(PipelineIntegrationTest, ChunkDemuxerAbortRead_VideoOnly) {
   ASSERT_TRUE(TestSeekDuringRead("bear-320x240-video-only.webm", 32768,
                                  base::TimeDelta::FromMilliseconds(200),
                                  base::TimeDelta::FromMilliseconds(1668),
-                                 0x1C896, 65536));
+                                 0x1C896, 65536, false, true));
 }
 
 }  // namespace media
