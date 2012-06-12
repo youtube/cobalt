@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <mmintrin.h>
 #endif
 
-#include "media/base/cpu_features.h"
 #include "media/base/simd/convert_yuv_to_rgb.h"
 #include "media/base/yuv_convert.h"
 
