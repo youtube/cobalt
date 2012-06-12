@@ -44,3 +44,7 @@ DeviceOrientationProviderTest.ObserverNotRemoved
 DeviceOrientationProviderTest.StartFailing
 # Test failures on APK
 ChromeAppCacheServiceTest.*
+#
+SavePackageTest.TestEnsureHtmlExtension
+SavePackageTest.TestEnsureMimeExtension
+SavePackageTest.TestSuggestedSaveNames
