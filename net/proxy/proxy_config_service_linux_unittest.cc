@@ -191,8 +191,8 @@ class MockSettingGetter
     return NULL;
   }
 
-  virtual const char* GetDataSource() OVERRIDE {
-    return "test";
+  virtual ProxyConfigSource GetConfigSource() OVERRIDE {
+    return PROXY_CONFIG_SOURCE_TEST;
   }
 
   virtual bool GetString(StringSetting key, std::string* result) OVERRIDE {

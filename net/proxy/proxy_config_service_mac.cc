@@ -154,6 +154,9 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
                             false)) {
     config->proxy_rules().bypass_rules.AddRuleToBypassLocal();
   }
+
+  // Source
+  config->set_source(PROXY_CONFIG_SOURCE_SYSTEM);
 }
 
 }  // namespace
