@@ -648,8 +648,6 @@ bool ChunkDemuxer::AppendData(const std::string& id,
   // range.
   host_->AddBufferedByteRange(0, buffered_bytes);
 
-  host_->SetNetworkActivity(true);
-
   if (!cb.is_null())
     cb.Run(PIPELINE_OK);
 

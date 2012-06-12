@@ -20,9 +20,6 @@ class MEDIA_EXPORT DataSourceHost {
 
   // Notify the host that byte range [start,end] has been buffered.
   virtual void AddBufferedByteRange(int64 start, int64 end) = 0;
-
-  // Sets the flag to indicate current network activity.
-  virtual void SetNetworkActivity(bool is_downloading_data) = 0;
 };
 
 class MEDIA_EXPORT DataSource : public base::RefCountedThreadSafe<DataSource> {

@@ -207,8 +207,6 @@ class ChunkDemuxerTest : public testing::Test {
     CHECK(length);
     EXPECT_CALL(host_, AddBufferedByteRange(_, _)).Times(AnyNumber())
         .WillRepeatedly(SaveArg<1>(&buffered_bytes_));
-    EXPECT_CALL(host_, SetNetworkActivity(true))
-        .Times(AnyNumber());
     return demuxer_->AppendData(kSourceId, data, length);
   }
 
