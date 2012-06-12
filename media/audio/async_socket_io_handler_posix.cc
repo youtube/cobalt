@@ -11,7 +11,10 @@ namespace media {
 
 AsyncSocketIoHandler::AsyncSocketIoHandler()
     : socket_(base::SyncSocket::kInvalidHandle),
-      is_watching_(false) {}
+      pending_buffer_(NULL),
+      pending_buffer_len_(0),
+      is_watching_(false) {
+}
 
 AsyncSocketIoHandler::~AsyncSocketIoHandler() {
   DCHECK(CalledOnValidThread());
