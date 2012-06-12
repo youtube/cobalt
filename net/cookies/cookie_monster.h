@@ -180,12 +180,14 @@ class NET_EXPORT CookieMonster : public CookieStore {
   void DeleteCanonicalCookieAsync(const CanonicalCookie& cookie,
                                   const DeleteCookieCallback& callback);
 
-  // Override the default list of schemes that are allowed to be set in
-  // this cookie store.  Calling his overrides the value of
-  // "enable_file_scheme_".
+  // Resets the list of cookieable schemes to the supplied schemes.
   // If this this method is called, it must be called before first use of
   // the instance (i.e. as part of the instance initialization process).
   void SetCookieableSchemes(const char* schemes[], size_t num_schemes);
+
+  // Resets the list of cookieable schemes to kDefaultCookieableSchemes with or
+  // without 'file' being included.
+  void SetEnableFileScheme(bool accept);
 
   // Instructs the cookie monster to not delete expired cookies. This is used
   // in cases where the cookie monster is used as a data structure to keep
@@ -260,6 +262,10 @@ class NET_EXPORT CookieMonster : public CookieStore {
   // Argument |arg| is to allow retaining of arbitrary data if the CHECKs
   // in the function trip.  TODO(rdsmith):Remove hack.
   void ValidateMap(int arg);
+
+  // Determines if the scheme of the URL is a scheme that cookies will be
+  // stored for.
+  bool IsCookieableScheme(const std::string& scheme);
 
   // The default list of schemes the cookie monster can handle.
   static const char* kDefaultCookieableSchemes[];
@@ -647,7 +653,10 @@ class NET_EXPORT CookieMonster : public CookieStore {
   bool keep_expired_cookies_;
   bool persist_session_cookies_;
 
-  static bool enable_file_scheme_;
+  // Static setting for whether or not file scheme cookies are allows when
+  // a new CookieMonster is created, or the accepted schemes on a CookieMonster
+  // instance are reset back to defaults.
+  static bool default_enable_file_scheme_;
 
   DISALLOW_COPY_AND_ASSIGN(CookieMonster);
 };
