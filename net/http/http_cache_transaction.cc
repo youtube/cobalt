@@ -652,7 +652,7 @@ int HttpCache::Transaction::DoLoop(int result) {
 int HttpCache::Transaction::DoGetBackend() {
   cache_pending_ = true;
   next_state_ = STATE_GET_BACKEND_COMPLETE;
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_GET_BACKEND, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_GET_BACKEND);
   return cache_->GetBackendForTransaction(this);
 }
 
@@ -845,7 +845,7 @@ int HttpCache::Transaction::DoOpenEntry() {
   DCHECK(!new_entry_);
   next_state_ = STATE_OPEN_ENTRY_COMPLETE;
   cache_pending_ = true;
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
   return cache_->OpenEntry(cache_key_, &new_entry_, this);
 }
 
@@ -895,7 +895,7 @@ int HttpCache::Transaction::DoCreateEntry() {
   DCHECK(!new_entry_);
   next_state_ = STATE_CREATE_ENTRY_COMPLETE;
   cache_pending_ = true;
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
   return cache_->CreateEntry(cache_key_, &new_entry_, this);
 }
 
@@ -930,7 +930,7 @@ int HttpCache::Transaction::DoCreateEntryComplete(int result) {
 int HttpCache::Transaction::DoDoomEntry() {
   next_state_ = STATE_DOOM_ENTRY_COMPLETE;
   cache_pending_ = true;
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
   return cache_->DoomEntry(cache_key_, this);
 }
 
@@ -948,7 +948,7 @@ int HttpCache::Transaction::DoAddToEntry() {
   DCHECK(new_entry_);
   cache_pending_ = true;
   next_state_ = STATE_ADD_TO_ENTRY_COMPLETE;
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY);
   DCHECK(entry_lock_waiting_since_.is_null());
   entry_lock_waiting_since_ = base::TimeTicks::Now();
   return cache_->AddTransactionToEntry(new_entry_, this);
@@ -1135,7 +1135,7 @@ int HttpCache::Transaction::DoTruncateCachedData() {
   if (!entry_)
     return OK;
   if (net_log_.IsLoggingAllEvents())
-    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA);
 
   // Truncate the stream.
   return WriteToEntry(kResponseContentIndex, 0, NULL, 0, io_callback_);
@@ -1157,7 +1157,7 @@ int HttpCache::Transaction::DoTruncateCachedMetadata() {
     return OK;
 
   if (net_log_.IsLoggingAllEvents())
-    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
   return WriteToEntry(kMetadataIndex, 0, NULL, 0, io_callback_);
 }
 
@@ -1205,7 +1205,7 @@ int HttpCache::Transaction::DoCacheReadResponse() {
   io_buf_len_ = entry_->disk_entry->GetDataSize(kResponseInfoIndex);
   read_buf_ = new IOBuffer(io_buf_len_);
 
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
   return entry_->disk_entry->ReadData(kResponseInfoIndex, 0, read_buf_,
                                       io_buf_len_, io_callback_);
 }
@@ -1256,13 +1256,13 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
 
 int HttpCache::Transaction::DoCacheWriteResponse() {
   if (net_log_.IsLoggingAllEvents() && entry_)
-    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
   return WriteResponseInfoToEntry(false);
 }
 
 int HttpCache::Transaction::DoCacheWriteTruncatedResponse() {
   if (net_log_.IsLoggingAllEvents() && entry_)
-    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
   return WriteResponseInfoToEntry(true);
 }
 
@@ -1292,7 +1292,7 @@ int HttpCache::Transaction::DoCacheReadMetadata() {
   response_.metadata =
       new IOBufferWithSize(entry_->disk_entry->GetDataSize(kMetadataIndex));
 
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
   return entry_->disk_entry->ReadData(kMetadataIndex, 0, response_.metadata,
                                       response_.metadata->size(),
                                       io_callback_);
@@ -1326,7 +1326,7 @@ int HttpCache::Transaction::DoCacheReadData() {
   next_state_ = STATE_CACHE_READ_DATA_COMPLETE;
 
   if (net_log_.IsLoggingAllEvents())
-    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_DATA, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_DATA);
   if (partial_.get()) {
     return partial_->CacheRead(entry_->disk_entry, read_buf_, io_buf_len_,
                                io_callback_);
@@ -1363,7 +1363,7 @@ int HttpCache::Transaction::DoCacheWriteData(int num_bytes) {
   next_state_ = STATE_CACHE_WRITE_DATA_COMPLETE;
   write_len_ = num_bytes;
   if (net_log_.IsLoggingAllEvents() && entry_)
-    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA);
 
   return AppendResponseDataToEntry(read_buf_, num_bytes, io_callback_);
 }
