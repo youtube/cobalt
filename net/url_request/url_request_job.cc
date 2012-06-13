@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -412,10 +412,8 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
     // successful.
     if (request_->status().is_success()) {
       if (status.status() == URLRequestStatus::FAILED) {
-        request_->net_log().AddEvent(
-            NetLog::TYPE_FAILED,
-            make_scoped_refptr(new NetLogIntegerParameter("net_error",
-                                                          status.error())));
+        request_->net_log().AddEventWithNetErrorCode(NetLog::TYPE_FAILED,
+                                                     status.error());
       }
       request_->set_status(status);
     }
