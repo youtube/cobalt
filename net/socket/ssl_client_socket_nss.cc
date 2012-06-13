@@ -2103,6 +2103,23 @@ int SSLClientSocketNSS::Core::DoHandshake() {
     PRErrorCode prerr = PR_GetError();
     net_error = HandleNSSError(prerr, true);
 
+    // Some network devices that inspect application-layer packets seem to
+    // inject TCP reset packets to break the connections when they see
+    // TLS 1.1 in ClientHello or ServerHello. See http://crbug.com/130293.
+    //
+    // Only allow ERR_CONNECTION_RESET to trigger a TLS 1.1 -> TLS 1.0
+    // fallback. We don't lose much in this fallback because the explicit
+    // IV for CBC mode in TLS 1.1 is approximated by record splitting in
+    // TLS 1.0.
+    //
+    // ERR_CONNECTION_RESET is a common network error, so we don't want it
+    // to trigger a version fallback in general, especially the TLS 1.0 ->
+    // SSL 3.0 fallback, which would drop TLS extensions.
+    if (prerr == PR_CONNECT_RESET_ERROR &&
+        ssl_config_.version_max == SSL_PROTOCOL_VERSION_TLS1_1) {
+      net_error = ERR_SSL_PROTOCOL_ERROR;
+    }
+
     // If not done, stay in this state
     if (net_error == ERR_IO_PENDING) {
       GotoState(STATE_HANDSHAKE);
