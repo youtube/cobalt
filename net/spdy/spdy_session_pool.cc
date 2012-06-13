@@ -4,6 +4,7 @@
 
 #include "net/spdy/spdy_session_pool.h"
 
+#include "base/callback.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/values.h"
@@ -92,8 +93,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
                                 SPDY_SESSION_GET_MAX);
       net_log.AddEvent(
           NetLog::TYPE_SPDY_SESSION_POOL_FOUND_EXISTING_SESSION_FROM_IP_POOL,
-          make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", spdy_session->net_log().source())));
+          spdy_session->net_log().source().ToEventParametersCallback());
       // Add this session to the map so that we can find it next time.
       list = AddSessionList(host_port_proxy_pair);
       list->push_back(spdy_session);
@@ -113,8 +113,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
     spdy_session = GetExistingSession(list, net_log);
     net_log.AddEvent(
       NetLog::TYPE_SPDY_SESSION_POOL_FOUND_EXISTING_SESSION,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", spdy_session->net_log().source())));
+      spdy_session->net_log().source().ToEventParametersCallback());
     return spdy_session;
   }
 
@@ -131,8 +130,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
   list->push_back(spdy_session);
   net_log.AddEvent(
       NetLog::TYPE_SPDY_SESSION_POOL_CREATED_NEW_SESSION,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", spdy_session->net_log().source())));
+      spdy_session->net_log().source().ToEventParametersCallback());
   DCHECK_LE(list->size(), g_max_sessions_per_domain);
   return spdy_session;
 }
@@ -161,8 +159,7 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
 
   net_log.AddEvent(
       NetLog::TYPE_SPDY_SESSION_POOL_IMPORTED_SESSION_FROM_SOCKET,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", (*spdy_session)->net_log().source())));
+      (*spdy_session)->net_log().source().ToEventParametersCallback());
 
   // We have a new session.  Lookup the IP address for this session so that we
   // can match future Sessions (potentially to different domains) which can
@@ -196,8 +193,7 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
   DCHECK(ok);
   session->net_log().AddEvent(
       NetLog::TYPE_SPDY_SESSION_POOL_REMOVE_SESSION,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", session->net_log().source())));
+      session->net_log().source().ToEventParametersCallback());
 
   const std::set<HostPortProxyPair>& aliases = session->pooled_aliases();
   for (std::set<HostPortProxyPair>::const_iterator it = aliases.begin();
