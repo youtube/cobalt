@@ -717,6 +717,8 @@
         'url_request/fraudulent_certificate_reporter.h',
         'url_request/url_fetcher.cc',
         'url_request/url_fetcher.h',
+        'url_request/url_fetcher_core.cc',
+        'url_request/url_fetcher_core.h',
         'url_request/url_fetcher_delegate.cc',
         'url_request/url_fetcher_delegate.h',
         'url_request/url_fetcher_factory.h',
