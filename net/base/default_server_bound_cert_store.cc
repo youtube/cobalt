@@ -122,7 +122,8 @@ void DefaultServerBoundCertStore::SetForceKeepSessionState() {
   base::AutoLock autolock(lock_);
   InitIfNecessary();
 
-  store_->SetForceKeepSessionState();
+  if (store_)
+    store_->SetForceKeepSessionState();
 }
 
 DefaultServerBoundCertStore::~DefaultServerBoundCertStore() {
