@@ -14,8 +14,10 @@ bool CallbackBase::is_null() const {
 }
 
 void CallbackBase::Reset() {
-  bind_state_ = NULL;
   polymorphic_invoke_ = NULL;
+  // NULL the bind_state_ last, since it may be holding the last ref to whatever
+  // object owns us, and we may be deleted after that.
+  bind_state_ = NULL;
 }
 
 bool CallbackBase::Equals(const CallbackBase& other) const {
