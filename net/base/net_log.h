@@ -13,6 +13,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/string16.h"
 #include "net/base/net_export.h"
 
 namespace base {
@@ -305,6 +306,10 @@ class NET_EXPORT NetLog {
   // Warning: |name| and |value| must remain valid for the life of the callback.
   static ParametersCallback StringCallback(const char* name,
                                            const std::string* value);
+
+  // Same as above, but takes in a UTF16 string.
+  static ParametersCallback StringCallback(const char* name,
+                                           const string16* value);
 
  protected:
   // Child classes should respond to the new entry here.  This includes
