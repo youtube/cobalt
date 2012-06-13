@@ -187,6 +187,12 @@ class BasicNetworkDelegate : public NetworkDelegate {
     return false;
   }
 
+  virtual int OnBeforeSocketStreamConnect(
+      SocketStream* stream,
+      const CompletionCallback& callback) OVERRIDE {
+    return OK;
+  }
+
   DISALLOW_COPY_AND_ASSIGN(BasicNetworkDelegate);
 };
 
