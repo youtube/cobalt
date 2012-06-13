@@ -15,12 +15,11 @@
 
 namespace base {
 
-static const char kFindInodeSwitch[] = "--find-inode";
+extern const char kFindInodeSwitch[];
 
-// This should be kept in sync with sandbox/linux/suid/sandbox.c
-static const long kSUIDSandboxApiNumber = 1;
-static const char kSandboxEnvironmentApiRequest[] = "SBX_CHROME_API_RQ";
-static const char kSandboxEnvironmentApiProvides[] = "SBX_CHROME_API_PRV";
+extern const long kSUIDSandboxApiNumber;
+extern const char kSandboxEnvironmentApiRequest[];
+extern const char kSandboxEnvironmentApiProvides[];
 
 // This is declared here so the crash reporter can access the memory directly
 // in compromised context without going through the standard library.
