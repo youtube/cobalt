@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -103,7 +103,7 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
     return false;
   }
 
-  char *endptr;
+  char* endptr;
   const unsigned long long int inode_ul =
       strtoull(buf + sizeof(kSocketLinkPrefix) - 1, &endptr, 10);
   if (*endptr != ']')
@@ -124,6 +124,13 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
 }  // namespace
 
 namespace base {
+
+const char kFindInodeSwitch[] = "--find-inode";
+
+// This should be kept in sync with sandbox/linux/suid/sandbox.c
+const long kSUIDSandboxApiNumber = 1;
+const char kSandboxEnvironmentApiRequest[] = "SBX_CHROME_API_RQ";
+const char kSandboxEnvironmentApiProvides[] = "SBX_CHROME_API_PRV";
 
 // Account for the terminating null character.
 static const int kDistroSize = 128 + 1;
@@ -211,7 +218,7 @@ bool FindProcessHoldingSocket(pid_t* pid_out, ino_t socket_inode) {
 
   struct dirent* dent;
   while ((dent = readdir(proc))) {
-    char *endptr;
+    char* endptr;
     const unsigned long int pid_ul = strtoul(dent->d_name, &endptr, 10);
     if (pid_ul == ULONG_MAX || *endptr)
       continue;
@@ -272,7 +279,7 @@ pid_t FindThreadIDWithSyscall(pid_t pid, const std::string& expected_data,
   std::vector<pid_t> tids;
   struct dirent* dent;
   while ((dent = readdir(task))) {
-    char *endptr;
+    char* endptr;
     const unsigned long int tid_ul = strtoul(dent->d_name, &endptr, 10);
     if (tid_ul == ULONG_MAX || *endptr)
       continue;
