@@ -23,6 +23,12 @@
 
 #pragma comment(lib, "crypt32.lib")
 
+#if !defined(CERT_TRUST_HAS_WEAK_SIGNATURE)
+// This was introduced in Windows 8 / Windows Server 2012, but retroactively
+// ported as far back as Windows XP via system update.
+#define CERT_TRUST_HAS_WEAK_SIGNATURE 0x00100000
+#endif
+
 namespace net {
 
 namespace {
@@ -140,9 +146,23 @@ int MapCertChainErrorStatusToCertStatus(DWORD error_status) {
     cert_status |= CERT_STATUS_INVALID;
   }
 
+  if (error_status & CERT_TRUST_IS_NOT_SIGNATURE_VALID) {
+    // Check for a signature that does not meet the OS criteria for strong
+    // signatures.
+    // Note: These checks may be more restrictive than the current weak key
+    // criteria implemented within CertVerifier, such as excluding SHA-1 or
+    // excluding RSA keys < 2048 bits. However, if the user has configured
+    // these more stringent checks, respect that configuration and err on the
+    // more restrictive criteria.
+    if (error_status & CERT_TRUST_HAS_WEAK_SIGNATURE) {
+      cert_status |= CERT_STATUS_WEAK_KEY;
+    } else {
+      cert_status |= CERT_STATUS_INVALID;
+    }
+  }
+
   // The rest of the errors.
   const DWORD kCertInvalidErrors =
-      CERT_TRUST_IS_NOT_SIGNATURE_VALID |
       CERT_TRUST_IS_CYCLIC |
       CERT_TRUST_INVALID_EXTENSION |
       CERT_TRUST_INVALID_POLICY_CONSTRAINTS |
