@@ -7,6 +7,7 @@
 #include "crypto/nss_util.h"
 #include "net/base/net_test_suite.h"
 #include "net/socket/client_socket_pool_base.h"
+#include "net/socket/ssl_server_socket.h"
 #include "net/spdy/spdy_session.h"
 
 using net::internal::ClientSocketPoolBaseHelper;
@@ -22,6 +23,10 @@ int main(int argc, char** argv) {
   // We want to be sure to init NSPR on the main thread.
   crypto::EnsureNSPRInit();
 #endif
+
+  // Enable support for SSL server sockets, which must be done while
+  // single-threaded.
+  net::EnableSSLServerSockets();
 
   return test_suite.Run();
 }
