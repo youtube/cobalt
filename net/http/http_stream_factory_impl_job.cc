@@ -40,75 +40,30 @@
 
 namespace net {
 
-// Parameters associated with the start of a HTTP stream job.
-class HttpStreamJobParameters : public NetLog::EventParameters {
- public:
-  static scoped_refptr<HttpStreamJobParameters> Create(
-      const GURL& original_url,
-      const GURL& url) {
-    return make_scoped_refptr(new HttpStreamJobParameters(original_url, url));
-  }
-
-  virtual Value* ToValue() const;
-
- protected:
-  virtual ~HttpStreamJobParameters() {}
-
- private:
-  HttpStreamJobParameters(const GURL& original_url, const GURL& url)
-      : original_url_(original_url.GetOrigin().spec()),
-        url_(url.GetOrigin().spec()) {
-  }
-
-  const std::string original_url_;
-  const std::string url_;
-};
-
-Value* HttpStreamJobParameters::ToValue() const {
+// Returns parameters associated with the start of a HTTP stream job.
+Value* NetLogHttpStreamJobCallback(const GURL* original_url,
+                                   const GURL* url,
+                                   NetLog::LogLevel /* log_level */) {
   DictionaryValue* dict = new DictionaryValue();
-  dict->SetString("original_url", original_url_);
-  dict->SetString("url", url_);
+  dict->SetString("original_url", original_url->GetOrigin().spec());
+  dict->SetString("url", url->GetOrigin().spec());
   return dict;
 }
 
-// Parameters associated with the Proto (with NPN negotiation) of a HTTP stream.
-class HttpStreamProtoParameters : public NetLog::EventParameters {
- public:
-  static scoped_refptr<HttpStreamProtoParameters> Create(
-      const SSLClientSocket::NextProtoStatus status,
-      const std::string& proto,
-      const std::string& server_protos) {
-    return make_scoped_refptr(new HttpStreamProtoParameters(
-        status, proto, server_protos));
-  }
-
-  virtual Value* ToValue() const;
-
- protected:
-  virtual ~HttpStreamProtoParameters() {}
-
- private:
-  HttpStreamProtoParameters(const SSLClientSocket::NextProtoStatus status,
-                            const std::string& proto,
-                            const std::string& server_protos)
-      : status_(status),
-        proto_(proto),
-        server_protos_(server_protos) {
-  }
-
-  const SSLClientSocket::NextProtoStatus status_;
-  const std::string proto_;
-  const std::string server_protos_;
-};
-
-Value* HttpStreamProtoParameters::ToValue() const {
+// Returns parameters associated with the Proto (with NPN negotiation) of a HTTP
+// stream.
+Value* NetLogHttpStreamProtoCallback(
+    const SSLClientSocket::NextProtoStatus status,
+    const std::string* proto,
+    const std::string* server_protos,
+    NetLog::LogLevel /* log_level */) {
   DictionaryValue* dict = new DictionaryValue();
 
   dict->SetString("next_proto_status",
-                  SSLClientSocket::NextProtoStatusToString(status_));
-  dict->SetString("proto", proto_);
+                  SSLClientSocket::NextProtoStatusToString(status));
+  dict->SetString("proto", *proto);
   dict->SetString("server_protos",
-                  SSLClientSocket::ServerProtosToString(server_protos_));
+                  SSLClientSocket::ServerProtosToString(*server_protos));
   return dict;
 }
 
@@ -149,7 +104,7 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
 }
 
 HttpStreamFactoryImpl::Job::~Job() {
-  net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_JOB, NULL);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_JOB);
 
   // When we're in a partially constructed state, waiting for the user to
   // provide certificate handling information or authentication, we can't reuse
@@ -597,8 +552,8 @@ int HttpStreamFactoryImpl::Job::DoStart() {
   http_pipelining_key_.reset(new HttpPipelinedHost::Key(origin_));
 
   net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_JOB,
-                      HttpStreamJobParameters::Create(request_info_.url,
-                                                      origin_url_));
+                      base::Bind(&NetLogHttpStreamJobCallback,
+                                 &request_info_.url, &origin_url_));
 
   // Don't connect to restricted ports.
   if (!IsPortAllowedByDefault(port) && !IsPortAllowedByOverride(port)) {
@@ -840,7 +795,8 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       protocol_negotiated_ = protocol_negotiated;
       net_log_.AddEvent(
            NetLog::TYPE_HTTP_STREAM_REQUEST_PROTO,
-           HttpStreamProtoParameters::Create(status, proto, server_protos));
+           base::Bind(&NetLogHttpStreamProtoCallback,
+                      status, &proto, &server_protos));
       if (ssl_socket->was_spdy_negotiated())
         SwitchToSpdyMode();
     }

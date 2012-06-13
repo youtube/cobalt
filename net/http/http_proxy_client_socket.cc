@@ -336,7 +336,7 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
       case STATE_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_SEND_REQUEST, NULL);
+            NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_SEND_REQUEST);
         rv = DoSendRequest();
         break;
       case STATE_SEND_REQUEST_COMPLETE:
@@ -347,7 +347,7 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
       case STATE_READ_HEADERS:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_READ_HEADERS, NULL);
+            NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_READ_HEADERS);
         rv = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
