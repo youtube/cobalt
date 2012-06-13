@@ -133,6 +133,9 @@ class ChunkDemuxerStream : public DemuxerStream {
   // Returns true if buffers were successfully added.
   bool Append(const StreamParser::BufferQueue& buffers);
 
+  // Returns a list of the buffered time ranges.
+  SourceBufferStream::TimespanList GetBufferedTime() const;
+
   // Called when mid-stream config updates occur.
   // Returns true if the new config is accepted.
   // Returns false if the new config should trigger an error.
@@ -244,6 +247,11 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
     it->Run();
 
   return true;
+}
+
+SourceBufferStream::TimespanList ChunkDemuxerStream::GetBufferedTime() const {
+  base::AutoLock auto_lock(lock_);
+  return stream_->GetBufferedTime();
 }
 
 bool ChunkDemuxerStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
@@ -580,12 +588,95 @@ bool ChunkDemuxer::GetBufferedRanges(const std::string& id,
                                      Ranges* ranges_out) const {
   DCHECK(!id.empty());
   DCHECK_GT(stream_parser_map_.count(id), 0u);
+  DCHECK(id == source_id_audio_ || id == source_id_video_);
   DCHECK(ranges_out);
 
   base::AutoLock auto_lock(lock_);
 
-  // TODO(annacc): Calculate buffered ranges (http://crbug.com/129852 ).
-  return false;
+  if (id == source_id_audio_ && id != source_id_video_) {
+    // Only include ranges that have been buffered in |audio_|
+    return CopyIntoRanges(audio_->GetBufferedTime(), ranges_out);
+  }
+
+  if (id != source_id_audio_ && id == source_id_video_) {
+    // Only include ranges that have been buffered in |video_|
+    return CopyIntoRanges(video_->GetBufferedTime(), ranges_out);
+  }
+
+  // Include ranges that have been buffered in both |audio_| and |video_|.
+  SourceBufferStream::TimespanList audio_ranges = audio_->GetBufferedTime();
+  SourceBufferStream::TimespanList video_ranges = video_->GetBufferedTime();
+  SourceBufferStream::TimespanList::const_iterator video_ranges_itr =
+      video_ranges.begin();
+  SourceBufferStream::TimespanList::const_iterator audio_ranges_itr =
+      audio_ranges.begin();
+  bool success = false;
+
+  while (audio_ranges_itr != audio_ranges.end() &&
+         video_ranges_itr != video_ranges.end()) {
+    // If this is the last range and EndOfStream() was called (i.e. all data
+    // has been appended), choose the max end point of the ranges.
+    bool last_range_after_ended =
+        state_ == ENDED &&
+        (audio_ranges_itr + 1) == audio_ranges.end() &&
+        (video_ranges_itr + 1) == video_ranges.end();
+
+    // Audio range start time is within the video range.
+    if ((*audio_ranges_itr).first >= (*video_ranges_itr).first &&
+        (*audio_ranges_itr).first <= (*video_ranges_itr).second) {
+      AddIntersectionRange(*audio_ranges_itr, *video_ranges_itr,
+                           last_range_after_ended, ranges_out);
+      audio_ranges_itr++;
+      success = true;
+      continue;
+    }
+
+    // Video range start time is within the audio range.
+    if ((*video_ranges_itr).first >= (*audio_ranges_itr).first &&
+        (*video_ranges_itr).first <= (*audio_ranges_itr).second) {
+      AddIntersectionRange(*video_ranges_itr, *audio_ranges_itr,
+                           last_range_after_ended, ranges_out);
+      video_ranges_itr++;
+      success = true;
+      continue;
+    }
+
+    // No overlap was found.  Increment the earliest one and keep looking.
+    if ((*audio_ranges_itr).first < (*video_ranges_itr).first)
+      audio_ranges_itr++;
+    else
+      video_ranges_itr++;
+  }
+
+  return success;
+}
+
+bool ChunkDemuxer::CopyIntoRanges(
+    const SourceBufferStream::TimespanList& timespans,
+    Ranges* ranges_out) const {
+  for (SourceBufferStream::TimespanList::const_iterator itr = timespans.begin();
+       itr != timespans.end(); ++itr) {
+    ranges_out->push_back(*itr);
+  }
+  return !timespans.empty();
+}
+
+void ChunkDemuxer::AddIntersectionRange(
+    SourceBufferStream::Timespan timespan_a,
+    SourceBufferStream::Timespan timespan_b,
+    bool last_range_after_ended,
+    Ranges* ranges_out) const {
+  base::TimeDelta start = timespan_a.first;
+
+  // If this is the last range after EndOfStream() was called, choose the later
+  // end point of the ranges, otherwise choose the earlier.
+  base::TimeDelta end;
+  if (last_range_after_ended)
+    end = std::max(timespan_a.second, timespan_b.second);
+  else
+    end = std::min(timespan_a.second, timespan_b.second);
+
+  ranges_out->push_back(std::make_pair(start, end));
 }
 
 bool ChunkDemuxer::AppendData(const std::string& id,

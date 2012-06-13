@@ -449,6 +449,28 @@ class ChunkDemuxerTest : public testing::Test {
     }
   }
 
+  std::pair<base::TimeDelta, base::TimeDelta> CreateRange(
+      int start_time, int block_count, int block_duration) {
+    return std::make_pair(base::TimeDelta::FromMilliseconds(start_time),
+                          base::TimeDelta::FromMilliseconds(start_time +
+                              (block_count * block_duration)));
+  }
+
+  void CheckExpectedRanges(const ChunkDemuxer::Ranges& expected_times) {
+    ChunkDemuxer::Ranges actual_times;
+    demuxer_->GetBufferedRanges(kSourceId, &actual_times);
+    EXPECT_EQ(expected_times.size(), actual_times.size());
+
+    for (ChunkDemuxer::Ranges::const_iterator actual_itr =
+         actual_times.begin(), expected_itr = expected_times.begin();
+         actual_itr != actual_times.end() &&
+         expected_itr != expected_times.end();
+         actual_itr++, expected_itr++) {
+      EXPECT_EQ(expected_itr->first, actual_itr->first);
+      EXPECT_EQ(expected_itr->second, actual_itr->second);
+    }
+  }
+
   MOCK_METHOD1(ReadDone, void(const scoped_refptr<DecoderBuffer>&));
 
   void ExpectRead(DemuxerStream* stream, int64 timestamp_in_ms) {
@@ -1377,6 +1399,184 @@ TEST_F(ChunkDemuxerTest, TestSeekAudioAndVideoSources) {
   // Read() should return buffers at 3.
   EXPECT_TRUE(audio_read_done);
   EXPECT_TRUE(video_read_done);
+}
+
+// Test ranges in an audio-only stream.
+TEST_F(ChunkDemuxerTest, GetBufferedRanges_AudioIdOnly) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Initialize(
+      &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
+
+  ASSERT_EQ(AddId(kSourceId, true, false), ChunkDemuxer::kOk);
+  ASSERT_TRUE(AppendInitSegment(true, false, false));
+
+  // Test a simple cluster.
+  scoped_ptr<Cluster> cluster_1(GenerateSingleStreamCluster(0, 4,
+                                kAudioTrackNum, kAudioBlockDuration));
+  ChunkDemuxer::Ranges expected;
+  expected.push_back(CreateRange(0, 4, kAudioBlockDuration));
+
+  ASSERT_TRUE(AppendData(cluster_1->data(), cluster_1->size()));
+
+  CheckExpectedRanges(expected);
+
+  // Append a disjoint cluster to check for two separate ranges.
+  scoped_ptr<Cluster> cluster_2(GenerateSingleStreamCluster(150, 3,
+                                kAudioTrackNum, kAudioBlockDuration));
+  expected.push_back(CreateRange(150, 3, kAudioBlockDuration));
+
+  ASSERT_TRUE(AppendData(cluster_2->data(), cluster_2->size()));
+
+  CheckExpectedRanges(expected);
+}
+
+// Test ranges in a video-only stream.
+TEST_F(ChunkDemuxerTest, GetBufferedRanges_VideoIdOnly) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Initialize(
+      &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
+
+  ASSERT_EQ(AddId(kSourceId, false, true), ChunkDemuxer::kOk);
+  ASSERT_TRUE(AppendInitSegment(false, true, false));
+
+  // Test a simple cluster.
+  scoped_ptr<Cluster> cluster_1(GenerateSingleStreamCluster(0, 4,
+                                kVideoTrackNum, kVideoBlockDuration));
+  ChunkDemuxer::Ranges expected;
+  expected.push_back(CreateRange(0, 4, kVideoBlockDuration));
+
+  ASSERT_TRUE(AppendData(cluster_1->data(), cluster_1->size()));
+
+  CheckExpectedRanges(expected);
+
+  // Append a disjoint cluster to check for two separate ranges.
+  scoped_ptr<Cluster> cluster_2(GenerateSingleStreamCluster(150, 3,
+                                kVideoTrackNum, kVideoBlockDuration));
+  expected.push_back(CreateRange(150, 3, kVideoBlockDuration));
+
+  ASSERT_TRUE(AppendData(cluster_2->data(), cluster_2->size()));
+
+  CheckExpectedRanges(expected);
+}
+
+TEST_F(ChunkDemuxerTest, GetBufferedRanges_AudioVideo) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  // Audio: 0 -> 23
+  // Video: 0 -> 33
+  // Buffered Range: 0 -> 23
+  // Audio block duration is smaller than video block duration,
+  // so the buffered ranges should correspond to the audio blocks.
+  scoped_ptr<Cluster> cluster_a0(
+      GenerateSingleStreamCluster(0, 1, kAudioTrackNum, kAudioBlockDuration));
+
+  scoped_ptr<Cluster> cluster_v0(
+      GenerateSingleStreamCluster(0, 1, kVideoTrackNum, kVideoBlockDuration));
+
+  ChunkDemuxer::Ranges expected;
+  expected.push_back(CreateRange(0, 1, kAudioBlockDuration));
+
+  ASSERT_TRUE(AppendData(cluster_a0->data(), cluster_a0->size()));
+  ASSERT_TRUE(AppendData(cluster_v0->data(), cluster_v0->size()));
+
+  CheckExpectedRanges(expected);
+
+  // Audio: 100 -> 150
+  // Video: 120 -> 170
+  // Buffered Range: 120 -> 150  (end overlap)
+  scoped_ptr<Cluster> cluster_a1(
+      GenerateSingleStreamCluster(100, 1, kAudioTrackNum, 50));
+
+  scoped_ptr<Cluster> cluster_v1(
+      GenerateSingleStreamCluster(120, 1, kVideoTrackNum, 50));
+
+  expected.push_back(CreateRange(120, 1, 30));
+
+  ASSERT_TRUE(AppendData(cluster_a1->data(), cluster_a1->size()));
+  ASSERT_TRUE(AppendData(cluster_v1->data(), cluster_v1->size()));
+
+  CheckExpectedRanges(expected);
+
+  // Audio: 220 -> 290
+  // Video: 200 -> 270
+  // Buffered Range: 220 -> 270  (front overlap)
+  scoped_ptr<Cluster> cluster_a2(
+      GenerateSingleStreamCluster(220, 1, kAudioTrackNum, 70));
+
+  scoped_ptr<Cluster> cluster_v2(
+      GenerateSingleStreamCluster(200, 1, kVideoTrackNum, 70));
+
+  expected.push_back(CreateRange(220, 1, 50));
+
+  ASSERT_TRUE(AppendData(cluster_a2->data(), cluster_a2->size()));
+  ASSERT_TRUE(AppendData(cluster_v2->data(), cluster_v2->size()));
+
+  CheckExpectedRanges(expected);
+
+  // Audio: 320 -> 350
+  // Video: 300 -> 370
+  // Buffered Range: 320 -> 350  (complete overlap, audio)
+  scoped_ptr<Cluster> cluster_a3(
+      GenerateSingleStreamCluster(320, 1, kAudioTrackNum, 30));
+
+  scoped_ptr<Cluster> cluster_v3(
+      GenerateSingleStreamCluster(300, 1, kVideoTrackNum, 70));
+
+  expected.push_back(CreateRange(320, 1, 30));
+
+  ASSERT_TRUE(AppendData(cluster_a3->data(), cluster_a3->size()));
+  ASSERT_TRUE(AppendData(cluster_v3->data(), cluster_v3->size()));
+
+  CheckExpectedRanges(expected);
+
+  // Audio: 400 -> 470
+  // Video: 420 -> 450
+  // Buffered Range: 420 -> 450  (complete overlap, video)
+  scoped_ptr<Cluster> cluster_a4(
+      GenerateSingleStreamCluster(400, 1, kAudioTrackNum, 70));
+
+  scoped_ptr<Cluster> cluster_v4(
+      GenerateSingleStreamCluster(420, 1, kVideoTrackNum, 30));
+
+  expected.push_back(CreateRange(420, 1, 30));
+
+  ASSERT_TRUE(AppendData(cluster_a4->data(), cluster_a4->size()));
+  ASSERT_TRUE(AppendData(cluster_v4->data(), cluster_v4->size()));
+
+  CheckExpectedRanges(expected);
+
+  // Appending within buffered range should not affect buffered ranges.
+  scoped_ptr<Cluster> cluster_a5(
+      GenerateSingleStreamCluster(430, 1, kAudioTrackNum, 20));
+  ASSERT_TRUE(AppendData(cluster_a5->data(), cluster_a5->size()));
+  CheckExpectedRanges(expected);
+
+  // Appending to single stream outside buffered ranges should not affect
+  // buffered ranges.
+  scoped_ptr<Cluster> cluster_v5(
+      GenerateSingleStreamCluster(530, 1, kVideoTrackNum, 10));
+  ASSERT_TRUE(AppendData(cluster_v5->data(), cluster_v5->size()));
+  CheckExpectedRanges(expected);
+}
+
+// Once EndOfStream() is called, GetBufferedRanges should not cut off any
+// over-hanging tails at the end of the ranges as this is likely due to block
+// duration differences.
+TEST_F(ChunkDemuxerTest, GetBufferedRanges_EndOfStream) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  scoped_ptr<Cluster> cluster_a(
+      GenerateSingleStreamCluster(0, 1, kAudioTrackNum, 90));
+  scoped_ptr<Cluster> cluster_v(
+      GenerateSingleStreamCluster(0, 1, kVideoTrackNum, 100));
+  ChunkDemuxer::Ranges expected;
+  expected.push_back(CreateRange(0, 1, 100));
+
+  ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
+  ASSERT_TRUE(AppendData(cluster_v->data(), cluster_v->size()));
+
+  demuxer_->EndOfStream(PIPELINE_OK);
+  CheckExpectedRanges(expected);
 }
 
 }  // namespace media

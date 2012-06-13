@@ -27,7 +27,7 @@ class MEDIA_EXPORT SourceBufferStream {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
   typedef std::pair<base::TimeDelta, base::TimeDelta> Timespan;
-  typedef std::list<Timespan> TimespanList;
+  typedef std::deque<Timespan> TimespanList;
 
   SourceBufferStream();
   explicit SourceBufferStream(const AudioDecoderConfig& audio_config);
