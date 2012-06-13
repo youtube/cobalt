@@ -479,9 +479,8 @@ bool SourceBufferStream::GetNextBuffer(
   return selected_range_ && selected_range_->GetNextBuffer(out_buffer);
 }
 
-std::list<SourceBufferStream::Timespan>
-SourceBufferStream::GetBufferedTime() const {
-  std::list<Timespan> timespans;
+SourceBufferStream::TimespanList SourceBufferStream::GetBufferedTime() const {
+  TimespanList timespans;
   for (RangeList::const_iterator itr = ranges_.begin();
        itr != ranges_.end(); itr++) {
     timespans.push_back((*itr)->GetBufferedTime());
