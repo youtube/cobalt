@@ -147,7 +147,7 @@ void SocketStream::Connect() {
   AddRef();  // Released in Finish()
   // Open a connection asynchronously, so that delegate won't be called
   // back before returning Connect().
-  next_state_ = STATE_RESOLVE_PROXY;
+  next_state_ = STATE_BEFORE_CONNECT;
   net_log_.BeginEvent(
       NetLog::TYPE_SOCKET_STREAM_CONNECT,
       make_scoped_refptr(
@@ -410,6 +410,13 @@ void SocketStream::DoLoop(int result) {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
+      case STATE_BEFORE_CONNECT:
+        DCHECK_EQ(OK, result);
+        result = DoBeforeConnect();
+        break;
+      case STATE_BEFORE_CONNECT_COMPLETE:
+        result = DoBeforeConnectComplete(result);
+        break;
       case STATE_RESOLVE_PROXY:
         DCHECK_EQ(OK, result);
         result = DoResolveProxy();
@@ -509,6 +516,30 @@ void SocketStream::DoLoop(int result) {
           NetLog::TYPE_SOCKET_STREAM_CONNECT, result);
     }
   } while (result != ERR_IO_PENDING);
+}
+
+int SocketStream::DoBeforeConnect() {
+  next_state_ = STATE_BEFORE_CONNECT_COMPLETE;
+  if (!context_ || !context_->network_delegate())
+    return OK;
+
+  int result = context_->network_delegate()->NotifyBeforeSocketStreamConnect(
+      this, io_callback_);
+  if (result != OK && result != ERR_IO_PENDING)
+    next_state_ = STATE_CLOSE;
+
+  return result;
+}
+
+int SocketStream::DoBeforeConnectComplete(int result) {
+  DCHECK_NE(ERR_IO_PENDING, result);
+
+  if (result == OK)
+    next_state_ = STATE_RESOLVE_PROXY;
+  else
+    next_state_ = STATE_CLOSE;
+
+  return result;
 }
 
 int SocketStream::DoResolveProxy() {

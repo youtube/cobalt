@@ -498,6 +498,12 @@ bool TestNetworkDelegate::OnCanThrottleRequest(
   return true;
 }
 
+int TestNetworkDelegate::OnBeforeSocketStreamConnect(
+    net::SocketStream* socket,
+    const net::CompletionCallback& callback) {
+  return net::OK;
+}
+
 // static
 std::string ScopedCustomUrlRequestTestHttpHost::value_("127.0.0.1");
 
