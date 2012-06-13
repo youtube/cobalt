@@ -25,46 +25,30 @@ namespace net {
 
 namespace {
 
-class ReceivedHeadersParameters : public NetLog::EventParameters {
- public:
-  ReceivedHeadersParameters(const NetLog::Source& source,
-                            const std::string& feedback)
-      : source_(source), feedback_(feedback) {}
+Value* NetLogReceivedHeadersCallback(const NetLog::Source& source,
+                                     const std::string* feedback,
+                                     NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue;
+  source.AddToEventParameters(dict);
+  dict->SetString("feedback", *feedback);
+  return dict;
+}
 
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue;
-    dict->Set("source_dependency", source_.ToValue());
-    dict->SetString("feedback", feedback_);
-    return dict;
-  }
+Value* NetLogStreamClosedCallback(const NetLog::Source& source,
+                                  bool not_reusable,
+                                  NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue;
+  source.AddToEventParameters(dict);
+  dict->SetBoolean("not_reusable", not_reusable);
+  return dict;
+}
 
- protected:
-  virtual ~ReceivedHeadersParameters() {}
-
- private:
-  const NetLog::Source source_;
-  const std::string feedback_;
-};
-
-class StreamClosedParameters : public NetLog::EventParameters {
- public:
-  StreamClosedParameters(const NetLog::Source& source, bool not_reusable)
-      : source_(source), not_reusable_(not_reusable) {}
-
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue;
-    dict->Set("source_dependency", source_.ToValue());
-    dict->SetBoolean("not_reusable", not_reusable_);
-    return dict;
-  }
-
- protected:
-  virtual ~StreamClosedParameters() {}
-
- private:
-  const NetLog::Source source_;
-  const bool not_reusable_;
-};
+Value* NetLogHostPortPairCallback(const HostPortPair* host_port_pair,
+                                  NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue;
+  dict->SetString("host_and_port", host_port_pair->ToString());
+  return dict;
+}
 
 }  // anonymous namespace
 
@@ -99,8 +83,7 @@ HttpPipelinedConnectionImpl::HttpPipelinedConnectionImpl(
   CHECK(connection_.get());
   net_log_.BeginEvent(
       NetLog::TYPE_HTTP_PIPELINED_CONNECTION,
-      make_scoped_refptr(new NetLogStringParameter(
-          "host_and_port", origin.ToString())));
+      base::Bind(&NetLogHostPortPairCallback, &origin));
 }
 
 HttpPipelinedConnectionImpl::~HttpPipelinedConnectionImpl() {
@@ -116,7 +99,7 @@ HttpPipelinedConnectionImpl::~HttpPipelinedConnectionImpl() {
     connection_->socket()->Disconnect();
   }
   connection_->Reset();
-  net_log_.EndEvent(NetLog::TYPE_HTTP_PIPELINED_CONNECTION, NULL);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_PIPELINED_CONNECTION);
 }
 
 HttpPipelinedStream* HttpPipelinedConnectionImpl::CreateNewStream() {
@@ -293,9 +276,8 @@ int HttpPipelinedConnectionImpl::DoSendComplete(int result) {
   stream_info_map_[active_send_request_->pipeline_id].state = STREAM_SENT;
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_PIPELINED_CONNECTION_SENT_REQUEST,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency",
-          stream_info_map_[active_send_request_->pipeline_id].source)));
+      stream_info_map_[active_send_request_->pipeline_id].source.
+          ToEventParametersCallback());
 
   if (result == ERR_SOCKET_NOT_CONNECTED && completed_one_request_) {
     result = ERR_PIPELINE_EVICTION;
@@ -549,8 +531,8 @@ void HttpPipelinedConnectionImpl::Close(int pipeline_id,
   CHECK(ContainsKey(stream_info_map_, pipeline_id));
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_PIPELINED_CONNECTION_STREAM_CLOSED,
-      make_scoped_refptr(new StreamClosedParameters(
-          stream_info_map_[pipeline_id].source, not_reusable)));
+      base::Bind(&NetLogStreamClosedCallback,
+                 stream_info_map_[pipeline_id].source, not_reusable));
   switch (stream_info_map_[pipeline_id].state) {
     case STREAM_CREATED:
       stream_info_map_[pipeline_id].state = STREAM_UNUSED;
@@ -762,8 +744,8 @@ void HttpPipelinedConnectionImpl::ReportPipelineFeedback(int pipeline_id,
   }
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_PIPELINED_CONNECTION_RECEIVED_HEADERS,
-      make_scoped_refptr(new ReceivedHeadersParameters(
-          stream_info_map_[pipeline_id].source, feedback_str)));
+      base::Bind(&NetLogReceivedHeadersCallback,
+                 stream_info_map_[pipeline_id].source, &feedback_str));
   delegate_->OnPipelineFeedback(this, feedback);
 }
 

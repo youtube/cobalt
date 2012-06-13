@@ -93,36 +93,18 @@ bool IsClientCertificateError(int error) {
   }
 }
 
-class SSLVersionFallbackParams : public NetLog::EventParameters {
- public:
-  SSLVersionFallbackParams(const std::string& host_and_port,
-                           int net_error,
-                           uint16 version_before,
-                           uint16 version_after)
-      : host_and_port_(host_and_port),
-        net_error_(net_error),
-        version_before_(version_before),
-        version_after_(version_after) {
-  }
-
-  virtual Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("host_and_port", host_and_port_);
-    dict->SetInteger("net_error", net_error_);
-    dict->SetInteger("version_before", version_before_);
-    dict->SetInteger("version_after", version_after_);
-    return dict;
-  }
-
- protected:
-  virtual ~SSLVersionFallbackParams() {}
-
- private:
-  const std::string host_and_port_;
-  const int net_error_;  // Network error code that caused the fallback.
-  const uint16 version_before_;  // SSL version before the fallback.
-  const uint16 version_after_;  // SSL version after the fallback.
-};
+Value* NetLogSSLVersionFallbackCallback(const GURL* url,
+                                        int net_error,
+                                        uint16 version_before,
+                                        uint16 version_after,
+                                        NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString("host_and_port", GetHostAndPort(*url));
+  dict->SetInteger("net_error", net_error);
+  dict->SetInteger("version_before", version_before);
+  dict->SetInteger("version_after", version_after);
+  return dict;
+}
 
 }  // namespace
 
@@ -554,7 +536,7 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_BUILD_REQUEST:
         DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST, NULL);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
         rv = DoBuildRequest();
         break;
       case STATE_BUILD_REQUEST_COMPLETE:
@@ -571,7 +553,7 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_READ_HEADERS:
         DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS, NULL);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
         rv = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
@@ -581,7 +563,7 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_READ_BODY:
         DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY, NULL);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY);
         rv = DoReadBody();
         break;
       case STATE_READ_BODY_COMPLETE:
@@ -592,7 +574,7 @@ int HttpNetworkTransaction::DoLoop(int result) {
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART, NULL);
+            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
         rv = DoDrainBodyForAuthRestart();
         break;
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE:
@@ -1207,9 +1189,9 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
         server_ssl_config_.version_max--;
         net_log_.AddEvent(
             NetLog::TYPE_SSL_VERSION_FALLBACK,
-            make_scoped_refptr(new SSLVersionFallbackParams(
-                GetHostAndPort(request_->url), error,
-                version_before, server_ssl_config_.version_max)));
+            base::Bind(&NetLogSSLVersionFallbackCallback,
+                       &request_->url, error, version_before,
+                       server_ssl_config_.version_max));
         server_ssl_config_.version_fallback = true;
         ResetConnectionAndRequestForResend();
         error = OK;
@@ -1226,9 +1208,9 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
         server_ssl_config_.version_max = SSL_PROTOCOL_VERSION_SSL3;
         net_log_.AddEvent(
             NetLog::TYPE_SSL_VERSION_FALLBACK,
-            make_scoped_refptr(new SSLVersionFallbackParams(
-                GetHostAndPort(request_->url), error,
-                version_before, server_ssl_config_.version_max)));
+            base::Bind(&NetLogSSLVersionFallbackCallback,
+                       &request_->url, error, version_before,
+                       server_ssl_config_.version_max));
         server_ssl_config_.version_fallback = true;
         ResetConnectionAndRequestForResend();
         error = OK;
@@ -1268,27 +1250,24 @@ int HttpNetworkTransaction::HandleIOError(int error) {
     // See http://crbug.com/105824 for more details.
     case ERR_SOCKET_NOT_CONNECTED:
       if (ShouldResendRequest(error)) {
-        net_log_.AddEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR,
-            make_scoped_refptr(new NetLogIntegerParameter("net_error", error)));
+        net_log_.AddEventWithNetErrorCode(
+            NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR, error);
         ResetConnectionAndRequestForResend();
         error = OK;
       }
       break;
     case ERR_PIPELINE_EVICTION:
       if (!session_->force_http_pipelining()) {
-        net_log_.AddEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR,
-            make_scoped_refptr(new NetLogIntegerParameter("net_error", error)));
+        net_log_.AddEventWithNetErrorCode(
+            NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR, error);
         ResetConnectionAndRequestForResend();
         error = OK;
       }
       break;
     case ERR_SPDY_PING_FAILED:
     case ERR_SPDY_SERVER_REFUSED_STREAM:
-      net_log_.AddEvent(
-          NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR,
-          make_scoped_refptr(new NetLogIntegerParameter("net_error", error)));
+      net_log_.AddEventWithNetErrorCode(
+          NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR, error);
       ResetConnectionAndRequestForResend();
       error = OK;
       break;

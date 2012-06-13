@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -69,7 +69,7 @@ int HttpAuthHandler::GenerateAuthToken(
   DCHECK(auth_token != NULL);
   DCHECK(callback_.is_null());
   callback_ = callback;
-  net_log_.BeginEvent(EventTypeFromAuthTarget(target_), NULL);
+  net_log_.BeginEvent(EventTypeFromAuthTarget(target_));
   int rv = GenerateAuthTokenImpl(
       credentials, request,
       base::Bind(&HttpAuthHandler::OnGenerateAuthTokenComplete,
@@ -101,7 +101,7 @@ void HttpAuthHandler::OnGenerateAuthTokenComplete(int rv) {
 
 void HttpAuthHandler::FinishGenerateAuthToken() {
   // TOOD(cbentzel): Should this be done in OK case only?
-  net_log_.EndEvent(EventTypeFromAuthTarget(target_), NULL);
+  net_log_.EndEvent(EventTypeFromAuthTarget(target_));
   callback_.Reset();
 }
 

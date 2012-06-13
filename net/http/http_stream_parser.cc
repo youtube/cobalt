@@ -379,7 +379,7 @@ int HttpStreamParser::DoLoop(int result) {
         can_do_more = false;
         break;
       case STATE_READ_HEADERS:
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS, NULL);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS);
         result = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
