@@ -51,33 +51,17 @@ const char URLRequestThrottlerEntry::kExponentialThrottlingHeader[] =
 const char URLRequestThrottlerEntry::kExponentialThrottlingDisableValue[] =
     "disable";
 
-// NetLog parameters when a request is rejected by throttling.
-class RejectedRequestParameters : public NetLog::EventParameters {
- public:
-  RejectedRequestParameters(const std::string& url_id,
-                            int num_failures,
-                            int release_after_ms)
-      : url_id_(url_id),
-        num_failures_(num_failures),
-        release_after_ms_(release_after_ms) {
-  }
-
-  virtual Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("url", url_id_);
-    dict->SetInteger("num_failures", num_failures_);
-    dict->SetInteger("release_after_ms", release_after_ms_);
-    return dict;
-  }
-
- protected:
-  virtual ~RejectedRequestParameters() {}
-
- private:
-  std::string url_id_;
-  int num_failures_;
-  int release_after_ms_;
-};
+// Returns NetLog parameters when a request is rejected by throttling.
+Value* NetLogRejectedRequestCallback(const std::string* url_id,
+                                     int num_failures,
+                                     int release_after_ms,
+                                     NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString("url", *url_id);
+  dict->SetInteger("num_failures", num_failures);
+  dict->SetInteger("release_after_ms", release_after_ms);
+  return dict;
+}
 
 URLRequestThrottlerEntry::URLRequestThrottlerEntry(
     URLRequestThrottlerManager* manager,
@@ -178,10 +162,8 @@ bool URLRequestThrottlerEntry::ShouldRejectRequest(
 
     net_log_.AddEvent(
         NetLog::TYPE_THROTTLING_REJECTED_REQUEST,
-        make_scoped_refptr(
-            new RejectedRequestParameters(url_id_,
-                                          num_failures,
-                                          release_after_ms)));
+        base::Bind(&NetLogRejectedRequestCallback,
+                   &url_id_, num_failures, release_after_ms));
 
     reject_request = true;
   }

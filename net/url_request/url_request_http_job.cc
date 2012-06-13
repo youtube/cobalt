@@ -278,8 +278,9 @@ void URLRequestHttpJob::NotifyBeforeSendHeadersCallback(int result) {
   if (result == OK) {
     StartTransactionInternal();
   } else {
+    std::string source("delegate");
     request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
-        make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
+                                 NetLog::StringCallback("source", &source));
     NotifyCanceled();
   }
 }
@@ -475,8 +476,9 @@ void URLRequestHttpJob::DoStartTransaction() {
 
 void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete(int result) {
   if (result != net::OK) {
+    std::string source("delegate");
     request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
-        make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
+                                 NetLog::StringCallback("source", &source));
     NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, result));
     return;
   }
@@ -678,11 +680,12 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
         if (error == net::ERR_IO_PENDING) {
           awaiting_callback_ = true;
           request_->net_log().BeginEvent(
-              NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+              NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE);
         } else {
+          std::string source("delegate");
           request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
-              make_scoped_refptr(
-                  new NetLogStringParameter("source", "delegate")));
+                                       NetLog::StringCallback("source",
+                                                              &source));
           NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, error));
         }
         return;
@@ -712,8 +715,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
 }
 
 void URLRequestHttpJob::OnHeadersReceivedCallback(int result) {
-  request_->net_log().EndEvent(
-      NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+  request_->net_log().EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE);
   awaiting_callback_ = false;
 
   // Check that there are no callbacks to already canceled requests.
