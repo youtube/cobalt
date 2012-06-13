@@ -36,8 +36,9 @@
 // // FieldTrialList.
 // // Note: This field trial will run in Chrome instances compiled through
 // //       8 July, 2015, and after that all instances will be in "StandardMem".
-// scoped_refptr<FieldTrial> trial = new FieldTrial("MemoryExperiment", 1000,
-//                                                  "StandardMem", 2015, 7, 8);
+// scoped_refptr<base::FieldTrial> trial(
+//     base::FieldTrialList::FactoryGetFieldTrial("MemoryExperiment", 1000,
+//                                                "StandardMem", 2015, 7, 8));
 // const int kHighMemGroup =
 //     trial->AppendGroup("HighMem", 20);  // 2% in HighMem group.
 // const int kLowMemGroup =
