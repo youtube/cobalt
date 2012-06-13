@@ -329,6 +329,8 @@
         'gfx/font.cc',
         'gfx/font_list.h',
         'gfx/font_list.cc',
+        'gfx/font_render_params_linux.cc',
+        'gfx/font_render_params_linux.h',
         'gfx/font_smoothing_win.cc',
         'gfx/font_smoothing_win.h',
         'gfx/gfx_paths.cc',
