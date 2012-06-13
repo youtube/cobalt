@@ -11,8 +11,18 @@
 #include "base/file_util.h"
 #include "base/third_party/xdg_user_dirs/xdg_user_dir_lookup.h"
 
+namespace {
+
+// The KDE session version environment variable used in KDE 4.
+const char kKDE4SessionEnvVar[] = "KDE_SESSION_VERSION";
+
+}  // namespace
+
 namespace base {
 namespace nix {
+
+const char kDotConfigDir[] = ".config";
+const char kXdgConfigHomeEnvVar[] = "XDG_CONFIG_HOME";
 
 FilePath GetXDGDirectory(Environment* env, const char* env_name,
                          const char* fallback_dir) {
@@ -46,7 +56,7 @@ DesktopEnvironment GetDesktopEnvironment(Environment* env) {
       return DESKTOP_ENVIRONMENT_KDE4;
     } else if (desktop_session == "kde") {
       // This may mean KDE4 on newer systems, so we have to check.
-      if (env->HasVar("KDE_SESSION_VERSION"))
+      if (env->HasVar(kKDE4SessionEnvVar))
         return DESKTOP_ENVIRONMENT_KDE4;
       return DESKTOP_ENVIRONMENT_KDE3;
     } else if (desktop_session.find("xfce") != std::string::npos ||
@@ -60,7 +70,7 @@ DesktopEnvironment GetDesktopEnvironment(Environment* env) {
   if (env->HasVar("GNOME_DESKTOP_SESSION_ID")) {
     return DESKTOP_ENVIRONMENT_GNOME;
   } else if (env->HasVar("KDE_FULL_SESSION")) {
-    if (env->HasVar("KDE_SESSION_VERSION"))
+    if (env->HasVar(kKDE4SessionEnvVar))
       return DESKTOP_ENVIRONMENT_KDE4;
     return DESKTOP_ENVIRONMENT_KDE3;
   }

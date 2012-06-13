@@ -27,6 +27,12 @@ class Environment;
 
 namespace nix {
 
+// The default XDG config directory name.
+BASE_EXPORT extern const char kDotConfigDir[];
+
+// The XDG config directory environment variable.
+BASE_EXPORT extern const char kXdgConfigHomeEnvVar[];
+
 // Utility function for getting XDG directories.
 // |env_name| is the name of an environment variable that we want to use to get
 // a directory path. |fallback_dir| is the directory relative to $HOME that we
