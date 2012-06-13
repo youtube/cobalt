@@ -9,17 +9,12 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
-#include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_output_proxy.h"
 #include "media/audio/audio_util.h"
 
 namespace media {
-
-// Workaround for crbug.com/128128.
-// Minimal delay between stream->Stop() and stream->Close().
-const int kMacWorkaroundInMilliseconds = 50;
 
 AudioOutputMixer::AudioOutputMixer(AudioManager* audio_manager,
                                    const AudioParameters& params,
@@ -52,8 +47,6 @@ bool AudioOutputMixer::OpenStream() {
   }
   pending_bytes_ = 0;  // Just in case.
   physical_stream_.reset(stream);
-  physical_stream_->SetVolume(1.0);
-  physical_stream_->Start(this);
   close_timer_.Reset();
   return true;
 }
@@ -71,24 +64,46 @@ bool AudioOutputMixer::StartStream(
 
   double volume = 0.0;
   stream_proxy->GetVolume(&volume);
-
-  base::AutoLock lock(lock_);
-  ProxyData* proxy_data = &proxies_[stream_proxy];
-  proxy_data->audio_source_callback = callback;
-  proxy_data->volume = volume;
-  proxy_data->pending_bytes = 0;
+  bool should_start = proxies_.empty();
+  {
+    base::AutoLock lock(lock_);
+    ProxyData* proxy_data = &proxies_[stream_proxy];
+    proxy_data->audio_source_callback = callback;
+    proxy_data->volume = volume;
+    proxy_data->pending_bytes = 0;
+  }
+  // We cannot start physical stream under the lock,
+  // OnMoreData() would try acquiring it...
+  if (should_start) {
+    physical_stream_->SetVolume(1.0);
+    physical_stream_->Start(this);
+  }
   return true;
 }
 
 void AudioOutputMixer::StopStream(AudioOutputProxy* stream_proxy) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  base::AutoLock lock(lock_);
-  ProxyMap::iterator it = proxies_.find(stream_proxy);
-  if (it != proxies_.end())
-    proxies_.erase(it);
-  if (physical_stream_.get())
+  // Because of possible deadlock we cannot stop physical stream under the lock
+  // (physical_stream_->Stop() can call OnError(), and it acquires the lock to
+  // iterate through proxies), so acquire the lock, update proxy list, release
+  // the lock, and only then stop physical stream if necessary.
+  bool stop_physical_stream = false;
+  {
+    base::AutoLock lock(lock_);
+    ProxyMap::iterator it = proxies_.find(stream_proxy);
+    if (it != proxies_.end()) {
+      proxies_.erase(it);
+      stop_physical_stream = proxies_.empty();
+    }
+  }
+  if (physical_stream_.get()) {
+    if (stop_physical_stream) {
+      physical_stream_->Stop();
+      pending_bytes_ = 0;  // Just in case.
+    }
     close_timer_.Reset();
+  }
 }
 
 void AudioOutputMixer::StreamVolumeSet(AudioOutputProxy* stream_proxy,
@@ -129,17 +144,8 @@ void AudioOutputMixer::Shutdown() {
 void AudioOutputMixer::ClosePhysicalStream() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  if (proxies_.empty() && physical_stream_.get() != NULL) {
-    physical_stream_->Stop();
-#if defined(OS_MACOSX)
-  // HACK: workaround for crbug.com/128128.
-  // Mac OS stops the stream asynchronously, even if we asked stop to be
-  // synchronous.
-  base::PlatformThread::Sleep(
-      base::TimeDelta::FromMilliseconds(kMacWorkaroundInMilliseconds));
-#endif
+  if (proxies_.empty() && physical_stream_.get() != NULL)
     physical_stream_.release()->Close();
-  }
 }
 
 // AudioSourceCallback implementation.
