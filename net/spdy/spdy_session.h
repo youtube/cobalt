@@ -19,7 +19,6 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/upload_data_stream.h"
@@ -31,10 +30,6 @@
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
-
-namespace base {
-class Value;
-}
 
 namespace net {
 
@@ -665,60 +660,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // This SPDY proxy is allowed to push resources from origins that are
   // different from those of their associated streams.
   HostPortPair trusted_spdy_proxy_;
-};
-
-class NetLogSpdySynParameter : public NetLog::EventParameters {
- public:
-  NetLogSpdySynParameter(const linked_ptr<SpdyHeaderBlock>& headers,
-                         SpdyControlFlags flags,
-                         SpdyStreamId id,
-                         SpdyStreamId associated_stream);
-
-  virtual base::Value* ToValue() const OVERRIDE;
-
- protected:
-  virtual ~NetLogSpdySynParameter();
-
- private:
-  const linked_ptr<SpdyHeaderBlock> headers_;
-  const SpdyControlFlags flags_;
-  const SpdyStreamId stream_id_;
-  const SpdyStreamId associated_stream_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
-};
-
-class NetLogSpdyCredentialParameter : public NetLog::EventParameters {
- public:
-  NetLogSpdyCredentialParameter(size_t slot, const std::string& origin);
-
-  virtual base::Value* ToValue() const OVERRIDE;
-
- protected:
-  virtual ~NetLogSpdyCredentialParameter();
-
- private:
-  const size_t slot_;
-  const std::string origin_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetLogSpdyCredentialParameter);
-};
-
-class NetLogSpdySessionCloseParameter : public NetLog::EventParameters {
- public:
-  NetLogSpdySessionCloseParameter(int net_error,
-                                  const std::string& description);
-
-  virtual base::Value* ToValue() const  OVERRIDE;
-
- protected:
-  virtual ~NetLogSpdySessionCloseParameter();
-
- private:
-  const int net_error_;
-  const std::string description_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySessionCloseParameter);
 };
 
 }  // namespace net

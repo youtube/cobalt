@@ -370,25 +370,6 @@ class NET_EXPORT_PRIVATE SpdyStream
   DISALLOW_COPY_AND_ASSIGN(SpdyStream);
 };
 
-class NetLogSpdyStreamErrorParameter : public NetLog::EventParameters {
- public:
-  NetLogSpdyStreamErrorParameter(SpdyStreamId stream_id,
-                                 int status,
-                                 const std::string& description);
-
-  SpdyStreamId stream_id() const { return stream_id_; }
-  virtual base::Value* ToValue() const OVERRIDE;
-
- private:
-  virtual ~NetLogSpdyStreamErrorParameter();
-
-  const SpdyStreamId stream_id_;
-  const int status_;
-  const std::string description_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetLogSpdyStreamErrorParameter);
-};
-
 }  // namespace net
 
 #endif  // NET_SPDY_SPDY_STREAM_H_
