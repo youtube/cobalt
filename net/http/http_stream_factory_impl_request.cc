@@ -4,6 +4,7 @@
 
 #include "net/http/http_stream_factory_impl_request.h"
 
+#include "base/callback.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "net/http/http_stream_factory_impl_job.h"
@@ -27,7 +28,7 @@ HttpStreamFactoryImpl::Request::Request(const GURL& url,
   DCHECK(factory_);
   DCHECK(delegate_);
 
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_REQUEST, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_REQUEST);
 }
 
 HttpStreamFactoryImpl::Request::~Request() {
@@ -36,7 +37,7 @@ HttpStreamFactoryImpl::Request::~Request() {
   else
     DCHECK(!jobs_.empty());
 
-  net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_REQUEST, NULL);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_REQUEST);
 
   for (std::set<Job*>::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
     factory_->request_map_.erase(*it);
@@ -87,12 +88,10 @@ void HttpStreamFactoryImpl::Request::Complete(
   using_spdy_ = using_spdy;
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_STREAM_REQUEST_BOUND_TO_JOB,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", job_net_log.source())));
+      job_net_log.source().ToEventParametersCallback());
   job_net_log.AddEvent(
       NetLog::TYPE_HTTP_STREAM_JOB_BOUND_TO_REQUEST,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", net_log_.source())));
+      net_log_.source().ToEventParametersCallback());
 }
 
 void HttpStreamFactoryImpl::Request::OnStreamReady(
