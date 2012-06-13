@@ -2529,9 +2529,11 @@ void SSLClientSocketNSS::Core::UpdateServerCert() {
   nss_handshake_state_.server_cert = X509Certificate::CreateFromDERCertChain(
       nss_handshake_state_.server_cert_chain.AsStringPieceVector());
   if (nss_handshake_state_.server_cert) {
+    // Since this will be called asynchronously on another thread, it needs to
+    // own a reference to the certificate.
     NetLog::ParametersCallback net_log_callback =
         base::Bind(&NetLogX509CertificateCallback,
-                   base::Unretained(nss_handshake_state_.server_cert.get()));
+                   nss_handshake_state_.server_cert);
     PostOrRunCallback(
         FROM_HERE,
         base::Bind(&AddLogEventWithCallback, weak_net_log_,
