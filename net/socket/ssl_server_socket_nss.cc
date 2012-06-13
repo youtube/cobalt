@@ -29,6 +29,7 @@
 
 #include <limits>
 
+#include "base/lazy_instance.h"
 #include "base/memory/ref_counted.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/nss_util_internal.h"
@@ -45,11 +46,42 @@ static const int kRecvBufferSize = 4096;
 
 namespace net {
 
+namespace {
+
+bool g_nss_server_sockets_init = false;
+
+class NSSSSLServerInitSingleton {
+ public:
+  NSSSSLServerInitSingleton() {
+    EnsureNSSSSLInit();
+
+    SSL_ConfigServerSessionIDCache(1024, 5, 5, NULL);
+    g_nss_server_sockets_init = true;
+  }
+
+  ~NSSSSLServerInitSingleton() {
+    SSL_ShutdownServerSessionIDCache();
+    g_nss_server_sockets_init = false;
+  }
+};
+
+static base::LazyInstance<NSSSSLServerInitSingleton>
+    g_nss_ssl_server_init_singleton = LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace
+
+void EnableSSLServerSockets() {
+  g_nss_ssl_server_init_singleton.Get();
+}
+
 SSLServerSocket* CreateSSLServerSocket(
     StreamSocket* socket,
     X509Certificate* cert,
     crypto::RSAPrivateKey* key,
     const SSLConfig& ssl_config) {
+  DCHECK(g_nss_server_sockets_init) << "EnableSSLServerSockets() has not been"
+                                    << "called yet!";
+
   return new SSLServerSocketNSS(socket, cert, key, ssl_config);
 }
 
@@ -332,12 +364,6 @@ int SSLServerSocketNSS::InitializeSSLOptions() {
   rv = SSL_OptionSet(nss_fd_, SSL_REQUIRE_CERTIFICATE, PR_FALSE);
   if (rv != SECSuccess) {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_REQUIRE_CERTIFICATE");
-    return ERR_UNEXPECTED;
-  }
-
-  rv = SSL_ConfigServerSessionIDCache(1024, 5, 5, NULL);
-  if (rv != SECSuccess) {
-    LogFailedNSSFunction(net_log_, "SSL_ConfigureServerSessionIDCache", "");
     return ERR_UNEXPECTED;
   }
 
@@ -771,6 +797,7 @@ int SSLServerSocketNSS::Init() {
   if (!NSS_IsInitialized())
     return ERR_UNEXPECTED;
 
+  EnableSSLServerSockets();
   return OK;
 }
 
