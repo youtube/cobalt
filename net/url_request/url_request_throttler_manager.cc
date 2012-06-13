@@ -83,9 +83,8 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
         IsLocalhost(host)) {
       if (!logged_for_localhost_disabled_ && IsLocalhost(host)) {
         logged_for_localhost_disabled_ = true;
-        net_log_.AddEvent(
-            NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
-            make_scoped_refptr(new NetLogStringParameter("host", host)));
+        net_log_.AddEvent(NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
+                          NetLog::StringCallback("host", &host));
       }
 
       // TODO(joi): Once sliding window is separate from back-off throttling,
@@ -108,9 +107,8 @@ void URLRequestThrottlerManager::AddToOptOutList(const std::string& host) {
   if (opt_out_hosts_.find(host) == opt_out_hosts_.end()) {
     UMA_HISTOGRAM_COUNTS("Throttling.SiteOptedOut", 1);
 
-    net_log_.EndEvent(
-        NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
-        make_scoped_refptr(new NetLogStringParameter("host", host)));
+    net_log_.EndEvent(NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
+                      NetLog::StringCallback("host", &host));
     opt_out_hosts_.insert(host);
   }
 }

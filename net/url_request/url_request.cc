@@ -422,8 +422,9 @@ void URLRequest::BeforeRequestComplete(int error) {
     SetUnblockedOnDelegate();
 
   if (error != OK) {
+    std::string source("delegate");
     net_log_.AddEvent(NetLog::TYPE_CANCELLED,
-        make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
+                      NetLog::StringCallback("source", &source));
     StartJob(new URLRequestErrorJob(this, error));
   } else if (!delegate_redirect_url_.is_empty()) {
     GURL new_url;
@@ -566,10 +567,11 @@ void URLRequest::NotifyReceivedRedirect(const GURL& location,
 }
 
 void URLRequest::NotifyResponseStarted() {
-  scoped_refptr<NetLog::EventParameters> params;
+  int net_error = OK;
   if (!status_.is_success())
-    params = new NetLogIntegerParameter("net_error", status_.error());
-  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_START_JOB, params);
+    net_error = status_.error();
+  net_log_.EndEventWithNetErrorCode(NetLog::TYPE_URL_REQUEST_START_JOB,
+                                    net_error);
 
   URLRequestJob* job =
       URLRequestJobManager::GetInstance()->MaybeInterceptResponse(this);
@@ -633,7 +635,7 @@ void URLRequest::PrepareToRestart() {
 
   // Close the current URL_REQUEST_START_JOB, since we will be starting a new
   // one.
-  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_START_JOB, NULL);
+  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_START_JOB);
 
   OrphanJob();
 
@@ -661,8 +663,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_URL_REQUEST_REDIRECTED,
-        make_scoped_refptr(new NetLogStringParameter(
-            "location", location.possibly_invalid_spec())));
+        NetLog::StringCallback("location", &location.possibly_invalid_spec()));
   }
 
   if (context_ && context_->network_delegate())
@@ -757,7 +758,7 @@ void URLRequest::set_context(const URLRequestContext* context) {
     if (context) {
       net_log_ = BoundNetLog::Make(context->net_log(),
                                    NetLog::SOURCE_URL_REQUEST);
-      net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE, NULL);
+      net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE);
     }
   }
 }
@@ -906,7 +907,7 @@ void URLRequest::NotifyRequestCompleted() {
 
 void URLRequest::SetBlockedOnDelegate() {
   blocked_on_delegate_ = true;
-  net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE);
 }
 
 void URLRequest::SetUnblockedOnDelegate() {
@@ -914,7 +915,7 @@ void URLRequest::SetUnblockedOnDelegate() {
     return;
   blocked_on_delegate_ = false;
   load_state_param_.clear();
-  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE);
 }
 
 void URLRequest::set_stack_trace(const base::debug::StackTrace& stack_trace) {
