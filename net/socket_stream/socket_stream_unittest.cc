@@ -188,6 +188,26 @@ class TestURLRequestContextWithProxy : public TestURLRequestContext {
   virtual ~TestURLRequestContextWithProxy() {}
 };
 
+class TestSocketStreamNetworkDelegate : public TestNetworkDelegate {
+ public:
+  TestSocketStreamNetworkDelegate()
+      : before_connect_result_(net::OK) {}
+  virtual ~TestSocketStreamNetworkDelegate() {}
+
+  virtual int OnBeforeSocketStreamConnect(
+      net::SocketStream* stream,
+      const net::CompletionCallback& callback) OVERRIDE {
+    return before_connect_result_;
+  }
+
+  void SetBeforeConnectResult(int result) {
+    before_connect_result_ = result;
+  }
+
+ private:
+  int before_connect_result_;
+};
+
 }  // namespace
 
 namespace net {
@@ -644,6 +664,34 @@ TEST_F(SocketStreamTest, SecureProxyConnect) {
   EXPECT_EQ(SocketStreamEvent::EVENT_ERROR, events[2].event_type);
   EXPECT_EQ(net::ERR_ABORTED, events[2].error_code);
   EXPECT_EQ(SocketStreamEvent::EVENT_CLOSE, events[3].event_type);
+}
+
+TEST_F(SocketStreamTest, BeforeConnectFailed) {
+  TestCompletionCallback test_callback;
+
+  scoped_ptr<SocketStreamEventRecorder> delegate(
+      new SocketStreamEventRecorder(test_callback.callback()));
+
+  TestURLRequestContext context;
+  TestSocketStreamNetworkDelegate network_delegate;
+  network_delegate.SetBeforeConnectResult(ERR_ACCESS_DENIED);
+  context.set_network_delegate(&network_delegate);
+
+  scoped_refptr<SocketStream> socket_stream(
+      new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
+
+  socket_stream->set_context(&context);
+
+  socket_stream->Connect();
+
+  test_callback.WaitForResult();
+
+  const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
+  ASSERT_EQ(2U, events.size());
+
+  EXPECT_EQ(SocketStreamEvent::EVENT_ERROR, events[0].event_type);
+  EXPECT_EQ(net::ERR_ACCESS_DENIED, events[0].error_code);
+  EXPECT_EQ(SocketStreamEvent::EVENT_CLOSE, events[1].event_type);
 }
 
 }  // namespace net
