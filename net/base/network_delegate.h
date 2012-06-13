@@ -33,6 +33,7 @@ class CookieList;
 class CookieOptions;
 class HttpRequestHeaders;
 class HttpResponseHeaders;
+class SocketStream;
 class URLRequest;
 
 class NetworkDelegate : public base::NonThreadSafe {
@@ -86,6 +87,9 @@ class NetworkDelegate : public base::NonThreadSafe {
   bool CanAccessFile(const URLRequest& request,
                      const FilePath& path) const;
   bool CanThrottleRequest(const URLRequest& request) const;
+
+  int NotifyBeforeSocketStreamConnect(SocketStream* socket,
+                                      const CompletionCallback& callback);
 
  private:
   // This is the interface for subclasses of NetworkDelegate to implement. These
@@ -207,6 +211,10 @@ class NetworkDelegate : public base::NonThreadSafe {
   // URLRequestThrottlerManager believes the server servicing the
   // request is overloaded or down.
   virtual bool OnCanThrottleRequest(const URLRequest& request) const = 0;
+
+  // Called before a SocketStream tries to connect.
+  virtual int OnBeforeSocketStreamConnect(
+      SocketStream* socket, const CompletionCallback& callback) = 0;
 };
 
 }  // namespace net

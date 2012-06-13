@@ -25,6 +25,7 @@
 #include "net/http/http_auth_handler.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/tcp_client_socket.h"
+#include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 
 namespace net {
@@ -231,6 +232,8 @@ class NET_EXPORT SocketStream
 
   enum State {
     STATE_NONE,
+    STATE_BEFORE_CONNECT,
+    STATE_BEFORE_CONNECT_COMPLETE,
     STATE_RESOLVE_PROXY,
     STATE_RESOLVE_PROXY_COMPLETE,
     STATE_RESOLVE_HOST,
@@ -287,6 +290,8 @@ class NET_EXPORT SocketStream
 
   void DoLoop(int result);
 
+  int DoBeforeConnect();
+  int DoBeforeConnectComplete(int result);
   int DoResolveProxy();
   int DoResolveProxyComplete(int result);
   int DoResolveHost();

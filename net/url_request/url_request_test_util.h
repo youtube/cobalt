@@ -246,6 +246,9 @@ class TestNetworkDelegate : public net::NetworkDelegate {
                                const FilePath& path) const OVERRIDE;
   virtual bool OnCanThrottleRequest(
       const net::URLRequest& request) const OVERRIDE;
+  virtual int OnBeforeSocketStreamConnect(
+      net::SocketStream* stream,
+      const net::CompletionCallback& callback) OVERRIDE;
 
   void InitRequestStatesIfNew(int request_id);
 
