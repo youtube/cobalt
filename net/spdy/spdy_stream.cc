@@ -14,51 +14,29 @@
 
 namespace net {
 
-NetLogSpdyStreamErrorParameter::NetLogSpdyStreamErrorParameter(
-    SpdyStreamId stream_id,
-    int status,
-    const std::string& description)
-    : stream_id_(stream_id),
-      status_(status),
-      description_(description) {
-}
+namespace {
 
-NetLogSpdyStreamErrorParameter::~NetLogSpdyStreamErrorParameter() {
-}
-
-Value* NetLogSpdyStreamErrorParameter::ToValue() const {
+Value* NetLogSpdyStreamErrorCallback(SpdyStreamId stream_id,
+                                     int status,
+                                     const std::string* description,
+                                     NetLog::LogLevel /* log_level */) {
   DictionaryValue* dict = new DictionaryValue();
-  dict->SetInteger("stream_id", static_cast<int>(stream_id_));
-  dict->SetInteger("status", status_);
-  dict->SetString("description", description_);
+  dict->SetInteger("stream_id", static_cast<int>(stream_id));
+  dict->SetInteger("status", status);
+  dict->SetString("description", *description);
   return dict;
 }
 
-namespace {
-
-class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
- public:
-  NetLogSpdyStreamWindowUpdateParameter(SpdyStreamId stream_id,
-                                        int32 delta,
-                                        int32 window_size)
-      : stream_id_(stream_id), delta_(delta), window_size_(window_size) {}
-
-  virtual Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetInteger("stream_id", stream_id_);
-    dict->SetInteger("delta", delta_);
-    dict->SetInteger("window_size", window_size_);
-    return dict;
-  }
-
- private:
-  virtual ~NetLogSpdyStreamWindowUpdateParameter() {}
-
-  const SpdyStreamId stream_id_;
-  const int32 delta_;
-  const int32 window_size_;
-  DISALLOW_COPY_AND_ASSIGN(NetLogSpdyStreamWindowUpdateParameter);
-};
+Value* NetLogSpdyStreamWindowUpdateCallback(SpdyStreamId stream_id,
+                                            int32 delta,
+                                            int32 window_size,
+                                            NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("stream_id", stream_id);
+  dict->SetInteger("delta", delta);
+  dict->SetInteger("window_size", window_size);
+  return dict;
+}
 
 bool ContainsUpperAscii(const std::string& str) {
   for (std::string::const_iterator i(str.begin()); i != str.end(); ++i) {
@@ -212,8 +190,8 @@ void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_STREAM_UPDATE_SEND_WINDOW,
-      make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
-          stream_id_, delta_window_size, send_window_size_)));
+      base::Bind(&NetLogSpdyStreamWindowUpdateCallback,
+                 stream_id_, delta_window_size, send_window_size_));
   PossiblyResumeIfStalled();
 }
 
@@ -232,8 +210,8 @@ void SpdyStream::DecreaseSendWindowSize(int32 delta_window_size) {
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_STREAM_UPDATE_SEND_WINDOW,
-      make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
-          stream_id_, -delta_window_size, send_window_size_)));
+      base::Bind(&NetLogSpdyStreamWindowUpdateCallback,
+                 stream_id_, -delta_window_size, send_window_size_));
 }
 
 void SpdyStream::IncreaseRecvWindowSize(int32 delta_window_size) {
@@ -252,8 +230,8 @@ void SpdyStream::IncreaseRecvWindowSize(int32 delta_window_size) {
   recv_window_size_ = new_window_size;
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_STREAM_UPDATE_RECV_WINDOW,
-      make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
-          stream_id_, delta_window_size, recv_window_size_)));
+      base::Bind(&NetLogSpdyStreamWindowUpdateCallback,
+                 stream_id_, delta_window_size, recv_window_size_));
 
   unacked_recv_window_bytes_ += delta_window_size;
   if (unacked_recv_window_bytes_ > session_->initial_recv_window_size() / 2) {
@@ -271,8 +249,8 @@ void SpdyStream::DecreaseRecvWindowSize(int32 delta_window_size) {
   recv_window_size_ -= delta_window_size;
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_STREAM_UPDATE_RECV_WINDOW,
-      make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
-          stream_id_, -delta_window_size, recv_window_size_)));
+      base::Bind(&NetLogSpdyStreamWindowUpdateCallback,
+                 stream_id_, -delta_window_size, recv_window_size_));
 
   // Since we never decrease the initial window size, we should never hit
   // a negative |recv_window_size_|, if we do, it's a client side bug, so we use
@@ -468,10 +446,9 @@ int SpdyStream::GetProtocolVersion() const {
 }
 
 void SpdyStream::LogStreamError(int status, const std::string& description) {
-  net_log_.AddEvent(
-      NetLog::TYPE_SPDY_STREAM_ERROR,
-      make_scoped_refptr(
-          new NetLogSpdyStreamErrorParameter(stream_id_, status, description)));
+  net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_ERROR,
+                    base::Bind(&NetLogSpdyStreamErrorCallback,
+                               stream_id_, status, &description));
 }
 
 void SpdyStream::OnClose(int status) {
