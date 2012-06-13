@@ -6,6 +6,7 @@
 #include "base/callback.h"
 #include "base/callback_helpers.h"
 #include "base/callback_internal.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -143,6 +144,37 @@ TEST_F(CallbackTest, ResetAndReturn) {
   ResetAndReturn(&tfr.cb).Run();
   ASSERT_TRUE(tfr.cb.is_null());
   ASSERT_TRUE(tfr.cb_already_run);
+}
+
+class CallbackOwner : public base::RefCounted<CallbackOwner> {
+ public:
+  CallbackOwner(bool* deleted) {
+    callback_ = Bind(&CallbackOwner::Unused, this);
+    deleted_ = deleted;
+  }
+  void Reset() {
+    callback_.Reset();
+    // We are deleted here if no-one else had a ref to us.
+  }
+
+ private:
+  friend class base::RefCounted<CallbackOwner>;
+  virtual ~CallbackOwner() {
+    *deleted_ = true;
+  }
+  void Unused() {
+    FAIL() << "Should never be called";
+  }
+
+  Closure callback_;
+  bool* deleted_;
+};
+
+TEST_F(CallbackTest, CallbackHasLastRefOnContainingObject) {
+  bool deleted = false;
+  CallbackOwner* owner = new CallbackOwner(&deleted);
+  owner->Reset();
+  ASSERT_TRUE(deleted);
 }
 
 }  // namespace
