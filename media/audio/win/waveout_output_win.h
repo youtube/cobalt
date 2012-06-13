@@ -122,7 +122,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   base::win::ScopedHandle buffer_event_;
 
   // Handle returned by RegisterWaitForSingleObject().
-  base::win::ScopedHandle waiting_handle_;
+  HANDLE waiting_handle_;
 
   // Pointer to the allocated audio buffers, we allocate all buffers in one big
   // chunk. This object owns them.

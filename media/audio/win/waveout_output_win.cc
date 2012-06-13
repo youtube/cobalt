@@ -89,7 +89,8 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       buffer_size_(params.GetBytesPerBuffer()),
       volume_(1),
       channels_(params.channels()),
-      pending_bytes_(0) {
+      pending_bytes_(0),
+      waiting_handle_(NULL) {
   format_.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
   format_.Format.nChannels = params.channels();
   format_.Format.nSamplesPerSec = params.sample_rate();
@@ -186,19 +187,15 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   }
 
   // Start watching for buffer events.
-  {
-    HANDLE waiting_handle = NULL;
-    ::RegisterWaitForSingleObject(&waiting_handle,
-                                  buffer_event_.Get(),
-                                  &BufferCallback,
-                                  this,
-                                  INFINITE,
-                                  WT_EXECUTEDEFAULT);
-    if (!waiting_handle) {
-      HandleError(MMSYSERR_ERROR);
-      return;
-    }
-    waiting_handle_.Set(waiting_handle);
+  if (!::RegisterWaitForSingleObject(&waiting_handle_,
+                                     buffer_event_.Get(),
+                                     &BufferCallback,
+                                     this,
+                                     INFINITE,
+                                     WT_EXECUTEDEFAULT)) {
+    HandleError(MMSYSERR_ERROR);
+    waiting_handle_ = NULL;
+    return;
   }
 
   state_ = PCMA_PLAYING;
@@ -263,14 +260,13 @@ void PCMWaveOutAudioOutputStream::Stop() {
   // TODO(enal): that delays actual stopping of playback. Alternative can be
   //             to call ::waveOutReset() twice, once before
   //             ::UnregisterWaitEx() and once after.
-  HANDLE waiting_handle = waiting_handle_.Take();
-  if (waiting_handle) {
-    BOOL unregister  = ::UnregisterWaitEx(waiting_handle, INVALID_HANDLE_VALUE);
-    if (!unregister) {
+  if (waiting_handle_) {
+    if (!::UnregisterWaitEx(waiting_handle_, INVALID_HANDLE_VALUE)) {
       state_ = PCMA_PLAYING;
       HandleError(MMSYSERR_ERROR);
       return;
     }
+    waiting_handle_ = NULL;
   }
 
   // Stop playback.
