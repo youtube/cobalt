@@ -40,6 +40,8 @@ Value* EventParametersCallback(
 
 Value* SourceEventParametersCallback(const NetLog::Source source,
                                      NetLog::LogLevel /* log_level */) {
+  if (!source.is_valid())
+    return NULL;
   DictionaryValue* event_params = new DictionaryValue();
   source.AddToEventParameters(event_params);
   return event_params;
@@ -56,6 +58,14 @@ Value* NetLogIntegerCallback(const char* name,
 Value* NetLogStringCallback(const char* name,
                             const std::string* value,
                             NetLog::LogLevel /* log_level */) {
+  DictionaryValue* event_params = new DictionaryValue();
+  event_params->SetString(name, *value);
+  return event_params;
+}
+
+Value* NetLogString16Callback(const char* name,
+                              const string16* value,
+                              NetLog::LogLevel /* log_level */) {
   DictionaryValue* event_params = new DictionaryValue();
   event_params->SetString(name, *value);
   return event_params;
@@ -277,6 +287,13 @@ NetLog::ParametersCallback NetLog::StringCallback(const char* name,
                                                   const std::string* value) {
   DCHECK(value);
   return base::Bind(&NetLogStringCallback, name, value);
+}
+
+// static
+NetLog::ParametersCallback NetLog::StringCallback(const char* name,
+                                                  const string16* value) {
+  DCHECK(value);
+  return base::Bind(&NetLogString16Callback, name, value);
 }
 
 void NetLog::OnAddObserver(ThreadSafeObserver* observer, LogLevel log_level) {
