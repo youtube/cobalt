@@ -4,9 +4,8 @@
 
 #include <string>
 
-#include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/path_service.h"
+#include "base/scoped_temp_dir.h"
 #include "sql/connection.h"
 #include "sql/statement.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -51,10 +50,9 @@ class SQLiteFeaturesTest : public testing::Test {
   SQLiteFeaturesTest() : error_handler_(new StatementErrorHandler) {}
 
   void SetUp() {
-    ASSERT_TRUE(PathService::Get(base::DIR_TEMP, &path_));
-    path_ = path_.AppendASCII("SQLStatementTest.db");
-    file_util::Delete(path_, false);
-    ASSERT_TRUE(db_.Open(path_));
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    ASSERT_TRUE(db_.Open(temp_dir_.path().AppendASCII("SQLStatementTest.db")));
+
     // The |error_handler_| will be called if any sqlite statement operation
     // returns an error code.
     db_.set_error_delegate(error_handler_);
@@ -65,9 +63,6 @@ class SQLiteFeaturesTest : public testing::Test {
     // error_handler_->sql_statement().
     EXPECT_EQ(SQLITE_OK, error_handler_->error());
     db_.Close();
-    // If this fails something is going on with cleanup and later tests may
-    // fail, so we want to identify problems right away.
-    ASSERT_TRUE(file_util::Delete(path_, false));
   }
 
   sql::Connection& db() { return db_; }
@@ -76,7 +71,7 @@ class SQLiteFeaturesTest : public testing::Test {
   void reset_error() const { error_handler_->reset_error(); }
 
  private:
-  FilePath path_;
+  ScopedTempDir temp_dir_;
   sql::Connection db_;
   scoped_refptr<StatementErrorHandler> error_handler_;
 };
