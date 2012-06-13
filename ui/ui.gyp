@@ -182,6 +182,7 @@
         'base/keycodes/keyboard_code_conversion_x.cc',
         'base/keycodes/keyboard_code_conversion_x.h',
         'base/keycodes/keyboard_codes.h',
+        'base/keycodes/usb_keycode_map.h',
         'base/l10n/l10n_font_util.cc',
         'base/l10n/l10n_font_util.h',
         'base/l10n/l10n_util.cc',
