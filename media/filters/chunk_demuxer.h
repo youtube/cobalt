@@ -119,6 +119,16 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   bool OnVideoBuffers(const StreamParser::BufferQueue& buffers);
   bool OnKeyNeeded(scoped_array<uint8> init_data, int init_data_size);
 
+  // Helper functions for calculating GetBufferedRanges().
+  bool CopyIntoRanges(
+      const SourceBufferStream::TimespanList& timespans,
+      Ranges* ranges_out) const;
+  void AddIntersectionRange(
+      SourceBufferStream::Timespan timespan_a,
+      SourceBufferStream::Timespan timespan_b,
+      bool last_range_after_ended,
+      Ranges* ranges_out) const;
+
   mutable base::Lock lock_;
   State state_;
 
