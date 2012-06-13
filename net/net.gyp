@@ -1620,6 +1620,7 @@
         'net',
       ],
       'sources': [
+        'tools/gdig/file_net_log.cc',
         'tools/gdig/gdig.cc',
       ],
     },
