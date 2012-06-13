@@ -11,7 +11,6 @@
       'dependencies': [
         'some.gyp:*',
         '../base/base.gyp:*',
-        '../base/base_untrusted.gyp:*',
         '../chrome/chrome.gyp:*',
         '../content/content.gyp:*',
         '../crypto/crypto.gyp:*',
@@ -19,6 +18,7 @@
         '../gpu/gpu.gyp:*',
         '../gpu/tools/tools.gyp:*',
         '../ipc/ipc.gyp:*',
+        '../ipc/ipc_untrusted.gyp:*',
         '../jingle/jingle.gyp:*',
         '../media/media.gyp:*',
         '../net/net.gyp:*',
@@ -174,9 +174,6 @@
       'type': 'none',
       'dependencies': [
         '../base/base.gyp:base_unittests',
-        # TODO(bbudge): drop this when something meaningful depends on
-        # base_untrusted.
-        '../base/base_untrusted.gyp:base_untrusted',
         '../chrome/chrome.gyp:browser_tests',
         '../chrome/chrome.gyp:interactive_ui_tests',
         '../chrome/chrome.gyp:safe_browsing_tests',
@@ -190,6 +187,9 @@
         '../gpu/gpu.gyp:gpu_unittests',
         '../gpu/gles2_conform_support/gles2_conform_support.gyp:gles2_conform_support',
         '../ipc/ipc.gyp:ipc_tests',
+        # TODO(bbudge): drop this when something meaningful depends on
+        # ipc_untrusted.
+        '../ipc/ipc_untrusted.gyp:ipc_untrusted',
         '../jingle/jingle.gyp:jingle_unittests',
         '../media/media.gyp:media_unittests',
         '../net/net.gyp:net_unittests',
