@@ -287,16 +287,16 @@ void LogFinishRequest(const BoundNetLog& source_net_log,
                       int net_error) {
   request_net_log.EndEventWithNetErrorCode(
       NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST, net_error);
-  source_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL, NULL);
+  source_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL);
 }
 
 // Logs when a request has been cancelled.
 void LogCancelRequest(const BoundNetLog& source_net_log,
                       const BoundNetLog& request_net_log,
                       const HostResolverImpl::RequestInfo& info) {
-  request_net_log.AddEvent(NetLog::TYPE_CANCELLED, NULL);
-  request_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST, NULL);
-  source_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL, NULL);
+  request_net_log.AddEvent(NetLog::TYPE_CANCELLED);
+  request_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST);
+  source_net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL);
 }
 
 //-----------------------------------------------------------------------------
@@ -538,7 +538,7 @@ class HostResolverImpl::ProcTask
 
   void Start() {
     DCHECK(origin_loop_->BelongsToCurrentThread());
-    net_log_.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK);
     StartLookupAttempt();
   }
 
@@ -552,7 +552,7 @@ class HostResolverImpl::ProcTask
       return;
 
     callback_.Reset();
-    net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK, NULL);
+    net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK);
   }
 
   void set_had_non_speculative_request() {
@@ -995,7 +995,7 @@ class HostResolverImpl::DnsTask {
   }
 
   int Start() {
-    net_log_.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_DNS_TASK, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_DNS_TASK);
     return transaction_->Start();
   }
 
@@ -1058,7 +1058,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
         had_dns_config_(false),
         net_log_(BoundNetLog::Make(request_net_log.net_log(),
                                    NetLog::SOURCE_HOST_RESOLVER_IMPL_JOB)) {
-    request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CREATE_JOB, NULL);
+    request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CREATE_JOB);
 
     net_log_.BeginEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
@@ -1082,8 +1082,8 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     } else if (is_queued()) {
       // |resolver_| was destroyed without running this Job.
       // TODO(szym): is there any benefit in having this distinction?
-      net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
-      net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB, NULL);
+      net_log_.AddEvent(NetLog::TYPE_CANCELLED);
+      net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB);
     }
     // else CompleteRequests logged EndEvent.
 
@@ -1176,7 +1176,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     DCHECK(is_queued());
     handle_.Reset();
 
-    net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_EVICTED, NULL);
+    net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_EVICTED);
 
     // This signals to CompleteRequests that this job never ran.
     CompleteRequests(ERR_HOST_RESOLVER_QUEUE_TOO_LARGE,
@@ -1217,7 +1217,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     DCHECK(!is_running());
     handle_.Reset();
 
-    net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_STARTED, NULL);
+    net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_STARTED);
 
     had_dns_config_ = resolver_->HaveDnsConfig();
     // Job::Start must not complete synchronously.
@@ -1340,7 +1340,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     }
 
     if (num_active_requests() == 0) {
-      net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
+      net_log_.AddEvent(NetLog::TYPE_CANCELLED);
       net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
                                         OK);
       return;
@@ -1587,13 +1587,13 @@ int HostResolverImpl::ResolveHelper(const Key& key,
   if (ResolveAsIP(key, info, &net_error, addresses))
     return net_error;
   if (ServeFromCache(key, info, &net_error, addresses)) {
-    request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CACHE_HIT, NULL);
+    request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CACHE_HIT);
     return net_error;
   }
   // TODO(szym): Do not do this if nsswitch.conf instructs not to.
   // http://crbug.com/117655
   if (ServeFromHosts(key, info, addresses)) {
-    request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_HOSTS_HIT, NULL);
+    request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_HOSTS_HIT);
     return OK;
   }
   return ERR_DNS_CACHE_MISS;
