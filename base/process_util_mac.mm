@@ -878,6 +878,10 @@ void EnableTerminationOnOutOfMemory() {
         !g_old_valloc_purgeable && !g_old_realloc_purgeable &&
         !g_old_memalign_purgeable) << "Old allocators unexpectedly non-null";
 
+#if !defined(ADDRESS_SANITIZER)
+  // Don't do anything special on OOM for the malloc zones replaced by
+  // AddressSanitizer, as modifying or protecting them may not work correctly.
+
   // See http://trac.webkit.org/changeset/53362/trunk/Tools/DumpRenderTree/mac
   bool zone_allocators_protected = base::mac::IsOSLionOrLater();
 
@@ -886,9 +890,6 @@ void EnableTerminationOnOutOfMemory() {
   ChromeMallocZone* purgeable_zone =
       reinterpret_cast<ChromeMallocZone*>(GetPurgeableZone());
 
-#ifndef ADDRESS_SANITIZER
-  // Don't do anything special on OOM for the malloc zones replaced by
-  // AddressSanitizer, as modifying or protecting them may not work correctly.
   vm_address_t page_start_default = 0;
   vm_address_t page_start_purgeable = 0;
   vm_size_t len_default = 0;
