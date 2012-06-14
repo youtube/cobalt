@@ -239,22 +239,19 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
 
   virtual void WaitingForThread() OVERRIDE {
     was_waiting_for_thread_ = true;
-    net_log_.BeginEvent(
-        NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD);
   }
 
   virtual void FinishedWaitingForThread() OVERRIDE {
     DCHECK(executor());
 
     if (was_waiting_for_thread_) {
-      net_log_.EndEvent(
-          NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD, NULL);
+      net_log_.EndEvent(NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD);
     }
 
     net_log_.AddEvent(
         NetLog::TYPE_SUBMITTED_TO_RESOLVER_THREAD,
-        make_scoped_refptr(new NetLogIntegerParameter(
-            "thread_number", executor()->thread_number())));
+        NetLog::IntegerCallback("thread_number", executor()->thread_number()));
   }
 
   // Runs on the worker thread.
