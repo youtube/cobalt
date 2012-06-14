@@ -11,6 +11,7 @@
 #include "net/base/net_util.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
+#include "net/socket/socket_net_log_params.h"
 #include "net/socket/tcp_client_socket.h"
 
 namespace net {
@@ -21,16 +22,14 @@ TCPServerSocketWin::TCPServerSocketWin(net::NetLog* net_log,
       socket_event_(WSA_INVALID_EVENT),
       accept_socket_(NULL),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (source.is_valid())
-    params = new NetLogSourceParameter("source_dependency", source);
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
   EnsureWinsockInit();
 }
 
 TCPServerSocketWin::~TCPServerSocketWin() {
   Close();
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
 int TCPServerSocketWin::Listen(const IPEndPoint& address, int backlog) {
@@ -100,7 +99,7 @@ int TCPServerSocketWin::Accept(
   DCHECK(!callback.is_null());
   DCHECK(accept_callback_.is_null());
 
-  net_log_.BeginEvent(NetLog::TYPE_TCP_ACCEPT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_TCP_ACCEPT);
 
   int result = AcceptInternal(socket);
 
@@ -146,8 +145,7 @@ int TCPServerSocketWin::AcceptInternal(scoped_ptr<StreamSocket>* socket) {
   }
   socket->reset(tcp_socket.release());
   net_log_.EndEvent(NetLog::TYPE_TCP_ACCEPT,
-                    make_scoped_refptr(new NetLogStringParameter(
-                        "address", address.ToString())));
+                    CreateNetLogIPEndPointCallback(&address));
   return OK;
 }
 
