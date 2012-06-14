@@ -153,7 +153,6 @@ v8.log
 /third_party/jsoncpp/source
 /third_party/leveldatabase/src
 /third_party/leveldb
-/third_party/libexif/sources
 /third_party/libjingle/source
 /third_party/libjpeg_turbo
 /third_party/libphonenumber/libphonenumber.xml
