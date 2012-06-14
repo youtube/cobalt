@@ -50,47 +50,13 @@ bool IsIPLiteral(const std::string& hostname) {
   return ParseIPLiteralToNumber(hostname, &ip);
 }
 
-class StartParameters : public NetLog::EventParameters {
- public:
-  StartParameters(const std::string& hostname,
-                  uint16 qtype)
-      : hostname_(hostname), qtype_(qtype) {}
-
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("hostname", hostname_);
-    dict->SetInteger("query_type", qtype_);
-    return dict;
-  }
-
- protected:
-  virtual ~StartParameters() {}
-
- private:
-  const std::string hostname_;
-  const uint16 qtype_;
-};
-
-class ResponseParameters : public NetLog::EventParameters {
- public:
-  ResponseParameters(int rcode, int answer_count, const NetLog::Source& source)
-      : rcode_(rcode), answer_count_(answer_count), source_(source) {}
-
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetInteger("rcode", rcode_);
-    dict->SetInteger("answer_count", answer_count_);
-    dict->Set("source_dependency", source_.ToValue());
-    return dict;
-  }
-
- protected:
-  virtual ~ResponseParameters() {}
-
- private:
-  const int rcode_;
-  const int answer_count_;
-  const NetLog::Source source_;
+Value* NetLogStartCallback(const std::string* hostname,
+                           uint16 qtype,
+                           NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString("hostname", *hostname);
+  dict->SetInteger("query_type", qtype);
+  return dict;
 };
 
 // ----------------------------------------------------------------------------
@@ -132,6 +98,19 @@ class DnsUDPAttempt {
   const DnsResponse* response() const {
     const DnsResponse* resp = response_.get();
     return (resp != NULL && resp->IsValid()) ? resp : NULL;
+  }
+
+  // Returns a Value representing the received response, along with a reference
+  // to the NetLog source source of the UDP socket used.  The request must have
+  // completed before this is called.
+  Value* NetLogResponseCallback(NetLog::LogLevel /* log_level */) const {
+    DCHECK(response_->IsValid());
+
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetInteger("rcode", response_->rcode());
+    dict->SetInteger("answer_count", response_->answer_count());
+    socket_->NetLog().source().AddToEventParameters(dict);
+    return dict;
   }
 
  private:
@@ -304,8 +283,8 @@ class DnsTransactionImpl : public DnsTransaction,
   virtual int Start() OVERRIDE {
     DCHECK(!callback_.is_null());
     DCHECK(attempts_.empty());
-    net_log_.BeginEvent(NetLog::TYPE_DNS_TRANSACTION, make_scoped_refptr(
-        new StartParameters(hostname_, qtype_)));
+    net_log_.BeginEvent(NetLog::TYPE_DNS_TRANSACTION,
+                        base::Bind(&NetLogStartCallback, &hostname_, qtype_));
     int rv = PrepareSearch();
     if (rv == OK) {
       AttemptResult result = FinishAttempt(StartQuery());
@@ -428,9 +407,8 @@ class DnsTransactionImpl : public DnsTransaction,
       query.reset(attempts_[0]->query()->CloneWithNewId(id));
     }
 
-    net_log_.AddEvent(NetLog::TYPE_DNS_TRANSACTION_ATTEMPT, make_scoped_refptr(
-        new NetLogSourceParameter("source_dependency",
-                                  socket->NetLog().source())));
+    net_log_.AddEvent(NetLog::TYPE_DNS_TRANSACTION_ATTEMPT,
+                      socket->NetLog().source().ToEventParametersCallback());
 
     const DnsConfig& config = session_->config();
 
@@ -459,9 +437,8 @@ class DnsTransactionImpl : public DnsTransaction,
   // Begins query for the current name. Makes the first attempt.
   AttemptResult StartQuery() {
     std::string dotted_qname = DNSDomainToString(qnames_.front());
-    net_log_.BeginEvent(
-        NetLog::TYPE_DNS_TRANSACTION_QUERY,
-        make_scoped_refptr(new NetLogStringParameter("qname", dotted_qname)));
+    net_log_.BeginEvent(NetLog::TYPE_DNS_TRANSACTION_QUERY,
+                        NetLog::StringCallback("qname", &dotted_qname));
 
     first_server_index_ = session_->NextFirstServerIndex();
 
@@ -483,10 +460,8 @@ class DnsTransactionImpl : public DnsTransaction,
     if (attempt && attempt->response()) {
       net_log_.AddEvent(
           NetLog::TYPE_DNS_TRANSACTION_RESPONSE,
-          make_scoped_refptr(
-              new ResponseParameters(attempt->response()->rcode(),
-                                     attempt->response()->answer_count(),
-                                     attempt->socket()->NetLog().source())));
+          base::Bind(&DnsUDPAttempt::NetLogResponseCallback,
+                     base::Unretained(attempt)));
     }
   }
 
