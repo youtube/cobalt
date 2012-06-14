@@ -177,7 +177,7 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
   }
 
   void DoSync(SpdyWebSocketStreamEvent* event) {
-    sync_callback_.SetResult(OK);
+    sync_callback_.callback().Run(OK);
   }
 
  protected:
