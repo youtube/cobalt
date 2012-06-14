@@ -16,6 +16,8 @@
 
 namespace net {
 
+class SerialWorker;
+
 // Use DnsConfigService::CreateSystemService to use it outside of tests.
 namespace internal {
 
