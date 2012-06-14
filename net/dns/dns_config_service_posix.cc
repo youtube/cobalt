@@ -13,6 +13,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
+#include "net/dns/dns_hosts.h"
 #include "net/dns/serial_worker.h"
 
 namespace net {
@@ -31,8 +32,7 @@ class ConfigReader : public SerialWorker {
  public:
   typedef base::Callback<void(const DnsConfig& config)> CallbackType;
   explicit ConfigReader(const CallbackType& callback)
-      : callback_(callback),
-        success_(false) {}
+      : callback_(callback), success_(false) {}
 
   void DoWork() OVERRIDE {
     success_ = false;
@@ -42,38 +42,72 @@ class ConfigReader : public SerialWorker {
     // Note: res_ninit in glibc always returns 0 and sets RES_INIT.
     // res_init behaves the same way.
     memset(&_res, 0, sizeof(_res));
-    if ((res_init() == 0) && (_res.options & RES_INIT)) {
+    if ((res_init() == 0) && (_res.options & RES_INIT))
       success_ = internal::ConvertResStateToDnsConfig(_res, &dns_config_);
-    }
 #else  // all other OS_POSIX
     struct __res_state res;
     memset(&res, 0, sizeof(res));
-    if ((res_ninit(&res) == 0) && (res.options & RES_INIT)) {
+    if ((res_ninit(&res) == 0) && (res.options & RES_INIT))
       success_ = internal::ConvertResStateToDnsConfig(res, &dns_config_);
-    }
+
     // Prefer res_ndestroy where available.
 #if defined(OS_MACOSX) || defined(OS_FREEBSD)
     res_ndestroy(&res);
 #else
     res_nclose(&res);
 #endif
-
 #endif
   }
 
   void OnWorkFinished() OVERRIDE {
     DCHECK(!IsCancelled());
-    if (success_)
+    if (success_) {
       callback_.Run(dns_config_);
+    } else {
+      LOG(WARNING) << "Failed to read DnsConfig.";
+    }
   }
 
  private:
   virtual ~ConfigReader() {}
 
-  CallbackType callback_;
+  const CallbackType callback_;
   // Written in DoWork, read in OnWorkFinished, no locking necessary.
   DnsConfig dns_config_;
   bool success_;
+
+  DISALLOW_COPY_AND_ASSIGN(ConfigReader);
+};
+
+// A SerialWorker that reads the HOSTS file and runs Callback.
+class HostsReader : public SerialWorker {
+ public:
+  typedef base::Callback<void(const DnsHosts& hosts)> CallbackType;
+  explicit HostsReader(const CallbackType& callback)
+      : path_(kFilePathHosts), callback_(callback), success_(false) {}
+
+ private:
+  virtual ~HostsReader() {}
+
+  virtual void DoWork() OVERRIDE {
+    success_ = ParseHostsFile(path_, &hosts_);
+  }
+
+  virtual void OnWorkFinished() OVERRIDE {
+    if (success_) {
+      callback_.Run(hosts_);
+    } else {
+      LOG(WARNING) << "Failed to read DnsHosts.";
+    }
+  }
+
+  const FilePath path_;
+  const CallbackType callback_;
+  // Written in DoWork, read in OnWorkFinished, no locking necessary.
+  DnsHosts hosts_;
+  bool success_;
+
+  DISALLOW_COPY_AND_ASSIGN(HostsReader);
 };
 
 }  // namespace
@@ -84,8 +118,7 @@ DnsConfigServicePosix::DnsConfigServicePosix() {
   config_reader_ = new ConfigReader(
       base::Bind(&DnsConfigServicePosix::OnConfigRead,
                  base::Unretained(this)));
-  hosts_reader_ = new DnsHostsReader(
-      FilePath(kFilePathHosts),
+  hosts_reader_ = new HostsReader(
       base::Bind(&DnsConfigServicePosix::OnHostsRead,
                  base::Unretained(this)));
 }

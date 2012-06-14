@@ -47,19 +47,6 @@ void ParseHosts(const std::string& contents, DnsHosts* dns_hosts) {
   }
 }
 
-DnsHostsReader::DnsHostsReader(const FilePath& path,
-                               const CallbackType& callback)
-    : path_(path),
-      callback_(callback),
-      success_(false) {
-  DCHECK(!callback.is_null());
-}
-
-DnsHostsReader::DnsHostsReader(const FilePath& path)
-    : path_(path),
-      success_(false) {
-}
-
 // Reads the contents of the file at |path| into |str| if the total length is
 // less than |max_size|.
 static bool ReadFile(const FilePath& path, int64 max_size, std::string* str) {
@@ -69,31 +56,20 @@ static bool ReadFile(const FilePath& path, int64 max_size, std::string* str) {
   return file_util::ReadFileToString(path, str);
 }
 
-void DnsHostsReader::DoWork() {
-  success_ = false;
-  dns_hosts_.clear();
-
+bool ParseHostsFile(const FilePath& path, DnsHosts* dns_hosts) {
+  dns_hosts->clear();
   // Missing file indicates empty HOSTS.
-  if (!file_util::PathExists(path_)) {
-    success_ = true;
-    return;
-  }
+  if (!file_util::PathExists(path))
+    return true;
 
   std::string contents;
   const int64 kMaxHostsSize = 1 << 16;
-  if (ReadFile(path_, kMaxHostsSize, &contents)) {
-    success_ = true;
-    ParseHosts(contents, &dns_hosts_);
-  }
-}
+  if (!ReadFile(path, kMaxHostsSize, &contents))
+    return false;
 
-void DnsHostsReader::OnWorkFinished() {
-  DCHECK(!IsCancelled());
-  if (success_)
-    callback_.Run(dns_hosts_);
+  ParseHosts(contents, dns_hosts);
+  return true;
 }
-
-DnsHostsReader::~DnsHostsReader() {}
 
 }  // namespace net
 
