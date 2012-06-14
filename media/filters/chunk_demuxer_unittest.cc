@@ -338,7 +338,8 @@ class ChunkDemuxerTest : public testing::Test {
     return GenerateCluster(timecode, timecode, block_count);
   }
 
-  scoped_ptr<Cluster> GenerateCluster(int audio_timecode, int video_timecode,
+  scoped_ptr<Cluster> GenerateCluster(int first_audio_timecode,
+                                      int first_video_timecode,
                                       int block_count) {
     CHECK_GT(block_count, 0);
 
@@ -346,13 +347,17 @@ class ChunkDemuxerTest : public testing::Test {
     scoped_array<uint8> data(new uint8[size]);
 
     ClusterBuilder cb;
-    cb.SetClusterTimecode(std::min(audio_timecode, video_timecode));
+    cb.SetClusterTimecode(std::min(first_audio_timecode, first_video_timecode));
 
     if (block_count == 1) {
-      cb.AddBlockGroup(kAudioTrackNum, audio_timecode, kAudioBlockDuration,
-                       kWebMFlagKeyframe, data.get(), size);
+      cb.AddBlockGroup(kAudioTrackNum, first_audio_timecode,
+                       kAudioBlockDuration, kWebMFlagKeyframe,
+                       data.get(), size);
       return cb.Finish();
     }
+
+    int audio_timecode = first_audio_timecode;
+    int video_timecode = first_video_timecode;
 
     // Create simple blocks for everything except the last 2 blocks.
     // The first video frame must be a keyframe.
@@ -417,14 +422,22 @@ class ChunkDemuxerTest : public testing::Test {
   void GenerateExpectedReads(int timecode, int block_count,
                              DemuxerStream* audio,
                              DemuxerStream* video) {
+    GenerateExpectedReads(timecode, timecode, block_count, audio, video);
+  }
+
+  void GenerateExpectedReads(int start_audio_timecode,
+                             int start_video_timecode,
+                             int block_count, DemuxerStream* audio,
+                             DemuxerStream* video) {
     CHECK_GT(block_count, 0);
-    int audio_timecode = timecode;
-    int video_timecode = timecode;
 
     if (block_count == 1) {
-      ExpectRead(audio, audio_timecode);
+      ExpectRead(audio, start_audio_timecode);
       return;
     }
+
+    int audio_timecode = start_audio_timecode;
+    int video_timecode = start_video_timecode;
 
     for (int i = 0; i < block_count; i++) {
       if (audio_timecode <= video_timecode) {
@@ -1577,6 +1590,36 @@ TEST_F(ChunkDemuxerTest, GetBufferedRanges_EndOfStream) {
 
   demuxer_->EndOfStream(PIPELINE_OK);
   CheckExpectedRanges(expected);
+}
+
+TEST_F(ChunkDemuxerTest, TestDifferentStreamTimecodes) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  demuxer_->Seek(base::TimeDelta::FromSeconds(0),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  // Create a cluster where the video timecode begins 25ms after the audio.
+  scoped_ptr<Cluster> start_cluster(
+      GenerateCluster(0, 25, 8));
+
+  ASSERT_TRUE(AppendData(start_cluster->data(), start_cluster->size()));
+  GenerateExpectedReads(0, 25, 8, audio, video);
+
+  // Seek to 5 seconds.
+  demuxer_->StartWaitingForSeek();
+  demuxer_->Seek(base::TimeDelta::FromSeconds(5),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  // Generate a cluster to fulfill this seek, where audio timecode begins 25ms
+  // after the video.
+  scoped_ptr<Cluster> middle_cluster(GenerateCluster(5025, 5000, 8));
+  ASSERT_TRUE(AppendData(middle_cluster->data(), middle_cluster->size()));
+  GenerateExpectedReads(5025, 5000, 8, audio, video);
 }
 
 }  // namespace media

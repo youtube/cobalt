@@ -20,7 +20,10 @@ class SourceBufferRange {
 
   // Creates a source buffer range with |new_buffers|. |new_buffers| cannot be
   // empty and the front of |new_buffers| must be a keyframe.
-  explicit SourceBufferRange(const BufferQueue& new_buffers);
+  // |media_segment_start_time| refers to the starting timestamp for the media
+  // segment to which these buffers belong.
+  SourceBufferRange(const BufferQueue& new_buffers,
+                    base::TimeDelta media_segment_start_time);
 
   // Appends |buffers| to the end of the range and updates |keyframe_map_| as
   // it encounters new keyframes. Assumes |buffers| belongs at the end of the
@@ -138,6 +141,16 @@ class SourceBufferRange {
   // keyframe with timestamp >= |next_keyframe_timestamp_|.
   base::TimeDelta next_keyframe_timestamp_;
 
+  // If the first buffer in this range is the beginning of a media segment,
+  // |media_segment_start_time_| is the time when the media segment begins.
+  // |media_segment_start_time_| may be <= the timestamp of the first buffer in
+  // |buffers_|. |media_segment_start_time_| is kNoTimestamp() if this range
+  // does not start at the beginning of a media segment, which can only happen
+  // garbage collection or after an end overlap that results in a split range
+  // (we don't have a way of knowing the media segment timestamp for the new
+  // range).
+  base::TimeDelta media_segment_start_time_;
+
   DISALLOW_COPY_AND_ASSIGN(SourceBufferRange);
 };
 
@@ -188,14 +201,14 @@ static bool IsNextInSequence(
 namespace media {
 
 SourceBufferStream::SourceBufferStream()
-    : seek_pending_(true),
+    : seek_pending_(false),
       seek_buffer_timestamp_(base::TimeDelta()),
       selected_range_(NULL),
       end_of_stream_(false) {
 }
 
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
-    : seek_pending_(true),
+    : seek_pending_(false),
       seek_buffer_timestamp_(base::TimeDelta()),
       selected_range_(NULL),
       end_of_stream_(false) {
@@ -203,7 +216,7 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
 }
 
 SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config)
-    : seek_pending_(true),
+    : seek_pending_(false),
       seek_buffer_timestamp_(base::TimeDelta()),
       selected_range_(NULL),
       end_of_stream_(false) {
@@ -218,8 +231,10 @@ SourceBufferStream::~SourceBufferStream() {
 }
 
 bool SourceBufferStream::Append(
-    const SourceBufferStream::BufferQueue& buffers) {
+    const SourceBufferStream::BufferQueue& buffers,
+    base::TimeDelta media_segment_start_time) {
   DCHECK(!buffers.empty());
+  DCHECK(media_segment_start_time != kNoTimestamp());
 
   RangeList::iterator range_for_new_buffers = ranges_.end();
   RangeList::iterator itr = ranges_.end();
@@ -244,7 +259,8 @@ bool SourceBufferStream::Append(
     if (!buffers.front()->IsKeyframe())
       return false;
     range_for_new_buffers =
-        ranges_.insert(itr, new SourceBufferRange(buffers));
+        ranges_.insert(itr, new SourceBufferRange(
+            buffers, media_segment_start_time));
   } else {
     InsertIntoExistingRange(range_for_new_buffers, buffers);
   }
@@ -253,6 +269,14 @@ bool SourceBufferStream::Append(
   ResolveCompleteOverlaps(range_for_new_buffers);
   ResolveEndOverlap(range_for_new_buffers);
   MergeWithAdjacentRangeIfNecessary(range_for_new_buffers);
+
+  // If these were the first buffers appended to the stream, seek to the
+  // beginning of the range.
+  // TODO(vrk): This should be done by ChunkDemuxer. (crbug.com/132815)
+  if (!seek_pending_ && !selected_range_) {
+    selected_range_ = *range_for_new_buffers;
+    selected_range_->Seek(start_timestamp);
+  }
 
   // Finally, try to complete pending seek if one exists.
   if (seek_pending_)
@@ -497,10 +521,12 @@ bool SourceBufferStream::CanEndOfStream() const {
   return ranges_.empty() || selected_range_ == ranges_.back();
 }
 
-SourceBufferRange::SourceBufferRange(const BufferQueue& new_buffers)
+SourceBufferRange::SourceBufferRange(const BufferQueue& new_buffers,
+                                     base::TimeDelta media_segment_start_time)
     : next_buffer_index_(-1),
       waiting_for_keyframe_(false),
-      next_keyframe_timestamp_(kNoTimestamp()) {
+      next_keyframe_timestamp_(kNoTimestamp()),
+      media_segment_start_time_(media_segment_start_time) {
   DCHECK(!new_buffers.empty());
   DCHECK(new_buffers.front()->IsKeyframe());
   AppendToEnd(new_buffers);
@@ -537,8 +563,8 @@ void SourceBufferRange::Seek(base::TimeDelta timestamp) {
   // lower_bound() returns the first element >= |timestamp|, so we want the
   // previous element if it did not return the element exactly equal to
   // |timestamp|.
-  if (result == keyframe_map_.end() || result->first != timestamp) {
-    DCHECK(result != keyframe_map_.begin());
+  if (result != keyframe_map_.begin() &&
+      (result == keyframe_map_.end() || result->first != timestamp)) {
     result--;
   }
   next_buffer_index_ = result->second;
@@ -582,7 +608,8 @@ SourceBufferRange* SourceBufferRange::SplitRange(base::TimeDelta timestamp) {
   DeleteAfter(
       buffers_.begin() + keyframe_index, &removed_buffers, &next_buffer);
 
-  SourceBufferRange* split_range = new SourceBufferRange(removed_buffers);
+  SourceBufferRange* split_range =
+      new SourceBufferRange(removed_buffers, kNoTimestamp());
   if (next_buffer != removed_buffers.end()) {
     split_range->next_buffer_index_ = next_buffer - removed_buffers.begin();
   }
@@ -734,7 +761,10 @@ bool SourceBufferRange::EndOverlaps(const SourceBufferRange& range) const {
 
 base::TimeDelta SourceBufferRange::GetStartTimestamp() const {
   DCHECK(!buffers_.empty());
-  return buffers_.front()->GetTimestamp();
+  base::TimeDelta start_timestamp = media_segment_start_time_;
+  if (start_timestamp == kNoTimestamp())
+    start_timestamp = buffers_.front()->GetTimestamp();
+  return start_timestamp;
 }
 
 base::TimeDelta SourceBufferRange::GetEndTimestamp() const {

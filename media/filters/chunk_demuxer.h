@@ -118,6 +118,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   bool OnAudioBuffers(const StreamParser::BufferQueue& buffers);
   bool OnVideoBuffers(const StreamParser::BufferQueue& buffers);
   bool OnKeyNeeded(scoped_array<uint8> init_data, int init_data_size);
+  void OnNewMediaSegment(const std::string& source_id,
+                         base::TimeDelta start_timestamp);
 
   // Helper functions for calculating GetBufferedRanges().
   bool CopyIntoRanges(
