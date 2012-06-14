@@ -171,7 +171,7 @@ Value* NetLogSpdyGoAwayCallback(SpdyStreamId last_stream_id,
 }
 
 NextProto g_default_protocol = kProtoUnknown;
-size_t g_init_max_concurrent_streams = 10;
+size_t g_init_max_concurrent_streams = 100;
 size_t g_max_concurrent_stream_limit = 256;
 size_t g_default_initial_rcv_window_size = 10 * 1024 * 1024;  // 10MB
 bool g_enable_ping_based_connection_checking = true;
