@@ -551,6 +551,34 @@ class URLRequestTestHTTP : public URLRequestTest {
                         strlen(expected_data)));
   }
 
+  bool DoManyCookiesRequest(int num_cookies){
+    TestDelegate d;
+    URLRequest r(test_server_.GetURL("set-many-cookies?" +
+                                     base::IntToString(num_cookies)),
+                                     &d);
+    r.set_context(&default_context_);
+
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    bool is_success = r.status().is_success();
+
+    if (!is_success){
+      // Requests handled by ChromeFrame send a less precise error message,
+      // ERR_CONNECTION_ABORTED.
+      EXPECT_TRUE(r.status().error() == ERR_RESPONSE_HEADERS_TOO_BIG ||
+                  r.status().error() == ERR_CONNECTION_ABORTED);
+      // The test server appears to be unable to handle subsequent requests
+      // after this error is triggered. Force it to restart.
+      EXPECT_TRUE(test_server_.Stop());
+      EXPECT_TRUE(test_server_.Start());
+    }
+
+    return is_success;
+  }
+
   LocalHttpTestServer test_server_;
 };
 
@@ -1173,6 +1201,42 @@ TEST_F(URLRequestTestHTTP, GetTest_NoCache) {
 
     // TODO(eroman): Add back the NetLog tests...
   }
+}
+
+// This test has the server send a large number of cookies to the client.
+// To ensure that no number of cookies causes a crash, a galloping binary
+// search is used to estimate that maximum number of cookies that are accepted
+// by the browser. Beyond the maximum number, the request will fail with
+// ERR_RESPONSE_HEADERS_TOO_BIG.
+TEST_F(URLRequestTestHTTP, GetTest_ManyCookies) {
+  ASSERT_TRUE(test_server_.Start());
+
+  int lower_bound = 0;
+  int upper_bound = 1;
+
+  // Double the number of cookies until the response header limits are
+  // exceeded.
+  while (DoManyCookiesRequest(upper_bound)) {
+    lower_bound = upper_bound;
+    upper_bound *= 2;
+    ASSERT_LT(upper_bound, 1000000);
+  }
+
+  int tolerance = upper_bound * 0.005;
+  if (tolerance < 2)
+    tolerance = 2;
+
+  // Perform a binary search to find the highest possible number of cookies,
+  // within the desired tolerance.
+  while (upper_bound - lower_bound >= tolerance) {
+    int num_cookies = (lower_bound + upper_bound) / 2;
+
+    if (DoManyCookiesRequest(num_cookies))
+      lower_bound = num_cookies;
+    else
+      upper_bound = num_cookies;
+  }
+  // Success: the test did not crash.
 }
 
 TEST_F(URLRequestTestHTTP, GetTest) {

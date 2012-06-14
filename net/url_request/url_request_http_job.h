@@ -139,6 +139,8 @@ class URLRequestHttpJob : public URLRequestJob {
     FINISHED
   };
 
+  typedef base::RefCountedData<bool> SharedBoolean;
+
   class HttpFilterContext;
 
   virtual ~URLRequestHttpJob();
@@ -167,8 +169,12 @@ class URLRequestHttpJob : public URLRequestJob {
       const std::string& cookie_line,
       const std::vector<CookieStore::CookieInfo>& cookie_infos);
   void DoStartTransaction();
-  void OnCookieSaved(bool cookie_status);
-  void CookieHandled();
+
+  // See the implementation for a description of save_next_cookie_running and
+  // callback_pending.
+  void OnCookieSaved(scoped_refptr<SharedBoolean> save_next_cookie_running,
+                     scoped_refptr<SharedBoolean> callback_pending,
+                     bool cookie_status);
 
   // Some servers send the body compressed, but specify the content length as
   // the uncompressed size. If this is the case, we return true in order
