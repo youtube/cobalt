@@ -12,13 +12,14 @@
 #include "media/base/video_decoder.h"
 #include "media/crypto/aes_decryptor.h"
 
-class DecoderBuffer;
 class MessageLoop;
 
 struct AVCodecContext;
 struct AVFrame;
 
 namespace media {
+
+class DecoderBuffer;
 
 class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
  public:
