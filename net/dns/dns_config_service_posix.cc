@@ -14,6 +14,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
 #include "net/dns/dns_hosts.h"
+#include "net/dns/dns_protocol.h"
 #include "net/dns/serial_worker.h"
 
 namespace net {
@@ -201,8 +202,8 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
   for (int i = 0; i < res.nscount; ++i) {
     IPEndPoint ipe;
     if (!ipe.FromSockAddr(
-        reinterpret_cast<const struct sockaddr*>(&res.nsaddr_list[i]),
-        sizeof res.nsaddr_list[i])) {
+            reinterpret_cast<const struct sockaddr*>(&res.nsaddr_list[i]),
+            sizeof res.nsaddr_list[i])) {
       return false;
     }
     dns_config->nameservers.push_back(ipe);
@@ -222,6 +223,12 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
 #endif
   dns_config->edns0 = res.options & RES_USE_EDNS0;
 
+  // If any name server is 0.0.0.0, assume the configuration is invalid.
+  // TODO(szym): Measure how often this happens. http://crbug.com/125599
+  const IPAddressNumber kEmptyAddress(kIPv4AddressSize);
+  for (unsigned i = 0; i < dns_config->nameservers.size(); ++i)
+    if (dns_config->nameservers[i].address() == kEmptyAddress)
+      return false;
   return true;
 }
 #endif  // !defined(OS_ANDROID)
