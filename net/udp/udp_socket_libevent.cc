@@ -9,6 +9,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
+#include "base/callback.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -19,7 +20,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
-#include "net/udp/udp_data_transfer_param.h"
+#include "net/udp/udp_net_log_parameters.h"
 #if defined(OS_POSIX)
 #include <netinet/in.h>
 #endif
@@ -48,17 +49,15 @@ UDPSocketLibevent::UDPSocketLibevent(
           recv_from_address_(NULL),
           write_buf_len_(0),
           net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_UDP_SOCKET)) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (source.is_valid())
-    params = new NetLogSourceParameter("source_dependency", source);
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
   if (bind_type == DatagramSocket::RANDOM_BIND)
     DCHECK(!rand_int_cb.is_null());
 }
 
 UDPSocketLibevent::~UDPSocketLibevent() {
   Close();
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
 void UDPSocketLibevent::Close() {
@@ -212,10 +211,8 @@ int UDPSocketLibevent::SendToOrWrite(IOBuffer* buf,
 }
 
 int UDPSocketLibevent::Connect(const IPEndPoint& address) {
-  net_log_.BeginEvent(
-      NetLog::TYPE_UDP_CONNECT,
-      make_scoped_refptr(new NetLogStringParameter("address",
-                                                   address.ToString())));
+  net_log_.BeginEvent(NetLog::TYPE_UDP_CONNECT,
+                      CreateNetLogUDPConnectCallback(&address));
   int rv = InternalConnect(address);
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_UDP_CONNECT, rv);
   return rv;
@@ -326,10 +323,9 @@ void UDPSocketLibevent::LogRead(int result,
     bool is_address_valid = address.FromSockAddr(addr, addr_len);
     net_log_.AddEvent(
         NetLog::TYPE_UDP_BYTES_RECEIVED,
-        make_scoped_refptr(
-            new UDPDataTransferNetLogParam(
-                result, bytes, net_log_.IsLoggingBytes(),
-                is_address_valid ? &address : NULL)));
+        CreateNetLogUDPDataTranferCallback(
+            result, bytes,
+            is_address_valid ? &address : NULL));
   }
 
   base::StatsCounter read_bytes("udp.read_bytes");
@@ -372,10 +368,7 @@ void UDPSocketLibevent::LogWrite(int result,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_UDP_BYTES_SENT,
-        make_scoped_refptr(
-            new UDPDataTransferNetLogParam(result, bytes,
-                                           net_log_.IsLoggingBytes(),
-                                           address)));
+        CreateNetLogUDPDataTranferCallback(result, bytes, address));
   }
 
   base::StatsCounter write_bytes("udp.write_bytes");
