@@ -18,6 +18,7 @@
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
+#include "media/filters/ffmpeg_glue.h"
 
 namespace media {
 
@@ -64,6 +65,9 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(
 void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
                                     const PipelineStatusCB& status_cb,
                                     const StatisticsCB& statistics_cb) {
+  // Ensure FFmpeg has been initialized
+  FFmpegGlue::GetInstance();
+
   if (!message_loop_) {
     message_loop_ = message_loop_factory_cb_.Run();
     message_loop_factory_cb_.Reset();
