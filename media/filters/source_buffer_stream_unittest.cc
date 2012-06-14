@@ -29,17 +29,26 @@ class SourceBufferStreamTest : public testing::Test {
   }
 
   void AppendBuffers(int starting_position, int number_of_buffers) {
-    AppendBuffers(starting_position, number_of_buffers, true, NULL, 0);
+    AppendBuffers(starting_position, number_of_buffers,
+                  base::TimeDelta(), true, NULL, 0);
   }
 
   void AppendBuffers(int starting_position, int number_of_buffers,
                      const uint8* data) {
-    AppendBuffers(starting_position, number_of_buffers, true, data, kDataSize);
+    AppendBuffers(starting_position, number_of_buffers,
+                  base::TimeDelta(), true, data, kDataSize);
+  }
+
+  void AppendBuffers(int starting_position, int number_of_buffers,
+                     base::TimeDelta first_buffer_offset) {
+    AppendBuffers(starting_position, number_of_buffers,
+                  first_buffer_offset, true, NULL, 0);
   }
 
   void AppendBuffers_ExpectFailure(
       int starting_position, int number_of_buffers) {
-    AppendBuffers(starting_position, number_of_buffers, false, NULL, 0);
+    AppendBuffers(starting_position, number_of_buffers,
+                  base::TimeDelta(), false, NULL, 0);
   }
 
   void Seek(int position) {
@@ -142,8 +151,11 @@ class SourceBufferStreamTest : public testing::Test {
   }
 
   void AppendBuffers(int starting_position, int number_of_buffers,
+                     base::TimeDelta first_buffer_offset,
                      bool expect_success, const uint8* data, int size) {
     int keyframe_interval = frames_per_second_ / keyframes_per_second_;
+    base::TimeDelta media_segment_start_time =
+        starting_position * frame_duration_;
 
     SourceBufferStream::BufferQueue queue;
     for (int i = 0; i < number_of_buffers; i++) {
@@ -151,11 +163,17 @@ class SourceBufferStreamTest : public testing::Test {
       bool is_keyframe = position % keyframe_interval == 0;
       scoped_refptr<StreamParserBuffer> buffer =
           StreamParserBuffer::CopyFrom(data, size, is_keyframe);
-      buffer->SetDuration(frame_duration_);
-      buffer->SetTimestamp(frame_duration_ * position);
+      base::TimeDelta duration = frame_duration_;
+      base::TimeDelta timestamp = frame_duration_ * position;
+      if (i == 0) {
+        duration -= first_buffer_offset;
+        timestamp += first_buffer_offset;
+      }
+      buffer->SetDuration(duration);
+      buffer->SetTimestamp(timestamp);
       queue.push_back(buffer);
     }
-    EXPECT_EQ(stream_.Append(queue), expect_success);
+    EXPECT_EQ(stream_.Append(queue, media_segment_start_time), expect_success);
   }
 
   int frames_per_second_;
@@ -1076,6 +1094,37 @@ TEST_F(SourceBufferStreamTest, Seek_After_TrackBuffer_Filled) {
   CheckExpectedTimespan(0, 19);
 }
 
+TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
+  base::TimeDelta bump = frame_duration() / 4;
+  CHECK(bump > base::TimeDelta());
+
+  // Append 5 buffers at position (5 + |bump|) through 9, where the media
+  // segment begins at position 5.
+  AppendBuffers(5, 5, bump);
+  scoped_refptr<StreamParserBuffer> buffer;
+
+  // GetNextBuffer() should return the next buffer at position (5 + |bump|).
+  EXPECT_TRUE(stream_.GetNextBuffer(&buffer));
+  EXPECT_EQ(buffer->GetTimestamp(), 5 * frame_duration() + bump);
+
+  // Check rest of buffers.
+  CheckExpectedBuffers(6, 9);
+
+  // Seek to position 15.
+  Seek(15);
+
+  // Append 5 buffers at positions (15 + |bump|) through 19, where the media
+  // segment begins at 15.
+  AppendBuffers(15, 5, bump);
+
+  // GetNextBuffer() should return the next buffer at position (15 + |bump|).
+  EXPECT_TRUE(stream_.GetNextBuffer(&buffer));
+  EXPECT_EQ(buffer->GetTimestamp(), 15 * frame_duration() + bump);
+
+  // Check rest of buffers.
+  CheckExpectedBuffers(16, 19);
+}
+
 TEST_F(SourceBufferStreamTest, GetNextBuffer_AfterMerges) {
   // Append 5 buffers at positions 10 through 14.
   AppendBuffers(10, 5);
@@ -1142,6 +1191,14 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_Overlap_Selected_Complete) {
   // Now add 5 new buffers at positions 10 through 14.
   AppendBuffers(10, 5, &kDataB);
   CheckExpectedBuffers(10, 14, &kDataB);
+}
+
+TEST_F(SourceBufferStreamTest, GetNextBuffer_NoSeek) {
+  // Append 5 buffers at position 5.
+  AppendBuffers(5, 5);
+
+  // Should receive buffers from the start without needing to seek.
+  CheckExpectedBuffers(5, 5);
 }
 
 }  // namespace media

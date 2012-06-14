@@ -127,6 +127,7 @@ class ChunkDemuxerStream : public DemuxerStream {
   void StartWaitingForSeek();
   void Seek(base::TimeDelta time);
   bool IsSeekPending() const;
+  void Flush();
 
   // Add buffers to this stream.  Buffers are stored in SourceBufferStreams,
   // which handle ordering and overlap resolution.
@@ -135,6 +136,10 @@ class ChunkDemuxerStream : public DemuxerStream {
 
   // Returns a list of the buffered time ranges.
   SourceBufferStream::TimespanList GetBufferedTime() const;
+
+  // Signal to the stream that buffers handed in through subsequent calls to
+  // Append() belong to a media segment that starts at |start_timestamp|.
+  void OnNewMediaSegment(base::TimeDelta start_timestamp);
 
   // Called when mid-stream config updates occur.
   // Returns true if the new config is accepted.
@@ -183,12 +188,17 @@ class ChunkDemuxerStream : public DemuxerStream {
   State state_;
   ReadCBQueue read_cbs_;
 
+  // The timestamp of the current media segment being parsed by
+  // |stream_parser_|.
+  base::TimeDelta media_segment_start_time_;
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(ChunkDemuxerStream);
 };
 
 ChunkDemuxerStream::ChunkDemuxerStream(const AudioDecoderConfig& audio_config)
     : type_(AUDIO),
-      state_(RETURNING_DATA_FOR_READS) {
+      state_(RETURNING_DATA_FOR_READS),
+      media_segment_start_time_(kNoTimestamp()) {
   stream_.reset(new SourceBufferStream(audio_config));
 }
 
@@ -228,6 +238,14 @@ bool ChunkDemuxerStream::IsSeekPending() const {
   return stream_->IsSeekPending();
 }
 
+void ChunkDemuxerStream::Flush() {
+  media_segment_start_time_ = kNoTimestamp();
+}
+
+void ChunkDemuxerStream::OnNewMediaSegment(base::TimeDelta start_timestamp) {
+  media_segment_start_time_ = start_timestamp;
+}
+
 bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   if (buffers.empty())
     return false;
@@ -236,7 +254,8 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   {
     base::AutoLock auto_lock(lock_);
     DCHECK_NE(state_, SHUTDOWN);
-    if (!stream_->Append(buffers)) {
+    DCHECK(media_segment_start_time_ != kNoTimestamp());
+    if (!stream_->Append(buffers, media_segment_start_time_)) {
       DVLOG(1) << "ChunkDemuxerStream::Append() : stream append failed";
       return false;
     }
@@ -500,6 +519,7 @@ scoped_refptr<DemuxerStream> ChunkDemuxer::GetStream(
 base::TimeDelta ChunkDemuxer::GetStartTime() const {
   DVLOG(1) << "GetStartTime()";
   // TODO(acolwell) : Fix this so it uses the time on the first packet.
+  // (crbug.com/132815)
   return base::TimeDelta();
 }
 
@@ -563,7 +583,8 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                  has_audio, has_video),
       audio_cb,
       video_cb,
-      base::Bind(&ChunkDemuxer::OnKeyNeeded, base::Unretained(this)));
+      base::Bind(&ChunkDemuxer::OnKeyNeeded, base::Unretained(this)),
+      base::Bind(&ChunkDemuxer::OnNewMediaSegment, base::Unretained(this), id));
 
   stream_parser_map_[id] = stream_parser.release();
 
@@ -749,6 +770,10 @@ void ChunkDemuxer::Abort(const std::string& id) {
   DCHECK_GT(stream_parser_map_.count(id), 0u);
 
   stream_parser_map_[id]->Flush();
+  if (audio_ && source_id_audio_ == id)
+    audio_->Flush();
+  if (video_ && source_id_video_ == id)
+    video_->Flush();
 }
 
 bool ChunkDemuxer::EndOfStream(PipelineStatus status) {
@@ -974,6 +999,17 @@ bool ChunkDemuxer::OnKeyNeeded(scoped_array<uint8> init_data,
                                int init_data_size) {
   client_->KeyNeeded(init_data.Pass(), init_data_size);
   return true;
+}
+
+void ChunkDemuxer::OnNewMediaSegment(const std::string& source_id,
+                                     base::TimeDelta start_timestamp) {
+  // TODO(vrk): There should be a special case for the first appends where all
+  // streams (for both demuxed and muxed case) begin at the earliest stream
+  // timestamp. (crbug.com/132815)
+  if (audio_ && source_id == source_id_audio_)
+    audio_->OnNewMediaSegment(start_timestamp);
+  if (video_ && source_id == source_id_video_)
+    video_->OnNewMediaSegment(start_timestamp);
 }
 
 }  // namespace media

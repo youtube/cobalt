@@ -39,9 +39,12 @@ class MEDIA_EXPORT SourceBufferStream {
   // expected to be in order, but multiple calls to Append() may add buffers out
   // of order or overlapping. Assumes all buffers within |buffers| are in
   // presentation order and are non-overlapping.
+  // |media_segment_start_time| refers to the starting timestamp for the media
+  // segment to which these buffers belong.
   // Returns true if Append() was successful, false if |buffers| are not added.
   // TODO(vrk): Implement garbage collection. (crbug.com/125070)
-  bool Append(const BufferQueue& buffers);
+  bool Append(const BufferQueue& buffers,
+              base::TimeDelta media_segment_start_time);
 
   // Changes the SourceBufferStream's state so that it will start returning
   // buffers starting from the closest keyframe before |timestamp|.
@@ -51,8 +54,9 @@ class MEDIA_EXPORT SourceBufferStream {
   // buffered data and is waiting for more data to be appended.
   bool IsSeekPending() const;
 
-  // Fills |out_buffer| with a new buffer. Seek() must be called before calling
-  // this method. Buffers are presented in order from the last call to Seek().
+  // Fills |out_buffer| with a new buffer. Buffers are presented in order from
+  // the last call to Seek(), or starting with the first buffer appended if
+  // Seek() has not been called yet.
   // |out_buffer|'s timestamp may be earlier than the |timestamp| passed to
   // the last Seek() call.
   // Returns true if |out_buffer| is filled with a valid buffer, false if
