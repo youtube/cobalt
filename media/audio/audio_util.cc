@@ -213,7 +213,7 @@ bool DeinterleaveAudioChannel(void* source,
     case 4:
     {
       int32* source32 = reinterpret_cast<int32*>(source) + channel_index;
-      const float kScale = 1.0f / (1L << 31);
+      const float kScale = 1.0f / 2147483648.0f;
       for (unsigned i = 0; i < number_of_frames; ++i) {
         destination[i] = kScale * *source32;
         source32 += channels;
