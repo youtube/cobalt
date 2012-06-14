@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,32 +7,15 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
-#include "base/basictypes.h"
-#include "base/memory/ref_counted.h"
-#include "base/string_split.h"
-#include "base/string_util.h"
-#include "base/stringprintf.h"
-#include "base/values.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 
 namespace net {
 
-class NET_EXPORT_PRIVATE NetLogWebSocketHandshakeParameter
-    : public NetLog::EventParameters {
- public:
-  explicit NetLogWebSocketHandshakeParameter(const std::string& headers);
-
-  virtual Value* ToValue() const OVERRIDE;
-
- private:
-  virtual ~NetLogWebSocketHandshakeParameter();
-
-  const std::string headers_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetLogWebSocketHandshakeParameter);
-};
+NET_EXPORT_PRIVATE base::Value* NetLogWebSocketHandshakeCallback(
+    const std::string* headers,
+    NetLog::LogLevel /* log_level */);
 
 }  // namespace net
 
