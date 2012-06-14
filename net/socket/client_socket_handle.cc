@@ -40,7 +40,7 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
   if (is_initialized()) {
     // Because of http://crbug.com/37810 we may not have a pool, but have
     // just a raw socket.
-    socket_->NetLog().EndEvent(NetLog::TYPE_SOCKET_IN_USE, NULL);
+    socket_->NetLog().EndEvent(NetLog::TYPE_SOCKET_IN_USE);
     if (pool_)
       // If we've still got a socket, release it back to the ClientSocketPool so
       // it can be deleted or reused.
@@ -147,8 +147,7 @@ void ClientSocketHandle::HandleInitCompletion(int result) {
   DCHECK(socket_.get());
   socket_->NetLog().BeginEvent(
       NetLog::TYPE_SOCKET_IN_USE,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", requesting_source_)));
+      requesting_source_.ToEventParametersCallback());
 }
 
 }  // namespace net

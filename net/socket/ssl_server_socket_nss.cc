@@ -118,7 +118,7 @@ SSLServerSocketNSS::~SSLServerSocketNSS() {
 }
 
 int SSLServerSocketNSS::Handshake(const CompletionCallback& callback) {
-  net_log_.BeginEvent(NetLog::TYPE_SSL_SERVER_HANDSHAKE, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_SERVER_HANDSHAKE);
 
   int rv = Init();
   if (rv != OK) {
@@ -609,7 +609,7 @@ int SSLServerSocketNSS::DoPayloadRead() {
   }
   rv = MapNSSError(prerr);
   net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
-                    make_scoped_refptr(new SSLErrorParams(rv, prerr)));
+                    CreateNetLogSSLErrorCallback(rv, prerr));
   return rv;
 }
 
@@ -624,7 +624,7 @@ int SSLServerSocketNSS::DoPayloadWrite() {
   }
   rv = MapNSSError(prerr);
   net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR,
-                    make_scoped_refptr(new SSLErrorParams(rv, prerr)));
+                    CreateNetLogSSLErrorCallback(rv, prerr));
   return rv;
 }
 
@@ -672,7 +672,7 @@ int SSLServerSocketNSS::DoReadLoop(int result) {
     LOG(DFATAL) << "!nss_bufs_";
     int rv = ERR_UNEXPECTED;
     net_log_.AddEvent(NetLog::TYPE_SSL_READ_ERROR,
-                      make_scoped_refptr(new SSLErrorParams(rv, 0)));
+                      CreateNetLogSSLErrorCallback(rv, 0));
     return rv;
   }
 
@@ -696,7 +696,7 @@ int SSLServerSocketNSS::DoWriteLoop(int result) {
     LOG(DFATAL) << "!nss_bufs_";
     int rv = ERR_UNEXPECTED;
     net_log_.AddEvent(NetLog::TYPE_SSL_WRITE_ERROR,
-                      make_scoped_refptr(new SSLErrorParams(rv, 0)));
+                      CreateNetLogSSLErrorCallback(rv, 0));
     return rv;
   }
 
@@ -725,9 +725,8 @@ int SSLServerSocketNSS::DoHandshake() {
     } else {
       LOG(ERROR) << "handshake failed; NSS error code " << prerr
                  << ", net_error " << net_error;
-      net_log_.AddEvent(
-          NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-          make_scoped_refptr(new SSLErrorParams(net_error, prerr)));
+      net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
+                        CreateNetLogSSLErrorCallback(net_error, prerr));
     }
   }
   return net_error;

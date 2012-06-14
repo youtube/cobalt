@@ -19,6 +19,7 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_base.h"
+#include "net/socket/socket_net_log_params.h"
 #include "net/socket/tcp_client_socket.h"
 
 using base::TimeDelta;
@@ -378,9 +379,8 @@ int TransportClientSocketPool::RequestSocket(
     // TODO(eroman): Split out the host and port parameters.
     net_log.AddEvent(
         NetLog::TYPE_TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKET,
-        make_scoped_refptr(new NetLogStringParameter(
-            "host_and_port",
-            casted_params->get()->destination().host_port_pair().ToString())));
+        CreateNetLogHostPortPairCallback(
+            &casted_params->get()->destination().host_port_pair()));
   }
 
   return base_.RequestSocket(group_name, *casted_params, priority, handle,
@@ -399,9 +399,8 @@ void TransportClientSocketPool::RequestSockets(
     // TODO(eroman): Split out the host and port parameters.
     net_log.AddEvent(
         NetLog::TYPE_TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKETS,
-        make_scoped_refptr(new NetLogStringParameter(
-            "host_and_port",
-            casted_params->get()->destination().host_port_pair().ToString())));
+        CreateNetLogHostPortPairCallback(
+            &casted_params->get()->destination().host_port_pair()));
   }
 
   base_.RequestSockets(group_name, *casted_params, num_sockets, net_log);

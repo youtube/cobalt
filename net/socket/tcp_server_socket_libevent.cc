@@ -19,6 +19,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/socket/socket_net_log_params.h"
 #include "net/socket/tcp_client_socket.h"
 
 namespace net {
@@ -35,16 +36,14 @@ TCPServerSocketLibevent::TCPServerSocketLibevent(
     : socket_(kInvalidSocket),
       accept_socket_(NULL),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (source.is_valid())
-    params = new NetLogSourceParameter("source_dependency", source);
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
 }
 
 TCPServerSocketLibevent::~TCPServerSocketLibevent() {
   if (socket_ != kInvalidSocket)
     Close();
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
 int TCPServerSocketLibevent::Listen(const IPEndPoint& address, int backlog) {
@@ -107,7 +106,7 @@ int TCPServerSocketLibevent::Accept(
   DCHECK(!callback.is_null());
   DCHECK(accept_callback_.is_null());
 
-  net_log_.BeginEvent(NetLog::TYPE_TCP_ACCEPT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_TCP_ACCEPT);
 
   int result = AcceptInternal(socket);
 
@@ -159,8 +158,7 @@ int TCPServerSocketLibevent::AcceptInternal(
   }
   socket->reset(tcp_socket.release());
   net_log_.EndEvent(NetLog::TYPE_TCP_ACCEPT,
-                    make_scoped_refptr(new NetLogStringParameter(
-                        "address", address.ToString())));
+                    CreateNetLogIPEndPointCallback(&address));
   return OK;
 }
 

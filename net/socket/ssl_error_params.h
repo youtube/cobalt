@@ -10,20 +10,9 @@
 
 namespace net {
 
-// Extra parameters to attach to the NetLog when we receive an SSL error.
-class SSLErrorParams : public NetLog::EventParameters {
- public:
-  SSLErrorParams(int net_error, int ssl_lib_error);
-
-  virtual base::Value* ToValue() const OVERRIDE;
-
- protected:
-  virtual ~SSLErrorParams();
-
- private:
-  const int net_error_;
-  const int ssl_lib_error_;
-};
+// Creates NetLog callback for when we receive an SSL error.
+NetLog::ParametersCallback CreateNetLogSSLErrorCallback(int net_error,
+                                                        int ssl_lib_error);
 
 }  // namespace net
 
