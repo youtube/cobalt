@@ -16,10 +16,6 @@ using base::Time;
 using base::TimeDelta;
 using base::WaitableEvent;
 
-// Workaround for crbug.com/128128.
-// Minimal delay between stream->Stop() and stream->Start().
-const int kMacWorkaroundInMilliseconds = 50;
-
 namespace media {
 
 // Signal a pause in low-latency mode.
@@ -38,10 +34,7 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
       sync_reader_(sync_reader),
       message_loop_(NULL),
       number_polling_attempts_left_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)),
-      previous_stop_time_(
-          Time::Now() -
-          TimeDelta::FromMilliseconds(kMacWorkaroundInMilliseconds + 1)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)) {
 }
 
 AudioOutputController::~AudioOutputController() {
@@ -209,24 +202,6 @@ void AudioOutputController::PollAndStartIfDataReady() {
 
 void AudioOutputController::StartStream() {
   DCHECK(message_loop_->BelongsToCurrentThread());
-
-#if defined(OS_MACOSX)
-  // HACK: workaround for crbug.com/128128.
-  // Mac OS crashes if we start playback too soon after previous ended.
-  // Audio mixer contains better fix, it keeps physical stream opened for
-  // some time after logical one is closed, so sequence of play / pause / play /
-  // pause / ... would reuse the same stream, but we need fix for M20.
-  // TODO(enal): Remove after turning on mixer by default.
-  int milliseconds_since_stop =
-      (Time::Now() - previous_stop_time_).InMilliseconds();
-  if ((milliseconds_since_stop >= 0) &&
-      (milliseconds_since_stop < kMacWorkaroundInMilliseconds)) {
-    base::PlatformThread::Sleep(
-        TimeDelta::FromMilliseconds(kMacWorkaroundInMilliseconds -
-                                    milliseconds_since_stop));
-  }
-#endif
-
   state_ = kPlaying;
 
   // We start the AudioOutputStream lazily.
@@ -244,7 +219,6 @@ void AudioOutputController::DoPause() {
     // because it discards all the internal buffer in the audio device.
     // TODO(hclam): Actually pause the audio device.
     stream_->Stop();
-    previous_stop_time_ = Time::Now();
   }
 
   switch (state_) {
