@@ -11,6 +11,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -95,6 +96,13 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   bool should_swizzle_;
   // A flag to determine if downmix is needed from source to device layouts.
   bool should_down_mix_;
+
+  // Event used for synchronization when stopping the stream.
+  // Callback sets it after stream is stopped.
+  base::WaitableEvent stopped_event_;
+  // When stopping we keep track of number of buffers in flight and
+  // signal "stop completed" from the last buffer's callback.
+  int num_buffers_left_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };
