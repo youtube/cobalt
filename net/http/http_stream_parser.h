@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
@@ -46,7 +47,7 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
   // some additional functionality
   int SendRequest(const std::string& request_line,
                   const HttpRequestHeaders& headers,
-                  UploadDataStream* request_body,
+                  scoped_ptr<UploadDataStream> request_body,
                   HttpResponseInfo* response,
                   const CompletionCallback& callback);
 

@@ -44,7 +44,7 @@ class HttpPipelinedStream : public HttpStream {
                                const CompletionCallback& callback) OVERRIDE;
 
   virtual int SendRequest(const HttpRequestHeaders& headers,
-                          UploadDataStream* request_body,
+                          scoped_ptr<UploadDataStream> request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE;
 
