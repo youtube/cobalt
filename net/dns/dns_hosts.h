@@ -11,12 +11,10 @@
 #include <utility>
 #include <vector>
 
-#include "base/callback.h"
 #include "base/file_path.h"
 #include "net/base/address_family.h"
 #include "net/base/net_export.h"
 #include "net/base/net_util.h"  // can't forward-declare IPAddressNumber
-#include "net/dns/serial_worker.h"
 
 namespace net {
 
@@ -38,33 +36,10 @@ typedef std::map<DnsHostsKey, IPAddressNumber> DnsHosts;
 void NET_EXPORT_PRIVATE ParseHosts(const std::string& contents,
                                    DnsHosts* dns_hosts);
 
-// A SerialWorker that reads a HOSTS file and runs Callback.
-// Call WorkNow() to indicate file needs to be re-read.
-// Call Cancel() to disable the callback.
-class NET_EXPORT_PRIVATE DnsHostsReader
-    : NON_EXPORTED_BASE(public SerialWorker) {
- public:
-  typedef base::Callback<void(const DnsHosts& hosts)> CallbackType;
+// As above but reads the file pointed to by |path|.
+bool NET_EXPORT_PRIVATE ParseHostsFile(const FilePath& path,
+                                       DnsHosts* dns_hosts);
 
-  DnsHostsReader(const FilePath& path, const CallbackType& callback);
-
-  const FilePath& path() const { return path_; }
-
- protected:
-  explicit DnsHostsReader(const FilePath& path);
-  virtual ~DnsHostsReader();
-
-  virtual void DoWork() OVERRIDE;
-  virtual void OnWorkFinished() OVERRIDE;
-
-  FilePath path_;
-  CallbackType callback_;
-  // Written in DoWork, read in OnWorkFinished, no locking necessary.
-  DnsHosts dns_hosts_;
-  bool success_;
-
-  DISALLOW_COPY_AND_ASSIGN(DnsHostsReader);
-};
 
 
 }  // namespace net

@@ -24,6 +24,7 @@
 #include "googleurl/src/url_canon.h"
 #include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
+#include "net/dns/dns_hosts.h"
 #include "net/dns/dns_protocol.h"
 #include "net/dns/serial_worker.h"
 
@@ -380,7 +381,7 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
     if (success_) {
       service_->OnConfigRead(dns_config_);
     } else {
-      LOG(WARNING) << "Failed to read config.";
+      LOG(WARNING) << "Failed to read DnsConfig.";
     }
   }
 
@@ -393,15 +394,15 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
 // An extension for DnsHostsReader which also watches the HOSTS file,
 // reads local name from GetComputerNameEx, local IP from GetAdaptersAddresses,
 // and observes changes to local IP address.
-class DnsConfigServiceWin::HostsReader : public DnsHostsReader {
+class DnsConfigServiceWin::HostsReader : public SerialWorker {
  public:
   explicit HostsReader(DnsConfigServiceWin* service)
-      : DnsHostsReader(GetHostsPath()), service_(service) {
+      : path_(GetHostsPath()), service_(service) {
   }
 
  private:
   virtual void DoWork() OVERRIDE {
-    DnsHostsReader::DoWork();
+    success_ = ParseHostsFile(path_, &hosts_);
 
     if (!success_)
       return;
@@ -420,12 +421,10 @@ class DnsConfigServiceWin::HostsReader : public DnsHostsReader {
                                   kIPv6Localhost + arraysize(kIPv6Localhost));
 
     // This does not override any pre-existing entries from the HOSTS file.
-    dns_hosts_.insert(
-        std::make_pair(DnsHostsKey("localhost", ADDRESS_FAMILY_IPV4),
-                       loopback_ipv4));
-    dns_hosts_.insert(
-        std::make_pair(DnsHostsKey("localhost", ADDRESS_FAMILY_IPV6),
-                       loopback_ipv6));
+    hosts_.insert(std::make_pair(DnsHostsKey("localhost", ADDRESS_FAMILY_IPV4),
+                                 loopback_ipv4));
+    hosts_.insert(std::make_pair(DnsHostsKey("localhost", ADDRESS_FAMILY_IPV6),
+                                 loopback_ipv6));
 
     WCHAR buffer[MAX_PATH];
     DWORD size = MAX_PATH;
@@ -438,9 +437,9 @@ class DnsConfigServiceWin::HostsReader : public DnsHostsReader {
     StringToLowerASCII(&localname);
 
     bool have_ipv4 =
-        dns_hosts_.count(DnsHostsKey(localname, ADDRESS_FAMILY_IPV4)) > 0;
+        hosts_.count(DnsHostsKey(localname, ADDRESS_FAMILY_IPV4)) > 0;
     bool have_ipv6 =
-        dns_hosts_.count(DnsHostsKey(localname, ADDRESS_FAMILY_IPV6)) > 0;
+        hosts_.count(DnsHostsKey(localname, ADDRESS_FAMILY_IPV6)) > 0;
 
     if (have_ipv4 && have_ipv6) {
       success_ = true;
@@ -476,29 +475,30 @@ class DnsConfigServiceWin::HostsReader : public DnsHostsReader {
         }
         if (!have_ipv4 && (ipe.GetFamily() == AF_INET)) {
           have_ipv4 = true;
-          dns_hosts_[DnsHostsKey(localname, ADDRESS_FAMILY_IPV4)] =
-              ipe.address();
+          hosts_[DnsHostsKey(localname, ADDRESS_FAMILY_IPV4)] = ipe.address();
         } else if (!have_ipv6 && (ipe.GetFamily() == AF_INET6)) {
           have_ipv6 = true;
-          dns_hosts_[DnsHostsKey(localname, ADDRESS_FAMILY_IPV6)] =
-              ipe.address();
+          hosts_[DnsHostsKey(localname, ADDRESS_FAMILY_IPV6)] = ipe.address();
         }
       }
     }
-
     success_ = true;
   }
 
   virtual void OnWorkFinished() OVERRIDE {
     DCHECK(loop()->BelongsToCurrentThread());
     if (success_) {
-      service_->OnHostsRead(dns_hosts_);
+      service_->OnHostsRead(hosts_);
     } else {
-      LOG(WARNING) << "Failed to read hosts.";
+      LOG(WARNING) << "Failed to read DnsHosts.";
     }
   }
 
+  const FilePath path_;
   DnsConfigServiceWin* service_;
+  // Written in DoWork, read in OnWorkFinished, no locking necessary.
+  DnsHosts hosts_;
+  bool success_;
 
   DISALLOW_COPY_AND_ASSIGN(HostsReader);
 };
