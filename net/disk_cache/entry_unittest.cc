@@ -35,6 +35,7 @@ class DiskCacheEntryTest : public DiskCacheTestWithCache {
   void InternalAsyncIO();
   void ExternalSyncIO();
   void ExternalAsyncIO();
+  void ReleaseBuffer();
   void StreamAccess();
   void GetKey();
   void GetTimes();
@@ -508,6 +509,53 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyExternalAsyncIO) {
   SetMemoryOnlyMode();
   InitCache();
   ExternalAsyncIO();
+}
+
+// Makes sure that the buffer is not referenced when the callback runs.
+class ReleaseBufferCompletionCallback: public net::TestCompletionCallback {
+ public:
+  explicit ReleaseBufferCompletionCallback(net::IOBuffer* buffer)
+      : buffer_(buffer) {
+  }
+
+ private:
+  virtual void SetResult(int result) OVERRIDE {
+    if (!buffer_->HasOneRef())
+      result = net::ERR_FAILED;
+    TestCompletionCallback::SetResult(result);
+  }
+
+  net::IOBuffer* buffer_;
+  DISALLOW_COPY_AND_ASSIGN(ReleaseBufferCompletionCallback);
+};
+
+// Tests that IOBuffers are not referenced after IO completes.
+void DiskCacheEntryTest::ReleaseBuffer() {
+  disk_cache::Entry* entry = NULL;
+  ASSERT_EQ(net::OK, CreateEntry("the first key", &entry));
+  ASSERT_TRUE(NULL != entry);
+
+  const int kBufferSize = 1024;
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kBufferSize));
+  CacheTestFillBuffer(buffer->data(), kBufferSize, false);
+
+  ReleaseBufferCompletionCallback cb(buffer);
+  int rv = entry->WriteData(0, 0, buffer, kBufferSize, cb.callback(), false);
+  EXPECT_EQ(kBufferSize, cb.GetResult(rv));
+  entry->Close();
+}
+
+TEST_F(DiskCacheEntryTest, ReleaseBuffer) {
+  SetDirectMode();
+  InitCache();
+  cache_impl_->SetFlags(disk_cache::kNoBuffering);
+  ReleaseBuffer();
+}
+
+TEST_F(DiskCacheEntryTest, MemoryOnlyReleaseBuffer) {
+  SetMemoryOnlyMode();
+  InitCache();
+  ReleaseBuffer();
 }
 
 void DiskCacheEntryTest::StreamAccess() {
@@ -1783,29 +1831,22 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomSparseEntry) {
 }
 
 // A CompletionCallback wrapper that deletes the cache from within the callback.
-// The way an CompletionCallback works means that all tasks (even new ones)
+// The way a CompletionCallback works means that all tasks (even new ones)
 // are executed by the message loop before returning to the caller so the only
 // way to simulate a race is to execute what we want on the callback.
-class SparseTestCompletionCallback: public net::TestCompletionCallbackBase {
+class SparseTestCompletionCallback: public net::TestCompletionCallback {
  public:
   explicit SparseTestCompletionCallback(disk_cache::Backend* cache)
-      : cache_(cache),
-        ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
-            base::Bind(&SparseTestCompletionCallback::OnComplete,
-                       base::Unretained(this)))) {
+      : cache_(cache) {
   }
 
-  const net::CompletionCallback& callback() const { return callback_; }
-
  private:
-  void OnComplete(int result) {
+  virtual void SetResult(int result) OVERRIDE {
     delete cache_;
-    SetResult(result);
+    TestCompletionCallback::SetResult(result);
   }
 
   disk_cache::Backend* cache_;
-  net::CompletionCallback callback_;
-
   DISALLOW_COPY_AND_ASSIGN(SparseTestCompletionCallback);
 };
 

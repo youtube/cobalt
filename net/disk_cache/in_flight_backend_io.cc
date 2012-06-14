@@ -322,6 +322,7 @@ void BackendIO::ExecuteEntryOperation() {
       NOTREACHED() << "Invalid Operation";
       result_ = net::ERR_UNEXPECTED;
   }
+  buf_ = NULL;
   if (result_ != net::ERR_IO_PENDING)
     NotifyController();
 }
