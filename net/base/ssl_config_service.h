@@ -150,9 +150,11 @@ class NET_EXPORT SSLConfigService
     // data in SSLConfig, just those that qualify as a user config change.
     // The following settings are considered user changes:
     //     rev_checking_enabled
-    //     ssl3_enabled
-    //     tls1_enabled
+    //     version_min
+    //     version_max
     //     disabled_cipher_suites
+    //     domain_bound_certs_enabled
+    //     false_start_enabled
     virtual void OnSSLConfigChanged() = 0;
 
    protected:
