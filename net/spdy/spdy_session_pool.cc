@@ -49,6 +49,7 @@ SpdySessionPool::SpdySessionPool(
       ssl_config_service_(ssl_config_service),
       resolver_(resolver),
       verify_domain_authentication_(true),
+      enable_sending_initial_settings_(true),
       trusted_spdy_proxy_(
           HostPortPair::FromString(trusted_spdy_proxy)) {
   NetworkChangeNotifier::AddIPAddressObserver(this);
@@ -122,6 +123,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
   spdy_session = new SpdySession(host_port_proxy_pair, this,
                                  http_server_properties_,
                                  verify_domain_authentication_,
+                                 enable_sending_initial_settings_,
                                  trusted_spdy_proxy_,
                                  net_log.net_log());
   UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionGet",
@@ -149,6 +151,7 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
   *spdy_session = new SpdySession(host_port_proxy_pair, this,
                                   http_server_properties_,
                                   verify_domain_authentication_,
+                                  enable_sending_initial_settings_,
                                   trusted_spdy_proxy_,
                                   net_log.net_log());
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
