@@ -179,7 +179,10 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   params.http_server_properties = &session_deps->http_server_properties;
   params.net_log = session_deps->net_log;
   params.trusted_spdy_proxy = session_deps->trusted_spdy_proxy;
-  return new HttpNetworkSession(params);
+  HttpNetworkSession* http_session = new HttpNetworkSession(params);
+  SpdySessionPoolPeer pool_peer(http_session->spdy_session_pool());
+  pool_peer.EnableSendingInitialSettings(false);
+  return http_session;
 }
 
 }  // namespace
@@ -9424,6 +9427,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, MAYBE_UseIPConnectionPooling) {
   scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
   SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
   pool_peer.DisableDomainAuthenticationVerification();
+  pool_peer.EnableSendingInitialSettings(false);
 
   SSLSocketDataProvider ssl(ASYNC, OK);
   ssl.SetNextProto(kProtoSPDY2);
@@ -9534,6 +9538,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UseIPConnectionPoolingAfterResolution) {
   scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
   SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
   pool_peer.DisableDomainAuthenticationVerification();
+  pool_peer.EnableSendingInitialSettings(false);
 
   SSLSocketDataProvider ssl(ASYNC, OK);
   ssl.SetNextProto(kProtoSPDY2);
@@ -9680,6 +9685,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
   scoped_refptr<HttpNetworkSession> session(new HttpNetworkSession(params));
   SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
   pool_peer.DisableDomainAuthenticationVerification();
+  pool_peer.EnableSendingInitialSettings(false);
 
   SSLSocketDataProvider ssl(ASYNC, OK);
   ssl.SetNextProto(kProtoSPDY2);
