@@ -668,7 +668,7 @@ TEST_F(SpdySessionSpdy3Test, CancelPendingCreateStream) {
   MessageLoop::current()->RunAllPending();
 }
 
-TEST_F(SpdySessionSpdy3Test, SendInitialWindowSizeSettingsOnNewSession) {
+TEST_F(SpdySessionSpdy3Test, SendInitialSettingsOnNewSession) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
@@ -677,9 +677,12 @@ TEST_F(SpdySessionSpdy3Test, SendInitialWindowSizeSettingsOnNewSession) {
   };
 
   SettingsMap settings;
-  const SpdySettingsIds kSpdySettingsIds1 = SETTINGS_INITIAL_WINDOW_SIZE;
+  const SpdySettingsIds kSpdySettingsIds1 = SETTINGS_MAX_CONCURRENT_STREAMS;
+  const SpdySettingsIds kSpdySettingsIds2 = SETTINGS_INITIAL_WINDOW_SIZE;
   const uint32 kInitialRecvWindowSize = 10 * 1024 * 1024;
   settings[kSpdySettingsIds1] =
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kInitialMaxConcurrentStreams);
+  settings[kSpdySettingsIds2] =
       SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kInitialRecvWindowSize);
   MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
@@ -709,6 +712,8 @@ TEST_F(SpdySessionSpdy3Test, SendInitialWindowSizeSettingsOnNewSession) {
 
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  SpdySessionPoolPeer pool_peer(spdy_session_pool);
+  pool_peer.EnableSendingInitialSettings(true);
   scoped_refptr<SpdySession> session =
       spdy_session_pool->Get(pair, BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
