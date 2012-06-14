@@ -40,6 +40,9 @@ namespace net {
 const int kMss = 1430;
 const int kMaxSpdyFrameChunkSize = (2 * kMss) - SpdyFrame::kHeaderSize;
 
+// Specifies the maxiumum concurrent streams server could send.
+const int kInitialMaxConcurrentStreams = 1000;
+
 class BoundNetLog;
 class SpdyStream;
 class SSLInfo;
@@ -102,6 +105,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
               SpdySessionPool* spdy_session_pool,
               HttpServerProperties* http_server_properties,
               bool verify_domain_authentication,
+              bool enable_sending_initial_settings,
               const HostPortPair& trusted_spdy_proxy,
               NetLog* net_log);
 
@@ -630,8 +634,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   BoundNetLog net_log_;
 
-  // Outside of tests, this should always be true.
+  // Outside of tests, these should always be true.
   bool verify_domain_authentication_;
+  bool enable_sending_initial_settings_;
 
   SpdyCredentialState credential_state_;
 

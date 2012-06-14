@@ -189,7 +189,10 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
     params.ssl_config_service = ssl_config_service_;
     params.http_auth_handler_factory = http_auth_handler_factory_.get();
     params.http_server_properties = &http_server_properties_;
-    return new HttpNetworkSession(params);
+    HttpNetworkSession* session = new HttpNetworkSession(params);
+    SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
+    pool_peer.EnableSendingInitialSettings(false);
+    return session;
   }
 
  private:
