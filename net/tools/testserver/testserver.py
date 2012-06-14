@@ -408,6 +408,7 @@ class TestPageHandler(BasePageHandler):
       self.GDataDocumentsFeedQueryHandler,
       self.FileHandler,
       self.SetCookieHandler,
+      self.SetManyCookiesHandler,
       self.SetHeaderHandler,
       self.AuthBasicHandler,
       self.AuthDigestHandler,
@@ -1078,6 +1079,26 @@ class TestPageHandler(BasePageHandler):
     self.end_headers()
     for cookie_value in cookie_values:
       self.wfile.write('%s' % cookie_value)
+    return True
+
+  def SetManyCookiesHandler(self):
+    """This handler just sets a given number of cookies, for testing handling
+       of large numbers of cookies."""
+
+    if not self._ShouldHandleRequest("/set-many-cookies"):
+      return False
+
+    query_char = self.path.find('?')
+    if query_char != -1:
+      num_cookies = int(self.path[query_char + 1:])
+    else:
+      num_cookies = 0
+    self.send_response(200)
+    self.send_header('', 'text/html')
+    for i in range(0, num_cookies):
+      self.send_header('Set-Cookie', 'a=')
+    self.end_headers()
+    self.wfile.write('%d cookies were sent' % num_cookies)
     return True
 
   def SetHeaderHandler(self):

@@ -497,42 +497,80 @@ void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete(int result) {
   SaveNextCookie();
 }
 
+// If the save occurs synchronously, SaveNextCookie will loop and save the next
+// cookie. If the save is deferred, the callback is responsible for continuing
+// to iterate through the cookies.
+// TODO(erikwright): Modify the CookieStore API to indicate via return value
+// whether it completed synchronously or asynchronously.
+// See http://crbug.com/131066.
 void URLRequestHttpJob::SaveNextCookie() {
-  if (response_cookies_save_index_ == response_cookies_.size()) {
+  // No matter what, we want to report our status as IO pending since we will
+  // be notifying our consumer asynchronously via OnStartCompleted.
+  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
+
+  // Used to communicate with the callback. See the implementation of
+  // OnCookieSaved.
+  scoped_refptr<SharedBoolean> callback_pending = new SharedBoolean(false);
+  scoped_refptr<SharedBoolean> save_next_cookie_running =
+      new SharedBoolean(true);
+
+  if (!(request_info_.load_flags & LOAD_DO_NOT_SAVE_COOKIES) &&
+      request_->context()->cookie_store() &&
+      response_cookies_.size() > 0) {
+    CookieOptions options;
+    options.set_include_httponly();
+
+    net::CookieStore::SetCookiesCallback callback(
+        base::Bind(&URLRequestHttpJob::OnCookieSaved,
+                   weak_factory_.GetWeakPtr(),
+                   save_next_cookie_running,
+                   callback_pending));
+
+    // Loop through the cookies as long as SetCookieWithOptionsAsync completes
+    // synchronously.
+    while (!callback_pending->data &&
+           response_cookies_save_index_ < response_cookies_.size()) {
+      if (CanSetCookie(
+          response_cookies_[response_cookies_save_index_], &options)) {
+        callback_pending->data = true;
+        request_->context()->cookie_store()->SetCookieWithOptionsAsync(
+            request_->url(), response_cookies_[response_cookies_save_index_],
+            options, callback);
+      }
+      ++response_cookies_save_index_;
+    }
+  }
+
+  save_next_cookie_running->data = false;
+
+  if (!callback_pending->data) {
     response_cookies_.clear();
     response_cookies_save_index_ = 0;
     SetStatus(URLRequestStatus());  // Clear the IO_PENDING status
     NotifyHeadersComplete();
     return;
   }
+}
 
-  // No matter what, we want to report our status as IO pending since we will
-  // be notifying our consumer asynchronously via OnStartCompleted.
-  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
+// |save_next_cookie_running| is true when the callback is bound and set to
+// false when SaveNextCookie exits, allowing the callback to determine if the
+// save occurred synchronously or asynchronously.
+// |callback_pending| is false when the callback is invoked and will be set to
+// true by the callback, allowing SaveNextCookie to detect whether the save
+// occurred synchronously.
+// See SaveNextCookie() for more information.
+void URLRequestHttpJob::OnCookieSaved(
+    scoped_refptr<SharedBoolean> save_next_cookie_running,
+    scoped_refptr<SharedBoolean> callback_pending,
+    bool cookie_status) {
+  callback_pending->data = false;
 
-  CookieOptions options;
-  if (!(request_info_.load_flags & LOAD_DO_NOT_SAVE_COOKIES) &&
-      request_->context()->cookie_store()) {
-    CookieOptions options;
-    options.set_include_httponly();
-    if (CanSetCookie(
-        response_cookies_[response_cookies_save_index_], &options)) {
-      request_->context()->cookie_store()->SetCookieWithOptionsAsync(
-          request_->url(), response_cookies_[response_cookies_save_index_],
-          options, base::Bind(&URLRequestHttpJob::OnCookieSaved,
-                              weak_factory_.GetWeakPtr()));
-      return;
-    }
+  // If we were called synchronously, return.
+  if (save_next_cookie_running->data) {
+    return;
   }
-  CookieHandled();
-}
 
-void URLRequestHttpJob::OnCookieSaved(bool cookie_status) {
-  CookieHandled();
-}
-
-void URLRequestHttpJob::CookieHandled() {
-  response_cookies_save_index_++;
+  // We were called asynchronously, so trigger the next save.
   // We may have been canceled within OnSetCookie.
   if (GetStatus().is_success()) {
     SaveNextCookie();
