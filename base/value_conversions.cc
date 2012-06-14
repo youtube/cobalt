@@ -28,18 +28,18 @@ bool GetValueAsFilePath(const Value& value, FilePath* file_path) {
 
 // |Value| does not support 64-bit integers, and doubles do not have enough
 // precision, so we store the 64-bit time value as a string instead.
-StringValue* CreateTimeValue(const Time& time) {
+StringValue* CreateTimeDeltaValue(const TimeDelta& time) {
   std::string string_value = base::Int64ToString(time.ToInternalValue());
   return new StringValue(string_value);
 }
 
-bool GetValueAsTime(const Value& value, Time* time) {
+bool GetValueAsTimeDelta(const Value& value, TimeDelta* time) {
   std::string str;
   int64 int_value;
   if (!value.GetAsString(&str) || !base::StringToInt64(str, &int_value))
     return false;
   if (time)
-    *time = base::Time::FromInternalValue(int_value);
+    *time = TimeDelta::FromInternalValue(int_value);
   return true;
 }
 
