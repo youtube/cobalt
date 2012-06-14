@@ -24,8 +24,9 @@
 
 namespace {
 
-void Usage(const char* program_name) {
-  LOG(ERROR) << "Usage: " << program_name << " test_case ...";
+void Crash(void) {
+  int* p = NULL;
+  *p = 0;
 }
 
 bool FitsUint8(int num) {
@@ -38,25 +39,32 @@ bool FitsUint16(int num) {
 
 bool ReadTestCase(const char* filename,
                   uint16* id, std::string* qname, uint16* qtype,
-                  std::vector<char>* resp_buf) {
+                  std::vector<char>* resp_buf,
+                  bool* crash_test) {
   FilePath filepath = FilePath::FromUTF8Unsafe(filename);
 
   std::string json;
   if (!file_util::ReadFileToString(filepath, &json)) {
-    LOG(ERROR) << "Couldn't read file " << filename << ".";
+    LOG(ERROR) << filename << ": couldn't read file.";
     return false;
   }
 
   scoped_ptr<Value> value(base::JSONReader::Read(json));
   if (!value.get()) {
-    LOG(ERROR) << "Couldn't parse JSON in " << filename << ".";
+    LOG(ERROR) << filename << ": couldn't parse JSON.";
     return false;
   }
 
   DictionaryValue* dict;
   if (!value->GetAsDictionary(&dict)) {
-    LOG(ERROR) << filename << ": Test case is not a dictionary.";
+    LOG(ERROR) << filename << ": test case is not a dictionary.";
     return false;
+  }
+
+  *crash_test = dict->HasKey("crash_test");
+  if (*crash_test) {
+    LOG(INFO) << filename << ": crash_test is set!";
+    return true;
   }
 
   int id_int;
@@ -149,25 +157,31 @@ void RunTestCase(uint16 id, std::string& qname, uint16 qtype,
 
 bool ReadAndRunTestCase(const char* filename) {
   uint16 id = 0;
-  std::string qname_dotted;
+  std::string qname;
   uint16 qtype = 0;
   std::vector<char> resp_buf;
+  bool crash_test = false;
 
   LOG(INFO) << "Test case: " << filename;
 
-  if (!ReadTestCase(filename, &id, &qname_dotted, &qtype, &resp_buf)) {
-    // ReadTestCase will print a useful error message.
+  // ReadTestCase will print a useful error message if it fails.
+  if (!ReadTestCase(filename, &id, &qname, &qtype, &resp_buf, &crash_test))
+    return false;
+
+  if (crash_test) {
+    LOG(INFO) << "Crashing.";
+    Crash();
+    NOTREACHED();
+    return true;
+  }
+
+  std::string qname_dns;
+  if (!net::DNSDomainFromDot(qname, &qname_dns)) {
+    LOG(ERROR) << filename << ": DNSDomainFromDot(" << qname << ") failed.";
     return false;
   }
 
-  std::string qname;
-  if (!net::DNSDomainFromDot(qname_dotted, &qname)) {
-    LOG(ERROR) << filename << ": "
-               << "DNSDomainFromDot(" << qname_dotted << ") failed.";
-    return false;
-  }
-
-  RunTestCase(id, qname, qtype, resp_buf);
+  RunTestCase(id, qname_dns, qtype, resp_buf);
 
   return true;
 }
@@ -177,16 +191,11 @@ bool ReadAndRunTestCase(const char* filename) {
 int main(int argc, char** argv) {
   int ret = 0;
 
-  if (argc < 2) {
-    Usage(argv[0]);
-    ret = 1;
-  }
-
   for (int i = 1; i < argc; i++)
     if (!ReadAndRunTestCase(argv[i]))
       ret = 2;
 
-  // Cluster-Fuzz likes "#EOF" as the last line of output to help distunguish
+  // Cluster-Fuzz likes "#EOF" as the last line of output to help distinguish
   // successful runs from crashes.
   printf("#EOF\n");
 
