@@ -382,6 +382,7 @@
         'file_util_unittest.cc',
         'file_version_info_unittest.cc',
         'gmock_unittest.cc',
+        'guid_unittest.cc',
         'hi_res_timer_manager_unittest.cc',
         'id_map_unittest.cc',
         'i18n/break_iterator_unittest.cc',
