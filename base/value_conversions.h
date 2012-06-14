@@ -14,7 +14,7 @@ class FilePath;
 
 namespace base {
 
-class Time;
+class TimeDelta;
 class StringValue;
 class Value;
 
@@ -22,8 +22,8 @@ class Value;
 BASE_EXPORT StringValue* CreateFilePathValue(const FilePath& in_value);
 BASE_EXPORT bool GetValueAsFilePath(const Value& value, FilePath* file_path);
 
-BASE_EXPORT StringValue* CreateTimeValue(const Time& time);
-BASE_EXPORT bool GetValueAsTime(const Value& value, Time* time);
+BASE_EXPORT StringValue* CreateTimeDeltaValue(const TimeDelta& time);
+BASE_EXPORT bool GetValueAsTimeDelta(const Value& value, TimeDelta* time);
 
 }  // namespace
 
