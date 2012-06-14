@@ -189,11 +189,6 @@ void SpdySession::set_max_concurrent_streams(size_t value) {
 }
 
 // static
-void SpdySession::set_default_initial_recv_window_size(size_t value) {
-  g_default_initial_rcv_window_size = value;
-}
-
-// static
 void SpdySession::set_enable_ping_based_connection_checking(bool enable) {
   g_enable_ping_based_connection_checking = enable;
 }
@@ -202,6 +197,11 @@ void SpdySession::set_enable_ping_based_connection_checking(bool enable) {
 void SpdySession::set_init_max_concurrent_streams(size_t value) {
   g_init_max_concurrent_streams =
       std::min(value, g_max_concurrent_stream_limit);
+}
+
+// static
+void SpdySession::set_default_initial_recv_window_size(size_t value) {
+  g_default_initial_rcv_window_size = value;
 }
 
 // static
@@ -218,6 +218,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          SpdySessionPool* spdy_session_pool,
                          HttpServerProperties* http_server_properties,
                          bool verify_domain_authentication,
+                         bool enable_sending_initial_settings,
                          const HostPortPair& trusted_spdy_proxy,
                          NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
@@ -252,6 +253,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       initial_recv_window_size_(g_default_initial_rcv_window_size),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
       verify_domain_authentication_(verify_domain_authentication),
+      enable_sending_initial_settings_(enable_sending_initial_settings),
       credential_state_(SpdyCredentialState::kDefaultNumSlots),
       connection_at_risk_of_loss_time_(
           base::TimeDelta::FromSeconds(kDefaultConnectionAtRiskOfLossSeconds)),
@@ -1570,13 +1572,17 @@ uint32 ApplyCwndFieldTrialPolicy(int cwnd) {
 void SpdySession::SendInitialSettings() {
   // First notify the server about the settings they should use when
   // communicating with us.
-  if (GetProtocolVersion() > 2 &&
-      initial_recv_window_size_ != kSpdyStreamInitialWindowSize) {
+  if (GetProtocolVersion() >= 2 && enable_sending_initial_settings_) {
     SettingsMap settings_map;
     // Create a new settings frame notifying the sever of our
-    // initial window size.
-    settings_map[SETTINGS_INITIAL_WINDOW_SIZE] =
-        SettingsFlagsAndValue(SETTINGS_FLAG_NONE, initial_recv_window_size_);
+    // max_concurrent_streams_ and initial window size.
+    settings_map[SETTINGS_MAX_CONCURRENT_STREAMS] =
+        SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kInitialMaxConcurrentStreams);
+    if (GetProtocolVersion() > 2 &&
+        initial_recv_window_size_ != kSpdyStreamInitialWindowSize) {
+      settings_map[SETTINGS_INITIAL_WINDOW_SIZE] =
+          SettingsFlagsAndValue(SETTINGS_FLAG_NONE, initial_recv_window_size_);
+    }
     sent_settings_ = true;
     SendSettings(settings_map);
   }

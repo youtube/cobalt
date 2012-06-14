@@ -406,6 +406,10 @@ class SpdySessionPoolPeer {
     pool_->verify_domain_authentication_ = false;
   }
 
+  void EnableSendingInitialSettings(bool enabled) {
+    pool_->enable_sending_initial_settings_ = enabled;
+  }
+
  private:
   SpdySessionPool* const pool_;
 

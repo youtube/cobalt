@@ -941,7 +941,10 @@ HttpNetworkSession* SpdySessionDependencies::SpdyCreateSession(
   params.http_server_properties = &session_deps->http_server_properties;
   params.trusted_spdy_proxy =
       session_deps->trusted_spdy_proxy;
-  return new HttpNetworkSession(params);
+  HttpNetworkSession* http_session = new HttpNetworkSession(params);
+  SpdySessionPoolPeer pool_peer(http_session->spdy_session_pool());
+  pool_peer.EnableSendingInitialSettings(false);
+  return http_session;
 }
 
 // static
@@ -957,7 +960,10 @@ HttpNetworkSession* SpdySessionDependencies::SpdyCreateSessionDeterministic(
   params.http_auth_handler_factory =
       session_deps->http_auth_handler_factory.get();
   params.http_server_properties = &session_deps->http_server_properties;
-  return new HttpNetworkSession(params);
+  HttpNetworkSession* http_session = new HttpNetworkSession(params);
+  SpdySessionPoolPeer pool_peer(http_session->spdy_session_pool());
+  pool_peer.EnableSendingInitialSettings(false);
+  return http_session;
 }
 
 SpdyURLRequestContext::SpdyURLRequestContext()
@@ -980,6 +986,8 @@ SpdyURLRequestContext::SpdyURLRequestContext()
   params.http_server_properties = http_server_properties();
   scoped_refptr<HttpNetworkSession> network_session(
       new HttpNetworkSession(params));
+  SpdySessionPoolPeer pool_peer(network_session->spdy_session_pool());
+  pool_peer.EnableSendingInitialSettings(false);
   storage_.set_http_transaction_factory(new HttpCache(
       network_session,
       HttpCache::DefaultBackend::InMemory(0)));
