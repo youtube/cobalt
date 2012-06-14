@@ -6,6 +6,7 @@
 
 #include <mstcpip.h>
 
+#include "base/callback.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -18,7 +19,7 @@
 #include "net/base/net_util.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
-#include "net/udp/udp_data_transfer_param.h"
+#include "net/udp/udp_net_log_parameters.h"
 
 namespace {
 
@@ -52,10 +53,8 @@ UDPSocketWin::UDPSocketWin(DatagramSocket::BindType bind_type,
       recv_from_address_(NULL),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_UDP_SOCKET)) {
   EnsureWinsockInit();
-  scoped_refptr<NetLog::EventParameters> params;
-  if (source.is_valid())
-    params = new NetLogSourceParameter("source_dependency", source);
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
   memset(&read_overlapped_, 0, sizeof(read_overlapped_));
   read_overlapped_.hEvent = WSACreateEvent();
   memset(&write_overlapped_, 0, sizeof(write_overlapped_));
@@ -66,7 +65,7 @@ UDPSocketWin::UDPSocketWin(DatagramSocket::BindType bind_type,
 
 UDPSocketWin::~UDPSocketWin() {
   Close();
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
 void UDPSocketWin::Close() {
@@ -192,10 +191,8 @@ int UDPSocketWin::SendToOrWrite(IOBuffer* buf,
 }
 
 int UDPSocketWin::Connect(const IPEndPoint& address) {
-  net_log_.BeginEvent(
-      NetLog::TYPE_UDP_CONNECT,
-      make_scoped_refptr(new NetLogStringParameter("address",
-                                                   address.ToString())));
+  net_log_.BeginEvent(NetLog::TYPE_UDP_CONNECT,
+                      CreateNetLogUDPConnectCallback(&address));
   int rv = InternalConnect(address);
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_UDP_CONNECT, rv);
   return rv;
@@ -312,10 +309,9 @@ void UDPSocketWin::LogRead(int result, const char* bytes) const {
     bool is_address_valid = ReceiveAddressToIPEndpoint(&address);
     net_log_.AddEvent(
         NetLog::TYPE_UDP_BYTES_RECEIVED,
-        make_scoped_refptr(
-            new UDPDataTransferNetLogParam(
-                result, bytes, net_log_.IsLoggingBytes(),
-                is_address_valid ? &address : NULL)));
+        CreateNetLogUDPDataTranferCallback(
+            result, bytes,
+            is_address_valid ? &address : NULL));
   }
 
   base::StatsCounter read_bytes("udp.read_bytes");
@@ -346,10 +342,7 @@ void UDPSocketWin::LogWrite(int result,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_UDP_BYTES_SENT,
-        make_scoped_refptr(
-            new UDPDataTransferNetLogParam(result, bytes,
-                                           net_log_.IsLoggingBytes(),
-                                           address)));
+        CreateNetLogUDPDataTranferCallback(result, bytes, address));
   }
 
   base::StatsCounter write_bytes("udp.write_bytes");
