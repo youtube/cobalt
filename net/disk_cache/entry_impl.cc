@@ -64,6 +64,7 @@ void SyncCallback::OnFileIOComplete(int bytes_copied) {
           disk_cache::CreateNetLogReadWriteCompleteCallback(bytes_copied));
     }
     entry_->ReportIOTime(disk_cache::EntryImpl::kAsyncIO, start_);
+    buf_ = NULL;  // Release the buffer before invoking the callback.
     callback_.Run(bytes_copied);
   }
   entry_->Release();
