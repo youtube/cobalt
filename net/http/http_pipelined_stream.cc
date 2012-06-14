@@ -26,7 +26,8 @@ HttpPipelinedStream::~HttpPipelinedStream() {
 }
 
 int HttpPipelinedStream::InitializeStream(
-    const HttpRequestInfo* request_info, const BoundNetLog& net_log,
+    const HttpRequestInfo* request_info,
+    const BoundNetLog& net_log,
     const CompletionCallback& callback) {
   request_info_ = request_info;
   pipeline_->InitializeParser(pipeline_id_, request_info, net_log);
@@ -35,8 +36,10 @@ int HttpPipelinedStream::InitializeStream(
 
 
 int HttpPipelinedStream::SendRequest(
-    const HttpRequestHeaders& headers, UploadDataStream* request_body,
-    HttpResponseInfo* response, const CompletionCallback& callback) {
+    const HttpRequestHeaders& headers,
+    scoped_ptr<UploadDataStream> request_body,
+    HttpResponseInfo* response,
+    const CompletionCallback& callback) {
   CHECK(pipeline_id_);
   CHECK(request_info_);
   // TODO(simonjam): Proxy support will be needed here.
@@ -45,7 +48,7 @@ int HttpPipelinedStream::SendRequest(
                                                  request_info_->method.c_str(),
                                                  path.c_str());
   return pipeline_->SendRequest(pipeline_id_, request_line_, headers,
-                                request_body, response, callback);
+                                request_body.Pass(), response, callback);
 }
 
 uint64 HttpPipelinedStream::GetUploadProgress() const {
