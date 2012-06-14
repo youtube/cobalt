@@ -482,9 +482,6 @@
         'msvs_disabled_warnings': [
           4244, 4554, 4018, 4102,
         ],
-        'mac_framework_dirs': [
-          '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
-        ],
         'target_conditions': [
           ['<(use_glib)==0 or >(nacl_untrusted_build)==1', {
               'sources/': [
