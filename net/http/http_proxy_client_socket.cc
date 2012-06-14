@@ -416,8 +416,9 @@ int HttpProxyClientSocket::DoSendRequest() {
   parser_buf_ = new GrowableIOBuffer();
   http_stream_parser_.reset(
       new HttpStreamParser(transport_.get(), &request_, parser_buf_, net_log_));
-  return http_stream_parser_->SendRequest(request_line_, request_headers_, NULL,
-                                          &response_, io_callback_);
+  return http_stream_parser_->SendRequest(
+      request_line_, request_headers_, scoped_ptr<UploadDataStream>(),
+      &response_, io_callback_);
 }
 
 int HttpProxyClientSocket::DoSendRequestComplete(int result) {
