@@ -382,29 +382,22 @@ void DestroyCertificates(CERTCertificate** certs, size_t len) {
     CERT_DestroyCertificate(certs[i]);
 }
 
+// Helper functions to make it possible to log events from within the
+// SSLClientSocketNSS::Core.
+void AddLogEvent(BoundNetLog* net_log, NetLog::EventType event_type) {
+  if (!net_log)
+    return;
+  net_log->AddEvent(event_type);
+}
+
 // Helper function to make it possible to log events from within the
-// SSLClientSocketNSS::Core.  Can't use Bind with BoundNetLog::AddEntry directly
-// on Windows because it is overloaded.
-// TODO(mmenke):  Other than shutdown, NetLog is threadsafe.  Figure out if this
-//                is needed.
+// SSLClientSocketNSS::Core.
 void AddLogEventWithCallback(BoundNetLog* net_log,
                              NetLog::EventType event_type,
                              const NetLog::ParametersCallback& callback) {
   if (!net_log)
     return;
   net_log->AddEvent(event_type, callback);
-}
-
-// Helper functions to make it possible to log events from within the
-// SSLClientSocketNSS::Core.  Can't use Bind with BoundNetLog::AddEntry directly
-// on Windows because it is overloaded.
-// TODO(mmenke):  This function is deprecated, delete it.
-void AddLogEvent(BoundNetLog* net_log,
-                 NetLog::EventType event_type,
-                 const scoped_refptr<NetLog::EventParameters>& event_params) {
-  if (!net_log)
-    return;
-  net_log->AddEvent(event_type, event_params);
 }
 
 // Helper function to make it easier to call BoundNetLog::AddByteTransferEvent
@@ -911,6 +904,10 @@ class SSLClientSocketNSS::Core : public base::RefCountedThreadSafe<Core> {
   void PostOrRunCallback(const tracked_objects::Location& location,
                          const base::Closure& callback);
 
+  // Uses PostOrRunCallback and |weak_net_log_| to try and log a
+  // SSL_CLIENT_CERT_PROVIDED event, with the indicated count.
+  void AddCertProvidedEvent(int cert_count);
+
   ////////////////////////////////////////////////////////////////////////////
   // Members that are ONLY accessed on the network task runner:
   ////////////////////////////////////////////////////////////////////////////
@@ -1318,8 +1315,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
   core->PostOrRunCallback(
       FROM_HERE,
       base::Bind(&AddLogEvent, core->weak_net_log_,
-                 NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED,
-                 scoped_refptr<NetLog::EventParameters>()));
+                 NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED));
 
   const SECItem* cert_types = SSL_GetRequestedClientCertificateTypes(socket);
 
@@ -1362,12 +1358,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
         if (!user_cert) {
           // Importing the certificate can fail for reasons including a serial
           // number collision. See crbug.com/97355.
-          core->PostOrRunCallback(
-              FROM_HERE,
-              base::Bind(&AddLogEvent, core->weak_net_log_,
-                         NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                         make_scoped_refptr(
-                             new NetLogIntegerParameter("cert_count", 0))));
+          core->AddCertProvidedEvent(0);
           return SECFailure;
         }
         CERTCertList* cert_chain = CERT_NewCertList();
@@ -1385,12 +1376,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
               db_handle, &der_cert, NULL, PR_FALSE, PR_TRUE);
           if (!intermediate) {
             CERT_DestroyCertList(cert_chain);
-            core->PostOrRunCallback(
-                FROM_HERE,
-                base::Bind(&AddLogEvent, core->weak_net_log_,
-                           NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                           make_scoped_refptr(
-                               new NetLogIntegerParameter("cert_count", 0))));
+            core->AddCertProvidedEvent(0);
             return SECFailure;
           }
           CERT_AddCertToListTail(cert_chain, intermediate);
@@ -1408,25 +1394,14 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
         *result_certs = cert_chain;
 
         int cert_count = 1 + intermediates.size();
-        core->PostOrRunCallback(
-            FROM_HERE,
-            base::Bind(&AddLogEvent, core->weak_net_log_,
-                       NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                       make_scoped_refptr(
-                           new NetLogIntegerParameter("cert_count",
-                                                       cert_count))));
+        core->AddCertProvidedEvent(cert_count);
         return SECSuccess;
       }
       LOG(WARNING) << "Client cert found without private key";
     }
 
     // Send no client certificate.
-    core->PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&AddLogEvent, core->weak_net_log_,
-                   NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                   make_scoped_refptr(
-                       new NetLogIntegerParameter("cert_count", 0))));
+    core->AddCertProvidedEvent(0);
     return SECFailure;
   }
 
@@ -1443,12 +1418,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
   if (!my_cert_store) {
     PLOG(ERROR) << "Could not open the \"MY\" system certificate store";
 
-    core->PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&AddLogEvent, core->weak_net_log_,
-                   NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                   make_scoped_refptr(
-                       new NetLogIntegerParameter("cert_count", 0))));
+    core->AddCertProvidedEvent(0);
     return SECFailure;
   }
 
@@ -1588,13 +1558,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
           cert_count = CFArrayGetCount(chain);
           CFRelease(chain);
         }
-        core->PostOrRunCallback(
-            FROM_HERE,
-            base::Bind(&AddLogEvent, core->weak_net_log_,
-                       NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                       make_scoped_refptr(
-                           new NetLogIntegerParameter("cert_count",
-                                                      cert_count))));
+        core->AddCertProvidedEvent(cert_count);
         return SECSuccess;
       }
       OSSTATUS_LOG(WARNING, os_error)
@@ -1612,12 +1576,7 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
     }
 
     // Send no client certificate.
-    core->PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&AddLogEvent, core->weak_net_log_,
-                   NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                   make_scoped_refptr(
-                       new NetLogIntegerParameter("cert_count", 0))));
+    core->AddCertProvidedEvent(0);
     return SECFailure;
   }
 
@@ -1670,8 +1629,7 @@ SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
   core->PostOrRunCallback(
       FROM_HERE,
       base::Bind(&AddLogEvent, core->weak_net_log_,
-                 NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED,
-                 scoped_refptr<NetLog::EventParameters>()));
+                 NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED));
 
   const SECItem* cert_types = SSL_GetRequestedClientCertificateTypes(socket);
 
@@ -1699,24 +1657,14 @@ SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
         *result_private_key = privkey;
         // A cert_count of -1 means the number of certificates is unknown.
         // NSS will construct the certificate chain.
-        core->PostOrRunCallback(
-            FROM_HERE,
-            base::Bind(&AddLogEvent, core->weak_net_log_,
-                       NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                       make_scoped_refptr(
-                           new NetLogIntegerParameter("cert_count", -1))));
+        core->AddCertProvidedEvent(-1);
 
         return SECSuccess;
       }
       LOG(WARNING) << "Client cert found without private key";
     }
     // Send no client certificate.
-    core->PostOrRunCallback(
-        FROM_HERE,
-        base::Bind(&AddLogEvent, core->weak_net_log_,
-                   NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                   make_scoped_refptr(
-                       new NetLogIntegerParameter("cert_count", 0))));
+    core->AddCertProvidedEvent(0);
     return SECFailure;
   }
 
@@ -1964,9 +1912,9 @@ int SSLClientSocketNSS::Core::DoReadLoop(int result) {
     int rv = ERR_UNEXPECTED;
     PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&AddLogEvent, weak_net_log_,
+        base::Bind(&AddLogEventWithCallback, weak_net_log_,
                    NetLog::TYPE_SSL_READ_ERROR,
-                   make_scoped_refptr(new SSLErrorParams(rv, 0))));
+                   CreateNetLogSSLErrorCallback(rv, 0)));
     return rv;
   }
 
@@ -1993,9 +1941,9 @@ int SSLClientSocketNSS::Core::DoWriteLoop(int result) {
     int rv = ERR_UNEXPECTED;
     PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&AddLogEvent, weak_net_log_,
+        base::Bind(&AddLogEventWithCallback, weak_net_log_,
                    NetLog::TYPE_SSL_READ_ERROR,
-                   make_scoped_refptr(new SSLErrorParams(rv, 0))));
+                   CreateNetLogSSLErrorCallback(rv, 0)));
     return rv;
   }
 
@@ -2028,9 +1976,9 @@ int SSLClientSocketNSS::Core::DoHandshake() {
       net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
       PostOrRunCallback(
           FROM_HERE,
-          base::Bind(&AddLogEvent, weak_net_log_,
+          base::Bind(&AddLogEventWithCallback, weak_net_log_,
                      NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                     make_scoped_refptr(new SSLErrorParams(net_error, 0))));
+                     CreateNetLogSSLErrorCallback(net_error, 0)));
 
       // If the handshake already succeeded (because the server requests but
       // doesn't require a client cert), we need to invalidate the SSL session
@@ -2048,10 +1996,9 @@ int SSLClientSocketNSS::Core::DoHandshake() {
       net_error = ERR_SSL_PROTOCOL_ERROR;
       PostOrRunCallback(
           FROM_HERE,
-          base::Bind(&AddLogEvent, weak_net_log_,
+          base::Bind(&AddLogEventWithCallback, weak_net_log_,
                      NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                     make_scoped_refptr(
-                         new SSLErrorParams(net_error, 0))));
+                     CreateNetLogSSLErrorCallback(net_error, 0)));
     } else {
   #if defined(SSL_ENABLE_OCSP_STAPLING)
       // TODO(agl): figure out how to plumb an OCSP response into the Mac
@@ -2126,10 +2073,9 @@ int SSLClientSocketNSS::Core::DoHandshake() {
     } else {
       PostOrRunCallback(
           FROM_HERE,
-          base::Bind(&AddLogEvent, weak_net_log_,
+          base::Bind(&AddLogEventWithCallback, weak_net_log_,
                      NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                     make_scoped_refptr(
-                         new SSLErrorParams(net_error, prerr))));
+                     CreateNetLogSSLErrorCallback(net_error, prerr)));
     }
   }
 
@@ -2165,13 +2111,7 @@ int SSLClientSocketNSS::Core::DoGetDBCertComplete(int result) {
   CERTCertificateList* cert_chain =
       CERT_CertChainFromCert(cert, certUsageSSLClient, PR_FALSE);
 
-  PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&AddLogEvent, weak_net_log_,
-                 NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                 make_scoped_refptr(
-                     new NetLogIntegerParameter("cert_count",
-                                                cert_chain->len))));
+  AddCertProvidedEvent(cert_chain->len);
 
   rv = SSL_RestartHandshakeAfterCertReq(nss_fd_, cert, key, cert_chain);
   if (rv != SECSuccess)
@@ -2193,9 +2133,9 @@ int SSLClientSocketNSS::Core::DoPayloadRead() {
     rv = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
     PostOrRunCallback(
         FROM_HERE,
-        base::Bind(&AddLogEvent, weak_net_log_,
+        base::Bind(&AddLogEventWithCallback, weak_net_log_,
                    NetLog::TYPE_SSL_READ_ERROR,
-                   make_scoped_refptr(new SSLErrorParams(rv, 0))));
+                   CreateNetLogSSLErrorCallback(rv, 0)));
     return rv;
   }
   if (rv >= 0) {
@@ -2213,9 +2153,9 @@ int SSLClientSocketNSS::Core::DoPayloadRead() {
   rv = HandleNSSError(prerr, false);
   PostOrRunCallback(
       FROM_HERE,
-      base::Bind(&AddLogEvent, weak_net_log_,
+      base::Bind(&AddLogEventWithCallback, weak_net_log_,
                  NetLog::TYPE_SSL_READ_ERROR,
-                 make_scoped_refptr(new SSLErrorParams(rv, prerr))));
+                 CreateNetLogSSLErrorCallback(rv, prerr)));
   return rv;
 }
 
@@ -2240,9 +2180,9 @@ int SSLClientSocketNSS::Core::DoPayloadWrite() {
   rv = HandleNSSError(prerr, false);
   PostOrRunCallback(
       FROM_HERE,
-      base::Bind(&AddLogEvent, weak_net_log_,
+      base::Bind(&AddLogEventWithCallback, weak_net_log_,
                  NetLog::TYPE_SSL_WRITE_ERROR,
-                 make_scoped_refptr(new SSLErrorParams(rv, prerr))));
+                 CreateNetLogSSLErrorCallback(rv, prerr)));
   return rv;
 }
 
@@ -2486,13 +2426,7 @@ SECStatus SSLClientSocketNSS::Core::DomainBoundClientAuthHandler(
   }
 
   int cert_count = (rv == SECSuccess) ? 1 : 0;
-  PostOrRunCallback(
-      FROM_HERE,
-      base::Bind(&AddLogEvent, weak_net_log_,
-                 NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
-                 make_scoped_refptr(
-                     new NetLogIntegerParameter("cert_count",
-                                                cert_count))));
+  AddCertProvidedEvent(cert_count);
   return rv;
 }
 
@@ -2697,7 +2631,7 @@ int SSLClientSocketNSS::Core::DoGetDomainBoundCert(
   if (detached_)
     return ERR_FAILED;
 
-  weak_net_log_->BeginEvent(NetLog::TYPE_SSL_GET_DOMAIN_BOUND_CERT, NULL);
+  weak_net_log_->BeginEvent(NetLog::TYPE_SSL_GET_DOMAIN_BOUND_CERT);
 
   int rv = server_bound_cert_service_->GetDomainBoundCert(
       origin,
@@ -2808,6 +2742,14 @@ void SSLClientSocketNSS::Core::PostOrRunCallback(
   if (detached_ || task.is_null())
     return;
   task.Run();
+}
+
+void SSLClientSocketNSS::Core::AddCertProvidedEvent(int cert_count) {
+  PostOrRunCallback(
+      FROM_HERE,
+      base::Bind(&AddLogEventWithCallback, weak_net_log_,
+                 NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
+                 NetLog::IntegerCallback("cert_count", cert_count)));
 }
 
 SSLClientSocketNSS::SSLClientSocketNSS(
@@ -2942,7 +2884,7 @@ int SSLClientSocketNSS::Connect(const CompletionCallback& callback) {
 
   EnsureThreadIdAssigned();
 
-  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   int rv = Init();
   if (rv != OK) {
@@ -3529,7 +3471,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
     // server then it will have optimistically started a verification of that
     // chain. So, if the prediction was correct, we should wait for that
     // verification to finish rather than start our own.
-    net_log_.AddEvent(NetLog::TYPE_SSL_VERIFICATION_MERGED, NULL);
+    net_log_.AddEvent(NetLog::TYPE_SSL_VERIFICATION_MERGED);
     UMA_HISTOGRAM_ENUMERATION("Net.SSLVerificationMerged", 1 /* true */, 2);
     base::TimeTicks end_time = ssl_host_info_->verification_end_time();
     if (end_time.is_null())

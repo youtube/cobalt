@@ -98,7 +98,7 @@ int SOCKSClientSocket::Connect(const CompletionCallback& callback) {
 
   next_state_ = STATE_RESOLVE_HOST;
 
-  net_log_.BeginEvent(NetLog::TYPE_SOCKS_CONNECT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKS_CONNECT);
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
