@@ -189,7 +189,7 @@ HttpStreamParser::~HttpStreamParser() {
 
 int HttpStreamParser::SendRequest(const std::string& request_line,
                                   const HttpRequestHeaders& headers,
-                                  UploadDataStream* request_body,
+                                  scoped_ptr<UploadDataStream> request_body,
                                   HttpResponseInfo* response,
                                   const CompletionCallback& callback) {
   DCHECK_EQ(STATE_NONE, io_state_);
@@ -216,7 +216,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   response_->socket_address = HostPortPair::FromIPEndPoint(ip_endpoint);
 
   std::string request = request_line + headers.ToString();
-  request_body_.reset(request_body);
+  request_body_.reset(request_body.release());
   if (request_body_ != NULL) {
     request_body_buf_ = new SeekableIOBuffer(kRequestBodyBufferSize);
     if (request_body_->is_chunked()) {
@@ -234,7 +234,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   // single write.
   bool did_merge = false;
   if (ShouldMergeRequestHeadersAndBody(request, request_body_.get())) {
-    size_t merged_size = request.size() + request_body->size();
+    size_t merged_size = request.size() + request_body_->size();
     scoped_refptr<IOBuffer> merged_request_headers_and_body(
         new IOBuffer(merged_size));
     // We'll repurpose |request_headers_| to store the merged headers and

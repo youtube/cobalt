@@ -188,7 +188,7 @@ void SpdyHttpStream::set_chunk_callback(ChunkCallback* callback) {
 }
 
 int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
-                                UploadDataStream* request_body,
+                                scoped_ptr<UploadDataStream> request_body,
                                 HttpResponseInfo* response,
                                 const CompletionCallback& callback) {
   base::Time request_time = base::Time::Now();
@@ -210,16 +210,14 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
     response_info_->request_time = request_time;
 
   CHECK(!request_body_stream_.get());
-  if (request_body) {
+  if (request_body != NULL) {
     if (request_body->size() || request_body->is_chunked()) {
-      request_body_stream_.reset(request_body);
+      request_body_stream_.reset(request_body.release());
       // Use kMaxSpdyFrameChunkSize as the buffer size, since the request
       // body data is written with this size at a time.
       raw_request_body_buf_ = new IOBufferWithSize(kMaxSpdyFrameChunkSize);
       // The request body buffer is empty at first.
       request_body_buf_ = new DrainableIOBuffer(raw_request_body_buf_, 0);
-    } else {
-      delete request_body;
     }
   }
 

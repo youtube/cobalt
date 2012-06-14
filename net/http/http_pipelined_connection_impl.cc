@@ -155,9 +155,12 @@ void HttpPipelinedConnectionImpl::OnStreamDeleted(int pipeline_id) {
 }
 
 int HttpPipelinedConnectionImpl::SendRequest(
-    int pipeline_id, const std::string& request_line,
-    const HttpRequestHeaders& headers, UploadDataStream* request_body,
-    HttpResponseInfo* response, const CompletionCallback& callback) {
+    int pipeline_id,
+    const std::string& request_line,
+    const HttpRequestHeaders& headers,
+    scoped_ptr<UploadDataStream> request_body,
+    HttpResponseInfo* response,
+    const CompletionCallback& callback) {
   CHECK(ContainsKey(stream_info_map_, pipeline_id));
   CHECK_EQ(stream_info_map_[pipeline_id].state, STREAM_BOUND);
   if (!usable_) {
@@ -168,7 +171,7 @@ int HttpPipelinedConnectionImpl::SendRequest(
   send_request->pipeline_id = pipeline_id;
   send_request->request_line = request_line;
   send_request->headers = headers;
-  send_request->request_body = request_body;
+  send_request->request_body.reset(request_body.release());
   send_request->response = response;
   send_request->callback = callback;
   pending_send_request_queue_.push(send_request);
@@ -258,7 +261,7 @@ int HttpPipelinedConnectionImpl::DoSendActiveRequest(int result) {
   int rv = stream_info_map_[active_send_request_->pipeline_id].parser->
       SendRequest(active_send_request_->request_line,
                   active_send_request_->headers,
-                  active_send_request_->request_body,
+                  active_send_request_->request_body.Pass(),
                   active_send_request_->response,
                   base::Bind(&HttpPipelinedConnectionImpl::OnSendIOCallback,
                              base::Unretained(this)));
