@@ -47,10 +47,7 @@ template <typename R>
 class TestCompletionCallbackTemplate
     : public TestCompletionCallbackBaseInternal {
  public:
-  void SetResult(R result) {
-    result_ = result;
-    DidSetResult();
-  }
+  virtual ~TestCompletionCallbackTemplate() {}
 
   R WaitForResult() {
     TestCompletionCallbackBaseInternal::WaitForResult();
@@ -64,6 +61,12 @@ class TestCompletionCallbackTemplate
   }
 
  protected:
+  // Override this method to gain control as the callback is running.
+  virtual void SetResult(R result) {
+    result_ = result;
+    DidSetResult();
+  }
+
   TestCompletionCallbackTemplate() : result_(R()) {}
   R result_;
 
@@ -83,7 +86,7 @@ typedef internal::TestCompletionCallbackTemplate<int64>
 class TestCompletionCallback : public TestCompletionCallbackBase {
  public:
   TestCompletionCallback();
-  ~TestCompletionCallback();
+  virtual ~TestCompletionCallback();
 
   const CompletionCallback& callback() const { return callback_; }
 
@@ -96,7 +99,7 @@ class TestCompletionCallback : public TestCompletionCallbackBase {
 class TestInt64CompletionCallback : public TestInt64CompletionCallbackBase {
  public:
   TestInt64CompletionCallback();
-  ~TestInt64CompletionCallback();
+  virtual ~TestInt64CompletionCallback();
 
   const Int64CompletionCallback& callback() const { return callback_; }
 
