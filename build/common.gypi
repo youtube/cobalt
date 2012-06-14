@@ -2245,7 +2245,6 @@
                   'cflags': [
                       '-faddress-sanitizer',
                       '-fno-omit-frame-pointer',
-                      '-w',
                   ],
                   'ldflags': [
                       '-faddress-sanitizer',
@@ -2686,7 +2685,6 @@
             'xcode_settings': {
               'OTHER_CFLAGS': [
                 '-faddress-sanitizer',
-                '-w',
               ],
               'OTHER_LDFLAGS': [
                 '-faddress-sanitizer',
