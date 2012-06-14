@@ -4,6 +4,7 @@
 
 #include "net/proxy/proxy_resolver_js_bindings.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/string_util.h"
@@ -26,51 +27,15 @@ namespace {
 // DNS resolutions.
 const unsigned kCacheEntryTTLSeconds = 5 * 60;
 
-// Event parameters for a PAC error message (line number + message).
-class ErrorNetlogParams : public NetLog::EventParameters {
- public:
-  ErrorNetlogParams(int line_number,
-                    const string16& message)
-      : line_number_(line_number),
-        message_(message) {
-  }
-
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetInteger("line_number", line_number_);
-    dict->SetString("message", message_);
-    return dict;
-  }
-
- protected:
-  virtual ~ErrorNetlogParams() {}
-
- private:
-  const int line_number_;
-  const string16 message_;
-
-  DISALLOW_COPY_AND_ASSIGN(ErrorNetlogParams);
-};
-
-// Event parameters for a PAC alert().
-class AlertNetlogParams : public NetLog::EventParameters {
- public:
-  explicit AlertNetlogParams(const string16& message) : message_(message) {}
-
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("message", message_);
-    return dict;
-  }
-
- protected:
-  virtual ~AlertNetlogParams() {}
-
- private:
-  const string16 message_;
-
-  DISALLOW_COPY_AND_ASSIGN(AlertNetlogParams);
-};
+// Returns event parameters for a PAC error message (line number + message).
+Value* NetLogErrorCallback(int line_number,
+                           const string16* message,
+                           NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("line_number", line_number);
+  dict->SetString("message", *message);
+  return dict;
+}
 
 // ProxyResolverJSBindings implementation.
 class DefaultJSBindings : public ProxyResolverJSBindings {
@@ -88,8 +53,9 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     VLOG(1) << "PAC-alert: " << message;
 
     // Send to the NetLog.
-    LogEventToCurrentRequestAndGlobally(NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
-                                        new AlertNetlogParams(message));
+    LogEventToCurrentRequestAndGlobally(
+        NetLog::TYPE_PAC_JAVASCRIPT_ALERT,
+        NetLog::StringCallback("message", &message));
   }
 
   // Handler for "myIpAddress()".
@@ -97,28 +63,24 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   // getifaddrs().
   virtual bool MyIpAddress(std::string* first_ip_address) OVERRIDE {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
-                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS,
-                             NULL);
+                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS);
 
     bool ok = MyIpAddressImpl(first_ip_address);
 
     LogEventToCurrentRequest(NetLog::PHASE_END,
-                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS,
-                             NULL);
+                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS);
     return ok;
   }
 
   // Handler for "myIpAddressEx()".
   virtual bool MyIpAddressEx(std::string* ip_address_list) OVERRIDE {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
-                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX,
-                             NULL);
+                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX);
 
     bool ok = MyIpAddressExImpl(ip_address_list);
 
     LogEventToCurrentRequest(NetLog::PHASE_END,
-                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX,
-                             NULL);
+                             NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX);
     return ok;
   }
 
@@ -126,14 +88,12 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   virtual bool DnsResolve(const std::string& host,
                           std::string* first_ip_address) OVERRIDE {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
-                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE,
-                             NULL);
+                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE);
 
     bool ok = DnsResolveImpl(host, first_ip_address);
 
     LogEventToCurrentRequest(NetLog::PHASE_END,
-                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE,
-                             NULL);
+                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE);
     return ok;
   }
 
@@ -141,14 +101,12 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   virtual bool DnsResolveEx(const std::string& host,
                             std::string* ip_address_list) OVERRIDE {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
-                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX,
-                             NULL);
+                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX);
 
     bool ok = DnsResolveExImpl(host, ip_address_list);
 
     LogEventToCurrentRequest(NetLog::PHASE_END,
-                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX,
-                             NULL);
+                             NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX);
     return ok;
   }
 
@@ -163,7 +121,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     // Send the error to the NetLog.
     LogEventToCurrentRequestAndGlobally(
         NetLog::TYPE_PAC_JAVASCRIPT_ERROR,
-        new ErrorNetlogParams(line_number, message));
+        base::Bind(&NetLogErrorCallback, line_number, &message));
 
     if (error_observer_.get())
       error_observer_->OnPACScriptError(line_number, message);
@@ -289,21 +247,29 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
   void LogEventToCurrentRequest(
       NetLog::EventPhase phase,
-      NetLog::EventType type,
-      scoped_refptr<NetLog::EventParameters> params) {
+      NetLog::EventType type) {
     const BoundNetLog* net_log = GetNetLogForCurrentRequest();
     if (net_log)
-      net_log->AddEntry(type, phase, params);
+      net_log->AddEntry(type, phase);
+  }
+
+  void LogEventToCurrentRequest(
+      NetLog::EventPhase phase,
+      NetLog::EventType type,
+      const NetLog::ParametersCallback& parameters_callback) {
+    const BoundNetLog* net_log = GetNetLogForCurrentRequest();
+    if (net_log)
+      net_log->AddEntry(type, phase, parameters_callback);
   }
 
   void LogEventToCurrentRequestAndGlobally(
       NetLog::EventType type,
-      scoped_refptr<NetLog::EventParameters> params) {
-    LogEventToCurrentRequest(NetLog::PHASE_NONE, type, params);
+      const NetLog::ParametersCallback& parameters_callback) {
+    LogEventToCurrentRequest(NetLog::PHASE_NONE, type, parameters_callback);
 
     // Emit to the global NetLog event stream.
     if (net_log_)
-      net_log_->AddGlobalEntry(type, params);
+      net_log_->AddGlobalEntry(type, parameters_callback);
   }
 
   scoped_ptr<SyncHostResolver> host_resolver_;
