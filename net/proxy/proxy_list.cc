@@ -4,6 +4,7 @@
 
 #include "net/proxy/proxy_list.h"
 
+#include "base/callback.h"
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
 #include "base/time.h"
@@ -161,9 +162,8 @@ bool ProxyList::Fallback(ProxyRetryInfoMap* proxy_retry_info,
       retry_info.bad_until = TimeTicks().Now() + retry_info.current_delay;
       (*proxy_retry_info)[key] = retry_info;
     }
-    net_log.AddEvent(
-        NetLog::TYPE_PROXY_LIST_FALLBACK,
-        make_scoped_refptr(new NetLogStringParameter("bad_proxy", key)));
+    net_log.AddEvent(NetLog::TYPE_PROXY_LIST_FALLBACK,
+                     NetLog::StringCallback("bad_proxy", &key));
   }
 
   // Remove this proxy from our list.
