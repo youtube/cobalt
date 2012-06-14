@@ -11,6 +11,7 @@
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/chunk_demuxer_client.h"
+#include "media/mp4/mp4_stream_parser.h"
 #include "media/webm/webm_stream_parser.h"
 
 namespace media {
@@ -31,6 +32,11 @@ struct SupportedTypeInfo {
 static const CodecInfo kVP8CodecInfo = { "vp8", DemuxerStream::VIDEO };
 static const CodecInfo kVorbisCodecInfo = { "vorbis", DemuxerStream::AUDIO };
 
+// TODO(strobe): Perform matching against supported profiles and levels, or
+// simply accept codecs that match a prefix.
+static const CodecInfo kH264CodecInfo = { "avc1.4D4041", DemuxerStream::VIDEO };
+static const CodecInfo kAACCodecInfo = { "mp4a.40.2", DemuxerStream::AUDIO };
+
 static const CodecInfo* kVideoWebMCodecs[] = {
   &kVP8CodecInfo,
   &kVorbisCodecInfo,
@@ -42,13 +48,30 @@ static const CodecInfo* kAudioWebMCodecs[] = {
   NULL
 };
 
+static const CodecInfo* kVideoMP4Codecs[] = {
+  &kH264CodecInfo,
+  &kAACCodecInfo,
+  NULL
+};
+
+static const CodecInfo* kAudioMP4Codecs[] = {
+  &kAACCodecInfo,
+  NULL
+};
+
 static StreamParser* BuildWebMParser() {
   return new WebMStreamParser();
+}
+
+static StreamParser* BuildMP4Parser() {
+  return new mp4::MP4StreamParser();
 }
 
 static const SupportedTypeInfo kSupportedTypeInfo[] = {
   { "video/webm", &BuildWebMParser, kVideoWebMCodecs },
   { "audio/webm", &BuildWebMParser, kAudioWebMCodecs },
+  { "video/mp4", &BuildMP4Parser, kVideoMP4Codecs },
+  { "audio/mp4", &BuildMP4Parser, kAudioMP4Codecs },
 };
 
 // Checks to see if the specified |type| and |codecs| list are supported.
