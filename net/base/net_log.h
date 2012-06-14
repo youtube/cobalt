@@ -298,7 +298,14 @@ class NET_EXPORT NetLog {
 
   // Creates a ParametersCallback that encapsulates a single integer.
   // Warning: |name| must remain valid for the life of the callback.
+  // TODO(mmenke):  Rename this to be consistent with Int64Callback.
   static ParametersCallback IntegerCallback(const char* name, int value);
+
+  // Creates a ParametersCallback that encapsulates a single int64.  The
+  // callback will return the value as a StringValue, since IntegerValues
+  // only support 32-bit values.
+  // Warning: |name| must remain valid for the life of the callback.
+  static ParametersCallback Int64Callback(const char* name, int64 value);
 
   // Creates a ParametersCallback that encapsulates a single UTF8 string.  Takes
   // |value| as a pointer to avoid copying, and emphasize it must be valid for
