@@ -106,7 +106,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   int SendRequest(int pipeline_id,
                   const std::string& request_line,
                   const HttpRequestHeaders& headers,
-                  UploadDataStream* request_body,
+                  scoped_ptr<UploadDataStream> request_body,
                   HttpResponseInfo* response,
                   const CompletionCallback& callback);
 
@@ -182,7 +182,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
     int pipeline_id;
     std::string request_line;
     HttpRequestHeaders headers;
-    UploadDataStream* request_body;
+    scoped_ptr<UploadDataStream> request_body;
     HttpResponseInfo* response;
     CompletionCallback callback;
   };

@@ -777,7 +777,7 @@ int HttpNetworkTransaction::DoSendRequest() {
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
 
   return stream_->SendRequest(
-      request_headers_, request_body_.release(), &response_, io_callback_);
+      request_headers_, request_body_.Pass(), &response_, io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
