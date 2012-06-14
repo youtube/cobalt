@@ -55,6 +55,14 @@ Value* NetLogIntegerCallback(const char* name,
   return event_params;
 }
 
+Value* NetLogInt64Callback(const char* name,
+                           int64 value,
+                           NetLog::LogLevel /* log_level */) {
+  DictionaryValue* event_params = new DictionaryValue();
+  event_params->SetString(name, base::Int64ToString(value));
+  return event_params;
+}
+
 Value* NetLogStringCallback(const char* name,
                             const std::string* value,
                             NetLog::LogLevel /* log_level */) {
@@ -280,6 +288,12 @@ bool NetLog::IsLoggingAllEvents(LogLevel log_level) {
 NetLog::ParametersCallback NetLog::IntegerCallback(const char* name,
                                                    int value) {
   return base::Bind(&NetLogIntegerCallback, name, value);
+}
+
+// static
+NetLog::ParametersCallback NetLog::Int64Callback(const char* name,
+                                                 int64 value) {
+  return base::Bind(&NetLogInt64Callback, name, value);
 }
 
 // static
