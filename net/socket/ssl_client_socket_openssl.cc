@@ -42,6 +42,10 @@ const size_t kMaxRecvBufferSize = 4096;
 const int kSessionCacheTimeoutSeconds = 60 * 60;
 const size_t kSessionCacheMaxEntires = 1024;
 
+// If a client doesn't have a list of protocols that it supports, but
+// the server supports NPN, choosing "http/1.1" is the best answer.
+const char kDefaultSupportedNPNProtocol[] = "http/1.1";
+
 // This method doesn't seemed to have made it into the OpenSSL headers.
 unsigned long SSL_CIPHER_get_id(const SSL_CIPHER* cipher) { return cipher->id; }
 
@@ -854,16 +858,15 @@ int SSLClientSocketOpenSSL::SelectNextProtoCallback(unsigned char** out,
                                                     unsigned int inlen) {
 #if defined(OPENSSL_NPN_NEGOTIATED)
   if (ssl_config_.next_protos.empty()) {
-    *out = reinterpret_cast<uint8*>(const_cast<char*>("http/1.1"));
-    *outlen = 8;
-    npn_status_ = SSLClientSocket::kNextProtoUnsupported;
+    *out = reinterpret_cast<uint8*>(
+        const_cast<char*>(kDefaultSupportedNPNProtocol));
+    *outlen = arraysize(kDefaultSupportedNPNProtocol) - 1;
+    npn_status_ = kNextProtoUnsupported;
     return SSL_TLSEXT_ERR_OK;
   }
 
   // Assume there's no overlap between our protocols and the server's list.
-  int status = OPENSSL_NPN_NO_OVERLAP;
-  *out = const_cast<unsigned char*>(in) + 1;
-  *outlen = in[0];
+  npn_status_ = kNextProtoNoOverlap;
 
   // For each protocol in server preference order, see if we support it.
   for (unsigned int i = 0; i < inlen; i += in[i] + 1) {
@@ -872,30 +875,26 @@ int SSLClientSocketOpenSSL::SelectNextProtoCallback(unsigned char** out,
          j != ssl_config_.next_protos.end(); ++j) {
       if (in[i] == j->size() &&
           memcmp(&in[i + 1], j->data(), in[i]) == 0) {
-        // We find a match.
+        // We found a match.
         *out = const_cast<unsigned char*>(in) + i + 1;
         *outlen = in[i];
-        status = OPENSSL_NPN_NEGOTIATED;
+        npn_status_ = kNextProtoNegotiated;
         break;
       }
     }
-    if (status == OPENSSL_NPN_NEGOTIATED)
+    if (npn_status_ == kNextProtoNegotiated)
       break;
+  }
+
+  // If we didn't find a protocol, we select the first one from our list.
+  if (npn_status_ == kNextProtoNoOverlap) {
+    *out = reinterpret_cast<uint8*>(const_cast<char*>(
+        ssl_config_.next_protos[0].data()));
+    *outlen = ssl_config_.next_protos[0].size();
   }
 
   npn_proto_.assign(reinterpret_cast<const char*>(*out), *outlen);
   server_protos_.assign(reinterpret_cast<const char*>(in), inlen);
-  switch (status) {
-    case OPENSSL_NPN_NEGOTIATED:
-      npn_status_ = SSLClientSocket::kNextProtoNegotiated;
-      break;
-    case OPENSSL_NPN_NO_OVERLAP:
-      npn_status_ = SSLClientSocket::kNextProtoNoOverlap;
-      break;
-    default:
-      NOTREACHED() << status;
-      break;
-  }
   DVLOG(2) << "next protocol: '" << npn_proto_ << "' status: " << npn_status_;
 #endif
   return SSL_TLSEXT_ERR_OK;
