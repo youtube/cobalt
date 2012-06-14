@@ -128,6 +128,7 @@ export AR_target=$(basename ${ANDROID_TOOLCHAIN}/*-ar)
 
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
+  echo "GYP_GENERATORS set to '$GYP_GENERATORS'"
   "${CHROME_SRC}/build/gyp_chromium" --depth="${CHROME_SRC}" "$@"
 }
 
@@ -147,7 +148,7 @@ DEFINES+=" remoting=0"
 DEFINES+=" p2p_apis=0"
 DEFINES+=" enable_touch_events=1"
 DEFINES+=" build_ffmpegsumo=0"
-# TODO(bulach): use "shared_libraries" once the transition from executable
+# TODO(bulach): use "shared_library" once the transition from executable
 # is over.
 DEFINES+=" gtest_target_type=executable"
 DEFINES+=" branding=Chromium"
