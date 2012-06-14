@@ -25,7 +25,8 @@ class WebMStreamParser : public StreamParser {
   virtual void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
                     const NewBuffersCB& audio_cb,
                     const NewBuffersCB& video_cb,
-                    const KeyNeededCB& key_needed_cb) OVERRIDE;
+                    const KeyNeededCB& key_needed_cb,
+                    const NewMediaSegmentCB& new_segment_cb) OVERRIDE;
   virtual void Flush() OVERRIDE;
   virtual bool Parse(const uint8* buf, int size) OVERRIDE;
 
@@ -64,6 +65,11 @@ class WebMStreamParser : public StreamParser {
   NewBuffersCB audio_cb_;
   NewBuffersCB video_cb_;
   KeyNeededCB key_needed_cb_;
+  NewMediaSegmentCB new_segment_cb_;
+
+  // True if a new cluster id has been seen, but no audio or video buffers have
+  // been parsed yet.
+  bool waiting_for_buffers_;
 
   scoped_ptr<WebMClusterParser> cluster_parser_;
   ByteQueue byte_queue_;

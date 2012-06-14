@@ -181,7 +181,8 @@ bool FFmpegConfigHelper::SetupStreamConfigs() {
 }
 
 WebMStreamParser::WebMStreamParser()
-    : state_(kWaitingForInit) {
+    : state_(kWaitingForInit),
+      waiting_for_buffers_(false) {
 }
 
 WebMStreamParser::~WebMStreamParser() {}
@@ -190,13 +191,15 @@ void WebMStreamParser::Init(const InitCB& init_cb,
                             const NewConfigCB& config_cb,
                             const NewBuffersCB& audio_cb,
                             const NewBuffersCB& video_cb,
-                            const KeyNeededCB& key_needed_cb) {
+                            const KeyNeededCB& key_needed_cb,
+                            const NewMediaSegmentCB& new_segment_cb) {
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!init_cb.is_null());
   DCHECK(!config_cb.is_null());
   DCHECK(!audio_cb.is_null() || !video_cb.is_null());
   DCHECK(!key_needed_cb.is_null());
+  DCHECK(!new_segment_cb.is_null());
 
   ChangeState(kParsingHeaders);
   init_cb_ = init_cb;
@@ -204,6 +207,7 @@ void WebMStreamParser::Init(const InitCB& init_cb,
   audio_cb_ = audio_cb;
   video_cb_ = video_cb;
   key_needed_cb_ = key_needed_cb;
+  new_segment_cb_ = new_segment_cb;
 }
 
 void WebMStreamParser::Flush() {
@@ -381,6 +385,9 @@ int WebMStreamParser::ParseCluster(const uint8* data, int size) {
   if (result <= 0)
     return result;
 
+  if (id == kWebMIdCluster)
+    waiting_for_buffers_ = true;
+
   if (id == kWebMIdCues) {
     if (size < (result + element_size)) {
       // We don't have the whole element yet. Signal we need more data.
@@ -402,6 +409,26 @@ int WebMStreamParser::ParseCluster(const uint8* data, int size) {
 
   const BufferQueue& audio_buffers = cluster_parser_->audio_buffers();
   const BufferQueue& video_buffers = cluster_parser_->video_buffers();
+
+  if (waiting_for_buffers_) {
+    base::TimeDelta audio_start_timestamp = kInfiniteDuration();
+    base::TimeDelta video_start_timestamp = kInfiniteDuration();
+
+    if (!audio_buffers.empty())
+      audio_start_timestamp = audio_buffers.front()->GetTimestamp();
+    if (!video_buffers.empty())
+      video_start_timestamp = video_buffers.front()->GetTimestamp();
+
+    base::TimeDelta cluster_start_timestamp =
+        std::min(audio_start_timestamp, video_start_timestamp);
+
+    // If we haven't gotten any buffers yet, return early.
+    if (cluster_start_timestamp == kInfiniteDuration())
+      return bytes_parsed;
+
+    new_segment_cb_.Run(cluster_start_timestamp);
+    waiting_for_buffers_ = false;
+  }
 
   if (!audio_buffers.empty() && !audio_cb_.Run(audio_buffers))
     return -1;
