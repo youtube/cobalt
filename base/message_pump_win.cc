@@ -6,6 +6,7 @@
 
 #include <math.h>
 
+#include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
 #include "base/process_util.h"
@@ -367,6 +368,8 @@ bool MessagePumpForUI::ProcessNextWindowsMessage() {
 }
 
 bool MessagePumpForUI::ProcessMessageHelper(const MSG& msg) {
+  TRACE_EVENT1("base", "MessagePumpForUI::ProcessMessageHelper",
+               "message", msg.message);
   if (WM_QUIT == msg.message) {
     // Repost the QUIT message so that it will be retrieved by the primary
     // GetMessage() loop.
