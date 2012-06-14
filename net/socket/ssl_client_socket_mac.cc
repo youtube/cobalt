@@ -554,7 +554,7 @@ int SSLClientSocketMac::Connect(const CompletionCallback& callback) {
   DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(user_connect_callback_.is_null());
 
-  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   int rv = InitializeSSLContext();
   if (rv != OK) {
@@ -1142,7 +1142,7 @@ int SSLClientSocketMac::DoHandshake() {
   }
 
   net_log_.AddEvent(NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-                    new SSLErrorParams(net_error, status));
+                    CreateNetLogSSLErrorCallback(net_error, status));
   return net_error;
 }
 
