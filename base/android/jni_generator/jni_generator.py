@@ -179,7 +179,7 @@ def JavaParamToJni(param):
       'Lorg/chromium/content/browser/LocationProvider',
       'Lorg/chromium/content/browser/SandboxedProcessArgs',
       'Lorg/chromium/content/browser/SandboxedProcessConnection',
-      'Lorg/chromium/content/browser/SandboxedProcessService',
+      'Lorg/chromium/content/app/SandboxedProcessService',
       'Lorg/chromium/content/browser/SurfaceTextureListener',
       'Lorg/chromium/content/browser/TouchPoint',
       'Lorg/chromium/content/browser/WaitableNativeEvent',
