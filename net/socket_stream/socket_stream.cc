@@ -113,7 +113,7 @@ void SocketStream::set_context(const URLRequestContext* context) {
       pac_request_ = NULL;
     }
 
-    net_log_.EndEvent(NetLog::TYPE_REQUEST_ALIVE, NULL);
+    net_log_.EndEvent(NetLog::TYPE_REQUEST_ALIVE);
     net_log_ = BoundNetLog();
 
     if (context) {
@@ -121,7 +121,7 @@ void SocketStream::set_context(const URLRequestContext* context) {
           context->net_log(),
           NetLog::SOURCE_SOCKET_STREAM);
 
-      net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE, NULL);
+      net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE);
     }
   }
 
@@ -150,8 +150,7 @@ void SocketStream::Connect() {
   next_state_ = STATE_BEFORE_CONNECT;
   net_log_.BeginEvent(
       NetLog::TYPE_SOCKET_STREAM_CONNECT,
-      make_scoped_refptr(
-          new NetLogStringParameter("url", url_.possibly_invalid_spec())));
+      NetLog::StringCallback("url", &url_.possibly_invalid_spec()));
   MessageLoop::current()->PostTask(
       FROM_HERE,
       base::Bind(&SocketStream::DoLoop, this, OK));
@@ -236,7 +235,7 @@ void SocketStream::DetachDelegate() {
   if (!delegate_)
     return;
   delegate_ = NULL;
-  net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
+  net_log_.AddEvent(NetLog::TYPE_CANCELLED);
   // We don't need to send pending data when client detach the delegate.
   pending_write_bufs_.clear();
   Close();
@@ -329,7 +328,7 @@ int SocketStream::DidEstablishConnection() {
   next_state_ = STATE_READ_WRITE;
   metrics_->OnConnected();
 
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT);
   if (delegate_)
     delegate_->OnConnected(this, max_pending_send_allowed_);
 
@@ -339,7 +338,7 @@ int SocketStream::DidEstablishConnection() {
 int SocketStream::DidReceiveData(int result) {
   DCHECK(read_buf_);
   DCHECK_GT(result, 0);
-  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_RECEIVED, NULL);
+  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_RECEIVED);
   int len = result;
   metrics_->OnRead(len);
   if (delegate_) {
@@ -352,7 +351,7 @@ int SocketStream::DidReceiveData(int result) {
 
 int SocketStream::DidSendData(int result) {
   DCHECK_GT(result, 0);
-  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_SENT, NULL);
+  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_SENT);
   int len = result;
   metrics_->OnWrite(len);
   current_write_buf_ = NULL;
