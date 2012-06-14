@@ -90,6 +90,27 @@
             }],
           ],
         },
+        {
+          'target_name': 'gdk',
+          'type': 'none',
+          'conditions': [
+            ['_toolset=="target"', {
+              'direct_dependent_settings': {
+                'cflags': [
+                  '<!@(<(pkg-config) --cflags gdk-2.0)',
+                ],
+              },
+              'link_settings': {
+                'ldflags': [
+                  '<!@(<(pkg-config) --libs-only-L --libs-only-other gdk-2.0)',
+                ],
+                'libraries': [
+                  '<!@(<(pkg-config) --libs-only-l gdk-2.0)',
+                ],
+              },
+            }],
+          ],
+        },
       ],  # targets
     }]  # chromeos==0
   ],  # conditions
@@ -188,27 +209,6 @@
             ],
             'libraries': [
               '<!@(<(pkg-config) --libs-only-l fontconfig)',
-            ],
-          },
-        }],
-      ],
-    },
-    {
-      'target_name': 'gdk',
-      'type': 'none',
-      'conditions': [
-        ['_toolset=="target"', {
-          'direct_dependent_settings': {
-            'cflags': [
-              '<!@(<(pkg-config) --cflags gdk-2.0)',
-            ],
-          },
-          'link_settings': {
-            'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other gdk-2.0)',
-            ],
-            'libraries': [
-              '<!@(<(pkg-config) --libs-only-l gdk-2.0)',
             ],
           },
         }],
