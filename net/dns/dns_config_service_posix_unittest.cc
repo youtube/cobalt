@@ -122,5 +122,29 @@ TEST(DnsConfigServicePosixTest, ConvertResStateToDnsConfig) {
   EXPECT_TRUE(expected_config.EqualsIgnoreHosts(config));
 }
 
+TEST(DnsConfigServicePosixTest, RejectEmptyNameserver) {
+  struct __res_state res = {};
+  res.options = RES_INIT;
+  const char kDnsrch[] = "chromium.org";
+  memcpy(res.defdname, kDnsrch, sizeof(kDnsrch));
+  res.dnsrch[0] = res.defdname;
+
+  struct sockaddr_in sa = {};
+  sa.sin_family = AF_INET;
+  sa.sin_port = base::HostToNet16(NS_DEFAULTPORT);
+  sa.sin_addr.s_addr = INADDR_ANY;
+  res.nsaddr_list[0] = sa;
+  sa.sin_addr.s_addr = 0xCAFE1337;
+  res.nsaddr_list[1] = sa;
+  res.nscount = 2;
+
+  DnsConfig config;
+  EXPECT_FALSE(internal::ConvertResStateToDnsConfig(res, &config));
+
+  sa.sin_addr.s_addr = 0xDEADBEEF;
+  res.nsaddr_list[0] = sa;
+  EXPECT_TRUE(internal::ConvertResStateToDnsConfig(res, &config));
+}
+
 }  // namespace
 }  // namespace net
