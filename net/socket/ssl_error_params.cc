@@ -4,23 +4,28 @@
 
 #include "net/socket/ssl_error_params.h"
 
+#include "base/bind.h"
 #include "base/values.h"
 
 namespace net {
 
-SSLErrorParams::SSLErrorParams(int net_error, int ssl_lib_error)
-    : net_error_(net_error),
-      ssl_lib_error_(ssl_lib_error) {
-}
+namespace {
 
-Value* SSLErrorParams::ToValue() const {
+Value* NetLogSSLErrorCallback(int net_error,
+                              int ssl_lib_error,
+                              NetLog::LogLevel /* log_level */) {
   DictionaryValue* dict = new DictionaryValue();
-  dict->SetInteger("net_error", net_error_);
-  if (ssl_lib_error_)
-    dict->SetInteger("ssl_lib_error", ssl_lib_error_);
+  dict->SetInteger("net_error", net_error);
+  if (ssl_lib_error)
+    dict->SetInteger("ssl_lib_error", ssl_lib_error);
   return dict;
 }
 
-SSLErrorParams::~SSLErrorParams() {}
+}  // namespace
+
+NetLog::ParametersCallback CreateNetLogSSLErrorCallback(int net_error,
+                                                        int ssl_lib_error) {
+  return base::Bind(&NetLogSSLErrorCallback, net_error, ssl_lib_error);
+}
 
 }  // namespace net

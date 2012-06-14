@@ -21,7 +21,7 @@
 #include "net/base/network_change_notifier.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
-#include "net/socket/socket_error_params.h"
+#include "net/socket/socket_net_log_params.h"
 
 namespace net {
 
@@ -335,16 +335,14 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
       previously_disconnected_(false),
       num_bytes_read_(0) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (source.is_valid())
-    params = new NetLogSourceParameter("source_dependency", source);
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
   EnsureWinsockInit();
 }
 
 TCPClientSocketWin::~TCPClientSocketWin() {
   Disconnect();
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
 int TCPClientSocketWin::AdoptSocket(SOCKET socket) {
@@ -463,8 +461,7 @@ int TCPClientSocketWin::DoConnect() {
   }
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
-                      new NetLogStringParameter("address",
-                                                endpoint.ToString()));
+                      CreateNetLogIPEndPointCallback(&endpoint));
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
@@ -528,10 +525,12 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
   // Log the end of this attempt (and any OS error it threw).
   int os_error = connect_os_error_;
   connect_os_error_ = 0;
-  scoped_refptr<NetLog::EventParameters> params;
-  if (result != OK)
-    params = new NetLogIntegerParameter("os_error", os_error);
-  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT, params);
+  if (result != OK) {
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
+                      NetLog::IntegerCallback("os_error", os_error));
+  } else {
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT);
+  }
 
   if (result == OK) {
     connect_time_micros_ = base::TimeTicks::Now() - connect_start_time_;
@@ -724,7 +723,7 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
     if (os_error != WSA_IO_PENDING) {
       int net_error = MapSystemError(os_error);
       net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
-          make_scoped_refptr(new SocketErrorParams(net_error, os_error)));
+                        CreateNetLogSocketErrorCallback(net_error, os_error));
       return net_error;
     }
   }
@@ -780,7 +779,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
     if (os_error != WSA_IO_PENDING) {
       int net_error = MapSystemError(os_error);
       net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
-          make_scoped_refptr(new SocketErrorParams(net_error, os_error)));
+                        CreateNetLogSocketErrorCallback(net_error, os_error));
       return net_error;
     }
   }
@@ -830,14 +829,11 @@ void TCPClientSocketWin::LogConnectCompletion(int net_error) {
     return;
   }
 
-  const std::string source_address_str =
-      NetAddressToStringWithPort(
+  net_log_.EndEvent(
+      NetLog::TYPE_TCP_CONNECT,
+      CreateNetLogSourceAddressCallback(
           reinterpret_cast<const struct sockaddr*>(&source_address),
-          sizeof(source_address));
-  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
-                    make_scoped_refptr(new NetLogStringParameter(
-                        "source_address",
-                        source_address_str)));
+          sizeof(source_address)));
 }
 
 void TCPClientSocketWin::DoReadCallback(int rv) {
@@ -910,7 +906,7 @@ void TCPClientSocketWin::DidCompleteRead() {
     int os_error = WSAGetLastError();
     rv = MapSystemError(os_error);
     net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
-        make_scoped_refptr(new SocketErrorParams(rv, os_error)));
+                      CreateNetLogSocketErrorCallback(rv, os_error));
   }
   DoReadCallback(rv);
 }
@@ -928,7 +924,7 @@ void TCPClientSocketWin::DidCompleteWrite() {
     int os_error = WSAGetLastError();
     rv = MapSystemError(os_error);
     net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
-        make_scoped_refptr(new SocketErrorParams(rv, os_error)));
+                      CreateNetLogSocketErrorCallback(rv, os_error));
   } else {
     rv = static_cast<int>(num_bytes);
     if (rv > core_->write_buffer_length_ || rv < 0) {

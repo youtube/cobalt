@@ -695,7 +695,7 @@ void SSLClientSocketOpenSSL::DoWriteCallback(int rv) {
 
 // StreamSocket implementation.
 int SSLClientSocketOpenSSL::Connect(const CompletionCallback& callback) {
-  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   // Set up new ssl object.
   if (!Init()) {
@@ -842,7 +842,7 @@ int SSLClientSocketOpenSSL::DoHandshake() {
                  << ", net_error " << net_error;
       net_log_.AddEvent(
           NetLog::TYPE_SSL_HANDSHAKE_ERROR,
-          make_scoped_refptr(new SSLErrorParams(net_error, ssl_error)));
+          CreateNetLogSSLErrorCallback(net_error, ssl_error));
     }
   }
   return net_error;

@@ -11,6 +11,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -220,41 +221,31 @@ int MapNSSError(PRErrorCode err) {
   }
 }
 
-// Extra parameters to attach to the NetLog when we receive an error in response
-// to a call to an NSS function.  Used instead of SSLErrorParams with
-// events of type TYPE_SSL_NSS_ERROR.  Automatically looks up last PR error.
-class SSLFailedNSSFunctionParams : public NetLog::EventParameters {
- public:
-  // |param| is ignored if it has a length of 0.
-  SSLFailedNSSFunctionParams(const std::string& function,
-                             const std::string& param)
-      : function_(function), param_(param), ssl_lib_error_(PR_GetError()) {
-  }
-
-  virtual Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("function", function_);
-    if (!param_.empty())
-      dict->SetString("param", param_);
-    dict->SetInteger("ssl_lib_error", ssl_lib_error_);
-    return dict;
-  }
-
- protected:
-  virtual ~SSLFailedNSSFunctionParams() {}
-
- private:
-  const std::string function_;
-  const std::string param_;
-  const PRErrorCode ssl_lib_error_;
-};
+// Returns parameters to attach to the NetLog when we receive an error in
+// response to a call to an NSS function.  Used instead of
+// NetLogSSLErrorCallback with events of type TYPE_SSL_NSS_ERROR.
+Value* NetLogSSLFailedNSSFunctionCallback(
+    const char* function,
+    const char* param,
+    int ssl_lib_error,
+    NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString("function", function);
+  if (param[0] != '\0')
+    dict->SetString("param", param);
+  dict->SetInteger("ssl_lib_error", ssl_lib_error);
+  return dict;
+}
 
 void LogFailedNSSFunction(const BoundNetLog& net_log,
                           const char* function,
                           const char* param) {
+  DCHECK(function);
+  DCHECK(param);
   net_log.AddEvent(
       NetLog::TYPE_SSL_NSS_ERROR,
-      make_scoped_refptr(new SSLFailedNSSFunctionParams(function, param)));
+      base::Bind(&NetLogSSLFailedNSSFunctionCallback,
+                 function, param, PR_GetError()));
 }
 
 }  // namespace net
