@@ -321,6 +321,8 @@ def _RunATestSuite(options):
     # Wait for all emulators to become available.
     map(lambda buildbot_emulator:buildbot_emulator.ConfirmLaunch(),
         buildbot_emulators)
+  elif options.test_device:
+    attached_devices = [options.test_device]
   else:
     attached_devices = android_commands.GetAttachedDevices()
 
@@ -410,6 +412,8 @@ def main(argv):
   option_parser.add_option('-s', '--suite', dest='test_suite',
                            help='Executable name of the test suite to run '
                            '(use -s help to list them)')
+  option_parser.add_option('-d', '--device', dest='test_device',
+                           help='Target device the test suite to run ')
   option_parser.add_option('-r', dest='rebaseline',
                            help='Rebaseline and update *testsuite_disabled',
                            action='store_true',
