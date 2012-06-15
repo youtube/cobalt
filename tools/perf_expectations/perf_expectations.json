@@ -114,7 +114,7 @@
  "mac-release-10.5/v8_benchmark/score/score": {"reva": 137728, "revb": 137787, "improve": 740, "regress": -1333, "sha1": "7988678d"},
  "mac-release-10.6/dhtml/times/t": {"reva": 102535, "revb": 102746, "improve": -308, "regress": 523, "sha1": "77c6d24e"},
  "mac-release-10.6/dom_perf/Total/score": {"reva": 137734, "revb": 137857, "improve": 71, "regress": -11, "sha1": "f08be065"},
- "mac-release-10.6/intl1/times/t": {"reva": 140030, "revb": 140090, "improve": 222, "regress": 505, "sha1": "1406f651"},
+ "mac-release-10.6/intl1/times/t": {"reva": 140691, "revb": 142393, "improve": -354, "regress": 375, "sha1": "1bb9514c"},
  "mac-release-10.6/intl2/times/t": {"reva": 137731, "revb": 137769, "improve": -682, "regress": 627, "sha1": "2decf30d"},
  "mac-release-10.6/morejs/times/t": {"reva": 67956, "revb": 69048, "improve": -2546, "regress": 2597, "sha1": "f8cbaca1"},
  "mac-release-10.6/moz/times/t": {"reva": 68096, "revb": 69048, "improve": -3314, "regress": 2668, "sha1": "fe58113c"},
