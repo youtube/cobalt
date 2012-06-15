@@ -57,6 +57,9 @@
 #include "googleurl/src/url_canon_ip.h"
 #include "googleurl/src/url_parse.h"
 #include "grit/net_resources.h"
+#if defined(OS_ANDROID)
+#include "net/android/network_library.h"
+#endif
 #include "net/base/dns_util.h"
 #include "net/base/escape.h"
 #include "net/base/mime_util.h"
@@ -2117,7 +2120,9 @@ bool IPv6Supported() {
 }
 
 bool HaveOnlyLoopbackAddresses() {
-#if defined(OS_POSIX) && !defined(OS_ANDROID)
+#if defined(OS_ANDROID)
+  return android::HaveOnlyLoopbackAddresses();
+#elif defined(OS_POSIX)
   struct ifaddrs* interface_addr = NULL;
   int rv = getifaddrs(&interface_addr);
   if (rv != 0) {
