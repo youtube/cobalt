@@ -25,7 +25,7 @@ static bool CalculateReachability(SCNetworkConnectionFlags flags) {
 
 class NetworkChangeNotifierMac::DnsWatcherThread : public base::Thread {
  public:
-  DnsWatcherThread() : base::Thread("NetworkChangeNotifier") {}
+  DnsWatcherThread() : base::Thread("DnsWatcher") {}
 
   virtual ~DnsWatcherThread() {
     Stop();
