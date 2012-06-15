@@ -131,9 +131,14 @@ FFMPEG_TEST_CASE(Cr112976, "security/112976.ogg", PIPELINE_OK, PIPELINE_OK,
                  "d23bacec582c94b8a6dc53b0971bf67e");
 FFMPEG_TEST_CASE(Cr116927, "security/116927.ogv", PIPELINE_ERROR_DECODE,
                  PIPELINE_ERROR_DECODE, kNullHash, kNullHash);
+FFMPEG_TEST_CASE(Cr117912, "security/117912.webm", DEMUXER_ERROR_COULD_NOT_OPEN,
+                 DEMUXER_ERROR_COULD_NOT_OPEN, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr123481, "security/123481.ogv", PIPELINE_OK,
                  PIPELINE_OK, "e6dd853fcbd746c8bb2ab2b8fc376fc7",
                  "da909399f17e8f8ad7f1fcb3c4ccc33a");
+FFMPEG_TEST_CASE(Cr132779, "security/132779.webm",
+                 DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE,
+                 kNullHash, kNullHash);
 
 // General MKV test cases.
 FFMPEG_TEST_CASE(MKV_0, "security/nested_tags_lang.mka.627.628", PIPELINE_OK,
@@ -234,8 +239,6 @@ FFMPEG_TEST_CASE(WEBM_4, "security/out.webm.68798.1929",
                  kNullHash, kNullHash);
 FFMPEG_TEST_CASE(WEBM_5, "content/frame_size_change.webm", PIPELINE_OK,
                  PIPELINE_OK, "d8fcf2896b7400a2261bac9e9ea930f8", kNullHash);
-FFMPEG_TEST_CASE(WEBM_6, "security/117912.webm", DEMUXER_ERROR_COULD_NOT_OPEN,
-                 DEMUXER_ERROR_COULD_NOT_OPEN, kNullHash, kNullHash);
 
 // Audio Functional Tests
 FFMPEG_TEST_CASE(AUDIO_GAMING_0, "content/gaming/a_220_00.mp3", PIPELINE_OK,
