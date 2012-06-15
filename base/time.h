@@ -273,6 +273,7 @@ class BASE_EXPORT Time {
   double ToJsTime() const;
 
 #if defined(OS_POSIX)
+  static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
 #endif
 
