@@ -810,7 +810,7 @@
     'wix_exists': '<!(python <(DEPTH)/build/dir_exists.py <(wix_path))',
 
     'conditions': [
-      ['os_posix==1 and OS!="mac" and OS!="android"', {
+      ['os_posix==1 and OS!="mac"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
         'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
@@ -826,7 +826,7 @@
             'linux_dump_symbols%': 1,
           }],
         ],
-      }],  # os_posix==1 and OS!="mac" and OS!="android"
+      }],
       ['OS=="android"', {
         # Location of Android NDK.
         'variables': {
