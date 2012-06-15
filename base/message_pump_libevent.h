@@ -71,7 +71,7 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump {
 
     // Called by MessagePumpLibevent, ownership of |e| is transferred to this
     // object.
-    void Init(event* e, bool is_persistent);
+    void Init(event* e);
 
     // Used by MessagePumpLibevent to take ownership of event_.
     event *ReleaseEvent();
@@ -84,7 +84,6 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump {
     void OnFileCanReadWithoutBlocking(int fd, MessagePumpLibevent* pump);
     void OnFileCanWriteWithoutBlocking(int fd, MessagePumpLibevent* pump);
 
-    bool is_persistent_;  // false if this event is one-shot.
     event* event_;
     MessagePumpLibevent* pump_;
     Watcher* watcher_;
