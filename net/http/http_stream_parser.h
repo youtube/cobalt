@@ -115,6 +115,7 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
     // or not.
     STATE_SENDING_CHUNKED_BODY,
     STATE_SENDING_NON_CHUNKED_BODY,
+    STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE,
     STATE_REQUEST_SENT,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
@@ -147,6 +148,7 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
   int DoSendHeaders(int result);
   int DoSendChunkedBody(int result);
   int DoSendNonChunkedBody(int result);
+  int DoSendRequestWaitForBodyChunkComplete(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
   int DoReadBody();
