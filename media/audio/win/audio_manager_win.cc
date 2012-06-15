@@ -244,7 +244,10 @@ AudioOutputStream* AudioManagerWin::MakeLinearOutputStream(
   if (params.channels() > kWinMaxChannels)
     return NULL;
 
-  return new PCMWaveOutAudioOutputStream(this, params, 3, WAVE_MAPPER);
+  return new PCMWaveOutAudioOutputStream(this,
+                                         params,
+                                         media::NumberOfWaveOutBuffers(),
+                                         WAVE_MAPPER);
 }
 
 // Factory for the implementations of AudioOutputStream for
