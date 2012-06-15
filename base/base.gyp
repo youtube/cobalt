@@ -420,6 +420,7 @@
         'memory/scoped_vector_unittest.cc',
         'memory/singleton_unittest.cc',
         'memory/weak_ptr_unittest.cc',
+        'memory/weak_ptr_unittest.nc',
         'message_loop_proxy_impl_unittest.cc',
         'message_loop_proxy_unittest.cc',
         'message_loop_unittest.cc',
