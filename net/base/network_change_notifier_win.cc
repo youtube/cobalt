@@ -30,7 +30,7 @@ const int kWatchForAddressChangeRetryIntervalMs = 500;
 // to open registry keys and to handle FilePathWatcher updates.
 class NetworkChangeNotifierWin::DnsWatcherThread : public base::Thread {
  public:
-  DnsWatcherThread() : base::Thread("NetworkChangeNotifier") {}
+  DnsWatcherThread() : base::Thread("DnsWatcher") {}
 
   virtual ~DnsWatcherThread() {
     Stop();
