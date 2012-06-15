@@ -21,7 +21,6 @@
 #include "base/timer.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/host_port_pair.h"
-#include "net/base/net_export.h"
 #include "net/http/http_request_headers.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_request.h"
@@ -38,8 +37,7 @@ class URLFetcherDelegate;
 class URLRequestContextGetter;
 class URLRequestThrottlerEntryInterface;
 
-// TODO(akalin): Remove NET_EXPORT once URLFetcherImpl is in net/.
-class NET_EXPORT URLFetcherCore
+class URLFetcherCore
     : public base::RefCountedThreadSafe<URLFetcherCore>,
       public URLRequest::Delegate {
  public:
