@@ -11,7 +11,6 @@
       'dependencies': [
         'some.gyp:*',
         '../base/base.gyp:*',
-        '../base/base_untrusted.gyp:*',
         '../chrome/chrome.gyp:*',
         '../content/content.gyp:*',
         '../crypto/crypto.gyp:*',
@@ -188,11 +187,12 @@
         '../gpu/gpu.gyp:gpu_unittests',
         '../gpu/gles2_conform_support/gles2_conform_support.gyp:gles2_conform_support',
         '../ipc/ipc.gyp:ipc_tests',
+        # TODO(bbudge): drop this when something meaningful depends on
+        # ipc_untrusted.
+        '../ipc/ipc_untrusted.gyp:ipc_untrusted',
         '../jingle/jingle.gyp:jingle_unittests',
         '../media/media.gyp:media_unittests',
         '../net/net.gyp:net_unittests',
-        # TODO(bbudge): drop this when we have switched the NaCl proxy to IPC.
-        '../ppapi/ppapi_proxy_untrusted.gyp:ppapi_proxy_untrusted',
         '../printing/printing.gyp:printing_unittests',
         '../remoting/remoting.gyp:remoting_unittests',
         '../sql/sql.gyp:sql_unittests',

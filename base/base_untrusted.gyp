@@ -11,7 +11,7 @@
     'base.gypi',
   ],
   'conditions': [
-    ['disable_nacl==0 and disable_nacl_untrusted==0', {
+    ['disable_nacl_untrusted==0', {
       'targets': [
         {
           'target_name': 'base_untrusted',
@@ -32,6 +32,8 @@
           },
           'dependencies': [
             '<(DEPTH)/native_client/tools.gyp:prep_toolchain',
+            '<(DEPTH)/native_client/src/untrusted/pthread/pthread.gyp:pthread_lib',
+            '<(DEPTH)/native_client/src/untrusted/nacl/nacl.gyp:nacl_lib_newlib',
           ],
         },
       ],
