@@ -21,7 +21,6 @@
 #include "base/shared_memory.h"
 #include "base/time.h"
 #if defined(OS_WIN)
-#include "base/sys_info.h"
 #include "base/win/windows_version.h"
 #include "media/audio/audio_manager_base.h"
 #endif
@@ -518,20 +517,6 @@ bool IsWASAPISupported() {
   // Note: that function correctly returns that Windows Server 2003 does not
   // support WASAPI.
   return base::win::GetVersion() >= base::win::VERSION_VISTA;
-}
-
-int NumberOfWaveOutBuffers() {
-  // Simple heuristic: use 3 buffers on single-core system or on Vista,
-  // 2 otherwise.
-  // Entire Windows audio stack was rewritten for Windows Vista, and wave out
-  // API is simulated on top of new API, so there is noticeable performance
-  // degradation compared to Windows XP. Part of regression was fixed in
-  // Windows 7. Maybe it is fixed in Vista Serice Pack, but let's be cautious.
-  if ((base::SysInfo::NumberOfProcessors() < 2) ||
-      (base::win::GetVersion() == base::win::VERSION_VISTA)) {
-    return 3;
-  }
-  return 2;
 }
 
 #endif
