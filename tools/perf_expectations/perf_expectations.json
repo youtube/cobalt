@@ -135,7 +135,7 @@
  "vista-release-single-core/dhtml/times/t": {"reva": 129222, "revb": 131453, "improve": -141, "regress": 2464, "sha1": "33de2c3e"},
  "vista-release-single-core/intl1/times/t": {"reva": 129222, "revb": 136333, "improve": -627, "regress": 5773, "sha1": "fd8ad7d2"},
  "vista-release-single-core/intl2/times/t": {"reva": 129222, "revb": 131453, "improve": -411, "regress": 1989, "sha1": "2e1837a7"},
- "vista-release-single-core/morejs/times/t": {"reva": 137752, "revb": 137789, "improve": -55, "regress": 35, "sha1": "120ede8f"},
+ "vista-release-single-core/morejs/times/t": {"reva": 141881, "revb": 142454, "improve": -104, "regress": 135, "sha1": "7fa48e9d"},
  "vista-release-single-core/moz/times/t": {"reva": 129222, "revb": 131453, "improve": -738, "regress": 2492, "sha1": "91329eb5"},
  "vista-release-single-core/startup/times/t": {"improve": -9, "regress": 9, "sha1": "cb61d833"},
  "xp-release-dual-core/dhtml/times/t": {"reva": 104424, "revb": 104645, "improve": -80, "regress": 1972, "sha1": "9f34f008"},
