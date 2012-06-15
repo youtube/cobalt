@@ -98,6 +98,14 @@ TEST_F(TimeTest, JsTime) {
   EXPECT_EQ(800730.0, t.ToJsTime());
 }
 
+#if defined(OS_POSIX)
+TEST_F(TimeTest, FromTimeVal) {
+  Time now = Time::Now();
+  Time also_now = Time::FromTimeVal(now.ToTimeVal());
+  EXPECT_EQ(now, also_now);
+}
+#endif  // OS_POSIX
+
 TEST_F(TimeTest, FromExplodedWithMilliseconds) {
   // Some platform implementations of FromExploded are liable to drop
   // milliseconds if we aren't careful.
