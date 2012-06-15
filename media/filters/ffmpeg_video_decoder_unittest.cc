@@ -435,7 +435,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_WrongKey) {
   VideoDecoder::DecoderStatus status;
   scoped_refptr<VideoFrame> video_frame;
   Read(&status, &video_frame);
-#if defined(OS_LINUX)
+#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
   EXPECT_EQ(VideoDecoder::kDecodeError, status);
 #else
   EXPECT_EQ(VideoDecoder::kDecryptError, status);
