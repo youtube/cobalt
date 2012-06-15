@@ -127,7 +127,7 @@
  "vista-release-dual-core/dhtml/times/t": {"reva": 137754, "revb": 137875, "improve": -63, "regress": 119, "sha1": "30704ad7"},
  "vista-release-dual-core/dom_perf/Total/score": {"reva": 116076, "revb": 116185, "improve": 168, "regress": 14, "sha1": "0ed1219b"},
  "vista-release-dual-core/intl1/times/t": {"reva": 137754, "revb": 137857, "improve": -284, "regress": 140, "sha1": "1ce711d4"},
- "vista-release-dual-core/intl2/times/t": {"reva": 137754, "revb": 137789, "improve": -36, "regress": 87, "sha1": "348dbb97"},
+ "vista-release-dual-core/intl2/times/t": {"reva": 141097, "revb": 142427, "improve": -1108, "regress": 732, "sha1": "ccdc8d4b"},
  "vista-release-dual-core/morejs/times/t": {"reva": 99583, "revb": 100012, "improve": -93, "regress": 371, "sha1": "bf629d5e"},
  "vista-release-dual-core/moz/times/t": {"reva": 68696, "revb": 69048, "improve": -188, "regress": 545, "sha1": "b4d5a41c"},
  "vista-release-dual-core/startup/times/t": {"improve": -15, "regress": 15, "sha1": "6deee0f6"},
