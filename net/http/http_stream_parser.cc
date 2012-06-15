@@ -347,9 +347,10 @@ void HttpStreamParser::OnChunkAvailable() {
   // headers, we will automatically start reading the chunks once we get into
   // STATE_SENDING_CHUNKED_BODY so nothing to do here.
   DCHECK(io_state_ == STATE_SENDING_HEADERS ||
-         io_state_ == STATE_SENDING_CHUNKED_BODY);
-  if (io_state_ == STATE_SENDING_CHUNKED_BODY)
-    OnIOComplete(0);
+         io_state_ == STATE_SENDING_CHUNKED_BODY ||
+         io_state_ == STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE);
+  if (io_state_ == STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE)
+    OnIOComplete(OK);
 }
 
 int HttpStreamParser::DoLoop(int result) {
@@ -373,6 +374,9 @@ int HttpStreamParser::DoLoop(int result) {
           can_do_more = false;
         else
           result = DoSendNonChunkedBody(result);
+        break;
+      case STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE:
+        result = DoSendRequestWaitForBodyChunkComplete(result);
         break;
       case STATE_REQUEST_SENT:
         DCHECK(result != ERR_IO_PENDING);
@@ -473,7 +477,8 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
                                          request_body_buf_->capacity());
     request_body_buf_->DidAppend(chunk_length);
   } else if (consumed == ERR_IO_PENDING) {
-    // Nothing to send. More POST data is yet to come.
+    // Nothing to send. More request data is yet to come.
+    io_state_ = STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE;
     return ERR_IO_PENDING;
   } else {
     // There won't be other errors.
@@ -512,6 +517,18 @@ int HttpStreamParser::DoSendNonChunkedBody(int result) {
     NOTREACHED();
   }
   return result;
+}
+
+int HttpStreamParser::DoSendRequestWaitForBodyChunkComplete(int result) {
+  if (result != OK) {
+    io_state_ = STATE_DONE;
+    return result;
+  }
+  // Sending the chunked body was paused while waiting for more chunks to
+  // be available. Resume sending chunks now that one or more chunks have
+  // arrived.
+  io_state_ = STATE_SENDING_CHUNKED_BODY;
+  return OK;
 }
 
 int HttpStreamParser::DoReadHeaders() {
