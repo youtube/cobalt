@@ -14,10 +14,8 @@
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
 #include "crypto/scoped_nss_types.h"
-#elif defined(OS_WIN)
-#include "crypto/scoped_capi_types.h"
 #endif
 
 namespace crypto {
@@ -33,7 +31,7 @@ class CRYPTO_EXPORT Encryptor {
 
   // This class implements a 128-bits counter to be used in AES-CTR encryption.
   // Only 128-bits counter is supported in this class.
-  class Counter {
+  class CRYPTO_EXPORT Counter {
    public:
     explicit Counter(const base::StringPiece& counter);
     ~Counter();
@@ -121,7 +119,7 @@ class CRYPTO_EXPORT Encryptor {
              const base::StringPiece& input,
              std::string* output);
   std::string iv_;
-#elif defined(USE_NSS)
+#elif defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
   bool Crypt(PK11Context* context,
              const base::StringPiece& input,
              std::string* output);
@@ -130,15 +128,6 @@ class CRYPTO_EXPORT Encryptor {
                 std::string* output);
   ScopedPK11Slot slot_;
   ScopedSECItem param_;
-#elif defined(OS_MACOSX)
-  bool Crypt(int /*CCOperation*/ op,
-             const base::StringPiece& input,
-             std::string* output);
-
-  std::string iv_;
-#elif defined(OS_WIN)
-  ScopedHCRYPTKEY capi_key_;
-  DWORD block_size_;
 #endif
 };
 

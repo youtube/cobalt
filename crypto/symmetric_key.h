@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,12 +11,12 @@
 #include "base/basictypes.h"
 #include "crypto/crypto_export.h"
 
-#if defined(USE_NSS)
-#include "crypto/scoped_nss_types.h"
-#elif defined(OS_MACOSX)
-#include <Security/cssmtype.h>
-#elif defined(OS_WIN)
+#if defined(NACL_WIN64)
+// See comments for crypto_nacl_win64 in crypto.gyp.
+// Must test for NACL_WIN64 before OS_WIN since former is a subset of latter.
 #include "crypto/scoped_capi_types.h"
+#elif defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
+#include "crypto/scoped_nss_types.h"
 #endif
 
 namespace crypto {
@@ -59,12 +59,10 @@ class CRYPTO_EXPORT SymmetricKey {
 
 #if defined(USE_OPENSSL)
   const std::string& key() { return key_; }
-#elif defined(USE_NSS)
-  PK11SymKey* key() const { return key_.get(); }
-#elif defined(OS_MACOSX)
-  CSSM_DATA cssm_data() const;
-#elif defined(OS_WIN)
+#elif defined(NACL_WIN64)
   HCRYPTKEY key() const { return key_.get(); }
+#elif defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
+  PK11SymKey* key() const { return key_.get(); }
 #endif
 
   // Extracts the raw key from the platform specific data.
@@ -81,13 +79,7 @@ class CRYPTO_EXPORT SymmetricKey {
 #if defined(USE_OPENSSL)
   SymmetricKey() {}
   std::string key_;
-#elif defined(USE_NSS)
-  explicit SymmetricKey(PK11SymKey* key);
-  ScopedPK11SymKey key_;
-#elif defined(OS_MACOSX)
-  SymmetricKey(const void* key_data, size_t key_size_in_bits);
-  std::string key_;
-#elif defined(OS_WIN)
+#elif defined(NACL_WIN64)
   SymmetricKey(HCRYPTPROV provider, HCRYPTKEY key,
                const void* key_data, size_t key_size_in_bytes);
 
@@ -101,6 +93,9 @@ class CRYPTO_EXPORT SymmetricKey {
   // TODO(rsleevi): See if KP_EFFECTIVE_KEYLEN is the reason why CryptExportKey
   // fails with NTE_BAD_KEY/NTE_BAD_LEN
   std::string raw_key_;
+#elif defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
+  explicit SymmetricKey(PK11SymKey* key);
+  ScopedPK11SymKey key_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(SymmetricKey);
