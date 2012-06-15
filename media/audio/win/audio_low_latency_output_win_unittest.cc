@@ -41,6 +41,7 @@ namespace media {
 static const char kSpeechFile_16b_s_48k[] = "speech_16b_stereo_48kHz.raw";
 static const char kSpeechFile_16b_s_44k[] = "speech_16b_stereo_44kHz.raw";
 static const size_t kFileDurationMs = 20000;
+static const size_t kNumFileSegments = 1;
 
 static const size_t kMaxDeltaSamples = 1000;
 static const char* kDeltaTimeMsFileName = "delta_times_ms.txt";
@@ -69,8 +70,7 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
       previous_call_time_(base::Time::Now()),
       text_file_(NULL),
       elements_to_write_(0) {
-    // Reads a test file from media/test/data directory and stores it in
-    // a scoped_array.
+    // Reads a test file from media/test/data directory.
     file_ = ReadTestDataFile(name);
 
     // Creates an array that will store delta times between callbacks.
@@ -119,7 +119,7 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
     if (pos_ + static_cast<int>(max_size) > file_size())
       max_size = file_size() - pos_;
     if (max_size) {
-      memcpy(dest, &file_[pos_], max_size);
+      memcpy(dest, file_->GetData() + pos_, max_size);
       pos_ += max_size;
     }
     return max_size;
@@ -369,6 +369,16 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMiscCallingSequences) {
   aos->Stop();
   EXPECT_FALSE(waos->started());
 
+  // Start(), Stop(), Start(), Stop().
+  aos->Start(&source);
+  EXPECT_TRUE(waos->started());
+  aos->Stop();
+  EXPECT_FALSE(waos->started());
+  aos->Start(&source);
+  EXPECT_TRUE(waos->started());
+  aos->Stop();
+  EXPECT_FALSE(waos->started());
+
   aos->Close();
 }
 
@@ -531,15 +541,22 @@ TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
   }
   ReadFromFileAudioSource file_source(file_name);
 
-  LOG(INFO) << "File name  : " << file_name.c_str();
-  LOG(INFO) << "Sample rate: " << aosw.sample_rate();
-  LOG(INFO) << "File size  : " << file_source.file_size();
+  LOG(INFO) << "File name     : " << file_name.c_str();
+  LOG(INFO) << "Sample rate   : " << aosw.sample_rate();
+  LOG(INFO) << "File size     : " << file_source.file_size();
+  LOG(INFO) << "#file segments: " << kNumFileSegments;
   LOG(INFO) << ">> Listen to the file while playing...";
 
-  aos->Start(&file_source);
-  base::PlatformThread::Sleep(
-      base::TimeDelta::FromMilliseconds(kFileDurationMs));
-  aos->Stop();
+  for (int i = 0; i < kNumFileSegments; i++) {
+    // Each segment will start with a short (~20ms) block of zeros, hence
+    // some short glitches might be heard in this test if kNumFileSegments
+    // is larger than one. The exact length of the silence period depends on
+    // the selected sample rate.
+    aos->Start(&file_source);
+    base::PlatformThread::Sleep(
+        base::TimeDelta::FromMilliseconds(kFileDurationMs / kNumFileSegments));
+    aos->Stop();
+  }
 
   LOG(INFO) << ">> File playout has stopped.";
   aos->Close();
