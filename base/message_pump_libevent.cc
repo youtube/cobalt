@@ -58,8 +58,7 @@ static int SetNonBlocking(int fd) {
 }
 
 MessagePumpLibevent::FileDescriptorWatcher::FileDescriptorWatcher()
-    : is_persistent_(false),
-      event_(NULL),
+    : event_(NULL),
       pump_(NULL),
       watcher_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
@@ -84,12 +83,10 @@ bool MessagePumpLibevent::FileDescriptorWatcher::StopWatchingFileDescriptor() {
   return (rv == 0);
 }
 
-void MessagePumpLibevent::FileDescriptorWatcher::Init(event *e,
-                                                      bool is_persistent) {
+void MessagePumpLibevent::FileDescriptorWatcher::Init(event *e) {
   DCHECK(e);
   DCHECK(!event_);
 
-  is_persistent_ = is_persistent;
   event_ = e;
 }
 
@@ -203,7 +200,7 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
   }
 
   // Transfer ownership of evt to controller.
-  controller->Init(evt.release(), persistent);
+  controller->Init(evt.release());
 
   controller->set_watcher(delegate);
   controller->set_pump(this);
