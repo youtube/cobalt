@@ -67,15 +67,15 @@ ScopedJavaLocalRef<jobjectArray> ToJavaArrayOfStrings(
 }
 
 void AppendJavaStringArrayToStringVector(JNIEnv* env,
-                                         const JavaRef<jobjectArray>& array,
+                                         jobjectArray array,
                                          std::vector<string16>* out) {
   DCHECK(out);
-  if (array.is_null())
+  if (!array)
     return;
-  jsize len = env->GetArrayLength(array.obj());
+  jsize len = env->GetArrayLength(array);
   for (jsize i = 0; i < len; ++i) {
     ScopedJavaLocalRef<jstring> str(env,
-        static_cast<jstring>(env->GetObjectArrayElement(array.obj(), i)));
+        static_cast<jstring>(env->GetObjectArrayElement(array, i)));
     out->push_back(ConvertJavaStringToUTF16(str));
   }
 }

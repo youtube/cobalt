@@ -169,7 +169,7 @@ def JavaParamToJni(param):
       'Lorg/chromium/content/browser/ContentView',
       ('Lorg/chromium/content/browser/ContentView$'
        'FindResultReceivedListener$FindNotificationDetails'),
-      'Lorg/chromium/content/browser/ChromeViewClient',
+      'Lorg/chromium/content/browser/ContentViewClient',
       'Lorg/chromium/content/browser/ContentHttpAuthHandler',
       'Lorg/chromium/content/browser/DeviceInfo',
       'Lorg/chromium/content/browser/DeviceOrientation',
