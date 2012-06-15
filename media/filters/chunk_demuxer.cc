@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/string_util.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
@@ -17,7 +18,7 @@
 namespace media {
 
 struct CodecInfo {
-  const char* name;
+  const char* pattern;
   DemuxerStream::Type type;
 };
 
@@ -32,10 +33,8 @@ struct SupportedTypeInfo {
 static const CodecInfo kVP8CodecInfo = { "vp8", DemuxerStream::VIDEO };
 static const CodecInfo kVorbisCodecInfo = { "vorbis", DemuxerStream::AUDIO };
 
-// TODO(strobe): Perform matching against supported profiles and levels, or
-// simply accept codecs that match a prefix.
-static const CodecInfo kH264CodecInfo = { "avc1.4D4041", DemuxerStream::VIDEO };
-static const CodecInfo kAACCodecInfo = { "mp4a.40.2", DemuxerStream::AUDIO };
+static const CodecInfo kH264CodecInfo = { "avc1.*", DemuxerStream::VIDEO };
+static const CodecInfo kAACCodecInfo = { "mp4a.40.*", DemuxerStream::AUDIO };
 
 static const CodecInfo* kVideoWebMCodecs[] = {
   &kVP8CodecInfo,
@@ -103,7 +102,7 @@ static bool IsSupported(const std::string& type,
         DemuxerStream::Type codec_type = DemuxerStream::UNKNOWN;
 
         for (int k = 0; type_info.codecs[k]; ++k) {
-          if (codecs[j] == type_info.codecs[k]->name) {
+          if (MatchPattern(codecs[j], type_info.codecs[k]->pattern)) {
             found_codec = true;
             codec_type = type_info.codecs[k]->type;
             break;

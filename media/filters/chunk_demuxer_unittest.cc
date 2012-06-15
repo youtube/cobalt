@@ -1622,4 +1622,13 @@ TEST_F(ChunkDemuxerTest, TestDifferentStreamTimecodes) {
   GenerateExpectedReads(5025, 5000, 8, audio, video);
 }
 
+TEST_F(ChunkDemuxerTest, TestCodecPrefixMatching) {
+  std::vector<std::string> codecs;
+  codecs.push_back("avc1.4D4041");
+  codecs.push_back("mp4a.40.2");
+
+  EXPECT_EQ(ChunkDemuxer::kOk,
+            demuxer_->AddId("source_id", "video/mp4", codecs));
+}
+
 }  // namespace media
