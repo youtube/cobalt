@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/memory/weak_ptr.h"
+
+#include <string>
+
 #include "base/bind.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/weak_ptr.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 namespace {
@@ -38,6 +41,7 @@ struct Base { std::string member; };
 struct Derived : Base {};
 
 struct Producer : SupportsWeakPtr<Producer> {};
+struct DerivedProducer : Producer {};
 struct Consumer { WeakPtr<Producer> producer; };
 
 // Helper class to create and destroy weak pointer copies
@@ -196,6 +200,12 @@ TEST(WeakPtrTest, UpCast) {
 TEST(WeakPtrTest, SupportsWeakPtr) {
   Producer f;
   WeakPtr<Producer> ptr = f.AsWeakPtr();
+  EXPECT_EQ(&f, ptr.get());
+}
+
+TEST(WeakPtrTest, DerivedProducer) {
+  DerivedProducer f;
+  WeakPtr<DerivedProducer> ptr = AsWeakPtr(&f);
   EXPECT_EQ(&f, ptr.get());
 }
 
