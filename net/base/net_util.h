@@ -370,6 +370,7 @@ NET_EXPORT bool IPv6Supported();
 
 // Returns true if it can determine that only loopback addresses are configured.
 // i.e. if only 127.0.0.1 and ::1 are routable.
+// Also returns false if it cannot determine this.
 bool HaveOnlyLoopbackAddresses();
 
 // IPAddressNumber is used to represent an IP address's numeric value as an

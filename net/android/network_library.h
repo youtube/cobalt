@@ -40,6 +40,11 @@ bool StoreKeyPair(const uint8* public_key,
                   const uint8* private_key,
                   size_t private_len);
 
+// Returns true if it can determine that only loopback addresses are configured.
+// i.e. if only 127.0.0.1 and ::1 are routable.
+// Also returns false if it cannot determine this.
+bool HaveOnlyLoopbackAddresses();
+
 // Get the mime type (if any) that is associated with the file extension.
 // Returns true if a corresponding mime type exists.
 bool GetMimeTypeFromExtension(const std::string& extension,

@@ -64,6 +64,11 @@ bool StoreKeyPair(const uint8* public_key,
   return ret;
 }
 
+bool HaveOnlyLoopbackAddresses() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_AndroidNetworkLibrary_haveOnlyLoopbackAddresses(env);
+}
+
 bool GetMimeTypeFromExtension(const std::string& extension,
                               std::string* result) {
   JNIEnv* env = AttachCurrentThread();
