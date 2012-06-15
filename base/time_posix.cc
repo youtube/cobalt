@@ -262,6 +262,16 @@ TimeTicks TimeTicks::NowFromSystemTraceTime() {
 
 #endif  // !OS_MACOSX
 
+// static
+Time Time::FromTimeVal(struct timeval t) {
+  DCHECK_LT(t.tv_usec, static_cast<int>(Time::kMicrosecondsPerSecond));
+  DCHECK_GE(t.tv_usec, 0);
+  return Time(
+      (static_cast<int64>(t.tv_sec) * Time::kMicrosecondsPerSecond) +
+      t.tv_usec +
+      kTimeTToMicrosecondsOffset);
+}
+
 struct timeval Time::ToTimeVal() const {
   struct timeval result;
   int64 us = us_ - kTimeTToMicrosecondsOffset;
