@@ -76,7 +76,7 @@ class TestSourceBasic : public AudioOutputStream::AudioSourceCallback {
   int had_error_;
 };
 
-const int kMaxNumBuffers = 3;
+const int kNumBuffers = 3;
 // Specializes TestSourceBasic to detect that the AudioStream is using
 // triple buffering correctly.
 class TestSourceTripleBuffer : public TestSourceBasic {
@@ -92,14 +92,14 @@ class TestSourceTripleBuffer : public TestSourceBasic {
                             AudioBuffersState buffers_state) {
     // Call the base, which increments the callback_count_.
     TestSourceBasic::OnMoreData(dest, max_size, buffers_state);
-    if (callback_count() % NumberOfWaveOutBuffers() == 2) {
+    if (callback_count() % kNumBuffers == 2) {
       set_error(!CompareExistingIfNotNULL(2, dest));
-    } else if (callback_count() % NumberOfWaveOutBuffers() == 1) {
+    } else if (callback_count() % kNumBuffers == 1) {
       set_error(!CompareExistingIfNotNULL(1, dest));
     } else {
       set_error(!CompareExistingIfNotNULL(0, dest));
     }
-    if (callback_count() > kMaxNumBuffers) {
+    if (callback_count() > kNumBuffers) {
       set_error(buffer_address_[0] == buffer_address_[1]);
       set_error(buffer_address_[1] == buffer_address_[2]);
     }
@@ -114,7 +114,7 @@ class TestSourceTripleBuffer : public TestSourceBasic {
     return (entry == address);
   }
 
-  void* buffer_address_[kMaxNumBuffers];
+  void* buffer_address_[kNumBuffers];
 };
 
 // Specializes TestSourceBasic to simulate a source that blocks for some time
@@ -129,7 +129,7 @@ class TestSourceLaggy : public TestSourceBasic {
                             AudioBuffersState buffers_state) {
     // Call the base, which increments the callback_count_.
     TestSourceBasic::OnMoreData(dest, max_size, buffers_state);
-    if (callback_count() > kMaxNumBuffers) {
+    if (callback_count() > kNumBuffers) {
       ::Sleep(lag_in_ms_);
     }
     return max_size;
@@ -312,7 +312,7 @@ TEST(WinAudioTest, PCMWaveStreamTripleBuffer) {
   EXPECT_TRUE(oas->Open());
   oas->Start(&test_triple_buffer);
   ::Sleep(300);
-  EXPECT_GT(test_triple_buffer.callback_count(), kMaxNumBuffers);
+  EXPECT_GT(test_triple_buffer.callback_count(), kNumBuffers);
   EXPECT_FALSE(test_triple_buffer.had_error());
   oas->Stop();
   ::Sleep(500);
@@ -600,37 +600,28 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
 
   uint32 bytes_100_ms = samples_100_ms * 2;
 
-  // Audio output stream has either a double or triple buffer scheme.
-  // We expect the amount of pending bytes will reaching up to 2 times of
-  // |bytes_100_ms| depending on number of buffers used.
+  // We expect the amount of pending bytes will reaching 2 times of
+  // |bytes_100_ms| because the audio output stream has a triple buffer scheme.
   // From that it would decrease as we are playing the data but not providing
   // new one. And then we will try to provide zero data so the amount of
   // pending bytes will go down and eventually read zero.
   InSequence s;
-
   EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes, 0)))
       .WillOnce(Return(bytes_100_ms));
-  switch (NumberOfWaveOutBuffers()) {
-    case 2:
-      break;  // Calls are the same as at end of 3-buffer scheme.
-    case 3:
-      EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
-                                     Field(&AudioBuffersState::pending_bytes,
-                                           bytes_100_ms)))
-          .WillOnce(Return(bytes_100_ms));
-      EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
-                                     Field(&AudioBuffersState::pending_bytes,
-                                           2 * bytes_100_ms)))
-          .WillOnce(Return(bytes_100_ms));
-      EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
-                                     Field(&AudioBuffersState::pending_bytes,
-                                           2 * bytes_100_ms)))
-          .Times(AnyNumber())
-          .WillRepeatedly(Return(0));
-    default:
-      ASSERT_TRUE(false) << "Unexpected number of buffers";
-  }
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
+                                 Field(&AudioBuffersState::pending_bytes,
+                                       bytes_100_ms)))
+      .WillOnce(Return(bytes_100_ms));
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
+                                 Field(&AudioBuffersState::pending_bytes,
+                                       2 * bytes_100_ms)))
+      .WillOnce(Return(bytes_100_ms));
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
+                                 Field(&AudioBuffersState::pending_bytes,
+                                       2 * bytes_100_ms)))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(0));
   EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes,
                                        bytes_100_ms)))
