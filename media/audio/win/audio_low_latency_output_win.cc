@@ -219,6 +219,24 @@ void WASAPIAudioOutputStream::Stop() {
     render_thread_ = NULL;
   }
 
+  // Flush all pending data and reset the audio clock stream position to 0.
+  hr = audio_client_->Reset();
+  if (FAILED(hr)) {
+    DLOG_IF(ERROR, hr != AUDCLNT_E_NOT_INITIALIZED)
+        << "Failed to reset streaming: " << std::hex << hr;
+  }
+
+  // Extra safety check to ensure that the buffers are cleared.
+  // If the buffers are not cleared correctly, the next call to Start()
+  // would fail with AUDCLNT_E_BUFFER_ERROR at IAudioRenderClient::GetBuffer().
+  UINT32 num_queued_frames = 0;
+  audio_client_->GetCurrentPadding(&num_queued_frames);
+  DCHECK_EQ(0u, num_queued_frames);
+
+  // Ensure that we don't quit the main thread loop immediately next
+  // time Start() is called.
+  ResetEvent(stop_render_event_.Get());
+
   started_ = false;
 }
 
