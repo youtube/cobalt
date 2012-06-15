@@ -91,8 +91,8 @@ TEST(EncryptorTest, DecryptWrongKey) {
   // invalid.  If an implementation simply uses the last padding byte to
   // determine the padding length without checking every padding byte,
   // Encryptor::Decrypt() will still return true.  This is the case for NSS
-  // (crbug.com/124434) and Mac OS X 10.7 (crbug.com/127586).
-#if !defined(USE_NSS)
+  // (crbug.com/124434).
+#if !defined(USE_NSS) && !defined(OS_WIN) && !defined(OS_MACOSX)
   crypto::Encryptor decryptor;
   EXPECT_TRUE(decryptor.Init(wrong_key.get(), crypto::Encryptor::CBC, iv));
   EXPECT_FALSE(decryptor.Decrypt(ciphertext, &decypted));
@@ -113,7 +113,7 @@ TEST(EncryptorTest, DecryptWrongKey) {
 }
 
 // CTR mode encryption is only implemented using NSS.
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
 
 TEST(EncryptorTest, EncryptDecryptCTR) {
   scoped_ptr<crypto::SymmetricKey> key(
@@ -149,11 +149,13 @@ TEST(EncryptorTest, EncryptDecryptCTR) {
 
 TEST(EncryptorTest, CTRCounter) {
   const int kCounterSize = 16;
-  const char kTest1[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  uint8 buf[16];
+  const unsigned char kTest1[] =
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  unsigned char buf[16];
 
   // Increment 10 times.
-  crypto::Encryptor::Counter counter1(std::string(kTest1, kCounterSize));
+  crypto::Encryptor::Counter counter1(
+      std::string(reinterpret_cast<const char*>(kTest1), kCounterSize));
   for (int i = 0; i < 10; ++i)
     counter1.Increment();
   counter1.Write(buf);
@@ -161,18 +163,26 @@ TEST(EncryptorTest, CTRCounter) {
   EXPECT_TRUE(buf[15] == 10);
 
   // Check corner cases.
-  const char kTest2[] = {0, 0, 0, 0, 0, 0, 0, 0,
-                         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  const char kExpect2[] = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-  crypto::Encryptor::Counter counter2(std::string(kTest2, kCounterSize));
+  const unsigned char kTest2[] = {
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+  };
+  const unsigned char kExpect2[] =
+      {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+  crypto::Encryptor::Counter counter2(
+      std::string(reinterpret_cast<const char*>(kTest2), kCounterSize));
   counter2.Increment();
   counter2.Write(buf);
   EXPECT_EQ(0, memcmp(buf, kExpect2, kCounterSize));
 
-  const char kTest3[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  const char kExpect3[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  crypto::Encryptor::Counter counter3(std::string(kTest3, kCounterSize));
+  const unsigned char kTest3[] = {
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+  };
+  const unsigned char kExpect3[] =
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  crypto::Encryptor::Counter counter3(
+      std::string(reinterpret_cast<const char*>(kTest3), kCounterSize));
   counter3.Increment();
   counter3.Write(buf);
   EXPECT_EQ(0, memcmp(buf, kExpect3, kCounterSize));
@@ -312,7 +322,7 @@ TEST(EncryptorTest, EncryptAES192CBCRegression) {
 
 // Not all platforms allow import/generation of symmetric keys with an
 // unsupported size.
-#if !defined(OS_WIN) && !defined(USE_NSS)
+#if !defined(USE_NSS) && !defined(OS_WIN) && !defined(OS_MACOSX)
 TEST(EncryptorTest, UnsupportedKeySize) {
   std::string key = "7 = bad";
   std::string iv = "Sweet Sixteen IV";

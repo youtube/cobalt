@@ -53,10 +53,16 @@
               ['exclude', '_nss\.cc$'],
               ['include', 'ec_private_key_nss\.cc$'],
               ['include', 'ec_signature_creator_nss\.cc$'],
+              ['include', 'encryptor_nss\.cc$'],
+              ['include', 'hmac_nss\.cc$'],
               ['include', 'signature_verifier_nss\.cc$'],
+              ['include', 'symmetric_key_nss\.cc$'],
             ],
             'sources!': [
+              'hmac_win.cc',
               'openpgp_symmetric_encryption.cc',
+              'openpgp_symmetric_encryption.h',
+              'symmetric_key_win.cc',
             ],
         }],
         [ 'OS == "android"', {
@@ -66,7 +72,10 @@
             'sources/': [
               ['exclude', 'ec_private_key_nss\.cc$'],
               ['exclude', 'ec_signature_creator_nss\.cc$'],
+              ['exclude', 'encryptor_nss\.cc$'],
+              ['exclude', 'hmac_nss\.cc$'],
               ['exclude', 'signature_verifier_nss\.cc$'],
+              ['exclude', 'symmetric_key_nss\.cc$'],
             ],
         }],
         [ 'os_bsd==1', {
@@ -93,6 +102,10 @@
         }],
         [ 'OS == "mac" or OS == "win"', {
           'dependencies': [
+            '../third_party/nss/nss.gyp:nspr',
+            '../third_party/nss/nss.gyp:nss',
+          ],
+          'export_dependent_settings': [
             '../third_party/nss/nss.gyp:nspr',
             '../third_party/nss/nss.gyp:nss',
           ],
@@ -163,11 +176,8 @@
         'ec_signature_creator_openssl.cc',
         'encryptor.cc',
         'encryptor.h',
-        'encryptor_mac.cc',
         'encryptor_nss.cc',
         'encryptor_openssl.cc',
-        'encryptor_win.cc',
-        'hmac_mac.cc',
         'hmac_nss.cc',
         'hmac_openssl.cc',
         'keychain_mac.cc',
@@ -208,7 +218,6 @@
         'signature_verifier.h',
         'signature_verifier_nss.cc',
         'signature_verifier_openssl.cc',
-        'symmetric_key_mac.cc',
         'symmetric_key_nss.cc',
         'symmetric_key_openssl.cc',
         'third_party/nss/chromium-blapi.h',
@@ -293,6 +302,9 @@
       'targets': [
         {
           'target_name': 'crypto_nacl_win64',
+          # We do not want nacl_helper to depend on NSS because this would
+          # require including a 64-bit copy of NSS. Thus, use the native APIs
+          # for the helper.
           'type': '<(component)',
           'dependencies': [
             '../base/base.gyp:base_nacl_win64',
@@ -303,6 +315,7 @@
           ],
           'defines': [
            'CRYPTO_IMPLEMENTATION',
+           '<@(nacl_win64_defines)',
           ],
           'msvs_disabled_warnings': [
             4018,
