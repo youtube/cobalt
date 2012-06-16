@@ -8,6 +8,44 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details on the presubmit API built into gcl.
 """
 
+def _CheckNoInterfacesInBase(input_api, output_api):
+  """Checks to make sure no files in libbase.a have |@interface|."""
+  pattern = input_api.re.compile(r'^\s*@interface', input_api.re.MULTILINE)
+  files = []
+  for f in input_api.AffectedSourceFiles(input_api.FilterSourceFile):
+    if (f.LocalPath().startswith('base/') and
+        not f.LocalPath().endswith('_unittest.mm')):
+      contents = input_api.ReadFile(f)
+      if pattern.search(contents):
+        files.append(f)
+
+  if len(files):
+    return [ output_api.PresubmitError(
+        'Objective-C interfaces or categories are forbidden in libbase. ' +
+        'See http://groups.google.com/a/chromium.org/group/chromium-dev/' +
+        'browse_thread/thread/efb28c10435987fd',
+        files) ]
+  return []
+
+
+def _CommonChecks(input_api, output_api):
+  """Checks common to both upload and commit."""
+  results = []
+  results.extend(_CheckNoInterfacesInBase(input_api, output_api))
+  return results
+
+def CheckChangeOnUpload(input_api, output_api):
+  results = []
+  results.extend(_CommonChecks(input_api, output_api))
+  return results
+
+
+def CheckChangeOnCommit(input_api, output_api):
+  results = []
+  results.extend(_CommonChecks(input_api, output_api))
+  return results
+
+
 def GetPreferredTrySlaves():
   return [
     'linux_rel:sync_integration_tests',
