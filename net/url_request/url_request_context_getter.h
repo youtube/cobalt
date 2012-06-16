@@ -11,8 +11,8 @@
 #include "net/base/net_export.h"
 
 namespace base {
-class MessageLoopProxy;
-}
+class SingleThreadTaskRunner;
+}  // namespace base
 
 namespace net {
 class CookieStore;
@@ -27,11 +27,11 @@ class NET_EXPORT URLRequestContextGetter
  public:
   virtual URLRequestContext* GetURLRequestContext() = 0;
 
-  // Returns a MessageLoopProxy corresponding to the thread on which the
-  // request IO happens (the thread on which the returned net::URLRequestContext
-  // may be used).
-  virtual scoped_refptr<base::MessageLoopProxy>
-      GetIOMessageLoopProxy() const = 0;
+  // Returns a SingleThreadTaskRunner corresponding to the thread on
+  // which the network IO happens (the thread on which the returned
+  // net::URLRequestContext may be used).
+  virtual scoped_refptr<base::SingleThreadTaskRunner>
+      GetNetworkTaskRunner() const = 0;
 
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContextGetter,

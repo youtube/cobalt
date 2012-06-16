@@ -68,25 +68,25 @@ class TestURLRequestContext : public net::URLRequestContext {
 // given in the constructor.
 class TestURLRequestContextGetter : public net::URLRequestContextGetter {
  public:
-  // |io_message_loop_proxy| must not be NULL.
+  // |network_task_runner| must not be NULL.
   explicit TestURLRequestContextGetter(
-      const scoped_refptr<base::MessageLoopProxy>& io_message_loop_proxy);
+      const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner);
 
   // Use to pass a pre-initialized |context|.
   TestURLRequestContextGetter(
-      const scoped_refptr<base::MessageLoopProxy>& io_message_loop_proxy,
+      const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner,
       scoped_ptr<TestURLRequestContext> context);
 
   // net::URLRequestContextGetter implementation.
   virtual TestURLRequestContext* GetURLRequestContext() OVERRIDE;
-  virtual scoped_refptr<base::MessageLoopProxy>
-      GetIOMessageLoopProxy() const OVERRIDE;
+  virtual scoped_refptr<base::SingleThreadTaskRunner>
+      GetNetworkTaskRunner() const OVERRIDE;
 
  protected:
   virtual ~TestURLRequestContextGetter();
 
  private:
-  const scoped_refptr<base::MessageLoopProxy> io_message_loop_proxy_;
+  const scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
   scoped_ptr<TestURLRequestContext> context_;
 };
 

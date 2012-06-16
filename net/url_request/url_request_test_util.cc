@@ -123,16 +123,16 @@ TestURLRequest::~TestURLRequest() {
 }
 
 TestURLRequestContextGetter::TestURLRequestContextGetter(
-    const scoped_refptr<base::MessageLoopProxy>& io_message_loop_proxy)
-    : io_message_loop_proxy_(io_message_loop_proxy) {
-  DCHECK(io_message_loop_proxy.get());
+    const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner)
+    : network_task_runner_(network_task_runner) {
+  DCHECK(network_task_runner_);
 }
 
 TestURLRequestContextGetter::TestURLRequestContextGetter(
-    const scoped_refptr<base::MessageLoopProxy>& io_message_loop_proxy,
+    const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner,
     scoped_ptr<TestURLRequestContext> context)
-    : io_message_loop_proxy_(io_message_loop_proxy), context_(context.Pass()) {
-  DCHECK(io_message_loop_proxy.get());
+    : network_task_runner_(network_task_runner), context_(context.Pass()) {
+  DCHECK(network_task_runner_);
 }
 
 TestURLRequestContextGetter::~TestURLRequestContextGetter() {}
@@ -143,9 +143,9 @@ TestURLRequestContext* TestURLRequestContextGetter::GetURLRequestContext() {
   return context_.get();
 }
 
-scoped_refptr<base::MessageLoopProxy>
-TestURLRequestContextGetter::GetIOMessageLoopProxy() const {
-  return io_message_loop_proxy_;
+scoped_refptr<base::SingleThreadTaskRunner>
+TestURLRequestContextGetter::GetNetworkTaskRunner() const {
+  return network_task_runner_;
 }
 
 TestDelegate::TestDelegate()

@@ -7,9 +7,10 @@
 #include "base/bind.h"
 #include "base/file_util_proxy.h"
 #include "base/logging.h"
-#include "base/message_loop_proxy.h"
+#include "base/single_thread_task_runner.h"
 #include "base/metrics/histogram.h"
 #include "base/stl_util.h"
+#include "base/thread_task_runner_handle.h"
 #include "base/tracked_objects.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
@@ -55,11 +56,11 @@ void URLFetcherCore::Registry::CancelAll() {
 
 URLFetcherCore::FileWriter::FileWriter(
     URLFetcherCore* core,
-    scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy)
+    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner)
     : core_(core),
       error_code_(base::PLATFORM_FILE_OK),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-      file_message_loop_proxy_(file_message_loop_proxy),
+      file_task_runner_(file_task_runner),
       file_handle_(base::kInvalidPlatformFileValue) {
 }
 
@@ -69,10 +70,10 @@ URLFetcherCore::FileWriter::~FileWriter() {
 
 void URLFetcherCore::FileWriter::CreateFileAtPath(
     const FilePath& file_path) {
-  DCHECK(core_->io_message_loop_proxy_->BelongsToCurrentThread());
-  DCHECK(file_message_loop_proxy_.get());
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
+  DCHECK(file_task_runner_.get());
   base::FileUtilProxy::CreateOrOpen(
-      file_message_loop_proxy_,
+      file_task_runner_,
       file_path,
       base::PLATFORM_FILE_CREATE_ALWAYS | base::PLATFORM_FILE_WRITE,
       base::Bind(&URLFetcherCore::FileWriter::DidCreateFile,
@@ -81,17 +82,17 @@ void URLFetcherCore::FileWriter::CreateFileAtPath(
 }
 
 void URLFetcherCore::FileWriter::CreateTempFile() {
-  DCHECK(core_->io_message_loop_proxy_->BelongsToCurrentThread());
-  DCHECK(file_message_loop_proxy_.get());
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
+  DCHECK(file_task_runner_.get());
   base::FileUtilProxy::CreateTemporary(
-      file_message_loop_proxy_,
+      file_task_runner_,
       0,  // No additional file flags.
       base::Bind(&URLFetcherCore::FileWriter::DidCreateTempFile,
                  weak_factory_.GetWeakPtr()));
 }
 
 void URLFetcherCore::FileWriter::WriteBuffer(int num_bytes) {
-  DCHECK(core_->io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   // Start writing to the file by setting the initial state
   // of |pending_bytes_| and |buffer_offset_| to indicate that the
@@ -104,7 +105,7 @@ void URLFetcherCore::FileWriter::WriteBuffer(int num_bytes) {
 void URLFetcherCore::FileWriter::ContinueWrite(
     base::PlatformFileError error_code,
     int bytes_written) {
-  DCHECK(core_->io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   if (file_handle_ == base::kInvalidPlatformFileValue) {
     // While a write was being done on the file thread, a request
@@ -124,7 +125,7 @@ void URLFetcherCore::FileWriter::ContinueWrite(
   if (base::PLATFORM_FILE_OK != error_code) {
     error_code_ = error_code;
     RemoveFile();
-    core_->delegate_loop_proxy_->PostTask(
+    core_->delegate_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&URLFetcherCore::InformDelegateFetchIsComplete, core_));
     return;
@@ -136,7 +137,7 @@ void URLFetcherCore::FileWriter::ContinueWrite(
 
   if (pending_bytes_ > 0) {
     base::FileUtilProxy::Write(
-        file_message_loop_proxy_, file_handle_,
+        file_task_runner_, file_handle_,
         total_bytes_written_,  // Append to the end
         (core_->buffer_->data() + buffer_offset_), pending_bytes_,
         base::Bind(&URLFetcherCore::FileWriter::ContinueWrite,
@@ -148,7 +149,7 @@ void URLFetcherCore::FileWriter::ContinueWrite(
 }
 
 void URLFetcherCore::FileWriter::DisownFile() {
-  DCHECK(core_->io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   // Disowning is done by the delegate's OnURLFetchComplete method.
   // The file should be closed by the time that method is called.
@@ -159,11 +160,11 @@ void URLFetcherCore::FileWriter::DisownFile() {
 }
 
 void URLFetcherCore::FileWriter::CloseFileAndCompleteRequest() {
-  DCHECK(core_->io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   if (file_handle_ != base::kInvalidPlatformFileValue) {
     base::FileUtilProxy::Close(
-        file_message_loop_proxy_, file_handle_,
+        file_task_runner_, file_handle_,
         base::Bind(&URLFetcherCore::FileWriter::DidCloseFile,
                    weak_factory_.GetWeakPtr()));
     file_handle_ = base::kInvalidPlatformFileValue;
@@ -171,19 +172,19 @@ void URLFetcherCore::FileWriter::CloseFileAndCompleteRequest() {
 }
 
 void URLFetcherCore::FileWriter::RemoveFile() {
-  DCHECK(core_->io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   // Close the file if it is open.
   if (file_handle_ != base::kInvalidPlatformFileValue) {
     base::FileUtilProxy::Close(
-        file_message_loop_proxy_, file_handle_,
+        file_task_runner_, file_handle_,
         base::FileUtilProxy::StatusCallback());  // No callback: Ignore errors.
     file_handle_ = base::kInvalidPlatformFileValue;
   }
 
   if (!file_path_.empty()) {
     base::FileUtilProxy::Delete(
-        file_message_loop_proxy_, file_path_,
+        file_task_runner_, file_path_,
         false,  // No need to recurse, as the path is to a file.
         base::FileUtilProxy::StatusCallback());  // No callback: Ignore errors.
     DisownFile();
@@ -209,12 +210,12 @@ void URLFetcherCore::FileWriter::DidCreateFileInternal(
     const FilePath& file_path,
     base::PlatformFileError error_code,
     base::PassPlatformFile file_handle) {
-  DCHECK(core_->io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   if (base::PLATFORM_FILE_OK != error_code) {
     error_code_ = error_code;
     RemoveFile();
-    core_->delegate_loop_proxy_->PostTask(
+    core_->delegate_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&URLFetcherCore::InformDelegateFetchIsComplete, core_));
     return;
@@ -224,19 +225,19 @@ void URLFetcherCore::FileWriter::DidCreateFileInternal(
   file_handle_ = file_handle.ReleaseValue();
   total_bytes_written_ = 0;
 
-  core_->io_message_loop_proxy_->PostTask(
+  core_->network_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&URLFetcherCore::StartURLRequestWhenAppropriate, core_));
 }
 
 void URLFetcherCore::FileWriter::DidCloseFile(
     base::PlatformFileError error_code) {
-  DCHECK(core_->io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
   if (base::PLATFORM_FILE_OK != error_code) {
     error_code_ = error_code;
     RemoveFile();
-    core_->delegate_loop_proxy_->PostTask(
+    core_->delegate_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&URLFetcherCore::InformDelegateFetchIsComplete, core_));
     return;
@@ -261,8 +262,8 @@ URLFetcherCore::URLFetcherCore(URLFetcher* fetcher,
       original_url_(original_url),
       request_type_(request_type),
       delegate_(d),
-      delegate_loop_proxy_(
-          base::MessageLoopProxy::current()),
+      delegate_task_runner_(
+          base::ThreadTaskRunnerHandle::Get()),
       request_(NULL),
       load_flags_(LOAD_NORMAL),
       response_code_(URLFetcher::RESPONSE_CODE_INVALID),
@@ -284,32 +285,32 @@ URLFetcherCore::URLFetcherCore(URLFetcher* fetcher,
 }
 
 void URLFetcherCore::Start() {
-  DCHECK(delegate_loop_proxy_);
+  DCHECK(delegate_task_runner_);
   DCHECK(request_context_getter_) << "We need an URLRequestContext!";
-  if (io_message_loop_proxy_) {
-    DCHECK_EQ(io_message_loop_proxy_,
-              request_context_getter_->GetIOMessageLoopProxy());
+  if (network_task_runner_) {
+    DCHECK_EQ(network_task_runner_,
+              request_context_getter_->GetNetworkTaskRunner());
   } else {
-    io_message_loop_proxy_ = request_context_getter_->GetIOMessageLoopProxy();
+    network_task_runner_ = request_context_getter_->GetNetworkTaskRunner();
   }
-  DCHECK(io_message_loop_proxy_.get()) << "We need an IO message loop proxy";
+  DCHECK(network_task_runner_.get()) << "We need an IO task runner";
 
-  io_message_loop_proxy_->PostTask(
+  network_task_runner_->PostTask(
       FROM_HERE, base::Bind(&URLFetcherCore::StartOnIOThread, this));
 }
 
 void URLFetcherCore::Stop() {
-  if (delegate_loop_proxy_)  // May be NULL in tests.
-    DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
+  if (delegate_task_runner_)  // May be NULL in tests.
+    DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
   delegate_ = NULL;
   fetcher_ = NULL;
-  if (!io_message_loop_proxy_.get())
+  if (!network_task_runner_.get())
     return;
-  if (io_message_loop_proxy_->RunsTasksOnCurrentThread()) {
+  if (network_task_runner_->RunsTasksOnCurrentThread()) {
     CancelURLRequest();
   } else {
-    io_message_loop_proxy_->PostTask(
+    network_task_runner_->PostTask(
         FROM_HERE, base::Bind(&URLFetcherCore::CancelURLRequest, this));
   }
 }
@@ -332,9 +333,9 @@ void URLFetcherCore::SetChunkedUpload(const std::string& content_type) {
 
 void URLFetcherCore::AppendChunkToUpload(const std::string& content,
                                          bool is_last_chunk) {
-  DCHECK(delegate_loop_proxy_);
-  DCHECK(io_message_loop_proxy_.get());
-  io_message_loop_proxy_->PostTask(
+  DCHECK(delegate_task_runner_);
+  DCHECK(network_task_runner_.get());
+  network_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&URLFetcherCore::CompleteAddingUploadDataChunk, this, content,
                  is_last_chunk));
@@ -410,17 +411,17 @@ base::TimeDelta URLFetcherCore::GetBackoffDelay() const {
 
 void URLFetcherCore::SaveResponseToFileAtPath(
     const FilePath& file_path,
-    scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) {
-  DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
-  file_message_loop_proxy_ = file_message_loop_proxy;
+    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner) {
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  file_task_runner_ = file_task_runner;
   response_destination_ = URLFetcherCore::PERMANENT_FILE;
   response_destination_file_path_ = file_path;
 }
 
 void URLFetcherCore::SaveResponseToTemporaryFile(
-    scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) {
-  DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
-  file_message_loop_proxy_ = file_message_loop_proxy;
+    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner) {
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  file_task_runner_ = file_task_runner;
   response_destination_ = URLFetcherCore::TEMP_FILE;
 }
 
@@ -475,9 +476,9 @@ bool URLFetcherCore::FileErrorOccurred(
 }
 
 void URLFetcherCore::ReceivedContentWasMalformed() {
-  DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
-  if (io_message_loop_proxy_.get()) {
-    io_message_loop_proxy_->PostTask(
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  if (network_task_runner_.get()) {
+    network_task_runner_->PostTask(
         FROM_HERE, base::Bind(&URLFetcherCore::NotifyMalformedContent, this));
   }
 }
@@ -496,7 +497,7 @@ bool URLFetcherCore::GetResponseAsString(
 
 bool URLFetcherCore::GetResponseAsFilePath(bool take_ownership,
                                            FilePath* out_response_path) {
-  DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   const bool destination_is_file =
       response_destination_ == URLFetcherCore::TEMP_FILE ||
       response_destination_ == URLFetcherCore::PERMANENT_FILE;
@@ -506,7 +507,7 @@ bool URLFetcherCore::GetResponseAsFilePath(bool take_ownership,
   *out_response_path = file_writer_->file_path();
 
   if (take_ownership) {
-    io_message_loop_proxy_->PostTask(
+    network_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&URLFetcherCore::DisownFile, this));
   }
@@ -517,7 +518,7 @@ void URLFetcherCore::OnReceivedRedirect(URLRequest* request,
                                         const GURL& new_url,
                                         bool* defer_redirect) {
   DCHECK_EQ(request, request_.get());
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (stop_on_redirect_) {
     stopped_on_redirect_ = true;
     url_ = new_url;
@@ -530,7 +531,7 @@ void URLFetcherCore::OnReceivedRedirect(URLRequest* request,
 
 void URLFetcherCore::OnResponseStarted(URLRequest* request) {
   DCHECK_EQ(request, request_.get());
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (request_->status().is_success()) {
     response_code_ = request_->GetResponseCode();
     response_headers_ = request_->response_headers();
@@ -545,7 +546,7 @@ void URLFetcherCore::OnResponseStarted(URLRequest* request) {
 void URLFetcherCore::OnReadCompleted(URLRequest* request,
                                      int bytes_read) {
   DCHECK(request == request_);
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (!stopped_on_redirect_)
     url_ = request->url();
@@ -614,7 +615,7 @@ URLFetcherCore::~URLFetcherCore() {
 }
 
 void URLFetcherCore::StartOnIOThread() {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   switch (response_destination_) {
     case STRING:
@@ -623,10 +624,10 @@ void URLFetcherCore::StartOnIOThread() {
 
     case PERMANENT_FILE:
     case TEMP_FILE:
-      DCHECK(file_message_loop_proxy_.get())
-          << "Need to set the file message loop proxy.";
+      DCHECK(file_task_runner_.get())
+          << "Need to set the file task runner.";
 
-      file_writer_.reset(new FileWriter(this, file_message_loop_proxy_));
+      file_writer_.reset(new FileWriter(this, file_task_runner_));
 
       // If the file is successfully created,
       // URLFetcherCore::StartURLRequestWhenAppropriate() will be called.
@@ -648,7 +649,7 @@ void URLFetcherCore::StartOnIOThread() {
 }
 
 void URLFetcherCore::StartURLRequest() {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (was_cancelled_) {
     // Since StartURLRequest() is posted as a *delayed* task, it may
@@ -735,7 +736,7 @@ void URLFetcherCore::StartURLRequest() {
 }
 
 void URLFetcherCore::StartURLRequestWhenAppropriate() {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (was_cancelled_)
     return;
@@ -759,14 +760,14 @@ void URLFetcherCore::StartURLRequestWhenAppropriate() {
   if (delay == 0) {
     StartURLRequest();
   } else {
-    MessageLoop::current()->PostDelayedTask(
+    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
         FROM_HERE, base::Bind(&URLFetcherCore::StartURLRequest, this),
         base::TimeDelta::FromMilliseconds(delay));
   }
 }
 
 void URLFetcherCore::CancelURLRequest() {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (request_.get()) {
     request_->Cancel();
@@ -786,7 +787,7 @@ void URLFetcherCore::CancelURLRequest() {
 
 void URLFetcherCore::OnCompletedURLRequest(
     base::TimeDelta backoff_delay) {
-  DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
   // Save the status and backoff_delay so that delegates can read it.
   if (delegate_) {
@@ -796,13 +797,13 @@ void URLFetcherCore::OnCompletedURLRequest(
 }
 
 void URLFetcherCore::InformDelegateFetchIsComplete() {
-  DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   if (delegate_)
     delegate_->OnURLFetchComplete(fetcher_);
 }
 
 void URLFetcherCore::NotifyMalformedContent() {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (url_throttler_entry_ != NULL) {
     int status_code = response_code_;
     if (status_code == URLFetcher::RESPONSE_CODE_INVALID) {
@@ -818,7 +819,7 @@ void URLFetcherCore::NotifyMalformedContent() {
 }
 
 void URLFetcherCore::RetryOrCompleteUrlFetch() {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
   base::TimeDelta backoff_delay;
 
   // Checks the response from server.
@@ -849,7 +850,7 @@ void URLFetcherCore::RetryOrCompleteUrlFetch() {
   first_party_for_cookies_ = GURL();
   url_request_data_key_ = NULL;
   url_request_create_data_callback_.Reset();
-  bool posted = delegate_loop_proxy_->PostTask(
+  bool posted = delegate_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&URLFetcherCore::OnCompletedURLRequest, this, backoff_delay));
 
@@ -865,7 +866,7 @@ void URLFetcherCore::ReleaseRequest() {
 }
 
 base::TimeTicks URLFetcherCore::GetBackoffReleaseTime() {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
 
   if (original_url_throttler_entry_) {
     base::TimeTicks original_url_backoff =
@@ -941,7 +942,7 @@ void URLFetcherCore::DisownFile() {
 }
 
 void URLFetcherCore::InformDelegateUploadProgress() {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (request_.get()) {
     int64 current = request_->GetUploadProgress();
     if (current_upload_bytes_ != current) {
@@ -949,7 +950,7 @@ void URLFetcherCore::InformDelegateUploadProgress() {
       int64 total = -1;
       if (!is_chunked_upload_)
         total = static_cast<int64>(upload_content_.size());
-      delegate_loop_proxy_->PostTask(
+      delegate_task_runner_->PostTask(
           FROM_HERE,
           base::Bind(
               &URLFetcherCore::InformDelegateUploadProgressInDelegateThread,
@@ -960,14 +961,14 @@ void URLFetcherCore::InformDelegateUploadProgress() {
 
 void URLFetcherCore::InformDelegateUploadProgressInDelegateThread(
     int64 current, int64 total) {
-  DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   if (delegate_)
     delegate_->OnURLFetchUploadProgress(fetcher_, current, total);
 }
 
 void URLFetcherCore::InformDelegateDownloadProgress() {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
-  delegate_loop_proxy_->PostTask(
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  delegate_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(
           &URLFetcherCore::InformDelegateDownloadProgressInDelegateThread,
@@ -976,17 +977,17 @@ void URLFetcherCore::InformDelegateDownloadProgress() {
 
 void URLFetcherCore::InformDelegateDownloadProgressInDelegateThread(
     int64 current, int64 total) {
-  DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   if (delegate_)
     delegate_->OnURLFetchDownloadProgress(fetcher_, current, total);
 }
 
 void URLFetcherCore::InformDelegateDownloadDataIfNecessary(int bytes_read) {
-  DCHECK(io_message_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (delegate_ && delegate_->ShouldSendDownloadData()) {
     scoped_ptr<std::string> download_data(
         new std::string(buffer_->data(), bytes_read));
-    delegate_loop_proxy_->PostTask(
+    delegate_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(
             &URLFetcherCore::InformDelegateDownloadDataInDelegateThread,
@@ -996,7 +997,7 @@ void URLFetcherCore::InformDelegateDownloadDataIfNecessary(int bytes_read) {
 
 void URLFetcherCore::InformDelegateDownloadDataInDelegateThread(
     scoped_ptr<std::string> download_data) {
-  DCHECK(delegate_loop_proxy_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   if (delegate_)
     delegate_->OnURLFetchDownloadData(fetcher_, download_data.Pass());
 }
