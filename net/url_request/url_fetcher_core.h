@@ -27,7 +27,7 @@
 #include "net/url_request/url_request_status.h"
 
 namespace base {
-class MessageLoopProxy;
+class SingleThreadTaskRunner;
 }  // namespace base
 
 namespace net {
@@ -92,9 +92,9 @@ class URLFetcherCore
   base::TimeDelta GetBackoffDelay() const;
   void SaveResponseToFileAtPath(
       const FilePath& file_path,
-      scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy);
+      scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
   void SaveResponseToTemporaryFile(
-      scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy);
+      scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
   HttpResponseHeaders* GetResponseHeaders() const;
   HostPortPair GetSocketAddress() const;
   bool WasFetchedViaProxy() const;
@@ -168,7 +168,7 @@ class URLFetcherCore
   class FileWriter {
    public:
     FileWriter(URLFetcherCore* core,
-               scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy);
+               scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
     ~FileWriter();
 
     void CreateFileAtPath(const FilePath& file_path);
@@ -223,8 +223,8 @@ class URLFetcherCore
     // Callbacks are created for use with base::FileUtilProxy.
     base::WeakPtrFactory<URLFetcherCore::FileWriter> weak_factory_;
 
-    // Message loop on which file operations should happen.
-    scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy_;
+    // Task runner for the thread on which file operations should happen.
+    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner_;
 
     // Path to the file.  This path is empty when there is no file.
     FilePath file_path_;
@@ -299,14 +299,13 @@ class URLFetcherCore
   URLFetcher::RequestType request_type_;  // What type of request is this?
   URLRequestStatus status_;          // Status of the request
   URLFetcherDelegate* delegate_;     // Object to notify on completion
-  scoped_refptr<base::MessageLoopProxy> delegate_loop_proxy_;
-                                     // Message loop proxy of the creating
-                                     // thread.
-  scoped_refptr<base::MessageLoopProxy> io_message_loop_proxy_;
-                                     // The message loop proxy for the thread
+  scoped_refptr<base::SingleThreadTaskRunner> delegate_task_runner_;
+                                     // Task runner for the creating thread.
+  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
+                                     // Task runner for the thread
                                      // on which the request IO happens.
-  scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy_;
-                                     // The message loop proxy for the thread
+  scoped_refptr<base::SingleThreadTaskRunner> file_task_runner_;
+                                     // Task runner for the thread
                                      // on which file access happens.
   scoped_ptr<URLRequest> request_;   // The actual request this wraps
   int load_flags_;                   // Flags for the load operation
