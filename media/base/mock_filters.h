@@ -26,6 +26,7 @@
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_renderer.h"
+#include "media/crypto/decryptor_client.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
@@ -207,6 +208,41 @@ class MockAudioRenderer : public AudioRenderer {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockAudioRenderer);
+};
+
+class MockDecryptorClient : public DecryptorClient {
+ public:
+  MockDecryptorClient();
+  virtual ~MockDecryptorClient();
+
+  MOCK_METHOD2(KeyAdded, void(const std::string&, const std::string&));
+  MOCK_METHOD4(KeyError, void(const std::string&, const std::string&,
+                              AesDecryptor::KeyError, int));
+  // TODO(xhwang): This is a workaround of the issue that move-only parameters
+  // are not supported in mocked methods. Remove this when the issue is fixed
+  // (http://code.google.com/p/googletest/issues/detail?id=395) or when we use
+  // std::string instead of scoped_array<uint8> (http://crbug.com/130689).
+  MOCK_METHOD5(KeyMessageMock, void(const std::string& key_system,
+                                    const std::string& session_id,
+                                    const uint8* message,
+                                    int message_length,
+                                    const std::string& default_url));
+  MOCK_METHOD4(NeedKeyMock, void(const std::string& key_system,
+                                 const std::string& session_id,
+                                 const uint8* init_data,
+                                 int init_data_length));
+  virtual void KeyMessage(const std::string& key_system,
+                          const std::string& session_id,
+                          scoped_array<uint8> message,
+                          int message_length,
+                          const std::string& default_url) OVERRIDE;
+  virtual void NeedKey(const std::string& key_system,
+                       const std::string& session_id,
+                       scoped_array<uint8> init_data,
+                       int init_data_length) OVERRIDE;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockDecryptorClient);
 };
 
 // FilterFactory that returns canned instances of mock filters.  You can set

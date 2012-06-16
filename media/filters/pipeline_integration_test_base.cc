@@ -6,7 +6,6 @@
 
 #include "base/bind.h"
 #include "media/base/media_log.h"
-#include "media/crypto/aes_decryptor.h"
 #include "media/filters/audio_renderer_impl.h"
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
@@ -186,7 +185,6 @@ PipelineIntegrationTestBase::CreateFilterCollection(
     const scoped_refptr<Demuxer>& demuxer) {
   scoped_ptr<FilterCollection> collection(new FilterCollection());
   collection->SetDemuxer(demuxer);
-  decryptor_.reset(new AesDecryptor());
   collection->AddAudioDecoder(new FFmpegAudioDecoder(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
@@ -195,7 +193,6 @@ PipelineIntegrationTestBase::CreateFilterCollection(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
                  "VideoDecoderThread"));
-  decoder_->set_decryptor(decryptor_.get());
   collection->AddVideoDecoder(decoder_);
   // Disable frame dropping if hashing is enabled.
   renderer_ = new VideoRendererBase(
