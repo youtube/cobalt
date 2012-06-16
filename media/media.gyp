@@ -196,6 +196,7 @@
         'base/video_util.h',
         'crypto/aes_decryptor.cc',
         'crypto/aes_decryptor.h',
+        'crypto/decryptor_client.h',
         'ffmpeg/ffmpeg_common.cc',
         'ffmpeg/ffmpeg_common.h',
         'ffmpeg/file_protocol.cc',

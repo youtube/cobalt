@@ -31,21 +31,21 @@ void MP4StreamParser::Init(const InitCB& init_cb,
                            const NewConfigCB& config_cb,
                            const NewBuffersCB& audio_cb,
                            const NewBuffersCB& video_cb,
-                           const KeyNeededCB& key_needed_cb,
+                           const NeedKeyCB& need_key_cb,
                            const NewMediaSegmentCB& new_segment_cb) {
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!init_cb.is_null());
   DCHECK(!config_cb.is_null());
   DCHECK(!audio_cb.is_null() || !video_cb.is_null());
-  DCHECK(!key_needed_cb.is_null());
+  DCHECK(!need_key_cb.is_null());
 
   ChangeState(kParsingBoxes);
   init_cb_ = init_cb;
   config_cb_ = config_cb;
   audio_cb_ = audio_cb;
   video_cb_ = video_cb;
-  key_needed_cb_ = key_needed_cb;
+  need_key_cb_ = need_key_cb;
   new_segment_cb_ = new_segment_cb;
 }
 

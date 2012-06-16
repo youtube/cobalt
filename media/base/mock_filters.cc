@@ -41,6 +41,26 @@ MockAudioRenderer::MockAudioRenderer() {}
 
 MockAudioRenderer::~MockAudioRenderer() {}
 
+MockDecryptorClient::MockDecryptorClient() {}
+
+MockDecryptorClient::~MockDecryptorClient() {}
+
+void MockDecryptorClient::KeyMessage(const std::string& key_system,
+                                     const std::string& session_id,
+                                     scoped_array<uint8> message,
+                                     int message_length,
+                                     const std::string& default_url) {
+  KeyMessageMock(key_system, session_id, message.get(), message_length,
+                 default_url);
+}
+
+void MockDecryptorClient::NeedKey(const std::string& key_system,
+                                  const std::string& session_id,
+                                  scoped_array<uint8> init_data,
+                                  int init_data_length) {
+  NeedKeyMock(key_system, session_id, init_data.get(), init_data_length);
+}
+
 MockFilterCollection::MockFilterCollection()
     : demuxer_(new MockDemuxer()),
       video_decoder_(new MockVideoDecoder()),
