@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,21 +37,23 @@ OSInfo::OSInfo()
   version_number_.minor = version_info.dwMinorVersion;
   version_number_.build = version_info.dwBuildNumber;
   if ((version_number_.major == 5) && (version_number_.minor > 0)) {
-    version_ = (version_number_.minor == 1) ? VERSION_XP : VERSION_SERVER_2003;
+    // Treat XP Pro x64, Server 2003, Home Server, and Server 2003 R2 as XP.
+    version_ = VERSION_XP;
   } else if (version_number_.major == 6) {
-    if (version_info.wProductType == VER_NT_WORKSTATION) {
-      switch (version_number_.minor) {
-        case 0:
-          version_ = VERSION_VISTA;
-          break;
-        case 1:
-          version_ = VERSION_WIN7;
-          break;
-        default:  // case 2 appears to be win8.
-          version_ = VERSION_WIN8;
-      }
-    } else {
-      version_ = VERSION_SERVER_2008;
+    switch (version_number_.minor) {
+      case 0:
+        // Treat Windows Server 2008 the same as Windows Vista.
+        version_ = VERSION_VISTA;
+        break;
+      case 1:
+        // Treat Windows Server 2008 R2 the same as Windows 7.
+        version_ = VERSION_WIN7;
+        break;
+      default:
+        DCHECK_EQ(version_number_.minor, 2);
+        // Treat Windows Server 2012 the same as Windows 8.
+        version_ = VERSION_WIN8;
+        break;
     }
   } else if (version_number_.major > 6) {
     NOTREACHED();
