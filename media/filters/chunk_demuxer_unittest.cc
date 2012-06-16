@@ -90,11 +90,12 @@ class MockChunkDemuxerClient : public ChunkDemuxerClient {
   MOCK_METHOD1(DemuxerOpened, void(ChunkDemuxer* demuxer));
   MOCK_METHOD0(DemuxerClosed, void());
   // TODO(xhwang): This is a workaround of the issue that move-only parameters
-  // are not supported in mocked methods. Remove this when the issue is fixed.
-  // See http://code.google.com/p/googletest/issues/detail?id=395
-  MOCK_METHOD2(KeyNeededMock, void(const uint8* init_data, int init_data_size));
-  void KeyNeeded(scoped_array<uint8> init_data, int init_data_size) {
-    KeyNeededMock(init_data.get(), init_data_size);
+  // are not supported in mocked methods. Remove this when the issue is fixed
+  // (http://code.google.com/p/googletest/issues/detail?id=395) or when we use
+  // std::string instead of scoped_array<uint8> (http://crbug.com/130689).
+  MOCK_METHOD2(NeedKeyMock, void(const uint8* init_data, int init_data_size));
+  void DemuxerNeedKey(scoped_array<uint8> init_data, int init_data_size) {
+    NeedKeyMock(init_data.get(), init_data_size);
   }
 
  private:
@@ -590,7 +591,7 @@ TEST_F(ChunkDemuxerTest, TestInit) {
     client_.reset(new MockChunkDemuxerClient());
     demuxer_ = new ChunkDemuxer(client_.get());
     if (has_video && video_content_encoded)
-      EXPECT_CALL(*client_, KeyNeededMock(NotNull(), 16));
+      EXPECT_CALL(*client_, NeedKeyMock(NotNull(), 16));
 
     ASSERT_TRUE(InitDemuxer(has_audio, has_video, video_content_encoded));
 
@@ -896,7 +897,7 @@ TEST_F(ChunkDemuxerTest, TestNetworkErrorEndOfStream) {
 // Read() behavior.
 class EndOfStreamHelper {
  public:
-  EndOfStreamHelper(const scoped_refptr<Demuxer> demuxer)
+  explicit EndOfStreamHelper(const scoped_refptr<Demuxer> demuxer)
       : demuxer_(demuxer),
         audio_read_done_(false),
         video_read_done_(false) {

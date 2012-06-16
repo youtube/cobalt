@@ -605,7 +605,7 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                  has_audio, has_video),
       audio_cb,
       video_cb,
-      base::Bind(&ChunkDemuxer::OnKeyNeeded, base::Unretained(this)),
+      base::Bind(&ChunkDemuxer::OnNeedKey, base::Unretained(this)),
       base::Bind(&ChunkDemuxer::OnNewMediaSegment, base::Unretained(this), id));
 
   stream_parser_map_[id] = stream_parser.release();
@@ -1017,9 +1017,9 @@ bool ChunkDemuxer::OnVideoBuffers(const StreamParser::BufferQueue& buffers) {
   return video_->Append(buffers);
 }
 
-bool ChunkDemuxer::OnKeyNeeded(scoped_array<uint8> init_data,
-                               int init_data_size) {
-  client_->KeyNeeded(init_data.Pass(), init_data_size);
+bool ChunkDemuxer::OnNeedKey(scoped_array<uint8> init_data,
+                             int init_data_size) {
+  client_->DemuxerNeedKey(init_data.Pass(), init_data_size);
   return true;
 }
 

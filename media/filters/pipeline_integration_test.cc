@@ -6,16 +6,17 @@
 
 #include "base/bind.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/mock_filters.h"
 #include "media/base/test_data_util.h"
+#include "media/crypto/aes_decryptor.h"
+#include "media/crypto/decryptor_client.h"
 #include "media/filters/chunk_demuxer_client.h"
 
 namespace media {
 
-// Key ID of the video track in test file "bear-320x240-encrypted.webm".
-static const unsigned char kKeyId[] =
-    "\x11\xa5\x18\x37\xc4\x73\x84\x03\xe5\xe6\x57\xed\x8e\x06\xd9\x7c";
-
-static const char* kSourceId = "SourceId";
+static const char kSourceId[] = "SourceId";
+static const char kClearKeySystem[] = "org.w3.clearkey";
+static const uint8 kInitData[] = { 0x69, 0x6e, 0x69, 0x74 };
 
 // Helper class that emulates calls made on the ChunkDemuxer by the
 // Media Source API.
@@ -36,11 +37,8 @@ class MockMediaSource : public ChunkDemuxerClient {
 
   virtual ~MockMediaSource() {}
 
-  void set_decryptor(AesDecryptor* decryptor) {
-    decryptor_ = decryptor;
-  }
-  AesDecryptor* decryptor() const {
-    return decryptor_;
+  void set_decryptor_client(DecryptorClient* decryptor_client) {
+    decryptor_client_ = decryptor_client;
   }
 
   const std::string& url() const { return url_; }
@@ -95,14 +93,12 @@ class MockMediaSource : public ChunkDemuxerClient {
     chunk_demuxer_ = NULL;
   }
 
-  virtual void KeyNeeded(scoped_array<uint8> init_data, int init_data_size) {
+  virtual void DemuxerNeedKey(scoped_array<uint8> init_data,
+                              int init_data_size) {
     DCHECK(init_data.get());
     DCHECK_EQ(init_data_size, 16);
-    DCHECK(decryptor());
-    // In test file bear-320x240-encrypted.webm, the decryption key is equal to
-    // |init_data|.
-    decryptor()->AddKey(init_data.get(), init_data_size,
-                        init_data.get(), init_data_size);
+    DCHECK(decryptor_client_);
+    decryptor_client_->NeedKey("", "", init_data.Pass(), init_data_size);
   }
 
  private:
@@ -113,22 +109,103 @@ class MockMediaSource : public ChunkDemuxerClient {
   bool has_audio_;
   bool has_video_;
   scoped_refptr<ChunkDemuxer> chunk_demuxer_;
-  AesDecryptor* decryptor_;
+  DecryptorClient* decryptor_client_;
+};
+
+class MockDecryptorClientImpl : public DecryptorClient {
+ public:
+  MockDecryptorClientImpl() : decryptor_(this) {}
+
+  AesDecryptor* decryptor() {
+    return &decryptor_;
+  }
+
+  // DecryptorClient implementation.
+  virtual void KeyAdded(const std::string& key_system,
+                        const std::string& session_id) {
+    EXPECT_EQ(kClearKeySystem, key_system);
+    EXPECT_FALSE(session_id.empty());
+  }
+
+  virtual void KeyError(const std::string& key_system,
+                        const std::string& session_id,
+                        AesDecryptor::KeyError error_code,
+                        int system_code) {
+    NOTIMPLEMENTED();
+  }
+
+  virtual void KeyMessage(const std::string& key_system,
+                          const std::string& session_id,
+                          scoped_array<uint8> message,
+                          int message_length,
+                          const std::string& default_url) {
+    EXPECT_EQ(kClearKeySystem, key_system);
+    EXPECT_FALSE(session_id.empty());
+    EXPECT_TRUE(message.get());
+    EXPECT_GT(message_length, 0);
+
+    current_key_system_ = key_system;
+    current_session_id_ = session_id;
+  }
+
+  virtual void NeedKey(const std::string& key_system,
+                       const std::string& session_id,
+                       scoped_array<uint8> init_data,
+                       int init_data_length) {
+    current_key_system_ = key_system;
+    current_session_id_ = session_id;
+
+    // When NeedKey is called from the demuxer, the |key_system| will be empty.
+    // In this case, we need to call GenerateKeyRequest() to initialize a
+    // session (which will call KeyMessage).
+    if (current_key_system_.empty()) {
+      DCHECK(current_session_id_.empty());
+      decryptor_.GenerateKeyRequest(kClearKeySystem,
+                                    kInitData, arraysize(kInitData));
+    }
+
+    EXPECT_FALSE(current_key_system_.empty());
+    EXPECT_FALSE(current_session_id_.empty());
+    // In test file bear-320x240-encrypted.webm, the decryption key is equal to
+    // |init_data|.
+    decryptor_.AddKey(current_key_system_, init_data.get(), init_data_length,
+                      init_data.get(), init_data_length, current_session_id_);
+  }
+
+ private:
+  AesDecryptor decryptor_;
+  std::string current_key_system_;
+  std::string current_session_id_;
 };
 
 class PipelineIntegrationTest
     : public testing::Test,
       public PipelineIntegrationTestBase {
  public:
-  void StartPipelineWithMediaSource(MockMediaSource& source) {
+  void StartPipelineWithMediaSource(MockMediaSource* source) {
     pipeline_->Start(
-        CreateFilterCollection(&source),
+        CreateFilterCollection(source),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
         QuitOnStatusCB(PIPELINE_OK));
 
     ASSERT_TRUE(decoder_.get());
-    source.set_decryptor(decryptor_.get());
+
+    message_loop_.Run();
+  }
+
+  void StartPipelineWithEncryptedMedia(
+      MockMediaSource* source,
+      MockDecryptorClientImpl* encrypted_media) {
+    pipeline_->Start(
+        CreateFilterCollection(source),
+        base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
+        base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
+        QuitOnStatusCB(PIPELINE_OK));
+
+    ASSERT_TRUE(decoder_.get());
+    decoder_->set_decryptor(encrypted_media->decryptor());
+    source->set_decryptor_client(encrypted_media);
 
     message_loop_.Run();
   }
@@ -145,7 +222,7 @@ class PipelineIntegrationTest
                           bool has_audio,
                           bool has_video) {
     MockMediaSource source(filename, initial_append_size, has_audio, has_video);
-    StartPipelineWithMediaSource(source);
+    StartPipelineWithMediaSource(&source);
 
     if (pipeline_status_ != PIPELINE_OK)
       return false;
@@ -188,7 +265,8 @@ TEST_F(PipelineIntegrationTest, BasicPlaybackHashed) {
 
 TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
   MockMediaSource source("bear-320x240-encrypted.webm", 219726, true, true);
-  StartPipelineWithMediaSource(source);
+  MockDecryptorClientImpl encrypted_media;
+  StartPipelineWithEncryptedMedia(&source, &encrypted_media);
 
   source.EndOfStream();
   ASSERT_EQ(PIPELINE_OK, pipeline_status_);

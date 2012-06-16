@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <deque>
+#include <string>
 
 #include "base/bind.h"
 #include "base/message_loop.h"
@@ -24,10 +25,13 @@
 
 using ::testing::_;
 using ::testing::AnyNumber;
+using ::testing::Gt;
 using ::testing::Invoke;
+using ::testing::NotNull;
 using ::testing::ReturnRef;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
+using ::testing::StrNe;
 
 namespace media {
 
@@ -37,9 +41,17 @@ static const gfx::Rect kVisibleRect(320, 240);
 static const gfx::Size kNaturalSize(522, 288);
 static const AVRational kFrameRate = { 100, 1 };
 static const AVRational kAspectRatio = { 1, 1 };
-static const unsigned char kRawKey[] = "A wonderful key!";
-static const unsigned char kWrongKey[] = "I'm a wrong key.";
-static const unsigned char kKeyId[] = "A normal key ID.";
+static const char kClearKeySystem[] = "org.w3.clearkey";
+static const uint8 kInitData[] = { 0x69, 0x6e, 0x69, 0x74 };
+static const uint8 kRightKey[] = {
+  0x41, 0x20, 0x77, 0x6f, 0x6e, 0x64, 0x65, 0x72,
+  0x66, 0x75, 0x6c, 0x20, 0x6b, 0x65, 0x79, 0x21
+};
+static const uint8 kWrongKey[] = {
+  0x49, 0x27, 0x6d, 0x20, 0x61, 0x20, 0x77, 0x72,
+  0x6f, 0x6e, 0x67, 0x20, 0x6b, 0x65, 0x79, 0x2e
+};
+static const uint8 kKeyId[] = { 0x4b, 0x65, 0x79, 0x20, 0x49, 0x44 };
 
 ACTION_P(ReturnBuffer, buffer) {
   arg0.Run(buffer);
@@ -48,7 +60,7 @@ ACTION_P(ReturnBuffer, buffer) {
 class FFmpegVideoDecoderTest : public testing::Test {
  public:
   FFmpegVideoDecoderTest()
-      : decryptor_(new AesDecryptor()),
+      : decryptor_(new AesDecryptor(&decryptor_client_)),
         decoder_(new FFmpegVideoDecoder(base::Bind(&Identity<MessageLoop*>,
                                                    &message_loop_))),
         demuxer_(new StrictMock<MockDemuxerStream>()),
@@ -202,6 +214,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
   MockStatisticsCB statistics_cb_;
   VideoDecoderConfig config_;
+  MockDecryptorClient decryptor_client_;
 
   VideoDecoder::ReadCB read_cb_;
 
@@ -375,12 +388,20 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_SmallerHeight) {
 
 TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_Normal) {
   Initialize();
-  decryptor_->AddKey(kKeyId, arraysize(kKeyId) - 1,
-                     kRawKey, arraysize(kRawKey) - 1);
+  std::string sessing_id_string;
+  EXPECT_CALL(decryptor_client_,
+              KeyMessageMock(kClearKeySystem, StrNe(std::string()),
+                             NotNull(), Gt(0), ""))
+      .WillOnce(SaveArg<1>(&sessing_id_string));
+  decryptor_->GenerateKeyRequest(kClearKeySystem,
+                                 kInitData, arraysize(kInitData));
+  EXPECT_CALL(decryptor_client_, KeyAdded(kClearKeySystem, sessing_id_string));
+  decryptor_->AddKey(kClearKeySystem, kRightKey, arraysize(kRightKey),
+                     kKeyId, arraysize(kKeyId), sessing_id_string);
 
   // Simulate decoding a single encrypted frame.
   encrypted_i_frame_buffer_->SetDecryptConfig(scoped_ptr<DecryptConfig>(
-      new DecryptConfig(kKeyId, arraysize(kKeyId) - 1)));
+      new DecryptConfig(kKeyId, arraysize(kKeyId))));
   VideoDecoder::DecoderStatus status;
   scoped_refptr<VideoFrame> video_frame;
   DecodeSingleFrame(encrypted_i_frame_buffer_, &status, &video_frame);
@@ -396,7 +417,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoKey) {
 
   // Simulate decoding a single encrypted frame.
   encrypted_i_frame_buffer_->SetDecryptConfig(scoped_ptr<DecryptConfig>(
-      new DecryptConfig(kKeyId, arraysize(kKeyId) - 1)));
+      new DecryptConfig(kKeyId, arraysize(kKeyId))));
 
   EXPECT_CALL(*demuxer_, Read(_))
       .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
@@ -415,11 +436,12 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoKey) {
 // Test decrypting an encrypted frame with a wrong key.
 TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_WrongKey) {
   Initialize();
-  decryptor_->AddKey(kKeyId, arraysize(kKeyId) - 1,
-                     kWrongKey, arraysize(kWrongKey) - 1);
+  EXPECT_CALL(decryptor_client_, KeyAdded("", ""));
+  decryptor_->AddKey("", kWrongKey, arraysize(kWrongKey),
+                     kKeyId, arraysize(kKeyId), "");
 
   encrypted_i_frame_buffer_->SetDecryptConfig(scoped_ptr<DecryptConfig>(
-      new DecryptConfig(kKeyId, arraysize(kKeyId) - 1)));
+      new DecryptConfig(kKeyId, arraysize(kKeyId))));
   EXPECT_CALL(*demuxer_, Read(_))
       .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
 
