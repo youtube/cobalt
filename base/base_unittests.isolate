@@ -4,8 +4,8 @@
 {
   'variables': {
     'isolate_dependency_tracked': [
-      '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
       '../testing/test_env.py',
+      '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
       'data/json/bom_feff.json',
     ],
     'isolate_dependency_untracked': [
@@ -15,17 +15,16 @@
   'conditions': [
     ['OS=="linux"', {
       'variables': {
+        'command': [
+          '../testing/xvfb.py',
+          '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
+        ],
         'isolate_dependency_tracked': [
           '../testing/xvfb.py',
           '<(PRODUCT_DIR)/xdisplaycheck<(EXECUTABLE_SUFFIX)',
         ],
-        'command': [
-          '../testing/xvfb.py',
-          '<(PRODUCT_DIR)',
-          '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
-        ],
       },
-    }, {  # else
+    }, {
       'variables': {
         'command': [
           '../testing/test_env.py',
@@ -36,6 +35,7 @@
     ['OS=="win"', {
       'variables': {
         'isolate_dependency_tracked': [
+          '<(PRODUCT_DIR)/icudt.dll',
           'data/file_version_info_unittest/FileVersionInfoTest1.dll',
           'data/file_version_info_unittest/FileVersionInfoTest2.dll',
         ],
