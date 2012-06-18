@@ -13,6 +13,7 @@
 #include "base/memory/linked_ptr.h"
 #include "base/message_loop.h"
 #include "base/metrics/field_trial.h"
+#include "base/metrics/histogram.h"
 #include "base/metrics/stats_counters.h"
 #include "base/stl_util.h"
 #include "base/string_number_conversions.h"
@@ -902,9 +903,11 @@ void SpdySession::WriteSocket() {
       size_t size;
       if (buffered_spdy_framer_->IsCompressible(uncompressed_frame)) {
         DCHECK(uncompressed_frame.is_control_frame());
+        const SpdyControlFrame* uncompressed_control_frame =
+            reinterpret_cast<const SpdyControlFrame*>(&uncompressed_frame);
         scoped_ptr<SpdyFrame> compressed_frame(
             buffered_spdy_framer_->CompressControlFrame(
-                reinterpret_cast<const SpdyControlFrame&>(uncompressed_frame)));
+                *uncompressed_control_frame));
         if (!compressed_frame.get()) {
           RecordProtocolErrorHistogram(
               PROTOCOL_ERROR_SPDY_COMPRESSION_FAILURE);
@@ -916,6 +919,15 @@ void SpdySession::WriteSocket() {
         size = compressed_frame->length() + SpdyFrame::kHeaderSize;
 
         DCHECK_GT(size, 0u);
+
+        if (uncompressed_control_frame->type() == SYN_STREAM) {
+          int uncompressed_size = uncompressed_control_frame->length();
+          int compressed_size = compressed_frame->length();
+          // Make sure we avoid early decimal truncation.
+          int compression_pct = 100 - (100* compressed_size)/uncompressed_size;
+          UMA_HISTOGRAM_PERCENTAGE("Net.SpdySynStreamCompressionPercentage",
+                                   compression_pct);
+        }
 
         // TODO(mbelshe): We have too much copying of data here.
         IOBufferWithSize* buffer = new IOBufferWithSize(size);
