@@ -80,6 +80,20 @@ void AppendJavaStringArrayToStringVector(JNIEnv* env,
   }
 }
 
+void AppendJavaStringArrayToStringVector(JNIEnv* env,
+                                         jobjectArray array,
+                                         std::vector<std::string>* out) {
+  DCHECK(out);
+  if (!array)
+    return;
+  jsize len = env->GetArrayLength(array);
+  for (jsize i = 0; i < len; ++i) {
+    ScopedJavaLocalRef<jstring> str(env,
+        static_cast<jstring>(env->GetObjectArrayElement(array, i)));
+    out->push_back(ConvertJavaStringToUTF8(str));
+  }
+}
+
 void AppendJavaByteArrayToByteVector(JNIEnv* env,
                                      jbyteArray byte_array,
                                      std::vector<uint8>* out) {
