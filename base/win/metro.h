@@ -59,6 +59,9 @@ BASE_EXPORT bool IsMetroProcess();
 // copying the src to it.
 BASE_EXPORT wchar_t* LocalAllocAndCopyString(const string16& src);
 
+// Returns true if the screen supports touch.
+BASE_EXPORT bool IsTouchEnabled();
+
 }  // namespace win
 }  // namespace base
 
