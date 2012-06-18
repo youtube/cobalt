@@ -17,6 +17,7 @@
       'variables': {
         'command': [
           '../testing/xvfb.py',
+          '<(PRODUCT_DIR)',
           '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
         ],
         'isolate_dependency_tracked': [
