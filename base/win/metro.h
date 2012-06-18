@@ -51,6 +51,10 @@ BASE_EXPORT extern const char kActivateApplication[];
 // indicates that the metro dll was not loaded in the process.
 BASE_EXPORT HMODULE GetMetroModule();
 
+// Returns true if this process is running as an immersive program
+// in Windows Metro mode.
+BASE_EXPORT bool IsMetroProcess();
+
 // Allocates and returns the destination string via the LocalAlloc API after
 // copying the src to it.
 BASE_EXPORT wchar_t* LocalAllocAndCopyString(const string16& src);
