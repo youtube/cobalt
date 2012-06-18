@@ -493,4 +493,12 @@ bool operator!=(C* p, const scoped_ptr_malloc<C, FP>& b) {
   return p != b.get();
 }
 
+// A function to convert T* into scoped_ptr<T>
+// Doing e.g. make_scoped_ptr(new FooBarBaz<type>(arg)) is a shorter notation
+// for scoped_ptr<FooBarBaz<type> >(new FooBarBaz<type>(arg))
+template <typename T>
+scoped_ptr<T> make_scoped_ptr(T* ptr) {
+  return scoped_ptr<T>(ptr);
+}
+
 #endif  // BASE_MEMORY_SCOPED_PTR_H_
