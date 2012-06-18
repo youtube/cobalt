@@ -60,7 +60,7 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
       should_swizzle_(false),
       should_down_mix_(false),
       stopped_event_(true /* manual reset */, false /* initial state */),
-      num_buffers_left_(kNumBuffers) {
+      stop_requested_(false) {
   // We must have a manager.
   DCHECK(manager_);
   // A frame is one sample across all channels. In interleaved audio the per
@@ -379,6 +379,37 @@ bool PCMQueueOutAudioOutputStream::CheckForAdjustedLayout(
   return false;
 }
 
+void PCMQueueOutAudioOutputStream::IsRunningCallback(
+    void* p_this,
+    AudioQueueRef queue,
+    AudioQueuePropertyID inID) {
+  PCMQueueOutAudioOutputStream* audio_stream =
+      static_cast<PCMQueueOutAudioOutputStream*>(p_this);
+  UInt32 running = 0;
+  UInt32 size = sizeof(running);
+  OSStatus err = AudioQueueGetProperty(queue,
+                                       kAudioQueueProperty_IsRunning,
+                                       &running,
+                                       &size);
+  if (err) {
+    audio_stream->HandleError(err);
+    return;
+  }
+  if (!running) {
+    // Remove property listener, we don't need it anymore.
+    OSStatus err = AudioQueueRemovePropertyListener(
+        queue,
+        kAudioQueueProperty_IsRunning,
+        PCMQueueOutAudioOutputStream::IsRunningCallback,
+        audio_stream);
+    if (err != noErr)
+      audio_stream->HandleError(err);
+
+    // Ok, finally signal that stream is not running.
+    audio_stream->stopped_event_.Signal();
+  }
+}
+
 // Note to future hackers of this function: Do not add locks to this function
 // that are held through any calls made back into AudioQueue APIs, or other
 // OS audio functions.  This is because the OS dispatch may grab external
@@ -396,24 +427,27 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
   AudioSourceCallback* source = audio_stream->GetSource();
   if (!source) {
     // PCMQueueOutAudioOutputStream::Stop() is waiting for callback to
-    // stop the stream and signal when all callbacks are done.
-    // (we probably can stop the stream there, but it is better to have
-    // all the complex logic in one place; stopping latency is not very
-    // important if you reuse audio stream in the mixer and not close it
-    // immediately).
-    --audio_stream->num_buffers_left_;
-    if (audio_stream->num_buffers_left_ == kNumBuffers - 1) {
-      // First buffer after stop requested, stop the queue.
-      OSStatus err = AudioQueueStop(audio_stream->audio_queue_, true);
+    // stop the stream and signal when all activity ceased (we probably
+    // can stop the stream there, but it is better to have all the
+    // complex logic in one place; stopping latency is not very important
+    // if you reuse audio stream in the mixer and not close it immediately).
+    if (!audio_stream->stop_requested_) {
+      audio_stream->stop_requested_ = true;
+      // Before actually stopping the stream, register callback that
+      // OS would call when status of "is running" property changes.
+      // This way we (hopefully) would know when stream is actually
+      // stopped and it is safe to dispose it.
+      OSStatus err = AudioQueueAddPropertyListener(
+          queue,
+          kAudioQueueProperty_IsRunning,
+          PCMQueueOutAudioOutputStream::IsRunningCallback,
+          audio_stream);
       if (err != noErr)
         audio_stream->HandleError(err);
-    }
-    if (audio_stream->num_buffers_left_ == 0) {
-      // Now we finally saw all the buffers.
-      // Signal that stopping is complete.
-      // Should never touch audio_stream after signaling as it
-      // can be deleted at any moment.
-      audio_stream->stopped_event_.Signal();
+      // Now stop the queue.
+      err = AudioQueueStop(queue, true);
+      if (err != noErr)
+        audio_stream->HandleError(err);
     }
     return;
   }
@@ -509,7 +543,7 @@ void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   SetSource(callback);
   pending_bytes_ = 0;
   stopped_event_.Reset();
-  num_buffers_left_ = kNumBuffers;
+  stop_requested_ = false;
   // Ask the source to pre-fill all our buffers before playing.
   for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
     buffer_[ix]->mAudioDataByteSize = 0;
