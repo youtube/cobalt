@@ -131,7 +131,7 @@
  "vista-release-dual-core/morejs/times/t": {"reva": 99583, "revb": 100012, "improve": -93, "regress": 371, "sha1": "bf629d5e"},
  "vista-release-dual-core/moz/times/t": {"reva": 68696, "revb": 69048, "improve": -188, "regress": 545, "sha1": "b4d5a41c"},
  "vista-release-dual-core/startup/times/t": {"improve": -15, "regress": 15, "sha1": "6deee0f6"},
- "vista-release-dual-core/v8_benchmark/score/score": {"reva": 137758, "revb": 137799, "improve": 162, "regress": -160, "sha1": "045efffd"},
+ "vista-release-dual-core/v8_benchmark/score/score": {"reva": 142714, "revb": 142810, "improve": 17, "regress": -290, "sha1": "c4ce2ce1"},
  "vista-release-single-core/dhtml/times/t": {"reva": 129222, "revb": 131453, "improve": -141, "regress": 2464, "sha1": "33de2c3e"},
  "vista-release-single-core/intl1/times/t": {"reva": 129222, "revb": 136333, "improve": -627, "regress": 5773, "sha1": "fd8ad7d2"},
  "vista-release-single-core/intl2/times/t": {"reva": 129222, "revb": 131453, "improve": -411, "regress": 1989, "sha1": "2e1837a7"},
