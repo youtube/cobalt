@@ -1383,9 +1383,8 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
       SetPortOnAddressList(requests_->front()->info().port(), &list);
       // Record this histogram here, when we know the system has a valid DNS
       // configuration.
-      UMA_HISTOGRAM_ENUMERATION("AsyncDNS.HaveDnsConfig",
-                                resolver_->received_dns_config_ ? 1 : 0,
-                                2);
+      UMA_HISTOGRAM_BOOLEAN("AsyncDNS.HaveDnsConfig",
+                            resolver_->received_dns_config_);
     }
 
     if ((net_error != ERR_ABORTED) &&

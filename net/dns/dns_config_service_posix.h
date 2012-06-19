@@ -36,8 +36,21 @@ class NET_EXPORT_PRIVATE DnsConfigServicePosix : public DnsConfigService {
   DISALLOW_COPY_AND_ASSIGN(DnsConfigServicePosix);
 };
 
+enum ConfigParsePosixResult {
+  CONFIG_PARSE_POSIX_OK = 0,
+  CONFIG_PARSE_POSIX_RES_INIT_FAILED,
+  CONFIG_PARSE_POSIX_RES_INIT_UNSET,
+  CONFIG_PARSE_POSIX_BAD_ADDRESS,
+  CONFIG_PARSE_POSIX_BAD_EXT_STRUCT,
+  CONFIG_PARSE_POSIX_NULL_ADDRESS,
+  CONFIG_PARSE_POSIX_NO_NAMESERVERS,
+  CONFIG_PARSE_POSIX_MISSING_OPTIONS,
+  CONFIG_PARSE_POSIX_UNHANDLED_OPTIONS,
+  CONFIG_PARSE_POSIX_MAX  // Bounding values for enumeration.
+};
+
 // Fills in |dns_config| from |res|.
-bool NET_EXPORT_PRIVATE ConvertResStateToDnsConfig(
+ConfigParsePosixResult NET_EXPORT_PRIVATE ConvertResStateToDnsConfig(
     const struct __res_state& res, DnsConfig* dns_config);
 
 }  // namespace internal
