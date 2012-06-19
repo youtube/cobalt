@@ -51,11 +51,6 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   // Check and move channels if surround sound layout needs adjusted.
   bool CheckForAdjustedLayout(Channels input_channel, Channels output_channel);
 
-  // Callback we are installing to find out when the stream is stopped.
-  static void IsRunningCallback(void* p_this,
-                                AudioQueueRef queue,
-                                AudioQueuePropertyID inID);
-
   // The OS calls back here when an audio buffer has been processed.
   static void RenderCallback(void* p_this, AudioQueueRef queue,
                              AudioQueueBufferRef buffer);
@@ -103,13 +98,11 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   bool should_down_mix_;
 
   // Event used for synchronization when stopping the stream.
-  // Callback sets it after stream is fully stopped.
+  // Callback sets it after stream is stopped.
   base::WaitableEvent stopped_event_;
-  // Flag set by rendering callback when it asks OS to stop the stream.
-  // All subsequent renderer callbacks calls just exit immediately, they
-  // are called to release the buffer (and we do it when closing the stream,
-  // not in the callback).
-  bool stop_requested_;
+  // When stopping we keep track of number of buffers in flight and
+  // signal "stop completed" from the last buffer's callback.
+  int num_buffers_left_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };
