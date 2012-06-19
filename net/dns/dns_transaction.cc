@@ -360,7 +360,7 @@ class DnsTransactionImpl : public DnsTransaction,
     if (ndots > 0 && !had_hostname)
       qnames_.push_back(labeled_hostname);
 
-    return qnames_.empty() ? ERR_NAME_NOT_RESOLVED : OK;
+    return qnames_.empty() ? ERR_DNS_SEARCH_EMPTY : OK;
   }
 
   void DoCallback(AttemptResult result) {
