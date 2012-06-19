@@ -75,7 +75,7 @@ class AesDecryptorTest : public testing::Test {
   void AddKeyAndExpectToFail(const uint8 (&key_id)[KeyIdSize],
                              const uint8 (&key)[KeySize]) {
     EXPECT_CALL(client_, KeyError(kClearKeySystem, session_id_string_,
-                                  AesDecryptor::kUnknownError, 0));
+                                  Decryptor::kUnknownError, 0));
     decryptor_.AddKey(kClearKeySystem, key, KeySize, key_id, KeyIdSize,
                       session_id_string_);
   }

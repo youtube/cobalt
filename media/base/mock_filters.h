@@ -18,6 +18,7 @@
 #include "media/base/audio_decoder.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/audio_renderer.h"
+#include "media/base/decryptor_client.h"
 #include "media/base/demuxer.h"
 #include "media/base/filters.h"
 #include "media/base/filter_collection.h"
@@ -26,7 +27,6 @@
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_renderer.h"
-#include "media/crypto/decryptor_client.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
@@ -217,7 +217,7 @@ class MockDecryptorClient : public DecryptorClient {
 
   MOCK_METHOD2(KeyAdded, void(const std::string&, const std::string&));
   MOCK_METHOD4(KeyError, void(const std::string&, const std::string&,
-                              AesDecryptor::KeyError, int));
+                              Decryptor::KeyError, int));
   // TODO(xhwang): This is a workaround of the issue that move-only parameters
   // are not supported in mocked methods. Remove this when the issue is fixed
   // (http://code.google.com/p/googletest/issues/detail?id=395) or when we use
