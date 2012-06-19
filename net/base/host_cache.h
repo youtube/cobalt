@@ -6,6 +6,7 @@
 #define NET_BASE_HOST_CACHE_H_
 #pragma once
 
+#include <functional>
 #include <string>
 
 #include "base/gtest_prod_util.h"
@@ -54,7 +55,8 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     HostResolverFlags host_resolver_flags;
   };
 
-  typedef ExpiringCache<Key, Entry> EntryMap;
+  typedef ExpiringCache<Key, Entry, base::TimeTicks,
+                        std::less<base::TimeTicks> > EntryMap;
 
   // Constructs a HostCache that stores up to |max_entries|.
   explicit HostCache(size_t max_entries);

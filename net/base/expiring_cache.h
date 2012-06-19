@@ -20,7 +20,42 @@ namespace net {
 // The template types have the following requirements:
 //  KeyType must be LessThanComparable, Assignable, and CopyConstructible.
 //  ValueType must be CopyConstructible and Assignable.
-template <typename KeyType, typename ValueType>
+//  ExpirationType must be CopyConstructible and Assignable.
+//  ExpirationCompare is a function class that takes two arguments of the
+//    type ExpirationType and returns a bool. If |comp| is an instance of
+//    ExpirationCompare, then the expression |comp(current, expiration)| shall
+//    return true iff |current| is still valid within |expiration|.
+//
+// A simple use of this class may use base::TimeTicks, which provides a
+// monotonically increasing clock, for the expiration type. Because it's always
+// increasing, std::less<> can be used, which will simply ensure that |now| is
+// sorted before |expiration|:
+//
+//   ExpiringCache<std::string, std::string, base::TimeTicks,
+//                 std::less<base::TimeTicks> > cache(0);
+//   // Add a value that expires in 5 minutes
+//   cache.Put("key1", "value1", base::TimeTicks::Now(),
+//             base::TimeTicks::Now() + base::TimeDelta::FromMinutes(5));
+//   // Add another value that expires in 10 minutes.
+//   cache.Put("key2", "value2", base::TimeTicks::Now(),
+//             base::TimeTicks::Now() + base::TimeDelta::FromMinutes(10));
+//
+// Alternatively, there may be some more complex expiration criteria, at which
+// point a custom functor may be used:
+//
+//   struct ComplexExpirationFunctor {
+//     bool operator()(const ComplexExpiration& now,
+//                     const ComplexExpiration& expiration) const;
+//   };
+//   ExpiringCache<std::string, std::string, ComplexExpiration,
+//                 ComplexExpirationFunctor> cache(15);
+//   // Add a value that expires once the 'sprocket' has 'cog'-ified.
+//   cache.Put("key1", "value1", ComplexExpiration("sprocket"),
+//             ComplexExpiration("cog"));
+template <typename KeyType,
+          typename ValueType,
+          typename ExpirationType,
+          typename ExpirationCompare>
 class ExpiringCache {
  private:
   // Intentionally violate the C++ Style Guide so that EntryMap is known to be
@@ -29,12 +64,13 @@ class ExpiringCache {
   // typename.
 
   // Tuple to represent the value and when it expires.
-  typedef std::pair<ValueType, base::TimeTicks> Entry;
+  typedef std::pair<ValueType, ExpirationType> Entry;
   typedef std::map<KeyType, Entry> EntryMap;
 
  public:
   typedef KeyType key_type;
   typedef ValueType value_type;
+  typedef ExpirationType expiration_type;
 
   // This class provides a read-only iterator over items in the ExpiringCache
   class Iterator {
@@ -50,7 +86,7 @@ class ExpiringCache {
 
     const KeyType& key() const { return it_->first; }
     const ValueType& value() const { return it_->second.first; }
-    const base::TimeTicks& expiration() const { return it_->second.second; }
+    const ExpirationType& expiration() const { return it_->second.second; }
 
    private:
     const ExpiringCache& cache_;
@@ -71,13 +107,13 @@ class ExpiringCache {
   // expired, it is immediately removed from the cache.
   // Note: The returned pointer remains owned by the ExpiringCache and is
   // invalidated by a call to a non-const method.
-  const ValueType* Get(const KeyType& key, base::TimeTicks now) {
+  const ValueType* Get(const KeyType& key, const ExpirationType& now) {
     typename EntryMap::iterator it = entries_.find(key);
     if (it == entries_.end())
       return NULL;
 
     // Immediately remove expired entries.
-    if (!CanUseEntry(it->second, now)) {
+    if (!expiration_comp_(now, it->second.second)) {
       entries_.erase(it);
       return NULL;
     }
@@ -88,9 +124,8 @@ class ExpiringCache {
   // Updates or replaces the value associated with |key|.
   void Put(const KeyType& key,
            const ValueType& value,
-           base::TimeTicks now,
-           base::TimeDelta ttl) {
-    base::TimeTicks expiration = now + ttl;
+           const ExpirationType& now,
+           const ExpirationType& expiration) {
     typename EntryMap::iterator it = entries_.find(key);
     if (it == entries_.end()) {
       // Compact the cache if it grew beyond the limit.
@@ -121,18 +156,14 @@ class ExpiringCache {
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ExpiringCacheTest, Compact);
-
-  // Returns true if this cache entry's result is valid at time |now|.
-  static bool CanUseEntry(const Entry& entry, const base::TimeTicks now) {
-    return entry.second > now;
-  }
+  FRIEND_TEST_ALL_PREFIXES(ExpiringCacheTest, CustomFunctor);
 
   // Prunes entries from the cache to bring it below |max_entries()|.
-  void Compact(base::TimeTicks now) {
+  void Compact(const ExpirationType& now) {
     // Clear out expired entries.
     typename EntryMap::iterator it;
     for (it = entries_.begin(); it != entries_.end(); ) {
-      if (!CanUseEntry(it->second, now)) {
+      if (!expiration_comp_(now, it->second.second)) {
         entries_.erase(it++);
       } else {
         ++it;
@@ -153,6 +184,7 @@ class ExpiringCache {
   size_t max_entries_;
 
   EntryMap entries_;
+  ExpirationCompare expiration_comp_;
 
   DISALLOW_COPY_AND_ASSIGN(ExpiringCache);
 };
