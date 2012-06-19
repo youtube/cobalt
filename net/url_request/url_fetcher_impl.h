@@ -25,8 +25,7 @@ class URLFetcherCore;
 class URLFetcherDelegate;
 class URLFetcherFactory;
 
-// TODO(akalin): Remove NET_EXPORT once URLFetcher::Create is in net/.
-class NET_EXPORT URLFetcherImpl : public URLFetcher {
+class NET_EXPORT_PRIVATE URLFetcherImpl : public URLFetcher {
  public:
   // |url| is the URL to send the request to.
   // |request_type| is the type of request to make.

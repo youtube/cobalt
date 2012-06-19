@@ -1552,6 +1552,8 @@
         'test/spawner_communicator.cc',
         'test/spawner_communicator.h',
         'test/test_server.h',
+        'url_request/test_url_fetcher_factory.cc',
+        'url_request/test_url_fetcher_factory.h',
         'url_request/url_request_test_util.cc',
         'url_request/url_request_test_util.h',
       ],
