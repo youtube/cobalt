@@ -5,10 +5,57 @@
 #include "net/dns/dns_config_service.h"
 
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/values.h"
 #include "net/base/ip_endpoint.h"
 
 namespace net {
+
+namespace {
+
+// Check if particular nameserver address is rogue. See:
+// http://www.fbi.gov/news/stories/2011/november/malware_110911/DNS-changer-malware.pdf
+bool CheckRogueDnsAddress(const IPAddressNumber& address) {
+  const struct Bounds {
+    const unsigned char lower[4];  // inclusive
+    const unsigned char upper[4];  // exclusive
+  } cases[] = {
+    { { '\x55', '\xFF', '\x70', '\x00' },    // 85.255.112.0
+      { '\x55', '\xFF', '\x80', '\x00' } },  // 85.255.128.0
+    { { '\x43', '\xD2', '\x00', '\x00' },    // 67.210.0.0
+      { '\x43', '\xD2', '\x10', '\x00' } },  // 67.210.16.0
+    { { '\x5D', '\xBC', '\xA0', '\x00' },    // 93.188.160.0
+      { '\x5D', '\xBC', '\xA8', '\x00' } },  // 93.188.168.0
+    { { '\x4D', '\x43', '\x53', '\x00' },    // 77.67.83.0
+      { '\x4D', '\x43', '\x54', '\x00' } },  // 77.67.84.0
+    { { '\x40', '\x1C', '\xB2', '\x00' },    // 64.28.178.0
+      { '\x40', '\x1C', '\xC0', '\x00' } },  // 64.28.192.0
+  };
+  for (unsigned i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+    const Bounds& bounds = cases[i];
+    IPAddressNumber lower(bounds.lower, bounds.lower + 4);
+    IPAddressNumber upper(bounds.upper, bounds.upper + 4);
+    if (address.size() == kIPv6AddressSize) {
+      lower = ConvertIPv4NumberToIPv6Number(lower);
+      upper = ConvertIPv4NumberToIPv6Number(upper);
+    }
+    if ((lower <= address) && (address < upper))
+      return true;
+  }
+  return false;
+}
+
+void CheckRogueDnsConfig(const DnsConfig& config) {
+  for (size_t i = 0; i < config.nameservers.size(); ++i) {
+    if (CheckRogueDnsAddress(config.nameservers[i].address())) {
+      UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DNSChangerDetected", true);
+      return;
+    }
+  }
+  UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DNSChangerDetected", false);
+}
+
+}  // namespace
 
 // Default values are taken from glibc resolv.h.
 DnsConfig::DnsConfig()
@@ -73,7 +120,8 @@ base::Value* DnsConfig::ToValue() const {
 
 
 DnsConfigService::DnsConfigService()
-    : have_config_(false),
+    : checked_rogue_dns_(false),
+      have_config_(false),
       have_hosts_(false),
       need_update_(false),
       last_sent_empty_(true) {}
@@ -185,6 +233,10 @@ void DnsConfigService::OnCompleteConfig() {
   timer_.Stop();
   if (!need_update_)
     return;
+  if (!checked_rogue_dns_ && dns_config_.IsValid()) {
+    CheckRogueDnsConfig(dns_config_);
+    checked_rogue_dns_ = true;
+  }
   need_update_ = false;
   last_sent_empty_ = false;
   callback_.Run(dns_config_);
