@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/pickle.h"
 #include "base/time.h"
 #include "base/values.h"
