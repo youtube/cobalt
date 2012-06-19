@@ -11,6 +11,8 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/metrics/histogram.h"
+#include "base/time.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
 #include "net/dns/dns_hosts.h"
@@ -19,6 +21,9 @@
 
 namespace net {
 
+#if !defined(OS_ANDROID)
+namespace internal {
+
 namespace {
 
 #ifndef _PATH_RESCONF  // Normally defined in <resolv.h>
@@ -26,6 +31,35 @@ namespace {
 #endif
 
 const FilePath::CharType* kFilePathHosts = FILE_PATH_LITERAL("/etc/hosts");
+
+ConfigParsePosixResult ReadDnsConfig(DnsConfig* config) {
+  ConfigParsePosixResult result;
+#if defined(OS_OPENBSD)
+  // Note: res_ninit in glibc always returns 0 and sets RES_INIT.
+  // res_init behaves the same way.
+  memset(&_res, 0, sizeof(_res));
+  if (res_init() == 0) {
+    result = ConvertResStateToDnsConfig(_res, config);
+  } else {
+    result = CONFIG_PARSE_POSIX_RES_INIT_FAILED;
+  }
+#else  // all other OS_POSIX
+  struct __res_state res;
+  memset(&res, 0, sizeof(res));
+  if (res_ninit(&res) == 0) {
+    result = ConvertResStateToDnsConfig(res, config);
+  } else {
+    result = CONFIG_PARSE_POSIX_RES_INIT_FAILED;
+  }
+  // Prefer res_ndestroy where available.
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
+  res_ndestroy(&res);
+#else
+  res_nclose(&res);
+#endif
+#endif
+  return result;
+}
 
 // A SerialWorker that uses libresolv to initialize res_state and converts
 // it to DnsConfig.
@@ -36,28 +70,14 @@ class ConfigReader : public SerialWorker {
       : callback_(callback), success_(false) {}
 
   void DoWork() OVERRIDE {
-    success_ = false;
-#if defined(OS_ANDROID)
-    NOTIMPLEMENTED();
-#elif defined(OS_OPENBSD)
-    // Note: res_ninit in glibc always returns 0 and sets RES_INIT.
-    // res_init behaves the same way.
-    memset(&_res, 0, sizeof(_res));
-    if ((res_init() == 0) && (_res.options & RES_INIT))
-      success_ = internal::ConvertResStateToDnsConfig(_res, &dns_config_);
-#else  // all other OS_POSIX
-    struct __res_state res;
-    memset(&res, 0, sizeof(res));
-    if ((res_ninit(&res) == 0) && (res.options & RES_INIT))
-      success_ = internal::ConvertResStateToDnsConfig(res, &dns_config_);
-
-    // Prefer res_ndestroy where available.
-#if defined(OS_MACOSX) || defined(OS_FREEBSD)
-    res_ndestroy(&res);
-#else
-    res_nclose(&res);
-#endif
-#endif
+    base::TimeTicks start_time = base::TimeTicks::Now();
+    ConfigParsePosixResult result = ReadDnsConfig(&dns_config_);
+    success_ = (result == CONFIG_PARSE_POSIX_OK);
+    UMA_HISTOGRAM_ENUMERATION("AsyncDNS.ConfigParsePosix",
+                              result, CONFIG_PARSE_POSIX_MAX);
+    UMA_HISTOGRAM_BOOLEAN("AsyncDNS.ConfigParseResult", success_);
+    UMA_HISTOGRAM_TIMES("AsyncDNS.ConfigParseDuration",
+                        base::TimeTicks::Now() - start_time);
   }
 
   void OnWorkFinished() OVERRIDE {
@@ -91,7 +111,11 @@ class HostsReader : public SerialWorker {
   virtual ~HostsReader() {}
 
   virtual void DoWork() OVERRIDE {
+    base::TimeTicks start_time = base::TimeTicks::Now();
     success_ = ParseHostsFile(path_, &hosts_);
+    UMA_HISTOGRAM_BOOLEAN("AsyncDNS.HostParseResult", success_);
+    UMA_HISTOGRAM_TIMES("AsyncDNS.HostsParseDuration",
+                        base::TimeTicks::Now() - start_time);
   }
 
   virtual void OnWorkFinished() OVERRIDE {
@@ -112,8 +136,6 @@ class HostsReader : public SerialWorker {
 };
 
 }  // namespace
-
-namespace internal {
 
 DnsConfigServicePosix::DnsConfigServicePosix() {
   config_reader_ = new ConfigReader(
@@ -150,11 +172,11 @@ void DnsConfigServicePosix::OnDNSChanged(unsigned detail) {
   }
 }
 
-#if !defined(OS_ANDROID)
-bool ConvertResStateToDnsConfig(const struct __res_state& res,
-                                DnsConfig* dns_config) {
+ConfigParsePosixResult ConvertResStateToDnsConfig(const struct __res_state& res,
+                                                  DnsConfig* dns_config) {
   CHECK(dns_config != NULL);
-  DCHECK(res.options & RES_INIT);
+  if (!(res.options & RES_INIT))
+    return CONFIG_PARSE_POSIX_RES_INIT_UNSET;
 
   dns_config->nameservers.clear();
 
@@ -168,7 +190,7 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
     if (!ipe.FromSockAddr(
             reinterpret_cast<const struct sockaddr*>(&addresses[i]),
             sizeof addresses[i])) {
-      return false;
+      return CONFIG_PARSE_POSIX_BAD_ADDRESS;
     }
     dns_config->nameservers.push_back(ipe);
   }
@@ -191,10 +213,10 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
       addr = reinterpret_cast<const struct sockaddr*>(res._u._ext.nsaddrs[i]);
       addr_len = sizeof *res._u._ext.nsaddrs[i];
     } else {
-      return false;
+      return CONFIG_PARSE_POSIX_BAD_EXT_STRUCT;
     }
     if (!ipe.FromSockAddr(addr, addr_len))
-      return false;
+      return CONFIG_PARSE_POSIX_BAD_ADDRESS;
     dns_config->nameservers.push_back(ipe);
   }
 #else  // !(defined(OS_LINUX) || defined(OS_MACOSX) || defined(OS_FREEBSD))
@@ -204,7 +226,7 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
     if (!ipe.FromSockAddr(
             reinterpret_cast<const struct sockaddr*>(&res.nsaddr_list[i]),
             sizeof res.nsaddr_list[i])) {
-      return false;
+      return CONFIG_PARSE_POSIX_BAD_ADDRESS;
     }
     dns_config->nameservers.push_back(ipe);
   }
@@ -223,15 +245,28 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
 #endif
   dns_config->edns0 = res.options & RES_USE_EDNS0;
 
+  // The current implementation assumes these options are set. They normally
+  // cannot be overwritten by /etc/resolv.conf
+  unsigned kRequiredOptions = RES_RECURSE | RES_DEFNAMES | RES_DNSRCH;
+  if ((res.options & kRequiredOptions) != kRequiredOptions)
+    return CONFIG_PARSE_POSIX_MISSING_OPTIONS;
+
+  unsigned kUnhandledOptions = RES_USEVC | RES_IGNTC | RES_USE_DNSSEC;
+  if (res.options & kUnhandledOptions)
+    return CONFIG_PARSE_POSIX_UNHANDLED_OPTIONS;
+
+  if (dns_config->nameservers.empty())
+    return CONFIG_PARSE_POSIX_NO_NAMESERVERS;
+
   // If any name server is 0.0.0.0, assume the configuration is invalid.
   // TODO(szym): Measure how often this happens. http://crbug.com/125599
   const IPAddressNumber kEmptyAddress(kIPv4AddressSize);
-  for (unsigned i = 0; i < dns_config->nameservers.size(); ++i)
+  for (unsigned i = 0; i < dns_config->nameservers.size(); ++i) {
     if (dns_config->nameservers[i].address() == kEmptyAddress)
-      return false;
-  return true;
+      return CONFIG_PARSE_POSIX_NULL_ADDRESS;
+  }
+  return CONFIG_PARSE_POSIX_OK;
 }
-#endif  // !defined(OS_ANDROID)
 
 }  // namespace internal
 
@@ -239,5 +274,19 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
 scoped_ptr<DnsConfigService> DnsConfigService::CreateSystemService() {
   return scoped_ptr<DnsConfigService>(new internal::DnsConfigServicePosix());
 }
+
+#else  // defined(OS_ANDROID)
+// Android NDK provides only a stub <resolv.h> header.
+class StubDnsConfigService : public DnsConfigService {
+ public:
+  StubDnsConfigService() {}
+  virtual ~StubDnsConfigService() {}
+  virtual void OnDNSChanged(unsigned detail) OVERRIDE {}
+};
+// static
+scoped_ptr<DnsConfigService> DnsConfigService::CreateSystemService() {
+  return scoped_ptr<DnsConfigService>(new StubDnsConfigService());
+}
+#endif
 
 }  // namespace net

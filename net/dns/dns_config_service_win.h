@@ -101,8 +101,24 @@ struct NET_EXPORT_PRIVATE DnsSystemSettings {
   RegDword append_to_multi_label_name;
 };
 
+enum ConfigParseWinResult {
+  CONFIG_PARSE_WIN_OK = 0,
+  CONFIG_PARSE_WIN_READ_IPHELPER,
+  CONFIG_PARSE_WIN_READ_POLICY_SEARCHLIST,
+  CONFIG_PARSE_WIN_READ_TCPIP_SEARCHLIST,
+  CONFIG_PARSE_WIN_READ_DOMAIN,
+  CONFIG_PARSE_WIN_READ_POLICY_DEVOLUTION,
+  CONFIG_PARSE_WIN_READ_DNSCACHE_DEVOLUTION,
+  CONFIG_PARSE_WIN_READ_TCPIP_DEVOLUTION,
+  CONFIG_PARSE_WIN_READ_APPEND_MULTILABEL,
+  CONFIG_PARSE_WIN_READ_PRIMARY_SUFFIX,
+  CONFIG_PARSE_WIN_BAD_ADDRESS,
+  CONFIG_PARSE_WIN_NO_NAMESERVERS,
+  CONFIG_PARSE_WIN_MAX  // Bounding values for enumeration.
+};
+
 // Fills in |dns_config| from |settings|. Exposed for tests.
-bool NET_EXPORT_PRIVATE ConvertSettingsToDnsConfig(
+ConfigParseWinResult NET_EXPORT_PRIVATE ConvertSettingsToDnsConfig(
     const DnsSystemSettings& settings,
     DnsConfig* dns_config);
 
