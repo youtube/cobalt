@@ -70,6 +70,11 @@ void CapturingNetLog::GetEntries(CapturedEntryList* entry_list) const {
   *entry_list = captured_entries_;
 }
 
+size_t CapturingNetLog::GetSize() const {
+  base::AutoLock lock(lock_);
+  return captured_entries_.size();
+}
+
 void CapturingNetLog::Clear() {
   base::AutoLock lock(lock_);
   captured_entries_.clear();
@@ -136,6 +141,10 @@ CapturingBoundNetLog::~CapturingBoundNetLog() {}
 void CapturingBoundNetLog::GetEntries(
     CapturingNetLog::CapturedEntryList* entry_list) const {
   capturing_net_log_.GetEntries(entry_list);
+}
+
+size_t CapturingBoundNetLog::GetSize() const {
+  return capturing_net_log_.GetSize();
 }
 
 void CapturingBoundNetLog::Clear() {
