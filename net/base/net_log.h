@@ -11,8 +11,6 @@
 #include "base/basictypes.h"
 #include "base/callback_forward.h"
 #include "base/compiler_specific.h"
-#include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/string16.h"
 #include "net/base/net_export.h"
 
@@ -92,10 +90,6 @@ class NET_EXPORT NetLog {
     Source(SourceType type, uint32 id) : type(type), id(id) {}
     bool is_valid() const { return id != kInvalidId; }
 
-    // Obsolete.  The caller takes ownership of the returned Value*.
-    // TODO(mmenke):  Remove this.
-    base::Value* ToValue() const;
-
     // Adds the source to a DictionaryValue containing event parameters,
     // using the name "source_dependency".
     void AddToEventParameters(base::DictionaryValue* event_params) const;
@@ -112,30 +106,6 @@ class NET_EXPORT NetLog {
 
     SourceType type;
     uint32 id;
-  };
-
-  // Base class for associating additional parameters with an event. Log
-  // observers need to know what specific derivations of EventParameters a
-  // particular EventType uses, in order to get at the individual components.
-  // This class is obsolete.  New code should use ParametersCallbacks.
-  // TODO(mmenke):  Update users of this class and get rid of it.
-  class NET_EXPORT EventParameters
-      : public base::RefCountedThreadSafe<EventParameters> {
-   public:
-    EventParameters() {}
-
-    // Serializes the parameters to a Value tree. This is intended to be a
-    // lossless conversion, which is used to serialize the parameters to JSON.
-    // The caller takes ownership of the returned Value*.
-    virtual base::Value* ToValue() const = 0;
-
-   protected:
-    virtual ~EventParameters() {}
-
-   private:
-    friend class base::RefCountedThreadSafe<EventParameters>;
-
-    DISALLOW_COPY_AND_ASSIGN(EventParameters);
   };
 
   class NET_EXPORT Entry {
@@ -225,12 +195,6 @@ class NET_EXPORT NetLog {
   void AddGlobalEntry(EventType type);
   void AddGlobalEntry(EventType type,
                       const NetLog::ParametersCallback& parameters_callback);
-
-  // Older, obsolete version of above functions.  Use the ParametersCallback
-  // versions instead.
-  // TODO(mmenke):  Remove this.
-  void AddGlobalEntry(EventType type,
-                      const scoped_refptr<EventParameters>& params);
 
   // Returns a unique ID which can be used as a source ID.  All returned IDs
   // will be unique and greater than 0.
@@ -367,19 +331,6 @@ class NET_EXPORT BoundNetLog {
   void AddEvent(NetLog::EventType type,
                 const NetLog::ParametersCallback& get_parameters) const;
 
-  // Obsolete versions of the above functions.
-  // Use the ParametersCallback versions of these functions instead.
-  // TODO(mmenke):  Remove these.
-  void AddEntry(NetLog::EventType type,
-                NetLog::EventPhase phase,
-                const scoped_refptr<NetLog::EventParameters>& params) const;
-  void AddEvent(NetLog::EventType event_type,
-                const scoped_refptr<NetLog::EventParameters>& params) const;
-  void BeginEvent(NetLog::EventType event_type,
-                  const scoped_refptr<NetLog::EventParameters>& params) const;
-  void EndEvent(NetLog::EventType event_type,
-                const scoped_refptr<NetLog::EventParameters>& params) const;
-
   // Just like AddEvent, except |net_error| is a net error code.  A parameter
   // called "net_error" with the indicated value will be recorded for the event.
   // |net_error| must be negative, and not ERR_IO_PENDING, as it's not a true
@@ -421,74 +372,6 @@ class NET_EXPORT BoundNetLog {
 
   NetLog::Source source_;
   NetLog* net_log_;
-};
-
-// All the classes below are obsolete.  New code should use ParametersCallbacks.
-// TODO(mmenke):  Update users these classes and get rid of them.
-
-// NetLogStringParameter is a subclass of EventParameters that encapsulates a
-// single std::string parameter.
-class NET_EXPORT NetLogStringParameter : public NetLog::EventParameters {
- public:
-  // |name| must be a string literal.
-  NetLogStringParameter(const char* name, const std::string& value);
-
-  const std::string& value() const {
-    return value_;
-  }
-
-  virtual base::Value* ToValue() const OVERRIDE;
-
- protected:
-  virtual ~NetLogStringParameter();
-
- private:
-  const char* const name_;
-  const std::string value_;
-};
-
-// NetLogIntegerParameter is a subclass of EventParameters that encapsulates a
-// single integer parameter.
-class NET_EXPORT NetLogIntegerParameter : public NetLog::EventParameters {
- public:
-  // |name| must be a string literal.
-  NetLogIntegerParameter(const char* name, int value)
-      : name_(name), value_(value) {}
-
-  int value() const {
-    return value_;
-  }
-
-  virtual base::Value* ToValue() const OVERRIDE;
-
- protected:
-  virtual ~NetLogIntegerParameter() {}
-
- private:
-  const char* name_;
-  const int value_;
-};
-
-// NetLogSourceParameter is a subclass of EventParameters that encapsulates a
-// single NetLog::Source parameter.
-class NET_EXPORT NetLogSourceParameter : public NetLog::EventParameters {
- public:
-  // |name| must be a string literal.
-  NetLogSourceParameter(const char* name, const NetLog::Source& value)
-      : name_(name), value_(value) {}
-
-  const NetLog::Source& value() const {
-    return value_;
-  }
-
-  virtual base::Value* ToValue() const OVERRIDE;
-
- protected:
-  virtual ~NetLogSourceParameter() {}
-
- private:
-  const char* name_;
-  const NetLog::Source value_;
 };
 
 }  // namespace net

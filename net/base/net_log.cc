@@ -30,14 +30,6 @@ Value* BytesTransferredCallback(int byte_count,
   return dict;
 }
 
-Value* EventParametersCallback(
-    const scoped_refptr<NetLog::EventParameters>& params,
-    NetLog::LogLevel /* log_level */) {
-  if (!params.get())
-    return NULL;
-  return params->ToValue();
-}
-
 Value* SourceEventParametersCallback(const NetLog::Source source,
                                      NetLog::LogLevel /* log_level */) {
   if (!source.is_valid())
@@ -80,13 +72,6 @@ Value* NetLogString16Callback(const char* name,
 }
 
 }  // namespace
-
-Value* NetLog::Source::ToValue() const {
-  DictionaryValue* dict = new DictionaryValue();
-  dict->SetInteger("type", static_cast<int>(type));
-  dict->SetInteger("id", static_cast<int>(id));
-  return dict;
-}
 
 void NetLog::Source::AddToEventParameters(DictionaryValue* event_params) const {
   DictionaryValue* dict = new DictionaryValue();
@@ -201,15 +186,6 @@ void NetLog::AddGlobalEntry(
            Source(net::NetLog::SOURCE_NONE, NextID()),
            net::NetLog::PHASE_NONE,
            &parameters_callback);
-}
-
-void NetLog::AddGlobalEntry(EventType type,
-                            const scoped_refptr<EventParameters>& params) {
-  ParametersCallback callback = base::Bind(&EventParametersCallback, params);
-  AddEntry(type,
-           Source(net::NetLog::SOURCE_NONE, NextID()),
-           net::NetLog::PHASE_NONE,
-           &callback);
 }
 
 // static
@@ -381,35 +357,6 @@ void BoundNetLog::EndEvent(
   AddEntry(type, NetLog::PHASE_END, get_parameters);
 }
 
-void BoundNetLog::AddEntry(
-    NetLog::EventType type,
-    NetLog::EventPhase phase,
-    const scoped_refptr<NetLog::EventParameters>& params) const {
-  if (!net_log_)
-    return;
-  NetLog::ParametersCallback callback =
-      base::Bind(&EventParametersCallback, params);
-  net_log_->AddEntry(type, source_, phase, &callback);
-}
-
-void BoundNetLog::AddEvent(
-    NetLog::EventType event_type,
-    const scoped_refptr<NetLog::EventParameters>& params) const {
-  AddEntry(event_type, NetLog::PHASE_NONE, params);
-}
-
-void BoundNetLog::BeginEvent(
-    NetLog::EventType event_type,
-    const scoped_refptr<NetLog::EventParameters>& params) const {
-  AddEntry(event_type, NetLog::PHASE_BEGIN, params);
-}
-
-void BoundNetLog::EndEvent(
-    NetLog::EventType event_type,
-    const scoped_refptr<NetLog::EventParameters>& params) const {
-  AddEntry(event_type, NetLog::PHASE_END, params);
-}
-
 void BoundNetLog::AddEventWithNetErrorCode(NetLog::EventType event_type,
                                            int net_error) const {
   DCHECK_GT(0, net_error);
@@ -455,33 +402,6 @@ BoundNetLog BoundNetLog::Make(NetLog* net_log,
 
   NetLog::Source source(source_type, net_log->NextID());
   return BoundNetLog(source, net_log);
-}
-
-NetLogStringParameter::NetLogStringParameter(const char* name,
-                                             const std::string& value)
-    : name_(name), value_(value) {
-}
-
-NetLogStringParameter::~NetLogStringParameter() {
-}
-
-Value* NetLogIntegerParameter::ToValue() const {
-  DictionaryValue* dict = new DictionaryValue();
-  dict->SetInteger(name_, value_);
-  return dict;
-}
-
-Value* NetLogStringParameter::ToValue() const {
-  DictionaryValue* dict = new DictionaryValue();
-  dict->SetString(name_, value_);
-  return dict;
-}
-
-Value* NetLogSourceParameter::ToValue() const {
-  DictionaryValue* dict = new DictionaryValue();
-  if (value_.is_valid())
-    dict->Set(name_, value_.ToValue());
-  return dict;
 }
 
 }  // namespace net
