@@ -17,6 +17,7 @@
 #include "media/base/test_data_util.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
+#include "media/crypto/aes_decryptor.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_decoder_unittest.h"
 #include "media/filters/ffmpeg_glue.h"
@@ -210,7 +211,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
                                 scoped_refptr<VideoFrame>));
 
   MessageLoop message_loop_;
-  scoped_ptr<AesDecryptor> decryptor_;
+  scoped_ptr<Decryptor> decryptor_;
   scoped_refptr<FFmpegVideoDecoder> decoder_;
   scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
   MockStatisticsCB statistics_cb_;

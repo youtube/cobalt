@@ -6,10 +6,10 @@
 
 #include "base/bind.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/decryptor_client.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_data_util.h"
 #include "media/crypto/aes_decryptor.h"
-#include "media/crypto/decryptor_client.h"
 #include "media/filters/chunk_demuxer_client.h"
 
 namespace media {
@@ -112,9 +112,9 @@ class MockMediaSource : public ChunkDemuxerClient {
   DecryptorClient* decryptor_client_;
 };
 
-class MockDecryptorClientImpl : public DecryptorClient {
+class FakeDecryptorClient : public DecryptorClient {
  public:
-  MockDecryptorClientImpl() : decryptor_(this) {}
+  FakeDecryptorClient() : decryptor_(this) {}
 
   AesDecryptor* decryptor() {
     return &decryptor_;
@@ -196,7 +196,7 @@ class PipelineIntegrationTest
 
   void StartPipelineWithEncryptedMedia(
       MockMediaSource* source,
-      MockDecryptorClientImpl* encrypted_media) {
+      FakeDecryptorClient* encrypted_media) {
     pipeline_->Start(
         CreateFilterCollection(source),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
@@ -265,7 +265,7 @@ TEST_F(PipelineIntegrationTest, BasicPlaybackHashed) {
 
 TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
   MockMediaSource source("bear-320x240-encrypted.webm", 219726, true, true);
-  MockDecryptorClientImpl encrypted_media;
+  FakeDecryptorClient encrypted_media;
   StartPipelineWithEncryptedMedia(&source, &encrypted_media);
 
   source.EndOfStream();
