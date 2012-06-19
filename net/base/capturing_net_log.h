@@ -71,6 +71,9 @@ class CapturingNetLog : public NetLog {
   // Returns the list of all entries in the log.
   void GetEntries(CapturedEntryList* entry_list) const;
 
+  // Returns number of entries in the log.
+  size_t GetSize() const;
+
   void Clear();
 
   void SetLogLevel(NetLog::LogLevel log_level);
@@ -114,6 +117,9 @@ class CapturingBoundNetLog {
 
   // Fills |entry_list| with all entries in the log.
   void GetEntries(CapturingNetLog::CapturedEntryList* entry_list) const;
+
+  // Returns number of entries in the log.
+  size_t GetSize() const;
 
   void Clear();
 
