@@ -30,7 +30,8 @@ const char* kNameserversIPv6[] = {
 // Fills in |res| with sane configuration.
 void InitializeResState(res_state res) {
   memset(res, 0, sizeof(*res));
-  res->options = RES_INIT | RES_ROTATE;
+  res->options = RES_INIT | RES_RECURSE | RES_DEFNAMES | RES_DNSRCH |
+                 RES_ROTATE;
   res->ndots = 2;
   res->retrans = 4;
   res->retry = 7;
@@ -112,7 +113,8 @@ TEST(DnsConfigServicePosixTest, ConvertResStateToDnsConfig) {
   DnsConfig config;
   EXPECT_FALSE(config.IsValid());
   InitializeResState(&res);
-  ASSERT_TRUE(internal::ConvertResStateToDnsConfig(res, &config));
+  ASSERT_EQ(internal::CONFIG_PARSE_POSIX_OK,
+            internal::ConvertResStateToDnsConfig(res, &config));
   CloseResState(&res);
   EXPECT_TRUE(config.IsValid());
 
@@ -124,7 +126,7 @@ TEST(DnsConfigServicePosixTest, ConvertResStateToDnsConfig) {
 
 TEST(DnsConfigServicePosixTest, RejectEmptyNameserver) {
   struct __res_state res = {};
-  res.options = RES_INIT;
+  res.options = RES_INIT | RES_RECURSE | RES_DEFNAMES | RES_DNSRCH;
   const char kDnsrch[] = "chromium.org";
   memcpy(res.defdname, kDnsrch, sizeof(kDnsrch));
   res.dnsrch[0] = res.defdname;
@@ -139,11 +141,13 @@ TEST(DnsConfigServicePosixTest, RejectEmptyNameserver) {
   res.nscount = 2;
 
   DnsConfig config;
-  EXPECT_FALSE(internal::ConvertResStateToDnsConfig(res, &config));
+  EXPECT_EQ(internal::CONFIG_PARSE_POSIX_NULL_ADDRESS,
+            internal::ConvertResStateToDnsConfig(res, &config));
 
   sa.sin_addr.s_addr = 0xDEADBEEF;
   res.nsaddr_list[0] = sa;
-  EXPECT_TRUE(internal::ConvertResStateToDnsConfig(res, &config));
+  EXPECT_EQ(internal::CONFIG_PARSE_POSIX_OK,
+            internal::ConvertResStateToDnsConfig(res, &config));
 }
 
 }  // namespace
