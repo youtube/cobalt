@@ -219,6 +219,8 @@ class RefCountedData : public base::RefCounted< base::RefCountedData<T> > {
 template <class T>
 class scoped_refptr {
  public:
+  typedef T element_type;
+
   scoped_refptr() : ptr_(NULL) {
   }
 
