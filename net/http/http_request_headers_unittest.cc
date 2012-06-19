@@ -4,6 +4,7 @@
 
 #include "net/http/http_request_headers.h"
 
+#include "base/memory/scoped_ptr.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
