@@ -97,11 +97,11 @@ SSL_GetChannelInfo(PRFileDesc *fd, SSLChannelInfo *info, PRUintn len)
 	} else if (ss->ssl3.initialized) { 	/* SSL3 and TLS */
 	    ssl_GetSpecReadLock(ss);
 	    /* XXX  The cipher suite should be in the specs and this
-	     * function should get it from crSpec rather than from the "hs".
+	     * function should get it from cwSpec rather than from the "hs".
 	     * See bug 275744 comment 69.
 	     */
 	    inf.cipherSuite           = ss->ssl3.hs.cipher_suite;
-	    inf.compressionMethod     = ss->ssl3.crSpec->compression_method;
+	    inf.compressionMethod     = ss->ssl3.cwSpec->compression_method;
 	    ssl_ReleaseSpecReadLock(ss);
 	    inf.compressionMethodName =
 		ssl_GetCompressionMethodName(inf.compressionMethod);
@@ -336,7 +336,7 @@ SSL_GetNegotiatedHostInfo(PRFileDesc *fd)
             ss->ssl3.initialized) { /* TLS */
             SECItem *crsName;
             ssl_GetSpecReadLock(ss); /*********************************/
-            crsName = &ss->ssl3.crSpec->srvVirtName;
+            crsName = &ss->ssl3.cwSpec->srvVirtName;
             if (crsName->data) {
                 sniName = SECITEM_DupItem(crsName);
             }

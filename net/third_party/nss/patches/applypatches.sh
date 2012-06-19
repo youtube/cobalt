@@ -41,3 +41,5 @@ patch -p4 < $patches_dir/channelid.patch
 patch -p4 < $patches_dir/dtlssrtp.patch
 
 patch -p4 < $patches_dir/keylog.patch
+
+patch -p4 < $patches_dir/getchannelinfo.patch
