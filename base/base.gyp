@@ -125,7 +125,6 @@
             'symbolize',
             '../third_party/ashmem/ashmem.gyp:ashmem',
             '../third_party/icu/icu.gyp:icuuc',
-            'base_java',
             'base_jni_headers',
           ],
           'include_dirs': [
