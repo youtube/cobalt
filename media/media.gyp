@@ -954,7 +954,6 @@
           ],
           'dependencies': [
             '../base/base.gyp:base',
-            'media_java',
           ],
           'include_dirs': [
             '<(SHARED_INTERMEDIATE_DIR)/media',
