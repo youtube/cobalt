@@ -657,3 +657,6 @@ NET_ERROR(DNS_TIMED_OUT, -803)
 
 // The entry was not found in cache, for cache-only lookups.
 NET_ERROR(DNS_CACHE_MISS, -804)
+
+// Suffix search list rules prevent resolution of the given host name.
+NET_ERROR(DNS_SEARCH_EMPTY, -805)
