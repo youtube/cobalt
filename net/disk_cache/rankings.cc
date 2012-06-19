@@ -492,6 +492,8 @@ int Rankings::SelfCheck() {
     total += partial;
   }
   CACHE_UMA(AGE_MS, "ListSelfCheckTime", 0, start);
+
+  QuickListCheck();
   return total;
 }
 
@@ -785,7 +787,7 @@ int Rankings::CheckList(List list) {
   int head_items;
   int rv = CheckListSection(list, last1, last2, true,  // Head to tail.
                             &last1, &last2, &head_items);
-  if (rv == 0)
+  if (rv == ERR_NO_ERROR)
     return head_items;
 
   Addr last3, last4;
@@ -893,6 +895,48 @@ int Rankings::CheckListSection(List list, Addr end1, Addr end2, bool forward,
       return ERR_INVALID_TAIL;
     }
   } while (current != end1 && current != end2);
+  return ERR_NO_ERROR;
+}
+
+// TODO(rvargas): remove when we figure why we have corrupt heads.
+void Rankings::QuickListCheck() {
+  for (int i = 0; i < LAST_ELEMENT; i++) {
+    int rv = CheckHeadAndTail(static_cast<List>(i));
+    CACHE_UMA(CACHE_ERROR, "QuickListCheck", 0, rv);
+  }
+}
+
+int Rankings::CheckHeadAndTail(List list) {
+  Addr head_addr = heads_[list];
+  Addr tail_addr = tails_[list];
+
+  if (!head_addr.is_initialized() && !tail_addr.is_initialized())
+    return ERR_NO_ERROR;
+
+  if (!head_addr.SanityCheckForRankings())
+    return ERR_INVALID_HEAD;
+
+  if (!tail_addr.SanityCheckForRankings())
+    return ERR_INVALID_TAIL;
+
+  scoped_ptr<CacheRankingsBlock> head;
+  head.reset(new CacheRankingsBlock(backend_->File(head_addr), head_addr));
+  head->Load();
+  if (!SanityCheck(head.get(), true))  // From list.
+      return ERR_INVALID_ENTRY;
+
+  scoped_ptr<CacheRankingsBlock> tail;
+  tail.reset(new CacheRankingsBlock(backend_->File(tail_addr), tail_addr));
+  tail->Load();
+  if (!SanityCheck(tail.get(), true))  // From list.
+    return ERR_INVALID_ENTRY;
+
+  if (head->Data()->prev != head_addr.value())
+    return ERR_INVALID_PREV;
+
+  if (tail->Data()->next != tail_addr.value())
+    return ERR_INVALID_NEXT;
+
   return ERR_NO_ERROR;
 }
 
