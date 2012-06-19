@@ -130,6 +130,9 @@ class NET_EXPORT_PRIVATE DnsConfigService
 
   DnsConfig dns_config_;
 
+  // True after the first valid DnsConfig is received. Temporary, used
+  // to detect DNS-changer: http://crbug.com/125599
+  bool checked_rogue_dns_;
   // True after On*Read, before Invalidate*. Tells if the config is complete.
   bool have_config_;
   bool have_hosts_;
