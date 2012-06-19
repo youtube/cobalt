@@ -1445,11 +1445,14 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromSettings(
   }
 
   if (mode == "auto") {
-    // automatic proxy config
+    // Automatic proxy config.
     std::string pac_url_str;
     if (setting_getter_->GetString(SettingGetter::PROXY_AUTOCONF_URL,
                                    &pac_url_str)) {
       if (!pac_url_str.empty()) {
+        // If the PAC URL is actually a file path, then put file:// in front.
+        if (pac_url_str[0] == '/')
+          pac_url_str = "file://" + pac_url_str;
         GURL pac_url(pac_url_str);
         if (!pac_url.is_valid())
           return false;
