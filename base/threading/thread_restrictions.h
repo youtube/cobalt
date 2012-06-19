@@ -43,9 +43,6 @@ namespace disk_cache {
 class BackendImpl;
 class InFlightIO;
 }
-namespace gdata {
-class GDataFileSystem;
-}
 namespace media {
 class AudioOutputController;
 }
@@ -159,7 +156,7 @@ class BASE_EXPORT ThreadRestrictions {
   // DO NOT ADD ANY OTHER FRIEND STATEMENTS, talk to jam or brettw first.
   // BEGIN ALLOWED USAGE.
   friend class ::HistogramSynchronizer;
-  friend class ::RenderWidgetHelper;     
+  friend class ::RenderWidgetHelper;
   friend class ::TestingAutomationProvider;
   friend class SequencedWorkerPool;
   friend class SimpleThread;
@@ -179,7 +176,6 @@ class BASE_EXPORT ThreadRestrictions {
   friend class dbus::Bus;                         // http://crbug.com/125222
   friend class disk_cache::BackendImpl;           // http://crbug.com/74623
   friend class disk_cache::InFlightIO;            // http://crbug.com/74623
-  friend class gdata::GDataFileSystem;            // http://crbug.com/125220
   friend class media::AudioOutputController;      // http://crbug.com/120973
   friend class net::FileStreamPosix;              // http://crbug.com/115067
   friend class net::FileStreamWin;                // http://crbug.com/115067
