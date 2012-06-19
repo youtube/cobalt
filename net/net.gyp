@@ -1000,7 +1000,6 @@
             ],
             'dependencies': [
               '../third_party/openssl/openssl.gyp:openssl',
-              'net_java',
               'net_jni_headers',
             ],
           }, {  # else OS! = "android"
