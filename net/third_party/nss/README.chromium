@@ -65,6 +65,10 @@ Patches:
   * Add support for TLS Channel IDs
     patches/channelid.patch
 
+  * Add DTLS-SRTP (RFC 5764) support.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=737178
+    patches/dtlssrtp.patch
+
   * Move SSL keylogging out from behind the TRACE and DEBUG defines and add
     support for CLIENT_RANDOM keylogging to support ECDHE-RSA and others.
     patches/keylog.patch
