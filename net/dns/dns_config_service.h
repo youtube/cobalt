@@ -103,8 +103,6 @@ class NET_EXPORT_PRIVATE DnsConfigService
   virtual void Watch(const CallbackType& callback);
 
  protected:
-  friend class DnsHostsReader;
-
   // Called when the current config (except hosts) has changed.
   void InvalidateConfig();
   // Called when the current hosts have changed.
@@ -139,7 +137,14 @@ class NET_EXPORT_PRIVATE DnsConfigService
   // True if receiver needs to be updated when the config becomes complete.
   bool need_update_;
   // True if the last config sent was empty (instead of |dns_config_|).
+  // Set when |timer_| expires.
   bool last_sent_empty_;
+
+  // Initialized and updated on Invalidate* call.
+  base::TimeTicks last_invalidate_config_time_;
+  base::TimeTicks last_invalidate_hosts_time_;
+  // Initialized and updated when |timer_| expires.
+  base::TimeTicks last_sent_empty_time_;
 
   // Started in Invalidate*, cleared in On*Read.
   base::OneShotTimer<DnsConfigService> timer_;
