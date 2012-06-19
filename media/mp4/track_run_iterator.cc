@@ -114,6 +114,12 @@ bool TrackRunIterator::Init(const Movie& moov, const MovieFragment& moof) {
       continue;
     }
 
+    if (sinf->info.track_encryption.is_encrypted) {
+      // TODO(strobe): CENC recovery and testing (http://crbug.com/132351)
+      DVLOG(1) << "Encrypted tracks not handled";
+      continue;
+    }
+
     for (size_t j = 0; j < traf.runs.size(); j++) {
       const TrackFragmentRun& trun = traf.runs[j];
       TrackRunInfo tri;
@@ -121,8 +127,11 @@ bool TrackRunIterator::Init(const Movie& moov, const MovieFragment& moof) {
       tri.start_dts = TimeDeltaFromFrac(traf.decode_time.decode_time,
                                         trak->media.header.timescale);
       tri.sample_start_offset = trun.data_offset;
-      tri.is_encrypted = sinf->info.track_encryption.is_encrypted;
-      // TODO(strobe): CENC recovery and testing (http://crbug.com/132351)
+
+      tri.is_encrypted = false;
+      tri.cenc_start_offset = 0;
+      tri.cenc_total_size = 0;
+      tri.default_cenc_size = 0;
 
       tri.samples.resize(trun.sample_count);
 
