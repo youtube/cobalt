@@ -71,7 +71,7 @@
  "linux-release/dhtml/times/t": {"reva": 137725, "revb": 137748, "improve": -233, "regress": -54, "sha1": "784909f8"},
  "linux-release/dom_perf/Total/score": {"reva": 122431, "revb": 123492, "improve": 238, "regress": 67, "sha1": "c58fbd81"},
  "linux-release/dromaeo_jslib/jslib/score": {"reva": 137891, "revb": 142650, "improve": 51, "regress": -205, "sha1": "21eb1203"},
- "linux-release/intl1/times/t": {"reva": 137725, "revb": 137748, "improve": -476, "regress": -284, "sha1": "739656d7"},
+ "linux-release/intl1/times/t": {"reva": 142942, "revb": 143073, "improve": -441, "regress": -215, "sha1": "b518b450"},
  "linux-release/intl2/times/t": {"reva": 137725, "revb": 137748, "improve": -471, "regress": -358, "sha1": "03846b88"},
  "linux-release/morejs/times/t": {"reva": 137725, "revb": 137748, "improve": 286, "regress": 360, "sha1": "856e31d1"},
  "linux-release/moz/times/t": {"reva": 137725, "revb": 137748, "improve": -255, "regress": -62, "sha1": "88b20991"},
