@@ -73,6 +73,11 @@ Patches:
     support for CLIENT_RANDOM keylogging to support ECDHE-RSA and others.
     patches/keylog.patch
 
+  * SSL_GetChannelInfo and SSL_GetNegotiatedHostInfo should use cwSpec
+    instead of crSpec to support False Start.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=766137
+    patches/getchannelinfo.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 
