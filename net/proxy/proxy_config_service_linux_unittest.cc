@@ -1098,6 +1098,21 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     },
 
     {
+      TEST_DESC("Valid PAC file without file://"),
+
+      // Input.
+      "[Proxy Settings]\nProxyType=2\n"
+          "Proxy Config Script=/wpad/wpad.dat\n",
+      {},                                      // env_values
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                         // auto_detect
+      GURL("file:///wpad/wpad.dat"),  // pac_url
+      ProxyRulesExpectation::Empty(),
+    },
+
+    {
       TEST_DESC("Per-scheme proxy rules"),
 
       // Input.
