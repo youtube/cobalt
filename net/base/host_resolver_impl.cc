@@ -137,6 +137,7 @@ enum DnsResolveStatus {
   RESOLVE_STATUS_DNS_SUCCESS = 0,
   RESOLVE_STATUS_PROC_SUCCESS,
   RESOLVE_STATUS_FAIL,
+  RESOLVE_STATUS_SUSPECT_NETBIOS,
   RESOLVE_STATUS_MAX
 };
 
@@ -144,6 +145,25 @@ void UmaAsyncDnsResolveStatus(DnsResolveStatus result) {
   UMA_HISTOGRAM_ENUMERATION("AsyncDNS.ResolveStatus",
                             result,
                             RESOLVE_STATUS_MAX);
+}
+
+bool ResemblesNetBIOSName(const std::string& hostname) {
+  return (hostname.size() < 16) && (hostname.find('.') == std::string::npos);
+}
+
+// True if |hostname| ends with either ".local" or ".local.".
+bool ResemblesMulticastDNSName(const std::string& hostname) {
+  DCHECK(!hostname.empty());
+  const char kSuffix[] = ".local.";
+  const size_t kSuffixLen = sizeof(kSuffix) - 1;
+  const size_t kSuffixLenTrimmed = kSuffixLen - 1;
+  if (hostname[hostname.size() - 1] == '.') {
+    return hostname.size() > kSuffixLen &&
+        !hostname.compare(hostname.size() - kSuffixLen, kSuffixLen, kSuffix);
+  }
+  return hostname.size() > kSuffixLenTrimmed &&
+      !hostname.compare(hostname.size() - kSuffixLenTrimmed, kSuffixLenTrimmed,
+                        kSuffix, kSuffixLenTrimmed);
 }
 
 //-----------------------------------------------------------------------------
@@ -1055,7 +1075,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
       : resolver_(resolver->AsWeakPtr()),
         key_(key),
         had_non_speculative_request_(false),
-        had_dns_config_(false),
+        dns_task_error_(OK),
         net_log_(BoundNetLog::Make(request_net_log.net_log(),
                                    NetLog::SOURCE_HOST_RESOLVER_IMPL_JOB)) {
     request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CREATE_JOB);
@@ -1219,9 +1239,9 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
 
     net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_STARTED);
 
-    had_dns_config_ = resolver_->HaveDnsConfig();
-    // Job::Start must not complete synchronously.
-    if (had_dns_config_) {
+    // Caution: Job::Start must not complete synchronously.
+    if (resolver_->HaveDnsConfig() &&
+        !ResemblesMulticastDNSName(key_.hostname)) {
       StartDnsTask();
     } else {
       StartProcTask();
@@ -1251,10 +1271,17 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   void OnProcTaskComplete(int net_error, const AddressList& addr_list) {
     DCHECK(is_proc_running());
 
-    if (had_dns_config_) {
-      // TODO(szym): guess if the hostname is a NetBIOS name and discount it.
+    if (dns_task_error_ != OK) {
       if (net_error == OK) {
-        UmaAsyncDnsResolveStatus(RESOLVE_STATUS_PROC_SUCCESS);
+        if ((dns_task_error_ == ERR_NAME_NOT_RESOLVED) &&
+            ResemblesNetBIOSName(key_.hostname)) {
+          UmaAsyncDnsResolveStatus(RESOLVE_STATUS_SUSPECT_NETBIOS);
+        } else {
+          UmaAsyncDnsResolveStatus(RESOLVE_STATUS_PROC_SUCCESS);
+        }
+        UMA_HISTOGRAM_CUSTOM_ENUMERATION("AsyncDNS.ResolveError",
+                                         std::abs(dns_task_error_),
+                                         GetAllErrorCodesForUma());
       } else {
         UmaAsyncDnsResolveStatus(RESOLVE_STATUS_FAIL);
       }
@@ -1291,6 +1318,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     DCHECK(is_dns_running());
 
     if (net_error != OK) {
+      dns_task_error_ = net_error;
       dns_task_.reset();
 
       // TODO(szym): Run ServeFromHosts now if nsswitch.conf says so.
@@ -1413,8 +1441,8 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
 
   bool had_non_speculative_request_;
 
-  // True if resolver had DnsConfig when the Job was started.
-  bool had_dns_config_;
+  // Result of DnsTask.
+  int dns_task_error_;
 
   BoundNetLog net_log_;
 
