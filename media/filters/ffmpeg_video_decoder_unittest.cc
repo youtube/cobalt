@@ -27,6 +27,7 @@ using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::Gt;
 using ::testing::Invoke;
+using ::testing::IsNull;
 using ::testing::NotNull;
 using ::testing::ReturnRef;
 using ::testing::SaveArg;
@@ -572,12 +573,8 @@ TEST_F(FFmpegVideoDecoderTest, AbortPendingReadDuringFlush) {
   read_cb.Run(NULL);
 
   // Make sure we get a NULL video frame returned.
-  scoped_refptr<VideoFrame> video_frame;
-  EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, _))
-      .WillOnce(SaveArg<1>(&video_frame));
+  EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
   message_loop_.RunAllPending();
-
-  EXPECT_FALSE(video_frame);
 }
 
 }  // namespace media
