@@ -10,6 +10,7 @@
 #include "base/message_loop.h"
 #include "base/string_number_conversions.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
@@ -177,7 +178,7 @@ const gfx::Size& FFmpegVideoDecoder::natural_size() {
   return natural_size_;
 }
 
-void FFmpegVideoDecoder::set_decryptor(AesDecryptor* decryptor) {
+void FFmpegVideoDecoder::set_decryptor(Decryptor* decryptor) {
   DCHECK_EQ(state_, kUninitialized);
   decryptor_ = decryptor;
 }

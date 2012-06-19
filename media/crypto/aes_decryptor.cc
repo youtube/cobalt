@@ -12,7 +12,7 @@
 #include "crypto/symmetric_key.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
-#include "media/crypto/decryptor_client.h"
+#include "media/base/decryptor_client.h"
 
 namespace media {
 
@@ -89,7 +89,7 @@ void AesDecryptor::AddKey(const std::string& key_system,
   const int kSupportedKeyLength = 16;  // 128-bit key.
   if (key_length != kSupportedKeyLength) {
     DVLOG(1) << "Invalid key length: " << key_length;
-    client_->KeyError(key_system, session_id, kUnknownError, 0);
+    client_->KeyError(key_system, session_id, Decryptor::kUnknownError, 0);
     return;
   }
 
@@ -110,7 +110,7 @@ void AesDecryptor::AddKey(const std::string& key_system,
       crypto::SymmetricKey::AES, key_string);
   if (!symmetric_key) {
     DVLOG(1) << "Could not import key.";
-    client_->KeyError(key_system, session_id, kUnknownError, 0);
+    client_->KeyError(key_system, session_id, Decryptor::kUnknownError, 0);
     return;
   }
 
