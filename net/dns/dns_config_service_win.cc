@@ -493,7 +493,9 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
 class DnsConfigServiceWin::HostsReader : public SerialWorker {
  public:
   explicit HostsReader(DnsConfigServiceWin* service)
-      : path_(GetHostsPath()), service_(service) {
+      : path_(GetHostsPath()),
+        service_(service),
+        success_(false) {
   }
 
  private:
