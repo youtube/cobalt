@@ -153,7 +153,12 @@ class scoped_ptr {
   scoped_ptr(scoped_ptr<U> other) : ptr_(other.release()) { }
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr(RValue& other) : ptr_(other.release()) { }
+  scoped_ptr(RValue& other)
+      // The type of the underlying object is scoped_ptr; we have to
+      // reinterpret_cast back to the original type for the call to release to
+      // be valid. (See C++11 5.2.10.7)
+      : ptr_(reinterpret_cast<scoped_ptr&>(other).release()) {
+  }
 
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
@@ -279,7 +284,12 @@ class scoped_array {
   explicit scoped_array(C* p = NULL) : array_(p) { }
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_array(RValue& other) : array_(other.release()) { }
+  scoped_array(RValue& other)
+      // The type of the underlying object is scoped_array; we have to
+      // reinterpret_cast back to the original type for the call to release to
+      // be valid. (See C++11 5.2.10.7)
+      : array_(reinterpret_cast<scoped_array&>(other).release()) {
+  }
 
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
@@ -396,7 +406,12 @@ class scoped_ptr_malloc {
   explicit scoped_ptr_malloc(C* p = NULL): ptr_(p) {}
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr_malloc(RValue& other) : ptr_(other.release()) { }
+  scoped_ptr_malloc(RValue& other)
+      // The type of the underlying object is scoped_ptr_malloc; we have to
+      // reinterpret_cast back to the original type for the call to release to
+      // be valid. (See C++11 5.2.10.7)
+      : ptr_(reinterpret_cast<scoped_ptr_malloc&>(other).release()) {
+  }
 
   // Destructor.  If there is a C object, call the Free functor.
   ~scoped_ptr_malloc() {
