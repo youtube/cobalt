@@ -63,6 +63,64 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(
       decryptor_(NULL) {
 }
 
+int FFmpegVideoDecoder::GetVideoBuffer(AVCodecContext* codec_context,
+                                       AVFrame* frame) {
+  // Don't use |codec_context_| here! With threaded decoding,
+  // it will contain unsynchronized width/height/pix_fmt values,
+  // whereas |codec_context| contains the current threads's
+  // updated width/height/pix_fmt, which can change for adaptive
+  // content.
+  VideoFrame::Format format = PixelFormatToVideoFormat(codec_context->pix_fmt);
+  if (format == VideoFrame::INVALID)
+    return AVERROR(EINVAL);
+  DCHECK(format == VideoFrame::YV12 || format == VideoFrame::YV16);
+
+  int width = codec_context->width;
+  int height = codec_context->height;
+  int ret;
+  if ((ret = av_image_check_size(width, height, 0, NULL)) < 0)
+    return ret;
+
+  scoped_refptr<VideoFrame> video_frame =
+      VideoFrame::CreateFrame(format, width, height,
+                              kNoTimestamp(), kNoTimestamp());
+
+  for (int i = 0; i < 3; i++) {
+    frame->base[i] = video_frame->data(i);
+    frame->data[i] = video_frame->data(i);
+    frame->linesize[i] = video_frame->stride(i);
+  }
+
+  frame->opaque = video_frame.release();
+  frame->type = FF_BUFFER_TYPE_USER;
+  frame->pkt_pts = codec_context->pkt ? codec_context->pkt->pts :
+                                        AV_NOPTS_VALUE;
+  frame->width = codec_context->width;
+  frame->height = codec_context->height;
+  frame->format = codec_context->pix_fmt;
+
+  return 0;
+}
+
+static int GetVideoBufferImpl(AVCodecContext* s, AVFrame* frame) {
+  FFmpegVideoDecoder* vd = static_cast<FFmpegVideoDecoder*>(s->opaque);
+  return vd->GetVideoBuffer(s, frame);
+}
+
+static void ReleaseVideoBufferImpl(AVCodecContext* s, AVFrame* frame) {
+  // We're releasing the reference to the buffer allocated in
+  // GetVideoBuffer() here, so the explicit Release() here is
+  // intentional.
+  scoped_refptr<VideoFrame> video_frame =
+      static_cast<VideoFrame*>(frame->opaque);
+  video_frame->Release();
+
+  // The FFmpeg API expects us to zero the data pointers in
+  // this callback
+  memset(frame->data, 0, sizeof(frame->data));
+  frame->opaque = NULL;
+}
+
 void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
                                     const PipelineStatusCB& status_cb,
                                     const StatisticsCB& statistics_cb) {
@@ -109,6 +167,10 @@ void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
   codec_context_->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
   codec_context_->err_recognition = AV_EF_CAREFUL;
   codec_context_->thread_count = GetThreadCount(codec_context_->codec_id);
+  codec_context_->opaque = this;
+  codec_context_->flags |= CODEC_FLAG_EMU_EDGE;
+  codec_context_->get_buffer = GetVideoBufferImpl;
+  codec_context_->release_buffer = ReleaseVideoBufferImpl;
 
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
   if (!codec) {
@@ -370,12 +432,11 @@ bool FFmpegVideoDecoder::Decode(
     return false;
   }
 
-  // We've got a frame! Make sure we have a place to store it.
-  *video_frame = AllocateVideoFrame();
-  if (!(*video_frame)) {
-    LOG(ERROR) << "Failed to allocate video frame";
+  if (!av_frame_->opaque) {
+    LOG(ERROR) << "VideoFrame object associated with frame data not set.";
     return false;
   }
+  *video_frame = static_cast<VideoFrame*>(av_frame_->opaque);
 
   // Determine timestamp and calculate the duration based on the repeat picture
   // count.  According to FFmpeg docs, the total duration can be calculated as
@@ -394,19 +455,6 @@ bool FFmpegVideoDecoder::Decode(
       base::TimeDelta::FromMicroseconds(av_frame_->reordered_opaque));
   (*video_frame)->SetDuration(
       ConvertFromTimeBase(doubled_time_base, 2 + av_frame_->repeat_pict));
-
-  // Copy the frame data since FFmpeg reuses internal buffers for AVFrame
-  // output, meaning the data is only valid until the next
-  // avcodec_decode_video() call.
-  int y_rows = codec_context_->height;
-  int uv_rows = codec_context_->height;
-  if (codec_context_->pix_fmt == PIX_FMT_YUV420P) {
-    uv_rows /= 2;
-  }
-
-  CopyYPlane(av_frame_->data[0], av_frame_->linesize[0], y_rows, *video_frame);
-  CopyUPlane(av_frame_->data[1], av_frame_->linesize[1], uv_rows, *video_frame);
-  CopyVPlane(av_frame_->data[2], av_frame_->linesize[2], uv_rows, *video_frame);
 
   return true;
 }
@@ -428,15 +476,6 @@ void FFmpegVideoDecoder::ReleaseFFmpegResources() {
     av_free(av_frame_);
     av_frame_ = NULL;
   }
-}
-
-scoped_refptr<VideoFrame> FFmpegVideoDecoder::AllocateVideoFrame() {
-  VideoFrame::Format format = PixelFormatToVideoFormat(codec_context_->pix_fmt);
-  size_t width = codec_context_->width;
-  size_t height = codec_context_->height;
-
-  return VideoFrame::CreateFrame(format, width, height,
-                                 kNoTimestamp(), kNoTimestamp());
 }
 
 }  // namespace media
