@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop_helpers.h"
+#include "base/sequenced_task_runner_helpers.h"
 #include "net/base/net_export.h"
 
 namespace base {
