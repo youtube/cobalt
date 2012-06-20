@@ -13,49 +13,50 @@
 #include "base/memory/singleton.h"
 #include "jni/build_info_jni.h"
 
+namespace {
+
+// The caller takes ownership of the returned const char*.
+const char* StrDupJString(const base::android::JavaRef<jstring>& java_string) {
+  std::string str = ConvertJavaStringToUTF8(java_string);
+  return strdup(str.c_str());
+}
+
+}  // namespace
+
 namespace base {
 namespace android {
 
-BuildInfo::BuildInfo() {
-  JNIEnv* env = AttachCurrentThread();
+struct BuildInfoSingletonTraits {
+  static BuildInfo* New() {
+    return new BuildInfo(AttachCurrentThread());
+  }
 
-  // The const char* pointers initialized below will be owned by the
-  // resultant BuildInfo.
-  std::string device_str =
-      ConvertJavaStringToUTF8(Java_BuildInfo_getDevice(env));
-  device_ = strdup(device_str.c_str());
+  static void Delete(BuildInfo* x) {
+    // We're leaking this type, see kRegisterAtExit.
+    NOTREACHED();
+  }
 
-  std::string model_str =
-      ConvertJavaStringToUTF8(Java_BuildInfo_getDeviceModel(env));
-  model_ = strdup(model_str.c_str());
+  static const bool kRegisterAtExit = false;
+  static const bool kAllowedToAccessOnNonjoinableThread = true;
+};
 
-  std::string brand_str =
-      ConvertJavaStringToUTF8(Java_BuildInfo_getBrand(env));
-  brand_ = strdup(brand_str.c_str());
-
-  std::string android_build_id_str =
-      ConvertJavaStringToUTF8(Java_BuildInfo_getAndroidBuildId(env));
-  android_build_id_ = strdup(android_build_id_str.c_str());
-
-  std::string android_build_fp_str =
-      ConvertJavaStringToUTF8(Java_BuildInfo_getAndroidBuildFingerprint(env));
-  android_build_fp_ = strdup(android_build_fp_str.c_str());
-
-  jobject app_context = GetApplicationContext();
-  std::string package_version_code_str =
-      ConvertJavaStringToUTF8(Java_BuildInfo_getPackageVersionCode(
-          env, app_context));
-  package_version_code_ = strdup(package_version_code_str.c_str());
-
-  std::string package_version_name_str =
-      ConvertJavaStringToUTF8(
-          Java_BuildInfo_getPackageVersionName(env, app_context));
-  package_version_name_ = strdup(package_version_name_str.c_str());
+BuildInfo::BuildInfo(JNIEnv* env)
+    : device_(StrDupJString(Java_BuildInfo_getDevice(env))),
+      model_(StrDupJString(Java_BuildInfo_getDeviceModel(env))),
+      brand_(StrDupJString(Java_BuildInfo_getBrand(env))),
+      android_build_id_(StrDupJString(Java_BuildInfo_getAndroidBuildId(env))),
+      android_build_fp_(StrDupJString(
+          Java_BuildInfo_getAndroidBuildFingerprint(env))),
+      package_version_code_(StrDupJString(Java_BuildInfo_getPackageVersionCode(
+          env, GetApplicationContext()))),
+      package_version_name_(StrDupJString(Java_BuildInfo_getPackageVersionName(
+          env, GetApplicationContext()))),
+      java_exception_info_(NULL) {
 }
 
 // static
 BuildInfo* BuildInfo::GetInstance() {
-  return Singleton<BuildInfo, LeakySingletonTraits<BuildInfo> >::get();
+  return Singleton<BuildInfo, BuildInfoSingletonTraits >::get();
 }
 
 void BuildInfo::set_java_exception_info(const std::string& info) {
