@@ -7,6 +7,8 @@
 
 #include "base/callback.h"
 
+#include <string>
+
 namespace media {
 
 // Status states for pipeline.  All codes except PIPELINE_OK indicate errors.
@@ -29,9 +31,15 @@ enum PipelineStatus {
   DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
   // Decoder related errors.
   DECODER_ERROR_NOT_SUPPORTED,
+  PIPELINE_STATUS_MAX,  // Must be greater than all other values logged.
 };
 
 typedef base::Callback<void(PipelineStatus)> PipelineStatusCB;
+
+// Wrap & return a callback around |cb| which reports its argument to UMA under
+// the requested |name|.
+PipelineStatusCB CreateUMAReportingPipelineCB(const std::string& name,
+                                              const PipelineStatusCB& cb);
 
 // TODO(scherkus): this should be moved alongside host interface definitions.
 struct PipelineStatistics {
