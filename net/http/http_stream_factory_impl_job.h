@@ -210,7 +210,7 @@ class HttpStreamFactoryImpl::Job {
   // be found.  Will return ERR_SPDY_SESSION_ALREADY_EXISTS if such a
   // session is found, and OK otherwise.
   static int OnHostResolution(SpdySessionPool* spdy_session_pool,
-                              const HostPortProxyPair spdy_session_key,
+                              const HostPortProxyPair& spdy_session_key,
                               const AddressList& addresses,
                               const BoundNetLog& net_log);
 
