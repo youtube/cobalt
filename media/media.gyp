@@ -177,6 +177,7 @@
         'base/message_loop_factory.h',
         'base/pipeline.cc',
         'base/pipeline.h',
+        'base/pipeline_status.cc',
         'base/pipeline_status.h',
         'base/ranges.h',
         'base/seekable_buffer.cc',
