@@ -13,6 +13,7 @@
 #include "base/synchronization/lock.h"
 #include "media/base/byte_queue.h"
 #include "media/base/demuxer.h"
+#include "media/base/ranges.h"
 #include "media/base/stream_parser.h"
 #include "media/filters/source_buffer_stream.h"
 
@@ -31,8 +32,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
     kNotSupported,    // Type specified is not supported.
     kReachedIdLimit,  // Reached ID limit. We can't handle any more IDs.
   };
-
-  typedef std::vector<std::pair<base::TimeDelta, base::TimeDelta> > Ranges;
 
   explicit ChunkDemuxer(ChunkDemuxerClient* client);
 
@@ -65,10 +64,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   void RemoveId(const std::string& id);
 
   // Gets the currently buffered ranges for the specified ID.
-  // Returns true if data is buffered & |ranges_out| is set to the
-  // time ranges currently buffered.
-  // Returns false if no data is buffered.
-  bool GetBufferedRanges(const std::string& id, Ranges* ranges_out) const;
+  Ranges<base::TimeDelta> GetBufferedRanges(const std::string& id) const;
 
   // Appends media data to the source buffer associated with |id|. Returns
   // false if this method is called in an invalid state.
@@ -121,15 +117,9 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   void OnNewMediaSegment(const std::string& source_id,
                          base::TimeDelta start_timestamp);
 
-  // Helper functions for calculating GetBufferedRanges().
-  bool CopyIntoRanges(
-      const SourceBufferStream::TimespanList& timespans,
-      Ranges* ranges_out) const;
-  void AddIntersectionRange(
-      SourceBufferStream::Timespan timespan_a,
-      SourceBufferStream::Timespan timespan_b,
-      bool last_range_after_ended,
-      Ranges* ranges_out) const;
+  // Computes the intersection between the video & audio
+  // buffered ranges.
+  Ranges<base::TimeDelta> ComputeIntersection() const;
 
   mutable base::Lock lock_;
   State state_;
@@ -141,8 +131,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   scoped_refptr<ChunkDemuxerStream> audio_;
   scoped_refptr<ChunkDemuxerStream> video_;
-
-  int64 buffered_bytes_;
 
   base::TimeDelta duration_;
 
