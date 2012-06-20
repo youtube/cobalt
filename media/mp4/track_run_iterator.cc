@@ -79,7 +79,7 @@ static void PopulateSampleInfo(const Track& trak,
 
 class CompareOffset {
  public:
-  bool operator()(TrackRunInfo a, TrackRunInfo b) {
+  bool operator()(const TrackRunInfo& a, const TrackRunInfo& b) {
     int64 a_min = a.sample_start_offset;
     if (a.is_encrypted && a.cenc_start_offset < a_min)
       a_min = a.cenc_start_offset;
