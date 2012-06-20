@@ -778,10 +778,16 @@ int SocketStream::DoWriteTunnelHeadersComplete(int result) {
 
   tunnel_request_headers_bytes_sent_ += result;
   if (tunnel_request_headers_bytes_sent_ <
-      tunnel_request_headers_->headers_.size())
+      tunnel_request_headers_->headers_.size()) {
     next_state_ = STATE_WRITE_TUNNEL_HEADERS;
-  else
+  } else {
+    // Handling a cert error or a client cert request requires reconnection.
+    // DoWriteTunnelHeaders() will be called again.
+    // Thus |tunnel_request_headers_bytes_sent_| should be reset to 0 for
+    // sending |tunnel_request_headers_| correctly.
+    tunnel_request_headers_bytes_sent_ = 0;
     next_state_ = STATE_READ_TUNNEL_HEADERS;
+  }
   return OK;
 }
 
