@@ -208,7 +208,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   }
 
   MOCK_METHOD2(FrameReady, void(VideoDecoder::DecoderStatus,
-                                scoped_refptr<VideoFrame>));
+                                const scoped_refptr<VideoFrame>&));
 
   MessageLoop message_loop_;
   scoped_ptr<Decryptor> decryptor_;
@@ -508,8 +508,7 @@ TEST_F(FFmpegVideoDecoderTest, Reset_DuringPendingRead) {
   // Reset the decoder.
   Reset();
 
-  EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk,
-                                scoped_refptr<VideoFrame>()));
+  EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
 
   read_cb.Run(i_frame_buffer_);
   message_loop_.RunAllPending();
