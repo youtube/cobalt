@@ -70,22 +70,23 @@ class BuildInfo {
   void set_java_exception_info(const std::string& info);
 
  private:
-  BuildInfo();
+  friend struct BuildInfoSingletonTraits;
 
-  friend struct DefaultSingletonTraits<BuildInfo>;
+  explicit BuildInfo(JNIEnv* env);
 
   // Const char* is used instead of std::strings because these values must be
   // available even if the process is in a crash state. Sadly
   // std::string.c_str() doesn't guarantee that memory won't be allocated when
   // it is called.
-  char* device_;
-  char* model_;
-  char* brand_;
-  char* android_build_id_;
-  char* android_build_fp_;
-  char* package_version_code_;
-  char* package_version_name_;
-  char* java_exception_info_;
+  const char* const device_;
+  const char* const model_;
+  const char* const brand_;
+  const char* const android_build_id_;
+  const char* const android_build_fp_;
+  const char* const package_version_code_;
+  const char* const package_version_name_;
+  // This is set via set_java_exception_info, not at constructor time.
+  const char* java_exception_info_;
 
   DISALLOW_COPY_AND_ASSIGN(BuildInfo);
 };
