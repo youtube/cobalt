@@ -359,7 +359,7 @@ VideoRendererBase::~VideoRendererBase() {
 }
 
 void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
-                                   scoped_refptr<VideoFrame> frame) {
+                                   const scoped_refptr<VideoFrame>& frame) {
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, kUninitialized);
 
