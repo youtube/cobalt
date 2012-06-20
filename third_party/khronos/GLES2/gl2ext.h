@@ -2018,10 +2018,10 @@ struct GLUniformDefinitionCHROMIUM {
 #ifdef GL_GLEXT_PROTOTYPES
 #define glGetUniformLocationsCHROMIUM GLES2_GET_FUN(GetUniformLocationsCHROMIUM)
 #if !defined(GLES2_USE_CPP_BINDINGS)
-GL_APICALL void GL_APIENTRY glGetUniformLocationsCHROMIUM (const GLUniformDefinitionCHROMIUM* uniforms, GLsizei count, GLsizei max_locations, GLint* locations);
+GL_APICALL void GL_APIENTRY glGetUniformLocationsCHROMIUM (GLuint program, const GLUniformDefinitionCHROMIUM* uniforms, GLsizei count, GLsizei max_locations, GLint* locations);
 #endif
 #else
-typedef void (GL_APIENTRYP PFNGLGETUNIFORMLOCATIONSCHROMIUM) (const GLUniformDefinitionCHROMIUM* uniforms, GLsizei count, GLsizei max_locations, GLint* locations);
+typedef void (GL_APIENTRYP PFNGLGETUNIFORMLOCATIONSCHROMIUM) (GLuint program, const GLUniformDefinitionCHROMIUM* uniforms, GLsizei count, GLsizei max_locations, GLint* locations);
 #endif
 #endif
 
