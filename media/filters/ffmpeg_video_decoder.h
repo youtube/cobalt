@@ -38,11 +38,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // encountered.
   void set_decryptor(Decryptor* decryptor);
 
-  // Callback called from within FFmpeg to allocate a buffer based on
-  // the dimensions of |codec_context|. See AVCodecContext.get_buffer
-  // documentation inside FFmpeg.
-  int GetVideoBuffer(AVCodecContext *codec_context, AVFrame* frame);
-
  protected:
   virtual ~FFmpegVideoDecoder();
 
@@ -75,6 +70,10 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // Reset decoder and call |reset_cb_|.
   void DoReset();
+
+  // Allocates a video frame based on the current format and dimensions based on
+  // the current state of |codec_context_|.
+  scoped_refptr<VideoFrame> AllocateVideoFrame();
 
   // This is !is_null() iff Initialize() hasn't been called.
   base::Callback<MessageLoop*()> message_loop_factory_cb_;
