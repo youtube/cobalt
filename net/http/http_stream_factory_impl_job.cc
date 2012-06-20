@@ -351,7 +351,7 @@ void HttpStreamFactoryImpl::Job::OnPreconnectsComplete() {
 // static
 int HttpStreamFactoryImpl::Job::OnHostResolution(
     SpdySessionPool* spdy_session_pool,
-    const HostPortProxyPair spdy_session_key,
+    const HostPortProxyPair& spdy_session_key,
     const AddressList& addresses,
     const BoundNetLog& net_log) {
   // It is OK to dereference spdy_session_pool, because the
