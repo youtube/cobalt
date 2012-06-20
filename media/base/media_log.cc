@@ -128,6 +128,8 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "demuxer: no supported streams";
     case DECODER_ERROR_NOT_SUPPORTED:
       return "decoder: not supported";
+    case PIPELINE_STATUS_MAX:
+      NOTREACHED();
   }
   NOTREACHED();
   return NULL;
