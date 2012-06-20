@@ -1717,6 +1717,17 @@
         'tools/dns_fuzz_stub/dns_fuzz_stub.cc',
       ],
     },
+    {
+      'target_name': 'net_watcher',
+      'type': 'executable',
+      'dependencies': [
+        'net',
+        '../base/base.gyp:base',
+      ],
+      'sources': [
+        'tools/net_watcher/net_watcher.cc',
+      ],
+    },
   ],
   'conditions': [
      ['os_posix == 1 and OS != "mac" and OS != "android"', {
