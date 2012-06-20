@@ -27,6 +27,10 @@ class DnsConfigWatcher;
 class NET_EXPORT NetworkChangeNotifier {
  public:
   // Flags which are ORed together to form |detail| in OnDNSChanged.
+  //
+  // TODO(akalin): Name this enum type and use it instead of plain
+  // 'unsigned' in OnDNSChanged.  ORing together enum values always
+  // results in a valid enum value by the C++ standard.
   enum {
     // The DNS configuration (name servers, suffix search) has changed.
     CHANGE_DNS_SETTINGS = 1 << 0,
@@ -41,14 +45,14 @@ class NET_EXPORT NetworkChangeNotifier {
   // Using the terminology of the Network Information API:
   // http://www.w3.org/TR/netinfo-api.
   enum ConnectionType {
-  CONNECTION_UNKNOWN, // A connection exists, but its type is unknown.
-  CONNECTION_ETHERNET,
-  CONNECTION_WIFI,
-  CONNECTION_2G,
-  CONNECTION_3G,
-  CONNECTION_4G,
-  CONNECTION_NONE     // No connection.
-};
+    CONNECTION_UNKNOWN, // A connection exists, but its type is unknown.
+    CONNECTION_ETHERNET,
+    CONNECTION_WIFI,
+    CONNECTION_2G,
+    CONNECTION_3G,
+    CONNECTION_4G,
+    CONNECTION_NONE     // No connection.
+  };
 
   class NET_EXPORT IPAddressObserver {
    public:
