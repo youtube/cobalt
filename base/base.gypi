@@ -221,7 +221,6 @@
           'memory/weak_ptr.h',
           'message_loop.cc',
           'message_loop.h',
-          'message_loop_helpers.h',
           'message_loop_proxy.cc',
           'message_loop_proxy.h',
           'message_loop_proxy_impl.cc',
