@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 
 #include "base/base_export.h"
 #include "base/callback.h"
+#include "base/debug/stack_trace.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 
@@ -92,6 +93,9 @@ class BASE_EXPORT ObjectWatcher : public MessageLoop::DestructionObserver {
   HANDLE object_;             // The object being watched
   HANDLE wait_object_;        // Returned by RegisterWaitForSingleObject
   MessageLoop* origin_loop_;  // Used to get back to the origin thread
+
+  // For debugging crbug.com/121086.
+  base::debug::StackTrace stack_trace_;
 
   DISALLOW_COPY_AND_ASSIGN(ObjectWatcher);
 };
