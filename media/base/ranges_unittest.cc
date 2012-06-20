@@ -99,4 +99,53 @@ TEST(RangesTest, CoalesceRanges) {
   ASSERT_RANGES(r, "{ [0,2) }");
 }
 
+TEST(RangesTest, IntersectionWith) {
+  Ranges<int> a;
+  Ranges<int> b;
+
+  ASSERT_EQ(a.Add(0, 1), 1u) << a;
+  ASSERT_EQ(a.Add(4, 7), 2u) << a;
+  ASSERT_EQ(a.Add(10, 12), 3u) << a;
+
+  // Test intersections with an empty range.
+  ASSERT_RANGES(a, "{ [0,1) [4,7) [10,12) }");
+  ASSERT_RANGES(b, "{ }");
+  ASSERT_RANGES(a.IntersectionWith(b), "{ }");
+  ASSERT_RANGES(b.IntersectionWith(a), "{ }");
+
+  // Test intersections with a completely overlaping range.
+  ASSERT_EQ(b.Add(-1, 13), 1u) << b;
+  ASSERT_RANGES(a, "{ [0,1) [4,7) [10,12) }");
+  ASSERT_RANGES(b, "{ [-1,13) }");
+  ASSERT_RANGES(a.IntersectionWith(b), "{ [0,1) [4,7) [10,12) }");
+  ASSERT_RANGES(b.IntersectionWith(a), "{ [0,1) [4,7) [10,12) }");
+
+  // Test intersections with a disjoint ranges.
+  b.clear();
+  ASSERT_EQ(b.Add(1, 4), 1u) << b;
+  ASSERT_EQ(b.Add(8, 9), 2u) << b;
+  ASSERT_RANGES(a, "{ [0,1) [4,7) [10,12) }");
+  ASSERT_RANGES(b, "{ [1,4) [8,9) }");
+  ASSERT_RANGES(a.IntersectionWith(b), "{ }");
+  ASSERT_RANGES(b.IntersectionWith(a), "{ }");
+
+  // Test intersections with partially overlapping ranges.
+  b.clear();
+  ASSERT_EQ(b.Add(0, 3), 1u) << b;
+  ASSERT_EQ(b.Add(5, 11), 2u) << b;
+  ASSERT_RANGES(a, "{ [0,1) [4,7) [10,12) }");
+  ASSERT_RANGES(b, "{ [0,3) [5,11) }");
+  ASSERT_RANGES(a.IntersectionWith(b), "{ [0,1) [5,7) [10,11) }");
+  ASSERT_RANGES(b.IntersectionWith(a), "{ [0,1) [5,7) [10,11) }");
+
+  // Test intersection with a range that starts at the beginning of the
+  // first range and ends at the end of the last range.
+  b.clear();
+  ASSERT_EQ(b.Add(0, 12), 1u) << b;
+  ASSERT_RANGES(a, "{ [0,1) [4,7) [10,12) }");
+  ASSERT_RANGES(b, "{ [0,12) }");
+  ASSERT_RANGES(a.IntersectionWith(b), "{ [0,1) [4,7) [10,12) }");
+  ASSERT_RANGES(b.IntersectionWith(a), "{ [0,1) [4,7) [10,12) }");
+}
+
 }  // namespace media
