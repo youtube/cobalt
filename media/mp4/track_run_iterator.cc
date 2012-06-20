@@ -21,10 +21,17 @@ base::TimeDelta TimeDeltaFromFrac(int64 numer, uint64 denom) {
 
 static const uint32 kSampleIsDifferenceSampleFlagMask = 0x10000;
 
-TrackRunInfo::TrackRunInfo() {}
+TrackRunInfo::TrackRunInfo()
+    : track_id(0),
+      sample_start_offset(-1),
+      is_encrypted(false),
+      cenc_start_offset(-1),
+      cenc_total_size(-1),
+      default_cenc_size(0) {}
+
 TrackRunInfo::~TrackRunInfo() {}
 
-TrackRunIterator::TrackRunIterator() {}
+TrackRunIterator::TrackRunIterator() : sample_offset_(0) {}
 TrackRunIterator::~TrackRunIterator() {}
 
 static void PopulateSampleInfo(const Track& trak,

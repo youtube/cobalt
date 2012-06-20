@@ -79,7 +79,11 @@ bool BufferReader::Read4sInto8s(int64* v) {
 
 
 BoxReader::BoxReader(const uint8* buf, const int size)
-  : BufferReader(buf, size), scanned_(false) {
+    : BufferReader(buf, size),
+      type_(FOURCC_NULL),
+      version_(0),
+      flags_(0),
+      scanned_(false) {
 }
 
 BoxReader::~BoxReader() {
