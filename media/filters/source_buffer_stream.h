@@ -12,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/media_export.h"
+#include "media/base/ranges.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
 
@@ -26,8 +27,6 @@ class SourceBufferRange;
 class MEDIA_EXPORT SourceBufferStream {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
-  typedef std::pair<base::TimeDelta, base::TimeDelta> Timespan;
-  typedef std::deque<Timespan> TimespanList;
 
   SourceBufferStream();
   explicit SourceBufferStream(const AudioDecoderConfig& audio_config);
@@ -64,7 +63,7 @@ class MEDIA_EXPORT SourceBufferStream {
   bool GetNextBuffer(scoped_refptr<StreamParserBuffer>* out_buffer);
 
   // Returns a list of the buffered time ranges.
-  TimespanList GetBufferedTime() const;
+  Ranges<base::TimeDelta> GetBufferedTime() const;
 
   // Notifies this SourceBufferStream that EndOfStream has been called and that
   // GetNextBuffer() should return EOS buffers after all other buffered data.

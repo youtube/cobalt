@@ -55,33 +55,18 @@ class SourceBufferStreamTest : public testing::Test {
     stream_.Seek(position * frame_duration_);
   }
 
-  SourceBufferStream::Timespan CreateTimespan(
-      int start_position, int end_position) {
-    return std::make_pair(
-        start_position * frame_duration_, (end_position + 1) * frame_duration_);
-  }
+  void CheckExpectedRanges(const std::string& expected) {
+    Ranges<base::TimeDelta> r = stream_.GetBufferedTime();
 
-  void CheckExpectedTimespan(int start_position, int end_position) {
-    SourceBufferStream::TimespanList expected;
-    expected.push_back(CreateTimespan(start_position, end_position));
-    CheckExpectedTimespans(expected);
-  }
-
-  void CheckExpectedTimespans(
-      SourceBufferStream::TimespanList expected_times) {
-    SourceBufferStream::TimespanList actual_times = stream_.GetBufferedTime();
-    EXPECT_EQ(expected_times.size(), actual_times.size());
-
-    for (SourceBufferStream::TimespanList::iterator actual_itr =
-         actual_times.begin(), expected_itr = expected_times.begin();
-         actual_itr != actual_times.end() &&
-         expected_itr != expected_times.end();
-         actual_itr++, expected_itr++) {
-      EXPECT_EQ(expected_itr->first / frame_duration_,
-                actual_itr->first / frame_duration_);
-      EXPECT_EQ(expected_itr->second / frame_duration_,
-                actual_itr->second / frame_duration_);
+    std::stringstream ss;
+    ss << "{ ";
+    for (size_t i = 0; i < r.size(); ++i) {
+      int64 start = (r.start(i) / frame_duration_);
+      int64 end = (r.end(i) / frame_duration_) - 1;
+      ss << "[" << start << "," << end << ") ";
     }
+    ss << "}";
+    EXPECT_EQ(ss.str(), expected);
   }
 
   void CheckExpectedBuffers(
@@ -187,7 +172,7 @@ TEST_F(SourceBufferStreamTest, Append_SingleRange) {
   AppendBuffers(0, 15);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 14);
+  CheckExpectedRanges("{ [0,14) }");
   // Check buffers in range.
   Seek(0);
   CheckExpectedBuffers(0, 14);
@@ -199,7 +184,7 @@ TEST_F(SourceBufferStreamTest, Append_SingleRange_OneBufferAtATime) {
     AppendBuffers(i, 1);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 14);
+  CheckExpectedRanges("{ [0,14) }");
   // Check buffers in range.
   Seek(0);
   CheckExpectedBuffers(0, 14);
@@ -213,10 +198,7 @@ TEST_F(SourceBufferStreamTest, Append_DisjointRanges) {
   AppendBuffers(15, 10);
 
   // Check expected ranges.
-  SourceBufferStream::TimespanList expected;
-  expected.push_back(CreateTimespan(0, 4));
-  expected.push_back(CreateTimespan(15, 24));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [0,4) [15,24) }");
   // Check buffers in ranges.
   Seek(0);
   CheckExpectedBuffers(0, 4);
@@ -235,7 +217,7 @@ TEST_F(SourceBufferStreamTest, Append_AdjacentRanges) {
   AppendBuffers(12, 3);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 25);
+  CheckExpectedRanges("{ [0,25) }");
   // Check buffers in range.
   Seek(0);
   CheckExpectedBuffers(0, 25);
@@ -249,14 +231,14 @@ TEST_F(SourceBufferStreamTest, Append_DoesNotBeginWithKeyframe) {
   AppendBuffers(5, 10);
 
   // Check expected range.
-  CheckExpectedTimespan(5, 14);
+  CheckExpectedRanges("{ [5,14) }");
   // Check buffers in range.
   Seek(5);
   CheckExpectedBuffers(5, 14);
 
   // Append fails because the range doesn't begin with a keyframe.
   AppendBuffers_ExpectFailure(17, 10);
-  CheckExpectedTimespan(5, 14);
+  CheckExpectedRanges("{ [5,14) }");
   Seek(5);
   CheckExpectedBuffers(5, 14);
 }
@@ -269,7 +251,7 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap) {
   AppendBuffers(0, 15);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 14);
+  CheckExpectedRanges("{ [0,14) }");
   // Check buffers in range.
   Seek(0);
   CheckExpectedBuffers(0, 14);
@@ -287,7 +269,7 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_EdgeCase) {
   AppendBuffers(5, 8);
 
   // Check expected range.
-  CheckExpectedTimespan(5, 12);
+  CheckExpectedRanges("{ [5,12) }");
   // Check buffers in range.
   Seek(5);
   CheckExpectedBuffers(5, 12);
@@ -301,7 +283,7 @@ TEST_F(SourceBufferStreamTest, Start_Overlap) {
   AppendBuffers(8, 6);
 
   // Check expected range.
-  CheckExpectedTimespan(5, 13);
+  CheckExpectedRanges("{ [5,13) }");
   // Check buffers in range.
   Seek(5);
   CheckExpectedBuffers(5, 13);
@@ -315,7 +297,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap) {
   AppendBuffers(5, 10);
 
   // Check expected range.
-  CheckExpectedTimespan(5, 19);
+  CheckExpectedRanges("{ [5,19) }");
   // Check buffers in range.
   Seek(5);
   CheckExpectedBuffers(5, 19);
@@ -330,10 +312,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Several) {
 
   // Check expected ranges: stream should not have kept buffers 13 and 14
   // because the keyframe on which they depended was overwritten.
-  SourceBufferStream::TimespanList expected;
-  expected.push_back(CreateTimespan(5, 12));
-  expected.push_back(CreateTimespan(15, 19));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [5,12) [15,19) }");
 
   // Check buffers in range.
   Seek(5);
@@ -355,19 +334,13 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Several) {
   AppendBuffers(15, 2);
 
   // Check expected ranges.
-  SourceBufferStream::TimespanList expected;
-  expected.push_back(CreateTimespan(5, 6));
-  expected.push_back(CreateTimespan(10, 11));
-  expected.push_back(CreateTimespan(15, 16));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [5,6) [10,11) [15,16) }");
 
   // Append buffers at positions 0 through 19.
   AppendBuffers(0, 20);
 
   // Check expected range.
-  expected.clear();
-  expected.push_back(CreateTimespan(0, 19));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [0,19) }");
   // Check buffers in range.
   Seek(0);
   CheckExpectedBuffers(0, 19);
@@ -390,7 +363,7 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Several_Then_Merge) {
   AppendBuffers(0, 20);
 
   // Check expected ranges.
-  CheckExpectedTimespan(0, 21);
+  CheckExpectedRanges("{ [0,21) }");
   // Check buffers in range.
   Seek(0);
   CheckExpectedBuffers(0, 21);
@@ -406,8 +379,8 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected) {
   // Replace old data with new data.
   AppendBuffers(5, 10, &kDataB);
 
-  // Check timespans are correct.
-  CheckExpectedTimespan(5, 14);
+  // Check ranges are correct.
+  CheckExpectedRanges("{ [5,14) }");
 
   // Check that data has been replaced with new data.
   CheckExpectedBuffers(5, 14, &kDataB);
@@ -428,8 +401,8 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_TrackBuffer) {
   // Do a complete overlap by appending 20 buffers at positions 0 through 19.
   AppendBuffers(0, 20, &kDataB);
 
-  // Check timespan is correct.
-  CheckExpectedTimespan(0, 19);
+  // Check range is correct.
+  CheckExpectedRanges("{ [0,19) }");
 
   // Expect old data up until next keyframe in new data.
   CheckExpectedBuffers(6, 9, &kDataA);
@@ -442,8 +415,8 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_TrackBuffer) {
   Seek(0);
   CheckExpectedBuffers(0, 19, &kDataB);
 
-  // Check timespan continues to be correct.
-  CheckExpectedTimespan(0, 19);
+  // Check range continues to be correct.
+  CheckExpectedRanges("{ [0,19) }");
 }
 
 TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_EdgeCase) {
@@ -457,8 +430,8 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_EdgeCase) {
   // Replace existing data with new data.
   AppendBuffers(5, 10, &kDataB);
 
-  // Check timespans are correct.
-  CheckExpectedTimespan(5, 14);
+  // Check ranges are correct.
+  CheckExpectedRanges("{ [5,14) }");
 
   // Expect old data up until next keyframe in new data.
   CheckExpectedBuffers(6, 9, &kDataA);
@@ -471,8 +444,8 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_EdgeCase) {
   Seek(5);
   CheckExpectedBuffers(5, 14, &kDataB);
 
-  // Check timespan continues to be correct.
-  CheckExpectedTimespan(5, 14);
+  // Check range continues to be correct.
+  CheckExpectedRanges("{ [5,14) }");
 }
 
 TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_Multiple) {
@@ -520,7 +493,7 @@ TEST_F(SourceBufferStreamTest, Start_Overlap_Selected) {
   AppendBuffers(5, 10, &kDataB);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 14);
+  CheckExpectedRanges("{ [0,14) }");
 
   // Because we seeked to a keyframe, the next buffers should all be new data.
   CheckExpectedBuffers(5, 14, &kDataB);
@@ -543,7 +516,7 @@ TEST_F(SourceBufferStreamTest, Start_Overlap_Selected_TrackBuffer) {
   AppendBuffers(10, 10, &kDataB);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 19);
+  CheckExpectedRanges("{ [0,19) }");
 
   // The next 4 buffers should be a from the old buffer, followed by a keyframe
   // from the new data.
@@ -559,8 +532,8 @@ TEST_F(SourceBufferStreamTest, Start_Overlap_Selected_TrackBuffer) {
   CheckExpectedBuffers(0, 9, &kDataA);
   CheckExpectedBuffers(10, 19, &kDataB);
 
-  // Make sure timespan is still correct.
-  CheckExpectedTimespan(0, 19);
+  // Make sure range is still correct.
+  CheckExpectedRanges("{ [0,19) }");
 }
 
 TEST_F(SourceBufferStreamTest, Start_Overlap_Selected_EdgeCase) {
@@ -590,7 +563,7 @@ TEST_F(SourceBufferStreamTest, Start_Overlap_Selected_EdgeCase) {
   CheckExpectedBuffers(10, 19, &kDataB);
 
   // Check expected range.
-  CheckExpectedTimespan(5, 19);
+  CheckExpectedRanges("{ [5,19) }");
 }
 
 // This test covers the case where new buffers end-overlap an existing, selected
@@ -611,7 +584,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected) {
   AppendBuffers(0, 10, &kDataB);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 14);
+  CheckExpectedRanges("{ [0,14) }");
 
   // Because we seeked to a keyframe, the next buffers should be new.
   CheckExpectedBuffers(5, 9, &kDataB);
@@ -642,7 +615,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_AfterEndOfNew_1) {
   AppendBuffers(0, 10, &kDataB);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 14);
+  CheckExpectedRanges("{ [0,14) }");
 
   // Make sure rest of data is as expected.
   CheckExpectedBuffers(13, 14, &kDataA);
@@ -674,10 +647,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_AfterEndOfNew_2) {
   AppendBuffers(0, 8, &kDataB);
 
   // Check expected ranges.
-  SourceBufferStream::TimespanList expected;
-  expected.push_back(CreateTimespan(0, 7));
-  expected.push_back(CreateTimespan(10, 14));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [0,7) [10,14) }");
 
   // Make sure rest of data is as expected.
   CheckExpectedBuffers(13, 14, &kDataA);
@@ -713,10 +683,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_AfterEndOfNew_3) {
   AppendBuffers(0, 8, &kDataB);
 
   // Check expected ranges.
-  SourceBufferStream::TimespanList expected;
-  expected.push_back(CreateTimespan(0, 7));
-  expected.push_back(CreateTimespan(10, 14));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [0,7) [10,14) }");
 
   // Check for data in the track buffer.
   CheckExpectedBuffers(8, 9, &kDataA);
@@ -751,7 +718,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_OverlappedByNew_1) {
   AppendBuffers(0, 10, &kDataB);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 14);
+  CheckExpectedRanges("{ [0,14) }");
 
   // Check for data in the track buffer.
   CheckExpectedBuffers(8, 9, &kDataA);
@@ -786,10 +753,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_OverlappedByNew_2) {
   AppendBuffers(0, 7, &kDataB);
 
   // Check expected ranges.
-  SourceBufferStream::TimespanList expected;
-  expected.push_back(CreateTimespan(0, 6));
-  expected.push_back(CreateTimespan(10, 14));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [0,6) [10,14) }");
 
   // Check for data in the track buffer.
   CheckExpectedBuffers(6, 9, &kDataA);
@@ -827,10 +791,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_OverlappedByNew_3) {
   AppendBuffers(0, 13, &kDataB);
 
   // Check expected ranges.
-  SourceBufferStream::TimespanList expected;
-  expected.push_back(CreateTimespan(0, 12));
-  expected.push_back(CreateTimespan(15, 19));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [0,12) [15,19) }");
 
   // Check for data in the track buffer.
   CheckExpectedBuffers(6, 9, &kDataA);
@@ -866,7 +827,7 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_NoKeyframeAfterNew) {
   AppendBuffers(0, 6, &kDataB);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 5);
+  CheckExpectedRanges("{ [0,5) }");
 
   // Check for data in the track buffer.
   CheckExpectedBuffers(6, 9, &kDataA);
@@ -899,7 +860,7 @@ TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_1) {
   AppendBuffers(5, 5, &kDataB);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 14);
+  CheckExpectedRanges("{ [0,14) }");
 
   // Check for next data; should be new data.
   CheckExpectedBuffers(5, 9, &kDataB);
@@ -930,7 +891,7 @@ TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_2) {
   AppendBuffers(5, 5, &kDataB);
 
   // Check expected range.
-  CheckExpectedTimespan(0, 14);
+  CheckExpectedRanges("{ [0,14) }");
 
   // Make sure data is correct.
   CheckExpectedBuffers(11, 14, &kDataA);
@@ -959,10 +920,7 @@ TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_3) {
   AppendBuffers(5, 3, &kDataB);
 
   // Check expected range.
-  SourceBufferStream::TimespanList expected;
-  expected.push_back(CreateTimespan(0, 7));
-  expected.push_back(CreateTimespan(10, 14));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [0,7) [10,14) }");
 
   // Make sure data is correct.
   CheckExpectedBuffers(2, 4, &kDataA);
@@ -991,10 +949,7 @@ TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_4) {
   AppendBuffers(5, 3, &kDataB);
 
   // Check expected range.
-  SourceBufferStream::TimespanList expected;
-  expected.push_back(CreateTimespan(0, 7));
-  expected.push_back(CreateTimespan(10, 14));
-  CheckExpectedTimespans(expected);
+  CheckExpectedRanges("{ [0,7) [10,14) }");
 
   // Buffers 8 and 9 should be in the track buffer.
   CheckExpectedBuffers(8, 9, &kDataA);
@@ -1083,15 +1038,15 @@ TEST_F(SourceBufferStreamTest, Seek_After_TrackBuffer_Filled) {
   // Do a complete overlap by appending 20 buffers at positions 0 through 19.
   AppendBuffers(0, 20, &kDataB);
 
-  // Check timespan is correct.
-  CheckExpectedTimespan(0, 19);
+  // Check range is correct.
+  CheckExpectedRanges("{ [0,19) }");
 
   // Seek to beginning; all data should be new.
   Seek(0);
   CheckExpectedBuffers(0, 19, &kDataB);
 
-  // Check timespan continues to be correct.
-  CheckExpectedTimespan(0, 19);
+  // Check range continues to be correct.
+  CheckExpectedRanges("{ [0,19) }");
 }
 
 TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
@@ -1136,14 +1091,14 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_AfterMerges) {
   AppendBuffers(5, 5);
 
   // Make sure ranges are merged.
-  CheckExpectedTimespan(5, 14);
+  CheckExpectedRanges("{ [5,14) }");
 
   // Make sure the next buffer is correct.
   CheckExpectedBuffers(10, 10);
 
   // Append 5 buffers at positions 15 through 19.
   AppendBuffers(15, 5);
-  CheckExpectedTimespan(5, 19);
+  CheckExpectedRanges("{ [5,19) }");
 
   // Make sure the remaining next buffers are correct.
   CheckExpectedBuffers(11, 14);

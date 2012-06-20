@@ -86,12 +86,12 @@ class SourceBufferRange {
   // if this range does not have the next buffer yet.
   base::TimeDelta GetNextTimestamp() const;
 
+  // Returns the start timestamp of the range.
+  base::TimeDelta GetStartTimestamp() const;
+
   // Returns the end timestamp of the buffered data. (Note that this is equal to
   // the last buffer's timestamp + its duration.)
   base::TimeDelta GetEndTimestamp() const;
-
-  // Returns the Timespan of buffered time in this range.
-  SourceBufferStream::Timespan GetBufferedTime() const;
 
   // Returns whether a buffer with a starting timestamp of |timestamp| would
   // belong in this range. This includes a buffer that would be appended to
@@ -119,9 +119,6 @@ class SourceBufferRange {
                    BufferQueue* deleted_buffers,
                    BufferQueue::iterator* next_buffer);
 
-  // Returns the start timestamp of the range.
-  base::TimeDelta GetStartTimestamp() const;
-
   // An ordered list of buffers in this range.
   BufferQueue buffers_;
 
@@ -130,7 +127,7 @@ class SourceBufferRange {
   KeyframeMap keyframe_map_;
 
   // Index into |buffers_| for the next buffer to be returned by
-  // GetBufferedTime(), set to -1 before Seek().
+  // GetNextBuffer(), set to -1 before Seek().
   int next_buffer_index_;
 
   // True if the range needs to wait for the next keyframe to be appended before
@@ -163,10 +160,9 @@ static bool IsRangeListSorted(
   base::TimeDelta prev = media::kNoTimestamp();
   for (std::list<media::SourceBufferRange*>::const_iterator itr =
        ranges.begin(); itr != ranges.end(); itr++) {
-    media::SourceBufferStream::Timespan buffered = (*itr)->GetBufferedTime();
-    if (prev != media::kNoTimestamp() && prev >= buffered.first)
+    if (prev != media::kNoTimestamp() && prev >= (*itr)->GetStartTimestamp())
       return false;
-    prev = buffered.second;
+    prev = (*itr)->GetEndTimestamp();
   }
   return true;
 }
@@ -503,13 +499,13 @@ bool SourceBufferStream::GetNextBuffer(
   return selected_range_ && selected_range_->GetNextBuffer(out_buffer);
 }
 
-SourceBufferStream::TimespanList SourceBufferStream::GetBufferedTime() const {
-  TimespanList timespans;
+Ranges<base::TimeDelta> SourceBufferStream::GetBufferedTime() const {
+  Ranges<base::TimeDelta> ranges;
   for (RangeList::const_iterator itr = ranges_.begin();
        itr != ranges_.end(); itr++) {
-    timespans.push_back((*itr)->GetBufferedTime());
+    ranges.Add((*itr)->GetStartTimestamp(), (*itr)->GetEndTimestamp());
   }
-  return timespans;
+  return ranges;
 }
 
 void SourceBufferStream::EndOfStream() {
@@ -701,11 +697,6 @@ base::TimeDelta SourceBufferRange::GetNextTimestamp() const {
   }
 
   return buffers_.at(next_buffer_index_)->GetTimestamp();
-}
-
-SourceBufferStream::Timespan
-SourceBufferRange::GetBufferedTime() const {
-  return std::make_pair(GetStartTimestamp(), GetEndTimestamp());
 }
 
 void SourceBufferRange::AppendToEnd(const SourceBufferRange& range,

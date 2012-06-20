@@ -5,6 +5,7 @@
 #ifndef MEDIA_BASE_RANGES_H_
 #define MEDIA_BASE_RANGES_H_
 
+#include <algorithm>
 #include <ostream>
 #include <vector>
 
@@ -35,6 +36,9 @@ class Ranges {
 
   // Clear all ranges.
   void clear();
+
+  // Computes the intersection between this range and |other|.
+  Ranges<T> IntersectionWith(const Ranges<T>& other);
 
  private:
   // Disjoint, in increasing order of start.
@@ -113,6 +117,30 @@ T Ranges<T>::end(int i) const {
 template<class T>
 void Ranges<T>::clear() {
   ranges_.clear();
+}
+
+template<class T>
+Ranges<T> Ranges<T>::IntersectionWith(const Ranges<T>& other) {
+  Ranges<T> result;
+
+  size_t i = 0;
+  size_t j = 0;
+
+  while (i < size() && j < other.size()) {
+    T max_start = std::max(start(i), other.start(j));
+    T min_end = std::min(end(i), other.end(j));
+
+    // Add an intersection range to the result if the ranges overlap.
+    if (max_start < min_end)
+      result.Add(max_start, min_end);
+
+    if (end(i) < other.end(j))
+      ++i;
+    else
+      ++j;
+  }
+
+  return result;
 }
 
 }  // namespace media
