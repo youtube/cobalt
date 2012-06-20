@@ -72,7 +72,7 @@ bool SampleAuxiliaryInformationSize::Parse(BoxReader* reader) {
   return true;
 }
 
-OriginalFormat::OriginalFormat() {}
+OriginalFormat::OriginalFormat() : format(FOURCC_NULL) {}
 OriginalFormat::~OriginalFormat() {}
 FourCC OriginalFormat::BoxType() const { return FOURCC_FRMA; }
 
@@ -80,7 +80,7 @@ bool OriginalFormat::Parse(BoxReader* reader) {
   return reader->ReadFourCC(&format);
 }
 
-SchemeType::SchemeType() {}
+SchemeType::SchemeType() : type(FOURCC_NULL), version(0) {}
 SchemeType::~SchemeType() {}
 FourCC SchemeType::BoxType() const { return FOURCC_SCHM; }
 
@@ -131,7 +131,14 @@ bool ProtectionSchemeInfo::Parse(BoxReader* reader) {
          reader->ReadChild(&info);
 }
 
-MovieHeader::MovieHeader() {}
+MovieHeader::MovieHeader()
+    : creation_time(0),
+      modification_time(0),
+      timescale(0),
+      duration(0),
+      rate(-1),
+      volume(-1),
+      next_track_id(0) {}
 MovieHeader::~MovieHeader() {}
 FourCC MovieHeader::BoxType() const { return FOURCC_MVHD; }
 
@@ -159,7 +166,16 @@ bool MovieHeader::Parse(BoxReader* reader) {
   return true;
 }
 
-TrackHeader::TrackHeader() {}
+TrackHeader::TrackHeader()
+    : creation_time(0),
+      modification_time(0),
+      track_id(0),
+      duration(0),
+      layer(-1),
+      alternate_group(-1),
+      volume(-1),
+      width(0),
+      height(0) {}
 TrackHeader::~TrackHeader() {}
 FourCC TrackHeader::BoxType() const { return FOURCC_TKHD; }
 
@@ -192,7 +208,7 @@ bool TrackHeader::Parse(BoxReader* reader) {
   return true;
 }
 
-SampleDescription::SampleDescription() {}
+SampleDescription::SampleDescription() : type(kInvalid) {}
 SampleDescription::~SampleDescription() {}
 FourCC SampleDescription::BoxType() const { return FOURCC_STSD; }
 
@@ -261,7 +277,7 @@ bool Edit::Parse(BoxReader* reader) {
   return reader->ScanChildren() && reader->ReadChild(&list);
 }
 
-HandlerReference::HandlerReference() {}
+HandlerReference::HandlerReference() : type(kInvalid) {}
 HandlerReference::~HandlerReference() {}
 FourCC HandlerReference::BoxType() const { return FOURCC_HDLR; }
 
@@ -279,7 +295,13 @@ bool HandlerReference::Parse(BoxReader* reader) {
   return true;
 }
 
-AVCDecoderConfigurationRecord::AVCDecoderConfigurationRecord() {}
+AVCDecoderConfigurationRecord::AVCDecoderConfigurationRecord()
+    : version(0),
+      profile_indication(0),
+      profile_compatibility(0),
+      avc_level(0),
+      length_size(0) {}
+
 AVCDecoderConfigurationRecord::~AVCDecoderConfigurationRecord() {}
 FourCC AVCDecoderConfigurationRecord::BoxType() const { return FOURCC_AVCC; }
 
@@ -318,7 +340,12 @@ bool AVCDecoderConfigurationRecord::Parse(BoxReader* reader) {
   return true;
 }
 
-VideoSampleEntry::VideoSampleEntry() {}
+VideoSampleEntry::VideoSampleEntry()
+    : format(FOURCC_NULL),
+      data_reference_index(0),
+      width(0),
+      height(0) {}
+
 VideoSampleEntry::~VideoSampleEntry() {}
 FourCC VideoSampleEntry::BoxType() const {
   DCHECK(false) << "VideoSampleEntry should be parsed according to the "
@@ -351,7 +378,13 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
   return true;
 }
 
-AudioSampleEntry::AudioSampleEntry() {}
+AudioSampleEntry::AudioSampleEntry()
+    : format(FOURCC_NULL),
+      data_reference_index(0),
+      channelcount(0),
+      samplesize(0),
+      samplerate(0) {}
+
 AudioSampleEntry::~AudioSampleEntry() {}
 FourCC AudioSampleEntry::BoxType() const {
   DCHECK(false) << "AudioSampleEntry should be parsed according to the "
@@ -378,7 +411,11 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
   return true;
 }
 
-MediaHeader::MediaHeader() {}
+MediaHeader::MediaHeader()
+    : creation_time(0),
+      modification_time(0),
+      timescale(0),
+      duration(0) {}
 MediaHeader::~MediaHeader() {}
 FourCC MediaHeader::BoxType() const { return FOURCC_MDHD; }
 
@@ -441,7 +478,7 @@ bool Track::Parse(BoxReader* reader) {
   return true;
 }
 
-MovieExtendsHeader::MovieExtendsHeader() {}
+MovieExtendsHeader::MovieExtendsHeader() : fragment_duration(0) {}
 MovieExtendsHeader::~MovieExtendsHeader() {}
 FourCC MovieExtendsHeader::BoxType() const { return FOURCC_MEHD; }
 
@@ -450,7 +487,12 @@ bool MovieExtendsHeader::Parse(BoxReader* reader) {
   return true;
 }
 
-TrackExtends::TrackExtends() {}
+TrackExtends::TrackExtends()
+    : track_id(0),
+      default_sample_description_index(0),
+      default_sample_duration(0),
+      default_sample_size(0),
+      default_sample_flags(0) {}
 TrackExtends::~TrackExtends() {}
 FourCC TrackExtends::BoxType() const { return FOURCC_TREX; }
 
@@ -475,7 +517,7 @@ bool MovieExtends::Parse(BoxReader* reader) {
          reader->ReadChildren(&tracks);
 }
 
-Movie::Movie() {}
+Movie::Movie() : fragmented(false) {}
 Movie::~Movie() {}
 FourCC Movie::BoxType() const { return FOURCC_MOOV; }
 
@@ -488,7 +530,7 @@ bool Movie::Parse(BoxReader* reader) {
          reader->MaybeReadChildren(&pssh);
 }
 
-TrackFragmentDecodeTime::TrackFragmentDecodeTime() {}
+TrackFragmentDecodeTime::TrackFragmentDecodeTime() : decode_time(0) {}
 TrackFragmentDecodeTime::~TrackFragmentDecodeTime() {}
 FourCC TrackFragmentDecodeTime::BoxType() const { return FOURCC_TFDT; }
 
@@ -500,7 +542,7 @@ bool TrackFragmentDecodeTime::Parse(BoxReader* reader) {
     return reader->Read4Into8(&decode_time);
 }
 
-MovieFragmentHeader::MovieFragmentHeader() {}
+MovieFragmentHeader::MovieFragmentHeader() : sequence_number(0) {}
 MovieFragmentHeader::~MovieFragmentHeader() {}
 FourCC MovieFragmentHeader::BoxType() const { return FOURCC_MFHD; }
 
@@ -508,7 +550,13 @@ bool MovieFragmentHeader::Parse(BoxReader* reader) {
   return reader->SkipBytes(4) && reader->Read4(&sequence_number);
 }
 
-TrackFragmentHeader::TrackFragmentHeader() {}
+TrackFragmentHeader::TrackFragmentHeader()
+    : track_id(0),
+      default_sample_duration(0),
+      default_sample_size(0),
+      default_sample_flags(0),
+      has_default_sample_flags(false) {}
+
 TrackFragmentHeader::~TrackFragmentHeader() {}
 FourCC TrackFragmentHeader::BoxType() const { return FOURCC_TFHD; }
 
@@ -548,7 +596,8 @@ bool TrackFragmentHeader::Parse(BoxReader* reader) {
   return true;
 }
 
-TrackFragmentRun::TrackFragmentRun() {}
+TrackFragmentRun::TrackFragmentRun()
+    : sample_count(0), data_offset(0) {}
 TrackFragmentRun::~TrackFragmentRun() {}
 FourCC TrackFragmentRun::BoxType() const { return FOURCC_TRUN; }
 

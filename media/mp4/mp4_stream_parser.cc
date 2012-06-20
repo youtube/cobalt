@@ -22,7 +22,11 @@ MP4StreamParser::MP4StreamParser()
       moof_head_(0),
       mdat_tail_(0),
       has_audio_(false),
-      has_video_(false) {
+      has_video_(false),
+      audio_track_id_(0),
+      video_track_id_(0),
+      parameter_sets_inserted_(false),
+      size_of_nalu_length_(0) {
 }
 
 MP4StreamParser::~MP4StreamParser() {}
