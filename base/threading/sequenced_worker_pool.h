@@ -231,9 +231,6 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   // TaskRunner implementation.  Forwards to PostWorkerTask().
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
-                               int64 delay_ms) OVERRIDE;
-  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
-                               const Closure& task,
                                TimeDelta delay) OVERRIDE;
   virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
 
