@@ -644,12 +644,12 @@ Ranges<TimeDelta> ChunkDemuxer::GetBufferedRanges(const std::string& id) const {
 
   if (id == source_id_audio_ && id != source_id_video_) {
     // Only include ranges that have been buffered in |audio_|
-    return audio_->GetBufferedTime();
+    return audio_ ? audio_->GetBufferedTime() : Ranges<TimeDelta>();
   }
 
   if (id != source_id_audio_ && id == source_id_video_) {
     // Only include ranges that have been buffered in |video_|
-    return video_->GetBufferedTime();
+    return video_ ? video_->GetBufferedTime() : Ranges<TimeDelta>();
   }
 
   return ComputeIntersection();

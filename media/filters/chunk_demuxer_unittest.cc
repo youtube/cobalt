@@ -290,7 +290,10 @@ class ChunkDemuxerTest : public testing::Test {
         EXPECT_CALL(host_, SetTotalBytes(_));
       EXPECT_CALL(host_, SetDuration(expected_duration));
     }
+    return CreateInitDoneCB(expected_status);
+  }
 
+  PipelineStatusCB CreateInitDoneCB(PipelineStatus expected_status) {
     return base::Bind(&ChunkDemuxerTest::InitDoneCalled,
                       base::Unretained(this),
                       expected_status);
@@ -1676,6 +1679,16 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamFailures) {
   CheckExpectedRanges(video_id, "{ [0,20) }");
 
   ASSERT_TRUE(demuxer_->EndOfStream(PIPELINE_OK));
+}
+
+TEST_F(ChunkDemuxerTest, TestGetBufferedRangesBeforeInitSegment) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Initialize(&host_, CreateInitDoneCB(PIPELINE_OK));
+  ASSERT_EQ(AddId("audio", true, false), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddId("video", false, true), ChunkDemuxer::kOk);
+
+  CheckExpectedRanges("audio", "{ }");
+  CheckExpectedRanges("video", "{ }");
 }
 
 }  // namespace media
