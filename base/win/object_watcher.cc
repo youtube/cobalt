@@ -5,7 +5,6 @@
 #include "base/win/object_watcher.h"
 
 #include "base/bind.h"
-#include "base/debug/alias.h"
 #include "base/logging.h"
 
 namespace base {
@@ -41,7 +40,6 @@ bool ObjectWatcher::StartWatching(HANDLE object, Delegate* delegate) {
                          delegate);
   object_ = object;
   origin_loop_ = MessageLoop::current();
-  stack_trace_ = base::debug::StackTrace();
 
   if (!RegisterWaitForSingleObject(&wait_object_, object, DoneWaiting,
                                    this, INFINITE, wait_flags)) {
@@ -99,10 +97,6 @@ void ObjectWatcher::Signal(Delegate* delegate) {
   // StartWatching(). As a result, we save any state we need and clear previous
   // watcher state before signaling the delegate.
   HANDLE object = object_;
-  // Alias the stack trace where the watch was started so it'll be available in
-  // minidumps.
-  base::debug::StackTrace stack_trace = stack_trace_;
-  base::debug::Alias(&stack_trace);
   StopWatching();
   delegate->OnObjectSignaled(object);
 }
