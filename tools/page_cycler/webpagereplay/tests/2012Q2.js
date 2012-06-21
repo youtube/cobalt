@@ -27,8 +27,6 @@ var pageSets = [
      "http://www.google.com/search?q=dogs"],
     ["http://www.yandex.ru/",
      "http://yandex.ru/yandsearch?text=obama&lr=84"],
-    ["http://www.youtube.com",
-     "http://www.youtube.com/watch?v=xvN9Ri1GmuY&feature=g-sptl&cid=inp-hs-edt"],
 
     ["http://ameblo.jp/"],
     ["http://en.rakuten.co.jp/"],
@@ -52,6 +50,10 @@ var pageSets = [
 ];
 
 /*
+    // http://code.google.com/p/chromium/issues/detail?id=133822
+    ["http://www.youtube.com",
+     "http://www.youtube.com/watch?v=xvN9Ri1GmuY&feature=g-sptl&cid=inp-hs-edt"],
+
     // Not included (need further investigation).
     ["http://twitter.com/BarackObama",
     "http://twitter.com/search?q=pizza"], // large variance on second page
