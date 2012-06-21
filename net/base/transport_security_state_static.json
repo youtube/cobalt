@@ -156,6 +156,7 @@
     { "name": "talk.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
     { "name": "hostedtalkgadget.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
     { "name": "plus.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "script.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
 
     // Other Google related domain that must use HTTPS.
     { "name": "market.android.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
