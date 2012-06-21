@@ -1623,12 +1623,17 @@ TEST_F(ChunkDemuxerTest, TestDifferentStreamTimecodes) {
 }
 
 TEST_F(ChunkDemuxerTest, TestCodecPrefixMatching) {
+  ChunkDemuxer::Status expected = ChunkDemuxer::kOk;
+
+#if !defined(USE_PROPRIETARY_CODECS)
+  expected = ChunkDemuxer::kNotSupported;
+#endif
+
   std::vector<std::string> codecs;
   codecs.push_back("avc1.4D4041");
   codecs.push_back("mp4a.40.2");
 
-  EXPECT_EQ(ChunkDemuxer::kOk,
-            demuxer_->AddId("source_id", "video/mp4", codecs));
+  EXPECT_EQ(demuxer_->AddId("source_id", "video/mp4", codecs), expected);
 }
 
 TEST_F(ChunkDemuxerTest, TestEndOfStreamFailures) {
