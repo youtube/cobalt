@@ -42,7 +42,7 @@ bool PostTaskAndReplyTaskRunner::PostTask(
 
 bool TaskRunner::PostTask(const tracked_objects::Location& from_here,
                           const Closure& task) {
-  return PostDelayedTask(from_here, task, 0);
+  return PostDelayedTask(from_here, task, base::TimeDelta());
 }
 
 bool TaskRunner::PostTaskAndReply(

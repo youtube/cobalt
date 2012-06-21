@@ -12,24 +12,6 @@ namespace base {
 MessageLoopProxyImpl::~MessageLoopProxyImpl() {
 }
 
-// This function will be removed later in the fixing of CR Bug #108171.
-bool MessageLoopProxyImpl::PostDelayedTask(
-    const tracked_objects::Location& from_here,
-    const base::Closure& task,
-    int64 delay_ms) {
-  return PostDelayedTask(
-      from_here, task, base::TimeDelta::FromMilliseconds(delay_ms));
-}
-
-// This function will be removed later in the fixing of CR Bug #108171.
-bool MessageLoopProxyImpl::PostNonNestableDelayedTask(
-    const tracked_objects::Location& from_here,
-    const base::Closure& task,
-    int64 delay_ms) {
-  return PostNonNestableDelayedTask(
-      from_here, task, base::TimeDelta::FromMilliseconds(delay_ms));
-}
-
 bool MessageLoopProxyImpl::PostDelayedTask(
     const tracked_objects::Location& from_here,
     const base::Closure& task,

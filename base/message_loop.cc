@@ -258,48 +258,38 @@ void MessageLoop::RemoveDestructionObserver(
 void MessageLoop::PostTask(
     const tracked_objects::Location& from_here, const base::Closure& task) {
   DCHECK(!task.is_null()) << from_here.ToString();
-  PendingTask pending_task(from_here, task, CalculateDelayedRuntime(0), true);
+  PendingTask pending_task(
+      from_here, task, CalculateDelayedRuntime(TimeDelta()), true);
   AddToIncomingQueue(&pending_task);
 }
 
 void MessageLoop::PostDelayedTask(
     const tracked_objects::Location& from_here,
     const base::Closure& task,
-    int64 delay_ms) {
+    TimeDelta delay) {
   DCHECK(!task.is_null()) << from_here.ToString();
-  PendingTask pending_task(from_here, task,
-                           CalculateDelayedRuntime(delay_ms), true);
+  PendingTask pending_task(
+      from_here, task, CalculateDelayedRuntime(delay), true);
   AddToIncomingQueue(&pending_task);
-}
-
-void MessageLoop::PostDelayedTask(
-    const tracked_objects::Location& from_here,
-    const base::Closure& task,
-    base::TimeDelta delay) {
-  PostDelayedTask(from_here, task, delay.InMillisecondsRoundedUp());
 }
 
 void MessageLoop::PostNonNestableTask(
-    const tracked_objects::Location& from_here, const base::Closure& task) {
+    const tracked_objects::Location& from_here,
+    const base::Closure& task) {
   DCHECK(!task.is_null()) << from_here.ToString();
-  PendingTask pending_task(from_here, task, CalculateDelayedRuntime(0), false);
-  AddToIncomingQueue(&pending_task);
-}
-
-void MessageLoop::PostNonNestableDelayedTask(
-    const tracked_objects::Location& from_here, const base::Closure& task,
-    int64 delay_ms) {
-  DCHECK(!task.is_null()) << from_here.ToString();
-  PendingTask pending_task(from_here, task,
-                           CalculateDelayedRuntime(delay_ms), false);
+  PendingTask pending_task(
+      from_here, task, CalculateDelayedRuntime(TimeDelta()), false);
   AddToIncomingQueue(&pending_task);
 }
 
 void MessageLoop::PostNonNestableDelayedTask(
     const tracked_objects::Location& from_here,
     const base::Closure& task,
-    base::TimeDelta delay) {
-  PostNonNestableDelayedTask(from_here, task, delay.InMillisecondsRoundedUp());
+    TimeDelta delay) {
+  DCHECK(!task.is_null()) << from_here.ToString();
+  PendingTask pending_task(
+      from_here, task, CalculateDelayedRuntime(delay), false);
+  AddToIncomingQueue(&pending_task);
 }
 
 void MessageLoop::Run() {
@@ -543,11 +533,10 @@ bool MessageLoop::DeletePendingTasks() {
   return did_work;
 }
 
-TimeTicks MessageLoop::CalculateDelayedRuntime(int64 delay_ms) {
+TimeTicks MessageLoop::CalculateDelayedRuntime(TimeDelta delay) {
   TimeTicks delayed_run_time;
-  if (delay_ms > 0) {
-    delayed_run_time =
-        TimeTicks::Now() + TimeDelta::FromMilliseconds(delay_ms);
+  if (delay > TimeDelta()) {
+    delayed_run_time = TimeTicks::Now() + delay;
 
 #if defined(OS_WIN)
     if (high_resolution_timer_expiration_.is_null()) {
@@ -556,8 +545,8 @@ TimeTicks MessageLoop::CalculateDelayedRuntime(int64 delay_ms) {
       // which as a percentage is pretty inaccurate.  So enable high
       // res timers for any timer which is within 2x of the granularity.
       // This is a tradeoff between accuracy and power management.
-      bool needs_high_res_timers =
-          delay_ms < (2 * base::Time::kMinLowResolutionThresholdMs);
+      bool needs_high_res_timers = delay.InMilliseconds() <
+          (2 * base::Time::kMinLowResolutionThresholdMs);
       if (needs_high_res_timers) {
         if (base::Time::ActivateHighResolutionTimer(true)) {
           high_resolution_timer_expiration_ = TimeTicks::Now() +
@@ -567,7 +556,7 @@ TimeTicks MessageLoop::CalculateDelayedRuntime(int64 delay_ms) {
     }
 #endif
   } else {
-    DCHECK_EQ(delay_ms, 0) << "delay should not be negative";
+    DCHECK_EQ(delay.InMilliseconds(), 0) << "delay should not be negative";
   }
 
 #if defined(OS_WIN)
