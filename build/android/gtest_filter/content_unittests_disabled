@@ -42,8 +42,13 @@ GPUTestExpectationsParserTest.WebGLTestExpectationsValidation
 # crbug.com/104950
 DeviceOrientationProviderTest.ObserverNotRemoved
 DeviceOrientationProviderTest.StartFailing
-# Test failures on APK
+# Test failures on APK, due to sqlite errors.
 ChromeAppCacheServiceTest.*
+AppCacheDatabaseTest.ReCreate
+AppCacheDatabaseTest.UpgradeSchema3to4
+DatabaseTrackerTest.*
+QuotaDatabaseTest.*
+QuotaManagerTest.*
 #
 SavePackageTest.TestEnsureHtmlExtension
 SavePackageTest.TestEnsureMimeExtension
