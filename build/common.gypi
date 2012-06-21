@@ -1018,6 +1018,13 @@
         'use_cups%': 0,
       }],
 
+      # Native Client glibc toolchain is enabled by default except on arm.
+      ['target_arch=="arm"', {
+        'disable_glibc%': 1,
+      }, {
+        'disable_glibc%': 0,
+      }],
+
       # Set the relative path from this file to the GYP file of the JPEG
       # library used by Chromium.
       ['use_libjpeg_turbo==1', {
