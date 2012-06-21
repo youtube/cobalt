@@ -12,7 +12,9 @@
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/chunk_demuxer_client.h"
+#if defined(USE_PROPRIETARY_CODECS)
 #include "media/mp4/mp4_stream_parser.h"
+#endif
 #include "media/webm/webm_stream_parser.h"
 
 using base::TimeDelta;
@@ -35,9 +37,6 @@ struct SupportedTypeInfo {
 static const CodecInfo kVP8CodecInfo = { "vp8", DemuxerStream::VIDEO };
 static const CodecInfo kVorbisCodecInfo = { "vorbis", DemuxerStream::AUDIO };
 
-static const CodecInfo kH264CodecInfo = { "avc1.*", DemuxerStream::VIDEO };
-static const CodecInfo kAACCodecInfo = { "mp4a.40.*", DemuxerStream::AUDIO };
-
 static const CodecInfo* kVideoWebMCodecs[] = {
   &kVP8CodecInfo,
   &kVorbisCodecInfo,
@@ -48,6 +47,14 @@ static const CodecInfo* kAudioWebMCodecs[] = {
   &kVorbisCodecInfo,
   NULL
 };
+
+static StreamParser* BuildWebMParser() {
+  return new WebMStreamParser();
+}
+
+#if defined(USE_PROPRIETARY_CODECS)
+static const CodecInfo kH264CodecInfo = { "avc1.*", DemuxerStream::VIDEO };
+static const CodecInfo kAACCodecInfo = { "mp4a.40.*", DemuxerStream::AUDIO };
 
 static const CodecInfo* kVideoMP4Codecs[] = {
   &kH264CodecInfo,
@@ -60,19 +67,18 @@ static const CodecInfo* kAudioMP4Codecs[] = {
   NULL
 };
 
-static StreamParser* BuildWebMParser() {
-  return new WebMStreamParser();
-}
-
 static StreamParser* BuildMP4Parser() {
   return new mp4::MP4StreamParser();
 }
+#endif
 
 static const SupportedTypeInfo kSupportedTypeInfo[] = {
   { "video/webm", &BuildWebMParser, kVideoWebMCodecs },
   { "audio/webm", &BuildWebMParser, kAudioWebMCodecs },
+#if defined(USE_PROPRIETARY_CODECS)
   { "video/mp4", &BuildMP4Parser, kVideoMP4Codecs },
   { "audio/mp4", &BuildMP4Parser, kAudioMP4Codecs },
+#endif
 };
 
 
