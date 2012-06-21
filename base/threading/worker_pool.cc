@@ -41,9 +41,6 @@ class WorkerPoolTaskRunner : public TaskRunner {
   // TaskRunner implementation
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
-                               int64 delay_ms) OVERRIDE;
-  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
-                               const Closure& task,
                                TimeDelta delay) OVERRIDE;
   virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
 
@@ -55,7 +52,7 @@ class WorkerPoolTaskRunner : public TaskRunner {
   bool PostDelayedTaskAssertZeroDelay(
       const tracked_objects::Location& from_here,
       const Closure& task,
-      int64 delay_ms);
+      base::TimeDelta delay);
 
   const bool tasks_are_slow_;
 
@@ -72,15 +69,8 @@ WorkerPoolTaskRunner::~WorkerPoolTaskRunner() {
 bool WorkerPoolTaskRunner::PostDelayedTask(
     const tracked_objects::Location& from_here,
     const Closure& task,
-    int64 delay_ms) {
-  return PostDelayedTaskAssertZeroDelay(from_here, task, delay_ms);
-}
-
-bool WorkerPoolTaskRunner::PostDelayedTask(
-    const tracked_objects::Location& from_here,
-    const Closure& task,
     TimeDelta delay) {
-  return PostDelayedTask(from_here, task, delay.InMillisecondsRoundedUp());
+  return PostDelayedTaskAssertZeroDelay(from_here, task, delay);
 }
 
 bool WorkerPoolTaskRunner::RunsTasksOnCurrentThread() const {
@@ -90,8 +80,8 @@ bool WorkerPoolTaskRunner::RunsTasksOnCurrentThread() const {
 bool WorkerPoolTaskRunner::PostDelayedTaskAssertZeroDelay(
     const tracked_objects::Location& from_here,
     const Closure& task,
-    int64 delay_ms) {
-  DCHECK_EQ(delay_ms, 0)
+    base::TimeDelta delay) {
+  DCHECK_EQ(delay.InMillisecondsRoundedUp(), 0)
       << "WorkerPoolTaskRunner does not support non-zero delays";
   return WorkerPool::PostTask(from_here, task, tasks_are_slow_);
 }
