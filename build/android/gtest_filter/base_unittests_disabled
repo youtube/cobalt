@@ -21,3 +21,5 @@ ProcessUtilTest.FDRemapping
 # New failures on APK
 MessagePumpLibeventTest.DeleteWatcher
 MessagePumpLibeventTest.StopWatcher
+# Flaky?
+ScopedJavaRefTest.RefCounts
