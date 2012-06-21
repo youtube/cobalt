@@ -48,7 +48,8 @@ enum ProcStatsFields {
   VM_RSS            = 23,  // Resident Set Size in pages.
 };
 
-// Reads /proc/<pid>/stat into |buffer|. Returns true if successful.
+// Reads /proc/<pid>/stat into |buffer|. Returns true if the file can be read
+// and is non-empty.
 bool ReadProcStats(pid_t pid, std::string* buffer) {
   buffer->clear();
   // Synchronously reading files in /proc is safe.
@@ -59,7 +60,7 @@ bool ReadProcStats(pid_t pid, std::string* buffer) {
     DLOG(WARNING) << "Failed to get process stats.";
     return false;
   }
-  return true;
+  return !buffer->empty();
 }
 
 // Takes |stats_data| and populates |proc_stats| with the values split by
