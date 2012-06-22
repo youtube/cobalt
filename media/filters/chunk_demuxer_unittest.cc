@@ -1623,10 +1623,10 @@ TEST_F(ChunkDemuxerTest, TestDifferentStreamTimecodes) {
 }
 
 TEST_F(ChunkDemuxerTest, TestCodecPrefixMatching) {
-  ChunkDemuxer::Status expected = ChunkDemuxer::kOk;
+  ChunkDemuxer::Status expected = ChunkDemuxer::kNotSupported;
 
-#if !defined(USE_PROPRIETARY_CODECS)
-  expected = ChunkDemuxer::kNotSupported;
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
+  expected = ChunkDemuxer::kOk;
 #endif
 
   std::vector<std::string> codecs;
