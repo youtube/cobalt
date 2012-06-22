@@ -38,6 +38,9 @@ static const CertStatus CERT_STATUS_WEAK_KEY                   = 1 << 11;
 static const CertStatus CERT_STATUS_IS_EV                      = 1 << 16;
 static const CertStatus CERT_STATUS_REV_CHECKING_ENABLED       = 1 << 17;
 static const CertStatus CERT_STATUS_IS_DNSSEC                  = 1 << 18;
+#if defined(__LB_SHELL__)
+static const CertStatus CERT_STATUS_CONFIRM_SAFE               = 1 << 19;
+#endif
 
 // Returns true if the specified cert status has an error set.
 static inline bool IsCertStatusError(CertStatus status) {
