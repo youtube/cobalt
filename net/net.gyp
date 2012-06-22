@@ -1251,6 +1251,7 @@
         'tools/dump_cache/url_utilities.cc',
         'tools/dump_cache/url_utilities_unittest.cc',
         'udp/udp_socket_unittest.cc',
+        'url_request/url_fetcher_impl_unittest.cc',
         'url_request/url_request_context_builder_unittest.cc',
         'url_request/url_request_job_factory_unittest.cc',
         'url_request/url_request_job_unittest.cc',
