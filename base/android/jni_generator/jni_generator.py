@@ -43,7 +43,6 @@ class Param(object):
   def __init__(self, **kwargs):
     self.datatype = kwargs['datatype']
     self.name = kwargs['name']
-    self.cpp_class_name = kwargs.get('cpp_class_name', None)
 
 
 class NativeMethod(object):
@@ -62,10 +61,9 @@ class NativeMethod(object):
         self.params[0].datatype == 'int' and
         self.params[0].name.startswith('native')):
       self.type = 'method'
-      if self.params[0].cpp_class_name:
-        self.p0_type = self.params[0].cpp_class_name
-      else:
-        self.p0_type = self.params[0].name[len('native'):]
+      self.p0_type = self.params[0].name[len('native'):]
+      if kwargs.get('native_class_name'):
+        self.p0_type = kwargs['native_class_name']
     elif self.static:
       self.type = 'function'
     else:
@@ -224,16 +222,13 @@ def ParseParams(params):
   if not params:
     return []
   ret = []
-  re_comment = re.compile(r'.*?\/\* (.*) \*\/')
   for p in [p.strip() for p in params.split(',')]:
     items = p.split(' ')
     if 'final' in items:
       items.remove('final')
-    comment = re.match(re_comment, p)
     param = Param(
         datatype=items[0],
         name=(items[1] if len(items) > 1 else 'p%s' % len(ret)),
-        cpp_class_name=comment.group(1) if comment else None
     )
     ret += [param]
   return ret
@@ -253,6 +248,14 @@ def GetUnknownDatatypes(items):
   return unknown_types
 
 
+def ExtractJNINamespace(contents):
+  re_jni_namespace = re.compile('.*?@JNINamespace\("(.*?)"\)')
+  m = re.findall(re_jni_namespace, contents)
+  if not m:
+    return ''
+  return m[0]
+
+
 def ExtractFullyQualifiedJavaClassName(java_file_name, contents):
   re_package = re.compile('.*?package (.*?);')
   matches = re.findall(re_package, contents)
@@ -266,16 +269,20 @@ def ExtractNatives(contents):
   """Returns a list of dict containing information about a native method."""
   contents = contents.replace('\n', '')
   natives = []
-  re_native = re.compile(r'(@NativeCall(\(\"(.*?)\"\)))?\s*'
-                         '(\w+\s\w+|\w+|\s+)\s*?native (\S*?) (\w+?)\((.*?)\);')
-  matches = re.findall(re_native, contents)
-  for match in matches:
+  re_native = re.compile(r'(@NativeClassQualifiedName'
+                         '\(\"(?P<native_class_name>.*?)\"\))?\s*'
+                         '(@NativeCall(\(\"(?P<java_class_name>.*?)\"\)))?\s*'
+                         '(?P<qualifiers>\w+\s\w+|\w+|\s+)\s*?native '
+                         '(?P<return>\S*?) '
+                         '(?P<name>\w+?)\((?P<params>.*?)\);')
+  for match in re.finditer(re_native, contents):
     native = NativeMethod(
-        static='static' in match[3],
-        java_class_name=match[2],
-        return_type=match[4],
-        name=match[5].replace('native', ''),
-        params=ParseParams(match[6]))
+        static='static' in match.group('qualifiers'),
+        java_class_name=match.group('java_class_name'),
+        native_class_name=match.group('native_class_name'),
+        return_type=match.group('return'),
+        name=match.group('name').replace('native', ''),
+        params=ParseParams(match.group('params')))
     natives += [native]
   return natives
 
@@ -435,10 +442,11 @@ class JNIFromJavaSource(object):
 
   def __init__(self, contents, fully_qualified_class):
     contents = self._RemoveComments(contents)
+    jni_namespace = ExtractJNINamespace(contents)
     natives = ExtractNatives(contents)
     called_by_natives = ExtractCalledByNatives(contents)
     inl_header_file_generator = InlHeaderFileGenerator(
-        '', fully_qualified_class, natives, called_by_natives)
+        jni_namespace, fully_qualified_class, natives, called_by_natives)
     self.content = inl_header_file_generator.GetContent()
 
   def _RemoveComments(self, contents):
@@ -511,20 +519,20 @@ using base::android::ScopedJavaLocalRef;
 namespace {
 $CLASS_PATH_DEFINITIONS
 }  // namespace
+
+$OPEN_NAMESPACE
 $FORWARD_DECLARATIONS
 
 // Step 2: method stubs.
 $METHOD_STUBS
 
 // Step 3: GetMethodIDs and RegisterNatives.
-$OPEN_NAMESPACE
-
 static void GetMethodIDsImpl(JNIEnv* env) {
 $GET_METHOD_IDS_IMPL
 }
 
 static bool RegisterNativesImpl(JNIEnv* env) {
-  ${NAMESPACE}GetMethodIDsImpl(env);
+  GetMethodIDsImpl(env);
 $REGISTER_NATIVES_IMPL
   return true;
 }
@@ -627,6 +635,11 @@ ${KMETHODS}
       return '}  // namespace %s\n' % self.namespace
     return ''
 
+  def GetStaticKeywordForForwardDeclaration(self):
+    if self.namespace:
+      return ''
+    return 'static '
+
   def GetJNIFirstParam(self, native):
     ret = []
     if native.type == 'method':
@@ -659,9 +672,11 @@ ${KMETHODS}
 
   def GetForwardDeclaration(self, native):
     template = Template("""
-static ${RETURN} ${NAME}(JNIEnv* env, ${PARAMS});
+${STATIC}${RETURN} ${NAME}(JNIEnv* env, ${PARAMS});
 """)
-    values = {'RETURN': JavaDataTypeToC(native.return_type),
+    values = {'STATIC': self.GetStaticKeywordForForwardDeclaration(),
+              'NAMESPACE': self.GetNamespaceString(),
+              'RETURN': JavaDataTypeToC(native.return_type),
               'NAME': native.name,
               'PARAMS': self.GetParamsInDeclaration(native)}
     return template.substitute(values)
@@ -689,6 +704,7 @@ static ${RETURN} ${NAME}(JNIEnv* env, ${PARAMS_IN_DECLARATION}) {
     values = {
         'RETURN': return_type,
         'SCOPED_RETURN': scoped_return_type,
+        'NAMESPACE': self.GetNamespaceString(),
         'NAME': native.name,
         'PARAMS_IN_DECLARATION': self.GetParamsInDeclaration(native),
         'PARAM0_NAME': native.params[0].name,
@@ -862,7 +878,9 @@ def WrapOutput(output):
   ret = []
   for line in output.splitlines():
     if len(line) < 80:
-      ret.append(line.rstrip())
+      stripped = line.rstrip()
+      if len(ret) == 0 or len(ret[-1]) or len(stripped):
+        ret.append(stripped)
     else:
       first_line_indent = ' ' * (len(line) - len(line.lstrip()))
       subsequent_indent =  first_line_indent + ' ' * 4

@@ -12,6 +12,11 @@ package org.chromium.example.jni_generator;
 //   * Compile sample_for_tests.cc using the generated header file.
 //   * link a native executable to prove the generated header + cc file are self-contained.
 // All comments are informational only, and are ignored by the jni generator.
+//
+// This JNINamespace annotation indicates that all native methods should be
+// generated inside this namespace, including the native class that this
+// object binds to.
+@JNINamespace("content")
 class SampleForTests {
   // Classes can store their C++ pointer counter part as an int that is normally initialized by
   // calling out a nativeInit() function.
@@ -127,8 +132,9 @@ class SampleForTests {
   private native int nativeMethod(int nativeCPPClass);
 
   // Similar to nativeMethod above, but here the C++ fully qualified class name is taken from the
-  // comment rather than parameter name, which can thus be chosen freely.
-  private native double nativeMethodOtherP0(int nativeCPPClass /* cpp_namespace::CPPClass */);
+  // annotation rather than parameter name, which can thus be chosen freely.
+  @NativeClassQualifiedName("CPPClass::InnerClass")
+  private native double nativeMethodOtherP0(int nativePtr);
 
   // An inner class has some special attributes for annotation.
   class InnerClass {
