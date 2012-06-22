@@ -38,11 +38,11 @@ sudo apt-get update
 # Fix deps
 sudo apt-get -f install
 
-# Install python-pexpect
-sudo apt-get install python-pexpect
+# Install deps
+sudo apt-get -y install python-pexpect ant1.8 xvfb x11-utils
 
 # Install sun-java6 stuff
-sudo apt-get install sun-java6-bin sun-java6-jre sun-java6-jdk
+sudo apt-get -y install sun-java6-bin sun-java6-jre sun-java6-jdk
 
 # Switch version of Java to java-6-sun
 # Sun's java is missing certain Java plugins (e.g. for firefox, mozilla).  These
@@ -69,8 +69,5 @@ then
     exit 1
   fi
 fi
-
-# Install ant 1.8 (default is 1.7).
-sudo apt-get install ant1.8
 
 echo "install-build-deps-android.sh complete."
