@@ -55,7 +55,7 @@ index 1368e2f..9b3a199 100644
  ** How long should we wait before retransmitting the next flight of
  ** the DTLS handshake? Returns SECFailure if not DTLS or not in a
 diff --git a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
-index db9fad3..6780a84 100644
+index db9fad3..cb2906f 100644
 --- a/net/third_party/nss/ssl/ssl3con.c
 +++ b/net/third_party/nss/ssl/ssl3con.c
 @@ -86,6 +86,7 @@ static SECStatus ssl3_SendCertificate(       sslSocket *ss);
@@ -97,7 +97,7 @@ index db9fad3..6780a84 100644
      } while (0);
  
      if (sid_match)
-@@ -5483,6 +5492,26 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
+@@ -5483,6 +5492,27 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
  
      ss->ssl3.hs.isResuming = PR_FALSE;
      ss->ssl3.hs.ws         = wait_server_cert;
@@ -117,14 +117,15 @@ index db9fad3..6780a84 100644
 +	    ss->ssl3.channelIDPub == NULL ||
 +	    ss->ssl3.channelID == NULL) {
 +	    PORT_SetError(SSL_ERROR_GET_CHANNEL_ID_FAILED);
-+	    goto loser;
++	    desc = internal_error;
++	    goto alert_loser;
 +	}
 +    }
 +
      return SECSuccess;
  
  alert_loser:
-@@ -6239,6 +6268,10 @@ ssl3_SendClientSecondRound(sslSocket *ss)
+@@ -6239,6 +6269,10 @@ ssl3_SendClientSecondRound(sslSocket *ss)
  	    goto loser;	/* err code was set. */
  	}
      }
@@ -135,7 +136,7 @@ index db9fad3..6780a84 100644
  
      rv = ssl3_SendFinished(ss, 0);
      if (rv != SECSuccess) {
-@@ -8855,6 +8888,164 @@ ssl3_SendNextProto(sslSocket *ss)
+@@ -8855,6 +8889,164 @@ ssl3_SendNextProto(sslSocket *ss)
      return rv;
  }
  
@@ -300,7 +301,7 @@ index db9fad3..6780a84 100644
  /* called from ssl3_HandleServerHelloDone
   *             ssl3_HandleClientHello
   *             ssl3_HandleFinished
-@@ -9105,11 +9296,16 @@ ssl3_HandleFinished(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
+@@ -9105,11 +9297,16 @@ ssl3_HandleFinished(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
  	    flags = ssl_SEND_FLAG_FORCE_INTO_BUFFER;
  	}
  
@@ -321,7 +322,7 @@ index db9fad3..6780a84 100644
  	}
  
  	if (IS_DTLS(ss)) {
-@@ -10376,6 +10572,11 @@ ssl3_DestroySSL3Info(sslSocket *ss)
+@@ -10376,6 +10573,11 @@ ssl3_DestroySSL3Info(sslSocket *ss)
  	ssl_FreePlatformKey(ss->ssl3.platformClientKey);
  #endif /* NSS_PLATFORM_CLIENT_AUTH */
  

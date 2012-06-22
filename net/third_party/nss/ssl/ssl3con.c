@@ -5509,7 +5509,8 @@ winner:
 	    ss->ssl3.channelIDPub == NULL ||
 	    ss->ssl3.channelID == NULL) {
 	    PORT_SetError(SSL_ERROR_GET_CHANNEL_ID_FAILED);
-	    goto loser;
+	    desc = internal_error;
+	    goto alert_loser;
 	}
     }
 
