@@ -127,7 +127,6 @@ class URLFetcherTest : public testing::Test,
   // we assume that the current thread is the IO thread where the URLFetcher
   // dispatches its requests to.  When we wish to simulate being used from
   // a UI thread, we dispatch a worker thread to do so.
-  MessageLoopForIO io_loop_;
   scoped_refptr<base::MessageLoopProxy> io_message_loop_proxy_;
 
   URLFetcherImpl* fetcher_;
