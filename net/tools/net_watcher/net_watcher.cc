@@ -165,9 +165,10 @@ int main(int argc, char* argv[]) {
           network_loop.message_loop_proxy(),
           &network_loop));
 
-  network_change_notifier->AddIPAddressObserver(&net_watcher);
-  network_change_notifier->AddConnectionTypeObserver(&net_watcher);
-  network_change_notifier->AddDNSObserver(&net_watcher);
+  // Uses |network_change_notifier|.
+  net::NetworkChangeNotifier::AddIPAddressObserver(&net_watcher);
+  net::NetworkChangeNotifier::AddConnectionTypeObserver(&net_watcher);
+  net::NetworkChangeNotifier::AddDNSObserver(&net_watcher);
 
   proxy_config_service->AddObserver(&net_watcher);
 
@@ -197,9 +198,10 @@ int main(int argc, char* argv[]) {
 
   proxy_config_service->RemoveObserver(&net_watcher);
 
-  network_change_notifier->RemoveDNSObserver(&net_watcher);
-  network_change_notifier->RemoveConnectionTypeObserver(&net_watcher);
-  network_change_notifier->RemoveIPAddressObserver(&net_watcher);
+  // Uses |network_change_notifier|.
+  net::NetworkChangeNotifier::RemoveDNSObserver(&net_watcher);
+  net::NetworkChangeNotifier::RemoveConnectionTypeObserver(&net_watcher);
+  net::NetworkChangeNotifier::RemoveIPAddressObserver(&net_watcher);
 
   return 0;
 }
