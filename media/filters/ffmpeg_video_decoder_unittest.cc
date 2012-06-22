@@ -447,10 +447,10 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_WrongKey) {
   EXPECT_CALL(*demuxer_, Read(_))
       .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
 
-#if defined(OS_LINUX)
-  // Using the wrong key on linux doesn't cause an decryption error but actually
-  // attempts to decode the content, however we're unable to distinguish between
-  // the two (see http://crbug.com/124434).
+  // Using the wrong key on some platforms doesn't cause an decryption error but
+  // actually attempts to decode the content, however we're unable to
+  // distinguish between the two (see http://crbug.com/124434).
+#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
   EXPECT_CALL(statistics_cb_, OnStatistics(_));
 #endif
 
