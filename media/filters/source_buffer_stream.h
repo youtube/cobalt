@@ -98,24 +98,39 @@ class MEDIA_EXPORT SourceBufferStream {
       const RangeList::iterator& range_with_new_buffers_itr);
   void ResolveEndOverlap(const RangeList::iterator& range_with_new_buffers_itr);
 
-  // Adds buffers to |track_buffer_| and updates |selected_range_| accordingly.
-  // |range_with_new_buffers_itr| points to the range containing the newly
-  // appended buffers.
-  // |deleted_buffers| contains all the buffers that were deleted as a result
-  // of appending new buffers into |range_with_new_buffers_itr|. |next_buffer|
-  // points to the buffer in |deleted_buffers| that should be returned by the
-  // next call to GetNextBuffer(). Assumes |deleted_buffers| and |next_buffer|
-  // are valid.
+  // This method is a bit tricky to describe. When what would have been the
+  // next buffer returned from |selected_range_| is overlapped by new data,
+  // the |selected_range_| seeks forward to the next keyframe after (or at) the
+  // next buffer timestamp and the overlapped buffers are deleted. But for
+  // smooth playback between the old data to the new data's keyframe, some of
+  // these |deleted_buffers| may be temporarily saved into |track_buffer_|.
+  // UpdateTrackBuffer() takes these |deleted_buffers| and decides whether it
+  // wants to save any buffers into |track_buffer_|.
   // TODO(vrk): This is a little crazy! Ideas for cleanup in crbug.com/129623.
-  void UpdateTrackBuffer(
-      const RangeList::iterator& range_with_new_buffers_itr,
-      const BufferQueue& deleted_buffers,
-      const BufferQueue::iterator& next_buffer);
+  void UpdateTrackBuffer(const BufferQueue& deleted_buffers);
 
   // Checks to see if |range_with_new_buffers_itr| can be merged with the range
   // next to it, and merges them if so.
   void MergeWithAdjacentRangeIfNecessary(
       const RangeList::iterator& range_with_new_buffers_itr);
+
+  // Helper method that returns the timestamp for the next buffer that
+  // |selected_range_| will return from GetNextBuffer() call, or kNoTimestamp()
+  // if in between seeking (i.e. |selected_range_| is null).
+  base::TimeDelta GetNextBufferTimestamp();
+
+  // Finds the range into which |new_buffers| should be inserted and returns the
+  // iterator pointing to it. Returns |ranges_.end()| if no existing range
+  // should contain |new_buffers|.
+  RangeList::iterator FindExistingRangeFor(const BufferQueue& new_buffers);
+
+  // Inserts |new_range| into |ranges_| preserving sorted order. Returns an
+  // iterator in |ranges_| that points to |new_range|.
+  RangeList::iterator AddToRanges(SourceBufferRange* new_range);
+
+  // Returns an iterator that points to the place in |ranges_| where
+  // |selected_range_| lives.
+  RangeList::iterator GetSelectedRangeItr();
 
   // List of disjoint buffered ranges, ordered by start time.
   RangeList ranges_;
