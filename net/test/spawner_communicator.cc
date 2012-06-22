@@ -165,8 +165,10 @@ void SpawnerCommunicator::SendCommandAndWaitForResultOnIOThread(
 
   // Prepare the URLRequest for sending the command.
   DCHECK(!cur_request_.get());
+  context_.reset(new TestURLRequestContext);
   cur_request_.reset(new URLRequest(GenerateSpawnerCommandURL(command, port_),
-                                    this));
+                                    this,
+                                    context_.get()));
   DCHECK(cur_request_.get());
   int current_request_id = ++next_id_;
   SpawnerRequestData* data = new SpawnerRequestData(current_request_id,
@@ -175,9 +177,6 @@ void SpawnerCommunicator::SendCommandAndWaitForResultOnIOThread(
   DCHECK(data);
   cur_request_->SetUserData(this, data);
 
-  // Build the URLRequest.
-  context_.reset(new TestURLRequestContext);
-  cur_request_->set_context(context_.get());
   if (post_data.empty()) {
     cur_request_->set_method("GET");
   } else {

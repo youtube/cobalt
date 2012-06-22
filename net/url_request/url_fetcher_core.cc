@@ -662,7 +662,10 @@ void URLFetcherCore::StartURLRequest() {
 
   g_registry.Get().AddURLFetcherCore(this);
   current_response_bytes_ = 0;
-  request_.reset(new URLRequest(original_url_, this));
+  request_.reset(new URLRequest(
+      original_url_,
+      this,
+      request_context_getter_->GetURLRequestContext()));
   request_->set_stack_trace(stack_trace_);
   int flags = request_->load_flags() | load_flags_;
   if (!g_interception_enabled)
@@ -671,7 +674,6 @@ void URLFetcherCore::StartURLRequest() {
   if (is_chunked_upload_)
     request_->EnableChunkedUpload();
   request_->set_load_flags(flags);
-  request_->set_context(request_context_getter_->GetURLRequestContext());
   request_->set_referrer(referrer_);
   request_->set_first_party_for_cookies(first_party_for_cookies_.is_empty() ?
       original_url_ : first_party_for_cookies_);

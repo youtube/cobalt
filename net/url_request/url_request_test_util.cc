@@ -112,14 +112,13 @@ void TestURLRequestContext::Init() {
     context_storage_.set_job_factory(new net::URLRequestJobFactory);
 }
 
-TestURLRequest::TestURLRequest(const GURL& url, Delegate* delegate)
-    : net::URLRequest(url, delegate),
-      context_(new TestURLRequestContext) {
-  set_context(context_.get());
+TestURLRequest::TestURLRequest(const GURL& url,
+                               Delegate* delegate,
+                               TestURLRequestContext* context)
+    : net::URLRequest(url, delegate, context) {
 }
 
 TestURLRequest::~TestURLRequest() {
-  set_context(NULL);
 }
 
 TestURLRequestContextGetter::TestURLRequestContextGetter(
