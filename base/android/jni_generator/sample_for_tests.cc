@@ -11,8 +11,17 @@
 using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
 
+namespace content {
+
 class CPPClass {
  public:
+  class InnerClass {
+   public:
+    jdouble MethodOtherP0(JNIEnv* env, jobject obj) {
+      return 0.0;
+    }
+  };
+
   void Destroy(JNIEnv* env, jobject obj) {
     delete this;
   }
@@ -26,16 +35,7 @@ class CPPClass {
   }
 };
 
-namespace cpp_namespace {
-
-class CPPClass {
- public:
-  jdouble MethodOtherP0(JNIEnv* env, jobject obj) {
-    return 0.0;
-  }
-};
-
-}  // namespace cpp_namespace
+} // namespace content
 
 #include "jni/sample_for_tests_jni.h"
 
@@ -45,12 +45,12 @@ int main() {
   JNIEnv* env = /* AttachCurrentThread() */ NULL;
 
   // This is how you call a java static method from C++.
-  bool foo = Java_SampleForTests_staticJavaMethod(env);
+  bool foo = content::Java_SampleForTests_staticJavaMethod(env);
 
   // This is how you call a java method from C++. Note that you must have
   // obtained the jobject somehow.
   jobject my_java_object = NULL;
-  int bar = Java_SampleForTests_javaMethod(env, my_java_object, 1, 2);
+  int bar = content::Java_SampleForTests_javaMethod(env, my_java_object, 1, 2);
 
   return 0;
 }
