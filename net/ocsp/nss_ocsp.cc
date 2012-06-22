@@ -366,8 +366,7 @@ class OCSPRequestSession
       g_ocsp_io_loop.Get().AddRequest(this);
     }
 
-    request_ = new net::URLRequest(url_, this);
-    request_->set_context(url_request_context);
+    request_ = new net::URLRequest(url_, this, url_request_context);
     // To meet the privacy requirements of incognito mode.
     request_->set_load_flags(
         net::LOAD_DISABLE_CACHE | net::LOAD_DO_NOT_SAVE_COOKIES |
