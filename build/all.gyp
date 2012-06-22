@@ -227,6 +227,11 @@
             '../webkit/webkit.gyp:test_shell_common',
            ],
         }],
+        ['OS=="linux"', {
+          'dependencies': [
+            '../sandbox/sandbox.gyp:sandbox_linux_unittests',
+          ],
+        }],
         ['disable_nacl==0 and disable_nacl_untrusted==0', {
           'dependencies': [
             # TODO(bbudge): drop this when we have switched the NaCl proxy to IPC.
