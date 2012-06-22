@@ -758,11 +758,6 @@
     # Set to 1 to compile with the built in pdf viewer.
     'internal_pdf%': 0,
 
-    # This allows to use libcros from the current system, ie. /usr/lib/
-    # The cros_api will be pulled in as a static library, and all headers
-    # from the system include dirs.
-    'system_libcros%': 0,
-
     # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
     # so Cocoa is happy (http://crbug.com/20441).
     'locales': [
