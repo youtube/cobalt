@@ -517,12 +517,10 @@ void OCSPIOLoop::RemoveRequest(OCSPRequestSession* request) {
 }
 
 void OCSPIOLoop::CancelAllRequests() {
-  std::set<OCSPRequestSession*> requests;
-  requests.swap(requests_);
-
-  for (std::set<OCSPRequestSession*>::iterator it = requests.begin();
-       it != requests.end(); ++it)
-    (*it)->CancelURLRequest();
+  // CancelURLRequest() always removes the request from the requests_
+  // set synchronously.
+  while (!requests_.empty())
+    (*requests_.begin())->CancelURLRequest();
 }
 
 OCSPNSSInitialization::OCSPNSSInitialization() {
@@ -578,10 +576,11 @@ SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
   net::URLRequestContext* request_context = g_request_context;
   pthread_mutex_unlock(&g_request_context_lock);
   if (request_context == NULL) {
-    LOG(ERROR) << "No URLRequestContext for OCSP handler.";
-    // The application failed to call SetURLRequestContextForOCSP, so we
-    // can't create and use net::URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an
-    // accurate error code for this error condition, but is close enough.
+    LOG(ERROR) << "No URLRequestContext for NSS HTTP handler. host: " << host;
+    // The application failed to call SetURLRequestContextForNSSHttpIO or
+    // has already called ShutdownNSSHttpIO, so we can't create and use
+    // net::URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an accurate error
+    // code for these error conditions, but is close enough.
     PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
     return SECFailure;
   }
