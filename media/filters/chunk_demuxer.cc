@@ -12,7 +12,7 @@
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/chunk_demuxer_client.h"
-#if defined(USE_PROPRIETARY_CODECS)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
 #include "media/mp4/mp4_stream_parser.h"
 #endif
 #include "media/webm/webm_stream_parser.h"
@@ -52,7 +52,7 @@ static StreamParser* BuildWebMParser() {
   return new WebMStreamParser();
 }
 
-#if defined(USE_PROPRIETARY_CODECS)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
 static const CodecInfo kH264CodecInfo = { "avc1.*", DemuxerStream::VIDEO };
 static const CodecInfo kAACCodecInfo = { "mp4a.40.*", DemuxerStream::AUDIO };
 
@@ -75,7 +75,7 @@ static StreamParser* BuildMP4Parser() {
 static const SupportedTypeInfo kSupportedTypeInfo[] = {
   { "video/webm", &BuildWebMParser, kVideoWebMCodecs },
   { "audio/webm", &BuildWebMParser, kAudioWebMCodecs },
-#if defined(USE_PROPRIETARY_CODECS)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
   { "video/mp4", &BuildMP4Parser, kVideoMP4Codecs },
   { "audio/mp4", &BuildMP4Parser, kAudioMP4Codecs },
 #endif
