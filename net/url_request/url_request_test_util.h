@@ -94,11 +94,9 @@ class TestURLRequestContextGetter : public net::URLRequestContextGetter {
 
 class TestURLRequest : public net::URLRequest {
  public:
-  TestURLRequest(const GURL& url, Delegate* delegate);
+  TestURLRequest(
+      const GURL& url, Delegate* delegate, TestURLRequestContext* context);
   virtual ~TestURLRequest();
-
- private:
-  const scoped_ptr<net::URLRequestContext> context_;
 };
 
 //-----------------------------------------------------------------------------
