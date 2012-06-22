@@ -48,7 +48,7 @@
       ],
     }],
     ['<(chromeos)!=1 or >(nacl_untrusted_build)==1', {
-      'sources/': [ ['exclude', '_chromeos\\.(h|cc)$'] ]
+      'sources/': [ ['exclude', '_chromeos(_unittest)?\\.(h|cc)$'] ]
     }],
     ['>(nacl_untrusted_build)==0', {
       'sources/': [
@@ -62,7 +62,7 @@
     }],
     ['<(use_x11)!=1 or >(nacl_untrusted_build)==1', {
       'sources/': [
-        ['exclude', '_(chromeos|x|x11)(_unittest)?\\.(h|cc)$'],
+        ['exclude', '_(x|x11)(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)x11_[^/]*\\.(h|cc)$'],
       ],
     }],
