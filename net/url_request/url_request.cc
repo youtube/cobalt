@@ -132,8 +132,12 @@ void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
 ///////////////////////////////////////////////////////////////////////////////
 // URLRequest
 
-URLRequest::URLRequest(const GURL& url, Delegate* delegate)
-    : context_(NULL),
+URLRequest::URLRequest(const GURL& url,
+                       Delegate* delegate,
+                       const URLRequestContext* context)
+    : context_(context),
+      net_log_(BoundNetLog::Make(context->net_log(),
+                                 NetLog::SOURCE_URL_REQUEST)),
       url_chain_(1, url),
       method_("GET"),
       referrer_policy_(CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE),
@@ -157,6 +161,11 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
+
+  CHECK(context);
+  context->url_requests()->insert(this);
+
+  net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE);
 }
 
 URLRequest::~URLRequest() {
@@ -171,7 +180,15 @@ URLRequest::~URLRequest() {
   if (job_)
     OrphanJob();
 
-  set_context(NULL);
+  int deleted = context_->url_requests()->erase(this);
+  CHECK_EQ(1, deleted);
+
+  int net_error = OK;
+  // Log error only on failure, not cancellation, as even successful requests
+  // are "cancelled" on destruction.
+  if (status_.status() == URLRequestStatus::FAILED)
+    net_error = status_.error();
+  net_log_.EndEventWithNetErrorCode(NetLog::TYPE_REQUEST_ALIVE, net_error);
 }
 
 // static
@@ -725,42 +742,6 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
 
 const URLRequestContext* URLRequest::context() const {
   return context_;
-}
-
-void URLRequest::set_context(const URLRequestContext* context) {
-  // Update the URLRequest lists in the URLRequestContext.
-  if (context_) {
-    std::set<const URLRequest*>* url_requests = context_->url_requests();
-    CHECK(ContainsKey(*url_requests, this));
-    url_requests->erase(this);
-  }
-
-  if (context) {
-    std::set<const URLRequest*>* url_requests = context->url_requests();
-    CHECK(!ContainsKey(*url_requests, this));
-    url_requests->insert(this);
-  }
-
-  const URLRequestContext* prev_context = context_;
-
-  context_ = context;
-
-  // If the context this request belongs to has changed, update the tracker.
-  if (prev_context != context) {
-    int net_error = OK;
-    // Log error only on failure, not cancellation, as even successful requests
-    // are "cancelled" on destruction.
-    if (status_.status() == URLRequestStatus::FAILED)
-      net_error = status_.error();
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_REQUEST_ALIVE, net_error);
-    net_log_ = BoundNetLog();
-
-    if (context) {
-      net_log_ = BoundNetLog::Make(context->net_log(),
-                                   NetLog::SOURCE_URL_REQUEST);
-      net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE);
-    }
-  }
 }
 
 int64 URLRequest::GetExpectedContentSize() const {

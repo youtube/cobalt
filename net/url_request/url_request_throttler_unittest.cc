@@ -167,7 +167,7 @@ struct GurlAndString {
 
 class URLRequestThrottlerEntryTest : public testing::Test {
  protected:
-  URLRequestThrottlerEntryTest() : request_(GURL(), NULL) {
+  URLRequestThrottlerEntryTest() : request_(GURL(), NULL, &context_) {
   }
 
   virtual void SetUp();
@@ -183,6 +183,7 @@ class URLRequestThrottlerEntryTest : public testing::Test {
   std::map<std::string, Histogram::SampleSet> original_samples_;
   std::map<std::string, Histogram::SampleSet> samples_;
 
+  TestURLRequestContext context_;
   TestURLRequest request_;
 };
 
@@ -379,13 +380,15 @@ TEST_F(URLRequestThrottlerEntryTest, ExplicitUserRequest) {
 class URLRequestThrottlerManagerTest : public testing::Test {
  protected:
   URLRequestThrottlerManagerTest()
-      : request_(GURL(), NULL) {
+      : request_(GURL(), NULL, &context_) {
   }
 
   virtual void SetUp() {
     request_.set_load_flags(0);
   }
 
+  // context_ must be declared before request_.
+  TestURLRequestContext context_;
   TestURLRequest request_;
 };
 

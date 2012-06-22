@@ -2768,8 +2768,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectGetRequest) {
   TestDelegate d;
   {
     SpdyURLRequestContext spdy_url_request_context;
-    net::URLRequest r(GURL("http://www.google.com/"), &d);
-    r.set_context(&spdy_url_request_context);
+    net::URLRequest r(
+        GURL("http://www.google.com/"), &d, &spdy_url_request_context);
     spdy_url_request_context.socket_factory().
         AddSocketDataProvider(data.get());
     spdy_url_request_context.socket_factory().
@@ -3026,8 +3026,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectServerPush) {
   TestDelegate d2;
   SpdyURLRequestContext spdy_url_request_context;
   {
-    net::URLRequest r(GURL("http://www.google.com/"), &d);
-    r.set_context(&spdy_url_request_context);
+    net::URLRequest r(
+        GURL("http://www.google.com/"), &d, &spdy_url_request_context);
     spdy_url_request_context.socket_factory().
         AddSocketDataProvider(data.get());
 
@@ -3038,8 +3038,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectServerPush) {
     std::string contents("hello!");
     EXPECT_EQ(contents, d.data_received());
 
-    net::URLRequest r2(GURL("http://www.google.com/foo.dat"), &d2);
-    r2.set_context(&spdy_url_request_context);
+    net::URLRequest r2(
+        GURL("http://www.google.com/foo.dat"), &d2, &spdy_url_request_context);
     spdy_url_request_context.socket_factory().
         AddSocketDataProvider(data2.get());
 

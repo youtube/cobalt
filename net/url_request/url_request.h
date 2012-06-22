@@ -304,7 +304,9 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   };
 
   // Initialize an URL request.
-  URLRequest(const GURL& url, Delegate* delegate);
+  URLRequest(const GURL& url,
+             Delegate* delegate,
+             const URLRequestContext* context);
 
   // If destroyed after Start() has been called but while IO is pending,
   // then the request will be effectively canceled and the delegate
@@ -590,7 +592,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
 
   // Used to specify the context (cookie store, cache) for this request.
   const URLRequestContext* context() const;
-  void set_context(const URLRequestContext* context);
 
   const BoundNetLog& net_log() const { return net_log_; }
 

@@ -124,7 +124,7 @@ class Server : public DiscreteTimeSimulation::Actor {
         num_current_tick_queries_(0),
         num_overloaded_ticks_(0),
         max_experienced_queries_per_tick_(0),
-        mock_request_(GURL(), NULL) {
+        mock_request_(GURL(), NULL, &context_) {
   }
 
   void SetDowntime(const TimeTicks& start_time, const TimeDelta& duration) {
@@ -287,6 +287,8 @@ class Server : public DiscreteTimeSimulation::Actor {
   int num_overloaded_ticks_;
   int max_experienced_queries_per_tick_;
   std::vector<int> requests_per_tick_;
+
+  TestURLRequestContext context_;
   TestURLRequest mock_request_;
 
   DISALLOW_COPY_AND_ASSIGN(Server);
