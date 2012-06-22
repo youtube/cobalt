@@ -606,18 +606,20 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     }
 
     GetCertChainInfo(ctx.get(), verify_result);
-    if (IsCertStatusError(verify_result->cert_status))
-      return MapCertStatusToNetError(verify_result->cert_status);
 #if defined(__LB_SHELL__)
     // For leanback, we'd like to make sure that Google is in the cert chain.
     for (OSCertHandles::const_iterator it = intermediate_ca_certs_.begin();
         it != intermediate_ca_certs_.end(); ++it) {
       if (ConfirmCertificate((*it)->sha1_hash)) {
-        verify_result->cert_status = CERT_STATUS_CONFIRM_SAFE;
+        // Confirm that this certification is safe for leanback.
+        verify_result->cert_status |= CERT_STATUS_CONFIRM_SAFE;
         break;
       }
     }
 #endif
+    if (IsCertStatusError(verify_result->cert_status))
+      return MapCertStatusToNetError(verify_result->cert_status);
+
     AppendPublicKeyHashes(ctx.get(), &verify_result->public_key_hashes);
   }
 
