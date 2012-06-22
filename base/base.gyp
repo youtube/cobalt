@@ -440,6 +440,7 @@
         'property_bag_unittest.cc',
         'rand_util_unittest.cc',
         'scoped_native_library_unittest.cc',
+        'scoped_observer.h',
         'scoped_temp_dir_unittest.cc',
         'sha1_unittest.cc',
         'shared_memory_unittest.cc',
