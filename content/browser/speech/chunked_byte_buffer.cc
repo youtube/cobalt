@@ -38,7 +38,6 @@ ChunkedByteBuffer::~ChunkedByteBuffer() {
 }
 
 void ChunkedByteBuffer::Append(const uint8* start, size_t length) {
-  DCHECK(length > 0);
   size_t remaining_bytes = length;
   const uint8* next_data = start;
 
