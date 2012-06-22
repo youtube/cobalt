@@ -1120,6 +1120,89 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenAppend) {
   CheckExpectedBuffers(4, 5);
 }
 
+// This test covers the case where new buffers start-overlap a range whose next
+// buffer is not buffered.
+TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenStartOverlap) {
+  // Append 10 buffers at positions 0 through 9 and exhaust the buffers.
+  AppendBuffers(0, 10, &kDataA);
+  CheckExpectedBuffers(0, 9, &kDataA);
+
+  // Next buffer is at position 10, so should not be able to fulfill request.
+  CheckNoNextBuffer();
+
+  // Append 6 buffers at positons 5 through 10. This is to test that doing a
+  // start-overlap successfully fulfills the read at position 10, even though
+  // position 10 was unbuffered.
+  AppendBuffers(5, 6, &kDataB);
+  CheckExpectedBuffers(10, 10, &kDataB);
+
+  // Then add 5 buffers from positions 11 though 15.
+  AppendBuffers(11, 5, &kDataB);
+
+  // Check the next 4 buffers are correct, which also effectively seeks to
+  // position 15.
+  CheckExpectedBuffers(11, 14, &kDataB);
+
+  // Replace the next buffer at position 15 with another start overlap.
+  AppendBuffers(15, 2, &kDataA);
+  CheckExpectedBuffers(15, 16, &kDataA);
+}
+
+// This test covers the case where new buffers completely overlap a range
+// whose next buffer is not buffered.
+TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenCompeteOverlap) {
+  // Append 5 buffers at positions 10 through 14 and exhaust the buffers.
+  AppendBuffers(10, 5, &kDataA);
+  CheckExpectedBuffers(10, 14, &kDataA);
+
+  // Next buffer is at position 15, so should not be able to fulfill request.
+  CheckNoNextBuffer();
+
+  // Do a complete overlap and test that this successfully fulfills the read
+  // at position 15.
+  AppendBuffers(5, 11, &kDataB);
+  CheckExpectedBuffers(15, 15, &kDataB);
+
+  // Then add 5 buffers from positions 16 though 20.
+  AppendBuffers(16, 5, &kDataB);
+
+  // Check the next 4 buffers are correct, which also effectively seeks to
+  // position 20.
+  CheckExpectedBuffers(16, 19, &kDataB);
+
+  // Do a complete overlap and replace the buffer at position 20.
+  AppendBuffers(0, 21, &kDataA);
+  CheckExpectedBuffers(20, 20, &kDataA);
+}
+
+// This test covers the case where a range is stalled waiting for its next
+// buffer, then an end-overlap causes the end of the range to be deleted.
+TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenEndOverlap) {
+  // Append 5 buffers at positions 10 through 14 and exhaust the buffers.
+  AppendBuffers(10, 5, &kDataA);
+  CheckExpectedBuffers(10, 14, &kDataA);
+  CheckExpectedRanges("{ [10,14) }");
+
+  // Next buffer is at position 15, so should not be able to fulfill request.
+  CheckNoNextBuffer();
+
+  // Do an end overlap that causes the latter half of the range to be deleted.
+  AppendBuffers(5, 6, &kDataB);
+  CheckNoNextBuffer();
+  CheckExpectedRanges("{ [5,10) }");
+
+  // Fill in the gap. Getting the next buffer should still stall at position 15.
+  for (int i = 11; i <= 14; i++) {
+    AppendBuffers(i, 1, &kDataB);
+    CheckNoNextBuffer();
+  }
+
+  // Append the buffer at position 15 and check to make sure all is correct.
+  AppendBuffers(15, 1);
+  CheckExpectedBuffers(15, 15);
+  CheckExpectedRanges("{ [5,15) }");
+}
+
 // This test is testing the "next buffer" logic after a complete overlap. In
 // this scenario, when the track buffer is exhausted, there is no buffered data
 // to fulfill the request. The SourceBufferStream should be able to fulfill the
@@ -1155,5 +1238,8 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_NoSeek) {
   // Should receive buffers from the start without needing to seek.
   CheckExpectedBuffers(5, 5);
 }
+
+// TODO(vrk): Add unit tests where keyframes are unaligned between streams.
+// (crbug.com/133557)
 
 }  // namespace media
