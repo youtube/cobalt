@@ -328,6 +328,8 @@ def _RunATestSuite(options):
 
   if not attached_devices:
     logging.critical('A device must be attached and online.')
+    if options.annotate:
+      print '@@@STEP_FAILURE@@@'
     return 1
 
   if (len(attached_devices) > 1 and options.test_suite and
