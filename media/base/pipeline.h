@@ -288,6 +288,8 @@ class MEDIA_EXPORT Pipeline
   // DataSourceHost (by way of DemuxerHost) implementation.
   virtual void SetTotalBytes(int64 total_bytes) OVERRIDE;
   virtual void AddBufferedByteRange(int64 start, int64 end) OVERRIDE;
+  virtual void AddBufferedTimeRange(base::TimeDelta start,
+                                    base::TimeDelta end) OVERRIDE;
 
   // DemuxerHost implementaion.
   virtual void SetDuration(base::TimeDelta duration) OVERRIDE;
@@ -460,6 +462,7 @@ class MEDIA_EXPORT Pipeline
 
   // Amount of available buffered data.  Set by filters.
   Ranges<int64> buffered_byte_ranges_;
+  Ranges<base::TimeDelta> buffered_time_ranges_;
 
   // True when AddBufferedByteRange() has been called more recently than
   // DidLoadingProgress().

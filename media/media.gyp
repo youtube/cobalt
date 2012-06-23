@@ -179,6 +179,7 @@
         'base/pipeline.h',
         'base/pipeline_status.cc',
         'base/pipeline_status.h',
+        'base/ranges.cc',
         'base/ranges.h',
         'base/seekable_buffer.cc',
         'base/seekable_buffer.h',

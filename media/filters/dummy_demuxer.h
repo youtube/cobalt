@@ -28,7 +28,7 @@ class DummyDemuxerStream : public DemuxerStream {
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
-
+  virtual Ranges<base::TimeDelta> GetBufferedRanges() OVERRIDE;
  protected:
   virtual ~DummyDemuxerStream();
 
