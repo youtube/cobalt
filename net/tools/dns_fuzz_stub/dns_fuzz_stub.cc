@@ -24,8 +24,16 @@
 
 namespace {
 
-void Crash(void) {
-  int* p = NULL;
+void CrashStackBufferOverflow(void) {
+  // Cause ASAN to detect an out-of-bounds array access
+  int a[1];
+  int i = 1;
+  a[i] = 0;
+}
+
+void CrashNullPointerDereference(void) {
+  // Cause the program to segfault with a NULL pointer dereference
+  int *p = NULL;
   *p = 0;
 }
 
@@ -170,7 +178,9 @@ bool ReadAndRunTestCase(const char* filename) {
 
   if (crash_test) {
     LOG(INFO) << "Crashing.";
-    Crash();
+    CrashStackBufferOverflow();
+    // if we're not running under ASAN, that might not have worked
+    CrashNullPointerDereference();
     NOTREACHED();
     return true;
   }
