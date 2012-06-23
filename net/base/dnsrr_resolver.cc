@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -179,6 +179,10 @@ class RRResolverWorker {
 #if defined(OS_ANDROID)
 
   void Run() {
+    if (HandleTestCases()) {
+      Finish();
+      return;
+    }
     NOTIMPLEMENTED();
   }
 
@@ -491,7 +495,6 @@ bool RRResponse::ParseFromResponse(const uint8* p, unsigned len,
       signatures.push_back(std::string(rrdata.data(), rrdata.size()));
     }
   }
-
   return true;
 }
 #endif  // defined(OS_POSIX) && !defined(OS_ANDROID)
