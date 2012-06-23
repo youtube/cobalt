@@ -1972,6 +1972,8 @@ ScopedPortException::~ScopedPortException() {
     NOTREACHED();
 }
 
+namespace {
+
 enum IPv6SupportStatus {
   IPV6_CANNOT_CREATE_SOCKETS,
   IPV6_CAN_CREATE_SOCKETS,
@@ -1982,7 +1984,7 @@ enum IPv6SupportStatus {
   IPV6_SUPPORT_MAX  // Bounding values for enumeration.
 };
 
-static void IPv6SupportResults(IPv6SupportStatus result) {
+void IPv6SupportResults(IPv6SupportStatus result) {
   static bool run_once = false;
   if (!run_once) {
     run_once = true;
@@ -1993,6 +1995,8 @@ static void IPv6SupportResults(IPv6SupportStatus result) {
   }
 }
 
+}  // namespace
+
 // TODO(jar): The following is a simple estimate of IPv6 support.  We may need
 // to do a test resolution, and a test connection, to REALLY verify support.
 // static
@@ -2002,8 +2006,6 @@ bool IPv6Supported() {
   // Another approach is implementing the similar feature by
   // java.net.NetworkInterface through JNI.
   NOTIMPLEMENTED();
-  // so we don't get a 'defined but not used' warning/err
-  IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
   return true;
 #elif defined(OS_POSIX)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
