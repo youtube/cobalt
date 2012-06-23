@@ -446,7 +446,7 @@
             'video/capture/video_capture_device_dummy.h',
           ],
         }],
-        ['proprietary_codecs==1', {
+        ['proprietary_codecs==1 or branding=="Chrome"', {
           'sources': [
             'mp4/avc.cc',
             'mp4/avc.h',
@@ -753,7 +753,7 @@
             'base/simd/convert_rgb_to_yuv_unittest.cc',
           ],
         }],
-        ['proprietary_codecs==1', {
+        ['proprietary_codecs==1 or branding=="Chrome"', {
           'sources': [
             'mp4/avc_unittest.cc',
             'mp4/box_reader_unittest.cc',
