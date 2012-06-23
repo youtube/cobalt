@@ -248,6 +248,8 @@ static const char* const common_media_types[] = {
   // WebM.
   "video/webm",
   "audio/webm",
+
+  // Wav.
   "audio/wav",
   "audio/x-wav",
 };
