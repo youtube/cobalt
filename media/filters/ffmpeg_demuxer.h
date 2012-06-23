@@ -84,6 +84,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
+  virtual Ranges<base::TimeDelta> GetBufferedRanges() OVERRIDE;
 
   // Returns elapsed time based on the already queued packets.
   // Used to determine stream duration when it's not known ahead of time.
@@ -115,6 +116,8 @@ class FFmpegDemuxerStream : public DemuxerStream {
   base::TimeDelta duration_;
   bool discontinuous_;
   bool stopped_;
+  base::TimeDelta last_packet_timestamp_;
+  Ranges<base::TimeDelta> buffered_ranges_;
 
   typedef std::deque<scoped_refptr<DecoderBuffer> > BufferQueue;
   BufferQueue buffer_queue_;
@@ -130,7 +133,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // already been demuxed without having the demuxer thread sending the
   // buffers. |lock_| must be acquired before any access to |buffer_queue_|,
   // |read_queue_|, or |stopped_|.
-  base::Lock lock_;
+  mutable base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerStream);
 };
@@ -164,6 +167,10 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   // Provide access to FFmpegDemuxerStream.
   MessageLoop* message_loop();
+
+  // Allow FFmpegDemuxerStream to notify us when there is updated information
+  // about what buffered data is available.
+  void NotifyBufferingChanged();
 
  private:
   // To allow tests access to privates.

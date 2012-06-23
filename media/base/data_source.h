@@ -7,6 +7,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/time.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -19,7 +20,13 @@ class MEDIA_EXPORT DataSourceHost {
   virtual void SetTotalBytes(int64 total_bytes) = 0;
 
   // Notify the host that byte range [start,end] has been buffered.
+  // TODO(fischman): remove this method when demuxing is push-based instead of
+  // pull-based.  http://crbug.com/131444
   virtual void AddBufferedByteRange(int64 start, int64 end) = 0;
+
+  // Notify the host that time range [start,end] has been buffered.
+  virtual void AddBufferedTimeRange(base::TimeDelta start,
+                                    base::TimeDelta end) = 0;
 };
 
 class MEDIA_EXPORT DataSource : public base::RefCountedThreadSafe<DataSource> {

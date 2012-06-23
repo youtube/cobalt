@@ -126,8 +126,7 @@ class ChunkDemuxerTest : public testing::Test {
   }
 
   ChunkDemuxerTest()
-      : buffered_bytes_(0),
-        client_(new MockChunkDemuxerClient()),
+      : client_(new MockChunkDemuxerClient()),
         demuxer_(new ChunkDemuxer(client_.get())) {
   }
 
@@ -237,8 +236,8 @@ class ChunkDemuxerTest : public testing::Test {
   bool AppendData(const std::string& source_id,
                   const uint8* data, size_t length) {
     CHECK(length);
-    EXPECT_CALL(host_, AddBufferedByteRange(_, _)).Times(AnyNumber())
-        .WillRepeatedly(SaveArg<1>(&buffered_bytes_));
+    EXPECT_CALL(host_, AddBufferedTimeRange(_, _)).Times(AnyNumber())
+        .WillRepeatedly(SaveArg<1>(&buffered_time_));
     return demuxer_->AppendData(source_id, data, length);
   }
 
@@ -250,14 +249,14 @@ class ChunkDemuxerTest : public testing::Test {
     const uint8* start = data;
     const uint8* end = data + length;
     while (start < end) {
-      int64 old_buffered_bytes = buffered_bytes_;
+      base::TimeDelta old_buffered_time = buffered_time_;
       size_t append_size = std::min(piece_size,
                                     static_cast<size_t>(end - start));
       if (!AppendData(start, append_size))
         return false;
       start += append_size;
 
-      EXPECT_GE(buffered_bytes_, old_buffered_bytes);
+      EXPECT_GE(buffered_time_, old_buffered_time);
     }
     return true;
   }
@@ -285,11 +284,8 @@ class ChunkDemuxerTest : public testing::Test {
 
   PipelineStatusCB CreateInitDoneCB(const base::TimeDelta& expected_duration,
                                     PipelineStatus expected_status) {
-    if (expected_status == PIPELINE_OK) {
-      if (expected_duration != kInfiniteDuration())
-        EXPECT_CALL(host_, SetTotalBytes(_));
+    if (expected_status == PIPELINE_OK)
       EXPECT_CALL(host_, SetDuration(expected_duration));
-    }
     return CreateInitDoneCB(expected_status);
   }
 
@@ -570,7 +566,7 @@ class ChunkDemuxerTest : public testing::Test {
   }
 
   MockDemuxerHost host_;
-  int64 buffered_bytes_;
+  base::TimeDelta buffered_time_;
 
   scoped_ptr<MockChunkDemuxerClient> client_;
   scoped_refptr<ChunkDemuxer> demuxer_;

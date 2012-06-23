@@ -66,6 +66,7 @@ class FFmpegDemuxerTest : public testing::Test {
 
     EXPECT_CALL(host_, SetTotalBytes(_)).Times(AnyNumber());
     EXPECT_CALL(host_, AddBufferedByteRange(_, _)).Times(AnyNumber());
+    EXPECT_CALL(host_, AddBufferedTimeRange(_, _)).Times(AnyNumber());
 
     CreateDataSource(name, disable_file_size);
     demuxer_ = new FFmpegDemuxer(&message_loop_, data_source_);
