@@ -81,13 +81,6 @@ static const SupportedTypeInfo kSupportedTypeInfo[] = {
 #endif
 };
 
-
-// The fake total size we use for converting times to bytes
-// for AddBufferedByteRange() calls.
-// TODO(acolwell): Remove this once Pipeline accepts buffered times
-// instead of only buffered bytes.
-enum { kFakeTotalBytes = 1000000 };
-
 // Checks to see if the specified |type| and |codecs| list are supported.
 // Returns true if |type| and all codecs listed in |codecs| are supported.
 //         |factory_function| contains a function that can build a StreamParser
@@ -171,9 +164,6 @@ class ChunkDemuxerStream : public DemuxerStream {
   // Returns true if buffers were successfully added.
   bool Append(const StreamParser::BufferQueue& buffers);
 
-  // Returns a list of the buffered time ranges.
-  Ranges<TimeDelta> GetBufferedTime() const;
-
   // Signal to the stream that buffers handed in through subsequent calls to
   // Append() belong to a media segment that starts at |start_timestamp|.
   void OnNewMediaSegment(TimeDelta start_timestamp);
@@ -194,6 +184,7 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
+  virtual Ranges<TimeDelta> GetBufferedRanges() OVERRIDE;
 
  protected:
   virtual ~ChunkDemuxerStream();
@@ -305,7 +296,7 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   return true;
 }
 
-Ranges<TimeDelta> ChunkDemuxerStream::GetBufferedTime() const {
+Ranges<TimeDelta> ChunkDemuxerStream::GetBufferedRanges() {
   base::AutoLock auto_lock(lock_);
   return stream_->GetBufferedTime();
 }
@@ -650,12 +641,12 @@ Ranges<TimeDelta> ChunkDemuxer::GetBufferedRanges(const std::string& id) const {
 
   if (id == source_id_audio_ && id != source_id_video_) {
     // Only include ranges that have been buffered in |audio_|
-    return audio_ ? audio_->GetBufferedTime() : Ranges<TimeDelta>();
+    return audio_ ? audio_->GetBufferedRanges() : Ranges<TimeDelta>();
   }
 
   if (id != source_id_audio_ && id == source_id_video_) {
     // Only include ranges that have been buffered in |video_|
-    return video_ ? video_->GetBufferedTime() : Ranges<TimeDelta>();
+    return video_ ? video_->GetBufferedRanges() : Ranges<TimeDelta>();
   }
 
   return ComputeIntersection();
@@ -668,8 +659,8 @@ Ranges<TimeDelta> ChunkDemuxer::ComputeIntersection() const {
     return Ranges<TimeDelta>();
 
   // Include ranges that have been buffered in both |audio_| and |video_|.
-  Ranges<TimeDelta> audio_ranges = audio_->GetBufferedTime();
-  Ranges<TimeDelta> video_ranges = video_->GetBufferedTime();
+  Ranges<TimeDelta> audio_ranges = audio_->GetBufferedRanges();
+  Ranges<TimeDelta> video_ranges = video_->GetBufferedRanges();
   Ranges<TimeDelta> result = audio_ranges.IntersectionWith(video_ranges);
 
   if (state_ == ENDED && result.size() > 0) {
@@ -744,24 +735,17 @@ bool ChunkDemuxer::AppendData(const std::string& id,
 
     if (duration_ > TimeDelta() && duration_ != kInfiniteDuration()) {
       if (audio_ && !video_) {
-        ranges = audio_->GetBufferedTime();
+        ranges = audio_->GetBufferedRanges();
       } else if (!audio_ && video_) {
-        ranges = video_->GetBufferedTime();
+        ranges = video_->GetBufferedRanges();
       } else {
         ranges = ComputeIntersection();
       }
     }
   }
 
-  DCHECK(!ranges.size() || duration_ > TimeDelta());
-  for (size_t i = 0; i < ranges.size(); ++i) {
-    // Notify the host of 'network activity' because we got data.
-    int64 start =
-        kFakeTotalBytes * ranges.start(i).InSecondsF() / duration_.InSecondsF();
-    int64 end =
-        kFakeTotalBytes * ranges.end(i).InSecondsF() / duration_.InSecondsF();
-    host_->AddBufferedByteRange(start, end);
-  }
+  for (size_t i = 0; i < ranges.size(); ++i)
+    host_->AddBufferedTimeRange(ranges.start(i), ranges.end(i));
 
   if (!cb.is_null())
     cb.Run(PIPELINE_OK);
@@ -929,8 +913,6 @@ void ChunkDemuxer::OnStreamParserInitDone(bool success, TimeDelta duration) {
       (!source_id_video_.empty() && !video_))
     return;
 
-  if (duration_ > TimeDelta() && duration_ != kInfiniteDuration())
-    host_->SetTotalBytes(kFakeTotalBytes);
   host_->SetDuration(duration_);
 
   ChangeState_Locked(INITIALIZED);

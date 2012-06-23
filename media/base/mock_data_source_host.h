@@ -20,6 +20,8 @@ class MockDataSourceHost : public DataSourceHost {
   // DataSourceHost implementation.
   MOCK_METHOD1(SetTotalBytes, void(int64 total_bytes));
   MOCK_METHOD2(AddBufferedByteRange, void(int64 start, int64 end));
+  MOCK_METHOD2(AddBufferedTimeRange, void(base::TimeDelta start,
+                                          base::TimeDelta end));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockDataSourceHost);

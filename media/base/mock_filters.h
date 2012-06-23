@@ -103,6 +103,7 @@ class MockDemuxerStream : public DemuxerStream {
   MOCK_METHOD0(audio_decoder_config, const AudioDecoderConfig&());
   MOCK_METHOD0(video_decoder_config, const VideoDecoderConfig&());
   MOCK_METHOD0(EnableBitstreamConverter, void());
+  MOCK_METHOD0(GetBufferedRanges, Ranges<base::TimeDelta>());
 
  protected:
   virtual ~MockDemuxerStream();

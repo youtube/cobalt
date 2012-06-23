@@ -30,13 +30,15 @@ namespace media {
 //
 // FFmpegDemuxerStream
 //
-FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
-                                         AVStream* stream)
+FFmpegDemuxerStream::FFmpegDemuxerStream(
+    FFmpegDemuxer* demuxer,
+    AVStream* stream)
     : demuxer_(demuxer),
       stream_(stream),
       type_(UNKNOWN),
       discontinuous_(false),
-      stopped_(false) {
+      stopped_(false),
+      last_packet_timestamp_(kNoTimestamp()) {
   DCHECK(demuxer_);
 
   // Determine our media format.
@@ -94,6 +96,14 @@ void FFmpegDemuxerStream::EnqueuePacket(
         stream_->time_base, packet->pts));
     buffer->SetDuration(ConvertStreamTimestamp(
         stream_->time_base, packet->duration));
+    if (buffer->GetTimestamp() != kNoTimestamp() &&
+        last_packet_timestamp_ != kNoTimestamp() &&
+        last_packet_timestamp_ < buffer->GetTimestamp()) {
+      buffered_ranges_.Add(last_packet_timestamp_, buffer->GetTimestamp());
+      demuxer_->message_loop()->PostTask(FROM_HERE, base::Bind(
+          &FFmpegDemuxer::NotifyBufferingChanged, demuxer_));
+    }
+    last_packet_timestamp_ = buffer->GetTimestamp();
   }
 
   buffer_queue_.push_back(buffer);
@@ -106,6 +116,7 @@ void FFmpegDemuxerStream::FlushBuffers() {
   base::AutoLock auto_lock(lock_);
   DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
+  last_packet_timestamp_ = kNoTimestamp();
 }
 
 void FFmpegDemuxerStream::Stop() {
@@ -233,6 +244,11 @@ FFmpegDemuxerStream::~FFmpegDemuxerStream() {
 
 base::TimeDelta FFmpegDemuxerStream::GetElapsedTime() const {
   return ConvertStreamTimestamp(stream_->time_base, stream_->cur_dts);
+}
+
+Ranges<base::TimeDelta> FFmpegDemuxerStream::GetBufferedRanges() {
+  base::AutoLock auto_lock(lock_);
+  return buffered_ranges_;
 }
 
 // static
@@ -705,6 +721,24 @@ int FFmpegDemuxer::WaitForRead() {
 void FFmpegDemuxer::SignalReadCompleted(int size) {
   last_read_bytes_ = size;
   read_event_.Signal();
+}
+
+void FFmpegDemuxer::NotifyBufferingChanged() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  Ranges<base::TimeDelta> buffered;
+  scoped_refptr<DemuxerStream> audio =
+      audio_disabled_ ? NULL : GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video = GetStream(DemuxerStream::VIDEO);
+  if (audio && video) {
+    buffered = audio->GetBufferedRanges().IntersectionWith(
+        video->GetBufferedRanges());
+  } else if (audio) {
+    buffered = audio->GetBufferedRanges();
+  } else if (video) {
+    buffered = video->GetBufferedRanges();
+  }
+  for (size_t i = 0; i < buffered.size(); ++i)
+    host_->AddBufferedTimeRange(buffered.start(i), buffered.end(i));
 }
 
 }  // namespace media
