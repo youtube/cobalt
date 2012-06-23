@@ -453,9 +453,8 @@ def main(argv):
   option_parser.add_option('--annotate', default=True,
                            help='Print buildbot-style annotate messages '
                            'for each test suite.  Default=True')
-  option_parser.add_option('--apk', default=False,
-                           help='Use the apk test runner '
-                           '(off by default for now)')
+  option_parser.add_option('--apk', default=True,
+                           help='Use the apk test runner by default')
   options, args = option_parser.parse_args(argv)
   if len(args) > 1:
     print 'Unknown argument:', args[1:]
