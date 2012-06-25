@@ -13,10 +13,9 @@
 #include <signal.h>
 #include <stdio.h>
 
+#include "base/android/base_jni_registrar.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/android/locale_utils.h"
-#include "base/android/path_utils.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
@@ -28,6 +27,14 @@
 #include "base/string_util.h"
 #include "gtest/gtest.h"
 #include "testing/android/jni/chrome_native_test_activity_jni.h"
+
+#if defined(REGISTER_NET_UNITTESTS_JNI)
+#include "net/android/net_jni_registrar.h"
+#endif
+
+#if defined(REGISTER_CONTENT_UNITTESTS_JNI)
+#include "content/app/android/content_jni_registrar.h"
+#endif
 
 // The main function of the program to be wrapped as a test apk.
 extern int main(int argc, char** argv);
@@ -176,8 +183,18 @@ static void RunTests(JNIEnv* env,
       env, env->NewLocalRef(app_context));
   base::android::InitApplicationContext(scoped_context);
 
-  base::android::RegisterLocaleUtils(env);
-  base::android::RegisterPathUtils(env);
+  base::android::RegisterJni(env);
+
+  // A unittest target may define these macros to register JNI dependencies.
+  // These should only be defined if the target also depends on the
+  // corresponding registrar.
+#if defined(REGISTER_NET_UNITTESTS_JNI)
+  net::android::RegisterJni(env);
+#endif
+
+#if defined(REGISTER_CONTENT_UNITTESTS_JNI)
+  content::android::RegisterJni(env);
+#endif
 
   FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
   // A few options, such "--gtest_list_tests", will just use printf directly
