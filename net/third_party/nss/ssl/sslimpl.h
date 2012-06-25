@@ -1775,6 +1775,11 @@ extern PRBool ssl_GetSessionTicketKeysPKCS11(SECKEYPrivateKey *svrPrivKey,
 extern SECStatus ssl3_ValidateNextProtoNego(const unsigned char* data,
 					    unsigned int length);
 
+extern SECStatus ssl3_GetTLSUniqueChannelBinding(sslSocket *ss,
+						 unsigned char *out,
+						 unsigned int *outLen,
+						 unsigned int outLenMax);
+
 /* Construct a new NSPR socket for the app to use */
 extern PRFileDesc *ssl_NewPRSocket(sslSocket *ss, PRFileDesc *fd);
 extern void ssl_FreePRSocket(PRFileDesc *fd);

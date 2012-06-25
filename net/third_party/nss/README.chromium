@@ -78,6 +78,9 @@ Patches:
     https://bugzilla.mozilla.org/show_bug.cgi?id=766137
     patches/getchannelinfo.patch
 
+  * Add support for extracting the tls-unique channel binding value
+    patches/tlsunique.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 
