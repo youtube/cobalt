@@ -282,6 +282,27 @@ SSL_IMPORT SECStatus SSL_CipherPrefGetDefault(PRInt32 cipher, PRBool *enabled);
 SSL_IMPORT SECStatus SSL_CipherPolicySet(PRInt32 cipher, PRInt32 policy);
 SSL_IMPORT SECStatus SSL_CipherPolicyGet(PRInt32 cipher, PRInt32 *policy);
 
+/* SSLChannelBindingType enumerates the types of supported channel binding
+ * values. See RFC 5929. */
+typedef enum SSLChannelBindingType {
+    SSL_CHANNEL_BINDING_TLS_UNIQUE = 1,
+} SSLChannelBindingType;
+
+/* SSL_GetChannelBinding copies the requested channel binding value, as defined
+ * in RFC 5929, into |out|. The full length of the binding value is written
+ * into |*outLen|.
+ *
+ * At most |outLenMax| bytes of data are copied. If |outLenMax| is
+ * insufficient then the function returns SECFailure and sets the error to
+ * SEC_ERROR_OUTPUT_LEN, but |*outLen| is still set.
+ *
+ * This call will fail if made during a renegotiation. */
+SSL_IMPORT SECStatus SSL_GetChannelBinding(PRFileDesc *fd,
+					   SSLChannelBindingType binding_type,
+					   unsigned char *out,
+					   unsigned int *outLen,
+					   unsigned int outLenMax);
+
 /* SSL Version Range API
 **
 ** This API should be used to control SSL 3.0 & TLS support instead of the

@@ -10539,6 +10539,68 @@ ssl3_InitSocketPolicy(sslSocket *ss)
     PORT_Memcpy(ss->cipherSuites, cipherSuites, sizeof cipherSuites);
 }
 
+SECStatus
+ssl3_GetTLSUniqueChannelBinding(sslSocket *ss,
+				unsigned char *out,
+				unsigned int *outLen,
+				unsigned int outLenMax) {
+    PRBool       isTLS;
+    int          index = 0;
+    unsigned int len;
+    SECStatus    rv = SECFailure;
+
+    *outLen = 0;
+
+    ssl_GetSSL3HandshakeLock(ss);
+
+    ssl_GetSpecReadLock(ss);
+    isTLS = (PRBool)(ss->ssl3.cwSpec->version > SSL_LIBRARY_VERSION_3_0);
+    ssl_ReleaseSpecReadLock(ss);
+
+    /* The tls-unique channel binding is the first Finished structure in the
+     * handshake. In the case of a resumption, that's the server's Finished.
+     * Otherwise, it's the client's Finished. */
+    len = ss->ssl3.hs.finishedBytes;
+
+    /* Sending or receiving a Finished message will set finishedBytes to a
+     * non-zero value. */
+    if (len == 0) {
+	PORT_SetError(SSL_ERROR_HANDSHAKE_NOT_COMPLETED);
+	goto loser;
+    }
+
+    /* If we are in the middle of a renegotiation then the channel binding
+     * value is poorly defined and depends on the direction that it will be
+     * used on. Therefore we simply return an error in this case. */
+    if (ss->firstHsDone && ss->ssl3.hs.ws != idle_handshake) {
+	PORT_SetError(SSL_ERROR_RENEGOTIATION_NOT_ALLOWED);
+	goto loser;
+    }
+
+    /* If resuming, then we want the second Finished value in the array, which
+     * is the server's */
+    if (ss->ssl3.hs.isResuming)
+	index = 1;
+
+    *outLen = len;
+    if (outLenMax < len) {
+	PORT_SetError(SEC_ERROR_OUTPUT_LEN);
+	goto loser;
+    }
+
+    if (isTLS) {
+	memcpy(out, &ss->ssl3.hs.finishedMsgs.tFinished[index], len);
+    } else {
+	memcpy(out, &ss->ssl3.hs.finishedMsgs.sFinished[index], len);
+    }
+
+    rv = SECSuccess;
+
+loser:
+    ssl_ReleaseSSL3HandshakeLock(ss);
+    return rv;
+}
+
 /* ssl3_config_match_init must have already been called by
  * the caller of this function.
  */
