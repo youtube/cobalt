@@ -7,16 +7,16 @@ package org.chromium.native_test;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 
 // Android's NativeActivity is mostly useful for pure-native code.
 // Our tests need to go up to our own java classes, which is not possible using
 // the native activity class loader.
-// We start a background thread in here to run the tests and avoid an ANR.
-// TODO(bulach): watch out for tests that implicitly assume they run on the main
-// thread.
 public class ChromeNativeTestActivity extends Activity {
     private final String TAG = "ChromeNativeTestActivity";
+    // We post a delayed task to run tests so that we do not block onCreate().
+    private static long RUN_TESTS_DELAY_IN_MS = 300;
 
     // Name of our shlib as obtained from a string resource.
     private String mLibrary;
@@ -33,21 +33,25 @@ public class ChromeNativeTestActivity extends Activity {
 
         try {
             loadLibrary();
-            new Thread() {
+            // Post a task to run the tests. This allows us to not block onCreate and
+            // still run tests on the main thread.
+            new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    Log.d(TAG, ">>nativeRunTests");
-                    nativeRunTests(getFilesDir().getAbsolutePath(), getApplicationContext());
-                    // TODO(jrg): make sure a crash in native code
-                    // triggers nativeTestFailed().
-                    Log.d(TAG, "<<nativeRunTests");
+                    runTests();
                 }
-            }.start();
+            }, RUN_TESTS_DELAY_IN_MS);
         } catch (UnsatisfiedLinkError e) {
             Log.e(TAG, "Unable to load lib" + mLibrary + ".so: " + e);
             nativeTestFailed();
             throw e;
         }
+    }
+
+    private void runTests() {
+        Log.d(TAG, ">>nativeRunTests");
+        nativeRunTests(getFilesDir().getAbsolutePath(), getApplicationContext());
+        Log.d(TAG, "<<nativeRunTests");
     }
 
     // Signal a failure of the native test loader to python scripts
