@@ -171,7 +171,7 @@ URLRequest::URLRequest(const GURL& url,
 URLRequest::~URLRequest() {
   Cancel();
 
-  if (context_ && context_->network_delegate()) {
+  if (context_->network_delegate()) {
     context_->network_delegate()->NotifyURLRequestDestroyed(this);
     if (job_)
       job_->NotifyURLRequestDestroyed();
