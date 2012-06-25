@@ -1382,6 +1382,27 @@ NSS_SetFrancePolicy(void)
     return NSS_SetDomesticPolicy();
 }
 
+SECStatus
+SSL_GetChannelBinding(PRFileDesc *fd,
+		      SSLChannelBindingType binding_type,
+		      unsigned char *out,
+		      unsigned int *outLen,
+		      unsigned int outLenMax) {
+    sslSocket *ss = ssl_FindSocket(fd);
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_GetChannelBinding",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    if (binding_type != SSL_CHANNEL_BINDING_TLS_UNIQUE) {
+	PORT_SetError(PR_INVALID_ARGUMENT_ERROR);
+	return SECFailure;
+    }
+
+    return ssl3_GetTLSUniqueChannelBinding(ss, out, outLen, outLenMax);
+}
 
 
 /* LOCKS ??? XXX */
