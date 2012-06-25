@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -48,8 +48,13 @@ class NonThreadSafeDoNothing {
 //   }
 // }
 //
-// In Release mode, CalledOnValidThread will always return true.
+// Note that base::ThreadChecker offers identical functionality to
+// NonThreadSafe, but does not require inheritence. In general, it is preferable
+// to have a base::ThreadChecker as a member, rather than inherit from
+// NonThreadSafe. For more details about when to choose one over the other, see
+// the documentation for base::ThreadChecker.
 //
+// In Release mode, CalledOnValidThread will always return true.
 #ifndef NDEBUG
 class NonThreadSafe : public NonThreadSafeImpl {
 };
