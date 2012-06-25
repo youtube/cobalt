@@ -40,24 +40,34 @@ class ThreadCheckerDoNothing {
   void DetachFromThread() {}
 };
 
-// Before using this class, please consider using NonThreadSafe as it
-// makes it much easier to determine the nature of your class.
-//
 // ThreadChecker is a helper class used to help verify that some methods of a
-// class are called from the same thread.  One can inherit from this class and
-// use CalledOnValidThread() to verify.
+// class are called from the same thread. It provides identical functionality to
+// base::NonThreadSafe, but it is meant to be held as a member variable, rather
+// than inherited from base::NonThreadSafe.
 //
-// Inheriting from class indicates that one must be careful when using the
-// class with multiple threads. However, it is up to the class document to
-// indicate how it can be used with threads.
+// While inheriting from base::NonThreadSafe may give a clear indication about
+// the thread-safety of a class, it may also lead to violations of the style
+// guide with regard to multiple inheritence. The choice between having a
+// ThreadChecker member and inheriting from base::NonThreadSafe should be based
+// on whether:
+//  - Derived classes need to know the thread they belong to, as opposed to
+//    having that functionality fully encapsulated in the base class.
+//  - Derived classes should be able to reassign the base class to another
+//    thread, via DetachFromThread.
+//
+// If neither of these are true, then having a ThreadChecker member and calling
+// CalledOnValidThread is the preferable solution.
 //
 // Example:
-// class MyClass : public ThreadChecker {
+// class MyClass {
 //  public:
 //   void Foo() {
-//     DCHECK(CalledOnValidThread());
+//     DCHECK(thread_checker_.CalledOnValidThread());
 //     ... (do stuff) ...
 //   }
+//
+//  private:
+//   ThreadChecker thread_checker_;
 // }
 //
 // In Release mode, CalledOnValidThread will always return true.
