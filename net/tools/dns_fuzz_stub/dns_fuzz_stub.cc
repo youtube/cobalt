@@ -24,11 +24,12 @@
 
 namespace {
 
-void CrashStackBufferOverflow(void) {
-  // Cause ASAN to detect an out-of-bounds array access
-  int a[1];
-  int i = 1;
-  a[i] = 0;
+void CrashDoubleFree(void) {
+  // Cause ASAN to detect a double-free
+  void *p = malloc(1);
+  LOG(INFO) << "Allocated p=" << p << ".  Double-freeing...";
+  free(p);
+  free(p);
 }
 
 void CrashNullPointerDereference(void) {
@@ -178,7 +179,7 @@ bool ReadAndRunTestCase(const char* filename) {
 
   if (crash_test) {
     LOG(INFO) << "Crashing.";
-    CrashStackBufferOverflow();
+    CrashDoubleFree();
     // if we're not running under ASAN, that might not have worked
     CrashNullPointerDereference();
     NOTREACHED();
