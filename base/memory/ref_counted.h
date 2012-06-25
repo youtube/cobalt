@@ -164,6 +164,10 @@ class RefCountedData : public base::RefCounted< base::RefCountedData<T> > {
   RefCountedData(const T& in_value) : data(in_value) {}
 
   T data;
+
+ private:
+  friend class base::RefCounted<base::RefCountedData<T> >;
+  ~RefCountedData() {}
 };
 
 }  // namespace base
