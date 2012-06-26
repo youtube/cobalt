@@ -29,6 +29,7 @@ class NonThreadSafeDoNothing {
   }
 
  protected:
+  ~NonThreadSafeDoNothing() {}
   void DetachFromThread() {}
 };
 
@@ -56,11 +57,9 @@ class NonThreadSafeDoNothing {
 //
 // In Release mode, CalledOnValidThread will always return true.
 #ifndef NDEBUG
-class NonThreadSafe : public NonThreadSafeImpl {
-};
+typedef NonThreadSafeImpl NonThreadSafe;
 #else
-class NonThreadSafe : public NonThreadSafeDoNothing {
-};
+typedef NonThreadSafeDoNothing NonThreadSafe;
 #endif  // NDEBUG
 
 }  // namespace base

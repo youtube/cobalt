@@ -6,11 +6,7 @@
 
 namespace base {
 
-SupportsUserData::SupportsUserData() {
-}
-
-SupportsUserData::~SupportsUserData() {
-}
+SupportsUserData::SupportsUserData() {}
 
 SupportsUserData::Data* SupportsUserData::GetUserData(const void* key) const {
   DataMap::const_iterator found = user_data_.find(key);
@@ -22,5 +18,7 @@ SupportsUserData::Data* SupportsUserData::GetUserData(const void* key) const {
 void SupportsUserData::SetUserData(const void* key, Data* data) {
   user_data_[key] = linked_ptr<Data>(data);
 }
+
+SupportsUserData::~SupportsUserData() {}
 
 }  // namespace base

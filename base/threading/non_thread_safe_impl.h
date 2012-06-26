@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,11 +19,11 @@ namespace base {
 // the right version of the class for your build configuration.
 class BASE_EXPORT NonThreadSafeImpl {
  public:
-  ~NonThreadSafeImpl();
-
   bool CalledOnValidThread() const;
 
  protected:
+  ~NonThreadSafeImpl();
+
   // Changes the thread that is checked for in CalledOnValidThread. The next
   // call to CalledOnValidThread will attach this class to a new thread. It is
   // up to the NonThreadSafe derived class to decide to expose this or not.
