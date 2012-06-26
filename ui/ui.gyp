@@ -147,6 +147,8 @@
         'base/gestures/gesture_sequence.h',
         'base/gestures/gesture_types.cc',
         'base/gestures/gesture_types.h',
+        'base/gestures/gesture_util.cc',
+        'base/gestures/gesture_util.h',
         'base/gestures/velocity_calculator.cc',
         'base/gestures/velocity_calculator.h',
         'base/gtk/event_synthesis_gtk.cc',
