@@ -315,7 +315,7 @@ net::Error SpdySession::InitializeWithSocket(
   }
 
   SSLClientSocket* ssl_socket = GetSSLClientSocket();
-  if (ssl_socket && ssl_socket->WasDomainBoundCertSent()) {
+  if (ssl_socket && ssl_socket->WasChannelIDSent()) {
     // According to the SPDY spec, the credential associated with the TLS
     // connection is stored in slot[1].
     credential_state_.SetHasCredential(GURL("https://" +
@@ -352,7 +352,8 @@ bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
   if (!GetSSLInfo(&ssl_info, &was_npn_negotiated, &protocol_negotiated))
     return true;   // This is not a secure session, so all domains are okay.
 
-  return !ssl_info.client_cert_sent && ssl_info.cert->VerifyNameMatch(domain);
+  return !ssl_info.channel_id_sent && !ssl_info.client_cert_sent &&
+      ssl_info.cert->VerifyNameMatch(domain);
 }
 
 int SpdySession::GetPushStream(
@@ -512,7 +513,7 @@ bool SpdySession::NeedsCredentials() const {
   SSLClientSocket* ssl_socket = GetSSLClientSocket();
   if (ssl_socket->GetNegotiatedProtocol() < kProtoSPDY3)
     return false;
-  return ssl_socket->WasDomainBoundCertSent();
+  return ssl_socket->WasChannelIDSent();
 }
 
 void SpdySession::AddPooledAlias(const HostPortProxyPair& alias) {
@@ -1191,12 +1192,6 @@ ServerBoundCertService* SpdySession::GetServerBoundCertService() const {
   if (!is_secure_)
     return NULL;
   return GetSSLClientSocket()->GetServerBoundCertService();
-}
-
-SSLClientCertType SpdySession::GetDomainBoundCertType() const {
-  if (!is_secure_)
-    return CLIENT_CERT_INVALID_TYPE;
-  return GetSSLClientSocket()->domain_bound_cert_type();
 }
 
 void SpdySession::OnError(SpdyFramer::SpdyError error_code) {

@@ -147,6 +147,8 @@ class SSLClientSocketPoolTest : public testing::Test {
     return new HttpNetworkSession(params);
   }
 
+  void TestIPPoolingDisabled(SSLSocketDataProvider* ssl);
+
   MockClientSocketFactory socket_factory_;
   MockCachingHostResolver host_resolver_;
   scoped_ptr<CertVerifier> cert_verifier_;
@@ -738,9 +740,8 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   session_->spdy_session_pool()->CloseAllSessions();
 }
 
-// Verifies that an SSL connection with client authentication disables SPDY IP
-// pooling.
-TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
+void SSLClientSocketPoolTest::TestIPPoolingDisabled(
+    SSLSocketDataProvider* ssl) {
   const int kTestPort = 80;
   struct TestHosts {
     std::string name;
@@ -775,12 +776,7 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   };
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(ASYNC, OK);
-  ssl.cert = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
-  ssl.client_cert_sent = true;
-  ssl.SetNextProto(kProtoSPDY2);
-  socket_factory_.AddSSLSocketDataProvider(&ssl);
+  socket_factory_.AddSSLSocketDataProvider(ssl);
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
@@ -820,6 +816,25 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   EXPECT_FALSE(session_->spdy_session_pool()->HasSession(test_hosts[1].pair));
 
   session_->spdy_session_pool()->CloseAllSessions();
+}
+
+// Verifies that an SSL connection with client authentication disables SPDY IP
+// pooling.
+TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.cert = X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
+  ssl.client_cert_sent = true;
+  ssl.SetNextProto(kProtoSPDY2);
+  TestIPPoolingDisabled(&ssl);
+}
+
+// Verifies that an SSL connection with channel ID disables SPDY IP pooling.
+TEST_F(SSLClientSocketPoolTest, IPPoolingChannelID) {
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.channel_id_sent = true;
+  ssl.SetNextProto(kProtoSPDY2);
+  TestIPPoolingDisabled(&ssl);
 }
 
 // It would be nice to also test the timeouts in SSLClientSocketPool.

@@ -262,7 +262,7 @@ SSLSocketDataProvider::SSLSocketDataProvider(IoMode mode, int result)
       protocol_negotiated(kProtoUnknown),
       client_cert_sent(false),
       cert_request_info(NULL),
-      domain_bound_cert_type(CLIENT_CERT_INVALID_TYPE) {
+      channel_id_sent(false) {
 }
 
 SSLSocketDataProvider::~SSLSocketDataProvider() {
@@ -1157,8 +1157,8 @@ base::TimeDelta MockSSLClientSocket::GetConnectTimeMicros() const {
 void MockSSLClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
   ssl_info->cert = data_->cert;
-  ssl_info->client_cert_sent = WasDomainBoundCertSent() ||
-      data_->client_cert_sent;
+  ssl_info->client_cert_sent = data_->client_cert_sent;
+  ssl_info->channel_id_sent = data_->channel_id_sent;
 }
 
 void MockSSLClientSocket::GetSSLCertRequestInfo(
@@ -1203,17 +1203,12 @@ void MockSSLClientSocket::set_protocol_negotiated(
   protocol_negotiated_ = protocol_negotiated;
 }
 
-bool MockSSLClientSocket::WasDomainBoundCertSent() const {
-  return data_->domain_bound_cert_type != CLIENT_CERT_INVALID_TYPE;
+bool MockSSLClientSocket::WasChannelIDSent() const {
+  return data_->channel_id_sent;
 }
 
-SSLClientCertType MockSSLClientSocket::domain_bound_cert_type() const {
-  return data_->domain_bound_cert_type;
-}
-
-SSLClientCertType MockSSLClientSocket::set_domain_bound_cert_type(
-    SSLClientCertType type) {
-  return data_->domain_bound_cert_type = type;
+void MockSSLClientSocket::set_channel_id_sent(bool channel_id_sent) {
+  data_->channel_id_sent = channel_id_sent;
 }
 
 ServerBoundCertService* MockSSLClientSocket::GetServerBoundCertService() const {
