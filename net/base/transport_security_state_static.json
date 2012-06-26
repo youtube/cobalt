@@ -267,9 +267,10 @@
     { "name": "www.braintreepayments.com", "mode": "force-https" },
     { "name": "emailprivacytester.com", "mode": "force-https" },
     { "name": "tor2web.org", "include_subdomains": true, "pins": "tor2web" },
-    { "name": "business.medbank.com.mt", "include_subdomains": true },
-    { "name": "arivo.com.br", "include_subdomains": true },
-    { "name": "www.apollo-auto.com", "include_subdomains": true },
+    { "name": "business.medbank.com.mt", "include_subdomains": true, "mode": "force-https" },
+    { "name": "arivo.com.br", "include_subdomains": true, "mode": "force-https" },
+    { "name": "www.apollo-auto.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "www.cueup.com", "include_subdomains": true, "mode": "force-https" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
