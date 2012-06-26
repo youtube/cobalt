@@ -1556,9 +1556,10 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {27, false, "\003www\021braintreepayments\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {24, false, "\022emailprivacytester\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {13, true, "\007tor2web\003org", false, kTor2webPins, DOMAIN_TOR2WEB_ORG },
-  {25, true, "\010business\007medbank\003com\002mt", false, kNoPins, DOMAIN_NOT_PINNED },
-  {14, true, "\005arivo\003com\002br", false, kNoPins, DOMAIN_NOT_PINNED },
-  {21, true, "\003www\013apollo-auto\003com", false, kNoPins, DOMAIN_NOT_PINNED },
+  {25, true, "\010business\007medbank\003com\002mt", true, kNoPins, DOMAIN_NOT_PINNED },
+  {14, true, "\005arivo\003com\002br", true, kNoPins, DOMAIN_NOT_PINNED },
+  {21, true, "\003www\013apollo-auto\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {15, true, "\003www\005cueup\003com", true, kNoPins, DOMAIN_NOT_PINNED },
 };
 static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
