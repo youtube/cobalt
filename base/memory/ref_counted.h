@@ -85,8 +85,7 @@ class BASE_EXPORT RefCountedThreadSafeBase {
 template <class T>
 class RefCounted : public subtle::RefCountedBase {
  public:
-  RefCounted() { }
-  ~RefCounted() { }
+  RefCounted() {}
 
   void AddRef() const {
     subtle::RefCountedBase::AddRef();
@@ -97,6 +96,9 @@ class RefCounted : public subtle::RefCountedBase {
       delete static_cast<const T*>(this);
     }
   }
+
+ protected:
+  ~RefCounted() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(RefCounted<T>);
@@ -133,8 +135,7 @@ struct DefaultRefCountedThreadSafeTraits {
 template <class T, typename Traits = DefaultRefCountedThreadSafeTraits<T> >
 class RefCountedThreadSafe : public subtle::RefCountedThreadSafeBase {
  public:
-  RefCountedThreadSafe() { }
-  ~RefCountedThreadSafe() { }
+  RefCountedThreadSafe() {}
 
   void AddRef() const {
     subtle::RefCountedThreadSafeBase::AddRef();
@@ -145,6 +146,9 @@ class RefCountedThreadSafe : public subtle::RefCountedThreadSafeBase {
       Traits::Destruct(static_cast<const T*>(this));
     }
   }
+
+ protected:
+  ~RefCountedThreadSafe() {}
 
  private:
   friend struct DefaultRefCountedThreadSafeTraits<T>;

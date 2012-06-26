@@ -54,8 +54,10 @@ class BASE_EXPORT PlatformThread {
   // ThreadMain method will be called on the newly created thread.
   class BASE_EXPORT Delegate {
    public:
-    virtual ~Delegate() {}
     virtual void ThreadMain() = 0;
+
+   protected:
+    virtual ~Delegate() {}
   };
 
   // Gets the current thread id, which may be useful for logging purposes.

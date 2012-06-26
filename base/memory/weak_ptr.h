@@ -251,6 +251,9 @@ class SupportsWeakPtr : public internal::SupportsWeakPtrBase {
     weak_reference_owner_.DetachFromThread();
   }
 
+ protected:
+  ~SupportsWeakPtr() {}
+
  private:
   internal::WeakReferenceOwner weak_reference_owner_;
   DISALLOW_COPY_AND_ASSIGN(SupportsWeakPtr);
