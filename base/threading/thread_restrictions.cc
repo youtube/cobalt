@@ -4,8 +4,7 @@
 
 #include "base/threading/thread_restrictions.h"
 
-// This entire file is compiled out in official builds.
-#if !defined(OFFICIAL_BUILD)
+#if defined(ENABLE_THREAD_RESTRICTIONS)
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -83,4 +82,4 @@ bool ThreadRestrictions::SetWaitAllowed(bool allowed) {
 
 }  // namespace base
 
-#endif  // !defined(OFFICIAL_BUILD)
+#endif  // defined(ENABLE_THREAD_RESTRICTIONS)
