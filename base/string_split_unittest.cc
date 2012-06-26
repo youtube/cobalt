@@ -267,7 +267,6 @@ TEST(StringSplitTest, StringSplitDontTrim) {
   SplitStringDontTrim("   ", '*', &r);
   ASSERT_EQ(1U, r.size());
   EXPECT_EQ(r[0], "   ");
-  r.clear();
 
   SplitStringDontTrim("\t  \ta\t ", '\t', &r);
   ASSERT_EQ(4U, r.size());
@@ -275,13 +274,11 @@ TEST(StringSplitTest, StringSplitDontTrim) {
   EXPECT_EQ(r[1], "  ");
   EXPECT_EQ(r[2], "a");
   EXPECT_EQ(r[3], " ");
-  r.clear();
 
   SplitStringDontTrim("\ta\t\nb\tcc", '\n', &r);
   ASSERT_EQ(2U, r.size());
   EXPECT_EQ(r[0], "\ta\t");
   EXPECT_EQ(r[1], "b\tcc");
-  r.clear();
 }
 
 TEST(StringSplitTest, SplitStringAlongWhitespace) {
