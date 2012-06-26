@@ -325,7 +325,7 @@ class SSLServerSocketTest : public PlatformTest {
     net::SSLConfig ssl_config;
     ssl_config.cached_info_enabled = false;
     ssl_config.false_start_enabled = false;
-    ssl_config.domain_bound_certs_enabled = false;
+    ssl_config.channel_id_enabled = false;
     ssl_config.version_min = SSL_PROTOCOL_VERSION_SSL3;
     ssl_config.version_max = SSL_PROTOCOL_VERSION_TLS1_1;
 
