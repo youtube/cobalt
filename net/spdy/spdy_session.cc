@@ -921,15 +921,6 @@ void SpdySession::WriteSocket() {
 
         DCHECK_GT(size, 0u);
 
-        if (uncompressed_control_frame->type() == SYN_STREAM) {
-          int uncompressed_size = uncompressed_control_frame->length();
-          int compressed_size = compressed_frame->length();
-          // Make sure we avoid early decimal truncation.
-          int compression_pct = 100 - (100* compressed_size)/uncompressed_size;
-          UMA_HISTOGRAM_PERCENTAGE("Net.SpdySynStreamCompressionPercentage",
-                                   compression_pct);
-        }
-
         // TODO(mbelshe): We have too much copying of data here.
         IOBufferWithSize* buffer = new IOBufferWithSize(size);
         memcpy(buffer->data(), compressed_frame->data(), size);
@@ -1243,6 +1234,20 @@ void SpdySession::OnSetting(SpdySettingsIds id,
       base::Bind(&NetLogSpdySettingCallback,
                  id, static_cast<SpdySettingsFlags>(flags), value));
 }
+
+void SpdySession::OnControlFrameCompressed(
+    const SpdyControlFrame& uncompressed_frame,
+    const SpdyControlFrame& compressed_frame) {
+  if (uncompressed_frame.type() == SYN_STREAM) {
+    int uncompressed_size = uncompressed_frame.length();
+    int compressed_size = compressed_frame.length();
+    // Make sure we avoid early decimal truncation.
+    int compression_pct = 100 - (100 * compressed_size) / uncompressed_size;
+    UMA_HISTOGRAM_PERCENTAGE("Net.SpdySynStreamCompressionPercentage",
+                             compression_pct);
+  }
+}
+
 
 bool SpdySession::Respond(const SpdyHeaderBlock& headers,
                           const scoped_refptr<SpdyStream> stream) {

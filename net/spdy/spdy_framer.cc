@@ -1426,6 +1426,9 @@ SpdyControlFrame* SpdyFramer::CompressControlFrame(
 
   compressed_frames.Increment();
 
+  if (visitor_)
+    visitor_->OnControlFrameCompressed(frame, *new_frame);
+
   return new_frame.release();
 }
 
