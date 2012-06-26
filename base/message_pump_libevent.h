@@ -45,11 +45,13 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump {
   // of a file descriptor.
   class Watcher {
    public:
-    virtual ~Watcher() {}
     // Called from MessageLoop::Run when an FD can be read from/written to
     // without blocking
     virtual void OnFileCanReadWithoutBlocking(int fd) = 0;
     virtual void OnFileCanWriteWithoutBlocking(int fd) = 0;
+
+   protected:
+    virtual ~Watcher() {}
   };
 
   // Object returned by WatchFileDescriptor to manage further watching.
@@ -74,7 +76,7 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump {
     void Init(event* e);
 
     // Used by MessagePumpLibevent to take ownership of event_.
-    event *ReleaseEvent();
+    event* ReleaseEvent();
 
     void set_pump(MessagePumpLibevent* pump) { pump_ = pump; }
     MessagePumpLibevent* pump() { return pump_; }
