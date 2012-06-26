@@ -681,7 +681,7 @@ TEST_F(SpdySessionSpdy3Test, SendInitialSettingsOnNewSession) {
   const SpdySettingsIds kSpdySettingsIds2 = SETTINGS_INITIAL_WINDOW_SIZE;
   const uint32 kInitialRecvWindowSize = 10 * 1024 * 1024;
   settings[kSpdySettingsIds1] =
-      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kInitialMaxConcurrentStreams);
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kMaxConcurrentPushedStreams);
   settings[kSpdySettingsIds2] =
       SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kInitialRecvWindowSize);
   MockConnect connect_data(SYNCHRONOUS, OK);
