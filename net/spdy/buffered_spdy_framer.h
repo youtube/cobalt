@@ -68,6 +68,12 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   // and validated.
   virtual void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) = 0;
 
+  // Called after a control frame has been compressed to allow the visitor
+  // to record compression statistics.
+  virtual void OnControlFrameCompressed(
+      const SpdyControlFrame& uncompressed_frame,
+      const SpdyControlFrame& compressed_frame) = 0;
+
  protected:
   virtual ~BufferedSpdyFramerVisitorInterface() {}
 
@@ -101,6 +107,12 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
   virtual void OnSetting(
       SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
   virtual void OnDataFrameHeader(const SpdyDataFrame* frame) OVERRIDE;
+
+  // Called after a control frame has been compressed to allow the visitor
+  // to record compression statistics.
+  virtual void OnControlFrameCompressed(
+      const SpdyControlFrame& uncompressed_frame,
+      const SpdyControlFrame& compressed_frame) OVERRIDE;
 
   // SpdyFramer methods.
   size_t ProcessInput(const char* data, size_t len);

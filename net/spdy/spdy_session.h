@@ -478,6 +478,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                                  size_t len) OVERRIDE;
   virtual void OnSetting(
       SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
+  virtual void OnControlFrameCompressed(
+      const SpdyControlFrame& uncompressed_frame,
+      const SpdyControlFrame& compressed_frame) OVERRIDE;
   virtual void OnSynStream(
       const SpdySynStreamControlFrame& frame,
       const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
