@@ -500,8 +500,10 @@ int BackendImpl::SyncInit() {
   if (previous_crash) {
     ReportError(ERR_PREVIOUS_CRASH);
   } else if (!restarted_) {
-      ReportError(ERR_NO_ERROR);
+    ReportError(ERR_NO_ERROR);
   }
+
+  FlushIndex();
 
   return disabled_ ? net::ERR_FAILED : net::OK;
 }
@@ -525,6 +527,7 @@ void BackendImpl::CleanupCache() {
     }
   }
   block_files_.CloseFiles();
+  FlushIndex();
   index_ = NULL;
   ptr_factory_.InvalidateWeakPtrs();
   done_.Signal();
@@ -798,6 +801,7 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
   stats_.OnEvent(Stats::CREATE_HIT);
   SIMPLE_STATS_COUNTER("disk_cache.miss");
   Trace("create entry hit ");
+  FlushIndex();
   return cache_entry.release();
 }
 
@@ -925,6 +929,7 @@ void BackendImpl::RecoveredEntry(CacheRankingsBlock* rankings) {
     return;
 
   data_->table[hash & mask_] = address.value();
+  FlushIndex();
 }
 
 void BackendImpl::InternalDoomEntry(EntryImpl* entry) {
@@ -953,6 +958,8 @@ void BackendImpl::InternalDoomEntry(EntryImpl* entry) {
   } else if (!error) {
     data_->table[hash & mask_] = child;
   }
+
+  FlushIndex();
 }
 
 #if defined(NET_BUILD_STRESS_CACHE)
@@ -1306,6 +1313,11 @@ int BackendImpl::SelfCheck() {
   return CheckAllEntries();
 }
 
+void BackendImpl::FlushIndex() {
+  if (index_ && !disabled_)
+    index_->Flush();
+}
+
 // ------------------------------------------------------------------------
 
 int32 BackendImpl::GetEntryCount() const {
@@ -1541,6 +1553,7 @@ void BackendImpl::PrepareForRestart() {
 
   disabled_ = true;
   data_->header.crash = 0;
+  index_->Flush();
   index_ = NULL;
   data_ = NULL;
   block_files_.CloseFiles();
@@ -1724,6 +1737,7 @@ EntryImpl* BackendImpl::MatchEntry(const std::string& key, uint32 hash,
     cache_entry = NULL;
 
   find_parent ? parent_entry.swap(&tmp) : cache_entry.swap(&tmp);
+  FlushIndex();
   return tmp;
 }
 
