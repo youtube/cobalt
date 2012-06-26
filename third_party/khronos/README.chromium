@@ -22,7 +22,6 @@ GLES2/gl2ext.h
  - Added GL_EXT_framebuffer_multisample
  - Added GL_CHROMIUM_command_buffer_query
  - Added GL_CHROMIUM_copy_texture
- - Added GL_CHROMIUM_consistent_uniform_locations
- - Update GL_CHROMIUM_consistent_uniform_locations to have a program argument.
+ - Added GL_CHROMIUM_bind_uniform_location
 EGL/eglplatform.h
  - Added EGLNative*Type for Mac.
