@@ -107,8 +107,6 @@
         'base/cursor/cursor.h',
         'base/cursor/cursor_win.cc',
         'base/cursor/cursor_x11.cc',
-        'base/dialogs/base_shell_dialog.h',
-        'base/dialogs/selected_file_info.h',
         'base/dragdrop/cocoa_dnd_util.h',
         'base/dragdrop/cocoa_dnd_util.mm',
         'base/dragdrop/drag_drop_types_gtk.cc',
