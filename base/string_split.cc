@@ -16,6 +16,7 @@ static void SplitStringT(const STR& str,
                          const typename STR::value_type s,
                          bool trim_whitespace,
                          std::vector<STR>* r) {
+  r->clear();
   size_t last = 0;
   size_t c = str.size();
   for (size_t i = 0; i <= c; ++i) {
@@ -115,6 +116,7 @@ template <typename STR>
 static void SplitStringUsingSubstrT(const STR& str,
                                     const STR& s,
                                     std::vector<STR>* r) {
+  r->clear();
   typename STR::size_type begin_index = 0;
   while (true) {
     const typename STR::size_type end_index = str.find(s, begin_index);
@@ -165,6 +167,7 @@ void SplitStringDontTrim(const std::string& str,
 
 template<typename STR>
 void SplitStringAlongWhitespaceT(const STR& str, std::vector<STR>* result) {
+  result->clear();
   const size_t length = str.length();
   if (!length)
     return;
