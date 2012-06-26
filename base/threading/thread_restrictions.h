@@ -8,6 +8,13 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 
+// See comment at top of thread_checker.h
+#if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+#define ENABLE_THREAD_RESTRICTIONS 1
+#else
+#define ENABLE_THREAD_RESTRICTIONS 0
+#endif
+
 class AcceleratedPresenter;
 class BrowserProcessImpl;
 class HistogramSynchronizer;
@@ -76,9 +83,6 @@ class ThreadTestHelper;
 //    current thread is allowed:
 //      base::ThreadRestrictions::AssertIOAllowed();
 //
-// ThreadRestrictions does nothing in official builds; we enable it in release
-// builds as well as debug because the trybots are release by default and we
-// we want to catch this at code review time before commit.
 //
 // Style tip: where should you put AssertIOAllowed checks?  It's best
 // if you put them as close to the disk access as possible, at the
@@ -116,7 +120,7 @@ class BASE_EXPORT ThreadRestrictions {
     DISALLOW_COPY_AND_ASSIGN(ScopedAllowSingleton);
   };
 
-#if !defined(OFFICIAL_BUILD)
+#if defined(ENABLE_THREAD_RESTRICTIONS)
   // Set whether the current thread to make IO calls.
   // Threads start out in the *allowed* state.
   // Returns the previous value.
@@ -142,8 +146,8 @@ class BASE_EXPORT ThreadRestrictions {
   // Check whether the current thread is allowed to wait, and DCHECK if not.
   static void AssertWaitAllowed();
 #else
-  // In official builds, inline the empty definitions of these functions so
-  // that they can be compiled out.
+  // Inline the empty definitions of these functions so that they can be
+  // compiled out.
   static bool SetIOAllowed(bool allowed) { return true; }
   static void AssertIOAllowed() {}
   static bool SetSingletonAllowed(bool allowed) { return true; }
@@ -188,7 +192,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::NativeBackendKWallet;            // http://crbug.com/125331
   // END USAGE THAT NEEDS TO BE FIXED.
 
-#if !defined(OFFICIAL_BUILD)
+#if defined(ENABLE_THREAD_RESTRICTIONS)
   static bool SetWaitAllowed(bool allowed);
 #else
   static bool SetWaitAllowed(bool allowed) { return true; }
