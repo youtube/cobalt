@@ -679,7 +679,7 @@ TEST_F(SpdySessionSpdy2Test, SendInitialSettingsOnNewSession) {
   SettingsMap settings;
   const SpdySettingsIds kSpdySettingsIds1 = SETTINGS_MAX_CONCURRENT_STREAMS;
   settings[kSpdySettingsIds1] =
-      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kInitialMaxConcurrentStreams);
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kMaxConcurrentPushedStreams);
   MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
   MockWrite writes[] = {

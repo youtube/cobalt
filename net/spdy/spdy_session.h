@@ -40,8 +40,8 @@ namespace net {
 const int kMss = 1430;
 const int kMaxSpdyFrameChunkSize = (2 * kMss) - SpdyFrame::kHeaderSize;
 
-// Specifies the maxiumum concurrent streams server could send.
-const int kInitialMaxConcurrentStreams = 1000;
+// Specifies the maxiumum concurrent streams server could send (via push).
+const int kMaxConcurrentPushedStreams = 1000;
 
 class BoundNetLog;
 class SpdyStream;
