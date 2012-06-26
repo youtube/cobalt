@@ -2005,23 +2005,17 @@ typedef void (GL_APIENTRYP PFNGLCONSUMETEXTURECHROMIUM) (GLenum target, const  G
 #endif
 #endif
 
-/* GL_CHROMIUM_consistent_uniform_locations */
-#ifndef GL_CHROMIUM_consistent_uniform_locations
-#define GL_CHROMIUM_consistent_uniform_locations 1
-
-struct GLUniformDefinitionCHROMIUM {
-  GLenum type;
-  GLsizei size;
-  const GLchar* name;
-};
+/* GL_CHROMIUM_bind_uniform_location */
+#ifndef GL_CHROMIUM_bind_uniform_location
+#define GL_CHROMIUM_bind_uniform_location 1
 
 #ifdef GL_GLEXT_PROTOTYPES
-#define glGetUniformLocationsCHROMIUM GLES2_GET_FUN(GetUniformLocationsCHROMIUM)
+#define glBindUniformLocationCHROMIUM GLES2_GET_FUN(BindUniformLocationCHROMIUM)
 #if !defined(GLES2_USE_CPP_BINDINGS)
-GL_APICALL void GL_APIENTRY glGetUniformLocationsCHROMIUM (GLuint program, const GLUniformDefinitionCHROMIUM* uniforms, GLsizei count, GLsizei max_locations, GLint* locations);
+GL_APICALL void GL_APIENTRY glBindUniformLocationCHROMIUM (GLuint program, GLint location, const GLchar* name);
 #endif
 #else
-typedef void (GL_APIENTRYP PFNGLGETUNIFORMLOCATIONSCHROMIUM) (GLuint program, const GLUniformDefinitionCHROMIUM* uniforms, GLsizei count, GLsizei max_locations, GLint* locations);
+typedef void (GL_APIENTRYP PFNGLBINDUNIFORMLOCATIONCHROMIUM) (GLuint program, GLint location, const GLchar* name);
 #endif
 #endif
 
