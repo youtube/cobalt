@@ -80,12 +80,14 @@ class MEDIA_EXPORT AudioInputController
   // following methods are all called on the audio thread.
   class MEDIA_EXPORT EventHandler {
    public:
-    virtual ~EventHandler() {}
     virtual void OnCreated(AudioInputController* controller) = 0;
     virtual void OnRecording(AudioInputController* controller) = 0;
     virtual void OnError(AudioInputController* controller, int error_code) = 0;
     virtual void OnData(AudioInputController* controller, const uint8* data,
                         uint32 size) = 0;
+
+   protected:
+    virtual ~EventHandler() {}
   };
 
   // A synchronous writer interface used by AudioInputController for

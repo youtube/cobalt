@@ -56,8 +56,6 @@ class MEDIA_EXPORT AudioOutputStream {
   // itself such as creating Windows or initializing COM.
   class MEDIA_EXPORT AudioSourceCallback {
    public:
-    virtual ~AudioSourceCallback() {}
-
     // Provide more data by filling |dest| up to |max_size| bytes. The provided
     // buffer size is determined by the |samples_per_packet| specified in
     // AudioParameters when the stream is created. The source will return
@@ -85,6 +83,9 @@ class MEDIA_EXPORT AudioOutputStream {
     // plugins. In any case, data is usually immediately available,
     // so there would be no delay.
     virtual void WaitTillDataReady() {}
+
+   protected:
+    virtual ~AudioSourceCallback() {}
   };
 
   virtual ~AudioOutputStream() {}
@@ -119,8 +120,6 @@ class MEDIA_EXPORT AudioInputStream {
  public:
   class MEDIA_EXPORT AudioInputCallback {
    public:
-    virtual ~AudioInputCallback() {}
-
     // Called by the audio recorder when a full packet of audio data is
     // available. This is called from a special audio thread and the
     // implementation should return as soon as possible.
@@ -138,6 +137,9 @@ class MEDIA_EXPORT AudioInputStream {
     // recording will not continue. |code| is an error code that is platform
     // specific.
     virtual void OnError(AudioInputStream* stream, int code) = 0;
+
+   protected:
+    virtual ~AudioInputCallback() {}
   };
 
   virtual ~AudioInputStream() {}

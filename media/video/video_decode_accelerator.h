@@ -46,8 +46,6 @@ class MEDIA_EXPORT VideoDecodeAccelerator
   // implements.
   class MEDIA_EXPORT Client {
    public:
-    virtual ~Client() {}
-
     // Callback to notify client that decoder has been initialized.
     virtual void NotifyInitializeDone() = 0;
 
@@ -74,6 +72,9 @@ class MEDIA_EXPORT VideoDecodeAccelerator
 
     // Callback to notify about decoding errors.
     virtual void NotifyError(Error error) = 0;
+
+   protected:
+    virtual ~Client() {}
   };
 
   // Video decoder functions.

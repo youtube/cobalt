@@ -44,7 +44,7 @@ class MEDIA_EXPORT VideoCapture {
 
   // TODO(wjia): add error codes.
   // Callbacks provided by client for notification of events.
-  class EventHandler {
+  class MEDIA_EXPORT EventHandler {
    public:
     // Notify client that video capture has been started.
     virtual void OnStarted(VideoCapture* capture) = 0;
@@ -70,10 +70,12 @@ class MEDIA_EXPORT VideoCapture {
     virtual void OnDeviceInfoReceived(
         VideoCapture* capture,
         const VideoCaptureParams& device_info) = 0;
+
+   protected:
+    virtual ~EventHandler() {}
   };
 
   VideoCapture() {}
-  virtual ~VideoCapture() {}
 
   // Request video capture to start capturing with |capability|.
   // Also register |handler| with video capture for event handling.
@@ -92,6 +94,9 @@ class MEDIA_EXPORT VideoCapture {
   virtual int CaptureWidth() = 0;
   virtual int CaptureHeight() = 0;
   virtual int CaptureFrameRate() = 0;
+
+ protected:
+  virtual ~VideoCapture() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(VideoCapture);

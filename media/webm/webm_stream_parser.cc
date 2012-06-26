@@ -48,7 +48,7 @@ class FFmpegConfigHelper {
   scoped_array<uint8> url_protocol_buffer_;
 
   // Protocol used by |format_context_|. It must outlive the context object.
-  scoped_ptr<FFmpegURLProtocol> url_protocol_;
+  scoped_ptr<InMemoryUrlProtocol> url_protocol_;
 
   // FFmpeg format context for this demuxer. It is created by
   // avformat_open_input() during demuxer initialization and cleaned up with

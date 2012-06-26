@@ -41,8 +41,6 @@ class MEDIA_EXPORT FFmpegURLProtocol {
  public:
   FFmpegURLProtocol() {}
 
-  virtual ~FFmpegURLProtocol() {}
-
   // Read the given amount of bytes into data, returns the number of bytes read
   // if successful, kReadError otherwise.
   virtual size_t Read(size_t size, uint8* data) = 0;
@@ -60,6 +58,9 @@ class MEDIA_EXPORT FFmpegURLProtocol {
 
   // Returns false if this protocol supports random seeking.
   virtual bool IsStreaming() = 0;
+
+ protected:
+  virtual ~FFmpegURLProtocol() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FFmpegURLProtocol);
