@@ -1082,6 +1082,9 @@
       ['OS=="android"', {
         'grit_defines': ['-D', 'android'],
       }],
+      ['OS=="mac"', {
+        'grit_defines': ['-D', 'scale_factors=2x'],
+      }],
       ['enable_extensions==1', {
         'grit_defines': ['-D', 'enable_extensions'],
       }],
