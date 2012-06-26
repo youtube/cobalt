@@ -48,6 +48,9 @@ bool MappedFile::Store(const FileBlock* block) {
   return Write(block->buffer(), block->size(), offset);
 }
 
+void MappedFile::Flush() {
+}
+
 MappedFile::~MappedFile() {
   if (!init_)
     return;

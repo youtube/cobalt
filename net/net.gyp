@@ -15,6 +15,13 @@
       }, {  # chromeos == 0
         'use_kerberos%': 1,
       }],
+      ['OS=="android"', {
+        # The way the cache uses mmap() is inefficient on some Android devices.
+        # If this flag is set, we hackily avoid using mmap() in the disk cache.
+        'posix_avoid_mmap%': 1,
+      }, {
+        'posix_avoid_mmap%': 0,
+      }],
     ],
   },
   'includes': [
@@ -331,6 +338,7 @@
         'disk_cache/in_flight_io.h',
         'disk_cache/mapped_file.h',
         'disk_cache/mapped_file_posix.cc',
+        'disk_cache/mapped_file_avoid_mmap_posix.cc',
         'disk_cache/mapped_file_win.cc',
         'disk_cache/mem_backend_impl.cc',
         'disk_cache/mem_backend_impl.h',
@@ -833,6 +841,18 @@
             'http/http_auth_gssapi_posix.h',
             'http/http_auth_handler_negotiate.h',
             'http/http_auth_handler_negotiate.cc',
+          ],
+        }],
+        ['posix_avoid_mmap==1', {
+          'defines': [
+            'POSIX_AVOID_MMAP',
+          ],
+          'sources!': [
+            'disk_cache/mapped_file_posix.cc',
+          ],
+        }, { # else
+          'sources!': [
+            'disk_cache/mapped_file_avoid_mmap_posix.cc',
           ],
         }],
         ['use_openssl==1', {
