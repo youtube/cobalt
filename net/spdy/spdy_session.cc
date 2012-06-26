@@ -172,7 +172,11 @@ Value* NetLogSpdyGoAwayCallback(SpdyStreamId last_stream_id,
 }
 
 NextProto g_default_protocol = kProtoUnknown;
+// Maximum number of concurrent streams we will create, unless the server
+// sends a SETTINGS frame with a different value.
 size_t g_init_max_concurrent_streams = 100;
+// The maximum number of concurrent streams we will ever create.  Even if
+// the server permits more, we will never exceed this limit.
 size_t g_max_concurrent_stream_limit = 256;
 size_t g_default_initial_rcv_window_size = 10 * 1024 * 1024;  // 10MB
 bool g_enable_ping_based_connection_checking = true;
@@ -209,7 +213,7 @@ void SpdySession::set_default_initial_recv_window_size(size_t value) {
 void SpdySession::ResetStaticSettingsToInit() {
   // WARNING: These must match the initializers above.
   g_default_protocol = kProtoUnknown;
-  g_init_max_concurrent_streams = 10;
+  g_init_max_concurrent_streams = 100;
   g_max_concurrent_stream_limit = 256;
   g_default_initial_rcv_window_size = kSpdyStreamInitialWindowSize;
   g_enable_ping_based_connection_checking = true;
@@ -1589,7 +1593,7 @@ void SpdySession::SendInitialSettings() {
     // Create a new settings frame notifying the sever of our
     // max_concurrent_streams_ and initial window size.
     settings_map[SETTINGS_MAX_CONCURRENT_STREAMS] =
-        SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kInitialMaxConcurrentStreams);
+        SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kMaxConcurrentPushedStreams);
     if (GetProtocolVersion() > 2 &&
         initial_recv_window_size_ != kSpdyStreamInitialWindowSize) {
       settings_map[SETTINGS_INITIAL_WINDOW_SIZE] =
