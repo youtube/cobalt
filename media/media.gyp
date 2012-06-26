@@ -974,7 +974,7 @@
               'action_name': 'generate-jni-headers',
               'inputs': [
                 '../base/android/jni_generator/jni_generator.py',
-                'base/android/java/org/chromium/media/MediaPlayerListener.java',
+                'base/android/java/src/org/chromium/media/MediaPlayerListener.java',
               ],
               'outputs': [
                 '<(SHARED_INTERMEDIATE_DIR)/media/jni/media_player_listener_jni.h',
