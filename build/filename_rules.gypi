@@ -29,12 +29,6 @@
         ['exclude', '(^|/)linux/'],
       ],
     }],
-    ['OS!="android" and OS!="linux" and OS!="openbsd" and OS!="freebsd" or >(nacl_untrusted_build)==1', {
-      'sources/': [
-        ['exclude', '_linuxish(_unittest)?\\.(h|cc)$'],
-        ['exclude', '(^|/)linuxish/'],
-      ],
-    }],
     ['OS!="android"', {
       'sources/': [
         ['exclude', '_android(_unittest)?\\.cc$'],
