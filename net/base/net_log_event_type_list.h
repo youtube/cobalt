@@ -1626,6 +1626,10 @@ EVENT_TYPE(DOWNLOAD_FILE_DELETED)
 //   }
 EVENT_TYPE(DOWNLOAD_FILE_ERROR)
 
+// This event is created when a download file is annotating with source
+// information (for Mark Of The Web and anti-virus integration).
+EVENT_TYPE(DOWNLOAD_FILE_ANNOTATED)
+
 // ------------------------------------------------------------------------
 // FileStream events.
 // ------------------------------------------------------------------------
