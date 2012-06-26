@@ -120,7 +120,7 @@ class BASE_EXPORT ThreadRestrictions {
     DISALLOW_COPY_AND_ASSIGN(ScopedAllowSingleton);
   };
 
-#if defined(ENABLE_THREAD_RESTRICTIONS)
+#if ENABLE_THREAD_RESTRICTIONS
   // Set whether the current thread to make IO calls.
   // Threads start out in the *allowed* state.
   // Returns the previous value.
@@ -192,7 +192,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::NativeBackendKWallet;            // http://crbug.com/125331
   // END USAGE THAT NEEDS TO BE FIXED.
 
-#if defined(ENABLE_THREAD_RESTRICTIONS)
+#if ENABLE_THREAD_RESTRICTIONS
   static bool SetWaitAllowed(bool allowed);
 #else
   static bool SetWaitAllowed(bool allowed) { return true; }
