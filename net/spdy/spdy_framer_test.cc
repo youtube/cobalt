@@ -39,6 +39,9 @@ class MockVisitor : public SpdyFramerVisitorInterface {
                                        const char* data,
                                        size_t len));
   MOCK_METHOD3(OnSetting, void(SpdySettingsIds id, uint8 flags, uint32 value));
+  MOCK_METHOD2(OnControlFrameCompressed,
+               void(const SpdyControlFrame& uncompressed_frame,
+                    const SpdyControlFrame& compressed_frame));
 };
 
 class SpdyFramerTestUtil {
@@ -131,6 +134,10 @@ class SpdyFramerTestUtil {
     }
     virtual void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) {
       LOG(FATAL);
+    }
+    virtual void OnControlFrameCompressed(
+        const SpdyControlFrame& uncompressed_frame,
+        const SpdyControlFrame& compressed_frame) {
     }
 
     char* ReleaseBuffer() {
@@ -320,6 +327,11 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
 
   virtual void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) {
     setting_count_++;
+  }
+
+  virtual void OnControlFrameCompressed(
+      const SpdyControlFrame& uncompressed_frame,
+      const SpdyControlFrame& compressed_frame) {
   }
 
   bool OnControlFrameHeaderData(SpdyStreamId stream_id,
@@ -3020,6 +3032,7 @@ TEST_P(SpdyFramerTest, EmptySynStream) {
   SpdyFramer framer(spdy_version_);
   framer.set_visitor(&visitor);
 
+  EXPECT_CALL(visitor, OnControlFrameCompressed(_, _));
   scoped_ptr<SpdySynStreamControlFrame>
       frame(framer.CreateSynStream(1, 0, 1, 0, CONTROL_FLAG_NONE, true,
                                    &headers));

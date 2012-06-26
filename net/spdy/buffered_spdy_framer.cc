@@ -147,6 +147,13 @@ void BufferedSpdyFramer::OnSetting(SpdySettingsIds id,
   visitor_->OnSetting(id, flags, value);
 }
 
+void BufferedSpdyFramer::OnControlFrameCompressed(
+    const SpdyControlFrame& uncompressed_frame,
+    const SpdyControlFrame& compressed_frame) {
+  visitor_->OnControlFrameCompressed(uncompressed_frame, compressed_frame);
+}
+
+
 int BufferedSpdyFramer::protocol_version() {
   return spdy_framer_.protocol_version();
 }

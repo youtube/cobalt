@@ -71,6 +71,11 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     setting_count_++;
   }
 
+  void OnControlFrameCompressed(
+      const SpdyControlFrame& uncompressed_frame,
+      const SpdyControlFrame& compressed_frame) {
+  }
+
   bool OnCredentialFrameData(const char*, size_t) {
     LOG(FATAL) << "Unexpected OnCredentialFrameData call.";
     return false;
