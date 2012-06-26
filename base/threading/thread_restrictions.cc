@@ -4,7 +4,7 @@
 
 #include "base/threading/thread_restrictions.h"
 
-#if defined(ENABLE_THREAD_RESTRICTIONS)
+#if ENABLE_THREAD_RESTRICTIONS
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -82,4 +82,4 @@ bool ThreadRestrictions::SetWaitAllowed(bool allowed) {
 
 }  // namespace base
 
-#endif  // defined(ENABLE_THREAD_RESTRICTIONS)
+#endif  // ENABLE_THREAD_RESTRICTIONS
