@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,9 +15,9 @@
 
 namespace base {
 
-// Splits |str| into a vector of strings delimited by |s|. Append the results
-// into |r| as they appear. If several instances of |s| are contiguous, or if
-// |str| begins with or ends with |s|, then an empty string is inserted.
+// Splits |str| into a vector of strings delimited by |s|, placing the results
+// in |r|. If several instances of |s| are contiguous, or if |str| begins with
+// or ends with |s|, then an empty string is inserted.
 //
 // Every substring is trimmed of any leading or trailing white space.
 // NOTE: |c| must be in BMP (Basic Multilingual Plane)
