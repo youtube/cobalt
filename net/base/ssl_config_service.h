@@ -88,8 +88,7 @@ struct NET_EXPORT SSLConfig {
   std::vector<uint16> disabled_cipher_suites;
 
   bool cached_info_enabled;  // True if TLS cached info extension is enabled.
-  bool domain_bound_certs_enabled;  // True if TLS origin bound cert extension
-                                    // is enabled.
+  bool channel_id_enabled;  // True if TLS channel ID extension is enabled.
   bool false_start_enabled;  // True if we'll use TLS False Start.
 
   // TODO(wtc): move the following members to a new SSLParams structure.  They
@@ -153,7 +152,7 @@ class NET_EXPORT SSLConfigService
     //     version_min
     //     version_max
     //     disabled_cipher_suites
-    //     domain_bound_certs_enabled
+    //     channel_id_enabled
     //     false_start_enabled
     virtual void OnSSLConfigChanged() = 0;
 

@@ -150,8 +150,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // If the session is un-authenticated, then this call always returns true.
   // For SSL-based sessions, verifies that the server certificate in use by
   // this session provides authentication for the domain and no client
-  // certificate was sent to the original server during the SSL handshake.
-  // NOTE:  This function can have false negatives on some platforms.
+  // certificate or channel ID was sent to the original server during the SSL
+  // handshake.  NOTE:  This function can have false negatives on some
+  // platforms.
   // TODO(wtc): rename this function and the Net.SpdyIPPoolDomainMatch
   // histogram because this function does more than verifying domain
   // authentication now.
@@ -208,10 +209,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Returns the ServerBoundCertService used by this Socket, or NULL
   // if server bound certs are not supported in this session.
   ServerBoundCertService* GetServerBoundCertService() const;
-
-  // Returns the type of the domain bound cert that was sent, or
-  // CLIENT_CERT_INVALID_TYPE if none was sent.
-  SSLClientCertType GetDomainBoundCertType() const;
 
   // Reset all static settings to initialized values. Used to init test suite.
   static void ResetStaticSettingsToInit();

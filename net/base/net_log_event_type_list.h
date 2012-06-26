@@ -466,6 +466,12 @@ EVENT_TYPE(SSL_CLIENT_CERT_REQUESTED)
 //   }
 EVENT_TYPE(SSL_GET_DOMAIN_BOUND_CERT)
 
+// The SSL server requested a channel id.
+EVENT_TYPE(SSL_CHANNEL_ID_REQUESTED)
+
+// A channel ID was provided to the SSL library to be sent to the SSL server.
+EVENT_TYPE(SSL_CHANNEL_ID_PROVIDED)
+
 // A client certificate (or none) was provided to the SSL library to be sent
 // to the SSL server.
 // The following parameters are attached to the event:
