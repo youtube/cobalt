@@ -14,12 +14,11 @@
 
 #include <windows.h>
 
-#if _MSC_VER <= 1600
-// The windows SDK now defines in FACILITY_VISUALCPP winerror.h which
-// clashes with the older crt's definition of the same.
+#if defined(_WIN32_WINNT_WIN8)
+// The Windows 8 SDK defines FACILITY_VISUALCPP in winerror.h.
 #undef FACILITY_VISUALCPP
-#include <DelayIMP.h>
 #endif
+#include <DelayIMP.h>
 
 namespace base {
 namespace win {
