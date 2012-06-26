@@ -14,8 +14,6 @@ namespace media {
 
 class MEDIA_EXPORT DataSourceHost {
  public:
-  virtual ~DataSourceHost();
-
   // Set the total size of the media file.
   virtual void SetTotalBytes(int64 total_bytes) = 0;
 
@@ -27,6 +25,9 @@ class MEDIA_EXPORT DataSourceHost {
   // Notify the host that time range [start,end] has been buffered.
   virtual void AddBufferedTimeRange(base::TimeDelta start,
                                     base::TimeDelta end) = 0;
+
+ protected:
+  virtual ~DataSourceHost();
 };
 
 class MEDIA_EXPORT DataSource : public base::RefCountedThreadSafe<DataSource> {

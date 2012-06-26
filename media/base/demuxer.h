@@ -16,8 +16,6 @@ namespace media {
 
 class MEDIA_EXPORT DemuxerHost : public DataSourceHost {
  public:
-  virtual ~DemuxerHost();
-
   // Sets the duration of the media in microseconds.
   // Duration may be kInfiniteDuration() if the duration is not known.
   virtual void SetDuration(base::TimeDelta duration) = 0;
@@ -25,6 +23,9 @@ class MEDIA_EXPORT DemuxerHost : public DataSourceHost {
   // Stops execution of the pipeline due to a fatal error.  Do not call this
   // method with PIPELINE_OK.
   virtual void OnDemuxerError(PipelineStatus error) = 0;
+
+ protected:
+  virtual ~DemuxerHost();
 };
 
 class MEDIA_EXPORT Demuxer : public base::RefCountedThreadSafe<Demuxer> {
