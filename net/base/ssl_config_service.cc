@@ -38,7 +38,7 @@ SSLConfig::SSLConfig()
       version_min(g_default_version_min),
       version_max(g_default_version_max),
       cached_info_enabled(false),
-      domain_bound_certs_enabled(false),
+      channel_id_enabled(false),
       false_start_enabled(true),
       send_client_cert(false),
       verify_ev_cert(false),
@@ -156,10 +156,8 @@ void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
       (orig_config.version_max != new_config.version_max) ||
       (orig_config.disabled_cipher_suites !=
        new_config.disabled_cipher_suites) ||
-      (orig_config.domain_bound_certs_enabled !=
-       new_config.domain_bound_certs_enabled) ||
-      (orig_config.false_start_enabled !=
-       new_config.false_start_enabled);
+      (orig_config.channel_id_enabled != new_config.channel_id_enabled) ||
+      (orig_config.false_start_enabled != new_config.false_start_enabled);
 
   if (config_changed)
     FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());

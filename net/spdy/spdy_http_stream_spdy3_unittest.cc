@@ -65,8 +65,7 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
   void TestSendCredentials(
     ServerBoundCertService* server_bound_cert_service,
     const std::string& cert,
-    const std::string& proof,
-    SSLClientCertType type);
+    const std::string& proof);
 
   SpdySessionDependencies session_deps_;
   scoped_ptr<OrderedSocketData> data_;
@@ -346,8 +345,7 @@ SpdyFrame* ConstructCredentialRequestFrame(int slot, const GURL& url,
 void SpdyHttpStreamSpdy3Test::TestSendCredentials(
     ServerBoundCertService* server_bound_cert_service,
     const std::string& cert,
-    const std::string& proof,
-    SSLClientCertType type) {
+    const std::string& proof) {
   const char* kUrl1 = "https://www.google.com/";
   const char* kUrl2 = "https://www.gmail.com/";
 
@@ -385,7 +383,7 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
                                   writes, arraysize(writes)));
   socket_factory->AddSocketDataProvider(data.get());
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
-  ssl.domain_bound_cert_type = type;
+  ssl.channel_id_sent = true;
   ssl.server_bound_cert_service = server_bound_cert_service;
   ssl.protocol_negotiated = kProtoSPDY3;
   socket_factory->AddSSLSocketDataProvider(&ssl);
@@ -524,8 +522,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendCredentialsEC) {
                                server_bound_cert_service.get(),
                                &cert, &proof);
 
-  TestSendCredentials(server_bound_cert_service.get(), cert, proof,
-                      CLIENT_CERT_ECDSA_SIGN);
+  TestSendCredentials(server_bound_cert_service.get(), cert, proof);
 
   sequenced_worker_pool->Shutdown();
 }

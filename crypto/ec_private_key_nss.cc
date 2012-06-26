@@ -114,7 +114,7 @@ bool ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
     bool sensitive,
     SECKEYPrivateKey** key,
     SECKEYPublicKey** public_key) {
-  ScopedPK11Slot slot(GetPrivateNSSKeySlot());
+  ScopedPK11Slot slot(GetPublicNSSKeySlot());
   if (!slot.get())
     return false;
 

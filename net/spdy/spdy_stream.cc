@@ -621,7 +621,7 @@ int SpdyStream::DoGetDomainBoundCert() {
   ServerBoundCertService* sbc_service = session_->GetServerBoundCertService();
   DCHECK(sbc_service != NULL);
   std::vector<uint8> requested_cert_types;
-  requested_cert_types.push_back(session_->GetDomainBoundCertType());
+  requested_cert_types.push_back(CLIENT_CERT_ECDSA_SIGN);
   int rv = sbc_service->GetDomainBoundCert(
       GetUrl().GetOrigin().spec(), requested_cert_types,
       &domain_bound_cert_type_, &domain_bound_private_key_, &domain_bound_cert_,

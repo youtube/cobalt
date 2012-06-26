@@ -287,7 +287,7 @@ struct SSLSocketDataProvider {
   bool client_cert_sent;
   SSLCertRequestInfo* cert_request_info;
   scoped_refptr<X509Certificate> cert;
-  SSLClientCertType domain_bound_cert_type;
+  bool channel_id_sent;
   ServerBoundCertService* server_bound_cert_service;
 };
 
@@ -772,10 +772,8 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
   // This MockSocket does not implement the manual async IO feature.
   virtual void OnReadComplete(const MockRead& data) OVERRIDE;
 
-  virtual bool WasDomainBoundCertSent() const OVERRIDE;
-  virtual SSLClientCertType domain_bound_cert_type() const OVERRIDE;
-  virtual SSLClientCertType set_domain_bound_cert_type(
-      SSLClientCertType type) OVERRIDE;
+  virtual bool WasChannelIDSent() const OVERRIDE;
+  virtual void set_channel_id_sent(bool channel_id_sent) OVERRIDE;
   virtual ServerBoundCertService* GetServerBoundCertService() const OVERRIDE;
 
  private:
