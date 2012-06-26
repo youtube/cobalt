@@ -1390,10 +1390,7 @@
         ['OS == "android" and gtest_target_type == "shared_library"', {
           'dependencies': [
             '../testing/android/native_test.gyp:native_test_native_code',
-          ],
-          'defines': [
-            'REGISTER_NET_UNITESTS_JNI',
-          ],
+          ]
         }],
         [ 'OS != "win" and OS != "mac"', {
           'sources!': [
