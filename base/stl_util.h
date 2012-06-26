@@ -11,10 +11,11 @@
 #include <string>
 #include <vector>
 
-// Clear internal memory of an STL object.
+// Clears internal memory of an STL object.
 // STL clear()/reserve(0) does not always free internal memory allocated
 // This function uses swap/destructor to ensure the internal memory is freed.
-template<class T> void STLClearObject(T* obj) {
+template<class T>
+void STLClearObject(T* obj) {
   T tmp;
   tmp.swap(*obj);
   // Sometimes "T tmp" allocates objects with memory (arena implementation?).
@@ -22,9 +23,8 @@ template<class T> void STLClearObject(T* obj) {
   obj->reserve(0);
 }
 
-// STLDeleteContainerPointers()
-//  For a range within a container of pointers, calls delete
-//  (non-array version) on these pointers.
+// For a range within a container of pointers, calls delete (non-array version)
+// on these pointers.
 // NOTE: for these three functions, we could just implement a DeleteObject
 // functor and then call for_each() on the range and functor, but this
 // requires us to pull in all of algorithm.h, which seems expensive.
@@ -41,9 +41,8 @@ void STLDeleteContainerPointers(ForwardIterator begin, ForwardIterator end) {
   }
 }
 
-// STLDeleteContainerPairPointers()
-//  For a range within a container of pairs, calls delete
-//  (non-array version) on BOTH items in the pairs.
+// For a range within a container of pairs, calls delete (non-array version) on
+// BOTH items in the pairs.
 // NOTE: Like STLDeleteContainerPointers, it is important that this deletes
 // behind the iterator because if both the key and value are deleted, the
 // container may call the hash function on the iterator when it is advanced,
@@ -60,9 +59,8 @@ void STLDeleteContainerPairPointers(ForwardIterator begin,
   }
 }
 
-// STLDeleteContainerPairFirstPointers()
-//  For a range within a container of pairs, calls delete (non-array version)
-//  on the FIRST item in the pairs.
+// For a range within a container of pairs, calls delete (non-array version) on
+// the FIRST item in the pairs.
 // NOTE: Like STLDeleteContainerPointers, deleting behind the iterator.
 template <class ForwardIterator>
 void STLDeleteContainerPairFirstPointers(ForwardIterator begin,
@@ -74,12 +72,10 @@ void STLDeleteContainerPairFirstPointers(ForwardIterator begin,
   }
 }
 
-// STLDeleteContainerPairSecondPointers()
-//  For a range within a container of pairs, calls delete
+// For a range within a container of pairs, calls delete.
 // NOTE: Like STLDeleteContainerPointers, deleting behind the iterator.
 // Deleting the value does not always invalidate the iterator, but it may
 // do so if the key is a pointer into the value object.
-//  (non-array version) on the SECOND item in the pairs.
 template <class ForwardIterator>
 void STLDeleteContainerPairSecondPointers(ForwardIterator begin,
                                           ForwardIterator end) {
@@ -92,8 +88,7 @@ void STLDeleteContainerPairSecondPointers(ForwardIterator begin,
 
 // To treat a possibly-empty vector as an array, use these functions.
 // If you know the array will never be empty, you can use &*v.begin()
-// directly, but that is undefined behaviour if v is empty.
-
+// directly, but that is undefined behaviour if |v| is empty.
 template<typename T>
 inline T* vector_as_array(std::vector<T>* v) {
   return v->empty() ? NULL : &*v->begin();
@@ -121,8 +116,8 @@ inline char* string_as_array(std::string* str) {
   return str->empty() ? NULL : &*str->begin();
 }
 
-// The following functions are useful for cleaning up STL containers
-// whose elements point to allocated memory.
+// The following functions are useful for cleaning up STL containers whose
+// elements point to allocated memory.
 
 // STLDeleteElements() deletes all the elements in an STL container and clears
 // the container.  This function is suitable for use with a vector, set,
@@ -135,8 +130,9 @@ inline char* string_as_array(std::string* str) {
 // STLElementDeleter (defined below), which ensures that your container's
 // elements are deleted when the STLElementDeleter goes out of scope.
 template <class T>
-void STLDeleteElements(T *container) {
-  if (!container) return;
+void STLDeleteElements(T* container) {
+  if (!container)
+    return;
   STLDeleteContainerPointers(container->begin(), container->end());
   container->clear();
 }
@@ -144,14 +140,13 @@ void STLDeleteElements(T *container) {
 // Given an STL container consisting of (key, value) pairs, STLDeleteValues
 // deletes all the "value" components and clears the container.  Does nothing
 // in the case it's given a NULL pointer.
-
 template <class T>
-void STLDeleteValues(T *v) {
-  if (!v) return;
-  for (typename T::iterator i = v->begin(); i != v->end(); ++i) {
+void STLDeleteValues(T* container) {
+  if (!container)
+    return;
+  for (typename T::iterator i(container->begin()); i != container->end(); ++i)
     delete i->second;
-  }
-  v->clear();
+  container->clear();
 }
 
 
@@ -168,24 +163,26 @@ void STLDeleteValues(T *v) {
 
 // Given a pointer to an STL container this class will delete all the element
 // pointers when it goes out of scope.
-
-template<class STLContainer> class STLElementDeleter {
+template<class T>
+class STLElementDeleter {
  public:
-  STLElementDeleter<STLContainer>(STLContainer *ptr) : container_ptr_(ptr) {}
-  ~STLElementDeleter<STLContainer>() { STLDeleteElements(container_ptr_); }
+  STLElementDeleter<T>(T* container) : container_(container) {}
+  ~STLElementDeleter<T>() { STLDeleteElements(container_); }
+
  private:
-  STLContainer *container_ptr_;
+  T* container_;
 };
 
 // Given a pointer to an STL container this class will delete all the value
 // pointers when it goes out of scope.
-
-template<class STLContainer> class STLValueDeleter {
+template<class T>
+class STLValueDeleter {
  public:
-  STLValueDeleter<STLContainer>(STLContainer *ptr) : container_ptr_(ptr) {}
-  ~STLValueDeleter<STLContainer>() { STLDeleteValues(container_ptr_); }
+  STLValueDeleter<T>(T* container) : container_(container) {}
+  ~STLValueDeleter<T>() { STLDeleteValues(container_); }
+
  private:
-  STLContainer *container_ptr_;
+  T* container_;
 };
 
 // Test to see if a set, map, hash_set or hash_map contains a particular key.
