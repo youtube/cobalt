@@ -725,8 +725,9 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->public_key_hashes = server_cert_verify_result_.public_key_hashes;
   ssl_info->is_issued_by_known_root =
       server_cert_verify_result_.is_issued_by_known_root;
-  ssl_info->client_cert_sent = WasDomainBoundCertSent() ||
-      (ssl_config_.send_client_cert && ssl_config_.client_cert);
+  ssl_info->client_cert_sent =
+      ssl_config_.send_client_cert && ssl_config_.client_cert;
+  ssl_info->channel_id_sent = WasChannelIDSent();
 
   // security info
   SSLCipherSuite suite;

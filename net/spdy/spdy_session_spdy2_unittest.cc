@@ -981,7 +981,7 @@ TEST_F(SpdySessionSpdy2Test, NeedsCredentials) {
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
-  ssl.domain_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
+  ssl.channel_id_sent = true;
   ssl.protocol_negotiated = kProtoSPDY2;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
