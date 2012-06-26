@@ -484,17 +484,19 @@ void Rankings::TrackRankingsBlock(CacheRankingsBlock* node,
 
 int Rankings::SelfCheck() {
   int total = 0;
+  int error = 0;
   base::TimeTicks start = base::TimeTicks::Now();
   for (int i = 0; i < LAST_ELEMENT; i++) {
     int partial = CheckList(static_cast<List>(i));
-    if (partial < 0)
-      return partial;
-    total += partial;
+    if (partial < 0 && !error)
+      error = partial;
+    else if (partial > 0)
+      total += partial;
   }
   CACHE_UMA(AGE_MS, "ListSelfCheckTime", 0, start);
 
   QuickListCheck();
-  return total;
+  return error ? error : total;
 }
 
 bool Rankings::SanityCheck(CacheRankingsBlock* node, bool from_list) const {
