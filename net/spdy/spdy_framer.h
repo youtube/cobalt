@@ -184,6 +184,12 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Called when a complete setting within a SETTINGS frame has been parsed and
   // validated.
   virtual void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) = 0;
+
+  // Called after a control frame has been compressed to allow the visitor
+  // to record compression statistics.
+  virtual void OnControlFrameCompressed(
+      const SpdyControlFrame& uncompressed_frame,
+      const SpdyControlFrame& compressed_frame) = 0;
 };
 
 class NET_EXPORT_PRIVATE SpdyFramer {
