@@ -273,6 +273,7 @@ void Rankings::Insert(CacheRankingsBlock* node, bool modified, List list) {
   WriteHead(list);
   IncrementCounter(list);
   GenerateCrash(ON_INSERT_4);
+  backend_->FlushIndex();
 }
 
 // If a, b and r are elements on the list, and we want to remove r, the possible
@@ -379,6 +380,7 @@ void Rankings::Remove(CacheRankingsBlock* node, List list, bool strict) {
   DecrementCounter(list);
   UpdateIterators(&next);
   UpdateIterators(&prev);
+  backend_->FlushIndex();
 }
 
 // A crash in between Remove and Insert will lead to a dirty entry not on the
@@ -728,6 +730,7 @@ void Rankings::RevertRemove(CacheRankingsBlock* node) {
   prev.Store();
   control_data_->transaction = 0;
   control_data_->operation = 0;
+  backend_->FlushIndex();
 }
 
 bool Rankings::CheckLinks(CacheRankingsBlock* node, CacheRankingsBlock* prev,
