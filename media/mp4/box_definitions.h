@@ -162,6 +162,13 @@ struct MEDIA_EXPORT AVCDecoderConfigurationRecord : Box {
   std::vector<PPS> pps_list;
 };
 
+struct PixelAspectRatioBox : Box {
+  DECLARE_BOX_METHODS(PixelAspectRatioBox);
+
+  uint32 h_spacing;
+  uint32 v_spacing;
+};
+
 struct VideoSampleEntry : Box {
   DECLARE_BOX_METHODS(VideoSampleEntry);
 
@@ -170,6 +177,7 @@ struct VideoSampleEntry : Box {
   uint16 width;
   uint16 height;
 
+  PixelAspectRatioBox pixel_aspect;
   ProtectionSchemeInfo sinf;
 
   // Currently expected to be present regardless of format.

@@ -178,14 +178,15 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       //         (entry.format == FOURCC_ENCV &&
       //          entry.sinf.format.format == FOURCC_AVC1));
 
-      // TODO(strobe): Recover correct crop box and pixel aspect ratio
+      // TODO(strobe): Recover correct crop box
       video_config.Initialize(kCodecH264, H264PROFILE_MAIN,  VideoFrame::YV12,
                               gfx::Size(entry.width, entry.height),
                               gfx::Rect(0, 0, entry.width, entry.height),
                               // Bogus duration used for framerate, since real
                               // framerate may be variable
                               1000, track->media.header.timescale,
-                              1, 1,
+                              entry.pixel_aspect.h_spacing,
+                              entry.pixel_aspect.v_spacing,
                               // No decoder-specific buffer needed for AVC;
                               // SPS/PPS are embedded in the video stream
                               NULL, 0, false);
