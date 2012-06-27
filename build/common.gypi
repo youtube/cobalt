@@ -2438,7 +2438,6 @@
               '__GNU_SOURCE=1',  # Necessary for clone()
               'USE_STLPORT=1',
               '_STLP_USE_PTR_SPECIALIZATIONS=1',
-              'HAVE_OFF64_T',
               'HAVE_SYS_UIO_H',
               'ANDROID_BINSIZE_HACK', # Enable temporary hacks to reduce binsize.
             ],
@@ -2465,6 +2464,9 @@
                 'defines': ['ANDROID_UPSTREAM_BRINGUP=1',],
               }],
               ['android_build_type==0', {
+                'defines': [
+                  'HAVE_OFF64_T',
+                ],
                 'ldflags': [
                   '--sysroot=<(android_ndk_sysroot)',
                 ],
