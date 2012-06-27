@@ -72,6 +72,7 @@ Patches:
   * Move SSL keylogging out from behind the TRACE and DEBUG defines and add
     support for CLIENT_RANDOM keylogging to support ECDHE-RSA and others.
     patches/keylog.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=762763
 
   * SSL_GetChannelInfo and SSL_GetNegotiatedHostInfo should use cwSpec
     instead of crSpec to support False Start.
@@ -80,6 +81,9 @@ Patches:
 
   * Add support for extracting the tls-unique channel binding value
     patches/tlsunique.patch
+
+  * Don't crash when the SSL keylog file cannot be opened.
+    patches/sslkeylogerror.patch
 
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
