@@ -44,7 +44,6 @@ class SSLClientSocketTest : public PlatformTest {
     return socket_factory_->CreateSSLClientSocket(transport_socket,
                                                   host_and_port,
                                                   ssl_config,
-                                                  NULL,
                                                   context_);
   }
 
@@ -763,7 +762,7 @@ TEST_F(SSLClientSocketTest, ClientSocketHandleNotFromPool) {
   scoped_ptr<net::SSLClientSocket> sock(
       socket_factory_->CreateSSLClientSocket(
           socket_handle, test_server.host_port_pair(), kDefaultSSLConfig,
-          NULL, context_));
+          context_));
 
   EXPECT_FALSE(sock->IsConnected());
   rv = sock->Connect(callback.callback());

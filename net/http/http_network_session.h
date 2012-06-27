@@ -39,7 +39,6 @@ class ProxyService;
 class SOCKSClientSocketPool;
 class SSLClientSocketPool;
 class SSLConfigService;
-class SSLHostInfoFactory;
 class TransportClientSocketPool;
 class TransportSecurityState;
 
@@ -56,7 +55,6 @@ class NET_EXPORT HttpNetworkSession
           server_bound_cert_service(NULL),
           transport_security_state(NULL),
           proxy_service(NULL),
-          ssl_host_info_factory(NULL),
           ssl_config_service(NULL),
           http_auth_handler_factory(NULL),
           network_delegate(NULL),
@@ -70,7 +68,6 @@ class NET_EXPORT HttpNetworkSession
     ServerBoundCertService* server_bound_cert_service;
     TransportSecurityState* transport_security_state;
     ProxyService* proxy_service;
-    SSLHostInfoFactory* ssl_host_info_factory;
     std::string ssl_session_cache_shard;
     SSLConfigService* ssl_config_service;
     HttpAuthHandlerFactory* http_auth_handler_factory;

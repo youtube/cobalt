@@ -23,7 +23,6 @@
 #include "net/http/http_response_headers.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket.h"
-#include "net/socket/ssl_host_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #define NET_TRACE(level, s)   DLOG(level) << s << __FUNCTION__ << "() "
@@ -643,11 +642,10 @@ SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
     ClientSocketHandle* transport_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info,
     const SSLClientSocketContext& context) {
   MockSSLClientSocket* socket =
       new MockSSLClientSocket(transport_socket, host_and_port, ssl_config,
-                              ssl_host_info, mock_ssl_data_.GetNext());
+                              mock_ssl_data_.GetNext());
   return socket;
 }
 
@@ -1081,7 +1079,6 @@ MockSSLClientSocket::MockSSLClientSocket(
     ClientSocketHandle* transport_socket,
     const HostPortPair& host_port_pair,
     const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info,
     SSLSocketDataProvider* data)
     : MockClientSocket(transport_socket->socket()->NetLog().net_log()),
       transport_(transport_socket),
@@ -1092,7 +1089,6 @@ MockSSLClientSocket::MockSSLClientSocket(
       protocol_negotiated_(kProtoUnknown) {
   DCHECK(data_);
   peer_addr_ = data->connect.peer_addr;
-  delete ssl_host_info;  // we take ownership but don't use it.
 }
 
 MockSSLClientSocket::~MockSSLClientSocket() {
@@ -1589,11 +1585,10 @@ SSLClientSocket* DeterministicMockClientSocketFactory::CreateSSLClientSocket(
     ClientSocketHandle* transport_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info,
     const SSLClientSocketContext& context) {
   MockSSLClientSocket* socket =
       new MockSSLClientSocket(transport_socket, host_and_port, ssl_config,
-                              ssl_host_info, mock_ssl_data_.GetNext());
+                              mock_ssl_data_.GetNext());
   ssl_client_sockets_.push_back(socket);
   return socket;
 }
