@@ -340,6 +340,16 @@ bool AVCDecoderConfigurationRecord::Parse(BoxReader* reader) {
   return true;
 }
 
+PixelAspectRatioBox::PixelAspectRatioBox() : h_spacing(1), v_spacing(1) {}
+PixelAspectRatioBox::~PixelAspectRatioBox() {}
+FourCC PixelAspectRatioBox::BoxType() const { return FOURCC_PASP; }
+
+bool PixelAspectRatioBox::Parse(BoxReader* reader) {
+  RCHECK(reader->Read4(&h_spacing) &&
+         reader->Read4(&v_spacing));
+  return true;
+}
+
 VideoSampleEntry::VideoSampleEntry()
     : format(FOURCC_NULL),
       data_reference_index(0),
@@ -363,6 +373,7 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
          reader->SkipBytes(50));
 
   RCHECK(reader->ScanChildren());
+  RCHECK(reader->MaybeReadChild(&pixel_aspect));
   if (format == FOURCC_ENCV) {
     RCHECK(reader->ReadChild(&sinf));
   }
@@ -483,7 +494,12 @@ MovieExtendsHeader::~MovieExtendsHeader() {}
 FourCC MovieExtendsHeader::BoxType() const { return FOURCC_MEHD; }
 
 bool MovieExtendsHeader::Parse(BoxReader* reader) {
-  RCHECK(reader->Read8(&fragment_duration));
+  RCHECK(reader->ReadFullBoxHeader());
+  if (reader->version() == 1) {
+    RCHECK(reader->Read8(&fragment_duration));
+  } else {
+    RCHECK(reader->Read4Into8(&fragment_duration));
+  }
   return true;
 }
 
