@@ -349,7 +349,7 @@
        # Force rlz to use chrome's networking stack.
       'force_rlz_use_chrome_net%': 1,
 
-      'platformsdk_path%': '<(DEPTH)/third_party/platformsdk_win7/files',
+      'sas_dll_path%': '<(DEPTH)/third_party/platformsdk_win7/files/redist/x86',
       'wix_path%': '<(DEPTH)/third_party/wix',
 
       'conditions': [
@@ -568,7 +568,7 @@
     'enable_captive_portal_detection%': '<(enable_captive_portal_detection)',
     'force_rlz_use_chrome_net%': '<(force_rlz_use_chrome_net)',
     'enable_task_manager%': '<(enable_task_manager)',
-    'platformsdk_path%': '<(platformsdk_path)',
+    'sas_dll_path%': '<(sas_dll_path)',
     'wix_path%': '<(wix_path)',
     'android_upstream_bringup%': '<(android_upstream_bringup)',
 
@@ -801,7 +801,7 @@
     # Native Client is enabled by default.
     'disable_nacl%': 0,
 
-    'platformsdk_exists': '<!(python <(DEPTH)/build/dir_exists.py <(platformsdk_path))',
+    'sas_dll_exists': '<!(python <(DEPTH)/build/dir_exists.py <(sas_dll_path))',
     'wix_exists': '<!(python <(DEPTH)/build/dir_exists.py <(wix_path))',
 
     'conditions': [
