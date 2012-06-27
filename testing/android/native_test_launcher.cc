@@ -35,6 +35,10 @@ extern int main(int argc, char** argv);
 
 namespace {
 
+void log_write(int level, const char* msg) {
+  __android_log_write(level, "chromium", msg);
+}
+
 // The list of signals which are considered to be crashes.
 const int kExceptionSignals[] = {
   SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGBUS, -1
@@ -46,7 +50,7 @@ struct sigaction g_old_sa[NSIG];
 void SignalHandler(int sig, siginfo_t *info, void *reserved)
 {
   // Output the crash marker.
-  __android_log_write(ANDROID_LOG_ERROR, "chromium", "[ CRASHED      ]");
+  log_write(ANDROID_LOG_ERROR, "[ CRASHED      ]");
   g_old_sa[sig].sa_sigaction(sig, info, reserved);
 }
 
@@ -125,13 +129,13 @@ void AndroidLogPrinter::OnTestProgramStart(
     const ::testing::UnitTest& unit_test) {
   std::string msg = StringPrintf("[ START      ] %d",
                                  unit_test.test_to_run_count());
-  LOG(ERROR) << msg;
+  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
 }
 
 void AndroidLogPrinter::OnTestStart(const ::testing::TestInfo& test_info) {
   std::string msg = StringPrintf("[ RUN      ] %s.%s",
                                  test_info.test_case_name(), test_info.name());
-  LOG(ERROR) << msg;
+  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
 }
 
 void AndroidLogPrinter::OnTestPartResult(
@@ -142,21 +146,21 @@ void AndroidLogPrinter::OnTestPartResult(
       test_part_result.file_name(),
       test_part_result.line_number(),
       test_part_result.summary());
-  LOG(ERROR) << msg;
+  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
 }
 
 void AndroidLogPrinter::OnTestEnd(const ::testing::TestInfo& test_info) {
   std::string msg = StringPrintf("%s %s.%s",
       test_info.result()->Failed() ? "[  FAILED  ]" : "[       OK ]",
       test_info.test_case_name(), test_info.name());
-  LOG(ERROR) << msg;
+  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
 }
 
 void AndroidLogPrinter::OnTestProgramEnd(
     const ::testing::UnitTest& unit_test) {
   std::string msg = StringPrintf("[ END      ] %d",
          unit_test.successful_test_count());
-  LOG(ERROR) << msg;
+  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
 }
 
 }  // namespace
