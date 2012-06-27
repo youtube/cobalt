@@ -53,6 +53,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool EnqueueSample(BufferQueue* audio_buffers,
                      BufferQueue* video_buffers,
                      bool* err);
+  bool SendAndFlushSamples(BufferQueue* audio_buffers,
+                           BufferQueue* video_buffers);
 
   State state_;
   InitCB init_cb_;
