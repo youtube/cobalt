@@ -785,7 +785,6 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
   SSLSocketDataProvider* data_;
   bool is_npn_state_set_;
   bool new_npn_value_;
-  bool was_used_to_convey_data_;
   bool is_protocol_negotiated_set_;
   NextProto protocol_negotiated_;
 };
