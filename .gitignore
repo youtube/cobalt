@@ -135,6 +135,7 @@ v8.log
 /third_party/cacheinvalidation/files
 /third_party/chromeos_login_manager
 /third_party/chromeos_text_input
+/third_party/cros
 /third_party/cros_system_api
 /third_party/cygwin
 /third_party/directxsdk
