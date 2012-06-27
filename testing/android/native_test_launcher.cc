@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <stdio.h>
 
+#include "base/android/base_jni_registrar.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/locale_utils.h"
@@ -175,9 +176,7 @@ static void RunTests(JNIEnv* env,
   base::android::ScopedJavaLocalRef<jobject> scoped_context(
       env, env->NewLocalRef(app_context));
   base::android::InitApplicationContext(scoped_context);
-
-  base::android::RegisterLocaleUtils(env);
-  base::android::RegisterPathUtils(env);
+  base::android::RegisterJni(env);
 
   FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
   // A few options, such "--gtest_list_tests", will just use printf directly
