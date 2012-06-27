@@ -6,6 +6,7 @@
 #include <deque>
 #include <string>
 
+#include "base/bind.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
@@ -14,7 +15,6 @@
 #include "media/base/mock_callback.h"
 #include "media/base/mock_demuxer_host.h"
 #include "media/base/mock_filters.h"
-#include "media/base/mock_reader.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/file_data_source.h"
@@ -38,6 +38,21 @@ MATCHER(IsEndOfStreamBuffer,
         std::string(negation ? "isn't" : "is") + " end of stream") {
   return arg->IsEndOfStream();
 }
+
+static void EosOnReadDone(bool* got_eos_buffer,
+                          const scoped_refptr<DecoderBuffer>& buffer) {
+  if (buffer->IsEndOfStream()) {
+    *got_eos_buffer = true;
+    EXPECT_TRUE(!buffer->GetData());
+    EXPECT_EQ(buffer->GetDataSize(), 0);
+    return;
+  }
+
+  EXPECT_TRUE(buffer->GetData());
+  EXPECT_GT(buffer->GetDataSize(), 0);
+  *got_eos_buffer = false;
+};
+
 
 // Fixture class to facilitate writing tests.  Takes care of setting up the
 // FFmpeg, pipeline and filter host mocks.
@@ -80,20 +95,30 @@ class FFmpegDemuxerTest : public testing::Test {
     message_loop_.RunAllPending();
   }
 
+  MOCK_METHOD2(OnReadDoneCalled, void(int, int64));
+
   // Verifies that |buffer| has a specific |size| and |timestamp|.
   // |location| simply indicates where the call to this function was made.
   // This makes it easier to track down where test failures occur.
-  void ValidateBuffer(const tracked_objects::Location& location,
-                      const scoped_refptr<Buffer>& buffer,
-                      int size, int64 timestampInMicroseconds) {
+  void OnReadDone(const tracked_objects::Location& location,
+                  int size, int64 timestampInMicroseconds,
+                  const scoped_refptr<DecoderBuffer>& buffer) {
     std::string location_str;
     location.Write(true, false, &location_str);
     location_str += "\n";
     SCOPED_TRACE(location_str);
+    OnReadDoneCalled(size, timestampInMicroseconds);
     EXPECT_TRUE(buffer.get() != NULL);
     EXPECT_EQ(size, buffer->GetDataSize());
     EXPECT_EQ(base::TimeDelta::FromMicroseconds(timestampInMicroseconds),
               buffer->GetTimestamp());
+  }
+
+  DemuxerStream::ReadCB NewReadCB(const tracked_objects::Location& location,
+                                  int size, int64 timestampInMicroseconds) {
+    EXPECT_CALL(*this, OnReadDoneCalled(size, timestampInMicroseconds));
+    return base::Bind(&FFmpegDemuxerTest::OnReadDone, base::Unretained(this),
+                      location, size, timestampInMicroseconds);
   }
 
   // Accessor to demuxer internals.
@@ -132,26 +157,12 @@ class FFmpegDemuxerTest : public testing::Test {
     // We should expect an end of stream buffer.
     scoped_refptr<DemuxerStream> audio =
         demuxer_->GetStream(DemuxerStream::AUDIO);
-    scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
 
     bool got_eos_buffer = false;
     const int kMaxBuffers = 170;
     for (int i = 0; !got_eos_buffer && i < kMaxBuffers; i++) {
-      reader->Read(audio);
+      audio->Read(base::Bind(&EosOnReadDone, &got_eos_buffer));
       message_loop_.RunAllPending();
-      EXPECT_TRUE(reader->called());
-      ASSERT_TRUE(reader->buffer());
-
-      if (reader->buffer()->IsEndOfStream()) {
-        got_eos_buffer = true;
-        EXPECT_TRUE(reader->buffer()->GetData() == NULL);
-        EXPECT_EQ(0, reader->buffer()->GetDataSize());
-        break;
-      }
-
-      EXPECT_TRUE(reader->buffer()->GetData() != NULL);
-      EXPECT_GT(reader->buffer()->GetDataSize(), 0);
-      reader->Reset();
     }
 
     EXPECT_TRUE(got_eos_buffer);
@@ -291,17 +302,12 @@ TEST_F(FFmpegDemuxerTest, Read_Audio) {
   // Attempt a read from the audio stream and run the message loop until done.
   scoped_refptr<DemuxerStream> audio =
       demuxer_->GetStream(DemuxerStream::AUDIO);
-  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
-  reader->Read(audio);
-  message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 29, 0);
 
-  reader->Reset();
-  reader->Read(audio);
+  audio->Read(NewReadCB(FROM_HERE, 29, 0));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 27, 3000);
+
+  audio->Read(NewReadCB(FROM_HERE, 27, 3000));
+  message_loop_.RunAllPending();
 }
 
 TEST_F(FFmpegDemuxerTest, Read_Video) {
@@ -312,18 +318,12 @@ TEST_F(FFmpegDemuxerTest, Read_Video) {
   // Attempt a read from the video stream and run the message loop until done.
   scoped_refptr<DemuxerStream> video =
       demuxer_->GetStream(DemuxerStream::VIDEO);
-  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
 
-  reader->Read(video);
+  video->Read(NewReadCB(FROM_HERE, 22084, 0));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 22084, 0);
 
-  reader->Reset();
-  reader->Read(video);
+  video->Read(NewReadCB(FROM_HERE, 1057, 33000));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 1057, 33000);
 }
 
 TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
@@ -336,26 +336,17 @@ TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
       demuxer_->GetStream(DemuxerStream::VIDEO);
   scoped_refptr<DemuxerStream> audio =
       demuxer_->GetStream(DemuxerStream::AUDIO);
-  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
 
   // Check first buffer in video stream.
-  reader->Read(video);
+  video->Read(NewReadCB(FROM_HERE, 5636, 400000));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 5636, 400000);
-  const base::TimeDelta video_timestamp = reader->buffer()->GetTimestamp();
 
   // Check first buffer in audio stream.
-  reader->Reset();
-  reader->Read(audio);
+  audio->Read(NewReadCB(FROM_HERE, 165, 396000));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 165, 396000);
-  const base::TimeDelta audio_timestamp = reader->buffer()->GetTimestamp();
 
-  // Verify that the start time is equal to the lowest timestamp.
-  EXPECT_EQ(std::min(audio_timestamp, video_timestamp),
-            demuxer_->GetStartTime());
+  // Verify that the start time is equal to the lowest timestamp (ie the audio).
+  EXPECT_EQ(demuxer_->GetStartTime().InMicroseconds(), 396000);
 }
 
 TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
@@ -389,14 +380,7 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   ASSERT_TRUE(audio);
 
   // Read a video packet and release it.
-  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
-  reader->Read(video);
-  message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 22084, 0);
-
-  // Release the video packet and verify the other packets are still queued.
-  reader->Reset();
+  video->Read(NewReadCB(FROM_HERE, 22084, 0));
   message_loop_.RunAllPending();
 
   // Issue a simple forward seek, which should discard queued packets.
@@ -405,34 +389,19 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   message_loop_.RunAllPending();
 
   // Audio read #1.
-  reader->Read(audio);
+  audio->Read(NewReadCB(FROM_HERE, 145, 803000));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 145, 803000);
 
   // Audio read #2.
-  reader->Reset();
-  reader->Read(audio);
+  audio->Read(NewReadCB(FROM_HERE, 148, 826000));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 148, 826000);
 
   // Video read #1.
-  reader->Reset();
-  reader->Read(video);
+  video->Read(NewReadCB(FROM_HERE, 5425, 801000));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 5425, 801000);
 
   // Video read #2.
-  reader->Reset();
-  reader->Read(video);
-  message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 1906, 834000);
-
-  // Manually release the last reference to the buffer and verify it was freed.
-  reader->Reset();
+  video->Read(NewReadCB(FROM_HERE, 1906, 834000));
   message_loop_.RunAllPending();
 }
 
@@ -560,18 +529,14 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
   EXPECT_TRUE(IsStreamStopped(DemuxerStream::AUDIO));
 
   // Attempt a read from the video stream: it should return valid data.
-  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
-  reader->Read(video);
+  video->Read(NewReadCB(FROM_HERE, 22084, 0));
   message_loop_.RunAllPending();
-  ASSERT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 22084, 0);
 
   // Attempt a read from the audio stream: it should immediately return end of
   // stream without requiring the message loop to read data.
-  reader->Reset();
-  reader->Read(audio);
-  ASSERT_TRUE(reader->called());
-  EXPECT_TRUE(reader->buffer()->IsEndOfStream());
+  bool got_eos_buffer = false;
+  audio->Read(base::Bind(&EosOnReadDone, &got_eos_buffer));
+  EXPECT_TRUE(got_eos_buffer);
 }
 
 TEST_F(FFmpegDemuxerTest, ProtocolRead) {
@@ -685,14 +650,7 @@ TEST_F(FFmpegDemuxerTest, SeekWithCuesBeforeFirstCluster) {
   ASSERT_TRUE(audio);
 
   // Read a video packet and release it.
-  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
-  reader->Read(video);
-  message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 22084, 0);
-
-  // Release the video packet and verify the other packets are still queued.
-  reader->Reset();
+  video->Read(NewReadCB(FROM_HERE, 22084, 0));
   message_loop_.RunAllPending();
 
   // Issue a simple forward seek, which should discard queued packets.
@@ -701,34 +659,19 @@ TEST_F(FFmpegDemuxerTest, SeekWithCuesBeforeFirstCluster) {
   message_loop_.RunAllPending();
 
   // Audio read #1.
-  reader->Read(audio);
+  audio->Read(NewReadCB(FROM_HERE, 40, 2403000));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 40, 2403000);
 
   // Audio read #2.
-  reader->Reset();
-  reader->Read(audio);
+  audio->Read(NewReadCB(FROM_HERE, 42, 2406000));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 42, 2406000);
 
   // Video read #1.
-  reader->Reset();
-  reader->Read(video);
+  video->Read(NewReadCB(FROM_HERE, 5276, 2402000));
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 5276, 2402000);
 
   // Video read #2.
-  reader->Reset();
-  reader->Read(video);
-  message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ValidateBuffer(FROM_HERE, reader->buffer(), 1740, 2436000);
-
-  // Manually release the last reference to the buffer and verify it was freed.
-  reader->Reset();
+  video->Read(NewReadCB(FROM_HERE, 1740, 2436000));
   message_loop_.RunAllPending();
 }
 
