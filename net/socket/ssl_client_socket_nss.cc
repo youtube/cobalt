@@ -104,7 +104,6 @@
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/nss_ssl_util.h"
 #include "net/socket/ssl_error_params.h"
-#include "net/socket/ssl_host_info.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
@@ -531,7 +530,6 @@ struct HandshakeState {
     client_certs.clear();
     server_cert_chain.Reset(NULL);
     server_cert = NULL;
-    predicted_cert_chain_correct = false;
     resumed_handshake = false;
     ssl_connection_status = 0;
   }
@@ -561,11 +559,6 @@ struct HandshakeState {
   // always be non-NULL.
   PeerCertificateChain server_cert_chain;
   scoped_refptr<X509Certificate> server_cert;
-
-  // True if we predicted a certificate chain (via
-  // Core::SetPredictedCertificates) and that prediction matched what the
-  // server sent.
-  bool predicted_cert_chain_correct;
 
   // True if the current handshake was the result of TLS session resumption.
   bool resumed_handshake;
@@ -1746,26 +1739,6 @@ void SSLClientSocketNSS::Core::HandshakeCallback(
   core->UpdateServerCert();
   core->UpdateConnectionStatus();
 
-  // We need to see if the predicted certificate chain (from
-  // SetPredictedCertificates) matches the actual certificate chain.
-  nss_state->predicted_cert_chain_correct = false;
-  if (!core->predicted_certs_.empty()) {
-    PeerCertificateChain& certs = nss_state->server_cert_chain;
-    nss_state->predicted_cert_chain_correct =
-        certs.size() == core->predicted_certs_.size();
-
-    if (nss_state->predicted_cert_chain_correct) {
-      for (unsigned i = 0; i < certs.size(); i++) {
-        if (certs[i]->derCert.len != core->predicted_certs_[i].size() ||
-            memcmp(certs[i]->derCert.data, core->predicted_certs_[i].data(),
-                   certs[i]->derCert.len) != 0) {
-          nss_state->predicted_cert_chain_correct = false;
-          break;
-        }
-      }
-    }
-  }
-
   // Update the network task runners view of the handshake state whenever
   // a handshake has completed.
   core->PostOrRunCallback(
@@ -2011,8 +1984,7 @@ int SSLClientSocketNSS::Core::DoHandshake() {
   #if defined(SSL_ENABLE_OCSP_STAPLING)
       // TODO(agl): figure out how to plumb an OCSP response into the Mac
       // system library and update IsOCSPStaplingSupported for Mac.
-      if (!nss_handshake_state_.predicted_cert_chain_correct &&
-          IsOCSPStaplingSupported()) {
+      if (IsOCSPStaplingSupported()) {
         unsigned int len = 0;
         SSL_GetStapledOCSPResponse(nss_fd_, NULL, &len);
         if (len) {
@@ -2748,13 +2720,11 @@ SSLClientSocketNSS::SSLClientSocketNSS(
     ClientSocketHandle* transport_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info,
     const SSLClientSocketContext& context)
     : nss_task_runner_(nss_task_runner),
       transport_(transport_socket),
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
-      server_cert_verify_result_(NULL),
       cert_verifier_(context.cert_verifier),
       server_bound_cert_service_(context.server_bound_cert_service),
       ssl_session_cache_shard_(context.ssl_session_cache_shard),
@@ -2762,7 +2732,6 @@ SSLClientSocketNSS::SSLClientSocketNSS(
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
       net_log_(transport_socket->socket()->NetLog()),
-      ssl_host_info_(ssl_host_info),
       transport_security_state_(context.transport_security_state),
       valid_thread_id_(base::kInvalidThreadId) {
   EnterFunction("");
@@ -2794,18 +2763,18 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
     return;
   }
 
-  ssl_info->cert_status = server_cert_verify_result_->cert_status;
-  ssl_info->cert = server_cert_verify_result_->verified_cert;
+  ssl_info->cert_status = server_cert_verify_result_.cert_status;
+  ssl_info->cert = server_cert_verify_result_.verified_cert;
   ssl_info->connection_status =
       core_->state().ssl_connection_status;
-  ssl_info->public_key_hashes = server_cert_verify_result_->public_key_hashes;
+  ssl_info->public_key_hashes = server_cert_verify_result_.public_key_hashes;
   for (std::vector<SHA1Fingerprint>::const_iterator
        i = side_pinned_public_keys_.begin();
        i != side_pinned_public_keys_.end(); i++) {
     ssl_info->public_key_hashes.push_back(*i);
   }
   ssl_info->is_issued_by_known_root =
-      server_cert_verify_result_->is_issued_by_known_root;
+      server_cert_verify_result_.is_issued_by_known_root;
   ssl_info->client_cert_sent =
       ssl_config_.send_client_cert && ssl_config_.client_cert;
   ssl_info->channel_id_sent = WasChannelIDSent();
@@ -2896,11 +2865,7 @@ int SSLClientSocketNSS::Connect(const CompletionCallback& callback) {
     return rv;
   }
 
-  if (ssl_config_.cached_info_enabled && ssl_host_info_.get()) {
-    GotoState(STATE_LOAD_SSL_HOST_INFO);
-  } else {
-    GotoState(STATE_HANDSHAKE);
-  }
+  GotoState(STATE_HANDSHAKE);
 
   rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -2925,8 +2890,7 @@ void SSLClientSocketNSS::Disconnect() {
 
   // Reset object state.
   user_connect_callback_.Reset();
-  local_server_cert_verify_result_.Reset();
-  server_cert_verify_result_ = NULL;
+  server_cert_verify_result_.Reset();
   completed_handshake_   = false;
   start_cert_verification_time_ = base::TimeTicks();
   InitCore();
@@ -3286,34 +3250,6 @@ void SSLClientSocketNSS::OnHandshakeIOComplete(int result) {
   LeaveFunction("");
 }
 
-void SSLClientSocketNSS::LoadSSLHostInfo() {
-  const SSLHostInfo::State& state(ssl_host_info_->state());
-
-  if (state.certs.empty())
-    return;
-
-  const std::vector<std::string>& certs_in = state.certs;
-  core_->SetPredictedCertificates(certs_in);
-}
-
-int SSLClientSocketNSS::DoLoadSSLHostInfo() {
-  EnterFunction("");
-  int rv = ssl_host_info_->WaitForDataReady(
-      base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
-                 base::Unretained(this)));
-  GotoState(STATE_HANDSHAKE);
-
-  if (rv == OK) {
-    LoadSSLHostInfo();
-  } else {
-    DCHECK_EQ(ERR_IO_PENDING, rv);
-    GotoState(STATE_LOAD_SSL_HOST_INFO);
-  }
-
-  LeaveFunction("");
-  return rv;
-}
-
 int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
   EnterFunction(last_io_result);
   int rv = last_io_result;
@@ -3326,10 +3262,6 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
     State state = next_handshake_state_;
     GotoState(STATE_NONE);
     switch (state) {
-      case STATE_LOAD_SSL_HOST_INFO:
-        DCHECK(rv == OK || rv == ERR_IO_PENDING);
-        rv = DoLoadSSLHostInfo();
-        break;
       case STATE_HANDSHAKE:
         rv = DoHandshake();
         break;
@@ -3372,7 +3304,6 @@ int SSLClientSocketNSS::DoHandshakeComplete(int result) {
   EnterFunction(result);
 
   if (result == OK) {
-    SaveSSLHostInfo();
     // SSL handshake is completed. Let's verify the certificate.
     GotoState(STATE_VERIFY_DNSSEC);
     // Done!
@@ -3392,10 +3323,8 @@ int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
       host_and_port_.host(), core_->state().server_cert_chain[0],
       host_and_port_.port());
   if (r == DNSVR_SUCCESS) {
-    local_server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
-    local_server_cert_verify_result_.verified_cert =
-        core_->state().server_cert;
-    server_cert_verify_result_ = &local_server_cert_verify_result_;
+    server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
+    server_cert_verify_result_.verified_cert = core_->state().server_cert;
     GotoState(STATE_VERIFY_CERT_COMPLETE);
     return OK;
   }
@@ -3421,45 +3350,21 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   if (ssl_config_.IsAllowedBadCert(der_cert, &cert_status)) {
     DCHECK(start_cert_verification_time_.is_null());
     VLOG(1) << "Received an expected bad cert with status: " << cert_status;
-    server_cert_verify_result_ = &local_server_cert_verify_result_;
-    local_server_cert_verify_result_.Reset();
-    local_server_cert_verify_result_.cert_status = cert_status;
-    local_server_cert_verify_result_.verified_cert =
-        core_->state().server_cert;
+    server_cert_verify_result_.Reset();
+    server_cert_verify_result_.cert_status = cert_status;
+    server_cert_verify_result_.verified_cert = core_->state().server_cert;
     return OK;
   }
 
   // We may have failed to create X509Certificate object if we are
   // running inside sandbox.
   if (!core_->state().server_cert) {
-    server_cert_verify_result_ = &local_server_cert_verify_result_;
-    local_server_cert_verify_result_.Reset();
-    local_server_cert_verify_result_.cert_status = CERT_STATUS_INVALID;
+    server_cert_verify_result_.Reset();
+    server_cert_verify_result_.cert_status = CERT_STATUS_INVALID;
     return ERR_CERT_INVALID;
   }
 
   start_cert_verification_time_ = base::TimeTicks::Now();
-
-  if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty() &&
-      core_->state().predicted_cert_chain_correct) {
-    // If the SSLHostInfo had a prediction for the certificate chain of this
-    // server then it will have optimistically started a verification of that
-    // chain. So, if the prediction was correct, we should wait for that
-    // verification to finish rather than start our own.
-    net_log_.AddEvent(NetLog::TYPE_SSL_VERIFICATION_MERGED);
-    UMA_HISTOGRAM_ENUMERATION("Net.SSLVerificationMerged", 1 /* true */, 2);
-    base::TimeTicks end_time = ssl_host_info_->verification_end_time();
-    if (end_time.is_null())
-      end_time = base::TimeTicks::Now();
-    UMA_HISTOGRAM_TIMES("Net.SSLVerificationMergedMsSaved",
-                        end_time - ssl_host_info_->verification_start_time());
-    server_cert_verify_result_ = &ssl_host_info_->cert_verify_result();
-    return ssl_host_info_->WaitForCertVerification(
-        base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
-                   base::Unretained(this)));
-  } else {
-    UMA_HISTOGRAM_ENUMERATION("Net.SSLVerificationMerged", 0 /* false */, 2);
-  }
 
   int flags = 0;
   if (ssl_config_.rev_checking_enabled)
@@ -3469,10 +3374,9 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   if (ssl_config_.cert_io_enabled)
     flags |= X509Certificate::VERIFY_CERT_IO_ENABLED;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
-  server_cert_verify_result_ = &local_server_cert_verify_result_;
   return verifier_->Verify(
       core_->state().server_cert, host_and_port_.host(), flags,
-      SSLConfigService::GetCRLSet(), &local_server_cert_verify_result_,
+      SSLConfigService::GetCRLSet(), &server_cert_verify_result_,
       base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
                  base::Unretained(this)),
       net_log_);
@@ -3520,10 +3424,10 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   // merges into a SPDY connection to www.example.com, and gets a different
   // certificate.
 
-  const CertStatus cert_status = server_cert_verify_result_->cert_status;
+  const CertStatus cert_status = server_cert_verify_result_.cert_status;
   if ((result == OK || (IsCertificateError(result) &&
                         IsCertStatusMinorError(cert_status))) &&
-      server_cert_verify_result_->is_issued_by_known_root &&
+      server_cert_verify_result_.is_issued_by_known_root &&
       transport_security_state_) {
     bool sni_available =
         ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1 ||
@@ -3535,7 +3439,7 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
                                                   &domain_state) &&
         domain_state.HasPins()) {
       if (!domain_state.IsChainOfPublicKeysPermitted(
-               server_cert_verify_result_->public_key_hashes)) {
+               server_cert_verify_result_.public_key_hashes)) {
         const base::Time build_time = base::GetBuildTime();
         // Pins are not enforced if the build is sufficiently old. Chrome
         // users should get updates every six weeks or so, but it's possible
@@ -3561,15 +3465,15 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
 
 void SSLClientSocketNSS::LogConnectionTypeMetrics() const {
   UpdateConnectionTypeHistograms(CONNECTION_SSL);
-  if (server_cert_verify_result_->has_md5)
+  if (server_cert_verify_result_.has_md5)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5);
-  if (server_cert_verify_result_->has_md2)
+  if (server_cert_verify_result_.has_md2)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2);
-  if (server_cert_verify_result_->has_md4)
+  if (server_cert_verify_result_.has_md4)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD4);
-  if (server_cert_verify_result_->has_md5_ca)
+  if (server_cert_verify_result_.has_md5_ca)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5_CA);
-  if (server_cert_verify_result_->has_md2_ca)
+  if (server_cert_verify_result_.has_md2_ca)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2_CA);
   int ssl_version = SSLConnectionStatusToVersion(
       core_->state().ssl_connection_status);
@@ -3590,35 +3494,6 @@ void SSLClientSocketNSS::LogConnectionTypeMetrics() const {
       UpdateConnectionTypeHistograms(CONNECTION_SSL_TLS1_2);
       break;
   };
-}
-
-// SaveSSLHostInfo saves the certificate chain of the connection so that we can
-// start verification faster in the future.
-void SSLClientSocketNSS::SaveSSLHostInfo() {
-  if (!ssl_host_info_.get())
-    return;
-
-  // If the SSLHostInfo hasn't managed to load from disk yet then we can't save
-  // anything.
-  if (ssl_host_info_->WaitForDataReady(net::CompletionCallback()) != OK)
-    return;
-
-  SSLHostInfo::State* state = ssl_host_info_->mutable_state();
-
-  state->certs.clear();
-  const PeerCertificateChain& certs = core_->state().server_cert_chain;
-  for (unsigned i = 0; i < certs.size(); i++) {
-    if (certs[i] == NULL ||
-        certs[i]->derCert.len > std::numeric_limits<uint16>::max()) {
-      return;
-    }
-
-    state->certs.push_back(std::string(
-          reinterpret_cast<char*>(certs[i]->derCert.data),
-          certs[i]->derCert.len));
-  }
-
-  ssl_host_info_->Persist();
 }
 
 void SSLClientSocketNSS::EnsureThreadIdAssigned() const {

@@ -31,7 +31,6 @@ class HttpProxySocketParams;
 class SOCKSClientSocketPool;
 class SOCKSSocketParams;
 class SSLClientSocket;
-class SSLHostInfoFactory;
 class TransportClientSocketPool;
 class TransportSecurityState;
 class TransportSocketParams;
@@ -154,7 +153,6 @@ class SSLConnectJob : public ConnectJob {
   CompletionCallback callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<SSLClientSocket> ssl_socket_;
-  scoped_ptr<SSLHostInfo> ssl_host_info_;
 
   // The time the DoSSLConnect() method was called.
   base::TimeTicks ssl_connect_start_time_;
@@ -179,7 +177,6 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
       CertVerifier* cert_verifier,
       ServerBoundCertService* server_bound_cert_service,
       TransportSecurityState* transport_security_state,
-      SSLHostInfoFactory* ssl_host_info_factory,
       const std::string& ssl_session_cache_shard,
       ClientSocketFactory* client_socket_factory,
       TransportClientSocketPool* transport_pool,

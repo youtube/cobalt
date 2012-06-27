@@ -28,7 +28,6 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
-#include "net/http/disk_cache_based_ssl_host_info.h"
 #include "net/http/http_cache_transaction.h"
 #include "net/http/http_network_layer.h"
 #include "net/http/http_network_session.h"
@@ -36,7 +35,6 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_util.h"
-#include "net/socket/ssl_host_info.h"
 
 namespace net {
 
@@ -48,7 +46,6 @@ HttpNetworkSession* CreateNetworkSession(
     ServerBoundCertService* server_bound_cert_service,
     TransportSecurityState* transport_security_state,
     ProxyService* proxy_service,
-    SSLHostInfoFactory* ssl_host_info_factory,
     const std::string& ssl_session_cache_shard,
     SSLConfigService* ssl_config_service,
     HttpAuthHandlerFactory* http_auth_handler_factory,
@@ -62,7 +59,6 @@ HttpNetworkSession* CreateNetworkSession(
   params.server_bound_cert_service = server_bound_cert_service;
   params.transport_security_state = transport_security_state;
   params.proxy_service = proxy_service;
-  params.ssl_host_info_factory = ssl_host_info_factory;
   params.ssl_session_cache_shard = ssl_session_cache_shard;
   params.ssl_config_service = ssl_config_service;
   params.http_auth_handler_factory = http_auth_handler_factory;
@@ -279,25 +275,6 @@ void HttpCache::MetadataWriter::OnIOComplete(int result) {
 
 //-----------------------------------------------------------------------------
 
-class HttpCache::SSLHostInfoFactoryAdaptor : public SSLHostInfoFactory {
- public:
-  SSLHostInfoFactoryAdaptor(CertVerifier* cert_verifier, HttpCache* http_cache)
-      : cert_verifier_(cert_verifier),
-        http_cache_(http_cache) {
-  }
-
-  virtual SSLHostInfo* GetForHost(const std::string& hostname,
-                                  const SSLConfig& ssl_config) {
-    return new DiskCacheBasedSSLHostInfo(
-        hostname, ssl_config, cert_verifier_, http_cache_);
-  }
-
- private:
-  CertVerifier* const cert_verifier_;
-  HttpCache* const http_cache_;
-};
-
-//-----------------------------------------------------------------------------
 HttpCache::HttpCache(HostResolver* host_resolver,
                      CertVerifier* cert_verifier,
                      ServerBoundCertService* server_bound_cert_service,
@@ -315,9 +292,6 @@ HttpCache::HttpCache(HostResolver* host_resolver,
       backend_factory_(backend_factory),
       building_backend_(false),
       mode_(NORMAL),
-      ssl_host_info_factory_(new SSLHostInfoFactoryAdaptor(
-          cert_verifier,
-          ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       network_layer_(
           new HttpNetworkLayer(
               CreateNetworkSession(
@@ -326,7 +300,6 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                   server_bound_cert_service,
                   transport_security_state,
                   proxy_service,
-                  ssl_host_info_factory_.get(),
                   ssl_session_cache_shard,
                   ssl_config_service,
                   http_auth_handler_factory,
@@ -343,9 +316,6 @@ HttpCache::HttpCache(HttpNetworkSession* session,
       backend_factory_(backend_factory),
       building_backend_(false),
       mode_(NORMAL),
-      ssl_host_info_factory_(new SSLHostInfoFactoryAdaptor(
-          session->cert_verifier(),
-          ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       network_layer_(new HttpNetworkLayer(session)) {
 }
 
