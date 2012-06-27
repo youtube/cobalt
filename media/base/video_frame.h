@@ -48,7 +48,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
 
   // Call prior to CreateFrame to ensure validity of frame configuration. Called
   // automatically by VideoDecoderConfig::IsValidConfig().
-  // TODO(scherkus): VideoDecoderConfig shouldn't call this method
   static bool IsValidConfig(
       Format format,
       size_t width,
