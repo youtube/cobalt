@@ -99,7 +99,6 @@ class SSLClientSocketPoolTest : public testing::Test {
         NULL /* cert_verifier */,
         NULL /* server_bound_cert_service */,
         NULL /* transport_security_state */,
-        NULL /* ssl_host_info_factory */,
         ""   /* ssl_session_cache_shard */,
         &socket_factory_,
         transport_pool ? &transport_socket_pool_ : NULL,

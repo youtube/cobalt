@@ -41,7 +41,6 @@ class CertVerifier;
 class ClientSocketHandle;
 class ServerBoundCertService;
 class SingleRequestCertVerifier;
-class SSLHostInfo;
 class TransportSecurityState;
 class X509Certificate;
 
@@ -64,7 +63,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
                      ClientSocketHandle* transport_socket,
                      const HostPortPair& host_and_port,
                      const SSLConfig& ssl_config,
-                     SSLHostInfo* ssl_host_info,
                      const SSLClientSocketContext& context);
   virtual ~SSLClientSocketNSS();
 
@@ -113,7 +111,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   enum State {
     STATE_NONE,
-    STATE_LOAD_SSL_HOST_INFO,
     STATE_HANDSHAKE,
     STATE_HANDSHAKE_COMPLETE,
     STATE_VERIFY_DNSSEC,
@@ -133,16 +130,12 @@ class SSLClientSocketNSS : public SSLClientSocket {
   void DoConnectCallback(int result);
   void OnHandshakeIOComplete(int result);
 
-  void LoadSSLHostInfo();
-  int DoLoadSSLHostInfo();
-
   int DoHandshakeLoop(int last_io_result);
   int DoHandshake();
   int DoHandshakeComplete(int result);
   int DoVerifyDNSSEC(int result);
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
-  void SaveSSLHostInfo();
 
   void LogConnectionTypeMetrics() const;
 
@@ -161,11 +154,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   CompletionCallback user_connect_callback_;
 
-  // |server_cert_verify_result_| points at the verification result, which may,
-  // or may not be, |&local_server_cert_verify_result_|, depending on whether
-  // we used an SSLHostInfo's verification.
-  const CertVerifyResult* server_cert_verify_result_;
-  CertVerifyResult local_server_cert_verify_result_;
+  CertVerifyResult server_cert_verify_result_;
   std::vector<SHA1Fingerprint> side_pinned_public_keys_;
 
   CertVerifier* const cert_verifier_;
@@ -192,8 +181,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   BoundNetLog net_log_;
 
   base::TimeTicks start_cert_verification_time_;
-
-  scoped_ptr<SSLHostInfo> ssl_host_info_;
 
   TransportSecurityState* transport_security_state_;
 

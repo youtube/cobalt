@@ -74,7 +74,6 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
                          cert_verifier_.get(),
                          NULL /* server_bound_cert_store */,
                          NULL /* transport_security_state */,
-                         NULL /* ssl_host_info_factory */,
                          ""   /* ssl_session_cache_shard */,
                          &socket_factory_,
                          &transport_socket_pool_,

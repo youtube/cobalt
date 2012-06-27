@@ -927,12 +927,10 @@ int SocketStream::DoSecureProxyConnect() {
   SSLClientSocketContext ssl_context;
   ssl_context.cert_verifier = cert_verifier_;
   ssl_context.server_bound_cert_service = server_bound_cert_service_;
-  // TODO(agl): look into plumbing SSLHostInfo here.
   socket_.reset(factory_->CreateSSLClientSocket(
       socket_.release(),
       proxy_info_.proxy_server().host_port_pair(),
       proxy_ssl_config_,
-      NULL /* ssl_host_info */,
       ssl_context));
   next_state_ = STATE_SECURE_PROXY_CONNECT_COMPLETE;
   metrics_->OnCountConnectionType(SocketStreamMetrics::SECURE_PROXY_CONNECTION);
@@ -982,11 +980,9 @@ int SocketStream::DoSSLConnect() {
   SSLClientSocketContext ssl_context;
   ssl_context.cert_verifier = cert_verifier_;
   ssl_context.server_bound_cert_service = server_bound_cert_service_;
-  // TODO(agl): look into plumbing SSLHostInfo here.
   socket_.reset(factory_->CreateSSLClientSocket(socket_.release(),
                                                 HostPortPair::FromURL(url_),
                                                 server_ssl_config_,
-                                                NULL /* ssl_host_info */,
                                                 ssl_context));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   metrics_->OnCountConnectionType(SocketStreamMetrics::SSL_CONNECTION);

@@ -50,7 +50,6 @@ class AsyncSocket;
 class MockClientSocket;
 class ServerBoundCertService;
 class SSLClientSocket;
-class SSLHostInfo;
 class StreamSocket;
 
 enum IoMode {
@@ -569,7 +568,6 @@ class MockClientSocketFactory : public ClientSocketFactory {
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info,
       const SSLClientSocketContext& context) OVERRIDE;
   virtual void ClearSSLSessionCache() OVERRIDE;
 
@@ -737,7 +735,6 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info,
       SSLSocketDataProvider* socket);
   virtual ~MockSSLClientSocket();
 
@@ -1004,7 +1001,6 @@ class DeterministicMockClientSocketFactory : public ClientSocketFactory {
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info,
       const SSLClientSocketContext& context) OVERRIDE;
   virtual void ClearSSLSessionCache() OVERRIDE;
 
