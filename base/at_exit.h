@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,8 @@
 #include "base/synchronization/lock.h"
 
 namespace base {
+
+class TestWatchAtExitManager;
 
 // This class provides a facility similar to the CRT atexit(), except that
 // we control when the callbacks are executed. Under Windows for a DLL they
@@ -58,6 +60,11 @@ class BASE_EXPORT AtExitManager {
   explicit AtExitManager(bool shadow);
 
  private:
+  friend class TestWatchAtExitManager;
+
+  static AtExitManager* current();
+  size_t CallbackStackSize() const;
+
   base::Lock lock_;
   std::stack<base::Closure> stack_;
   AtExitManager* next_manager_;  // Stack of managers to allow shadowing.
