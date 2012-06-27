@@ -667,7 +667,6 @@
         'base/djb2_unittest.cc',
         'base/filter_collection_unittest.cc',
         'base/h264_bitstream_converter_unittest.cc',
-        'base/mock_reader.h',
         'base/pipeline_unittest.cc',
         'base/ranges_unittest.cc',
         'base/run_all_unittests.cc',
