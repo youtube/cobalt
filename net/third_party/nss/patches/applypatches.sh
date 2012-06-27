@@ -45,3 +45,5 @@ patch -p4 < $patches_dir/keylog.patch
 patch -p4 < $patches_dir/getchannelinfo.patch
 
 patch -p4 < $patches_dir/tlsunique.patch
+
+patch -p4 < $patches_dir/sslkeylogerror.patch
