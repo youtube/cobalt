@@ -18,7 +18,6 @@
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
-#include "net/socket/ssl_host_info.h"
 #include "net/socket/transport_client_socket_pool.h"
 
 namespace net {
@@ -189,19 +188,6 @@ int SSLConnectJob::DoLoop(int result) {
 int SSLConnectJob::DoTransportConnect() {
   DCHECK(transport_pool_);
 
-  if (context_.ssl_host_info_factory) {
-      ssl_host_info_.reset(
-          context_.ssl_host_info_factory->GetForHost(
-              params_->host_and_port().host(),
-              params_->ssl_config()));
-  }
-
-  if (ssl_host_info_.get()) {
-    // This starts fetching the SSL host info from the disk cache for early
-    // certificate verification and the TLS cached information extension.
-    ssl_host_info_->Start();
-  }
-
   next_state_ = STATE_TRANSPORT_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
   scoped_refptr<TransportSocketParams> transport_params =
@@ -277,7 +263,7 @@ int SSLConnectJob::DoSSLConnect() {
 
   ssl_socket_.reset(client_socket_factory_->CreateSSLClientSocket(
       transport_socket_handle_.release(), params_->host_and_port(),
-      params_->ssl_config(), ssl_host_info_.release(), context_));
+      params_->ssl_config(), context_));
   return ssl_socket_->Connect(callback_);
 }
 
@@ -449,7 +435,6 @@ SSLClientSocketPool::SSLClientSocketPool(
     CertVerifier* cert_verifier,
     ServerBoundCertService* server_bound_cert_service,
     TransportSecurityState* transport_security_state,
-    SSLHostInfoFactory* ssl_host_info_factory,
     const std::string& ssl_session_cache_shard,
     ClientSocketFactory* client_socket_factory,
     TransportClientSocketPool* transport_pool,
@@ -472,7 +457,6 @@ SSLClientSocketPool::SSLClientSocketPool(
                                          cert_verifier,
                                          server_bound_cert_service,
                                          transport_security_state,
-                                         ssl_host_info_factory,
                                          ssl_session_cache_shard),
                                      net_log)),
       ssl_config_service_(ssl_config_service) {

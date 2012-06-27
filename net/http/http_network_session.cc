@@ -36,7 +36,6 @@ net::ClientSocketPoolManager* CreateSocketPoolManager(
       params.cert_verifier,
       params.server_bound_cert_service,
       params.transport_security_state,
-      params.ssl_host_info_factory,
       params.ssl_session_cache_shard,
       params.proxy_service,
       params.ssl_config_service,

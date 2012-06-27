@@ -505,7 +505,7 @@ EVENT_TYPE(SSL_WRITE_ERROR)
 EVENT_TYPE(SSL_VERSION_FALLBACK)
 
 // We found that our prediction of the server's certificates was correct and
-// we merged the verification with the SSLHostInfo.
+// we merged the verification with the SSLHostInfo. (Note: now obsolete.)
 EVENT_TYPE(SSL_VERIFICATION_MERGED)
 
 // An SSL error occurred while calling an NSS function not directly related to

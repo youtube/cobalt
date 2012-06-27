@@ -23,7 +23,6 @@ class HostPortPair;
 class SSLClientSocket;
 struct SSLClientSocketContext;
 struct SSLConfig;
-class SSLHostInfo;
 class StreamSocket;
 
 // An interface used to instantiate StreamSocket objects.  Used to facilitate
@@ -52,7 +51,6 @@ class NET_EXPORT ClientSocketFactory {
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info,
       const SSLClientSocketContext& context) = 0;
 
   // Deprecated function (http://crbug.com/37810) that takes a StreamSocket.
@@ -60,7 +58,6 @@ class NET_EXPORT ClientSocketFactory {
       StreamSocket* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info,
       const SSLClientSocketContext& context);
 
   // Clears cache used for SSL session resumption.
