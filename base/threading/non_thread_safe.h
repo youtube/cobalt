@@ -6,13 +6,20 @@
 #define BASE_THREADING_NON_THREAD_SAFE_H_
 #pragma once
 
-// Classes deriving from NonThreadSafe may need to supress MSVC warning 4275:
+// Classes deriving from NonThreadSafe may need to suppress MSVC warning 4275:
 // non dll-interface class 'Bar' used as base for dll-interface class 'Foo'.
 // There is a specific macro to do it: NON_EXPORTED_BASE(), defined in
 // compiler_specific.h
 #include "base/compiler_specific.h"
 
-#ifndef NDEBUG
+// See comment at top of thread_checker.h
+#if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+#define ENABLE_NON_THREAD_SAFE 1
+#else
+#define ENABLE_NON_THREAD_SAFE 0
+#endif
+
+#if ENABLE_NON_THREAD_SAFE
 #include "base/threading/non_thread_safe_impl.h"
 #endif
 
@@ -54,13 +61,15 @@ class NonThreadSafeDoNothing {
 // to have a base::ThreadChecker as a member, rather than inherit from
 // NonThreadSafe. For more details about when to choose one over the other, see
 // the documentation for base::ThreadChecker.
-//
-// In Release mode, CalledOnValidThread will always return true.
-#ifndef NDEBUG
-typedef NonThreadSafeImpl NonThreadSafe;
+#if ENABLE_NON_THREAD_SAFE
+class NonThreadSafe : public NonThreadSafeImpl {
+};
 #else
-typedef NonThreadSafeDoNothing NonThreadSafe;
-#endif  // NDEBUG
+class NonThreadSafe : public NonThreadSafeDoNothing {
+};
+#endif  // ENABLE_NON_THREAD_SAFE
+
+#undef ENABLE_NON_THREAD_SAFE
 
 }  // namespace base
 
