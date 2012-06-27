@@ -11,9 +11,15 @@
 
 // Duplicated from base/threading/thread_checker.h so that we can be
 // good citizens there and undef the macro.
-#define ENABLE_THREAD_CHECKER (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
+#define ENABLE_THREAD_CHECKER 1
+#else
+#define ENABLE_THREAD_CHECKER 0
+#endif
 
 namespace base {
+
+namespace {
 
 // Simple class to exercise the basics of ThreadChecker.
 // Both the destructor and DoStuff should verify that they were
@@ -74,6 +80,8 @@ class DeleteThreadCheckerClassOnThread : public base::SimpleThread {
   DISALLOW_COPY_AND_ASSIGN(DeleteThreadCheckerClassOnThread);
 };
 
+}  // namespace
+
 TEST(ThreadCheckerTest, CallsAllowedOnSameThread) {
   scoped_ptr<ThreadCheckerClass> thread_checker_class(
       new ThreadCheckerClass);
@@ -127,7 +135,7 @@ void ThreadCheckerClass::MethodOnDifferentThreadImpl() {
 
 #if ENABLE_THREAD_CHECKER
 TEST(ThreadCheckerDeathTest, MethodNotAllowedOnDifferentThreadInDebug) {
-  ASSERT_DEBUG_DEATH({
+  ASSERT_DEATH({
       ThreadCheckerClass::MethodOnDifferentThreadImpl();
     }, "");
 }
@@ -156,7 +164,7 @@ void ThreadCheckerClass::DetachThenCallFromDifferentThreadImpl() {
 
 #if ENABLE_THREAD_CHECKER
 TEST(ThreadCheckerDeathTest, DetachFromThreadInDebug) {
-  ASSERT_DEBUG_DEATH({
+  ASSERT_DEATH({
     ThreadCheckerClass::DetachThenCallFromDifferentThreadImpl();
     }, "");
 }
