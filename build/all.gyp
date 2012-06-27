@@ -555,7 +555,7 @@
                   ],
                 }], # internal_pdf
                 ['component != "shared_library" and wix_exists == "True" and \
-                    platformsdk_exists == "True"', {
+                    sas_dll_exists == "True"', {
                   'dependencies': [
                     '../remoting/remoting.gyp:remoting_host_installation',
                     '../remoting/remoting.gyp:remoting_host_installation_unittest',
