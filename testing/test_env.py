@@ -25,14 +25,11 @@ def fix_python_path(cmd):
 
 def run_executable(cmd, env):
   """Runs an executable with:
-    - environment variable CR_SOURCE_ROOT set to the root directory.
     - environment variable LANGUAGE to en_US.UTF-8.
     - Reuses sys.executable automatically.
   """
   # Many tests assume a English interface...
   env['LANGUAGE'] = 'en_US.UTF-8'
-  # Used by base/base_paths_linux.cc
-  env['CR_SOURCE_ROOT'] = os.path.abspath(ROOT_DIR).encode('utf-8')
   # Ensure paths are correctly separated on windows.
   cmd[0] = cmd[0].replace('/', os.path.sep)
   cmd = fix_python_path(cmd)
