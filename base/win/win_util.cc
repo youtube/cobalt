@@ -6,6 +6,7 @@
 
 #include <aclapi.h>
 #include <shobjidl.h>  // Must be before propkey.
+#include <initguid.h>
 #include <propkey.h>
 #include <propvarutil.h>
 #include <sddl.h>
@@ -22,28 +23,12 @@
 
 namespace {
 
-#if !defined(_WIN32_WINNT_WIN8)
 // TODO(gab): These definitions are temporary and should be removed once the
-// win8 SDK has been imported into third_party/
-
-// Using the same definition as in
-// third_party\platformsdk_win7\files\Include\propkeydef.h
-// without DECLSPEC_SELECTANY...
-#define DEFINE_WIN8_PROPERTYKEY(name, l, w1, w2, \
-                                b1, b2, b3, b4, b5, b6, b7, b8, \
-                                pid) \
-    const PROPERTYKEY name = { { l, w1, w2, \
-                                 { b1, b2,  b3,  b4,  b5,  b6,  b7,  b8 } }, \
-                               pid }
-
-DEFINE_WIN8_PROPERTYKEY(PKEY_AppUserModel_DualMode, 0x9F4C2855, 0x9F79, 0x4B39,
-                        0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3, 11);
-DEFINE_WIN8_PROPERTYKEY(PKEY_AppUserModel_DualMode_UK, 0x9F4C2855, 0x9F79,
-                        0x4B39, 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3,
-                        18);
-
-#undef DEFINE_WIN8_PROPERTYKEY
-#endif
+// win8 SDK defines them.
+DEFINE_PROPERTYKEY(PKEY_AppUserModel_DualMode, 0x9F4C2855, 0x9F79,
+                   0x4B39, 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3, 11);
+DEFINE_PROPERTYKEY(PKEY_AppUserModel_DualMode_UK, 0x9F4C2855, 0x9F79,
+                   0x4B39, 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3, 18);
 
 // Sets the value of |property_key| to |property_value| in |property_store|.
 // Clears the PropVariant contained in |property_value|.
