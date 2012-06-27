@@ -30,6 +30,7 @@ class MP4StreamParserTest : public testing::Test {
 
  protected:
   scoped_ptr<MP4StreamParser> parser_;
+  base::TimeDelta segment_start_;
 
   bool AppendData(const uint8* data, size_t length) {
     parser_->Parse(data, length);
@@ -72,6 +73,7 @@ class MP4StreamParserTest : public testing::Test {
       DVLOG(3) << "  n=" << buf - bufs.begin()
                << ", size=" << (*buf)->GetDataSize()
                << ", dur=" << (*buf)->GetDuration().InMilliseconds();
+      EXPECT_LE(segment_start_, (*buf)->GetTimestamp());
     }
     return true;
   }
@@ -83,6 +85,7 @@ class MP4StreamParserTest : public testing::Test {
 
   void NewSegmentF(TimeDelta start_dts) {
     DVLOG(1) << "NewSegmentF: " << start_dts.InMilliseconds();
+    segment_start_ = start_dts;
   }
 
   void InitializeParser() {
@@ -95,19 +98,23 @@ class MP4StreamParserTest : public testing::Test {
         base::Bind(&MP4StreamParserTest::NewSegmentF, base::Unretained(this)));
   }
 
-  bool ParseMP4File(const std::string& filename) {
+  bool ParseMP4File(const std::string& filename, int append_size) {
     InitializeParser();
 
     scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile(filename);
     EXPECT_TRUE(AppendDataInPieces(buffer->GetData(),
                                    buffer->GetDataSize(),
-                                   512));
+                                   append_size));
     return true;
   }
 };
 
 TEST_F(MP4StreamParserTest, TestParseBearDASH) {
-  ParseMP4File("bear.1280x720_dash.mp4");
+  ParseMP4File("bear.1280x720_dash.mp4", 512);
+}
+
+TEST_F(MP4StreamParserTest, TestMultiFragmentAppend) {
+  ParseMP4File("bear.1280x720_dash.mp4", 768432);
 }
 
 }  // namespace mp4

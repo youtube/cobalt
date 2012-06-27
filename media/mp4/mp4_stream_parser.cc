@@ -92,20 +92,16 @@ bool MP4StreamParser::Parse(const uint8* buf, int size) {
     }
   } while (result && !err);
 
+  if (!err)
+    err = !SendAndFlushSamples(&audio_buffers, &video_buffers);
+
   if (err) {
-    DLOG(ERROR) << "Unknown error while parsing MP4";
+    DLOG(ERROR) << "Error while parsing MP4";
     queue_.Reset();
     moov_.reset();
     ChangeState(kError);
     return false;
   }
-
-  if (!audio_buffers.empty() &&
-      (audio_cb_.is_null() || !audio_cb_.Run(audio_buffers)))
-    return false;
-  if (!video_buffers.empty() &&
-      (video_cb_.is_null() || !video_cb_.Run(video_buffers)))
-    return false;
 
   return true;
 }
@@ -231,6 +227,10 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
                                     BufferQueue* video_buffers,
                                     bool* err) {
   if (!runs_.RunValid()) {
+    // Flush any buffers we've gotten in this chunk so that buffers don't
+    // cross NewSegment() calls
+    *err = !SendAndFlushSamples(audio_buffers, video_buffers);
+    if (*err) return false;
     ChangeState(kParsingBoxes);
     return true;
   }
@@ -308,6 +308,21 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
   }
 
   runs_.AdvanceSample();
+  return true;
+}
+
+bool MP4StreamParser::SendAndFlushSamples(BufferQueue* audio_buffers,
+                                          BufferQueue* video_buffers) {
+  if (!audio_buffers->empty()) {
+    if (audio_cb_.is_null() || !audio_cb_.Run(*audio_buffers))
+      return false;
+    audio_buffers->clear();
+  }
+  if (!video_buffers->empty()) {
+    if (video_cb_.is_null() || !video_cb_.Run(*video_buffers))
+      return false;
+    video_buffers->clear();
+  }
   return true;
 }
 
