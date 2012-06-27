@@ -21,7 +21,6 @@
 #include "net/socket/ssl_client_socket_mac.h"
 #include "net/socket/ssl_client_socket_nss.h"
 #endif
-#include "net/socket/ssl_host_info.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/udp/udp_client_socket.h"
 
@@ -92,10 +91,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      SSLHostInfo* ssl_host_info,
       const SSLClientSocketContext& context) {
-    scoped_ptr<SSLHostInfo> shi(ssl_host_info);
-
     // nss_thread_task_runner_ may be NULL if g_use_dedicated_nss_thread is
     // false or if the dedicated NSS thread failed to start. If so, cause NSS
     // functions to execute on the current task runner.
@@ -115,15 +111,14 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
                                       ssl_config, context);
 #elif defined(USE_NSS)
     return new SSLClientSocketNSS(nss_task_runner, transport_socket,
-                                  host_and_port, ssl_config, shi.release(),
-                                  context);
+                                  host_and_port, ssl_config, context);
 #elif defined(OS_WIN)
     if (g_use_system_ssl) {
       return new SSLClientSocketWin(transport_socket, host_and_port,
                                     ssl_config, context);
     }
     return new SSLClientSocketNSS(nss_task_runner, transport_socket,
-                                  host_and_port, ssl_config, shi.release(),
+                                  host_and_port, ssl_config,
                                   context);
 #elif defined(OS_MACOSX)
     if (g_use_system_ssl) {
@@ -131,7 +126,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
                                     ssl_config, context);
     }
     return new SSLClientSocketNSS(nss_task_runner, transport_socket,
-                                  host_and_port, ssl_config, shi.release(),
+                                  host_and_port, ssl_config,
                                   context);
 #else
     NOTIMPLEMENTED();
@@ -158,12 +153,11 @@ SSLClientSocket* ClientSocketFactory::CreateSSLClientSocket(
     StreamSocket* transport_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
-    SSLHostInfo* ssl_host_info,
     const SSLClientSocketContext& context) {
   ClientSocketHandle* socket_handle = new ClientSocketHandle();
   socket_handle->set_socket(transport_socket);
   return CreateSSLClientSocket(socket_handle, host_and_port, ssl_config,
-                               ssl_host_info, context);
+                               context);
 }
 
 // static

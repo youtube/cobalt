@@ -340,7 +340,7 @@ class SSLServerSocketTest : public PlatformTest {
     context.cert_verifier = cert_verifier_.get();
     client_socket_.reset(
         socket_factory_->CreateSSLClientSocket(
-            fake_client_socket, host_and_pair, ssl_config, NULL, context));
+            fake_client_socket, host_and_pair, ssl_config, context));
     server_socket_.reset(net::CreateSSLServerSocket(fake_server_socket,
                                                     cert, private_key.get(),
                                                     net::SSLConfig()));
