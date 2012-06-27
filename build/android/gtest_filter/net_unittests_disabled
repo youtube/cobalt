@@ -117,8 +117,9 @@ VerifyRoot/CertVerifyProcWeakDigestTest.*
 # Relies on TestServer which isn't yet configured upstream.
 URLRequestContextBuilderTest.*
 
-# Lack of JNI, Should be enabled after we move to APK tests.
-# crbug/125059
-MimeUtilTest.ExtensionTest
-MimeUtilTest.FileTest
-HostResolverImplDnsTest.*
+# All cert_verify_proc_unittest.cc failing since JNI was enabled.
+VerifyIntermediate/CertVerifyProcWeakDigestTest.*
+VerifyEndEntity/CertVerifyProcWeakDigestTest.*
+VerifyIncompleteIntermediate/CertVerifyProcWeakDigestTest.*
+VerifyIncompleteEndEntity/CertVerifyProcWeakDigestTest.*
+VerifyMixed/CertVerifyProcWeakDigestTest.*

@@ -10,12 +10,24 @@
 #include "net/socket/ssl_server_socket.h"
 #include "net/spdy/spdy_session.h"
 
+#if defined(OS_ANDROID)
+#include "base/android/jni_android.h"
+#include "net/android/net_jni_registrar.h"
+#endif
+
 using net::internal::ClientSocketPoolBaseHelper;
 using net::SpdySession;
 
 int main(int argc, char** argv) {
   // Record histograms, so we can get histograms data in tests.
   base::StatisticsRecorder recorder;
+
+#if defined(OS_ANDROID)
+  // Register JNI bindings for android. Doing it early as the test suite setup
+  // may initiate a call to Java.
+  net::android::RegisterJni(base::android::AttachCurrentThread());
+#endif
+
   NetTestSuite test_suite(argc, argv);
   ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
 
