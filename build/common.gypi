@@ -1092,27 +1092,8 @@
         'grit_defines': ['-D', 'enable_printing'],
       }],
       ['clang_use_chrome_plugins==1 and OS!="win"', {
-        'variables': {
-          'clang_chrome_plugins_flags': [
-            '<!@(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)'
-          ],
-        },
-        'conditions': [
-          ['chromeos==1', {
-            # TODO(rsleevi): http://crbug.com/123295 - Disabled on ChromeOS
-            # for now.
-            'clang_chrome_plugins_flags': [
-              '<@(clang_chrome_plugins_flags)',
-              '-Xclang',
-              '-plugin-arg-find-bad-constructs',
-              '-Xclang',
-              'skip-refcounted-dtors'
-            ],
-          }, {
-            'clang_chrome_plugins_flags': [
-              '<@(clang_chrome_plugins_flags)',
-            ],
-          }],
+        'clang_chrome_plugins_flags': [
+          '<!@(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)'
         ],
       }],
 
