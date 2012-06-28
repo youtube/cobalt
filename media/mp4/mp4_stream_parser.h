@@ -84,7 +84,6 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool has_video_;
   uint32 audio_track_id_;
   uint32 video_track_id_;
-  bool parameter_sets_inserted_;
 
   // We keep this around to avoid having to go digging through the moov with
   // every frame.

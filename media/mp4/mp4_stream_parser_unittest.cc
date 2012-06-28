@@ -26,11 +26,15 @@ namespace mp4 {
 
 class MP4StreamParserTest : public testing::Test {
  public:
-  MP4StreamParserTest() : parser_(new MP4StreamParser) {}
+  MP4StreamParserTest()
+      : parser_(new MP4StreamParser),
+        got_configs_(false) {
+  }
 
  protected:
   scoped_ptr<MP4StreamParser> parser_;
   base::TimeDelta segment_start_;
+  bool got_configs_;
 
   bool AppendData(const uint8* data, size_t length) {
     parser_->Parse(data, length);
@@ -63,6 +67,12 @@ class MP4StreamParserTest : public testing::Test {
                    const VideoDecoderConfig& vc) {
     DVLOG(1) << "NewConfigF: audio=" << ac.IsValidConfig()
              << ", video=" << vc.IsValidConfig();
+
+    // TODO(strobe): Until http://crbug.com/122913 is fixed, we want to make
+    // sure that this callback isn't called more than once per stream. Remove
+    // when that bug is fixed.
+    EXPECT_FALSE(got_configs_);
+    got_configs_ = true;
     return true;
   }
 
@@ -115,6 +125,19 @@ TEST_F(MP4StreamParserTest, TestParseBearDASH) {
 
 TEST_F(MP4StreamParserTest, TestMultiFragmentAppend) {
   ParseMP4File("bear.1280x720_dash.mp4", 768432);
+}
+
+TEST_F(MP4StreamParserTest, TestReinitialization) {
+  InitializeParser();
+
+  scoped_refptr<DecoderBuffer> buffer =
+      ReadTestDataFile("bear.1280x720_dash.mp4");
+  EXPECT_TRUE(AppendDataInPieces(buffer->GetData(),
+                                 buffer->GetDataSize(),
+                                 512));
+  EXPECT_TRUE(AppendDataInPieces(buffer->GetData(),
+                                 buffer->GetDataSize(),
+                                 512));
 }
 
 }  // namespace mp4
