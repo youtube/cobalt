@@ -277,9 +277,9 @@ TEST_F(SpdyStreamSpdy2Test, PushedStream) {
 
   // Conjure up a stream.
   scoped_refptr<SpdyStream> stream = new SpdyStream(spdy_session,
-                                                    2,
                                                     true,
                                                     net_log);
+  stream->set_stream_id(2);
   EXPECT_FALSE(stream->response_received());
   EXPECT_FALSE(stream->HasUrl());
 
@@ -408,9 +408,9 @@ TEST_F(SpdyStreamSpdy2Test, StreamError) {
 
   EXPECT_EQ(ERR_IO_PENDING, stream->SendRequest(true));
 
-  const SpdyStreamId stream_id = stream->stream_id();
-
   EXPECT_EQ(OK, callback.WaitForResult());
+
+  const SpdyStreamId stream_id = stream->stream_id();
 
   EXPECT_TRUE(delegate->send_headers_completed());
   EXPECT_EQ("200", (*delegate->response())["status"]);

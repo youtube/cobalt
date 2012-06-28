@@ -1736,22 +1736,36 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, PostWithEarlySynReply) {
   scoped_ptr<SpdyFrame> stream_reply(ConstructSpdyPostSynReply(NULL, 0));
   scoped_ptr<SpdyFrame> stream_body(ConstructSpdyBodyFrame(1, true));
   MockRead reads[] = {
-    CreateMockRead(*stream_reply, 2),
-    CreateMockRead(*stream_body, 3),
-    MockRead(SYNCHRONOUS, 0, 0)  // EOF
+    CreateMockRead(*stream_reply, 1),
+    MockRead(ASYNC, 0, 3)  // EOF
   };
 
-  scoped_ptr<DelayedSocketData> data(
-      new DelayedSocketData(0, reads, arraysize(reads), NULL, 0));
-  NormalSpdyTransactionHelper helper(request,
-                                     BoundNetLog(), GetParam(), NULL);
-  helper.RunPreTestSetup();
-  helper.AddData(data.get());
-  helper.RunDefaultTest();
-  helper.VerifyDataConsumed();
+  scoped_ptr<SpdyFrame> req(ConstructSpdyPost(kUploadDataSize, NULL, 0));
+  scoped_ptr<SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockRead writes[] = {
+    CreateMockWrite(*req, 0),
+    CreateMockWrite(*body, 2),
+  };
 
-  TransactionHelperResult out = helper.output();
-  EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
+  scoped_refptr<DeterministicSocketData> data(
+      new DeterministicSocketData(reads, arraysize(reads),
+                                  writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreatePostRequest(),
+                                     BoundNetLog(), GetParam(), NULL);
+  helper.SetDeterministic();
+  helper.RunPreTestSetup();
+  helper.AddDeterministicData(data.get());
+  HttpNetworkTransaction* trans = helper.trans();
+
+  TestCompletionCallback callback;
+  int rv = trans->Start(
+      &CreatePostRequest(), callback.callback(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  data->RunFor(2);
+  rv = callback.WaitForResult();
+  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, rv);
+  data->RunFor(1);
 }
 
 // The client upon cancellation tries to send a RST_STREAM frame. The mock
@@ -5565,10 +5579,11 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, OutOfOrderSynStream) {
   // This first request will start to establish the SpdySession.
   // Then we will start the second (MEDIUM priority) and then third
   // (HIGHEST priority) request in such a way that the third will actually
-  // start before the second, causing the second to be re-numbered.
+  // start before the second, causing the second to be numbered differently
+  // than the order they were created.
   scoped_ptr<SpdyFrame> req1(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
-  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, MEDIUM));
-  scoped_ptr<SpdyFrame> req3(ConstructSpdyGet(NULL, 0, false, 5, HIGHEST));
+  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, HIGHEST));
+  scoped_ptr<SpdyFrame> req3(ConstructSpdyGet(NULL, 0, false, 5, MEDIUM));
   MockWrite writes[] = {
     CreateMockWrite(*req1, 0),
     CreateMockWrite(*req2, 3),
