@@ -49,6 +49,11 @@ void JavaByteArrayToByteVector(JNIEnv* env,
                                jbyteArray byte_array,
                                std::vector<uint8>* out);
 
+// Replaces the content of |out| with the Java ints in |int_array|.
+void JavaIntArrayToIntVector(JNIEnv* env,
+                             jintArray int_array,
+                             std::vector<int>* out);
+
 }  // namespace android
 }  // namespace base
 
