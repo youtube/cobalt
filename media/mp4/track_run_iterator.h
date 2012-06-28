@@ -16,7 +16,7 @@ namespace mp4 {
 
 using base::TimeDelta;
 
-base::TimeDelta TimeDeltaFromFrac(int64 numer, uint64 denom);
+base::TimeDelta TimeDeltaFromFrac(int64 numer, int64 denom);
 
 struct SampleInfo {
   int size;

@@ -17,7 +17,12 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
       const uint8* data, int data_size, bool is_keyframe);
   bool IsKeyframe() const { return is_keyframe_; }
 
-  // Returns this buffer's timestamp + duration, assuming both are valid.
+  // Decode timestamp. If not explicitly set, or set to kNoTimestamp(), the
+  // value will be taken from the normal timestamp.
+  base::TimeDelta GetDecodeTimestamp() const;
+  void SetDecodeTimestamp(const base::TimeDelta& timestamp);
+
+  // Returns this buffer's decode timestamp + duration, assuming both are valid.
   base::TimeDelta GetEndTimestamp() const;
 
  private:
@@ -25,6 +30,7 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   virtual ~StreamParserBuffer();
 
   bool is_keyframe_;
+  base::TimeDelta decode_timestamp_;
   DISALLOW_COPY_AND_ASSIGN(StreamParserBuffer);
 };
 

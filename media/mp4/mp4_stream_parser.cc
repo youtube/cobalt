@@ -181,9 +181,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       video_config.Initialize(kCodecH264, H264PROFILE_MAIN,  VideoFrame::YV12,
                               gfx::Size(entry.width, entry.height),
                               gfx::Rect(0, 0, entry.width, entry.height),
-                              // Bogus duration used for framerate, since real
-                              // framerate may be variable
-                              1000, track->media.header.timescale,
+                              // Framerate of zero is provided to signal that
+                              // the decoder should trust demuxer timestamps
+                              0, 1,
                               entry.pixel_aspect.h_spacing,
                               entry.pixel_aspect.v_spacing,
                               // No decoder-specific buffer needed for AVC;
@@ -296,14 +296,14 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
                                  runs_.is_keyframe());
 
   stream_buf->SetDuration(runs_.duration());
-  // We depend on the decoder performing frame reordering without reordering
-  // timestamps, and only provide the decode timestamp in the buffer.
-  stream_buf->SetTimestamp(runs_.dts());
+  stream_buf->SetTimestamp(runs_.cts());
+  stream_buf->SetDecodeTimestamp(runs_.dts());
 
   DVLOG(3) << "Pushing frame: aud=" << audio
            << ", key=" << runs_.is_keyframe()
            << ", dur=" << runs_.duration().InMilliseconds()
            << ", dts=" << runs_.dts().InMilliseconds()
+           << ", cts=" << runs_.cts().InMilliseconds()
            << ", size=" << runs_.size();
 
   if (audio) {
