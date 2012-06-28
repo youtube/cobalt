@@ -103,7 +103,9 @@ SpawnerCommunicator::SpawnerCommunicator(uint16 port)
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       is_running_(false) {}
 
-SpawnerCommunicator::~SpawnerCommunicator() {}
+SpawnerCommunicator::~SpawnerCommunicator() {
+  DCHECK(!is_running_);
+}
 
 void SpawnerCommunicator::WaitForResponse() {
   DCHECK_NE(MessageLoop::current(), io_thread_.message_loop());
@@ -130,6 +132,7 @@ void SpawnerCommunicator::Shutdown() {
   // IO thread.
   DCHECK(!cur_request_.get());
   DCHECK(!context_.get());
+  is_running_ = false;
   io_thread_.Stop();
   allowed_port_.reset();
 }
@@ -361,9 +364,9 @@ bool SpawnerCommunicator::StopServer() {
   std::string server_return_data;
   int result_code;
   SendCommandAndWaitForResult("kill", "", &result_code, &server_return_data);
+  Shutdown();
   if (OK != result_code || server_return_data != "killed")
     return false;
-  Shutdown();
   return true;
 }
 
