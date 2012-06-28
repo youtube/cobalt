@@ -4,6 +4,7 @@
 
 #include "base/message_pump_aurax11.h"
 
+#include <glib.h>
 #include <X11/extensions/XInput2.h>
 
 #include "base/basictypes.h"
@@ -112,7 +113,7 @@ void MessagePumpAuraX11::SetDefaultDispatcher(
   g_default_dispatcher = dispatcher;
 }
 
-gboolean MessagePumpAuraX11::DispatchXEvents() {
+bool MessagePumpAuraX11::DispatchXEvents() {
   Display* display = GetDefaultXDisplay();
   DCHECK(display);
   MessagePumpDispatcher* dispatcher =
