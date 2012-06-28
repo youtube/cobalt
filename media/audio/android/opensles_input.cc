@@ -266,7 +266,7 @@ void OpenSLESInputStream::ReadBufferQueue() {
                     buffer_size_bytes_,
                     0.0);
 
-  active_queue_ = ++active_queue_ % kNumOfQueuesInBuffer;
+  active_queue_ = (active_queue_ + 1) % kNumOfQueuesInBuffer;
 }
 
 void OpenSLESInputStream::SetupAudioBuffer() {
