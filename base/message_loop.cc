@@ -16,6 +16,7 @@
 #include "base/message_loop_proxy_impl.h"
 #include "base/message_pump_default.h"
 #include "base/metrics/histogram.h"
+#include "base/run_loop.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/thread_task_runner_handle.h"
 #include "base/threading/thread_local.h"
@@ -131,7 +132,7 @@ MessageLoop::MessageLoop(Type type)
       nestable_tasks_allowed_(true),
       exception_restoration_(false),
       message_histogram_(NULL),
-      state_(NULL),
+      run_loop_(NULL),
 #ifdef OS_WIN
       os_modal_loop_(false),
 #endif  // OS_WIN
@@ -180,7 +181,7 @@ MessageLoop::MessageLoop(Type type)
 MessageLoop::~MessageLoop() {
   DCHECK_EQ(this, current());
 
-  DCHECK(!state_);
+  DCHECK(!run_loop_);
 
   // Clean up any unprocessed tasks, but take care: deleting a task could
   // result in the addition of more tasks (e.g., via DeleteSoon).  We set a
@@ -293,20 +294,19 @@ void MessageLoop::PostNonNestableDelayedTask(
 }
 
 void MessageLoop::Run() {
-  AutoRunState save_state(this);
-  RunHandler();
+  base::RunLoop run_loop;
+  run_loop.Run();
 }
 
-void MessageLoop::RunAllPending() {
-  AutoRunState save_state(this);
-  state_->quit_received = true;  // Means run until we would otherwise block.
-  RunHandler();
+void MessageLoop::RunUntilIdle() {
+  base::RunLoop run_loop;
+  run_loop.RunUntilIdle();
 }
 
-void MessageLoop::Quit() {
+void MessageLoop::QuitWhenIdle() {
   DCHECK_EQ(this, current());
-  if (state_) {
-    state_->quit_received = true;
+  if (run_loop_) {
+    run_loop_->quit_when_idle_received_ = true;
   } else {
     NOTREACHED() << "Must be inside Run to call Quit";
   }
@@ -314,20 +314,20 @@ void MessageLoop::Quit() {
 
 void MessageLoop::QuitNow() {
   DCHECK_EQ(this, current());
-  if (state_) {
+  if (run_loop_) {
     pump_->Quit();
   } else {
     NOTREACHED() << "Must be inside Run to call Quit";
   }
 }
 
-static void QuitCurrent() {
-  MessageLoop::current()->Quit();
+static void QuitCurrentWhenIdle() {
+  MessageLoop::current()->QuitWhenIdle();
 }
 
 // static
-base::Closure MessageLoop::QuitClosure() {
-  return base::Bind(&QuitCurrent);
+base::Closure MessageLoop::QuitWhenIdleClosure() {
+  return base::Bind(&QuitCurrentWhenIdle);
 }
 
 void MessageLoop::SetNestableTasksAllowed(bool allowed) {
@@ -345,7 +345,7 @@ bool MessageLoop::NestableTasksAllowed() const {
 }
 
 bool MessageLoop::IsNested() {
-  return state_->run_depth > 1;
+  return run_loop_->run_depth_ > 1;
 }
 
 void MessageLoop::AddTaskObserver(TaskObserver* task_observer) {
@@ -366,7 +366,7 @@ void MessageLoop::AssertIdle() const {
 
 bool MessageLoop::is_running() const {
   DCHECK_EQ(this, current());
-  return state_ != NULL;
+  return run_loop_ != NULL;
 }
 
 //------------------------------------------------------------------------------
@@ -404,9 +404,9 @@ void MessageLoop::RunInternal() {
   StartHistogrammer();
 
 #if !defined(OS_MACOSX) && !defined(OS_ANDROID)
-  if (state_->dispatcher && type() == TYPE_UI) {
+  if (run_loop_->dispatcher_ && type() == TYPE_UI) {
     static_cast<base::MessagePumpForUI*>(pump_.get())->
-        RunWithDispatcher(this, state_->dispatcher);
+        RunWithDispatcher(this, run_loop_->dispatcher_);
     return;
   }
 #endif
@@ -415,7 +415,7 @@ void MessageLoop::RunInternal() {
 }
 
 bool MessageLoop::ProcessNextDelayedNonNestableTask() {
-  if (state_->run_depth != 1)
+  if (run_loop_->run_depth_ != 1)
     return false;
 
   if (deferred_non_nestable_work_queue_.empty())
@@ -463,7 +463,7 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
 }
 
 bool MessageLoop::DeferOrRunPendingTask(const PendingTask& pending_task) {
-  if (pending_task.nestable || state_->run_depth == 1) {
+  if (pending_task.nestable || run_loop_->run_depth_ == 1) {
     RunTask(pending_task);
     // Show that we ran a task (Note: a new one might arrive as a
     // consequence!).
@@ -685,7 +685,7 @@ bool MessageLoop::DoIdleWork() {
   if (ProcessNextDelayedNonNestableTask())
     return true;
 
-  if (state_->quit_received)
+  if (run_loop_->quit_when_idle_received_)
     pump_->Quit();
 
   return false;
@@ -702,30 +702,6 @@ void MessageLoop::ReleaseSoonInternal(
     void(*releaser)(const void*),
     const void* object) {
   PostNonNestableTask(from_here, base::Bind(releaser, object));
-}
-
-//------------------------------------------------------------------------------
-// MessageLoop::AutoRunState
-
-MessageLoop::AutoRunState::AutoRunState(MessageLoop* loop) : loop_(loop) {
-  // Make the loop reference us.
-  previous_state_ = loop_->state_;
-  if (previous_state_) {
-    run_depth = previous_state_->run_depth + 1;
-  } else {
-    run_depth = 1;
-  }
-  loop_->state_ = this;
-
-  // Initialize the other fields:
-  quit_received = false;
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
-  dispatcher = NULL;
-#endif
-}
-
-MessageLoop::AutoRunState::~AutoRunState() {
-  loop_->state_ = previous_state_;
 }
 
 //------------------------------------------------------------------------------
@@ -751,19 +727,6 @@ void MessageLoopForUI::AddObserver(Observer* observer) {
 
 void MessageLoopForUI::RemoveObserver(Observer* observer) {
   pump_ui()->RemoveObserver(observer);
-}
-
-void MessageLoopForUI::RunWithDispatcher(Dispatcher* dispatcher) {
-  AutoRunState save_state(this);
-  state_->dispatcher = dispatcher;
-  RunHandler();
-}
-
-void MessageLoopForUI::RunAllPendingWithDispatcher(Dispatcher* dispatcher) {
-  AutoRunState save_state(this);
-  state_->dispatcher = dispatcher;
-  state_->quit_received = true;  // Means run until we would otherwise block.
-  RunHandler();
 }
 
 #endif  //  !defined(OS_MACOSX) && !defined(OS_NACL) && !defined(OS_ANDROID)
