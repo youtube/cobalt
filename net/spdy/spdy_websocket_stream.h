@@ -84,8 +84,6 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
   virtual void set_chunk_callback(ChunkCallback* callback) OVERRIDE;
 
  private:
-  friend class SpdyWebSocketStreamSpdy2Test;
-  friend class SpdyWebSocketStreamSpdy3Test;
   FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamSpdy2Test, Basic);
   FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamSpdy3Test, Basic);
 
