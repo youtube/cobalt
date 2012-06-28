@@ -143,9 +143,9 @@ void TestSuite::PreInitialize(int argc, char** argv,
   gtk_init_check(&argc, &argv);
 #endif  // defined(TOOLKIT_GTK)
 
-  // On Android when building tests as apks, AtExitManager is created in
+  // On Android, AtExitManager is created in
   // testing/android/native_test_wrapper.cc before main() is called.
-#if !defined(ANDROID_APK_TEST_TARGET)
+#if !defined(OS_ANDROID)
   if (create_at_exit_manager)
     at_exit_manager_.reset(new base::AtExitManager);
 #endif
