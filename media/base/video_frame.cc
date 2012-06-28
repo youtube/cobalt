@@ -8,6 +8,11 @@
 #include "base/string_piece.h"
 #include "media/base/limits.h"
 #include "media/base/video_util.h"
+#if !defined(OS_ANDROID)
+#include "media/ffmpeg/ffmpeg_common.h"
+#endif
+
+#include <algorithm>
 
 namespace media {
 
@@ -93,37 +98,54 @@ static inline size_t RoundUp(size_t value, size_t alignment) {
   return ((value + (alignment - 1)) & ~(alignment-1));
 }
 
+static const int kFrameSizeAlignment = 16;
+
 void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
-  // Round up to align at a 64-bit (8 byte) boundary for each row.  This
-  // is sufficient for MMX reads (movq).
-  size_t bytes_per_row = RoundUp(width_ * bytes_per_pixel, 8);
+  // Round up to align at least at a 16-byte boundary for each row.
+  // This is sufficient for MMX and SSE2 reads (movq/movdqa).
+  size_t bytes_per_row = RoundUp(width_, kFrameSizeAlignment) * bytes_per_pixel;
+  size_t aligned_height = RoundUp(height_, kFrameSizeAlignment);
   strides_[VideoFrame::kRGBPlane] = bytes_per_row;
-  data_[VideoFrame::kRGBPlane] = new uint8[bytes_per_row * height_];
+#if !defined(OS_ANDROID)
+  // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
+  // doesn't need to be repeated in every single user of aligned data.
+  data_[VideoFrame::kRGBPlane] = reinterpret_cast<uint8*>(
+      av_malloc(bytes_per_row * aligned_height));
+#else
+  data_[VideoFrame::kRGBPlane] = new uint8_t[bytes_per_row * aligned_height];
+#endif
   DCHECK(!(reinterpret_cast<intptr_t>(data_[VideoFrame::kRGBPlane]) & 7));
   COMPILE_ASSERT(0 == VideoFrame::kRGBPlane, RGB_data_must_be_index_0);
 }
 
-static const int kFramePadBytes = 15;  // Allows faster SIMD YUV convert.
-
 void VideoFrame::AllocateYUV() {
   DCHECK(format_ == VideoFrame::YV12 || format_ == VideoFrame::YV16);
-  // Align Y rows at 32-bit (4 byte) boundaries.  The stride for both YV12 and
-  // YV16 is 1/2 of the stride of Y.  For YV12, every row of bytes for U and V
-  // applies to two rows of Y (one byte of UV for 4 bytes of Y), so in the
-  // case of YV12 the strides are identical for the same width surface, but the
-  // number of bytes allocated for YV12 is 1/2 the amount for U & V as YV16.
-  // We also round the height of the surface allocated to be an even number
-  // to avoid any potential of faulting by code that attempts to access the Y
-  // values of the final row, but assumes that the last row of U & V applies to
-  // a full two rows of Y.
-  size_t y_height = rows(VideoFrame::kYPlane);
-  size_t y_stride = RoundUp(row_bytes(VideoFrame::kYPlane), 4);
-  size_t uv_stride = RoundUp(row_bytes(VideoFrame::kUPlane), 4);
-  size_t uv_height = rows(VideoFrame::kUPlane);
+  // Align Y rows at least at 16 byte boundaries.  The stride for both
+  // YV12 and YV16 is 1/2 of the stride of Y.  For YV12, every row of bytes for
+  // U and V applies to two rows of Y (one byte of UV for 4 bytes of Y), so in
+  // the case of YV12 the strides are identical for the same width surface, but
+  // the number of bytes allocated for YV12 is 1/2 the amount for U & V as
+  // YV16. We also round the height of the surface allocated to be an even
+  // number to avoid any potential of faulting by code that attempts to access
+  // the Y values of the final row, but assumes that the last row of U & V
+  // applies to a full two rows of Y.
+  size_t y_stride = RoundUp(row_bytes(VideoFrame::kYPlane),
+                            kFrameSizeAlignment);
+  size_t uv_stride = RoundUp(row_bytes(VideoFrame::kUPlane),
+                             kFrameSizeAlignment);
+  size_t y_height = RoundUp(height_, kFrameSizeAlignment);
+  size_t uv_height = format_ == VideoFrame::YV12 ? y_height / 2 : y_height;
   size_t y_bytes = y_height * y_stride;
   size_t uv_bytes = uv_height * uv_stride;
 
-  uint8* data = new uint8[y_bytes + (uv_bytes * 2) + kFramePadBytes];
+#if !defined(OS_ANDROID)
+  // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
+  // doesn't need to be repeated in every single user of aligned data.
+  uint8* data = reinterpret_cast<uint8*>(
+      av_malloc(y_bytes + (uv_bytes * 2)));
+#else
+  uint8* data = new uint8_t[y_bytes + (uv_bytes * 2)];
+#endif
   COMPILE_ASSERT(0 == VideoFrame::kYPlane, y_plane_data_must_be_index_0);
   data_[VideoFrame::kYPlane] = data;
   data_[VideoFrame::kUPlane] = data + y_bytes;
@@ -158,7 +180,13 @@ VideoFrame::~VideoFrame() {
   // In multi-plane allocations, only a single block of memory is allocated
   // on the heap, and other |data| pointers point inside the same, single block
   // so just delete index 0.
-  delete[] data_[0];
+  if (data_[0]) {
+#if !defined(OS_ANDROID)
+    av_free(data_[0]);
+#else
+    delete[] data_[0];
+#endif
+  }
 }
 
 bool VideoFrame::IsValidPlane(size_t plane) const {
