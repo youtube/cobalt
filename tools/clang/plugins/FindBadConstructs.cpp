@@ -208,8 +208,15 @@ class FindBadConstructsConsumer : public ChromeClassTester {
         for (CXXRecordDecl::ctor_iterator it = record->ctor_begin();
              it != record->ctor_end(); ++it) {
           if (it->hasInlineBody()) {
-            emitWarning(it->getInnerLocStart(),
-                        "Complex constructor has an inlined body.");
+            if (it->isCopyConstructor() &&
+                !record->hasUserDeclaredCopyConstructor()) {
+              emitWarning(record_location,
+                          "Complex class/struct needs an explicit out-of-line "
+                          "copy constructor.");
+            } else {
+              emitWarning(it->getInnerLocStart(),
+                          "Complex constructor has an inlined body.");
+            }
           }
         }
       }
