@@ -4,6 +4,7 @@
 
 #include "base/message_pump_glib.h"
 
+#include <glib.h>
 #include <math.h>
 
 #include <algorithm>
