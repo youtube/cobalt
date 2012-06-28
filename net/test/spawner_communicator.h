@@ -123,7 +123,7 @@ class SpawnerCommunicator : public net::URLRequest::Delegate {
   // used to control the startup and shutdown of the Python TestServer running
   // on the remote machine. On Android, this port will be redirected to the
   // same port on the host machine.
-  uint16 port_;
+  const uint16 port_;
 
   // Helper to add |port_| to the list of the globally explicitly allowed ports.
   scoped_ptr<ScopedPortException> allowed_port_;

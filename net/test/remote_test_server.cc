@@ -57,7 +57,8 @@ std::string GetServerTypeString(BaseTestServer::Type type) {
 RemoteTestServer::RemoteTestServer(Type type,
                                    const std::string& host,
                                    const FilePath& document_root)
-    : BaseTestServer(type, host) {
+    : BaseTestServer(type, host),
+      spawner_server_port_(0) {
   if (!Init(document_root))
     NOTREACHED();
 }
@@ -65,7 +66,8 @@ RemoteTestServer::RemoteTestServer(Type type,
 RemoteTestServer::RemoteTestServer(
     const HTTPSOptions& https_options,
     const FilePath& document_root)
-    : BaseTestServer(https_options) {
+    : BaseTestServer(https_options),
+      spawner_server_port_(0) {
   if (!Init(document_root))
     NOTREACHED();
 }
@@ -75,8 +77,9 @@ RemoteTestServer::~RemoteTestServer() {
 }
 
 bool RemoteTestServer::Start() {
-  if (!spawner_communicator_.get())
-    return false;
+  if (spawner_communicator_.get())
+    return true;
+  spawner_communicator_.reset(new SpawnerCommunicator(spawner_server_port_));
 
   base::DictionaryValue arguments_dict;
   if (!GenerateArguments(&arguments_dict))
@@ -118,8 +121,13 @@ bool RemoteTestServer::Start() {
 }
 
 bool RemoteTestServer::Stop() {
+  if (!spawner_communicator_.get())
+    return true;
   CleanUpWhenStoppingServer();
-  return spawner_communicator_->StopServer();
+  bool stopped = spawner_communicator_->StopServer();
+  // Explicitly reset |spawner_communicator_| to avoid reusing the stopped one.
+  spawner_communicator_.reset(NULL);
+  return stopped;
 }
 
 bool RemoteTestServer::Init(const FilePath& document_root) {
@@ -128,7 +136,6 @@ bool RemoteTestServer::Init(const FilePath& document_root) {
 
   // Gets ports information used by test server spawner and Python test server.
   int test_server_port = 0;
-  int spawner_server_port = 0;
 
   // Parse file to extract the ports information.
   std::string port_info;
@@ -144,11 +151,10 @@ bool RemoteTestServer::Init(const FilePath& document_root) {
     return false;
 
   // Verify the ports information.
-  base::StringToInt(ports[0], &spawner_server_port);
-  if (!spawner_server_port ||
-      static_cast<uint32>(spawner_server_port) >= kuint16max)
+  base::StringToInt(ports[0], &spawner_server_port_);
+  if (!spawner_server_port_ ||
+      static_cast<uint32>(spawner_server_port_) >= kuint16max)
     return false;
-  spawner_communicator_.reset(new SpawnerCommunicator(spawner_server_port));
 
   // Allow the test_server_port to be 0, which means the test server spawner
   // will pick up a random port to run the test server.
