@@ -10,6 +10,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/run_loop.h"
 #include "jni/system_message_handler_jni.h"
 
 using base::android::ScopedJavaLocalRef;
@@ -61,7 +62,7 @@ static jboolean DoRunLoopOnce(JNIEnv* env, jobject obj, jint native_delegate) {
 namespace base {
 
 MessagePumpForUI::MessagePumpForUI()
-    : state_(NULL) {
+    : run_loop_(NULL) {
 }
 
 MessagePumpForUI::~MessagePumpForUI() {
@@ -73,7 +74,11 @@ void MessagePumpForUI::Run(Delegate* delegate) {
 }
 
 void MessagePumpForUI::Start(Delegate* delegate) {
-  state_ = new MessageLoop::AutoRunState(MessageLoop::current());
+  run_loop_ = new base::RunLoop();
+  // Since the RunLoop was just created above, BeforeRun should be guaranteed to
+  // return true (it only returns false if the RunLoop has been Quit already).
+  if (!run_loop_->BeforeRun())
+    NOTREACHED();
 
   DCHECK(g_system_message_handler_obj.Get().is_null());
 
@@ -94,9 +99,10 @@ void MessagePumpForUI::Quit() {
     g_system_message_handler_obj.Get().Reset();
   }
 
-  if (state_) {
-    delete state_;
-    state_ = NULL;
+  if (run_loop_) {
+    run_loop_->AfterRun();
+    delete run_loop_;
+    run_loop_ = NULL;
   }
 }
 

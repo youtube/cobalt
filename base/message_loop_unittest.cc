@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
+#include "base/run_loop.h"
 #include "base/thread_task_runner_handle.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
@@ -599,9 +600,10 @@ enum TaskType {
   RECURSIVE,
   TIMEDMESSAGELOOP,
   QUITMESSAGELOOP,
-  ORDERERD,
+  ORDERED,
   PUMPS,
   SLEEP,
+  RUNS,
 };
 
 // Saves the order in which the tasks executed.
@@ -628,7 +630,7 @@ std::ostream& operator <<(std::ostream& os, TaskType type) {
   case RECURSIVE:         os << "RECURSIVE"; break;
   case TIMEDMESSAGELOOP:  os << "TIMEDMESSAGELOOP"; break;
   case QUITMESSAGELOOP:   os << "QUITMESSAGELOOP"; break;
-  case ORDERERD:          os << "ORDERERD"; break;
+  case ORDERED:          os << "ORDERED"; break;
   case PUMPS:             os << "PUMPS"; break;
   case SLEEP:             os << "SLEEP"; break;
   default:
@@ -674,8 +676,8 @@ class TaskList {
 
 // Saves the order the tasks ran.
 void OrderedFunc(TaskList* order, int cookie) {
-  order->RecordStart(ORDERERD, cookie);
-  order->RecordEnd(ORDERERD, cookie);
+  order->RecordStart(ORDERED, cookie);
+  order->RecordEnd(ORDERED, cookie);
 }
 
 #if defined(OS_WIN)
@@ -847,8 +849,8 @@ void RunTest_RecursiveDenial3(MessageLoop::Type message_loop_type) {
   EXPECT_EQ(order.Get(3), TaskItem(RECURSIVE, 2, false));
   EXPECT_EQ(order.Get(4), TaskItem(RECURSIVE, 1, true));
   EXPECT_EQ(order.Get(5), TaskItem(RECURSIVE, 1, false));
-  EXPECT_EQ(order.Get(6), TaskItem(ORDERERD, 3, true));
-  EXPECT_EQ(order.Get(7), TaskItem(ORDERERD, 3, false));
+  EXPECT_EQ(order.Get(6), TaskItem(ORDERED, 3, true));
+  EXPECT_EQ(order.Get(7), TaskItem(ORDERED, 3, false));
   EXPECT_EQ(order.Get(8), TaskItem(RECURSIVE, 2, true));
   EXPECT_EQ(order.Get(9), TaskItem(RECURSIVE, 2, false));
   EXPECT_EQ(order.Get(10), TaskItem(QUITMESSAGELOOP, 4, true));
@@ -997,6 +999,19 @@ void FuncThatPumps(TaskList* order, int cookie) {
   order->RecordEnd(PUMPS, cookie);
 }
 
+void FuncThatRuns(TaskList* order, int cookie, base::RunLoop* run_loop) {
+  order->RecordStart(RUNS, cookie);
+  {
+    MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
+    run_loop->Run();
+  }
+  order->RecordEnd(RUNS, cookie);
+}
+
+void FuncThatQuitsNow() {
+  MessageLoop::current()->QuitNow();
+}
+
 // Tests that non nestable tasks run in FIFO if there are no nested loops.
 void RunTest_NonNestableWithNoNesting(
     MessageLoop::Type message_loop_type) {
@@ -1015,10 +1030,10 @@ void RunTest_NonNestableWithNoNesting(
 
   // FIFO order.
   ASSERT_EQ(6U, order.Size());
-  EXPECT_EQ(order.Get(0), TaskItem(ORDERERD, 1, true));
-  EXPECT_EQ(order.Get(1), TaskItem(ORDERERD, 1, false));
-  EXPECT_EQ(order.Get(2), TaskItem(ORDERERD, 2, true));
-  EXPECT_EQ(order.Get(3), TaskItem(ORDERERD, 2, false));
+  EXPECT_EQ(order.Get(0), TaskItem(ORDERED, 1, true));
+  EXPECT_EQ(order.Get(1), TaskItem(ORDERED, 1, false));
+  EXPECT_EQ(order.Get(2), TaskItem(ORDERED, 2, true));
+  EXPECT_EQ(order.Get(3), TaskItem(ORDERED, 2, false));
   EXPECT_EQ(order.Get(4), TaskItem(QUITMESSAGELOOP, 3, true));
   EXPECT_EQ(order.Get(5), TaskItem(QUITMESSAGELOOP, 3, false));
 }
@@ -1066,17 +1081,294 @@ void RunTest_NonNestableInNestedLoop(MessageLoop::Type message_loop_type,
   // FIFO order.
   ASSERT_EQ(12U, order.Size());
   EXPECT_EQ(order.Get(0), TaskItem(PUMPS, 1, true));
-  EXPECT_EQ(order.Get(1), TaskItem(ORDERERD, 3, true));
-  EXPECT_EQ(order.Get(2), TaskItem(ORDERERD, 3, false));
+  EXPECT_EQ(order.Get(1), TaskItem(ORDERED, 3, true));
+  EXPECT_EQ(order.Get(2), TaskItem(ORDERED, 3, false));
   EXPECT_EQ(order.Get(3), TaskItem(SLEEP, 4, true));
   EXPECT_EQ(order.Get(4), TaskItem(SLEEP, 4, false));
-  EXPECT_EQ(order.Get(5), TaskItem(ORDERERD, 5, true));
-  EXPECT_EQ(order.Get(6), TaskItem(ORDERERD, 5, false));
+  EXPECT_EQ(order.Get(5), TaskItem(ORDERED, 5, true));
+  EXPECT_EQ(order.Get(6), TaskItem(ORDERED, 5, false));
   EXPECT_EQ(order.Get(7), TaskItem(PUMPS, 1, false));
-  EXPECT_EQ(order.Get(8), TaskItem(ORDERERD, 2, true));
-  EXPECT_EQ(order.Get(9), TaskItem(ORDERERD, 2, false));
+  EXPECT_EQ(order.Get(8), TaskItem(ORDERED, 2, true));
+  EXPECT_EQ(order.Get(9), TaskItem(ORDERED, 2, false));
   EXPECT_EQ(order.Get(10), TaskItem(QUITMESSAGELOOP, 6, true));
   EXPECT_EQ(order.Get(11), TaskItem(QUITMESSAGELOOP, 6, false));
+}
+
+// Tests RunLoopQuit only quits the corresponding MessageLoop::Run.
+void RunTest_QuitNow(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  TaskList order;
+
+  base::RunLoop run_loop;
+
+  MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&FuncThatRuns, &order, 1, base::Unretained(&run_loop)));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 2));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&FuncThatQuitsNow));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 3));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&FuncThatQuitsNow));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 4)); // never runs
+
+  MessageLoop::current()->Run();
+
+  ASSERT_EQ(6U, order.Size());
+  int task_index = 0;
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 3, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 3, false));
+  EXPECT_EQ(static_cast<size_t>(task_index), order.Size());
+}
+
+// Tests RunLoopQuit works before RunWithID.
+void RunTest_RunLoopQuitOrderBefore(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  TaskList order;
+
+  base::RunLoop run_loop;
+
+  run_loop.Quit();
+
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 1)); // never runs
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&FuncThatQuitsNow)); // never runs
+
+  run_loop.Run();
+
+  ASSERT_EQ(0U, order.Size());
+}
+
+// Tests RunLoopQuit works during RunWithID.
+void RunTest_RunLoopQuitOrderDuring(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  TaskList order;
+
+  base::RunLoop run_loop;
+
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 1));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, run_loop.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 2)); // never runs
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&FuncThatQuitsNow)); // never runs
+
+  run_loop.Run();
+
+  ASSERT_EQ(2U, order.Size());
+  int task_index = 0;
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 1, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 1, false));
+  EXPECT_EQ(static_cast<size_t>(task_index), order.Size());
+}
+
+// Tests RunLoopQuit works after RunWithID.
+void RunTest_RunLoopQuitOrderAfter(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  TaskList order;
+
+  base::RunLoop run_loop;
+
+  MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&FuncThatRuns, &order, 1, base::Unretained(&run_loop)));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 2));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&FuncThatQuitsNow));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 3));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, run_loop.QuitClosure()); // has no affect
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 4));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&FuncThatQuitsNow));
+
+  base::RunLoop outer_run_loop;
+  outer_run_loop.Run();
+
+  ASSERT_EQ(8U, order.Size());
+  int task_index = 0;
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 3, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 3, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 4, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 4, false));
+  EXPECT_EQ(static_cast<size_t>(task_index), order.Size());
+}
+
+// Tests RunLoopQuit only quits the corresponding MessageLoop::Run.
+void RunTest_RunLoopQuitTop(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  TaskList order;
+
+  base::RunLoop outer_run_loop;
+  base::RunLoop nested_run_loop;
+
+  MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&FuncThatRuns, &order, 1, base::Unretained(&nested_run_loop)));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, outer_run_loop.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 2));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, nested_run_loop.QuitClosure());
+
+  outer_run_loop.Run();
+
+  ASSERT_EQ(4U, order.Size());
+  int task_index = 0;
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, false));
+  EXPECT_EQ(static_cast<size_t>(task_index), order.Size());
+}
+
+// Tests RunLoopQuit only quits the corresponding MessageLoop::Run.
+void RunTest_RunLoopQuitNested(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  TaskList order;
+
+  base::RunLoop outer_run_loop;
+  base::RunLoop nested_run_loop;
+
+  MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&FuncThatRuns, &order, 1, base::Unretained(&nested_run_loop)));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, nested_run_loop.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 2));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, outer_run_loop.QuitClosure());
+
+  outer_run_loop.Run();
+
+  ASSERT_EQ(4U, order.Size());
+  int task_index = 0;
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, false));
+  EXPECT_EQ(static_cast<size_t>(task_index), order.Size());
+}
+
+// Tests RunLoopQuit only quits the corresponding MessageLoop::Run.
+void RunTest_RunLoopQuitBogus(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  TaskList order;
+
+  base::RunLoop outer_run_loop;
+  base::RunLoop nested_run_loop;
+  base::RunLoop bogus_run_loop;
+
+  MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&FuncThatRuns, &order, 1, base::Unretained(&nested_run_loop)));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, bogus_run_loop.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 2));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, outer_run_loop.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, nested_run_loop.QuitClosure());
+
+  outer_run_loop.Run();
+
+  ASSERT_EQ(4U, order.Size());
+  int task_index = 0;
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 2, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, false));
+  EXPECT_EQ(static_cast<size_t>(task_index), order.Size());
+}
+
+// Tests RunLoopQuit only quits the corresponding MessageLoop::Run.
+void RunTest_RunLoopQuitDeep(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  TaskList order;
+
+  base::RunLoop outer_run_loop;
+  base::RunLoop nested_loop1;
+  base::RunLoop nested_loop2;
+  base::RunLoop nested_loop3;
+  base::RunLoop nested_loop4;
+
+  MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&FuncThatRuns, &order, 1, base::Unretained(&nested_loop1)));
+  MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&FuncThatRuns, &order, 2, base::Unretained(&nested_loop2)));
+  MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&FuncThatRuns, &order, 3, base::Unretained(&nested_loop3)));
+  MessageLoop::current()->PostTask(FROM_HERE,
+      base::Bind(&FuncThatRuns, &order, 4, base::Unretained(&nested_loop4)));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 5));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, outer_run_loop.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 6));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, nested_loop1.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 7));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, nested_loop2.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 8));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, nested_loop3.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 9));
+  MessageLoop::current()->PostTask(
+      FROM_HERE, nested_loop4.QuitClosure());
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&OrderedFunc, &order, 10));
+
+  outer_run_loop.Run();
+
+  ASSERT_EQ(18U, order.Size());
+  int task_index = 0;
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 2, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 3, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 4, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 5, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 5, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 6, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 6, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 7, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 7, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 8, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 8, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 9, true));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(ORDERED, 9, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 4, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 3, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 2, false));
+  EXPECT_EQ(order.Get(task_index++), TaskItem(RUNS, 1, false));
+  EXPECT_EQ(static_cast<size_t>(task_index), order.Size());
 }
 
 #if defined(OS_WIN)
@@ -1112,7 +1404,8 @@ void RunTest_Dispatcher(MessageLoop::Type message_loop_type) {
       base::Bind(&MouseDownUp),
       TimeDelta::FromMilliseconds(100));
   DispatcherImpl dispatcher;
-  MessageLoopForUI::current()->RunWithDispatcher(&dispatcher);
+  base::RunLoop run_loop(&dispatcher);
+  run_loop.Run();
   ASSERT_EQ(2, dispatcher.dispatch_count_);
 }
 
@@ -1137,7 +1430,8 @@ void RunTest_DispatcherWithMessageHook(MessageLoop::Type message_loop_type) {
                                     NULL,
                                     GetCurrentThreadId());
   DispatcherImpl dispatcher;
-  MessageLoopForUI::current()->RunWithDispatcher(&dispatcher);
+  base::RunLoop run_loop(&dispatcher);
+  run_loop.Run();
   ASSERT_EQ(1, dispatcher.dispatch_count_);
   UnhookWindowsHookEx(msg_hook);
 }
@@ -1432,6 +1726,54 @@ TEST(MessageLoopTest, NonNestableDelayedInNestedLoop) {
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_DEFAULT, true);
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_UI, true);
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_IO, true);
+}
+
+TEST(MessageLoopTest, QuitNow) {
+  RunTest_QuitNow(MessageLoop::TYPE_DEFAULT);
+  RunTest_QuitNow(MessageLoop::TYPE_UI);
+  RunTest_QuitNow(MessageLoop::TYPE_IO);
+}
+
+TEST(MessageLoopTest, RunLoopQuitTop) {
+  RunTest_RunLoopQuitTop(MessageLoop::TYPE_DEFAULT);
+  RunTest_RunLoopQuitTop(MessageLoop::TYPE_UI);
+  RunTest_RunLoopQuitTop(MessageLoop::TYPE_IO);
+}
+
+TEST(MessageLoopTest, RunLoopQuitNested) {
+  RunTest_RunLoopQuitNested(MessageLoop::TYPE_DEFAULT);
+  RunTest_RunLoopQuitNested(MessageLoop::TYPE_UI);
+  RunTest_RunLoopQuitNested(MessageLoop::TYPE_IO);
+}
+
+TEST(MessageLoopTest, RunLoopQuitBogus) {
+  RunTest_RunLoopQuitBogus(MessageLoop::TYPE_DEFAULT);
+  RunTest_RunLoopQuitBogus(MessageLoop::TYPE_UI);
+  RunTest_RunLoopQuitBogus(MessageLoop::TYPE_IO);
+}
+
+TEST(MessageLoopTest, RunLoopQuitDeep) {
+  RunTest_RunLoopQuitDeep(MessageLoop::TYPE_DEFAULT);
+  RunTest_RunLoopQuitDeep(MessageLoop::TYPE_UI);
+  RunTest_RunLoopQuitDeep(MessageLoop::TYPE_IO);
+}
+
+TEST(MessageLoopTest, RunLoopQuitOrderBefore) {
+  RunTest_RunLoopQuitOrderBefore(MessageLoop::TYPE_DEFAULT);
+  RunTest_RunLoopQuitOrderBefore(MessageLoop::TYPE_UI);
+  RunTest_RunLoopQuitOrderBefore(MessageLoop::TYPE_IO);
+}
+
+TEST(MessageLoopTest, RunLoopQuitOrderDuring) {
+  RunTest_RunLoopQuitOrderDuring(MessageLoop::TYPE_DEFAULT);
+  RunTest_RunLoopQuitOrderDuring(MessageLoop::TYPE_UI);
+  RunTest_RunLoopQuitOrderDuring(MessageLoop::TYPE_IO);
+}
+
+TEST(MessageLoopTest, RunLoopQuitOrderAfter) {
+  RunTest_RunLoopQuitOrderAfter(MessageLoop::TYPE_DEFAULT);
+  RunTest_RunLoopQuitOrderAfter(MessageLoop::TYPE_UI);
+  RunTest_RunLoopQuitOrderAfter(MessageLoop::TYPE_IO);
 }
 
 void PostNTasksThenQuit(int posts_remaining) {
