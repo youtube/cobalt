@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 
 # Add a .gdb_index section to a file.
 
