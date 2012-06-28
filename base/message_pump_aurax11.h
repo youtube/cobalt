@@ -13,8 +13,8 @@
 
 #include <bitset>
 
-#include <glib.h>
-
+typedef struct _GPollFD GPollFD;
+typedef struct _GSource GSource;
 typedef struct _XDisplay Display;
 
 namespace base {
@@ -35,7 +35,7 @@ class BASE_EXPORT MessagePumpAuraX11 : public MessagePumpGlib {
 
   // Internal function. Called by the glib source dispatch function. Processes
   // all available X events.
-  gboolean DispatchXEvents();
+  bool DispatchXEvents();
 
  protected:
   virtual ~MessagePumpAuraX11();
