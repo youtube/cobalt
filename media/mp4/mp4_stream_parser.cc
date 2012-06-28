@@ -5,6 +5,7 @@
 #include "media/mp4/mp4_stream_parser.h"
 
 #include "base/callback.h"
+#include "base/callback_helpers.h"
 #include "base/logging.h"
 #include "base/time.h"
 #include "media/base/audio_decoder_config.h"
@@ -25,7 +26,6 @@ MP4StreamParser::MP4StreamParser()
       has_video_(false),
       audio_track_id_(0),
       video_track_id_(0),
-      parameter_sets_inserted_(false),
       size_of_nalu_length_(0) {
 }
 
@@ -141,7 +141,6 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 
   has_audio_ = false;
   has_video_ = false;
-  parameter_sets_inserted_ = false;
 
   AudioDecoderConfig audio_config;
   VideoDecoderConfig video_config;
@@ -197,7 +196,12 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
     }
   }
 
-  RCHECK(config_cb_.Run(audio_config, video_config));
+  // TODO(strobe): For now, we avoid sending new configs on a new
+  // reinitialization segment, and instead simply embed the updated parameter
+  // sets into the video stream. The conditional should be removed when
+  // http://crbug.com/122913 is fixed.
+  if (!init_cb_.is_null())
+    RCHECK(config_cb_.Run(audio_config, video_config));
 
   base::TimeDelta duration;
   if (moov_->extends.header.fragment_duration > 0) {
@@ -210,7 +214,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
     duration = kInfiniteDuration();
   }
 
-  init_cb_.Run(true, duration);
+  if (!init_cb_.is_null())
+    base::ResetAndReturn(&init_cb_).Run(true, duration);
   return true;
 }
 
@@ -272,7 +277,7 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
   std::vector<uint8> frame_buf(buf, buf + runs_.size());
   if (video) {
     RCHECK(AVC::ConvertToAnnexB(size_of_nalu_length_, &frame_buf));
-    if (!parameter_sets_inserted_) {
+    if (runs_.is_keyframe()) {
       const AVCDecoderConfigurationRecord* avc_config = NULL;
       for (size_t t = 0; t < moov_->tracks.size(); t++) {
         if (moov_->tracks[t].header.track_id == runs_.track_id()) {
@@ -283,7 +288,6 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
       }
       RCHECK(avc_config != NULL);
       RCHECK(AVC::InsertParameterSets(*avc_config, &frame_buf));
-      parameter_sets_inserted_ = true;
     }
   }
 
