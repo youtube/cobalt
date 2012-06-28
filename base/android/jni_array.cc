@@ -114,5 +114,18 @@ void JavaByteArrayToByteVector(JNIEnv* env,
   AppendJavaByteArrayToByteVector(env, byte_array, out);
 }
 
+void JavaIntArrayToIntVector(JNIEnv* env,
+                             jintArray array,
+                             std::vector<int>* out) {
+  DCHECK(out);
+  out->clear();
+  jsize len = env->GetArrayLength(array);
+  jint* ints = env->GetIntArrayElements(array, NULL);
+  for (jsize i = 0; i < len; ++i) {
+    out->push_back(static_cast<int>(ints[i]));
+  }
+  env->ReleaseIntArrayElements(array, ints, JNI_ABORT);
+}
+
 }  // namespace android
 }  // namespace base
