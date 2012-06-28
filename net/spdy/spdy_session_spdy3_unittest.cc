@@ -330,7 +330,7 @@ TEST_F(SpdySessionSpdy3Test, FailedPing) {
 
   // Assert session is not closed.
   EXPECT_FALSE(session->IsClosed());
-  EXPECT_LT(0u, session->num_active_streams() + session->num_created_streams());
+  EXPECT_LT(0u, session->num_active_streams());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   // We set last time we have received any data in 1 sec less than now.
@@ -450,8 +450,8 @@ TEST_F(SpdySessionSpdy3Test, CloseIdleSessions) {
 
   // Make sessions 1 and 3 inactive, but keep them open.
   // Session 2 still open and active
-  session1->CloseCreatedStream(spdy_stream1, OK);
-  session3->CloseCreatedStream(spdy_stream3, OK);
+  session1->CloseStream(spdy_stream1->stream_id(), OK);
+  session3->CloseStream(spdy_stream3->stream_id(), OK);
   EXPECT_FALSE(session1->is_active());
   EXPECT_FALSE(session1->IsClosed());
   EXPECT_TRUE(session2->is_active());
@@ -474,7 +474,7 @@ TEST_F(SpdySessionSpdy3Test, CloseIdleSessions) {
   EXPECT_FALSE(session2->IsClosed());
 
   // Make 2 not active
-  session2->CloseCreatedStream(spdy_stream2, OK);
+  session2->CloseStream(spdy_stream2->stream_id(), OK);
   EXPECT_FALSE(session2->is_active());
   EXPECT_FALSE(session2->IsClosed());
 
@@ -1193,24 +1193,22 @@ TEST_F(SpdySessionSpdy3Test, UpdateStreamsSendWindowSize) {
   MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(new_settings));
   MockRead reads[] = {
-    CreateMockRead(*settings_frame, 0),
-    MockRead(ASYNC, 0, 2)  // EOF
+    CreateMockRead(*settings_frame),
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
 
   SpdySessionDependencies session_deps;
-
   session_deps.host_resolver->set_synchronous_mode(true);
 
-  scoped_refptr<DeterministicSocketData> data =
-      new DeterministicSocketData(reads, arraysize(reads), NULL, 0);
-  data->set_connect_data(connect_data);
-  session_deps.deterministic_socket_factory->AddSocketDataProvider(data);
+  StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
-      SpdySessionDependencies::SpdyCreateSessionDeterministic(&session_deps));
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
 
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
@@ -1250,7 +1248,6 @@ TEST_F(SpdySessionSpdy3Test, UpdateStreamsSendWindowSize) {
                                   callback1.callback()));
   EXPECT_NE(spdy_stream1->send_window_size(), window_size);
 
-  data->RunFor(1);  // Process the SETTINGS frame, but not the EOF
   MessageLoop::current()->RunAllPending();
   EXPECT_EQ(session->initial_send_window_size(), window_size);
   EXPECT_EQ(spdy_stream1->send_window_size(), window_size);
@@ -1275,8 +1272,8 @@ TEST_F(SpdySessionSpdy3Test, UpdateStreamsSendWindowSize) {
 TEST_F(SpdySessionSpdy3Test, OutOfOrderSynStreams) {
   // Construct the request.
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<SpdyFrame> req1(ConstructSpdyGet(NULL, 0, false, 1, HIGHEST));
-  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, LOWEST));
+  scoped_ptr<SpdyFrame> req1(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, HIGHEST));
   MockWrite writes[] = {
     CreateMockWrite(*req1, 2),
     CreateMockWrite(*req2, 1),
@@ -1340,14 +1337,14 @@ TEST_F(SpdySessionSpdy3Test, OutOfOrderSynStreams) {
   GURL url1("http://www.google.com");
   EXPECT_EQ(OK, session->CreateStream(url1, LOWEST, &spdy_stream1,
                                       BoundNetLog(), callback1.callback()));
-  EXPECT_EQ(0u, spdy_stream1->stream_id());
+  EXPECT_EQ(1u, spdy_stream1->stream_id());
 
   scoped_refptr<SpdyStream> spdy_stream2;
   TestCompletionCallback callback2;
   GURL url2("http://www.google.com");
   EXPECT_EQ(OK, session->CreateStream(url2, HIGHEST, &spdy_stream2,
                                       BoundNetLog(), callback2.callback()));
-  EXPECT_EQ(0u, spdy_stream2->stream_id());
+  EXPECT_EQ(3u, spdy_stream2->stream_id());
 
   linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
   (*headers)[":method"] = "GET";
@@ -1365,8 +1362,8 @@ TEST_F(SpdySessionSpdy3Test, OutOfOrderSynStreams) {
   spdy_stream2->SendRequest(false);
   MessageLoop::current()->RunAllPending();
 
-  EXPECT_EQ(3u, spdy_stream1->stream_id());
-  EXPECT_EQ(1u, spdy_stream2->stream_id());
+  EXPECT_EQ(1u, spdy_stream1->stream_id());
+  EXPECT_EQ(3u, spdy_stream2->stream_id());
 
   spdy_stream1->Cancel();
   spdy_stream1 = NULL;
