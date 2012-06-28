@@ -142,7 +142,6 @@ void VideoDecoderConfig::CopyFrom(const VideoDecoderConfig& video_config) {
 
 bool VideoDecoderConfig::IsValidConfig() const {
   return codec_ != kUnknownVideoCodec &&
-      frame_rate_numerator_ > 0 &&
       frame_rate_denominator_ > 0 &&
       aspect_ratio_numerator_ > 0 &&
       aspect_ratio_denominator_ > 0 &&

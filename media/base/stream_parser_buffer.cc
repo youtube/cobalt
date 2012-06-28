@@ -18,16 +18,27 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
       new StreamParserBuffer(data, data_size, is_keyframe));
 }
 
+base::TimeDelta StreamParserBuffer::GetDecodeTimestamp() const {
+  if (decode_timestamp_ == kNoTimestamp())
+    return GetTimestamp();
+  return decode_timestamp_;
+}
+
+void StreamParserBuffer::SetDecodeTimestamp(const base::TimeDelta& timestamp) {
+  decode_timestamp_ = timestamp;
+}
+
 base::TimeDelta StreamParserBuffer::GetEndTimestamp() const {
-  DCHECK(GetTimestamp() != kNoTimestamp());
+  DCHECK(GetDecodeTimestamp() != kNoTimestamp());
   DCHECK(GetDuration() != kNoTimestamp());
-  return GetTimestamp() + GetDuration();
+  return GetDecodeTimestamp() + GetDuration();
 }
 
 StreamParserBuffer::StreamParserBuffer(const uint8* data, int data_size,
                                        bool is_keyframe)
     : DecoderBuffer(data, data_size),
-      is_keyframe_(is_keyframe) {
+      is_keyframe_(is_keyframe),
+      decode_timestamp_(kNoTimestamp()) {
   SetDuration(kNoTimestamp());
 }
 

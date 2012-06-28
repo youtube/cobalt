@@ -114,7 +114,8 @@ class SourceBufferStreamTest : public testing::Test {
         }
       }
 
-      EXPECT_EQ(buffer->GetTimestamp() / frame_duration_, current_position);
+      EXPECT_EQ(buffer->GetDecodeTimestamp() / frame_duration_,
+                current_position);
     }
 
     EXPECT_EQ(ending_position + 1, current_position);
@@ -155,7 +156,23 @@ class SourceBufferStreamTest : public testing::Test {
         timestamp += first_buffer_offset;
       }
       buffer->SetDuration(duration);
-      buffer->SetTimestamp(timestamp);
+      buffer->SetDecodeTimestamp(timestamp);
+
+      // Simulate an IBB...BBP pattern in which all B-frames reference both
+      // the I- and P-frames. For a GOP with playback order 12345, this would
+      // result in a decode timestamp order of 15234.
+      base::TimeDelta presentation_timestamp;
+      if (is_keyframe) {
+        presentation_timestamp = timestamp;
+      } else if ((position - 1) % keyframe_interval == 0) {
+        // This is the P-frame (first frame following the I-frame)
+        presentation_timestamp =
+            (timestamp + frame_duration_ * (keyframe_interval - 2));
+      } else {
+        presentation_timestamp = timestamp - frame_duration_;
+      }
+      buffer->SetTimestamp(presentation_timestamp);
+
       queue.push_back(buffer);
     }
     EXPECT_EQ(stream_.Append(queue, media_segment_start_time), expect_success);
@@ -1060,7 +1077,7 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
 
   // GetNextBuffer() should return the next buffer at position (5 + |bump|).
   EXPECT_TRUE(stream_.GetNextBuffer(&buffer));
-  EXPECT_EQ(buffer->GetTimestamp(), 5 * frame_duration() + bump);
+  EXPECT_EQ(buffer->GetDecodeTimestamp(), 5 * frame_duration() + bump);
 
   // Check rest of buffers.
   CheckExpectedBuffers(6, 9);
@@ -1074,7 +1091,7 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
 
   // GetNextBuffer() should return the next buffer at position (15 + |bump|).
   EXPECT_TRUE(stream_.GetNextBuffer(&buffer));
-  EXPECT_EQ(buffer->GetTimestamp(), 15 * frame_duration() + bump);
+  EXPECT_EQ(buffer->GetDecodeTimestamp(), 15 * frame_duration() + bump);
 
   // Check rest of buffers.
   CheckExpectedBuffers(16, 19);
@@ -1237,6 +1254,36 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_NoSeek) {
 
   // Should receive buffers from the start without needing to seek.
   CheckExpectedBuffers(5, 5);
+}
+
+TEST_F(SourceBufferStreamTest, PresentationTimestampIndependence) {
+  // Append 20 buffers at position 0.
+  AppendBuffers(0, 20);
+
+  int last_keyframe_idx = -1;
+  base::TimeDelta last_keyframe_presentation_timestamp;
+  base::TimeDelta last_p_frame_presentation_timestamp;
+
+  // Check for IBB...BBP pattern.
+  for (int i = 0; i < 20; i++) {
+    scoped_refptr<StreamParserBuffer> buffer;
+    ASSERT_TRUE(stream_.GetNextBuffer(&buffer));
+
+    if (buffer->IsKeyframe()) {
+      EXPECT_EQ(buffer->GetTimestamp(), buffer->GetDecodeTimestamp());
+      last_keyframe_idx = i;
+      last_keyframe_presentation_timestamp = buffer->GetTimestamp();
+    } else if (i == last_keyframe_idx + 1) {
+      ASSERT_NE(last_keyframe_idx, -1);
+      last_p_frame_presentation_timestamp = buffer->GetTimestamp();
+      EXPECT_LT(last_keyframe_presentation_timestamp,
+                last_p_frame_presentation_timestamp);
+    } else {
+      EXPECT_GT(buffer->GetTimestamp(), last_keyframe_presentation_timestamp);
+      EXPECT_LT(buffer->GetTimestamp(), last_p_frame_presentation_timestamp);
+      EXPECT_LT(buffer->GetTimestamp(), buffer->GetDecodeTimestamp());
+    }
+  }
 }
 
 // TODO(vrk): Add unit tests where keyframes are unaligned between streams.
