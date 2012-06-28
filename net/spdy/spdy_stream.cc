@@ -50,10 +50,11 @@ bool ContainsUpperAscii(const std::string& str) {
 }  // namespace
 
 SpdyStream::SpdyStream(SpdySession* session,
+                       SpdyStreamId stream_id,
                        bool pushed,
                        const BoundNetLog& net_log)
     : continue_buffering_data_(true),
-      stream_id_(0),
+      stream_id_(stream_id),
       priority_(HIGHEST),
       slot_(0),
       stalled_by_flow_control_(false),
@@ -76,77 +77,8 @@ SpdyStream::SpdyStream(SpdySession* session,
       domain_bound_cert_type_(CLIENT_CERT_INVALID_TYPE) {
 }
 
-class SpdyStream::SpdyStreamIOBufferProducer
-    : public SpdySession::SpdyIOBufferProducer {
- public:
-  SpdyStreamIOBufferProducer(SpdyStream* stream) : stream_(stream) {}
-
-  // SpdyFrameProducer
-  virtual RequestPriority GetPriority() const OVERRIDE {
-    return stream_->priority();
-  }
-
-  virtual SpdyIOBuffer* ProduceNextBuffer(SpdySession* session) OVERRIDE {
-    if (stream_->stream_id() == 0)
-      SpdySession::SpdyIOBufferProducer::ActivateStream(session, stream_);
-    SpdyFrame* frame = stream_->ProduceNextFrame();
-    return frame == NULL ? NULL :
-        SpdySession::SpdyIOBufferProducer::CreateIOBuffer(
-            frame, GetPriority(), stream_);
-  }
-
- private:
-  scoped_refptr<SpdyStream> stream_;
-};
-
-void SpdyStream::SetHasWriteAvailable() {
-  session_->SetStreamHasWriteAvailable(this,
-                                       new SpdyStreamIOBufferProducer(this));
-}
-
-SpdyFrame* SpdyStream::ProduceNextFrame() {
-  if (io_state_ == STATE_SEND_DOMAIN_BOUND_CERT_COMPLETE) {
-    CHECK(request_.get());
-    CHECK_GT(stream_id_, 0u);
-
-    std::string origin = GetUrl().GetOrigin().spec();
-    DCHECK(origin[origin.length() - 1] == '/');
-    origin.erase(origin.length() - 1);  // Trim trailing slash.
-    SpdyCredentialControlFrame* frame = session_->CreateCredentialFrame(
-        origin, domain_bound_cert_type_, domain_bound_private_key_,
-        domain_bound_cert_, priority_);
-    return frame;
-  } else if (io_state_ == STATE_SEND_HEADERS_COMPLETE) {
-    CHECK(request_.get());
-    CHECK_GT(stream_id_, 0u);
-
-    SpdyControlFlags flags =
-        has_upload_data_ ? CONTROL_FLAG_NONE : CONTROL_FLAG_FIN;
-    SpdySynStreamControlFrame* frame = session_->CreateSynStream(
-        stream_id_, priority_, slot_, flags, request_);
-    send_time_ = base::TimeTicks::Now();
-    return frame;
-  } else {
-    CHECK(!cancelled());
-    // We must need to write stream data.
-    // Until the headers have been completely sent, we can not be sure
-    // that our stream_id is correct.
-    DCHECK_GT(io_state_, STATE_SEND_HEADERS_COMPLETE);
-    DCHECK_GT(stream_id_, 0u);
-    DCHECK(!pending_data_frames_.empty());
-    SpdyFrame* frame = pending_data_frames_.front();
-    pending_data_frames_.pop_front();
-    return frame;
-  }
-}
-
 SpdyStream::~SpdyStream() {
   UpdateHistograms();
-  while (!pending_data_frames_.empty()) {
-    SpdyFrame* frame = pending_data_frames_.back();
-    pending_data_frames_.pop_back();
-    delete frame;
-  }
 }
 
 void SpdyStream::SetDelegate(Delegate* delegate) {
@@ -540,10 +472,7 @@ void SpdyStream::Cancel() {
 }
 
 void SpdyStream::Close() {
-  if (stream_id_ != 0)
-    session_->CloseStream(stream_id_, net::OK);
-  else
-    session_->CloseCreatedStream(this, OK);
+  session_->CloseStream(stream_id_, net::OK);
 }
 
 int SpdyStream::SendRequest(bool has_upload_data) {
@@ -570,13 +499,7 @@ int SpdyStream::WriteStreamData(IOBuffer* data, int length,
   // Until the headers have been completely sent, we can not be sure
   // that our stream_id is correct.
   DCHECK_GT(io_state_, STATE_SEND_HEADERS_COMPLETE);
-  CHECK_GT(stream_id_, 0u);
-
-  pending_data_frames_.push_back(
-      session_->CreateDataFrame(stream_id_, data, length, flags));
-
-  SetHasWriteAvailable();
-  return ERR_IO_PENDING;
+  return session_->WriteStreamData(stream_id_, data, length, flags);
 }
 
 bool SpdyStream::GetSSLInfo(SSLInfo* ssl_info,
@@ -720,8 +643,14 @@ int SpdyStream::DoGetDomainBoundCertComplete(int result) {
 int SpdyStream::DoSendDomainBoundCert() {
   io_state_ = STATE_SEND_DOMAIN_BOUND_CERT_COMPLETE;
   CHECK(request_.get());
-  SetHasWriteAvailable();
-  return ERR_IO_PENDING;
+  std::string origin = GetUrl().GetOrigin().spec();
+  origin.erase(origin.length() - 1);  // trim trailing slash
+  int rv =  session_->WriteCredentialFrame(
+      origin, domain_bound_cert_type_, domain_bound_private_key_,
+      domain_bound_cert_, priority_);
+  if (rv != ERR_IO_PENDING)
+    return rv;
+  return OK;
 }
 
 int SpdyStream::DoSendDomainBoundCertComplete(int result) {
@@ -735,7 +664,18 @@ int SpdyStream::DoSendDomainBoundCertComplete(int result) {
 int SpdyStream::DoSendHeaders() {
   CHECK(!cancelled_);
 
-  SetHasWriteAvailable();
+  SpdyControlFlags flags = CONTROL_FLAG_NONE;
+  if (!has_upload_data_)
+    flags = CONTROL_FLAG_FIN;
+
+  CHECK(request_.get());
+  int result = session_->WriteSynStream(
+      stream_id_, priority_, slot_, flags,
+      request_);
+  if (result != ERR_IO_PENDING)
+    return result;
+
+  send_time_ = base::TimeTicks::Now();
   io_state_ = STATE_SEND_HEADERS_COMPLETE;
   return ERR_IO_PENDING;
 }

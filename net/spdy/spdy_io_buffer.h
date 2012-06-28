@@ -9,11 +9,9 @@
 #include "base/memory/ref_counted.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_export.h"
-#include "net/base/request_priority.h"
+#include "net/spdy/spdy_stream.h"
 
 namespace net {
-
-class SpdyStream;
 
 // A class for managing SPDY IO buffers.  These buffers need to be prioritized
 // so that the SpdySession sends them in the right order.  Further, they need
@@ -28,14 +26,8 @@ class NET_EXPORT_PRIVATE SpdyIOBuffer {
   // |stream| is a pointer to the stream which is managing this buffer.
   SpdyIOBuffer(IOBuffer* buffer, int size, RequestPriority priority,
                SpdyStream* stream);
-  // Declare this instead of using the default so that we avoid needing to
-  // include spdy_stream.h.
-  SpdyIOBuffer(const SpdyIOBuffer& rhs);
   SpdyIOBuffer();
   ~SpdyIOBuffer();
-  // Declare this instead of using the default so that we avoid needing to
-  // include spdy_stream.h.
-  SpdyIOBuffer& operator=(const SpdyIOBuffer& rhs);
 
   // Accessors.
   DrainableIOBuffer* buffer() const { return buffer_; }

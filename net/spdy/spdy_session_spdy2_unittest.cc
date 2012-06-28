@@ -330,7 +330,7 @@ TEST_F(SpdySessionSpdy2Test, FailedPing) {
 
   // Assert session is not closed.
   EXPECT_FALSE(session->IsClosed());
-  EXPECT_LT(0u, session->num_active_streams() + session->num_created_streams());
+  EXPECT_LT(0u, session->num_active_streams());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   // We set last time we have received any data in 1 sec less than now.
@@ -450,8 +450,8 @@ TEST_F(SpdySessionSpdy2Test, CloseIdleSessions) {
 
   // Make sessions 1 and 3 inactive, but keep them open.
   // Session 2 still open and active
-  session1->CloseCreatedStream(spdy_stream1, OK);
-  session3->CloseCreatedStream(spdy_stream3, OK);
+  session1->CloseStream(spdy_stream1->stream_id(), OK);
+  session3->CloseStream(spdy_stream3->stream_id(), OK);
   EXPECT_FALSE(session1->is_active());
   EXPECT_FALSE(session1->IsClosed());
   EXPECT_TRUE(session2->is_active());
@@ -474,7 +474,7 @@ TEST_F(SpdySessionSpdy2Test, CloseIdleSessions) {
   EXPECT_FALSE(session2->IsClosed());
 
   // Make 2 not active
-  session2->CloseCreatedStream(spdy_stream2, OK);
+  session2->CloseStream(spdy_stream2->stream_id(), OK);
   EXPECT_FALSE(session2->is_active());
   EXPECT_FALSE(session2->IsClosed());
 
@@ -1109,8 +1109,8 @@ TEST_F(SpdySessionSpdy2Test, CloseSessionOnError) {
 TEST_F(SpdySessionSpdy2Test, OutOfOrderSynStreams) {
   // Construct the request.
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<SpdyFrame> req1(ConstructSpdyGet(NULL, 0, false, 1, HIGHEST));
-  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, LOWEST));
+  scoped_ptr<SpdyFrame> req1(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, HIGHEST));
   MockWrite writes[] = {
     CreateMockWrite(*req1, 2),
     CreateMockWrite(*req2, 1),
@@ -1174,14 +1174,14 @@ TEST_F(SpdySessionSpdy2Test, OutOfOrderSynStreams) {
   GURL url1("http://www.google.com");
   EXPECT_EQ(OK, session->CreateStream(url1, LOWEST, &spdy_stream1,
                                       BoundNetLog(), callback1.callback()));
-  EXPECT_EQ(0u, spdy_stream1->stream_id());
+  EXPECT_EQ(1u, spdy_stream1->stream_id());
 
   scoped_refptr<SpdyStream> spdy_stream2;
   TestCompletionCallback callback2;
   GURL url2("http://www.google.com");
   EXPECT_EQ(OK, session->CreateStream(url2, HIGHEST, &spdy_stream2,
                                       BoundNetLog(), callback2.callback()));
-  EXPECT_EQ(0u, spdy_stream2->stream_id());
+  EXPECT_EQ(3u, spdy_stream2->stream_id());
 
   linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
   (*headers)["method"] = "GET";
@@ -1199,8 +1199,8 @@ TEST_F(SpdySessionSpdy2Test, OutOfOrderSynStreams) {
   spdy_stream2->SendRequest(false);
   MessageLoop::current()->RunAllPending();
 
-  EXPECT_EQ(3u, spdy_stream1->stream_id());
-  EXPECT_EQ(1u, spdy_stream2->stream_id());
+  EXPECT_EQ(1u, spdy_stream1->stream_id());
+  EXPECT_EQ(3u, spdy_stream2->stream_id());
 
   spdy_stream1->Cancel();
   spdy_stream1 = NULL;
