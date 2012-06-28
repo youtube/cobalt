@@ -1346,9 +1346,6 @@
       ['enable_hidpi==1', {
         'defines': ['ENABLE_HIDPI=1'],
       }],
-      ['OS=="android" and gtest_target_type=="shared_library"', {
-        'defines': ['ANDROID_APK_TEST_TARGET=1'],
-      }],
       ['fastbuild!=0', {
 
         'conditions': [
