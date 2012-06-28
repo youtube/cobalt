@@ -6,6 +6,7 @@
 #define NET_SPDY_SPDY_STREAM_H_
 #pragma once
 
+#include <list>
 #include <string>
 #include <vector>
 
@@ -24,12 +25,12 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
+#include "net/spdy/spdy_session.h"
 
 namespace net {
 
 class AddressList;
 class IPEndPoint;
-class SpdySession;
 class SSLCertRequestInfo;
 class SSLInfo;
 
@@ -95,7 +96,6 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   // SpdyStream constructor
   SpdyStream(SpdySession* session,
-             SpdyStreamId stream_id,
              bool pushed,
              const BoundNetLog& net_log);
 
@@ -260,6 +260,8 @@ class NET_EXPORT_PRIVATE SpdyStream
   int GetProtocolVersion() const;
 
  private:
+  class SpdyStreamIOBufferProducer;
+
   enum State {
     STATE_NONE,
     STATE_GET_DOMAIN_BOUND_CERT,
@@ -308,6 +310,14 @@ class NET_EXPORT_PRIVATE SpdyStream
   // the MessageLoop to replay all the data that the server has already sent.
   void PushedStreamReplayData();
 
+  // Informs the SpdySession that this stream has a write available.
+  void SetHasWriteAvailable();
+
+  // Returns a newly created SPDY frame owned by the called that contains
+  // the next frame to be sent by this frame.  May return NULL if this
+  // stream has become stalled on flow control.
+  SpdyFrame* ProduceNextFrame();
+
   // There is a small period of time between when a server pushed stream is
   // first created, and the pushed data is replayed. Any data received during
   // this time should continue to be buffered.
@@ -342,6 +352,8 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   linked_ptr<SpdyHeaderBlock> response_;
   base::Time response_time_;
+
+  std::list<SpdyFrame*> pending_data_frames_;
 
   State io_state_;
 
