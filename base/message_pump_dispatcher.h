@@ -11,12 +11,11 @@
 
 namespace base {
 
-// Dispatcher is used during a nested invocation of Run to dispatch
-// events when |MessageLoop::RunWithDispatcher| is invoked.  If
-// |MessageLoop::Run| is invoked, MessageLoop does not dispatch events
-// (or invoke TranslateMessage), rather every message is passed to
-// Dispatcher's Dispatch method for dispatch. It is up to the
-// Dispatcher whether or not to dispatch the event.
+// Dispatcher is used during a nested invocation of Run to dispatch events when
+// |RunLoop(dispatcher).Run()| is used.  If |RunLoop().Run()| is invoked,
+// MessageLoop does not dispatch events (or invoke TranslateMessage), rather
+// every message is passed to Dispatcher's Dispatch method for dispatch. It is
+// up to the Dispatcher whether or not to dispatch the event.
 //
 // The nested loop is exited by either posting a quit, or returning false
 // from Dispatch.

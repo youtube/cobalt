@@ -290,6 +290,8 @@
           'rand_util.h',
           'rand_util_posix.cc',
           'rand_util_win.cc',
+          'run_loop.cc',
+          'run_loop.h',
           'safe_strerror_posix.cc',
           'safe_strerror_posix.h',
           'scoped_native_library.cc',
