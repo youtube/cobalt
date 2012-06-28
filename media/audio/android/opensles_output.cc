@@ -272,7 +272,7 @@ void OpenSLESOutputStream::FillBufferQueue() {
   if (SL_RESULT_SUCCESS != err)
     HandleError(err);
 
-  active_queue_ = ++active_queue_ % kNumOfQueuesInBuffer;
+  active_queue_ = (active_queue_  + 1) % kNumOfQueuesInBuffer;
 }
 
 void OpenSLESOutputStream::SetupAudioBuffer() {
