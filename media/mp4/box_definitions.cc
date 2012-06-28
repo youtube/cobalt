@@ -660,7 +660,7 @@ bool TrackFragmentRun::Parse(BoxReader* reader) {
     if (sample_flags_present)
       RCHECK(reader->Read4(&sample_flags[i]));
     if (sample_composition_time_offsets_present)
-      RCHECK(reader->Read4(&sample_composition_time_offsets[i]));
+      RCHECK(reader->Read4s(&sample_composition_time_offsets[i]));
   }
 
   if (first_sample_flags_present) {

@@ -12,7 +12,7 @@
 namespace media {
 namespace mp4 {
 
-base::TimeDelta TimeDeltaFromFrac(int64 numer, uint64 denom) {
+base::TimeDelta TimeDeltaFromFrac(int64 numer, int64 denom) {
   DCHECK_LT((numer > 0 ? numer : -numer),
             kint64max / base::Time::kMicrosecondsPerSecond);
   return base::TimeDelta::FromMicroseconds(

@@ -309,7 +309,7 @@ struct TrackFragmentRun : Box {
   std::vector<uint32> sample_flags;
   std::vector<uint32> sample_sizes;
   std::vector<uint32> sample_durations;
-  std::vector<uint32> sample_composition_time_offsets;
+  std::vector<int32> sample_composition_time_offsets;
 };
 
 struct TrackFragment : Box {

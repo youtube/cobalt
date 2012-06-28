@@ -438,9 +438,17 @@ bool FFmpegVideoDecoder::Decode(
   }
   *video_frame = static_cast<VideoFrame*>(av_frame_->opaque);
 
-  // Determine timestamp and calculate the duration based on the repeat picture
-  // count.  According to FFmpeg docs, the total duration can be calculated as
-  // follows:
+  if (frame_rate_numerator_ == 0) {
+    // A framerate of zero indicates that no timing information was available
+    // during initial stream demuxing, and that the framerate should be inferred
+    // from the first frame's duration.
+    frame_rate_numerator_ = buffer->GetDuration().InMicroseconds();
+    frame_rate_denominator_ = base::Time::kMicrosecondsPerSecond;
+  }
+
+  // Determine timestamp and calculate the duration based on the repeat
+  // picture count. According to FFmpeg docs, the total duration can be
+  // calculated as follows:
   //   fps = 1 / time_base
   //
   //   duration = (1 / fps) + (repeat_pict) / (2 * fps)
