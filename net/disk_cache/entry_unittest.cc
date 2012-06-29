@@ -22,8 +22,6 @@
 
 using base::Time;
 
-static const int kDiskDelayMs = 20;
-
 // Tests that can run with different types of caches.
 class DiskCacheEntryTest : public DiskCacheTestWithCache {
  public:
@@ -655,7 +653,7 @@ void DiskCacheEntryTest::GetTimes() {
   EXPECT_TRUE(entry->GetLastModified() >= t1);
   EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
 
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
+  AddDelay();
   Time t2 = Time::Now();
   EXPECT_TRUE(t2 > t1);
   EXPECT_EQ(0, WriteData(entry, 0, 200, NULL, 0, false));
@@ -666,7 +664,7 @@ void DiskCacheEntryTest::GetTimes() {
   }
   EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
 
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
+  AddDelay();
   Time t3 = Time::Now();
   EXPECT_TRUE(t3 > t2);
   const int kSize = 200;
@@ -1308,7 +1306,7 @@ void DiskCacheEntryTest::DoomedEntry() {
   FlushQueueForTest();
   EXPECT_EQ(0, cache_->GetEntryCount());
   Time initial = Time::Now();
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
+  AddDelay();
 
   const int kSize1 = 2000;
   const int kSize2 = 2000;

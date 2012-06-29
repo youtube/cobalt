@@ -28,8 +28,6 @@
 
 using base::Time;
 
-static const int kDiskDelayMs = 20;
-
 // Tests that can run with different types of caches.
 class DiskCacheBackendTest : public DiskCacheTestWithCache {
  protected:
@@ -1047,7 +1045,7 @@ void DiskCacheBackendTest::BackendEnumerations2() {
   FlushQueueForTest();
 
   // Make sure that the timestamp is not the same.
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
+  AddDelay();
   ASSERT_EQ(net::OK, OpenEntry(second, &entry1));
   void* iter = NULL;
   ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry2));
@@ -1223,7 +1221,7 @@ void DiskCacheBackendTest::BackendDoomRecent() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
+  AddDelay();
   Time middle = Time::Now();
 
   ASSERT_EQ(net::OK, CreateEntry("third", &entry));
@@ -1232,7 +1230,7 @@ void DiskCacheBackendTest::BackendDoomRecent() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
+  AddDelay();
   Time final = Time::Now();
 
   ASSERT_EQ(4, cache_->GetEntryCount());
@@ -1268,7 +1266,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
+  AddDelay();
   Time middle_start = Time::Now();
 
   ASSERT_EQ(net::OK, CreateEntry("second", &entry));
@@ -1277,7 +1275,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
+  AddDelay();
   Time middle_end = Time::Now();
 
   ASSERT_EQ(net::OK, CreateEntry("fourth", &entry));
@@ -1286,7 +1284,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
+  AddDelay();
   Time final = Time::Now();
 
   ASSERT_EQ(4, cache_->GetEntryCount());
