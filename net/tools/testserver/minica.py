@@ -246,7 +246,7 @@ def MakeCertificate(
   ]))
 
 
-def MakeOCSPResponse(issuer_cn, issuer_key, serial, revoked):
+def MakeOCSPResponse(issuer_cn, issuer_key, serial, ocsp_state):
   # https://tools.ietf.org/html/rfc2560
   issuer_name_hash = asn1.OCTETSTRING(
       hashlib.sha1(asn1.ToDER(Name(cn = issuer_cn))).digest())
@@ -255,10 +255,14 @@ def MakeOCSPResponse(issuer_cn, issuer_key, serial, revoked):
       hashlib.sha1(asn1.ToDER(issuer_key)).digest())
 
   cert_status = None
-  if revoked:
+  if ocsp_state == OCSP_STATE_REVOKED:
     cert_status = asn1.Explicit(1, asn1.GeneralizedTime("20100101060000Z"))
-  else:
+  elif ocsp_state == OCSP_STATE_UNKNOWN:
+    cert_status = asn1.Raw(asn1.TagAndLength(0x80 | 2, 0))
+  elif ocsp_state == OCSP_STATE_GOOD:
     cert_status = asn1.Raw(asn1.TagAndLength(0x80 | 0, 0))
+  else:
+    raise ValueError('Bad OCSP state: ' + str(ocsp_state))
 
   basic_resp_data_der = asn1.ToDER(asn1.SEQUENCE([
     asn1.Explicit(2, issuer_key_hash),
@@ -307,10 +311,19 @@ def DERToPEM(der):
   pem += '-----END CERTIFICATE-----\n'
   return pem
 
+OCSP_STATE_GOOD = 1
+OCSP_STATE_REVOKED = 2
+OCSP_STATE_INVALID = 3
+OCSP_STATE_UNAUTHORIZED = 4
+OCSP_STATE_UNKNOWN = 5
+
+# unauthorizedDER is an OCSPResponse with a status of 6:
+# SEQUENCE { ENUM(6) }
+unauthorizedDER = '30030a0106'.decode('hex')
 
 def GenerateCertKeyAndOCSP(subject = "127.0.0.1",
                            ocsp_url = "http://127.0.0.1",
-                           ocsp_revoked = False):
+                           ocsp_state = OCSP_STATE_GOOD):
   '''GenerateCertKeyAndOCSP returns a (cert_and_key_pem, ocsp_der) where:
        * cert_and_key_pem contains a certificate and private key in PEM format
          with the given subject common name and OCSP URL.
@@ -324,6 +337,11 @@ def GenerateCertKeyAndOCSP(subject = "127.0.0.1",
 
   ocsp_der = None
   if ocsp_url is not None:
-    ocsp_der = MakeOCSPResponse(ISSUER_CN, KEY, serial, ocsp_revoked)
+    if ocsp_state == OCSP_STATE_UNAUTHORIZED:
+      ocsp_der = unauthorizedDER
+    elif ocsp_state == OCSP_STATE_INVALID:
+      ocsp_der = '3'
+    else:
+      ocsp_der = MakeOCSPResponse(ISSUER_CN, KEY, serial, ocsp_state)
 
   return (cert_pem + KEY_PEM, ocsp_der)

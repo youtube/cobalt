@@ -2037,15 +2037,18 @@ def main(options, args):
             (host, ocsp_server.server_port))
 
         ocsp_der = None
-        ocsp_revoked = False
-        ocsp_invalid = False
+        ocsp_state = None
 
         if options.ocsp == 'ok':
-          pass
+          ocsp_state = minica.OCSP_STATE_GOOD
         elif options.ocsp == 'revoked':
-          ocsp_revoked = True
+          ocsp_state = minica.OCSP_STATE_REVOKED
         elif options.ocsp == 'invalid':
-          ocsp_invalid = True
+          ocsp_state = minica.OCSP_STATE_INVALID
+        elif options.ocsp == 'unauthorized':
+          ocsp_state = minica.OCSP_STATE_UNAUTHORIZED
+        elif options.ocsp == 'unknown':
+          ocsp_state = minica.OCSP_STATE_UNKNOWN
         else:
           print 'unknown OCSP status: ' + options.ocsp_status
           return
@@ -2055,10 +2058,7 @@ def main(options, args):
                 subject = "127.0.0.1",
                 ocsp_url = ("http://%s:%d/ocsp" %
                     (host, ocsp_server.server_port)),
-                ocsp_revoked = ocsp_revoked)
-
-        if ocsp_invalid:
-          ocsp_der = '3'
+                ocsp_state = ocsp_state)
 
         ocsp_server.ocsp_response = ocsp_der
 
