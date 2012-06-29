@@ -524,6 +524,14 @@
             '../webkit/webkit.gyp:pull_in_DumpRenderTree',
           ],
         },
+        {
+          'target_name': 'chromium_builder_qa_nacl_win64',
+          'type': 'none',
+          'dependencies': [
+            'chromium_builder_qa', # needed for pyauto
+            '../chrome/chrome.gyp:chrome_nacl_win64',
+          ],
+        }, # target_name: chromium_builder_qa_nacl_win64
       ],  # targets
       'conditions': [
         ['branding=="Chrome"', {
