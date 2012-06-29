@@ -72,7 +72,7 @@
 
         # Compute the architecture that we're building on.
         'conditions': [
-          [ 'OS=="win" or OS=="mac"', {
+          ['OS=="win" or OS=="mac" or OS=="ios"', {
             'host_arch%': 'ia32',
           }, {
             # This handles the Unix platforms for which there is some support.
@@ -311,6 +311,14 @@
       # for details.
       'chromium_win_pch%': 0,
 
+      # iOS SDK and deployment target support.  The iOS 5.0 SDK is actually
+      # what is required, but the value is left blank so when it is set in
+      # the project files it will be the "current" iOS SDK.  Forcing 5.0
+      # even though it is "current" causes Xcode to spit out a warning for
+      # every single project file for not using the "current" SDK.
+      'ios_sdk%': '',
+      'ios_deployment_target%': '4.3',
+
       # Set this to true when building with Clang.
       # See http://code.google.com/p/chromium/wiki/Clang for details.
       'clang%': 0,
@@ -384,7 +392,7 @@
         }],
 
         # Flags to use X11 on non-Mac POSIX platforms
-        ['OS=="win" or OS=="mac" or OS=="android"', {
+        ['OS=="win" or OS=="mac" or OS=="ios" or OS=="android"', {
           'use_glib%': 0,
           'use_x11%': 0,
         }, {
@@ -416,8 +424,8 @@
           'use_gnome_keyring%': 1,
         }],
 
-        ['toolkit_views==0 or OS=="mac"', {
-          # GTK+ and Mac wants Title Case strings
+        ['toolkit_views==0 or OS=="mac" or OS=="ios"', {
+          # GTK+, Mac and iOS want Title Case strings
           'use_titlecase_in_grd_files%': 1,
         }],
 
@@ -456,7 +464,7 @@
           'enable_plugin_installation%': 1,
         }],
 
-        ['OS=="android"', {
+        ['OS=="android" or OS=="ios"', {
           'enable_protector_service%': 0,
         }, {
           'enable_protector_service%': 1,
@@ -552,6 +560,8 @@
     'enable_extensions%': '<(enable_extensions)',
     'enable_web_intents%': '<(enable_web_intents)',
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
+    'ios_sdk%': '<(ios_sdk)',
+    'ios_deployment_target%': '<(ios_deployment_target)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
     'enable_protector_service%': '<(enable_protector_service)',
     'enable_session_service%': '<(enable_session_service)',
@@ -787,6 +797,9 @@
     # The Java Bridge is not compiled in by default.
     'java_bridge%': 0,
 
+    # Code signing for iOS binaries.  The bots need to be able to disable this.
+    'chromium_ios_signing%': 1,
+
     # This flag is only used when disable_nacl==0 and disables all those
     # subcomponents which would require the installation of a native_client
     # untrusted toolchain.
@@ -805,7 +818,7 @@
     'wix_exists': '<!(python <(DEPTH)/build/dir_exists.py <(wix_path))',
 
     'conditions': [
-      ['os_posix==1 and OS!="mac"', {
+      ['os_posix==1 and OS!="mac" and OS!="ios"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
         'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
@@ -821,7 +834,7 @@
             'linux_dump_symbols%': 1,
           }],
         ],
-      }],
+      }],  # os_posix==1 and OS!="mac" and OS!="ios"
       ['OS=="android"', {
         # Location of Android NDK.
         'variables': {
@@ -1193,10 +1206,6 @@
       # processing.
       'chromium_code%': '<(chromium_code)',
 
-      # See http://gcc.gnu.org/onlinedocs/gcc-4.4.2/gcc/Optimize-Options.html
-      'mac_release_optimization%': '3', # Use -O3 unless overridden
-      'mac_debug_optimization%': '0',   # Use -O0 unless overridden
-
       # See http://msdn.microsoft.com/en-us/library/aa652360(VS.71).aspx
       'win_release_Optimization%': '2', # 2 = /Os
       'win_debug_Optimization%': '0',   # 0 = /Od
@@ -1250,6 +1259,15 @@
           # See http://msdn.microsoft.com/en-us/library/aa652367.aspx
           'win_release_RuntimeLibrary%': '0', # 0 = /MT (nondebug static)
           'win_debug_RuntimeLibrary%': '1',   # 1 = /MTd (debug static)
+        }],
+        ['OS=="ios"', {
+          # See http://gcc.gnu.org/onlinedocs/gcc-4.4.2/gcc/Optimize-Options.html
+          'mac_release_optimization%': 's', # Use -Os unless overridden
+          'mac_debug_optimization%': '0',   # Use -O0 unless overridden
+        }, {
+          # See http://gcc.gnu.org/onlinedocs/gcc-4.4.2/gcc/Optimize-Options.html
+          'mac_release_optimization%': '3', # Use -O3 unless overridden
+          'mac_debug_optimization%': '0',   # Use -O0 unless overridden
         }],
       ],
     },
@@ -1531,7 +1549,7 @@
       }],
       ['chromium_code==0', {
         'conditions': [
-          [ 'os_posix==1 and OS!="mac"', {
+          [ 'os_posix==1 and OS!="mac" and OS!="ios"', {
             # We don't want to get warnings from third-party code,
             # so remove any existing warning-enabling flags like -Wall.
             'cflags!': [
@@ -1585,7 +1603,7 @@
               4251,  # class 'std::xx' needs to have dll-interface.
             ],
           }],
-          [ 'OS=="mac"', {
+          [ 'OS=="mac" or OS=="ios"', {
             'xcode_settings': {
               'WARNING_CFLAGS!': ['-Wall', '-Wextra'],
             },
@@ -1596,6 +1614,11 @@
                 },
               }],
             ],
+          }],
+          [ 'OS=="ios"', {
+            'xcode_settings': {
+              'RUN_CLANG_STATIC_ANALYZER': 'NO',
+            },
           }],
         ],
       }, {
@@ -1751,7 +1774,10 @@
               }],
             ],
           }],
-          ['release_valgrind_build==0', {
+          # Disabled on iOS because it was causing a crash on startup.
+          # TODO(michelea): investigate, create a reduced test and possibly
+          # submit a radar.
+          ['release_valgrind_build==0 and OS!="ios"', {
             'xcode_settings': {
               'OTHER_CFLAGS': [
                 '-fstack-protector-all',  # Implies -fstack-protector
@@ -1872,13 +1898,13 @@
     },
   },
   'conditions': [
-    ['os_posix==1 and OS!="mac"', {
+    ['os_posix==1 and OS!="mac" and OS!="ios"', {
       'target_defaults': {
         # Enable -Werror by default, but put it in a variable so it can
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
         'variables': {
           'werror%': '-Werror',
-	  'libraries_for_target%': '',
+          'libraries_for_target%': '',
         },
         'defines': [
           '_FILE_OFFSET_BITS=64',
@@ -1915,9 +1941,9 @@
         'ldflags': [
           '-pthread', '-Wl,-z,noexecstack',
         ],
-	'libraries' : [
-	  '<(libraries_for_target)',
-	],
+        'libraries' : [
+          '<(libraries_for_target)',
+        ],
         'configurations': {
           'Debug_Base': {
             'variables': {
@@ -2569,24 +2595,13 @@
       'cflags!': ['-fvisibility=hidden'],
       'cflags_cc!': ['-fvisibility-inlines-hidden'],
     }],
-    ['OS=="mac"', {
+    ['OS=="mac" or OS=="ios"', {
       'target_defaults': {
-        'variables': {
-          # These should end with %, but there seems to be a bug with % in
-          # variables that are intended to be set to different values in
-          # different targets, like these.
-          'mac_pie': 1,        # Most executables can be position-independent.
-          'mac_real_dsym': 0,  # Fake .dSYMs are fine in most cases.
-          # Strip debugging symbols from the target.
-          'mac_strip': '<(mac_strip_release)',
-        },
         'mac_bundle': 0,
         'xcode_settings': {
           'ALWAYS_SEARCH_USER_PATHS': 'NO',
           'GCC_C_LANGUAGE_STANDARD': 'c99',         # -std=c99
           'GCC_CW_ASM_SYNTAX': 'NO',                # No -fasm-blocks
-          'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
-                                                    # (Equivalent to -fPIC)
           'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
           'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
           'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
@@ -2598,14 +2613,7 @@
           'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
           'GCC_VERSION': '4.2',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
-          # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
-          'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
-          # Keep pch files below xcodebuild/.
-          'SHARED_PRECOMPS_DIR': '$(CONFIGURATION_BUILD_DIR)/SharedPrecompiledHeaders',
           'USE_HEADERMAP': 'NO',
-          'OTHER_CFLAGS': [
-            '-fno-strict-aliasing',  # See http://crbug.com/32204
-          ],
           'WARNING_CFLAGS': [
             '-Wall',
             '-Wendif-labels',
@@ -2620,6 +2628,40 @@
             ['chromium_mac_pch', {'GCC_PRECOMPILE_PREFIX_HEADER': 'YES'},
                                  {'GCC_PRECOMPILE_PREFIX_HEADER': 'NO'}
             ],
+          ],
+        },
+        'target_conditions': [
+          ['_type!="static_library"', {
+            'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-search_paths_first']},
+          }],
+          ['_mac_bundle', {
+            'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
+          }],
+        ],  # target_conditions
+      },  # target_defaults
+    }],  # OS=="mac" or OS=="ios"
+    ['OS=="mac"', {
+      'target_defaults': {
+        'variables': {
+          # These should end with %, but there seems to be a bug with % in
+          # variables that are intended to be set to different values in
+          # different targets, like these.
+          'mac_pie': 1,        # Most executables can be position-independent.
+          'mac_real_dsym': 0,  # Fake .dSYMs are fine in most cases.
+          # Strip debugging symbols from the target.
+          'mac_strip': '<(mac_strip_release)',
+        },
+        'xcode_settings': {
+          'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
+                                                    # (Equivalent to -fPIC)
+          # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
+          'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
+          # Keep pch files below xcodebuild/.
+          'SHARED_PRECOMPS_DIR': '$(CONFIGURATION_BUILD_DIR)/SharedPrecompiledHeaders',
+          'OTHER_CFLAGS': [
+            '-fno-strict-aliasing',  # See http://crbug.com/32204
+          ],
+          'conditions': [
             ['clang==1', {
               'CC': '$(SOURCE_ROOT)/<(clang_dir)/clang',
               'LDPLUSPLUS': '$(SOURCE_ROOT)/<(clang_dir)/clang++',
@@ -2822,6 +2864,59 @@
         ],  # target_conditions
       },  # target_defaults
     }],  # OS=="mac"
+    ['OS=="ios"', {
+      'target_defaults': {
+        'xcode_settings' : {
+          'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
+
+          # This next block is mostly common with the 'mac' section above,
+          # but keying off (or setting) 'clang' isn't valid for iOS as it
+          # also seems to mean using the custom build of clang.
+
+          # Don't use -Wc++0x-extensions, which Xcode 4 enables by default
+          # when buliding with clang. This warning is triggered when the
+          # override keyword is used via the OVERRIDE macro from
+          # base/compiler_specific.h.
+          'CLANG_WARN_CXX0X_EXTENSIONS': 'NO',
+          'WARNING_CFLAGS': [
+            '-Wheader-hygiene',
+            # Don't die on dtoa code that uses a char as an array index.
+            # This is required solely for base/third_party/dmg_fp/dtoa.cc.
+            '-Wno-char-subscripts',
+            # Clang spots more unused functions.
+            '-Wno-unused-function',
+            # See comments on this flag higher up in this file.
+            '-Wno-unnamed-type-template-args',
+            # This (rightyfully) complains about 'override', which we use
+            # heavily.
+            '-Wno-c++11-extensions',
+          ],
+        },
+        'target_conditions': [
+          ['_type=="executable"', {
+            'configurations': {
+              'Release_Base': {
+                'xcode_settings': {
+                  'DEPLOYMENT_POSTPROCESSING': 'YES',
+                  'STRIP_INSTALLED_PRODUCT': 'YES',
+                },
+              },
+            },
+            'xcode_settings': {
+              'conditions': [
+                ['chromium_ios_signing', {
+                  # iOS SDK wants everything for device signed.
+                  'CODE_SIGN_IDENTITY[sdk=iphoneos*]': 'iPhone Developer',
+                }, {
+                  'CODE_SIGNING_REQUIRED': 'NO',
+                  'CODE_SIGN_IDENTITY[sdk=iphoneos*]': '',
+                }],
+              ],
+            },
+          }],
+        ],  # target_conditions
+      },  # target_defaults
+    }],  # OS=="ios"
     ['OS=="win"', {
       'target_defaults': {
         'defines': [
@@ -3108,11 +3203,23 @@
     # file.  It's almost always wrong to put things here.  Specify your
     # custom xcode_settings in target_defaults to add them to targets instead.
 
-    # In an Xcode Project Info window, the "Base SDK for All Configurations"
-    # setting sets the SDK on a project-wide basis.  In order to get the
-    # configured SDK to show properly in the Xcode UI, SDKROOT must be set
-    # here at the project level.
-    'SDKROOT': 'macosx<(mac_sdk)',  # -isysroot
+    'conditions': [
+      ['OS=="mac"', {
+        # In an Xcode Project Info window, the "Base SDK for All Configurations"
+        # setting sets the SDK on a project-wide basis.  In order to get the
+        # configured SDK to show properly in the Xcode UI, SDKROOT must be set
+        # here at the project level.
+        'SDKROOT': 'macosx<(mac_sdk)',  # -isysroot
+      }],
+      ['OS=="ios"', {
+        # Just build armv7 since iOS 4.3+ only supports armv7.
+        'ARCHS': '$(ARCHS_UNIVERSAL_IPHONE_OS)',
+        'IPHONEOS_DEPLOYMENT_TARGET': '<(ios_deployment_target)',
+        'SDKROOT': 'iphoneos<(ios_sdk)',  # -isysroot
+        # Target both iPhone and iPad.
+        'TARGETED_DEVICE_FAMILY': '1,2',
+      }],
+    ],
 
     # The Xcode generator will look for an xcode_settings section at the root
     # of each dict and use it to apply settings on a file-wide basis.  Most
