@@ -85,7 +85,7 @@ class URLRequestFileJob::AsyncResolver
 
 URLRequestFileJob::URLRequestFileJob(URLRequest* request,
                                      const FilePath& file_path)
-    : URLRequestJob(request),
+    : URLRequestJob(request, request->context()->network_delegate()),
       file_path_(file_path),
       stream_(NULL),
       is_directory_(false),
