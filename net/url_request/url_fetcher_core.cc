@@ -688,7 +688,6 @@ void URLFetcherCore::StartURLRequest() {
 
     case URLFetcher::POST:
     case URLFetcher::PUT:
-      DCHECK(!upload_content_.empty() || is_chunked_upload_);
       DCHECK(!upload_content_type_.empty());
 
       request_->set_method(
