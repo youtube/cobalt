@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -211,6 +211,13 @@ void DiskCacheTestWithCache::TrimDeletedListForTest(bool empty) {
   RunTaskForTest(base::Bind(&disk_cache::BackendImpl::TrimDeletedListForTest,
                             base::Unretained(cache_impl_),
                             empty));
+}
+
+void DiskCacheTestWithCache::AddDelay() {
+  base::Time initial = base::Time::Now();
+  while (base::Time::Now() <= initial) {
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(1));
+  };
 }
 
 void DiskCacheTestWithCache::TearDown() {
