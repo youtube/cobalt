@@ -109,6 +109,8 @@
         'base/cursor/cursor_x11.cc',
         'base/dialogs/base_shell_dialog.cc',
         'base/dialogs/base_shell_dialog.h',
+        'base/dialogs/select_file_policy.cc',
+        'base/dialogs/select_file_policy.h',
         'base/dialogs/selected_file_info.cc',
         'base/dialogs/selected_file_info.h',
         'base/dragdrop/cocoa_dnd_util.h',
