@@ -409,24 +409,10 @@ int WebMStreamParser::ParseCluster(const uint8* data, int size) {
 
   const BufferQueue& audio_buffers = cluster_parser_->audio_buffers();
   const BufferQueue& video_buffers = cluster_parser_->video_buffers();
+  base::TimeDelta cluster_start_time = cluster_parser_->cluster_start_time();
 
-  if (waiting_for_buffers_) {
-    base::TimeDelta audio_start_timestamp = kInfiniteDuration();
-    base::TimeDelta video_start_timestamp = kInfiniteDuration();
-
-    if (!audio_buffers.empty())
-      audio_start_timestamp = audio_buffers.front()->GetTimestamp();
-    if (!video_buffers.empty())
-      video_start_timestamp = video_buffers.front()->GetTimestamp();
-
-    base::TimeDelta cluster_start_timestamp =
-        std::min(audio_start_timestamp, video_start_timestamp);
-
-    // If we haven't gotten any buffers yet, return early.
-    if (cluster_start_timestamp == kInfiniteDuration())
-      return bytes_parsed;
-
-    new_segment_cb_.Run(cluster_start_timestamp);
+  if (waiting_for_buffers_ && cluster_start_time != kNoTimestamp()) {
+    new_segment_cb_.Run(cluster_start_time);
     waiting_for_buffers_ = false;
   }
 

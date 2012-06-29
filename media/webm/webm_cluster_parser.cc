@@ -23,6 +23,7 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
       block_data_size_(-1),
       block_duration_(-1),
       cluster_timecode_(-1),
+      cluster_start_time_(kNoTimestamp()),
       audio_(audio_track_num),
       video_(video_track_num) {
   CHECK_GE(video_encryption_key_id_size, 0);
@@ -38,6 +39,7 @@ WebMClusterParser::~WebMClusterParser() {}
 void WebMClusterParser::Reset() {
   last_block_timecode_ = -1;
   cluster_timecode_ = -1;
+  cluster_start_time_ = kNoTimestamp();
   parser_.Reset();
   audio_.Reset();
   video_.Reset();
@@ -53,6 +55,14 @@ int WebMClusterParser::Parse(const uint8* buf, int size) {
     return result;
 
   if (parser_.IsParsingComplete()) {
+    // If there were no buffers in this cluster, set the cluster start time to
+    // be the |cluster_timecode_|.
+    if (cluster_start_time_ == kNoTimestamp()) {
+      DCHECK_GT(cluster_timecode_, -1);
+      cluster_start_time_ = base::TimeDelta::FromMicroseconds(
+          cluster_timecode_ * timecode_multiplier_);
+    }
+
     // Reset the parser if we're done parsing so that
     // it is ready to accept another cluster on the next
     // call.
@@ -68,6 +78,7 @@ int WebMClusterParser::Parse(const uint8* buf, int size) {
 WebMParserClient* WebMClusterParser::OnListStart(int id) {
   if (id == kWebMIdCluster) {
     cluster_timecode_ = -1;
+    cluster_start_time_ = kNoTimestamp();
   } else if (id == kWebMIdBlockGroup) {
     block_data_.reset();
     block_data_size_ = -1;
@@ -78,11 +89,6 @@ WebMParserClient* WebMClusterParser::OnListStart(int id) {
 }
 
 bool WebMClusterParser::OnListEnd(int id) {
-  if (id == kWebMIdCluster) {
-    cluster_timecode_ = -1;
-    return true;
-  }
-
   if (id != kWebMIdBlockGroup)
     return true;
 
@@ -199,6 +205,8 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   }
 
   buffer->SetTimestamp(timestamp);
+  if (cluster_start_time_ == kNoTimestamp())
+    cluster_start_time_ = timestamp;
 
   if (block_duration >= 0) {
     buffer->SetDuration(base::TimeDelta::FromMicroseconds(
