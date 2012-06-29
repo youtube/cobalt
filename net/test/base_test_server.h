@@ -66,6 +66,8 @@ class BaseTestServer {
       OCSP_OK,
       OCSP_REVOKED,
       OCSP_INVALID,
+      OCSP_UNAUTHORIZED,
+      OCSP_UNKNOWN,
     };
 
     // Bitmask of bulk encryption algorithms that the test server supports
