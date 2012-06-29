@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -129,6 +129,10 @@ class DiskCacheTestWithCache : public DiskCacheTest {
   // Asks the cache to trim an entry from the deleted list. If |empty| is
   // true, the whole list is deleted.
   void TrimDeletedListForTest(bool empty);
+
+  // Makes sure that some time passes before continuing the test. Time::Now()
+  // before and after this method will not be the same.
+  void AddDelay();
 
   // DiskCacheTest:
   virtual void TearDown() OVERRIDE;
