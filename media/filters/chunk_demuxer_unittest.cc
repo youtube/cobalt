@@ -466,6 +466,12 @@ class ChunkDemuxerTest : public testing::Test {
     }
   }
 
+  scoped_ptr<Cluster> GenerateEmptyCluster(int timecode) {
+    ClusterBuilder cb;
+    cb.SetClusterTimecode(timecode);
+    return cb.Finish();
+  }
+
   void CheckExpectedRanges(const std::string& expected) {
     CheckExpectedRanges(kSourceId, expected);
   }
@@ -1616,6 +1622,24 @@ TEST_F(ChunkDemuxerTest, TestDifferentStreamTimecodes) {
   scoped_ptr<Cluster> middle_cluster(GenerateCluster(5025, 5000, 8));
   ASSERT_TRUE(AppendData(middle_cluster->data(), middle_cluster->size()));
   GenerateExpectedReads(5025, 5000, 8, audio, video);
+}
+
+TEST_F(ChunkDemuxerTest, TestClusterWithNoBuffers) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  // Create an empty cluster beginning at 0.
+  scoped_ptr<Cluster> empty_cluster(GenerateEmptyCluster(0));
+  ASSERT_TRUE(AppendData(empty_cluster->data(), empty_cluster->size()));
+
+  // Sanity check that data can be appended after this cluster correctly.
+  scoped_ptr<Cluster> media_data(GenerateCluster(0, 2));
+  ASSERT_TRUE(AppendData(media_data->data(), media_data->size()));
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  ExpectRead(audio, 0);
+  ExpectRead(video, 0);
 }
 
 TEST_F(ChunkDemuxerTest, TestCodecPrefixMatching) {
