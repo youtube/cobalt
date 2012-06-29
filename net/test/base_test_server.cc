@@ -101,6 +101,10 @@ std::string BaseTestServer::HTTPSOptions::GetOCSPArgument() const {
       return "revoked";
     case OCSP_INVALID:
       return "invalid";
+    case OCSP_UNAUTHORIZED:
+      return "unauthorized";
+    case OCSP_UNKNOWN:
+      return "unknown";
     default:
       NOTREACHED();
       return "";
