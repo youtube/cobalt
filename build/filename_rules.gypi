@@ -14,9 +14,15 @@
                     ['exclude', '(^|/)win_[^/]*\\.(h|cc)$'] ],
     }],
     ['OS!="mac" or >(nacl_untrusted_build)==1', {
-      'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.(h|cc)$'],
-                    ['exclude', '(^|/)(cocoa|mac)/'],
-                    ['exclude', '\\.mm?$' ] ],
+      'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.(h|cc|mm?)$'],
+                    ['exclude', '(^|/)(cocoa|mac)/'] ],
+    }],
+    ['OS!="ios" or >(nacl_untrusted_build)==1', {
+      'sources/': [ ['exclude', '_ios(_unittest)?\\.(h|cc|mm?)$'],
+                    ['exclude', '(^|/)ios/'] ],
+    }],
+    ['(OS!="mac" and OS!="ios") or >(nacl_untrusted_build)==1', {
+      'sources/': [ ['exclude', '\\.mm?$' ] ],
     }],
     # Do not exclude the linux files on *BSD since most of them can be
     # shared at this point.
