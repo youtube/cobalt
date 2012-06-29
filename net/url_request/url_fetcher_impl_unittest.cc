@@ -173,6 +173,16 @@ class URLFetcherPostTest : public URLFetcherTest {
   virtual void OnURLFetchComplete(const URLFetcher* source) OVERRIDE;
 };
 
+// Version of URLFetcherTest that does a POST instead with empty upload body
+class URLFetcherEmptyPostTest : public URLFetcherTest {
+ public:
+  // URLFetcherTest override.
+  virtual void CreateFetcher(const GURL& url) OVERRIDE;
+
+  // URLFetcherDelegate
+  virtual void OnURLFetchComplete(const URLFetcher* source) OVERRIDE;
+};
+
 // Version of URLFetcherTest that tests download progress reports.
 class URLFetcherDownloadProgressTest : public URLFetcherTest {
  public:
@@ -407,6 +417,27 @@ void URLFetcherPostTest::OnURLFetchComplete(const URLFetcher* source) {
   EXPECT_TRUE(source->GetResponseAsString(&data));
   EXPECT_EQ(std::string("bobsyeruncle"), data);
   URLFetcherTest::OnURLFetchComplete(source);
+}
+
+void URLFetcherEmptyPostTest::CreateFetcher(const GURL& url) {
+  fetcher_ = new URLFetcherImpl(url, URLFetcher::POST, this);
+  fetcher_->SetRequestContext(new TestURLRequestContextGetter(
+      io_message_loop_proxy()));
+  fetcher_->SetUploadData("text/plain", "");
+  fetcher_->Start();
+}
+
+void URLFetcherEmptyPostTest::OnURLFetchComplete(const URLFetcher* source) {
+  EXPECT_TRUE(source->GetStatus().is_success());
+  EXPECT_EQ(200, source->GetResponseCode());  // HTTP OK
+
+  std::string data;
+  EXPECT_TRUE(source->GetResponseAsString(&data));
+  EXPECT_TRUE(data.empty());
+
+  CleanupAfterFetchComplete();
+  // Do not call the super class method URLFetcherTest::OnURLFetchComplete,
+  // since it expects a non-empty response.
 }
 
 void URLFetcherDownloadProgressTest::CreateFetcher(const GURL& url) {
@@ -780,6 +811,16 @@ TEST_F(URLFetcherPostTest, DISABLED_Basic) {
 #else
 TEST_F(URLFetcherPostTest, Basic) {
 #endif
+  TestServer test_server(TestServer::TYPE_HTTP,
+                         TestServer::kLocalhost,
+                         FilePath(kDocRoot));
+  ASSERT_TRUE(test_server.Start());
+
+  CreateFetcher(test_server.GetURL("echo"));
+  MessageLoop::current()->Run();
+}
+
+TEST_F(URLFetcherEmptyPostTest, Basic) {
   TestServer test_server(TestServer::TYPE_HTTP,
                          TestServer::kLocalhost,
                          FilePath(kDocRoot));
