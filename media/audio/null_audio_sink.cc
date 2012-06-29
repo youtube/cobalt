@@ -104,10 +104,11 @@ void NullAudioSink::FillBufferTask() {
       DCHECK_EQ(sizeof(float), sizeof(uint32));
       int channels = audio_data_.size();
       for (int channel_idx = 0; channel_idx < channels; ++channel_idx) {
+        float* channel = audio_data_[channel_idx];
         for (int frame_idx = 0; frame_idx < frames_received; frame_idx++) {
           // Convert float to uint32 w/o conversion loss.
-          uint32 frame = base::ByteSwapToLE32(*reinterpret_cast<uint32*>(
-              &audio_data_[channel_idx][frame_idx]));
+          uint32 frame = base::ByteSwapToLE32(
+              bit_cast<uint32>(channel[frame_idx]));
           base::MD5Update(
               &md5_channel_contexts_[channel_idx], base::StringPiece(
                   reinterpret_cast<char*>(&frame), sizeof(frame)));
