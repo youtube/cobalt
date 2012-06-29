@@ -148,7 +148,7 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
 
 
 URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
-    : URLRequestJob(request),
+    : URLRequestJob(request, request->context()->network_delegate()),
       response_info_(NULL),
       response_cookies_save_index_(0),
       proxy_auth_state_(AUTH_STATE_DONT_NEED_AUTH),

@@ -20,7 +20,7 @@
 namespace net {
 
 URLRequestFtpJob::URLRequestFtpJob(URLRequest* request)
-    : URLRequestJob(request),
+    : URLRequestJob(request, request->context()->network_delegate()),
       read_in_progress_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }

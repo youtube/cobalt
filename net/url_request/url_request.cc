@@ -411,7 +411,7 @@ void URLRequest::Start() {
   response_info_.request_time = Time::Now();
 
   // Only notify the delegate for the initial request.
-  if (context_ && context_->network_delegate()) {
+  if (context_->network_delegate()) {
     int error = context_->network_delegate()->NotifyBeforeURLRequest(
         this, before_request_callback_, &delegate_redirect_url_);
     if (error == net::ERR_IO_PENDING) {
