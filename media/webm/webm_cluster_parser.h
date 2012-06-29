@@ -36,6 +36,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // Returns the number of bytes parsed on success.
   int Parse(const uint8* buf, int size);
 
+  base::TimeDelta cluster_start_time() const { return cluster_start_time_; }
   const BufferQueue& audio_buffers() const { return audio_.buffers(); }
   const BufferQueue& video_buffers() const { return video_.buffers(); }
 
@@ -94,6 +95,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   int64 block_duration_;
 
   int64 cluster_timecode_;
+  base::TimeDelta cluster_start_time_;
 
   Track audio_;
   Track video_;
