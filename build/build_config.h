@@ -14,9 +14,16 @@
 #ifndef BUILD_BUILD_CONFIG_H_
 #define BUILD_BUILD_CONFIG_H_
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 // A set of macros to use for platform detection.
 #if defined(__APPLE__)
 #define OS_MACOSX 1
+#if defined(TARGET_OS_IPHONE)
+#define OS_IOS 1
+#endif  // defined(TARGET_OS_IPHONE)
 #elif defined(ANDROID)
 #define OS_ANDROID 1
 #elif defined(__native_client__)
@@ -99,7 +106,6 @@
 #define ARCH_CPU_ARMEL 1
 #define ARCH_CPU_32_BITS 1
 #define ARCH_CPU_LITTLE_ENDIAN 1
-#define WCHAR_T_IS_UNSIGNED 1
 #elif defined(__pnacl__)
 #define ARCH_CPU_32_BITS 1
 #elif defined(__MIPSEL__)
@@ -107,7 +113,6 @@
 #define ARCH_CPU_MIPSEL 1
 #define ARCH_CPU_32_BITS 1
 #define ARCH_CPU_LITTLE_ENDIAN 1
-#define WCHAR_T_IS_UNSIGNED 0
 #else
 #error Please add support for your architecture in build/build_config.h
 #endif
@@ -129,6 +134,12 @@
 #define WCHAR_T_IS_UTF16
 #else
 #error Please add support for your compiler in build/build_config.h
+#endif
+
+#if defined(__ARMEL__) && !defined(OS_IOS)
+#define WCHAR_T_IS_UNSIGNED 1
+#elif defined(__MIPSEL__)
+#define WCHAR_T_IS_UNSIGNED 0
 #endif
 
 #if defined(OS_CHROMEOS)
