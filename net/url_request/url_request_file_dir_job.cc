@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,6 +16,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/url_request/url_request.h"
+#include "net/url_request/url_request_context.h"
 
 #if defined(OS_POSIX)
 #include <sys/stat.h>
@@ -25,7 +26,7 @@ namespace net {
 
 URLRequestFileDirJob::URLRequestFileDirJob(URLRequest* request,
                                            const FilePath& dir_path)
-    : URLRequestJob(request),
+    : URLRequestJob(request, request->context()->network_delegate()),
       ALLOW_THIS_IN_INITIALIZER_LIST(lister_(dir_path, this)),
       dir_path_(dir_path),
       canceled_(false),
