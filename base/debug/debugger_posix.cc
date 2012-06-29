@@ -202,15 +202,20 @@ bool BeingDebugged() {
 #elif defined(ARCH_CPU_ARM_FAMILY)
 #if defined(OS_ANDROID)
 // Though Android has a "helpful" process called debuggerd to catch native
-// signals on the general assumption that they are fatal errors, we've had great
-// difficulty continuing in a debugger once we stop from SIGINT triggered by
-// native code.
+// signals on the general assumption that they are fatal errors. The bkpt
+// instruction appears to cause SIGBUS which is trapped by debuggerd, and
+// we've had great difficulty continuing in a debugger once we stop from
+// SIG triggered by native code.
 //
 // Use GDB to set |go| to 1 to resume execution.
 #define DEBUG_BREAK() do { \
-  volatile int go = 0;             \
-  while (!go) { \
-    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100)); \
+  if (!BeingDebugged()) { \
+    abort(); \
+  } else { \
+    volatile int go = 0; \
+    while (!go) { \
+      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100)); \
+    } \
   } \
 } while (0)
 #else
@@ -223,7 +228,14 @@ bool BeingDebugged() {
 
 void BreakDebugger() {
   DEBUG_BREAK();
-#if defined(NDEBUG)
+#if defined(OS_ANDROID) && !defined(OFFICIAL_BUILD)
+  // For Android development we always build release (debug builds are
+  // unmanageably large), so the unofficial build is used for debugging. It is
+  // helpful to be able to insert BreakDebugger() statements in the source,
+  // attach the debugger, inspect the state of the program and then resume it by
+  // setting the 'go' variable above.
+#elif defined(NDEBUG)
+  // Terminate the program after signaling the debug break.
   _exit(1);
 #endif
 }
