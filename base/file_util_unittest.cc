@@ -744,6 +744,48 @@ TEST_F(FileUtilTest, DeleteFile) {
   EXPECT_FALSE(file_util::PathExists(file_name));
 }
 
+#if defined(OS_POSIX)
+TEST_F(FileUtilTest, DeleteSymlinkToExistentFile) {
+  // Create a file
+  FilePath file_name = temp_dir_.path().Append(FPL("Test DeleteFile 2.txt"));
+  CreateTextFile(file_name, bogus_content);
+  ASSERT_TRUE(file_util::PathExists(file_name));
+
+  // Create a symlink to the file
+  FilePath file_link = temp_dir_.path().Append("file_link_2");
+  ASSERT_TRUE(file_util::CreateSymbolicLink(file_name, file_link))
+      << "Failed to create symlink.";
+
+  // Delete the symbolic link
+  EXPECT_TRUE(file_util::Delete(file_link, false));
+
+  // Make sure original file is not deleted
+  EXPECT_FALSE(file_util::PathExists(file_link));
+  EXPECT_TRUE(file_util::PathExists(file_name));
+}
+
+TEST_F(FileUtilTest, DeleteSymlinkToNonExistentFile) {
+  // Create a non-existent file path
+  FilePath non_existent = temp_dir_.path().Append(FPL("Test DeleteFile 3.txt"));
+  EXPECT_FALSE(file_util::PathExists(non_existent));
+
+  // Create a symlink to the non-existent file
+  FilePath file_link = temp_dir_.path().Append("file_link_3");
+  ASSERT_TRUE(file_util::CreateSymbolicLink(non_existent, file_link))
+      << "Failed to create symlink.";
+
+  // Make sure the symbolic link is exist
+  EXPECT_TRUE(file_util::IsLink(file_link));
+  EXPECT_FALSE(file_util::PathExists(file_link));
+
+  // Delete the symbolic link
+  EXPECT_TRUE(file_util::Delete(file_link, false));
+
+  // Make sure the symbolic link is deleted
+  EXPECT_FALSE(file_util::IsLink(file_link));
+}
+#endif  // defined(OS_POSIX)
+
 #if defined(OS_WIN)
 // Tests that the Delete function works for wild cards, especially
 // with the recursion flag.  Also coincidentally tests PathExists.
