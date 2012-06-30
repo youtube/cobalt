@@ -100,6 +100,9 @@ BASE_EXPORT int64 ComputeFilesSize(const FilePath& directory,
 // subdirectories and their contents as well.
 // Returns true if successful, false otherwise.
 //
+// In posix environment and if |path| is a symbolic link, this deletes only
+// the symlink. (even if the symlink deferences to a non-existent file)
+//
 // WARNING: USING THIS WITH recursive==true IS EQUIVALENT
 //          TO "rm -rf", SO USE WITH CAUTION.
 BASE_EXPORT bool Delete(const FilePath& path, bool recursive);

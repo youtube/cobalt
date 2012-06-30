@@ -207,7 +207,7 @@ bool Delete(const FilePath& path, bool recursive) {
   base::ThreadRestrictions::AssertIOAllowed();
   const char* path_str = path.value().c_str();
   stat_wrapper_t file_info;
-  int test = CallStat(path_str, &file_info);
+  int test = CallLstat(path_str, &file_info);
   if (test != 0) {
     // The Windows version defines this condition as success.
     bool ret = (errno == ENOENT || errno == ENOTDIR);
@@ -578,10 +578,10 @@ bool CreateDirectory(const FilePath& full_path) {
 // TODO(rkc): Refactor GetFileInfo and FileEnumerator to handle symlinks
 // correctly. http://code.google.com/p/chromium-os/issues/detail?id=15948
 bool IsLink(const FilePath& file_path) {
-  struct stat st;
+  stat_wrapper_t st;
   // If we can't lstat the file, it's safe to assume that the file won't at
   // least be a 'followable' link.
-  if (lstat(file_path.value().c_str(), &st) != 0)
+  if (CallLstat(file_path.value().c_str(), &st) != 0)
     return false;
 
   if (S_ISLNK(st.st_mode))
