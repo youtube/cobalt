@@ -195,6 +195,7 @@ void FieldTrial::SetGroupChoice(const std::string& name, int number) {
     StringAppendF(&group_name_, "%d", group_);
   else
     group_name_ = name;
+  DVLOG(1) << "Field trial: " << name_ << " Group choice:" << group_name_;
 }
 
 // static
