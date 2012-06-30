@@ -42,8 +42,6 @@ class ScopedVector {
     return *this;
   }
 
-  std::vector<T*>* operator->() { return &v; }
-  const std::vector<T*>* operator->() const { return &v; }
   T*& operator[](size_t i) { return v[i]; }
   const T* operator[](size_t i) const { return v[i]; }
 
@@ -69,6 +67,7 @@ class ScopedVector {
 
   std::vector<T*>& get() { return v; }
   const std::vector<T*>& get() const { return v; }
+  void swap(std::vector<T*>& other) { v.swap(other); }
   void swap(ScopedVector<T>& other) { v.swap(other.v); }
   void release(std::vector<T*>* out) {
     out->swap(v);
@@ -78,6 +77,13 @@ class ScopedVector {
   void reset() { STLDeleteElements(&v); }
   void reserve(size_t capacity) { v.reserve(capacity); }
   void resize(size_t new_size) { v.resize(new_size); }
+
+  template<typename InputIterator>
+  void assign(InputIterator begin, InputIterator end) {
+    v.assign(begin, end);
+  }
+
+  void clear() { v.clear(); }
 
   // Lets the ScopedVector take ownership of |x|.
   iterator insert(iterator position, T* x) {
@@ -109,6 +115,7 @@ class ScopedVector {
   iterator weak_erase(iterator first, iterator last) {
     return v.erase(first, last);
   }
+
  private:
   std::vector<T*> v;
 };

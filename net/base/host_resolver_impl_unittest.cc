@@ -775,7 +775,7 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
 
   EXPECT_EQ(OK, requests_[0]->WaitForResult());
   ASSERT_EQ(5u, requests_.size());
-  EXPECT_EQ(OK, requests_->back()->WaitForResult());
+  EXPECT_EQ(OK, requests_.back()->WaitForResult());
 
   EXPECT_EQ(2u, proc_->GetCaptureList().size());
 }
@@ -1269,7 +1269,7 @@ TEST_F(HostResolverImplDnsTest, DnsTask) {
 
   // Initially there is no config, so client should not be invoked.
   EXPECT_EQ(ERR_IO_PENDING, CreateRequest("ok_fail", 80)->Resolve());
-  proc_->SignalMultiple(requests_->size());
+  proc_->SignalMultiple(requests_.size());
 
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, requests_[0]->WaitForResult());
 
