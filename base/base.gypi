@@ -550,6 +550,21 @@
               ['include', '^worker_pool_linux\\.cc$'],
             ],
           }],
+          ['OS == "ios"', {
+            'sources/': [
+              # TODO(ios): Remove these as base/ is unforked.
+              # For now, exclude everything that doesn't build as-is, just to
+              # get something building on a bot.
+              ['exclude', '^file_util'],
+              ['exclude', '^hi_res_timer_manager'],
+              ['exclude', '^json'],
+              ['exclude', '^message_pump'],
+              ['exclude', '^process_util'],
+              ['exclude', '^platform_file'],
+              ['exclude', '^system_monitor'],
+              ['exclude', '^values'],
+            ],
+          }],
           ['OS != "mac" or >(nacl_untrusted_build)==1', {
               'sources!': [
                 'mac/scoped_aedesc.h'
@@ -595,7 +610,7 @@
               'files/file_path_watcher_stub.cc',
             ],
           }],
-          ['OS == "mac" and >(nacl_untrusted_build)==0', {
+          ['(OS == "mac" or OS == "ios") and >(nacl_untrusted_build)==0', {
             'sources/': [
               ['exclude', '^files/file_path_watcher_stub\\.cc$'],
               ['exclude', '^base_paths_posix\\.cc$'],
