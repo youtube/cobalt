@@ -504,7 +504,7 @@ class DnsTransactionImpl : public DnsTransaction,
         default:
           // Server failure.
           DCHECK(result.attempt);
-          if (result.attempt != attempts_->back()) {
+          if (result.attempt != attempts_.back()) {
             // This attempt already timed out. Ignore it.
             return AttemptResult(ERR_IO_PENDING, NULL);
           }
