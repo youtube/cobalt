@@ -1252,7 +1252,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     DCHECK_GT(num_active_requests(), 0u);
     AddressList addr_list;
     if (resolver_->ServeFromHosts(key(),
-                                  requests_->front()->info(),
+                                  requests_.front()->info(),
                                   &addr_list)) {
       // This will destroy the Job.
       CompleteRequests(OK, addr_list, base::TimeDelta());
@@ -1447,7 +1447,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     DCHECK(!requests_.empty());
 
     if (net_error == OK) {
-      SetPortOnAddressList(requests_->front()->info().port(), &list);
+      SetPortOnAddressList(requests_.front()->info().port(), &list);
       // Record this histogram here, when we know the system has a valid DNS
       // configuration.
       UMA_HISTOGRAM_BOOLEAN("AsyncDNS.HaveDnsConfig",
