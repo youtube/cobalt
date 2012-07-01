@@ -1682,15 +1682,15 @@
           'VCLinkerTool': {
             'TargetMachine': '17', # x86 - 64
             'AdditionalLibraryDirectories!':
-              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
+              ['<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x86'],
             'AdditionalLibraryDirectories':
-              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib/x64'],
+              ['<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x64'],
           },
           'VCLibrarianTool': {
             'AdditionalLibraryDirectories!':
-              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
+              ['<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x86'],
             'AdditionalLibraryDirectories':
-              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib/x64'],
+              ['<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x64'],
           },
         },
         'defines': [
@@ -2926,8 +2926,8 @@
     ['OS=="win"', {
       'target_defaults': {
         'defines': [
-          '_WIN32_WINNT=0x0601',
-          'WINVER=0x0601',
+          '_WIN32_WINNT=0x0602',
+          'WINVER=0x0602',
           'WIN32',
           '_WINDOWS',
           'NOMINMAX',
@@ -3006,8 +3006,10 @@
           }],
         ],
         'msvs_system_include_dirs': [
+          '<(DEPTH)/third_party/platformsdk_win8/files/Include/shared',
+          '<(DEPTH)/third_party/platformsdk_win8/files/Include/um',
+          '<(DEPTH)/third_party/platformsdk_win8/files/Include/winrt',
           '<(DEPTH)/third_party/directxsdk/files/Include',
-          '<(DEPTH)/third_party/platformsdk_win7/files/Include',
           '$(VSInstallDir)/VC/atlmfc/include',
         ],
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
@@ -3045,7 +3047,7 @@
             'AdditionalOptions': ['/ignore:4221'],
             'AdditionalLibraryDirectories': [
               '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
-              '<(DEPTH)/third_party/platformsdk_win7/files/Lib',
+              '<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x86',
             ],
           },
           'VCLinkerTool': {
@@ -3091,7 +3093,7 @@
             ],
             'AdditionalLibraryDirectories': [
               '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
-              '<(DEPTH)/third_party/platformsdk_win7/files/Lib',
+              '<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x86',
             ],
             'GenerateDebugInformation': 'true',
             'MapFileName': '$(OutDir)\\$(TargetName).map',
