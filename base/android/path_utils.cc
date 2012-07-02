@@ -34,6 +34,13 @@ std::string GetDownloadsDirectory() {
   return ConvertJavaStringToUTF8(path);
 }
 
+std::string GetNativeLibraryDirectory() {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jstring> path =
+      Java_PathUtils_getNativeLibraryDirectory(env, GetApplicationContext());
+  return ConvertJavaStringToUTF8(path);
+}
+
 bool RegisterPathUtils(JNIEnv* env) {
   return RegisterNativesImpl(env);
 }

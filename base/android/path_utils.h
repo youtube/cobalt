@@ -24,6 +24,10 @@ std::string GetCacheDirectory();
 // Returns the path to the public downloads directory.
 std::string GetDownloadsDirectory();
 
+// Returns the path to the native JNI libraries via
+// ApplicationInfo.nativeLibraryDir on the Java side.
+std::string GetNativeLibraryDirectory();
+
 bool RegisterPathUtils(JNIEnv* env);
 
 }  // namespace android
