@@ -123,7 +123,7 @@
  "mac-release/sizes/Chromium.app/Chromium.app": {"reva": 143606, "revb": 143606, "type": "absolute", "better": "lower", "improve": 87801036, "regress": 97043252, "sha1": "06d9fe6d"},
  "mac-release/sizes/Chromium/Chromium": {"reva": 143606, "revb": 143606, "type": "absolute", "better": "lower", "improve": 8291, "regress": 9165, "sha1": "2684fd2e"},
  "mac-release/sizes/ChromiumFramework/ChromiumFramework": {"reva": 143606, "revb": 143606, "type": "absolute", "better": "lower", "improve": 62256589, "regress": 68809915, "sha1": "43182446"},
- "mac-release/sizes/chrome-si/initializers": {"reva": 145025, "revb": 145025, "type": "absolute", "better": "lower", "improve": 17, "regress": 17, "tolerance": 0, "sha1": "e88960c8"},
+ "mac-release/sizes/chrome-si/initializers": {"reva": 145166, "revb": 145166, "type": "absolute", "better": "lower", "improve": 15, "regress": 15, "tolerance": 0, "sha1": "b02f4baf"},
  "vista-release-dual-core/dhtml/times/t": {"reva": 137754, "revb": 137875, "improve": -63, "regress": 119, "sha1": "30704ad7"},
  "vista-release-dual-core/dom_perf/Total/score": {"reva": 116076, "revb": 116185, "improve": 168, "regress": 14, "sha1": "0ed1219b"},
  "vista-release-dual-core/intl1/times/t": {"reva": 142934, "revb": 143705, "improve": -341, "regress": 265, "sha1": "229e5c52"},
