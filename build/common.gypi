@@ -445,6 +445,11 @@
           'enable_webrtc%': 0,
         }],
 
+        ['OS=="ios"', {
+          'enable_automation%': 0,
+          'remoting%': 0,
+        }],
+
         # Use GPU accelerated cross process image transport by default
         # on linux builds with the Aura window manager
         ['use_aura==1 and OS=="linux"', {
@@ -837,6 +842,9 @@
           }],
         ],
       }],  # os_posix==1 and OS!="mac" and OS!="ios"
+      ['OS=="ios"', {
+        'disable_nacl%': 1,
+      }],
       ['OS=="android"', {
         # Location of Android NDK.
         'variables': {
