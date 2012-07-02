@@ -14,7 +14,8 @@ AudioRendererMixerInput::AudioRendererMixerInput(
     : playing_(false),
       initialized_(false),
       volume_(1.0f),
-      mixer_(mixer) {
+      mixer_(mixer),
+      callback_(NULL) {
 }
 
 AudioRendererMixerInput::~AudioRendererMixerInput() {
