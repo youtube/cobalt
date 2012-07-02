@@ -33,18 +33,18 @@ jclass g_SampleForTests_clazz = NULL;
 
 namespace content {
 
-jint Init(JNIEnv* env, jobject obj);
+static jint Init(JNIEnv* env, jobject obj);
 
-jdouble GetDoubleFunction(JNIEnv* env, jobject obj);
+static jdouble GetDoubleFunction(JNIEnv* env, jobject obj);
 
-jfloat GetFloatFunction(JNIEnv* env, jclass clazz);
+static jfloat GetFloatFunction(JNIEnv* env, jclass clazz);
 
-void SetNonPODDatatype(JNIEnv* env, jobject obj,
+static void SetNonPODDatatype(JNIEnv* env, jobject obj,
     jobject rect);
 
-jobject GetNonPODDatatype(JNIEnv* env, jobject obj);
+static jobject GetNonPODDatatype(JNIEnv* env, jobject obj);
 
-jint InnerFunction(JNIEnv* env, jclass clazz);
+static jint InnerFunction(JNIEnv* env, jclass clazz);
 
 // Step 2: method stubs.
 static void Destroy(JNIEnv* env, jobject obj,
