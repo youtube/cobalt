@@ -150,6 +150,8 @@ DEFINES+=" enable_touch_events=1"
 DEFINES+=" build_ffmpegsumo=0"
 DEFINES+=" gtest_target_type=shared_library"
 DEFINES+=" branding=Chromium"
+DEFINES+=\
+" android_sdk=${ANDROID_SDK_ROOT}/platforms/android-${ANDROID_SDK_VERSION}"
 
 export GYP_DEFINES="${DEFINES}"
 

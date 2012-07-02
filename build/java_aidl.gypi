@@ -25,14 +25,6 @@
 #   <(PRODUCT_DIR)/lib.java/
 
 {
-  'variables': {
-    'android_sdk%':
-      '<!(if [ -z $ANDROID_BUILD_TOP ]; then \
-            /bin/echo -n $ANDROID_SDK_ROOT/platforms/android-${ANDROID_SDK_VERSION} ; \
-          else /bin/echo -n \
-            $ANDROID_SDK_ROOT ; \
-          fi)',
-  },
   'rules': [
     {
       'rule_name': 'compile_aidl',
