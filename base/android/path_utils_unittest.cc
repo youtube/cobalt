@@ -27,5 +27,13 @@ TEST_F(PathUtilsTest, TestGetCacheDirectory) {
                GetCacheDirectory().c_str());
 }
 
+TEST_F(PathUtilsTest, TestGetNativeLibraryDirectory) {
+  // The string comes from the Java side and depends on the APK
+  // we are running in. Assumes that we are packaged in
+  // org.chromium.native_test
+  EXPECT_STREQ("/data/data/org.chromium.native_test/lib",
+               GetNativeLibraryDirectory().c_str());
+}
+
 }  // namespace android
 }  // namespace base
