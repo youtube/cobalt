@@ -4,7 +4,7 @@
 
 {
   'conditions': [
-    [ 'os_posix == 1 and OS != "mac"', {
+    [ 'os_posix == 1 and OS != "mac" and OS != "ios"', {
       'conditions': [
         ['sysroot!=""', {
           'variables': {
@@ -89,7 +89,7 @@
       ],
       'msvs_disabled_warnings': [4018, 4244],
       'conditions': [
-        [ 'OS=="mac"', {
+        [ 'OS == "mac" or OS == "ios"', {
           'defines': [
             'XP_UNIX',
             'DARWIN',
@@ -109,7 +109,7 @@
             ],
           },
         ],
-        [ 'os_posix == 1 and OS != "mac"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "ios"', {
           'defines': [
             # These macros are needed only for compiling the files in
             # ssl/bodge.
@@ -131,12 +131,21 @@
             '<!@(<(pkg-config) --libs-only-l nss | sed -e "s/-lssl3//")',
           ],
         }],
-        [ 'OS == "mac" or OS == "win"', {
+        [ 'OS == "mac" or OS == "ios" or OS == "win"', {
           'sources/': [
             ['exclude', 'ssl/bodge/'],
           ],
-          'defines': [
-            'NSS_PLATFORM_CLIENT_AUTH',
+          'conditions': [
+            ['OS != "ios"', {
+              'defines': [
+                'NSS_PLATFORM_CLIENT_AUTH',
+              ],
+              'direct_dependent_settings': {
+                'defines': [
+                  'NSS_PLATFORM_CLIENT_AUTH',
+                ],
+              },
+            }],
           ],
           'dependencies': [
             '../../../third_party/nss/nss.gyp:nspr',
@@ -149,9 +158,6 @@
           'direct_dependent_settings': {
             'include_dirs': [
               'ssl',
-            ],
-            'defines': [
-              'NSS_PLATFORM_CLIENT_AUTH',
             ],
           },
         }],
