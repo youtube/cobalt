@@ -817,6 +817,8 @@
     'sas_dll_exists': '<!(python <(DEPTH)/build/dir_exists.py <(sas_dll_path))',
     'wix_exists': '<!(python <(DEPTH)/build/dir_exists.py <(wix_path))',
 
+    'windows_sdk_path%': '<(DEPTH)/third_party/platformsdk_win8/files',
+
     'conditions': [
       ['os_posix==1 and OS!="mac" and OS!="ios"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
@@ -1682,15 +1684,15 @@
           'VCLinkerTool': {
             'TargetMachine': '17', # x86 - 64
             'AdditionalLibraryDirectories!':
-              ['<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x86'],
+              ['<(windows_sdk_path)/Lib/win8/um/x86'],
             'AdditionalLibraryDirectories':
-              ['<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x64'],
+              ['<(windows_sdk_path)/Lib/win8/um/x64'],
           },
           'VCLibrarianTool': {
             'AdditionalLibraryDirectories!':
-              ['<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x86'],
+              ['<(windows_sdk_path)/Lib/win8/um/x86'],
             'AdditionalLibraryDirectories':
-              ['<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x64'],
+              ['<(windows_sdk_path)/Lib/win8/um/x64'],
           },
         },
         'defines': [
@@ -3006,9 +3008,9 @@
           }],
         ],
         'msvs_system_include_dirs': [
-          '<(DEPTH)/third_party/platformsdk_win8/files/Include/shared',
-          '<(DEPTH)/third_party/platformsdk_win8/files/Include/um',
-          '<(DEPTH)/third_party/platformsdk_win8/files/Include/winrt',
+          '<(windows_sdk_path)/Include/shared',
+          '<(windows_sdk_path)/Include/um',
+          '<(windows_sdk_path)/Include/winrt',
           '<(DEPTH)/third_party/directxsdk/files/Include',
           '$(VSInstallDir)/VC/atlmfc/include',
         ],
@@ -3047,7 +3049,7 @@
             'AdditionalOptions': ['/ignore:4221'],
             'AdditionalLibraryDirectories': [
               '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
-              '<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x86',
+              '<(windows_sdk_path)/Lib/win8/um/x86',
             ],
           },
           'VCLinkerTool': {
@@ -3093,7 +3095,7 @@
             ],
             'AdditionalLibraryDirectories': [
               '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
-              '<(DEPTH)/third_party/platformsdk_win8/files/Lib/win8/um/x86',
+              '<(windows_sdk_path)/Lib/win8/um/x86',
             ],
             'GenerateDebugInformation': 'true',
             'MapFileName': '$(OutDir)\\$(TargetName).map',
