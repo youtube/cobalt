@@ -5,12 +5,12 @@
 {
   'variables': {
     'conditions': [
-      [ 'os_posix == 1 and OS != "mac" and OS != "openbsd"', {
+      [ 'os_posix == 1 and OS != "mac" and OS != "ios" and OS != "openbsd"', {
         # Link to system .so since we already use it due to GTK.
         # TODO(pvalchev): OpenBSD is purposefully left out, as the system
         # zlib brings up an incompatibility that breaks rendering.
         'use_system_zlib%': 1,
-      }, {  # os_posix != 1 or OS == "mac" or OS == "openbsd"
+      }, {  # os_posix != 1 or OS == "mac" or OS == "ios" or OS == "openbsd"
         'use_system_zlib%': 0,
       }],
     ],
@@ -100,7 +100,7 @@
             ],
           },
         }],
-        ['OS=="mac" or os_bsd==1 or OS=="android"', {
+        ['OS=="mac" or OS=="ios" or os_bsd==1 or OS=="android"', {
           # Mac, Android and the BSDs don't have fopen64, ftello64, or
           # fseeko64. We use fopen, ftell, and fseek instead on these
           # systems.
