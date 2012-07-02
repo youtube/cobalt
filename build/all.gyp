@@ -11,55 +11,64 @@
       'dependencies': [
         'some.gyp:*',
         '../base/base.gyp:*',
-        '../chrome/chrome.gyp:*',
-        '../content/content.gyp:*',
-        '../crypto/crypto.gyp:*',
-        '../ui/ui.gyp:*',
-        '../gpu/gpu.gyp:*',
-        '../gpu/tools/tools.gyp:*',
-        '../ipc/ipc.gyp:*',
-        '../jingle/jingle.gyp:*',
-        '../media/media.gyp:*',
-        '../net/net.gyp:*',
-        '../ppapi/ppapi.gyp:*',
-        '../ppapi/ppapi_internal.gyp:*',
-        '../printing/printing.gyp:*',
-        '../sdch/sdch.gyp:*',
-        '../skia/skia.gyp:*',
-        '../sql/sql.gyp:*',
-        '../sync/sync.gyp:*',
-        '../testing/gmock.gyp:*',
-        '../testing/gtest.gyp:*',
-        '../third_party/bzip2/bzip2.gyp:*',
-        '../third_party/cacheinvalidation/cacheinvalidation.gyp:*',
-        '../third_party/cld/cld.gyp:*',
-        '../third_party/codesighs/codesighs.gyp:*',
-        '../third_party/ffmpeg/ffmpeg.gyp:*',
-        '../third_party/iccjpeg/iccjpeg.gyp:*',
-        '../third_party/icu/icu.gyp:*',
-        '../third_party/libpng/libpng.gyp:*',
-        '../third_party/libusb/libusb.gyp:*',
-        '../third_party/libwebp/libwebp.gyp:*',
-        '../third_party/libxml/libxml.gyp:*',
-        '../third_party/libxslt/libxslt.gyp:*',
-        '../third_party/lzma_sdk/lzma_sdk.gyp:*',
-        '../third_party/mesa/mesa.gyp:*',
-        '../third_party/modp_b64/modp_b64.gyp:*',
-        '../third_party/npapi/npapi.gyp:*',
-        '../third_party/ots/ots.gyp:*',
-        '../third_party/qcms/qcms.gyp:*',
-        '../third_party/sqlite/sqlite.gyp:*',
-        '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
-        '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:generate_devtools_zip',
-        '../third_party/zlib/zlib.gyp:*',
-        '../v8/tools/gyp/v8.gyp:*',
-        '../webkit/support/webkit_support.gyp:*',
-        '../webkit/webkit.gyp:*',
-        'temp_gyp/googleurl.gyp:*',
-        '<(libjpeg_gyp_path):*',
+        # Add new dependencies to the !ios section just below, not here (see
+        # the comment there).
       ],
       'conditions': [
-        ['os_posix==1 and OS!="android"', {
+        # TODO(ios): This is temporary; currently almost nothing builds with
+        # OS=ios. Move dependencies back to the main dependencies section above
+        # as gyp files come online.
+        ['OS!="ios"', {
+          'dependencies': [
+            '../chrome/chrome.gyp:*',
+            '../content/content.gyp:*',
+            '../crypto/crypto.gyp:*',
+            '../ui/ui.gyp:*',
+            '../gpu/gpu.gyp:*',
+            '../gpu/tools/tools.gyp:*',
+            '../ipc/ipc.gyp:*',
+            '../jingle/jingle.gyp:*',
+            '../media/media.gyp:*',
+            '../net/net.gyp:*',
+            '../ppapi/ppapi.gyp:*',
+            '../ppapi/ppapi_internal.gyp:*',
+            '../printing/printing.gyp:*',
+            '../sdch/sdch.gyp:*',
+            '../skia/skia.gyp:*',
+            '../sql/sql.gyp:*',
+            '../sync/sync.gyp:*',
+            '../testing/gmock.gyp:*',
+            '../testing/gtest.gyp:*',
+            '../third_party/bzip2/bzip2.gyp:*',
+            '../third_party/cacheinvalidation/cacheinvalidation.gyp:*',
+            '../third_party/cld/cld.gyp:*',
+            '../third_party/codesighs/codesighs.gyp:*',
+            '../third_party/ffmpeg/ffmpeg.gyp:*',
+            '../third_party/iccjpeg/iccjpeg.gyp:*',
+            '../third_party/icu/icu.gyp:*',
+            '../third_party/libpng/libpng.gyp:*',
+            '../third_party/libusb/libusb.gyp:*',
+            '../third_party/libwebp/libwebp.gyp:*',
+            '../third_party/libxml/libxml.gyp:*',
+            '../third_party/libxslt/libxslt.gyp:*',
+            '../third_party/lzma_sdk/lzma_sdk.gyp:*',
+            '../third_party/mesa/mesa.gyp:*',
+            '../third_party/modp_b64/modp_b64.gyp:*',
+            '../third_party/npapi/npapi.gyp:*',
+            '../third_party/ots/ots.gyp:*',
+            '../third_party/qcms/qcms.gyp:*',
+            '../third_party/sqlite/sqlite.gyp:*',
+            '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
+            '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:generate_devtools_zip',
+            '../third_party/zlib/zlib.gyp:*',
+            '../v8/tools/gyp/v8.gyp:*',
+            '../webkit/support/webkit_support.gyp:*',
+            '../webkit/webkit.gyp:*',
+            'temp_gyp/googleurl.gyp:*',
+            '<(libjpeg_gyp_path):*',
+          ],
+        }],
+        ['os_posix==1 and OS!="android" and OS!="ios"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
           ],
@@ -169,42 +178,62 @@
       'target_name': 'chromium_swarm_tests',
       'type': 'none',
       'dependencies': [
-          '../base/base.gyp:base_unittests_run',
-          '../chrome/chrome.gyp:browser_tests_run',
-          '../chrome/chrome.gyp:unit_tests_run',
-          '../net/net.gyp:net_unittests_run',
+        # Add new dependencies to the !ios section just below, not here (see
+        # the comment there).
+      ],
+      'conditions': [
+        ['OS!="ios"', {
+          'dependencies': [
+            # TODO(ios): This is temporary; currently almost nothing builds with
+            # OS=ios. Move dependencies back to the main dependencies section
+            # above as gyp files come online.
+            '../base/base.gyp:base_unittests_run',
+            '../chrome/chrome.gyp:browser_tests_run',
+            '../chrome/chrome.gyp:unit_tests_run',
+            '../net/net.gyp:net_unittests_run',
+          ],
+        }],
       ],
     }, # target_name: chromium_swarm_tests
     {
       'target_name': 'chromium_builder_tests',
       'type': 'none',
       'dependencies': [
-        '../base/base.gyp:base_unittests',
-        '../chrome/chrome.gyp:browser_tests',
-        '../chrome/chrome.gyp:interactive_ui_tests',
-        '../chrome/chrome.gyp:safe_browsing_tests',
-        '../chrome/chrome.gyp:sync_integration_tests',
-        '../chrome/chrome.gyp:unit_tests',
-        '../cloud_print/cloud_print.gyp:cloud_print_unittests',
-        '../content/content.gyp:content_browsertests',
-        '../content/content.gyp:content_unittests',
-        '../crypto/crypto.gyp:crypto_unittests',
-        '../ui/ui.gyp:gfx_unittests',
-        '../gpu/gpu.gyp:gpu_unittests',
-        '../gpu/gles2_conform_support/gles2_conform_support.gyp:gles2_conform_support',
-        '../ipc/ipc.gyp:ipc_tests',
-        '../jingle/jingle.gyp:jingle_unittests',
-        '../media/media.gyp:media_unittests',
-        '../net/net.gyp:net_unittests',
-        '../printing/printing.gyp:printing_unittests',
-        '../remoting/remoting.gyp:remoting_unittests',
-        '../sql/sql.gyp:sql_unittests',
-        '../sync/sync.gyp:sync_unit_tests',
-        '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-        '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
-        'temp_gyp/googleurl.gyp:googleurl_unittests',
+        # Add new dependencies to the !ios section just below, not here (see
+        # the comment there).
       ],
       'conditions': [
+        ['OS!="ios"', {
+          'dependencies': [
+            # TODO(ios): This is temporary; currently almost nothing builds with
+            # OS=ios. Move dependencies back to the main dependencies section
+            # above as gyp files come online.
+            '../base/base.gyp:base_unittests',
+            '../chrome/chrome.gyp:browser_tests',
+            '../chrome/chrome.gyp:interactive_ui_tests',
+            '../chrome/chrome.gyp:safe_browsing_tests',
+            '../chrome/chrome.gyp:sync_integration_tests',
+            '../chrome/chrome.gyp:unit_tests',
+            '../cloud_print/cloud_print.gyp:cloud_print_unittests',
+            '../content/content.gyp:content_browsertests',
+            '../content/content.gyp:content_unittests',
+            '../crypto/crypto.gyp:crypto_unittests',
+            '../ui/ui.gyp:gfx_unittests',
+            '../gpu/gpu.gyp:gpu_unittests',
+            '../gpu/gles2_conform_support/gles2_conform_support.gyp:gles2_conform_support',
+            '../ipc/ipc.gyp:ipc_tests',
+            '../jingle/jingle.gyp:jingle_unittests',
+            '../media/media.gyp:media_unittests',
+            '../net/net.gyp:net_unittests',
+            '../printing/printing.gyp:printing_unittests',
+            '../remoting/remoting.gyp:remoting_unittests',
+            '../sql/sql.gyp:sql_unittests',
+            '../sync/sync.gyp:sync_unit_tests',
+            '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
+            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
+          ],
+        }],
         ['OS=="win"', {
           'dependencies': [
             '../chrome/chrome.gyp:installer_util_unittests',
@@ -247,62 +276,66 @@
         'chromium_builder_tests',
       ],
     }, # target_name: chromium_2010_builder_tests
-    {
-      'target_name': 'chromium_builder_nacl_win_integration',
-      'type': 'none',
-      'dependencies': [
-        'chromium_builder_qa', # needed for pyauto
-        'chromium_builder_tests',
-      ],
-    }, # target_name: chromium_builder_nacl_win_integration
-    {
-      'target_name': 'chromium_builder_perf',
-      'type': 'none',
-      'dependencies': [
-        'chromium_builder_qa', # needed for pyauto
-        '../chrome/chrome.gyp:performance_browser_tests',
-        '../chrome/chrome.gyp:performance_ui_tests',
-        '../chrome/chrome.gyp:sync_performance_tests',
-      ],
-    }, # target_name: chromium_builder_perf
-    {
-      'target_name': 'chromium_gpu_builder',
-      'type': 'none',
-      'dependencies': [
-        '../chrome/chrome.gyp:gpu_tests',
-        '../chrome/chrome.gyp:performance_browser_tests',
-        '../chrome/chrome.gyp:performance_ui_tests',
-        '../gpu/gpu.gyp:gl_tests',
-      ],
-    }, # target_name: chromium_gpu_builder
-    {
-      'target_name': 'chromium_gpu_debug_builder',
-      'type': 'none',
-      'dependencies': [
-        '../chrome/chrome.gyp:gpu_tests',
-        '../gpu/gpu.gyp:gl_tests',
-      ],
-    }, # target_name: chromium_gpu_debug_builder
-    {
-      'target_name': 'chromium_builder_qa',
-      'type': 'none',
-      'dependencies': [
-        '../chrome/chrome.gyp:chromedriver',
-        # Dependencies of pyauto_functional tests.
-        '../remoting/remoting.gyp:remoting_webapp',
-      ],
-      'conditions': [
-        # If you change this condition, make sure you also change it
-        # in chrome_tests.gypi
-        ['enable_automation==1 and (OS=="mac" or OS=="win" or (os_posix==1 and target_arch==python_arch))', {
-          'dependencies': [
-            '../chrome/chrome.gyp:pyautolib',
-          ],
-        }],
-      ],
-    }, # target_name: chromium_builder_qa
   ],
   'conditions': [
+    ['OS!="ios"', {
+      'targets': [
+        {
+          'target_name': 'chromium_builder_nacl_win_integration',
+          'type': 'none',
+          'dependencies': [
+            'chromium_builder_qa', # needed for pyauto
+            'chromium_builder_tests',
+          ],
+        }, # target_name: chromium_builder_nacl_win_integration
+        {
+          'target_name': 'chromium_builder_perf',
+          'type': 'none',
+          'dependencies': [
+            'chromium_builder_qa', # needed for pyauto
+            '../chrome/chrome.gyp:performance_browser_tests',
+            '../chrome/chrome.gyp:performance_ui_tests',
+            '../chrome/chrome.gyp:sync_performance_tests',
+          ],
+        }, # target_name: chromium_builder_perf
+        {
+          'target_name': 'chromium_gpu_builder',
+          'type': 'none',
+          'dependencies': [
+            '../chrome/chrome.gyp:gpu_tests',
+            '../chrome/chrome.gyp:performance_browser_tests',
+            '../chrome/chrome.gyp:performance_ui_tests',
+            '../gpu/gpu.gyp:gl_tests',
+          ],
+        }, # target_name: chromium_gpu_builder
+        {
+          'target_name': 'chromium_gpu_debug_builder',
+          'type': 'none',
+          'dependencies': [
+            '../chrome/chrome.gyp:gpu_tests',
+            '../gpu/gpu.gyp:gl_tests',
+          ],
+        }, # target_name: chromium_gpu_debug_builder
+        {
+          'target_name': 'chromium_builder_qa',
+          'type': 'none',
+          'dependencies': [
+            '../chrome/chrome.gyp:chromedriver',
+            # Dependencies of pyauto_functional tests.
+            '../remoting/remoting.gyp:remoting_webapp',
+          ],
+          'conditions': [
+            # If you change this condition, make sure you also change it
+            # in chrome_tests.gypi
+            ['enable_automation==1 and (OS=="mac" or OS=="win" or (os_posix==1 and target_arch==python_arch))', {
+              'dependencies': [
+                '../chrome/chrome.gyp:pyautolib',
+              ],
+            }],
+          ],
+        }, # target_name: chromium_builder_qa
+      ],  # targets
+    }],
     ['OS=="mac"', {
       'targets': [
         {
