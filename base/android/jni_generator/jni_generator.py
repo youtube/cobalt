@@ -64,8 +64,6 @@ class NativeMethod(object):
       self.p0_type = self.params[0].name[len('native'):]
       if kwargs.get('native_class_name'):
         self.p0_type = kwargs['native_class_name']
-    elif self.static:
-      self.type = 'function'
     else:
       self.type = 'function'
     self.method_id_var_name = kwargs.get('method_id_var_name', None)
@@ -635,11 +633,6 @@ ${KMETHODS}
       return '}  // namespace %s\n' % self.namespace
     return ''
 
-  def GetStaticKeywordForForwardDeclaration(self):
-    if self.namespace:
-      return ''
-    return 'static '
-
   def GetJNIFirstParam(self, native):
     ret = []
     if native.type == 'method':
@@ -672,10 +665,9 @@ ${KMETHODS}
 
   def GetForwardDeclaration(self, native):
     template = Template("""
-${STATIC}${RETURN} ${NAME}(JNIEnv* env, ${PARAMS});
+static ${RETURN} ${NAME}(JNIEnv* env, ${PARAMS});
 """)
-    values = {'STATIC': self.GetStaticKeywordForForwardDeclaration(),
-              'NAMESPACE': self.GetNamespaceString(),
+    values = {'NAMESPACE': self.GetNamespaceString(),
               'RETURN': JavaDataTypeToC(native.return_type),
               'NAME': native.name,
               'PARAMS': self.GetParamsInDeclaration(native)}
