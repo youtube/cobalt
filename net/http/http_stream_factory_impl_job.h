@@ -175,6 +175,9 @@ class HttpStreamFactoryImpl::Job {
 
   HostPortProxyPair GetSpdySessionKey() const;
 
+  // Returns true if the current request can use an existing spdy session.
+  bool CanUseExistingSpdySession() const;
+
   // Called when we encounter a network error that could be resolved by trying
   // a new proxy configuration.  If there is another proxy configuration to try
   // then this method sets next_state_ appropriately and returns either OK or
