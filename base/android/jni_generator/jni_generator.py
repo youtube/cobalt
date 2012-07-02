@@ -443,6 +443,9 @@ class JNIFromJavaSource(object):
     jni_namespace = ExtractJNINamespace(contents)
     natives = ExtractNatives(contents)
     called_by_natives = ExtractCalledByNatives(contents)
+    if len(natives) == 0 and len(called_by_natives) == 0:
+      raise SyntaxError('Unable to find any JNI methods for %s.' %
+                        fully_qualified_class)
     inl_header_file_generator = InlHeaderFileGenerator(
         jni_namespace, fully_qualified_class, natives, called_by_natives)
     self.content = inl_header_file_generator.GetContent()

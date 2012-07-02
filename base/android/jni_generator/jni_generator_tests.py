@@ -1470,6 +1470,17 @@ static bool RegisterNativesImpl(JNIEnv* env) {
                       jni_generator.JNIFromJavaSource,
                       test_data, 'foo/bar')
 
+  def testRaisesOnNonJNIMethod(self):
+    test_data = """
+    class MyInnerClass {
+      private int Foo(int p0) {
+      }
+    }
+    """
+    self.assertRaises(SyntaxError,
+                      jni_generator.JNIFromJavaSource,
+                      test_data, 'foo/bar')
+
   def testJniSelfDocumentingExample(self):
     script_dir = os.path.dirname(sys.argv[0])
     content = file(os.path.join(script_dir, 'SampleForTests.java')).read()
