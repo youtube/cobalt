@@ -49,6 +49,8 @@ v8.log
 /chrome/Hammer
 /chrome/app/policy/cloud_policy_backend_header_compile.xml
 /chrome/app/policy/cloud_policy_proto_compile.xml
+/chrome/app/theme/default_100_percent/google_chrome
+/chrome/app/theme/default_200_percent/google_chrome
 /chrome/app/theme/google_chrome
 /chrome/browser/autofill/internal
 /chrome/browser/extensions/default_extensions/chromeos
