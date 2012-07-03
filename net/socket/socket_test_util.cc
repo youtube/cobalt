@@ -25,7 +25,13 @@
 #include "net/socket/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#define NET_TRACE(level, s)   DLOG(level) << s << __FUNCTION__ << "() "
+// Socket events are easier to debug if you log individual reads and writes.
+// Enable these if locally debugging, but they are too noisy for the waterfall.
+#if 0
+#define NET_TRACE(level, s) DLOG(level) << s << __FUNCTION__ << "() "
+#else
+#define NET_TRACE(level, s) EAT_STREAM_PARAMETERS
+#endif
 
 namespace net {
 
