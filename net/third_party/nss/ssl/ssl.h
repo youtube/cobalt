@@ -1021,8 +1021,8 @@ SSL_IMPORT SECStatus SSL_SetClientChannelIDCallback(
 ** the DTLS handshake? Returns SECFailure if not DTLS or not in a
 ** handshake.
 */
-SSL_IMPORT SECStatus DTLS_GetTimeout(PRFileDesc *socket,
-                                     PRIntervalTime *timeout);
+SSL_IMPORT SECStatus DTLS_GetHandshakeTimeout(PRFileDesc *socket,
+                                              PRIntervalTime *timeout);
 
 /*
  * Return a boolean that indicates whether the underlying library
