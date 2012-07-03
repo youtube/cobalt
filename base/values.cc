@@ -882,6 +882,15 @@ bool ListValue::Remove(const Value& value, size_t* index) {
   return false;
 }
 
+void ListValue::Erase(iterator iter, Value** out_value) {
+  if (out_value)
+    *out_value = *iter;
+  else
+    delete *iter;
+
+  list_.erase(iter);
+}
+
 void ListValue::Append(Value* in_value) {
   DCHECK(in_value);
   list_.push_back(in_value);
