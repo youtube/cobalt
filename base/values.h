@@ -431,6 +431,10 @@ class BASE_EXPORT ListValue : public Value {
   // if not found.
   bool Remove(const Value& value, size_t* index);
 
+  // Removes the element at |iter|. If |out_value| is NULL, the value will be
+  // deleted, otherwise ownership of the value is passed back to the caller.
+  void Erase(iterator iter, Value** out_value);
+
   // Appends a Value to the end of the list.
   void Append(Value* in_value);
 
