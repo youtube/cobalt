@@ -2243,9 +2243,6 @@
               # Warns on switches on enums that cover all enum values but
               # also contain a default: branch. Chrome is full of that.
               '-Wno-covered-switch-default',
-
-              # TODO(thakis): Remove once the patch to fix violations is in.
-              '-Wno-unused-private-field',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
