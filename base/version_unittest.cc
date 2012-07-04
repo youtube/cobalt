@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -87,5 +87,55 @@ TEST_F(VersionTest, Compare) {
           cases[i].lhs << " ? " << cases[i].rhs;
 
     EXPECT_EQ(lhs->IsOlderThan(cases[i].rhs), (cases[i].expected == -1));
+  }
+}
+
+TEST_F(VersionTest, CompareToWildcardString) {
+  static const struct version_compare {
+    const char* lhs;
+    const char* rhs;
+    int expected;
+  } cases[] = {
+    {"1.0", "1.*", 0},
+    {"1.0", "0.*", 1},
+    {"1.0", "2.*", -1},
+    {"1.2.3", "1.2.3.*", 0},
+    {"10.0", "1.0.*", 1},
+    {"1.0", "3.0.*", -1},
+    {"1.4", "1.3.0.*", 1},
+    {"1.3.9", "1.3.*", 0},
+    {"1.4.1", "1.3.*", 1},
+    {"1.3", "1.4.5.*", -1},
+    {"1.5", "1.4.5.*", 1},
+    {"1.3.9", "1.3.*", 0},
+    {"1.2.0.0.0.0", "1.2.*", 0},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+    const Version version(cases[i].lhs);
+    const int result = version.CompareToWildcardString(cases[i].rhs);
+    EXPECT_EQ(result, cases[i].expected) << cases[i].lhs << "?" << cases[i].rhs;
+  }
+}
+
+TEST_F(VersionTest, IsValidWildcardString) {
+  static const struct version_compare {
+    const char* version;
+    bool expected;
+  } cases[] = {
+    {"1.0", true},
+    {"", false},
+    {"1.2.3.4.5.6", true},
+    {"1.2.3.*", true},
+    {"1.2.3.5*", false},
+    {"1.2.3.56*", false},
+    {"1.*.3", false},
+    {"20.*", true},
+    {"+2.*", false},
+    {"*", false},
+    {"*.2", false},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+    EXPECT_EQ(Version::IsValidWildcardString(cases[i].version),
+        cases[i].expected) << cases[i].version << "?" << cases[i].expected;
   }
 }
