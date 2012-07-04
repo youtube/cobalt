@@ -152,6 +152,7 @@ DEFINES+=" gtest_target_type=shared_library"
 DEFINES+=" branding=Chromium"
 DEFINES+=\
 " android_sdk=${ANDROID_SDK_ROOT}/platforms/android-${ANDROID_SDK_VERSION}"
+DEFINES+=" android_sdk_tools=${ANDROID_SDK_ROOT}/platform-tools"
 
 export GYP_DEFINES="${DEFINES}"
 

@@ -37,7 +37,7 @@
         '<(PRODUCT_DIR)/lib.java/<(RULE_INPUT_ROOT).java',
       ],
       'action': [
-        'aidl',
+        '<(android_sdk_tools)/aidl',
         '-p<(android_sdk)/framework.aidl',
         '-p<(aidl_interface_file)',
         '-o<(PRODUCT_DIR)/lib.java/',
