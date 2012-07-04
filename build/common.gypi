@@ -223,6 +223,11 @@
       # See https://sites.google.com/a/chromium.org/dev/developers/testing/addresssanitizer
       'asan%': 0,
 
+      # Enable building with TSAN (Clang's -fthread-sanitizer option).
+      # -fthread-sanitizer only works with clang, but tsan=1 implies clang=1
+      # See http://clang.llvm.org/docs/ThreadSanitizer.html
+      'tsan%': 0,
+
       # Set to true to instrument the code with function call logger.
       # See src/third_party/cygprofile/cyg-profile.cc for details.
       'order_profiling%': 0,
@@ -560,6 +565,7 @@
     'notifications%': '<(notifications)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
+    'tsan%': '<(tsan)',
     'order_profiling%': '<(order_profiling)',
     'order_text_section%': '<(order_text_section)',
     'enable_extensions%': '<(enable_extensions)',
@@ -1130,7 +1136,13 @@
         'clang%': 1,
         # Do not use Chrome plugins for Clang. The Clang version in
         # third_party/asan may be different from the default one.
+        # TODO(glider): this isn't true anymore, need to check if we can use the
+        # plugins now.
         'clang_use_chrome_plugins%': 0,
+      }],
+
+      ['tsan==1', {
+        'clang%': 1,
       }],
 
       # On valgrind bots, override the optimizer settings so we don't inline too
@@ -2282,6 +2294,25 @@
                   ],
                   'defines': [
                       'ADDRESS_SANITIZER',
+                  ],
+              }],
+            ],
+          }],
+          ['tsan==1', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                  'cflags': [
+                      '-fthread-sanitizer',
+                      '-fno-omit-frame-pointer',
+                      '-fPIE',
+                  ],
+                  'ldflags': [
+                      '-fthread-sanitizer',
+                      '-pie',
+                  ],
+                  'defines': [
+                      'THREAD_SANITIZER',
+                      'DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL=1',
                   ],
               }],
             ],
