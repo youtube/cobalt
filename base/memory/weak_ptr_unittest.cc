@@ -40,9 +40,9 @@ class OffThreadObjectCreator {
 struct Base { std::string member; };
 struct Derived : Base {};
 
-struct Target : SupportsWeakPtr<Target> {};
-struct DerivedTarget : Target {};
-struct Arrow { WeakPtr<Target> target; };
+struct Producer : SupportsWeakPtr<Producer> {};
+struct DerivedProducer : Producer {};
+struct Consumer { WeakPtr<Producer> producer; };
 
 // Helper class to create and destroy weak pointer copies
 // and delete objects on a background thread.
@@ -54,80 +54,80 @@ class BackgroundThread : public Thread {
     Stop();
   }
 
-  void CreateArrowFromTarget(Arrow** arrow, Target* target) {
+  void CreateConsumerFromProducer(Consumer** consumer, Producer* producer) {
     WaitableEvent completion(true, false);
     message_loop()->PostTask(
         FROM_HERE,
-        base::Bind(&BackgroundThread::DoCreateFromTarget, arrow, target,
+        base::Bind(&BackgroundThread::DoCreateFromProducer, consumer, producer,
                    &completion));
     completion.Wait();
   }
 
-  void CreateArrowFromArrow(Arrow** arrow, const Arrow* other) {
+  void CreateConsumerFromConsumer(Consumer** consumer, const Consumer* other) {
     WaitableEvent completion(true, false);
     message_loop()->PostTask(
         FROM_HERE,
-        base::Bind(&BackgroundThread::DoCreateFromArrow, arrow, other,
+        base::Bind(&BackgroundThread::DoCreateFromConsumer, consumer, other,
                    &completion));
     completion.Wait();
   }
 
-  void DeleteTarget(Target* object) {
+  void DeleteProducer(Producer* object) {
     WaitableEvent completion(true, false);
     message_loop()->PostTask(
         FROM_HERE,
-        base::Bind(&BackgroundThread::DoDeleteTarget, object, &completion));
+        base::Bind(&BackgroundThread::DoDeleteProducer, object, &completion));
     completion.Wait();
   }
 
-  void DeleteArrow(Arrow* object) {
+  void DeleteConsumer(Consumer* object) {
     WaitableEvent completion(true, false);
     message_loop()->PostTask(
         FROM_HERE,
-        base::Bind(&BackgroundThread::DoDeleteArrow, object, &completion));
+        base::Bind(&BackgroundThread::DoDeleteConsumer, object, &completion));
     completion.Wait();
   }
 
-  Target* DeRef(const Arrow* arrow) {
+  Producer* DeRef(const Consumer* consumer) {
     WaitableEvent completion(true, false);
-    Target* result = NULL;
+    Producer* result = NULL;
     message_loop()->PostTask(
         FROM_HERE,
-        base::Bind(&BackgroundThread::DoDeRef, arrow, &result, &completion));
+        base::Bind(&BackgroundThread::DoDeRef, consumer, &result, &completion));
     completion.Wait();
     return result;
   }
 
  protected:
-  static void DoCreateFromArrow(Arrow** arrow,
-                                const Arrow* other,
-                                WaitableEvent* completion) {
-    *arrow = new Arrow;
-    **arrow = *other;
+  static void DoCreateFromConsumer(Consumer** consumer,
+                                   const Consumer* other,
+                                   WaitableEvent* completion) {
+    *consumer = new Consumer;
+    **consumer = *other;
     completion->Signal();
   }
 
-  static void DoCreateFromTarget(Arrow** arrow,
-                                 Target* target,
-                                 WaitableEvent* completion) {
-    *arrow = new Arrow;
-    (*arrow)->target = target->AsWeakPtr();
+  static void DoCreateFromProducer(Consumer** consumer,
+                                   Producer* producer,
+                                   WaitableEvent* completion) {
+    *consumer = new Consumer;
+    (*consumer)->producer = producer->AsWeakPtr();
     completion->Signal();
   }
 
-  static void DoDeRef(const Arrow* arrow,
-                      Target** result,
+  static void DoDeRef(const Consumer* consumer,
+                      Producer** result,
                       WaitableEvent* completion) {
-    *result = arrow->target.get();
+    *result = consumer->producer.get();
     completion->Signal();
   }
 
-  static void DoDeleteTarget(Target* object, WaitableEvent* completion) {
+  static void DoDeleteProducer(Producer* object, WaitableEvent* completion) {
     delete object;
     completion->Signal();
   }
 
-  static void DoDeleteArrow(Arrow* object, WaitableEvent* completion) {
+  static void DoDeleteConsumer(Consumer* object, WaitableEvent* completion) {
     delete object;
     completion->Signal();
   }
@@ -135,14 +135,14 @@ class BackgroundThread : public Thread {
 
 }  // namespace
 
-TEST(WeakPtrFactoryTest, Basic) {
+TEST(WeakPtrTest, Basic) {
   int data;
   WeakPtrFactory<int> factory(&data);
   WeakPtr<int> ptr = factory.GetWeakPtr();
   EXPECT_EQ(&data, ptr.get());
 }
 
-TEST(WeakPtrFactoryTest, Comparison) {
+TEST(WeakPtrTest, Comparison) {
   int data;
   WeakPtrFactory<int> factory(&data);
   WeakPtr<int> ptr = factory.GetWeakPtr();
@@ -150,7 +150,7 @@ TEST(WeakPtrFactoryTest, Comparison) {
   EXPECT_TRUE(ptr == ptr2);
 }
 
-TEST(WeakPtrFactoryTest, OutOfScope) {
+TEST(WeakPtrTest, OutOfScope) {
   WeakPtr<int> ptr;
   EXPECT_TRUE(ptr.get() == NULL);
   {
@@ -161,7 +161,7 @@ TEST(WeakPtrFactoryTest, OutOfScope) {
   EXPECT_TRUE(ptr.get() == NULL);
 }
 
-TEST(WeakPtrFactoryTest, Multiple) {
+TEST(WeakPtrTest, Multiple) {
   WeakPtr<int> a, b;
   {
     int data;
@@ -175,7 +175,7 @@ TEST(WeakPtrFactoryTest, Multiple) {
   EXPECT_TRUE(b.get() == NULL);
 }
 
-TEST(WeakPtrFactoryTest, MultipleStaged) {
+TEST(WeakPtrTest, MultipleStaged) {
   WeakPtr<int> a;
   {
     int data;
@@ -189,17 +189,7 @@ TEST(WeakPtrFactoryTest, MultipleStaged) {
   EXPECT_TRUE(a.get() == NULL);
 }
 
-TEST(WeakPtrFactoryTest, Dereference) {
-  Base data;
-  data.member = "123456";
-  WeakPtrFactory<Base> factory(&data);
-  WeakPtr<Base> ptr = factory.GetWeakPtr();
-  EXPECT_EQ(&data, ptr.get());
-  EXPECT_EQ(data.member, (*ptr).member);
-  EXPECT_EQ(data.member, ptr->member);
-}
-
-TEST(WeakPtrFactoryTest, UpCast) {
+TEST(WeakPtrTest, UpCast) {
   Derived data;
   WeakPtrFactory<Derived> factory(&data);
   WeakPtr<Base> ptr = factory.GetWeakPtr();
@@ -208,14 +198,14 @@ TEST(WeakPtrFactoryTest, UpCast) {
 }
 
 TEST(WeakPtrTest, SupportsWeakPtr) {
-  Target f;
-  WeakPtr<Target> ptr = f.AsWeakPtr();
+  Producer f;
+  WeakPtr<Producer> ptr = f.AsWeakPtr();
   EXPECT_EQ(&f, ptr.get());
 }
 
-TEST(WeakPtrTest, DerivedTarget) {
-  DerivedTarget f;
-  WeakPtr<DerivedTarget> ptr = AsWeakPtr(&f);
+TEST(WeakPtrTest, DerivedProducer) {
+  DerivedProducer f;
+  WeakPtr<DerivedProducer> ptr = AsWeakPtr(&f);
   EXPECT_EQ(&f, ptr.get());
 }
 
@@ -240,185 +230,127 @@ TEST(WeakPtrTest, HasWeakPtrs) {
   EXPECT_FALSE(factory.HasWeakPtrs());
 }
 
-TEST(WeakPtrTest, ObjectAndWeakPtrOnDifferentThreads) {
-  // Test that it is OK to create an object that supports WeakPtr on one thread,
-  // but uses it on another.  This tests that we do not trip runtime checks that
-  // ensure that a WeakPtr is not used by multiple threads.
-  scoped_ptr<Target> target(OffThreadObjectCreator<Target>::NewObject());
-  WeakPtr<Target> weak_ptr = target->AsWeakPtr();
-  EXPECT_EQ(target.get(), weak_ptr.get());
-}
-
-TEST(WeakPtrTest, WeakPtrInitiateAndUseOnDifferentThreads) {
-  // Test that it is OK to create an object that has a WeakPtr member on one
+TEST(WeakPtrTest, SingleThreaded1) {
+  // Test that it is OK to create a class that supports weak references on one
   // thread, but use it on another.  This tests that we do not trip runtime
-  // checks that ensure that a WeakPtr is not used by multiple threads.
-  scoped_ptr<Arrow> arrow(OffThreadObjectCreator<Arrow>::NewObject());
-  Target target;
-  arrow->target = target.AsWeakPtr();
-  EXPECT_EQ(&target, arrow->target.get());
+  // checks that ensure that a weak reference is not used by multiple threads.
+  scoped_ptr<Producer> producer(OffThreadObjectCreator<Producer>::NewObject());
+  WeakPtr<Producer> weak_producer = producer->AsWeakPtr();
+  EXPECT_EQ(producer.get(), weak_producer.get());
 }
 
-TEST(WeakPtrTest, MoveOwnershipImplicitly) {
+TEST(WeakPtrTest, SingleThreaded2) {
+  // Test that it is OK to create a class that has a WeakPtr member on one
+  // thread, but use it on another.  This tests that we do not trip runtime
+  // checks that ensure that a weak reference is not used by multiple threads.
+  scoped_ptr<Consumer> consumer(OffThreadObjectCreator<Consumer>::NewObject());
+  Producer producer;
+  consumer->producer = producer.AsWeakPtr();
+  EXPECT_EQ(&producer, consumer->producer.get());
+}
+
+TEST(WeakPtrTest, MoveOwnershipImplicit) {
   // Move object ownership to other thread by releasing all weak pointers
   // on the original thread first. Establishing weak pointers on a different
   // thread after previous pointers have been destroyed implicitly reattaches
   // the thread checks.
-  // - Main thread creates object and weak pointer
-  // - Main thread deletes the weak pointer, then the thread ownership of the
-  //   object can be implicitly moved.
-  // - Background thread creates weak pointer(and implicitly owns the object)
-  // - Background thread derefs weak pointer
-  // - Background thread deletes object
-  // - Background thread deletes weak pointer
-  BackgroundThread background;
-  background.Start();
-  Target* target = new Target();
+  // - Thread A creates object and weak pointer
+  // - Thread A deletes the weak pointer
+  // - Thread B creates weak pointer
+  // - Thread B derefs weak pointer
+  // - Thread B deletes object
+  BackgroundThread thread;
+  thread.Start();
+  Producer* producer = new Producer();
   {
-    WeakPtr<Target> weak_ptr = target->AsWeakPtr();
+    WeakPtr<Producer> weak_ptr = producer->AsWeakPtr();
   }
-  Arrow* arrow;
-  background.CreateArrowFromTarget(&arrow, target);
-  EXPECT_EQ(background.DeRef(arrow), target);
-  background.DeleteTarget(target);
-  background.DeleteArrow(arrow);
+  Consumer* consumer;
+  thread.CreateConsumerFromProducer(&consumer, producer);
+  EXPECT_EQ(thread.DeRef(consumer), producer);
+  thread.DeleteProducer(producer);
+  thread.DeleteConsumer(consumer);
 }
 
-TEST(WeakPtrTest, MoveOwnershipExplicitlyObjectNotReferenced) {
-  // Case 1: The target is not bound to any thread yet. So calling
-  // DetachFromThread() is a no-op.
-  Target target;
-  target.DetachFromThread();
-
-  // Case 2: The target is bound to main thread but no WeakPtr is pointing to
-  // it. In this case, it will be re-bound to any thread trying to get a
-  // WeakPtr pointing to it. So detach function call is again no-op.
-  {
-    WeakPtr<Target> weak_ptr = target.AsWeakPtr();
-  }
-  target.DetachFromThread();
-}
-
-TEST(WeakPtrTest, MoveOwnershipExplicitly) {
-  // Test that we do not trip any checks if we establish WeakPtr on one thread
-  // and delete the object on another thread after explicit detachment.
-  // - Main thread creates object
-  // - Background thread creates weak pointer(and implicitly owns the object)
-  // - Object detach from background thread
-  // - Main thread destroys object
-  BackgroundThread background;
-  background.Start();
-  Target target;
-  Arrow* arrow;
-
-  background.CreateArrowFromTarget(&arrow, &target);
-  EXPECT_EQ(background.DeRef(arrow), &target);
-  target.DetachFromThread();
-  // Detached target getting destructed will not cause thread ownership
-  // violation.
+TEST(WeakPtrTest, MoveOwnershipExplicit) {
+  // Test that we do not trip any checks if we establish weak references
+  // on one thread and delete the object on another thread after explicit
+  // detachment.
+  // - Thread A creates object
+  // - Thread B creates weak pointer
+  // - Thread B releases weak pointer
+  // - Detach owner from Thread B
+  // - Thread A destroys object
+  BackgroundThread thread;
+  thread.Start();
+  Producer producer;
+  Consumer* consumer;
+  thread.CreateConsumerFromProducer(&consumer, &producer);
+  EXPECT_EQ(thread.DeRef(consumer), &producer);
+  thread.DeleteConsumer(consumer);
+  producer.DetachFromThread();
 }
 
 TEST(WeakPtrTest, ThreadARefOutlivesThreadBRef) {
   // Originating thread has a WeakPtr that outlives others.
-  // - Main thread creates a WeakPtr
-  // - Background thread creates a WeakPtr copy from the one in main thread
-  // - Destruct the WeakPtr on background thread
-  // - Destruct the WeakPtr on main thread
-
-  BackgroundThread background;
-  background.Start();
-
-  Target target;
-  Arrow arrow;
-  arrow.target = target.AsWeakPtr();
-
-  Arrow* arrow_copy;
-  background.CreateArrowFromArrow(&arrow_copy, &arrow);
-  EXPECT_EQ(arrow_copy->target, &target);
-  background.DeleteArrow(arrow_copy);
+  // - Thread A creates WeakPtr<> and passes copy to Thread B
+  // - Destruct the pointer on Thread B
+  // - Destruct the pointer on Thread A
+  BackgroundThread thread;
+  thread.Start();
+  Producer producer;
+  Consumer consumer;
+  consumer.producer = producer.AsWeakPtr();
+  Consumer* consumer_copy;
+  thread.CreateConsumerFromConsumer(&consumer_copy, &consumer);
+  EXPECT_EQ(consumer_copy->producer, &producer);
+  thread.DeleteConsumer(consumer_copy);
 }
 
 TEST(WeakPtrTest, ThreadBRefOutlivesThreadARef) {
   // Originating thread drops all references before another thread.
-  // - Main thread creates a WeakPtr and passes copy to background thread
-  // - Destruct the pointer on main thread
-  // - Destruct the pointer on background thread
-  BackgroundThread background;
-  background.Start();
-  Target target;
-  Arrow* arrow_copy;
+  // - Thread A creates WeakPtr<> and passes copy to Thread B
+  // - Destruct the pointer on Thread A
+  // - Destruct the pointer on Thread B
+  BackgroundThread thread;
+  thread.Start();
+  Producer producer;
+  Consumer* consumer_copy;
   {
-    Arrow arrow;
-    arrow.target = target.AsWeakPtr();
-    background.CreateArrowFromArrow(&arrow_copy, &arrow);
+    Consumer consumer;
+    consumer.producer = producer.AsWeakPtr();
+    thread.CreateConsumerFromConsumer(&consumer_copy, &consumer);
   }
-  EXPECT_EQ(arrow_copy->target, &target);
-  background.DeleteArrow(arrow_copy);
+  EXPECT_EQ(consumer_copy->producer, &producer);
+  thread.DeleteConsumer(consumer_copy);
 }
 
 TEST(WeakPtrTest, OwnerThreadDeletesObject) {
   // Originating thread invalidates WeakPtrs while its held by other thread.
-  // - Main thread creates WeakPtr and passes Copy to background thread
-  // - Object gets destroyed on main thread
-  //   (invalidates WeakPtr on background thread)
+  // - Thread A creates WeakPtr<> and passes Copy to Thread B
+  // - WeakReferenceOwner gets destroyed on Thread A
   // - WeakPtr gets destroyed on Thread B
-  BackgroundThread background;
-  background.Start();
-  Arrow* arrow_copy;
+  BackgroundThread thread;
+  thread.Start();
+  Consumer* consumer_copy;
   {
-    Target target;
-    Arrow arrow;
-    arrow.target = target.AsWeakPtr();
-    background.CreateArrowFromArrow(&arrow_copy, &arrow);
+    Producer producer;
+    Consumer consumer;
+    consumer.producer = producer.AsWeakPtr();
+    thread.CreateConsumerFromConsumer(&consumer_copy, &consumer);
   }
-  EXPECT_TRUE(arrow_copy->target == NULL);
-  background.DeleteArrow(arrow_copy);
+  EXPECT_TRUE(consumer_copy->producer == NULL);
+  thread.DeleteConsumer(consumer_copy);
 }
 
-TEST(WeakPtrTest, NonOwnerThreadCanDeleteWeakPtr) {
-  // Main thread creates a Target object.
-  Target target;
-  // Main thread creates a arrow referencing the Target.
-  Arrow* arrow = new Arrow();
-  arrow->target = target.AsWeakPtr();
-
-  // Background can delete arrow (as well as the WeakPtr inside).
-  BackgroundThread background;
-  background.Start();
-  background.DeleteArrow(arrow);
+TEST(WeakPtrTest, Dereference) {
+  Base data;
+  data.member = "123456";
+  WeakPtrFactory<Base> factory(&data);
+  WeakPtr<Base> ptr = factory.GetWeakPtr();
+  EXPECT_EQ(&data, ptr.get());
+  EXPECT_EQ(data.member, (*ptr).member);
+  EXPECT_EQ(data.member, ptr->member);
 }
-
-#ifndef NDEBUG  // Thread ownership is only checked in debug version.
-
-TEST(WeakPtrDeathTest, NonOwnerThreadDereferencesWeakPtr) {
-  // Main thread creates a Target object.
-  Target target;
-  // Main thread creates a arrow referencing the Target (so target's
-  // thread ownership can not be implicitly moved).
-  Arrow arrow;
-  arrow.target = target.AsWeakPtr();
-
-  // Background thread tries to delete target, which violates thread
-  // ownership.
-  BackgroundThread background;
-  background.Start();
-  ASSERT_DEATH(background.DeRef(&arrow), "");
-}
-
-TEST(WeakPtrDeathTest, NonOwnerThreadDeletesObject) {
-  // Main thread creates a Target object.
-  Target* target = new Target();
-  // Main thread creates a arrow referencing the Target (so target's thread
-  // ownership can not be implicitly moved).
-  Arrow arrow;
-  arrow.target = target->AsWeakPtr();
-
-  // Background thread tries to deref target, which violates thread ownership.
-  BackgroundThread background;
-  background.Start();
-  ASSERT_DEATH(background.DeleteTarget(target), "");
-}
-
-#endif
 
 }  // namespace base
