@@ -23,12 +23,15 @@ AsyncSocketIoHandler::~AsyncSocketIoHandler() {
 void AsyncSocketIoHandler::OnFileCanReadWithoutBlocking(int socket) {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(socket, socket_);
-  if (!read_complete_.is_null()) {
+  DCHECK(!read_complete_.is_null());
+
+  if (pending_buffer_) {
     int bytes_read = HANDLE_EINTR(read(socket_, pending_buffer_,
                                        pending_buffer_len_));
     DCHECK_GT(bytes_read, 0);
+    pending_buffer_ = NULL;
+    pending_buffer_len_ = 0;
     read_complete_.Run(bytes_read > 0 ? bytes_read : 0);
-    read_complete_.Reset();
   } else {
     // We're getting notifications that we can read from the socket while
     // we're not waiting for data.  In order to not starve the message loop,
@@ -38,17 +41,16 @@ void AsyncSocketIoHandler::OnFileCanReadWithoutBlocking(int socket) {
   }
 }
 
-bool AsyncSocketIoHandler::Read(char* buffer, int buffer_len,
-                                const ReadCompleteCallback& callback) {
+bool AsyncSocketIoHandler::Read(char* buffer, int buffer_len) {
   DCHECK(CalledOnValidThread());
-  DCHECK(read_complete_.is_null());
+  DCHECK(!read_complete_.is_null());
+  DCHECK(!pending_buffer_);
 
   EnsureWatchingSocket();
 
   int bytes_read = HANDLE_EINTR(read(socket_, buffer, buffer_len));
   if (bytes_read < 0) {
     if (errno == EAGAIN) {
-      read_complete_ = callback;
       pending_buffer_ = buffer;
       pending_buffer_len_ = buffer_len;
     } else {
@@ -56,17 +58,19 @@ bool AsyncSocketIoHandler::Read(char* buffer, int buffer_len,
       return false;
     }
   } else {
-    callback.Run(bytes_read);
+    read_complete_.Run(bytes_read);
   }
   return true;
 }
 
-bool AsyncSocketIoHandler::Initialize(base::SyncSocket::Handle socket) {
+bool AsyncSocketIoHandler::Initialize(base::SyncSocket::Handle socket,
+                                      const ReadCompleteCallback& callback) {
   DCHECK_EQ(socket_, base::SyncSocket::kInvalidHandle);
 
   DetachFromThread();
 
   socket_ = socket;
+  read_complete_ = callback;
 
   // SyncSocket is blocking by default, so let's convert it to non-blocking.
   int value = fcntl(socket, F_GETFL);
