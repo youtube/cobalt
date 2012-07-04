@@ -30,18 +30,21 @@ typedef MessageLoopForIO::Watcher MessageLoopIOHandler;
 //  public:
 //   SocketReader(base::CancelableSyncSocket* socket)
 //       : socket_(socket), buffer_() {
-//     io_handler.Initialize(socket_->handle());
+//     io_handler.Initialize(socket_->handle(),
+//                           base::Bind(&SocketReader::OnDataAvailable,
+//                                      base::Unretained(this));
 //   }
 //
 //   void AsyncRead() {
-//     CHECK(io_handler.Read(&buffer_[0], sizeof(buffer_),
-//                           base::Bind(&SocketReader::OnDataAvailable,
-//                                      base::Unretained(this)));
+//     CHECK(io_handler.Read(&buffer_[0], sizeof(buffer_)));
 //   }
 //
 //  private:
 //   void OnDataAvailable(int bytes_read) {
-//     ProcessData(&buffer_[0], bytes_read);
+//     if (ProcessData(&buffer_[0], bytes_read)) {
+//       // Issue another read.
+//       CHECK(io_handler.Read(&buffer_[0], sizeof(buffer_)));
+//     }
 //   }
 //
 //   media::AsyncSocketIoHandler io_handler;
@@ -56,21 +59,22 @@ class MEDIA_EXPORT AsyncSocketIoHandler
   AsyncSocketIoHandler();
   virtual ~AsyncSocketIoHandler();
 
-  // Initializes the AsyncSocketIoHandler by hooking it up to the current
-  // thread's message loop (must be TYPE_IO), to do async reads from the socket
-  // on the current thread.
-  bool Initialize(base::SyncSocket::Handle socket);
-
   // Type definition for the callback. The parameter tells how many
   // bytes were read and is 0 if an error occurred.
   typedef base::Callback<void(int)> ReadCompleteCallback;
 
+  // Initializes the AsyncSocketIoHandler by hooking it up to the current
+  // thread's message loop (must be TYPE_IO), to do async reads from the socket
+  // on the current thread.  The |callback| will be invoked whenever a Read()
+  // has completed.
+  bool Initialize(base::SyncSocket::Handle socket,
+                  const ReadCompleteCallback& callback);
+
   // Attempts to read from the socket.  The return value will be |false|
   // if an error occurred and |true| if data was read or a pending read
-  // was issued.  Regardless of async or sync operation, the callback will
-  // be called when data is available.
-  bool Read(char* buffer, int buffer_len,
-            const ReadCompleteCallback& callback);
+  // was issued.  Regardless of async or sync operation, the
+  // ReadCompleteCallback (see above) will be called when data is available.
+  bool Read(char* buffer, int buffer_len);
 
  private:
 #if defined(OS_WIN)
@@ -89,6 +93,7 @@ class MEDIA_EXPORT AsyncSocketIoHandler
   base::SyncSocket::Handle socket_;
 #if defined(OS_WIN)
   MessageLoopForIO::IOContext* context_;
+  bool is_pending_;
 #elif defined(OS_POSIX)
   MessageLoopForIO::FileDescriptorWatcher socket_watcher_;
   // |pending_buffer_| and |pending_buffer_len_| are valid only between
