@@ -8,16 +8,13 @@
 // reference counting is not a good fit.
 //
 // Thread-safety notes:
-// When you get a WeakPtr (from a WeakPtrFactory or SupportsWeakPtr), the
-// WeakPtr becomes bound to the current thread. You may only dereference the
-// WeakPtr on that thread. However, it is safe to destroy the WeakPtr object
-// on another thread. Since a WeakPtr object may be destroyed on a background
-// thread, querying WeakPtrFactory's HasWeakPtrs() method can be racy.
-// On the other hand, the object that supports WeakPtr (extends
-// SupportsWeakPtr) will be bound to the first thread that creates a WeakPtr
-// pointing to it, and can not be deleted from other threads unless all
-// WeakPtrs are deleted. To work around of this, call
-// SupportsWeakPtr::DetachFromThread().
+// When you get a WeakPtr (from a WeakPtrFactory or SupportsWeakPtr),
+// the WeakPtr becomes bound to the current thread. You may only
+// dereference the WeakPtr on that thread. However, it is safe to
+// destroy the WeakPtr object on another thread.
+// Since a WeakPtr object may be destroyed on a background thread,
+// querying WeakPtrFactory's HasWeakPtrs() method can be racy.
+//
 //
 // A common alternative to weak pointers is to have the shared object hold a
 // list of all referrers, and then when the shared object is destroyed, it
@@ -228,8 +225,7 @@ class WeakPtr : public internal::WeakPtrBase {
   friend class WeakPtrFactory<T>;
 
   WeakPtr(const internal::WeakReference& ref, T* ptr)
-      : WeakPtrBase(ref),
-        ptr_(ptr) {
+      : WeakPtrBase(ref), ptr_(ptr) {
   }
 
   // This pointer is only valid when ref_.is_valid() is true.  Otherwise, its
