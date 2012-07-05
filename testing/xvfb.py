@@ -80,7 +80,15 @@ def run_executable(cmd, build_dir, env):
   platforms.
 
   Requires that both xvfb and icewm are installed on linux.
+
+  Detects recursion with an environment variable and do not create a recursive X
+  buffer if present.
   """
+  # First look if we are inside a display.
+  if env.get('_CHROMIUM_INSIDE_XVFB') == '1':
+    # No need to recurse.
+    return test_env.run_executable(cmd, env)
+
   pid = None
   xvfb = 'Xvfb'
   try:
@@ -91,6 +99,8 @@ def run_executable(cmd, build_dir, env):
       env['DISPLAY'] = display
       if not wait_for_xvfb(os.path.join(build_dir, 'xdisplaycheck'), env):
         return 3
+      # Inhibit recursion.
+      env['_CHROMIUM_INSIDE_XVFB'] = '1'
       # Some ChromeOS tests need a window manager. Technically, it could be
       # another script but that would be overkill.
       subprocess.Popen(
