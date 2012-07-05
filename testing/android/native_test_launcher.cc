@@ -20,6 +20,7 @@
 #include "base/android/path_utils.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/at_exit.h"
+#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -177,6 +178,7 @@ static void RunTests(JNIEnv* env,
                      jobject app_context) {
   base::AtExitManager exit_manager;
 
+  // Command line initialized basically, will be fully initialized later.
   static const char* const kInitialArgv[] = { "ChromeTestActivity" };
   CommandLine::Init(arraysize(kInitialArgv), kInitialArgv);
 
@@ -202,6 +204,18 @@ static void RunTests(JNIEnv* env,
   // This object is owned by gtest.
   AndroidLogPrinter* log = new AndroidLogPrinter();
   log->Init(&argc, &argv[0]);
+
+  // Fully initialize command line with arguments.
+  CommandLine::ForCurrentProcess()->AppendArguments(
+      CommandLine(argc, &argv[0]), false);
+  const CommandLine& command_line = *CommandLine::ForCurrentProcess();
+  if (command_line.HasSwitch(switches::kWaitForDebugger)) {
+    std::string msg = StringPrintf("Native test waiting for GDB because "
+                                   "flag %s was supplied",
+                                   switches::kWaitForDebugger);
+    log_write(ANDROID_LOG_VERBOSE, msg.c_str());
+    base::debug::WaitForDebugger(24 * 60 * 60, false);
+  }
 
   main(argc, &argv[0]);
 }
