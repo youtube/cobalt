@@ -89,13 +89,17 @@ void ParseArgsFromCommandLineFile(std::vector<std::string>* args) {
   }
 }
 
-void ArgsToArgv(const std::vector<std::string>& args,
+int ArgsToArgv(const std::vector<std::string>& args,
                 std::vector<char*>* argv) {
   // We need to pass in a non-const char**.
   int argc = args.size();
-  argv->resize(argc);
+
+  argv->resize(argc + 1);
   for (int i = 0; i < argc; ++i)
     (*argv)[i] = const_cast<char*>(args[i].c_str());
+  (*argv)[argc] = NULL;  // argv must be NULL terminated.
+
+  return argc;
 }
 
 // As we are the native side of an Android app, we don't have any 'console', so
@@ -193,9 +197,8 @@ static void RunTests(JNIEnv* env,
 
   // We need to pass in a non-const char**.
   std::vector<char*> argv;
-  ArgsToArgv(args, &argv);
+  int argc = ArgsToArgv(args, &argv);
 
-  int argc = argv.size();
   // This object is owned by gtest.
   AndroidLogPrinter* log = new AndroidLogPrinter();
   log->Init(&argc, &argv[0]);
