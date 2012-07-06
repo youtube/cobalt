@@ -11,7 +11,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
 #include "media/base/stream_parser.h"
-#include "media/mp4/aac.h"
 #include "media/mp4/offset_byte_queue.h"
 #include "media/mp4/track_run_iterator.h"
 
@@ -86,9 +85,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   uint32 audio_track_id_;
   uint32 video_track_id_;
 
-  // We keep them around to avoid having to go digging through the moov with
+  // We keep this around to avoid having to go digging through the moov with
   // every frame.
-  AAC aac_;
   uint8 size_of_nalu_length_;
 
   DISALLOW_COPY_AND_ASSIGN(MP4StreamParser);
