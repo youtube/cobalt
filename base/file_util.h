@@ -203,8 +203,7 @@ enum ShortcutOptions {
   SHORTCUT_NO_OPTIONS = 0,
   // Set DualMode property for Windows 8 Metro-enabled shortcuts.
   SHORTCUT_DUAL_MODE = 1 << 0,
-  // Create a new shortcut (overwriting if necessary). If not specified, only
-  // non-null properties on an existing shortcut will be modified.
+  // Create a new shortcut (overwriting if necessary).
   SHORTCUT_CREATE_ALWAYS = 1 << 1,
 };
 
@@ -224,6 +223,9 @@ BASE_EXPORT bool ResolveShortcut(FilePath* path);
 // The |icon| can specify a dll or exe in which case the icon index is the
 // resource id. |app_id| is the app model id for the shortcut on Win7.
 // |options|: bitfield for which the options come from ShortcutOptions.
+// If SHORTCUT_CREATE_ALWAYS is not set in |options|, only specified (non-null)
+// properties on an existing shortcut will be modified. If the shortcut does not
+// exist, this method is a no-op and returns false.
 BASE_EXPORT bool CreateOrUpdateShortcutLink(const wchar_t *source,
                                     const wchar_t *destination,
                                     const wchar_t *working_dir,
