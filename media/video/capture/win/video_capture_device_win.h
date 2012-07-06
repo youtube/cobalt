@@ -17,8 +17,8 @@
 #include <map>
 #include <string>
 
+#include "base/threading/non_thread_safe.h"
 #include "base/threading/thread.h"
-#include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_comptr.h"
 #include "media/video/capture/video_capture_device.h"
 #include "media/video/capture/video_capture_types.h"
@@ -27,8 +27,10 @@
 
 namespace media {
 
+// All the methods in the class can only be run on a COM initialized thread.
 class VideoCaptureDeviceWin
-    : public VideoCaptureDevice,
+    : public base::NonThreadSafe,
+      public VideoCaptureDevice,
       public SinkFilterObserver {
  public:
   explicit VideoCaptureDeviceWin(const Name& device_name);
@@ -63,8 +65,6 @@ class VideoCaptureDeviceWin
   bool CreateCapabilityMap();
   int GetBestMatchedCapability(int width, int height, int frame_rate);
   void SetErrorState(const char* reason);
-
-  base::win::ScopedCOMInitializer initialize_com_;
 
   Name device_name_;
   InternalState state_;
