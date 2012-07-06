@@ -828,9 +828,20 @@
     'sas_dll_exists': '<!(python <(DEPTH)/build/dir_exists.py <(sas_dll_path))',
     'wix_exists': '<!(python <(DEPTH)/build/dir_exists.py <(wix_path))',
 
-    'windows_sdk_path%': '<(DEPTH)/third_party/platformsdk_win8/files',
+    'windows_sdk_default_path': '<(DEPTH)/third_party/platformsdk_win8/files',
+    'directx_sdk_default_path': '<(DEPTH)/third_party/directxsdk/files',
 
     'conditions': [
+      ['OS=="win" and "<!(python <(DEPTH)/build/dir_exists.py <(windows_sdk_default_path))"=="True"', {
+        'windows_sdk_path%': '<(windows_sdk_default_path)',
+      }, {
+        'windows_sdk_path%': 'C:/Program Files (x86)/Windows Kits/8.0',
+      }],
+      ['OS=="win" and "<!(python <(DEPTH)/build/dir_exists.py <(directx_sdk_default_path))"=="True"', {
+        'directx_sdk_path%': '<(directx_sdk_default_path)',
+      }, {
+        'directx_sdk_path%': '$(DXSDK_DIR)',
+      }],
       ['os_posix==1 and OS!="mac" and OS!="ios"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
@@ -3044,7 +3055,7 @@
           '<(windows_sdk_path)/Include/shared',
           '<(windows_sdk_path)/Include/um',
           '<(windows_sdk_path)/Include/winrt',
-          '<(DEPTH)/third_party/directxsdk/files/Include',
+          '<(directx_sdk_path)/Include',
           '$(VSInstallDir)/VC/atlmfc/include',
         ],
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
@@ -3081,7 +3092,7 @@
           'VCLibrarianTool': {
             'AdditionalOptions': ['/ignore:4221'],
             'AdditionalLibraryDirectories': [
-              '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
+              '<(directx_sdk_path)/Lib/x86',
               '<(windows_sdk_path)/Lib/win8/um/x86',
             ],
           },
@@ -3127,7 +3138,7 @@
               }],
             ],
             'AdditionalLibraryDirectories': [
-              '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
+              '<(directx_sdk_path)/Lib/x86',
               '<(windows_sdk_path)/Lib/win8/um/x86',
             ],
             'GenerateDebugInformation': 'true',
