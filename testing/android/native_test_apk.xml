@@ -14,10 +14,15 @@ found in the LICENSE file.
   <property environment="env"/>
   <property name="sdk.dir" location="${env.ANDROID_SDK_ROOT}"/>
   <property name="sdk.version" value="${env.ANDROID_SDK_VERSION}"/>
+  <property name="toolchain.dir" location="${env.ANDROID_TOOLCHAIN}"/>
   <property name="src" location="."/>
   <property name="source.dir" location="java"/>
+  <property name="target.abi" value="${APP_ABI}"/>
 
   <property name="target" value="android-${env.ANDROID_SDK_VERSION}"/>
+  <path id="native.libs.gdbserver">
+    <fileset file="${toolchain.dir}/../../gdbserver"/>
+  </path>
 
   <condition property="location.base" 
              value="${sdk.dir}" 
@@ -56,6 +61,21 @@ found in the LICENSE file.
   <property name="jar.libs.dir" value="${out.dir}/java/libs"/>
   <property name="native.libs.absolute.dir" location="${out.dir}/libs" />
   -->
+
+  <target name="-post-compile">
+    <!-- copy gdbserver to main libs directory if building debug. -->
+    <if>
+      <condition>
+        <equals arg1="${build.target}" arg2="debug" />
+      </condition>
+      <then>
+        <echo message="Copying gdbserver to the apk to enable native debugging"/>
+        <copy todir="${out.dir}/libs/${target.abi}">
+          <path refid="native.libs.gdbserver"/>
+        </copy>
+      </then>
+    </if>
+  </target>
 
   <import file="${sdk.dir}/tools/ant/build.xml" />
 
