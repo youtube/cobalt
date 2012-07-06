@@ -180,7 +180,6 @@ static const char kGoogleCameraAdapter[] = "google camera adapter";
 void VideoCaptureDevice::GetDeviceNames(Names* device_names) {
   DCHECK(device_names);
 
-  base::win::ScopedCOMInitializer coinit;
   ScopedComPtr<ICreateDevEnum> dev_enum;
   HRESULT hr = dev_enum.CreateInstance(CLSID_SystemDeviceEnum, NULL,
                                        CLSCTX_INPROC);
@@ -255,9 +254,11 @@ VideoCaptureDeviceWin::VideoCaptureDeviceWin(const Name& device_name)
     : device_name_(device_name),
       state_(kIdle),
       observer_(NULL) {
+  DetachFromThread();
 }
 
 VideoCaptureDeviceWin::~VideoCaptureDeviceWin() {
+  DCHECK(CalledOnValidThread());
   if (media_control_)
     media_control_->Stop();
 
@@ -276,6 +277,7 @@ VideoCaptureDeviceWin::~VideoCaptureDeviceWin() {
 }
 
 bool VideoCaptureDeviceWin::Init() {
+  DCHECK(CalledOnValidThread());
   HRESULT hr = GetDeviceFilter(device_name_, capture_filter_.Receive());
   if (!capture_filter_) {
     DVLOG(2) << "Failed to create capture filter.";
@@ -331,6 +333,7 @@ void VideoCaptureDeviceWin::Allocate(
     int height,
     int frame_rate,
     VideoCaptureDevice::EventHandler* observer) {
+  DCHECK(CalledOnValidThread());
   if (state_ != kIdle)
     return;
 
@@ -427,6 +430,7 @@ void VideoCaptureDeviceWin::Allocate(
 }
 
 void VideoCaptureDeviceWin::Start() {
+  DCHECK(CalledOnValidThread());
   if (state_ != kAllocated)
     return;
 
@@ -440,6 +444,7 @@ void VideoCaptureDeviceWin::Start() {
 }
 
 void VideoCaptureDeviceWin::Stop() {
+  DCHECK(CalledOnValidThread());
   if (state_ != kCapturing)
     return;
 
@@ -453,6 +458,7 @@ void VideoCaptureDeviceWin::Stop() {
 }
 
 void VideoCaptureDeviceWin::DeAllocate() {
+  DCHECK(CalledOnValidThread());
   if (state_ == kIdle)
     return;
 
@@ -475,6 +481,7 @@ void VideoCaptureDeviceWin::DeAllocate() {
 }
 
 const VideoCaptureDevice::Name& VideoCaptureDeviceWin::device_name() {
+  DCHECK(CalledOnValidThread());
   return device_name_;
 }
 
@@ -485,6 +492,7 @@ void VideoCaptureDeviceWin::FrameReceived(const uint8* buffer,
 }
 
 bool VideoCaptureDeviceWin::CreateCapabilityMap() {
+  DCHECK(CalledOnValidThread());
   ScopedComPtr<IAMStreamConfig> stream_config;
   HRESULT hr = output_capture_pin_.QueryInterface(stream_config.Receive());
   if (FAILED(hr)) {
@@ -594,6 +602,7 @@ bool VideoCaptureDeviceWin::CreateCapabilityMap() {
 int VideoCaptureDeviceWin::GetBestMatchedCapability(int requested_width,
                                                     int requested_height,
                                                     int requested_frame_rate) {
+  DCHECK(CalledOnValidThread());
   std::list<ResolutionDiff> diff_list;
 
   // Loop through the candidates to create a list of differentials between the
@@ -653,6 +662,7 @@ int VideoCaptureDeviceWin::GetBestMatchedCapability(int requested_width,
 }
 
 void VideoCaptureDeviceWin::SetErrorState(const char* reason) {
+  DCHECK(CalledOnValidThread());
   DVLOG(1) << reason;
   state_ = kError;
   observer_->OnError();
