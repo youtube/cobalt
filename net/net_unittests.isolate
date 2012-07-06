@@ -4,31 +4,31 @@
 {
   'variables': {
     'isolate_dependency_tracked': [
-      '<(PRODUCT_DIR)/net_unittests<(EXECUTABLE_SUFFIX)',
       '../testing/test_env.py',
       '../third_party/pyftpdlib/src/pyftpdlib/__init__.py',
       '../third_party/pyftpdlib/src/pyftpdlib/ftpserver.py',
+      '<(PRODUCT_DIR)/net_unittests<(EXECUTABLE_SUFFIX)',
     ],
     'isolate_dependency_untracked': [
+      '../third_party/tlslite/tlslite/',
       'data/',
       'tools/testserver/',
-      '../third_party/tlslite/tlslite/',
     ],
   },
   'conditions': [
     ['OS=="linux"', {
       'variables': {
-        'isolate_dependency_tracked': [
-          '../testing/xvfb.py',
-          '<(PRODUCT_DIR)/xdisplaycheck<(EXECUTABLE_SUFFIX)',
-        ],
         'command': [
           '../testing/xvfb.py',
           '<(PRODUCT_DIR)',
           '<(PRODUCT_DIR)/net_unittests<(EXECUTABLE_SUFFIX)',
         ],
+        'isolate_dependency_tracked': [
+          '../testing/xvfb.py',
+          '<(PRODUCT_DIR)/xdisplaycheck<(EXECUTABLE_SUFFIX)',
+        ],
       },
-    }, {  # else
+    }, {
       'variables': {
         'command': [
           '../testing/test_env.py',
@@ -39,6 +39,9 @@
     ['OS=="win"', {
       'variables': {
         'isolate_dependency_tracked': [
+          '<(PRODUCT_DIR)/icudt.dll',
+          'data/ssl/certificates/unittest.key.bin',
+          'data/ssl/certificates/unittest.selfsigned.der',
         ],
       },
     }],
