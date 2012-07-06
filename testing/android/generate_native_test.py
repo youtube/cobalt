@@ -145,6 +145,7 @@ class NativeTestApkGenerator(object):
     cmd = ['ant']
     if ant_args:
       cmd.append(ant_args)
+    cmd.append("-DAPP_ABI=" + self._target_abi)
     cmd.extend(['-buildfile',
                 os.path.join(self._output_directory, 'native_test_apk.xml')])
     logging.warn(cmd)
