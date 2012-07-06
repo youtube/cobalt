@@ -38,9 +38,6 @@
           'data/ssl/certificates/dod_ca_13_cert.der',
           'data/ssl/certificates/punycodetest.der',
         ],
-        'isolate_dependency_untracked': [
-          '<(PRODUCT_DIR)/Cache/',
-        ],
       },
     }, {
       'variables': {
