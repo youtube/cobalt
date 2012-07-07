@@ -26,9 +26,14 @@ base::LazyInstance<ThreadLocalBoolean>::Leaky
     g_worker_pool_running_on_this_thread = LAZY_INSTANCE_INITIALIZER;
 
 const int kIdleSecondsBeforeExit = 10 * 60;
+
+#ifdef ADDRESS_SANITIZER
+const int kWorkerThreadStackSize = 256 * 1024;
+#else
 // A stack size of 64 KB is too small for the CERT_PKIXVerifyCert
 // function of NSS because of NSS bug 439169.
 const int kWorkerThreadStackSize = 128 * 1024;
+#endif
 
 class WorkerPoolImpl {
  public:
