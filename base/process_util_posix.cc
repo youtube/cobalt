@@ -905,6 +905,12 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
   return false;
 }
 
+bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
+                                base::TimeDelta timeout) {
+  return WaitForExitCodeWithTimeout(
+      handle, exit_code, timeout.InMilliseconds());
+}
+
 #if defined(OS_MACOSX)
 // Using kqueue on Mac so that we can wait on non-child processes.
 // We can't use kqueues on child processes because we need to reap
@@ -1230,6 +1236,12 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
   } while ((end_time - base::Time::Now()) > base::TimeDelta());
 
   return result;
+}
+
+bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
+                            base::TimeDelta wait,
+                            const ProcessFilter* filter) {
+  return WaitForProcessesToExit(executable_name, wait.InMilliseconds(), filter);
 }
 
 bool CleanupProcesses(const FilePath::StringType& executable_name,
