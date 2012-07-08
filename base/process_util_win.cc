@@ -428,7 +428,7 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
     return false;
   }
 
-  std::wstring writable_command_line_string(cl.GetCommandLineString());
+  FilePath::StringType writable_command_line_string(cl.GetCommandLineString());
 
   base::win::ScopedProcessInformation proc_info;
   STARTUPINFO start_info = { 0 };
@@ -556,6 +556,12 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
   return true;
 }
 
+bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
+                                base::TimeDelta timeout) {
+  return WaitForExitCodeWithTimeout(
+      handle, exit_code, timeout.InMilliseconds());
+}
+
 ProcessIterator::ProcessIterator(const ProcessFilter* filter)
     : started_iteration_(false),
       filter_(filter) {
@@ -588,7 +594,7 @@ bool NamedProcessIterator::IncludeEntry() {
          ProcessIterator::IncludeEntry();
 }
 
-bool WaitForProcessesToExit(const std::wstring& executable_name,
+bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
                             int64 wait_milliseconds,
                             const ProcessFilter* filter) {
   const ProcessEntry* entry;
@@ -610,6 +616,12 @@ bool WaitForProcessesToExit(const std::wstring& executable_name,
   return result;
 }
 
+bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
+                            base::TimeDelta wait,
+                            const ProcessFilter* filter) {
+  return WaitForProcessesToExit(executable_name, wait.InMilliseconds(), filter);
+}
+
 bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
   int exit_code;
   if (!WaitForExitCodeWithTimeout(handle, &exit_code, wait_milliseconds))
@@ -617,7 +629,7 @@ bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
   return exit_code == 0;
 }
 
-bool CleanupProcesses(const std::wstring& executable_name,
+bool CleanupProcesses(const FilePath::StringType& executable_name,
                       int64 wait_milliseconds,
                       int exit_code,
                       const ProcessFilter* filter) {

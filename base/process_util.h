@@ -510,6 +510,9 @@ BASE_EXPORT bool WaitForExitCode(ProcessHandle handle, int* exit_code);
 BASE_EXPORT bool WaitForExitCodeWithTimeout(ProcessHandle handle,
                                             int* exit_code,
                                             int64 timeout_milliseconds);
+BASE_EXPORT bool WaitForExitCodeWithTimeout(ProcessHandle handle,
+                                            int* exit_code,
+                                            base::TimeDelta timeout);
 
 // Wait for all the processes based on the named executable to exit.  If filter
 // is non-null, then only processes selected by the filter are waited on.
@@ -518,6 +521,10 @@ BASE_EXPORT bool WaitForExitCodeWithTimeout(ProcessHandle handle,
 BASE_EXPORT bool WaitForProcessesToExit(
     const FilePath::StringType& executable_name,
     int64 wait_milliseconds,
+    const ProcessFilter* filter);
+BASE_EXPORT bool WaitForProcessesToExit(
+    const FilePath::StringType& executable_name,
+    base::TimeDelta wait,
     const ProcessFilter* filter);
 
 // Wait for a single process to exit. Return true if it exited cleanly within
