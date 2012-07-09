@@ -37,25 +37,32 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     error_count_++;
   }
 
-  void OnSynStream(const SpdySynStreamControlFrame& frame,
-             const linked_ptr<SpdyHeaderBlock>& headers) {
-    header_stream_id_ = frame.stream_id();
+  void OnSynStream(SpdyStreamId stream_id,
+                   SpdyStreamId associated_stream_id,
+                   SpdyPriority priority,
+                   uint8 credential_slot,
+                   bool fin,
+                   bool unidirectional,
+                   const linked_ptr<SpdyHeaderBlock>& headers) {
+    header_stream_id_ = stream_id;
     EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
     syn_frame_count_++;
     headers_ = *headers;
   }
 
-  void OnSynReply(const SpdySynReplyControlFrame& frame,
+  void OnSynReply(SpdyStreamId stream_id,
+                  bool fin,
                   const linked_ptr<SpdyHeaderBlock>& headers) {
-    header_stream_id_ = frame.stream_id();
+    header_stream_id_ = stream_id;
     EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
     syn_reply_frame_count_++;
     headers_ = *headers;
   }
 
-  void OnHeaders(const SpdyHeadersControlFrame& frame,
+  void OnHeaders(SpdyStreamId stream_id,
+                 bool fin,
                  const linked_ptr<SpdyHeaderBlock>& headers) {
-    header_stream_id_ = frame.stream_id();
+    header_stream_id_ = stream_id;
     EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
     headers_frame_count_++;
     headers_ = *headers;
@@ -71,6 +78,13 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     setting_count_++;
   }
 
+  void OnPing(uint32 unique_id) {}
+
+  void OnRstStream(SpdyStreamId stream_id, SpdyStatusCodes status) {}
+
+  void OnGoAway(SpdyStreamId last_accepted_stream_id,
+                SpdyGoAwayStatus status) {}
+
   void OnControlFrameCompressed(
       const SpdyControlFrame& uncompressed_frame,
       const SpdyControlFrame& compressed_frame) {
@@ -85,25 +99,10 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     LOG(FATAL) << "Unexpected OnDataFrameHeader call.";
   }
 
-  void OnControl(const SpdyControlFrame* frame) {
-    uint32 type = frame->type();
-    switch (type) {
-      case SYN_STREAM:
-      case SYN_REPLY:
-      case HEADERS:
-        header_stream_id_ = SpdyFramer::GetControlFrameStreamId(frame);
-        EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
-        buffered_spdy_framer_.OnControl(frame);
-        break;
-      default:
-        LOG(FATAL) << "Unexpected frame type." << type;
-    }
-  }
-
   void OnRstStream(const SpdyRstStreamControlFrame& frame) {}
   void OnGoAway(const SpdyGoAwayControlFrame& frame) {}
   void OnPing(const SpdyPingControlFrame& frame) {}
-  void OnWindowUpdate(const SpdyWindowUpdateControlFrame& frame) {}
+  void OnWindowUpdate(SpdyStreamId stream_id, int delta_window_size) {}
   void OnCredential(const SpdyCredentialControlFrame& frame) {}
 
   // Convenience function which runs a framer simulation with particular input.

@@ -467,28 +467,35 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   virtual void OnError(SpdyFramer::SpdyError error_code) OVERRIDE;
   virtual void OnStreamError(SpdyStreamId stream_id,
                              const std::string& description) OVERRIDE;
-  virtual void OnRstStream(
-      const SpdyRstStreamControlFrame& frame) OVERRIDE;
-  virtual void OnGoAway(const SpdyGoAwayControlFrame& frame) OVERRIDE;
-  virtual void OnPing(const SpdyPingControlFrame& frame) OVERRIDE;
-  virtual void OnWindowUpdate(
-      const SpdyWindowUpdateControlFrame& frame) OVERRIDE;
+  virtual void OnPing(uint32 unique_id) OVERRIDE;
+  virtual void OnRstStream(SpdyStreamId stream_id,
+                           SpdyStatusCodes status) OVERRIDE;
+  virtual void OnGoAway(SpdyStreamId last_accepted_stream_id,
+                        SpdyGoAwayStatus status) OVERRIDE;
   virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len) OVERRIDE;
   virtual void OnSetting(
       SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
+  virtual void OnWindowUpdate(SpdyStreamId stream_id,
+                              int delta_window_size) OVERRIDE;
   virtual void OnControlFrameCompressed(
       const SpdyControlFrame& uncompressed_frame,
       const SpdyControlFrame& compressed_frame) OVERRIDE;
-  virtual void OnSynStream(
-      const SpdySynStreamControlFrame& frame,
-      const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
+  virtual void OnSynStream(SpdyStreamId stream_id,
+                           SpdyStreamId associated_stream_id,
+                           SpdyPriority priority,
+                           uint8 credential_slot,
+                           bool fin,
+                           bool unidirectional,
+                           const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
   virtual void OnSynReply(
-      const SpdySynReplyControlFrame& frame,
+      SpdyStreamId stream_id,
+      bool fin,
       const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
   virtual void OnHeaders(
-      const SpdyHeadersControlFrame& frame,
+      SpdyStreamId stream_id,
+      bool fin,
       const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
 
   // --------------------------
