@@ -52,7 +52,7 @@ class VideoRendererBaseTest : public ::testing::Test {
         base::Bind(&VideoRendererBaseTest::SetOpaqueCBWasCalled,
                    base::Unretained(this)),
         true);
-    renderer_->set_host(&host_);
+    renderer_->SetHost(&host_);
 
     EXPECT_CALL(*decoder_, natural_size())
         .WillRepeatedly(ReturnRef(kNaturalSize));

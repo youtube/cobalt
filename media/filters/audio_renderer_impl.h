@@ -41,6 +41,7 @@ class MEDIA_EXPORT AudioRendererImpl
 
   // Methods called on pipeline thread ----------------------------------------
   // Filter implementation.
+  virtual void SetHost(FilterHost* host) OVERRIDE;
   virtual void Play(const base::Closure& callback) OVERRIDE;
   virtual void Pause(const base::Closure& callback) OVERRIDE;
   virtual void Flush(const base::Closure& callback) OVERRIDE;
@@ -129,6 +130,8 @@ class MEDIA_EXPORT AudioRendererImpl
   // |seek_timestamp_|. This can only return true while
   // in the kSeeking state.
   bool IsBeforeSeekTime(const scoped_refptr<Buffer>& buffer);
+
+  FilterHost* host_;
 
   // Audio decoder.
   scoped_refptr<AudioDecoder> decoder_;
