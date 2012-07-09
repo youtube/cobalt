@@ -173,9 +173,8 @@ URLRequestContextBuilder::HostResolverParams::HostResolverParams()
 URLRequestContextBuilder::HostResolverParams::~HostResolverParams() {}
 
 URLRequestContextBuilder::HttpCacheParams::HttpCacheParams()
-    : type(DISK),
-      max_size(0),
-      path(FILE_PATH_LITERAL("Cache")) {}
+    : type(IN_MEMORY),
+      max_size(0) {}
 URLRequestContextBuilder::HttpCacheParams::~HttpCacheParams() {}
 
 URLRequestContextBuilder::URLRequestContextBuilder()
