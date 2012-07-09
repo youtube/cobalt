@@ -13,6 +13,7 @@
 #include "media/base/video_decoder_config.h"
 #include "media/mp4/box_definitions.h"
 #include "media/mp4/box_reader.h"
+#include "media/mp4/es_descriptor.h"
 #include "media/mp4/rcheck.h"
 
 namespace media {
@@ -162,10 +163,13 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       //         (entry.format == FOURCC_ENCA &&
       //          entry.sinf.format.format == FOURCC_MP4A));
 
-      const ChannelLayout layout =
-          AVC::ConvertAACChannelCountToChannelLayout(entry.channelcount);
-      audio_config.Initialize(kCodecAAC, entry.samplesize, layout,
-                              entry.samplerate, NULL, 0, false);
+      // Check if it is MPEG4 AAC defined in ISO 14496 Part 3.
+      RCHECK(entry.esds.object_type == kISO_14496_3);
+      aac_ = entry.esds.aac;
+      audio_config.Initialize(kCodecAAC, entry.samplesize,
+                              aac_.channel_layout(), aac_.frequency(),
+                              NULL, 0, false);
+
       has_audio_ = true;
       audio_track_id_ = track->header.track_id;
     }
@@ -289,6 +293,10 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
       RCHECK(avc_config != NULL);
       RCHECK(AVC::InsertParameterSets(*avc_config, &frame_buf));
     }
+  }
+
+  if (audio) {
+    aac_.ConvertEsdsToADTS(&frame_buf);
   }
 
   scoped_refptr<StreamParserBuffer> stream_buf =
