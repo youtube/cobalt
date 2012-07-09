@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,6 +33,9 @@ namespace crypto {
 class CRYPTO_EXPORT ECPrivateKey {
  public:
   ~ECPrivateKey();
+
+  // Returns whether the system supports elliptic curve cryptography.
+  static bool IsSupported();
 
   // Creates a new random instance. Can return NULL if initialization fails.
   // The created key will use the NIST P-256 curve.
