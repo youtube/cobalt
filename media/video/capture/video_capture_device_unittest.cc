@@ -106,8 +106,7 @@ TEST_F(VideoCaptureDeviceTest, CaptureVGA) {
   device->Start();
   // Get captured video frames.
   PostQuitTask();
-  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
-      TestTimeouts::action_max_timeout_ms())));
+  EXPECT_TRUE(wait_event_.TimedWait(TestTimeouts::action_max_timeout()));
   device->Stop();
   device->DeAllocate();
 }
@@ -136,8 +135,7 @@ TEST_F(VideoCaptureDeviceTest, Capture720p) {
   device->Start();
   // Get captured video frames.
   PostQuitTask();
-  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
-      TestTimeouts::action_max_timeout_ms())));
+  EXPECT_TRUE(wait_event_.TimedWait(TestTimeouts::action_max_timeout()));
   device->Stop();
   device->DeAllocate();
 }
@@ -190,8 +188,7 @@ TEST_F(VideoCaptureDeviceTest, ReAllocateCamera) {
   device->Start();
   // Get captured video frames.
   PostQuitTask();
-  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
-      TestTimeouts::action_max_timeout_ms())));
+  EXPECT_TRUE(wait_event_.TimedWait(TestTimeouts::action_max_timeout()));
   device->Stop();
   device->DeAllocate();
 }
@@ -216,8 +213,7 @@ TEST_F(VideoCaptureDeviceTest, DeAllocateCameraWhileRunning) {
   device->Start();
   // Get captured video frames.
   PostQuitTask();
-  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
-      TestTimeouts::action_max_timeout_ms())));
+  EXPECT_TRUE(wait_event_.TimedWait(TestTimeouts::action_max_timeout()));
   device->DeAllocate();
 }
 
@@ -242,8 +238,7 @@ TEST_F(VideoCaptureDeviceTest, TestFakeCapture) {
   device->Allocate(640, 480, 30, frame_observer_.get());
 
   device->Start();
-  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
-      TestTimeouts::action_max_timeout_ms())));
+  EXPECT_TRUE(wait_event_.TimedWait(TestTimeouts::action_max_timeout()));
   device->Stop();
   device->DeAllocate();
 }
