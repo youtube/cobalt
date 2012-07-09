@@ -52,23 +52,29 @@ class Destroyable : public MockClass {
   DISALLOW_COPY_AND_ASSIGN(Destroyable);
 };
 
+// TODO(scherkus): remove when CompositeFilter is removed, see
+// http://crbug.com/126069
 class MockFilter : public Filter {
  public:
   MockFilter();
 
   // Filter implementation.
+  void SetHost(FilterHost* host) OVERRIDE;
   MOCK_METHOD1(Play, void(const base::Closure& callback));
   MOCK_METHOD1(Pause, void(const base::Closure& callback));
   MOCK_METHOD1(Flush, void(const base::Closure& callback));
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
-  MOCK_METHOD0(OnAudioRendererDisabled, void());
+
+  FilterHost* host() { return host_; }
 
  protected:
   virtual ~MockFilter();
 
  private:
+  FilterHost* host_;
+
   DISALLOW_COPY_AND_ASSIGN(MockFilter);
 };
 
@@ -160,10 +166,13 @@ class MockVideoRenderer : public VideoRenderer {
   MockVideoRenderer();
 
   // Filter implementation.
+  MOCK_METHOD1(SetHost, void(FilterHost* host));
+  MOCK_METHOD1(Play, void(const base::Closure& callback));
+  MOCK_METHOD1(Pause, void(const base::Closure& callback));
+  MOCK_METHOD1(Flush, void(const base::Closure& callback));
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
-  MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // VideoRenderer implementation.
   MOCK_METHOD4(Initialize, void(const scoped_refptr<VideoDecoder>& decoder,
@@ -189,10 +198,13 @@ class MockAudioRenderer : public AudioRenderer {
   MockAudioRenderer();
 
   // Filter implementation.
+  MOCK_METHOD1(SetHost, void(FilterHost* host));
+  MOCK_METHOD1(Play, void(const base::Closure& callback));
+  MOCK_METHOD1(Pause, void(const base::Closure& callback));
+  MOCK_METHOD1(Flush, void(const base::Closure& callback));
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
-  MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // AudioRenderer implementation.
   MOCK_METHOD4(Initialize, void(const scoped_refptr<AudioDecoder>& decoder,
@@ -295,12 +307,6 @@ ACTION_P2(SetError, filter, error) {
 // filter.
 ACTION_P2(SetDuration, filter, duration) {
   filter->host()->SetDuration(duration);
-}
-
-// Helper gmock action that calls DisableAudioRenderer() on behalf of the
-// provided filter.
-ACTION_P(DisableAudioRenderer, filter) {
-  filter->host()->DisableAudioRenderer();
 }
 
 // Helper mock statistics callback.

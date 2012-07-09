@@ -104,9 +104,13 @@ void RunClosure(const base::Closure& closure) {
   closure.Run();
 }
 
-MockFilter::MockFilter() {}
+MockFilter::MockFilter() : host_(NULL) {}
 
 MockFilter::~MockFilter() {}
+
+void MockFilter::SetHost(FilterHost* host) {
+  host_ = host;
+}
 
 MockStatisticsCB::MockStatisticsCB() {}
 

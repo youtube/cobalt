@@ -16,7 +16,8 @@
 namespace media {
 
 AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
-    : state_(kUninitialized),
+    : host_(NULL),
+      state_(kUninitialized),
       pending_read_(false),
       received_end_of_stream_(false),
       rendered_end_of_stream_(false),
@@ -30,6 +31,12 @@ AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
       underflow_disabled_(false),
       read_cb_(base::Bind(&AudioRendererImpl::DecodedAudioReady,
                           base::Unretained(this))) {
+}
+
+void AudioRendererImpl::SetHost(FilterHost* host) {
+  DCHECK(host);
+  DCHECK(!host_);
+  host_ = host;
 }
 
 void AudioRendererImpl::Play(const base::Closure& callback) {
@@ -417,7 +424,7 @@ uint32 AudioRendererImpl::FillBuffer(uint8* dest,
     if (!algorithm_->CanFillBuffer() && received_end_of_stream_ &&
         !rendered_end_of_stream_ && base::Time::Now() >= earliest_end_time_) {
       rendered_end_of_stream_ = true;
-      host()->NotifyEnded();
+      host_->NotifyEnded();
     } else if (!algorithm_->CanFillBuffer() && !received_end_of_stream_ &&
                state_ == kPlaying && !underflow_disabled_) {
       state_ = kUnderflow;
@@ -500,7 +507,7 @@ base::TimeDelta AudioRendererImpl::ConvertToDuration(int bytes) {
 }
 
 void AudioRendererImpl::OnRenderError() {
-  host()->DisableAudioRenderer();
+  host_->DisableAudioRenderer();
 }
 
 void AudioRendererImpl::DisableUnderflowForTesting() {
