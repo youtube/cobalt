@@ -33,6 +33,7 @@ bool GetInputDeviceNamesWin(AudioDeviceNames* device_names) {
                                  CLSCTX_INPROC_SERVER,
                                  __uuidof(IMMDeviceEnumerator),
                                  enumerator.ReceiveVoid());
+  DCHECK_NE(hr, CO_E_NOTINITIALIZED);
   if (FAILED(hr)) {
     LOG(WARNING) << "Failed to create IMMDeviceEnumerator: " << std::hex << hr;
     return false;
