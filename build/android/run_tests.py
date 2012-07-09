@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#
 # Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -56,15 +57,15 @@ import subprocess
 import sys
 import time
 
-import android_commands
-from base_test_sharder import BaseTestSharder
-import cmd_helper
-import debug_info
+from pylib import android_commands
+from pylib.base_test_sharder import BaseTestSharder
+from pylib import cmd_helper
+from pylib import debug_info
 import emulator
-import run_tests_helper
-from single_test_runner import SingleTestRunner
-from test_package_executable import TestPackageExecutable
-from test_result import BaseTestResult, TestResults
+from pylib import run_tests_helper
+from pylib.single_test_runner import SingleTestRunner
+from pylib.test_package_executable import TestPackageExecutable
+from pylib.test_result import BaseTestResult, TestResults
 
 _TEST_SUITES = ['base_unittests',
                 'content_unittests',
