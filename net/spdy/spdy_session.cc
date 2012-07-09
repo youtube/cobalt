@@ -47,7 +47,8 @@ const int kDefaultConnectionAtRiskOfLossSeconds = 10;
 const int kHungIntervalSeconds = 10;
 
 Value* NetLogSpdySynCallback(const SpdyHeaderBlock* headers,
-                             SpdyControlFlags flags,
+                             bool fin,
+                             bool unidirectional,
                              SpdyStreamId stream_id,
                              SpdyStreamId associated_stream,
                              NetLog::LogLevel /* log_level */) {
@@ -58,7 +59,8 @@ Value* NetLogSpdySynCallback(const SpdyHeaderBlock* headers,
     headers_list->Append(new StringValue(base::StringPrintf(
         "%s: %s", it->first.c_str(), it->second.c_str())));
   }
-  dict->SetInteger("flags", flags);
+  dict->SetBoolean("fin", fin);
+  dict->SetBoolean("unidirectional", unidirectional);
   dict->Set("headers", headers_list);
   dict->SetInteger("stream_id", stream_id);
   if (associated_stream)
@@ -561,7 +563,10 @@ int SpdySession::WriteSynStream(
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_SYN_STREAM,
-        base::Bind(&NetLogSpdySynCallback, headers.get(), flags, stream_id, 0));
+        base::Bind(&NetLogSpdySynCallback, headers.get(),
+                   (flags & CONTROL_FLAG_FIN) != 0,
+                   (flags & CONTROL_FLAG_UNIDIRECTIONAL) != 0,
+                   stream_id, 0));
   }
 
   return ERR_IO_PENDING;
@@ -1263,17 +1268,18 @@ bool SpdySession::Respond(const SpdyHeaderBlock& headers,
   return true;
 }
 
-void SpdySession::OnSynStream(
-    const SpdySynStreamControlFrame& frame,
-    const linked_ptr<SpdyHeaderBlock>& headers) {
-  SpdyStreamId stream_id = frame.stream_id();
-  SpdyStreamId associated_stream_id = frame.associated_stream_id();
-
+void SpdySession::OnSynStream(SpdyStreamId stream_id,
+                              SpdyStreamId associated_stream_id,
+                              SpdyPriority priority,
+                              uint8 credential_slot,
+                              bool fin,
+                              bool unidirectional,
+                              const linked_ptr<SpdyHeaderBlock>& headers) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_SPDY_SESSION_PUSHED_SYN_STREAM,
         base::Bind(&NetLogSpdySynCallback,
-                   headers.get(), static_cast<SpdyControlFlags>(frame.flags()),
+                   headers.get(), fin, unidirectional,
                    stream_id, associated_stream_id));
   }
 
@@ -1370,15 +1376,14 @@ void SpdySession::OnSynStream(
   push_requests.Increment();
 }
 
-void SpdySession::OnSynReply(const SpdySynReplyControlFrame& frame,
+void SpdySession::OnSynReply(SpdyStreamId stream_id,
+                             bool fin,
                              const linked_ptr<SpdyHeaderBlock>& headers) {
-  SpdyStreamId stream_id = frame.stream_id();
-
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_SYN_REPLY,
         base::Bind(&NetLogSpdySynCallback,
-                   headers.get(), static_cast<SpdyControlFlags>(frame.flags()),
+                   headers.get(), fin, false,// not unidirectional
                    stream_id, 0));
   }
 
@@ -1404,15 +1409,14 @@ void SpdySession::OnSynReply(const SpdySynReplyControlFrame& frame,
   Respond(*headers, stream);
 }
 
-void SpdySession::OnHeaders(const SpdyHeadersControlFrame& frame,
+void SpdySession::OnHeaders(SpdyStreamId stream_id,
+                            bool fin,
                             const linked_ptr<SpdyHeaderBlock>& headers) {
-  SpdyStreamId stream_id = frame.stream_id();
-
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_HEADERS,
         base::Bind(&NetLogSpdySynCallback,
-                   headers.get(), static_cast<SpdyControlFlags>(frame.flags()),
+                   headers.get(), fin, /*unidirectional=*/false,
                    stream_id, 0));
   }
 
@@ -1434,14 +1438,12 @@ void SpdySession::OnHeaders(const SpdyHeadersControlFrame& frame,
   }
 }
 
-void SpdySession::OnRstStream(const SpdyRstStreamControlFrame& frame) {
-  SpdyStreamId stream_id = frame.stream_id();
-
+void SpdySession::OnRstStream(SpdyStreamId stream_id, SpdyStatusCodes status) {
   std::string description;
   net_log().AddEvent(
       NetLog::TYPE_SPDY_SESSION_RST_STREAM,
       base::Bind(&NetLogSpdyRstCallback,
-                 stream_id, frame.status(), &description));
+                 stream_id, status, &description));
 
   if (!IsStreamActive(stream_id)) {
     // NOTE:  it may just be that the stream was cancelled.
@@ -1452,26 +1454,27 @@ void SpdySession::OnRstStream(const SpdyRstStreamControlFrame& frame) {
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
 
-  if (frame.status() == 0) {
+  if (status == 0) {
     stream->OnDataReceived(NULL, 0);
-  } else if (frame.status() == REFUSED_STREAM) {
+  } else if (status == REFUSED_STREAM) {
     DeleteStream(stream_id, ERR_SPDY_SERVER_REFUSED_STREAM);
   } else {
     RecordProtocolErrorHistogram(
         PROTOCOL_ERROR_RST_STREAM_FOR_NON_ACTIVE_STREAM);
     stream->LogStreamError(ERR_SPDY_PROTOCOL_ERROR,
                            base::StringPrintf("SPDY stream closed: %d",
-                                              frame.status()));
+                                              status));
     // TODO(mbelshe): Map from Spdy-protocol errors to something sensical.
     //                For now, it doesn't matter much - it is a protocol error.
     DeleteStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
   }
 }
 
-void SpdySession::OnGoAway(const SpdyGoAwayControlFrame& frame) {
+void SpdySession::OnGoAway(SpdyStreamId last_accepted_stream_id,
+                           SpdyGoAwayStatus status) {
   net_log_.AddEvent(NetLog::TYPE_SPDY_SESSION_GOAWAY,
       base::Bind(&NetLogSpdyGoAwayCallback,
-                 frame.last_accepted_stream_id(),
+                 last_accepted_stream_id,
                  active_streams_.size(),
                  unclaimed_pushed_streams_.size()));
   RemoveFromPool();
@@ -1485,14 +1488,14 @@ void SpdySession::OnGoAway(const SpdyGoAwayControlFrame& frame) {
   // closed.
 }
 
-void SpdySession::OnPing(const SpdyPingControlFrame& frame) {
+void SpdySession::OnPing(uint32 unique_id) {
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_PING,
-      base::Bind(&NetLogSpdyPingCallback, frame.unique_id(), "received"));
+      base::Bind(&NetLogSpdyPingCallback, unique_id, "received"));
 
   // Send response to a PING from server.
-  if (frame.unique_id() % 2 == 0) {
-    WritePingFrame(frame.unique_id());
+  if (unique_id % 2 == 0) {
+    WritePingFrame(unique_id);
     return;
   }
 
@@ -1513,10 +1516,8 @@ void SpdySession::OnPing(const SpdyPingControlFrame& frame) {
   RecordPingRTTHistogram(base::TimeTicks::Now() - last_ping_sent_time_);
 }
 
-void SpdySession::OnWindowUpdate(
-    const SpdyWindowUpdateControlFrame& frame) {
-  SpdyStreamId stream_id = frame.stream_id();
-  int32 delta_window_size = static_cast<int32>(frame.delta_window_size());
+void SpdySession::OnWindowUpdate(SpdyStreamId stream_id,
+                                 int delta_window_size) {
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_RECEIVED_WINDOW_UPDATE,
       base::Bind(&NetLogSpdyWindowUpdateCallback,
