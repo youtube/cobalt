@@ -1074,13 +1074,7 @@ bool SSLClientSocketNSS::Core::Init(PRFileDesc* socket,
   }
 
   if (ssl_config_.channel_id_enabled) {
-    // TODO(mattm): we can do this check on the network task runner only because
-    // we use the NSS internal slot.  If we support other slots in the future,
-    // checking whether they support ECDSA may block NSS, and thus this check
-    // would have to be moved to the NSS task runner.
-    crypto::ScopedPK11Slot slot(crypto::GetPublicNSSKeySlot());
-    if (PK11_DoesMechanism(slot.get(), CKM_EC_KEY_PAIR_GEN) &&
-        PK11_DoesMechanism(slot.get(), CKM_ECDSA)) {
+    if (crypto::ECPrivateKey::IsSupported()) {
       rv = SSL_SetClientChannelIDCallback(
           nss_fd_, SSLClientSocketNSS::Core::ClientChannelIDHandler, this);
       if (rv != SECSuccess)
@@ -2523,7 +2517,8 @@ void SSLClientSocketNSS::Core::RecordChannelIDSupport() const {
   } supported = DISABLED;
   if (channel_id_xtn_negotiated_)
     supported = CLIENT_AND_SERVER;
-  else if (ssl_config_.channel_id_enabled)
+  else if (ssl_config_.channel_id_enabled &&
+           crypto::ECPrivateKey::IsSupported())
     supported = CLIENT_ONLY;
   UMA_HISTOGRAM_ENUMERATION("DomainBoundCerts.Support", supported,
                             DOMAIN_BOUND_CERT_USAGE_MAX);
