@@ -960,8 +960,8 @@
         #     android_gyp
         'android_unit_test_target_type%': 'static_library',
 
-        # Choose static link by build type.
         'conditions': [
+          # Choose static link by build type.
           ['android_build_type==0', {
             'static_link_system_icu%': 1,
           }, {
@@ -1905,6 +1905,10 @@
                 ],
               }],
             ],
+          }],
+          # Android enables DCHECK()s on non-Official release builds.
+          ['OS=="android" and buildtype!="Official"', {
+            'defines!': ['NDEBUG'],
           }],
         ],
       },
