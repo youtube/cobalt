@@ -552,6 +552,20 @@
           }],
           ['OS == "ios"', {
             'sources/': [
+              # Pull in specific Mac files for iOS (which have been filtered out
+              # by file name rules).
+              ['include', '^base_paths_mac\\.'],
+              ['include', '^file_util_mac\\.'],
+              ['include', '^file_version_info_mac\\.'],
+              ['include', '^mac/bundle_locations\\.'],
+              ['include', '^mac/objc_property_releaser\\.'],
+              ['include', '^mac/scoped_nsautorelease_pool\\.'],
+              ['include', '^message_pump_mac\\.'],
+              ['include', '^native_library_mac\\.'],
+              ['include', '^threading/platform_thread_mac\\.'],
+              ['include', '^sys_string_conversions_mac\\.'],
+              ['include', '^time_mac\\.'],
+              ['include', '^worker_pool_mac\\.'],
               # TODO(ios): Remove these as base/ is unforked.
               # For now, exclude everything that doesn't build as-is, just to
               # get something building on a bot.
