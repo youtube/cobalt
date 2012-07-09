@@ -419,7 +419,7 @@ BASE_EXPORT bool VerifyPathControlledByUser(const FilePath& base,
                                             const std::set<gid_t>& group_gids);
 #endif  // defined(OS_POSIX)
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) && !defined(OS_IOS)
 // Is |path| writable only by a user with administrator privileges?
 // This function uses Mac OS conventions.  The super user is assumed to have
 // uid 0, and the administrator group is assumed to be named "admin".
