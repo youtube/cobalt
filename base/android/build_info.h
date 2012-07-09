@@ -69,6 +69,8 @@ class BuildInfo {
 
   void set_java_exception_info(const std::string& info);
 
+  static bool RegisterBindings(JNIEnv* env);
+
  private:
   friend struct BuildInfoSingletonTraits;
 
@@ -90,8 +92,6 @@ class BuildInfo {
 
   DISALLOW_COPY_AND_ASSIGN(BuildInfo);
 };
-
-bool RegisterBuildInfo(JNIEnv* env);
 
 }  // namespace android
 }  // namespace base

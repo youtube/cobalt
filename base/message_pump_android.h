@@ -6,6 +6,8 @@
 #define BASE_MESSAGE_PUMP_ANDROID_H_
 #pragma once
 
+#include <jni.h>
+
 #include "base/compiler_specific.h"
 #include "base/message_pump.h"
 #include "base/time.h"
@@ -18,7 +20,6 @@ class RunLoop;
 class MessagePumpForUI : public MessagePump {
  public:
   MessagePumpForUI();
-  virtual ~MessagePumpForUI();
 
   virtual void Run(Delegate* delegate) OVERRIDE;
   virtual void Quit() OVERRIDE;
@@ -26,6 +27,11 @@ class MessagePumpForUI : public MessagePump {
   virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) OVERRIDE;
 
   virtual void Start(Delegate* delegate);
+
+  static bool RegisterBindings(JNIEnv* env);
+
+ protected:
+  virtual ~MessagePumpForUI();
 
  private:
   base::RunLoop* run_loop_;

@@ -132,8 +132,8 @@ void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
       g_system_message_handler_obj.Get().obj(), millis);
 }
 
-// Register native methods
-bool RegisterSystemMessageHandler(JNIEnv* env) {
+// static
+bool MessagePumpForUI::RegisterBindings(JNIEnv* env) {
   return RegisterNativesImpl(env);
 }
 

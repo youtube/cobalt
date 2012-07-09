@@ -64,7 +64,8 @@ void BuildInfo::set_java_exception_info(const std::string& info) {
   java_exception_info_ = strndup(info.c_str(), 1024);
 }
 
-bool RegisterBuildInfo(JNIEnv* env) {
+// static
+bool BuildInfo::RegisterBindings(JNIEnv* env) {
   return RegisterNativesImpl(env);
 }
 
