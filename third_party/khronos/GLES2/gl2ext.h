@@ -1985,6 +1985,15 @@ typedef void (GL_APIENTRYP PFNGLCOPYTEXTURECHROMIUM) (GLenum target, GLenum sour
 #define GL_COMMANDS_ISSUED_CHROMIUM 0x84F2
 #endif
 
+/* GL_CHROMIUM_get_error_query */
+/* Exposes GL_CHROMIUM_get_error_query.
+ */
+#ifndef GL_CHROMIUM_get_error_query
+#define GL_CHROMIUM_get_error_query 1
+// TODO(gman): Get official numbers for these constants.
+#define GL_GET_ERROR_QUERY_CHROMIUM 0x84F3
+#endif
+
 /* GL_CHROMIUM_texture_mailbox */
 #ifndef GL_CHROMIUM_texture_mailbox
 #define GL_CHROMIUM_texture_mailbox 1

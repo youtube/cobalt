@@ -23,5 +23,6 @@ GLES2/gl2ext.h
  - Added GL_CHROMIUM_command_buffer_query
  - Added GL_CHROMIUM_copy_texture
  - Added GL_CHROMIUM_bind_uniform_location
+ - Added GL_CHROMIUM_get_error_query
 EGL/eglplatform.h
  - Added EGLNative*Type for Mac.
