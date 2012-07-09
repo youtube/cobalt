@@ -623,8 +623,13 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
 }
 
 bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
+  return WaitForSingleProcess(
+      handle, base::TimeDelta::FromMilliseconds(wait_milliseconds));
+}
+
+bool WaitForSingleProcess(ProcessHandle handle, base::TimeDelta wait) {
   int exit_code;
-  if (!WaitForExitCodeWithTimeout(handle, &exit_code, wait_milliseconds))
+  if (!WaitForExitCodeWithTimeout(handle, &exit_code, wait))
     return false;
   return exit_code == 0;
 }
