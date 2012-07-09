@@ -47,6 +47,7 @@ class MEDIA_EXPORT VideoRendererBase
                     bool drop_frames);
 
   // Filter implementation.
+  virtual void SetHost(FilterHost* host) OVERRIDE;
   virtual void Play(const base::Closure& callback) OVERRIDE;
   virtual void Pause(const base::Closure& callback) OVERRIDE;
   virtual void Flush(const base::Closure& callback) OVERRIDE;
@@ -108,6 +109,8 @@ class MEDIA_EXPORT VideoRendererBase
 
   // Return the number of frames currently held by this class.
   int NumFrames_Locked() const;
+
+  FilterHost* host_;
 
   // Used for accessing data members.
   base::Lock lock_;

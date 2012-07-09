@@ -52,7 +52,7 @@ class AudioRendererImplTest : public ::testing::Test {
   AudioRendererImplTest()
       : renderer_(new AudioRendererImpl(new NiceMock<MockAudioSink>())),
         decoder_(new MockAudioDecoder()) {
-    renderer_->set_host(&host_);
+    renderer_->SetHost(&host_);
 
     // Queue all reads from the decoder by default.
     ON_CALL(*decoder_, Read(_))

@@ -18,7 +18,8 @@ namespace media {
 VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb,
                                      const SetOpaqueCB& set_opaque_cb,
                                      bool drop_frames)
-    : frame_available_(&lock_),
+    : host_(NULL),
+      frame_available_(&lock_),
       state_(kUninitialized),
       thread_(base::kNullThreadHandle),
       pending_read_(false),
@@ -29,6 +30,12 @@ VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb,
       paint_cb_(paint_cb),
       set_opaque_cb_(set_opaque_cb) {
   DCHECK(!paint_cb_.is_null());
+}
+
+void VideoRendererBase::SetHost(FilterHost* host) {
+  DCHECK(host);
+  DCHECK(!host_);
+  host_ = host;
 }
 
 void VideoRendererBase::Play(const base::Closure& callback) {
@@ -122,7 +129,7 @@ void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
   time_cb_ = time_cb;
 
   // Notify the pipeline of the video dimensions.
-  host()->SetNaturalVideoSize(decoder_->natural_size());
+  host_->SetNaturalVideoSize(decoder_->natural_size());
 
   // We're all good!  Consider ourselves flushed. (ThreadMain() should never
   // see us in the kUninitialized state).
@@ -201,7 +208,7 @@ void VideoRendererBase::ThreadMain() {
       // This can happen if our preroll only contains end of stream frames.
       if (ready_frames_.front()->IsEndOfStream()) {
         state_ = kEnded;
-        host()->NotifyEnded();
+        host_->NotifyEnded();
         ready_frames_.clear();
 
         // No need to sleep here as we idle when |state_ != kPlaying|.
@@ -240,7 +247,7 @@ void VideoRendererBase::ThreadMain() {
     // |current_frame_|.
     if (ready_frames_.front()->IsEndOfStream()) {
       state_ = kEnded;
-      host()->NotifyEnded();
+      host_->NotifyEnded();
       ready_frames_.clear();
 
       // No need to sleep here as we idle when |state_ != kPlaying|.
@@ -258,7 +265,7 @@ void VideoRendererBase::ThreadMain() {
           break;
 
         base::TimeDelta remaining_time =
-            ready_frames_.front()->GetTimestamp() - host()->GetTime();
+            ready_frames_.front()->GetTimestamp() - host_->GetTime();
 
         // Still a chance we can render the frame!
         if (remaining_time.InMicroseconds() > 0)
@@ -377,7 +384,7 @@ void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
       return;
     }
 
-    host()->SetError(error);
+    host_->SetError(error);
     return;
   }
 
@@ -417,10 +424,10 @@ void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
   // frame rate.  Another way for this to happen is for the container to state a
   // smaller duration than the largest packet timestamp.
   if (!frame->IsEndOfStream()) {
-    if (frame->GetTimestamp() > host()->GetDuration())
-      frame->SetTimestamp(host()->GetDuration());
-    if ((frame->GetTimestamp() + frame->GetDuration()) > host()->GetDuration())
-      frame->SetDuration(host()->GetDuration() - frame->GetTimestamp());
+    if (frame->GetTimestamp() > host_->GetDuration())
+      frame->SetTimestamp(host_->GetDuration());
+    if ((frame->GetTimestamp() + frame->GetDuration()) > host_->GetDuration())
+      frame->SetDuration(host_->GetDuration() - frame->GetTimestamp());
   }
 
   // This one's a keeper! Place it in the ready queue.
@@ -509,7 +516,7 @@ base::TimeDelta VideoRendererBase::CalculateSleepDuration(
     const scoped_refptr<VideoFrame>& next_frame,
     float playback_rate) {
   // Determine the current and next presentation timestamps.
-  base::TimeDelta now = host()->GetTime();
+  base::TimeDelta now = host_->GetTime();
   base::TimeDelta this_pts = current_frame_->GetTimestamp();
   base::TimeDelta next_pts;
   if (!next_frame->IsEndOfStream()) {
