@@ -5,24 +5,21 @@
 #include "base/android/base_jni_registrar.h"
 
 #include "base/basictypes.h"
+#include "base/message_pump_android.h"
 #include "base/android/build_info.h"
-#include "base/android/locale_utils.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_registrar.h"
+#include "base/android/locale_utils.h"
 #include "base/android/path_utils.h"
-
-namespace base {
-bool RegisterSystemMessageHandler(JNIEnv* env);
-}
 
 namespace base {
 namespace android {
 
 static RegistrationMethod kBaseRegisteredMethods[] = {
-  { "BuildInfo", base::android::RegisterBuildInfo },
+  { "BuildInfo", base::android::BuildInfo::RegisterBindings },
   { "LocaleUtils", base::android::RegisterLocaleUtils },
   { "PathUtils", base::android::RegisterPathUtils },
-  { "SystemMessageHandler", base::RegisterSystemMessageHandler },
+  { "SystemMessageHandler", base::MessagePumpForUI::RegisterBindings },
 };
 
 bool RegisterJni(JNIEnv* env) {
