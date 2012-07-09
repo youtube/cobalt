@@ -12,7 +12,7 @@
  "linux-release-64/sizes/nacl_helper_bootstrap-bss/bss": {"reva": 114822, "revb": 115019, "type": "absolute", "better": "lower", "improve": 3898, "regress": 4310, "sha1": "788b809e"},
  "linux-release-64/sizes/nacl_helper_bootstrap-data/data": {"reva": 114822, "revb": 115019, "type": "absolute", "better": "lower", "improve": 38, "regress": 42, "sha1": "02fba443"},
  "linux-release-64/sizes/nacl_helper_bootstrap-si/initializers": {"reva": 114822, "revb": 115019, "type": "absolute", "better": "lower", "improve": 0, "regress": 0, "sha1": "228221af"},
- "linux-release-64/sizes/nacl_helper_bootstrap-text/text": {"reva": 114822, "revb": 115019, "type": "absolute", "better": "lower", "improve": 4454, "regress": 4924, "sha1": "67c7ed4d"},
+ "linux-release-64/sizes/nacl_helper_bootstrap-text/text": {"reva": 114822, "revb": 145661, "type": "absolute", "better": "lower", "improve": 4454, "regress": 5199, "sha1": "baecd008"},
  "linux-release-64/sizes/nacl_helper_bootstrap/nacl_helper_bootstrap": {"reva": 114822, "revb": 115019, "type": "absolute", "better": "lower", "improve": 9076, "regress": 10032, "sha1": "a2d25af5"},
  "linux-release-lowmem/bloat-http/times/t": {"reva": 138345, "revb": 138550, "improve": -1102, "regress": -680, "sha1": "03db6df5"},
  "linux-release-lowmem/database/delete-transactions/t": {"reva": 137912, "revb": 138066, "improve": -1277, "regress": 89, "sha1": "e34d7d0e"},
