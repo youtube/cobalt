@@ -271,6 +271,9 @@
     { "name": "arivo.com.br", "include_subdomains": true, "mode": "force-https" },
     { "name": "www.apollo-auto.com", "include_subdomains": true, "mode": "force-https" },
     { "name": "www.cueup.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "jitsi.org", "mode": "force-https" },
+    { "name": "www.jitsi.org", "mode": "force-https" },
+    { "name": "download.jitsi.org", "mode": "force-https" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
