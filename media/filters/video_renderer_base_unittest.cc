@@ -42,8 +42,7 @@ class VideoRendererBaseTest : public ::testing::Test {
       : decoder_(new MockVideoDecoder()),
         cv_(&lock_),
         event_(false, false),
-        timeout_(base::TimeDelta::FromMilliseconds(
-            TestTimeouts::action_timeout_ms())),
+        timeout_(TestTimeouts::action_timeout()),
         seeking_(false),
         paint_cv_(&lock_),
         paint_was_called_(false),
