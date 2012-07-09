@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+#
 # Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -24,7 +25,7 @@ import sys
 # cmd_helper.py is under ../../build/android/
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                              '..', 'build', 'android')))
-import cmd_helper  # pylint: disable=F0401
+from pylib import cmd_helper  # pylint: disable=F0401
 
 
 class NativeTestApkGenerator(object):

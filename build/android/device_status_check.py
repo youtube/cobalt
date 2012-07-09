@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -10,8 +10,8 @@ import optparse
 import os
 import sys
 
-from android_commands import GetAttachedDevices
-from cmd_helper import GetCmdOutput
+from pylib.android_commands import GetAttachedDevices
+from pylib.cmd_helper import GetCmdOutput
 
 
 def DeviceInfo(serial):
