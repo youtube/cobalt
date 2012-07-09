@@ -216,7 +216,8 @@ TEST_F(StatsTableTest, DISABLED_MultipleProcesses) {
 
   // Wait for the processes to finish.
   for (int index = 0; index < kMaxProcs; index++) {
-    EXPECT_TRUE(WaitForSingleProcess(procs[index], 60 * 1000));
+    EXPECT_TRUE(WaitForSingleProcess(
+        procs[index], base::TimeDelta::FromMinutes(1)));
     CloseProcessHandle(procs[index]);
   }
 
