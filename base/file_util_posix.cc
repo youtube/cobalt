@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fnmatch.h>
-#include <grp.h>
 #include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
@@ -49,6 +48,10 @@
 
 #if defined(OS_ANDROID)
 #include "base/os_compat_android.h"
+#endif
+
+#if !defined(OS_IOS)
+#include <grp.h>
 #endif
 
 namespace file_util {
@@ -1090,7 +1093,7 @@ bool VerifyPathControlledByUser(const FilePath& base,
   return true;
 }
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) && !defined(OS_IOS)
 bool VerifyPathControlledByAdmin(const FilePath& path) {
   const unsigned kRootUid = 0;
   const FilePath kFileSystemRoot("/");
