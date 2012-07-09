@@ -113,8 +113,7 @@ struct NET_EXPORT_PRIVATE SpdySettingsScratch {
 // Control frames that contain SPDY header blocks (SYN_STREAM, SYN_REPLY, and
 // HEADER) are processed in fashion that allows the decompressed header block
 // to be delivered in chunks to the visitor. The following steps are followed:
-//   1. OnControl is called, with either a SpdySynStreamControlFrame,
-//      SpdySynReplyControlFrame, or a SpdyHeaderControlFrame argument.
+//   1. OnSynStream, OnSynReply or OnHeaders is called.
 //   2. Repeated: OnControlFrameHeaderData is called with chunks of the
 //      decompressed header block. In each call the len parameter is greater
 //      than zero.
@@ -135,14 +134,28 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Called if an error is detected in the SpdyFrame protocol.
   virtual void OnError(SpdyFramer* framer) = 0;
 
-  // Called when a control frame is received. Note that SYN_STREAM, SYN_REPLY,
-  // and HEADER control frames do not include the header block data.
-  // (See OnControlFrameHeaderData().)
-  virtual void OnControl(const SpdyControlFrame* frame) = 0;
+  // Called when a SYN_STREAM frame is received.
+  // Note that header block data is not included. See
+  // OnControlFrameHeaderData().
+  virtual void OnSynStream(SpdyStreamId stream_id,
+                           SpdyStreamId associated_stream_id,
+                           SpdyPriority priority,
+                           uint8 credential_slot,
+                           bool fin,
+                           bool unidirectional) = 0;
+
+  // Called when a SYN_REPLY frame is received.
+  // Note that header block data is not included. See
+  // OnControlFrameHeaderData().
+  virtual void OnSynReply(SpdyStreamId stream_id, bool fin) = 0;
+
+  // Called when a HEADERS frame is received.
+  // Note that header block data is not included. See
+  // OnControlFrameHeaderData().
+  virtual void OnHeaders(SpdyStreamId stream_id, bool fin) = 0;
 
   // Called when a chunk of header data is available. This is called
-  // after OnControl() is called with the control frame associated with the
-  // header data being delivered here.
+  // after OnSynStream, OnSynReply or OnHeaders().
   // |stream_id| The stream receiving the header data.
   // |header_data| A buffer containing the header data chunk received.
   // |len| The length of the header data buffer. A length of zero indicates
@@ -155,8 +168,6 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
                                         size_t len) = 0;
 
   // Called when a chunk of payload data for a credential frame is available.
-  // This is called after OnControl() is called with the credential frame
-  // associated with the payload being delivered here.
   // |header_data| A buffer containing the header data chunk received.
   // |len| The length of the header data buffer. A length of zero indicates
   //       that the header data block has been completely sent.
@@ -184,6 +195,20 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Called when a complete setting within a SETTINGS frame has been parsed and
   // validated.
   virtual void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) = 0;
+
+  // Called when a PING frame has been parsed.
+  virtual void OnPing(uint32 unique_id) = 0;
+
+  // Called when a RST_STREAM frame has been parsed.
+  virtual void OnRstStream(SpdyStreamId stream_id, SpdyStatusCodes status) = 0;
+
+  // Called when a GOAWAY frame has been parsed.
+  virtual void OnGoAway(SpdyStreamId last_accepted_stream_id,
+                        SpdyGoAwayStatus status) = 0;
+
+  // Called when a WINDOW_UPDATE frame has been parsed.
+  virtual void OnWindowUpdate(SpdyStreamId stream_id,
+                              int delta_window_size) = 0;
 
   // Called after a control frame has been compressed to allow the visitor
   // to record compression statistics.
