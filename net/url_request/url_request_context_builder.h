@@ -52,7 +52,7 @@ class NET_EXPORT URLRequestContextBuilder {
     HttpCacheParams();
     ~HttpCacheParams();
 
-    // The type of HTTP cache. Default is DISK.
+    // The type of HTTP cache. Default is IN_MEMORY.
     Type type;
 
     // The max size of the cache in bytes. Default is algorithmically determined
