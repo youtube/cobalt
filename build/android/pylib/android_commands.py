@@ -5,30 +5,29 @@
 """Provides an interface to communicate with the device via the adb command.
 
 Assumes adb binary is currently on system path.
-
-Usage:
-  python android_commands.py wait-for-pm
 """
 
 import collections
 import datetime
+import io_stats_parser
 import logging
 import optparse
 import os
 import pexpect
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
 import time
+
 
 # adb_interface.py is under ../../../third_party/android_testrunner/
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..',
    '..', '..', 'third_party', 'android_testrunner'))
 import adb_interface
 import cmd_helper
-import errors  #  is under ../../third_party/android_testrunner/errors.py
-from run_tests_helper import IsRunningAsBuildbot
+import errors  #  is under ../../../third_party/android_testrunner/errors.py
 
 
 # Pattern to search for the next whole line of pexpect output and capture it
@@ -51,14 +50,21 @@ LOCAL_PROPERTIES_PATH = '/data/local.prop'
 JAVA_ASSERT_PROPERTY = 'dalvik.vm.enableassertions'
 
 BOOT_COMPLETE_RE = re.compile(
-    re.escape('android.intent.action.MEDIA_MOUNTED path: /mnt/sdcard')
-    + '|' + re.escape('PowerManagerService: bootCompleted'))
+    'android.intent.action.MEDIA_MOUNTED path: /\w+/sdcard\d?'
+    + '|' + 'PowerManagerService(\(\s+\d+\))?: bootCompleted')
+
+MEMORY_INFO_RE = re.compile('^(?P<key>\w+):\s+(?P<usage_kb>\d+) kB$')
+NVIDIA_MEMORY_INFO_RE = re.compile('^\s*(?P<user>\S+)\s*(?P<name>\S+)\s*'
+                                   '(?P<pid>\d+)\s*(?P<usage_bytes>\d+)$')
 
 # Keycode "enum" suitable for passing to AndroidCommands.SendKey().
+KEYCODE_HOME = 3
+KEYCODE_BACK = 4
+KEYCODE_DPAD_UP = 19
+KEYCODE_DPAD_DOWN = 20
 KEYCODE_DPAD_RIGHT = 22
 KEYCODE_ENTER = 66
 KEYCODE_MENU = 82
-KEYCODE_BACK = 4
 
 
 def GetEmulators():
@@ -189,10 +195,11 @@ def _GetFilesFromRecursiveLsOutput(path, ls_output, re_file, utc_offset=None):
   return files
 
 
-def GetLogTimestamp(log_line):
-  """Returns the timestamp of the given |log_line|."""
+def GetLogTimestamp(log_line, year):
+  """Returns the timestamp of the given |log_line| in the given year."""
   try:
-    return datetime.datetime.strptime(log_line[:18], '%m-%d %H:%M:%S.%f')
+    return datetime.datetime.strptime('%s-%s' % (year, log_line[:18]),
+                                      '%Y-%m-%d %H:%M:%S.%f')
   except (ValueError, IndexError):
     logging.critical('Error reading timestamp from ' + log_line)
     return None
@@ -204,22 +211,27 @@ class AndroidCommands(object):
   Args:
     device: If given, adb commands are only send to the device of this ID.
         Otherwise commands are sent to all attached devices.
-    wait_for_pm: If true, issues an adb wait-for-device command.
   """
 
-  def __init__(self, device=None, wait_for_pm=False):
+  def __init__(self, device=None):
     self._adb = adb_interface.AdbInterface()
     if device:
       self._adb.SetTargetSerial(device)
-    if wait_for_pm:
-      self.WaitForDevicePm()
+    # So many users require root that we just always do it. This could
+    # be made more fine grain if necessary.
+    self._adb.EnableAdbRoot()
     self._logcat = None
     self._original_governor = None
     self._pushed_files = []
+    self._device_utc_offset = self.RunShellCommand('date +%z')[0]
 
   def Adb(self):
     """Returns our AdbInterface to avoid us wrapping all its methods."""
     return self._adb
+
+  def GetDeviceYear(self):
+    """Returns the year information of the date on device"""
+    return self.RunShellCommand('date +%Y')[0]
 
   def WaitForDevicePm(self):
     """Blocks until the device's package manager is available.
@@ -269,33 +281,43 @@ class AndroidCommands(object):
       self.RestartShell()
     self.WaitForDevicePm()
     self.StartMonitoringLogcat(timeout=120)
-    self.WaitForLogMatch(BOOT_COMPLETE_RE)
-    self.UnlockDevice()
+    self.WaitForLogMatch(BOOT_COMPLETE_RE, None)
 
   def Uninstall(self, package):
     """Uninstalls the specified package from the device.
 
     Args:
       package: Name of the package to remove.
+
+    Returns:
+      A status string returned by adb uninstall
     """
     uninstall_command = 'uninstall %s' % package
 
     logging.info('>>> $' + uninstall_command)
-    self._adb.SendCommand(uninstall_command, timeout_time=60)
+    return self._adb.SendCommand(uninstall_command, timeout_time=60)
 
   def Install(self, package_file_path):
     """Installs the specified package to the device.
 
     Args:
       package_file_path: Path to .apk file to install.
-    """
 
+    Returns:
+      A status string returned by adb install
+    """
     assert os.path.isfile(package_file_path)
 
     install_command = 'install %s' % package_file_path
 
     logging.info('>>> $' + install_command)
-    self._adb.SendCommand(install_command, timeout_time=2*60)
+    return self._adb.SendCommand(install_command, timeout_time=2*60)
+
+  def MakeSystemFolderWritable(self):
+    """Remounts the /system folder rw.  """
+    out = self._adb.SendCommand('remount')
+    if out.strip() != 'remount succeeded':
+      raise errors.MsgException('Remount failed: %s' % out)
 
   # It is tempting to turn this function into a generator, however this is not
   # possible without using a private (local) adb_shell instance (to ensure no
@@ -337,44 +359,63 @@ class AndroidCommands(object):
       self.RunShellCommand('kill ' + ' '.join(pids))
     return len(pids)
 
-  def StartActivity(self, package, activity,
-                    action='android.intent.action.VIEW', data=None,
+  def StartActivity(self, package, activity, wait_for_completion=False,
+                    action='android.intent.action.VIEW',
+                    category=None, data=None,
                     extras=None, trace_file_name=None):
     """Starts |package|'s activity on the device.
 
     Args:
-      package: Name of package to start (e.g. 'com.android.chrome').
-      activity: Name of activity (e.g. '.Main' or 'com.android.chrome.Main').
+      package: Name of package to start (e.g. 'com.google.android.apps.chrome').
+      activity: Name of activity (e.g. '.Main' or
+        'com.google.android.apps.chrome.Main').
+      wait_for_completion: wait for the activity to finish launching (-W flag).
+      action: string (e.g. "android.intent.action.MAIN"). Default is VIEW.
+      category: string (e.g. "android.intent.category.HOME")
       data: Data string to pass to activity (e.g. 'http://www.example.com/').
-      extras: Dict of extras to pass to activity.
+      extras: Dict of extras to pass to activity. Values are significant.
       trace_file_name: If used, turns on and saves the trace to this file name.
     """
-    cmd = 'am start -a %s -n %s/%s' % (action, package, activity)
+    cmd = 'am start -a %s' % action
+    if wait_for_completion:
+      cmd += ' -W'
+    if category:
+      cmd += ' -c %s' % category
+    if package and activity:
+      cmd += ' -n %s/%s' % (package, activity)
     if data:
       cmd += ' -d "%s"' % data
     if extras:
-      cmd += ' -e'
       for key in extras:
-        cmd += ' %s %s' % (key, extras[key])
+        value = extras[key]
+        if isinstance(value, str):
+          cmd += ' --es'
+        elif isinstance(value, bool):
+          cmd += ' --ez'
+        elif isinstance(value, int):
+          cmd += ' --ei'
+        else:
+          raise NotImplementedError(
+              'Need to teach StartActivity how to pass %s extras' % type(value))
+        cmd += ' %s %s' % (key, value)
     if trace_file_name:
-      cmd += ' -S -P ' + trace_file_name
+      cmd += ' --start-profiler ' + trace_file_name
     self.RunShellCommand(cmd)
 
-  def EnableAdbRoot(self):
-    """Enable root on the device."""
-    self._adb.EnableAdbRoot()
 
   def CloseApplication(self, package):
     """Attempt to close down the application, using increasing violence.
 
     Args:
-      package: Name of the process to kill off, e.g. com.android.chrome
+      package: Name of the process to kill off, e.g.
+      com.google.android.apps.chrome
     """
     self.RunShellCommand('am force-stop ' + package)
 
   def ClearApplicationState(self, package):
     """Closes and clears all state for the given |package|."""
     self.CloseApplication(package)
+    self.RunShellCommand('rm -r /data/data/%s/app_*' % package)
     self.RunShellCommand('rm -r /data/data/%s/cache/*' % package)
     self.RunShellCommand('rm -r /data/data/%s/files/*' % package)
     self.RunShellCommand('rm -r /data/data/%s/shared_prefs/*' % package)
@@ -423,15 +464,16 @@ class AndroidCommands(object):
     push_command = 'push %s %s' % (local_path, device_path)
     logging.info('>>> $' + push_command)
     output = self._adb.SendCommand(push_command, timeout_time=30*60)
+    assert output
     # Success looks like this: "3035 KB/s (12512056 bytes in 4.025s)"
     # Errors look like this: "failed to copy  ... "
-    if not re.search('^[0-9]', output):
+    if not re.search('^[0-9]', output.splitlines()[-1]):
       logging.critical('PUSH FAILED: ' + output)
 
-  def GetFileContents(self, filename):
+  def GetFileContents(self, filename, log_result=True):
     """Gets contents from the file specified by |filename|."""
     return self.RunShellCommand('if [ -f "' + filename + '" ]; then cat "' +
-                                filename + '"; fi')
+                                filename + '"; fi', log_result=log_result)
 
   def SetFileContents(self, filename, contents):
     """Writes |contents| to the file specified by |filename|."""
@@ -466,13 +508,14 @@ class AndroidCommands(object):
                          '(?P<filename>[^\s]+)$')
     return _GetFilesFromRecursiveLsOutput(
         path, self.RunShellCommand('ls -lR %s' % path), re_file,
-        self.RunShellCommand('date +%z')[0])
+        self._device_utc_offset)
 
   def SetupPerformanceTest(self):
     """Sets up performance tests."""
     # Disable CPU scaling to reduce noise in tests
     if not self._original_governor:
-      self._original_governor = self.RunShellCommand('cat ' + SCALING_GOVERNOR)
+      self._original_governor = self.GetFileContents(
+          SCALING_GOVERNOR, log_result=False)
       self.RunShellCommand('echo performance > ' + SCALING_GOVERNOR)
     self.DropRamCaches()
 
@@ -535,7 +578,10 @@ class AndroidCommands(object):
     """
     if clear:
       self.RunShellCommand('logcat -c')
-    args = ['logcat', '-v', 'threadtime']
+    args = []
+    if self._adb._target_arg:
+      args += shlex.split(self._adb._target_arg)
+    args += ['logcat', '-v', 'threadtime']
     if filters:
       args.extend(filters)
     else:
@@ -560,18 +606,26 @@ class AndroidCommands(object):
       self.StartMonitoringLogcat(clear=False)
     return self._logcat
 
-  def WaitForLogMatch(self, search_re):
-    """Blocks until a line containing |line_re| is logged or a timeout occurs.
+  def WaitForLogMatch(self, success_re, error_re, clear=False):
+    """Blocks until a matching line is logged or a timeout occurs.
 
     Args:
-      search_re: The compiled re to search each line for.
+      success_re: A compiled re to search each line for.
+      error_re: A compiled re which, if found, terminates the search for
+          |success_re|. If None is given, no error condition will be detected.
+      clear: If True the existing logcat output will be cleared, defaults to
+          false.
+
+    Raises:
+      pexpect.TIMEOUT upon the timeout specified by StartMonitoringLogcat().
 
     Returns:
-      The re match object.
+      The re match object if |success_re| is matched first or None if |error_re|
+      is matched first.
     """
     if not self._logcat:
-      self.StartMonitoringLogcat(clear=False)
-    logging.info('<<< Waiting for logcat:' + str(search_re.pattern))
+      self.StartMonitoringLogcat(clear)
+    logging.info('<<< Waiting for logcat:' + str(success_re.pattern))
     t0 = time.time()
     try:
       while True:
@@ -581,15 +635,19 @@ class AndroidCommands(object):
         if time_remaining < 0: raise pexpect.TIMEOUT(self._logcat)
         self._logcat.expect(PEXPECT_LINE_RE, timeout=time_remaining)
         line = self._logcat.match.group(1)
-        search_match = search_re.search(line)
-        if search_match:
-          return search_match
+        if error_re:
+          error_match = error_re.search(line)
+          if error_match:
+            return None
+        success_match = success_re.search(line)
+        if success_match:
+          return success_match
         logging.info('<<< Skipped Logcat Line:' + str(line))
     except pexpect.TIMEOUT:
       raise pexpect.TIMEOUT(
           'Timeout (%ds) exceeded waiting for pattern "%s" (tip: use -vv '
           'to debug)' %
-          (self._logcat.timeout, search_re.pattern))
+          (self._logcat.timeout, success_re.pattern))
 
   def StartRecordingLogcat(self, clear=True, filters=['*:v']):
     """Starts recording logcat output to eventually be saved as a string.
@@ -603,7 +661,8 @@ class AndroidCommands(object):
     """
     if clear:
       self._adb.SendCommand('logcat -c')
-    logcat_command = 'adb logcat -v threadtime %s' % ' '.join(filters)
+    logcat_command = 'adb %s logcat -v threadtime %s' % (self._adb._target_arg,
+                                                         ' '.join(filters))
     self.logcat_process = subprocess.Popen(logcat_command, shell=True,
                                            stdout=subprocess.PIPE)
 
@@ -672,13 +731,18 @@ class AndroidCommands(object):
 
     Returns:
       List of all the process ids (as strings) that match the given name.
+      If the name of a process exactly matches the given name, the pid of
+      that process will be inserted to the front of the pid list.
     """
     pids = []
-    for line in self.RunShellCommand('ps'):
+    for line in self.RunShellCommand('ps', log_result=False):
       data = line.split()
       try:
         if process_name in data[-1]:  # name is in the last column
-          pids.append(data[1])  # PID is in the second column
+          if process_name == data[-1]:
+            pids.insert(0, data[1])  # PID is in the second column
+          else:
+            pids.append(data[1])
       except IndexError:
         pass
     return pids
@@ -690,67 +754,88 @@ class AndroidCommands(object):
       Dict of {num_reads, num_writes, read_ms, write_ms} or None if there
       was an error.
     """
-    # Field definitions.
-    # http://www.kernel.org/doc/Documentation/iostats.txt
-    device = 2
-    num_reads_issued_idx = 3
-    num_reads_merged_idx = 4
-    num_sectors_read_idx = 5
-    ms_spent_reading_idx = 6
-    num_writes_completed_idx = 7
-    num_writes_merged_idx = 8
-    num_sectors_written_idx = 9
-    ms_spent_writing_idx = 10
-    num_ios_in_progress_idx = 11
-    ms_spent_doing_io_idx = 12
-    ms_spent_doing_io_weighted_idx = 13
-
-    for line in self.RunShellCommand('cat /proc/diskstats'):
-      fields = line.split()
-      if fields[device] == 'mmcblk0':
+    for line in self.GetFileContents('/proc/diskstats', log_result=False):
+      stats = io_stats_parser.ParseIoStatsLine(line)
+      if stats.device == 'mmcblk0':
         return {
-            'num_reads': int(fields[num_reads_issued_idx]),
-            'num_writes': int(fields[num_writes_completed_idx]),
-            'read_ms': int(fields[ms_spent_reading_idx]),
-            'write_ms': int(fields[ms_spent_writing_idx]),
+            'num_reads': stats.num_reads_issued,
+            'num_writes': stats.num_writes_completed,
+            'read_ms': stats.ms_spent_reading,
+            'write_ms': stats.ms_spent_writing,
         }
     logging.warning('Could not find disk IO stats.')
     return None
 
-  def GetMemoryUsage(self, package):
+  def GetMemoryUsageForPid(self, pid):
+    """Returns the memory usage for given pid.
+
+    Args:
+      pid: The pid number of the specific process running on device.
+
+    Returns:
+      A tuple containg:
+      [0]: Dict of {metric:usage_kb}, for the process which has specified pid.
+      The metric keys which may be included are: Size, Rss, Pss, Shared_Clean,
+      Shared_Dirty, Private_Clean, Private_Dirty, Referenced, Swap,
+      KernelPageSize, MMUPageSize, Nvidia (tablet only).
+      [1]: Detailed /proc/[PID]/smaps information.
+    """
+    usage_dict = collections.defaultdict(int)
+    smaps = collections.defaultdict(dict)
+    current_smap = ''
+    for line in self.GetFileContents('/proc/%s/smaps' % pid, log_result=False):
+      items = line.split()
+      # See man 5 proc for more details. The format is:
+      # address perms offset dev inode pathname
+      if len(items) > 5:
+        current_smap = ' '.join(items[5:])
+      elif len(items) > 3:
+        current_smap = ' '.join(items[3:])
+      match = re.match(MEMORY_INFO_RE, line)
+      if match:
+        key = match.group('key')
+        usage_kb = int(match.group('usage_kb'))
+        usage_dict[key] += usage_kb
+        if key not in smaps[current_smap]:
+          smaps[current_smap][key] = 0
+        smaps[current_smap][key] += usage_kb
+    if not usage_dict or not any(usage_dict.values()):
+      # Presumably the process died between ps and calling this method.
+      logging.warning('Could not find memory usage for pid ' + str(pid))
+
+    for line in self.GetFileContents('/d/nvmap/generic-0/clients',
+                                     log_result=False):
+      match = re.match(NVIDIA_MEMORY_INFO_RE, line)
+      if match and match.group('pid') == pid:
+        usage_bytes = int(match.group('usage_bytes'))
+        usage_dict['Nvidia'] = int(round(usage_bytes / 1000.0))  # kB
+        break
+
+    return (usage_dict, smaps)
+
+  def GetMemoryUsageForPackage(self, package):
     """Returns the memory usage for all processes whose name contains |pacakge|.
 
     Args:
       name: A string holding process name to lookup pid list for.
 
     Returns:
-      Dict of {metric:usage_kb}, summed over all pids associated with |name|.
-      The metric keys retruned are: Size, Rss, Pss, Shared_Clean, Shared_Dirty,
-      Private_Clean, Private_Dirty, Referenced, Swap, KernelPageSize,
-      MMUPageSize.
+      A tuple containg:
+      [0]: Dict of {metric:usage_kb}, summed over all pids associated with
+           |name|.
+      The metric keys which may be included are: Size, Rss, Pss, Shared_Clean,
+      Shared_Dirty, Private_Clean, Private_Dirty, Referenced, Swap,
+      KernelPageSize, MMUPageSize, Nvidia (tablet only).
+      [1]: a list with detailed /proc/[PID]/smaps information.
     """
     usage_dict = collections.defaultdict(int)
     pid_list = self.ExtractPid(package)
-    # We used to use the showmap command, but it is currently broken on
-    # stingray so it's easier to just parse /proc/<pid>/smaps directly.
-    memory_stat_re = re.compile('^(?P<key>\w+):\s+(?P<value>\d+) kB$')
-    for pid in pid_list:
-      for line in self.RunShellCommand('cat /proc/%s/smaps' % pid,
-                                       log_result=False):
-        match = re.match(memory_stat_re, line)
-        if match: usage_dict[match.group('key')] += int(match.group('value'))
-      if not usage_dict or not any(usage_dict.values()):
-        # Presumably the process died between ps and showmap.
-        logging.warning('Could not find memory usage for pid ' + str(pid))
-    return usage_dict
+    smaps = collections.defaultdict(dict)
 
-  def UnlockDevice(self):
-    """Unlocks the screen of the device."""
-    # Make sure a menu button event will actually unlock the screen.
-    if IsRunningAsBuildbot():
-      assert self.RunShellCommand('getprop ro.test_harness')[0].strip() == '1'
-    # The following keyevent unlocks the screen if locked.
-    self.SendKeyEvent(KEYCODE_MENU)
-    # If the screen wasn't locked the previous command will bring up the menu,
-    # which this will dismiss. Otherwise this shouldn't change anything.
-    self.SendKeyEvent(KEYCODE_BACK)
+    for pid in pid_list:
+      usage_dict_per_pid, smaps_per_pid = self.GetMemoryUsageForPid(pid)
+      smaps[pid] = smaps_per_pid
+      for (key, value) in usage_dict_per_pid.items():
+        usage_dict[key] += value
+
+    return usage_dict, smaps

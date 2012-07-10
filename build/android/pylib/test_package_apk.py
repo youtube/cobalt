@@ -4,6 +4,7 @@
 
 
 import os
+import re
 import sys
 
 import cmd_helper
@@ -38,9 +39,6 @@ class TestPackageApk(TestPackage):
                          tool, dump_debug_info)
 
   def _CreateTestRunnerScript(self, options):
-    tool_wrapper = self.tool.GetTestWrapper()
-    if tool_wrapper:
-      raise RuntimeError("TestPackageApk does not support custom wrappers.")
     command_line_file = tempfile.NamedTemporaryFile()
     # GTest expects argv[0] to be the executable path.
     command_line_file.write(self.test_suite_basename + ' ' + options)
@@ -55,15 +53,27 @@ class TestPackageApk(TestPackage):
   def GetAllTests(self):
     """Returns a list of all tests available in the test suite."""
     self._CreateTestRunnerScript('--gtest_list_tests')
-    self.adb.RunShellCommand(
-        'am start -n '
-        'com.android.chrome.native_tests/'
-        'android.app.NativeActivity')
+    try:
+      self.tool.SetupEnvironment()
+      # Clear and start monitoring logcat.
+      self.adb.StartMonitoringLogcat(clear=True,
+                                     timeout=30 * self.tool.GetTimeoutScale())
+      self.adb.RunShellCommand(
+          'am start -n '
+          'org.chromium.native_test/'
+          'org.chromium.native_test.ChromeNativeTestActivity')
+      # Wait for native test to complete.
+      self.adb.WaitForLogMatch(re.compile('<<nativeRunTests'), None)
+    finally:
+      self.tool.CleanUpEnvironment()
+    # Copy stdout.txt and read contents.
     stdout_file = tempfile.NamedTemporaryFile()
     ret = []
     self.adb.Adb().Pull(TestPackageApk.APK_DATA_DIR + 'stdout.txt',
                         stdout_file.name)
-    ret = self._ParseGTestListTests(stdout_file)
+    # We need to strip the trailing newline.
+    content = [line.rstrip() for line in open(stdout_file.name)]
+    ret = self._ParseGTestListTests(content)
     return ret
 
   def CreateTestRunnerScript(self, gtest_filter, test_arguments):
@@ -72,10 +82,14 @@ class TestPackageApk(TestPackage):
 
   def RunTestsAndListResults(self):
     self.adb.StartMonitoringLogcat(clear=True, logfile=sys.stdout)
-    self.adb.RunShellCommand(
-        'am start -n '
+    try:
+      self.tool.SetupEnvironment()
+      self.adb.RunShellCommand(
+       'am start -n '
         'org.chromium.native_test/'
         'org.chromium.native_test.ChromeNativeTestActivity')
+    finally:
+      self.tool.CleanUpEnvironment()
     return self._WatchTestOutput(self.adb.GetMonitoredLogCat())
 
   def StripAndCopyExecutable(self):

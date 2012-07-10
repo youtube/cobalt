@@ -24,7 +24,7 @@ Call tool.CleanUpEnvironment().
 import os.path
 import sys
 
-from run_tests_helper import CHROME_DIR
+from constants import CHROME_DIR
 
 
 class BaseTool(object):
@@ -35,6 +35,11 @@ class BaseTool(object):
 
   def GetTestWrapper(self):
     """Returns a string that is to be prepended to the test command line."""
+    return ''
+
+  def GetUtilWrapper(self):
+    """Returns a string that is to be prepended to the command line of utility
+    processes (forwarder, etc.)"""
     return ''
 
   def CopyFiles(self):
@@ -64,6 +69,54 @@ class BaseTool(object):
     return False
 
 
+class AddressSanitizerTool(BaseTool):
+  """AddressSanitizer tool."""
+
+  WRAPPER_PATH = "/system/bin/asanwrapper"
+
+  def __init__(self, adb):
+    self.adb = adb
+    self.wrap_properties = ['wrap.com.google.android.apps.ch',
+                            'wrap.org.chromium.native_test']
+
+  def CopyFiles(self):
+    """Copies ASan tools to the device."""
+    files = ['system/lib/libasan_preload.so',
+             'system/bin/asanwrapper',
+             'system/bin/asan/app_process',
+             'system/bin/linker']
+    android_product_out = os.environ['ANDROID_PRODUCT_OUT']
+    self.adb.MakeSystemFolderWritable()
+    for f in files:
+      self.adb.PushIfNeeded(os.path.join(android_product_out, f),
+                            os.path.join('/', f))
+
+  def GetTestWrapper(self):
+    return AddressSanitizerTool.WRAPPER_PATH
+
+  def GetUtilWrapper(self):
+    """ AddressSanitizer wrapper must be added to all instrumented binaries,
+    including forwarder and the like. This can be removed if such binaries
+    were built without instrumentation. """
+    return AddressSanitizerTool.WRAPPER_PATH
+
+  def SetupEnvironment(self):
+    for prop in self.wrap_properties:
+      self.adb.RunShellCommand('setprop %s "logwrapper %s"' % (
+          prop, self.GetTestWrapper()))
+    self.adb.RunShellCommand('setprop chrome.timeout_scale %f' % (
+        self.GetTimeoutScale()))
+
+  def CleanUpEnvironment(self):
+    for prop in self.wrap_properties:
+      self.adb.RunShellCommand('setprop %s ""' % (prop,))
+    self.adb.RunShellCommand('setprop chrome.timeout_scale ""')
+
+  def GetTimeoutScale(self):
+    # Very slow startup.
+    return 20.0
+
+
 class ValgrindTool(BaseTool):
   """Base abstract class for Valgrind tools."""
 
@@ -72,11 +125,9 @@ class ValgrindTool(BaseTool):
 
   def __init__(self, adb, renderer=False):
     self.adb = adb
-    if renderer:
-      # exactly 31 chars, SystemProperties::PROP_NAME_MAX
-      self.wrap_property = 'wrap.com.android.chrome:sandbox'
-    else:
-      self.wrap_property = 'wrap.com.android.chrome'
+    # exactly 31 chars, SystemProperties::PROP_NAME_MAX
+    self.wrap_properties = ['wrap.com.google.android.apps.ch',
+                            'wrap.org.chromium.native_test']
 
   def CopyFiles(self):
     """Copies Valgrind tools to the device."""
@@ -93,14 +144,16 @@ class ValgrindTool(BaseTool):
   def SetupEnvironment(self):
     """Sets up device environment."""
     self.adb.RunShellCommand('chmod 777 /data/local/tmp')
-    self.adb.RunShellCommand('setprop %s "logwrapper %s"' % (
-        self.wrap_property, self.GetTestWrapper()))
+    for prop in self.wrap_properties:
+      self.adb.RunShellCommand('setprop %s "logwrapper %s"' % (
+          prop, self.GetTestWrapper()))
     self.adb.RunShellCommand('setprop chrome.timeout_scale %f' % (
         self.GetTimeoutScale()))
 
   def CleanUpEnvironment(self):
     """Cleans up device environment."""
-    self.adb.RunShellCommand('setprop %s ""' % (self.wrap_property,))
+    for prop in self.wrap_properties:
+      self.adb.RunShellCommand('setprop %s ""' % (prop,))
     self.adb.RunShellCommand('setprop chrome.timeout_scale ""')
 
   def GetFilesForTool(self):
@@ -162,7 +215,8 @@ TOOL_REGISTRY = {
   'memcheck': lambda x: MemcheckTool(x, False),
   'memcheck-renderer': lambda x: MemcheckTool(x, True),
   'tsan': lambda x: TSanTool(x, False),
-  'tsan-renderer': lambda x: TSanTool(x, True)
+  'tsan-renderer': lambda x: TSanTool(x, True),
+  'asan': lambda x: AddressSanitizerTool(x)
 }
 
 

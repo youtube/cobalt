@@ -5,6 +5,12 @@
 import re
 
 
+# Valid values of result type.
+RESULT_TYPES = {'unimportant': 'RESULT ',
+                'default': '*RESULT ',
+                'informational': ''}
+
+
 def _EscapePerfResult(s):
   """Escapes |s| for use in a perf result."""
   # Colons (:) and equal signs (=) are not allowed, and we chose an arbitrary
@@ -12,7 +18,7 @@ def _EscapePerfResult(s):
   return re.sub(':|=', '_', s[:40])
 
 
-def PrintPerfResult(measurement, trace, values, units, important=True,
+def PrintPerfResult(measurement, trace, values, units, result_type='default',
                     print_to_stdout=True):
   """Prints numerical data to stdout in the format required by perf tests.
 
@@ -24,13 +30,16 @@ def PrintPerfResult(measurement, trace, values, units, important=True,
     trace: A description of the particular data point, e.g. "reference".
     values: A list of numeric measured values.
     units: A description of the units of measure, e.g. "bytes".
-    important: If True, the output line will be specially marked, to notify the
-        post-processor.
+    result_type: A  tri-state that accepts values of ['unimportant', 'default',
+        'informational']. 'unimportant' prints RESULT, 'default' prints *RESULT
+        and 'informational' prints nothing.
+    print_to_stdout: If True, prints the output in stdout instead of returning
+        the output to caller.
 
     Returns:
       String of the formated perf result.
   """
-  important_marker = '*' if important else ''
+  assert result_type in RESULT_TYPES, 'result type: %s is invalid' % result_type
 
   assert isinstance(values, list)
   assert len(values)
@@ -45,12 +54,18 @@ def PrintPerfResult(measurement, trace, values, units, important=True,
   else:
     value = values[0]
 
-  output = '%sRESULT %s: %s= %s %s' % (important_marker,
-                                       _EscapePerfResult(measurement),
-                                       _EscapePerfResult(trace),
-                                       value, units)
+  trace_name = _EscapePerfResult(trace)
+  output = '%s%s: %s%s%s %s' % (
+    RESULT_TYPES[result_type],
+    _EscapePerfResult(measurement),
+    trace_name,
+    # Do not show equal sign if the trace is empty. Usually it happens when
+    # measurement is enough clear to describe the result.
+    '= ' if trace_name else '',
+    value,
+    units)
   if avg:
-    output += '\nAvg %s: %d%s' % (measurement, avg, units)
+    output += '\nAvg %s: %f%s' % (measurement, avg, units)
   if print_to_stdout:
     print output
   return output
