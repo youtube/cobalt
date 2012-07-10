@@ -157,7 +157,6 @@ class ChunkDemuxerStream : public DemuxerStream {
   void StartWaitingForSeek();
   void Seek(TimeDelta time);
   bool IsSeekPending() const;
-  void Flush();
 
   // Add buffers to this stream.  Buffers are stored in SourceBufferStreams,
   // which handle ordering and overlap resolution.
@@ -216,17 +215,12 @@ class ChunkDemuxerStream : public DemuxerStream {
   State state_;
   ReadCBQueue read_cbs_;
 
-  // The timestamp of the current media segment being parsed by
-  // |stream_parser_|.
-  TimeDelta media_segment_start_time_;
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(ChunkDemuxerStream);
 };
 
 ChunkDemuxerStream::ChunkDemuxerStream(const AudioDecoderConfig& audio_config)
     : type_(AUDIO),
-      state_(RETURNING_DATA_FOR_READS),
-      media_segment_start_time_(kNoTimestamp()) {
+      state_(RETURNING_DATA_FOR_READS) {
   stream_.reset(new SourceBufferStream(audio_config));
 }
 
@@ -266,12 +260,9 @@ bool ChunkDemuxerStream::IsSeekPending() const {
   return stream_->IsSeekPending();
 }
 
-void ChunkDemuxerStream::Flush() {
-  media_segment_start_time_ = kNoTimestamp();
-}
-
 void ChunkDemuxerStream::OnNewMediaSegment(TimeDelta start_timestamp) {
-  media_segment_start_time_ = start_timestamp;
+  base::AutoLock auto_lock(lock_);
+  stream_->OnNewMediaSegment(start_timestamp);
 }
 
 bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
@@ -282,8 +273,7 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   {
     base::AutoLock auto_lock(lock_);
     DCHECK_NE(state_, SHUTDOWN);
-    DCHECK(media_segment_start_time_ != kNoTimestamp());
-    if (!stream_->Append(buffers, media_segment_start_time_)) {
+    if (!stream_->Append(buffers)) {
       DVLOG(1) << "ChunkDemuxerStream::Append() : stream append failed";
       return false;
     }
@@ -759,10 +749,6 @@ void ChunkDemuxer::Abort(const std::string& id) {
   DCHECK_GT(stream_parser_map_.count(id), 0u);
 
   stream_parser_map_[id]->Flush();
-  if (audio_ && source_id_audio_ == id)
-    audio_->Flush();
-  if (video_ && source_id_video_ == id)
-    video_->Flush();
 }
 
 bool ChunkDemuxer::EndOfStream(PipelineStatus status) {

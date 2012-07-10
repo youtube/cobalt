@@ -28,22 +28,22 @@ class MEDIA_EXPORT SourceBufferStream {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
 
-  SourceBufferStream();
   explicit SourceBufferStream(const AudioDecoderConfig& audio_config);
   explicit SourceBufferStream(const VideoDecoderConfig& video_config);
 
   ~SourceBufferStream();
 
+  // Signals that the next buffers appended are part of a new media segment
+  // starting at |media_segment_start_time|.
+  void OnNewMediaSegment(base::TimeDelta media_segment_start_time);
+
   // Add the |buffers| to the SourceBufferStream. Buffers within the queue are
   // expected to be in order, but multiple calls to Append() may add buffers out
   // of order or overlapping. Assumes all buffers within |buffers| are in
   // presentation order and are non-overlapping.
-  // |media_segment_start_time| refers to the starting timestamp for the media
-  // segment to which these buffers belong.
   // Returns true if Append() was successful, false if |buffers| are not added.
   // TODO(vrk): Implement garbage collection. (crbug.com/125070)
-  bool Append(const BufferQueue& buffers,
-              base::TimeDelta media_segment_start_time);
+  bool Append(const BufferQueue& buffers);
 
   // Changes the SourceBufferStream's state so that it will start returning
   // buffers starting from the closest keyframe before |timestamp|.
@@ -82,21 +82,40 @@ class MEDIA_EXPORT SourceBufferStream {
     return video_config_;
   }
 
+  // Returns the largest distance between two adjacent buffers in this stream,
+  // or an estimate if no two adjacent buffers have been appended to the stream
+  // yet.
+  base::TimeDelta GetMaxInterbufferDistance() const;
+
  private:
   typedef std::list<SourceBufferRange*> RangeList;
 
   // Appends |new_buffers| into |range_for_new_buffers_itr|, handling start and
   // end overlaps if necessary.
+  // |deleted_next_buffer| is an output parameter that is true if the next
+  // buffer that would have been returned from GetNextBuffer() was deleted
+  // during this call.
+  // |deleted_buffers| is an output parameter containing candidates for
+  // |track_buffer_|.
   void InsertIntoExistingRange(
       const RangeList::iterator& range_for_new_buffers_itr,
-      const BufferQueue& new_buffers);
+      const BufferQueue& new_buffers,
+      bool* deleted_next_buffer, BufferQueue* deleted_buffers);
 
   // Resolve overlapping ranges such that no ranges overlap anymore.
   // |range_with_new_buffers_itr| points to the range that has newly appended
   // buffers.
+  // |deleted_next_buffer| is an output parameter that is true if the next
+  // buffer that would have been returned from GetNextBuffer() was deleted
+  // during this call.
+  // |deleted_buffers| is an output parameter containing candidates for
+  // |track_buffer_|.
   void ResolveCompleteOverlaps(
-      const RangeList::iterator& range_with_new_buffers_itr);
-  void ResolveEndOverlap(const RangeList::iterator& range_with_new_buffers_itr);
+      const RangeList::iterator& range_with_new_buffers_itr,
+      bool* deleted_next_buffer, BufferQueue* deleted_buffers);
+  void ResolveEndOverlap(
+      const RangeList::iterator& range_with_new_buffers_itr,
+      bool* deleted_next_buffer, BufferQueue* deleted_buffers);
 
   // This method is a bit tricky to describe. When what would have been the
   // next buffer returned from |selected_range_| is overlapped by new data,
@@ -119,10 +138,14 @@ class MEDIA_EXPORT SourceBufferStream {
   // if in between seeking (i.e. |selected_range_| is null).
   base::TimeDelta GetNextBufferTimestamp();
 
-  // Finds the range into which |new_buffers| should be inserted and returns the
-  // iterator pointing to it. Returns |ranges_.end()| if no existing range
-  // should contain |new_buffers|.
-  RangeList::iterator FindExistingRangeFor(const BufferQueue& new_buffers);
+  // Returns the timestamp of the last buffer in the |selected_range_| or
+  // kNoTimestamp() if |selected_range_| is null.
+  base::TimeDelta GetEndBufferTimestamp();
+
+  // Finds the range that should contain a media segment that begins with
+  // |start_timestamp| and returns the iterator pointing to it. Returns
+  // |ranges_.end()| if there's no such existing range.
+  RangeList::iterator FindExistingRangeFor(base::TimeDelta start_timestamp);
 
   // Inserts |new_range| into |ranges_| preserving sorted order. Returns an
   // iterator in |ranges_| that points to |new_range|.
@@ -131,6 +154,13 @@ class MEDIA_EXPORT SourceBufferStream {
   // Returns an iterator that points to the place in |ranges_| where
   // |selected_range_| lives.
   RangeList::iterator GetSelectedRangeItr();
+
+  // Returns true if the timestamps of |buffers| are monotonically increasing
+  // since the previous append to the media segment, false otherwise.
+  bool IsMonotonicallyIncreasing(const BufferQueue& buffers);
+
+  // Measures the distances between buffer timestamps and tracks the max.
+  void UpdateMaxInterbufferDistance(const BufferQueue& buffers);
 
   // List of disjoint buffered ranges, ordered by start time.
   RangeList ranges_;
@@ -157,6 +187,22 @@ class MEDIA_EXPORT SourceBufferStream {
   // True when EndOfStream() has been called and GetNextBuffer() should return
   // EOS buffers for read requests beyond the buffered data.  False initially.
   bool end_of_stream_;
+
+  // The start time of the current media segment being appended.
+  base::TimeDelta media_segment_start_time_;
+
+  // Points to the range containing the current media segment being appended.
+  RangeList::iterator range_for_next_append_;
+
+  // True when the next call to Append() begins a new media segment.
+  bool new_media_segment_;
+
+  // The timestamp of the last buffer appended to the media segment, set to
+  // kNoTimestamp() if the beginning of the segment.
+  base::TimeDelta last_buffer_timestamp_;
+
+  // Stores the largest distance between two adjacent buffers in this stream.
+  base::TimeDelta max_interbuffer_distance_;
 
   DISALLOW_COPY_AND_ASSIGN(SourceBufferStream);
 };
