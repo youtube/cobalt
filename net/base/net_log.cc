@@ -359,9 +359,12 @@ void BoundNetLog::EndEvent(
 
 void BoundNetLog::AddEventWithNetErrorCode(NetLog::EventType event_type,
                                            int net_error) const {
-  DCHECK_GT(0, net_error);
   DCHECK_NE(ERR_IO_PENDING, net_error);
-  AddEvent(event_type, NetLog::IntegerCallback("net_error", net_error));
+  if (net_error >= 0) {
+    AddEvent(event_type);
+  } else {
+    AddEvent(event_type, NetLog::IntegerCallback("net_error", net_error));
+  }
 }
 
 void BoundNetLog::EndEventWithNetErrorCode(NetLog::EventType event_type,
