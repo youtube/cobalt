@@ -823,8 +823,6 @@ HttpUtil::NameValuePairsIterator::NameValuePairsIterator(
     char delimiter)
     : props_(begin, end, delimiter),
       valid_(true),
-      begin_(begin),
-      end_(end),
       name_begin_(end),
       name_end_(end),
       value_begin_(end),
