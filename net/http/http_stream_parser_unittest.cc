@@ -194,13 +194,13 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
     MockRead(SYNCHRONOUS, 8, 0),  // EOF
   };
 
-  scoped_refptr<DeterministicSocketData> data(
+  scoped_ptr<DeterministicSocketData> data(
       new DeterministicSocketData(reads, arraysize(reads),
                                   writes, arraysize(writes)));
   data->set_connect_data(MockConnect(SYNCHRONOUS, OK));
 
   scoped_ptr<DeterministicMockTCPClientSocket> transport(
-      new DeterministicMockTCPClientSocket(NULL, data));
+      new DeterministicMockTCPClientSocket(NULL, data.get()));
   data->set_socket(transport->AsWeakPtr());
 
   TestCompletionCallback callback;

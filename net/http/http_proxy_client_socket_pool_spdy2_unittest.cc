@@ -154,12 +154,13 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
                   MockWrite* writes, size_t writes_count,
                   MockRead* spdy_reads, size_t spdy_reads_count,
                   MockWrite* spdy_writes, size_t spdy_writes_count) {
-    if (GetParam() == SPDY)
-      data_ = new DeterministicSocketData(spdy_reads, spdy_reads_count,
-                                          spdy_writes, spdy_writes_count);
-    else
-      data_ = new DeterministicSocketData(reads, reads_count, writes,
-                                          writes_count);
+    if (GetParam() == SPDY) {
+      data_.reset(new DeterministicSocketData(spdy_reads, spdy_reads_count,
+                                              spdy_writes, spdy_writes_count));
+    } else {
+      data_.reset(new DeterministicSocketData(reads, reads_count, writes,
+                                              writes_count));
+    }
 
     data_->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     data_->StopAfter(2);  // Request / Response
@@ -217,7 +218,7 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
 
  protected:
   scoped_ptr<SSLSocketDataProvider> ssl_data_;
-  scoped_refptr<DeterministicSocketData> data_;
+  scoped_ptr<DeterministicSocketData> data_;
   HttpProxyClientSocketPool pool_;
   ClientSocketHandle handle_;
   TestCompletionCallback callback_;
@@ -385,7 +386,7 @@ TEST_P(HttpProxyClientSocketPoolSpdy2Test, AsyncHaveAuth) {
 
 TEST_P(HttpProxyClientSocketPoolSpdy2Test, TCPError) {
   if (GetParam() == SPDY) return;
-  data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
+  data_.reset(new DeterministicSocketData(NULL, 0, NULL, 0));
   data_->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_CLOSED));
 
   socket_factory().AddSocketDataProvider(data_.get());
@@ -404,7 +405,7 @@ TEST_P(HttpProxyClientSocketPoolSpdy2Test, TCPError) {
 
 TEST_P(HttpProxyClientSocketPoolSpdy2Test, SSLError) {
   if (GetParam() == HTTP) return;
-  data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
+  data_.reset(new DeterministicSocketData(NULL, 0, NULL, 0));
   data_->set_connect_data(MockConnect(ASYNC, OK));
   socket_factory().AddSocketDataProvider(data_.get());
 
@@ -429,7 +430,7 @@ TEST_P(HttpProxyClientSocketPoolSpdy2Test, SSLError) {
 
 TEST_P(HttpProxyClientSocketPoolSpdy2Test, SslClientAuth) {
   if (GetParam() == HTTP) return;
-  data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
+  data_.reset(new DeterministicSocketData(NULL, 0, NULL, 0));
   data_->set_connect_data(MockConnect(ASYNC, OK));
   socket_factory().AddSocketDataProvider(data_.get());
 

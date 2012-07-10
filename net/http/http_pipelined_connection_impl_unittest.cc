@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -80,8 +81,8 @@ class HttpPipelinedConnectionImplTest : public testing::Test {
 
   void Initialize(MockRead* reads, size_t reads_count,
                   MockWrite* writes, size_t writes_count) {
-    data_ = new DeterministicSocketData(reads, reads_count,
-                                        writes, writes_count);
+    data_.reset(new DeterministicSocketData(reads, reads_count,
+                                            writes, writes_count));
     data_->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     if (reads_count || writes_count) {
       data_->StopAfter(reads_count + writes_count);
@@ -148,7 +149,7 @@ class HttpPipelinedConnectionImplTest : public testing::Test {
   DeterministicMockClientSocketFactory factory_;
   ClientSocketPoolHistograms histograms_;
   MockTransportClientSocketPool pool_;
-  scoped_refptr<DeterministicSocketData> data_;
+  scoped_ptr<DeterministicSocketData> data_;
 
   HostPortPair origin_;
   SSLConfig ssl_config_;
