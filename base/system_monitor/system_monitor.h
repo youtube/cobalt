@@ -27,10 +27,14 @@
 #include "base/timer.h"
 #endif  // defined(ENABLE_BATTERY_MONITORING)
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) && !defined(OS_IOS)
 #include <IOKit/pwr_mgt/IOPMLib.h>
 #include <IOKit/IOMessage.h>
-#endif  // OS_MACOSX
+#endif  // OS_MACOSX && !OS_IOS
+
+#if defined(OS_IOS)
+#include <objc/runtime.h>
+#endif  // OS_IOS
 
 class FilePath;
 
@@ -65,8 +69,12 @@ class BASE_EXPORT SystemMonitor {
   //
   // This function must be called before instantiating an instance of the class
   // and before the Sandbox is initialized.
+#if !defined(OS_IOS)
   static void AllocateSystemIOPorts();
-#endif
+#else
+  static void AllocateSystemIOPorts() {}
+#endif  // OS_IOS
+#endif  // OS_MACOSX
 
   //
   // Power-related APIs
@@ -187,6 +195,11 @@ class BASE_EXPORT SystemMonitor {
 
 #if defined(ENABLE_BATTERY_MONITORING)
   base::OneShotTimer<SystemMonitor> delayed_battery_check_;
+#endif
+
+#if defined(OS_IOS)
+  // Holds pointers to system event notification observers.
+  std::vector<id> notification_observers_;
 #endif
 
   MediaDeviceMap media_device_map_;
