@@ -350,6 +350,8 @@
         'gfx/image/image.h',
         'gfx/image/image_skia.cc',
         'gfx/image/image_skia.h',
+        'gfx/image/image_skia_operations.cc',
+        'gfx/image/image_skia_operations.h',
         'gfx/image/image_skia_rep.cc',
         'gfx/image/image_skia_rep.h',
         'gfx/image/image_skia_source.h',
