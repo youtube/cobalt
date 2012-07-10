@@ -31,7 +31,7 @@
 #include "net/socket/ssl_client_socket.h"
 
 namespace base {
-class SingleThreadTaskRunner;
+class SequencedTaskRunner;
 }
 
 namespace net {
@@ -59,7 +59,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // NSS may optionally be run on a dedicated thread. If synchronous/blocking
   // behaviour is desired, for performance or compatibility, the current task
   // runner should be supplied instead.
-  SSLClientSocketNSS(base::SingleThreadTaskRunner* nss_task_runner,
+  SSLClientSocketNSS(base::SequencedTaskRunner* nss_task_runner,
                      ClientSocketHandle* transport_socket,
                      const HostPortPair& host_and_port,
                      const SSLConfig& ssl_config,
@@ -145,7 +145,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   bool CalledOnValidThread() const;
 
   // The task runner used to perform NSS operations.
-  scoped_refptr<base::SingleThreadTaskRunner> nss_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> nss_task_runner_;
   scoped_ptr<ClientSocketHandle> transport_;
   HostPortPair host_and_port_;
   SSLConfig ssl_config_;

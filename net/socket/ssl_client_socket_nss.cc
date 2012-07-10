@@ -707,7 +707,7 @@ class SSLClientSocketNSS::Core : public base::RefCountedThreadSafe<Core> {
   // |server_bound_cert_service|, and they will not be accessed once Detach()
   // has been called.
   Core(base::SequencedTaskRunner* network_task_runner,
-       base::SingleThreadTaskRunner* nss_task_runner,
+       base::SequencedTaskRunner* nss_task_runner,
        ClientSocketHandle* transport,
        const HostPortPair& host_and_port,
        const SSLConfig& ssl_config,
@@ -977,7 +977,7 @@ class SSLClientSocketNSS::Core : public base::RefCountedThreadSafe<Core> {
   // task runner.
   ////////////////////////////////////////////////////////////////////////////
   scoped_refptr<base::SequencedTaskRunner> network_task_runner_;
-  scoped_refptr<base::SingleThreadTaskRunner> nss_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> nss_task_runner_;
 
   // Dereferenced only on the network task runner, but bound to tasks destined
   // for the network task runner from the NSS task runner.
@@ -996,7 +996,7 @@ class SSLClientSocketNSS::Core : public base::RefCountedThreadSafe<Core> {
 
 SSLClientSocketNSS::Core::Core(
     base::SequencedTaskRunner* network_task_runner,
-    base::SingleThreadTaskRunner* nss_task_runner,
+    base::SequencedTaskRunner* nss_task_runner,
     ClientSocketHandle* transport,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
@@ -2711,7 +2711,7 @@ void SSLClientSocketNSS::Core::SetChannelIDProvided() {
 }
 
 SSLClientSocketNSS::SSLClientSocketNSS(
-    base::SingleThreadTaskRunner* nss_task_runner,
+    base::SequencedTaskRunner* nss_task_runner,
     ClientSocketHandle* transport_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
