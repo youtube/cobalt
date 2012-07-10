@@ -4943,10 +4943,10 @@ TEST_F(HttpNetworkTransactionSpdy3Test, BasicAuthSpdyProxy) {
       ConstructSpdyBodyFrame(3, get, strlen(get), false));
 
   MockWrite spdy_writes[] = {
-    CreateMockWrite(*req, 0, ASYNC),
-    CreateMockWrite(*connect2, 2),
-    CreateMockWrite(*rst, 3, ASYNC),
-    CreateMockWrite(*wrapped_get, 5)
+    CreateMockWrite(*req, 1, ASYNC),
+    CreateMockWrite(*connect2, 4),
+    CreateMockWrite(*rst, 5, ASYNC),
+    CreateMockWrite(*wrapped_get, 8)
   };
 
   // The proxy responds to the connect with a 407, using a persistent
@@ -4977,11 +4977,11 @@ TEST_F(HttpNetworkTransactionSpdy3Test, BasicAuthSpdyProxy) {
   scoped_ptr<SpdyFrame> wrapped_body(
       ConstructSpdyBodyFrame(3, "hello", 5, false));
   MockRead spdy_reads[] = {
-    CreateMockRead(*conn_auth_resp, 1, ASYNC),
-    CreateMockRead(*conn_resp, 4, ASYNC),
-    CreateMockRead(*wrapped_get_resp, 5, ASYNC),
-    CreateMockRead(*wrapped_body, 6, ASYNC),
-    MockRead(SYNCHRONOUS, ERR_IO_PENDING),
+    CreateMockRead(*conn_auth_resp, 2, ASYNC),
+    CreateMockRead(*conn_resp, 6, ASYNC),
+    CreateMockRead(*wrapped_get_resp, 9, ASYNC),
+    CreateMockRead(*wrapped_body, 10, ASYNC),
+    MockRead(SYNCHRONOUS, ERR_IO_PENDING),  // EOF.  May or may not be read.
   };
 
   scoped_ptr<OrderedSocketData> spdy_data(
