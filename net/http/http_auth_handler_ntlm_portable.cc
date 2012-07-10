@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -71,9 +71,13 @@ namespace net {
  * ***** END LICENSE BLOCK ***** */
 
 // Discover the endianness by testing processor architecture.
-#if defined(ARCH_CPU_X86) || defined(ARCH_CPU_X86_64) || defined(ARCH_CPU_ARMEL)
+#if defined(ARCH_CPU_X86) || defined(ARCH_CPU_X86_64)\
+ || defined(ARCH_CPU_ARMEL) || defined(ARCH_CPU_MIPSEL)
 #define IS_LITTLE_ENDIAN 1
 #undef  IS_BIG_ENDIAN
+#elif defined(ARCH_CPU_MIPSEB)
+#define IS_BIG_ENDIAN 1
+#undef  IS_LITTLE_ENDIAN
 #else
 #error "Unknown endianness"
 #endif
