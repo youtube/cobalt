@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,11 @@
 namespace base {
 
 inline bool IsFinite(const double& number) {
-#if defined(OS_POSIX)
+#if defined(OS_MACOSX)
+  // C99 says isfinite() replaced finite(), and iOS does not provide the
+  // older call.
+  return isfinite(number) != 0;
+#elif defined(OS_POSIX)
   return finite(number) != 0;
 #elif defined(OS_WIN)
   return _finite(number) != 0;
