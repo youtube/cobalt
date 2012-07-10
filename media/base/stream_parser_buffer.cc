@@ -28,12 +28,6 @@ void StreamParserBuffer::SetDecodeTimestamp(const base::TimeDelta& timestamp) {
   decode_timestamp_ = timestamp;
 }
 
-base::TimeDelta StreamParserBuffer::GetEndTimestamp() const {
-  DCHECK(GetDecodeTimestamp() != kNoTimestamp());
-  DCHECK(GetDuration() != kNoTimestamp());
-  return GetDecodeTimestamp() + GetDuration();
-}
-
 StreamParserBuffer::StreamParserBuffer(const uint8* data, int data_size,
                                        bool is_keyframe)
     : DecoderBuffer(data, data_size),
@@ -41,7 +35,6 @@ StreamParserBuffer::StreamParserBuffer(const uint8* data, int data_size,
       decode_timestamp_(kNoTimestamp()) {
   SetDuration(kNoTimestamp());
 }
-
 
 StreamParserBuffer::~StreamParserBuffer() {
 }

@@ -55,21 +55,9 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
     // Clears all buffer state.
     void Reset();
 
-    // Clears only the |buffers_|.
-    void ClearBufferQueue();
-
    private:
-    // Sets the duration of all the buffers in |delayed_buffers_|
-    // and then moves these buffers into |buffers_|. |delayed_buffers_|
-    // is empty when this call returns.
-    void SetDelayedBufferDurations(base::TimeDelta duration);
-
-    // Adds the buffer to |buffers_|. |buffer| must have its duration set.
-    void AddToBufferQueue(const scoped_refptr<StreamParserBuffer>& buffer);
-
     int track_num_;
     BufferQueue buffers_;
-    BufferQueue delayed_buffers_;
   };
 
   // WebMParserClient methods.
