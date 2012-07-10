@@ -219,7 +219,7 @@ bool CertVerifyProc::IsBlacklisted(X509Certificate* cert) {
 // static
 bool CertVerifyProc::IsPublicKeyBlacklisted(
     const std::vector<SHA1Fingerprint>& public_key_hashes) {
-  static const unsigned kNumHashes = 8;
+  static const unsigned kNumHashes = 9;
   static const uint8 kHashes[kNumHashes][base::kSHA1Length] = {
     // Subject: CN=DigiNotar Root CA
     // Issuer: CN=Entrust.net x2 and self-signed
@@ -256,6 +256,11 @@ bool CertVerifyProc::IsPublicKeyBlacklisted(
     // 2021 GMT.
     {0xe1, 0x2d, 0x89, 0xf5, 0x6d, 0x22, 0x76, 0xf8, 0x30, 0xe6,
      0xce, 0xaf, 0xa6, 0x6c, 0x72, 0x5c, 0x0b, 0x41, 0xa9, 0x32},
+    // Cyberoam CA certificate. Private key leaked, but this certificate would
+    // only have been installed by Cyberoam customers. The certificate expires
+    // in 2036, but we can probably remove in a couple of years (2014).
+    {0xd9, 0xf5, 0xc6, 0xce, 0x57, 0xff, 0xaa, 0x39, 0xcc, 0x7e,
+     0xd1, 0x72, 0xbd, 0x53, 0xe0, 0xd3, 0x07, 0x83, 0x4b, 0xd1},
   };
 
   for (unsigned i = 0; i < kNumHashes; i++) {
