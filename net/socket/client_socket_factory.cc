@@ -6,7 +6,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/thread_task_runner_handle.h"
-#include "base/threading/thread.h"
+#include "base/threading/sequenced_worker_pool.h"
 #include "build/build_config.h"
 #include "net/base/cert_database.h"
 #include "net/socket/client_socket_handle.h"
@@ -47,9 +47,12 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
  public:
   DefaultClientSocketFactory() {
     if (g_use_dedicated_nss_thread) {
-      nss_thread_.reset(new base::Thread("NSS SSL Thread"));
-      if (nss_thread_->Start())
-        nss_thread_task_runner_ = nss_thread_->message_loop_proxy();
+      // Use a single thread for the worker pool.
+      worker_pool_ = new base::SequencedWorkerPool(1, "NSS SSL Thread");
+      nss_thread_task_runner_ =
+          worker_pool_->GetSequencedTaskRunnerWithShutdownBehavior(
+              worker_pool_->GetSequenceToken(),
+              base::SequencedWorkerPool::CONTINUE_ON_SHUTDOWN);
     }
 
     CertDatabase::AddObserver(this);
@@ -101,7 +104,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
     // between each test. Because the DefaultClientSocketFactory is leaky, it
     // may span multiple tests, and thus the current task runner may change
     // from call to call.
-    scoped_refptr<base::SingleThreadTaskRunner> nss_task_runner(
+    scoped_refptr<base::SequencedTaskRunner> nss_task_runner(
         nss_thread_task_runner_);
     if (!nss_task_runner)
       nss_task_runner = base::ThreadTaskRunnerHandle::Get();
@@ -139,8 +142,8 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
   }
 
  private:
-  scoped_ptr<base::Thread> nss_thread_;
-  scoped_refptr<base::SingleThreadTaskRunner> nss_thread_task_runner_;
+  scoped_refptr<base::SequencedWorkerPool> worker_pool_;
+  scoped_refptr<base::SequencedTaskRunner> nss_thread_task_runner_;
 };
 
 static base::LazyInstance<DefaultClientSocketFactory>::Leaky
