@@ -8,7 +8,6 @@
 
 from pylib import android_commands
 import optparse
-import os
 import sys
 
 
@@ -20,7 +19,7 @@ def main(argv):
   option_parser.add_option('--disable_asserts', dest='set_asserts',
       action='store_false', default=None,
       help='Removes the dalvik.vm.enableassertions property')
-  options, args = option_parser.parse_args(argv)
+  options, _ = option_parser.parse_args(argv)
 
   commands = android_commands.AndroidCommands()
   if options.set_asserts != None:

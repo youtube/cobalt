@@ -10,7 +10,6 @@ import pexpect
 
 from perf_tests_helper import PrintPerfResult
 from test_result import BaseTestResult, TestResults
-from valgrind_tools import CreateTool
 
 
 # TODO(bulach): TestPackage, TestPackageExecutable and
@@ -43,12 +42,9 @@ class TestPackage(object):
     self.rebaseline = rebaseline
     self.performance_test = performance_test
     self.cleanup_test_files = cleanup_test_files
-    self.tool = CreateTool(tool, self.adb)
+    self.tool = tool
     if timeout == 0:
-      if self.test_suite_basename == 'page_cycler_tests':
-        timeout = 900
-      else:
-        timeout = 60
+      timeout = 60
     # On a VM (e.g. chromium buildbots), this timeout is way too small.
     if os.environ.get('BUILDBOT_SLAVENAME'):
       timeout = timeout * 2
@@ -59,29 +55,14 @@ class TestPackage(object):
     """Gets I/O statistics before running test.
 
     Return:
-      Tuple of (I/O stats object, flag of ready to continue). When encountering
-      error, ready-to-continue flag is False, True otherwise. The I/O stats
-      object may be None if the test is not performance test.
+      I/O stats object.The I/O stats object may be None if the test is not
+      performance test.
     """
     initial_io_stats = None
     # Try to get the disk I/O statistics for all performance tests.
     if self.performance_test and not self.rebaseline:
       initial_io_stats = self.adb.GetIoStats()
-      # Get rid of the noise introduced by launching Chrome for page cycler.
-      if self.test_suite_basename == 'page_cycler_tests':
-        try:
-          chrome_launch_done_re = re.compile(
-              re.escape('Finish waiting for browser launch!'))
-          self.adb.WaitForLogMatch(chrome_launch_done_re)
-          initial_io_stats = self.adb.GetIoStats()
-        except pexpect.TIMEOUT:
-          logging.error('Test terminated because Chrome launcher has no'
-                        'response after 120 second.')
-          return (None, False)
-        finally:
-          if self.dump_debug_info:
-            self.dump_debug_info.TakeScreenshot('_Launch_Chrome_')
-    return (initial_io_stats, True)
+    return initial_io_stats
 
   def _EndGetIOStats(self, initial_io_stats):
     """Gets I/O statistics after running test and calcuate the I/O delta.
@@ -99,7 +80,8 @@ class TestPackage(object):
         disk_io += '\n' + PrintPerfResult(stat, stat,
                                           [final_io_stats[stat] -
                                            initial_io_stats[stat]],
-                                          stat.split('_')[1], True, False)
+                                          stat.split('_')[1],
+                                          print_to_stdout=False)
       logging.info(disk_io)
     return disk_io
 
@@ -113,7 +95,7 @@ class TestPackage(object):
     for test in all_tests:
       if not test:
         continue
-      if test[0] != ' ':
+      if test[0] != ' ' and test.endswith('.'):
         current = test
         continue
       if 'YOU HAVE' in test:
@@ -149,8 +131,8 @@ class TestPackage(object):
     re_fail = re.compile('\[  FAILED  \] ?(.*)\r\n')
     re_runner_fail = re.compile('\[ RUNNER_FAILED \] ?(.*)\r\n')
     re_ok = re.compile('\[       OK \] ?(.*)\r\n')
-    (io_stats_before, ready_to_continue) = self._BeginGetIOStats()
-    while ready_to_continue:
+    io_stats_before = self._BeginGetIOStats()
+    while True:
       found = p.expect([re_run, pexpect.EOF, re_end, re_runner_fail],
                        timeout=self.timeout)
       if found == 1:  # matched pexpect.EOF
@@ -186,7 +168,7 @@ class TestPackage(object):
           timed_out = True
         break
     p.close()
-    if not self.rebaseline and ready_to_continue:
+    if not self.rebaseline:
       ok_tests += self._EndGetIOStats(io_stats_before)
       ret_code = self._GetGTestReturnCode()
       if ret_code:

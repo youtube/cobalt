@@ -134,8 +134,8 @@ class GTestDebugInfo(object):
                        It will be part of filename of the screen shot. Empty
                        string is acceptable.
     Returns:
-      Returns True if successfully taking screen shot from device, otherwise
-      returns False.
+      Returns the file name on the host of the screenshot if successful,
+      None otherwise.
     """
     self.InitStorage()
     assert isinstance(identifier_mark, str)
@@ -148,9 +148,9 @@ class GTestDebugInfo(object):
     if re_success.findall(cmd_helper.GetCmdOutput([screenshot_path, '-s',
                                                    self.device, shot_path])):
       logging.info("Successfully took a screen shot to %s" % shot_path)
-      return True
+      return shot_path
     logging.error('Failed to take screen shot from device %s' % self.device)
-    return False
+    return None
 
   def ListCrashFiles(self):
     """Collects crash files from current specified device.
@@ -167,11 +167,19 @@ class GTestDebugInfo(object):
     if not self.collect_new_crashes:
       return
     current_crash_files = self.ListCrashFiles()
-    files = [f for f in current_crash_files if f not in self.old_crash_files]
-    logging.info('New crash file(s):%s' % ' '.join(files))
-    for f in files:
-      self.adb.Adb().Pull(TOMBSTONE_DIR + f,
-                          os.path.join(self.GetStoragePath(), f))
+    files = []
+    for f in current_crash_files:
+      if f not in self.old_crash_files:
+        files += [f]
+      elif current_crash_files[f] != self.old_crash_files[f]:
+        # Tomestones dir can only have maximum 10 files, so we need to compare
+        # size and timestamp information of file if the file exists.
+        files += [f]
+    if files:
+      logging.info('New crash file(s):%s' % ' '.join(files))
+      for f in files:
+        self.adb.Adb().Pull(TOMBSTONE_DIR + f,
+                            os.path.join(self.GetStoragePath(), f))
 
   @staticmethod
   def ZipAndCleanResults(dest_dir, dump_file_name, debug_info_list):
