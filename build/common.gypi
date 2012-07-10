@@ -969,13 +969,13 @@
           }],
         ],
         # TODO(steveblock): Investigate using the system versions of sqlite,
-        # libjpeg, expat and stlport.
+        # libjpeg and stlport.
         # Enable to use system sqlite.
         'use_system_sqlite%': 0,  # '<(android_build_type)',
         # Enable to use system libjpeg.
         'use_system_libjpeg%': 0,  # '<(android_build_type)',
-        # Enable to use the system libexpat.
-        'use_system_libexpat%': 0,  # '<(android_build_type)',
+        # Enable to use the system expat.
+        'use_system_expat%': '<(android_build_type)',
         # Enable to use the system stlport, otherwise statically
         # link the NDK one?
         'use_system_stlport%': 0,  # '<(android_build_type)',
