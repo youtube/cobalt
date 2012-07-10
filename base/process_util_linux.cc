@@ -686,7 +686,7 @@ void OnNoMemory() {
 
 extern "C" {
 #if !defined(USE_TCMALLOC) && !defined(ADDRESS_SANITIZER) && \
-    !defined(OS_ANDROID)
+    !defined(OS_ANDROID) && !defined(THREAD_SANITIZER)
 
 extern "C" {
 void* __libc_malloc(size_t size);
