@@ -336,9 +336,6 @@ class NET_EXPORT HttpUtil {
     HttpUtil::ValuesIterator props_;
     bool valid_;
 
-    std::string::const_iterator begin_;
-    std::string::const_iterator end_;
-
     std::string::const_iterator name_begin_;
     std::string::const_iterator name_end_;
 
