@@ -323,7 +323,6 @@
         'gfx/canvas_paint_win.cc',
         'gfx/canvas_skia.cc',
         'gfx/canvas_skia_paint.h',
-        'gfx/canvas_win.cc',
         'gfx/codec/jpeg_codec.cc',
         'gfx/codec/jpeg_codec.h',
         'gfx/codec/png_codec.cc',
@@ -444,7 +443,6 @@
             'gfx/canvas_android.cc',
             'gfx/canvas_linux.cc',
             'gfx/canvas_mac.mm',
-            'gfx/canvas_win.cc',
           ],
         }, {  # use_canvas_skia!=1
           'sources!': [
