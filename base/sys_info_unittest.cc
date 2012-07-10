@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 
 typedef PlatformTest SysInfoTest;
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
 TEST_F(SysInfoTest, MaxSharedMemorySize) {
   // We aren't actually testing that it's correct, just that it's sane.
   EXPECT_GT(base::SysInfo::MaxSharedMemorySize(), 0u);

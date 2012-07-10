@@ -130,6 +130,9 @@ class MultipleLockThread : public PlatformThread::Delegate {
 
 }  // namespace
 
+// Android doesn't support SharedMemory::Open/Delete/
+// CreateNamed(openExisting=true)
+#if !defined(OS_ANDROID)
 TEST(SharedMemoryTest, OpenClose) {
   const uint32 kDataSize = 1024;
   std::string test_name = "SharedMemoryOpenCloseTest";
@@ -229,6 +232,7 @@ TEST(SharedMemoryTest, OpenExclusive) {
   rv = memory1.Delete(test_name);
   EXPECT_TRUE(rv);
 }
+#endif
 
 // Create a set of N threads to each open a shared memory segment and write to
 // it. Verify that they are always reading/writing consistent data.
