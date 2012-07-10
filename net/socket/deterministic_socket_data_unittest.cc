@@ -4,6 +4,9 @@
 
 #include "net/socket/socket_test_util.h"
 
+#include <string.h>
+
+#include "base/memory/ref_counted.h"
 #include "testing/platform_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -44,7 +47,7 @@ class DeterministicSocketDataTest : public PlatformTest {
   TestCompletionCallback read_callback_;
   TestCompletionCallback write_callback_;
   StreamSocket* sock_;
-  scoped_refptr<DeterministicSocketData> data_;
+  scoped_ptr<DeterministicSocketData> data_;
 
  private:
   scoped_refptr<IOBuffer> read_buf_;
@@ -85,7 +88,8 @@ void DeterministicSocketDataTest::Initialize(MockRead* reads,
                                            size_t reads_count,
                                            MockWrite* writes,
                                            size_t writes_count) {
-  data_ = new DeterministicSocketData(reads, reads_count, writes, writes_count);
+  data_.reset(new DeterministicSocketData(reads, reads_count,
+                                          writes, writes_count));
   data_->set_connect_data(connect_data_);
   socket_factory_.AddSocketDataProvider(data_.get());
 

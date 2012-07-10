@@ -9951,7 +9951,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, DoNotUseSpdySessionForHttpOverTunnel) {
     MockRead(ASYNC, ERR_IO_PENDING, 8)
   };
 
-  scoped_refptr<DeterministicSocketData> data1(
+  scoped_ptr<DeterministicSocketData> data1(
       new DeterministicSocketData(reads1, arraysize(reads1),
                                   writes1, arraysize(writes1)));
   MockConnect connect_data1(ASYNC, OK);

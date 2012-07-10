@@ -4,6 +4,7 @@
 
 #include "net/spdy/spdy_http_stream.h"
 
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/sequenced_worker_pool.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/ec_signature_creator.h"
@@ -378,7 +379,7 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
 
   DeterministicMockClientSocketFactory* socket_factory =
       session_deps_.deterministic_socket_factory.get();
-  scoped_refptr<DeterministicSocketData> data(
+  scoped_ptr<DeterministicSocketData> data(
       new DeterministicSocketData(reads, arraysize(reads),
                                   writes, arraysize(writes)));
   socket_factory->AddSocketDataProvider(data.get());
