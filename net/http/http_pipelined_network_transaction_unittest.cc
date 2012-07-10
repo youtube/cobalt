@@ -5,6 +5,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
@@ -227,7 +228,7 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
   DeterministicMockClientSocketFactory factory_;
   ClientSocketPoolHistograms histograms_;
   MockTransportClientSocketPool pool_;
-  std::vector<scoped_refptr<DeterministicSocketData> > data_vector_;
+  ScopedVector<DeterministicSocketData> data_vector_;
   TestCompletionCallback callback_;
   ScopedVector<HttpRequestInfo> request_info_vector_;
   bool default_pipelining_enabled_;
@@ -832,7 +833,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
   // We need to make sure that the response that triggers OnPipelineFeedback(OK)
   // is called in between when task #3 is scheduled and when it runs. The
   // DataRunnerObserver does that.
-  DataRunnerObserver observer(data_vector_[0].get(), 3);
+  DataRunnerObserver observer(data_vector_[0], 3);
   MessageLoop::current()->AddTaskObserver(&observer);
   data_vector_[0]->SetStop(4);
   MessageLoop::current()->RunAllPending();
@@ -847,15 +848,15 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
 TEST_F(HttpPipelinedNetworkTransactionTest, ProxyChangesWhileConnecting) {
   Initialize(false);
 
-  scoped_refptr<DeterministicSocketData> data(
+  scoped_ptr<DeterministicSocketData> data(
       new DeterministicSocketData(NULL, 0, NULL, 0));
   data->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_REFUSED));
-  factory_.AddSocketDataProvider(data);
+  factory_.AddSocketDataProvider(data.get());
 
-  scoped_refptr<DeterministicSocketData> data2(
+  scoped_ptr<DeterministicSocketData> data2(
       new DeterministicSocketData(NULL, 0, NULL, 0));
   data2->set_connect_data(MockConnect(ASYNC, ERR_FAILED));
-  factory_.AddSocketDataProvider(data2);
+  factory_.AddSocketDataProvider(data2.get());
 
   HttpNetworkTransaction transaction(session_.get());
   EXPECT_EQ(ERR_IO_PENDING,
@@ -915,10 +916,10 @@ TEST_F(HttpPipelinedNetworkTransactionTest,
        ForcedPipelineConnectionErrorFailsBoth) {
   Initialize(true);
 
-  scoped_refptr<DeterministicSocketData> data(
+  scoped_ptr<DeterministicSocketData> data(
       new DeterministicSocketData(NULL, 0, NULL, 0));
   data->set_connect_data(MockConnect(ASYNC, ERR_FAILED));
-  factory_.AddSocketDataProvider(data);
+  factory_.AddSocketDataProvider(data.get());
 
   scoped_ptr<HttpNetworkTransaction> one_transaction(
       new HttpNetworkTransaction(session_.get()));
@@ -995,10 +996,10 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineOrder) {
   MockRead reads[] = {
     MockRead(ASYNC, ERR_FAILED, 1),
   };
-  scoped_refptr<DeterministicSocketData> data(new DeterministicSocketData(
+  scoped_ptr<DeterministicSocketData> data(new DeterministicSocketData(
       reads, arraysize(reads), writes, arraysize(writes)));
   data->set_connect_data(MockConnect(ASYNC, OK));
-  factory_.AddSocketDataProvider(data);
+  factory_.AddSocketDataProvider(data.get());
 
   scoped_ptr<HttpNetworkTransaction> one_transaction(
       new HttpNetworkTransaction(session_.get()));

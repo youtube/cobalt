@@ -9,6 +9,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/memory/scoped_vector.h"
 #include "net/base/auth.h"
 #include "net/base/net_log_unittest.h"
 #include "net/http/http_network_session_peer.h"
@@ -229,24 +230,24 @@ class SpdyNetworkTransactionSpdy2Test
     void AddData(StaticSocketDataProvider* data) {
       DCHECK(!deterministic_);
       data_vector_.push_back(data);
-      linked_ptr<SSLSocketDataProvider> ssl_(
-          new SSLSocketDataProvider(ASYNC, OK));
-      if (test_type_ == SPDYNPN) {
-        ssl_->SetNextProto(kProtoSPDY2);
-      }
-      ssl_vector_.push_back(ssl_);
+      SSLSocketDataProvider* ssl_provider =
+          new SSLSocketDataProvider(ASYNC, OK);
+      if (test_type_ == SPDYNPN)
+        ssl_provider->SetNextProto(kProtoSPDY2);
+
+      ssl_vector_.push_back(ssl_provider);
       if (test_type_ == SPDYNPN || test_type_ == SPDYSSL)
-        session_deps_->socket_factory->AddSSLSocketDataProvider(ssl_.get());
+        session_deps_->socket_factory->AddSSLSocketDataProvider(ssl_provider);
+
       session_deps_->socket_factory->AddSocketDataProvider(data);
       if (test_type_ == SPDYNPN) {
         MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
-        linked_ptr<StaticSocketDataProvider>
-            hanging_non_alternate_protocol_socket(
-                new StaticSocketDataProvider(NULL, 0, NULL, 0));
+        StaticSocketDataProvider* hanging_non_alternate_protocol_socket =
+            new StaticSocketDataProvider(NULL, 0, NULL, 0);
         hanging_non_alternate_protocol_socket->set_connect_data(
             never_finishing_connect);
         session_deps_->socket_factory->AddSocketDataProvider(
-            hanging_non_alternate_protocol_socket.get());
+            hanging_non_alternate_protocol_socket);
         alternate_vector_.push_back(hanging_non_alternate_protocol_socket);
       }
     }
@@ -254,22 +255,21 @@ class SpdyNetworkTransactionSpdy2Test
     void AddDeterministicData(DeterministicSocketData* data) {
       DCHECK(deterministic_);
       data_vector_.push_back(data);
-      linked_ptr<SSLSocketDataProvider> ssl_(
-          new SSLSocketDataProvider(ASYNC, OK));
-      if (test_type_ == SPDYNPN) {
-        ssl_->SetNextProto(kProtoSPDY2);
-      }
-      ssl_vector_.push_back(ssl_);
+      SSLSocketDataProvider* ssl_provider =
+          new SSLSocketDataProvider(ASYNC, OK);
+      if (test_type_ == SPDYNPN)
+        ssl_provider->SetNextProto(kProtoSPDY2);
+
+      ssl_vector_.push_back(ssl_provider);
       if (test_type_ == SPDYNPN || test_type_ == SPDYSSL) {
         session_deps_->deterministic_socket_factory->
-            AddSSLSocketDataProvider(ssl_.get());
+            AddSSLSocketDataProvider(ssl_provider);
       }
       session_deps_->deterministic_socket_factory->AddSocketDataProvider(data);
       if (test_type_ == SPDYNPN) {
         MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
-        scoped_refptr<DeterministicSocketData>
-            hanging_non_alternate_protocol_socket(
-            new DeterministicSocketData(NULL, 0, NULL, 0));
+        DeterministicSocketData* hanging_non_alternate_protocol_socket =
+            new DeterministicSocketData(NULL, 0, NULL, 0);
         hanging_non_alternate_protocol_socket->set_connect_data(
             never_finishing_connect);
         session_deps_->deterministic_socket_factory->AddSocketDataProvider(
@@ -277,17 +277,6 @@ class SpdyNetworkTransactionSpdy2Test
         alternate_deterministic_vector_.push_back(
             hanging_non_alternate_protocol_socket);
       }
-    }
-
-    // This can only be called after RunPreTestSetup. It adds a Data Provider,
-    // but not a corresponding SSL data provider
-    void AddDataNoSSL(StaticSocketDataProvider* data) {
-      DCHECK(!deterministic_);
-      session_deps_->socket_factory->AddSocketDataProvider(data);
-    }
-    void AddDataNoSSL(DeterministicSocketData* data) {
-      DCHECK(deterministic_);
-      session_deps_->deterministic_socket_factory->AddSocketDataProvider(data);
     }
 
     void SetSession(const scoped_refptr<HttpNetworkSession>& session) {
@@ -310,10 +299,9 @@ class SpdyNetworkTransactionSpdy2Test
 
    private:
     typedef std::vector<StaticSocketDataProvider*> DataVector;
-    typedef std::vector<linked_ptr<SSLSocketDataProvider> > SSLVector;
-    typedef std::vector<linked_ptr<StaticSocketDataProvider> > AlternateVector;
-    typedef std::vector<scoped_refptr<DeterministicSocketData> >
-        AlternateDeterministicVector;
+    typedef ScopedVector<SSLSocketDataProvider> SSLVector;
+    typedef ScopedVector<StaticSocketDataProvider> AlternateVector;
+    typedef ScopedVector<DeterministicSocketData> AlternateDeterministicVector;
     HttpRequestInfo request_;
     scoped_ptr<SpdySessionDependencies> session_deps_;
     scoped_refptr<HttpNetworkSession> session_;
@@ -1773,7 +1761,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, SocketWriteReturnsZero) {
     MockRead(ASYNC, 0, 0, 4)  // EOF
   };
 
-  scoped_refptr<DeterministicSocketData> data(
+  scoped_ptr<DeterministicSocketData> data(
       new DeterministicSocketData(reads, arraysize(reads),
                                   writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
@@ -1981,7 +1969,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, CancelledTransactionSendRst) {
     MockRead(ASYNC, 0, 0, 3)  // EOF
   };
 
-  scoped_refptr<DeterministicSocketData> data(
+  scoped_ptr<DeterministicSocketData> data(
       new DeterministicSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
 
@@ -4986,16 +4974,14 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ServerPushClaimBeforeHeaders) {
   HttpResponseInfo response;
   HttpResponseInfo response2;
   std::string expected_push_result("pushed");
-  scoped_refptr<DeterministicSocketData> data(new DeterministicSocketData(
-      reads,
-      arraysize(reads),
-      writes,
-      arraysize(writes)));
+  scoped_ptr<DeterministicSocketData> data(
+      new DeterministicSocketData(reads, arraysize(reads),
+                                  writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                      BoundNetLog(), GetParam(), NULL);
   helper.SetDeterministic();
-  helper.AddDeterministicData(static_cast<DeterministicSocketData*>(data));
+  helper.AddDeterministicData(data.get());
   helper.RunPreTestSetup();
 
   HttpNetworkTransaction* trans = helper.trans();
@@ -5029,7 +5015,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ServerPushClaimBeforeHeaders) {
   ReadResult(trans2.get(), data.get(), &result2);
   // Read the response body.
   std::string result;
-  ReadResult(trans, data, &result);
+  ReadResult(trans, data.get(), &result);
 
   // Verify that we consumed all test data.
   EXPECT_TRUE(data->at_read_eof());
@@ -5137,16 +5123,14 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ServerPushWithTwoHeaderFrames) {
   HttpResponseInfo response;
   HttpResponseInfo response2;
   std::string expected_push_result("pushed");
-  scoped_refptr<DeterministicSocketData> data(new DeterministicSocketData(
-      reads,
-      arraysize(reads),
-      writes,
-      arraysize(writes)));
+  scoped_ptr<DeterministicSocketData> data(
+      new DeterministicSocketData(reads, arraysize(reads),
+                                  writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                      BoundNetLog(), GetParam(), NULL);
   helper.SetDeterministic();
-  helper.AddDeterministicData(static_cast<DeterministicSocketData*>(data));
+  helper.AddDeterministicData(data.get());
   helper.RunPreTestSetup();
 
   HttpNetworkTransaction* trans = helper.trans();
@@ -5177,10 +5161,10 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ServerPushWithTwoHeaderFrames) {
 
   // Read the server push body.
   std::string result2;
-  ReadResult(trans2.get(), data, &result2);
+  ReadResult(trans2.get(), data.get(), &result2);
   // Read the response body.
   std::string result;
-  ReadResult(trans, data, &result);
+  ReadResult(trans, data.get(), &result);
 
   // Verify that we consumed all test data.
   EXPECT_TRUE(data->at_read_eof());
@@ -5591,7 +5575,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, OutOfOrderSynStream) {
     MockRead(ASYNC, 0, 9)  // EOF
   };
 
-  scoped_refptr<DeterministicSocketData> data(
+  scoped_ptr<DeterministicSocketData> data(
       new DeterministicSocketData(reads, arraysize(reads),
                                   writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
