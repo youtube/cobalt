@@ -99,6 +99,8 @@ static inline size_t RoundUp(size_t value, size_t alignment) {
 }
 
 static const int kFrameSizeAlignment = 16;
+// Allows faster SIMD YUV convert. Also, FFmpeg overreads/-writes occasionally.
+static const int kFramePadBytes = 15;
 
 void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
   // Round up to align at least at a 16-byte boundary for each row.
@@ -110,7 +112,7 @@ void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
   // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
   // doesn't need to be repeated in every single user of aligned data.
   data_[VideoFrame::kRGBPlane] = reinterpret_cast<uint8*>(
-      av_malloc(bytes_per_row * aligned_height));
+      av_malloc(bytes_per_row * aligned_height + kFramePadBytes));
 #else
   data_[VideoFrame::kRGBPlane] = new uint8_t[bytes_per_row * aligned_height];
 #endif
@@ -142,7 +144,7 @@ void VideoFrame::AllocateYUV() {
   // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
   // doesn't need to be repeated in every single user of aligned data.
   uint8* data = reinterpret_cast<uint8*>(
-      av_malloc(y_bytes + (uv_bytes * 2)));
+      av_malloc(y_bytes + (uv_bytes * 2) + kFramePadBytes));
 #else
   uint8* data = new uint8_t[y_bytes + (uv_bytes * 2)];
 #endif
