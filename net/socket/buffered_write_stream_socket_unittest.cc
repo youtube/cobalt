@@ -6,6 +6,7 @@
 
 #include "base/message_loop.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/socket/socket_test_util.h"
@@ -24,7 +25,7 @@ class BufferedWriteStreamSocketTest : public testing::Test {
   }
 
   void Initialize(MockWrite* writes, size_t writes_count) {
-    data_ = new DeterministicSocketData(NULL, 0, writes, writes_count);
+    data_.reset(new DeterministicSocketData(NULL, 0, writes, writes_count));
     data_->set_connect_data(MockConnect(SYNCHRONOUS, 0));
     if (writes_count) {
       data_->StopAfter(writes_count);
@@ -43,7 +44,7 @@ class BufferedWriteStreamSocketTest : public testing::Test {
   }
 
   scoped_ptr<BufferedWriteStreamSocket> socket_;
-  scoped_refptr<DeterministicSocketData> data_;
+  scoped_ptr<DeterministicSocketData> data_;
   BoundNetLog net_log_;
   TestCompletionCallback callback_;
 };
