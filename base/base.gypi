@@ -470,6 +470,8 @@
           'win/scoped_process_information.cc',
           'win/scoped_process_information.h',
           'win/scoped_select_object.h',
+          'win/scoped_startup_info_ex.cc',
+          'win/scoped_startup_info_ex.h',
           'win/scoped_variant.cc',
           'win/scoped_variant.h',
           'win/windows_version.cc',
