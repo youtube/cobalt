@@ -19,6 +19,7 @@ static const int kDataSize = 1;
 class SourceBufferStreamTest : public testing::Test {
  protected:
   SourceBufferStreamTest() {
+    stream_.reset(new SourceBufferStream(config_));
     SetStreamInfo(kDefaultFramesPerSecond, kDefaultKeyframesPerSecond);
   }
 
@@ -28,35 +29,47 @@ class SourceBufferStreamTest : public testing::Test {
     frame_duration_ = ConvertToFrameDuration(frames_per_second);
   }
 
+  void NewSegmentAppend(int starting_position, int number_of_buffers) {
+    AppendBuffers(starting_position, number_of_buffers, true,
+                  base::TimeDelta(), true, NULL, 0);
+  }
+
+  void NewSegmentAppend(int starting_position, int number_of_buffers,
+                        const uint8* data) {
+    AppendBuffers(starting_position, number_of_buffers, true,
+                  base::TimeDelta(), true, data, kDataSize);
+  }
+
+  void NewSegmentAppend_OffsetFirstBuffer(
+      int starting_position, int number_of_buffers,
+      base::TimeDelta first_buffer_offset) {
+    AppendBuffers(starting_position, number_of_buffers, true,
+                  first_buffer_offset, true, NULL, 0);
+  }
+
+  void NewSegmentAppend_ExpectFailure(
+      int starting_position, int number_of_buffers) {
+    AppendBuffers(starting_position, number_of_buffers, true,
+                  base::TimeDelta(), false, NULL, 0);
+  }
+
   void AppendBuffers(int starting_position, int number_of_buffers) {
-    AppendBuffers(starting_position, number_of_buffers,
+    AppendBuffers(starting_position, number_of_buffers, false,
                   base::TimeDelta(), true, NULL, 0);
   }
 
   void AppendBuffers(int starting_position, int number_of_buffers,
                      const uint8* data) {
-    AppendBuffers(starting_position, number_of_buffers,
+    AppendBuffers(starting_position, number_of_buffers, false,
                   base::TimeDelta(), true, data, kDataSize);
   }
 
-  void AppendBuffers(int starting_position, int number_of_buffers,
-                     base::TimeDelta first_buffer_offset) {
-    AppendBuffers(starting_position, number_of_buffers,
-                  first_buffer_offset, true, NULL, 0);
-  }
-
-  void AppendBuffers_ExpectFailure(
-      int starting_position, int number_of_buffers) {
-    AppendBuffers(starting_position, number_of_buffers,
-                  base::TimeDelta(), false, NULL, 0);
-  }
-
   void Seek(int position) {
-    stream_.Seek(position * frame_duration_);
+    stream_->Seek(position * frame_duration_);
   }
 
   void CheckExpectedRanges(const std::string& expected) {
-    Ranges<base::TimeDelta> r = stream_.GetBufferedTime();
+    Ranges<base::TimeDelta> r = stream_->GetBufferedTime();
 
     std::stringstream ss;
     ss << "{ ";
@@ -99,7 +112,7 @@ class SourceBufferStreamTest : public testing::Test {
     int current_position = starting_position;
     for (; current_position <= ending_position; current_position++) {
       scoped_refptr<StreamParserBuffer> buffer;
-      if (!stream_.GetNextBuffer(&buffer))
+      if (!stream_->GetNextBuffer(&buffer))
         break;
 
       if (expect_keyframe && current_position == starting_position)
@@ -123,12 +136,13 @@ class SourceBufferStreamTest : public testing::Test {
 
   void CheckNoNextBuffer() {
     scoped_refptr<StreamParserBuffer> buffer;
-    EXPECT_FALSE(stream_.GetNextBuffer(&buffer));
+    EXPECT_FALSE(stream_->GetNextBuffer(&buffer));
   }
 
   base::TimeDelta frame_duration() const { return frame_duration_; }
 
-  SourceBufferStream stream_;
+  scoped_ptr<SourceBufferStream> stream_;
+  VideoDecoderConfig config_;
 
  private:
   base::TimeDelta ConvertToFrameDuration(int frames_per_second) {
@@ -136,12 +150,17 @@ class SourceBufferStreamTest : public testing::Test {
         base::Time::kMicrosecondsPerSecond / frames_per_second);
   }
 
-  void AppendBuffers(int starting_position, int number_of_buffers,
+  void AppendBuffers(int starting_position,
+                     int number_of_buffers,
+                     bool begin_media_segment,
                      base::TimeDelta first_buffer_offset,
-                     bool expect_success, const uint8* data, int size) {
+                     bool expect_success,
+                     const uint8* data,
+                     int size) {
+    if (begin_media_segment)
+      stream_->OnNewMediaSegment(starting_position * frame_duration_);
+
     int keyframe_interval = frames_per_second_ / keyframes_per_second_;
-    base::TimeDelta media_segment_start_time =
-        starting_position * frame_duration_;
 
     SourceBufferStream::BufferQueue queue;
     for (int i = 0; i < number_of_buffers; i++) {
@@ -149,13 +168,10 @@ class SourceBufferStreamTest : public testing::Test {
       bool is_keyframe = position % keyframe_interval == 0;
       scoped_refptr<StreamParserBuffer> buffer =
           StreamParserBuffer::CopyFrom(data, size, is_keyframe);
-      base::TimeDelta duration = frame_duration_;
       base::TimeDelta timestamp = frame_duration_ * position;
-      if (i == 0) {
-        duration -= first_buffer_offset;
+
+      if (i == 0)
         timestamp += first_buffer_offset;
-      }
-      buffer->SetDuration(duration);
       buffer->SetDecodeTimestamp(timestamp);
 
       // Simulate an IBB...BBP pattern in which all B-frames reference both
@@ -175,7 +191,8 @@ class SourceBufferStreamTest : public testing::Test {
 
       queue.push_back(buffer);
     }
-    EXPECT_EQ(stream_.Append(queue, media_segment_start_time), expect_success);
+    if (!queue.empty())
+      EXPECT_EQ(expect_success, stream_->Append(queue));
   }
 
   int frames_per_second_;
@@ -186,7 +203,7 @@ class SourceBufferStreamTest : public testing::Test {
 
 TEST_F(SourceBufferStreamTest, Append_SingleRange) {
   // Append 15 buffers at positions 0 through 14.
-  AppendBuffers(0, 15);
+  NewSegmentAppend(0, 15);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,14) }");
@@ -197,7 +214,8 @@ TEST_F(SourceBufferStreamTest, Append_SingleRange) {
 
 TEST_F(SourceBufferStreamTest, Append_SingleRange_OneBufferAtATime) {
   // Append 15 buffers starting at position 0, one buffer at a time.
-  for (int i = 0; i < 15; i++)
+  NewSegmentAppend(0, 1);
+  for (int i = 1; i < 15; i++)
     AppendBuffers(i, 1);
 
   // Check expected range.
@@ -209,10 +227,10 @@ TEST_F(SourceBufferStreamTest, Append_SingleRange_OneBufferAtATime) {
 
 TEST_F(SourceBufferStreamTest, Append_DisjointRanges) {
   // Append 5 buffers at positions 0 through 4.
-  AppendBuffers(0, 5);
+  NewSegmentAppend(0, 5);
 
   // Append 10 buffers at positions 15 through 24.
-  AppendBuffers(15, 10);
+  NewSegmentAppend(15, 10);
 
   // Check expected ranges.
   CheckExpectedRanges("{ [0,4) [15,24) }");
@@ -224,14 +242,14 @@ TEST_F(SourceBufferStreamTest, Append_DisjointRanges) {
 }
 
 TEST_F(SourceBufferStreamTest, Append_AdjacentRanges) {
-  // Append 12 buffers at positions 0 through 11.
-  AppendBuffers(0, 12);
+  // Append 10 buffers at positions 0 through 9.
+  NewSegmentAppend(0, 10);
 
   // Append 11 buffers at positions 15 through 25.
-  AppendBuffers(15, 11);
+  NewSegmentAppend(15, 11);
 
-  // Append 3 buffers at positions 12 through 14 to bridge the gap.
-  AppendBuffers(12, 3);
+  // Append 5 buffers at positions 10 through 14 to bridge the gap.
+  NewSegmentAppend(10, 5);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,25) }");
@@ -242,10 +260,10 @@ TEST_F(SourceBufferStreamTest, Append_AdjacentRanges) {
 
 TEST_F(SourceBufferStreamTest, Append_DoesNotBeginWithKeyframe) {
   // Append fails because the range doesn't begin with a keyframe.
-  AppendBuffers_ExpectFailure(3, 5);
+  NewSegmentAppend_ExpectFailure(3, 2);
 
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10);
+  NewSegmentAppend(5, 10);
 
   // Check expected range.
   CheckExpectedRanges("{ [5,14) }");
@@ -254,18 +272,34 @@ TEST_F(SourceBufferStreamTest, Append_DoesNotBeginWithKeyframe) {
   CheckExpectedBuffers(5, 14);
 
   // Append fails because the range doesn't begin with a keyframe.
-  AppendBuffers_ExpectFailure(17, 10);
+  NewSegmentAppend_ExpectFailure(17, 3);
+
   CheckExpectedRanges("{ [5,14) }");
   Seek(5);
   CheckExpectedBuffers(5, 14);
 }
 
+TEST_F(SourceBufferStreamTest, Append_DoesNotBeginWithKeyframe_Adjacent) {
+  // Append 8 buffers at positions 0 through 7.
+  NewSegmentAppend(0, 8);
+
+  // Now start a new media segment at position 8. Append should fail because
+  // the media segment does not begin with a keyframe.
+  NewSegmentAppend_ExpectFailure(8, 2);
+
+  // Check expected range.
+  CheckExpectedRanges("{ [0,7) }");
+  // Check buffers in range.
+  Seek(0);
+  CheckExpectedBuffers(0, 7);
+}
+
 TEST_F(SourceBufferStreamTest, Complete_Overlap) {
   // Append 5 buffers at positions 5 through 9.
-  AppendBuffers(5, 5);
+  NewSegmentAppend(5, 5);
 
   // Append 15 buffers at positions 0 through 14.
-  AppendBuffers(0, 15);
+  NewSegmentAppend(0, 15);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,14) }");
@@ -280,10 +314,10 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_EdgeCase) {
   SetStreamInfo(30, 30);
 
   // Append 6 buffers at positions 6 through 11.
-  AppendBuffers(6, 6);
+  NewSegmentAppend(6, 6);
 
   // Append 8 buffers at positions 5 through 12.
-  AppendBuffers(5, 8);
+  NewSegmentAppend(5, 8);
 
   // Check expected range.
   CheckExpectedRanges("{ [5,12) }");
@@ -293,25 +327,25 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_EdgeCase) {
 }
 
 TEST_F(SourceBufferStreamTest, Start_Overlap) {
-  // Append 5 buffers at positions 5 through 9.
-  AppendBuffers(5, 5);
+  // Append 10 buffers at positions 5 through 14.
+  NewSegmentAppend(5, 5);
 
-  // Append 6 buffers at positions 8 through 13.
-  AppendBuffers(8, 6);
+  // Append 6 buffers at positions 10 through 15.
+  NewSegmentAppend(10, 6);
 
   // Check expected range.
-  CheckExpectedRanges("{ [5,13) }");
+  CheckExpectedRanges("{ [5,15) }");
   // Check buffers in range.
   Seek(5);
-  CheckExpectedBuffers(5, 13);
+  CheckExpectedBuffers(5, 15);
 }
 
 TEST_F(SourceBufferStreamTest, End_Overlap) {
   // Append 10 buffers at positions 10 through 19.
-  AppendBuffers(10, 10);
+  NewSegmentAppend(10, 10);
 
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10);
+  NewSegmentAppend(5, 10);
 
   // Check expected range.
   CheckExpectedRanges("{ [5,19) }");
@@ -322,10 +356,10 @@ TEST_F(SourceBufferStreamTest, End_Overlap) {
 
 TEST_F(SourceBufferStreamTest, End_Overlap_Several) {
   // Append 10 buffers at positions 10 through 19.
-  AppendBuffers(10, 10);
+  NewSegmentAppend(10, 10);
 
   // Append 8 buffers at positions 5 through 12.
-  AppendBuffers(5, 8);
+  NewSegmentAppend(5, 8);
 
   // Check expected ranges: stream should not have kept buffers 13 and 14
   // because the keyframe on which they depended was overwritten.
@@ -342,19 +376,19 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Several) {
 
 TEST_F(SourceBufferStreamTest, Complete_Overlap_Several) {
   // Append 2 buffers at positions 5 through 6.
-  AppendBuffers(5, 2);
+  NewSegmentAppend(5, 2);
 
   // Append 2 buffers at positions 10 through 11.
-  AppendBuffers(10, 2);
+  NewSegmentAppend(10, 2);
 
   // Append 2 buffers at positions 15 through 16.
-  AppendBuffers(15, 2);
+  NewSegmentAppend(15, 2);
 
   // Check expected ranges.
   CheckExpectedRanges("{ [5,6) [10,11) [15,16) }");
 
   // Append buffers at positions 0 through 19.
-  AppendBuffers(0, 20);
+  NewSegmentAppend(0, 20);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,19) }");
@@ -365,19 +399,19 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Several) {
 
 TEST_F(SourceBufferStreamTest, Complete_Overlap_Several_Then_Merge) {
   // Append 2 buffers at positions 5 through 6.
-  AppendBuffers(5, 2);
+  NewSegmentAppend(5, 2);
 
   // Append 2 buffers at positions 10 through 11.
-  AppendBuffers(10, 2);
+  NewSegmentAppend(10, 2);
 
   // Append 2 buffers at positions 15 through 16.
-  AppendBuffers(15, 2);
+  NewSegmentAppend(15, 2);
 
   // Append 2 buffers at positions 20 through 21.
-  AppendBuffers(20, 2);
+  NewSegmentAppend(20, 2);
 
   // Append buffers at positions 0 through 19.
-  AppendBuffers(0, 20);
+  NewSegmentAppend(0, 20);
 
   // Check expected ranges.
   CheckExpectedRanges("{ [0,21) }");
@@ -388,13 +422,13 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Several_Then_Merge) {
 
 TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to buffer at position 5.
   Seek(5);
 
   // Replace old data with new data.
-  AppendBuffers(5, 10, &kDataB);
+  NewSegmentAppend(5, 10, &kDataB);
 
   // Check ranges are correct.
   CheckExpectedRanges("{ [5,14) }");
@@ -409,14 +443,14 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected) {
 // the keyframe of the new data, after which it will return the new data.
 TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_TrackBuffer) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to buffer at position 5 and get next buffer.
   Seek(5);
   CheckExpectedBuffers(5, 5, &kDataA);
 
   // Do a complete overlap by appending 20 buffers at positions 0 through 19.
-  AppendBuffers(0, 20, &kDataB);
+  NewSegmentAppend(0, 20, &kDataB);
 
   // Check range is correct.
   CheckExpectedRanges("{ [0,19) }");
@@ -438,14 +472,14 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_TrackBuffer) {
 
 TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_EdgeCase) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to buffer at position 5 and get next buffer.
   Seek(5);
   CheckExpectedBuffers(5, 5, &kDataA);
 
   // Replace existing data with new data.
-  AppendBuffers(5, 10, &kDataB);
+  NewSegmentAppend(5, 10, &kDataB);
 
   // Check ranges are correct.
   CheckExpectedRanges("{ [5,14) }");
@@ -470,23 +504,23 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_Multiple) {
   static const uint8 kDataD = 0x77;
 
   // Append 5 buffers at positions 5 through 9.
-  AppendBuffers(5, 5, &kDataA);
+  NewSegmentAppend(5, 5, &kDataA);
 
   // Seek to buffer at position 5 and get next buffer.
   Seek(5);
   CheckExpectedBuffers(5, 5, &kDataA);
 
   // Replace existing data with new data.
-  AppendBuffers(5, 5, &kDataB);
+  NewSegmentAppend(5, 5, &kDataB);
 
   // Then replace it again with different data.
-  AppendBuffers(5, 5, &kDataC);
+  NewSegmentAppend(5, 5, &kDataC);
 
   // Now append 5 new buffers at positions 10 through 14.
-  AppendBuffers(10, 5, &kDataC);
+  NewSegmentAppend(10, 5, &kDataC);
 
   // Now replace all the data entirely.
-  AppendBuffers(5, 10, &kDataD);
+  NewSegmentAppend(5, 10, &kDataD);
 
   // Expect buffers 6 through 9 to be DataA, and the remaining
   // buffers to be kDataD.
@@ -503,11 +537,11 @@ TEST_F(SourceBufferStreamTest, Complete_Overlap_Selected_Multiple) {
 
 TEST_F(SourceBufferStreamTest, Start_Overlap_Selected) {
   // Append 10 buffers at positions 0 through 9.
-  AppendBuffers(0, 10, &kDataA);
+  NewSegmentAppend(0, 10, &kDataA);
 
   // Seek to position 5, then add buffers to overlap data at that position.
   Seek(5);
-  AppendBuffers(5, 10, &kDataB);
+  NewSegmentAppend(5, 10, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,14) }");
@@ -523,14 +557,14 @@ TEST_F(SourceBufferStreamTest, Start_Overlap_Selected) {
 
 TEST_F(SourceBufferStreamTest, Start_Overlap_Selected_TrackBuffer) {
   // Append 15 buffers at positions 0 through 14.
-  AppendBuffers(0, 15, &kDataA);
+  NewSegmentAppend(0, 15, &kDataA);
 
   // Seek to 10 and get buffer.
   Seek(10);
   CheckExpectedBuffers(10, 10, &kDataA);
 
   // Now append 10 buffers of new data at positions 10 through 19.
-  AppendBuffers(10, 10, &kDataB);
+  NewSegmentAppend(10, 10, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,19) }");
@@ -555,13 +589,13 @@ TEST_F(SourceBufferStreamTest, Start_Overlap_Selected_TrackBuffer) {
 
 TEST_F(SourceBufferStreamTest, Start_Overlap_Selected_EdgeCase) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   Seek(10);
   CheckExpectedBuffers(10, 10, &kDataA);
 
   // Now replace the last 5 buffers with new data.
-  AppendBuffers(10, 5, &kDataB);
+  NewSegmentAppend(10, 5, &kDataB);
 
   // The next 4 buffers should be the origial data, held in the track buffer.
   CheckExpectedBuffers(11, 14, &kDataA);
@@ -571,7 +605,7 @@ TEST_F(SourceBufferStreamTest, Start_Overlap_Selected_EdgeCase) {
   CheckNoNextBuffer();
 
   // Now append data at 15 through 19 and check to make sure it's correct.
-  AppendBuffers(15, 5, &kDataB);
+  NewSegmentAppend(15, 5, &kDataB);
   CheckExpectedBuffers(15, 19, &kDataB);
 
   // Seek to beginning of buffered range and check buffers.
@@ -592,13 +626,13 @@ TEST_F(SourceBufferStreamTest, Start_Overlap_Selected_EdgeCase) {
 // after:  B b b b b*B*b b b b A a a a a
 TEST_F(SourceBufferStreamTest, End_Overlap_Selected) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to position 5.
   Seek(5);
 
   // Now append 10 buffers at positions 0 through 9.
-  AppendBuffers(0, 10, &kDataB);
+  NewSegmentAppend(0, 10, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,14) }");
@@ -622,14 +656,14 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected) {
 // after: |B b b b b B b b b b A a a*a*a|
 TEST_F(SourceBufferStreamTest, End_Overlap_Selected_AfterEndOfNew_1) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to position 10, then move to position 13.
   Seek(10);
   CheckExpectedBuffers(10, 12, &kDataA);
 
   // Now append 10 buffers at positions 0 through 9.
-  AppendBuffers(0, 10, &kDataB);
+  NewSegmentAppend(0, 10, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,14) }");
@@ -654,14 +688,14 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_AfterEndOfNew_1) {
 // after: |B b b b b B b b|   |A a a*a*a|
 TEST_F(SourceBufferStreamTest, End_Overlap_Selected_AfterEndOfNew_2) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to position 10, then move to position 13.
   Seek(10);
   CheckExpectedBuffers(10, 12, &kDataA);
 
   // Now append 8 buffers at positions 0 through 7.
-  AppendBuffers(0, 8, &kDataB);
+  NewSegmentAppend(0, 8, &kDataB);
 
   // Check expected ranges.
   CheckExpectedRanges("{ [0,7) [10,14) }");
@@ -690,14 +724,14 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_AfterEndOfNew_2) {
 // track:                 |a a|
 TEST_F(SourceBufferStreamTest, End_Overlap_Selected_AfterEndOfNew_3) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to position 5, then move to position 8.
   Seek(5);
   CheckExpectedBuffers(5, 7, &kDataA);
 
   // Now append 8 buffers at positions 0 through 7.
-  AppendBuffers(0, 8, &kDataB);
+  NewSegmentAppend(0, 8, &kDataB);
 
   // Check expected ranges.
   CheckExpectedRanges("{ [0,7) [10,14) }");
@@ -725,14 +759,14 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_AfterEndOfNew_3) {
 // track:                 |a a|
 TEST_F(SourceBufferStreamTest, End_Overlap_Selected_OverlappedByNew_1) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to position 5, then move to position 8.
   Seek(5);
   CheckExpectedBuffers(5, 7, &kDataA);
 
   // Now append 10 buffers at positions 0 through 9.
-  AppendBuffers(0, 10, &kDataB);
+  NewSegmentAppend(0, 10, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,14) }");
@@ -760,14 +794,14 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_OverlappedByNew_1) {
 // track:             |a a a a|
 TEST_F(SourceBufferStreamTest, End_Overlap_Selected_OverlappedByNew_2) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to position 5, then move to position 6.
   Seek(5);
   CheckExpectedBuffers(5, 5, &kDataA);
 
   // Now append 7 buffers at positions 0 through 6.
-  AppendBuffers(0, 7, &kDataB);
+  NewSegmentAppend(0, 7, &kDataB);
 
   // Check expected ranges.
   CheckExpectedRanges("{ [0,6) [10,14) }");
@@ -798,14 +832,14 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_OverlappedByNew_2) {
 // track:             |a a a a|
 TEST_F(SourceBufferStreamTest, End_Overlap_Selected_OverlappedByNew_3) {
   // Append 15 buffers at positions 5 through 19.
-  AppendBuffers(5, 15, &kDataA);
+  NewSegmentAppend(5, 15, &kDataA);
 
   // Seek to position 5, then move to position 6.
   Seek(5);
   CheckExpectedBuffers(5, 5, &kDataA);
 
   // Now append 13 buffers at positions 0 through 12.
-  AppendBuffers(0, 13, &kDataB);
+  NewSegmentAppend(0, 13, &kDataB);
 
   // Check expected ranges.
   CheckExpectedRanges("{ [0,12) [15,19) }");
@@ -834,14 +868,14 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_OverlappedByNew_3) {
 // track:             |a a a a|
 TEST_F(SourceBufferStreamTest, End_Overlap_Selected_NoKeyframeAfterNew) {
   // Append 5 buffers at positions 5 through 9.
-  AppendBuffers(5, 5, &kDataA);
+  NewSegmentAppend(5, 5, &kDataA);
 
   // Seek to position 5, then move to position 6.
   Seek(5);
   CheckExpectedBuffers(5, 5, &kDataA);
 
   // Now append 6 buffers at positions 0 through 5.
-  AppendBuffers(0, 6, &kDataB);
+  NewSegmentAppend(0, 6, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,5) }");
@@ -868,13 +902,13 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_NoKeyframeAfterNew) {
 // after:  A a a a a*B*b b b b A a a a a
 TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_1) {
   // Append 15 buffers at positions 0 through 14.
-  AppendBuffers(0, 15, &kDataA);
+  NewSegmentAppend(0, 15, &kDataA);
 
   // Seek to position 5.
   Seek(5);
 
   // Now append 5 buffers at positions 5 through 9.
-  AppendBuffers(5, 5, &kDataB);
+  NewSegmentAppend(5, 5, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,14) }");
@@ -898,14 +932,14 @@ TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_1) {
 // after:  A a a a a B b b b b A*a*a a a
 TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_2) {
   // Append 15 buffers at positions 0 through 14.
-  AppendBuffers(0, 15, &kDataA);
+  NewSegmentAppend(0, 15, &kDataA);
 
   // Seek to 10 then move to position 11.
   Seek(10);
   CheckExpectedBuffers(10, 10, &kDataA);
 
   // Now append 5 buffers at positions 5 through 9.
-  AppendBuffers(5, 5, &kDataB);
+  NewSegmentAppend(5, 5, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,14) }");
@@ -927,14 +961,14 @@ TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_2) {
 // after:  A a*a*a a B b b|   |A a a a a
 TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_3) {
   // Append 15 buffers at positions 0 through 14.
-  AppendBuffers(0, 15, &kDataA);
+  NewSegmentAppend(0, 15, &kDataA);
 
   // Seek to beginning then move to position 2.
   Seek(0);
   CheckExpectedBuffers(0, 1, &kDataA);
 
   // Now append 3 buffers at positions 5 through 7.
-  AppendBuffers(5, 3, &kDataB);
+  NewSegmentAppend(5, 3, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,7) [10,14) }");
@@ -956,14 +990,14 @@ TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_3) {
 // track:                 |a a|
 TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_4) {
   // Append 15 buffers at positions 0 through 14.
-  AppendBuffers(0, 15, &kDataA);
+  NewSegmentAppend(0, 15, &kDataA);
 
   // Seek to 5 then move to position 8.
   Seek(5);
   CheckExpectedBuffers(5, 7, &kDataA);
 
   // Now append 3 buffers at positions 5 through 7.
-  AppendBuffers(5, 3, &kDataB);
+  NewSegmentAppend(5, 3, &kDataB);
 
   // Check expected range.
   CheckExpectedRanges("{ [0,7) [10,14) }");
@@ -983,7 +1017,7 @@ TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_4) {
 
 TEST_F(SourceBufferStreamTest, Seek_Keyframe) {
   // Append 6 buffers at positions 0 through 5.
-  AppendBuffers(0, 6);
+  NewSegmentAppend(0, 6);
 
   // Seek to beginning.
   Seek(0);
@@ -992,7 +1026,7 @@ TEST_F(SourceBufferStreamTest, Seek_Keyframe) {
 
 TEST_F(SourceBufferStreamTest, Seek_NonKeyframe) {
   // Append 15 buffers at positions 0 through 14.
-  AppendBuffers(0, 15);
+  NewSegmentAppend(0, 15);
 
   // Seek to buffer at position 13.
   Seek(13);
@@ -1015,7 +1049,7 @@ TEST_F(SourceBufferStreamTest, Seek_NotBuffered) {
   CheckNoNextBuffer();
 
   // Append 2 buffers at positions 0.
-  AppendBuffers(0, 2);
+  NewSegmentAppend(0, 2);
   Seek(0);
   CheckExpectedBuffers(0, 1);
 
@@ -1026,17 +1060,17 @@ TEST_F(SourceBufferStreamTest, Seek_NotBuffered) {
 
 TEST_F(SourceBufferStreamTest, Seek_InBetweenTimestamps) {
   // Append 10 buffers at positions 0 through 9.
-  AppendBuffers(0, 10);
+  NewSegmentAppend(0, 10);
 
   base::TimeDelta bump = frame_duration() / 4;
   CHECK(bump > base::TimeDelta());
 
   // Seek to buffer a little after position 5.
-  stream_.Seek(5 * frame_duration() + bump);
+  stream_->Seek(5 * frame_duration() + bump);
   CheckExpectedBuffers(5, 5, true);
 
   // Seek to buffer a little before position 5.
-  stream_.Seek(5 * frame_duration() - bump);
+  stream_->Seek(5 * frame_duration() - bump);
   CheckExpectedBuffers(0, 0, true);
 }
 
@@ -1046,14 +1080,14 @@ TEST_F(SourceBufferStreamTest, Seek_InBetweenTimestamps) {
 // response to the Seek().
 TEST_F(SourceBufferStreamTest, Seek_After_TrackBuffer_Filled) {
   // Append 10 buffers at positions 5 through 14.
-  AppendBuffers(5, 10, &kDataA);
+  NewSegmentAppend(5, 10, &kDataA);
 
   // Seek to buffer at position 5 and get next buffer.
   Seek(5);
   CheckExpectedBuffers(5, 5, &kDataA);
 
   // Do a complete overlap by appending 20 buffers at positions 0 through 19.
-  AppendBuffers(0, 20, &kDataB);
+  NewSegmentAppend(0, 20, &kDataB);
 
   // Check range is correct.
   CheckExpectedRanges("{ [0,19) }");
@@ -1072,11 +1106,11 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
 
   // Append 5 buffers at position (5 + |bump|) through 9, where the media
   // segment begins at position 5.
-  AppendBuffers(5, 5, bump);
+  NewSegmentAppend_OffsetFirstBuffer(5, 5, bump);
   scoped_refptr<StreamParserBuffer> buffer;
 
   // GetNextBuffer() should return the next buffer at position (5 + |bump|).
-  EXPECT_TRUE(stream_.GetNextBuffer(&buffer));
+  EXPECT_TRUE(stream_->GetNextBuffer(&buffer));
   EXPECT_EQ(buffer->GetDecodeTimestamp(), 5 * frame_duration() + bump);
 
   // Check rest of buffers.
@@ -1087,10 +1121,10 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
 
   // Append 5 buffers at positions (15 + |bump|) through 19, where the media
   // segment begins at 15.
-  AppendBuffers(15, 5, bump);
+  NewSegmentAppend_OffsetFirstBuffer(15, 5, bump);
 
   // GetNextBuffer() should return the next buffer at position (15 + |bump|).
-  EXPECT_TRUE(stream_.GetNextBuffer(&buffer));
+  EXPECT_TRUE(stream_->GetNextBuffer(&buffer));
   EXPECT_EQ(buffer->GetDecodeTimestamp(), 15 * frame_duration() + bump);
 
   // Check rest of buffers.
@@ -1099,13 +1133,13 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
 
 TEST_F(SourceBufferStreamTest, GetNextBuffer_AfterMerges) {
   // Append 5 buffers at positions 10 through 14.
-  AppendBuffers(10, 5);
+  NewSegmentAppend(10, 5);
 
   // Seek to buffer at position 12.
   Seek(12);
 
   // Append 5 buffers at positions 5 through 9.
-  AppendBuffers(5, 5);
+  NewSegmentAppend(5, 5);
 
   // Make sure ranges are merged.
   CheckExpectedRanges("{ [5,14) }");
@@ -1114,7 +1148,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_AfterMerges) {
   CheckExpectedBuffers(10, 10);
 
   // Append 5 buffers at positions 15 through 19.
-  AppendBuffers(15, 5);
+  NewSegmentAppend(15, 5);
   CheckExpectedRanges("{ [5,19) }");
 
   // Make sure the remaining next buffers are correct.
@@ -1123,7 +1157,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_AfterMerges) {
 
 TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenAppend) {
   // Append 4 buffers at positions 0 through 3.
-  AppendBuffers(0, 4);
+  NewSegmentAppend(0, 4);
 
   // Seek to buffer at position 0 and get all buffers.
   Seek(0);
@@ -1141,7 +1175,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenAppend) {
 // buffer is not buffered.
 TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenStartOverlap) {
   // Append 10 buffers at positions 0 through 9 and exhaust the buffers.
-  AppendBuffers(0, 10, &kDataA);
+  NewSegmentAppend(0, 10, &kDataA);
   CheckExpectedBuffers(0, 9, &kDataA);
 
   // Next buffer is at position 10, so should not be able to fulfill request.
@@ -1150,7 +1184,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenStartOverlap) {
   // Append 6 buffers at positons 5 through 10. This is to test that doing a
   // start-overlap successfully fulfills the read at position 10, even though
   // position 10 was unbuffered.
-  AppendBuffers(5, 6, &kDataB);
+  NewSegmentAppend(5, 6, &kDataB);
   CheckExpectedBuffers(10, 10, &kDataB);
 
   // Then add 5 buffers from positions 11 though 15.
@@ -1167,9 +1201,9 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenStartOverlap) {
 
 // This test covers the case where new buffers completely overlap a range
 // whose next buffer is not buffered.
-TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenCompeteOverlap) {
+TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenCompleteOverlap) {
   // Append 5 buffers at positions 10 through 14 and exhaust the buffers.
-  AppendBuffers(10, 5, &kDataA);
+  NewSegmentAppend(10, 5, &kDataA);
   CheckExpectedBuffers(10, 14, &kDataA);
 
   // Next buffer is at position 15, so should not be able to fulfill request.
@@ -1177,7 +1211,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenCompeteOverlap) {
 
   // Do a complete overlap and test that this successfully fulfills the read
   // at position 15.
-  AppendBuffers(5, 11, &kDataB);
+  NewSegmentAppend(5, 11, &kDataB);
   CheckExpectedBuffers(15, 15, &kDataB);
 
   // Then add 5 buffers from positions 16 though 20.
@@ -1188,7 +1222,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenCompeteOverlap) {
   CheckExpectedBuffers(16, 19, &kDataB);
 
   // Do a complete overlap and replace the buffer at position 20.
-  AppendBuffers(0, 21, &kDataA);
+  NewSegmentAppend(0, 21, &kDataA);
   CheckExpectedBuffers(20, 20, &kDataA);
 }
 
@@ -1196,7 +1230,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenCompeteOverlap) {
 // buffer, then an end-overlap causes the end of the range to be deleted.
 TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenEndOverlap) {
   // Append 5 buffers at positions 10 through 14 and exhaust the buffers.
-  AppendBuffers(10, 5, &kDataA);
+  NewSegmentAppend(10, 5, &kDataA);
   CheckExpectedBuffers(10, 14, &kDataA);
   CheckExpectedRanges("{ [10,14) }");
 
@@ -1204,7 +1238,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenEndOverlap) {
   CheckNoNextBuffer();
 
   // Do an end overlap that causes the latter half of the range to be deleted.
-  AppendBuffers(5, 6, &kDataB);
+  NewSegmentAppend(5, 6, &kDataB);
   CheckNoNextBuffer();
   CheckExpectedRanges("{ [5,10) }");
 
@@ -1227,14 +1261,14 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenEndOverlap) {
 // "next buffer" position.
 TEST_F(SourceBufferStreamTest, GetNextBuffer_Overlap_Selected_Complete) {
   // Append 5 buffers at positions 5 through 9.
-  AppendBuffers(5, 5, &kDataA);
+  NewSegmentAppend(5, 5, &kDataA);
 
   // Seek to buffer at position 5 and get next buffer.
   Seek(5);
   CheckExpectedBuffers(5, 5, &kDataA);
 
   // Replace existing data with new data.
-  AppendBuffers(5, 5, &kDataB);
+  NewSegmentAppend(5, 5, &kDataB);
 
   // Expect old data up until next keyframe in new data.
   CheckExpectedBuffers(6, 9, &kDataA);
@@ -1250,7 +1284,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_Overlap_Selected_Complete) {
 
 TEST_F(SourceBufferStreamTest, GetNextBuffer_NoSeek) {
   // Append 5 buffers at position 5.
-  AppendBuffers(5, 5);
+  NewSegmentAppend(5, 5);
 
   // Should receive buffers from the start without needing to seek.
   CheckExpectedBuffers(5, 5);
@@ -1258,7 +1292,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_NoSeek) {
 
 TEST_F(SourceBufferStreamTest, PresentationTimestampIndependence) {
   // Append 20 buffers at position 0.
-  AppendBuffers(0, 20);
+  NewSegmentAppend(0, 20);
 
   int last_keyframe_idx = -1;
   base::TimeDelta last_keyframe_presentation_timestamp;
@@ -1267,7 +1301,7 @@ TEST_F(SourceBufferStreamTest, PresentationTimestampIndependence) {
   // Check for IBB...BBP pattern.
   for (int i = 0; i < 20; i++) {
     scoped_refptr<StreamParserBuffer> buffer;
-    ASSERT_TRUE(stream_.GetNextBuffer(&buffer));
+    ASSERT_TRUE(stream_->GetNextBuffer(&buffer));
 
     if (buffer->IsKeyframe()) {
       EXPECT_EQ(buffer->GetTimestamp(), buffer->GetDecodeTimestamp());
@@ -1288,5 +1322,8 @@ TEST_F(SourceBufferStreamTest, PresentationTimestampIndependence) {
 
 // TODO(vrk): Add unit tests where keyframes are unaligned between streams.
 // (crbug.com/133557)
+
+// TODO(vrk): Add unit tests with end of stream being called at interesting
+// times.
 
 }  // namespace media
