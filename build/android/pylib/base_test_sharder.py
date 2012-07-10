@@ -6,7 +6,7 @@
 import logging
 import multiprocessing
 
-from test_result import *
+from test_result import TestResults
 
 
 def _ShardedTestRunnable(test):
@@ -76,12 +76,12 @@ class BaseTestSharder(object):
     logging.warning('*' * 80)
     final_results = TestResults()
     for retry in xrange(self.retries):
-      logging.warning('Try %d of %d' % (retry + 1, self.retries))
+      logging.warning('Try %d of %d', retry + 1, self.retries)
       self.SetupSharding(self.tests)
       test_runners = []
       for index, device in enumerate(self.attached_devices):
         logging.warning('*' * 80)
-        logging.warning('Creating shard %d for %s' % (index, device))
+        logging.warning('Creating shard %d for %s', index, device)
         logging.warning('*' * 80)
         test_runner = self.CreateShardedTestRunner(device, index)
         test_runners += [test_runner]

@@ -80,7 +80,8 @@ class TestPackageExecutable(TestPackage):
   def GetAllTests(self):
     """Returns a list of all tests available in the test suite."""
     all_tests = self.adb.RunShellCommand(
-        '/data/local/tmp/%s --gtest_list_tests' % self.test_suite_basename)
+        '%s /data/local/tmp/%s --gtest_list_tests' %
+        (self.tool.GetTestWrapper(), self.test_suite_basename))
     return self._ParseGTestListTests(all_tests)
 
   def CreateTestRunnerScript(self, gtest_filter, test_arguments):

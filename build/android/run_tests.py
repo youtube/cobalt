@@ -50,21 +50,20 @@ failed on device.
 
 import fnmatch
 import logging
-import multiprocessing
 import os
-import re
 import subprocess
 import sys
 import time
 
 from pylib import android_commands
 from pylib.base_test_sharder import BaseTestSharder
-from pylib import cmd_helper
+from pylib import constants
 from pylib import debug_info
 import emulator
+from pylib import ports
 from pylib import run_tests_helper
+from pylib import test_options_parser
 from pylib.single_test_runner import SingleTestRunner
-from pylib.test_package_executable import TestPackageExecutable
 from pylib.test_result import BaseTestResult, TestResults
 
 _TEST_SUITES = ['base_unittests',
@@ -83,7 +82,7 @@ def FullyQualifiedTestSuites(apk):
   Args:
     apk: if True, use the apk-based test runner"""
   # If not specified, assume the test suites are in out/Release
-  test_suite_dir = os.path.abspath(os.path.join(run_tests_helper.CHROME_DIR,
+  test_suite_dir = os.path.abspath(os.path.join(constants.CHROME_DIR,
                                                 'out', 'Release'))
   if apk:
     # out/Release/$SUITE_apk/$SUITE-debug.apk
@@ -194,17 +193,24 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     A TestResults object.
   """
   results = []
+  global _TEST_SUITES
 
   if test_suite:
     global _TEST_SUITES
-    if (not os.path.exists(test_suite) and
-        not os.path.splitext(test_suite)[1] == '.apk'):
+    if (not os.path.exists(test_suite)):
       logging.critical('Unrecognized test suite %s, supported: %s' %
                        (test_suite, _TEST_SUITES))
       if test_suite in _TEST_SUITES:
         logging.critical('(Remember to include the path: out/Release/%s)',
                          test_suite)
-      return TestResults.FromRun(failed=[BaseTestResult(test_suite, '')])
+      test_suite_basename = os.path.basename(test_suite)
+      if test_suite_basename in _TEST_SUITES:
+        logging.critical('Try "make -j15 %s"' % test_suite_basename)
+      else:
+        logging.critical('Unrecognized test suite, supported: %s' %
+                         _TEST_SUITES)
+      return TestResults.FromOkAndFailed([], [BaseTestResult(test_suite, '')],
+                                         False, False)
     fully_qualified_test_suites = [test_suite]
   else:
     fully_qualified_test_suites = FullyQualifiedTestSuites(apk)
@@ -224,10 +230,10 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     debug_info_list += [test.dump_debug_info]
     if rebaseline:
       test.UpdateFilter(test.test_results.failed)
-    test.test_results.LogFull()
+    test.test_results.LogFull('Unit test', os.path.basename(t))
   # Zip all debug info outputs into a file named by log_dump_name.
   debug_info.GTestDebugInfo.ZipAndCleanResults(
-      os.path.join(run_tests_helper.CHROME_DIR, 'out', 'Release',
+      os.path.join(constants.CHROME_DIR, 'out', 'Release',
           'debug_info_dumps'),
       log_dump_name, [d for d in debug_info_list if d])
 
@@ -257,6 +263,8 @@ class TestSharder(BaseTestSharder):
     test = SingleTestRunner(self.attached_devices[0], test_suite, gtest_filter,
                             test_arguments, timeout, rebaseline,
                             performance_test, cleanup_test_files, tool, 0)
+    # The executable/apk needs to be copied before we can call GetAllTests.
+    test.test_package.StripAndCopyExecutable()
     all_tests = test.test_package.GetAllTests()
     if not rebaseline:
       disabled_list = test.GetDisabledTests()
@@ -277,7 +285,8 @@ class TestSharder(BaseTestSharder):
     Returns:
       A SingleTestRunner object.
     """
-    shard_size = len(self.tests) / len(self.attached_devices)
+    device_num = len(self.attached_devices)
+    shard_size = (len(self.tests) + device_num - 1) / device_num
     shard_test_list = self.tests[index * shard_size : (index + 1) * shard_size]
     test_filter = ':'.join(shard_test_list)
     return SingleTestRunner(device, self.test_suite,
@@ -287,7 +296,7 @@ class TestSharder(BaseTestSharder):
 
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
-    test_results.LogFull()
+    test_results.LogFull('Unit test', os.path.basename(self.test_suite))
     if self.annotate:
       PrintAnnotationForTestResults(test_results)
     if test_results.failed and self.rebaseline:
@@ -332,6 +341,11 @@ def _RunATestSuite(options):
     if options.annotate:
       print '@@@STEP_FAILURE@@@'
     return 1
+
+  # Reset the test port allocation. It's important to do it before starting
+  # to dispatch any tests.
+  if not ports.ResetTestServerPortAllocation():
+    raise Exception('Failed to reset test server port.')
 
   if (len(attached_devices) > 1 and options.test_suite and
       not options.gtest_filter and not options.performance_test):
@@ -410,7 +424,7 @@ def ListTestSuites():
 
 
 def main(argv):
-  option_parser = run_tests_helper.CreateTestRunnerOptionParser(None,
+  option_parser = test_options_parser.CreateTestRunnerOptionParser(None,
       default_timeout=0)
   option_parser.add_option('-s', '--suite', dest='test_suite',
                            help='Executable name of the test suite to run '
