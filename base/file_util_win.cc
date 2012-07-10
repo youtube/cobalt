@@ -438,8 +438,7 @@ bool CreateOrUpdateShortcutLink(const wchar_t *source,
     i_persist_file.Release();
     i_shell_link.Release();
 
-    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST | SHCNF_FLUSHNOWAIT,
-                   NULL, NULL);
+    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
   }
 
   return SUCCEEDED(result);
