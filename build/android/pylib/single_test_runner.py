@@ -2,12 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import glob
 import logging
 import os
 import sys
 
 from base_test_runner import BaseTestRunner
 import debug_info
+import constants
 import run_tests_helper
 from test_package_apk import TestPackageApk
 from test_package_executable import TestPackageExecutable
@@ -32,10 +34,10 @@ class SingleTestRunner(BaseTestRunner):
   """
 
   def __init__(self, device, test_suite, gtest_filter, test_arguments, timeout,
-               rebaseline, performance_test, cleanup_test_files, tool,
+               rebaseline, performance_test, cleanup_test_files, tool_name,
                shard_index, dump_debug_info=False,
                fast_and_loose=False):
-    BaseTestRunner.__init__(self, device, shard_index)
+    BaseTestRunner.__init__(self, device, tool_name, shard_index)
     self._running_on_emulator = self.device.startswith('emulator')
     self._gtest_filter = gtest_filter
     self._test_arguments = test_arguments
@@ -48,22 +50,14 @@ class SingleTestRunner(BaseTestRunner):
     self.fast_and_loose = fast_and_loose
 
     if os.path.splitext(test_suite)[1] == '.apk':
-      self.test_package = TestPackageApk(
-          self.adb, device,
+      self.test_package = TestPackageApk(self.adb, device,
           test_suite, timeout, rebaseline, performance_test, cleanup_test_files,
-          tool, self.dump_debug_info)
+          self.tool, self.dump_debug_info)
     else:
       self.test_package = TestPackageExecutable(
           self.adb, device,
           test_suite, timeout, rebaseline, performance_test, cleanup_test_files,
-          tool, self.dump_debug_info)
-
-  def _GetHttpServerDocumentRootForTestSuite(self):
-    """Returns the document root needed by the test suite."""
-    if self.test_package.test_suite_basename == 'page_cycler_tests':
-      return os.path.join(run_tests_helper.CHROME_DIR, 'data', 'page_cycler')
-    return None
-
+          self.tool, self.dump_debug_info)
 
   def _TestSuiteRequiresMockTestServer(self):
     """Returns True if the test suite requires mock test server."""
@@ -147,23 +141,55 @@ class SingleTestRunner(BaseTestRunner):
     if self.test_package.test_suite_basename in ['base_unittests',
                                                  'sql_unittests',
                                                  'unit_tests']:
-      return [
+      test_files = [
           'base/data/json/bom_feff.json',
+          'base/data/file_util_unittest',
           'net/data/cache_tests/insert_load1',
           'net/data/cache_tests/dirty_entry5',
+          'net/data/ssl/certificates/',
           'ui/base/test/data/data_pack_unittest',
-          'chrome/test/data/bookmarks/History_with_empty_starred',
-          'chrome/test/data/bookmarks/History_with_starred',
+          'chrome/test/data/download-test1.lib',
+          'chrome/test/data/extensions/bad_magic.crx',
+          'chrome/test/data/extensions/good.crx',
+          'chrome/test/data/extensions/icon1.png',
+          'chrome/test/data/extensions/icon2.png',
+          'chrome/test/data/extensions/icon3.png',
+          'chrome/test/data/extensions/allow_silent_upgrade/',
+          'chrome/test/data/extensions/app/',
+          'chrome/test/data/extensions/bad/',
+          'chrome/test/data/extensions/effective_host_permissions/',
+          'chrome/test/data/extensions/empty_manifest/',
+          'chrome/test/data/extensions/good/Extensions/',
+          'chrome/test/data/extensions/manifest_tests/',
+          'chrome/test/data/extensions/page_action/',
+          'chrome/test/data/extensions/permissions/',
+          'chrome/test/data/extensions/script_and_capture/',
+          'chrome/test/data/extensions/unpacker/',
+          'chrome/test/data/bookmarks/',
+          'chrome/test/data/components/',
           'chrome/test/data/extensions/json_schema_test.js',
           'chrome/test/data/History/',
           'chrome/test/data/json_schema_validator/',
+          'chrome/test/data/pref_service/',
           'chrome/test/data/serializer_nested_test.js',
           'chrome/test/data/serializer_test.js',
           'chrome/test/data/serializer_test_nowhitespace.js',
           'chrome/test/data/top_sites/',
+          'chrome/test/data/web_app_info/',
           'chrome/test/data/web_database',
+          'chrome/test/data/webui/',
           'chrome/test/data/zip',
-          ]
+          'chrome/third_party/mock4js/',
+        ]
+      if self.test_package.test_suite_basename == 'unit_tests':
+        test_files += ['chrome/test/data/simple_open_search.xml']
+        # The following are spell check data. Now only list the data under
+        # third_party/hunspell_dictionaries which are used by unit tests.
+        old_cwd = os.getcwd()
+        os.chdir(constants.CHROME_DIR)
+        test_files += glob.glob('third_party/hunspell_dictionaries/*.bdic')
+        os.chdir(old_cwd)
+      return test_files
     elif self.test_package.test_suite_basename == 'net_unittests':
       return [
           'net/data/cache_tests',
@@ -171,6 +197,8 @@ class SingleTestRunner(BaseTestRunner):
           'net/data/ftp',
           'net/data/proxy_resolver_v8_unittest',
           'net/data/ssl/certificates',
+          'net/data/url_request_unittest/',
+          'net/data/proxy_script_fetcher_unittest'
           ]
     elif self.test_package.test_suite_basename == 'ui_tests':
       return [
@@ -178,8 +206,8 @@ class SingleTestRunner(BaseTestRunner):
           'chrome/test/data/json2.js',
           'chrome/test/data/sunspider',
           'chrome/test/data/v8_benchmark',
-          'chrome/test/ui/sunspider_uitest.js',
-          'chrome/test/ui/v8_benchmark_uitest.js',
+          'chrome/test/perf/sunspider_uitest.js',
+          'chrome/test/perf/v8_benchmark_uitest.js',
           ]
     elif self.test_package.test_suite_basename == 'page_cycler_tests':
       data = [
@@ -196,6 +224,8 @@ class SingleTestRunner(BaseTestRunner):
           ]
     elif self.test_package.test_suite_basename == 'content_unittests':
       return [
+          'chrome/test/gpu/webgl_conformance_test_expectations.txt',
+          'net/data/ssl/certificates/',
           'webkit/data/dom_storage/webcore_test_database.localstorage',
           ]
     return []
@@ -206,9 +236,6 @@ class SingleTestRunner(BaseTestRunner):
     Sometimes one test may need to run some helper tools first in order to
     successfully complete the test.
     """
-    document_root = self._GetHttpServerDocumentRootForTestSuite()
-    if document_root:
-      self.LaunchTestHttpServer(document_root)
     if self._TestSuiteRequiresMockTestServer():
       self.LaunchChromeTestServerSpawner()
 
@@ -216,28 +243,19 @@ class SingleTestRunner(BaseTestRunner):
     """Strips and copies the required data files for the test suite."""
     self.test_package.StripAndCopyExecutable()
     self.test_package.PushDataAndPakFiles()
-    self.test_package.tool.CopyFiles()
+    self.tool.CopyFiles()
     test_data = self.GetDataFilesForTestSuite()
     if test_data and not self.fast_and_loose:
-      if self.test_package.test_suite_basename == 'page_cycler_tests':
-        # Since the test data for page cycler are huge (around 200M), we use
-        # sdcard to store the data and create symbol links to map them to
-        # data/local/tmp/ later.
-        self.CopyTestData(test_data, '/sdcard/')
-        for p in [os.path.dirname(d) for d in test_data if os.path.isdir(d)]:
-          mapped_device_path = '/data/local/tmp/' + p
-          # Unlink the mapped_device_path at first in case it was mapped to
-          # a wrong path. Add option '-r' becuase the old path could be a dir.
-          self.adb.RunShellCommand('rm -r %s' %  mapped_device_path)
-          self.adb.RunShellCommand(
-              'ln -s /sdcard/%s %s' % (p, mapped_device_path))
-      else:
-        self.CopyTestData(test_data, '/data/local/tmp/')
+      # Due to the large size of certain test data, we use sdcard to store the
+      # test data and create symbolic links to map them to data/local/tmp/.
+      for data in test_data:
+        self.CopyTestData([data], '/sdcard/')
+      self.LinkSdCardPathsToTempDir(test_data)
 
   def RunTestsWithFilter(self):
     """Runs a tests via a small, temporary shell script."""
     self.test_package.CreateTestRunnerScript(self._gtest_filter,
-                                            self._test_arguments)
+                                             self._test_arguments)
     self.test_results = self.test_package.RunTestsAndListResults()
 
   def RebaselineTests(self):
@@ -292,20 +310,18 @@ class SingleTestRunner(BaseTestRunner):
   def SetUp(self):
     """Sets up necessary test enviroment for the test suite."""
     super(SingleTestRunner, self).SetUp()
+    self.adb.ClearApplicationState(constants.CHROME_PACKAGE)
     if self.test_package.performance_test:
-      if run_tests_helper.IsRunningAsBuildbot():
-        self.adb.SetJavaAssertsEnabled(enable=False)
-        self.adb.Reboot(full_reboot=False)
       self.adb.SetupPerformanceTest()
     if self.dump_debug_info:
       self.dump_debug_info.StartRecordingLog(True)
     self.StripAndCopyFiles()
     self.LaunchHelperToolsForTestSuite()
-    self.test_package.tool.SetupEnvironment()
+    self.tool.SetupEnvironment()
 
   def TearDown(self):
     """Cleans up the test enviroment for the test suite."""
-    self.test_package.tool.CleanUpEnvironment()
+    self.tool.CleanUpEnvironment()
     if self.test_package.cleanup_test_files:
       self.adb.RemovePushedFiles()
     if self.dump_debug_info:

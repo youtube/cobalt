@@ -3,7 +3,13 @@
 # found in the LICENSE file.
 
 
+import json
 import logging
+import os
+import time
+import traceback
+
+import constants
 
 
 # Language values match constants in Sponge protocol buffer (sponge.proto).
@@ -35,7 +41,7 @@ class SingleTestResult(BaseTestResult):
   def __init__(self, full_name, start_date, dur, lang, log='', error=()):
     BaseTestResult.__init__(self, full_name, log)
     name_pieces = full_name.rsplit('#')
-    if len(name_pieces) > 0:
+    if len(name_pieces) > 1:
       self.test_name = name_pieces[1]
       self.class_name = name_pieces[0]
     else:
@@ -55,8 +61,6 @@ class TestResults(object):
     self.failed = []
     self.crashed = []
     self.unknown = []
-    self.disabled = []
-    self.unexpected_pass = []
     self.timed_out = False
     self.overall_fail = False
 
@@ -80,13 +84,41 @@ class TestResults(object):
       ret.failed += t.failed
       ret.crashed += t.crashed
       ret.unknown += t.unknown
-      ret.disabled += t.disabled
-      ret.unexpected_pass += t.unexpected_pass
       if t.timed_out:
         ret.timed_out = True
       if t.overall_fail:
         ret.overall_fail = True
     return ret
+
+  @staticmethod
+  def FromPythonException(test_name, start_date_ms, exc_info):
+    """Constructs a TestResults with exception information for the given test.
+
+    Args:
+      test_name: name of the test which raised an exception.
+      start_date_ms: the starting time for the test.
+      exc_info: exception info, ostensibly from sys.exc_info().
+
+    Returns:
+      A TestResults object with a SingleTestResult in the failed list.
+    """
+    exc_type, exc_value, exc_traceback = exc_info
+    trace_info = ''.join(traceback.format_exception(exc_type, exc_value,
+                                                    exc_traceback))
+    log_msg = 'Exception:\n' + trace_info
+    duration_ms = (int(time.time()) * 1000) - start_date_ms
+
+    exc_result = SingleTestResult(
+                     full_name='PythonWrapper#' + test_name,
+                     start_date=start_date_ms,
+                     dur=duration_ms,
+                     lang=PYTHON,
+                     log=log_msg,
+                     error=(str(exc_type), log_msg))
+
+    results = TestResults()
+    results.failed.append(exc_result)
+    return results
 
   def _Log(self, sorted_list):
     for t in sorted_list:
@@ -98,8 +130,9 @@ class TestResults(object):
     """Returns the all broken tests including failed, crashed, unknown."""
     return self.failed + self.crashed + self.unknown
 
-  def LogFull(self):
-    """Output all broken tests or 'passed' if none broken"""
+  def LogFull(self, test_group, test_suite):
+    """Output broken test logs, summarize in a log file and the test output."""
+    # Output all broken tests or 'passed' if none broken.
     logging.critical('*' * 80)
     logging.critical('Final result')
     if self.failed:
@@ -114,6 +147,38 @@ class TestResults(object):
     if not self.GetAllBroken():
       logging.critical('Passed')
     logging.critical('*' * 80)
+
+    # Summarize in a log file, if tests are running on bots.
+    if test_group and test_suite and os.environ.get('BUILDBOT_BUILDERNAME'):
+      log_file_path = os.path.join(constants.CHROME_DIR, 'out',
+                                   'Release', 'test_logs')
+      if not os.path.exists(log_file_path):
+        os.mkdir(log_file_path)
+      full_file_name = os.path.join(log_file_path, test_group)
+      if not os.path.exists(full_file_name):
+        with open(full_file_name, 'w') as log_file:
+          print >> log_file, '\n%s results for %s build %s:' % (
+              test_group, os.environ.get('BUILDBOT_BUILDERNAME'),
+              os.environ.get('BUILDBOT_BUILDNUMBER'))
+      log_contents = ['  %s result : %d tests ran' % (test_suite,
+                                                      len(self.ok) +
+                                                      len(self.failed) +
+                                                      len(self.crashed) +
+                                                      len(self.unknown))]
+      content_pairs = [('passed', len(self.ok)), ('failed', len(self.failed)),
+                       ('crashed', len(self.crashed))]
+      for (result, count) in content_pairs:
+        if count:
+          log_contents.append(', %d tests %s' % (count, result))
+      with open(full_file_name, 'a') as log_file:
+        print >> log_file, ''.join(log_contents)
+      content = {'test_group': test_group,
+                 'ok': [t.name for t in self.ok],
+                 'failed': [t.name for t in self.failed],
+                 'crashed': [t.name for t in self.failed],
+                 'unknown': [t.name for t in self.unknown],}
+      with open(os.path.join(log_file_path, 'results.json'), 'a') as json_file:
+        print >> json_file, json.dumps(content)
 
     # Summarize in the test output.
     summary_string = 'Summary:\n'
