@@ -521,6 +521,13 @@ void URLRequest::DoCancel(int error, const SSLInfo& ssl_info) {
     status_.set_status(URLRequestStatus::CANCELED);
     status_.set_error(error);
     response_info_.ssl_info = ssl_info;
+
+    // If the request hasn't already been completed, log a cancellation event.
+    if (!has_notified_completion_) {
+      // Don't log an error code on ERR_ABORTED, since that's redundant.
+      net_log_.AddEventWithNetErrorCode(NetLog::TYPE_CANCELLED,
+                                        error == ERR_ABORTED ? OK : error);
+    }
   }
 
   if (is_pending_ && job_)
