@@ -671,7 +671,7 @@ int SpdyStream::DoSendHeaders() {
   CHECK(request_.get());
   int result = session_->WriteSynStream(
       stream_id_, priority_, slot_, flags,
-      request_);
+      *request_);
   if (result != ERR_IO_PENDING)
     return result;
 
