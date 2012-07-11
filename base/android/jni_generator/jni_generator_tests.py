@@ -54,7 +54,6 @@ class TestGenerator(unittest.TestCase):
       print '=' * 80
       self.fail('Golden text mismatch')
 
-  # TODO(bulach): Detangle these tests from knowing about classes from Content.
   def testNatives(self):
     test_data = """"
     private native int nativeInit();
@@ -65,7 +64,7 @@ class TestGenerator(unittest.TestCase):
     private static native String nativeGetDomainAndRegistry(String url);
     private static native void nativeCreateHistoricalTabFromState(
             byte[] state, int tab_index);
-    private native byte[] nativeGetStateAsByteArray(ContentViewCore view);
+    private native byte[] nativeGetStateAsByteArray(ContentView view);
     private static native String[] nativeGetAutofillProfileGUIDs();
     private native void nativeSetRecognitionResults(
             int sessionId, String[] results);
@@ -126,7 +125,7 @@ class TestGenerator(unittest.TestCase):
                      type='function'),
         NativeMethod(return_type='byte[]', static=False,
                      name='GetStateAsByteArray',
-                     params=[Param(datatype='ContentViewCore', name='view')],
+                     params=[Param(datatype='ContentView', name='view')],
                      java_class_name=None,
                      type='function'),
         NativeMethod(return_type='String[]', static=True,
@@ -360,7 +359,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "V", reinterpret_cast<void*>(CreateHistoricalTabFromState) },
     { "nativeGetStateAsByteArray",
 "("
-"Lorg/chromium/content/browser/ContentViewCore;"
+"Lorg/chromium/content/browser/ContentView;"
 ")"
 "[B", reinterpret_cast<void*>(GetStateAsByteArray) },
     { "nativeGetAutofillProfileGUIDs",
@@ -755,7 +754,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     void dismiss();
     @SuppressWarnings("unused")
     @CalledByNative
-    private static boolean shouldShowAutoLogin(ContentViewCore contentView,
+    private static boolean shouldShowAutoLogin(ContentView contentView,
             String realm, String account, String args) {
         AccountManagerContainer accountManagerContainer =
             new AccountManagerContainer((Activity)contentView.getContext(),
@@ -827,7 +826,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
             name='shouldShowAutoLogin',
             method_id_var_name='shouldShowAutoLogin',
             java_class_name='',
-            params=[Param(datatype='ContentViewCore', name='contentView'),
+            params=[Param(datatype='ContentView', name='contentView'),
                     Param(datatype='String', name='realm'),
                     Param(datatype='String', name='account'),
                     Param(datatype='String', name='args')],
@@ -1062,7 +1061,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
           "shouldShowAutoLogin",
 
 "("
-"Lorg/chromium/content/browser/ContentViewCore;"
+"Lorg/chromium/content/browser/ContentView;"
 "Ljava/lang/String;"
 "Ljava/lang/String;"
 "Ljava/lang/String;"
