@@ -13,7 +13,6 @@
 #include <string>
 
 #include "base/gtest_prod_util.h"
-#include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "net/base/io_buffer.h"
@@ -165,7 +164,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       RequestPriority priority,
       uint8 credential_slot,
       SpdyControlFlags flags,
-      const linked_ptr<SpdyHeaderBlock>& headers);
+      const SpdyHeaderBlock& headers);
 
   // Write a CREDENTIAL frame to the session.
   int WriteCredentialFrame(const std::string& origin,
@@ -488,15 +487,15 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                            uint8 credential_slot,
                            bool fin,
                            bool unidirectional,
-                           const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
+                           const SpdyHeaderBlock& headers) OVERRIDE;
   virtual void OnSynReply(
       SpdyStreamId stream_id,
       bool fin,
-      const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
+      const SpdyHeaderBlock& headers) OVERRIDE;
   virtual void OnHeaders(
       SpdyStreamId stream_id,
       bool fin,
-      const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
+      const SpdyHeaderBlock& headers) OVERRIDE;
 
   // --------------------------
   // Helper methods for testing
