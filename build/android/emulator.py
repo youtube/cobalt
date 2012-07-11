@@ -9,7 +9,7 @@
 Assumes system environment ANDROID_NDK_ROOT has been set.
 
   Emulator: The class provides the methods to launch/shutdown the emulator with
-            the android virtual device named 'buildbot' .
+            the android virtual device named 'avd_armeabi' .
 """
 
 import logging
@@ -86,7 +86,7 @@ def _GetAvailablePort():
 class Emulator(object):
   """Provides the methods to lanuch/shutdown the emulator.
 
-  The emulator has the android virtual device named 'buildbot'.
+  The emulator has the android virtual device named 'avd_armeabi'.
 
   The emulator could use any even TCP port between 5554 and 5584 for the
   console communication, and this port will be part of the device name like
@@ -156,7 +156,7 @@ class Emulator(object):
         # That's not enough for 8 unit test bundles and their data.
         '-partition-size', '512',
         # Use a familiar name and port.
-        '-avd', 'buildbot',
+        '-avd', 'avd_armeabi',
         '-port', str(port)]
     if not self.fast_and_loose:
       emulator_command.extend([
