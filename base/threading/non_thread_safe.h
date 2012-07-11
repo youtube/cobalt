@@ -4,7 +4,6 @@
 
 #ifndef BASE_THREADING_NON_THREAD_SAFE_H_
 #define BASE_THREADING_NON_THREAD_SAFE_H_
-#pragma once
 
 // Classes deriving from NonThreadSafe may need to suppress MSVC warning 4275:
 // non dll-interface class 'Bar' used as base for dll-interface class 'Foo'.

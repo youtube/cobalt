@@ -4,7 +4,6 @@
 
 #ifndef NET_COOKIES_COOKIE_STORE_TEST_HELPERS_H_
 #define NET_COOKIES_COOKIE_STORE_TEST_HELPERS_H_
-#pragma once
 
 #include "net/cookies/cookie_monster.h"
 

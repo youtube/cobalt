@@ -27,7 +27,6 @@
 
 #ifndef BASE_JSON_JSON_READER_H_
 #define BASE_JSON_JSON_READER_H_
-#pragma once
 
 #include <string>
 

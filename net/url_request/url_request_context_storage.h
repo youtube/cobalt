@@ -4,7 +4,6 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_CONTEXT_STORAGE_H_
 #define NET_URL_REQUEST_URL_REQUEST_CONTEXT_STORAGE_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"

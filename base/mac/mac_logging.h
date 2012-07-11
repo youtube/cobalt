@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_MAC_LOGGING_H_
 #define BASE_MAC_MAC_LOGGING_H_
-#pragma once
 
 #include "base/logging.h"
 #include "build/build_config.h"

@@ -4,7 +4,6 @@
 
 #ifndef BASE_DEBUG_PROFILER_H
 #define BASE_DEBUG_PROFILER_H
-#pragma once
 
 #include <string>
 

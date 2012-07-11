@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_CERT_VERIFY_PROC_H_
 #define NET_BASE_CERT_VERIFY_PROC_H_
-#pragma once
 
 #include <string>
 #include <vector>

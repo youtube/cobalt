@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_RESPONSE_BODY_DRAINER_H_
 #define NET_HTTP_HTTP_RESPONSE_BODY_DRAINER_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"

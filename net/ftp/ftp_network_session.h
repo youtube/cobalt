@@ -4,7 +4,6 @@
 
 #ifndef NET_FTP_FTP_NETWORK_SESSION_H_
 #define NET_FTP_FTP_NETWORK_SESSION_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"

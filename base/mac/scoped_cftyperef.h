@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_SCOPED_CFTYPEREF_H_
 #define BASE_MAC_SCOPED_CFTYPEREF_H_
-#pragma once
 
 #include <CoreFoundation/CoreFoundation.h>
 

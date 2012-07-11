@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_MOCK_SSPI_LIBRARY_WIN_H_
 #define NET_HTTP_MOCK_SSPI_LIBRARY_WIN_H_
-#pragma once
 
 #include <list>
 #include <set>

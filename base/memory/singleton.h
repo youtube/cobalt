@@ -18,7 +18,6 @@
 
 #ifndef BASE_MEMORY_SINGLETON_H_
 #define BASE_MEMORY_SINGLETON_H_
-#pragma once
 
 #include "base/at_exit.h"
 #include "base/atomicops.h"

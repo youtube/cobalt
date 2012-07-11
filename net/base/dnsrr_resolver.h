@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_DNSRR_RESOLVER_H_
 #define NET_BASE_DNSRR_RESOLVER_H_
-#pragma once
 
 #include <map>
 #include <string>

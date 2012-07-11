@@ -6,7 +6,6 @@
 
 #ifndef NET_DISK_CACHE_BLOCK_FILES_H_
 #define NET_DISK_CACHE_BLOCK_FILES_H_
-#pragma once
 
 #include <vector>
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_DHCP_SCRIPT_FETCHER_FACTORY_H_
 #define NET_PROXY_DHCP_SCRIPT_FETCHER_FACTORY_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/memory/singleton.h"

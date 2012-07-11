@@ -4,7 +4,6 @@
 
 #ifndef SQL_TRANSACTION_H_
 #define SQL_TRANSACTION_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "sql/sql_export.h"

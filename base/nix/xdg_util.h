@@ -4,7 +4,6 @@
 
 #ifndef BASE_NIX_XDG_UTIL_H_
 #define BASE_NIX_XDG_UTIL_H_
-#pragma once
 
 // XDG refers to http://en.wikipedia.org/wiki/Freedesktop.org .
 // This file contains utilities found across free desktop environments.

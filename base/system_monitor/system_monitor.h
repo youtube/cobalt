@@ -4,7 +4,6 @@
 
 #ifndef BASE_SYSTEM_MONITOR_SYSTEM_MONITOR_H_
 #define BASE_SYSTEM_MONITOR_SYSTEM_MONITOR_H_
-#pragma once
 
 #include <string>
 #include <vector>

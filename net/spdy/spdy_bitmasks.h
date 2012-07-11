@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_BITMASKS_H_
 #define NET_SPDY_SPDY_BITMASKS_H_
-#pragma once
 
 namespace net {
 

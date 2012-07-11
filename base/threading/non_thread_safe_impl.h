@@ -4,7 +4,6 @@
 
 #ifndef BASE_THREADING_NON_THREAD_SAFE_IMPL_H_
 #define BASE_THREADING_NON_THREAD_SAFE_IMPL_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/threading/thread_checker_impl.h"

@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_NEXT_PROTO_H_
 #define NET_SOCKET_NEXT_PROTO_H_
-#pragma once
 
 namespace net {
 

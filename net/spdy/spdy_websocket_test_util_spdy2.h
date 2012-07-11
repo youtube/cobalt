@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_WEBSOCKET_TEST_UTIL_H_
 #define NET_SPDY_SPDY_WEBSOCKET_TEST_UTIL_H_
-#pragma once
 
 #include "net/base/request_priority.h"
 #include "net/spdy/spdy_protocol.h"

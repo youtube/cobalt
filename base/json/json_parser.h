@@ -4,7 +4,6 @@
 
 #ifndef BASE_JSON_JSON_PARSER_H_
 #define BASE_JSON_JSON_PARSER_H_
-#pragma once
 
 #include <string>
 

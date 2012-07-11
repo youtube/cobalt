@@ -7,7 +7,6 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_ERROR_JOB_H_
 #define NET_URL_REQUEST_URL_REQUEST_ERROR_JOB_H_
-#pragma once
 
 #include "base/memory/weak_ptr.h"
 #include "net/base/net_export.h"

@@ -4,7 +4,6 @@
 
 #ifndef BASE_SYNCHRONIZATION_LOCK_H_
 #define BASE_SYNCHRONIZATION_LOCK_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/synchronization/lock_impl.h"

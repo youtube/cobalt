@@ -8,7 +8,6 @@
 
 #ifndef BASE_ATOMICOPS_INTERNALS_MIPS_GCC_H_
 #define BASE_ATOMICOPS_INTERNALS_MIPS_GCC_H_
-#pragma once
 
 #define ATOMICOPS_COMPILER_BARRIER() __asm__ __volatile__("" : : : "memory")
 

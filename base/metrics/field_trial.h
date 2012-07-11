@@ -74,7 +74,6 @@
 
 #ifndef BASE_METRICS_FIELD_TRIAL_H_
 #define BASE_METRICS_FIELD_TRIAL_H_
-#pragma once
 
 #include <map>
 #include <string>

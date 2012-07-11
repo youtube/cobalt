@@ -4,7 +4,6 @@
 
 #ifndef SQL_META_TABLE_H_
 #define SQL_META_TABLE_H_
-#pragma once
 
 #include <string>
 

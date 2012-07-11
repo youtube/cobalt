@@ -39,7 +39,6 @@
 
 #ifndef BASE_THREADING_SIMPLE_THREAD_H_
 #define BASE_THREADING_SIMPLE_THREAD_H_
-#pragma once
 
 #include <string>
 #include <queue>

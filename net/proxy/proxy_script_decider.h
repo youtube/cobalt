@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_SCRIPT_DECIDER_H_
 #define NET_PROXY_PROXY_SCRIPT_DECIDER_H_
-#pragma once
 
 #include <string>
 #include <vector>

@@ -4,7 +4,6 @@
 
 #ifndef BASE_JSON_JSON_STRING_VALUE_SERIALIZER_H_
 #define BASE_JSON_JSON_STRING_VALUE_SERIALIZER_H_
-#pragma once
 
 #include <string>
 

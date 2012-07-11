@@ -9,7 +9,6 @@
 
 #ifndef BASE_BIND_INTERNAL_H_
 #define BASE_BIND_INTERNAL_H_
-#pragma once
 
 #include "base/bind_helpers.h"
 #include "base/callback_internal.h"

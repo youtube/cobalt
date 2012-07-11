@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_SCOPED_NSEXCEPTION_ENABLER_H_
 #define BASE_MAC_SCOPED_NSEXCEPTION_ENABLER_H_
-#pragma once
 
 #import <Foundation/Foundation.h>
 

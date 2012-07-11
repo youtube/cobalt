@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_MULTI_THREADED_CERT_VERIFIER_H_
 #define NET_BASE_MULTI_THREADED_CERT_VERIFIER_H_
-#pragma once
 
 #include <map>
 #include <string>

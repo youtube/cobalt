@@ -4,7 +4,6 @@
 
 #ifndef BASE_OS_COMPAT_ANDROID_H_
 #define BASE_OS_COMPAT_ANDROID_H_
-#pragma once
 
 #include <fcntl.h>
 #include <sys/types.h>

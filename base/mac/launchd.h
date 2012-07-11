@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_LAUNCHD_H_
 #define BASE_MAC_LAUNCHD_H_
-#pragma once
 
 #include <launch.h>
 #include <sys/types.h>

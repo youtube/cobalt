@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_ADDRESS_LIST_H_
 #define NET_BASE_ADDRESS_LIST_H_
-#pragma once
 
 #include <string>
 #include <vector>

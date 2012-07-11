@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_FILE_STREAM_WHENCE_H_
 #define NET_BASE_FILE_STREAM_WHENCE_H_
-#pragma once
 
 namespace net {
 

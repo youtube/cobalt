@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_SSL_CLIENT_SOCKET_WIN_H_
 #define NET_SOCKET_SSL_CLIENT_SOCKET_WIN_H_
-#pragma once
 
 #define SECURITY_WIN32  // Needs to be defined before including security.h
 

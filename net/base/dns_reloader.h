@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_DNS_RELOADER_H_
 #define NET_BASE_DNS_RELOADER_H_
-#pragma once
 
 #include "build/build_config.h"
 

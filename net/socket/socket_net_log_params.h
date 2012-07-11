@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_SOCKET_NET_LOG_PARAMS_H_
 #define NET_SOCKET_SOCKET_NET_LOG_PARAMS_H_
-#pragma once
 
 #include "net/base/net_log.h"
 #include "net/base/sys_addrinfo.h"

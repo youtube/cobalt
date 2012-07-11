@@ -4,7 +4,6 @@
 
 #ifndef BASE_TEST_THREAD_TEST_HELPER_H_
 #define BASE_TEST_THREAD_TEST_HELPER_H_
-#pragma once
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"

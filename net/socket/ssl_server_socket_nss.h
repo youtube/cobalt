@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_SSL_SERVER_SOCKET_NSS_H_
 #define NET_SOCKET_SSL_SERVER_SOCKET_NSS_H_
-#pragma once
 
 #include <certt.h>
 #include <keyt.h>

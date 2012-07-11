@@ -6,7 +6,6 @@
 
 #ifndef NET_DISK_CACHE_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_BACKEND_IMPL_H_
-#pragma once
 
 #include "base/file_path.h"
 #include "base/hash_tables.h"

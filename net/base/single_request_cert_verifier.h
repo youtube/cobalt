@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_SINGLE_REQUEST_CERT_VERIFIER_H_
 #define NET_BASE_SINGLE_REQUEST_CERT_VERIFIER_H_
-#pragma once
 
 #include "net/base/cert_verifier.h"
 

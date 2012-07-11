@@ -4,7 +4,6 @@
 
 #ifndef NET_TEST_LOCAL_SYNC_TEST_SERVER_H_
 #define NET_TEST_LOCAL_SYNC_TEST_SERVER_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

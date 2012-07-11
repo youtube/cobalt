@@ -4,7 +4,6 @@
 
 #ifndef BASE_FILE_VERSION_INFO_WIN_H_
 #define BASE_FILE_VERSION_INFO_WIN_H_
-#pragma once
 
 #include <string>
 

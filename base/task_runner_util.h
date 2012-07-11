@@ -4,7 +4,6 @@
 
 #ifndef BASE_TASK_RUNNER_UTIL_H_
 #define BASE_TASK_RUNNER_UTIL_H_
-#pragma once
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"

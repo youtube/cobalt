@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_TCP_CLIENT_SOCKET_WIN_H_
 #define NET_SOCKET_TCP_CLIENT_SOCKET_WIN_H_
-#pragma once
 
 #include <winsock2.h>
 

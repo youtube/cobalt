@@ -6,7 +6,6 @@
 
 #ifndef BASE_STL_UTIL_H_
 #define BASE_STL_UTIL_H_
-#pragma once
 
 #include <string>
 #include <vector>

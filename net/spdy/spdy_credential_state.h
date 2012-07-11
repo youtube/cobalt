@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_CREDENTIAL_STATE_H_
 #define NET_SPDY_SPDY_CREDENTIAL_STATE_H_
-#pragma once
 
 #include <vector>
 

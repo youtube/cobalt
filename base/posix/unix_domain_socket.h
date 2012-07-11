@@ -4,7 +4,6 @@
 
 #ifndef BASE_POSIX_UNIX_DOMAIN_SOCKET_H_
 #define BASE_POSIX_UNIX_DOMAIN_SOCKET_H_
-#pragma once
 
 #include <stdint.h>
 #include <sys/types.h>

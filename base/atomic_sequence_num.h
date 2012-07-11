@@ -4,7 +4,6 @@
 
 #ifndef BASE_ATOMIC_SEQUENCE_NUM_H_
 #define BASE_ATOMIC_SEQUENCE_NUM_H_
-#pragma once
 
 #include "base/atomicops.h"
 #include "base/basictypes.h"

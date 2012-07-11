@@ -75,7 +75,6 @@
 
 #ifndef BASE_TEST_TRACE_EVENT_ANALYZER_H_
 #define BASE_TEST_TRACE_EVENT_ANALYZER_H_
-#pragma once
 
 #include <map>
 

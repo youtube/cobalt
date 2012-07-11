@@ -7,7 +7,6 @@
 
 #ifndef NET_BASE_WINSOCK_INIT_H_
 #define NET_BASE_WINSOCK_INIT_H_
-#pragma once
 
 #include "net/base/net_export.h"
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_COOKIES_COOKIE_UTIL_H_
 #define NET_COOKIES_COOKIE_UTIL_H_
-#pragma once
 
 #include <string>
 
