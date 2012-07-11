@@ -4,7 +4,6 @@
 
 #ifndef MEDIA_AUDIO_WIN_WAVEOUT_OUTPUT_WIN_H_
 #define MEDIA_AUDIO_WIN_WAVEOUT_OUTPUT_WIN_H_
-#pragma once
 
 #include <windows.h>
 #include <mmsystem.h>
