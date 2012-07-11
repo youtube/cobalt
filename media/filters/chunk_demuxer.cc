@@ -723,14 +723,12 @@ bool ChunkDemuxer::AppendData(const std::string& id,
       std::swap(cb, seek_cb_);
     }
 
-    if (duration_ > TimeDelta() && duration_ != kInfiniteDuration()) {
-      if (audio_ && !video_) {
-        ranges = audio_->GetBufferedRanges();
-      } else if (!audio_ && video_) {
-        ranges = video_->GetBufferedRanges();
-      } else {
-        ranges = ComputeIntersection();
-      }
+    if (audio_ && !video_) {
+      ranges = audio_->GetBufferedRanges();
+    } else if (!audio_ && video_) {
+      ranges = video_->GetBufferedRanges();
+    } else {
+      ranges = ComputeIntersection();
     }
   }
 

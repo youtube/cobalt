@@ -263,6 +263,23 @@ TEST_F(PipelineIntegrationTest, BasicPlaybackHashed) {
   EXPECT_EQ(GetAudioHash(), "6138555be3389e6aba4c8e6f70195d50");
 }
 
+TEST_F(PipelineIntegrationTest, BasicPlayback_MediaSource) {
+  MockMediaSource source("bear-320x240.webm", 219229, true, true);
+  StartPipelineWithMediaSource(&source);
+  source.EndOfStream();
+  ASSERT_EQ(pipeline_status_, PIPELINE_OK);
+
+  EXPECT_EQ(pipeline_->GetBufferedTimeRanges().size(), 1u);
+  EXPECT_EQ(pipeline_->GetBufferedTimeRanges().start(0).InMilliseconds(), 0);
+  EXPECT_EQ(pipeline_->GetBufferedTimeRanges().end(0).InMilliseconds(), 2737);
+
+  Play();
+
+  ASSERT_TRUE(WaitUntilOnEnded());
+  source.Abort();
+  Stop();
+}
+
 TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
   MockMediaSource source("bear-320x240-encrypted.webm", 219726, true, true);
   FakeDecryptorClient encrypted_media;
