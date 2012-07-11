@@ -272,6 +272,7 @@
           'process_util.cc',
           'process_util.h',
           'process_util_freebsd.cc',
+          'process_util_ios.mm',
           'process_util_linux.cc',
           'process_util_mac.mm',
           'process_util_openbsd.cc',
@@ -572,11 +573,12 @@
               ['include', '^sys_string_conversions_mac\\.'],
               ['include', '^time_mac\\.'],
               ['include', '^worker_pool_mac\\.'],
-              # TODO(ios): Remove these as base/ is unforked.
-              # For now, exclude everything that doesn't build as-is, just to
-              # get something building on a bot.
-              ['exclude', '^message_pump'],
+              # Exclude all process_util except the minimal implementation
+              # needed on iOS (mostly for unit tests).
               ['exclude', '^process_util'],
+              ['include', '^process_util_ios\\.mm$'],
+              # TODO(ios): Add message_pump support.
+              ['exclude', '^message_pump'],
             ],
           }],
           ['OS != "mac" or >(nacl_untrusted_build)==1', {
