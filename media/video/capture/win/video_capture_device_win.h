@@ -8,7 +8,6 @@
 
 #ifndef MEDIA_VIDEO_CAPTURE_WIN_VIDEO_CAPTURE_DEVICE_WIN_H_
 #define MEDIA_VIDEO_CAPTURE_WIN_VIDEO_CAPTURE_DEVICE_WIN_H_
-#pragma once
 
 // Avoid including strsafe.h via dshow as it will cause build warnings.
 #define NO_DSHOW_STRSAFE

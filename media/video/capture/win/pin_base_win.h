@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,6 @@
 
 #ifndef MEDIA_VIDEO_CAPTURE_WIN_PIN_BASE_WIN_H_
 #define MEDIA_VIDEO_CAPTURE_WIN_PIN_BASE_WIN_H_
-#pragma once
 
 // Avoid including strsafe.h via dshow as it will cause build warnings.
 #define NO_DSHOW_STRSAFE
