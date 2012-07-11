@@ -155,9 +155,17 @@ class MEDIA_EXPORT SourceBufferStream {
   // |selected_range_| lives.
   RangeList::iterator GetSelectedRangeItr();
 
+  // Sets the |selected_range_| to |range| and resets the next buffer position
+  // for the previous |selected_range_|.
+  void SetSelectedRange(SourceBufferRange* range);
+
   // Returns true if the timestamps of |buffers| are monotonically increasing
   // since the previous append to the media segment, false otherwise.
   bool IsMonotonicallyIncreasing(const BufferQueue& buffers);
+
+  // Returns true if |selected_range_| is the only range in |ranges_| that
+  // HasNextBufferPosition().
+  bool OnlySelectedRangeIsSeeked() const;
 
   // Measures the distances between buffer timestamps and tracks the max.
   void UpdateMaxInterbufferDistance(const BufferQueue& buffers);
