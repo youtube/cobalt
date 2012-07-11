@@ -942,7 +942,9 @@ DeterministicMockTCPClientSocket::DeterministicMockTCPClientSocket(
       read_buf_len_(0),
       read_pending_(false),
       data_(data),
-      was_used_to_convey_data_(false) {}
+      was_used_to_convey_data_(false) {
+  peer_addr_ = data->connect_data().peer_addr;
+}
 
 DeterministicMockTCPClientSocket::~DeterministicMockTCPClientSocket() {}
 
