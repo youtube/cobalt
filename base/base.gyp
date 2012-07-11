@@ -552,6 +552,23 @@
             }],
           ],
         }],
+        ['OS == "ios"', {
+          'sources/': [
+            # Only test the iOS-meaningful portion of process_utils.
+            ['exclude', '^process_util_unittest'],
+            ['include', '^process_util_unittest_ios.cc$'],
+            # Requires spawning processes.
+            ['exclude', '^metrics/stats_table_unittest.cc'],
+            # TODO(ios): Remove these as base/ is unforked.
+            # For now, exclude everything that doesn't build as-is, just to
+            # get a minimal target building.
+            ['exclude', '^memory/aligned_memory_unittest.cc'],
+            ['exclude', '^message_'],
+            ['exclude', '^shared_memory_unittest.cc'],
+            ['exclude', '^sys_info_unittest.cc'],
+            ['exclude', '^system_monitor'],
+          ],
+        }],
         ['use_glib==1', {
           'sources!': [
             'file_version_info_unittest.cc',
@@ -612,7 +629,17 @@
             'closure_blocks_leopard_compat',
           ],
         }],
-      ],
+      ],  # conditions
+      'target_conditions': [
+        ['OS == "ios"', {
+          'sources/': [
+            # Pull in specific Mac files for iOS (which have been filtered out
+            # by file name rules).
+            ['include', 'mac/objc_property_releaser_unittest.mm'],
+            ['include', 'sys_string_conversions_mac_unittest.mm'],
+          ],
+        }],
+      ],  # target_conditions
     },
     {
       'target_name': 'check_example',
@@ -824,7 +851,7 @@
         },
       ],
     }],
-    ['os_posix==1 and OS!="mac"', {
+    ['os_posix==1 and OS!="mac" and OS!="ios"', {
       'targets': [
         {
           'target_name': 'symbolize',

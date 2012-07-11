@@ -25,8 +25,10 @@
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
+#if !defined(OS_IOS)
 #include "base/test/mock_chrome_application_mac.h"
-#endif
+#endif  // !OS_IOS
+#endif  // OS_MACOSX
 
 #if defined(OS_ANDROID)
 #include "base/test/test_support_android.h"
@@ -291,7 +293,7 @@ void TestSuite::SuppressErrorDialogs() {
 }
 
 void TestSuite::Initialize() {
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) && !defined(OS_IOS)
   // Some of the app unit tests spin runloops.
   mock_cr_app::RegisterMockCrApp();
 #endif
