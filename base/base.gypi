@@ -572,11 +572,8 @@
               # TODO(ios): Remove these as base/ is unforked.
               # For now, exclude everything that doesn't build as-is, just to
               # get something building on a bot.
-              ['exclude', '^hi_res_timer_manager'],
-              ['exclude', '^json'],
               ['exclude', '^message_pump'],
               ['exclude', '^process_util'],
-              ['exclude', '^values'],
             ],
           }],
           ['OS != "mac" or >(nacl_untrusted_build)==1', {
