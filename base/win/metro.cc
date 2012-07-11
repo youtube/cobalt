@@ -4,7 +4,10 @@
 
 #include "base/win/metro.h"
 
+#include "base/message_loop.h"
 #include "base/string_util.h"
+#include "base/win/scoped_comptr.h"
+#include "base/win/windows_version.h"
 
 namespace base {
 namespace win {
@@ -81,6 +84,41 @@ bool IsTouchEnabled() {
   int value = GetSystemMetrics(SM_DIGITIZER);
   return value & (NID_READY | NID_INTEGRATED_TOUCH) ==
              (NID_READY | NID_INTEGRATED_TOUCH);
+}
+
+bool IsParentalControlActivityLoggingOn() {
+  DCHECK(MessageLoop::current() &&
+         (MessageLoop::current()->type() == MessageLoop::TYPE_UI));
+
+  // Query this info on Windows 8 and above.
+  if (base::win::GetVersion() < base::win::VERSION_WIN8)
+    return false;
+
+  static bool parental_control_logging_required = false;
+  static bool parental_control_status_determined = false;
+
+  if (parental_control_status_determined)
+    return parental_control_logging_required;
+
+  parental_control_status_determined = true;
+
+  ScopedComPtr<IWindowsParentalControlsCore> parent_controls;
+  HRESULT hr = parent_controls.CreateInstance(
+      __uuidof(WindowsParentalControls));
+  if (FAILED(hr))
+    return false;
+
+  ScopedComPtr<IWPCSettings> settings;
+  hr = parent_controls->GetUserSettings(NULL, settings.Receive());
+  if (FAILED(hr))
+    return false;
+
+  unsigned long restrictions = 0;
+  settings->GetRestrictions(&restrictions);
+
+  parental_control_logging_required =
+      (restrictions & WPCFLAG_LOGGING_REQUIRED) == WPCFLAG_LOGGING_REQUIRED;
+  return parental_control_logging_required;
 }
 
 }  // namespace win
