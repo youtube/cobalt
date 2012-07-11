@@ -4,7 +4,6 @@
 
 #ifndef BASE_WIN_METRO_H_
 #define BASE_WIN_METRO_H_
-#pragma once
 
 #include <windows.h>
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_URL_REQUEST_URL_FETCHER_FACTORY_H_
 #define NET_URL_REQUEST_URL_FETCHER_FACTORY_H_
-#pragma once
 
 #include "net/url_request/url_fetcher.h"
 

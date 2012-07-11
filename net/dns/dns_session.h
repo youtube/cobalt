@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_DNS_SESSION_H_
 #define NET_DNS_DNS_SESSION_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "base/time.h"

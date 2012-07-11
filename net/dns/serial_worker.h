@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_SERIAL_WORKER_H_
 #define NET_DNS_SERIAL_WORKER_H_
-#pragma once
 
 #include <string>
 

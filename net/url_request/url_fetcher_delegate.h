@@ -4,7 +4,6 @@
 
 #ifndef NET_URL_REQUEST_URL_FETCHER_DELEGATE_H_
 #define NET_URL_REQUEST_URL_FETCHER_DELEGATE_H_
-#pragma once
 
 #include <string>
 

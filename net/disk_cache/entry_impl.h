@@ -4,7 +4,6 @@
 
 #ifndef NET_DISK_CACHE_ENTRY_IMPL_H_
 #define NET_DISK_CACHE_ENTRY_IMPL_H_
-#pragma once
 
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_log.h"

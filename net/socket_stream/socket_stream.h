@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_STREAM_SOCKET_STREAM_H_
 #define NET_SOCKET_STREAM_SOCKET_STREAM_H_
-#pragma once
 
 #include <deque>
 #include <map>

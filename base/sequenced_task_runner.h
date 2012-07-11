@@ -4,7 +4,6 @@
 
 #ifndef BASE_SEQUENCED_TASKRUNNER_H_
 #define BASE_SEQUENCED_TASKRUNNER_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/sequenced_task_runner_helpers.h"

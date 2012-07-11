@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_RESOLVER_WINHTTP_H_
 #define NET_PROXY_PROXY_RESOLVER_WINHTTP_H_
-#pragma once
 
 #include "base/compiler_specific.h"
 #include "googleurl/src/gurl.h"

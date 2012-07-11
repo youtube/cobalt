@@ -23,7 +23,6 @@
 
 #ifndef BASE_THREADING_WORKER_POOL_POSIX_H_
 #define BASE_THREADING_WORKER_POOL_POSIX_H_
-#pragma once
 
 #include <queue>
 #include <string>

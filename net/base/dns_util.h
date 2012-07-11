@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_DNS_UTIL_H_
 #define NET_BASE_DNS_UTIL_H_
-#pragma once
 
 #include <string>
 

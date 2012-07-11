@@ -4,7 +4,6 @@
 
 #ifndef BASE_MESSAGE_PUMP_OBSERVER_H
 #define BASE_MESSAGE_PUMP_OBSERVER_H
-#pragma once
 
 #include "base/event_types.h"
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_DNS_TEST_UTIL_H_
 #define NET_DNS_DNS_TEST_UTIL_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"

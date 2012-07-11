@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_TRANSACTION_UNITTEST_H_
 #define NET_HTTP_HTTP_TRANSACTION_UNITTEST_H_
-#pragma once
 
 #include "net/http/http_transaction.h"
 

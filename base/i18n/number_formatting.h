@@ -4,7 +4,6 @@
 
 #ifndef BASE_I18N_NUMBER_FORMATTING_H_
 #define BASE_I18N_NUMBER_FORMATTING_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/i18n/base_i18n_export.h"

@@ -4,7 +4,6 @@
 
 #ifndef BASE_TRACKED_OBJECTS_H_
 #define BASE_TRACKED_OBJECTS_H_
-#pragma once
 
 #include <map>
 #include <set>

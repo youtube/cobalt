@@ -4,7 +4,6 @@
 
 #ifndef BASE_TEST_MULTIPROCESS_TEST_H_
 #define BASE_TEST_MULTIPROCESS_TEST_H_
-#pragma once
 
 #include <string>
 

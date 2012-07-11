@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_SESSION_POOL_H_
 #define NET_SPDY_SPDY_SESSION_POOL_H_
-#pragma once
 
 #include <map>
 #include <list>

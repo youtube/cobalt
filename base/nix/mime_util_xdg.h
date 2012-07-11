@@ -4,7 +4,6 @@
 
 #ifndef BASE_NIX_MIME_UTIL_XDG_H_
 #define BASE_NIX_MIME_UTIL_XDG_H_
-#pragma once
 
 #include <string>
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_UDP_UDP_SOCKET_LIBEVENT_H_
 #define NET_UDP_UDP_SOCKET_LIBEVENT_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"

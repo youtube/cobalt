@@ -4,7 +4,6 @@
 
 #ifndef NET_FTP_FTP_TRANSACTION_H_
 #define NET_FTP_FTP_TRANSACTION_H_
-#pragma once
 
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"

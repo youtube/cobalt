@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_CONFIG_SERVICE_MAC_H_
 #define NET_PROXY_PROXY_CONFIG_SERVICE_MAC_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

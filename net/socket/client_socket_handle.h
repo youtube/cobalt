@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_CLIENT_SOCKET_HANDLE_H_
 #define NET_SOCKET_CLIENT_SOCKET_HANDLE_H_
-#pragma once
 
 #include <string>
 

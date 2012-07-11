@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_NOTIFY_WATCHER_MAC_H_
 #define NET_DNS_NOTIFY_WATCHER_MAC_H_
-#pragma once
 
 #include "base/callback.h"
 #include "base/message_loop.h"

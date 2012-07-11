@@ -6,7 +6,6 @@
 
 #ifndef NET_DISK_CACHE_FILE_H_
 #define NET_DISK_CACHE_FILE_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "base/platform_file.h"

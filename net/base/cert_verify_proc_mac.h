@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_CERT_VERIFY_PROC_MAC_H_
 #define NET_BASE_CERT_VERIFY_PROC_MAC_H_
-#pragma once
 
 #include "net/base/cert_verify_proc.h"
 

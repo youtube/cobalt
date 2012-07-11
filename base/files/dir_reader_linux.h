@@ -4,7 +4,6 @@
 
 #ifndef BASE_FILES_DIR_READER_LINUX_H_
 #define BASE_FILES_DIR_READER_LINUX_H_
-#pragma once
 
 #include <errno.h>
 #include <fcntl.h>

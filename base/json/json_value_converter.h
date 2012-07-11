@@ -4,7 +4,6 @@
 
 #ifndef BASE_JSON_JSON_VALUE_CONVERTER_H_
 #define BASE_JSON_JSON_VALUE_CONVERTER_H_
-#pragma once
 
 #include <string>
 #include <vector>

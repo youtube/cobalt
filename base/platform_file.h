@@ -4,7 +4,6 @@
 
 #ifndef BASE_PLATFORM_FILE_H_
 #define BASE_PLATFORM_FILE_H_
-#pragma once
 
 #include "build/build_config.h"
 #if defined(OS_WIN)

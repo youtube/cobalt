@@ -4,7 +4,6 @@
 
 #ifndef BASE_HI_RES_TIMER_MANAGER_H_
 #define BASE_HI_RES_TIMER_MANAGER_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/system_monitor/system_monitor.h"

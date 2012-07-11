@@ -4,7 +4,6 @@
 
 #ifndef BASE_THREADING_THREAD_CHECKER_H_
 #define BASE_THREADING_THREAD_CHECKER_H_
-#pragma once
 
 // Apart from debug builds, we also enable the thread checker in
 // builds with DCHECK_ALWAYS_ON so that trybots and waterfall bots

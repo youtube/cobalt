@@ -4,7 +4,6 @@
 
 #ifndef NET_ANDROID_NETWORK_LIBRARY_H_
 #define NET_ANDROID_NETWORK_LIBRARY_H_
-#pragma once
 
 #include <jni.h>
 

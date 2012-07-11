@@ -4,7 +4,6 @@
 
 #ifndef NET_URL_REQUEST_URL_FETCHER_CORE_H_
 #define NET_URL_REQUEST_URL_FETCHER_CORE_H_
-#pragma once
 
 #include <set>
 #include <string>

@@ -4,7 +4,6 @@
 
 #ifndef BASE_WIN_SCOPED_HDC_H_
 #define BASE_WIN_SCOPED_HDC_H_
-#pragma once
 
 #include <windows.h>
 

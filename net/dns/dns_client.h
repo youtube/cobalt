@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_DNS_CLIENT_H_
 #define NET_DNS_DNS_CLIENT_H_
-#pragma once
 
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"

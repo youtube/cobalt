@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_WEBSOCKET_STREAM_H_
 #define NET_SPDY_SPDY_WEBSOCKET_STREAM_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"

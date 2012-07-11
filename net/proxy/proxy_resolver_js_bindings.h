@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_RESOLVER_JS_BINDINGS_H_
 #define NET_PROXY_PROXY_RESOLVER_JS_BINDINGS_H_
-#pragma once
 
 #include <string>
 

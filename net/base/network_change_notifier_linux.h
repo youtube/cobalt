@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_NETWORK_CHANGE_NOTIFIER_LINUX_H_
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_LINUX_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

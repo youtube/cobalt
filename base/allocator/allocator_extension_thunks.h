@@ -4,7 +4,6 @@
 
 #ifndef BASE_ALLOCATOR_ALLOCATOR_THUNKS_EXTENSION_H
 #define BASE_ALLOCATOR_ALLOCATOR_THUNKS_EXTENSION_H
-#pragma once
 
 namespace base {
 namespace allocator {

@@ -4,7 +4,6 @@
 
 #ifndef NET_SERVER_HTTP_CONNECTION_H_
 #define NET_SERVER_HTTP_CONNECTION_H_
-#pragma once
 
 #include <string>
 

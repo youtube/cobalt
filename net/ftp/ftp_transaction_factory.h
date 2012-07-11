@@ -4,7 +4,6 @@
 
 #ifndef NET_FTP_FTP_TRANSACTION_FACTORY_H_
 #define NET_FTP_FTP_TRANSACTION_FACTORY_H_
-#pragma once
 
 #include "net/base/net_export.h"
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_HOST_PORT_PAIR_H_
 #define NET_BASE_HOST_PORT_PAIR_H_
-#pragma once
 
 #include <string>
 #include "base/basictypes.h"

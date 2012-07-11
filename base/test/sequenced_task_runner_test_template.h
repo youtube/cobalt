@@ -8,7 +8,6 @@
 
 #ifndef BASE_SEQUENCED_TASK_RUNNER_TEST_TEMPLATE_H_
 #define BASE_SEQUENCED_TASK_RUNNER_TEST_TEMPLATE_H_
-#pragma once
 
 #include <cstddef>
 #include <iosfwd>

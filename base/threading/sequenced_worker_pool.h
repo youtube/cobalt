@@ -4,7 +4,6 @@
 
 #ifndef BASE_THREADING_SEQUENCED_WORKER_POOL_H_
 #define BASE_THREADING_SEQUENCED_WORKER_POOL_H_
-#pragma once
 
 #include <cstddef>
 #include <string>

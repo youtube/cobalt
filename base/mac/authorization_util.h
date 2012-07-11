@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_AUTHORIZATION_UTIL_H_
 #define BASE_MAC_AUTHORIZATION_UTIL_H_
-#pragma once
 
 // AuthorizationExecuteWithPrivileges fork()s and exec()s the tool, but it
 // does not wait() for it.  It also doesn't provide the caller with access to

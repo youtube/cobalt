@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_SSL_CONNECTION_STATUS_FLAGS_H_
 #define NET_BASE_SSL_CONNECTION_STATUS_FLAGS_H_
-#pragma once
 
 namespace net {
 

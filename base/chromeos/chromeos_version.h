@@ -4,7 +4,6 @@
 
 #ifndef BASE_CHROMEOS_CHROMEOS_VERSION_H_
 #define BASE_CHROMEOS_CHROMEOS_VERSION_H_
-#pragma once
 
 #include "base/base_export.h"
 

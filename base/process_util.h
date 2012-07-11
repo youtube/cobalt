@@ -7,7 +7,6 @@
 
 #ifndef BASE_PROCESS_UTIL_H_
 #define BASE_PROCESS_UTIL_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/time.h"

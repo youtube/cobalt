@@ -4,7 +4,6 @@
 
 #ifndef NET_FTP_FTP_SERVER_TYPE_HISTOGRAMS_H_
 #define NET_FTP_FTP_SERVER_TYPE_HISTOGRAMS_H_
-#pragma once
 
 // The UpdateFtpServerTypeHistograms function collects statistics related
 // to the types of FTP servers that our users are encountering.

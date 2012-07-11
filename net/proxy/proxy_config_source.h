@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_CONFIG_SOURCE_H_
 #define NET_PROXY_PROXY_CONFIG_SOURCE_H_
-#pragma once
 
 namespace net {
 

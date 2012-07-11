@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_PRIORITIZED_DISPATCHER_H_
 #define NET_BASE_PRIORITIZED_DISPATCHER_H_
-#pragma once
 
 #include <vector>
 
