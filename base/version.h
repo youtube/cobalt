@@ -42,15 +42,6 @@ class BASE_EXPORT Version {
   // than the version of this object.
   bool IsOlderThan(const std::string& version_str) const;
 
-  // Returns NULL if the string is not in the proper format.
-  // Caller is responsible for freeing the Version object once done.
-  // DO NOT USE FOR NEWER CODE.
-  static Version* GetVersionFromString(const std::string& version_str);
-
-  // Creates a copy of this version object. Caller takes ownership.
-  // DO NOT USE FOR NEWER CODE.
-  Version* Clone() const;
-
   bool Equals(const Version& other) const;
 
   // Returns -1, 0, 1 for <, ==, >.

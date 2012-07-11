@@ -53,13 +53,12 @@ TEST_F(VersionTest, GetVersionFromString) {
     {"02.1", 0, false},
     {"f.1", 0, false},
   };
+
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    scoped_ptr<Version> vers(Version::GetVersionFromString(cases[i].input));
-    EXPECT_EQ(cases[i].success, vers.get() != NULL);
-    if (cases[i].success) {
-      EXPECT_TRUE(vers->IsValid());
-      EXPECT_EQ(cases[i].parts, vers->components().size());
-    }
+    Version version(cases[i].input);
+    EXPECT_EQ(cases[i].success, version.IsValid());
+    if (cases[i].success)
+      EXPECT_EQ(cases[i].parts, version.components().size());
   }
 }
 
@@ -81,12 +80,12 @@ TEST_F(VersionTest, Compare) {
     {"1.0.3", "1.0.20", -1},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    scoped_ptr<Version> lhs(Version::GetVersionFromString(cases[i].lhs));
-    scoped_ptr<Version> rhs(Version::GetVersionFromString(cases[i].rhs));
-    EXPECT_EQ(lhs->CompareTo(*rhs), cases[i].expected) <<
-          cases[i].lhs << " ? " << cases[i].rhs;
+    Version lhs(cases[i].lhs);
+    Version rhs(cases[i].rhs);
+    EXPECT_EQ(lhs.CompareTo(rhs), cases[i].expected) <<
+        cases[i].lhs << " ? " << cases[i].rhs;
 
-    EXPECT_EQ(lhs->IsOlderThan(cases[i].rhs), (cases[i].expected == -1));
+    EXPECT_EQ(lhs.IsOlderThan(cases[i].rhs), (cases[i].expected == -1));
   }
 }
 
