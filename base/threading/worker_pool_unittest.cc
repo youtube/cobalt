@@ -95,8 +95,7 @@ TEST_F(WorkerPoolTest, MAYBE_PostTaskAndReply) {
   scoped_refptr<PostTaskAndReplyTester> tester(new PostTaskAndReplyTester());
   tester->RunTest();
 
-  const TimeDelta kMaxDuration =
-      TimeDelta::FromMilliseconds(TestTimeouts::tiny_timeout_ms());
+  const TimeDelta kMaxDuration = TestTimeouts::tiny_timeout();
   TimeTicks start = TimeTicks::Now();
   while (!tester->finished() && TimeTicks::Now() - start < kMaxDuration) {
     MessageLoop::current()->RunAllPending();
