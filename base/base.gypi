@@ -562,6 +562,8 @@
               ['include', '^file_util_mac\\.'],
               ['include', '^file_version_info_mac\\.'],
               ['include', '^mac/bundle_locations\\.'],
+              ['include', '^mac/foundation_util\\.'],
+              ['include', '^mac/mac_logging\\.'],
               ['include', '^mac/objc_property_releaser\\.'],
               ['include', '^mac/scoped_nsautorelease_pool\\.'],
               ['include', '^message_pump_mac\\.'],
