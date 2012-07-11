@@ -3414,45 +3414,6 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
   }
 }
 
-void CheckCookiePolicyCallback(bool* was_run, const CookieList& cookies) {
-  EXPECT_EQ(1U, cookies.size());
-  EXPECT_FALSE(cookies[0].IsPersistent());
-  *was_run = true;
-  MessageLoop::current()->PostTask(FROM_HERE, MessageLoop::QuitClosure());
-}
-
-TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
-  LocalHttpTestServer test_server;
-  ASSERT_TRUE(test_server.Start());
-
-  // Set up a cookie.
-  {
-    TestNetworkDelegate network_delegate;
-    default_context_.set_network_delegate(&network_delegate);
-    TestDelegate d;
-    network_delegate.set_cookie_options(TestNetworkDelegate::FORCE_SESSION);
-    URLRequest req(
-        test_server.GetURL(
-            "set-cookie?A=1;expires=\"Fri, 05 Feb 2010 23:42:01 GMT\""),
-        &d,
-        &default_context_);
-    req.Start();  // Triggers an asynchronous cookie policy check.
-
-    MessageLoop::current()->Run();
-
-    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
-    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
-  }
-  default_context_.set_network_delegate(&default_network_delegate_);
-
-  // Now, check the cookie store.
-  bool was_run = false;
-  default_context_.cookie_store()->GetCookieMonster()->GetAllCookiesAsync(
-      base::Bind(&CheckCookiePolicyCallback, &was_run));
-  MessageLoop::current()->RunAllPending();
-  DCHECK(was_run);
-}
-
 // In this test, we do a POST which the server will 302 redirect.
 // The subsequent transaction should use GET, and should not send the
 // Content-Type header.
