@@ -101,7 +101,7 @@ BASE_EXPORT int64 ComputeFilesSize(const FilePath& directory,
 // Returns true if successful, false otherwise.
 //
 // In posix environment and if |path| is a symbolic link, this deletes only
-// the symlink. (even if the symlink deferences to a non-existent file)
+// the symlink. (even if the symlink points to a non-existent file)
 //
 // WARNING: USING THIS WITH recursive==true IS EQUIVALENT
 //          TO "rm -rf", SO USE WITH CAUTION.
@@ -196,6 +196,34 @@ BASE_EXPORT bool CreateSymbolicLink(const FilePath& target,
 // Reads the given |symlink| and returns where it points to in |target|.
 // Returns false upon failure.
 BASE_EXPORT bool ReadSymbolicLink(const FilePath& symlink, FilePath* target);
+
+// Bits ans masks of the file permission.
+enum FilePermissionBits {
+  FILE_PERMISSION_MASK              = S_IRWXU | S_IRWXG | S_IRWXO,
+  FILE_PERMISSION_USER_MASK         = S_IRWXU,
+  FILE_PERMISSION_GROUP_MASK        = S_IRWXG,
+  FILE_PERMISSION_OTHERS_MASK       = S_IRWXO,
+
+  FILE_PERMISSION_READ_BY_USER      = S_IRUSR,
+  FILE_PERMISSION_WRITE_BY_USER     = S_IWUSR,
+  FILE_PERMISSION_EXECUTE_BY_USER   = S_IXUSR,
+  FILE_PERMISSION_READ_BY_GROUP     = S_IRGRP,
+  FILE_PERMISSION_WRITE_BY_GROUP    = S_IWGRP,
+  FILE_PERMISSION_EXECUTE_BY_GROUP  = S_IXGRP,
+  FILE_PERMISSION_READ_BY_OTHERS    = S_IROTH,
+  FILE_PERMISSION_WRITE_BY_OTHERS   = S_IWOTH,
+  FILE_PERMISSION_EXECUTE_BY_OTHERS = S_IXOTH,
+};
+
+// Reads the permission of the given |path|, storing the file permission
+// bits in |mode|. If |path| is symbolic link, |mode| is the permission of
+// a file which the symlink points to.
+BASE_EXPORT bool GetPosixFilePermissions(const FilePath& path,
+                                         int* mode);
+// Sets the permission of the given |path|. If |path| is symbolic link, sets
+// the permission of a file which the symlink points to.
+BASE_EXPORT bool SetPosixFilePermissions(const FilePath& path,
+                                         int mode);
 #endif  // defined(OS_POSIX)
 
 #if defined(OS_WIN)
