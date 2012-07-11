@@ -6,6 +6,7 @@
 #define BASE_WIN_METRO_H_
 
 #include <windows.h>
+#include <wpcapi.h>
 
 #include "base/base_export.h"
 #include "base/string16.h"
@@ -60,6 +61,10 @@ BASE_EXPORT wchar_t* LocalAllocAndCopyString(const string16& src);
 
 // Returns true if the screen supports touch.
 BASE_EXPORT bool IsTouchEnabled();
+
+// Returns true if Windows 8 Parental control activity logging is enabled.
+// Can only be called on the UI thread.
+BASE_EXPORT bool IsParentalControlActivityLoggingOn();
 
 }  // namespace win
 }  // namespace base
