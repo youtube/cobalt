@@ -15,6 +15,7 @@ import android.util.Log;
 // the native activity class loader.
 public class ChromeNativeTestActivity extends Activity {
     private final String TAG = "ChromeNativeTestActivity";
+    private final String EXTRA_RUN_IN_SUB_THREAD = "RunInSubThread";
     // We post a delayed task to run tests so that we do not block onCreate().
     private static long RUN_TESTS_DELAY_IN_MS = 300;
 
@@ -33,14 +34,25 @@ public class ChromeNativeTestActivity extends Activity {
 
         try {
             loadLibrary();
-            // Post a task to run the tests. This allows us to not block onCreate and
-            // still run tests on the main thread.
-            new Handler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    runTests();
-                }
-            }, RUN_TESTS_DELAY_IN_MS);
+            Bundle extras = this.getIntent().getExtras();
+            if (extras != null && extras.containsKey(EXTRA_RUN_IN_SUB_THREAD)) {
+                // Create a new thread and run tests on it.
+                new Thread() {
+                    @Override
+                    public void run() {
+                        runTests();
+                    }
+                }.start();
+            } else {
+                // Post a task to run the tests. This allows us to not block
+                // onCreate and still run tests on the main thread.
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        runTests();
+                    }
+                }, RUN_TESTS_DELAY_IN_MS);
+            }
         } catch (UnsatisfiedLinkError e) {
             Log.e(TAG, "Unable to load lib" + mLibrary + ".so: " + e);
             nativeTestFailed();
