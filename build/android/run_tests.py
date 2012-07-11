@@ -197,6 +197,18 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
 
   if test_suite:
     global _TEST_SUITES
+
+    # If not specified, assume the test suites are in out/Release
+    test_suite_dir = os.path.abspath(os.path.join(run_tests_helper.CHROME_DIR,
+                                                'out', 'Release'))
+    if apk:
+      # out/Release/$SUITE_apk/$SUITE-debug.apk
+      test_suite = os.path.join(test_suite_dir,
+                           test_suite + '_apk',
+                           test_suite + '-debug.apk')
+    else:
+      test_suite = os.path.join(test_suite_dir, test_suite)
+
     if (not os.path.exists(test_suite)):
       logging.critical('Unrecognized test suite %s, supported: %s' %
                        (test_suite, _TEST_SUITES))
