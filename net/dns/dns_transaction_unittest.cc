@@ -510,8 +510,7 @@ TEST_F(DnsTransactionTest, NoDomain) {
 TEST_F(DnsTransactionTest, Timeout) {
   config_.attempts = 3;
   // Use short timeout to speed up the test.
-  config_.timeout = base::TimeDelta::FromMilliseconds(
-      TestTimeouts::tiny_timeout_ms());
+  config_.timeout = TestTimeouts::tiny_timeout();
   ConfigureFactory();
 
   AddTimeout(kT0HostName, kT0Qtype);
@@ -533,8 +532,7 @@ TEST_F(DnsTransactionTest, ServerFallbackAndRotate) {
   config_.rotate = true;
   ConfigureNumServers(3);
   // Use short timeout to speed up the test.
-  config_.timeout = base::TimeDelta::FromMilliseconds(
-      TestTimeouts::tiny_timeout_ms());
+  config_.timeout = TestTimeouts::tiny_timeout();
   ConfigureFactory();
 
   // Responses for first request.
