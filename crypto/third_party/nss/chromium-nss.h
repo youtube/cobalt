@@ -36,7 +36,6 @@
 
 #ifndef CRYPTO_THIRD_PARTY_NSS_CHROMIUM_NSS_H_
 #define CRYPTO_THIRD_PARTY_NSS_CHROMIUM_NSS_H_
-#pragma once
 
 // This file contains some functions we borrowed from NSS.
 
