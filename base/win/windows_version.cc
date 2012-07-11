@@ -37,8 +37,8 @@ OSInfo::OSInfo()
   version_number_.minor = version_info.dwMinorVersion;
   version_number_.build = version_info.dwBuildNumber;
   if ((version_number_.major == 5) && (version_number_.minor > 0)) {
-    // Treat XP Pro x64, Server 2003, Home Server, and Server 2003 R2 as XP.
-    version_ = VERSION_XP;
+    // Treat XP Pro x64, Home Server, and Server 2003 R2 as Server 2003.
+    version_ = (version_number_.minor == 1) ? VERSION_XP : VERSION_SERVER_2003;
   } else if (version_number_.major == 6) {
     switch (version_number_.minor) {
       case 0:

@@ -20,7 +20,8 @@ namespace win {
 // "if (base::win::GetVersion() >= base::win::VERSION_VISTA) ...".
 enum Version {
   VERSION_PRE_XP = 0,  // Not supported.
-  VERSION_XP,          // Also includes XP Pro x64, Server 2003, and S2003 R2.
+  VERSION_XP,
+  VERSION_SERVER_2003, // Also includes XP Pro x64 and Server 2003 R2.
   VERSION_VISTA,       // Also includes Windows Server 2008.
   VERSION_WIN7,        // Also includes Windows Server 2008 R2.
   VERSION_WIN8,        // Also includes Windows Server 2012.
