@@ -4,7 +4,6 @@
 
 #ifndef BASE_MESSAGE_PUMP_GTK_H_
 #define BASE_MESSAGE_PUMP_GTK_H_
-#pragma once
 
 #include "base/message_pump_glib.h"
 

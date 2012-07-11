@@ -4,7 +4,6 @@
 
 #ifndef UI_GFX_RECT_F_H_
 #define UI_GFX_RECT_F_H_
-#pragma once
 
 #include <string>
 

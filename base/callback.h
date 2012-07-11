@@ -9,7 +9,6 @@
 
 #ifndef BASE_CALLBACK_H_
 #define BASE_CALLBACK_H_
-#pragma once
 
 #include "base/callback_forward.h"
 #include "base/callback_internal.h"

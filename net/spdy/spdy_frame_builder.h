@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_FRAME_BUILDER_H_
 #define NET_SPDY_SPDY_FRAME_BUILDER_H_
-#pragma once
 
 #include <string>
 

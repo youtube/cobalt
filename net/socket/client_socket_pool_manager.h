@@ -8,7 +8,6 @@
 
 #ifndef NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_H_
 #define NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_H_
-#pragma once
 
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"

@@ -8,7 +8,6 @@
 
 #ifndef BASE_THREADING_PLATFORM_THREAD_H_
 #define BASE_THREADING_PLATFORM_THREAD_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"

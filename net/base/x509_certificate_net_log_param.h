@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_X509_CERT_NET_LOG_PARAM_H_
 #define NET_BASE_X509_CERT_NET_LOG_PARAM_H_
-#pragma once
 
 #include "net/base/net_log.h"
 

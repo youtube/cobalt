@@ -4,7 +4,6 @@
 
 #ifndef BASE_RUN_LOOP_H_
 #define BASE_RUN_LOOP_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/callback.h"

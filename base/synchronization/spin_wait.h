@@ -14,7 +14,6 @@
 
 #ifndef BASE_SYNCHRONIZATION_SPIN_WAIT_H_
 #define BASE_SYNCHRONIZATION_SPIN_WAIT_H_
-#pragma once
 
 #include "base/threading/platform_thread.h"
 #include "base/time.h"

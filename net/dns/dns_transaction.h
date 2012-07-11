@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_DNS_TRANSACTION_H_
 #define NET_DNS_DNS_TRANSACTION_H_
-#pragma once
 
 #include <string>
 

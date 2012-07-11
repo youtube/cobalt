@@ -15,7 +15,6 @@
 
 #ifndef NET_BASE_STREAM_LISTEN_SOCKET_H_
 #define NET_BASE_STREAM_LISTEN_SOCKET_H_
-#pragma once
 
 #include <list>
 

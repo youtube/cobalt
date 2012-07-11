@@ -4,7 +4,6 @@
 
 #ifndef UI_GFX_SIZE_H_
 #define UI_GFX_SIZE_H_
-#pragma once
 
 #include <string>
 

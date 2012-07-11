@@ -4,7 +4,6 @@
 
 #ifndef BASE_FILE_VERSION_INFO_H__
 #define BASE_FILE_VERSION_INFO_H__
-#pragma once
 
 #include "build/build_config.h"
 

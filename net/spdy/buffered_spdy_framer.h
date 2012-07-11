@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_BUFFERED_SPDY_FRAMER_H_
 #define NET_SPDY_BUFFERED_SPDY_FRAMER_H_
-#pragma once
 
 #include <string>
 

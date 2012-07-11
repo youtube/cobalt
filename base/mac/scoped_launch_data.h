@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_SCOPED_LAUNCH_DATA_H_
 #define BASE_MAC_SCOPED_LAUNCH_DATA_H_
-#pragma once
 
 #include <launch.h>
 

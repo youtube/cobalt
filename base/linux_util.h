@@ -4,7 +4,6 @@
 
 #ifndef BASE_LINUX_UTIL_H_
 #define BASE_LINUX_UTIL_H_
-#pragma once
 
 #include <stdint.h>
 #include <sys/types.h>

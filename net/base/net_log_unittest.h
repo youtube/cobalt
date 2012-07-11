@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_NET_LOG_UNITTEST_H_
 #define NET_BASE_NET_LOG_UNITTEST_H_
-#pragma once
 
 #include <cstddef>
 

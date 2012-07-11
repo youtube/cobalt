@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_UDP_SERVER_SOCKET_H_
 #define NET_SOCKET_UDP_SERVER_SOCKET_H_
-#pragma once
 
 #include "net/base/completion_callback.h"
 #include "net/udp/datagram_server_socket.h"

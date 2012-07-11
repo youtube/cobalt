@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_DHCP_PROXY_SCRIPT_FETCHER_WIN_H_
 #define NET_PROXY_DHCP_PROXY_SCRIPT_FETCHER_WIN_H_
-#pragma once
 
 #include <set>
 #include <string>

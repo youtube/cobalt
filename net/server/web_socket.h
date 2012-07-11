@@ -4,7 +4,6 @@
 
 #ifndef NET_SERVER_WEB_SOCKET_H_
 #define NET_SERVER_WEB_SOCKET_H_
-#pragma once
 
 #include <string>
 

@@ -4,7 +4,6 @@
 
 #ifndef BASE_SCOPED_OBSERVER_H_
 #define BASE_SCOPED_OBSERVER_H_
-#pragma once
 
 #include <algorithm>
 #include <vector>

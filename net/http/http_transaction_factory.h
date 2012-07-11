@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_TRANSACTION_FACTORY_H__
 #define NET_HTTP_HTTP_TRANSACTION_FACTORY_H__
-#pragma once
 
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"

@@ -4,7 +4,6 @@
 
 #ifndef BASE_EVENT_TYPES_H
 #define BASE_EVENT_TYPES_H
-#pragma once
 
 #include "build/build_config.h"
 

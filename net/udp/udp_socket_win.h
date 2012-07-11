@@ -4,7 +4,6 @@
 
 #ifndef NET_UDP_UDP_SOCKET_WIN_H_
 #define NET_UDP_UDP_SOCKET_WIN_H_
-#pragma once
 
 #include <winsock2.h>
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_NETLOG_PARAMS_H_
 #define NET_URL_REQUEST_URL_REQUEST_NETLOG_PARAMS_H_
-#pragma once
 
 #include <string>
 

@@ -4,7 +4,6 @@
 
 #ifndef BASE_ALLOCATOR_ALLOCATOR_EXTENSION_H
 #define BASE_ALLOCATOR_ALLOCATOR_EXTENSION_H
-#pragma once
 
 #include "base/allocator/allocator_extension_thunks.h"
 #include "base/base_export.h"

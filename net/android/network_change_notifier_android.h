@@ -4,7 +4,6 @@
 
 #ifndef NET_ANDROID_NETWORK_CHANGE_NOTIFIER_ANDROID_H_
 #define NET_ANDROID_NETWORK_CHANGE_NOTIFIER_ANDROID_H_
-#pragma once
 
 #include "base/android/scoped_java_ref.h"
 #include "base/basictypes.h"

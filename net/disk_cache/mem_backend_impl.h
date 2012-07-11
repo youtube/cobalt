@@ -6,7 +6,6 @@
 
 #ifndef NET_DISK_CACHE_MEM_BACKEND_IMPL_H__
 #define NET_DISK_CACHE_MEM_BACKEND_IMPL_H__
-#pragma once
 
 #include "base/compiler_specific.h"
 #include "base/hash_tables.h"

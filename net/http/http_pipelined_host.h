@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_PIPELINED_HOST_H_
 #define NET_HTTP_HTTP_PIPELINED_HOST_H_
-#pragma once
 
 #include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"

@@ -4,7 +4,6 @@
 
 #ifndef NET_DISK_CACHE_EXPERIMENTS_H_
 #define NET_DISK_CACHE_EXPERIMENTS_H_
-#pragma once
 
 
 namespace disk_cache {

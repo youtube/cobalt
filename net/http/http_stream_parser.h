@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_STREAM_PARSER_H_
 #define NET_HTTP_HTTP_STREAM_PARSER_H_
-#pragma once
 
 #include <string>
 

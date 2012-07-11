@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_UNIX_DOMAIN_SOCKET_POSIX_H_
 #define NET_BASE_UNIX_DOMAIN_SOCKET_POSIX_H_
-#pragma once
 
 #include <string>
 

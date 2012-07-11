@@ -4,7 +4,6 @@
 
 #ifndef BASE_WIN_SCOPED_COM_INITIALIZER_H_
 #define BASE_WIN_SCOPED_COM_INITIALIZER_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/logging.h"

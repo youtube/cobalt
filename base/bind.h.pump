@@ -31,7 +31,6 @@ $var MAX_ARITY = 7
 
 #ifndef BASE_BIND_H_
 #define BASE_BIND_H_
-#pragma once
 
 #include "base/bind_internal.h"
 #include "base/callback_internal.h"

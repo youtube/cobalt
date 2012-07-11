@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_CONFIG_SERVICE_ANDROID_H_
 #define NET_PROXY_PROXY_CONFIG_SERVICE_ANDROID_H_
-#pragma once
 
 #include <string>
 

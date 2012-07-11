@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_BACKOFF_ENTRY_H_
 #define NET_BASE_BACKOFF_ENTRY_H_
-#pragma once
 
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"

@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_NETWORK_SESSION_H_
 #define NET_HTTP_HTTP_NETWORK_SESSION_H_
-#pragma once
 
 #include <set>
 #include "base/memory/ref_counted.h"

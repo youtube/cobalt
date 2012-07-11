@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_SSL_ERROR_PARAMS_H_
 #define NET_SOCKET_SSL_ERROR_PARAMS_H_
-#pragma once
 
 #include "net/base/net_log.h"
 

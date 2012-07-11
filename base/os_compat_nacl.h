@@ -4,7 +4,6 @@
 
 #ifndef BASE_OS_COMPAT_NACL_H_
 #define BASE_OS_COMPAT_NACL_H_
-#pragma once
 
 #include <sys/types.h>
 

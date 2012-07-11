@@ -4,7 +4,6 @@
 
 #ifndef NET_OCSP_NSS_OCSP_H_
 #define NET_OCSP_NSS_OCSP_H_
-#pragma once
 
 #include "net/base/net_export.h"
 

@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_SCOPED_IOOBJECT_H_
 #define BASE_MAC_SCOPED_IOOBJECT_H_
-#pragma once
 
 #include <IOKit/IOKitLib.h>
 

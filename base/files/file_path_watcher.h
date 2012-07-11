@@ -6,7 +6,6 @@
 
 #ifndef BASE_FILES_FILE_PATH_WATCHER_H_
 #define BASE_FILES_FILE_PATH_WATCHER_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"

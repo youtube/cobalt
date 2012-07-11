@@ -150,7 +150,6 @@
 
 #ifndef BASE_DEBUG_TRACE_EVENT_H_
 #define BASE_DEBUG_TRACE_EVENT_H_
-#pragma once
 
 #include <string>
 

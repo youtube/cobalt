@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_TEST_ROOT_CERTS_H_
 #define NET_BASE_TEST_ROOT_CERTS_H_
-#pragma once
 
 #include "base/lazy_instance.h"
 #include "base/memory/ref_counted.h"

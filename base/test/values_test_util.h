@@ -4,7 +4,6 @@
 
 #ifndef BASE_TEST_VALUES_TEST_UTIL_H_
 #define BASE_TEST_VALUES_TEST_UTIL_H_
-#pragma once
 
 #include <string>
 

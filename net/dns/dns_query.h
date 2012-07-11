@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_DNS_QUERY_H_
 #define NET_DNS_DNS_QUERY_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"

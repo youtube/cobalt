@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_SYNC_HOST_RESOLVER_H_
 #define NET_PROXY_SYNC_HOST_RESOLVER_H_
-#pragma once
 
 #include "net/base/host_resolver.h"
 #include "net/base/net_export.h"

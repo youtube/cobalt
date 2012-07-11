@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_STATUS_CODE_H_
 #define NET_HTTP_HTTP_STATUS_CODE_H_
-#pragma once
 
 namespace net {
 

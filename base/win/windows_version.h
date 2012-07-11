@@ -4,7 +4,6 @@
 
 #ifndef BASE_WIN_WINDOWS_VERSION_H_
 #define BASE_WIN_WINDOWS_VERSION_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"

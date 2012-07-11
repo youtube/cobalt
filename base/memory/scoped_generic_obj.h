@@ -4,7 +4,6 @@
 
 #ifndef BASE_MEMORY_SCOPED_GENERIC_OBJ_H_
 #define BASE_MEMORY_SCOPED_GENERIC_OBJ_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

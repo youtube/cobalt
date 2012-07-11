@@ -4,7 +4,6 @@
 
 #ifndef BASE_MEMORY_SCOPED_POLICY_H_
 #define BASE_MEMORY_SCOPED_POLICY_H_
-#pragma once
 
 namespace base {
 namespace scoped_policy {

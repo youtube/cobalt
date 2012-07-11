@@ -21,7 +21,6 @@
 
 #ifndef BASE_WIN_WIN_UTIL_H_
 #define BASE_WIN_WIN_UTIL_H_
-#pragma once
 
 #include <windows.h>
 
