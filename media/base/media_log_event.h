@@ -4,7 +4,6 @@
 
 #ifndef MEDIA_BASE_MEDIA_LOG_EVENT_H_
 #define MEDIA_BASE_MEDIA_LOG_EVENT_H_
-#pragma once
 
 #include "base/time.h"
 #include "base/values.h"

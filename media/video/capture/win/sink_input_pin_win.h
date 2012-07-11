@@ -7,7 +7,6 @@
 
 #ifndef MEDIA_VIDEO_CAPTURE_WIN_SINK_INPUT_PIN_WIN_H_
 #define MEDIA_VIDEO_CAPTURE_WIN_SINK_INPUT_PIN_WIN_H_
-#pragma once
 
 #include "media/video/capture/video_capture_device.h"
 #include "media/video/capture/video_capture_types.h"

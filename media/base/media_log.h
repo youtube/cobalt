@@ -4,7 +4,6 @@
 
 #ifndef MEDIA_BASE_MEDIA_LOG_H_
 #define MEDIA_BASE_MEDIA_LOG_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
