@@ -115,19 +115,16 @@ bool DeleteReparsePoint(HANDLE source) {
 // ASSERT failures will return, but not stop the test.  Caller should wrap
 // calls to this function in ASSERT_NO_FATAL_FAILURE().
 void ChangePosixFilePermissions(const FilePath& path,
-                                mode_t mode_bits_to_set,
-                                mode_t mode_bits_to_clear) {
+                                int mode_bits_to_set,
+                                int mode_bits_to_clear) {
   ASSERT_FALSE(mode_bits_to_set & mode_bits_to_clear)
       << "Can't set and clear the same bits.";
 
-  struct stat stat_buf;
-  ASSERT_EQ(0, stat(path.value().c_str(), &stat_buf));
-
-  mode_t updated_mode_bits = stat_buf.st_mode;
-  updated_mode_bits |= mode_bits_to_set;
-  updated_mode_bits &= ~mode_bits_to_clear;
-
-  ASSERT_EQ(0, chmod(path.value().c_str(), updated_mode_bits));
+  int mode = 0;
+  ASSERT_TRUE(file_util::GetPosixFilePermissions(path, &mode));
+  mode |= mode_bits_to_set;
+  mode &= ~mode_bits_to_clear;
+  ASSERT_TRUE(file_util::SetPosixFilePermissions(path, mode));
 }
 #endif  // defined(OS_POSIX)
 
@@ -667,7 +664,6 @@ TEST_F(FileUtilTest, CreateAndReadSymlinks) {
   ASSERT_FALSE(file_util::ReadSymbolicLink(missing, &result));
 }
 
-
 // The following test of NormalizeFilePath() require that we create a symlink.
 // This can not be done on Windows before Vista.  On Vista, creating a symlink
 // requires privilege "SeCreateSymbolicLinkPrivilege".
@@ -746,44 +742,186 @@ TEST_F(FileUtilTest, DeleteFile) {
 
 #if defined(OS_POSIX)
 TEST_F(FileUtilTest, DeleteSymlinkToExistentFile) {
-  // Create a file
+  // Create a file.
   FilePath file_name = temp_dir_.path().Append(FPL("Test DeleteFile 2.txt"));
   CreateTextFile(file_name, bogus_content);
   ASSERT_TRUE(file_util::PathExists(file_name));
 
-  // Create a symlink to the file
+  // Create a symlink to the file.
   FilePath file_link = temp_dir_.path().Append("file_link_2");
   ASSERT_TRUE(file_util::CreateSymbolicLink(file_name, file_link))
       << "Failed to create symlink.";
 
-  // Delete the symbolic link
+  // Delete the symbolic link.
   EXPECT_TRUE(file_util::Delete(file_link, false));
 
-  // Make sure original file is not deleted
+  // Make sure original file is not deleted.
   EXPECT_FALSE(file_util::PathExists(file_link));
   EXPECT_TRUE(file_util::PathExists(file_name));
 }
 
 TEST_F(FileUtilTest, DeleteSymlinkToNonExistentFile) {
-  // Create a non-existent file path
+  // Create a non-existent file path.
   FilePath non_existent = temp_dir_.path().Append(FPL("Test DeleteFile 3.txt"));
   EXPECT_FALSE(file_util::PathExists(non_existent));
 
-  // Create a symlink to the non-existent file
+  // Create a symlink to the non-existent file.
   FilePath file_link = temp_dir_.path().Append("file_link_3");
   ASSERT_TRUE(file_util::CreateSymbolicLink(non_existent, file_link))
       << "Failed to create symlink.";
 
-  // Make sure the symbolic link is exist
+  // Make sure the symbolic link is exist.
   EXPECT_TRUE(file_util::IsLink(file_link));
   EXPECT_FALSE(file_util::PathExists(file_link));
 
-  // Delete the symbolic link
+  // Delete the symbolic link.
   EXPECT_TRUE(file_util::Delete(file_link, false));
 
-  // Make sure the symbolic link is deleted
+  // Make sure the symbolic link is deleted.
   EXPECT_FALSE(file_util::IsLink(file_link));
 }
+
+TEST_F(FileUtilTest, ChangeFilePermissionsAndRead) {
+  // Create a file path.
+  FilePath file_name = temp_dir_.path().Append(FPL("Test Readable File.txt"));
+  EXPECT_FALSE(file_util::PathExists(file_name));
+
+  const std::string kData("hello");
+
+  int buffer_size = kData.length();
+  char* buffer = new char[buffer_size];
+
+  // Write file.
+  EXPECT_EQ(static_cast<int>(kData.length()),
+            file_util::WriteFile(file_name, kData.data(), kData.length()));
+  EXPECT_TRUE(file_util::PathExists(file_name));
+
+  // Make sure the file is readable.
+  int32 mode = 0;
+  EXPECT_TRUE(file_util::GetPosixFilePermissions(file_name, &mode));
+  EXPECT_TRUE(mode & file_util::FILE_PERMISSION_READ_BY_USER);
+
+  // Get rid of the read permission.
+  EXPECT_TRUE(file_util::SetPosixFilePermissions(file_name, 0u));
+  EXPECT_TRUE(file_util::GetPosixFilePermissions(file_name, &mode));
+  EXPECT_FALSE(mode & file_util::FILE_PERMISSION_READ_BY_USER);
+  // Make sure the file can't be read.
+  EXPECT_EQ(-1, file_util::ReadFile(file_name, buffer, buffer_size));
+
+  // Give the read permission.
+  EXPECT_TRUE(file_util::SetPosixFilePermissions(
+      file_name,
+      file_util::FILE_PERMISSION_READ_BY_USER));
+  EXPECT_TRUE(file_util::GetPosixFilePermissions(file_name, &mode));
+  EXPECT_TRUE(mode & file_util::FILE_PERMISSION_READ_BY_USER);
+  // Make sure the file can be read.
+  EXPECT_EQ(static_cast<int>(kData.length()),
+            file_util::ReadFile(file_name, buffer, buffer_size));
+
+  // Delete the file.
+  EXPECT_TRUE(file_util::Delete(file_name, false));
+  EXPECT_FALSE(file_util::PathExists(file_name));
+
+  delete[] buffer;
+}
+
+TEST_F(FileUtilTest, ChangeFilePermissionsAndWrite) {
+  // Create a file path.
+  FilePath file_name = temp_dir_.path().Append(FPL("Test Readable File.txt"));
+  EXPECT_FALSE(file_util::PathExists(file_name));
+
+  const std::string kData("hello");
+
+  // Write file.
+  EXPECT_EQ(static_cast<int>(kData.length()),
+            file_util::WriteFile(file_name, kData.data(), kData.length()));
+  EXPECT_TRUE(file_util::PathExists(file_name));
+
+  // Make sure the file is writable.
+  int mode = 0;
+  EXPECT_TRUE(file_util::GetPosixFilePermissions(file_name, &mode));
+  EXPECT_TRUE(mode & file_util::FILE_PERMISSION_WRITE_BY_USER);
+  EXPECT_TRUE(file_util::PathIsWritable(file_name));
+
+  // Get rid of the write permission.
+  EXPECT_TRUE(file_util::SetPosixFilePermissions(file_name, 0u));
+  EXPECT_TRUE(file_util::GetPosixFilePermissions(file_name, &mode));
+  EXPECT_FALSE(mode & file_util::FILE_PERMISSION_WRITE_BY_USER);
+  // Make sure the file can't be write.
+  EXPECT_EQ(-1,
+            file_util::WriteFile(file_name, kData.data(), kData.length()));
+  EXPECT_FALSE(file_util::PathIsWritable(file_name));
+
+  // Give read permission.
+  EXPECT_TRUE(file_util::SetPosixFilePermissions(
+      file_name,
+      file_util::FILE_PERMISSION_WRITE_BY_USER));
+  EXPECT_TRUE(file_util::GetPosixFilePermissions(file_name, &mode));
+  EXPECT_TRUE(mode & file_util::FILE_PERMISSION_WRITE_BY_USER);
+  // Make sure the file can be write.
+  EXPECT_EQ(static_cast<int>(kData.length()),
+            file_util::WriteFile(file_name, kData.data(), kData.length()));
+  EXPECT_TRUE(file_util::PathIsWritable(file_name));
+
+  // Delete the file.
+  EXPECT_TRUE(file_util::Delete(file_name, false));
+  EXPECT_FALSE(file_util::PathExists(file_name));
+}
+
+TEST_F(FileUtilTest, ChangeDirectoryPermissionsAndEnumerate) {
+  // Create a directory path.
+  FilePath subdir_path =
+      temp_dir_.path().Append(FPL("PermissionTest1"));
+  file_util::CreateDirectory(subdir_path);
+  ASSERT_TRUE(file_util::PathExists(subdir_path));
+
+  // Create a dummy file to enumerate.
+  FilePath file_name = subdir_path.Append(FPL("Test Readable File.txt"));
+  EXPECT_FALSE(file_util::PathExists(file_name));
+  const std::string kData("hello");
+  EXPECT_EQ(static_cast<int>(kData.length()),
+            file_util::WriteFile(file_name, kData.data(), kData.length()));
+  EXPECT_TRUE(file_util::PathExists(file_name));
+
+  // Make sure the directory has the all permissions.
+  int mode = 0;
+  EXPECT_TRUE(file_util::GetPosixFilePermissions(subdir_path, &mode));
+  EXPECT_EQ(file_util::FILE_PERMISSION_USER_MASK,
+            mode & file_util::FILE_PERMISSION_USER_MASK);
+
+  // Get rid of the permissions from the directory.
+  EXPECT_TRUE(file_util::SetPosixFilePermissions(subdir_path, 0u));
+  EXPECT_TRUE(file_util::GetPosixFilePermissions(subdir_path, &mode));
+  EXPECT_FALSE(mode & file_util::FILE_PERMISSION_USER_MASK);
+
+  // Make sure the file in the directory can't be enumerated.
+  file_util::FileEnumerator f1(subdir_path, true,
+                               file_util::FileEnumerator::FILES);
+  EXPECT_TRUE(file_util::PathExists(subdir_path));
+  FindResultCollector c1(f1);
+  EXPECT_EQ(c1.size(), 0);
+  EXPECT_FALSE(file_util::GetPosixFilePermissions(file_name, &mode));
+
+  // Give the permissions to the directory.
+  EXPECT_TRUE(file_util::SetPosixFilePermissions(
+      subdir_path,
+      file_util::FILE_PERMISSION_USER_MASK));
+  EXPECT_TRUE(file_util::GetPosixFilePermissions(subdir_path, &mode));
+  EXPECT_EQ(file_util::FILE_PERMISSION_USER_MASK,
+            mode & file_util::FILE_PERMISSION_USER_MASK);
+
+  // Make sure the file in the directory can be enumerated.
+  file_util::FileEnumerator f2(subdir_path, true,
+                               file_util::FileEnumerator::FILES);
+  FindResultCollector c2(f2);
+  EXPECT_TRUE(c2.HasFile(file_name));
+  EXPECT_EQ(c2.size(), 1);
+
+  // Delete the file.
+  EXPECT_TRUE(file_util::Delete(subdir_path, true));
+  EXPECT_FALSE(file_util::PathExists(subdir_path));
+}
+
 #endif  // defined(OS_POSIX)
 
 #if defined(OS_WIN)
@@ -1997,11 +2135,14 @@ class VerifyPathControlledByUserTest : public FileUtilTest {
     // of permissions to be different from what we expect, explicitly
     // set permissions on the directories we create.
     // Make all files and directories non-world-writable.
-    mode_t enabled_permissions =
-        S_IRWXU |  // User can read, write, traverse
-        S_IRWXG;   // Group can read, write, traverse
-    mode_t disabled_permissions =
-        S_IRWXO;   // Other users can't read, write, traverse.
+
+    // Users and group can read, write, traverse
+    int enabled_permissions =
+        file_util::FILE_PERMISSION_USER_MASK |
+        file_util::FILE_PERMISSION_GROUP_MASK;
+    // Other users can't read, write, traverse
+    int disabled_permissions =
+        file_util::FILE_PERMISSION_OTHERS_MASK;
 
     ASSERT_NO_FATAL_FAILURE(
         ChangePosixFilePermissions(
