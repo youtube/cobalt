@@ -76,11 +76,12 @@ _TEST_SUITES = ['base_unittests',
                 'ui_unittests',
                ]
 
-def FullyQualifiedTestSuites(apk):
+def FullyQualifiedTestSuites(apk, test_suites):
   """Return a fully qualified list that represents all known suites.
 
   Args:
-    apk: if True, use the apk-based test runner"""
+    apk: if True, use the apk-based test runner
+    test_suites: the source test suites to process"""
   # If not specified, assume the test suites are in out/Release
   test_suite_dir = os.path.abspath(os.path.join(constants.CHROME_DIR,
                                                 'out', 'Release'))
@@ -89,7 +90,7 @@ def FullyQualifiedTestSuites(apk):
     suites = [os.path.join(test_suite_dir,
                            t + '_apk',
                            t + '-debug.apk')
-              for t in _TEST_SUITES]
+              for t in test_suites]
   else:
     suites = [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
   return suites
@@ -199,16 +200,8 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     global _TEST_SUITES
 
     # If not specified, assume the test suites are in out/Release
-    test_suite_dir = os.path.abspath(os.path.join(run_tests_helper.CHROME_DIR,
-                                                'out', 'Release'))
-    if apk:
-      # out/Release/$SUITE_apk/$SUITE-debug.apk
-      test_suite = os.path.join(test_suite_dir,
-                           test_suite + '_apk',
-                           test_suite + '-debug.apk')
-    else:
-      test_suite = os.path.join(test_suite_dir, test_suite)
-
+    test_suite_dir = os.path.abspath(os.path.join(constants.CHROME_DIR,
+                                                  'out', 'Release'))
     if (not os.path.exists(test_suite)):
       logging.critical('Unrecognized test suite %s, supported: %s' %
                        (test_suite, _TEST_SUITES))
@@ -221,11 +214,11 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
       else:
         logging.critical('Unrecognized test suite, supported: %s' %
                          _TEST_SUITES)
-      return TestResults.FromOkAndFailed([], [BaseTestResult(test_suite, '')],
+      return TestResults.FromRun([], [BaseTestResult(test_suite, '')],
                                          False, False)
     fully_qualified_test_suites = [test_suite]
   else:
-    fully_qualified_test_suites = FullyQualifiedTestSuites(apk)
+    fully_qualified_test_suites = FullyQualifiedTestSuites(apk, _TEST_SUITES)
   debug_info_list = []
   print 'Known suites: ' + str(_TEST_SUITES)
   print 'Running these: ' + str(fully_qualified_test_suites)
@@ -414,9 +407,11 @@ def Dispatch(options):
     xvfb.Start()
 
   if options.test_suite:
-    all_test_suites = [options.test_suite]
+    all_test_suites = FullyQualifiedTestSuites(options.apk,
+                                               [options.test_suite])
   else:
-    all_test_suites = FullyQualifiedTestSuites(options.apk)
+    all_test_suites = FullyQualifiedTestSuites(options.apk,
+                                               _TEST_SUITES)
   failures = 0
   for suite in all_test_suites:
     options.test_suite = suite
