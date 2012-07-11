@@ -18,7 +18,7 @@ NetworkChangeNotifier::NetworkChangeNotifier() {
 
 NetworkChangeNotifier::~NetworkChangeNotifier() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_NetworkChangeNotifier_unregisterReceiver(
+  Java_NetworkChangeNotifier_destroy(
       env, java_network_change_notifier_.obj());
 }
 

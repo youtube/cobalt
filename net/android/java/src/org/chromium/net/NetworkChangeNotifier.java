@@ -4,129 +4,119 @@
 
 package org.chromium.net;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.util.Log;
 
-import org.chromium.base.ActivityStatus;
 import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
 import org.chromium.base.NativeClassQualifiedName;
 
 /**
- * Triggers updates to the underlying network state in native Chrome
+ * Triggers updates to the underlying network state in native Chrome.
+ * By default, connectivity is assumed and changes must pushed from
+ * the embedder via the forceConnectivityState function.
+ * Embedders may choose to have this class auto-detect changes in
+ * network connectivity by invoking the autoDetectConnectivityState
+ * function.
  */
 @JNINamespace("net")
-public class NetworkChangeNotifier extends BroadcastReceiver implements ActivityStatus.Listener {
-
-    private static final String TAG = "NetworkChangeNotifier";
-
-    private final NetworkConnectivityIntentFilter mIntentFilter =
-            new NetworkConnectivityIntentFilter();
-
+public class NetworkChangeNotifier {
     private final Context mContext;
-    private final int mNativeChangeNotifier;
-    private boolean mRegistered;
+    private int mNativeChangeNotifier;
     private boolean mIsConnected;
+    private NetworkChangeNotifierAutoDetect mAutoDetector;
 
-    private static NetworkChangeNotifier sNetworkChangeNotifierForTest;
+    private static NetworkChangeNotifier sInstance;
 
-    public static NetworkChangeNotifier getNetworkChangeNotifierForTest() {
-      return sNetworkChangeNotifierForTest;
-    }
-
+    // Private constructor - instances are only created via the create factory
+    // function, which is only called from native.
     private NetworkChangeNotifier(Context context, int nativeChangeNotifier) {
         mContext = context;
         mNativeChangeNotifier = nativeChangeNotifier;
-        mIsConnected = checkIfConnected(mContext);
-        ActivityStatus status = ActivityStatus.getInstance();
-        if (!status.isPaused()) {
-          registerReceiver();
-        }
-        status.registerListener(this);
-        sNetworkChangeNotifierForTest = this;
+        mIsConnected = true;
+        sInstance = this;
     }
 
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        if (intent.getBooleanExtra(ConnectivityManager.EXTRA_NO_CONNECTIVITY, false)) {
-            if (mIsConnected) {
-              mIsConnected = false;
-              Log.d(TAG, "Network connectivity changed, no connectivity.");
-              nativeNotifyObservers(mNativeChangeNotifier);
+    /**
+     * Enable auto detection of the current network state based on notifications
+     * from the system. Note that passing true here requires the embedding app
+     * have the platform ACCESS_NETWORK_STATE permission.
+     *
+     * @param shouldAutoDetect true if the NetworkChangeNotifier should listen
+     *     for system changes in network connectivity.
+     */
+    public static void setAutoDetectConnectivityState(boolean shouldAutoDetect) {
+        // We should only get a call to this after the native object is created and
+        // hence the singleton initialised.
+        assert sInstance != null;
+        sInstance.setAutoDetectConnectivityStateInternal(shouldAutoDetect);
+    }
+
+    private void setAutoDetectConnectivityStateInternal(boolean shouldAutoDetect) {
+        if (shouldAutoDetect) {
+            if (mAutoDetector == null) {
+                mAutoDetector = new NetworkChangeNotifierAutoDetect(this, mContext);
             }
         } else {
-            boolean isConnected = checkIfConnected(context);
-            if (isConnected != mIsConnected) {
-              mIsConnected = isConnected;
-              Log.d(TAG, "Network connectivity changed, status is: " + isConnected);
-              nativeNotifyObservers(mNativeChangeNotifier);
+            if (mAutoDetector != null) {
+                mAutoDetector.destroy();
+                mAutoDetector = null;
             }
         }
     }
 
-    private boolean checkIfConnected(Context context) {
-      ConnectivityManager manager = (ConnectivityManager)
-              context.getSystemService(Context.CONNECTIVITY_SERVICE);
-      boolean isConnected = false;
-      for (NetworkInfo info: manager.getAllNetworkInfo()) {
-          if (info.isConnected()) {
-              isConnected = true;
-              break;
-          }
-      }
-      return isConnected;
+    /**
+     * Update the perceived network state when not auto-detecting
+     * changes to connectivity.
+     *
+     * @param networkAvailable True if the NetworkChangeNotifier should
+     *     perceive a "connected" state, false implies "disconnected".
+     */
+    public static void forceConnectivityState(boolean networkAvailable) {
+        assert sInstance != null;
+        setAutoDetectConnectivityState(false);
+        sInstance.forceConnectivityStateInternal(networkAvailable);
+    }
+
+    private void forceConnectivityStateInternal(boolean forceOnline) {
+        if (mIsConnected != forceOnline) {
+            mIsConnected = forceOnline;
+            notifyNativeObservers();
+        }
+    }
+
+    void notifyNativeObservers() {
+        if (mNativeChangeNotifier != 0) {
+            nativeNotifyObservers(mNativeChangeNotifier);
+        }
     }
 
     @CalledByNative
     private boolean isConnected() {
-      return mIsConnected;
-    }
-
-    /**
-     * Register a BroadcastReceiver in the given context.
-     */
-    private void registerReceiver() {
-        if (!mRegistered) {
-          mRegistered = true;
-          mContext.registerReceiver(this, mIntentFilter);
+        if (mAutoDetector != null) {
+            return mAutoDetector.isConnected();
         }
-    }
-    /**
-     * Unregister the BroadcastReceiver in the given context.
-     */
-    @CalledByNative
-    private void unregisterReceiver() {
-        if (mRegistered) {
-           mRegistered = false;
-           mContext.unregisterReceiver(this);
-        }
-    }
-
-    @Override
-    public void onActivityStatusChanged(boolean isPaused) {
-        if (isPaused) {
-            unregisterReceiver();
-        } else {
-            registerReceiver();
-        }
+        return mIsConnected;
     }
 
     @CalledByNative
-    static NetworkChangeNotifier create(Context context, int nativeNetworkChangeNotifier) {
+    private void destroy() {
+        if (mAutoDetector != null) {
+            mAutoDetector.destroy();
+        }
+        mNativeChangeNotifier = 0;
+        sInstance = null;
+    }
+
+    @CalledByNative
+    private static NetworkChangeNotifier create(Context context, int nativeNetworkChangeNotifier) {
         return new NetworkChangeNotifier(context, nativeNetworkChangeNotifier);
-    }
-
-    private static class NetworkConnectivityIntentFilter extends IntentFilter {
-      NetworkConnectivityIntentFilter() {
-          addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-      }
     }
 
     @NativeClassQualifiedName("android::NetworkChangeNotifier")
     private native void nativeNotifyObservers(int nativePtr);
+
+    // For testing only.
+    public static NetworkChangeNotifierAutoDetect getAutoDetectorForTest() {
+        return sInstance.mAutoDetector;
+    }
 }
