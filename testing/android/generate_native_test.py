@@ -120,7 +120,7 @@ class NativeTestApkGenerator(object):
       cmd_helper.RunCmd(
           [strip, '--strip-unneeded', self._native_library, '-o', dest])
     if self._jars:
-      destdir = os.path.join(self._output_directory, 'libs')
+      destdir = os.path.join(self._output_directory, 'java/libs')
       if not os.path.exists(destdir):
         os.makedirs(destdir)
       for jar in self._jars:
