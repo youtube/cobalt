@@ -62,11 +62,9 @@ class NonThreadSafeDoNothing {
 // NonThreadSafe. For more details about when to choose one over the other, see
 // the documentation for base::ThreadChecker.
 #if ENABLE_NON_THREAD_SAFE
-class NonThreadSafe : public NonThreadSafeImpl {
-};
+typedef NonThreadSafeImpl NonThreadSafe;
 #else
-class NonThreadSafe : public NonThreadSafeDoNothing {
-};
+typedef NonThreadSafeDoNothing NonThreadSafe;
 #endif  // ENABLE_NON_THREAD_SAFE
 
 #undef ENABLE_NON_THREAD_SAFE
