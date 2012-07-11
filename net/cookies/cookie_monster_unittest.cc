@@ -1776,7 +1776,7 @@ TEST_F(CookieMonsterTest, SetCookieWithDetails) {
   EXPECT_EQ("B", it->Value());
   EXPECT_EQ("www.google.izzle", it->Domain());
   EXPECT_EQ("/foo", it->Path());
-  EXPECT_FALSE(it->DoesExpire());
+  EXPECT_FALSE(it->IsPersistent());
   EXPECT_FALSE(it->IsSecure());
   EXPECT_FALSE(it->IsHttpOnly());
 
@@ -2138,35 +2138,6 @@ TEST_F(CookieMonsterTest, MAYBE_GarbageCollectionTriggers) {
               static_cast<int>((GetAllCookies(cm).size())))
         << "For test case " << ci;
   }
-}
-
-// This test checks that setting a cookie forcing it to be a session only
-// cookie works as expected.
-TEST_F(CookieMonsterTest, ForceSessionOnly) {
-  scoped_refptr<CookieMonster> cm(new CookieMonster(NULL, NULL));
-  CookieOptions options;
-
-  // Set a persistent cookie, but force it to be a session cookie.
-  options.set_force_session();
-  ASSERT_TRUE(SetCookieWithOptions(
-      cm, url_google_,
-      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-22 22:50:13 GMT",
-      options));
-
-  // Get the canonical cookie.
-  CookieList cookie_list = GetAllCookies(cm);
-  ASSERT_EQ(1U, cookie_list.size());
-  ASSERT_FALSE(cookie_list[0].IsPersistent());
-
-  // Use a past expiry date to delete the cookie, but force it to session only.
-  ASSERT_TRUE(SetCookieWithOptions(
-      cm, url_google_,
-      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-1977 22:50:13 GMT",
-      options));
-
-  // Check that the cookie was deleted.
-  cookie_list = GetAllCookies(cm);
-  ASSERT_EQ(0U, cookie_list.size());
 }
 
 // This test checks that keep expired cookies flag is working.
@@ -2602,44 +2573,13 @@ TEST_F(MultiThreadedCookieMonsterTest, ThreadCheckDeleteCanonicalCookie) {
   EXPECT_TRUE(callback.result());
 }
 
-TEST_F(CookieMonsterTest, ShortLivedSessionCookies) {
-  scoped_refptr<MockPersistentCookieStore> store(
-      new MockPersistentCookieStore);
-  scoped_refptr<CookieMonster> cm(new CookieMonster(store, NULL));
-
-  // Create a short-lived session cookie.
-  CookieOptions options;
-  options.set_force_session();
-  Time current = Time::Now();
-  EXPECT_TRUE(SetCookieWithOptions(cm, url_google_,
-                                   std::string(kValidCookieLine) +
-                                   "; max-age=10",
-                                   options));
-
-  // FindCookiesForKey asserts that its caller holds this lock.
-  base::AutoLock auto_lock(cm->lock_);
-
-  // Get cookies before the cookie has expired.
-  std::vector<CookieMonster::CanonicalCookie*> cookies;
-  cm->FindCookiesForKey(cm->GetKey(url_google_.host()), url_google_,
-                        CookieOptions(), current, false, &cookies);
-  EXPECT_EQ(1U, cookies.size());
-
-  // Get cookies after the cookie has expired.
-  cookies.clear();
-  cm->FindCookiesForKey(cm->GetKey(url_google_.host()), url_google_,
-                        CookieOptions(), current + TimeDelta::FromSeconds(20),
-                        false, &cookies);
-  EXPECT_EQ(0U, cookies.size());
-}
-
 TEST_F(CookieMonsterTest, InvalidExpiryTime) {
   CookieMonster::ParsedCookie pc(
       std::string(kValidCookieLine) + "; expires=Blarg arg arg");
   scoped_ptr<CookieMonster::CanonicalCookie> cookie(
       CookieMonster::CanonicalCookie::Create(url_google_, pc));
 
-  ASSERT_FALSE(cookie->DoesExpire());
+  ASSERT_FALSE(cookie->IsPersistent());
 }
 
 // Test that CookieMonster writes session cookies into the underlying

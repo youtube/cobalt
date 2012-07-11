@@ -475,9 +475,6 @@ bool TestNetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
   if (cookie_options_bit_mask_ & NO_SET_COOKIE)
     allow = false;
 
-  if (cookie_options_bit_mask_ & FORCE_SESSION)
-    options->set_force_session();
-
   if (!allow) {
     blocked_set_cookie_count_++;
   } else {

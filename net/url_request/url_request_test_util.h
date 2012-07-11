@@ -188,7 +188,6 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   enum Options {
     NO_GET_COOKIES = 1 << 0,
     NO_SET_COOKIE  = 1 << 1,
-    FORCE_SESSION  = 1 << 2,
   };
 
   TestNetworkDelegate();
