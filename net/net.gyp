@@ -719,6 +719,8 @@
         'udp/udp_socket_win.cc',
         'udp/udp_socket_win.h',
         'url_request/fraudulent_certificate_reporter.h',
+        'url_request/ftp_protocol_handler.cc',
+        'url_request/ftp_protocol_handler.h',
         'url_request/url_fetcher.cc',
         'url_request/url_fetcher.h',
         'url_request/url_fetcher_core.cc',

@@ -17,14 +17,20 @@
 
 namespace net {
 
-class URLRequestContext;
+class NetworkDelegate;
+class FtpTransactionFactory;
+class FtpAuthCache;
 
 // A URLRequestJob subclass that is built on top of FtpTransaction. It
 // provides an implementation for FTP.
 class URLRequestFtpJob : public URLRequestJob {
  public:
-  explicit URLRequestFtpJob(URLRequest* request);
+  URLRequestFtpJob(URLRequest* request,
+                   NetworkDelegate* network_delegate,
+                   FtpTransactionFactory* ftp_transaction_factory,
+                   FtpAuthCache* ftp_auth_cache);
 
+  // TODO(shalev): get rid of this function in favor of FtpProtocolHandler.
   static URLRequestJob* Factory(URLRequest* request,
                                 const std::string& scheme);
 
@@ -68,6 +74,9 @@ class URLRequestFtpJob : public URLRequestJob {
   scoped_refptr<AuthData> server_auth_;
 
   base::WeakPtrFactory<URLRequestFtpJob> weak_factory_;
+
+  FtpTransactionFactory* ftp_transaction_factory_;
+  FtpAuthCache* ftp_auth_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFtpJob);
 };
