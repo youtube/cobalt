@@ -91,16 +91,17 @@ export PATH=$PATH:${ANDROID_SDK_ROOT}/platform-tools
 # Must have tools like arm-linux-androideabi-gcc on the path for ninja
 export PATH=$PATH:${ANDROID_TOOLCHAIN}
 
+CURRENT_DIR="$(readlink -f ${PWD})"
 if [ -z "${CHROME_SRC}" ]; then
   # If $CHROME_SRC was not set, assume current directory is CHROME_SRC.
-  export CHROME_SRC="${PWD}"
+  export CHROME_SRC="${CURRENT_DIR}"
 fi
 
-if [ "${PWD/"${CHROME_SRC}"/}" == "${PWD}" ]; then
+if [ "${CURRENT_DIR/"${CHROME_SRC}"/}" == "${CURRENT_DIR}" ]; then
   # If current directory is not in $CHROME_SRC, it might be set for other
   # source tree. If $CHROME_SRC was set correctly and we are in the correct
-  # directory, "${PWD/"${CHROME_SRC}"/}" will be "".
-  # Otherwise, it will equal to "${PWD}"
+  # directory, "${CURRENT_DIR/"${CHROME_SRC}"/}" will be "".
+  # Otherwise, it will equal to "${CURRENT_DIR}"
   echo "Warning: Current directory is out of CHROME_SRC, it may not be \
 the one you want."
   echo "${CHROME_SRC}"
