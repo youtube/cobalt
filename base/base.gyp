@@ -434,6 +434,7 @@
         'platform_file_unittest.cc',
         'pr_time_unittest.cc',
         'process_util_unittest.cc',
+        'process_util_unittest_ios.cc',
         'process_util_unittest_mac.h',
         'process_util_unittest_mac.mm',
         'profiler/tracked_time_unittest.cc',
