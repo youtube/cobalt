@@ -674,9 +674,10 @@ class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
   bool was_used_to_convey_data_;
 };
 
-class DeterministicMockTCPClientSocket : public MockClientSocket,
-    public AsyncSocket,
-    public base::SupportsWeakPtr<DeterministicMockTCPClientSocket> {
+class DeterministicMockTCPClientSocket
+    : public MockClientSocket,
+      public AsyncSocket,
+      public base::SupportsWeakPtr<DeterministicMockTCPClientSocket> {
  public:
   DeterministicMockTCPClientSocket(net::NetLog* net_log,
                                    DeterministicSocketData* data);
@@ -780,8 +781,9 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
   NextProto protocol_negotiated_;
 };
 
-class MockUDPClientSocket : public DatagramClientSocket,
-    public AsyncSocket {
+class MockUDPClientSocket
+    : public DatagramClientSocket,
+      public AsyncSocket {
  public:
   MockUDPClientSocket(SocketDataProvider* data, net::NetLog* net_log);
   virtual ~MockUDPClientSocket();
