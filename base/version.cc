@@ -147,22 +147,6 @@ int Version::CompareToWildcardString(const std::string& wildcard_string) const {
   return 0;
 }
 
-// TODO(cpu): remove this method.
-Version* Version::GetVersionFromString(const std::string& version_str) {
-  Version* vers = new Version(version_str);
-  if (vers->IsValid()) {
-    return vers;
-  }
-  delete vers;
-  return NULL;
-}
-
-// TODO(cpu): remove this method.
-Version* Version::Clone() const {
-  DCHECK(IsValid());
-  return new Version(*this);
-}
-
 bool Version::Equals(const Version& that) const {
   DCHECK(IsValid());
   DCHECK(that.IsValid());
