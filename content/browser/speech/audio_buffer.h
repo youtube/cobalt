@@ -4,7 +4,6 @@
 
 #ifndef CONTENT_BROWSER_SPEECH_AUDIO_BUFFER_H_
 #define CONTENT_BROWSER_SPEECH_AUDIO_BUFFER_H_
-#pragma once
 
 #include <deque>
 #include <string>

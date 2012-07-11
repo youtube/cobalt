@@ -4,7 +4,6 @@
 
 #ifndef CONTENT_BROWSER_SPEECH_CHUNKED_BYTE_BUFFER_H_
 #define CONTENT_BROWSER_SPEECH_CHUNKED_BYTE_BUFFER_H_
-#pragma once
 
 #include <string>
 #include <vector>
