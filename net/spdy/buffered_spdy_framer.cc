@@ -98,9 +98,9 @@ bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
     // Indicates end-of-header-block.
     CHECK(header_buffer_valid_);
 
-    const linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
+    SpdyHeaderBlock headers;
     bool parsed_headers = spdy_framer_.ParseHeaderBlockInBuffer(
-        header_buffer_, header_buffer_used_, headers.get());
+        header_buffer_, header_buffer_used_, &headers);
     if (!parsed_headers) {
       visitor_->OnStreamError(
           stream_id, "Could not parse Spdy Control Frame Header.");

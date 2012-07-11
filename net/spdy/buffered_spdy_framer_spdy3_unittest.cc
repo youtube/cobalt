@@ -43,29 +43,29 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
                    uint8 credential_slot,
                    bool fin,
                    bool unidirectional,
-                   const linked_ptr<SpdyHeaderBlock>& headers) {
+                   const SpdyHeaderBlock& headers) {
     header_stream_id_ = stream_id;
     EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
     syn_frame_count_++;
-    headers_ = *headers;
+    headers_ = headers;
   }
 
   void OnSynReply(SpdyStreamId stream_id,
                   bool fin,
-                  const linked_ptr<SpdyHeaderBlock>& headers) {
+                  const SpdyHeaderBlock& headers) {
     header_stream_id_ = stream_id;
     EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
     syn_reply_frame_count_++;
-    headers_ = *headers;
+    headers_ = headers;
   }
 
   void OnHeaders(SpdyStreamId stream_id,
                  bool fin,
-                 const linked_ptr<SpdyHeaderBlock>& headers) {
+                 const SpdyHeaderBlock& headers) {
     header_stream_id_ = stream_id;
     EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
     headers_frame_count_++;
-    headers_ = *headers;
+    headers_ = headers;
   }
 
   void OnStreamFrameData(SpdyStreamId stream_id,
