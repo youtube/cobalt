@@ -968,8 +968,8 @@
             'static_link_system_icu%': 0,
           }],
         ],
-        # TODO(steveblock): Investigate using the system versions of sqlite,
-        # libjpeg and stlport.
+        # TODO(steveblock): Investigate using the system versions of sqlite and
+        # libjpeg.
         # Enable to use system sqlite.
         'use_system_sqlite%': 0,  # '<(android_build_type)',
         # Enable to use system libjpeg.
@@ -978,7 +978,7 @@
         'use_system_expat%': '<(android_build_type)',
         # Enable to use the system stlport, otherwise statically
         # link the NDK one?
-        'use_system_stlport%': 0,  # '<(android_build_type)',
+        'use_system_stlport%': '<(android_build_type)',
         # Copy it out one scope.
         'android_build_type%': '<(android_build_type)',
       }],  # OS=="android"
@@ -2562,7 +2562,13 @@
               # don't use '-isystem' because the arm-linux-androideabi-4.4.3
               # toolchain (circa Gingerbread) will exhibit strange errors.
               # The include ordering here is important; change with caution.
-              ['use_system_stlport==0', {
+              ['use_system_stlport==1', {
+                'cflags': [
+                  # For libstdc++/include, which is used by stlport.
+                  '-I<(android_src)/bionic',
+                  '-I<(android_src)/external/stlport/stlport',
+                ],
+              }, { # else: use_system_stlport!=1
                 'cflags': [
                   '-I<(android_ndk_root)/sources/cxx-stl/stlport/stlport',
                 ],
