@@ -104,7 +104,7 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
     base::PlatformThread::Sleep(kInterval);
     waited += kInterval;
   } while (status == base::TERMINATION_STATUS_STILL_RUNNING &&
-           waited.InMilliseconds() < TestTimeouts::action_max_timeout_ms());
+           waited < TestTimeouts::action_max_timeout());
 
   return status;
 }
@@ -141,7 +141,7 @@ TEST_F(ProcessUtilTest, SpawnChild) {
   base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
   EXPECT_TRUE(base::WaitForSingleProcess(
-                  handle, TestTimeouts::action_max_timeout_ms()));
+                  handle, TestTimeouts::action_max_timeout()));
   base::CloseProcessHandle(handle);
 }
 
@@ -158,7 +158,7 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
   ASSERT_NE(base::kNullProcessHandle, handle);
   SignalChildren(signal_file.c_str());
   EXPECT_TRUE(base::WaitForSingleProcess(
-                  handle, TestTimeouts::action_max_timeout_ms()));
+                  handle, TestTimeouts::action_max_timeout()));
   base::CloseProcessHandle(handle);
   remove(signal_file.c_str());
 }
@@ -588,7 +588,7 @@ int ProcessUtilTest::CountOpenFDsInChild() {
       HANDLE_EINTR(read(fds[0], &num_open_files, sizeof(num_open_files)));
   CHECK_EQ(bytes_read, static_cast<ssize_t>(sizeof(num_open_files)));
 
-  CHECK(base::WaitForSingleProcess(handle, 1000));
+  CHECK(base::WaitForSingleProcess(handle, base::TimeDelta::FromSeconds(1)));
   base::CloseProcessHandle(handle);
   ret = HANDLE_EINTR(close(fds[0]));
   DPCHECK(ret == 0);
@@ -930,7 +930,7 @@ TEST_F(ProcessUtilTest, DelayedTermination) {
       SpawnChild("process_util_test_never_die", false);
   ASSERT_TRUE(child_process);
   base::EnsureProcessTerminated(child_process);
-  base::WaitForSingleProcess(child_process, 5000);
+  base::WaitForSingleProcess(child_process, base::TimeDelta::FromSeconds(5));
 
   // Check that process was really killed.
   EXPECT_TRUE(IsProcessDead(child_process));
