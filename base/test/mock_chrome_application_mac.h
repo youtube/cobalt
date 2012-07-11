@@ -4,7 +4,6 @@
 
 #ifndef BASE_TEST_MOCK_CHROME_APPLICATION_MAC_H_
 #define BASE_TEST_MOCK_CHROME_APPLICATION_MAC_H_
-#pragma once
 
 #if defined(__OBJC__)
 

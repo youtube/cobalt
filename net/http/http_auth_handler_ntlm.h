@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_AUTH_HANDLER_NTLM_H_
 #define NET_HTTP_HTTP_AUTH_HANDLER_NTLM_H_
-#pragma once
 
 #include "build/build_config.h"
 

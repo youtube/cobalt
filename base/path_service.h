@@ -4,7 +4,6 @@
 
 #ifndef BASE_PATH_SERVICE_H_
 #define BASE_PATH_SERVICE_H_
-#pragma once
 
 #include <string>
 

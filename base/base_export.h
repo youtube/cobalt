@@ -4,7 +4,6 @@
 
 #ifndef BASE_BASE_EXPORT_H_
 #define BASE_BASE_EXPORT_H_
-#pragma once
 
 #if defined(COMPONENT_BUILD)
 #if defined(WIN32)

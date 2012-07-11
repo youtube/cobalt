@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_DNS_PROTOCOL_H_
 #define NET_DNS_DNS_PROTOCOL_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "net/base/net_export.h"

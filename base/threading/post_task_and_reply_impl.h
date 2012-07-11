@@ -7,7 +7,6 @@
 
 #ifndef BASE_THREADING_POST_TASK_AND_REPLY_IMPL_H_
 #define BASE_THREADING_POST_TASK_AND_REPLY_IMPL_H_
-#pragma once
 
 #include "base/callback_forward.h"
 #include "base/location.h"

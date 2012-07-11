@@ -4,7 +4,6 @@
 
 #ifndef BASE_DEBUG_LEAK_TRACKER_H_
 #define BASE_DEBUG_LEAK_TRACKER_H_
-#pragma once
 
 // Only enable leak tracking in debug builds.
 #ifndef NDEBUG

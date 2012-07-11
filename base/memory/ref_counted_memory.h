@@ -4,7 +4,6 @@
 
 #ifndef BASE_MEMORY_REF_COUNTED_MEMORY_H_
 #define BASE_MEMORY_REF_COUNTED_MEMORY_H_
-#pragma once
 
 #include <string>
 #include <vector>

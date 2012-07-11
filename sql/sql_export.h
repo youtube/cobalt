@@ -4,7 +4,6 @@
 
 #ifndef SQL_EXPORT_H_
 #define SQL_EXPORT_H_
-#pragma once
 
 #if defined(COMPONENT_BUILD)
 #if defined(WIN32)

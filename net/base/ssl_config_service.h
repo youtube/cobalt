@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_SSL_CONFIG_SERVICE_H_
 #define NET_BASE_SSL_CONFIG_SERVICE_H_
-#pragma once
 
 #include <vector>
 

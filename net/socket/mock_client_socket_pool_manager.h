@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_MOCK_CLIENT_SOCKET_POOL_MANAGER_H_
 #define NET_SOCKET_MOCK_CLIENT_SOCKET_POOL_MANAGER_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "net/socket/client_socket_pool_manager.h"

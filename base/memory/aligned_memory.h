@@ -21,7 +21,6 @@
 
 #ifndef BASE_MEMORY_ALIGNED_MEMORY_H_
 #define BASE_MEMORY_ALIGNED_MEMORY_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_EV_ROOT_CA_METADATA_H_
 #define NET_BASE_EV_ROOT_CA_METADATA_H_
-#pragma once
 
 #include "build/build_config.h"
 

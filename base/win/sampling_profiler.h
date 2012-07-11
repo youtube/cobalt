@@ -4,7 +4,6 @@
 
 #ifndef BASE_WIN_SAMPLING_PROFILER_H_
 #define BASE_WIN_SAMPLING_PROFILER_H_
-#pragma once
 
 #include <vector>
 

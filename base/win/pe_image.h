@@ -10,7 +10,6 @@
 
 #ifndef BASE_WIN_PE_IMAGE_H_
 #define BASE_WIN_PE_IMAGE_H_
-#pragma once
 
 #include <windows.h>
 

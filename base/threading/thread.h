@@ -4,7 +4,6 @@
 
 #ifndef BASE_THREAD_H_
 #define BASE_THREAD_H_
-#pragma once
 
 #include <string>
 

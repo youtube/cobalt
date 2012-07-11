@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_PIPELINED_CONNECTION_H_
 #define NET_HTTP_HTTP_PIPELINED_CONNECTION_H_
-#pragma once
 
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"

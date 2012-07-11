@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_NETWORK_DELEGATE_H_
 #define NET_BASE_NETWORK_DELEGATE_H_
-#pragma once
 
 #include <string>
 

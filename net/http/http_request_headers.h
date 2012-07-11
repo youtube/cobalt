@@ -9,7 +9,6 @@
 
 #ifndef NET_HTTP_HTTP_REQUEST_HEADERS_H_
 #define NET_HTTP_HTTP_REQUEST_HEADERS_H_
-#pragma once
 
 #include <string>
 #include <vector>

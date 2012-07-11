@@ -6,7 +6,6 @@
 
 #ifndef BASE_BASE_SWITCHES_H_
 #define BASE_BASE_SWITCHES_H_
-#pragma once
 
 namespace switches {
 

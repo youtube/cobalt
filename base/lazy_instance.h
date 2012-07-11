@@ -34,7 +34,6 @@
 
 #ifndef BASE_LAZY_INSTANCE_H_
 #define BASE_LAZY_INSTANCE_H_
-#pragma once
 
 #include <new>  // For placement new.
 

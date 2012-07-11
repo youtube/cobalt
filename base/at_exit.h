@@ -4,7 +4,6 @@
 
 #ifndef BASE_AT_EXIT_H_
 #define BASE_AT_EXIT_H_
-#pragma once
 
 #include <stack>
 

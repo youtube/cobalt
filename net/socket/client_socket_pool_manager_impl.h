@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_IMPL_H_
 #define NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_IMPL_H_
-#pragma once
 
 #include <map>
 #include "base/basictypes.h"

@@ -4,7 +4,6 @@
 
 #ifndef BASE_MEMORY_SCOPED_VECTOR_H_
 #define BASE_MEMORY_SCOPED_VECTOR_H_
-#pragma once
 
 #include <vector>
 

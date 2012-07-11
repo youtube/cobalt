@@ -7,7 +7,6 @@
 
 #ifndef NET_DISK_CACHE_DISK_CACHE_H_
 #define NET_DISK_CACHE_DISK_CACHE_H_
-#pragma once
 
 #include <string>
 #include <vector>

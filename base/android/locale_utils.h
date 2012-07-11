@@ -4,7 +4,6 @@
 
 #ifndef BASE_ANDROID_LOCALE_UTILS_H_
 #define BASE_ANDROID_LOCALE_UTILS_H_
-#pragma once
 
 #include <jni.h>
 

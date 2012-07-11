@@ -4,7 +4,6 @@
 
 #ifndef BASE_SEQUENCED_TASK_RUNNER_HELPERS_H_
 #define BASE_SEQUENCED_TASK_RUNNER_HELPERS_H_
-#pragma once
 
 #include "base/basictypes.h"
 

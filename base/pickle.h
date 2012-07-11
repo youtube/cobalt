@@ -4,7 +4,6 @@
 
 #ifndef BASE_PICKLE_H__
 #define BASE_PICKLE_H__
-#pragma once
 
 #include <string>
 

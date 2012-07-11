@@ -4,7 +4,6 @@
 
 #ifndef NET_ANDROID_NET_JNI_REGISTRAR_H_
 #define NET_ANDROID_NET_JNI_REGISTRAR_H_
-#pragma once
 
 #include <jni.h>
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_STREAM_SOCKET_H_
 #define NET_SOCKET_STREAM_SOCKET_H_
-#pragma once
 
 #include "base/time.h"
 #include "net/base/net_log.h"

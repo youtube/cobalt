@@ -4,7 +4,6 @@
 
 #ifndef NET_SERVER_HTTP_SERVER_H_
 #define NET_SERVER_HTTP_SERVER_H_
-#pragma once
 
 #include <list>
 #include <map>

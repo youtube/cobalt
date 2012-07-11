@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_STREAM_H_
 #define NET_SPDY_SPDY_STREAM_H_
-#pragma once
 
 #include <string>
 #include <vector>

@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_VARY_DATA_H_
 #define NET_HTTP_HTTP_VARY_DATA_H_
-#pragma once
 
 #include "base/md5.h"
 #include "net/base/net_export.h"

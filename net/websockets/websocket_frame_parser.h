@@ -4,7 +4,6 @@
 
 #ifndef NET_WEBSOCKETS_WEBSOCKET_FRAME_PARSER_H_
 #define NET_WEBSOCKETS_WEBSOCKET_FRAME_PARSER_H_
-#pragma once
 
 #include <vector>
 

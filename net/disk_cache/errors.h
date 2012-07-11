@@ -6,7 +6,6 @@
 
 #ifndef NET_DISK_CACHE_ERRORS_H__
 #define NET_DISK_CACHE_ERRORS_H__
-#pragma once
 
 namespace disk_cache {
 

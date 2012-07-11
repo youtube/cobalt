@@ -4,7 +4,6 @@
 
 #ifndef NET_TEST_LOCAL_TEST_SERVER_H_
 #define NET_TEST_LOCAL_TEST_SERVER_H_
-#pragma once
 
 #include <string>
 

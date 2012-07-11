@@ -5,7 +5,6 @@
 
 #ifndef BASE_DEBUG_TRACE_EVENT_IMPL_H_
 #define BASE_DEBUG_TRACE_EVENT_IMPL_H_
-#pragma once
 
 #include "build/build_config.h"
 

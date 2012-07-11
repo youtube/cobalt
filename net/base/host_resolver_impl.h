@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_HOST_RESOLVER_IMPL_H_
 #define NET_BASE_HOST_RESOLVER_IMPL_H_
-#pragma once
 
 #include <map>
 

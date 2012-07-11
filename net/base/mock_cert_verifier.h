@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_MOCK_CERT_VERIFIER_H_
 #define NET_BASE_MOCK_CERT_VERIFIER_H_
-#pragma once
 
 #include <list>
 

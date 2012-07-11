@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_HTTP_UTILS_H_
 #define NET_SPDY_SPDY_HTTP_UTILS_H_
-#pragma once
 
 #include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"

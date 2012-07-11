@@ -27,7 +27,6 @@
 
 #ifndef BASE_ATOMICOPS_H_
 #define BASE_ATOMICOPS_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "build/build_config.h"

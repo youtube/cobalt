@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_NET_UTIL_H_
 #define NET_BASE_NET_UTIL_H_
-#pragma once
 
 #include "build/build_config.h"
 

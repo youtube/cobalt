@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_DNS_CONFIG_SERVICE_H_
 #define NET_DNS_DNS_CONFIG_SERVICE_H_
-#pragma once
 
 #include <map>
 #include <string>

@@ -4,7 +4,6 @@
 
 #ifndef NET_TEST_SPAWNER_COMMUNICATOR_H_
 #define NET_TEST_SPAWNER_COMMUNICATOR_H_
-#pragma once
 
 #include <string>
 
