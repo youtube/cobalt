@@ -680,9 +680,7 @@ class NET_EXPORT CookieMonster::CanonicalCookie {
                   const base::Time& expiration,
                   const base::Time& last_access,
                   bool secure,
-                  bool httponly,
-                  bool has_expires,
-                  bool is_persistent);
+                  bool httponly);
 
   // This constructor does canonicalization but not validation.
   // The result of this constructor should not be relied on in contexts
@@ -712,8 +710,7 @@ class NET_EXPORT CookieMonster::CanonicalCookie {
                                  const base::Time& creation,
                                  const base::Time& expiration,
                                  bool secure,
-                                 bool http_only,
-                                 bool is_persistent);
+                                 bool http_only);
 
   const std::string& Source() const { return source_; }
   const std::string& Name() const { return name_; }
@@ -724,8 +721,7 @@ class NET_EXPORT CookieMonster::CanonicalCookie {
   const std::string& MACAlgorithm() const { return mac_algorithm_; }
   const base::Time& CreationDate() const { return creation_date_; }
   const base::Time& LastAccessDate() const { return last_access_date_; }
-  bool DoesExpire() const { return has_expires_; }
-  bool IsPersistent() const { return is_persistent_; }
+  bool IsPersistent() const { return !expiry_date_.is_null(); }
   const base::Time& ExpiryDate() const { return expiry_date_; }
   bool IsSecure() const { return secure_; }
   bool IsHttpOnly() const { return httponly_; }
@@ -734,7 +730,7 @@ class NET_EXPORT CookieMonster::CanonicalCookie {
   bool IsHostCookie() const { return !IsDomainCookie(); }
 
   bool IsExpired(const base::Time& current) {
-    return has_expires_ && current >= expiry_date_;
+    return !expiry_date_.is_null() && current >= expiry_date_;
   }
 
   // Are the cookies considered equivalent in the eyes of RFC 2965.
@@ -789,8 +785,6 @@ class NET_EXPORT CookieMonster::CanonicalCookie {
   base::Time last_access_date_;
   bool secure_;
   bool httponly_;
-  bool has_expires_;
-  bool is_persistent_;
 };
 
 class CookieMonster::Delegate
