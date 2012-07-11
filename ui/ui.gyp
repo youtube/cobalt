@@ -30,7 +30,7 @@
         '../third_party/libpng/libpng.gyp:libpng',
         '../third_party/zlib/zlib.gyp:zlib',
         'base/strings/ui_strings.gyp:ui_strings',
-        'ui_resources_standard',
+        'ui_resources',
         '<(libjpeg_gyp_path):libjpeg',
       ],
       'defines': [
