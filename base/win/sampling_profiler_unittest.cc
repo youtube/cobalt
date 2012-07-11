@@ -78,8 +78,7 @@ TEST_F(SamplingProfilerTest, Sample) {
   // allotted to our process in this wall-clock time duration,
   // and samples will only accrue while this thread is busy on
   // a CPU core.
-  base::TimeDelta spin_time =
-      base::TimeDelta::FromMilliseconds(TestTimeouts::action_timeout_ms());
+  base::TimeDelta spin_time = TestTimeouts::action_timeout();
 
   base::TimeDelta save_sampling_interval;
   ASSERT_TRUE(SamplingProfiler::GetSamplingInterval(&save_sampling_interval));

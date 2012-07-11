@@ -539,7 +539,8 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
 }
 
 bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
-  bool success = WaitForExitCodeWithTimeout(handle, exit_code, INFINITE);
+  bool success = WaitForExitCodeWithTimeout(
+      handle, exit_code, base::TimeDelta::FromMilliseconds(INFINITE));
   CloseProcessHandle(handle);
   return success;
 }
