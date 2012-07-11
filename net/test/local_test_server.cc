@@ -122,7 +122,7 @@ bool LocalTestServer::Stop() {
     return true;
 
   // First check if the process has already terminated.
-  bool ret = base::WaitForSingleProcess(process_handle_, 0);
+  bool ret = base::WaitForSingleProcess(process_handle_, base::TimeDelta());
   if (!ret)
     ret = base::KillProcess(process_handle_, 1, true);
 

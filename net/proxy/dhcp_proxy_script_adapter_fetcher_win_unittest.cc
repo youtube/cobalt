@@ -35,8 +35,8 @@ class MockDhcpProxyScriptAdapterFetcher
  public:
   explicit MockDhcpProxyScriptAdapterFetcher(URLRequestContext* context)
       : DhcpProxyScriptAdapterFetcher(context),
-        dhcp_delay_ms_(1),
-        timeout_ms_(TestTimeouts::action_timeout_ms()),
+        dhcp_delay_(base::TimeDelta::FromMilliseconds(1)),
+        timeout_(TestTimeouts::action_timeout()),
         configured_url_(kPacUrl),
         fetcher_delay_ms_(1),
         fetcher_result_(OK),
@@ -75,20 +75,20 @@ class MockDhcpProxyScriptAdapterFetcher
     }
 
     base::WaitableEvent test_finished_event_;
-    TimeDelta dhcp_delay_;
+    base::TimeDelta dhcp_delay_;
     std::string configured_url_;
   };
 
   virtual DhcpQuery* ImplCreateDhcpQuery() OVERRIDE {
     dhcp_query_ = new DelayingDhcpQuery();
-    dhcp_query_->dhcp_delay_ = TimeDelta::FromMilliseconds(dhcp_delay_ms_);
+    dhcp_query_->dhcp_delay_ = dhcp_delay_;
     dhcp_query_->configured_url_ = configured_url_;
     return dhcp_query_;
   }
 
   // Use a shorter timeout so tests can finish more quickly.
   virtual base::TimeDelta ImplGetTimeout() const OVERRIDE {
-    return base::TimeDelta::FromMilliseconds(timeout_ms_);
+    return timeout_;
   }
 
   void OnFetcherTimer() {
@@ -117,8 +117,8 @@ class MockDhcpProxyScriptAdapterFetcher
     dhcp_query_->test_finished_event_.Signal();
   }
 
-  int dhcp_delay_ms_;
-  int timeout_ms_;
+  base::TimeDelta dhcp_delay_;
+  base::TimeDelta timeout_;
   std::string configured_url_;
   int fetcher_delay_ms_;
   int fetcher_result_;
@@ -183,8 +183,8 @@ TEST(DhcpProxyScriptAdapterFetcher, TimeoutDuringDhcp) {
   // present on the network) accessing DHCP can take on the order of tens
   // of seconds.
   FetcherClient client;
-  client.fetcher_->dhcp_delay_ms_ = TestTimeouts::action_max_timeout_ms();
-  client.fetcher_->timeout_ms_ = 25;
+  client.fetcher_->dhcp_delay_ = TestTimeouts::action_max_timeout();
+  client.fetcher_->timeout_ = base::TimeDelta::FromMilliseconds(25);
 
   PerfTimer timer;
   client.RunTest();
