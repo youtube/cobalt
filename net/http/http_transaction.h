@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_TRANSACTION_H_
 #define NET_HTTP_HTTP_TRANSACTION_H_
-#pragma once
 
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"

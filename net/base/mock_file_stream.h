@@ -6,7 +6,6 @@
 
 #ifndef NET_BASE_MOCK_FILE_STREAM_H_
 #define NET_BASE_MOCK_FILE_STREAM_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

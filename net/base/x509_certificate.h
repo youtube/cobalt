@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_X509_CERTIFICATE_H_
 #define NET_BASE_X509_CERTIFICATE_H_
-#pragma once
 
 #include <string.h>
 

@@ -4,7 +4,6 @@
 
 #ifndef BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
 #define BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"

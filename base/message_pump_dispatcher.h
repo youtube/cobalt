@@ -4,7 +4,6 @@
 
 #ifndef BASE_MESSAGE_PUMP_DISPATCHER_H
 #define BASE_MESSAGE_PUMP_DISPATCHER_H
-#pragma once
 
 #include "base/base_export.h"
 #include "base/event_types.h"

@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_FRAME_READER_H_
 #define NET_SPDY_SPDY_FRAME_READER_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"

@@ -9,7 +9,6 @@
 
 #ifndef NET_COOKIES_COOKIE_MONSTER_STORE_TEST_H_
 #define NET_COOKIES_COOKIE_MONSTER_STORE_TEST_H_
-#pragma once
 
 #include <map>
 #include <string>

@@ -10,7 +10,6 @@
 
 #ifndef NET_DISK_CACHE_HISTOGRAM_MACROS_H_
 #define NET_DISK_CACHE_HISTOGRAM_MACROS_H_
-#pragma once
 
 // -----------------------------------------------------------------------------
 

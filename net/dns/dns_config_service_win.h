@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_DNS_CONFIG_SERVICE_WIN_H_
 #define NET_DNS_DNS_CONFIG_SERVICE_WIN_H_
-#pragma once
 
 // The sole purpose of dns_config_service_win.h is for unittests so we just
 // include these headers here.

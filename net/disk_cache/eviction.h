@@ -4,7 +4,6 @@
 
 #ifndef NET_DISK_CACHE_EVICTION_H_
 #define NET_DISK_CACHE_EVICTION_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/memory/weak_ptr.h"

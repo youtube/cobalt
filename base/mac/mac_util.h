@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_MAC_UTIL_H_
 #define BASE_MAC_MAC_UTIL_H_
-#pragma once
 
 #include <AvailabilityMacros.h>
 #include <Carbon/Carbon.h>

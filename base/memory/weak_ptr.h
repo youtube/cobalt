@@ -57,7 +57,6 @@
 
 #ifndef BASE_MEMORY_WEAK_PTR_H_
 #define BASE_MEMORY_WEAK_PTR_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/base_export.h"

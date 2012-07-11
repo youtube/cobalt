@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_TCP_CLIENT_SOCKET_LIBEVENT_H_
 #define NET_SOCKET_TCP_CLIENT_SOCKET_LIBEVENT_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"

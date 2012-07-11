@@ -4,7 +4,6 @@
 
 #ifndef BASE_GUID_H_
 #define BASE_GUID_H_
-#pragma once
 
 #include <string>
 

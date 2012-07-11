@@ -6,7 +6,6 @@
 
 #ifndef NET_BASE_FILE_STREAM_NET_LOG_PARAMETERS_H_
 #define NET_BASE_FILE_STREAM_NET_LOG_PARAMETERS_H_
-#pragma once
 
 #include <string>
 

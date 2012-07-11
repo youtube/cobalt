@@ -4,7 +4,6 @@
 
 #ifndef BASE_MESSAGE_PUMP_ANDROID_H_
 #define BASE_MESSAGE_PUMP_ANDROID_H_
-#pragma once
 
 #include <jni.h>
 

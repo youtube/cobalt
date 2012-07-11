@@ -4,7 +4,6 @@
 
 #ifndef BASE_STRING_SPLIT_H_
 #define BASE_STRING_SPLIT_H_
-#pragma once
 
 #include <string>
 #include <utility>

@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_CERT_STATUS_FLAGS_H_
 #define NET_BASE_CERT_STATUS_FLAGS_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "net/base/net_export.h"

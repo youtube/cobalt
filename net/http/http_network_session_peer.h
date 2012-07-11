@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_NETWORK_SESSION_PEER_H_
 #define NET_HTTP_HTTP_NETWORK_SESSION_PEER_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"

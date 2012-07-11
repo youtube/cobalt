@@ -29,7 +29,6 @@
 
 #ifndef BASE_MESSAGE_PUMP_MAC_H_
 #define BASE_MESSAGE_PUMP_MAC_H_
-#pragma once
 
 #include "base/message_pump.h"
 

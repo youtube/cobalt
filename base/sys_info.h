@@ -4,7 +4,6 @@
 
 #ifndef BASE_SYS_INFO_H_
 #define BASE_SYS_INFO_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"

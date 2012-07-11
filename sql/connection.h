@@ -4,7 +4,6 @@
 
 #ifndef SQL_CONNECTION_H_
 #define SQL_CONNECTION_H_
-#pragma once
 
 #include <map>
 #include <set>

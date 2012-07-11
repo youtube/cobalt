@@ -21,7 +21,6 @@
 //
 #ifndef NET_SOCKET_CLIENT_SOCKET_POOL_BASE_H_
 #define NET_SOCKET_CLIENT_SOCKET_POOL_BASE_H_
-#pragma once
 
 #include <deque>
 #include <list>

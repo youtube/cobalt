@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_CLIENT_SOCKET_POOL_HISTOGRAMS_H_
 #define NET_SOCKET_CLIENT_SOCKET_POOL_HISTOGRAMS_H_
-#pragma once
 
 #include <string>
 

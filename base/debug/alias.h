@@ -4,7 +4,6 @@
 
 #ifndef BASE_DEBUG_ALIAS_H_
 #define BASE_DEBUG_ALIAS_H_
-#pragma once
 
 #include "base/base_export.h"
 

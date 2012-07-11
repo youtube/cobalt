@@ -4,7 +4,6 @@
 
 #ifndef NET_WEBSOCKETS_WEBSOCKET_JOB_H_
 #define NET_WEBSOCKETS_WEBSOCKET_JOB_H_
-#pragma once
 
 #include <deque>
 #include <string>

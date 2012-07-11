@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_NET_EXPORT_H_
 #define NET_BASE_NET_EXPORT_H_
-#pragma once
 
 // Defines NET_EXPORT so that functionality implemented by the net module can
 // be exported to consumers, and NET_EXPORT_PRIVATE that allows unit tests to

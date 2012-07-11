@@ -4,7 +4,6 @@
 
 #ifndef NET_FTP_FTP_NETWORK_LAYER_H_
 #define NET_FTP_FTP_NETWORK_LAYER_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

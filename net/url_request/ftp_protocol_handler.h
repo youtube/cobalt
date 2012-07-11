@@ -4,7 +4,6 @@
 
 #ifndef NET_URL_REQUEST_FTP_PROTOCOL_HANDLER_H_
 #define NET_URL_REQUEST_FTP_PROTOCOL_HANDLER_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

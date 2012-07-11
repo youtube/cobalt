@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_SCRIPT_FETCHER_IMPL_H_
 #define NET_PROXY_PROXY_SCRIPT_FETCHER_IMPL_H_
-#pragma once
 
 #include <string>
 

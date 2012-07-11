@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_CERT_DATABASE_H_
 #define NET_BASE_CERT_DATABASE_H_
-#pragma once
 
 #include <string>
 #include <vector>

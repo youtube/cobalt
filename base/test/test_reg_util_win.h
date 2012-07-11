@@ -4,7 +4,6 @@
 
 #ifndef BASE_TEST_TEST_REG_UTIL_H_
 #define BASE_TEST_TEST_REG_UTIL_H_
-#pragma once
 
 // Registry utility functions used only by tests.
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_DEFAULT_SERVER_BOUND_CERT_STORE_H_
 #define NET_BASE_DEFAULT_SERVER_BOUND_CERT_STORE_H_
-#pragma once
 
 #include <map>
 #include <string>

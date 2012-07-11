@@ -4,7 +4,6 @@
 
 #ifndef NET_DISK_CACHE_DISK_CACHE_TEST_BASE_H_
 #define NET_DISK_CACHE_DISK_CACHE_TEST_BASE_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/file_path.h"

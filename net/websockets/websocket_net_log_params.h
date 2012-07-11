@@ -4,7 +4,6 @@
 
 #ifndef NET_WEBSOCKETS_WEBSOCKET_NET_LOG_PARAMS_H_
 #define NET_WEBSOCKETS_WEBSOCKET_NET_LOG_PARAMS_H_
-#pragma once
 
 #include <string>
 

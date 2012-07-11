@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_TCP_LISTEN_SOCKET_H_
 #define NET_BASE_TCP_LISTEN_SOCKET_H_
-#pragma once
 
 #include <string>
 

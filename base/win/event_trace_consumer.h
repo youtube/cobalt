@@ -5,7 +5,6 @@
 // Declaration of a Windows event trace consumer base class.
 #ifndef BASE_WIN_EVENT_TRACE_CONSUMER_H_
 #define BASE_WIN_EVENT_TRACE_CONSUMER_H_
-#pragma once
 
 #include <windows.h>
 #include <wmistr.h>

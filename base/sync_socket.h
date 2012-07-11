@@ -4,7 +4,6 @@
 
 #ifndef BASE_SYNC_SOCKET_H_
 #define BASE_SYNC_SOCKET_H_
-#pragma once
 
 // A socket abstraction used for sending and receiving plain
 // data.  Because the receiving is blocking, they can be used to perform

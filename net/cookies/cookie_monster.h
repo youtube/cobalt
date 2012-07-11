@@ -6,7 +6,6 @@
 
 #ifndef NET_COOKIES_COOKIE_MONSTER_H_
 #define NET_COOKIES_COOKIE_MONSTER_H_
-#pragma once
 
 #include <deque>
 #include <map>

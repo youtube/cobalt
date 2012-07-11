@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_PRIORITY_QUEUE_H_
 #define NET_BASE_PRIORITY_QUEUE_H_
-#pragma once
 
 #include <list>
 #include <vector>

@@ -4,7 +4,6 @@
 
 #ifndef BASE_TEST_TEST_SUITE_H_
 #define BASE_TEST_TEST_SUITE_H_
-#pragma once
 
 // Defines a basic test suite framework for running gtest based tests.  You can
 // instantiate this class in your main function and call its Run method to run

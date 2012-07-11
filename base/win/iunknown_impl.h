@@ -4,7 +4,6 @@
 
 #ifndef BASE_WIN_IUNKNOWN_IMPL_H_
 #define BASE_WIN_IUNKNOWN_IMPL_H_
-#pragma once
 
 #include <unknwn.h>
 

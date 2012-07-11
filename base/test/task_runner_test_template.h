@@ -50,7 +50,6 @@
 
 #ifndef BASE_TEST_TASK_RUNNER_TEST_TEMPLATE_H_
 #define BASE_TEST_TASK_RUNNER_TEST_TEMPLATE_H_
-#pragma once
 
 #include <cstddef>
 #include <map>

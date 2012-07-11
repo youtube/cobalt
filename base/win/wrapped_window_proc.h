@@ -9,7 +9,6 @@
 
 #ifndef BASE_WIN_WRAPPED_WINDOW_PROC_H_
 #define BASE_WIN_WRAPPED_WINDOW_PROC_H_
-#pragma once
 
 #include <windows.h>
 

@@ -8,7 +8,6 @@
 
 #ifndef BASE_DEBUG_DEBUG_ON_START_WIN_H_
 #define BASE_DEBUG_DEBUG_ON_START_WIN_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "build/build_config.h"

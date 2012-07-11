@@ -4,7 +4,6 @@
 
 #ifndef NET_DNS_DNS_HOSTS_H_
 #define NET_DNS_DNS_HOSTS_H_
-#pragma once
 
 #include <map>
 #include <string>

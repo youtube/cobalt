@@ -4,7 +4,6 @@
 
 #ifndef NET_COOKIES_COOKIE_STORE_UNITTEST_H_
 #define NET_COOKIES_COOKIE_STORE_UNITTEST_H_
-#pragma once
 
 #include "base/bind.h"
 #include "base/message_loop.h"

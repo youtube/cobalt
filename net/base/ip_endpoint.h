@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_IP_ENDPOINT_H_
 #define NET_BASE_IP_ENDPOINT_H_
-#pragma once
 
 #include <string>
 

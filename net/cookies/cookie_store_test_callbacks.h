@@ -4,7 +4,6 @@
 
 #ifndef NET_COOKIES_COOKIE_STORE_TEST_CALLBACKS_H_
 #define NET_COOKIES_COOKIE_STORE_TEST_CALLBACKS_H_
-#pragma once
 
 #include <string>
 #include <vector>

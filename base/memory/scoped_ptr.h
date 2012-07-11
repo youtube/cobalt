@@ -86,7 +86,6 @@
 
 #ifndef BASE_MEMORY_SCOPED_PTR_H_
 #define BASE_MEMORY_SCOPED_PTR_H_
-#pragma once
 
 // This is an implementation designed to match the anticipated future TR2
 // implementation of the scoped_ptr class, and its closely-related brethren,

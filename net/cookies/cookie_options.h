@@ -6,7 +6,6 @@
 
 #ifndef NET_COOKIES_COOKIE_OPTIONS_H_
 #define NET_COOKIES_COOKIE_OPTIONS_H_
-#pragma once
 
 namespace net {
 

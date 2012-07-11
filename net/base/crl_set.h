@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_CRL_SET_H_
 #define NET_BASE_CRL_SET_H_
-#pragma once
 
 #include <map>
 #include <string>
