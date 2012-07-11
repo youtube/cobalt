@@ -4,7 +4,6 @@
 
 #ifndef CRYPTO_EC_SIGNATURE_CREATOR_IMPL_H_
 #define CRYPTO_EC_SIGNATURE_CREATOR_IMPL_H_
-#pragma once
 
 #include "base/compiler_specific.h"
 #include "crypto/ec_signature_creator.h"
