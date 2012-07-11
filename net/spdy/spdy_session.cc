@@ -10,7 +10,6 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/memory/linked_ptr.h"
 #include "base/message_loop.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
@@ -536,7 +535,7 @@ int SpdySession::WriteSynStream(
     RequestPriority priority,
     uint8 credential_slot,
     SpdyControlFlags flags,
-    const linked_ptr<SpdyHeaderBlock>& headers) {
+    const SpdyHeaderBlock& headers) {
   // Find our stream
   if (!IsStreamActive(stream_id))
     return ERR_INVALID_SPDY_STREAM;
@@ -550,7 +549,7 @@ int SpdySession::WriteSynStream(
       buffered_spdy_framer_->CreateSynStream(
           stream_id, 0,
           ConvertRequestPriorityToSpdyPriority(priority, GetProtocolVersion()),
-          credential_slot, flags, false, headers.get()));
+          credential_slot, flags, false, &headers));
   // We enqueue all SYN_STREAM frames at the same priority to ensure
   // that we do not send them out-of-order.
   // http://crbug.com/111708
@@ -563,7 +562,7 @@ int SpdySession::WriteSynStream(
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_SYN_STREAM,
-        base::Bind(&NetLogSpdySynCallback, headers.get(),
+        base::Bind(&NetLogSpdySynCallback, &headers,
                    (flags & CONTROL_FLAG_FIN) != 0,
                    (flags & CONTROL_FLAG_UNIDIRECTIONAL) != 0,
                    stream_id, 0));
@@ -1274,12 +1273,12 @@ void SpdySession::OnSynStream(SpdyStreamId stream_id,
                               uint8 credential_slot,
                               bool fin,
                               bool unidirectional,
-                              const linked_ptr<SpdyHeaderBlock>& headers) {
+                              const SpdyHeaderBlock& headers) {
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_SPDY_SESSION_PUSHED_SYN_STREAM,
         base::Bind(&NetLogSpdySynCallback,
-                   headers.get(), fin, unidirectional,
+                   &headers, fin, unidirectional,
                    stream_id, associated_stream_id));
   }
 
@@ -1307,7 +1306,7 @@ void SpdySession::OnSynStream(SpdyStreamId stream_id,
   // TODO(mbelshe): DCHECK that this is a GET method?
 
   // Verify that the response had a URL for us.
-  GURL gurl = GetUrlFromHeaderBlock(*headers, GetProtocolVersion(), true);
+  GURL gurl = GetUrlFromHeaderBlock(headers, GetProtocolVersion(), true);
   if (!gurl.is_valid()) {
     ResetStream(stream_id, PROTOCOL_ERROR,
                 "Pushed stream url was invalid: " + gurl.spec());
@@ -1369,7 +1368,7 @@ void SpdySession::OnSynStream(SpdyStreamId stream_id,
   stream->set_response_received();
 
   // Parse the headers.
-  if (!Respond(*headers, stream))
+  if (!Respond(headers, stream))
     return;
 
   base::StatsCounter push_requests("spdy.pushed_streams");
@@ -1378,12 +1377,12 @@ void SpdySession::OnSynStream(SpdyStreamId stream_id,
 
 void SpdySession::OnSynReply(SpdyStreamId stream_id,
                              bool fin,
-                             const linked_ptr<SpdyHeaderBlock>& headers) {
+                             const SpdyHeaderBlock& headers) {
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_SYN_REPLY,
         base::Bind(&NetLogSpdySynCallback,
-                   headers.get(), fin, false,// not unidirectional
+                   &headers, fin, false,// not unidirectional
                    stream_id, 0));
   }
 
@@ -1406,17 +1405,17 @@ void SpdySession::OnSynReply(SpdyStreamId stream_id,
   }
   stream->set_response_received();
 
-  Respond(*headers, stream);
+  Respond(headers, stream);
 }
 
 void SpdySession::OnHeaders(SpdyStreamId stream_id,
                             bool fin,
-                            const linked_ptr<SpdyHeaderBlock>& headers) {
+                            const SpdyHeaderBlock& headers) {
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_HEADERS,
         base::Bind(&NetLogSpdySynCallback,
-                   headers.get(), fin, /*unidirectional=*/false,
+                   &headers, fin, /*unidirectional=*/false,
                    stream_id, 0));
   }
 
@@ -1430,7 +1429,7 @@ void SpdySession::OnHeaders(SpdyStreamId stream_id,
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
 
-  int rv = stream->OnHeaders(*headers);
+  int rv = stream->OnHeaders(headers);
   if (rv < 0) {
     DCHECK_NE(rv, ERR_IO_PENDING);
     const SpdyStreamId stream_id = stream->stream_id();

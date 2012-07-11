@@ -10,7 +10,6 @@
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/linked_ptr.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/spdy/spdy_framer.h"
@@ -36,17 +35,17 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
                            uint8 credential_slot,
                            bool fin,
                            bool unidirectional,
-                           const linked_ptr<SpdyHeaderBlock>& headers) = 0;
+                           const SpdyHeaderBlock& headers) = 0;
 
   // Called after all the header data for SYN_REPLY control frame is received.
   virtual void OnSynReply(SpdyStreamId stream_id,
                           bool fin,
-                          const linked_ptr<SpdyHeaderBlock>& headers) = 0;
+                          const SpdyHeaderBlock& headers) = 0;
 
   // Called after all the header data for HEADERS control frame is received.
   virtual void OnHeaders(SpdyStreamId stream_id,
                          bool fin,
-                         const linked_ptr<SpdyHeaderBlock>& headers) = 0;
+                         const SpdyHeaderBlock& headers) = 0;
 
   // Called when data is received.
   // |stream_id| The stream receiving data.
