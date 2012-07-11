@@ -16,8 +16,5 @@ StackContainer.BufferAlignment
 FileUtilProxyTest.Touch
 # Failing because FD remapping not supported in multiprocess_test_android.cc yet.
 ProcessUtilTest.FDRemapping
-# New failures on APK
-MessagePumpLibeventTest.DeleteWatcher
-MessagePumpLibeventTest.StopWatcher
 # Flaky?
 ScopedJavaRefTest.RefCounts
