@@ -4,7 +4,6 @@
 
 #ifndef CRYPTO_SHA2_H_
 #define CRYPTO_SHA2_H_
-#pragma once
 
 #include <string>
 

@@ -4,7 +4,6 @@
 
 #ifndef CRYPTO_EC_SIGNATURE_CREATOR_H_
 #define CRYPTO_EC_SIGNATURE_CREATOR_H_
-#pragma once
 
 #include <vector>
 
