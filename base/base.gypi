@@ -357,6 +357,7 @@
           'sys_info_android.cc',
           'sys_info_chromeos.cc',
           'sys_info_freebsd.cc',
+          'sys_info_ios.mm',
           'sys_info_linux.cc',
           'sys_info_mac.cc',
           'sys_info_openbsd.cc',
