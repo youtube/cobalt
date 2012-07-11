@@ -16,7 +16,7 @@ found in the LICENSE file.
   <property name="sdk.version" value="${env.ANDROID_SDK_VERSION}"/>
   <property name="toolchain.dir" location="${env.ANDROID_TOOLCHAIN}"/>
   <property name="src" location="."/>
-  <property name="source.dir" location="java"/>
+  <property name="source.dir" location="java/src"/>
   <property name="target.abi" value="${APP_ABI}"/>
 
   <property name="target" value="android-${env.ANDROID_SDK_VERSION}"/>
@@ -50,17 +50,21 @@ found in the LICENSE file.
   <property name="resource.absolute.dir" value="res"/>
   <property name="gen.absolute.dir" value="${out.dir}/gen"/>
 
-  <!-- Nilesh: this is what we should transition to.
-       TODO(jrg): make sure we transition; will involve gyp changes
-       for placing jar outputs in new directory. 
-       When we transition we'll probably also want to change
-       generate_native_test.py to copy the jars into java/libs, not
-       just libs (see line 124 or so).
-    -->
-  <!--
-  <property name="jar.libs.dir" value="${out.dir}/java/libs"/>
+  <condition property="external.jars.dir"
+             value="${out.dir}/java/libs"
+             else="">
+      <available file="${out.dir}/java/libs" type="dir"/>
+  </condition>
+  <path id="out.dex.jar.input.ref">
+      <fileset dir="${external.jars.dir}" includes="*.jar"/>
+  </path>
+  <condition property="java.compilerargs"
+             value="-classpath ${toString:out.dex.jar.input.ref}">
+    <not>
+      <equals arg1="${external.jars.dir}" arg2=""/>
+    </not>
+  </condition>
   <property name="native.libs.absolute.dir" location="${out.dir}/libs" />
-  -->
 
   <target name="-post-compile">
     <!-- copy gdbserver to main libs directory if building debug. -->
