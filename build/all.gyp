@@ -10,7 +10,6 @@
       'xcode_create_dependents_test_runner': 1,
       'dependencies': [
         'some.gyp:*',
-        '../base/base.gyp:*',
         # Add new dependencies to the !ios section just below, not here (see
         # the comment there).
       ],
@@ -20,6 +19,7 @@
         # as gyp files come online.
         ['OS!="ios"', {
           'dependencies': [
+            '../base/base.gyp:*',
             '../chrome/chrome.gyp:*',
             '../content/content.gyp:*',
             '../crypto/crypto.gyp:*',
@@ -67,13 +67,17 @@
             'temp_gyp/googleurl.gyp:*',
             '<(libjpeg_gyp_path):*',
           ],
+        }, {
+          'dependencies': [
+            '../base/base.gyp:base',
+          ],
         }],
         ['os_posix==1 and OS!="android" and OS!="ios"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
           ],
         }],
-        ['OS=="mac" or OS=="win"', {
+        ['OS=="mac" or OS=="ios" or OS=="win"', {
           'dependencies': [
             '../third_party/nss/nss.gyp:*',
            ],
