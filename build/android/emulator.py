@@ -221,11 +221,8 @@ class Emulator(object):
     if wait_for_boot:
       # Now that we checked for obvious problems, wait for a boot complete.
       # Waiting for the package manager is sometimes problematic.
-      # TODO(jrg): for reasons I don't understand, sometimes this
-      # gives an "error: device not found" which is only fixed with an
-      # 'adb kill-server' command.  Fix.
       a.Adb().SetTargetSerial(self.device)
-      a.Adb().WaitForBootComplete(self._WAITFORBOOT_TIMEOUT)
+      a.Adb().WaitForSystemBootCompleted(self._WAITFORBOOT_TIMEOUT)
 
   def Shutdown(self):
     """Shuts down the process started by launch."""
