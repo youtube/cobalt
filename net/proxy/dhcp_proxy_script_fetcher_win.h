@@ -84,7 +84,7 @@ class NET_EXPORT_PRIVATE DhcpProxyScriptFetcherWin
   // Virtual methods introduced to allow unit testing.
   virtual DhcpProxyScriptAdapterFetcher* ImplCreateAdapterFetcher();
   virtual AdapterQuery* ImplCreateAdapterQuery();
-  virtual int ImplGetMaxWaitMs();
+  virtual base::TimeDelta ImplGetMaxWait();
   virtual void ImplOnGetCandidateAdapterNamesDone() {}
 
  private:
