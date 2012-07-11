@@ -4,7 +4,6 @@
 
 #ifndef CRYPTO_NSS_UTIL_H_
 #define CRYPTO_NSS_UTIL_H_
-#pragma once
 
 #include <string>
 #include "base/basictypes.h"

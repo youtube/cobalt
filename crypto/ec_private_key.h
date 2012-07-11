@@ -4,7 +4,6 @@
 
 #ifndef CRYPTO_EC_PRIVATE_KEY_H_
 #define CRYPTO_EC_PRIVATE_KEY_H_
-#pragma once
 
 #include <string>
 #include <vector>
