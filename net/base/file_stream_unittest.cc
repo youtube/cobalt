@@ -44,9 +44,7 @@ class NetLogForNotifyingFileClosure : public NetLog {
 
   // Wait until a file closure event is recorded.
   bool WaitForClosure() {
-    const base::TimeDelta timeout(
-        base::TimeDelta::FromMilliseconds(
-            TestTimeouts::action_max_timeout_ms()));
+    const base::TimeDelta timeout(TestTimeouts::action_max_timeout());
     return on_closure_.TimedWait(timeout);
   }
 

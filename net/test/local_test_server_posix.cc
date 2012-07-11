@@ -141,8 +141,7 @@ bool LocalTestServer::LaunchPython(const FilePath& testserver_path) {
 bool LocalTestServer::WaitToStart() {
   file_util::ScopedFD child_fd_closer(child_fd_closer_.release());
 
-  base::TimeDelta remaining_time = base::TimeDelta::FromMilliseconds(
-      TestTimeouts::action_timeout_ms());
+  base::TimeDelta remaining_time = TestTimeouts::action_timeout();
 
   uint32 server_data_len = 0;
   if (!ReadData(child_fd_, sizeof(server_data_len),
