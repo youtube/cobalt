@@ -7,15 +7,6 @@
 // bound to the lifetime of the referrers.  In other words, this is useful when
 // reference counting is not a good fit.
 //
-// Thread-safety notes:
-// When you get a WeakPtr (from a WeakPtrFactory or SupportsWeakPtr),
-// the WeakPtr becomes bound to the current thread. You may only
-// dereference the WeakPtr on that thread. However, it is safe to
-// destroy the WeakPtr object on another thread.
-// Since a WeakPtr object may be destroyed on a background thread,
-// querying WeakPtrFactory's HasWeakPtrs() method can be racy.
-//
-//
 // A common alternative to weak pointers is to have the shared object hold a
 // list of all referrers, and then when the shared object is destroyed, it
 // calls a method on the referrers to tell them to drop their references.  This
@@ -54,6 +45,27 @@
 // dereferencing the Controller back pointer after the Controller has been
 // destroyed.
 //
+// ------------------------ Thread-safety notes ------------------------
+// When you get a WeakPtr (from a WeakPtrFactory or SupportsWeakPtr), if it's
+// the only one pointing to the object, the object become bound to the
+// current thread, as well as this WeakPtr and all later ones get created.
+//
+// You may only dereference the WeakPtr on the thread it binds to. However, it
+// is safe to destroy the WeakPtr object on another thread. Because of this,
+// querying WeakPtrFactory's HasWeakPtrs() method can be racy.
+//
+// On the other hand, the object that supports WeakPtr (extends SupportsWeakPtr)
+// can only be deleted from the thread it binds to, until all WeakPtrs are
+// deleted.
+//
+// Calling SupportsWeakPtr::DetachFromThread() can work around the limitations
+// above and cancel the thread binding of the object and all WeakPtrs pointing
+// to it, but it's not recommended and unsafe.
+//
+// WeakPtrs may be copy-constructed or assigned on threads other than the thread
+// they are bound to. This does not change the thread binding. So these WeakPtrs
+// may only be dereferenced on the thread that the original WeakPtr was bound
+// to.
 
 #ifndef BASE_MEMORY_WEAK_PTR_H_
 #define BASE_MEMORY_WEAK_PTR_H_
@@ -224,7 +236,8 @@ class WeakPtr : public internal::WeakPtrBase {
   friend class WeakPtrFactory<T>;
 
   WeakPtr(const internal::WeakReference& ref, T* ptr)
-      : WeakPtrBase(ref), ptr_(ptr) {
+      : WeakPtrBase(ref),
+        ptr_(ptr) {
   }
 
   // This pointer is only valid when ref_.is_valid() is true.  Otherwise, its
