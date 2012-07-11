@@ -116,9 +116,8 @@ CookieMonster::CanonicalCookie BuildCanonicalCookie(
   return CookieMonster::CanonicalCookie(
       GURL(), pc.Name(), pc.Value(), key, cookie_path,
       pc.MACKey(), pc.MACAlgorithm(),
-      creation_time, creation_time, cookie_expires,
-      pc.IsSecure(), pc.IsHttpOnly(),
-      !cookie_expires.is_null(), !cookie_expires.is_null());
+      creation_time, cookie_expires, creation_time,
+      pc.IsSecure(), pc.IsHttpOnly());
 }
 
 void AddCookieToList(
@@ -217,7 +216,7 @@ CookieMonster* CreateMonsterFromStoreForGC(
     CookieMonster::CanonicalCookie cc(
         GURL(), "a", "1", base::StringPrintf("h%05d.izzle", i), "/path",
         mac_key, mac_algorithm, creation_time, expiration_time,
-        last_access_time, false, false, true, true);
+        last_access_time, false, false);
     store->AddCookie(cc);
   }
 
