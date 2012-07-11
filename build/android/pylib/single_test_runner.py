@@ -142,8 +142,8 @@ class SingleTestRunner(BaseTestRunner):
                                                  'sql_unittests',
                                                  'unit_tests']:
       test_files = [
-          'base/data/json/bom_feff.json',
           'base/data/file_util_unittest',
+          'base/data/json/bom_feff.json',
           'net/data/cache_tests/insert_load1',
           'net/data/cache_tests/dirty_entry5',
           'net/data/ssl/certificates/',
