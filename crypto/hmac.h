@@ -7,7 +7,6 @@
 
 #ifndef CRYPTO_HMAC_H_
 #define CRYPTO_HMAC_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"

@@ -4,7 +4,6 @@
 
 #ifndef CRYPTO_ENCRYPTOR_H_
 #define CRYPTO_ENCRYPTOR_H_
-#pragma once
 
 #include <string>
 
