@@ -129,10 +129,6 @@ void SpdyWebSocketStream::OnClose(int status) {
   delegate->OnCloseSpdyStream();
 }
 
-void SpdyWebSocketStream::set_chunk_callback(ChunkCallback* callback) {
-  // Do nothing. SpdyWebSocketStream doesn't send any chunked data.
-}
-
 void SpdyWebSocketStream::OnSpdyStreamCreated(int result) {
   DCHECK_NE(ERR_IO_PENDING, result);
   if (result == OK) {

@@ -19,7 +19,6 @@
 #include "net/base/request_priority.h"
 #include "net/base/server_bound_cert_service.h"
 #include "net/base/ssl_client_cert_type.h"
-#include "net/base/upload_data.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
@@ -40,8 +39,7 @@ class SSLInfo;
 // initiated by the server, only the SpdySession will maintain any reference,
 // until such a time as a client object requests a stream for the path.
 class NET_EXPORT_PRIVATE SpdyStream
-    : public base::RefCounted<SpdyStream>,
-      public ChunkCallback {
+    : public base::RefCounted<SpdyStream> {
  public:
   // Delegate handles protocol specific behavior of spdy stream.
   class NET_EXPORT_PRIVATE Delegate {
@@ -80,9 +78,6 @@ class NET_EXPORT_PRIVATE SpdyStream
 
     // Called when SpdyStream is closed.
     virtual void OnClose(int status) = 0;
-
-    // Sets the callback to be invoked when a new chunk is available to upload.
-    virtual void set_chunk_callback(ChunkCallback* callback) = 0;
 
    protected:
     friend class base::RefCounted<Delegate>;
@@ -252,9 +247,6 @@ class NET_EXPORT_PRIVATE SpdyStream
   // Get the URL associated with this stream.  Only valid when has_url() is
   // true.
   GURL GetUrl() const;
-
-  // ChunkCallback methods.
-  virtual void OnChunkAvailable() OVERRIDE;
 
   int GetProtocolVersion() const;
 

@@ -35,6 +35,7 @@ enum SpdyNetworkTransactionSpdy2TestTypes {
   SPDYNOSSL,
   SPDYSSL,
 };
+
 class SpdyNetworkTransactionSpdy2Test
     : public ::testing::TestWithParam<SpdyNetworkTransactionSpdy2TestTypes> {
  protected:
@@ -47,8 +48,13 @@ class SpdyNetworkTransactionSpdy2Test
   }
 
   virtual void TearDown() {
+    UploadDataStream::ResetMergeChunks();
     // Empty the current queue.
     MessageLoop::current()->RunAllPending();
+  }
+
+  void set_merge_chunks(bool merge) {
+    UploadDataStream::set_merge_chunks(merge);
   }
 
   struct TransactionHelperResult {
@@ -1587,7 +1593,8 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, Post) {
 
 // Test that a chunked POST works.
 TEST_P(SpdyNetworkTransactionSpdy2Test, ChunkedPost) {
-  UploadDataStream::set_merge_chunks(false);
+  set_merge_chunks(false);
+
   scoped_ptr<SpdyFrame> req(ConstructChunkedSpdyPost(NULL, 0));
   scoped_ptr<SpdyFrame> chunk1(ConstructSpdyBodyFrame(1, false));
   scoped_ptr<SpdyFrame> chunk2(ConstructSpdyBodyFrame(1, true));
