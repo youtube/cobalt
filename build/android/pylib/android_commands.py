@@ -856,3 +856,38 @@ class AndroidCommands(object):
         usage_dict[key] += value
 
     return usage_dict, smaps
+
+  def ProcessesUsingDevicePort(self, device_port):
+    """Lists the processes using the specified device port on loopback
+       interface.
+
+    Args:
+      device_port: Port on device we want to check.
+
+    Returns:
+      A list of (pid, process_name) tuples using the specified port.
+    """
+    tcp_results = self.RunShellCommand('cat /proc/net/tcp', log_result=False)
+    tcp_address = "0100007F:%04X" % device_port
+    pids = []
+    for single_connect in tcp_results:
+      connect_results = single_connect.split()
+      # Column 1 is the TCP port, and Column 9 is the inode of the socket
+      if connect_results[1] == tcp_address:
+        socket_inode = connect_results[9]
+        socket_name = 'socket:[%s]' % socket_inode
+        lsof_results = self.RunShellCommand('lsof', log_result=False)
+        for single_process in lsof_results:
+          process_results = single_process.split()
+          # Ignore the line if it has less than nine columns in it, which may
+          # be the case when a process stops while lsof is executing.
+          if len(process_results) <= 8:
+            continue
+          # Column 0 is the executable name
+          # Column 1 is the pid
+          # Column 8 is the Inode in use
+          if process_results[8] == socket_name:
+            pids.append( (int(process_results[1]), process_results[0]) )
+        break
+    logging.info('PidsUsingDevicePort: %s', pids)
+    return pids

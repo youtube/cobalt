@@ -4,19 +4,8 @@
 
 """Helper functions common to native, java and python test runners."""
 
-import contextlib
-import fcntl
-import httplib
 import logging
-import optparse
 import os
-import re
-import socket
-import subprocess
-import sys
-import traceback
-
-import cmd_helper
 
 
 def GetExpectations(file_name):
