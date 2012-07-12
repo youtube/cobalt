@@ -36,7 +36,8 @@ SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session,
       user_buffer_len_(0),
       buffered_read_callback_pending_(false),
       more_read_data_pending_(false),
-      direct_(direct) { }
+      direct_(direct),
+      waiting_for_chunk_(false) { }
 
 void SpdyHttpStream::InitializeWithExistingStream(SpdyStream* spdy_stream) {
   stream_ = spdy_stream;
@@ -45,6 +46,8 @@ void SpdyHttpStream::InitializeWithExistingStream(SpdyStream* spdy_stream) {
 }
 
 SpdyHttpStream::~SpdyHttpStream() {
+  if (request_body_stream_ != NULL)
+    request_body_stream_->set_chunk_callback(NULL);
   if (stream_)
     stream_->DetachDelegate();
 }
@@ -182,11 +185,6 @@ bool SpdyHttpStream::IsConnectionReusable() const {
   return false;
 }
 
-void SpdyHttpStream::set_chunk_callback(ChunkCallback* callback) {
-  if (request_body_stream_ != NULL)
-    request_body_stream_->set_chunk_callback(callback);
-}
-
 int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
                                 scoped_ptr<UploadDataStream> request_body,
                                 HttpResponseInfo* response,
@@ -213,6 +211,7 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
   if (request_body != NULL) {
     if (request_body->size() || request_body->is_chunked()) {
       request_body_stream_.reset(request_body.release());
+      request_body_stream_->set_chunk_callback(this);
       // Use kMaxSpdyFrameChunkSize as the buffer size, since the request
       // body data is written with this size at a time.
       raw_request_body_buf_ = new IOBufferWithSize(kMaxSpdyFrameChunkSize);
@@ -241,9 +240,9 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
   if (push_response_info_.get()) {
     *response = *(push_response_info_.get());
     push_response_info_.reset();
-  }
-  else
+  } else {
     DCHECK_EQ(static_cast<HttpResponseInfo*>(NULL), response_info_);
+  }
 
   response_info_ = response;
 
@@ -271,6 +270,35 @@ void SpdyHttpStream::Cancel() {
     stream_->Cancel();
 }
 
+int SpdyHttpStream::SendData() {
+  CHECK(request_body_stream_.get());
+  CHECK_EQ(0, request_body_buf_->BytesRemaining());
+
+  // Read the data from the request body stream.
+  const int bytes_read = request_body_stream_->Read(
+      raw_request_body_buf_, raw_request_body_buf_->size());
+  DCHECK(!waiting_for_chunk_ || bytes_read != ERR_IO_PENDING);
+
+  if (request_body_stream_->is_chunked() && bytes_read == ERR_IO_PENDING) {
+    waiting_for_chunk_ = true;
+    return ERR_IO_PENDING;
+  }
+
+  waiting_for_chunk_ = false;
+
+  // ERR_IO_PENDING with chunked encoding is the only possible error.
+  DCHECK_GE(bytes_read, 0);
+
+  request_body_buf_ = new DrainableIOBuffer(raw_request_body_buf_,
+                                            bytes_read);
+
+  const bool eof = request_body_stream_->IsEOF();
+  return stream_->WriteStreamData(
+      request_body_buf_,
+      request_body_buf_->BytesRemaining(),
+      eof ? DATA_FLAG_FIN : DATA_FLAG_NONE);
+}
+
 bool SpdyHttpStream::OnSendHeadersComplete(int status) {
   if (!callback_.is_null())
     DoCallback(status);
@@ -279,20 +307,19 @@ bool SpdyHttpStream::OnSendHeadersComplete(int status) {
 
 int SpdyHttpStream::OnSendBody() {
   CHECK(request_body_stream_.get());
+  const bool eof = request_body_stream_->IsEOF();
+  if (request_body_buf_->BytesRemaining() > 0) {
+    return stream_->WriteStreamData(
+        request_body_buf_,
+        request_body_buf_->BytesRemaining(),
+        eof ? DATA_FLAG_FIN : DATA_FLAG_NONE);
+  }
 
-  // TODO(satorux): Clean up the logic here. This behavior is weird. Reading
-  // of upload data should happen in OnSendBody(). crbug.com/113107.
-  //
-  // Nothing to send. This happens when OnSendBody() is first called.
-  // A read of the upload data stream is initiated in OnSendBodyComplete().
-  if (request_body_buf_->BytesRemaining() == 0)
+  // The entire body data has been sent.
+  if (eof)
     return OK;
 
-  const bool eof = request_body_stream_->IsEOF();
-  return stream_->WriteStreamData(
-      request_body_buf_,
-      request_body_buf_->BytesRemaining(),
-      eof ? DATA_FLAG_FIN : DATA_FLAG_NONE);
+  return SendData();
 }
 
 int SpdyHttpStream::OnSendBodyComplete(int status, bool* eof) {
@@ -311,19 +338,6 @@ int SpdyHttpStream::OnSendBodyComplete(int status, bool* eof) {
   // Check if the entire body data has been sent.
   *eof = (request_body_stream_->IsEOF() &&
           !request_body_buf_->BytesRemaining());
-  if (*eof)
-    return OK;
-
-  // Read the data from the request body stream.
-  const int bytes_read = request_body_stream_->Read(
-      raw_request_body_buf_, raw_request_body_buf_->size());
-  if (request_body_stream_->is_chunked() && bytes_read == ERR_IO_PENDING)
-    return ERR_IO_PENDING;
-  // ERR_IO_PENDING with chunked encoding is the only possible error.
-  DCHECK_GE(bytes_read, 0);
-
-  request_body_buf_ = new DrainableIOBuffer(raw_request_body_buf_,
-                                            bytes_read);
   return OK;
 }
 
@@ -406,12 +420,21 @@ void SpdyHttpStream::OnDataSent(int length) {
 
 void SpdyHttpStream::OnClose(int status) {
   bool invoked_callback = false;
+  if (request_body_stream_ != NULL)
+    request_body_stream_->set_chunk_callback(NULL);
   if (status == net::OK) {
     // We need to complete any pending buffered read now.
     invoked_callback = DoBufferedReadCallback();
   }
   if (!invoked_callback && !callback_.is_null())
     DoCallback(status);
+}
+
+void SpdyHttpStream::OnChunkAvailable() {
+  if (!waiting_for_chunk_)
+    return;
+  DCHECK(request_body_stream_->is_chunked());
+  SendData();
 }
 
 void SpdyHttpStream::ScheduleBufferedReadCallback() {

@@ -64,10 +64,16 @@ class NET_EXPORT UploadDataStream {
   // Returns true if the upload data in the stream is entirely in memory.
   bool IsInMemory() const;
 
-  // This method is provided only to be used by unit tests.
+ private:
+  friend class SpdyHttpStreamSpdy2Test;
+  friend class SpdyHttpStreamSpdy3Test;
+  friend class SpdyNetworkTransactionSpdy2Test;
+  friend class SpdyNetworkTransactionSpdy3Test;
+
+  // These methods are provided only to be used by unit tests.
+  static void ResetMergeChunks();
   static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
 
- private:
   scoped_refptr<UploadData> upload_data_;
 
   // Index of the current upload element (i.e. the element currently being
