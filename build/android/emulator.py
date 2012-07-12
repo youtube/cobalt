@@ -196,7 +196,6 @@ class Emulator(object):
     After confirming a wait-for-device can be successful, make sure
     it returns the right answer.
     """
-    a = android_commands.AndroidCommands(self.device)
     seconds_waited = 0
     number_of_waits = 2  # Make sure we can wfd twice
     adb_cmd = "adb -s %s %s" % (self.device, 'wait-for-device')
@@ -221,7 +220,7 @@ class Emulator(object):
     if wait_for_boot:
       # Now that we checked for obvious problems, wait for a boot complete.
       # Waiting for the package manager is sometimes problematic.
-      a.Adb().SetTargetSerial(self.device)
+      a = android_commands.AndroidCommands(self.device)
       a.Adb().WaitForSystemBootCompleted(self._WAITFORBOOT_TIMEOUT)
 
   def Shutdown(self):
