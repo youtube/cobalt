@@ -319,6 +319,23 @@ class AndroidCommands(object):
     if out.strip() != 'remount succeeded':
       raise errors.MsgException('Remount failed: %s' % out)
 
+  def WaitForSdCardReady(self, timeout_time):
+    """Wait for the SD card ready before pushing data into it."""
+    logging.info('Waiting for SD card ready...')
+    sdcard_ready = False
+    attempts = 0
+    wait_period = 5
+    while not sdcard_ready and attempts * wait_period < timeout_time:
+      output = self.RunShellCommand('ls /sdcard/')
+      if len(output) > 0:
+        sdcard_ready = True
+      else:
+        time.sleep(wait_period)
+        attempts += 1
+    if not sdcard_ready:
+      raise errors.WaitForResponseTimedOutError(
+          'SD card not ready after %s seconds' % timeout_time)
+
   # It is tempting to turn this function into a generator, however this is not
   # possible without using a private (local) adb_shell instance (to ensure no
   # other command interleaves usage of it), which would defeat the main aim of
