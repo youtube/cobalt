@@ -825,12 +825,18 @@ SourceBufferRange* SourceBufferRange::SplitRange(base::TimeDelta timestamp) {
       new SourceBufferRange(
           removed_buffers, kNoTimestamp(), interbuffer_distance_cb_);
 
-  // If |next_buffer_index_| points to a buffer in |split_range|, update the
-  // |next_buffer_index_| of this range and |split_range| accordingly.
+  // If the next buffer position is now in |split_range|, update the state of
+  // this range and |split_range| accordingly.
   if (next_buffer_index_ >= static_cast<int>(buffers_.size())) {
+    DCHECK(!waiting_for_keyframe_);
     split_range->next_buffer_index_ = next_buffer_index_ - keyframe_index;
-    next_buffer_index_ = -1;
+    ResetNextBufferPosition();
+  } else if (waiting_for_keyframe_) {
+    split_range->waiting_for_keyframe_ = true;
+    split_range->next_keyframe_timestamp_ = next_keyframe_timestamp_;
+    ResetNextBufferPosition();
   }
+
   return split_range;
 }
 
@@ -885,7 +891,7 @@ bool SourceBufferRange::TruncateAt(
         BufferQueue saved(starting_point + next_buffer_offset, buffers_.end());
         removed_buffers->swap(saved);
       }
-      next_buffer_index_ = -1;
+      ResetNextBufferPosition();
       removed_next_buffer = true;
     }
   }
