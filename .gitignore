@@ -30,7 +30,8 @@
 .gdbinit
 .metadata
 .project
-.settings/ # settings directory for eclipse
+# Settings directory for eclipse
+/.settings
 tags
 Thumbs.db
 v8.log
