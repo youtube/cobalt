@@ -472,119 +472,52 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponse) {
   static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
-      "Connection: Upgrade\r\n"
-      "Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n"
-      "Sec-WebSocket-Protocol: sample\r\n"
-      "Upgrade: WebSocket\r\n"
-      "X-bogus-header: X\r\n"
-      "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
-      "Origin: http://example.com\r\n"
-      "X-bogus-header: Y\r\n"
-      "\r\n"
-      "^n:ds[4U";
-
-  EXPECT_TRUE(request_handler.ParseRequest(kHandshakeRequestMessage,
-                                           strlen(kHandshakeRequestMessage)));
-  EXPECT_EQ(0, request_handler.protocol_version());
-
-  GURL url("ws://example.com/demo");
-  std::string challenge;
-  SpdyHeaderBlock headers;
-  ASSERT_TRUE(request_handler.GetRequestHeaderBlock(url, &headers, &challenge));
-
-  EXPECT_EQ(url.spec(), headers["url"]);
-  EXPECT_TRUE(headers.find("upgrade") == headers.end());
-  EXPECT_TRUE(headers.find("Upgrade") == headers.end());
-  EXPECT_TRUE(headers.find("connection") == headers.end());
-  EXPECT_TRUE(headers.find("Connection") == headers.end());
-  EXPECT_TRUE(headers.find("Sec-WebSocket-Key1") == headers.end());
-  EXPECT_TRUE(headers.find("sec-websocket-key1") == headers.end());
-  EXPECT_TRUE(headers.find("Sec-WebSocket-Key2") == headers.end());
-  EXPECT_TRUE(headers.find("sec-websocket-key2") == headers.end());
-  EXPECT_EQ("example.com", headers["host"]);
-  EXPECT_EQ("http://example.com", headers["origin"]);
-  EXPECT_EQ("sample", headers["sec-websocket-protocol"]);
-  const char bogus_header[] = "X\0Y";
-  std::string bogus_header_str(bogus_header, sizeof(bogus_header) - 1);
-  EXPECT_EQ(bogus_header_str, headers["x-bogus-header"]);
-
-  const char expected_challenge[] = "\x31\x6e\x41\x13\x0f\x7e\xd6\x3c^n:ds[4U";
-
-  EXPECT_EQ(expected_challenge, challenge);
-
-  headers.clear();
-
-  headers["sec-websocket-origin"] = "http://example.com";
-  headers["sec-websocket-location"] = "ws://example.com/demo";
-  headers["sec-websocket-protocol"] = "sample";
-
-  WebSocketHandshakeResponseHandler response_handler;
-  EXPECT_EQ(0, response_handler.protocol_version());
-  EXPECT_TRUE(response_handler.ParseResponseHeaderBlock(headers, challenge));
-  EXPECT_TRUE(response_handler.HasResponse());
-
-  // Note that order of sec-websocket-* is sensitive with hash_map order.
-  static const char kHandshakeResponseExpectedMessage[] =
-      "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
-      "Upgrade: WebSocket\r\n"
-      "Connection: Upgrade\r\n"
-      "sec-websocket-location: ws://example.com/demo\r\n"
-      "sec-websocket-origin: http://example.com\r\n"
-      "sec-websocket-protocol: sample\r\n"
-      "\r\n"
-      "8jKS'y:G*Co,Wxa-";
-
-  EXPECT_EQ(kHandshakeResponseExpectedMessage, response_handler.GetResponse());
-}
-
-TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponseHybi06Handshake) {
-  WebSocketHandshakeRequestHandler request_handler;
-
-  static const char kHandshakeRequestMessage[] =
-      "GET /demo HTTP/1.1\r\n"
-      "Host: example.com\r\n"
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
-      "X-bogus-header: X\r\n"
       "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
-      "Sec-WebSocket-Origin: http://example.com\r\n"
+      "Origin: http://example.com\r\n"
       "Sec-WebSocket-Protocol: sample\r\n"
-      "Sec-WebSocket-Version: 6\r\n"
-      "X-bogus-header: Y\r\n"
+      "Sec-WebSocket-Extensions: foo\r\n"
+      "Sec-WebSocket-Version: 13\r\n"
       "\r\n";
 
   EXPECT_TRUE(request_handler.ParseRequest(kHandshakeRequestMessage,
                                            strlen(kHandshakeRequestMessage)));
-  EXPECT_EQ(6, request_handler.protocol_version());
+  EXPECT_EQ(13, request_handler.protocol_version());
 
   GURL url("ws://example.com/demo");
   std::string challenge;
   SpdyHeaderBlock headers;
   ASSERT_TRUE(request_handler.GetRequestHeaderBlock(url, &headers, &challenge));
 
-  EXPECT_EQ(url.spec(), headers["url"]);
+  EXPECT_EQ(url.path(), headers["path"]);
   EXPECT_TRUE(headers.find("upgrade") == headers.end());
   EXPECT_TRUE(headers.find("Upgrade") == headers.end());
   EXPECT_TRUE(headers.find("connection") == headers.end());
   EXPECT_TRUE(headers.find("Connection") == headers.end());
   EXPECT_TRUE(headers.find("Sec-WebSocket-Key") == headers.end());
   EXPECT_TRUE(headers.find("sec-websocket-key") == headers.end());
+  EXPECT_TRUE(headers.find("Sec-WebSocket-Version") == headers.end());
+  EXPECT_TRUE(headers.find("sec-webSocket-version") == headers.end());
   EXPECT_EQ("example.com", headers["host"]);
-  EXPECT_EQ("http://example.com", headers["sec-websocket-origin"]);
+  EXPECT_EQ("http://example.com", headers["origin"]);
   EXPECT_EQ("sample", headers["sec-websocket-protocol"]);
-  const char bogus_header[] = "X\0Y";
-  std::string bogus_header_str(bogus_header, sizeof(bogus_header) - 1);
-  EXPECT_EQ(bogus_header_str, headers["x-bogus-header"]);
+  EXPECT_EQ("foo", headers["sec-websocket-extensions"]);
+  EXPECT_EQ("ws", headers["scheme"]);
+  EXPECT_EQ("WebSocket/13", headers["version"]);
 
-  EXPECT_EQ("dGhlIHNhbXBsZSBub25jZQ==", challenge);
+  const char expected_challenge[] = "dGhlIHNhbXBsZSBub25jZQ==";
+
+  EXPECT_EQ(expected_challenge, challenge);
 
   headers.clear();
 
+  headers["status"] = "101 Switching Protocols";
   headers["sec-websocket-protocol"] = "sample";
+  headers["sec-websocket-extensions"] = "foo";
 
   WebSocketHandshakeResponseHandler response_handler;
-  response_handler.set_protocol_version(request_handler.protocol_version());
-  EXPECT_EQ(6, response_handler.protocol_version());
+  response_handler.set_protocol_version(13);
   EXPECT_TRUE(response_handler.ParseResponseHeaderBlock(headers, challenge));
   EXPECT_TRUE(response_handler.HasResponse());
 
@@ -594,6 +527,7 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponseHybi06Handshake) {
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
       "Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n"
+      "sec-websocket-extensions: foo\r\n"
       "sec-websocket-protocol: sample\r\n"
       "\r\n";
 
@@ -607,127 +541,60 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponseWithCookies) {
   static const char kHandshakeRequestMessage[] =
       "GET /demo HTTP/1.1\r\n"
       "Host: example.com\r\n"
-      "Connection: Upgrade\r\n"
-      "Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n"
-      "Sec-WebSocket-Protocol: sample\r\n"
-      "Upgrade: WebSocket\r\n"
-      "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
-      "Origin: http://example.com\r\n"
-      "Cookie: WK-websocket-test=1; WK-websocket-test-httponly=1\r\n"
-      "\r\n"
-      "^n:ds[4U";
-
-  EXPECT_TRUE(request_handler.ParseRequest(kHandshakeRequestMessage,
-                                           strlen(kHandshakeRequestMessage)));
-  EXPECT_EQ(0, request_handler.protocol_version());
-
-  GURL url("ws://example.com/demo");
-  std::string challenge;
-  SpdyHeaderBlock headers;
-  ASSERT_TRUE(request_handler.GetRequestHeaderBlock(url, &headers, &challenge));
-
-  EXPECT_EQ(url.spec(), headers["url"]);
-  EXPECT_TRUE(headers.find("upgrade") == headers.end());
-  EXPECT_TRUE(headers.find("Upgrade") == headers.end());
-  EXPECT_TRUE(headers.find("connection") == headers.end());
-  EXPECT_TRUE(headers.find("Connection") == headers.end());
-  EXPECT_TRUE(headers.find("Sec-WebSocket-Key1") == headers.end());
-  EXPECT_TRUE(headers.find("sec-websocket-key1") == headers.end());
-  EXPECT_TRUE(headers.find("Sec-WebSocket-Key2") == headers.end());
-  EXPECT_TRUE(headers.find("sec-websocket-key2") == headers.end());
-  EXPECT_EQ("example.com", headers["host"]);
-  EXPECT_EQ("http://example.com", headers["origin"]);
-  EXPECT_EQ("sample", headers["sec-websocket-protocol"]);
-  EXPECT_EQ("WK-websocket-test=1; WK-websocket-test-httponly=1",
-            headers["cookie"]);
-
-  const char expected_challenge[] = "\x31\x6e\x41\x13\x0f\x7e\xd6\x3c^n:ds[4U";
-
-  EXPECT_EQ(expected_challenge, challenge);
-
-  headers.clear();
-
-  headers["sec-websocket-origin"] = "http://example.com";
-  headers["sec-websocket-location"] = "ws://example.com/demo";
-  headers["sec-websocket-protocol"] = "sample";
-  std::string cookie = "WK-websocket-test=1";
-  cookie.append(1, '\0');
-  cookie += "WK-websocket-test-httponly=1; HttpOnly";
-  headers["set-cookie"] = cookie;
-
-  WebSocketHandshakeResponseHandler response_handler;
-  EXPECT_EQ(0, response_handler.protocol_version());
-  EXPECT_TRUE(response_handler.ParseResponseHeaderBlock(headers, challenge));
-  EXPECT_TRUE(response_handler.HasResponse());
-
-  // Note that order of sec-websocket-* is sensitive with hash_map order.
-  static const char kHandshakeResponseExpectedMessage[] =
-      "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
-      "Upgrade: WebSocket\r\n"
-      "Connection: Upgrade\r\n"
-      "sec-websocket-location: ws://example.com/demo\r\n"
-      "sec-websocket-origin: http://example.com\r\n"
-      "sec-websocket-protocol: sample\r\n"
-      "set-cookie: WK-websocket-test=1\r\n"
-      "set-cookie: WK-websocket-test-httponly=1; HttpOnly\r\n"
-      "\r\n"
-      "8jKS'y:G*Co,Wxa-";
-
-  EXPECT_EQ(kHandshakeResponseExpectedMessage, response_handler.GetResponse());
-}
-
-TEST(WebSocketHandshakeHandlerTest,
-     SpdyRequestResponseWithCookiesHybi06Handshake) {
-  WebSocketHandshakeRequestHandler request_handler;
-
-  // Note that websocket won't use multiple headers in request now.
-  static const char kHandshakeRequestMessage[] =
-      "GET /demo HTTP/1.1\r\n"
-      "Host: example.com\r\n"
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
       "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
-      "Sec-WebSocket-Origin: http://example.com\r\n"
+      "Origin: http://example.com\r\n"
       "Sec-WebSocket-Protocol: sample\r\n"
-      "Sec-WebSocket-Version: 6\r\n"
+      "Sec-WebSocket-Extensions: foo\r\n"
+      "Sec-WebSocket-Version: 13\r\n"
       "Cookie: WK-websocket-test=1; WK-websocket-test-httponly=1\r\n"
       "\r\n";
 
   EXPECT_TRUE(request_handler.ParseRequest(kHandshakeRequestMessage,
                                            strlen(kHandshakeRequestMessage)));
-  EXPECT_EQ(6, request_handler.protocol_version());
+  EXPECT_EQ(13, request_handler.protocol_version());
 
   GURL url("ws://example.com/demo");
   std::string challenge;
   SpdyHeaderBlock headers;
   ASSERT_TRUE(request_handler.GetRequestHeaderBlock(url, &headers, &challenge));
 
-  EXPECT_EQ(url.spec(), headers["url"]);
+  EXPECT_EQ(url.path(), headers["path"]);
   EXPECT_TRUE(headers.find("upgrade") == headers.end());
   EXPECT_TRUE(headers.find("Upgrade") == headers.end());
   EXPECT_TRUE(headers.find("connection") == headers.end());
   EXPECT_TRUE(headers.find("Connection") == headers.end());
   EXPECT_TRUE(headers.find("Sec-WebSocket-Key") == headers.end());
   EXPECT_TRUE(headers.find("sec-websocket-key") == headers.end());
+  EXPECT_TRUE(headers.find("Sec-WebSocket-Version") == headers.end());
+  EXPECT_TRUE(headers.find("sec-webSocket-version") == headers.end());
   EXPECT_EQ("example.com", headers["host"]);
-  EXPECT_EQ("http://example.com", headers["sec-websocket-origin"]);
+  EXPECT_EQ("http://example.com", headers["origin"]);
   EXPECT_EQ("sample", headers["sec-websocket-protocol"]);
+  EXPECT_EQ("foo", headers["sec-websocket-extensions"]);
+  EXPECT_EQ("ws", headers["scheme"]);
+  EXPECT_EQ("WebSocket/13", headers["version"]);
   EXPECT_EQ("WK-websocket-test=1; WK-websocket-test-httponly=1",
             headers["cookie"]);
 
-  EXPECT_EQ("dGhlIHNhbXBsZSBub25jZQ==", challenge);
+  const char expected_challenge[] = "dGhlIHNhbXBsZSBub25jZQ==";
+
+  EXPECT_EQ(expected_challenge, challenge);
 
   headers.clear();
 
+  headers["status"] = "101 Switching Protocols";
   headers["sec-websocket-protocol"] = "sample";
+  headers["sec-websocket-extensions"] = "foo";
   std::string cookie = "WK-websocket-test=1";
   cookie.append(1, '\0');
   cookie += "WK-websocket-test-httponly=1; HttpOnly";
   headers["set-cookie"] = cookie;
 
+
   WebSocketHandshakeResponseHandler response_handler;
-  response_handler.set_protocol_version(request_handler.protocol_version());
-  EXPECT_EQ(6, response_handler.protocol_version());
+  response_handler.set_protocol_version(13);
   EXPECT_TRUE(response_handler.ParseResponseHeaderBlock(headers, challenge));
   EXPECT_TRUE(response_handler.HasResponse());
 
@@ -737,6 +604,7 @@ TEST(WebSocketHandshakeHandlerTest,
       "Upgrade: websocket\r\n"
       "Connection: Upgrade\r\n"
       "Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n"
+      "sec-websocket-extensions: foo\r\n"
       "sec-websocket-protocol: sample\r\n"
       "set-cookie: WK-websocket-test=1\r\n"
       "set-cookie: WK-websocket-test-httponly=1; HttpOnly\r\n"
