@@ -148,6 +148,9 @@ class Emulator(object):
     if not self.fast_and_loose:
       self._AggressiveImageCleanup()
     (self.device, port) = self._DeviceName()
+    abi = 'armeabi'
+    if 'x86' in os.environ.get('TARGET_PRODUCT', ''):
+      abi = 'x86'
     emulator_command = [
         self.emulator,
         # Speed up emulator launch by 40%.  Really.
@@ -156,7 +159,7 @@ class Emulator(object):
         # That's not enough for 8 unit test bundles and their data.
         '-partition-size', '512',
         # Use a familiar name and port.
-        '-avd', 'avd_armeabi',
+        '-avd', 'avd_' + abi,
         '-port', str(port)]
     if not self.fast_and_loose:
       emulator_command.extend([
