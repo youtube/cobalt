@@ -23,6 +23,7 @@ Local changes:
  * Merged COPYING/PATENTS to LICENSE
  * Add BGRX and RGBX variants to the WEBPImportPicture API (needs to be
    upstreamed to libwebp master).
+ * Fix for possible int / size_t overflow in buffer-size calculations
 Upstream cherry-picks:
 7bb6a9c idec: fix internal state corruption
 89cd1bb idec: fix WebPIUpdate failure
