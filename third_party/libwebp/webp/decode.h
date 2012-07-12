@@ -122,7 +122,7 @@ typedef enum { MODE_RGB = 0, MODE_RGBA = 1,
 typedef struct {    // view as RGBA
   uint8_t* rgba;    // pointer to RGBA samples
   int stride;       // stride in bytes from one scanline to the next.
-  int size;         // total size of the *rgba buffer.
+  size_t size;      // total size of the *rgba buffer.
 } WebPRGBABuffer;
 
 typedef struct {              // view as YUVA
@@ -130,9 +130,9 @@ typedef struct {              // view as YUVA
   int y_stride;               // luma stride
   int u_stride, v_stride;     // chroma strides
   int a_stride;               // alpha stride
-  int y_size;                 // luma plane size
-  int u_size, v_size;         // chroma planes size
-  int a_size;                 // alpha-plane size
+  size_t y_size;              // luma plane size
+  size_t u_size, v_size;      // chroma planes size
+  size_t a_size;              // alpha-plane size
 } WebPYUVABuffer;
 
 // Output buffer
