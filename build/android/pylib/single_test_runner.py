@@ -35,8 +35,7 @@ class SingleTestRunner(BaseTestRunner):
 
   def __init__(self, device, test_suite, gtest_filter, test_arguments, timeout,
                rebaseline, performance_test, cleanup_test_files, tool_name,
-               shard_index, dump_debug_info=False,
-               fast_and_loose=False):
+               shard_index, dump_debug_info, fast_and_loose):
     BaseTestRunner.__init__(self, device, tool_name, shard_index)
     self._running_on_emulator = self.device.startswith('emulator')
     self._gtest_filter = gtest_filter

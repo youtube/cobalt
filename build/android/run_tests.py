@@ -51,12 +51,14 @@ failed on device.
 import fnmatch
 import logging
 import os
+import signal
 import subprocess
 import sys
 import time
 
 from pylib import android_commands
 from pylib.base_test_sharder import BaseTestSharder
+from pylib import buildbot_report
 from pylib import constants
 from pylib import debug_info
 import emulator
@@ -65,6 +67,7 @@ from pylib import run_tests_helper
 from pylib import test_options_parser
 from pylib.single_test_runner import SingleTestRunner
 from pylib.test_result import BaseTestResult, TestResults
+
 
 _TEST_SUITES = ['base_unittests',
                 'content_unittests',
@@ -76,23 +79,25 @@ _TEST_SUITES = ['base_unittests',
                 'ui_unittests',
                ]
 
-def FullyQualifiedTestSuites(apk, test_suites):
+
+def FullyQualifiedTestSuites(exe, test_suites):
   """Return a fully qualified list that represents all known suites.
 
   Args:
-    apk: if True, use the apk-based test runner
-    test_suites: the source test suites to process"""
-  # If not specified, assume the test suites are in out/Release
+    exe: if True, use the executable-based test runner.
+    test_suites: the source test suites to process.
+  """
+  # Assume the test suites are in out/Release.
   test_suite_dir = os.path.abspath(os.path.join(constants.CHROME_DIR,
                                                 'out', 'Release'))
-  if apk:
+  if exe:
+    suites = [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
+  else:
     # out/Release/$SUITE_apk/$SUITE-debug.apk
     suites = [os.path.join(test_suite_dir,
                            t + '_apk',
                            t + '-debug.apk')
               for t in test_suites]
-  else:
-    suites = [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
   return suites
 
 
@@ -110,9 +115,10 @@ class TimeProfile(object):
     """Stop profiling and dump a log."""
     if self._starttime:
       stoptime = time.time()
-      logging.info('%fsec to perform %s' %
-                   (stoptime - self._starttime, self._description))
+      logging.info('%fsec to perform %s',
+                   stoptime - self._starttime, self._description)
       self._starttime = None
+
 
 class Xvfb(object):
   """Class to start and stop Xvfb if relevant.  Nop if not Linux."""
@@ -131,18 +137,18 @@ class Xvfb(object):
     """
     if not self._IsLinux():
       return
-    proc = subprocess.Popen(["Xvfb", ":9", "-screen", "0", "1024x768x24",
-                             "-ac"],
+    proc = subprocess.Popen(['Xvfb', ':9', '-screen', '0', '1024x768x24',
+                             '-ac'],
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     self._pid = proc.pid
     if not self._pid:
       raise Exception('Could not start Xvfb')
-    os.environ['DISPLAY'] = ":9"
+    os.environ['DISPLAY'] = ':9'
 
     # Now confirm, giving a chance for it to start if needed.
-    for test in range(10):
+    for _ in range(10):
       proc = subprocess.Popen('xdpyinfo >/dev/null', shell=True)
-      pid, retcode = os.waitpid(proc.pid, 0)
+      _, retcode = os.waitpid(proc.pid, 0)
       if retcode == 0:
         break
       time.sleep(0.25)
@@ -159,24 +165,23 @@ class Xvfb(object):
       del os.environ['DISPLAY']
       self._pid = 0
 
+
 def PrintAnnotationForTestResults(test_results):
   if test_results.timed_out:
-    print '@@@STEP_WARNINGS@@@'
-  elif test_results.failed:
-    print '@@@STEP_FAILURE@@@'
-  elif test_results.crashed:
-    print '@@@STEP_FAILURE@@@'
-  elif test_results.overall_fail:
-    print '@@@STEP_FAILURE@@@'
+    buildbot_report.PrintWarning()
+  elif test_results.failed or test_results.crashed or test_results.overall_fail:
+    buildbot_report.PrintError()
   else:
     print 'Step success!'  # No annotation needed
 
-def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
+
+def RunTests(exe, device, test_suite, gtest_filter, test_arguments, rebaseline,
              timeout, performance_test, cleanup_test_files, tool,
-             log_dump_name, apk, annotate=False):
+             log_dump_name, fast_and_loose):
   """Runs the tests.
 
   Args:
+    exe: boolean to state if we are using the exe based test runner
     device: Device to run the tests.
     test_suite: A specific test suite to run, empty to run all.
     gtest_filter: A gtest_filter flag.
@@ -187,47 +192,40 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     cleanup_test_files: Whether or not to cleanup test files on device.
     tool: Name of the Valgrind tool.
     log_dump_name: Name of log dump file.
-    apk: boolean to state if we are using the apk based test runner
-    annotate: should we print buildbot-style annotations?
+    fast_and_loose: if set, skip copying data files.
 
   Returns:
     A TestResults object.
   """
   results = []
-  global _TEST_SUITES
 
   if test_suite:
-    global _TEST_SUITES
-
-    # If not specified, assume the test suites are in out/Release
-    test_suite_dir = os.path.abspath(os.path.join(constants.CHROME_DIR,
-                                                  'out', 'Release'))
-    if (not os.path.exists(test_suite)):
-      logging.critical('Unrecognized test suite %s, supported: %s' %
-                       (test_suite, _TEST_SUITES))
+    if not os.path.exists(test_suite):
+      logging.critical('Unrecognized test suite %s, supported: %s',
+                       test_suite, _TEST_SUITES)
       if test_suite in _TEST_SUITES:
         logging.critical('(Remember to include the path: out/Release/%s)',
                          test_suite)
       test_suite_basename = os.path.basename(test_suite)
       if test_suite_basename in _TEST_SUITES:
-        logging.critical('Try "make -j15 %s"' % test_suite_basename)
+        logging.critical('Try "make -j15 %s"', test_suite_basename)
       else:
-        logging.critical('Unrecognized test suite, supported: %s' %
+        logging.critical('Unrecognized test suite, supported: %s',
                          _TEST_SUITES)
       return TestResults.FromRun([], [BaseTestResult(test_suite, '')],
-                                         False, False)
+                                 False, False)
     fully_qualified_test_suites = [test_suite]
   else:
-    fully_qualified_test_suites = FullyQualifiedTestSuites(apk, _TEST_SUITES)
+    fully_qualified_test_suites = FullyQualifiedTestSuites(exe, _TEST_SUITES)
   debug_info_list = []
   print 'Known suites: ' + str(_TEST_SUITES)
   print 'Running these: ' + str(fully_qualified_test_suites)
   for t in fully_qualified_test_suites:
-    if annotate:
-      print '@@@BUILD_STEP Test suite %s@@@' % os.path.basename(t)
+    buildbot_report.PrintNamedStep('Test suite %s' % os.path.basename(t))
     test = SingleTestRunner(device, t, gtest_filter, test_arguments,
                             timeout, rebaseline, performance_test,
-                            cleanup_test_files, tool, 0, not not log_dump_name)
+                            cleanup_test_files, tool, 0, not not log_dump_name,
+                            fast_and_loose)
     test.Run()
 
     results += [test.test_results]
@@ -238,12 +236,10 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     test.test_results.LogFull('Unit test', os.path.basename(t))
   # Zip all debug info outputs into a file named by log_dump_name.
   debug_info.GTestDebugInfo.ZipAndCleanResults(
-      os.path.join(constants.CHROME_DIR, 'out', 'Release',
-          'debug_info_dumps'),
+      os.path.join(constants.CHROME_DIR, 'out', 'Release', 'debug_info_dumps'),
       log_dump_name, [d for d in debug_info_list if d])
 
-  if annotate:
-    PrintAnnotationForTestResults(test.test_results)
+  PrintAnnotationForTestResults(test.test_results)
 
   return TestResults.FromTestResults(results)
 
@@ -253,7 +249,7 @@ class TestSharder(BaseTestSharder):
 
   def __init__(self, attached_devices, test_suite, gtest_filter,
                test_arguments, timeout, rebaseline, performance_test,
-               cleanup_test_files, tool, annotate):
+               cleanup_test_files, tool, log_dump_name, fast_and_loose):
     BaseTestSharder.__init__(self, attached_devices)
     self.test_suite = test_suite
     self.test_suite_basename = os.path.basename(test_suite)
@@ -264,10 +260,12 @@ class TestSharder(BaseTestSharder):
     self.performance_test = performance_test
     self.cleanup_test_files = cleanup_test_files
     self.tool = tool
-    self.annotate = annotate
+    self.log_dump_name = log_dump_name
+    self.fast_and_loose = fast_and_loose
     test = SingleTestRunner(self.attached_devices[0], test_suite, gtest_filter,
                             test_arguments, timeout, rebaseline,
-                            performance_test, cleanup_test_files, tool, 0)
+                            performance_test, cleanup_test_files, tool, 0,
+                            not not self.log_dump_name, fast_and_loose)
     # The executable/apk needs to be copied before we can call GetAllTests.
     test.test_package.StripAndCopyExecutable()
     all_tests = test.test_package.GetAllTests()
@@ -297,16 +295,15 @@ class TestSharder(BaseTestSharder):
     return SingleTestRunner(device, self.test_suite,
                             test_filter, self.test_arguments, self.timeout,
                             self.rebaseline, self.performance_test,
-                            self.cleanup_test_files, self.tool, index)
+                            self.cleanup_test_files, self.tool, index,
+                            not not self.log_dump_name, self.fast_and_loose)
 
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
     test_results.LogFull('Unit test', os.path.basename(self.test_suite))
-    if self.annotate:
-      PrintAnnotationForTestResults(test_results)
+    PrintAnnotationForTestResults(test_results)
     if test_results.failed and self.rebaseline:
       test_runners[0].UpdateFilter(test_results.failed)
-
 
 
 def _RunATestSuite(options):
@@ -334,7 +331,7 @@ def _RunATestSuite(options):
       buildbot_emulators.append(buildbot_emulator)
       attached_devices.append(buildbot_emulator.device)
     # Wait for all emulators to boot completed.
-    map(lambda buildbot_emulator:buildbot_emulator.ConfirmLaunch(True),
+    map(lambda buildbot_emulator: buildbot_emulator.ConfirmLaunch(True),
         buildbot_emulators)
   elif options.test_device:
     attached_devices = [options.test_device]
@@ -343,8 +340,7 @@ def _RunATestSuite(options):
 
   if not attached_devices:
     logging.critical('A device must be attached and online.')
-    if options.annotate:
-      print '@@@STEP_FAILURE@@@'
+    buildbot_report.PrintError()
     return 1
 
   # Reset the test port allocation. It's important to do it before starting
@@ -359,17 +355,16 @@ def _RunATestSuite(options):
                           options.timeout, options.rebaseline,
                           options.performance_test,
                           options.cleanup_test_files, options.tool,
-                          options.annotate)
+                          options.log_dump, options.fast_and_loose)
     test_results = sharder.RunShardedTests()
   else:
-    test_results = RunTests(attached_devices[0], options.test_suite,
+    test_results = RunTests(options.exe, attached_devices[0],
+                            options.test_suite,
                             options.gtest_filter, options.test_arguments,
                             options.rebaseline, options.timeout,
                             options.performance_test,
                             options.cleanup_test_files, options.tool,
-                            options.log_dump,
-                            options.apk,
-                            annotate=options.annotate)
+                            options.log_dump, options.fast_and_loose)
 
   for buildbot_emulator in buildbot_emulators:
     buildbot_emulator.Shutdown()
@@ -380,7 +375,7 @@ def _RunATestSuite(options):
   if test_results.timed_out and options.repeat:
     logging.critical('Timed out; repeating in fast_and_loose mode.')
     options.fast_and_loose = True
-    options.repeat = options.repeat - 1
+    options.repeat -= 1
     logging.critical('Repeats left: ' + str(options.repeat))
     return _RunATestSuite(options)
   return len(test_results.failed)
@@ -407,10 +402,10 @@ def Dispatch(options):
     xvfb.Start()
 
   if options.test_suite:
-    all_test_suites = FullyQualifiedTestSuites(options.apk,
+    all_test_suites = FullyQualifiedTestSuites(options.exe,
                                                [options.test_suite])
   else:
-    all_test_suites = FullyQualifiedTestSuites(options.apk,
+    all_test_suites = FullyQualifiedTestSuites(options.exe,
                                                _TEST_SUITES)
   failures = 0
   for suite in all_test_suites:
@@ -423,16 +418,15 @@ def Dispatch(options):
 
 
 def ListTestSuites():
-  """Display a list of available test suites
-  """
+  """Display a list of available test suites."""
   print 'Available test suites are:'
   for test_suite in _TEST_SUITES:
     print test_suite
 
 
 def main(argv):
-  option_parser = test_options_parser.CreateTestRunnerOptionParser(None,
-      default_timeout=0)
+  option_parser = test_options_parser.CreateTestRunnerOptionParser(
+      None, default_timeout=0)
   option_parser.add_option('-s', '--suite', dest='test_suite',
                            help='Executable name of the test suite to run '
                            '(use -s help to list them)')
@@ -440,16 +434,14 @@ def main(argv):
                            help='Target device the test suite to run ')
   option_parser.add_option('-r', dest='rebaseline',
                            help='Rebaseline and update *testsuite_disabled',
-                           action='store_true',
-                           default=False)
+                           action='store_true')
   option_parser.add_option('-f', '--gtest_filter', dest='gtest_filter',
                            help='gtest filter')
   option_parser.add_option('-a', '--test_arguments', dest='test_arguments',
                            help='Additional arguments to pass to the test')
   option_parser.add_option('-p', dest='performance_test',
                            help='Indicator of performance test',
-                           action='store_true',
-                           default=False)
+                           action='store_true')
   option_parser.add_option('-L', dest='log_dump',
                            help='file name of log dump, which will be put in'
                            'subfolder debug_info_dumps under the same directory'
@@ -459,10 +451,10 @@ def main(argv):
                            type='int',
                            default=0)
   option_parser.add_option('-x', '--xvfb', dest='use_xvfb',
-                           action='store_true', default=False,
+                           action='store_true',
                            help='Use Xvfb around tests (ignored if not Linux)')
   option_parser.add_option('--fast', '--fast_and_loose', dest='fast_and_loose',
-                           action='store_true', default=False,
+                           action='store_true',
                            help='Go faster (but be less stable), '
                            'for quick testing.  Example: when tracking down '
                            'tests that hang to add to the disabled list, '
@@ -472,11 +464,12 @@ def main(argv):
   option_parser.add_option('--repeat', dest='repeat', type='int',
                            default=2,
                            help='Repeat count on test timeout')
-  option_parser.add_option('--annotate', default=True,
-                           help='Print buildbot-style annotate messages '
-                           'for each test suite.  Default=True')
-  option_parser.add_option('--apk', default=True,
-                           help='Use the apk test runner by default')
+  option_parser.add_option('--exit_code', action='store_true',
+                           help='If set, the exit code will be total number '
+                           'of failures.')
+  option_parser.add_option('--exe', action='store_true',
+                           help='If set, use the exe test runner instead of '
+                           'the APK.')
   options, args = option_parser.parse_args(argv)
   if len(args) > 1:
     print 'Unknown argument:', args[1:]
@@ -485,17 +478,16 @@ def main(argv):
   run_tests_helper.SetLogLevel(options.verbose_count)
   failed_tests_count = Dispatch(options)
 
-  # If we're printing annotations then failures of individual test suites are
-  # communicated by printing a STEP_FAILURE message.
+  # Failures of individual test suites are communicated by printing a
+  # STEP_FAILURE message.
   # Returning a success exit status also prevents the buildbot from incorrectly
   # marking the last suite as failed if there were failures in other suites in
   # the batch (this happens because the exit status is a sum of all failures
   # from all suites, but the buildbot associates the exit status only with the
   # most recent step).
-  if options.annotate:
-    return 0
-  else:
+  if options.exit_code:
     return failed_tests_count
+  return 0
 
 
 if __name__ == '__main__':
