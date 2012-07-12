@@ -9,6 +9,7 @@
 #include "base/stringprintf.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
+#include "net/cookies/parsed_cookie.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -101,7 +102,7 @@ CookieMonster::CanonicalCookie BuildCanonicalCookie(
     const base::Time& creation_time) {
 
   // Parse the cookie line.
-  CookieMonster::ParsedCookie pc(cookie_line);
+  ParsedCookie pc(cookie_line);
   EXPECT_TRUE(pc.IsValid());
 
   // This helper is simplistic in interpreting a parsed cookie, in order to
