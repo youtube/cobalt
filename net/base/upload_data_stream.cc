@@ -15,6 +15,12 @@ namespace net {
 
 bool UploadDataStream::merge_chunks_ = true;
 
+// static
+void UploadDataStream::ResetMergeChunks() {
+  // WARNING: merge_chunks_ must match the above initializer.
+  merge_chunks_ = true;
+}
+
 UploadDataStream::UploadDataStream(UploadData* upload_data)
     : upload_data_(upload_data),
       element_index_(0),

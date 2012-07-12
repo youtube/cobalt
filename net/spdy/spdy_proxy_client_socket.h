@@ -98,7 +98,6 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   virtual void OnDataReceived(const char* data, int length) OVERRIDE;
   virtual void OnDataSent(int length) OVERRIDE;
   virtual void OnClose(int status) OVERRIDE;
-  virtual void set_chunk_callback(ChunkCallback* /*callback*/) OVERRIDE;
 
  private:
   enum State {

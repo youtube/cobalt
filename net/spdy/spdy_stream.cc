@@ -128,8 +128,6 @@ void SpdyStream::PushedStreamReplayData() {
 }
 
 void SpdyStream::DetachDelegate() {
-  if (delegate_)
-    delegate_->set_chunk_callback(NULL);
   delegate_ = NULL;
   if (!closed())
     Cancel();
@@ -165,15 +163,13 @@ void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
   DCHECK(session_->is_flow_control_enabled());
   DCHECK_GE(delta_window_size, 1);
 
-  int32 new_window_size = send_window_size_ + delta_window_size;
-
-  // We should ignore WINDOW_UPDATEs received before or after this state,
-  // since before means we've not written SYN_STREAM yet (i.e. it's too
-  // early) and after means we've written a DATA frame with FIN bit.
-  if (io_state_ != STATE_SEND_BODY_COMPLETE)
+  // Ignore late WINDOW_UPDATEs.
+  if (closed())
     return;
 
-  // it's valid for send_window_size_ to become negative (via an incoming
+  int32 new_window_size = send_window_size_ + delta_window_size;
+
+  // It's valid for send_window_size_ to become negative (via an incoming
   // SETTINGS), in which case incoming WINDOW_UPDATEs will eventually make
   // it positive; however, if send_window_size_ is positive and incoming
   // WINDOW_UPDATE makes it negative, we have an overflow.
@@ -192,6 +188,7 @@ void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
       NetLog::TYPE_SPDY_STREAM_UPDATE_SEND_WINDOW,
       base::Bind(&NetLogSpdyStreamWindowUpdateCallback,
                  stream_id_, delta_window_size, send_window_size_));
+
   PossiblyResumeIfStalled();
 }
 
@@ -434,13 +431,6 @@ void SpdyStream::OnWriteComplete(int bytes) {
   DoLoop(bytes);
 }
 
-void SpdyStream::OnChunkAvailable() {
-  DCHECK(io_state_ == STATE_SEND_HEADERS || io_state_ == STATE_SEND_BODY ||
-         io_state_ == STATE_SEND_BODY_COMPLETE);
-  if (io_state_ == STATE_SEND_BODY)
-    OnWriteComplete(0);
-}
-
 int SpdyStream::GetProtocolVersion() const {
   return session_->GetProtocolVersion();
 }
@@ -456,10 +446,8 @@ void SpdyStream::OnClose(int status) {
   response_status_ = status;
   Delegate* delegate = delegate_;
   delegate_ = NULL;
-  if (delegate) {
-    delegate->set_chunk_callback(NULL);
+  if (delegate)
     delegate->OnClose(status);
-  }
 }
 
 void SpdyStream::Cancel() {
@@ -476,9 +464,6 @@ void SpdyStream::Close() {
 }
 
 int SpdyStream::SendRequest(bool has_upload_data) {
-  if (delegate_)
-    delegate_->set_chunk_callback(this);
-
   // Pushed streams do not send any data, and should always be in STATE_OPEN or
   // STATE_DONE. However, we still want to return IO_PENDING to mimic non-push
   // behavior.
@@ -702,7 +687,7 @@ int SpdyStream::DoSendHeadersComplete(int result) {
 // DoSendBody is called to send the optional body for the request.  This call
 // will also be called as each write of a chunk of the body completes.
 int SpdyStream::DoSendBody() {
-  // If we're already in the STATE_SENDING_BODY state, then we've already
+  // If we're already in the STATE_SEND_BODY state, then we've already
   // sent a portion of the body.  In that case, we need to first consume
   // the bytes written in the body stream.  Note that the bytes written is
   // the number of bytes in the frame that were written, only consume the
