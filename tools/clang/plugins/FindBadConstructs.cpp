@@ -399,13 +399,15 @@ class FindBadConstructsAction : public PluginASTAction {
   }
 
  protected:
-  ASTConsumer* CreateASTConsumer(CompilerInstance &CI, llvm::StringRef ref) {
+  // Overridden from PluginASTAction:
+  virtual ASTConsumer* CreateASTConsumer(CompilerInstance& instance,
+                                         llvm::StringRef ref) {
     return new FindBadConstructsConsumer(
-        CI, check_refcounted_dtors_, check_virtuals_in_implementations_);
+        instance, check_refcounted_dtors_, check_virtuals_in_implementations_);
   }
 
-  bool ParseArgs(const CompilerInstance &CI,
-                 const std::vector<std::string>& args) {
+  virtual bool ParseArgs(const CompilerInstance& instance,
+                         const std::vector<std::string>& args) {
     bool parsed = true;
 
     for (size_t i = 0; i < args.size() && parsed; ++i) {
