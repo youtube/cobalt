@@ -547,7 +547,4 @@ void SpdyProxyClientSocket::OnClose(int status)  {
     write_callback.Run(ERR_CONNECTION_CLOSED);
 }
 
-void SpdyProxyClientSocket::set_chunk_callback(ChunkCallback* /*callback*/) {
-}
-
 }  // namespace net

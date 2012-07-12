@@ -80,7 +80,6 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
   virtual void OnDataReceived(const char* data, int length) OVERRIDE;
   virtual void OnDataSent(int length) OVERRIDE;
   virtual void OnClose(int status) OVERRIDE;
-  virtual void set_chunk_callback(ChunkCallback* callback) OVERRIDE;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamSpdy2Test, Basic);
