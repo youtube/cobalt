@@ -10,6 +10,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
@@ -266,40 +267,34 @@ HttpRequestInfo WebSocketHandshakeRequestHandler::GetRequestInfo(
 
 bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
     const GURL& url, SpdyHeaderBlock* headers, std::string* challenge) {
-  // We don't set "method" and "version".  These are fixed value in WebSocket
-  // protocol.
-  (*headers)["url"] = url.spec();
+  // Construct opening handshake request headers as a SPDY header block.
+  // For details, see WebSocket Layering over SPDY/3 Draft 8.
+  (*headers)["path"] = url.path();
+  (*headers)["version"] =
+      base::StringPrintf("%s%d", "WebSocket/", protocol_version_);
+  (*headers)["scheme"] = url.scheme();
 
-  std::string new_key;  // For protocols hybi-04 and newer.
-  std::string old_key1;  // For protocols hybi-03 and older.
-  std::string old_key2;  // Ditto.
   HttpUtil::HeadersIterator iter(headers_.begin(), headers_.end(), "\r\n");
   while (iter.GetNext()) {
-    if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
-                             "connection")) {
-      // Ignore "Connection" header.
+    if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(), "upgrade") ||
+        LowerCaseEqualsASCII(iter.name_begin(),
+                             iter.name_end(),
+                             "connection") ||
+        LowerCaseEqualsASCII(iter.name_begin(),
+                             iter.name_end(),
+                             "sec-websocket-version")) {
+      // These headers must be ignored.
       continue;
-    } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
-                                    "upgrade")) {
-      // Ignore "Upgrade" header.
-      continue;
-    } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
-                                    "sec-websocket-key1")) {
-      // Only used for generating challenge.
-      old_key1 = iter.values();
-      continue;
-    } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
-                                    "sec-websocket-key2")) {
-      // Only used for generating challenge.
-      old_key2 = iter.values();
-      continue;
-    } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
+    } else if (LowerCaseEqualsASCII(iter.name_begin(),
+                                    iter.name_end(),
                                     "sec-websocket-key")) {
-      // Only used for generating challenge.
-      new_key = iter.values();
+      *challenge = iter.values();
+      // Sec-WebSocket-Key is not sent to a server.
       continue;
     }
     // Others should be sent out to |headers|.
+    // TODO(toyoshim): Some WebSocket extensions are not compatible with SPDY.
+    // We should remove them from a Sec-WebSocket-Extension header.
     std::string name = StringToLowerASCII(iter.name());
     SpdyHeaderBlock::iterator found = headers->find(name);
     if (found == headers->end()) {
@@ -309,21 +304,6 @@ bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
       found->second.append(1, '\0');  // +=() doesn't append 0's
       found->second.append(iter.values());
     }
-  }
-
-  if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
-    DVLOG_IF(1, !old_key1.empty())
-        << "Server sent unexpected Sec-WebSocket-Key1 header.";
-    DVLOG_IF(1, !old_key2.empty())
-        << "Server sent unexpected Sec-WebSocket-Key2 header.";
-    *challenge = new_key;
-  } else {
-    DVLOG_IF(1, !new_key.empty())
-        << "Server sent unexpected Sec-WebSocket-Key header.";
-    challenge->clear();
-    GetKeyNumber(old_key1, challenge);
-    GetKeyNumber(old_key2, challenge);
-    challenge->append(key3_);
   }
 
   return true;
@@ -449,22 +429,19 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
     const SpdyHeaderBlock& headers,
     const std::string& challenge) {
   std::string response_message;
-  if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
-    response_message = "HTTP/1.1 101 Switching Protocols\r\n";
-    response_message += "Upgrade: websocket\r\n";
-  } else {
-    response_message = "HTTP/1.1 101 WebSocket Protocol Handshake\r\n";
-    response_message += "Upgrade: WebSocket\r\n";
-  }
+  SpdyHeaderBlock::const_iterator status = headers.find("status");
+  if (status == headers.end())
+    return false;
+  response_message =
+      base::StringPrintf("%s%s\r\n", "HTTP/1.1 ", status->second.c_str());
+  response_message += "Upgrade: websocket\r\n";
   response_message += "Connection: Upgrade\r\n";
 
-  if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
-    std::string hash = base::SHA1HashString(challenge + kWebSocketGuid);
-    std::string websocket_accept;
-    bool encode_success = base::Base64Encode(hash, &websocket_accept);
-    DCHECK(encode_success);
-    response_message += "Sec-WebSocket-Accept: " + websocket_accept + "\r\n";
-  }
+  std::string hash = base::SHA1HashString(challenge + kWebSocketGuid);
+  std::string websocket_accept;
+  bool encode_success = base::Base64Encode(hash, &websocket_accept);
+  DCHECK(encode_success);
+  response_message += "Sec-WebSocket-Accept: " + websocket_accept + "\r\n";
 
   for (SpdyHeaderBlock::const_iterator iter = headers.begin();
        iter != headers.end();
@@ -472,6 +449,11 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
     // For each value, if the server sends a NUL-separated list of values,
     // we separate that back out into individual headers for each value
     // in the list.
+    if (LowerCaseEqualsASCII(iter->first, "status")) {
+      // The status value is already handled as the first line of
+      // |response_message|. Just skip here.
+      continue;
+    }
     const std::string& value = iter->second;
     size_t start = 0;
     size_t end = 0;
@@ -487,14 +469,6 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
     } while (end != std::string::npos);
   }
   response_message += "\r\n";
-
-  if (protocol_version_ < kMinVersionOfHybiNewHandshake) {
-    base::MD5Digest digest;
-    base::MD5Sum(challenge.data(), challenge.size(), &digest);
-
-    const char* digest_data = reinterpret_cast<char*>(digest.a);
-    response_message.append(digest_data, sizeof(digest.a));
-  }
 
   return ParseRawResponse(response_message.data(),
                           response_message.size()) == response_message.size();
