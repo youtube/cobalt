@@ -795,6 +795,8 @@
         '../testing/gtest.gyp:gtest',
       ],
       'sources': [
+        'audio/mock_audio_manager.cc',
+        'audio/mock_audio_manager.h',
         'audio/test_audio_input_controller_factory.cc',
         'audio/test_audio_input_controller_factory.h',
         'base/mock_callback.cc',
