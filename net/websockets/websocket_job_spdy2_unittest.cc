@@ -490,80 +490,71 @@ class WebSocketJobSpdy2Test : public PlatformTest {
 const char WebSocketJobSpdy2Test::kHandshakeRequestWithoutCookie[] =
     "GET /demo HTTP/1.1\r\n"
     "Host: example.com\r\n"
-    "Connection: Upgrade\r\n"
-    "Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n"
-    "Sec-WebSocket-Protocol: sample\r\n"
     "Upgrade: WebSocket\r\n"
-    "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
+    "Connection: Upgrade\r\n"
+    "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
     "Origin: http://example.com\r\n"
-    "\r\n"
-    "^n:ds[4U";
+    "Sec-WebSocket-Protocol: sample\r\n"
+    "Sec-WebSocket-Version: 13\r\n"
+    "\r\n";
 
 const char WebSocketJobSpdy2Test::kHandshakeRequestWithCookie[] =
     "GET /demo HTTP/1.1\r\n"
     "Host: example.com\r\n"
-    "Connection: Upgrade\r\n"
-    "Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n"
-    "Sec-WebSocket-Protocol: sample\r\n"
     "Upgrade: WebSocket\r\n"
-    "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
+    "Connection: Upgrade\r\n"
+    "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
     "Origin: http://example.com\r\n"
+    "Sec-WebSocket-Protocol: sample\r\n"
+    "Sec-WebSocket-Version: 13\r\n"
     "Cookie: WK-test=1\r\n"
-    "\r\n"
-    "^n:ds[4U";
+    "\r\n";
 
 const char WebSocketJobSpdy2Test::kHandshakeRequestWithFilteredCookie[] =
     "GET /demo HTTP/1.1\r\n"
     "Host: example.com\r\n"
-    "Connection: Upgrade\r\n"
-    "Sec-WebSocket-Key2: 12998 5 Y3 1  .P00\r\n"
-    "Sec-WebSocket-Protocol: sample\r\n"
     "Upgrade: WebSocket\r\n"
-    "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
+    "Connection: Upgrade\r\n"
+    "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
     "Origin: http://example.com\r\n"
+    "Sec-WebSocket-Protocol: sample\r\n"
+    "Sec-WebSocket-Version: 13\r\n"
     "Cookie: CR-test=1; CR-test-httponly=1\r\n"
-    "\r\n"
-    "^n:ds[4U";
+    "\r\n";
 
 const char WebSocketJobSpdy2Test::kHandshakeResponseWithoutCookie[] =
-    "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
-    "Upgrade: WebSocket\r\n"
+    "HTTP/1.1 101 Switching Protocols\r\n"
+    "Upgrade: websocket\r\n"
     "Connection: Upgrade\r\n"
-    "Sec-WebSocket-Origin: http://example.com\r\n"
-    "Sec-WebSocket-Location: ws://example.com/demo\r\n"
+    "Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n"
     "Sec-WebSocket-Protocol: sample\r\n"
-    "\r\n"
-    "8jKS'y:G*Co,Wxa-";
+    "\r\n";
 
 const char WebSocketJobSpdy2Test::kHandshakeResponseWithCookie[] =
-    "HTTP/1.1 101 WebSocket Protocol Handshake\r\n"
-    "Upgrade: WebSocket\r\n"
+    "HTTP/1.1 101 Switching Protocols\r\n"
+    "Upgrade: websocket\r\n"
     "Connection: Upgrade\r\n"
-    "Sec-WebSocket-Origin: http://example.com\r\n"
-    "Sec-WebSocket-Location: ws://example.com/demo\r\n"
+    "Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n"
     "Sec-WebSocket-Protocol: sample\r\n"
     "Set-Cookie: CR-set-test=1\r\n"
-    "\r\n"
-    "8jKS'y:G*Co,Wxa-";
+    "\r\n";
 
 const char WebSocketJobSpdy2Test::kDataHello[] = "Hello, ";
 
 const char WebSocketJobSpdy2Test::kDataWorld[] = "World!\n";
 
-// TODO(toyoshim): I should clarify which WebSocket headers for handshake must
-// be exported to SPDY SYN_STREAM and SYN_REPLY.
-// Because it depends on HyBi versions, just define it as follow for now.
 const char* const WebSocketJobSpdy2Test::kHandshakeRequestForSpdy[] = {
+  "path", "/demo",
+  "version", "WebSocket/13",
+  "scheme", "ws",
   "host", "example.com",
   "origin", "http://example.com",
-  "sec-websocket-protocol", "sample",
-  "url", "ws://example.com/demo"
+  "sec-websocket-protocol", "sample"
 };
 
 const char* const WebSocketJobSpdy2Test::kHandshakeResponseForSpdy[] = {
-  "sec-websocket-origin", "http://example.com",
-  "sec-websocket-location", "ws://example.com/demo",
-  "sec-websocket-protocol", "sample",
+  "status", "101 Switching Protocols",
+  "sec-websocket-protocol", "sample"
 };
 
 const size_t WebSocketJobSpdy2Test::kHandshakeRequestWithoutCookieLength =
@@ -634,9 +625,7 @@ void WebSocketJobSpdy2Test::TestSlowHandshake() {
   }
   websocket_->OnReceivedData(socket_.get(), "\r\n", 2);
   MessageLoop::current()->RunAllPending();
-  EXPECT_TRUE(delegate.received_data().empty());
-  EXPECT_EQ(WebSocketJob::CONNECTING, GetWebSocketJobState());
-  websocket_->OnReceivedData(socket_.get(), "8jKS'y:G*Co,Wxa-", 16);
+  EXPECT_FALSE(delegate.received_data().empty());
   EXPECT_EQ(kHandshakeResponseWithoutCookie, delegate.received_data());
   EXPECT_EQ(WebSocketJob::OPEN, GetWebSocketJobState());
   CloseWebSocketJob();
