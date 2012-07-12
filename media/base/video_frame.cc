@@ -135,7 +135,10 @@ void VideoFrame::AllocateYUV() {
                             kFrameSizeAlignment);
   size_t uv_stride = RoundUp(row_bytes(VideoFrame::kUPlane),
                              kFrameSizeAlignment);
-  size_t y_height = RoundUp(height_, kFrameSizeAlignment);
+  // The *2 here is because some formats (e.g. h264) allow interlaced coding,
+  // and then the size needs to be a multiple of two macroblocks (vertically).
+  // See libavcodec/utils.c:avcodec_align_dimensions2().
+  size_t y_height = RoundUp(height_, kFrameSizeAlignment * 2);
   size_t uv_height = format_ == VideoFrame::YV12 ? y_height / 2 : y_height;
   size_t y_bytes = y_height * y_stride;
   size_t uv_bytes = uv_height * uv_stride;
@@ -143,8 +146,12 @@ void VideoFrame::AllocateYUV() {
 #if !defined(OS_ANDROID)
   // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
   // doesn't need to be repeated in every single user of aligned data.
+  // The extra line of UV being allocated is because h264 chroma MC
+  // overreads by one line in some cases, see libavcodec/utils.c:
+  // avcodec_align_dimensions2() and libavcodec/x86/h264_chromamc.asm:
+  // put_h264_chroma_mc4_ssse3().
   uint8* data = reinterpret_cast<uint8*>(
-      av_malloc(y_bytes + (uv_bytes * 2) + kFramePadBytes));
+      av_malloc(y_bytes + (uv_bytes * 2 + uv_stride) + kFramePadBytes));
 #else
   uint8* data = new uint8_t[y_bytes + (uv_bytes * 2)];
 #endif
