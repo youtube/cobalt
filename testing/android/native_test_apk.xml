@@ -66,6 +66,13 @@ found in the LICENSE file.
   </condition>
   <property name="native.libs.absolute.dir" location="${out.dir}/libs" />
 
+  <!-- Copy the below manifest file to a new directory because the project
+       base directory and output directory are the same and manifest merge
+       task takes the same file as source and target when doing copying.
+       Otherwise it'll generate an empty manifest file. -->
+  <copy file="AndroidManifest.xml" todir="${out.dir}/manifest"/>
+  <property name="manifest.abs.file" location="${out.dir}/manifest/AndroidManifest.xml"/>
+
   <target name="-post-compile">
     <!-- copy gdbserver to main libs directory if building debug. -->
     <if>
