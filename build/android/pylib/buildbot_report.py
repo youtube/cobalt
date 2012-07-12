@@ -26,3 +26,12 @@ def PrintMsg(msg):
 def PrintError():
   """Marks the current step as failed."""
   print '@@@STEP_FAILURE@@@'
+
+
+def PrintWarning():
+  """Marks the current step with a warning."""
+  print '@@@STEP_WARNINGS@@@'
+
+
+def PrintNamedStep(step):
+  print '@@@BUILD_STEP %s@@@' % step
