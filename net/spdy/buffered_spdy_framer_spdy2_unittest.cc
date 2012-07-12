@@ -70,7 +70,8 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
 
   void OnStreamFrameData(SpdyStreamId stream_id,
                          const char* data,
-                         size_t len) {
+                         size_t len,
+                         SpdyDataFlags flags) {
     LOG(FATAL) << "Unexpected OnStreamFrameData call.";
   }
 

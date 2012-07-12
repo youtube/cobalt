@@ -189,7 +189,8 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // this method will be called with a zero-length buffer.
   virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
-                                 size_t len) = 0;
+                                 size_t len,
+                                 SpdyDataFlags flags) = 0;
 
   // Called when a complete setting within a SETTINGS frame has been parsed and
   // validated.

@@ -1206,11 +1206,12 @@ void SpdySession::OnStreamError(SpdyStreamId stream_id,
 
 void SpdySession::OnStreamFrameData(SpdyStreamId stream_id,
                                     const char* data,
-                                    size_t len) {
+                                    size_t len,
+                                    SpdyDataFlags flags) {
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
         NetLog::TYPE_SPDY_SESSION_RECV_DATA,
-        base::Bind(&NetLogSpdyDataCallback, stream_id, len, SpdyDataFlags()));
+        base::Bind(&NetLogSpdyDataCallback, stream_id, len, flags));
   }
 
   if (!IsStreamActive(stream_id)) {

@@ -42,9 +42,10 @@ class MockVisitor : public SpdyFramerVisitorInterface {
   MOCK_METHOD2(OnCredentialFrameData, bool(const char* header_data,
                                            size_t len));
   MOCK_METHOD1(OnDataFrameHeader, void(const SpdyDataFrame* frame));
-  MOCK_METHOD3(OnStreamFrameData, void(SpdyStreamId stream_id,
+  MOCK_METHOD4(OnStreamFrameData, void(SpdyStreamId stream_id,
                                        const char* data,
-                                       size_t len));
+                                       size_t len,
+                                       SpdyDataFlags flags));
   MOCK_METHOD3(OnSetting, void(SpdySettingsIds id, uint8 flags, uint32 value));
   MOCK_METHOD1(OnPing, void(uint32 unique_id));
   MOCK_METHOD2(OnRstStream, void(SpdyStreamId stream_id,
@@ -185,7 +186,8 @@ class SpdyFramerTestUtil {
     }
     virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                    const char* data,
-                                   size_t len) {
+                                   size_t len,
+                                   SpdyDataFlags flags) {
       LOG(FATAL);
     }
     virtual void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) {
@@ -345,7 +347,8 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
 
   void OnStreamFrameData(SpdyStreamId stream_id,
                          const char* data,
-                         size_t len) {
+                         size_t len,
+                         SpdyDataFlags flags) {
     EXPECT_EQ(header_stream_id_, stream_id);
     if (len == 0)
       ++zero_length_data_frame_count_;
@@ -3102,9 +3105,9 @@ TEST_P(SpdyFramerTest, DataFrameFlags) {
     // Flags are just passed along since they need to be validated at
     // a higher protocol layer.
     EXPECT_CALL(visitor, OnDataFrameHeader(_));
-    EXPECT_CALL(visitor, OnStreamFrameData(_, _, 5));
+    EXPECT_CALL(visitor, OnStreamFrameData(_, _, 5, SpdyDataFlags()));
     if (flags & DATA_FLAG_FIN) {
-      EXPECT_CALL(visitor, OnStreamFrameData(_, _, 0));
+      EXPECT_CALL(visitor, OnStreamFrameData(_, _, 0, DATA_FLAG_FIN));
     }
 
     size_t frame_size = frame->length() + SpdyFrame::kHeaderSize;

@@ -54,7 +54,8 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   // this method will be called with a zero-length buffer.
   virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
-                                 size_t len) = 0;
+                                 size_t len,
+                                 SpdyDataFlags flags) = 0;
 
   // Called when an individual setting within a SETTINGS frame has been parsed
   // and validated.
@@ -116,7 +117,8 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
                                         size_t len) OVERRIDE;
   virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
-                                 size_t len) OVERRIDE;
+                                 size_t len,
+                                 SpdyDataFlags flags) OVERRIDE;
   virtual void OnSetting(
       SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
   virtual void OnPing(uint32 unique_id) OVERRIDE;
