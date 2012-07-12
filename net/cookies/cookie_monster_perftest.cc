@@ -12,6 +12,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/cookies/cookie_monster_store_test.h"
+#include "net/cookies/parsed_cookie.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -33,7 +34,7 @@ TEST(ParsedCookieTest, TestParseCookies) {
   std::string cookie(kCookieLine);
   PerfTimeLogger timer("Parsed_cookie_parse_cookies");
   for (int i = 0; i < kNumCookies; ++i) {
-    CookieMonster::ParsedCookie pc(cookie);
+    ParsedCookie pc(cookie);
     EXPECT_TRUE(pc.IsValid());
   }
   timer.Done();
@@ -44,7 +45,7 @@ TEST(ParsedCookieTest, TestParseBigCookies) {
   cookie += kCookieLine;
   PerfTimeLogger timer("Parsed_cookie_parse_big_cookies");
   for (int i = 0; i < kNumCookies; ++i) {
-    CookieMonster::ParsedCookie pc(cookie);
+    ParsedCookie pc(cookie);
     EXPECT_TRUE(pc.IsValid());
   }
   timer.Done();
