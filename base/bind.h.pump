@@ -35,12 +35,23 @@ $var MAX_ARITY = 7
 #include "base/bind_internal.h"
 #include "base/callback_internal.h"
 
-// See base/callback.h for how to use these functions. If reading the
-// implementation, before proceeding further, you should read the top
-// comment of base/bind_internal.h for a definition of common terms and
-// concepts.
+// -----------------------------------------------------------------------------
+// Usage documentation
+// -----------------------------------------------------------------------------
 //
-// IMPLEMENTATION NOTE
+// See base/callback.h for documentation.
+//
+//
+// -----------------------------------------------------------------------------
+// Implementation notes
+// -----------------------------------------------------------------------------
+//
+// If you're reading the implementation, before proceeding further, you should
+// read the top comment of base/bind_internal.h for a definition of common
+// terms and concepts.
+//
+// RETURN TYPES
+//
 // Though Bind()'s result is meant to be stored in a Callback<> type, it
 // cannot actually return the exact type without requiring a large amount
 // of extra template specializations. The problem is that in order to
