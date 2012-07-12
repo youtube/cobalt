@@ -90,8 +90,8 @@ bool IsParentalControlActivityLoggingOn() {
   DCHECK(MessageLoop::current() &&
          (MessageLoop::current()->type() == MessageLoop::TYPE_UI));
 
-  // Query this info on Windows 8 and above.
-  if (base::win::GetVersion() < base::win::VERSION_WIN8)
+  // Query this info on Windows Vista and above.
+  if (base::win::GetVersion() < base::win::VERSION_VISTA)
     return false;
 
   static bool parental_control_logging_required = false;
