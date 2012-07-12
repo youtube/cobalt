@@ -91,7 +91,7 @@ def FullyQualifiedTestSuites(exe, test_suites):
   test_suite_dir = os.path.abspath(os.path.join(constants.CHROME_DIR,
                                                 'out', 'Release'))
   if exe:
-    suites = [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
+    suites = [os.path.join(test_suite_dir, t) for t in test_suites]
   else:
     # out/Release/$SUITE_apk/$SUITE-debug.apk
     suites = [os.path.join(test_suite_dir,
