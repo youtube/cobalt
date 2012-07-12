@@ -155,8 +155,9 @@ void BufferedSpdyFramer::OnDataFrameHeader(const SpdyDataFrame* frame) {
 
 void BufferedSpdyFramer::OnStreamFrameData(SpdyStreamId stream_id,
                                            const char* data,
-                                           size_t len) {
-  visitor_->OnStreamFrameData(stream_id, data, len);
+                                           size_t len,
+                                           SpdyDataFlags flags) {
+  visitor_->OnStreamFrameData(stream_id, data, len, flags);
 }
 
 void BufferedSpdyFramer::OnSetting(SpdySettingsIds id,
