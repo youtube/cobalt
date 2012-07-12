@@ -346,6 +346,8 @@
         'gfx/font_smoothing_win.h',
         'gfx/gfx_paths.cc',
         'gfx/gfx_paths.h',
+        'gfx/image/canvas_image_source.cc',
+        'gfx/image/canvas_image_source.h',
         'gfx/image/image.cc',
         'gfx/image/image.h',
         'gfx/image/image_skia.cc',
