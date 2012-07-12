@@ -35,6 +35,7 @@ TestURLFetcher::TestURLFetcher(int id,
     : id_(id),
       original_url_(url),
       delegate_(d),
+      delegate_for_tests_(NULL),
       did_receive_last_chunk_(false),
       fake_load_flags_(0),
       fake_response_code_(-1),
@@ -44,6 +45,8 @@ TestURLFetcher::TestURLFetcher(int id,
 }
 
 TestURLFetcher::~TestURLFetcher() {
+  if (delegate_for_tests_)
+    delegate_for_tests_->OnRequestEnd(id_);
 }
 
 void TestURLFetcher::SetUploadData(const std::string& upload_content_type,
@@ -59,6 +62,8 @@ void TestURLFetcher::AppendChunkToUpload(const std::string& data,
   DCHECK(!did_receive_last_chunk_);
   did_receive_last_chunk_ = is_last_chunk;
   chunks_.push_back(data);
+  if (delegate_for_tests_)
+    delegate_for_tests_->OnChunkUpload(id_);
 }
 
 void TestURLFetcher::SetLoadFlags(int load_flags) {
@@ -142,6 +147,8 @@ bool TestURLFetcher::WasFetchedViaProxy() const {
 
 void TestURLFetcher::Start() {
   // Overriden to do nothing. It is assumed the caller will notify the delegate.
+  if (delegate_for_tests_)
+    delegate_for_tests_->OnRequestStart(id_);
 }
 
 const GURL& TestURLFetcher::GetOriginalURL() const {
@@ -208,6 +215,10 @@ void TestURLFetcher::set_backoff_delay(base::TimeDelta backoff_delay) {
   fake_backoff_delay_ = backoff_delay;
 }
 
+void TestURLFetcher::SetDelegateForTests(DelegateForTests* delegate_for_tests) {
+  delegate_for_tests_ = delegate_for_tests;
+}
+
 void TestURLFetcher::SetResponseString(const std::string& response) {
   fake_response_destination_ = STRING;
   fake_response_string_ = response;
@@ -219,7 +230,8 @@ void TestURLFetcher::SetResponseFilePath(const FilePath& path) {
 }
 
 TestURLFetcherFactory::TestURLFetcherFactory()
-    : ScopedURLFetcherFactory(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
+    : ScopedURLFetcherFactory(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
+      delegate_for_tests_(NULL) {
 }
 
 TestURLFetcherFactory::~TestURLFetcherFactory() {}
@@ -230,6 +242,7 @@ URLFetcher* TestURLFetcherFactory::CreateURLFetcher(
     URLFetcher::RequestType request_type,
     URLFetcherDelegate* d) {
   TestURLFetcher* fetcher = new TestURLFetcher(id, url, d);
+  fetcher->SetDelegateForTests(delegate_for_tests_);
   fetchers_[id] = fetcher;
   return fetcher;
 }
@@ -243,6 +256,11 @@ void TestURLFetcherFactory::RemoveFetcherFromMap(int id) {
   Fetchers::iterator i = fetchers_.find(id);
   DCHECK(i != fetchers_.end());
   fetchers_.erase(i);
+}
+
+void TestURLFetcherFactory::SetDelegateForTests(
+    TestURLFetcherDelegateForTests* delegate_for_tests) {
+  delegate_for_tests_ = delegate_for_tests;
 }
 
 // This class is used by the FakeURLFetcherFactory below.
