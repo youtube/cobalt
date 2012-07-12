@@ -47,8 +47,13 @@ class SpdyNetworkTransactionSpdy3Test
   }
 
   virtual void TearDown() {
+    UploadDataStream::ResetMergeChunks();
     // Empty the current queue.
     MessageLoop::current()->RunAllPending();
+  }
+
+  void set_merge_chunks(bool merge) {
+    UploadDataStream::set_merge_chunks(merge);
   }
 
   struct TransactionHelperResult {
@@ -85,8 +90,7 @@ class SpdyNetworkTransactionSpdy3Test
               default:
                 NOTREACHED();
             }
-          }
-
+    }
 
     ~NormalSpdyTransactionHelper() {
       // Any test which doesn't close the socket by sending it an EOF will
@@ -1595,7 +1599,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Post) {
 
 // Test that a chunked POST works.
 TEST_P(SpdyNetworkTransactionSpdy3Test, ChunkedPost) {
-  UploadDataStream::set_merge_chunks(false);
+  set_merge_chunks(false);
+
   scoped_ptr<SpdyFrame> req(ConstructChunkedSpdyPost(NULL, 0));
   scoped_ptr<SpdyFrame> chunk1(ConstructSpdyBodyFrame(1, false));
   scoped_ptr<SpdyFrame> chunk2(ConstructSpdyBodyFrame(1, true));
@@ -2030,10 +2035,9 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, WindowUpdateSent) {
   helper.VerifyDataConsumed();
 }
 
-// Test that WINDOW_UPDATE frame causing overflow is handled correctly.  We
-// use the same trick as in the above test to enforce our scenario.
+// Test that WINDOW_UPDATE frame causing overflow is handled correctly.
 TEST_P(SpdyNetworkTransactionSpdy3Test, WindowUpdateOverflow) {
-  // number of full frames we hope to write (but will not, used to
+  // Number of full frames we hope to write (but will not, used to
   // set content-length header correctly)
   static int kFrameCount = 3;
 
@@ -2049,31 +2053,22 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, WindowUpdateOverflow) {
   // We're not going to write a data frame with FIN, we'll receive a bad
   // WINDOW_UPDATE while sending a request and will send a RST_STREAM frame.
   MockWrite writes[] = {
-    CreateMockWrite(*req),
-    CreateMockWrite(*body),
-    CreateMockWrite(*rst),
+    CreateMockWrite(*req, 0),
+    CreateMockWrite(*body, 2),
+    CreateMockWrite(*rst, 3),
   };
 
   static const int32 kDeltaWindowSize = 0x7fffffff;  // cause an overflow
   scoped_ptr<SpdyFrame> window_update(
       ConstructSpdyWindowUpdate(1, kDeltaWindowSize));
-  scoped_ptr<SpdyFrame> window_update2(
-      ConstructSpdyWindowUpdate(2, kDeltaWindowSize));
-  scoped_ptr<SpdyFrame> reply(ConstructSpdyPostSynReply(NULL, 0));
-
   MockRead reads[] = {
-    CreateMockRead(*window_update2),
-    CreateMockRead(*window_update2),
-    CreateMockRead(*window_update),
-    CreateMockRead(*window_update),
-    CreateMockRead(*window_update),
-    MockRead(ASYNC, ERR_IO_PENDING, 0),  // Wait for the RST to be written.
-    MockRead(ASYNC, 0, 0)  // EOF
+    CreateMockRead(*window_update, 1),
+    MockRead(ASYNC, 0, 4)  // EOF
   };
 
-  scoped_ptr<DelayedSocketData> data(
-      new DelayedSocketData(0, reads, arraysize(reads),
-                            writes, arraysize(writes)));
+  scoped_ptr<DeterministicSocketData> data(
+      new DeterministicSocketData(reads, arraysize(reads),
+                                  writes, arraysize(writes)));
 
   // Setup the request
   HttpRequestInfo request;
@@ -2085,23 +2080,18 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, WindowUpdateOverflow) {
 
   NormalSpdyTransactionHelper helper(request,
                                      BoundNetLog(), GetParam(), NULL);
-  helper.AddData(data.get());
+  helper.SetDeterministic();
   helper.RunPreTestSetup();
-
+  helper.AddDeterministicData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
 
   TestCompletionCallback callback;
   int rv = trans->Start(&helper.request(), callback.callback(), BoundNetLog());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
 
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  rv = callback.WaitForResult();
-  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, rv);
-
-  data->CompleteRead();
-
-  ASSERT_TRUE(helper.session() != NULL);
-  ASSERT_TRUE(helper.session()->spdy_session_pool() != NULL);
-  helper.session()->spdy_session_pool()->CloseAllSessions();
+  data->RunFor(5);
+  ASSERT_TRUE(callback.have_result());
+  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, callback.WaitForResult());
   helper.VerifyDataConsumed();
 }
 

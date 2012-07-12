@@ -63,8 +63,6 @@ class TestSpdyStreamDelegate : public net::SpdyStream::Delegate {
     callback.Run(OK);
   }
 
-  virtual void set_chunk_callback(net::ChunkCallback *) {}
-
  private:
   CompletionCallback callback_;
 };

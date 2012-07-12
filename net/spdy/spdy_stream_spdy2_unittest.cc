@@ -71,8 +71,6 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
     callback_.Reset();
     callback.Run(OK);
   }
-  virtual void set_chunk_callback(net::ChunkCallback *) {}
-
   bool send_headers_completed() const { return send_headers_completed_; }
   const linked_ptr<SpdyHeaderBlock>& response() const {
     return response_;
