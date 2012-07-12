@@ -17,7 +17,9 @@
 // NOTE: Header files that do not require the full definition of Callback or
 // Closure should #include "base/callback_forward.h" instead of this file.
 
-// WHAT IS THIS:
+// -----------------------------------------------------------------------------
+// Introduction
+// -----------------------------------------------------------------------------
 //
 // The templated Callback class is a generalized function object. Together
 // with the Bind() function in bind.h, they provide a type-safe method for
@@ -39,73 +41,188 @@
 // AddRef/Release pairs to the internal state.
 //
 //
-// EXAMPLE USAGE:
+// -----------------------------------------------------------------------------
+// Quick reference for basic stuff
+// -----------------------------------------------------------------------------
 //
-// /* Binding a normal function. */
-// int Return5() { return 5; }
-// base::Callback<int(void)> func_cb = base::Bind(&Return5);
-// LOG(INFO) << func_cb.Run();  // Prints 5.
+// BINDING A BARE FUNCTION
 //
-// void PrintHi() { LOG(INFO) << "hi."; }
-// base::Closure void_func_cb = base::Bind(&PrintHi);
-// void_func_cb.Run();  // Prints: hi.
+//   int Return5() { return 5; }
+//   base::Callback<int(void)> func_cb = base::Bind(&Return5);
+//   LOG(INFO) << func_cb.Run();  // Prints 5.
 //
-// /* Binding a class method. */
-// class Ref : public RefCountedThreadSafe<Ref> {
-//  public:
-//   int Foo() { return 3; }
-//   void PrintBye() { LOG(INFO) << "bye."; }
-// };
-// scoped_refptr<Ref> ref = new Ref();
-// base::Callback<int(void)> ref_cb = base::Bind(&Ref::Foo, ref.get());
-// LOG(INFO) << ref_cb.Run();  // Prints out 3.
+// BINDING A CLASS METHOD
 //
-// base::Closure void_ref_cb = base::Bind(&Ref::PrintBye, ref.get());
-// void_ref_cb.Run();  // Prints: bye.
+//   The first argument to bind is the member function to call, the second is
+//   the object on which to call it.
 //
-// /* Binding a class method in a non-refcounted class.
-//  *
-//  * WARNING: You must be sure the referee outlives the callback!
-//  *          This is particularly important if you post a closure to a
-//  *          MessageLoop because then it becomes hard to know what the
-//  *          lifetime of the referee needs to be.
-//  */
-// class NoRef {
-//  public:
-//   int Foo() { return 4; }
-//   void PrintWhy() { LOG(INFO) << "why???"; }
-// };
-// NoRef no_ref;
-// base::Callback<int(void)> base::no_ref_cb =
-//     base::Bind(&NoRef::Foo, base::Unretained(&no_ref));
-// LOG(INFO) << ref_cb.Run();  // Prints out 4.
+//   class Ref : public base::RefCountedThreadSafe<Ref> {
+//    public:
+//     int Foo() { return 3; }
+//     void PrintBye() { LOG(INFO) << "bye."; }
+//   };
+//   scoped_refptr<Ref> ref = new Ref();
+//   base::Callback<void(void)> ref_cb = base::Bind(&Ref::Foo, ref);
+//   LOG(INFO) << ref_cb.Run();  // Prints out 3.
 //
-// base::Closure void_no_ref_cb =
-//     base::Bind(&NoRef::PrintWhy, base::Unretained(no_ref));
-// void_no_ref_cb.Run();  // Prints: why???
+//   By default the object must support RefCounted or you will get a compiler
+//   error. If you're passing between threads, be sure it's
+//   RefCountedThreadSafe! See "Advanced binding of member functions" below if
+//   you don't want to use reference counting.
 //
-// /* Binding a reference. */
-// int Identity(int n) { return n; }
-// int value = 1;
-// base::Callback<int(void)> bound_copy_cb = base::Bind(&Identity, value);
-// base::Callback<int(void)> bound_ref_cb =
-//     base::Bind(&Identity, base::ConstRef(value));
-// LOG(INFO) << bound_copy_cb.Run();  // Prints 1.
-// LOG(INFO) << bound_ref_cb.Run();  // Prints 1.
-// value = 2;
-// LOG(INFO) << bound_copy_cb.Run();  // Prints 1.
-// LOG(INFO) << bound_ref_cb.Run();  // Prints 2.
+// RUNNING A CALLBACK
 //
-// /* Currying parameters. This also works for methods. */
-// int Sum(int a, int b, int c) {
-//   return a + b + c;
-// }
-// base::Callback<int(int, int)> sum3_cb = base::Bind(&Sum, 3);
-// LOG(INFO) << sum3_cb.Run(4, 5);  // Prints 12.
+//   Callbacks can be run with their "Run" method, which has the same
+//   signature as the template argument to the callback.
 //
-// base::Callback<int(int)> sum7_cb = base::Bind(&Sum, 3, 4);
-// LOG(INFO) << sum7_cb.Run(10);  // Prints 17.
+//   void DoSomething(const base::Callback<void(int, std::string)>& callback) {
+//     callback.Run(5, "hello");
+//   }
 //
+//   Callbacks can be run more than once (they don't get deleted or marked when
+//   run). However, this precludes using base::Passed (see below).
+//
+//   void DoSomething(const base::Callback<double(double)>& callback) {
+//     double myresult = callback.Run(3.14159);
+//     myresult += callback.Run(2.71828);
+//   }
+//
+// PASSING UNBOUND INPUT PARAMETERS
+//
+//   Unbound parameters are specified at the time a callback is Run(). They are
+//   specified in the Callback template type:
+//
+//   void MyFunc(int i, const std::string& str) {}
+//   base::Callback<void(int, const std::string&)> cb = base::Bind(&MyFunc);
+//   cb.Run(23, "hello, world");
+//
+// PASSING BOUND INPUT PARAMETERS
+//
+//   Bound parameters are specified when you create thee callback as arguments
+//   to Bind(). They will be passed to the function and the Run()ner of the
+//   callback doesn't see those values or even know that the function it's
+//   calling.
+//
+//   void MyFunc(int i, const std::string& str) {}
+//   base::Callback<void(void)> cb = base::Bind(&MyFunc, 23, "hello world");
+//   cb.Run();
+//
+//   A callback with no unbound input parameters (base::Callback<void(void)>)
+//   is called a base::Closure. So we could have also written:
+//
+//   base::Closure cb = base::Bind(&MyFunc, 23, "hello world");
+//
+//   When calling member functions, bound parameters just go after the object
+//   pointer.
+//
+//   base::Closure cb = base::Bind(&MyClass::MyFunc, this, 23, "hello world");
+//
+// PARTIAL BINDING OF PARAMETERS
+//
+//   You can specify some parameters when you create the callback, and specify
+//   the rest when you execute the callback.
+//
+//   void MyFunc(int i, const std::string& str) {}
+//   base::Callback<void(int)> cb = base::Bind(&MyFunc, 23);
+//   cb.Run("hello world");
+//
+//   When calling a function bound parameters are first, followed by unbound
+//   parameters.
+//
+//
+// -----------------------------------------------------------------------------
+// Quick reference for advanced binding
+// -----------------------------------------------------------------------------
+//
+// BINDING A CLASS METHOD WITH WEAK POINTERS
+//
+//   base::Bind(&MyClass::Foo, GetWeakPtr());
+//
+//   The callback will not be issued if the object is destroyed at the time
+//   it's issued. DANGER: weak pointers are not threadsafe, so don't use this
+//   when passing between threads!
+//
+// BINDING A CLASS METHOD WITH MANUAL LIFETIME MANAGEMENT
+//
+//   base::Bind(&MyClass::Foo, base::Unretained(this));
+//
+//   This disables all lifetime management on the object. You're responsible
+//   for making sure the object is alive at the time of the call. You break it,
+//   you own it!
+//
+// BINDING A CLASS METHOD AND HAVING THE CALLBACK OWN THE CLASS
+//
+//   MyClass* myclass = new MyClass;
+//   base::Bind(&MyClass::Foo, base::Owned(myclass));
+//
+//   The object will be deleted when the callback is destroyed, even if it's
+//   not run (like if you post a task during shutdown). Potentially useful for
+//   "fire and forget" cases.
+//
+// IGNORING RETURN VALUES
+//
+//   Sometimes you want to call a function that returns a value in a callback
+//   that doesn't expect a return value.
+//
+//   int DoSomething(int arg) { cout << arg << endl; }
+//   base::Callback<void<int>) cb =
+//       base::Bind(base::IgnoreResult(&DoSomething));
+//
+//
+// -----------------------------------------------------------------------------
+// Quick reference for binding parameters to Bind()
+// -----------------------------------------------------------------------------
+//
+// Bound parameters are specified as arguments to Bind() and are passed to the
+// function. A callback with no parameters or no unbound parameters is called a
+// Closure (base::Callback<void(void)> and base::Closure are the same thing).
+//
+// PASSING PARAMETERS OWNED BY THE CALLBACK
+//
+//   void Foo(int* arg) { cout << *arg << endl; }
+//   int* pn = new int(1);
+//   base::Closure foo_callback = base::Bind(&foo, base::Owned(pn));
+//
+//   The parameter will be deleted when the callback is destroyed, even if it's
+//   not run (like if you post a task during shutdown).
+//
+// PASSING PARAMETERS AS A scoped_ptr
+//
+//   void TakesOwnership(scoped_ptr<Foo> arg) {}
+//   scoped_ptr<Foo> f(new Foo);
+//   // f becomes null during the following call.
+//   base::Closure cb = base::Bind(&TakesOwnership, base::Passed(&f));
+//
+//   Ownership of the parameter will be with the callback until the it is run,
+//   when ownership is passed to the callback function. This means the callback
+//   can only be run once. If the callback is never run, it will delete the
+//   object when it's destroyed.
+//
+// PASSING PARAMETERS AS A scoped_refptr
+//
+//   void TakesOneRef(scoped_refptr<Foo> arg) {}
+//   scoped_refptr<Foo> f(new Foo)
+//   base::Closure cb = base::Bind(&TakesOneRef, f);
+//
+//   This should "just work." The closure will take a reference as long as it
+//   is alive, and another reference will be taken for the called function.
+//
+// PASSING PARAMETERS BY REFERENCE
+//
+//   void foo(int arg) { cout << arg << endl }
+//   int n = 1;
+//   base::Closure has_ref = base::Bind(&foo, base::ConstRef(n));
+//   n = 2;
+//   has_ref.Run();  // Prints "2"
+//
+//   Normally parameters are copied in the closure. DANGER: ConstRef stores a
+//   const reference instead, referencing the original parameter. This means
+//   that you must ensure the object outlives the callback!
+//
+//
+// -----------------------------------------------------------------------------
+// Implementation notes
+// -----------------------------------------------------------------------------
 //
 // WHERE IS THIS DESIGN FROM:
 //
