@@ -125,3 +125,6 @@ VerifyEndEntity/CertVerifyProcWeakDigestTest.*
 VerifyIncompleteIntermediate/CertVerifyProcWeakDigestTest.*
 VerifyIncompleteEndEntity/CertVerifyProcWeakDigestTest.*
 VerifyMixed/CertVerifyProcWeakDigestTest.*
+
+# http://crbug.com/137051
+CookieMonster/MultiThreadedCookieStoreTest/0.ThreadCheckDeleteSessionCookies
