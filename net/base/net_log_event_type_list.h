@@ -1070,8 +1070,8 @@ EVENT_TYPE(SPDY_SESSION_SEND_DATA)
 // Receiving a data frame
 //   {
 //     "stream_id": <The stream ID for the window update>,
-//     "length"   : <The size of data sent>,
-//     "flags"    : <Send data flags>,
+//     "length"   : <The size of data received>,
+//     "flags"    : <Receive data flags>,
 //   }
 EVENT_TYPE(SPDY_SESSION_RECV_DATA)
 

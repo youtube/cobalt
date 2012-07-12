@@ -472,7 +472,8 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                         SpdyGoAwayStatus status) OVERRIDE;
   virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
-                                 size_t len) OVERRIDE;
+                                 size_t len,
+                                 SpdyDataFlags flags) OVERRIDE;
   virtual void OnSetting(
       SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
   virtual void OnWindowUpdate(SpdyStreamId stream_id,
