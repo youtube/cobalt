@@ -58,6 +58,22 @@ class ScopedURLFetcherFactory : public base::NonThreadSafe {
 
 class TestURLFetcher : public URLFetcher {
  public:
+  // Interface for tests to intercept production code classes using URLFetcher.
+  // Allows even-driven mock server classes to analyze the correctness of
+  // requests / uploads events and forge responses back at the right moment.
+  class DelegateForTests {
+   public:
+    // Callback issued correspondingly to the call to the |Start()| method.
+    virtual void OnRequestStart(int fetcher_id) = 0;
+
+    // Callback issued correspondingly to the call to |AppendChunkToUpload|.
+    // Uploaded chunks can be retrieved with the |upload_chunks()| getter.
+    virtual void OnChunkUpload(int fetcher_id) = 0;
+
+    // Callback issued correspondingly to the destructor.
+    virtual void OnRequestEnd(int fetcher_id) = 0;
+  };
+
   TestURLFetcher(int id,
                  const GURL& url,
                  URLFetcherDelegate* d);
@@ -128,6 +144,9 @@ class TestURLFetcher : public URLFetcher {
   // Returns the chunks of data uploaded on this URLFetcher.
   const std::list<std::string>& upload_chunks() const { return chunks_; }
 
+  // Checks whether the last call to |AppendChunkToUpload(...)| was final.
+  bool did_receive_last_chunk() const { return did_receive_last_chunk_; }
+
   // Returns the delegate installed on the URLFetcher.
   URLFetcherDelegate* delegate() const { return delegate_; }
 
@@ -140,6 +159,7 @@ class TestURLFetcher : public URLFetcher {
   void set_was_fetched_via_proxy(bool flag);
   void set_response_headers(scoped_refptr<HttpResponseHeaders> headers);
   void set_backoff_delay(base::TimeDelta backoff_delay);
+  void SetDelegateForTests(DelegateForTests* delegate_for_tests);
 
   // Set string data.
   void SetResponseString(const std::string& response);
@@ -156,6 +176,7 @@ class TestURLFetcher : public URLFetcher {
   const int id_;
   const GURL original_url_;
   URLFetcherDelegate* delegate_;
+  DelegateForTests* delegate_for_tests_;
   std::string upload_data_;
   std::list<std::string> chunks_;
   bool did_receive_last_chunk_;
@@ -181,6 +202,8 @@ class TestURLFetcher : public URLFetcher {
   DISALLOW_COPY_AND_ASSIGN(TestURLFetcher);
 };
 
+typedef TestURLFetcher::DelegateForTests TestURLFetcherDelegateForTests;
+
 // Simple URLFetcherFactory method that creates TestURLFetchers. All fetchers
 // are registered in a map by the id passed to the create method.
 class TestURLFetcherFactory : public URLFetcherFactory,
@@ -196,11 +219,13 @@ class TestURLFetcherFactory : public URLFetcherFactory,
       URLFetcherDelegate* d) OVERRIDE;
   TestURLFetcher* GetFetcherByID(int id) const;
   void RemoveFetcherFromMap(int id);
+  void SetDelegateForTests(TestURLFetcherDelegateForTests* delegate_for_tests);
 
  private:
   // Maps from id passed to create to the returned URLFetcher.
   typedef std::map<int, TestURLFetcher*> Fetchers;
   Fetchers fetchers_;
+  TestURLFetcherDelegateForTests* delegate_for_tests_;
 
   DISALLOW_COPY_AND_ASSIGN(TestURLFetcherFactory);
 };
