@@ -101,14 +101,18 @@ void URLRequestFtpJob::OnStartCompleted(int result) {
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
-  // FTP obviously doesn't have HTTP Content-Length header. We have to pass
-  // the content size information manually.
-  set_expected_content_size(
-      transaction_->GetResponseInfo()->expected_content_size);
+  // Note that transaction_ may be NULL due to a creation failure.
+  if (transaction_.get()) {
+    // FTP obviously doesn't have HTTP Content-Length header. We have to pass
+    // the content size information manually.
+    set_expected_content_size(
+        transaction_->GetResponseInfo()->expected_content_size);
+  }
 
   if (result == OK) {
     NotifyHeadersComplete();
-  } else if (transaction_->GetResponseInfo()->needs_auth) {
+  } else if (transaction_.get() &&
+             transaction_->GetResponseInfo()->needs_auth) {
     GURL origin = request_->url().GetOrigin();
     if (server_auth_ && server_auth_->state == AUTH_STATE_HAVE_AUTH) {
       ftp_auth_cache_->Remove(origin, server_auth_->credentials);
