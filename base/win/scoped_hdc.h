@@ -9,6 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/win/scoped_handle.h"
 
 namespace base {
 namespace win {
@@ -47,40 +48,27 @@ class ScopedGetDC {
 
 // Like ScopedHandle but for HDC.  Only use this on HDCs returned from
 // CreateCompatibleDC, CreateDC and CreateIC.
-class ScopedCreateDC {
+class CreateDCTraits {
  public:
-  ScopedCreateDC() : hdc_(NULL) { }
-  explicit ScopedCreateDC(HDC h) : hdc_(h) { }
+  typedef HDC Handle;
 
-  ~ScopedCreateDC() {
-    Close();
+  static bool CloseHandle(HDC handle) {
+    return ::DeleteDC(handle) != FALSE;
   }
 
-  HDC Get() {
-    return hdc_;
+  static bool IsHandleValid(HDC handle) {
+    return handle != NULL;
   }
 
-  void Set(HDC h) {
-    Close();
-    hdc_ = h;
+  static HDC NullHandle() {
+    return NULL;
   }
-
-  operator HDC() { return hdc_; }
 
  private:
-  void Close() {
-#ifdef NOGDI
-    assert(false);
-#else
-    if (hdc_)
-      DeleteDC(hdc_);
-#endif  // NOGDI
-  }
-
-  HDC hdc_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedCreateDC);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CreateDCTraits);
 };
+
+typedef GenericScopedHandle<CreateDCTraits, VerifierTraits> ScopedCreateDC;
 
 }  // namespace win
 }  // namespace base
