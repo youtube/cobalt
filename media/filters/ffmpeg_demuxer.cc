@@ -21,9 +21,8 @@
 #include "media/base/media_switches.h"
 #include "media/base/video_decoder_config.h"
 #include "media/ffmpeg/ffmpeg_common.h"
-#include "media/filters/bitstream_converter.h"
 #include "media/filters/ffmpeg_glue.h"
-#include "media/filters/ffmpeg_h264_bitstream_converter.h"
+#include "media/filters/ffmpeg_h264_to_annex_b_bitstream_converter.h"
 
 namespace media {
 
@@ -210,19 +209,9 @@ void FFmpegDemuxerStream::EnableBitstreamConverter() {
   // Called by hardware decoder to require different bitstream converter.
   // Currently we assume that converter is determined by codec_id;
   DCHECK(stream_);
-
-  if (stream_->codec->codec_id == CODEC_ID_H264) {
-    // Use Chromium bitstream converter in case of H.264
-    bitstream_converter_.reset(
-        new FFmpegH264BitstreamConverter(stream_->codec));
-    CHECK(bitstream_converter_->Initialize());
-  } else if (stream_->codec->codec_id == CODEC_ID_MPEG4) {
-    bitstream_converter_.reset(
-        new FFmpegBitstreamConverter("mpeg4video_es", stream_->codec));
-    CHECK(bitstream_converter_->Initialize());
-  } else {
-    NOTREACHED() << "Unsupported bitstream format.";
-  }
+  DCHECK_EQ(stream_->codec->codec_id, CODEC_ID_H264);
+  bitstream_converter_.reset(
+      new FFmpegH264ToAnnexBBitstreamConverter(stream_->codec));
 }
 
 const AudioDecoderConfig& FFmpegDemuxerStream::audio_decoder_config() {
