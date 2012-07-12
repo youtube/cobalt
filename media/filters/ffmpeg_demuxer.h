@@ -43,8 +43,8 @@ struct AVStream;
 
 namespace media {
 
-class BitstreamConverter;
 class FFmpegDemuxer;
+class FFmpegH264ToAnnexBBitstreamConverter;
 class ScopedPtrAVFreePacket;
 
 class FFmpegDemuxerStream : public DemuxerStream {
@@ -125,8 +125,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   typedef std::deque<ReadCB> ReadQueue;
   ReadQueue read_queue_;
 
-  // Used to translate bitstream formats.
-  scoped_ptr<BitstreamConverter> bitstream_converter_;
+  scoped_ptr<FFmpegH264ToAnnexBBitstreamConverter> bitstream_converter_;
 
   // Used to synchronize access to |buffer_queue_|, |read_queue_|, and
   // |stopped_|. This is so other threads can get access to buffers that have
