@@ -1184,6 +1184,7 @@
         'release_valgrind_build': 1,
         'werror': '',
         'component': 'static_library',
+        'win_use_allocator_shim': 0,
         'use_system_zlib': 0,
       }],
 
@@ -1193,6 +1194,8 @@
       ['build_for_tool=="drmemory"', {
         # DrMemory can't handle the debug CRT dll, so build static.
         'component': 'static_library',
+        # Allocator_shim causes a linker error when we use std::locale.
+        'win_use_allocator_shim': 0,
         # These runtime checks force initialization of stack vars which blocks
         # DrMemory's uninit detection.
         'win_debug_RuntimeChecks': '0',
