@@ -64,7 +64,7 @@ BASE_EXPORT bool IsTouchEnabled();
 
 // Returns true if Windows Parental control activity logging is enabled. This
 // feature is available on Windows Vista and beyond.
-// Can only be called on the UI thread.
+// This function should ideally be called on the UI thread.
 BASE_EXPORT bool IsParentalControlActivityLoggingOn();
 
 }  // namespace win
