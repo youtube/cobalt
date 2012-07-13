@@ -91,12 +91,12 @@ void ChromeClassTester::emitWarning(SourceLocation loc,
       DiagnosticsEngine::Error :
       DiagnosticsEngine::Warning;
   unsigned id = diagnostic().getCustomDiagID(level, err);
-  DiagnosticBuilder B = diagnostic().Report(full, id);
+  DiagnosticBuilder builder = diagnostic().Report(full, id);
 }
 
 bool ChromeClassTester::InBannedNamespace(const Decl* record) {
   std::string n = GetNamespace(record);
-  if (n != "") {
+  if (!n.empty()) {
     return std::find(banned_namespaces_.begin(), banned_namespaces_.end(), n)
         != banned_namespaces_.end();
   }
@@ -110,9 +110,8 @@ std::string ChromeClassTester::GetNamespace(const Decl* record) {
 
 bool ChromeClassTester::InImplementationFile(SourceLocation record_location) {
   std::string filename;
-  if (!GetFilename(record_location, &filename)) {
+  if (!GetFilename(record_location, &filename))
     return false;
-  }
 
   if (ends_with(filename, ".cc") || ends_with(filename, ".cpp") ||
       ends_with(filename, ".mm")) {
@@ -267,9 +266,9 @@ bool ChromeClassTester::IsIgnoredType(const std::string& base_name) {
 
 bool ChromeClassTester::GetFilename(SourceLocation loc,
                                     std::string* filename) {
-  const SourceManager &SM = instance_.getSourceManager();
-  SourceLocation spelling_location = SM.getSpellingLoc(loc);
-  PresumedLoc ploc = SM.getPresumedLoc(spelling_location);
+  const SourceManager& source_manager = instance_.getSourceManager();
+  SourceLocation spelling_location = source_manager.getSpellingLoc(loc);
+  PresumedLoc ploc = source_manager.getPresumedLoc(spelling_location);
   if (ploc.isInvalid()) {
     // If we're in an invalid location, we're looking at things that aren't
     // actually stated in the source.
