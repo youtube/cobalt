@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/metrics/statistics_recorder.h"
 #include "build/build_config.h"
-#include "base/metrics/histogram.h"
 #include "crypto/nss_util.h"
 #include "net/base/net_test_suite.h"
 #include "net/socket/client_socket_pool_base.h"

@@ -6,6 +6,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/pickle.h"
 #include "base/stringprintf.h"
 #include "base/string_number_conversions.h"

@@ -239,6 +239,8 @@
           'metrics/histogram_flattener.h',
           'metrics/histogram_snapshot_manager.cc',
           'metrics/histogram_snapshot_manager.h',
+          'metrics/statistics_recorder.cc',
+          'metrics/statistics_recorder.h',
           'metrics/stats_counters.cc',
           'metrics/stats_counters.h',
           'metrics/stats_table.cc',

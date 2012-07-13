@@ -4,6 +4,8 @@
 
 #include "base/metrics/histogram_snapshot_manager.h"
 
+#include "base/metrics/statistics_recorder.h"
+
 using base::Histogram;
 using base::StatisticsRecorder;
 
