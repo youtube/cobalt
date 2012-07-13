@@ -87,9 +87,6 @@ bool IsTouchEnabled() {
 }
 
 bool IsParentalControlActivityLoggingOn() {
-  DCHECK(MessageLoop::current() &&
-         (MessageLoop::current()->type() == MessageLoop::TYPE_UI));
-
   // Query this info on Windows Vista and above.
   if (base::win::GetVersion() < base::win::VERSION_VISTA)
     return false;
