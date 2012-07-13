@@ -173,15 +173,16 @@ TEST_F(SQLConnectionTest, Raze) {
 
 // Test that Raze() maintains page_size.
 TEST_F(SQLConnectionTest, RazePageSize) {
-  const int kPageSize = 4096;
-
-  // Make sure that the default size isn't already |kPageSize|.
+  // Fetch the default page size and double it for use in this test.
   // Scoped to release statement before Close().
+  int default_page_size = 0;
   {
     sql::Statement s(db().GetUniqueStatement("PRAGMA page_size"));
     ASSERT_TRUE(s.Step());
-    ASSERT_NE(kPageSize, s.ColumnInt(0));
+    default_page_size = s.ColumnInt(0);
   }
+  ASSERT_GT(default_page_size, 0);
+  const int kPageSize = 2 * default_page_size;
 
   // Re-open the database to allow setting the page size.
   db().Close();
