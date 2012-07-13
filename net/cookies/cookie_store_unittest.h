@@ -147,6 +147,17 @@ class CookieStoreTest : public testing::Test {
     return callback.result();
   }
 
+  bool SetCookieWithServerTime(CookieStore* cs,
+                               const GURL& url,
+                               const std::string& cookie_line,
+                               const base::Time& server_time) {
+    CookieOptions options;
+    if (!CookieStoreTestTraits::supports_http_only)
+      options.set_include_httponly();
+    options.set_server_time(server_time);
+    return SetCookieWithOptions(cs, url, cookie_line, options);
+  }
+
   bool SetCookie(CookieStore* cs,
                  const GURL& url,
                  const std::string& cookie_line) {
@@ -696,6 +707,22 @@ TYPED_TEST_P(CookieStoreTest, TestCookieDeletion) {
                               std::string(kValidCookieLine) +
                               "; expires=Mon, 18-Apr-1977 22:50:13 GMT"));
   this->MatchCookieLines("", this->GetCookies(cs, this->url_google_));
+
+  // Create a persistent cookie.
+  EXPECT_TRUE(this->SetCookie(cs, this->url_google_,
+                              std::string(kValidCookieLine) +
+                              "; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+  this->MatchCookieLines("A=B", this->GetCookies(cs, this->url_google_));
+  // Check that it is not deleted with significant enough clock skew.
+  base::Time server_time;
+  EXPECT_TRUE(base::Time::FromString("Sun, 17-Apr-1977 22:50:13 GMT",
+                                     &server_time));
+  EXPECT_TRUE(this->SetCookieWithServerTime(
+      cs, this->url_google_,
+      std::string(kValidCookieLine) +
+      "; expires=Mon, 18-Apr-1977 22:50:13 GMT",
+      server_time));
+  this->MatchCookieLines("A=B", this->GetCookies(cs, this->url_google_));
 
   // Create a persistent cookie.
   EXPECT_TRUE(this->SetCookie(cs, this->url_google_,
