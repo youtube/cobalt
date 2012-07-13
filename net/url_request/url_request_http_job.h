@@ -97,6 +97,7 @@ class URLRequestHttpJob : public URLRequestJob {
 
   std::vector<std::string> response_cookies_;
   size_t response_cookies_save_index_;
+  base::Time response_date_;
 
   // Auth states for proxy and origin server.
   AuthState proxy_auth_state_;
