@@ -646,6 +646,11 @@
             ['use_ash==1', {
               'dependencies': [
                 '../ash/ash.gyp:ash_shell',
+                # With aura_shell_unittests as a target ash_unittests (the new
+                # name) will be built as well.  We need both until all build
+                # bots are running ash_unittests as the test target.
+                # TODO(jamescook): Switch to ash_unittests after all bots on
+                # waterfall are using the new name.  crbug.com/110107
                 '../ash/ash.gyp:aura_shell_unittests',
               ],
             }],
