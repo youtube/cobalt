@@ -951,23 +951,15 @@
         'use_system_skia%': '0',
         'use_system_harfbuzz%': '0',
 
-        # Use the system icu.
-        'use_system_icu%': 0,
-
         # TODO(yfriedman): Remove once unit_tests can link for Android.
         # To override it specify:
         # GYP_DEFINES="$GYP_DEFINES android_unit_test_target_type=executable"
         #     android_gyp
         'android_unit_test_target_type%': 'static_library',
 
-        'conditions': [
-          # Choose static link by build type.
-          ['android_build_type==0', {
-            'static_link_system_icu%': 1,
-          }, {
-            'static_link_system_icu%': 0,
-          }],
-        ],
+        # Always use the system zlib.
+        'use_system_zlib%': 1,
+
         # TODO(steveblock): Investigate using the system versions of sqlite and
         # libjpeg.
         # Enable to use system sqlite.
@@ -979,6 +971,8 @@
         # Enable to use the system stlport, otherwise statically
         # link the NDK one?
         'use_system_stlport%': '<(android_build_type)',
+        # Enable to use the system ICU.
+        'use_system_icu%': '<(android_build_type)',
         # Copy it out one scope.
         'android_build_type%': '<(android_build_type)',
       }],  # OS=="android"
