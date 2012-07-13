@@ -35,7 +35,7 @@
 #elif defined(COMPILER_GCC)
 #if defined(OS_ANDROID) || defined(__LB_PS3__)
 #define BASE_HASH_NAMESPACE std
-#elif defined(__LB_WII__)
+#elif defined(__LB_BLUE__)
 #define BASE_HASH_NAMESPACE Metrowerks
 #else
 #define BASE_HASH_NAMESPACE __gnu_cxx
@@ -49,7 +49,7 @@
 #undef __DEPRECATED
 #endif
 
-#if defined(OS_ANDROID) || defined(__LB_PS3__) || defined(__LB_WII__)
+#if defined(OS_ANDROID) || defined(__LB_PS3__) || defined(__LB_BLUE__)
 #include <hash_map>
 #include <hash_set>
 #else
@@ -66,7 +66,7 @@
 
 namespace BASE_HASH_NAMESPACE {
 
-#if !defined(OS_ANDROID) && !defined(__LB_PS3__) && !defined(__LB_WII__)
+#if !defined(OS_ANDROID) && !defined(__LB_PS3__) && !defined(__LB_BLUE__)
 // The GNU C++ library provides identity hash functions for many integral types,
 // but not for |long long|.  This hash function will truncate if |size_t| is
 // narrower than |long long|.  This is probably good enough for what we will
