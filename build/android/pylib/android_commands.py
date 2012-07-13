@@ -319,6 +319,56 @@ class AndroidCommands(object):
     if out.strip() != 'remount succeeded':
       raise errors.MsgException('Remount failed: %s' % out)
 
+  def RestartAdbServer(self):
+    """Restart the adb server."""
+    self.KillAdbServer()
+    self.StartAdbServer()
+
+  def KillAdbServer(self):
+    """Kill adb server."""
+    adb_cmd = ['adb', 'kill-server']
+    return cmd_helper.RunCmd(adb_cmd)
+
+  def StartAdbServer(self):
+    """Start adb server."""
+    adb_cmd = ['adb', 'start-server']
+    return cmd_helper.RunCmd(adb_cmd)
+
+  def WaitForSystemBootCompleted(self, wait_time):
+    """Waits for targeted system's boot_completed flag to be set.
+
+    Args:
+      wait_time: time in seconds to wait
+
+    Raises:
+      WaitForResponseTimedOutError if wait_time elapses and flag still not
+      set.
+    """
+    logging.info('Waiting for system boot completed...')
+    self._adb.SendCommand('wait-for-device')
+    # Now the device is there, but system not boot completed.
+    # Query the sys.boot_completed flag with a basic command
+    boot_completed = False
+    attempts = 0
+    wait_period = 5
+    while not boot_completed and (attempts * wait_period) < wait_time:
+      output = self._adb.SendShellCommand('getprop sys.boot_completed',
+                                          retry_count=1)
+      output = output.strip()
+      if output == '1':
+        boot_completed = True
+      else:
+        # If 'error: xxx' returned when querying the flag, it means
+        # adb server lost the connection to the emulator, so restart the adb
+        # server.
+        if 'error:' in output:
+          self.RestartAdbServer()
+        time.sleep(wait_period)
+        attempts += 1
+    if not boot_completed:
+      raise errors.WaitForResponseTimedOutError(
+          'sys.boot_completed flag was not set after %s seconds' % wait_time)
+
   def WaitForSdCardReady(self, timeout_time):
     """Wait for the SD card ready before pushing data into it."""
     logging.info('Waiting for SD card ready...')
