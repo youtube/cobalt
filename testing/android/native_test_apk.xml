@@ -32,18 +32,13 @@ found in the LICENSE file.
 
   <!-- We expect PRODUCT_DIR to be set like the gyp var
        (e.g. $ROOT/out/Debug) -->
-  <!-- TODO(jrg): ideally we need this to run before -build-setup, where
-       directories are made based on this variable. -->
-  <target name="-pre-build">
-    <if>
-      <condition>
-        <isset property="PRODUCT_DIR" />
-      </condition>
-      <else>
-        <fail message="PRODUCT_DIR env var not set?" />
-      </else>
-    </if>
-  </target>
+  <fail message="PRODUCT_DIR env var not set?">
+    <condition>
+      <not>
+        <isset property="PRODUCT_DIR"/>
+      </not>
+    </condition>
+  </fail>
 
   <property name="out.dir" location="${PRODUCT_DIR}/replaceme_apk"/>
 
