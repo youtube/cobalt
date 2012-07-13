@@ -548,6 +548,13 @@ class BASE_EXPORT MessageLoopForUI : public MessageLoop {
   void DidProcessMessage(const MSG& message);
 #endif  // defined(OS_WIN)
 
+#if defined(OS_IOS)
+  // On iOS, the main message loop cannot be Run().  Instead call Attach(),
+  // which connects this MessageLoop to the UI thread's CFRunLoop and allows
+  // PostTask() to work.
+  void Attach();
+#endif
+
 #if defined(OS_ANDROID)
   // On Android, the UI message loop is handled by Java side. So Run() should
   // never be called. Instead use Start(), which will forward all the native UI
