@@ -580,8 +580,6 @@
               # needed on iOS (mostly for unit tests).
               ['exclude', '^process_util'],
               ['include', '^process_util_ios\\.mm$'],
-              # TODO(ios): Add message_pump support.
-              ['exclude', '^message_pump'],
             ],
           }],
           ['OS != "mac" or >(nacl_untrusted_build)==1', {

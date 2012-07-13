@@ -720,6 +720,12 @@ void MessageLoopForUI::Start() {
 }
 #endif
 
+#if defined(OS_IOS)
+void MessageLoopForUI::Attach() {
+  static_cast<base::MessagePumpUIApplication*>(pump_.get())->Attach(this);
+}
+#endif
+
 #if !defined(OS_MACOSX) && !defined(OS_NACL) && !defined(OS_ANDROID)
 void MessageLoopForUI::AddObserver(Observer* observer) {
   pump_ui()->AddObserver(observer);

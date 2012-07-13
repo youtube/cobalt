@@ -4,13 +4,17 @@
 
 #import "base/message_pump_mac.h"
 
-#import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
 #include <limits>
 
 #include "base/logging.h"
+#include "base/run_loop.h"
 #include "base/time.h"
+
+#if !defined(OS_IOS)
+#import <AppKit/AppKit.h>
+#endif  // !defined(OS_IOS)
 
 namespace {
 
@@ -160,6 +164,16 @@ void MessagePumpCFRunLoopBase::Run(Delegate* delegate) {
   run_nesting_level_ = nesting_level_ + 1;
 
   Delegate* last_delegate = delegate_;
+  SetDelegate(delegate);
+
+  DoRun(delegate);
+
+  // Restore the previous state of the object.
+  SetDelegate(last_delegate);
+  run_nesting_level_ = last_run_nesting_level;
+}
+
+void MessagePumpCFRunLoopBase::SetDelegate(Delegate* delegate) {
   delegate_ = delegate;
 
   if (delegate) {
@@ -175,12 +189,6 @@ void MessagePumpCFRunLoopBase::Run(Delegate* delegate) {
       delegateless_idle_work_ = false;
     }
   }
-
-  DoRun(delegate);
-
-  // Restore the previous state of the object.
-  delegate_ = last_delegate;
-  run_nesting_level_ = last_run_nesting_level;
 }
 
 // May be called on any thread.
@@ -519,6 +527,30 @@ void MessagePumpNSRunLoop::Quit() {
   CFRunLoopWakeUp(run_loop());
 }
 
+#if defined(OS_IOS)
+MessagePumpUIApplication::MessagePumpUIApplication()
+    : run_loop_(NULL) {
+}
+
+MessagePumpUIApplication::~MessagePumpUIApplication() {}
+
+void MessagePumpUIApplication::DoRun(Delegate* delegate) {
+  NOTREACHED();
+}
+
+void MessagePumpUIApplication::Quit() {
+  NOTREACHED();
+}
+
+void MessagePumpUIApplication::Attach(Delegate* delegate) {
+  DCHECK(!run_loop_);
+  run_loop_ = new base::RunLoop();
+  CHECK(run_loop_->BeforeRun());
+  SetDelegate(delegate);
+}
+
+#else
+
 MessagePumpNSApplication::MessagePumpNSApplication()
     : keep_running_(true),
       running_own_loop_(false) {
@@ -620,24 +652,6 @@ NSAutoreleasePool* MessagePumpCrApplication::CreateAutoreleasePool() {
 }
 
 // static
-MessagePump* MessagePumpMac::Create() {
-  if ([NSThread isMainThread]) {
-    if ([NSApp conformsToProtocol:@protocol(CrAppProtocol)])
-      return new MessagePumpCrApplication;
-
-    // The main-thread MessagePump implementations REQUIRE an NSApp.
-    // Executables which have specific requirements for their
-    // NSApplication subclass should initialize appropriately before
-    // creating an event loop.
-    [NSApplication sharedApplication];
-    not_using_crapp = true;
-    return new MessagePumpNSApplication;
-  }
-
-  return new MessagePumpNSRunLoop;
-}
-
-// static
 bool MessagePumpMac::UsingCrApp() {
   DCHECK([NSThread isMainThread]);
 
@@ -657,6 +671,29 @@ bool MessagePumpMac::IsHandlingSendEvent() {
   DCHECK([NSApp conformsToProtocol:@protocol(CrAppProtocol)]);
   NSObject<CrAppProtocol>* app = static_cast<NSObject<CrAppProtocol>*>(NSApp);
   return [app isHandlingSendEvent];
+}
+#endif  // !defined(OS_IOS)
+
+// static
+MessagePump* MessagePumpMac::Create() {
+  if ([NSThread isMainThread]) {
+#if defined(OS_IOS)
+    return new MessagePumpUIApplication;
+#else
+    if ([NSApp conformsToProtocol:@protocol(CrAppProtocol)])
+      return new MessagePumpCrApplication;
+
+    // The main-thread MessagePump implementations REQUIRE an NSApp.
+    // Executables which have specific requirements for their
+    // NSApplication subclass should initialize appropriately before
+    // creating an event loop.
+    [NSApplication sharedApplication];
+    not_using_crapp = true;
+    return new MessagePumpNSApplication;
+#endif
+  }
+
+  return new MessagePumpNSRunLoop;
 }
 
 }  // namespace base
