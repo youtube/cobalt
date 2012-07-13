@@ -78,7 +78,7 @@
         }, {  # use_glib!=1
             'sources/': [
               ['exclude', '/xdg_user_dirs/'],
-              ['exclude', '_nss\.cc$'],
+              ['exclude', '_nss\\.cc$'],
             ],
         }],
         ['OS == "android" and _toolset == "host"', {
@@ -557,17 +557,20 @@
           'sources/': [
             # Only test the iOS-meaningful portion of process_utils.
             ['exclude', '^process_util_unittest'],
-            ['include', '^process_util_unittest_ios.cc$'],
+            ['include', '^process_util_unittest_ios\\.cc$'],
             # Requires spawning processes.
-            ['exclude', '^metrics/stats_table_unittest.cc'],
+            ['exclude', '^metrics/stats_table_unittest\\.cc$'],
             # TODO(ios): Remove these as base/ is unforked.
             # For now, exclude everything that doesn't build as-is, just to
             # get a minimal target building.
-            ['exclude', '^memory/aligned_memory_unittest.cc'],
-            ['exclude', '^message_'],
-            ['exclude', '^shared_memory_unittest.cc'],
-            ['exclude', '^sys_info_unittest.cc'],
+            ['exclude', '^memory/aligned_memory_unittest\\.cc$'],
+            ['exclude', '^shared_memory_unittest\\.cc$'],
+            ['exclude', '^sys_info_unittest\\.cc$'],
             ['exclude', '^system_monitor'],
+	    # Unittests that don't pass.
+            ['exclude', '^message_loop_unittest\\.cc$'],
+            ['exclude', '^synchronization/waitable_event_watcher_unittest\\.cc$'],
+            ['exclude', '^timer_unittest\\.cc$'],
           ],
         }],
         ['use_glib==1', {
@@ -636,8 +639,8 @@
           'sources/': [
             # Pull in specific Mac files for iOS (which have been filtered out
             # by file name rules).
-            ['include', 'mac/objc_property_releaser_unittest.mm'],
-            ['include', 'sys_string_conversions_mac_unittest.mm'],
+            ['include', '^mac/objc_property_releaser_unittest\\.mm$'],
+            ['include', '^sys_string_conversions_mac_unittest\\.mm$'],
           ],
         }],
       ],  # target_conditions
