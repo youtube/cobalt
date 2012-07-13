@@ -847,6 +847,11 @@
           'defines': [
             'POSIX_AVOID_MMAP',
           ],
+          'direct_dependent_settings': {
+            'defines': [
+              'POSIX_AVOID_MMAP',
+            ],
+          },
           'sources!': [
             'disk_cache/mapped_file_posix.cc',
           ],
