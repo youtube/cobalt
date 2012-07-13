@@ -25,9 +25,11 @@
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
-#if !defined(OS_IOS)
+#if defined(OS_IOS)
+#include "base/test/test_listener_ios.h"
+#else
 #include "base/test/mock_chrome_application_mac.h"
-#endif  // !OS_IOS
+#endif  // OS_IOS
 #endif  // OS_MACOSX
 
 #if defined(OS_ANDROID)
@@ -234,6 +236,9 @@ int TestSuite::Run() {
   // Check to see if we are being run as a client process.
   if (!client_func.empty())
     return multi_process_function_list::InvokeChildProcessTest(client_func);
+#if defined(OS_IOS)
+  base::test_listener_ios::RegisterTestEndListener();
+#endif
   int result = RUN_ALL_TESTS();
 
   // If there are failed tests, see if we should ignore the failures.
