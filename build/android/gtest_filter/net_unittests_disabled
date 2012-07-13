@@ -39,7 +39,6 @@ HTTPSRequestTest.HTTPSMismatchedTest
 HTTPSRequestTest.HTTPSExpiredTest
 HTTPSRequestTest.HTTPSPreloadedHSTSTest
 HTTPSRequestTest.ClientAuthTest
-URLRequestTest.FileTest
 URLRequestTest.FileDirRedirectNoCrash
 URLRequestTest.DelayedCookieCallback
 URLRequestTest.DoNotSendCookies
