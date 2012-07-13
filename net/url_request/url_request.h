@@ -35,7 +35,6 @@ class ChildProcessSecurityPolicyTest;
 class ComponentUpdateInterceptor;
 class TestAutomationProvider;
 class URLRequestAutomationJob;
-class UserScriptListenerTest;
 
 namespace base {
 namespace debug {
@@ -55,6 +54,12 @@ class AppCacheURLRequestJobTest;
 // interface.
 namespace content {
 class ResourceDispatcherHostTest;
+}
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace extensions {
+class UserScriptListenerTest;
 }
 
 // Temporary layering violation to allow existing users of a deprecated
@@ -180,7 +185,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     friend class ::ChildProcessSecurityPolicyTest;
     friend class ::ComponentUpdateInterceptor;
     friend class ::TestAutomationProvider;
-    friend class ::UserScriptListenerTest;
     friend class ::URLRequestAutomationJob;
     friend class TestInterceptor;
     friend class URLRequestFilter;
@@ -188,6 +192,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     friend class appcache::AppCacheRequestHandlerTest;
     friend class appcache::AppCacheURLRequestJobTest;
     friend class content::ResourceDispatcherHostTest;
+    friend class extensions::UserScriptListenerTest;
     friend class fileapi::FileSystemDirURLRequestJobTest;
     friend class fileapi::FileSystemURLRequestJobTest;
     friend class fileapi::FileWriterDelegateTest;
