@@ -48,6 +48,7 @@
           'atomic_ref_count.h',
           'atomic_sequence_num.h',
           'atomicops.h',
+          'atomicops_internals_mac.h',
           'atomicops_internals_x86_gcc.cc',
           'atomicops_internals_x86_gcc.h',
           'atomicops_internals_x86_msvc.h',
@@ -562,6 +563,7 @@
             'sources/': [
               # Pull in specific Mac files for iOS (which have been filtered out
               # by file name rules).
+              ['include', '^atomicops_internals_mac\\.'],
               ['include', '^base_paths_mac\\.'],
               ['include', '^file_util_mac\\.'],
               ['include', '^file_version_info_mac\\.'],
