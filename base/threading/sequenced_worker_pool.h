@@ -103,7 +103,7 @@ class BASE_EXPORT SequencedWorkerPool {
 
    private:
     friend class SequencedWorkerPool;
-#if defined(__LB_WII__)
+#if defined(__LB_BLUE__)
     // inner classes don't have the access rights of their containers
     friend class Inner;
 #endif
