@@ -1533,7 +1533,7 @@ int SetNonBlocking(int fd) {
 #if defined(OS_WIN)
   unsigned long no_block = 1;
   return ioctlsocket(fd, FIONBIO, &no_block);
-#elif defined(__LB_PS3__) || defined(__LB_WII__)
+#elif defined(__LB_PS3__) || defined(__LB_BLUE__)
   int val = 1;
   return setsockopt(fd, SOL_SOCKET, SO_NBIO, &val, sizeof(int));
 #elif defined(OS_POSIX)
@@ -1992,7 +1992,7 @@ bool IPv6Supported() {
   // so we don't get a 'defined but not used' warning/err
   IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
   return true;
-#elif defined(__LB_PS3__) || defined(__LB_WII__)
+#elif defined(__LB_PS3__) || defined(__LB_BLUE__)
   return false;
 #elif defined(OS_POSIX)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
