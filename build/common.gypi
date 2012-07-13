@@ -927,8 +927,8 @@
         # Android does not support background apps.
         'enable_background%': 0,
 
-        # Android does not support promo resources service.
-        'enable_promo_resource_service%': 0,
+        # Always shows promotions.
+        'enable_promo_resource_service%': 1,
 
         # Sessions are store separately in the Java side.
         'enable_session_service%': 0,
