@@ -686,6 +686,9 @@
       ],
       'sources': [
         'perftimer.cc',
+        'test/main_hook.cc',
+        'test/main_hook.h',
+        'test/main_hook_ios.mm',
         'test/mock_chrome_application_mac.h',
         'test/mock_chrome_application_mac.mm',
         'test/mock_devices_changed_observer.cc',
@@ -708,6 +711,8 @@
         'test/test_file_util_mac.cc',
         'test/test_file_util_posix.cc',
         'test/test_file_util_win.cc',
+        'test/test_listener_ios.h',
+        'test/test_listener_ios.mm',
         'test/test_reg_util_win.cc',
         'test/test_reg_util_win.h',
         'test/test_suite.cc',
