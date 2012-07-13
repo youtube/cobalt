@@ -1314,10 +1314,10 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
 
   // We have all the values; let's verify that they make sense for a 206
   // response.
-  /* NOTE: Some of YouTube's servers violate this last check and return
+  /* NOTE: Some servers violate this last check and return
            instance_length less than last_byte_position.  The value of
            instance_length is still correct when this happens, so we will
-           tolerate it if everything else looks good.  --joeyparrish */
+           tolerate it if everything else looks good. */
   if (*first_byte_position < 0 || *last_byte_position < 0 ||
       *instance_length < 0 /* || *instance_length - 1 < *last_byte_position */)
     return false;

@@ -219,7 +219,7 @@ class Singleton {
  private:
   // Classes using the Singleton<T> pattern should declare a GetInstance()
   // method and call Singleton::get() from within that.
-#if defined(__LB_WII__)
+#if defined(__LB_BLUE__)
   // the friend function syntax just isn't working with this compiler.
   friend class Type;
 #else

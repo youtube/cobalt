@@ -90,7 +90,7 @@ class BASE_EXPORT BaseTimer_Helper {
  protected:
   BaseTimer_Helper() : delayed_task_(NULL) {}
 
-#if defined(__LB_WII__)
+#if defined(__LB_BLUE__)
  // inner classes don't have the access rights of their containers
  public:
 #endif
@@ -109,7 +109,7 @@ class BASE_EXPORT BaseTimer_Helper {
     BaseTimer_Helper* timer_;
     TimeDelta delay_;
   };
-#if defined(__LB_WII__)
+#if defined(__LB_BLUE__)
  protected:
 #endif
 
