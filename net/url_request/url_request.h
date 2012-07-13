@@ -341,6 +341,16 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
 
   // The URL that should be consulted for the third-party cookie blocking
   // policy.
+  //
+  // WARNING: This URL must only be used for the third-party cookie blocking
+  //          policy. It MUST NEVER be used for any kind of SECURITY check.
+  //
+  //          For example, if a top-level navigation is redirected, the
+  //          first-party for cookies will be the URL of the first URL in the
+  //          redirect chain throughout the whole redirect. If it was used for
+  //          a security check, an attacker might try to get around this check
+  //          by starting from some page that redirects to the
+  //          host-to-be-attacked.
   const GURL& first_party_for_cookies() const {
     return first_party_for_cookies_;
   }
