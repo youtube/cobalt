@@ -15,6 +15,10 @@ namespace base {
 class MessagePumpForUI;
 #endif
 
+#if defined(OS_IOS)
+class MessagePumpUIApplication;
+#endif
+
 // Helper class to Run a nested MessageLoop. Please do not use nested
 // MessageLoops in production code! If you must, use this class instead of
 // calling MessageLoop::Run/Quit directly. RunLoop::Run can only be called once
@@ -74,6 +78,12 @@ class BASE_EXPORT RunLoop {
   // Android doesn't support the blocking MessageLoop::Run, so it calls
   // BeforeRun and AfterRun directly.
   friend class base::MessagePumpForUI;
+#endif
+
+#if defined(OS_IOS)
+  // iOS doesn't support the blocking MessageLoop::Run, so it calls
+  // BeforeRun directly.
+  friend class base::MessagePumpUIApplication;
 #endif
 
   // Return false to abort the Run.
