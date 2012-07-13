@@ -236,7 +236,9 @@ std::string CanonPath(const GURL& url, const ParsedCookie& pc) {
   return CanonPathWithString(url, path_string);
 }
 
-Time CanonExpiration(const ParsedCookie& pc, const Time& current) {
+Time CanonExpiration(const ParsedCookie& pc,
+                     const Time& current,
+                     const Time& server_time) {
   // First, try the Max-Age attribute.
   uint64 max_age = 0;
   if (pc.HasMaxAge() &&
@@ -250,8 +252,11 @@ Time CanonExpiration(const ParsedCookie& pc, const Time& current) {
   }
 
   // Try the Expires attribute.
-  if (pc.HasExpires())
-    return CookieMonster::ParseCookieTime(pc.Expires());
+  if (pc.HasExpires()) {
+    // Adjust for clock skew between server and host.
+    return current + (CookieMonster::ParseCookieTime(pc.Expires()) -
+                      server_time);
+  }
 
   // Invalid or no expiration, persistent cookie.
   return Time();
@@ -1888,6 +1893,11 @@ bool CookieMonster::SetCookieWithCreationTimeAndOptions(
     creation_time = CurrentTime();
     last_time_seen_ = creation_time;
   }
+  Time server_time;
+  if (options.has_server_time())
+    server_time = options.server_time();
+  else
+    server_time = creation_time;
 
   // Parse the cookie.
   ParsedCookie pc(cookie_line);
@@ -1913,7 +1923,7 @@ bool CookieMonster::SetCookieWithCreationTimeAndOptions(
       pc.MACAlgorithm() : std::string();
 
   scoped_ptr<CanonicalCookie> cc;
-  Time cookie_expires = CanonExpiration(pc, creation_time);
+  Time cookie_expires = CanonExpiration(pc, creation_time, server_time);
 
   cc.reset(new CanonicalCookie(url, pc.Name(), pc.Value(), cookie_domain,
                                cookie_path, mac_key, mac_algorithm,
@@ -2375,7 +2385,7 @@ CookieMonster::CanonicalCookie::CanonicalCookie(const GURL& url,
       secure_(pc.IsSecure()),
       httponly_(pc.IsHttpOnly()) {
   if (pc.HasExpires())
-    expiry_date_ = CanonExpiration(pc, creation_date_);
+    expiry_date_ = CanonExpiration(pc, creation_date_, creation_date_);
   else
     SetSessionCookieExpiryTime();
 
