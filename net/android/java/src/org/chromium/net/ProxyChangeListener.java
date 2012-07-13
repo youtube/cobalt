@@ -19,13 +19,27 @@ import org.chromium.base.NativeClassQualifiedName;
 @JNINamespace("net")
 public class ProxyChangeListener {
     private static final String TAG = "ProxyChangeListener";
+    private static boolean sEnabled = true;
 
     private int mNativePtr;
     private Context mContext;
     private ProxyReceiver mProxyReceiver;
+    private Delegate mDelegate;
+
+    public interface Delegate {
+        public void proxySettingsChanged();
+    }
 
     private ProxyChangeListener(Context context) {
         mContext = context;
+    }
+
+    public static void setEnabled(boolean enabled) {
+        sEnabled = enabled;
+    }
+
+    public void setDelegateForTesting(Delegate delegate) {
+        mDelegate = delegate;
     }
 
     @CalledByNative
