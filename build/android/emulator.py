@@ -224,7 +224,7 @@ class Emulator(object):
       # Now that we checked for obvious problems, wait for a boot complete.
       # Waiting for the package manager is sometimes problematic.
       a = android_commands.AndroidCommands(self.device)
-      a.Adb().WaitForSystemBootCompleted(self._WAITFORBOOT_TIMEOUT)
+      a.WaitForSystemBootCompleted(self._WAITFORBOOT_TIMEOUT)
 
   def Shutdown(self):
     """Shuts down the process started by launch."""
