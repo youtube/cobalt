@@ -21,7 +21,7 @@ class ChromeClassTester : public clang::ASTConsumer {
   explicit ChromeClassTester(clang::CompilerInstance& instance);
   virtual ~ChromeClassTester();
 
-  // ASTConsumer:
+  // clang::ASTConsumer:
   virtual void HandleTagDeclDefinition(clang::TagDecl* tag);
 
  protected:
