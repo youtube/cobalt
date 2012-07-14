@@ -72,11 +72,6 @@ bool NullAudioSink::SetVolume(double volume) {
   return volume == 0.0;
 }
 
-void NullAudioSink::GetVolume(double* volume) {
-  // Audio is always muted.
-  *volume = 0.0;
-}
-
 void NullAudioSink::SetPlaying(bool is_playing) {
   base::AutoLock auto_lock(lock_);
   playing_ = is_playing;

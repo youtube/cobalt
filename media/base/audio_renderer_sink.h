@@ -63,9 +63,6 @@ class AudioRendererSink
   // Returns |true| on success.
   virtual bool SetVolume(double volume) = 0;
 
-  // Gets the playback volume, with range [0.0, 1.0] inclusive.
-  virtual void GetVolume(double* volume) = 0;
-
  protected:
   friend class base::RefCountedThreadSafe<AudioRendererSink>;
   virtual ~AudioRendererSink() {}

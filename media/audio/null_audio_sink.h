@@ -35,7 +35,6 @@ class MEDIA_EXPORT NullAudioSink
   virtual void Play() OVERRIDE;
   virtual void SetPlaybackRate(float rate) OVERRIDE;
   virtual bool SetVolume(double volume) OVERRIDE;
-  virtual void GetVolume(double* volume) OVERRIDE;
 
   // Enables audio frame hashing and reinitializes the MD5 context.  Must be
   // called prior to Initialize().
