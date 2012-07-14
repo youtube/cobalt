@@ -87,6 +87,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   enum State {
     WAITING_FOR_INIT,
     INITIALIZING,
+    WAITING_FOR_START_TIME,
     INITIALIZED,
     ENDED,
     PARSE_ERROR,
@@ -142,6 +143,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // removed with RemoveID() but can not be re-added (yet).
   std::string source_id_audio_;
   std::string source_id_video_;
+
+  base::TimeDelta start_time_;
 
   DISALLOW_COPY_AND_ASSIGN(ChunkDemuxer);
 };

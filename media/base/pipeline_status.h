@@ -12,6 +12,7 @@
 namespace media {
 
 // Status states for pipeline.  All codes except PIPELINE_OK indicate errors.
+// TODO(vrk/scherkus): Trim the unused status codes. (crbug.com/126070)
 enum PipelineStatus {
   PIPELINE_OK,
   PIPELINE_ERROR_URL_NOT_FOUND,

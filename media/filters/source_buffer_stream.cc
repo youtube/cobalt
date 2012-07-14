@@ -59,6 +59,9 @@ class SourceBufferRange {
   // |timestamp|.
   void SeekAheadPast(base::TimeDelta timestamp);
 
+  // Seeks to the beginning of the range.
+  void SeekToStart();
+
   // Finds the next keyframe from |buffers_| after |timestamp|, and creates and
   // returns a new SourceBufferRange with the buffers from that keyframe onward.
   // The buffers in the new SourceBufferRange are moved out of this range. If
@@ -226,7 +229,8 @@ static int kDefaultBufferDurationInMs = 125;
 namespace media {
 
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
-    : seek_pending_(false),
+    : stream_start_time_(kNoTimestamp()),
+      seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
       selected_range_(NULL),
       end_of_stream_(false),
@@ -239,7 +243,8 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
 }
 
 SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config)
-    : seek_pending_(false),
+    : stream_start_time_(kNoTimestamp()),
+      seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
       selected_range_(NULL),
       end_of_stream_(false),
@@ -269,6 +274,15 @@ void SourceBufferStream::OnNewMediaSegment(
   last_buffer_timestamp_ = kNoTimestamp();
 }
 
+void SourceBufferStream::SetStartTime(base::TimeDelta stream_start_time) {
+  DCHECK(stream_start_time_ == kNoTimestamp());
+  DCHECK(stream_start_time != kNoTimestamp());
+  stream_start_time_ = stream_start_time;
+
+  DCHECK(ranges_.empty() ||
+         ranges_.front()->GetStartTimestamp() >= stream_start_time_);
+}
+
 bool SourceBufferStream::Append(
     const SourceBufferStream::BufferQueue& buffers) {
   DCHECK(!buffers.empty());
@@ -286,10 +300,15 @@ bool SourceBufferStream::Append(
     return false;
   }
 
+  if (stream_start_time_ != kNoTimestamp() &&
+      media_segment_start_time_ < stream_start_time_) {
+    DVLOG(1) << "Cannot append a media segment before the start of stream.";
+    return false;
+  }
+
   UpdateMaxInterbufferDistance(buffers);
 
-  // Save a snapshot of the |selected_range_| state before range modifications
-  // are made.
+  // Save a snapshot of stream state before range modifications are made.
   base::TimeDelta next_buffer_timestamp = GetNextBufferTimestamp();
   base::TimeDelta end_buffer_timestamp = GetEndBufferTimestamp();
 
@@ -322,14 +341,6 @@ bool SourceBufferStream::Append(
       range_for_new_buffers, &deleted_next_buffer, &deleted_buffers);
   MergeWithAdjacentRangeIfNecessary(range_for_new_buffers);
 
-  // If these were the first buffers appended to the stream, seek to the
-  // beginning of the range.
-  // TODO(vrk): This should be done by ChunkDemuxer. (crbug.com/132815)
-  if (!seek_pending_ && !selected_range_) {
-    SetSelectedRange(*range_for_new_buffers);
-    selected_range_->Seek(buffers.front()->GetDecodeTimestamp());
-  }
-
   // Seek to try to fulfill a previous call to Seek().
   if (seek_pending_) {
     DCHECK(!selected_range_);
@@ -360,8 +371,14 @@ bool SourceBufferStream::Append(
   return true;
 }
 
+bool SourceBufferStream::IsBeforeFirstRange(base::TimeDelta timestamp) const {
+  if (ranges_.empty())
+    return false;
+  return timestamp < ranges_.front()->GetStartTimestamp();
+}
+
 bool SourceBufferStream::IsMonotonicallyIncreasing(
-    const BufferQueue& buffers) {
+    const BufferQueue& buffers) const {
   DCHECK(!buffers.empty());
   base::TimeDelta prev_timestamp = last_buffer_timestamp_;
   for (BufferQueue::const_iterator itr = buffers.begin();
@@ -605,14 +622,24 @@ void SourceBufferStream::MergeWithAdjacentRangeIfNecessary(
 }
 
 void SourceBufferStream::Seek(base::TimeDelta timestamp) {
+  DCHECK(stream_start_time_ != kNoTimestamp());
+  DCHECK(timestamp >= stream_start_time_);
   SetSelectedRange(NULL);
   track_buffer_.clear();
+
+  if (IsBeforeFirstRange(timestamp)) {
+    SetSelectedRange(ranges_.front());
+    ranges_.front()->SeekToStart();
+    seek_pending_ = false;
+    end_of_stream_ = false;
+    return;
+  }
 
   seek_buffer_timestamp_ = timestamp;
   seek_pending_ = true;
 
   RangeList::iterator itr = ranges_.end();
-  for (itr = ranges_.begin(); itr != ranges_.end(); itr++) {
+  for (itr = ranges_.begin(); itr != ranges_.end(); ++itr) {
     if ((*itr)->CanSeekTo(timestamp))
       break;
   }
@@ -800,6 +827,11 @@ void SourceBufferRange::SeekAhead(base::TimeDelta timestamp,
   }
   next_buffer_index_ = result->second;
   DCHECK_LT(next_buffer_index_, static_cast<int>(buffers_.size()));
+}
+
+void SourceBufferRange::SeekToStart() {
+  DCHECK(!buffers_.empty());
+  next_buffer_index_ = 0;
 }
 
 SourceBufferRange* SourceBufferRange::SplitRange(base::TimeDelta timestamp) {

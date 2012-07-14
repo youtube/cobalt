@@ -37,6 +37,9 @@ class MEDIA_EXPORT SourceBufferStream {
   // starting at |media_segment_start_time|.
   void OnNewMediaSegment(base::TimeDelta media_segment_start_time);
 
+  // Sets the start time of the stream.
+  void SetStartTime(base::TimeDelta stream_start_time);
+
   // Add the |buffers| to the SourceBufferStream. Buffers within the queue are
   // expected to be in order, but multiple calls to Append() may add buffers out
   // of order or overlapping. Assumes all buffers within |buffers| are in
@@ -159,9 +162,13 @@ class MEDIA_EXPORT SourceBufferStream {
   // for the previous |selected_range_|.
   void SetSelectedRange(SourceBufferRange* range);
 
+  // Returns true if |timestamp| occurs before the start timestamp of the first
+  // range in |ranges_|, false otherwise or if |ranges_| is empty.
+  bool IsBeforeFirstRange(base::TimeDelta timestamp) const;
+
   // Returns true if the timestamps of |buffers| are monotonically increasing
   // since the previous append to the media segment, false otherwise.
-  bool IsMonotonicallyIncreasing(const BufferQueue& buffers);
+  bool IsMonotonicallyIncreasing(const BufferQueue& buffers) const;
 
   // Returns true if |selected_range_| is the only range in |ranges_| that
   // HasNextBufferPosition().
@@ -175,6 +182,9 @@ class MEDIA_EXPORT SourceBufferStream {
 
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
+
+  // The starting time of the stream.
+  base::TimeDelta stream_start_time_;
 
   // True if more data needs to be appended before the Seek() can complete,
   // false if no Seek() has been requested or the Seek() is completed.
