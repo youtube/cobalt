@@ -10,35 +10,26 @@
 namespace media {
 
 AudioRendererMixerInput::AudioRendererMixerInput(
-    const scoped_refptr<AudioRendererMixer>& mixer)
+    const GetMixerCB& get_mixer_cb, const RemoveMixerCB& remove_mixer_cb)
     : playing_(false),
       initialized_(false),
       volume_(1.0f),
-      mixer_(mixer),
+      get_mixer_cb_(get_mixer_cb),
+      remove_mixer_cb_(remove_mixer_cb),
       callback_(NULL) {
 }
 
 AudioRendererMixerInput::~AudioRendererMixerInput() {
-  if (!initialized_)
-    return;
-
-  // Clean up |audio_data_|.
-  for (size_t i = 0; i < audio_data_.size(); ++i)
-    delete [] audio_data_[i];
-  audio_data_.clear();
+  // Mixer is no longer safe to use after |remove_mixer_cb_| has been called.
+  remove_mixer_cb_.Run(params_);
 }
 
 void AudioRendererMixerInput::Initialize(
     const AudioParameters& params,
     AudioRendererSink::RenderCallback* callback) {
   DCHECK(!initialized_);
-
-  // TODO(dalecurtis): If we switch to AVX/SSE optimization, we'll need to
-  // allocate these on 32-byte boundaries and ensure they're sized % 32 bytes.
-  audio_data_.reserve(params.channels());
-  for (int i = 0; i < params.channels(); ++i)
-    audio_data_.push_back(new float[params.frames_per_buffer()]);
-
+  params_ = params;
+  mixer_ = get_mixer_cb_.Run(params_);
   callback_ = callback;
   initialized_ = true;
 }

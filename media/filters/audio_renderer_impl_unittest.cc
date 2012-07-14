@@ -6,6 +6,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/stl_util.h"
 #include "media/base/data_buffer.h"
+#include "media/base/mock_audio_renderer_sink.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
@@ -19,26 +20,6 @@ using ::testing::Return;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 
-namespace {
-
-class MockAudioSink : public media::AudioRendererSink {
- public:
-  MOCK_METHOD2(Initialize, void(const media::AudioParameters& params,
-                                RenderCallback* callback));
-  MOCK_METHOD0(Start, void());
-  MOCK_METHOD0(Stop, void());
-  MOCK_METHOD1(Pause, void(bool flush));
-  MOCK_METHOD0(Play, void());
-  MOCK_METHOD1(SetPlaybackRate, void(float rate));
-  MOCK_METHOD1(SetVolume, bool(double volume));
-  MOCK_METHOD1(GetVolume, void(double* volume));
-
- protected:
-  virtual ~MockAudioSink() {}
-};
-
-}  // namespace
-
 namespace media {
 
 // Constants for distinguishing between muted audio and playing audio when using
@@ -50,7 +31,7 @@ class AudioRendererImplTest : public ::testing::Test {
  public:
   // Give the decoder some non-garbage media properties.
   AudioRendererImplTest()
-      : renderer_(new AudioRendererImpl(new NiceMock<MockAudioSink>())),
+      : renderer_(new AudioRendererImpl(new NiceMock<MockAudioRendererSink>())),
         decoder_(new MockAudioDecoder()) {
     renderer_->SetHost(&host_);
 
