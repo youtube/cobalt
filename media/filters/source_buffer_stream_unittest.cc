@@ -21,6 +21,9 @@ class SourceBufferStreamTest : public testing::Test {
   SourceBufferStreamTest() {
     stream_.reset(new SourceBufferStream(config_));
     SetStreamInfo(kDefaultFramesPerSecond, kDefaultKeyframesPerSecond);
+
+    // Set start time to the beginning of the stream.
+    stream_->SetStartTime(base::TimeDelta());
   }
 
   void SetStreamInfo(int frames_per_second, int keyframes_per_second) {
@@ -1155,6 +1158,7 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
 
   // Append 5 buffers at position (5 + |bump|) through 9, where the media
   // segment begins at position 5.
+  Seek(5);
   NewSegmentAppend_OffsetFirstBuffer(5, 5, bump);
   scoped_refptr<StreamParserBuffer> buffer;
 
@@ -1180,6 +1184,17 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
   CheckExpectedBuffers(16, 19);
 }
 
+TEST_F(SourceBufferStreamTest, Seek_BeforeStartOfSegment) {
+  // Append 10 buffers at positions 5 through 14.
+  NewSegmentAppend(5, 10);
+
+  // Seek to a time before the first buffer in the range.
+  Seek(0);
+
+  // Should return buffers from the beginning of the range.
+  CheckExpectedBuffers(5, 14);
+}
+
 TEST_F(SourceBufferStreamTest, OldSeekPoint_CompleteOverlap) {
   // Append 5 buffers at positions 0 through 4.
   NewSegmentAppend(0, 4);
@@ -1200,18 +1215,21 @@ TEST_F(SourceBufferStreamTest, OldSeekPoint_CompleteOverlap) {
 }
 
 TEST_F(SourceBufferStreamTest, OldSeekPoint_CompleteOverlap_Pending) {
-  // Append 5 buffers at positions 10 through 14 and seek to beginning of the
-  // range.
-  NewSegmentAppend(10, 5);
-  Seek(10);
+  // Append 2 buffers at positions 0 through 1.
+  NewSegmentAppend(0, 2);
 
-  // Now seek to the beginning of the stream.
-  Seek(0);
+  // Append 5 buffers at positions 15 through 19 and seek to beginning of the
+  // range.
+  NewSegmentAppend(15, 5);
+  Seek(15);
+
+  // Now seek position 5.
+  Seek(5);
 
   // Completely overlap the old seek point.
-  NewSegmentAppend(5, 15);
+  NewSegmentAppend(10, 15);
 
-  // The seek at time 0 should still be pending.
+  // The seek at position 5 should still be pending.
   CheckNoNextBuffer();
 }
 
@@ -1235,18 +1253,21 @@ TEST_F(SourceBufferStreamTest, OldSeekPoint_MiddleOverlap) {
 }
 
 TEST_F(SourceBufferStreamTest, OldSeekPoint_MiddleOverlap_Pending) {
-  // Append 15 buffers at positions 5 through 19 and seek to position 15.
-  NewSegmentAppend(5, 15);
-  Seek(15);
+  // Append 2 buffers at positions 0 through 1.
+  NewSegmentAppend(0, 2);
 
-  // Now seek to the beginning of the stream.
-  Seek(0);
+  // Append 15 buffers at positions 10 through 24 and seek to position 20.
+  NewSegmentAppend(10, 15);
+  Seek(20);
 
-  // Overlap the middle of the range such that there are now two ranges.
-  NewSegmentAppend(10, 3);
-  CheckExpectedRanges("{ [5,12) [15,19) }");
+  // Now seek to position 5.
+  Seek(5);
 
-  // The seek at time 0 should still be pending.
+  // Overlap the middle of the range such that it is now split into two ranges.
+  NewSegmentAppend(15, 3);
+  CheckExpectedRanges("{ [0,1) [10,17) [20,24) }");
+
+  // The seek at position 5 should still be pending.
   CheckNoNextBuffer();
 }
 
@@ -1269,15 +1290,18 @@ TEST_F(SourceBufferStreamTest, OldSeekPoint_StartOverlap) {
 }
 
 TEST_F(SourceBufferStreamTest, OldSeekPoint_StartOverlap_Pending) {
-  // Append 15 buffers at positions 5 through 19 and seek to position 15.
-  NewSegmentAppend(5, 15);
-  Seek(15);
+  // Append 2 buffers at positions 0 through 1.
+  NewSegmentAppend(0, 2);
 
-  // Now seek to the beginning of the stream.
-  Seek(0);
+  // Append 15 buffers at positions 10 through 24 and seek to position 20.
+  NewSegmentAppend(10, 15);
+  Seek(20);
+
+  // Now seek to position 5.
+  Seek(5);
 
   // Start overlap the old seek point.
-  NewSegmentAppend(10, 10);
+  NewSegmentAppend(15, 10);
 
   // The seek at time 0 should still be pending.
   CheckNoNextBuffer();
@@ -1302,15 +1326,18 @@ TEST_F(SourceBufferStreamTest, OldSeekPoint_EndOverlap) {
 }
 
 TEST_F(SourceBufferStreamTest, OldSeekPoint_EndOverlap_Pending) {
-  // Append 15 buffers at positions 10 through 24 and seek to start of range.
-  NewSegmentAppend(10, 15);
-  Seek(10);
+  // Append 2 buffers at positions 0 through 1.
+  NewSegmentAppend(0, 2);
 
-  // Now seek to the beginning of the stream.
-  Seek(0);
+  // Append 15 buffers at positions 15 through 29 and seek to start of range.
+  NewSegmentAppend(15, 15);
+  Seek(15);
+
+  // Now seek to position 5
+  Seek(5);
 
   // End overlap the old seek point.
-  NewSegmentAppend(5, 10);
+  NewSegmentAppend(10, 10);
 
   // The seek at time 0 should still be pending.
   CheckNoNextBuffer();
@@ -1361,6 +1388,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenAppend) {
 TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenStartOverlap) {
   // Append 10 buffers at positions 0 through 9 and exhaust the buffers.
   NewSegmentAppend(0, 10, &kDataA);
+  Seek(0);
   CheckExpectedBuffers(0, 9, &kDataA);
 
   // Next buffer is at position 10, so should not be able to fulfill request.
@@ -1389,6 +1417,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenStartOverlap) {
 TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenCompleteOverlap) {
   // Append 5 buffers at positions 10 through 14 and exhaust the buffers.
   NewSegmentAppend(10, 5, &kDataA);
+  Seek(10);
   CheckExpectedBuffers(10, 14, &kDataA);
 
   // Next buffer is at position 15, so should not be able to fulfill request.
@@ -1416,6 +1445,7 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenCompleteOverlap) {
 TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenEndOverlap) {
   // Append 5 buffers at positions 10 through 14 and exhaust the buffers.
   NewSegmentAppend(10, 5, &kDataA);
+  Seek(10);
   CheckExpectedBuffers(10, 14, &kDataA);
   CheckExpectedRanges("{ [10,14) }");
 
@@ -1467,17 +1497,10 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_Overlap_Selected_Complete) {
   CheckExpectedBuffers(10, 14, &kDataB);
 }
 
-TEST_F(SourceBufferStreamTest, GetNextBuffer_NoSeek) {
-  // Append 5 buffers at position 5.
-  NewSegmentAppend(5, 5);
-
-  // Should receive buffers from the start without needing to seek.
-  CheckExpectedBuffers(5, 5);
-}
-
 TEST_F(SourceBufferStreamTest, PresentationTimestampIndependence) {
   // Append 20 buffers at position 0.
   NewSegmentAppend(0, 20);
+  Seek(0);
 
   int last_keyframe_idx = -1;
   base::TimeDelta last_keyframe_presentation_timestamp;

@@ -5,6 +5,7 @@
 #include "media/filters/chunk_demuxer.h"
 
 #include "base/bind.h"
+#include "base/callback_helpers.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
@@ -167,6 +168,9 @@ class ChunkDemuxerStream : public DemuxerStream {
   // Append() belong to a media segment that starts at |start_timestamp|.
   void OnNewMediaSegment(TimeDelta start_timestamp);
 
+  // Notifies the stream that it begins at |start_time|.
+  void SetStartTime(TimeDelta start_time);
+
   // Called when mid-stream config updates occur.
   // Returns true if the new config is accepted.
   // Returns false if the new config should trigger an error.
@@ -263,6 +267,11 @@ bool ChunkDemuxerStream::IsSeekPending() const {
 void ChunkDemuxerStream::OnNewMediaSegment(TimeDelta start_timestamp) {
   base::AutoLock auto_lock(lock_);
   stream_->OnNewMediaSegment(start_timestamp);
+}
+
+void ChunkDemuxerStream::SetStartTime(TimeDelta start_time) {
+  base::AutoLock auto_lock(lock_);
+  stream_->SetStartTime(start_time);
 }
 
 bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
@@ -459,7 +468,8 @@ void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
 ChunkDemuxer::ChunkDemuxer(ChunkDemuxerClient* client)
     : state_(WAITING_FOR_INIT),
       host_(NULL),
-      client_(client) {
+      client_(client),
+      start_time_(kNoTimestamp()) {
   DCHECK(client);
 }
 
@@ -486,6 +496,7 @@ void ChunkDemuxer::Stop(const base::Closure& callback) {
 
 void ChunkDemuxer::Seek(TimeDelta time, const PipelineStatusCB& cb) {
   DVLOG(1) << "Seek(" << time.InSecondsF() << ")";
+  DCHECK(time >= start_time_);
 
   PipelineStatus status = PIPELINE_ERROR_INVALID_STATE;
   {
@@ -534,10 +545,9 @@ scoped_refptr<DemuxerStream> ChunkDemuxer::GetStream(
 }
 
 TimeDelta ChunkDemuxer::GetStartTime() const {
-  DVLOG(1) << "GetStartTime()";
-  // TODO(acolwell) : Fix this so it uses the time on the first packet.
-  // (crbug.com/132815)
-  return TimeDelta();
+  DCHECK(start_time_ != kNoTimestamp());
+  DVLOG(1) << "GetStartTime(): " << start_time_.InSecondsF();
+  return start_time_;
 }
 
 void ChunkDemuxer::StartWaitingForSeek() {
@@ -693,9 +703,9 @@ bool ChunkDemuxer::AppendData(const std::string& id,
 
     switch (state_) {
       case INITIALIZING:
+      case WAITING_FOR_START_TIME:
         DCHECK_GT(stream_parser_map_.count(id), 0u);
         if (!stream_parser_map_[id]->Parse(data, length)) {
-          DCHECK_EQ(state_, INITIALIZING);
           ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
           return true;
         }
@@ -880,7 +890,7 @@ bool ChunkDemuxer::CanEndOfStream_Locked() const {
 }
 
 void ChunkDemuxer::OnStreamParserInitDone(bool success, TimeDelta duration) {
-  DVLOG(1) << "OnSourceBufferInitDone(" << success << ", "
+  DVLOG(1) << "OnStreamParserInitDone(" << success << ", "
            << duration.InSecondsF() << ")";
   lock_.AssertAcquired();
   DCHECK_EQ(state_, INITIALIZING);
@@ -899,10 +909,7 @@ void ChunkDemuxer::OnStreamParserInitDone(bool success, TimeDelta duration) {
 
   host_->SetDuration(duration_);
 
-  ChangeState_Locked(INITIALIZED);
-  PipelineStatusCB cb;
-  std::swap(cb, init_cb_);
-  cb.Run(PIPELINE_OK);
+  ChangeState_Locked(WAITING_FOR_START_TIME);
 }
 
 bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
@@ -950,6 +957,7 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
 }
 
 bool ChunkDemuxer::OnAudioBuffers(const StreamParser::BufferQueue& buffers) {
+  lock_.AssertAcquired();
   DCHECK_NE(state_, SHUTDOWN);
 
   if (!audio_)
@@ -959,6 +967,7 @@ bool ChunkDemuxer::OnAudioBuffers(const StreamParser::BufferQueue& buffers) {
 }
 
 bool ChunkDemuxer::OnVideoBuffers(const StreamParser::BufferQueue& buffers) {
+  lock_.AssertAcquired();
   DCHECK_NE(state_, SHUTDOWN);
 
   if (!video_)
@@ -975,13 +984,37 @@ bool ChunkDemuxer::OnNeedKey(scoped_array<uint8> init_data,
 
 void ChunkDemuxer::OnNewMediaSegment(const std::string& source_id,
                                      TimeDelta start_timestamp) {
-  // TODO(vrk): There should be a special case for the first appends where all
-  // streams (for both demuxed and muxed case) begin at the earliest stream
-  // timestamp. (crbug.com/132815)
+  DVLOG(2) << "OnNewMediaSegment(" << source_id << ", "
+           << start_timestamp.InSecondsF() << ")";
+  lock_.AssertAcquired();
+
+  if (start_time_ == kNoTimestamp()) {
+    DCHECK(state_ == INITIALIZING || state_ == WAITING_FOR_START_TIME);
+    // Use the first reported media segment start time as the |start_time_|
+    // for the demuxer.
+    start_time_ = start_timestamp;
+  }
+
   if (audio_ && source_id == source_id_audio_)
     audio_->OnNewMediaSegment(start_timestamp);
   if (video_ && source_id == source_id_video_)
     video_->OnNewMediaSegment(start_timestamp);
+
+  if (state_ != WAITING_FOR_START_TIME)
+    return;
+
+  if (audio_) {
+    audio_->SetStartTime(start_time_);
+    audio_->Seek(start_time_);
+  }
+  if (video_) {
+    video_->SetStartTime(start_time_);
+    video_->Seek(start_time_);
+  }
+
+  // The demuxer is now initialized after the |start_timestamp_| was set.
+  ChangeState_Locked(INITIALIZED);
+  base::ResetAndReturn(&init_cb_).Run(PIPELINE_OK);
 }
 
 }  // namespace media
