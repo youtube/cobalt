@@ -33,9 +33,10 @@ class MEDIA_EXPORT AudioRendererMixerInput
   virtual void Play() OVERRIDE;
   virtual void Pause(bool flush) OVERRIDE;
   virtual bool SetVolume(double volume) OVERRIDE;
-  virtual void GetVolume(double* volume) OVERRIDE;
   virtual void Initialize(const AudioParameters& params,
                           AudioRendererSink::RenderCallback* renderer) OVERRIDE;
+
+  void GetVolume(double* volume);
 
  protected:
   virtual ~AudioRendererMixerInput();
