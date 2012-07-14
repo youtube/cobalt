@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "base/callback.h"
 #include "media/base/audio_renderer_sink.h"
 
 namespace media {
@@ -16,12 +17,13 @@ class AudioRendererMixer;
 class MEDIA_EXPORT AudioRendererMixerInput
     : NON_EXPORTED_BASE(public AudioRendererSink) {
  public:
-  explicit AudioRendererMixerInput(
-      const scoped_refptr<AudioRendererMixer>& mixer);
+  typedef base::Callback<AudioRendererMixer*(
+      const AudioParameters& params)> GetMixerCB;
+  typedef base::Callback<void(const AudioParameters& params)> RemoveMixerCB;
 
-  // Each input should manage its own data buffer.  The mixer will call this
-  // method when it needs a buffer for rendering.
-  const std::vector<float*>& audio_data() { return audio_data_; }
+  AudioRendererMixerInput(
+      const GetMixerCB& get_mixer_cb, const RemoveMixerCB& remove_mixer_cb);
+
   AudioRendererSink::RenderCallback* callback() { return callback_; }
   bool playing() { return playing_; }
 
@@ -43,15 +45,20 @@ class MEDIA_EXPORT AudioRendererMixerInput
   bool initialized_;
   double volume_;
 
-  // AudioRendererMixer is reference counted by all its AudioRendererMixerInputs
-  // and is destroyed when all AudioRendererMixerInputs have called RemoveMixer.
-  scoped_refptr<AudioRendererMixer> mixer_;
+  // Callbacks provided during construction which allow AudioRendererMixerInput
+  // to retrieve a mixer during Initialize() and notify when it's done with it.
+  GetMixerCB get_mixer_cb_;
+  RemoveMixerCB remove_mixer_cb_;
+
+  // AudioParameters received during Initialize().
+  AudioParameters params_;
+
+  // AudioRendererMixer provided through |get_mixer_cb_| during Initialize(),
+  // guaranteed to live (at least) until |remove_mixer_cb_| is called.
+  AudioRendererMixer* mixer_;
 
   // Source of audio data which is provided to the mixer.
   AudioRendererSink::RenderCallback* callback_;
-
-  // Vector for rendering audio data which will be used by the mixer.
-  std::vector<float*> audio_data_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioRendererMixerInput);
 };

@@ -7,19 +7,22 @@
 
 #include <vector>
 
-#include "base/time.h"
 #include "media/base/audio_renderer_sink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
 
+// Fake RenderCallback which will fill each request with a sine wave.  Sine
+// state is kept across callbacks.  State can be reset to default via reset().
 class FakeAudioRenderCallback : public AudioRendererSink::RenderCallback {
  public:
-  // Initializes |fill_value_| to a random value seeded by current time.
-  explicit FakeAudioRenderCallback(const AudioParameters& params);
+  // The function used to fulfill Render() is f(x) = sin(2 * PI * x * |step|),
+  // where x = [|number_of_frames| * m, |number_of_frames| * (m + 1)] and m =
+  // the number of Render() calls fulfilled thus far.
+  explicit FakeAudioRenderCallback(double step);
   virtual ~FakeAudioRenderCallback();
 
-  // Renders |fill_value_| into the provided audio data buffer.  If |half_fill_|
+  // Renders a sine wave into the provided audio data buffer.  If |half_fill_|
   // is set, will only fill half the buffer.
   int Render(const std::vector<float*>& audio_data, int number_of_frames,
              int audio_delay_milliseconds) OVERRIDE;
@@ -28,17 +31,13 @@ class FakeAudioRenderCallback : public AudioRendererSink::RenderCallback {
   // Toggles only filling half the requested amount during Render().
   void set_half_fill(bool half_fill) { half_fill_ = half_fill; }
 
-  float fill_value() { return fill_value_; }
-
-  // Generates a fill value between [-1, 1).  NextFillValue() is deterministic
-  // based on fill_value_.  Which means it will generate the same sequence of
-  // fill values every time unless |fill_value_| is set using set_fill_value().
-  void NextFillValue();
+  // Reset the sine state to initial value.
+  void reset() { x_ = 0; }
 
  private:
   bool half_fill_;
-  float fill_value_;
-  AudioParameters audio_parameters_;
+  double x_;
+  double step_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioRenderCallback);
 };

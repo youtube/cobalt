@@ -11,13 +11,10 @@
 
 namespace media {
 
-// Arbitrarily chosen prime value for the fake random number generator.
-static const int kFakeRandomSeed = 9440671;
-
-FakeAudioRenderCallback::FakeAudioRenderCallback(const AudioParameters& params)
+FakeAudioRenderCallback::FakeAudioRenderCallback(double step)
     : half_fill_(false),
-      fill_value_(1.0f),
-      audio_parameters_(params) {
+      step_(step) {
+  reset();
 }
 
 FakeAudioRenderCallback::~FakeAudioRenderCallback() {}
@@ -27,18 +24,18 @@ int FakeAudioRenderCallback::Render(const std::vector<float*>& audio_data,
                                     int audio_delay_milliseconds) {
   if (half_fill_)
     number_of_frames /= 2;
-  for (size_t i = 0; i < audio_data.size(); ++i)
-    std::fill(audio_data[i], audio_data[i] + number_of_frames, fill_value_);
+
+  // Fill first channel with a sine wave.
+  for (int i = 0; i < number_of_frames; ++i)
+    audio_data[0][i] = sin(2 * M_PI * (x_ + step_ * i));
+  x_ += number_of_frames * step_;
+
+  // Copy first channel into the rest of the channels.
+  for (size_t i = 1; i < audio_data.size(); ++i)
+    memcpy(audio_data[i], audio_data[0],
+           number_of_frames * sizeof(*audio_data[0]));
 
   return number_of_frames;
-}
-
-void FakeAudioRenderCallback::NextFillValue() {
-  // Use irrationality of PI to fake random numbers; square fill_value_ to keep
-  // numbers between [0, 1) so range extension to [-1, 1) by 2 * x - 1 works.
-  fill_value_ = 2.0f * (static_cast<int>(
-      M_PI * fill_value_ * fill_value_ * kFakeRandomSeed) % kFakeRandomSeed) /
-      static_cast<float>(kFakeRandomSeed) - 1.0f;
 }
 
 }  // namespace media
