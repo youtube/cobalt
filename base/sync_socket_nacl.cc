@@ -18,7 +18,6 @@ namespace base {
 const SyncSocket::Handle SyncSocket::kInvalidHandle = -1;
 
 SyncSocket::SyncSocket() : handle_(kInvalidHandle) {
-  NOTREACHED();
 }
 
 SyncSocket::~SyncSocket() {
@@ -30,28 +29,36 @@ bool SyncSocket::CreatePair(SyncSocket* socket_a, SyncSocket* socket_b) {
 }
 
 bool SyncSocket::Close() {
- return false;
+  if (handle_ != kInvalidHandle) {
+    if (close(handle_) < 0)
+      DPLOG(ERROR) << "close";
+    handle_ = -1;
+  }
+  return true;
 }
 
 size_t SyncSocket::Send(const void* buffer, size_t length) {
-  return 0;
+  // Not implemented since it's not needed by any client code yet.
+  return -1;
 }
 
 size_t SyncSocket::Receive(void* buffer, size_t length) {
-  return 0;
+  return read(handle_, buffer, length);
 }
 
 size_t SyncSocket::Peek() {
-  return 0;
+  return -1;
 }
 
-CancelableSyncSocket::CancelableSyncSocket() {}
+CancelableSyncSocket::CancelableSyncSocket() {
+}
+
 CancelableSyncSocket::CancelableSyncSocket(Handle handle)
     : SyncSocket(handle) {
 }
 
 size_t CancelableSyncSocket::Send(const void* buffer, size_t length) {
-  return 0;
+  return -1;
 }
 
 bool CancelableSyncSocket::Shutdown() {
