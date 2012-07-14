@@ -33,11 +33,11 @@ static const double kLowLatencyMaxError = 0.04;
 static const double kHighLatencyMaxRMSError = 0.0036;
 static const double kHighLatencyMaxError = 0.04;
 
-class MultiChannelResamplerTestCase
+class MultiChannelResamplerTest
     : public testing::TestWithParam<int> {
  public:
-  MultiChannelResamplerTestCase() {}
-  virtual ~MultiChannelResamplerTestCase() {
+  MultiChannelResamplerTest() {}
+  virtual ~MultiChannelResamplerTest() {
     if (!audio_data_.empty()) {
       for (size_t i = 0; i < audio_data_.size(); ++i)
         delete [] audio_data_[i];
@@ -71,7 +71,7 @@ class MultiChannelResamplerTestCase
     InitializeAudioData(channels, frames);
     MultiChannelResampler resampler(
         channels, kScaleFactor, base::Bind(
-            &MultiChannelResamplerTestCase::ProvideInput,
+            &MultiChannelResamplerTest::ProvideInput,
             base::Unretained(this)));
     resampler.Resample(audio_data_, frames);
     TestValues(expected_max_rms_error, expected_max_error);
@@ -113,20 +113,20 @@ class MultiChannelResamplerTestCase
   int frames_;
   std::vector<float*> audio_data_;
 
-  DISALLOW_COPY_AND_ASSIGN(MultiChannelResamplerTestCase);
+  DISALLOW_COPY_AND_ASSIGN(MultiChannelResamplerTest);
 };
 
-TEST_P(MultiChannelResamplerTestCase, HighLatency) {
+TEST_P(MultiChannelResamplerTest, HighLatency) {
   HighLatencyTest(GetParam());
 }
 
-TEST_P(MultiChannelResamplerTestCase, LowLatency) {
+TEST_P(MultiChannelResamplerTest, LowLatency) {
   LowLatencyTest(GetParam());
 }
 
 // Test common channel layouts: mono, stereo, 5.1, 7.1.
 INSTANTIATE_TEST_CASE_P(
-    MultiChannelResamplerTest, MultiChannelResamplerTestCase,
+    MultiChannelResamplerTest, MultiChannelResamplerTest,
     testing::Values(1, 2, 6, 8));
 
 }  // namespace media

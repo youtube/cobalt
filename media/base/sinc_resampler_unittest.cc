@@ -105,17 +105,17 @@ class SinusoidalLinearChirpSource {
 };
 
 typedef std::tr1::tuple<int, int, double, double> SincResamplerTestData;
-class SincResamplerTestCase
+class SincResamplerTest
     : public testing::TestWithParam<SincResamplerTestData> {
  public:
-  SincResamplerTestCase()
+  SincResamplerTest()
       : input_rate_(std::tr1::get<0>(GetParam())),
         output_rate_(std::tr1::get<1>(GetParam())),
         rms_error_(std::tr1::get<2>(GetParam())),
         low_freq_error_(std::tr1::get<3>(GetParam())) {
   }
 
-  virtual ~SincResamplerTestCase() {}
+  virtual ~SincResamplerTest() {}
 
  protected:
   int input_rate_;
@@ -125,7 +125,7 @@ class SincResamplerTestCase
 };
 
 // Tests resampling using a given input and output sample rate.
-TEST_P(SincResamplerTestCase, Resample) {
+TEST_P(SincResamplerTest, Resample) {
   // Make comparisons using one second of data.
   static const double kTestDurationSecs = 1;
   int input_samples = kTestDurationSecs * input_rate_;
@@ -205,7 +205,7 @@ static const double kResamplingRMSError = -14.58;
 // Thresholds chosen arbitrarily based on what each resampling reported during
 // testing.  All thresholds are in dbFS, http://en.wikipedia.org/wiki/DBFS.
 INSTANTIATE_TEST_CASE_P(
-    SincResamplerTest, SincResamplerTestCase, testing::Values(
+    SincResamplerTest, SincResamplerTest, testing::Values(
         // To 44.1kHz
         std::tr1::make_tuple(8000, 44100, kResamplingRMSError, -62.73),
         std::tr1::make_tuple(11025, 44100, kResamplingRMSError, -72.19),
