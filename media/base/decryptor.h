@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "media/base/media_export.h"
 
@@ -29,6 +30,11 @@ class MEDIA_EXPORT Decryptor {
     kOutputError,
     kHardwareChangeError,
     kDomainError
+  };
+
+  enum DecryptStatus {
+    kSuccess,  // Decryption successfully completed. Decrypted buffer ready.
+    kError  // Error occurred during decryption.
   };
 
   Decryptor() {}
@@ -54,11 +60,20 @@ class MEDIA_EXPORT Decryptor {
   virtual void CancelKeyRequest(const std::string& key_system,
                                 const std::string& session_id) = 0;
 
-  // Decrypts the |input| buffer, which should not be NULL.
-  // Returns a DecoderBuffer with the decrypted data if decryption succeeded.
-  // Returns NULL if decryption failed.
-  virtual scoped_refptr<DecoderBuffer> Decrypt(
-      const scoped_refptr<DecoderBuffer>& input) = 0;
+  // Decrypts the |encrypted| buffer. The decrypt status and decrypted buffer
+  // are returned via the provided callback |decrypt_cb|. The |encrypted| buffer
+  // must not be NULL.
+  //
+  // Note that the callback maybe called synchronously or asynchronously.
+  //
+  // If the returned status is kSuccess, the |encrypted| buffer is successfully
+  // decrypted and the decrypted buffer is ready to be read.
+  // If the returned status is kError, unexpected error has occurred. In this
+  // case the decrypted buffer must be NULL.
+  typedef base::Callback<void(DecryptStatus,
+                              const scoped_refptr<DecoderBuffer>&)> DecryptCB;
+  virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
+                       const DecryptCB& decrypt_cb) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Decryptor);

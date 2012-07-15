@@ -24,7 +24,6 @@ using ::testing::AnyNumber;
 using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::Invoke;
-using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
