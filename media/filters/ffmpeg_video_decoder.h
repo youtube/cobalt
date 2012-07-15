@@ -5,10 +5,9 @@
 #ifndef MEDIA_FILTERS_FFMPEG_VIDEO_DECODER_H_
 #define MEDIA_FILTERS_FFMPEG_VIDEO_DECODER_H_
 
-#include <deque>
-
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "media/base/decryptor.h"
 #include "media/base/video_decoder.h"
 
 class MessageLoop;
@@ -19,7 +18,6 @@ struct AVFrame;
 namespace media {
 
 class DecoderBuffer;
-class Decryptor;
 
 class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
  public:
@@ -59,10 +57,23 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // Reads from the demuxer stream with corresponding callback method.
   void ReadFromDemuxerStream();
-  void DecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
+  void DecryptOrDecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
 
-  // Carries out the decoding operation scheduled by DecodeBuffer().
-  void DoDecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
+  // Carries out the buffer processing operation scheduled by
+  // DecryptOrDecodeBuffer().
+  void DoDecryptOrDecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
+
+  // Callback called by the decryptor to deliver decrypted data buffer and
+  // reporting decrypt status. This callback could be called synchronously or
+  // asynchronously.
+  void BufferDecrypted(Decryptor::DecryptStatus decrypt_status,
+                       const scoped_refptr<DecoderBuffer>& buffer);
+
+  // Carries out the operation scheduled by BufferDecrypted().
+  void DoBufferDecrypted(Decryptor::DecryptStatus decrypt_status,
+                         const scoped_refptr<DecoderBuffer>& buffer);
+
+  void DecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
   bool Decode(const scoped_refptr<DecoderBuffer>& buffer,
               scoped_refptr<VideoFrame>* video_frame);
 

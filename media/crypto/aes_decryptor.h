@@ -42,8 +42,8 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
                       const std::string& session_id) OVERRIDE;
   virtual void CancelKeyRequest(const std::string& key_system,
                                 const std::string& session_id) OVERRIDE;
-  virtual scoped_refptr<DecoderBuffer> Decrypt(
-      const scoped_refptr<DecoderBuffer>& input) OVERRIDE;
+  virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
+                       const DecryptCB& decrypt_cb) OVERRIDE;
 
  private:
   // KeyMap owns the crypto::SymmetricKey* and must delete them when they are

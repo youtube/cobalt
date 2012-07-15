@@ -131,8 +131,8 @@ void AesDecryptor::CancelKeyRequest(const std::string& key_system,
                                     const std::string& session_id) {
 }
 
-scoped_refptr<DecoderBuffer> AesDecryptor::Decrypt(
-    const scoped_refptr<DecoderBuffer>& encrypted) {
+void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
+                           const DecryptCB& decrypt_cb) {
   CHECK(encrypted->GetDecryptConfig());
   const uint8* key_id = encrypted->GetDecryptConfig()->key_id();
   const int key_id_size = encrypted->GetDecryptConfig()->key_id_size();
@@ -144,21 +144,27 @@ scoped_refptr<DecoderBuffer> AesDecryptor::Decrypt(
   {
     base::AutoLock auto_lock(key_map_lock_);
     KeyMap::const_iterator found = key_map_.find(key_id_string);
-    if (found == key_map_.end()) {
-      DVLOG(1) << "Could not find a matching key for given key ID.";
-      return NULL;
-    }
-    key = found->second;
+    if (found != key_map_.end())
+      key = found->second;
+  }
+
+  if (!key) {
+    DVLOG(1) << "Could not find a matching key for given key ID.";
+    decrypt_cb.Run(kError, NULL);
+    return;
   }
 
   scoped_refptr<DecoderBuffer> decrypted = DecryptData(*encrypted, key);
 
-  if (decrypted) {
-    decrypted->SetTimestamp(encrypted->GetTimestamp());
-    decrypted->SetDuration(encrypted->GetDuration());
+  if (!decrypted) {
+    DVLOG(1) << "Decryption failed.";
+    decrypt_cb.Run(kError, NULL);
+    return;
   }
 
-  return decrypted;
+  decrypted->SetTimestamp(encrypted->GetTimestamp());
+  decrypted->SetDuration(encrypted->GetDuration());
+  decrypt_cb.Run(kSuccess, decrypted);
 }
 
 }  // namespace media
