@@ -4,13 +4,15 @@
 
 #include "media/filters/ffmpeg_video_decoder.h"
 
+#include <algorithm>
+#include <string>
+
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/command_line.h"
 #include "base/message_loop.h"
 #include "base/string_number_conversions.h"
 #include "media/base/decoder_buffer.h"
-#include "media/base/decryptor.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
@@ -275,18 +277,19 @@ void FFmpegVideoDecoder::ReadFromDemuxerStream() {
   DCHECK_NE(state_, kDecodeFinished);
   DCHECK(!read_cb_.is_null());
 
-  demuxer_stream_->Read(base::Bind(&FFmpegVideoDecoder::DecodeBuffer, this));
+  demuxer_stream_->Read(base::Bind(&FFmpegVideoDecoder::DecryptOrDecodeBuffer,
+                                   this));
 }
 
-void FFmpegVideoDecoder::DecodeBuffer(
+void FFmpegVideoDecoder::DecryptOrDecodeBuffer(
     const scoped_refptr<DecoderBuffer>& buffer) {
   // TODO(scherkus): fix FFmpegDemuxerStream::Read() to not execute our read
   // callback on the same execution stack so we can get rid of forced task post.
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &FFmpegVideoDecoder::DoDecodeBuffer, this, buffer));
+      &FFmpegVideoDecoder::DoDecryptOrDecodeBuffer, this, buffer));
 }
 
-void FFmpegVideoDecoder::DoDecodeBuffer(
+void FFmpegVideoDecoder::DoDecryptOrDecodeBuffer(
     const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kUninitialized);
@@ -303,6 +306,58 @@ void FFmpegVideoDecoder::DoDecodeBuffer(
     DeliverFrame(NULL);
     return;
   }
+
+  if (buffer->GetDecryptConfig() && buffer->GetDataSize()) {
+    decryptor_->Decrypt(buffer,
+                        base::Bind(&FFmpegVideoDecoder::BufferDecrypted, this));
+    return;
+  }
+
+  DecodeBuffer(buffer);
+}
+
+void FFmpegVideoDecoder::BufferDecrypted(
+    Decryptor::DecryptStatus decrypt_status,
+    const scoped_refptr<DecoderBuffer>& buffer) {
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &FFmpegVideoDecoder::DoBufferDecrypted, this, decrypt_status, buffer));
+}
+
+void FFmpegVideoDecoder::DoBufferDecrypted(
+    Decryptor::DecryptStatus decrypt_status,
+    const scoped_refptr<DecoderBuffer>& buffer) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_NE(state_, kUninitialized);
+  DCHECK_NE(state_, kDecodeFinished);
+  DCHECK(!read_cb_.is_null());
+
+  if (!reset_cb_.is_null()) {
+    DeliverFrame(NULL);
+    DoReset();
+    return;
+  }
+
+  if (decrypt_status == Decryptor::kError) {
+    state_ = kDecodeFinished;
+    base::ResetAndReturn(&read_cb_).Run(kDecryptError, NULL);
+    return;
+  }
+
+  DCHECK_EQ(Decryptor::kSuccess, decrypt_status);
+  DCHECK(buffer);
+  DCHECK(buffer->GetDataSize());
+  DCHECK(!buffer->GetDecryptConfig());
+  DecodeBuffer(buffer);
+}
+
+void FFmpegVideoDecoder::DecodeBuffer(
+    const scoped_refptr<DecoderBuffer>& buffer) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_NE(state_, kUninitialized);
+  DCHECK_NE(state_, kDecodeFinished);
+  DCHECK(reset_cb_.is_null());
+  DCHECK(!read_cb_.is_null());
+  DCHECK(buffer);
 
   // During decode, because reads are issued asynchronously, it is possible to
   // receive multiple end of stream buffers since each read is acked. When the
@@ -334,19 +389,8 @@ void FFmpegVideoDecoder::DoDecodeBuffer(
     state_ = kFlushCodec;
   }
 
-  scoped_refptr<DecoderBuffer> unencrypted_buffer = buffer;
-  if (buffer->GetDecryptConfig() && buffer->GetDataSize()) {
-    unencrypted_buffer = decryptor_->Decrypt(buffer);
-
-    if (!unencrypted_buffer || !unencrypted_buffer->GetDataSize()) {
-      state_ = kDecodeFinished;
-      base::ResetAndReturn(&read_cb_).Run(kDecryptError, NULL);
-      return;
-    }
-  }
-
   scoped_refptr<VideoFrame> video_frame;
-  if (!Decode(unencrypted_buffer, &video_frame)) {
+  if (!Decode(buffer, &video_frame)) {
     state_ = kDecodeFinished;
     base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
     return;

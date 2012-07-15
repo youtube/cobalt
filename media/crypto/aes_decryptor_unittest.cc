@@ -5,14 +5,17 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/bind.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/mock_filters.h"
 #include "media/crypto/aes_decryptor.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
 using ::testing::Gt;
+using ::testing::IsNull;
 using ::testing::NotNull;
 using ::testing::SaveArg;
 using ::testing::StrNe;
@@ -49,7 +52,10 @@ static const uint8 kKeyId2[] = {
 
 class AesDecryptorTest : public testing::Test {
  public:
-  AesDecryptorTest() : decryptor_(&client_) {
+  AesDecryptorTest()
+      : decryptor_(&client_),
+        decrypt_cb_(base::Bind(&AesDecryptorTest::BufferDecrypted,
+                               base::Unretained(this))) {
     encrypted_data_ = DecoderBuffer::CopyFrom(kEncryptedData,
                                               arraysize(kEncryptedData));
   }
@@ -86,9 +92,15 @@ class AesDecryptorTest : public testing::Test {
         scoped_ptr<DecryptConfig>(new DecryptConfig(key_id, KeyIdSize)));
   }
 
+  MOCK_METHOD2(BufferDecrypted, void(Decryptor::DecryptStatus,
+                                     const scoped_refptr<DecoderBuffer>&));
+
   void DecryptAndExpectToSucceed() {
-    scoped_refptr<DecoderBuffer> decrypted =
-        decryptor_.Decrypt(encrypted_data_);
+    scoped_refptr<DecoderBuffer> decrypted;
+    EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kSuccess, NotNull()))
+        .WillOnce(SaveArg<1>(&decrypted));
+
+    decryptor_.Decrypt(encrypted_data_, decrypt_cb_);
     ASSERT_TRUE(decrypted);
     int data_length = sizeof(kOriginalData);
     ASSERT_EQ(data_length, decrypted->GetDataSize());
@@ -96,15 +108,15 @@ class AesDecryptorTest : public testing::Test {
   }
 
   void DecryptAndExpectToFail() {
-    scoped_refptr<DecoderBuffer> decrypted =
-        decryptor_.Decrypt(encrypted_data_);
-    EXPECT_FALSE(decrypted);
+    EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kError, IsNull()));
+    decryptor_.Decrypt(encrypted_data_, decrypt_cb_);
   }
 
   scoped_refptr<DecoderBuffer> encrypted_data_;
   MockDecryptorClient client_;
   AesDecryptor decryptor_;
   std::string session_id_string_;
+  AesDecryptor::DecryptCB decrypt_cb_;
 };
 
 TEST_F(AesDecryptorTest, NormalDecryption) {
