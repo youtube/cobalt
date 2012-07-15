@@ -178,6 +178,15 @@
             '../third_party/mach_override/mach_override.gyp:mach_override',
           ],
         }],
+        ['OS == "ios"', {
+          'link_settings': {
+            'libraries': [
+              '$(SDKROOT)/System/Library/Frameworks/CoreFoundation.framework',
+              '$(SDKROOT)/System/Library/Frameworks/Foundation.framework',
+              '$(SDKROOT)/System/Library/Frameworks/UIKit.framework',
+            ],
+          },
+        }],
         ['OS != "win"', {
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
         },],
