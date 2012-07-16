@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// SourceBufferStream is a data structure that stores media Buffers in ranges.
+// Buffers can be appended out of presentation order. Buffers are retrieved by
+// seeking to the desired start point and calling GetNextBuffer(). Buffers are
+// returned in sequential presentation order.
+
 #ifndef MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
 #define MEDIA_FILTERS_SOURCE_BUFFER_STREAM_H_
 
@@ -20,10 +25,7 @@ namespace media {
 
 class SourceBufferRange;
 
-// SourceBufferStream is a data structure that stores media Buffers in ranges.
-// Buffers can be appended out of presentation order. Buffers are retrieved by
-// seeking to the desired start point and calling GetNextBuffer(). Buffers are
-// returned in sequential presentation order.
+// See file-level comment for complete description.
 class MEDIA_EXPORT SourceBufferStream {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
