@@ -123,7 +123,7 @@ class SourceBufferStreamTest : public testing::Test {
 
       if (expected_data) {
         const uint8* actual_data = buffer->GetData();
-        const int  actual_size = buffer->GetDataSize();
+        const int actual_size = buffer->GetDataSize();
         EXPECT_EQ(expected_size, actual_size);
         for (int i = 0; i < std::min(actual_size, expected_size); i++) {
           EXPECT_EQ(expected_data[i], actual_data[i]);
