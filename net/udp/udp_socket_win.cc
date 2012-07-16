@@ -46,6 +46,7 @@ UDPSocketWin::UDPSocketWin(DatagramSocket::BindType bind_type,
                            net::NetLog* net_log,
                            const net::NetLog::Source& source)
     : socket_(INVALID_SOCKET),
+      socket_options_(0),
       bind_type_(bind_type),
       rand_int_cb_(rand_int_cb),
       ALLOW_THIS_IN_INITIALIZER_LIST(read_delegate_(this)),
@@ -229,6 +230,9 @@ int UDPSocketWin::Bind(const IPEndPoint& address) {
   int rv = CreateSocket(address);
   if (rv < 0)
     return rv;
+  rv = SetSocketOptions();
+  if (rv < 0)
+    return rv;
   rv = DoBind(address);
   if (rv < 0)
     return rv;
@@ -258,6 +262,20 @@ bool UDPSocketWin::SetSendBufferSize(int32 size) {
                       reinterpret_cast<const char*>(&size), sizeof(size));
   DCHECK(!rv) << "Could not set socket send buffer size: " << errno;
   return rv == 0;
+}
+
+void UDPSocketWin::AllowAddressReuse() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!is_connected());
+
+  socket_options_ |= SOCKET_OPTION_REUSE_ADDRESS;
+}
+
+void UDPSocketWin::AllowBroadcast() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!is_connected());
+
+  socket_options_ |= SOCKET_OPTION_BROADCAST;
 }
 
 void UDPSocketWin::DoReadCallback(int rv) {
@@ -429,6 +447,25 @@ int UDPSocketWin::InternalSendTo(IOBuffer* buf, int buf_len,
 
   write_watcher_.StartWatching(write_overlapped_.hEvent, &write_delegate_);
   return ERR_IO_PENDING;
+}
+
+int UDPSocketWin::SetSocketOptions() {
+  BOOL true_value = 1;
+  if (socket_options_ & SOCKET_OPTION_REUSE_ADDRESS) {
+    int rv = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR,
+                        reinterpret_cast<const char*>(&true_value),
+                        sizeof(true_value));
+    if (rv < 0)
+      return MapSystemError(errno);
+  }
+  if (socket_options_ & SOCKET_OPTION_BROADCAST) {
+    int rv = setsockopt(socket_, SOL_SOCKET, SO_BROADCAST,
+                        reinterpret_cast<const char*>(&true_value),
+                        sizeof(true_value));
+    if (rv < 0)
+      return MapSystemError(errno);
+  }
+  return OK;
 }
 
 int UDPSocketWin::DoBind(const IPEndPoint& address) {
