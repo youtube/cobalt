@@ -577,7 +577,6 @@
             # For now, exclude everything that doesn't build as-is, just to
             # get a minimal target building.
             ['exclude', '^memory/aligned_memory_unittest\\.cc$'],
-            ['exclude', '^shared_memory_unittest\\.cc$'],
             ['exclude', '^sys_info_unittest\\.cc$'],
             ['exclude', '^system_monitor'],
 	    # Unittests that don't pass.
