@@ -86,6 +86,8 @@
         'audio/linux/alsa_util.h',
         'audio/linux/alsa_wrapper.cc',
         'audio/linux/alsa_wrapper.h',
+        'audio/linux/cras_input.cc',
+        'audio/linux/cras_input.h',
         'audio/linux/cras_output.cc',
         'audio/linux/cras_output.h',
         'audio/openbsd/audio_manager_openbsd.cc',
@@ -398,6 +400,8 @@
               ],
             }, {  # else: use_cras == 0
               'sources!': [
+                'audio/linux/cras_input.cc',
+                'audio/linux/cras_input.h',
                 'audio/linux/cras_output.cc',
                 'audio/linux/cras_output.h',
               ],
@@ -758,6 +762,7 @@
           'conditions': [
             ['use_cras == 1', {
               'sources': [
+                'audio/linux/cras_input_unittest.cc',
                 'audio/linux/cras_output_unittest.cc',
               ],
               'defines': [
