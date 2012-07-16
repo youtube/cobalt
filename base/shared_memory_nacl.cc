@@ -21,7 +21,6 @@ SharedMemory::SharedMemory()
       memory_(NULL),
       read_only_(false),
       created_size_(0) {
-  NOTREACHED();
 }
 
 SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only)
@@ -31,7 +30,6 @@ SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only)
       memory_(NULL),
       read_only_(read_only),
       created_size_(0) {
-  NOTREACHED();
 }
 
 SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only,
@@ -46,12 +44,12 @@ SharedMemory::SharedMemory(SharedMemoryHandle handle, bool read_only,
 }
 
 SharedMemory::~SharedMemory() {
+  Close();
 }
 
 // static
 bool SharedMemory::IsHandleValid(const SharedMemoryHandle& handle) {
-  NOTREACHED();
-  return false;
+  return handle.fd >= 0;
 }
 
 // static
@@ -61,19 +59,21 @@ SharedMemoryHandle SharedMemory::NULLHandle() {
 
 // static
 void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
+  DCHECK_GE(handle.fd, 0);
+  if (close(handle.fd) < 0)
+    DPLOG(ERROR) << "close";
 }
 
 bool SharedMemory::CreateAndMapAnonymous(uint32 size) {
+  // Untrusted code can't create descriptors or handles.
   return false;
 }
 
 bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
+  // Untrusted code can't create descriptors or handles.
   return false;
 }
 
-// Our current implementation of shmem is with mmap()ing of files.
-// These files need to be deleted explicitly.
-// In practice this call is only needed for unit tests.
 bool SharedMemory::Delete(const std::string& name) {
   return false;
 }
@@ -83,11 +83,30 @@ bool SharedMemory::Open(const std::string& name, bool read_only) {
 }
 
 bool SharedMemory::Map(uint32 bytes) {
-  return false;
+  if (mapped_file_ == -1)
+    return false;
+
+  memory_ = mmap(NULL, bytes, PROT_READ | (read_only_ ? 0 : PROT_WRITE),
+                 MAP_SHARED, mapped_file_, 0);
+
+  bool mmap_succeeded = memory_ != MAP_FAILED && memory_ != NULL;
+  if (mmap_succeeded)
+    mapped_size_ = bytes;
+  else
+    memory_ = NULL;
+
+  return mmap_succeeded;
 }
 
 bool SharedMemory::Unmap() {
-  return false;
+  if (memory_ == NULL)
+    return false;
+
+  if (munmap(memory_, mapped_size_) < 0)
+    DPLOG(ERROR) << "munmap";
+  memory_ = NULL;
+  mapped_size_ = 0;
+  return true;
 }
 
 SharedMemoryHandle SharedMemory::handle() const {
@@ -95,24 +114,21 @@ SharedMemoryHandle SharedMemory::handle() const {
 }
 
 void SharedMemory::Close() {
+  Unmap();
+
+  if (mapped_file_ > 0) {
+    if (close(mapped_file_) < 0)
+      DPLOG(ERROR) << "close";
+    mapped_file_ = -1;
+  }
 }
 
 void SharedMemory::Lock() {
+  NOTIMPLEMENTED();
 }
 
 void SharedMemory::Unlock() {
-}
-
-bool SharedMemory::PrepareMapFile(FILE *fp) {
-  return false;
-}
-
-bool SharedMemory::FilePathForMemoryName(const std::string& mem_name,
-                                         FilePath* path) {
-  return false;
-}
-
-void SharedMemory::LockOrUnlockCommon(int function) {
+  NOTIMPLEMENTED();
 }
 
 bool SharedMemory::ShareToProcessCommon(ProcessHandle process,
