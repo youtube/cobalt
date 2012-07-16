@@ -385,6 +385,10 @@
         'environment_unittest.cc',
         'file_descriptor_shuffle_unittest.cc',
         'file_path_unittest.cc',
+
+        'os_compat_android_unittest.cc',
+
+
         'file_util_proxy_unittest.cc',
         'file_util_unittest.cc',
         'file_version_info_unittest.cc',

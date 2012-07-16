@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 // Not implemented in Bionic.
 extern "C" int futimes(int fd, const struct timeval tv[2]);
 
-// The prototype of mkdtemp is missing.
+// Not exposed or implemented in Bionic.
 extern "C" char* mkdtemp(char* path);
 
 // Android has no timegm().
