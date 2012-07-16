@@ -325,7 +325,11 @@ def _RunATestSuite(options):
   if options.use_emulator:
     for n in range(options.emulator_count):
       t = TimeProfile('Emulator launch %d' % n)
-      buildbot_emulator = emulator.Emulator(options.fast_and_loose)
+      avd_name =  None
+      if n > 0:
+        # Creates a temporary AVD for the extra emulators.
+        avd_name = 'run_tests_avd_%d' % n
+      buildbot_emulator = emulator.Emulator(avd_name, options.fast_and_loose)
       buildbot_emulator.Launch(kill_all_emulators=n == 0)
       t.Stop()
       buildbot_emulators.append(buildbot_emulator)
