@@ -227,6 +227,10 @@ class SingleTestRunner(BaseTestRunner):
           'net/data/ssl/certificates/',
           'webkit/data/dom_storage/webcore_test_database.localstorage',
           ]
+    elif self.test_package.test_suite_basename == 'media_unittests':
+      return [
+          'media/test/data',
+          ]
     return []
 
   def LaunchHelperToolsForTestSuite(self):
