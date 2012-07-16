@@ -655,16 +655,6 @@
       ],  # target_conditions
     },
     {
-      'target_name': 'check_example',
-      'type': 'executable',
-      'sources': [
-        'check_example.cc',
-      ],
-      'dependencies': [
-        'base',
-      ],
-    },
-    {
       'target_name': 'test_support_base',
       'type': 'static_library',
       'dependencies': [
@@ -805,6 +795,20 @@
     },
   ],
   'conditions': [
+    ['OS!="ios"', {
+      'targets': [
+        {
+          'target_name': 'check_example',
+          'type': 'executable',
+          'sources': [
+            'check_example.cc',
+          ],
+          'dependencies': [
+            'base',
+          ],
+        },
+      ],
+    }],
     ['OS == "win"', {
       'targets': [
         {
