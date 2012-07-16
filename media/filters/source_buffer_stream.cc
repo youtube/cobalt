@@ -35,17 +35,17 @@ class SourceBufferRange {
   // Appends |buffers| to the end of the range and updates |keyframe_map_| as
   // it encounters new keyframes. Assumes |buffers| belongs at the end of the
   // range.
-  void AppendToEnd(const BufferQueue& buffers);
-  bool CanAppendToEnd(const BufferQueue& buffers) const;
+  void AppendBuffersToEnd(const BufferQueue& buffers);
+  bool CanAppendBuffersToEnd(const BufferQueue& buffers) const;
 
   // Appends the buffers from |range| into this range.
   // The first buffer in |range| must come directly after the last buffer
   // in this range.
   // If |transfer_current_position| is true, |range|'s |next_buffer_index_|
   // is transfered to this SourceBufferRange.
-  void AppendToEnd(const SourceBufferRange& range,
-                   bool transfer_current_position);
-  bool CanAppendToEnd(const SourceBufferRange& range) const;
+  void AppendRangeToEnd(const SourceBufferRange& range,
+                        bool transfer_current_position);
+  bool CanAppendRangeToEnd(const SourceBufferRange& range) const;
 
   // Updates |next_buffer_index_| to point to the Buffer containing |timestamp|.
   // Assumes |timestamp| is valid and in this range.
@@ -436,8 +436,8 @@ void SourceBufferStream::InsertIntoExistingRange(
 
   // If this is a simple case where we can just append to the end of the range,
   // do so and return.
-  if (range_for_new_buffers->CanAppendToEnd(new_buffers)) {
-    range_for_new_buffers->AppendToEnd(new_buffers);
+  if (range_for_new_buffers->CanAppendBuffersToEnd(new_buffers)) {
+    range_for_new_buffers->AppendBuffersToEnd(new_buffers);
     return;
   }
 
@@ -457,7 +457,7 @@ void SourceBufferStream::InsertIntoExistingRange(
   BufferQueue saved_buffers;
   bool deleted_next_buffer_from_range =
       range_for_new_buffers->TruncateAt(new_buffers.front(), &saved_buffers);
-  range_for_new_buffers->AppendToEnd(new_buffers);
+  range_for_new_buffers->AppendBuffersToEnd(new_buffers);
 
   if (selected_range_ != range_for_new_buffers)
     return;
@@ -484,7 +484,7 @@ void SourceBufferStream::ResolveCompleteOverlaps(
 
   SourceBufferRange* range_with_new_buffers = *range_with_new_buffers_itr;
   RangeList::iterator next_range_itr = range_with_new_buffers_itr;
-  next_range_itr++;
+  ++next_range_itr;
 
   while (next_range_itr != ranges_.end() &&
          range_with_new_buffers->CompletelyOverlaps(**next_range_itr)) {
@@ -507,7 +507,7 @@ void SourceBufferStream::ResolveEndOverlap(
 
   SourceBufferRange* range_with_new_buffers = *range_with_new_buffers_itr;
   RangeList::iterator next_range_itr = range_with_new_buffers_itr;
-  next_range_itr++;
+  ++next_range_itr;
 
   if (next_range_itr == ranges_.end() ||
       !range_with_new_buffers->EndOverlaps(**next_range_itr)) {
@@ -604,13 +604,13 @@ void SourceBufferStream::MergeWithAdjacentRangeIfNecessary(
     const RangeList::iterator& range_with_new_buffers_itr) {
   SourceBufferRange* range_with_new_buffers = *range_with_new_buffers_itr;
   RangeList::iterator next_range_itr = range_with_new_buffers_itr;
-  next_range_itr++;
+  ++next_range_itr;
 
   if (next_range_itr != ranges_.end() &&
-      range_with_new_buffers->CanAppendToEnd(**next_range_itr)) {
+      range_with_new_buffers->CanAppendRangeToEnd(**next_range_itr)) {
     bool transfer_current_position = selected_range_ == *next_range_itr;
-    range_with_new_buffers->AppendToEnd(**next_range_itr,
-                                        transfer_current_position);
+    range_with_new_buffers->AppendRangeToEnd(**next_range_itr,
+                                             transfer_current_position);
     // Update |selected_range_| pointer if |range| has become selected after
     // merges.
     if (transfer_current_position)
@@ -690,7 +690,7 @@ base::TimeDelta SourceBufferStream::GetEndBufferTimestamp() {
 
 SourceBufferStream::RangeList::iterator
 SourceBufferStream::FindExistingRangeFor(base::TimeDelta start_timestamp) {
-  for (RangeList::iterator itr = ranges_.begin(); itr != ranges_.end(); itr++) {
+  for (RangeList::iterator itr = ranges_.begin(); itr != ranges_.end(); ++itr) {
     if ((*itr)->BelongsToRange(start_timestamp))
       return itr;
   }
@@ -701,7 +701,7 @@ SourceBufferStream::RangeList::iterator
 SourceBufferStream::AddToRanges(SourceBufferRange* new_range) {
   base::TimeDelta start_timestamp = new_range->GetStartTimestamp();
   RangeList::iterator itr = ranges_.end();
-  for (itr = ranges_.begin(); itr != ranges_.end(); itr++) {
+  for (itr = ranges_.begin(); itr != ranges_.end(); ++itr) {
     if ((*itr)->GetStartTimestamp() > start_timestamp)
       break;
   }
@@ -712,7 +712,7 @@ SourceBufferStream::RangeList::iterator
 SourceBufferStream::GetSelectedRangeItr() {
   DCHECK(selected_range_);
   RangeList::iterator itr = ranges_.end();
-  for (itr = ranges_.begin(); itr != ranges_.end(); itr++) {
+  for (itr = ranges_.begin(); itr != ranges_.end(); ++itr) {
     if (*itr == selected_range_)
       break;
   }
@@ -729,7 +729,7 @@ void SourceBufferStream::SetSelectedRange(SourceBufferRange* range) {
 Ranges<base::TimeDelta> SourceBufferStream::GetBufferedTime() const {
   Ranges<base::TimeDelta> ranges;
   for (RangeList::const_iterator itr = ranges_.begin();
-       itr != ranges_.end(); itr++) {
+       itr != ranges_.end(); ++itr) {
     ranges.Add((*itr)->GetStartTimestamp(), (*itr)->GetBufferedEndTimestamp());
   }
   return ranges;
@@ -761,12 +761,12 @@ SourceBufferRange::SourceBufferRange(
   DCHECK(!new_buffers.empty());
   DCHECK(new_buffers.front()->IsKeyframe());
   DCHECK(!interbuffer_distance_cb.is_null());
-  AppendToEnd(new_buffers);
+  AppendBuffersToEnd(new_buffers);
 }
 
-void SourceBufferRange::AppendToEnd(const BufferQueue& new_buffers) {
+void SourceBufferRange::AppendBuffersToEnd(const BufferQueue& new_buffers) {
   for (BufferQueue::const_iterator itr = new_buffers.begin();
-       itr != new_buffers.end(); itr++) {
+       itr != new_buffers.end(); ++itr) {
     DCHECK((*itr)->GetDecodeTimestamp() != kNoTimestamp());
     buffers_.push_back(*itr);
     if ((*itr)->IsKeyframe()) {
@@ -953,7 +953,7 @@ bool SourceBufferRange::GetNextBuffer(
 
 bool SourceBufferRange::HasNextBuffer() const {
   return next_buffer_index_ >= 0 &&
-         next_buffer_index_ < static_cast<int>(buffers_.size());
+      next_buffer_index_ < static_cast<int>(buffers_.size());
 }
 
 base::TimeDelta SourceBufferRange::GetNextTimestamp() const {
@@ -979,22 +979,24 @@ void SourceBufferRange::ResetNextBufferPosition() {
   next_keyframe_timestamp_ = kNoTimestamp();
 }
 
-void SourceBufferRange::AppendToEnd(const SourceBufferRange& range,
-                                    bool transfer_current_position) {
-  DCHECK(CanAppendToEnd(range));
+void SourceBufferRange::AppendRangeToEnd(const SourceBufferRange& range,
+                                         bool transfer_current_position) {
+  DCHECK(CanAppendRangeToEnd(range));
   DCHECK(!buffers_.empty());
 
   if (transfer_current_position)
     next_buffer_index_ = range.next_buffer_index_ + buffers_.size();
 
-  AppendToEnd(range.buffers_);
+  AppendBuffersToEnd(range.buffers_);
 }
 
-bool SourceBufferRange::CanAppendToEnd(const SourceBufferRange& range) const {
-  return CanAppendToEnd(range.buffers_);
+bool SourceBufferRange::CanAppendRangeToEnd(
+    const SourceBufferRange& range) const {
+  return CanAppendBuffersToEnd(range.buffers_);
 }
 
-bool SourceBufferRange::CanAppendToEnd(const BufferQueue& buffers) const {
+bool SourceBufferRange::CanAppendBuffersToEnd(
+    const BufferQueue& buffers) const {
   DCHECK(!buffers_.empty());
   return IsNextInSequence(buffers_.back(),
                           buffers.front()->GetDecodeTimestamp());
