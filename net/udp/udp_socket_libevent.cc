@@ -41,6 +41,7 @@ UDPSocketLibevent::UDPSocketLibevent(
     net::NetLog* net_log,
     const net::NetLog::Source& source)
         : socket_(kInvalidSocket),
+          socket_options_(0),
           bind_type_(bind_type),
           rand_int_cb_(rand_int_cb),
           read_watcher_(this),
@@ -251,6 +252,9 @@ int UDPSocketLibevent::Bind(const IPEndPoint& address) {
   int rv = CreateSocket(address);
   if (rv < 0)
     return rv;
+  rv = SetSocketOptions();
+  if (rv < 0)
+    return rv;
   rv = DoBind(address);
   if (rv < 0)
     return rv;
@@ -272,6 +276,20 @@ bool UDPSocketLibevent::SetSendBufferSize(int32 size) {
                       reinterpret_cast<const char*>(&size), sizeof(size));
   DCHECK(!rv) << "Could not set socket send buffer size: " << errno;
   return rv == 0;
+}
+
+void UDPSocketLibevent::AllowAddressReuse() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!is_connected());
+
+  socket_options_ |= SOCKET_OPTION_REUSE_ADDRESS;
+}
+
+void UDPSocketLibevent::AllowBroadcast() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!is_connected());
+
+  socket_options_ |= SOCKET_OPTION_BROADCAST;
 }
 
 void UDPSocketLibevent::DoReadCallback(int rv) {
@@ -428,6 +446,29 @@ int UDPSocketLibevent::InternalSendTo(IOBuffer* buf, int buf_len,
   if (result != ERR_IO_PENDING)
     LogWrite(result, buf->data(), address);
   return result;
+}
+
+int UDPSocketLibevent::SetSocketOptions() {
+  int true_value = 1;
+  if (socket_options_ & SOCKET_OPTION_REUSE_ADDRESS) {
+    int rv = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &true_value,
+                        sizeof(true_value));
+    if (rv < 0)
+      return MapSystemError(errno);
+#if defined(SO_REUSEPORT)
+    rv = setsockopt(socket_, SOL_SOCKET, SO_REUSEPORT, &true_value,
+                    sizeof(true_value));
+    if (rv < 0)
+      return MapSystemError(errno);
+#endif
+  }
+  if (socket_options_ & SOCKET_OPTION_BROADCAST) {
+    int rv = setsockopt(socket_, SOL_SOCKET, SO_BROADCAST, &true_value,
+                        sizeof(true_value));
+    if (rv < 0)
+      return MapSystemError(errno);
+  }
+  return OK;
 }
 
 int UDPSocketLibevent::DoBind(const IPEndPoint& address) {

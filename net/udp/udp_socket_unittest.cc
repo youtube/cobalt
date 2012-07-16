@@ -201,6 +201,45 @@ TEST_F(UDPSocketTest, Connect) {
       client_entries, 5, NetLog::TYPE_SOCKET_ALIVE));
 }
 
+TEST_F(UDPSocketTest, Broadcast) {
+  const int kPort = 9999;
+  std::string first_message("first message"), second_message("second message");
+
+  IPEndPoint broadcast_address;
+  CreateUDPAddress("255.255.255.255", kPort, &broadcast_address);
+  IPEndPoint listen_address;
+  CreateUDPAddress("0.0.0.0", kPort, &listen_address);
+
+  CapturingNetLog server1_log, server2_log;
+  scoped_ptr<UDPServerSocket> server1(
+      new UDPServerSocket(&server1_log, NetLog::Source()));
+  scoped_ptr<UDPServerSocket> server2(
+      new UDPServerSocket(&server2_log, NetLog::Source()));
+  server1->AllowAddressReuse();
+  server1->AllowBroadcast();
+  server2->AllowAddressReuse();
+  server2->AllowBroadcast();
+
+  int rv = server1->Listen(listen_address);
+  EXPECT_EQ(OK, rv);
+  rv = server2->Listen(listen_address);
+  EXPECT_EQ(OK, rv);
+
+  rv = SendToSocket(server1.get(), first_message, broadcast_address);
+  EXPECT_EQ(static_cast<int>(first_message.size()), rv);
+  std::string str = RecvFromSocket(server1.get());
+  ASSERT_EQ(first_message, str);
+  str = RecvFromSocket(server2.get());
+  ASSERT_EQ(first_message, str);
+
+  rv = SendToSocket(server2.get(), second_message, broadcast_address);
+  EXPECT_EQ(static_cast<int>(second_message.size()), rv);
+  str = RecvFromSocket(server1.get());
+  ASSERT_EQ(second_message, str);
+  str = RecvFromSocket(server2.get());
+  ASSERT_EQ(second_message, str);
+}
+
 // In this test, we verify that random binding logic works, which attempts
 // to bind to a random port and returns if succeeds, otherwise retries for
 // |kBindRetries| number of times.
