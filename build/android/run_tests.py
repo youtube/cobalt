@@ -323,7 +323,7 @@ def _RunATestSuite(options):
   buildbot_emulators = []
 
   if options.use_emulator:
-    for n in range(options.use_emulator):
+    for n in range(options.emulator_count):
       t = TimeProfile('Emulator launch %d' % n)
       buildbot_emulator = emulator.Emulator(options.fast_and_loose)
       buildbot_emulator.Launch(kill_all_emulators=n == 0)
@@ -384,7 +384,7 @@ def _RunATestSuite(options):
 def Dispatch(options):
   """Dispatches the tests, sharding if possible.
 
-  If options.use_emulator is True, all tests will be run in a new emulator
+  If options.use_emulator is True, all tests will be run in new emulator
   instance.
 
   Args:
@@ -447,9 +447,12 @@ def main(argv):
                            'subfolder debug_info_dumps under the same directory'
                            'in where the test_suite exists.')
   option_parser.add_option('-e', '--emulator', dest='use_emulator',
-                           help='Run tests in a new instance of emulator',
-                           type='int',
-                           default=0)
+                           action='store_true',
+                           help='Run tests in a new instance of emulator')
+  option_parser.add_option('-n', '--emulator_count',
+                           type='int', default=1,
+                           help='Number of emulators to launch for running the '
+                           'tests.')
   option_parser.add_option('-x', '--xvfb', dest='use_xvfb',
                            action='store_true',
                            help='Use Xvfb around tests (ignored if not Linux)')
