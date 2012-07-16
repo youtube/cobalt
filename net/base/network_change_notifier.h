@@ -16,6 +16,10 @@ class NetworkChangeNotifierFactory;
 
 namespace internal {
 class DnsConfigWatcher;
+
+#if defined(OS_LINUX)
+class AddressTrackerLinux;
+#endif
 }
 
 // NetworkChangeNotifier monitors the system for network changes, and notifies
@@ -124,6 +128,11 @@ class NET_EXPORT NetworkChangeNotifier {
   // attempt to a particular remote site will be successful.
   static ConnectionType GetConnectionType();
 
+#if defined(OS_LINUX)
+  // Returns the AddressTrackerLinux if present.
+  static const internal::AddressTrackerLinux* GetAddressTracker();
+#endif
+
   // Convenience method to determine if the user is offline.
   // Returns true if there is currently no internet connection.
   //
@@ -172,6 +181,12 @@ class NET_EXPORT NetworkChangeNotifier {
   friend class internal::DnsConfigWatcher;
 
   NetworkChangeNotifier();
+
+#if defined(OS_LINUX)
+  // Returns the AddressTrackerLinux if present.
+  virtual const internal::AddressTrackerLinux*
+      GetAddressTrackerInternal() const;
+#endif
 
   // Broadcasts a notification to all registered observers.  Note that this
   // happens asynchronously, even for observers on the current thread, even in
