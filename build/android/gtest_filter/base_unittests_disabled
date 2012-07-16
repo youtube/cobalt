@@ -17,3 +17,6 @@ FileUtilProxyTest.Touch
 ProcessUtilTest.FDRemapping
 # Flaky?
 ScopedJavaRefTest.RefCounts
+# http://crbug.com/137348
+JNIAndroidTest.GetMethodIDFromClassNameCaching
+ScopedJavaRefTest.Conversions
