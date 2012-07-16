@@ -34,6 +34,9 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierLinux
   // NetworkChangeNotifier:
   virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
 
+  virtual const internal::AddressTrackerLinux*
+      GetAddressTrackerInternal() const OVERRIDE;
+
   // The thread used to listen for notifications.  This relays the notification
   // to the registered observers without posting back to the thread the object
   // was created on.
