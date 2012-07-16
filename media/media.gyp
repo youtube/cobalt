@@ -638,7 +638,7 @@
     },
     {
       'target_name': 'media_unittests',
-      'type': 'executable',
+      'type': '<(gtest_target_type)',
       'dependencies': [
         'media',
         'media_test_support',
@@ -725,12 +725,7 @@
             }],
           ],
         }],
-        ['OS != "android"', {
-          'dependencies': [
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-          ],
-        }],
-        ['OS == "android"', {
+        ['OS=="android"', {
           'sources!': [
             'audio/audio_input_volume_unittest.cc',
             'base/test_data_util.cc',
@@ -746,6 +741,17 @@
             'filters/pipeline_integration_test_base.cc',
             'mp4/mp4_stream_parser_unittest.cc',
             'webm/webm_cluster_parser_unittest.cc',
+          ],
+          'conditions': [
+            ['gtest_target_type == "shared_library"', {
+              'dependencies': [
+                '../testing/android/native_test.gyp:native_test_native_code',
+              ],
+            }],
+          ],
+        }, {  # OS!=android
+          'dependencies': [
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
           ],
         }],
         ['OS == "linux"', {
@@ -971,6 +977,30 @@
             'tools/player_x11/x11_video_renderer.cc',
             'tools/player_x11/x11_video_renderer.h',
           ],
+        },
+      ],
+    }],
+    # Special target to wrap a gtest_target_type==shared_library
+    # media_unittests into an android apk for execution.
+    ['OS == "android" and gtest_target_type == "shared_library"', {
+      'targets': [
+        {
+          'target_name': 'media_unittests_apk',
+          'type': 'none',
+          'dependencies': [
+            '../base/base.gyp:base_java',
+            'media_java',
+            'media_unittests',
+          ],
+          'variables': {
+            'test_suite_name': 'media_unittests',
+            'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)media_unittests<(SHARED_LIB_SUFFIX)',
+            'input_jars_paths': [
+              '<(PRODUCT_DIR)/lib.java/chromium_base.jar',
+              '<(PRODUCT_DIR)/lib.java/chromium_media.jar',
+             ],
+          },
+          'includes': [ '../build/apk_test.gypi' ],
         },
       ],
     }],
