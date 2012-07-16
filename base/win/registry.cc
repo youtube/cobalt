@@ -25,7 +25,6 @@ RegKey::RegKey()
 RegKey::RegKey(HKEY rootkey, const wchar_t* subkey, REGSAM access)
     : key_(NULL),
       watch_event_(0) {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (rootkey) {
     if (access & (KEY_SET_VALUE | KEY_CREATE_SUB_KEY | KEY_CREATE_LINK))
       Create(rootkey, subkey, access);
@@ -47,7 +46,6 @@ LONG RegKey::Create(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
 
 LONG RegKey::CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
                                    DWORD* disposition, REGSAM access) {
-  base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(rootkey && subkey && access && disposition);
   Close();
 
@@ -58,9 +56,7 @@ LONG RegKey::CreateWithDisposition(HKEY rootkey, const wchar_t* subkey,
 }
 
 LONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
-  base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(name && access);
-
   HKEY subkey = NULL;
   LONG result = RegCreateKeyEx(key_, name, 0, NULL, REG_OPTION_NON_VOLATILE,
                                access, NULL, &subkey, NULL);
@@ -71,7 +67,6 @@ LONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
 }
 
 LONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
-  base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(rootkey && subkey && access);
   Close();
 
@@ -80,9 +75,7 @@ LONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
 }
 
 LONG RegKey::OpenKey(const wchar_t* relative_key_name, REGSAM access) {
-  base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(relative_key_name && access);
-
   HKEY subkey = NULL;
   LONG result = RegOpenKeyEx(key_, relative_key_name, 0, access, &subkey);
 
@@ -95,7 +88,6 @@ LONG RegKey::OpenKey(const wchar_t* relative_key_name, REGSAM access) {
 }
 
 void RegKey::Close() {
-  base::ThreadRestrictions::AssertIOAllowed();
   StopWatching();
   if (key_) {
     ::RegCloseKey(key_);
@@ -104,12 +96,10 @@ void RegKey::Close() {
 }
 
 bool RegKey::HasValue(const wchar_t* name) const {
-  base::ThreadRestrictions::AssertIOAllowed();
   return RegQueryValueEx(key_, name, 0, NULL, NULL, NULL) == ERROR_SUCCESS;
 }
 
 DWORD RegKey::GetValueCount() const {
-  base::ThreadRestrictions::AssertIOAllowed();
   DWORD count = 0;
   LONG result = RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL, &count,
                                 NULL, NULL, NULL, NULL);
@@ -117,7 +107,6 @@ DWORD RegKey::GetValueCount() const {
 }
 
 LONG RegKey::GetValueNameAt(int index, std::wstring* name) const {
-  base::ThreadRestrictions::AssertIOAllowed();
   wchar_t buf[256];
   DWORD bufsize = arraysize(buf);
   LONG r = ::RegEnumValue(key_, index, buf, &bufsize, NULL, NULL, NULL, NULL);
@@ -128,7 +117,6 @@ LONG RegKey::GetValueNameAt(int index, std::wstring* name) const {
 }
 
 LONG RegKey::DeleteKey(const wchar_t* name) {
-  base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(key_);
   DCHECK(name);
   LONG result = SHDeleteKey(key_, name);
@@ -136,7 +124,6 @@ LONG RegKey::DeleteKey(const wchar_t* name) {
 }
 
 LONG RegKey::DeleteValue(const wchar_t* value_name) {
-  base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(key_);
   DCHECK(value_name);
   LONG result = RegDeleteValue(key_, value_name);
@@ -177,7 +164,6 @@ LONG RegKey::ReadInt64(const wchar_t* name, int64* out_value) const {
 }
 
 LONG RegKey::ReadValue(const wchar_t* name, std::wstring* out_value) const {
-  base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(out_value);
   const size_t kMaxStringLength = 1024;  // This is after expansion.
   // Use the one of the other forms of ReadValue if 1024 is too small for you.
@@ -211,7 +197,6 @@ LONG RegKey::ReadValue(const wchar_t* name,
                        void* data,
                        DWORD* dsize,
                        DWORD* dtype) const {
-  base::ThreadRestrictions::AssertIOAllowed();
   LONG result = RegQueryValueEx(key_, name, 0, dtype,
                                 reinterpret_cast<LPBYTE>(data), dsize);
   return result;
@@ -219,7 +204,6 @@ LONG RegKey::ReadValue(const wchar_t* name,
 
 LONG RegKey::ReadValues(const wchar_t* name,
                         std::vector<std::wstring>* values) {
-  base::ThreadRestrictions::AssertIOAllowed();
   values->clear();
 
   DWORD type = REG_MULTI_SZ;
@@ -263,7 +247,6 @@ LONG RegKey::WriteValue(const wchar_t* name,
                         const void* data,
                         DWORD dsize,
                         DWORD dtype) {
-  base::ThreadRestrictions::AssertIOAllowed();
   DCHECK(data || !dsize);
 
   LONG result = RegSetValueEx(key_, name, 0, dtype,
@@ -315,8 +298,6 @@ LONG RegKey::StopWatching() {
 
 RegistryValueIterator::RegistryValueIterator(HKEY root_key,
                                              const wchar_t* folder_key) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
   LONG result = RegOpenKeyEx(root_key, folder_key, 0, KEY_READ, &key_);
   if (result != ERROR_SUCCESS) {
     key_ = NULL;
@@ -337,13 +318,11 @@ RegistryValueIterator::RegistryValueIterator(HKEY root_key,
 }
 
 RegistryValueIterator::~RegistryValueIterator() {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (key_)
     ::RegCloseKey(key_);
 }
 
 DWORD RegistryValueIterator::ValueCount() const {
-  base::ThreadRestrictions::AssertIOAllowed();
   DWORD count = 0;
   LONG result = ::RegQueryInfoKey(key_, NULL, 0, NULL, NULL, NULL, NULL,
                                   &count, NULL, NULL, NULL, NULL);
@@ -363,7 +342,6 @@ void RegistryValueIterator::operator++() {
 }
 
 bool RegistryValueIterator::Read() {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (Valid()) {
     DWORD ncount = arraysize(name_);
     value_size_ = sizeof(value_);
@@ -383,7 +361,6 @@ bool RegistryValueIterator::Read() {
 
 RegistryKeyIterator::RegistryKeyIterator(HKEY root_key,
                                          const wchar_t* folder_key) {
-  base::ThreadRestrictions::AssertIOAllowed();
   LONG result = RegOpenKeyEx(root_key, folder_key, 0, KEY_READ, &key_);
   if (result != ERROR_SUCCESS) {
     key_ = NULL;
@@ -404,13 +381,11 @@ RegistryKeyIterator::RegistryKeyIterator(HKEY root_key,
 }
 
 RegistryKeyIterator::~RegistryKeyIterator() {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (key_)
     ::RegCloseKey(key_);
 }
 
 DWORD RegistryKeyIterator::SubkeyCount() const {
-  base::ThreadRestrictions::AssertIOAllowed();
   DWORD count = 0;
   LONG result = ::RegQueryInfoKey(key_, NULL, 0, NULL, &count, NULL, NULL,
                                   NULL, NULL, NULL, NULL, NULL);
@@ -430,7 +405,6 @@ void RegistryKeyIterator::operator++() {
 }
 
 bool RegistryKeyIterator::Read() {
-  base::ThreadRestrictions::AssertIOAllowed();
   if (Valid()) {
     DWORD ncount = arraysize(name_);
     FILETIME written;
