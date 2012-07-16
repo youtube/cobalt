@@ -361,6 +361,8 @@ TEST(SharedMemoryTest, AnonymousExecutable) {
 }
 #endif
 
+#if !defined(OS_IOS)  // iOS does not allow multiple processes.
+
 // On POSIX it is especially important we test shmem across processes,
 // not just across threads.  But the test is enabled on all platforms.
 class SharedMemoryProcessTest : public MultiProcessTest {
@@ -436,5 +438,7 @@ TEST_F(SharedMemoryProcessTest, MAYBE_Tasks) {
 MULTIPROCESS_TEST_MAIN(SharedMemoryTestMain) {
   return SharedMemoryProcessTest::TaskTestMain();
 }
+
+#endif  // !OS_IOS
 
 }  // namespace base
