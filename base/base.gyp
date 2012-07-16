@@ -545,8 +545,6 @@
           'sources!': [
             # TODO(michaelbai): Removed the below once the fix upstreamed.
             'debug/stack_trace_unittest.cc',
-            'memory/mru_cache_unittest.cc',
-            'synchronization/cancellation_flag_unittest.cc',
           ],
           'dependencies': [
             'android/jni_generator/jni_generator.gyp:jni_generator_tests',
@@ -555,13 +553,6 @@
             ['gtest_target_type == "shared_library"', {
               'dependencies': [
                 '../testing/android/native_test.gyp:native_test_native_code',
-              ],
-            }, { # gtest_target_type != shared_library
-              'sources!': [
-                # The below files are excluded because of the missing JNI.
-                'android/jni_android_unittest.cc',
-                'android/path_utils_unittest.cc',
-                'android/scoped_java_ref_unittest.cc',
               ],
             }],
           ],
