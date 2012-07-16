@@ -84,6 +84,15 @@ NetworkChangeNotifier::GetConnectionType() {
       CONNECTION_UNKNOWN;
 }
 
+#if defined(OS_LINUX)
+// static
+const internal::AddressTrackerLinux*
+NetworkChangeNotifier::GetAddressTracker() {
+  return g_network_change_notifier ?
+        g_network_change_notifier->GetAddressTrackerInternal() : NULL;
+}
+#endif
+
 // static
 bool NetworkChangeNotifier::IsWatchingDNS() {
   if (!g_network_change_notifier)
@@ -154,6 +163,13 @@ NetworkChangeNotifier::NetworkChangeNotifier()
   DCHECK(!g_network_change_notifier);
   g_network_change_notifier = this;
 }
+
+#if defined(OS_LINUX)
+const internal::AddressTrackerLinux*
+NetworkChangeNotifier::GetAddressTrackerInternal() const {
+  return NULL;
+}
+#endif
 
 // static
 void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
