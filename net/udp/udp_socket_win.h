@@ -105,7 +105,22 @@ class NET_EXPORT UDPSocketWin : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   const BoundNetLog& NetLog() const { return net_log_; }
 
+  // Sets corresponding flags in |socket_options_| to allow the socket
+  // to share the local address to which socket will be bound with
+  // other processes. Should be called before Bind().
+  void AllowAddressReuse();
+
+  // Sets corresponding flags in |socket_options_| to allow sending
+  // and receiving packets sent to and from broadcast
+  // addresses. Should be called before Bind().
+  void AllowBroadcast();
+
  private:
+  enum SocketOptions {
+    SOCKET_OPTION_REUSE_ADDRESS = 1 << 0,
+    SOCKET_OPTION_BROADCAST     = 1 << 1
+  };
+
   class ReadDelegate : public base::win::ObjectWatcher::Delegate {
    public:
     explicit ReadDelegate(UDPSocketWin* socket) : socket_(socket) {}
@@ -156,6 +171,9 @@ class NET_EXPORT UDPSocketWin : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
+  // Applies |socket_options_| to |socket_|. Should be called before
+  // Bind().
+  int SetSocketOptions();
   int DoBind(const IPEndPoint& address);
   int RandomBind(const IPEndPoint& address);
 
@@ -164,6 +182,10 @@ class NET_EXPORT UDPSocketWin : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   bool ReceiveAddressToIPEndpoint(IPEndPoint* address) const;
 
   SOCKET socket_;
+
+  // Bitwise-or'd combination of SocketOptions. Specifies set of
+  // options that should be applied to |socket_| before bind.
+  int socket_options_;
 
   // How to do source port binding, used only when UDPSocket is part of
   // UDPClientSocket, since UDPServerSocket provides Bind.
