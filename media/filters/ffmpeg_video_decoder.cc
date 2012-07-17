@@ -282,14 +282,17 @@ void FFmpegVideoDecoder::ReadFromDemuxerStream() {
 }
 
 void FFmpegVideoDecoder::DecryptOrDecodeBuffer(
+    DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
+  DCHECK_EQ(status != DemuxerStream::kOk, !buffer) << status;
   // TODO(scherkus): fix FFmpegDemuxerStream::Read() to not execute our read
   // callback on the same execution stack so we can get rid of forced task post.
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &FFmpegVideoDecoder::DoDecryptOrDecodeBuffer, this, buffer));
+      &FFmpegVideoDecoder::DoDecryptOrDecodeBuffer, this, status, buffer));
 }
 
 void FFmpegVideoDecoder::DoDecryptOrDecodeBuffer(
+    DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kUninitialized);
@@ -297,15 +300,19 @@ void FFmpegVideoDecoder::DoDecryptOrDecodeBuffer(
   DCHECK(!read_cb_.is_null());
 
   if (!reset_cb_.is_null()) {
-    DeliverFrame(NULL);
+    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
     DoReset();
     return;
   }
 
-  if (!buffer) {
-    DeliverFrame(NULL);
+  if (status != DemuxerStream::kOk) {
+    DecoderStatus decoder_status =
+        (status == DemuxerStream::kAborted) ? kOk : kDecodeError;
+    base::ResetAndReturn(&read_cb_).Run(decoder_status, NULL);
     return;
   }
+
+  DCHECK_EQ(status, DemuxerStream::kOk);
 
   if (buffer->GetDecryptConfig() && buffer->GetDataSize()) {
     decryptor_->Decrypt(buffer,
@@ -332,7 +339,7 @@ void FFmpegVideoDecoder::DoBufferDecrypted(
   DCHECK(!read_cb_.is_null());
 
   if (!reset_cb_.is_null()) {
-    DeliverFrame(NULL);
+    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
     DoReset();
     return;
   }
@@ -408,7 +415,7 @@ void FFmpegVideoDecoder::DecodeBuffer(
   if (!video_frame) {
     if (state_ == kFlushCodec) {
       state_ = kDecodeFinished;
-      DeliverFrame(VideoFrame::CreateEmptyFrame());
+      base::ResetAndReturn(&read_cb_).Run(kOk, VideoFrame::CreateEmptyFrame());
       return;
     }
 
@@ -416,7 +423,7 @@ void FFmpegVideoDecoder::DecodeBuffer(
     return;
   }
 
-  DeliverFrame(video_frame);
+  base::ResetAndReturn(&read_cb_).Run(kOk, video_frame);
 }
 
 bool FFmpegVideoDecoder::Decode(
@@ -509,12 +516,6 @@ bool FFmpegVideoDecoder::Decode(
       ConvertFromTimeBase(doubled_time_base, 2 + av_frame_->repeat_pict));
 
   return true;
-}
-
-void FFmpegVideoDecoder::DeliverFrame(
-    const scoped_refptr<VideoFrame>& video_frame) {
-  // Reset the callback before running to protect against reentrancy.
-  base::ResetAndReturn(&read_cb_).Run(kOk, video_frame);
 }
 
 void FFmpegVideoDecoder::ReleaseFFmpegResources() {

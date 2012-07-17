@@ -56,7 +56,7 @@ static const uint8 kWrongKey[] = {
 static const uint8 kKeyId[] = { 0x4b, 0x65, 0x79, 0x20, 0x49, 0x44 };
 
 ACTION_P(ReturnBuffer, buffer) {
-  arg0.Run(buffer);
+  arg0.Run(buffer ? DemuxerStream::kOk : DemuxerStream::kAborted, buffer);
 }
 
 class FFmpegVideoDecoderTest : public testing::Test {
@@ -510,7 +510,7 @@ TEST_F(FFmpegVideoDecoderTest, Reset_DuringPendingRead) {
 
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
 
-  read_cb.Run(i_frame_buffer_);
+  read_cb.Run(DemuxerStream::kOk, i_frame_buffer_);
   message_loop_.RunAllPending();
 }
 
@@ -570,7 +570,7 @@ TEST_F(FFmpegVideoDecoderTest, AbortPendingReadDuringFlush) {
   message_loop_.RunAllPending();
 
   // Signal an aborted demuxer read.
-  read_cb.Run(NULL);
+  read_cb.Run(DemuxerStream::kAborted, NULL);
 
   // Make sure we get a NULL video frame returned.
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));

@@ -39,7 +39,9 @@ MATCHER(IsEndOfStreamBuffer,
 }
 
 static void EosOnReadDone(bool* got_eos_buffer,
+                          DemuxerStream::Status status,
                           const scoped_refptr<DecoderBuffer>& buffer) {
+  EXPECT_EQ(status, DemuxerStream::kOk);
   if (buffer->IsEndOfStream()) {
     *got_eos_buffer = true;
     EXPECT_TRUE(!buffer->GetData());
@@ -101,11 +103,13 @@ class FFmpegDemuxerTest : public testing::Test {
   // This makes it easier to track down where test failures occur.
   void OnReadDone(const tracked_objects::Location& location,
                   int size, int64 timestampInMicroseconds,
+                  DemuxerStream::Status status,
                   const scoped_refptr<DecoderBuffer>& buffer) {
     std::string location_str;
     location.Write(true, false, &location_str);
     location_str += "\n";
     SCOPED_TRACE(location_str);
+    EXPECT_EQ(status, DemuxerStream::kOk);
     OnReadDoneCalled(size, timestampInMicroseconds);
     EXPECT_TRUE(buffer.get() != NULL);
     EXPECT_EQ(size, buffer->GetDataSize());
@@ -411,7 +415,8 @@ class MockReadCB : public base::RefCountedThreadSafe<MockReadCB> {
   MockReadCB() {}
 
   MOCK_METHOD0(OnDelete, void());
-  MOCK_METHOD1(Run, void(const scoped_refptr<DecoderBuffer>& buffer));
+  MOCK_METHOD2(Run, void(DemuxerStream::Status status,
+                         const scoped_refptr<DecoderBuffer>& buffer));
 
  protected:
   virtual ~MockReadCB() {
@@ -446,7 +451,7 @@ TEST_F(FFmpegDemuxerTest, Stop) {
 
   // The callback should be immediately deleted.  We'll use a checkpoint to
   // verify that it has indeed been deleted.
-  EXPECT_CALL(*callback, Run(IsEndOfStreamBuffer()));
+  EXPECT_CALL(*callback, Run(DemuxerStream::kOk, IsEndOfStreamBuffer()));
   EXPECT_CALL(*callback, OnDelete());
   EXPECT_CALL(*this, CheckPoint(1));
 
@@ -486,7 +491,7 @@ TEST_F(FFmpegDemuxerTest, StreamReadAfterStopAndDemuxerDestruction) {
 
   // The callback should be immediately deleted.  We'll use a checkpoint to
   // verify that it has indeed been deleted.
-  EXPECT_CALL(*callback, Run(IsEndOfStreamBuffer()));
+  EXPECT_CALL(*callback, Run(DemuxerStream::kOk, IsEndOfStreamBuffer()));
   EXPECT_CALL(*callback, OnDelete());
   EXPECT_CALL(*this, CheckPoint(1));
 

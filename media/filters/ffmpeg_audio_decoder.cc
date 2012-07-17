@@ -5,6 +5,7 @@
 #include "media/filters/ffmpeg_audio_decoder.h"
 
 #include "base/bind.h"
+#include "base/callback_helpers.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/data_buffer.h"
 #include "media/base/decoder_buffer.h"
@@ -165,13 +166,18 @@ void FFmpegAudioDecoder::DoRead(const ReadCB& read_cb) {
 }
 
 void FFmpegAudioDecoder::DoDecodeBuffer(
+    DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& input) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!read_cb_.is_null());
 
-  if (!input) {
-    // DemuxeStream::Read() was aborted so we abort the decoder's pending read.
-    DeliverSamples(NULL);
+  if (status != DemuxerStream::kOk) {
+    DCHECK(!input);
+    // TODO(acolwell): Add support for reinitializing the decoder when
+    // |status| == kConfigChanged. For now we just trigger a decode error.
+    AudioDecoder::Status decoder_status =
+        (status == DemuxerStream::kAborted) ? kAborted : kDecodeError;
+    base::ResetAndReturn(&read_cb_).Run(decoder_status, NULL);
     return;
   }
 
@@ -244,11 +250,10 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
 
   // Decoding finished successfully, update stats and execute callback.
   statistics_cb_.Run(statistics);
-  if (output) {
-    DeliverSamples(output);
-  } else {
+  if (output)
+    base::ResetAndReturn(&read_cb_).Run(kOk, output);
+  else
     ReadFromDemuxerStream();
-  }
 }
 
 void FFmpegAudioDecoder::ReadFromDemuxerStream() {
@@ -258,11 +263,14 @@ void FFmpegAudioDecoder::ReadFromDemuxerStream() {
 }
 
 void FFmpegAudioDecoder::DecodeBuffer(
+    DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
+  DCHECK_EQ(status != DemuxerStream::kOk, !buffer) << status;
+
   // TODO(scherkus): fix FFmpegDemuxerStream::Read() to not execute our read
   // callback on the same execution stack so we can get rid of forced task post.
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &FFmpegAudioDecoder::DoDecodeBuffer, this, buffer));
+      &FFmpegAudioDecoder::DoDecodeBuffer, this, status, buffer));
 }
 
 void FFmpegAudioDecoder::UpdateDurationAndTimestamp(
@@ -293,13 +301,6 @@ base::TimeDelta FFmpegAudioDecoder::CalculateDuration(int size) {
   double microseconds = size /
       (denominator / static_cast<double>(base::Time::kMicrosecondsPerSecond));
   return base::TimeDelta::FromMicroseconds(static_cast<int64>(microseconds));
-}
-
-void FFmpegAudioDecoder::DeliverSamples(const scoped_refptr<Buffer>& samples) {
-  // Reset the callback before running to protect against reentrancy.
-  ReadCB read_cb = read_cb_;
-  read_cb_.Reset();
-  read_cb.Run(samples);
 }
 
 }  // namespace media
