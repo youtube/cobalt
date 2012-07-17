@@ -1572,6 +1572,7 @@ ProxyConfigServiceLinux::Delegate::Delegate(base::Environment* env_var_getter)
   // Figure out which SettingGetterImpl to use, if any.
   switch (base::nix::GetDesktopEnvironment(env_var_getter)) {
     case base::nix::DESKTOP_ENVIRONMENT_GNOME:
+    case base::nix::DESKTOP_ENVIRONMENT_UNITY:
 #if defined(USE_GIO)
       {
         scoped_ptr<SettingGetterImplGSettings> gs_getter(
