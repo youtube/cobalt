@@ -1760,4 +1760,36 @@ TEST_F(ChunkDemuxerTest, TestGetBufferedRangesBeforeInitSegment) {
   CheckExpectedRanges("video", "{ }");
 }
 
+// Test that Seek() completes successfully when the first cluster
+// arrives.
+TEST_F(ChunkDemuxerTest, TestEndOfStreamDuringSeek) {
+  InSequence s;
+
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  scoped_ptr<Cluster> cluster_a(kDefaultFirstCluster());
+  scoped_ptr<Cluster> cluster_b(kDefaultSecondCluster());
+  ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
+
+  demuxer_->StartWaitingForSeek();
+
+  ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
+  demuxer_->EndOfStream(PIPELINE_OK);
+
+  demuxer_->Seek(base::TimeDelta::FromSeconds(0),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  GenerateExpectedReads(0, 4, audio, video);
+  GenerateExpectedReads(46, 66, 5, audio, video);
+
+  EndOfStreamHelper end_of_stream_helper(demuxer_);
+  end_of_stream_helper.RequestReads();
+  end_of_stream_helper.CheckIfReadDonesWereCalled(true);
+}
+
 }  // namespace media

@@ -70,15 +70,8 @@ class MEDIA_EXPORT SourceBufferStream {
   // Returns a list of the buffered time ranges.
   Ranges<base::TimeDelta> GetBufferedTime() const;
 
-  // Notifies this SourceBufferStream that EndOfStream has been called and that
-  // GetNextBuffer() should return EOS buffers after all other buffered data.
-  // Returns false if called when there is a gap between the current position
-  // and the end of the buffered data.
-  void EndOfStream();
-
-  // Returns true if this SourceBufferStream can successfully call EndOfStream()
-  // (if there are no gaps between the current position and the remaining data).
-  bool CanEndOfStream() const;
+  // Returns true if we don't have any ranges or the last range is selected.
+  bool IsEndSelected() const;
 
   const AudioDecoderConfig& GetCurrentAudioDecoderConfig() {
     return audio_config_;
@@ -203,10 +196,6 @@ class MEDIA_EXPORT SourceBufferStream {
   // Queue of the next buffers to be returned from calls to GetNextBuffer(). If
   // |track_buffer_| is empty, return buffers from |selected_range_|.
   BufferQueue track_buffer_;
-
-  // True when EndOfStream() has been called and GetNextBuffer() should return
-  // EOS buffers for read requests beyond the buffered data.  False initially.
-  bool end_of_stream_;
 
   // The start time of the current media segment being appended.
   base::TimeDelta media_segment_start_time_;

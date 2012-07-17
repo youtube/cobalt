@@ -210,6 +210,11 @@ class ChunkDemuxerStream : public DemuxerStream {
   // |buffers_| and pops the callbacks & buffers from the respecive queues.
   void CreateReadDoneClosures_Locked(ClosureQueue* closures);
 
+  // Gets the value to pass to the next Read() callback. Returns true if
+  // |buffer| should be passed to the callback. False indicates that |buffer|
+  // was not set and more data is needed.
+  bool GetNextBuffer_Locked(scoped_refptr<StreamParserBuffer>* buffer);
+
   // Specifies the type of the stream (must be AUDIO or VIDEO for now).
   Type type_;
 
@@ -218,19 +223,22 @@ class ChunkDemuxerStream : public DemuxerStream {
   mutable base::Lock lock_;
   State state_;
   ReadCBQueue read_cbs_;
+  bool end_of_stream_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ChunkDemuxerStream);
 };
 
 ChunkDemuxerStream::ChunkDemuxerStream(const AudioDecoderConfig& audio_config)
     : type_(AUDIO),
-      state_(RETURNING_DATA_FOR_READS) {
+      state_(RETURNING_DATA_FOR_READS),
+      end_of_stream_(false) {
   stream_.reset(new SourceBufferStream(audio_config));
 }
 
 ChunkDemuxerStream::ChunkDemuxerStream(const VideoDecoderConfig& video_config)
     : type_(VIDEO),
-      state_(RETURNING_DATA_FOR_READS) {
+      state_(RETURNING_DATA_FOR_READS),
+      end_of_stream_(false) {
   stream_.reset(new SourceBufferStream(video_config));
 }
 
@@ -240,7 +248,7 @@ void ChunkDemuxerStream::StartWaitingForSeek() {
   {
     base::AutoLock auto_lock(lock_);
     ChangeState_Locked(WAITING_FOR_SEEK);
-
+    end_of_stream_ = false;
     std::swap(read_cbs_, read_cbs);
   }
 
@@ -266,6 +274,7 @@ bool ChunkDemuxerStream::IsSeekPending() const {
 
 void ChunkDemuxerStream::OnNewMediaSegment(TimeDelta start_timestamp) {
   base::AutoLock auto_lock(lock_);
+  DCHECK(!end_of_stream_);
   stream_->OnNewMediaSegment(start_timestamp);
 }
 
@@ -281,6 +290,7 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   ClosureQueue closures;
   {
     base::AutoLock auto_lock(lock_);
+    DCHECK(!end_of_stream_);
     DCHECK_NE(state_, SHUTDOWN);
     if (!stream_->Append(buffers)) {
       DVLOG(1) << "ChunkDemuxerStream::Append() : stream append failed";
@@ -349,7 +359,9 @@ void ChunkDemuxerStream::EndOfStream() {
   ClosureQueue closures;
   {
     base::AutoLock auto_lock(lock_);
-    stream_->EndOfStream();
+    DCHECK(!end_of_stream_);
+    DCHECK(stream_->IsEndSelected());
+    end_of_stream_ = true;
     CreateReadDoneClosures_Locked(&closures);
   }
 
@@ -359,7 +371,7 @@ void ChunkDemuxerStream::EndOfStream() {
 
 bool ChunkDemuxerStream::CanEndOfStream() const {
   base::AutoLock auto_lock(lock_);
-  return stream_->CanEndOfStream();
+  return stream_->IsEndSelected();
 }
 
 void ChunkDemuxerStream::Shutdown() {
@@ -394,25 +406,9 @@ void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
   scoped_refptr<StreamParserBuffer> buffer;
   {
     base::AutoLock auto_lock(lock_);
-
-    switch (state_) {
-      case RETURNING_DATA_FOR_READS:
-        // If we already have pending reads or we don't have any buffers ready,
-        // then defer this read.
-        if (!read_cbs_.empty() || !stream_->GetNextBuffer(&buffer)) {
-          DeferRead_Locked(read_cb);
-          return;
-        }
-        break;
-      case WAITING_FOR_SEEK:
-        // Null buffers should be returned in this state since we are waiting
-        // for a seek. Any buffers in the SourceBuffer should NOT be returned
-        // because they are associated with the seek.
-        DCHECK(read_cbs_.empty());
-        break;
-      case SHUTDOWN:
-        DCHECK(read_cbs_.empty());
-        buffer = StreamParserBuffer::CreateEOSBuffer();
+    if (!read_cbs_.empty() || !GetNextBuffer_Locked(&buffer)) {
+      DeferRead_Locked(read_cb);
+      return;
     }
   }
 
@@ -458,11 +454,42 @@ void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
 
   scoped_refptr<StreamParserBuffer> buffer;
   while (!read_cbs_.empty()) {
-    if (!stream_->GetNextBuffer(&buffer))
+    if (!GetNextBuffer_Locked(&buffer))
       return;
     closures->push_back(base::Bind(read_cbs_.front(), buffer));
     read_cbs_.pop_front();
   }
+}
+
+bool ChunkDemuxerStream::GetNextBuffer_Locked(
+    scoped_refptr<StreamParserBuffer>* buffer) {
+  lock_.AssertAcquired();
+
+  switch (state_) {
+    case RETURNING_DATA_FOR_READS:
+      if (stream_->GetNextBuffer(buffer))
+        return true;
+
+      if (end_of_stream_) {
+        *buffer = StreamParserBuffer::CreateEOSBuffer();
+        return true;
+      }
+      return false;
+    case WAITING_FOR_SEEK:
+      // Null buffers should be returned in this state since we are waiting
+      // for a seek. Any buffers in the SourceBuffer should NOT be returned
+      // because they are associated with the seek.
+      DCHECK(read_cbs_.empty());
+      *buffer = NULL;
+      return true;
+    case SHUTDOWN:
+      DCHECK(read_cbs_.empty());
+      *buffer = StreamParserBuffer::CreateEOSBuffer();
+      return true;
+  }
+
+  NOTREACHED();
+  return false;
 }
 
 ChunkDemuxer::ChunkDemuxer(ChunkDemuxerClient* client)
