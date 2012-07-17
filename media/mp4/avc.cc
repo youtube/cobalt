@@ -88,5 +88,27 @@ bool AVC::InsertParameterSets(const AVCDecoderConfigurationRecord& avc_config,
   return true;
 }
 
+// static
+ChannelLayout AVC::ConvertAACChannelCountToChannelLayout(int count) {
+  switch (count) {
+    case 1:
+      return CHANNEL_LAYOUT_MONO;
+    case 2:
+      return CHANNEL_LAYOUT_STEREO;
+    case 3:
+      return CHANNEL_LAYOUT_SURROUND;
+    case 4:
+      return CHANNEL_LAYOUT_4_0;
+    case 5:
+      return CHANNEL_LAYOUT_5_0;
+    case 6:
+      return CHANNEL_LAYOUT_5_1;
+    case 8:
+      return CHANNEL_LAYOUT_7_1;
+    default:
+      return CHANNEL_LAYOUT_UNSUPPORTED;
+  }
+}
+
 }  // namespace mp4
 }  // namespace media
