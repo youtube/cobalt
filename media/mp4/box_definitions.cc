@@ -5,7 +5,8 @@
 #include "media/mp4/box_definitions.h"
 
 #include "base/logging.h"
-#include "media/mp4/es_descriptor.h"
+#include "media/mp4/box_reader.h"
+#include "media/mp4/fourccs.h"
 #include "media/mp4/rcheck.h"
 
 namespace media {
@@ -388,29 +389,6 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
   return true;
 }
 
-ElementaryStreamDescriptor::ElementaryStreamDescriptor() {}
-
-ElementaryStreamDescriptor::~ElementaryStreamDescriptor() {}
-
-FourCC ElementaryStreamDescriptor::BoxType() const {
-  return FOURCC_ESDS;
-}
-
-bool ElementaryStreamDescriptor::Parse(BoxReader* reader) {
-  std::vector<uint8> data;
-  ESDescriptor es_desc;
-
-  RCHECK(reader->ReadFullBoxHeader());
-  RCHECK(reader->ReadVec(&data, reader->size() - reader->pos()));
-  RCHECK(es_desc.Parse(data));
-
-  object_type = es_desc.object_type();
-
-  RCHECK(aac.Parse(es_desc.decoder_specific_info()));
-
-  return true;
-}
-
 AudioSampleEntry::AudioSampleEntry()
     : format(FOURCC_NULL),
       data_reference_index(0),
@@ -419,7 +397,6 @@ AudioSampleEntry::AudioSampleEntry()
       samplerate(0) {}
 
 AudioSampleEntry::~AudioSampleEntry() {}
-
 FourCC AudioSampleEntry::BoxType() const {
   DCHECK(false) << "AudioSampleEntry should be parsed according to the "
                 << "handler type recovered in its Media ancestor.";
@@ -442,7 +419,6 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
   if (format == FOURCC_ENCA) {
     RCHECK(reader->ReadChild(&sinf));
   }
-  RCHECK(reader->ReadChild(&esds));
   return true;
 }
 

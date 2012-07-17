@@ -135,8 +135,6 @@
         'base/audio_renderer_mixer.h',
         'base/audio_renderer_mixer_input.cc',
         'base/audio_renderer_mixer_input.h',
-        'base/bit_reader.cc',
-        'base/bit_reader.h',
         'base/bitstream_buffer.h',
         'base/buffers.cc',
         'base/buffers.h',
@@ -458,8 +456,6 @@
         }],
         ['proprietary_codecs==1 or branding=="Chrome"', {
           'sources': [
-            'mp4/aac.cc',
-            'mp4/aac.h',
             'mp4/avc.cc',
             'mp4/avc.h',
             'mp4/box_definitions.cc',
@@ -468,8 +464,6 @@
             'mp4/box_reader.h',
             'mp4/cenc.cc',
             'mp4/cenc.h',
-            'mp4/es_descriptor.cc',
-            'mp4/es_descriptor.h',
             'mp4/mp4_stream_parser.cc',
             'mp4/mp4_stream_parser.h',
             'mp4/offset_byte_queue.cc',
@@ -675,7 +669,6 @@
         'audio/win/audio_output_win_unittest.cc',
         'base/audio_renderer_mixer_unittest.cc',
         'base/audio_renderer_mixer_input_unittest.cc',
-        'base/bit_reader_unittest.cc',
         'base/buffers_unittest.cc',
         'base/clock_unittest.cc',
         'base/composite_filter_unittest.cc',
@@ -778,10 +771,8 @@
         }],
         ['proprietary_codecs==1 or branding=="Chrome"', {
           'sources': [
-            'mp4/aac_unittest.cc',
             'mp4/avc_unittest.cc',
             'mp4/box_reader_unittest.cc',
-            'mp4/es_descriptor_unittest.cc',
             'mp4/mp4_stream_parser_unittest.cc',
             'mp4/offset_byte_queue_unittest.cc',
           ],
