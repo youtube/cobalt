@@ -843,12 +843,18 @@
         'directx_sdk_path%': '$(DXSDK_DIR)',
       }],
       ['os_posix==1 and OS!="mac" and OS!="ios"', {
-        # This will set gcc_version to XY if you are running gcc X.Y.*.
-        # This is used to tweak build flags for gcc 4.4.
-        'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
         # Figure out the python architecture to decide if we build pyauto.
         'python_arch%': '<!(<(DEPTH)/build/linux/python_arch.sh <(sysroot)/usr/<(system_libdir)/libpython<(python_ver).so.1.0)',
         'conditions': [
+          # TODO(glider): set clang to 1 earlier for ASan and TSan builds so
+          # that it takes effect here.
+          ['clang==0 and asan==0 and tsan==0', {
+            # This will set gcc_version to XY if you are running gcc X.Y.*.
+            # This is used to tweak build flags for gcc 4.5.
+            'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
+          }, {
+            'gcc_version%': 0,
+          }],
           ['branding=="Chrome"', {
             'linux_breakpad%': 1,
           }],
