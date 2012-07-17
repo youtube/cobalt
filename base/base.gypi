@@ -575,7 +575,6 @@
               ['include', '^mac/objc_property_releaser\\.'],
               ['include', '^mac/scoped_nsautorelease_pool\\.'],
               ['include', '^message_pump_mac\\.'],
-              ['include', '^native_library_mac\\.'],
               ['include', '^threading/platform_thread_mac\\.'],
               ['include', '^sys_string_conversions_mac\\.'],
               ['include', '^time_mac\\.'],
