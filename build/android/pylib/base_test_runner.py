@@ -213,8 +213,7 @@ class BaseTestRunner(object):
       # different port for individual test in TestServerThread.
       self.test_server_spawner_port = ports.AllocateTestServerPort()
       self._spawning_server = SpawningServer(self.test_server_spawner_port,
-                                             self.adb,
-                                             self.tool)
+                                             self.test_server_port)
       self._spawning_server.Start()
       server_ready, error_msg = ports.IsHttpServerConnectable(
           '127.0.0.1', self.test_server_spawner_port, path='/ping',
