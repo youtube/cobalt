@@ -20,7 +20,13 @@ TOMBSTONE_DIR = '/data/tombstones/'
 
 
 class GTestDebugInfo(object):
-  """A helper class to get relate debug information for a gtest.
+  """A helper class to collect related debug information for a gtest.
+
+  Debug info is collected in two steps:
+  - first, object(s) of this class (one per device), accumulate logs
+  and screenshots in tempdir.
+  - once the test has finished, call ZipAndCleanResults to create
+  a zip containing the logs from all devices, and clean them up.
 
   Args:
     adb: ADB interface the tests are using.
@@ -29,8 +35,7 @@ class GTestDebugInfo(object):
     gtest_filter: Test filter used by the specified gtest.
   """
 
-  def __init__(self, adb, device, testsuite_name, gtest_filter,
-              collect_new_crashes=True):
+  def __init__(self, adb, device, testsuite_name, gtest_filter):
     """Initializes the DebugInfo class for a specified gtest."""
     self.adb = adb
     self.device = device
@@ -38,34 +43,15 @@ class GTestDebugInfo(object):
     self.gtest_filter = gtest_filter
     self.logcat_process = None
     self.has_storage = False
-    self.log_dir = None
-    self.log_file_name = None
-    self.collect_new_crashes = collect_new_crashes
-    self.old_crash_files = self.ListCrashFiles()
-
-  def InitStorage(self):
-    """Initializes the storage in where we put the debug information."""
-    if self.has_storage:
-      return
-    self.has_storage = True
-    self.log_dir = tempfile.mkdtemp()
+    self.log_dir = os.path.join(tempfile.gettempdir(),
+                                'gtest_debug_info',
+                                self.testsuite_name,
+                                self.device)
+    if not os.path.exists(self.log_dir):
+      os.makedirs(self.log_dir)
     self.log_file_name = os.path.join(self.log_dir,
                                       self._GeneratePrefixName() + '_log.txt')
-
-  def CleanupStorage(self):
-    """Cleans up the storage in where we put the debug information."""
-    if not self.has_storage:
-      return
-    self.has_storage = False
-    assert os.path.exists(self.log_dir)
-    shutil.rmtree(self.log_dir)
-    self.log_dir = None
-    self.log_file_name = None
-
-  def GetStoragePath(self):
-    """Returns the path in where we store the debug information."""
-    self.InitStorage()
-    return self.log_dir
+    self.old_crash_files = self._ListCrashFiles()
 
   def _GetSignatureFromGTestFilter(self):
     """Gets a signature from gtest_filter.
@@ -79,7 +65,11 @@ class GTestDebugInfo(object):
     if not self.gtest_filter:
       return 'all'
     filename_chars = "-_()%s%s" % (string.ascii_letters, string.digits)
-    return ''.join(c for c in self.gtest_filter if c in filename_chars)
+    signature = ''.join(c for c in self.gtest_filter if c in filename_chars)
+    if len(signature) > 64:
+      # The signature can't be too long, as it'll be part of a file name.
+      signature = signature[:64]
+    return signature
 
   def _GeneratePrefixName(self):
     """Generates a prefix name for debug information of the test.
@@ -87,7 +77,7 @@ class GTestDebugInfo(object):
     The prefix name consists of the following:
     (1) root name of test_suite_base.
     (2) device serial number.
-    (3) filter signature generate from gtest_filter.
+    (3) prefix of filter signature generate from gtest_filter.
     (4) date & time when calling this method.
 
     Returns:
@@ -107,13 +97,13 @@ class GTestDebugInfo(object):
       clear: True if existing log output should be cleared.
       filters: A list of logcat filters to be used.
     """
-    self.InitStorage()
     self.StopRecordingLog()
     if clear:
-      cmd_helper.RunCmd(['adb', 'logcat', '-c'])
-    logging.info('Start dumping log to %s ...' % self.log_file_name)
-    command = 'adb logcat -v threadtime %s > %s' % (' '.join(filters),
-                                                    self.log_file_name)
+      cmd_helper.RunCmd(['adb', '-s', self.device, 'logcat', '-c'])
+    logging.info('Start dumping log to %s ...', self.log_file_name)
+    command = 'adb -s %s logcat -v threadtime %s > %s' % (self.device,
+                                                          ' '.join(filters),
+                                                          self.log_file_name)
     self.logcat_process = subprocess.Popen(command, shell=True)
 
   def StopRecordingLog(self):
@@ -137,74 +127,70 @@ class GTestDebugInfo(object):
       Returns the file name on the host of the screenshot if successful,
       None otherwise.
     """
-    self.InitStorage()
     assert isinstance(identifier_mark, str)
+    screenshot_path = os.path.join(os.getenv('ANDROID_HOST_OUT', ''),
+                                   'bin',
+                                   'screenshot2')
+    if not os.path.exists(screenshot_path):
+      logging.error('Failed to take screen shot from device %s', self.device)
+      return None
     shot_path = os.path.join(self.log_dir, ''.join([self._GeneratePrefixName(),
                                                     identifier_mark,
                                                     '_screenshot.png']))
-    screenshot_path = os.path.join(os.getenv('ANDROID_HOST_OUT'), 'bin',
-                                   'screenshot2')
     re_success = re.compile(re.escape('Success.'), re.MULTILINE)
     if re_success.findall(cmd_helper.GetCmdOutput([screenshot_path, '-s',
                                                    self.device, shot_path])):
-      logging.info("Successfully took a screen shot to %s" % shot_path)
+      logging.info('Successfully took a screen shot to %s', shot_path)
       return shot_path
-    logging.error('Failed to take screen shot from device %s' % self.device)
+    logging.error('Failed to take screen shot from device %s', self.device)
     return None
 
-  def ListCrashFiles(self):
+  def _ListCrashFiles(self):
     """Collects crash files from current specified device.
 
     Returns:
       A dict of crash files in format {"name": (size, lastmod), ...}.
     """
-    if not self.collect_new_crashes:
-      return {}
     return self.adb.ListPathContents(TOMBSTONE_DIR)
 
   def ArchiveNewCrashFiles(self):
     """Archives the crash files newly generated until calling this method."""
-    if not self.collect_new_crashes:
-      return
-    current_crash_files = self.ListCrashFiles()
+    current_crash_files = self._ListCrashFiles()
     files = []
     for f in current_crash_files:
       if f not in self.old_crash_files:
         files += [f]
       elif current_crash_files[f] != self.old_crash_files[f]:
-        # Tomestones dir can only have maximum 10 files, so we need to compare
+        # Tombstones dir can only have maximum 10 files, so we need to compare
         # size and timestamp information of file if the file exists.
         files += [f]
     if files:
       logging.info('New crash file(s):%s' % ' '.join(files))
       for f in files:
         self.adb.Adb().Pull(TOMBSTONE_DIR + f,
-                            os.path.join(self.GetStoragePath(), f))
+                            os.path.join(self.log_dir, f))
 
   @staticmethod
-  def ZipAndCleanResults(dest_dir, dump_file_name, debug_info_list):
+  def ZipAndCleanResults(dest_dir, dump_file_name):
     """A helper method to zip all debug information results into a dump file.
 
     Args:
-      dest-dir: Dir path in where we put the dump file.
+      dest_dir: Dir path in where we put the dump file.
       dump_file_name: Desired name of the dump file. This method makes sure
                       '.zip' will be added as ext name.
-      debug_info_list: List of all debug info objects.
     """
-    if not dest_dir or not dump_file_name or not debug_info_list:
+    if not dest_dir or not dump_file_name:
       return
     cmd_helper.RunCmd(['mkdir', '-p', dest_dir])
     log_basename = os.path.basename(dump_file_name)
-    log_file = os.path.join(dest_dir,
-                            os.path.splitext(log_basename)[0] + '.zip')
-    logging.info('Zipping debug dumps into %s ...' % log_file)
-    for d in debug_info_list:
-      d.ArchiveNewCrashFiles()
+    log_zip_file = os.path.join(dest_dir,
+                                os.path.splitext(log_basename)[0] + '.zip')
+    logging.info('Zipping debug dumps into %s ...', log_zip_file)
     # Add new dumps into the zip file. The zip may exist already if previous
     # gtest also dumps the debug information. It's OK since we clean up the old
     # dumps in each build step.
-    cmd_helper.RunCmd(['zip', '-q', '-r', log_file,
-                       ' '.join([d.GetStoragePath() for d in debug_info_list])])
-    assert os.path.exists(log_file)
-    for debug_info in debug_info_list:
-      debug_info.CleanupStorage()
+    log_src_dir = os.path.join(tempfile.gettempdir(), 'gtest_debug_info')
+    cmd_helper.RunCmd(['zip', '-q', '-r', log_zip_file, log_src_dir])
+    assert os.path.exists(log_zip_file)
+    assert os.path.exists(log_src_dir)
+    shutil.rmtree(log_src_dir)
