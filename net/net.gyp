@@ -1386,6 +1386,10 @@
           },
         ],
         [ 'OS == "android"', {
+            'defines': [
+              # Android can shut down our app at any time, so we persist session cookies.
+              'ENABLE_PERSISTENT_SESSION_COOKIES'
+            ],
             'dependencies': [
               '../third_party/openssl/openssl.gyp:openssl',
             ],
