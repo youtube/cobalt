@@ -80,25 +80,38 @@ _TEST_SUITES = ['base_unittests',
                ]
 
 
-def FullyQualifiedTestSuites(exe, test_suites):
-  """Return a fully qualified list that represents all known suites.
+def FullyQualifiedTestSuites(exe, option_test_suite):
+  """Return a fully qualified list
 
   Args:
     exe: if True, use the executable-based test runner.
-    test_suites: the source test suites to process.
+    option_test_suite: the test_suite specified as an option.
   """
   # Assume the test suites are in out/Release.
   test_suite_dir = os.path.abspath(os.path.join(constants.CHROME_DIR,
                                                 'out', 'Release'))
+  if option_test_suite:
+    all_test_suites = [option_test_suite]
+  else:
+    all_test_suites = _TEST_SUITES
+
   if exe:
-    suites = [os.path.join(test_suite_dir, t) for t in test_suites]
+    qualified_test_suites = [os.path.join(test_suite_dir, t)
+                             for t in all_test_suites]
   else:
     # out/Release/$SUITE_apk/$SUITE-debug.apk
-    suites = [os.path.join(test_suite_dir,
-                           t + '_apk',
-                           t + '-debug.apk')
-              for t in test_suites]
-  return suites
+    qualified_test_suites = [os.path.join(test_suite_dir,
+                                          t + '_apk',
+                                          t + '-debug.apk')
+                             for t in all_test_suites]
+  for t, q in zip(all_test_suites, qualified_test_suites):
+    if not os.path.exists(q):
+      logging.critical('Test suite %s not found in %s.\n'
+                       'Supported test suites:\n %s\n'
+                       'Ensure it has been built.\n',
+                       t, q, _TEST_SUITES)
+      return []
+  return qualified_test_suites
 
 
 class TimeProfile(object):
@@ -175,75 +188,6 @@ def PrintAnnotationForTestResults(test_results):
     print 'Step success!'  # No annotation needed
 
 
-def RunTests(exe, device, test_suite, gtest_filter, test_arguments, rebaseline,
-             timeout, performance_test, cleanup_test_files, tool,
-             log_dump_name, fast_and_loose):
-  """Runs the tests.
-
-  Args:
-    exe: boolean to state if we are using the exe based test runner
-    device: Device to run the tests.
-    test_suite: A specific test suite to run, empty to run all.
-    gtest_filter: A gtest_filter flag.
-    test_arguments: Additional arguments to pass to the test binary.
-    rebaseline: Whether or not to run tests in isolation and update the filter.
-    timeout: Timeout for each test.
-    performance_test: Whether or not performance test(s).
-    cleanup_test_files: Whether or not to cleanup test files on device.
-    tool: Name of the Valgrind tool.
-    log_dump_name: Name of log dump file.
-    fast_and_loose: if set, skip copying data files.
-
-  Returns:
-    A TestResults object.
-  """
-  results = []
-
-  if test_suite:
-    if not os.path.exists(test_suite):
-      logging.critical('Unrecognized test suite %s, supported: %s',
-                       test_suite, _TEST_SUITES)
-      if test_suite in _TEST_SUITES:
-        logging.critical('(Remember to include the path: out/Release/%s)',
-                         test_suite)
-      test_suite_basename = os.path.basename(test_suite)
-      if test_suite_basename in _TEST_SUITES:
-        logging.critical('Try "make -j15 %s"', test_suite_basename)
-      else:
-        logging.critical('Unrecognized test suite, supported: %s',
-                         _TEST_SUITES)
-      return TestResults.FromRun([], [BaseTestResult(test_suite, '')],
-                                 False, False)
-    fully_qualified_test_suites = [test_suite]
-  else:
-    fully_qualified_test_suites = FullyQualifiedTestSuites(exe, _TEST_SUITES)
-  debug_info_list = []
-  print 'Known suites: ' + str(_TEST_SUITES)
-  print 'Running these: ' + str(fully_qualified_test_suites)
-  for t in fully_qualified_test_suites:
-    buildbot_report.PrintNamedStep('Test suite %s' % os.path.basename(t))
-    test = SingleTestRunner(device, t, gtest_filter, test_arguments,
-                            timeout, rebaseline, performance_test,
-                            cleanup_test_files, tool, 0, not not log_dump_name,
-                            fast_and_loose)
-    test.Run()
-
-    results += [test.test_results]
-    # Collect debug info.
-    debug_info_list += [test.dump_debug_info]
-    if rebaseline:
-      test.UpdateFilter(test.test_results.failed)
-    test.test_results.LogFull('Unit test', os.path.basename(t))
-  # Zip all debug info outputs into a file named by log_dump_name.
-  debug_info.GTestDebugInfo.ZipAndCleanResults(
-      os.path.join(constants.CHROME_DIR, 'out', 'Release', 'debug_info_dumps'),
-      log_dump_name, [d for d in debug_info_list if d])
-
-  PrintAnnotationForTestResults(test.test_results)
-
-  return TestResults.FromTestResults(results)
-
-
 class TestSharder(BaseTestSharder):
   """Responsible for sharding the tests on the connected devices."""
 
@@ -253,7 +197,7 @@ class TestSharder(BaseTestSharder):
     BaseTestSharder.__init__(self, attached_devices)
     self.test_suite = test_suite
     self.test_suite_basename = os.path.basename(test_suite)
-    self.gtest_filter = gtest_filter
+    self.gtest_filter = gtest_filter or ''
     self.test_arguments = test_arguments
     self.timeout = timeout
     self.rebaseline = rebaseline
@@ -266,17 +210,20 @@ class TestSharder(BaseTestSharder):
                             test_arguments, timeout, rebaseline,
                             performance_test, cleanup_test_files, tool, 0,
                             not not self.log_dump_name, fast_and_loose)
-    # The executable/apk needs to be copied before we can call GetAllTests.
-    test.test_package.StripAndCopyExecutable()
-    all_tests = test.test_package.GetAllTests()
-    if not rebaseline:
-      disabled_list = test.GetDisabledTests()
-      # Only includes tests that do not have any match in the disabled list.
-      all_tests = filter(lambda t:
-                         not any([fnmatch.fnmatch(t, disabled_pattern)
-                                  for disabled_pattern in disabled_list]),
-                         all_tests)
-    self.tests = all_tests
+    self.tests = []
+    if not self.gtest_filter:
+      # No filter has been specified, let's add all tests then.
+      # The executable/apk needs to be copied before we can call GetAllTests.
+      test.test_package.StripAndCopyExecutable()
+      all_tests = test.test_package.GetAllTests()
+      if not rebaseline:
+        disabled_list = test.GetDisabledTests()
+        # Only includes tests that do not have any match in the disabled list.
+        all_tests = filter(lambda t:
+                           not any([fnmatch.fnmatch(t, disabled_pattern)
+                                    for disabled_pattern in disabled_list]),
+                           all_tests)
+      self.tests = all_tests
 
   def CreateShardedTestRunner(self, device, index):
     """Creates a suite-specific test runner.
@@ -291,7 +238,7 @@ class TestSharder(BaseTestSharder):
     device_num = len(self.attached_devices)
     shard_size = (len(self.tests) + device_num - 1) / device_num
     shard_test_list = self.tests[index * shard_size : (index + 1) * shard_size]
-    test_filter = ':'.join(shard_test_list)
+    test_filter = ':'.join(shard_test_list) + self.gtest_filter
     return SingleTestRunner(device, self.test_suite,
                             test_filter, self.test_arguments, self.timeout,
                             self.rebaseline, self.performance_test,
@@ -304,6 +251,12 @@ class TestSharder(BaseTestSharder):
     PrintAnnotationForTestResults(test_results)
     if test_results.failed and self.rebaseline:
       test_runners[0].UpdateFilter(test_results.failed)
+    if self.log_dump_name:
+      # Zip all debug info outputs into a file named by log_dump_name.
+      debug_info.GTestDebugInfo.ZipAndCleanResults(
+          os.path.join(constants.CHROME_DIR, 'out', 'Release',
+                       'debug_info_dumps'),
+          self.log_dump_name)
 
 
 def _RunATestSuite(options):
@@ -319,6 +272,7 @@ def _RunATestSuite(options):
   Returns:
     0 if successful, number of failing tests otherwise.
   """
+  buildbot_report.PrintNamedStep('Test suite %s' % options.test_suite)
   attached_devices = []
   buildbot_emulators = []
 
@@ -352,23 +306,16 @@ def _RunATestSuite(options):
   if not ports.ResetTestServerPortAllocation():
     raise Exception('Failed to reset test server port.')
 
-  if (len(attached_devices) > 1 and options.test_suite and
-      not options.gtest_filter and not options.performance_test):
-    sharder = TestSharder(attached_devices, options.test_suite,
-                          options.gtest_filter, options.test_arguments,
-                          options.timeout, options.rebaseline,
-                          options.performance_test,
-                          options.cleanup_test_files, options.tool,
-                          options.log_dump, options.fast_and_loose)
-    test_results = sharder.RunShardedTests()
-  else:
-    test_results = RunTests(options.exe, attached_devices[0],
-                            options.test_suite,
-                            options.gtest_filter, options.test_arguments,
-                            options.rebaseline, options.timeout,
-                            options.performance_test,
-                            options.cleanup_test_files, options.tool,
-                            options.log_dump, options.fast_and_loose)
+  if options.performance_test or options.gtest_filter:
+    # These configuration can't be split in multiple devices.
+    attached_devices = [attached_devices[0]]
+  sharder = TestSharder(attached_devices, options.test_suite,
+                        options.gtest_filter, options.test_arguments,
+                        options.timeout, options.rebaseline,
+                        options.performance_test,
+                        options.cleanup_test_files, options.tool,
+                        options.log_dump, options.fast_and_loose)
+  test_results = sharder.RunShardedTests()
 
   for buildbot_emulator in buildbot_emulators:
     buildbot_emulator.Shutdown()
@@ -405,12 +352,7 @@ def Dispatch(options):
     xvfb = Xvfb()
     xvfb.Start()
 
-  if options.test_suite:
-    all_test_suites = FullyQualifiedTestSuites(options.exe,
-                                               [options.test_suite])
-  else:
-    all_test_suites = FullyQualifiedTestSuites(options.exe,
-                                               _TEST_SUITES)
+  all_test_suites = FullyQualifiedTestSuites(options.exe, options.test_suite)
   failures = 0
   for suite in all_test_suites:
     options.test_suite = suite
@@ -447,9 +389,9 @@ def main(argv):
                            help='Indicator of performance test',
                            action='store_true')
   option_parser.add_option('-L', dest='log_dump',
-                           help='file name of log dump, which will be put in'
-                           'subfolder debug_info_dumps under the same directory'
-                           'in where the test_suite exists.')
+                           help='file name of log dump, which will be put in '
+                           'subfolder debug_info_dumps under the same '
+                           'directory in where the test_suite exists.')
   option_parser.add_option('-e', '--emulator', dest='use_emulator',
                            action='store_true',
                            help='Run tests in a new instance of emulator')
