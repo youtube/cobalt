@@ -2057,6 +2057,7 @@ SECStatus
 ssl3_CompressMACEncryptRecord(ssl3CipherSpec *   cwSpec,
 		              PRBool             isServer,
 			      PRBool             isDTLS,
+			      PRBool             capRecordVersion,
                               SSL3ContentType    type,
 		              const SSL3Opaque * pIn,
 		              PRUint32           contentLen,
@@ -2216,8 +2217,13 @@ ssl3_CompressMACEncryptRecord(ssl3CipherSpec *   cwSpec,
 	wrBuf->buf[11] = MSB(cipherBytes);
 	wrBuf->buf[12] = LSB(cipherBytes);
     } else {
-	wrBuf->buf[1] = MSB(cwSpec->version);
-	wrBuf->buf[2] = LSB(cwSpec->version);
+	SSL3ProtocolVersion version = cwSpec->version;
+
+	if (capRecordVersion) {
+	    version = PR_MIN(SSL_LIBRARY_VERSION_TLS_1_0, version);
+	}
+	wrBuf->buf[1] = MSB(version);
+	wrBuf->buf[2] = LSB(version);
 	wrBuf->buf[3] = MSB(cipherBytes);
 	wrBuf->buf[4] = LSB(cipherBytes);
     }
@@ -2247,7 +2253,14 @@ ssl3_CompressMACEncryptRecord(ssl3CipherSpec *   cwSpec,
  *    all ciphertext into the pending ciphertext buffer.
  * ssl_SEND_FLAG_USE_EPOCH (for DTLS)
  *    Forces the use of the provided epoch
- *
+ * ssl_SEND_FLAG_CAP_RECORD_VERSION
+ *    Caps the record layer version number of TLS ClientHello to { 3, 1 }
+ *    (TLS 1.0). Some TLS 1.0 servers (which seem to use F5 BIG-IP) ignore 
+ *    ClientHello.client_version and use the record layer version number
+ *    (TLSPlaintext.version) instead when negotiating protocol versions. In
+ *    addition, if the record layer version number of ClientHello is { 3, 2 }
+ *    (TLS 1.1) or higher, these servers reset the TCP connections. Set this
+ *    flag to work around such servers.
  */
 PRInt32
 ssl3_SendRecord(   sslSocket *        ss,
@@ -2260,6 +2273,7 @@ ssl3_SendRecord(   sslSocket *        ss,
     sslBuffer      *          wrBuf 	  = &ss->sec.writeBuf;
     SECStatus                 rv;
     PRInt32                   totalSent   = 0;
+    PRBool                    capRecordVersion;
 
     SSL_TRC(3, ("%d: SSL3[%d] SendRecord type: %s nIn=%d",
 		SSL_GETPID(), ss->fd, ssl3_DecodeContentType(type),
@@ -2267,6 +2281,16 @@ ssl3_SendRecord(   sslSocket *        ss,
     PRINT_BUF(3, (ss, "Send record (plain text)", pIn, nIn));
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveXmitBufLock(ss) );
+
+    capRecordVersion = ((flags & ssl_SEND_FLAG_CAP_RECORD_VERSION) != 0);
+
+    if (capRecordVersion) {
+	/* ssl_SEND_FLAG_CAP_RECORD_VERSION can only be used with
+	 * TLS ClientHello. */
+	PORT_Assert(!IS_DTLS(ss));
+	PORT_Assert(type == content_handshake);
+	PORT_Assert(ss->ssl3.hs.ws == wait_server_hello);
+    }
 
     if (ss->ssl3.initialized == PR_FALSE) {
 	/* This can happen on a server if the very first incoming record
@@ -2324,7 +2348,8 @@ ssl3_SendRecord(   sslSocket *        ss,
 
 	    rv = ssl3_CompressMACEncryptRecord(ss->ssl3.cwSpec,
 					       ss->sec.isServer, IS_DTLS(ss),
-					       type, pIn, 1, wrBuf);
+					       capRecordVersion, type, pIn,
+					       1, wrBuf);
 	    if (rv != SECSuccess)
 	        goto spec_locked_loser;
 
@@ -2337,7 +2362,8 @@ ssl3_SendRecord(   sslSocket *        ss,
 
 	    rv = ssl3_CompressMACEncryptRecord(ss->ssl3.cwSpec,
 	                                       ss->sec.isServer, IS_DTLS(ss),
-					       type, pIn + 1, contentLen - 1,
+					       capRecordVersion, type,
+					       pIn + 1, contentLen - 1,
 	                                       &secondRecord);
 	    if (rv == SECSuccess) {
 	        PRINT_BUF(50, (ss, "send (encrypted) record data [2/2]:",
@@ -2349,6 +2375,7 @@ ssl3_SendRecord(   sslSocket *        ss,
 		rv = ssl3_CompressMACEncryptRecord(ss->ssl3.cwSpec,
 						   ss->sec.isServer,
 						   IS_DTLS(ss),
+						   capRecordVersion,
 						   type, pIn,
 						   contentLen, wrBuf);
 	    } else {
@@ -2560,6 +2587,8 @@ ssl3_FlushHandshake(sslSocket *ss, PRInt32 flags)
 static SECStatus
 ssl3_FlushHandshakeMessages(sslSocket *ss, PRInt32 flags)
 {
+    static const PRInt32 allowedFlags = ssl_SEND_FLAG_FORCE_INTO_BUFFER |
+                                        ssl_SEND_FLAG_CAP_RECORD_VERSION;
     PRInt32 rv = SECSuccess;
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveSSL3HandshakeLock(ss));
@@ -2568,9 +2597,9 @@ ssl3_FlushHandshakeMessages(sslSocket *ss, PRInt32 flags)
     if (!ss->sec.ci.sendBuf.buf || !ss->sec.ci.sendBuf.len)
 	return rv;
 
-    /* only this flag is allowed */
-    PORT_Assert(!(flags & ~ssl_SEND_FLAG_FORCE_INTO_BUFFER));
-    if ((flags & ~ssl_SEND_FLAG_FORCE_INTO_BUFFER) != 0) {
+    /* only these flags are allowed */
+    PORT_Assert(!(flags & ~allowedFlags));
+    if ((flags & ~allowedFlags) != 0) {
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	rv = SECFailure;
     } else {
@@ -3981,8 +4010,10 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
     int              num_suites;
     int              actual_count = 0;
     PRBool           isTLS = PR_FALSE;
+    PRBool           serverVersionKnown = PR_FALSE;
     PRInt32          total_exten_len = 0;
     unsigned         numCompressionMethods;
+    PRInt32          flags;
 
     SSL_TRC(3, ("%d: SSL3[%d]: send client_hello handshake", SSL_GETPID(),
 		ss->fd));
@@ -4070,6 +4101,7 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
     }
 
     if (sid) {
+	serverVersionKnown = PR_TRUE;
 	SSL_AtomicIncrementLong(& ssl3stats.sch_sid_cache_hits );
 
 	/* Are we attempting a stateless session resume? */
@@ -4305,7 +4337,11 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
 	    ssl_renegotiation_info_xtn;
     }
 
-    rv = ssl3_FlushHandshake(ss, 0);
+    flags = 0;
+    if (!serverVersionKnown && !IS_DTLS(ss)) {
+	flags |= ssl_SEND_FLAG_CAP_RECORD_VERSION;
+    }
+    rv = ssl3_FlushHandshake(ss, flags);
     if (rv != SECSuccess) {
 	return rv;	/* error code set by ssl3_FlushHandshake */
     }
