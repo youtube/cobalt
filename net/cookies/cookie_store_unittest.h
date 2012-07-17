@@ -1095,7 +1095,13 @@ TYPED_TEST_P(MultiThreadedCookieStoreTest, ThreadCheckDeleteSessionCookies) {
                                          "A=B", options));
   EXPECT_TRUE(this->SetCookieWithOptions(cs, this->url_google_,
       "B=C; expires=Mon, 18-Apr-22 22:50:13 GMT", options));
+
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  EXPECT_EQ(0, this->DeleteSessionCookies(cs));
+#else
   EXPECT_EQ(1, this->DeleteSessionCookies(cs));
+#endif
+
   EXPECT_EQ(0, this->DeleteSessionCookies(cs));
 
   EXPECT_TRUE(this->SetCookieWithOptions(cs, this->url_google_,
@@ -1107,7 +1113,12 @@ TYPED_TEST_P(MultiThreadedCookieStoreTest, ThreadCheckDeleteSessionCookies) {
       cs, &callback);
   this->RunOnOtherThread(task);
   EXPECT_TRUE(callback.did_run());
+
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  EXPECT_EQ(0, callback.num_deleted());
+#else
   EXPECT_EQ(1, callback.num_deleted());
+#endif
 }
 
 REGISTER_TYPED_TEST_CASE_P(MultiThreadedCookieStoreTest,
