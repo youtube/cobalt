@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -22,7 +23,10 @@ class MEDIA_EXPORT AVC {
   static bool InsertParameterSets(
       const AVCDecoderConfigurationRecord& avc_config,
       std::vector<uint8>* buffer);
+
+  static ChannelLayout ConvertAACChannelCountToChannelLayout(int count);
 };
+
 
 }  // namespace mp4
 }  // namespace media
