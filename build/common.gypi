@@ -861,6 +861,7 @@
       }],  # os_posix==1 and OS!="mac" and OS!="ios"
       ['OS=="ios"', {
         'disable_nacl%': 1,
+        'use_system_libxml%': 1,
       }],
       ['OS=="android"', {
         # Location of Android NDK.
