@@ -3,8 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Run this script in the mozilla/security/nss/lib directory in a NSS source
-# tree.
+# Run this script in the mozilla/security/nss/lib/ssl directory in a NSS
+# source tree.
 #
 # Point patches_dir to the src/net/third_party/nss/patches directory in a
 # chromium source tree.
@@ -36,14 +36,16 @@ patch -p5 < $patches_dir/falsestartnpn.patch
 
 patch -p5 < $patches_dir/dhvalues.patch
 
-patch -p4 < $patches_dir/channelid.patch
+patch -p5 < $patches_dir/channelid.patch
 
 patch -p4 < $patches_dir/dtlssrtp.patch
 
-patch -p4 < $patches_dir/keylog.patch
+patch -p5 < $patches_dir/keylog.patch
 
 patch -p4 < $patches_dir/getchannelinfo.patch
 
-patch -p4 < $patches_dir/tlsunique.patch
+patch -p5 < $patches_dir/tlsunique.patch
 
-patch -p4 < $patches_dir/sslkeylogerror.patch
+patch -p5 < $patches_dir/sslkeylogerror.patch
+
+patch -p4 < $patches_dir/recordlayerversion.patch
