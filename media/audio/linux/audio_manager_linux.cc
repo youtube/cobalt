@@ -72,11 +72,20 @@ void AudioManagerLinux::UnMuteAll() {
 
 bool AudioManagerLinux::CanShowAudioInputSettings() {
   scoped_ptr<base::Environment> env(base::Environment::Create());
-  base::nix::DesktopEnvironment desktop = base::nix::GetDesktopEnvironment(
-      env.get());
-  return (desktop == base::nix::DESKTOP_ENVIRONMENT_GNOME ||
-          desktop == base::nix::DESKTOP_ENVIRONMENT_KDE3 ||
-          desktop == base::nix::DESKTOP_ENVIRONMENT_KDE4);
+
+  switch (base::nix::GetDesktopEnvironment(env.get())) {
+    case base::nix::DESKTOP_ENVIRONMENT_GNOME:
+    case base::nix::DESKTOP_ENVIRONMENT_KDE3:
+    case base::nix::DESKTOP_ENVIRONMENT_KDE4:
+      return true;
+    case base::nix::DESKTOP_ENVIRONMENT_OTHER:
+    case base::nix::DESKTOP_ENVIRONMENT_UNITY:
+    case base::nix::DESKTOP_ENVIRONMENT_XFCE:
+      return false;
+  }
+  // Unless GetDesktopEnvironment() badly misbehaves, this should never happen.
+  NOTREACHED();
+  return false;
 }
 
 void AudioManagerLinux::ShowAudioInputSettings() {
