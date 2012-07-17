@@ -288,9 +288,6 @@
       # Enable the task manager by default.
       'enable_task_manager%': 1,
 
-      # Enables support for promo resource service.
-      'enable_promo_resource_service%': 1,
-
       # XInput2 multitouch support is disabled by default (use_xi2_mt=0).
       # Setting to non-zero value enables XI2 MT. When XI2 MT is enabled,
       # the input value also defines the required XI2 minor minimum version.
@@ -578,7 +575,6 @@
     'enable_session_service%': '<(enable_session_service)',
     'enable_themes%': '<(enable_themes)',
     'enable_background%': '<(enable_background)',
-    'enable_promo_resource_service%': '<(enable_promo_resource_service)',
     'linux_use_gold_binary%': '<(linux_use_gold_binary)',
     'linux_use_gold_flags%': '<(linux_use_gold_flags)',
     'use_canvas_skia%': '<(use_canvas_skia)',
@@ -933,9 +929,6 @@
 
         # Android does not support background apps.
         'enable_background%': 0,
-
-        # Always shows promotions.
-        'enable_promo_resource_service%': 1,
 
         # Sessions are store separately in the Java side.
         'enable_session_service%': 0,
@@ -1550,9 +1543,6 @@
       }],
       ['enable_background==1', {
         'defines': ['ENABLE_BACKGROUND=1'],
-      }],
-      ['enable_promo_resource_service==1', {
-        'defines': ['ENABLE_PROMO_RESOURCE_SERVICE=1'],
       }],
       ['enable_automation==1', {
         'defines': ['ENABLE_AUTOMATION=1'],
