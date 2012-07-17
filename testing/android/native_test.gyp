@@ -15,10 +15,17 @@
           ],
           'actions': [
             {
+              'action_name': 'copy_base_jar',
+              'inputs': ['<(PRODUCT_DIR)/lib.java/chromium_base.jar'],
+              'outputs': ['<(PRODUCT_DIR)/replaceme_apk/java/libs/chromium_base.jar'],
+              'action': ['cp', '<@(_inputs)', '<@(_outputs)'],
+            },
+            {
               'action_name': 'native_test_apk',
               'inputs': [
                 '<(DEPTH)/testing/android/native_test_apk.xml',
                 '<!@(find <(DEPTH)/testing/android -name "*.java")',
+                '<(PRODUCT_DIR)/replaceme_apk/java/libs/chromium_base.jar',
                 'native_test_launcher.cc'
               ],
               'outputs': [
@@ -27,7 +34,7 @@
                 # probably happy to not codesign) but naming should be
                 # fixed.  The -debug name is an aspect of the android
                 # SDK antfiles (e.g. ${sdk.dir}/tools/ant/build.xml)
-                '<(PRODUCT_DIR)/ChromeNativeTests-debug.apk',
+                '<(PRODUCT_DIR)/replaceme_apk/replaceme-debug.apk',
               ],
               'action': [
                 'ant',

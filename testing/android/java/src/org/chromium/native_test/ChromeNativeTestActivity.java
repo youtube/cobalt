@@ -10,6 +10,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 
+import org.chromium.base.PathUtils;
+
 // Android's NativeActivity is mostly useful for pure-native code.
 // Our tests need to go up to our own java classes, which is not possible using
 // the native activity class loader.
@@ -31,6 +33,9 @@ public class ChromeNativeTestActivity extends Activity {
             nativeTestFailed();
             return;
         }
+
+        // Needed by path_utils_unittest.cc
+        PathUtils.setPrivateDataDirectorySuffix("chrome");
 
         try {
             loadLibrary();
