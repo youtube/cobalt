@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -68,6 +68,8 @@ bool PathProviderMac(int key, FilePath* result) {
 
       // Start with the executable's directory.
       *result = result->DirName();
+
+#if !defined(OS_IOS)
       if (base::mac::AmIBundled()) {
         // The bundled app executables (Chromium, TestShell, etc) live five
         // levels down, eg:
@@ -78,6 +80,7 @@ bool PathProviderMac(int key, FilePath* result) {
         // src/xcodebuild/{Debug|Release}/base_unittests
         *result = result->DirName().DirName();
       }
+#endif
       return true;
     }
     default:
