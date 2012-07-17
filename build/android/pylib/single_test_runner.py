@@ -337,4 +337,6 @@ class SingleTestRunner(BaseTestRunner):
       self.dump_debug_info.StopRecordingLog()
     if self.test_package.performance_test:
       self.adb.TearDownPerformanceTest()
+    if self.dump_debug_info:
+      self.dump_debug_info.ArchiveNewCrashFiles()
     super(SingleTestRunner, self).TearDown()
