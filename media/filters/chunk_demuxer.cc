@@ -211,9 +211,10 @@ class ChunkDemuxerStream : public DemuxerStream {
   void CreateReadDoneClosures_Locked(ClosureQueue* closures);
 
   // Gets the value to pass to the next Read() callback. Returns true if
-  // |buffer| should be passed to the callback. False indicates that |buffer|
-  // was not set and more data is needed.
-  bool GetNextBuffer_Locked(scoped_refptr<StreamParserBuffer>* buffer);
+  // |status| and |buffer| should be passed to the callback. False indicates
+  // that |status| and |buffer| were not set and more data is needed.
+  bool GetNextBuffer_Locked(DemuxerStream::Status* status,
+                            scoped_refptr<StreamParserBuffer>* buffer);
 
   // Specifies the type of the stream (must be AUDIO or VIDEO for now).
   Type type_;
@@ -253,7 +254,7 @@ void ChunkDemuxerStream::StartWaitingForSeek() {
   }
 
   for (ReadCBQueue::iterator it = read_cbs.begin(); it != read_cbs.end(); ++it)
-    it->Run(NULL);
+    it->Run(kAborted, NULL);
 }
 
 void ChunkDemuxerStream::Seek(TimeDelta time) {
@@ -385,34 +386,36 @@ void ChunkDemuxerStream::Shutdown() {
   // Pass end of stream buffers to all callbacks to signal that no more data
   // will be sent.
   for (ReadCBQueue::iterator it = read_cbs.begin(); it != read_cbs.end(); ++it)
-    it->Run(StreamParserBuffer::CreateEOSBuffer());
+    it->Run(DemuxerStream::kOk, StreamParserBuffer::CreateEOSBuffer());
 }
 
 // Helper function that makes sure |read_cb| runs on |message_loop|.
 static void RunOnMessageLoop(const DemuxerStream::ReadCB& read_cb,
                              MessageLoop* message_loop,
+                             DemuxerStream::Status status,
                              const scoped_refptr<DecoderBuffer>& buffer) {
   if (MessageLoop::current() != message_loop) {
     message_loop->PostTask(FROM_HERE, base::Bind(
-        &RunOnMessageLoop, read_cb, message_loop, buffer));
+        &RunOnMessageLoop, read_cb, message_loop, status, buffer));
     return;
   }
 
-  read_cb.Run(buffer);
+  read_cb.Run(status, buffer);
 }
 
 // DemuxerStream methods.
 void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
+  DemuxerStream::Status status = kOk;
   scoped_refptr<StreamParserBuffer> buffer;
   {
     base::AutoLock auto_lock(lock_);
-    if (!read_cbs_.empty() || !GetNextBuffer_Locked(&buffer)) {
+    if (!read_cbs_.empty() || !GetNextBuffer_Locked(&status, &buffer)) {
       DeferRead_Locked(read_cb);
       return;
     }
   }
 
-  read_cb.Run(buffer);
+  read_cb.Run(status, buffer);
 }
 
 DemuxerStream::Type ChunkDemuxerStream::type() { return type_; }
@@ -452,25 +455,31 @@ void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
   if (state_ != RETURNING_DATA_FOR_READS)
     return;
 
+  DemuxerStream::Status status;
   scoped_refptr<StreamParserBuffer> buffer;
   while (!read_cbs_.empty()) {
-    if (!GetNextBuffer_Locked(&buffer))
+    if (!GetNextBuffer_Locked(&status, &buffer))
       return;
-    closures->push_back(base::Bind(read_cbs_.front(), buffer));
+    closures->push_back(base::Bind(read_cbs_.front(),
+                                   status, buffer));
     read_cbs_.pop_front();
   }
 }
 
 bool ChunkDemuxerStream::GetNextBuffer_Locked(
+    DemuxerStream::Status* status,
     scoped_refptr<StreamParserBuffer>* buffer) {
   lock_.AssertAcquired();
 
   switch (state_) {
     case RETURNING_DATA_FOR_READS:
-      if (stream_->GetNextBuffer(buffer))
+      if (stream_->GetNextBuffer(buffer)) {
+        *status = DemuxerStream::kOk;
         return true;
+      }
 
       if (end_of_stream_) {
+        *status = DemuxerStream::kOk;
         *buffer = StreamParserBuffer::CreateEOSBuffer();
         return true;
       }
@@ -480,10 +489,12 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
       // for a seek. Any buffers in the SourceBuffer should NOT be returned
       // because they are associated with the seek.
       DCHECK(read_cbs_.empty());
+      *status = DemuxerStream::kAborted;
       *buffer = NULL;
       return true;
     case SHUTDOWN:
       DCHECK(read_cbs_.empty());
+      *status = DemuxerStream::kOk;
       *buffer = StreamParserBuffer::CreateEOSBuffer();
       return true;
   }

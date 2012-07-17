@@ -26,12 +26,34 @@ class MEDIA_EXPORT DemuxerStream
     NUM_TYPES,  // Always keep this entry as the last one!
   };
 
+  // Status returned in the Read() callback.
+  //  kOk : Indicates the second parameter is Non-NULL and contains media data
+  //        or the end of the stream.
+  //  kAborted : Indicates an aborted Read(). This can happen if the
+  //             DemuxerStream gets flushed and doesn't have any more data to
+  //             return. The second parameter MUST be NULL when this status is
+  //             returned.
+  //  kConfigChange : Indicates that the AudioDecoderConfig or
+  //                  VideoDecoderConfig for the stream has changed.
+  //                  The DemuxerStream expects an audio_decoder_config() or
+  //                  video_decoder_config() call before Read() will start
+  //                  returning DecoderBuffers again. The decoder will need this
+  //                  new configuration to properly decode the buffers read
+  //                  from this point forward. The second parameter MUST be NULL
+  //                  when this status is returned.
+  enum Status {
+    kOk,
+    kAborted,
+    kConfigChanged,
+  };
+
   // Request a buffer to returned via the provided callback.
   //
-  // Non-NULL buffer pointers will contain media data or signal the end of the
-  // stream. A NULL pointer indicates an aborted Read(). This can happen if the
-  // DemuxerStream gets flushed and doesn't have any more data to return.
-  typedef base::Callback<void(const scoped_refptr<DecoderBuffer>&)> ReadCB;
+  // The first parameter indicates the status of the read.
+  // The second parameter is non-NULL and contains media data
+  // or the end of the stream if the first parameter is kOk. NULL otherwise.
+  typedef base::Callback<void(Status,
+                              const scoped_refptr<DecoderBuffer>&)>ReadCB;
   virtual void Read(const ReadCB& read_cb) = 0;
 
   // Returns the audio decoder configuration. It is an error to call this method

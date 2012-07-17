@@ -73,7 +73,12 @@ class MEDIA_EXPORT AudioRendererImpl
   FRIEND_TEST_ALL_PREFIXES(AudioRendererImplTest, Underflow_EndOfStream);
 
   // Callback from the audio decoder delivering decoded audio samples.
-  void DecodedAudioReady(scoped_refptr<Buffer> buffer);
+  void DecodedAudioReady(AudioDecoder::Status status,
+                         const scoped_refptr<Buffer>& buffer);
+
+  // Helper functions for AudioDecoder::Status values passed to
+  // DecodedAudioReady().
+  void HandleAbortedReadOrDecodeError(bool is_decode_error);
 
   // Fills the given buffer with audio data by delegating to its |algorithm_|.
   // FillBuffer() also takes care of updating the clock. Returns the number of

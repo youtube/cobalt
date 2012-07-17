@@ -72,13 +72,17 @@ MATCHER_P(HasTimestamp, timestamp_in_ms, "") {
 
 static void OnReadDone(const base::TimeDelta& expected_time,
                        bool* called,
+                       DemuxerStream::Status status,
                        const scoped_refptr<DecoderBuffer>& buffer) {
+  EXPECT_EQ(status, DemuxerStream::kOk);
   EXPECT_EQ(expected_time, buffer->GetTimestamp());
   *called = true;
 }
 
 static void OnReadDone_EOSExpected(bool* called,
+                                   DemuxerStream::Status status,
                                    const scoped_refptr<DecoderBuffer>& buffer) {
+  EXPECT_EQ(status, DemuxerStream::kOk);
   EXPECT_TRUE(buffer->IsEndOfStream());
   *called = true;
 }
@@ -517,10 +521,12 @@ class ChunkDemuxerTest : public testing::Test {
     EXPECT_EQ(ss.str(), expected);
   }
 
-  MOCK_METHOD1(ReadDone, void(const scoped_refptr<DecoderBuffer>&));
+  MOCK_METHOD2(ReadDone, void(DemuxerStream::Status status,
+                              const scoped_refptr<DecoderBuffer>&));
 
   void ExpectRead(DemuxerStream* stream, int64 timestamp_in_ms) {
-    EXPECT_CALL(*this, ReadDone(HasTimestamp(timestamp_in_ms)));
+    EXPECT_CALL(*this, ReadDone(DemuxerStream::kOk,
+                                HasTimestamp(timestamp_in_ms)));
     stream->Read(base::Bind(&ChunkDemuxerTest::ReadDone,
                             base::Unretained(this)));
   }
@@ -965,7 +971,10 @@ class EndOfStreamHelper {
 
  private:
   static void OnEndOfStreamReadDone(
-      bool* called, const scoped_refptr<DecoderBuffer>& buffer) {
+      bool* called,
+      DemuxerStream::Status status,
+      const scoped_refptr<DecoderBuffer>& buffer) {
+    EXPECT_EQ(status, DemuxerStream::kOk);
     EXPECT_TRUE(buffer->IsEndOfStream());
     *called = true;
   }

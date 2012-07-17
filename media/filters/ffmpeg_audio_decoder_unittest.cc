@@ -82,8 +82,10 @@ class FFmpegAudioDecoderTest : public testing::Test {
     CHECK(!encoded_audio_.empty()) << "ReadPacket() called too many times";
 
     scoped_refptr<DecoderBuffer> buffer(encoded_audio_.front());
+    DemuxerStream::Status status =
+        buffer ? DemuxerStream::kOk : DemuxerStream::kAborted;
     encoded_audio_.pop_front();
-    read_cb.Run(buffer);
+    read_cb.Run(status, buffer);
   }
 
   void Read() {
@@ -92,7 +94,8 @@ class FFmpegAudioDecoderTest : public testing::Test {
     message_loop_.RunAllPending();
   }
 
-  void DecodeFinished(scoped_refptr<Buffer> buffer) {
+  void DecodeFinished(AudioDecoder::Status status,
+                      const scoped_refptr<Buffer>& buffer) {
     decoded_audio_.push_back(buffer);
   }
 
