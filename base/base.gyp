@@ -568,7 +568,6 @@
             # For now, exclude everything that doesn't build as-is, just to
             # get a minimal target building.
             ['exclude', '^memory/aligned_memory_unittest\\.cc$'],
-            ['exclude', '^sys_info_unittest\\.cc$'],
 	    # Unittests that don't pass.
             ['exclude', '^message_loop_unittest\\.cc$'],
             ['exclude', '^synchronization/waitable_event_watcher_unittest\\.cc$'],
