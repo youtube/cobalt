@@ -8,37 +8,53 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Environment;
 
-import org.chromium.base.CalledByNative;
-
-import java.io.File;
-
 /**
  * This class provides the path related methods for the native library.
  */
-class PathUtils {
+public abstract class PathUtils {
+
+    private static String sDataDirectorySuffix;
+
+    // Prevent instantiation.
+    private PathUtils() {}
 
     /**
-     * @return the private directory that used to store application data.
+     * Sets the suffix that should be used for the directory where private data is to be stored
+     * by the application.
+     * @param suffix The private data directory suffix.
+     * @see Context#getDir(String, int)
+     */
+    public static void setPrivateDataDirectorySuffix(String suffix) {
+        sDataDirectorySuffix = suffix;
+    }
+
+    /**
+     * @return the private directory that is used to store application data.
      */
     @CalledByNative
     public static String getDataDirectory(Context appContext) {
-        // TODO(beverloo) base/ should not know about "chrome": http://b/6057342
-        return appContext.getDir("chrome", Context.MODE_PRIVATE).getPath();
+        if (sDataDirectorySuffix == null) {
+            throw new IllegalStateException(
+                    "setDataDirectorySuffix must be called before getDataDirectory");
+        }
+        return appContext.getDir(sDataDirectorySuffix, Context.MODE_PRIVATE).getPath();
     }
 
     /**
      * @return the cache directory.
      */
+    @SuppressWarnings("unused")
     @CalledByNative
-    public static String getCacheDirectory(Context appContext) {
+    private static String getCacheDirectory(Context appContext) {
         return appContext.getCacheDir().getPath();
     }
 
     /**
      * @return the public downloads directory.
      */
+    @SuppressWarnings("unused")
     @CalledByNative
-    public static String getDownloadsDirectory(Context appContext) {
+    private static String getDownloadsDirectory(Context appContext) {
         return Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DOWNLOADS).getPath();
     }
@@ -46,8 +62,9 @@ class PathUtils {
     /**
      * @return the path to native libraries.
      */
+    @SuppressWarnings("unused")
     @CalledByNative
-    public static String getNativeLibraryDirectory(Context appContext) {
+    private static String getNativeLibraryDirectory(Context appContext) {
         ApplicationInfo ai = appContext.getApplicationInfo();
         if ((ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0 ||
             (ai.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
