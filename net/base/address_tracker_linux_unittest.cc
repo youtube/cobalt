@@ -90,7 +90,7 @@ void MakeMessage(uint16 type,
                  const IPAddressNumber& local,
                  Buffer* output) {
   NetlinkMessage nlmsg(type);
-  struct ifaddrmsg msg;
+  struct ifaddrmsg msg = {};
   msg.ifa_family = family;
   msg.ifa_flags = flags;
   nlmsg.AddPayload(&msg, sizeof(msg));
