@@ -573,6 +573,19 @@
             ['exclude', '^message_loop_unittest\\.cc$'],
             ['exclude', '^synchronization/waitable_event_watcher_unittest\\.cc$'],
           ],
+          'actions': [
+            {
+              'action_name': 'copy_test_data',
+              'variables': {
+                'test_data_files': [
+                  'data/json/bom_feff.json',
+                  'data/file_util_unittest',
+                ],
+                'test_data_prefix': 'base',
+              },
+              'includes': [ '../build/copy_test_data_ios.gypi' ],
+            },
+          ],
         }],
         ['use_glib==1', {
           'sources!': [
