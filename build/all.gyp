@@ -13,6 +13,7 @@
         '../base/base.gyp:*',
         '../testing/gtest.gyp:*',
         '../third_party/icu/icu.gyp:*',
+        '../third_party/libxml/libxml.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
         'temp_gyp/googleurl.gyp:*',
         # Add new dependencies to the !ios section just below, not here (see
@@ -51,7 +52,6 @@
             '../third_party/libpng/libpng.gyp:*',
             '../third_party/libusb/libusb.gyp:*',
             '../third_party/libwebp/libwebp.gyp:*',
-            '../third_party/libxml/libxml.gyp:*',
             '../third_party/libxslt/libxslt.gyp:*',
             '../third_party/lzma_sdk/lzma_sdk.gyp:*',
             '../third_party/mesa/mesa.gyp:*',
