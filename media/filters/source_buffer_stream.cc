@@ -233,7 +233,6 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
       seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
       selected_range_(NULL),
-      end_of_stream_(false),
       media_segment_start_time_(kNoTimestamp()),
       range_for_next_append_(ranges_.end()),
       new_media_segment_(false),
@@ -247,7 +246,6 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config)
       seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
       selected_range_(NULL),
-      end_of_stream_(false),
       media_segment_start_time_(kNoTimestamp()),
       range_for_next_append_(ranges_.end()),
       new_media_segment_(false),
@@ -631,7 +629,6 @@ void SourceBufferStream::Seek(base::TimeDelta timestamp) {
     SetSelectedRange(ranges_.front());
     ranges_.front()->SeekToStart();
     seek_pending_ = false;
-    end_of_stream_ = false;
     return;
   }
 
@@ -650,7 +647,6 @@ void SourceBufferStream::Seek(base::TimeDelta timestamp) {
   SetSelectedRange(*itr);
   selected_range_->Seek(timestamp);
   seek_pending_ = false;
-  end_of_stream_ = false;
 }
 
 bool SourceBufferStream::IsSeekPending() const {
@@ -662,12 +658,6 @@ bool SourceBufferStream::GetNextBuffer(
   if (!track_buffer_.empty()) {
     *out_buffer = track_buffer_.front();
     track_buffer_.pop_front();
-    return true;
-  }
-
-  if (end_of_stream_ && (!selected_range_ ||
-                         !selected_range_->HasNextBuffer())) {
-    *out_buffer = StreamParserBuffer::CreateEOSBuffer();
     return true;
   }
 
@@ -735,12 +725,7 @@ Ranges<base::TimeDelta> SourceBufferStream::GetBufferedTime() const {
   return ranges;
 }
 
-void SourceBufferStream::EndOfStream() {
-  DCHECK(CanEndOfStream());
-  end_of_stream_ = true;
-}
-
-bool SourceBufferStream::CanEndOfStream() const {
+bool SourceBufferStream::IsEndSelected() const {
   return ranges_.empty() || selected_range_ == ranges_.back();
 }
 
