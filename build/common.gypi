@@ -924,6 +924,9 @@
         'enable_printing%': 0,
         'java_bridge%': 1,
 
+        # Disable Native Client.
+        'disable_nacl%': 1,
+
         # Android does not support themes.
         'enable_themes%': 0,
 
@@ -936,6 +939,8 @@
         # Set to 1 once we have a notification system for Android.
         # http://crbug.com/115320
         'notifications%': 0,
+
+        'p2p_apis%' : 0,
 
         'gtest_target_type%': '<(gtest_target_type)',
         # TODO(jrg): when 'gtest_target_type'=='shared_library' and
@@ -951,14 +956,20 @@
         'use_system_skia%': '0',
         'use_system_harfbuzz%': '0',
 
-        # TODO(yfriedman): Remove once unit_tests can link for Android.
-        # To override it specify:
-        # GYP_DEFINES="$GYP_DEFINES android_unit_test_target_type=executable"
-        #     android_gyp
-        'android_unit_test_target_type%': 'static_library',
-
         # Always use the system zlib.
         'use_system_zlib%': 1,
+
+        'conditions': [
+          # Determine whether or not to use breakpad crash reporting for native
+          # code. Java code stacktraces will be collected by GoogleFeedback when
+          # chrome is installed by either market or bazaar where the installer
+          # package is automatically set to AndroidFeedback.
+          ['buildtype=="Official"', {
+            'linux_breakpad%': 1,
+          }, {
+            'linux_breakpad%': 0,
+          }],
+        ],
 
         # TODO(steveblock): Investigate using the system versions of sqlite and
         # libjpeg.
@@ -968,11 +979,11 @@
         'use_system_libjpeg%': 0,  # '<(android_build_type)',
         # Enable to use the system expat.
         'use_system_expat%': '<(android_build_type)',
+        # Enable to use the system ICU.
+        'use_system_icu%': '<(android_build_type)',
         # Enable to use the system stlport, otherwise statically
         # link the NDK one?
         'use_system_stlport%': '<(android_build_type)',
-        # Enable to use the system ICU.
-        'use_system_icu%': '<(android_build_type)',
         # Copy it out one scope.
         'android_build_type%': '<(android_build_type)',
       }],  # OS=="android"
@@ -2198,6 +2209,14 @@
                       '-fno-tree-sra',
                       '-Wno-psabi',
                     ],
+                    # Android now supports .relro sections properly.
+                    # NOTE: While these flags enable the generation of .relro
+                    # sections, the generated libraries can still be loaded on
+                    # older Android platform versions.
+                    'ldflags': [
+                        '-Wl,-z,relro',
+                        '-Wl,-z,now',
+                    ],
                     'conditions': [
                       ['arm_thumb == 1', {
                         # Android toolchain doesn't support -mimplicit-it=thumb
@@ -2478,7 +2497,7 @@
           #  $(PRIVATE_SHARED_LIBRARIES)   <-- The .so that we built
           #  $(PRIVATE_LDLIBS)             <-- System .so
           #
-          # For now, assume not need any whole static libs.
+          # For now, assume that whole static libraries are not needed.
           #
           # For both executables and shared libraries, add the proper
           # libgcc.a to the start of libraries which puts it in the
