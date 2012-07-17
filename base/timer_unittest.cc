@@ -11,6 +11,17 @@ using base::TimeDelta;
 
 namespace {
 
+// The message loops on which each timer should be tested.
+const MessageLoop::Type testing_message_loops[] = {
+  MessageLoop::TYPE_DEFAULT,
+  MessageLoop::TYPE_IO,
+#if !defined(OS_IOS)  // iOS does not allow direct running of the UI loop.
+  MessageLoop::TYPE_UI,
+#endif
+};
+
+const int kNumTestingMessageLoops = arraysize(testing_message_loops);
+
 class OneShotTimerTester {
  public:
   OneShotTimerTester(bool* did_run, unsigned milliseconds = 10)
@@ -276,60 +287,60 @@ void RunTest_DelayTimer_Deleted(MessageLoop::Type message_loop_type) {
 // that timers work properly in all configurations.
 
 TEST(TimerTest, OneShotTimer) {
-  RunTest_OneShotTimer(MessageLoop::TYPE_DEFAULT);
-  RunTest_OneShotTimer(MessageLoop::TYPE_UI);
-  RunTest_OneShotTimer(MessageLoop::TYPE_IO);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_OneShotTimer(testing_message_loops[i]);
+  }
 }
 
 TEST(TimerTest, OneShotTimer_Cancel) {
-  RunTest_OneShotTimer_Cancel(MessageLoop::TYPE_DEFAULT);
-  RunTest_OneShotTimer_Cancel(MessageLoop::TYPE_UI);
-  RunTest_OneShotTimer_Cancel(MessageLoop::TYPE_IO);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_OneShotTimer_Cancel(testing_message_loops[i]);
+  }
 }
 
 // If underline timer does not handle properly, we will crash or fail
 // in full page heap environment.
 TEST(TimerTest, OneShotSelfDeletingTimer) {
-  RunTest_OneShotSelfDeletingTimer(MessageLoop::TYPE_DEFAULT);
-  RunTest_OneShotSelfDeletingTimer(MessageLoop::TYPE_UI);
-  RunTest_OneShotSelfDeletingTimer(MessageLoop::TYPE_IO);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_OneShotSelfDeletingTimer(testing_message_loops[i]);
+  }
 }
 
 TEST(TimerTest, RepeatingTimer) {
-  RunTest_RepeatingTimer(MessageLoop::TYPE_DEFAULT);
-  RunTest_RepeatingTimer(MessageLoop::TYPE_UI);
-  RunTest_RepeatingTimer(MessageLoop::TYPE_IO);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_RepeatingTimer(testing_message_loops[i]);
+  }
 }
 
 TEST(TimerTest, RepeatingTimer_Cancel) {
-  RunTest_RepeatingTimer_Cancel(MessageLoop::TYPE_DEFAULT);
-  RunTest_RepeatingTimer_Cancel(MessageLoop::TYPE_UI);
-  RunTest_RepeatingTimer_Cancel(MessageLoop::TYPE_IO);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_RepeatingTimer_Cancel(testing_message_loops[i]);
+  }
 }
 
 TEST(TimerTest, DelayTimer_NoCall) {
-  RunTest_DelayTimer_NoCall(MessageLoop::TYPE_DEFAULT);
-  RunTest_DelayTimer_NoCall(MessageLoop::TYPE_UI);
-  RunTest_DelayTimer_NoCall(MessageLoop::TYPE_IO);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_DelayTimer_NoCall(testing_message_loops[i]);
+  }
 }
 
 TEST(TimerTest, DelayTimer_OneCall) {
-  RunTest_DelayTimer_OneCall(MessageLoop::TYPE_DEFAULT);
-  RunTest_DelayTimer_OneCall(MessageLoop::TYPE_UI);
-  RunTest_DelayTimer_OneCall(MessageLoop::TYPE_IO);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_DelayTimer_OneCall(testing_message_loops[i]);
+  }
 }
 
 // It's flaky on the buildbot, http://crbug.com/25038.
 TEST(TimerTest, DISABLED_DelayTimer_Reset) {
-  RunTest_DelayTimer_Reset(MessageLoop::TYPE_DEFAULT);
-  RunTest_DelayTimer_Reset(MessageLoop::TYPE_UI);
-  RunTest_DelayTimer_Reset(MessageLoop::TYPE_IO);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_DelayTimer_Reset(testing_message_loops[i]);
+  }
 }
 
 TEST(TimerTest, DelayTimer_Deleted) {
-  RunTest_DelayTimer_Deleted(MessageLoop::TYPE_DEFAULT);
-  RunTest_DelayTimer_Deleted(MessageLoop::TYPE_UI);
-  RunTest_DelayTimer_Deleted(MessageLoop::TYPE_IO);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_DelayTimer_Deleted(testing_message_loops[i]);
+  }
 }
 
 TEST(TimerTest, MessageLoopShutdown) {
