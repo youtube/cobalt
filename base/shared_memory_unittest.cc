@@ -410,14 +410,7 @@ class SharedMemoryProcessTest : public MultiProcessTest {
 
 const char* const SharedMemoryProcessTest::s_test_name_ = "MPMem";
 
-// http://crbug.com/61589
-#if defined(OS_MACOSX)
-#define MAYBE_Tasks DISABLED_Tasks
-#else
-#define MAYBE_Tasks Tasks
-#endif
-
-TEST_F(SharedMemoryProcessTest, MAYBE_Tasks) {
+TEST_F(SharedMemoryProcessTest, Tasks) {
   SharedMemoryProcessTest::CleanUp();
 
   ProcessHandle handles[kNumTasks];
