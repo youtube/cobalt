@@ -8,6 +8,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "media/base/decryptor.h"
+#include "media/base/demuxer_stream.h"
 #include "media/base/video_decoder.h"
 
 class MessageLoop;
@@ -57,11 +58,13 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // Reads from the demuxer stream with corresponding callback method.
   void ReadFromDemuxerStream();
-  void DecryptOrDecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
+  void DecryptOrDecodeBuffer(DemuxerStream::Status status,
+                             const scoped_refptr<DecoderBuffer>& buffer);
 
   // Carries out the buffer processing operation scheduled by
   // DecryptOrDecodeBuffer().
-  void DoDecryptOrDecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
+  void DoDecryptOrDecodeBuffer(DemuxerStream::Status status,
+                               const scoped_refptr<DecoderBuffer>& buffer);
 
   // Callback called by the decryptor to deliver decrypted data buffer and
   // reporting decrypt status. This callback could be called synchronously or
@@ -76,9 +79,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   void DecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
   bool Decode(const scoped_refptr<DecoderBuffer>& buffer,
               scoped_refptr<VideoFrame>* video_frame);
-
-  // Delivers the frame to |read_cb_| and resets the callback.
-  void DeliverFrame(const scoped_refptr<VideoFrame>& video_frame);
 
   // Releases resources associated with |codec_context_| and |av_frame_|
   // and resets them to NULL.

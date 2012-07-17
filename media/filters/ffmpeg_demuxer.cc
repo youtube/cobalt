@@ -124,7 +124,8 @@ void FFmpegDemuxerStream::Stop() {
   buffer_queue_.clear();
   for (ReadQueue::iterator it = read_queue_.begin();
        it != read_queue_.end(); ++it) {
-    it->Run(scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
+    it->Run(DemuxerStream::kOk,
+            scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
   }
   read_queue_.clear();
   stopped_ = true;
@@ -147,7 +148,8 @@ void FFmpegDemuxerStream::Read(const ReadCB& read_cb) {
   //
   // TODO(scherkus): it would be cleaner if we replied with an error message.
   if (stopped_) {
-    read_cb.Run(scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
+    read_cb.Run(DemuxerStream::kOk,
+                scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
     return;
   }
 
@@ -163,7 +165,7 @@ void FFmpegDemuxerStream::Read(const ReadCB& read_cb) {
   // Send the oldest buffer back.
   scoped_refptr<DecoderBuffer> buffer = buffer_queue_.front();
   buffer_queue_.pop_front();
-  read_cb.Run(buffer);
+  read_cb.Run(DemuxerStream::kOk, buffer);
 }
 
 void FFmpegDemuxerStream::ReadTask(const ReadCB& read_cb) {
@@ -174,7 +176,8 @@ void FFmpegDemuxerStream::ReadTask(const ReadCB& read_cb) {
   //
   // TODO(scherkus): it would be cleaner if we replied with an error message.
   if (stopped_) {
-    read_cb.Run(scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
+    read_cb.Run(DemuxerStream::kOk,
+                scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
     return;
   }
 
@@ -202,7 +205,7 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
   read_queue_.pop_front();
 
   // Execute the callback.
-  read_cb.Run(buffer);
+  read_cb.Run(DemuxerStream::kOk, buffer);
 }
 
 void FFmpegDemuxerStream::EnableBitstreamConverter() {

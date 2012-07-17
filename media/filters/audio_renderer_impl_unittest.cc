@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/bind.h"
+#include "base/callback_helpers.h"
 #include "base/gtest_prod_util.h"
 #include "base/stl_util.h"
 #include "media/base/data_buffer.h"
@@ -144,15 +145,11 @@ class AudioRendererImplTest : public ::testing::Test {
     buffer->SetDuration(base::TimeDelta::FromMilliseconds(8000 * size / bps));
     next_timestamp_ += buffer->GetDuration();
 
-    AudioDecoder::ReadCB read_cb;
-    std::swap(read_cb, read_cb_);
-    read_cb.Run(buffer);
+    base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kOk, buffer);
   }
 
   void AbortPendingRead() {
-    AudioDecoder::ReadCB read_cb;
-    std::swap(read_cb, read_cb_);
-    read_cb.Run(NULL);
+    base::ResetAndReturn(&read_cb_).Run(AudioDecoder::kAborted, NULL);
   }
 
   // Delivers an end of stream buffer to |renderer_|.
