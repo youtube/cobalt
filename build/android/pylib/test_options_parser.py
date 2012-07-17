@@ -26,7 +26,7 @@ def CreateTestRunnerOptionParser(usage=None, default_timeout=60):
                            default=0,
                            action='count',
                            help='Verbose level (multiple times for more)')
-  profilers = ['activitymonitor', 'chrometrace', 'dumpheap', 'smaps',
+  profilers = ['devicestatsmonitor', 'chrometrace', 'dumpheap', 'smaps',
                'traceview']
   option_parser.add_option('--profiler', dest='profilers', action='append',
                            choices=profilers,
