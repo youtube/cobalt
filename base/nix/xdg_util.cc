@@ -48,6 +48,17 @@ FilePath GetXDGUserDirectory(const char* dir_name, const char* fallback_dir) {
 }
 
 DesktopEnvironment GetDesktopEnvironment(Environment* env) {
+  // XDG_CURRENT_DESKTOP is the newest standard circa 2012.
+  std::string xdg_current_desktop;
+  if (env->GetVar("XDG_CURRENT_DESKTOP", &xdg_current_desktop)) {
+    // Not all desktop environments set this env var as of this writing.
+    if (xdg_current_desktop == "Unity")
+      return DESKTOP_ENVIRONMENT_UNITY;
+    else if (xdg_current_desktop == "GNOME")
+      return DESKTOP_ENVIRONMENT_GNOME;
+  }
+
+  // DESKTOP_SESSION was what everyone used in 2010.
   std::string desktop_session;
   if (env->GetVar("DESKTOP_SESSION", &desktop_session)) {
     if (desktop_session == "gnome") {
@@ -88,6 +99,8 @@ const char* GetDesktopEnvironmentName(DesktopEnvironment env) {
       return "KDE3";
     case DESKTOP_ENVIRONMENT_KDE4:
       return "KDE4";
+    case DESKTOP_ENVIRONMENT_UNITY:
+      return "UNITY";
     case DESKTOP_ENVIRONMENT_XFCE:
       return "XFCE";
   }
