@@ -572,7 +572,6 @@
 	    # Unittests that don't pass.
             ['exclude', '^message_loop_unittest\\.cc$'],
             ['exclude', '^synchronization/waitable_event_watcher_unittest\\.cc$'],
-            ['exclude', '^timer_unittest\\.cc$'],
           ],
         }],
         ['use_glib==1', {
