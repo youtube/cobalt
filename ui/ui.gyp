@@ -704,11 +704,6 @@
             '-ldl',
           ],
         }],
-        ['os_bsd==1 and use_system_libjpeg==1', {
-          'include_dirs': [
-            '/usr/local/include',
-          ],
-        }],
         ['inside_chromium_build==0', {
           'dependencies': [
             '<(DEPTH)/webkit/support/setup_third_party.gyp:third_party_headers',

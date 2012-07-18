@@ -183,6 +183,10 @@
       # Use libjpeg-turbo as the JPEG codec used by Chromium.
       'use_libjpeg_turbo%': 1,
 
+      # Use system libjpeg. Note that the system's libjepg will be used even if
+      # use_libjpeg_turbo is set.
+      'use_system_libjpeg%': 0,
+
       # Variable 'component' is for cases where we would like to build some
       # components as dynamic shared libraries but still need variable
       # 'library' for static libraries.
@@ -1069,11 +1073,12 @@
 
       # Set the relative path from this file to the GYP file of the JPEG
       # library used by Chromium.
-      ['use_libjpeg_turbo==1', {
-        'libjpeg_gyp_path': '../third_party/libjpeg_turbo/libjpeg.gyp',
-      }, {
+      ['use_system_libjpeg==1 or use_libjpeg_turbo==0', {
+        # Configuration for using the system libjeg is here.
         'libjpeg_gyp_path': '../third_party/libjpeg/libjpeg.gyp',
-      }],  # use_libjpeg_turbo==1
+      }, {
+        'libjpeg_gyp_path': '../third_party/libjpeg_turbo/libjpeg.gyp',
+      }],
 
       # Options controlling the use of GConf (the classic GNOME configuration
       # system) and GIO, which contains GSettings (the new GNOME config system).
