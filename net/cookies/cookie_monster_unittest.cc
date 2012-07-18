@@ -984,19 +984,34 @@ TEST_F(CookieMonsterTest, TestCookieDeleteAll) {
 
   EXPECT_EQ(2, DeleteAll(cm));
   EXPECT_EQ("", GetCookiesWithOptions(cm, url_google_, options));
-
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  // If a cookie is persistent then its commands will be recorded.
+  // Each above cookie has 2 commands: 1 for add and 1 for delete.
+  EXPECT_EQ(4u, store->commands().size());
+#else
   EXPECT_EQ(0u, store->commands().size());
+#endif
 
   // Create a persistent cookie.
   EXPECT_TRUE(SetCookie(cm, url_google_,
                         std::string(kValidCookieLine) +
                         "; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  ASSERT_EQ(5u, store->commands().size());
+  EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[4].type);
+#else
   ASSERT_EQ(1u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[0].type);
+#endif
 
   EXPECT_EQ(1, DeleteAll(cm));  // sync_to_store = true.
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  ASSERT_EQ(6u, store->commands().size());
+  EXPECT_EQ(CookieStoreCommand::REMOVE, store->commands()[5].type);
+#else
   ASSERT_EQ(2u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::REMOVE, store->commands()[1].type);
+#endif
 
   EXPECT_EQ("", GetCookiesWithOptions(cm, url_google_, options));
 }
@@ -1431,8 +1446,13 @@ TEST_F(CookieMonsterTest, Delegate) {
   EXPECT_TRUE(
       SetCookie(cm, url_google_, "a=val1; path=/path1; "
                                 "expires=Mon, 18-Apr-22 22:50:13 GMT"));
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  ASSERT_EQ(5u, store->commands().size());
+  EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[4].type);
+#else
   ASSERT_EQ(1u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[0].type);
+#endif
   ASSERT_EQ(1u, delegate->changes().size());
   EXPECT_FALSE(delegate->changes()[0].second);
   EXPECT_EQ(url_google_.host(), delegate->changes()[0].first.Domain());
@@ -1449,9 +1469,15 @@ TEST_F(CookieMonsterTest, Delegate) {
                          "a=val2; path=/path1; httponly; "
                          "expires=Mon, 18-Apr-22 22:50:14 GMT",
                          allow_httponly));
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  ASSERT_EQ(7u, store->commands().size());
+  EXPECT_EQ(CookieStoreCommand::REMOVE, store->commands()[5].type);
+  EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[6].type);
+#else
   ASSERT_EQ(3u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::REMOVE, store->commands()[1].type);
   EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[2].type);
+#endif
   ASSERT_EQ(2u, delegate->changes().size());
   EXPECT_EQ(url_google_.host(), delegate->changes()[0].first.Domain());
   EXPECT_TRUE(delegate->changes()[0].second);
@@ -1502,7 +1528,11 @@ TEST_F(CookieMonsterTest, SetCookieWithDetails) {
   EXPECT_EQ("B", it->Value());
   EXPECT_EQ("www.google.izzle", it->Domain());
   EXPECT_EQ("/foo", it->Path());
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  EXPECT_TRUE(it->IsPersistent());
+#else
   EXPECT_FALSE(it->IsPersistent());
+#endif
   EXPECT_FALSE(it->IsSecure());
   EXPECT_FALSE(it->IsHttpOnly());
 
@@ -2064,8 +2094,13 @@ TEST_F(CookieMonsterTest, HistogramCheck) {
   // kValidCookieLine creates a session cookie.
   ASSERT_TRUE(SetCookie(cm, url_google_, kValidCookieLine));
   expired_histogram->SnapshotSample(&histogram_set_1);
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  EXPECT_EQ(histogram_set_2.TotalCount() + 1,
+            histogram_set_1.TotalCount());
+#else
   EXPECT_EQ(histogram_set_2.TotalCount(),
             histogram_set_1.TotalCount());
+#endif
 }
 
 namespace {
@@ -2304,7 +2339,11 @@ TEST_F(CookieMonsterTest, InvalidExpiryTime) {
   scoped_ptr<CookieMonster::CanonicalCookie> cookie(
       CookieMonster::CanonicalCookie::Create(url_google_, pc));
 
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  ASSERT_TRUE(cookie->IsPersistent());
+#else
   ASSERT_FALSE(cookie->IsPersistent());
+#endif
 }
 
 // Test that CookieMonster writes session cookies into the underlying
@@ -2381,7 +2420,11 @@ TEST_F(CookieMonsterTest, PersisentCookieStorageTest) {
   // persistent storage.
   EXPECT_TRUE(SetCookie(cm, url_google_, "B=Bar"));
   this->MatchCookieLines("A=Foo; B=Bar", GetCookies(cm, url_google_));
+#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
+  EXPECT_EQ(6u, store->commands().size());
+#else
   EXPECT_EQ(5u, store->commands().size());
+#endif
 }
 
 }  // namespace net
