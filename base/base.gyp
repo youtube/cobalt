@@ -570,7 +570,6 @@
             ['exclude', '^memory/aligned_memory_unittest\\.cc$'],
 	    # Unittests that don't pass.
             ['exclude', '^message_loop_unittest\\.cc$'],
-            ['exclude', '^synchronization/waitable_event_watcher_unittest\\.cc$'],
           ],
           'actions': [
             {
