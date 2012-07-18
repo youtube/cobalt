@@ -362,8 +362,8 @@ void LogCancelRequest(const BoundNetLog& source_net_log,
 // Keeps track of the highest priority.
 class PriorityTracker {
  public:
-  PriorityTracker()
-      : highest_priority_(IDLE), total_count_(0) {
+  explicit PriorityTracker(RequestPriority initial_priority)
+      : highest_priority_(initial_priority), total_count_(0) {
     memset(counts_, 0, sizeof(counts_));
   }
 
@@ -1112,9 +1112,11 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   // request that spawned it.
   Job(HostResolverImpl* resolver,
       const Key& key,
+      RequestPriority priority,
       const BoundNetLog& request_net_log)
       : resolver_(resolver->AsWeakPtr()),
         key_(key),
+        priority_tracker_(priority),
         had_non_speculative_request_(false),
         had_dns_config_(false),
         dns_task_error_(OK),
@@ -1164,8 +1166,8 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   }
 
   // Add this job to the dispatcher.
-  void Schedule(RequestPriority priority) {
-    handle_ = resolver_->dispatcher_.Add(this, priority);
+  void Schedule() {
+    handle_ = resolver_->dispatcher_.Add(this, priority());
   }
 
   void AddRequest(scoped_ptr<Request> req) {
@@ -1645,8 +1647,8 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   Job* job;
   if (jobit == jobs_.end()) {
     // Create new Job.
-    job = new Job(this, key, request_net_log);
-    job->Schedule(info.priority());
+    job = new Job(this, key, info.priority(), request_net_log);
+    job->Schedule();
 
     // Check for queue overflow.
     if (dispatcher_.num_queued_jobs() > max_queued_jobs_) {
