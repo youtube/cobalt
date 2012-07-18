@@ -48,7 +48,6 @@ bool Statement::CheckValid() const {
 }
 
 bool Statement::Run() {
-  ref_->AssertIOAllowed();
   if (!CheckValid())
     return false;
 
@@ -56,7 +55,6 @@ bool Statement::Run() {
 }
 
 bool Statement::Step() {
-  ref_->AssertIOAllowed();
   if (!CheckValid())
     return false;
 
@@ -64,7 +62,6 @@ bool Statement::Step() {
 }
 
 void Statement::Reset(bool clear_bound_vars) {
-  ref_->AssertIOAllowed();
   if (is_valid()) {
     // We don't call CheckError() here because sqlite3_reset() returns
     // the last error that Step() caused thereby generating a second
