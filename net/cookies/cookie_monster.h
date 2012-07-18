@@ -34,6 +34,7 @@ class TimeTicks;
 
 namespace net {
 
+class CanonicalCookie;
 class CookieList;
 class ParsedCookie;
 
@@ -63,7 +64,6 @@ class ParsedCookie;
 //  - Verify that our domain enforcement and non-dotted handling is correct
 class NET_EXPORT CookieMonster : public CookieStore {
  public:
-  class CanonicalCookie;
   class Delegate;
   class PersistentCookieStore;
 
@@ -118,9 +118,6 @@ class NET_EXPORT CookieMonster : public CookieStore {
   CookieMonster(PersistentCookieStore* store,
                 Delegate* delegate,
                 int last_access_threshold_milliseconds);
-
-  // Parses the string with the cookie time (very forgivingly).
-  static base::Time ParseCookieTime(const std::string& time_string);
 
   // Helper function that adds all cookies from |list| into this instance.
   bool InitializeFrom(const CookieList& list);
@@ -660,132 +657,6 @@ class NET_EXPORT CookieMonster : public CookieStore {
   DISALLOW_COPY_AND_ASSIGN(CookieMonster);
 };
 
-class NET_EXPORT CookieMonster::CanonicalCookie {
- public:
-
-  // These constructors do no validation or canonicalization of their inputs;
-  // the resulting CanonicalCookies should not be relied on to be canonical
-  // unless the caller has done appropriate validation and canonicalization
-  // themselves.
-  CanonicalCookie();
-  CanonicalCookie(const GURL& url,
-                  const std::string& name,
-                  const std::string& value,
-                  const std::string& domain,
-                  const std::string& path,
-                  const std::string& mac_key,
-                  const std::string& mac_algorithm,
-                  const base::Time& creation,
-                  const base::Time& expiration,
-                  const base::Time& last_access,
-                  bool secure,
-                  bool httponly);
-
-  // This constructor does canonicalization but not validation.
-  // The result of this constructor should not be relied on in contexts
-  // in which pre-validation of the ParsedCookie has not been done.
-  CanonicalCookie(const GURL& url, const ParsedCookie& pc);
-
-  ~CanonicalCookie();
-
-  // Supports the default copy constructor.
-
-  // Creates a canonical cookie from parsed cookie.
-  // Canonicalizes and validates inputs.  May return NULL if an attribute
-  // value is invalid.
-  static CanonicalCookie* Create(const GURL& url,
-                                 const ParsedCookie& pc);
-
-  // Creates a canonical cookie from unparsed attribute values.
-  // Canonicalizes and validates inputs.  May return NULL if an attribute
-  // value is invalid.
-  static CanonicalCookie* Create(const GURL& url,
-                                 const std::string& name,
-                                 const std::string& value,
-                                 const std::string& domain,
-                                 const std::string& path,
-                                 const std::string& mac_key,
-                                 const std::string& mac_algorithm,
-                                 const base::Time& creation,
-                                 const base::Time& expiration,
-                                 bool secure,
-                                 bool http_only);
-
-  const std::string& Source() const { return source_; }
-  const std::string& Name() const { return name_; }
-  const std::string& Value() const { return value_; }
-  const std::string& Domain() const { return domain_; }
-  const std::string& Path() const { return path_; }
-  const std::string& MACKey() const { return mac_key_; }
-  const std::string& MACAlgorithm() const { return mac_algorithm_; }
-  const base::Time& CreationDate() const { return creation_date_; }
-  const base::Time& LastAccessDate() const { return last_access_date_; }
-  bool IsPersistent() const { return !expiry_date_.is_null(); }
-  const base::Time& ExpiryDate() const { return expiry_date_; }
-  bool IsSecure() const { return secure_; }
-  bool IsHttpOnly() const { return httponly_; }
-  bool IsDomainCookie() const {
-    return !domain_.empty() && domain_[0] == '.'; }
-  bool IsHostCookie() const { return !IsDomainCookie(); }
-
-  bool IsExpired(const base::Time& current) {
-    return !expiry_date_.is_null() && current >= expiry_date_;
-  }
-
-  // Are the cookies considered equivalent in the eyes of RFC 2965.
-  // The RFC says that name must match (case-sensitive), domain must
-  // match (case insensitive), and path must match (case sensitive).
-  // For the case insensitive domain compare, we rely on the domain
-  // having been canonicalized (in
-  // GetCookieDomainWithString->CanonicalizeHost).
-  bool IsEquivalent(const CanonicalCookie& ecc) const {
-    // It seems like it would make sense to take secure and httponly into
-    // account, but the RFC doesn't specify this.
-    // NOTE: Keep this logic in-sync with TrimDuplicateCookiesForHost().
-    return (name_ == ecc.Name() && domain_ == ecc.Domain()
-            && path_ == ecc.Path());
-  }
-
-  void SetLastAccessDate(const base::Time& date) {
-    last_access_date_ = date;
-  }
-
-  bool IsOnPath(const std::string& url_path) const;
-  bool IsDomainMatch(const std::string& scheme, const std::string& host) const;
-
-  std::string DebugString() const;
-
-  // Returns the cookie source when cookies are set for |url|.  This function
-  // is public for unit test purposes only.
-  static std::string GetCookieSourceFromURL(const GURL& url);
-
- private:
-  // Gives the session cookie an expiration time if needed
-  void SetSessionCookieExpiryTime();
-
-  // The source member of a canonical cookie is the origin of the URL that tried
-  // to set this cookie, minus the port number if any.  This field is not
-  // persistent though; its only used in the in-tab cookies dialog to show the
-  // user the source URL. This is used for both allowed and blocked cookies.
-  // When a CanonicalCookie is constructed from the backing store (common case)
-  // this field will be null.  CanonicalCookie consumers should not rely on
-  // this field unless they guarantee that the creator of those
-  // CanonicalCookies properly initialized the field.
-  // TODO(abarth): We might need to make this field persistent for MAC cookies.
-  std::string source_;
-  std::string name_;
-  std::string value_;
-  std::string domain_;
-  std::string path_;
-  std::string mac_key_;  // TODO(abarth): Persist to disk.
-  std::string mac_algorithm_;  // TODO(abarth): Persist to disk.
-  base::Time creation_date_;
-  base::Time expiry_date_;
-  base::Time last_access_date_;
-  bool secure_;
-  bool httponly_;
-};
-
 class CookieMonster::Delegate
     : public base::RefCountedThreadSafe<CookieMonster::Delegate> {
  public:
@@ -815,7 +686,7 @@ class CookieMonster::Delegate
   // generating a notification with cause CHANGE_COOKIE_OVERWRITE.  Afterwards,
   // a new cookie is written with the updated values, generating a notification
   // with cause CHANGE_COOKIE_EXPLICIT.
-  virtual void OnCookieChanged(const CookieMonster::CanonicalCookie& cookie,
+  virtual void OnCookieChanged(const CanonicalCookie& cookie,
                                bool removed,
                                ChangeCause cause) = 0;
  protected:
@@ -829,8 +700,8 @@ typedef base::RefCountedThreadSafe<CookieMonster::PersistentCookieStore>
 class CookieMonster::PersistentCookieStore
     : public RefcountedPersistentCookieStore {
  public:
-  typedef base::Callback<void(const std::vector<
-      CookieMonster::CanonicalCookie*>&)> LoadedCallback;
+  typedef base::Callback<void(const std::vector<CanonicalCookie*>&)>
+      LoadedCallback;
 
   // Initializes the store and retrieves the existing cookies. This will be
   // called only once at startup. The callback will return all the cookies
@@ -862,9 +733,6 @@ class CookieMonster::PersistentCookieStore
  private:
   friend class base::RefCountedThreadSafe<PersistentCookieStore>;
   DISALLOW_COPY_AND_ASSIGN(PersistentCookieStore);
-};
-
-class CookieList : public std::vector<CookieMonster::CanonicalCookie> {
 };
 
 }  // namespace net
