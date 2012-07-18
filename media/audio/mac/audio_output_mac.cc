@@ -38,13 +38,6 @@ struct AudioQueueUserData {
 // 6) The same thread that called stop will call Close() where we cleanup
 // and notifiy the audio manager, which likley will destroy this object.
 
-#if !defined(MAC_OS_X_VERSION_10_6) || \
-    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
-enum {
-  kAudioQueueErr_EnqueueDuringReset = -66632
-};
-#endif
-
 PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
     AudioManagerMac* manager, const AudioParameters& params)
     : audio_queue_(NULL),

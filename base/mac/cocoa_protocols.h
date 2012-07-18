@@ -11,7 +11,7 @@
 // requires. Augment that below.
 #import "third_party/GTM/GTMDefines.h"
 
-// The Mac OS X 10.6 SDK introduced new protocols used for delegates.  These
+// The Mac OS X 10.8 SDK introduced new protocols used for delegates.  These
 // protocol defintions were not present in earlier releases of the Mac OS X
 // SDK.  In order to support building against the new SDK, which requires
 // delegates to conform to these protocols, and earlier SDKs, which do not
@@ -22,33 +22,12 @@
 @protocol p \
 @end
 
-#if !defined(MAC_OS_X_VERSION_10_6) || \
-    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
-
-DEFINE_EMPTY_PROTOCOL(NSAlertDelegate)
-DEFINE_EMPTY_PROTOCOL(NSApplicationDelegate)
-DEFINE_EMPTY_PROTOCOL(NSControlTextEditingDelegate)
-DEFINE_EMPTY_PROTOCOL(NSMatrixDelegate)
-DEFINE_EMPTY_PROTOCOL(NSMenuDelegate)
-DEFINE_EMPTY_PROTOCOL(NSOpenSavePanelDelegate)
-DEFINE_EMPTY_PROTOCOL(NSOutlineViewDataSource)
-DEFINE_EMPTY_PROTOCOL(NSOutlineViewDelegate)
-DEFINE_EMPTY_PROTOCOL(NSSpeechSynthesizerDelegate)
-DEFINE_EMPTY_PROTOCOL(NSSplitViewDelegate)
-DEFINE_EMPTY_PROTOCOL(NSTableViewDataSource)
-DEFINE_EMPTY_PROTOCOL(NSTableViewDelegate)
-DEFINE_EMPTY_PROTOCOL(NSTextFieldDelegate)
-DEFINE_EMPTY_PROTOCOL(NSTextViewDelegate)
-DEFINE_EMPTY_PROTOCOL(NSWindowDelegate)
-
-#endif  // MAC_OS_X_VERSION_10_6
-
 #if !defined(MAC_OS_X_VERSION_10_8) || \
     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_8
 
 DEFINE_EMPTY_PROTOCOL(NSUserNotificationCenterDelegate)
 
-#endif  // MAC_OS_X_VERSION_10_6
+#endif  // MAC_OS_X_VERSION_10_8
 
 #undef DEFINE_EMPTY_PROTOCOL
 

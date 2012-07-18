@@ -11,13 +11,6 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
-#if !defined(MAC_OS_X_VERSION_10_6) || \
-    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
-enum {
-  kAudioQueueErr_EnqueueDuringReset = -66632
-};
-#endif
-
 namespace media {
 
 PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
