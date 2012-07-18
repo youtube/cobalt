@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -101,8 +101,20 @@ bool DataURL::Parse(const GURL& url, std::string* mime_type,
         UnescapeRule::CONTROL_CHARS);
   }
 
-  if (base64_encoded)
+  if (base64_encoded) {
+    size_t length = temp_data.length();
+    size_t padding_needed = 4 - (length % 4);
+    // If the input wasn't padded, then we pad it as necessary until we have a
+    // length that is a multiple of 4 as required by our decoder. We don't
+    // correct if the input was incorrectly padded. If |padding_needed| == 3,
+    // then the input isn't well formed and decoding will fail with or without
+    // padding.
+    if ((padding_needed == 1 || padding_needed == 2) &&
+        temp_data[length - 1] != '=') {
+      temp_data.resize(length + padding_needed, '=');
+    }
     return base::Base64Decode(temp_data, data);
+  }
 
   temp_data.swap(*data);
   return true;
