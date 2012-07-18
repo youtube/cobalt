@@ -387,10 +387,10 @@ void WebSocketJob::LoadCookieCallback(const std::string& cookie) {
 
 void WebSocketJob::DoSendData() {
   if (spdy_websocket_stream_.get()) {
-    linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
+    scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
     handshake_request_->GetRequestHeaderBlock(
         socket_->url(), headers.get(), &challenge_);
-    spdy_websocket_stream_->SendRequest(headers);
+    spdy_websocket_stream_->SendRequest(headers.Pass());
   } else {
     const std::string& handshake_request =
         handshake_request_->GetRawRequest();
