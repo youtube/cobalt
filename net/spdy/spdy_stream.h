@@ -267,6 +267,7 @@ class NET_EXPORT_PRIVATE SpdyStream
   };
 
   friend class base::RefCounted<SpdyStream>;
+
   virtual ~SpdyStream();
 
   // If the stream is stalled and if |send_window_size_| is positive, then set
