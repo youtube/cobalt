@@ -50,17 +50,15 @@
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/metrics/histogram.h"
-#include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
-#include "googleurl/src/url_canon.h"
+#include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_util.h"
 #include "net/cookies/parsed_cookie.h"
 #include "net/base/registry_controlled_domain.h"
@@ -103,7 +101,7 @@ const int CookieMonster::kSafeFromGlobalPurgeDays       = 30;
 
 namespace {
 
-typedef std::vector<CookieMonster::CanonicalCookie*> CanonicalCookieVector;
+typedef std::vector<CanonicalCookie*> CanonicalCookieVector;
 
 // Default minimum delay after updating a cookie's LastAccessDate before we
 // will update it again.
@@ -125,15 +123,10 @@ const int kVlogGarbageCollection = 5;
 const int kVlogSetCookies = 7;
 const int kVlogGetCookies = 9;
 
-#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
-const int kPersistentSessionCookieExpiryInDays = 14;
-#endif
-
 // Mozilla sorts on the path length (longest first), and then it
 // sorts by creation time (oldest first).
 // The RFC says the sort order for the domain attribute is undefined.
-bool CookieSorter(CookieMonster::CanonicalCookie* cc1,
-                  CookieMonster::CanonicalCookie* cc2) {
+bool CookieSorter(CanonicalCookie* cc1, CanonicalCookie* cc2) {
   if (cc1->Path().length() == cc2->Path().length())
     return cc1->CreationDate() < cc2->CreationDate();
   return cc1->Path().length() > cc2->Path().length();
@@ -197,69 +190,6 @@ bool GetCookieDomain(const GURL& url,
   if (pc.HasDomain())
     domain_string = pc.Domain();
   return cookie_util::GetCookieDomainWithString(url, domain_string, result);
-}
-
-std::string CanonPathWithString(const GURL& url,
-                                const std::string& path_string) {
-  // The RFC says the path should be a prefix of the current URL path.
-  // However, Mozilla allows you to set any path for compatibility with
-  // broken websites.  We unfortunately will mimic this behavior.  We try
-  // to be generous and accept cookies with an invalid path attribute, and
-  // default the path to something reasonable.
-
-  // The path was supplied in the cookie, we'll take it.
-  if (!path_string.empty() && path_string[0] == '/')
-    return path_string;
-
-  // The path was not supplied in the cookie or invalid, we will default
-  // to the current URL path.
-  // """Defaults to the path of the request URL that generated the
-  //    Set-Cookie response, up to, but not including, the
-  //    right-most /."""
-  // How would this work for a cookie on /?  We will include it then.
-  const std::string& url_path = url.path();
-
-  size_t idx = url_path.find_last_of('/');
-
-  // The cookie path was invalid or a single '/'.
-  if (idx == 0 || idx == std::string::npos)
-    return std::string("/");
-
-  // Return up to the rightmost '/'.
-  return url_path.substr(0, idx);
-}
-
-std::string CanonPath(const GURL& url, const ParsedCookie& pc) {
-  std::string path_string;
-  if (pc.HasPath())
-    path_string = pc.Path();
-  return CanonPathWithString(url, path_string);
-}
-
-Time CanonExpiration(const ParsedCookie& pc,
-                     const Time& current,
-                     const Time& server_time) {
-  // First, try the Max-Age attribute.
-  uint64 max_age = 0;
-  if (pc.HasMaxAge() &&
-#ifdef COMPILER_MSVC
-      sscanf_s(
-#else
-      sscanf(
-#endif
-             pc.MaxAge().c_str(), " %" PRIu64, &max_age) == 1) {
-    return current + TimeDelta::FromSeconds(max_age);
-  }
-
-  // Try the Expires attribute.
-  if (pc.HasExpires()) {
-    // Adjust for clock skew between server and host.
-    return current + (CookieMonster::ParseCookieTime(pc.Expires()) -
-                      server_time);
-  }
-
-  // Invalid or no expiration, persistent cookie.
-  return Time();
 }
 
 // Helper for GarbageCollection.  If |cookie_its->size() > num_max|, remove the
@@ -348,7 +278,7 @@ void BuildCookieInfoList(const CanonicalCookieVector& cookies,
                          std::vector<CookieStore::CookieInfo>* cookie_infos) {
   for (CanonicalCookieVector::const_iterator it = cookies.begin();
        it != cookies.end(); ++it) {
-    const CookieMonster::CanonicalCookie* cookie = *it;
+    const CanonicalCookie* cookie = *it;
     CookieStore::CookieInfo cookie_info;
 
     cookie_info.name = cookie->Name();
@@ -395,123 +325,6 @@ CookieMonster::CookieMonster(PersistentCookieStore* store,
   SetDefaultCookieableSchemes();
 }
 
-// Parse a cookie expiration time.  We try to be lenient, but we need to
-// assume some order to distinguish the fields.  The basic rules:
-//  - The month name must be present and prefix the first 3 letters of the
-//    full month name (jan for January, jun for June).
-//  - If the year is <= 2 digits, it must occur after the day of month.
-//  - The time must be of the format hh:mm:ss.
-// An average cookie expiration will look something like this:
-//   Sat, 15-Apr-17 21:01:22 GMT
-Time CookieMonster::ParseCookieTime(const std::string& time_string) {
-  static const char* kMonths[] = { "jan", "feb", "mar", "apr", "may", "jun",
-                                   "jul", "aug", "sep", "oct", "nov", "dec" };
-  static const int kMonthsLen = arraysize(kMonths);
-  // We want to be pretty liberal, and support most non-ascii and non-digit
-  // characters as a delimiter.  We can't treat : as a delimiter, because it
-  // is the delimiter for hh:mm:ss, and we want to keep this field together.
-  // We make sure to include - and +, since they could prefix numbers.
-  // If the cookie attribute came in in quotes (ex expires="XXX"), the quotes
-  // will be preserved, and we will get them here.  So we make sure to include
-  // quote characters, and also \ for anything that was internally escaped.
-  static const char* kDelimiters = "\t !\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~";
-
-  Time::Exploded exploded = {0};
-
-  StringTokenizer tokenizer(time_string, kDelimiters);
-
-  bool found_day_of_month = false;
-  bool found_month = false;
-  bool found_time = false;
-  bool found_year = false;
-
-  while (tokenizer.GetNext()) {
-    const std::string token = tokenizer.token();
-    DCHECK(!token.empty());
-    bool numerical = IsAsciiDigit(token[0]);
-
-    // String field
-    if (!numerical) {
-      if (!found_month) {
-        for (int i = 0; i < kMonthsLen; ++i) {
-          // Match prefix, so we could match January, etc
-          if (base::strncasecmp(token.c_str(), kMonths[i], 3) == 0) {
-            exploded.month = i + 1;
-            found_month = true;
-            break;
-          }
-        }
-      } else {
-        // If we've gotten here, it means we've already found and parsed our
-        // month, and we have another string, which we would expect to be the
-        // the time zone name.  According to the RFC and my experiments with
-        // how sites format their expirations, we don't have much of a reason
-        // to support timezones.  We don't want to ever barf on user input,
-        // but this DCHECK should pass for well-formed data.
-        // DCHECK(token == "GMT");
-      }
-    // Numeric field w/ a colon
-    } else if (token.find(':') != std::string::npos) {
-      if (!found_time &&
-#ifdef COMPILER_MSVC
-          sscanf_s(
-#else
-          sscanf(
-#endif
-                 token.c_str(), "%2u:%2u:%2u", &exploded.hour,
-                 &exploded.minute, &exploded.second) == 3) {
-        found_time = true;
-      } else {
-        // We should only ever encounter one time-like thing.  If we're here,
-        // it means we've found a second, which shouldn't happen.  We keep
-        // the first.  This check should be ok for well-formed input:
-        // NOTREACHED();
-      }
-    // Numeric field
-    } else {
-      // Overflow with atoi() is unspecified, so we enforce a max length.
-      if (!found_day_of_month && token.length() <= 2) {
-        exploded.day_of_month = atoi(token.c_str());
-        found_day_of_month = true;
-      } else if (!found_year && token.length() <= 5) {
-        exploded.year = atoi(token.c_str());
-        found_year = true;
-      } else {
-        // If we're here, it means we've either found an extra numeric field,
-        // or a numeric field which was too long.  For well-formed input, the
-        // following check would be reasonable:
-        // NOTREACHED();
-      }
-    }
-  }
-
-  if (!found_day_of_month || !found_month || !found_time || !found_year) {
-    // We didn't find all of the fields we need.  For well-formed input, the
-    // following check would be reasonable:
-    // NOTREACHED() << "Cookie parse expiration failed: " << time_string;
-    return Time();
-  }
-
-  // Normalize the year to expand abbreviated years to the full year.
-  if (exploded.year >= 69 && exploded.year <= 99)
-    exploded.year += 1900;
-  if (exploded.year >= 0 && exploded.year <= 68)
-    exploded.year += 2000;
-
-  // If our values are within their correct ranges, we got our time.
-  if (exploded.day_of_month >= 1 && exploded.day_of_month <= 31 &&
-      exploded.month >= 1 && exploded.month <= 12 &&
-      exploded.year >= 1601 && exploded.year <= 30827 &&
-      exploded.hour <= 23 && exploded.minute <= 59 && exploded.second <= 59) {
-    return Time::FromUTCExploded(exploded);
-  }
-
-  // One of our values was out of expected range.  For well-formed input,
-  // the following check would be reasonable:
-  // NOTREACHED() << "Cookie exploded expiration failed: " << time_string;
-
-  return Time();
-}
 
 // Task classes for queueing the coming request.
 
@@ -798,7 +611,7 @@ class CookieMonster::DeleteCanonicalCookieTask
  public:
   DeleteCanonicalCookieTask(
       CookieMonster* cookie_monster,
-      const CookieMonster::CanonicalCookie& cookie,
+      const CanonicalCookie& cookie,
       const CookieMonster::DeleteCookieCallback& callback)
       : CookieMonsterTask(cookie_monster),
         cookie_(cookie),
@@ -812,7 +625,7 @@ class CookieMonster::DeleteCanonicalCookieTask
   virtual ~DeleteCanonicalCookieTask() {}
 
  private:
-  CookieMonster::CanonicalCookie cookie_;
+  CanonicalCookie cookie_;
   CookieMonster::DeleteCookieCallback callback_;
 
   DISALLOW_COPY_AND_ASSIGN(DeleteCanonicalCookieTask);
@@ -1211,14 +1024,11 @@ bool CookieMonster::InitializeFrom(const CookieList& list) {
   InitIfNecessary();
   for (net::CookieList::const_iterator iter = list.begin();
            iter != list.end(); ++iter) {
-    scoped_ptr<net::CookieMonster::CanonicalCookie> cookie;
-    cookie.reset(new net::CookieMonster::CanonicalCookie(*iter));
+    scoped_ptr<CanonicalCookie> cookie(new CanonicalCookie(*iter));
     net::CookieOptions options;
     options.set_include_httponly();
-    if (!SetCanonicalCookie(&cookie, cookie->CreationDate(),
-                                             options)) {
+    if (!SetCanonicalCookie(&cookie, cookie->CreationDate(), options))
       return false;
-    }
   }
   return true;
 }
@@ -1917,13 +1727,14 @@ bool CookieMonster::SetCookieWithCreationTimeAndOptions(
     return false;
   }
 
-  std::string cookie_path = CanonPath(url, pc);
+  std::string cookie_path = CanonicalCookie::CanonPath(url, pc);
   std::string mac_key = pc.HasMACKey() ? pc.MACKey() : std::string();
   std::string mac_algorithm = pc.HasMACAlgorithm() ?
       pc.MACAlgorithm() : std::string();
 
   scoped_ptr<CanonicalCookie> cc;
-  Time cookie_expires = CanonExpiration(pc, creation_time, server_time);
+  Time cookie_expires =
+      CanonicalCookie::CanonExpiration(pc, creation_time, server_time);
 
   cc.reset(new CanonicalCookie(url, pc.Name(), pc.Value(), cookie_domain,
                                cookie_path, mac_key, mac_algorithm,
@@ -2342,248 +2153,6 @@ void CookieMonster::InitializeHistograms() {
 Time CookieMonster::CurrentTime() {
   return std::max(Time::Now(),
       Time::FromInternalValue(last_time_seen_.ToInternalValue() + 1));
-}
-
-CookieMonster::CanonicalCookie::CanonicalCookie()
-    : secure_(false),
-      httponly_(false) {
-  SetSessionCookieExpiryTime();
-}
-
-CookieMonster::CanonicalCookie::CanonicalCookie(
-    const GURL& url, const std::string& name, const std::string& value,
-    const std::string& domain, const std::string& path,
-    const std::string& mac_key, const std::string& mac_algorithm,
-    const base::Time& creation, const base::Time& expiration,
-    const base::Time& last_access, bool secure, bool httponly)
-    : source_(GetCookieSourceFromURL(url)),
-      name_(name),
-      value_(value),
-      domain_(domain),
-      path_(path),
-      mac_key_(mac_key),
-      mac_algorithm_(mac_algorithm),
-      creation_date_(creation),
-      expiry_date_(expiration),
-      last_access_date_(last_access),
-      secure_(secure),
-      httponly_(httponly) {
-  if (expiration.is_null())
-    SetSessionCookieExpiryTime();
-}
-
-CookieMonster::CanonicalCookie::CanonicalCookie(const GURL& url,
-                                                const ParsedCookie& pc)
-    : source_(GetCookieSourceFromURL(url)),
-      name_(pc.Name()),
-      value_(pc.Value()),
-      path_(CanonPath(url, pc)),
-      mac_key_(pc.MACKey()),
-      mac_algorithm_(pc.MACAlgorithm()),
-      creation_date_(Time::Now()),
-      last_access_date_(Time()),
-      secure_(pc.IsSecure()),
-      httponly_(pc.IsHttpOnly()) {
-  if (pc.HasExpires())
-    expiry_date_ = CanonExpiration(pc, creation_date_, creation_date_);
-  else
-    SetSessionCookieExpiryTime();
-
-  // Do the best we can with the domain.
-  std::string cookie_domain;
-  std::string domain_string;
-  if (pc.HasDomain()) {
-    domain_string = pc.Domain();
-  }
-  bool result
-      = cookie_util::GetCookieDomainWithString(url, domain_string,
-                                                &cookie_domain);
-  // Caller is responsible for passing in good arguments.
-  DCHECK(result);
-  domain_ = cookie_domain;
-}
-
-CookieMonster::CanonicalCookie::~CanonicalCookie() {
-}
-
-std::string CookieMonster::CanonicalCookie::GetCookieSourceFromURL(
-    const GURL& url) {
-  if (url.SchemeIsFile())
-    return url.spec();
-
-  url_canon::Replacements<char> replacements;
-  replacements.ClearPort();
-  if (url.SchemeIsSecure())
-    replacements.SetScheme("http", url_parse::Component(0, 4));
-
-  return url.GetOrigin().ReplaceComponents(replacements).spec();
-}
-
-void CookieMonster::CanonicalCookie::SetSessionCookieExpiryTime() {
-#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
-  // Mobile apps can sometimes be shut down without any warning, so the session
-  // cookie has to be persistent and given a default expiration time.
-  expiry_date_ = base::Time::Now() +
-      base::TimeDelta::FromDays(kPersistentSessionCookieExpiryInDays);
-#endif
-}
-
-CookieMonster::CanonicalCookie* CookieMonster::CanonicalCookie::Create(
-    const GURL& url,
-    const ParsedCookie& pc) {
-  if (!pc.IsValid()) {
-    return NULL;
-  }
-
-  std::string domain_string;
-  if (!GetCookieDomain(url, pc, &domain_string)) {
-    return NULL;
-  }
-  std::string path_string = CanonPath(url, pc);
-  std::string mac_key = pc.HasMACKey() ? pc.MACKey() : std::string();
-  std::string mac_algorithm = pc.HasMACAlgorithm() ?
-      pc.MACAlgorithm() : std::string();
-  Time creation_time = Time::Now();
-  Time expiration_time;
-  if (pc.HasExpires())
-    expiration_time =  net::CookieMonster::ParseCookieTime(pc.Expires());
-
-  return (Create(url, pc.Name(), pc.Value(), domain_string, path_string,
-                 mac_key, mac_algorithm, creation_time, expiration_time,
-                 pc.IsSecure(), pc.IsHttpOnly()));
-}
-
-CookieMonster::CanonicalCookie* CookieMonster::CanonicalCookie::Create(
-      const GURL& url,
-      const std::string& name,
-      const std::string& value,
-      const std::string& domain,
-      const std::string& path,
-      const std::string& mac_key,
-      const std::string& mac_algorithm,
-      const base::Time& creation,
-      const base::Time& expiration,
-      bool secure,
-      bool http_only) {
-  // Expect valid attribute tokens and values, as defined by the ParsedCookie
-  // logic, otherwise don't create the cookie.
-  std::string parsed_name = ParsedCookie::ParseTokenString(name);
-  if (parsed_name != name)
-    return NULL;
-  std::string parsed_value = ParsedCookie::ParseValueString(value);
-  if (parsed_value != value)
-    return NULL;
-
-  std::string parsed_domain = ParsedCookie::ParseValueString(domain);
-  if (parsed_domain != domain)
-    return NULL;
-  std::string cookie_domain;
-  if (!cookie_util::GetCookieDomainWithString(url, parsed_domain,
-                                               &cookie_domain)) {
-    return NULL;
-  }
-
-  std::string parsed_path = ParsedCookie::ParseValueString(path);
-  if (parsed_path != path)
-    return NULL;
-
-  std::string cookie_path = CanonPathWithString(url, parsed_path);
-  // Expect that the path was either not specified (empty), or is valid.
-  if (!parsed_path.empty() && cookie_path != parsed_path)
-    return NULL;
-  // Canonicalize path again to make sure it escapes characters as needed.
-  url_parse::Component path_component(0, cookie_path.length());
-  url_canon::RawCanonOutputT<char> canon_path;
-  url_parse::Component canon_path_component;
-  url_canon::CanonicalizePath(cookie_path.data(), path_component,
-                              &canon_path, &canon_path_component);
-  cookie_path = std::string(canon_path.data() + canon_path_component.begin,
-                            canon_path_component.len);
-
-  return new CanonicalCookie(url, parsed_name, parsed_value, cookie_domain,
-                             cookie_path, mac_key, mac_algorithm, creation,
-                             expiration, creation, secure, http_only);
-}
-
-bool CookieMonster::CanonicalCookie::IsOnPath(
-    const std::string& url_path) const {
-
-  // A zero length would be unsafe for our trailing '/' checks, and
-  // would also make no sense for our prefix match.  The code that
-  // creates a CanonicalCookie should make sure the path is never zero length,
-  // but we double check anyway.
-  if (path_.empty())
-    return false;
-
-  // The Mozilla code broke this into three cases, based on if the cookie path
-  // was longer, the same length, or shorter than the length of the url path.
-  // I think the approach below is simpler.
-
-  // Make sure the cookie path is a prefix of the url path.  If the
-  // url path is shorter than the cookie path, then the cookie path
-  // can't be a prefix.
-  if (url_path.find(path_) != 0)
-    return false;
-
-  // Now we know that url_path is >= cookie_path, and that cookie_path
-  // is a prefix of url_path.  If they are the are the same length then
-  // they are identical, otherwise we need an additional check:
-
-  // In order to avoid in correctly matching a cookie path of /blah
-  // with a request path of '/blahblah/', we need to make sure that either
-  // the cookie path ends in a trailing '/', or that we prefix up to a '/'
-  // in the url path.  Since we know that the url path length is greater
-  // than the cookie path length, it's safe to index one byte past.
-  if (path_.length() != url_path.length() &&
-      path_[path_.length() - 1] != '/' &&
-      url_path[path_.length()] != '/')
-    return false;
-
-  return true;
-}
-
-bool CookieMonster::CanonicalCookie::IsDomainMatch(
-    const std::string& scheme,
-    const std::string& host) const {
-  // Can domain match in two ways; as a domain cookie (where the cookie
-  // domain begins with ".") or as a host cookie (where it doesn't).
-
-  // Some consumers of the CookieMonster expect to set cookies on
-  // URLs like http://.strange.url.  To retrieve cookies in this instance,
-  // we allow matching as a host cookie even when the domain_ starts with
-  // a period.
-  if (host == domain_)
-    return true;
-
-  // Domain cookie must have an initial ".".  To match, it must be
-  // equal to url's host with initial period removed, or a suffix of
-  // it.
-
-  // Arguably this should only apply to "http" or "https" cookies, but
-  // extension cookie tests currently use the funtionality, and if we
-  // ever decide to implement that it should be done by preventing
-  // such cookies from being set.
-  if (domain_.empty() || domain_[0] != '.')
-    return false;
-
-  // The host with a "." prefixed.
-  if (domain_.compare(1, std::string::npos, host) == 0)
-    return true;
-
-  // A pure suffix of the host (ok since we know the domain already
-  // starts with a ".")
-  return (host.length() > domain_.length() &&
-          host.compare(host.length() - domain_.length(),
-                       domain_.length(), domain_) == 0);
-}
-
-std::string CookieMonster::CanonicalCookie::DebugString() const {
-  return base::StringPrintf(
-      "name: %s value: %s domain: %s path: %s creation: %"
-      PRId64,
-      name_.c_str(), value_.c_str(),
-      domain_.c_str(), path_.c_str(),
-      static_cast<int64>(creation_date_.ToTimeT()));
 }
 
 }  // namespace
