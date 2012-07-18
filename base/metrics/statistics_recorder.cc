@@ -243,18 +243,17 @@ void StatisticsRecorder::GetHistograms(Histograms* output) {
   }
 }
 
-bool StatisticsRecorder::FindHistogram(const std::string& name,
-                                       Histogram** histogram) {
+// static
+Histogram* StatisticsRecorder::FindHistogram(const std::string& name) {
   if (lock_ == NULL)
-    return false;
+    return NULL;
   base::AutoLock auto_lock(*lock_);
   if (!histograms_)
-    return false;
+    return NULL;
   HistogramMap::iterator it = histograms_->find(name);
   if (histograms_->end() == it)
-    return false;
-  *histogram = it->second;
-  return true;
+    return NULL;
+  return it->second;
 }
 
 // private static

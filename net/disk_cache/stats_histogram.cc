@@ -24,15 +24,12 @@ StatsHistogram::~StatsHistogram() {
 }
 
 StatsHistogram* StatsHistogram::FactoryGet(const std::string& name) {
-  Histogram* histogram(NULL);
-
   Sample minimum = 1;
   Sample maximum = disk_cache::Stats::kDataSizesLength - 1;
   size_t bucket_count = disk_cache::Stats::kDataSizesLength;
 
-  if (StatisticsRecorder::FindHistogram(name, &histogram)) {
-    DCHECK(histogram != NULL);
-  } else {
+  Histogram* histogram = StatisticsRecorder::FindHistogram(name);
+  if (!histogram) {
     // To avoid racy destruction at shutdown, the following will be leaked.
     StatsHistogram* stats_histogram =
         new StatsHistogram(name, minimum, maximum, bucket_count);
