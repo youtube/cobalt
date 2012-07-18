@@ -5,30 +5,11 @@
 #include "media/webm/webm_cluster_parser.h"
 
 #include "base/logging.h"
-#include "base/sys_byteorder.h"
 #include "media/base/data_buffer.h"
 #include "media/base/decrypt_config.h"
 #include "media/webm/webm_constants.h"
 
 namespace media {
-
-// Generates a 16 byte CTR counter block. The CTR counter block format is a
-// CTR IV appended with a CTR block counter. |iv| is an 8 byte CTR IV.
-// Always returns a valid pointer to a buffer of kDecryptionKeySize bytes.
-static scoped_array<uint8> GenerateCounterBlock(uint64 iv) {
-  scoped_array<uint8> counter_block_data(
-      new uint8[DecryptConfig::kDecryptionKeySize]);
-
-  // Set the IV.
-  memcpy(counter_block_data.get(), &iv, sizeof(iv));
-
-  // Set block counter to all 0's.
-  memset(counter_block_data.get() + sizeof(iv),
-         0,
-         DecryptConfig::kDecryptionKeySize - sizeof(iv));
-
-  return counter_block_data.Pass();
-}
 
 WebMClusterParser::WebMClusterParser(int64 timecode_scale,
                                      int audio_track_num,
@@ -212,33 +193,15 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   base::TimeDelta timestamp = base::TimeDelta::FromMicroseconds(
       (cluster_timecode_ + timecode) * timecode_multiplier_);
 
-  // Every encrypted Block has an HMAC and IV prepended to it. Current encrypted
-  // WebM request for comments specification is here
-  // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-  bool encrypted = track_num == video_.track_num() &&
-                   video_encryption_key_id_.get();
-  // If encrypted skip past the HMAC. Encrypted buffers must include the IV and
-  // the encrypted frame because the decryptor will verify this data before
-  // decryption. The HMAC and IV will be copied into DecryptConfig.
-  int offset = (encrypted) ? kWebMHmacSize : 0;
-
   // The first bit of the flags is set when the block contains only keyframes.
   // http://www.matroska.org/technical/specs/index.html
   bool is_keyframe = (flags & 0x80) != 0;
   scoped_refptr<StreamParserBuffer> buffer =
-      StreamParserBuffer::CopyFrom(data + offset, size - offset, is_keyframe);
+      StreamParserBuffer::CopyFrom(data, size, is_keyframe);
 
-  if (encrypted) {
-    uint64 network_iv;
-    memcpy(&network_iv, data + kWebMHmacSize, sizeof(network_iv));
-    const uint64 iv = base::NetToHost64(network_iv);
-
-    scoped_array<uint8> counter_block(GenerateCounterBlock(iv));
+  if (track_num == video_.track_num() && video_encryption_key_id_.get()) {
     buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
-        video_encryption_key_id_.get(), video_encryption_key_id_size_,
-        counter_block.get(), DecryptConfig::kDecryptionKeySize,
-        data, kWebMHmacSize,
-        sizeof(iv))));
+        video_encryption_key_id_.get(), video_encryption_key_id_size_)));
   }
 
   buffer->SetTimestamp(timestamp);
