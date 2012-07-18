@@ -775,6 +775,7 @@
             'mp4/box_reader_unittest.cc',
             'mp4/mp4_stream_parser_unittest.cc',
             'mp4/offset_byte_queue_unittest.cc',
+            'mp4/track_run_iterator_unittest.cc',
           ],
         }],
       ],
