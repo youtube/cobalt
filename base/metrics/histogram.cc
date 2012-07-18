@@ -79,8 +79,6 @@ Histogram* Histogram::FactoryGet(const std::string& name,
                                  Sample maximum,
                                  size_t bucket_count,
                                  Flags flags) {
-  Histogram* histogram(NULL);
-
   // Defensive code.
   if (minimum < 1)
     minimum = 1;
@@ -91,7 +89,8 @@ Histogram* Histogram::FactoryGet(const std::string& name,
   DCHECK_GT((Sample) bucket_count, 2);
   DCHECK_LE((Sample) bucket_count, maximum - minimum + 2);
 
-  if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
+  Histogram* histogram = StatisticsRecorder::FindHistogram(name);
+  if (!histogram) {
     // Extra variable is not needed... but this keeps this section basically
     // identical to other derived classes in this file (and compiler will
     // optimize away the extra variable.
@@ -806,8 +805,6 @@ Histogram* LinearHistogram::FactoryGet(const std::string& name,
                                        Sample maximum,
                                        size_t bucket_count,
                                        Flags flags) {
-  Histogram* histogram(NULL);
-
   if (minimum < 1)
     minimum = 1;
   if (maximum > kSampleType_MAX - 1)
@@ -817,7 +814,8 @@ Histogram* LinearHistogram::FactoryGet(const std::string& name,
   DCHECK_GT((Sample) bucket_count, 2);
   DCHECK_LE((Sample) bucket_count, maximum - minimum + 2);
 
-  if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
+  Histogram* histogram = StatisticsRecorder::FindHistogram(name);
+  if (!histogram) {
     // To avoid racy destruction at shutdown, the following will be leaked.
     LinearHistogram* tentative_histogram =
         new LinearHistogram(name, minimum, maximum, bucket_count);
@@ -907,9 +905,8 @@ bool LinearHistogram::PrintEmptyBucket(size_t index) const {
 //------------------------------------------------------------------------------
 
 Histogram* BooleanHistogram::FactoryGet(const std::string& name, Flags flags) {
-  Histogram* histogram(NULL);
-
-  if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
+  Histogram* histogram = StatisticsRecorder::FindHistogram(name);
+  if (!histogram) {
     // To avoid racy destruction at shutdown, the following will be leaked.
     BooleanHistogram* tentative_histogram = new BooleanHistogram(name);
     tentative_histogram->InitializeBucketRange();
@@ -941,8 +938,6 @@ BooleanHistogram::BooleanHistogram(const std::string& name)
 Histogram* CustomHistogram::FactoryGet(const std::string& name,
                                        const std::vector<Sample>& custom_ranges,
                                        Flags flags) {
-  Histogram* histogram(NULL);
-
   // Remove the duplicates in the custom ranges array.
   std::vector<int> ranges = custom_ranges;
   ranges.push_back(0);  // Ensure we have a zero value.
@@ -956,7 +951,8 @@ Histogram* CustomHistogram::FactoryGet(const std::string& name,
 
   DCHECK_LT(ranges.back(), kSampleType_MAX);
 
-  if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
+  Histogram* histogram = StatisticsRecorder::FindHistogram(name);
+  if (!histogram) {
     // To avoid racy destruction at shutdown, the following will be leaked.
     CustomHistogram* tentative_histogram = new CustomHistogram(name, ranges);
     tentative_histogram->InitializedCustomBucketRange(ranges);

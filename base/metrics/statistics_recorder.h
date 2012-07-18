@@ -63,9 +63,8 @@ class BASE_EXPORT StatisticsRecorder {
   static void GetHistograms(Histograms* output);
 
   // Find a histogram by name. It matches the exact name. This method is thread
-  // safe.  If a matching histogram is not found, then the |histogram| is
-  // not changed.
-  static bool FindHistogram(const std::string& query, Histogram** histogram);
+  // safe.  It returns NULL if a matching histogram is not found.
+  static Histogram* FindHistogram(const std::string& name);
 
   static bool dump_on_exit() { return dump_on_exit_; }
 
