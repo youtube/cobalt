@@ -133,13 +133,13 @@ void SpdyStream::DetachDelegate() {
     Cancel();
 }
 
-const linked_ptr<SpdyHeaderBlock>& SpdyStream::spdy_headers() const {
-  return request_;
+const SpdyHeaderBlock& SpdyStream::spdy_headers() const {
+  DCHECK(request_ != NULL);
+  return *request_.get();
 }
 
-void SpdyStream::set_spdy_headers(
-    const linked_ptr<SpdyHeaderBlock>& headers) {
-  request_ = headers;
+void SpdyStream::set_spdy_headers(scoped_ptr<SpdyHeaderBlock> headers) {
+  request_.reset(headers.release());
 }
 
 void SpdyStream::set_initial_recv_window_size(int32 window_size) {

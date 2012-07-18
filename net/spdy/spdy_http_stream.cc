@@ -194,11 +194,11 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
 
   stream_->SetDelegate(this);
 
-  linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
+  scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
   CreateSpdyHeadersFromHttpRequest(*request_info_, request_headers,
                                    headers.get(), stream_->GetProtocolVersion(),
                                    direct_);
-  stream_->set_spdy_headers(headers);
+  stream_->set_spdy_headers(headers.Pass());
 
   stream_->SetRequestTime(request_time);
   // This should only get called in the case of a request occurring
