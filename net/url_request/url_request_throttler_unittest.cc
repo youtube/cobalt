@@ -208,8 +208,8 @@ void URLRequestThrottlerEntryTest::SetUp() {
     // as other tests may affect them.
     const char* name = kHistogramNames[i];
     Histogram::SampleSet& original = original_samples_[name];
-    Histogram* histogram;
-    if (StatisticsRecorder::FindHistogram(name, &histogram)) {
+    Histogram* histogram = StatisticsRecorder::FindHistogram(name);
+    if (histogram) {
       histogram->SnapshotSample(&original);
     }
   }
@@ -221,8 +221,8 @@ void URLRequestThrottlerEntryTest::CalculateHistogramDeltas() {
     Histogram::SampleSet& original = original_samples_[name];
     Histogram::SampleSet& sample = samples_[name];
 
-    Histogram* histogram;
-    if (StatisticsRecorder::FindHistogram(name, &histogram)) {
+    Histogram* histogram = StatisticsRecorder::FindHistogram(name);
+    if (histogram) {
       ASSERT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
 
       histogram->SnapshotSample(&sample);
