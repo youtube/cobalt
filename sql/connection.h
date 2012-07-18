@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,6 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "sql/sql_export.h"
 
@@ -321,14 +320,6 @@ class SQL_EXPORT Connection {
   // sqlite3_open. The string can also be sqlite's special ":memory:" string.
   bool OpenInternal(const std::string& file_name);
 
-  // Check whether the current thread is allowed to make IO calls, but only
-  // if database wasn't open in memory. Function is inlined to be a no-op in
-  // official build.
-  void AssertIOAllowed() {
-    if (!in_memory_)
-      base::ThreadRestrictions::AssertIOAllowed();
-  }
-
   // Internal helper for DoesTableExist and DoesIndexExist.
   bool DoesTableOrIndexExist(const char* name, const char* type) const;
 
@@ -363,10 +354,6 @@ class SQL_EXPORT Connection {
     // Destroys the compiled statement and marks it NULL. The statement will
     // no longer be active.
     void Close();
-
-    // Check whether the current thread is allowed to make IO calls, but only
-    // if database wasn't open in memory.
-    void AssertIOAllowed() { if (connection_) connection_->AssertIOAllowed(); }
 
    private:
     friend class base::RefCounted<StatementRef>;
@@ -429,10 +416,6 @@ class SQL_EXPORT Connection {
   // When we get to the outermost transaction, this will determine if we do
   // a rollback instead of a commit.
   bool needs_rollback_;
-
-  // True if database is open with OpenInMemory(), False if database is open
-  // with Open().
-  bool in_memory_;
 
   // This object handles errors resulting from all forms of executing sqlite
   // commands or statements. It can be null which means default handling.
