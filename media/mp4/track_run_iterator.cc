@@ -12,30 +12,54 @@
 namespace media {
 namespace mp4 {
 
-base::TimeDelta TimeDeltaFromFrac(int64 numer, int64 denom) {
+struct SampleInfo {
+  int size;
+  int duration;
+  int cts_offset;
+  bool is_keyframe;
+};
+
+struct TrackRunInfo {
+  uint32 track_id;
+  std::vector<SampleInfo> samples;
+  int64 timescale;
+  int64 start_dts;
+  int64 sample_start_offset;
+
+  bool is_audio;
+  const AudioSampleEntry* audio_description;
+  const VideoSampleEntry* video_description;
+
+  TrackRunInfo();
+  ~TrackRunInfo();
+};
+
+TrackRunInfo::TrackRunInfo()
+    : track_id(0),
+      timescale(-1),
+      start_dts(-1),
+      sample_start_offset(-1),
+      is_audio(false) {
+}
+TrackRunInfo::~TrackRunInfo() {}
+
+TimeDelta TimeDeltaFromFrac(int64 numer, int64 denom) {
   DCHECK_LT((numer > 0 ? numer : -numer),
             kint64max / base::Time::kMicrosecondsPerSecond);
-  return base::TimeDelta::FromMicroseconds(
+  return TimeDelta::FromMicroseconds(
         base::Time::kMicrosecondsPerSecond * numer / denom);
 }
 
 static const uint32 kSampleIsDifferenceSampleFlagMask = 0x10000;
 
-TrackRunInfo::TrackRunInfo()
-    : track_id(0),
-      sample_start_offset(-1),
-      is_encrypted(false),
-      cenc_start_offset(-1),
-      cenc_total_size(-1),
-      default_cenc_size(0) {}
 
-TrackRunInfo::~TrackRunInfo() {}
-
-TrackRunIterator::TrackRunIterator() : sample_offset_(0) {}
+TrackRunIterator::TrackRunIterator(const Movie* moov)
+    : moov_(moov), sample_offset_(0) {
+  CHECK(moov);
+}
 TrackRunIterator::~TrackRunIterator() {}
 
-static void PopulateSampleInfo(const Track& trak,
-                               const TrackExtends& trex,
+static void PopulateSampleInfo(const TrackExtends& trex,
                                const TrackFragmentHeader& tfhd,
                                const TrackFragmentRun& trun,
                                const uint32 i,
@@ -48,22 +72,18 @@ static void PopulateSampleInfo(const Track& trak,
     sample_info->size = trex.default_sample_size;
   }
 
-  const uint64 timescale = trak.media.header.timescale;
-  uint64 duration;
   if (i < trun.sample_durations.size()) {
-    duration = trun.sample_durations[i];
+    sample_info->duration = trun.sample_durations[i];
   } else if (tfhd.default_sample_duration > 0) {
-    duration = tfhd.default_sample_duration;
+    sample_info->duration = tfhd.default_sample_duration;
   } else {
-    duration = trex.default_sample_duration;
+    sample_info->duration = trex.default_sample_duration;
   }
-  sample_info->duration = TimeDeltaFromFrac(duration, timescale);
 
   if (i < trun.sample_composition_time_offsets.size()) {
-    sample_info->cts_offset =
-        TimeDeltaFromFrac(trun.sample_composition_time_offsets[i], timescale);
+    sample_info->cts_offset = trun.sample_composition_time_offsets[i];
   } else {
-    sample_info->cts_offset = TimeDelta::FromMicroseconds(0);
+    sample_info->cts_offset = 0;
   }
 
   uint32 flags;
@@ -77,202 +97,180 @@ static void PopulateSampleInfo(const Track& trak,
   sample_info->is_keyframe = !(flags & kSampleIsDifferenceSampleFlagMask);
 }
 
-class CompareOffset {
+class CompareMinTrackRunDataOffset {
  public:
   bool operator()(const TrackRunInfo& a, const TrackRunInfo& b) {
-    int64 a_min = a.sample_start_offset;
-    if (a.is_encrypted && a.cenc_start_offset < a_min)
-      a_min = a.cenc_start_offset;
-    int64 b_min = b.sample_start_offset;
-    if (b.is_encrypted && b.cenc_start_offset < b_min)
-      b_min = b.cenc_start_offset;
-    return a_min < b_min;
+    return a.sample_start_offset < b.sample_start_offset;
   }
 };
 
-bool TrackRunIterator::Init(const Movie& moov, const MovieFragment& moof) {
+bool TrackRunIterator::Init(const MovieFragment& moof) {
   runs_.clear();
 
   for (size_t i = 0; i < moof.tracks.size(); i++) {
     const TrackFragment& traf = moof.tracks[i];
 
     const Track* trak = NULL;
-    for (size_t t = 0; t < moov.tracks.size(); t++) {
-      if (moov.tracks[t].header.track_id == traf.header.track_id)
-        trak = &moov.tracks[t];
+    for (size_t t = 0; t < moov_->tracks.size(); t++) {
+      if (moov_->tracks[t].header.track_id == traf.header.track_id)
+        trak = &moov_->tracks[t];
     }
+    RCHECK(trak);
 
     const TrackExtends* trex = NULL;
-    for (size_t t = 0; t < moov.extends.tracks.size(); t++) {
-      if (moov.extends.tracks[t].track_id == traf.header.track_id)
-        trex = &moov.extends.tracks[t];
+    for (size_t t = 0; t < moov_->extends.tracks.size(); t++) {
+      if (moov_->extends.tracks[t].track_id == traf.header.track_id)
+        trex = &moov_->extends.tracks[t];
     }
-    RCHECK(trak && trex);
+    RCHECK(trex);
 
-    const ProtectionSchemeInfo* sinf = NULL;
     const SampleDescription& stsd =
         trak->media.information.sample_table.description;
-    if (stsd.type == kAudio) {
-      sinf = &stsd.audio_entries[0].sinf;
-    } else if (stsd.type == kVideo) {
-      sinf = &stsd.video_entries[0].sinf;
-    } else {
+    if (stsd.type != kAudio && stsd.type != kVideo) {
       DVLOG(1) << "Skipping unhandled track type";
       continue;
     }
+    int desc_idx = traf.header.sample_description_index;
+    if (!desc_idx) desc_idx = trex->default_sample_description_index;
+    desc_idx--;  // Descriptions are one-indexed in the file
 
-    if (sinf->info.track_encryption.is_encrypted) {
-      // TODO(strobe): CENC recovery and testing (http://crbug.com/132351)
-      DVLOG(1) << "Encrypted tracks not handled";
-      continue;
-    }
+    int64 run_start_dts = traf.decode_time.decode_time;
 
     for (size_t j = 0; j < traf.runs.size(); j++) {
       const TrackFragmentRun& trun = traf.runs[j];
       TrackRunInfo tri;
       tri.track_id = traf.header.track_id;
-      tri.start_dts = TimeDeltaFromFrac(traf.decode_time.decode_time,
-                                        trak->media.header.timescale);
+      tri.timescale = trak->media.header.timescale;
+      tri.start_dts = run_start_dts;
       tri.sample_start_offset = trun.data_offset;
 
-      tri.is_encrypted = false;
-      tri.cenc_start_offset = 0;
-      tri.cenc_total_size = 0;
-      tri.default_cenc_size = 0;
+      tri.is_audio = (stsd.type == kAudio);
+      if (tri.is_audio) {
+        tri.audio_description = &stsd.audio_entries[desc_idx];
+      } else {
+        tri.video_description = &stsd.video_entries[desc_idx];
+      }
 
       tri.samples.resize(trun.sample_count);
-
       for (size_t k = 0; k < trun.sample_count; k++) {
-        PopulateSampleInfo(*trak, *trex, traf.header, trun, k, &tri.samples[k]);
+        PopulateSampleInfo(*trex, traf.header, trun, k, &tri.samples[k]);
+        run_start_dts += tri.samples[k].duration;
       }
       runs_.push_back(tri);
     }
   }
 
-  std::sort(runs_.begin(), runs_.end(), CompareOffset());
+  std::sort(runs_.begin(), runs_.end(), CompareMinTrackRunDataOffset());
   run_itr_ = runs_.begin();
-  min_clear_offset_itr_ = min_clear_offsets_.begin();
   ResetRun();
   return true;
 }
 
 void TrackRunIterator::AdvanceRun() {
   ++run_itr_;
-  if (min_clear_offset_itr_ != min_clear_offsets_.end())
-    ++min_clear_offset_itr_;
   ResetRun();
 }
 
 void TrackRunIterator::ResetRun() {
-  if (!RunValid()) return;
+  if (!RunIsValid()) return;
   sample_dts_ = run_itr_->start_dts;
   sample_offset_ = run_itr_->sample_start_offset;
   sample_itr_ = run_itr_->samples.begin();
 }
 
 void TrackRunIterator::AdvanceSample() {
-  DCHECK(SampleValid());
+  DCHECK(SampleIsValid());
   sample_dts_ += sample_itr_->duration;
   sample_offset_ += sample_itr_->size;
   ++sample_itr_;
 }
 
-bool TrackRunIterator::NeedsCENC() {
-  CHECK(!is_encrypted()) << "TODO(strobe): Implement CENC.";
-  return is_encrypted();
-}
-
-bool TrackRunIterator::CacheCENC(const uint8* buf, int size) {
-  LOG(FATAL) << "Not implemented";
-  return false;
-}
-
-bool TrackRunIterator::RunValid() const {
+bool TrackRunIterator::RunIsValid() const {
   return run_itr_ != runs_.end();
 }
 
-bool TrackRunIterator::SampleValid() const {
-  return RunValid() && (sample_itr_ != run_itr_->samples.end());
+bool TrackRunIterator::SampleIsValid() const {
+  return RunIsValid() && (sample_itr_ != run_itr_->samples.end());
 }
 
 int64 TrackRunIterator::GetMaxClearOffset() {
   int64 offset = kint64max;
 
-  if (SampleValid()) {
+  if (SampleIsValid())
     offset = std::min(offset, sample_offset_);
-    if (NeedsCENC()) {
-      offset = std::min(offset, cenc_offset());
-    }
-  }
-  if (min_clear_offset_itr_ != min_clear_offsets_.end()) {
-    offset = std::min(offset, *min_clear_offset_itr_);
-  }
-  if (offset == kint64max) return 0;
+  if (run_itr_ == runs_.end())
+    return offset;
+  std::vector<TrackRunInfo>::const_iterator next_run = run_itr_ + 1;
+  if (next_run != runs_.end())
+    offset = std::min(offset, next_run->sample_start_offset);
   return offset;
 }
 
 TimeDelta TrackRunIterator::GetMinDecodeTimestamp() {
   TimeDelta dts = kInfiniteDuration();
   for (size_t i = 0; i < runs_.size(); i++) {
-    if (runs_[i].start_dts < dts)
-      dts = runs_[i].start_dts;
+    dts = std::min(dts, TimeDeltaFromFrac(runs_[i].start_dts,
+                                          runs_[i].timescale));
   }
   return dts;
 }
 
 uint32 TrackRunIterator::track_id() const {
-  DCHECK(RunValid());
+  DCHECK(RunIsValid());
   return run_itr_->track_id;
 }
 
 bool TrackRunIterator::is_encrypted() const {
-  DCHECK(RunValid());
-  return run_itr_->is_encrypted;
+  DCHECK(RunIsValid());
+  return false;
 }
 
-int64 TrackRunIterator::cenc_offset() const {
-  DCHECK(is_encrypted());
-  return run_itr_->cenc_start_offset;
+bool TrackRunIterator::is_audio() const {
+  DCHECK(RunIsValid());
+  return run_itr_->is_audio;
 }
 
-int TrackRunIterator::cenc_size() const {
-  DCHECK(is_encrypted());
-  return run_itr_->cenc_total_size;
+const AudioSampleEntry& TrackRunIterator::audio_description() const {
+  DCHECK(is_audio());
+  DCHECK(run_itr_->audio_description);
+  return *run_itr_->audio_description;
 }
 
-int64 TrackRunIterator::offset() const {
-  DCHECK(SampleValid());
+const VideoSampleEntry& TrackRunIterator::video_description() const {
+  DCHECK(!is_audio());
+  DCHECK(run_itr_->video_description);
+  return *run_itr_->video_description;
+}
+
+int64 TrackRunIterator::sample_offset() const {
+  DCHECK(SampleIsValid());
   return sample_offset_;
 }
 
-int TrackRunIterator::size() const {
-  DCHECK(SampleValid());
+int TrackRunIterator::sample_size() const {
+  DCHECK(SampleIsValid());
   return sample_itr_->size;
 }
 
 TimeDelta TrackRunIterator::dts() const {
-  DCHECK(SampleValid());
-  return sample_dts_;
+  DCHECK(SampleIsValid());
+  return TimeDeltaFromFrac(sample_dts_, run_itr_->timescale);
 }
 
 TimeDelta TrackRunIterator::cts() const {
-  DCHECK(SampleValid());
-  return sample_dts_ + sample_itr_->cts_offset;
+  DCHECK(SampleIsValid());
+  return TimeDeltaFromFrac(sample_dts_ + sample_itr_->cts_offset,
+                           run_itr_->timescale);
 }
 
 TimeDelta TrackRunIterator::duration() const {
-  DCHECK(SampleValid());
-  return sample_itr_->duration;
+  DCHECK(SampleIsValid());
+  return TimeDeltaFromFrac(sample_itr_->duration, run_itr_->timescale);
 }
 
 bool TrackRunIterator::is_keyframe() const {
-  DCHECK(SampleValid());
+  DCHECK(SampleIsValid());
   return sample_itr_->is_keyframe;
-}
-
-const FrameCENCInfo& TrackRunIterator::frame_cenc_info() {
-  DCHECK(is_encrypted());
-  return frame_cenc_info_;
 }
 
 }  // namespace mp4

@@ -123,7 +123,7 @@ bool BoxReader::ScanChildren() {
   DCHECK(!scanned_);
   scanned_ = true;
 
-  bool err;
+  bool err = false;
   // TODO(strobe): Check or correct for multimap not inserting elements in
   // consistent order.
   while (pos() < size()) {

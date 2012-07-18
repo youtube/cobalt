@@ -25,8 +25,7 @@ MP4StreamParser::MP4StreamParser()
       has_audio_(false),
       has_video_(false),
       audio_track_id_(0),
-      video_track_id_(0),
-      size_of_nalu_length_(0) {
+      video_track_id_(0) {
 }
 
 MP4StreamParser::~MP4StreamParser() {}
@@ -85,7 +84,7 @@ bool MP4StreamParser::Parse(const uint8* buf, int size) {
       DCHECK_EQ(kEmittingSamples, state_);
       result = EnqueueSample(&audio_buffers, &video_buffers, &err);
       if (result) {
-        int64 max_clear = runs_.GetMaxClearOffset() + moof_head_;
+        int64 max_clear = runs_->GetMaxClearOffset() + moof_head_;
         DCHECK(max_clear <= queue_.tail());
         err = !(ReadMDATsUntil(max_clear) && queue_.Trim(max_clear));
       }
@@ -99,6 +98,7 @@ bool MP4StreamParser::Parse(const uint8* buf, int size) {
     DLOG(ERROR) << "Error while parsing MP4";
     queue_.Reset();
     moov_.reset();
+    runs_.reset();
     ChangeState(kError);
     return false;
   }
@@ -136,8 +136,8 @@ bool MP4StreamParser::ParseBox(bool* err) {
 bool MP4StreamParser::ParseMoov(BoxReader* reader) {
   // TODO(strobe): Respect edit lists.
   moov_.reset(new Movie);
-
   RCHECK(moov_->Parse(reader));
+  runs_.reset(new TrackRunIterator(moov_.get()));
 
   has_audio_ = false;
   has_video_ = false;
@@ -152,9 +152,29 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
     // adding support for track selection within a stream is low-priority.)
     const SampleDescription& samp_descr =
         track->media.information.sample_table.description;
+
+    // TODO(strobe): When codec reconfigurations are supported, detect and send
+    // a codec reconfiguration for fragments using a sample description index
+    // different from the previous one
+    size_t desc_idx = 0;
+    for (size_t t = 0; t < moov_->extends.tracks.size(); t++) {
+      const TrackExtends& trex = moov_->extends.tracks[t];
+      if (trex.track_id == track->header.track_id) {
+        desc_idx = trex.default_sample_description_index;
+        break;
+      }
+    }
+    RCHECK(desc_idx > 0);
+    desc_idx -= 1;  // BMFF descriptor index is one-based
+
     if (track->media.handler.type == kAudio && !audio_config.IsValidConfig()) {
       RCHECK(!samp_descr.audio_entries.empty());
-      const AudioSampleEntry& entry = samp_descr.audio_entries[0];
+
+      // It is not uncommon to find otherwise-valid files with incorrect sample
+      // description indices, so we fail gracefully in that case.
+      if (static_cast<uint32>(desc_idx) >= samp_descr.audio_entries.size())
+        desc_idx = 0;
+      const AudioSampleEntry& entry = samp_descr.audio_entries[desc_idx];
 
       // TODO(strobe): We accept all format values, pending clarification on
       // the formats used for encrypted media (http://crbug.com/132351).
@@ -171,7 +191,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
     }
     if (track->media.handler.type == kVideo && !video_config.IsValidConfig()) {
       RCHECK(!samp_descr.video_entries.empty());
-      const VideoSampleEntry& entry = samp_descr.video_entries[0];
+      if (static_cast<uint32>(desc_idx) >= samp_descr.video_entries.size())
+        desc_idx = 0;
+      const VideoSampleEntry& entry = samp_descr.video_entries[desc_idx];
 
       //  RCHECK(entry.format == FOURCC_AVC1 ||
       //         (entry.format == FOURCC_ENCV &&
@@ -191,8 +213,6 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
                               NULL, 0, false);
       has_video_ = true;
       video_track_id_ = track->header.track_id;
-
-      size_of_nalu_length_ = entry.avcc.length_size;
     }
   }
 
@@ -223,8 +243,8 @@ bool MP4StreamParser::ParseMoof(BoxReader* reader) {
   RCHECK(moov_.get());  // Must already have initialization segment
   MovieFragment moof;
   RCHECK(moof.Parse(reader));
-  RCHECK(runs_.Init(*moov_, moof));
-  new_segment_cb_.Run(runs_.GetMinDecodeTimestamp());
+  RCHECK(runs_->Init(moof));
+  new_segment_cb_.Run(runs_->GetMinDecodeTimestamp());
   ChangeState(kEmittingSamples);
   return true;
 }
@@ -232,7 +252,7 @@ bool MP4StreamParser::ParseMoof(BoxReader* reader) {
 bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
                                     BufferQueue* video_buffers,
                                     bool* err) {
-  if (!runs_.RunValid()) {
+  if (!runs_->RunIsValid()) {
     // Flush any buffers we've gotten in this chunk so that buffers don't
     // cross NewSegment() calls
     *err = !SendAndFlushSamples(audio_buffers, video_buffers);
@@ -241,8 +261,8 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     return true;
   }
 
-  if (!runs_.SampleValid()) {
-    runs_.AdvanceRun();
+  if (!runs_->SampleIsValid()) {
+    runs_->AdvanceRun();
     return true;
   }
 
@@ -253,58 +273,38 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
   queue_.Peek(&buf, &size);
   if (!size) return false;
 
-  bool audio = has_audio_ && audio_track_id_ == runs_.track_id();
-  bool video = has_video_ && video_track_id_ == runs_.track_id();
+  bool audio = has_audio_ && audio_track_id_ == runs_->track_id();
+  bool video = has_video_ && video_track_id_ == runs_->track_id();
 
   // Skip this entire track if it's not one we're interested in
-  if (!audio && !video) runs_.AdvanceRun();
+  if (!audio && !video) runs_->AdvanceRun();
 
-  // Attempt to cache the auxiliary information first. Aux info is usually
-  // placed in a contiguous block before the sample data, rather than being
-  // interleaved. If we didn't cache it, this would require that we retain the
-  // start of the segment buffer while reading samples. Aux info is typically
-  // quite small compared to sample data, so this pattern is useful on
-  // memory-constrained devices where the source buffer consumes a substantial
-  // portion of the total system memory.
-  if (runs_.NeedsCENC()) {
-    queue_.PeekAt(runs_.cenc_offset() + moof_head_, &buf, &size);
-    return runs_.CacheCENC(buf, size);
-  }
+  queue_.PeekAt(runs_->sample_offset() + moof_head_, &buf, &size);
+  if (size < runs_->sample_size()) return false;
 
-  queue_.PeekAt(runs_.offset() + moof_head_, &buf, &size);
-  if (size < runs_.size()) return false;
-
-  std::vector<uint8> frame_buf(buf, buf + runs_.size());
+  std::vector<uint8> frame_buf(buf, buf + runs_->sample_size());
   if (video) {
-    RCHECK(AVC::ConvertToAnnexB(size_of_nalu_length_, &frame_buf));
-    if (runs_.is_keyframe()) {
-      const AVCDecoderConfigurationRecord* avc_config = NULL;
-      for (size_t t = 0; t < moov_->tracks.size(); t++) {
-        if (moov_->tracks[t].header.track_id == runs_.track_id()) {
-          avc_config = &moov_->tracks[t].media.information.
-              sample_table.description.video_entries[0].avcc;
-          break;
-        }
-      }
-      RCHECK(avc_config != NULL);
-      RCHECK(AVC::InsertParameterSets(*avc_config, &frame_buf));
-    }
+    const AVCDecoderConfigurationRecord& avc_config =
+        runs_->video_description().avcc;
+    RCHECK(AVC::ConvertToAnnexB(avc_config.length_size, &frame_buf));
+    if (runs_->is_keyframe())
+      RCHECK(AVC::InsertParameterSets(avc_config, &frame_buf));
   }
 
   scoped_refptr<StreamParserBuffer> stream_buf =
     StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(),
-                                 runs_.is_keyframe());
+                                 runs_->is_keyframe());
 
-  stream_buf->SetDuration(runs_.duration());
-  stream_buf->SetTimestamp(runs_.cts());
-  stream_buf->SetDecodeTimestamp(runs_.dts());
+  stream_buf->SetDuration(runs_->duration());
+  stream_buf->SetTimestamp(runs_->cts());
+  stream_buf->SetDecodeTimestamp(runs_->dts());
 
   DVLOG(3) << "Pushing frame: aud=" << audio
-           << ", key=" << runs_.is_keyframe()
-           << ", dur=" << runs_.duration().InMilliseconds()
-           << ", dts=" << runs_.dts().InMilliseconds()
-           << ", cts=" << runs_.cts().InMilliseconds()
-           << ", size=" << runs_.size();
+           << ", key=" << runs_->is_keyframe()
+           << ", dur=" << runs_->duration().InMilliseconds()
+           << ", dts=" << runs_->dts().InMilliseconds()
+           << ", cts=" << runs_->cts().InMilliseconds()
+           << ", size=" << runs_->sample_size();
 
   if (audio) {
     audio_buffers->push_back(stream_buf);
@@ -312,7 +312,7 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     video_buffers->push_back(stream_buf);
   }
 
-  runs_.AdvanceSample();
+  runs_->AdvanceSample();
   return true;
 }
 
