@@ -14,6 +14,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/time.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
@@ -322,9 +323,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, Ping);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, GetActivePushStream);
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, DeleteExpiredPushStreams);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, Ping);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, GetActivePushStream);
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, DeleteExpiredPushStreams);
 
   struct PendingCreateStream {
     PendingCreateStream(const GURL& url, RequestPriority priority,
@@ -346,11 +349,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     const BoundNetLog* stream_net_log;
     CompletionCallback callback;
   };
-  typedef std::queue<PendingCreateStream, std::list< PendingCreateStream> >
+  typedef std::queue<PendingCreateStream, std::list<PendingCreateStream> >
       PendingCreateStreamQueue;
   typedef std::map<int, scoped_refptr<SpdyStream> > ActiveStreamMap;
-  // Only HTTP push a stream.
-  typedef std::map<std::string, scoped_refptr<SpdyStream> > PushedStreamMap;
+  typedef std::map<std::string,
+      std::pair<scoped_refptr<SpdyStream>, base::TimeTicks> > PushedStreamMap;
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
   struct CallbackResultPair {
@@ -371,6 +374,8 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     CONNECTED,
     CLOSED
   };
+
+  typedef base::TimeTicks (*TimeFunc)(void);
 
   virtual ~SpdySession();
 
@@ -461,6 +466,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // can be deferred to the MessageLoop, so we avoid re-entrancy problems.
   void InvokeUserStreamCreationCallback(scoped_refptr<SpdyStream>* stream);
 
+  // Remove old unclaimed pushed streams.
+  void DeleteExpiredPushedStreams();
+
   // BufferedSpdyFramerVisitorInterface:
   virtual void OnError(SpdyFramer::SpdyError error_code) OVERRIDE;
   virtual void OnStreamError(SpdyStreamId stream_id,
@@ -500,6 +508,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // --------------------------
   // Helper methods for testing
   // --------------------------
+
+  static TimeFunc set_time_func(TimeFunc new_time_func);
+
   void set_connection_at_risk_of_loss_time(base::TimeDelta duration) {
     connection_at_risk_of_loss_time_ = duration;
   }
@@ -619,6 +630,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // This is the last time we had activity in the session.
   base::TimeTicks last_activity_time_;
+
+  // This is the next time that unclaimed push streams should be checked for
+  // expirations.
+  base::TimeTicks next_unclaimed_push_stream_sweep_time_;
 
   // Indicate if we have already scheduled a delayed task to check the ping
   // status.
