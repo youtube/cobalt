@@ -4,7 +4,13 @@
 
 #include "net/cookies/cookie_util.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 #include "base/logging.h"
+#include "base/string_tokenizer.h"
+#include "base/string_util.h"
+#include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_util.h"
 #include "net/base/registry_controlled_domain.h"
@@ -72,6 +78,124 @@ bool GetCookieDomainWithString(const GURL& url,
 
   *result = cookie_domain;
   return true;
+}
+
+// Parse a cookie expiration time.  We try to be lenient, but we need to
+// assume some order to distinguish the fields.  The basic rules:
+//  - The month name must be present and prefix the first 3 letters of the
+//    full month name (jan for January, jun for June).
+//  - If the year is <= 2 digits, it must occur after the day of month.
+//  - The time must be of the format hh:mm:ss.
+// An average cookie expiration will look something like this:
+//   Sat, 15-Apr-17 21:01:22 GMT
+base::Time ParseCookieTime(const std::string& time_string) {
+  static const char* kMonths[] = { "jan", "feb", "mar", "apr", "may", "jun",
+                                   "jul", "aug", "sep", "oct", "nov", "dec" };
+  static const int kMonthsLen = arraysize(kMonths);
+  // We want to be pretty liberal, and support most non-ascii and non-digit
+  // characters as a delimiter.  We can't treat : as a delimiter, because it
+  // is the delimiter for hh:mm:ss, and we want to keep this field together.
+  // We make sure to include - and +, since they could prefix numbers.
+  // If the cookie attribute came in in quotes (ex expires="XXX"), the quotes
+  // will be preserved, and we will get them here.  So we make sure to include
+  // quote characters, and also \ for anything that was internally escaped.
+  static const char* kDelimiters = "\t !\"#$%&'()*+,-./;<=>?@[\\]^_`{|}~";
+
+  base::Time::Exploded exploded = {0};
+
+  StringTokenizer tokenizer(time_string, kDelimiters);
+
+  bool found_day_of_month = false;
+  bool found_month = false;
+  bool found_time = false;
+  bool found_year = false;
+
+  while (tokenizer.GetNext()) {
+    const std::string token = tokenizer.token();
+    DCHECK(!token.empty());
+    bool numerical = IsAsciiDigit(token[0]);
+
+    // String field
+    if (!numerical) {
+      if (!found_month) {
+        for (int i = 0; i < kMonthsLen; ++i) {
+          // Match prefix, so we could match January, etc
+          if (base::strncasecmp(token.c_str(), kMonths[i], 3) == 0) {
+            exploded.month = i + 1;
+            found_month = true;
+            break;
+          }
+        }
+      } else {
+        // If we've gotten here, it means we've already found and parsed our
+        // month, and we have another string, which we would expect to be the
+        // the time zone name.  According to the RFC and my experiments with
+        // how sites format their expirations, we don't have much of a reason
+        // to support timezones.  We don't want to ever barf on user input,
+        // but this DCHECK should pass for well-formed data.
+        // DCHECK(token == "GMT");
+      }
+    // Numeric field w/ a colon
+    } else if (token.find(':') != std::string::npos) {
+      if (!found_time &&
+#ifdef COMPILER_MSVC
+          sscanf_s(
+#else
+          sscanf(
+#endif
+                 token.c_str(), "%2u:%2u:%2u", &exploded.hour,
+                 &exploded.minute, &exploded.second) == 3) {
+        found_time = true;
+      } else {
+        // We should only ever encounter one time-like thing.  If we're here,
+        // it means we've found a second, which shouldn't happen.  We keep
+        // the first.  This check should be ok for well-formed input:
+        // NOTREACHED();
+      }
+    // Numeric field
+    } else {
+      // Overflow with atoi() is unspecified, so we enforce a max length.
+      if (!found_day_of_month && token.length() <= 2) {
+        exploded.day_of_month = atoi(token.c_str());
+        found_day_of_month = true;
+      } else if (!found_year && token.length() <= 5) {
+        exploded.year = atoi(token.c_str());
+        found_year = true;
+      } else {
+        // If we're here, it means we've either found an extra numeric field,
+        // or a numeric field which was too long.  For well-formed input, the
+        // following check would be reasonable:
+        // NOTREACHED();
+      }
+    }
+  }
+
+  if (!found_day_of_month || !found_month || !found_time || !found_year) {
+    // We didn't find all of the fields we need.  For well-formed input, the
+    // following check would be reasonable:
+    // NOTREACHED() << "Cookie parse expiration failed: " << time_string;
+    return base::Time();
+  }
+
+  // Normalize the year to expand abbreviated years to the full year.
+  if (exploded.year >= 69 && exploded.year <= 99)
+    exploded.year += 1900;
+  if (exploded.year >= 0 && exploded.year <= 68)
+    exploded.year += 2000;
+
+  // If our values are within their correct ranges, we got our time.
+  if (exploded.day_of_month >= 1 && exploded.day_of_month <= 31 &&
+      exploded.month >= 1 && exploded.month <= 12 &&
+      exploded.year >= 1601 && exploded.year <= 30827 &&
+      exploded.hour <= 23 && exploded.minute <= 59 && exploded.second <= 59) {
+    return base::Time::FromUTCExploded(exploded);
+  }
+
+  // One of our values was out of expected range.  For well-formed input,
+  // the following check would be reasonable:
+  // NOTREACHED() << "Cookie exploded expiration failed: " << time_string;
+
+  return base::Time();
 }
 
 }  // namespace cookie_utils

@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/time.h"
 #include "net/base/net_export.h"
 
 class GURL;
@@ -32,6 +33,9 @@ NET_EXPORT bool GetCookieDomainWithString(const GURL& url,
 // Returns true if a domain string represents a host-only cookie,
 // i.e. it doesn't begin with a leading '.' character.
 NET_EXPORT bool DomainIsHostOnly(const std::string& domain_string);
+
+// Parses the string with the cookie time (very forgivingly).
+NET_EXPORT base::Time ParseCookieTime(const std::string& time_string);
 
 }  // namspace cookie_util
 }  // namespace net
