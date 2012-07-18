@@ -10,6 +10,7 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
+#include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/cookies/cookie_monster_store_test.h"
 #include "net/cookies/parsed_cookie.h"
@@ -324,7 +325,7 @@ TEST_F(CookieMonsterTest, TestDomainLine) {
 
 TEST_F(CookieMonsterTest, TestImport) {
   scoped_refptr<MockPersistentCookieStore> store(new MockPersistentCookieStore);
-  std::vector<CookieMonster::CanonicalCookie*> initial_cookies;
+  std::vector<CanonicalCookie*> initial_cookies;
   GetCookiesCallback getCookiesCallback;
 
   // We want to setup a fairly large backing store, with 300 domains of 50
