@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/bandwidth_metrics.h"
 #include "net/base/io_buffer.h"
@@ -170,8 +170,8 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   const BoundNetLog& net_log() const { return net_log_; }
 
-  const linked_ptr<SpdyHeaderBlock>& spdy_headers() const;
-  void set_spdy_headers(const linked_ptr<SpdyHeaderBlock>& headers);
+  const SpdyHeaderBlock& spdy_headers() const;
+  void set_spdy_headers(scoped_ptr<SpdyHeaderBlock> headers);
   base::Time GetRequestTime() const;
   void SetRequestTime(base::Time t);
 
@@ -325,13 +325,13 @@ class NET_EXPORT_PRIVATE SpdyStream
   SpdyStream::Delegate* delegate_;
 
   // The request to send.
-  linked_ptr<SpdyHeaderBlock> request_;
+  scoped_ptr<SpdyHeaderBlock> request_;
 
   // The time at which the request was made that resulted in this response.
   // For cached responses, this time could be "far" in the past.
   base::Time request_time_;
 
-  linked_ptr<SpdyHeaderBlock> response_;
+  scoped_ptr<SpdyHeaderBlock> response_;
   base::Time response_time_;
 
   State io_state_;

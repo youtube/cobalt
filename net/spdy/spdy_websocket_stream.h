@@ -7,8 +7,8 @@
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/completion_callback.h"
 #include "net/base/request_priority.h"
@@ -66,7 +66,7 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
                        RequestPriority request_priority,
                        const BoundNetLog& stream_net_log);
 
-  int SendRequest(const linked_ptr<SpdyHeaderBlock>& headers);
+  int SendRequest(scoped_ptr<SpdyHeaderBlock> headers);
   int SendData(const char* data, int length);
   void Close();
 
