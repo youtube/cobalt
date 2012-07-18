@@ -281,11 +281,11 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
     return session_->InitializeWithSocket(connection.release(), false, OK);
   }
   void SendRequest() {
-    linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
+    scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
     (*headers)["url"] = "ws://example.com/echo";
     (*headers)["origin"] = "http://example.com/wsdemo";
 
-    websocket_stream_->SendRequest(headers);
+    websocket_stream_->SendRequest(headers.Pass());
   }
 
   SpdySettingsIds spdy_settings_id_to_set_;

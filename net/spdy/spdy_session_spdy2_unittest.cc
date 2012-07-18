@@ -1181,16 +1181,19 @@ TEST_F(SpdySessionSpdy2Test, OutOfOrderSynStreams) {
                                       BoundNetLog(), callback2.callback()));
   EXPECT_EQ(3u, spdy_stream2->stream_id());
 
-  linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
+  scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
   (*headers)["method"] = "GET";
   (*headers)["scheme"] = url1.scheme();
   (*headers)["host"] = url1.host();
   (*headers)["url"] = url1.path();
   (*headers)["version"] = "HTTP/1.1";
-  spdy_stream1->set_spdy_headers(headers);
+  scoped_ptr<SpdyHeaderBlock> headers2(new SpdyHeaderBlock);
+  *headers2 = *headers;
+
+  spdy_stream1->set_spdy_headers(headers.Pass());
   EXPECT_TRUE(spdy_stream1->HasUrl());
 
-  spdy_stream2->set_spdy_headers(headers);
+  spdy_stream2->set_spdy_headers(headers2.Pass());
   EXPECT_TRUE(spdy_stream2->HasUrl());
 
   spdy_stream1->SendRequest(false);

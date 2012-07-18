@@ -219,13 +219,13 @@ TEST_F(SpdyStreamSpdy3Test, SendDataAfterOpen) {
 
   EXPECT_FALSE(stream->HasUrl());
 
-  linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
+  scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
   (*headers)[":method"] = "GET";
   (*headers)[":scheme"] = url.scheme();
   (*headers)[":host"] = url.host();
   (*headers)[":path"] = url.path();
   (*headers)[":version"] = "HTTP/1.1";
-  stream->set_spdy_headers(headers);
+  stream->set_spdy_headers(headers.Pass());
   EXPECT_TRUE(stream->HasUrl());
   EXPECT_EQ(kStreamUrl, stream->GetUrl().spec());
 
@@ -399,13 +399,13 @@ TEST_F(SpdyStreamSpdy3Test, StreamError) {
 
   EXPECT_FALSE(stream->HasUrl());
 
-  linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
+  scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
   (*headers)[":method"] = "GET";
   (*headers)[":scheme"] = url.scheme();
   (*headers)[":host"] = url.host();
   (*headers)[":path"] = url.path();
   (*headers)[":version"] = "HTTP/1.1";
-  stream->set_spdy_headers(headers);
+  stream->set_spdy_headers(headers.Pass());
   EXPECT_TRUE(stream->HasUrl());
   EXPECT_EQ(kStreamUrl, stream->GetUrl().spec());
 

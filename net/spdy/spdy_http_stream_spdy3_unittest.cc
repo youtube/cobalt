@@ -494,11 +494,10 @@ TEST_F(SpdyHttpStreamSpdy3Test, SpdyURLTest) {
             http_stream->SendRequest(headers, scoped_ptr<UploadDataStream>(),
                                      &response, callback.callback()));
 
-  SpdyHeaderBlock* spdy_header =
-    http_stream->stream()->spdy_headers().get();
-  EXPECT_TRUE(spdy_header != NULL);
-  if (spdy_header->find(":path") != spdy_header->end())
-    EXPECT_EQ("/foo?query=what", spdy_header->find(":path")->second);
+  const SpdyHeaderBlock& spdy_header =
+    http_stream->stream()->spdy_headers();
+  if (spdy_header.find(":path") != spdy_header.end())
+    EXPECT_EQ("/foo?query=what", spdy_header.find(":path")->second);
   else
     FAIL() << "No url is set in spdy_header!";
 
