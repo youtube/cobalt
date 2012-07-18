@@ -514,7 +514,7 @@
           ['<(toolkit_uses_gtk)==0 or >(nacl_untrusted_build)==1', {
             'sources!': ['message_pump_gtk.cc'],
           }],
-          ['(OS != "linux" and <(os_bsd) != 1) or >(nacl_untrusted_build)==1', {
+          ['(OS != "linux" and <(os_bsd) != 1 and OS != "android") or >(nacl_untrusted_build)==1', {
               'sources!': [
                 # Not automatically excluded by the *linux.cc rules.
                 'linux_util.cc',
