@@ -372,7 +372,7 @@ int SpdyProxyClientSocket::DoSendRequest() {
                  &request_line));
 
   request_.extra_headers.MergeFrom(request_headers);
-  linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock());
+  scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock());
   CreateSpdyHeadersFromHttpRequest(request_, request_headers, headers.get(),
                                    spdy_stream_->GetProtocolVersion(), true);
   // Reset the URL to be the endpoint of the connection
@@ -383,7 +383,7 @@ int SpdyProxyClientSocket::DoSendRequest() {
     (*headers)["url"] = endpoint_.ToString();
     headers->erase("scheme");
   }
-  spdy_stream_->set_spdy_headers(headers);
+  spdy_stream_->set_spdy_headers(headers.Pass());
 
   return spdy_stream_->SendRequest(true);
 }

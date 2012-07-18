@@ -54,13 +54,12 @@ int SpdyWebSocketStream::InitializeStream(const GURL& url,
   return result;
 }
 
-int SpdyWebSocketStream::SendRequest(
-    const linked_ptr<SpdyHeaderBlock>& headers) {
+int SpdyWebSocketStream::SendRequest(scoped_ptr<SpdyHeaderBlock> headers) {
   if (!stream_) {
     NOTREACHED();
     return ERR_UNEXPECTED;
   }
-  stream_->set_spdy_headers(headers);
+  stream_->set_spdy_headers(headers.Pass());
   int result = stream_->SendRequest(true);
   if (result < OK && result != ERR_IO_PENDING)
     Close();
