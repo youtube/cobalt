@@ -15,6 +15,15 @@
 
 using namespace net::test_spdy3;
 
+namespace {
+
+base::TimeTicks the_near_future() {
+  return base::TimeTicks::Now() +
+      base::TimeDelta::FromSeconds(301);
+}
+
+} // namespace
+
 namespace net {
 
 // TODO(cbentzel): Expose compression setter/getter in public SpdySession
@@ -250,6 +259,73 @@ TEST_F(SpdySessionSpdy3Test, Ping) {
   // Delete the first session.
   session = NULL;
 }
+
+TEST_F(SpdySessionSpdy3Test, DeleteExpiredPushStreams) {
+  SpdySessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  const std::string kTestHost("www.google.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
+
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(pair, BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+
+  // Give the session a SPDY3 framer.
+  session->buffered_spdy_framer_.reset(new BufferedSpdyFramer(3));
+
+  // Create the associated stream and add to active streams.
+  scoped_ptr<SpdyHeaderBlock> request_headers(new SpdyHeaderBlock);
+  (*request_headers)[":scheme"] = "http";
+  (*request_headers)[":host"] = "www.google.com";
+  (*request_headers)[":path"] = "/";
+
+  scoped_refptr<SpdyStream> stream(
+      new SpdyStream(session, 1, false, session->net_log_));
+  stream->set_spdy_headers(request_headers.Pass());
+  session->ActivateStream(stream);
+
+  SpdyHeaderBlock headers;
+  headers[":scheme"] = "http";
+  headers[":host"] = "www.google.com";
+  headers[":path"] = "/a.dat";
+  session->OnSynStream(2, 1, 0, 0, true, false, headers);
+
+  // Verify that there is one unclaimed push stream.
+  EXPECT_EQ(1u, session->num_unclaimed_pushed_streams());
+  SpdySession::PushedStreamMap::iterator  iter  =
+      session->unclaimed_pushed_streams_.find("http://www.google.com/a.dat");
+  EXPECT_TRUE(session->unclaimed_pushed_streams_.end() != iter);
+
+  // Shift time.
+  SpdySession::set_time_func(the_near_future);
+
+  headers[":scheme"] = "http";
+  headers[":host"] = "www.google.com";
+  headers[":path"] = "/b.dat";
+  session->OnSynStream(4, 1, 0, 0, true, false, headers);
+
+  // Verify that the second pushed stream evicted the first pushed stream.
+  EXPECT_EQ(1u, session->num_unclaimed_pushed_streams());
+  iter = session->unclaimed_pushed_streams_.find("http://www.google.com/b.dat");
+  EXPECT_TRUE(session->unclaimed_pushed_streams_.end() != iter);
+
+  SpdySession::ResetStaticSettingsToInit();
+
+  // Delete the session.
+  session = NULL;
+}
+
 
 TEST_F(SpdySessionSpdy3Test, FailedPing) {
   SpdySessionDependencies session_deps;
