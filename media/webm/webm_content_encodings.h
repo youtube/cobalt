@@ -42,6 +42,11 @@ class MEDIA_EXPORT ContentEncoding {
     kEncAlgoAes = 5,
   };
 
+  enum CipherMode {
+    kCipherModeInvalid = 0,
+    kCipherModeCtr = 1,
+  };
+
   ContentEncoding();
   ~ContentEncoding();
 
@@ -64,6 +69,9 @@ class MEDIA_EXPORT ContentEncoding {
 
   void SetEncryptionKeyId(const uint8* encryption_key_id, int size);
 
+  CipherMode cipher_mode() const { return cipher_mode_; }
+  void set_cipher_mode(CipherMode mode) { cipher_mode_ = mode; }
+
  private:
   int64 order_;
   Scope scope_;
@@ -71,6 +79,7 @@ class MEDIA_EXPORT ContentEncoding {
   EncryptionAlgo encryption_algo_;
   scoped_array<uint8> encryption_key_id_;
   int encryption_key_id_size_;
+  CipherMode cipher_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(ContentEncoding);
 };
