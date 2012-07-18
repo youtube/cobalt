@@ -385,10 +385,6 @@
         'environment_unittest.cc',
         'file_descriptor_shuffle_unittest.cc',
         'file_path_unittest.cc',
-
-        'os_compat_android_unittest.cc',
-
-
         'file_util_proxy_unittest.cc',
         'file_util_unittest.cc',
         'file_version_info_unittest.cc',
@@ -442,6 +438,7 @@
         'metrics/histogram_unittest.cc',
         'metrics/stats_table_unittest.cc',
         'observer_list_unittest.cc',
+        'os_compat_android_unittest.cc',
         'path_service_unittest.cc',
         'pickle_unittest.cc',
         'platform_file_unittest.cc',
