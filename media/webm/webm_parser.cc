@@ -7,9 +7,6 @@
 // This file contains code to parse WebM file elements. It was created
 // from information in the Matroska spec.
 // http://www.matroska.org/technical/specs/index.html
-// This file contains code for encrypted WebM. Current WebM
-// encrypted request for comments specification is here
-// http://wiki.webmproject.org/encryption/webm-encryption-rfc
 
 #include <iomanip>
 
@@ -235,17 +232,12 @@ static const ElementIdInfo kContentCompressionIds[] = {
 };
 
 static const ElementIdInfo kContentEncryptionIds[] = {
-  {LIST, kWebMIdContentEncAESSettings},
   {UINT, kWebMIdContentEncAlgo},
   {BINARY, kWebMIdContentEncKeyID},
   {BINARY, kWebMIdContentSignature},
   {BINARY, kWebMIdContentSigKeyID},
   {UINT, kWebMIdContentSigAlgo},
   {UINT, kWebMIdContentSigHashAlgo},
-};
-
-static const ElementIdInfo kContentEncAESSettingsIds[] = {
-  {UINT, kWebMIdAESSettingsCipherMode},
 };
 
 static const ElementIdInfo kCuesIds[] = {
@@ -384,7 +376,6 @@ static const ListElementInfo kListElementInfo[] = {
   LIST_ELEMENT_INFO(kWebMIdContentEncoding, 4, kContentEncodingIds),
   LIST_ELEMENT_INFO(kWebMIdContentCompression, 5, kContentCompressionIds),
   LIST_ELEMENT_INFO(kWebMIdContentEncryption, 5, kContentEncryptionIds),
-  LIST_ELEMENT_INFO(kWebMIdContentEncAESSettings, 6, kContentEncAESSettingsIds),
   LIST_ELEMENT_INFO(kWebMIdCues, 1, kCuesIds),
   LIST_ELEMENT_INFO(kWebMIdCuePoint, 2, kCuePointIds),
   LIST_ELEMENT_INFO(kWebMIdCueTrackPositions, 3, kCueTrackPositionsIds),

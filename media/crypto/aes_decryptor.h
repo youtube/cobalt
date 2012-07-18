@@ -10,8 +10,6 @@
 #include "base/basictypes.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/string_piece.h"
 #include "base/synchronization/lock.h"
 #include "media/base/decryptor.h"
 #include "media/base/media_export.h"
@@ -24,9 +22,7 @@ namespace media {
 
 class DecryptorClient;
 
-// Decrypts an AES encrypted buffer into an unencrypted buffer. The AES
-// encryption must be CTR with a key size of 128bits. Optionally checks the
-// integrity of the encrypted data.
+// Decryptor implementation that decrypts AES-encrypted buffer.
 class MEDIA_EXPORT AesDecryptor : public Decryptor {
  public:
   // The AesDecryptor does not take ownership of the |client|. The |client|
@@ -46,49 +42,13 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
                       const std::string& session_id) OVERRIDE;
   virtual void CancelKeyRequest(const std::string& key_system,
                                 const std::string& session_id) OVERRIDE;
-  // Decrypts |encrypted| buffer. |encrypted| should not be NULL. |encrypted|
-  // will signal if an integrity check must be performed before decryption.
-  // Returns a DecoderBuffer with the decrypted data if the decryption
-  // succeeded through |decrypt_cb|.
   virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) OVERRIDE;
 
  private:
-  // Helper class that manages the decryption key and HMAC key. The HMAC key
-  // may be NULL.
-  class DecryptionKey {
-   public:
-    explicit DecryptionKey(const std::string& secret);
-    ~DecryptionKey();
-
-    // Creates the encryption key and HMAC. If |derive_webm_keys| is true then
-    // the object will derive the decryption key and the HMAC key from
-    // |secret_|.
-    bool Init(bool derive_webm_keys);
-
-    crypto::SymmetricKey* decryption_key() { return decryption_key_.get(); }
-    base::StringPiece hmac_key() { return base::StringPiece(hmac_key_); }
-
-   private:
-    // The base secret that is used to derive the decryption key and optionally
-    // the HMAC key.
-    const std::string secret_;
-
-    // The key used to decrypt the data.
-    scoped_ptr<crypto::SymmetricKey> decryption_key_;
-
-    // The key used to perform the integrity check.  Currently the HMAC key is
-    // defined by the WebM encrypted specification. Current encrypted WebM
-    // request for comments specification is here
-    // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-    std::string hmac_key_;
-
-    DISALLOW_COPY_AND_ASSIGN(DecryptionKey);
-  };
-
-  // KeyMap owns the DecryptionKey* and must delete them when they are
+  // KeyMap owns the crypto::SymmetricKey* and must delete them when they are
   // not needed any more.
-  typedef base::hash_map<std::string, DecryptionKey*> KeyMap;
+  typedef base::hash_map<std::string, crypto::SymmetricKey*> KeyMap;
 
   // Since only Decrypt() is called off the renderer thread, we only need to
   // protect |key_map_|, the only member variable that is shared between

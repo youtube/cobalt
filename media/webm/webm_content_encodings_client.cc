@@ -50,11 +50,6 @@ WebMParserClient* WebMContentEncodingsClient::OnListStart(int id) {
     return this;
   }
 
-  if (id == kWebMIdContentEncAESSettings) {
-    DCHECK(cur_content_encoding_.get());
-    return this;
-  }
-
   // This should not happen if WebMListParser is working properly.
   DCHECK(false);
   return NULL;
@@ -123,13 +118,6 @@ bool WebMContentEncodingsClient::OnListEnd(int id) {
       cur_content_encoding_->set_encryption_algo(
           ContentEncoding::kEncAlgoNotEncrypted);
     }
-    return true;
-  }
-
-  if (id == kWebMIdContentEncAESSettings) {
-    if (cur_content_encoding_->cipher_mode() ==
-        ContentEncoding::kCipherModeInvalid)
-      cur_content_encoding_->set_cipher_mode(ContentEncoding::kCipherModeCtr);
     return true;
   }
 
@@ -215,23 +203,6 @@ bool WebMContentEncodingsClient::OnUInt(int id, int64 val) {
 
     cur_content_encoding_->set_encryption_algo(
         static_cast<ContentEncoding::EncryptionAlgo>(val));
-    return true;
-  }
-
-  if (id == kWebMIdAESSettingsCipherMode) {
-    if (cur_content_encoding_->cipher_mode() !=
-        ContentEncoding::kCipherModeInvalid) {
-      DVLOG(1) << "Unexpected multiple AESSettingsCipherMode.";
-      return false;
-    }
-
-    if (val != ContentEncoding::kCipherModeCtr) {
-      DVLOG(1) << "Unexpected AESSettingsCipherMode " << val << ".";
-      return false;
-    }
-
-    cur_content_encoding_->set_cipher_mode(
-        static_cast<ContentEncoding::CipherMode>(val));
     return true;
   }
 
