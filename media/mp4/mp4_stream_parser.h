@@ -76,18 +76,13 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   // Valid iff it is greater than the head of the queue.
   int64 mdat_tail_;
 
-  mp4::TrackRunIterator runs_;
-
   scoped_ptr<mp4::Movie> moov_;
+  scoped_ptr<mp4::TrackRunIterator> runs_;
 
   bool has_audio_;
   bool has_video_;
   uint32 audio_track_id_;
   uint32 video_track_id_;
-
-  // We keep this around to avoid having to go digging through the moov with
-  // every frame.
-  uint8 size_of_nalu_length_;
 
   DISALLOW_COPY_AND_ASSIGN(MP4StreamParser);
 };

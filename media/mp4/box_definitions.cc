@@ -587,8 +587,11 @@ bool TrackFragmentHeader::Parse(BoxReader* reader) {
   //  RCHECK((flags & 0x020000) && !(flags & 0x1));
   RCHECK(!(reader->flags() & 0x1));
 
-  if (reader->flags() & 0x2)
-    RCHECK(reader->SkipBytes(4));  // sample_description_index
+  if (reader->flags() & 0x2) {
+    RCHECK(reader->Read4(&sample_description_index));
+  } else {
+    sample_description_index = 0;
+  }
 
   if (reader->flags() & 0x8) {
     RCHECK(reader->Read4(&default_sample_duration));
