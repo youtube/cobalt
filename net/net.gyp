@@ -1903,17 +1903,13 @@
         {
           'target_name': 'net_jni_headers',
           'type': 'none',
+          'sources': [
+            'android/java/src/org/chromium/net/AndroidNetworkLibrary.java',
+            'android/java/src/org/chromium/net/NetworkChangeNotifier.java',
+            'android/java/src/org/chromium/net/ProxyChangeListener.java',
+          ],
           'variables': {
-            'java_sources': [
-              'android/java/src/org/chromium/net/AndroidNetworkLibrary.java',
-              'android/java/src/org/chromium/net/NetworkChangeNotifier.java',
-              'android/java/src/org/chromium/net/ProxyChangeListener.java',
-            ],
-            'jni_headers': [
-              '<(SHARED_INTERMEDIATE_DIR)/net/jni/android_network_library_jni.h',
-              '<(SHARED_INTERMEDIATE_DIR)/net/jni/network_change_notifier_jni.h',
-              '<(SHARED_INTERMEDIATE_DIR)/net/jni/proxy_change_listener_jni.h',
-            ],
+            'jni_gen_dir': 'net',
           },
           'includes': [ '../build/jni_generator.gypi' ],
         },
