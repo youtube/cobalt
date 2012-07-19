@@ -160,6 +160,7 @@ def JavaParamToJni(param):
        'PasswordListObserver'),
       'Lorg/chromium/base/SystemMessageHandler',
       'Lorg/chromium/chrome/browser/JSModalDialog',
+      'Lorg/chromium/chrome/browser/ProcessUtils',
       'Lorg/chromium/chrome/browser/SelectFileDialog',
       'Lorg/chromium/content/browser/ContentVideoView',
       'Lorg/chromium/content/browser/ContentViewClient',
