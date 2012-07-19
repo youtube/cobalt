@@ -112,13 +112,12 @@ TEST_F(SpdyStreamSpdy3Test, SendDataAfterOpen) {
   reads[1].sequence_number = 3;
   reads[2].sequence_number = 4;
 
-  scoped_ptr<OrderedSocketData> data(
-      new OrderedSocketData(reads, arraysize(reads),
-                            writes, arraysize(writes)));
+  OrderedSocketData data(reads, arraysize(reads),
+                         writes, arraysize(writes));
   MockConnect connect_data(SYNCHRONOUS, OK);
-  data->set_connect_data(connect_data);
+  data.set_connect_data(connect_data);
 
-  session_deps.socket_factory->AddSocketDataProvider(data.get());
+  session_deps.socket_factory->AddSocketDataProvider(&data);
 
   scoped_refptr<SpdySession> session(CreateSpdySession());
   const char* kStreamUrl = "http://www.google.com/";
@@ -186,12 +185,11 @@ TEST_F(SpdyStreamSpdy3Test, PushedStream) {
     MockRead(ASYNC, 0, 0), // EOF
   };
 
-  scoped_ptr<OrderedSocketData> data(
-      new OrderedSocketData(reads, arraysize(reads), NULL, 0));
+  OrderedSocketData data(reads, arraysize(reads), NULL, 0);
   MockConnect connect_data(SYNCHRONOUS, OK);
-  data->set_connect_data(connect_data);
+  data.set_connect_data(connect_data);
 
-  session_deps.socket_factory->AddSocketDataProvider(data.get());
+  session_deps.socket_factory->AddSocketDataProvider(&data);
 
   HostPortPair host_port_pair("www.google.com", 80);
   scoped_refptr<TransportSocketParams> transport_params(
@@ -292,13 +290,12 @@ TEST_F(SpdyStreamSpdy3Test, StreamError) {
 
   CapturingBoundNetLog log;
 
-  scoped_ptr<OrderedSocketData> data(
-      new OrderedSocketData(reads, arraysize(reads),
-                            writes, arraysize(writes)));
+  OrderedSocketData data(reads, arraysize(reads),
+                         writes, arraysize(writes));
   MockConnect connect_data(SYNCHRONOUS, OK);
-  data->set_connect_data(connect_data);
+  data.set_connect_data(connect_data);
 
-  session_deps.socket_factory->AddSocketDataProvider(data.get());
+  session_deps.socket_factory->AddSocketDataProvider(&data);
 
   scoped_refptr<SpdySession> session(CreateSpdySession());
   const char* kStreamUrl = "http://www.google.com/";
