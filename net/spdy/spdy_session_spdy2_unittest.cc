@@ -316,8 +316,6 @@ TEST_F(SpdySessionSpdy2Test, DeleteExpiredPushStreams) {
   iter = session->unclaimed_pushed_streams_.find("http://www.google.com/b.dat");
   EXPECT_TRUE(session->unclaimed_pushed_streams_.end() != iter);
 
-  SpdySession::ResetStaticSettingsToInit();
-
   // Delete the session.
   session = NULL;
 }
