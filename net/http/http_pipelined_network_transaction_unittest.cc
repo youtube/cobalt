@@ -848,15 +848,13 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
 TEST_F(HttpPipelinedNetworkTransactionTest, ProxyChangesWhileConnecting) {
   Initialize(false);
 
-  scoped_ptr<DeterministicSocketData> data(
-      new DeterministicSocketData(NULL, 0, NULL, 0));
-  data->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_REFUSED));
-  factory_.AddSocketDataProvider(data.get());
+  DeterministicSocketData data(NULL, 0, NULL, 0);
+  data.set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_REFUSED));
+  factory_.AddSocketDataProvider(&data);
 
-  scoped_ptr<DeterministicSocketData> data2(
-      new DeterministicSocketData(NULL, 0, NULL, 0));
-  data2->set_connect_data(MockConnect(ASYNC, ERR_FAILED));
-  factory_.AddSocketDataProvider(data2.get());
+  DeterministicSocketData data2(NULL, 0, NULL, 0);
+  data2.set_connect_data(MockConnect(ASYNC, ERR_FAILED));
+  factory_.AddSocketDataProvider(&data2);
 
   HttpNetworkTransaction transaction(session_.get());
   EXPECT_EQ(ERR_IO_PENDING,
@@ -916,10 +914,9 @@ TEST_F(HttpPipelinedNetworkTransactionTest,
        ForcedPipelineConnectionErrorFailsBoth) {
   Initialize(true);
 
-  scoped_ptr<DeterministicSocketData> data(
-      new DeterministicSocketData(NULL, 0, NULL, 0));
-  data->set_connect_data(MockConnect(ASYNC, ERR_FAILED));
-  factory_.AddSocketDataProvider(data.get());
+  DeterministicSocketData data(NULL, 0, NULL, 0);
+  data.set_connect_data(MockConnect(ASYNC, ERR_FAILED));
+  factory_.AddSocketDataProvider(&data);
 
   scoped_ptr<HttpNetworkTransaction> one_transaction(
       new HttpNetworkTransaction(session_.get()));
@@ -934,7 +931,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest,
             two_transaction.Start(GetRequestInfo("two.html"),
                                   two_callback.callback(), BoundNetLog()));
 
-  data->Run();
+  data.Run();
   EXPECT_EQ(ERR_FAILED, one_callback.WaitForResult());
   EXPECT_EQ(ERR_FAILED, two_callback.WaitForResult());
 }
@@ -996,10 +993,10 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineOrder) {
   MockRead reads[] = {
     MockRead(ASYNC, ERR_FAILED, 1),
   };
-  scoped_ptr<DeterministicSocketData> data(new DeterministicSocketData(
-      reads, arraysize(reads), writes, arraysize(writes)));
-  data->set_connect_data(MockConnect(ASYNC, OK));
-  factory_.AddSocketDataProvider(data.get());
+  DeterministicSocketData data(
+      reads, arraysize(reads), writes, arraysize(writes));
+  data.set_connect_data(MockConnect(ASYNC, OK));
+  factory_.AddSocketDataProvider(&data);
 
   scoped_ptr<HttpNetworkTransaction> one_transaction(
       new HttpNetworkTransaction(session_.get()));
@@ -1029,7 +1026,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineOrder) {
             four_transaction->Start(GetRequestInfo("four.html"),
                                     four_callback.callback(), BoundNetLog()));
 
-  data->RunFor(3);
+  data.RunFor(3);
   EXPECT_EQ(ERR_FAILED, one_callback.WaitForResult());
   one_transaction.reset();
   EXPECT_EQ(ERR_PIPELINE_EVICTION, two_callback.WaitForResult());
