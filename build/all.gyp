@@ -617,6 +617,7 @@
             '../chrome/chrome.gyp:chrome',
             '../chrome/chrome.gyp:interactive_ui_tests',            
             '../chrome/chrome.gyp:unit_tests',
+            '../content/content.gyp:content_browsertests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../ui/aura/aura.gyp:*',
             '../ui/compositor/compositor.gyp:*',
