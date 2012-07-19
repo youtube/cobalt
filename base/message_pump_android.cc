@@ -11,7 +11,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
-#include "jni/system_message_handler_jni.h"
+#include "jni/SystemMessageHandler_jni.h"
 
 using base::android::ScopedJavaLocalRef;
 

@@ -28,25 +28,13 @@
     {
       'target_name': 'jni_sample_header',
       'type': 'none',
-      'actions': [
-        {
-          'action_name': 'generate_jni_sample_header',
-          'inputs': [
-              'jni_generator.py',
-              'SampleForTests.java',
-          ],
-          'outputs': [
-              '<(SHARED_INTERMEDIATE_DIR)/base/jni/sample_for_tests_jni.h',
-          ],
-          'action': [
-            'python',
-            'jni_generator.py',
-            '-o',
-            '<@(_inputs)',
-            '<@(_outputs)',
-          ],
-        },
+      'sources': [
+        'SampleForTests.java',
       ],
+      'variables': {
+        'jni_gen_dir': 'base',
+      },
+      'includes': [ '../../../build/jni_generator.gypi' ],
     },
     {
       'target_name': 'jni_generator_tests',

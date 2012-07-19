@@ -8,7 +8,7 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 
-#include "jni/path_utils_jni.h"
+#include "jni/PathUtils_jni.h"
 
 namespace base {
 namespace android {

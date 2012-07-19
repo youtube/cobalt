@@ -11,7 +11,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
-#include "jni/build_info_jni.h"
+#include "jni/BuildInfo_jni.h"
 
 namespace {
 

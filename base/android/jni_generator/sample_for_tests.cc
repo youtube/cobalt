@@ -37,7 +37,7 @@ class CPPClass {
 
 } // namespace content
 
-#include "jni/sample_for_tests_jni.h"
+#include "jni/SampleForTests_jni.h"
 
 int main() {
   // On a regular application, you'd call AttachCurrentThread(). This sample is
