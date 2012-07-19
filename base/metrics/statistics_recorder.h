@@ -16,6 +16,8 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
+#include "base/lazy_instance.h"
 
 namespace base {
 
@@ -27,9 +29,8 @@ class BASE_EXPORT StatisticsRecorder {
  public:
   typedef std::vector<Histogram*> Histograms;
 
-  StatisticsRecorder();
-
-  ~StatisticsRecorder();
+  // Initializes the StatisticsRecorder system.
+  static void Initialize();
 
   // Find out if histograms can now be registered into our list.
   static bool IsActive();
@@ -76,7 +77,6 @@ class BASE_EXPORT StatisticsRecorder {
   // pointer to be copied.
   static void GetSnapshot(const std::string& query, Histograms* snapshot);
 
-
  private:
   // We keep all registered histograms in a map, from name to histogram.
   typedef std::map<std::string, Histogram*> HistogramMap;
@@ -85,6 +85,19 @@ class BASE_EXPORT StatisticsRecorder {
   // |cached_ranges_|.  Checksum is calculated from the |ranges_| in
   // |cached_ranges_|.
   typedef std::map<uint32, std::list<CachedRanges*>*> RangesMap;
+
+  friend struct DefaultLazyInstanceTraits<StatisticsRecorder>;
+
+  // Allow tests to access our innards for testing purposes.
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, StartupShutdownTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, RecordedStartupTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, RangeTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, CustomRangeTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, CachedRangesTest);
+
+  StatisticsRecorder();
+
+  ~StatisticsRecorder();
 
   static HistogramMap* histograms_;
 

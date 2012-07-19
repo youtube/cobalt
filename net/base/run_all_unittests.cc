@@ -20,7 +20,7 @@ using net::SpdySession;
 
 int main(int argc, char** argv) {
   // Record histograms, so we can get histograms data in tests.
-  base::StatisticsRecorder recorder;
+  base::StatisticsRecorder::Initialize();
 
 #if defined(OS_ANDROID)
   // Register JNI bindings for android. Doing it early as the test suite setup
