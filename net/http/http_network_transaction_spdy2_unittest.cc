@@ -21,6 +21,7 @@
 #include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
 #include "net/base/capturing_net_log.h"
+#include "net/base/cert_test_util.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_cache.h"
 #include "net/base/mock_cert_verifier.h"
@@ -10071,6 +10072,143 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UseSpdySessionForHttpWhenForced) {
             trans2.Start(&request2, callback2.callback(), BoundNetLog()));
   MessageLoop::current()->RunAllPending();
 
+  EXPECT_EQ(OK, callback2.WaitForResult());
+  EXPECT_TRUE(trans2.GetResponseInfo()->was_fetched_via_spdy);
+}
+
+// Test that in the case where we have a SPDY session to a SPDY proxy
+// that we do not pool other origins that resolve to the same IP when
+// the certificate does not match the new origin.
+// http://crbug.com/134690
+TEST_F(HttpNetworkTransactionSpdy2Test, DoNotUseSpdySessionIfCertDoesNotMatch) {
+  const std::string url1 = "http://www.google.com/";
+  const std::string url2 = "https://mail.google.com/";
+  const std::string ip_addr = "1.2.3.4";
+
+  // SPDY GET for HTTP URL (through SPDY proxy)
+  const char* const headers[] = {
+    "method", "GET",
+    "url", url1.c_str(),
+    "host",  "www.google.com",
+    "scheme", "http",
+    "version", "HTTP/1.1"
+  };
+  scoped_ptr<SpdyFrame> req1(ConstructSpdyControlFrame(NULL, 0, false, 1,
+                                                       LOWEST, SYN_STREAM,
+                                                       CONTROL_FLAG_FIN,
+                                                       headers,
+                                                       arraysize(headers)));
+
+  MockWrite writes1[] = {
+    CreateMockWrite(*req1, 0),
+  };
+
+  scoped_ptr<SpdyFrame> resp1(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<SpdyFrame> body1(ConstructSpdyBodyFrame(1, true));
+  MockRead reads1[] = {
+    CreateMockRead(*resp1, 1),
+    CreateMockRead(*body1, 2),
+    MockRead(ASYNC, OK, 3) // EOF
+  };
+
+  scoped_ptr<DeterministicSocketData> data1(
+      new DeterministicSocketData(reads1, arraysize(reads1),
+                                  writes1, arraysize(writes1)));
+  IPAddressNumber ip;
+  ASSERT_TRUE(ParseIPLiteralToNumber(ip_addr, &ip));
+  IPEndPoint peer_addr = IPEndPoint(ip, 443);
+  MockConnect connect_data1(ASYNC, OK, peer_addr);
+  data1->set_connect_data(connect_data1);
+
+  // SPDY GET for HTTPS URL (direct)
+  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(url2.c_str(),
+                                              false, 1, MEDIUM));
+
+  MockWrite writes2[] = {
+    CreateMockWrite(*req2, 0),
+  };
+
+  scoped_ptr<SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<SpdyFrame> body2(ConstructSpdyBodyFrame(1, true));
+  MockRead reads2[] = {
+    CreateMockRead(*resp2, 1),
+    CreateMockRead(*body2, 2),
+    MockRead(ASYNC, OK, 3) // EOF
+  };
+
+  scoped_ptr<DeterministicSocketData> data2(
+      new DeterministicSocketData(reads2, arraysize(reads2),
+                                  writes2, arraysize(writes2)));
+  MockConnect connect_data2(ASYNC, OK);
+  data2->set_connect_data(connect_data2);
+
+  // Set up a proxy config that sends HTTP requests to a proxy, and
+  // all others direct.
+  ProxyConfig proxy_config;
+  proxy_config.proxy_rules().ParseFromString("http=https://proxy:443");
+  CapturingProxyResolver* capturing_proxy_resolver =
+      new CapturingProxyResolver();
+  SpdySessionDependencies session_deps(new ProxyService(
+      new ProxyConfigServiceFixed(proxy_config), capturing_proxy_resolver,
+      NULL));
+
+  // Load a valid cert.  Note, that this does not need to
+  // be valid for proxy because the MockSSLClientSocket does
+  // not actually verify it.  But SpdySession will use this
+  // to see if it is valid for the new origin
+  FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> server_cert(
+      ImportCertFromFile(certs_dir, "ok_cert.pem"));
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), server_cert);
+
+  SSLSocketDataProvider ssl1(ASYNC, OK);  // to the proxy
+  ssl1.SetNextProto(kProtoSPDY2);
+  ssl1.cert = server_cert;
+  session_deps.deterministic_socket_factory->AddSSLSocketDataProvider(&ssl1);
+  session_deps.deterministic_socket_factory->AddSocketDataProvider(data1.get());
+
+  SSLSocketDataProvider ssl2(ASYNC, OK);  // to the server
+  ssl2.SetNextProto(kProtoSPDY2);
+  session_deps.deterministic_socket_factory->AddSSLSocketDataProvider(&ssl2);
+  session_deps.deterministic_socket_factory->AddSocketDataProvider(data2.get());
+
+  session_deps.host_resolver.reset(new MockCachingHostResolver());
+  session_deps.host_resolver->rules()->AddRule("mail.google.com", ip_addr);
+  session_deps.host_resolver->rules()->AddRule("proxy", ip_addr);
+
+  scoped_refptr<HttpNetworkSession> session(
+      SpdySessionDependencies::SpdyCreateSessionDeterministic(&session_deps));
+
+  // Start the first transaction to set up the SpdySession
+  HttpRequestInfo request1;
+  request1.method = "GET";
+  request1.url = GURL(url1);
+  request1.priority = LOWEST;
+  request1.load_flags = 0;
+  HttpNetworkTransaction trans1(session);
+  TestCompletionCallback callback1;
+  ASSERT_EQ(ERR_IO_PENDING,
+            trans1.Start(&request1, callback1.callback(), BoundNetLog()));
+  data1->RunFor(3);
+
+  ASSERT_TRUE(callback1.have_result());
+  EXPECT_EQ(OK, callback1.WaitForResult());
+  EXPECT_TRUE(trans1.GetResponseInfo()->was_fetched_via_spdy);
+
+  // Now, start the HTTP request
+  HttpRequestInfo request2;
+  request2.method = "GET";
+  request2.url = GURL(url2);
+  request2.priority = MEDIUM;
+  request2.load_flags = 0;
+  HttpNetworkTransaction trans2(session);
+  TestCompletionCallback callback2;
+  EXPECT_EQ(ERR_IO_PENDING,
+            trans2.Start(&request2, callback2.callback(), BoundNetLog()));
+  MessageLoop::current()->RunAllPending();
+  data2->RunFor(3);
+
+  ASSERT_TRUE(callback2.have_result());
   EXPECT_EQ(OK, callback2.WaitForResult());
   EXPECT_TRUE(trans2.GetResponseInfo()->was_fetched_via_spdy);
 }
