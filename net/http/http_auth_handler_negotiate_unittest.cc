@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -101,7 +101,7 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
         "localhost",                         // Source name
         "example.com",                       // Target name
         23,                                  // Lifetime
-        *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+        *CHROME_GSS_SPNEGO_MECH_OID_DESC,    // Mechanism
         0,                                   // Context flags
         1,                                   // Locally initiated
         0);                                  // Open
@@ -109,7 +109,7 @@ class HttpAuthHandlerNegotiateTest : public PlatformTest {
         "localhost",                         // Source name
         "example.com",                       // Target name
         23,                                  // Lifetime
-        *CHROME_GSS_C_NT_HOSTBASED_SERVICE,  // Mechanism
+        *CHROME_GSS_SPNEGO_MECH_OID_DESC,    // Mechanism
         0,                                   // Context flags
         1,                                   // Locally initiated
         1);                                  // Open
