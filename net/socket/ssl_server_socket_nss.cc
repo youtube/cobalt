@@ -279,9 +279,18 @@ base::TimeDelta SSLServerSocketNSS::GetConnectTimeMicros() const {
   return transport_socket_->GetConnectTimeMicros();
 }
 
+bool SSLServerSocketNSS::WasNpnNegotiated() const {
+  return false;
+}
+
 NextProto SSLServerSocketNSS::GetNegotiatedProtocol() const {
   // NPN is not supported by this class.
   return kProtoUnknown;
+}
+
+bool SSLServerSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
+  NOTIMPLEMENTED();
+  return false;
 }
 
 int SSLServerSocketNSS::InitializeSSLOptions() {

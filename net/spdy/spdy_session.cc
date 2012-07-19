@@ -1191,15 +1191,10 @@ scoped_refptr<SpdyStream> SpdySession::GetActivePushStream(
 bool SpdySession::GetSSLInfo(SSLInfo* ssl_info,
                              bool* was_npn_negotiated,
                              NextProto* protocol_negotiated) {
-  if (!is_secure_) {
-    *protocol_negotiated = kProtoUnknown;
-    return false;
-  }
-  SSLClientSocket* ssl_socket = GetSSLClientSocket();
-  ssl_socket->GetSSLInfo(ssl_info);
-  *was_npn_negotiated = ssl_socket->was_npn_negotiated();
-  *protocol_negotiated = ssl_socket->GetNegotiatedProtocol();
-  return true;
+
+  *was_npn_negotiated = connection_->socket()->WasNpnNegotiated();
+  *protocol_negotiated = connection_->socket()->GetNegotiatedProtocol();
+  return connection_->socket()->GetSSLInfo(ssl_info);
 }
 
 bool SpdySession::GetSSLCertRequestInfo(

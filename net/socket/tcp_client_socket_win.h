@@ -54,7 +54,9 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   virtual bool UsingTCPFastOpen() const;
   virtual int64 NumBytesRead() const;
   virtual base::TimeDelta GetConnectTimeMicros() const;
+  virtual bool WasNpnNegotiated() const OVERRIDE;
   virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
 
   // Socket implementation.
   // Multiple outstanding requests are not supported.

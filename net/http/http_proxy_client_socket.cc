@@ -200,12 +200,28 @@ base::TimeDelta HttpProxyClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
+bool HttpProxyClientSocket::WasNpnNegotiated() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->WasNpnNegotiated();
+  }
+  NOTREACHED();
+  return false;
+}
+
 NextProto HttpProxyClientSocket::GetNegotiatedProtocol() const {
   if (transport_.get() && transport_->socket()) {
     return transport_->socket()->GetNegotiatedProtocol();
   }
   NOTREACHED();
   return kProtoUnknown;
+}
+
+bool HttpProxyClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetSSLInfo(ssl_info);
+  }
+  NOTREACHED();
+  return false;
 }
 
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,

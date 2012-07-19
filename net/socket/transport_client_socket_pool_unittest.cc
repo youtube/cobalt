@@ -89,8 +89,14 @@ class MockClientSocket : public StreamSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const {
     return base::TimeDelta::FromMicroseconds(-1);
   }
+  virtual bool WasNpnNegotiated() const {
+    return false;
+  }
   virtual NextProto GetNegotiatedProtocol() const {
     return kProtoUnknown;
+  }
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
+    return false;
   }
 
   // Socket implementation.
@@ -146,8 +152,14 @@ class MockFailingClientSocket : public StreamSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const {
     return base::TimeDelta::FromMicroseconds(-1);
   }
+  virtual bool WasNpnNegotiated() const {
+    return false;
+  }
   virtual NextProto GetNegotiatedProtocol() const {
     return kProtoUnknown;
+  }
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
+    return false;
   }
 
   // Socket implementation.
@@ -228,8 +240,14 @@ class MockPendingClientSocket : public StreamSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const {
     return base::TimeDelta::FromMicroseconds(-1);
   }
+  virtual bool WasNpnNegotiated() const {
+    return false;
+  }
   virtual NextProto GetNegotiatedProtocol() const {
     return kProtoUnknown;
+  }
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) {
+    return false;
   }
 
   // Socket implementation.

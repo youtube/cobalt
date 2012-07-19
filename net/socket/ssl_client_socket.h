@@ -69,19 +69,14 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
                                 // the first protocol in our list.
   };
 
-  // Gets the SSL connection information of the socket.
-  //
-  // TODO(sergeyu): Move this method to the SSLSocket interface and
-  // implemented in SSLServerSocket too.
-  virtual void GetSSLInfo(SSLInfo* ssl_info) = 0;
+  // StreamSocket:
+  virtual bool WasNpnNegotiated() const OVERRIDE;
+  virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
 
   // Gets the SSL CertificateRequest info of the socket after Connect failed
   // with ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) = 0;
-
-  // StreamSocket:
-  virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
 
   // Get the application level protocol that we negotiated with the server.
   // *proto is set to the resulting protocol (n.b. that the string may have
@@ -109,8 +104,6 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   // ClearSessionCache clears the SSL session cache, used to resume SSL
   // sessions.
   static void ClearSessionCache();
-
-  virtual bool was_npn_negotiated() const;
 
   virtual bool set_was_npn_negotiated(bool negotiated);
 

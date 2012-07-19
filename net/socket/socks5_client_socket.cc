@@ -158,12 +158,29 @@ base::TimeDelta SOCKS5ClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
+bool SOCKS5ClientSocket::WasNpnNegotiated() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->WasNpnNegotiated();
+  }
+  NOTREACHED();
+  return false;
+}
+
 NextProto SOCKS5ClientSocket::GetNegotiatedProtocol() const {
   if (transport_.get() && transport_->socket()) {
     return transport_->socket()->GetNegotiatedProtocol();
   }
   NOTREACHED();
   return kProtoUnknown;
+}
+
+bool SOCKS5ClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetSSLInfo(ssl_info);
+  }
+  NOTREACHED();
+  return false;
+
 }
 
 // Read is called by the transport layer above to read. This can only be done

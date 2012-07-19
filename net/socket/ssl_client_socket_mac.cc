@@ -715,10 +715,10 @@ bool SSLClientSocketMac::SetSendBufferSize(int32 size) {
   return transport_->socket()->SetSendBufferSize(size);
 }
 
-void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
+bool SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
   if (!server_cert_)
-    return;
+    return false;
 
   ssl_info->cert = server_cert_verify_result_.verified_cert;
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
@@ -741,6 +741,8 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
 
   if (ssl_config_.version_fallback)
     ssl_info->connection_status |= SSL_CONNECTION_VERSION_FALLBACK;
+
+  return true;
 }
 
 void SSLClientSocketMac::GetSSLCertRequestInfo(
