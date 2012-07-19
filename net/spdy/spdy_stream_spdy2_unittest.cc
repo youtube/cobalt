@@ -9,6 +9,7 @@
 #include "net/spdy/spdy_stream.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_session.h"
+#include "net/spdy/spdy_stream_test_util.h"
 #include "net/spdy/spdy_test_util_spdy2.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -20,82 +21,14 @@ namespace net {
 
 namespace {
 
-class TestSpdyStreamDelegate : public SpdyStream::Delegate {
- public:
-  TestSpdyStreamDelegate(SpdyStream* stream,
-                         IOBufferWithSize* buf,
-                         const CompletionCallback& callback)
-      : stream_(stream),
-        buf_(buf),
-        callback_(callback),
-        send_headers_completed_(false),
-        response_(new SpdyHeaderBlock),
-        data_sent_(0),
-        closed_(false) {}
-  virtual ~TestSpdyStreamDelegate() {}
-
-  virtual bool OnSendHeadersComplete(int status) {
-    send_headers_completed_ = true;
-    return true;
-  }
-  virtual int OnSendBody() {
-    ADD_FAILURE() << "OnSendBody should not be called";
-    return ERR_UNEXPECTED;
-  }
-  virtual int OnSendBodyComplete(int /*status*/, bool* /*eof*/) {
-    ADD_FAILURE() << "OnSendBodyComplete should not be called";
-    return ERR_UNEXPECTED;
-  }
-
-  virtual int OnResponseReceived(const SpdyHeaderBlock& response,
-                                 base::Time response_time,
-                                 int status) {
-    EXPECT_TRUE(send_headers_completed_);
-    *response_ = response;
-    if (buf_) {
-      EXPECT_EQ(ERR_IO_PENDING,
-                stream_->WriteStreamData(buf_.get(), buf_->size(),
-                                         DATA_FLAG_NONE));
-    }
-    return status;
-  }
-  virtual void OnDataReceived(const char* buffer, int bytes) {
-    received_data_ += std::string(buffer, bytes);
-  }
-  virtual void OnDataSent(int length) {
-    data_sent_ += length;
-  }
-  virtual void OnClose(int status) {
-    closed_ = true;
-    CompletionCallback callback = callback_;
-    callback_.Reset();
-    callback.Run(OK);
-  }
-  bool send_headers_completed() const { return send_headers_completed_; }
-  const linked_ptr<SpdyHeaderBlock>& response() const {
-    return response_;
-  }
-  const std::string& received_data() const { return received_data_; }
-  int data_sent() const { return data_sent_; }
-  bool closed() const {  return closed_; }
-
- private:
-  SpdyStream* stream_;
-  scoped_refptr<IOBufferWithSize> buf_;
-  CompletionCallback callback_;
-  bool send_headers_completed_;
-  linked_ptr<SpdyHeaderBlock> response_;
-  std::string received_data_;
-  int data_sent_;
-  bool closed_;
-};
-
 SpdyFrame* ConstructSpdyBodyFrame(const char* data, int length) {
   BufferedSpdyFramer framer(2);
   return framer.CreateDataFrame(1, data, length, DATA_FLAG_NONE);
 }
 
 }  // anonymous namespace
+
+namespace test {
 
 class SpdyStreamSpdy2Test : public testing::Test {
  protected:
@@ -432,5 +365,7 @@ TEST_F(SpdyStreamSpdy2Test, StreamError) {
   ASSERT_TRUE(entries[pos].GetIntegerValue("stream_id", &stream_id2));
   EXPECT_EQ(static_cast<int>(stream_id), stream_id2);
 }
+
+} //namespace test
 
 }  // namespace net
