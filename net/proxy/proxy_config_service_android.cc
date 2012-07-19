@@ -19,7 +19,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "googleurl/src/url_parse.h"
-#include "jni/proxy_change_listener_jni.h"
+#include "jni/ProxyChangeListener_jni.h"
 #include "net/base/host_port_pair.h"
 #include "net/proxy/proxy_config.h"
 
