@@ -22,6 +22,7 @@
 // "The implementation must reserve static storage for a
 // gss_OID_desc object for each constant.  That constant
 // should be initialized to point to that gss_OID_desc."
+// These are encoded using ASN.1 BER encoding.
 namespace {
 
 static gss_OID_desc GSS_C_NT_USER_NAME_VAL = {
@@ -75,30 +76,16 @@ gss_OID GSS_C_NT_EXPORT_NAME = &GSS_C_NT_EXPORT_NAME_VAL;
 
 namespace net {
 
-// These are encoded using ASN.1 BER encoding.
+// Exported mechanism for GSSAPI. We always use SPNEGO:
 
-// This one is used by Firefox's nsAuthGSSAPI class.
-gss_OID_desc CHROME_GSS_KRB5_MECH_OID_DESC_VAL = {
-  9,
-  const_cast<char*>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x02")
-};
-
-gss_OID_desc CHROME_GSS_C_NT_HOSTBASED_SERVICE_X_VAL = {
+// iso.org.dod.internet.security.mechanism.snego (1.3.6.1.5.5.2)
+gss_OID_desc CHROME_GSS_SPNEGO_MECH_OID_DESC_VAL = {
   6,
-  const_cast<char*>("\x2b\x06\x01\x05\x06\x02")
+  const_cast<char*>("\x2b\x06\x01\x05\x05\x02")
 };
 
-gss_OID_desc CHROME_GSS_C_NT_HOSTBASED_SERVICE_VAL = {
-  10,
-  const_cast<char*>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x04")
-};
-
-gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X =
-    &CHROME_GSS_C_NT_HOSTBASED_SERVICE_X_VAL;
-gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE =
-    &CHROME_GSS_C_NT_HOSTBASED_SERVICE_VAL;
-gss_OID CHROME_GSS_KRB5_MECH_OID_DESC =
-    &CHROME_GSS_KRB5_MECH_OID_DESC_VAL;
+gss_OID CHROME_GSS_SPNEGO_MECH_OID_DESC =
+    &CHROME_GSS_SPNEGO_MECH_OID_DESC_VAL;
 
 // Debugging helpers.
 namespace {
@@ -864,7 +851,7 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
   OM_uint32 major_status = library_->import_name(
       &minor_status,
       &spn_buffer,
-      CHROME_GSS_C_NT_HOSTBASED_SERVICE,
+      GSS_C_NT_HOSTBASED_SERVICE,
       &principal_name);
   int rv = MapImportNameStatusToError(major_status);
   if (rv != OK) {
