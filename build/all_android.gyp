@@ -30,6 +30,7 @@
       'dependencies': [
         '../base/base.gyp:base_unittests',
         '../content/content.gyp:content_unittests',
+        '../chrome/chrome.gyp:unit_tests',
         '../gpu/gpu.gyp:gpu_unittests',
         '../sql/sql.gyp:sql_unittests',
         '../sync/sync.gyp:sync_unit_tests',
@@ -60,6 +61,7 @@
             # Unit test bundles packaged as an apk.
             '../base/base.gyp:base_unittests_apk',
             '../content/content.gyp:content_unittests_apk',
+            '../chrome/chrome.gyp:unit_tests_apk',
             '../gpu/gpu.gyp:gpu_unittests_apk',
             '../sql/sql.gyp:sql_unittests_apk',
             '../sync/sync.gyp:sync_unit_tests_apk',
