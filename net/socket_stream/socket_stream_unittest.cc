@@ -333,14 +333,13 @@ TEST_F(SocketStreamTest, CloseFlushPendingWrite) {
   AddWebSocketMessage("message1");
   AddWebSocketMessage("message2");
 
-  scoped_ptr<DelayedSocketData> data_provider(
-      new DelayedSocketData(1,
-                            data_reads, arraysize(data_reads),
-                            data_writes, arraysize(data_writes)));
+  DelayedSocketData data_provider(
+      1, data_reads, arraysize(data_reads),
+      data_writes, arraysize(data_writes));
 
   MockClientSocketFactory* mock_socket_factory =
       GetMockClientSocketFactory();
-  mock_socket_factory->AddSocketDataProvider(data_provider.get());
+  mock_socket_factory->AddSocketDataProvider(&data_provider);
 
   socket_stream->SetClientSocketFactory(mock_socket_factory);
 
@@ -469,14 +468,13 @@ TEST_F(SocketStreamTest, IOPending) {
   AddWebSocketMessage("message1");
   AddWebSocketMessage("message2");
 
-  scoped_ptr<DelayedSocketData> data_provider(
-      new DelayedSocketData(1,
-                            data_reads, arraysize(data_reads),
-                            data_writes, arraysize(data_writes)));
+  DelayedSocketData data_provider(
+      1, data_reads, arraysize(data_reads),
+      data_writes, arraysize(data_writes));
 
   MockClientSocketFactory* mock_socket_factory =
       GetMockClientSocketFactory();
-  mock_socket_factory->AddSocketDataProvider(data_provider.get());
+  mock_socket_factory->AddSocketDataProvider(&data_provider);
 
   socket_stream->SetClientSocketFactory(mock_socket_factory);
 
