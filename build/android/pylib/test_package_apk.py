@@ -29,7 +29,10 @@ class TestPackageApk(TestPackage):
     dump_debug_info: A debug_info object.
   """
 
-  APK_DATA_DIR = '/data/user/0/org.chromium.native_test/files/'
+  # The stdout.txt path is determined by:
+  # testing/android/java/src/org/chromium/native_test/
+  #     ChromeNativeTestActivity.java
+  APK_STDOUT_FILE = '/sdcard/native_tests/stdout.txt'
 
   def __init__(self, adb, device, test_suite, timeout, rebaseline,
                performance_test, cleanup_test_files, tool,
@@ -69,8 +72,7 @@ class TestPackageApk(TestPackage):
     # Copy stdout.txt and read contents.
     stdout_file = tempfile.NamedTemporaryFile()
     ret = []
-    self.adb.Adb().Pull(TestPackageApk.APK_DATA_DIR + 'stdout.txt',
-                        stdout_file.name)
+    self.adb.Adb().Pull(TestPackageApk.APK_STDOUT_FILE, stdout_file.name)
     # We need to strip the trailing newline.
     content = [line.rstrip() for line in open(stdout_file.name)]
     ret = self._ParseGTestListTests(content)
