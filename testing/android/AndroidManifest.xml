@@ -26,5 +26,6 @@ found in the LICENSE file.
     <!-- TODO(jrg): add more permissions as needed by unit tests. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
 </manifest> 
