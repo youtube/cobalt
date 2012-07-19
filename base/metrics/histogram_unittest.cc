@@ -15,7 +15,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
-namespace {
 
 class HistogramTest : public testing::Test {
 };
@@ -349,12 +348,6 @@ TEST(HistogramTest, BucketPlacementTest) {
     EXPECT_EQ(i + 1, sample.counts(i));
 }
 
-}  // namespace
-
-//------------------------------------------------------------------------------
-// We can't be an an anonymous namespace while being friends, so we pop back
-// out to the base namespace here.  We need to be friends to corrupt the
-// internals of the histogram and/or sampleset.
 TEST(HistogramTest, CorruptSampleCounts) {
   Histogram* histogram(Histogram::FactoryGet(
       "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
