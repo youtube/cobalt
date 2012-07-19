@@ -758,8 +758,16 @@ base::TimeDelta TCPClientSocketLibevent::GetConnectTimeMicros() const {
   return connect_time_micros_;
 }
 
+bool TCPClientSocketLibevent::WasNpnNegotiated() const {
+  return false;
+}
+
 NextProto TCPClientSocketLibevent::GetNegotiatedProtocol() const {
   return kProtoUnknown;
+}
+
+bool TCPClientSocketLibevent::GetSSLInfo(SSLInfo* ssl_info) {
+  return false;
 }
 
 }  // namespace net

@@ -704,10 +704,6 @@ const BoundNetLog& MockClientSocket::NetLog() const {
   return net_log_;
 }
 
-void MockClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
-  NOTREACHED();
-}
-
 void MockClientSocket::GetSSLCertRequestInfo(
   SSLCertRequestInfo* cert_request_info) {
 }
@@ -870,6 +866,14 @@ base::TimeDelta MockTCPClientSocket::GetConnectTimeMicros() const {
   static const base::TimeDelta kTestingConnectTimeMicros =
       base::TimeDelta::FromMicroseconds(20);
   return kTestingConnectTimeMicros;
+}
+
+bool MockTCPClientSocket::WasNpnNegotiated() const {
+  return false;
+}
+
+bool MockTCPClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
+  return false;
 }
 
 void MockTCPClientSocket::OnReadComplete(const MockRead& data) {
@@ -1071,6 +1075,14 @@ base::TimeDelta DeterministicMockTCPClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
+bool DeterministicMockTCPClientSocket::WasNpnNegotiated() const {
+  return false;
+}
+
+bool DeterministicMockTCPClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
+  return false;
+}
+
 void DeterministicMockTCPClientSocket::OnReadComplete(const MockRead& data) {}
 
 // static
@@ -1158,11 +1170,12 @@ base::TimeDelta MockSSLClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
-void MockSSLClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
+bool MockSSLClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
   ssl_info->cert = data_->cert;
   ssl_info->client_cert_sent = data_->client_cert_sent;
   ssl_info->channel_id_sent = data_->channel_id_sent;
+  return true;
 }
 
 void MockSSLClientSocket::GetSSLCertRequestInfo(
@@ -1184,15 +1197,15 @@ SSLClientSocket::NextProtoStatus MockSSLClientSocket::GetNextProto(
   return data_->next_proto_status;
 }
 
-bool MockSSLClientSocket::was_npn_negotiated() const {
-  if (is_npn_state_set_)
-    return new_npn_value_;
-  return data_->was_npn_negotiated;
-}
-
 bool MockSSLClientSocket::set_was_npn_negotiated(bool negotiated) {
   is_npn_state_set_ = true;
   return new_npn_value_ = negotiated;
+}
+
+bool MockSSLClientSocket::WasNpnNegotiated() const {
+  if (is_npn_state_set_)
+    return new_npn_value_;
+  return data_->was_npn_negotiated;
 }
 
 NextProto MockSSLClientSocket::GetNegotiatedProtocol() const {

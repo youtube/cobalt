@@ -800,7 +800,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
   if (ssl_started && (result == OK || IsCertificateError(result))) {
     SSLClientSocket* ssl_socket =
       static_cast<SSLClientSocket*>(connection_->socket());
-    if (ssl_socket->was_npn_negotiated()) {
+    if (ssl_socket->WasNpnNegotiated()) {
       was_npn_negotiated_ = true;
       std::string proto;
       std::string server_protos;
