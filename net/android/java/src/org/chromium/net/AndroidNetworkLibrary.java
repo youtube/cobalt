@@ -66,27 +66,24 @@ class AndroidNetworkLibrary {
     // Also returns false if it cannot determine this.
     @CalledByNative
     static public boolean haveOnlyLoopbackAddresses() {
-        boolean result = true;
+        Enumeration<NetworkInterface> list = null;
         try {
-            Enumeration list = NetworkInterface.getNetworkInterfaces();
+            list = NetworkInterface.getNetworkInterfaces();
             if (list == null) return false;
-
-            while (list.hasMoreElements()) {
-                NetworkInterface netIf = (NetworkInterface)list.nextElement();
-                try {
-                    if (!netIf.isUp() || netIf.isLoopback())
-                        continue;
-                    result = false;
-                    break;
-                } catch (SocketException e) {
-                    continue;
-                }
-            }
         } catch (SocketException e) {
             Log.w(TAG, "could not get network interfaces: " + e);
             return false;
         }
-        return result;
+
+        while (list.hasMoreElements()) {
+            NetworkInterface netIf = list.nextElement();
+            try {
+                if (netIf.isUp() && !netIf.isLoopback()) return false;
+            } catch (SocketException e) {
+                continue;
+            }
+        }
+        return true;
     }
 
     /**
