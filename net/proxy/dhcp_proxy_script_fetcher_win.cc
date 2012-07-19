@@ -110,7 +110,7 @@ void DhcpProxyScriptFetcherWin::CancelImpl() {
       (*it)->Cancel();
     }
 
-    fetchers_.reset();
+    fetchers_.clear();
   }
 }
 
