@@ -219,7 +219,7 @@ class AndroidCommands(object):
       self._adb.SetTargetSerial(device)
     # So many users require root that we just always do it. This could
     # be made more fine grain if necessary.
-    self._adb.EnableAdbRoot()
+    self._root_enabled = self._adb.EnableAdbRoot()
     self._logcat = None
     self._original_governor = None
     self._pushed_files = []
@@ -228,6 +228,10 @@ class AndroidCommands(object):
   def Adb(self):
     """Returns our AdbInterface to avoid us wrapping all its methods."""
     return self._adb
+
+  def IsRootEnabled(self):
+    """Returns whether or not _adb.EnabledAdbRoot() has succeeded."""
+    return self._root_enabled
 
   def GetDeviceYear(self):
     """Returns the year information of the date on device"""
