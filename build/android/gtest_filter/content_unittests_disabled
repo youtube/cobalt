@@ -53,5 +53,3 @@ QuotaManagerTest.*
 SavePackageTest.TestEnsureHtmlExtension
 SavePackageTest.TestEnsureMimeExtension
 SavePackageTest.TestSuggestedSaveNames
-# crbug.com/137879
-HyphenatorTest.HyphenateWords
