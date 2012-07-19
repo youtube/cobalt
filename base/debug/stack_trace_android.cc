@@ -16,17 +16,6 @@ namespace debug {
 StackTrace::StackTrace() {
 }
 
-StackTrace::StackTrace(const void* const* trace, size_t count) {
-}
-
-StackTrace::~StackTrace() {
-}
-
-const void* const* StackTrace::Addresses(size_t* count) const {
-  NOTIMPLEMENTED();
-  return NULL;
-}
-
 // Sends fake SIGSTKFLT signals to let the Android linker and debuggerd dump
 // stack. See inlined comments and Android bionic/linker/debugger.c and
 // system/core/debuggerd/debuggerd.c for details.
@@ -53,11 +42,6 @@ void StackTrace::PrintBacktrace() const {
 
 void StackTrace::OutputToStream(std::ostream* os) const {
   NOTIMPLEMENTED();
-}
-
-std::string StackTrace::ToString() const {
-  NOTIMPLEMENTED();
-  return "";
 }
 
 }  // namespace debug
