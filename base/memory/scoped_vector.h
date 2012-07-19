@@ -33,7 +33,7 @@ class ScopedVector {
       const_reverse_iterator;
 
   ScopedVector() {}
-  ~ScopedVector() { reset(); }
+  ~ScopedVector() { clear(); }
   ScopedVector(RValue& other) { swap(other); }
 
   ScopedVector& operator=(RValue& rhs) {
@@ -73,7 +73,6 @@ class ScopedVector {
     v.clear();
   }
 
-  void reset() { STLDeleteElements(&v); }
   void reserve(size_t capacity) { v.reserve(capacity); }
   void resize(size_t new_size) { v.resize(new_size); }
 
@@ -82,7 +81,10 @@ class ScopedVector {
     v.assign(begin, end);
   }
 
-  void clear() { v.clear(); }
+  void clear() { STLDeleteElements(&v); }
+
+  // Like |clear()|, but doesn't delete any elements.
+  void weak_clear() { v.clear(); }
 
   // Lets the ScopedVector take ownership of |x|.
   iterator insert(iterator position, T* x) {
