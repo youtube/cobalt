@@ -52,6 +52,7 @@
 #include "base/time.h"
 #include "base/utf_offset_string_conversions.h"
 #include "base/utf_string_conversions.h"
+#include "base/values.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
 #include "googleurl/src/url_canon_ip.h"
@@ -1974,53 +1975,39 @@ ScopedPortException::~ScopedPortException() {
 
 namespace {
 
-enum IPv6SupportStatus {
-  IPV6_CANNOT_CREATE_SOCKETS,
-  IPV6_CAN_CREATE_SOCKETS,
-  IPV6_GETIFADDRS_FAILED,
-  IPV6_GLOBAL_ADDRESS_MISSING,
-  IPV6_GLOBAL_ADDRESS_PRESENT,
-  IPV6_INTERFACE_ARRAY_TOO_SHORT,
-  IPV6_SUPPORT_MAX  // Bounding values for enumeration.
+const char* kFinalStatusNames[] = {
+  "Cannot create sockets",
+  "Can create sockets",
+  "Can't get addresses",
+  "Global ipv6 address missing",
+  "Global ipv6 address present",
+  "Interface array too short",
+  "Probing not supported",  // IPV6_SUPPORT_MAX
 };
-
-void IPv6SupportResults(IPv6SupportStatus result) {
-  static bool run_once = false;
-  if (!run_once) {
-    run_once = true;
-    UMA_HISTOGRAM_ENUMERATION("Net.IPv6Status", result, IPV6_SUPPORT_MAX);
-  } else {
-    UMA_HISTOGRAM_ENUMERATION("Net.IPv6Status_retest", result,
-                              IPV6_SUPPORT_MAX);
-  }
-}
-
-}  // namespace
+COMPILE_ASSERT(arraysize(kFinalStatusNames) == IPV6_SUPPORT_MAX + 1,
+               IPv6SupportStatus_name_count_mismatch);
 
 // TODO(jar): The following is a simple estimate of IPv6 support.  We may need
 // to do a test resolution, and a test connection, to REALLY verify support.
-// static
-bool IPv6Supported() {
+IPv6SupportResult TestIPv6SupportInternal() {
 #if defined(OS_ANDROID)
   // TODO: We should fully implement IPv6 probe once 'getifaddrs' API available;
   // Another approach is implementing the similar feature by
   // java.net.NetworkInterface through JNI.
   NOTIMPLEMENTED();
-  return true;
+  return IPv6SupportResult(true, IPV6_SUPPORT_MAX, 0);
 #elif defined(OS_POSIX)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
-  if (test_socket == -1) {
-    IPv6SupportResults(IPV6_CANNOT_CREATE_SOCKETS);
-    return false;
-  }
+  if (test_socket == -1)
+    return IPv6SupportResult(false, IPV6_CANNOT_CREATE_SOCKETS, errno);
   close(test_socket);
 
   // Check to see if any interface has a IPv6 address.
   struct ifaddrs* interface_addr = NULL;
   int rv = getifaddrs(&interface_addr);
   if (rv != 0) {
-     IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
-     return true;  // Don't yet block IPv6.
+    // Don't yet block IPv6.
+    return IPv6SupportResult(true, IPV6_GETIFADDRS_FAILED, errno);
   }
 
   bool found_ipv6 = false;
@@ -2046,19 +2033,17 @@ bool IPv6Supported() {
     break;
   }
   freeifaddrs(interface_addr);
-  if (!found_ipv6) {
-    IPv6SupportResults(IPV6_GLOBAL_ADDRESS_MISSING);
-    return false;
-  }
+  if (!found_ipv6)
+    return IPv6SupportResult(false, IPV6_GLOBAL_ADDRESS_MISSING, 0);
 
-  IPv6SupportResults(IPV6_GLOBAL_ADDRESS_PRESENT);
-  return true;
+  return IPv6SupportResult(true, IPV6_GLOBAL_ADDRESS_PRESENT, 0);
 #elif defined(OS_WIN)
   EnsureWinsockInit();
   SOCKET test_socket = socket(AF_INET6, SOCK_STREAM, 0);
   if (test_socket == INVALID_SOCKET) {
-    IPv6SupportResults(IPV6_CANNOT_CREATE_SOCKETS);
-    return false;
+    return IPv6SupportResult(false,
+                             IPV6_CANNOT_CREATE_SOCKETS,
+                             WSAGetLastError());
   }
   closesocket(test_socket);
 
@@ -2081,13 +2066,11 @@ bool IPv6Supported() {
                                  NULL, adapters.get(), &adapters_size);
     num_tries++;
   } while (error == ERROR_BUFFER_OVERFLOW && num_tries <= 3);
-  if (error == ERROR_NO_DATA) {
-    IPv6SupportResults(IPV6_GLOBAL_ADDRESS_MISSING);
-    return false;
-  }
+  if (error == ERROR_NO_DATA)
+    return IPv6SupportResult(false, IPV6_GLOBAL_ADDRESS_MISSING, error);
   if (error != ERROR_SUCCESS) {
-    IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
-    return true;  // Don't yet block IPv6.
+    // Don't yet block IPv6.
+    return IPv6SupportResult(true, IPV6_GETIFADDRS_FAILED, error);
   }
 
   PIP_ADAPTER_ADDRESSES adapter;
@@ -2108,17 +2091,56 @@ bool IPv6Supported() {
       struct in6_addr* sin6_addr = &addr_in6->sin6_addr;
       if (IN6_IS_ADDR_LOOPBACK(sin6_addr) || IN6_IS_ADDR_LINKLOCAL(sin6_addr))
         continue;
-      IPv6SupportResults(IPV6_GLOBAL_ADDRESS_PRESENT);
-      return true;
+      return IPv6SupportResult(true, IPV6_GLOBAL_ADDRESS_PRESENT, 0);
     }
   }
 
-  IPv6SupportResults(IPV6_GLOBAL_ADDRESS_MISSING);
-  return false;
+  return IPv6SupportResult(false, IPV6_GLOBAL_ADDRESS_MISSING, 0);
 #else
   NOTIMPLEMENTED();
-  return true;
+  return IPv6SupportResult(true, IPV6_SUPPORT_MAX, 0);
 #endif  // defined(various platforms)
+}
+
+}  // namespace
+
+IPv6SupportResult::IPv6SupportResult(bool ipv6_supported,
+                                     IPv6SupportStatus ipv6_support_status,
+                                     int os_error)
+                                     : ipv6_supported(ipv6_supported),
+                                       ipv6_support_status(ipv6_support_status),
+                                       os_error(os_error) {
+}
+
+base::Value* IPv6SupportResult::ToNetLogValue(
+    NetLog::LogLevel /* log_level */) const {
+  base::DictionaryValue* dict = new DictionaryValue();
+  dict->SetBoolean("ipv6_supported", ipv6_supported);
+  dict->SetString("ipv6_support_status",
+                  kFinalStatusNames[ipv6_support_status]);
+  if (os_error)
+    dict->SetInteger("os_error", os_error);
+  return dict;
+}
+
+IPv6SupportResult TestIPv6Support() {
+  IPv6SupportResult result = TestIPv6SupportInternal();
+
+  // Record UMA.
+  if (result.ipv6_support_status != IPV6_SUPPORT_MAX) {
+    static bool run_once = false;
+    if (!run_once) {
+      run_once = true;
+      UMA_HISTOGRAM_ENUMERATION("Net.IPv6Status",
+                                result.ipv6_support_status,
+                                IPV6_SUPPORT_MAX);
+    } else {
+      UMA_HISTOGRAM_ENUMERATION("Net.IPv6Status_retest",
+                                result.ipv6_support_status,
+                                IPV6_SUPPORT_MAX);
+    }
+  }
+  return result;
 }
 
 bool HaveOnlyLoopbackAddresses() {

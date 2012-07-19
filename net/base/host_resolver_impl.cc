@@ -961,9 +961,10 @@ class HostResolverImpl::ProcTask
 class HostResolverImpl::IPv6ProbeJob
     : public base::RefCountedThreadSafe<HostResolverImpl::IPv6ProbeJob> {
  public:
-  explicit IPv6ProbeJob(HostResolverImpl* resolver)
+  IPv6ProbeJob(HostResolverImpl* resolver, NetLog* net_log)
       : resolver_(resolver),
-        origin_loop_(base::MessageLoopProxy::current()) {
+        origin_loop_(base::MessageLoopProxy::current()),
+        net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_IPV6_PROBE_JOB)) {
     DCHECK(resolver);
   }
 
@@ -971,6 +972,7 @@ class HostResolverImpl::IPv6ProbeJob
     DCHECK(origin_loop_->BelongsToCurrentThread());
     if (was_canceled())
       return;
+    net_log_.BeginEvent(NetLog::TYPE_IPV6_PROBE_RUNNING);
     const bool kIsSlow = true;
     base::WorkerPool::PostTask(
         FROM_HERE, base::Bind(&IPv6ProbeJob::DoProbe, this), kIsSlow);
@@ -981,6 +983,7 @@ class HostResolverImpl::IPv6ProbeJob
     DCHECK(origin_loop_->BelongsToCurrentThread());
     if (was_canceled())
       return;
+    net_log_.AddEvent(NetLog::TYPE_CANCELLED);
     resolver_ = NULL;  // Read/write ONLY on origin thread.
   }
 
@@ -990,6 +993,8 @@ class HostResolverImpl::IPv6ProbeJob
   ~IPv6ProbeJob() {
   }
 
+  // Returns true if cancelled or if probe results have already been received
+  // on the origin thread.
   bool was_canceled() const {
     DCHECK(origin_loop_->BelongsToCurrentThread());
     return !resolver_;
@@ -998,20 +1003,28 @@ class HostResolverImpl::IPv6ProbeJob
   // Run on worker thread.
   void DoProbe() {
     // Do actual testing on this thread, as it takes 40-100ms.
-    AddressFamily family = IPv6Supported() ? ADDRESS_FAMILY_UNSPECIFIED
-                                           : ADDRESS_FAMILY_IPV4;
-
     origin_loop_->PostTask(
         FROM_HERE,
-        base::Bind(&IPv6ProbeJob::OnProbeComplete, this, family));
+        base::Bind(&IPv6ProbeJob::OnProbeComplete, this, TestIPv6Support()));
   }
 
   // Callback for when DoProbe() completes.
-  void OnProbeComplete(AddressFamily address_family) {
+  void OnProbeComplete(const IPv6SupportResult& support_result) {
     DCHECK(origin_loop_->BelongsToCurrentThread());
+    net_log_.EndEvent(
+        NetLog::TYPE_IPV6_PROBE_RUNNING,
+        base::Bind(&IPv6SupportResult::ToNetLogValue,
+                   base::Unretained(&support_result)));
     if (was_canceled())
       return;
-    resolver_->IPv6ProbeSetDefaultAddressFamily(address_family);
+
+    // Clear |resolver_| so that no cancel event is logged.
+    HostResolverImpl* resolver = resolver_;
+    resolver_ = NULL;
+
+    resolver->IPv6ProbeSetDefaultAddressFamily(
+        support_result.ipv6_supported ? ADDRESS_FAMILY_UNSPECIFIED
+                                      : ADDRESS_FAMILY_IPV4);
   }
 
   // Used/set only on origin thread.
@@ -1019,6 +1032,8 @@ class HostResolverImpl::IPv6ProbeJob
 
   // Used to post ourselves onto the origin thread.
   scoped_refptr<base::MessageLoopProxy> origin_loop_;
+
+  BoundNetLog net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(IPv6ProbeJob);
 };
@@ -1954,7 +1969,7 @@ void HostResolverImpl::OnIPAddressChanged() {
     cache_->clear();
   if (ipv6_probe_monitoring_) {
     DiscardIPv6ProbeJob();
-    ipv6_probe_job_ = new IPv6ProbeJob(this);
+    ipv6_probe_job_ = new IPv6ProbeJob(this, net_log_);
     ipv6_probe_job_->Start();
   }
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
