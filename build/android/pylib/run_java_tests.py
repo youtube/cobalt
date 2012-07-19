@@ -248,8 +248,12 @@ class TestRunner(BaseTestRunner):
   def SetUp(self):
     """Sets up the test harness and device before all tests are run."""
     super(TestRunner, self).SetUp()
-    if self.adb.SetJavaAssertsEnabled(enable=True):
-      self.adb.Reboot(full_reboot=False)
+    if not self.adb.IsRootEnabled():
+      logging.warning('Unable to enable java asserts for %s, non rooted device',
+                      self.device)
+    else:
+      if self.adb.SetJavaAssertsEnabled(enable=True):
+        self.adb.Reboot(full_reboot=False)
 
     # We give different default value to launch HTTP server based on shard index
     # because it may have race condition when multiple processes are trying to
