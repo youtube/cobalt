@@ -10,6 +10,12 @@
 #include "base/stringprintf.h"
 #include "base/synchronization/lock.h"
 
+namespace {
+// Initialize histogram statistics gathering system.
+base::LazyInstance<base::StatisticsRecorder>::Leaky
+    g_statistics_recorder_ = LAZY_INSTANCE_INITIALIZER;
+}  // namespace
+
 namespace base {
 
 // Collect the number of histograms created.
@@ -65,6 +71,13 @@ StatisticsRecorder::~StatisticsRecorder() {
   // We don't delete lock_ on purpose to avoid having to properly protect
   // against it going away after we checked for NULL in the static methods.
 }
+
+// static
+void StatisticsRecorder::Initialize() {
+  // Ensure that an instance of the StatisticsRecorder object is created.
+  g_statistics_recorder_.Get();
+}
+
 
 // static
 bool StatisticsRecorder::IsActive() {
