@@ -139,7 +139,6 @@
             'USE_SYMBOLIZE',
           ],
           'sources!': [
-            'debug/stack_trace.cc',
             'debug/stack_trace_posix.cc',
           ],
         }],
