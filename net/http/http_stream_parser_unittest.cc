@@ -194,14 +194,13 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
     MockRead(SYNCHRONOUS, 8, 0),  // EOF
   };
 
-  scoped_ptr<DeterministicSocketData> data(
-      new DeterministicSocketData(reads, arraysize(reads),
-                                  writes, arraysize(writes)));
-  data->set_connect_data(MockConnect(SYNCHRONOUS, OK));
+  DeterministicSocketData data(reads, arraysize(reads),
+                               writes, arraysize(writes));
+  data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
 
   scoped_ptr<DeterministicMockTCPClientSocket> transport(
-      new DeterministicMockTCPClientSocket(NULL, data.get()));
-  data->set_socket(transport->AsWeakPtr());
+      new DeterministicMockTCPClientSocket(NULL, &data));
+  data.set_socket(transport->AsWeakPtr());
 
   TestCompletionCallback callback;
   int rv = transport->Connect(callback.callback());
@@ -244,7 +243,7 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
 
   // Complete the initial request write. Additionally, this should enqueue the
   // first chunk.
-  data->RunFor(1);
+  data.RunFor(1);
   ASSERT_FALSE(callback.have_result());
 
   // Now append another chunk (while the first write is still pending), which
@@ -255,13 +254,13 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
   // Complete writing the first chunk, which should then enqueue the second
   // chunk for writing and return, because it is set to complete
   // asynchronously.
-  data->RunFor(1);
+  data.RunFor(1);
   ASSERT_FALSE(callback.have_result());
 
   // Complete writing the second chunk. However, because no chunks are
   // available yet, no further writes should be called until a new chunk is
   // added.
-  data->RunFor(1);
+  data.RunFor(1);
   ASSERT_FALSE(callback.have_result());
 
   // Add the final chunk. This will enqueue another write, but it will not
@@ -270,11 +269,11 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
   ASSERT_FALSE(callback.have_result());
 
   // Finalize writing the last chunk, which will enqueue the trailer.
-  data->RunFor(1);
+  data.RunFor(1);
   ASSERT_FALSE(callback.have_result());
 
   // Finalize writing the trailer.
-  data->RunFor(1);
+  data.RunFor(1);
   ASSERT_TRUE(callback.have_result());
 
   // Warning: This will hang if the callback doesn't already have a result,
@@ -286,7 +285,7 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
   // Attempt to read the response status and the response headers.
   rv = parser.ReadResponseHeaders(callback.callback());
   ASSERT_EQ(ERR_IO_PENDING, rv);
-  data->RunFor(2);
+  data.RunFor(2);
 
   ASSERT_TRUE(callback.have_result());
   rv = callback.WaitForResult();
@@ -296,7 +295,7 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
   scoped_refptr<IOBuffer> body_buffer(new IOBuffer(kBodySize));
   rv = parser.ReadResponseBody(body_buffer, kBodySize, callback.callback());
   ASSERT_EQ(ERR_IO_PENDING, rv);
-  data->RunFor(1);
+  data.RunFor(1);
 
   ASSERT_TRUE(callback.have_result());
   rv = callback.WaitForResult();
