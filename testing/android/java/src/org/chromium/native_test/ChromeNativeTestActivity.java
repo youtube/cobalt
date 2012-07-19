@@ -7,10 +7,13 @@ package org.chromium.native_test;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 
 import org.chromium.base.PathUtils;
+
+import java.io.File;
 
 // Android's NativeActivity is mostly useful for pure-native code.
 // Our tests need to go up to our own java classes, which is not possible using
@@ -67,7 +70,11 @@ public class ChromeNativeTestActivity extends Activity {
 
     private void runTests() {
         Log.d(TAG, ">>nativeRunTests");
-        nativeRunTests(getFilesDir().getAbsolutePath(), getApplicationContext());
+        // This directory is used by build/android/pylib/test_package_apk.py.
+        File filesDir = new File(Environment.getExternalStorageDirectory(),
+                                 "native_tests/");
+        filesDir.mkdirs();
+        nativeRunTests(filesDir.getAbsolutePath(), getApplicationContext());
         Log.d(TAG, "<<nativeRunTests");
     }
 
