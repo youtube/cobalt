@@ -684,8 +684,16 @@ base::TimeDelta TCPClientSocketWin::GetConnectTimeMicros() const {
   return connect_time_micros_;
 }
 
+bool TCPClientSocketWin::WasNpnNegotiated() const {
+  return false;
+}
+
 NextProto TCPClientSocketWin::GetNegotiatedProtocol() const {
   return kProtoUnknown;
+}
+
+bool TCPClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
+  return false;
 }
 
 int TCPClientSocketWin::Read(IOBuffer* buf,
