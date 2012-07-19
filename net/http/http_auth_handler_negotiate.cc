@@ -100,7 +100,7 @@ HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
 #if defined(OS_WIN)
     : auth_system_(auth_library, "Negotiate", NEGOSSP_NAME, max_token_length),
 #elif defined(OS_POSIX)
-    : auth_system_(auth_library, "Negotiate", CHROME_GSS_KRB5_MECH_OID_DESC),
+    : auth_system_(auth_library, "Negotiate", CHROME_GSS_SPNEGO_MECH_OID_DESC),
 #endif
       disable_cname_lookup_(disable_cname_lookup),
       use_port_(use_port),
