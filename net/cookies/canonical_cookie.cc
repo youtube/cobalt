@@ -377,4 +377,4 @@ std::string CanonicalCookie::DebugString() const {
       static_cast<int64>(creation_date_.ToTimeT()));
 }
 
-}  // namespace
+}  // namespace net
