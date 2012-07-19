@@ -13,6 +13,7 @@
 #include "media/base/video_decoder_config.h"
 #include "media/mp4/box_definitions.h"
 #include "media/mp4/box_reader.h"
+#include "media/mp4/es_descriptor.h"
 #include "media/mp4/rcheck.h"
 
 namespace media {
@@ -175,6 +176,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       if (static_cast<uint32>(desc_idx) >= samp_descr.audio_entries.size())
         desc_idx = 0;
       const AudioSampleEntry& entry = samp_descr.audio_entries[desc_idx];
+      const AAC& aac = entry.esds.aac;
 
       // TODO(strobe): We accept all format values, pending clarification on
       // the formats used for encrypted media (http://crbug.com/132351).
@@ -182,10 +184,12 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       //         (entry.format == FOURCC_ENCA &&
       //          entry.sinf.format.format == FOURCC_MP4A));
 
-      const ChannelLayout layout =
-          AVC::ConvertAACChannelCountToChannelLayout(entry.channelcount);
-      audio_config.Initialize(kCodecAAC, entry.samplesize, layout,
-                              entry.samplerate, NULL, 0, false);
+      // Check if it is MPEG4 AAC defined in ISO 14496 Part 3.
+      RCHECK(entry.esds.object_type == kISO_14496_3);
+      audio_config.Initialize(kCodecAAC, entry.samplesize,
+                              aac.channel_layout(), aac.frequency(),
+                              NULL, 0, false);
+
       has_audio_ = true;
       audio_track_id_ = track->header.track_id;
     }
@@ -289,6 +293,11 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     RCHECK(AVC::ConvertToAnnexB(avc_config.length_size, &frame_buf));
     if (runs_->is_keyframe())
       RCHECK(AVC::InsertParameterSets(avc_config, &frame_buf));
+  }
+
+  if (audio) {
+    const AAC& aac = runs_->audio_description().esds.aac;
+    RCHECK(aac.ConvertEsdsToADTS(&frame_buf));
   }
 
   scoped_refptr<StreamParserBuffer> stream_buf =
