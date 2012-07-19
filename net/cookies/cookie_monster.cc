@@ -2155,4 +2155,4 @@ Time CookieMonster::CurrentTime() {
       Time::FromInternalValue(last_time_seen_.ToInternalValue() + 1));
 }
 
-}  // namespace
+}  // namespace net
