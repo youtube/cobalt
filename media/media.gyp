@@ -1013,6 +1013,17 @@
     ['OS == "android"', {
       'targets': [
         {
+          'target_name': 'player_android_jni_headers',
+          'type': 'none',
+          'sources': [
+            'base/android/java/src/org/chromium/media/MediaPlayerListener.java',
+          ],
+          'variables': {
+            'jni_gen_dir': 'media',
+          },
+          'includes': [ '../build/jni_generator.gypi' ],
+        },
+        {
           'target_name': 'player_android',
           'type': 'static_library',
           'sources': [
@@ -1021,28 +1032,10 @@
           ],
           'dependencies': [
             '../base/base.gyp:base',
+            'player_android_jni_headers',
           ],
           'include_dirs': [
             '<(SHARED_INTERMEDIATE_DIR)/media',
-          ],
-          'actions': [
-            {
-              'action_name': 'generate-jni-headers',
-              'inputs': [
-                '../base/android/jni_generator/jni_generator.py',
-                'base/android/java/src/org/chromium/media/MediaPlayerListener.java',
-              ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/media/jni/media_player_listener_jni.h',
-              ],
-              'action': [
-                'python',
-                '<(DEPTH)/base/android/jni_generator/jni_generator.py',
-                '-o',
-                '<@(_inputs)',
-                '<@(_outputs)',
-              ],
-            },
           ],
         },
         {

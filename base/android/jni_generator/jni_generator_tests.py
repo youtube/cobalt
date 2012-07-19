@@ -1491,18 +1491,5 @@ static bool RegisterNativesImpl(JNIEnv* env) {
         content, 'org/chromium/example/jni_generator/SampleForTests')
     self.assertTextEquals(golden_content, jni_from_java.GetContent())
 
-  def testCheckFilenames(self):
-    self.assertRaises(SystemExit, jni_generator.CheckFilenames,
-                      ['more', 'input', 'than'], ['output'])
-    self.assertRaises(SystemExit, jni_generator.CheckFilenames,
-                      ['more'], ['output', 'than', 'input'])
-    self.assertRaises(SystemExit, jni_generator.CheckFilenames,
-                      ['NotTheSame.java'], ['not_good.h'])
-    self.assertRaises(SystemExit, jni_generator.CheckFilenames,
-                      ['MissingJniSuffix.java'], ['missing_jni_suffix.h'])
-    jni_generator.CheckFilenames(['ThisIsFine.java'], ['this_is_fine_jni.h'])
-    jni_generator.CheckFilenames([], [])
-
-
 if __name__ == '__main__':
   unittest.main()
