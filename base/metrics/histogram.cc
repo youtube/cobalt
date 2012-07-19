@@ -152,12 +152,17 @@ void Histogram::SetRangeDescriptions(const DescriptionPair descriptions[]) {
 void Histogram::WriteHTMLGraph(std::string* output) const {
   // TBD(jar) Write a nice HTML bar chart, with divs an mouse-overs etc.
   output->append("<PRE>");
-  WriteAscii(true, "<br>", output);
+  WriteAsciiImpl(true, "<br>", output);
   output->append("</PRE>");
 }
 
-void Histogram::WriteAscii(bool graph_it, const std::string& newline,
-                           std::string* output) const {
+void Histogram::WriteAscii(std::string* output) const {
+  WriteAsciiImpl(true, "\n", output);
+}
+
+void Histogram::WriteAsciiImpl(bool graph_it,
+                               const std::string& newline,
+                               std::string* output) const {
   // Get local (stack) copies of all effectively volatile class data so that we
   // are consistent across our output activities.
   SampleSet snapshot;
@@ -413,7 +418,7 @@ bool Histogram::HasValidRangeChecksum() const {
 
 Histogram::Histogram(const std::string& name, Sample minimum,
                      Sample maximum, size_t bucket_count)
-  : histogram_name_(name),
+  : HistogramBase(name),
     declared_min_(minimum),
     declared_max_(maximum),
     bucket_count_(bucket_count),
@@ -426,7 +431,7 @@ Histogram::Histogram(const std::string& name, Sample minimum,
 
 Histogram::Histogram(const std::string& name, TimeDelta minimum,
                      TimeDelta maximum, size_t bucket_count)
-  : histogram_name_(name),
+  : HistogramBase(name),
     declared_min_(static_cast<int> (minimum.InMilliseconds())),
     declared_max_(static_cast<int> (maximum.InMilliseconds())),
     bucket_count_(bucket_count),
@@ -440,7 +445,7 @@ Histogram::Histogram(const std::string& name, TimeDelta minimum,
 Histogram::~Histogram() {
   if (StatisticsRecorder::dump_on_exit()) {
     std::string output;
-    WriteAscii(true, "\n", &output);
+    WriteAsciiImpl(true, "\n", &output);
     DLOG(INFO) << output;
   }
 
