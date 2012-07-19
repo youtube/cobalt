@@ -49,6 +49,7 @@
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_base.h"
 #include "base/time.h"
 
 class Pickle;
@@ -322,11 +323,8 @@ class CustomHistogram;
 class Histogram;
 class LinearHistogram;
 
-class BASE_EXPORT Histogram {
+class BASE_EXPORT Histogram : public HistogramBase {
  public:
-  typedef int Sample;  // Used for samples (and ranges of samples).
-  typedef int Count;  // Used to count samples in a bucket.
-  static const Sample kSampleType_MAX = INT_MAX;
   // Initialize maximum number of buckets in histograms as 16,384.
   static const size_t kBucketCount_MAX;
 
@@ -452,7 +450,7 @@ class BASE_EXPORT Histogram {
   // Returns TimeTicks::Now() in debug and TimeTicks() in release build.
   static TimeTicks DebugNow();
 
-  void Add(int value);
+  virtual void Add(Sample value) OVERRIDE;
 
   // This method is an interface, used only by BooleanHistogram.
   virtual void AddBoolean(bool value);
@@ -468,9 +466,11 @@ class BASE_EXPORT Histogram {
   virtual void SetRangeDescriptions(const DescriptionPair descriptions[]);
 
   // The following methods provide graphical histogram displays.
-  void WriteHTMLGraph(std::string* output) const;
-  void WriteAscii(bool graph_it, const std::string& newline,
-                  std::string* output) const;
+  virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
+  virtual void WriteAscii(std::string* output) const OVERRIDE;
+  void WriteAsciiImpl(bool graph_it,
+                      const std::string& newline,
+                      std::string* output) const;
 
   // Support generic flagging of Histograms.
   // 0x1 Currently used to mark this histogram to be recorded by UMA..
@@ -506,7 +506,6 @@ class BASE_EXPORT Histogram {
   // Accessors for factory constuction, serialization and testing.
   //----------------------------------------------------------------------------
   virtual ClassType histogram_type() const;
-  const std::string& histogram_name() const { return histogram_name_; }
   Sample declared_min() const { return declared_min_; }
   Sample declared_max() const { return declared_max_; }
   virtual Sample ranges(size_t i) const;
@@ -630,9 +629,6 @@ class BASE_EXPORT Histogram {
   //----------------------------------------------------------------------------
   // Invariant values set at/near construction time
 
-  // ASCII version of original name given to the constructor.  All identically
-  // named instances will be coalesced cross-project.
-  const std::string histogram_name_;
   Sample declared_min_;  // Less than this goes into counts_[0]
   Sample declared_max_;  // Over this goes into counts_[bucket_count_ - 1].
   size_t bucket_count_;  // Dimension of counts_[].
