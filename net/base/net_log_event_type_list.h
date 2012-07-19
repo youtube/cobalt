@@ -1669,3 +1669,19 @@ EVENT_TYPE(FILE_STREAM_CLOSE)
 //     "net_error": <net::Error code>,
 //   }
 EVENT_TYPE(FILE_STREAM_ERROR)
+
+// ------------------------------------------------------------------------
+// IPv6 Probe events.
+// ------------------------------------------------------------------------
+
+// This event lasts from the point an IPv6ProbeJob is created until completion.
+//
+// The END contains the following parameters:
+//   {
+//     "ipv6_supported": <Boolean indicating whether or not the probe determined
+//                        IPv6 may be supported>,
+//     "ipv6_support_status": <String indicating the reason for that result>,
+//     "os_error": <Platform dependent error code, associated with the result,
+//                  if any>
+//   }
+EVENT_TYPE(IPV6_PROBE_RUNNING)
