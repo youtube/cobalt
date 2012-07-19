@@ -2750,12 +2750,12 @@ void SSLClientSocket::ClearSessionCache() {
   SSL_ClearSessionCache();
 }
 
-void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
+bool SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   EnterFunction("");
   ssl_info->Reset();
   if (core_->state().server_cert_chain.empty() ||
       !core_->state().server_cert_chain[0]) {
-    return;
+    return false;
   }
 
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
@@ -2791,6 +2791,7 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
       SSLInfo::HANDSHAKE_RESUME : SSLInfo::HANDSHAKE_FULL;
 
   LeaveFunction("");
+  return true;
 }
 
 void SSLClientSocketNSS::GetSSLCertRequestInfo(

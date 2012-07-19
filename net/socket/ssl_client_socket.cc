@@ -77,6 +77,10 @@ std::string SSLClientSocket::ServerProtosToString(
   return JoinString(server_protos_with_commas, ',');
 }
 
+bool SSLClientSocket::WasNpnNegotiated() const {
+  return was_npn_negotiated_;
+}
+
 NextProto SSLClientSocket::GetNegotiatedProtocol() const {
   return protocol_negotiated_;
 }
@@ -98,10 +102,6 @@ bool SSLClientSocket::IgnoreCertError(int error, int load_flags) {
     return true;
 
   return false;
-}
-
-bool SSLClientSocket::was_npn_negotiated() const {
-  return was_npn_negotiated_;
 }
 
 bool SSLClientSocket::set_was_npn_negotiated(bool negotiated) {
