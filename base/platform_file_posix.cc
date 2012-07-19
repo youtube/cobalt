@@ -21,8 +21,7 @@
 
 namespace base {
 
-#if defined(OS_BSD) || defined(OS_IOS) || (defined(OS_MACOSX) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
+#if defined(OS_BSD) || defined(OS_MACOSX)
 typedef struct stat stat_wrapper_t;
 static int CallFstat(int fd, stat_wrapper_t *sb) {
   base::ThreadRestrictions::AssertIOAllowed();
