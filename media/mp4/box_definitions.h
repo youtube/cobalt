@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "media/base/media_export.h"
+#include "media/mp4/aac.h"
 #include "media/mp4/avc.h"
 #include "media/mp4/box_reader.h"
 #include "media/mp4/fourccs.h"
@@ -184,6 +185,13 @@ struct MEDIA_EXPORT VideoSampleEntry : Box {
   AVCDecoderConfigurationRecord avcc;
 };
 
+struct MEDIA_EXPORT ElementaryStreamDescriptor : Box {
+  DECLARE_BOX_METHODS(ElementaryStreamDescriptor);
+
+  uint8 object_type;
+  AAC aac;
+};
+
 struct MEDIA_EXPORT AudioSampleEntry : Box {
   DECLARE_BOX_METHODS(AudioSampleEntry);
 
@@ -194,6 +202,7 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   uint32 samplerate;
 
   ProtectionSchemeInfo sinf;
+  ElementaryStreamDescriptor esds;
 };
 
 struct MEDIA_EXPORT SampleDescription : Box {
