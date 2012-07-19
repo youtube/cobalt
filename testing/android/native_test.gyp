@@ -59,7 +59,7 @@
               '-Wl,--exclude-libs=ALL',
             ],
           },
-          'dependencies': [ 
+          'dependencies': [
             '../../base/base.gyp:base',
             '../../base/base.gyp:test_support_base',
             '../gtest.gyp:gtest',
@@ -69,26 +69,13 @@
         {
           'target_name': 'native_test_jni_headers',
           'type': 'none',
-          'actions': [
-            {
-              'action_name': 'generate_jni_headers',
-              'inputs': [
-                '../../base/android/jni_generator/jni_generator.py',
-                'java/src/org/chromium/native_test/ChromeNativeTestActivity.java'
-              ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/testing/android/jni/'
-                'chrome_native_test_activity_jni.h',
-              ],
-              'action': [
-                'python',
-                '../../base/android/jni_generator/jni_generator.py',
-                '-o',
-                '<@(_inputs)',
-                '<@(_outputs)',
-              ],
-            }
+          'sources': [
+            'java/src/org/chromium/native_test/ChromeNativeTestActivity.java'
           ],
+          'variables': {
+            'jni_gen_dir': 'testing',
+          },
+          'includes': [ '../../build/jni_generator.gypi' ],
           # So generated jni headers can be found by targets that
           # depend on this.
           'direct_dependent_settings': {

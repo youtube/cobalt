@@ -889,114 +889,86 @@ def WrapOutput(output):
   return '\n'.join(ret)
 
 
-def ExtractInputFiles(jar_file, input_files, out_dirs):
-  """Extracts input files from jar and returns them as list of filenames.
+def ExtractJarInputFile(jar_file, input_file, out_dir):
+  """Extracts input file from jar and returns the filename.
 
-  The input files are extracted to the same directory that the generated jni
+  The input file is extracted to the same directory that the generated jni
   headers will be placed in.  This is passed as an argument to script.
 
   Args:
-    jar_file: the jar file containing the input files to extract
-    input_files: the list of files to extract from the jar file
-    out_dirs: the name of the directories to extract to
+    jar_file: the jar file containing the input files to extract.
+    input_files: the list of files to extract from the jar file.
+    out_dir: the name of the directories to extract to.
 
   Returns:
-    a list of file names of extracted input files
+    the name of extracted input file.
   """
   jar_file = zipfile.ZipFile(jar_file)
-  extracted_file_names = []
 
-  for (input_file, out_dir) in zip(input_files, out_dirs):
-    out_dir = os.path.join(out_dir, os.path.dirname(input_file))
-    if not os.path.exists(out_dir):
-      os.makedirs(out_dir)
-    extracted_file_name = os.path.join(out_dir, os.path.basename(input_file))
-    with open(extracted_file_name, 'w') as outfile:
-      outfile.write(jar_file.read(input_file))
-    extracted_file_names.append(extracted_file_name)
+  out_dir = os.path.join(out_dir, os.path.dirname(input_file))
+  if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
+  extracted_file_name = os.path.join(out_dir, os.path.basename(input_file))
+  with open(extracted_file_name, 'w') as outfile:
+    outfile.write(jar_file.read(input_file))
 
-  return extracted_file_names
+  return extracted_file_name
 
 
-def GenerateJNIHeaders(input_files, output_files, namespace):
-  for i in xrange(len(input_files)):
-    try:
-      if os.path.splitext(input_files[i])[1] == '.class':
-        jni_from_javap = JNIFromJavaP.CreateFromClass(input_files[i], namespace)
-        output = jni_from_javap.GetContent()
-      else:
-        jni_from_java_source = JNIFromJavaSource.CreateFromFile(input_files[i])
-        output = jni_from_java_source.GetContent()
-    except ParseError, e:
-      print e
-      sys.exit(1)
-    if output_files:
-      header_name = output_files[i]
-      if not os.path.exists(os.path.dirname(os.path.abspath(header_name))):
-        os.makedirs(os.path.dirname(os.path.abspath(header_name)))
-      if (not os.path.exists(header_name) or
-          file(header_name).read() != output):
-        output_file = file(header_name, 'w')
-        output_file.write(output)
-        output_file.close()
+def GenerateJNIHeader(input_file, output_file, namespace):
+  try:
+    if os.path.splitext(input_file)[1] == '.class':
+      jni_from_javap = JNIFromJavaP.CreateFromClass(input_file, namespace)
+      content = jni_from_javap.GetContent()
     else:
-      print output
-
-
-def CheckFilenames(input_files, output_files):
-  """Make sure the input and output have consistent names."""
-  if len(input_files) != len(output_files):
-    sys.exit('Input files length %d must match output length %d' %
-             (len(input_files), len(output_files)))
-  for i in xrange(len(input_files)):
-    input_prefix = os.path.splitext(os.path.basename(input_files[i]))[0]
-    output_prefix = os.path.splitext(os.path.basename(output_files[i]))[0]
-    if input_prefix.lower() + 'jni' != output_prefix.replace('_', '').lower():
-      sys.exit('\n'.join([
-          '*** Error ***',
-          'Input and output files have inconsistent names:',
-          '\t' + os.path.basename(input_files[i]),
-          '\t' + os.path.basename(output_files[i]),
-          '',
-          'Input "FooBar.java" must be converted to output "foo_bar_jni.h"',
-          '',
-      ]))
+      jni_from_java_source = JNIFromJavaSource.CreateFromFile(input_file)
+      content = jni_from_java_source.GetContent()
+  except ParseError, e:
+    print e
+    sys.exit(1)
+  if output_file:
+    if not os.path.exists(os.path.dirname(os.path.abspath(output_file))):
+      os.makedirs(os.path.dirname(os.path.abspath(output_file)))
+    with file(output_file, 'w') as f:
+      f.write(content)
+  else:
+    print output
 
 
 def main(argv):
-  usage = """usage: %prog [OPTION] file1[ file2...] [output1[ output2...]]
+  usage = """usage: %prog [OPTIONS]
 This script will parse the given java source code extracting the native
 declarations and print the header file to stdout (or a file).
 See SampleForTests.java for more details.
   """
   option_parser = optparse.OptionParser(usage=usage)
-  option_parser.add_option('-o', dest='output_files',
-                           action='store_true',
-                           default=False,
-                           help='Saves the output to file(s) (the first half of'
-                           ' args specify the java input files, the second'
-                           ' half specify the header output files.')
   option_parser.add_option('-j', dest='jar_file',
                            help='Extract the list of input files from'
                            ' a specified jar file.'
                            ' Uses javap to extract the methods from a'
-                           ' pre-compiled class. Input files should point'
+                           ' pre-compiled class. --input should point'
                            ' to pre-compiled Java .class files.')
   option_parser.add_option('-n', dest='namespace',
                            help='Uses as a namespace in the generated header,'
                            ' instead of the javap class name.')
+  option_parser.add_option('--input_file',
+                           help='Single input file name. The output file name '
+                           'will be derived from it. Must be used with '
+                           '--output_dir.')
+  option_parser.add_option('--output_dir',
+                           help='The output directory. Must be used with '
+                           '--input')
   options, args = option_parser.parse_args(argv)
-  input_files = args[1:]
-  output_files = []
-  if options.output_files:
-    output_files = input_files[len(input_files) / 2:]
-    input_files = input_files[:len(input_files) / 2]
-  CheckFilenames(input_files, output_files)
   if options.jar_file:
-    # CheckFileNames guarantees same length for inputs and outputs
-    out_dirs = map(os.path.dirname, output_files)
-    input_files = ExtractInputFiles(options.jar_file, input_files, out_dirs)
-  GenerateJNIHeaders(input_files, output_files, options.namespace)
+    input_file = ExtractJarInputFile(options.jar_file, options.input_file,
+                                     options.output_dir)
+  else:
+    input_file = options.input_file
+  output_file = None
+  if options.output_dir:
+    root_name = os.path.splitext(os.path.basename(input_file))[0]
+    output_file = os.path.join(options.output_dir, root_name) + '_jni.h'
+  GenerateJNIHeader(input_file, output_file, options.namespace)
 
 
 if __name__ == '__main__':

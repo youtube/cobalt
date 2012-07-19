@@ -9,7 +9,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/logging.h"
 #include "base/string_util.h"
-#include "jni/locale_utils_jni.h"
+#include "jni/LocaleUtils_jni.h"
 #include "unicode/uloc.h"
 
 namespace base {

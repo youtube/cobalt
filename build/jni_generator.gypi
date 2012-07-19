@@ -6,51 +6,53 @@
 # to generate jni bindings for Java-files in a consistent manner.
 #
 # To use this, create a gyp target with the following form:
-# {
-#   'target_name': 'base_jni_headers',
-#   'type': 'none',
-#   'variables': {
-#       'java_sources': [
-#         'android/java/org/chromium/base/BuildInfo.java',
-#         'android/java/org/chromium/base/PathUtils.java',
-#         'android/java/org/chromium/base/SystemMessageHandler.java',
-#       ],
-#       'jni_headers': [
-#         '<(SHARED_INTERMEDIATE_DIR)/base/jni/build_info_jni.h',
-#         '<(SHARED_INTERMEDIATE_DIR)/base/jni/path_utils_jni.h',
-#         '<(SHARED_INTERMEDIATE_DIR)/base/jni/system_message_handler_jni.h',
-#       ],
-#   },
-#   'includes': [ '../build/jni_generator.gypi' ],
-# }
+#  {
+#    'target_name': 'base_jni_headers',
+#    'type': 'none',
+#    'sources': [
+#      'android/java/src/org/chromium/base/BuildInfo.java',
+#      ...
+#      ...
+#      'android/java/src/org/chromium/base/SystemMessageHandler.java',
+#    ],
+#    'variables': {
+#      'jni_gen_dir': 'base',
+#    },
+#    'includes': [ '../build/jni_generator.gypi' ],
+#  },
 #
-# The ordering of the java_sources must match the ordering of jni_headers. The
-# result is that for each Java file listed in java_sources, the corresponding
-# entry in jni_headers contains the JNI bindings produced from running the
-# jni_generator on the input file.
+# The generated file name pattern can be seen on the "outputs" section below.
+# (note that RULE_INPUT_ROOT is the basename for the java file).
 #
 # See base/android/jni_generator/jni_generator.py for more info about the
 # format of generating JNI bindings.
 
 {
-  'actions': [
-      {
-        'action_name': 'generate_jni_headers',
-        'type': 'none',
-        'inputs': [
-          '<(DEPTH)/base/android/jni_generator/jni_generator.py',
-          '<@(java_sources)',
-        ],
-        'outputs': [
-          '<@(jni_headers)',
-        ],
-        'action': [
-          'python',
-          '<(DEPTH)/base/android/jni_generator/jni_generator.py',
-          '-o',
-          '<@(_inputs)',
-          '<@(_outputs)',
-        ],
-      },
+  'variables': {
+    'jni_generator': '<(DEPTH)/base/android/jni_generator/jni_generator.py',
+  },
+  'rules': [
+    {
+      'rule_name': 'generate_jni_headers',
+      'extension': 'java',
+      'inputs': [
+        '<(jni_generator)',
+      ],
+      'outputs': [
+        '<(SHARED_INTERMEDIATE_DIR)/<(jni_gen_dir)/jni/<(RULE_INPUT_ROOT)_jni.h',
+      ],
+      'action': [
+        '<(jni_generator)',
+        '--input_file',
+        '<(RULE_INPUT_PATH)',
+        '--output_dir',
+        '<(SHARED_INTERMEDIATE_DIR)/<(jni_gen_dir)/jni',
+      ],
+      'message': 'Generating JNI bindings from <(RULE_INPUT_PATH)',
+      'process_outputs_as_sources': 1,
+    },
   ],
+  # This target exports a hard dependency because it generates header
+  # files.
+  'hard_dependency': 1,
 }

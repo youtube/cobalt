@@ -9,7 +9,7 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/logging.h"
-#include "jni/android_network_library_jni.h"
+#include "jni/AndroidNetworkLibrary_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ClearException;

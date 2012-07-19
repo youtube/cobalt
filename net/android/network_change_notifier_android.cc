@@ -6,7 +6,7 @@
 
 #include "base/logging.h"
 #include "base/android/jni_android.h"
-#include "jni/network_change_notifier_jni.h"
+#include "jni/NetworkChangeNotifier_jni.h"
 
 namespace net {
 namespace android {

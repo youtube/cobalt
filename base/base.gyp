@@ -939,19 +939,14 @@
         {
           'target_name': 'base_jni_headers',
           'type': 'none',
+          'sources': [
+            'android/java/src/org/chromium/base/BuildInfo.java',
+            'android/java/src/org/chromium/base/LocaleUtils.java',
+            'android/java/src/org/chromium/base/PathUtils.java',
+            'android/java/src/org/chromium/base/SystemMessageHandler.java',
+          ],
           'variables': {
-            'java_sources': [
-              'android/java/src/org/chromium/base/BuildInfo.java',
-              'android/java/src/org/chromium/base/LocaleUtils.java',
-              'android/java/src/org/chromium/base/PathUtils.java',
-              'android/java/src/org/chromium/base/SystemMessageHandler.java',
-            ],
-            'jni_headers': [
-              '<(SHARED_INTERMEDIATE_DIR)/base/jni/build_info_jni.h',
-              '<(SHARED_INTERMEDIATE_DIR)/base/jni/locale_utils_jni.h',
-              '<(SHARED_INTERMEDIATE_DIR)/base/jni/path_utils_jni.h',
-              '<(SHARED_INTERMEDIATE_DIR)/base/jni/system_message_handler_jni.h',
-            ],
+            'jni_gen_dir': 'base',
           },
           'includes': [ '../build/jni_generator.gypi' ],
         },
