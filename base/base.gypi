@@ -236,6 +236,8 @@
           'message_pump_win.h',
           'metrics/histogram.cc',
           'metrics/histogram.h',
+          'metrics/histogram_base.cc',
+          'metrics/histogram_base.h',
           'metrics/histogram_flattener.h',
           'metrics/histogram_snapshot_manager.cc',
           'metrics/histogram_snapshot_manager.h',

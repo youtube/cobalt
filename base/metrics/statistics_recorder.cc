@@ -223,7 +223,7 @@ void StatisticsRecorder::WriteGraph(const std::string& query,
   for (Histograms::iterator it = snapshot.begin();
        it != snapshot.end();
        ++it) {
-    (*it)->WriteAscii(true, "\n", output);
+    (*it)->WriteAscii(output);
     output->append("\n");
   }
 }
