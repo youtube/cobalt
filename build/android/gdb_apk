@@ -12,6 +12,37 @@
 # For *unittests_apk (like base_unittests_apk), run with:
 #  "gdb_apk -p org.chromium.native_test -l out/Release/lib.target -r"
 
+# Run a command through adb shell, strip the extra \r from the output
+# and return the correct status code to detect failures. This assumes
+# that the adb shell command prints a final \n to stdout.
+# args: command to run
+# Prints the command's stdout on stdout
+# Returns the command's status
+# Note: the command's stderr is lost
+adb_shell () {
+  local TMPOUT="$(mktemp)"
+  local LASTLINE RET
+  local ADB=${ADB:-adb}
+
+  # The weird sed rule is to strip the final \r on each output line
+  # Since 'adb shell' never returns the command's proper exit/status code,
+  # we force it to print it as '%%<status>' in the temporary output file,
+  # which we will later strip from it.
+  $ADB shell $@ ";" echo "%%\$?" 2>/dev/null | sed -e 's![[:cntrl:]]!!g' > $TMPOUT
+  # Get last line in log, which contains the exit code from the command
+  LASTLINE=$(sed -e '$!d' $TMPOUT)
+  # Extract the status code from the end of the line, which must be '%%<code>'
+  RET=$(echo "$LASTLINE" | awk '{ if (match($0, "%%[0-9]+$")) { print substr($0,RSTART+2); } }')
+  # Remove the status code from the last line. Note that this may result in an empty line
+  LASTLINE=$(echo "$LASTLINE" | awk '{ if (match($0, "%%[0-9]+$")) { print substr($0,1,RSTART-1); } }')
+  # The output itself: all lines except the status code
+  sed -e '$d' $TMPOUT && echo -n "$LASTLINE"
+  # Remove temp file
+  rm -f $TMPOUT
+  # Exit with the appropriate status
+  return $RET
+}
+
 adb=$(which adb)
 if [[ "$adb" = "" ]] ; then
   echo "Need adb in your path"
@@ -86,7 +117,7 @@ if [[ "$pid" != "" ]] ; then
   fi
 fi
 
-pid=$(adb shell ps | awk "/$package_name/ {print \$2}")
+pid=$(adb_shell ps | awk "/$package_name$/ {print \$2}")
 if [[ "$pid" = "" ]] ; then
   echo "No $package_name running?"
   echo "Try this: adb shell am start -a android.intent.action.VIEW " \
