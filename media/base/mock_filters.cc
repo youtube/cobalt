@@ -41,6 +41,10 @@ MockAudioRenderer::MockAudioRenderer() {}
 
 MockAudioRenderer::~MockAudioRenderer() {}
 
+MockDecryptor::MockDecryptor() {}
+
+MockDecryptor::~MockDecryptor() {}
+
 MockDecryptorClient::MockDecryptorClient() {}
 
 MockDecryptorClient::~MockDecryptorClient() {}
