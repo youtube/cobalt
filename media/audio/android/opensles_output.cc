@@ -86,15 +86,16 @@ void OpenSLESOutputStream::Stop() {
   started_ = false;
   // Stop playing by setting the play state to |SL_PLAYSTATE_STOPPED|.
   SLresult err = (*player_)->SetPlayState(player_, SL_PLAYSTATE_STOPPED);
-  DLOG_IF(WARNING, SL_RESULT_SUCCESS != err) << "SetPlayState() failed to "
-                                             << "set the state to stop";
-
+  if (SL_RESULT_SUCCESS != err) {
+    DLOG(WARNING) << "SetPlayState() failed to set the state to stop";
+  }
 
   // Clear the buffer queue so that the old data won't be played when
   // resuming playing.
   err = (*simple_buffer_queue_)->Clear(simple_buffer_queue_);
-  DLOG_IF(WARNING, SL_RESULT_SUCCESS != err) << "Clear() failed to "
-                                             << "clear the buffer queue";
+  if (SL_RESULT_SUCCESS != err) {
+    DLOG(WARNING) << "Clear() failed to clear the buffer queue";
+  }
 }
 
 void OpenSLESOutputStream::Close() {

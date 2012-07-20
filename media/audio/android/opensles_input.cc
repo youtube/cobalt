@@ -91,13 +91,15 @@ void OpenSLESInputStream::Stop() {
   // Stop recording by setting the record state to |SL_RECORDSTATE_STOPPED|.
   SLresult err = (*recorder_)->SetRecordState(recorder_,
                                               SL_RECORDSTATE_STOPPED);
-  DLOG_IF(WARNING, SL_RESULT_SUCCESS != err) << "SetRecordState() failed to "
-                                             << "set the state to stop";
+  if (SL_RESULT_SUCCESS != err) {
+    DLOG(WARNING) << "SetRecordState() failed to set the state to stop";
+  }
 
   // Clear the buffer queue to get rid of old data when resuming recording.
   err = (*simple_buffer_queue_)->Clear(simple_buffer_queue_);
-  DLOG_IF(WARNING, SL_RESULT_SUCCESS != err) << "Clear() failed to clear "
-                                             << "the buffer queue";
+  if (SL_RESULT_SUCCESS != err) {
+    DLOG(WARNING) << "Clear() failed to clear the buffer queue";
+  }
 
   started_ = false;
 }
