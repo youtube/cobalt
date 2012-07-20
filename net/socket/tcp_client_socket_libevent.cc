@@ -180,7 +180,7 @@ int TCPClientSocketLibevent::Bind(const IPEndPoint& address) {
   if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
-  // Create |bound_socket_| and try to bound it to |address|.
+  // Create |bound_socket_| and try to bind it to |address|.
   int error = CreateSocket(address.GetFamily(), &bound_socket_);
   if (error)
     return MapSystemError(error);
@@ -363,6 +363,7 @@ void TCPClientSocketLibevent::Disconnect() {
 
   DoDisconnect();
   current_address_index_ = -1;
+  bind_address_.reset();
 }
 
 void TCPClientSocketLibevent::DoDisconnect() {
@@ -718,8 +719,13 @@ int TCPClientSocketLibevent::GetPeerAddress(IPEndPoint* address) const {
 int TCPClientSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
-  if (!IsConnected())
+  if (socket_ == kInvalidSocket) {
+    if (bind_address_.get()) {
+      *address = *bind_address_;
+      return OK;
+    }
     return ERR_SOCKET_NOT_CONNECTED;
+  }
 
   SockaddrStorage storage;
   if (getsockname(socket_, storage.addr, &storage.addr_len))
