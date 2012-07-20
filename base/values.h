@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,7 +20,6 @@
 
 #ifndef BASE_VALUES_H_
 #define BASE_VALUES_H_
-#pragma once
 
 #include <iterator>
 #include <map>
@@ -303,26 +302,26 @@ class BASE_EXPORT DictionaryValue : public Value {
   // passed out via out_value.  If |out_value| is NULL, the removed value will
   // be deleted.  This method returns true if |path| is a valid path; otherwise
   // it will return false and the DictionaryValue object will be unchanged.
-  bool Remove(const std::string& path, Value** out_value);
+  virtual bool Remove(const std::string& path, Value** out_value);
 
   // Like Remove(), but without special treatment of '.'.  This allows e.g. URLs
   // to be used as paths.
-  bool RemoveWithoutPathExpansion(const std::string& key, Value** out_value);
+  virtual bool RemoveWithoutPathExpansion(const std::string& key,
+                                          Value** out_value);
 
   // Makes a copy of |this| but doesn't include empty dictionaries and lists in
   // the copy.  This never returns NULL, even if |this| itself is empty.
   DictionaryValue* DeepCopyWithoutEmptyChildren();
 
-  // Merge a given dictionary into this dictionary. This is done recursively,
-  // i.e. any subdictionaries will be merged as well. In case of key collisions,
-  // the passed in dictionary takes precedence and data already present will be
-  // replaced.
+  // Merge |dictionary| into this dictionary. This is done recursively, i.e. any
+  // sub-dictionaries will be merged as well. In case of key collisions, the
+  // passed in dictionary takes precedence and data already present will be
+  // replaced. Values within |dictionary| are deep-copied, so |dictionary| may
+  // be freed any time after this call.
   void MergeDictionary(const DictionaryValue* dictionary);
 
   // Swaps contents with the |other| dictionary.
-  void Swap(DictionaryValue* other) {
-    dictionary_.swap(other->dictionary_);
-  }
+  virtual void Swap(DictionaryValue* other);
 
   // This class provides an iterator for the keys in the dictionary.
   // It can't be used to modify the dictionary.
@@ -424,12 +423,16 @@ class BASE_EXPORT ListValue : public Value {
   // passed out via |out_value|.  If |out_value| is NULL, the removed value will
   // be deleted.  This method returns true if |index| is valid; otherwise
   // it will return false and the ListValue object will be unchanged.
-  bool Remove(size_t index, Value** out_value);
+  virtual bool Remove(size_t index, Value** out_value);
 
   // Removes the first instance of |value| found in the list, if any, and
   // deletes it. |index| is the location where |value| was found. Returns false
   // if not found.
   bool Remove(const Value& value, size_t* index);
+
+  // Removes the element at |iter|. If |out_value| is NULL, the value will be
+  // deleted, otherwise ownership of the value is passed back to the caller.
+  void Erase(iterator iter, Value** out_value);
 
   // Appends a Value to the end of the list.
   void Append(Value* in_value);
@@ -449,9 +452,7 @@ class BASE_EXPORT ListValue : public Value {
   const_iterator Find(const Value& value) const;
 
   // Swaps contents with the |other| list.
-  void Swap(ListValue* other) {
-    list_.swap(other->list_);
-  }
+  virtual void Swap(ListValue* other);
 
   // Iteration.
   iterator begin() { return list_.begin(); }

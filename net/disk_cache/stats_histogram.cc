@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/debug/leak_annotations.h"
 #include "base/logging.h"
+#include "base/metrics/statistics_recorder.h"
 #include "net/disk_cache/stats.h"
 
 namespace disk_cache {
@@ -23,15 +24,12 @@ StatsHistogram::~StatsHistogram() {
 }
 
 StatsHistogram* StatsHistogram::FactoryGet(const std::string& name) {
-  Histogram* histogram(NULL);
-
   Sample minimum = 1;
   Sample maximum = disk_cache::Stats::kDataSizesLength - 1;
   size_t bucket_count = disk_cache::Stats::kDataSizesLength;
 
-  if (StatisticsRecorder::FindHistogram(name, &histogram)) {
-    DCHECK(histogram != NULL);
-  } else {
+  Histogram* histogram = StatisticsRecorder::FindHistogram(name);
+  if (!histogram) {
     // To avoid racy destruction at shutdown, the following will be leaked.
     StatsHistogram* stats_histogram =
         new StatsHistogram(name, minimum, maximum, bucket_count);

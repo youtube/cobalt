@@ -4,7 +4,6 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_JOB_FACTORY_H_
 #define NET_URL_REQUEST_URL_REQUEST_JOB_FACTORY_H_
-#pragma once
 
 #include <map>
 #include <string>

@@ -9,28 +9,23 @@
 
 #ifndef NET_BASE_FILE_STREAM_H_
 #define NET_BASE_FILE_STREAM_H_
-#pragma once
 
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/platform_file.h"
 #include "net/base/completion_callback.h"
+#include "net/base/file_stream_whence.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
+#if defined(OS_WIN)
+#include "net/base/file_stream_win.h"
+#elif defined(OS_POSIX)
+#include "net/base/file_stream_posix.h"
+#endif
 
 class FilePath;
 
 namespace net {
 
 class IOBuffer;
-
-// TODO(darin): Move this to a more generic location.
-// This explicit mapping matches both FILE_ on Windows and SEEK_ on Linux.
-enum Whence {
-  FROM_BEGIN   = 0,
-  FROM_CURRENT = 1,
-  FROM_END     = 2
-};
 
 class NET_EXPORT FileStream {
  public:
@@ -51,9 +46,6 @@ class NET_EXPORT FileStream {
   // If the file stream was opened with Open() or OpenSync(), the underlying
   // file will be closed automatically by the destructor, if not closed
   // manually.
-  //
-  // If the file was opened in the async mode, there must never be any
-  // pending async operations by the time the destructor is called.
   virtual ~FileStream();
 
   // Call this method to close the FileStream, which was previously opened in
@@ -64,7 +56,6 @@ class NET_EXPORT FileStream {
   // CloseSync() does not).
   //
   // It is not OK to call Close() multiple times. The behavior is not defined.
-  //
   // Note that there must never be any pending async operations.
   virtual void Close(const CompletionCallback& callback);
 
@@ -102,11 +93,20 @@ class NET_EXPORT FileStream {
   // Returns true if Open succeeded and Close has not been called.
   virtual bool IsOpen() const;
 
-  // Adjust the position from where data is read.  Upon success, the stream
-  // position relative to the start of the file is returned.  Otherwise, an
-  // error code is returned.  It is not valid to call Seek while a Read call
-  // has a pending completion.
-  virtual int64 Seek(Whence whence, int64 offset);
+  // Adjust the position from where data is read asynchronously.
+  // Upon success, ERR_IO_PENDING is returned and |callback| will be run
+  // on the thread where Seek() was called with the the stream position
+  // relative to the start of the file.  Otherwise, an error code is returned.
+  // It is invalid to request any asynchronous operations while there is an
+  // in-flight asynchronous operation.
+  virtual int Seek(Whence whence, int64 offset,
+                   const Int64CompletionCallback& callback);
+
+  // Adjust the position from where data is read synchronously.
+  // Upon success, the stream position relative to the start of the file is
+  // returned.  Otherwise, an error code is returned.  It is not valid to
+  // call SeekSync while a Read call has a pending completion.
+  virtual int64 SeekSync(Whence whence, int64 offset);
 
   // Returns the number of bytes available to read from the current stream
   // position until the end of the file.  Otherwise, an error code is returned.
@@ -212,30 +212,15 @@ class NET_EXPORT FileStream {
   // of ownership happened, but without details.
   void SetBoundNetLogSource(const net::BoundNetLog& owner_bound_net_log);
 
+  // Returns the underlying platform file for testing.
+  base::PlatformFile GetPlatformFileForTesting();
+
  private:
-  class AsyncContext;
-  friend class AsyncContext;
-  friend class FileStreamTest;
-
-  // Called when the file_ is opened asynchronously. |file| contains the
-  // platform file opened. |result| contains the result as a network error
-  // code.
-  void OnOpened(base::PlatformFile *file, int* result);
-
-  // Called when the file_ is closed asynchronously.
-  void OnClosed();
-
-  // This member is used to support asynchronous reads.  It is non-null when
-  // the FileStream was opened with PLATFORM_FILE_ASYNC.
-  scoped_ptr<AsyncContext> async_context_;
-
-  base::PlatformFile file_;
-  int open_flags_;
-  bool auto_closed_;
-  bool record_uma_;
-  net::BoundNetLog bound_net_log_;
-  base::WeakPtrFactory<FileStream> weak_ptr_factory_;
-  CompletionCallback callback_;
+#if defined(OS_WIN)
+  FileStreamWin impl_;
+#elif defined(OS_POSIX)
+  FileStreamPosix impl_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(FileStream);
 };

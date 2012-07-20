@@ -4,9 +4,9 @@
 
 #ifndef NET_PROXY_SYNC_HOST_RESOLVER_BRIDGE_H_
 #define NET_PROXY_SYNC_HOST_RESOLVER_BRIDGE_H_
-#pragma once
 
-#include "base/memory/scoped_ptr.h"
+#include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
 #include "net/proxy/sync_host_resolver.h"
 
 class MessageLoop;

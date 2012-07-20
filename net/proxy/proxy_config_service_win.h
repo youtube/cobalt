@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_CONFIG_SERVICE_WIN_H_
 #define NET_PROXY_PROXY_CONFIG_SERVICE_WIN_H_
-#pragma once
 
 #include <windows.h>
 #include <winhttp.h>

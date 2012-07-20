@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,6 +10,8 @@
 
 #include "base/basictypes.h"
 #include "media/base/media_export.h"
+
+namespace media {
 
 class MEDIA_EXPORT AlsaWrapper {
  public:
@@ -45,6 +47,27 @@ class MEDIA_EXPORT AlsaWrapper {
   virtual snd_pcm_state_t PcmState(snd_pcm_t* handle);
   virtual int PcmStart(snd_pcm_t* handle);
 
+  virtual int MixerOpen(snd_mixer_t** mixer, int mode);
+  virtual int MixerAttach(snd_mixer_t* mixer, const char* name);
+  virtual int MixerElementRegister(snd_mixer_t* mixer,
+                                   struct snd_mixer_selem_regopt* options,
+                                   snd_mixer_class_t** classp);
+  virtual void MixerFree(snd_mixer_t* mixer);
+  virtual int MixerDetach(snd_mixer_t* mixer, const char* name);
+  virtual int MixerClose(snd_mixer_t* mixer);
+  virtual int MixerLoad(snd_mixer_t* mixer);
+  virtual snd_mixer_elem_t* MixerFirstElem(snd_mixer_t* mixer);
+  virtual snd_mixer_elem_t* MixerNextElem(snd_mixer_elem_t* elem);
+  virtual int MixerSelemIsActive(snd_mixer_elem_t* elem);
+  virtual const char* MixerSelemName(snd_mixer_elem_t* elem);
+  virtual int MixerSelemSetCaptureVolumeAll(snd_mixer_elem_t* elem, long value);
+  virtual int MixerSelemGetCaptureVolume(snd_mixer_elem_t* elem,
+                                         snd_mixer_selem_channel_id_t channel,
+                                         long* value);
+  virtual int MixerSelemHasCaptureVolume(snd_mixer_elem_t* elem);
+  virtual int MixerSelemGetCaptureVolumeRange(snd_mixer_elem_t* elem,
+                                              long* min, long* max);
+
   virtual const char* StrError(int errnum);
 
  private:
@@ -54,3 +77,5 @@ class MEDIA_EXPORT AlsaWrapper {
                         int soft_resample, unsigned int latency);
   DISALLOW_COPY_AND_ASSIGN(AlsaWrapper);
 };
+
+}  // namespace media

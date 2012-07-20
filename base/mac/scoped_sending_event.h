@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_SCOPED_SENDING_EVENT_H_
 #define BASE_MAC_SCOPED_SENDING_EVENT_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"

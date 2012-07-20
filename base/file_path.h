@@ -99,7 +99,6 @@
 
 #ifndef BASE_FILE_PATH_H_
 #define BASE_FILE_PATH_H_
-#pragma once
 
 #include <stddef.h>
 #include <string>
@@ -122,6 +121,7 @@
 #endif  // OS_WIN
 
 class Pickle;
+class PickleIterator;
 
 // An abstraction to isolate users from the differences between native
 // pathnames on different platforms.
@@ -241,8 +241,13 @@ class BASE_EXPORT FilePath {
   FilePath InsertBeforeExtensionASCII(
       const base::StringPiece& suffix) const WARN_UNUSED_RESULT;
 
+  // Adds |extension| to |file_name|. Returns the current FilePath if
+  // |extension| is empty. Returns "" if BaseName() == "." or "..".
+  FilePath AddExtension(
+      const StringType& extension) const WARN_UNUSED_RESULT;
+
   // Replaces the extension of |file_name| with |extension|.  If |file_name|
-  // does not have an extension, them |extension| is added.  If |extension| is
+  // does not have an extension, then |extension| is added.  If |extension| is
   // empty, then the extension is removed from |file_name|.
   // Returns "" if BaseName() == "." or "..".
   FilePath ReplaceExtension(
@@ -339,7 +344,7 @@ class BASE_EXPORT FilePath {
   static FilePath FromUTF8Unsafe(const std::string& utf8);
 
   void WriteToPickle(Pickle* pickle);
-  bool ReadFromPickle(Pickle* pickle, void** iter);
+  bool ReadFromPickle(PickleIterator* iter);
 
   // Normalize all path separators to backslash on Windows
   // (if FILE_PATH_USES_WIN_SEPARATORS is true), or do nothing on POSIX systems.

@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef SQL_TRANSACTION_H_
 #define SQL_TRANSACTION_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "sql/sql_export.h"
@@ -19,6 +18,9 @@ class SQL_EXPORT Transaction {
   // transaction. If you have begun a transaction and not committed it, the
   // constructor will roll back the transaction. If you want to commit, you
   // need to manually call Commit before this goes out of scope.
+  //
+  // Nested transactions are supported. See sql::Connection::BeginTransaction
+  // for details.
   explicit Transaction(Connection* connection);
   ~Transaction();
 

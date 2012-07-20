@@ -147,6 +147,11 @@ TEST(HttpContentDispositionTest, Filename) {
     {"attachment; filename*=windows-1252''caf%E9.png", "",
       L"caf\x00e9.png"},
 
+    // Multiple filename, filename*, name parameters specified.
+    {"attachment; name=\"foo\"; filename=\"bar\"", "", L"bar"},
+    {"attachment; filename=\"bar\"; name=\"foo\"", "", L"bar"},
+    {"attachment; filename=\"bar\"; filename*=utf-8''baz", "", L"baz"},
+
     // http://greenbytes.de/tech/tc2231/ filename* test cases.
     // attwithisofn2231iso
     {"attachment; filename*=iso-8859-1''foo-%E4.html", "",

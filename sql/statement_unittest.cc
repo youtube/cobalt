@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@ class StatementErrorHandler : public sql::ErrorDelegate {
   StatementErrorHandler() : error_(SQLITE_OK) {}
 
   virtual int OnError(int error, sql::Connection* connection,
-                      sql::Statement* stmt) {
+                      sql::Statement* stmt) OVERRIDE {
     error_ = error;
     const char* sql_txt = stmt ? stmt->GetSQLStatement() : NULL;
     sql_text_ = sql_txt ? sql_txt : "no statement available";
@@ -31,6 +31,9 @@ class StatementErrorHandler : public sql::ErrorDelegate {
   }
 
   const char* sql_statement() const { return sql_text_.c_str(); }
+
+ protected:
+  virtual ~StatementErrorHandler() {}
 
  private:
   int error_;
@@ -88,14 +91,14 @@ TEST_F(SQLStatementTest, Run) {
 
   // Run should fail since this produces output, and we should use Step(). This
   // gets a bit wonky since sqlite says this is OK so succeeded is set.
-  s.Reset();
+  s.Reset(true);
   s.BindInt(0, 3);
   EXPECT_FALSE(s.Run());
   EXPECT_EQ(SQLITE_ROW, db().GetErrorCode());
   EXPECT_TRUE(s.Succeeded());
 
   // Resetting it should put it back to the previous state (not runnable).
-  s.Reset();
+  s.Reset(true);
   EXPECT_FALSE(s.Succeeded());
 
   // Binding and stepping should produce one row.
@@ -119,4 +122,26 @@ TEST_F(SQLStatementTest, BasicErrorCallback) {
   EXPECT_FALSE(s.Run());
   EXPECT_EQ(SQLITE_MISMATCH, sqlite_error());
   reset_error();
+}
+
+TEST_F(SQLStatementTest, Reset) {
+  ASSERT_TRUE(db().Execute("CREATE TABLE foo (a, b)"));
+  ASSERT_TRUE(db().Execute("INSERT INTO foo (a, b) VALUES (3, 12)"));
+  ASSERT_TRUE(db().Execute("INSERT INTO foo (a, b) VALUES (4, 13)"));
+
+  sql::Statement s(db().GetUniqueStatement(
+      "SELECT b FROM foo WHERE a = ? "));
+  s.BindInt(0, 3);
+  ASSERT_TRUE(s.Step());
+  EXPECT_EQ(12, s.ColumnInt(0));
+  ASSERT_FALSE(s.Step());
+
+  s.Reset(false);
+  // Verify that we can get all rows again.
+  ASSERT_TRUE(s.Step());
+  EXPECT_EQ(12, s.ColumnInt(0));
+  EXPECT_FALSE(s.Step());
+
+  s.Reset(true);
+  ASSERT_FALSE(s.Step());
 }

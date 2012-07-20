@@ -114,13 +114,11 @@ if __name__ == '__main__':
         [ "google/protobuf/pyext/python_descriptor.cc",
           "google/protobuf/pyext/python_protobuf.cc",
           "google/protobuf/pyext/python-proto2.cc" ],
-        include_dirs = [ "../src", ".", ],
-        libraries = [ "protobuf" ],
-        runtime_library_dirs = [ "../src/.libs" ],
-        library_dirs = [ "../src/.libs" ]))
+        include_dirs = [ "." ],
+        libraries = [ "protobuf" ]))
 
   setup(name = 'protobuf',
-        version = '2.4.0-pre',
+        version = '2.4.2-pre',
         packages = [ 'google' ],
         namespace_packages = [ 'google' ],
         test_suite = 'setup.MakeTestSuite',

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,22 @@
 
 #include <math.h>
 
+#include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
+#include "base/process_util.h"
 #include "base/win/wrapped_window_proc.h"
+
+namespace {
+
+enum MessageLoopProblems {
+  MESSAGE_POST_ERROR,
+  COMPLETION_POST_ERROR,
+  SET_TIMER_ERROR,
+  MESSAGE_LOOP_PROBLEM_MAX,
+};
+
+}  // namespace
 
 namespace base {
 
@@ -38,7 +51,7 @@ void MessagePumpWin::DidProcessMessage(const MSG& msg) {
 }
 
 void MessagePumpWin::RunWithDispatcher(
-    Delegate* delegate, Dispatcher* dispatcher) {
+    Delegate* delegate, MessagePumpDispatcher* dispatcher) {
   RunState s;
   s.delegate = delegate;
   s.dispatcher = dispatcher;
@@ -82,13 +95,13 @@ int MessagePumpWin::GetCurrentDelay() const {
 //-----------------------------------------------------------------------------
 // MessagePumpForUI public:
 
-MessagePumpForUI::MessagePumpForUI() {
+MessagePumpForUI::MessagePumpForUI() : instance_(NULL) {
   InitMessageWnd();
 }
 
 MessagePumpForUI::~MessagePumpForUI() {
   DestroyWindow(message_hwnd_);
-  UnregisterClass(kWndClass, GetModuleHandle(NULL));
+  UnregisterClass(kWndClass, instance_);
 }
 
 void MessagePumpForUI::ScheduleWork() {
@@ -96,7 +109,22 @@ void MessagePumpForUI::ScheduleWork() {
     return;  // Someone else continued the pumping.
 
   // Make sure the MessagePump does some work for us.
-  PostMessage(message_hwnd_, kMsgHaveWork, reinterpret_cast<WPARAM>(this), 0);
+  BOOL ret = PostMessage(message_hwnd_, kMsgHaveWork,
+                         reinterpret_cast<WPARAM>(this), 0);
+  if (ret)
+    return;  // There was room in the Window Message queue.
+
+  // We have failed to insert a have-work message, so there is a chance that we
+  // will starve tasks/timers while sitting in a nested message loop.  Nested
+  // loops only look at Windows Message queues, and don't look at *our* task
+  // queues, etc., so we might not get a time slice in such. :-(
+  // We could abort here, but the fear is that this failure mode is plausibly
+  // common (queue is full, of about 2000 messages), so we'll do a near-graceful
+  // recovery.  Nested loops are pretty transient (we think), so this will
+  // probably be recoverable.
+  InterlockedExchange(&have_work_, 0);  // Clarify that we didn't really insert.
+  UMA_HISTOGRAM_ENUMERATION("Chrome.MessageLoopProblem", MESSAGE_POST_ERROR,
+                            MESSAGE_LOOP_PROBLEM_MAX);
 }
 
 void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
@@ -129,7 +157,15 @@ void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
 
   // Create a WM_TIMER event that will wake us up to check for any pending
   // timers (in case we are running within a nested, external sub-pump).
-  SetTimer(message_hwnd_, reinterpret_cast<UINT_PTR>(this), delay_msec, NULL);
+  BOOL ret = SetTimer(message_hwnd_, reinterpret_cast<UINT_PTR>(this),
+                      delay_msec, NULL);
+  if (ret)
+    return;
+  // If we can't set timers, we are in big trouble... but cross our fingers for
+  // now.
+  // TODO(jar): If we don't see this error, use a CHECK() here instead.
+  UMA_HISTOGRAM_ENUMERATION("Chrome.MessageLoopProblem", SET_TIMER_ERROR,
+                            MESSAGE_LOOP_PROBLEM_MAX);
 }
 
 void MessagePumpForUI::PumpOutPendingPaintMessages() {
@@ -230,17 +266,16 @@ void MessagePumpForUI::DoRunLoop() {
 }
 
 void MessagePumpForUI::InitMessageWnd() {
-  HINSTANCE hinst = GetModuleHandle(NULL);
-
   WNDCLASSEX wc = {0};
   wc.cbSize = sizeof(wc);
   wc.lpfnWndProc = base::win::WrappedWindowProc<WndProcThunk>;
-  wc.hInstance = hinst;
+  wc.hInstance = base::GetModuleFromAddress(wc.lpfnWndProc);
   wc.lpszClassName = kWndClass;
+  instance_ = wc.hInstance;
   RegisterClassEx(&wc);
 
   message_hwnd_ =
-      CreateWindow(kWndClass, 0, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, hinst, 0);
+      CreateWindow(kWndClass, 0, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, instance_, 0);
   DCHECK(message_hwnd_);
 }
 
@@ -333,6 +368,8 @@ bool MessagePumpForUI::ProcessNextWindowsMessage() {
 }
 
 bool MessagePumpForUI::ProcessMessageHelper(const MSG& msg) {
+  TRACE_EVENT1("base", "MessagePumpForUI::ProcessMessageHelper",
+               "message", msg.message);
   if (WM_QUIT == msg.message) {
     // Repost the QUIT message so that it will be retrieved by the primary
     // GetMessage() loop.
@@ -420,7 +457,13 @@ void MessagePumpForIO::ScheduleWork() {
   BOOL ret = PostQueuedCompletionStatus(port_, 0,
                                         reinterpret_cast<ULONG_PTR>(this),
                                         reinterpret_cast<OVERLAPPED*>(this));
-  DCHECK(ret);
+  if (ret)
+    return;  // Post worked perfectly.
+
+  // See comment in MessagePumpForUI::ScheduleWork() for this error recovery.
+  InterlockedExchange(&have_work_, 0);  // Clarify that we didn't succeed.
+  UMA_HISTOGRAM_ENUMERATION("Chrome.MessageLoopProblem", COMPLETION_POST_ERROR,
+                            MESSAGE_LOOP_PROBLEM_MAX);
 }
 
 void MessagePumpForIO::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {

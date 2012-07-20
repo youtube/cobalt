@@ -4,7 +4,6 @@
 
 #ifndef BASE_SINGLE_THREAD_TASK_RUNNER_H_
 #define BASE_SINGLE_THREAD_TASK_RUNNER_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/sequenced_task_runner.h"
@@ -26,11 +25,14 @@ namespace base {
 //     order that must be run only from the thread the
 //     SingleThreadTaskRunner was created on.
 class BASE_EXPORT SingleThreadTaskRunner : public SequencedTaskRunner {
-public:
+ public:
   // A more explicit alias to RunsTasksOnCurrentThread().
   bool BelongsToCurrentThread() const {
     return RunsTasksOnCurrentThread();
   }
+
+ protected:
+  virtual ~SingleThreadTaskRunner() {}
 };
 
 }  // namespace base

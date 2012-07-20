@@ -12,7 +12,7 @@
       'target_name': 'All',
       'type': 'none',
       'dependencies': [
-        'util/build_util.gyp:*',
+        '../content/content.gyp:content_shell_apk',
         'android_builder_tests',
       ],
     }, # target_name: All
@@ -29,15 +29,45 @@
       'type': 'none',
       'dependencies': [
         '../base/base.gyp:base_unittests',
+        '../content/content.gyp:content_unittests',
+        '../gpu/gpu.gyp:gpu_unittests',
         '../sql/sql.gyp:sql_unittests',
+        '../sync/sync.gyp:sync_unit_tests',
         '../ipc/ipc.gyp:ipc_tests',
         '../net/net.gyp:net_unittests',
+        '../ui/ui.gyp:ui_unittests',
+        '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
         # From here down: not added to run_tests.py yet.
         '../jingle/jingle.gyp:jingle_unittests',
-        # Workaround of crbug.com/109763.
-        # TODO(wangxianzhu): Enable them in the next CL.
-        # '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
-        # '../tools/android/forwarder/forwarder.gyp:forwarder',
+        '../tools/android/device_stats_monitor/device_stats_monitor.gyp:device_stats_monitor',
+        '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
+        '../tools/android/forwarder/forwarder.gyp:forwarder',
+        '../media/media.gyp:media_unittests',
+        # Required by ui_unittests.
+        # TODO(wangxianzhu): It'd better let ui_unittests depend on it, but
+        # this would cause circular gyp dependency which needs refactoring the
+        # gyps to resolve.
+        '../chrome/chrome_resources.gyp:packed_resources',
+      ],
+      'conditions': [
+        ['"<(gtest_target_type)"=="shared_library"', {
+          'dependencies': [
+            # The first item is simply the template.  We add as a dep
+            # to make sure it builds in ungenerated form.  TODO(jrg):
+            # once stable, transition to a test-only (optional)
+            # target.
+            '../testing/android/native_test.gyp:native_test_apk',
+            # Unit test bundles packaged as an apk.
+            '../base/base.gyp:base_unittests_apk',
+            '../content/content.gyp:content_unittests_apk',
+            '../gpu/gpu.gyp:gpu_unittests_apk',
+            '../sql/sql.gyp:sql_unittests_apk',
+            '../sync/sync.gyp:sync_unit_tests_apk',
+            '../ipc/ipc.gyp:ipc_tests_apk',
+            '../net/net.gyp:net_unittests_apk',
+            '../ui/ui.gyp:ui_unittests_apk',
+          ],
+        }]
       ],
     },
     { 
@@ -47,11 +77,7 @@
       'target_name': 'android_experimental',
       'type': 'none',
       'dependencies': [
-        '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
-        '../webkit/webkit.gyp:pull_in_DumpRenderTree',
         '../chrome/chrome.gyp:unit_tests',
-        # Requires 64-bit linker.
-        '../content/content.gyp:content_unittests',
       ],
     },
     {
@@ -61,8 +87,6 @@
       'type': 'none',
       'dependencies': [
         '../content/content.gyp:content_browsertests',
-        '../chrome/chrome.gyp:sync_unit_tests',
-        '../ui/ui.gyp:gfx_unittests',
       ],
     },
   ],  # targets

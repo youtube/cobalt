@@ -1,14 +1,14 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 {
   'conditions': [
-    [ 'os_posix == 1 and OS != "mac"', {
+    [ 'os_posix == 1 and OS != "mac" and OS != "ios"', {
       'conditions': [
         ['sysroot!=""', {
           'variables': {
-            'pkg-config': '../../../build/linux/pkg-config-wrapper "<(sysroot)"',
+            'pkg-config': '../../../build/linux/pkg-config-wrapper "<(sysroot)" "<(target_arch)"',
           },
         }, {
           'variables': {
@@ -27,7 +27,7 @@
         'ssl/authcert.c',
         'ssl/cmpcert.c',
         'ssl/derive.c',
-        'ssl/fnv1a64.c',
+        'ssl/dtls1con.c',
         'ssl/nsskea.c',
         'ssl/os2_err.c',
         'ssl/os2_err.h',
@@ -45,9 +45,12 @@
         'ssl/sslenum.c',
         'ssl/sslerr.c',
         'ssl/sslerr.h',
+        'ssl/SSLerrs.h',
+        'ssl/sslerrstrs.c',
         'ssl/sslgathr.c',
         'ssl/sslimpl.h',
         'ssl/sslinfo.c',
+        'ssl/sslinit.c',
         'ssl/sslmutex.c',
         'ssl/sslmutex.h',
         'ssl/sslnonce.c',
@@ -86,7 +89,7 @@
       ],
       'msvs_disabled_warnings': [4018, 4244],
       'conditions': [
-        [ 'OS=="mac"', {
+        [ 'OS == "mac" or OS == "ios"', {
           'defines': [
             'XP_UNIX',
             'DARWIN',
@@ -106,7 +109,7 @@
             ],
           },
         ],
-        [ 'os_posix == 1 and OS != "mac"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "ios"', {
           'defines': [
             # These macros are needed only for compiling the files in
             # ssl/bodge.
@@ -128,23 +131,33 @@
             '<!@(<(pkg-config) --libs-only-l nss | sed -e "s/-lssl3//")',
           ],
         }],
-        [ 'OS == "mac" or OS == "win"', {
+        [ 'OS == "mac" or OS == "ios" or OS == "win"', {
           'sources/': [
             ['exclude', 'ssl/bodge/'],
           ],
-          'defines': [
-            'NSS_PLATFORM_CLIENT_AUTH',
+          'conditions': [
+            ['OS != "ios"', {
+              'defines': [
+                'NSS_PLATFORM_CLIENT_AUTH',
+              ],
+              'direct_dependent_settings': {
+                'defines': [
+                  'NSS_PLATFORM_CLIENT_AUTH',
+                ],
+              },
+            }],
           ],
           'dependencies': [
+            '../../../third_party/nss/nss.gyp:nspr',
+            '../../../third_party/nss/nss.gyp:nss',
+          ],
+          'export_dependent_settings': [
             '../../../third_party/nss/nss.gyp:nspr',
             '../../../third_party/nss/nss.gyp:nss',
           ],
           'direct_dependent_settings': {
             'include_dirs': [
               'ssl',
-            ],
-            'defines': [
-              'NSS_PLATFORM_CLIENT_AUTH',
             ],
           },
         }],

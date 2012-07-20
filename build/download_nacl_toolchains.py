@@ -34,8 +34,18 @@ def Main(args):
   # gclient sync time for developers, or standard Chrome bots.
   if '--optional-pnacl' in args:
     args.remove('--optional-pnacl')
+    # By default we don't use PNaCl toolchain yet, unless on ARM, where
+    # there is no other toolchain to build untrusted code at the moment.
+    # So analyze if we're building for ARM, or on SDK buildbot.
+    # TODO(olonho): we need to invent more reliable way to get build
+    # configuration info, to know if we're building for ARM.
+    use_pnacl = False
+    if 'target_arch=arm' in os.environ.get('GYP_DEFINES', ''):
+      use_pnacl = True
     buildbot_name = os.environ.get('BUILDBOT_BUILDERNAME', '')
     if buildbot_name.find('pnacl') >= 0 and  buildbot_name.find('sdk') >= 0:
+      use_pnacl = True
+    if use_pnacl:
       print '\n*** DOWNLOADING PNACL TOOLCHAIN ***\n'
     else:
       args.append('--no-pnacl')
@@ -46,4 +56,3 @@ def Main(args):
 
 if __name__ == '__main__':
   sys.exit(Main(sys.argv[1:]))
-

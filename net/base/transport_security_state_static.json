@@ -1,0 +1,286 @@
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// This file contains the HSTS preloaded list in a machine readable format.
+
+// The top-level element is a dictionary with two keys: "pinsets" maps details
+// of certificate pinning to a name and "entries" contains the HSTS details for
+// each host.
+//
+// "pinsets" is a list of objects. Each object has the following members:
+//   name: (string) the name of the pinset
+//   static_spki_hashes: (list of strings) the set of allowed SPKIs hashes
+//   bad_static_spki_hashes: (optional list of strings) the set of forbidden SPKIs hashes
+//
+// For a given pinset, a certifiacte is accepted if at least one of the
+// "static_spki_hashes" SPKIs is found in the chain and none of the "bad_static_spki_hashes" SPKIs are.
+// SPKIs are specified as names, which must match up with the file of
+// certificates.
+//
+// "entries" is a list of objects. Each object has the following members:
+//   name: (string) the DNS name of the host in question
+//   include_subdomains: (optional bool) whether subdomains of |name| are also covered
+//   mode: (optional string) "force-https" iff covered names should require HTTPS
+//   pins: (optional string) the |name| member of an object in |pinsets|
+
+{
+  "pinsets": [
+    {
+      "name": "test",
+      "static_spki_hashes": [
+        "TestSPKI"
+      ]
+    },
+    {
+      "name": "google",
+      "static_spki_hashes": [
+        "VeriSignClass3",
+        "VeriSignClass3_G3",
+        "Google1024",
+        "Google2048",
+        "EquifaxSecureCA"
+      ],
+      "bad_static_spki_hashes": [
+        "Aetna",
+        "Intel",
+        "TCTrustCenter",
+        "Vodafone"
+      ]
+    },
+    {
+      "name": "tor",
+      "static_spki_hashes": [
+        "RapidSSL",
+        "DigiCertEVRoot",
+        "Tor1",
+        "Tor2",
+        "Tor3"
+      ]
+    },
+    {
+      "name": "twitterCom",
+      "static_spki_hashes": [
+        "VeriSignClass1",
+        "VeriSignClass3",
+        "VeriSignClass3_G4",
+        "VeriSignClass4_G3",
+        "VeriSignClass3_G3",
+        "VeriSignClass1_G3",
+        "VeriSignClass2_G3",
+        "VeriSignClass3_G2",
+        "VeriSignClass2_G2",
+        "VeriSignClass3_G5",
+        "VeriSignUniversal",
+        "GeoTrustGlobal",
+        "GeoTrustGlobal2",
+        "GeoTrustUniversal",
+        "GeoTrustUniversal2",
+        "GeoTrustPrimary",
+        "GeoTrustPrimary_G2",
+        "GeoTrustPrimary_G3",
+        "Twitter1"
+      ]
+    },
+    {
+      "name": "twitterCDN",
+      "static_spki_hashes": [
+        "VeriSignClass1",
+        "VeriSignClass3",
+        "VeriSignClass3_G4",
+        "VeriSignClass4_G3",
+        "VeriSignClass3_G3",
+        "VeriSignClass1_G3",
+        "VeriSignClass2_G3",
+        "VeriSignClass3_G2",
+        "VeriSignClass2_G2",
+        "VeriSignClass3_G5",
+        "VeriSignUniversal",
+        "GeoTrustGlobal",
+        "GeoTrustGlobal2",
+        "GeoTrustUniversal",
+        "GeoTrustUniversal2",
+        "GeoTrustPrimary",
+        "GeoTrustPrimary_G2",
+        "GeoTrustPrimary_G3",
+        "Twitter1",
+
+        "Entrust_2048",
+        "Entrust_EV",
+        "Entrust_G2",
+        "Entrust_SSL",
+        "AAACertificateServices",
+        "AddTrustClass1CARoot",
+        "AddTrustExternalCARoot",
+        "AddTrustPublicCARoot",
+        "AddTrustQualifiedCARoot",
+        "COMODOCertificationAuthority",
+        "SecureCertificateServices",
+        "TrustedCertificateServices",
+        "UTNDATACorpSGC",
+        "UTNUSERFirstClientAuthenticationandEmail",
+        "UTNUSERFirstHardware",
+        "UTNUSERFirstObject",
+        "GTECyberTrustGlobalRoot"
+      ]
+    },
+    {
+      "name": "tor2web",
+      "static_spki_hashes": [
+        "AlphaSSL_G2",
+        "Tor2web"
+      ]
+    }
+  ],
+
+  "entries": [
+    // Dummy entry to test certificate pinning.
+    { "name": "pinningtest.appspot.com", "include_subdomains": true, "pins": "test" },
+
+    // (*.)google.com, iff using SSL, must use an acceptable certificate.
+    { "name": "google.com", "include_subdomains": true, "pins": "google" },
+
+    // Now we force HTTPS for subtrees of google.com.
+    { "name": "health.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "checkout.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "chrome.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "docs.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "sites.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "spreadsheets.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "appengine.google.com", "mode": "force-https", "pins": "google" },
+    { "name": "encrypted.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "accounts.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "profiles.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "mail.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "talkgadget.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "talk.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "hostedtalkgadget.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "plus.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "script.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+
+    // Other Google related domain that must use HTTPS.
+    { "name": "market.android.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "ssl.google-analytics.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "drive.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "googleplex.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "groups.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "apis.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+
+    // chart.apis.google.com is *not* HSTS because the certificate doesn't match
+    // and there are lots of links out there that still use the name. The correct
+    // hostname for this is chart.googleapis.com.
+    { "name": "chart.apis.google.com", "include_subdomains": true, "pins": "google" },
+
+    // Other Google-related domains that must use an acceptable certificate
+    // iff using SSL.
+    { "name": "ytimg.com", "include_subdomains": true, "pins": "google" },
+    { "name": "googleusercontent.com", "include_subdomains": true, "pins": "google" },
+    { "name": "youtube.com", "include_subdomains": true, "pins": "google" },
+    { "name": "googleapis.com", "include_subdomains": true, "pins": "google" },
+    { "name": "googleadservices.com", "include_subdomains": true, "pins": "google" },
+    { "name": "googlecode.com", "include_subdomains": true, "pins": "google" },
+    { "name": "appspot.com", "include_subdomains": true, "pins": "google" },
+    { "name": "googlesyndication.com", "include_subdomains": true, "pins": "google" },
+    { "name": "doubleclick.net", "include_subdomains": true, "pins": "google" },
+    { "name": "ssl.gstatic.com", "include_subdomains": true, "pins": "google" },
+    // Exclude the learn.doubleclick.net subdomain because it uses a different
+    // CA.
+    { "name": "learn.doubleclick.net", "include_subdomains": true },
+
+    // Force HTTPS for sites that have requested it.
+    { "name": "www.paypal.com", "mode": "force-https" },
+    { "name": "www.elanex.biz", "mode": "force-https" },
+    { "name": "jottit.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "sunshinepress.org", "include_subdomains": true, "mode": "force-https" },
+    { "name": "www.noisebridge.net", "mode": "force-https" },
+    { "name": "neg9.org", "mode": "force-https" },
+    { "name": "riseup.net", "include_subdomains": true, "mode": "force-https" },
+    { "name": "factor.cc", "mode": "force-https" },
+    { "name": "members.mayfirst.org", "mode": "force-https" },
+    { "name": "support.mayfirst.org", "mode": "force-https" },
+    { "name": "id.mayfirst.org", "mode": "force-https" },
+    { "name": "lists.mayfirst.org", "mode": "force-https" },
+    { "name": "aladdinschools.appspot.com", "mode": "force-https" },
+    { "name": "ottospora.nl", "include_subdomains": true, "mode": "force-https" },
+    { "name": "www.paycheckrecords.com", "mode": "force-https" },
+    { "name": "lastpass.com", "mode": "force-https" },
+    { "name": "www.lastpass.com", "mode": "force-https" },
+    { "name": "keyerror.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "entropia.de", "mode": "force-https" },
+    { "name": "www.entropia.de", "mode": "force-https" },
+    { "name": "romab.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "logentries.com", "mode": "force-https" },
+    { "name": "www.logentries.com", "mode": "force-https" },
+    { "name": "stripe.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "cloudsecurityalliance.org", "include_subdomains": true, "mode": "force-https" },
+    { "name": "login.sapo.pt", "include_subdomains": true, "mode": "force-https" },
+    { "name": "mattmccutchen.net", "include_subdomains": true, "mode": "force-https" },
+    { "name": "betnet.fr", "include_subdomains": true, "mode": "force-https" },
+    { "name": "uprotect.it", "include_subdomains": true, "mode": "force-https" },
+    { "name": "squareup.com", "mode": "force-https" },
+    { "name": "cert.se", "include_subdomains": true, "mode": "force-https" },
+    { "name": "crypto.is", "include_subdomains": true, "mode": "force-https" },
+    { "name": "simon.butcher.name", "include_subdomains": true, "mode": "force-https" },
+    { "name": "linx.net", "include_subdomains": true, "mode": "force-https" },
+    { "name": "dropcam.com", "mode": "force-https" },
+    { "name": "www.dropcam.com", "mode": "force-https" },
+    { "name": "ebanking.indovinabank.com.vn", "include_subdomains": true, "mode": "force-https" },
+    { "name": "epoxate.com", "mode": "force-https" },
+    { "name": "torproject.org", "mode": "force-https", "pins": "tor" },
+    { "name": "blog.torproject.org", "include_subdomains": true, "mode": "force-https", "pins": "tor" },
+    { "name": "check.torproject.org", "include_subdomains": true, "mode": "force-https", "pins": "tor" },
+    { "name": "www.torproject.org", "include_subdomains": true, "mode": "force-https", "pins": "tor" },
+    { "name": "www.moneybookers.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "ledgerscope.net", "mode": "force-https" },
+    { "name": "www.ledgerscope.net", "mode": "force-https" },
+    { "name": "kyps.net", "mode": "force-https" },
+    { "name": "www.kyps.net", "mode": "force-https" },
+    { "name": "app.recurly.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "api.recurly.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "greplin.com", "mode": "force-https" },
+    { "name": "www.greplin.com", "mode": "force-https" },
+    { "name": "luneta.nearbuysystems.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "ubertt.org", "include_subdomains": true, "mode": "force-https" },
+    { "name": "pixi.me", "include_subdomains": true, "mode": "force-https" },
+    { "name": "grepular.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "mydigipass.com", "mode": "force-https" },
+    { "name": "www.mydigipass.com", "mode": "force-https" },
+    { "name": "developer.mydigipass.com", "mode": "force-https" },
+    { "name": "www.developer.mydigipass.com", "mode": "force-https" },
+    { "name": "sandbox.mydigipass.com", "mode": "force-https" },
+    { "name": "www.sandbox.mydigipass.com", "mode": "force-https" },
+    { "name": "crypto.cat", "include_subdomains": true, "mode": "force-https" },
+    { "name": "bigshinylock.minazo.net", "include_subdomains": true, "mode": "force-https" },
+    { "name": "crate.io", "include_subdomains": true, "mode": "force-https" },
+    { "name": "twitter.com", "pins": "twitterCom" },
+    { "name": "www.twitter.com", "include_subdomains": true, "pins": "twitterCom" },
+    { "name": "api.twitter.com", "include_subdomains": true, "pins": "twitterCDN" },
+    { "name": "oauth.twitter.com", "include_subdomains": true, "pins": "twitterCom" },
+    { "name": "mobile.twitter.com", "include_subdomains": true, "pins": "twitterCom" },
+    { "name": "dev.twitter.com", "include_subdomains": true, "pins": "twitterCom" },
+    { "name": "business.twitter.com", "include_subdomains": true, "pins": "twitterCom" },
+    { "name": "platform.twitter.com", "include_subdomains": true, "pins": "twitterCDN" },
+    { "name": "si0.twimg.com", "include_subdomains": true, "pins": "twitterCDN" },
+    { "name": "twimg0-a.akamaihd.net", "include_subdomains": true, "pins": "twitterCDN" },
+    { "name": "braintreegateway.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "braintreepayments.com", "mode": "force-https" },
+    { "name": "www.braintreepayments.com", "mode": "force-https" },
+    { "name": "emailprivacytester.com", "mode": "force-https" },
+    { "name": "tor2web.org", "include_subdomains": true, "pins": "tor2web" },
+    { "name": "business.medbank.com.mt", "include_subdomains": true, "mode": "force-https" },
+    { "name": "arivo.com.br", "include_subdomains": true, "mode": "force-https" },
+    { "name": "www.apollo-auto.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "www.cueup.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "jitsi.org", "mode": "force-https" },
+    { "name": "www.jitsi.org", "mode": "force-https" },
+    { "name": "download.jitsi.org", "mode": "force-https" },
+
+    // Entries that are only valid if the client supports SNI.
+    { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
+    { "name": "googlemail.com", "mode": "force-https", "pins": "google", "snionly": true },
+    { "name": "www.gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
+    { "name": "www.googlemail.com", "mode": "force-https", "pins": "google", "snionly": true },
+    { "name": "google-analytics.com", "include_subdomains": true, "pins": "google", "snionly": true },
+    { "name": "googlegroups.com", "include_subdomains": true, "pins": "google", "snionly": true }
+  ]
+}

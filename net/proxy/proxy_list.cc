@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/proxy/proxy_list.h"
 
+#include "base/callback.h"
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
 #include "base/time.h"
@@ -77,8 +78,16 @@ void ProxyList::RemoveProxiesWithoutScheme(int scheme_bit_field) {
   }
 }
 
+void ProxyList::Clear() {
+  proxies_.clear();
+}
+
 bool ProxyList::IsEmpty() const {
   return proxies_.empty();
+}
+
+size_t ProxyList::size() const {
+  return proxies_.size();
 }
 
 const ProxyServer& ProxyList::Get() const {
@@ -153,9 +162,8 @@ bool ProxyList::Fallback(ProxyRetryInfoMap* proxy_retry_info,
       retry_info.bad_until = TimeTicks().Now() + retry_info.current_delay;
       (*proxy_retry_info)[key] = retry_info;
     }
-    net_log.AddEvent(
-        NetLog::TYPE_PROXY_LIST_FALLBACK,
-        make_scoped_refptr(new NetLogStringParameter("bad_proxy", key)));
+    net_log.AddEvent(NetLog::TYPE_PROXY_LIST_FALLBACK,
+                     NetLog::StringCallback("bad_proxy", &key));
   }
 
   // Remove this proxy from our list.

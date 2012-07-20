@@ -13,12 +13,16 @@
 #include "media/audio/audio_device_name.h"
 #include "media/audio/audio_parameters.h"
 
-class AudioInputStream;
-class AudioOutputStream;
 class MessageLoop;
+
 namespace base {
 class MessageLoopProxy;
 }
+
+namespace media {
+
+class AudioInputStream;
+class AudioOutputStream;
 
 // Manages all audio resources. In particular it owns the AudioOutputStream
 // objects. Provides some convenience functions that avoid the need to provide
@@ -57,8 +61,7 @@ class MEDIA_EXPORT AudioManager {
   // Appends a list of available input devices. It is not guaranteed that
   // all the devices in the list support all formats and sample rates for
   // recording.
-  virtual void GetAudioInputDeviceNames(
-      media::AudioDeviceNames* device_names) = 0;
+  virtual void GetAudioInputDeviceNames(AudioDeviceNames* device_names) = 0;
 
   // Factory for all the supported stream formats. |params| defines parameters
   // of the audio stream to be created.
@@ -123,5 +126,7 @@ class MEDIA_EXPORT AudioManager {
  private:
   DISALLOW_COPY_AND_ASSIGN(AudioManager);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_MANAGER_H_

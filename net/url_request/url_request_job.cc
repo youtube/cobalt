@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,11 +17,11 @@
 #include "net/base/network_delegate.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
 
 namespace net {
 
-URLRequestJob::URLRequestJob(URLRequest* request)
+URLRequestJob::URLRequestJob(URLRequest* request,
+                             NetworkDelegate* network_delegate)
     : request_(request),
       done_(false),
       prefilter_bytes_read_(0),
@@ -32,6 +32,7 @@ URLRequestJob::URLRequestJob(URLRequest* request)
       has_handled_response_(false),
       expected_content_size_(-1),
       deferred_redirect_status_code_(-1),
+      network_delegate_(network_delegate),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
   base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
   if (system_monitor)
@@ -412,10 +413,8 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
     // successful.
     if (request_->status().is_success()) {
       if (status.status() == URLRequestStatus::FAILED) {
-        request_->net_log().AddEvent(
-            NetLog::TYPE_FAILED,
-            make_scoped_refptr(new NetLogIntegerParameter("net_error",
-                                                          status.error())));
+        request_->net_log().AddEventWithNetErrorCode(NetLog::TYPE_FAILED,
+                                                     status.error());
       }
       request_->set_status(status);
     }
@@ -694,9 +693,8 @@ void URLRequestJob::RecordBytesRead(int bytes_read) {
            << " pre total = " << prefilter_bytes_read_
            << " post total = " << postfilter_bytes_read_;
   UpdatePacketReadTimes();  // Facilitate stats recording if it is active.
-  const URLRequestContext* context = request_->context();
-  if (context && context->network_delegate())
-    context->network_delegate()->NotifyRawBytesRead(*request_, bytes_read);
+  if (network_delegate_)
+    network_delegate_->NotifyRawBytesRead(*request_, bytes_read);
 }
 
 bool URLRequestJob::FilterHasData() {

@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_AUTH_GSSAPI_POSIX_H_
 #define NET_HTTP_HTTP_AUTH_GSSAPI_POSIX_H_
-#pragma once
 
 #include <gssapi.h>
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_SSL_CLIENT_SOCKET_POOL_H_
 #define NET_SOCKET_SSL_CLIENT_SOCKET_POOL_H_
-#pragma once
 
 #include <string>
 
@@ -31,7 +30,6 @@ class HttpProxySocketParams;
 class SOCKSClientSocketPool;
 class SOCKSSocketParams;
 class SSLClientSocket;
-class SSLHostInfoFactory;
 class TransportClientSocketPool;
 class TransportSecurityState;
 class TransportSocketParams;
@@ -154,7 +152,6 @@ class SSLConnectJob : public ConnectJob {
   CompletionCallback callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<SSLClientSocket> ssl_socket_;
-  scoped_ptr<SSLHostInfo> ssl_host_info_;
 
   // The time the DoSSLConnect() method was called.
   base::TimeTicks ssl_connect_start_time_;
@@ -166,6 +163,7 @@ class SSLConnectJob : public ConnectJob {
 
 class NET_EXPORT_PRIVATE SSLClientSocketPool
     : public ClientSocketPool,
+      public LayeredPool,
       public SSLConfigService::Observer {
  public:
   // Only the pools that will be used are required. i.e. if you never
@@ -176,9 +174,8 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
       ClientSocketPoolHistograms* histograms,
       HostResolver* host_resolver,
       CertVerifier* cert_verifier,
-      OriginBoundCertService* origin_bound_cert_service,
+      ServerBoundCertService* server_bound_cert_service,
       TransportSecurityState* transport_security_state,
-      SSLHostInfoFactory* ssl_host_info_factory,
       const std::string& ssl_session_cache_shard,
       ClientSocketFactory* client_socket_factory,
       TransportClientSocketPool* transport_pool,
@@ -211,6 +208,8 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
 
   virtual void Flush() OVERRIDE;
 
+  virtual bool IsStalled() const OVERRIDE;
+
   virtual void CloseIdleSockets() OVERRIDE;
 
   virtual int IdleSocketCount() const OVERRIDE;
@@ -222,6 +221,10 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
       const std::string& group_name,
       const ClientSocketHandle* handle) const OVERRIDE;
 
+  virtual void AddLayeredPool(LayeredPool* layered_pool) OVERRIDE;
+
+  virtual void RemoveLayeredPool(LayeredPool* layered_pool) OVERRIDE;
+
   virtual base::DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
@@ -230,6 +233,9 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
   virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
   virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
+
+  // LayeredPool implementation.
+  virtual bool CloseOneIdleConnection() OVERRIDE;
 
  private:
   typedef ClientSocketPoolBase<SSLSocketParams> PoolBase;

@@ -7,7 +7,6 @@
 
 #ifndef NET_HTTP_HTTP_CACHE_TRANSACTION_H_
 #define NET_HTTP_HTTP_CACHE_TRANSACTION_H_
-#pragma once
 
 #include <string>
 
@@ -85,8 +84,11 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // This transaction is being deleted and we are not done writing to the cache.
   // We need to indicate that the response data was truncated.  Returns true on
-  // success.
+  // success. Keep in mind that this operation may have side effects, such as
+  // deleting the active entry.
   bool AddTruncatedFlag();
+
+  HttpCache::ActiveEntry* entry() { return entry_; }
 
   // Returns the LoadState of the writer transaction of a given ActiveEntry. In
   // other words, returns the LoadState of this transaction without asking the
@@ -308,8 +310,9 @@ class HttpCache::Transaction : public HttpTransaction {
   void DoneWritingToEntry(bool success);
 
   // Returns an error to signal the caller that the current read failed. The
-  // current operation |result| is also logged.
-  int OnCacheReadError(int result);
+  // current operation |result| is also logged. If |restart| is true, the
+  // transaction should be restarted.
+  int OnCacheReadError(int result, bool restart);
 
   // Deletes the current partial cache entry (sparse), and optionally removes
   // the control object (partial_).

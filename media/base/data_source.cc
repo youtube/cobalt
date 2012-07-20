@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 namespace media {
 
 // static
-const size_t DataSource::kReadError = static_cast<size_t>(-1);
+const int DataSource::kReadError = -1;
 
 DataSourceHost::~DataSourceHost() {}
 

@@ -5,26 +5,28 @@
 #include "media/audio/fake_audio_input_stream.h"
 
 #include "base/bind.h"
+#include "media/audio/audio_manager_base.h"
 
 using base::Time;
 using base::TimeDelta;
 
+namespace media {
+
 AudioInputStream* FakeAudioInputStream::MakeFakeStream(
+    AudioManagerBase* manager,
     const AudioParameters& params) {
-  return new FakeAudioInputStream(params);
+  return new FakeAudioInputStream(manager, params);
 }
 
-FakeAudioInputStream::FakeAudioInputStream(const AudioParameters& params)
-    : callback_(NULL),
-      buffer_size_((params.channels * params.bits_per_sample *
-                    params.samples_per_packet) / 8),
+FakeAudioInputStream::FakeAudioInputStream(AudioManagerBase* manager,
+                                           const AudioParameters& params)
+    : audio_manager_(manager),
+      callback_(NULL),
+      buffer_size_((params.channels() * params.bits_per_sample() *
+                    params.frames_per_buffer()) / 8),
       thread_("FakeAudioRecordingThread"),
       callback_interval_(base::TimeDelta::FromMilliseconds(
-          (params.samples_per_packet * 1000) / params.sample_rate)) {
-  // This object is ref counted (so that it can be used with Thread, PostTask)
-  // but the caller expects a plain pointer. So we take a reference here and
-  // will Release() ourselves in Close().
-  AddRef();
+          (params.frames_per_buffer() * 1000) / params.sample_rate())) {
 }
 
 FakeAudioInputStream::~FakeAudioInputStream() {}
@@ -42,13 +44,13 @@ void FakeAudioInputStream::Start(AudioInputCallback* callback)  {
   thread_.Start();
   thread_.message_loop()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&FakeAudioInputStream::DoCallback, this),
+      base::Bind(&FakeAudioInputStream::DoCallback, base::Unretained(this)),
       callback_interval_);
 }
 
 void FakeAudioInputStream::DoCallback() {
   DCHECK(callback_);
-  callback_->OnData(this, buffer_.get(), buffer_size_, buffer_size_);
+  callback_->OnData(this, buffer_.get(), buffer_size_, buffer_size_, 0.0);
 
   Time now = Time::Now();
   base::TimeDelta next_callback_time =
@@ -62,7 +64,7 @@ void FakeAudioInputStream::DoCallback() {
   last_callback_time_ = now;
   thread_.message_loop()->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&FakeAudioInputStream::DoCallback, this),
+      base::Bind(&FakeAudioInputStream::DoCallback, base::Unretained(this)),
       next_callback_time);
 }
 
@@ -75,5 +77,23 @@ void FakeAudioInputStream::Close() {
     callback_->OnClose(this);
     callback_ = NULL;
   }
-  Release();  // Destoys this object.
+  audio_manager_->ReleaseInputStream(this);
 }
+
+double FakeAudioInputStream::GetMaxVolume() {
+  return 0.0;
+}
+
+void FakeAudioInputStream::SetVolume(double volume) {}
+
+double FakeAudioInputStream::GetVolume() {
+  return 0.0;
+}
+
+void FakeAudioInputStream::SetAutomaticGainControl(bool enabled) {}
+
+bool FakeAudioInputStream::GetAutomaticGainControl() {
+  return false;
+}
+
+}  // namespace media

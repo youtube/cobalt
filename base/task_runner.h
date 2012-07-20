@@ -4,12 +4,12 @@
 
 #ifndef BASE_TASK_RUNNER_H_
 #define BASE_TASK_RUNNER_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
+#include "base/time.h"
 
 namespace tracked_objects {
 class Location;
@@ -71,11 +71,9 @@ class BASE_EXPORT TaskRunner
   //
   // It is valid for an implementation to ignore |delay_ms|; that is,
   // to have PostDelayedTask behave the same as PostTask.
-  //
-  // TODO(akalin): Make PostDelayedTask use TimeDelta instead.
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
-                               int64 delay_ms) = 0;
+                               base::TimeDelta delay) = 0;
 
   // Returns true if the current thread is a thread on which a task
   // may be run, and false if no task will be run on the current

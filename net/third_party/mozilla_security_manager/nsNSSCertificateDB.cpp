@@ -39,6 +39,7 @@
 #include "net/third_party/mozilla_security_manager/nsNSSCertificateDB.h"
 
 #include <cert.h>
+#include <certdb.h>
 #include <pk11pub.h>
 #include <secerr.h>
 
@@ -47,7 +48,14 @@
 #include "crypto/scoped_nss_types.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
-#include "net/third_party/mozilla_security_manager/nsNSSCertTrust.h"
+
+#if !defined(CERTDB_TERMINAL_RECORD)
+/* NSS 3.13 renames CERTDB_VALID_PEER to CERTDB_TERMINAL_RECORD
+ * and marks CERTDB_VALID_PEER as deprecated.
+ * If we're using an older version, rename it ourselves.
+ */
+#define CERTDB_TERMINAL_RECORD CERTDB_VALID_PEER
+#endif
 
 namespace mozilla_security_manager {
 
@@ -56,6 +64,9 @@ bool ImportCACerts(const net::CertificateList& certificates,
                    net::X509Certificate* root,
                    net::CertDatabase::TrustBits trustBits,
                    net::CertDatabase::ImportCertFailureList* not_imported) {
+  if (certificates.empty() || !root)
+    return false;
+
   crypto::ScopedPK11Slot slot(crypto::GetPublicNSSKeySlot());
   if (!slot.get()) {
     LOG(ERROR) << "Couldn't get internal key slot!";
@@ -158,7 +169,11 @@ bool ImportCACerts(const net::CertificateList& certificates,
 
 // Based on nsNSSCertificateDB::ImportServerCertificate.
 bool ImportServerCert(const net::CertificateList& certificates,
+                      net::CertDatabase::TrustBits trustBits,
                       net::CertDatabase::ImportCertFailureList* not_imported) {
+  if (certificates.empty())
+    return false;
+
   crypto::ScopedPK11Slot slot(crypto::GetPublicNSSKeySlot());
   if (!slot.get()) {
     LOG(ERROR) << "Couldn't get internal key slot!";
@@ -184,9 +199,7 @@ bool ImportServerCert(const net::CertificateList& certificates,
     }
   }
 
-  // Set as valid peer, but without any extra trust.
-  SetCertTrust(certificates[0].get(), net::SERVER_CERT,
-               net::CertDatabase::UNTRUSTED);
+  SetCertTrust(certificates[0].get(), net::SERVER_CERT, trustBits);
   // TODO(mattm): Report SetCertTrust result?  Putting in not_imported
   // wouldn't quite match up since it was imported...
 
@@ -200,25 +213,57 @@ SetCertTrust(const net::X509Certificate* cert,
              net::CertType type,
              net::CertDatabase::TrustBits trustBits)
 {
+  const unsigned kSSLTrustBits = net::CertDatabase::TRUSTED_SSL |
+      net::CertDatabase::DISTRUSTED_SSL;
+  const unsigned kEmailTrustBits = net::CertDatabase::TRUSTED_EMAIL |
+      net::CertDatabase::DISTRUSTED_EMAIL;
+  const unsigned kObjSignTrustBits = net::CertDatabase::TRUSTED_OBJ_SIGN |
+      net::CertDatabase::DISTRUSTED_OBJ_SIGN;
+  if ((trustBits & kSSLTrustBits) == kSSLTrustBits ||
+      (trustBits & kEmailTrustBits) == kEmailTrustBits ||
+      (trustBits & kObjSignTrustBits) == kObjSignTrustBits) {
+    LOG(ERROR) << "SetCertTrust called with conflicting trust bits "
+               << trustBits;
+    NOTREACHED();
+    return false;
+  }
+
   SECStatus srv;
-  nsNSSCertTrust trust;
   CERTCertificate *nsscert = cert->os_cert_handle();
   if (type == net::CA_CERT) {
-    // always start with untrusted and move up
-    trust.SetValidCA();
-    trust.AddCATrust(trustBits & net::CertDatabase::TRUSTED_SSL,
-                     trustBits & net::CertDatabase::TRUSTED_EMAIL,
-                     trustBits & net::CertDatabase::TRUSTED_OBJ_SIGN);
-    srv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(),
-                               nsscert,
-                               trust.GetTrust());
+    // Note that we start with CERTDB_VALID_CA for default trust and explicit
+    // trust, but explicitly distrusted usages will be set to
+    // CERTDB_TERMINAL_RECORD only.
+    CERTCertTrust trust = {CERTDB_VALID_CA, CERTDB_VALID_CA, CERTDB_VALID_CA};
+
+    if (trustBits & net::CertDatabase::DISTRUSTED_SSL)
+      trust.sslFlags = CERTDB_TERMINAL_RECORD;
+    else if (trustBits & net::CertDatabase::TRUSTED_SSL)
+      trust.sslFlags |= CERTDB_TRUSTED_CA | CERTDB_TRUSTED_CLIENT_CA;
+
+    if (trustBits & net::CertDatabase::DISTRUSTED_EMAIL)
+      trust.emailFlags = CERTDB_TERMINAL_RECORD;
+    else if (trustBits & net::CertDatabase::TRUSTED_EMAIL)
+      trust.emailFlags |= CERTDB_TRUSTED_CA | CERTDB_TRUSTED_CLIENT_CA;
+
+    if (trustBits & net::CertDatabase::DISTRUSTED_OBJ_SIGN)
+      trust.objectSigningFlags = CERTDB_TERMINAL_RECORD;
+    else if (trustBits & net::CertDatabase::TRUSTED_OBJ_SIGN)
+      trust.objectSigningFlags |= CERTDB_TRUSTED_CA | CERTDB_TRUSTED_CLIENT_CA;
+
+    srv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(), nsscert, &trust);
   } else if (type == net::SERVER_CERT) {
-    // always start with untrusted and move up
-    trust.SetValidPeer();
-    trust.AddPeerTrust(trustBits & net::CertDatabase::TRUSTED_SSL, 0, 0);
-    srv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(),
-                               nsscert,
-                               trust.GetTrust());
+    CERTCertTrust trust = {0};
+    // We only modify the sslFlags, so copy the other flags.
+    CERT_GetCertTrust(nsscert, &trust);
+    trust.sslFlags = 0;
+
+    if (trustBits & net::CertDatabase::DISTRUSTED_SSL)
+      trust.sslFlags |= CERTDB_TERMINAL_RECORD;
+    else if (trustBits & net::CertDatabase::TRUSTED_SSL)
+      trust.sslFlags |= CERTDB_TRUSTED | CERTDB_TERMINAL_RECORD;
+
+    srv = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(), nsscert, &trust);
   } else {
     // ignore user and email/unknown certs
     return true;

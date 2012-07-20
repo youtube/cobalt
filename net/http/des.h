@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_DES_H_
 #define NET_HTTP_DES_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "net/base/net_export.h"

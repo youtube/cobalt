@@ -61,6 +61,8 @@ int LowWaterAdjust(int high_water) {
 
 namespace disk_cache {
 
+// The real initialization happens during Init(), init_ is the only member that
+// has to be initialized here.
 Eviction::Eviction()
     : backend_(NULL),
       init_(false),
@@ -77,6 +79,7 @@ void Eviction::Init(BackendImpl* backend) {
   rankings_ = &backend->rankings_;
   header_ = &backend_->data_->header;
   max_size_ = LowWaterAdjust(backend_->max_size_);
+  index_size_ = backend->mask_ + 1;
   new_eviction_ = backend->new_eviction_;
   first_trim_ = true;
   trimming_ = false;
@@ -84,7 +87,6 @@ void Eviction::Init(BackendImpl* backend) {
   trim_delays_ = 0;
   init_ = true;
   test_mode_ = false;
-  in_experiment_ = (header_->experiment == EXPERIMENT_DELETED_LIST_IN);
 }
 
 void Eviction::Stop() {
@@ -226,12 +228,13 @@ bool Eviction::ShouldTrim() {
 }
 
 bool Eviction::ShouldTrimDeleted() {
-  // Normally we use 25% for each list. The experiment doubles the number of
-  // deleted entries, so the total number of entries increases by 25%. Using
-  // 40% of that value for deleted entries leaves the size of the other three
-  // lists intact.
-  int max_length = in_experiment_ ? header_->num_entries * 2 / 5 :
-                                    header_->num_entries / 4;
+  int index_load = header_->num_entries * 100 / index_size_;
+
+  // If the index is not loaded, the deleted list will tend to double the size
+  // of the other lists 3 lists (40% of the total). Otherwise, all lists will be
+  // about the same size.
+  int max_length = (index_load < 25) ? header_->num_entries * 2 / 5 :
+                                       header_->num_entries / 4;
   return (!test_mode_ && header_->lru.sizes[Rankings::DELETED] > max_length);
 }
 
@@ -251,7 +254,6 @@ void Eviction::ReportTrimTimes(EntryImpl* entry) {
     if (header_->create_time) {
       // This is the first entry that we have to evict, generate some noise.
       backend_->FirstEviction();
-      in_experiment_ = (header_->experiment == EXPERIMENT_DELETED_LIST_IN);
     } else {
       // This is an old file, but we may want more reports from this user so
       // lets save some create_time.

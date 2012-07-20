@@ -15,6 +15,8 @@
 #include "media/audio/linux/alsa_wrapper.h"
 #include "media/audio/linux/audio_manager_linux.h"
 
+namespace media {
+
 static const int kNumPacketsInRingBuffer = 3;
 
 static const char kDefaultDevice1[] = "default";
@@ -29,14 +31,16 @@ AlsaPcmInputStream::AlsaPcmInputStream(AudioManagerLinux* audio_manager,
     : audio_manager_(audio_manager),
       device_name_(device_name),
       params_(params),
-      bytes_per_packet_(params.samples_per_packet *
-                        (params.channels * params.bits_per_sample) / 8),
+      bytes_per_buffer_(params.frames_per_buffer() *
+                        (params.channels() * params.bits_per_sample()) / 8),
       wrapper_(wrapper),
-      packet_duration_ms_(
-          (params.samples_per_packet * base::Time::kMillisecondsPerSecond) /
-          params.sample_rate),
+      buffer_duration_ms_(
+          (params.frames_per_buffer() * base::Time::kMillisecondsPerSecond) /
+          params.sample_rate()),
       callback_(NULL),
       device_handle_(NULL),
+      mixer_handle_(NULL),
+      mixer_element_handle_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       read_callback_behind_schedule_(false) {
 }
@@ -48,40 +52,49 @@ bool AlsaPcmInputStream::Open() {
     return false;  // Already open.
 
   snd_pcm_format_t pcm_format = alsa_util::BitsToFormat(
-      params_.bits_per_sample);
+      params_.bits_per_sample());
   if (pcm_format == SND_PCM_FORMAT_UNKNOWN) {
     LOG(WARNING) << "Unsupported bits per sample: "
-                 << params_.bits_per_sample;
+                 << params_.bits_per_sample();
     return false;
   }
 
-  uint32 latency_us = packet_duration_ms_ * kNumPacketsInRingBuffer *
+  uint32 latency_us = buffer_duration_ms_ * kNumPacketsInRingBuffer *
       base::Time::kMicrosecondsPerMillisecond;
 
   // Use the same minimum required latency as output.
   latency_us = std::max(latency_us, AlsaPcmOutputStream::kMinLatencyMicros);
 
   if (device_name_ == kAutoSelectDevice) {
-    device_handle_ = alsa_util::OpenCaptureDevice(wrapper_, kDefaultDevice1,
-                                                  params_.channels,
-                                                  params_.sample_rate,
-                                                  pcm_format, latency_us);
-    if (!device_handle_) {
-      device_handle_ = alsa_util::OpenCaptureDevice(wrapper_, kDefaultDevice2,
-                                                    params_.channels,
-                                                    params_.sample_rate,
-                                                    pcm_format, latency_us);
+    const char* device_names[] = { kDefaultDevice1, kDefaultDevice2 };
+    for (size_t i = 0; i < arraysize(device_names); ++i) {
+      device_handle_ = alsa_util::OpenCaptureDevice(
+          wrapper_, device_names[i], params_.channels(),
+          params_.sample_rate(), pcm_format, latency_us);
+
+      if (device_handle_) {
+        device_name_ = device_names[i];
+        break;
+      }
     }
   } else {
     device_handle_ = alsa_util::OpenCaptureDevice(wrapper_,
                                                   device_name_.c_str(),
-                                                  params_.channels,
-                                                  params_.sample_rate,
+                                                  params_.channels(),
+                                                  params_.sample_rate(),
                                                   pcm_format, latency_us);
   }
 
-  if (device_handle_)
-    audio_packet_.reset(new uint8[bytes_per_packet_]);
+  if (device_handle_) {
+    audio_buffer_.reset(new uint8[bytes_per_buffer_]);
+
+    // Open the microphone mixer.
+    mixer_handle_ = alsa_util::OpenMixer(wrapper_, device_name_);
+    if (mixer_handle_) {
+      mixer_element_handle_ = alsa_util::LoadCaptureMixerElement(
+          wrapper_, mixer_handle_);
+    }
+  }
 
   return device_handle_ != NULL;
 }
@@ -101,11 +114,11 @@ void AlsaPcmInputStream::Start(AudioInputCallback* callback) {
   if (error < 0) {
     callback_ = NULL;
   } else {
-    // We start reading data half |packet_duration_ms_| later than when the
-    // packet might have got filled, to accommodate some delays in the audio
+    // We start reading data half |buffer_duration_ms_| later than when the
+    // buffer might have got filled, to accommodate some delays in the audio
     // driver. This could also give us a smooth read sequence going forward.
     base::TimeDelta delay = base::TimeDelta::FromMilliseconds(
-        packet_duration_ms_ + packet_duration_ms_ / 2);
+        buffer_duration_ms_ + buffer_duration_ms_ / 2);
     next_read_time_ = base::Time::Now() + delay;
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
@@ -165,7 +178,7 @@ void AlsaPcmInputStream::ReadAudio() {
     Recover(frames);
   }
 
-  if (frames < params_.samples_per_packet) {
+  if (frames < params_.frames_per_buffer()) {
     // Not enough data yet or error happened. In both cases wait for a very
     // small duration before checking again.
     // Even Though read callback was behind schedule, there is no data, so
@@ -176,7 +189,7 @@ void AlsaPcmInputStream::ReadAudio() {
     }
 
     base::TimeDelta next_check_time = base::TimeDelta::FromMilliseconds(
-        packet_duration_ms_ / 2);
+        buffer_duration_ms_ / 2);
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&AlsaPcmInputStream::ReadAudio, weak_factory_.GetWeakPtr()),
@@ -184,30 +197,36 @@ void AlsaPcmInputStream::ReadAudio() {
     return;
   }
 
-  int num_packets = frames / params_.samples_per_packet;
-  int num_packets_read = num_packets;
-  int bytes_per_frame = params_.channels * params_.bits_per_sample / 8;
+  int num_buffers = frames / params_.frames_per_buffer();
+  int num_buffers_read = num_buffers;
   uint32 hardware_delay_bytes =
-      static_cast<uint32>(GetCurrentDelay() * bytes_per_frame);
-  while (num_packets--) {
-    int frames_read = wrapper_->PcmReadi(device_handle_, audio_packet_.get(),
-                                         params_.samples_per_packet);
-    if (frames_read == params_.samples_per_packet) {
-      callback_->OnData(this, audio_packet_.get(), bytes_per_packet_,
-                        hardware_delay_bytes);
+      static_cast<uint32>(GetCurrentDelay() * params_.GetBytesPerFrame());
+  double normalized_volume = 0.0;
+
+  // Update the AGC volume level once every second. Note that, |volume| is
+  // also updated each time SetVolume() is called through IPC by the
+  // render-side AGC.
+  QueryAgcVolume(&normalized_volume);
+
+  while (num_buffers--) {
+    int frames_read = wrapper_->PcmReadi(device_handle_, audio_buffer_.get(),
+                                         params_.frames_per_buffer());
+    if (frames_read == params_.frames_per_buffer()) {
+      callback_->OnData(this, audio_buffer_.get(), bytes_per_buffer_,
+                        hardware_delay_bytes, normalized_volume);
     } else {
       LOG(WARNING) << "PcmReadi returning less than expected frames: "
-                   << frames_read << " vs. " << params_.samples_per_packet
-                   << ". Dropping this packet.";
+                   << frames_read << " vs. " << params_.frames_per_buffer()
+                   << ". Dropping this buffer.";
     }
   }
 
   next_read_time_ += base::TimeDelta::FromMilliseconds(
-      packet_duration_ms_ * num_packets_read);
+      buffer_duration_ms_ * num_buffers_read);
   base::TimeDelta delay = next_read_time_ - base::Time::Now();
   if (delay < base::TimeDelta()) {
     LOG(WARNING) << "Audio read callback behind schedule by "
-                 << (packet_duration_ms_ - delay.InMilliseconds())
+                 << (buffer_duration_ms_ - delay.InMilliseconds())
                  << " (ms).";
     // Read callback is behind schedule. Assuming there is data pending in
     // the soundcard, invoke the read callback immediate in order to catch up.
@@ -236,23 +255,93 @@ void AlsaPcmInputStream::Stop() {
 }
 
 void AlsaPcmInputStream::Close() {
-  scoped_ptr<AlsaPcmInputStream> self_deleter(this);
+  if (device_handle_) {
+    weak_factory_.InvalidateWeakPtrs();  // Cancel the next scheduled read.
+    int error = alsa_util::CloseDevice(wrapper_, device_handle_);
+    if (error < 0)
+      HandleError("PcmClose", error);
 
-  // Check in case we were already closed or not initialized yet.
-  if (!device_handle_ || !callback_)
+    if (mixer_handle_)
+      alsa_util::CloseMixer(wrapper_, mixer_handle_, device_name_);
+
+    audio_buffer_.reset();
+    device_handle_ = NULL;
+    mixer_handle_ = NULL;
+    mixer_element_handle_ = NULL;
+
+    if (callback_)
+      callback_->OnClose(this);
+  }
+
+  audio_manager_->ReleaseInputStream(this);
+}
+
+double AlsaPcmInputStream::GetMaxVolume() {
+  if (!mixer_handle_ || !mixer_element_handle_) {
+    DLOG(WARNING) << "GetMaxVolume is not supported for " << device_name_;
+    return 0.0;
+  }
+
+  if (!wrapper_->MixerSelemHasCaptureVolume(mixer_element_handle_)) {
+    DLOG(WARNING) << "Unsupported microphone volume for " << device_name_;
+    return 0.0;
+  }
+
+  long min = 0;
+  long max = 0;
+  if (wrapper_->MixerSelemGetCaptureVolumeRange(mixer_element_handle_,
+                                                &min,
+                                                &max)) {
+    DLOG(WARNING) << "Unsupported max microphone volume for " << device_name_;
+    return 0.0;
+  }
+  DCHECK(min == 0);
+  DCHECK(max > 0);
+
+  return static_cast<double>(max);
+}
+
+void AlsaPcmInputStream::SetVolume(double volume) {
+  if (!mixer_handle_ || !mixer_element_handle_) {
+    DLOG(WARNING) << "SetVolume is not supported for " << device_name_;
     return;
+  }
 
-  weak_factory_.InvalidateWeakPtrs();  // Cancel the next scheduled read.
-  int error = alsa_util::CloseDevice(wrapper_, device_handle_);
-  if (error < 0)
-    HandleError("PcmClose", error);
+  int error = wrapper_->MixerSelemSetCaptureVolumeAll(
+      mixer_element_handle_, static_cast<long>(volume));
+  if (error < 0) {
+    DLOG(WARNING) << "Unable to set volume for " << device_name_;
+  }
 
-  audio_packet_.reset();
-  device_handle_ = NULL;
-  callback_->OnClose(this);
+  // Update the AGC volume level based on the last setting above. Note that,
+  // the volume-level resolution is not infinite and it is therefore not
+  // possible to assume that the volume provided as input parameter can be
+  // used directly. Instead, a new query to the audio hardware is required.
+  // This method does nothing if AGC is disabled.
+  UpdateAgcVolume();
+}
+
+double AlsaPcmInputStream::GetVolume() {
+  if (!mixer_handle_ || !mixer_element_handle_) {
+    DLOG(WARNING) << "GetVolume is not supported for " << device_name_;
+    return 0.0;
+  }
+
+  long current_volume = 0;
+  int error = wrapper_->MixerSelemGetCaptureVolume(
+      mixer_element_handle_, static_cast<snd_mixer_selem_channel_id_t>(0),
+      &current_volume);
+  if (error < 0) {
+    DLOG(WARNING) << "Unable to get volume for " << device_name_;
+    return 0.0;
+  }
+
+  return static_cast<double>(current_volume);
 }
 
 void AlsaPcmInputStream::HandleError(const char* method, int error) {
   LOG(WARNING) << method << ": " << wrapper_->StrError(error);
   callback_->OnError(this, error);
 }
+
+}  // namespace media

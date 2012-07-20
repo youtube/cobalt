@@ -1,0 +1,46 @@
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+{
+  'variables': {
+    'isolate_dependency_tracked': [
+      '../testing/test_env.py',
+      '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
+      'data/json/bom_feff.json',
+    ],
+    'isolate_dependency_untracked': [
+      'data/file_util_unittest/',
+    ],
+  },
+  'conditions': [
+    ['OS=="linux"', {
+      'variables': {
+        'command': [
+          '../testing/xvfb.py',
+          '<(PRODUCT_DIR)',
+          '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
+        ],
+        'isolate_dependency_tracked': [
+          '../testing/xvfb.py',
+          '<(PRODUCT_DIR)/xdisplaycheck<(EXECUTABLE_SUFFIX)',
+        ],
+      },
+    }, {
+      'variables': {
+        'command': [
+          '../testing/test_env.py',
+          '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
+        ],
+      },
+    }],
+    ['OS=="win"', {
+      'variables': {
+        'isolate_dependency_tracked': [
+          '<(PRODUCT_DIR)/icudt.dll',
+          'data/file_version_info_unittest/FileVersionInfoTest1.dll',
+          'data/file_version_info_unittest/FileVersionInfoTest2.dll',
+        ],
+      },
+    }],
+  ],
+}

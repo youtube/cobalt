@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_UTIL_H_
 #define NET_HTTP_HTTP_UTIL_H_
-#pragma once
 
 #include <string>
 #include <vector>
@@ -14,6 +13,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
 #include "net/http/http_byte_range.h"
+#include "net/http/http_version.h"
 
 // This is a macro to support extending this string literal at compile time.
 // Please excuse me polluting your global namespace!
@@ -187,6 +187,13 @@ class NET_EXPORT HttpUtil {
                                     const std::string& header_value,
                                     std::string* headers);
 
+  // Returns true if the parameters describe a response with a strong etag or
+  // last-modified header.  See section 13.3.3 of RFC 2616.
+  static bool HasStrongValidators(HttpVersion version,
+                                  const std::string& etag_header,
+                                  const std::string& last_modified_header,
+                                  const std::string& date_header);
+
   // Used to iterate over the name/value pairs of HTTP headers.  To iterate
   // over the values in a multi-value header, use ValuesIterator.
   // See AssembleRawHeaders for joining line continuations (this iterator
@@ -327,9 +334,6 @@ class NET_EXPORT HttpUtil {
    private:
     HttpUtil::ValuesIterator props_;
     bool valid_;
-
-    std::string::const_iterator begin_;
-    std::string::const_iterator end_;
 
     std::string::const_iterator name_begin_;
     std::string::const_iterator name_end_;

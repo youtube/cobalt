@@ -24,8 +24,8 @@
 //   doSomethingCostly()
 //   TRACE_EVENT_END0("MY_SUBSYSTEM", "SomethingCostly")
 // Note: our tools can't always determine the correct BEGIN/END pairs unless
-// these are used in the same scope. Use START/FINISH macros if you need them
-// to be in separate scopes.
+// these are used in the same scope. Use ASYNC_BEGIN/ASYNC_END macros if you
+// need them to be in separate scopes.
 //
 // A common use case is to trace entire function scopes. This
 // issues a trace BEGIN and END automatically:
@@ -44,28 +44,29 @@
 // The trace system will automatically add to this information the
 // current process id, thread id, and a timestamp in microseconds.
 //
-// To trace an asynchronous procedure such as an IPC send/receive, use START and
-// FINISH:
+// To trace an asynchronous procedure such as an IPC send/receive, use
+// ASYNC_BEGIN and ASYNC_END:
 //   [single threaded sender code]
 //     static int send_count = 0;
 //     ++send_count;
-//     TRACE_EVENT_START0("ipc", "message", send_count);
+//     TRACE_EVENT_ASYNC_BEGIN0("ipc", "message", send_count);
 //     Send(new MyMessage(send_count));
 //   [receive code]
 //     void OnMyMessage(send_count) {
-//       TRACE_EVENT_FINISH0("ipc", "message", send_count);
+//       TRACE_EVENT_ASYNC_END0("ipc", "message", send_count);
 //     }
-// The third parameter is a unique ID to match START/FINISH pairs.
-// START and FINISH can occur on any thread of any traced process. Pointers can
-// be used for the ID parameter, and they will be mangled internally so that
-// the same pointer on two different processes will not match. For example:
+// The third parameter is a unique ID to match ASYNC_BEGIN/ASYNC_END pairs.
+// ASYNC_BEGIN and ASYNC_END can occur on any thread of any traced process.
+// Pointers can be used for the ID parameter, and they will be mangled
+// internally so that the same pointer on two different processes will not
+// match. For example:
 //   class MyTracedClass {
 //    public:
 //     MyTracedClass() {
-//       TRACE_EVENT_START0("category", "MyTracedClass", this);
+//       TRACE_EVENT_ASYNC_BEGIN0("category", "MyTracedClass", this);
 //     }
 //     ~MyTracedClass() {
-//       TRACE_EVENT_FINISH0("category", "MyTracedClass", this);
+//       TRACE_EVENT_ASYNC_END0("category", "MyTracedClass", this);
 //     }
 //   }
 //
@@ -149,7 +150,6 @@
 
 #ifndef BASE_DEBUG_TRACE_EVENT_H_
 #define BASE_DEBUG_TRACE_EVENT_H_
-#pragma once
 
 #include <string>
 
@@ -377,62 +377,91 @@
         value2_name, static_cast<int>(value2_val))
 
 
-// Records a single START event called "name" immediately, with 0, 1 or 2
+// Records a single ASYNC_BEGIN event called "name" immediately, with 0, 1 or 2
 // associated arguments. If the category is not enabled, then this
 // does nothing.
 // - category and name strings must have application lifetime (statics or
 //   literals). They may not include " chars.
-// - |id| is used to match the START event with the FINISH event. It must either
-//   be a pointer or an integer value up to 64 bits. If it's a pointer, the bits
-//   will be xored with a hash of the process ID so that the same pointer on
-//   two different processes will not collide.
-#define TRACE_EVENT_START0(category, name, id) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
+// - |id| is used to match the ASYNC_BEGIN event with the ASYNC_END event. ASYNC
+//   events are considered to match if their category, name and id values all
+//   match. |id| must either be a pointer or an integer value up to 64 bits. If
+//   it's a pointer, the bits will be xored with a hash of the process ID so
+//   that the same pointer on two different processes will not collide.
+// An asynchronous operation can consist of multiple phases. The first phase is
+// defined by the ASYNC_BEGIN calls. Additional phases can be defined using the
+// ASYNC_STEP_BEGIN macros. When the operation completes, call ASYNC_END.
+// An async operation can span threads and processes, but all events in that
+// operation must use the same |name| and |id|. Each event can have its own
+// args.
+#define TRACE_EVENT_ASYNC_BEGIN0(category, name, id) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_BEGIN, \
         category, name, id, TRACE_EVENT_FLAG_NONE)
-#define TRACE_EVENT_START1(category, name, id, arg1_name, arg1_val) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
+#define TRACE_EVENT_ASYNC_BEGIN1(category, name, id, arg1_name, arg1_val) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_BEGIN, \
         category, name, id, TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val)
-#define TRACE_EVENT_START2(category, name, id, arg1_name, arg1_val, \
+#define TRACE_EVENT_ASYNC_BEGIN2(category, name, id, arg1_name, arg1_val, \
         arg2_name, arg2_val) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_BEGIN, \
         category, name, id, TRACE_EVENT_FLAG_NONE, \
         arg1_name, arg1_val, arg2_name, arg2_val)
-#define TRACE_EVENT_COPY_START0(category, name, id) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
+#define TRACE_EVENT_COPY_ASYNC_BEGIN0(category, name, id) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_BEGIN, \
         category, name, id, TRACE_EVENT_FLAG_COPY)
-#define TRACE_EVENT_COPY_START1(category, name, id, arg1_name, arg1_val) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
+#define TRACE_EVENT_COPY_ASYNC_BEGIN1(category, name, id, arg1_name, arg1_val) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_BEGIN, \
         category, name, id, TRACE_EVENT_FLAG_COPY, \
         arg1_name, arg1_val)
-#define TRACE_EVENT_COPY_START2(category, name, id, arg1_name, arg1_val, \
+#define TRACE_EVENT_COPY_ASYNC_BEGIN2(category, name, id, arg1_name, arg1_val, \
         arg2_name, arg2_val) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_BEGIN, \
         category, name, id, TRACE_EVENT_FLAG_COPY, \
         arg1_name, arg1_val, arg2_name, arg2_val)
 
-// Records a single FINISH event for "name" immediately. If the category
+// Records a single ASYNC_STEP event for |step| immediately. If the category
+// is not enabled, then this does nothing. The |name| and |id| must match the
+// ASYNC_BEGIN event above. The |step| param identifies this step within the
+// async event. This should be called at the beginning of the next phase of an
+// asynchronous operation.
+#define TRACE_EVENT_ASYNC_BEGIN_STEP0(category, name, id, step) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_STEP, \
+        category, name, id, TRACE_EVENT_FLAG_NONE, "step", step)
+#define TRACE_EVENT_ASYNC_BEGIN_STEP1(category, name, id, step, \
+                                      arg1_name, arg1_val) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_STEP, \
+        category, name, id, TRACE_EVENT_FLAG_NONE, "step", step, \
+        arg1_name, arg1_val)
+#define TRACE_EVENT_COPY_ASYNC_BEGIN_STEP0(category, name, id, step) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_STEP, \
+        category, name, id, TRACE_EVENT_FLAG_COPY, "step", step)
+#define TRACE_EVENT_COPY_ASYNC_BEGIN_STEP1(category, name, id, step, \
+        arg1_name, arg1_val) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_STEP, \
+        category, name, id, TRACE_EVENT_FLAG_COPY, "step", step, \
+        arg1_name, arg1_val)
+
+// Records a single ASYNC_END event for "name" immediately. If the category
 // is not enabled, then this does nothing.
-#define TRACE_EVENT_FINISH0(category, name, id) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
+#define TRACE_EVENT_ASYNC_END0(category, name, id) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_END, \
         category, name, id, TRACE_EVENT_FLAG_NONE)
-#define TRACE_EVENT_FINISH1(category, name, id, arg1_name, arg1_val) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
+#define TRACE_EVENT_ASYNC_END1(category, name, id, arg1_name, arg1_val) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_END, \
         category, name, id, TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val)
-#define TRACE_EVENT_FINISH2(category, name, id, arg1_name, arg1_val, \
+#define TRACE_EVENT_ASYNC_END2(category, name, id, arg1_name, arg1_val, \
         arg2_name, arg2_val) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_END, \
         category, name, id, TRACE_EVENT_FLAG_NONE, \
         arg1_name, arg1_val, arg2_name, arg2_val)
-#define TRACE_EVENT_COPY_FINISH0(category, name, id) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
+#define TRACE_EVENT_COPY_ASYNC_END0(category, name, id) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_END, \
         category, name, id, TRACE_EVENT_FLAG_COPY)
-#define TRACE_EVENT_COPY_FINISH1(category, name, id, arg1_name, arg1_val) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
+#define TRACE_EVENT_COPY_ASYNC_END1(category, name, id, arg1_name, arg1_val) \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_END, \
         category, name, id, TRACE_EVENT_FLAG_COPY, \
         arg1_name, arg1_val)
-#define TRACE_EVENT_COPY_FINISH2(category, name, id, arg1_name, arg1_val, \
+#define TRACE_EVENT_COPY_ASYNC_END2(category, name, id, arg1_name, arg1_val, \
         arg2_name, arg2_val) \
-    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
+    INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_ASYNC_END, \
         category, name, id, TRACE_EVENT_FLAG_COPY, \
         arg1_name, arg1_val, arg2_name, arg2_val)
 
@@ -502,12 +531,14 @@
 // Implementation detail: internal macro to create static category and add
 // event if the category is enabled.
 #define INTERNAL_TRACE_EVENT_ADD(phase, category, name, flags, ...) \
-    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
-    if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
-      trace_event_internal::AddTraceEvent( \
-          phase, INTERNAL_TRACE_EVENT_UID(catstatic), name, \
-          trace_event_internal::kNoEventId, flags, ##__VA_ARGS__); \
-    }
+    do { \
+      INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
+      if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+        trace_event_internal::AddTraceEvent( \
+            phase, INTERNAL_TRACE_EVENT_UID(catstatic), name, \
+            trace_event_internal::kNoEventId, flags, ##__VA_ARGS__); \
+      } \
+    } while (0)
 
 // Implementation detail: internal macro to create static category and add begin
 // event if the category is enabled. Also adds the end event when the scope
@@ -550,16 +581,18 @@
 // event if the category is enabled.
 #define INTERNAL_TRACE_EVENT_ADD_WITH_ID(phase, category, name, id, flags, \
                                          ...) \
-    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
-    if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
-      unsigned char trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID; \
-      trace_event_internal::TraceID trace_event_trace_id( \
-          id, &trace_event_flags); \
-      trace_event_internal::AddTraceEvent( \
-          phase, INTERNAL_TRACE_EVENT_UID(catstatic), \
-          name, trace_event_trace_id.data(), trace_event_flags, \
-          ##__VA_ARGS__); \
-    }
+    do { \
+      INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
+      if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+        unsigned char trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID; \
+        trace_event_internal::TraceID trace_event_trace_id( \
+            id, &trace_event_flags); \
+        trace_event_internal::AddTraceEvent( \
+            phase, INTERNAL_TRACE_EVENT_UID(catstatic), \
+            name, trace_event_trace_id.data(), trace_event_flags, \
+            ##__VA_ARGS__); \
+      } \
+    } while (0)
 
 // Notes regarding the following definitions:
 // New values can be added and propagated to third party libraries, but existing
@@ -570,8 +603,9 @@
 #define TRACE_EVENT_PHASE_BEGIN    ('B')
 #define TRACE_EVENT_PHASE_END      ('E')
 #define TRACE_EVENT_PHASE_INSTANT  ('I')
-#define TRACE_EVENT_PHASE_START    ('S')
-#define TRACE_EVENT_PHASE_FINISH   ('F')
+#define TRACE_EVENT_PHASE_ASYNC_BEGIN ('S')
+#define TRACE_EVENT_PHASE_ASYNC_STEP  ('T')
+#define TRACE_EVENT_PHASE_ASYNC_END   ('F')
 #define TRACE_EVENT_PHASE_METADATA ('M')
 #define TRACE_EVENT_PHASE_COUNTER  ('C')
 

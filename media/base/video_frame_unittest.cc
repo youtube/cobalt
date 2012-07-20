@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
+
+using base::MD5DigestToBase16;
 
 // Helper function that initializes a YV12 frame with white and black scan
 // lines based on the |white_to_black| parameter.  If 0, then the entire
@@ -45,7 +47,7 @@ void ExpectFrameColor(media::VideoFrame* yv12_frame, uint32 expect_rgb_color) {
             yv12_frame->stride(VideoFrame::kVPlane));
 
   scoped_refptr<media::VideoFrame> rgb_frame;
-  rgb_frame = media::VideoFrame::CreateFrame(VideoFrame::RGBA,
+  rgb_frame = media::VideoFrame::CreateFrame(VideoFrame::RGB32,
                                              yv12_frame->width(),
                                              yv12_frame->height(),
                                              yv12_frame->GetTimestamp(),
@@ -77,33 +79,56 @@ void ExpectFrameColor(media::VideoFrame* yv12_frame, uint32 expect_rgb_color) {
   }
 }
 
+// Fill each plane to its reported extents and verify accessors report non
+// zero values.  Additionally, for the first plane verify the rows and
+// row_bytes values are correct.
+void ExpectFrameExtents(VideoFrame::Format format, int planes,
+                        int bytes_per_pixel, const char* expected_hash) {
+  const unsigned char kFillByte = 0x80;
+  const size_t kWidth = 61;
+  const size_t kHeight = 31;
+  const base::TimeDelta kTimestamp = base::TimeDelta::FromMicroseconds(1337);
+  const base::TimeDelta kDuration = base::TimeDelta::FromMicroseconds(1667);
+
+  scoped_refptr<VideoFrame> frame = VideoFrame::CreateFrame(
+      format, kWidth, kHeight, kTimestamp, kDuration);
+  ASSERT_TRUE(frame);
+
+  for(int plane = 0; plane < planes; plane++) {
+    SCOPED_TRACE(base::StringPrintf("Checking plane %d", plane));
+    EXPECT_TRUE(frame->data(plane));
+    EXPECT_TRUE(frame->stride(plane));
+    EXPECT_TRUE(frame->rows(plane));
+    EXPECT_TRUE(frame->row_bytes(plane));
+
+    if (plane == 0) {
+      EXPECT_EQ((size_t)frame->rows(plane), kHeight);
+      EXPECT_EQ((size_t)frame->row_bytes(plane), kWidth * bytes_per_pixel);
+    }
+
+    memset(frame->data(plane), kFillByte,
+           frame->stride(plane) * frame->rows(plane));
+  }
+
+  base::MD5Context context;
+  base::MD5Init(&context);
+  frame->HashFrameForTesting(&context);
+  base::MD5Digest digest;
+  base::MD5Final(&digest, &context);
+  EXPECT_EQ(MD5DigestToBase16(digest), expected_hash);
+}
+
 TEST(VideoFrame, CreateFrame) {
   const size_t kWidth = 64;
   const size_t kHeight = 48;
-  const base::TimeDelta kTimestampA = base::TimeDelta::FromMicroseconds(1337);
-  const base::TimeDelta kDurationA = base::TimeDelta::FromMicroseconds(1667);
-  const base::TimeDelta kTimestampB = base::TimeDelta::FromMicroseconds(1234);
-  const base::TimeDelta kDurationB = base::TimeDelta::FromMicroseconds(5678);
+  const base::TimeDelta kTimestamp = base::TimeDelta::FromMicroseconds(1337);
+  const base::TimeDelta kDuration = base::TimeDelta::FromMicroseconds(1667);
 
   // Create a YV12 Video Frame.
   scoped_refptr<media::VideoFrame> frame =
       VideoFrame::CreateFrame(media::VideoFrame::YV12, kWidth, kHeight,
-                              kTimestampA, kDurationA);
+                              kTimestamp, kDuration);
   ASSERT_TRUE(frame);
-
-  // Test StreamSample implementation.
-  EXPECT_EQ(kTimestampA.InMicroseconds(),
-            frame->GetTimestamp().InMicroseconds());
-  EXPECT_EQ(kDurationA.InMicroseconds(),
-            frame->GetDuration().InMicroseconds());
-  EXPECT_FALSE(frame->IsEndOfStream());
-  frame->SetTimestamp(kTimestampB);
-  frame->SetDuration(kDurationB);
-  EXPECT_EQ(kTimestampB.InMicroseconds(),
-            frame->GetTimestamp().InMicroseconds());
-  EXPECT_EQ(kDurationB.InMicroseconds(),
-            frame->GetDuration().InMicroseconds());
-  EXPECT_FALSE(frame->IsEndOfStream());
 
   // Test VideoFrame implementation.
   EXPECT_EQ(media::VideoFrame::YV12, frame->format());
@@ -112,11 +137,21 @@ TEST(VideoFrame, CreateFrame) {
     InitializeYV12Frame(frame, 0.0f);
     ExpectFrameColor(frame, 0xFF000000);
   }
+  base::MD5Digest digest;
+  base::MD5Context context;
+  base::MD5Init(&context);
+  frame->HashFrameForTesting(&context);
+  base::MD5Final(&digest, &context);
+  EXPECT_EQ(MD5DigestToBase16(digest), "9065c841d9fca49186ef8b4ef547e79b");
   {
     SCOPED_TRACE("");
     InitializeYV12Frame(frame, 1.0f);
     ExpectFrameColor(frame, 0xFFFFFFFF);
   }
+  base::MD5Init(&context);
+  frame->HashFrameForTesting(&context);
+  base::MD5Final(&digest, &context);
+  EXPECT_EQ(MD5DigestToBase16(digest), "911991d51438ad2e1a40ed5f6fc7c796");
 
   // Test an empty frame.
   frame = VideoFrame::CreateEmptyFrame();
@@ -158,6 +193,20 @@ TEST(VideoFrame, CreateBlackFrame) {
     u_plane += frame->stride(VideoFrame::kUPlane);
     v_plane += frame->stride(VideoFrame::kVPlane);
   }
+}
+
+// Ensure each frame is properly sized and allocated.  Will trigger OOB reads
+// and writes as well as incorrect frame hashes otherwise.
+TEST(VideoFrame, CheckFrameExtents) {
+  // Each call consists of a VideoFrame::Format, # of planes, bytes per pixel,
+  // and the expected hash of all planes if filled with kFillByte (defined in
+  // ExpectFrameExtents).
+  ExpectFrameExtents(
+      VideoFrame::RGB32,  1, 4, "de6d3d567e282f6a38d478f04fc81fb0");
+  ExpectFrameExtents(
+      VideoFrame::YV12,   3, 1, "71113bdfd4c0de6cf62f48fb74f7a0b1");
+  ExpectFrameExtents(
+      VideoFrame::YV16,   3, 1, "9bb99ac3ff350644ebff4d28dc01b461");
 }
 
 }  // namespace media

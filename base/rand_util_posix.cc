@@ -1,9 +1,8 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/rand_util.h"
-#include "base/rand_util_c.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -54,8 +53,8 @@ uint64 RandUint64() {
   return number;
 }
 
-}  // namespace base
-
 int GetUrandomFD(void) {
   return g_urandom_fd.Pointer()->fd();
 }
+
+}  // namespace base

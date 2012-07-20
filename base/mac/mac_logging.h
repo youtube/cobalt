@@ -4,11 +4,15 @@
 
 #ifndef BASE_MAC_MAC_LOGGING_H_
 #define BASE_MAC_MAC_LOGGING_H_
-#pragma once
-
-#include <libkern/OSTypes.h>
 
 #include "base/logging.h"
+#include "build/build_config.h"
+
+#if defined(OS_IOS)
+#include <MacTypes.h>
+#else
+#include <libkern/OSTypes.h>
+#endif
 
 // Use the OSSTATUS_LOG family to log messages related to errors in Mac OS X
 // system routines that report status via an OSStatus or OSErr value. It is

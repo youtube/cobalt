@@ -4,7 +4,6 @@
 
 #ifndef NET_DISK_CACHE_STRESS_SUPPORT_H_
 #define NET_DISK_CACHE_STRESS_SUPPORT_H_
-#pragma once
 
 #include "base/logging.h"
 

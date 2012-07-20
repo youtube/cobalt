@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_CONFIG_SERVICE_MAC_H_
 #define NET_PROXY_PROXY_CONFIG_SERVICE_MAC_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -15,16 +14,22 @@
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service.h"
 
-class MessageLoop;
+namespace base {
+class SingleThreadTaskRunner;
+}  // namespace base
 
 namespace net {
 
-class ProxyConfigServiceMac : public ProxyConfigService {
+// TODO(sergeyu): This class needs to be exported because remoting code
+// creates it directly. Fix that and remove NET_EXPORT here.
+// crbug.com/125104
+class NET_EXPORT ProxyConfigServiceMac : public ProxyConfigService {
  public:
   // Constructs a ProxyConfigService that watches the Mac OS system settings.
-  // This instance is expected to be operated and deleted on |io_loop|
+  // This instance is expected to be operated and deleted on the IO thread
   // (however it may be constructed from a different thread).
-  explicit ProxyConfigServiceMac(MessageLoop* io_loop);
+  explicit ProxyConfigServiceMac(
+      base::SingleThreadTaskRunner* io_thread_task_runner);
   virtual ~ProxyConfigServiceMac();
 
  public:
@@ -77,7 +82,7 @@ class ProxyConfigServiceMac : public ProxyConfigService {
   scoped_refptr<Helper> helper_;
 
   // The thread that we expect to be operated on.
-  MessageLoop* io_loop_;
+  const scoped_refptr<base::SingleThreadTaskRunner> io_thread_task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyConfigServiceMac);
 };

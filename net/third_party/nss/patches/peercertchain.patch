@@ -1,62 +1,60 @@
-From 40714671513378227413d1542c2911c2f62e3840 Mon Sep 17 00:00:00 2001
-From: Adam Langley <agl@chromium.org>
-Date: Mon, 3 Oct 2011 12:20:43 -0400
-Subject: [PATCH] peercertchain.patch
-
----
- mozilla/security/nss/lib/ssl/ssl.def   |    1 +
- mozilla/security/nss/lib/ssl/ssl.h     |   11 +++++++++
- mozilla/security/nss/lib/ssl/sslauth.c |   36 ++++++++++++++++++++++++++++++++
- 3 files changed, 48 insertions(+), 0 deletions(-)
-
-diff --git a/mozilla/security/nss/lib/ssl/ssl.def b/mozilla/security/nss/lib/ssl/ssl.def
-index a1f4b51..0fa8777 100644
---- a/mozilla/security/nss/lib/ssl/ssl.def
-+++ b/mozilla/security/nss/lib/ssl/ssl.def
-@@ -155,6 +155,7 @@ SSL_SNISocketConfigHook;
- ;+NSS_CHROMIUM {
- ;+    global:
- SSL_GetNextProto;
-+SSL_PeerCertificateChain;
- SSL_SetNextProtoNego;
- ;+    local:
- ;+*;
-diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
-index ffa973c..cccb49a 100644
---- a/mozilla/security/nss/lib/ssl/ssl.h
-+++ b/mozilla/security/nss/lib/ssl/ssl.h
-@@ -264,6 +264,17 @@ SSL_IMPORT SECStatus SSL_SecurityStatus(PRFileDesc *fd, int *on, char **cipher,
+Index: mozilla/security/nss/lib/ssl/ssl.h
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl.h,v
+retrieving revision 1.49
+diff -u -p -8 -r1.49 ssl.h
+--- mozilla/security/nss/lib/ssl/ssl.h	15 Feb 2012 21:52:08 -0000	1.49
++++ mozilla/security/nss/lib/ssl/ssl.h	29 Feb 2012 02:12:05 -0000
+@@ -331,16 +331,28 @@ SSL_IMPORT SECStatus SSL_SecurityStatus(
+ ** it will always return the server's certificate. If the server calls
+ ** this, it may return NULL if client authentication is not enabled or
+ ** if the client had no certificate when asked.
+ **	"fd" the socket "file" descriptor
+ */
  SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
  
  /*
-+** Return references to the certificates presented by the SSL peer. On entry,
-+** |*certs_size| must contain the size of the |certs| array. On successful
-+** return, |*certs_size| contains the number of certificates available and
++** Return references to the certificates presented by the SSL peer.
++** |maxNumCerts| must contain the size of the |certs| array. On successful
++** return, |*numCerts| contains the number of certificates available and
 +** |certs| will contain references to as many certificates as would fit.
-+** Therefore if, on exit, |*certs_size| contains a value less than, or equal to,
-+** the entry value then all certificates were returned.
++** Therefore if |*numCerts| contains a value less than or equal to
++** |maxNumCerts|, then all certificates were returned.
 +*/
 +SSL_IMPORT SECStatus SSL_PeerCertificateChain(
-+	PRFileDesc *fd, CERTCertificate **certs, unsigned int *certs_size);
++	PRFileDesc *fd, CERTCertificate **certs,
++	unsigned int *numCerts, unsigned int maxNumCerts);
 +
 +/*
  ** Authenticate certificate hook. Called when a certificate comes in
  ** (because of SSL_REQUIRE_CERTIFICATE in SSL_Enable) to authenticate the
  ** certificate.
-diff --git a/mozilla/security/nss/lib/ssl/sslauth.c b/mozilla/security/nss/lib/ssl/sslauth.c
-index 6d1eab0..df40f30 100644
---- a/mozilla/security/nss/lib/ssl/sslauth.c
-+++ b/mozilla/security/nss/lib/ssl/sslauth.c
-@@ -60,6 +60,42 @@ SSL_PeerCertificate(PRFileDesc *fd)
+ **
+ ** The authenticate certificate hook must return SECSuccess to indicate the
+ ** certificate is valid, SECFailure to indicate the certificate is invalid,
+ ** or SECWouldBlock if the application will authenticate the certificate
+ ** asynchronously. SECWouldBlock is only supported for non-blocking sockets.
+Index: mozilla/security/nss/lib/ssl/sslauth.c
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslauth.c,v
+retrieving revision 1.17
+diff -u -p -8 -r1.17 sslauth.c
+--- mozilla/security/nss/lib/ssl/sslauth.c	3 Aug 2010 18:48:45 -0000	1.17
++++ mozilla/security/nss/lib/ssl/sslauth.c	29 Feb 2012 02:12:05 -0000
+@@ -55,16 +55,51 @@ SSL_PeerCertificate(PRFileDesc *fd)
+     }
+     if (ss->opt.useSecurity && ss->sec.peerCert) {
+ 	return CERT_DupCertificate(ss->sec.peerCert);
+     }
+     return 0;
  }
  
  /* NEED LOCKS IN HERE.  */
 +SECStatus
 +SSL_PeerCertificateChain(PRFileDesc *fd, CERTCertificate **certs,
-+			 unsigned int *certsSize)
++			 unsigned int *numCerts, unsigned int maxNumCerts)
 +{
 +    sslSocket *ss;
-+    unsigned int inSize = *certsSize;
 +    ssl3CertNode* cur;
 +
 +    ss = ssl_FindSocket(fd);
@@ -69,18 +67,18 @@ index 6d1eab0..df40f30 100644
 +	return SECFailure;
 +
 +    if (ss->sec.peerCert == NULL) {
-+      *certsSize = 0;
++      *numCerts = 0;
 +      return SECSuccess;
 +    }
 +
-+    *certsSize = 1;  /* for the leaf certificate */
-+    if (inSize > 0)
++    *numCerts = 1;  /* for the leaf certificate */
++    if (maxNumCerts > 0)
 +	certs[0] = CERT_DupCertificate(ss->sec.peerCert);
 +
 +    for (cur = ss->ssl3.peerCertChain; cur; cur = cur->next) {
-+	if (*certsSize < inSize)
-+	    certs[*certsSize] = CERT_DupCertificate(cur->cert);
-+	(*certsSize)++;
++	if (*numCerts < maxNumCerts)
++	    certs[*numCerts] = CERT_DupCertificate(cur->cert);
++	(*numCerts)++;
 +    }
 +
 +    return SECSuccess;
@@ -90,3 +88,8 @@ index 6d1eab0..df40f30 100644
  CERTCertificate *
  SSL_LocalCertificate(PRFileDesc *fd)
  {
+     sslSocket *ss;
+ 
+     ss = ssl_FindSocket(fd);
+     if (!ss) {
+ 	SSL_DBG(("%d: SSL[%d]: bad socket in PeerCertificate",

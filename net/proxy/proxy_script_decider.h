@@ -1,14 +1,14 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_PROXY_SCRIPT_DECIDER_H
-#define NET_PROXY_SCRIPT_DECIDER_H
-#pragma once
+#ifndef NET_PROXY_PROXY_SCRIPT_DECIDER_H_
+#define NET_PROXY_PROXY_SCRIPT_DECIDER_H_
 
+#include <string>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "base/time.h"
 #include "base/timer.h"
@@ -89,6 +89,12 @@ class NET_EXPORT_PRIVATE ProxyScriptDecider {
     PacSource(Type type, const GURL& url)
         : type(type), url(url) {}
 
+    // Returns a Value representing the PacSource.  |effective_pac_url| must
+    // be non-NULL and point to the URL derived from information contained in
+    // |this|, if Type is not WPAD_DHCP.
+    base::Value* NetLogCallback(const GURL* effective_pac_url,
+                                NetLog::LogLevel log_level) const;
+
     Type type;
     GURL url;  // Empty unless |type == PAC_SOURCE_CUSTOM|.
   };
@@ -131,8 +137,7 @@ class NET_EXPORT_PRIVATE ProxyScriptDecider {
   // ProxyResolver doesn't |expect_pac_bytes()|.
   State GetStartState() const;
 
-  NetLogStringParameter* CreateNetLogParameterAndDetermineURL(
-      const PacSource& pac_source, GURL* effective_pac_url);
+  void DetermineURL(const PacSource& pac_source, GURL* effective_pac_url);
 
   // Returns the current PAC URL we are fetching/testing.
   const PacSource& current_pac_source() const;
@@ -176,4 +181,4 @@ class NET_EXPORT_PRIVATE ProxyScriptDecider {
 
 }  // namespace net
 
-#endif  // NET_PROXY_SCRIPT_DECIDER_H
+#endif  // NET_PROXY_PROXY_SCRIPT_DECIDER_H_

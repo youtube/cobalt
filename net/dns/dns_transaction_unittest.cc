@@ -8,11 +8,11 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "base/rand_util.h"
+#include "base/sys_byteorder.h"
 #include "base/test/test_timeouts.h"
 #include "net/base/big_endian.h"
 #include "net/base/dns_util.h"
 #include "net/base/net_log.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/dns/dns_protocol.h"
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_response.h"
@@ -141,18 +141,17 @@ class TransactionHelper {
 
     if (expected_answer_count_ >= 0) {
       EXPECT_EQ(OK, rv);
-      EXPECT_EQ(expected_answer_count_, response->answer_count());
+      EXPECT_EQ(static_cast<unsigned>(expected_answer_count_),
+                response->answer_count());
       EXPECT_EQ(qtype_, response->qtype());
 
       DnsRecordParser parser = response->Parser();
       DnsResourceRecord record;
       for (int i = 0; i < expected_answer_count_; ++i) {
-        EXPECT_TRUE(parser.ParseRecord(&record));
+        EXPECT_TRUE(parser.ReadRecord(&record));
       }
-      EXPECT_TRUE(parser.AtEnd());
     } else {
       EXPECT_EQ(expected_answer_count_, rv);
-      EXPECT_EQ(NULL, response);
     }
 
     if (quit_in_callback_)
@@ -200,7 +199,7 @@ class DnsTransactionTest : public testing::Test {
     config_.nameservers.clear();
     IPAddressNumber dns_ip;
     {
-      bool rv = ParseIPLiteralToNumber("192.128.1.0", &dns_ip);
+      bool rv = ParseIPLiteralToNumber("192.168.1.0", &dns_ip);
       EXPECT_TRUE(rv);
     }
     for (unsigned i = 0; i < num_servers; ++i) {
@@ -212,10 +211,10 @@ class DnsTransactionTest : public testing::Test {
 
   // Called after fully configuring |config|.
   void ConfigureFactory() {
-    socket_factory_ = new TestSocketFactory();
+    socket_factory_.reset(new TestSocketFactory());
     session_ = new DnsSession(
         config_,
-        socket_factory_,
+        socket_factory_.get(),
         base::Bind(&DnsTransactionTest::GetNextId, base::Unretained(this)),
         NULL /* NetLog */);
     transaction_factory_ = DnsTransactionFactory::CreateFactory(session_.get());
@@ -231,8 +230,9 @@ class DnsTransactionTest : public testing::Test {
                    uint16 qtype,
                    uint16 id,
                    const char* data,
-                   size_t data_length) {
-    CHECK(socket_factory_);
+                   size_t data_length,
+                   IoMode mode) {
+    CHECK(socket_factory_.get());
     DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
     queries_.push_back(query);
 
@@ -240,24 +240,32 @@ class DnsTransactionTest : public testing::Test {
     DnsResponse* response = new DnsResponse(data, data_length, 0);
     responses_.push_back(response);
 
-    writes_.push_back(MockWrite(true,
+    writes_.push_back(MockWrite(mode,
                                 query->io_buffer()->data(),
                                 query->io_buffer()->size()));
-    reads_.push_back(MockRead(true,
+    reads_.push_back(MockRead(mode,
                               response->io_buffer()->data(),
                               data_length));
 
     transaction_ids_.push_back(id);
   }
 
+  void AddAsyncResponse(const std::string& dotted_name,
+                        uint16 qtype,
+                        uint16 id,
+                        const char* data,
+                        size_t data_length) {
+    AddResponse(dotted_name, qtype, id, data, data_length, ASYNC);
+  }
+
   // Add expected query of |dotted_name| and |qtype| and no response.
   void AddTimeout(const char* dotted_name, uint16 qtype) {
-    CHECK(socket_factory_);
+    CHECK(socket_factory_.get());
     uint16 id = base::RandInt(0, kuint16max);
     DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
     queries_.push_back(query);
 
-    writes_.push_back(MockWrite(true,
+    writes_.push_back(MockWrite(ASYNC,
                                 query->io_buffer()->data(),
                                 query->io_buffer()->size()));
     // Empty MockRead indicates no data.
@@ -267,8 +275,8 @@ class DnsTransactionTest : public testing::Test {
 
   // Add expected query of |dotted_name| and |qtype| and response with no answer
   // and rcode set to |rcode|.
-  void AddRcode(const char* dotted_name, uint16 qtype, int rcode) {
-    CHECK(socket_factory_);
+  void AddRcode(const char* dotted_name, uint16 qtype, int rcode, IoMode mode) {
+    CHECK(socket_factory_.get());
     CHECK_NE(dns_protocol::kRcodeNOERROR, rcode);
     uint16 id = base::RandInt(0, kuint16max);
     DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
@@ -279,16 +287,20 @@ class DnsTransactionTest : public testing::Test {
                                             0);
     dns_protocol::Header* header =
         reinterpret_cast<dns_protocol::Header*>(response->io_buffer()->data());
-    header->flags |= htons(dns_protocol::kFlagResponse | rcode);
+    header->flags |= base::HostToNet16(dns_protocol::kFlagResponse | rcode);
     responses_.push_back(response);
 
-    writes_.push_back(MockWrite(true,
+    writes_.push_back(MockWrite(mode,
                                 query->io_buffer()->data(),
                                 query->io_buffer()->size()));
-    reads_.push_back(MockRead(true,
+    reads_.push_back(MockRead(mode,
                               response->io_buffer()->data(),
                               query->io_buffer()->size()));
     transaction_ids_.push_back(id);
+  }
+
+  void AddAsyncRcode(const char* dotted_name, uint16 qtype, int rcode) {
+    AddRcode(dotted_name, qtype, rcode, ASYNC);
   }
 
   // Call after all Add* calls to prepare data for |socket_factory_|.
@@ -360,48 +372,47 @@ class DnsTransactionTest : public testing::Test {
   ScopedVector<DelayedSocketData> socket_data_;
 
   std::deque<int> transaction_ids_;
-  // Owned by |session_|.
-  TestSocketFactory* socket_factory_;
+  scoped_ptr<TestSocketFactory> socket_factory_;
   scoped_refptr<DnsSession> session_;
   scoped_ptr<DnsTransactionFactory> transaction_factory_;
 };
 
 TEST_F(DnsTransactionTest, Lookup) {
-  AddResponse(kT0HostName,
-              kT0Qtype,
-              0 /* id */,
-              reinterpret_cast<const char*>(kT0ResponseDatagram),
-              arraysize(kT0ResponseDatagram));
+  AddAsyncResponse(kT0HostName,
+                   kT0Qtype,
+                   0 /* id */,
+                   reinterpret_cast<const char*>(kT0ResponseDatagram),
+                   arraysize(kT0ResponseDatagram));
   PrepareSockets();
 
   TransactionHelper helper0(kT0HostName,
                             kT0Qtype,
-                            arraysize(kT0IpAddresses) + 1);
+                            kT0RecordCount);
   EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
 }
 
 // Concurrent lookup tests assume that DnsTransaction::Start immediately
 // consumes a socket from ClientSocketFactory.
 TEST_F(DnsTransactionTest, ConcurrentLookup) {
-  AddResponse(kT0HostName,
-              kT0Qtype,
-              0 /* id */,
-              reinterpret_cast<const char*>(kT0ResponseDatagram),
-              arraysize(kT0ResponseDatagram));
-  AddResponse(kT1HostName,
-              kT1Qtype,
-              1 /* id */,
-              reinterpret_cast<const char*>(kT1ResponseDatagram),
-              arraysize(kT1ResponseDatagram));
+  AddAsyncResponse(kT0HostName,
+                   kT0Qtype,
+                   0 /* id */,
+                   reinterpret_cast<const char*>(kT0ResponseDatagram),
+                   arraysize(kT0ResponseDatagram));
+  AddAsyncResponse(kT1HostName,
+                   kT1Qtype,
+                   1 /* id */,
+                   reinterpret_cast<const char*>(kT1ResponseDatagram),
+                   arraysize(kT1ResponseDatagram));
   PrepareSockets();
 
   TransactionHelper helper0(kT0HostName,
                             kT0Qtype,
-                            arraysize(kT0IpAddresses) + 1);
+                            kT0RecordCount);
   helper0.StartTransaction(transaction_factory_.get());
   TransactionHelper helper1(kT1HostName,
                             kT1Qtype,
-                            arraysize(kT1IpAddresses) + 1);
+                            kT1RecordCount);
   helper1.StartTransaction(transaction_factory_.get());
 
   MessageLoop::current()->RunAllPending();
@@ -411,25 +422,25 @@ TEST_F(DnsTransactionTest, ConcurrentLookup) {
 }
 
 TEST_F(DnsTransactionTest, CancelLookup) {
-  AddResponse(kT0HostName,
-              kT0Qtype,
-              0 /* id */,
-              reinterpret_cast<const char*>(kT0ResponseDatagram),
-              arraysize(kT0ResponseDatagram));
-  AddResponse(kT1HostName,
-              kT1Qtype,
-              1 /* id */,
-              reinterpret_cast<const char*>(kT1ResponseDatagram),
-              arraysize(kT1ResponseDatagram));
+  AddAsyncResponse(kT0HostName,
+                   kT0Qtype,
+                   0 /* id */,
+                   reinterpret_cast<const char*>(kT0ResponseDatagram),
+                   arraysize(kT0ResponseDatagram));
+  AddAsyncResponse(kT1HostName,
+                   kT1Qtype,
+                   1 /* id */,
+                   reinterpret_cast<const char*>(kT1ResponseDatagram),
+                   arraysize(kT1ResponseDatagram));
   PrepareSockets();
 
   TransactionHelper helper0(kT0HostName,
                             kT0Qtype,
-                            arraysize(kT0IpAddresses) + 1);
+                            kT0RecordCount);
   helper0.StartTransaction(transaction_factory_.get());
   TransactionHelper helper1(kT1HostName,
                             kT1Qtype,
-                            arraysize(kT1IpAddresses) + 1);
+                            kT1RecordCount);
   helper1.StartTransaction(transaction_factory_.get());
 
   helper0.Cancel();
@@ -441,16 +452,16 @@ TEST_F(DnsTransactionTest, CancelLookup) {
 }
 
 TEST_F(DnsTransactionTest, DestroyFactory) {
-  AddResponse(kT0HostName,
-              kT0Qtype,
-              0 /* id */,
-              reinterpret_cast<const char*>(kT0ResponseDatagram),
-              arraysize(kT0ResponseDatagram));
+  AddAsyncResponse(kT0HostName,
+                   kT0Qtype,
+                   0 /* id */,
+                   reinterpret_cast<const char*>(kT0ResponseDatagram),
+                   arraysize(kT0ResponseDatagram));
   PrepareSockets();
 
   TransactionHelper helper0(kT0HostName,
                             kT0Qtype,
-                            arraysize(kT0IpAddresses) + 1);
+                            kT0RecordCount);
   helper0.StartTransaction(transaction_factory_.get());
 
   // Destroying the client does not affect running requests.
@@ -462,22 +473,22 @@ TEST_F(DnsTransactionTest, DestroyFactory) {
 }
 
 TEST_F(DnsTransactionTest, CancelFromCallback) {
-  AddResponse(kT0HostName,
-              kT0Qtype,
-              0 /* id */,
-              reinterpret_cast<const char*>(kT0ResponseDatagram),
-              arraysize(kT0ResponseDatagram));
+  AddAsyncResponse(kT0HostName,
+                   kT0Qtype,
+                   0 /* id */,
+                   reinterpret_cast<const char*>(kT0ResponseDatagram),
+                   arraysize(kT0ResponseDatagram));
   PrepareSockets();
 
   TransactionHelper helper0(kT0HostName,
                             kT0Qtype,
-                            arraysize(kT0IpAddresses) + 1);
+                            kT0RecordCount);
   helper0.set_cancel_in_callback();
   EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
 }
 
 TEST_F(DnsTransactionTest, ServerFail) {
-  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeSERVFAIL);
+  AddAsyncRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeSERVFAIL);
   PrepareSockets();
 
   TransactionHelper helper0(kT0HostName,
@@ -487,7 +498,7 @@ TEST_F(DnsTransactionTest, ServerFail) {
 }
 
 TEST_F(DnsTransactionTest, NoDomain) {
-  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeNXDOMAIN);
   PrepareSockets();
 
   TransactionHelper helper0(kT0HostName,
@@ -499,8 +510,7 @@ TEST_F(DnsTransactionTest, NoDomain) {
 TEST_F(DnsTransactionTest, Timeout) {
   config_.attempts = 3;
   // Use short timeout to speed up the test.
-  config_.timeout = base::TimeDelta::FromMilliseconds(
-      TestTimeouts::tiny_timeout_ms());
+  config_.timeout = TestTimeouts::tiny_timeout();
   ConfigureFactory();
 
   AddTimeout(kT0HostName, kT0Qtype);
@@ -522,19 +532,18 @@ TEST_F(DnsTransactionTest, ServerFallbackAndRotate) {
   config_.rotate = true;
   ConfigureNumServers(3);
   // Use short timeout to speed up the test.
-  config_.timeout = base::TimeDelta::FromMilliseconds(
-      TestTimeouts::tiny_timeout_ms());
+  config_.timeout = TestTimeouts::tiny_timeout();
   ConfigureFactory();
 
   // Responses for first request.
   AddTimeout(kT0HostName, kT0Qtype);
-  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeSERVFAIL);
+  AddAsyncRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeSERVFAIL);
   AddTimeout(kT0HostName, kT0Qtype);
-  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeSERVFAIL);
-  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeSERVFAIL);
+  AddAsyncRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeNXDOMAIN);
   // Responses for second request.
-  AddRcode(kT1HostName, kT1Qtype, dns_protocol::kRcodeSERVFAIL);
-  AddRcode(kT1HostName, kT1Qtype, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode(kT1HostName, kT1Qtype, dns_protocol::kRcodeSERVFAIL);
+  AddAsyncRcode(kT1HostName, kT1Qtype, dns_protocol::kRcodeNXDOMAIN);
   PrepareSockets();
 
   TransactionHelper helper0(kT0HostName,
@@ -563,10 +572,10 @@ TEST_F(DnsTransactionTest, SuffixSearchAboveNdots) {
   ConfigureNumServers(2);
   ConfigureFactory();
 
-  AddRcode("x.y.z", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.y.z.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.y.z.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.y.z.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y.z", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y.z.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y.z.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y.z.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
   PrepareSockets();
 
   TransactionHelper helper0("x.y.z",
@@ -588,16 +597,16 @@ TEST_F(DnsTransactionTest, SuffixSearchBelowNdots) {
   ConfigureFactory();
 
   // Responses for first transaction.
-  AddRcode("x.y.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.y.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.y.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.y", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
   // Responses for second transaction.
-  AddRcode("x.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
   // Responses for third transaction.
-  AddRcode("x", dns_protocol::kTypeAAAA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x", dns_protocol::kTypeAAAA, dns_protocol::kRcodeNXDOMAIN);
   PrepareSockets();
 
   TransactionHelper helper0("x.y",
@@ -622,10 +631,8 @@ TEST_F(DnsTransactionTest, SuffixSearchBelowNdots) {
 }
 
 TEST_F(DnsTransactionTest, EmptySuffixSearch) {
-  ConfigureFactory();
-
   // Responses for first transaction.
-  AddRcode("x", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
   PrepareSockets();
 
   // A fully-qualified name.
@@ -638,7 +645,7 @@ TEST_F(DnsTransactionTest, EmptySuffixSearch) {
   // A single label name is not even attempted.
   TransactionHelper helper1("singlelabel",
                             dns_protocol::kTypeA,
-                            ERR_NAME_NOT_RESOLVED);
+                            ERR_DNS_SEARCH_EMPTY);
 
   helper1.StartTransaction(transaction_factory_.get());
   EXPECT_TRUE(helper1.has_completed());
@@ -652,13 +659,13 @@ TEST_F(DnsTransactionTest, DontAppendToMultiLabelName) {
   ConfigureFactory();
 
   // Responses for first transaction.
-  AddRcode("x.y.z", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y.z", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
   // Responses for second transaction.
-  AddRcode("x.y", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
   // Responses for third transaction.
-  AddRcode("x.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
-  AddRcode("x.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
   PrepareSockets();
 
   TransactionHelper helper0("x.y.z",
@@ -677,7 +684,107 @@ TEST_F(DnsTransactionTest, DontAppendToMultiLabelName) {
   EXPECT_TRUE(helper2.Run(transaction_factory_.get()));
 }
 
+const uint8 kResponseNoData[] = {
+  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+  // Question
+  0x01,  'x', 0x01,  'y', 0x01,  'z', 0x01,  'b', 0x00, 0x00, 0x01, 0x00, 0x01,
+  // Authority section, SOA record, TTL 0x3E6
+  0x01,  'z', 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x00, 0x03, 0xE6,
+  // Minimal RDATA, 18 bytes
+  0x00, 0x12,
+  0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00,
+};
+
+TEST_F(DnsTransactionTest, SuffixSearchStop) {
+  config_.ndots = 2;
+  config_.search.push_back("a");
+  config_.search.push_back("b");
+  config_.search.push_back("c");
+  ConfigureFactory();
+
+  AddAsyncRcode("x.y.z", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncRcode("x.y.z.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddAsyncResponse("x.y.z.b",
+                   dns_protocol::kTypeA,
+                   0 /* id */,
+                   reinterpret_cast<const char*>(kResponseNoData),
+                   arraysize(kResponseNoData));
+  PrepareSockets();
+
+  TransactionHelper helper0("x.y.z", dns_protocol::kTypeA, 0 /* answers */);
+
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+}
+
+TEST_F(DnsTransactionTest, SyncFirstQuery) {
+  config_.search.push_back("lab.ccs.neu.edu");
+  config_.search.push_back("ccs.neu.edu");
+  ConfigureFactory();
+
+  AddResponse(kT0HostName,
+              kT0Qtype,
+              0 /* id */,
+              reinterpret_cast<const char*>(kT0ResponseDatagram),
+              arraysize(kT0ResponseDatagram),
+              SYNCHRONOUS);
+  PrepareSockets();
+
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            kT0RecordCount);
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+}
+
+TEST_F(DnsTransactionTest, SyncFirstQueryWithSearch) {
+  config_.search.push_back("lab.ccs.neu.edu");
+  config_.search.push_back("ccs.neu.edu");
+  ConfigureFactory();
+
+  AddRcode("www.lab.ccs.neu.edu",
+           kT2Qtype,
+           dns_protocol::kRcodeNXDOMAIN,
+           SYNCHRONOUS);
+  AddResponse(kT2HostName,  // "www.ccs.neu.edu"
+              kT2Qtype,
+              2 /* id */,
+              reinterpret_cast<const char*>(kT2ResponseDatagram),
+              arraysize(kT2ResponseDatagram),
+              ASYNC);
+  PrepareSockets();
+
+  TransactionHelper helper0("www",
+                            kT2Qtype,
+                            kT2RecordCount);
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+}
+
+TEST_F(DnsTransactionTest, SyncSearchQuery) {
+  config_.search.push_back("lab.ccs.neu.edu");
+  config_.search.push_back("ccs.neu.edu");
+  ConfigureFactory();
+
+  AddRcode("www.lab.ccs.neu.edu",
+           dns_protocol::kTypeA,
+           dns_protocol::kRcodeNXDOMAIN,
+           ASYNC);
+  AddResponse(kT2HostName,
+              kT2Qtype,
+              2 /* id */,
+              reinterpret_cast<const char*>(kT2ResponseDatagram),
+              arraysize(kT2ResponseDatagram),
+              SYNCHRONOUS);
+  PrepareSockets();
+
+  TransactionHelper helper0("www",
+                            kT2Qtype,
+                            kT2RecordCount);
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+}
+
 }  // namespace
 
 }  // namespace net
-

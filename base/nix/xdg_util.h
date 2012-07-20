@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_NIX_XDG_UTIL_H_
 #define BASE_NIX_XDG_UTIL_H_
-#pragma once
 
 // XDG refers to http://en.wikipedia.org/wiki/Freedesktop.org .
 // This file contains utilities found across free desktop environments.
@@ -27,6 +26,12 @@ class Environment;
 
 namespace nix {
 
+// The default XDG config directory name.
+BASE_EXPORT extern const char kDotConfigDir[];
+
+// The XDG config directory environment variable.
+BASE_EXPORT extern const char kXdgConfigHomeEnvVar[];
+
 // Utility function for getting XDG directories.
 // |env_name| is the name of an environment variable that we want to use to get
 // a directory path. |fallback_dir| is the directory relative to $HOME that we
@@ -38,7 +43,7 @@ BASE_EXPORT FilePath GetXDGDirectory(Environment* env, const char* env_name,
 // Wrapper around xdg_user_dir_lookup() from src/base/third_party/xdg-user-dirs
 // This looks up "well known" user directories like the desktop and music
 // folder. Examples of |dir_name| are DESKTOP and MUSIC.
-BASE_EXPORT FilePath GetXDGUserDirectory(Environment* env, const char* dir_name,
+BASE_EXPORT FilePath GetXDGUserDirectory(const char* dir_name,
                                          const char* fallback_dir);
 
 enum DesktopEnvironment {
@@ -48,6 +53,7 @@ enum DesktopEnvironment {
   // them as two different desktop environments here.
   DESKTOP_ENVIRONMENT_KDE3,
   DESKTOP_ENVIRONMENT_KDE4,
+  DESKTOP_ENVIRONMENT_UNITY,
   DESKTOP_ENVIRONMENT_XFCE,
 };
 

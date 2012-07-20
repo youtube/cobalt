@@ -1,10 +1,12 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/synchronization/lock.h"
+
 #include <stdlib.h>
 
-#include "base/synchronization/lock.h"
+#include "base/compiler_specific.h"
 #include "base/threading/platform_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -16,7 +18,7 @@ class BasicLockTestThread : public PlatformThread::Delegate {
  public:
   BasicLockTestThread(Lock* lock) : lock_(lock), acquired_(0) {}
 
-  virtual void ThreadMain() {
+  virtual void ThreadMain() OVERRIDE {
     for (int i = 0; i < 10; i++) {
       lock_->Acquire();
       acquired_++;
@@ -91,7 +93,7 @@ class TryLockTestThread : public PlatformThread::Delegate {
  public:
   TryLockTestThread(Lock* lock) : lock_(lock), got_lock_(false) {}
 
-  virtual void ThreadMain() {
+  virtual void ThreadMain() OVERRIDE {
     got_lock_ = lock_->Try();
     if (got_lock_)
       lock_->Release();
@@ -160,7 +162,7 @@ class MutexLockTestThread : public PlatformThread::Delegate {
     }
   }
 
-  virtual void ThreadMain() {
+  virtual void ThreadMain() OVERRIDE {
     DoStuff(lock_, value_);
   }
 

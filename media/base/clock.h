@@ -6,7 +6,6 @@
 #define MEDIA_BASE_CLOCK_H_
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "media/base/media_export.h"
 
@@ -30,7 +29,7 @@ class MEDIA_EXPORT Clock {
   // Type for a static function pointer that acts as a time source.
   typedef base::Time(TimeProvider)();
 
-  Clock(TimeProvider* time_provider);
+  explicit Clock(TimeProvider* time_provider);
   ~Clock();
 
   // Returns true if the clock is running.
@@ -56,8 +55,7 @@ class MEDIA_EXPORT Clock {
   // set to 0 (before SetDuration() is called).
   void SetTime(base::TimeDelta current_time, base::TimeDelta max_time);
 
-  // Sets the |max_time| to be returned by a call to Elapsed(). |max_time| must
-  // be greater than or equal to the current Elapsed() time.
+  // Sets the |max_time| to be returned by a call to Elapsed().
   void SetMaxTime(base::TimeDelta max_time);
 
   // Returns the current elapsed media time. Returns 0 if SetDuration() has

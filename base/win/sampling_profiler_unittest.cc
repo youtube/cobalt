@@ -1,12 +1,13 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/win/sampling_profiler.h"
-
+#include "base/logging.h"
 #include "base/test/test_timeouts.h"
+#include "base/win/sampling_profiler.h"
 #include "base/win/pe_image.h"
 #include "base/win/scoped_handle.h"
+#include "base/win/windows_version.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // The address of our image base.
@@ -59,6 +60,10 @@ TEST_F(SamplingProfilerTest, Initialize) {
 }
 
 TEST_F(SamplingProfilerTest, Sample) {
+  if (base::win::GetVersion() == base::win::VERSION_WIN8) {
+    LOG(INFO) << "Not running test on Windows 8";
+    return;
+  }
   SamplingProfiler profiler;
 
   // Initialize with a huge bucket size, aiming for a single bucket.
@@ -73,8 +78,7 @@ TEST_F(SamplingProfilerTest, Sample) {
   // allotted to our process in this wall-clock time duration,
   // and samples will only accrue while this thread is busy on
   // a CPU core.
-  base::TimeDelta spin_time =
-      base::TimeDelta::FromMilliseconds(TestTimeouts::action_timeout_ms());
+  base::TimeDelta spin_time = TestTimeouts::action_timeout();
 
   base::TimeDelta save_sampling_interval;
   ASSERT_TRUE(SamplingProfiler::GetSamplingInterval(&save_sampling_interval));

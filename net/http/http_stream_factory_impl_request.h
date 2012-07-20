@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,7 +34,8 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
   // Called when the Job determines the appropriate |http_pipelining_key| for
   // the Request. Registers this Request with the factory, so that if an
   // existing pipeline becomes available, this Request can be late bound to it.
-  void SetHttpPipeliningKey(const HostPortPair& http_pipelining_key);
+  // Returns true if this is this key was new to the factory.
+  bool SetHttpPipeliningKey(const HttpPipelinedHost::Key& http_pipelining_key);
 
   // Attaches |job| to this request. Does not mean that Request will use |job|,
   // but Request will own |job|.
@@ -43,7 +44,7 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
   // Marks completion of the request. Must be called before OnStreamReady().
   // |job_net_log| is the BoundNetLog of the Job that fulfilled this request.
   void Complete(bool was_npn_negotiated,
-                SSLClientSocket::NextProto protocol_negotiated,
+                NextProto protocol_negotiated,
                 bool using_spdy,
                 const BoundNetLog& job_net_log);
 
@@ -93,7 +94,7 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
       const AuthCredentials& credentials) OVERRIDE;
   virtual LoadState GetLoadState() const OVERRIDE;
   virtual bool was_npn_negotiated() const OVERRIDE;
-  virtual SSLClientSocket::NextProto protocol_negotiated() const OVERRIDE;
+  virtual NextProto protocol_negotiated() const OVERRIDE;
   virtual bool using_spdy() const OVERRIDE;
 
  private:
@@ -113,12 +114,12 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
   scoped_ptr<Job> bound_job_;
   std::set<HttpStreamFactoryImpl::Job*> jobs_;
   scoped_ptr<const HostPortProxyPair> spdy_session_key_;
-  scoped_ptr<const HostPortPair> http_pipelining_key_;
+  scoped_ptr<const HttpPipelinedHost::Key> http_pipelining_key_;
 
   bool completed_;
   bool was_npn_negotiated_;
   // Protocol negotiated with the server.
-  SSLClientSocket::NextProto protocol_negotiated_;
+  NextProto protocol_negotiated_;
   bool using_spdy_;
 
   DISALLOW_COPY_AND_ASSIGN(Request);

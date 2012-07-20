@@ -10,9 +10,11 @@ namespace media {
 TestAudioInputController::TestAudioInputController(
     TestAudioInputControllerFactory* factory,
     AudioManager* audio_manager,
+    const AudioParameters& audio_parameters,
     EventHandler* event_handler,
     SyncWriter* sync_writer)
     : AudioInputController(event_handler, sync_writer),
+      audio_parameters_(audio_parameters),
       factory_(factory),
       event_handler_(event_handler) {
   message_loop_ = audio_manager->GetMessageLoop();
@@ -23,12 +25,24 @@ TestAudioInputController::~TestAudioInputController() {
   factory_->OnTestAudioInputControllerDestroyed(this);
 }
 
+void TestAudioInputController::Record() {
+  if (factory_->delegate_)
+    factory_->delegate_->TestAudioControllerOpened(this);
+}
+
 void TestAudioInputController::Close(const base::Closure& closed_task) {
   message_loop_->PostTask(FROM_HERE, closed_task);
+  if (factory_->delegate_)
+    factory_->delegate_->TestAudioControllerClosed(this);
 }
 
 TestAudioInputControllerFactory::TestAudioInputControllerFactory()
-    : controller_(NULL) {
+    : controller_(NULL),
+      delegate_(NULL) {
+}
+
+TestAudioInputControllerFactory::~TestAudioInputControllerFactory() {
+  DCHECK(!controller_);
 }
 
 AudioInputController* TestAudioInputControllerFactory::Create(
@@ -36,9 +50,14 @@ AudioInputController* TestAudioInputControllerFactory::Create(
     AudioInputController::EventHandler* event_handler,
     AudioParameters params) {
   DCHECK(!controller_);  // Only one test instance managed at a time.
-  controller_ = new TestAudioInputController(this, audio_manager,
+  controller_ = new TestAudioInputController(this, audio_manager, params,
       event_handler, NULL);
   return controller_;
+}
+
+void TestAudioInputControllerFactory::SetDelegateForTests(
+    TestAudioInputControllerDelegate* delegate) {
+  delegate_ = delegate;
 }
 
 void TestAudioInputControllerFactory::OnTestAudioInputControllerDestroyed(

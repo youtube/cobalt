@@ -8,7 +8,6 @@
 
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
-#include "media/base/limits.h"
 
 namespace media {
 
@@ -80,8 +79,11 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
 
   if (record_stats) {
     UMA_HISTOGRAM_ENUMERATION("Media.VideoCodec", codec, kVideoCodecMax + 1);
-    UMA_HISTOGRAM_ENUMERATION("Media.VideoCodecProfile", profile,
-                              VIDEO_CODEC_PROFILE_MAX + 1);
+    // Drop UNKNOWN because U_H_E() uses one bucket for all values less than 1.
+    if (profile >= 0) {
+      UMA_HISTOGRAM_ENUMERATION("Media.VideoCodecProfile", profile,
+                                VIDEO_CODEC_PROFILE_MAX + 1);
+    }
     UMA_HISTOGRAM_COUNTS_10000("Media.VideoCodedWidth", coded_size.width());
     UmaHistogramAspectRatio("Media.VideoCodedAspectRatio", coded_size);
     UMA_HISTOGRAM_COUNTS_10000("Media.VideoVisibleWidth", visible_rect.width());
@@ -140,14 +142,11 @@ void VideoDecoderConfig::CopyFrom(const VideoDecoderConfig& video_config) {
 
 bool VideoDecoderConfig::IsValidConfig() const {
   return codec_ != kUnknownVideoCodec &&
-      format_ != VideoFrame::INVALID &&
-      frame_rate_numerator_ > 0 &&
       frame_rate_denominator_ > 0 &&
       aspect_ratio_numerator_ > 0 &&
       aspect_ratio_denominator_ > 0 &&
-      natural_size_.width() <= limits::kMaxDimension &&
-      natural_size_.height() <= limits::kMaxDimension &&
-      natural_size_.GetArea() <= limits::kMaxCanvas;
+      VideoFrame::IsValidConfig(
+          format_, natural_size_.width(), natural_size_.height());
 }
 
 std::string VideoDecoderConfig::AsHumanReadableString() const {

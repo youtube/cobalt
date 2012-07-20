@@ -1,15 +1,14 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_PROXY_DHCP_PROXY_SCRIPT_FETCHER_WIN_H_
 #define NET_PROXY_DHCP_PROXY_SCRIPT_FETCHER_WIN_H_
-#pragma once
 
 #include <set>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/non_thread_safe.h"
@@ -84,7 +83,7 @@ class NET_EXPORT_PRIVATE DhcpProxyScriptFetcherWin
   // Virtual methods introduced to allow unit testing.
   virtual DhcpProxyScriptAdapterFetcher* ImplCreateAdapterFetcher();
   virtual AdapterQuery* ImplCreateAdapterQuery();
-  virtual int ImplGetMaxWaitMs();
+  virtual base::TimeDelta ImplGetMaxWait();
   virtual void ImplOnGetCandidateAdapterNamesDone() {}
 
  private:
@@ -154,7 +153,7 @@ class NET_EXPORT_PRIVATE DhcpProxyScriptFetcherWin
 
   base::OneShotTimer<DhcpProxyScriptFetcherWin> wait_timer_;
 
-  scoped_refptr<URLRequestContext> url_request_context_;
+  URLRequestContext* const url_request_context_;
 
   // NULL or the AdapterQuery currently in flight.
   scoped_refptr<AdapterQuery> last_query_;

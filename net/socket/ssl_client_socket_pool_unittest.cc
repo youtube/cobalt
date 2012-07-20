@@ -14,7 +14,6 @@
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service_defaults.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_certificate_data.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -28,8 +27,10 @@
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "net/spdy/spdy_test_util.h"
+#include "net/spdy/spdy_test_util_spdy2.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using namespace net::test_spdy2;
 
 namespace net {
 
@@ -47,7 +48,8 @@ class SSLClientSocketPoolTest : public testing::Test {
             &host_resolver_)),
         session_(CreateNetworkSession()),
         direct_transport_socket_params_(new TransportSocketParams(
-            HostPortPair("host", 443), MEDIUM, false, false)),
+            HostPortPair("host", 443), MEDIUM, false, false,
+            OnHostResolutionCallback())),
         transport_histograms_("MockTCP"),
         transport_socket_pool_(
             kMaxSockets,
@@ -55,7 +57,8 @@ class SSLClientSocketPoolTest : public testing::Test {
             &transport_histograms_,
             &socket_factory_),
         proxy_transport_socket_params_(new TransportSocketParams(
-            HostPortPair("proxy", 443), MEDIUM, false, false)),
+            HostPortPair("proxy", 443), MEDIUM, false, false,
+            OnHostResolutionCallback())),
         socks_socket_params_(new SOCKSSocketParams(
             proxy_transport_socket_params_, true,
             HostPortPair("sockshost", 443), MEDIUM)),
@@ -94,9 +97,8 @@ class SSLClientSocketPoolTest : public testing::Test {
         ssl_histograms_.get(),
         NULL /* host_resolver */,
         NULL /* cert_verifier */,
-        NULL /* origin_bound_cert_service */,
+        NULL /* server_bound_cert_service */,
         NULL /* transport_security_state */,
-        NULL /* ssl_host_info_factory */,
         ""   /* ssl_session_cache_shard */,
         &socket_factory_,
         transport_pool ? &transport_socket_pool_ : NULL,
@@ -135,7 +137,7 @@ class SSLClientSocketPoolTest : public testing::Test {
   HttpNetworkSession* CreateNetworkSession() {
     HttpNetworkSession::Params params;
     params.host_resolver = &host_resolver_;
-    params.cert_verifier = &cert_verifier_;
+    params.cert_verifier = cert_verifier_.get();
     params.proxy_service = proxy_service_.get();
     params.client_socket_factory = &socket_factory_;
     params.ssl_config_service = ssl_config_service_;
@@ -144,9 +146,11 @@ class SSLClientSocketPoolTest : public testing::Test {
     return new HttpNetworkSession(params);
   }
 
+  void TestIPPoolingDisabled(SSLSocketDataProvider* ssl);
+
   MockClientSocketFactory socket_factory_;
   MockCachingHostResolver host_resolver_;
-  CertVerifier cert_verifier_;
+  scoped_ptr<CertVerifier> cert_verifier_;
   const scoped_ptr<ProxyService> proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
   const scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
@@ -217,7 +221,7 @@ TEST_F(SSLClientSocketPoolTest, BasicDirect) {
   StaticSocketDataProvider data;
   data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -236,7 +240,7 @@ TEST_F(SSLClientSocketPoolTest, BasicDirect) {
 TEST_F(SSLClientSocketPoolTest, BasicDirectAsync) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, OK);
+  SSLSocketDataProvider ssl(ASYNC, OK);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -259,7 +263,7 @@ TEST_F(SSLClientSocketPoolTest, BasicDirectAsync) {
 TEST_F(SSLClientSocketPoolTest, DirectCertError) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, ERR_CERT_COMMON_NAME_INVALID);
+  SSLSocketDataProvider ssl(ASYNC, ERR_CERT_COMMON_NAME_INVALID);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -282,7 +286,7 @@ TEST_F(SSLClientSocketPoolTest, DirectCertError) {
 TEST_F(SSLClientSocketPoolTest, DirectSSLError) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, ERR_SSL_PROTOCOL_ERROR);
+  SSLSocketDataProvider ssl(ASYNC, ERR_SSL_PROTOCOL_ERROR);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -306,10 +310,8 @@ TEST_F(SSLClientSocketPoolTest, DirectSSLError) {
 TEST_F(SSLClientSocketPoolTest, DirectWithNPN) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "http/1.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoHTTP11;
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.SetNextProto(kProtoHTTP11);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -334,10 +336,8 @@ TEST_F(SSLClientSocketPoolTest, DirectWithNPN) {
 TEST_F(SSLClientSocketPoolTest, DirectNoSPDY) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "http/1.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoHTTP11;
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.SetNextProto(kProtoHTTP11);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -361,10 +361,8 @@ TEST_F(SSLClientSocketPoolTest, DirectNoSPDY) {
 TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.SetNextProto(kProtoSPDY2);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -389,16 +387,14 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY21);
+            kProtoSPDY2);
 }
 
 TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.SetNextProto(kProtoSPDY2);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -423,7 +419,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY21);
+            kProtoSPDY2);
 }
 
 TEST_F(SSLClientSocketPoolTest, SOCKSFail) {
@@ -472,7 +468,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSBasic) {
   StaticSocketDataProvider data;
   data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
@@ -491,7 +487,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSBasic) {
 TEST_F(SSLClientSocketPoolTest, SOCKSBasicAsync) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, OK);
+  SSLSocketDataProvider ssl(ASYNC, OK);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
@@ -555,21 +551,21 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyFailAsync) {
 
 TEST_F(SSLClientSocketPoolTest, HttpProxyBasic) {
   MockWrite writes[] = {
-      MockWrite(false,
+      MockWrite(SYNCHRONOUS,
                 "CONNECT host:80 HTTP/1.1\r\n"
                 "Host: host\r\n"
                 "Proxy-Connection: keep-alive\r\n"
                 "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
   };
   MockRead reads[] = {
-      MockRead(false, "HTTP/1.1 200 Connection Established\r\n\r\n"),
+      MockRead(SYNCHRONOUS, "HTTP/1.1 200 Connection Established\r\n\r\n"),
   };
   StaticSocketDataProvider data(reads, arraysize(reads), writes,
                                 arraysize(writes));
   data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
   socket_factory_.AddSocketDataProvider(&data);
   AddAuthToCache();
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
@@ -599,7 +595,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyBasicAsync) {
                                 arraysize(writes));
   socket_factory_.AddSocketDataProvider(&data);
   AddAuthToCache();
-  SSLSocketDataProvider ssl(true, OK);
+  SSLSocketDataProvider ssl(ASYNC, OK);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
@@ -634,7 +630,7 @@ TEST_F(SSLClientSocketPoolTest, NeedProxyAuth) {
   StaticSocketDataProvider data(reads, arraysize(reads), writes,
                                 arraysize(writes));
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, OK);
+  SSLSocketDataProvider ssl(ASYNC, OK);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
@@ -691,16 +687,14 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   }
 
   MockRead reads[] = {
-      MockRead(true, ERR_IO_PENDING),
+      MockRead(ASYNC, ERR_IO_PENDING),
   };
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, OK);
+  SSLSocketDataProvider ssl(ASYNC, OK);
   ssl.cert = X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  ssl.SetNextProto(kProtoSPDY2);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -725,13 +719,12 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY21);
+            kProtoSPDY2);
 
   // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
-  const addrinfo* address = test_hosts[0].addresses.head();
   SpdySessionPoolPeer pool_peer(session_->spdy_session_pool());
-  pool_peer.AddAlias(address, test_hosts[0].pair);
+  pool_peer.AddAlias(test_hosts[0].addresses.front(), test_hosts[0].pair);
 
   scoped_refptr<SpdySession> spdy_session;
   rv = session_->spdy_session_pool()->GetSpdySessionFromSocket(
@@ -746,9 +739,8 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   session_->spdy_session_pool()->CloseAllSessions();
 }
 
-// Verifies that an SSL connection with client authentication disables SPDY IP
-// pooling.
-TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
+void SSLClientSocketPoolTest::TestIPPoolingDisabled(
+    SSLSocketDataProvider* ssl) {
   const int kTestPort = 80;
   struct TestHosts {
     std::string name;
@@ -779,18 +771,11 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   }
 
   MockRead reads[] = {
-      MockRead(true, ERR_IO_PENDING),
+      MockRead(ASYNC, ERR_IO_PENDING),
   };
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   socket_factory_.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(true, OK);
-  ssl.cert = X509Certificate::CreateFromBytes(
-      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.client_cert_sent = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
-  socket_factory_.AddSSLSocketDataProvider(&ssl);
+  socket_factory_.AddSSLSocketDataProvider(ssl);
 
   CreatePool(true /* tcp pool */, false, false);
   scoped_refptr<SSLSocketParams> params = SSLParams(ProxyServer::SCHEME_DIRECT,
@@ -813,13 +798,12 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY21);
+            kProtoSPDY2);
 
   // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
-  const addrinfo* address = test_hosts[0].addresses.head();
   SpdySessionPoolPeer pool_peer(session_->spdy_session_pool());
-  pool_peer.AddAlias(address, test_hosts[0].pair);
+  pool_peer.AddAlias(test_hosts[0].addresses.front(), test_hosts[0].pair);
 
   scoped_refptr<SpdySession> spdy_session;
   rv = session_->spdy_session_pool()->GetSpdySessionFromSocket(
@@ -831,6 +815,25 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   EXPECT_FALSE(session_->spdy_session_pool()->HasSession(test_hosts[1].pair));
 
   session_->spdy_session_pool()->CloseAllSessions();
+}
+
+// Verifies that an SSL connection with client authentication disables SPDY IP
+// pooling.
+TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.cert = X509Certificate::CreateFromBytes(
+      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
+  ssl.client_cert_sent = true;
+  ssl.SetNextProto(kProtoSPDY2);
+  TestIPPoolingDisabled(&ssl);
+}
+
+// Verifies that an SSL connection with channel ID disables SPDY IP pooling.
+TEST_F(SSLClientSocketPoolTest, IPPoolingChannelID) {
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.channel_id_sent = true;
+  ssl.SetNextProto(kProtoSPDY2);
+  TestIPPoolingDisabled(&ssl);
 }
 
 // It would be nice to also test the timeouts in SSLClientSocketPool.

@@ -1,24 +1,14 @@
-From 552c8d41b9ac9d55c8f1a861d81fc070a2a72aba Mon Sep 17 00:00:00 2001
-From: Adam Langley <agl@chromium.org>
-Date: Mon, 3 Oct 2011 12:20:10 -0400
-Subject: [PATCH] renegoscsv.patch
-
----
- mozilla/security/nss/lib/ssl/ssl3con.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
-index e0cb4e9..455a532 100644
---- a/mozilla/security/nss/lib/ssl/ssl3con.c
-+++ b/mozilla/security/nss/lib/ssl/ssl3con.c
-@@ -3874,9 +3874,9 @@ ssl3_SendClientHello(sslSocket *ss)
+diff -pu -r a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/ssl3con.c
+--- a/src/net/third_party/nss/ssl/ssl3con.c	2012-03-17 17:31:19.000000000 -0700
++++ b/src/net/third_party/nss/ssl/ssl3con.c	2012-03-19 12:35:33.058193252 -0700
+@@ -3966,9 +3966,9 @@ ssl3_SendClientHello(sslSocket *ss)
      	return SECFailure;	/* ssl3_config_match_init has set error code. */
  
      /* HACK for SCSV in SSL 3.0.  On initial handshake, prepend SCSV,
 -     * only if we're willing to complete an SSL 3.0 handshake.
 +     * only if TLS is disabled.
       */
--    if (!ss->firstHsDone && ss->opt.enableSSL3) {
+-    if (!ss->firstHsDone && ss->vrange.min == SSL_LIBRARY_VERSION_3_0) {
 +    if (!ss->firstHsDone && !isTLS) {
  	/* Must set this before calling Hello Extension Senders, 
  	 * to suppress sending of empty RI extension.

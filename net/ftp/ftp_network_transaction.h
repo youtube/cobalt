@@ -4,7 +4,6 @@
 
 #ifndef NET_FTP_FTP_NETWORK_TRANSACTION_H_
 #define NET_FTP_FTP_NETWORK_TRANSACTION_H_
-#pragma once
 
 #include <string>
 #include <utility>

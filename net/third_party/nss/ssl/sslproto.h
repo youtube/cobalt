@@ -39,7 +39,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslproto.h,v 1.15 2010/02/16 18:56:48 wtc%google.com Exp $ */
+/* $Id: sslproto.h,v 1.17 2012/03/13 02:39:11 wtc%google.com Exp $ */
 
 #ifndef __sslproto_h_
 #define __sslproto_h_
@@ -47,7 +47,16 @@
 /* All versions less than 3_0 are treated as SSL version 2 */
 #define SSL_LIBRARY_VERSION_2			0x0002
 #define SSL_LIBRARY_VERSION_3_0			0x0300
-#define SSL_LIBRARY_VERSION_3_1_TLS		0x0301
+#define SSL_LIBRARY_VERSION_TLS_1_0		0x0301
+#define SSL_LIBRARY_VERSION_TLS_1_1		0x0302
+/* Note: this is the internal format, not the wire format */
+#define SSL_LIBRARY_VERSION_DTLS_1_0		0x0302
+
+/* deprecated old name */
+#define SSL_LIBRARY_VERSION_3_1_TLS SSL_LIBRARY_VERSION_TLS_1_0 
+
+/* The DTLS version used in the spec */
+#define SSL_LIBRARY_VERSION_DTLS_1_0_WIRE       ((~0x0100) & 0xffff)
 
 /* Header lengths of some of the messages */
 #define SSL_HL_ERROR_HBYTES			3
@@ -227,5 +236,12 @@
 /* New non-experimental openly spec'ed versions of those cipher suites. */
 #define SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA 	0xfeff
 #define SSL_RSA_FIPS_WITH_DES_CBC_SHA      	0xfefe
+
+/* DTLS-SRTP cipher suites from RFC 5764 */
+/* If you modify this, also modify MAX_DTLS_SRTP_CIPHER_SUITES in sslimpl.h */
+#define SRTP_AES128_CM_HMAC_SHA1_80		0x0001
+#define SRTP_AES128_CM_HMAC_SHA1_32		0x0002
+#define SRTP_NULL_HMAC_SHA1_80			0x0005
+#define SRTP_NULL_HMAC_SHA1_32			0x0006
 
 #endif /* __sslproto_h_ */

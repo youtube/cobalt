@@ -4,7 +4,6 @@
 
 #ifndef BASE_MESSAGE_LOOP_PROXY_H_
 #define BASE_MESSAGE_LOOP_PROXY_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
