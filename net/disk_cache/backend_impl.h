@@ -186,6 +186,10 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
     return cache_type_;
   }
 
+  bool read_only() const {
+    return read_only_;
+  }
+
   // Returns a weak pointer to this object.
   base::WeakPtr<BackendImpl> GetWeakPtr();
 
