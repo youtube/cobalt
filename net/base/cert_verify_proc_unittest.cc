@@ -254,8 +254,6 @@ TEST_F(CertVerifyProcTest, RejectWeakKeys) {
   bool use_ecdsa = true;
 #if defined(OS_WIN)
   use_ecdsa = base::win::GetVersion() > base::win::VERSION_XP;
-#elif defined(OS_MACOSX)
-  use_ecdsa = base::mac::IsOSSnowLeopardOrLater();
 #endif
 
   if (use_ecdsa)
