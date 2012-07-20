@@ -701,6 +701,8 @@ EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
   eviction_.OnOpenEntry(cache_entry);
   entry_count_++;
 
+  Trace("Open hash 0x%x end: 0x%x", hash,
+        cache_entry->entry()->address().value());
   CACHE_UMA(AGE_MS, "OpenTime", 0, start);
   stats_.OnEvent(Stats::OPEN_HIT);
   SIMPLE_STATS_COUNTER("disk_cache.hit");
@@ -1174,7 +1176,8 @@ void BackendImpl::CriticalError(int error) {
 }
 
 void BackendImpl::ReportError(int error) {
-  STRESS_DCHECK(!error || error == ERR_PREVIOUS_CRASH);
+  STRESS_DCHECK(!error || error == ERR_PREVIOUS_CRASH ||
+                error == ERR_CACHE_CREATED);
 
   // We transmit positive numbers, instead of direct error codes.
   DCHECK_LE(error, 0);
