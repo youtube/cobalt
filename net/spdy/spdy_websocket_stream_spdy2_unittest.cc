@@ -165,8 +165,6 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   OrderedSocketData* data() { return data_.get(); }
 
   void DoSendHelloFrame(SpdyWebSocketStreamEvent* event) {
-    // Record the actual stream_id.
-    created_stream_id_ = websocket_stream_->stream_->stream_id();
     websocket_stream_->SendData(kMessageFrame, kMessageFrameLength);
   }
 
@@ -301,7 +299,6 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   scoped_refptr<TransportSocketParams> transport_params_;
   scoped_ptr<SpdyWebSocketStream> websocket_stream_;
   SpdyStreamId stream_id_;
-  SpdyStreamId created_stream_id_;
   scoped_ptr<SpdyFrame> request_frame_;
   scoped_ptr<SpdyFrame> response_frame_;
   scoped_ptr<SpdyFrame> message_frame_;
@@ -361,12 +358,11 @@ TEST_F(SpdyWebSocketStreamSpdy2Test, Basic) {
   ASSERT_EQ(OK, websocket_stream_->InitializeStream(url, HIGHEST, net_log));
 
   ASSERT_TRUE(websocket_stream_->stream_);
+  EXPECT_EQ(stream_id_, websocket_stream_->stream_->stream_id());
 
   SendRequest();
 
   completion_callback_.WaitForResult();
-
-  EXPECT_EQ(stream_id_, created_stream_id_);
 
   websocket_stream_.reset();
 
@@ -527,7 +523,7 @@ TEST_F(SpdyWebSocketStreamSpdy2Test, DestructionAfterExplicitClose) {
 }
 
 TEST_F(SpdyWebSocketStreamSpdy2Test, IOPending) {
-  Prepare(1);
+  Prepare(3);
   scoped_ptr<SpdyFrame> settings_frame(
       ConstructSpdySettings(spdy_settings_to_send_));
   MockWrite writes[] = {
