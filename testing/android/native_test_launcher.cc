@@ -29,7 +29,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "gtest/gtest.h"
-#include "testing/android/jni/chrome_native_test_activity_jni.h"
+#include "testing/jni/ChromeNativeTestActivity_jni.h"
 
 // The main function of the program to be wrapped as a test apk.
 extern int main(int argc, char** argv);
