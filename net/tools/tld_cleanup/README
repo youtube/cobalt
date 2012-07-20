@@ -1,4 +1,4 @@
-When updating src/net/base/effective_tld_names.dat:
+When updating src/net/base/registry_controlled_domains/effective_tld_names.dat:
 
 1. Obtain the new effective_tld_names.dat, probably by downloading
    http://goo.gl/Ji2bB
@@ -11,7 +11,7 @@ When updating src/net/base/effective_tld_names.dat:
 
 5. Run it (no arguments needed), typically from src/build/Release or
    src/build/Debug. It will re-generate
-   src/net/base/effective_tld_names.gperf.
+   src/net/base/registry_controlled_domains/effective_tld_names.gperf.
 
 6. Run gperf on the new effective_tld_names.gperf:
      gperf -a -L "C++" -C -c -o -t -k '*' -NFindDomain -D -m 5 \
