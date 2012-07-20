@@ -10,6 +10,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
+#include "media/base/audio_renderer.h"
 #include "media/base/demuxer.h"
 #include "media/base/filter_host.h"
 #include "media/base/media_export.h"
@@ -27,7 +28,6 @@ class TimeDelta;
 namespace media {
 
 class AudioDecoder;
-class AudioRenderer;
 class Clock;
 class Filter;
 class FilterCollection;
@@ -225,6 +225,7 @@ class MEDIA_EXPORT Pipeline
 
  private:
   FRIEND_TEST_ALL_PREFIXES(PipelineTest, GetBufferedTimeRanges);
+  FRIEND_TEST_ALL_PREFIXES(PipelineTest, DisableAudioRenderer);
   friend class MediaLog;
 
   // Only allow ourselves to be deleted by reference counting.
@@ -301,7 +302,6 @@ class MEDIA_EXPORT Pipeline
   virtual base::TimeDelta GetDuration() const OVERRIDE;
   virtual void SetNaturalVideoSize(const gfx::Size& size) OVERRIDE;
   virtual void NotifyEnded() OVERRIDE;
-  virtual void DisableAudioRenderer() OVERRIDE;
 
   // Callbacks executed by filters upon completing initialization.
   void OnFilterInitialize(PipelineStatus status);
@@ -317,6 +317,9 @@ class MEDIA_EXPORT Pipeline
 
   // Callback executed by filters to update statistics.
   void OnUpdateStatistics(const PipelineStatistics& stats);
+
+  // Callback executed by audio renderer when it has been disabled.
+  void OnAudioDisabled();
 
   // Callback executed by audio renderer to update clock time.
   void OnAudioTimeUpdate(base::TimeDelta time, base::TimeDelta max_time);
@@ -359,7 +362,7 @@ class MEDIA_EXPORT Pipeline
   void NotifyEndedTask();
 
   // Carries out disabling the audio renderer.
-  void DisableAudioRendererTask();
+  void AudioDisabledTask();
 
   // Carries out advancing to the next filter during Play()/Pause()/Seek().
   void FilterStateTransitionTask();
@@ -410,21 +413,22 @@ class MEDIA_EXPORT Pipeline
   // Compute the time corresponding to a byte offset.
   base::TimeDelta TimeForByteOffset_Locked(int64 byte_offset) const;
 
-  // Initiates a Stop() on |demuxer_| & |pipeline_filter_|. |callback|
-  // is called once both objects have been stopped.
-  void DoStop(const base::Closure& callback);
+  // Initiates an asynchronous Pause/Seek/Play/Stop() call sequence executing
+  // |done_cb| when completed.
+  void DoPause(const base::Closure& done_cb);
+  void DoFlush(const base::Closure& done_cb);
+  void DoPlay(const base::Closure& done_cb);
+  void DoStop(const base::Closure& done_cb);
 
-  // Called when |demuxer_| has stopped. This method calls Stop()
-  // on |pipeline_filter_|.
-  void OnDemuxerStopDone(const base::Closure& callback);
-
-  // Initiates a Seek() on the |demuxer_| & |pipeline_filter_|.
-  void DoSeek(base::TimeDelta seek_timestamp);
-
-  // Called when |demuxer_| finishes seeking. If seeking was successful,
-  // then Seek() is called on |pipeline_filter_|.
-  void OnDemuxerSeekDone(base::TimeDelta seek_timestamp,
-                         PipelineStatus status);
+  // Initiates an asynchronous Seek() and preroll call sequence executing
+  // |done_cb| with the final status when completed. If |skip_demuxer_seek| is
+  // true then only renderers will attempt to preroll.
+  //
+  // TODO(scherkus): Prerolling should be separate from seeking so we can report
+  // finer grained ready states (HAVE_CURRENT_DATA vs. HAVE_FUTURE_DATA)
+  // indepentent from seeking.
+  void DoSeek(base::TimeDelta seek_timestamp, bool skip_demuxer_seek,
+              const PipelineStatusCB& done_cb);
 
   void OnAudioUnderflow();
 
@@ -533,6 +537,10 @@ class MEDIA_EXPORT Pipeline
   PipelineStatusCB error_cb_;
 
   // Reference to the filter(s) that constitute the pipeline.
+  //
+  // TODO(scherkus): At this point in time this is a CompositeFilter that
+  // contains |video_renderer_|. Remove when CompositeFilter is gone, see
+  // http://crbug.com/126069
   scoped_refptr<Filter> pipeline_filter_;
 
   // Decoder reference used for signalling imminent shutdown.
