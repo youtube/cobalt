@@ -18,6 +18,8 @@
 #include "media/base/audio_decoder.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/audio_renderer.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/decryptor.h"
 #include "media/base/decryptor_client.h"
 #include "media/base/demuxer.h"
 #include "media/base/filters.h"
@@ -221,6 +223,29 @@ class MockAudioRenderer : public AudioRenderer {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockAudioRenderer);
+};
+
+class MockDecryptor : public Decryptor {
+ public:
+  MockDecryptor();
+  virtual ~MockDecryptor();
+
+  MOCK_METHOD3(GenerateKeyRequest, void(const std::string& key_system,
+                                        const uint8* init_data,
+                                        int init_data_length));
+  MOCK_METHOD6(AddKey, void(const std::string& key_system,
+                            const uint8* key,
+                            int key_length,
+                            const uint8* init_data,
+                            int init_data_length,
+                            const std::string& session_id));
+  MOCK_METHOD2(CancelKeyRequest, void(const std::string& key_system,
+                                      const std::string& session_id));
+  MOCK_METHOD2(Decrypt, void(const scoped_refptr<DecoderBuffer>& encrypted,
+                             const DecryptCB& decrypt_cb));
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockDecryptor);
 };
 
 class MockDecryptorClient : public DecryptorClient {
