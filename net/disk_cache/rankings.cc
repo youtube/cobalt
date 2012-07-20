@@ -584,16 +584,15 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
   backend_->OnEvent(Stats::OPEN_RANKINGS);
 
   // Note that if the cache is in read_only mode, open entries are not marked
-  // as dirty, so we can have multiple in-memory obects for the same address.
-  // However, by definition entries should not be mutating the state so the
-  // data at this point should be as good as the one from an entry tracked by
-  // the backend, and that other entry won't overwrite anything done by this
-  // one because it should not have the dirty flag set.
-  if (!rankings->Data()->dirty)
+  // as dirty, except when an entry is doomed. We have to look for open entries.
+  if (!backend_->read_only() && !rankings->Data()->dirty)
     return true;
 
   EntryImpl* entry = backend_->GetOpenEntry(rankings);
   if (!entry) {
+    if (backend_->read_only())
+      return true;
+
     // We cannot trust this entry, but we cannot initiate a cleanup from this
     // point (we may be in the middle of a cleanup already). The entry will be
     // deleted when detected from a regular open/create path.
@@ -845,7 +844,7 @@ int Rankings::CheckList(List list) {
     error += kOneInvalidEntry;
   } else if (rv == ERR_INVALID_ENTRY || rv2 == ERR_INVALID_ENTRY) {
     error += kOneInvalidEntryOneInvalidLink;
-  } else if (rv2 != 0) {
+  } else if (rv2 != ERR_NO_ERROR) {
     error += kTwoInvalidLinks;
   } else {
     error += kOneInvalidLink;
