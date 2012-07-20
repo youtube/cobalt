@@ -12,7 +12,8 @@ ContentEncoding::ContentEncoding()
       scope_(kScopeInvalid),
       type_(kTypeInvalid),
       encryption_algo_(kEncAlgoInvalid),
-      encryption_key_id_size_(0) {
+      encryption_key_id_size_(0),
+      cipher_mode_(kCipherModeInvalid) {
 }
 
 ContentEncoding::~ContentEncoding() {}

@@ -18,6 +18,12 @@ static const char kSourceId[] = "SourceId";
 static const char kClearKeySystem[] = "org.w3.clearkey";
 static const uint8 kInitData[] = { 0x69, 0x6e, 0x69, 0x74 };
 
+// Key used to encrypt video track in test file "bear-320x240-encrypted.webm".
+static const uint8 kSecretKey[] = {
+  0xfb, 0x67, 0x8a, 0x91, 0x19, 0x12, 0x7b, 0x6b,
+  0x0b, 0x63, 0x11, 0xf8, 0x6f, 0xe1, 0xc4, 0x2d
+};
+
 // Helper class that emulates calls made on the ChunkDemuxer by the
 // Media Source API.
 class MockMediaSource : public ChunkDemuxerClient {
@@ -96,7 +102,7 @@ class MockMediaSource : public ChunkDemuxerClient {
   virtual void DemuxerNeedKey(scoped_array<uint8> init_data,
                               int init_data_size) {
     DCHECK(init_data.get());
-    DCHECK_EQ(init_data_size, 16);
+    DCHECK_GT(init_data_size, 0);
     DCHECK(decryptor_client_);
     decryptor_client_->NeedKey("", "", init_data.Pass(), init_data_size);
   }
@@ -166,9 +172,7 @@ class FakeDecryptorClient : public DecryptorClient {
 
     EXPECT_FALSE(current_key_system_.empty());
     EXPECT_FALSE(current_session_id_.empty());
-    // In test file bear-320x240-encrypted.webm, the decryption key is equal to
-    // |init_data|.
-    decryptor_.AddKey(current_key_system_, init_data.get(), init_data_length,
+    decryptor_.AddKey(current_key_system_, kSecretKey, arraysize(kSecretKey),
                       init_data.get(), init_data_length, current_session_id_);
   }
 
@@ -280,7 +284,9 @@ TEST_F(PipelineIntegrationTest, BasicPlayback_MediaSource) {
   Stop();
 }
 
-TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
+// TODO(fgalligan): Enable test when encrypted test data is updated and new
+// decryption code is landed. http://crbug.com/132801
+TEST_F(PipelineIntegrationTest, DISABLED_EncryptedPlayback) {
   MockMediaSource source("bear-320x240-encrypted.webm", 219726, true, true);
   FakeDecryptorClient encrypted_media;
   StartPipelineWithEncryptedMedia(&source, &encrypted_media);
