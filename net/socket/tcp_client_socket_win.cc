@@ -373,7 +373,7 @@ int TCPClientSocketWin::Bind(const IPEndPoint& address) {
   if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
-  // Create |bound_socket_| and try to bound it to |address|.
+  // Create |bound_socket_| and try to bind it to |address|.
   int error = CreateSocket(address.GetFamily(), &bound_socket_);
   if (error)
     return MapSystemError(error);
@@ -553,8 +553,11 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
 }
 
 void TCPClientSocketWin::Disconnect() {
+  DCHECK(CalledOnValidThread());
+
   DoDisconnect();
   current_address_index_ = -1;
+  bind_address_.reset();
 }
 
 void TCPClientSocketWin::DoDisconnect() {
@@ -646,8 +649,13 @@ int TCPClientSocketWin::GetPeerAddress(IPEndPoint* address) const {
 int TCPClientSocketWin::GetLocalAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
-  if (!IsConnected())
+  if (socket_ == INVALID_SOCKET) {
+    if (bind_address_.get()) {
+      *address = *bind_address_;
+      return OK;
+    }
     return ERR_SOCKET_NOT_CONNECTED;
+  }
 
   struct sockaddr_storage addr_storage;
   socklen_t addr_len = sizeof(addr_storage);
