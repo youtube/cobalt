@@ -562,7 +562,6 @@
             # TODO(ios): Remove these as base/ is unforked.
             # For now, exclude everything that doesn't build as-is, just to
             # get a minimal target building.
-            ['exclude', '^memory/aligned_memory_unittest\\.cc$'],
 	    # Unittests that don't pass.
             ['exclude', '^message_loop_unittest\\.cc$'],
           ],
