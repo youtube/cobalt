@@ -59,9 +59,9 @@
 #include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
 #include "net/cookies/canonical_cookie.h"
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/cookies/cookie_util.h"
 #include "net/cookies/parsed_cookie.h"
-#include "net/base/registry_controlled_domain.h"
 
 using base::Time;
 using base::TimeDelta;
