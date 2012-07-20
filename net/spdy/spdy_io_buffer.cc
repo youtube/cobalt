@@ -20,22 +20,7 @@ SpdyIOBuffer::SpdyIOBuffer(
 SpdyIOBuffer::SpdyIOBuffer() : priority_(HIGHEST), position_(0), stream_(NULL) {
 }
 
-SpdyIOBuffer::SpdyIOBuffer(const SpdyIOBuffer& rhs) {
-  buffer_ = rhs.buffer_;
-  priority_ = rhs.priority_;
-  position_ = rhs.position_;
-  stream_ = rhs.stream_;
-}
-
 SpdyIOBuffer::~SpdyIOBuffer() {}
-
-SpdyIOBuffer& SpdyIOBuffer::operator=(const SpdyIOBuffer& rhs) {
-  buffer_ = rhs.buffer_;
-  priority_ = rhs.priority_;
-  position_ = rhs.position_;
-  stream_ = rhs.stream_;
-  return *this;
-}
 
 void SpdyIOBuffer::release() {
   buffer_ = NULL;
