@@ -11,6 +11,10 @@
 namespace media {
 namespace mp4 {
 
+FileType::FileType() {}
+FileType::~FileType() {}
+FourCC FileType::BoxType() const { return FOURCC_FTYP; }
+
 bool FileType::Parse(BoxReader* reader) {
   RCHECK(reader->ReadFourCC(&major_brand) && reader->Read4(&minor_version));
   size_t num_brands = (reader->size() - reader->pos()) / sizeof(FourCC);
