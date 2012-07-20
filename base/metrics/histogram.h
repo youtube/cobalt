@@ -39,9 +39,7 @@
 
 #ifndef BASE_METRICS_HISTOGRAM_H_
 #define BASE_METRICS_HISTOGRAM_H_
-#pragma once
 
-#include <list>
 #include <map>
 #include <string>
 #include <vector>
@@ -51,9 +49,11 @@
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_base.h"
 #include "base/time.h"
 
 class Pickle;
+class PickleIterator;
 
 namespace base {
 
@@ -323,11 +323,8 @@ class CustomHistogram;
 class Histogram;
 class LinearHistogram;
 
-class BASE_EXPORT Histogram {
+class BASE_EXPORT Histogram : public HistogramBase {
  public:
-  typedef int Sample;  // Used for samples (and ranges of samples).
-  typedef int Count;  // Used to count samples in a bucket.
-  static const Sample kSampleType_MAX = INT_MAX;
   // Initialize maximum number of buckets in histograms as 16,384.
   static const size_t kBucketCount_MAX;
 
@@ -404,7 +401,7 @@ class BASE_EXPORT Histogram {
     void Subtract(const SampleSet& other);
 
     bool Serialize(Pickle* pickle) const;
-    bool Deserialize(void** iter, const Pickle& pickle);
+    bool Deserialize(PickleIterator* iter);
 
    protected:
     // Actual histogram data is stored in buckets, showing the count of values
@@ -453,7 +450,7 @@ class BASE_EXPORT Histogram {
   // Returns TimeTicks::Now() in debug and TimeTicks() in release build.
   static TimeTicks DebugNow();
 
-  void Add(int value);
+  virtual void Add(Sample value) OVERRIDE;
 
   // This method is an interface, used only by BooleanHistogram.
   virtual void AddBoolean(bool value);
@@ -469,9 +466,11 @@ class BASE_EXPORT Histogram {
   virtual void SetRangeDescriptions(const DescriptionPair descriptions[]);
 
   // The following methods provide graphical histogram displays.
-  void WriteHTMLGraph(std::string* output) const;
-  void WriteAscii(bool graph_it, const std::string& newline,
-                  std::string* output) const;
+  virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
+  virtual void WriteAscii(std::string* output) const OVERRIDE;
+  void WriteAsciiImpl(bool graph_it,
+                      const std::string& newline,
+                      std::string* output) const;
 
   // Support generic flagging of Histograms.
   // 0x1 Currently used to mark this histogram to be recorded by UMA..
@@ -507,7 +506,6 @@ class BASE_EXPORT Histogram {
   // Accessors for factory constuction, serialization and testing.
   //----------------------------------------------------------------------------
   virtual ClassType histogram_type() const;
-  const std::string& histogram_name() const { return histogram_name_; }
   Sample declared_min() const { return declared_min_; }
   Sample declared_max() const { return declared_max_; }
   virtual Sample ranges(size_t i) const;
@@ -631,9 +629,6 @@ class BASE_EXPORT Histogram {
   //----------------------------------------------------------------------------
   // Invariant values set at/near construction time
 
-  // ASCII version of original name given to the constructor.  All identically
-  // named instances will be coalesced cross-project.
-  const std::string histogram_name_;
   Sample declared_min_;  // Less than this goes into counts_[0]
   Sample declared_max_;  // Over this goes into counts_[bucket_count_ - 1].
   size_t bucket_count_;  // Dimension of counts_[].
@@ -757,7 +752,7 @@ class BASE_EXPORT CustomHistogram : public Histogram {
 
   // Helper for deserializing CustomHistograms.  |*ranges| should already be
   // correctly sized before this call.  Return true on success.
-  static bool DeserializeRanges(void** iter, const Pickle& pickle,
+  static bool DeserializeRanges(PickleIterator* iter,
                                 std::vector<Histogram::Sample>* ranges);
 
 
@@ -773,90 +768,6 @@ class BASE_EXPORT CustomHistogram : public Histogram {
 
   DISALLOW_COPY_AND_ASSIGN(CustomHistogram);
 };
-
-//------------------------------------------------------------------------------
-// StatisticsRecorder handles all histograms in the system.  It provides a
-// general place for histograms to register, and supports a global API for
-// accessing (i.e., dumping, or graphing) the data in all the histograms.
-
-class BASE_EXPORT StatisticsRecorder {
- public:
-  typedef std::vector<Histogram*> Histograms;
-
-  StatisticsRecorder();
-
-  ~StatisticsRecorder();
-
-  // Find out if histograms can now be registered into our list.
-  static bool IsActive();
-
-  // Register, or add a new histogram to the collection of statistics. If an
-  // identically named histogram is already registered, then the argument
-  // |histogram| will deleted.  The returned value is always the registered
-  // histogram (either the argument, or the pre-existing registered histogram).
-  static Histogram* RegisterOrDeleteDuplicate(Histogram* histogram);
-
-  // Register, or add a new cached_ranges_ of |histogram|. If an identical
-  // cached_ranges_ is already registered, then the cached_ranges_ of
-  // |histogram| is deleted and the |histogram|'s cached_ranges_ is reset to the
-  // registered cached_ranges_.  The cached_ranges_ of |histogram| is always the
-  // registered CachedRanges (either the argument's cached_ranges_, or the
-  // pre-existing registered cached_ranges_).
-  static void RegisterOrDeleteDuplicateRanges(Histogram* histogram);
-
-  // Method for collecting stats about histograms created in browser and
-  // renderer processes. |suffix| is appended to histogram names. |suffix| could
-  // be either browser or renderer.
-  static void CollectHistogramStats(const std::string& suffix);
-
-  // Methods for printing histograms.  Only histograms which have query as
-  // a substring are written to output (an empty string will process all
-  // registered histograms).
-  static void WriteHTMLGraph(const std::string& query, std::string* output);
-  static void WriteGraph(const std::string& query, std::string* output);
-
-  // Method for extracting histograms which were marked for use by UMA.
-  static void GetHistograms(Histograms* output);
-
-  // Find a histogram by name. It matches the exact name. This method is thread
-  // safe.  If a matching histogram is not found, then the |histogram| is
-  // not changed.
-  static bool FindHistogram(const std::string& query, Histogram** histogram);
-
-  static bool dump_on_exit() { return dump_on_exit_; }
-
-  static void set_dump_on_exit(bool enable) { dump_on_exit_ = enable; }
-
-  // GetSnapshot copies some of the pointers to registered histograms into the
-  // caller supplied vector (Histograms).  Only histograms with names matching
-  // query are returned. The query must be a substring of histogram name for its
-  // pointer to be copied.
-  static void GetSnapshot(const std::string& query, Histograms* snapshot);
-
-
- private:
-  // We keep all registered histograms in a map, from name to histogram.
-  typedef std::map<std::string, Histogram*> HistogramMap;
-
-  // We keep all |cached_ranges_| in a map, from checksum to a list of
-  // |cached_ranges_|.  Checksum is calculated from the |ranges_| in
-  // |cached_ranges_|.
-  typedef std::map<uint32, std::list<CachedRanges*>*> RangesMap;
-
-  static HistogramMap* histograms_;
-
-  static RangesMap* ranges_;
-
-  // lock protects access to the above map.
-  static base::Lock* lock_;
-
-  // Dump all known histograms to log.
-  static bool dump_on_exit_;
-
-  DISALLOW_COPY_AND_ASSIGN(StatisticsRecorder);
-};
-
-//------------------------------------------------------------------------------
 
 // CachedRanges stores the Ranges vector. Histograms that have same Ranges
 // vector will use the same CachedRanges object.

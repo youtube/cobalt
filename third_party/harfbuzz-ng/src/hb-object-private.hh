@@ -1,7 +1,7 @@
 /*
  * Copyright © 2007  Chris Wilson
  * Copyright © 2009,2010  Red Hat, Inc.
- * Copyright © 2011  Google, Inc.
+ * Copyright © 2011,2012  Google, Inc.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -34,8 +34,8 @@
 
 #include "hb-private.hh"
 
+#include "hb-atomic-private.hh"
 #include "hb-mutex-private.hh"
-
 
 
 /* Debug */
@@ -45,75 +45,30 @@
 #endif
 
 
-/* atomic_int */
-
-/* We need external help for these */
-
-#ifdef HAVE_GLIB
-
-#include <glib.h>
-
-typedef volatile int hb_atomic_int_t;
-#if GLIB_CHECK_VERSION(2,29,5)
-#define hb_atomic_int_add(AI, V)	g_atomic_int_add (&(AI), V)
-#else
-#define hb_atomic_int_add(AI, V)	g_atomic_int_exchange_and_add (&(AI), V)
-#endif
-#define hb_atomic_int_get(AI)		g_atomic_int_get (&(AI))
-#define hb_atomic_int_set(AI, V)	g_atomic_int_set (&(AI), V)
-
-
-#elif defined(_MSC_VER) && _MSC_VER >= 1600
-
-#include <intrin.h>
-
-typedef long hb_atomic_int_t;
-#define hb_atomic_int_add(AI, V)	_InterlockedExchangeAdd (&(AI), V)
-#define hb_atomic_int_get(AI)		(_ReadBarrier (), (AI))
-#define hb_atomic_int_set(AI, V)	((void) _InterlockedExchange (&(AI), (V)))
-
-
-#else
-
-#ifdef _MSC_VER
-#pragma message("Could not find any system to define atomic_int macros, library will NOT be thread-safe")
-#else
-#warning "Could not find any system to define atomic_int macros, library will NOT be thread-safe"
-#endif
-
-typedef volatile int hb_atomic_int_t;
-#define hb_atomic_int_add(AI, V)	((AI) += (V), (AI) - (V))
-#define hb_atomic_int_get(AI)		(AI)
-#define hb_atomic_int_set(AI, V)	((void) ((AI) = (V)))
-
-
-#endif
-
-
-
-
 /* reference_count */
-
-typedef struct {
-  hb_atomic_int_t ref_count;
 
 #define HB_REFERENCE_COUNT_INVALID_VALUE ((hb_atomic_int_t) -1)
 #define HB_REFERENCE_COUNT_INVALID {HB_REFERENCE_COUNT_INVALID_VALUE}
+struct hb_reference_count_t
+{
+  hb_atomic_int_t ref_count;
 
-  inline void init (int v) { ref_count = v; /* non-atomic is fine */ }
-  inline int inc (void) { return hb_atomic_int_add (ref_count,  1); }
-  inline int dec (void) { return hb_atomic_int_add (ref_count, -1); }
-  inline void set (int v) { hb_atomic_int_set (ref_count, v); }
+  inline void init (int v) { ref_count = v; }
+  inline int inc (void) { return hb_atomic_int_add (const_cast<hb_atomic_int_t &> (ref_count),  1); }
+  inline int dec (void) { return hb_atomic_int_add (const_cast<hb_atomic_int_t &> (ref_count), -1); }
+  inline void finish (void) { ref_count = HB_REFERENCE_COUNT_INVALID_VALUE; }
 
-  inline int get (void) const { return hb_atomic_int_get (ref_count); }
-  inline bool is_invalid (void) const { return get () == HB_REFERENCE_COUNT_INVALID_VALUE; }
+  inline bool is_invalid (void) const { return ref_count == HB_REFERENCE_COUNT_INVALID_VALUE; }
 
-} hb_reference_count_t;
+};
 
 
 /* user_data */
 
-struct hb_user_data_array_t {
+#define HB_USER_DATA_ARRAY_INIT {HB_LOCKABLE_SET_INIT}
+struct hb_user_data_array_t
+{
+  /* TODO Add tracing. */
 
   struct hb_user_data_item_t {
     hb_user_data_key_t *key;
@@ -126,28 +81,32 @@ struct hb_user_data_array_t {
     void finish (void) { if (destroy) destroy (data); }
   };
 
-  hb_lockable_set_t<hb_user_data_item_t, hb_static_mutex_t> items;
+  hb_lockable_set_t<hb_user_data_item_t, hb_mutex_t> items;
+
+  inline void init (void) { items.init (); }
 
   HB_INTERNAL bool set (hb_user_data_key_t *key,
 			void *              data,
 			hb_destroy_func_t   destroy,
-			hb_bool_t           replace);
+			hb_bool_t           replace,
+			hb_mutex_t         &lock);
 
-  HB_INTERNAL void *get (hb_user_data_key_t *key);
+  HB_INTERNAL void *get (hb_user_data_key_t *key,
+			hb_mutex_t          &lock);
 
-  HB_INTERNAL void finish (void);
+  HB_INTERNAL void finish (hb_mutex_t &lock);
 };
 
 
 /* object_header */
 
-typedef struct _hb_object_header_t hb_object_header_t;
-
-struct _hb_object_header_t {
+struct hb_object_header_t
+{
   hb_reference_count_t ref_count;
+  hb_mutex_t lock;
   hb_user_data_array_t user_data;
 
-#define HB_OBJECT_HEADER_STATIC {HB_REFERENCE_COUNT_INVALID}
+#define HB_OBJECT_HEADER_STATIC {HB_REFERENCE_COUNT_INVALID, HB_MUTEX_INIT, HB_USER_DATA_ARRAY_INIT}
 
   static inline void *create (unsigned int size) {
     hb_object_header_t *obj = (hb_object_header_t *) calloc (1, size);
@@ -160,6 +119,8 @@ struct _hb_object_header_t {
 
   inline void init (void) {
     ref_count.init (1);
+    lock.init ();
+    user_data.init ();
   }
 
   inline bool is_inert (void) const {
@@ -178,9 +139,9 @@ struct _hb_object_header_t {
     if (ref_count.dec () != 1)
       return false;
 
-    ref_count.init (HB_REFERENCE_COUNT_INVALID_VALUE);
-
-    user_data.finish ();
+    ref_count.finish (); /* Do this before user_data */
+    user_data.finish (lock);
+    lock.finish ();
 
     return true;
   }
@@ -192,23 +153,29 @@ struct _hb_object_header_t {
     if (unlikely (!this || this->is_inert ()))
       return false;
 
-    return user_data.set (key, data, destroy_func, replace);
+    return user_data.set (key, data, destroy_func, replace, lock);
   }
 
   inline void *get_user_data (hb_user_data_key_t *key) {
-    return user_data.get (key);
+    if (unlikely (!this || this->is_inert ()))
+      return NULL;
+
+    return user_data.get (key, lock);
   }
 
   inline void trace (const char *function) const {
+    if (unlikely (!this)) return;
+    /* XXX We cannot use DEBUG_MSG_FUNC here since that one currecntly only
+     * prints the class name and throws away the template info. */
     DEBUG_MSG (OBJECT, (void *) this,
-	       "refcount=%d %s",
-	       this ? ref_count.get () : 0,
-	       function);
+	       "%s refcount=%d",
+	       function,
+	       this ? ref_count.ref_count : 0);
   }
 
+  private:
+  ASSERT_POD ();
 };
-
-
 
 
 /* object */
@@ -259,9 +226,6 @@ static inline void *hb_object_get_user_data (Type               *obj,
 {
   return obj->header.get_user_data (key);
 }
-
-
-
 
 
 #endif /* HB_OBJECT_PRIVATE_HH */

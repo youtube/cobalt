@@ -4,7 +4,6 @@
 
 #ifndef BASE_I18N_CHAR_ITERATOR_H_
 #define BASE_I18N_CHAR_ITERATOR_H_
-#pragma once
 
 #include <string>
 

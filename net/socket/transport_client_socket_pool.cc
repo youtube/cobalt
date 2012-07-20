@@ -4,6 +4,8 @@
 
 #include "net/socket/transport_client_socket_pool.h"
 
+#include <algorithm>
+
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -14,10 +16,10 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_base.h"
+#include "net/socket/socket_net_log_params.h"
 #include "net/socket/tcp_client_socket.h"
 
 using base::TimeDelta;
@@ -31,28 +33,14 @@ const int TransportConnectJob::kIPv6FallbackTimerInMs = 300;
 
 namespace {
 
-bool AddressListStartsWithIPv6AndHasAnIPv4Addr(const AddressList& addrlist) {
-  const struct addrinfo* ai = addrlist.head();
-  if (ai->ai_family != AF_INET6)
-    return false;
-
-  ai = ai->ai_next;
-  while (ai) {
-    if (ai->ai_family != AF_INET6)
-      return true;
-    ai = ai->ai_next;
-  }
-
-  return false;
-}
-
-bool AddressListOnlyContainsIPv6Addresses(const AddressList& addrlist) {
-  DCHECK(addrlist.head());
-  for (const struct addrinfo* ai = addrlist.head(); ai; ai = ai->ai_next) {
-    if (ai->ai_family != AF_INET6)
+// Returns true iff all addresses in |list| are in the IPv6 family.
+bool AddressListOnlyContainsIPv6(const AddressList& list) {
+  DCHECK(!list.empty());
+  for (AddressList::const_iterator iter = list.begin(); iter != list.end();
+       ++iter) {
+    if (iter->GetFamily() != AF_INET6)
       return false;
   }
-
   return true;
 }
 
@@ -62,8 +50,11 @@ TransportSocketParams::TransportSocketParams(
     const HostPortPair& host_port_pair,
     RequestPriority priority,
     bool disable_resolver_cache,
-    bool ignore_limits)
-    : destination_(host_port_pair), ignore_limits_(ignore_limits) {
+    bool ignore_limits,
+    const OnHostResolutionCallback& host_resolution_callback)
+    : destination_(host_port_pair),
+      ignore_limits_(ignore_limits),
+      host_resolution_callback_(host_resolution_callback) {
   Initialize(priority, disable_resolver_cache);
 }
 
@@ -123,35 +114,13 @@ LoadState TransportConnectJob::GetLoadState() const {
 }
 
 // static
-void TransportConnectJob::MakeAddrListStartWithIPv4(AddressList* addrlist) {
-  if (addrlist->head()->ai_family != AF_INET6)
-    return;
-  bool has_ipv4 = false;
-  for (const struct addrinfo* ai = addrlist->head(); ai; ai = ai->ai_next) {
-    if (ai->ai_family != AF_INET6) {
-      has_ipv4 = true;
+void TransportConnectJob::MakeAddressListStartWithIPv4(AddressList* list) {
+  for (AddressList::iterator i = list->begin(); i != list->end(); ++i) {
+    if (i->GetFamily() == AF_INET) {
+      std::rotate(list->begin(), i, list->end());
       break;
     }
   }
-  if (!has_ipv4)
-    return;
-
-  struct addrinfo* head = CreateCopyOfAddrinfo(addrlist->head(), true);
-  struct addrinfo* tail = head;
-  while (tail->ai_next)
-    tail = tail->ai_next;
-  char* canonname = head->ai_canonname;
-  head->ai_canonname = NULL;
-  while (head->ai_family == AF_INET6) {
-    tail->ai_next = head;
-    tail = head;
-    head = head->ai_next;
-    tail->ai_next = NULL;
-  }
-  head->ai_canonname = canonname;
-
-  *addrlist = AddressList::CreateByCopying(head);
-  FreeCopyOfAddrinfo(head);
 }
 
 void TransportConnectJob::OnIOComplete(int result) {
@@ -201,8 +170,14 @@ int TransportConnectJob::DoResolveHost() {
 }
 
 int TransportConnectJob::DoResolveHostComplete(int result) {
-  if (result == OK)
-    next_state_ = STATE_TRANSPORT_CONNECT;
+  if (result == OK) {
+    // Invoke callback, and abort if it fails.
+    if (!params_->host_resolution_callback().is_null())
+      result = params_->host_resolution_callback().Run(addresses_, net_log());
+
+    if (result == OK)
+      next_state_ = STATE_TRANSPORT_CONNECT;
+  }
   return result;
 }
 
@@ -214,7 +189,8 @@ int TransportConnectJob::DoTransportConnect() {
   int rv = transport_socket_->Connect(
       base::Bind(&TransportConnectJob::OnIOComplete, base::Unretained(this)));
   if (rv == ERR_IO_PENDING &&
-      AddressListStartsWithIPv6AndHasAnIPv4Addr(addresses_)) {
+      addresses_.front().GetFamily() == AF_INET6 &&
+      !AddressListOnlyContainsIPv6(addresses_)) {
     fallback_timer_.Start(FROM_HERE,
         base::TimeDelta::FromMilliseconds(kIPv6FallbackTimerInMs),
         this, &TransportConnectJob::DoIPv6FallbackTransportConnect);
@@ -224,7 +200,7 @@ int TransportConnectJob::DoTransportConnect() {
 
 int TransportConnectJob::DoTransportConnectComplete(int result) {
   if (result == OK) {
-    bool is_ipv4 = addresses_.head()->ai_family != AF_INET6;
+    bool is_ipv4 = addresses_.front().GetFamily() != AF_INET6;
     DCHECK(connect_start_time_ != base::TimeTicks());
     DCHECK(start_time_ != base::TimeTicks());
     base::TimeTicks now = base::TimeTicks::Now();
@@ -250,7 +226,7 @@ int TransportConnectJob::DoTransportConnectComplete(int result) {
                                  base::TimeDelta::FromMinutes(10),
                                  100);
     } else {
-      if (AddressListOnlyContainsIPv6Addresses(addresses_)) {
+      if (AddressListOnlyContainsIPv6(addresses_)) {
         UMA_HISTOGRAM_CUSTOM_TIMES("Net.TCP_Connection_Latency_IPv6_Solo",
                                    connect_duration,
                                    base::TimeDelta::FromMilliseconds(1),
@@ -287,7 +263,7 @@ void TransportConnectJob::DoIPv6FallbackTransportConnect() {
   DCHECK(!fallback_addresses_.get());
 
   fallback_addresses_.reset(new AddressList(addresses_));
-  MakeAddrListStartWithIPv4(fallback_addresses_.get());
+  MakeAddressListStartWithIPv4(fallback_addresses_.get());
   fallback_transport_socket_.reset(
       client_socket_factory_->CreateTransportClientSocket(
           *fallback_addresses_, net_log().net_log(), net_log().source()));
@@ -403,9 +379,8 @@ int TransportClientSocketPool::RequestSocket(
     // TODO(eroman): Split out the host and port parameters.
     net_log.AddEvent(
         NetLog::TYPE_TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKET,
-        make_scoped_refptr(new NetLogStringParameter(
-            "host_and_port",
-            casted_params->get()->destination().host_port_pair().ToString())));
+        CreateNetLogHostPortPairCallback(
+            &casted_params->get()->destination().host_port_pair()));
   }
 
   return base_.RequestSocket(group_name, *casted_params, priority, handle,
@@ -424,9 +399,8 @@ void TransportClientSocketPool::RequestSockets(
     // TODO(eroman): Split out the host and port parameters.
     net_log.AddEvent(
         NetLog::TYPE_TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKETS,
-        make_scoped_refptr(new NetLogStringParameter(
-            "host_and_port",
-            casted_params->get()->destination().host_port_pair().ToString())));
+        CreateNetLogHostPortPairCallback(
+            &casted_params->get()->destination().host_port_pair()));
   }
 
   base_.RequestSockets(group_name, *casted_params, num_sockets, net_log);
@@ -449,6 +423,10 @@ void TransportClientSocketPool::Flush() {
   base_.Flush();
 }
 
+bool TransportClientSocketPool::IsStalled() const {
+  return base_.IsStalled();
+}
+
 void TransportClientSocketPool::CloseIdleSockets() {
   base_.CloseIdleSockets();
 }
@@ -465,6 +443,14 @@ int TransportClientSocketPool::IdleSocketCountInGroup(
 LoadState TransportClientSocketPool::GetLoadState(
     const std::string& group_name, const ClientSocketHandle* handle) const {
   return base_.GetLoadState(group_name, handle);
+}
+
+void TransportClientSocketPool::AddLayeredPool(LayeredPool* layered_pool) {
+  base_.AddLayeredPool(layered_pool);
+}
+
+void TransportClientSocketPool::RemoveLayeredPool(LayeredPool* layered_pool) {
+  base_.RemoveLayeredPool(layered_pool);
 }
 
 DictionaryValue* TransportClientSocketPool::GetInfoAsValue(

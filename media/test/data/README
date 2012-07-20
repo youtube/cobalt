@@ -8,6 +8,8 @@ no_streams.webm - Header, Info, & Tracks element from bear-320x240.webm slightly
 nonzero-start-time.webm - Has the same headers as bear-320x240.webm but the first cluster of this file 
                           is the second cluster of bear-320x240.webm. This creates the situation where
                           the media data doesn't start at time 0.
+bear-320x240-live.webm - bear-320x240.webm remuxed w/o a duration and using clusters with unknown sizes.
+                         ffmpeg -i bear-320x240.webm -acodec copy -vcodec copy -f webm pipe:1 > bear-320x240-live.webm
 vp8-I-frame-160x240 - The first I frame of a 160x240 reencode of bear-320x240.webm.
 vp8-I-frame-320x120 - The first I frame of a 320x120 reencode of bear-320x240.webm.
 vp8-I-frame-320x240 - The first I frame of bear-320x240.webm.

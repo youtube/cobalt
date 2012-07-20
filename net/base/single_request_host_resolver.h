@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_SINGLE_REQUEST_HOST_RESOLVER_H_
 #define NET_BASE_SINGLE_REQUEST_HOST_RESOLVER_H_
-#pragma once
 
 #include "net/base/host_resolver.h"
 

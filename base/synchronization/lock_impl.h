@@ -4,7 +4,6 @@
 
 #ifndef BASE_SYNCHRONIZATION_LOCK_IMPL_H_
 #define BASE_SYNCHRONIZATION_LOCK_IMPL_H_
-#pragma once
 
 #include "build/build_config.h"
 

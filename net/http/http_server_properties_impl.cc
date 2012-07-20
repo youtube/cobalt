@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -52,7 +52,7 @@ void HttpServerPropertiesImpl::InitializeAlternateProtocolServers(
 }
 
 void HttpServerPropertiesImpl::InitializeSpdySettingsServers(
-    std::map<HostPortPair, spdy::SpdySettings>* spdy_settings_map) {
+    SpdySettingsMap* spdy_settings_map) {
   spdy_settings_map_.swap(*spdy_settings_map);
 }
 
@@ -220,37 +220,27 @@ HttpServerPropertiesImpl::alternate_protocol_map() const {
   return alternate_protocol_map_;
 }
 
-const spdy::SpdySettings& HttpServerPropertiesImpl::GetSpdySettings(
+const SettingsMap& HttpServerPropertiesImpl::GetSpdySettings(
     const HostPortPair& host_port_pair) const {
   SpdySettingsMap::const_iterator it = spdy_settings_map_.find(host_port_pair);
   if (it == spdy_settings_map_.end()) {
-    CR_DEFINE_STATIC_LOCAL(spdy::SpdySettings, kEmptySpdySettings, ());
-    return kEmptySpdySettings;
+    CR_DEFINE_STATIC_LOCAL(SettingsMap, kEmptySettingsMap, ());
+    return kEmptySettingsMap;
   }
   return it->second;
 }
 
-bool HttpServerPropertiesImpl::SetSpdySettings(
+bool HttpServerPropertiesImpl::SetSpdySetting(
     const HostPortPair& host_port_pair,
-    const spdy::SpdySettings& settings) {
-  spdy::SpdySettings persistent_settings;
+    SpdySettingsIds id,
+    SpdySettingsFlags flags,
+    uint32 value) {
+  if (!(flags & SETTINGS_FLAG_PLEASE_PERSIST))
+      return false;
 
-  // Iterate through the list, and only copy those settings which are marked
-  // for persistence.
-  spdy::SpdySettings::const_iterator it;
-  for (it = settings.begin(); it != settings.end(); ++it) {
-    spdy::SettingsFlagsAndId id = it->first;
-    if (id.flags() & spdy::SETTINGS_FLAG_PLEASE_PERSIST) {
-      id.set_flags(spdy::SETTINGS_FLAG_PERSISTED);
-      persistent_settings.push_back(std::make_pair(id, it->second));
-    }
-  }
-
-  // If we didn't persist anything, then we are done.
-  if (persistent_settings.empty())
-    return false;
-
-  spdy_settings_map_[host_port_pair] = persistent_settings;
+  SettingsMap& settings_map = spdy_settings_map_[host_port_pair];
+  SettingsFlagsAndValue flags_and_value(SETTINGS_FLAG_PERSISTED, value);
+  settings_map[id] = flags_and_value;
   return true;
 }
 

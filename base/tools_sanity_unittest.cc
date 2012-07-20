@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -28,10 +28,10 @@ do { if (RunningOnValgrind()) { action; } } while (0)
 #endif
 
 void ReadUninitializedValue(char *ptr) {
-  // The || in the conditional is to prevent clang from optimizing away the
+  // Comparison with 64 is to prevent clang from optimizing away the
   // jump -- valgrind only catches jumps and conditional moves, but clang uses
   // the borrow flag if the condition is just `*ptr == '\0'`.
-  if (*ptr == '\0' || *ptr == 64) {
+  if (*ptr == 64) {
     (*ptr)++;
   } else {
     (*ptr)--;
@@ -163,8 +163,8 @@ namespace {
 class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
  public:
   explicit TOOLS_SANITY_TEST_CONCURRENT_THREAD(bool *value) : value_(value) {}
-  ~TOOLS_SANITY_TEST_CONCURRENT_THREAD() {}
-  void ThreadMain() {
+  virtual ~TOOLS_SANITY_TEST_CONCURRENT_THREAD() {}
+  virtual void ThreadMain() OVERRIDE {
     *value_ = true;
 
     // Sleep for a few milliseconds so the two threads are more likely to live
@@ -179,8 +179,8 @@ class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
 class ReleaseStoreThread : public PlatformThread::Delegate {
  public:
   explicit ReleaseStoreThread(base::subtle::Atomic32 *value) : value_(value) {}
-  ~ReleaseStoreThread() {}
-  void ThreadMain() {
+  virtual ~ReleaseStoreThread() {}
+  virtual void ThreadMain() OVERRIDE {
     base::subtle::Release_Store(value_, kMagicValue);
 
     // Sleep for a few milliseconds so the two threads are more likely to live
@@ -195,8 +195,8 @@ class ReleaseStoreThread : public PlatformThread::Delegate {
 class AcquireLoadThread : public PlatformThread::Delegate {
  public:
   explicit AcquireLoadThread(base::subtle::Atomic32 *value) : value_(value) {}
-  ~AcquireLoadThread() {}
-  void ThreadMain() {
+  virtual ~AcquireLoadThread() {}
+  virtual void ThreadMain() OVERRIDE {
     // Wait for the other thread to make Release_Store
     PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
     base::subtle::Acquire_Load(value_);

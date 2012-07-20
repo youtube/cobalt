@@ -4,17 +4,19 @@
 
 #ifndef NET_BASE_HOST_RESOLVER_H_
 #define NET_BASE_HOST_RESOLVER_H_
-#pragma once
 
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
 #include "net/base/net_util.h"
 #include "net/base/request_priority.h"
+
+namespace base {
+class Value;
+}
 
 namespace net {
 
@@ -132,10 +134,10 @@ class NET_EXPORT HostResolver {
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) = 0;
 
-  // Resolves the given hostname (or IP address literal) out of cache
-  // only.  This is guaranteed to complete synchronously.  This acts like
-  // |Resolve()| if the hostname is IP literal or cached value exists.
-  // Otherwise, ERR_DNS_CACHE_MISS is returned.
+  // Resolves the given hostname (or IP address literal) out of cache or HOSTS
+  // file (if enabled) only. This is guaranteed to complete synchronously.
+  // This acts like |Resolve()| if the hostname is IP literal, or cached value
+  // or HOSTS entry exists. Otherwise, ERR_DNS_CACHE_MISS is returned.
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
                                const BoundNetLog& net_log) = 0;
@@ -161,6 +163,11 @@ class NET_EXPORT HostResolver {
   // Used primarily to clear the cache and for getting debug information.
   virtual HostCache* GetHostCache();
 
+  // Returns the current DNS configuration |this| is using, as a Value, or NULL
+  // if it's configured to always use the system host resolver.  Caller takes
+  // ownership of the returned Value.
+  virtual base::Value* GetDnsConfigAsValue() const;
+
  protected:
   HostResolver();
 
@@ -177,6 +184,10 @@ class NET_EXPORT HostResolver {
 // |max_retry_attempts| is the maximum number of times we will retry for host
 // resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
 // value.
+// The created HostResolver uses an instance of DnsConfigService to retrieve
+// system DNS configuration.
+// This resolver should not be used in test context. Instead, use
+// MockHostResolver from net/base/mock_host_resolver.h.
 NET_EXPORT HostResolver* CreateSystemHostResolver(
     size_t max_concurrent_resolves,
     size_t max_retry_attempts,
@@ -188,10 +199,12 @@ NET_EXPORT HostResolver* CreateNonCachingSystemHostResolver(
     size_t max_retry_attempts,
     NetLog* net_log);
 
-// Creates a HostResolver implementation that sends actual DNS queries to
-// the specified DNS server and parses response and returns results.
+// As above, but the HostResolver will use the asynchronous DNS client in
+// DnsTransaction, which will be configured using DnsConfigService to match
+// the system DNS settings. If the client fails, the resolver falls back to
+// the global HostResolverProc.
 NET_EXPORT HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
-                                                 const IPAddressNumber& dns_ip,
+                                                 size_t max_retry_attempts,
                                                  NetLog* net_log);
 }  // namespace net
 

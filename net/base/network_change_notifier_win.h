@@ -1,15 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_NETWORK_CHANGE_NOTIFIER_WIN_H_
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_WIN_H_
-#pragma once
 
 #include <windows.h>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/timer.h"
@@ -47,10 +47,11 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierWin
   int sequential_failures() { return sequential_failures_; }
 
  private:
+  class DnsWatcherThread;
   friend class NetworkChangeNotifierWinTest;
 
   // NetworkChangeNotifier methods:
-  virtual bool IsCurrentlyOffline() const OVERRIDE;
+  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
 
   // ObjectWatcher::Delegate methods:
   // Must only be called on the thread |this| was created on.
@@ -61,8 +62,8 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierWin
   // thread |this| was created on.
   void NotifyObservers();
 
-  // Forwards online state notifications to parent class.
-  void NotifyParentOfOnlineStateChange();
+  // Forwards connection type notifications to parent class.
+  void NotifyParentOfConnectionTypeChange();
 
   // Tries to start listening for a single subsequent address change.  Returns
   // false on failure.  The caller is responsible for updating |is_watching_|.
@@ -88,6 +89,9 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierWin
 
   // Used for calling WatchForAddressChange again on failure.
   base::WeakPtrFactory<NetworkChangeNotifierWin> weak_factory_;
+
+  // Thread on which we can run DnsConfigWatcher.
+  scoped_ptr<DnsWatcherThread> dns_watcher_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierWin);
 };

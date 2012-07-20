@@ -6,12 +6,17 @@
 
 #include <map>
 
+#include "base/android/build_info.h"
+#include "base/android/jni_string.h"
 #include "base/atomicops.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/threading/platform_thread.h"
 
 namespace {
+using base::android::GetClass;
+using base::android::GetMethodID;
+using base::android::ScopedJavaLocalRef;
 
 JavaVM* g_jvm = NULL;
 
@@ -49,7 +54,48 @@ const base::subtle::AtomicWord kUnlocked = 0;
 const base::subtle::AtomicWord kLocked = 1;
 base::subtle::AtomicWord g_method_id_map_lock = kUnlocked;
 
+std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
+  ScopedJavaLocalRef<jclass> throwable_clazz =
+      GetClass(env, "java/lang/Throwable");
+  jmethodID throwable_printstacktrace =
+      GetMethodID(env, throwable_clazz, "printStackTrace",
+                  "(Ljava/io/PrintStream;)V");
+
+  // Create an instance of ByteArrayOutputStream.
+  ScopedJavaLocalRef<jclass> bytearray_output_stream_clazz =
+      GetClass(env, "java/io/ByteArrayOutputStream");
+  jmethodID bytearray_output_stream_constructor =
+      GetMethodID(env, bytearray_output_stream_clazz, "<init>", "()V");
+  jmethodID bytearray_output_stream_tostring =
+      GetMethodID(env, bytearray_output_stream_clazz, "toString",
+                  "()Ljava/lang/String;");
+  ScopedJavaLocalRef<jobject> bytearray_output_stream(env,
+      env->NewObject(bytearray_output_stream_clazz.obj(),
+                     bytearray_output_stream_constructor));
+
+  // Create an instance of PrintStream.
+  ScopedJavaLocalRef<jclass> printstream_clazz =
+      GetClass(env, "java/io/PrintStream");
+  jmethodID printstream_constructor =
+      GetMethodID(env, printstream_clazz, "<init>",
+                  "(Ljava/io/OutputStream;)V");
+  ScopedJavaLocalRef<jobject> printstream(env,
+      env->NewObject(printstream_clazz.obj(), printstream_constructor,
+                     bytearray_output_stream.obj()));
+
+  // Call Throwable.printStackTrace(PrintStream)
+  env->CallVoidMethod(java_throwable, throwable_printstacktrace,
+      printstream.obj());
+
+  // Call ByteArrayOutputStream.toString()
+  ScopedJavaLocalRef<jstring> exception_string(
+      env, static_cast<jstring>(
+          env->CallObjectMethod(bytearray_output_stream.obj(),
+                                bytearray_output_stream_tostring)));
+
+  return ConvertJavaStringToUTF8(exception_string);
 }
+}  // namespace
 
 namespace base {
 namespace android {
@@ -86,9 +132,13 @@ const jobject GetApplicationContext() {
 }
 
 ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* class_name) {
+  return ScopedJavaLocalRef<jclass>(env, GetUnscopedClass(env, class_name));
+}
+
+jclass GetUnscopedClass(JNIEnv* env, const char* class_name) {
   jclass clazz = env->FindClass(class_name);
   CHECK(clazz && !ClearException(env)) << "Failed to find class " << class_name;
-  return ScopedJavaLocalRef<jclass>(env, clazz);
+  return clazz;
 }
 
 bool HasClass(JNIEnv* env, const char* class_name) {
@@ -106,8 +156,16 @@ jmethodID GetMethodID(JNIEnv* env,
                       const JavaRef<jclass>& clazz,
                       const char* method_name,
                       const char* jni_signature) {
+  // We can't use clazz.env() as that may be from a different thread.
+  return GetMethodID(env, clazz.obj(), method_name, jni_signature);
+}
+
+jmethodID GetMethodID(JNIEnv* env,
+                      jclass clazz,
+                      const char* method_name,
+                      const char* jni_signature) {
   jmethodID method_id =
-      env->GetMethodID(clazz.obj(), method_name, jni_signature);
+      env->GetMethodID(clazz, method_name, jni_signature);
   CHECK(method_id && !ClearException(env)) << "Failed to find method " <<
       method_name << " " << jni_signature;
   return method_id;
@@ -117,8 +175,16 @@ jmethodID GetStaticMethodID(JNIEnv* env,
                             const JavaRef<jclass>& clazz,
                             const char* method_name,
                             const char* jni_signature) {
+  return GetStaticMethodID(env, clazz.obj(), method_name,
+      jni_signature);
+}
+
+jmethodID GetStaticMethodID(JNIEnv* env,
+                            jclass clazz,
+                            const char* method_name,
+                            const char* jni_signature) {
   jmethodID method_id =
-      env->GetStaticMethodID(clazz.obj(), method_name, jni_signature);
+      env->GetStaticMethodID(clazz, method_name, jni_signature);
   CHECK(method_id && !ClearException(env)) << "Failed to find static method " <<
       method_name << " " << jni_signature;
   return method_id;
@@ -230,15 +296,31 @@ bool HasException(JNIEnv* env) {
 bool ClearException(JNIEnv* env) {
   if (!HasException(env))
     return false;
+  env->ExceptionDescribe();
   env->ExceptionClear();
   return true;
 }
 
 void CheckException(JNIEnv* env) {
-  if (HasException(env)) {
-    env->ExceptionDescribe();
+  if (!HasException(env)) return;
+
+  // Ugh, we are going to die, might as well tell breakpad about it.
+  jthrowable java_throwable = env->ExceptionOccurred();
+  if (!java_throwable) {
+    // Nothing we can do.
     CHECK(false);
   }
+
+  // Clear the pending exception, we do have a reference to it.
+  env->ExceptionClear();
+
+  // Set the exception_string in BuildInfo so that breakpad can read it.
+  // RVO should avoid any extra copies of the exception string.
+  base::android::BuildInfo::GetInstance()->set_java_exception_info(
+      GetJavaExceptionInfo(env, java_throwable));
+
+  // Now, feel good about it and die.
+  CHECK(false);
 }
 
 }  // namespace android

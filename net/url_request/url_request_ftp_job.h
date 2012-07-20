@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_FTP_JOB_H_
 #define NET_URL_REQUEST_URL_REQUEST_FTP_JOB_H_
-#pragma once
 
 #include <string>
 
@@ -17,14 +16,20 @@
 
 namespace net {
 
-class URLRequestContext;
+class NetworkDelegate;
+class FtpTransactionFactory;
+class FtpAuthCache;
 
 // A URLRequestJob subclass that is built on top of FtpTransaction. It
 // provides an implementation for FTP.
 class URLRequestFtpJob : public URLRequestJob {
  public:
-  explicit URLRequestFtpJob(URLRequest* request);
+  URLRequestFtpJob(URLRequest* request,
+                   NetworkDelegate* network_delegate,
+                   FtpTransactionFactory* ftp_transaction_factory,
+                   FtpAuthCache* ftp_auth_cache);
 
+  // TODO(shalev): get rid of this function in favor of FtpProtocolHandler.
   static URLRequestJob* Factory(URLRequest* request,
                                 const std::string& scheme);
 
@@ -67,11 +72,10 @@ class URLRequestFtpJob : public URLRequestJob {
 
   scoped_refptr<AuthData> server_auth_;
 
-  // Keep a reference to the url request context to be sure it's not deleted
-  // before us.
-  scoped_refptr<const URLRequestContext> context_;
-
   base::WeakPtrFactory<URLRequestFtpJob> weak_factory_;
+
+  FtpTransactionFactory* ftp_transaction_factory_;
+  FtpAuthCache* ftp_auth_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFtpJob);
 };

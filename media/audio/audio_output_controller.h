@@ -7,7 +7,6 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
@@ -77,11 +76,13 @@ class MEDIA_EXPORT AudioOutputController
   // following methods are called on the audio manager thread.
   class MEDIA_EXPORT EventHandler {
    public:
-    virtual ~EventHandler() {}
     virtual void OnCreated(AudioOutputController* controller) = 0;
     virtual void OnPlaying(AudioOutputController* controller) = 0;
     virtual void OnPaused(AudioOutputController* controller) = 0;
     virtual void OnError(AudioOutputController* controller, int error_code) = 0;
+
+   protected:
+    virtual ~EventHandler() {}
   };
 
   // A synchronous reader interface used by AudioOutputController for
@@ -147,8 +148,7 @@ class MEDIA_EXPORT AudioOutputController
 
   ///////////////////////////////////////////////////////////////////////////
   // AudioSourceCallback methods.
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            uint8* dest,
+  virtual uint32 OnMoreData(uint8* dest,
                             uint32 max_size,
                             AudioBuffersState buffers_state) OVERRIDE;
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
@@ -184,7 +184,7 @@ class MEDIA_EXPORT AudioOutputController
   void PollAndStartIfDataReady();
   void DoPause();
   void DoFlush();
-  void DoClose(const base::Closure& closed_task);
+  void DoClose();
   void DoSetVolume(double volume);
   void DoReportError(int code);
 

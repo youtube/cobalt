@@ -13,6 +13,33 @@
 namespace base {
 namespace files {
 
+namespace {
+
+// A delegate implementation for the callback interface.
+class FilePathWatcherDelegate : public base::files::FilePathWatcher::Delegate {
+ public:
+  explicit FilePathWatcherDelegate(const FilePathWatcher::Callback& callback)
+      : callback_(callback) {}
+
+  // FilePathWatcher::Delegate implementation.
+  virtual void OnFilePathChanged(const FilePath& path) OVERRIDE {
+    callback_.Run(path, false);
+  }
+
+  virtual void OnFilePathError(const FilePath& path) OVERRIDE {
+    callback_.Run(path, true);
+  }
+
+ private:
+  virtual ~FilePathWatcherDelegate() {}
+
+  FilePathWatcher::Callback callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(FilePathWatcherDelegate);
+};
+
+}  // namespace
+
 FilePathWatcher::~FilePathWatcher() {
   impl_->Cancel();
 }
@@ -33,6 +60,10 @@ FilePathWatcher::PlatformDelegate::PlatformDelegate(): cancelled_(false) {
 
 FilePathWatcher::PlatformDelegate::~PlatformDelegate() {
   DCHECK(is_cancelled());
+}
+
+bool FilePathWatcher::Watch(const FilePath& path, const Callback& callback) {
+  return Watch(path, new FilePathWatcherDelegate(callback));
 }
 
 }  // namespace files

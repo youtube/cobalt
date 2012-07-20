@@ -6,6 +6,7 @@
 #include "base/environment.h"
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "media/audio/audio_output_controller.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -21,14 +22,14 @@ using ::testing::InvokeWithoutArgs;
 using ::testing::NotNull;
 using ::testing::Return;
 
+namespace media {
+
 static const int kSampleRate = AudioParameters::kAudioCDSampleRate;
 static const int kBitsPerSample = 16;
 static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
 static const int kSamplesPerPacket = kSampleRate / 10;
 static const int kHardwareBufferSize = kSamplesPerPacket *
     ChannelLayoutToChannelCount(kChannelLayout) * kBitsPerSample / 8;
-
-namespace media {
 
 class MockAudioOutputControllerEventHandler
     : public AudioOutputController::EventHandler {
@@ -65,13 +66,23 @@ ACTION_P(SignalEvent, event) {
 
 // Closes AudioOutputController synchronously.
 static void CloseAudioController(AudioOutputController* controller) {
-  base::WaitableEvent closed_event(true, false);
-  controller->Close(base::Bind(&base::WaitableEvent::Signal,
-                               base::Unretained(&closed_event)));
-  closed_event.Wait();
+  controller->Close(MessageLoop::QuitClosure());
+  MessageLoop::current()->Run();
 }
 
-TEST(AudioOutputControllerTest, CreateAndClose) {
+class AudioOutputControllerTest : public testing::Test {
+ public:
+  AudioOutputControllerTest() {}
+  virtual ~AudioOutputControllerTest() {}
+
+ protected:
+  MessageLoopForIO message_loop_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AudioOutputControllerTest);
+};
+
+TEST_F(AudioOutputControllerTest, CreateAndClose) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -95,7 +106,7 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
   CloseAudioController(controller);
 }
 
-TEST(AudioOutputControllerTest, PlayPauseClose) {
+TEST_F(AudioOutputControllerTest, PlayPauseClose) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -117,6 +128,8 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
   EXPECT_CALL(sync_reader, Read(_, kHardwareBufferSize))
       .WillRepeatedly(DoAll(SignalEvent(&event),
                             Return(4)));
+  EXPECT_CALL(sync_reader, DataReady())
+      .WillRepeatedly(Return(true));
   EXPECT_CALL(event_handler, OnPaused(NotNull()))
       .WillOnce(InvokeWithoutArgs(&pause_event, &base::WaitableEvent::Signal));
   EXPECT_CALL(sync_reader, Close());
@@ -140,8 +153,7 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
   CloseAudioController(controller);
 }
 
-
-TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
+TEST_F(AudioOutputControllerTest, HardwareBufferTooLarge) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -160,6 +172,55 @@ TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
   // Use assert because we don't stop the device and assume we can't
   // create one.
   ASSERT_FALSE(controller);
+}
+
+TEST_F(AudioOutputControllerTest, PlayPausePlayClose) {
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
+    return;
+
+  MockAudioOutputControllerEventHandler event_handler;
+  base::WaitableEvent event(false, false);
+  EXPECT_CALL(event_handler, OnCreated(NotNull()))
+      .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
+
+  // OnPlaying() will be called only once.
+  base::WaitableEvent play_event(false, false);
+  EXPECT_CALL(event_handler, OnPlaying(NotNull()))
+      .WillOnce(InvokeWithoutArgs(&play_event, &base::WaitableEvent::Signal));
+
+  // OnPaused() should never be called since the pause during kStarting is
+  // dropped when the second play comes in.
+  EXPECT_CALL(event_handler, OnPaused(NotNull()))
+      .Times(0);
+
+  MockAudioOutputControllerSyncReader sync_reader;
+  EXPECT_CALL(sync_reader, UpdatePendingBytes(_))
+      .Times(AtLeast(1));
+  EXPECT_CALL(sync_reader, Read(_, kHardwareBufferSize))
+      .WillRepeatedly(DoAll(SignalEvent(&event), Return(4)));
+  EXPECT_CALL(sync_reader, DataReady())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(sync_reader, Close());
+
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
+                         kSampleRate, kBitsPerSample, kSamplesPerPacket);
+  scoped_refptr<AudioOutputController> controller =
+      AudioOutputController::Create(
+          audio_manager.get(), &event_handler, params, &sync_reader);
+  ASSERT_TRUE(controller.get());
+
+  // Wait for OnCreated() to be called.
+  event.Wait();
+
+  ASSERT_FALSE(play_event.IsSignaled());
+  controller->Play();
+  controller->Pause();
+  controller->Play();
+  play_event.Wait();
+
+  // Now stop the controller.
+  CloseAudioController(controller);
 }
 
 }  // namespace media

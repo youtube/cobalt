@@ -4,7 +4,6 @@
 
 #ifndef NET_WEBSOCKETS_WEBSOCKET_JOB_H_
 #define NET_WEBSOCKETS_WEBSOCKET_JOB_H_
-#pragma once
 
 #include <deque>
 #include <string>
@@ -21,6 +20,7 @@ class GURL;
 namespace net {
 
 class DrainableIOBuffer;
+class SSLInfo;
 class WebSocketHandshakeRequestHandler;
 class WebSocketHandshakeResponseHandler;
 
@@ -71,20 +71,24 @@ class NET_EXPORT WebSocketJob
   virtual void OnClose(SocketStream* socket) OVERRIDE;
   virtual void OnAuthRequired(
       SocketStream* socket, AuthChallengeInfo* auth_info) OVERRIDE;
+  virtual void OnSSLCertificateError(SocketStream* socket,
+                                     const SSLInfo& ssl_info,
+                                     bool fatal) OVERRIDE;
   virtual void OnError(const SocketStream* socket, int error) OVERRIDE;
 
   // SpdyWebSocketStream::Delegate methods.
   virtual void OnCreatedSpdyStream(int status) OVERRIDE;
   virtual void OnSentSpdyHeaders(int status) OVERRIDE;
   virtual int OnReceivedSpdyResponseHeader(
-      const spdy::SpdyHeaderBlock& headers, int status) OVERRIDE;
+      const SpdyHeaderBlock& headers, int status) OVERRIDE;
   virtual void OnSentSpdyData(int amount_sent) OVERRIDE;
   virtual void OnReceivedSpdyData(const char* data, int length) OVERRIDE;
   virtual void OnCloseSpdyStream() OVERRIDE;
 
  private:
   friend class WebSocketThrottle;
-  friend class WebSocketJobTest;
+  friend class WebSocketJobSpdy2Test;
+  friend class WebSocketJobSpdy3Test;
   virtual ~WebSocketJob();
 
   bool SendHandshakeRequest(const char* data, int len);

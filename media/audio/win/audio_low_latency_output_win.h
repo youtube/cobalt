@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -132,6 +132,8 @@
 #include "media/audio/audio_parameters.h"
 #include "media/base/media_export.h"
 
+namespace media {
+
 class AudioManagerWin;
 
 // AudioOutputStream implementation using Windows Core Audio APIs.
@@ -161,7 +163,7 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // Retrieves the stream format that the audio engine uses for its internal
   // processing/mixing of shared-mode streams.
-  static double HardwareSampleRate(ERole device_role);
+  static int HardwareSampleRate(ERole device_role);
 
   bool started() const { return started_; }
 
@@ -306,5 +308,7 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   DISALLOW_COPY_AND_ASSIGN(WASAPIAudioOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_WIN_AUDIO_LOW_LATENCY_OUTPUT_WIN_H_

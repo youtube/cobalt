@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/basictypes.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/statistics_recorder.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -16,14 +17,13 @@ using base::StatisticsRecorder;
 namespace net {
 
 TEST(SocketStreamMetricsTest, ProtocolType) {
-  Histogram* histogram;
-
   // First we'll preserve the original values. We need to do this
   // as histograms can get affected by other tests. In particular,
   // SocketStreamTest and WebSocketTest can affect the histograms.
   Histogram::SampleSet original;
-  if (StatisticsRecorder::FindHistogram(
-          "Net.SocketStream.ProtocolType", &histogram)) {
+  Histogram* histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ProtocolType");
+  if (histogram) {
     histogram->SnapshotSample(&original);
   }
 
@@ -34,8 +34,9 @@ TEST(SocketStreamMetricsTest, ProtocolType) {
   SocketStreamMetrics wss2(GURL("wss://www.example.com/"));
   SocketStreamMetrics wss3(GURL("wss://www.example.com/"));
 
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.ProtocolType", &histogram));
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ProtocolType");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
 
   Histogram::SampleSet sample;
@@ -48,12 +49,11 @@ TEST(SocketStreamMetricsTest, ProtocolType) {
 }
 
 TEST(SocketStreamMetricsTest, ConnectionType) {
-  Histogram* histogram;
-
   // First we'll preserve the original values.
   Histogram::SampleSet original;
-  if (StatisticsRecorder::FindHistogram(
-          "Net.SocketStream.ConnectionType", &histogram)) {
+  Histogram* histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ConnectionType");
+  if (histogram) {
     histogram->SnapshotSample(&original);
   }
 
@@ -67,8 +67,10 @@ TEST(SocketStreamMetricsTest, ConnectionType) {
   for (int i = 0; i < 4; ++i)
     metrics.OnCountConnectionType(SocketStreamMetrics::SSL_CONNECTION);
 
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.ConnectionType", &histogram));
+
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ConnectionType");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
 
   Histogram::SampleSet sample;
@@ -82,12 +84,11 @@ TEST(SocketStreamMetricsTest, ConnectionType) {
 }
 
 TEST(SocketStreamMetricsTest, WireProtocolType) {
-  Histogram* histogram;
-
   // First we'll preserve the original values.
   Histogram::SampleSet original;
-  if (StatisticsRecorder::FindHistogram(
-          "Net.SocketStream.WireProtocolType", &histogram)) {
+  Histogram* histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.WireProtocolType");
+  if (histogram) {
     histogram->SnapshotSample(&original);
   }
 
@@ -98,8 +99,9 @@ TEST(SocketStreamMetricsTest, WireProtocolType) {
   for (int i = 0; i < 7; ++i)
     metrics.OnCountWireProtocolType(SocketStreamMetrics::WIRE_PROTOCOL_SPDY);
 
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.WireProtocolType", &histogram));
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.WireProtocolType");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
 
   Histogram::SampleSet sample;
@@ -111,8 +113,6 @@ TEST(SocketStreamMetricsTest, WireProtocolType) {
 }
 
 TEST(SocketStreamMetricsTest, OtherNumbers) {
-  Histogram* histogram;
-
   // First we'll preserve the original values.
   int64 original_received_bytes = 0;
   int64 original_received_counts = 0;
@@ -120,23 +120,28 @@ TEST(SocketStreamMetricsTest, OtherNumbers) {
   int64 original_sent_counts = 0;
 
   Histogram::SampleSet original;
-  if (StatisticsRecorder::FindHistogram(
-          "Net.SocketStream.ReceivedBytes", &histogram)) {
+
+  Histogram* histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ReceivedBytes");
+  if (histogram) {
     histogram->SnapshotSample(&original);
     original_received_bytes = original.sum();
   }
-  if (StatisticsRecorder::FindHistogram(
-          "Net.SocketStream.ReceivedCounts", &histogram)) {
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ReceivedCounts");
+  if (histogram) {
     histogram->SnapshotSample(&original);
     original_received_counts = original.sum();
   }
-  if (StatisticsRecorder::FindHistogram(
-          "Net.SocketStream.SentBytes", &histogram)) {
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.SentBytes");
+  if (histogram) {
     histogram->SnapshotSample(&original);
     original_sent_bytes = original.sum();
   }
-  if (StatisticsRecorder::FindHistogram(
-          "Net.SocketStream.SentCounts", &histogram)) {
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.SentCounts");
+  if (histogram) {
     histogram->SnapshotSample(&original);
     original_sent_counts = original.sum();
   }
@@ -155,47 +160,54 @@ TEST(SocketStreamMetricsTest, OtherNumbers) {
   Histogram::SampleSet sample;
 
   // ConnectionLatency.
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.ConnectionLatency", &histogram));
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ConnectionLatency");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
   // We don't check the contents of the histogram as it's time sensitive.
 
   // ConnectionEstablish.
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.ConnectionEstablish", &histogram));
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ConnectionEstablish");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
   // We don't check the contents of the histogram as it's time sensitive.
 
   // Duration.
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.Duration", &histogram));
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.Duration");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
   // We don't check the contents of the histogram as it's time sensitive.
 
   // ReceivedBytes.
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.ReceivedBytes", &histogram));
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ReceivedBytes");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
   histogram->SnapshotSample(&sample);
   EXPECT_EQ(11, sample.sum() - original_received_bytes);  // 11 bytes read.
 
   // ReceivedCounts.
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.ReceivedCounts", &histogram));
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.ReceivedCounts");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
   histogram->SnapshotSample(&sample);
   EXPECT_EQ(2, sample.sum() - original_received_counts);  // 2 read requests.
 
   // SentBytes.
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.SentBytes", &histogram));
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.SentBytes");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
   histogram->SnapshotSample(&sample);
   EXPECT_EQ(222, sample.sum() - original_sent_bytes);  // 222 bytes sent.
 
   // SentCounts.
-  ASSERT_TRUE(StatisticsRecorder::FindHistogram(
-      "Net.SocketStream.SentCounts", &histogram));
+  histogram =
+      StatisticsRecorder::FindHistogram("Net.SocketStream.SentCounts");
+  ASSERT_TRUE(histogram != NULL);
   EXPECT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
   histogram->SnapshotSample(&sample);
   EXPECT_EQ(3, sample.sum() - original_sent_counts);  // 3 write requests.

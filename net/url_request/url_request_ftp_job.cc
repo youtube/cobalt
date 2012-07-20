@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,11 +19,18 @@
 
 namespace net {
 
-URLRequestFtpJob::URLRequestFtpJob(URLRequest* request)
-    : URLRequestJob(request),
+URLRequestFtpJob::URLRequestFtpJob(
+    URLRequest* request,
+    NetworkDelegate* network_delegate,
+    FtpTransactionFactory* ftp_transaction_factory,
+    FtpAuthCache* ftp_auth_cache)
+    : URLRequestJob(request, network_delegate),
       read_in_progress_(false),
-      context_(request->context()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+      ftp_transaction_factory_(ftp_transaction_factory),
+      ftp_auth_cache_(ftp_auth_cache) {
+  DCHECK(ftp_transaction_factory);
+  DCHECK(ftp_auth_cache);
 }
 
 // static
@@ -33,12 +40,14 @@ URLRequestJob* URLRequestFtpJob::Factory(URLRequest* request,
 
   int port = request->url().IntPort();
   if (request->url().has_port() &&
-    !IsPortAllowedByFtp(port) && !IsPortAllowedByOverride(port))
+      !IsPortAllowedByFtp(port) && !IsPortAllowedByOverride(port)) {
     return new URLRequestErrorJob(request, ERR_UNSAFE_PORT);
+  }
 
-  DCHECK(request->context());
-  DCHECK(request->context()->ftp_transaction_factory());
-  return new URLRequestFtpJob(request);
+  return new URLRequestFtpJob(request,
+                              request->context()->network_delegate(),
+                              request->context()->ftp_transaction_factory(),
+                              request->context()->ftp_auth_cache());
 }
 
 bool URLRequestFtpJob::GetMimeType(std::string* mime_type) const {
@@ -62,11 +71,8 @@ URLRequestFtpJob::~URLRequestFtpJob() {
 void URLRequestFtpJob::StartTransaction() {
   // Create a transaction.
   DCHECK(!transaction_.get());
-  DCHECK(request_->context());
-  DCHECK(request_->context()->ftp_transaction_factory());
 
-  transaction_.reset(
-      request_->context()->ftp_transaction_factory()->CreateTransaction());
+  transaction_.reset(ftp_transaction_factory_->CreateTransaction());
 
   // No matter what, we want to report our status as IO pending since we will
   // be notifying our consumer asynchronously via OnStartCompleted.
@@ -95,26 +101,27 @@ void URLRequestFtpJob::OnStartCompleted(int result) {
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
-  // FTP obviously doesn't have HTTP Content-Length header. We have to pass
-  // the content size information manually.
-  set_expected_content_size(
-      transaction_->GetResponseInfo()->expected_content_size);
+  // Note that transaction_ may be NULL due to a creation failure.
+  if (transaction_.get()) {
+    // FTP obviously doesn't have HTTP Content-Length header. We have to pass
+    // the content size information manually.
+    set_expected_content_size(
+        transaction_->GetResponseInfo()->expected_content_size);
+  }
 
   if (result == OK) {
     NotifyHeadersComplete();
-  } else if (transaction_->GetResponseInfo()->needs_auth) {
+  } else if (transaction_.get() &&
+             transaction_->GetResponseInfo()->needs_auth) {
     GURL origin = request_->url().GetOrigin();
     if (server_auth_ && server_auth_->state == AUTH_STATE_HAVE_AUTH) {
-      request_->context()->ftp_auth_cache()->Remove(
-          origin, server_auth_->credentials);
+      ftp_auth_cache_->Remove(origin, server_auth_->credentials);
     } else if (!server_auth_) {
       server_auth_ = new AuthData();
     }
     server_auth_->state = AUTH_STATE_NEED_AUTH;
 
-    FtpAuthCache::Entry* cached_auth =
-        request_->context()->ftp_auth_cache()->Lookup(origin);
-
+    FtpAuthCache::Entry* cached_auth = ftp_auth_cache_->Lookup(origin);
     if (cached_auth) {
       // Retry using cached auth data.
       SetAuth(cached_auth->credentials);
@@ -205,8 +212,7 @@ void URLRequestFtpJob::SetAuth(const AuthCredentials& credentials) {
   server_auth_->state = AUTH_STATE_HAVE_AUTH;
   server_auth_->credentials = credentials;
 
-  request_->context()->ftp_auth_cache()->Add(request_->url().GetOrigin(),
-                                             server_auth_->credentials);
+  ftp_auth_cache_->Add(request_->url().GetOrigin(), server_auth_->credentials);
 
   RestartTransactionWithAuth();
 }

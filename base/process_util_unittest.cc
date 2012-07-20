@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "base/command_line.h"
+#include "base/debug/alias.h"
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
@@ -22,12 +23,12 @@
 #include "testing/multiprocess_func_list.h"
 
 #if defined(OS_LINUX)
-#include <errno.h>
 #include <malloc.h>
 #include <glib.h>
 #include <sched.h>
 #endif
 #if defined(OS_POSIX)
+#include <errno.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -39,6 +40,7 @@
 #include <windows.h>
 #endif
 #if defined(OS_MACOSX)
+#include <mach/vm_param.h>
 #include <malloc/malloc.h>
 #include "base/process_util_unittest_mac.h"
 #endif
@@ -72,7 +74,7 @@ const int kExpectedStillRunningExitCode = 0;
 
 // Sleeps until file filename is created.
 void WaitToDie(const char* filename) {
-  FILE *fp;
+  FILE* fp;
   do {
     base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
     fp = fopen(filename, "r");
@@ -82,7 +84,7 @@ void WaitToDie(const char* filename) {
 
 // Signals children they should die now.
 void SignalChildren(const char* filename) {
-  FILE *fp = fopen(filename, "w");
+  FILE* fp = fopen(filename, "w");
   fclose(fp);
 }
 
@@ -102,7 +104,7 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
     base::PlatformThread::Sleep(kInterval);
     waited += kInterval;
   } while (status == base::TERMINATION_STATUS_STILL_RUNNING &&
-           waited.InMilliseconds() < TestTimeouts::action_max_timeout_ms());
+           waited < TestTimeouts::action_max_timeout());
 
   return status;
 }
@@ -110,12 +112,26 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
 }  // namespace
 
 class ProcessUtilTest : public base::MultiProcessTest {
-#if defined(OS_POSIX)
  public:
+#if defined(OS_POSIX)
   // Spawn a child process that counts how many file descriptors are open.
   int CountOpenFDsInChild();
 #endif
+  // Converts the filename to a platform specific filepath.
+  // On Android files can not be created in arbitrary directories.
+  static std::string GetSignalFilePath(const char* filename);
 };
+
+std::string ProcessUtilTest::GetSignalFilePath(const char* filename) {
+#if !defined(OS_ANDROID)
+  return filename;
+#else
+  FilePath tmp_dir;
+  PathService::Get(base::DIR_CACHE, &tmp_dir);
+  tmp_dir = tmp_dir.Append(filename);
+  return tmp_dir.value();
+#endif
+}
 
 MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
   return 0;
@@ -125,29 +141,33 @@ TEST_F(ProcessUtilTest, SpawnChild) {
   base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
   EXPECT_TRUE(base::WaitForSingleProcess(
-                  handle, TestTimeouts::action_max_timeout_ms()));
+                  handle, TestTimeouts::action_max_timeout()));
   base::CloseProcessHandle(handle);
 }
 
 MULTIPROCESS_TEST_MAIN(SlowChildProcess) {
-  WaitToDie(kSignalFileSlow);
+  WaitToDie(ProcessUtilTest::GetSignalFilePath(kSignalFileSlow).c_str());
   return 0;
 }
 
 TEST_F(ProcessUtilTest, KillSlowChild) {
-  remove(kSignalFileSlow);
+  const std::string signal_file =
+      ProcessUtilTest::GetSignalFilePath(kSignalFileSlow);
+  remove(signal_file.c_str());
   base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
-  SignalChildren(kSignalFileSlow);
+  SignalChildren(signal_file.c_str());
   EXPECT_TRUE(base::WaitForSingleProcess(
-                  handle, TestTimeouts::action_max_timeout_ms()));
+                  handle, TestTimeouts::action_max_timeout()));
   base::CloseProcessHandle(handle);
-  remove(kSignalFileSlow);
+  remove(signal_file.c_str());
 }
 
 // Times out on Linux and Win, flakes on other platforms, http://crbug.com/95058
 TEST_F(ProcessUtilTest, DISABLED_GetTerminationStatusExit) {
-  remove(kSignalFileSlow);
+  const std::string signal_file =
+      ProcessUtilTest::GetSignalFilePath(kSignalFileSlow);
+  remove(signal_file.c_str());
   base::ProcessHandle handle = this->SpawnChild("SlowChildProcess", false);
   ASSERT_NE(base::kNullProcessHandle, handle);
 
@@ -156,14 +176,14 @@ TEST_F(ProcessUtilTest, DISABLED_GetTerminationStatusExit) {
             base::GetTerminationStatus(handle, &exit_code));
   EXPECT_EQ(kExpectedStillRunningExitCode, exit_code);
 
-  SignalChildren(kSignalFileSlow);
+  SignalChildren(signal_file.c_str());
   exit_code = 42;
   base::TerminationStatus status =
       WaitForChildTermination(handle, &exit_code);
   EXPECT_EQ(base::TERMINATION_STATUS_NORMAL_TERMINATION, status);
   EXPECT_EQ(0, exit_code);
   base::CloseProcessHandle(handle);
-  remove(kSignalFileSlow);
+  remove(signal_file.c_str());
 }
 
 #if defined(OS_WIN)
@@ -210,7 +230,7 @@ TEST_F(ProcessUtilTest, GetModuleFromAddress) {
 // framework) to reduce the ReportCrash overhead.
 
 MULTIPROCESS_TEST_MAIN(CrashingChildProcess) {
-  WaitToDie(kSignalFileCrash);
+  WaitToDie(ProcessUtilTest::GetSignalFilePath(kSignalFileCrash).c_str());
 #if defined(OS_POSIX)
   // Have to disable to signal handler for segv so we can get a crash
   // instead of an abnormal termination through the crash dump handler.
@@ -230,7 +250,9 @@ MULTIPROCESS_TEST_MAIN(CrashingChildProcess) {
 #define MAYBE_GetTerminationStatusCrash GetTerminationStatusCrash
 #endif
 TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
-  remove(kSignalFileCrash);
+  const std::string signal_file =
+    ProcessUtilTest::GetSignalFilePath(kSignalFileCrash);
+  remove(signal_file.c_str());
   base::ProcessHandle handle = this->SpawnChild("CrashingChildProcess",
                                                 false);
   ASSERT_NE(base::kNullProcessHandle, handle);
@@ -240,7 +262,7 @@ TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
             base::GetTerminationStatus(handle, &exit_code));
   EXPECT_EQ(kExpectedStillRunningExitCode, exit_code);
 
-  SignalChildren(kSignalFileCrash);
+  SignalChildren(signal_file.c_str());
   exit_code = 42;
   base::TerminationStatus status =
       WaitForChildTermination(handle, &exit_code);
@@ -258,12 +280,12 @@ TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
 
   // Reset signal handlers back to "normal".
   base::EnableInProcessStackDumping();
-  remove(kSignalFileCrash);
+  remove(signal_file.c_str());
 }
-#endif // !defined(OS_MACOSX)
+#endif  // !defined(OS_MACOSX)
 
 MULTIPROCESS_TEST_MAIN(KilledChildProcess) {
-  WaitToDie(kSignalFileKill);
+  WaitToDie(ProcessUtilTest::GetSignalFilePath(kSignalFileKill).c_str());
 #if defined(OS_WIN)
   // Kill ourselves.
   HANDLE handle = ::OpenProcess(PROCESS_ALL_ACCESS, 0, ::GetCurrentProcessId());
@@ -276,7 +298,9 @@ MULTIPROCESS_TEST_MAIN(KilledChildProcess) {
 }
 
 TEST_F(ProcessUtilTest, GetTerminationStatusKill) {
-  remove(kSignalFileKill);
+  const std::string signal_file =
+    ProcessUtilTest::GetSignalFilePath(kSignalFileKill);
+  remove(signal_file.c_str());
   base::ProcessHandle handle = this->SpawnChild("KilledChildProcess",
                                                 false);
   ASSERT_NE(base::kNullProcessHandle, handle);
@@ -286,7 +310,7 @@ TEST_F(ProcessUtilTest, GetTerminationStatusKill) {
             base::GetTerminationStatus(handle, &exit_code));
   EXPECT_EQ(kExpectedStillRunningExitCode, exit_code);
 
-  SignalChildren(kSignalFileKill);
+  SignalChildren(signal_file.c_str());
   exit_code = 42;
   base::TerminationStatus status =
       WaitForChildTermination(handle, &exit_code);
@@ -300,7 +324,7 @@ TEST_F(ProcessUtilTest, GetTerminationStatusKill) {
   EXPECT_EQ(SIGKILL, signal);
 #endif
   base::CloseProcessHandle(handle);
-  remove(kSignalFileKill);
+  remove(signal_file.c_str());
 }
 
 // Ensure that the priority of a process is restored correctly after
@@ -412,24 +436,23 @@ TEST_F(ProcessUtilTest, GetAppOutput) {
                                     // boundary.
     message += "Hello!";
   }
+  // cmd.exe's echo always adds a \r\n to its output.
+  std::string expected(message);
+  expected += "\r\n";
 
-  FilePath python_runtime;
-  ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &python_runtime));
-  python_runtime = python_runtime.Append(FILE_PATH_LITERAL("third_party"))
-                                 .Append(FILE_PATH_LITERAL("python_26"))
-                                 .Append(FILE_PATH_LITERAL("python.exe"));
-
-  CommandLine cmd_line(python_runtime);
-  cmd_line.AppendArg("-c");
-  cmd_line.AppendArg("import sys; sys.stdout.write('" + message + "');");
+  FilePath cmd(L"cmd.exe");
+  CommandLine cmd_line(cmd);
+  cmd_line.AppendArg("/c");
+  cmd_line.AppendArg("echo " + message + "");
   std::string output;
   ASSERT_TRUE(base::GetAppOutput(cmd_line, &output));
-  EXPECT_EQ(message, output);
+  EXPECT_EQ(expected, output);
 
   // Let's make sure stderr is ignored.
-  CommandLine other_cmd_line(python_runtime);
-  other_cmd_line.AppendArg("-c");
-  other_cmd_line.AppendArg("import sys; sys.stderr.write('Hello!');");
+  CommandLine other_cmd_line(cmd);
+  other_cmd_line.AppendArg("/c");
+  // http://msdn.microsoft.com/library/cc772622.aspx
+  cmd_line.AppendArg("echo " + message + " >&2");
   output.clear();
   ASSERT_TRUE(base::GetAppOutput(other_cmd_line, &output));
   EXPECT_EQ("", output);
@@ -449,15 +472,48 @@ TEST_F(ProcessUtilTest, LaunchAsUser) {
 
 #if defined(OS_MACOSX)
 
-TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
-  // Note that base::EnableTerminationOnHeapCorruption() is called as part of
-  // test suite setup and does not need to be done again, else mach_override
-  // will fail.
+// For the following Mac tests:
+// Note that base::EnableTerminationOnHeapCorruption() is called as part of
+// test suite setup and does not need to be done again, else mach_override
+// will fail.
 
+#if !defined(ADDRESS_SANITIZER)
+// The following code tests the system implementation of malloc() thus no need
+// to test it under AddressSanitizer.
+TEST_F(ProcessUtilTest, MacMallocFailureDoesNotTerminate) {
+  // Install the OOM killer.
+  base::EnableTerminationOnOutOfMemory();
+
+  // Test that ENOMEM doesn't crash via CrMallocErrorBreak two ways: the exit
+  // code and lack of the error string. The number of bytes is one less than
+  // MALLOC_ABSOLUTE_MAX_SIZE, more than which the system early-returns NULL and
+  // does not call through malloc_error_break(). See the comment at
+  // EnableTerminationOnOutOfMemory() for more information.
+  void* buf = NULL;
+  ASSERT_EXIT(
+      buf = malloc(std::numeric_limits<size_t>::max() - (2 * PAGE_SIZE) - 1),
+      testing::KilledBySignal(SIGTRAP),
+      "\\*\\*\\* error: can't allocate region.*"
+          "(Terminating process due to a potential for future heap "
+          "corruption){0}");
+
+  base::debug::Alias(buf);
+}
+#endif  // !defined(ADDRESS_SANITIZER)
+
+TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
+  // Assert that freeing an unallocated pointer will crash the process.
   char buf[3];
+#if !defined(ADDRESS_SANITIZER)
   ASSERT_DEATH(free(buf), "being freed.*"
       "\\*\\*\\* set a breakpoint in malloc_error_break to debug.*"
       "Terminating process due to a potential for future heap corruption");
+#else
+  // AddressSanitizer replaces malloc() and prints a different error message on
+  // heap corruption.
+  ASSERT_DEATH(free(buf), "attempting free on address which "
+      "was not malloc\\(\\)-ed");
+#endif  // !defined(ADDRESS_SANITIZER)
 }
 
 #endif  // defined(OS_MACOSX)
@@ -518,7 +574,7 @@ int ProcessUtilTest::CountOpenFDsInChild() {
   if (pipe(fds) < 0)
     NOTREACHED();
 
-  base::file_handle_mapping_vector fd_mapping_vec;
+  base::FileHandleMappingVector fd_mapping_vec;
   fd_mapping_vec.push_back(std::pair<int, int>(fds[1], kChildPipe));
   base::ProcessHandle handle = this->SpawnChild(
       "ProcessUtilsLeakFDChildProcess", fd_mapping_vec, false);
@@ -532,7 +588,7 @@ int ProcessUtilTest::CountOpenFDsInChild() {
       HANDLE_EINTR(read(fds[0], &num_open_files, sizeof(num_open_files)));
   CHECK_EQ(bytes_read, static_cast<ssize_t>(sizeof(num_open_files)));
 
-  CHECK(base::WaitForSingleProcess(handle, 1000));
+  CHECK(base::WaitForSingleProcess(handle, base::TimeDelta::FromSeconds(1)));
   base::CloseProcessHandle(handle);
   ret = HANDLE_EINTR(close(fds[0]));
   DPCHECK(ret == 0);
@@ -564,10 +620,10 @@ TEST_F(ProcessUtilTest, FDRemapping) {
 
 namespace {
 
-std::string TestLaunchProcess(const base::environment_vector& env_changes,
+std::string TestLaunchProcess(const base::EnvironmentVector& env_changes,
                               const int clone_flags) {
   std::vector<std::string> args;
-  base::file_handle_mapping_vector fds_to_remap;
+  base::FileHandleMappingVector fds_to_remap;
 
   args.push_back(kPosixShell);
   args.push_back("-c");
@@ -610,7 +666,7 @@ const char kLargeString[] =
 }  // namespace
 
 TEST_F(ProcessUtilTest, LaunchProcess) {
-  base::environment_vector env_changes;
+  base::EnvironmentVector env_changes;
   const int no_clone_flags = 0;
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
@@ -649,7 +705,7 @@ TEST_F(ProcessUtilTest, LaunchProcess) {
 TEST_F(ProcessUtilTest, AlterEnvironment) {
   const char* const empty[] = { NULL };
   const char* const a2[] = { "A=2", NULL };
-  base::environment_vector changes;
+  base::EnvironmentVector changes;
   char** e;
 
   e = base::AlterEnvironment(changes, empty);
@@ -874,7 +930,7 @@ TEST_F(ProcessUtilTest, DelayedTermination) {
       SpawnChild("process_util_test_never_die", false);
   ASSERT_TRUE(child_process);
   base::EnsureProcessTerminated(child_process);
-  base::WaitForSingleProcess(child_process, 5000);
+  base::WaitForSingleProcess(child_process, base::TimeDelta::FromSeconds(5));
 
   // Check that process was really killed.
   EXPECT_TRUE(IsProcessDead(child_process));
@@ -933,15 +989,15 @@ class OutOfMemoryDeathTest : public testing::Test {
         signed_test_size_(std::numeric_limits<ssize_t>::max()) {
   }
 
-  virtual void SetUp() {
 #if defined(USE_TCMALLOC)
+  virtual void SetUp() OVERRIDE {
     tc_set_new_mode(1);
   }
 
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     tc_set_new_mode(0);
-#endif  // defined(USE_TCMALLOC)
   }
+#endif  // defined(USE_TCMALLOC)
 
   void SetUpInDeathAssert() {
     // Must call EnableTerminationOnOutOfMemory() because that is called from
@@ -1112,7 +1168,7 @@ TEST_F(OutOfMemoryDeathTest, PosixMemalignPurgeable) {
 // Since these allocation functions take a signed size, it's possible that
 // calling them just once won't be enough to exhaust memory. In the 32-bit
 // environment, it's likely that these allocation attempts will fail because
-// not enough contiguous address space is availble. In the 64-bit environment,
+// not enough contiguous address space is available. In the 64-bit environment,
 // it's likely that they'll fail because they would require a preposterous
 // amount of (virtual) memory.
 

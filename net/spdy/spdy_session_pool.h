@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SPDY_SPDY_SESSION_POOL_H_
 #define NET_SPDY_SPDY_SESSION_POOL_H_
-#pragma once
 
 #include <map>
 #include <list>
@@ -13,7 +12,6 @@
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/cert_database.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
@@ -23,7 +21,6 @@
 #include "net/base/ssl_config_service.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_server.h"
-#include "net/spdy/spdy_settings_storage.h"
 
 namespace net {
 
@@ -34,6 +31,14 @@ class HostResolver;
 class HttpServerProperties;
 class SpdySession;
 
+namespace test_spdy2 {
+class SpdySessionPoolPeer;
+}  // namespace test_spdy
+
+namespace test_spdy3 {
+class SpdySessionPoolPeer;
+}  // namespace test_spdy
+
 // This is a very simple pool for open SpdySessions.
 class NET_EXPORT SpdySessionPool
     : public NetworkChangeNotifier::IPAddressObserver,
@@ -42,7 +47,8 @@ class NET_EXPORT SpdySessionPool
  public:
   SpdySessionPool(HostResolver* host_resolver,
                   SSLConfigService* ssl_config_service,
-                  HttpServerProperties* http_server_properties);
+                  HttpServerProperties* http_server_properties,
+                  const std::string& trusted_spdy_proxy);
   virtual ~SpdySessionPool();
 
   // Either returns an existing SpdySession or creates a new SpdySession for
@@ -104,9 +110,6 @@ class NET_EXPORT SpdySessionPool
   // responsible for deleting the returned value.
   base::Value* SpdySessionPoolInfoToValue() const;
 
-  SpdySettingsStorage* mutable_spdy_settings() { return &spdy_settings_; }
-  const SpdySettingsStorage& spdy_settings() const { return spdy_settings_; }
-
   HttpServerProperties* http_server_properties() {
     return http_server_properties_;
   }
@@ -135,9 +138,14 @@ class NET_EXPORT SpdySessionPool
   virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE;
 
  private:
-  friend class SpdySessionPoolPeer;  // For testing.
-  friend class SpdyNetworkTransactionTest;  // For testing.
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateOverflow);
+  friend class test_spdy2::SpdySessionPoolPeer;  // For testing.
+  friend class test_spdy3::SpdySessionPoolPeer;  // For testing.
+  friend class SpdyNetworkTransactionSpdy2Test;  // For testing.
+  friend class SpdyNetworkTransactionSpdy3Test;  // For testing.
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
+                           WindowUpdateOverflow);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           WindowUpdateOverflow);
 
   typedef std::list<scoped_refptr<SpdySession> > SpdySessionList;
   typedef std::map<HostPortProxyPair, SpdySessionList*> SpdySessionsMap;
@@ -168,15 +176,20 @@ class NET_EXPORT SpdySessionPool
   // Does a DNS cache lookup for |pair|, and returns the |addresses| found.
   // Returns true if addresses found, false otherwise.
   bool LookupAddresses(const HostPortProxyPair& pair,
+                       const BoundNetLog& net_log,
                        AddressList* addresses) const;
 
   // Add |address| as an IP-equivalent address for |pair|.
-  void AddAlias(const addrinfo* address, const HostPortProxyPair& pair);
+  void AddAlias(const IPEndPoint& address, const HostPortProxyPair& pair);
 
   // Remove all aliases for |pair| from the aliases table.
   void RemoveAliases(const HostPortProxyPair& pair);
 
-  SpdySettingsStorage spdy_settings_;
+  // Removes |session| from the session list associated with |pair|.
+  // Returns true if the session was removed, false otherwise.
+  bool RemoveFromSessionList(const scoped_refptr<SpdySession>& session,
+                             const HostPortProxyPair& pair);
+
   HttpServerProperties* const http_server_properties_;
 
   // This is our weak session pool - one session per domain.
@@ -193,6 +206,12 @@ class NET_EXPORT SpdySessionPool
 
   // Defaults to true. May be controlled via SpdySessionPoolPeer for tests.
   bool verify_domain_authentication_;
+
+  bool enable_sending_initial_settings_;
+
+  // This SPDY proxy is allowed to push resources from origins that are
+  // different from those of their associated streams.
+  HostPortPair trusted_spdy_proxy_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPool);
 };

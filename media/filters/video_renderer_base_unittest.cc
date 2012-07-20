@@ -36,34 +36,33 @@ static const int64 kVideoDuration = kFrameDuration * 100;
 static const int64 kEndOfStream = kint64min;
 static const gfx::Size kNaturalSize(16u, 16u);
 
-ACTION(OnStop) {
-  arg0.Run();
-}
-
 class VideoRendererBaseTest : public ::testing::Test {
  public:
   VideoRendererBaseTest()
       : decoder_(new MockVideoDecoder()),
         cv_(&lock_),
         event_(false, false),
-        timeout_(base::TimeDelta::FromMilliseconds(
-            TestTimeouts::action_timeout_ms())),
+        timeout_(TestTimeouts::action_timeout()),
         seeking_(false),
         paint_cv_(&lock_),
-        paint_was_called_(false) {
+        paint_was_called_(false),
+        should_queue_read_cb_(false) {
     renderer_ = new VideoRendererBase(
         base::Bind(&VideoRendererBaseTest::Paint, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::SetOpaqueCBWasCalled,
-                   base::Unretained(this)));
-    renderer_->set_host(&host_);
+                   base::Unretained(this)),
+        true);
+    renderer_->SetHost(&host_);
 
     EXPECT_CALL(*decoder_, natural_size())
         .WillRepeatedly(ReturnRef(kNaturalSize));
-    EXPECT_CALL(stats_callback_object_, OnStatistics(_))
+    EXPECT_CALL(statistics_cb_object_, OnStatistics(_))
         .Times(AnyNumber());
     EXPECT_CALL(*this, SetOpaqueCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
-    EXPECT_CALL(*this, VideoTimeCBWasCalled(_))
+    EXPECT_CALL(*decoder_, Stop(_))
+        .WillRepeatedly(Invoke(RunClosure));
+    EXPECT_CALL(*this, TimeCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
   }
 
@@ -75,7 +74,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     }
   }
 
-  MOCK_METHOD1(VideoTimeCBWasCalled, void(base::TimeDelta));
+  MOCK_METHOD1(TimeCBWasCalled, void(base::TimeDelta));
 
   MOCK_CONST_METHOD1(SetOpaqueCBWasCalled, void(bool));
 
@@ -94,6 +93,9 @@ class VideoRendererBaseTest : public ::testing::Test {
     EXPECT_CALL(*decoder_, Read(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::FrameRequested));
 
+    EXPECT_CALL(*decoder_, Reset(_))
+        .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::FlushRequested));
+
     InSequence s;
 
     // We expect the video size to be set.
@@ -105,22 +107,36 @@ class VideoRendererBaseTest : public ::testing::Test {
     // Initialize, we shouldn't have any reads.
     renderer_->Initialize(decoder_,
                           NewExpectedStatusCB(PIPELINE_OK),
-                          NewStatisticsCallback(),
-                          NewVideoTimeCallback());
+                          NewStatisticsCB(),
+                          NewTimeCB());
 
     // Now seek to trigger prerolling.
     Seek(0);
   }
 
-  void StartSeeking(int64 timestamp) {
+  // Instead of immediately satisfying a decoder Read request, queue it up.
+  void QueueReadCB() {
+    should_queue_read_cb_ = true;
+  }
+
+  void SatisfyQueuedReadCB() {
+    base::AutoLock l(lock_);
+    CHECK(should_queue_read_cb_ && !queued_read_cb_.is_null());
+    should_queue_read_cb_ = false;
+    VideoDecoder::ReadCB read_cb(queued_read_cb_);
+    queued_read_cb_.Reset();
+    base::AutoUnlock u(lock_);
+    read_cb.Run(VideoDecoder::kOk, VideoFrame::CreateEmptyFrame());
+  }
+
+  void StartSeeking(int64 timestamp, PipelineStatus expected_status) {
     EXPECT_FALSE(seeking_);
 
     // Seek to trigger prerolling.
     seeking_ = true;
     renderer_->Seek(base::TimeDelta::FromMicroseconds(timestamp),
                     base::Bind(&VideoRendererBaseTest::OnSeekComplete,
-                               base::Unretained(this),
-                               PIPELINE_OK));
+                               base::Unretained(this), expected_status));
   }
 
   void Play() {
@@ -134,7 +150,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   // Use |kEndOfStream| to preroll end of stream frames.
   void Seek(int64 timestamp) {
     SCOPED_TRACE(base::StringPrintf("Seek(%" PRId64 ")", timestamp));
-    StartSeeking(timestamp);
+    StartSeeking(timestamp, PIPELINE_OK);
     FinishSeeking(timestamp);
   }
 
@@ -170,15 +186,25 @@ class VideoRendererBaseTest : public ::testing::Test {
     VideoDecoder::ReadCB read_cb;
     {
       base::AutoLock l(lock_);
-      CHECK(!read_cb_.is_null()) << "Can't deliver a frame without a callback";
       std::swap(read_cb, read_cb_);
     }
 
     if (timestamp == kEndOfStream) {
-      read_cb.Run(VideoFrame::CreateEmptyFrame());
+      read_cb.Run(VideoDecoder::kOk, VideoFrame::CreateEmptyFrame());
     } else {
-      read_cb.Run(CreateFrame(timestamp, kFrameDuration));
+      read_cb.Run(VideoDecoder::kOk, CreateFrame(timestamp, kFrameDuration));
     }
+  }
+
+  void DecoderError() {
+    // Lock+swap to avoid re-entrancy issues.
+    VideoDecoder::ReadCB read_cb;
+    {
+      base::AutoLock l(lock_);
+      std::swap(read_cb, read_cb_);
+    }
+
+    read_cb.Run(VideoDecoder::kDecodeError, NULL);
   }
 
   void AbortRead() {
@@ -186,11 +212,10 @@ class VideoRendererBaseTest : public ::testing::Test {
     VideoDecoder::ReadCB read_cb;
     {
       base::AutoLock l(lock_);
-      CHECK(!read_cb_.is_null()) << "Can't deliver a frame without a callback";
       std::swap(read_cb, read_cb_);
     }
 
-    read_cb.Run(NULL);
+    read_cb.Run(VideoDecoder::kOk, NULL);
   }
 
   void ExpectCurrentFrame(bool present) {
@@ -264,13 +289,13 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
  protected:
-  StatisticsCallback NewStatisticsCallback() {
-    return base::Bind(&MockStatisticsCallback::OnStatistics,
-                      base::Unretained(&stats_callback_object_));
+  StatisticsCB NewStatisticsCB() {
+    return base::Bind(&MockStatisticsCB::OnStatistics,
+                      base::Unretained(&statistics_cb_object_));
   }
 
-  VideoRenderer::VideoTimeCB NewVideoTimeCallback() {
-    return base::Bind(&VideoRendererBaseTest::VideoTimeCBWasCalled,
+  VideoRenderer::TimeCB NewTimeCB() {
+    return base::Bind(&VideoRendererBaseTest::TimeCBWasCalled,
                       base::Unretained(this));
   }
 
@@ -278,7 +303,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   scoped_refptr<VideoRendererBase> renderer_;
   scoped_refptr<MockVideoDecoder> decoder_;
   StrictMock<MockFilterHost> host_;
-  MockStatisticsCallback stats_callback_object_;
+  MockStatisticsCB statistics_cb_object_;
 
   // Receives all the buffers that renderer had provided to |decoder_|.
   std::deque<scoped_refptr<VideoFrame> > read_queue_;
@@ -293,9 +318,29 @@ class VideoRendererBaseTest : public ::testing::Test {
   // Called by VideoRendererBase when it wants a frame.
   void FrameRequested(const VideoDecoder::ReadCB& callback) {
     base::AutoLock l(lock_);
+    if (should_queue_read_cb_) {
+      CHECK(queued_read_cb_.is_null());
+      queued_read_cb_ = callback;
+      return;
+    }
     CHECK(read_cb_.is_null());
     read_cb_ = callback;
     cv_.Signal();
+  }
+
+  void FlushRequested(const base::Closure& callback) {
+    // Lock+swap to avoid re-entrancy issues.
+    VideoDecoder::ReadCB read_cb;
+    {
+      base::AutoLock l(lock_);
+      std::swap(read_cb, read_cb_);
+    }
+
+    // Abort pending read.
+    if (!read_cb.is_null())
+      read_cb.Run(VideoDecoder::kOk, NULL);
+
+    callback.Run();
   }
 
   void OnSeekComplete(PipelineStatus expected_status, PipelineStatus status) {
@@ -322,9 +367,10 @@ class VideoRendererBaseTest : public ::testing::Test {
         // Unlock to deliver the frame to avoid re-entrancy issues.
         base::AutoUnlock ul(lock_);
         if (timestamp == kEndOfStream) {
-          read_cb.Run(VideoFrame::CreateEmptyFrame());
+          read_cb.Run(VideoDecoder::kOk, VideoFrame::CreateEmptyFrame());
         } else {
-          read_cb.Run(CreateFrame(i * kFrameDuration, kFrameDuration));
+          read_cb.Run(VideoDecoder::kOk,
+                      CreateFrame(i * kFrameDuration, kFrameDuration));
           i++;
         }
       } else {
@@ -367,6 +413,10 @@ class VideoRendererBaseTest : public ::testing::Test {
   base::ConditionVariable paint_cv_;
   bool paint_was_called_;
 
+  // Holding queue for Read callbacks for exercising delayed demux/decode.
+  bool should_queue_read_cb_;
+  VideoDecoder::ReadCB queued_read_cb_;
+
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
 };
 
@@ -395,6 +445,24 @@ TEST_F(VideoRendererBaseTest, EndOfStream) {
   DeliverFrame(kEndOfStream);
   RenderLastFrame(kFrameDuration * limits::kMaxVideoFrames);
 
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, DecoderError) {
+  Initialize();
+  Play();
+  RenderFrame(kFrameDuration);
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  DecoderError();
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, DecoderErrorDuringSeek) {
+  Initialize();
+  Pause();
+  Flush();
+  StartSeeking(kFrameDuration * 6, PIPELINE_ERROR_DECODE);
+  DecoderError();
   Shutdown();
 }
 
@@ -515,6 +583,18 @@ TEST_F(VideoRendererBaseTest, Shutdown_DuringPaint) {
   Stop();
 }
 
+// Verify that a late decoder response doesn't break invariants in the renderer.
+TEST_F(VideoRendererBaseTest, StopDuringOutstandingRead) {
+  Initialize();
+  Pause();
+  Flush();
+  QueueReadCB();
+  StartSeeking(kFrameDuration * 6, PIPELINE_OK);  // Force-decode some more.
+  renderer_->Stop(NewWaitableClosure());
+  SatisfyQueuedReadCB();
+  WaitForClosure();  // Finish the Stop().
+}
+
 TEST_F(VideoRendererBaseTest, AbortPendingRead_Playing) {
   Initialize();
   Play();
@@ -539,9 +619,7 @@ TEST_F(VideoRendererBaseTest, AbortPendingRead_Flush) {
   RenderFrame(kFrameDuration);
 
   Pause();
-  renderer_->Flush(NewWaitableClosure());
-  AbortRead();
-  WaitForClosure();
+  Flush();
   Shutdown();
 }
 
@@ -549,7 +627,7 @@ TEST_F(VideoRendererBaseTest, AbortPendingRead_Seek) {
   Initialize();
   Pause();
   Flush();
-  StartSeeking(kFrameDuration * 6);
+  StartSeeking(kFrameDuration * 6, PIPELINE_OK);
   AbortRead();
   VerifyNotSeeking();
   Shutdown();

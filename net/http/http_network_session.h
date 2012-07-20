@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_NETWORK_SESSION_H_
 #define NET_HTTP_HTTP_NETWORK_SESSION_H_
-#pragma once
 
 #include <set>
 #include "base/memory/ref_counted.h"
@@ -15,9 +14,7 @@
 #include "net/base/ssl_client_auth_cache.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_stream_factory.h"
-#include "net/socket/client_socket_pool_manager.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "net/spdy/spdy_settings_storage.h"
 
 namespace base {
 class Value;
@@ -27,6 +24,7 @@ namespace net {
 
 class CertVerifier;
 class ClientSocketFactory;
+class ClientSocketPoolManager;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkSessionPeer;
@@ -35,12 +33,11 @@ class HttpResponseBodyDrainer;
 class HttpServerProperties;
 class NetLog;
 class NetworkDelegate;
-class OriginBoundCertService;
+class ServerBoundCertService;
 class ProxyService;
 class SOCKSClientSocketPool;
 class SSLClientSocketPool;
 class SSLConfigService;
-class SSLHostInfoFactory;
 class TransportClientSocketPool;
 class TransportSecurityState;
 
@@ -54,29 +51,36 @@ class NET_EXPORT HttpNetworkSession
         : client_socket_factory(NULL),
           host_resolver(NULL),
           cert_verifier(NULL),
-          origin_bound_cert_service(NULL),
+          server_bound_cert_service(NULL),
           transport_security_state(NULL),
           proxy_service(NULL),
-          ssl_host_info_factory(NULL),
           ssl_config_service(NULL),
           http_auth_handler_factory(NULL),
           network_delegate(NULL),
           http_server_properties(NULL),
-          net_log(NULL) {}
+          net_log(NULL),
+          force_http_pipelining(false) {}
 
     ClientSocketFactory* client_socket_factory;
     HostResolver* host_resolver;
     CertVerifier* cert_verifier;
-    OriginBoundCertService* origin_bound_cert_service;
+    ServerBoundCertService* server_bound_cert_service;
     TransportSecurityState* transport_security_state;
     ProxyService* proxy_service;
-    SSLHostInfoFactory* ssl_host_info_factory;
     std::string ssl_session_cache_shard;
     SSLConfigService* ssl_config_service;
     HttpAuthHandlerFactory* http_auth_handler_factory;
     NetworkDelegate* network_delegate;
     HttpServerProperties* http_server_properties;
     NetLog* net_log;
+    bool force_http_pipelining;
+    std::string trusted_spdy_proxy;
+  };
+
+  enum SocketPoolType {
+    NORMAL_SOCKET_POOL,
+    WEBSOCKET_SOCKET_POOL,
+    NUM_SOCKET_POOL_TYPES
   };
 
   explicit HttpNetworkSession(const Params& params);
@@ -90,21 +94,16 @@ class NET_EXPORT HttpNetworkSession
 
   void RemoveResponseDrainer(HttpResponseBodyDrainer* drainer);
 
-  TransportClientSocketPool* GetTransportSocketPool() {
-    return socket_pool_manager_->GetTransportSocketPool();
-  }
-
-  SSLClientSocketPool* GetSSLSocketPool() {
-    return socket_pool_manager_->GetSSLSocketPool();
-  }
-
+  TransportClientSocketPool* GetTransportSocketPool(SocketPoolType pool_type);
+  SSLClientSocketPool* GetSSLSocketPool(SocketPoolType pool_type);
   SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
+      SocketPoolType pool_type,
       const HostPortPair& socks_proxy);
-
   HttpProxyClientSocketPool* GetSocketPoolForHTTPProxy(
+      SocketPoolType pool_type,
       const HostPortPair& http_proxy);
-
   SSLClientSocketPool* GetSocketPoolForSSLWithProxy(
+      SocketPoolType pool_type,
       const HostPortPair& proxy_server);
 
   CertVerifier* cert_verifier() { return cert_verifier_; }
@@ -138,17 +137,25 @@ class NET_EXPORT HttpNetworkSession
   void CloseAllConnections();
   void CloseIdleConnections();
 
+  bool force_http_pipelining() const { return force_http_pipelining_; }
+
+  // Returns the original Params used to construct this session.
+  const Params& params() const { return params_; }
+
  private:
   friend class base::RefCounted<HttpNetworkSession>;
   friend class HttpNetworkSessionPeer;
 
   ~HttpNetworkSession();
 
+  ClientSocketPoolManager* GetSocketPoolManager(SocketPoolType pool_type);
+
   NetLog* const net_log_;
   NetworkDelegate* const network_delegate_;
   HttpServerProperties* const http_server_properties_;
   CertVerifier* const cert_verifier_;
   HttpAuthHandlerFactory* const http_auth_handler_factory_;
+  bool force_http_pipelining_;
 
   // Not const since it's modified by HttpNetworkSessionPeer for testing.
   ProxyService* proxy_service_;
@@ -156,10 +163,13 @@ class NET_EXPORT HttpNetworkSession
 
   HttpAuthCache http_auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
-  scoped_ptr<ClientSocketPoolManager> socket_pool_manager_;
+  scoped_ptr<ClientSocketPoolManager> normal_socket_pool_manager_;
+  scoped_ptr<ClientSocketPoolManager> websocket_socket_pool_manager_;
   SpdySessionPool spdy_session_pool_;
   scoped_ptr<HttpStreamFactory> http_stream_factory_;
   std::set<HttpResponseBodyDrainer*> response_drainers_;
+
+  Params params_;
 };
 
 }  // namespace net

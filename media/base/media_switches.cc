@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,11 @@ const char kAlsaOutputDevice[] = "alsa-output-device";
 const char kAlsaInputDevice[] = "alsa-input-device";
 #endif
 
+#if defined(OS_LINUX)
+// Use CRAS, the ChromeOS audio server.
+const char kUseCras[] = "use-cras";
+#endif
+
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
 // Use PulseAudio on platforms that support it.
 const char kUsePulseAudio[] = "use-pulseaudio";
@@ -20,5 +25,8 @@ const char kUsePulseAudio[] = "use-pulseaudio";
 
 // Set number of threads to use for video decoding.
 const char kVideoThreads[] = "video-threads";
+
+// Disables browser-side audio mixer.
+const char kDisableAudioMixer[] = "disable-audio-mixer";
 
 }  // namespace switches

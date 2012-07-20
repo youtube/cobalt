@@ -2,16 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <queue>
+#include <deque>
 
 #include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/stringprintf.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_data_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
+#include "media/filters/ffmpeg_decoder_unittest.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -28,18 +30,17 @@ ACTION_P(InvokeReadPacket, test) {
 class FFmpegAudioDecoderTest : public testing::Test {
  public:
   FFmpegAudioDecoderTest()
-      : decoder_(new FFmpegAudioDecoder(&message_loop_)),
+      : decoder_(new FFmpegAudioDecoder(base::Bind(&Identity<MessageLoop*>,
+                                                   &message_loop_))),
         demuxer_(new StrictMock<MockDemuxerStream>()) {
     CHECK(FFmpegGlue::GetInstance());
 
-    ReadTestDataFile("vorbis-extradata",
-                     &vorbis_extradata_,
-                     &vorbis_extradata_size_);
+    vorbis_extradata_ = ReadTestDataFile("vorbis-extradata");
 
     // Refer to media/test/data/README for details on vorbis test data.
     for (int i = 0; i < 4; ++i) {
-      scoped_refptr<Buffer> buffer;
-      ReadTestDataFile(base::StringPrintf("vorbis-packet-%d", i), &buffer);
+      scoped_refptr<DecoderBuffer> buffer =
+          ReadTestDataFile(base::StringPrintf("vorbis-packet-%d", i));
 
       if (i < 3) {
         buffer->SetTimestamp(base::TimeDelta());
@@ -52,14 +53,14 @@ class FFmpegAudioDecoderTest : public testing::Test {
     }
 
     // Push in an EOS buffer.
-    encoded_audio_.push_back(new DataBuffer(0));
+    encoded_audio_.push_back(DecoderBuffer::CreateEOSBuffer());
 
     config_.Initialize(kCodecVorbis,
                        16,
                        CHANNEL_LAYOUT_STEREO,
                        44100,
-                       vorbis_extradata_.get(),
-                       vorbis_extradata_size_,
+                       vorbis_extradata_->GetData(),
+                       vorbis_extradata_->GetDataSize(),
                        true);
   }
 
@@ -71,18 +72,20 @@ class FFmpegAudioDecoderTest : public testing::Test {
 
     decoder_->Initialize(demuxer_,
                          NewExpectedStatusCB(PIPELINE_OK),
-                         base::Bind(&MockStatisticsCallback::OnStatistics,
-                                    base::Unretained(&statistics_callback_)));
+                         base::Bind(&MockStatisticsCB::OnStatistics,
+                                    base::Unretained(&statistics_cb_)));
 
     message_loop_.RunAllPending();
   }
 
-  void ReadPacket(const DemuxerStream::ReadCallback& read_callback) {
+  void ReadPacket(const DemuxerStream::ReadCB& read_cb) {
     CHECK(!encoded_audio_.empty()) << "ReadPacket() called too many times";
 
-    scoped_refptr<Buffer> buffer(encoded_audio_.front());
+    scoped_refptr<DecoderBuffer> buffer(encoded_audio_.front());
+    DemuxerStream::Status status =
+        buffer ? DemuxerStream::kOk : DemuxerStream::kAborted;
     encoded_audio_.pop_front();
-    read_callback.Run(buffer);
+    read_cb.Run(status, buffer);
   }
 
   void Read() {
@@ -91,7 +94,8 @@ class FFmpegAudioDecoderTest : public testing::Test {
     message_loop_.RunAllPending();
   }
 
-  void DecodeFinished(scoped_refptr<Buffer> buffer) {
+  void DecodeFinished(AudioDecoder::Status status,
+                      const scoped_refptr<Buffer>& buffer) {
     decoded_audio_.push_back(buffer);
   }
 
@@ -112,12 +116,11 @@ class FFmpegAudioDecoderTest : public testing::Test {
   MessageLoop message_loop_;
   scoped_refptr<FFmpegAudioDecoder> decoder_;
   scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
-  MockStatisticsCallback statistics_callback_;
+  MockStatisticsCB statistics_cb_;
 
-  scoped_array<uint8> vorbis_extradata_;
-  int vorbis_extradata_size_;
+  scoped_refptr<DecoderBuffer> vorbis_extradata_;
 
-  std::deque<scoped_refptr<Buffer> > encoded_audio_;
+  std::deque<scoped_refptr<DecoderBuffer> > encoded_audio_;
   std::deque<scoped_refptr<Buffer> > decoded_audio_;
 
   AudioDecoderConfig config_;
@@ -141,7 +144,7 @@ TEST_F(FFmpegAudioDecoderTest, ProduceAudioSamples) {
   EXPECT_CALL(*demuxer_, Read(_))
       .Times(5)
       .WillRepeatedly(InvokeReadPacket(this));
-  EXPECT_CALL(statistics_callback_, OnStatistics(_))
+  EXPECT_CALL(statistics_cb_, OnStatistics(_))
       .Times(5);
 
   Read();

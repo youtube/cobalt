@@ -32,6 +32,13 @@ BASE_EXPORT void SetCrashKeyFunctions(SetCrashKeyValueFuncPtr set_key_func,
 BASE_EXPORT void SetCrashKeyValue(NSString* key, NSString* val);
 BASE_EXPORT void ClearCrashKey(NSString* key);
 
+// Format |count| items from |addresses| using %p, and set the
+// resulting string as value for crash key |key|.  A maximum of 23
+// items will be encoded, since breakpad limits values to 255 bytes.
+BASE_EXPORT void SetCrashKeyFromAddresses(NSString* key,
+                                          const void* const* addresses,
+                                          size_t count);
+
 #if __OBJC__
 
 class BASE_EXPORT ScopedCrashKey {

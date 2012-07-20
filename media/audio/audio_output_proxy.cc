@@ -9,24 +9,24 @@
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_output_dispatcher.h"
 
+namespace media {
+
 AudioOutputProxy::AudioOutputProxy(AudioOutputDispatcher* dispatcher)
     : dispatcher_(dispatcher),
       state_(kCreated),
-      physical_stream_(NULL),
       volume_(1.0) {
 }
 
 AudioOutputProxy::~AudioOutputProxy() {
   DCHECK(CalledOnValidThread());
   DCHECK(state_ == kCreated || state_ == kClosed);
-  DCHECK(!physical_stream_);
 }
 
 bool AudioOutputProxy::Open() {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(state_, kCreated);
 
-  if (!dispatcher_->StreamOpened()) {
+  if (!dispatcher_->OpenStream()) {
     state_ = kError;
     return false;
   }
@@ -37,18 +37,13 @@ bool AudioOutputProxy::Open() {
 
 void AudioOutputProxy::Start(AudioSourceCallback* callback) {
   DCHECK(CalledOnValidThread());
-  DCHECK(physical_stream_ == NULL);
   DCHECK_EQ(state_, kOpened);
 
-  physical_stream_= dispatcher_->StreamStarted();
-  if (!physical_stream_) {
+  if (!dispatcher_->StartStream(callback, this)) {
     state_ = kError;
     callback->OnError(this, 0);
     return;
   }
-
-  physical_stream_->SetVolume(volume_);
-  physical_stream_->Start(callback);
   state_ = kPlaying;
 }
 
@@ -57,19 +52,14 @@ void AudioOutputProxy::Stop() {
   if (state_ != kPlaying)
     return;
 
-  DCHECK(physical_stream_);
-  physical_stream_->Stop();
-  dispatcher_->StreamStopped(physical_stream_);
-  physical_stream_ = NULL;
+  dispatcher_->StopStream(this);
   state_ = kOpened;
 }
 
 void AudioOutputProxy::SetVolume(double volume) {
   DCHECK(CalledOnValidThread());
   volume_ = volume;
-  if (physical_stream_) {
-    physical_stream_->SetVolume(volume);
-  }
+  dispatcher_->StreamVolumeSet(this, volume);
 }
 
 void AudioOutputProxy::GetVolume(double* volume) {
@@ -80,10 +70,9 @@ void AudioOutputProxy::GetVolume(double* volume) {
 void AudioOutputProxy::Close() {
   DCHECK(CalledOnValidThread());
   DCHECK(state_ == kCreated || state_ == kError || state_ == kOpened);
-  DCHECK(!physical_stream_);
 
   if (state_ != kCreated)
-    dispatcher_->StreamClosed();
+    dispatcher_->CloseStream(this);
 
   state_ = kClosed;
 
@@ -93,3 +82,5 @@ void AudioOutputProxy::Close() {
   // dispatcher+audio manager.
   delete this;
 }
+
+}  // namespace media

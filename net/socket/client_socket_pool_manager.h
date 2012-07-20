@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -8,11 +8,11 @@
 
 #ifndef NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_H_
 #define NET_SOCKET_CLIENT_SOCKET_POOL_MANAGER_H_
-#pragma once
 
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
+#include "net/http/http_network_session.h"
 
 class GURL;
 
@@ -21,6 +21,9 @@ class Value;
 }
 
 namespace net {
+
+typedef base::Callback<int(const AddressList&, const BoundNetLog& net_log)>
+OnHostResolutionCallback;
 
 class BoundNetLog;
 class ClientSocketHandle;
@@ -47,14 +50,22 @@ class NET_EXPORT_PRIVATE ClientSocketPoolManager {
   // The setter methods below affect only newly created socket pools after the
   // methods are called. Normally they should be called at program startup
   // before any ClientSocketPoolManagerImpl is created.
-  static int max_sockets_per_pool();
-  static void set_max_sockets_per_pool(int socket_count);
+  static int max_sockets_per_pool(HttpNetworkSession::SocketPoolType pool_type);
+  static void set_max_sockets_per_pool(
+      HttpNetworkSession::SocketPoolType pool_type,
+      int socket_count);
 
-  static int max_sockets_per_group();
-  static void set_max_sockets_per_group(int socket_count);
+  static int max_sockets_per_group(
+      HttpNetworkSession::SocketPoolType pool_type);
+  static void set_max_sockets_per_group(
+      HttpNetworkSession::SocketPoolType pool_type,
+      int socket_count);
 
-  static int max_sockets_per_proxy_server();
-  static void set_max_sockets_per_proxy_server(int socket_count);
+  static int max_sockets_per_proxy_server(
+      HttpNetworkSession::SocketPoolType pool_type);
+  static void set_max_sockets_per_proxy_server(
+      HttpNetworkSession::SocketPoolType pool_type,
+      int socket_count);
 
   virtual void FlushSocketPools() = 0;
   virtual void CloseIdleSockets() = 0;
@@ -75,6 +86,9 @@ class NET_EXPORT_PRIVATE ClientSocketPoolManager {
 // ClientSocketHandle with the relevant socket pool. Use this method for
 // HTTP/HTTPS requests. |ssl_config_for_origin| is only used if the request
 // uses SSL and |ssl_config_for_proxy| is used if the proxy server is HTTPS.
+// |resolution_callback| will be invoked after the the hostname is
+// resolved.  If |resolution_callback| does not return OK, then the
+// connection will be aborted with that value.
 int InitSocketHandleForHttpRequest(
     const GURL& request_url,
     const HttpRequestHeaders& request_extra_headers,
@@ -88,6 +102,7 @@ int InitSocketHandleForHttpRequest(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
+    const OnHostResolutionCallback& resolution_callback,
     const CompletionCallback& callback);
 
 // A helper method that uses the passed in proxy information to initialize a

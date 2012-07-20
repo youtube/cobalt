@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -68,8 +68,7 @@ TEST(EscapeTest, EscapeTextForFormSubmission) {
   };
   for (size_t i = 0; i < arraysize(escape_cases); ++i) {
     EscapeCase value = escape_cases[i];
-    EXPECT_EQ(UTF8ToUTF16(value.output),
-              EscapeQueryParamValueUTF8(UTF8ToUTF16(value.input), true));
+    EXPECT_EQ(value.output, EscapeQueryParamValue(value.input, true));
   }
 
   const EscapeCase escape_cases_no_plus[] = {
@@ -79,8 +78,7 @@ TEST(EscapeTest, EscapeTextForFormSubmission) {
   };
   for (size_t i = 0; i < arraysize(escape_cases_no_plus); ++i) {
     EscapeCase value = escape_cases_no_plus[i];
-    EXPECT_EQ(ASCIIToUTF16(value.output),
-              EscapeQueryParamValueUTF8(ASCIIToUTF16(value.input), false));
+    EXPECT_EQ(value.output, EscapeQueryParamValue(value.input, false));
   }
 
   // Test all the values in we're supposed to be escaping.
@@ -107,21 +105,6 @@ TEST(EscapeTest, EscapeTextForFormSubmission) {
       EXPECT_EQ(out, in);
     }
   }
-
-  // Check to see if EscapeQueryParamValueUTF8 is the same as
-  // EscapeQueryParamValue(..., kCodepageUTF8,)
-  string16 test_str;
-  test_str.reserve(5000);
-  for (int i = 1; i < 5000; ++i) {
-    test_str.push_back(i);
-  }
-  string16 utf16;
-  EXPECT_TRUE(EscapeQueryParamValue(test_str, base::kCodepageUTF8, true,
-                                    &utf16));
-  EXPECT_EQ(utf16, EscapeQueryParamValueUTF8(test_str, true));
-  EXPECT_TRUE(EscapeQueryParamValue(test_str, base::kCodepageUTF8, false,
-                                    &utf16));
-  EXPECT_EQ(utf16, EscapeQueryParamValueUTF8(test_str, false));
 }
 
 TEST(EscapeTest, EscapePath) {

@@ -86,7 +86,6 @@
 
 #ifndef BASE_MEMORY_SCOPED_PTR_H_
 #define BASE_MEMORY_SCOPED_PTR_H_
-#pragma once
 
 // This is an implementation designed to match the anticipated future TR2
 // implementation of the scoped_ptr class, and its closely-related brethren,
@@ -96,8 +95,30 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/move.h"
+#include "base/template_util.h"
+
+namespace base {
+
+namespace subtle {
+class RefCountedBase;
+class RefCountedThreadSafeBase;
+}  // namespace subtle
+
+namespace internal {
+
+template <typename T> struct IsNotRefCounted {
+  enum {
+    value = !base::is_convertible<T*, base::subtle::RefCountedBase*>::value &&
+        !base::is_convertible<T*, base::subtle::RefCountedThreadSafeBase*>::
+            value
+  };
+};
+
+}  // namespace internal
+}  // namespace base
 
 // A scoped_ptr<T> is like a T*, except that the destructor of scoped_ptr<T>
 // automatically deletes the pointer it holds (if any).
@@ -111,6 +132,9 @@
 template <class C>
 class scoped_ptr {
   MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr, RValue)
+
+  COMPILE_ASSERT(base::internal::IsNotRefCounted<C>::value,
+                 C_is_refcounted_type_and_needs_scoped_refptr);
 
  public:
 
@@ -132,7 +156,12 @@ class scoped_ptr {
 #endif
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr(RValue& other) : ptr_(other.release()) { }
+  scoped_ptr(RValue& other)
+      // The type of the underlying object is scoped_ptr; we have to
+      // reinterpret_cast back to the original type for the call to release to
+      // be valid. (See C++11 5.2.10.7)
+      : ptr_(reinterpret_cast<scoped_ptr&>(other).release()) {
+  }
 
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
@@ -258,7 +287,12 @@ class scoped_array {
   explicit scoped_array(C* p = NULL) : array_(p) { }
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_array(RValue& other) : array_(other.release()) { }
+  scoped_array(RValue& other)
+      // The type of the underlying object is scoped_array; we have to
+      // reinterpret_cast back to the original type for the call to release to
+      // be valid. (See C++11 5.2.10.7)
+      : array_(reinterpret_cast<scoped_array&>(other).release()) {
+  }
 
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
@@ -375,7 +409,12 @@ class scoped_ptr_malloc {
   explicit scoped_ptr_malloc(C* p = NULL): ptr_(p) {}
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
-  scoped_ptr_malloc(RValue& other) : ptr_(other.release()) { }
+  scoped_ptr_malloc(RValue& other)
+      // The type of the underlying object is scoped_ptr_malloc; we have to
+      // reinterpret_cast back to the original type for the call to release to
+      // be valid. (See C++11 5.2.10.7)
+      : ptr_(reinterpret_cast<scoped_ptr_malloc&>(other).release()) {
+  }
 
   // Destructor.  If there is a C object, call the Free functor.
   ~scoped_ptr_malloc() {
@@ -470,6 +509,14 @@ bool operator==(C* p, const scoped_ptr_malloc<C, FP>& b) {
 template<class C, class FP> inline
 bool operator!=(C* p, const scoped_ptr_malloc<C, FP>& b) {
   return p != b.get();
+}
+
+// A function to convert T* into scoped_ptr<T>
+// Doing e.g. make_scoped_ptr(new FooBarBaz<type>(arg)) is a shorter notation
+// for scoped_ptr<FooBarBaz<type> >(new FooBarBaz<type>(arg))
+template <typename T>
+scoped_ptr<T> make_scoped_ptr(T* ptr) {
+  return scoped_ptr<T>(ptr);
 }
 
 #endif  // BASE_MEMORY_SCOPED_PTR_H_

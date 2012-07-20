@@ -12,7 +12,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
-#include "net/base/cookie_store.h"
+#include "net/cookies/cookie_store.h"
 #include "net/base/io_buffer.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_transaction_factory.h"
@@ -267,6 +267,12 @@ void WebSocketJob::OnAuthRequired(
     delegate_->OnAuthRequired(socket, auth_info);
 }
 
+void WebSocketJob::OnSSLCertificateError(
+    SocketStream* socket, const SSLInfo& ssl_info, bool fatal) {
+  if (delegate_)
+    delegate_->OnSSLCertificateError(socket, ssl_info, fatal);
+}
+
 void WebSocketJob::OnError(const SocketStream* socket, int error) {
   if (delegate_ && error != ERR_PROTOCOL_SWITCHED)
     delegate_->OnError(socket, error);
@@ -299,7 +305,7 @@ void WebSocketJob::OnSentSpdyHeaders(int result) {
 }
 
 int WebSocketJob::OnReceivedSpdyResponseHeader(
-    const spdy::SpdyHeaderBlock& headers, int status) {
+    const SpdyHeaderBlock& headers, int status) {
   DCHECK_NE(INITIALIZED, state_);
   if (state_ != CONNECTING)
     return status;
@@ -381,18 +387,17 @@ void WebSocketJob::LoadCookieCallback(const std::string& cookie) {
 
 void WebSocketJob::DoSendData() {
   if (spdy_websocket_stream_.get()) {
-    linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
+    scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
     handshake_request_->GetRequestHeaderBlock(
         socket_->url(), headers.get(), &challenge_);
-    spdy_websocket_stream_->SendRequest(headers);
+    spdy_websocket_stream_->SendRequest(headers.Pass());
   } else {
     const std::string& handshake_request =
         handshake_request_->GetRawRequest();
     handshake_request_sent_ = 0;
     socket_->net_log()->AddEvent(
         NetLog::TYPE_WEB_SOCKET_SEND_REQUEST_HEADERS,
-        make_scoped_refptr(
-            new NetLogWebSocketHandshakeParameter(handshake_request)));
+        base::Bind(&NetLogWebSocketHandshakeCallback, &handshake_request));
     socket_->SendData(handshake_request.data(),
                       handshake_request.size());
   }
@@ -433,10 +438,10 @@ void WebSocketJob::OnReceivedHandshakeResponse(
     return;
   }
   // handshake message is completed.
+  std::string raw_response = handshake_response_->GetRawResponse();
   socket_->net_log()->AddEvent(
       NetLog::TYPE_WEB_SOCKET_READ_RESPONSE_HEADERS,
-      make_scoped_refptr(new NetLogWebSocketHandshakeParameter(
-          handshake_response_->GetRawResponse())));
+      base::Bind(&NetLogWebSocketHandshakeCallback, &raw_response));
   if (len - response_length > 0) {
     // If we received extra data, it should be frame data.
     DCHECK(received_data_after_handshake_.empty());
@@ -555,8 +560,7 @@ int WebSocketJob::TrySpdyStream() {
       spdy_pool->Get(pair, *socket_->net_log());
   SSLInfo ssl_info;
   bool was_npn_negotiated;
-  SSLClientSocket::NextProto protocol_negotiated =
-      SSLClientSocket::kProtoUnknown;
+  NextProto protocol_negotiated = kProtoUnknown;
   bool use_ssl = spdy_session->GetSSLInfo(
       &ssl_info, &was_npn_negotiated, &protocol_negotiated);
   if (socket_->is_secure() && !use_ssl)

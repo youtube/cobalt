@@ -14,7 +14,6 @@
 #include "net/base/io_buffer.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
@@ -60,7 +59,7 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_USER:
         return Verify("USER anonymous\r\n", data, PRE_PASSWD,
@@ -92,7 +91,7 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
         return Verify("QUIT\r\n", data, QUIT, "221 Goodbye.\r\n");
       default:
         NOTREACHED() << "State not handled " << state();
-        return MockWriteResult(true, ERR_UNEXPECTED);
+        return MockWriteResult(ASYNC, ERR_UNEXPECTED);
     }
   }
 
@@ -148,9 +147,9 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
     if (expected == data) {
       state_ = next_state;
       SimulateRead(next_read, next_read_length);
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     }
-    return MockWriteResult(true, ERR_UNEXPECTED);
+    return MockWriteResult(ASYNC, ERR_UNEXPECTED);
   }
 
   MockWriteResult Verify(const std::string& expected,
@@ -184,7 +183,7 @@ class FtpSocketDataProviderDirectoryListing : public FtpSocketDataProvider {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /\r\n", data, PRE_CWD,
@@ -210,7 +209,7 @@ class FtpSocketDataProviderDirectoryListingWithPasvFallback
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_EPSV:
         return Verify("EPSV\r\n", data, PRE_PASV,
@@ -236,7 +235,7 @@ class FtpSocketDataProviderDirectoryListingZeroSize
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /\r\n", data, PRE_CWD, "213 0\r\n");
@@ -256,7 +255,7 @@ class FtpSocketDataProviderVMSDirectoryListing : public FtpSocketDataProvider {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SYST:
         return Verify("SYST\r\n", data, PRE_PWD, "215 VMS\r\n");
@@ -293,7 +292,7 @@ class FtpSocketDataProviderVMSDirectoryListingRootDirectory
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SYST:
         return Verify("SYST\r\n", data, PRE_PWD, "215 VMS\r\n");
@@ -332,7 +331,7 @@ class FtpSocketDataProviderFileDownloadWithFileTypecode
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /file\r\n", data, PRE_RETR,
@@ -355,7 +354,7 @@ class FtpSocketDataProviderFileDownload : public FtpSocketDataProvider {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /file\r\n", data, PRE_CWD,
@@ -381,7 +380,7 @@ class FtpSocketDataProviderFileNotFound : public FtpSocketDataProvider {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /file\r\n", data, PRE_CWD,
@@ -409,7 +408,7 @@ class FtpSocketDataProviderFileDownloadWithPasvFallback
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_EPSV:
         return Verify("EPSV\r\n", data, PRE_PASV,
@@ -434,7 +433,7 @@ class FtpSocketDataProviderFileDownloadZeroSize
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /file\r\n", data, PRE_CWD,
@@ -459,7 +458,7 @@ class FtpSocketDataProviderFileDownloadCWD451
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_CWD:
         return Verify("CWD /file\r\n", data, PRE_RETR,
@@ -480,7 +479,7 @@ class FtpSocketDataProviderVMSFileDownload : public FtpSocketDataProvider {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SYST:
         return Verify("SYST\r\n", data, PRE_PWD, "215 VMS\r\n");
@@ -518,7 +517,7 @@ class FtpSocketDataProviderEscaping : public FtpSocketDataProviderFileDownload {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE / !\"#$%y\200\201\r\n", data, PRE_CWD,
@@ -546,7 +545,7 @@ class FtpSocketDataProviderFileDownloadTransferStarting
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_RETR:
         return Verify("RETR /file\r\n", data, PRE_QUIT,
@@ -570,7 +569,7 @@ class FtpSocketDataProviderDirectoryListingTransferStarting
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_LIST:
         return Verify("LIST\r\n", data, PRE_QUIT,
@@ -595,7 +594,7 @@ class FtpSocketDataProviderFileDownloadInvalidResponse
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SIZE:
         // Use unallocated 599 FTP error code to make sure it falls into the
@@ -629,7 +628,7 @@ class FtpSocketDataProviderEvilEpsv : public FtpSocketDataProviderFileDownload {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_EPSV:
         return Verify("EPSV\r\n", data, expected_state_,
@@ -657,7 +656,7 @@ class FtpSocketDataProviderEvilPasv
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_PASV:
         return Verify("PASV\r\n", data, expected_state_, pasv_response_);
@@ -682,7 +681,7 @@ class FtpSocketDataProviderEvilSize : public FtpSocketDataProviderFileDownload {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /file\r\n", data, expected_state_, size_response_);
@@ -709,7 +708,7 @@ class FtpSocketDataProviderEvilLogin
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_USER:
         return Verify(std::string("USER ") + expected_user_ + "\r\n", data,
@@ -736,7 +735,7 @@ class FtpSocketDataProviderCloseConnection : public FtpSocketDataProvider {
 
   virtual MockWriteResult OnWrite(const std::string& data) OVERRIDE {
     if (InjectFault())
-      return MockWriteResult(true, data.length());
+      return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_USER:
         return Verify("USER anonymous\r\n", data,
@@ -772,7 +771,7 @@ class FtpNetworkTransactionTest : public PlatformTest {
     MockRead data_reads[] = {
       // Usually FTP servers close the data connection after the entire data has
       // been received.
-      MockRead(false, ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ),
+      MockRead(SYNCHRONOUS, ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ),
       MockRead(mock_data.c_str()),
     };
     StaticSocketDataProvider data_socket(data_reads, arraysize(data_reads),
@@ -1069,10 +1068,9 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafeHost) {
   // Even if the PASV response specified some other address, we connect
   // to the address we used for control connection (which could be 127.0.0.1
   // or ::1 depending on whether we use IPv6).
-  const struct addrinfo* addrinfo = data_socket->addresses().head();
-  while (addrinfo) {
-    EXPECT_NE("10.1.2.3", NetAddressToString(addrinfo));
-    addrinfo = addrinfo->ai_next;
+  for (AddressList::const_iterator it = data_socket->addresses().begin();
+      it != data_socket->addresses().end(); ++it) {
+    EXPECT_NE("10.1.2.3", it->ToStringWithoutPort());
   }
 }
 
@@ -1187,7 +1185,7 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartUser) {
   MockRead ctrl_reads[] = {
     MockRead("220 host TestFTPd\r\n"),
     MockRead("221 Goodbye!\r\n"),
-    MockRead(false, OK),
+    MockRead(SYNCHRONOUS, OK),
   };
   MockWrite ctrl_writes[] = {
     MockWrite("QUIT\r\n"),
@@ -1222,7 +1220,7 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartPassword) {
     MockRead("220 host TestFTPd\r\n"),
     MockRead("331 User okay, send password\r\n"),
     MockRead("221 Goodbye!\r\n"),
-    MockRead(false, OK),
+    MockRead(SYNCHRONOUS, OK),
   };
   MockWrite ctrl_writes[] = {
     MockWrite("USER innocent\r\n"),

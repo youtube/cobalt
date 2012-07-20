@@ -108,23 +108,24 @@ bool Connection::OpenInMemory() {
 }
 
 void Connection::Close() {
+  // TODO(shess): Calling "PRAGMA journal_mode = DELETE" at this point
+  // will delete the -journal file.  For ChromiumOS or other more
+  // embedded systems, this is probably not appropriate, whereas on
+  // desktop it might make some sense.
+
+  // sqlite3_close() needs all prepared statements to be finalized.
+  // Release all cached statements, then assert that the client has
+  // released all statements.
   statement_cache_.clear();
   DCHECK(open_statements_.empty());
-  if (db_) {
-    // TODO(shess): Some additional code to debug http://crbug.com/95527 .
-    // If you are reading this due to link errors or something, it can
-    // be safely removed.
-#if defined(HAS_SQLITE3_95527)
-    unsigned int nTouched = 0;
-    sqlite3_95527(db_, &nTouched);
 
-    // If a VERY large amount of memory was touched, crash.  This
-    // should never happen.
-    // TODO(shess): Pull this in.  It should be page_size * page_cache
-    // or something like that, 4M or 16M.  For now it's just to
-    // prevent optimization.
-    CHECK_LT(nTouched, 1000*1000*1000U);
-#endif
+  // Additionally clear the prepared statements, because they contain
+  // weak references to this connection.  This case has come up when
+  // error-handling code is hit in production.
+  ClearCache();
+
+  if (db_) {
+    // TODO(shess): Histogram for failure.
     sqlite3_close(db_);
     db_ = NULL;
   }
@@ -150,6 +151,85 @@ void Connection::Preload() {
   // Do not call it when using system sqlite.
   sqlite3_preload(db_);
 #endif
+}
+
+// Create an in-memory database with the existing database's page
+// size, then backup that database over the existing database.
+bool Connection::Raze() {
+  if (!db_) {
+    DLOG(FATAL) << "Cannot raze null db";
+    return false;
+  }
+
+  if (transaction_nesting_ > 0) {
+    DLOG(FATAL) << "Cannot raze within a transaction";
+    return false;
+  }
+
+  sql::Connection null_db;
+  if (!null_db.OpenInMemory()) {
+    DLOG(FATAL) << "Unable to open in-memory database.";
+    return false;
+  }
+
+  // Get the page size from the current connection, then propagate it
+  // to the null database.
+  Statement s(GetUniqueStatement("PRAGMA page_size"));
+  if (!s.Step())
+    return false;
+  const std::string sql = StringPrintf("PRAGMA page_size=%d", s.ColumnInt(0));
+  if (!null_db.Execute(sql.c_str()))
+    return false;
+
+  // The page size doesn't take effect until a database has pages, and
+  // at this point the null database has none.  Changing the schema
+  // version will create the first page.  This will not affect the
+  // schema version in the resulting database, as SQLite's backup
+  // implementation propagates the schema version from the original
+  // connection to the new version of the database, incremented by one
+  // so that other readers see the schema change and act accordingly.
+  if (!null_db.Execute("PRAGMA schema_version = 1"))
+    return false;
+
+  sqlite3_backup* backup = sqlite3_backup_init(db_, "main",
+                                               null_db.db_, "main");
+  if (!backup) {
+    DLOG(FATAL) << "Unable to start sqlite3_backup().";
+    return false;
+  }
+
+  // -1 backs up the entire database.
+  int rc = sqlite3_backup_step(backup, -1);
+  int pages = sqlite3_backup_pagecount(backup);
+  sqlite3_backup_finish(backup);
+
+  // The destination database was locked.
+  if (rc == SQLITE_BUSY) {
+    return false;
+  }
+
+  // The entire database should have been backed up.
+  if (rc != SQLITE_DONE) {
+    DLOG(FATAL) << "Unable to copy entire null database.";
+    return false;
+  }
+
+  // Exactly one page should have been backed up.  If this breaks,
+  // check this function to make sure assumptions aren't being broken.
+  DCHECK_EQ(pages, 1);
+
+  return true;
+}
+
+bool Connection::RazeWithTimout(base::TimeDelta timeout) {
+  if (!db_) {
+    DLOG(FATAL) << "Cannot raze null db";
+    return false;
+  }
+
+  ScopedBusyTimeout busy_timeout(db_);
+  busy_timeout.SetTimeout(timeout);
+  return Raze();
 }
 
 bool Connection::BeginTransaction() {
@@ -219,10 +299,11 @@ int Connection::ExecuteAndReturnErrorCode(const char* sql) {
 
 bool Connection::Execute(const char* sql) {
   int error = ExecuteAndReturnErrorCode(sql);
-  // TODO(shess,gbillock): DLOG(FATAL) once Execute() clients are
-  // converted.
+  // This needs to be a FATAL log because the error case of arriving here is
+  // that there's a malformed SQL statement. This can arise in development if
+  // a change alters the schema but not all queries adjust.
   if (error == SQLITE_ERROR)
-    DLOG(ERROR) << "SQL Error in " << sql << ", " << GetErrorMessage();
+    DLOG(FATAL) << "SQL Error in " << sql << ", " << GetErrorMessage();
   return error == SQLITE_OK;
 }
 
@@ -299,6 +380,7 @@ bool Connection::DoesTableOrIndexExist(
       "WHERE type=? AND name=?"));
   statement.BindString(0, type);
   statement.BindString(1, name);
+
   return statement.Step();  // Table exists if any row was returned.
 }
 
@@ -395,6 +477,17 @@ bool Connection::OpenInternal(const std::string& file_name) {
       DLOG(FATAL) << "Could not set locking mode: " << GetErrorMessage();
   }
 
+  // http://www.sqlite.org/pragma.html#pragma_journal_mode
+  // DELETE (default) - delete -journal file to commit.
+  // TRUNCATE - truncate -journal file to commit.
+  // PERSIST - zero out header of -journal file to commit.
+  // journal_size_limit provides size to trim to in PERSIST.
+  // TODO(shess): Figure out if PERSIST and journal_size_limit really
+  // matter.  In theory, it keeps pages pre-allocated, so if
+  // transactions usually fit, it should be faster.
+  ignore_result(Execute("PRAGMA journal_mode = PERSIST"));
+  ignore_result(Execute("PRAGMA journal_size_limit = 16384"));
+
   const base::TimeDelta kBusyTimeout =
     base::TimeDelta::FromSeconds(kBusyTimeoutSeconds);
 
@@ -427,6 +520,7 @@ bool Connection::OpenInternal(const std::string& file_name) {
 void Connection::DoRollback() {
   Statement rollback(GetCachedStatement(SQL_FROM_HERE, "ROLLBACK"));
   rollback.Run();
+  needs_rollback_ = false;
 }
 
 void Connection::StatementRefCreated(StatementRef* ref) {

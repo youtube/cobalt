@@ -4,7 +4,6 @@
 
 #ifndef BASE_SEQUENCED_TASKRUNNER_H_
 #define BASE_SEQUENCED_TASKRUNNER_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/sequenced_task_runner_helpers.h"
@@ -114,7 +113,7 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
   virtual bool PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
       const Closure& task,
-      int64 delay_ms) = 0;
+      base::TimeDelta delay) = 0;
 
   // Submits a non-nestable task to delete the given object.  Returns
   // true if the object may be deleted at some point in the future,
@@ -138,7 +137,10 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
             this, from_here, object);
   }
 
-private:
+ protected:
+  virtual ~SequencedTaskRunner() {}
+
+ private:
   template <class T, class R> friend class subtle::DeleteHelperInternal;
   template <class T, class R> friend class subtle::ReleaseHelperInternal;
 

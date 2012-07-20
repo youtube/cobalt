@@ -4,7 +4,6 @@
 
 #ifndef BASE_AUTO_RESET_H_
 #define BASE_AUTO_RESET_H_
-#pragma once
 
 #include "base/basictypes.h"
 

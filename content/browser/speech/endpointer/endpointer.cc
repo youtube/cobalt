@@ -1,7 +1,8 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/speech/audio_buffer.h"
 #include "content/browser/speech/endpointer/endpointer.h"
 
 #include "base/time.h"
@@ -12,7 +13,7 @@ namespace {
 static const int kFrameRate = 50;  // 1 frame = 20ms of audio.
 }
 
-namespace speech_input {
+namespace speech {
 
 Endpointer::Endpointer(int sample_rate)
     : speech_input_possibly_complete_silence_length_us_(-1),
@@ -88,8 +89,9 @@ EpStatus Endpointer::Status(int64 *time) {
   return energy_endpointer_.Status(time);
 }
 
-EpStatus Endpointer::ProcessAudio(const int16* audio_data, int num_samples,
-                                  float* rms_out) {
+EpStatus Endpointer::ProcessAudio(const AudioChunk& raw_audio, float* rms_out) {
+  const int16* audio_data = raw_audio.SamplesData16();
+  const int num_samples = raw_audio.NumSamples();
   EpStatus ep_status = EP_PRE_SPEECH;
 
   // Process the input data in blocks of frame_size_, dropping any incomplete

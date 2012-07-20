@@ -9,24 +9,41 @@
 #include "base/synchronization/lock.h"
 #include "net/base/crl_set.h"
 #include "net/base/ssl_config_service_defaults.h"
-#include "net/base/ssl_false_start_blacklist.h"
+
+#if defined(USE_OPENSSL)
+#include <openssl/ssl.h>
+#endif
 
 namespace net {
+
+static uint16 g_default_version_min = SSL_PROTOCOL_VERSION_SSL3;
+
+static uint16 g_default_version_max =
+#if defined(USE_OPENSSL)
+#if defined(SSL_OP_NO_TLSv1_1)
+    SSL_PROTOCOL_VERSION_TLS1_1;
+#else
+    SSL_PROTOCOL_VERSION_TLS1;
+#endif
+#else
+    SSL_PROTOCOL_VERSION_TLS1_1;
+#endif
 
 SSLConfig::CertAndStatus::CertAndStatus() : cert_status(0) {}
 
 SSLConfig::CertAndStatus::~CertAndStatus() {}
 
 SSLConfig::SSLConfig()
-    : rev_checking_enabled(true),
-      ssl3_enabled(true),
-      tls1_enabled(true),
+    : rev_checking_enabled(false),
+      version_min(g_default_version_min),
+      version_max(g_default_version_max),
       cached_info_enabled(false),
-      origin_bound_certs_enabled(false),
+      channel_id_enabled(false),
       false_start_enabled(true),
       send_client_cert(false),
       verify_ev_cert(false),
-      ssl3_fallback(false) {
+      version_fallback(false),
+      cert_io_enabled(true) {
 }
 
 SSLConfig::~SSLConfig() {
@@ -56,13 +73,8 @@ SSLConfigService::SSLConfigService()
     : observer_list_(ObserverList<Observer>::NOTIFY_EXISTING_ONLY) {
 }
 
-// static
-bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
-    const std::string& hostname) {
-  return SSLFalseStartBlacklist::IsMember(hostname);
-}
-
 static bool g_cached_info_enabled = false;
+static bool g_channel_id_trial = false;
 
 // GlobalCRLSet holds a reference to the global CRLSet. It simply wraps a lock
 // around a scoped_refptr so that getting a reference doesn't race with
@@ -106,6 +118,26 @@ bool SSLConfigService::cached_info_enabled() {
   return g_cached_info_enabled;
 }
 
+// static
+uint16 SSLConfigService::default_version_min() {
+  return g_default_version_min;
+}
+
+// static
+void SSLConfigService::SetDefaultVersionMax(uint16 version_max) {
+  g_default_version_max = version_max;
+}
+
+// static
+uint16 SSLConfigService::default_version_max() {
+  return g_default_version_max;
+}
+
+// static
+void SSLConfigService::EnableChannelIDTrial() {
+  g_channel_id_trial = true;
+}
+
 void SSLConfigService::AddObserver(Observer* observer) {
   observer_list_.AddObserver(observer);
 }
@@ -120,20 +152,20 @@ SSLConfigService::~SSLConfigService() {
 // static
 void SSLConfigService::SetSSLConfigFlags(SSLConfig* ssl_config) {
   ssl_config->cached_info_enabled = g_cached_info_enabled;
+  if (g_channel_id_trial)
+    ssl_config->channel_id_enabled = true;
 }
 
 void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
                                            const SSLConfig& new_config) {
   bool config_changed =
       (orig_config.rev_checking_enabled != new_config.rev_checking_enabled) ||
-      (orig_config.ssl3_enabled != new_config.ssl3_enabled) ||
-      (orig_config.tls1_enabled != new_config.tls1_enabled) ||
+      (orig_config.version_min != new_config.version_min) ||
+      (orig_config.version_max != new_config.version_max) ||
       (orig_config.disabled_cipher_suites !=
        new_config.disabled_cipher_suites) ||
-      (orig_config.origin_bound_certs_enabled !=
-       new_config.origin_bound_certs_enabled) ||
-      (orig_config.false_start_enabled !=
-       new_config.false_start_enabled);
+      (orig_config.channel_id_enabled != new_config.channel_id_enabled) ||
+      (orig_config.false_start_enabled != new_config.false_start_enabled);
 
   if (config_changed)
     FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());
@@ -146,7 +178,7 @@ bool SSLConfigService::IsSNIAvailable(SSLConfigService* service) {
 
   SSLConfig ssl_config;
   service->GetSSLConfig(&ssl_config);
-  return ssl_config.tls1_enabled;
+  return ssl_config.version_max >= SSL_PROTOCOL_VERSION_TLS1;
 }
 
 }  // namespace net

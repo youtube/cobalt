@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
+#include "net/base/upload_data_stream.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/http/http_stream.h"
@@ -79,7 +80,7 @@ class MockHttpStream : public HttpStream {
     return ERR_UNEXPECTED;
   }
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
-                          UploadDataStream* request_body,
+                          scoped_ptr<UploadDataStream> request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE {
     return ERR_UNEXPECTED;

@@ -4,7 +4,6 @@
 
 #ifndef PENDING_TASK_H_
 #define PENDING_TASK_H_
-#pragma once
 
 #include <queue>
 

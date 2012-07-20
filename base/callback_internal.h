@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,15 @@
 
 #ifndef BASE_CALLBACK_INTERNAL_H_
 #define BASE_CALLBACK_INTERNAL_H_
-#pragma once
 
 #include <stddef.h>
 
 #include "base/base_export.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+
+template <typename T>
+class ScopedVector;
 
 namespace base {
 namespace internal {
@@ -140,10 +142,16 @@ struct CallbackParamTraits<scoped_array<T> > {
   typedef scoped_array<T> StorageType;
 };
 
+template <typename T, typename R>
+struct CallbackParamTraits<scoped_ptr_malloc<T, R> > {
+  typedef scoped_ptr_malloc<T, R> ForwardType;
+  typedef scoped_ptr_malloc<T, R> StorageType;
+};
+
 template <typename T>
-struct CallbackParamTraits<scoped_ptr_malloc<T> > {
-  typedef scoped_ptr_malloc<T> ForwardType;
-  typedef scoped_ptr_malloc<T> StorageType;
+struct CallbackParamTraits<ScopedVector<T> > {
+  typedef ScopedVector<T> ForwardType;
+  typedef ScopedVector<T> StorageType;
 };
 
 // CallbackForward() is a very limited simulation of C++11's std::forward()
@@ -157,6 +165,11 @@ struct CallbackParamTraits<scoped_ptr_malloc<T> > {
 // In C++11, std::forward would replace all uses of this function.  However, it
 // is impossible to implement a general std::forward with C++11 due to a lack
 // of rvalue references.
+//
+// In addition to Callback/Bind, this is used by PostTaskAndReplyWithResult to
+// simulate std::forward() and forward the result of one Callback as a
+// parameter to another callback. This is to support Callbacks that return
+// the movable-but-not-copyable types whitelisted above.
 template <typename T>
 T& CallbackForward(T& t) { return t; }
 
@@ -164,10 +177,15 @@ template <typename T>
 scoped_ptr<T> CallbackForward(scoped_ptr<T>& p) { return p.Pass(); }
 
 template <typename T>
-scoped_ptr<T> CallbackForward(scoped_array<T>& p) { return p.Pass(); }
+scoped_array<T> CallbackForward(scoped_array<T>& p) { return p.Pass(); }
+
+template <typename T, typename R>
+scoped_ptr_malloc<T, R> CallbackForward(scoped_ptr_malloc<T, R>& p) {
+  return p.Pass();
+}
 
 template <typename T>
-scoped_ptr<T> CallbackForward(scoped_ptr_malloc<T>& p) { return p.Pass(); }
+ScopedVector<T> CallbackForward(ScopedVector<T>& p) { return p.Pass(); }
 
 }  // namespace internal
 }  // namespace base

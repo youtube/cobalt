@@ -15,15 +15,15 @@ MessageLoopProxyImpl::~MessageLoopProxyImpl() {
 bool MessageLoopProxyImpl::PostDelayedTask(
     const tracked_objects::Location& from_here,
     const base::Closure& task,
-    int64 delay_ms) {
-  return PostTaskHelper(from_here, task, delay_ms, true);
+    base::TimeDelta delay) {
+  return PostTaskHelper(from_here, task, delay, true);
 }
 
 bool MessageLoopProxyImpl::PostNonNestableDelayedTask(
     const tracked_objects::Location& from_here,
     const base::Closure& task,
-    int64 delay_ms) {
-  return PostTaskHelper(from_here, task, delay_ms, false);
+    base::TimeDelta delay) {
+  return PostTaskHelper(from_here, task, delay, false);
 }
 
 bool MessageLoopProxyImpl::RunsTasksOnCurrentThread() const {
@@ -68,10 +68,9 @@ MessageLoopProxyImpl::MessageLoopProxyImpl()
 
 bool MessageLoopProxyImpl::PostTaskHelper(
     const tracked_objects::Location& from_here, const base::Closure& task,
-    int64 delay_ms, bool nestable) {
+    base::TimeDelta delay, bool nestable) {
   AutoLock lock(message_loop_lock_);
   if (target_message_loop_) {
-    base::TimeDelta delay = base::TimeDelta::FromMilliseconds(delay_ms);
     if (nestable) {
       target_message_loop_->PostDelayedTask(from_here, task, delay);
     } else {

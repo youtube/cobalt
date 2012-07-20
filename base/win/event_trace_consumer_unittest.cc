@@ -206,7 +206,6 @@ class EtwTraceConsumerRealtimeTest: public EtwTraceConsumerBaseTest {
   }
 
   TestConsumer consumer_;
-  GUID test_provider_;
   base::win::ScopedHandle consumer_ready_;
   base::win::ScopedHandle consumer_thread_;
 };
@@ -283,6 +282,8 @@ class EtwTraceConsumerDataTest: public EtwTraceConsumerBaseTest {
   }
 
   virtual void SetUp() {
+    EtwTraceConsumerBaseTest::SetUp();
+
     EtwTraceProperties prop;
     EtwTraceController::Stop(session_name_.c_str(), &prop);
 

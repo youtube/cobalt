@@ -6,6 +6,7 @@
 
 #include "base/bind.h"
 #include "base/location.h"
+#include "base/threading/thread_restrictions.h"
 
 namespace base {
 
@@ -20,6 +21,7 @@ bool ThreadTestHelper::Run() {
           FROM_HERE, base::Bind(&ThreadTestHelper::RunInThread, this))) {
     return false;
   }
+  base::ThreadRestrictions::ScopedAllowWait allow_wait;
   done_event_.Wait();
   return test_result_;
 }

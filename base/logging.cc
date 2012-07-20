@@ -51,6 +51,7 @@ typedef pthread_mutex_t* MutexHandle;
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/debug/alias.h"
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
 #include "base/eintr_wrapper.h"
@@ -358,9 +359,10 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
                          LogLockingState lock_log,
                          OldFileDeletionState delete_old,
                          DcheckState dcheck_state) {
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
   g_dcheck_state = dcheck_state;
-
+// TODO(bbudge) Hook this up to NaCl logging.
+#if !defined(OS_NACL)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
   // Don't bother initializing g_vlog_info unless we use one of the
   // vlog switches.
   if (command_line->HasSwitch(switches::kV) ||
@@ -402,6 +404,9 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
     DeleteFilePath(*log_file_name);
 
   return InitializeLogFileHandle();
+#else
+  return true;
+#endif  // !defined(OS_NACL)
 }
 
 void SetMinLogLevel(int level) {
@@ -563,7 +568,7 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
 LogMessage::~LogMessage() {
   // TODO(port): enable stacktrace generation on LOG_FATAL once backtrace are
   // working in Android.
-#if (!defined(NDEBUG) || defined(__LB_SHELL__FORCE_LOGGING__)) && !defined(OS_ANDROID)
+#if (!defined(NDEBUG) || defined(__LB_SHELL__FORCE_LOGGING__)) && !defined(OS_ANDROID) && !defined(OS_NACL)
   if (severity_ == LOG_FATAL) {
     // Include a stack trace on a fatal.
     base::debug::StackTrace trace;
@@ -643,6 +648,12 @@ LogMessage::~LogMessage() {
   }
 
   if (severity_ == LOG_FATAL) {
+    // Ensure the first characters of the string are on the stack so they
+    // are contained in minidumps for diagnostic purposes.
+    char str_stack[1024];
+    str_newline.copy(str_stack, arraysize(str_stack));
+    base::debug::Alias(str_stack);
+
     // display a message or break into the debugger on a fatal error
     if (base::debug::BeingDebugged()) {
       base::debug::BreakDebugger();
@@ -790,6 +801,10 @@ Win32ErrorLogMessage::~Win32ErrorLogMessage() {
     stream() << ": Error " << GetLastError() << " while retrieving error "
         << err_;
   }
+  // We're about to crash (CHECK). Put |err_| on the stack (by placing it in a
+  // field) and use Alias in hopes that it makes it into crash dumps.
+  DWORD last_error = err_;
+  base::debug::Alias(&last_error);
 }
 #elif defined(OS_POSIX)
 ErrnoLogMessage::ErrnoLogMessage(const char* file,

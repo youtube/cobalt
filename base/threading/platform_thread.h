@@ -8,7 +8,6 @@
 
 #ifndef BASE_THREADING_PLATFORM_THREAD_H_
 #define BASE_THREADING_PLATFORM_THREAD_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
@@ -54,8 +53,10 @@ class BASE_EXPORT PlatformThread {
   // ThreadMain method will be called on the newly created thread.
   class BASE_EXPORT Delegate {
    public:
-    virtual ~Delegate() {}
     virtual void ThreadMain() = 0;
+
+   protected:
+    virtual ~Delegate() {}
   };
 
   // Gets the current thread id, which may be useful for logging purposes.
@@ -63,9 +64,6 @@ class BASE_EXPORT PlatformThread {
 
   // Yield the current thread so another thread can be scheduled.
   static void YieldCurrentThread();
-
-  // Sleeps for the specified duration (units are milliseconds).
-  static void Sleep(int duration_ms);
 
   // Sleeps for the specified duration.
   static void Sleep(base::TimeDelta duration);
@@ -89,6 +87,15 @@ class BASE_EXPORT PlatformThread {
   static bool Create(size_t stack_size, Delegate* delegate,
                      PlatformThreadHandle* thread_handle);
 
+  // CreateWithPriority() does the same thing as Create() except the priority of
+  // the thread is set based on |priority|.  Can be used in place of Create()
+  // followed by SetThreadPriority().  SetThreadPriority() has not been
+  // implemented on the Linux platform yet, this is the only way to get a high
+  // priority thread on Linux.
+  static bool CreateWithPriority(size_t stack_size, Delegate* delegate,
+                                 PlatformThreadHandle* thread_handle,
+                                 ThreadPriority priority);
+
   // CreateNonJoinable() does the same thing as Create() except the thread
   // cannot be Join()'d.  Therefore, it also does not output a
   // PlatformThreadHandle.
@@ -99,6 +106,8 @@ class BASE_EXPORT PlatformThread {
   // |thread_handle|.
   static void Join(PlatformThreadHandle thread_handle);
 
+  // Sets the priority of the thread specified in |handle| to |priority|.
+  // This does not work on Linux, use CreateWithPriority() instead.
   static void SetThreadPriority(PlatformThreadHandle handle,
                                 ThreadPriority priority);
 

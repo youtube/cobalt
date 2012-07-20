@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,7 +32,7 @@ ProxyConfig::ProxyRules::ProxyRules()
 ProxyConfig::ProxyRules::~ProxyRules() {
 }
 
-void ProxyConfig::ProxyRules::Apply(const GURL& url, ProxyInfo* result) {
+void ProxyConfig::ProxyRules::Apply(const GURL& url, ProxyInfo* result) const {
   if (empty()) {
     result->UseDirect();
     return;
@@ -42,7 +42,7 @@ void ProxyConfig::ProxyRules::Apply(const GURL& url, ProxyInfo* result) {
   if (reverse_bypass)
     bypass_proxy = !bypass_proxy;
   if (bypass_proxy) {
-    result->UseDirect();
+    result->UseDirectWithBypassedProxy();
     return;
   }
 
@@ -159,7 +159,8 @@ ProxyServer* ProxyConfig::ProxyRules::MapUrlSchemeToProxyNoFallback(
 }
 
 ProxyConfig::ProxyConfig()
-    : auto_detect_(false), pac_mandatory_(false), id_(kInvalidConfigID)  {
+    : auto_detect_(false), pac_mandatory_(false),
+      source_(PROXY_CONFIG_SOURCE_UNKNOWN), id_(kInvalidConfigID)  {
 }
 
 ProxyConfig::ProxyConfig(const ProxyConfig& config)
@@ -167,6 +168,7 @@ ProxyConfig::ProxyConfig(const ProxyConfig& config)
       pac_url_(config.pac_url_),
       pac_mandatory_(config.pac_mandatory_),
       proxy_rules_(config.proxy_rules_),
+      source_(config.source_),
       id_(config.id_) {
 }
 
@@ -178,13 +180,14 @@ ProxyConfig& ProxyConfig::operator=(const ProxyConfig& config) {
   pac_url_ = config.pac_url_;
   pac_mandatory_ = config.pac_mandatory_;
   proxy_rules_ = config.proxy_rules_;
+  source_ = config.source_;
   id_ = config.id_;
   return *this;
 }
 
 bool ProxyConfig::Equals(const ProxyConfig& other) const {
-  // The two configs can have different IDs.  We are just interested in if they
-  // have the same settings.
+  // The two configs can have different IDs and sources.  We are just interested
+  // in if they have the same settings.
   return auto_detect_ == other.auto_detect_ &&
          pac_url_ == other.pac_url_ &&
          pac_mandatory_ == other.pac_mandatory_ &&
@@ -248,6 +251,9 @@ Value* ProxyConfig::ToValue() const {
       dict->Set("bypass_list", list);
     }
   }
+
+  // Output the source.
+  dict->SetString("source", ProxyConfigSourceToString(source_));
 
   return dict;
 }

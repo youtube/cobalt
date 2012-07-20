@@ -19,6 +19,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/auth.h"
@@ -35,7 +36,6 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_chunked_decoder.h"
-#include "net/http/http_net_log_params.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_proxy_client_socket_pool.h"
@@ -44,6 +44,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_server_properties.h"
+#include "net/http/http_status_code.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_util.h"
 #include "net/http/url_security_manager.h"
@@ -90,6 +91,19 @@ bool IsClientCertificateError(int error) {
     default:
       return false;
   }
+}
+
+Value* NetLogSSLVersionFallbackCallback(const GURL* url,
+                                        int net_error,
+                                        uint16 version_before,
+                                        uint16 version_after,
+                                        NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString("host_and_port", GetHostAndPort(*url));
+  dict->SetInteger("net_error", net_error);
+  dict->SetInteger("version_before", version_before);
+  dict->SetInteger("version_after", version_after);
+  return dict;
 }
 
 }  // namespace
@@ -316,7 +330,7 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
     // communication with the proxy is secure.
     // See http://crbug.com/8473.
     DCHECK(proxy_info_.is_http() || proxy_info_.is_https());
-    DCHECK_EQ(headers->response_code(), 407);
+    DCHECK_EQ(headers->response_code(), HTTP_PROXY_AUTHENTICATION_REQUIRED);
     LOG(WARNING) << "Blocked proxy response with status "
                  << headers->response_code() << " to CONNECT request for "
                  << GetHostAndPort(request_->url) << ".";
@@ -522,7 +536,7 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_BUILD_REQUEST:
         DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST, NULL);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
         rv = DoBuildRequest();
         break;
       case STATE_BUILD_REQUEST_COMPLETE:
@@ -539,7 +553,7 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_READ_HEADERS:
         DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS, NULL);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
         rv = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
@@ -549,7 +563,7 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_READ_BODY:
         DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY, NULL);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY);
         rv = DoReadBody();
         break;
       case STATE_READ_BODY_COMPLETE:
@@ -560,7 +574,7 @@ int HttpNetworkTransaction::DoLoop(int result) {
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART, NULL);
+            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
         rv = DoDrainBodyForAuthRestart();
         break;
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE:
@@ -763,7 +777,7 @@ int HttpNetworkTransaction::DoSendRequest() {
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
 
   return stream_->SendRequest(
-      request_headers_, request_body_.release(), &response_, io_callback_);
+      request_headers_, request_body_.Pass(), &response_, io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
@@ -830,12 +844,18 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
     if (rv != OK)
       return rv;
   }
+  DCHECK(response_.headers);
 
-  if (net_log_.IsLoggingAllEvents()) {
-    net_log_.AddEvent(
-        NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
-        make_scoped_refptr(new NetLogHttpResponseParameter(response_.headers)));
+  // Like Net.HttpResponseCode, but only for MAIN_FRAME loads.
+  if (request_->load_flags & LOAD_MAIN_FRAME) {
+    const int response_code = response_.headers->response_code();
+    UMA_HISTOGRAM_ENUMERATION(
+        "Net.HttpResponseCode_Nxx_MainFrame", response_code/100, 10);
   }
+
+  net_log_.AddEvent(
+      NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
+      base::Bind(&HttpResponseHeaders::NetLogCallback, response_.headers));
 
   if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
     // HTTP/0.9 doesn't support the PUT method, so lack of response headers
@@ -1011,10 +1031,10 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
     }
   }
 
-  // Currently, non-zero priority requests are frame or sub-frame resource
+  // Currently, non-HIGHEST priority requests are frame or sub-frame resource
   // types.  This will change when we also prioritize certain subresources like
   // css, js, etc.
-  if (request_->priority) {
+  if (request_->priority != HIGHEST) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
         "Net.Priority_High_Latency_b",
         total_duration,
@@ -1153,14 +1173,45 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
   switch (error) {
     case ERR_SSL_PROTOCOL_ERROR:
     case ERR_SSL_VERSION_OR_CIPHER_MISMATCH:
+      if (server_ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1 &&
+          server_ssl_config_.version_max > server_ssl_config_.version_min) {
+        // This could be a TLS-intolerant server or a server that chose a
+        // cipher suite defined only for higher protocol versions (such as
+        // an SSL 3.0 server that chose a TLS-only cipher suite).  Fall
+        // back to the next lower version and retry.
+        // NOTE: if the SSLClientSocket class doesn't support TLS 1.1,
+        // specifying TLS 1.1 in version_max will result in a TLS 1.0
+        // handshake, so falling back from TLS 1.1 to TLS 1.0 will simply
+        // repeat the TLS 1.0 handshake. To avoid this problem, the default
+        // version_max should match the maximum protocol version supported
+        // by the SSLClientSocket class.
+        uint16 version_before = server_ssl_config_.version_max;
+        server_ssl_config_.version_max--;
+        net_log_.AddEvent(
+            NetLog::TYPE_SSL_VERSION_FALLBACK,
+            base::Bind(&NetLogSSLVersionFallbackCallback,
+                       &request_->url, error, version_before,
+                       server_ssl_config_.version_max));
+        server_ssl_config_.version_fallback = true;
+        ResetConnectionAndRequestForResend();
+        error = OK;
+      }
+      break;
     case ERR_SSL_DECOMPRESSION_FAILURE_ALERT:
     case ERR_SSL_BAD_RECORD_MAC_ALERT:
-      if (server_ssl_config_.tls1_enabled) {
-        // This could be a TLS-intolerant server, an SSL 3.0 server that
-        // chose a TLS-only cipher suite or a server with buggy DEFLATE
-        // support. Turn off TLS 1.0, DEFLATE support and retry.
-        session_->http_stream_factory()->AddTLSIntolerantServer(
-            HostPortPair::FromURL(request_->url));
+      if (server_ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1 &&
+          server_ssl_config_.version_min == SSL_PROTOCOL_VERSION_SSL3) {
+        // This could be a server with buggy DEFLATE support. Turn off TLS,
+        // DEFLATE support and retry.
+        // TODO(wtc): turn off DEFLATE support only. Do not tie it to TLS.
+        uint16 version_before = server_ssl_config_.version_max;
+        server_ssl_config_.version_max = SSL_PROTOCOL_VERSION_SSL3;
+        net_log_.AddEvent(
+            NetLog::TYPE_SSL_VERSION_FALLBACK,
+            base::Bind(&NetLogSSLVersionFallbackCallback,
+                       &request_->url, error, version_before,
+                       server_ssl_config_.version_max));
+        server_ssl_config_.version_fallback = true;
         ResetConnectionAndRequestForResend();
         error = OK;
       }
@@ -1177,10 +1228,9 @@ int HttpNetworkTransaction::HandleIOError(int error) {
   // SSL errors may happen at any time during the stream and indicate issues
   // with the underlying connection. Because the peer may request
   // renegotiation at any time, check and handle any possible SSL handshake
-  // related errors. In addition to renegotiation, TLS False/Snap Start may
-  // cause SSL handshake errors to be delayed until the first or second Write
-  // (Snap Start) or the first Read (False & Snap Start) on the underlying
-  // connection.
+  // related errors. In addition to renegotiation, TLS False Start may cause
+  // SSL handshake errors (specifically servers with buggy DEFLATE support)
+  // to be delayed until the first Read on the underlying connection.
   error = HandleSSLHandshakeError(error);
 
   switch (error) {
@@ -1200,19 +1250,24 @@ int HttpNetworkTransaction::HandleIOError(int error) {
     // See http://crbug.com/105824 for more details.
     case ERR_SOCKET_NOT_CONNECTED:
       if (ShouldResendRequest(error)) {
-        net_log_.AddEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR,
-            make_scoped_refptr(new NetLogIntegerParameter("net_error", error)));
+        net_log_.AddEventWithNetErrorCode(
+            NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR, error);
         ResetConnectionAndRequestForResend();
         error = OK;
       }
       break;
     case ERR_PIPELINE_EVICTION:
+      if (!session_->force_http_pipelining()) {
+        net_log_.AddEventWithNetErrorCode(
+            NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR, error);
+        ResetConnectionAndRequestForResend();
+        error = OK;
+      }
+      break;
     case ERR_SPDY_PING_FAILED:
     case ERR_SPDY_SERVER_REFUSED_STREAM:
-      net_log_.AddEvent(
-          NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR,
-          make_scoped_refptr(new NetLogIntegerParameter("net_error", error)));
+      net_log_.AddEventWithNetErrorCode(
+          NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR, error);
       ResetConnectionAndRequestForResend();
       error = OK;
       break;
@@ -1278,15 +1333,17 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   DCHECK(headers);
 
   int status = headers->response_code();
-  if (status != 401 && status != 407)
+  if (status != HTTP_UNAUTHORIZED &&
+      status != HTTP_PROXY_AUTHENTICATION_REQUIRED)
     return OK;
-  HttpAuth::Target target = status == 407 ?
+  HttpAuth::Target target = status == HTTP_PROXY_AUTHENTICATION_REQUIRED ?
                             HttpAuth::AUTH_PROXY : HttpAuth::AUTH_SERVER;
   if (target == HttpAuth::AUTH_PROXY && proxy_info_.is_direct())
     return ERR_UNEXPECTED_PROXY_AUTH;
 
-  // This case can trigger when an HTTPS server responds with a 407 status
-  // code through a non-authenticating proxy.
+  // This case can trigger when an HTTPS server responds with a "Proxy
+  // authentication required" status code through a non-authenticating
+  // proxy.
   if (!auth_controllers_[target].get())
     return ERR_UNEXPECTED_PROXY_AUTH;
 

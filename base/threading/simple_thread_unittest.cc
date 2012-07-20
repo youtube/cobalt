@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,9 +15,9 @@ namespace {
 class SetIntRunner : public DelegateSimpleThread::Delegate {
  public:
   SetIntRunner(int* ptr, int val) : ptr_(ptr), val_(val) { }
-  ~SetIntRunner() { }
+  virtual ~SetIntRunner() { }
 
-  virtual void Run() {
+  virtual void Run() OVERRIDE {
     *ptr_ = val_;
   }
 
@@ -29,9 +29,9 @@ class SetIntRunner : public DelegateSimpleThread::Delegate {
 class WaitEventRunner : public DelegateSimpleThread::Delegate {
  public:
   explicit WaitEventRunner(WaitableEvent* event) : event_(event) { }
-  ~WaitEventRunner() { }
+  virtual ~WaitEventRunner() { }
 
-  virtual void Run() {
+  virtual void Run() OVERRIDE {
     EXPECT_FALSE(event_->IsSignaled());
     event_->Signal();
     EXPECT_TRUE(event_->IsSignaled());
@@ -43,7 +43,7 @@ class WaitEventRunner : public DelegateSimpleThread::Delegate {
 class SeqRunner : public DelegateSimpleThread::Delegate {
  public:
   explicit SeqRunner(AtomicSequenceNumber* seq) : seq_(seq) { }
-  virtual void Run() {
+  virtual void Run() OVERRIDE {
     seq_->GetNext();
   }
 
@@ -60,7 +60,7 @@ class VerifyPoolRunner : public DelegateSimpleThread::Delegate {
                    int total, WaitableEvent* event)
       : seq_(seq), total_(total), event_(event) { }
 
-  virtual void Run() {
+  virtual void Run() OVERRIDE {
     if (seq_->GetNext() == total_) {
       event_->Signal();
     } else {

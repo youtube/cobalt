@@ -162,7 +162,7 @@ TEST_F(ProxyServiceTest, Direct) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
   int rv = service.ResolveProxy(
       url, &info, callback.callback(), NULL, log.bound());
   EXPECT_EQ(OK, rv);
@@ -171,7 +171,7 @@ TEST_F(ProxyServiceTest, Direct) {
   EXPECT_TRUE(info.is_direct());
 
   // Check the NetLog was filled correctly.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(3u, entries.size());
@@ -196,7 +196,7 @@ TEST_F(ProxyServiceTest, PAC) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log;
 
   int rv = service.ResolveProxy(
       url, &info, callback.callback(), NULL, log.bound());
@@ -216,9 +216,10 @@ TEST_F(ProxyServiceTest, PAC) {
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_FALSE(info.is_direct());
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
+  EXPECT_TRUE(info.did_use_pac_script());
 
   // Check the NetLog was filled correctly.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_EQ(5u, entries.size());
@@ -292,6 +293,7 @@ TEST_F(ProxyServiceTest, PAC_FailoverWithoutDirect) {
   EXPECT_EQ(OK, callback1.WaitForResult());
   EXPECT_FALSE(info.is_direct());
   EXPECT_EQ("foopy:8080", info.proxy_server().ToURI());
+  EXPECT_TRUE(info.did_use_pac_script());
 
   // Now, imagine that connecting to foopy:8080 fails: there is nothing
   // left to fallback to, since our proxy list was NOT terminated by
@@ -380,6 +382,36 @@ TEST_F(ProxyServiceTest, PAC_FailoverAfterDirect) {
                                          BoundNetLog());
   EXPECT_EQ(ERR_FAILED, rv);
   EXPECT_TRUE(info.is_empty());
+}
+
+TEST_F(ProxyServiceTest, PAC_ConfigSourcePropagates) {
+  // Test whether the ProxyConfigSource set by the ProxyConfigService is applied
+  // to ProxyInfo after the proxy is resolved via a PAC script.
+  ProxyConfig config =
+      ProxyConfig::CreateFromCustomPacURL(GURL("http://foopy/proxy.pac"));
+  config.set_source(PROXY_CONFIG_SOURCE_TEST);
+
+  MockProxyConfigService* config_service = new MockProxyConfigService(config);
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+  ProxyService service(config_service, resolver, NULL);
+
+  // Resolve something.
+  GURL url("http://www.google.com/");
+  ProxyInfo info;
+  TestCompletionCallback callback;
+  int rv = service.ResolveProxy(
+      url, &info, callback.callback(), NULL, BoundNetLog());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  resolver->pending_set_pac_script_request()->CompleteNow(OK);
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+
+  // Set the result in proxy resolver.
+  resolver->pending_requests()[0]->results()->UseNamedProxy("foopy");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(PROXY_CONFIG_SOURCE_TEST, info.config_source());
+  EXPECT_TRUE(info.did_use_pac_script());
 }
 
 TEST_F(ProxyServiceTest, ProxyResolverFails) {
@@ -1120,6 +1152,56 @@ TEST_F(ProxyServiceTest, PerProtocolProxyTests) {
   }
 }
 
+TEST_F(ProxyServiceTest, ProxyConfigSourcePropagates) {
+  // Test that the proxy config source is set correctly when resolving proxies
+  // using manual proxy rules. Namely, the config source should only be set if
+  // any of the rules were applied.
+  {
+    ProxyConfig config;
+    config.set_source(PROXY_CONFIG_SOURCE_TEST);
+    config.proxy_rules().ParseFromString("https=foopy2:8080");
+    ProxyService service(
+        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL);
+    GURL test_url("http://www.google.com");
+    ProxyInfo info;
+    TestCompletionCallback callback;
+    int rv = service.ResolveProxy(test_url, &info, callback.callback(), NULL,
+                                  BoundNetLog());
+    ASSERT_EQ(OK, rv);
+    // Should be SOURCE_TEST, even if there are no HTTP proxies configured.
+    EXPECT_EQ(PROXY_CONFIG_SOURCE_TEST, info.config_source());
+  }
+  {
+    ProxyConfig config;
+    config.set_source(PROXY_CONFIG_SOURCE_TEST);
+    config.proxy_rules().ParseFromString("https=foopy2:8080");
+    ProxyService service(
+        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL);
+    GURL test_url("https://www.google.com");
+    ProxyInfo info;
+    TestCompletionCallback callback;
+    int rv = service.ResolveProxy(test_url, &info, callback.callback(), NULL,
+                                  BoundNetLog());
+    ASSERT_EQ(OK, rv);
+    // Used the HTTPS proxy. So source should be TEST.
+    EXPECT_EQ(PROXY_CONFIG_SOURCE_TEST, info.config_source());
+  }
+  {
+    ProxyConfig config;
+    config.set_source(PROXY_CONFIG_SOURCE_TEST);
+    ProxyService service(
+        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL);
+    GURL test_url("http://www.google.com");
+    ProxyInfo info;
+    TestCompletionCallback callback;
+    int rv = service.ResolveProxy(test_url, &info, callback.callback(), NULL,
+                                  BoundNetLog());
+    ASSERT_EQ(OK, rv);
+    // ProxyConfig is empty. Source should still be TEST.
+    EXPECT_EQ(PROXY_CONFIG_SOURCE_TEST, info.config_source());
+  }
+}
+
 // If only HTTP and a SOCKS proxy are specified, check if ftp/https queries
 // fall back to the SOCKS proxy.
 TEST_F(ProxyServiceTest, DefaultProxyFallbackToSOCKS) {
@@ -1409,7 +1491,7 @@ TEST_F(ProxyServiceTest, CancelWhilePACFetching) {
   ProxyInfo info1;
   TestCompletionCallback callback1;
   ProxyService::PacRequest* request1;
-  CapturingBoundNetLog log1(CapturingNetLog::kUnbounded);
+  CapturingBoundNetLog log1;
   int rv = service.ResolveProxy(GURL("http://request1"), &info1,
                                 callback1.callback(), &request1, log1.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -1464,7 +1546,7 @@ TEST_F(ProxyServiceTest, CancelWhilePACFetching) {
   EXPECT_FALSE(callback1.have_result());  // Cancelled.
   EXPECT_FALSE(callback2.have_result());  // Cancelled.
 
-  CapturingNetLog::EntryList entries1;
+  CapturingNetLog::CapturedEntryList entries1;
   log1.GetEntries(&entries1);
 
   // Check the NetLog for request 1 (which was cancelled) got filled properly.
@@ -1893,7 +1975,7 @@ TEST_F(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
+  CapturingNetLog log;
 
   ProxyService service(config_service, resolver, &log);
 
@@ -1987,7 +2069,7 @@ TEST_F(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   // Check that the expected events were output to the log stream. In particular
   // PROXY_CONFIG_CHANGED should have only been emitted once (for the initial
   // setup), and NOT a second time when the IP address changed.
-  CapturingNetLog::EntryList entries;
+  CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_TRUE(LogContainsEntryWithType(entries, 0,
@@ -2013,9 +2095,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterFailure) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,
@@ -2120,9 +2200,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterContentChange) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,
@@ -2232,9 +2310,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterContentUnchanged) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,
@@ -2340,9 +2416,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterSuccess) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,
@@ -2494,9 +2568,7 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterActivity) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-
-  ProxyService service(config_service, resolver, &log);
+  ProxyService service(config_service, resolver, NULL);
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service.SetProxyScriptFetchers(fetcher,

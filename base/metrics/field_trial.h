@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,8 +36,9 @@
 // // FieldTrialList.
 // // Note: This field trial will run in Chrome instances compiled through
 // //       8 July, 2015, and after that all instances will be in "StandardMem".
-// scoped_refptr<FieldTrial> trial = new FieldTrial("MemoryExperiment", 1000,
-//                                                  "StandardMem", 2015, 7, 8);
+// scoped_refptr<base::FieldTrial> trial(
+//     base::FieldTrialList::FactoryGetFieldTrial("MemoryExperiment", 1000,
+//                                                "StandardMem", 2015, 7, 8));
 // const int kHighMemGroup =
 //     trial->AppendGroup("HighMem", 20);  // 2% in HighMem group.
 // const int kLowMemGroup =
@@ -73,15 +74,15 @@
 
 #ifndef BASE_METRICS_FIELD_TRIAL_H_
 #define BASE_METRICS_FIELD_TRIAL_H_
-#pragma once
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/base_export.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/observer_list.h"
+#include "base/observer_list_threadsafe.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 
@@ -92,36 +93,18 @@ class FieldTrialList;
 class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
  public:
   typedef int Probability;  // Probability type for being selected in a trial.
-  // The Unique ID of a trial, where the name and group identifiers are
-  // hashes of the trial and group name strings.
-  struct NameGroupId {
-    uint32 name;
-    uint32 group;
+
+  // A pair representing a Field Trial and its selected group.
+  struct SelectedGroup {
+    std::string trial;
+    std::string group;
   };
+
+  typedef std::vector<SelectedGroup> SelectedGroups;
 
   // A return value to indicate that a given instance has not yet had a group
   // assignment (and hence is not yet participating in the trial).
   static const int kNotFinalized;
-
-  // This is the group number of the 'default' group. This provides an easy way
-  // to assign all the remaining probability to a group ('default').
-  static const int kDefaultGroupNumber;
-
-  // The name is used to register the instance with the FieldTrialList class,
-  // and can be used to find the trial (only one trial can be present for each
-  // name).  |name| and |default_group_name| may not be empty.
-  //
-  // Group probabilities that are later supplied must sum to less than or equal
-  // to the total_probability. Arguments year, month and day_of_month specify
-  // the expiration time. If the build time is after the expiration time then
-  // the field trial reverts to the 'default' group.
-  //
-  // Using this constructor creates a startup-randomized FieldTrial. If you
-  // want a one-time randomized trial, call UseOneTimeRandomization() right
-  // after construction.
-  FieldTrial(const std::string& name, Probability total_probability,
-             const std::string& default_group_name, const int year,
-             const int month, const int day_of_month);
 
   // Changes the field trial to use one-time randomization, i.e. produce the
   // same result for the current trial on every run of this client. Must be
@@ -133,6 +116,8 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // at any time after initialization (should not be interleaved with
   // AppendGroup calls). Once disabled, there is no way to re-enable a
   // trial.
+  // TODO(mad): http://code.google.com/p/chromium/issues/detail?id=121446
+  // This doesn't properly reset to Default when a group was forced.
   void Disable();
 
   // Establish the name and probability of the next group in this trial.
@@ -145,23 +130,19 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   std::string name() const { return name_; }
 
   // Return the randomly selected group number that was assigned.
-  // Return kDefaultGroupNumber if the instance is in the 'default' group.
   // Note that this will force an instance to participate, and make it illegal
   // to attempt to probabilistically add any other groups to the trial.
   int group();
 
-  // If the group's name is empty, a string version containing the group
-  // number is used as the group name.
+  // If the group's name is empty, a string version containing the group number
+  // is used as the group name. This causes a winner to be chosen if none was.
   std::string group_name();
 
-  // Gets the unique identifier of the Field Trial, but only if a group was
+  // Gets the SelectedGroup of the Field Trial, but only if a group was
   // officially chosen, otherwise name_group_id is left untouched and false
-  // is returned. When true is returned, the name and group ids were successfuly
-  // set in name_group_id.
-  bool GetNameGroupId(NameGroupId* name_group_id);
-
-  // Return the default group name of the FieldTrial.
-  std::string default_group_name() const { return default_group_name_; }
+  // is returned. When true is returned, the trial and group names were
+  // successfully set in selected_group.
+  bool GetSelectedGroup(SelectedGroup* selected_group);
 
   // Helper function for the most common use: as an argument to specify the
   // name of a HISTOGRAM.  Use the original histogram name as the name_prefix.
@@ -170,6 +151,16 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
 
   // Enable benchmarking sets field trials to a common setting.
   static void EnableBenchmarking();
+
+  // Set the field trial as forced, meaning that it was setup earlier than
+  // the hard coded registration of the field trial to override it.
+  // This allows the code that was hard coded to register the field trial to
+  // still succeed even though the field trial has already been registered.
+  // This must be called after appending all the groups, since we will make
+  // the group choice here. Note that this is a NOOP for already forced trials.
+  // And, as the rest of the FieldTrial code, this is not thread safe and must
+  // be done from the UI thread.
+  void SetForced();
 
  private:
   // Allow tests to access our innards for testing purposes.
@@ -185,7 +176,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, MakeName);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, HashClientId);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, HashClientIdIsUniform);
-  FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, HashName);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, NameGroupIds);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, UseOneTimeRandomization);
 
@@ -193,7 +183,21 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
 
   friend class RefCounted<FieldTrial>;
 
+  // This is the group number of the 'default' group when a choice wasn't forced
+  // by a call to FieldTrialList::CreateFieldTrial. It is kept private so that
+  // consumers don't use it by mistake in cases where the group was forced.
+  static const int kDefaultGroupNumber;
+
+  FieldTrial(const std::string& name,
+             Probability total_probability,
+             const std::string& default_group_name);
   virtual ~FieldTrial();
+
+  // Return the default group name of the FieldTrial.
+  std::string default_group_name() const { return default_group_name_; }
+
+  // Sets the group_name as well as group_name_hash to make sure they are sync.
+  void SetGroupChoice(const std::string& name, int number);
 
   // Returns the group_name. A winner need not have been chosen.
   std::string group_name_internal() const { return group_name_; }
@@ -204,15 +208,8 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   static double HashClientId(const std::string& client_id,
                              const std::string& trial_name);
 
-  // Creates unique identifier for the trial by hashing a name string, whether
-  // it's for the field trial or the group name.
-  static uint32 HashName(const std::string& name);
-
   // The name of the field trial, as can be found via the FieldTrialList.
   const std::string name_;
-
-  // The hashed name of the field trial to be sent as a unique identifier.
-  const uint32 name_hash_;
 
   // The maximum sum of all probabilities supplied, which corresponds to 100%.
   // This is the scaling factor used to adjust supplied probabilities.
@@ -239,20 +236,17 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // has been called.
   std::string group_name_;
 
-  // The hashed name of the group to be sent as a unique identifier.
-  // Is not valid while group_ is equal to kNotFinalized.
-  uint32 group_name_hash_;
-
   // When enable_field_trial_ is false, field trial reverts to the 'default'
   // group.
   bool enable_field_trial_;
 
+  // When forced_ is true, we return the chosen group from AppendGroup when
+  // appropriate.
+  bool forced_;
+
   // When benchmarking is enabled, field trials all revert to the 'default'
   // group.
   static bool enable_benchmarking_;
-
-  // This value is reserved for an uninitialized hash value.
-  static const uint32 kReservedHashValue;
 
   DISALLOW_COPY_AND_ASSIGN(FieldTrial);
 };
@@ -263,7 +257,7 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
 // Only one instance of this class exists.
 class BASE_EXPORT FieldTrialList {
  public:
-  // Define a separator charactor to use when creating a persistent form of an
+  // Define a separator character to use when creating a persistent form of an
   // instance.  This is intended for use as a command line argument, passed to a
   // second process to mimic our state (i.e., provide the same group name).
   static const char kPersistentStringSeparator;  // Currently a slash.
@@ -272,7 +266,7 @@ class BASE_EXPORT FieldTrialList {
   static int kExpirationYearInFuture;
 
   // Observer is notified when a FieldTrial's group is selected.
-  class Observer {
+  class BASE_EXPORT Observer {
    public:
     // Notify observers when FieldTrials's group is selected.
     virtual void OnFieldTrialGroupFinalized(const std::string& trial_name,
@@ -292,9 +286,33 @@ class BASE_EXPORT FieldTrialList {
   // Destructor Release()'s references to all registered FieldTrial instances.
   ~FieldTrialList();
 
-  // Register() stores a pointer to the given trial in a global map.
-  // This method also AddRef's the indicated trial.
-  static void Register(FieldTrial* trial);
+  // Get a FieldTrial instance from the factory.
+  //
+  // |name| is used to register the instance with the FieldTrialList class,
+  // and can be used to find the trial (only one trial can be present for each
+  // name). |default_group_name| is the name of the default group which will
+  // be chosen if none of the subsequent appended groups get to be chosen.
+  // |default_group_number| can receive the group number of the default group as
+  // AppendGroup returns the number of the subsequence groups. |name| and
+  // |default_group_name| may not be empty but |default_group_number| can be
+  // NULL if the value is not needed.
+  //
+  // Group probabilities that are later supplied must sum to less than or equal
+  // to the |total_probability|. Arguments |year|, |month| and |day_of_month|
+  // specify the expiration time. If the build time is after the expiration time
+  // then the field trial reverts to the 'default' group.
+  //
+  // Use this static method to get a startup-randomized FieldTrial or a
+  // previously created forced FieldTrial. If you want a one-time randomized
+  // trial, call UseOneTimeRandomization() right after creation.
+  static FieldTrial* FactoryGetFieldTrial(
+      const std::string& name,
+      FieldTrial::Probability total_probability,
+      const std::string& default_group_name,
+      const int year,
+      const int month,
+      const int day_of_month,
+      int* default_group_number);
 
   // The Find() method can be used to test to see if a named Trial was already
   // registered, or to retrieve a pointer to it from the global map.
@@ -311,37 +329,35 @@ class BASE_EXPORT FieldTrialList {
   // Returns true if the named trial has been registered.
   static bool TrialExists(const std::string& name);
 
-  // Create a persistent representation of all FieldTrial instances and the
-  // |client_id()| state for resurrection in another process.  This allows
-  // randomization to be done in one process, and secondary processes can be
-  // synchronized on the result. The resulting string contains the
-  // |client_id()|, the names, the trial name, and a "/" separator.
+  // Creates a persistent representation of all FieldTrial instances for
+  // resurrection in another process. This allows randomization to be done in
+  // one process, and secondary processes can be synchronized on the result.
+  // The resulting string contains the name and group name pairs for all trials,
+  // with "/" used to separate all names and to terminate the string. This
+  // string is parsed by CreateTrialsFromString().
   static void StatesToString(std::string* output);
 
-  // Returns an array of Unique IDs for each Field Trial that has a chosen
-  // group. Field Trials for which a group has not been chosen yet are NOT
-  // returned in this list.
-  static void GetFieldTrialNameGroupIds(
-      std::vector<FieldTrial::NameGroupId>* name_group_ids);
+  // Fills in the supplied vector |selected_groups| (which must be empty when
+  // called) with a snapshot of all existing FieldTrials for which a group has
+  // been chosen (if the group is not yet known, then it excluded from the
+  // vector).
+  static void GetFieldTrialSelectedGroups(
+      FieldTrial::SelectedGroups* selected_groups);
 
-  // Use a previously generated state string (re: StatesToString()) augment the
-  // current list of field tests to include the supplied tests, and using a 100%
-  // probability for each test, force them to have the same group string.  This
-  // is commonly used in a non-browser process, to carry randomly selected state
-  // in a browser process into this non-browser process. This method calls
-  // CreateFieldTrial to create the FieldTrial in the non-browser process.
-  // Currently only the group_name_ and name_ are restored, as well as the
-  // |client_id()| state, that could be used for one-time randomized trials
-  // set up only in child processes.
-  static bool CreateTrialsInChildProcess(const std::string& prior_trials);
+  // Use a state string (re: StatesToString()) to augment the current list of
+  // field tests to include the supplied tests, and using a 100% probability for
+  // each test, force them to have the same group string.  This is commonly used
+  // in a non-browser process, to carry randomly selected state in a browser
+  // process into this non-browser process, but could also be invoked through a
+  // command line argument to the browser process.
+  static bool CreateTrialsFromString(const std::string& prior_trials);
 
   // Create a FieldTrial with the given |name| and using 100% probability for
   // the FieldTrial, force FieldTrial to have the same group string as
   // |group_name|. This is commonly used in a non-browser process, to carry
   // randomly selected state in a browser process into this non-browser process.
-  // Currently only the group_name_ and name_ are set in the FieldTrial. It
-  // returns NULL if there is a FieldTrial that is already registered with the
-  // same |name| but has different finalized group string (|group_name|).
+  // It returns NULL if there is a FieldTrial that is already registered with
+  // the same |name| but has different finalized group string (|group_name|).
   static FieldTrial* CreateFieldTrial(const std::string& name,
                                       const std::string& group_name);
 
@@ -390,6 +406,11 @@ class BASE_EXPORT FieldTrialList {
   // Helper function should be called only while holding lock_.
   FieldTrial* PreLockedFind(const std::string& name);
 
+  // Register() stores a pointer to the given trial in a global map.
+  // This method also AddRef's the indicated trial.
+  // This should always be called after creating a new FieldTrial instance.
+  static void Register(FieldTrial* trial);
+
   static FieldTrialList* global_;  // The singleton of this class.
 
   // This will tell us if there is an attempt to register a field
@@ -412,7 +433,7 @@ class BASE_EXPORT FieldTrialList {
   std::string client_id_;
 
   // List of observers to be notified when a group is selected for a FieldTrial.
-  ObserverList<Observer> observer_list_;
+  scoped_refptr<ObserverListThreadSafe<Observer> > observer_list_;
 
   DISALLOW_COPY_AND_ASSIGN(FieldTrialList);
 };

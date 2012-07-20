@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/i18n/file_util_icu.h"
 
 #include "base/file_path.h"
+#include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
@@ -196,6 +197,17 @@ bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
       WideToUTF16(base::SysNativeMBToWide(b.value().c_str()))) < 0;
 #else
   #error Not implemented on your system
+#endif
+}
+
+void NormalizeFileNameEncoding(FilePath* file_name) {
+#if defined(OS_CHROMEOS)
+  std::string normalized_str;
+  if (base::ConvertToUtf8AndNormalize(file_name->BaseName().value(),
+                                      base::kCodepageUTF8,
+                                      &normalized_str)) {
+    *file_name = file_name->DirName().Append(FilePath(normalized_str));
+  }
 #endif
 }
 
