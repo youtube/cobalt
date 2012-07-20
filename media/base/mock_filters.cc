@@ -85,29 +85,6 @@ scoped_ptr<FilterCollection> MockFilterCollection::Create() {
   return collection.Pass();
 }
 
-void RunPipelineStatusCB(const PipelineStatusCB& status_cb) {
-  status_cb.Run(PIPELINE_OK);
-}
-
-void RunPipelineStatusCB2(::testing::Unused,
-                          const PipelineStatusCB& status_cb) {
-  status_cb.Run(PIPELINE_OK);
-}
-
-void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& status_cb,
-                          ::testing::Unused) {
-  status_cb.Run(PIPELINE_OK);
-}
-
-void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& status_cb,
-                          ::testing::Unused, ::testing::Unused) {
-  status_cb.Run(PIPELINE_OK);
-}
-
-void RunClosure(const base::Closure& closure) {
-  closure.Run();
-}
-
 MockFilter::MockFilter() : host_(NULL) {}
 
 MockFilter::~MockFilter() {}

@@ -40,20 +40,20 @@ class MEDIA_EXPORT AudioRendererImpl
   explicit AudioRendererImpl(media::AudioRendererSink* sink);
 
   // Methods called on pipeline thread ----------------------------------------
-  // Filter implementation.
-  virtual void SetHost(FilterHost* host) OVERRIDE;
+  // AudioRenderer implementation.
+  virtual void Initialize(const scoped_refptr<AudioDecoder>& decoder,
+                          const PipelineStatusCB& init_cb,
+                          const base::Closure& underflow_cb,
+                          const TimeCB& time_cb,
+                          const base::Closure& ended_cb,
+                          const base::Closure& disabled_cb,
+                          const PipelineStatusCB& error_cb) OVERRIDE;
   virtual void Play(const base::Closure& callback) OVERRIDE;
   virtual void Pause(const base::Closure& callback) OVERRIDE;
   virtual void Flush(const base::Closure& callback) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void SetPlaybackRate(float rate) OVERRIDE;
   virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
-
-  // AudioRenderer implementation.
-  virtual void Initialize(const scoped_refptr<AudioDecoder>& decoder,
-                          const PipelineStatusCB& init_cb,
-                          const base::Closure& underflow_cb,
-                          const TimeCB& time_cb) OVERRIDE;
   virtual bool HasEnded() OVERRIDE;
   virtual void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
   virtual void SetVolume(float volume) OVERRIDE;
@@ -136,8 +136,6 @@ class MEDIA_EXPORT AudioRendererImpl
   // in the kSeeking state.
   bool IsBeforeSeekTime(const scoped_refptr<Buffer>& buffer);
 
-  FilterHost* host_;
-
   // Audio decoder.
   scoped_refptr<AudioDecoder> decoder_;
 
@@ -175,8 +173,10 @@ class MEDIA_EXPORT AudioRendererImpl
   PipelineStatusCB seek_cb_;
 
   base::Closure underflow_cb_;
-
   TimeCB time_cb_;
+  base::Closure ended_cb_;
+  base::Closure disabled_cb_;
+  PipelineStatusCB error_cb_;
 
   base::TimeDelta seek_timestamp_;
 
