@@ -45,6 +45,7 @@ class DiskCacheEntryTest : public DiskCacheTestWithCache {
   void ReuseEntry(int size);
   void InvalidData();
   void DoomNormalEntry();
+  void DoomEntryNextToOpenEntry();
   void DoomedEntry();
   void BasicSparseIO();
   void HugeSparseIO();
@@ -1294,6 +1295,47 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomEntry) {
   SetMemoryOnlyMode();
   InitCache();
   DoomNormalEntry();
+}
+
+// Tests dooming an entry that's linked to an open entry.
+void DiskCacheEntryTest::DoomEntryNextToOpenEntry() {
+  InitCache();
+
+  disk_cache::Entry* entry1;
+  disk_cache::Entry* entry2;
+  ASSERT_EQ(net::OK, CreateEntry("fixed", &entry1));
+  entry1->Close();
+  ASSERT_EQ(net::OK, CreateEntry("foo", &entry1));
+  entry1->Close();
+  ASSERT_EQ(net::OK, CreateEntry("bar", &entry1));
+  entry1->Close();
+
+  ASSERT_EQ(net::OK, OpenEntry("foo", &entry1));
+  ASSERT_EQ(net::OK, OpenEntry("bar", &entry2));
+  entry2->Doom();
+  entry2->Close();
+
+  ASSERT_EQ(net::OK, OpenEntry("foo", &entry2));
+  entry2->Doom();
+  entry2->Close();
+  entry1->Close();
+
+  ASSERT_EQ(net::OK, OpenEntry("fixed", &entry1));
+  entry1->Close();
+}
+
+TEST_F(DiskCacheEntryTest, DoomEntryNextToOpenEntry) {
+  DoomEntryNextToOpenEntry();
+}
+
+TEST_F(DiskCacheEntryTest, NewEvictionDoomEntryNextToOpenEntry) {
+  SetNewEviction();
+  DoomEntryNextToOpenEntry();
+}
+
+TEST_F(DiskCacheEntryTest, AppCacheDoomEntryNextToOpenEntry) {
+  SetCacheType(net::APP_CACHE);
+  DoomEntryNextToOpenEntry();
 }
 
 // Verify that basic operations work as expected with doomed entries.
