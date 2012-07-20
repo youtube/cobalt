@@ -275,6 +275,9 @@
     { "name": "www.jitsi.org", "mode": "force-https" },
     { "name": "download.jitsi.org", "mode": "force-https" },
     { "name": "sol.io", "include_subdomains": true, "mode": "force-https" },
+    { "name": "irccloud.com", "mode": "force-https" },
+    { "name": "www.irccloud.com", "mode": "force-https" },
+    { "name": "alpha.irccloud.com", "mode": "force-https" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
