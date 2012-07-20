@@ -60,7 +60,7 @@ class NET_EXPORT_PRIVATE StreamSocket : public Socket {
   virtual int GetPeerAddress(IPEndPoint* address) const = 0;
 
   // Copies the local address to |address| and returns a network error code.
-  // ERR_SOCKET_NOT_CONNECTED will be returned if the socket is not connected.
+  // ERR_SOCKET_NOT_CONNECTED will be returned if the socket is not bound.
   virtual int GetLocalAddress(IPEndPoint* address) const = 0;
 
   // Gets the NetLog for this socket.
