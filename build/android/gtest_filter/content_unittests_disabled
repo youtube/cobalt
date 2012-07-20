@@ -49,9 +49,5 @@ AppCacheDatabaseTest.UpgradeSchema3to4
 DatabaseTrackerTest.*
 QuotaDatabaseTest.*
 QuotaManagerTest.*
-#
-SavePackageTest.TestEnsureHtmlExtension
-SavePackageTest.TestEnsureMimeExtension
-SavePackageTest.TestSuggestedSaveNames
 # crbug.com/138138
 GpuMemoryManagerTest.StubMemoryStatsForLastManageTests
