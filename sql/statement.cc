@@ -28,11 +28,11 @@ Statement::~Statement() {
   // Free the resources associated with this statement. We assume there's only
   // one statement active for a given sqlite3_stmt at any time, so this won't
   // mess with anything.
-  Reset();
+  Reset(true);
 }
 
 void Statement::Assign(scoped_refptr<Connection::StatementRef> ref) {
-  Reset();
+  Reset(true);
   ref_ = ref;
 }
 
@@ -61,12 +61,13 @@ bool Statement::Step() {
   return CheckError(sqlite3_step(ref_->stmt())) == SQLITE_ROW;
 }
 
-void Statement::Reset() {
+void Statement::Reset(bool clear_bound_vars) {
   if (is_valid()) {
     // We don't call CheckError() here because sqlite3_reset() returns
     // the last error that Step() caused thereby generating a second
     // spurious error callback.
-    sqlite3_clear_bindings(ref_->stmt());
+    if (clear_bound_vars)
+      sqlite3_clear_bindings(ref_->stmt());
     sqlite3_reset(ref_->stmt());
   }
 

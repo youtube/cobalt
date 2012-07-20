@@ -23,7 +23,6 @@
 
 #ifndef BASE_THREADING_WORKER_POOL_POSIX_H_
 #define BASE_THREADING_WORKER_POOL_POSIX_H_
-#pragma once
 
 #include <queue>
 #include <string>
@@ -53,7 +52,6 @@ class BASE_EXPORT PosixDynamicThreadPool
   // |idle_seconds_before_exit|.
   PosixDynamicThreadPool(const std::string& name_prefix,
                          int idle_seconds_before_exit);
-  ~PosixDynamicThreadPool();
 
   // Indicates that the thread pool is going away.  Stops handing out tasks to
   // worker threads.  Wakes up all the idle threads to let them exit.
@@ -68,7 +66,10 @@ class BASE_EXPORT PosixDynamicThreadPool
   PendingTask WaitForTask();
 
  private:
+  friend class RefCountedThreadSafe<PosixDynamicThreadPool>;
   friend class PosixDynamicThreadPoolPeer;
+
+  ~PosixDynamicThreadPool();
 
   // Adds pending_task to the thread pool.  This function will clear
   // |pending_task->task|.

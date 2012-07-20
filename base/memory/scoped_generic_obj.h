@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MEMORY_SCOPED_GENERIC_OBJ_H_
 #define BASE_MEMORY_SCOPED_GENERIC_OBJ_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -41,7 +40,7 @@ class ScopedGenericObj {
   // There is no way to create an uninitialized ScopedGenericObj.
   // The input parameter must be allocated with an allocator that matches the
   // Free functor.
-  explicit ScopedGenericObj(C p = NULL): obj_(p) {}
+  explicit ScopedGenericObj(C p = C()): obj_(p) {}
 
   // Destructor.  If there is a C object, call the Free functor.
   ~ScopedGenericObj() {
@@ -51,7 +50,7 @@ class ScopedGenericObj {
   // Reset.  Calls the Free functor on the current owned object, if any.
   // Then takes ownership of a new object, if given.
   // this->reset(this->get()) works.
-  void reset(C p = NULL) {
+  void reset(C p = C()) {
     if (obj_ != p) {
       FreeProc free_proc;
       free_proc(obj_);

@@ -27,6 +27,10 @@
  * Google Author(s): Behdad Esfahbod
  */
 
+#ifndef HB_H_IN
+#error "Include <hb.h> instead."
+#endif
+
 #ifndef HB_BUFFER_H
 #define HB_BUFFER_H
 
@@ -117,13 +121,13 @@ hb_buffer_get_language (hb_buffer_t *buffer);
 void
 hb_buffer_reset (hb_buffer_t *buffer);
 
-/* Returns FALSE if allocation failed */
+/* Returns false if allocation failed */
 hb_bool_t
 hb_buffer_pre_allocate (hb_buffer_t  *buffer,
 		        unsigned int  size);
 
 
-/* Returns FALSE if allocation has failed before */
+/* Returns false if allocation has failed before */
 hb_bool_t
 hb_buffer_allocation_successful (hb_buffer_t  *buffer);
 

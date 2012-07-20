@@ -4,7 +4,6 @@
 
 #ifndef BASE_I18N_ICU_ENCODING_DETECTION_H_
 #define BASE_I18N_ICU_ENCODING_DETECTION_H_
-#pragma once
 
 #include <string>
 #include <vector>

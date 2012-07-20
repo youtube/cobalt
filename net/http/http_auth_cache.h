@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_AUTH_CACHE_H_
 #define NET_HTTP_HTTP_AUTH_CACHE_H_
-#pragma once
 
 #include <list>
 #include <string>

@@ -4,7 +4,6 @@
 
 #ifndef NET_TEST_PYTHON_UTILS_H_
 #define NET_TEST_PYTHON_UTILS_H_
-#pragma once
 
 #include "base/compiler_specific.h"
 

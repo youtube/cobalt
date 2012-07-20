@@ -175,7 +175,7 @@ class MockSettingGetter
     values = zero_values;
   }
 
-  virtual bool Init(MessageLoop* glib_default_loop,
+  virtual bool Init(base::SingleThreadTaskRunner* glib_thread_task_runner,
                     MessageLoopForIO* file_loop) OVERRIDE {
     return true;
   }
@@ -187,12 +187,12 @@ class MockSettingGetter
     return true;
   }
 
-  virtual MessageLoop* GetNotificationLoop() OVERRIDE {
+  virtual base::SingleThreadTaskRunner* GetNotificationTaskRunner() OVERRIDE {
     return NULL;
   }
 
-  virtual const char* GetDataSource() OVERRIDE {
-    return "test";
+  virtual ProxyConfigSource GetConfigSource() OVERRIDE {
+    return PROXY_CONFIG_SOURCE_TEST;
   }
 
   virtual bool GetString(StringSetting key, std::string* result) OVERRIDE {
@@ -292,7 +292,7 @@ class SynchConfigGetter {
     DCHECK_EQ(MessageLoop::TYPE_IO, file_loop->type());
     // We pass the mock IO thread as both the IO and file threads.
     config_service_->SetupAndFetchInitialConfig(
-        MessageLoop::current(), io_thread_.message_loop(),
+        base::MessageLoopProxy::current(), io_thread_.message_loop_proxy(),
         static_cast<MessageLoopForIO*>(file_loop));
   }
   // Synchronously gets the proxy config.
@@ -1098,6 +1098,21 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     },
 
     {
+      TEST_DESC("Valid PAC file without file://"),
+
+      // Input.
+      "[Proxy Settings]\nProxyType=2\n"
+          "Proxy Config Script=/wpad/wpad.dat\n",
+      {},                                      // env_values
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                         // auto_detect
+      GURL("file:///wpad/wpad.dat"),  // pac_url
+      ProxyRulesExpectation::Empty(),
+    },
+
+    {
       TEST_DESC("Per-scheme proxy rules"),
 
       // Input.
@@ -1141,6 +1156,25 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       // Input.
       "[Proxy Settings]\nProxyType=1\n"
           "httpProxy=www.google.com:88\n",
+      {},                                      // env_values
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                   // auto_detect
+      GURL(),                                  // pac_url
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:88",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
+    },
+
+    {
+      TEST_DESC("Only HTTP proxy specified, different port, space-delimited"),
+
+      // Input.
+      "[Proxy Settings]\nProxyType=1\n"
+          "httpProxy=www.google.com 88\n",
       {},                                      // env_values
 
       // Expected result.
@@ -1209,6 +1243,38 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
           "",                   // https
           "",                   // ftp
           "*.google.com"),      // bypass rules
+    },
+
+    {
+      TEST_DESC("socks"),
+
+      // Input.
+      "[Proxy Settings]\nProxyType=1\nsocksProxy=socks.com 888\n",
+      {},                                      // env_values
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                   // auto_detect
+      GURL(),                                  // pac_url
+      ProxyRulesExpectation::Single(
+          "socks5://socks.com:888",  // single proxy
+          ""),                       // bypass rules
+    },
+
+    {
+      TEST_DESC("socks4"),
+
+      // Input.
+      "[Proxy Settings]\nProxyType=1\nsocksProxy=socks4://socks.com 888\n",
+      {},                                      // env_values
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                   // auto_detect
+      GURL(),                                  // pac_url
+      ProxyRulesExpectation::Single(
+          "socks4://socks.com:888",  // single proxy
+          ""),                       // bypass rules
     },
 
     {

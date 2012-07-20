@@ -247,8 +247,8 @@ png_inflate(png_structp png_ptr, const png_byte *data, png_size_t size,
       {
          if (output != 0 && output_size > count)
          {
-            int copy = output_size - count;
-            if (avail < copy) copy = avail;
+            png_size_t copy = output_size - count;
+            if ((png_size_t) avail < copy) copy = (png_size_t) avail;
             png_memcpy(output + count, png_ptr->zbuf, copy);
          }
          count += avail;

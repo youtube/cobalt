@@ -1,15 +1,13 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SERVER_WEB_SOCKET_H_
 #define NET_SERVER_WEB_SOCKET_H_
-#pragma once
 
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 
 namespace net {
 
@@ -44,4 +42,4 @@ class WebSocket {
 
 }  // namespace net
 
-#endif // NET_SERVER_WEB_SOCKET_H_
+#endif  // NET_SERVER_WEB_SOCKET_H_

@@ -130,6 +130,7 @@ static void _hb_gr_font_data_destroy (void *data)
   hb_gr_font_data_t *f = (hb_gr_font_data_t *) data;
 
   gr_font_destroy (f->grfont);
+  free (f);
 }
 
 static hb_user_data_key_t hb_gr_data_key;
@@ -158,7 +159,7 @@ _hb_gr_face_get_data (hb_face_t *face)
 
   if (unlikely (!hb_face_set_user_data (face, &hb_gr_data_key, data,
 					(hb_destroy_func_t) _hb_gr_face_data_destroy,
-					FALSE)))
+					false)))
   {
     _hb_gr_face_data_destroy (data);
     data = (hb_gr_face_data_t *) hb_face_get_user_data (face, &hb_gr_data_key);
@@ -197,7 +198,7 @@ _hb_gr_font_get_data (hb_font_t *font)
 
   if (unlikely (!hb_font_set_user_data (font, &hb_gr_data_key, data,
 					(hb_destroy_func_t) _hb_gr_font_data_destroy,
-					FALSE)))
+					false)))
   {
     _hb_gr_font_data_destroy (data);
     data = (hb_gr_font_data_t *) hb_font_get_user_data (font, &hb_gr_data_key);
@@ -212,24 +213,26 @@ _hb_gr_font_get_data (hb_font_t *font)
 
 
 hb_bool_t
-hb_graphite_shape (hb_font_t          *font,
+_hb_graphite_shape (hb_font_t          *font,
 		   hb_buffer_t        *buffer,
 		   const hb_feature_t *features,
-		   unsigned int        num_features,
-		   const char * const *shaper_options)
+		   unsigned int        num_features)
 {
 
   buffer->guess_properties ();
 
+  /* XXX We do a hell of a lot of stuff just to figure out this font
+   * is not graphite!  Shouldn't do. */
+
   hb_gr_font_data_t *data = _hb_gr_font_get_data (font);
-  if (!data->grface) return FALSE;
+  if (!data->grface) return false;
 
   unsigned int charlen;
   hb_glyph_info_t *bufferi = hb_buffer_get_glyph_infos (buffer, &charlen);
 
   int success = 0;
 
-  if (!charlen) return TRUE;
+  if (!charlen) return true;
 
   const char *lang = hb_language_to_string (hb_buffer_get_language (buffer));
   const char *lang_end = strchr (lang, '-');
@@ -244,11 +247,10 @@ hb_graphite_shape (hb_font_t          *font,
     features++;
   }
 
-  unsigned short *gids = NULL;
+  hb_codepoint_t *gids = NULL, *pg;
   hb_gr_cluster_t *clusters = NULL;
   gr_segment *seg = NULL;
   uint32_t *text = NULL;
-  unsigned short *pg;
   const gr_slot *is;
   unsigned int ci = 0, ic = 0;
   float curradvx = 0., curradvy = 0.;
@@ -277,7 +279,7 @@ hb_graphite_shape (hb_font_t          *font,
   clusters = (hb_gr_cluster_t *) calloc (charlen, sizeof (hb_gr_cluster_t));
   if (!glyphlen || !clusters) goto dieout;
 
-  gids = (uint16_t *) malloc (glyphlen * sizeof (uint16_t));
+  gids = (hb_codepoint_t *) malloc (glyphlen * sizeof (hb_codepoint_t));
   if (!gids) goto dieout;
 
   pg = gids;

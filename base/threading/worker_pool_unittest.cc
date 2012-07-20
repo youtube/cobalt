@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,8 +24,7 @@ namespace {
 class PostTaskAndReplyTester
     : public base::RefCountedThreadSafe<PostTaskAndReplyTester> {
  public:
-  PostTaskAndReplyTester() : finished_(false), test_event_(false, false) {
-  }
+  PostTaskAndReplyTester() : finished_(false), test_event_(false, false) {}
 
   void RunTest() {
     ASSERT_TRUE(thread_checker_.CalledOnValidThread());
@@ -55,6 +54,9 @@ class PostTaskAndReplyTester
   }
 
  private:
+  friend class base::RefCountedThreadSafe<PostTaskAndReplyTester>;
+  ~PostTaskAndReplyTester() {}
+
   bool finished_;
   WaitableEvent test_event_;
 
@@ -81,13 +83,19 @@ TEST_F(WorkerPoolTest, PostTask) {
   long_test_event.Wait();
 }
 
-TEST_F(WorkerPoolTest, PostTaskAndReply) {
+#if defined(OS_WIN) || defined(OS_LINUX)
+// Flaky on Windows and Linux (http://crbug.com/130337)
+#define MAYBE_PostTaskAndReply DISABLED_PostTaskAndReply
+#else
+#define MAYBE_PostTaskAndReply PostTaskAndReply
+#endif
+
+TEST_F(WorkerPoolTest, MAYBE_PostTaskAndReply) {
   MessageLoop message_loop;
   scoped_refptr<PostTaskAndReplyTester> tester(new PostTaskAndReplyTester());
   tester->RunTest();
 
-  const TimeDelta kMaxDuration =
-      TimeDelta::FromMilliseconds(TestTimeouts::tiny_timeout_ms());
+  const TimeDelta kMaxDuration = TestTimeouts::tiny_timeout();
   TimeTicks start = TimeTicks::Now();
   while (!tester->finished() && TimeTicks::Now() - start < kMaxDuration) {
     MessageLoop::current()->RunAllPending();

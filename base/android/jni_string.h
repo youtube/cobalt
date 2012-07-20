@@ -9,7 +9,6 @@
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
-#include "base/string16.h"
 #include "base/string_piece.h"
 
 namespace base {
@@ -21,7 +20,8 @@ std::string ConvertJavaStringToUTF8(const JavaRef<jstring>& str);
 
 // Convert a std string to Java string.
 ScopedJavaLocalRef<jstring> ConvertUTF8ToJavaString(
-    JNIEnv* env, const base::StringPiece& str);
+    JNIEnv* env,
+    const base::StringPiece& str);
 
 // Convert a Java string to UTF16. Returns a string16.
 string16 ConvertJavaStringToUTF16(JNIEnv* env, jstring str);
@@ -29,7 +29,8 @@ string16 ConvertJavaStringToUTF16(const JavaRef<jstring>& str);
 
 // Convert a string16 to a Java string.
 ScopedJavaLocalRef<jstring> ConvertUTF16ToJavaString(
-    JNIEnv* env, const string16& str);
+    JNIEnv* env,
+    const base::StringPiece16& str);
 
 }  // namespace android
 }  // namespace base

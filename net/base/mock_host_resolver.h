@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_MOCK_HOST_RESOLVER_H_
 #define NET_BASE_MOCK_HOST_RESOLVER_H_
-#pragma once
 
 #include <list>
 #include <map>

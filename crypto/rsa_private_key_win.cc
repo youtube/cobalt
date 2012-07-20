@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,15 +11,6 @@
 #include "base/string_util.h"
 
 #pragma comment(lib, "crypt32.lib")
-
-namespace {
-  // Helper for error handling during key import.
-#define READ_ASSERT(truth) \
-  if (!(truth)) { \
-  NOTREACHED(); \
-  return false; \
-  }
-}  // namespace
 
 namespace crypto {
 
@@ -54,17 +45,18 @@ RSAPrivateKey* RSAPrivateKey::CreateFromPrivateKeyInfo(
     return NULL;
 
   PrivateKeyInfoCodec pki(false);  // Little-Endian
-  pki.Import(input);
+  if (!pki.Import(input))
+    return NULL;
 
-  int blob_size = sizeof(PUBLICKEYSTRUC) +
-                  sizeof(RSAPUBKEY) +
-                  pki.modulus()->size() +
-                  pki.prime1()->size() +
-                  pki.prime2()->size() +
-                  pki.exponent1()->size() +
-                  pki.exponent2()->size() +
-                  pki.coefficient()->size() +
-                  pki.private_exponent()->size();
+  size_t blob_size = sizeof(PUBLICKEYSTRUC) +
+                     sizeof(RSAPUBKEY) +
+                     pki.modulus()->size() +
+                     pki.prime1()->size() +
+                     pki.prime2()->size() +
+                     pki.exponent1()->size() +
+                     pki.exponent2()->size() +
+                     pki.coefficient()->size() +
+                     pki.private_exponent()->size();
   scoped_array<BYTE> blob(new BYTE[blob_size]);
 
   uint8* dest = blob.get();
@@ -102,11 +94,16 @@ RSAPrivateKey* RSAPrivateKey::CreateFromPrivateKeyInfo(
          pki.private_exponent()->size());
   dest += pki.private_exponent()->size();
 
-  READ_ASSERT(dest == blob.get() + blob_size);
-  if (!CryptImportKey(result->provider_,
-                      reinterpret_cast<uint8*>(public_key_struc), blob_size, 0,
-                      CRYPT_EXPORTABLE, result->key_.receive()))
+  if (dest != blob.get() + blob_size) {
+    NOTREACHED();
     return NULL;
+  }
+  if (!CryptImportKey(result->provider_,
+                      reinterpret_cast<uint8*>(public_key_struc),
+                      static_cast<DWORD>(blob_size), 0, CRYPT_EXPORTABLE,
+                      result->key_.receive())) {
+    return NULL;
+  }
 
   return result.release();
 }

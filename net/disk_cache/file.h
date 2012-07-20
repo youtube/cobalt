@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 
 #ifndef NET_DISK_CACHE_FILE_H_
 #define NET_DISK_CACHE_FILE_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "base/platform_file.h"
@@ -19,11 +18,12 @@ namespace disk_cache {
 // This interface is used to support asynchronous ReadData and WriteData calls.
 class FileIOCallback {
  public:
-  virtual ~FileIOCallback() {}
-
   // Notified of the actual number of bytes read or written. This value is
   // negative if an error occurred.
   virtual void OnFileIOComplete(int bytes_copied) = 0;
+
+ protected:
+  virtual ~FileIOCallback() {}
 };
 
 // Simple wrapper around a file that allows asynchronous operations.
@@ -67,6 +67,9 @@ class NET_EXPORT_PRIVATE File : public base::RefCounted<File> {
 
   // Blocks until |num_pending_io| IO operations complete.
   static void WaitForPendingIO(int* num_pending_io);
+
+  // Drops current pending operations without waiting for them to complete.
+  static void DropPendingIO();
 
  protected:
   virtual ~File();

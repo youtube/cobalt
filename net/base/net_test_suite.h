@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_NET_TEST_SUITE_H_
 #define NET_BASE_NET_TEST_SUITE_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "base/test/test_suite.h"

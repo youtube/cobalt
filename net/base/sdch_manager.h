@@ -19,7 +19,6 @@
 
 #ifndef NET_BASE_SDCH_MANAGER_H_
 #define NET_BASE_SDCH_MANAGER_H_
-#pragma once
 
 #include <map>
 #include <set>

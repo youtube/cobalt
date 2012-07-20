@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef SQL_META_TABLE_H_
 #define SQL_META_TABLE_H_
-#pragma once
 
 #include <string>
 
@@ -26,7 +25,8 @@ class SQL_EXPORT MetaTable {
 
   // Initializes the MetaTableHelper, creating the meta table if necessary. For
   // new tables, it will initialize the version number to |version| and the
-  // compatible version number to |compatible_version|.
+  // compatible version number to |compatible_version|.  Versions must be
+  // greater than 0 to distinguish missing versions (see GetVersionNumber()).
   bool Init(Connection* db, int version, int compatible_version);
 
   // Resets this MetaTable object, making another call to Init() possible.
@@ -67,6 +67,9 @@ class SQL_EXPORT MetaTable {
   bool GetValue(const char* key, std::string* value);
   bool GetValue(const char* key, int* value);
   bool GetValue(const char* key, int64* value);
+
+  // Deletes the key from the table.
+  bool DeleteKey(const char* key);
 
  private:
   // Conveniences to prepare the two types of statements used by

@@ -5,12 +5,12 @@ found in the LICENSE file.
 This file is used for making non-code changes to trigger buildbot cycles. Make
 any modification below this line.
 
-============================================================================
+=============================================================================
 
 Let's make a story. Add one sentence for each commit:
 
-CHAPTER 1:
-It was a dark and stormy night; the rain fell in torrents--except at
+CHAPTER 1.0:
+It was a dark and stormy night; the rain fell in torrents -- except at
 occasional intervals, when it was checked by a violent gust of wind which
 swept up the streets (for it is in London that our scene lies), rattling along
 the housetops, and fiercely agitating the scanty flame of the lamps that
@@ -47,4 +47,20 @@ Next time, there won't be any sushi. Why sushis with waffles anyway? It's like
 salmon in a cereal bowl.
 
 CHAPTER 4:
+The taste of stale sushi in his mouth the next morning was unbearable. He
+wondered where the sushi came from. He tries to recall the cook's face.  Purple?
+
+CHAPTER 5: 
+Many years later, Mr. Usagi would laugh at the memory of the earnest,
+well-intentioned Domo-Kun.
+Another day in the life...
+
+TRUISMS (1978-1983)
+JENNY HOLZER
+A LITTLE KNOWLEDGE CAN GO A LONG WAY
+A LOT OF PROFESSIONALS ARE CRACKPOTS
+A MAN CAN'T KNOW WHAT IT IS TO BE A MOTHER
+A NAME MEANS A LOT JUST BY ITSELF
+A POSITIVE ATTITUDE MEANS ALL THE DIFFERENCE IN THE WORLD
+A RELAXED MAN IS NOT NECESSARILY A BETTER MAN
 

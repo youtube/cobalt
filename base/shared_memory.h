@@ -1,23 +1,27 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_SHARED_MEMORY_H_
 #define BASE_SHARED_MEMORY_H_
-#pragma once
 
 #include "build/build_config.h"
 
+#include <string>
+
 #if defined(OS_POSIX)
+#include <stdio.h>
 #include <sys/types.h>
 #include <semaphore.h>
-#include "base/file_descriptor_posix.h"
 #endif
-#include <string>
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/process.h"
+
+#if defined(OS_POSIX)
+#include "base/file_descriptor_posix.h"
+#endif
 
 class FilePath;
 
@@ -165,7 +169,7 @@ class BASE_EXPORT SharedMemory {
   // identifier is not portable.
   SharedMemoryHandle handle() const;
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(OS_NACL)
   // Returns a unique identifier for this shared memory segment. Inode numbers
   // are technically only unique to a single filesystem. However, we always
   // allocate shared memory backing files from the same directory, so will end
@@ -200,14 +204,11 @@ class BASE_EXPORT SharedMemory {
   }
 
   // Locks the shared memory.
-  // This is a cross-process lock which may be recursively
-  // locked by the same thread.
-  // TODO(port):
-  // WARNING: on POSIX the lock only works across processes, not
-  // across threads.  2 threads in the same process can both grab the
-  // lock at the same time.  There are several solutions for this
-  // (futex, lockf+anon_semaphore) but none are both clean and common
-  // across Mac and Linux.
+  //
+  // WARNING: on POSIX the memory locking primitive only works across
+  // processes, not across threads.  The Lock method is not currently
+  // used in inner loops, so we protect against multiple threads in a
+  // critical section using a class global lock.
   void Lock();
 
 #if defined(OS_WIN)
@@ -222,7 +223,7 @@ class BASE_EXPORT SharedMemory {
   void Unlock();
 
  private:
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(OS_NACL)
   bool PrepareMapFile(FILE *fp);
   bool FilePathForMemoryName(const std::string& mem_name, FilePath* path);
   void LockOrUnlockCommon(int function);

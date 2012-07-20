@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/socket/socket_net_log_params.h"
 #include "net/socket/tcp_client_socket.h"
 
 namespace net {
@@ -35,16 +36,14 @@ TCPServerSocketLibevent::TCPServerSocketLibevent(
     : socket_(kInvalidSocket),
       accept_socket_(NULL),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (source.is_valid())
-    params = new NetLogSourceParameter("source_dependency", source);
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
 }
 
 TCPServerSocketLibevent::~TCPServerSocketLibevent() {
   if (socket_ != kInvalidSocket)
     Close();
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
 int TCPServerSocketLibevent::Listen(const IPEndPoint& address, int backlog) {
@@ -64,13 +63,11 @@ int TCPServerSocketLibevent::Listen(const IPEndPoint& address, int backlog) {
     return result;
   }
 
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
-  int result = bind(socket_, addr, addr_len);
+  int result = bind(socket_, storage.addr, storage.addr_len);
   if (result < 0) {
     PLOG(ERROR) << "bind() returned an error";
     result = MapSystemError(errno);
@@ -93,12 +90,10 @@ int TCPServerSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
 
-  struct sockaddr_storage addr_storage;
-  socklen_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (getsockname(socket_, addr, &addr_len) < 0)
+  SockaddrStorage storage;
+  if (getsockname(socket_, storage.addr, &storage.addr_len) < 0)
     return MapSystemError(errno);
-  if (!address->FromSockAddr(addr, addr_len))
+  if (!address->FromSockAddr(storage.addr, storage.addr_len))
     return ERR_FAILED;
 
   return OK;
@@ -111,7 +106,7 @@ int TCPServerSocketLibevent::Accept(
   DCHECK(!callback.is_null());
   DCHECK(accept_callback_.is_null());
 
-  net_log_.BeginEvent(NetLog::TYPE_TCP_ACCEPT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_TCP_ACCEPT);
 
   int result = AcceptInternal(socket);
 
@@ -132,11 +127,10 @@ int TCPServerSocketLibevent::Accept(
 
 int TCPServerSocketLibevent::AcceptInternal(
     scoped_ptr<StreamSocket>* socket) {
-  struct sockaddr_storage addr_storage;
-  socklen_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-
-  int new_socket = HANDLE_EINTR(accept(socket_, addr, &addr_len));
+  SockaddrStorage storage;
+  int new_socket = HANDLE_EINTR(accept(socket_,
+                                       storage.addr,
+                                       &storage.addr_len));
   if (new_socket < 0) {
     int net_error = MapSystemError(errno);
     if (net_error != ERR_IO_PENDING)
@@ -145,7 +139,7 @@ int TCPServerSocketLibevent::AcceptInternal(
   }
 
   IPEndPoint address;
-  if (!address.FromSockAddr(addr, addr_len)) {
+  if (!address.FromSockAddr(storage.addr, storage.addr_len)) {
     NOTREACHED();
     if (HANDLE_EINTR(close(new_socket)) < 0)
       PLOG(ERROR) << "close";
@@ -153,7 +147,7 @@ int TCPServerSocketLibevent::AcceptInternal(
     return ERR_FAILED;
   }
   scoped_ptr<TCPClientSocket> tcp_socket(new TCPClientSocket(
-      AddressList::CreateFromIPAddress(address.address(), address.port()),
+      AddressList(address),
       net_log_.net_log(), net_log_.source()));
   int adopt_result = tcp_socket->AdoptSocket(new_socket);
   if (adopt_result != OK) {
@@ -164,8 +158,7 @@ int TCPServerSocketLibevent::AcceptInternal(
   }
   socket->reset(tcp_socket.release());
   net_log_.EndEvent(NetLog::TYPE_TCP_ACCEPT,
-                    make_scoped_refptr(new NetLogStringParameter(
-                        "address", address.ToString())));
+                    CreateNetLogIPEndPointCallback(&address));
   return OK;
 }
 
@@ -187,8 +180,9 @@ void TCPServerSocketLibevent::OnFileCanReadWithoutBlocking(int fd) {
     accept_socket_ = NULL;
     bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
     DCHECK(ok);
-    accept_callback_.Run(result);
+    CompletionCallback callback = accept_callback_;
     accept_callback_.Reset();
+    callback.Run(result);
   }
 }
 

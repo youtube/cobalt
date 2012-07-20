@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_STREAM_SOCKET_STREAM_JOB_MANAGER_H_
 #define NET_SOCKET_STREAM_SOCKET_STREAM_JOB_MANAGER_H_
-#pragma once
 
 #include <map>
 #include <string>

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -64,7 +64,7 @@ bool HttpVaryData::Init(const HttpRequestInfo& request_info,
   return is_valid_ = true;
 }
 
-bool HttpVaryData::InitFromPickle(const Pickle& pickle, void** iter) {
+bool HttpVaryData::InitFromPickle(const Pickle& pickle, PickleIterator* iter) {
   is_valid_ = false;
   const char* data;
   if (pickle.ReadBytes(iter, &data, sizeof(request_digest_))) {

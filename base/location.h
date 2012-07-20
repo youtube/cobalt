@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <string>
 
 #include "base/base_export.h"
-#include "base/values.h"
+#include "base/basictypes.h"
 
 namespace tracked_objects {
 
@@ -58,15 +58,24 @@ class BASE_EXPORT Location {
   // Write function_name_ in HTML with '<' and '>' properly encoded.
   void WriteFunctionName(std::string* output) const;
 
-  // Construct a Value* representation.  The caller assumes ownership of the
-  // memory in the returned instance.
-  base::DictionaryValue* ToValue() const;
-
  private:
   const char* function_name_;
   const char* file_name_;
   int line_number_;
   const void* program_counter_;
+};
+
+// A "snapshotted" representation of the Location class that can safely be
+// passed across process boundaries.
+struct BASE_EXPORT LocationSnapshot {
+  // The default constructor is exposed to support the IPC serialization macros.
+  LocationSnapshot();
+  explicit LocationSnapshot(const tracked_objects::Location& location);
+  ~LocationSnapshot();
+
+  std::string file_name;
+  std::string function_name;
+  int line_number;
 };
 
 BASE_EXPORT const void* GetProgramCounter();

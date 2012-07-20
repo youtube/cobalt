@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,9 +21,7 @@ class ChromeClassTester : public clang::ASTConsumer {
   explicit ChromeClassTester(clang::CompilerInstance& instance);
   virtual ~ChromeClassTester();
 
-  void BuildBannedLists();
-
-  // ASTConsumer:
+  // clang::ASTConsumer:
   virtual void HandleTagDeclDefinition(clang::TagDecl* tag);
 
  protected:
@@ -34,28 +32,37 @@ class ChromeClassTester : public clang::ASTConsumer {
   // printing.
   void emitWarning(clang::SourceLocation loc, const char* error);
 
-  // Utility method for subclasses to check if testing details are in this
-  // class. Some tests won't care if a class has a ::testing member and others
-  // will.
-  bool InTestingNamespace(const clang::Decl* record);
-
   // Utility method for subclasses to check if this class is in a banned
   // namespace.
   bool InBannedNamespace(const clang::Decl* record);
 
+  // Utility method for subclasses to determine the namespace of the
+  // specified record, if any. Unnamed namespaces will be identified as
+  // "<anonymous namespace>".
+  std::string GetNamespace(const clang::Decl* record);
+
+  // Utility method for subclasses to check if this class is within an
+  // implementation (.cc, .cpp, .mm) file.
+  bool InImplementationFile(clang::SourceLocation location);
+
  private:
+  void BuildBannedLists();
+
   // Filtered versions of tags that are only called with things defined in
   // chrome header files.
-  virtual void CheckChromeClass(const clang::SourceLocation& record_location,
+  virtual void CheckChromeClass(clang::SourceLocation record_location,
                                 clang::CXXRecordDecl* record) = 0;
 
   // Utility methods used for filtering out non-chrome classes (and ones we
   // deliberately ignore) in HandleTagDeclDefinition().
-  std::string GetNamespace(const clang::Decl* record);
   std::string GetNamespaceImpl(const clang::DeclContext* context,
-                               std::string candidate);
+                               const std::string& candidate);
   bool InBannedDirectory(clang::SourceLocation loc);
   bool IsIgnoredType(const std::string& base_name);
+
+  // Attempts to determine the filename for the given SourceLocation.
+  // Returns false if the filename could not be determined.
+  bool GetFilename(clang::SourceLocation loc, std::string* filename);
 
   clang::CompilerInstance& instance_;
   clang::DiagnosticsEngine& diagnostic_;

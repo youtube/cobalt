@@ -35,7 +35,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslinfo.c,v 1.23.2.1 2010/09/02 01:13:46 wtc%google.com Exp $ */
+/* $Id: sslinfo.c,v 1.28 2012/03/14 00:56:43 wtc%google.com Exp $ */
 #include "ssl.h"
 #include "sslimpl.h"
 #include "sslproto.h"
@@ -97,11 +97,11 @@ SSL_GetChannelInfo(PRFileDesc *fd, SSLChannelInfo *info, PRUintn len)
 	} else if (ss->ssl3.initialized) { 	/* SSL3 and TLS */
 	    ssl_GetSpecReadLock(ss);
 	    /* XXX  The cipher suite should be in the specs and this
-	     * function should get it from crSpec rather than from the "hs".
+	     * function should get it from cwSpec rather than from the "hs".
 	     * See bug 275744 comment 69.
 	     */
 	    inf.cipherSuite           = ss->ssl3.hs.cipher_suite;
-	    inf.compressionMethod     = ss->ssl3.crSpec->compression_method;
+	    inf.compressionMethod     = ss->ssl3.cwSpec->compression_method;
 	    ssl_ReleaseSpecReadLock(ss);
 	    inf.compressionMethodName =
 		ssl_GetCompressionMethodName(inf.compressionMethod);
@@ -181,8 +181,8 @@ static const SSLCipherSuiteInfo suiteInfo[] = {
 {0,CS(TLS_DHE_DSS_WITH_AES_128_CBC_SHA),      S_DSA, K_DHE, C_AES, B_128, M_SHA, 1, 0, 0, },
 {0,CS(TLS_RSA_WITH_SEED_CBC_SHA),             S_RSA, K_RSA, C_SEED,B_128, M_SHA, 1, 0, 0, },
 {0,CS(TLS_RSA_WITH_CAMELLIA_128_CBC_SHA),     S_RSA, K_RSA, C_CAMELLIA, B_128, M_SHA, 0, 0, 0, },
-{0,CS(SSL_RSA_WITH_RC4_128_MD5),              S_RSA, K_RSA, C_RC4, B_128, M_MD5, 0, 0, 0, },
 {0,CS(SSL_RSA_WITH_RC4_128_SHA),              S_RSA, K_RSA, C_RC4, B_128, M_SHA, 0, 0, 0, },
+{0,CS(SSL_RSA_WITH_RC4_128_MD5),              S_RSA, K_RSA, C_RC4, B_128, M_MD5, 0, 0, 0, },
 {0,CS(TLS_RSA_WITH_AES_128_CBC_SHA),          S_RSA, K_RSA, C_AES, B_128, M_SHA, 1, 0, 0, },
 
 {0,CS(SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA),     S_RSA, K_DHE, C_3DES,B_3DES,M_SHA, 1, 0, 0, },
@@ -317,69 +317,6 @@ SSL_IsExportCipherSuite(PRUint16 cipherSuite)
     return PR_FALSE;
 }
 
-/* Export keying material according to RFC 5705.
-** fd must correspond to a TLS 1.0 or higher socket, out must
-** be already allocated.
-*/
-SECStatus
-SSL_ExportKeyingMaterial(PRFileDesc *fd,
-			 const char *label,
-			 unsigned int labelLen,
-			 const unsigned char *context,
-			 unsigned int contextLen,
-			 unsigned char *out,
-			 unsigned int outLen)
-{
-    sslSocket *ss;
-    unsigned char *val = NULL;
-    unsigned int valLen, i;
-    SECStatus rv = SECFailure;
-
-    ss = ssl_FindSocket(fd);
-    if (!ss) {
-	SSL_DBG(("%d: SSL[%d]: bad socket in ExportKeyingMaterial",
-		 SSL_GETPID(), fd));
-	return SECFailure;
-    }
-
-    if (ss->version < SSL_LIBRARY_VERSION_3_1_TLS) {
-	PORT_SetError(SSL_ERROR_UNSUPPORTED_VERSION);
-	return SECFailure;
-    }
-
-    valLen = SSL3_RANDOM_LENGTH * 2;
-    if (contextLen > 0)
-	valLen += 2 /* uint16 length */ + contextLen;
-    val = PORT_Alloc(valLen);
-    if (val == NULL)
-	return SECFailure;
-    i = 0;
-    PORT_Memcpy(val + i, &ss->ssl3.hs.client_random.rand, SSL3_RANDOM_LENGTH);
-    i += SSL3_RANDOM_LENGTH;
-    PORT_Memcpy(val + i, &ss->ssl3.hs.server_random.rand, SSL3_RANDOM_LENGTH);
-    i += SSL3_RANDOM_LENGTH;
-    if (contextLen > 0) {
-	val[i++] = contextLen >> 8;
-	val[i++] = contextLen;
-	PORT_Memcpy(val + i, context, contextLen);
-	i += contextLen;
-    }
-    PORT_Assert(i == valLen);
-
-    ssl_GetSpecReadLock(ss);
-    if (!ss->ssl3.cwSpec->master_secret && !ss->ssl3.cwSpec->msItem.len) {
-	PORT_SetError(SSL_ERROR_HANDSHAKE_NOT_COMPLETED);
-	rv = SECFailure;
-    } else {
-	rv = ssl3_TLSPRFWithMasterSecret(ss->ssl3.cwSpec, label, labelLen, val,
-					 valLen, out, outLen);
-    }
-    ssl_ReleaseSpecReadLock(ss);
-
-    PORT_ZFree(val, valLen);
-    return rv;
-}
-
 SECItem*
 SSL_GetNegotiatedHostInfo(PRFileDesc *fd)
 {
@@ -399,7 +336,7 @@ SSL_GetNegotiatedHostInfo(PRFileDesc *fd)
             ss->ssl3.initialized) { /* TLS */
             SECItem *crsName;
             ssl_GetSpecReadLock(ss); /*********************************/
-            crsName = &ss->ssl3.crSpec->srvVirtName;
+            crsName = &ss->ssl3.cwSpec->srvVirtName;
             if (crsName->data) {
                 sniName = SECITEM_DupItem(crsName);
             }
@@ -418,4 +355,78 @@ SSL_GetNegotiatedHostInfo(PRFileDesc *fd)
         sniName->len  = PORT_Strlen(name);
     }
     return sniName;
+}
+
+SECStatus
+SSL_ExportKeyingMaterial(PRFileDesc *fd,
+                         const char *label, unsigned int labelLen,
+                         PRBool hasContext,
+                         const unsigned char *context, unsigned int contextLen,
+                         unsigned char *out, unsigned int outLen)
+{
+    sslSocket *ss;
+    unsigned char *val = NULL;
+    unsigned int valLen, i;
+    SECStatus rv = SECFailure;
+
+    ss = ssl_FindSocket(fd);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in ExportKeyingMaterial",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    ssl_GetRecvBufLock(ss);
+    ssl_GetSSL3HandshakeLock(ss);
+
+    if (ss->version < SSL_LIBRARY_VERSION_3_1_TLS) {
+	PORT_SetError(SSL_ERROR_UNSUPPORTED_VERSION);
+	ssl_ReleaseSSL3HandshakeLock(ss);
+	ssl_ReleaseRecvBufLock(ss);
+	return SECFailure;
+    }
+
+    /* construct PRF arguments */
+    valLen = SSL3_RANDOM_LENGTH * 2;
+    if (hasContext) {
+	valLen += 2 /* uint16 length */ + contextLen;
+    }
+    val = PORT_Alloc(valLen);
+    if (!val) {
+	ssl_ReleaseSSL3HandshakeLock(ss);
+	ssl_ReleaseRecvBufLock(ss);
+	return SECFailure;
+    }
+    i = 0;
+
+    PORT_Memcpy(val + i, &ss->ssl3.hs.client_random.rand, SSL3_RANDOM_LENGTH);
+    i += SSL3_RANDOM_LENGTH;
+    PORT_Memcpy(val + i, &ss->ssl3.hs.server_random.rand, SSL3_RANDOM_LENGTH);
+    i += SSL3_RANDOM_LENGTH;
+
+    if (hasContext) {
+	val[i++] = contextLen >> 8;
+	val[i++] = contextLen;
+	PORT_Memcpy(val + i, context, contextLen);
+	i += contextLen;
+    }
+    PORT_Assert(i == valLen);
+
+    /* Allow TLS keying material to be exported sooner, when the master
+     * secret is available and we have sent ChangeCipherSpec.
+     */
+    ssl_GetSpecReadLock(ss);
+    if (!ss->ssl3.cwSpec->master_secret && !ss->ssl3.cwSpec->msItem.len) {
+	PORT_SetError(SSL_ERROR_HANDSHAKE_NOT_COMPLETED);
+	rv = SECFailure;
+    } else {
+	rv = ssl3_TLSPRFWithMasterSecret(ss->ssl3.cwSpec, label, labelLen, val,
+					 valLen, out, outLen);
+    }
+    ssl_ReleaseSpecReadLock(ss);
+    ssl_ReleaseSSL3HandshakeLock(ss);
+    ssl_ReleaseRecvBufLock(ss);
+
+    PORT_ZFree(val, valLen);
+    return rv;
 }

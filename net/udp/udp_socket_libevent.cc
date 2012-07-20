@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
+#include "base/callback.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -19,7 +20,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
-#include "net/udp/udp_data_transfer_param.h"
+#include "net/udp/udp_net_log_parameters.h"
 #if defined(OS_POSIX)
 #include <netinet/in.h>
 #endif
@@ -40,6 +41,7 @@ UDPSocketLibevent::UDPSocketLibevent(
     net::NetLog* net_log,
     const net::NetLog::Source& source)
         : socket_(kInvalidSocket),
+          socket_options_(0),
           bind_type_(bind_type),
           rand_int_cb_(rand_int_cb),
           read_watcher_(this),
@@ -48,17 +50,15 @@ UDPSocketLibevent::UDPSocketLibevent(
           recv_from_address_(NULL),
           write_buf_len_(0),
           net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_UDP_SOCKET)) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (source.is_valid())
-    params = new NetLogSourceParameter("source_dependency", source);
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
   if (bind_type == DatagramSocket::RANDOM_BIND)
     DCHECK(!rand_int_cb.is_null());
 }
 
 UDPSocketLibevent::~UDPSocketLibevent() {
   Close();
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
 void UDPSocketLibevent::Close() {
@@ -95,13 +95,11 @@ int UDPSocketLibevent::GetPeerAddress(IPEndPoint* address) const {
     return ERR_SOCKET_NOT_CONNECTED;
 
   if (!remote_address_.get()) {
-    struct sockaddr_storage addr_storage;
-    socklen_t addr_len = sizeof(addr_storage);
-    struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-    if (getpeername(socket_, addr, &addr_len))
+    SockaddrStorage storage;
+    if (getpeername(socket_, storage.addr, &storage.addr_len))
       return MapSystemError(errno);
     scoped_ptr<IPEndPoint> address(new IPEndPoint());
-    if (!address->FromSockAddr(addr, addr_len))
+    if (!address->FromSockAddr(storage.addr, storage.addr_len))
       return ERR_FAILED;
     remote_address_.reset(address.release());
   }
@@ -117,13 +115,11 @@ int UDPSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
     return ERR_SOCKET_NOT_CONNECTED;
 
   if (!local_address_.get()) {
-    struct sockaddr_storage addr_storage;
-    socklen_t addr_len = sizeof(addr_storage);
-    struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-    if (getsockname(socket_, addr, &addr_len))
+    SockaddrStorage storage;
+    if (getsockname(socket_, storage.addr, &storage.addr_len))
       return MapSystemError(errno);
     scoped_ptr<IPEndPoint> address(new IPEndPoint());
-    if (!address->FromSockAddr(addr, addr_len))
+    if (!address->FromSockAddr(storage.addr, storage.addr_len))
       return ERR_FAILED;
     local_address_.reset(address.release());
   }
@@ -216,10 +212,8 @@ int UDPSocketLibevent::SendToOrWrite(IOBuffer* buf,
 }
 
 int UDPSocketLibevent::Connect(const IPEndPoint& address) {
-  net_log_.BeginEvent(
-      NetLog::TYPE_UDP_CONNECT,
-      make_scoped_refptr(new NetLogStringParameter("address",
-                                                   address.ToString())));
+  net_log_.BeginEvent(NetLog::TYPE_UDP_CONNECT,
+                      CreateNetLogUDPConnectCallback(&address));
   int rv = InternalConnect(address);
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_UDP_CONNECT, rv);
   return rv;
@@ -240,13 +234,11 @@ int UDPSocketLibevent::InternalConnect(const IPEndPoint& address) {
   if (rv < 0)
     return rv;
 
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_FAILED;
 
-  rv = HANDLE_EINTR(connect(socket_, addr, addr_len));
+  rv = HANDLE_EINTR(connect(socket_, storage.addr, storage.addr_len));
   if (rv < 0)
     return MapSystemError(errno);
 
@@ -258,6 +250,9 @@ int UDPSocketLibevent::Bind(const IPEndPoint& address) {
   DCHECK(CalledOnValidThread());
   DCHECK(!is_connected());
   int rv = CreateSocket(address);
+  if (rv < 0)
+    return rv;
+  rv = SetSocketOptions();
   if (rv < 0)
     return rv;
   rv = DoBind(address);
@@ -281,6 +276,20 @@ bool UDPSocketLibevent::SetSendBufferSize(int32 size) {
                       reinterpret_cast<const char*>(&size), sizeof(size));
   DCHECK(!rv) << "Could not set socket send buffer size: " << errno;
   return rv == 0;
+}
+
+void UDPSocketLibevent::AllowAddressReuse() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!is_connected());
+
+  socket_options_ |= SOCKET_OPTION_REUSE_ADDRESS;
+}
+
+void UDPSocketLibevent::AllowBroadcast() {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!is_connected());
+
+  socket_options_ |= SOCKET_OPTION_BROADCAST;
 }
 
 void UDPSocketLibevent::DoReadCallback(int rv) {
@@ -332,10 +341,9 @@ void UDPSocketLibevent::LogRead(int result,
     bool is_address_valid = address.FromSockAddr(addr, addr_len);
     net_log_.AddEvent(
         NetLog::TYPE_UDP_BYTES_RECEIVED,
-        make_scoped_refptr(
-            new UDPDataTransferNetLogParam(
-                result, bytes, net_log_.IsLoggingBytes(),
-                is_address_valid ? &address : NULL)));
+        CreateNetLogUDPDataTranferCallback(
+            result, bytes,
+            is_address_valid ? &address : NULL));
   }
 
   base::StatsCounter read_bytes("udp.read_bytes");
@@ -378,10 +386,7 @@ void UDPSocketLibevent::LogWrite(int result,
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_UDP_BYTES_SENT,
-        make_scoped_refptr(
-            new UDPDataTransferNetLogParam(result, bytes,
-                                           net_log_.IsLoggingBytes(),
-                                           address)));
+        CreateNetLogUDPDataTranferCallback(result, bytes, address));
   }
 
   base::StatsCounter write_bytes("udp.write_bytes");
@@ -393,41 +398,37 @@ int UDPSocketLibevent::InternalRecvFrom(IOBuffer* buf, int buf_len,
   int bytes_transferred;
   int flags = 0;
 
-  struct sockaddr_storage addr_storage;
-  socklen_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
+  SockaddrStorage storage;
 
   bytes_transferred =
       HANDLE_EINTR(recvfrom(socket_,
                             buf->data(),
                             buf_len,
                             flags,
-                            addr,
-                            &addr_len));
+                            storage.addr,
+                            &storage.addr_len));
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
-    if (address && !address->FromSockAddr(addr, addr_len))
+    if (address && !address->FromSockAddr(storage.addr, storage.addr_len))
       result = ERR_FAILED;
   } else {
     result = MapSystemError(errno);
   }
   if (result != ERR_IO_PENDING)
-    LogRead(result, buf->data(), addr_len, addr);
+    LogRead(result, buf->data(), storage.addr_len, storage.addr);
   return result;
 }
 
 int UDPSocketLibevent::InternalSendTo(IOBuffer* buf, int buf_len,
                                       const IPEndPoint* address) {
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-
+  SockaddrStorage storage;
+  struct sockaddr* addr = storage.addr;
   if (!address) {
     addr = NULL;
-    addr_len = 0;
+    storage.addr_len = 0;
   } else {
-    if (!address->ToSockAddr(addr, &addr_len)) {
+    if (!address->ToSockAddr(storage.addr, &storage.addr_len)) {
       int result = ERR_FAILED;
       LogWrite(result, NULL, NULL);
       return result;
@@ -439,7 +440,7 @@ int UDPSocketLibevent::InternalSendTo(IOBuffer* buf, int buf_len,
                             buf_len,
                             0,
                             addr,
-                            addr_len));
+                            storage.addr_len));
   if (result < 0)
     result = MapSystemError(errno);
   if (result != ERR_IO_PENDING)
@@ -447,13 +448,34 @@ int UDPSocketLibevent::InternalSendTo(IOBuffer* buf, int buf_len,
   return result;
 }
 
+int UDPSocketLibevent::SetSocketOptions() {
+  int true_value = 1;
+  if (socket_options_ & SOCKET_OPTION_REUSE_ADDRESS) {
+    int rv = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &true_value,
+                        sizeof(true_value));
+    if (rv < 0)
+      return MapSystemError(errno);
+#if defined(SO_REUSEPORT)
+    rv = setsockopt(socket_, SOL_SOCKET, SO_REUSEPORT, &true_value,
+                    sizeof(true_value));
+    if (rv < 0)
+      return MapSystemError(errno);
+#endif
+  }
+  if (socket_options_ & SOCKET_OPTION_BROADCAST) {
+    int rv = setsockopt(socket_, SOL_SOCKET, SO_BROADCAST, &true_value,
+                        sizeof(true_value));
+    if (rv < 0)
+      return MapSystemError(errno);
+  }
+  return OK;
+}
+
 int UDPSocketLibevent::DoBind(const IPEndPoint& address) {
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_UNEXPECTED;
-  int rv = bind(socket_, addr, addr_len);
+  int rv = bind(socket_, storage.addr, storage.addr_len);
   return rv < 0 ? MapSystemError(errno) : rv;
 }
 

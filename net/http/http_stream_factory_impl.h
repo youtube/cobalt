@@ -7,6 +7,7 @@
 
 #include <map>
 #include <set>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "net/base/host_port_pair.h"
@@ -41,21 +42,21 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
                                  const HttpRequestInfo& info,
                                  const SSLConfig& server_ssl_config,
                                  const SSLConfig& proxy_ssl_config) OVERRIDE;
-  virtual void AddTLSIntolerantServer(const HostPortPair& server) OVERRIDE;
-  virtual bool IsTLSIntolerantServer(const HostPortPair& server) const OVERRIDE;
   virtual base::Value* PipelineInfoToValue() const OVERRIDE;
 
   // HttpPipelinedHostPool::Delegate interface
   virtual void OnHttpPipelinedHostHasAdditionalCapacity(
-      const HostPortPair& origin) OVERRIDE;
+      HttpPipelinedHost* host) OVERRIDE;
 
  private:
   class Request;
   class Job;
 
   typedef std::set<Request*> RequestSet;
+  typedef std::vector<Request*> RequestVector;
   typedef std::map<HostPortProxyPair, RequestSet> SpdySessionRequestMap;
-  typedef std::map<HostPortPair, RequestSet> HttpPipeliningRequestMap;
+  typedef std::map<HttpPipelinedHost::Key,
+                   RequestVector> HttpPipeliningRequestMap;
 
   bool GetAlternateProtocolRequestFor(const GURL& original_url,
                                       GURL* alternate_url) const;
@@ -71,7 +72,7 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
                           const SSLConfig& used_ssl_config,
                           const ProxyInfo& used_proxy_info,
                           bool was_npn_negotiated,
-                          SSLClientSocket::NextProto protocol_negotiated,
+                          NextProto protocol_negotiated,
                           bool using_spdy,
                           const BoundNetLog& net_log);
 
@@ -89,9 +90,12 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
   // Called when the Preconnect completes. Used for testing.
   virtual void OnPreconnectsCompleteInternal() {}
 
-  HttpNetworkSession* const session_;
+  void AbortPipelinedRequestsWithKey(const Job* job,
+                                     const HttpPipelinedHost::Key& key,
+                                     int status,
+                                     const SSLConfig& used_ssl_config);
 
-  std::set<HostPortPair> tls_intolerant_servers_;
+  HttpNetworkSession* const session_;
 
   // All Requests are handed out to clients. By the time HttpStreamFactoryImpl
   // is destroyed, all Requests should be deleted (which should remove them from

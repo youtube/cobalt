@@ -4,9 +4,8 @@
 
 #ifndef NET_BASE_UPLOAD_DATA_STREAM_H_
 #define NET_BASE_UPLOAD_DATA_STREAM_H_
-#pragma once
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_data.h"
 
@@ -65,12 +64,15 @@ class NET_EXPORT UploadDataStream {
   // Returns true if the upload data in the stream is entirely in memory.
   bool IsInMemory() const;
 
-  // This method is provided only to be used by unit tests.
-  static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
-
  private:
-  // Advances to the next element. Updates the internal states.
-  void AdvanceToNextElement();
+  friend class SpdyHttpStreamSpdy2Test;
+  friend class SpdyHttpStreamSpdy3Test;
+  friend class SpdyNetworkTransactionSpdy2Test;
+  friend class SpdyNetworkTransactionSpdy3Test;
+
+  // These methods are provided only to be used by unit tests.
+  static void ResetMergeChunks();
+  static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
 
   scoped_refptr<UploadData> upload_data_;
 
@@ -78,18 +80,6 @@ class NET_EXPORT UploadDataStream {
   // read). The index is used as a cursor to iterate over elements in
   // |upload_data_|.
   size_t element_index_;
-
-  // The byte offset into the current element's data buffer if the current
-  // element is a TYPE_BYTES or TYPE_DATA element.
-  size_t element_offset_;
-
-  // A stream to the currently open file, for the current element if the
-  // current element is a TYPE_FILE element.
-  scoped_ptr<FileStream> element_file_stream_;
-
-  // The number of bytes remaining to be read from the currently open file
-  // if the current element is of TYPE_FILE.
-  uint64 element_file_bytes_remaining_;
 
   // Size and current read position within the upload data stream.
   uint64 total_size_;

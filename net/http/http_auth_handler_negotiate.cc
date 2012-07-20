@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -147,8 +147,8 @@ std::wstring HttpAuthHandlerNegotiate::CreateSPN(
   // and IE. Users can override the behavior so aliases are allowed and
   // non-standard ports are included.
   int port = origin.EffectiveIntPort();
-  std::string server;
-  if (!address_list.GetCanonicalName(&server))
+  std::string server = address_list.canonical_name();
+  if (server.empty())
     server = origin.host();
 #if defined(OS_WIN)
   static const char kSpnSeparator = '/';

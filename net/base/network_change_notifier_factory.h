@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_NETWORK_CHANGE_NOTIFIER_FACTORY_H_
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_FACTORY_H_
-#pragma once
 
 #include "net/base/net_export.h"
 

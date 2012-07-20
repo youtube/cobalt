@@ -62,10 +62,10 @@ class ConditionVariableTest : public PlatformTest {
 class WorkQueue : public PlatformThread::Delegate {
  public:
   explicit WorkQueue(int thread_count);
-  ~WorkQueue();
+  virtual ~WorkQueue();
 
   // PlatformThread::Delegate interface.
-  void ThreadMain();
+  virtual void ThreadMain() OVERRIDE;
 
   //----------------------------------------------------------------------------
   // Worker threads only call the following methods.
@@ -188,8 +188,16 @@ TEST_F(ConditionVariableTest, TimeoutTest) {
   lock.Release();
 }
 
+
+// Suddenly got flaky on Win, see http://crbug.com/10607 (starting at
+// comment #15)
+#if defined(OS_WIN)
+#define MAYBE_MultiThreadConsumerTest DISABLED_MultiThreadConsumerTest
+#else
+#define MAYBE_MultiThreadConsumerTest MultiThreadConsumerTest
+#endif
 // Test serial task servicing, as well as two parallel task servicing methods.
-TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
+TEST_F(ConditionVariableTest, MAYBE_MultiThreadConsumerTest) {
   const int kThreadCount = 10;
   WorkQueue queue(kThreadCount);  // Start the threads.
 

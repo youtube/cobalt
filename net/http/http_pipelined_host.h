@@ -1,11 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_PIPELINED_HOST_H_
 #define NET_HTTP_HTTP_PIPELINED_HOST_H_
-#pragma once
 
+#include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
 #include "net/http/http_pipelined_connection.h"
 #include "net/http/http_pipelined_host_capability.h"
@@ -28,6 +28,19 @@ struct SSLConfig;
 // assigns requests to the least loaded pipelined connection.
 class NET_EXPORT_PRIVATE HttpPipelinedHost {
  public:
+  class NET_EXPORT_PRIVATE Key {
+   public:
+    Key(const HostPortPair& origin);
+
+    // The host and port associated with this key.
+    const HostPortPair& origin() const { return origin_; }
+
+    bool operator<(const Key& rhs) const;
+
+   private:
+    const HostPortPair origin_;
+  };
+
   class Delegate {
    public:
     // Called when a pipelined host has no outstanding requests on any of its
@@ -50,9 +63,10 @@ class NET_EXPORT_PRIVATE HttpPipelinedHost {
 
     // Returns a new HttpPipelinedHost.
     virtual HttpPipelinedHost* CreateNewHost(
-        Delegate* delegate, const HostPortPair& origin,
+        Delegate* delegate, const Key& key,
         HttpPipelinedConnection::Factory* factory,
-        HttpPipelinedHostCapability capability) = 0;
+        HttpPipelinedHostCapability capability,
+        bool force_pipelining) = 0;
   };
 
   virtual ~HttpPipelinedHost() {}
@@ -65,7 +79,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHost {
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
       bool was_npn_negotiated,
-      SSLClientSocket::NextProto protocol_negotiated) = 0;
+      NextProto protocol_negotiated) = 0;
 
   // Tries to find an existing pipeline with capacity for a new request. If
   // successful, returns a new stream on that pipeline. Otherwise, returns NULL.
@@ -75,13 +89,12 @@ class NET_EXPORT_PRIVATE HttpPipelinedHost {
   // requests.
   virtual bool IsExistingPipelineAvailable() const = 0;
 
-  // Returns the host and port associated with this class.
-  virtual const HostPortPair& origin() const = 0;
+  // Returns a Key that uniquely identifies this host.
+  virtual const Key& GetKey() const = 0;
 
   // Creates a Value summary of this host's pipelines. Caller assumes
   // ownership of the returned Value.
   virtual base::Value* PipelineInfoToValue() const = 0;
-
 };
 
 }  // namespace net
