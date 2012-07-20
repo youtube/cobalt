@@ -352,6 +352,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
   if (tracks_parser.video_encryption_key_id()) {
     int key_id_size = tracks_parser.video_encryption_key_id_size();
     CHECK_GT(key_id_size, 0);
+    CHECK_LT(key_id_size, 2048);
     scoped_array<uint8> key_id(new uint8[key_id_size]);
     memcpy(key_id.get(), tracks_parser.video_encryption_key_id(), key_id_size);
     need_key_cb_.Run(key_id.Pass(), key_id_size);
