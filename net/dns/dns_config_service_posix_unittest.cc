@@ -20,12 +20,14 @@ const char* kNameserversIPv4[] = {
     "1.0.0.1",
 };
 
+#if defined(OS_LINUX)
 const char* kNameserversIPv6[] = {
     NULL,
     "2001:DB8:0::42",
     NULL,
     "::FFFF:129.144.52.38",
 };
+#endif
 
 // Fills in |res| with sane configuration.
 void InitializeResState(res_state res) {
