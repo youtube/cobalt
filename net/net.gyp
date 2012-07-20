@@ -902,6 +902,7 @@
               'base/keygen_handler_openssl.cc',
               'base/openssl_memory_private_key_store.cc',
               'base/openssl_private_key_store.h',
+              'base/openssl_private_key_store_android.cc',
               'base/test_root_certs_openssl.cc',
               'base/x509_certificate_openssl.cc',
               'base/x509_util_openssl.cc',
@@ -1028,6 +1029,9 @@
             'dependencies': [
               '../third_party/openssl/openssl.gyp:openssl',
               'net_jni_headers',
+            ],
+            'sources!': [
+              'base/openssl_memory_private_key_store.cc',
             ],
           }, {  # else OS! = "android"
             'defines': [
