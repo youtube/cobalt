@@ -79,6 +79,8 @@ class MEDIA_EXPORT TrackRunIterator {
 
   int64 sample_dts_;
   int64 sample_offset_;
+
+  DISALLOW_COPY_AND_ASSIGN(TrackRunIterator);
 };
 
 }  // namespace mp4
