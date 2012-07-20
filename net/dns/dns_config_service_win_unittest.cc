@@ -4,6 +4,7 @@
 
 #include "net/dns/dns_config_service_win.h"
 
+#include "base/logging.h"
 #include "base/win/windows_version.h"
 #include "net/dns/dns_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -38,7 +39,7 @@ TEST(DnsConfigServiceWinTest, ParseSearchList) {
     for (const char* const* output = t.output; *output; ++output) {
       expected_output.push_back(*output);
     }
-    bool result = ParseSearchList(t.input, &actual_output);
+    bool result = internal::ParseSearchList(t.input, &actual_output);
     if (!expected_output.empty()) {
       EXPECT_TRUE(result);
       EXPECT_EQ(expected_output, actual_output);
@@ -103,7 +104,7 @@ scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> CreateAdapterAddresses(
       IPEndPoint ipe(ip, info.ports[j]);
       address->Address.lpSockaddr =
           reinterpret_cast<LPSOCKADDR>(storage + num_addresses);
-      size_t length = sizeof(struct sockaddr_storage);
+      socklen_t length = sizeof(struct sockaddr_storage);
       CHECK(ipe.ToSockAddr(address->Address.lpSockaddr, &length));
       address->Address.iSockaddrLength = static_cast<int>(length);
     }
@@ -143,6 +144,19 @@ TEST(DnsConfigServiceWinTest, ConvertAdapterAddresses) {
       "chromium.org",
       { 1024, 24 },
     },
+    {  // Use the preferred adapter (first in binding order).
+      {
+        { IF_TYPE_SOFTWARE_LOOPBACK, IfOperStatusUp, L"funnyloop",
+          { "2.0.0.2" } },
+        { IF_TYPE_FASTETHER, IfOperStatusUp, L"example.com",
+          { "1.0.0.1" } },
+        { IF_TYPE_USB, IfOperStatusUp, L"chromium.org",
+          { "10.0.0.10", "2001:FFFF::1111" } },
+        { 0 },
+      },
+      { "1.0.0.1" },
+      "example.com",
+    },
     {  // No usable nameservers.
       {
         { IF_TYPE_SOFTWARE_LOOPBACK, IfOperStatusUp, L"localhost",
@@ -157,7 +171,7 @@ TEST(DnsConfigServiceWinTest, ConvertAdapterAddresses) {
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     const TestCase& t = cases[i];
-    DnsSystemSettings settings = {
+    internal::DnsSystemSettings settings = {
       CreateAdapterAddresses(t.input_adapters),
       // Default settings for the rest.
     };
@@ -172,11 +186,14 @@ TEST(DnsConfigServiceWinTest, ConvertAdapterAddresses) {
     }
 
     DnsConfig config;
-    bool result = ConvertSettingsToDnsConfig(settings, &config);
-    bool expected_result = !expected_nameservers.empty();
-    ASSERT_EQ(expected_result, result);
+    internal::ConfigParseWinResult result =
+        internal::ConvertSettingsToDnsConfig(settings, &config);
+    internal::ConfigParseWinResult expected_result =
+        expected_nameservers.empty() ? internal::CONFIG_PARSE_WIN_NO_NAMESERVERS
+            : internal::CONFIG_PARSE_WIN_OK;
+    EXPECT_EQ(expected_result, result);
     EXPECT_EQ(expected_nameservers, config.nameservers);
-    if (result) {
+    if (result == internal::CONFIG_PARSE_WIN_OK) {
       ASSERT_EQ(1u, config.search.size());
       EXPECT_EQ(t.expected_suffix, config.search[0]);
     }
@@ -190,7 +207,7 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
   };
 
   const struct TestCase {
-    DnsSystemSettings input_settings;
+    internal::DnsSystemSettings input_settings;
     std::string expected_search[5];
   } cases[] = {
     {  // Policy SearchList override.
@@ -199,6 +216,7 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { true, L"policy.searchlist.a,policy.searchlist.b" },
         { true, L"tcpip.searchlist.a,tcpip.searchlist.b" },
         { true, L"tcpip.domain" },
+        { true, L"primary.dns.suffix" },
       },
       { "policy.searchlist.a", "policy.searchlist.b" },
     },
@@ -208,15 +226,47 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { false },
         { true, L"tcpip.searchlist.a,tcpip.searchlist.b" },
         { true, L"tcpip.domain" },
+        { true, L"primary.dns.suffix" },
       },
       { "tcpip.searchlist.a", "tcpip.searchlist.b" },
     },
-    {  // Void SearchList.
+    {  // Void SearchList. Using tcpip.domain
       {
         CreateAdapterAddresses(infos),
         { true, L",bad.searchlist,parsed.as.empty" },
         { true, L"tcpip.searchlist,good.but.overridden" },
         { true, L"tcpip.domain" },
+        { false },
+      },
+      { "tcpip.domain", "connection.suffix" },
+    },
+    {  // Void SearchList. Using primary.dns.suffix
+      {
+        CreateAdapterAddresses(infos),
+        { true, L",bad.searchlist,parsed.as.empty" },
+        { true, L"tcpip.searchlist,good.but.overridden" },
+        { true, L"tcpip.domain" },
+        { true, L"primary.dns.suffix" },
+      },
+      { "primary.dns.suffix", "connection.suffix" },
+    },
+    {  // Void SearchList. Using tcpip.domain when primary.dns.suffix is empty
+      {
+        CreateAdapterAddresses(infos),
+        { true, L",bad.searchlist,parsed.as.empty" },
+        { true, L"tcpip.searchlist,good.but.overridden" },
+        { true, L"tcpip.domain" },
+        { true, L"" },
+      },
+      { "tcpip.domain", "connection.suffix" },
+    },
+    {  // Void SearchList. Using tcpip.domain when primary.dns.suffix is NULL
+      {
+        CreateAdapterAddresses(infos),
+        { true, L",bad.searchlist,parsed.as.empty" },
+        { true, L"tcpip.searchlist,good.but.overridden" },
+        { true, L"tcpip.domain" },
+        { true },
       },
       { "tcpip.domain", "connection.suffix" },
     },
@@ -225,6 +275,7 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         CreateAdapterAddresses(infos),
         { false },
         { false },
+        { true },
         { true },
         { { true, 1 }, { true, 2 } },
       },
@@ -236,9 +287,10 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { false },
         { false },
         { true, L"a.b.c.d.e" },
-        { { true, 1 }, { false } },
-        { { true, 0 }, { true, 3 } },
-        { { true, 0 }, { true, 1 } },
+        { false },
+        { { true, 1 }, { false } },   // policy_devolution: enabled, level
+        { { true, 0 }, { true, 3 } }, // dnscache_devolution
+        { { true, 0 }, { true, 1 } }, // tcpip_devolution
       },
       { "a.b.c.d.e", "connection.suffix", "b.c.d.e", "c.d.e" },
     },
@@ -248,11 +300,12 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { false },
         { false },
         { true, L"a.b.c.d.e" },
+        { true, L"f.g.i.l.j" },
         { { false }, { true, 4 } },
         { { true, 1 }, { false } },
         { { true, 0 }, { true, 3 } },
       },
-      { "a.b.c.d.e", "connection.suffix", "b.c.d.e" },
+      { "f.g.i.l.j", "connection.suffix", "g.i.l.j" },
     },
     {  // Devolution enabled by default.
       {
@@ -260,6 +313,7 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { false },
         { false },
         { true, L"a.b.c.d.e" },
+        { false },
         { { false }, { false } },
         { { false }, { true, 3 } },
         { { false }, { true, 1 } },
@@ -272,6 +326,7 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { false },
         { false },
         { true, L"a.b" },
+        { false },
         { { false }, { false } },
         { { false }, { true, 2 } },
         { { false }, { true, 2 } },
@@ -285,6 +340,7 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { false },
         { false },
         { true, L"a.b.c.d.e" },
+        { false },
         { { true, 1 }, { false } },
         { { true, 1 }, { false } },
         { { true, 1 }, { false } },
@@ -297,6 +353,7 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { false },
         { false },
         { true, L"a.b.c.d.e" },
+        { false },
         { { false }, { true, 1 } },
         { { true, 1 }, { true, 3 } },
         { { true, 1 }, { true, 4 } },
@@ -309,6 +366,7 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { false },
         { false },
         { true, L"a.b.c.d.e" },
+        { false },
         { { false }, { true, 3 } },
         { { false }, { true, 3 } },
         { { true, 0 }, { true, 3 } },
@@ -320,7 +378,8 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
   for (size_t i = 0; i < arraysize(cases); ++i) {
     const TestCase& t = cases[i];
     DnsConfig config;
-    ASSERT_TRUE(ConvertSettingsToDnsConfig(t.input_settings, &config));
+    EXPECT_EQ(internal::CONFIG_PARSE_WIN_OK,
+              internal::ConvertSettingsToDnsConfig(t.input_settings, &config));
     std::vector<std::string> expected_search;
     for (size_t j = 0; !t.expected_search[j].empty(); ++j) {
       expected_search.push_back(t.expected_search[j]);
@@ -339,7 +398,7 @@ TEST(DnsConfigServiceWinTest, AppendToMultiLabelName) {
   bool default_value = (base::win::GetVersion() < base::win::VERSION_VISTA);
 
   const struct TestCase {
-    DnsSystemSettings::RegDword input;
+    internal::DnsSystemSettings::RegDword input;
     bool expected_output;
   } cases[] = {
     { { true, 0 }, false },
@@ -349,16 +408,17 @@ TEST(DnsConfigServiceWinTest, AppendToMultiLabelName) {
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     const TestCase& t = cases[i];
-    DnsSystemSettings settings = {
+    internal::DnsSystemSettings settings = {
       CreateAdapterAddresses(infos),
-      { false }, { false }, { false },
+      { false }, { false }, { false }, { false },
       { { false }, { false } },
       { { false }, { false } },
       { { false }, { false } },
       t.input,
     };
     DnsConfig config;
-    ASSERT_TRUE(ConvertSettingsToDnsConfig(settings, &config));
+    EXPECT_EQ(internal::CONFIG_PARSE_WIN_OK,
+              internal::ConvertSettingsToDnsConfig(settings, &config));
     EXPECT_EQ(config.append_to_multi_label_name, t.expected_output);
   }
 }

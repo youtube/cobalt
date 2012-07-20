@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_MOCK_PROXY_SCRIPT_FETCHER_H_
 #define NET_PROXY_MOCK_PROXY_SCRIPT_FETCHER_H_
-#pragma once
 
 #include "base/compiler_specific.h"
 #include "googleurl/src/gurl.h"

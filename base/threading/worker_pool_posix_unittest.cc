@@ -97,11 +97,11 @@ class PosixDynamicThreadPoolTest : public testing::Test {
         num_waiting_to_start_cv_(&num_waiting_to_start_lock_),
         start_(true, false) {}
 
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     peer_.set_num_idle_threads_cv(new ConditionVariable(peer_.lock()));
   }
 
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     // Wake up the idle threads so they can terminate.
     if (pool_.get()) pool_->Terminate();
   }

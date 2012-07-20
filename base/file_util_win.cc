@@ -17,6 +17,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
+#include "base/process_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/threading/thread_restrictions.h"
@@ -177,23 +178,19 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 
 bool ReplaceFile(const FilePath& from_path, const FilePath& to_path) {
   base::ThreadRestrictions::AssertIOAllowed();
-
-  // Make sure that the target file exists.
-  HANDLE target_file = ::CreateFile(
-      to_path.value().c_str(),
-      0,
-      FILE_SHARE_READ | FILE_SHARE_WRITE,
-      NULL,
-      CREATE_NEW,
-      FILE_ATTRIBUTE_NORMAL,
-      NULL);
-  if (target_file != INVALID_HANDLE_VALUE)
-    ::CloseHandle(target_file);
-  // When writing to a network share, we may not be able to change the ACLs.
-  // Ignore ACL errors then (REPLACEFILE_IGNORE_MERGE_ERRORS).
-  return ::ReplaceFile(to_path.value().c_str(),
-      from_path.value().c_str(), NULL,
-      REPLACEFILE_IGNORE_MERGE_ERRORS, NULL, NULL) ? true : false;
+  // Try a simple move first.  It will only succeed when |to_path| doesn't
+  // already exist.
+  if (::MoveFile(from_path.value().c_str(), to_path.value().c_str()))
+    return true;
+  // Try the full-blown replace if the move fails, as ReplaceFile will only
+  // succeed when |to_path| does exist. When writing to a network share, we may
+  // not be able to change the ACLs. Ignore ACL errors then
+  // (REPLACEFILE_IGNORE_MERGE_ERRORS).
+  if (::ReplaceFile(to_path.value().c_str(), from_path.value().c_str(), NULL,
+                    REPLACEFILE_IGNORE_MERGE_ERRORS, NULL, NULL)) {
+    return true;
+  }
+  return false;
 }
 
 bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
@@ -369,11 +366,21 @@ bool ResolveShortcut(FilePath* path) {
   return is_resolved;
 }
 
-bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
-                        const wchar_t *working_dir, const wchar_t *arguments,
-                        const wchar_t *description, const wchar_t *icon,
-                        int icon_index, const wchar_t* app_id) {
+bool CreateOrUpdateShortcutLink(const wchar_t *source,
+                                const wchar_t *destination,
+                                const wchar_t *working_dir,
+                                const wchar_t *arguments,
+                                const wchar_t *description,
+                                const wchar_t *icon,
+                                int icon_index,
+                                const wchar_t* app_id,
+                                uint32 options) {
   base::ThreadRestrictions::AssertIOAllowed();
+
+  bool create = (options & SHORTCUT_CREATE_ALWAYS) != 0;
+
+  // |source| is required when SHORTCUT_CREATE_ALWAYS is specified.
+  DCHECK(source || !create);
 
   // Length of arguments and description must be less than MAX_PATH.
   DCHECK(lstrlen(arguments) < MAX_PATH);
@@ -383,68 +390,16 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
   base::win::ScopedComPtr<IPersistFile> i_persist_file;
 
   // Get pointer to the IShellLink interface
-  HRESULT result = i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
-                                               CLSCTX_INPROC_SERVER);
-  if (FAILED(result))
+  if (FAILED(i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
+                                         CLSCTX_INPROC_SERVER)) ||
+      FAILED(i_persist_file.QueryFrom(i_shell_link))) {
     return false;
-
-  // Query IShellLink for the IPersistFile interface
-  result = i_persist_file.QueryFrom(i_shell_link);
-  if (FAILED(result))
-    return false;
-
-  if (FAILED(i_shell_link->SetPath(source)))
-    return false;
-
-  if (working_dir && FAILED(i_shell_link->SetWorkingDirectory(working_dir)))
-    return false;
-
-  if (arguments && FAILED(i_shell_link->SetArguments(arguments)))
-    return false;
-
-  if (description && FAILED(i_shell_link->SetDescription(description)))
-    return false;
-
-  if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index)))
-    return false;
-
-  if (app_id && (base::win::GetVersion() >= base::win::VERSION_WIN7)) {
-    base::win::ScopedComPtr<IPropertyStore> property_store;
-    if (FAILED(property_store.QueryFrom(i_shell_link)))
-      return false;
-
-    if (!base::win::SetAppIdForPropertyStore(property_store, app_id))
-      return false;
   }
 
-  result = i_persist_file->Save(destination, TRUE);
-  return SUCCEEDED(result);
-}
-
-bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
-                        const wchar_t *working_dir, const wchar_t *arguments,
-                        const wchar_t *description, const wchar_t *icon,
-                        int icon_index, const wchar_t* app_id) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
-  // Length of arguments and description must be less than MAX_PATH.
-  DCHECK(lstrlen(arguments) < MAX_PATH);
-  DCHECK(lstrlen(description) < MAX_PATH);
-
-  // Get pointer to the IPersistFile interface and load existing link
-  base::win::ScopedComPtr<IShellLink> i_shell_link;
-  if (FAILED(i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
-                                         CLSCTX_INPROC_SERVER)))
+  if (!create && FAILED(i_persist_file->Load(destination, STGM_READWRITE)))
     return false;
 
-  base::win::ScopedComPtr<IPersistFile> i_persist_file;
-  if (FAILED(i_persist_file.QueryFrom(i_shell_link)))
-    return false;
-
-  if (FAILED(i_persist_file->Load(destination, STGM_READWRITE)))
-    return false;
-
-  if (source && FAILED(i_shell_link->SetPath(source)))
+  if ((source || create) && FAILED(i_shell_link->SetPath(source)))
     return false;
 
   if (working_dir && FAILED(i_shell_link->SetWorkingDirectory(working_dir)))
@@ -459,24 +414,31 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
   if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index)))
     return false;
 
-  if (app_id && base::win::GetVersion() >= base::win::VERSION_WIN7) {
+  bool is_dual_mode = (options & SHORTCUT_DUAL_MODE) != 0;
+  if ((app_id || is_dual_mode) &&
+      base::win::GetVersion() >= base::win::VERSION_WIN7) {
     base::win::ScopedComPtr<IPropertyStore> property_store;
-    if (FAILED(property_store.QueryFrom(i_shell_link)))
+    if (FAILED(property_store.QueryFrom(i_shell_link)) || !property_store.get())
       return false;
 
-    if (!base::win::SetAppIdForPropertyStore(property_store, app_id))
+    if (app_id && !base::win::SetAppIdForPropertyStore(property_store, app_id))
       return false;
+    if (is_dual_mode &&
+        !base::win::SetDualModeForPropertyStore(property_store)) {
+      return false;
+    }
   }
 
   HRESULT result = i_persist_file->Save(destination, TRUE);
 
-  i_persist_file.Release();
-  i_shell_link.Release();
-
   // If we successfully updated the icon, notify the shell that we have done so.
-  if (SUCCEEDED(result)) {
-    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST | SHCNF_FLUSHNOWAIT,
-                   NULL, NULL);
+  if (!create && SUCCEEDED(result)) {
+    // Release the interfaces in case the SHChangeNotify call below depends on
+    // the operations above being fully completed.
+    i_persist_file.Release();
+    i_shell_link.Release();
+
+    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
   }
 
   return SUCCEEDED(result);
@@ -596,6 +558,8 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
     // the one exists, keep trying another path name until we reach some limit.
     string16 new_dir_name;
     new_dir_name.assign(prefix);
+    new_dir_name.append(base::IntToString16(::base::GetCurrentProcId()));
+    new_dir_name.push_back('_');
     new_dir_name.append(base::IntToString16(rand() % kint16max));
 
     path_to_create = base_dir.Append(new_dir_name);
@@ -759,6 +723,38 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
   return -1;
 }
 
+int AppendToFile(const FilePath& filename, const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  base::win::ScopedHandle file(CreateFile(filename.value().c_str(),
+                                          FILE_APPEND_DATA,
+                                          0,
+                                          NULL,
+                                          OPEN_EXISTING,
+                                          0,
+                                          NULL));
+  if (!file) {
+    DLOG(WARNING) << "CreateFile failed for path " << filename.value()
+                  << " error code=" << GetLastError();
+    return -1;
+  }
+
+  DWORD written;
+  BOOL result = ::WriteFile(file, data, size, &written, NULL);
+  if (result && static_cast<int>(written) == size)
+    return written;
+
+  if (!result) {
+    // WriteFile failed.
+    DLOG(WARNING) << "writing file " << filename.value()
+                  << " failed, error code=" << GetLastError();
+  } else {
+    // Didn't write all the bytes.
+    DLOG(WARNING) << "wrote" << written << " bytes to "
+                  << filename.value() << " expected " << size;
+  }
+  return -1;
+}
+
 // Gets the current working directory for the process.
 bool GetCurrentDirectory(FilePath* dir) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -828,8 +824,14 @@ void FileEnumerator::GetFindInfo(FindInfo* info) {
   memcpy(info, &find_data_, sizeof(*info));
 }
 
+// static
 bool FileEnumerator::IsDirectory(const FindInfo& info) {
   return (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+}
+
+// static
+bool FileEnumerator::IsLink(const FindInfo& info) {
+  return false;
 }
 
 // static

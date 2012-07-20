@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,9 +14,6 @@
 #include "base/threading/platform_thread.h"
 
 namespace {
-
-// We send a byte across a pipe to wakeup the event loop.
-const char kWorkScheduled = '\0';
 
 // Return a timeout suitable for the glib loop, -1 to block forever,
 // 0 to return right away, or a timeout in milliseconds from now.
@@ -162,13 +159,6 @@ MessagePumpGlib::MessagePumpGlib()
   // This is needed to allow Run calls inside Dispatch.
   g_source_set_can_recurse(work_source_, TRUE);
   g_source_attach(work_source_, context_);
-}
-
-MessagePumpGlib::~MessagePumpGlib() {
-  g_source_destroy(work_source_);
-  g_source_unref(work_source_);
-  close(wakeup_pipe_read_);
-  close(wakeup_pipe_write_);
 }
 
 void MessagePumpGlib::RunWithDispatcher(Delegate* delegate,
@@ -324,6 +314,13 @@ void MessagePumpGlib::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
   // adjusted.  This will cause us to try to do work, but that's ok.
   delayed_work_time_ = delayed_work_time;
   ScheduleWork();
+}
+
+MessagePumpGlib::~MessagePumpGlib() {
+  g_source_destroy(work_source_);
+  g_source_unref(work_source_);
+  close(wakeup_pipe_read_);
+  close(wakeup_pipe_write_);
 }
 
 MessagePumpDispatcher* MessagePumpGlib::GetDispatcher() {

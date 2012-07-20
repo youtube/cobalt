@@ -4,7 +4,6 @@
 
 #ifndef BASE_SAFE_STRERROR_POSIX_H_
 #define BASE_SAFE_STRERROR_POSIX_H_
-#pragma once
 
 #include <string>
 

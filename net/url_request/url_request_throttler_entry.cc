@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,8 @@
 #include "base/values.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_log.h"
+#include "net/url_request/url_request.h"
+#include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_throttler_header_interface.h"
 #include "net/url_request/url_request_throttler_manager.h"
 
@@ -39,62 +41,27 @@ const int URLRequestThrottlerEntry::kDefaultMaxSendThreshold = 20;
 // avoid false positives.  It should help avoid back-off from kicking in e.g.
 // on flaky connections.
 const int URLRequestThrottlerEntry::kDefaultNumErrorsToIgnore = 2;
-const int URLRequestThrottlerEntry::kDefaultInitialBackoffMs = 700;
+const int URLRequestThrottlerEntry::kDefaultInitialDelayMs = 700;
 const double URLRequestThrottlerEntry::kDefaultMultiplyFactor = 1.4;
 const double URLRequestThrottlerEntry::kDefaultJitterFactor = 0.4;
 const int URLRequestThrottlerEntry::kDefaultMaximumBackoffMs = 15 * 60 * 1000;
 const int URLRequestThrottlerEntry::kDefaultEntryLifetimeMs = 2 * 60 * 1000;
-const char URLRequestThrottlerEntry::kRetryHeaderName[] = "X-Retry-After";
 const char URLRequestThrottlerEntry::kExponentialThrottlingHeader[] =
     "X-Chrome-Exponential-Throttling";
 const char URLRequestThrottlerEntry::kExponentialThrottlingDisableValue[] =
     "disable";
 
-// NetLog parameters when a request is rejected by throttling.
-class RejectedRequestParameters : public NetLog::EventParameters {
- public:
-  RejectedRequestParameters(const std::string& url_id,
-                            int num_failures,
-                            int release_after_ms)
-      : url_id_(url_id),
-        num_failures_(num_failures),
-        release_after_ms_(release_after_ms) {
-  }
-
-  virtual Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("url", url_id_);
-    dict->SetInteger("num_failures", num_failures_);
-    dict->SetInteger("release_after_ms", release_after_ms_);
-    return dict;
-  }
-
- private:
-  std::string url_id_;
-  int num_failures_;
-  int release_after_ms_;
-};
-
-// NetLog parameters when a response contains an X-Retry-After header.
-class RetryAfterParameters : public NetLog::EventParameters {
- public:
-  RetryAfterParameters(const std::string& url_id,
-                       int retry_after_ms)
-      : url_id_(url_id),
-        retry_after_ms_(retry_after_ms) {
-  }
-
-  virtual Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    dict->SetString("url", url_id_);
-    dict->SetInteger("retry_after_ms", retry_after_ms_);
-    return dict;
-  }
-
- private:
-  std::string url_id_;
-  int retry_after_ms_;
-};
+// Returns NetLog parameters when a request is rejected by throttling.
+Value* NetLogRejectedRequestCallback(const std::string* url_id,
+                                     int num_failures,
+                                     int release_after_ms,
+                                     NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString("url", *url_id);
+  dict->SetInteger("num_failures", num_failures);
+  dict->SetInteger("release_after_ms", release_after_ms);
+  return dict;
+}
 
 URLRequestThrottlerEntry::URLRequestThrottlerEntry(
     URLRequestThrottlerManager* manager,
@@ -138,12 +105,13 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry(
   DCHECK(manager_);
 
   Initialize();
-  backoff_policy_.initial_backoff_ms = initial_backoff_ms;
+  backoff_policy_.initial_delay_ms = initial_backoff_ms;
   backoff_policy_.multiply_factor = multiply_factor;
   backoff_policy_.jitter_factor = jitter_factor;
   backoff_policy_.maximum_backoff_ms = maximum_backoff_ms;
   backoff_policy_.entry_lifetime_ms = -1;
   backoff_policy_.num_errors_to_ignore = 0;
+  backoff_policy_.always_use_initial_delay = false;
 }
 
 bool URLRequestThrottlerEntry::IsEntryOutdated() const {
@@ -156,8 +124,10 @@ bool URLRequestThrottlerEntry::IsEntryOutdated() const {
   // if an entry has more than one reference (the map will always hold one),
   // it should not be considered outdated.
   //
-  // TODO(joi): Once the manager is not a Singleton, revisit whether
-  // refcounting is needed at all.
+  // We considered whether to make URLRequestThrottlerEntry objects
+  // non-refcounted, but since any means of knowing whether they are
+  // currently in use by others than the manager would be more or less
+  // equivalent to a refcount, we kept them refcounted.
   if (!HasOneRef())
     return false;
 
@@ -179,21 +149,21 @@ void URLRequestThrottlerEntry::DetachManager() {
   manager_ = NULL;
 }
 
-bool URLRequestThrottlerEntry::ShouldRejectRequest(int load_flags) const {
+bool URLRequestThrottlerEntry::ShouldRejectRequest(
+    const URLRequest& request) const {
   bool reject_request = false;
-  if (!is_backoff_disabled_ && !ExplicitUserRequest(load_flags) &&
+  if (!is_backoff_disabled_ && !ExplicitUserRequest(request.load_flags()) &&
+      (!request.context() || !request.context()->network_delegate() ||
+       request.context()->network_delegate()->CanThrottleRequest(request)) &&
       GetBackoffEntry()->ShouldRejectRequest()) {
     int num_failures = GetBackoffEntry()->failure_count();
     int release_after_ms =
-        (GetBackoffEntry()->GetReleaseTime() - base::TimeTicks::Now())
-            .InMilliseconds();
+        GetBackoffEntry()->GetTimeUntilRelease().InMilliseconds();
 
     net_log_.AddEvent(
         NetLog::TYPE_THROTTLING_REJECTED_REQUEST,
-        make_scoped_refptr(
-            new RejectedRequestParameters(url_id_,
-                                          num_failures,
-                                          release_after_ms)));
+        base::Bind(&NetLogRejectedRequestCallback,
+                   &url_id_, num_failures, release_after_ms));
 
     reject_request = true;
   }
@@ -256,17 +226,10 @@ base::TimeTicks
 void URLRequestThrottlerEntry::UpdateWithResponse(
     const std::string& host,
     const URLRequestThrottlerHeaderInterface* response) {
-  int response_code = response->GetResponseCode();
-  HandleMetricsTracking(response_code);
-
-  if (IsConsideredError(response_code)) {
+  if (IsConsideredError(response->GetResponseCode())) {
     GetBackoffEntry()->InformOfRequest(false);
   } else {
     GetBackoffEntry()->InformOfRequest(true);
-
-    std::string retry_header = response->GetNormalizedValue(kRetryHeaderName);
-    if (!retry_header.empty())
-      HandleCustomRetryAfter(retry_header);
 
     std::string throttling_header = response->GetNormalizedValue(
         kExponentialThrottlingHeader);
@@ -297,17 +260,12 @@ URLRequestThrottlerEntry::~URLRequestThrottlerEntry() {
 void URLRequestThrottlerEntry::Initialize() {
   sliding_window_release_time_ = base::TimeTicks::Now();
   backoff_policy_.num_errors_to_ignore = kDefaultNumErrorsToIgnore;
-  backoff_policy_.initial_backoff_ms = kDefaultInitialBackoffMs;
+  backoff_policy_.initial_delay_ms = kDefaultInitialDelayMs;
   backoff_policy_.multiply_factor = kDefaultMultiplyFactor;
   backoff_policy_.jitter_factor = kDefaultJitterFactor;
   backoff_policy_.maximum_backoff_ms = kDefaultMaximumBackoffMs;
   backoff_policy_.entry_lifetime_ms = kDefaultEntryLifetimeMs;
-
-  // We pretend we just had a successful response so that we have a
-  // starting point to our tracking. This is called from the
-  // constructor so we do not use the virtual ImplGetTimeNow().
-  last_successful_response_time_ = base::TimeTicks::Now();
-  last_response_was_success_ = true;
+  backoff_policy_.always_use_initial_delay = false;
 }
 
 bool URLRequestThrottlerEntry::IsConsideredError(int response_code) {
@@ -337,36 +295,6 @@ base::TimeTicks URLRequestThrottlerEntry::ImplGetTimeNow() const {
   return base::TimeTicks::Now();
 }
 
-void URLRequestThrottlerEntry::HandleCustomRetryAfter(
-    const std::string& header_value) {
-  // Input parameter is the number of seconds to wait in a floating point value.
-  double time_in_sec = 0;
-  bool conversion_is_ok = base::StringToDouble(header_value, &time_in_sec);
-
-  // Conversion of custom retry-after header value failed.
-  if (!conversion_is_ok)
-    return;
-
-  // We must use an int value later so we transform this in milliseconds.
-  int64 value_ms = static_cast<int64>(0.5 + time_in_sec * 1000);
-
-  // We do not check for an upper bound; the server can set any Retry-After it
-  // desires. Recovery from error would involve restarting the browser.
-  if (value_ms < 0)
-    return;
-
-  net_log_.AddEvent(
-      NetLog::TYPE_THROTTLING_GOT_CUSTOM_RETRY_AFTER,
-      make_scoped_refptr(new RetryAfterParameters(url_id_, value_ms)));
-
-  base::TimeDelta value = base::TimeDelta::FromMilliseconds(value_ms);
-  GetBackoffEntry()->SetCustomReleaseTime(ImplGetTimeNow() + value);
-
-  UMA_HISTOGRAM_CUSTOM_TIMES(
-      "Throttling.CustomRetryAfterMs", value,
-      base::TimeDelta::FromSeconds(1), base::TimeDelta::FromHours(12), 50);
-}
-
 void URLRequestThrottlerEntry::HandleThrottlingHeader(
     const std::string& header_value,
     const std::string& host) {
@@ -374,40 +302,6 @@ void URLRequestThrottlerEntry::HandleThrottlingHeader(
     DisableBackoffThrottling();
     if (manager_)
       manager_->AddToOptOutList(host);
-  } else {
-    // TODO(joi): Log this.
-  }
-}
-
-void URLRequestThrottlerEntry::HandleMetricsTracking(int response_code) {
-  // This is essentially the same as the "Net.HttpResponseCode" UMA stat
-  // but we are tracking it separately here for the throttling experiment
-  // to make sure we count only the responses seen by throttling.
-  // TODO(joi): Remove after experiment.
-  UMA_HISTOGRAM_ENUMERATION("Throttling.HttpResponseCode", response_code, 600);
-
-  // Note that we are not interested in whether the code is considered
-  // an error for the backoff logic, but whether it is a 5xx error in
-  // general.  This is because here, we are tracking the apparent total
-  // downtime of a server.
-  if (response_code >= 500) {
-    last_response_was_success_ = false;
-  } else {
-    base::TimeTicks now = ImplGetTimeNow();
-    if (!last_response_was_success_) {
-      // We are transitioning from failure to success, so generate our stats.
-      base::TimeDelta down_time = now - last_successful_response_time_;
-      int failure_count = GetBackoffEntry()->failure_count();
-
-      UMA_HISTOGRAM_COUNTS("Throttling.FailureCountAtSuccess", failure_count);
-      UMA_HISTOGRAM_CUSTOM_TIMES(
-          "Throttling.PerceivedDowntime", down_time,
-          base::TimeDelta::FromMilliseconds(10),
-          base::TimeDelta::FromHours(6), 50);
-    }
-
-    last_successful_response_time_ = now;
-    last_response_was_success_ = true;
   }
 }
 

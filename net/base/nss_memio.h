@@ -5,7 +5,6 @@
 
 #ifndef __MEMIO_H
 #define __MEMIO_H
-#pragma once
 
 #include <stddef.h>
 

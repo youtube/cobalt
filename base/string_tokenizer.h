@@ -4,7 +4,6 @@
 
 #ifndef BASE_STRING_TOKENIZER_H_
 #define BASE_STRING_TOKENIZER_H_
-#pragma once
 
 #include <algorithm>
 #include <string>

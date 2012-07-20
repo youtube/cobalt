@@ -1,40 +1,39 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/websockets/websocket_net_log_params.h"
 
+#include "base/stringprintf.h"
+#include "base/values.h"
+
 namespace net {
 
-NetLogWebSocketHandshakeParameter::NetLogWebSocketHandshakeParameter(
-    const std::string& headers)
-    : headers_(headers) {
-}
-
-Value* NetLogWebSocketHandshakeParameter::ToValue() const {
+Value* NetLogWebSocketHandshakeCallback(const std::string* headers,
+                                        NetLog::LogLevel /* log_level */) {
   DictionaryValue* dict = new DictionaryValue();
-  ListValue* headers = new ListValue();
+  ListValue* header_list = new ListValue();
 
   size_t last = 0;
-  size_t headers_size = headers_.size();
+  size_t headers_size = headers->size();
   size_t pos = 0;
   while (pos <= headers_size) {
     if (pos == headers_size ||
-        (headers_[pos] == '\r' &&
-         pos + 1 < headers_size && headers_[pos + 1] == '\n')) {
-      std::string entry = headers_.substr(last, pos - last);
+        ((*headers)[pos] == '\r' &&
+         pos + 1 < headers_size && (*headers)[pos + 1] == '\n')) {
+      std::string entry = headers->substr(last, pos - last);
       pos += 2;
       last = pos;
 
-      headers->Append(new StringValue(entry));
+      header_list->Append(new StringValue(entry));
 
       if (entry.empty()) {
         // Dump WebSocket key3.
         std::string key;
         for (; pos < headers_size; ++pos) {
-          key += base::StringPrintf("\\x%02x", headers_[pos] & 0xff);
+          key += base::StringPrintf("\\x%02x", (*headers)[pos] & 0xff);
         }
-        headers->Append(new StringValue(key));
+        header_list->Append(new StringValue(key));
         break;
       }
     } else {
@@ -42,10 +41,8 @@ Value* NetLogWebSocketHandshakeParameter::ToValue() const {
     }
   }
 
-  dict->Set("headers", headers);
+  dict->Set("headers", header_list);
   return dict;
 }
-
-NetLogWebSocketHandshakeParameter::~NetLogWebSocketHandshakeParameter() {}
 
 }  // namespace net

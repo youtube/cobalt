@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,11 +42,6 @@ MockURLRequestThrottlerHeaderAdapter::~MockURLRequestThrottlerHeaderAdapter() {
 
 std::string MockURLRequestThrottlerHeaderAdapter::GetNormalizedValue(
     const std::string& key) const {
-  if (key == URLRequestThrottlerEntry::kRetryHeaderName &&
-      !fake_retry_value_.empty()) {
-    return fake_retry_value_;
-  }
-
   if (key ==
       URLRequestThrottlerEntry::kExponentialThrottlingHeader &&
       !fake_opt_out_value_.empty()) {

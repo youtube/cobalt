@@ -4,7 +4,6 @@
 
 #ifndef BASE_WIN_SCOPED_CO_MEM_H_
 #define BASE_WIN_SCOPED_CO_MEM_H_
-#pragma once
 
 #include <objbase.h>
 

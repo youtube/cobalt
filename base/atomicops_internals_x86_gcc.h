@@ -6,7 +6,6 @@
 
 #ifndef BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
 #define BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
-#pragma once
 
 #include "base/base_export.h"
 

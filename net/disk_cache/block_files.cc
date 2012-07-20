@@ -295,6 +295,7 @@ bool BlockFiles::CreateBlock(FileType block_type, int block_count,
   if (!file)
     return false;
 
+  ScopedFlush flush(file);
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
 
   int target_size = 0;
@@ -339,6 +340,7 @@ void BlockFiles::DeleteBlock(Addr address, bool deep) {
 
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
   DeleteMapBlock(address.start_block(), address.num_blocks(), header);
+  file->Flush();
 
   if (!header->num_entries) {
     // This file is now empty. Let's try to delete it.
@@ -478,6 +480,7 @@ bool BlockFiles::OpenBlockFile(int index) {
       return false;
   }
 
+  ScopedFlush flush(file);
   DCHECK(!block_files_[index]);
   file.swap(&block_files_[index]);
   return true;
@@ -487,6 +490,7 @@ bool BlockFiles::GrowBlockFile(MappedFile* file, BlockFileHeader* header) {
   if (kMaxBlocks == header->max_entries)
     return false;
 
+  ScopedFlush flush(file);
   DCHECK(!header->empty[3]);
   int new_size = header->max_entries + 1024;
   if (new_size > kMaxBlocks)
@@ -535,7 +539,8 @@ MappedFile* BlockFiles::FileForNewBlock(FileType block_type, int block_count) {
   return file;
 }
 
-MappedFile* BlockFiles::NextFile(const MappedFile* file) {
+MappedFile* BlockFiles::NextFile(MappedFile* file) {
+  ScopedFlush flush(file);
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
   int new_file = header->next_file;
   if (!new_file) {
@@ -587,6 +592,7 @@ bool BlockFiles::RemoveEmptyFile(FileType block_type) {
       int file_index = header->next_file;
       header->next_file = next_header->next_file;
       DCHECK(block_files_.size() >= static_cast<unsigned int>(file_index));
+      file->Flush();
 
       // We get a new handle to the file and release the old one so that the
       // file gets unmmaped... so we can delete it.
@@ -612,6 +618,7 @@ bool BlockFiles::RemoveEmptyFile(FileType block_type) {
 // Note that we expect to be called outside of a FileLock... however, we cannot
 // DCHECK on header->updating because we may be fixing a crash.
 bool BlockFiles::FixBlockFileHeader(MappedFile* file) {
+  ScopedFlush flush(file);
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
   int file_size = static_cast<int>(file->GetLength());
   if (file_size < static_cast<int>(sizeof(*header)))

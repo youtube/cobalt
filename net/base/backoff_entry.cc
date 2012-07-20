@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "base/logging.h"
 #include "base/rand_util.h"
@@ -29,13 +30,11 @@ void BackoffEntry::InformOfRequest(bool succeeded) {
     ++failure_count_;
     exponential_backoff_release_time_ = CalculateReleaseTime();
   } else {
-    // We slowly decay the number of times delayed instead of resetting it to 0
-    // in order to stay stable if we receive successes interleaved between lots
-    // of failures.
-    //
-    // TODO(joi): Revisit this; it might be most correct to go to zero
-    // but have a way to go back to "old error count +1" if there is
-    // another error soon after.
+    // We slowly decay the number of times delayed instead of
+    // resetting it to 0 in order to stay stable if we receive
+    // successes interleaved between lots of failures.  Note that in
+    // the normal case, the calculated release time (in the next
+    // statement) will be in the past once the method returns.
     if (failure_count_ > 0)
       --failure_count_;
 
@@ -48,13 +47,23 @@ void BackoffEntry::InformOfRequest(bool succeeded) {
     // those failures will not reset the release time, further
     // requests will then need to wait the delay caused by the 2
     // failures.
+    base::TimeDelta delay;
+    if (policy_->always_use_initial_delay)
+      delay = base::TimeDelta::FromMilliseconds(policy_->initial_delay_ms);
     exponential_backoff_release_time_ = std::max(
-        ImplGetTimeNow(), exponential_backoff_release_time_);
+        ImplGetTimeNow() + delay, exponential_backoff_release_time_);
   }
 }
 
 bool BackoffEntry::ShouldRejectRequest() const {
   return exponential_backoff_release_time_ > ImplGetTimeNow();
+}
+
+base::TimeDelta BackoffEntry::GetTimeUntilRelease() const {
+  base::TimeTicks now = ImplGetTimeNow();
+  if (exponential_backoff_release_time_ <= now)
+    return base::TimeDelta();
+  return exponential_backoff_release_time_ - now;
 }
 
 base::TimeTicks BackoffEntry::GetReleaseTime() const {
@@ -108,6 +117,12 @@ base::TimeTicks BackoffEntry::ImplGetTimeNow() const {
 base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
   int effective_failure_count =
       std::max(0, failure_count_ - policy_->num_errors_to_ignore);
+
+  // If always_use_initial_delay is true, it's equivalent to
+  // the effective_failure_count always being one greater than when it's false.
+  if (policy_->always_use_initial_delay)
+    ++effective_failure_count;
+
   if (effective_failure_count == 0) {
     // Never reduce previously set release horizon, e.g. due to Retry-After
     // header.
@@ -117,14 +132,17 @@ base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
   // The delay is calculated with this formula:
   // delay = initial_backoff * multiply_factor^(
   //     effective_failure_count - 1) * Uniform(1 - jitter_factor, 1]
-  double delay = policy_->initial_backoff_ms;
+  double delay = policy_->initial_delay_ms;
   delay *= pow(policy_->multiply_factor, effective_failure_count - 1);
   delay -= base::RandDouble() * policy_->jitter_factor * delay;
 
+  const int64 kMaxInt64 = std::numeric_limits<int64>::max();
+  int64 delay_int = (delay > kMaxInt64) ?
+      kMaxInt64 : static_cast<int64>(delay + 0.5);
+
   // Ensure that we do not exceed maximum delay.
-  int64 delay_int = static_cast<int64>(delay + 0.5);
-  delay_int = std::min(delay_int,
-                       static_cast<int64>(policy_->maximum_backoff_ms));
+  if (policy_->maximum_backoff_ms >= 0)
+    delay_int = std::min(delay_int, policy_->maximum_backoff_ms);
 
   // Never reduce previously set release horizon, e.g. due to Retry-After
   // header.

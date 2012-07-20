@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,8 +14,10 @@ bool CallbackBase::is_null() const {
 }
 
 void CallbackBase::Reset() {
-  bind_state_ = NULL;
   polymorphic_invoke_ = NULL;
+  // NULL the bind_state_ last, since it may be holding the last ref to whatever
+  // object owns us, and we may be deleted after that.
+  bind_state_ = NULL;
 }
 
 bool CallbackBase::Equals(const CallbackBase& other) const {
@@ -32,5 +34,5 @@ CallbackBase::CallbackBase(BindStateBase* bind_state)
 CallbackBase::~CallbackBase() {
 }
 
-}  // namespace base
 }  // namespace internal
+}  // namespace base

@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_MAPPED_HOST_RESOLVER_H_
 #define NET_BASE_MAPPED_HOST_RESOLVER_H_
-#pragma once
 
 #include <string>
 
@@ -57,6 +56,9 @@ class NET_EXPORT MappedHostResolver : public HostResolver {
   virtual HostCache* GetHostCache() OVERRIDE;
 
  private:
+  // Modify the request |info| according to |rules_|.
+  RequestInfo ApplyRules(const RequestInfo& info) const;
+
   scoped_ptr<HostResolver> impl_;
 
   HostMappingRules rules_;

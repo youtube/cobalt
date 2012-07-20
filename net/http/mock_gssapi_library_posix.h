@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_MOCK_GSSAPI_LIBRARY_POSIX_H_
 #define NET_HTTP_MOCK_GSSAPI_LIBRARY_POSIX_H_
-#pragma once
 
 #include <gssapi.h>
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,10 +12,10 @@ namespace net {
 // This test vector comes from the NSS FIPS power-up self-test.
 TEST(DESTest, KnownAnswerTest1) {
   // DES known key (56-bits).
-  static const uint8 des_known_key[] = { "ANSI DES" };
+  static const uint8 des_known_key[] = "ANSI DES";
 
   // DES known plaintext (64-bits).
-  static const uint8 des_ecb_known_plaintext[] = { "Netscape" };
+  static const uint8 des_ecb_known_plaintext[] = "Netscape";
 
   // DES known ciphertext (64-bits).
   static const uint8 des_ecb_known_ciphertext[] = {

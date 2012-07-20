@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "base/memory/ref_counted.h"
+#include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -40,9 +40,9 @@ TEST(NetLogWebSocketHandshakeParameterTest, ToValue) {
     "\r\n" +
     key;
 
-  scoped_refptr<net::NetLogWebSocketHandshakeParameter> parameter(
-      new net::NetLogWebSocketHandshakeParameter(testInput));
-  scoped_ptr<Value> actual(parameter->ToValue());
+  scoped_ptr<Value> actual(
+      net::NetLogWebSocketHandshakeCallback(&testInput,
+                                            net::NetLog::LOG_BASIC));
 
   EXPECT_TRUE(expected.Equals(actual.get()));
 }

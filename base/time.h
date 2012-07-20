@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,6 @@
 
 #ifndef BASE_TIME_H_
 #define BASE_TIME_H_
-#pragma once
 
 #if defined(__SNC__)
 // SNC needs this trick to find the right header.
@@ -272,7 +271,14 @@ class BASE_EXPORT Time {
   static Time FromDoubleT(double dt);
   double ToDoubleT() const;
 
+  // Converts to/from the Javascript convention for times, a number of
+  // milliseconds since the epoch:
+  // https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime.
+  static Time FromJsTime(double ms_since_epoch);
+  double ToJsTime() const;
+
 #if defined(OS_POSIX)
+  static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
 #endif
 
@@ -487,6 +493,13 @@ class BASE_EXPORT TimeTicks {
   // resolution.  THIS CALL IS GENERALLY MUCH MORE EXPENSIVE THAN Now() AND
   // SHOULD ONLY BE USED WHEN IT IS REALLY NEEDED.
   static TimeTicks HighResNow();
+
+  // Returns the current system trace time or, if none is defined, the current
+  // high-res time (i.e. HighResNow()). On systems where a global trace clock
+  // is defined, timestamping TraceEvents's with this value guarantees
+  // synchronization between events collected inside chrome and events
+  // collected outside (e.g. kernel, X server).
+  static TimeTicks NowFromSystemTraceTime();
 
 #if defined(OS_WIN)
   // Get the absolute value of QPC time drift. For testing.

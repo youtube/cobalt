@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_SSL_CLIENT_AUTH_CACHE_H_
 #define NET_BASE_SSL_CLIENT_AUTH_CACHE_H_
-#pragma once
 
 #include <string>
 #include <map>

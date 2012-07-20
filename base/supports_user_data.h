@@ -18,7 +18,6 @@ namespace base {
 class BASE_EXPORT SupportsUserData {
  public:
   SupportsUserData();
-  virtual ~SupportsUserData();
 
   // Derive from this class and add your own data members to associate extra
   // information with this object. Use GetUserData(key) and SetUserData()
@@ -33,6 +32,9 @@ class BASE_EXPORT SupportsUserData {
   // delete the object if it is changed or the object is destroyed.
   Data* GetUserData(const void* key) const;
   void SetUserData(const void* key, Data* data);
+
+ protected:
+  virtual ~SupportsUserData();
 
  private:
   typedef std::map<const void*, linked_ptr<Data> > DataMap;
@@ -55,6 +57,7 @@ class UserDataAdapter : public base::SupportsUserData::Data {
   }
 
   UserDataAdapter(T* object) : object_(object) {}
+  T* release() { return object_.release(); }
 
  private:
   scoped_refptr<T> object_;

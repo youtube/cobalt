@@ -1,18 +1,16 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_THROTTLER_MANAGER_H_
 #define NET_URL_REQUEST_URL_REQUEST_THROTTLER_MANAGER_H_
-#pragma once
 
 #include <map>
 #include <set>
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/singleton.h"
+#include "base/memory/ref_counted.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/threading/platform_thread.h"
 #include "googleurl/src/gurl.h"
@@ -34,16 +32,13 @@ class NetLog;
 // are registered, and does garbage collection from time to time in order to
 // clean out outdated entries. URL ID consists of lowercased scheme, host, port
 // and path. All URLs converted to the same ID will share the same entry.
-//
-// NOTE: All usage of this singleton object must be on the same thread,
-// although to allow it to be used as a singleton, construction and destruction
-// can occur on a separate thread.
 class NET_EXPORT URLRequestThrottlerManager
     : NON_EXPORTED_BASE(public base::NonThreadSafe),
       public NetworkChangeNotifier::IPAddressObserver,
-      public NetworkChangeNotifier::OnlineStateObserver {
+      public NetworkChangeNotifier::ConnectionTypeObserver {
  public:
-  static URLRequestThrottlerManager* GetInstance();
+  URLRequestThrottlerManager();
+  virtual ~URLRequestThrottlerManager();
 
   // Must be called for every request, returns the URL request throttler entry
   // associated with the URL. The caller must inform this entry of some events.
@@ -85,12 +80,9 @@ class NET_EXPORT URLRequestThrottlerManager
   // IPAddressObserver interface.
   virtual void OnIPAddressChanged() OVERRIDE;
 
-  // OnlineStateObserver interface.
-  virtual void OnOnlineStateChanged(bool online) OVERRIDE;
-
- protected:
-  URLRequestThrottlerManager();
-  virtual ~URLRequestThrottlerManager();
+  // ConnectionTypeObserver interface.
+  virtual void OnConnectionTypeChanged(
+      NetworkChangeNotifier::ConnectionType type) OVERRIDE;
 
   // Method that allows us to transform a URL into an ID that can be used in our
   // map. Resulting IDs will be lowercase and consist of the scheme, host, port
@@ -120,8 +112,6 @@ class NET_EXPORT URLRequestThrottlerManager
   int GetNumberOfEntriesForTests() const { return url_entries_.size(); }
 
  private:
-  friend struct DefaultSingletonTraits<URLRequestThrottlerManager>;
-
   // From each URL we generate an ID composed of the scheme, host, port and path
   // that allows us to uniquely map an entry to it.
   typedef std::map<std::string, scoped_refptr<URLRequestThrottlerEntry> >
@@ -150,10 +140,6 @@ class NET_EXPORT URLRequestThrottlerManager
   // Valid after construction.
   GURL::Replacements url_id_replacements_;
 
-  // Whether we would like to reject outgoing HTTP requests during the back-off
-  // period.
-  bool enforce_throttling_;
-
   // Certain tests do not obey the net component's threading policy, so we
   // keep track of whether we're being used by tests, and turn off certain
   // checks.
@@ -166,8 +152,8 @@ class NET_EXPORT URLRequestThrottlerManager
   // being disabled for localhost.
   bool logged_for_localhost_disabled_;
 
-  // NetLog to use, or NULL if none configured.
-  scoped_ptr<BoundNetLog> net_log_;
+  // NetLog to use, if configured.
+  BoundNetLog net_log_;
 
   // Valid once we've registered for network notifications.
   base::PlatformThreadId registered_from_thread_;

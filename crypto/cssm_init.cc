@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,8 +50,8 @@ class CSSMInitSingleton {
  private:
   CSSMInitSingleton()
       : inited_(false), csp_loaded_(false), cl_loaded_(false),
-        tp_loaded_(false), csp_handle_(NULL), cl_handle_(NULL),
-        tp_handle_(NULL) {
+        tp_loaded_(false), csp_handle_(CSSM_INVALID_HANDLE),
+        cl_handle_(CSSM_INVALID_HANDLE), tp_handle_(CSSM_INVALID_HANDLE) {
     static CSSM_VERSION version = {2, 0};
     // TODO(wtc): what should our caller GUID be?
     static const CSSM_GUID test_guid = {

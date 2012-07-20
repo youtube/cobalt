@@ -4,7 +4,6 @@
 
 #ifndef BASE_THREADING_THREAD_LOCAL_STORAGE_H_
 #define BASE_THREADING_THREAD_LOCAL_STORAGE_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
@@ -85,19 +84,6 @@ class BASE_EXPORT ThreadLocalStorage {
 #endif
     DISALLOW_COPY_AND_ASSIGN(Slot);
   };
-
-#if defined(OS_WIN)
-  // Function called when on thread exit to call TLS
-  // destructor functions.  This function is used internally.
-  static void ThreadExit();
-
- private:
-  // Function to lazily initialize our thread local storage.
-  static void **Initialize();
-
-  static long tls_key_;
-  static long tls_max_;
-#endif  // OS_WIN
 
   DISALLOW_COPY_AND_ASSIGN(ThreadLocalStorage);
 };

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,6 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/tcp_server_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -31,10 +30,7 @@ TEST(TCPClientSocketTest, BindLoopbackToLoopback) {
   IPEndPoint server_address;
   ASSERT_EQ(OK, server.GetLocalAddress(&server_address));
 
-  TCPClientSocket socket(
-      AddressList::CreateFromIPAddress(server_address.address(),
-                                       server_address.port()),
-      NULL, NetLog::Source());
+  TCPClientSocket socket(AddressList(server_address), NULL, NetLog::Source());
 
   EXPECT_EQ(OK, socket.Bind(IPEndPoint(lo_address, 0)));
 
@@ -88,10 +84,7 @@ TEST(TCPClientSocketTest, BindLoopbackToIPv6) {
 
   IPEndPoint server_address;
   ASSERT_EQ(OK, server.GetLocalAddress(&server_address));
-  TCPClientSocket socket(
-      AddressList::CreateFromIPAddress(server_address.address(),
-                                       server_address.port()),
-      NULL, NetLog::Source());
+  TCPClientSocket socket(AddressList(server_address), NULL, NetLog::Source());
 
   IPAddressNumber ipv4_lo_ip;
   ASSERT_TRUE(ParseIPLiteralToNumber("127.0.0.1", &ipv4_lo_ip));

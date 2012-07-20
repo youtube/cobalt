@@ -25,9 +25,11 @@ struct SimpleMessage {
   int foo;
   std::string bar;
   bool baz;
+  bool bstruct;
   SimpleEnum simple_enum;
   ScopedVector<int> ints;
-  SimpleMessage() : foo(0), baz(false) {}
+  ScopedVector<std::string> string_values;
+  SimpleMessage() : foo(0), baz(false), bstruct(false) {}
 
   static bool ParseSimpleEnum(const StringPiece& value, SimpleEnum* field) {
     if (value == "foo") {
@@ -40,6 +42,22 @@ struct SimpleMessage {
     return false;
   }
 
+  static bool HasFieldPresent(const base::Value* value, bool* result) {
+    *result = value != NULL;
+    return true;
+  }
+
+  static bool GetValueString(const base::Value* value, std::string* result) {
+    const base::DictionaryValue* dict = NULL;
+    if (!value->GetAsDictionary(&dict))
+      return false;
+
+    if (!dict->GetString("val", result))
+      return false;
+
+    return true;
+  }
+
   static void RegisterJSONConverter(
       base::JSONValueConverter<SimpleMessage>* converter) {
     converter->RegisterIntField("foo", &SimpleMessage::foo);
@@ -48,6 +66,13 @@ struct SimpleMessage {
     converter->RegisterCustomField<SimpleEnum>(
         "simple_enum", &SimpleMessage::simple_enum, &ParseSimpleEnum);
     converter->RegisterRepeatedInt("ints", &SimpleMessage::ints);
+    converter->RegisterCustomValueField<bool>("bstruct",
+                                              &SimpleMessage::bstruct,
+                                              &HasFieldPresent);
+    converter->RegisterRepeatedCustomValue<std::string>(
+        "string_values",
+        &SimpleMessage::string_values,
+        &GetValueString);
   }
 };
 
@@ -75,11 +100,13 @@ TEST(JSONValueConverterTest, ParseSimpleMessage) {
       "  \"foo\": 1,\n"
       "  \"bar\": \"bar\",\n"
       "  \"baz\": true,\n"
+      "  \"bstruct\": {},\n"
+      "  \"string_values\": [{\"val\": \"value_1\"}, {\"val\": \"value_2\"}],"
       "  \"simple_enum\": \"foo\","
       "  \"ints\": [1, 2]"
       "}\n";
 
-  scoped_ptr<Value> value(base::JSONReader::Read(normal_data, false));
+  scoped_ptr<Value> value(base::JSONReader::Read(normal_data));
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
   EXPECT_TRUE(converter.Convert(*value.get(), &message));
@@ -89,6 +116,9 @@ TEST(JSONValueConverterTest, ParseSimpleMessage) {
   EXPECT_TRUE(message.baz);
   EXPECT_EQ(SimpleMessage::FOO, message.simple_enum);
   EXPECT_EQ(2, static_cast<int>(message.ints.size()));
+  ASSERT_EQ(2U, message.string_values.size());
+  EXPECT_EQ("value_1", *message.string_values[0]);
+  EXPECT_EQ("value_2", *message.string_values[1]);
   EXPECT_EQ(1, *(message.ints[0]));
   EXPECT_EQ(2, *(message.ints[1]));
 }
@@ -100,11 +130,15 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
       "  \"child\": {\n"
       "    \"foo\": 1,\n"
       "    \"bar\": \"bar\",\n"
+      "    \"bstruct\": {},\n"
+      "    \"string_values\": [{\"val\": \"value_1\"}, {\"val\": \"value_2\"}],"
       "    \"baz\": true\n"
       "  },\n"
       "  \"children\": [{\n"
       "    \"foo\": 2,\n"
       "    \"bar\": \"foobar\",\n"
+      "    \"bstruct\": \"\",\n"
+      "    \"string_values\": [{\"val\": \"value_1\"}],"
       "    \"baz\": true\n"
       "  },\n"
       "  {\n"
@@ -114,7 +148,7 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
       "  }]\n"
       "}\n";
 
-  scoped_ptr<Value> value(base::JSONReader::Read(normal_data, false));
+  scoped_ptr<Value> value(base::JSONReader::Read(normal_data));
   NestedMessage message;
   base::JSONValueConverter<NestedMessage> converter;
   EXPECT_TRUE(converter.Convert(*value.get(), &message));
@@ -123,6 +157,10 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
   EXPECT_EQ(1, message.child.foo);
   EXPECT_EQ("bar", message.child.bar);
   EXPECT_TRUE(message.child.baz);
+  EXPECT_TRUE(message.child.bstruct);
+  ASSERT_EQ(2U, message.child.string_values.size());
+  EXPECT_EQ("value_1", *message.child.string_values[0]);
+  EXPECT_EQ("value_2", *message.child.string_values[1]);
 
   EXPECT_EQ(2, static_cast<int>(message.children.size()));
   const SimpleMessage* first_child = message.children[0];
@@ -130,12 +168,17 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
   EXPECT_EQ(2, first_child->foo);
   EXPECT_EQ("foobar", first_child->bar);
   EXPECT_TRUE(first_child->baz);
+  EXPECT_TRUE(first_child->bstruct);
+  ASSERT_EQ(1U, first_child->string_values.size());
+  EXPECT_EQ("value_1", *first_child->string_values[0]);
 
   const SimpleMessage* second_child = message.children[1];
   ASSERT_TRUE(second_child);
   EXPECT_EQ(3, second_child->foo);
   EXPECT_EQ("barbaz", second_child->bar);
   EXPECT_FALSE(second_child->baz);
+  EXPECT_FALSE(second_child->bstruct);
+  EXPECT_EQ(0U, second_child->string_values.size());
 }
 
 TEST(JSONValueConverterTest, ParseFailures) {
@@ -147,7 +190,7 @@ TEST(JSONValueConverterTest, ParseFailures) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  scoped_ptr<Value> value(base::JSONReader::Read(normal_data, false));
+  scoped_ptr<Value> value(base::JSONReader::Read(normal_data));
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
   EXPECT_FALSE(converter.Convert(*value.get(), &message));
@@ -163,7 +206,7 @@ TEST(JSONValueConverterTest, ParseWithMissingFields) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  scoped_ptr<Value> value(base::JSONReader::Read(normal_data, false));
+  scoped_ptr<Value> value(base::JSONReader::Read(normal_data));
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
   // Convert() still succeeds even if the input doesn't have "bar" field.
@@ -186,7 +229,7 @@ TEST(JSONValueConverterTest, EnumParserFails) {
       "  \"ints\": [1, 2]"
       "}\n";
 
-  scoped_ptr<Value> value(base::JSONReader::Read(normal_data, false));
+  scoped_ptr<Value> value(base::JSONReader::Read(normal_data));
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
   EXPECT_FALSE(converter.Convert(*value.get(), &message));
@@ -203,7 +246,7 @@ TEST(JSONValueConverterTest, RepeatedValueErrorInTheMiddle) {
       "  \"ints\": [1, false]"
       "}\n";
 
-  scoped_ptr<Value> value(base::JSONReader::Read(normal_data, false));
+  scoped_ptr<Value> value(base::JSONReader::Read(normal_data));
   SimpleMessage message;
   base::JSONValueConverter<SimpleMessage> converter;
   EXPECT_FALSE(converter.Convert(*value.get(), &message));

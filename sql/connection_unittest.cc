@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@ class SQLConnectionTest : public testing::Test {
 
   void SetUp() {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
-    ASSERT_TRUE(db_.Open(temp_dir_.path().AppendASCII("SQLConnectionTest.db")));
+    ASSERT_TRUE(db_.Open(db_path()));
   }
 
   void TearDown() {
@@ -23,6 +23,10 @@ class SQLConnectionTest : public testing::Test {
   }
 
   sql::Connection& db() { return db_; }
+
+  FilePath db_path() {
+    return temp_dir_.path().AppendASCII("SQLConnectionTest.db");
+  }
 
  private:
   ScopedTempDir temp_dir_;
@@ -120,3 +124,141 @@ TEST_F(SQLConnectionTest, GetLastInsertRowId) {
   ASSERT_TRUE(s.Step());
   EXPECT_EQ(12, s.ColumnInt(0));
 }
+
+TEST_F(SQLConnectionTest, Rollback) {
+  ASSERT_TRUE(db().BeginTransaction());
+  ASSERT_TRUE(db().BeginTransaction());
+  EXPECT_EQ(2, db().transaction_nesting());
+  db().RollbackTransaction();
+  EXPECT_FALSE(db().CommitTransaction());
+  EXPECT_TRUE(db().BeginTransaction());
+}
+
+// Test that sql::Connection::Raze() results in a database without the
+// tables from the original database.
+TEST_F(SQLConnectionTest, Raze) {
+  const char* kCreateSql = "CREATE TABLE foo (id INTEGER PRIMARY KEY, value)";
+  ASSERT_TRUE(db().Execute(kCreateSql));
+  ASSERT_TRUE(db().Execute("INSERT INTO foo (value) VALUES (12)"));
+
+  {
+    sql::Statement s(db().GetUniqueStatement("PRAGMA page_count"));
+    ASSERT_TRUE(s.Step());
+    EXPECT_EQ(2, s.ColumnInt(0));
+  }
+
+  {
+    sql::Statement s(db().GetUniqueStatement("SELECT * FROM sqlite_master"));
+    ASSERT_TRUE(s.Step());
+    EXPECT_EQ("table", s.ColumnString(0));
+    EXPECT_EQ("foo", s.ColumnString(1));
+    EXPECT_EQ("foo", s.ColumnString(2));
+    EXPECT_EQ(2, s.ColumnInt(3));
+    EXPECT_EQ(kCreateSql, s.ColumnString(4));
+  }
+
+  ASSERT_TRUE(db().Raze());
+
+  {
+    sql::Statement s(db().GetUniqueStatement("PRAGMA page_count"));
+    ASSERT_TRUE(s.Step());
+    EXPECT_EQ(1, s.ColumnInt(0));
+  }
+
+  {
+    sql::Statement s(db().GetUniqueStatement("SELECT * FROM sqlite_master"));
+    ASSERT_FALSE(s.Step());
+  }
+}
+
+// Test that Raze() maintains page_size.
+TEST_F(SQLConnectionTest, RazePageSize) {
+  // Fetch the default page size and double it for use in this test.
+  // Scoped to release statement before Close().
+  int default_page_size = 0;
+  {
+    sql::Statement s(db().GetUniqueStatement("PRAGMA page_size"));
+    ASSERT_TRUE(s.Step());
+    default_page_size = s.ColumnInt(0);
+  }
+  ASSERT_GT(default_page_size, 0);
+  const int kPageSize = 2 * default_page_size;
+
+  // Re-open the database to allow setting the page size.
+  db().Close();
+  db().set_page_size(kPageSize);
+  ASSERT_TRUE(db().Open(db_path()));
+
+  // page_size should match the indicated value.
+  sql::Statement s(db().GetUniqueStatement("PRAGMA page_size"));
+  ASSERT_TRUE(s.Step());
+  ASSERT_EQ(kPageSize, s.ColumnInt(0));
+
+  // After raze, page_size should still match the indicated value.
+  ASSERT_TRUE(db().Raze());
+  s.Reset(true);
+  ASSERT_TRUE(s.Step());
+  ASSERT_EQ(kPageSize, s.ColumnInt(0));
+}
+
+// Test that Raze() results are seen in other connections.
+TEST_F(SQLConnectionTest, RazeMultiple) {
+  const char* kCreateSql = "CREATE TABLE foo (id INTEGER PRIMARY KEY, value)";
+  ASSERT_TRUE(db().Execute(kCreateSql));
+
+  sql::Connection other_db;
+  ASSERT_TRUE(other_db.Open(db_path()));
+
+  // Check that the second connection sees the table.
+  const char *kTablesQuery = "SELECT COUNT(*) FROM sqlite_master";
+  sql::Statement s(other_db.GetUniqueStatement(kTablesQuery));
+  ASSERT_TRUE(s.Step());
+  ASSERT_EQ(1, s.ColumnInt(0));
+  ASSERT_FALSE(s.Step());  // Releases the shared lock.
+
+  ASSERT_TRUE(db().Raze());
+
+  // The second connection sees the updated database.
+  s.Reset(true);
+  ASSERT_TRUE(s.Step());
+  ASSERT_EQ(0, s.ColumnInt(0));
+}
+
+TEST_F(SQLConnectionTest, RazeLocked) {
+  const char* kCreateSql = "CREATE TABLE foo (id INTEGER PRIMARY KEY, value)";
+  ASSERT_TRUE(db().Execute(kCreateSql));
+
+  // Open a transaction and write some data in a second connection.
+  // This will acquire a PENDING or EXCLUSIVE transaction, which will
+  // cause the raze to fail.
+  sql::Connection other_db;
+  ASSERT_TRUE(other_db.Open(db_path()));
+  ASSERT_TRUE(other_db.BeginTransaction());
+  const char* kInsertSql = "INSERT INTO foo VALUES (1, 'data')";
+  ASSERT_TRUE(other_db.Execute(kInsertSql));
+
+  ASSERT_FALSE(db().Raze());
+
+  // Works after COMMIT.
+  ASSERT_TRUE(other_db.CommitTransaction());
+  ASSERT_TRUE(db().Raze());
+
+  // Re-create the database.
+  ASSERT_TRUE(db().Execute(kCreateSql));
+  ASSERT_TRUE(db().Execute(kInsertSql));
+
+  // An unfinished read transaction in the other connection also
+  // blocks raze.
+  const char *kQuery = "SELECT COUNT(*) FROM foo";
+  sql::Statement s(other_db.GetUniqueStatement(kQuery));
+  ASSERT_TRUE(s.Step());
+  ASSERT_FALSE(db().Raze());
+
+  // Complete the statement unlocks the database.
+  ASSERT_FALSE(s.Step());
+  ASSERT_TRUE(db().Raze());
+}
+
+// TODO(shess): Spin up a background thread to hold other_db, to more
+// closely match real life.  That would also allow testing
+// RazeWithTimeout().

@@ -9,6 +9,8 @@ namespace switches {
 
 // All switches in alphabetical order. The switches should be documented
 // alongside the definition of their values in the .cc file.
+extern const char kSingleProcessChromeFlag[];
+extern const char kSingleProcessTestsFlag[];
 extern const char kTestLargeTimeout[];
 extern const char kTestTinyTimeout[];
 extern const char kUiTestActionTimeout[];

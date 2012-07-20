@@ -6,7 +6,6 @@
 
 #include "base/memory/singleton.h"
 #include "base/observer_list_threadsafe.h"
-#include "net/base/x509_certificate.h"
 
 namespace net {
 

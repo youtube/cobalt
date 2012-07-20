@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_BUNDLE_LOCATIONS_H_
 #define BASE_MAC_BUNDLE_LOCATIONS_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/file_path.h"

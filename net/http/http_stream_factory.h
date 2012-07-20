@@ -15,6 +15,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
+#include "net/http/http_server_properties.h"
 #include "net/socket/ssl_client_socket.h"
 
 class GURL;
@@ -146,7 +147,7 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
   virtual bool was_npn_negotiated() const = 0;
 
   // Protocol negotiated with the server.
-  virtual SSLClientSocket::NextProto protocol_negotiated() const = 0;
+  virtual NextProto protocol_negotiated() const = 0;
 
   // Returns true if this stream is being fetched over SPDY.
   virtual bool using_spdy() const = 0;
@@ -178,9 +179,6 @@ class NET_EXPORT HttpStreamFactory {
                                  const HttpRequestInfo& info,
                                  const SSLConfig& server_ssl_config,
                                  const SSLConfig& proxy_ssl_config) = 0;
-
-  virtual void AddTLSIntolerantServer(const HostPortPair& server) = 0;
-  virtual bool IsTLSIntolerantServer(const HostPortPair& server) const = 0;
 
   // If pipelining is supported, creates a Value summary of the currently active
   // pipelines. Caller assumes ownership of the returned value. Otherwise,
@@ -229,12 +227,19 @@ class NET_EXPORT HttpStreamFactory {
   // Check if a HostPortPair is excluded from using spdy.
   static bool HasSpdyExclusion(const HostPortPair& endpoint);
 
-  // Sets the next protocol negotiation value used during the SSL handshake.
-  static void set_next_protos(const std::vector<std::string>& value) {
-    if (!next_protos_)
-      next_protos_ = new std::vector<std::string>;
-    *next_protos_ = value;
-  }
+  // Sets http/1.1 as the only protocol supported via NPN.
+  static void EnableNpnHttpOnly();
+
+  // Sets http/1.1 and spdy/2 (the default spdy protocol) as the protocols
+  // supported via NPN.
+  static void EnableNpnSpdy();
+
+  // Sets http/1.1, spdy/2, and spdy/3 as the protocols supported via NPN.
+  static void EnableNpnSpdy3();
+
+  // Sets the protocols supported by NPN (next protocol negotiation) during the
+  // SSL handshake as well as by HTTP Alternate-Protocol.
+  static void SetNextProtos(const std::vector<std::string>& value);
   static bool has_next_protos() { return next_protos_ != NULL; }
   static const std::vector<std::string>& next_protos() {
     return *next_protos_;
@@ -274,6 +279,7 @@ class NET_EXPORT HttpStreamFactory {
 
   static const HostMappingRules* host_mapping_rules_;
   static std::vector<std::string>* next_protos_;
+  static bool enabled_protocols_[NUM_ALTERNATE_PROTOCOLS];
   static bool spdy_enabled_;
   static bool use_alternate_protocols_;
   static bool force_spdy_over_ssl_;

@@ -7,7 +7,6 @@
 
 #ifndef BASE_I18N_TIME_FORMATTING_H_
 #define BASE_I18N_TIME_FORMATTING_H_
-#pragma once
 
 #include "base/i18n/base_i18n_export.h"
 #include "base/string16.h"
