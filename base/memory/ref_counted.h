@@ -249,7 +249,7 @@ class scoped_refptr {
     assert(ptr_ != NULL);
     return ptr_;
   }
-  // The SNC compiler requires an explicit * operator here.
+  // The compiler requires an explicit * operator here.
 #if defined(__LB_PS3__)
   T& operator*() const {
     assert(ptr_ != NULL);
