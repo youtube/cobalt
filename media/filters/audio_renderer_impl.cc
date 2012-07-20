@@ -16,8 +16,7 @@
 namespace media {
 
 AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
-    : host_(NULL),
-      state_(kUninitialized),
+    : state_(kUninitialized),
       pending_read_(false),
       received_end_of_stream_(false),
       rendered_end_of_stream_(false),
@@ -31,12 +30,6 @@ AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
       underflow_disabled_(false),
       read_cb_(base::Bind(&AudioRendererImpl::DecodedAudioReady,
                           base::Unretained(this))) {
-}
-
-void AudioRendererImpl::SetHost(FilterHost* host) {
-  DCHECK(host);
-  DCHECK(!host_);
-  host_ = host;
 }
 
 void AudioRendererImpl::Play(const base::Closure& callback) {
@@ -145,15 +138,24 @@ void AudioRendererImpl::DoSeek() {
 void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
                                    const PipelineStatusCB& init_cb,
                                    const base::Closure& underflow_cb,
-                                   const TimeCB& time_cb) {
+                                   const TimeCB& time_cb,
+                                   const base::Closure& ended_cb,
+                                   const base::Closure& disabled_cb,
+                                   const PipelineStatusCB& error_cb) {
   DCHECK(decoder);
   DCHECK(!init_cb.is_null());
   DCHECK(!underflow_cb.is_null());
   DCHECK(!time_cb.is_null());
+  DCHECK(!ended_cb.is_null());
+  DCHECK(!disabled_cb.is_null());
+  DCHECK(!error_cb.is_null());
   DCHECK_EQ(kUninitialized, state_);
   decoder_ = decoder;
   underflow_cb_ = underflow_cb;
   time_cb_ = time_cb;
+  ended_cb_ = ended_cb;
+  disabled_cb_ = disabled_cb;
+  error_cb_ = error_cb;
 
   // Create a callback so our algorithm can request more reads.
   base::Closure cb = base::Bind(&AudioRendererImpl::ScheduleRead_Locked, this);
@@ -436,7 +438,7 @@ uint32 AudioRendererImpl::FillBuffer(uint8* dest,
     if (!algorithm_->CanFillBuffer() && received_end_of_stream_ &&
         !rendered_end_of_stream_ && base::Time::Now() >= earliest_end_time_) {
       rendered_end_of_stream_ = true;
-      host_->NotifyEnded();
+      ended_cb_.Run();
     } else if (!algorithm_->CanFillBuffer() && !received_end_of_stream_ &&
                state_ == kPlaying && !underflow_disabled_) {
       state_ = kUnderflow;
@@ -519,7 +521,7 @@ base::TimeDelta AudioRendererImpl::ConvertToDuration(int bytes) {
 }
 
 void AudioRendererImpl::OnRenderError() {
-  host_->DisableAudioRenderer();
+  disabled_cb_.Run();
 }
 
 void AudioRendererImpl::DisableUnderflowForTesting() {
@@ -535,7 +537,7 @@ void AudioRendererImpl::HandleAbortedReadOrDecodeError(bool is_decode_error) {
       return;
     case kPaused:
       if (status != PIPELINE_OK)
-        host_->SetError(status);
+        error_cb_.Run(status);
       base::ResetAndReturn(&pause_cb_).Run();
       return;
     case kSeeking:
@@ -547,7 +549,7 @@ void AudioRendererImpl::HandleAbortedReadOrDecodeError(bool is_decode_error) {
     case kRebuffering:
     case kStopped:
       if (status != PIPELINE_OK)
-        host_->SetError(status);
+        error_cb_.Run(status);
       return;
   }
 }
