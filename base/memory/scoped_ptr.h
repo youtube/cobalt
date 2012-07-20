@@ -122,7 +122,7 @@ class scoped_ptr {
   // The input parameter must be allocated with new.
   explicit scoped_ptr(C* p = NULL) : ptr_(p) { }
 
-  // The SNC compiler tries to use this constructor when it should use the
+  // The compiler tries to use this constructor when it should use the
   // next one down.
 #if !defined(__LB_PS3__)
   // Constructor.  Allows construction from a scoped_ptr rvalue for a
