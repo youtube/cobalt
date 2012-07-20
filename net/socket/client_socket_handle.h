@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_CLIENT_SOCKET_HANDLE_H_
 #define NET_SOCKET_CLIENT_SOCKET_HANDLE_H_
-#pragma once
 
 #include <string>
 
@@ -92,6 +91,12 @@ class NET_EXPORT ClientSocketHandle {
   // initialized the ClientSocketHandle.
   LoadState GetLoadState() const;
 
+  bool IsPoolStalled() const;
+
+  void AddLayeredPool(LayeredPool* layered_pool);
+
+  void RemoveLayeredPool(LayeredPool* layered_pool);
+
   // Returns true when Init() has completed successfully.
   bool is_initialized() const { return is_initialized_; }
 
@@ -164,6 +169,7 @@ class NET_EXPORT ClientSocketHandle {
 
   bool is_initialized_;
   ClientSocketPool* pool_;
+  LayeredPool* layered_pool_;
   scoped_ptr<StreamSocket> socket_;
   std::string group_name_;
   bool is_reused_;

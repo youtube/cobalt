@@ -23,12 +23,10 @@ AudioInputController::AudioInputController(EventHandler* handler,
     : creator_loop_(base::MessageLoopProxy::current()),
       handler_(handler),
       stream_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(no_data_timer_(FROM_HERE,
-          base::TimeDelta::FromSeconds(kTimerResetInterval),
-          this,
-          &AudioInputController::DoReportNoDataError)),
+      data_is_active_(false),
       state_(kEmpty),
-      sync_writer_(sync_writer) {
+      sync_writer_(sync_writer),
+      max_volume_(0.0) {
   DCHECK(creator_loop_);
 }
 
@@ -43,7 +41,7 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
     const AudioParameters& params) {
   DCHECK(audio_manager);
 
-  if (!params.IsValid() || (params.channels > kMaxInputChannels))
+  if (!params.IsValid() || (params.channels() > kMaxInputChannels))
     return NULL;
 
   if (factory_)
@@ -76,7 +74,7 @@ scoped_refptr<AudioInputController> AudioInputController::CreateLowLatency(
   DCHECK(audio_manager);
   DCHECK(sync_writer);
 
-  if (!params.IsValid() || (params.channels > kMaxInputChannels))
+  if (!params.IsValid() || (params.channels() > kMaxInputChannels))
     return NULL;
 
   // Create the AudioInputController object and ensure that it runs on
@@ -103,8 +101,20 @@ void AudioInputController::Record() {
 
 void AudioInputController::Close(const base::Closure& closed_task) {
   DCHECK(!closed_task.is_null());
+  DCHECK(creator_loop_->BelongsToCurrentThread());
+
+  message_loop_->PostTaskAndReply(
+      FROM_HERE, base::Bind(&AudioInputController::DoClose, this), closed_task);
+}
+
+void AudioInputController::SetVolume(double volume) {
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoClose, this, closed_task));
+      &AudioInputController::DoSetVolume, this, volume));
+}
+
+void AudioInputController::SetAutomaticGainControl(bool enabled) {
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoSetAutomaticGainControl, this, enabled));
 }
 
 void AudioInputController::DoCreate(AudioManager* audio_manager,
@@ -128,8 +138,14 @@ void AudioInputController::DoCreate(AudioManager* audio_manager,
     return;
   }
 
-  creator_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoResetNoDataTimer, this));
+  DCHECK(!no_data_timer_.get());
+  // Create the data timer which will call DoCheckForNoData() after a delay
+  // of |kTimerResetInterval| seconds. The timer is started in DoRecord()
+  // and restarted in each DoCheckForNoData() callback.
+  no_data_timer_.reset(new base::DelayTimer<AudioInputController>(FROM_HERE,
+      base::TimeDelta::FromSeconds(kTimerResetInterval),
+      this,
+      &AudioInputController::DoCheckForNoData));
 
   state_ = kCreated;
   handler_->OnCreated(this);
@@ -146,15 +162,23 @@ void AudioInputController::DoRecord() {
     state_ = kRecording;
   }
 
+  // Start the data timer. Once |kTimerResetInterval| seconds have passed,
+  // a callback to DoCheckForNoData() is made.
+  no_data_timer_->Reset();
+
   stream_->Start(this);
   handler_->OnRecording(this);
 }
 
-void AudioInputController::DoClose(const base::Closure& closed_task) {
+void AudioInputController::DoClose() {
   DCHECK(message_loop_->BelongsToCurrentThread());
+
+  // Delete the timer on the same thread that created it.
+  no_data_timer_.reset();
 
   if (state_ != kClosed) {
     DoStopCloseAndClearStream(NULL);
+    SetDataIsActive(false);
 
     if (LowLatencyMode()) {
       sync_writer_->Close();
@@ -162,8 +186,6 @@ void AudioInputController::DoClose(const base::Closure& closed_task) {
 
     state_ = kClosed;
   }
-
-  closed_task.Run();
 }
 
 void AudioInputController::DoReportError(int code) {
@@ -171,34 +193,76 @@ void AudioInputController::DoReportError(int code) {
   handler_->OnError(this, code);
 }
 
-void AudioInputController::DoReportNoDataError() {
-  DCHECK(creator_loop_->BelongsToCurrentThread());
+void AudioInputController::DoSetVolume(double volume) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK_GE(volume, 0);
+  DCHECK_LE(volume, 1.0);
 
-  // Error notifications should be sent on the audio-manager thread.
-  int code = 0;
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoReportError, this, code));
+  if (state_ != kCreated && state_ != kRecording)
+    return;
+
+  // Only ask for the maximum volume at first call and use cached value
+  // for remaining function calls.
+  if (!max_volume_) {
+    max_volume_ = stream_->GetMaxVolume();
+  }
+
+  if (max_volume_ == 0.0) {
+    DLOG(WARNING) << "Failed to access input volume control";
+    return;
+  }
+
+  // Set the stream volume and scale to a range matched to the platform.
+  stream_->SetVolume(max_volume_ * volume);
 }
 
-void AudioInputController::DoResetNoDataTimer() {
-  DCHECK(creator_loop_->BelongsToCurrentThread());
-  no_data_timer_.Reset();
+void AudioInputController::DoSetAutomaticGainControl(bool enabled) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK_NE(state_, kRecording);
+
+  // Ensure that the AGC state only can be modified before streaming starts.
+  if (state_ != kCreated || state_ == kRecording)
+    return;
+
+  stream_->SetAutomaticGainControl(enabled);
+}
+
+void AudioInputController::DoCheckForNoData() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  if (!GetDataIsActive()) {
+    // The data-is-active marker will be false only if it has been more than
+    // one second since a data packet was recorded. This can happen if a
+    // capture device has been removed or disabled.
+    handler_->OnError(this, 0);
+    return;
+  }
+
+  // Mark data as non-active. The flag will be re-enabled in OnData() each
+  // time a data packet is received. Hence, under normal conditions, the
+  // flag will only be disabled during a very short period.
+  SetDataIsActive(false);
+
+  // Restart the timer to ensure that we check the flag in one second again.
+  no_data_timer_->Reset();
 }
 
 void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
-                                  uint32 size, uint32 hardware_delay_bytes) {
+                                  uint32 size, uint32 hardware_delay_bytes,
+                                  double volume) {
   {
     base::AutoLock auto_lock(lock_);
     if (state_ != kRecording)
       return;
   }
 
-  creator_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoResetNoDataTimer, this));
+  // Mark data as active to ensure that the periodic calls to
+  // DoCheckForNoData() does not report an error to the event handler.
+  SetDataIsActive(true);
 
   // Use SyncSocket if we are in a low-latency mode.
   if (LowLatencyMode()) {
-    sync_writer_->Write(data, size);
+    sync_writer_->Write(data, size, volume);
     sync_writer_->UpdateRecordedBytes(hardware_delay_bytes);
     return;
   }
@@ -233,6 +297,14 @@ void AudioInputController::DoStopCloseAndClearStream(
   // Should be last in the method, do not touch "this" from here on.
   if (done != NULL)
     done->Signal();
+}
+
+void AudioInputController::SetDataIsActive(bool enabled) {
+  base::subtle::Release_Store(&data_is_active_, enabled);
+}
+
+bool AudioInputController::GetDataIsActive() {
+  return (base::subtle::Acquire_Load(&data_is_active_) != false);
 }
 
 }  // namespace media

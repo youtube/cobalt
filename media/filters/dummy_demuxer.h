@@ -23,15 +23,16 @@ class DummyDemuxerStream : public DemuxerStream {
   explicit DummyDemuxerStream(Type type);
 
   // DemuxerStream implementation.
-  virtual void Read(const ReadCallback& read_callback) OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual Type type() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
-
- private:
+  virtual Ranges<base::TimeDelta> GetBufferedRanges() OVERRIDE;
+ protected:
   virtual ~DummyDemuxerStream();
 
+ private:
   Type type_;
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
@@ -39,25 +40,24 @@ class DummyDemuxerStream : public DemuxerStream {
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxerStream);
 };
 
-class DummyDemuxer : public Demuxer {
+class MEDIA_EXPORT DummyDemuxer : public Demuxer {
  public:
-  DummyDemuxer(bool has_video, bool has_audio, bool local_source);
-  virtual ~DummyDemuxer();
+  DummyDemuxer(bool has_video, bool has_audio);
 
   // Demuxer implementation.
+  virtual void Initialize(DemuxerHost* host,
+                          const PipelineStatusCB& status_cb) OVERRIDE;
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
-  virtual void set_host(DemuxerHost* demuxer_host) OVERRIDE;
-  virtual void SetPreload(Preload preload) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
-  virtual bool IsLocalSource() OVERRIDE;
-  virtual bool IsSeekable() OVERRIDE;
+
+ protected:
+  virtual ~DummyDemuxer();
 
  private:
   bool has_video_;
   bool has_audio_;
-  bool local_source_;
   std::vector< scoped_refptr<DummyDemuxerStream> > streams_;
 
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxer);

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,23 +7,6 @@
 // mostly includes stuff like reporting proper timestamps, seeking to
 // keyframes, and supporting certain features like reordered_opaque.
 //
-// Known failures as of r54591:
-//   http://crbug.com/47761
-//     crbug47761_ogg/FFmpegTest.Loop_Audio/0
-//     crbug47761_ogg/FFmpegTest.Seek_Audio/0
-//     crbug47761_ogg/FFmpegTest.Decode_Audio/0
-//
-//   http://crbug.com/49709
-//     sync1_ogg/FFmpegTest.Seek_Audio/0
-//     sync1_ogv/FFmpegTest.Seek_Audio/0
-//     sync2_ogg/FFmpegTest.Seek_Audio/0
-//     sync2_ogv/FFmpegTest.Seek_Audio/0
-//
-//   http://crbug.com/50457
-//     sync0_webm/FFmpegTest.Decode_Video/0
-//     sync0_webm/FFmpegTest.Duration/0
-//     sync1_webm/FFmpegTest.Decode_Video/0
-//     sync2_webm/FFmpegTest.Decode_Video/0
 
 #include <limits>
 #include <queue>
@@ -45,6 +28,9 @@ int main(int argc, char** argv) {
 }
 
 namespace media {
+
+// Mirror setting in ffmpeg_video_decoder.
+static const int kDecodeThreads = 2;
 
 class AVPacketQueue {
  public:
@@ -87,6 +73,8 @@ class AVPacketQueue {
   DISALLOW_COPY_AND_ASSIGN(AVPacketQueue);
 };
 
+// TODO(dalecurtis): We should really just use PipelineIntegrationTests instead
+// of a one-off step decoder so we're exercising the real pipeline.
 class FFmpegTest : public testing::TestWithParam<const char*> {
  protected:
   FFmpegTest()
@@ -102,8 +90,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
         duration_(AV_NOPTS_VALUE) {
     InitializeFFmpeg();
 
-    audio_buffer_.reset(
-        reinterpret_cast<int16*>(av_malloc(AVCODEC_MAX_AUDIO_FRAME_SIZE)));
+    audio_buffer_.reset(avcodec_alloc_frame());
     video_buffer_.reset(avcodec_alloc_frame());
   }
 
@@ -133,18 +120,18 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     std::string ascii_path = path.value();
 #endif
 
-    EXPECT_EQ(0, av_open_input_file(&av_format_context_,
-                                    ascii_path.c_str(),
-                                    NULL, 0, NULL))
+    EXPECT_EQ(0, avformat_open_input(&av_format_context_,
+                                     ascii_path.c_str(),
+                                     NULL, NULL))
         << "Could not open " << path.value();
-    EXPECT_LE(0, av_find_stream_info(av_format_context_))
+    EXPECT_LE(0, avformat_find_stream_info(av_format_context_, NULL))
         << "Could not find stream information for " << path.value();
 
     // Determine duration by picking max stream duration.
     for (unsigned int i = 0; i < av_format_context_->nb_streams; ++i) {
       AVStream* av_stream = av_format_context_->streams[i];
-      int64 duration = ConvertFromTimeBase(av_stream->time_base,
-                                        av_stream->duration).InMicroseconds();
+      int64 duration = ConvertFromTimeBase(
+          av_stream->time_base, av_stream->duration).InMicroseconds();
       duration_ = std::max(duration_, duration);
     }
 
@@ -152,12 +139,12 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     AVRational av_time_base = {1, AV_TIME_BASE};
     int64 duration =
         ConvertFromTimeBase(av_time_base,
-                         av_format_context_->duration).InMicroseconds();
+                            av_format_context_->duration).InMicroseconds();
     duration_ = std::max(duration_, duration);
   }
 
   void CloseFile() {
-    av_close_input_file(av_format_context_);
+    avformat_close_input(&av_format_context_);
   }
 
   void OpenCodecs() {
@@ -169,7 +156,12 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
       EXPECT_TRUE(av_codec)
           << "Could not find AVCodec with CodecID "
           << av_codec_context->codec_id;
-      EXPECT_EQ(0, avcodec_open(av_codec_context, av_codec))
+
+      av_codec_context->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
+      av_codec_context->err_recognition = AV_EF_CAREFUL;
+      av_codec_context->thread_count = kDecodeThreads;
+
+      EXPECT_EQ(0, avcodec_open2(av_codec_context, av_codec, NULL))
           << "Could not open AVCodecContext with CodecID "
           << av_codec_context->codec_id;
 
@@ -246,7 +238,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     // Decode until output is produced, end of stream, or error.
     while (true) {
       int result = 0;
-      int size_out = AVCODEC_MAX_AUDIO_FRAME_SIZE;
+      int got_audio = 0;
       bool end_of_stream = false;
 
       AVPacket packet;
@@ -257,25 +249,22 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
         memcpy(&packet, audio_packets_.peek(), sizeof(packet));
       }
 
-      result = avcodec_decode_audio3(av_audio_context(), audio_buffer_.get(),
-                                     &size_out, audio_packets_.peek());
+      avcodec_get_frame_defaults(audio_buffer_.get());
+      result = avcodec_decode_audio4(av_audio_context(), audio_buffer_.get(),
+                                     &got_audio, &packet);
       if (!audio_packets_.empty()) {
         audio_packets_.pop();
       }
 
       EXPECT_GE(result, 0) << "Audio decode error.";
-      if (result < 0 || (size_out == 0 && end_of_stream)) {
+      if (result < 0 || (got_audio == 0 && end_of_stream)) {
         return false;
       }
 
       if (result > 0) {
-        // TODO(scherkus): move this to ffmpeg_common.h and dedup.
-        int64 denominator = av_audio_context()->channels *
-            av_get_bits_per_sample_fmt(av_audio_context()->sample_fmt) / 8 *
-            av_audio_context()->sample_rate;
-        double microseconds = size_out /
-            (denominator /
-             static_cast<double>(base::Time::kMicrosecondsPerSecond));
+        double microseconds = 1.0L * audio_buffer_->nb_samples /
+            av_audio_context()->sample_rate *
+            base::Time::kMicrosecondsPerSecond;
         decoded_audio_duration_ = static_cast<int64>(microseconds);
 
         if (packet.pts == static_cast<int64>(AV_NOPTS_VALUE)) {
@@ -314,6 +303,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
         memcpy(&packet, video_packets_.peek(), sizeof(packet));
       }
 
+      avcodec_get_frame_defaults(video_buffer_.get());
       av_video_context()->reordered_opaque = packet.pts;
       result = avcodec_decode_video2(av_video_context(), video_buffer_.get(),
                                      &got_picture, &packet);
@@ -402,7 +392,6 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     EXPECT_TRUE(InitializeMediaLibrary(path))
         << "Could not initialize media library.";
 
-    avcodec_init();
     av_log_set_level(AV_LOG_FATAL);
     av_register_all();
     av_register_protocol2(&kFFmpegFileProtocol, sizeof(kFFmpegFileProtocol));
@@ -415,7 +404,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
   AVPacketQueue audio_packets_;
   AVPacketQueue video_packets_;
 
-  scoped_ptr_malloc<int16, media::ScopedPtrAVFree> audio_buffer_;
+  scoped_ptr_malloc<AVFrame, media::ScopedPtrAVFree> audio_buffer_;
   scoped_ptr_malloc<AVFrame, media::ScopedPtrAVFree> video_buffer_;
 
   int64 decoded_audio_time_;
@@ -450,11 +439,6 @@ FFMPEG_TEST_CASE(sync2, webm);
 
 // Covers our LayoutTest file.
 FFMPEG_TEST_CASE(counting, ogv);
-
-// The following are bugs reported by users.
-FFMPEG_TEST_CASE(crbug47761, ogg);
-FFMPEG_TEST_CASE(crbug50045, mp4);
-FFMPEG_TEST_CASE(crbug62127, webm);
 
 TEST_P(FFmpegTest, Perf) {
   {

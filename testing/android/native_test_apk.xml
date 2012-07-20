@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2012 The Chromium Authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<project name="replaceme" default="debug" basedir=".">
+
+  <description>
+    Building native test runner ChromeNativeTests_replaceme.apk
+  </description>
+
+  <property environment="env"/>
+  <property name="sdk.dir" location="${env.ANDROID_SDK_ROOT}"/>
+  <property name="sdk.version" value="${env.ANDROID_SDK_VERSION}"/>
+  <property name="toolchain.dir" location="${env.ANDROID_TOOLCHAIN}"/>
+  <property name="src" location="."/>
+  <property name="source.dir" location="java/src"/>
+  <property name="target.abi" value="${APP_ABI}"/>
+
+  <property name="target" value="android-${env.ANDROID_SDK_VERSION}"/>
+  <path id="native.libs.gdbserver">
+    <fileset file="${toolchain.dir}/../../gdbserver"/>
+  </path>
+
+  <condition property="location.base" 
+             value="${sdk.dir}" 
+             else="${sdk.dir}/platforms/android-${sdk.version}">
+    <isset property="env.ANDROID_BUILD_TOP"/>
+  </condition>
+
+  <!-- We expect PRODUCT_DIR to be set like the gyp var
+       (e.g. $ROOT/out/Debug) -->
+  <fail message="PRODUCT_DIR env var not set?">
+    <condition>
+      <not>
+        <isset property="PRODUCT_DIR"/>
+      </not>
+    </condition>
+  </fail>
+
+  <property name="out.dir" location="${PRODUCT_DIR}/replaceme_apk"/>
+
+  <property name="resource.absolute.dir" value="res"/>
+  <property name="gen.absolute.dir" value="${out.dir}/gen"/>
+
+  <condition property="external.jars.dir"
+             value="${out.dir}/java/libs"
+             else="">
+      <available file="${out.dir}/java/libs" type="dir"/>
+  </condition>
+  <path id="out.dex.jar.input.ref">
+      <fileset dir="${external.jars.dir}" includes="*.jar"/>
+  </path>
+  <condition property="java.compilerargs"
+             value="-classpath ${toString:out.dex.jar.input.ref}">
+    <not>
+      <equals arg1="${external.jars.dir}" arg2=""/>
+    </not>
+  </condition>
+  <property name="native.libs.absolute.dir" location="${out.dir}/libs" />
+
+  <!-- Copy the below manifest file to a new directory because the project
+       base directory and output directory are the same and manifest merge
+       task takes the same file as source and target when doing copying.
+       Otherwise it'll generate an empty manifest file. -->
+  <copy file="AndroidManifest.xml" todir="${out.dir}/manifest"/>
+  <property name="manifest.abs.file" location="${out.dir}/manifest/AndroidManifest.xml"/>
+
+  <target name="-post-compile">
+    <!-- copy gdbserver to main libs directory if building debug. -->
+    <if>
+      <condition>
+        <equals arg1="${build.target}" arg2="debug" />
+      </condition>
+      <then>
+        <echo message="Copying gdbserver to the apk to enable native debugging"/>
+        <copy todir="${out.dir}/libs/${target.abi}">
+          <path refid="native.libs.gdbserver"/>
+        </copy>
+      </then>
+    </if>
+  </target>
+
+  <import file="${sdk.dir}/tools/ant/build.xml" />
+
+</project>

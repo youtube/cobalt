@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -154,6 +154,9 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
                             false)) {
     config->proxy_rules().bypass_rules.AddRuleToBypassLocal();
   }
+
+  // Source
+  config->set_source(PROXY_CONFIG_SOURCE_SYSTEM);
 }
 
 }  // namespace
@@ -179,20 +182,24 @@ class ProxyConfigServiceMac::Helper
   }
 
  private:
+  friend class base::RefCountedThreadSafe<Helper>;
+  ~Helper() {}
+
   ProxyConfigServiceMac* parent_;
 };
 
-ProxyConfigServiceMac::ProxyConfigServiceMac(MessageLoop* io_loop)
+ProxyConfigServiceMac::ProxyConfigServiceMac(
+    base::SingleThreadTaskRunner* io_thread_task_runner)
     : forwarder_(this),
       has_fetched_config_(false),
       helper_(new Helper(this)),
-      io_loop_(io_loop) {
-  DCHECK(io_loop);
+      io_thread_task_runner_(io_thread_task_runner) {
+  DCHECK(io_thread_task_runner_);
   config_watcher_.reset(new NetworkConfigWatcherMac(&forwarder_));
 }
 
 ProxyConfigServiceMac::~ProxyConfigServiceMac() {
-  DCHECK_EQ(io_loop_, MessageLoop::current());
+  DCHECK(io_thread_task_runner_->BelongsToCurrentThread());
   // Delete the config_watcher_ to ensure the notifier thread finishes before
   // this object is destroyed.
   config_watcher_.reset();
@@ -200,18 +207,18 @@ ProxyConfigServiceMac::~ProxyConfigServiceMac() {
 }
 
 void ProxyConfigServiceMac::AddObserver(Observer* observer) {
-  DCHECK_EQ(io_loop_, MessageLoop::current());
+  DCHECK(io_thread_task_runner_->BelongsToCurrentThread());
   observers_.AddObserver(observer);
 }
 
 void ProxyConfigServiceMac::RemoveObserver(Observer* observer) {
-  DCHECK_EQ(io_loop_, MessageLoop::current());
+  DCHECK(io_thread_task_runner_->BelongsToCurrentThread());
   observers_.RemoveObserver(observer);
 }
 
 net::ProxyConfigService::ConfigAvailability
     ProxyConfigServiceMac::GetLatestProxyConfig(ProxyConfig* config) {
-  DCHECK_EQ(io_loop_, MessageLoop::current());
+  DCHECK(io_thread_task_runner_->BelongsToCurrentThread());
 
   // Lazy-initialize by fetching the proxy setting from this thread.
   if (!has_fetched_config_) {
@@ -247,14 +254,14 @@ void ProxyConfigServiceMac::OnNetworkConfigChange(CFArrayRef changed_keys) {
   GetCurrentProxyConfig(&new_config);
 
   // Call OnProxyConfigChanged() on the IO thread to notify our observers.
-  io_loop_->PostTask(
+  io_thread_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&Helper::OnProxyConfigChanged, helper_.get(), new_config));
 }
 
 void ProxyConfigServiceMac::OnProxyConfigChanged(
     const ProxyConfig& new_config) {
-  DCHECK_EQ(io_loop_, MessageLoop::current());
+  DCHECK(io_thread_task_runner_->BelongsToCurrentThread());
 
   // Keep track of the last value we have seen.
   has_fetched_config_ = true;

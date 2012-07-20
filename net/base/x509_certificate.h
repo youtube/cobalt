@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_X509_CERTIFICATE_H_
 #define NET_BASE_X509_CERTIFICATE_H_
-#pragma once
 
 #include <string.h>
 
@@ -26,7 +25,6 @@
 #include <CoreFoundation/CFArray.h>
 #include <Security/SecBase.h>
 
-#include "base/synchronization/lock.h"
 #elif defined(USE_OPENSSL)
 // Forward declaration; real one in <x509.h>
 typedef struct x509_st X509;
@@ -37,6 +35,7 @@ struct CERTCertificateStr;
 #endif
 
 class Pickle;
+class PickleIterator;
 
 namespace crypto {
 class RSAPrivateKey;
@@ -92,6 +91,7 @@ class NET_EXPORT X509Certificate
   enum VerifyFlags {
     VERIFY_REV_CHECKING_ENABLED = 1 << 0,
     VERIFY_EV_CERT = 1 << 1,
+    VERIFY_CERT_IO_ENABLED = 1 << 2,
   };
 
   enum Format {
@@ -117,9 +117,9 @@ class NET_EXPORT X509Certificate
   };
 
   // PickleType is intended for deserializing certificates that were pickled
-  // by previous releases as part of a net::HttpResponseInfo, which in version
-  // 1 only contained a single certificate. When serializing certificates to a
-  // new Pickle, PICKLETYPE_CERTIFICATE_CHAIN is always used.
+  // by previous releases as part of a net::HttpResponseInfo.
+  // When serializing certificates to a new Pickle,
+  // PICKLETYPE_CERTIFICATE_CHAIN_V3 is always used.
   enum PickleType {
     // When reading a certificate from a Pickle, the Pickle only contains a
     // single certificate.
@@ -128,7 +128,16 @@ class NET_EXPORT X509Certificate
     // When reading a certificate from a Pickle, the Pickle contains the
     // the certificate plus any certificates that were stored in
     // |intermediate_ca_certificates_| at the time it was serialized.
-    PICKLETYPE_CERTIFICATE_CHAIN,
+    // The count of certificates is stored as a size_t, which is either 32
+    // or 64 bits.
+    PICKLETYPE_CERTIFICATE_CHAIN_V2,
+
+    // The Pickle contains the certificate and any certificates that were
+    // stored in |intermediate_ca_certs_| at the time it was serialized.
+    // The format is [int count], [data - this certificate],
+    // [data - intermediate1], ... [data - intermediateN].
+    // All certificates are stored in DER form.
+    PICKLETYPE_CERTIFICATE_CHAIN_V3,
   };
 
   // Creates a X509Certificate from the ground up.  Used by tests that simulate
@@ -181,7 +190,7 @@ class NET_EXPORT X509Certificate
   //
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromPickle(const Pickle& pickle,
-                                           void** pickle_iter,
+                                           PickleIterator* pickle_iter,
                                            PickleType type);
 
   // Parses all of the certificates possible from |data|. |format| is a
@@ -217,6 +226,9 @@ class NET_EXPORT X509Certificate
 
   // Appends a representation of this object to the given pickle.
   void Persist(Pickle* pickle);
+
+  // The serial number, DER encoded, possibly including a leading 00 byte.
+  const std::string& serial_number() const { return serial_number_; }
 
   // The subject of the certificate.  For HTTPS server certificates, this
   // represents the web server.  The common name of the subject should match
@@ -275,26 +287,6 @@ class NET_EXPORT X509Certificate
 
   // Do any of the given issuer names appear in this cert's chain of trust?
   bool IsIssuedBy(const std::vector<CertPrincipal>& valid_issuers);
-
-  // Creates a security policy for certificates used as client certificates
-  // in SSL.
-  // If a policy is successfully created, it will be stored in
-  // |*policy| and ownership transferred to the caller.
-  static OSStatus CreateSSLClientPolicy(SecPolicyRef* policy);
-
-  // Creates a security policy for basic X.509 validation. If the policy is
-  // successfully created, it will be stored in |*policy| and ownership
-  // transferred to the caller.
-  static OSStatus CreateBasicX509Policy(SecPolicyRef* policy);
-
-  // Creates security policies to control revocation checking (OCSP and CRL).
-  // If |enable_revocation_checking| is false, the policies returned will be
-  // explicitly disabled from accessing the network or the cache. This may be
-  // used to override system settings regarding revocation checking.
-  // If the policies are successfully created, they will be appended to
-  // |policies|.
-  static OSStatus CreateRevocationPolicies(bool enable_revocation_checking,
-                                           CFMutableArrayRef policies);
 
   // Adds all available SSL client identity certs to the given vector.
   // |server_domain| is a hint for which domain the cert is to be sent to
@@ -357,43 +349,11 @@ class NET_EXPORT X509Certificate
   PCCERT_CONTEXT CreateOSCertChainForCert() const;
 #endif
 
-#if defined(OS_ANDROID)
-  // |chain_bytes| will contain the chain (including this certificate) encoded
-  // using GetChainDEREncodedBytes below.
-  void GetChainDEREncodedBytes(std::vector<std::string>* chain_bytes) const;
-#endif
-
 #if defined(USE_OPENSSL)
   // Returns a handle to a global, in-memory certificate store. We
   // use it for test code, e.g. importing the test server's certificate.
   static X509_STORE* cert_store();
 #endif
-
-  // Verifies the certificate against the given hostname.  Returns OK if
-  // successful or an error code upon failure.
-  //
-  // The |*verify_result| structure, including the |verify_result->cert_status|
-  // bitmask, is always filled out regardless of the return value.  If the
-  // certificate has multiple errors, the corresponding status flags are set in
-  // |verify_result->cert_status|, and the error code for the most serious
-  // error is returned.
-  //
-  // |flags| is bitwise OR'd of VerifyFlags:
-  //
-  // If VERIFY_REV_CHECKING_ENABLED is set in |flags|, online certificate
-  // revocation checking is performed (i.e. OCSP and downloading CRLs). CRLSet
-  // based revocation checking is always enabled, regardless of this flag, if
-  // |crl_set| is given.
-  //
-  // If VERIFY_EV_CERT is set in |flags| too, EV certificate verification is
-  // performed.
-  //
-  // |crl_set| points to an optional CRLSet structure which can be used to
-  // avoid revocation checks over the network.
-  int Verify(const std::string& hostname,
-             int flags,
-             CRLSet* crl_set,
-             CertVerifyResult* verify_result) const;
 
   // Verifies that |hostname| matches this certificate.
   // Does not verify that the certificate is valid, only that the certificate
@@ -475,11 +435,9 @@ class NET_EXPORT X509Certificate
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
   friend class TestRootCerts;  // For unit tests
-  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, Cache);
-  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, IntermediateCertificates);
-  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, SerialNumbers);
-  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, DigiNotarCerts);
+
   FRIEND_TEST_ALL_PREFIXES(X509CertificateNameVerifyTest, VerifyHostname);
+  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, SerialNumbers);
 
   // Construct an X509Certificate from a handle to the certificate object
   // in the underlying crypto library.
@@ -491,17 +449,6 @@ class NET_EXPORT X509Certificate
   // Common object initialization code.  Called by the constructors only.
   void Initialize();
 
-#if defined(OS_WIN)
-  bool CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
-               const char* policy_oid) const;
-  static bool IsIssuedByKnownRoot(PCCERT_CHAIN_CONTEXT chain_context);
-#endif
-#if defined(OS_MACOSX)
-  static bool IsIssuedByKnownRoot(CFArrayRef chain);
-#endif
-#if defined(USE_NSS)
-  bool VerifyEV(int flags) const;
-#endif
 #if defined(USE_OPENSSL)
   // Resets the store returned by cert_store() to default state. Used by
   // TestRootCerts to undo modifications.
@@ -522,41 +469,17 @@ class NET_EXPORT X509Certificate
                              const std::vector<std::string>& cert_san_dns_names,
                              const std::vector<std::string>& cert_san_ip_addrs);
 
-  // Performs the platform-dependent part of the Verify() method, verifiying
-  // this certificate against the platform's root CA certificates.
-  //
-  // Parameters and return value are as per Verify().
-  int VerifyInternal(const std::string& hostname,
-                     int flags,
-                     CRLSet* crl_set,
-                     CertVerifyResult* verify_result) const;
+  // Reads a single certificate from |pickle_iter| and returns a
+  // platform-specific certificate handle. The format of the certificate
+  // stored in |pickle_iter| is not guaranteed to be the same across different
+  // underlying cryptographic libraries, nor acceptable to CreateFromBytes().
+  // Returns an invalid handle, NULL, on failure.
+  // NOTE: This should not be used for any new code. It is provided for
+  // migration purposes and should eventually be removed.
+  static OSCertHandle ReadOSCertHandleFromPickle(PickleIterator* pickle_iter);
 
-  // The serial number, DER encoded, possibly including a leading 00 byte.
-  const std::string& serial_number() const { return serial_number_; }
-
-  // IsBlacklisted returns true if this certificate is explicitly blacklisted.
-  bool IsBlacklisted() const;
-
-  // IsPublicKeyBlacklisted returns true iff one of |public_key_hashes| (which
-  // are SHA1 hashes of SubjectPublicKeyInfo structures) is explicitly blocked.
-  static bool IsPublicKeyBlacklisted(
-      const std::vector<SHA1Fingerprint>& public_key_hashes);
-
-  // IsSHA1HashInSortedArray returns true iff |hash| is in |array|, a sorted
-  // array of SHA1 hashes.
-  static bool IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
-                                      const uint8* array,
-                                      size_t array_byte_len);
-
-  // Reads a single certificate from |pickle| and returns a platform-specific
-  // certificate handle. The format of the certificate stored in |pickle| is
-  // not guaranteed to be the same across different underlying cryptographic
-  // libraries, nor acceptable to CreateFromBytes(). Returns an invalid
-  // handle, NULL, on failure.
-  static OSCertHandle ReadOSCertHandleFromPickle(const Pickle& pickle,
-                                                 void** pickle_iter);
-
-  // Writes a single certificate to |pickle|. Returns false on failure.
+  // Writes a single certificate to |pickle| in DER form. Returns false on
+  // failure.
   static bool WriteOSCertHandleToPickle(OSCertHandle handle, Pickle* pickle);
 
   // The subject of the certificate.
@@ -593,12 +516,6 @@ class NET_EXPORT X509Certificate
   // If this is empty, then GetDefaultNickname will return a generated name
   // based on the type of the certificate.
   std::string default_nickname_;
-#endif
-
-#if defined(OS_MACOSX)
-  // Blocks multiple threads from verifying the cert simultaneously.
-  // (Marked mutable because it's used in a const method.)
-  mutable base::Lock verification_lock_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(X509Certificate);

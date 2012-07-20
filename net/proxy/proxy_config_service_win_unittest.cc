@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -196,6 +196,7 @@ TEST(ProxyConfigServiceWinTest, SetFromIEConfig) {
     EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
     EXPECT_EQ(tests[i].pac_url, config.pac_url());
     EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
+    EXPECT_EQ(PROXY_CONFIG_SOURCE_SYSTEM, config.source());
   }
 }
 

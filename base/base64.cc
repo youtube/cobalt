@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,9 @@ bool Base64Encode(const StringPiece& input, std::string* output) {
 
   // null terminates result since result is base64 text!
   int input_size = static_cast<int>(input.size());
-  int output_size= modp_b64_encode(&(temp[0]), input.data(), input_size);
+
+  // modp_b64_encode_len() returns at least 1, so temp[0] is safe to use.
+  int output_size = modp_b64_encode(&(temp[0]), input.data(), input_size);
   if (output_size < 0)
     return false;
 

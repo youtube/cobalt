@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,6 @@
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_test_suite.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -133,7 +132,7 @@ TEST_F(UDPSocketTest, Connect) {
   // Setup the server to listen.
   IPEndPoint bind_address;
   CreateUDPAddress("0.0.0.0", kPort, &bind_address);
-  CapturingNetLog server_log(CapturingNetLog::kUnbounded);
+  CapturingNetLog server_log;
   scoped_ptr<UDPServerSocket> server(
       new UDPServerSocket(&server_log, NetLog::Source()));
   int rv = server->Listen(bind_address);
@@ -142,7 +141,7 @@ TEST_F(UDPSocketTest, Connect) {
   // Setup the client.
   IPEndPoint server_address;
   CreateUDPAddress("127.0.0.1", kPort, &server_address);
-  CapturingNetLog client_log(CapturingNetLog::kUnbounded);
+  CapturingNetLog client_log;
   scoped_ptr<UDPClientSocket> client(
       new UDPClientSocket(DatagramSocket::DEFAULT_BIND,
                           RandIntCallback(),
@@ -172,7 +171,7 @@ TEST_F(UDPSocketTest, Connect) {
   client.reset();
 
   // Check the server's log.
-  CapturingNetLog::EntryList server_entries;
+  CapturingNetLog::CapturedEntryList server_entries;
   server_log.GetEntries(&server_entries);
   EXPECT_EQ(4u, server_entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
@@ -185,7 +184,7 @@ TEST_F(UDPSocketTest, Connect) {
       server_entries, 3, NetLog::TYPE_SOCKET_ALIVE));
 
   // Check the client's log.
-  CapturingNetLog::EntryList client_entries;
+  CapturingNetLog::CapturedEntryList client_entries;
   client_log.GetEntries(&client_entries);
   EXPECT_EQ(6u, client_entries.size());
   EXPECT_TRUE(LogContainsBeginEvent(
@@ -200,6 +199,45 @@ TEST_F(UDPSocketTest, Connect) {
       client_entries, 4, NetLog::TYPE_UDP_BYTES_RECEIVED, NetLog::PHASE_NONE));
   EXPECT_TRUE(LogContainsEndEvent(
       client_entries, 5, NetLog::TYPE_SOCKET_ALIVE));
+}
+
+TEST_F(UDPSocketTest, Broadcast) {
+  const int kPort = 9999;
+  std::string first_message("first message"), second_message("second message");
+
+  IPEndPoint broadcast_address;
+  CreateUDPAddress("255.255.255.255", kPort, &broadcast_address);
+  IPEndPoint listen_address;
+  CreateUDPAddress("0.0.0.0", kPort, &listen_address);
+
+  CapturingNetLog server1_log, server2_log;
+  scoped_ptr<UDPServerSocket> server1(
+      new UDPServerSocket(&server1_log, NetLog::Source()));
+  scoped_ptr<UDPServerSocket> server2(
+      new UDPServerSocket(&server2_log, NetLog::Source()));
+  server1->AllowAddressReuse();
+  server1->AllowBroadcast();
+  server2->AllowAddressReuse();
+  server2->AllowBroadcast();
+
+  int rv = server1->Listen(listen_address);
+  EXPECT_EQ(OK, rv);
+  rv = server2->Listen(listen_address);
+  EXPECT_EQ(OK, rv);
+
+  rv = SendToSocket(server1.get(), first_message, broadcast_address);
+  EXPECT_EQ(static_cast<int>(first_message.size()), rv);
+  std::string str = RecvFromSocket(server1.get());
+  ASSERT_EQ(first_message, str);
+  str = RecvFromSocket(server2.get());
+  ASSERT_EQ(first_message, str);
+
+  rv = SendToSocket(server2.get(), second_message, broadcast_address);
+  EXPECT_EQ(static_cast<int>(second_message.size()), rv);
+  str = RecvFromSocket(server1.get());
+  ASSERT_EQ(second_message, str);
+  str = RecvFromSocket(server2.get());
+  ASSERT_EQ(second_message, str);
 }
 
 // In this test, we verify that random binding logic works, which attempts

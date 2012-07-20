@@ -5,6 +5,15 @@
 #include "net/base/network_change_notifier_mac.h"
 
 #include <netinet/in.h>
+#include <resolv.h>
+
+#include "base/basictypes.h"
+#include "base/threading/thread.h"
+#include "net/dns/dns_config_watcher.h"
+
+#ifndef _PATH_RESCONF  // Normally defined in <resolv.h>
+#define _PATH_RESCONF "/etc/resolv.conf"
+#endif
 
 namespace net {
 
@@ -14,13 +23,39 @@ static bool CalculateReachability(SCNetworkConnectionFlags flags) {
   return reachable && !connection_required;
 }
 
+class NetworkChangeNotifierMac::DnsWatcherThread : public base::Thread {
+ public:
+  DnsWatcherThread() : base::Thread("DnsWatcher") {}
+
+  virtual ~DnsWatcherThread() {
+    Stop();
+  }
+
+  virtual void Init() OVERRIDE {
+    watcher_.Init();
+  }
+
+  virtual void CleanUp() OVERRIDE {
+    watcher_.CleanUp();
+  }
+
+ private:
+  internal::DnsConfigWatcher watcher_;
+
+  DISALLOW_COPY_AND_ASSIGN(DnsWatcherThread);
+};
+
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
-    : online_state_(UNINITIALIZED),
-      initial_state_cv_(&online_state_lock_),
-      forwarder_(this) {
+    : connection_type_(CONNECTION_UNKNOWN),
+      connection_type_initialized_(false),
+      initial_connection_type_cv_(&connection_type_lock_),
+      forwarder_(this),
+      dns_watcher_thread_(new DnsWatcherThread()) {
   // Must be initialized after the rest of this object, as it may call back into
-  // SetInitialState().
+  // SetInitialConnectionType().
   config_watcher_.reset(new NetworkConfigWatcherMac(&forwarder_));
+  dns_watcher_thread_->StartWithOptions(
+      base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
@@ -37,16 +72,17 @@ NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
   }
 }
 
-bool NetworkChangeNotifierMac::IsCurrentlyOffline() const {
-  base::AutoLock lock(online_state_lock_);
-  // Make sure the initial state is set before returning.
-  while (online_state_ == UNINITIALIZED) {
-    initial_state_cv_.Wait();
+NetworkChangeNotifier::ConnectionType
+NetworkChangeNotifierMac::GetCurrentConnectionType() const {
+  base::AutoLock lock(connection_type_lock_);
+  // Make sure the initial connection type is set before returning.
+  while (!connection_type_initialized_) {
+    initial_connection_type_cv_.Wait();
   }
-  return online_state_ == OFFLINE;
+  return connection_type_;
 }
 
-void NetworkChangeNotifierMac::SetInitialState() {
+void NetworkChangeNotifierMac::SetInitialConnectionType() {
   // Called on notifier thread.
 
   // Try to reach 0.0.0.0. This is the approach taken by Firefox:
@@ -66,11 +102,14 @@ void NetworkChangeNotifierMac::SetInitialState() {
   if (SCNetworkReachabilityGetFlags(reachability_, &flags))
     reachable = CalculateReachability(flags);
   else
-    LOG(ERROR) << "Could not get initial network state, assuming online.";
+    LOG(ERROR) << "Could not get initial network connection type,"
+               << "assuming online.";
   {
-    base::AutoLock lock(online_state_lock_);
-    online_state_ = reachable ? ONLINE : OFFLINE;
-    initial_state_cv_.Signal();
+    base::AutoLock lock(connection_type_lock_);
+    // TODO(droger): Get something more detailed than CONNECTION_UNKNOWN.
+    connection_type_ = reachable ? CONNECTION_UNKNOWN : CONNECTION_NONE;
+    connection_type_initialized_ = true;
+    initial_connection_type_cv_.Signal();
   }
 }
 
@@ -153,15 +192,17 @@ void NetworkChangeNotifierMac::ReachabilityCallback(
 
   DCHECK_EQ(notifier_mac->run_loop_.get(), CFRunLoopGetCurrent());
 
-  OnlineState new_state = CalculateReachability(flags) ? ONLINE : OFFLINE;
-  OnlineState old_state;
+  // TODO(droger): Get something more detailed than CONNECTION_UNKNOWN.
+  ConnectionType new_type = CalculateReachability(flags) ? CONNECTION_UNKNOWN
+                                                         : CONNECTION_NONE;
+  ConnectionType old_type;
   {
-    base::AutoLock lock(notifier_mac->online_state_lock_);
-    old_state = notifier_mac->online_state_;
-    notifier_mac->online_state_ = new_state;
+    base::AutoLock lock(notifier_mac->connection_type_lock_);
+    old_type = notifier_mac->connection_type_;
+    notifier_mac->connection_type_ = new_type;
   }
-  if (old_state != new_state)
-    NotifyObserversOfOnlineStateChange();
+  if (old_type != new_type)
+    NotifyObserversOfConnectionTypeChange();
 }
 
 }  // namespace net

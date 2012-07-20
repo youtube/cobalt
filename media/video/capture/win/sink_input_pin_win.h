@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,9 @@
 
 #ifndef MEDIA_VIDEO_CAPTURE_WIN_SINK_INPUT_PIN_WIN_H_
 #define MEDIA_VIDEO_CAPTURE_WIN_SINK_INPUT_PIN_WIN_H_
-#pragma once
 
 #include "media/video/capture/video_capture_device.h"
+#include "media/video/capture/video_capture_types.h"
 #include "media/video/capture/win/pin_base_win.h"
 #include "media/video/capture/win/sink_filter_win.h"
 
@@ -24,11 +24,10 @@ class SinkInputPin : public PinBase {
   SinkInputPin(IBaseFilter* filter, SinkFilterObserver* observer);
   virtual ~SinkInputPin();
 
-  void SetRequestedMediaCapability(
-      const VideoCaptureDevice::Capability& capability);
+  void SetRequestedMediaCapability(const VideoCaptureCapability& capability);
   // Returns the capability that is negotiated when this
   // pin is connected to a media filter.
-  const VideoCaptureDevice::Capability& ResultingCapability();
+  const VideoCaptureCapability& ResultingCapability();
 
   // Implement PinBase.
   virtual bool IsMediaTypeValid(const AM_MEDIA_TYPE* media_type);
@@ -37,8 +36,8 @@ class SinkInputPin : public PinBase {
   STDMETHOD(Receive)(IMediaSample* media_sample);
 
  private:
-  VideoCaptureDevice::Capability requested_capability_;
-  VideoCaptureDevice::Capability resulting_capability_;
+  VideoCaptureCapability requested_capability_;
+  VideoCaptureCapability resulting_capability_;
   SinkFilterObserver* observer_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SinkInputPin);

@@ -4,10 +4,8 @@
 
 #ifndef NET_DNS_DNS_SESSION_H_
 #define NET_DNS_DNS_SESSION_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/net_export.h"
 #include "net/base/rand_callback.h"
@@ -34,7 +32,7 @@ class NET_EXPORT_PRIVATE DnsSession
   const DnsConfig& config() const { return config_; }
   NetLog* net_log() const { return net_log_; }
 
-  ClientSocketFactory* socket_factory() { return socket_factory_.get(); }
+  ClientSocketFactory* socket_factory() { return socket_factory_; }
 
   // Return the next random query ID.
   int NextQueryId() const;
@@ -50,7 +48,7 @@ class NET_EXPORT_PRIVATE DnsSession
   ~DnsSession();
 
   const DnsConfig config_;
-  scoped_ptr<ClientSocketFactory> socket_factory_;
+  ClientSocketFactory* socket_factory_;
   RandCallback rand_callback_;
   NetLog* net_log_;
 
@@ -67,4 +65,3 @@ class NET_EXPORT_PRIVATE DnsSession
 }  // namespace net
 
 #endif  // NET_DNS_DNS_SESSION_H_
-

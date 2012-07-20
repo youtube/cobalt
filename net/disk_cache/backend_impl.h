@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 
 #ifndef NET_DISK_CACHE_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_BACKEND_IMPL_H_
-#pragma once
 
 #include "base/file_path.h"
 #include "base/hash_tables.h"
@@ -56,10 +55,10 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
                            int max_bytes, net::CacheType type,
                            uint32 flags, base::MessageLoopProxy* thread,
                            net::NetLog* net_log, Backend** backend,
-                           const net::CompletionCallback& callback);
+                           const CompletionCallback& callback);
 
   // Performs general initialization for this current instance of the cache.
-  int Init(const net::CompletionCallback& callback);
+  int Init(const CompletionCallback& callback);
 
   // Performs the actual initialization and final cleanup on destruction.
   int SyncInit();
@@ -67,7 +66,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
 
   // Same behavior as OpenNextEntry but walks the list from back to front.
   int OpenPrevEntry(void** iter, Entry** prev_entry,
-                    const net::CompletionCallback& callback);
+                    const CompletionCallback& callback);
 
   // Synchronous implementation of the asynchronous interface.
   int SyncOpenEntry(const std::string& key, Entry** entry);
@@ -100,9 +99,8 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Returns the actual file used to store a given (non-external) address.
   MappedFile* File(Addr address);
 
-  InFlightBackendIO* background_queue() {
-    return &background_queue_;
-  }
+  // Returns a weak pointer to the background queue.
+  base::WeakPtr<InFlightBackendIO> GetBackgroundQueue();
 
   // Creates an external storage file.
   bool CreateExternalFile(Addr* address);
@@ -191,9 +189,6 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Returns a weak pointer to this object.
   base::WeakPtr<BackendImpl> GetWeakPtr();
 
-  // Returns the group for this client, based on the current cache size.
-  int GetSizeGroup() const;
-
   // Returns true if we should send histograms for this user again. The caller
   // must call this function only once per run (because it returns always the
   // same thing on a given run).
@@ -238,12 +233,12 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   void ClearRefCountForTest();
 
   // Sends a dummy operation through the operation queue, for unit tests.
-  int FlushQueueForTest(const net::CompletionCallback& callback);
+  int FlushQueueForTest(const CompletionCallback& callback);
 
   // Runs the provided task on the cache thread. The task will be automatically
   // deleted after it runs.
   int RunTaskForTest(const base::Closure& task,
-                     const net::CompletionCallback& callback);
+                     const CompletionCallback& callback);
 
   // Trims an entry (all if |empty| is true) from the list of deleted
   // entries. This method should be called directly on the cache thread.
@@ -257,24 +252,25 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // or an error code (negative value).
   int SelfCheck();
 
+  // Ensures the index is flushed to disk (a no-op on platforms with mmap).
+  void FlushIndex();
+
   // Backend implementation.
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        const net::CompletionCallback& callback) OVERRIDE;
+                        const CompletionCallback& callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          const net::CompletionCallback& callback) OVERRIDE;
+                          const CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
-                        const net::CompletionCallback& callback) OVERRIDE;
-  virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
-  virtual int DoomEntriesBetween(
-      const base::Time initial_time,
-      const base::Time end_time,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int DoomEntriesSince(
-      const base::Time initial_time,
-      const net::CompletionCallback& callback) OVERRIDE;
+                        const CompletionCallback& callback) OVERRIDE;
+  virtual int DoomAllEntries(const CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntriesBetween(const base::Time initial_time,
+                                 const base::Time end_time,
+                                 const CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntriesSince(const base::Time initial_time,
+                               const CompletionCallback& callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            const net::CompletionCallback& callback) OVERRIDE;
+                            const CompletionCallback& callback) OVERRIDE;
   virtual void EndEnumeration(void** iter) OVERRIDE;
   virtual void GetStats(StatsItems* stats) OVERRIDE;
   virtual void OnExternalCacheHit(const std::string& key) OVERRIDE;
@@ -386,7 +382,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   net::NetLog* net_log_;
 
   Stats stats_;  // Usage statistics.
-  base::RepeatingTimer<BackendImpl> timer_;  // Usage timer.
+  scoped_ptr<base::RepeatingTimer<BackendImpl> > timer_;  // Usage timer.
   base::WaitableEvent done_;  // Signals the end of background work.
   scoped_refptr<TraceObject> trace_object_;  // Initializes internal tracing.
   base::WeakPtrFactory<BackendImpl> ptr_factory_;

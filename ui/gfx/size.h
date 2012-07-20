@@ -1,15 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef UI_GFX_SIZE_H_
 #define UI_GFX_SIZE_H_
-#pragma once
 
 #include <string>
 
 #include "build/build_config.h"
 #include "ui/base/ui_export.h"
+#include "ui/gfx/size_base.h"
 
 #if defined(OS_WIN)
 typedef struct tagSIZE SIZE;
@@ -20,7 +20,7 @@ typedef struct tagSIZE SIZE;
 namespace gfx {
 
 // A size has width and height values.
-class UI_EXPORT Size {
+class UI_EXPORT Size : public SizeBase<Size, int> {
  public:
   Size();
   Size(int width, int height);
@@ -28,42 +28,11 @@ class UI_EXPORT Size {
   explicit Size(const CGSize& s);
 #endif
 
-  ~Size() {}
+  ~Size();
 
 #if defined(OS_MACOSX)
   Size& operator=(const CGSize& s);
 #endif
-
-  int width() const { return width_; }
-  int height() const { return height_; }
-
-  int GetArea() const { return width_ * height_; }
-
-  void SetSize(int width, int height) {
-    set_width(width);
-    set_height(height);
-  }
-
-  void Enlarge(int width, int height) {
-    set_width(width_ + width);
-    set_height(height_ + height);
-  }
-
-  void set_width(int width);
-  void set_height(int height);
-
-  bool operator==(const Size& s) const {
-    return width_ == s.width_ && height_ == s.height_;
-  }
-
-  bool operator!=(const Size& s) const {
-    return !(*this == s);
-  }
-
-  bool IsEmpty() const {
-    // Size doesn't allow negative dimensions, so testing for 0 is enough.
-    return (width_ == 0) || (height_ == 0);
-  }
 
 #if defined(OS_WIN)
   SIZE ToSIZE() const;
@@ -72,11 +41,11 @@ class UI_EXPORT Size {
 #endif
 
   std::string ToString() const;
-
- private:
-  int width_;
-  int height_;
 };
+
+#if !defined(COMPILER_MSVC)
+extern template class SizeBase<Size, int>;
+#endif
 
 }  // namespace gfx
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -167,12 +167,12 @@ CommandLine::~CommandLine() {
 }
 
 // static
-void CommandLine::Init(int argc, const char* const* argv) {
+bool CommandLine::Init(int argc, const char* const* argv) {
   if (current_process_commandline_) {
     // If this is intentional, Reset() must be called first. If we are using
     // the shared build mode, we have to share a single object across multiple
     // shared libraries.
-    return;
+    return false;
   }
 
   current_process_commandline_ = new CommandLine(NO_PROGRAM);
@@ -181,6 +181,8 @@ void CommandLine::Init(int argc, const char* const* argv) {
 #elif defined(OS_POSIX)
   current_process_commandline_->InitFromArgv(argc, argv);
 #endif
+
+  return true;
 }
 
 // static

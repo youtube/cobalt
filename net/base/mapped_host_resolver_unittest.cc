@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,12 @@
 namespace net {
 
 namespace {
+
+std::string FirstAddress(const AddressList& address_list) {
+  if (address_list.empty())
+    return "";
+  return address_list.front().ToString();
+}
 
 TEST(MappedHostResolverTest, Inclusion) {
   // Create a mock host resolver, with specific hostname to IP mappings.
@@ -53,8 +59,7 @@ TEST(MappedHostResolverTest, Inclusion) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
-  EXPECT_EQ("192.168.1.5", NetAddressToString(address_list.head()));
-  EXPECT_EQ(80, address_list.GetPort());
+  EXPECT_EQ("192.168.1.5:80", FirstAddress(address_list));
 
   // Try resolving "foo.com:77". This will NOT be remapped, so result
   // is "foo.com:77".
@@ -64,8 +69,7 @@ TEST(MappedHostResolverTest, Inclusion) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
-  EXPECT_EQ("192.168.1.8", NetAddressToString(address_list.head()));
-  EXPECT_EQ(77, address_list.GetPort());
+  EXPECT_EQ("192.168.1.8:77", FirstAddress(address_list));
 
   // Remap "*.org" to "proxy:99".
   EXPECT_TRUE(resolver->AddRuleFromString("Map *.org proxy:99"));
@@ -78,8 +82,7 @@ TEST(MappedHostResolverTest, Inclusion) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
-  EXPECT_EQ("192.168.1.11", NetAddressToString(address_list.head()));
-  EXPECT_EQ(99, address_list.GetPort());
+  EXPECT_EQ("192.168.1.11:99", FirstAddress(address_list));
 }
 
 // Tests that exclusions are respected.
@@ -111,8 +114,7 @@ TEST(MappedHostResolverTest, Exclusion) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
-  EXPECT_EQ("192.168.1.3", NetAddressToString(address_list.head()));
-  EXPECT_EQ(80, address_list.GetPort());
+  EXPECT_EQ("192.168.1.3:80", FirstAddress(address_list));
 
   // Try resolving "chrome.com:80". Should be remapped to "baz:80".
   rv = resolver->Resolve(HostResolver::RequestInfo(
@@ -122,8 +124,7 @@ TEST(MappedHostResolverTest, Exclusion) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
-  EXPECT_EQ("192.168.1.5", NetAddressToString(address_list.head()));
-  EXPECT_EQ(80, address_list.GetPort());
+  EXPECT_EQ("192.168.1.5:80", FirstAddress(address_list));
 }
 
 TEST(MappedHostResolverTest, SetRulesFromString) {
@@ -151,8 +152,7 @@ TEST(MappedHostResolverTest, SetRulesFromString) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
-  EXPECT_EQ("192.168.1.7", NetAddressToString(address_list.head()));
-  EXPECT_EQ(80, address_list.GetPort());
+  EXPECT_EQ("192.168.1.7:80", FirstAddress(address_list));
 
   // Try resolving "chrome.net:80". Should be remapped to "bar:60".
   rv = resolver->Resolve(HostResolver::RequestInfo(
@@ -162,8 +162,7 @@ TEST(MappedHostResolverTest, SetRulesFromString) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
-  EXPECT_EQ("192.168.1.9", NetAddressToString(address_list.head()));
-  EXPECT_EQ(60, address_list.GetPort());
+  EXPECT_EQ("192.168.1.9:60", FirstAddress(address_list));
 }
 
 // Parsing bad rules should silently discard the rule (and never crash).

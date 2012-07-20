@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,14 +21,14 @@ Encryptor::Counter::~Counter() {
 }
 
 bool Encryptor::Counter::Increment() {
-  uint64 low_num = base::ntohll(counter_.components64[1]);
+  uint64 low_num = base::NetToHost64(counter_.components64[1]);
   uint64 new_low_num = low_num + 1;
-  counter_.components64[1] = base::htonll(new_low_num);
+  counter_.components64[1] = base::HostToNet64(new_low_num);
 
   // If overflow occured then increment the most significant component.
   if (new_low_num < low_num) {
     counter_.components64[0] =
-        base::htonll(base::ntohll(counter_.components64[0]) + 1);
+        base::HostToNet64(base::NetToHost64(counter_.components64[0]) + 1);
   }
 
   // TODO(hclam): Return false if counter value overflows.

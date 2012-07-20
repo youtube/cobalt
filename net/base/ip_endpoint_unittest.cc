@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -78,20 +78,19 @@ TEST_F(IPEndPointTest, ToFromSockAddr) {
     IPEndPoint ip_endpoint(tests[index].ip_address, index);
 
     // Convert to a sockaddr.
-    struct sockaddr_storage addr;
-    size_t addr_len = sizeof(addr);
-    struct sockaddr* sockaddr = reinterpret_cast<struct sockaddr*>(&addr);
-    EXPECT_TRUE(ip_endpoint.ToSockAddr(sockaddr, &addr_len));
+    SockaddrStorage storage;
+    EXPECT_TRUE(ip_endpoint.ToSockAddr(storage.addr, &storage.addr_len));
 
     // Basic verification.
-    size_t expected_size = tests[index].ipv6 ?
+    socklen_t expected_size = tests[index].ipv6 ?
         sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in);
-    EXPECT_EQ(expected_size, addr_len);
-    EXPECT_EQ(ip_endpoint.port(), GetPortFromSockaddr(sockaddr, addr_len));
+    EXPECT_EQ(expected_size, storage.addr_len);
+    EXPECT_EQ(ip_endpoint.port(), GetPortFromSockaddr(storage.addr,
+                                                      storage.addr_len));
 
     // And convert back to an IPEndPoint.
     IPEndPoint ip_endpoint2;
-    EXPECT_TRUE(ip_endpoint2.FromSockAddr(sockaddr, addr_len));
+    EXPECT_TRUE(ip_endpoint2.FromSockAddr(storage.addr, storage.addr_len));
     EXPECT_EQ(ip_endpoint.port(), ip_endpoint2.port());
     EXPECT_EQ(ip_endpoint.address(), ip_endpoint2.address());
   }
@@ -101,10 +100,9 @@ TEST_F(IPEndPointTest, ToSockAddrBufTooSmall) {
   for (int index = 0; index < test_count; ++index) {
     IPEndPoint ip_endpoint(tests[index].ip_address, index);
 
-    struct sockaddr_storage addr;
-    size_t addr_len = index;  // size is too small!
-    struct sockaddr* sockaddr = reinterpret_cast<struct sockaddr*>(&addr);
-    EXPECT_FALSE(ip_endpoint.ToSockAddr(sockaddr, &addr_len));
+    SockaddrStorage storage;
+    storage.addr_len = index;  // size is too small!
+    EXPECT_FALSE(ip_endpoint.ToSockAddr(storage.addr, &storage.addr_len));
   }
 }
 

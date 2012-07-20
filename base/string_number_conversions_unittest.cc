@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -342,6 +342,36 @@ TEST(StringNumberConversionsTest, StringToDouble) {
   double output;
   EXPECT_FALSE(StringToDouble(input_string, &output));
   EXPECT_DOUBLE_EQ(3.14, output);
+}
+
+TEST(StringNumberConversionsTest, DoubleToString) {
+  static const struct {
+    double input;
+    const char* expected;
+  } cases[] = {
+    {0.0, "0"},
+    {1.25, "1.25"},
+    {1.33518e+012, "1.33518e+12"},
+    {1.33489e+012, "1.33489e+12"},
+    {1.33505e+012, "1.33505e+12"},
+    {1.33545e+009, "1335450000"},
+    {1.33503e+009, "1335030000"},
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+    EXPECT_EQ(cases[i].expected, DoubleToString(cases[i].input));
+  }
+
+  // The following two values were seen in crashes in the wild.
+  const char input_bytes[8] = {0, 0, 0, 0, '\xee', '\x6d', '\x73', '\x42'};
+  double input = 0;
+  memcpy(&input, input_bytes, arraysize(input_bytes));
+  EXPECT_EQ("1335179083776", DoubleToString(input));
+  const char input_bytes2[8] =
+      {0, 0, 0, '\xa0', '\xda', '\x6c', '\x73', '\x42'};
+  input = 0;
+  memcpy(&input, input_bytes2, arraysize(input_bytes2));
+  EXPECT_EQ("1334890332160", DoubleToString(input));
 }
 
 TEST(StringNumberConversionsTest, HexEncode) {

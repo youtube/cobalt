@@ -5,7 +5,10 @@
 #include "media/webm/webm_tracks_parser.h"
 
 #include "base/logging.h"
+#include "base/string_util.h"
+#include "media/base/buffers.h"
 #include "media/webm/webm_constants.h"
+#include "media/webm/webm_content_encodings.h"
 
 namespace media {
 
@@ -17,21 +20,35 @@ WebMTracksParser::WebMTracksParser(int64 timecode_scale)
     : timecode_scale_(timecode_scale),
       track_type_(-1),
       track_num_(-1),
-      track_default_duration_(-1),
       audio_track_num_(-1),
       video_track_num_(-1) {
 }
 
 WebMTracksParser::~WebMTracksParser() {}
 
+const uint8* WebMTracksParser::video_encryption_key_id() const {
+  if (!video_content_encodings_client_.get())
+    return NULL;
+
+  DCHECK(!video_content_encodings_client_->content_encodings().empty());
+  return video_content_encodings_client_->content_encodings()[0]->
+      encryption_key_id();
+}
+
+int WebMTracksParser::video_encryption_key_id_size() const {
+  if (!video_content_encodings_client_.get())
+    return 0;
+
+  DCHECK(!video_content_encodings_client_->content_encodings().empty());
+  return video_content_encodings_client_->content_encodings()[0]->
+      encryption_key_id_size();
+}
+
 int WebMTracksParser::Parse(const uint8* buf, int size) {
   track_type_ =-1;
   track_num_ = -1;
-  track_default_duration_ = -1;
   audio_track_num_ = -1;
-  audio_default_duration_ = base::TimeDelta();
   video_track_num_ = -1;
-  video_default_duration_ = base::TimeDelta();
 
   WebMListParser parser(kWebMIdTracks, this);
   int result = parser.Parse(buf, size);
@@ -45,16 +62,27 @@ int WebMTracksParser::Parse(const uint8* buf, int size) {
 
 
 WebMParserClient* WebMTracksParser::OnListStart(int id) {
+  if (id == kWebMIdContentEncodings) {
+    DCHECK(!track_content_encodings_client_.get());
+    track_content_encodings_client_.reset(new WebMContentEncodingsClient);
+    return track_content_encodings_client_->OnListStart(id);
+  }
+
   if (id == kWebMIdTrackEntry) {
     track_type_ = -1;
     track_num_ = -1;
-    track_default_duration_ = -1;
+    return this;
   }
 
   return this;
 }
 
 bool WebMTracksParser::OnListEnd(int id) {
+  if (id == kWebMIdContentEncodings) {
+    DCHECK(track_content_encodings_client_.get());
+    return track_content_encodings_client_->OnListEnd(id);
+  }
+
   if (id == kWebMIdTrackEntry) {
     if (track_type_ == -1 || track_num_ == -1) {
       DVLOG(1) << "Missing TrackEntry data"
@@ -63,20 +91,18 @@ bool WebMTracksParser::OnListEnd(int id) {
       return false;
     }
 
-    base::TimeDelta default_duration;
-
-    if (track_default_duration_ > 0) {
-      // Convert nanoseconds to base::TimeDelta.
-      default_duration= base::TimeDelta::FromMicroseconds(
-          track_default_duration_ / 1000.0);
-    }
-
     if (track_type_ == kWebMTrackTypeVideo) {
       video_track_num_ = track_num_;
-      video_default_duration_ = default_duration;
+      if (track_content_encodings_client_.get()) {
+        video_content_encodings_client_ =
+            track_content_encodings_client_.Pass();
+      }
     } else if (track_type_ == kWebMTrackTypeAudio) {
       audio_track_num_ = track_num_;
-      audio_default_duration_ = default_duration;
+      if (track_content_encodings_client_.get()) {
+        audio_content_encodings_client_ =
+            track_content_encodings_client_.Pass();
+      }
     } else {
       DVLOG(1) << "Unexpected TrackType " << track_type_;
       return false;
@@ -84,6 +110,8 @@ bool WebMTracksParser::OnListEnd(int id) {
 
     track_type_ = -1;
     track_num_ = -1;
+    track_content_encodings_client_.reset();
+    return true;
   }
 
   return true;
@@ -98,9 +126,6 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
       break;
     case kWebMIdTrackType:
       dst = &track_type_;
-      break;
-    case kWebMIdDefaultDuration:
-      dst = &track_default_duration_;
       break;
     default:
       return true;

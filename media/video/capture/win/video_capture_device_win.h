@@ -1,14 +1,13 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Windows specific implementation of VideoCaptureDevice.
-// DirectShow is used for capturing. DirectShow provide it's own threads
+// DirectShow is used for capturing. DirectShow provide its own threads
 // for capturing.
 
 #ifndef MEDIA_VIDEO_CAPTURE_WIN_VIDEO_CAPTURE_DEVICE_WIN_H_
 #define MEDIA_VIDEO_CAPTURE_WIN_VIDEO_CAPTURE_DEVICE_WIN_H_
-#pragma once
 
 // Avoid including strsafe.h via dshow as it will cause build warnings.
 #define NO_DSHOW_STRSAFE
@@ -17,17 +16,20 @@
 #include <map>
 #include <string>
 
+#include "base/threading/non_thread_safe.h"
 #include "base/threading/thread.h"
-#include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_comptr.h"
 #include "media/video/capture/video_capture_device.h"
+#include "media/video/capture/video_capture_types.h"
 #include "media/video/capture/win/sink_filter_win.h"
 #include "media/video/capture/win/sink_input_pin_win.h"
 
 namespace media {
 
+// All the methods in the class can only be run on a COM initialized thread.
 class VideoCaptureDeviceWin
-    : public VideoCaptureDevice,
+    : public base::NonThreadSafe,
+      public VideoCaptureDevice,
       public SinkFilterObserver {
  public:
   explicit VideoCaptureDeviceWin(const Name& device_name);
@@ -54,7 +56,7 @@ class VideoCaptureDeviceWin
     kError  // Error accessing HW functions.
             // User needs to recover by destroying the object.
   };
-  typedef std::map<int, Capability> CapabilityMap;
+  typedef std::map<int, VideoCaptureCapability> CapabilityMap;
 
   // Implements SinkFilterObserver.
   virtual void FrameReceived(const uint8* buffer, int length);
@@ -62,8 +64,6 @@ class VideoCaptureDeviceWin
   bool CreateCapabilityMap();
   int GetBestMatchedCapability(int width, int height, int frame_rate);
   void SetErrorState(const char* reason);
-
-  base::win::ScopedCOMInitializer initialize_com_;
 
   Name device_name_;
   InternalState state_;

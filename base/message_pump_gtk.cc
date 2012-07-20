@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -65,11 +65,6 @@ MessagePumpGtk::MessagePumpGtk() : MessagePumpGlib() {
   gdk_event_handler_set(&EventDispatcher, this, NULL);
 }
 
-MessagePumpGtk::~MessagePumpGtk() {
-  gdk_event_handler_set(reinterpret_cast<GdkEventFunc>(gtk_main_do_event),
-                        this, NULL);
-}
-
 void MessagePumpGtk::DispatchEvents(GdkEvent* event) {
   UNSHIPPED_TRACE_EVENT1("task", "MessagePumpGtk::DispatchEvents",
                          "type", EventToTypeString(event));
@@ -88,7 +83,18 @@ void MessagePumpGtk::DispatchEvents(GdkEvent* event) {
 // static
 Display* MessagePumpGtk::GetDefaultXDisplay() {
   static GdkDisplay* display = gdk_display_get_default();
-  return display ? GDK_DISPLAY_XDISPLAY(display) : NULL;
+  if (!display) {
+    // GTK / GDK has not been initialized, which is a decision we wish to
+    // support, for example for the GPU process.
+    static Display* xdisplay = XOpenDisplay(NULL);
+    return xdisplay;
+  }
+  return GDK_DISPLAY_XDISPLAY(display);
+}
+
+MessagePumpGtk::~MessagePumpGtk() {
+  gdk_event_handler_set(reinterpret_cast<GdkEventFunc>(gtk_main_do_event),
+                        this, NULL);
 }
 
 void MessagePumpGtk::WillProcessEvent(GdkEvent* event) {

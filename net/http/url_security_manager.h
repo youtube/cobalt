@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_URL_SECURITY_MANAGER_H_
 #define NET_HTTP_URL_SECURITY_MANAGER_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"

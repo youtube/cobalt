@@ -4,7 +4,6 @@
 
 #ifndef BASE_OBSERVER_LIST_H__
 #define BASE_OBSERVER_LIST_H__
-#pragma once
 
 #include <algorithm>
 #include <limits>

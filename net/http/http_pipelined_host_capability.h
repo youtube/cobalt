@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_PIPELINED_HOST_CAPABILITY_H_
 #define NET_HTTP_HTTP_PIPELINED_HOST_CAPABILITY_H_
-#pragma once
 
 namespace net {
 

@@ -4,7 +4,6 @@
 
 #ifndef BASE_DEBUG_STACK_TRACE_H_
 #define BASE_DEBUG_STACK_TRACE_H_
-#pragma once
 
 #include <iosfwd>
 #include <string>

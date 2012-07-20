@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_NETWORK_SESSION_PEER_H_
 #define NET_HTTP_HTTP_NETWORK_SESSION_PEER_H_
-#pragma once
 
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
@@ -12,7 +11,6 @@
 namespace net {
 
 class ClientSocketPoolManager;
-class HostPortPair;
 class HttpNetworkSession;
 class HttpStreamFactory;
 class ProxyService;

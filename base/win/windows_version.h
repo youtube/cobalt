@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_WIN_WINDOWS_VERSION_H_
 #define BASE_WIN_WINDOWS_VERSION_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
@@ -19,14 +18,13 @@ namespace win {
 // NOTE: Keep these in order so callers can do things like
 // "if (base::win::GetVersion() >= base::win::VERSION_VISTA) ...".
 enum Version {
-  VERSION_PRE_XP = 0,   // Not supported.
+  VERSION_PRE_XP = 0,  // Not supported.
   VERSION_XP,
-  VERSION_SERVER_2003,  // Also includes Windows XP Professional x64.
-  VERSION_VISTA,
-  VERSION_SERVER_2008,
-  VERSION_WIN7,
-  VERSION_WIN8,
-  VERSION_WIN_LAST,  // Indicates error condition.
+  VERSION_SERVER_2003, // Also includes XP Pro x64 and Server 2003 R2.
+  VERSION_VISTA,       // Also includes Windows Server 2008.
+  VERSION_WIN7,        // Also includes Windows Server 2008 R2.
+  VERSION_WIN8,        // Also includes Windows Server 2012.
+  VERSION_WIN_LAST,    // Indicates error condition.
 };
 
 // A singleton that can be used to query various pieces of information about the

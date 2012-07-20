@@ -89,7 +89,7 @@ Benchmark.Agent.prototype.ensureEqual = function(event, recordedEvent) {
 };
 
 /**
- * Gets next event from timeline and returns it's identifier.
+ * Gets next event from timeline and returns its identifier.
  * @param {Object} event Object with event information.
  * @return {number} Event identifier.
  */

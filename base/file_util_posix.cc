@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fnmatch.h>
-#include <grp.h>
 #include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
@@ -38,6 +37,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
+#include "base/path_service.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -50,11 +50,15 @@
 #include "base/os_compat_android.h"
 #endif
 
+#if !defined(OS_IOS)
+#include <grp.h>
+#endif
+
 namespace file_util {
 
 namespace {
 
-#if defined(OS_BSD) || (defined(OS_MACOSX) && \
+#if defined(OS_BSD) || defined(OS_IOS) || (defined(OS_MACOSX) && \
     MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
 typedef struct stat stat_wrapper_t;
 static int CallStat(const char *path, stat_wrapper_t *sb) {
@@ -206,7 +210,7 @@ bool Delete(const FilePath& path, bool recursive) {
   base::ThreadRestrictions::AssertIOAllowed();
   const char* path_str = path.value().c_str();
   stat_wrapper_t file_info;
-  int test = CallStat(path_str, &file_info);
+  int test = CallLstat(path_str, &file_info);
   if (test != 0) {
     // The Windows version defines this condition as success.
     bool ret = (errno == ENOENT || errno == ENOTDIR);
@@ -456,6 +460,40 @@ bool ReadSymbolicLink(const FilePath& symlink_path,
   return true;
 }
 
+bool GetPosixFilePermissions(const FilePath& path, int* mode) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  DCHECK(mode);
+
+  stat_wrapper_t file_info;
+  // Uses stat(), because on symbolic link, lstat() does not return valid
+  // permission bits in st_mode
+  if (CallStat(path.value().c_str(), &file_info) != 0)
+    return false;
+
+  *mode = file_info.st_mode & FILE_PERMISSION_MASK;
+  return true;
+}
+
+bool SetPosixFilePermissions(const FilePath& path,
+                             int mode) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  DCHECK((mode & ~FILE_PERMISSION_MASK) == 0);
+
+  // Calls stat() so that we can preserve the higher bits like S_ISGID.
+  stat_wrapper_t stat_buf;
+  if (CallStat(path.value().c_str(), &stat_buf) != 0)
+    return false;
+
+  // Clears the existing permission bits, and adds the new ones.
+  mode_t updated_mode_bits = stat_buf.st_mode & ~FILE_PERMISSION_MASK;
+  updated_mode_bits |= mode & FILE_PERMISSION_MASK;
+
+  if (HANDLE_EINTR(chmod(path.value().c_str(), updated_mode_bits)) != 0)
+    return false;
+
+  return true;
+}
+
 // Creates and opens a temporary file in |directory|, returning the
 // file descriptor. |path| is set to the temporary file path.
 // This function does NOT unlink() the file.
@@ -577,10 +615,10 @@ bool CreateDirectory(const FilePath& full_path) {
 // TODO(rkc): Refactor GetFileInfo and FileEnumerator to handle symlinks
 // correctly. http://code.google.com/p/chromium-os/issues/detail?id=15948
 bool IsLink(const FilePath& file_path) {
-  struct stat st;
+  stat_wrapper_t st;
   // If we can't lstat the file, it's safe to assume that the file won't at
   // least be a 'followable' link.
-  if (lstat(file_path.value().c_str(), &st) != 0)
+  if (CallLstat(file_path.value().c_str(), &st) != 0)
     return false;
 
   if (S_ISLNK(st.st_mode))
@@ -662,6 +700,18 @@ int WriteFileDescriptor(const int fd, const char* data, int size) {
   }
 
   return bytes_written_total;
+}
+
+int AppendToFile(const FilePath& filename, const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  int fd = HANDLE_EINTR(open(filename.value().c_str(), O_WRONLY | O_APPEND));
+  if (fd < 0)
+    return -1;
+
+  int bytes_written = WriteFileDescriptor(fd, data, size);
+  if (int ret = HANDLE_EINTR(close(fd)) < 0)
+    return ret;
+  return bytes_written;
 }
 
 // Gets the current working directory for the process.
@@ -774,8 +824,14 @@ void FileEnumerator::GetFindInfo(FindInfo* info) {
   info->filename.assign(cur_entry->filename.value());
 }
 
+// static
 bool FileEnumerator::IsDirectory(const FindInfo& info) {
   return S_ISDIR(info.stat.st_mode);
+}
+
+// static
+bool FileEnumerator::IsLink(const FindInfo& info) {
+  return S_ISLNK(info.stat.st_mode);
 }
 
 // static
@@ -902,7 +958,7 @@ bool GetTempDir(FilePath* path) {
     *path = FilePath(tmp);
   else
 #if defined(OS_ANDROID)
-    *path = FilePath("/data/local/tmp");
+    return PathService::Get(base::DIR_CACHE, path);
 #else
     *path = FilePath("/tmp");
 #endif
@@ -1071,7 +1127,7 @@ bool VerifyPathControlledByUser(const FilePath& base,
   return true;
 }
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) && !defined(OS_IOS)
 bool VerifyPathControlledByAdmin(const FilePath& path) {
   const unsigned kRootUid = 0;
   const FilePath kFileSystemRoot("/");

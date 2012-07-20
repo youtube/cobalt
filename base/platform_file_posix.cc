@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,7 @@
 
 namespace base {
 
-#if defined(OS_BSD) || (defined(OS_MACOSX) && \
+#if defined(OS_BSD) || defined(OS_IOS) || (defined(OS_MACOSX) && \
     MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
 typedef struct stat stat_wrapper_t;
 static int CallFstat(int fd, stat_wrapper_t *sb) {
@@ -78,6 +78,9 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     NOTREACHED();
   }
 
+  if (flags & PLATFORM_FILE_TERMINAL_DEVICE)
+    open_flags |= O_NOCTTY | O_NDELAY;
+
   COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
 
   int mode = S_IRUSR | S_IWUSR;
@@ -89,7 +92,7 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
       HANDLE_EINTR(open(name.value().c_str(), open_flags, mode));
 
   if (flags & PLATFORM_FILE_OPEN_ALWAYS) {
-    if (descriptor <= 0) {
+    if (descriptor < 0) {
       open_flags |= O_CREAT;
       if (flags & PLATFORM_FILE_EXCLUSIVE_READ ||
           flags & PLATFORM_FILE_EXCLUSIVE_WRITE) {
@@ -97,16 +100,16 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
       }
       descriptor = HANDLE_EINTR(
           open(name.value().c_str(), open_flags, mode));
-      if (created && descriptor > 0)
+      if (created && descriptor >= 0)
         *created = true;
     }
   }
 
-  if (created && (descriptor > 0) &&
+  if (created && (descriptor >= 0) &&
       (flags & (PLATFORM_FILE_CREATE_ALWAYS | PLATFORM_FILE_CREATE)))
     *created = true;
 
-  if ((descriptor > 0) && (flags & PLATFORM_FILE_DELETE_ON_CLOSE)) {
+  if ((descriptor >= 0) && (flags & PLATFORM_FILE_DELETE_ON_CLOSE)) {
     unlink(name.value().c_str());
   }
 
@@ -175,6 +178,24 @@ int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
   return bytes_read ? bytes_read : rv;
 }
 
+int ReadPlatformFileAtCurrentPos(PlatformFile file, char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || size < 0)
+    return -1;
+
+  int bytes_read = 0;
+  int rv;
+  do {
+    rv = HANDLE_EINTR(read(file, data, size));
+    if (rv <= 0)
+      break;
+
+    bytes_read += rv;
+  } while (bytes_read < size);
+
+  return bytes_read ? bytes_read : rv;
+}
+
 int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
                                  char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -195,6 +216,25 @@ int WritePlatformFile(PlatformFile file, int64 offset,
   do {
     rv = HANDLE_EINTR(pwrite(file, data + bytes_written,
                              size - bytes_written, offset + bytes_written));
+    if (rv <= 0)
+      break;
+
+    bytes_written += rv;
+  } while (bytes_written < size);
+
+  return bytes_written ? bytes_written : rv;
+}
+
+int WritePlatformFileAtCurrentPos(PlatformFile file,
+                                  const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || size < 0)
+    return -1;
+
+  int bytes_written = 0;
+  int rv;
+  do {
+    rv = HANDLE_EINTR(write(file, data, size));
     if (rv <= 0)
       break;
 

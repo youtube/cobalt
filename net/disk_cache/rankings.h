@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 
 #ifndef NET_DISK_CACHE_RANKINGS_H_
 #define NET_DISK_CACHE_RANKINGS_H_
-#pragma once
 
 #include <list>
 
@@ -164,10 +163,6 @@ class Rankings {
   void FinishInsert(CacheRankingsBlock* rankings);
   void RevertRemove(CacheRankingsBlock* rankings);
 
-  // Returns false if this entry will not be recognized as dirty (called during
-  // selfcheck).
-  bool CheckEntry(CacheRankingsBlock* rankings);
-
   // Returns false if node is not properly linked. This method may change the
   // provided |list| to reflect the list where this node is actually stored.
   bool CheckLinks(CacheRankingsBlock* node, CacheRankingsBlock* prev,
@@ -179,6 +174,16 @@ class Rankings {
   // Peforms a simple check of the list, and returns the number of items or an
   // error code (negative value).
   int CheckList(List list);
+
+  // Walks a list in the desired direction until the nodes |end1| or |end2| are
+  // reached. Returns an error code (0 on success), the number of items verified
+  // and the addresses of the last nodes visited.
+  int CheckListSection(List list, Addr end1, Addr end2, bool forward,
+                       Addr* last, Addr* second_last, int* num_items);
+  void QuickListCheck();
+
+  // Returns an error code as appropriate.
+  int CheckHeadAndTail(List list);
 
   // Returns true if addr is the head or tail of any list. When there is a
   // match |list| will contain the list number for |addr|.

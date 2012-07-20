@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,6 @@
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
 #include "base/string_util.h"
-#include "net/base/address_list_net_log_param.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
@@ -26,43 +25,46 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
+#include "net/socket/socket_net_log_params.h"
 
 namespace net {
 
 namespace {
 
 const int kInvalidSocket = -1;
+const int kTCPKeepAliveSeconds = 45;
 
-// DisableNagle turns off buffering in the kernel. By default, TCP sockets will
-// wait up to 200ms for more data to complete a packet before transmitting.
+// SetTCPNoDelay turns on/off buffering in the kernel. By default, TCP sockets
+// will wait up to 200ms for more data to complete a packet before transmitting.
 // After calling this function, the kernel will not wait. See TCP_NODELAY in
 // `man 7 tcp`.
-int DisableNagle(int fd) {
-  int on = 1;
-  return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
+bool SetTCPNoDelay(int fd, bool no_delay) {
+  int on = no_delay ? 1 : 0;
+  int error = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on,
+      sizeof(on));
+  return error == 0;
 }
 
 // SetTCPKeepAlive sets SO_KEEPALIVE.
-void SetTCPKeepAlive(int fd) {
-  int optval = 1;
-  socklen_t optlen = sizeof(optval);
-  if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen)) {
+bool  SetTCPKeepAlive(int fd, bool enable, int delay) {
+  int on = enable ? 1 : 0;
+  if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on))) {
     PLOG(ERROR) << "Failed to set SO_KEEPALIVE on fd: " << fd;
-    return;
+    return false;
   }
 #if defined(OS_LINUX)
   // Set seconds until first TCP keep alive.
-  optval = 45;
-  if (setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &optval, optlen)) {
+  if (setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &delay, sizeof(delay))) {
     PLOG(ERROR) << "Failed to set TCP_KEEPIDLE on fd: " << fd;
-    return;
+    return false;
   }
   // Set seconds between TCP keep alives.
-  if (setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, &optval, optlen)) {
+  if (setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, &delay, sizeof(delay))) {
     PLOG(ERROR) << "Failed to set TCP_KEEPINTVL on fd: " << fd;
-    return;
+    return false;
   }
 #endif
+  return true;
 }
 
 // Sets socket parameters. Returns the OS error code (or 0 on
@@ -73,8 +75,8 @@ int SetupSocket(int socket) {
 
   // This mirrors the behaviour on Windows. See the comment in
   // tcp_client_socket_win.cc after searching for "NODELAY".
-  DisableNagle(socket);  // If DisableNagle fails, we don't care.
-  SetTCPKeepAlive(socket);
+  SetTCPNoDelay(socket, true);  // If SetTCPNoDelay fails, we don't care.
+  SetTCPKeepAlive(socket, true, kTCPKeepAliveSeconds);
 
   return 0;
 }
@@ -127,7 +129,7 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(
     : socket_(kInvalidSocket),
       bound_socket_(kInvalidSocket),
       addresses_(addresses),
-      current_ai_(NULL),
+      current_address_index_(-1),
       read_watcher_(this),
       write_watcher_(this),
       next_connect_state_(CONNECT_STATE_NONE),
@@ -137,10 +139,8 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(
       use_tcp_fastopen_(false),
       tcp_fastopen_connected_(false),
       num_bytes_read_(0) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (source.is_valid())
-    params = new NetLogSourceParameter("source_dependency", source);
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
 
   if (is_tcp_fastopen_enabled())
     use_tcp_fastopen_ = true;
@@ -148,7 +148,7 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(
 
 TCPClientSocketLibevent::~TCPClientSocketLibevent() {
   Disconnect();
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
 int TCPClientSocketLibevent::AdoptSocket(int socket) {
@@ -163,23 +163,21 @@ int TCPClientSocketLibevent::AdoptSocket(int socket) {
   // This is to make GetPeerAddress() work. It's up to the caller ensure
   // that |address_| contains a reasonable address for this
   // socket. (i.e. at least match IPv4 vs IPv6!).
-  current_ai_ = addresses_.head();
+  current_address_index_ = 0;
   use_history_.set_was_ever_connected();
 
   return OK;
 }
 
 int TCPClientSocketLibevent::Bind(const IPEndPoint& address) {
-  if (current_ai_ != NULL || bind_address_.get()) {
+  if (current_address_index_ >= 0 || bind_address_.get()) {
     // Cannot bind the socket if we are already bound connected or
     // connecting.
     return ERR_UNEXPECTED;
   }
 
-  sockaddr_storage addr_storage;
-  sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  size_t addr_len = sizeof(addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
   // Create |bound_socket_| and try to bound it to |address|.
@@ -187,7 +185,7 @@ int TCPClientSocketLibevent::Bind(const IPEndPoint& address) {
   if (error)
     return MapSystemError(error);
 
-  if (HANDLE_EINTR(bind(bound_socket_, addr, addr_len))) {
+  if (HANDLE_EINTR(bind(bound_socket_, storage.addr, storage.addr_len))) {
     error = errno;
     if (HANDLE_EINTR(close(bound_socket_)) < 0)
       PLOG(ERROR) << "close";
@@ -212,14 +210,13 @@ int TCPClientSocketLibevent::Connect(const CompletionCallback& callback) {
 
   DCHECK(!waiting_connect());
 
-  net_log_.BeginEvent(
-      NetLog::TYPE_TCP_CONNECT,
-      make_scoped_refptr(new AddressListNetLogParam(addresses_)));
+  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT,
+                      addresses_.CreateNetLogCallback());
 
   // We will try to connect to each address in addresses_. Start with the
   // first one in the list.
   next_connect_state_ = CONNECT_STATE_CONNECT;
-  current_ai_ = addresses_.head();
+  current_address_index_ = 0;
 
   int rv = DoConnectLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -259,9 +256,11 @@ int TCPClientSocketLibevent::DoConnectLoop(int result) {
 }
 
 int TCPClientSocketLibevent::DoConnect() {
-  DCHECK(current_ai_);
-
+  DCHECK_GE(current_address_index_, 0);
+  DCHECK_LT(current_address_index_, static_cast<int>(addresses_.size()));
   DCHECK_EQ(0, connect_os_error_);
+
+  const IPEndPoint& endpoint = addresses_[current_address_index_];
 
   if (previously_disconnected_) {
     use_history_.Reset();
@@ -269,8 +268,7 @@ int TCPClientSocketLibevent::DoConnect() {
   }
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
-                      make_scoped_refptr(new NetLogStringParameter(
-                          "address", NetAddressToStringWithPort(current_ai_))));
+                      CreateNetLogIPEndPointCallback(&endpoint));
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
@@ -280,26 +278,27 @@ int TCPClientSocketLibevent::DoConnect() {
     bound_socket_ = kInvalidSocket;
   } else {
     // Create a non-blocking socket.
-    connect_os_error_ = CreateSocket(current_ai_->ai_family, &socket_);
+    connect_os_error_ = CreateSocket(endpoint.GetFamily(), &socket_);
     if (connect_os_error_)
       return MapSystemError(connect_os_error_);
 
     if (bind_address_.get()) {
-      sockaddr_storage addr_storage;
-      sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-      size_t addr_len = sizeof(addr_storage);
-      if (!bind_address_->ToSockAddr(addr, &addr_len))
+      SockaddrStorage storage;
+      if (!bind_address_->ToSockAddr(storage.addr, &storage.addr_len))
         return ERR_INVALID_ARGUMENT;
-      if (HANDLE_EINTR(bind(socket_, addr, addr_len)))
+      if (HANDLE_EINTR(bind(socket_, storage.addr, storage.addr_len)))
         return MapSystemError(errno);
     }
   }
 
   // Connect the socket.
   if (!use_tcp_fastopen_) {
+    SockaddrStorage storage;
+    if (!endpoint.ToSockAddr(storage.addr, &storage.addr_len))
+      return ERR_INVALID_ARGUMENT;
+
     connect_start_time_ = base::TimeTicks::Now();
-    if (!HANDLE_EINTR(connect(socket_, current_ai_->ai_addr,
-                              static_cast<int>(current_ai_->ai_addrlen)))) {
+    if (!HANDLE_EINTR(connect(socket_, storage.addr, storage.addr_len))) {
       // Connected without waiting!
       return OK;
     }
@@ -331,10 +330,12 @@ int TCPClientSocketLibevent::DoConnectComplete(int result) {
   // Log the end of this attempt (and any OS error it threw).
   int os_error = connect_os_error_;
   connect_os_error_ = 0;
-  scoped_refptr<NetLog::EventParameters> params;
-  if (result != OK)
-    params = new NetLogIntegerParameter("os_error", os_error);
-  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT, params);
+  if (result != OK) {
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
+                      NetLog::IntegerCallback("os_error", os_error));
+  } else {
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT);
+  }
 
   if (result == OK) {
     connect_time_micros_ = base::TimeTicks::Now() - connect_start_time_;
@@ -347,9 +348,9 @@ int TCPClientSocketLibevent::DoConnectComplete(int result) {
   DoDisconnect();
 
   // Try to fall back to the next address in the list.
-  if (current_ai_->ai_next) {
+  if (current_address_index_ + 1 < static_cast<int>(addresses_.size())) {
     next_connect_state_ = CONNECT_STATE_CONNECT;
-    current_ai_ = current_ai_->ai_next;
+    ++current_address_index_;
     return OK;
   }
 
@@ -361,7 +362,7 @@ void TCPClientSocketLibevent::Disconnect() {
   DCHECK(CalledOnValidThread());
 
   DoDisconnect();
-  current_ai_ = NULL;
+  current_address_index_ = -1;
 }
 
 void TCPClientSocketLibevent::DoDisconnect() {
@@ -389,7 +390,7 @@ bool TCPClientSocketLibevent::IsConnected() const {
     // This allows GetPeerAddress() to return current_ai_ as the peer
     // address.  Since we don't fail over to the next address if
     // sendto() fails, current_ai_ is the only possible peer address.
-    CHECK(current_ai_);
+    CHECK_LT(current_address_index_, static_cast<int>(addresses_.size()));
     return true;
   }
 
@@ -448,8 +449,10 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
     return nread;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK) {
-    DVLOG(1) << "read failed, errno " << errno;
-    return MapSystemError(errno);
+    int net_error = MapSystemError(errno);
+    net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
+                      CreateNetLogSocketErrorCallback(net_error, errno));
+    return net_error;
   }
 
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
@@ -486,8 +489,12 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
                                   buf->data());
     return nwrite;
   }
-  if (errno != EAGAIN && errno != EWOULDBLOCK)
-    return MapSystemError(errno);
+  if (errno != EAGAIN && errno != EWOULDBLOCK) {
+    int net_error = MapSystemError(errno);
+    net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
+                      CreateNetLogSocketErrorCallback(net_error, errno));
+    return net_error;
+  }
 
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_WRITE,
@@ -505,6 +512,13 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
 int TCPClientSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
   int nwrite;
   if (use_tcp_fastopen_ && !tcp_fastopen_connected_) {
+    SockaddrStorage storage;
+    if (!addresses_[current_address_index_].ToSockAddr(storage.addr,
+                                                       &storage.addr_len)) {
+      errno = EINVAL;
+      return -1;
+    }
+
     // We have a limited amount of data to send in the SYN packet.
     int kMaxFastOpenSendLength = 1420;
 
@@ -515,8 +529,8 @@ int TCPClientSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
                                  buf->data(),
                                  buf_len,
                                  flags,
-                                 current_ai_->ai_addr,
-                                 static_cast<int>(current_ai_->ai_addrlen)));
+                                 storage.addr,
+                                 storage.addr_len));
     tcp_fastopen_connected_ = true;
 
     if (nwrite < 0) {
@@ -526,6 +540,8 @@ int TCPClientSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
 
       // Unlike "normal" nonblocking sockets, the data is already queued,
       // so tell the app that we've consumed it.
+      // TODO(wtc): should we test if errno is EAGAIN or EWOULDBLOCK?
+      // Otherwise, returning buf_len here will mask a real error.
       return buf_len;
     }
   } else {
@@ -552,6 +568,16 @@ bool TCPClientSocketLibevent::SetSendBufferSize(int32 size) {
   return rv == 0;
 }
 
+bool TCPClientSocketLibevent::SetKeepAlive(bool enable, int delay) {
+  int socket = socket_ != kInvalidSocket ? socket_ : bound_socket_;
+  return SetTCPKeepAlive(socket, enable, delay);
+}
+
+bool TCPClientSocketLibevent::SetNoDelay(bool no_delay) {
+  int socket = socket_ != kInvalidSocket ? socket_ : bound_socket_;
+  return SetTCPNoDelay(socket, no_delay);
+}
+
 void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
   if (net_error == OK)
     UpdateConnectionTypeHistograms(CONNECTION_ANY);
@@ -561,10 +587,8 @@ void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
     return;
   }
 
-  struct sockaddr_storage source_address;
-  socklen_t addrlen = sizeof(source_address);
-  int rv = getsockname(
-      socket_, reinterpret_cast<struct sockaddr*>(&source_address), &addrlen);
+  SockaddrStorage storage;
+  int rv = getsockname(socket_, storage.addr, &storage.addr_len);
   if (rv != 0) {
     PLOG(ERROR) << "getsockname() [rv: " << rv << "] error: ";
     NOTREACHED();
@@ -572,14 +596,9 @@ void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
     return;
   }
 
-  const std::string source_address_str =
-      NetAddressToStringWithPort(
-          reinterpret_cast<const struct sockaddr*>(&source_address),
-          sizeof(source_address));
   net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
-                    make_scoped_refptr(new NetLogStringParameter(
-                        "source address",
-                        source_address_str)));
+                    CreateNetLogSourceAddressCallback(storage.addr,
+                                                      storage.addr_len));
 }
 
 void TCPClientSocketLibevent::DoReadCallback(int rv) {
@@ -642,6 +661,10 @@ void TCPClientSocketLibevent::DidCompleteRead() {
                                   read_buf_->data());
   } else {
     result = MapSystemError(errno);
+    if (result != ERR_IO_PENDING) {
+      net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
+                        CreateNetLogSocketErrorCallback(result, errno));
+    }
   }
 
   if (result != ERR_IO_PENDING) {
@@ -669,6 +692,10 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
                                   write_buf_->data());
   } else {
     result = MapSystemError(errno);
+    if (result != ERR_IO_PENDING) {
+      net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
+                        CreateNetLogSocketErrorCallback(result, errno));
+    }
   }
 
   if (result != ERR_IO_PENDING) {
@@ -679,12 +706,12 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
   }
 }
 
-int TCPClientSocketLibevent::GetPeerAddress(AddressList* address) const {
+int TCPClientSocketLibevent::GetPeerAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
-  *address = AddressList::CreateByCopyingFirstAddress(current_ai_);
+  *address = addresses_[current_address_index_];
   return OK;
 }
 
@@ -694,12 +721,10 @@ int TCPClientSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
 
-  struct sockaddr_storage addr_storage;
-  socklen_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (getsockname(socket_, addr, &addr_len))
+  SockaddrStorage storage;
+  if (getsockname(socket_, storage.addr, &storage.addr_len))
     return MapSystemError(errno);
-  if (!address->FromSockAddr(addr, addr_len))
+  if (!address->FromSockAddr(storage.addr, storage.addr_len))
     return ERR_FAILED;
 
   return OK;
@@ -731,6 +756,10 @@ int64 TCPClientSocketLibevent::NumBytesRead() const {
 
 base::TimeDelta TCPClientSocketLibevent::GetConnectTimeMicros() const {
   return connect_time_micros_;
+}
+
+NextProto TCPClientSocketLibevent::GetNegotiatedProtocol() const {
+  return kProtoUnknown;
 }
 
 }  // namespace net

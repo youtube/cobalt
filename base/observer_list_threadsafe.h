@@ -4,7 +4,6 @@
 
 #ifndef BASE_OBSERVER_LIST_THREADSAFE_H_
 #define BASE_OBSERVER_LIST_THREADSAFE_H_
-#pragma once
 
 #include <algorithm>
 #include <map>

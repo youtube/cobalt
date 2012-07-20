@@ -11,12 +11,7 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
-#if !defined(MAC_OS_X_VERSION_10_6) || \
-    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
-enum {
-  kAudioQueueErr_EnqueueDuringReset = -66632
-};
-#endif
+namespace media {
 
 PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
     AudioManagerMac* manager, const AudioParameters& params)
@@ -30,18 +25,18 @@ PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
   // A frame is one sample across all channels. In interleaved audio the per
   // frame fields identify the set of n |channels|. In uncompressed audio, a
   // packet is always one frame.
-  format_.mSampleRate = params.sample_rate;
+  format_.mSampleRate = params.sample_rate();
   format_.mFormatID = kAudioFormatLinearPCM;
   format_.mFormatFlags = kLinearPCMFormatFlagIsPacked |
                          kLinearPCMFormatFlagIsSignedInteger;
-  format_.mBitsPerChannel = params.bits_per_sample;
-  format_.mChannelsPerFrame = params.channels;
+  format_.mBitsPerChannel = params.bits_per_sample();
+  format_.mChannelsPerFrame = params.channels();
   format_.mFramesPerPacket = 1;
-  format_.mBytesPerPacket = (params.bits_per_sample * params.channels) / 8;
+  format_.mBytesPerPacket = (params.bits_per_sample() * params.channels()) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
   format_.mReserved = 0;
 
-  buffer_size_bytes_ = params.GetPacketSize();
+  buffer_size_bytes_ = params.GetBytesPerBuffer();
 }
 
 PCMQueueInAudioInputStream::~PCMQueueInAudioInputStream() {
@@ -113,6 +108,29 @@ void PCMQueueInAudioInputStream::Close() {
   // CARE: This object may now be destroyed.
 }
 
+double PCMQueueInAudioInputStream::GetMaxVolume() {
+  NOTREACHED() << "Only supported for low-latency mode.";
+  return 0.0;
+}
+
+void PCMQueueInAudioInputStream::SetVolume(double volume) {
+  NOTREACHED() << "Only supported for low-latency mode.";
+}
+
+double PCMQueueInAudioInputStream::GetVolume() {
+  NOTREACHED() << "Only supported for low-latency mode.";
+  return 0.0;
+}
+
+void PCMQueueInAudioInputStream::SetAutomaticGainControl(bool enabled) {
+  NOTREACHED() << "Only supported for low-latency mode.";
+}
+
+bool PCMQueueInAudioInputStream::GetAutomaticGainControl() {
+  NOTREACHED() << "Only supported for low-latency mode.";
+  return false;
+}
+
 void PCMQueueInAudioInputStream::HandleError(OSStatus err) {
   if (callback_)
     callback_->OnError(this, static_cast<int>(err));
@@ -175,7 +193,8 @@ void PCMQueueInAudioInputStream::HandleInputBuffer(
     callback_->OnData(this,
                       reinterpret_cast<const uint8*>(audio_buffer->mAudioData),
                       audio_buffer->mAudioDataByteSize,
-                      audio_buffer->mAudioDataByteSize);
+                      audio_buffer->mAudioDataByteSize,
+                      0.0);
   // Recycle the buffer.
   OSStatus err = QueueNextBuffer(audio_buffer);
   if (err != noErr) {
@@ -193,3 +212,5 @@ void PCMQueueInAudioInputStream::HandleInputBuffer(
     HandleError(err);
   }
 }
+
+}  // namespace media

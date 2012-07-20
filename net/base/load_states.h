@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_LOAD_STATES_H__
 #define NET_BASE_LOAD_STATES_H__
-#pragma once
 
 #include "base/string16.h"
 

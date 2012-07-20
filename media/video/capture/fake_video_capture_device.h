@@ -50,6 +50,7 @@ class MEDIA_EXPORT FakeVideoCaptureDevice : public VideoCaptureDevice {
   VideoCaptureDevice::EventHandler* observer_;
   InternalState state_;
   base::Thread capture_thread_;
+  int frame_size_;
   scoped_array<uint8> fake_frame_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FakeVideoCaptureDevice);

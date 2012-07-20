@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_MAC_UTIL_H_
 #define BASE_MAC_MAC_UTIL_H_
-#pragma once
 
 #include <AvailabilityMacros.h>
 #include <Carbon/Carbon.h>
@@ -138,12 +137,18 @@ BASE_EXPORT bool IsOSSnowLeopardOrLater();
 
 // Lion is Mac OS X 10.7, Darwin 11.
 BASE_EXPORT bool IsOSLion();
+BASE_EXPORT bool IsOSLionOrEarlier();
 BASE_EXPORT bool IsOSLionOrLater();
+
+// Mountain Lion is Mac OS X 10.8, Darwin 12.
+BASE_EXPORT bool IsOSMountainLion();
+BASE_EXPORT bool IsOSMountainLionOrLater();
 
 // This should be infrequently used. It only makes sense to use this to avoid
 // codepaths that are very likely to break on future (unreleased, untested,
 // unborn) OS releases.
-BASE_EXPORT bool IsOSLaterThanLion();
+BASE_EXPORT
+    bool IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement();
 
 // When the deployment target is set, the code produced cannot run on earlier
 // OS releases. That enables some of the IsOS* family to be implemented as
@@ -170,7 +175,23 @@ inline bool IsOSLionOrLater() { return true; }
     MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_7
 #define BASE_MAC_MAC_UTIL_H_INLINED_GT_10_7
 inline bool IsOSLion() { return false; }
-inline bool IsOSLaterThanLion() { return true; }
+inline bool IsOSLionOrEarlier() { return false; }
+#endif
+
+#if defined(MAC_OS_X_VERSION_10_8) && \
+    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_8
+#define BASE_MAC_MAC_UTIL_H_INLINED_GE_10_8
+inline bool IsOSMountainLionOrLater() { return true; }
+#endif
+
+#if defined(MAC_OS_X_VERSION_10_8) && \
+    MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_8
+#define BASE_MAC_MAC_UTIL_H_INLINED_GT_10_8
+inline bool IsOSMountainLion() { return false; }
+inline bool IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement()
+{
+  return true;
+}
 #endif
 
 // Retrieve the system's model identifier string from the IOKit registry:

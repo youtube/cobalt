@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SPDY_SPDY_PROXY_CLIENT_SOCKET_H_
 #define NET_SPDY_SPDY_PROXY_CLIENT_SOCKET_H_
-#pragma once
 
 #include <string>
 #include <list>
@@ -54,17 +53,14 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   // On destruction Disconnect() is called.
   virtual ~SpdyProxyClientSocket();
 
-  const scoped_refptr<HttpAuthController>& auth_controller() {
-    return auth_;
-  }
-
   // ProxyClientSocket methods:
   virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
-
-  // In the event of a non-200 response to the CONNECT request, this
-  // method may be called to return an HttpStream in order to read
-  // the response body.
   virtual HttpStream* CreateConnectResponseStream() OVERRIDE;
+  virtual const scoped_refptr<HttpAuthController>& GetAuthController() const
+      OVERRIDE;
+  virtual int RestartWithAuth(const CompletionCallback& callback) OVERRIDE;
+  virtual bool IsUsingSpdy() const OVERRIDE;
+  virtual NextProto GetProtocolNegotiated() const OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
@@ -78,6 +74,7 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   virtual bool UsingTCPFastOpen() const OVERRIDE;
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
+  virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf,
@@ -88,20 +85,19 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
                     const CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
-  virtual int GetPeerAddress(AddressList* address) const OVERRIDE;
+  virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE;
   virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
 
   // SpdyStream::Delegate implementation.
   virtual bool OnSendHeadersComplete(int status) OVERRIDE;
   virtual int OnSendBody() OVERRIDE;
   virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
-  virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+  virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) OVERRIDE;
   virtual void OnDataReceived(const char* data, int length) OVERRIDE;
   virtual void OnDataSent(int length) OVERRIDE;
   virtual void OnClose(int status) OVERRIDE;
-  virtual void set_chunk_callback(ChunkCallback* /*callback*/) OVERRIDE;
 
  private:
   enum State {

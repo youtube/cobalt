@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_AUTH_FILTER_H_
 #define NET_HTTP_HTTP_AUTH_FILTER_H_
-#pragma once
 
 #include <list>
 #include <string>

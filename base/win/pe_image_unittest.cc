@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -83,6 +83,16 @@ bool DelayImportChunksCallback(const PEImage &image,
   return true;
 }
 
+// Identifiers for the set of supported expectations.
+enum ExpectationSet {
+  WIN_2K_SET,
+  WIN_XP_SET,
+  WIN_VISTA_SET,
+  WIN_7_SET,
+  WIN_8_SET,
+  UNSUPPORTED_SET,
+};
+
 // We'll be using some known values for the tests.
 enum Value {
   sections = 0,
@@ -93,6 +103,20 @@ enum Value {
   delay_imports,
   relocs
 };
+
+ExpectationSet GetExpectationSet(DWORD os) {
+  if (os == 50)
+    return WIN_2K_SET;
+  if (os == 51)
+    return WIN_XP_SET;
+  if (os == 60)
+    return WIN_VISTA_SET;
+  if (os == 61)
+    return WIN_7_SET;
+  if (os >= 62)
+    return WIN_8_SET;
+  return UNSUPPORTED_SET;
+}
 
 // Retrieves the expected value from advapi32.dll based on the OS.
 int GetExpectedValue(Value value, DWORD os) {
@@ -116,42 +140,51 @@ int GetExpectedValue(Value value, DWORD os) {
   const int win7_imports = 568;
   const int win7_delay_imports = 71;
   const int win7_relocs = 7812;
+  const int win8_delay_dlls = 9;
+  const int win8_exports = 806;
+  const int win8_imports = 568;
+  const int win8_delay_imports = 113;
+  const int win8_relocs = 9478;
+  int win8_sections = 4;
+  int win8_import_dlls = 17;
+
+  base::win::OSInfo* os_info = base::win::OSInfo::GetInstance();
+  if (os_info->architecture() == base::win::OSInfo::X86_ARCHITECTURE) {
+    win8_sections = 5;
+    win8_import_dlls = 19;
+  }
 
   // Contains the expected value, for each enumerated property (Value), and the
   // OS version: [Value][os_version]
-  const int expected[][4] = {
-    {4, 4, 4, 4},
-    {3, 3, 3, 13},
-    {w2k_delay_dlls, xp_delay_dlls, vista_delay_dlls, win7_delay_dlls},
-    {w2k_exports, xp_exports, vista_exports, win7_exports},
-    {w2k_imports, xp_imports, vista_imports, win7_imports},
+  const int expected[][5] = {
+    {4, 4, 4, 4, win8_sections},
+    {3, 3, 3, 13, win8_import_dlls},
+    {w2k_delay_dlls, xp_delay_dlls, vista_delay_dlls, win7_delay_dlls,
+     win8_delay_dlls},
+    {w2k_exports, xp_exports, vista_exports, win7_exports, win8_exports},
+    {w2k_imports, xp_imports, vista_imports, win7_imports, win8_imports},
     {w2k_delay_imports, xp_delay_imports,
-     vista_delay_imports, win7_delay_imports},
-    {w2k_relocs, xp_relocs, vista_relocs, win7_relocs}
+     vista_delay_imports, win7_delay_imports, win8_delay_imports},
+    {w2k_relocs, xp_relocs, vista_relocs, win7_relocs, win8_relocs}
   };
+  COMPILE_ASSERT(arraysize(expected[0]) == UNSUPPORTED_SET,
+                 expected_value_set_mismatch);
 
   if (value > relocs)
     return 0;
-  if (50 == os)
-    os = 0;  // 5.0
-  else if (51 == os || 52 == os)
-    os = 1;
-  else if (os == 60)
-    os = 2;  // 6.x
-  else if (os >= 61)
-    os = 3;
-  else
-    return 0;
+  ExpectationSet expected_set = GetExpectationSet(os);
+  if (expected_set >= arraysize(expected)) {
+    // This should never happen.  Log a failure if it does.
+    EXPECT_NE(UNSUPPORTED_SET, expected_set);
+    expected_set = WIN_2K_SET;
+  }
 
-  return expected[value][os];
+  return expected[value][expected_set];
 }
 
 // Tests that we are able to enumerate stuff from a PE file, and that
 // the actual number of items found is within the expected range.
 TEST(PEImageTest, EnumeratesPE) {
-  // Windows Server 2003 is not supported as a test environment for this test.
-  if (base::win::GetVersion() == base::win::VERSION_SERVER_2003)
-    return;
   HMODULE module = LoadLibrary(L"advapi32.dll");
   ASSERT_TRUE(NULL != module);
 
@@ -161,6 +194,10 @@ TEST(PEImageTest, EnumeratesPE) {
 
   DWORD os = pe.GetNTHeaders()->OptionalHeader.MajorOperatingSystemVersion;
   os = os * 10 + pe.GetNTHeaders()->OptionalHeader.MinorOperatingSystemVersion;
+
+  // Skip this test for unsupported OS versions.
+  if (GetExpectationSet(os) == UNSUPPORTED_SET)
+    return;
 
   pe.EnumSections(SectionsCallback, &count);
   EXPECT_EQ(GetExpectedValue(sections, os), count);

@@ -1,12 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/synchronization/waitable_event.h"
+#include <algorithm>
+#include <vector>
 
+#include "base/logging.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
-#include "base/message_loop.h"
+#include "base/threading/thread_restrictions.h"
 
 // -----------------------------------------------------------------------------
 // A WaitableEvent on POSIX is implemented as a wait-list. Currently we don't
@@ -88,7 +91,7 @@ class SyncWaiter : public WaitableEvent::Waiter {
         cv_(&lock_) {
   }
 
-  bool Fire(WaitableEvent* signaling_event) {
+  virtual bool Fire(WaitableEvent* signaling_event) OVERRIDE {
     base::AutoLock locked(lock_);
 
     if (fired_)
@@ -114,7 +117,7 @@ class SyncWaiter : public WaitableEvent::Waiter {
   // These waiters are always stack allocated and don't delete themselves. Thus
   // there's no problem and the ABA tag is the same as the object pointer.
   // ---------------------------------------------------------------------------
-  bool Compare(void* tag) {
+  virtual bool Compare(void* tag) OVERRIDE {
     return this == tag;
   }
 
@@ -155,6 +158,7 @@ void WaitableEvent::Wait() {
 }
 
 bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
+  base::ThreadRestrictions::AssertWaitAllowed();
   const Time end_time(Time::Now() + max_time);
   const bool finite_time = max_time.ToInternalValue() >= 0;
 
@@ -221,6 +225,7 @@ cmp_fst_addr(const std::pair<WaitableEvent*, unsigned> &a,
 // static
 size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
                                size_t count) {
+  base::ThreadRestrictions::AssertWaitAllowed();
   DCHECK(count) << "Cannot wait on no events";
 
   // We need to acquire the locks in a globally consistent order. Thus we sort

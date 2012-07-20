@@ -144,7 +144,16 @@ glib_script_to_script[] =
   /* Unicode-6.0 additions */
   HB_SCRIPT_BATAK,
   HB_SCRIPT_BRAHMI,
-  HB_SCRIPT_MANDAIC
+  HB_SCRIPT_MANDAIC,
+
+  /* Unicode-6.1 additions */
+  HB_SCRIPT_CHAKMA,
+  HB_SCRIPT_MEROITIC_CURSIVE,
+  HB_SCRIPT_MEROITIC_HIEROGLYPHS,
+  HB_SCRIPT_MIAO,
+  HB_SCRIPT_SHARADA,
+  HB_SCRIPT_SORA_SOMPENG,
+  HB_SCRIPT_TAKRI
 };
 #endif
 
@@ -242,7 +251,7 @@ hb_glib_unicode_compose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
    * sees it and makes sure it's compilable. */
 
   if (!a || !b)
-    return FALSE;
+    return false;
 
   gchar utf8[12];
   gchar *normalized;
@@ -254,13 +263,13 @@ hb_glib_unicode_compose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
   normalized = g_utf8_normalize (utf8, len, G_NORMALIZE_NFC);
   len = g_utf8_strlen (normalized, -1);
   if (unlikely (!len))
-    return FALSE;
+    return false;
 
   if (len == 1) {
     *ab = g_utf8_get_char (normalized);
-    ret = TRUE;
+    ret = true;
   } else {
-    ret = FALSE;
+    ret = false;
   }
 
   g_free (normalized);
@@ -290,7 +299,7 @@ hb_glib_unicode_decompose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
   normalized = g_utf8_normalize (utf8, len, G_NORMALIZE_NFD);
   len = g_utf8_strlen (normalized, -1);
   if (unlikely (!len))
-    return FALSE;
+    return false;
 
   if (len == 1) {
     *a = g_utf8_get_char (normalized);
@@ -309,7 +318,7 @@ hb_glib_unicode_decompose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
       *b = 0;
     }
     g_free (recomposed);
-    ret = TRUE;
+    ret = true;
   } else {
     /* If decomposed to more than two characters, take the last one,
      * and recompose the rest to get the first component. */
@@ -320,7 +329,7 @@ hb_glib_unicode_decompose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
     /* We expect that recomposed has exactly one character now. */
     *a = g_utf8_get_char (recomposed);
     g_free (recomposed);
-    ret = TRUE;
+    ret = true;
   }
 
   g_free (normalized);
@@ -328,12 +337,12 @@ hb_glib_unicode_decompose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
 }
 
 
-extern HB_INTERNAL hb_unicode_funcs_t _hb_unicode_funcs_glib;
-hb_unicode_funcs_t _hb_glib_unicode_funcs = {
+extern HB_INTERNAL const hb_unicode_funcs_t _hb_glib_unicode_funcs;
+const hb_unicode_funcs_t _hb_glib_unicode_funcs = {
   HB_OBJECT_HEADER_STATIC,
 
   NULL, /* parent */
-  TRUE, /* immutable */
+  true, /* immutable */
   {
 #define HB_UNICODE_FUNC_IMPLEMENT(name) hb_glib_unicode_##name,
     HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
@@ -344,6 +353,6 @@ hb_unicode_funcs_t _hb_glib_unicode_funcs = {
 hb_unicode_funcs_t *
 hb_glib_get_unicode_funcs (void)
 {
-  return &_hb_glib_unicode_funcs;
+  return const_cast<hb_unicode_funcs_t *> (&_hb_glib_unicode_funcs);
 }
 

@@ -16,10 +16,14 @@ developers can use WebP to compress, archive and distribute digital images more
 efficiently.
 
 Local changes:
+ * Fix cast and initialization warnings
  * Removed from types.h the risky: #ifdef ANSI / #define inline /#endif
  * Removed examples/, documentation and build related files, keeping only
    the contents of src/.
  * Merged COPYING/PATENTS to LICENSE
+ * Add BGRX and RGBX variants to the WEBPImportPicture API (needs to be
+   upstreamed to libwebp master).
+ * Fix for possible int / size_t overflow in buffer-size calculations
 Upstream cherry-picks:
 7bb6a9c idec: fix internal state corruption
 89cd1bb idec: fix WebPIUpdate failure

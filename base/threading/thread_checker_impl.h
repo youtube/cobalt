@@ -4,7 +4,6 @@
 
 #ifndef BASE_THREADING_THREAD_CHECKER_IMPL_H_
 #define BASE_THREADING_THREAD_CHECKER_IMPL_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/synchronization/lock.h"
