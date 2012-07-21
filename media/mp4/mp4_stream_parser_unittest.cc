@@ -27,7 +27,7 @@ namespace mp4 {
 class MP4StreamParserTest : public testing::Test {
  public:
   MP4StreamParserTest()
-      : parser_(new MP4StreamParser),
+      : parser_(new MP4StreamParser(false)),
         got_configs_(false) {
   }
 
