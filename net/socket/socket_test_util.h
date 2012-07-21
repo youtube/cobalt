@@ -486,6 +486,9 @@ class DeterministicSocketData
 
   void NextStep();
 
+  void VerifyCorrectSequenceNumbers(MockRead* reads, size_t reads_count,
+                                    MockWrite* writes, size_t writes_count);
+
   int sequence_number_;
   MockRead current_read_;
   MockWrite current_write_;
@@ -759,7 +762,6 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
       SSLCertRequestInfo* cert_request_info) OVERRIDE;
   virtual NextProtoStatus GetNextProto(std::string* proto,
                                        std::string* server_protos) OVERRIDE;
-  //virtual bool was_npn_negotiated() const OVERRIDE;
   virtual bool set_was_npn_negotiated(bool negotiated) OVERRIDE;
   virtual void set_protocol_negotiated(
       NextProto protocol_negotiated) OVERRIDE;
