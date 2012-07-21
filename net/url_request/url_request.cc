@@ -157,9 +157,9 @@ URLRequest::URLRequest(const GURL& url,
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
   // Sanity check out environment.
-  DCHECK(MessageLoop::current()) <<
-      "The current MessageLoop must exist";
-  DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
+  DCHECK(MessageLoop::current()) << "The current MessageLoop must exist";
+
+  DCHECK(MessageLoop::current()->IsType(MessageLoop::TYPE_IO)) << ""
       "The current MessageLoop must be TYPE_IO";
 
   CHECK(context);

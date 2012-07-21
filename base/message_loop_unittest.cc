@@ -2054,3 +2054,10 @@ TEST(MessageLoopTest, ThreadMainTaskRunner) {
   EXPECT_EQ(foo->test_count(), 1);
   EXPECT_EQ(foo->result(), "a");
 }
+
+TEST(MessageLoopTest, IsType) {
+  MessageLoop loop(MessageLoop::TYPE_UI);
+  EXPECT_TRUE(loop.IsType(MessageLoop::TYPE_UI));
+  EXPECT_FALSE(loop.IsType(MessageLoop::TYPE_IO));
+  EXPECT_FALSE(loop.IsType(MessageLoop::TYPE_DEFAULT));
+}
