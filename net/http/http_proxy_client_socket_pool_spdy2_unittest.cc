@@ -344,13 +344,13 @@ TEST_P(HttpProxyClientSocketPoolSpdy2Test, HaveAuth) {
 
 TEST_P(HttpProxyClientSocketPoolSpdy2Test, AsyncHaveAuth) {
   MockWrite writes[] = {
-    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+    MockWrite(ASYNC, 0, "CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n"
               "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(SYNCHRONOUS, "HTTP/1.1 200 Connection Established\r\n\r\n"),
+    MockRead(ASYNC, 1, "HTTP/1.1 200 Connection Established\r\n\r\n"),
   };
 
   scoped_ptr<SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,

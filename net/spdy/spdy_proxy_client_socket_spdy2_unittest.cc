@@ -439,7 +439,7 @@ TEST_F(SpdyProxyClientSocketSpdy2Test, ConnectSendsCorrectRequest) {
   scoped_ptr<SpdyFrame> resp(ConstructConnectReplyFrame());
   MockRead reads[] = {
     CreateMockRead(*resp, 1, ASYNC),
-    MockRead(ASYNC, 0, 3),  // EOF
+    MockRead(ASYNC, 0, 2),  // EOF
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
@@ -460,7 +460,7 @@ TEST_F(SpdyProxyClientSocketSpdy2Test, ConnectWithAuthRequested) {
   scoped_ptr<SpdyFrame> resp(ConstructConnectAuthReplyFrame());
   MockRead reads[] = {
     CreateMockRead(*resp, 1, ASYNC),
-    MockRead(ASYNC, 0, 3),  // EOF
+    MockRead(ASYNC, 0, 2),  // EOF
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
@@ -483,7 +483,7 @@ TEST_F(SpdyProxyClientSocketSpdy2Test, ConnectWithAuthCredentials) {
   scoped_ptr<SpdyFrame> resp(ConstructConnectReplyFrame());
   MockRead reads[] = {
     CreateMockRead(*resp, 1, ASYNC),
-    MockRead(ASYNC, 0, 3),  // EOF
+    MockRead(ASYNC, 0, 2),  // EOF
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
