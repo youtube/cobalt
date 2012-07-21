@@ -5,12 +5,14 @@
 #ifndef BASE_SYSTEM_MONITOR_SYSTEM_MONITOR_H_
 #define BASE_SYSTEM_MONITOR_SYSTEM_MONITOR_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
-#include "base/tuple.h"
+#include "base/file_path.h"
+#include "base/string16.h"
 #include "build/build_config.h"
 
 // Windows HiRes timers drain the battery faster so we need to know the battery
@@ -35,8 +37,6 @@
 #include <objc/runtime.h>
 #endif  // OS_IOS
 
-class FilePath;
-
 namespace base {
 
 // Class for monitoring various system-related subsystems
@@ -51,9 +51,35 @@ class BASE_EXPORT SystemMonitor {
     RESUME_EVENT        // The system is being resumed.
   };
 
-  typedef unsigned int DeviceIdType;
-  // (Media device id, Media device name, Media device path)
-  typedef Tuple3<DeviceIdType, std::string, FilePath> MediaDeviceInfo;
+  // Type of location data to identify a currently attached media device.
+  enum MediaDeviceType {
+    TYPE_PATH,  // FilePath::StringType, e.g. a mount point.
+    TYPE_MTP,   // (W)string to locate a MTP device, e.g. its usb bus/port.
+  };
+
+  struct MediaDeviceInfo {
+    MediaDeviceInfo(const std::string& id,
+                    const string16& device_name,
+                    MediaDeviceType device_type,
+                    const FilePath::StringType& device_location)
+        : unique_id(id),
+          name(device_name),
+          type(device_type),
+          location(device_location) {
+    }
+
+    // Unique media device id - persists between device attachments.
+    std::string unique_id;
+
+    // Human readable media device name.
+    string16 name;
+
+    // Media device type.
+    MediaDeviceType type;
+
+    // Current attached media device location.
+    FilePath::StringType location;
+  };
 
   // Create SystemMonitor. Only one SystemMonitor instance per application
   // is allowed.
@@ -74,6 +100,9 @@ class BASE_EXPORT SystemMonitor {
   static void AllocateSystemIOPorts() {}
 #endif  // OS_IOS
 #endif  // OS_MACOSX
+
+  // Returns information for attached media devices.
+  std::vector<MediaDeviceInfo> GetAttachedMediaDevices() const;
 
   //
   // Power-related APIs
@@ -115,13 +144,12 @@ class BASE_EXPORT SystemMonitor {
 
     // When a media device is attached or detached, one of these two events
     // is triggered.
-    // TODO(vandebo) Pass an appropriate device identifier or way to interact
-    // with the devices instead of FilePath.
-    virtual void OnMediaDeviceAttached(const DeviceIdType& id,
-                                       const std::string& name,
-                                       const FilePath& path) {}
+    virtual void OnMediaDeviceAttached(const std::string& id,
+                                       const string16& name,
+                                       MediaDeviceType type,
+                                       const FilePath::StringType& location) {}
 
-    virtual void OnMediaDeviceDetached(const DeviceIdType& id) {}
+    virtual void OnMediaDeviceDetached(const std::string& id) {}
 
    protected:
     virtual ~DevicesChangedObserver() {}
@@ -151,17 +179,16 @@ class BASE_EXPORT SystemMonitor {
 
   // Cross-platform handling of a device change event.
   void ProcessDevicesChanged();
-  void ProcessMediaDeviceAttached(const DeviceIdType& id,
-                                  const std::string& name,
-                                  const FilePath& path);
-  void ProcessMediaDeviceDetached(const DeviceIdType& id);
-
-  // Returns information for attached media devices.
-  std::vector<MediaDeviceInfo> GetAttachedMediaDevices() const;
+  void ProcessMediaDeviceAttached(const std::string& id,
+                                  const string16& name,
+                                  MediaDeviceType type,
+                                  const FilePath::StringType& location);
+  void ProcessMediaDeviceDetached(const std::string& id);
 
  private:
-  typedef std::map<base::SystemMonitor::DeviceIdType,
-                   MediaDeviceInfo> MediaDeviceMap;
+  // Mapping of unique device id to device info tuple.
+  typedef std::map<std::string, MediaDeviceInfo> MediaDeviceMap;
+
 #if defined(OS_MACOSX)
   void PlatformInit();
   void PlatformDestroy();
@@ -178,10 +205,11 @@ class BASE_EXPORT SystemMonitor {
 
   // Functions to trigger notifications.
   void NotifyDevicesChanged();
-  void NotifyMediaDeviceAttached(const DeviceIdType& id,
-                                 const std::string& name,
-                                 const FilePath& path);
-  void NotifyMediaDeviceDetached(const DeviceIdType& id);
+  void NotifyMediaDeviceAttached(const std::string& id,
+                                 const string16& name,
+                                 MediaDeviceType type,
+                                 const FilePath::StringType& data);
+  void NotifyMediaDeviceDetached(const std::string& id);
   void NotifyPowerStateChange();
   void NotifySuspend();
   void NotifyResume();
@@ -201,6 +229,7 @@ class BASE_EXPORT SystemMonitor {
   std::vector<id> notification_observers_;
 #endif
 
+  // Map of all the attached media devices.
   MediaDeviceMap media_device_map_;
 
   DISALLOW_COPY_AND_ASSIGN(SystemMonitor);
