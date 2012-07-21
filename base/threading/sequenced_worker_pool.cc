@@ -372,7 +372,7 @@ class SequencedWorkerPool::Inner {
   size_t waiting_thread_count_;
 
   // Number of threads currently running tasks that have the BLOCK_SHUTDOWN
-  // flag set.
+  // or SKIP_ON_SHUTDOWN flag set.
   size_t blocking_shutdown_thread_count_;
 
   // In-order list of all pending tasks. These are tasks waiting for a thread
@@ -759,7 +759,10 @@ int SequencedWorkerPool::Inner::WillRunWorkerTask(const SequencedTask& task) {
   if (task.sequence_token_id)
     current_sequences_.insert(task.sequence_token_id);
 
-  if (task.shutdown_behavior == BLOCK_SHUTDOWN)
+  // Ensure that threads running tasks posted with either SKIP_ON_SHUTDOWN
+  // or BLOCK_SHUTDOWN will prevent shutdown until that task or thread
+  // completes.
+  if (task.shutdown_behavior != CONTINUE_ON_SHUTDOWN)
     blocking_shutdown_thread_count_++;
 
   // We just picked up a task. Since StartAdditionalThreadIfHelpful only
@@ -783,7 +786,7 @@ int SequencedWorkerPool::Inner::WillRunWorkerTask(const SequencedTask& task) {
 void SequencedWorkerPool::Inner::DidRunWorkerTask(const SequencedTask& task) {
   lock_.AssertAcquired();
 
-  if (task.shutdown_behavior == BLOCK_SHUTDOWN) {
+  if (task.shutdown_behavior != CONTINUE_ON_SHUTDOWN) {
     DCHECK_GT(blocking_shutdown_thread_count_, 0u);
     blocking_shutdown_thread_count_--;
   }

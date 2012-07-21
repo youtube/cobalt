@@ -62,7 +62,8 @@ class SequencedTaskRunner;
 // from TaskRunner).
 class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
  public:
-  // Defines what should happen to a task posted to the worker pool on shutdown.
+  // Defines what should happen to a task posted to the worker pool on
+  // shutdown.
   enum WorkerShutdown {
     // Tasks posted with this mode which have not run at shutdown will be
     // deleted rather than run, and any tasks with this mode running at
@@ -82,14 +83,19 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
     // example.
     CONTINUE_ON_SHUTDOWN,
 
-    // Tasks posted with this mode that have not started executing at shutdown
-    // will be deleted rather than executed. However, tasks already in progress
-    // will be completed.
+    // Tasks posted with this mode that have not started executing at
+    // shutdown will be deleted rather than executed. However, any tasks that
+    // have already begun executing when shutdown is called will be allowed
+    // to continue, and will block shutdown until completion.
+    //
+    // Note: Because Shutdown() may block while these tasks are executing,
+    // care must be taken to ensure that they do not block on the thread that
+    // called Shutdown(), as this may lead to deadlock.
     SKIP_ON_SHUTDOWN,
 
-    // Tasks posted with this mode will block browser shutdown until they're
-    // executed. Since this can have significant performance implications, use
-    // sparingly.
+    // Tasks posted with this mode will block shutdown until they're
+    // executed. Since this can have significant performance implications,
+    // use sparingly.
     //
     // Generally, this should be used only for user data, for example, a task
     // writing a preference file.
