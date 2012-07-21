@@ -191,7 +191,7 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
     MockRead(ASYNC, 5, "HTTP/1.1 200 OK\r\n"),
     MockRead(ASYNC, 6, "Content-Length: 8\r\n\r\n"),
     MockRead(ASYNC, 7, "one.html"),
-    MockRead(SYNCHRONOUS, 8, 0),  // EOF
+    MockRead(SYNCHRONOUS, 0, 8),  // EOF
   };
 
   DeterministicSocketData data(reads, arraysize(reads),
