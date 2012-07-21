@@ -298,7 +298,7 @@ TEST_F(SequencedWorkerPoolTest, LotsOfTasksTwoPools) {
 
   std::vector<int> result =
       tracker()->WaitUntilTasksComplete(2*kNumTasks);
-  EXPECT_EQ(2*kNumTasks, result.size());
+  EXPECT_EQ(2 * kNumTasks, result.size());
 
   pool2.pool()->Shutdown();
   pool1.pool()->Shutdown();
@@ -365,6 +365,55 @@ TEST_F(SequencedWorkerPoolTest, Sequence) {
   EXPECT_EQ(101, result[result.size() - 1]);
 }
 
+// Tests that any tasks posted after Shutdown are ignored.
+TEST_F(SequencedWorkerPoolTest, IgnoresAfterShutdown) {
+  // Start tasks to take all the threads and block them.
+  EnsureAllWorkersCreated();
+  ThreadBlocker blocker;
+  for (size_t i = 0; i < kNumWorkerThreads; i++) {
+    pool()->PostWorkerTask(FROM_HERE,
+                           base::Bind(&TestTracker::BlockTask,
+                                      tracker(), i, &blocker));
+  }
+  tracker()->WaitUntilTasksBlocked(kNumWorkerThreads);
+
+  // Shutdown the worker pool. This should discard all non-blocking tasks.
+  SetWillWaitForShutdownCallback(
+      base::Bind(&EnsureTasksToCompleteCountAndUnblock,
+                 scoped_refptr<TestTracker>(tracker()), 0,
+                 &blocker, kNumWorkerThreads));
+  pool()->Shutdown();
+
+  int old_has_work_call_count = has_work_call_count();
+
+  std::vector<int> result =
+      tracker()->WaitUntilTasksComplete(kNumWorkerThreads);
+
+  // The kNumWorkerThread items should have completed, in no particular
+  // order.
+  ASSERT_EQ(kNumWorkerThreads, result.size());
+  for (size_t i = 0; i < kNumWorkerThreads; i++) {
+    EXPECT_TRUE(std::find(result.begin(), result.end(), static_cast<int>(i)) !=
+                result.end());
+  }
+
+  // No further tasks, regardless of shutdown mode, should be allowed.
+  EXPECT_FALSE(pool()->PostWorkerTaskWithShutdownBehavior(
+      FROM_HERE,
+      base::Bind(&TestTracker::FastTask, tracker(), 100),
+      SequencedWorkerPool::CONTINUE_ON_SHUTDOWN));
+  EXPECT_FALSE(pool()->PostWorkerTaskWithShutdownBehavior(
+      FROM_HERE,
+      base::Bind(&TestTracker::FastTask, tracker(), 101),
+      SequencedWorkerPool::SKIP_ON_SHUTDOWN));
+  EXPECT_FALSE(pool()->PostWorkerTaskWithShutdownBehavior(
+      FROM_HERE,
+      base::Bind(&TestTracker::FastTask, tracker(), 102),
+      SequencedWorkerPool::BLOCK_SHUTDOWN));
+
+  ASSERT_EQ(old_has_work_call_count, has_work_call_count());
+}
+
 // Tests that unrun tasks are discarded properly according to their shutdown
 // mode.
 TEST_F(SequencedWorkerPoolTest, DiscardOnShutdown) {
@@ -399,11 +448,12 @@ TEST_F(SequencedWorkerPoolTest, DiscardOnShutdown) {
                  &blocker, kNumWorkerThreads));
   pool()->Shutdown();
 
-  std::vector<int> result = tracker()->WaitUntilTasksComplete(4);
+  std::vector<int> result =
+      tracker()->WaitUntilTasksComplete(kNumWorkerThreads + 1);
 
   // The kNumWorkerThread items should have completed, plus the BLOCK_SHUTDOWN
   // one, in no particular order.
-  ASSERT_EQ(4u, result.size());
+  ASSERT_EQ(kNumWorkerThreads + 1, result.size());
   for (size_t i = 0; i < kNumWorkerThreads; i++) {
     EXPECT_TRUE(std::find(result.begin(), result.end(), static_cast<int>(i)) !=
                 result.end());
@@ -456,6 +506,58 @@ TEST_F(SequencedWorkerPoolTest, ContinueOnShutdown) {
   blocker.Unblock(3);
   std::vector<int> result = tracker()->WaitUntilTasksComplete(3);
   EXPECT_EQ(3u, result.size());
+}
+
+// Tests that SKIP_ON_SHUTDOWN tasks that have been started block Shutdown
+// until they stop, but tasks not yet started do not.
+TEST_F(SequencedWorkerPoolTest, SkipOnShutdown) {
+  // Start tasks to take all the threads and block them.
+  EnsureAllWorkersCreated();
+  ThreadBlocker blocker;
+
+  // Now block all the threads with SKIP_ON_SHUTDOWN. Shutdown() should not
+  // return until these tasks have completed.
+  for (size_t i = 0; i < kNumWorkerThreads; i++) {
+    pool()->PostWorkerTaskWithShutdownBehavior(
+        FROM_HERE,
+        base::Bind(&TestTracker::BlockTask, tracker(), i, &blocker),
+        SequencedWorkerPool::SKIP_ON_SHUTDOWN);
+  }
+  tracker()->WaitUntilTasksBlocked(kNumWorkerThreads);
+
+  // Now post an additional task as SKIP_ON_SHUTDOWN, which should not be
+  // executed once Shutdown() has been called.
+  pool()->PostWorkerTaskWithShutdownBehavior(
+      FROM_HERE,
+      base::Bind(&TestTracker::BlockTask,
+                 tracker(), 0, &blocker),
+      SequencedWorkerPool::SKIP_ON_SHUTDOWN);
+
+  // This callback will only be invoked if SKIP_ON_SHUTDOWN tasks that have
+  // been started block shutdown.
+  SetWillWaitForShutdownCallback(
+      base::Bind(&EnsureTasksToCompleteCountAndUnblock,
+                 scoped_refptr<TestTracker>(tracker()), 0,
+                 &blocker, kNumWorkerThreads));
+
+  // No tasks should have completed yet.
+  EXPECT_EQ(0u, tracker()->WaitUntilTasksComplete(0).size());
+
+  // This should not block. If this test hangs, it means it failed.
+  pool()->Shutdown();
+
+  // Shutdown should not return until all of the tasks have completed.
+  std::vector<int> result =
+      tracker()->WaitUntilTasksComplete(kNumWorkerThreads);
+
+  // Only tasks marked SKIP_ON_SHUTDOWN that were already started should be
+  // allowed to complete. No additional non-blocking tasks should have been
+  // started.
+  ASSERT_EQ(kNumWorkerThreads, result.size());
+  for (size_t i = 0; i < kNumWorkerThreads; i++) {
+    EXPECT_TRUE(std::find(result.begin(), result.end(), static_cast<int>(i)) !=
+                result.end());
+  }
 }
 
 // Ensure all worker threads are created, and then trigger a spurious
