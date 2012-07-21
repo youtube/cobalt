@@ -258,6 +258,10 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // arbitrary MessageLoop to QuitWhenIdle.
   static base::Closure QuitWhenIdleClosure();
 
+  // Returns true if this loop is |type|. This allows subclasses (especially
+  // those in tests) to specialize how they are identified.
+  virtual bool IsType(Type type) const;
+
   // Returns the type passed to the constructor.
   Type type() const { return type_; }
 
