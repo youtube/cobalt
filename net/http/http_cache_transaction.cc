@@ -36,6 +36,8 @@
 #include "net/http/partial_data.h"
 
 using base::Time;
+using base::TimeDelta;
+using base::TimeTicks;
 
 namespace net {
 
@@ -949,7 +951,7 @@ int HttpCache::Transaction::DoAddToEntry() {
   next_state_ = STATE_ADD_TO_ENTRY_COMPLETE;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY);
   DCHECK(entry_lock_waiting_since_.is_null());
-  entry_lock_waiting_since_ = base::TimeTicks::Now();
+  entry_lock_waiting_since_ = TimeTicks::Now();
   return cache_->AddTransactionToEntry(new_entry_, this);
 }
 
@@ -957,8 +959,8 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY,
                                     result);
 
-  const base::TimeDelta entry_lock_wait =
-      base::TimeTicks::Now() - entry_lock_waiting_since_;
+  const TimeDelta entry_lock_wait =
+      TimeTicks::Now() - entry_lock_waiting_since_;
   UMA_HISTOGRAM_TIMES("HttpCache.EntryLockWait", entry_lock_wait);
   static const bool prefetching_fieldtrial =
       base::FieldTrialList::TrialExists("Prefetch");
@@ -975,7 +977,7 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
         entry_lock_wait);
   }
 
-  entry_lock_waiting_since_ = base::TimeTicks();
+  entry_lock_waiting_since_ = TimeTicks();
   DCHECK(new_entry_);
   cache_pending_ = false;
 
