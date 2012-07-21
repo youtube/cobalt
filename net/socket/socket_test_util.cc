@@ -450,6 +450,7 @@ DeterministicSocketData::DeterministicSocketData(MockRead* reads,
       stopping_sequence_number_(0),
       stopped_(false),
       print_debug_(false) {
+  VerifyCorrectSequenceNumbers(reads, reads_count, writes, writes_count);
 }
 
 DeterministicSocketData::~DeterministicSocketData() {}
@@ -601,6 +602,32 @@ void DeterministicSocketData::NextStep() {
   sequence_number_++;
   if (sequence_number_ == stopping_sequence_number_)
     SetStopped(true);
+}
+
+void DeterministicSocketData::VerifyCorrectSequenceNumbers(
+    MockRead* reads, size_t reads_count,
+    MockWrite* writes, size_t writes_count) {
+  size_t read = 0;
+  size_t write = 0;
+  int expected = 0;
+  while (read < reads_count || write < writes_count) {
+    // Check to see that we have a read or write at the expected
+    // state.
+    if (read < reads_count  && reads[read].sequence_number == expected) {
+      ++read;
+      ++expected;
+      continue;
+    }
+    if (write < writes_count && writes[write].sequence_number == expected) {
+      ++write;
+      ++expected;
+      continue;
+    }
+    NOTREACHED() << "Missing sequence number: " << expected;
+    return;
+  }
+  DCHECK_EQ(read, reads_count);
+  DCHECK_EQ(write, writes_count);
 }
 
 MockClientSocketFactory::MockClientSocketFactory() {}
