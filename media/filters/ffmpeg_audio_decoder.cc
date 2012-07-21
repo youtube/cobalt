@@ -223,6 +223,14 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
 
   int decoded_audio_size = 0;
   if (frame_decoded) {
+    int output_sample_rate = av_frame_->sample_rate;
+    if (output_sample_rate != samples_per_second_) {
+      DLOG(ERROR) << "Output sample rate (" << output_sample_rate
+                  << ") doesn't match expected rate " << samples_per_second_;
+      base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
+      return;
+    }
+
     decoded_audio_size = av_samples_get_buffer_size(
         NULL, codec_context_->channels, av_frame_->nb_samples,
         codec_context_->sample_fmt, 1);

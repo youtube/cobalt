@@ -19,14 +19,15 @@
 namespace media {
 namespace mp4 {
 
-MP4StreamParser::MP4StreamParser()
+MP4StreamParser::MP4StreamParser(bool has_sbr)
     : state_(kWaitingForInit),
       moof_head_(0),
       mdat_tail_(0),
       has_audio_(false),
       has_video_(false),
       audio_track_id_(0),
-      video_track_id_(0) {
+      video_track_id_(0),
+      has_sbr_(has_sbr) {
 }
 
 MP4StreamParser::~MP4StreamParser() {}
@@ -187,9 +188,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       // Check if it is MPEG4 AAC defined in ISO 14496 Part 3.
       RCHECK(entry.esds.object_type == kISO_14496_3);
       audio_config.Initialize(kCodecAAC, entry.samplesize,
-                              aac.channel_layout(), aac.frequency(),
+                              aac.channel_layout(),
+                              aac.GetOutputSamplesPerSecond(has_sbr_),
                               NULL, 0, false);
-
       has_audio_ = true;
       audio_track_id_ = track->header.track_id;
     }

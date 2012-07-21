@@ -4,13 +4,15 @@
 
 #include "media/mp4/aac.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "media/base/bit_reader.h"
 #include "media/mp4/rcheck.h"
 
 // The following conversion table is extracted from ISO 14496 Part 3 -
 // Table 1.16 - Sampling Frequency Index.
-static const uint32 kFrequencyMap[] = {
+static const int kFrequencyMap[] = {
   96000, 88200, 64000, 48000, 44100, 32000, 24000,
   22050, 16000, 12000, 11025, 8000, 7350
 };
@@ -44,7 +46,7 @@ namespace mp4 {
 
 AAC::AAC()
     : profile_(0), frequency_index_(0), channel_config_(0), frequency_(0),
-      channel_layout_(CHANNEL_LAYOUT_UNSUPPORTED) {
+      extension_frequency_(0), channel_layout_(CHANNEL_LAYOUT_UNSUPPORTED) {
 }
 
 AAC::~AAC() {
@@ -57,9 +59,10 @@ bool AAC::Parse(const std::vector<uint8>& data) {
   BitReader reader(&data[0], data.size());
   uint8 extension_type = 0;
   bool ps_present = false;
-  uint8 extension_frequency_index;
+  uint8 extension_frequency_index = 0xff;
 
   frequency_ = 0;
+  extension_frequency_ = 0;
 
   // The following code is written according to ISO 14496 Part 3 Table 1.13 -
   // Syntax of AudioSpecificConfig.
@@ -71,15 +74,13 @@ bool AAC::Parse(const std::vector<uint8>& data) {
     RCHECK(reader.ReadBits(24, &frequency_));
   RCHECK(reader.ReadBits(4, &channel_config_));
 
-  extension_frequency_index = frequency_index_;
-
-  // Read extension configuration
+  // Read extension configuration.
   if (profile_ == 5 || profile_ == 29) {
     ps_present = (profile_ == 29);
     extension_type = 5;
     RCHECK(reader.ReadBits(4, &extension_frequency_index));
     if (extension_frequency_index == 0xf)
-      RCHECK(reader.ReadBits(24, &frequency_));
+      RCHECK(reader.ReadBits(24, &extension_frequency_));
     RCHECK(reader.ReadBits(5, &profile_));
   }
 
@@ -101,7 +102,7 @@ bool AAC::Parse(const std::vector<uint8>& data) {
           RCHECK(reader.ReadBits(4, &extension_frequency_index));
 
           if (extension_frequency_index == 0xf)
-            RCHECK(reader.ReadBits(24, &frequency_));
+            RCHECK(reader.ReadBits(24, &extension_frequency_));
 
           RCHECK(reader.ReadBits(11, &sync_extension_type));
 
@@ -115,8 +116,13 @@ bool AAC::Parse(const std::vector<uint8>& data) {
   }
 
   if (frequency_ == 0) {
+    RCHECK(frequency_index_ < arraysize(kFrequencyMap));
+    frequency_ = kFrequencyMap[frequency_index_];
+  }
+
+  if (extension_frequency_ == 0 && extension_frequency_index != 0xff) {
     RCHECK(extension_frequency_index < arraysize(kFrequencyMap));
-    frequency_ = kFrequencyMap[extension_frequency_index];
+    extension_frequency_ = kFrequencyMap[extension_frequency_index];
   }
 
   // When Parametric Stereo is on, mono will be played as stereo.
@@ -130,8 +136,19 @@ bool AAC::Parse(const std::vector<uint8>& data) {
       channel_config_ <= 7;
 }
 
-uint32 AAC::frequency() const {
-  return frequency_;
+int AAC::GetOutputSamplesPerSecond(bool sbr_in_mimetype) const {
+  if (extension_frequency_ > 0)
+    return extension_frequency_;
+
+  if (!sbr_in_mimetype)
+    return frequency_;
+
+  // The following code is written according to ISO 14496 Part 3 Table 1.11 and
+  // Table 1.22. (Table 1.11 refers to the capping to 48000, Table 1.22 refers
+  // to SBR doubling the AAC sample rate.)
+  // TODO(acolwell) : Extend sample rate cap to 96kHz for Level 5 content.
+  DCHECK_GT(frequency_, 0);
+  return std::min(2 * frequency_, 48000);
 }
 
 ChannelLayout AAC::channel_layout() const {

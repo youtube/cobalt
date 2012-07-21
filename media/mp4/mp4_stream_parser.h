@@ -22,7 +22,7 @@ class BoxReader;
 
 class MEDIA_EXPORT MP4StreamParser : public StreamParser {
  public:
-  MP4StreamParser();
+  MP4StreamParser(bool has_sbr);
   virtual ~MP4StreamParser();
 
   virtual void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
@@ -83,6 +83,7 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool has_video_;
   uint32 audio_track_id_;
   uint32 video_track_id_;
+  bool has_sbr_;
 
   DISALLOW_COPY_AND_ASSIGN(MP4StreamParser);
 };

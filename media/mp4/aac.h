@@ -32,7 +32,12 @@ class MEDIA_EXPORT AAC {
   // configurations.
   bool Parse(const std::vector<uint8>& data);
 
-  uint32 frequency() const;
+  // Gets the output sample rate for the AAC stream.
+  // |sbr_in_mimetype| should be set to true if the SBR mode is
+  // signalled in the mimetype. (ie mp4a.40.5 in the codecs parameter).
+  // Returns the samples_per_second value that should used in an
+  // AudioDecoderConfig.
+  int GetOutputSamplesPerSecond(bool sbr_in_mimetype) const;
   ChannelLayout channel_layout() const;
 
   // This function converts a raw AAC frame into an AAC frame with an ADTS
@@ -56,7 +61,8 @@ class MEDIA_EXPORT AAC {
   // can be used by Chromium. They are based on the AAC specific
   // configuration but can be overridden by extensions in elementary
   // stream descriptor.
-  uint32 frequency_;
+  int frequency_;
+  int extension_frequency_;
   ChannelLayout channel_layout_;
 };
 
