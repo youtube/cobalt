@@ -18,7 +18,7 @@ TEST(AACTest, BasicProfileTest) {
   data.assign(buffer, buffer + sizeof(buffer));
 
   EXPECT_TRUE(aac.Parse(data));
-  EXPECT_EQ(aac.frequency(), 44100u);
+  EXPECT_EQ(aac.GetOutputSamplesPerSecond(false), 44100);
   EXPECT_EQ(aac.channel_layout(), CHANNEL_LAYOUT_STEREO);
 }
 
@@ -30,7 +30,21 @@ TEST(AACTest, ExtensionTest) {
   data.assign(buffer, buffer + sizeof(buffer));
 
   EXPECT_TRUE(aac.Parse(data));
-  EXPECT_EQ(aac.frequency(), 48000u);
+  EXPECT_EQ(aac.GetOutputSamplesPerSecond(false), 48000);
+  EXPECT_EQ(aac.GetOutputSamplesPerSecond(true), 48000);
+  EXPECT_EQ(aac.channel_layout(), CHANNEL_LAYOUT_STEREO);
+}
+
+TEST(AACTest, TestImplicitSBR) {
+  AAC aac;
+  uint8 buffer[] = {0x13, 0x10};
+  std::vector<uint8> data;
+
+  data.assign(buffer, buffer + sizeof(buffer));
+
+  EXPECT_TRUE(aac.Parse(data));
+  EXPECT_EQ(aac.GetOutputSamplesPerSecond(false), 24000);
+  EXPECT_EQ(aac.GetOutputSamplesPerSecond(true), 48000);
   EXPECT_EQ(aac.channel_layout(), CHANNEL_LAYOUT_STEREO);
 }
 
@@ -42,7 +56,7 @@ TEST(AACTest, SixChannelTest) {
   data.assign(buffer, buffer + sizeof(buffer));
 
   EXPECT_TRUE(aac.Parse(data));
-  EXPECT_EQ(aac.frequency(), 48000u);
+  EXPECT_EQ(aac.GetOutputSamplesPerSecond(false), 48000);
   EXPECT_EQ(aac.channel_layout(), CHANNEL_LAYOUT_5_1);
 }
 

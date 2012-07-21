@@ -27,7 +27,8 @@ struct CodecInfo {
   DemuxerStream::Type type;
 };
 
-typedef StreamParser* (*ParserFactoryFunction)();
+typedef StreamParser* (*ParserFactoryFunction)(
+    const std::vector<std::string>& codecs);
 
 struct SupportedTypeInfo {
   const char* type;
@@ -49,7 +50,7 @@ static const CodecInfo* kAudioWebMCodecs[] = {
   NULL
 };
 
-static StreamParser* BuildWebMParser() {
+static StreamParser* BuildWebMParser(const std::vector<std::string>& codecs) {
   return new WebMStreamParser();
 }
 
@@ -68,8 +69,19 @@ static const CodecInfo* kAudioMP4Codecs[] = {
   NULL
 };
 
-static StreamParser* BuildMP4Parser() {
-  return new mp4::MP4StreamParser();
+// Mimetype codec string that indicates the content contains AAC SBR frames.
+static const char* kSBRCodecId = "mp4a.40.5";
+
+static StreamParser* BuildMP4Parser(const std::vector<std::string>& codecs) {
+  bool has_sbr = false;
+  for (size_t i = 0; i < codecs.size(); ++i) {
+    if (codecs[i] == kSBRCodecId) {
+      has_sbr = true;
+      break;
+    }
+  }
+
+  return new mp4::MP4StreamParser(has_sbr);
 }
 #endif
 
@@ -639,7 +651,7 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                           base::Unretained(this));
   }
 
-  scoped_ptr<StreamParser> stream_parser(factory_function());
+  scoped_ptr<StreamParser> stream_parser(factory_function(codecs));
   CHECK(stream_parser.get());
 
   stream_parser->Init(
