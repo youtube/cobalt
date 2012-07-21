@@ -21,7 +21,6 @@ class HistogramSynchronizer;
 class GpuChannelHost;
 class MetricsService;
 class NativeBackendKWallet;
-class RenderWidgetHelper;
 class TestingAutomationProvider;
 class TextInputClientMac;
 
@@ -42,6 +41,7 @@ class Predictor;
 namespace content {
 class BrowserGpuChannelHostFactory;
 class GLHelper;
+class RenderWidgetHelper;
 }
 namespace dbus {
 class Bus;
@@ -159,8 +159,8 @@ class BASE_EXPORT ThreadRestrictions {
  private:
   // DO NOT ADD ANY OTHER FRIEND STATEMENTS, talk to jam or brettw first.
   // BEGIN ALLOWED USAGE.
+  friend class content::RenderWidgetHelper;
   friend class ::HistogramSynchronizer;
-  friend class ::RenderWidgetHelper;
   friend class ::TestingAutomationProvider;
   friend class SequencedWorkerPool;
   friend class SimpleThread;
