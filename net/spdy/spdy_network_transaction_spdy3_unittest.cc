@@ -5434,7 +5434,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushClaimBeforeHeaders) {
     CreateMockRead(*stream2_headers, 4),
     MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame),
              arraysize(kPushBodyFrame), 5),
-    MockRead(ASYNC, 0, 5),  // EOF
+    MockRead(ASYNC, 0, 6),  // EOF
   };
 
   HttpResponseInfo response;
@@ -5482,10 +5482,6 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushClaimBeforeHeaders) {
   std::string result;
   ReadResult(trans, &data, &result);
 
-  // Verify that we consumed all test data.
-  EXPECT_TRUE(data.at_read_eof());
-  EXPECT_TRUE(data.at_write_eof());
-
   // Verify that the received push data is same as the expected push data.
   EXPECT_EQ(result2.compare(expected_push_result), 0)
       << "Received data: "
@@ -5507,6 +5503,13 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushClaimBeforeHeaders) {
   // Verify the pushed stream.
   EXPECT_TRUE(response2.headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
+
+  // Read the final EOF (which will close the session)
+  data.RunFor(1);
+
+  // Verify that we consumed all test data.
+  EXPECT_TRUE(data.at_read_eof());
+  EXPECT_TRUE(data.at_write_eof());
 }
 
 TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushWithTwoHeaderFrames) {
@@ -5583,7 +5586,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushWithTwoHeaderFrames) {
     CreateMockRead(*stream2_headers2, 5),
     MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame),
              arraysize(kPushBodyFrame), 6),
-    MockRead(ASYNC, 0, 6),  // EOF
+    MockRead(ASYNC, 0, 7),  // EOF
   };
 
   HttpResponseInfo response;
@@ -5631,10 +5634,6 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushWithTwoHeaderFrames) {
   std::string result;
   ReadResult(trans, &data, &result);
 
-  // Verify that we consumed all test data.
-  EXPECT_TRUE(data.at_read_eof());
-  EXPECT_TRUE(data.at_write_eof());
-
   // Verify that the received push data is same as the expected push data.
   EXPECT_EQ(result2.compare(expected_push_result), 0)
       << "Received data: "
@@ -5667,6 +5666,13 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushWithTwoHeaderFrames) {
   EXPECT_TRUE(response2.headers->HasHeaderValue("hello", "bye"));
   EXPECT_TRUE(response2.headers->HasHeaderValue("status", "200"));
   EXPECT_TRUE(response2.headers->HasHeaderValue("version", "HTTP/1.1"));
+
+  // Read the final EOF (which will close the session)
+  data.RunFor(1);
+
+  // Verify that we consumed all test data.
+  EXPECT_TRUE(data.at_read_eof());
+  EXPECT_TRUE(data.at_write_eof());
 }
 
 TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyWithHeaders) {

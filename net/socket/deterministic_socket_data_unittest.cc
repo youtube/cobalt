@@ -186,7 +186,11 @@ TEST_F(DeterministicSocketDataTest, SingleSyncReadTooEarly) {
     MockRead(SYNCHRONOUS, 0, 2),  // EOF
   };
 
-  Initialize(reads, arraysize(reads), NULL, 0);
+  MockWrite writes[] = {
+    MockWrite(SYNCHRONOUS, 0, 0)
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
   data_->StopAfter(2);
   ASSERT_FALSE(data_->stopped());
@@ -309,7 +313,11 @@ TEST_F(DeterministicSocketDataTest, SingleSyncWriteTooEarly) {
     MockWrite(SYNCHRONOUS, kMsg1, kLen1, 1),  // Sync Write
   };
 
-  Initialize(NULL, 0, writes, arraysize(writes));
+  MockRead reads[] = {
+    MockRead(SYNCHRONOUS, 0, 0)
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
   data_->StopAfter(2);
   ASSERT_FALSE(data_->stopped());
