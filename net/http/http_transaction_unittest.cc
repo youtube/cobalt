@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -80,7 +80,7 @@ const MockTransaction kETagGET_Transaction = {
   net::LOAD_NORMAL,
   "HTTP/1.1 200 OK",
   "Cache-Control: max-age=10000\n"
-  "Etag: foopy\n",
+  "Etag: \"foopy\"\n",
   base::Time(),
   "<html><body>Google Blah Blah</body></html>",
   TEST_MODE_NORMAL,
