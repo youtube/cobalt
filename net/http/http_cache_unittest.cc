@@ -3791,7 +3791,7 @@ TEST(HttpCache, DoomOnDestruction3) {
       "Last-Modified: Wed, 28 Nov 2007 00:40:09 GMT\n"
       "Content-Length: 22\n"
       "Accept-Ranges: none\n"
-      "Etag: foopy\n";
+      "Etag: \"foopy\"\n";
   AddMockTransaction(&transaction);
   MockHttpRequest request(transaction);
 
@@ -3834,7 +3834,7 @@ TEST(HttpCache, SetTruncatedFlag) {
   transaction.response_headers =
       "Last-Modified: Wed, 28 Nov 2007 00:40:09 GMT\n"
       "Content-Length: 22\n"
-      "Etag: foopy\n";
+      "Etag: \"foopy\"\n";
   AddMockTransaction(&transaction);
   MockHttpRequest request(transaction);
 
@@ -3894,7 +3894,7 @@ TEST(HttpCache, DontSetTruncatedFlag) {
   transaction.response_headers =
       "Last-Modified: Wed, 28 Nov 2007 00:40:09 GMT\n"
       "Content-Length: 22\n"
-      "Etag: foopy\n";
+      "Etag: \"foopy\"\n";
   AddMockTransaction(&transaction);
   MockHttpRequest request(transaction);
 
@@ -4821,7 +4821,7 @@ TEST(HttpCache, StopCachingSavesEntry) {
     AddMockTransaction(&mock_transaction);
     mock_transaction.response_headers = "Cache-Control: max-age=10000\n"
                                         "Content-Length: 42\n"
-                                        "Etag: foo\n";
+                                        "Etag: \"foo\"\n";
 
     rv = trans->Start(&request, callback.callback(), net::BoundNetLog());
     EXPECT_EQ(net::OK, callback.GetResult(rv));
@@ -4936,7 +4936,7 @@ TEST(HttpCache, TruncatedByContentLength2) {
   AddMockTransaction(&transaction);
   transaction.response_headers = "Cache-Control: max-age=10000\n"
                                  "Content-Length: 100\n"
-                                 "Etag: foo\n";
+                                 "Etag: \"foo\"\n";
   RunTransactionTest(cache.http_cache(), transaction);
   RemoveMockTransaction(&transaction);
 
