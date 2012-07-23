@@ -5,6 +5,7 @@
 #ifndef BASE_MAC_FOUNDATION_UTIL_H_
 #define BASE_MAC_FOUNDATION_UTIL_H_
 
+#include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CoreFoundation.h>
 
 #include <string>
@@ -102,6 +103,11 @@ TYPE_NAME_FOR_CF_TYPE_DECL(CFNull);
 TYPE_NAME_FOR_CF_TYPE_DECL(CFNumber);
 TYPE_NAME_FOR_CF_TYPE_DECL(CFSet);
 TYPE_NAME_FOR_CF_TYPE_DECL(CFString);
+
+TYPE_NAME_FOR_CF_TYPE_DECL(CGColor);
+
+TYPE_NAME_FOR_CF_TYPE_DECL(CTFont);
+TYPE_NAME_FOR_CF_TYPE_DECL(CTRun);
 
 #undef TYPE_NAME_FOR_CF_TYPE_DECL
 
@@ -247,6 +253,11 @@ CF_CAST_DECL(CFNull);
 CF_CAST_DECL(CFNumber);
 CF_CAST_DECL(CFSet);
 CF_CAST_DECL(CFString);
+
+CF_CAST_DECL(CGColor);
+
+CF_CAST_DECL(CTFont);
+CF_CAST_DECL(CTRun);
 
 CF_CAST_DECL(SecACL);
 CF_CAST_DECL(SecTrustedApplication);
