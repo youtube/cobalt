@@ -905,7 +905,7 @@
             'android_build_type%': 0,
           },
           'android_ndk_root%': '<(android_ndk_root)',
-          'android_ndk_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(target_arch)',
+          'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-9/arch-<(target_arch)',
           'android_build_type%': '<(android_build_type)',
           'android_app_abi%': '<(android_app_abi)',
         },
@@ -971,12 +971,10 @@
         # Always use the system zlib.
         'use_system_zlib%': 1,
 
+        # Configure crash reporting and build options based on release type.
         'conditions': [
-          # Determine whether or not to use breakpad crash reporting for native
-          # code. Java code stacktraces will be collected by GoogleFeedback when
-          # chrome is installed by either market or bazaar where the installer
-          # package is automatically set to AndroidFeedback.
           ['buildtype=="Official"', {
+            # Only report crash dumps for Official builds.
             'linux_breakpad%': 1,
           }, {
             'linux_breakpad%': 0,
@@ -2193,13 +2191,27 @@
                     'cflags': [
                       '-march=armv7-a',
                       '-mtune=cortex-a8',
-                      '-mfloat-abi=<(arm_float_abi)',
                     ],
                     'conditions': [
                       ['arm_neon==1', {
                         'cflags': [ '-mfpu=neon', ],
                       }, {
                         'cflags': [ '-mfpu=<(arm_fpu)', ],
+                      }],
+                      ['clang==1', {
+                        'cflags': [ '-mfloat-abi=soft', ],
+                        'cflags!': [
+                          # -mfpu handling in Clang is broken.
+                          '-mfpu=neon',
+                          '-mfpu=<(arm_fpu)',
+                          # Clang does not support the following options.
+                          '-mthumb-interwork',
+                          '-finline-limit=64',
+                          '-fno-tree-sra',
+                          '-Wno-psabi',
+                        ],
+                      }, {
+                        'cflags': [ '-mfloat-abi=softfp', ],
                       }]
                     ],
                   }],
@@ -2216,6 +2228,13 @@
                       # TestWebKitAPI's WTF.Checked_int8_t test.
                       '-fno-tree-sra',
                       '-Wno-psabi',
+                    ],
+                    'cflags_cc': [
+                      # TODO(beverloo): WebKit warns about using the "nullptr"
+                      # identifier in NullPtr.h, which actually is valid usage.
+                      # We should remove this flag once we know why the warning
+                      # suddenly shows up on JellyBean. (crbug/138166)
+                      '-Wno-c++0x-compat',
                     ],
                     # Android now supports .relro sections properly.
                     # NOTE: While these flags enable the generation of .relro
@@ -2518,7 +2537,6 @@
               '-pthread',  # Not supported by Android toolchain.
             ],
             'cflags': [
-              '-U__linux__',  # Don't allow toolchain to claim -D__linux__
               '-ffunction-sections',
               '-funwind-tables',
               '-g',
@@ -2526,19 +2544,13 @@
               '-fno-short-enums',
               '-finline-limit=64',
               '-Wa,--noexecstack',
-              '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
               '<@(release_extra_cflags)',
-              # Note: This include is in cflags to ensure that it comes after
-              # all of the includes.
-              '-I<(android_ndk_include)',
             ],
             'defines': [
               'ANDROID',
               '__GNU_SOURCE=1',  # Necessary for clone()
               'USE_STLPORT=1',
               '_STLP_USE_PTR_SPECIALIZATIONS=1',
-              'HAVE_SYS_UIO_H',
-              'ANDROID_BINSIZE_HACK', # Enable temporary hacks to reduce binsize.
             ],
             'ldflags!': [
               '-pthread',  # Not supported by Android toolchain.
@@ -2562,9 +2574,34 @@
               ['android_upstream_bringup==1', {
                 'defines': ['ANDROID_UPSTREAM_BRINGUP=1',],
               }],
+              ['asan==1', {
+                'ldflags!': [
+                  # On Android, we link ASan runtime explicitly and
+                  # don't need -faddress-sanitizer in link flags.
+                  '-faddress-sanitizer',
+                ],
+                'libraries': [
+                  '<(android_lib)/libasan_preload.so',
+                ],
+                'cflags': [
+                  # Clang relies on -Wl,--gc-sections removing unreachable code.
+                  # ASan instrumentation for globals inhibits this and results
+                  # in a library with unresolvable relocations.
+                  # TODO(eugenis): find a way to reenable this.
+                  '-mllvm -asan-globals=0',
+                  # Asan uses a zero-based sandbox on Android. The following
+                  # option can be removed once Clang is updated past r157318
+                  '-mllvm -asan-mapping-offset-log=0',
+                  ],
+                }],
               ['android_build_type==0', {
                 'defines': [
-                  'HAVE_OFF64_T',
+                  # The NDK has these things, but doesn't define the constants
+                  # to say that it does. Define them here instead.
+                  'HAVE_SYS_UIO_H',
+                ],
+                'cflags': [
+                  '--sysroot=<(android_ndk_sysroot)',
                 ],
                 'ldflags': [
                   '--sysroot=<(android_ndk_sysroot)',
@@ -2635,8 +2672,22 @@
                   # Do not add any libraries after this!
                   '<(android_ndk_lib)/crtend_android.o',
                 ],
+                'conditions': [
+                  ['asan==1', {
+                    'libraries': [
+                      '<(android_static_lib)/libasan_intermediates/libasan.a',
+                    ],
+                    'cflags': [
+                      '-fPIE',
+                    ],
+                    'ldflags': [
+                      '-Wl,-u,__asan_preinit',
+                      '-pie',
+                    ],
+                  }],
+                ],
               }],
-              ['_type=="shared_library"', {
+              ['_type=="shared_library" or _type=="loadable_module"', {
                 'ldflags': [
                   '-Wl,-shared,-Bsymbolic',
                   # crtbegin_so.o should be the last item in ldflags.
@@ -3271,13 +3322,27 @@
     ['OS=="android" and "<(GENERATOR)"!="ninja"', {
       # Hardcode the compiler names in the Makefile so that
       # it won't depend on the environment at make time.
-      'make_global_settings': [
-        ['CC', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
-        ['CXX', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-g++)'],
-        ['LINK', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
-        ['CC.host', '<!(which gcc)'],
-        ['CXX.host', '<!(which g++)'],
-        ['LINK.host', '<!(which g++)'],
+      'conditions': [
+        ['clang==1', {
+          'make_global_settings': [
+            ['CC', '<!(/bin/echo -n $CROSS_CC)'],
+            ['CXX', '<!(/bin/echo -n $CROSS_CXX)'],
+            ['LINK', '<!(/bin/echo -n $CROSS_LINK)'],
+            ['CC.host', '<!(/bin/echo -n $HOST_CC)'],
+            ['CXX.host', '<!(/bin/echo -n $HOST_CXX)'],
+            ['LINK.host', '<!(/bin/echo -n $HOST_LINK)'],
+          ],
+        }, {
+          'make_global_settings': [
+            ['CC', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
+            ['CXX', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-g++)'],
+            ['LINK', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
+            ['CC.host', '<!(which gcc)'],
+            ['CXX.host', '<!(which g++)'],
+            ['LINK.host', '<!(which g++)'],
+          ],
+        },
+        ],
       ],
     }],
   ],
