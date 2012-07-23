@@ -11,7 +11,8 @@
 using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
 
-namespace content {
+namespace base {
+namespace android {
 
 class CPPClass {
  public:
@@ -35,7 +36,8 @@ class CPPClass {
   }
 };
 
-} // namespace content
+} // namespace android
+} // namespace base
 
 #include "jni/SampleForTests_jni.h"
 
@@ -45,12 +47,13 @@ int main() {
   JNIEnv* env = /* AttachCurrentThread() */ NULL;
 
   // This is how you call a java static method from C++.
-  bool foo = content::Java_SampleForTests_staticJavaMethod(env);
+  bool foo = base::android::Java_SampleForTests_staticJavaMethod(env);
 
   // This is how you call a java method from C++. Note that you must have
   // obtained the jobject somehow.
   jobject my_java_object = NULL;
-  int bar = content::Java_SampleForTests_javaMethod(env, my_java_object, 1, 2);
+  int bar = base::android::Java_SampleForTests_javaMethod(
+      env, my_java_object, 1, 2);
 
   return 0;
 }
