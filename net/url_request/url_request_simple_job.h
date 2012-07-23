@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/memory/weak_ptr.h"
+#include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/url_request/url_request_job.h"
 
@@ -29,15 +30,27 @@ class NET_EXPORT URLRequestSimpleJob : public URLRequestJob {
  protected:
   virtual ~URLRequestSimpleJob();
 
-  // subclasses must override the way response data is determined.
-  virtual bool GetData(std::string* mime_type,
-                       std::string* charset,
-                       std::string* data) const = 0;
+  // Subclasses must override the way response data is determined.
+  // The return value should be:
+  //  - OK if data is obtained;
+  //  - ERR_IO_PENDING if async processing is needed to finish obtaining data.
+  //    This is the only case when |callback| should be called after
+  //    completion of the operation. In other situations |callback| should
+  //    never be called;
+  //  - any other ERR_* code to indicate an error. This code will be used
+  //    as the error code in the URLRequestStatus when the URLRequest
+  //    is finished.
+  virtual int GetData(std::string* mime_type,
+                      std::string* charset,
+                      std::string* data,
+                      const CompletionCallback& callback) const = 0;
 
  protected:
   void StartAsync();
 
  private:
+  void OnGetDataCompleted(int result);
+
   std::string mime_type_;
   std::string charset_;
   std::string data_;
