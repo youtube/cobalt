@@ -550,7 +550,6 @@ $CLOSE_NAMESPACE
         'FORWARD_DECLARATIONS': self.GetForwardDeclarationsString(),
         'METHOD_STUBS': self.GetMethodStubsString(),
         'OPEN_NAMESPACE': self.GetOpenNamespaceString(),
-        'NAMESPACE': self.GetNamespaceString(),
         'GET_METHOD_IDS_IMPL': self.GetMethodIDsImplString(),
         'REGISTER_NATIVES_IMPL': self.GetRegisterNativesImplString(),
         'CLOSE_NAMESPACE': self.GetCloseNamespaceString(),
@@ -623,17 +622,17 @@ ${KMETHODS}
 
   def GetOpenNamespaceString(self):
     if self.namespace:
-      return 'namespace %s {' % self.namespace
-    return ''
-
-  def GetNamespaceString(self):
-    if self.namespace:
-      return '%s::' % self.namespace
+      all_namespaces = ['namespace %s {' % ns
+                        for ns in self.namespace.split('::')]
+      return '\n'.join(all_namespaces)
     return ''
 
   def GetCloseNamespaceString(self):
     if self.namespace:
-      return '}  // namespace %s\n' % self.namespace
+      all_namespaces = ['}  // namespace %s' % ns
+                        for ns in self.namespace.split('::')]
+      all_namespaces.reverse()
+      return '\n'.join(all_namespaces) + '\n'
     return ''
 
   def GetJNIFirstParam(self, native):
@@ -670,8 +669,7 @@ ${KMETHODS}
     template = Template("""
 static ${RETURN} ${NAME}(JNIEnv* env, ${PARAMS});
 """)
-    values = {'NAMESPACE': self.GetNamespaceString(),
-              'RETURN': JavaDataTypeToC(native.return_type),
+    values = {'RETURN': JavaDataTypeToC(native.return_type),
               'NAME': native.name,
               'PARAMS': self.GetParamsInDeclaration(native)}
     return template.substitute(values)
@@ -699,7 +697,6 @@ static ${RETURN} ${NAME}(JNIEnv* env, ${PARAMS_IN_DECLARATION}) {
     values = {
         'RETURN': return_type,
         'SCOPED_RETURN': scoped_return_type,
-        'NAMESPACE': self.GetNamespaceString(),
         'NAME': native.name,
         'PARAMS_IN_DECLARATION': self.GetParamsInDeclaration(native),
         'PARAM0_NAME': native.params[0].name,
