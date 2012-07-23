@@ -34,6 +34,7 @@ class MimeUtil : public PlatformMimeUtil {
   bool IsSupportedImageMimeType(const std::string& mime_type) const;
   bool IsSupportedMediaMimeType(const std::string& mime_type) const;
   bool IsSupportedNonImageMimeType(const std::string& mime_type) const;
+  bool IsUnsupportedTextMimeType(const std::string& mime_type) const;
   bool IsSupportedJavascriptMimeType(const std::string& mime_type) const;
 
   bool IsViewSourceMimeType(const std::string& mime_type) const;
@@ -79,6 +80,7 @@ class MimeUtil : public PlatformMimeUtil {
   MimeMappings image_map_;
   MimeMappings media_map_;
   MimeMappings non_image_map_;
+  MimeMappings unsupported_text_map_;
   MimeMappings javascript_map_;
   MimeMappings view_source_map_;
   MimeMappings codecs_map_;
@@ -317,6 +319,25 @@ static const char* const supported_non_image_types[] = {
   // result in cross site scripting.
 };
 
+// These types are excluded from the logic that allows all text/ types because
+// while they are technically text, it's very unlikely that a user expects to
+// see them rendered in text form.
+static const char* const unsupported_text_types[] = {
+  "text/calendar",
+  "text/x-calendar",
+  "text/x-vcalendar",
+  "text/vcalendar",
+  "text/vcard",
+  "text/x-vcard",
+  "text/directory",
+  "text/ldif",
+  "text/qif",
+  "text/x-qif",
+  "text/x-csv",
+  "text/x-vcf",
+  "text/rtf",
+};
+
 //  Mozilla 1.8 and WinIE 7 both accept text/javascript and text/ecmascript.
 //  Mozilla 1.8 accepts application/javascript, application/ecmascript, and
 // application/x-javascript, but WinIE 7 doesn't.
@@ -381,6 +402,8 @@ void MimeUtil::InitializeMimeTypeMaps() {
   // Initialize the supported non-image types.
   for (size_t i = 0; i < arraysize(supported_non_image_types); ++i)
     non_image_map_.insert(supported_non_image_types[i]);
+  for (size_t i = 0; i < arraysize(unsupported_text_types); ++i)
+    unsupported_text_map_.insert(unsupported_text_types[i]);
   for (size_t i = 0; i < arraysize(supported_javascript_types); ++i)
     non_image_map_.insert(supported_javascript_types[i]);
   for (size_t i = 0; i < arraysize(common_media_types); ++i)
@@ -434,7 +457,13 @@ bool MimeUtil::IsSupportedMediaMimeType(const std::string& mime_type) const {
 }
 
 bool MimeUtil::IsSupportedNonImageMimeType(const std::string& mime_type) const {
-  return non_image_map_.find(mime_type) != non_image_map_.end();
+  return non_image_map_.find(mime_type) != non_image_map_.end() ||
+      (mime_type.compare(0, 5, "text/") == 0 &&
+       !IsUnsupportedTextMimeType(mime_type));
+}
+
+bool MimeUtil::IsUnsupportedTextMimeType(const std::string& mime_type) const {
+  return unsupported_text_map_.find(mime_type) != unsupported_text_map_.end();
 }
 
 bool MimeUtil::IsSupportedJavascriptMimeType(
@@ -606,6 +635,10 @@ bool IsSupportedMediaMimeType(const std::string& mime_type) {
 
 bool IsSupportedNonImageMimeType(const std::string& mime_type) {
   return g_mime_util.Get().IsSupportedNonImageMimeType(mime_type);
+}
+
+bool IsUnsupportedTextMimeType(const std::string& mime_type) {
+  return g_mime_util.Get().IsUnsupportedTextMimeType(mime_type);
 }
 
 bool IsSupportedJavascriptMimeType(const std::string& mime_type) {

@@ -60,15 +60,22 @@ TEST(MimeUtilTest, FileTest) {
 }
 
 TEST(MimeUtilTest, LookupTypes) {
+  EXPECT_FALSE(IsUnsupportedTextMimeType("text/banana"));
+  EXPECT_TRUE(IsUnsupportedTextMimeType("text/vcard"));
+
   EXPECT_TRUE(IsSupportedImageMimeType("image/jpeg"));
   EXPECT_FALSE(IsSupportedImageMimeType("image/lolcat"));
   EXPECT_TRUE(IsSupportedNonImageMimeType("text/html"));
-  EXPECT_FALSE(IsSupportedNonImageMimeType("text/virus"));
+  EXPECT_TRUE(IsSupportedNonImageMimeType("text/banana"));
+  EXPECT_FALSE(IsSupportedNonImageMimeType("text/vcard"));
+  EXPECT_FALSE(IsSupportedNonImageMimeType("application/virus"));
 
   EXPECT_TRUE(IsSupportedMimeType("image/jpeg"));
   EXPECT_FALSE(IsSupportedMimeType("image/lolcat"));
   EXPECT_TRUE(IsSupportedMimeType("text/html"));
-  EXPECT_FALSE(IsSupportedMimeType("text/virus"));
+  EXPECT_TRUE(IsSupportedMimeType("text/banana"));
+  EXPECT_FALSE(IsSupportedMimeType("text/vcard"));
+  EXPECT_FALSE(IsSupportedMimeType("application/virus"));
 }
 
 TEST(MimeUtilTest, MatchesMimeType) {
