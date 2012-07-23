@@ -139,7 +139,7 @@ export STRIP=$(echo ${ANDROID_TOOLCHAIN}/*-strip)
 # The set of GYP_DEFINES to pass to gyp. Use 'readlink -e' on directories
 # to canonicalize them (remove double '/', remove trailing '/', etc).
 DEFINES+=" OS=android"
-DEFINES+=" android_build_type=0"  # Currently, Only '0' is supportted.
+DEFINES+=" android_build_type=0"
 DEFINES+=" host_os=${host_os}"
 DEFINES+=" linux_fpic=1"
 DEFINES+=" release_optimize=s"
