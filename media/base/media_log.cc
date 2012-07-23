@@ -7,19 +7,14 @@
 #include <string>
 
 #include "base/atomic_sequence_num.h"
-#include "base/bind.h"
-#include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
 #include "base/values.h"
 
 namespace media {
 
-// A count of all MediaLogs created on this render process.
-// Used to generate unique ids.
-static base::LazyInstance<base::AtomicSequenceNumber>::Leaky media_log_count =
-    LAZY_INSTANCE_INITIALIZER;
+// A count of all MediaLogs created in the current process. Used to generate
+// unique IDs.
+static base::StaticAtomicSequenceNumber g_media_log_count;
 
 const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
   switch (type) {
@@ -57,8 +52,6 @@ const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
       return "AUDIO_RENDERER_DISABLED";
     case MediaLogEvent::BUFFERED_EXTENTS_CHANGED:
       return "BUFFERED_EXTENTS_CHANGED";
-    case MediaLogEvent::STATISTICS_UPDATED:
-      return "STATISTICS_UPDATED";
   }
   NOTREACHED();
   return NULL;
@@ -111,20 +104,18 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "pipeline: network error";
     case PIPELINE_ERROR_DECODE:
       return "pipeline: decode error";
+    case PIPELINE_ERROR_DECRYPT:
+      return "pipeline: decrypt error";
     case PIPELINE_ERROR_ABORT:
       return "pipeline: abort";
     case PIPELINE_ERROR_INITIALIZATION_FAILED:
       return "pipeline: initialization failed";
     case PIPELINE_ERROR_REQUIRED_FILTER_MISSING:
       return "pipeline: required filter missing";
-    case PIPELINE_ERROR_OUT_OF_MEMORY:
-      return "pipeline: out of memory";
     case PIPELINE_ERROR_COULD_NOT_RENDER:
       return "pipeline: could not render";
     case PIPELINE_ERROR_READ:
       return "pipeline: read error";
-    case PIPELINE_ERROR_AUDIO_HARDWARE:
-      return "pipeline: audio hardware error";
     case PIPELINE_ERROR_OPERATION_PENDING:
       return "pipeline: operation pending";
     case PIPELINE_ERROR_INVALID_STATE:
@@ -135,26 +126,20 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "dumuxer: could not parse";
     case DEMUXER_ERROR_NO_SUPPORTED_STREAMS:
       return "demuxer: no supported streams";
-    case DEMUXER_ERROR_COULD_NOT_CREATE_THREAD:
-      return "demuxer: could not create thread";
     case DECODER_ERROR_NOT_SUPPORTED:
       return "decoder: not supported";
-    case DATASOURCE_ERROR_URL_NOT_SUPPORTED:
-      return "data source: url not supported";
+    case PIPELINE_STATUS_MAX:
+      NOTREACHED();
   }
   NOTREACHED();
   return NULL;
 }
 
-MediaLog::MediaLog() {
-  id_ = media_log_count.Get().GetNext();
-  stats_update_pending_ = false;
-}
+MediaLog::MediaLog() : id_(g_media_log_count.GetNext()) {}
 
 MediaLog::~MediaLog() {}
 
-void MediaLog::AddEvent(scoped_ptr<MediaLogEvent> event) {
-}
+void MediaLog::AddEvent(scoped_ptr<MediaLogEvent> event) {}
 
 scoped_ptr<MediaLogEvent> MediaLog::CreateEvent(MediaLogEvent::Type type) {
   scoped_ptr<MediaLogEvent> event(new MediaLogEvent);
@@ -228,38 +213,6 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateBufferedExtentsChangedEvent(
   event->params.SetInteger("buffer_current", current);
   event->params.SetInteger("buffer_end", end);
   return event.Pass();
-}
-
-void MediaLog::QueueStatisticsUpdatedEvent(PipelineStatistics stats) {
-  base::AutoLock auto_lock(stats_lock_);
-  last_statistics_ = stats;
-
-  // Sadly, this function can get dispatched on threads not running a message
-  // loop.  Happily, this is pretty rare (only VideoRendererBase at this time)
-  // so we simply leave stats updating for another call to trigger.
-  if (!stats_update_pending_ && MessageLoop::current()) {
-    stats_update_pending_ = true;
-    MessageLoop::current()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&media::MediaLog::AddStatisticsUpdatedEvent, this),
-        base::TimeDelta::FromMilliseconds(500));
-  }
-}
-
-void MediaLog::AddStatisticsUpdatedEvent() {
-  base::AutoLock auto_lock(stats_lock_);
-  scoped_ptr<MediaLogEvent> event(
-      CreateEvent(MediaLogEvent::STATISTICS_UPDATED));
-  event->params.SetInteger("audio_bytes_decoded",
-                           last_statistics_.audio_bytes_decoded);
-  event->params.SetInteger("video_bytes_decoded",
-                           last_statistics_.video_bytes_decoded);
-  event->params.SetInteger("video_frames_decoded",
-                           last_statistics_.video_frames_decoded);
-  event->params.SetInteger("video_frames_dropped",
-                           last_statistics_.video_frames_dropped);
-  AddEvent(event.Pass());
-  stats_update_pending_ = false;
 }
 
 }  //namespace media

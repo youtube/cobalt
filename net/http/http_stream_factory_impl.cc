@@ -38,11 +38,13 @@ GURL UpgradeUrlToHttps(const GURL& original_url, int port) {
 HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
     : session_(session),
       http_pipelined_host_pool_(this, NULL,
-                                session_->http_server_properties()) {}
+                                session_->http_server_properties(),
+                                session_->force_http_pipelining()) {}
 
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
   DCHECK(spdy_session_request_map_.empty());
+  DCHECK(http_pipelining_request_map_.empty());
 
   std::set<const Job*> tmp_job_set;
   tmp_job_set.swap(orphaned_job_set_);
@@ -117,15 +119,6 @@ void HttpStreamFactoryImpl::PreconnectStreams(
   job->Preconnect(num_streams);
 }
 
-void HttpStreamFactoryImpl::AddTLSIntolerantServer(const HostPortPair& server) {
-  tls_intolerant_servers_.insert(server);
-}
-
-bool HttpStreamFactoryImpl::IsTLSIntolerantServer(
-    const HostPortPair& server) const {
-  return ContainsKey(tls_intolerant_servers_, server);
-}
-
 base::Value* HttpStreamFactoryImpl::PipelineInfoToValue() const {
   return http_pipelined_host_pool_.PipelineInfoToValue();
 }
@@ -193,7 +186,7 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
     const SSLConfig& used_ssl_config,
     const ProxyInfo& used_proxy_info,
     bool was_npn_negotiated,
-    SSLClientSocket::NextProto protocol_negotiated,
+    NextProto protocol_negotiated,
     bool using_spdy,
     const BoundNetLog& net_log) {
   const HostPortProxyPair& spdy_session_key =
@@ -232,12 +225,16 @@ void HttpStreamFactoryImpl::OnPreconnectsComplete(const Job* job) {
 }
 
 void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
-    const HostPortPair& origin) {
-  HttpPipelinedStream* stream;
-  while (ContainsKey(http_pipelining_request_map_, origin) &&
-         (stream = http_pipelined_host_pool_.CreateStreamOnExistingPipeline(
-             origin))) {
-    Request* request = *http_pipelining_request_map_[origin].begin();
+    HttpPipelinedHost* host) {
+  while (ContainsKey(http_pipelining_request_map_, host->GetKey())) {
+    HttpPipelinedStream* stream =
+        http_pipelined_host_pool_.CreateStreamOnExistingPipeline(
+            host->GetKey());
+    if (!stream) {
+      break;
+    }
+
+    Request* request = *http_pipelining_request_map_[host->GetKey()].begin();
     request->Complete(stream->was_npn_negotiated(),
                       stream->protocol_negotiated(),
                       false,  // not using_spdy
@@ -246,6 +243,20 @@ void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
                            stream->used_ssl_config(),
                            stream->used_proxy_info(),
                            stream);
+  }
+}
+
+void HttpStreamFactoryImpl::AbortPipelinedRequestsWithKey(
+    const Job* job, const HttpPipelinedHost::Key& key, int status,
+    const SSLConfig& used_ssl_config) {
+  RequestVector requests_to_fail = http_pipelining_request_map_[key];
+  for (RequestVector::const_iterator it = requests_to_fail.begin();
+       it != requests_to_fail.end(); ++it) {
+    Request* request = *it;
+    if (request == request_map_[job]) {
+      continue;
+    }
+    request->OnStreamFailed(NULL, status, used_ssl_config);
   }
 }
 

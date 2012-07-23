@@ -31,9 +31,8 @@ namespace media {
   QTCaptureDeviceInput *captureDeviceInput_;
 }
 
-// Returns an array of QTCaptureDevices.
-// TODO(mflodman) Return arrays of friendly name and unique id instead.
-+ (NSArray *)deviceNames;
+// Returns a dictionary of capture devices with friendly name and unique id.
++ (NSDictionary *)deviceNames;
 
 // Initializes the instance and registers the frame receiver.
 - (id)initWithFrameReceiver:(media::VideoCaptureDeviceMac *)frameReceiver;

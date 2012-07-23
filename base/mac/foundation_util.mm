@@ -13,6 +13,13 @@
 #include "base/mac/mac_logging.h"
 #include "base/sys_string_conversions.h"
 
+#if !defined(OS_IOS)
+extern "C" {
+CFTypeID SecACLGetTypeID();
+CFTypeID SecTrustedApplicationGetTypeID();
+}  // extern "C"
+#endif
+
 namespace base {
 namespace mac {
 
@@ -21,6 +28,10 @@ static bool g_override_am_i_bundled_value = false;
 
 // Adapted from http://developer.apple.com/carbon/tipsandtricks.html#AmIBundled
 static bool UncachedAmIBundled() {
+#if defined(OS_IOS)
+  // All apps are bundled on iOS
+  return true;
+#else
   if (g_override_am_i_bundled)
     return g_override_am_i_bundled_value;
 
@@ -42,6 +53,7 @@ static bool UncachedAmIBundled() {
   }
 
   return info.nodeFlags & kFSNodeIsDirectoryMask;
+#endif
 }
 
 bool AmIBundled() {
@@ -57,6 +69,11 @@ bool AmIBundled() {
 }
 
 void SetOverrideAmIBundled(bool value) {
+#if defined(OS_IOS)
+  // It doesn't make sense not to be bundled on iOS.
+  if (!value)
+    NOTREACHED();
+#endif
   g_override_am_i_bundled = true;
   g_override_am_i_bundled_value = value;
 }
@@ -289,7 +306,7 @@ CFCast<TypeCF##Ref>(const CFTypeRef& cf_val) { \
     return NULL; \
   } \
   if (CFGetTypeID(cf_val) == TypeCF##GetTypeID()) { \
-    return reinterpret_cast<TypeCF##Ref>(cf_val); \
+    return (TypeCF##Ref)(cf_val); \
   } \
   return NULL; \
 } \
@@ -311,6 +328,11 @@ CF_CAST_DEFN(CFNull);
 CF_CAST_DEFN(CFNumber);
 CF_CAST_DEFN(CFSet);
 CF_CAST_DEFN(CFString);
+
+#if !defined(OS_IOS)
+CF_CAST_DEFN(SecACL);
+CF_CAST_DEFN(SecTrustedApplication);
+#endif
 
 #undef CF_CAST_DEFN
 

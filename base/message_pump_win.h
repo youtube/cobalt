@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MESSAGE_PUMP_WIN_H_
 #define BASE_MESSAGE_PUMP_WIN_H_
-#pragma once
 
 #include <windows.h>
 
@@ -13,6 +12,7 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/message_pump.h"
+#include "base/message_pump_dispatcher.h"
 #include "base/message_pump_observer.h"
 #include "base/observer_list.h"
 #include "base/time.h"
@@ -25,23 +25,6 @@ namespace base {
 // controlling the lifetime of the message pump.
 class BASE_EXPORT MessagePumpWin : public MessagePump {
  public:
-
-  // Dispatcher is used during a nested invocation of Run to dispatch events.
-  // If Run is invoked with a non-NULL Dispatcher, MessageLoop does not
-  // dispatch events (or invoke TranslateMessage), rather every message is
-  // passed to Dispatcher's Dispatch method for dispatch. It is up to the
-  // Dispatcher to dispatch, or not, the event.
-  //
-  // The nested loop is exited by either posting a quit, or returning false
-  // from Dispatch.
-  class BASE_EXPORT Dispatcher {
-   public:
-    virtual ~Dispatcher() {}
-    // Dispatches the event. If true is returned processing continues as
-    // normal. If false is returned, the nested loop exits immediately.
-    virtual bool Dispatch(const MSG& msg) = 0;
-  };
-
   MessagePumpWin() : have_work_(0), state_(NULL) {}
   virtual ~MessagePumpWin() {}
 
@@ -58,7 +41,7 @@ class BASE_EXPORT MessagePumpWin : public MessagePump {
   void DidProcessMessage(const MSG& msg);
 
   // Like MessagePump::Run, but MSG objects are routed through dispatcher.
-  void RunWithDispatcher(Delegate* delegate, Dispatcher* dispatcher);
+  void RunWithDispatcher(Delegate* delegate, MessagePumpDispatcher* dispatcher);
 
   // MessagePump methods:
   virtual void Run(Delegate* delegate) { RunWithDispatcher(delegate, NULL); }
@@ -67,7 +50,7 @@ class BASE_EXPORT MessagePumpWin : public MessagePump {
  protected:
   struct RunState {
     Delegate* delegate;
-    Dispatcher* dispatcher;
+    MessagePumpDispatcher* dispatcher;
 
     // Used to flag that the current Run() invocation should return ASAP.
     bool should_quit;
@@ -169,6 +152,9 @@ class BASE_EXPORT MessagePumpForUI : public MessagePumpWin {
   bool ProcessNextWindowsMessage();
   bool ProcessMessageHelper(const MSG& msg);
   bool ProcessPumpReplacementMessage();
+
+  // Instance of the module containing the window procedure.
+  HMODULE instance_;
 
   // A hidden message-only window.
   HWND message_hwnd_;

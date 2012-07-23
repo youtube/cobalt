@@ -1,18 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_PROXY_DHCP_SCRIPT_FETCHER_H_
 #define NET_PROXY_DHCP_SCRIPT_FETCHER_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/string16.h"
+#include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/proxy/proxy_script_fetcher.h"
-#include "net/url_request/url_request_context.h"
 
 namespace net {
 

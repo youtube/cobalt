@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -346,6 +346,8 @@ std::string DescribeContext(GSSAPILibrary* gssapi_lib,
   OM_uint32 ctx_flags = 0;
   int locally_initiated = 0;
   int open = 0;
+  if (context_handle == GSS_C_NO_CONTEXT)
+    return std::string("Context: GSS_C_NO_CONTEXT");
   major_status = gssapi_lib->inquire_context(&minor_status,
                                              context_handle,
                                              &src_name,

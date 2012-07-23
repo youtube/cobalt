@@ -11,6 +11,8 @@
 #include "media/audio/audio_manager_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace media {
+
 static const int kSamplingRate = 8000;
 static const int kSamplesPerPacket = kSamplingRate / 20;
 
@@ -25,7 +27,7 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
         max_data_bytes_(max_data_bytes) {
   }
   virtual void OnData(AudioInputStream* stream, const uint8* data,
-                      uint32 size, uint32 hardware_delay_bytes) {
+                      uint32 size, uint32 hardware_delay_bytes, double volume) {
     ++callback_count_;
     // Read the first byte to make sure memory is good.
     if (size) {
@@ -90,7 +92,7 @@ TEST(AudioInputTest, SanityOnMakeParams) {
 
   AudioParameters::Format fmt = AudioParameters::AUDIO_PCM_LINEAR;
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, CHANNEL_LAYOUT_7POINT1, 8000, 16,
+      AudioParameters(fmt, CHANNEL_LAYOUT_7_1, 8000, 16,
                       kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 1024 * 1024, 16,
@@ -159,7 +161,10 @@ TEST(AudioInputTest, Record) {
   ais->Start(&test_callback);
   // Verify at least 500ms worth of audio was recorded, after giving sufficient
   // extra time.
-  message_loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(), 590);
+  message_loop.PostDelayedTask(
+      FROM_HERE,
+      MessageLoop::QuitClosure(),
+      base::TimeDelta::FromMilliseconds(590));
   message_loop.Run();
   EXPECT_GE(test_callback.callback_count(), 10);
   EXPECT_FALSE(test_callback.had_error());
@@ -167,3 +172,5 @@ TEST(AudioInputTest, Record) {
   ais->Stop();
   ais->Close();
 }
+
+}  // namespace media

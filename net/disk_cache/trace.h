@@ -8,7 +8,6 @@
 
 #ifndef NET_DISK_CACHE_TRACE_H__
 #define NET_DISK_CACHE_TRACE_H__
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"

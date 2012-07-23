@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_ESCAPE_H_
 #define NET_BASE_ESCAPE_H_
-#pragma once
 
 #include <string>
 #include <vector>
@@ -17,8 +16,17 @@ namespace net {
 
 // Escaping --------------------------------------------------------------------
 
-// Escapes a file.  This includes:
+// Escapes characters in text suitable for use as a query parameter value.
+// We %XX everything except alphanumerics and -_.!~*'()
+// Spaces change to "+" unless you pass usePlus=false.
+// This is basically the same as encodeURIComponent in javascript.
+NET_EXPORT std::string EscapeQueryParamValue(const std::string& text,
+                                             bool use_plus);
+
+// Escapes a partial or complete file/pathname.  This includes:
 // non-printable, non-7bit, and (including space)  "#%:<>?[\]^`{|}
+// For the string16 version, we attempt a conversion to |codepage| before
+// encoding the string.  If this conversion fails, we return false.
 NET_EXPORT std::string EscapePath(const std::string& path);
 
 // Escapes application/x-www-form-urlencoded content.  This includes:
@@ -123,26 +131,6 @@ NET_EXPORT string16 UnescapeAndDecodeUTF8URLComponentWithOffsets(
 // Unescapes the following ampersand character codes from |text|:
 // &lt; &gt; &amp; &quot; &#39;
 NET_EXPORT string16 UnescapeForHTML(const string16& text);
-
-// Deprecated ------------------------------------------------------------------
-
-// Escapes characters in text suitable for use as a query parameter value.
-// We %XX everything except alphanumerics and -_.!~*'()
-// Spaces change to "+" unless you pass usePlus=false.
-// This is basically the same as encodeURIComponent in javascript.
-// For the string16 version, we do a conversion to charset before encoding the
-// string.  If the charset doesn't exist, we return false.
-NET_EXPORT std::string EscapeQueryParamValue(const std::string& text,
-                                             bool use_plus);
-NET_EXPORT bool EscapeQueryParamValue(const string16& text,
-                                      const char* codepage,
-                                      bool use_plus,
-                                      string16* escaped);
-
-// A specialized version of EscapeQueryParamValue for string16s that
-// assumes the codepage is UTF8.  This is provided as a convenience.
-NET_EXPORT string16 EscapeQueryParamValueUTF8(const string16& text,
-                                              bool use_plus);
 
 namespace internal {
 

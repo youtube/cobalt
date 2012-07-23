@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,6 +17,7 @@
 
 #include "base/time.h"
 #include "media/base/media_export.h"
+#include "media/video/capture/video_capture_types.h"
 
 namespace media {
 
@@ -33,31 +34,7 @@ class MEDIA_EXPORT VideoCaptureDevice {
   };
   typedef std::list<Name> Names;
 
-  // Color formats from camera.
-  enum Format {
-    kColorUnknown,  // Color format not set.
-    kI420,
-    kYUY2,
-    kUYVY,
-    kRGB24,
-    kARGB,
-    kMJPEG,  // Currently only supported on Windows.
-  };
-
-  // Describes the format a camera capture video in.
-  struct Capability {
-    Capability()
-        : width(0),
-          height(0),
-          frame_rate(0),
-          color(kColorUnknown) {}
-    int width;
-    int height;
-    int frame_rate;
-    Format color;
-  };
-
-  class EventHandler {
+  class MEDIA_EXPORT EventHandler {
    public:
     // Captured a new video frame.
     virtual void OnIncomingCapturedFrame(const uint8* data,
@@ -68,7 +45,7 @@ class MEDIA_EXPORT VideoCaptureDevice {
     virtual void OnError() = 0;
     // Called when VideoCaptureDevice::Allocate has been called
     // to inform of the resulting frame size and color format.
-    virtual void OnFrameInfo(const Capability& info) = 0;
+    virtual void OnFrameInfo(const VideoCaptureCapability& info) = 0;
 
    protected:
     virtual ~EventHandler() {}

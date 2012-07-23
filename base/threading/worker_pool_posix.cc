@@ -12,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/stringprintf.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/thread_local.h"
 #include "base/threading/worker_pool.h"
 #include "base/tracked_objects.h"
 
@@ -21,10 +22,18 @@ namespace base {
 
 namespace {
 
+base::LazyInstance<ThreadLocalBoolean>::Leaky
+    g_worker_pool_running_on_this_thread = LAZY_INSTANCE_INITIALIZER;
+
 const int kIdleSecondsBeforeExit = 10 * 60;
+
+#ifdef ADDRESS_SANITIZER
+const int kWorkerThreadStackSize = 256 * 1024;
+#else
 // A stack size of 64 KB is too small for the CERT_PKIXVerifyCert
 // function of NSS because of NSS bug 439169.
 const int kWorkerThreadStackSize = 128 * 1024;
+#endif
 
 class WorkerPoolImpl {
  public:
@@ -62,7 +71,7 @@ class WorkerThread : public PlatformThread::Delegate {
       : name_prefix_(name_prefix),
         pool_(pool) {}
 
-  virtual void ThreadMain();
+  virtual void ThreadMain() OVERRIDE;
 
  private:
   const std::string name_prefix_;
@@ -72,6 +81,7 @@ class WorkerThread : public PlatformThread::Delegate {
 };
 
 void WorkerThread::ThreadMain() {
+  g_worker_pool_running_on_this_thread.Get().Set(true);
   const std::string name = base::StringPrintf(
       "%s/%d", name_prefix_.c_str(), PlatformThread::CurrentId());
   // Note |name.c_str()| must remain valid for for the whole life of the thread.
@@ -81,7 +91,7 @@ void WorkerThread::ThreadMain() {
     PendingTask pending_task = pool_->WaitForTask();
     if (pending_task.task.is_null())
       break;
-    UNSHIPPED_TRACE_EVENT2("task", "WorkerThread::ThreadMain::Run",
+    TRACE_EVENT2("task", "WorkerThread::ThreadMain::Run",
         "src_file", pending_task.posted_from.file_name(),
         "src_func", pending_task.posted_from.function_name());
 
@@ -101,10 +111,16 @@ void WorkerThread::ThreadMain() {
 
 }  // namespace
 
+// static
 bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
                           const base::Closure& task, bool task_is_slow) {
   g_lazy_worker_pool.Pointer()->PostTask(from_here, task, task_is_slow);
   return true;
+}
+
+// static
+bool WorkerPool::RunsTasksOnCurrentThread() {
+  return g_worker_pool_running_on_this_thread.Get().Get();
 }
 
 PosixDynamicThreadPool::PosixDynamicThreadPool(

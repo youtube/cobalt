@@ -1,14 +1,26 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/time.h"
+
+#include <math.h>
+#if defined(OS_WIN)
+#include <float.h>
+#endif
+
 #include "base/sys_string_conversions.h"
 #include "base/third_party/nspr/prtime.h"
 
 #include "base/logging.h"
 
 namespace base {
+
+namespace {
+#if defined(OS_WIN)
+inline bool isnan(double num) { return !!_isnan(num); }
+#endif
+}
 
 // TimeDelta ------------------------------------------------------------------
 
@@ -66,7 +78,7 @@ time_t Time::ToTimeT() const {
 
 // static
 Time Time::FromDoubleT(double dt) {
-  if (dt == 0)
+  if (dt == 0 || isnan(dt))
     return Time();  // Preserve 0 so we can tell it doesn't exist.
   return Time(static_cast<int64>((dt *
                                   static_cast<double>(kMicrosecondsPerSecond)) +
@@ -78,6 +90,23 @@ double Time::ToDoubleT() const {
     return 0;  // Preserve 0 so we can tell it doesn't exist.
   return (static_cast<double>(us_ - kTimeTToMicrosecondsOffset) /
           static_cast<double>(kMicrosecondsPerSecond));
+}
+
+// static
+Time Time::FromJsTime(double ms_since_epoch) {
+  // The epoch is a valid time, so this constructor doesn't interpret
+  // 0 as the null time.
+  return Time(static_cast<int64>(ms_since_epoch * kMicrosecondsPerMillisecond) +
+              kTimeTToMicrosecondsOffset);
+}
+
+double Time::ToJsTime() const {
+  if (us_ == 0) {
+    // Preserve 0 so the invalid result doesn't depend on the platform.
+    return 0;
+  }
+  return (static_cast<double>(us_ - kTimeTToMicrosecondsOffset) /
+          kMicrosecondsPerMillisecond);
 }
 
 // static

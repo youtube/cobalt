@@ -7,7 +7,6 @@
 
 #ifndef BASE_FILE_UTIL_H_
 #define BASE_FILE_UTIL_H_
-#pragma once
 
 #include "build/build_config.h"
 
@@ -99,6 +98,9 @@ BASE_EXPORT int64 ComputeFilesSize(const FilePath& directory,
 // directory's contents.  Passing true to recursive deletes
 // subdirectories and their contents as well.
 // Returns true if successful, false otherwise.
+//
+// In posix environment and if |path| is a symbolic link, this deletes only
+// the symlink. (even if the symlink points to a non-existent file)
 //
 // WARNING: USING THIS WITH recursive==true IS EQUIVALENT
 //          TO "rm -rf", SO USE WITH CAUTION.
@@ -193,48 +195,73 @@ BASE_EXPORT bool CreateSymbolicLink(const FilePath& target,
 // Reads the given |symlink| and returns where it points to in |target|.
 // Returns false upon failure.
 BASE_EXPORT bool ReadSymbolicLink(const FilePath& symlink, FilePath* target);
+
+// Bits ans masks of the file permission.
+enum FilePermissionBits {
+  FILE_PERMISSION_MASK              = S_IRWXU | S_IRWXG | S_IRWXO,
+  FILE_PERMISSION_USER_MASK         = S_IRWXU,
+  FILE_PERMISSION_GROUP_MASK        = S_IRWXG,
+  FILE_PERMISSION_OTHERS_MASK       = S_IRWXO,
+
+  FILE_PERMISSION_READ_BY_USER      = S_IRUSR,
+  FILE_PERMISSION_WRITE_BY_USER     = S_IWUSR,
+  FILE_PERMISSION_EXECUTE_BY_USER   = S_IXUSR,
+  FILE_PERMISSION_READ_BY_GROUP     = S_IRGRP,
+  FILE_PERMISSION_WRITE_BY_GROUP    = S_IWGRP,
+  FILE_PERMISSION_EXECUTE_BY_GROUP  = S_IXGRP,
+  FILE_PERMISSION_READ_BY_OTHERS    = S_IROTH,
+  FILE_PERMISSION_WRITE_BY_OTHERS   = S_IWOTH,
+  FILE_PERMISSION_EXECUTE_BY_OTHERS = S_IXOTH,
+};
+
+// Reads the permission of the given |path|, storing the file permission
+// bits in |mode|. If |path| is symbolic link, |mode| is the permission of
+// a file which the symlink points to.
+BASE_EXPORT bool GetPosixFilePermissions(const FilePath& path,
+                                         int* mode);
+// Sets the permission of the given |path|. If |path| is symbolic link, sets
+// the permission of a file which the symlink points to.
+BASE_EXPORT bool SetPosixFilePermissions(const FilePath& path,
+                                         int mode);
 #endif  // defined(OS_POSIX)
 
 #if defined(OS_WIN)
+enum ShortcutOptions {
+  SHORTCUT_NO_OPTIONS = 0,
+  // Set DualMode property for Windows 8 Metro-enabled shortcuts.
+  SHORTCUT_DUAL_MODE = 1 << 0,
+  // Create a new shortcut (overwriting if necessary).
+  SHORTCUT_CREATE_ALWAYS = 1 << 1,
+};
+
 // Resolve Windows shortcut (.LNK file)
 // This methods tries to resolve a shortcut .LNK file. If the |path| is valid
 // returns true and puts the target into the |path|, otherwise returns
 // false leaving the path as it is.
 BASE_EXPORT bool ResolveShortcut(FilePath* path);
 
-// Create a Windows shortcut (.LNK file)
-// This method creates a shortcut link using the information given. Ensure
-// you have initialized COM before calling into this function. 'source'
-// and 'destination' parameters are required, everything else can be NULL.
-// 'source' is the existing file, 'destination' is the new link file to be
+// Creates (or updates) a Windows shortcut (.LNK file)
+// This method creates (or updates) a shortcut link using the information given.
+// Ensure you have initialized COM before calling into this function.
+// |destination| is required. |source| is required when SHORTCUT_CREATE_ALWAYS
+// is specified in |options|. All other parameters are optional and may be NULL.
+// |source| is the existing file, |destination| is the new link file to be
 // created; for best results pass the filename with the .lnk extension.
-// The 'icon' can specify a dll or exe in which case the icon index is the
-// resource id. 'app_id' is the app model id for the shortcut on Win7.
-// Note that if the shortcut exists it will overwrite it.
-BASE_EXPORT bool CreateShortcutLink(const wchar_t *source,
+// The |icon| can specify a dll or exe in which case the icon index is the
+// resource id. |app_id| is the app model id for the shortcut on Win7.
+// |options|: bitfield for which the options come from ShortcutOptions.
+// If SHORTCUT_CREATE_ALWAYS is not set in |options|, only specified (non-null)
+// properties on an existing shortcut will be modified. If the shortcut does not
+// exist, this method is a no-op and returns false.
+BASE_EXPORT bool CreateOrUpdateShortcutLink(const wchar_t *source,
                                     const wchar_t *destination,
                                     const wchar_t *working_dir,
                                     const wchar_t *arguments,
                                     const wchar_t *description,
                                     const wchar_t *icon,
                                     int icon_index,
-                                    const wchar_t* app_id);
-
-// Update a Windows shortcut (.LNK file). This method assumes the shortcut
-// link already exists (otherwise false is returned). Ensure you have
-// initialized COM before calling into this function. Only 'destination'
-// parameter is required, everything else can be NULL (but if everything else
-// is NULL no changes are made to the shortcut). 'destination' is the link
-// file to be updated. 'app_id' is the app model id for the shortcut on Win7.
-// For best results pass the filename with the .lnk extension.
-BASE_EXPORT bool UpdateShortcutLink(const wchar_t *source,
-                                    const wchar_t *destination,
-                                    const wchar_t *working_dir,
-                                    const wchar_t *arguments,
-                                    const wchar_t *description,
-                                    const wchar_t *icon,
-                                    int icon_index,
-                                    const wchar_t* app_id);
+                                    const wchar_t* app_id,
+                                    uint32 options);
 
 // Pins a shortcut to the Windows 7 taskbar. The shortcut file must already
 // exist and be a shortcut that points to an executable.
@@ -383,6 +410,10 @@ BASE_EXPORT int WriteFile(const FilePath& filename, const char* data, int size);
 // Append the data to |fd|. Does not close |fd| when done.
 BASE_EXPORT int WriteFileDescriptor(const int fd, const char* data, int size);
 #endif
+// Append the given buffer into the file. Returns the number of bytes written,
+// or -1 on error.
+BASE_EXPORT int AppendToFile(const FilePath& filename,
+                             const char* data, int size);
 
 // Gets the current working directory for the process.
 BASE_EXPORT bool GetCurrentDirectory(FilePath* path);
@@ -415,7 +446,7 @@ BASE_EXPORT bool VerifyPathControlledByUser(const FilePath& base,
                                             const std::set<gid_t>& group_gids);
 #endif  // defined(OS_POSIX)
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) && !defined(OS_IOS)
 // Is |path| writable only by a user with administrator privileges?
 // This function uses Mac OS conventions.  The super user is assumed to have
 // uid 0, and the administrator group is assumed to be named "admin".
@@ -515,6 +546,7 @@ class BASE_EXPORT FileEnumerator {
 
   // Looks inside a FindInfo and determines if it's a directory.
   static bool IsDirectory(const FindInfo& info);
+  static bool IsLink(const FindInfo& info);
 
   static FilePath GetFilename(const FindInfo& find_info);
   static int64 GetFilesize(const FindInfo& find_info);
@@ -640,9 +672,5 @@ BASE_EXPORT bool GetFileSystemType(const FilePath& path, FileSystemType* type);
 #endif
 
 }  // namespace file_util
-
-// Deprecated functions have been moved to this separate header file,
-// which must be included last after all the above definitions.
-#include "base/file_util_deprecated.h"
 
 #endif  // BASE_FILE_UTIL_H_

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,29 +19,22 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
  public:
   FileDataSource();
   FileDataSource(bool disable_file_size);
-  virtual ~FileDataSource();
 
   PipelineStatus Initialize(const std::string& url);
 
   // Implementation of DataSource.
   virtual void set_host(DataSourceHost* host) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void Read(int64 position, size_t size, uint8* data,
-                    const DataSource::ReadCallback& read_callback) OVERRIDE;
+  virtual void Read(int64 position, int size, uint8* data,
+                    const DataSource::ReadCB& read_cb) OVERRIDE;
   virtual bool GetSize(int64* size_out) OVERRIDE;
   virtual bool IsStreaming() OVERRIDE;
-  virtual void SetPreload(Preload preload) OVERRIDE;
   virtual void SetBitrate(int bitrate) OVERRIDE;
 
- private:
-  // Only allow factories and tests to create this object.
-  //
-  // TODO(scherkus): I'm getting tired of these factories getting in the way
-  // of my tests!!!
-  FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, OpenFile);
-  FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, ReadData);
-  FRIEND_TEST_ALL_PREFIXES(FileDataSourceTest, Seek);
+ protected:
+  virtual ~FileDataSource();
 
+ private:
   // Informs the host of changes in total and buffered bytes.
   void UpdateHostBytes();
 

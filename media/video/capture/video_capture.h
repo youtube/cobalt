@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -27,7 +27,6 @@ class MEDIA_EXPORT VideoCapture {
           stride(0),
           buffer_size(0),
           memory_pointer(NULL) {}
-    ~VideoFrameBuffer() {}
 
     int width;
     int height;
@@ -37,12 +36,15 @@ class MEDIA_EXPORT VideoCapture {
     base::Time timestamp;
 
    private:
+    friend class base::RefCountedThreadSafe<VideoFrameBuffer>;
+    ~VideoFrameBuffer() {}
+
     DISALLOW_COPY_AND_ASSIGN(VideoFrameBuffer);
   };
 
   // TODO(wjia): add error codes.
   // Callbacks provided by client for notification of events.
-  class EventHandler {
+  class MEDIA_EXPORT EventHandler {
    public:
     // Notify client that video capture has been started.
     virtual void OnStarted(VideoCapture* capture) = 0;
@@ -68,21 +70,12 @@ class MEDIA_EXPORT VideoCapture {
     virtual void OnDeviceInfoReceived(
         VideoCapture* capture,
         const VideoCaptureParams& device_info) = 0;
-  };
 
-  // TODO(wjia): merge with similar struct in browser process and move it to
-  // video_capture_types.h.
-  struct VideoCaptureCapability {
-    int width;  // desired width.
-    int height;  // desired height.
-    int max_fps;  // desired maximum frame rate.
-    int expected_capture_delay;  // expected delay in millisecond.
-    media::VideoFrame::Format raw_type;  // desired video type.
-    bool interlaced;  // need interlace format.
+   protected:
+    virtual ~EventHandler() {}
   };
 
   VideoCapture() {}
-  virtual ~VideoCapture() {}
 
   // Request video capture to start capturing with |capability|.
   // Also register |handler| with video capture for event handling.
@@ -101,6 +94,9 @@ class MEDIA_EXPORT VideoCapture {
   virtual int CaptureWidth() = 0;
   virtual int CaptureHeight() = 0;
   virtual int CaptureFrameRate() = 0;
+
+ protected:
+  virtual ~VideoCapture() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(VideoCapture);

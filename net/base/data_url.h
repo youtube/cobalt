@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_DATA_URL_H_
 #define NET_BASE_DATA_URL_H_
-#pragma once
 
 #include <string>
 

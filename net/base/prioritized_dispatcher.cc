@@ -19,15 +19,15 @@ PrioritizedDispatcher::PrioritizedDispatcher(const Limits& limits)
       max_running_jobs_(limits.reserved_slots.size()),
       num_running_jobs_(0) {
   size_t total = 0;
-  for (size_t i = limits.reserved_slots.size(); i > 0; --i) {
-    total += limits.reserved_slots[i - 1];
-    max_running_jobs_[i - 1] = total;
+  for (size_t i = 0; i < limits.reserved_slots.size(); ++i) {
+    total += limits.reserved_slots[i];
+    max_running_jobs_[i] = total;
   }
   // Unreserved slots are available for all priorities.
   DCHECK_LE(total, limits.total_jobs) << "sum(reserved_slots) <= total_jobs";
   size_t spare = limits.total_jobs - total;
-  for (size_t i = 0; i < max_running_jobs_.size(); ++i) {
-    max_running_jobs_[i] += spare;
+  for (size_t i = limits.reserved_slots.size(); i > 0; --i) {
+    max_running_jobs_[i - 1] += spare;
   }
 }
 
@@ -50,7 +50,7 @@ void PrioritizedDispatcher::Cancel(const Handle& handle) {
 }
 
 PrioritizedDispatcher::Job* PrioritizedDispatcher::EvictOldestLowest() {
-  Handle handle = queue_.FirstMax();
+  Handle handle = queue_.FirstMin();
   if (handle.is_null())
     return NULL;
   Job* job = handle.value();
@@ -78,7 +78,7 @@ PrioritizedDispatcher::Handle PrioritizedDispatcher::ChangePriority(
 void PrioritizedDispatcher::OnJobFinished() {
   DCHECK_GT(num_running_jobs_, 0u);
   --num_running_jobs_;
-  Handle handle = queue_.FirstMin();
+  Handle handle = queue_.FirstMax();
   if (handle.is_null()) {
     DCHECK_EQ(0u, queue_.size());
     return;
@@ -99,5 +99,3 @@ bool PrioritizedDispatcher::MaybeDispatchJob(const Handle& handle,
 }
 
 }  // namespace net
-
-

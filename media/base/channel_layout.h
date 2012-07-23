@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,7 +24,7 @@ enum ChannelLayout {
   CHANNEL_LAYOUT_SURROUND,
 
   // Front L, Front R, Front C, Back C
-  CHANNEL_LAYOUT_4POINT0,
+  CHANNEL_LAYOUT_4_0,
 
   // Front L, Front R, Side L, Side R
   CHANNEL_LAYOUT_2_2,
@@ -33,25 +33,25 @@ enum ChannelLayout {
   CHANNEL_LAYOUT_QUAD,
 
   // Front L, Front R, Front C, Side L, Side R
-  CHANNEL_LAYOUT_5POINT0,
+  CHANNEL_LAYOUT_5_0,
 
   // Front L, Front R, Front C, Side L, Side R, LFE
-  CHANNEL_LAYOUT_5POINT1,
+  CHANNEL_LAYOUT_5_1,
 
   // Front L, Front R, Front C, Back L, Back R
-  CHANNEL_LAYOUT_5POINT0_BACK,
+  CHANNEL_LAYOUT_5_0_BACK,
 
   // Front L, Front R, Front C, Back L, Back R, LFE
-  CHANNEL_LAYOUT_5POINT1_BACK,
+  CHANNEL_LAYOUT_5_1_BACK,
 
   // Front L, Front R, Front C, Side L, Side R, Back L, Back R
-  CHANNEL_LAYOUT_7POINT0,
+  CHANNEL_LAYOUT_7_0,
 
   // Front L, Front R, Front C, Side L, Side R, LFE, Back L, Back R
-  CHANNEL_LAYOUT_7POINT1,
+  CHANNEL_LAYOUT_7_1,
 
   // Front L, Front R, Front C, Back L, Back R, LFE, Front LofC, Front RofC
-  CHANNEL_LAYOUT_7POINT1_WIDE,
+  CHANNEL_LAYOUT_7_1_WIDE,
 
   // Stereo L, Stereo R
   CHANNEL_LAYOUT_STEREO_DOWNMIX,

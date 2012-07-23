@@ -146,7 +146,6 @@
 
 #ifndef BASE_BIND_HELPERS_H_
 #define BASE_BIND_HELPERS_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/callback.h"

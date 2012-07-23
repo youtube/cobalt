@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,8 +11,11 @@
 
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
+
+namespace media {
 
 class AudioManagerMac;
 
@@ -94,7 +97,16 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   // A flag to determine if downmix is needed from source to device layouts.
   bool should_down_mix_;
 
+  // Event used for synchronization when stopping the stream.
+  // Callback sets it after stream is stopped.
+  base::WaitableEvent stopped_event_;
+  // When stopping we keep track of number of buffers in flight and
+  // signal "stop completed" from the last buffer's callback.
+  int num_buffers_left_;
+
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_MAC_AUDIO_OUTPUT_MAC_H_

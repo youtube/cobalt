@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_MOCK_FILTER_CONTEXT_H_
 #define NET_BASE_MOCK_FILTER_CONTEXT_H_
-#pragma once
 
 #include <string>
 

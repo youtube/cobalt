@@ -1,26 +1,26 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 {
   'variables': {
     'conditions': [
-      [ 'os_posix == 1 and OS != "mac" and OS != "openbsd" and OS != "lb_shell"', {
+      [ 'os_posix == 1 and OS != "mac" and OS != "ios" and OS != "openbsd" and OS != "lb_shell"', {
         # Link to system .so since we already use it due to GTK.
         # TODO(pvalchev): OpenBSD is purposefully left out, as the system
         # zlib brings up an incompatibility that breaks rendering.
         'use_system_zlib%': 1,
-      }, {  # os_posix != 1 or OS == "mac" or OS == "openbsd" or OS == "lb_shell"
+      }, {  # os_posix != 1 or OS == "mac" or and OS != "ios" OS == "openbsd" or OS == "lb_shell"
         'use_system_zlib%': 0,
       }],
     ],
   },
-  'conditions': [
-    ['use_system_zlib==0', {
-      'targets': [
-        {
-          'target_name': 'zlib',
-          'type': 'static_library',
+  'targets': [
+    {
+      'target_name': 'zlib',
+      'type': 'static_library',
+      'conditions': [
+        ['use_system_zlib==0', {
           'sources': [
             'contrib/minizip/ioapi.c',
             'contrib/minizip/ioapi.h',
@@ -71,33 +71,8 @@
                 'contrib/minizip/iowin32.c'
               ],
             }],
-            ['OS=="mac" or os_bsd==1 or OS=="android"', {
-              # Mac, Android and the BSDs don't have fopen64, ftello64, or
-              # fseeko64. We use fopen, ftell, and fseek instead on these
-              # systems.
-              'defines': [
-                'USE_FILE32API'
-              ],
-            }],
-            ['clang==1', {
-              'xcode_settings': {
-                'WARNING_CFLAGS': [
-                  # zlib uses `if ((a == b))` for some reason.
-                  '-Wno-parentheses-equality',
-                ],
-              },
-              'cflags': [
-                '-Wno-parentheses-equality',
-              ],
-            }],
           ],
-        },
-      ],
-    }, {
-      'targets': [
-        {
-          'target_name': 'zlib',
-          'type': 'static_library',
+        }, {
           'direct_dependent_settings': {
             'defines': [
               'USE_SYSTEM_ZLIB',
@@ -115,14 +90,6 @@
             'contrib/minizip/zip.h',
           ],
           'conditions': [
-            ['OS=="mac" or os_bsd==1 or OS=="android"', {
-              # Mac, Android and the BSDs don't have fopen64, ftello64, or
-              # fseeko64. We use fopen, ftell, and fseek instead on these
-              # systems.
-              'defines': [
-                'USE_FILE32API'
-              ],
-            }],
             ['OS=="android"', {
               'toolsets': ['target', 'host'],
             }],
@@ -132,8 +99,27 @@
               '-lz',
             ],
           },
-        },
+        }],
+        ['OS=="mac" or OS=="ios" or os_bsd==1 or OS=="android"', {
+          # Mac, Android and the BSDs don't have fopen64, ftello64, or
+          # fseeko64. We use fopen, ftell, and fseek instead on these
+          # systems.
+          'defines': [
+            'USE_FILE32API'
+          ],
+        }],
+        ['clang==1', {
+          'xcode_settings': {
+            'WARNING_CFLAGS': [
+              # zlib uses `if ((a == b))` for some reason.
+              '-Wno-parentheses-equality',
+            ],
+          },
+          'cflags': [
+            '-Wno-parentheses-equality',
+          ],
+        }],
       ],
-    }],
+    }
   ],
 }

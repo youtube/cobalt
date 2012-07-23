@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/time.h"
+
 #include <time.h>
 
+#include "base/compiler_specific.h"
 #include "base/threading/platform_thread.h"
-#include "base/time.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -18,7 +20,7 @@ using base::TimeTicks;
 // See also pr_time_unittests.cc
 class TimeTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     // Use mktime to get a time_t, and turn it into a PRTime by converting
     // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
     // must be a time guaranteed to be outside of a DST fallback hour in
@@ -85,6 +87,24 @@ TEST_F(TimeTest, TimeT) {
   EXPECT_EQ(0, Time().ToTimeT());
   EXPECT_EQ(0, Time::FromTimeT(0).ToInternalValue());
 }
+
+// Test conversions to/from javascript time.
+TEST_F(TimeTest, JsTime) {
+  Time epoch = Time::FromJsTime(0.0);
+  EXPECT_EQ(epoch, Time::UnixEpoch());
+  Time t = Time::FromJsTime(700000.3);
+  EXPECT_EQ(700.0003, t.ToDoubleT());
+  t = Time::FromDoubleT(800.73);
+  EXPECT_EQ(800730.0, t.ToJsTime());
+}
+
+#if defined(OS_POSIX)
+TEST_F(TimeTest, FromTimeVal) {
+  Time now = Time::Now();
+  Time also_now = Time::FromTimeVal(now.ToTimeVal());
+  EXPECT_EQ(now, also_now);
+}
+#endif  // OS_POSIX
 
 TEST_F(TimeTest, FromExplodedWithMilliseconds) {
   // Some platform implementations of FromExploded are liable to drop
@@ -155,6 +175,30 @@ TEST_F(TimeTest, ParseTimeTest1) {
   Time parsed_time;
   EXPECT_TRUE(Time::FromString(time_buf, &parsed_time));
   EXPECT_EQ(current_time, parsed_time.ToTimeT());
+}
+
+TEST_F(TimeTest, DayOfWeekSunday) {
+  Time time;
+  EXPECT_TRUE(Time::FromString("Sun, 06 May 2012 12:00:00 GMT", &time));
+  Time::Exploded exploded;
+  time.UTCExplode(&exploded);
+  EXPECT_EQ(0, exploded.day_of_week);
+}
+
+TEST_F(TimeTest, DayOfWeekWednesday) {
+  Time time;
+  EXPECT_TRUE(Time::FromString("Wed, 09 May 2012 12:00:00 GMT", &time));
+  Time::Exploded exploded;
+  time.UTCExplode(&exploded);
+  EXPECT_EQ(3, exploded.day_of_week);
+}
+
+TEST_F(TimeTest, DayOfWeekSaturday) {
+  Time time;
+  EXPECT_TRUE(Time::FromString("Sat, 12 May 2012 12:00:00 GMT", &time));
+  Time::Exploded exploded;
+  time.UTCExplode(&exploded);
+  EXPECT_EQ(6, exploded.day_of_week);
 }
 
 TEST_F(TimeTest, ParseTimeTest2) {
@@ -462,7 +506,7 @@ TEST(TimeTicks, Deltas) {
   }
 }
 
-TEST(TimeTicks, HighResNow) {
+static void HighResClockTest(TimeTicks (*GetTicks)()) {
 #if defined(OS_WIN)
   // HighResNow doesn't work on some systems.  Since the product still works
   // even if it doesn't work, it makes this entire test questionable.
@@ -484,12 +528,12 @@ TEST(TimeTicks, HighResNow) {
   int retries = 100;  // Arbitrary.
   TimeDelta delta;
   while (!success && retries--) {
-    TimeTicks ticks_start = TimeTicks::HighResNow();
+    TimeTicks ticks_start = GetTicks();
     // Loop until we can detect that the clock has changed.  Non-HighRes timers
     // will increment in chunks, e.g. 15ms.  By spinning until we see a clock
     // change, we detect the minimum time between measurements.
     do {
-      delta = TimeTicks::HighResNow() - ticks_start;
+      delta = GetTicks() - ticks_start;
     } while (delta.InMilliseconds() == 0);
 
     if (delta.InMicroseconds() <= kTargetGranularityUs)
@@ -499,6 +543,15 @@ TEST(TimeTicks, HighResNow) {
   // In high resolution mode, we expect to see the clock increment
   // in intervals less than 15ms.
   EXPECT_TRUE(success);
+}
+
+TEST(TimeTicks, HighResNow) {
+  HighResClockTest(&TimeTicks::HighResNow);
+}
+
+TEST(TimeTicks, NowFromSystemTraceTime) {
+  // Re-use HighResNow test for now since clock properties are identical.
+  HighResClockTest(&TimeTicks::NowFromSystemTraceTime);
 }
 
 TEST(TimeDelta, FromAndIn) {

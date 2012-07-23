@@ -13,6 +13,7 @@ usage() {
   echo "Options:"
   echo "--[no-]syms: enable or disable installation of debugging symbols"
   echo "--[no-]lib32: enable or disable installation of 32 bit libraries"
+  echo "--no-prompt: silently select standard options/defaults"
   echo "Script will prompt interactively if options not given."
   exit 1
 }
@@ -24,15 +25,18 @@ do
   --no-syms)                do_inst_syms=0;;
   --lib32)                  do_inst_lib32=1;;
   --no-lib32)               do_inst_lib32=0;;
+  --no-prompt)              do_default=1
+                            do_quietly="-qq --assume-yes"
+    ;;
   *) usage;;
   esac
   shift
 done
 
 if ! egrep -q \
-    'Ubuntu (10\.04|10\.10|11\.04|11\.10|lucid|maverick|natty|oneiric)' \
+    'Ubuntu (10\.04|10\.10|11\.04|11\.10|12\.04|lucid|maverick|natty|oneiric|precise)' \
     /etc/issue; then
-  echo "Only Ubuntu 10.04 (lucid) through 11.10 (oneiric) are currently" \
+  echo "Only Ubuntu 10.04 (lucid) through 12.04 (precise) are currently" \
       "supported" >&2
   exit 1
 fi
@@ -49,17 +53,17 @@ if [ "x$(id -u)" != x0 ]; then
 fi
 
 # Packages needed for chromeos only
-chromeos_dev_list="libpulse-dev"
+chromeos_dev_list="libbluetooth-dev libpulse-dev"
 
 # Packages need for development
 dev_list="apache2.2-bin bison curl elfutils fakeroot flex g++ gperf
           language-pack-fr libapache2-mod-php5 libasound2-dev libbz2-dev
           libcairo2-dev libcups2-dev libcurl4-gnutls-dev libdbus-glib-1-dev
           libelf-dev libgconf2-dev libgl1-mesa-dev libglib2.0-dev
-          libglu1-mesa-dev libgnome-keyring-dev libgtk2.0-dev libjpeg62-dev
+          libglu1-mesa-dev libgnome-keyring-dev libgtk2.0-dev
           libkrb5-dev libnspr4-dev libnss3-dev libpam0g-dev libsctp-dev
           libsqlite3-dev libssl-dev libudev-dev libwww-perl libxslt1-dev
-          libxss-dev libxt-dev libxtst-dev mesa-common-dev msttcorefonts patch
+          libxss-dev libxt-dev libxtst-dev mesa-common-dev patch
           perl php5-cgi pkg-config python python-cherrypy3 python-dev
           python-psutil rpm ruby subversion ttf-dejavu-core ttf-indic-fonts
           ttf-kochi-gothic ttf-kochi-mincho ttf-thai-tlwg wdiff git-core
@@ -90,13 +94,29 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg libdbus-glib-1-2-dbg
 # Plugin lists needed for tests.
 plugin_list="flashplugin-installer"
 
-# Some NSS packages were renamed in Natty.
-if egrep -q 'Ubuntu (10\.04|10\.10)' /etc/issue; then
-  dbg_list="${dbg_list} libnspr4-0d-dbg libnss3-1d-dbg"
-  lib_list="${lib_list} libnspr4-0d libnss3-1d"
+# Some package names have changed over time
+if apt-cache show ttf-mscorefonts-installer >/dev/null 2>&1; then
+  dev_list="${dev_list} ttf-mscorefonts-installer"
 else
+  dev_list="${dev_list} msttcorefonts"
+fi
+if apt-cache show libnspr4-dbg >/dev/null 2>&1; then
   dbg_list="${dbg_list} libnspr4-dbg libnss3-dbg"
   lib_list="${lib_list} libnspr4 libnss3"
+else
+  dbg_list="${dbg_list} libnspr4-0d-dbg libnss3-1d-dbg"
+  lib_list="${lib_list} libnspr4-0d libnss3-1d"
+fi
+if apt-cache show libjpeg-dev >/dev/null 2>&1; then
+ dev_list="${dev_list} libjpeg-dev"
+else
+ dev_list="${dev_list} libjpeg62-dev"
+fi
+
+# Some packages are only needed, if the distribution actually supports
+# installing them.
+if apt-cache show appmenu-gtk >/dev/null 2>&1; then
+  lib_list="$lib_list appmenu-gtk"
 fi
 
 # Waits for the user to press 'Y' or 'N'. Either uppercase of lowercase is
@@ -106,6 +126,9 @@ fi
 # The function will echo the user's selection followed by a newline character.
 # Users can abort the function by pressing CTRL-C. This will call "exit 1".
 yes_no() {
+  if [ 0 -ne "${do_default-0}" ] ; then
+    return $1
+  fi
   local c
   while :; do
     c="$(trap 'stty echo -iuclc icanon 2>/dev/null' EXIT INT TERM QUIT
@@ -161,7 +184,7 @@ sudo apt-get update
 # We then re-run "apt-get" with just the list of missing packages.
 echo "Finding missing packages..."
 packages="${dev_list} ${lib_list} ${dbg_list} ${plugin_list}"
-# Intentially leaving $packages unquoted so it's more readable.
+# Intentionally leaving $packages unquoted so it's more readable.
 echo "Packages required: " $packages
 echo
 new_list_cmd="sudo apt-get install --reinstall $(echo $packages)"
@@ -170,7 +193,7 @@ if new_list="$(yes n | LANG=C $new_list_cmd)"; then
   echo "No missing packages, and the packages are up-to-date."
 elif [ $? -eq 1 ]; then
   # We expect apt-get to have exit status of 1.
-  # This indicates that we canceled the install with "yes n|".
+  # This indicates that we cancelled the install with "yes n|".
   new_list=$(echo "$new_list" |
     sed -e '1,/The following NEW packages will be installed:/d;s/^  //;t;d')
   new_list=$(echo "$new_list" | sed 's/ *$//')
@@ -178,7 +201,7 @@ elif [ $? -eq 1 ]; then
     echo "No missing packages, and the packages are up-to-date."
   else
     echo "Installing missing packages: $new_list."
-    sudo apt-get install ${new_list}
+    sudo apt-get install ${do_quietly-} ${new_list}
   fi
   echo
 else
@@ -200,28 +223,25 @@ fi
 if [ "$(uname -m)" = "x86_64" ]; then
   if test "$do_inst_lib32" = ""
   then
-    echo "Installing 32bit libraries not already provided by the system"
+    echo "We no longer recommend that you use this script to install"
+    echo "32bit libraries on a 64bit system. Instead, consider using"
+    echo "the install-chroot.sh script to help you set up a 32bit"
+    echo "environment for building and testing 32bit versions of Chrome."
     echo
-    echo "This is only needed to build a 32-bit Chrome on your 64-bit system."
-    echo
-    echo "While we only need to install a relatively small number of library"
-    echo "files, we temporarily need to download a lot of large *.deb packages"
-    echo "that contain these files. We will create new *.deb packages that"
-    echo "include just the 32bit libraries. These files will then be found on"
-    echo "your system in places like /lib32, /usr/lib32, /usr/lib/debug/lib32,"
-    echo "/usr/lib/debug/usr/lib32. If you ever need to uninstall these files,"
-    echo "look for packages named *-ia32.deb."
-    echo "Do you want me to download all packages needed to build new 32bit"
-    echo -n "package files (y/N) "
-    if yes_no 1; then
-      do_inst_lib32=1
-    fi
+    echo "If you nonetheless want to try installing 32bit libraries"
+    echo "directly, you can do so by explicitly passing the --lib32"
+    echo "option to install-build-deps.sh."
   fi
   if test "$do_inst_lib32" != "1"
   then
     echo "Exiting without installing any 32bit libraries."
     exit 0
   fi
+
+  echo "N.B. the code for installing 32bit libraries on a 64bit"
+  echo "     system is no longer actively maintained and might"
+  echo "     not work with modern versions of Ubuntu or Debian."
+  echo
 
   # Standard 32bit compatibility libraries
   echo "First, installing the limited existing 32-bit support..."
@@ -232,7 +252,7 @@ if [ "$(uname -m)" = "x86_64" ]; then
   else
     cmp_list="${cmp_list} lib32readline5-dev"
   fi
-  sudo apt-get install $cmp_list
+  sudo apt-get install ${do_quietly-} $cmp_list
 
   tmp=/tmp/install-32bit.$$
   trap 'rm -rf "${tmp}"' EXIT INT TERM QUIT

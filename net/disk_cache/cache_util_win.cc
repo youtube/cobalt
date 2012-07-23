@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <windows.h>
 
-#include "base/file_util.h"
+#include "base/file_path.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/win/scoped_handle.h"
@@ -14,24 +14,19 @@
 namespace {
 
 // Deletes all the files on path that match search_name pattern.
-void DeleteFiles(const wchar_t* path, const wchar_t* search_name) {
-  std::wstring name(path);
-  file_util::AppendToPath(&name, search_name);
+void DeleteFiles(const FilePath& path, const wchar_t* search_name) {
+  FilePath name(path.Append(search_name));
 
   WIN32_FIND_DATA data;
-  HANDLE handle = FindFirstFile(name.c_str(), &data);
+  HANDLE handle = FindFirstFile(name.value().c_str(), &data);
   if (handle == INVALID_HANDLE_VALUE)
     return;
 
-  std::wstring adjusted_path(path);
-  adjusted_path += L'\\';
   do {
     if (data.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY ||
         data.dwFileAttributes == FILE_ATTRIBUTE_REPARSE_POINT)
       continue;
-    std::wstring current(adjusted_path);
-    current += data.cFileName;
-    DeleteFile(current.c_str());
+    DeleteFile(path.Append(data.cFileName).value().c_str());
   } while (FindNextFile(handle, &data));
 
   FindClose(handle);
@@ -52,7 +47,7 @@ bool MoveCache(const FilePath& from_path, const FilePath& to_path) {
 }
 
 void DeleteCache(const FilePath& path, bool remove_folder) {
-  DeleteFiles(path.value().c_str(), L"*");
+  DeleteFiles(path, L"*");
   if (remove_folder)
     RemoveDirectory(path.value().c_str());
 }

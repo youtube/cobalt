@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -567,12 +567,12 @@ bool ShouldSniffMimeType(const GURL& url, const std::string& mime_type) {
   if (!should_sniff_counter)
     should_sniff_counter =
         UMASnifferHistogramGet("mime_sniffer.ShouldSniffMimeType2", 3);
-  // We are willing to sniff the mime type for HTTP, HTTPS, and FTP
   bool sniffable_scheme = url.is_empty() ||
                           url.SchemeIs("http") ||
                           url.SchemeIs("https") ||
                           url.SchemeIs("ftp") ||
-                          url.SchemeIsFile();
+                          url.SchemeIsFile() ||
+                          url.SchemeIsFileSystem();
   if (!sniffable_scheme) {
     should_sniff_counter->Add(1);
     return false;

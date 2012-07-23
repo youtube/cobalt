@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,11 @@
 
 #ifndef NET_DISK_CACHE_ERRORS_H__
 #define NET_DISK_CACHE_ERRORS_H__
-#pragma once
 
 namespace disk_cache {
 
 enum {
+  ERR_NO_ERROR = 0,
   ERR_INIT_FAILED = -1,
   ERR_INVALID_TAIL = -2,
   ERR_INVALID_HEAD = -3,
@@ -24,7 +24,8 @@ enum {
   ERR_PREVIOUS_CRASH = -11,
   ERR_STORAGE_ERROR = -12,
   ERR_INVALID_MASK = -13,
-  ERR_CACHE_DOOMED = -14  // Not really an error condition
+  ERR_CACHE_DOOMED = -14,   // Not really an error condition.
+  ERR_CACHE_CREATED = -15   // Not really an error condition.
 };
 
 }  // namespace disk_cache

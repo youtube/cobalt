@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,7 +37,7 @@ static uint32 WebSocketKeyFingerprint(const std::string& str) {
   int64 number = 0;
   if (!base::StringToInt64(result, &number))
     return 0;
-  return htonl(static_cast<uint32>(number / spaces));
+  return base::HostToNet32(static_cast<uint32>(number / spaces));
 }
 
 class WebSocketHixie76 : public net::WebSocket {

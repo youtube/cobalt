@@ -49,7 +49,7 @@ main (int argc, char **argv)
   int len = 0;
 
 #ifdef HAVE_GLIB
-  GMappedFile *mf = g_mapped_file_new (argv[1], FALSE, NULL);
+  GMappedFile *mf = g_mapped_file_new (argv[1], false, NULL);
   font_data = g_mapped_file_get_contents (mf);
   len = g_mapped_file_get_length (mf);
 #else
@@ -124,10 +124,11 @@ main (int argc, char **argv)
 	    const LangSys &langsys = n_langsys == -1
 				   ? script.get_default_lang_sys ()
 				   : script.get_lang_sys (n_langsys);
-	    printf (n_langsys == -1
-		   ? "      Default Language System\n"
-		   : "      Language System %2d of %2d: %.4s\n", n_langsys, num_langsys,
-	            (const char *)script.get_lang_sys_tag (n_langsys));
+	    if (n_langsys == -1)
+	      printf ("      Default Language System\n");
+	    else
+	      printf ("      Language System %2d of %2d: %.4s\n", n_langsys, num_langsys,
+		      (const char *)script.get_lang_sys_tag (n_langsys));
 	    if (langsys.get_required_feature_index () == Index::NOT_FOUND_INDEX)
 	      printf ("        No required feature\n");
 

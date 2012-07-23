@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -40,8 +40,17 @@
       'type': 'static_library',
       'toolsets': ['host', 'target'],
       'sources': [
+        'src/google/protobuf/stubs/atomicops.h',
+        'src/google/protobuf/stubs/atomicops_internals_arm_gcc.h',
+        'src/google/protobuf/stubs/atomicops_internals_mips_gcc.h',
+        'src/google/protobuf/stubs/atomicops_internals_x86_gcc.cc',
+        'src/google/protobuf/stubs/atomicops_internals_x86_gcc.h',
+        'src/google/protobuf/stubs/atomicops_internals_x86_macosx.h',
+        'src/google/protobuf/stubs/atomicops_internals_x86_msvc.cc',
+        'src/google/protobuf/stubs/atomicops_internals_x86_msvc.h',
         'src/google/protobuf/stubs/common.h',
         'src/google/protobuf/stubs/once.h',
+        'src/google/protobuf/stubs/platform_macros.h',
         'src/google/protobuf/extension_set.h',
         'src/google/protobuf/generated_message_util.h',
         'src/google/protobuf/message_lite.h',
@@ -78,6 +87,7 @@
       # which requires RTTI.
       'defines': [
         'GOOGLE_PROTOBUF_NO_RTTI',
+        'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
       ],
 
       'direct_dependent_settings': {
@@ -87,6 +97,7 @@
         ],
         'defines': [
           'GOOGLE_PROTOBUF_NO_RTTI',
+          'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
         ],
       },
     },

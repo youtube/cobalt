@@ -1,0 +1,51 @@
+diff --git a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
+index e8a7f01..b6f4313 100644
+--- a/net/third_party/nss/ssl/ssl3con.c
++++ b/net/third_party/nss/ssl/ssl3con.c
+@@ -6087,10 +6087,17 @@ ssl3_CanFalseStart(sslSocket *ss) {
+ 	 !ss->sec.isServer &&
+ 	 !ss->ssl3.hs.isResuming &&
+ 	 ss->ssl3.cwSpec &&
++
++	 /* An attacker can control the selected ciphersuite so we only wish to
++	  * do False Start in the case that the selected ciphersuite is
++	  * sufficiently strong that the attack can gain no advantage.
++	  * Therefore we require an 80-bit cipher and a forward-secret key
++	  * exchange. */
+ 	 ss->ssl3.cwSpec->cipher_def->secret_key_size >= 10 &&
+-	(ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_rsa ||
+-	 ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_dh  ||
+-	 ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_ecdh);
++	(ss->ssl3.hs.kea_def->kea == kea_dhe_dss ||
++	 ss->ssl3.hs.kea_def->kea == kea_dhe_rsa ||
++	 ss->ssl3.hs.kea_def->kea == kea_ecdhe_ecdsa ||
++	 ss->ssl3.hs.kea_def->kea == kea_ecdhe_rsa);
+     ssl_ReleaseSpecReadLock(ss);
+     return rv;
+ }
+diff --git a/net/third_party/nss/ssl/ssl3ext.c b/net/third_party/nss/ssl/ssl3ext.c
+index 80c1f7f..6d5866b 100644
+--- a/net/third_party/nss/ssl/ssl3ext.c
++++ b/net/third_party/nss/ssl/ssl3ext.c
+@@ -567,6 +567,12 @@ ssl3_ServerHandleNextProtoNegoXtn(sslSocket * ss, PRUint16 ex_type, SECItem *dat
+ 	return SECFailure;
+     }
+ 
++    ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
++
++    /* TODO: server side NPN support would require calling
++     * ssl3_RegisterServerHelloExtensionSender here in order to echo the
++     * extension back to the client. */
++
+     return SECSuccess;
+ }
+ 
+@@ -635,6 +641,8 @@ ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
+ 	return SECFailure;
+     }
+ 
++    ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
++
+     SECITEM_FreeItem(&ss->ssl3.nextProto, PR_FALSE);
+     return SECITEM_CopyItem(NULL, &ss->ssl3.nextProto, &result);
+ }

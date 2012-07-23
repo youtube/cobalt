@@ -56,12 +56,14 @@ EVENT_TYPE(HOST_RESOLVER_IMPL)
 // If an error occurred, the END phase will contain these parameters:
 //   {
 //     "net_error": <The net error code integer for the failure>,
-//     "os_error": <The exact error code integer that getaddrinfo() returned>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_REQUEST)
 
 // This event is logged when a request is handled by a cache entry.
 EVENT_TYPE(HOST_RESOLVER_IMPL_CACHE_HIT)
+
+// This event is logged when a request is handled by a HOSTS entry.
+EVENT_TYPE(HOST_RESOLVER_IMPL_HOSTS_HIT)
 
 // This event is created when a new HostResolverImpl::Job is about to be created
 // for a request.
@@ -84,7 +86,6 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_JOB)
 // If an error occurred, the END phase will contain these parameters:
 //   {
 //     "net_error": <The net error code integer for the failure>,
-//     "os_error": <The exact error code integer that getaddrinfo() returned>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_JOB)
 
@@ -154,26 +155,16 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_REQUEST_ATTACH)
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_REQUEST_DETACH)
 
-// Logged for a HostResolverImpl::Job when it creates a ProcTask.
-//
-// The event contains the following parameters:
-//
-//   {
-//     "source_dependency": <Source id of parent HostResolverImpl::Job>,
-//   }
-EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_PROC_TASK)
-
 // The creation/completion of a HostResolverImpl::ProcTask to call getaddrinfo.
 // The BEGIN phase contains the following parameters:
 //
 //   {
 //     "hostname": <Hostname associated with the request>,
-//     "source_dependency": <Source id of parent HostResolverImpl::Job>,
 //   }
 //
 // On success, the END phase has these parameters:
 //   {
-//     "address_list": <The host name being resolved>,
+//     "address_list": <The resolved addresses>,
 //   }
 // If an error occurred, the END phase will contain these parameters:
 //   {
@@ -181,6 +172,24 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_PROC_TASK)
 //     "os_error": <The exact error code integer that getaddrinfo() returned>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_PROC_TASK)
+
+// The creation/completion of a HostResolverImpl::DnsTask to manage a
+// DnsTransaction. The BEGIN phase contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source id of DnsTransaction>,
+//   }
+//
+// On success, the END phase has these parameters:
+//   {
+//     "address_list": <The resolved addresses>,
+//   }
+// If an error occurred, the END phase will contain these parameters:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//     "dns_error": <The detailed DnsResponse::Result>
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_DNS_TASK)
 
 // ------------------------------------------------------------------------
 // InitProxyResolver
@@ -448,14 +457,20 @@ EVENT_TYPE(SSL_SERVER_HANDSHAKE)
 // The SSL server requested a client certificate.
 EVENT_TYPE(SSL_CLIENT_CERT_REQUESTED)
 
-// The start/end of getting an origin-bound certificate and private key.
+// The start/end of getting a domain-bound certificate and private key.
 //
 // The END event will contain the following parameters on failure:
 //
 //   {
 //     "net_error": <Net integer error code>,
 //   }
-EVENT_TYPE(SSL_GET_ORIGIN_BOUND_CERT)
+EVENT_TYPE(SSL_GET_DOMAIN_BOUND_CERT)
+
+// The SSL server requested a channel id.
+EVENT_TYPE(SSL_CHANNEL_ID_REQUESTED)
+
+// A channel ID was provided to the SSL library to be sent to the SSL server.
+EVENT_TYPE(SSL_CHANNEL_ID_PROVIDED)
 
 // A client certificate (or none) was provided to the SSL library to be sent
 // to the SSL server.
@@ -478,15 +493,19 @@ EVENT_TYPE(SSL_HANDSHAKE_ERROR)
 EVENT_TYPE(SSL_READ_ERROR)
 EVENT_TYPE(SSL_WRITE_ERROR)
 
-// An SSL Snap Start was attempted
+// An SSL connection needs to be retried with a lower protocol version because
+// the server may be intolerant of the protocol version we offered.
 // The following parameters are attached to the event:
 //   {
-//     "type": <Integer code for the Snap Start result>,
+//     "host_and_port": <String encoding the host and port>,
+//     "net_error": <Net integer error code>,
+//     "version_before": <SSL version before the fallback>,
+//     "version_after": <SSL version after the fallback>,
 //   }
-EVENT_TYPE(SSL_SNAP_START)
+EVENT_TYPE(SSL_VERSION_FALLBACK)
 
 // We found that our prediction of the server's certificates was correct and
-// we merged the verification with the SSLHostInfo.
+// we merged the verification with the SSLHostInfo. (Note: now obsolete.)
 EVENT_TYPE(SSL_VERIFICATION_MERGED)
 
 // An SSL error occurred while calling an NSS function not directly related to
@@ -518,6 +537,15 @@ EVENT_TYPE(SSL_SOCKET_BYTES_SENT)
 //   }
 EVENT_TYPE(SOCKET_BYTES_RECEIVED)
 EVENT_TYPE(SSL_SOCKET_BYTES_RECEIVED)
+
+// A socket error occurred while trying to do the indicated activity.
+// The following parameters are attached to the event:
+//   {
+//     "net_error": <Integer code for the specific error type>,
+//     "os_error": <Integer error code the operating system returned>
+//   }
+EVENT_TYPE(SOCKET_READ_ERROR)
+EVENT_TYPE(SOCKET_WRITE_ERROR)
 
 // Certificates were received from the SSL server (during a handshake or
 // renegotiation). This event is only present when logging at LOG_ALL.
@@ -962,16 +990,18 @@ EVENT_TYPE(SPDY_SESSION_SYN_REPLY)
 // On sending a SPDY SETTINGS frame.
 // The following parameters are attached:
 //   {
-//     "settings": <The list of setting id:value pairs>,
+//     "settings": <The list of setting id, flags and value>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_SETTINGS)
 
-// Receipt of a SPDY SETTINGS frame.
+// Receipt of a SPDY SETTING frame.
 // The following parameters are attached:
 //   {
-//     "settings": <The list of setting id:value pairs>,
+//     "id":    <The setting id>,
+//     "flags": <The setting flags>,
+//     "value": <The setting value>,
 //   }
-EVENT_TYPE(SPDY_SESSION_RECV_SETTINGS)
+EVENT_TYPE(SPDY_SESSION_RECV_SETTING)
 
 // The receipt of a RST_STREAM
 // The following parameters are attached:
@@ -1024,7 +1054,7 @@ EVENT_TYPE(SPDY_SESSION_SENT_WINDOW_UPDATE)
 // Sending of a SPDY CREDENTIAL frame (which sends a certificate or
 // certificate chain to the server).
 //   {
-//     "slot"     : <The slot that this certificate should be stored in >,
+//     "slot"     : <The slot that this certificate should be stored in>,
 //     "origin"   : <The origin this certificate should be used for>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_CREDENTIAL)
@@ -1040,8 +1070,8 @@ EVENT_TYPE(SPDY_SESSION_SEND_DATA)
 // Receiving a data frame
 //   {
 //     "stream_id": <The stream ID for the window update>,
-//     "length"   : <The size of data sent>,
-//     "flags"    : <Send data flags>,
+//     "length"   : <The size of data received>,
+//     "flags"    : <Receive data flags>,
 //   }
 EVENT_TYPE(SPDY_SESSION_RECV_DATA)
 
@@ -1050,7 +1080,8 @@ EVENT_TYPE(SPDY_SESSION_STALLED_ON_SEND_WINDOW)
 
 // Session is closing
 //   {
-//     "status": <The error status of the closure>,
+//     "net_error"  : <The error status of the closure>,
+//     "description": <The textual description for the closure>,
 //   }
 EVENT_TYPE(SPDY_SESSION_CLOSE)
 
@@ -1058,38 +1089,50 @@ EVENT_TYPE(SPDY_SESSION_CLOSE)
 // the maximum number of concurrent streams.
 EVENT_TYPE(SPDY_SESSION_STALLED_MAX_STREAMS)
 
+// Received a negative value for initial window size in SETTINGS frame.
+//   {
+//     "initial_window_size"  : <The initial window size>,
+//   }
+EVENT_TYPE(SPDY_SESSION_NEGATIVE_INITIAL_WINDOW_SIZE)
+
+// Updating streams send window size by the delta window size.
+//   {
+//     "delta_window_size"    : <The delta window size>,
+//   }
+EVENT_TYPE(SPDY_SESSION_UPDATE_STREAMS_SEND_WINDOW_SIZE)
+
 // ------------------------------------------------------------------------
 // SpdySessionPool
 // ------------------------------------------------------------------------
 
 // This event indicates the pool is reusing an existing session
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_FOUND_EXISTING_SESSION)
 
 // This event indicates the pool is reusing an existing session from an
 // IP pooling match.
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_FOUND_EXISTING_SESSION_FROM_IP_POOL)
 
 // This event indicates the pool created a new session
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_CREATED_NEW_SESSION)
 
 // This event indicates that a SSL socket has been upgraded to a SPDY session.
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_IMPORTED_SESSION_FROM_SOCKET)
 
 // This event indicates that the session has been removed.
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_REMOVE_SESSION)
 
@@ -1118,6 +1161,14 @@ EVENT_TYPE(SPDY_STREAM_UPDATE_SEND_WINDOW)
 //     "new_window": <The new window size>,
 //   }
 EVENT_TYPE(SPDY_STREAM_UPDATE_RECV_WINDOW)
+
+// This event indicates a stream error
+//   {
+//     "id":          <The stream id>,
+//     "status":      <The error status>,
+//     "description": <The textual description for the error>,
+//   }
+EVENT_TYPE(SPDY_STREAM_ERROR)
 
 // ------------------------------------------------------------------------
 // HttpStreamParser
@@ -1219,6 +1270,22 @@ EVENT_TYPE(APPCACHE_DELIVERING_ERROR_RESPONSE)
 // underlying network has changed.
 EVENT_TYPE(NETWORK_IP_ADDRESSES_CHANGED)
 
+
+// This event is emitted whenever HostResolverImpl receives a new DnsConfig
+// from the DnsConfigService.
+//   {
+//     "nameservers":                <List of name server IPs>,
+//     "search":                     <List of domain suffixes>,
+//     "append_to_multi_label_name": <See DnsConfig>,
+//     "ndots":                      <See DnsConfig>,
+//     "timeout":                    <See DnsConfig>,
+//     "attempts":                   <See DnsConfig>,
+//     "rotate":                     <See DnsConfig>,
+//     "edns0":                      <See DnsConfig>,
+//     "num_hosts":                  <Number of entries in the HOSTS file>
+//   }
+EVENT_TYPE(DNS_CONFIG_CHANGED)
+
 // ------------------------------------------------------------------------
 // Exponential back-off throttling events
 // ------------------------------------------------------------------------
@@ -1238,13 +1305,6 @@ EVENT_TYPE(THROTTLING_DISABLED_FOR_HOST)
 //   }
 EVENT_TYPE(THROTTLING_REJECTED_REQUEST)
 
-// Emitted when throttling entry receives an X-Retry-After header.
-//   {
-//     "url":               <URL that was being requested>,
-//     "retry_after_ms":    <Milliseconds until retry-after expires>
-//   }
-EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
-
 // ------------------------------------------------------------------------
 // DnsTransaction
 // ------------------------------------------------------------------------
@@ -1256,8 +1316,6 @@ EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
 // {
 //   "hostname": <The hostname it is trying to resolve>,
 //   "query_type": <Type of the query>,
-//   "source_dependency":  <Source id, if any, of what created the
-//                          transaction>,
 // }
 //
 // The END phase contains the following parameters:
@@ -1288,7 +1346,8 @@ EVENT_TYPE(DNS_TRANSACTION_QUERY)
 // It has a single parameter:
 //
 //   {
-//     "socket_source": <Source id of the UDP socket created for the attempt>,
+//     "source_dependency": <Source id of the UDP socket created for the
+//                           attempt>,
 //   }
 EVENT_TYPE(DNS_TRANSACTION_ATTEMPT)
 
@@ -1299,49 +1358,10 @@ EVENT_TYPE(DNS_TRANSACTION_ATTEMPT)
 //   {
 //     "rcode": <rcode in the received response>,
 //     "answer_count": <answer_count in the received response>,
-//     "socket_source": <Source id of the UDP socket that received the
-//                       response>,
+//     "source_dependency": <Source id of the UDP socket that received the
+//                           response>,
 //   }
 EVENT_TYPE(DNS_TRANSACTION_RESPONSE)
-
-// ------------------------------------------------------------------------
-// AsyncHostResolver
-// ------------------------------------------------------------------------
-
-// The start/end of waiting on a host resolve (DNS) request.
-// The BEGIN phase contains the following parameters:
-//
-//   {
-//     "source_dependency": <Source id of the request being waited on>,
-//   }
-EVENT_TYPE(ASYNC_HOST_RESOLVER)
-
-// The start/end of a host resolve (DNS) request.
-//
-// The BEGIN phase contains the following parameters:
-//
-//   {
-//     "hostname": <Hostname associated with the request>,
-//     "address_family": <Address family of the request>,
-//     "allow_cached_response": <Whether to allow cached response>,
-//     "only_use_cached_response": <Use cached results only>,
-//     "is_speculative": <Whether the lookup is speculative>,
-//     "priority": <Priority of the request>,
-//     "source_dependency": <Source id, if any, of what created the request>,
-//   }
-//
-// If an error occurred, the END phase will contain this parameter:
-//   {
-//     "net_error": <The net error code integer for the failure>,
-//   }
-EVENT_TYPE(ASYNC_HOST_RESOLVER_REQUEST)
-
-// This event is created when a new DnsTransaction is about to be created
-// for a request.
-EVENT_TYPE(ASYNC_HOST_RESOLVER_CREATE_DNS_TRANSACTION)
-
-// This event is logged when a request is handled by a cache entry.
-EVENT_TYPE(ASYNC_HOST_RESOLVER_CACHE_HIT)
 
 // ------------------------------------------------------------------------
 // ChromeExtension
@@ -1574,11 +1594,13 @@ EVENT_TYPE(DOWNLOAD_ITEM_CANCELED)
 //   }
 EVENT_TYPE(DOWNLOAD_FILE_OPENED)
 
-// This event is created when a download file is written to.
+// This event is created when the stream between download source
+// and download file is drained.
 //   {
-//     "byte_count": <Number of bytes written in this call>,
+//     "stream_size": <Total size of all bytes drained from the stream>
+//     "num_buffers": <How many separate buffers those bytes were in>
 //   }
-EVENT_TYPE(DOWNLOAD_FILE_WRITTEN)
+EVENT_TYPE(DOWNLOAD_STREAM_DRAINED)
 
 // This event is created when a download file is renamed.
 //   {
@@ -1603,6 +1625,10 @@ EVENT_TYPE(DOWNLOAD_FILE_DELETED)
 //     "net_error": <net::Error code>,
 //   }
 EVENT_TYPE(DOWNLOAD_FILE_ERROR)
+
+// This event is created when a download file is annotating with source
+// information (for Mark Of The Web and anti-virus integration).
+EVENT_TYPE(DOWNLOAD_FILE_ANNOTATED)
 
 // ------------------------------------------------------------------------
 // FileStream events.

@@ -4,7 +4,6 @@
 
 #ifndef BASE_MAC_FOUNDATION_UTIL_H_
 #define BASE_MAC_FOUNDATION_UTIL_H_
-#pragma once
 
 #include <CoreFoundation/CoreFoundation.h>
 
@@ -18,6 +17,7 @@
 #if defined(__OBJC__)
 #import <Foundation/Foundation.h>
 #else  // __OBJC__
+#include <CoreFoundation/CoreFoundation.h>
 class NSBundle;
 class NSString;
 #endif  // __OBJC__
@@ -33,6 +33,9 @@ typedef unsigned int NSSearchPathDirectory;
 typedef unsigned int NSSearchPathDomainMask;
 #endif
 
+typedef struct OpaqueSecTrustRef* SecACLRef;
+typedef struct OpaqueSecTrustedApplicationRef* SecTrustedApplicationRef;
+
 namespace base {
 namespace mac {
 
@@ -44,7 +47,7 @@ BASE_EXPORT void SetOverrideAmIBundled(bool value);
 BASE_EXPORT bool IsBackgroundOnlyProcess();
 
 // Returns the path to a resource within the framework bundle.
-FilePath PathForFrameworkBundleResource(CFStringRef resourceName);
+BASE_EXPORT FilePath PathForFrameworkBundleResource(CFStringRef resourceName);
 
 // Returns the creator code associated with the CFBundleRef at bundle.
 OSType CreatorCodeForCFBundleRef(CFBundleRef bundle);
@@ -60,9 +63,9 @@ BASE_EXPORT OSType CreatorCodeForApplication();
 // Searches for directories for the given key in only the given |domain_mask|.
 // If found, fills result (which must always be non-NULL) with the
 // first found directory and returns true.  Otherwise, returns false.
-bool GetSearchPathDirectory(NSSearchPathDirectory directory,
-                            NSSearchPathDomainMask domain_mask,
-                            FilePath* result);
+BASE_EXPORT bool GetSearchPathDirectory(NSSearchPathDirectory directory,
+                                        NSSearchPathDomainMask domain_mask,
+                                        FilePath* result);
 
 // Searches for directories for the given key in only the local domain.
 // If found, fills result (which must always be non-NULL) with the
@@ -245,7 +248,10 @@ CF_CAST_DECL(CFNumber);
 CF_CAST_DECL(CFSet);
 CF_CAST_DECL(CFString);
 
-#undef CF_CAST_DEFN
+CF_CAST_DECL(SecACL);
+CF_CAST_DECL(SecTrustedApplication);
+
+#undef CF_CAST_DECL
 
 #if defined(__OBJC__)
 
@@ -290,7 +296,7 @@ T* ObjCCastStrict(id objc_val) {
 
 // Helper function for GetValueFromDictionary to create the error message
 // that appears when a type mismatch is encountered.
-std::string GetValueFromDictionaryErrorMessage(
+BASE_EXPORT std::string GetValueFromDictionaryErrorMessage(
     CFStringRef key, const std::string& expected_type, CFTypeRef value);
 
 // Utility function to pull out a value from a dictionary, check its type, and
@@ -311,10 +317,10 @@ T GetValueFromDictionary(CFDictionaryRef dict, CFStringRef key) {
 }
 
 // Converts |path| to an autoreleased NSString. Returns nil if |path| is empty.
-NSString* FilePathToNSString(const FilePath& path);
+BASE_EXPORT NSString* FilePathToNSString(const FilePath& path);
 
 // Converts |str| to a FilePath. Returns an empty path if |str| is nil.
-FilePath NSStringToFilePath(NSString* str);
+BASE_EXPORT FilePath NSStringToFilePath(NSString* str);
 
 }  // namespace mac
 }  // namespace base

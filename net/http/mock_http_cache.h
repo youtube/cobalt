@@ -9,7 +9,6 @@
 
 #ifndef NET_HTTP_MOCK_HTTP_CACHE_H_
 #define NET_HTTP_MOCK_HTTP_CACHE_H_
-#pragma once
 
 #include "base/hash_tables.h"
 #include "net/disk_cache/disk_cache.h"

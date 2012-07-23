@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,17 @@
 #include "base/threading/simple_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+// Duplicated from base/threading/non_thread_safe.h so that we can be
+// good citizens there and undef the macro.
+#if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+#define ENABLE_NON_THREAD_SAFE 1
+#else
+#define ENABLE_NON_THREAD_SAFE 0
+#endif
+
 namespace base {
+
+namespace {
 
 // Simple class to exersice the basics of NonThreadSafe.
 // Both the destructor and DoStuff should verify that they were
@@ -42,7 +52,7 @@ class CallDoStuffOnThread : public SimpleThread {
         non_thread_safe_class_(non_thread_safe_class) {
   }
 
-  virtual void Run() {
+  virtual void Run() OVERRIDE {
     non_thread_safe_class_->DoStuff();
   }
 
@@ -60,7 +70,7 @@ class DeleteNonThreadSafeClassOnThread : public SimpleThread {
         non_thread_safe_class_(non_thread_safe_class) {
   }
 
-  virtual void Run() {
+  virtual void Run() OVERRIDE {
     non_thread_safe_class_.reset();
   }
 
@@ -69,6 +79,8 @@ class DeleteNonThreadSafeClassOnThread : public SimpleThread {
 
   DISALLOW_COPY_AND_ASSIGN(DeleteNonThreadSafeClassOnThread);
 };
+
+}  // namespace
 
 TEST(NonThreadSafeTest, CallsAllowedOnSameThread) {
   scoped_ptr<NonThreadSafeClass> non_thread_safe_class(
@@ -95,7 +107,7 @@ TEST(NonThreadSafeTest, DetachThenDestructOnDifferentThread) {
   delete_on_thread.Join();
 }
 
-#if GTEST_HAS_DEATH_TEST || NDEBUG
+#if GTEST_HAS_DEATH_TEST || !ENABLE_NON_THREAD_SAFE
 
 void NonThreadSafeClass::MethodOnDifferentThreadImpl() {
   scoped_ptr<NonThreadSafeClass> non_thread_safe_class(
@@ -109,9 +121,9 @@ void NonThreadSafeClass::MethodOnDifferentThreadImpl() {
   call_on_thread.Join();
 }
 
-#ifndef NDEBUG
+#if ENABLE_NON_THREAD_SAFE
 TEST(NonThreadSafeDeathTest, MethodNotAllowedOnDifferentThreadInDebug) {
-  ASSERT_DEBUG_DEATH({
+  ASSERT_DEATH({
       NonThreadSafeClass::MethodOnDifferentThreadImpl();
     }, "");
 }
@@ -119,7 +131,7 @@ TEST(NonThreadSafeDeathTest, MethodNotAllowedOnDifferentThreadInDebug) {
 TEST(NonThreadSafeTest, MethodAllowedOnDifferentThreadInRelease) {
   NonThreadSafeClass::MethodOnDifferentThreadImpl();
 }
-#endif  // NDEBUG
+#endif  // ENABLE_NON_THREAD_SAFE
 
 void NonThreadSafeClass::DestructorOnDifferentThreadImpl() {
   scoped_ptr<NonThreadSafeClass> non_thread_safe_class(
@@ -134,9 +146,9 @@ void NonThreadSafeClass::DestructorOnDifferentThreadImpl() {
   delete_on_thread.Join();
 }
 
-#ifndef NDEBUG
+#if ENABLE_NON_THREAD_SAFE
 TEST(NonThreadSafeDeathTest, DestructorNotAllowedOnDifferentThreadInDebug) {
-  ASSERT_DEBUG_DEATH({
+  ASSERT_DEATH({
       NonThreadSafeClass::DestructorOnDifferentThreadImpl();
     }, "");
 }
@@ -144,8 +156,11 @@ TEST(NonThreadSafeDeathTest, DestructorNotAllowedOnDifferentThreadInDebug) {
 TEST(NonThreadSafeTest, DestructorAllowedOnDifferentThreadInRelease) {
   NonThreadSafeClass::DestructorOnDifferentThreadImpl();
 }
-#endif  // NDEBUG
+#endif  // ENABLE_NON_THREAD_SAFE
 
-#endif  // GTEST_HAS_DEATH_TEST || NDEBUG
+#endif  // GTEST_HAS_DEATH_TEST || !ENABLE_NON_THREAD_SAFE
+
+// Just in case we ever get lumped together with other compilation units.
+#undef ENABLE_NON_THREAD_SAFE
 
 }  // namespace base

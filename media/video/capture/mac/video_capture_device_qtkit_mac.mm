@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,13 +9,24 @@
 #include "base/logging.h"
 #include "media/video/capture/mac/video_capture_device_mac.h"
 #include "media/video/capture/video_capture_device.h"
+#include "media/video/capture/video_capture_types.h"
 
 @implementation VideoCaptureDeviceQTKit
 
 #pragma mark Class methods
 
-+ (NSArray *)deviceNames {
-  return [QTCaptureDevice inputDevicesWithMediaType:QTMediaTypeVideo];
++ (NSDictionary *)deviceNames {
+  NSArray *captureDevices =
+      [QTCaptureDevice inputDevicesWithMediaType:QTMediaTypeVideo];
+  NSMutableDictionary *deviceNames =
+      [[[NSMutableDictionary alloc] init] autorelease];
+
+  for (QTCaptureDevice* device in captureDevices) {
+    NSString* qtDeviceName = [device localizedDisplayName];
+    NSString* qtUniqueId = [device uniqueID];
+    [deviceNames setObject:qtDeviceName forKey:qtUniqueId];
+  }
+  return deviceNames;
 }
 
 #pragma mark Public methods
@@ -159,11 +170,13 @@
     size_t bytesPerRow = CVPixelBufferGetBytesPerRow(videoFrame);
     int frameHeight = CVPixelBufferGetHeight(videoFrame);
     int frameSize = bytesPerRow * frameHeight;
-    media::VideoCaptureDevice::Capability captureCapability;
+    media::VideoCaptureCapability captureCapability;
     captureCapability.width = frameWidth_;
     captureCapability.height = frameHeight_;
     captureCapability.frame_rate = frameRate_;
-    captureCapability.color = media::VideoCaptureDevice::kARGB;
+    captureCapability.color = media::VideoCaptureCapability::kARGB;
+    captureCapability.expected_capture_delay = 0;
+    captureCapability.interlaced = false;
 
     // Deliver the captured video frame.
     frameReceiver_->ReceiveFrame(static_cast<UInt8*>(baseAddress), frameSize,

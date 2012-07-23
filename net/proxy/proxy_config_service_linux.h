@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_PROXY_PROXY_CONFIG_SERVICE_LINUX_H_
 #define NET_PROXY_PROXY_CONFIG_SERVICE_LINUX_H_
-#pragma once
 
 #include <string>
 #include <vector>
@@ -14,12 +13,17 @@
 #include "base/environment.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
 #include "base/observer_list.h"
 #include "net/base/net_export.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_server.h"
+
+class MessageLoopForIO;
+
+namespace base {
+class SingleThreadTaskRunner;
+}  // namespace base
 
 namespace net {
 
@@ -44,10 +48,10 @@ class NET_EXPORT_PRIVATE ProxyConfigServiceLinux : public ProxyConfigService {
     // one, in the concrete implementations. Returns true on success. Must be
     // called before using other methods, and should be called on the thread
     // running the glib main loop.
-    // One of |glib_default_loop| and |file_loop| will be used for
+    // One of |glib_thread_task_runner| and |file_loop| will be used for
     // gconf/gsettings calls or reading necessary files, depending on the
     // implementation.
-    virtual bool Init(MessageLoop* glib_default_loop,
+    virtual bool Init(base::SingleThreadTaskRunner* glib_thread_task_runner,
                       MessageLoopForIO* file_loop) = 0;
 
     // Releases the gconf/gsettings client, which clears cached directories and
@@ -61,11 +65,10 @@ class NET_EXPORT_PRIVATE ProxyConfigServiceLinux : public ProxyConfigService {
     // Returns the message loop for the thread on which this object
     // handles notifications, and also on which it must be destroyed.
     // Returns NULL if it does not matter.
-    virtual MessageLoop* GetNotificationLoop() = 0;
+    virtual base::SingleThreadTaskRunner* GetNotificationTaskRunner() = 0;
 
-    // Returns the data source's name (e.g. "gconf", "gsettings", "KDE",
-    // "test"). Used only for diagnostic purposes (e.g. VLOG(1) etc.).
-    virtual const char* GetDataSource() = 0;
+    // Returns the source of proxy settings.
+    virtual ProxyConfigSource GetConfigSource() = 0;
 
     // These are all the values that can be fetched. We used to just use the
     // corresponding paths in gconf for these, but gconf is now obsolete and
@@ -177,9 +180,10 @@ class NET_EXPORT_PRIVATE ProxyConfigServiceLinux : public ProxyConfigService {
     // thread is specified so that notifications can post tasks to it
     // (and for assertions). The message loop for the file thread is
     // used to read any files needed to determine proxy settings.
-    void SetUpAndFetchInitialConfig(MessageLoop* glib_default_loop,
-                                    MessageLoop* io_loop,
-                                    MessageLoopForIO* file_loop);
+    void SetUpAndFetchInitialConfig(
+        base::SingleThreadTaskRunner* glib_thread_task_runner,
+        base::SingleThreadTaskRunner* io_thread_task_runner,
+        MessageLoopForIO* file_loop);
 
     // Handler for setting change notifications: fetches a new proxy
     // configuration from settings, and if this config is different
@@ -247,7 +251,7 @@ class NET_EXPORT_PRIVATE ProxyConfigServiceLinux : public ProxyConfigService {
     // notification but the config has not actually changed.
     ProxyConfig reference_config_;
 
-    // The MessageLoop for the UI thread, aka main browser thread. This thread
+    // The task runner for the glib thread, aka main browser thread. This thread
     // is where we run the glib main loop (see base/message_pump_glib.h). It is
     // the glib default loop in the sense that it runs the glib default context:
     // as in the context where sources are added by g_timeout_add and
@@ -255,10 +259,10 @@ class NET_EXPORT_PRIVATE ProxyConfigServiceLinux : public ProxyConfigService {
     // timeouts and idles and possibly other callbacks that will all be
     // dispatched on this thread. Since gconf is not thread safe, any use of
     // gconf must be done on the thread running this loop.
-    MessageLoop* glib_default_loop_;
-    // MessageLoop for the IO thread. GetLatestProxyConfig() is called from
+    scoped_refptr<base::SingleThreadTaskRunner> glib_thread_task_runner_;
+    // Task runner for the IO thread. GetLatestProxyConfig() is called from
     // the thread running this loop.
-    MessageLoop* io_loop_;
+    scoped_refptr<base::SingleThreadTaskRunner> io_thread_task_runner_;
 
     ObserverList<Observer> observers_;
 
@@ -276,11 +280,12 @@ class NET_EXPORT_PRIVATE ProxyConfigServiceLinux : public ProxyConfigService {
 
   virtual ~ProxyConfigServiceLinux();
 
-  void SetupAndFetchInitialConfig(MessageLoop* glib_default_loop,
-                                  MessageLoop* io_loop,
-                                  MessageLoopForIO* file_loop) {
-    delegate_->SetUpAndFetchInitialConfig(glib_default_loop, io_loop,
-                                          file_loop);
+  void SetupAndFetchInitialConfig(
+      base::SingleThreadTaskRunner* glib_thread_task_runner,
+      base::SingleThreadTaskRunner* io_thread_task_runner,
+      MessageLoopForIO* file_loop) {
+    delegate_->SetUpAndFetchInitialConfig(glib_thread_task_runner,
+                                          io_thread_task_runner, file_loop);
   }
   void OnCheckProxyConfigSettings() {
     delegate_->OnCheckProxyConfigSettings();

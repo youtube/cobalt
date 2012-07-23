@@ -4,6 +4,7 @@
 
 #include "net/http/http_stream_parser.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
@@ -11,7 +12,6 @@
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ssl_cert_request_info.h"
-#include "net/http/http_net_log_params.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
@@ -37,13 +37,10 @@ std::string GetResponseHeaderLines(const net::HttpResponseHeaders& headers) {
   return cr_separated_headers;
 }
 
-// Return true if |headers| contain multiple |field_name| fields.  If
-// |count_same_value| is false, returns false if all copies of the field have
-// the same value.
+// Return true if |headers| contain multiple |field_name| fields.
 bool HeadersContainMultipleCopiesOfField(
     const net::HttpResponseHeaders& headers,
-    const std::string& field_name,
-    bool count_same_value) {
+    const std::string& field_name) {
   void* it = NULL;
   std::string field_value;
   if (!headers.EnumerateHeader(&it, field_name, &field_value))
@@ -53,7 +50,7 @@ bool HeadersContainMultipleCopiesOfField(
   // |count_same_value| is true.
   std::string field_value2;
   while (headers.EnumerateHeader(&it, field_name, &field_value2)) {
-    if (count_same_value || field_value != field_value2)
+    if (field_value != field_value2)
       return true;
   }
   return false;
@@ -192,7 +189,7 @@ HttpStreamParser::~HttpStreamParser() {
 
 int HttpStreamParser::SendRequest(const std::string& request_line,
                                   const HttpRequestHeaders& headers,
-                                  UploadDataStream* request_body,
+                                  scoped_ptr<UploadDataStream> request_body,
                                   HttpResponseInfo* response,
                                   const CompletionCallback& callback) {
   DCHECK_EQ(STATE_NONE, io_state_);
@@ -200,26 +197,26 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   DCHECK(!callback.is_null());
   DCHECK(response);
 
-  if (net_log_.IsLoggingAllEvents()) {
-    net_log_.AddEvent(
-        NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
-        make_scoped_refptr(new NetLogHttpRequestParameter(
-            request_line, headers)));
-  }
+  net_log_.AddEvent(
+      NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
+      base::Bind(&HttpRequestHeaders::NetLogCallback,
+                 base::Unretained(&headers),
+                 &request_line));
+
   DVLOG(1) << __FUNCTION__ << "()"
            << " request_line = \"" << request_line << "\""
            << " headers = \"" << headers.ToString() << "\"";
   response_ = response;
 
   // Put the peer's IP address and port into the response.
-  AddressList address;
-  int result = connection_->socket()->GetPeerAddress(&address);
+  IPEndPoint ip_endpoint;
+  int result = connection_->socket()->GetPeerAddress(&ip_endpoint);
   if (result != OK)
     return result;
-  response_->socket_address = HostPortPair::FromAddrInfo(address.head());
+  response_->socket_address = HostPortPair::FromIPEndPoint(ip_endpoint);
 
   std::string request = request_line + headers.ToString();
-  request_body_.reset(request_body);
+  request_body_.reset(request_body.release());
   if (request_body_ != NULL) {
     request_body_buf_ = new SeekableIOBuffer(kRequestBodyBufferSize);
     if (request_body_->is_chunked()) {
@@ -237,7 +234,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   // single write.
   bool did_merge = false;
   if (ShouldMergeRequestHeadersAndBody(request, request_body_.get())) {
-    size_t merged_size = request.size() + request_body->size();
+    size_t merged_size = request.size() + request_body_->size();
     scoped_refptr<IOBuffer> merged_request_headers_and_body(
         new IOBuffer(merged_size));
     // We'll repurpose |request_headers_| to store the merged headers and
@@ -350,9 +347,10 @@ void HttpStreamParser::OnChunkAvailable() {
   // headers, we will automatically start reading the chunks once we get into
   // STATE_SENDING_CHUNKED_BODY so nothing to do here.
   DCHECK(io_state_ == STATE_SENDING_HEADERS ||
-         io_state_ == STATE_SENDING_CHUNKED_BODY);
-  if (io_state_ == STATE_SENDING_CHUNKED_BODY)
-    OnIOComplete(0);
+         io_state_ == STATE_SENDING_CHUNKED_BODY ||
+         io_state_ == STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE);
+  if (io_state_ == STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE)
+    OnIOComplete(OK);
 }
 
 int HttpStreamParser::DoLoop(int result) {
@@ -377,12 +375,15 @@ int HttpStreamParser::DoLoop(int result) {
         else
           result = DoSendNonChunkedBody(result);
         break;
+      case STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE:
+        result = DoSendRequestWaitForBodyChunkComplete(result);
+        break;
       case STATE_REQUEST_SENT:
         DCHECK(result != ERR_IO_PENDING);
         can_do_more = false;
         break;
       case STATE_READ_HEADERS:
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS, NULL);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS);
         result = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
@@ -476,7 +477,8 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
                                          request_body_buf_->capacity());
     request_body_buf_->DidAppend(chunk_length);
   } else if (consumed == ERR_IO_PENDING) {
-    // Nothing to send. More POST data is yet to come.
+    // Nothing to send. More request data is yet to come.
+    io_state_ = STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE;
     return ERR_IO_PENDING;
   } else {
     // There won't be other errors.
@@ -515,6 +517,18 @@ int HttpStreamParser::DoSendNonChunkedBody(int result) {
     NOTREACHED();
   }
   return result;
+}
+
+int HttpStreamParser::DoSendRequestWaitForBodyChunkComplete(int result) {
+  if (result != OK) {
+    io_state_ = STATE_DONE;
+    return result;
+  }
+  // Sending the chunked body was paused while waiting for more chunks to
+  // be available. Resume sending chunks now that one or more chunks have
+  // arrived.
+  io_state_ = STATE_SENDING_CHUNKED_BODY;
+  return OK;
 }
 
 int HttpStreamParser::DoReadHeaders() {
@@ -665,12 +679,40 @@ int HttpStreamParser::DoReadBody() {
 }
 
 int HttpStreamParser::DoReadBodyComplete(int result) {
-  // If we didn't get a Content-Length and aren't using a chunked encoding,
-  // the only way to signal the end of a stream is to close the connection,
-  // so we don't treat that as an error, though in some cases we may not
-  // have completely received the resource.
-  if (result == 0 && !IsResponseBodyComplete() && CanFindEndOfResponse())
-    result = ERR_CONNECTION_CLOSED;
+  // When the connection is closed, there are numerous ways to interpret it.
+  //
+  //  - If a Content-Length header is present and the body contains exactly that
+  //    number of bytes at connection close, the response is successful.
+  //
+  //  - If a Content-Length header is present and the body contains fewer bytes
+  //    than promised by the header at connection close, it may indicate that
+  //    the connection was closed prematurely, or it may indicate that the
+  //    server sent an invalid Content-Length header. Unfortunately, the invalid
+  //    Content-Length header case does occur in practice and other browsers are
+  //    tolerant of it. We choose to treat it as an error for now, but the
+  //    download system treats it as a non-error, and URLRequestHttpJob also
+  //    treats it as OK if the Content-Length is the post-decoded body content
+  //    length.
+  //
+  //  - If chunked encoding is used and the terminating chunk has been processed
+  //    when the connection is closed, the response is successful.
+  //
+  //  - If chunked encoding is used and the terminating chunk has not been
+  //    processed when the connection is closed, it may indicate that the
+  //    connection was closed prematurely or it may indicate that the server
+  //    sent an invalid chunked encoding. We choose to treat it as
+  //    an invalid chunked encoding.
+  //
+  //  - If a Content-Length is not present and chunked encoding is not used,
+  //    connection close is the only way to signal that the response is
+  //    complete. Unfortunately, this also means that there is no way to detect
+  //    early close of a connection. No error is returned.
+  if (result == 0 && !IsResponseBodyComplete() && CanFindEndOfResponse()) {
+    if (chunked_decoder_.get())
+      result = ERR_INCOMPLETE_CHUNKED_ENCODING;
+    else
+      result = ERR_CONTENT_LENGTH_MISMATCH;
+  }
 
   // Filter incoming data if appropriate.  FilterBuf may return an error.
   if (result > 0 && chunked_decoder_.get()) {
@@ -777,21 +819,15 @@ int HttpStreamParser::DoParseResponseHeaders(int end_offset) {
   // If they exist, and have distinct values, it's a potential response
   // smuggling attack.
   if (!headers->HasHeader("Transfer-Encoding")) {
-    if (HeadersContainMultipleCopiesOfField(*headers,
-                                            "Content-Length",
-                                            false)) {
+    if (HeadersContainMultipleCopiesOfField(*headers, "Content-Length"))
       return ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH;
-    }
   }
 
   // Check for multiple Content-Disposition or Location headers.  If they exist,
   // it's also a potential response smuggling attack.
-  if (HeadersContainMultipleCopiesOfField(*headers,
-                                          "Content-Disposition",
-                                          true)) {
+  if (HeadersContainMultipleCopiesOfField(*headers, "Content-Disposition"))
     return ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION;
-  }
-  if (HeadersContainMultipleCopiesOfField(*headers, "Location", true))
+  if (HeadersContainMultipleCopiesOfField(*headers, "Location"))
     return ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION;
 
   response_->headers = headers;

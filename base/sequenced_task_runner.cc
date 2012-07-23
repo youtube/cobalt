@@ -11,7 +11,7 @@ namespace base {
 bool SequencedTaskRunner::PostNonNestableTask(
     const tracked_objects::Location& from_here,
     const Closure& task) {
-  return PostNonNestableDelayedTask(from_here, task, 0);
+  return PostNonNestableDelayedTask(from_here, task, base::TimeDelta());
 }
 
 bool SequencedTaskRunner::DeleteSoonInternal(

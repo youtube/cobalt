@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,7 +41,7 @@ class AssertReporter : public base::AsserterBase {
   AssertReporter()
       : failed_(false) {}
 
-  virtual void warn() {
+  virtual void warn() OVERRIDE {
     failed_ = true;
   }
 
@@ -151,7 +151,7 @@ TEST(ThreadCollisionTest, MTBookCriticalSectionTest) {
     explicit QueueUser(NonThreadSafeQueue& queue)
         : queue_(queue) {}
 
-    virtual void Run() {
+    virtual void Run() OVERRIDE {
       queue_.push(0);
       queue_.pop();
     }
@@ -209,7 +209,7 @@ TEST(ThreadCollisionTest, MTScopedBookCriticalSectionTest) {
     explicit QueueUser(NonThreadSafeQueue& queue)
         : queue_(queue) {}
 
-    virtual void Run() {
+    virtual void Run() OVERRIDE {
       queue_.push(0);
       queue_.pop();
     }
@@ -270,7 +270,7 @@ TEST(ThreadCollisionTest, MTSynchedScopedBookCriticalSectionTest) {
         : queue_(queue),
           lock_(lock) {}
 
-    virtual void Run() {
+    virtual void Run() OVERRIDE {
       {
         base::AutoLock auto_lock(lock_);
         queue_.push(0);
@@ -344,7 +344,7 @@ TEST(ThreadCollisionTest, MTSynchedScopedRecursiveBookCriticalSectionTest) {
         : queue_(queue),
           lock_(lock) {}
 
-    virtual void Run() {
+    virtual void Run() OVERRIDE {
       {
         base::AutoLock auto_lock(lock_);
         queue_.push(0);

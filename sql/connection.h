@@ -4,7 +4,6 @@
 
 #ifndef SQL_CONNECTION_H_
 #define SQL_CONNECTION_H_
-#pragma once
 
 #include <map>
 #include <set>
@@ -180,6 +179,26 @@ class SQL_EXPORT Connection {
   // database if it exists, and if it doesn't exist, the database won't
   // generally exist either.
   void Preload();
+
+  // Raze the database to the ground.  This approximates creating a
+  // fresh database from scratch, within the constraints of SQLite's
+  // locking protocol (locks and open handles can make doing this with
+  // filesystem operations problematic).  Returns true if the database
+  // was razed.
+  //
+  // false is returned if the database is locked by some other
+  // process.  RazeWithTimeout() may be used if appropriate.
+  //
+  // NOTE(shess): Raze() will DCHECK in the following situations:
+  // - database is not open.
+  // - the connection has a transaction open.
+  // - a SQLite issue occurs which is structural in nature (like the
+  //   statements used are broken).
+  // Since Raze() is expected to be called in unexpected situations,
+  // these all return false, since it is unlikely that the caller
+  // could fix them.
+  bool Raze();
+  bool RazeWithTimout(base::TimeDelta timeout);
 
   // Transactions --------------------------------------------------------------
 

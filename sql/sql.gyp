@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -30,7 +30,7 @@
     },
     {
       'target_name': 'sql_unittests',
-      'type': 'executable',
+      'type': '<(gtest_target_type)',
       'dependencies': [
         'sql',
         '../base/base.gyp:test_support_base',
@@ -56,7 +56,34 @@
             }],
           ],
         }],
+        ['OS == "android" and gtest_target_type == "shared_library"', {
+          'dependencies': [
+            '../testing/android/native_test.gyp:native_test_native_code',
+          ],
+        }],
       ],
     },
+  ],
+  'conditions': [
+    # Special target to wrap a gtest_target_type==shared_library
+    # sql_unittests into an android apk for execution.
+    ['OS == "android" and gtest_target_type == "shared_library"', {
+      'targets': [
+        {
+          'target_name': 'sql_unittests_apk',
+          'type': 'none',
+          'dependencies': [
+            '../base/base.gyp:base_java',
+            'sql_unittests',
+          ],
+          'variables': {
+            'test_suite_name': 'sql_unittests',
+            'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)sql_unittests<(SHARED_LIB_SUFFIX)',
+            'input_jars_paths': [ '<(PRODUCT_DIR)/lib.java/chromium_base.jar', ],
+          },
+          'includes': [ '../build/apk_test.gypi' ],
+        },
+      ],
+    }],
   ],
 }

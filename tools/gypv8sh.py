@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -11,15 +11,13 @@ Usage:
          inputfile inputrelfile cxxoutfile jsoutfile
 """
 
-try:
-  import json
-except ImportError:
-  import simplejson as json
+import json
 import optparse
 import os
 import subprocess
 import sys
 import shutil
+
 
 def main ():
   parser = optparse.OptionParser()
@@ -42,13 +40,16 @@ def main ():
     print cmd
   if not opts.impotent:
     try:
-      subprocess.check_call(cmd, stdout=open(cxxoutfile, 'w'))
+      with open(cxxoutfile, 'w') as f:
+        subprocess.check_call(cmd, stdin=subprocess.PIPE, stdout=f)
       shutil.copyfile(inputfile, jsoutfile)
     except Exception, ex:
-      print ex
-      os.remove(cxxoutfile)
-      os.remove(jsoutfile)
-      sys.exit(1)
+      if os.path.exists(cxxoutfile):
+        os.remove(cxxoutfile)
+      if os.path.exists(jsoutfile):
+        os.remove(jsoutfile)
+      raise
+
 
 if __name__ == '__main__':
  sys.exit(main())

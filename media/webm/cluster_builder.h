@@ -34,6 +34,8 @@ class ClusterBuilder {
   void SetClusterTimecode(int64 cluster_timecode);
   void AddSimpleBlock(int track_num, int64 timecode, int flags,
                       const uint8* data, int size);
+  void AddBlockGroup(int track_num, int64 timecode, int duration, int flags,
+                     const uint8* data, int size);
 
   scoped_ptr<Cluster> Finish();
 
@@ -41,6 +43,8 @@ class ClusterBuilder {
   void Reset();
   void ExtendBuffer(int bytes_needed);
   void UpdateUInt64(int offset, int64 value);
+  void WriteBlock(uint8* buf, int track_num, int64 timecode, int flags,
+                  const uint8* data, int size);
 
   scoped_array<uint8> buffer_;
   int buffer_size_;

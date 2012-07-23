@@ -31,6 +31,8 @@ using ::testing::Return;
 
 using base::win::ScopedCOMInitializer;
 
+namespace media {
+
 static const wchar_t kAudioFile1_16b_m_16K[]
     = L"media\\test\\data\\sweep02_16b_mono_16KHz.raw";
 
@@ -43,8 +45,9 @@ class TestSourceBasic : public AudioOutputStream::AudioSourceCallback {
         had_error_(0) {
   }
   // AudioSourceCallback::OnMoreData implementation:
-  virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
-                            uint32 max_size, AudioBuffersState buffers_state) {
+  virtual uint32 OnMoreData(uint8* dest,
+                            uint32 max_size,
+                            AudioBuffersState buffers_state) {
     ++callback_count_;
     // Touch the first byte to make sure memory is good.
     if (max_size)
@@ -73,7 +76,7 @@ class TestSourceBasic : public AudioOutputStream::AudioSourceCallback {
   int had_error_;
 };
 
-const int kNumBuffers = 3;
+const int kMaxNumBuffers = 3;
 // Specializes TestSourceBasic to detect that the AudioStream is using
 // triple buffering correctly.
 class TestSourceTripleBuffer : public TestSourceBasic {
@@ -84,19 +87,19 @@ class TestSourceTripleBuffer : public TestSourceBasic {
     buffer_address_[2] = NULL;
   }
   // Override of TestSourceBasic::OnMoreData.
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            uint8* dest, uint32 max_size,
+  virtual uint32 OnMoreData(uint8* dest,
+                            uint32 max_size,
                             AudioBuffersState buffers_state) {
     // Call the base, which increments the callback_count_.
-    TestSourceBasic::OnMoreData(stream, dest, max_size, buffers_state);
-    if (callback_count() % kNumBuffers == 2) {
+    TestSourceBasic::OnMoreData(dest, max_size, buffers_state);
+    if (callback_count() % NumberOfWaveOutBuffers() == 2) {
       set_error(!CompareExistingIfNotNULL(2, dest));
-    } else if (callback_count() % kNumBuffers == 1) {
+    } else if (callback_count() % NumberOfWaveOutBuffers() == 1) {
       set_error(!CompareExistingIfNotNULL(1, dest));
     } else {
       set_error(!CompareExistingIfNotNULL(0, dest));
     }
-    if (callback_count() > kNumBuffers) {
+    if (callback_count() > kMaxNumBuffers) {
       set_error(buffer_address_[0] == buffer_address_[1]);
       set_error(buffer_address_[1] == buffer_address_[2]);
     }
@@ -111,7 +114,7 @@ class TestSourceTripleBuffer : public TestSourceBasic {
     return (entry == address);
   }
 
-  void* buffer_address_[kNumBuffers];
+  void* buffer_address_[kMaxNumBuffers];
 };
 
 // Specializes TestSourceBasic to simulate a source that blocks for some time
@@ -121,12 +124,12 @@ class TestSourceLaggy : public TestSourceBasic {
   TestSourceLaggy(int laggy_after_buffer, int lag_in_ms)
       : laggy_after_buffer_(laggy_after_buffer), lag_in_ms_(lag_in_ms) {
   }
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            uint8* dest, uint32 max_size,
+  virtual uint32 OnMoreData(uint8* dest,
+                            uint32 max_size,
                             AudioBuffersState buffers_state) {
     // Call the base, which increments the callback_count_.
-    TestSourceBasic::OnMoreData(stream, dest, max_size, buffers_state);
-    if (callback_count() > kNumBuffers) {
+    TestSourceBasic::OnMoreData(dest, max_size, buffers_state);
+    if (callback_count() > kMaxNumBuffers) {
       ::Sleep(lag_in_ms_);
     }
     return max_size;
@@ -138,7 +141,7 @@ class TestSourceLaggy : public TestSourceBasic {
 
 class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream, uint8* dest,
+  MOCK_METHOD3(OnMoreData, uint32(uint8* dest,
                                   uint32 max_size,
                                   AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
@@ -309,7 +312,7 @@ TEST(WinAudioTest, PCMWaveStreamTripleBuffer) {
   EXPECT_TRUE(oas->Open());
   oas->Start(&test_triple_buffer);
   ::Sleep(300);
-  EXPECT_GT(test_triple_buffer.callback_count(), kNumBuffers);
+  EXPECT_GT(test_triple_buffer.callback_count(), kMaxNumBuffers);
   EXPECT_FALSE(test_triple_buffer.had_error());
   oas->Stop();
   ::Sleep(500);
@@ -597,34 +600,43 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
 
   uint32 bytes_100_ms = samples_100_ms * 2;
 
-  // We expect the amount of pending bytes will reaching 2 times of
-  // |bytes_100_ms| because the audio output stream has a triple buffer scheme.
+  // Audio output stream has either a double or triple buffer scheme.
+  // We expect the amount of pending bytes will reaching up to 2 times of
+  // |bytes_100_ms| depending on number of buffers used.
   // From that it would decrease as we are playing the data but not providing
   // new one. And then we will try to provide zero data so the amount of
   // pending bytes will go down and eventually read zero.
   InSequence s;
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes, 0)))
       .WillOnce(Return(bytes_100_ms));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+  switch (NumberOfWaveOutBuffers()) {
+    case 2:
+      break;  // Calls are the same as at end of 3-buffer scheme.
+    case 3:
+      EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
+                                     Field(&AudioBuffersState::pending_bytes,
+                                           bytes_100_ms)))
+          .WillOnce(Return(bytes_100_ms));
+      EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
+                                     Field(&AudioBuffersState::pending_bytes,
+                                           2 * bytes_100_ms)))
+          .WillOnce(Return(bytes_100_ms));
+      EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
+                                     Field(&AudioBuffersState::pending_bytes,
+                                           2 * bytes_100_ms)))
+          .Times(AnyNumber())
+          .WillRepeatedly(Return(0));
+    default:
+      ASSERT_TRUE(false) << "Unexpected number of buffers";
+  }
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes,
                                        bytes_100_ms)))
-      .WillOnce(Return(bytes_100_ms));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
-                                 Field(&AudioBuffersState::pending_bytes,
-                                       2 * bytes_100_ms)))
-      .WillOnce(Return(bytes_100_ms));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
-                                 Field(&AudioBuffersState::pending_bytes,
-                                       2 * bytes_100_ms)))
       .Times(AnyNumber())
       .WillRepeatedly(Return(0));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
-                                 Field(&AudioBuffersState::pending_bytes,
-                                       bytes_100_ms)))
-      .Times(AnyNumber())
-      .WillRepeatedly(Return(0));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes, 0)))
       .Times(AnyNumber())
       .WillRepeatedly(Return(0));
@@ -646,8 +658,8 @@ class SyncSocketSource : public AudioOutputStream::AudioSourceCallback {
   }
 
   // AudioSourceCallback::OnMoreData implementation:
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            uint8* dest, uint32 max_size,
+  virtual uint32 OnMoreData(uint8* dest,
+                            uint32 max_size,
                             AudioBuffersState buffers_state) {
     socket_->Send(&buffers_state, sizeof(buffers_state));
     uint32 got = socket_->Receive(dest, max_size);
@@ -682,7 +694,7 @@ DWORD __stdcall SyncSocketThread(void* context) {
   uint8* buffer = new uint8[kTwoSecBytes];
   SineWaveAudioSource sine(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM,
                            1, ctx.sine_freq, ctx.sample_rate);
-  sine.OnMoreData(NULL, buffer, kTwoSecBytes, AudioBuffersState());
+  sine.OnMoreData(buffer, kTwoSecBytes, AudioBuffersState());
 
   AudioBuffersState buffers_state;
   int times = 0;
@@ -744,3 +756,5 @@ TEST(WinAudioTest, SyncSocketBasic) {
   oas->Stop();
   oas->Close();
 }
+
+}  // namespace media

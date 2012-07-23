@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TEST_TEST_SUITE_H_
 #define BASE_TEST_TEST_SUITE_H_
-#pragma once
 
 // Defines a basic test suite framework for running gtest based tests.  You can
 // instantiate this class in your main function and call its Run method to run
@@ -53,6 +52,8 @@ class TestSuite {
 
   void ResetCommandLine();
 
+  void WatchAtExitManager();
+
   int Run();
 
   // A command-line flag that makes a test failure always result in a non-zero
@@ -86,6 +87,8 @@ class TestSuite {
  private:
   // Basic initialization for the test suite happens here.
   void PreInitialize(int argc, char** argv, bool create_at_exit_manager);
+
+  bool initialized_command_line_;
 
   DISALLOW_COPY_AND_ASSIGN(TestSuite);
 };

@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <time.h>
 
+#include "base/compiler_specific.h"
 #include "base/third_party/nspr/prtime.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -19,7 +20,7 @@ PRTime comparison_time_pdt = 1192477500 * Time::kMicrosecondsPerSecond;
 // tested by comparing them to a known time in the local zone.
 class PRTimeTest : public testing::Test {
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     // Use mktime to get a time_t, and turn it into a PRTime by converting
     // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
     // must be a time guaranteed to be outside of a DST fallback hour in

@@ -12,6 +12,8 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
+namespace media {
+
 class AudioOutputDispatcher;
 
 // AudioOutputProxy is an audio otput stream that uses resources more
@@ -51,15 +53,13 @@ class MEDIA_EXPORT AudioOutputProxy
   scoped_refptr<AudioOutputDispatcher> dispatcher_;
   State state_;
 
-  // The actual audio stream. Must be set to NULL in any state other
-  // than kPlaying.
-  AudioOutputStream* physical_stream_;
-
   // Need to save volume here, so that we can restore it in case the stream
   // is stopped, and then started again.
   double volume_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioOutputProxy);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_OUTPUT_PROXY_H_

@@ -44,11 +44,13 @@ typedef struct _hb_segment_properties_t {
     hb_direction_t      direction;
     hb_script_t         script;
     hb_language_t       language;
+    ASSERT_POD ();
 } hb_segment_properties_t;
 
 
 struct _hb_buffer_t {
   hb_object_header_t header;
+  ASSERT_POD ();
 
   /* Information about how the text in the buffer should be treated */
 
@@ -69,6 +71,15 @@ struct _hb_buffer_t {
   hb_glyph_info_t     *info;
   hb_glyph_info_t     *out_info;
   hb_glyph_position_t *pos;
+
+  inline hb_glyph_info_t &cur (unsigned int i = 0) { return info[idx + i]; }
+  inline hb_glyph_info_t cur (unsigned int i = 0) const { return info[idx + i]; }
+
+  inline hb_glyph_position_t &cur_pos (unsigned int i = 0) { return pos[idx + i]; }
+  inline hb_glyph_position_t cur_pos (unsigned int i = 0) const { return pos[idx + i]; }
+
+  inline hb_glyph_info_t &prev (void) { return out_info[out_len - 1]; }
+  inline hb_glyph_info_t prev (void) const { return info[out_len - 1]; }
 
   unsigned int serial;
   uint8_t allocated_var_bytes[8];
@@ -101,10 +112,10 @@ struct _hb_buffer_t {
   HB_INTERNAL void clear_positions (void);
   HB_INTERNAL void replace_glyphs_be16 (unsigned int num_in,
 					unsigned int num_out,
-					const uint16_t *glyph_data_be);
+					const char *glyph_data_be);
   HB_INTERNAL void replace_glyphs (unsigned int num_in,
 				   unsigned int num_out,
-				   const uint16_t *glyph_data);
+				   const hb_codepoint_t *glyph_data);
   HB_INTERNAL void replace_glyph (hb_codepoint_t glyph_index);
   /* Makes a copy of the glyph at idx to output and replace glyph_index */
   HB_INTERNAL void output_glyph (hb_codepoint_t glyph_index);
@@ -131,11 +142,16 @@ struct _hb_buffer_t {
 			      unsigned int cluster_start,
 			      unsigned int cluster_end);
 
+  HB_INTERNAL void merge_clusters (unsigned int start,
+				   unsigned int end);
+  HB_INTERNAL void merge_out_clusters (unsigned int start,
+				       unsigned int end);
+
   /* Internal methods */
   HB_INTERNAL bool enlarge (unsigned int size);
 
   inline bool ensure (unsigned int size)
-  { return likely (size <= allocated) ? TRUE : enlarge (size); }
+  { return likely (size <= allocated) ? true : enlarge (size); }
 
   HB_INTERNAL bool make_room_for (unsigned int num_in, unsigned int num_out);
 

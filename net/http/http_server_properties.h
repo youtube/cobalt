@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,11 +18,15 @@ namespace net {
 enum AlternateProtocol {
   NPN_SPDY_1 = 0,
   NPN_SPDY_2,
-  NPN_SPDY_21,
+  NPN_SPDY_3,
   NUM_ALTERNATE_PROTOCOLS,
   ALTERNATE_PROTOCOL_BROKEN,  // The alternate protocol is known to be broken.
   UNINITIALIZED_ALTERNATE_PROTOCOL,
 };
+
+NET_EXPORT const char* AlternateProtocolToString(AlternateProtocol protocol);
+NET_EXPORT AlternateProtocol AlternateProtocolFromString(
+    const std::string& protocol);
 
 struct NET_EXPORT PortAlternateProtocolPair {
   bool Equals(const PortAlternateProtocolPair& other) const {
@@ -36,7 +40,7 @@ struct NET_EXPORT PortAlternateProtocolPair {
 };
 
 typedef std::map<HostPortPair, PortAlternateProtocolPair> AlternateProtocolMap;
-typedef std::map<HostPortPair, spdy::SpdySettings> SpdySettingsMap;
+typedef std::map<HostPortPair, SettingsMap> SpdySettingsMap;
 typedef std::map<HostPortPair,
         HttpPipelinedHostCapability> PipelineCapabilityMap;
 
@@ -83,20 +87,22 @@ class NET_EXPORT HttpServerProperties {
   // Returns all Alternate-Protocol mappings.
   virtual const AlternateProtocolMap& alternate_protocol_map() const = 0;
 
-  // Gets a reference to the SpdySettings stored for a host.
-  // If no settings are stored, returns an empty set of settings.
-  virtual const spdy::SpdySettings& GetSpdySettings(
+  // Gets a reference to the SettingsMap stored for a host.
+  // If no settings are stored, returns an empty SettingsMap.
+  virtual const SettingsMap& GetSpdySettings(
       const HostPortPair& host_port_pair) const = 0;
 
-  // Saves settings for a host. Returns true if SpdySettings are to be
-  // persisted.
-  virtual bool SetSpdySettings(const HostPortPair& host_port_pair,
-                               const spdy::SpdySettings& settings) = 0;
+  // Saves an individual SPDY setting for a host. Returns true if SPDY setting
+  // is to be persisted.
+  virtual bool SetSpdySetting(const HostPortPair& host_port_pair,
+                              SpdySettingsIds id,
+                              SpdySettingsFlags flags,
+                              uint32 value) = 0;
 
-  // Clears all spdy_settings.
+  // Clears all SPDY settings.
   virtual void ClearSpdySettings() = 0;
 
-  // Returns all persistent SpdySettings.
+  // Returns all persistent SPDY settings.
   virtual const SpdySettingsMap& spdy_settings_map() const = 0;
 
   virtual HttpPipelinedHostCapability GetPipelineCapability(

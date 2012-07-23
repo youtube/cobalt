@@ -202,7 +202,6 @@ NET_ERROR(MANDATORY_PROXY_CONFIGURATION_FAILED, -131)
 // We detected an ESET product intercepting our HTTPS connections. Since these
 // products are False Start intolerant, we return this error so that we can
 // give the user a helpful error message rather than have the connection hang.
-// See also: KASPERSKY_ANTI_VIRUS_SSL_INTERCEPTION
 NET_ERROR(ESET_ANTI_VIRUS_SSL_INTERCEPTION, -132)
 
 // We've hit the max socket limit for the socket pool while preconnecting.  We
@@ -247,12 +246,8 @@ NET_ERROR(SSL_CLIENT_AUTH_SIGNATURE_FAILED, -141)
 // which exceeds size threshold).
 NET_ERROR(MSG_TOO_BIG, -142)
 
-// We detected a Kaspersky product intercepting our HTTPS connections. This
-// interacts badly with our SSL stack for unknown reasons (disabling False
-// Start doesn't help). We return this error so that we can give the user a
-// helpful error message rather than have the connection hang.
-// See also: ESET_ANTI_VIRUS_SSL_INTERCEPTION
-NET_ERROR(KASPERSKY_ANTI_VIRUS_SSL_INTERCEPTION, -143)
+// A SPDY session already exists, and should be used instead of this connection.
+NET_ERROR(SPDY_SESSION_ALREADY_EXISTS, -143)
 
 // Violation of limits (e.g. imposed to prevent DoS).
 NET_ERROR(LIMIT_VIOLATION, -144)
@@ -525,6 +520,14 @@ NET_ERROR(SPDY_PING_FAILED, -352)
 // The request couldn't be completed on an HTTP pipeline. Client should retry.
 NET_ERROR(PIPELINE_EVICTION, -353)
 
+// The HTTP response body transferred fewer bytes than were advertised by the
+// Content-Length header when the connection is closed.
+NET_ERROR(CONTENT_LENGTH_MISMATCH, -354)
+
+// The HTTP response body is transferred with Chunked-Encoding, but the
+// terminating zero-length chunk was never sent when the connection is closed.
+NET_ERROR(INCOMPLETE_CHUNKED_ENCODING, -355)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
@@ -624,7 +627,7 @@ NET_ERROR(PKCS12_IMPORT_UNSUPPORTED, -709)
 // Key generation failed.
 NET_ERROR(KEY_GENERATION_FAILED, -710)
 
-// Origin-bound certificate generation failed.
+// Server-bound certificate generation failed.
 NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_FAILED, -711)
 
 // Failure to export private key.
@@ -654,3 +657,6 @@ NET_ERROR(DNS_TIMED_OUT, -803)
 
 // The entry was not found in cache, for cache-only lookups.
 NET_ERROR(DNS_CACHE_MISS, -804)
+
+// Suffix search list rules prevent resolution of the given host name.
+NET_ERROR(DNS_SEARCH_EMPTY, -805)

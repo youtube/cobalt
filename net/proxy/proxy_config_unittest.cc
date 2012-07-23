@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -251,6 +251,33 @@ TEST(ProxyConfigTest, ParseProxyRules) {
   }
 }
 
+TEST(ProxyConfigTest, ProxyRulesSetBypassFlag) {
+  // Test whether the did_bypass_proxy() flag is set in proxy info correctly.
+  ProxyConfig::ProxyRules rules;
+  ProxyInfo  result;
+
+  rules.ParseFromString("http=httpproxy:80");
+  rules.bypass_rules.AddRuleFromString(".com");
+
+  rules.Apply(GURL("http://example.com"), &result);
+  EXPECT_TRUE(result.is_direct_only());
+  EXPECT_TRUE(result.did_bypass_proxy());
+
+  rules.Apply(GURL("http://example.org"), &result);
+  EXPECT_FALSE(result.is_direct());
+  EXPECT_FALSE(result.did_bypass_proxy());
+
+  // Try with reversed bypass rules.
+  rules.reverse_bypass = true;
+
+  rules.Apply(GURL("http://example.org"), &result);
+  EXPECT_TRUE(result.is_direct_only());
+  EXPECT_TRUE(result.did_bypass_proxy());
+
+  rules.Apply(GURL("http://example.com"), &result);
+  EXPECT_FALSE(result.is_direct());
+  EXPECT_FALSE(result.did_bypass_proxy());
+}
+
 }  // namespace
 }  // namespace net
-

@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_PROXY_PROXY_SCRIPT_FETCHER_IMPL_H_
 #define NET_PROXY_PROXY_SCRIPT_FETCHER_IMPL_H_
-#pragma once
 
 #include <string>
 
@@ -85,7 +84,7 @@ class NET_EXPORT ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   base::WeakPtrFactory<ProxyScriptFetcherImpl> weak_factory_;
 
   // The context used for making network requests.
-  URLRequestContext* url_request_context_;
+  URLRequestContext* const url_request_context_;
 
   // Buffer that URLRequest writes into.
   scoped_refptr<IOBuffer> buf_;
