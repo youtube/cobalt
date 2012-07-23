@@ -46,6 +46,10 @@
 #include "hasht.h"
 #include "alghmac.h"
 
+#ifndef AES_256_KEY_LENGTH
+#define AES_256_KEY_LENGTH      32  /* bytes */
+#endif
+
 SEC_BEGIN_PROTOS
 
 /*

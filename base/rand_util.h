@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_RAND_UTIL_H_
 #define BASE_RAND_UTIL_H_
-#pragma once
 
 #include <string>
 
@@ -42,6 +41,10 @@ BASE_EXPORT void RandBytes(void* output, size_t output_length);
 //
 // Note that this is a variation of |RandBytes| with a different return type.
 BASE_EXPORT std::string RandBytesAsString(size_t length);
+
+#ifdef OS_POSIX
+BASE_EXPORT int GetUrandomFD();
+#endif
 
 }  // namespace base
 

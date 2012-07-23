@@ -1,17 +1,19 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/tcp_client_socket.h"
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/address_list.h"
-#include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
-#include "net/base/listen_socket.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
+#include "net/base/tcp_listen_socket.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
 #include "net/socket/client_socket_factory.h"
@@ -29,13 +31,14 @@ enum ClientSocketTestTypes {
   SCTP
 };
 
+}  // namespace
+
 class TransportClientSocketTest
-    : public ListenSocket::ListenSocketDelegate,
+    : public StreamListenSocket::Delegate,
       public ::testing::TestWithParam<ClientSocketTestTypes> {
  public:
   TransportClientSocketTest()
       : listen_port_(0),
-        net_log_(CapturingNetLog::kUnbounded),
         socket_factory_(ClientSocketFactory::GetDefaultFactory()),
         close_server_socket_on_next_send_(false) {
   }
@@ -43,18 +46,19 @@ class TransportClientSocketTest
   ~TransportClientSocketTest() {
   }
 
-  // Implement ListenSocketDelegate methods
-  virtual void DidAccept(ListenSocket* server, ListenSocket* connection) {
-    connected_sock_ = connection;
+  // Implement StreamListenSocket::Delegate methods
+  virtual void DidAccept(StreamListenSocket* server,
+                         StreamListenSocket* connection) {
+    connected_sock_ = reinterpret_cast<TCPListenSocket*>(connection);
   }
-  virtual void DidRead(ListenSocket*, const char* str, int len) {
+  virtual void DidRead(StreamListenSocket*, const char* str, int len) {
     // TODO(dkegel): this might not be long enough to tickle some bugs.
     connected_sock_->Send(kServerReply, arraysize(kServerReply) - 1,
                           false /* Don't append line feed */);
     if (close_server_socket_on_next_send_)
       CloseServerSocket();
   }
-  virtual void DidClose(ListenSocket* sock) {}
+  virtual void DidClose(StreamListenSocket* sock) {}
 
   // Testcase hooks
   virtual void SetUp();
@@ -90,8 +94,8 @@ class TransportClientSocketTest
   scoped_ptr<StreamSocket> sock_;
 
  private:
-  scoped_refptr<ListenSocket> listen_sock_;
-  scoped_refptr<ListenSocket> connected_sock_;
+  scoped_refptr<TCPListenSocket> listen_sock_;
+  scoped_refptr<TCPListenSocket> connected_sock_;
   bool close_server_socket_on_next_send_;
 };
 
@@ -99,7 +103,7 @@ void TransportClientSocketTest::SetUp() {
   ::testing::TestWithParam<ClientSocketTestTypes>::SetUp();
 
   // Find a free port to listen on
-  ListenSocket *sock = NULL;
+  scoped_refptr<TCPListenSocket> sock = NULL;
   int port;
   // Range of ports to listen on.  Shouldn't need to try many.
   const int kMinPort = 10100;
@@ -108,8 +112,8 @@ void TransportClientSocketTest::SetUp() {
   EnsureWinsockInit();
 #endif
   for (port = kMinPort; port < kMaxPort; port++) {
-    sock = ListenSocket::Listen("127.0.0.1", port, this);
-    if (sock)
+    sock = TCPListenSocket::CreateAndListen("127.0.0.1", port, this);
+    if (sock.get())
       break;
   }
   ASSERT_TRUE(sock != NULL);
@@ -117,10 +121,8 @@ void TransportClientSocketTest::SetUp() {
   listen_port_ = port;
 
   AddressList addr;
-  scoped_ptr<HostResolver> resolver(
-      CreateSystemHostResolver(HostResolver::kDefaultParallelism,
-                               HostResolver::kDefaultRetryAttempts,
-                               NULL));
+  // MockHostResolver resolves everything to 127.0.0.1.
+  scoped_ptr<HostResolver> resolver(new MockHostResolver());
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
   TestCompletionCallback callback;
   int rv = resolver->Resolve(info, &addr, callback.callback(), NULL,
@@ -182,7 +184,7 @@ TEST_P(TransportClientSocketTest, Connect) {
 
   int rv = sock_->Connect(callback.callback());
 
-  net::CapturingNetLog::EntryList net_log_entries;
+  net::CapturingNetLog::CapturedEntryList net_log_entries;
   net_log_.GetEntries(&net_log_entries);
   EXPECT_TRUE(net::LogContainsBeginEvent(
       net_log_entries, 0, net::NetLog::TYPE_SOCKET_ALIVE));
@@ -442,7 +444,5 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   rv = callback.WaitForResult();
   EXPECT_GE(rv, 0);
 }
-
-}  // namespace
 
 }  // namespace net

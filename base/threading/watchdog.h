@@ -17,7 +17,6 @@
 
 #ifndef BASE_THREADING_WATCHDOG_H_
 #define BASE_THREADING_WATCHDOG_H_
-#pragma once
 
 #include <string>
 

@@ -24,12 +24,14 @@
  * Red Hat Author(s): Behdad Esfahbod
  */
 
+#ifndef HB_OT_H_IN
+#error "Include <hb-ot.h> instead."
+#endif
+
 #ifndef HB_OT_LAYOUT_H
 #define HB_OT_LAYOUT_H
 
-#include "hb-common.h"
-#include "hb-buffer.h"
-#include "hb-font.h"
+#include "hb.h"
 
 #include "hb-ot-tag.h"
 
@@ -179,6 +181,12 @@ hb_ot_layout_substitute_lookup (hb_face_t    *face,
 /* Should be called after all the substitute_lookup's are done */
 void
 hb_ot_layout_substitute_finish (hb_buffer_t  *buffer);
+
+
+void
+hb_ot_layout_substitute_closure_lookup (hb_face_t    *face,
+				        hb_set_t     *glyphs,
+				        unsigned int  lookup_index);
 
 /*
  * GPOS

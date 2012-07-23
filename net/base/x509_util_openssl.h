@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_X509_UTIL_OPENSSL_H_
 #define NET_BASE_X509_UTIL_OPENSSL_H_
-#pragma once
 
 #include <openssl/asn1.h>
 #include <openssl/x509v3.h>

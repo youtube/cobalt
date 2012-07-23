@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -62,8 +62,8 @@ TEST(SecureHashTest, TestSerialization) {
 
   ctx1->Finish(output1, sizeof(output1));
 
-  void* data_iterator = NULL;
-  EXPECT_TRUE(ctx2->Deserialize(&data_iterator, &pickle));
+  PickleIterator data_iterator(pickle);
+  EXPECT_TRUE(ctx2->Deserialize(&data_iterator));
   ctx2->Update(input4.data(), input4.size());
   ctx2->Update(input5.data(), input5.size());
 

@@ -35,7 +35,7 @@ namespace {
 class MultipleThreadMain : public PlatformThread::Delegate {
  public:
   explicit MultipleThreadMain(int16 id) : id_(id) {}
-  ~MultipleThreadMain() {}
+  virtual ~MultipleThreadMain() {}
 
   static void CleanUp() {
     SharedMemory memory;
@@ -43,7 +43,7 @@ class MultipleThreadMain : public PlatformThread::Delegate {
   }
 
   // PlatformThread::Delegate interface.
-  void ThreadMain() {
+  virtual void ThreadMain() OVERRIDE {
 #if defined(OS_MACOSX)
     mac::ScopedNSAutoreleasePool pool;
 #endif
@@ -89,10 +89,10 @@ const char* const MultipleThreadMain::s_test_name_ =
 class MultipleLockThread : public PlatformThread::Delegate {
  public:
   explicit MultipleLockThread(int id) : id_(id) {}
-  ~MultipleLockThread() {}
+  virtual ~MultipleLockThread() {}
 
   // PlatformThread::Delegate interface.
-  void ThreadMain() {
+  virtual void ThreadMain() OVERRIDE {
     const uint32 kDataSize = sizeof(int);
     SharedMemoryHandle handle = NULL;
     {
@@ -130,6 +130,9 @@ class MultipleLockThread : public PlatformThread::Delegate {
 
 }  // namespace
 
+// Android doesn't support SharedMemory::Open/Delete/
+// CreateNamed(openExisting=true)
+#if !defined(OS_ANDROID)
 TEST(SharedMemoryTest, OpenClose) {
   const uint32 kDataSize = 1024;
   std::string test_name = "SharedMemoryOpenCloseTest";
@@ -229,6 +232,7 @@ TEST(SharedMemoryTest, OpenExclusive) {
   rv = memory1.Delete(test_name);
   EXPECT_TRUE(rv);
 }
+#endif
 
 // Create a set of N threads to each open a shared memory segment and write to
 // it. Verify that they are always reading/writing consistent data.
@@ -357,6 +361,8 @@ TEST(SharedMemoryTest, AnonymousExecutable) {
 }
 #endif
 
+#if !defined(OS_IOS)  // iOS does not allow multiple processes.
+
 // On POSIX it is especially important we test shmem across processes,
 // not just across threads.  But the test is enabled on all platforms.
 class SharedMemoryProcessTest : public MultiProcessTest {
@@ -404,14 +410,7 @@ class SharedMemoryProcessTest : public MultiProcessTest {
 
 const char* const SharedMemoryProcessTest::s_test_name_ = "MPMem";
 
-// http://crbug.com/61589
-#if defined(OS_MACOSX)
-#define MAYBE_Tasks DISABLED_Tasks
-#else
-#define MAYBE_Tasks Tasks
-#endif
-
-TEST_F(SharedMemoryProcessTest, MAYBE_Tasks) {
+TEST_F(SharedMemoryProcessTest, Tasks) {
   SharedMemoryProcessTest::CleanUp();
 
   ProcessHandle handles[kNumTasks];
@@ -423,7 +422,7 @@ TEST_F(SharedMemoryProcessTest, MAYBE_Tasks) {
   int exit_code = 0;
   for (int index = 0; index < kNumTasks; ++index) {
     EXPECT_TRUE(WaitForExitCode(handles[index], &exit_code));
-    EXPECT_TRUE(exit_code == 0);
+    EXPECT_EQ(0, exit_code);
   }
 
   SharedMemoryProcessTest::CleanUp();
@@ -432,5 +431,7 @@ TEST_F(SharedMemoryProcessTest, MAYBE_Tasks) {
 MULTIPROCESS_TEST_MAIN(SharedMemoryTestMain) {
   return SharedMemoryProcessTest::TaskTestMain();
 }
+
+#endif  // !OS_IOS
 
 }  // namespace base

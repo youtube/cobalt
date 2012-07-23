@@ -1,16 +1,20 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #import "base/message_pump_mac.h"
 
-#import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
 #include <limits>
 
 #include "base/logging.h"
+#include "base/run_loop.h"
 #include "base/time.h"
+
+#if !defined(OS_IOS)
+#import <AppKit/AppKit.h>
+#endif  // !defined(OS_IOS)
 
 namespace {
 
@@ -160,6 +164,16 @@ void MessagePumpCFRunLoopBase::Run(Delegate* delegate) {
   run_nesting_level_ = nesting_level_ + 1;
 
   Delegate* last_delegate = delegate_;
+  SetDelegate(delegate);
+
+  DoRun(delegate);
+
+  // Restore the previous state of the object.
+  SetDelegate(last_delegate);
+  run_nesting_level_ = last_run_nesting_level;
+}
+
+void MessagePumpCFRunLoopBase::SetDelegate(Delegate* delegate) {
   delegate_ = delegate;
 
   if (delegate) {
@@ -175,12 +189,6 @@ void MessagePumpCFRunLoopBase::Run(Delegate* delegate) {
       delegateless_idle_work_ = false;
     }
   }
-
-  DoRun(delegate);
-
-  // Restore the previous state of the object.
-  delegate_ = last_delegate;
-  run_nesting_level_ = last_run_nesting_level;
 }
 
 // May be called on any thread.
@@ -192,28 +200,8 @@ void MessagePumpCFRunLoopBase::ScheduleWork() {
 // Must be called on the run loop thread.
 void MessagePumpCFRunLoopBase::ScheduleDelayedWork(
     const TimeTicks& delayed_work_time) {
-  // TODO(jar): We may need a more efficient way to go between these times, but
-  // the difference will change not only when we sleep/wake, it will also change
-  // when the user changes the wall clock time :-/.
-  Time absolute_work_time =
-      (delayed_work_time - TimeTicks::Now()) + Time::Now();
-
-  Time::Exploded exploded;
-  absolute_work_time.UTCExplode(&exploded);
-  double seconds = exploded.second +
-                   (static_cast<double>((absolute_work_time.ToInternalValue()) %
-                                        Time::kMicrosecondsPerSecond) /
-                    Time::kMicrosecondsPerSecond);
-  CFGregorianDate gregorian = {
-    exploded.year,
-    exploded.month,
-    exploded.day_of_month,
-    exploded.hour,
-    exploded.minute,
-    seconds
-  };
-  delayed_work_fire_time_ = CFGregorianDateGetAbsoluteTime(gregorian, NULL);
-
+  TimeDelta delta = delayed_work_time - TimeTicks::Now();
+  delayed_work_fire_time_ = CFAbsoluteTimeGetCurrent() + delta.InSecondsF();
   CFRunLoopTimerSetNextFireDate(delayed_work_timer_, delayed_work_fire_time_);
 }
 
@@ -460,6 +448,8 @@ MessagePumpCFRunLoop::MessagePumpCFRunLoop()
     : quit_pending_(false) {
 }
 
+MessagePumpCFRunLoop::~MessagePumpCFRunLoop() {}
+
 // Called by MessagePumpCFRunLoopBase::DoRun.  If other CFRunLoopRun loops were
 // running lower on the run loop thread's stack when this object was created,
 // the same number of CFRunLoopRun loops must be running for the outermost call
@@ -537,10 +527,36 @@ void MessagePumpNSRunLoop::Quit() {
   CFRunLoopWakeUp(run_loop());
 }
 
+#if defined(OS_IOS)
+MessagePumpUIApplication::MessagePumpUIApplication()
+    : run_loop_(NULL) {
+}
+
+MessagePumpUIApplication::~MessagePumpUIApplication() {}
+
+void MessagePumpUIApplication::DoRun(Delegate* delegate) {
+  NOTREACHED();
+}
+
+void MessagePumpUIApplication::Quit() {
+  NOTREACHED();
+}
+
+void MessagePumpUIApplication::Attach(Delegate* delegate) {
+  DCHECK(!run_loop_);
+  run_loop_ = new base::RunLoop();
+  CHECK(run_loop_->BeforeRun());
+  SetDelegate(delegate);
+}
+
+#else
+
 MessagePumpNSApplication::MessagePumpNSApplication()
     : keep_running_(true),
       running_own_loop_(false) {
 }
+
+MessagePumpNSApplication::~MessagePumpNSApplication() {}
 
 void MessagePumpNSApplication::DoRun(Delegate* delegate) {
   bool last_running_own_loop_ = running_own_loop_;
@@ -636,24 +652,6 @@ NSAutoreleasePool* MessagePumpCrApplication::CreateAutoreleasePool() {
 }
 
 // static
-MessagePump* MessagePumpMac::Create() {
-  if ([NSThread isMainThread]) {
-    if ([NSApp conformsToProtocol:@protocol(CrAppProtocol)])
-      return new MessagePumpCrApplication;
-
-    // The main-thread MessagePump implementations REQUIRE an NSApp.
-    // Executables which have specific requirements for their
-    // NSApplication subclass should initialize appropriately before
-    // creating an event loop.
-    [NSApplication sharedApplication];
-    not_using_crapp = true;
-    return new MessagePumpNSApplication;
-  }
-
-  return new MessagePumpNSRunLoop;
-}
-
-// static
 bool MessagePumpMac::UsingCrApp() {
   DCHECK([NSThread isMainThread]);
 
@@ -673,6 +671,29 @@ bool MessagePumpMac::IsHandlingSendEvent() {
   DCHECK([NSApp conformsToProtocol:@protocol(CrAppProtocol)]);
   NSObject<CrAppProtocol>* app = static_cast<NSObject<CrAppProtocol>*>(NSApp);
   return [app isHandlingSendEvent];
+}
+#endif  // !defined(OS_IOS)
+
+// static
+MessagePump* MessagePumpMac::Create() {
+  if ([NSThread isMainThread]) {
+#if defined(OS_IOS)
+    return new MessagePumpUIApplication;
+#else
+    if ([NSApp conformsToProtocol:@protocol(CrAppProtocol)])
+      return new MessagePumpCrApplication;
+
+    // The main-thread MessagePump implementations REQUIRE an NSApp.
+    // Executables which have specific requirements for their
+    // NSApplication subclass should initialize appropriately before
+    // creating an event loop.
+    [NSApplication sharedApplication];
+    not_using_crapp = true;
+    return new MessagePumpNSApplication;
+#endif
+  }
+
+  return new MessagePumpNSRunLoop;
 }
 
 }  // namespace base

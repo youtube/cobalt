@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -43,8 +43,13 @@ class Flag : public RefCountedThreadSafe<Flag> {
   }
 
  private:
+  friend class RefCountedThreadSafe<Flag>;
+  ~Flag() {}
+
   mutable Lock lock_;
   bool flag_;
+
+  DISALLOW_COPY_AND_ASSIGN(Flag);
 };
 
 // -----------------------------------------------------------------------------
@@ -60,7 +65,7 @@ class AsyncWaiter : public WaitableEvent::Waiter {
         callback_(callback),
         flag_(flag) { }
 
-  bool Fire(WaitableEvent* event) {
+  virtual bool Fire(WaitableEvent* event) OVERRIDE {
     // Post the callback if we haven't been cancelled.
     if (!flag_->value()) {
       message_loop_->PostTask(FROM_HERE, callback_);
@@ -76,7 +81,7 @@ class AsyncWaiter : public WaitableEvent::Waiter {
   }
 
   // See StopWatching for discussion
-  bool Compare(void* tag) {
+  virtual bool Compare(void* tag) OVERRIDE {
     return tag == flag_.get();
   }
 

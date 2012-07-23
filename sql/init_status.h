@@ -4,7 +4,6 @@
 
 #ifndef APP_SQL_INIT_STATUS_H_
 #define APP_SQL_INIT_STATUS_H_
-#pragma once
 
 namespace sql {
 

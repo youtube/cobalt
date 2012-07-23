@@ -21,13 +21,13 @@
 //
 #ifndef NET_SOCKET_CLIENT_SOCKET_POOL_BASE_H_
 #define NET_SOCKET_CLIENT_SOCKET_POOL_BASE_H_
-#pragma once
 
 #include <deque>
 #include <list>
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
@@ -84,16 +84,6 @@ class NET_EXPORT_PRIVATE ConnectJob {
   // Accessors
   const std::string& group_name() const { return group_name_; }
   const BoundNetLog& net_log() { return net_log_; }
-  bool is_preconnect() const { return preconnect_state_ != NOT_PRECONNECT; }
-  bool is_unused_preconnect() const {
-    return preconnect_state_ == UNUSED_PRECONNECT;
-  }
-
-  // Initialized by the ClientSocketPoolBaseHelper.
-  // TODO(willchan): Move most of the constructor arguments over here.  We
-  // shouldn't give the ConnectJobFactory (subclasses) the ability to screw up
-  // the initialization.
-  void Initialize(bool is_preconnect);
 
   // Releases |socket_| to the client.  On connection error, this should return
   // NULL.
@@ -106,10 +96,6 @@ class NET_EXPORT_PRIVATE ConnectJob {
   // completion, ReleaseSocket() can be called to acquire the connected socket
   // if it succeeded.
   int Connect();
-
-  // Precondition: is_unused_preconnect() must be true.  Marks the job as a
-  // used preconnect job.
-  void UseForNormalRequest();
 
   virtual LoadState GetLoadState() const = 0;
 
@@ -127,12 +113,6 @@ class NET_EXPORT_PRIVATE ConnectJob {
   void ResetTimer(base::TimeDelta remainingTime);
 
  private:
-  enum PreconnectState {
-    NOT_PRECONNECT,
-    UNUSED_PRECONNECT,
-    USED_PRECONNECT,
-  };
-
   virtual int ConnectInternal() = 0;
 
   void LogConnectStart();
@@ -150,7 +130,6 @@ class NET_EXPORT_PRIVATE ConnectJob {
   BoundNetLog net_log_;
   // A ConnectJob is idle until Connect() has been called.
   bool idle_;
-  PreconnectState preconnect_state_;
 
   DISALLOW_COPY_AND_ASSIGN(ConnectJob);
 };
@@ -239,6 +218,11 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   virtual ~ClientSocketPoolBaseHelper();
 
+  // Adds/Removes layered pools. It is expected in the destructor that no
+  // layered pools remain.
+  void AddLayeredPool(LayeredPool* pool);
+  void RemoveLayeredPool(LayeredPool* pool);
+
   // See ClientSocketPool::RequestSocket for documentation on this function.
   // ClientSocketPoolBaseHelper takes ownership of |request|, which must be
   // heap allocated.
@@ -260,6 +244,9 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   // See ClientSocketPool::Flush for documentation on this function.
   void Flush();
+
+  // See ClientSocketPool::IsStalled for documentation on this function.
+  bool IsStalled() const;
 
   // See ClientSocketPool::CloseIdleSockets for documentation on this function.
   void CloseIdleSockets();
@@ -284,6 +271,10 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
         ClientSocketPool::kMaxConnectRetryIntervalMs);
   }
 
+  int NumUnassignedConnectJobsInGroup(const std::string& group_name) const {
+    return group_map_.find(group_name)->second->unassigned_job_count();
+  }
+
   int NumConnectJobsInGroup(const std::string& group_name) const {
     return group_map_.find(group_name)->second->jobs().size();
   }
@@ -305,6 +296,16 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   // Closes all idle sockets if |force| is true.  Else, only closes idle
   // sockets that timed out or can't be reused.  Made public for testing.
   void CleanupIdleSockets(bool force);
+
+  // Closes one idle socket.  Picks the first one encountered.
+  // TODO(willchan): Consider a better algorithm for doing this.  Perhaps we
+  // should keep an ordered list of idle sockets, and close them in order.
+  // Requires maintaining more state.  It's not clear if it's worth it since
+  // I'm not sure if we hit this situation often.
+  bool CloseOneIdleSocket();
+
+  // Checks layered pools to see if they can close an idle connection.
+  bool CloseOneIdleConnectionInLayeredPool();
 
   // See ClientSocketPool::GetInfoAsValue for documentation on this function.
   base::DictionaryValue* GetInfoAsValue(const std::string& name,
@@ -371,7 +372,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
           static_cast<int>(idle_sockets_.size());
     }
 
-    bool IsStalled(int max_sockets_per_group) const {
+    bool IsStalledOnPoolMaxSockets(int max_sockets_per_group) const {
       return HasAvailableSocketSlot(max_sockets_per_group) &&
           pending_requests_.size() > jobs_.size();
     }
@@ -390,17 +391,19 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     void StartBackupSocketTimer(const std::string& group_name,
                                 ClientSocketPoolBaseHelper* pool);
 
-    // Searches |jobs_| to see if there's a preconnect ConnectJob, and if so,
-    // uses it.  Returns true on success.  Otherwise, returns false.
-    bool TryToUsePreconnectConnectJob();
+    // If there's a ConnectJob that's never been assigned to Request,
+    // decrements |unassigned_job_count_| and returns true.
+    // Otherwise, returns false.
+    bool TryToUseUnassignedConnectJob();
 
-    void AddJob(ConnectJob* job) { jobs_.insert(job); }
-    void RemoveJob(ConnectJob* job) { jobs_.erase(job); }
+    void AddJob(ConnectJob* job, bool is_preconnect);
+    void RemoveJob(ConnectJob* job);
     void RemoveAllJobs();
 
     void IncrementActiveSocketCount() { active_socket_count_++; }
     void DecrementActiveSocketCount() { active_socket_count_--; }
 
+    int unassigned_job_count() const { return unassigned_job_count_; }
     const std::set<ConnectJob*>& jobs() const { return jobs_; }
     const std::list<IdleSocket>& idle_sockets() const { return idle_sockets_; }
     const RequestQueue& pending_requests() const { return pending_requests_; }
@@ -413,6 +416,18 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     void OnBackupSocketTimerFired(
         std::string group_name,
         ClientSocketPoolBaseHelper* pool);
+
+    // Checks that |unassigned_job_count_| does not execeed the number of
+    // ConnectJobs.
+    void SanityCheck();
+
+    // Total number of ConnectJobs that have never been assigned to a Request.
+    // Since jobs use late binding to requests, which ConnectJobs have or have
+    // not been assigned to a request are not tracked.  This is incremented on
+    // preconnect and decremented when a preconnect is assigned, or when there
+    // are fewer than |unassigned_job_count_| ConnectJobs.  Not incremented
+    // when a request is cancelled.
+    size_t unassigned_job_count_;
 
     std::list<IdleSocket> idle_sockets_;
     std::set<ConnectJob*> jobs_;
@@ -457,9 +472,9 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   // Scans the group map for groups which have an available socket slot and
   // at least one pending request. Returns true if any groups are stalled, and
-  // if so, fills |group| and |group_name| with data of the stalled group
-  // having highest priority.
-  bool FindTopStalledGroup(Group** group, std::string* group_name);
+  // if so (and if both |group| and |group_name| are not NULL), fills |group|
+  // and |group_name| with data of the stalled group having highest priority.
+  bool FindTopStalledGroup(Group** group, std::string* group_name) const;
 
   // Called when timer_ fires.  This method scans the idle sockets removing
   // sockets that timed out or can't be reused.
@@ -506,17 +521,10 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   // Assigns an idle socket for the group to the request.
   // Returns |true| if an idle socket is available, false otherwise.
-  bool AssignIdleSocketToGroup(const Request* request, Group* group);
+  bool AssignIdleSocketToRequest(const Request* request, Group* group);
 
   static void LogBoundConnectJobToRequest(
       const NetLog::Source& connect_job_source, const Request* request);
-
-  // Closes one idle socket.  Picks the first one encountered.
-  // TODO(willchan): Consider a better algorithm for doing this.  Perhaps we
-  // should keep an ordered list of idle sockets, and close them in order.
-  // Requires maintaining more state.  It's not clear if it's worth it since
-  // I'm not sure if we hit this situation often.
-  void CloseOneIdleSocket();
 
   // Same as CloseOneIdleSocket() except it won't close an idle socket in
   // |group|.  If |group| is NULL, it is ignored.  Returns true if it closed a
@@ -581,6 +589,8 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   // pool.  This is so that when sockets get released back to the pool, we can
   // make sure that they are discarded rather than reused.
   int pool_generation_number_;
+
+  std::set<LayeredPool*> higher_layer_pools_;
 
   base::WeakPtrFactory<ClientSocketPoolBaseHelper> weak_factory_;
 
@@ -648,6 +658,13 @@ class ClientSocketPoolBase {
   virtual ~ClientSocketPoolBase() {}
 
   // These member functions simply forward to ClientSocketPoolBaseHelper.
+  void AddLayeredPool(LayeredPool* pool) {
+    helper_.AddLayeredPool(pool);
+  }
+
+  void RemoveLayeredPool(LayeredPool* pool) {
+    helper_.RemoveLayeredPool(pool);
+  }
 
   // RequestSocket bundles up the parameters into a Request and then forwards to
   // ClientSocketPoolBaseHelper::RequestSocket().
@@ -692,6 +709,10 @@ class ClientSocketPoolBase {
     return helper_.ReleaseSocket(group_name, socket, id);
   }
 
+  void Flush() { helper_.Flush(); }
+
+  bool IsStalled() const { return helper_.IsStalled(); }
+
   void CloseIdleSockets() { return helper_.CloseIdleSockets(); }
 
   int idle_socket_count() const { return helper_.idle_socket_count(); }
@@ -707,6 +728,10 @@ class ClientSocketPoolBase {
 
   virtual void OnConnectJobComplete(int result, ConnectJob* job) {
     return helper_.OnConnectJobComplete(result, job);
+  }
+
+  int NumUnassignedConnectJobsInGroup(const std::string& group_name) const {
+    return helper_.NumUnassignedConnectJobsInGroup(group_name);
   }
 
   int NumConnectJobsInGroup(const std::string& group_name) const {
@@ -740,7 +765,11 @@ class ClientSocketPoolBase {
 
   void EnableConnectBackupJobs() { helper_.EnableConnectBackupJobs(); }
 
-  void Flush() { helper_.Flush(); }
+  bool CloseOneIdleSocket() { return helper_.CloseOneIdleSocket(); }
+
+  bool CloseOneIdleConnectionInLayeredPool() {
+    return helper_.CloseOneIdleConnectionInLayeredPool();
+  }
 
  private:
   // This adaptor class exists to bridge the

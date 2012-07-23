@@ -4,7 +4,6 @@
 
 #ifndef BASE_METRICS_STATS_COUNTERS_H_
 #define BASE_METRICS_STATS_COUNTERS_H_
-#pragma once
 
 #include <string>
 

@@ -18,7 +18,7 @@
 //
 //   * Passed as a function argument
 //   * Used as the right-hand side of an assignment
-//   * Return from a function
+//   * Returned from a function
 //
 // Each class will still need to define their own "move constructor" and "move
 // operator=" to make this useful.  Here's an example of the macro, the move
@@ -122,7 +122,7 @@
 // function parameter or field of a class, the binary will not link.
 //
 // This ensures that RValue can only exist as a temporary which is important
-// to avoid accidental danging references.
+// to avoid accidental dangling references.
 //
 // (3) allows us to get around instantiations because our user-defined
 // conversion can return a downcast of this pointer.

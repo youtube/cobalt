@@ -386,11 +386,7 @@ bool ContainsOnlyWhitespaceASCII(const std::string& str) {
 }
 
 bool ContainsOnlyWhitespace(const string16& str) {
-  for (string16::const_iterator i(str.begin()); i != str.end(); ++i) {
-    if (!IsWhitespace(*i))
-      return false;
-  }
-  return true;
+  return str.find_first_not_of(kWhitespaceUTF16) == string16::npos;
 }
 
 template<typename STR>
@@ -476,7 +472,7 @@ bool IsStringUTF8(const std::string& str) {
     int32 code_point;
     CBU8_NEXT(src, char_index, src_len, code_point);
     if (!base::IsValidCharacter(code_point))
-       return false;
+      return false;
   }
   return true;
 }

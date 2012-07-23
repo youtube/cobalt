@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_RESPONSE_HEADERS_H_
 #define NET_HTTP_HTTP_RESPONSE_HEADERS_H_
-#pragma once
 
 #include <string>
 #include <vector>
@@ -13,9 +12,11 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
+#include "net/base/net_log.h"
 #include "net/http/http_version.h"
 
 class Pickle;
+class PickleIterator;
 
 namespace base {
 class Time;
@@ -52,7 +53,7 @@ class NET_EXPORT HttpResponseHeaders
   // Initializes from the representation stored in the given pickle.  The data
   // for this object is found relative to the given pickle_iter, which should
   // be passed to the pickle's various Read* methods.
-  HttpResponseHeaders(const Pickle& pickle, void** pickle_iter);
+  HttpResponseHeaders(const Pickle& pickle, PickleIterator* pickle_iter);
 
   // Appends a representation of this object to the given pickle.
   // The options argument can be a combination of PersistOptions.
@@ -242,6 +243,18 @@ class NET_EXPORT HttpResponseHeaders
 
   // Returns true if the response is chunk-encoded.
   bool IsChunkEncoded() const;
+
+  // Creates a Value for use with the NetLog containing the response headers.
+  base::Value* NetLogCallback(NetLog::LogLevel log_level) const;
+
+  // Takes in a Value created by the above function, and attempts to create a
+  // copy of the original headers.  Returns true on success.  On failure,
+  // clears |http_response_headers|.
+  // TODO(mmenke):  Long term, we want to remove this, and migrate external
+  //                consumers to be NetworkDelegates.
+  static bool FromNetLogParam(
+      const base::Value* event_param,
+      scoped_refptr<HttpResponseHeaders>* http_response_headers);
 
   // Returns the HTTP response code.  This is 0 if the response code text seems
   // to exist but could not be parsed.  Otherwise, it defaults to 200 if the

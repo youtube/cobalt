@@ -5,6 +5,7 @@
 #include "base/allocator/allocator_shim.h"
 
 #include <config.h>
+#include "base/allocator/allocator_extension_thunks.h"
 #include "base/profiler/alternate_timer.h"
 #include "base/sysinfo.h"
 
@@ -229,6 +230,14 @@ extern "C" intptr_t _get_heap_handle() {
   return 0;
 }
 
+static void get_stats_thunk(char* buffer, int buffer_length) {
+  MallocExtension::instance()->GetStats(buffer, buffer_length);
+}
+
+static void release_free_memory_thunk() {
+  MallocExtension::instance()->ReleaseFreeMemory();
+}
+
 // The CRT heap initialization stub.
 extern "C" int _heap_init() {
 #ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
@@ -270,8 +279,13 @@ extern "C" int _heap_init() {
       GetenvBeforeMain(tracked_objects::kAlternateProfilerTime);
   if (profiling && *profiling == '1') {
     tracked_objects::SetAlternateTimeSource(
-        tcmalloc::ThreadCache::GetBytesAllocatedOnCurrentThread);
+        tcmalloc::ThreadCache::GetBytesAllocatedOnCurrentThread,
+        tracked_objects::TIME_SOURCE_TYPE_TCMALLOC);
   }
+
+  base::allocator::thunks::SetGetStatsFunction(get_stats_thunk);
+  base::allocator::thunks::SetReleaseFreeMemoryFunction(
+      release_free_memory_thunk);
 
   return 1;
 }
@@ -312,6 +326,18 @@ void SetupSubprocessAllocator() {
     DCHECK_EQ(0, ret_val);
   }
 #endif  // ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
+}
+
+void* TCMallocDoMallocForTest(size_t size) {
+  return do_malloc(size);
+}
+
+void TCMallocDoFreeForTest(void* ptr) {
+  do_free(ptr);
+}
+
+size_t ExcludeSpaceForMarkForTest(size_t size) {
+  return ExcludeSpaceForMark(size);
 }
 
 }  // namespace allocator.

@@ -324,13 +324,22 @@ TraceLog* TraceLog::GetInstance() {
 TraceLog::TraceLog()
     : enabled_(false)
     , dispatching_to_observer_list_(false) {
-  SetProcessID(static_cast<int>(base::GetCurrentProcId()));
   // Trace is enabled or disabled on one thread while other threads are
   // accessing the enabled flag. We don't care whether edge-case events are
   // traced or not, so we allow races on the enabled flag to keep the trace
   // macros fast.
-  ANNOTATE_BENIGN_RACE_SIZED(g_category_enabled, sizeof(g_category_enabled),
-                             "trace_event category enabled");
+  // TODO(jbates): ANNOTATE_BENIGN_RACE_SIZED crashes windows TSAN bots:
+  // ANNOTATE_BENIGN_RACE_SIZED(g_category_enabled, sizeof(g_category_enabled),
+  //                            "trace_event category enabled");
+  for (int i = 0; i < TRACE_EVENT_MAX_CATEGORIES; ++i) {
+    ANNOTATE_BENIGN_RACE(&g_category_enabled[i],
+                         "trace_event category enabled");
+  }
+#if defined(OS_NACL)  // NaCl shouldn't expose the process id.
+  SetProcessID(0);
+#else
+  SetProcessID(static_cast<int>(base::GetCurrentProcId()));
+#endif
 }
 
 TraceLog::~TraceLog() {
@@ -559,7 +568,7 @@ void TraceLog::Flush() {
     TraceEvent::AppendEventsAsJSON(previous_logged_events,
                                    i,
                                    kTraceEventBatchSize,
-                                   &(json_events_str_ptr->data));
+                                   &(json_events_str_ptr->data()));
     output_callback_copy.Run(json_events_str_ptr);
   }
 }
@@ -576,7 +585,7 @@ int TraceLog::AddTraceEvent(char phase,
                             long long threshold,
                             unsigned char flags) {
   DCHECK(name);
-  TimeTicks now = TimeTicks::HighResNow();
+  TimeTicks now = TimeTicks::NowFromSystemTraceTime();
   BufferFullCallback buffer_full_callback_copy;
   int ret_begin_id = -1;
   {
@@ -701,7 +710,7 @@ void TraceLog::AddClockSyncMetadataEvents() {
   // debugfs that takes the written data and pushes it onto the trace
   // buffer. So, to establish clock sync, we write our monotonic clock into that
   // trace buffer.
-  TimeTicks now = TimeTicks::HighResNow();
+  TimeTicks now = TimeTicks::NowFromSystemTraceTime();
 
   double now_in_seconds = now.ToInternalValue() / 1000000.0;
   std::string marker =

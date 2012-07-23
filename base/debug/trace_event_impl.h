@@ -5,7 +5,6 @@
 
 #ifndef BASE_DEBUG_TRACE_EVENT_IMPL_H_
 #define BASE_DEBUG_TRACE_EVENT_IMPL_H_
-#pragma once
 
 #include "build/build_config.h"
 
@@ -41,8 +40,6 @@ template <typename Type>
 struct StaticMemorySingletonTraits;
 
 namespace base {
-
-class RefCountedString;
 
 namespace debug {
 
@@ -221,8 +218,7 @@ class BASE_EXPORT TraceLog {
   // silently dropped. The callback must be thread safe. The string format is
   // undefined. Use TraceResultBuffer to convert one or more trace strings to
   // JSON.
-  typedef RefCountedData<std::string> RefCountedString;
-  typedef base::Callback<void(const scoped_refptr<RefCountedString>&)>
+  typedef base::Callback<void(const scoped_refptr<base::RefCountedString>&)>
       OutputCallback;
   void SetOutputCallback(const OutputCallback& cb);
 

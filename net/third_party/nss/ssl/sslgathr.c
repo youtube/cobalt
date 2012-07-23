@@ -36,7 +36,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslgathr.c,v 1.12 2010/04/25 23:37:38 nelson%bolyard.com Exp $ */
+/* $Id: sslgathr.c,v 1.13 2012/03/11 04:32:35 wtc%google.com Exp $ */
 #include "cert.h"
 #include "ssl.h"
 #include "sslimpl.h"
@@ -141,7 +141,7 @@ ssl2_GatherData(sslSocket *ss, sslGather *gs, int flags)
 	/* Probably finished this piece */
 	switch (gs->state) {
 	case GS_HEADER: 
-	    if ((ss->opt.enableSSL3 || ss->opt.enableTLS) && !ss->firstHsDone) {
+	    if (!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange) && !ss->firstHsDone) {
 
 		PORT_Assert( ss->opt.noLocks || ssl_Have1stHandshakeLock(ss) );
 
@@ -185,7 +185,7 @@ ssl2_GatherData(sslSocket *ss, sslGather *gs, int flags)
 			return SECFailure;
 		    }
 		}
-	    }	/* ((ss->opt.enableSSL3 || ss->opt.enableTLS) && !ss->firstHsDone) */
+	    }
 
 	    /* we've got the first 3 bytes.  The header may be two or three. */
 	    if (gs->hdr[0] & 0x80) {
@@ -434,6 +434,8 @@ ssl_InitGather(sslGather *gs)
     gs->state = GS_INIT;
     gs->writeOffset = 0;
     gs->readOffset  = 0;
+    gs->dtlsPacketOffset = 0;
+    gs->dtlsPacket.len = 0;
     status = sslBuffer_Grow(&gs->buf, 4096);
     return status;
 }
@@ -445,6 +447,7 @@ ssl_DestroyGather(sslGather *gs)
     if (gs) {	/* the PORT_*Free functions check for NULL pointers. */
 	PORT_ZFree(gs->buf.buf, gs->buf.space);
 	PORT_Free(gs->inbuf.buf);
+	PORT_Free(gs->dtlsPacket.buf);
     }
 }
 
@@ -453,7 +456,6 @@ static SECStatus
 ssl2_HandleV3HandshakeRecord(sslSocket *ss)
 {
     SECStatus           rv;
-    SSL3ProtocolVersion version = (ss->gs.hdr[1] << 8) | ss->gs.hdr[2];
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveRecvBufLock(ss) );
     PORT_Assert( ss->opt.noLocks || ssl_Have1stHandshakeLock(ss) );
@@ -472,7 +474,8 @@ ssl2_HandleV3HandshakeRecord(sslSocket *ss)
     ** ssl_GatherRecord1stHandshake to invoke ssl3_GatherCompleteHandshake() 
     ** the next time it is called.
     **/
-    rv = ssl3_NegotiateVersion(ss, version);
+    rv = ssl3_NegotiateVersion(ss, SSL_LIBRARY_VERSION_MAX_SUPPORTED,
+			       PR_TRUE);
     if (rv != SECSuccess) {
 	return rv;
     }

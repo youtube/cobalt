@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -71,7 +71,8 @@ RSAPrivateKey* RSAPrivateKey::CreateFromPrivateKeyInfo(
 
   CSSM_KEY_SIZE key_size;
   CSSM_RETURN crtn;
-  crtn = CSSM_QueryKeySizeInBits(GetSharedCSPHandle(), NULL, &key, &key_size);
+  crtn = CSSM_QueryKeySizeInBits(
+      GetSharedCSPHandle(), CSSM_INVALID_HANDLE, &key, &key_size);
   if (crtn) {
     NOTREACHED() << "CSSM_QueryKeySizeInBits failed: " << crtn;
     return NULL;
@@ -133,8 +134,8 @@ RSAPrivateKey* RSAPrivateKey::CreateFromPrivateKeyInfo(
   public_key->KeyHeader.KeyAttr = CSSM_KEYATTR_EXTRACTABLE;
   public_key->KeyHeader.KeyUsage = CSSM_KEYUSE_ANY;
 
-  crtn = CSSM_QueryKeySizeInBits(GetSharedCSPHandle(), NULL, public_key,
-                                 &key_size);
+  crtn = CSSM_QueryKeySizeInBits(
+      GetSharedCSPHandle(), CSSM_INVALID_HANDLE, public_key, &key_size);
   if (crtn) {
     DLOG(ERROR) << "CSSM_QueryKeySizeInBits failed " << crtn;
     return NULL;

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -103,20 +103,22 @@ class NET_EXPORT HttpServerPropertiesImpl
   // Returns all Alternate-Protocol mappings.
   virtual const AlternateProtocolMap& alternate_protocol_map() const OVERRIDE;
 
-  // Gets a reference to the SpdySettings stored for a host.
-  // If no settings are stored, returns an empty set of settings.
-  virtual const spdy::SpdySettings& GetSpdySettings(
+  // Gets a reference to the SettingsMap stored for a host.
+  // If no settings are stored, returns an empty SettingsMap.
+  virtual const SettingsMap& GetSpdySettings(
       const HostPortPair& host_port_pair) const OVERRIDE;
 
-  // Saves settings for a host. Returns true if SpdySettings are to be
-  // persisted because |spdy_settings_map_| has been updated.
-  virtual bool SetSpdySettings(const HostPortPair& host_port_pair,
-                               const spdy::SpdySettings& settings) OVERRIDE;
+  // Saves an individual SPDY setting for a host. Returns true if SPDY setting
+  // is to be persisted.
+  virtual bool SetSpdySetting(const HostPortPair& host_port_pair,
+                              SpdySettingsIds id,
+                              SpdySettingsFlags flags,
+                              uint32 value) OVERRIDE;
 
-  // Clears all spdy_settings.
+  // Clears all entries in |spdy_settings_map_|.
   virtual void ClearSpdySettings() OVERRIDE;
 
-  // Returns all persistent SpdySettings.
+  // Returns all persistent SPDY settings.
   virtual const SpdySettingsMap& spdy_settings_map() const OVERRIDE;
 
   virtual HttpPipelinedHostCapability GetPipelineCapability(

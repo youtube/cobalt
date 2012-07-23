@@ -16,6 +16,7 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
+#include "net/url_request/url_request_context.h"
 
 namespace net {
 
@@ -85,7 +86,7 @@ URLRequestJob* URLRequestTestJob::Factory(URLRequest* request,
 }
 
 URLRequestTestJob::URLRequestTestJob(URLRequest* request)
-    : URLRequestJob(request),
+    : URLRequestJob(request, request->context()->network_delegate()),
       auto_advance_(false),
       stage_(WAITING),
       offset_(0),
@@ -96,7 +97,7 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request)
 
 URLRequestTestJob::URLRequestTestJob(URLRequest* request,
                                      bool auto_advance)
-    : URLRequestJob(request),
+    : URLRequestJob(request, request->context()->network_delegate()),
       auto_advance_(auto_advance),
       stage_(WAITING),
       offset_(0),
@@ -109,7 +110,7 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request,
                                      const std::string& response_headers,
                                      const std::string& response_data,
                                      bool auto_advance)
-    : URLRequestJob(request),
+    : URLRequestJob(request, request->context()->network_delegate()),
       auto_advance_(auto_advance),
       stage_(WAITING),
       response_headers_(new HttpResponseHeaders(response_headers)),
@@ -247,6 +248,11 @@ void URLRequestTestJob::ProcessNextOperation() {
         if (!ReadRawData(async_buf_, async_buf_size_, &bytes_read))
           NOTREACHED() << "This should not return false in DATA_AVAILABLE.";
         SetStatus(URLRequestStatus());  // clear the io pending flag
+        if (NextReadAsync()) {
+          // Make all future reads return io pending until the next
+          // ProcessNextOperation().
+          stage_ = WAITING;
+        }
         NotifyReadComplete(bytes_read);
       }
       break;
@@ -263,6 +269,10 @@ void URLRequestTestJob::ProcessNextOperation() {
       NOTREACHED() << "Invalid stage";
       return;
   }
+}
+
+bool URLRequestTestJob::NextReadAsync() {
+  return false;
 }
 
 void URLRequestTestJob::AdvanceJob() {

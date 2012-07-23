@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SOCKET_UDP_SERVER_SOCKET_H_
 #define NET_SOCKET_UDP_SERVER_SOCKET_H_
-#pragma once
 
 #include "net/base/completion_callback.h"
 #include "net/udp/datagram_server_socket.h"
@@ -38,6 +37,8 @@ class NET_EXPORT UDPServerSocket : public DatagramServerSocket {
   virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE;
   virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
   virtual const BoundNetLog& NetLog() const OVERRIDE;
+  virtual void AllowAddressReuse() OVERRIDE;
+  virtual void AllowBroadcast() OVERRIDE;
 
  private:
   UDPSocket socket_;

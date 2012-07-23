@@ -4,7 +4,6 @@
 
 #ifndef BASE_VLOG_H_
 #define BASE_VLOG_H_
-#pragma once
 
 #include <cstddef>
 #include <string>

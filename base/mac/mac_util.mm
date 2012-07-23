@@ -95,15 +95,6 @@ LSSharedFileListItemRef GetLoginItemForApp() {
   return NULL;
 }
 
-#if !defined(MAC_OS_X_VERSION_10_6) || \
-    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
-// kLSSharedFileListLoginItemHidden is supported on
-// 10.5, but missing from the 10.5 headers.
-// http://openradar.appspot.com/6482251
-static NSString* kLSSharedFileListLoginItemHidden =
-    @"com.apple.loginitem.HideOnLaunch";
-#endif
-
 bool IsHiddenLoginItem(LSSharedFileListItemRef item) {
   ScopedCFTypeRef<CFBooleanRef> hidden(reinterpret_cast<CFBooleanRef>(
       LSSharedFileListItemCopyProperty(item,
@@ -554,7 +545,7 @@ int MacOSXMinorVersionInternal() {
   // immediate death.
   CHECK(darwin_major_version >= 6);
   int mac_os_x_minor_version = darwin_major_version - 4;
-  DLOG_IF(WARNING, darwin_major_version > 11) << "Assuming Darwin "
+  DLOG_IF(WARNING, darwin_major_version > 12) << "Assuming Darwin "
       << base::IntToString(darwin_major_version) << " is Mac OS X 10."
       << base::IntToString(mac_os_x_minor_version);
 
@@ -571,7 +562,8 @@ int MacOSXMinorVersion() {
 enum {
   LEOPARD_MINOR_VERSION = 5,
   SNOW_LEOPARD_MINOR_VERSION = 6,
-  LION_MINOR_VERSION = 7
+  LION_MINOR_VERSION = 7,
+  MOUNTAIN_LION_MINOR_VERSION = 8,
 };
 
 }  // namespace
@@ -612,15 +604,33 @@ bool IsOSLion() {
 }
 #endif
 
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GT_10_7)
+bool IsOSLionOrEarlier() {
+  return MacOSXMinorVersion() <= LION_MINOR_VERSION;
+}
+#endif
+
 #if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
 bool IsOSLionOrLater() {
   return MacOSXMinorVersion() >= LION_MINOR_VERSION;
 }
 #endif
 
-#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GT_10_7)
-bool IsOSLaterThanLion() {
-  return MacOSXMinorVersion() > LION_MINOR_VERSION;
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GT_10_8)
+bool IsOSMountainLion() {
+  return MacOSXMinorVersion() == MOUNTAIN_LION_MINOR_VERSION;
+}
+#endif
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_8)
+bool IsOSMountainLionOrLater() {
+  return MacOSXMinorVersion() >= MOUNTAIN_LION_MINOR_VERSION;
+}
+#endif
+
+#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GT_10_8)
+bool IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement() {
+  return MacOSXMinorVersion() > MOUNTAIN_LION_MINOR_VERSION;
 }
 #endif
 

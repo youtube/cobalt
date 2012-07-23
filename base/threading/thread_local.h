@@ -47,7 +47,6 @@
 
 #ifndef BASE_THREADING_THREAD_LOCAL_H_
 #define BASE_THREADING_THREAD_LOCAL_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"

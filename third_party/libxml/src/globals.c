@@ -86,6 +86,25 @@ xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) xmlMemMalloc;
 xmlReallocFunc xmlRealloc = (xmlReallocFunc) xmlMemRealloc;
 xmlStrdupFunc xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
 #else
+
+#define MAX_LIBXML_MALLOC (1024*1024*512)
+
+static void* size_checked_malloc(size_t size) {
+  if (size > MAX_LIBXML_MALLOC) {
+    *(volatile char*)0 = '\0';
+    return NULL;
+  }
+  return malloc(size);
+}
+
+static void* size_checked_realloc(void* ptr, size_t size) {
+  if (size > MAX_LIBXML_MALLOC) {
+    *(volatile char*)0 = '\0';
+    return NULL;
+  }
+  return realloc(ptr, size);
+}
+
 /**
  * xmlFree:
  * @mem: an already allocated block of memory
@@ -101,7 +120,7 @@ xmlFreeFunc xmlFree = (xmlFreeFunc) free;
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMalloc = (xmlMallocFunc) malloc;
+xmlMallocFunc xmlMalloc = (xmlMallocFunc) size_checked_malloc;
 /**
  * xmlMallocAtomic:
  * @size:  the size requested in bytes
@@ -112,7 +131,7 @@ xmlMallocFunc xmlMalloc = (xmlMallocFunc) malloc;
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) malloc;
+xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) size_checked_malloc;
 /**
  * xmlRealloc:
  * @mem: an already allocated block of memory
@@ -122,7 +141,7 @@ xmlMallocFunc xmlMallocAtomic = (xmlMallocFunc) malloc;
  *
  * Returns a pointer to the newly reallocated block or NULL in case of error
  */
-xmlReallocFunc xmlRealloc = (xmlReallocFunc) realloc;
+xmlReallocFunc xmlRealloc = (xmlReallocFunc) size_checked_realloc;
 /**
  * xmlMemStrdup:
  * @str: a zero terminated string

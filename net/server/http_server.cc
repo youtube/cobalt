@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,29 +6,43 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/sys_byteorder.h"
 #include "build/build_config.h"
+#include "net/base/tcp_listen_socket.h"
 #include "net/server/http_connection.h"
 #include "net/server/http_server_request_info.h"
 #include "net/server/web_socket.h"
 
 namespace net {
 
-HttpServer::HttpServer(const std::string& host,
-                       int port,
-                       HttpServer::Delegate* del)
-    : delegate_(del) {
-  server_ = ListenSocket::Listen(host, port, this);
+HttpServer::HttpServer(const StreamListenSocketFactory& factory,
+                       HttpServer::Delegate* delegate)
+    : delegate_(delegate),
+      ALLOW_THIS_IN_INITIALIZER_LIST(server_(factory.CreateAndListen(this))) {
+  DCHECK(server_);
 }
 
-HttpServer::~HttpServer() {
-  IdToConnectionMap copy = id_to_connection_;
-  for (IdToConnectionMap::iterator it = copy.begin(); it != copy.end(); ++it)
-    delete it->second;
+void HttpServer::AcceptWebSocket(
+    int connection_id,
+    const HttpServerRequestInfo& request) {
+  HttpConnection* connection = FindConnection(connection_id);
+  if (connection == NULL)
+    return;
 
-  server_ = NULL;
+  DCHECK(connection->web_socket_.get());
+  connection->web_socket_->Accept(request);
+}
+
+void HttpServer::SendOverWebSocket(int connection_id,
+                                   const std::string& data) {
+  HttpConnection* connection = FindConnection(connection_id);
+  if (connection == NULL)
+    return;
+  DCHECK(connection->web_socket_.get());
+  connection->web_socket_->Send(data);
 }
 
 void HttpServer::Send(int connection_id, const std::string& data) {
@@ -78,6 +92,75 @@ void HttpServer::Close(int connection_id)
   // Initiating close from server-side does not lead to the DidClose call.
   // Do it manually here.
   DidClose(connection->socket_);
+}
+
+void HttpServer::DidAccept(StreamListenSocket* server,
+                           StreamListenSocket* socket) {
+  HttpConnection* connection = new HttpConnection(this, socket);
+  id_to_connection_[connection->id()] = connection;
+  socket_to_connection_[socket] = connection;
+}
+
+void HttpServer::DidRead(StreamListenSocket* socket,
+                         const char* data,
+                         int len) {
+  HttpConnection* connection = FindConnection(socket);
+  DCHECK(connection != NULL);
+  if (connection == NULL)
+    return;
+
+  connection->recv_data_.append(data, len);
+  while (connection->recv_data_.length()) {
+    if (connection->web_socket_.get()) {
+      std::string message;
+      WebSocket::ParseResult result = connection->web_socket_->Read(&message);
+      if (result == WebSocket::FRAME_INCOMPLETE)
+        break;
+
+      if (result == WebSocket::FRAME_CLOSE ||
+          result == WebSocket::FRAME_ERROR) {
+        Close(connection->id());
+        break;
+      }
+      delegate_->OnWebSocketMessage(connection->id(), message);
+      continue;
+    }
+
+    HttpServerRequestInfo request;
+    size_t pos = 0;
+    if (!ParseHeaders(connection, &request, &pos))
+      break;
+
+    std::string connection_header = request.GetHeaderValue("Connection");
+    if (connection_header == "Upgrade") {
+      connection->web_socket_.reset(WebSocket::CreateWebSocket(connection,
+                                                               request,
+                                                               &pos));
+
+      if (!connection->web_socket_.get())  // Not enought data was received.
+        break;
+      delegate_->OnWebSocketRequest(connection->id(), request);
+      connection->Shift(pos);
+      continue;
+    }
+    // Request body is not supported. It is always empty.
+    delegate_->OnHttpRequest(connection->id(), request);
+    connection->Shift(pos);
+  }
+}
+
+void HttpServer::DidClose(StreamListenSocket* socket) {
+  HttpConnection* connection = FindConnection(socket);
+  DCHECK(connection != NULL);
+  id_to_connection_.erase(connection->id());
+  socket_to_connection_.erase(connection->socket_);
+  delete connection;
+}
+
+HttpServer::~HttpServer() {
+  STLDeleteContainerPairSecondPointers(
+      id_to_connection_.begin(), id_to_connection_.end());
+  server_ = NULL;
 }
 
 //
@@ -211,69 +294,6 @@ bool HttpServer::ParseHeaders(HttpConnection* connection,
   return false;
 }
 
-void HttpServer::DidAccept(ListenSocket* server,
-                           ListenSocket* socket) {
-  HttpConnection* connection = new HttpConnection(this, socket);
-  id_to_connection_[connection->id()] = connection;
-  socket_to_connection_[socket] = connection;
-}
-
-void HttpServer::DidRead(ListenSocket* socket,
-                         const char* data,
-                         int len) {
-  HttpConnection* connection = FindConnection(socket);
-  DCHECK(connection != NULL);
-  if (connection == NULL)
-    return;
-
-  connection->recv_data_.append(data, len);
-  while (connection->recv_data_.length()) {
-    if (connection->web_socket_.get()) {
-      std::string message;
-      WebSocket::ParseResult result = connection->web_socket_->Read(&message);
-      if (result == WebSocket::FRAME_INCOMPLETE)
-        break;
-
-      if (result == WebSocket::FRAME_CLOSE ||
-          result == WebSocket::FRAME_ERROR) {
-        Close(connection->id());
-        break;
-      }
-      delegate_->OnWebSocketMessage(connection->id(), message);
-      continue;
-    }
-
-    HttpServerRequestInfo request;
-    size_t pos = 0;
-    if (!ParseHeaders(connection, &request, &pos))
-      break;
-
-    std::string connection_header = request.GetHeaderValue("Connection");
-    if (connection_header == "Upgrade") {
-      connection->web_socket_.reset(WebSocket::CreateWebSocket(connection,
-                                                               request,
-                                                               &pos));
-
-      if (!connection->web_socket_.get())  // Not enought data was received.
-        break;
-      delegate_->OnWebSocketRequest(connection->id(), request);
-      connection->Shift(pos);
-      continue;
-    }
-    // Request body is not supported. It is always empty.
-    delegate_->OnHttpRequest(connection->id(), request);
-    connection->Shift(pos);
-  }
-}
-
-void HttpServer::DidClose(ListenSocket* socket) {
-  HttpConnection* connection = FindConnection(socket);
-  DCHECK(connection != NULL);
-  id_to_connection_.erase(connection->id());
-  socket_to_connection_.erase(connection->socket_);
-  delete connection;
-}
-
 HttpConnection* HttpServer::FindConnection(int connection_id) {
   IdToConnectionMap::iterator it = id_to_connection_.find(connection_id);
   if (it == id_to_connection_.end())
@@ -281,31 +301,11 @@ HttpConnection* HttpServer::FindConnection(int connection_id) {
   return it->second;
 }
 
-HttpConnection* HttpServer::FindConnection(ListenSocket* socket) {
+HttpConnection* HttpServer::FindConnection(StreamListenSocket* socket) {
   SocketToConnectionMap::iterator it = socket_to_connection_.find(socket);
   if (it == socket_to_connection_.end())
     return NULL;
   return it->second;
-}
-
-void HttpServer::AcceptWebSocket(
-    int connection_id,
-    const HttpServerRequestInfo& request) {
-  HttpConnection* connection = FindConnection(connection_id);
-  if (connection == NULL)
-    return;
-
-  DCHECK(connection->web_socket_.get());
-  connection->web_socket_->Accept(request);
-}
-
-void HttpServer::SendOverWebSocket(int connection_id,
-                                   const std::string& data) {
-  HttpConnection* connection = FindConnection(connection_id);
-  if (connection == NULL)
-    return;
-  DCHECK(connection->web_socket_.get());
-  connection->web_socket_->Send(data);
 }
 
 }  // namespace net

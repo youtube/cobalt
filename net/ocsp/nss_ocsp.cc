@@ -49,6 +49,8 @@ class OCSPIOLoop {
   void StartUsing() {
     base::AutoLock autolock(lock_);
     used_ = true;
+    io_loop_ = MessageLoopForIO::current();
+    DCHECK(io_loop_);
   }
 
   // Called on IO loop.
@@ -364,8 +366,7 @@ class OCSPRequestSession
       g_ocsp_io_loop.Get().AddRequest(this);
     }
 
-    request_ = new net::URLRequest(url_, this);
-    request_->set_context(url_request_context);
+    request_ = new net::URLRequest(url_, this, url_request_context);
     // To meet the privacy requirements of incognito mode.
     request_->set_load_flags(
         net::LOAD_DISABLE_CACHE | net::LOAD_DO_NOT_SAVE_COOKIES |
@@ -456,8 +457,7 @@ class OCSPServerSession {
 OCSPIOLoop::OCSPIOLoop()
     : shutdown_(false),
       used_(false),
-      io_loop_(MessageLoopForIO::current()) {
-  DCHECK(io_loop_);
+      io_loop_(NULL) {
 }
 
 OCSPIOLoop::~OCSPIOLoop() {
@@ -512,24 +512,15 @@ void OCSPIOLoop::AddRequest(OCSPRequestSession* request) {
 }
 
 void OCSPIOLoop::RemoveRequest(OCSPRequestSession* request) {
-  {
-    // Ignore if we've already shutdown.
-    base::AutoLock auto_lock(lock_);
-    if (shutdown_)
-      return;
-  }
-
   DCHECK(ContainsKey(requests_, request));
   requests_.erase(request);
 }
 
 void OCSPIOLoop::CancelAllRequests() {
-  std::set<OCSPRequestSession*> requests;
-  requests.swap(requests_);
-
-  for (std::set<OCSPRequestSession*>::iterator it = requests.begin();
-       it != requests.end(); ++it)
-    (*it)->CancelURLRequest();
+  // CancelURLRequest() always removes the request from the requests_
+  // set synchronously.
+  while (!requests_.empty())
+    (*requests_.begin())->CancelURLRequest();
 }
 
 OCSPNSSInitialization::OCSPNSSInitialization() {
@@ -585,10 +576,11 @@ SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
   net::URLRequestContext* request_context = g_request_context;
   pthread_mutex_unlock(&g_request_context_lock);
   if (request_context == NULL) {
-    LOG(ERROR) << "No URLRequestContext for OCSP handler.";
-    // The application failed to call SetURLRequestContextForOCSP, so we
-    // can't create and use net::URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an
-    // accurate error code for this error condition, but is close enough.
+    LOG(ERROR) << "No URLRequestContext for NSS HTTP handler. host: " << host;
+    // The application failed to call SetURLRequestContextForNSSHttpIO or
+    // has already called ShutdownNSSHttpIO, so we can't create and use
+    // net::URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an accurate error
+    // code for these error conditions, but is close enough.
     PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
     return SECFailure;
   }
@@ -915,7 +907,7 @@ char* GetAlternateOCSPAIAInfo(CERTCertificate *cert) {
 
 namespace net {
 
-void SetMessageLoopForOCSP() {
+void SetMessageLoopForNSSHttpIO() {
   // Must have a MessageLoopForIO.
   DCHECK(MessageLoopForIO::current());
 
@@ -925,17 +917,17 @@ void SetMessageLoopForOCSP() {
   DCHECK(!used);
 }
 
-void EnsureOCSPInit() {
+void EnsureNSSHttpIOInit() {
   g_ocsp_io_loop.Get().StartUsing();
   g_ocsp_nss_initialization.Get();
 }
 
-void ShutdownOCSP() {
+void ShutdownNSSHttpIO() {
   g_ocsp_io_loop.Get().Shutdown();
 }
 
 // This function would be called before NSS initialization.
-void SetURLRequestContextForOCSP(URLRequestContext* request_context) {
+void SetURLRequestContextForNSSHttpIO(URLRequestContext* request_context) {
   pthread_mutex_lock(&g_request_context_lock);
   if (request_context) {
     DCHECK(!g_request_context);

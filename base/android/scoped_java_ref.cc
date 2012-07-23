@@ -4,60 +4,67 @@
 
 #include "base/android/scoped_java_ref.h"
 
+#include "base/android/jni_android.h"
 #include "base/logging.h"
 
 namespace base {
 namespace android {
 
-JavaRef<jobject>::JavaRef() : env_(NULL), obj_(NULL) {}
+JavaRef<jobject>::JavaRef() : obj_(NULL) {}
 
-JavaRef<jobject>::JavaRef(JNIEnv* env, jobject obj)
-    : env_(env),
-      obj_(obj) {
+JavaRef<jobject>::JavaRef(JNIEnv* env, jobject obj) : obj_(obj) {
   if (obj) {
-    DCHECK(env);
-    DCHECK_EQ(JNILocalRefType, env->GetObjectRefType(obj));
+    DCHECK(env && env->GetObjectRefType(obj) == JNILocalRefType);
   }
 }
 
 JavaRef<jobject>::~JavaRef() {
 }
 
-void JavaRef<jobject>::SetNewLocalRef(JNIEnv* env, jobject obj) {
+JNIEnv* JavaRef<jobject>::SetNewLocalRef(JNIEnv* env, jobject obj) {
+  if (!env) {
+    env = AttachCurrentThread();
+  } else {
+    DCHECK_EQ(env, AttachCurrentThread());  // Is |env| on correct thread.
+  }
   if (obj)
     obj = env->NewLocalRef(obj);
   if (obj_)
-    env_->DeleteLocalRef(obj_);
-  env_ = env;
+    env->DeleteLocalRef(obj_);
   obj_ = obj;
+  return env;
 }
 
 void JavaRef<jobject>::SetNewGlobalRef(JNIEnv* env, jobject obj) {
+  if (!env) {
+    env = AttachCurrentThread();
+  } else {
+    DCHECK_EQ(env, AttachCurrentThread());  // Is |env| on correct thread.
+  }
   if (obj)
     obj = env->NewGlobalRef(obj);
   if (obj_)
-    env_->DeleteGlobalRef(obj_);
-  env_ = env;
+    env->DeleteGlobalRef(obj_);
   obj_ = obj;
 }
 
-void JavaRef<jobject>::ResetLocalRef() {
-  if (obj_)
-    env_->DeleteLocalRef(obj_);
-  env_ = NULL;
-  obj_ = NULL;
+void JavaRef<jobject>::ResetLocalRef(JNIEnv* env) {
+  if (obj_) {
+    DCHECK_EQ(env, AttachCurrentThread());  // Is |env| on correct thread.
+    env->DeleteLocalRef(obj_);
+    obj_ = NULL;
+  }
 }
 
 void JavaRef<jobject>::ResetGlobalRef() {
-  if (obj_)
-    env_->DeleteGlobalRef(obj_);
-  env_ = NULL;
-  obj_ = NULL;
+  if (obj_) {
+    AttachCurrentThread()->DeleteGlobalRef(obj_);
+    obj_ = NULL;
+  }
 }
 
 jobject JavaRef<jobject>::ReleaseInternal() {
   jobject obj = obj_;
-  env_ = NULL;
   obj_ = NULL;
   return obj;
 }

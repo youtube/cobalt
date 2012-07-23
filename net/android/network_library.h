@@ -1,10 +1,9 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_ANDROID_NETWORK_LIBRARY_H_
 #define NET_ANDROID_NETWORK_LIBRARY_H_
-#pragma once
 
 #include <jni.h>
 
@@ -19,8 +18,6 @@ namespace android {
 enum VerifyResult {
   // Certificate verification was successful.
   VERIFY_OK,
-  // Certificate domain name doesn't match host name.
-  VERIFY_BAD_HOSTNAME,
   // Certificate verification was failed. There is no detail error information
   // given by Android API.
   VERIFY_NO_TRUSTED_ROOT,
@@ -30,11 +27,9 @@ enum VerifyResult {
 
 // |cert_chain| is DER encoded chain of certificates, with the server's own
 // certificate listed first.
-// |hostname| is validated against the supplied cert. |auth_type| is as per
-// the Java X509Certificate.checkServerTrusted method.
+// |auth_type| is as per the Java X509Certificate.checkServerTrusted method.
 
 VerifyResult VerifyX509CertChain(const std::vector<std::string>& cert_chain,
-                                 const std::string& hostname,
                                  const std::string& auth_type);
 
 // Helper for the <keygen> handler. Passes the DER-encoded key  pair via
@@ -43,6 +38,11 @@ bool StoreKeyPair(const uint8* public_key,
                   size_t public_len,
                   const uint8* private_key,
                   size_t private_len);
+
+// Returns true if it can determine that only loopback addresses are configured.
+// i.e. if only 127.0.0.1 and ::1 are routable.
+// Also returns false if it cannot determine this.
+bool HaveOnlyLoopbackAddresses();
 
 // Get the mime type (if any) that is associated with the file extension.
 // Returns true if a corresponding mime type exists.

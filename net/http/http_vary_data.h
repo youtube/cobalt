@@ -1,15 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_HTTP_HTTP_VARY_DATA_H_
 #define NET_HTTP_HTTP_VARY_DATA_H_
-#pragma once
 
 #include "base/md5.h"
 #include "net/base/net_export.h"
 
 class Pickle;
+class PickleIterator;
 
 namespace net {
 
@@ -52,7 +52,7 @@ class NET_EXPORT_PRIVATE HttpVaryData {
   // is_valid() will return true.  Otherwise, false is returned to indicate
   // that this object is marked as invalid.
   //
-  bool InitFromPickle(const Pickle& pickle, void** pickle_iter);
+  bool InitFromPickle(const Pickle& pickle, PickleIterator* pickle_iter);
 
   // Call this method to persist the vary data. Illegal to call this on an
   // invalid object.

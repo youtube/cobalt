@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,10 @@
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/sys_byteorder.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/socket/client_socket_handle.h"
 
 namespace net {
@@ -98,7 +98,7 @@ int SOCKSClientSocket::Connect(const CompletionCallback& callback) {
 
   next_state_ = STATE_RESOLVE_HOST;
 
-  net_log_.BeginEvent(NetLog::TYPE_SOCKS_CONNECT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKS_CONNECT);
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -180,6 +180,13 @@ base::TimeDelta SOCKSClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
+NextProto SOCKSClientSocket::GetNegotiatedProtocol() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetNegotiatedProtocol();
+  }
+  NOTREACHED();
+  return kProtoUnknown;
+}
 
 // Read is called by the transport layer above to read. This can only be done
 // if the SOCKS handshake is complete.
@@ -297,22 +304,21 @@ const std::string SOCKSClientSocket::BuildHandshakeWriteBuffer() const {
   SOCKS4ServerRequest request;
   request.version = kSOCKSVersion4;
   request.command = kSOCKSStreamRequest;
-  request.nw_port = htons(host_request_info_.port());
+  request.nw_port = base::HostToNet16(host_request_info_.port());
 
-  const struct addrinfo* ai = addresses_.head();
-  DCHECK(ai);
+  DCHECK(!addresses_.empty());
+  const IPEndPoint& endpoint = addresses_.front();
 
   // We disabled IPv6 results when resolving the hostname, so none of the
   // results in the list will be IPv6.
   // TODO(eroman): we only ever use the first address in the list. It would be
   //               more robust to try all the IP addresses we have before
   //               failing the connect attempt.
-  CHECK_EQ(AF_INET, ai->ai_addr->sa_family);
-  struct sockaddr_in* ipv4_host =
-      reinterpret_cast<struct sockaddr_in*>(ai->ai_addr);
-  memcpy(&request.ip, &ipv4_host->sin_addr, sizeof(ipv4_host->sin_addr));
+  CHECK_EQ(AF_INET, endpoint.GetFamily());
+  CHECK_LE(endpoint.address().size(), sizeof(request.ip));
+  memcpy(&request.ip, &endpoint.address()[0], endpoint.address().size());
 
-  DVLOG(1) << "Resolved Host is : " << NetAddressToString(ai);
+  DVLOG(1) << "Resolved Host is : " << endpoint.ToStringWithoutPort();
 
   std::string handshake_data(reinterpret_cast<char*>(&request),
                              sizeof(request));
@@ -425,7 +431,7 @@ int SOCKSClientSocket::DoHandshakeReadComplete(int result) {
   // Note: we ignore the last 6 bytes as specified by the SOCKS protocol
 }
 
-int SOCKSClientSocket::GetPeerAddress(AddressList* address) const {
+int SOCKSClientSocket::GetPeerAddress(IPEndPoint* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 

@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MEMORY_REF_COUNTED_MEMORY_H_
 #define BASE_MEMORY_REF_COUNTED_MEMORY_H_
-#pragma once
 
 #include <string>
 #include <vector>
@@ -13,8 +12,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 
-// TODO(erg): The contents of this file should be in a namespace. This would
-// require touching >100 files in chrome/ though.
+namespace base {
 
 // A generic interface to memory. This object is reference counted because one
 // of its two subclasses own the data they carry, and we need to have
@@ -49,6 +47,8 @@ class BASE_EXPORT RefCountedStaticMemory : public RefCountedMemory {
   virtual size_t size() const OVERRIDE;
 
  private:
+  virtual ~RefCountedStaticMemory();
+
   const unsigned char* data_;
   size_t length_;
 
@@ -77,15 +77,12 @@ class BASE_EXPORT RefCountedBytes : public RefCountedMemory {
   std::vector<unsigned char>& data() { return data_; }
 
  private:
-  friend class base::RefCountedThreadSafe<RefCountedBytes>;
   virtual ~RefCountedBytes();
 
   std::vector<unsigned char> data_;
 
   DISALLOW_COPY_AND_ASSIGN(RefCountedBytes);
 };
-
-namespace base {
 
 // An implementation of RefCountedMemory, where the bytes are stored in an STL
 // string. Use this if your data naturally arrives in that format.
@@ -106,7 +103,6 @@ class BASE_EXPORT RefCountedString : public RefCountedMemory {
   std::string& data() { return data_; }
 
  private:
-  friend class base::RefCountedThreadSafe<RefCountedString>;
   virtual ~RefCountedString();
 
   std::string data_;

@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MESSAGE_PUMP_GLIB_H_
 #define BASE_MESSAGE_PUMP_GLIB_H_
-#pragma once
 
 #include "base/memory/scoped_ptr.h"
 #include "base/message_pump.h"
@@ -35,7 +34,6 @@ class MessagePumpDispatcher;
 class MessagePumpGlib : public MessagePump {
  public:
   MessagePumpGlib();
-  virtual ~MessagePumpGlib();
 
   // Like MessagePump::Run, but events are routed through dispatcher.
   virtual void RunWithDispatcher(Delegate* delegate,
@@ -65,6 +63,8 @@ class MessagePumpGlib : public MessagePump {
   virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) OVERRIDE;
 
  protected:
+  virtual ~MessagePumpGlib();
+
   // Returns the dispatcher for the current run state (|state_->dispatcher|).
   MessagePumpDispatcher* GetDispatcher();
 

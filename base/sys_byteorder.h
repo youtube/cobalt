@@ -1,14 +1,12 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This is a convenience header to pull in the platform-specific
-// headers that define functions for byte-order conversion,
-// particularly: ntohs(), htons(), ntohl(), htonl(). Prefer including
-// this file instead of directly writing the #if / #else, since it
-// avoids duplicating the platform-specific selections.
-// This header also provides ntohll() and htonll() for byte-order conversion
-// for 64-bit integers.
+// This header defines cross-platform ByteSwap() implementations for 16, 32 and
+// 64-bit values, and NetToHostXX() / HostToNextXX() functions equivalent to
+// the traditional ntohX() and htonX() functions.
+// Use the functions defined here rather than using the platform-specific
+// functions directly.
 
 #ifndef BASE_SYS_BYTEORDER_H_
 #define BASE_SYS_BYTEORDER_H_
@@ -37,6 +35,28 @@
 namespace base {
 
 // Returns a value with all bytes in |x| swapped, i.e. reverses the endianness.
+inline uint16 ByteSwap(uint16 x) {
+#if defined(COMPILER_MSVC)
+  return _byteswap_ushort(x);
+#elif defined(OS_MACOSX)
+  return OSSwapInt16(x);
+#elif defined(OS_OPENBSD)
+  return swap16(x);
+#else
+  return bswap_16(x);
+#endif
+}
+inline uint32 ByteSwap(uint32 x) {
+#if defined(COMPILER_MSVC)
+  return _byteswap_ulong(x);
+#elif defined(OS_MACOSX)
+  return OSSwapInt32(x);
+#elif defined(OS_OPENBSD)
+  return swap32(x);
+#else
+  return bswap_32(x);
+#endif
+}
 inline uint64 ByteSwap(uint64 x) {
 #if defined(COMPILER_MSVC)
   return _byteswap_uint64(x);
@@ -49,9 +69,47 @@ inline uint64 ByteSwap(uint64 x) {
 #endif
 }
 
+// Converts the bytes in |x| from host order (endianness) to little endian, and
+// returns the result.
+inline uint16 ByteSwapToLE16(uint16 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return x;
+#else
+  return ByteSwap(x);
+#endif
+}
+inline uint32 ByteSwapToLE32(uint32 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return x;
+#else
+  return ByteSwap(x);
+#endif
+}
+inline uint64 ByteSwapToLE64(uint64 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return x;
+#else
+  return ByteSwap(x);
+#endif
+}
+
 // Converts the bytes in |x| from network to host order (endianness), and
 // returns the result.
-inline uint64 ntohll(uint64 x) {
+inline uint16 NetToHost16(uint16 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return ByteSwap(x);
+#else
+  return x;
+#endif
+}
+inline uint32 NetToHost32(uint32 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return ByteSwap(x);
+#else
+  return x;
+#endif
+}
+inline uint64 NetToHost64(uint64 x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return ByteSwap(x);
 #else
@@ -61,7 +119,21 @@ inline uint64 ntohll(uint64 x) {
 
 // Converts the bytes in |x| from host to network order (endianness), and
 // returns the result.
-inline uint64 htonll(uint64 x) {
+inline uint16 HostToNet16(uint16 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return ByteSwap(x);
+#else
+  return x;
+#endif
+}
+inline uint32 HostToNet32(uint32 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return ByteSwap(x);
+#else
+  return x;
+#endif
+}
+inline uint64 HostToNet64(uint64 x) {
 #if defined(ARCH_CPU_LITTLE_ENDIAN)
   return ByteSwap(x);
 #else
