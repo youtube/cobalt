@@ -407,6 +407,8 @@
         'gfx/rect_base_impl.h',
         'gfx/render_text.cc',
         'gfx/render_text.h',
+        'gfx/render_text_mac.cc',
+        'gfx/render_text_mac.h',
         'gfx/render_text_linux.cc',
         'gfx/render_text_linux.h',
         'gfx/render_text_win.cc',
@@ -665,14 +667,6 @@
             ],
           },
         }],
-        ['OS=="android"', {
-          'sources!': [
-            'gfx/pango_util.h',
-            'gfx/pango_util.cc',
-            'gfx/platform_font_pango.h',
-            'gfx/platform_font_pango.cc',
-          ],
-        }],
         ['use_x11==1', {
           'all_dependent_settings': {
             'ldflags': [
@@ -695,16 +689,6 @@
             'base/x/events_x.cc',
           ],
         }],
-        ['toolkit_views==0 and use_canvas_skia==0', {
-          'sources!': [
-            'gfx/render_text.cc',
-            'gfx/render_text.h',
-            'gfx/render_text_linux.cc',
-            'gfx/render_text_linux.h',
-            'gfx/render_text_win.cc',
-            'gfx/render_text_win.h',
-          ],
-        }],
         ['OS=="android"', {
           'sources!': [
             'base/touch/touch_factory.cc',
@@ -713,6 +697,12 @@
             'gfx/pango_util.cc',
             'gfx/platform_font_pango.cc',
             'gfx/platform_font_pango.h',
+          ],
+        }],
+        ['OS=="android" or OS=="ios"', {
+          'sources!': [
+            'gfx/render_text.cc',
+            'gfx/render_text.h',
           ],
         }],
         ['OS=="linux"', {
