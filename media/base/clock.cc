@@ -4,6 +4,8 @@
 
 #include "media/base/clock.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "media/base/buffers.h"
 
@@ -72,12 +74,13 @@ void Clock::SetMaxTime(base::TimeDelta max_time) {
   UpdateReferencePoints();
   max_time_ = ClampToValidTimeRange(max_time);
 
-  DCHECK(media_time_ <= max_time_);
-  underflow_ = false;
+  underflow_ = media_time_ > max_time_;
+  if (underflow_)
+    media_time_ = max_time_;
 }
 
 void Clock::SetDuration(base::TimeDelta duration) {
-  DCHECK(duration_ == kNoTimestamp());
+  DCHECK(duration_ == kNoTimestamp() || duration_ == kInfiniteDuration());
   DCHECK(duration > base::TimeDelta());
   duration_ = duration;
 }

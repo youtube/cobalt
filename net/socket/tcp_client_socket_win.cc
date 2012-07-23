@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,6 @@
 #include "base/string_util.h"
 #include "base/win/object_watcher.h"
 #include "base/win/windows_version.h"
-#include "net/base/address_list_net_log_param.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
@@ -20,13 +19,15 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
+#include "net/socket/socket_net_log_params.h"
 
 namespace net {
 
 namespace {
+
+const int kTCPKeepAliveSeconds = 45;
 
 bool SetSocketReceiveBufferSize(SOCKET socket, int32 size) {
   int rv = setsockopt(socket, SOL_SOCKET, SO_RCVBUF,
@@ -39,6 +40,57 @@ bool SetSocketSendBufferSize(SOCKET socket, int32 size) {
   int rv = setsockopt(socket, SOL_SOCKET, SO_SNDBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
   DCHECK(!rv) << "Could not set socket send buffer size: " << GetLastError();
+  return rv == 0;
+}
+
+// Disable Nagle.
+// The Nagle implementation on windows is governed by RFC 896.  The idea
+// behind Nagle is to reduce small packets on the network.  When Nagle is
+// enabled, if a partial packet has been sent, the TCP stack will disallow
+// further *partial* packets until an ACK has been received from the other
+// side.  Good applications should always strive to send as much data as
+// possible and avoid partial-packet sends.  However, in most real world
+// applications, there are edge cases where this does not happen, and two
+// partial packets may be sent back to back.  For a browser, it is NEVER
+// a benefit to delay for an RTT before the second packet is sent.
+//
+// As a practical example in Chromium today, consider the case of a small
+// POST.  I have verified this:
+//     Client writes 649 bytes of header  (partial packet #1)
+//     Client writes 50 bytes of POST data (partial packet #2)
+// In the above example, with Nagle, a RTT delay is inserted between these
+// two sends due to nagle.  RTTs can easily be 100ms or more.  The best
+// fix is to make sure that for POSTing data, we write as much data as
+// possible and minimize partial packets.  We will fix that.  But disabling
+// Nagle also ensure we don't run into this delay in other edge cases.
+// See also:
+//    http://technet.microsoft.com/en-us/library/bb726981.aspx
+bool DisableNagle(SOCKET socket, bool disable) {
+  BOOL val = disable ? TRUE : FALSE;
+  int rv = setsockopt(socket, IPPROTO_TCP, TCP_NODELAY,
+                      reinterpret_cast<const char*>(&val),
+                      sizeof(val));
+  DCHECK(!rv) << "Could not disable nagle";
+  return rv == 0;
+}
+
+// Enable TCP Keep-Alive to prevent NAT routers from timing out TCP
+// connections. See http://crbug.com/27400 for details.
+bool SetTCPKeepAlive(SOCKET socket, BOOL enable, int delay_secs) {
+  int delay = delay_secs * 1000;
+  struct tcp_keepalive keepalive_vals = {
+    enable ? 1 : 0,  // TCP keep-alive on.
+    delay,  // Delay seconds before sending first TCP keep-alive packet.
+    delay,  // Delay seconds between sending TCP keep-alive packets.
+  };
+  DWORD bytes_returned = 0xABAB;
+  int rv = WSAIoctl(socket, SIO_KEEPALIVE_VALS, &keepalive_vals,
+                sizeof(keepalive_vals), NULL, 0,
+                &bytes_returned, NULL, NULL);
+  DCHECK(!rv) << "Could not enable TCP Keep-Alive for socket: " << socket
+              << " [error: " << WSAGetLastError() << "].";
+
+  // Disregard any failure in disabling nagle or enabling TCP Keep-Alive.
   return rv == 0;
 }
 
@@ -61,50 +113,8 @@ int SetupSocket(SOCKET socket) {
     SetSocketSendBufferSize(socket, kSocketBufferSize);
   }
 
-  // Disable Nagle.
-  // The Nagle implementation on windows is governed by RFC 896.  The idea
-  // behind Nagle is to reduce small packets on the network.  When Nagle is
-  // enabled, if a partial packet has been sent, the TCP stack will disallow
-  // further *partial* packets until an ACK has been received from the other
-  // side.  Good applications should always strive to send as much data as
-  // possible and avoid partial-packet sends.  However, in most real world
-  // applications, there are edge cases where this does not happen, and two
-  // partil packets may be sent back to back.  For a browser, it is NEVER
-  // a benefit to delay for an RTT before the second packet is sent.
-  //
-  // As a practical example in Chromium today, consider the case of a small
-  // POST.  I have verified this:
-  //     Client writes 649 bytes of header  (partial packet #1)
-  //     Client writes 50 bytes of POST data (partial packet #2)
-  // In the above example, with Nagle, a RTT delay is inserted between these
-  // two sends due to nagle.  RTTs can easily be 100ms or more.  The best
-  // fix is to make sure that for POSTing data, we write as much data as
-  // possible and minimize partial packets.  We will fix that.  But disabling
-  // Nagle also ensure we don't run into this delay in other edge cases.
-  // See also:
-  //    http://technet.microsoft.com/en-us/library/bb726981.aspx
-  const BOOL kDisableNagle = TRUE;
-  int rv = setsockopt(socket, IPPROTO_TCP, TCP_NODELAY,
-                      reinterpret_cast<const char*>(&kDisableNagle),
-                      sizeof(kDisableNagle));
-  DCHECK(!rv) << "Could not disable nagle";
-
-  // Enable TCP Keep-Alive to prevent NAT routers from timing out TCP
-  // connections. See http://crbug.com/27400 for details.
-
-  struct tcp_keepalive keepalive_vals = {
-    1, // TCP keep-alive on.
-    45000,  // Wait 45s until sending first TCP keep-alive packet.
-    45000,  // Wait 45s between sending TCP keep-alive packets.
-  };
-  DWORD bytes_returned = 0xABAB;
-  rv = WSAIoctl(socket, SIO_KEEPALIVE_VALS, &keepalive_vals,
-                sizeof(keepalive_vals), NULL, 0,
-                &bytes_returned, NULL, NULL);
-  DCHECK(!rv) << "Could not enable TCP Keep-Alive for socket: " << socket
-              << " [error: " << WSAGetLastError() << "].";
-
-  // Disregard any failure in disabling nagle or enabling TCP Keep-Alive.
+  DisableNagle(socket, true);
+  SetTCPKeepAlive(socket, true, kTCPKeepAliveSeconds);
   return 0;
 }
 
@@ -256,6 +266,9 @@ TCPClientSocketWin::Core::Core(
       slow_start_throttle_(kInitialSlowStartThrottle) {
   memset(&read_overlapped_, 0, sizeof(read_overlapped_));
   memset(&write_overlapped_, 0, sizeof(write_overlapped_));
+
+  read_overlapped_.hEvent = WSACreateEvent();
+  write_overlapped_.hEvent = WSACreateEvent();
 }
 
 TCPClientSocketWin::Core::~Core() {
@@ -314,7 +327,7 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
     : socket_(INVALID_SOCKET),
       bound_socket_(INVALID_SOCKET),
       addresses_(addresses),
-      current_ai_(NULL),
+      current_address_index_(-1),
       waiting_read_(false),
       waiting_write_(false),
       next_connect_state_(CONNECT_STATE_NONE),
@@ -322,16 +335,14 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
       previously_disconnected_(false),
       num_bytes_read_(0) {
-  scoped_refptr<NetLog::EventParameters> params;
-  if (source.is_valid())
-    params = new NetLogSourceParameter("source_dependency", source);
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, params);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
+                      source.ToEventParametersCallback());
   EnsureWinsockInit();
 }
 
 TCPClientSocketWin::~TCPClientSocketWin() {
   Disconnect();
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
 }
 
 int TCPClientSocketWin::AdoptSocket(SOCKET socket) {
@@ -342,23 +353,24 @@ int TCPClientSocketWin::AdoptSocket(SOCKET socket) {
     return MapSystemError(error);
 
   socket_ = socket;
+  SetNonBlocking(socket_);
+
   core_ = new Core(this);
-  current_ai_ = addresses_.head();
+
+  current_address_index_ = 0;
   use_history_.set_was_ever_connected();
 
   return OK;
 }
 
 int TCPClientSocketWin::Bind(const IPEndPoint& address) {
-  if (current_ai_ != NULL || bind_address_.get()) {
+  if (current_address_index_ >= 0 || bind_address_.get()) {
     // Cannot bind the socket if we are already connected or connecting.
     return ERR_UNEXPECTED;
   }
 
-  sockaddr_storage addr_storage;
-  sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  size_t addr_len = sizeof(addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
   // Create |bound_socket_| and try to bound it to |address|.
@@ -366,7 +378,7 @@ int TCPClientSocketWin::Bind(const IPEndPoint& address) {
   if (error)
     return MapSystemError(error);
 
-  if (bind(bound_socket_, addr, addr_len)) {
+  if (bind(bound_socket_, storage.addr, storage.addr_len)) {
     error = errno;
     if (closesocket(bound_socket_) < 0)
       PLOG(ERROR) << "closesocket";
@@ -391,12 +403,12 @@ int TCPClientSocketWin::Connect(const CompletionCallback& callback) {
   connects.Increment();
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT,
-                      new AddressListNetLogParam(addresses_));
+                      addresses_.CreateNetLogCallback());
 
   // We will try to connect to each address in addresses_. Start with the
   // first one in the list.
   next_connect_state_ = CONNECT_STATE_CONNECT;
-  current_ai_ = addresses_.head();
+  current_address_index_ = 0;
 
   int rv = DoConnectLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -437,9 +449,11 @@ int TCPClientSocketWin::DoConnectLoop(int result) {
 }
 
 int TCPClientSocketWin::DoConnect() {
-  const struct addrinfo* ai = current_ai_;
-  DCHECK(ai);
+  DCHECK_GE(current_address_index_, 0);
+  DCHECK_LT(current_address_index_, static_cast<int>(addresses_.size()));
   DCHECK_EQ(0, connect_os_error_);
+
+  const IPEndPoint& endpoint = addresses_[current_address_index_];
 
   if (previously_disconnected_) {
     use_history_.Reset();
@@ -447,8 +461,7 @@ int TCPClientSocketWin::DoConnect() {
   }
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
-                      new NetLogStringParameter(
-                          "address", NetAddressToStringWithPort(current_ai_)));
+                      CreateNetLogIPEndPointCallback(&endpoint));
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
@@ -457,34 +470,30 @@ int TCPClientSocketWin::DoConnect() {
     socket_ = bound_socket_;
     bound_socket_ = INVALID_SOCKET;
   } else {
-    connect_os_error_ = CreateSocket(ai->ai_family, &socket_);
+    connect_os_error_ = CreateSocket(endpoint.GetFamily(), &socket_);
     if (connect_os_error_ != 0)
       return MapSystemError(connect_os_error_);
 
     if (bind_address_.get()) {
-      sockaddr_storage addr_storage;
-      sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-      size_t addr_len = sizeof(addr_storage);
-      if (!bind_address_->ToSockAddr(addr, &addr_len))
+      SockaddrStorage storage;
+      if (!bind_address_->ToSockAddr(storage.addr, &storage.addr_len))
         return ERR_INVALID_ARGUMENT;
-      if (bind(socket_, addr, addr_len))
+      if (bind(socket_, storage.addr, storage.addr_len))
         return MapSystemError(errno);
     }
   }
 
   DCHECK(!core_);
   core_ = new Core(this);
-
-  // WSACreateEvent creates a manual-reset event object.
-  core_->read_overlapped_.hEvent = WSACreateEvent();
   // WSAEventSelect sets the socket to non-blocking mode as a side effect.
   // Our connect() and recv() calls require that the socket be non-blocking.
   WSAEventSelect(socket_, core_->read_overlapped_.hEvent, FD_CONNECT);
 
-  core_->write_overlapped_.hEvent = WSACreateEvent();
-
+  SockaddrStorage storage;
+  if (!endpoint.ToSockAddr(storage.addr, &storage.addr_len))
+    return ERR_INVALID_ARGUMENT;
   connect_start_time_ = base::TimeTicks::Now();
-  if (!connect(socket_, ai->ai_addr, static_cast<int>(ai->ai_addrlen))) {
+  if (!connect(socket_, storage.addr, storage.addr_len)) {
     // Connected without waiting!
     //
     // The MSDN page for connect says:
@@ -516,10 +525,12 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
   // Log the end of this attempt (and any OS error it threw).
   int os_error = connect_os_error_;
   connect_os_error_ = 0;
-  scoped_refptr<NetLog::EventParameters> params;
-  if (result != OK)
-    params = new NetLogIntegerParameter("os_error", os_error);
-  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT, params);
+  if (result != OK) {
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
+                      NetLog::IntegerCallback("os_error", os_error));
+  } else {
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT);
+  }
 
   if (result == OK) {
     connect_time_micros_ = base::TimeTicks::Now() - connect_start_time_;
@@ -531,9 +542,9 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
   DoDisconnect();
 
   // Try to fall back to the next address in the list.
-  if (current_ai_->ai_next) {
+  if (current_address_index_ + 1 < static_cast<int>(addresses_.size())) {
     next_connect_state_ = CONNECT_STATE_CONNECT;
-    current_ai_ = current_ai_->ai_next;
+    ++current_address_index_;
     return OK;
   }
 
@@ -543,7 +554,7 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
 
 void TCPClientSocketWin::Disconnect() {
   DoDisconnect();
-  current_ai_ = NULL;
+  current_address_index_ = -1;
 }
 
 void TCPClientSocketWin::DoDisconnect() {
@@ -623,12 +634,12 @@ bool TCPClientSocketWin::IsConnectedAndIdle() const {
   return true;
 }
 
-int TCPClientSocketWin::GetPeerAddress(AddressList* address) const {
+int TCPClientSocketWin::GetPeerAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
-  *address = AddressList::CreateByCopyingFirstAddress(current_ai_);
+  *address = addresses_[current_address_index_];
   return OK;
 }
 
@@ -673,6 +684,10 @@ base::TimeDelta TCPClientSocketWin::GetConnectTimeMicros() const {
   return connect_time_micros_;
 }
 
+NextProto TCPClientSocketWin::GetNegotiatedProtocol() const {
+  return kProtoUnknown;
+}
+
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
                              const CompletionCallback& callback) {
@@ -705,8 +720,12 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
     }
   } else {
     int os_error = WSAGetLastError();
-    if (os_error != WSA_IO_PENDING)
-      return MapSystemError(os_error);
+    if (os_error != WSA_IO_PENDING) {
+      int net_error = MapSystemError(os_error);
+      net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
+                        CreateNetLogSocketErrorCallback(net_error, os_error));
+      return net_error;
+    }
   }
   core_->WatchForRead();
   waiting_read_ = true;
@@ -757,8 +776,12 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
     }
   } else {
     int os_error = WSAGetLastError();
-    if (os_error != WSA_IO_PENDING)
-      return MapSystemError(os_error);
+    if (os_error != WSA_IO_PENDING) {
+      int net_error = MapSystemError(os_error);
+      net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
+                        CreateNetLogSocketErrorCallback(net_error, os_error));
+      return net_error;
+    }
   }
   core_->WatchForWrite();
   waiting_write_ = true;
@@ -775,6 +798,14 @@ bool TCPClientSocketWin::SetReceiveBufferSize(int32 size) {
 bool TCPClientSocketWin::SetSendBufferSize(int32 size) {
   DCHECK(CalledOnValidThread());
   return SetSocketSendBufferSize(socket_, size);
+}
+
+bool TCPClientSocketWin::SetKeepAlive(bool enable, int delay) {
+  return SetTCPKeepAlive(socket_, enable, delay);
+}
+
+bool TCPClientSocketWin::SetNoDelay(bool no_delay) {
+  return DisableNagle(socket_, no_delay);
 }
 
 void TCPClientSocketWin::LogConnectCompletion(int net_error) {
@@ -798,14 +829,11 @@ void TCPClientSocketWin::LogConnectCompletion(int net_error) {
     return;
   }
 
-  const std::string source_address_str =
-      NetAddressToStringWithPort(
+  net_log_.EndEvent(
+      NetLog::TYPE_TCP_CONNECT,
+      CreateNetLogSourceAddressCallback(
           reinterpret_cast<const struct sockaddr*>(&source_address),
-          sizeof(source_address));
-  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
-                    make_scoped_refptr(new NetLogStringParameter(
-                        "source_address",
-                        source_address_str)));
+          sizeof(source_address)));
 }
 
 void TCPClientSocketWin::DoReadCallback(int rv) {
@@ -864,6 +892,7 @@ void TCPClientSocketWin::DidCompleteRead() {
   WSAResetEvent(core_->read_overlapped_.hEvent);
   waiting_read_ = false;
   core_->read_iobuffer_ = NULL;
+  int rv;
   if (ok) {
     base::StatsCounter read_bytes("tcp.read_bytes");
     read_bytes.Add(num_bytes);
@@ -872,8 +901,14 @@ void TCPClientSocketWin::DidCompleteRead() {
       use_history_.set_was_used_to_convey_data();
     net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
                                   num_bytes, core_->read_buffer_.buf);
+    rv = static_cast<int>(num_bytes);
+  } else {
+    int os_error = WSAGetLastError();
+    rv = MapSystemError(os_error);
+    net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
+                      CreateNetLogSocketErrorCallback(rv, os_error));
   }
-  DoReadCallback(ok ? num_bytes : MapSystemError(WSAGetLastError()));
+  DoReadCallback(rv);
 }
 
 void TCPClientSocketWin::DidCompleteWrite() {
@@ -886,7 +921,10 @@ void TCPClientSocketWin::DidCompleteWrite() {
   waiting_write_ = false;
   int rv;
   if (!ok) {
-    rv = MapSystemError(WSAGetLastError());
+    int os_error = WSAGetLastError();
+    rv = MapSystemError(os_error);
+    net_log_.AddEvent(NetLog::TYPE_SOCKET_WRITE_ERROR,
+                      CreateNetLogSocketErrorCallback(rv, os_error));
   } else {
     rv = static_cast<int>(num_bytes);
     if (rv > core_->write_buffer_length_ || rv < 0) {

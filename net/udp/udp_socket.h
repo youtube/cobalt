@@ -4,7 +4,6 @@
 
 #ifndef NET_UDP_UDP_SOCKET_H_
 #define NET_UDP_UDP_SOCKET_H_
-#pragma once
 
 #include "build/build_config.h"
 

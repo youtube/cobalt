@@ -7,7 +7,6 @@
 
 #ifndef NET_URL_REQUEST_URL_REQUEST_STATUS_H_
 #define NET_URL_REQUEST_URL_REQUEST_STATUS_H_
-#pragma once
 
 namespace net {
 

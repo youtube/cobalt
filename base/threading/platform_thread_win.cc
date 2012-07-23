@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/threading/platform_thread.h"
 
 #include "base/debug/alias.h"
+#include "base/debug/profiler.h"
 #include "base/logging.h"
 #include "base/threading/thread_local.h"
 #include "base/threading/thread_restrictions.h"
@@ -109,11 +110,6 @@ void PlatformThread::YieldCurrentThread() {
 }
 
 // static
-void PlatformThread::Sleep(int duration_ms) {
-  ::Sleep(duration_ms);
-}
-
-// static
 void PlatformThread::Sleep(TimeDelta duration) {
   ::Sleep(duration.InMillisecondsRoundedUp());
 }
@@ -121,11 +117,21 @@ void PlatformThread::Sleep(TimeDelta duration) {
 // static
 void PlatformThread::SetName(const char* name) {
   current_thread_name.Set(const_cast<char*>(name));
-  tracked_objects::ThreadData::InitializeThreadContext(name);
+
+  // On Windows only, we don't need to tell the profiler about the "BrokerEvent"
+  // thread, as it exists only in the chrome.exe image, and never spawns or runs
+  // tasks (items which could be profiled).  This test avoids the notification,
+  // which would also (as a side effect) initialize the profiler in this unused
+  // context, including setting up thread local storage, etc.  The performance
+  // impact is not terrible, but there is no reason to do initialize it.
+  if (0 != strcmp(name, "BrokerEvent"))
+    tracked_objects::ThreadData::InitializeThreadContext(name);
 
   // The debugger needs to be around to catch the name in the exception.  If
   // there isn't a debugger, we are just needlessly throwing an exception.
-  if (!::IsDebuggerPresent())
+  // If this image file is instrumented, we raise the exception anyway
+  // to provide the profiler with human-readable thread names.
+  if (!::IsDebuggerPresent() && !base::debug::IsBinaryInstrumented())
     return;
 
   SetNameInternal(CurrentId(), name);
@@ -141,6 +147,16 @@ bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
                             PlatformThreadHandle* thread_handle) {
   DCHECK(thread_handle);
   return CreateThreadInternal(stack_size, delegate, thread_handle);
+}
+
+// static
+bool PlatformThread::CreateWithPriority(size_t stack_size, Delegate* delegate,
+                                        PlatformThreadHandle* thread_handle,
+                                        ThreadPriority priority) {
+  bool result = Create(stack_size, delegate, thread_handle);
+  if (result)
+    SetThreadPriority(*thread_handle, priority);
+  return result;
 }
 
 // static
@@ -163,7 +179,14 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   // Wait for the thread to exit.  It should already have terminated but make
   // sure this assumption is valid.
   DWORD result = WaitForSingleObject(thread_handle, INFINITE);
-  DCHECK_EQ(WAIT_OBJECT_0, result);
+  if (result != WAIT_OBJECT_0) {
+    // Debug info for bug 127931.
+    DWORD error = GetLastError();
+    debug::Alias(&error);
+    debug::Alias(&result);
+    debug::Alias(&thread_handle);
+    CHECK(false);
+  }
 
   CloseHandle(thread_handle);
 }
@@ -177,9 +200,6 @@ void PlatformThread::SetThreadPriority(PlatformThreadHandle handle,
       break;
     case kThreadPriority_RealtimeAudio:
       ::SetThreadPriority(handle, THREAD_PRIORITY_TIME_CRITICAL);
-      break;
-    default:
-      NOTIMPLEMENTED();
       break;
   }
 }

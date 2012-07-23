@@ -14,22 +14,36 @@ static const uint8 kClusterHeader[] = {
   0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // cluster(size = 0)
   0xE7,  // Timecode ID
   0x88,  // timecode(size=8)
-  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // timecode value
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // timecode value
 };
-
-const int kClusterHeaderSize = sizeof(kClusterHeader);
-const int kClusterSizeOffset = 4;
-const int kClusterTimecodeOffset = 14;
 
 static const uint8 kSimpleBlockHeader[] = {
   0xA3,  // SimpleBlock ID
   0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // SimpleBlock(size = 0)
 };
 
-const int kSimpleBlockHeaderSize = sizeof(kSimpleBlockHeader);
-const int kSimpleBlockSizeOffset = 1;
+static const uint8 kBlockGroupHeader[] = {
+  0xA0,  // BlockGroup ID
+  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // BlockGroup(size = 0)
+  0x9B,  // BlockDuration ID
+  0x88,  // BlockDuration(size = 8)
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // duration
+  0xA1,  // Block ID
+  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // Block(size = 0)
+};
 
-const int kInitialBufferSize = 32768;
+enum {
+  kClusterSizeOffset = 4,
+  kClusterTimecodeOffset = 14,
+
+  kSimpleBlockSizeOffset = 1,
+
+  kBlockGroupSizeOffset = 1,
+  kBlockGroupDurationOffset = 11,
+  kBlockGroupBlockSizeOffset = 20,
+
+  kInitialBufferSize = 32768,
+};
 
 Cluster::Cluster(scoped_array<uint8> data, int size)
     : data_(data.Pass()), size_(size) {}
@@ -53,6 +67,46 @@ void ClusterBuilder::SetClusterTimecode(int64 cluster_timecode) {
 
 void ClusterBuilder::AddSimpleBlock(int track_num, int64 timecode, int flags,
                                     const uint8* data, int size) {
+  int block_size = size + 4;
+  int bytes_needed = sizeof(kSimpleBlockHeader) + block_size;
+  if (bytes_needed > (buffer_size_ - bytes_used_))
+    ExtendBuffer(bytes_needed);
+
+  uint8* buf = buffer_.get() + bytes_used_;
+  int block_offset = bytes_used_;
+  memcpy(buf, kSimpleBlockHeader, sizeof(kSimpleBlockHeader));
+  UpdateUInt64(block_offset + kSimpleBlockSizeOffset, block_size);
+  buf += sizeof(kSimpleBlockHeader);
+
+  WriteBlock(buf, track_num, timecode, flags, data, size);
+
+  bytes_used_ += bytes_needed;
+}
+
+void ClusterBuilder::AddBlockGroup(int track_num, int64 timecode, int duration,
+                                   int flags, const uint8* data, int size) {
+  int block_size = size + 4;
+  int bytes_needed = sizeof(kBlockGroupHeader) + block_size;
+  int block_group_size = bytes_needed - 9;
+
+  if (bytes_needed > (buffer_size_ - bytes_used_))
+    ExtendBuffer(bytes_needed);
+
+  uint8* buf = buffer_.get() + bytes_used_;
+  int block_group_offset = bytes_used_;
+  memcpy(buf, kBlockGroupHeader, sizeof(kBlockGroupHeader));
+  UpdateUInt64(block_group_offset + kBlockGroupSizeOffset, block_group_size);
+  UpdateUInt64(block_group_offset + kBlockGroupDurationOffset, duration);
+  UpdateUInt64(block_group_offset + kBlockGroupBlockSizeOffset, block_size);
+  buf += sizeof(kBlockGroupHeader);
+
+  WriteBlock(buf, track_num, timecode, flags, data, size);
+
+  bytes_used_ += bytes_needed;
+}
+
+void ClusterBuilder::WriteBlock(uint8* buf, int track_num, int64 timecode,
+                                int flags, const uint8* data, int size) {
   DCHECK_GE(track_num, 0);
   DCHECK_LE(track_num, 126);
   DCHECK_GE(flags, 0);
@@ -65,24 +119,11 @@ void ClusterBuilder::AddSimpleBlock(int track_num, int64 timecode, int flags,
   DCHECK_GE(timecode_delta, -32768);
   DCHECK_LE(timecode_delta, 32767);
 
-  int block_size = 4 + size;
-  int bytes_needed = kSimpleBlockHeaderSize + block_size;
-  if (bytes_needed > (buffer_size_ - bytes_used_))
-    ExtendBuffer(bytes_needed);
-
-  uint8* buf = buffer_.get() + bytes_used_;
-  int block_offset = bytes_used_;
-  memcpy(buf, kSimpleBlockHeader, kSimpleBlockHeaderSize);
-  UpdateUInt64(block_offset + kSimpleBlockSizeOffset, block_size);
-  buf += kSimpleBlockHeaderSize;
-
   buf[0] = 0x80 | (track_num & 0x7F);
   buf[1] = (timecode_delta >> 8) & 0xff;
   buf[2] = timecode_delta & 0xff;
   buf[3] = flags & 0xff;
   memcpy(buf + 4, data, size);
-
-  bytes_used_ += bytes_needed;
 }
 
 scoped_ptr<Cluster> ClusterBuilder::Finish() {
@@ -98,8 +139,8 @@ scoped_ptr<Cluster> ClusterBuilder::Finish() {
 void ClusterBuilder::Reset() {
   buffer_size_ = kInitialBufferSize;
   buffer_.reset(new uint8[buffer_size_]);
-  memcpy(buffer_.get(), kClusterHeader, kClusterHeaderSize);
-  bytes_used_ = kClusterHeaderSize;
+  memcpy(buffer_.get(), kClusterHeader, sizeof(kClusterHeader));
+  bytes_used_ = sizeof(kClusterHeader);
   cluster_timecode_ = -1;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,10 +26,6 @@ FileDataSource::FileDataSource(bool disable_file_size)
       disable_file_size_(disable_file_size) {
 }
 
-FileDataSource::~FileDataSource() {
-  DCHECK(!file_);
-}
-
 PipelineStatus FileDataSource::Initialize(const std::string& url) {
   DCHECK(!file_);
 #if defined(OS_WIN)
@@ -54,13 +50,6 @@ void FileDataSource::set_host(DataSourceHost* host) {
   UpdateHostBytes();
 }
 
-void FileDataSource::UpdateHostBytes() {
-  if (host() && file_) {
-    host()->SetTotalBytes(file_size_);
-    host()->SetBufferedBytes(file_size_);
-  }
-}
-
 void FileDataSource::Stop(const base::Closure& callback) {
   base::AutoLock l(lock_);
   if (file_) {
@@ -72,32 +61,32 @@ void FileDataSource::Stop(const base::Closure& callback) {
     callback.Run();
 }
 
-void FileDataSource::Read(int64 position, size_t size, uint8* data,
-                          const DataSource::ReadCallback& read_callback) {
+void FileDataSource::Read(int64 position, int size, uint8* data,
+                          const DataSource::ReadCB& read_cb) {
   DCHECK(file_);
   base::AutoLock l(lock_);
   if (file_) {
 #if defined(OS_WIN)
     if (_fseeki64(file_, position, SEEK_SET)) {
-      read_callback.Run(DataSource::kReadError);
+      read_cb.Run(DataSource::kReadError);
       return;
     }
 #else
     CHECK(position <= std::numeric_limits<int32>::max());
     // TODO(hclam): Change fseek() to support 64-bit position.
     if (fseek(file_, static_cast<int32>(position), SEEK_SET)) {
-      read_callback.Run(DataSource::kReadError);
+      read_cb.Run(DataSource::kReadError);
       return;
     }
 #endif
-    size_t size_read = fread(data, 1, size, file_);
+    int size_read = fread(data, 1, size, file_);
     if (size_read == size || !ferror(file_)) {
-      read_callback.Run(size_read);
+      read_cb.Run(size_read);
       return;
     }
   }
 
-  read_callback.Run(kReadError);
+  read_cb.Run(kReadError);
 }
 
 bool FileDataSource::GetSize(int64* size_out) {
@@ -112,10 +101,17 @@ bool FileDataSource::IsStreaming() {
   return false;
 }
 
-void FileDataSource::SetPreload(Preload preload) {
+void FileDataSource::SetBitrate(int bitrate) {}
+
+FileDataSource::~FileDataSource() {
+  DCHECK(!file_);
 }
 
-void FileDataSource::SetBitrate(int bitrate) {
+void FileDataSource::UpdateHostBytes() {
+  if (host() && file_) {
+    host()->SetTotalBytes(file_size_);
+    host()->AddBufferedByteRange(0, file_size_);
+  }
 }
 
 }  // namespace media

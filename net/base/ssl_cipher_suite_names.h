@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_SSL_CIPHER_SUITE_NAMES_H_
 #define NET_BASE_SSL_CIPHER_SUITE_NAMES_H_
-#pragma once
 
 #include <string>
 

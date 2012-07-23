@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,6 @@
 
 #ifndef BASE_WIN_WIN_UTIL_H_
 #define BASE_WIN_WIN_UTIL_H_
-#pragma once
 
 #include <windows.h>
 
@@ -79,6 +78,10 @@ BASE_EXPORT bool SetStringValueForPropertyStore(
 BASE_EXPORT bool SetAppIdForPropertyStore(IPropertyStore* property_store,
                                           const wchar_t* app_id);
 
+// Sets the DualModeApp property to true in |property_store|. The function is
+// intended for tagging dual mode applications in Win8.
+BASE_EXPORT bool SetDualModeForPropertyStore(IPropertyStore* property_store);
+
 // Adds the specified |command| using the specified |name| to the AutoRun key.
 // |root_key| could be HKCU or HKLM or the root of any user hive.
 BASE_EXPORT bool AddCommandToAutoRun(HKEY root_key, const string16& name,
@@ -92,6 +95,14 @@ BASE_EXPORT bool RemoveCommandFromAutoRun(HKEY root_key, const string16& name);
 BASE_EXPORT bool ReadCommandFromAutoRun(HKEY root_key,
                                         const string16& name,
                                         string16* command);
+
+// Sets whether to crash the process during exit. This is inspected by DLLMain
+// and used to intercept unexpected terminations of the process (via calls to
+// exit(), abort(), _exit(), ExitProcess()) and convert them into crashes.
+// Note that not all mechanisms for terminating the process are covered by
+// this. In particular, TerminateProcess() is not caught.
+BASE_EXPORT void SetShouldCrashOnProcessDetach(bool crash);
+BASE_EXPORT bool ShouldCrashOnProcessDetach();
 
 // Get the size of a struct up to and including the specified member.
 // This is necessary to set compatible struct sizes for different versions

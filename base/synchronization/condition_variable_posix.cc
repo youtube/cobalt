@@ -9,6 +9,7 @@
 
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 
 namespace base {
@@ -29,6 +30,7 @@ ConditionVariable::~ConditionVariable() {
 }
 
 void ConditionVariable::Wait() {
+  base::ThreadRestrictions::AssertWaitAllowed();
 #if !defined(NDEBUG)
   user_lock_->CheckHeldAndUnmark();
 #endif
@@ -40,6 +42,7 @@ void ConditionVariable::Wait() {
 }
 
 void ConditionVariable::TimedWait(const TimeDelta& max_time) {
+  base::ThreadRestrictions::AssertWaitAllowed();
   int64 usecs = max_time.InMicroseconds();
 
   // The timeout argument to pthread_cond_timedwait is in absolute time.

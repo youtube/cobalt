@@ -9,27 +9,38 @@
 #include "base/environment.h"
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/test/test_timeouts.h"
 #include "base/win/scoped_com_initializer.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager_base.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/base/seekable_buffer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::win::ScopedCOMInitializer;
+using ::testing::_;
 using ::testing::AnyNumber;
-using ::testing::Between;
+using ::testing::AtLeast;
 using ::testing::Gt;
 using ::testing::NotNull;
 
+namespace media {
+
+ACTION_P3(CheckCountAndPostQuitTask, count, limit, loop) {
+  if (++*count >= limit) {
+    loop->PostTask(FROM_HERE, MessageLoop::QuitClosure());
+  }
+}
+
 class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
  public:
-  MOCK_METHOD4(OnData, void(AudioInputStream* stream,
+  MOCK_METHOD5(OnData, void(AudioInputStream* stream,
       const uint8* src, uint32 size,
-      uint32 hardware_delay_bytes));
+      uint32 hardware_delay_bytes, double volume));
   MOCK_METHOD1(OnClose, void(AudioInputStream* stream));
   MOCK_METHOD2(OnError, void(AudioInputStream* stream, int code));
 };
@@ -58,7 +69,7 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
     size_t bytes_written = 0;
     while (bytes_written < bytes_to_write_) {
       const uint8* chunk;
-      size_t chunk_size;
+      int chunk_size;
 
       // Stop writing if no more data is available.
       if (!buffer_.GetCurrentChunk(&chunk, &chunk_size))
@@ -76,7 +87,8 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
   virtual void OnData(AudioInputStream* stream,
                       const uint8* src,
                       uint32 size,
-                      uint32 hardware_delay_bytes) {
+                      uint32 hardware_delay_bytes,
+                      double volume) {
     // Store data data in a temporary buffer to avoid making blocking
     // fwrite() calls in the audio callback. The complete buffer will be
     // written to file in the destructor.
@@ -95,8 +107,14 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
 };
 
 // Convenience method which ensures that we are not running on the build
-// bots and that at least one valid input device can be found.
+// bots and that at least one valid input device can be found. We also
+// verify that we are not running on XP since the low-latency (WASAPI-
+// based) version requires Windows Vista or higher.
 static bool CanRunAudioTests(AudioManager* audio_man) {
+  if (!media::IsWASAPISupported()) {
+    LOG(WARNING) << "This tests requires Windows Vista or higher.";
+    return false;
+  }
   // TODO(henrika): note that we use Wave today to query the number of
   // existing input devices.
   bool input = audio_man->HasAudioInputDevices();
@@ -116,7 +134,8 @@ class AudioInputStreamWrapper {
         bits_per_sample_(16) {
     // Use native/mixing sample rate and 10ms frame size as default.
     sample_rate_ = static_cast<int>(
-        WASAPIAudioInputStream::HardwareSampleRate(eConsole));
+        WASAPIAudioInputStream::HardwareSampleRate(
+            AudioManagerBase::kDefaultDeviceId));
     samples_per_packet_ = sample_rate_ / 100;
   }
 
@@ -170,10 +189,7 @@ static AudioInputStream* CreateDefaultAudioInputStream(
 }
 
 // Verify that we can retrieve the current hardware/mixing sample rate
-// for all supported device roles. The ERole enumeration defines constants
-// that indicate the role that the system/user has assigned to an audio
-// endpoint device.
-// TODO(henrika): modify this test when we support full device enumeration.
+// for all available input devices.
 TEST(WinAudioInputTest, WASAPIAudioInputStreamHardwareSampleRate) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
@@ -181,21 +197,19 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamHardwareSampleRate) {
 
   ScopedCOMInitializer com_init(ScopedCOMInitializer::kMTA);
 
-  // Default device intended for games, system notification sounds,
-  // and voice commands.
-  int fs = static_cast<int>(
-      WASAPIAudioInputStream::HardwareSampleRate(eConsole));
-  EXPECT_GE(fs, 0);
+  // Retrieve a list of all available input devices.
+  media::AudioDeviceNames device_names;
+  audio_manager->GetAudioInputDeviceNames(&device_names);
 
-  // Default communication device intended for e.g. VoIP communication.
-  fs = static_cast<int>(
-      WASAPIAudioInputStream::HardwareSampleRate(eCommunications));
-  EXPECT_GE(fs, 0);
-
-  // Multimedia device for music, movies and live music recording.
-  fs = static_cast<int>(
-      WASAPIAudioInputStream::HardwareSampleRate(eMultimedia));
-  EXPECT_GE(fs, 0);
+  // Scan all available input devices and repeat the same test for all of them.
+  for (media::AudioDeviceNames::const_iterator it = device_names.begin();
+       it != device_names.end(); ++it) {
+    // Retrieve the hardware sample rate given a specified audio input device.
+    // TODO(tommi): ensure that we don't have to cast here.
+    int fs = static_cast<int>(WASAPIAudioInputStream::HardwareSampleRate(
+        it->unique_id));
+    EXPECT_GE(fs, 0);
+  }
 }
 
 // Test Create(), Close() calling sequence.
@@ -247,7 +261,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamOpenStartStopAndClose) {
 }
 
 // Test some additional calling sequences.
-TEST(MacAudioInputTest, WASAPIAudioInputStreamMiscCallingSequences) {
+TEST(WinAudioInputTest, WASAPIAudioInputStreamMiscCallingSequences) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -282,6 +296,9 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
   if (!CanRunAudioTests(audio_manager.get()))
     return;
 
+  int count = 0;
+  MessageLoopForUI loop;
+
   // 10 ms packet size.
 
   // Create default WASAPI input stream which records in stereo using
@@ -296,16 +313,15 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
   uint32 bytes_per_packet = aisw.channels() * aisw.samples_per_packet() *
       (aisw.bits_per_sample() / 8);
 
-  // We use 10ms packets and will run the test for ~100ms. Given that the
-  // startup sequence takes some time, it is reasonable to expect 5-12
-  // callbacks in this time period. All should contain valid packets of
-  // the same size and a valid delay estimate.
+  // We use 10ms packets and will run the test until ten packets are received.
+  // All should contain valid packets of the same size and a valid delay
+  // estimate.
   EXPECT_CALL(sink, OnData(
-      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
-      .Times(Between(5, 10));
-
+      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet), _))
+      .Times(AtLeast(10))
+      .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout());
+  loop.Run();
   ais->Stop();
 
   // Store current packet size (to be used in the subsequent tests).
@@ -317,16 +333,18 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
 
   // 20 ms packet size.
 
+  count = 0;
   ais = aisw.Create(2 * samples_per_packet_10ms);
   EXPECT_TRUE(ais->Open());
   bytes_per_packet = aisw.channels() * aisw.samples_per_packet() *
       (aisw.bits_per_sample() / 8);
 
   EXPECT_CALL(sink, OnData(
-      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
-      .Times(Between(5, 10));
+      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet), _))
+      .Times(AtLeast(10))
+      .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(2 * TestTimeouts::tiny_timeout());
+  loop.Run();
   ais->Stop();
 
   EXPECT_CALL(sink, OnClose(ais))
@@ -335,16 +353,18 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
 
   // 5 ms packet size.
 
+  count = 0;
   ais = aisw.Create(samples_per_packet_10ms / 2);
   EXPECT_TRUE(ais->Open());
   bytes_per_packet = aisw.channels() * aisw.samples_per_packet() *
     (aisw.bits_per_sample() / 8);
 
   EXPECT_CALL(sink, OnData(
-      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
-      .Times(Between(2 * 5, 2 * 10));
+      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet), _))
+      .Times(AtLeast(10))
+      .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout());
+  loop.Run();
   ais->Stop();
 
   EXPECT_CALL(sink, OnClose(ais))
@@ -374,10 +394,12 @@ TEST(WinAudioInputTest, DISABLED_WASAPIAudioInputStreamRecordToFile) {
 
   LOG(INFO) << ">> Sample rate: " << aisw.sample_rate() << " [Hz]";
   WriteToFileAudioSink file_sink(file_name);
-  LOG(INFO) << ">> Speak into the microphone while recording.";
+  LOG(INFO) << ">> Speak into the default microphone while recording.";
   ais->Start(&file_sink);
-  base::PlatformThread::Sleep(TestTimeouts::action_timeout_ms());
+  base::PlatformThread::Sleep(TestTimeouts::action_timeout());
   ais->Stop();
   LOG(INFO) << ">> Recording has stopped.";
   ais->Close();
 }
+
+}  // namespace media

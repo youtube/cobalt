@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,11 +25,11 @@ enum Errors {
   TOOL_NOT_FOUND,
 };
 
-int GetMajorVersion(const std::wstring& input_path);
-int DumpContents(const std::wstring& input_path);
-int DumpHeaders(const std::wstring& input_path);
-int RunSlave(const std::wstring& input_path, const std::wstring& pipe_number);
-int CopyCache(const std::wstring& output_path, HANDLE pipe, bool copy_to_text);
+int GetMajorVersion(const FilePath& input_path);
+int DumpContents(const FilePath& input_path);
+int DumpHeaders(const FilePath& input_path);
+int RunSlave(const FilePath& input_path, const std::wstring& pipe_number);
+int CopyCache(const FilePath& output_path, HANDLE pipe, bool copy_to_text);
 HANDLE CreateServer(std::wstring* pipe_number);
 
 const char kUpgradeHelp[] =
@@ -85,8 +85,7 @@ int LaunchSlave(CommandLine command_line,
   if (do_upgrade || do_convert_to_text)
     command_line.AppendSwitch(kSlave);
 
-  // TODO(evanm): remove needless usage of wstring from here and elsewhere.
-  command_line.AppendSwitchASCII(kPipe, WideToASCII(pipe_number));
+  command_line.AppendSwitchNative(kPipe, pipe_number);
   if (!base::LaunchProcess(command_line, base::LaunchOptions(), NULL)) {
     printf("Unable to launch the needed version of this tool: %ls\n",
            command_line.GetProgram().value().c_str());
@@ -105,18 +104,14 @@ int main(int argc, const char* argv[]) {
   CommandLine::Init(argc, argv);
 
   const CommandLine& command_line = *CommandLine::ForCurrentProcess();
-  std::wstring input_path = command_line.GetSwitchValueNative(kInputPath);
+  FilePath input_path = command_line.GetSwitchValuePath(kInputPath);
   if (input_path.empty())
     return Help();
 
   bool upgrade = false;
   bool slave_required = false;
   bool copy_to_text = false;
-  // TODO(evanm): port to FilePath.
-  std::wstring output_path = command_line.GetSwitchValueNative(kOutputPath);
-  // Make sure that output directory ends with a slash.
-  if (output_path.size() >= 1 && output_path[output_path.size() - 1] != '\\')
-    output_path.push_back('\\');
+  FilePath output_path = command_line.GetSwitchValuePath(kOutputPath);
 
   if (command_line.HasSwitch(kUpgrade))
     upgrade = true;

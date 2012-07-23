@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,56 +9,47 @@
 #include "net/spdy/spdy_framer.h"
 #include "testing/platform_test.h"
 
-using spdy::CONTROL_FLAG_FIN;
-using spdy::CONTROL_FLAG_NONE;
-using spdy::GOAWAY;
-using spdy::HEADERS;
-using spdy::NOOP;
-using spdy::NUM_CONTROL_FRAME_TYPES;
-using spdy::PING;
-using spdy::RST_STREAM;
-using spdy::SETTINGS;
-using spdy::SYN_REPLY;
-using spdy::SYN_STREAM;
-using spdy::WINDOW_UPDATE;
-using spdy::FlagsAndLength;
-using spdy::SpdyControlFrame;
-using spdy::SpdyControlType;
-using spdy::SpdyDataFrame;
-using spdy::SpdyFrame;
-using spdy::SpdyFramer;
-using spdy::SpdyHeaderBlock;
-using spdy::SpdyHeadersControlFrame;
-using spdy::SpdyGoAwayControlFrame;
-using spdy::SpdyNoOpControlFrame;
-using spdy::SpdyPingControlFrame;
-using spdy::SpdyRstStreamControlFrame;
-using spdy::SpdySettings;
-using spdy::SpdySettingsControlFrame;
-using spdy::SpdyStatusCodes;
-using spdy::SpdySynReplyControlFrame;
-using spdy::SpdySynStreamControlFrame;
-using spdy::SpdyWindowUpdateControlFrame;
-using spdy::SettingsFlagsAndId;
-using spdy::kLengthMask;
-using spdy::kSpdyProtocolVersion;
-using spdy::kStreamIdMask;
-
 namespace {
 
+enum SpdyProtocolTestTypes {
+  SPDY2 = 2,
+  SPDY3 = 3,
+};
+
+} // namespace
+
+namespace net {
+
+class SpdyProtocolTest
+    : public ::testing::TestWithParam<SpdyProtocolTestTypes> {
+ protected:
+  virtual void SetUp() {
+    spdy_version_ = GetParam();
+  }
+
+  bool IsSpdy2() { return spdy_version_ == SPDY2; }
+
+  // Version of SPDY protocol to be used.
+  int spdy_version_;
+};
+
+// All tests are run with two different SPDY versions: SPDY/2 and SPDY/3.
+INSTANTIATE_TEST_CASE_P(SpdyProtocolTests,
+                        SpdyProtocolTest,
+                        ::testing::Values(SPDY2, SPDY3));
+
 // Test our protocol constants
-TEST(SpdyProtocolTest, ProtocolConstants) {
+TEST_P(SpdyProtocolTest, ProtocolConstants) {
   EXPECT_EQ(8u, SpdyFrame::kHeaderSize);
   EXPECT_EQ(8u, SpdyDataFrame::size());
   EXPECT_EQ(8u, SpdyControlFrame::kHeaderSize);
   EXPECT_EQ(18u, SpdySynStreamControlFrame::size());
-  EXPECT_EQ(14u, SpdySynReplyControlFrame::size());
+  EXPECT_EQ(12u, SpdySynReplyControlFrame::size());
   EXPECT_EQ(16u, SpdyRstStreamControlFrame::size());
   EXPECT_EQ(12u, SpdySettingsControlFrame::size());
-  EXPECT_EQ(8u, SpdyNoOpControlFrame::size());
   EXPECT_EQ(12u, SpdyPingControlFrame::size());
-  EXPECT_EQ(12u, SpdyGoAwayControlFrame::size());
-  EXPECT_EQ(14u, SpdyHeadersControlFrame::size());
+  EXPECT_EQ(16u, SpdyGoAwayControlFrame::size());
+  EXPECT_EQ(12u, SpdyHeadersControlFrame::size());
   EXPECT_EQ(16u, SpdyWindowUpdateControlFrame::size());
   EXPECT_EQ(4u, sizeof(FlagsAndLength));
   EXPECT_EQ(1, SYN_STREAM);
@@ -73,7 +64,7 @@ TEST(SpdyProtocolTest, ProtocolConstants) {
 }
 
 // Test some of the protocol helper functions
-TEST(SpdyProtocolTest, FrameStructs) {
+TEST_P(SpdyProtocolTest, FrameStructs) {
   SpdyFrame frame(SpdyFrame::kHeaderSize);
   frame.set_length(12345);
   frame.set_flags(10);
@@ -88,25 +79,28 @@ TEST(SpdyProtocolTest, FrameStructs) {
   EXPECT_FALSE(frame.is_control_frame());
 }
 
-TEST(SpdyProtocolTest, DataFrameStructs) {
+TEST_P(SpdyProtocolTest, DataFrameStructs) {
   SpdyDataFrame data_frame;
   data_frame.set_stream_id(12345);
   EXPECT_EQ(12345u, data_frame.stream_id());
 }
 
-TEST(SpdyProtocolTest, ControlFrameStructs) {
-  SpdyFramer framer;
+TEST_P(SpdyProtocolTest, ControlFrameStructs) {
+  SpdyFramer framer(spdy_version_);
   SpdyHeaderBlock headers;
 
-  scoped_ptr<SpdySynStreamControlFrame> syn_frame(
-      framer.CreateSynStream(123, 456, 2, CONTROL_FLAG_FIN, false, &headers));
-  EXPECT_EQ(kSpdyProtocolVersion, syn_frame->version());
+  const uint8 credential_slot = IsSpdy2() ? 0 : 5;
+
+  scoped_ptr<SpdySynStreamControlFrame> syn_frame(framer.CreateSynStream(
+      123, 456, 2, credential_slot, CONTROL_FLAG_FIN, false, &headers));
+  EXPECT_EQ(framer.protocol_version(), syn_frame->version());
   EXPECT_TRUE(syn_frame->is_control_frame());
   EXPECT_EQ(SYN_STREAM, syn_frame->type());
   EXPECT_EQ(123u, syn_frame->stream_id());
   EXPECT_EQ(456u, syn_frame->associated_stream_id());
   EXPECT_EQ(2u, syn_frame->priority());
-  EXPECT_EQ(2, syn_frame->header_block_len());
+  EXPECT_EQ(credential_slot, syn_frame->credential_slot());
+  EXPECT_EQ(IsSpdy2() ? 2 : 4, syn_frame->header_block_len());
   EXPECT_EQ(1u, syn_frame->flags());
   syn_frame->set_associated_stream_id(999u);
   EXPECT_EQ(123u, syn_frame->stream_id());
@@ -114,36 +108,29 @@ TEST(SpdyProtocolTest, ControlFrameStructs) {
 
   scoped_ptr<SpdySynReplyControlFrame> syn_reply(
       framer.CreateSynReply(123, CONTROL_FLAG_NONE, false, &headers));
-  EXPECT_EQ(kSpdyProtocolVersion, syn_reply->version());
+  EXPECT_EQ(framer.protocol_version(), syn_reply->version());
   EXPECT_TRUE(syn_reply->is_control_frame());
   EXPECT_EQ(SYN_REPLY, syn_reply->type());
   EXPECT_EQ(123u, syn_reply->stream_id());
-  EXPECT_EQ(2, syn_reply->header_block_len());
+  EXPECT_EQ(IsSpdy2() ? 2 : 4, syn_reply->header_block_len());
   EXPECT_EQ(0, syn_reply->flags());
 
   scoped_ptr<SpdyRstStreamControlFrame> rst_frame(
-      framer.CreateRstStream(123, spdy::PROTOCOL_ERROR));
-  EXPECT_EQ(kSpdyProtocolVersion, rst_frame->version());
+      framer.CreateRstStream(123, PROTOCOL_ERROR));
+  EXPECT_EQ(framer.protocol_version(), rst_frame->version());
   EXPECT_TRUE(rst_frame->is_control_frame());
   EXPECT_EQ(RST_STREAM, rst_frame->type());
   EXPECT_EQ(123u, rst_frame->stream_id());
-  EXPECT_EQ(spdy::PROTOCOL_ERROR, rst_frame->status());
-  rst_frame->set_status(spdy::INVALID_STREAM);
-  EXPECT_EQ(spdy::INVALID_STREAM, rst_frame->status());
+  EXPECT_EQ(PROTOCOL_ERROR, rst_frame->status());
+  rst_frame->set_status(INVALID_STREAM);
+  EXPECT_EQ(INVALID_STREAM, rst_frame->status());
   EXPECT_EQ(0, rst_frame->flags());
-
-  scoped_ptr<SpdyNoOpControlFrame> noop_frame(
-      framer.CreateNopFrame());
-  EXPECT_EQ(kSpdyProtocolVersion, noop_frame->version());
-  EXPECT_TRUE(noop_frame->is_control_frame());
-  EXPECT_EQ(NOOP, noop_frame->type());
-  EXPECT_EQ(0, noop_frame->flags());
 
   const uint32 kUniqueId = 1234567u;
   const uint32 kUniqueId2 = 31415926u;
   scoped_ptr<SpdyPingControlFrame> ping_frame(
       framer.CreatePingFrame(kUniqueId));
-  EXPECT_EQ(kSpdyProtocolVersion, ping_frame->version());
+  EXPECT_EQ(framer.protocol_version(), ping_frame->version());
   EXPECT_TRUE(ping_frame->is_control_frame());
   EXPECT_EQ(PING, ping_frame->type());
   EXPECT_EQ(kUniqueId, ping_frame->unique_id());
@@ -151,31 +138,34 @@ TEST(SpdyProtocolTest, ControlFrameStructs) {
   EXPECT_EQ(kUniqueId2, ping_frame->unique_id());
 
   scoped_ptr<SpdyGoAwayControlFrame> goaway_frame(
-      framer.CreateGoAway(123));
-  EXPECT_EQ(kSpdyProtocolVersion, goaway_frame->version());
+      framer.CreateGoAway(123, GOAWAY_INTERNAL_ERROR));
+  EXPECT_EQ(framer.protocol_version(), goaway_frame->version());
   EXPECT_TRUE(goaway_frame->is_control_frame());
   EXPECT_EQ(GOAWAY, goaway_frame->type());
   EXPECT_EQ(123u, goaway_frame->last_accepted_stream_id());
+  if (!IsSpdy2()) {
+    EXPECT_EQ(GOAWAY_INTERNAL_ERROR, goaway_frame->status());
+  }
 
   scoped_ptr<SpdyHeadersControlFrame> headers_frame(
       framer.CreateHeaders(123, CONTROL_FLAG_NONE, false, &headers));
-  EXPECT_EQ(kSpdyProtocolVersion, headers_frame->version());
+  EXPECT_EQ(framer.protocol_version(), headers_frame->version());
   EXPECT_TRUE(headers_frame->is_control_frame());
   EXPECT_EQ(HEADERS, headers_frame->type());
   EXPECT_EQ(123u, headers_frame->stream_id());
-  EXPECT_EQ(2, headers_frame->header_block_len());
+  EXPECT_EQ(IsSpdy2() ? 2 : 4, headers_frame->header_block_len());
   EXPECT_EQ(0, headers_frame->flags());
 
   scoped_ptr<SpdyWindowUpdateControlFrame> window_update_frame(
       framer.CreateWindowUpdate(123, 456));
-  EXPECT_EQ(kSpdyProtocolVersion, window_update_frame->version());
+  EXPECT_EQ(framer.protocol_version(), window_update_frame->version());
   EXPECT_TRUE(window_update_frame->is_control_frame());
   EXPECT_EQ(WINDOW_UPDATE, window_update_frame->type());
   EXPECT_EQ(123u, window_update_frame->stream_id());
   EXPECT_EQ(456u, window_update_frame->delta_window_size());
 }
 
-TEST(SpdyProtocolTest, TestDataFrame) {
+TEST_P(SpdyProtocolTest, TestDataFrame) {
   SpdyDataFrame frame;
 
   // Set the stream ID to various values.
@@ -218,14 +208,14 @@ TEST(SpdyProtocolTest, TestDataFrame) {
 }
 
 // Test various types of SETTINGS frames.
-TEST(SpdyProtocolTest, TestSpdySettingsFrame) {
-  SpdyFramer framer;
+TEST_P(SpdyProtocolTest, TestSpdySettingsFrame) {
+  SpdyFramer framer(spdy_version_);
 
   // Create a settings frame with no settings.
-  SpdySettings settings;
+  SettingsMap settings;
   scoped_ptr<SpdySettingsControlFrame> settings_frame(
       framer.CreateSettings(settings));
-  EXPECT_EQ(kSpdyProtocolVersion, settings_frame->version());
+  EXPECT_EQ(framer.protocol_version(), settings_frame->version());
   EXPECT_TRUE(settings_frame->is_control_frame());
   EXPECT_EQ(SETTINGS, settings_frame->type());
   EXPECT_EQ(0u, settings_frame->num_entries());
@@ -233,38 +223,42 @@ TEST(SpdyProtocolTest, TestSpdySettingsFrame) {
   // We'll add several different ID/Flag combinations and then verify
   // that they encode and decode properly.
   SettingsFlagsAndId ids[] = {
-    0x00000000,
-    0xffffffff,
-    0xff000001,
-    0x01000002,
+    SettingsFlagsAndId::FromWireFormat(spdy_version_, 0x00000000),
+    SettingsFlagsAndId::FromWireFormat(spdy_version_, 0xffffffff),
+    SettingsFlagsAndId::FromWireFormat(spdy_version_, 0xff000001),
+    SettingsFlagsAndId::FromWireFormat(spdy_version_, 0x01000002),
+    SettingsFlagsAndId(6, 9)
   };
 
   for (size_t index = 0; index < arraysize(ids); ++index) {
-    settings.insert(settings.end(), std::make_pair(ids[index], index));
+    SettingsFlagsAndId flags_and_id = ids[index];
+    SpdySettingsIds id = static_cast<SpdySettingsIds>(flags_and_id.id());
+    SpdySettingsFlags flags =
+        static_cast<SpdySettingsFlags>(flags_and_id.flags());
+    settings[id] = SettingsFlagsAndValue(flags, index);
     settings_frame.reset(framer.CreateSettings(settings));
-    EXPECT_EQ(kSpdyProtocolVersion, settings_frame->version());
+    EXPECT_EQ(framer.protocol_version(), settings_frame->version());
     EXPECT_TRUE(settings_frame->is_control_frame());
     EXPECT_EQ(SETTINGS, settings_frame->type());
     EXPECT_EQ(index + 1, settings_frame->num_entries());
 
-    SpdySettings parsed_settings;
+    SettingsMap parsed_settings;
     EXPECT_TRUE(framer.ParseSettings(settings_frame.get(), &parsed_settings));
-    EXPECT_EQ(parsed_settings.size(), settings.size());
-    SpdySettings::const_iterator it = parsed_settings.begin();
-    int pos = 0;
-    while (it != parsed_settings.end()) {
-      SettingsFlagsAndId parsed = it->first;
-      uint32 value = it->second;
-      EXPECT_EQ(parsed.flags(), ids[pos].flags());
-      EXPECT_EQ(parsed.id(), ids[pos].id());
-      EXPECT_EQ(value, static_cast<uint32>(pos));
-      ++it;
-      ++pos;
+    EXPECT_EQ(settings.size(), parsed_settings.size());
+    for (SettingsMap::const_iterator it = parsed_settings.begin();
+         it != parsed_settings.end();
+         it++) {
+      SettingsMap::const_iterator it2 = settings.find(it->first);
+      EXPECT_EQ(it->first, it2->first);
+      SettingsFlagsAndValue parsed = it->second;
+      SettingsFlagsAndValue created = it2->second;
+      EXPECT_EQ(created.first, parsed.first);
+      EXPECT_EQ(created.second, parsed.second);
     }
   }
 }
 
-TEST(SpdyProtocolTest, HasHeaderBlock) {
+TEST_P(SpdyProtocolTest, HasHeaderBlock) {
   SpdyControlFrame frame(SpdyControlFrame::kHeaderSize);
   for (SpdyControlType type = SYN_STREAM;
       type < NUM_CONTROL_FRAME_TYPES;
@@ -278,10 +272,17 @@ TEST(SpdyProtocolTest, HasHeaderBlock) {
   }
 }
 
+class SpdyProtocolDeathTest : public SpdyProtocolTest {};
+
+// All tests are run with two different SPDY versions: SPDY/2 and SPDY/3.
+INSTANTIATE_TEST_CASE_P(SpdyProtocolDeathTests,
+                        SpdyProtocolDeathTest,
+                        ::testing::Values(SPDY2, SPDY3));
+
 // Make sure that overflows both die in debug mode, and do not cause problems
 // in opt mode.  Note:  The EXPECT_DEBUG_DEATH call does not work on Win32 yet,
 // so we comment it out.
-TEST(SpdyProtocolDeathTest, TestDataFrame) {
+TEST_P(SpdyProtocolDeathTest, TestDataFrame) {
   SpdyDataFrame frame;
 
   frame.set_stream_id(0);
@@ -306,7 +307,7 @@ TEST(SpdyProtocolDeathTest, TestDataFrame) {
   EXPECT_EQ(0, frame.flags());
 }
 
-TEST(SpdyProtocolDeathTest, TestSpdyControlFrameStreamId) {
+TEST_P(SpdyProtocolDeathTest, TestSpdyControlFrameStreamId) {
   SpdyControlFrame frame_store(SpdySynStreamControlFrame::size());
   memset(frame_store.data(), '1', SpdyControlFrame::kHeaderSize);
   SpdySynStreamControlFrame* frame =
@@ -321,7 +322,7 @@ TEST(SpdyProtocolDeathTest, TestSpdyControlFrameStreamId) {
   EXPECT_FALSE(frame->is_control_frame());
 }
 
-TEST(SpdyProtocolDeathTest, TestSpdyControlFrameVersion) {
+TEST_P(SpdyProtocolDeathTest, TestSpdyControlFrameVersion) {
   const unsigned int kVersionMask = 0x7fff;
   SpdyControlFrame frame(SpdySynStreamControlFrame::size());
   memset(frame.data(), '1', SpdyControlFrame::kHeaderSize);
@@ -342,41 +343,47 @@ TEST(SpdyProtocolDeathTest, TestSpdyControlFrameVersion) {
   EXPECT_EQ(SYN_STREAM, frame.type());
 }
 
-TEST(SpdyProtocolDeathTest, TestSpdyControlFrameType) {
+TEST_P(SpdyProtocolDeathTest, TestSpdyControlFrameType) {
   SpdyControlFrame frame(SpdyControlFrame::kHeaderSize);
   memset(frame.data(), 255, SpdyControlFrame::kHeaderSize);
 
   // type() should be out of bounds.
   EXPECT_FALSE(frame.AppearsToBeAValidControlFrame());
 
+  frame.set_version(spdy_version_);
   uint16 version = frame.version();
 
-  for (int i = SYN_STREAM; i <= spdy::NOOP; ++i) {
+  for (int i = SYN_STREAM; i <= WINDOW_UPDATE; ++i) {
     frame.set_type(static_cast<SpdyControlType>(i));
     EXPECT_EQ(i, static_cast<int>(frame.type()));
-    EXPECT_TRUE(frame.AppearsToBeAValidControlFrame());
+    if (!IsSpdy2() && i == NOOP) {
+      // NOOP frames aren't 'valid'.
+      EXPECT_FALSE(frame.AppearsToBeAValidControlFrame());
+    } else {
+      EXPECT_TRUE(frame.AppearsToBeAValidControlFrame());
+    }
     // Make sure setting type does not alter the version block.
     EXPECT_EQ(version, frame.version());
     EXPECT_TRUE(frame.is_control_frame());
   }
 }
 
-TEST(SpdyProtocolDeathTest, TestRstStreamStatusBounds) {
-  SpdyFramer framer;
+TEST_P(SpdyProtocolDeathTest, TestRstStreamStatusBounds) {
+  SpdyFramer framer(spdy_version_);
   scoped_ptr<SpdyRstStreamControlFrame> rst_frame;
 
-  rst_frame.reset(framer.CreateRstStream(123, spdy::PROTOCOL_ERROR));
-  EXPECT_EQ(spdy::PROTOCOL_ERROR, rst_frame->status());
+  rst_frame.reset(framer.CreateRstStream(123, PROTOCOL_ERROR));
+  EXPECT_EQ(PROTOCOL_ERROR, rst_frame->status());
 
-  rst_frame->set_status(spdy::INVALID);
-  EXPECT_EQ(spdy::INVALID, rst_frame->status());
+  rst_frame->set_status(INVALID);
+  EXPECT_EQ(INVALID, rst_frame->status());
 
   rst_frame->set_status(
-      static_cast<spdy::SpdyStatusCodes>(spdy::INVALID - 1));
-  EXPECT_EQ(spdy::INVALID, rst_frame->status());
+      static_cast<SpdyStatusCodes>(INVALID - 1));
+  EXPECT_EQ(INVALID, rst_frame->status());
 
-  rst_frame->set_status(spdy::NUM_STATUS_CODES);
-  EXPECT_EQ(spdy::INVALID, rst_frame->status());
+  rst_frame->set_status(NUM_STATUS_CODES);
+  EXPECT_EQ(INVALID, rst_frame->status());
 }
 
-}  // namespace
+}  // namespace net

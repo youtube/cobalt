@@ -4,7 +4,6 @@
 
 #ifndef SQL_EXPORT_H_
 #define SQL_EXPORT_H_
-#pragma once
 
 #if defined(COMPONENT_BUILD)
 #if defined(WIN32)
@@ -16,7 +15,11 @@
 #endif  // defined(SQL_IMPLEMENTATION)
 
 #else // defined(WIN32)
+#if defined(SQL_IMPLEMENTATION)
 #define SQL_EXPORT __attribute__((visibility("default")))
+#else
+#define SQL_EXPORT
+#endif
 #endif
 
 #else // defined(COMPONENT_BUILD)

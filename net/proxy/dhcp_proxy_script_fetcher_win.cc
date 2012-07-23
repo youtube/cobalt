@@ -110,7 +110,7 @@ void DhcpProxyScriptFetcherWin::CancelImpl() {
       (*it)->Cancel();
     }
 
-    fetchers_.reset();
+    fetchers_.clear();
   }
 }
 
@@ -194,8 +194,7 @@ void DhcpProxyScriptFetcherWin::OnFetcherDone(int result) {
   if (state_ == STATE_NO_RESULTS) {
     state_ = STATE_SOME_RESULTS;
     wait_timer_.Start(FROM_HERE,
-        base::TimeDelta::FromMilliseconds(ImplGetMaxWaitMs()),
-        this, &DhcpProxyScriptFetcherWin::OnWaitTimer);
+        ImplGetMaxWait(), this, &DhcpProxyScriptFetcherWin::OnWaitTimer);
   }
 }
 
@@ -283,8 +282,8 @@ DhcpProxyScriptFetcherWin::AdapterQuery*
   return new AdapterQuery();
 }
 
-int DhcpProxyScriptFetcherWin::ImplGetMaxWaitMs() {
-  return kMaxWaitAfterFirstResultMs;
+base::TimeDelta DhcpProxyScriptFetcherWin::ImplGetMaxWait() {
+  return base::TimeDelta::FromMilliseconds(kMaxWaitAfterFirstResultMs);
 }
 
 bool DhcpProxyScriptFetcherWin::GetCandidateAdapterNames(

@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_ZAP_H_
 #define NET_BASE_ZAP_H_
-#pragma once
 
 #include <string>
 #include "base/string16.h"

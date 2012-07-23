@@ -1,6 +1,6 @@
 /*
  * Copyright © 2007,2008,2009  Red Hat, Inc.
- * Copyright © 2011  Google, Inc.
+ * Copyright © 2011,2012  Google, Inc.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -33,7 +33,12 @@
 #include "config.h"
 #endif
 
-#include "hb-common.h"
+#include "hb.h"
+#define HB_H_IN
+#ifdef HAVE_OT
+#include "hb-ot.h"
+#define HB_OT_H_IN
+#endif
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -56,12 +61,6 @@
 # define NULL ((void *) 0)
 #endif
 
-#undef FALSE
-#define FALSE 0
-
-#undef TRUE
-#define TRUE 1
-
 
 /* Basics */
 
@@ -79,13 +78,15 @@ template <typename Type> static inline Type MAX (const Type &a, const Type &b) {
 #define HB_STMT_START do
 #define HB_STMT_END   while (0)
 
-#define _ASSERT_STATIC1(_line, _cond) typedef int _static_assert_on_line_##_line##_failed[(_cond)?1:-1]
-#define _ASSERT_STATIC0(_line, _cond) _ASSERT_STATIC1 (_line, (_cond))
-#define ASSERT_STATIC(_cond) _ASSERT_STATIC0 (__LINE__, (_cond))
+#define _ASSERT_STATIC1(_line, _cond)	typedef int _static_assert_on_line_##_line##_failed[(_cond)?1:-1]
+#define _ASSERT_STATIC0(_line, _cond)	_ASSERT_STATIC1 (_line, (_cond))
+#define ASSERT_STATIC(_cond)		_ASSERT_STATIC0 (__LINE__, (_cond))
 
-#define ASSERT_STATIC_EXPR(_cond) ((void) sizeof (char[(_cond) ? 1 : -1]))
+#define ASSERT_STATIC_EXPR(_cond)((void) sizeof (char[(_cond) ? 1 : -1]))
 #define ASSERT_STATIC_EXPR_ZERO(_cond) (0 * sizeof (char[(_cond) ? 1 : -1]))
 
+#define _PASTE1(a,b) a##b
+#define PASTE(a,b) _PASTE1(a,b)
 
 /* Lets assert int types.  Saves trouble down the road. */
 
@@ -102,6 +103,34 @@ ASSERT_STATIC (sizeof (hb_codepoint_t) == 4);
 ASSERT_STATIC (sizeof (hb_position_t) == 4);
 ASSERT_STATIC (sizeof (hb_mask_t) == 4);
 ASSERT_STATIC (sizeof (hb_var_int_t) == 4);
+
+
+/* We like our types POD */
+
+#define _ASSERT_TYPE_POD1(_line, _type)	union _type_##_type##_on_line_##_line##_is_not_POD { _type instance; }
+#define _ASSERT_TYPE_POD0(_line, _type)	_ASSERT_TYPE_POD1 (_line, _type)
+#define ASSERT_TYPE_POD(_type)		_ASSERT_TYPE_POD0 (__LINE__, _type)
+
+#ifdef __GNUC__
+# define _ASSERT_INSTANCE_POD1(_line, _instance) \
+	HB_STMT_START { \
+		typedef __typeof__(_instance) _type_##_line; \
+		_ASSERT_TYPE_POD1 (_line, _type_##_line); \
+	} HB_STMT_END
+#else
+# define _ASSERT_INSTANCE_POD1(_line, _instance)	typedef int _assertion_on_line_##_line##_not_tested
+#endif
+# define _ASSERT_INSTANCE_POD0(_line, _instance)	_ASSERT_INSTANCE_POD1 (_line, _instance)
+# define ASSERT_INSTANCE_POD(_instance)			_ASSERT_INSTANCE_POD0 (__LINE__, _instance)
+
+/* Check _assertion in a method environment */
+#define _ASSERT_POD1(_line) \
+	inline void _static_assertion_on_line_##_line (void) const \
+	{ _ASSERT_INSTANCE_POD1 (_line, *this); /* Make sure it's POD. */ }
+# define _ASSERT_POD0(_line)	_ASSERT_POD1 (_line)
+# define ASSERT_POD()		_ASSERT_POD0 (__LINE__)
+
+
 
 /* Misc */
 
@@ -232,15 +261,16 @@ typedef int (*hb_compare_func_t) (const void *, const void *);
 /* arrays and maps */
 
 
+#define HB_PREALLOCED_ARRAY_INIT {0}
 template <typename Type, unsigned int StaticSize>
-struct hb_prealloced_array_t {
-
+struct hb_prealloced_array_t
+{
   unsigned int len;
   unsigned int allocated;
   Type *array;
   Type static_array[StaticSize];
 
-  hb_prealloced_array_t (void) { memset (this, 0, sizeof (*this)); }
+  void init (void) { memset (this, 0, sizeof (*this)); }
 
   inline Type& operator [] (unsigned int i) { return array[i]; }
   inline const Type& operator [] (unsigned int i) const { return array[i]; }
@@ -335,14 +365,14 @@ struct hb_prealloced_array_t {
   }
 };
 
-template <typename Type>
-struct hb_array_t : hb_prealloced_array_t<Type, 2> {};
 
-
+#define HB_LOCKABLE_SET_INIT {HB_PREALLOCED_ARRAY_INIT}
 template <typename item_t, typename lock_t>
 struct hb_lockable_set_t
 {
-  hb_array_t <item_t> items;
+  hb_prealloced_array_t <item_t, 2> items;
+
+  inline void init (void) { items.init (); }
 
   template <typename T>
   inline item_t *replace_or_insert (T v, lock_t &l, bool replace)
@@ -437,6 +467,14 @@ static inline uint16_t hb_be_uint16 (const uint16_t v)
   return (uint16_t) (V[0] << 8) + V[1];
 }
 
+/* Note, of the following macros, uint16_get is the one called many many times.
+ * If there is any optimizations to be done, it's in that macro.  However, I
+ * already confirmed that on my T400 ThinkPad at least, using bswap_16(), which
+ * results in a single ror instruction, does NOT speed this up.  In fact, it
+ * resulted in a minor slowdown.  At any rate, note that v may not be correctly
+ * aligned, so I think the current implementation is optimal.
+ */
+
 #define hb_be_uint16_put(v,V)	HB_STMT_START { v[0] = (V>>8); v[1] = (V); } HB_STMT_END
 #define hb_be_uint16_get(v)	(uint16_t) ((v[0] << 8) + v[1])
 #define hb_be_uint16_eq(a,b)	(a[0] == b[0] && a[1] == b[1])
@@ -488,62 +526,106 @@ _hb_debug (unsigned int level,
 #define DEBUG_LEVEL(WHAT, LEVEL) (_hb_debug ((LEVEL), HB_DEBUG_##WHAT))
 #define DEBUG(WHAT) (DEBUG_LEVEL (WHAT, 0))
 
-template <int max_level> inline bool /* always returns TRUE */
+template <int max_level> inline void
+_hb_debug_msg_va (const char *what,
+		  const void *obj,
+		  const char *func,
+		  bool indented,
+		  unsigned int level,
+		  int level_dir,
+		  const char *message,
+		  va_list ap)
+{
+  if (!_hb_debug (level, max_level))
+    return;
+
+  fprintf (stderr, "%-10s", what ? what : "");
+
+  if (obj)
+    fprintf (stderr, "(%0*lx) ", (unsigned int) (2 * sizeof (void *)), (unsigned long) obj);
+  else
+    fprintf (stderr, " %*s  ", (unsigned int) (2 * sizeof (void *)), "");
+
+  if (indented) {
+    static const char bars[] = "││││││││││││││││││││││││││││││││││││││││";
+    fprintf (stderr, "%2d %s├%s",
+	     level,
+	     bars + sizeof (bars) - 1 - MIN ((unsigned int) sizeof (bars), 3 * level),
+	     level_dir ? (level_dir > 0 ? "╮" : "╯") : "╴");
+  } else
+    fprintf (stderr, "   ├╴");
+
+  if (func) {
+    /* If there's a class name, just write that. */
+    const char *dotdot = strstr (func, "::");
+    const char *space = strchr (func, ' ');
+    if (space && dotdot && space < dotdot)
+      func = space + 1;
+    unsigned int func_len = dotdot ? dotdot - func : strlen (func);
+    fprintf (stderr, "%.*s: ", func_len, func);
+  }
+
+  if (message)
+    vfprintf (stderr, message, ap);
+
+  fprintf (stderr, "\n");
+}
+template <> inline void
+_hb_debug_msg_va<0> (const char *what HB_UNUSED,
+		     const void *obj HB_UNUSED,
+		     const char *func HB_UNUSED,
+		     bool indented HB_UNUSED,
+		     unsigned int level HB_UNUSED,
+		     int level_dir HB_UNUSED,
+		     const char *message HB_UNUSED,
+		     va_list ap HB_UNUSED) {}
+
+template <int max_level> inline void
 _hb_debug_msg (const char *what,
 	       const void *obj,
 	       const char *func,
 	       bool indented,
-	       int level,
+	       unsigned int level,
+	       int level_dir,
 	       const char *message,
-	       ...) HB_PRINTF_FUNC(6, 7);
-template <int max_level> inline bool /* always returns TRUE */
+	       ...) HB_PRINTF_FUNC(7, 8);
+template <int max_level> inline void
 _hb_debug_msg (const char *what,
 	       const void *obj,
 	       const char *func,
 	       bool indented,
-	       int level,
+	       unsigned int level,
+	       int level_dir,
 	       const char *message,
 	       ...)
 {
   va_list ap;
   va_start (ap, message);
-
-  (void) (_hb_debug (level, max_level) &&
-	  fprintf (stderr, "%s", what) &&
-	  (obj && fprintf (stderr, "(%p)", obj), TRUE) &&
-	  fprintf (stderr, ": ") &&
-	  (func && fprintf (stderr, "%s: ", func), TRUE) &&
-	  (indented && fprintf (stderr, "%-*d-> ", level + 1, level), TRUE) &&
-	  vfprintf (stderr, message, ap) &&
-	  fprintf (stderr, "\n"));
-
+  _hb_debug_msg_va<max_level> (what, obj, func, indented, level, level_dir, message, ap);
   va_end (ap);
-
-  return TRUE;
 }
-template <> inline bool /* always returns TRUE */
-_hb_debug_msg<0> (const char *what,
-		  const void *obj,
-		  const char *func,
-		  bool indented,
-		  int level,
-		  const char *message,
-		  ...) HB_PRINTF_FUNC(6, 7);
-template <> inline bool /* always returns TRUE */
-_hb_debug_msg<0> (const char *what,
-		  const void *obj,
-		  const char *func,
-		  bool indented,
-		  int level,
-		  const char *message,
-		  ...)
-{
-  return TRUE;
-}
+template <> inline void
+_hb_debug_msg<0> (const char *what HB_UNUSED,
+		  const void *obj HB_UNUSED,
+		  const char *func HB_UNUSED,
+		  bool indented HB_UNUSED,
+		  unsigned int level HB_UNUSED,
+		  int level_dir HB_UNUSED,
+		  const char *message HB_UNUSED,
+		  ...) HB_PRINTF_FUNC(7, 8);
+template <> inline void
+_hb_debug_msg<0> (const char *what HB_UNUSED,
+		  const void *obj HB_UNUSED,
+		  const char *func HB_UNUSED,
+		  bool indented HB_UNUSED,
+		  unsigned int level HB_UNUSED,
+		  int level_dir HB_UNUSED,
+		  const char *message HB_UNUSED,
+		  ...) {}
 
-#define DEBUG_MSG_LEVEL(WHAT, OBJ, LEVEL, ...) _hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), NULL, FALSE, (LEVEL), __VA_ARGS__)
-#define DEBUG_MSG(WHAT, OBJ, ...) DEBUG_MSG_LEVEL (WHAT, OBJ, 0, __VA_ARGS__)
-#define DEBUG_MSG_FUNC(WHAT, OBJ, ...) _hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), HB_FUNC, FALSE, 0, __VA_ARGS__)
+#define DEBUG_MSG_LEVEL(WHAT, OBJ, LEVEL, LEVEL_DIR, ...)	_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), NULL,    true, (LEVEL), (LEVEL_DIR), __VA_ARGS__)
+#define DEBUG_MSG(WHAT, OBJ, ...) 				_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), NULL,    false, 0, 0, __VA_ARGS__)
+#define DEBUG_MSG_FUNC(WHAT, OBJ, ...)				_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), HB_FUNC, false, 0, 0, __VA_ARGS__)
 
 
 /*
@@ -553,29 +635,64 @@ _hb_debug_msg<0> (const char *what,
 template <int max_level>
 struct hb_auto_trace_t {
   explicit inline hb_auto_trace_t (unsigned int *plevel_,
-				   const char *what,
-				   const void *obj,
+				   const char *what_,
+				   const void *obj_,
 				   const char *func,
-				   const char *message) : plevel(plevel_)
+				   const char *message,
+				   ...) : plevel (plevel_), what (what_), obj (obj_), returned (false)
   {
-    if (max_level) ++*plevel;
-    /* TODO support variadic args here */
-    _hb_debug_msg<max_level> (what, obj, func, TRUE, *plevel, "%s", message);
+    if (plevel) ++*plevel;
+
+    va_list ap;
+    va_start (ap, message);
+    _hb_debug_msg_va<max_level> (what, obj, func, true, plevel ? *plevel : 0, +1, message, ap);
+    va_end (ap);
   }
-  ~hb_auto_trace_t (void) { if (max_level) --*plevel; }
+  inline ~hb_auto_trace_t (void)
+  {
+    if (unlikely (!returned)) {
+      fprintf (stderr, "OUCH, returned with no call to TRACE_RETURN.  This is a bug, please report.  Level was %d.\n", plevel ? *plevel : -1);
+      _hb_debug_msg<max_level> (what, obj, NULL, true, plevel ? *plevel : 1, -1, " ");
+      return;
+    }
+
+    if (plevel) --*plevel;
+  }
+
+  inline bool ret (bool v)
+  {
+    if (unlikely (returned)) {
+      fprintf (stderr, "OUCH, double calls to TRACE_RETURN.  This is a bug, please report.\n");
+      return v;
+    }
+
+    _hb_debug_msg<max_level> (what, obj, NULL, true, plevel ? *plevel : 1, -1, "return %s", v ? "true" : "false");
+    if (plevel) --*plevel;
+    plevel = NULL;
+    returned = true;
+    return v;
+  }
 
   private:
   unsigned int *plevel;
+  bool returned;
+  const char *what;
+  const void *obj;
 };
 template <> /* Optimize when tracing is disabled */
 struct hb_auto_trace_t<0> {
-  explicit inline hb_auto_trace_t (unsigned int *plevel_,
-				   const char *what,
-				   const void *obj,
-				   const char *func,
-				   const char *message) {}
+  explicit inline hb_auto_trace_t (unsigned int *plevel_ HB_UNUSED,
+				   const char *what HB_UNUSED,
+				   const void *obj HB_UNUSED,
+				   const char *func HB_UNUSED,
+				   const char *message HB_UNUSED,
+				   ...) {}
+
+  template <typename T>
+  inline T ret (T v) { return v; }
 };
 
+#define TRACE_RETURN(RET) trace.ret (RET)
 
 /* Misc */
 

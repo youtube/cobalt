@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -29,16 +29,17 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/time.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
+class MessageLoop;
+
 namespace media {
-class SeekableBuffer;
-};  // namespace media
 
 class AlsaWrapper;
 class AudioManagerLinux;
-class MessageLoop;
+class SeekableBuffer;
 
 class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
  public:
@@ -189,6 +190,12 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
   // Audio manager that created us.  Used to report that we've been closed.
   AudioManagerLinux* manager_;
 
+  // Message loop to use for polling. The object is owned by the AudioManager.
+  // We hold a reference to the audio thread message loop since
+  // AudioManagerBase::ShutDown() can invalidate the message loop pointer
+  // before the stream gets deleted.
+  MessageLoop* message_loop_;
+
   // Handle to the actual PCM playback device.
   snd_pcm_t* playback_handle_;
 
@@ -204,10 +211,14 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
 
   AudioSourceCallback* source_callback_;
 
+  base::Time last_fill_time_;  // Time for the last OnMoreData() callback.
+
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmOutputStream);
 };
 
 MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
                                       AlsaPcmOutputStream::InternalState);
+
+};  // namespace media
 
 #endif  // MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_

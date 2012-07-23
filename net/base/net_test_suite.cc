@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/message_loop.h"
 #include "net/base/network_change_notifier.h"
 #include "net/http/http_stream_factory.h"
+#include "net/spdy/spdy_session.h"
 #if defined(USE_NSS)
 #include "net/ocsp/nss_ocsp.h"
 #endif
@@ -15,6 +16,7 @@
 class StaticReset : public ::testing::EmptyTestEventListener {
   virtual void OnTestStart(const ::testing::TestInfo& test_info) OVERRIDE {
     net::HttpStreamFactory::ResetStaticSettingsToInit();
+    net::SpdySession::ResetStaticSettingsToInit();
   }
 };
 
@@ -37,7 +39,7 @@ void NetTestSuite::Initialize() {
 
 void NetTestSuite::Shutdown() {
 #if defined(USE_NSS)
-  net::ShutdownOCSP();
+  net::ShutdownNSSHttpIO();
 #endif
 
   // We want to destroy this here before the TestSuite continues to tear down

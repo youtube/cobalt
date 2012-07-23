@@ -6,7 +6,6 @@
 
 #ifndef NET_DISK_CACHE_BLOCK_FILES_H_
 #define NET_DISK_CACHE_BLOCK_FILES_H_
-#pragma once
 
 #include <vector>
 
@@ -69,7 +68,7 @@ class NET_EXPORT_PRIVATE BlockFiles {
   MappedFile* FileForNewBlock(FileType block_type, int block_count);
 
   // Returns the next block file on this chain, creating new files if needed.
-  MappedFile* NextFile(const MappedFile* file);
+  MappedFile* NextFile(MappedFile* file);
 
   // Creates an empty block file and returns its index.
   int CreateNextBlockFile(FileType block_type);

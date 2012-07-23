@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 
 #include "base/compiler_specific.h"
 #include "media/video/capture/video_capture_device.h"
+#include "media/video/capture/video_capture_types.h"
 
 @class VideoCaptureDeviceQTKit;
 
@@ -37,7 +38,7 @@ class VideoCaptureDeviceMac : public VideoCaptureDevice {
 
   // Called to deliver captured video frames.
   void ReceiveFrame(const uint8* video_frame, int video_frame_length,
-                    const Capability& frame_info);
+                    const VideoCaptureCapability& frame_info);
 
  private:
   void SetErrorState(const std::string& reason);

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,7 +46,7 @@ int HttpBasicStream::InitializeStream(
 
 
 int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
-                                 UploadDataStream* request_body,
+                                 scoped_ptr<UploadDataStream> request_body,
                                  HttpResponseInfo* response,
                                  const CompletionCallback& callback) {
   DCHECK(parser_.get());
@@ -58,8 +58,8 @@ int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
                                      request_info_->method.c_str(),
                                      path.c_str());
   response_ = response;
-  return parser_->SendRequest(request_line_, headers, request_body, response,
-                              callback);
+  return parser_->SendRequest(request_line_, headers, request_body.Pass(),
+                              response, callback);
 }
 
 uint64 HttpBasicStream::GetUploadProgress() const {

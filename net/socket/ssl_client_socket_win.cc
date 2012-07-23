@@ -5,6 +5,8 @@
 #include "net/socket/ssl_client_socket_win.h"
 
 #include <schnlsp.h>
+
+#include <algorithm>
 #include <map>
 
 #include "base/bind.h"
@@ -20,6 +22,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/single_request_cert_verifier.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
@@ -113,6 +116,7 @@ static int MapSecurityError(SECURITY_STATUS err) {
 
 // A bitmask consisting of these bit flags encodes which versions of the SSL
 // protocol (SSL 3.0 and TLS 1.0) are enabled.
+// TODO(wtc): support TLS 1.1 and TLS 1.2 on Windows Vista and later.
 enum {
   SSL3 = 1 << 0,
   TLS1 = 1 << 1,
@@ -337,39 +341,22 @@ static BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
   return TRUE;
 }
 
-//-----------------------------------------------------------------------------
-
-// A memory certificate store for client certificates.  This allows us to
-// close the "MY" system certificate store when we finish searching for
-// client certificates.
-class ClientCertStore {
- public:
-  ClientCertStore() {
-    store_ = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL);
+static bool IsCertificateChainIdentical(const X509Certificate* a,
+                                        const X509Certificate* b) {
+  DCHECK(a);
+  DCHECK(b);
+  const X509Certificate::OSCertHandles& a_intermediates =
+      a->GetIntermediateCertificates();
+  const X509Certificate::OSCertHandles& b_intermediates =
+      b->GetIntermediateCertificates();
+  if (a_intermediates.size() != b_intermediates.size() || !a->Equals(b))
+    return false;
+  for (size_t i = 0; i < a_intermediates.size(); ++i) {
+    if (!X509Certificate::IsSameOSCert(a_intermediates[i], b_intermediates[i]))
+      return false;
   }
-
-  ~ClientCertStore() {
-    if (store_) {
-      BOOL ok = CertCloseStore(store_, CERT_CLOSE_STORE_CHECK_FLAG);
-      DCHECK(ok);
-    }
-  }
-
-  PCCERT_CONTEXT CopyCertContext(PCCERT_CONTEXT client_cert) {
-    PCCERT_CONTEXT copy;
-    BOOL ok = CertAddCertificateContextToStore(store_, client_cert,
-                                               CERT_STORE_ADD_USE_EXISTING,
-                                               &copy);
-    DCHECK(ok);
-    return ok ? copy : NULL;
-  }
-
- private:
-  HCERTSTORE store_;
-};
-
-static base::LazyInstance<ClientCertStore> g_client_cert_store =
-    LAZY_INSTANCE_INITIALIZER;
+  return true;
+}
 
 //-----------------------------------------------------------------------------
 
@@ -422,13 +409,14 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
   if (!server_cert_)
     return;
 
-  ssl_info->cert = server_cert_;
+  ssl_info->cert = server_cert_verify_result_.verified_cert;
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
   ssl_info->public_key_hashes = server_cert_verify_result_.public_key_hashes;
   ssl_info->is_issued_by_known_root =
       server_cert_verify_result_.is_issued_by_known_root;
   ssl_info->client_cert_sent =
       ssl_config_.send_client_cert && ssl_config_.client_cert;
+  ssl_info->channel_id_sent = WasChannelIDSent();
   SecPkgContext_ConnectionInfo connection_info;
   SECURITY_STATUS status = QueryContextAttributes(
       &ctxt_, SECPKG_ATTR_CONNECTION_INFO, &connection_info);
@@ -437,6 +425,8 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
     // dwExchStrength and dwHashStrength.  dwExchStrength needs to be
     // normalized.
     ssl_info->security_bits = connection_info.dwCipherStrength;
+    // TODO(wtc): connection_info.dwProtocol is the negotiated version.
+    // Save it in ssl_info->connection_status.
   }
   // SecPkgContext_CipherInfo comes from CNG and is available on Vista or
   // later only.  On XP, the next QueryContextAttributes call fails with
@@ -456,8 +446,8 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
     // any field related to the compression method.
   }
 
-  if (ssl_config_.ssl3_fallback)
-    ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
+  if (ssl_config_.version_fallback)
+    ssl_info->connection_status |= SSL_CONNECTION_VERSION_FALLBACK;
 }
 
 void SSLClientSocketWin::GetSSLCertRequestInfo(
@@ -517,18 +507,35 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
     // Get the leaf certificate.
     PCCERT_CONTEXT cert_context =
         chain_context->rgpChain[0]->rgpElement[0]->pCertContext;
-    // Copy it to our own certificate store, so that we can close the "MY"
-    // certificate store before returning from this function.
-    PCCERT_CONTEXT cert_context2 =
-        g_client_cert_store.Get().CopyCertContext(cert_context);
-    if (!cert_context2) {
+    // Copy the certificate into a NULL store, so that the "MY" store can be
+    // closed before returning from this function.
+    PCCERT_CONTEXT cert_context2 = NULL;
+    BOOL ok = CertAddCertificateContextToStore(NULL, cert_context,
+                                               CERT_STORE_ADD_USE_EXISTING,
+                                               &cert_context2);
+    if (!ok) {
       NOTREACHED();
       continue;
     }
+
+    // Grab the intermediates, if any.
+    X509Certificate::OSCertHandles intermediates;
+    for (DWORD i = 1; i < chain_context->rgpChain[0]->cElement; ++i) {
+      PCCERT_CONTEXT chain_intermediate =
+          chain_context->rgpChain[0]->rgpElement[i]->pCertContext;
+      PCCERT_CONTEXT copied_intermediate = NULL;
+      ok = CertAddCertificateContextToStore(NULL, chain_intermediate,
+                                            CERT_STORE_ADD_USE_EXISTING,
+                                            &copied_intermediate);
+      if (ok)
+        intermediates.push_back(copied_intermediate);
+    }
     scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
-        cert_context2, X509Certificate::OSCertHandles());
+        cert_context2, intermediates);
     cert_request_info->client_certs.push_back(cert);
     CertFreeCertificateContext(cert_context2);
+    for (size_t i = 0; i < intermediates.size(); ++i)
+      CertFreeCertificateContext(intermediates[i]);
   }
 
   FreeContextBuffer(issuer_list.aIssuers);
@@ -538,8 +545,9 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
 }
 
 int SSLClientSocketWin::ExportKeyingMaterial(const base::StringPiece& label,
+                                             bool has_context,
                                              const base::StringPiece& context,
-                                             unsigned char *out,
+                                             unsigned char* out,
                                              unsigned int outlen) {
   return ERR_NOT_IMPLEMENTED;
 }
@@ -552,7 +560,7 @@ SSLClientSocketWin::GetNextProto(std::string* proto,
   return kNextProtoUnsupported;
 }
 
-OriginBoundCertService* SSLClientSocketWin::GetOriginBoundCertService() const {
+ServerBoundCertService* SSLClientSocketWin::GetServerBoundCertService() const {
   return NULL;
 }
 
@@ -561,11 +569,11 @@ int SSLClientSocketWin::Connect(const CompletionCallback& callback) {
   DCHECK(next_state_ == STATE_NONE);
   DCHECK(user_connect_callback_.is_null());
 
-  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   int rv = InitializeSSLContext();
   if (rv != OK) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
     return rv;
   }
 
@@ -575,17 +583,23 @@ int SSLClientSocketWin::Connect(const CompletionCallback& callback) {
   if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
   } else {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
   }
   return rv;
 }
 
 int SSLClientSocketWin::InitializeSSLContext() {
+  // If ssl_config_.version_max > SSL_PROTOCOL_VERSION_TLS1, it means the
+  // SSLConfigService::SetDefaultVersionMax(SSL_PROTOCOL_VERSION_TLS1) call
+  // in ClientSocketFactory::UseSystemSSL() is not effective.
+  DCHECK_LE(ssl_config_.version_max, SSL_PROTOCOL_VERSION_TLS1);
   int ssl_version_mask = 0;
-  if (ssl_config_.ssl3_enabled)
+  if (ssl_config_.version_min == SSL_PROTOCOL_VERSION_SSL3)
     ssl_version_mask |= SSL3;
-  if (ssl_config_.tls1_enabled)
+  if (ssl_config_.version_min <= SSL_PROTOCOL_VERSION_TLS1 &&
+      ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1) {
     ssl_version_mask |= TLS1;
+  }
   // If we pass 0 to GetCredHandle, we will let Schannel select the protocols,
   // rather than enabling no protocols.  So we have to fail here.
   if (ssl_version_mask == 0)
@@ -698,7 +712,7 @@ bool SSLClientSocketWin::IsConnectedAndIdle() const {
   return completed_handshake() && transport_->socket()->IsConnectedAndIdle();
 }
 
-int SSLClientSocketWin::GetPeerAddress(AddressList* address) const {
+int SSLClientSocketWin::GetPeerAddress(IPEndPoint* address) const {
   return transport_->socket()->GetPeerAddress(address);
 }
 
@@ -844,7 +858,7 @@ void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
       c.Run(rv);
       return;
     }
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
     CompletionCallback c = user_connect_callback_;
     user_connect_callback_.Reset();
     c.Run(rv);
@@ -1177,6 +1191,8 @@ int SSLClientSocketWin::DoVerifyCert() {
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
+  if (ssl_config_.cert_io_enabled)
+    flags |= X509Certificate::VERIFY_CERT_IO_ENABLED;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   return verifier_->Verify(
       server_cert_, host_and_port_.host(), flags,
@@ -1526,17 +1542,32 @@ int SSLClientSocketWin::DidCompleteHandshake() {
     LOG(ERROR) << "QueryContextAttributes (remote cert) failed: " << status;
     return MapSecurityError(status);
   }
-  scoped_refptr<X509Certificate> new_server_cert(
-      X509Certificate::CreateFromHandle(server_cert_handle,
-                                        X509Certificate::OSCertHandles()));
-  if (net_log_.IsLoggingBytes()) {
-    net_log_.AddEvent(
-        NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
-        make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
+
+  X509Certificate::OSCertHandles intermediates;
+  PCCERT_CONTEXT intermediate = NULL;
+  // In testing, enumerating the store returned from SChannel appears to
+  // enumerate certificates in reverse of the order they were added, meaning
+  // that issuer certificates appear before the subject certificates. This is
+  // likely because the default Windows memory store is implemented as a
+  // linked-list. Reverse the list, so that intermediates are ordered from
+  // subject to issuer.
+  // Note that the store also includes the end-entity (server) certificate,
+  // so exclude this certificate from the set of |intermediates|.
+  while ((intermediate = CertEnumCertificatesInStore(
+              server_cert_handle->hCertStore, intermediate))) {
+    if (!X509Certificate::IsSameOSCert(server_cert_handle, intermediate))
+      intermediates.push_back(CertDuplicateCertificateContext(intermediate));
   }
-  if (renegotiating_ &&
-      X509Certificate::IsSameOSCert(server_cert_->os_cert_handle(),
-                                    server_cert_handle)) {
+  std::reverse(intermediates.begin(), intermediates.end());
+
+  scoped_refptr<X509Certificate> new_server_cert(
+      X509Certificate::CreateFromHandle(server_cert_handle, intermediates));
+  net_log_.AddEvent(
+      NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
+      base::Bind(&NetLogX509CertificateCallback,
+                 base::Unretained(new_server_cert.get())));
+  if (renegotiating_ && IsCertificateChainIdentical(server_cert_,
+                                                    new_server_cert)) {
     // We already verified the server certificate.  Either it is good or the
     // user has accepted the certificate error.
     DidCompleteRenegotiation();
@@ -1545,6 +1576,8 @@ int SSLClientSocketWin::DidCompleteHandshake() {
     next_state_ = STATE_VERIFY_CERT;
   }
   CertFreeCertificateContext(server_cert_handle);
+  for (size_t i = 0; i < intermediates.size(); ++i)
+    CertFreeCertificateContext(intermediates[i]);
   return OK;
 }
 

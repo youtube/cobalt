@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_SSL_CERT_REQUEST_INFO_H_
 #define NET_BASE_SSL_CERT_REQUEST_INFO_H_
-#pragma once
 
 #include <string>
 #include <vector>

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,10 +10,14 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
+#include "base/threading/thread.h"
 #include "base/time.h"
 #include "net/base/winsock_init.h"
+#include "net/dns/dns_config_watcher.h"
 
 #pragma comment(lib, "iphlpapi.lib")
+
+namespace net {
 
 namespace {
 
@@ -22,14 +26,39 @@ const int kWatchForAddressChangeRetryIntervalMs = 500;
 
 }  // namespace
 
-namespace net {
+// Thread on which we can run DnsConfigWatcher, which requires AssertIOAllowed
+// to open registry keys and to handle FilePathWatcher updates.
+class NetworkChangeNotifierWin::DnsWatcherThread : public base::Thread {
+ public:
+  DnsWatcherThread() : base::Thread("DnsWatcher") {}
+
+  virtual ~DnsWatcherThread() {
+    Stop();
+  }
+
+  virtual void Init() OVERRIDE {
+    watcher_.Init();
+  }
+
+  virtual void CleanUp() OVERRIDE {
+    watcher_.CleanUp();
+  }
+
+ private:
+  internal::DnsConfigWatcher watcher_;
+
+  DISALLOW_COPY_AND_ASSIGN(DnsWatcherThread);
+};
 
 NetworkChangeNotifierWin::NetworkChangeNotifierWin()
     : is_watching_(false),
       sequential_failures_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+      dns_watcher_thread_(new DnsWatcherThread()) {
   memset(&addr_overlapped_, 0, sizeof addr_overlapped_);
   addr_overlapped_.hEvent = WSACreateEvent();
+  dns_watcher_thread_->StartWithOptions(
+      base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
 NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
@@ -40,9 +69,11 @@ NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
   WSACloseEvent(addr_overlapped_.hEvent);
 }
 
-// Conceptually we would like to tell whether the user is "online" verus
-// "offline".  This is challenging since the only thing we can test with
-// certainty is whether a *particular* host is reachable.
+// This implementation does not return the actual connection type but merely
+// determines if the user is "online" (in which case it returns
+// CONNECTION_UNKNOWN) or "offline" (and then it returns CONNECTION_NONE).
+// This is challenging since the only thing we can test with certainty is
+// whether a *particular* host is reachable.
 //
 // While we can't conclusively determine when a user is "online", we can at
 // least reliably recognize some of the situtations when they are clearly
@@ -86,7 +117,8 @@ NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
 // experiments I ran... However none of them correctly returned "offline" when
 // executing 'ipconfig /release'.
 //
-bool NetworkChangeNotifierWin::IsCurrentlyOffline() const {
+NetworkChangeNotifier::ConnectionType
+NetworkChangeNotifierWin::GetCurrentConnectionType() const {
 
   // TODO(eroman): We could cache this value, and only re-calculate it on
   //               network changes. For now we recompute it each time asked,
@@ -109,7 +141,7 @@ bool NetworkChangeNotifierWin::IsCurrentlyOffline() const {
   if (0 != WSALookupServiceBegin(&query_set, LUP_RETURN_ALL,
                                  &ws_handle)) {
     LOG(ERROR) << "WSALookupServiceBegin failed with: " << WSAGetLastError();
-    return false;
+    return NetworkChangeNotifier::CONNECTION_UNKNOWN;
   }
 
   bool found_connection = false;
@@ -154,7 +186,9 @@ bool NetworkChangeNotifierWin::IsCurrentlyOffline() const {
   LOG_IF(ERROR, result != 0)
       << "WSALookupServiceEnd() failed with: " << result;
 
-  return !found_connection;
+  // TODO(droger): Return something more detailed than CONNECTION_UNKNOWN.
+  return found_connection ? NetworkChangeNotifier::CONNECTION_UNKNOWN :
+                            NetworkChangeNotifier::CONNECTION_NONE;
 }
 
 void NetworkChangeNotifierWin::OnObjectSignaled(HANDLE object) {
@@ -172,14 +206,14 @@ void NetworkChangeNotifierWin::NotifyObservers() {
   DCHECK(CalledOnValidThread());
   NotifyObserversOfIPAddressChange();
 
-  // Calling IsOffline() at this very moment is likely to give
+  // Calling GetConnectionType() at this very moment is likely to give
   // the wrong result, so we delay that until a little bit later.
   //
   // The one second delay chosen here was determined experimentally
   // by adamk on Windows 7.
   timer_.Stop();  // cancel any already waiting notification
   timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
-               &NetworkChangeNotifierWin::NotifyParentOfOnlineStateChange);
+               &NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange);
 }
 
 void NetworkChangeNotifierWin::WatchForAddressChange() {
@@ -204,7 +238,8 @@ void NetworkChangeNotifierWin::WatchForAddressChange() {
         FROM_HERE,
         base::Bind(&NetworkChangeNotifierWin::WatchForAddressChange,
                    weak_factory_.GetWeakPtr()),
-        kWatchForAddressChangeRetryIntervalMs);
+        base::TimeDelta::FromMilliseconds(
+            kWatchForAddressChangeRetryIntervalMs));
     return;
   }
 
@@ -234,8 +269,8 @@ bool NetworkChangeNotifierWin::WatchForAddressChangeInternal() {
   return true;
 }
 
-void NetworkChangeNotifierWin::NotifyParentOfOnlineStateChange() {
-  NotifyObserversOfOnlineStateChange();
+void NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange() {
+  NotifyObserversOfConnectionTypeChange();
 }
 
 }  // namespace net

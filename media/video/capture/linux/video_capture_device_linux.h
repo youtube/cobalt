@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Linux specific implementation of VideoCaptureDevice.
-// V4L2 is used for capturing. V4L2 does not provide it's own thread for
+// V4L2 is used for capturing. V4L2 does not provide its own thread for
 // capturing so this implementation uses a Chromium thread for fetching frames
 // from V4L2.
 
@@ -14,6 +14,7 @@
 
 #include "base/threading/thread.h"
 #include "media/video/capture/video_capture_device.h"
+#include "media/video/capture/video_capture_types.h"
 
 namespace media {
 

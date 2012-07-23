@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,13 +26,11 @@ function __pages() {  // fetch lazily
   return this.data;
 }
 function __get_timings() {
-  if (sessionStorage == null)
+  if (sessionStorage != null &&
+      sessionStorage.getItem("__pc_timings") != null) {
+    return sessionStorage["__pc_timings"];
+  } else {
     return __get_cookie("__pc_timings");
-  else {
-    if (sessionStorage.getItem("__pc_timings") == null)
-      return "";
-    else
-      return sessionStorage["__pc_timings"];
   }
 }
 function __set_timings(timings) {
@@ -64,7 +62,10 @@ function __ontimeout() {
   if (__cycle == (__pages().length * __iterations)) {
     document.cookie = "__pc_done=1; path=/";
     doc = "../../common/report.html";
-    if (window.console) console.log("times: [" + __get_timings() + "]");
+    if (window.console) {
+      console.log("Pages: [" + __get_cookie('__pc_pages') + "]");
+      console.log("times: [" + __get_timings() + "]");
+    }
   } else {
     doc = "../" + __pages()[__page] + "/index.html";
   }

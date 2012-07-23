@@ -19,7 +19,8 @@
 TEST(ECSignatureCreatorTest, OpenSSLStub) {
   scoped_ptr<crypto::ECSignatureCreator> signer(
       crypto::ECSignatureCreator::Create(NULL));
-  ASSERT_FALSE(signer.get());
+  ASSERT_TRUE(signer.get());
+  EXPECT_FALSE(signer->Sign(NULL, 0, NULL));
 }
 #else
 TEST(ECSignatureCreatorTest, BasicTest) {

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,7 +7,6 @@
 
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "media/base/demuxer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -20,14 +19,13 @@ class MockDemuxerHost : public DemuxerHost {
 
   // DataSourceHost implementation.
   MOCK_METHOD1(SetTotalBytes, void(int64 total_bytes));
-  MOCK_METHOD1(SetBufferedBytes, void(int64 buffered_bytes));
-  MOCK_METHOD1(SetNetworkActivity, void(bool network_activity));
+  MOCK_METHOD2(AddBufferedByteRange, void(int64 start, int64 end));
+  MOCK_METHOD2(AddBufferedTimeRange, void(base::TimeDelta start,
+                                          base::TimeDelta end));
 
   // DemuxerHost implementation.
   MOCK_METHOD1(OnDemuxerError, void(PipelineStatus error));
   MOCK_METHOD1(SetDuration, void(base::TimeDelta duration));
-  MOCK_METHOD1(SetBufferedTime, void(base::TimeDelta buffered_time));
-  MOCK_METHOD1(SetCurrentReadPosition, void(int64 offset));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockDemuxerHost);

@@ -64,7 +64,6 @@
 
 #ifndef BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
 #define BASE_SYNCHRONIZATION_CONDITION_VARIABLE_H_
-#pragma once
 
 #include "build/build_config.h"
 

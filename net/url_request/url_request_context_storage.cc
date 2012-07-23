@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,11 @@
 
 #include "base/logging.h"
 #include "net/base/cert_verifier.h"
-#include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/network_delegate.h"
-#include "net/base/origin_bound_cert_service.h"
+#include "net/base/server_bound_cert_service.h"
+#include "net/cookies/cookie_store.h"
 #include "net/ftp/ftp_transaction_factory.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_server_properties.h"
@@ -19,6 +19,7 @@
 #include "net/url_request/fraudulent_certificate_reporter.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_job_factory.h"
+#include "net/url_request/url_request_throttler_manager.h"
 
 namespace net {
 
@@ -44,10 +45,10 @@ void URLRequestContextStorage::set_cert_verifier(CertVerifier* cert_verifier) {
   cert_verifier_.reset(cert_verifier);
 }
 
-void URLRequestContextStorage::set_origin_bound_cert_service(
-    OriginBoundCertService* origin_bound_cert_service) {
-  context_->set_origin_bound_cert_service(origin_bound_cert_service);
-  origin_bound_cert_service_.reset(origin_bound_cert_service);
+void URLRequestContextStorage::set_server_bound_cert_service(
+    ServerBoundCertService* server_bound_cert_service) {
+  context_->set_server_bound_cert_service(server_bound_cert_service);
+  server_bound_cert_service_.reset(server_bound_cert_service);
 }
 
 void URLRequestContextStorage::set_fraudulent_certificate_reporter(
@@ -113,6 +114,12 @@ void URLRequestContextStorage::set_job_factory(
     URLRequestJobFactory* job_factory) {
   context_->set_job_factory(job_factory);
   job_factory_.reset(job_factory);
+}
+
+void URLRequestContextStorage::set_throttler_manager(
+    URLRequestThrottlerManager* throttler_manager) {
+  context_->set_throttler_manager(throttler_manager);
+  throttler_manager_.reset(throttler_manager);
 }
 
 }  // namespace net

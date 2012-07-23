@@ -19,7 +19,6 @@
 
 #ifndef BASE_METRICS_STATS_TABLE_H_
 #define BASE_METRICS_STATS_TABLE_H_
-#pragma once
 
 #include <string>
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -27,8 +27,8 @@
 #include "media/base/channel_layout.h"
 
 namespace media {
+
 class SeekableBuffer;
-}
 
 #if defined(OS_LINUX)
 class AudioManagerLinux;
@@ -40,7 +40,7 @@ typedef AudioManagerOpenBSD AudioManagerPulse;
 #error Unsupported platform
 #endif
 
-struct AudioParameters;
+class AudioParameters;
 
 class PulseAudioOutputStream : public AudioOutputStream {
  public:
@@ -129,5 +129,7 @@ class PulseAudioOutputStream : public AudioOutputStream {
 
   DISALLOW_COPY_AND_ASSIGN(PulseAudioOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_PULSE_PULSE_OUTPUT_H_

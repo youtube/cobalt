@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "build/build_config.h"
 
 #include "base/logging.h"
+#include "base/sys_byteorder.h"
 #include "net/base/address_list.h"
 #include "net/base/dns_reloader.h"
 #include "net/base/net_errors.h"
@@ -28,7 +29,8 @@ bool IsAllLocalhostOfOneFamily(const struct addrinfo* ai) {
       case AF_INET: {
         const struct sockaddr_in* addr_in =
             reinterpret_cast<struct sockaddr_in*>(ai->ai_addr);
-        if ((ntohl(addr_in->sin_addr.s_addr) & 0xff000000) == 0x7f000000)
+        if ((base::NetToHost32(addr_in->sin_addr.s_addr) & 0xff000000) ==
+            0x7f000000)
           saw_v4_localhost = true;
         else
           return false;
@@ -236,7 +238,15 @@ int SystemHostResolverProc(const std::string& host,
     return ERR_NAME_NOT_RESOLVED;
   }
 
-  *addrlist = AddressList::CreateByAdoptingFromSystem(ai);
+#if defined(OS_ANDROID)
+  // Workaround for Android's getaddrinfo leaving ai==NULL without an error.
+  // http://crbug.com/134142
+  if (ai == NULL)
+    return ERR_NAME_NOT_RESOLVED;
+#endif
+
+  *addrlist = AddressList::CreateFromAddrinfo(ai);
+  freeaddrinfo(ai);
   return OK;
 }
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_SOCKET_TCP_CLIENT_SOCKET_H_
 #define NET_SOCKET_TCP_CLIENT_SOCKET_H_
-#pragma once
 
 #include "build/build_config.h"
 #include "net/base/net_export.h"

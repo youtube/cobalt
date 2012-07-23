@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -163,8 +163,7 @@ TEST(StringUtilTest, SplitString) {
   std::vector<std::wstring> r;
 
   SplitString(L"", L',', &r);
-  ASSERT_EQ(1U, r.size());
-  EXPECT_EQ(r[0], L"");
+  EXPECT_EQ(0U, r.size());
   r.clear();
 
   SplitString(L"a,b,c", L',', &r);
@@ -188,9 +187,8 @@ TEST(StringUtilTest, SplitString) {
   EXPECT_EQ(r[2], L"c");
   r.clear();
 
-  SplitString(L"", L'*', &r);
-  ASSERT_EQ(1U, r.size());
-  EXPECT_EQ(r[0], L"");
+  SplitString(L"   ", L'*', &r);
+  EXPECT_EQ(0U, r.size());
   r.clear();
 
   SplitString(L"foo", L'*', &r);
@@ -266,19 +264,21 @@ TEST(SplitStringUsingSubstrTest, TrailingDelimitersSkipped) {
 TEST(StringSplitTest, StringSplitDontTrim) {
   std::vector<std::string> r;
 
-  SplitStringDontTrim("\t\ta\t", '\t', &r);
+  SplitStringDontTrim("   ", '*', &r);
+  ASSERT_EQ(1U, r.size());
+  EXPECT_EQ(r[0], "   ");
+
+  SplitStringDontTrim("\t  \ta\t ", '\t', &r);
   ASSERT_EQ(4U, r.size());
   EXPECT_EQ(r[0], "");
-  EXPECT_EQ(r[1], "");
+  EXPECT_EQ(r[1], "  ");
   EXPECT_EQ(r[2], "a");
-  EXPECT_EQ(r[3], "");
-  r.clear();
+  EXPECT_EQ(r[3], " ");
 
   SplitStringDontTrim("\ta\t\nb\tcc", '\n', &r);
   ASSERT_EQ(2U, r.size());
   EXPECT_EQ(r[0], "\ta\t");
   EXPECT_EQ(r[1], "b\tcc");
-  r.clear();
 }
 
 TEST(StringSplitTest, SplitStringAlongWhitespace) {

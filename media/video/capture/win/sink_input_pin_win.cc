@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -110,17 +110,17 @@ bool SinkInputPin::IsMediaTypeValid(const AM_MEDIA_TYPE* media_type) {
   }
   if (sub_type == kMediaSubTypeI420 &&
       pvi->bmiHeader.biCompression == MAKEFOURCC('I', '4', '2', '0')) {
-    resulting_capability_.color = VideoCaptureDevice::kI420;
+    resulting_capability_.color = VideoCaptureCapability::kI420;
     return true;  // This format is acceptable.
   }
   if (sub_type == MEDIASUBTYPE_YUY2 &&
       pvi->bmiHeader.biCompression == MAKEFOURCC('Y', 'U', 'Y', '2')) {
-    resulting_capability_.color = VideoCaptureDevice::kYUY2;
+    resulting_capability_.color = VideoCaptureCapability::kYUY2;
     return true;  // This format is acceptable.
   }
   if (sub_type == MEDIASUBTYPE_RGB24 &&
       pvi->bmiHeader.biCompression == BI_RGB) {
-    resulting_capability_.color = VideoCaptureDevice::kRGB24;
+    resulting_capability_.color = VideoCaptureCapability::kRGB24;
     return true;  // This format is acceptable.
   }
   return false;
@@ -137,12 +137,17 @@ HRESULT SinkInputPin::Receive(IMediaSample* sample) {
 }
 
 void SinkInputPin::SetRequestedMediaCapability(
-    const VideoCaptureDevice::Capability& capability) {
+    const VideoCaptureCapability& capability) {
   requested_capability_ = capability;
-  resulting_capability_ = VideoCaptureDevice::Capability();
+  resulting_capability_.width = 0;
+  resulting_capability_.height = 0;
+  resulting_capability_.frame_rate = 0;
+  resulting_capability_.color = VideoCaptureCapability::kColorUnknown;
+  resulting_capability_.expected_capture_delay = 0;
+  resulting_capability_.interlaced = false;
 }
 
-const VideoCaptureDevice::Capability& SinkInputPin::ResultingCapability() {
+const VideoCaptureCapability& SinkInputPin::ResultingCapability() {
   return resulting_capability_;
 }
 

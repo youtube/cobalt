@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -79,7 +79,7 @@ std::string SysWideToNativeMB(const std::wstring& wide) {
   memset(&ps, 0, sizeof(ps));
   for (size_t i = 0, j = 0; i < wide.size(); ++i) {
     const wchar_t src = wide[i];
-    // We don't want wcrtomb to do it's funkiness for embedded NULLs.
+    // We don't want wcrtomb to do its funkiness for embedded NULLs.
     size_t res = src ? wcrtomb(&out[j], src, &ps) : 0;
     switch (res) {
       // Handle any errors and return an empty string.

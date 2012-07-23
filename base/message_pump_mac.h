@@ -29,7 +29,6 @@
 
 #ifndef BASE_MESSAGE_PUMP_MAC_H_
 #define BASE_MESSAGE_PUMP_MAC_H_
-#pragma once
 
 #include "base/message_pump.h"
 
@@ -38,6 +37,9 @@
 #if !defined(__OBJC__)
 class NSAutoreleasePool;
 #else  // !defined(__OBJC__)
+#if defined(OS_IOS)
+#import <Foundation/Foundation.h>
+#else
 #import <AppKit/AppKit.h>
 
 // Clients must subclass NSApplication and implement this protocol if they use
@@ -48,10 +50,12 @@ class NSAutoreleasePool;
 // necessary.
 - (BOOL)isHandlingSendEvent;
 @end
+#endif  // !defined(OS_IOS)
 #endif  // !defined(__OBJC__)
 
 namespace base {
 
+class RunLoop;
 class TimeTicks;
 
 class MessagePumpCFRunLoopBase : public MessagePump {
@@ -59,7 +63,6 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   friend class MessagePumpScopedAutoreleasePool;
  public:
   MessagePumpCFRunLoopBase();
-  virtual ~MessagePumpCFRunLoopBase();
 
   // Subclasses should implement the work they need to do in MessagePump::Run
   // in the DoRun method.  MessagePumpCFRunLoopBase::Run calls DoRun directly.
@@ -72,10 +75,16 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) OVERRIDE;
 
  protected:
+  virtual ~MessagePumpCFRunLoopBase();
+
   // Accessors for private data members to be used by subclasses.
   CFRunLoopRef run_loop() const { return run_loop_; }
   int nesting_level() const { return nesting_level_; }
   int run_nesting_level() const { return run_nesting_level_; }
+
+  // Sets this pump's delegate.  Signals the appropriate sources if
+  // |delegateless_work_| is true.  |delegate| can be NULL.
+  void SetDelegate(Delegate* delegate);
 
   // Return an autorelease pool to wrap around any work being performed.
   // In some cases, CreateAutoreleasePool may return nil intentionally to
@@ -194,6 +203,9 @@ class MessagePumpCFRunLoop : public MessagePumpCFRunLoopBase {
   virtual void DoRun(Delegate* delegate) OVERRIDE;
   virtual void Quit() OVERRIDE;
 
+ protected:
+  virtual ~MessagePumpCFRunLoop();
+
  private:
   virtual void EnterExitRunLoop(CFRunLoopActivity activity) OVERRIDE;
 
@@ -207,11 +219,13 @@ class MessagePumpCFRunLoop : public MessagePumpCFRunLoopBase {
 
 class MessagePumpNSRunLoop : public MessagePumpCFRunLoopBase {
  public:
-  MessagePumpNSRunLoop();
-  virtual ~MessagePumpNSRunLoop();
+  BASE_EXPORT MessagePumpNSRunLoop();
 
   virtual void DoRun(Delegate* delegate) OVERRIDE;
   virtual void Quit() OVERRIDE;
+
+ protected:
+  virtual ~MessagePumpNSRunLoop();
 
  private:
   // A source that doesn't do anything but provide something signalable
@@ -225,12 +239,40 @@ class MessagePumpNSRunLoop : public MessagePumpCFRunLoopBase {
   DISALLOW_COPY_AND_ASSIGN(MessagePumpNSRunLoop);
 };
 
+#if defined(OS_IOS)
+// This is a fake message pump.  It attaches sources to the main thread's
+// CFRunLoop, so PostTask() will work, but it is unable to drive the loop
+// directly, so calling Run() or Quit() are errors.
+class MessagePumpUIApplication : public MessagePumpCFRunLoopBase {
+ public:
+  MessagePumpUIApplication();
+  virtual void DoRun(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
+
+  // This message pump can not spin the main message loop directly.  Instead,
+  // call |Attach()| to set up a delegate.  It is an error to call |Run()|.
+  virtual void Attach(Delegate* delegate);
+
+ protected:
+  virtual ~MessagePumpUIApplication();
+
+ private:
+  base::RunLoop* run_loop_;
+
+  DISALLOW_COPY_AND_ASSIGN(MessagePumpUIApplication);
+};
+
+#else
+
 class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
  public:
   MessagePumpNSApplication();
 
   virtual void DoRun(Delegate* delegate) OVERRIDE;
   virtual void Quit() OVERRIDE;
+
+ protected:
+  virtual ~MessagePumpNSApplication();
 
  private:
   // False after Quit is called.
@@ -250,6 +292,8 @@ class MessagePumpCrApplication : public MessagePumpNSApplication {
   MessagePumpCrApplication();
 
  protected:
+  virtual ~MessagePumpCrApplication() {}
+
   // Returns nil if NSApp is currently in the middle of calling
   // -sendEvent.  Requires NSApp implementing CrAppProtocol.
   virtual NSAutoreleasePool* CreateAutoreleasePool() OVERRIDE;
@@ -257,6 +301,7 @@ class MessagePumpCrApplication : public MessagePumpNSApplication {
  private:
   DISALLOW_COPY_AND_ASSIGN(MessagePumpCrApplication);
 };
+#endif  // !defined(OS_IOS)
 
 class MessagePumpMac {
  public:
@@ -270,6 +315,7 @@ class MessagePumpMac {
   // default NSApplication.
   static MessagePump* Create();
 
+#if !defined(OS_IOS)
   // If a pump is created before the required CrAppProtocol is
   // created, the wrong MessagePump subclass could be used.
   // UsingCrApp() returns false if the message pump was created before
@@ -280,6 +326,7 @@ class MessagePumpMac {
   // Wrapper to query -[NSApp isHandlingSendEvent] from C++ code.
   // Requires NSApp to implement CrAppProtocol.
   BASE_EXPORT static bool IsHandlingSendEvent();
+#endif  // !defined(OS_IOS)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(MessagePumpMac);

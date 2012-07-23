@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_AUTH_FILTER_WIN_H_
 #define NET_HTTP_HTTP_AUTH_FILTER_WIN_H_
-#pragma once
 
 #include "build/build_config.h"
 

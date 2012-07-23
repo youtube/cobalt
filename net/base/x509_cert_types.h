@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_X509_CERT_TYPES_H_
 #define NET_BASE_X509_CERT_TYPES_H_
-#pragma once
 
 #include <string.h>
 
@@ -29,7 +28,7 @@ namespace net {
 class X509Certificate;
 
 // SHA-1 fingerprint (160 bits) of a certificate.
-struct SHA1Fingerprint {
+struct NET_EXPORT SHA1Fingerprint {
   bool Equals(const SHA1Fingerprint& other) const {
     return memcmp(data, other.data, sizeof(data)) == 0;
   }
@@ -37,13 +36,26 @@ struct SHA1Fingerprint {
   unsigned char data[20];
 };
 
-class SHA1FingerprintLessThan {
+// In the future there will be a generic Fingerprint type, with at least two
+// implementations: SHA1 and SHA256. See http://crbug.com/117914. Until that
+// work is done (in a separate patch) this typedef bridges the gap.
+typedef SHA1Fingerprint Fingerprint;
+
+typedef std::vector<Fingerprint> FingerprintVector;
+
+class NET_EXPORT SHA1FingerprintLessThan {
  public:
   bool operator() (const SHA1Fingerprint& lhs,
                    const SHA1Fingerprint& rhs) const {
     return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
   }
 };
+
+// IsSHA1HashInSortedArray returns true iff |hash| is in |array|, a sorted
+// array of SHA1 hashes.
+bool NET_EXPORT IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
+                                        const uint8* array,
+                                        size_t array_byte_len);
 
 // CertPrincipal represents the issuer or subject field of an X.509 certificate.
 struct NET_EXPORT CertPrincipal {

@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_MOCK_ALLOW_URL_SECURITY_MANAGER_H_
 #define NET_HTTP_MOCK_ALLOW_URL_SECURITY_MANAGER_H_
-#pragma once
 
 #include "net/http/url_security_manager.h"
 

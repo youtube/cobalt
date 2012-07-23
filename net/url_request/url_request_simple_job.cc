@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,12 +9,14 @@
 #include "base/message_loop.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/url_request/url_request.h"
+#include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_status.h"
 
 namespace net {
 
 URLRequestSimpleJob::URLRequestSimpleJob(URLRequest* request)
-    : URLRequestJob(request),
+    : URLRequestJob(request, request->context()->network_delegate()),
       data_offset_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 

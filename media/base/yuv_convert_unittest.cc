@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "base/base_paths.h"
+#include "base/cpu.h"
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "media/base/cpu_features.h"
 #include "media/base/djb2.h"
 #include "media/base/simd/convert_rgb_to_yuv.h"
 #include "media/base/simd/convert_yuv_to_rgb.h"
@@ -457,7 +457,8 @@ TEST(YUVConvertTest, DownScaleYUVToRGB32WithRect) {
 
 #if !defined(ARCH_CPU_ARM_FAMILY)
 TEST(YUVConvertTest, RGB32ToYUV_SSE2_MatchReference) {
-  if (!media::hasSSE2()) {
+  base::CPU cpu;
+  if (!cpu.has_sse2()) {
     LOG(WARNING) << "System doesn't support SSE2, test not executed.";
     return;
   }
@@ -543,7 +544,8 @@ TEST(YUVConvertTest, RGB32ToYUV_SSE2_MatchReference) {
 }
 
 TEST(YUVConvertTest, ConvertYUVToRGB32Row_MMX) {
-  if (!media::hasMMX()) {
+  base::CPU cpu;
+  if (!cpu.has_mmx()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }
@@ -571,7 +573,8 @@ TEST(YUVConvertTest, ConvertYUVToRGB32Row_MMX) {
 }
 
 TEST(YUVConvertTest, ConvertYUVToRGB32Row_SSE) {
-  if (!media::hasSSE()) {
+  base::CPU cpu;
+  if (!cpu.has_sse()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }
@@ -599,7 +602,8 @@ TEST(YUVConvertTest, ConvertYUVToRGB32Row_SSE) {
 }
 
 TEST(YUVConvertTest, ScaleYUVToRGB32Row_MMX) {
-  if (!media::hasMMX()) {
+  base::CPU cpu;
+  if (!cpu.has_mmx()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }
@@ -630,7 +634,8 @@ TEST(YUVConvertTest, ScaleYUVToRGB32Row_MMX) {
 }
 
 TEST(YUVConvertTest, ScaleYUVToRGB32Row_SSE) {
-  if (!media::hasSSE()) {
+  base::CPU cpu;
+  if (!cpu.has_sse()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }
@@ -661,7 +666,8 @@ TEST(YUVConvertTest, ScaleYUVToRGB32Row_SSE) {
 }
 
 TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_MMX) {
-  if (!media::hasMMX()) {
+  base::CPU cpu;
+  if (!cpu.has_mmx()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }
@@ -692,7 +698,8 @@ TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_MMX) {
 }
 
 TEST(YUVConvertTest, LinearScaleYUVToRGB32Row_SSE) {
-  if (!media::hasSSE()) {
+  base::CPU cpu;
+  if (!cpu.has_sse()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }
@@ -738,7 +745,8 @@ TEST(YUVConvertTest, FilterYUVRows_C_OutOfBounds) {
 }
 
 TEST(YUVConvertTest, FilterYUVRows_MMX_OutOfBounds) {
-  if (!media::hasMMX()) {
+  base::CPU cpu;
+  if (!cpu.has_mmx()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }
@@ -759,7 +767,8 @@ TEST(YUVConvertTest, FilterYUVRows_MMX_OutOfBounds) {
 }
 
 TEST(YUVConvertTest, FilterYUVRows_SSE2_OutOfBounds) {
-  if (!media::hasSSE2()) {
+  base::CPU cpu;
+  if (!cpu.has_sse2()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }
@@ -779,7 +788,8 @@ TEST(YUVConvertTest, FilterYUVRows_SSE2_OutOfBounds) {
 }
 
 TEST(YUVConvertTest, FilterYUVRows_MMX_UnalignedDestination) {
-  if (!media::hasMMX()) {
+  base::CPU cpu;
+  if (!cpu.has_mmx()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }
@@ -808,7 +818,8 @@ TEST(YUVConvertTest, FilterYUVRows_MMX_UnalignedDestination) {
 }
 
 TEST(YUVConvertTest, FilterYUVRows_SSE2_UnalignedDestination) {
-  if (!media::hasSSE2()) {
+  base::CPU cpu;
+  if (!cpu.has_sse2()) {
     LOG(WARNING) << "System not supported. Test skipped.";
     return;
   }

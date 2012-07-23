@@ -25,40 +25,30 @@ namespace net {
 
 namespace {
 
-class ReceivedHeadersParameters : public NetLog::EventParameters {
- public:
-  ReceivedHeadersParameters(const NetLog::Source& source,
-                            const std::string& feedback)
-      : source_(source), feedback_(feedback) {}
+Value* NetLogReceivedHeadersCallback(const NetLog::Source& source,
+                                     const std::string* feedback,
+                                     NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue;
+  source.AddToEventParameters(dict);
+  dict->SetString("feedback", *feedback);
+  return dict;
+}
 
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue;
-    dict->Set("source_dependency", source_.ToValue());
-    dict->SetString("feedback", feedback_);
-    return dict;
-  }
+Value* NetLogStreamClosedCallback(const NetLog::Source& source,
+                                  bool not_reusable,
+                                  NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue;
+  source.AddToEventParameters(dict);
+  dict->SetBoolean("not_reusable", not_reusable);
+  return dict;
+}
 
- private:
-  const NetLog::Source source_;
-  const std::string feedback_;
-};
-
-class StreamClosedParameters : public NetLog::EventParameters {
- public:
-  StreamClosedParameters(const NetLog::Source& source, bool not_reusable)
-      : source_(source), not_reusable_(not_reusable) {}
-
-  virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue;
-    dict->Set("source_dependency", source_.ToValue());
-    dict->SetBoolean("not_reusable", not_reusable_);
-    return dict;
-  }
-
- private:
-  const NetLog::Source source_;
-  const bool not_reusable_;
-};
+Value* NetLogHostPortPairCallback(const HostPortPair* host_port_pair,
+                                  NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue;
+  dict->SetString("host_and_port", host_port_pair->ToString());
+  return dict;
+}
 
 }  // anonymous namespace
 
@@ -70,7 +60,7 @@ HttpPipelinedConnectionImpl::HttpPipelinedConnectionImpl(
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
     bool was_npn_negotiated,
-    SSLClientSocket::NextProto protocol_negotiated)
+    NextProto protocol_negotiated)
     : delegate_(delegate),
       connection_(connection),
       used_ssl_config_(used_ssl_config),
@@ -93,8 +83,7 @@ HttpPipelinedConnectionImpl::HttpPipelinedConnectionImpl(
   CHECK(connection_.get());
   net_log_.BeginEvent(
       NetLog::TYPE_HTTP_PIPELINED_CONNECTION,
-      make_scoped_refptr(new NetLogStringParameter(
-          "host_and_port", origin.ToString())));
+      base::Bind(&NetLogHostPortPairCallback, &origin));
 }
 
 HttpPipelinedConnectionImpl::~HttpPipelinedConnectionImpl() {
@@ -110,7 +99,7 @@ HttpPipelinedConnectionImpl::~HttpPipelinedConnectionImpl() {
     connection_->socket()->Disconnect();
   }
   connection_->Reset();
-  net_log_.EndEvent(NetLog::TYPE_HTTP_PIPELINED_CONNECTION, NULL);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_PIPELINED_CONNECTION);
 }
 
 HttpPipelinedStream* HttpPipelinedConnectionImpl::CreateNewStream() {
@@ -129,7 +118,7 @@ void HttpPipelinedConnectionImpl::InitializeParser(
   CHECK(!stream_info_map_[pipeline_id].parser.get());
   stream_info_map_[pipeline_id].state = STREAM_BOUND;
   stream_info_map_[pipeline_id].parser.reset(new HttpStreamParser(
-      connection_.get(), request, read_buf_.get(), net_log_));
+      connection_.get(), request, read_buf_.get(), net_log));
   stream_info_map_[pipeline_id].source = net_log.source();
 
   // In case our first stream doesn't SendRequest() immediately, we should still
@@ -166,9 +155,12 @@ void HttpPipelinedConnectionImpl::OnStreamDeleted(int pipeline_id) {
 }
 
 int HttpPipelinedConnectionImpl::SendRequest(
-    int pipeline_id, const std::string& request_line,
-    const HttpRequestHeaders& headers, UploadDataStream* request_body,
-    HttpResponseInfo* response, const CompletionCallback& callback) {
+    int pipeline_id,
+    const std::string& request_line,
+    const HttpRequestHeaders& headers,
+    scoped_ptr<UploadDataStream> request_body,
+    HttpResponseInfo* response,
+    const CompletionCallback& callback) {
   CHECK(ContainsKey(stream_info_map_, pipeline_id));
   CHECK_EQ(stream_info_map_[pipeline_id].state, STREAM_BOUND);
   if (!usable_) {
@@ -179,7 +171,7 @@ int HttpPipelinedConnectionImpl::SendRequest(
   send_request->pipeline_id = pipeline_id;
   send_request->request_line = request_line;
   send_request->headers = headers;
-  send_request->request_body = request_body;
+  send_request->request_body.reset(request_body.release());
   send_request->response = response;
   send_request->callback = callback;
   pending_send_request_queue_.push(send_request);
@@ -269,7 +261,7 @@ int HttpPipelinedConnectionImpl::DoSendActiveRequest(int result) {
   int rv = stream_info_map_[active_send_request_->pipeline_id].parser->
       SendRequest(active_send_request_->request_line,
                   active_send_request_->headers,
-                  active_send_request_->request_body,
+                  active_send_request_->request_body.Pass(),
                   active_send_request_->response,
                   base::Bind(&HttpPipelinedConnectionImpl::OnSendIOCallback,
                              base::Unretained(this)));
@@ -287,9 +279,8 @@ int HttpPipelinedConnectionImpl::DoSendComplete(int result) {
   stream_info_map_[active_send_request_->pipeline_id].state = STREAM_SENT;
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_PIPELINED_CONNECTION_SENT_REQUEST,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency",
-          stream_info_map_[active_send_request_->pipeline_id].source)));
+      stream_info_map_[active_send_request_->pipeline_id].source.
+          ToEventParametersCallback());
 
   if (result == ERR_SOCKET_NOT_CONNECTED && completed_one_request_) {
     result = ERR_PIPELINE_EVICTION;
@@ -324,8 +315,10 @@ int HttpPipelinedConnectionImpl::DoEvictPendingSendRequests(int result) {
     scoped_ptr<PendingSendRequest> evicted_send(
         pending_send_request_queue_.front());
     pending_send_request_queue_.pop();
-    if (stream_info_map_[evicted_send->pipeline_id].state != STREAM_CLOSED)
+    if (ContainsKey(stream_info_map_, evicted_send->pipeline_id) &&
+        stream_info_map_[evicted_send->pipeline_id].state != STREAM_CLOSED) {
       evicted_send->callback.Run(ERR_PIPELINE_EVICTION);
+    }
   }
   send_next_state_ = SEND_STATE_NONE;
   return result;
@@ -541,8 +534,8 @@ void HttpPipelinedConnectionImpl::Close(int pipeline_id,
   CHECK(ContainsKey(stream_info_map_, pipeline_id));
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_PIPELINED_CONNECTION_STREAM_CLOSED,
-      make_scoped_refptr(new StreamClosedParameters(
-          stream_info_map_[pipeline_id].source, not_reusable)));
+      base::Bind(&NetLogStreamClosedCallback,
+                 stream_info_map_[pipeline_id].source, not_reusable));
   switch (stream_info_map_[pipeline_id].state) {
     case STREAM_CREATED:
       stream_info_map_[pipeline_id].state = STREAM_UNUSED;
@@ -754,8 +747,8 @@ void HttpPipelinedConnectionImpl::ReportPipelineFeedback(int pipeline_id,
   }
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_PIPELINED_CONNECTION_RECEIVED_HEADERS,
-      make_scoped_refptr(new ReceivedHeadersParameters(
-          stream_info_map_[pipeline_id].source, feedback_str)));
+      base::Bind(&NetLogReceivedHeadersCallback,
+                 stream_info_map_[pipeline_id].source, &feedback_str));
   delegate_->OnPipelineFeedback(this, feedback);
 }
 
@@ -809,7 +802,7 @@ bool HttpPipelinedConnectionImpl::was_npn_negotiated() const {
   return was_npn_negotiated_;
 }
 
-SSLClientSocket::NextProto HttpPipelinedConnectionImpl::protocol_negotiated()
+NextProto HttpPipelinedConnectionImpl::protocol_negotiated()
     const {
   return protocol_negotiated_;
 }

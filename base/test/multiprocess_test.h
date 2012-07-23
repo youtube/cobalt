@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TEST_MULTIPROCESS_TEST_H_
 #define BASE_TEST_MULTIPROCESS_TEST_H_
-#pragma once
 
 #include <string>
 
@@ -62,7 +61,7 @@ class MultiProcessTest : public PlatformTest {
   // SpawnChild() should just take a base::LaunchOptions so that we don't
   // need multiple versions of it.
   ProcessHandle SpawnChild(const std::string& procname,
-                           const file_handle_mapping_vector& fds_to_map,
+                           const FileHandleMappingVector& fds_to_map,
                            bool debug_on_start);
 #endif
 
@@ -75,7 +74,7 @@ class MultiProcessTest : public PlatformTest {
   // TODO: |fds_to_map| is unused on Windows; see above TODO about
   // further refactoring.
   ProcessHandle SpawnChildImpl(const std::string& procname,
-                               const file_handle_mapping_vector& fds_to_map,
+                               const FileHandleMappingVector& fds_to_map,
                                bool debug_on_start);
 
   DISALLOW_COPY_AND_ASSIGN(MultiProcessTest);

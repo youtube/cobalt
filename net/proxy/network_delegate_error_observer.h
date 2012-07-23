@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_NETWORK_DELEGATE_ERROR_OBSERVER_H_
 #define NET_PROXY_NETWORK_DELEGATE_ERROR_OBSERVER_H_
-#pragma once
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"

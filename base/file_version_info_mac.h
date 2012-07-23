@@ -4,7 +4,6 @@
 
 #ifndef BASE_FILE_VERSION_INFO_MAC_H_
 #define BASE_FILE_VERSION_INFO_MAC_H_
-#pragma once
 
 #include <string>
 

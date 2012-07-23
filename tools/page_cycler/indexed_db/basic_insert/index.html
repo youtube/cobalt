@@ -48,7 +48,7 @@
   }
 
   function storeCreated() {
-    var transaction = db.transaction(['store'], IDBTransaction.READ_WRITE);
+    var transaction = db.transaction(['store'], 'readwrite');
     transaction.oncomplete = insertsDone;
     transaction.onabort = error;
 

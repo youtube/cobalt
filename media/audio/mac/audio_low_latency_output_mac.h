@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,7 +10,7 @@
 // - Calling Close() also leads to self destruction.
 // - The latency consists of two parts:
 //   1) Hardware latency, which includes Audio Unit latency, audio device
-//      latency and audio stream latency;
+//      latency;
 //   2) The delay between the moment getting the callback and the scheduled time
 //      stamp that tells when the data is going to be played out.
 //
@@ -19,9 +19,11 @@
 
 #include <AudioUnit/AudioUnit.h>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/compiler_specific.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
+
+namespace media {
 
 class AudioManagerMac;
 
@@ -46,7 +48,7 @@ class AUAudioOutputStream : public AudioOutputStream {
   virtual void SetVolume(double volume) OVERRIDE;
   virtual void GetVolume(double* volume) OVERRIDE;
 
-  static double HardwareSampleRate();
+  static int HardwareSampleRate();
 
  private:
   // DefaultOutputUnit callback.
@@ -93,7 +95,12 @@ class AUAudioOutputStream : public AudioOutputStream {
   // Fixed playout hardware latency in frames.
   double hardware_latency_frames_;
 
+  // The flag used to stop the streaming.
+  bool stopped_;
+
   DISALLOW_COPY_AND_ASSIGN(AUAudioOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_OUTPUT_MAC_H_

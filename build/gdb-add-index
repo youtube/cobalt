@@ -1,0 +1,63 @@
+#!/bin/sh
+
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# Copyright (C) 2010 Free Software Foundation, Inc.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# This is a modification of gdb-add-index that recursively adds an index
+# to the shared libraries dependencies from the same build.
+
+target="$1"
+target_dir="${target%/*}"
+
+OLDIFS=$IFS
+IFS=$'\n'
+
+shared_libraries=$(
+    ldd -d "$target" | grep "$target_dir" | cut -d '>' -f2 | cut -d ' ' -f2
+    )
+
+# This function is basically the RedHat's gdb-add-index script and is why
+# we have the FSF copyright above.
+function index_one_file {
+  local file="$1"
+  local dir="${file%/*}"
+
+  # We don't care if gdb gives an error.
+  gdb -nx --batch-silent -ex "file $file" -ex "save gdb-index $dir"
+
+  if test -f "${file}.gdb-index"; then
+    objcopy --add-section .gdb_index="${file}.gdb-index" --set-section-flags \
+        .gdb_index=readonly "$file" "$file"
+    rm -f "${file}.gdb-index"
+  fi
+}
+
+function maybe_index {
+  readelf -e "$1" | grep '.gdb_index' > /dev/null 2>&1
+  if [[ "$?" != 0 ]]; then
+    echo "Adding .gdb_index to $1"
+    index_one_file "$1"
+  else
+    echo "Skipping $1 (already has .gdb_index)"
+  fi
+}
+
+maybe_index "$target"
+for lib in $shared_libraries; do
+  maybe_index "$lib"
+done
