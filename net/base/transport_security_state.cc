@@ -685,6 +685,11 @@ void TransportSecurityState::ReportUMAOnPinFailure(const std::string& host) {
                            kNumPreloadedSNISTS);
   }
 
+  if (!entry) {
+    // We don't care to report pin failures for dynamic pins.
+    return;
+  }
+
   DCHECK(entry);
   DCHECK(entry->pins.required_hashes);
   DCHECK(entry->second_level_domain_name != DOMAIN_NOT_PINNED);
