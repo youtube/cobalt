@@ -20,7 +20,7 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
   FileDataSource();
   FileDataSource(bool disable_file_size);
 
-  PipelineStatus Initialize(const std::string& url);
+  bool Initialize(const std::string& url);
 
   // Implementation of DataSource.
   virtual void set_host(DataSourceHost* host) OVERRIDE;
