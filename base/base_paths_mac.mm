@@ -83,6 +83,10 @@ bool PathProviderMac(int key, FilePath* result) {
 #endif
       return true;
     }
+    case base::DIR_HOME: {
+      *result = base::mac::NSStringToFilePath(NSHomeDirectory());
+      return true;
+    }
     default:
       return false;
   }
