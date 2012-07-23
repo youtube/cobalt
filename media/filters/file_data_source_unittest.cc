@@ -11,7 +11,6 @@
 #include "base/utf_string_conversions.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_data_source_host.h"
-#include "media/base/mock_filters.h"
 #include "media/filters/file_data_source.h"
 
 using ::testing::NiceMock;

@@ -8,7 +8,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/stringprintf.h"
 #include "media/base/buffers.h"
-#include "media/base/mock_filters.h"
 #include "media/base/yuv_convert.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

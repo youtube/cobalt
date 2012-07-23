@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
-#include "media/base/filters.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 
 namespace media {

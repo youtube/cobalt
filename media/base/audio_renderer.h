@@ -8,7 +8,6 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "media/base/filters.h"
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
 
@@ -88,7 +87,12 @@ class MEDIA_EXPORT AudioRenderer
 
  protected:
   friend class base::RefCountedThreadSafe<AudioRenderer>;
-  virtual ~AudioRenderer() {}
+
+  AudioRenderer();
+  virtual ~AudioRenderer();
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AudioRenderer);
 };
 
 }  // namespace media

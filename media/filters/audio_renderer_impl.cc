@@ -10,7 +10,6 @@
 #include "base/callback.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
-#include "media/base/filter_host.h"
 #include "media/audio/audio_util.h"
 
 namespace media {
