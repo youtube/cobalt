@@ -88,7 +88,9 @@ class MimeUtil : public PlatformMimeUtil {
   StrictMappings strict_format_map_;
 };  // class MimeUtil
 
-static base::LazyInstance<MimeUtil> g_mime_util = LAZY_INSTANCE_INITIALIZER;
+// This variable is Leaky because we need to access it from WorkerPool threads.
+static base::LazyInstance<MimeUtil>::Leaky g_mime_util =
+    LAZY_INSTANCE_INITIALIZER;
 
 struct MimeInfo {
   const char* mime_type;

@@ -57,13 +57,19 @@ void URLRequestSimpleJob::StartAsync() {
   if (!request_)
     return;
 
-  if (GetData(&mime_type_, &charset_, &data_)) {
+  int result = GetData(&mime_type_, &charset_, &data_,
+                       base::Bind(&URLRequestSimpleJob::OnGetDataCompleted,
+                                  weak_factory_.GetWeakPtr()));
+  if (result != ERR_IO_PENDING)
+    OnGetDataCompleted(result);
+}
+
+void URLRequestSimpleJob::OnGetDataCompleted(int result) {
+  if (result == OK) {
     // Notify that the headers are complete
     NotifyHeadersComplete();
   } else {
-    // what should the error code be?
-    NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED,
-                                      ERR_INVALID_URL));
+    NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, result));
   }
 }
 
