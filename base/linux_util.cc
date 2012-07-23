@@ -126,11 +126,6 @@ namespace base {
 
 const char kFindInodeSwitch[] = "--find-inode";
 
-// This should be kept in sync with sandbox/linux/suid/sandbox.c
-const long kSUIDSandboxApiNumber = 1;
-const char kSandboxEnvironmentApiRequest[] = "SBX_CHROME_API_RQ";
-const char kSandboxEnvironmentApiProvides[] = "SBX_CHROME_API_PRV";
-
 // Account for the terminating null character.
 static const int kDistroSize = 128 + 1;
 
