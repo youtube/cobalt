@@ -14,7 +14,6 @@
 #include "media/base/data_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/mock_callback.h"
-#include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
 #include "media/base/video_frame.h"
 #include "media/filters/video_renderer_base.h"
@@ -49,21 +48,20 @@ class VideoRendererBaseTest : public ::testing::Test {
         should_queue_read_cb_(false) {
     renderer_ = new VideoRendererBase(
         base::Bind(&VideoRendererBaseTest::Paint, base::Unretained(this)),
-        base::Bind(&VideoRendererBaseTest::SetOpaqueCBWasCalled,
-                   base::Unretained(this)),
+        base::Bind(&VideoRendererBaseTest::OnSetOpaque, base::Unretained(this)),
         true);
-    renderer_->SetHost(&host_);
 
+    // We expect these to be called but we don't care how/when.
     EXPECT_CALL(*decoder_, natural_size())
         .WillRepeatedly(ReturnRef(kNaturalSize));
-    EXPECT_CALL(statistics_cb_object_, OnStatistics(_))
-        .Times(AnyNumber());
-    EXPECT_CALL(*this, SetOpaqueCBWasCalled(_))
-        .WillRepeatedly(::testing::Return());
     EXPECT_CALL(*decoder_, Stop(_))
         .WillRepeatedly(RunClosure());
-    EXPECT_CALL(*this, TimeCBWasCalled(_))
-        .WillRepeatedly(::testing::Return());
+    EXPECT_CALL(statistics_cb_object_, OnStatistics(_))
+        .Times(AnyNumber());
+    EXPECT_CALL(*this, OnTimeUpdate(_))
+        .Times(AnyNumber());
+    EXPECT_CALL(*this, OnSetOpaque(_))
+        .Times(AnyNumber());
   }
 
   virtual ~VideoRendererBaseTest() {
@@ -74,20 +72,18 @@ class VideoRendererBaseTest : public ::testing::Test {
     }
   }
 
-  MOCK_METHOD1(TimeCBWasCalled, void(base::TimeDelta));
+  // Callbacks passed into VideoRendererBase().
+  MOCK_CONST_METHOD1(OnSetOpaque, void(bool));
 
-  MOCK_CONST_METHOD1(SetOpaqueCBWasCalled, void(bool));
+  // Callbacks passed into Initialize().
+  MOCK_METHOD1(OnTimeUpdate, void(base::TimeDelta));
+  MOCK_METHOD1(OnNaturalSizeChanged, void(const gfx::Size&));
+  MOCK_METHOD0(OnEnded, void());
+  MOCK_METHOD1(OnError, void(PipelineStatus));
 
   void Initialize() {
     // TODO(scherkus): really, really, really need to inject a thread into
     // VideoRendererBase... it makes mocking much harder.
-    EXPECT_CALL(host_, GetTime())
-        .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::GetTime));
-
-    // Expects the video renderer to get duration from the host.
-    EXPECT_CALL(host_, GetDuration())
-        .WillRepeatedly(Return(
-            base::TimeDelta::FromMicroseconds(kVideoDuration)));
 
     // Monitor reads from the decoder.
     EXPECT_CALL(*decoder_, Read(_))
@@ -99,16 +95,26 @@ class VideoRendererBaseTest : public ::testing::Test {
     InSequence s;
 
     // We expect the video size to be set.
-    EXPECT_CALL(host_, SetNaturalVideoSize(kNaturalSize));
+    EXPECT_CALL(*this, OnNaturalSizeChanged(kNaturalSize));
 
     // Set playback rate before anything else happens.
     renderer_->SetPlaybackRate(1.0f);
 
     // Initialize, we shouldn't have any reads.
-    renderer_->Initialize(decoder_,
-                          NewExpectedStatusCB(PIPELINE_OK),
-                          NewStatisticsCB(),
-                          NewTimeCB());
+    renderer_->Initialize(
+        decoder_,
+        NewExpectedStatusCB(PIPELINE_OK),
+        base::Bind(&MockStatisticsCB::OnStatistics,
+                   base::Unretained(&statistics_cb_object_)),
+        base::Bind(&VideoRendererBaseTest::OnTimeUpdate,
+                   base::Unretained(this)),
+        base::Bind(&VideoRendererBaseTest::OnNaturalSizeChanged,
+                   base::Unretained(this)),
+        base::Bind(&VideoRendererBaseTest::OnEnded, base::Unretained(this)),
+        base::Bind(&VideoRendererBaseTest::OnError, base::Unretained(this)),
+        base::Bind(&VideoRendererBaseTest::GetTime, base::Unretained(this)),
+        base::Bind(&VideoRendererBaseTest::GetDuration,
+                   base::Unretained(this)));
 
     // Now seek to trigger prerolling.
     Seek(0);
@@ -271,7 +277,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   // Advances clock to |timestamp| (which should be the timestamp of the last
   // frame plus duration) and waits for the ended signal before returning.
   void RenderLastFrame(int64 timestamp) {
-    EXPECT_CALL(host_, NotifyEnded())
+    EXPECT_CALL(*this, OnEnded())
         .WillOnce(Invoke(&event_, &base::WaitableEvent::Signal));
     {
       base::AutoLock l(lock_);
@@ -289,20 +295,9 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
  protected:
-  StatisticsCB NewStatisticsCB() {
-    return base::Bind(&MockStatisticsCB::OnStatistics,
-                      base::Unretained(&statistics_cb_object_));
-  }
-
-  VideoRenderer::TimeCB NewTimeCB() {
-    return base::Bind(&VideoRendererBaseTest::TimeCBWasCalled,
-                      base::Unretained(this));
-  }
-
   // Fixture members.
   scoped_refptr<VideoRendererBase> renderer_;
   scoped_refptr<MockVideoDecoder> decoder_;
-  StrictMock<MockFilterHost> host_;
   MockStatisticsCB statistics_cb_object_;
 
   // Receives all the buffers that renderer had provided to |decoder_|.
@@ -313,6 +308,10 @@ class VideoRendererBaseTest : public ::testing::Test {
   base::TimeDelta GetTime() {
     base::AutoLock l(lock_);
     return time_;
+  }
+
+  base::TimeDelta GetDuration() {
+    return base::TimeDelta::FromMicroseconds(kVideoDuration);
   }
 
   // Called by VideoRendererBase when it wants a frame.
@@ -452,7 +451,7 @@ TEST_F(VideoRendererBaseTest, DecoderError) {
   Initialize();
   Play();
   RenderFrame(kFrameDuration);
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(*this, OnError(PIPELINE_ERROR_DECODE));
   DecoderError();
   Shutdown();
 }
@@ -540,7 +539,7 @@ TEST_F(VideoRendererBaseTest, MAYBE_GetCurrentFrame_EndOfStream) {
   ExpectCurrentFrame(false);
 
   // Start playing, we should immediately get notified of end of stream.
-  EXPECT_CALL(host_, NotifyEnded())
+  EXPECT_CALL(*this, OnEnded())
       .WillOnce(Invoke(event(), &base::WaitableEvent::Signal));
   Play();
   CHECK(event()->TimedWait(timeout())) << "Timed out waiting for ended signal.";

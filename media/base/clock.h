@@ -116,7 +116,7 @@ class MEDIA_EXPORT Clock {
   // Current playback rate.
   float playback_rate_;
 
-  // The maximum time that can be returned by calls to GetCurrentTime.
+  // The maximum time that can be returned by calls to Elapsed().
   base::TimeDelta max_time_;
 
   // Duration of the media.

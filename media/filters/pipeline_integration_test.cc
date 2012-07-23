@@ -7,7 +7,6 @@
 #include "base/bind.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decryptor_client.h"
-#include "media/base/mock_filters.h"
 #include "media/base/test_data_util.h"
 #include "media/crypto/aes_decryptor.h"
 #include "media/filters/chunk_demuxer_client.h"
@@ -313,14 +312,14 @@ TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePaused) {
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(start_seek_time));
   Pause();
   ASSERT_TRUE(Seek(seek_time));
-  EXPECT_EQ(pipeline_->GetCurrentTime(), seek_time);
+  EXPECT_EQ(pipeline_->GetMediaTime(), seek_time);
   Play();
   ASSERT_TRUE(WaitUntilOnEnded());
 
   // Make sure seeking after reaching the end works as expected.
   Pause();
   ASSERT_TRUE(Seek(seek_time));
-  EXPECT_EQ(pipeline_->GetCurrentTime(), seek_time);
+  EXPECT_EQ(pipeline_->GetMediaTime(), seek_time);
   Play();
   ASSERT_TRUE(WaitUntilOnEnded());
 }
@@ -336,12 +335,12 @@ TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePlaying) {
   Play();
   ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(start_seek_time));
   ASSERT_TRUE(Seek(seek_time));
-  EXPECT_GE(pipeline_->GetCurrentTime(), seek_time);
+  EXPECT_GE(pipeline_->GetMediaTime(), seek_time);
   ASSERT_TRUE(WaitUntilOnEnded());
 
   // Make sure seeking after reaching the end works as expected.
   ASSERT_TRUE(Seek(seek_time));
-  EXPECT_GE(pipeline_->GetCurrentTime(), seek_time);
+  EXPECT_GE(pipeline_->GetMediaTime(), seek_time);
   ASSERT_TRUE(WaitUntilOnEnded());
 }
 
