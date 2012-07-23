@@ -8,33 +8,95 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
-#include "media/base/filters.h"
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
+
+namespace gfx {
+class Size;
+}
 
 namespace media {
 
 class VideoDecoder;
 
-class MEDIA_EXPORT VideoRenderer : public Filter {
+class MEDIA_EXPORT VideoRenderer
+    : public base::RefCountedThreadSafe<VideoRenderer> {
  public:
   // Used to update the pipeline's clock time. The parameter is the time that
   // the clock should not exceed.
   typedef base::Callback<void(base::TimeDelta)> TimeCB;
 
-  // Initialize a VideoRenderer with the given VideoDecoder, executing the
-  // callback upon completion.
-  virtual void Initialize(const scoped_refptr<VideoDecoder>& decoder,
-                          const PipelineStatusCB& status_cb,
-                          const StatisticsCB& statistics_cb,
-                          const TimeCB& time_cb) = 0;
+  // Executed when the natural size of the video has changed.
+  typedef base::Callback<void(const gfx::Size& size)> NaturalSizeChangedCB;
 
-  // Returns true if this filter has received and processed an end-of-stream
-  // buffer.
+  // Used to query the current time or duration of the media.
+  typedef base::Callback<base::TimeDelta()> TimeDeltaCB;
+
+  // Initialize a VideoRenderer with the given VideoDecoder, executing
+  // |init_cb| callback upon completion.
+  //
+  // |statistics_cb| is executed periodically with video rendering stats, such
+  // as dropped frames.
+  //
+  // |time_cb| is executed whenever time has advanced by way of video rendering.
+  //
+  // |size_changed_cb| is executed whenever the dimensions of the video has
+  // changed.
+  //
+  // |ended_cb| is executed when video rendering has reached the end of stream.
+  //
+  // |error_cb| is executed if an error was encountered.
+  //
+  // |get_time_cb| is used to query the current media playback time.
+  //
+  // |get_duration_cb| is used to query the media duration.
+  virtual void Initialize(const scoped_refptr<VideoDecoder>& decoder,
+                          const PipelineStatusCB& init_cb,
+                          const StatisticsCB& statistics_cb,
+                          const TimeCB& time_cb,
+                          const NaturalSizeChangedCB& size_changed_cb,
+                          const base::Closure& ended_cb,
+                          const PipelineStatusCB& error_cb,
+                          const TimeDeltaCB& get_time_cb,
+                          const TimeDeltaCB& get_duration_cb) = 0;
+
+  // Start audio decoding and rendering at the current playback rate, executing
+  // |callback| when playback is underway.
+  virtual void Play(const base::Closure& callback) = 0;
+
+  // Temporarily suspend decoding and rendering video, executing |callback| when
+  // playback has been suspended.
+  virtual void Pause(const base::Closure& callback) = 0;
+
+  // Discard any video data, executing |callback| when completed.
+  virtual void Flush(const base::Closure& callback) = 0;
+
+  // Start prerolling video data for samples starting at |time|, executing
+  // |callback| when completed.
+  //
+  // Only valid to call after a successful Initialize() or Flush().
+  //
+  // TODO(scherkus): rename this to Preroll().
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& callback) = 0;
+
+  // Stop all operations in preparation for being deleted, executing |callback|
+  // when complete.
+  virtual void Stop(const base::Closure& callback) = 0;
+
+  // Updates the current playback rate.
+  virtual void SetPlaybackRate(float playback_rate) = 0;
+
+  // Returns true if all video data has been rendered.
   virtual bool HasEnded() = 0;
 
  protected:
-  virtual ~VideoRenderer() {}
+  friend class base::RefCountedThreadSafe<VideoRenderer>;
+
+  VideoRenderer();
+  virtual ~VideoRenderer();
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(VideoRenderer);
 };
 
 }  // namespace media

@@ -138,7 +138,7 @@ void PipelineIntegrationTestBase::Stop() {
 
 void PipelineIntegrationTestBase::QuitAfterCurrentTimeTask(
     const base::TimeDelta& quit_time) {
-  if (pipeline_->GetCurrentTime() >= quit_time ||
+  if (pipeline_->GetMediaTime() >= quit_time ||
       pipeline_status_ != PIPELINE_OK) {
     message_loop_.Quit();
     return;

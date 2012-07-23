@@ -46,20 +46,22 @@ class MEDIA_EXPORT VideoRendererBase
                     const SetOpaqueCB& set_opaque_cb,
                     bool drop_frames);
 
-  // Filter implementation.
-  virtual void SetHost(FilterHost* host) OVERRIDE;
+  // VideoRenderer implementation.
+  virtual void Initialize(const scoped_refptr<VideoDecoder>& decoder,
+                          const PipelineStatusCB& init_cb,
+                          const StatisticsCB& statistics_cb,
+                          const TimeCB& time_cb,
+                          const NaturalSizeChangedCB& size_changed_cb,
+                          const base::Closure& ended_cb,
+                          const PipelineStatusCB& error_cb,
+                          const TimeDeltaCB& get_time_cb,
+                          const TimeDeltaCB& get_duration_cb) OVERRIDE;
   virtual void Play(const base::Closure& callback) OVERRIDE;
   virtual void Pause(const base::Closure& callback) OVERRIDE;
   virtual void Flush(const base::Closure& callback) OVERRIDE;
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
-
-  // VideoRenderer implementation.
-  virtual void Initialize(const scoped_refptr<VideoDecoder>& decoder,
-                          const PipelineStatusCB& status_cb,
-                          const StatisticsCB& statistics_cb,
-                          const TimeCB& time_cb) OVERRIDE;
   virtual bool HasEnded() OVERRIDE;
 
   // PlatformThread::Delegate implementation.
@@ -109,8 +111,6 @@ class MEDIA_EXPORT VideoRendererBase
 
   // Return the number of frames currently held by this class.
   int NumFrames_Locked() const;
-
-  FilterHost* host_;
 
   // Used for accessing data members.
   base::Lock lock_;
@@ -198,11 +198,18 @@ class MEDIA_EXPORT VideoRendererBase
 
   float playback_rate_;
 
-  // Filter callbacks.
+  // Playback operation callbacks.
   base::Closure flush_cb_;
   PipelineStatusCB seek_cb_;
+
+  // Event callbacks.
   StatisticsCB statistics_cb_;
   TimeCB time_cb_;
+  NaturalSizeChangedCB size_changed_cb_;
+  base::Closure ended_cb_;
+  PipelineStatusCB error_cb_;
+  TimeDeltaCB get_time_cb_;
+  TimeDeltaCB get_duration_cb_;
 
   base::TimeDelta seek_timestamp_;
 

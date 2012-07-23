@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "media/base/filter_host.h"
 
 using ::testing::_;
 using ::testing::Invoke;
@@ -83,14 +82,6 @@ scoped_ptr<FilterCollection> MockFilterCollection::Create() {
   collection->AddVideoRenderer(video_renderer_);
   collection->AddAudioRenderer(audio_renderer_);
   return collection.Pass();
-}
-
-MockFilter::MockFilter() : host_(NULL) {}
-
-MockFilter::~MockFilter() {}
-
-void MockFilter::SetHost(FilterHost* host) {
-  host_ = host;
 }
 
 MockStatisticsCB::MockStatisticsCB() {}

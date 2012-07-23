@@ -9,7 +9,6 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "media/audio/audio_util.h"
-#include "media/base/filters.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_glue.h"
 

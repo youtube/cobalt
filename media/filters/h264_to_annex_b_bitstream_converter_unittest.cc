@@ -468,4 +468,3 @@ TEST_F(H264ToAnnexBBitstreamConverterTest, FailureTooSmallOutputBuffer) {
 }
 
 }  // namespace media
-

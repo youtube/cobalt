@@ -18,8 +18,11 @@ class Demuxer;
 class VideoDecoder;
 class VideoRenderer;
 
-// This is a collection of Filter objects used to form a media playback
-// pipeline. See src/media/base/pipeline.h for more information.
+// Represents a set of uninitialized demuxer and audio/video decoders and
+// renderers. Used to start a Pipeline object for media playback.
+//
+// TODO(scherkus): Replace FilterCollection with something sensible, see
+// http://crbug.com/110800
 class MEDIA_EXPORT FilterCollection {
  public:
   FilterCollection();

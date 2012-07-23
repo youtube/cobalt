@@ -7,8 +7,6 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/utf_string_conversions.h"
-#include "media/base/filter_host.h"
-#include "media/base/filters.h"
 #include "media/base/pipeline.h"
 #include "media/filters/file_data_source.h"
 

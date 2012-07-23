@@ -61,4 +61,3 @@ class MEDIA_EXPORT FFmpegH264ToAnnexBBitstreamConverter {
 }  // namespace media
 
 #endif  // MEDIA_FILTERS_FFMPEG_H264_TO_ANNEX_B_BITSTREAM_CONVERTER_H_
-
