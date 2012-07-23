@@ -1085,7 +1085,7 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 
   return result;
 }
-#endif  // defined(OS_MACOSX)
+#endif  // !defined(OS_MACOSX)
 
 bool VerifyPathControlledByUser(const FilePath& base,
                                 const FilePath& path,
