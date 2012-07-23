@@ -512,6 +512,12 @@
         ['OS!="mac" and OS!="android"', {
           'use_canvas_skia%': 1,
         }],
+
+        ['OS=="android"', {
+          # When building as part of the Android system, use system libraries
+          # where possible to reduce ROM size.
+          'use_system_libjpeg%': '<(android_build_type)',
+        }],
       ],
     },
 
@@ -592,6 +598,7 @@
     'sas_dll_path%': '<(sas_dll_path)',
     'wix_path%': '<(wix_path)',
     'android_upstream_bringup%': '<(android_upstream_bringup)',
+    'use_system_libjpeg%': '<(use_system_libjpeg)',
 
     # Use system yasm instead of bundled one.
     'use_system_yasm%': 0,
@@ -892,8 +899,9 @@
               }],
             ],
 
-            # Switch between different build types, currently only '0' is
-            # supported.
+            # Sets whether we're building with the Android SDK/NDK (and hence
+            # with Ant, value 0), or as part of the Android system (and hence
+            # with the Android build system, value 1).
             'android_build_type%': 0,
           },
           'android_ndk_root%': '<(android_ndk_root)',
@@ -975,19 +983,14 @@
           }],
         ],
 
-        # TODO(steveblock): Investigate using the system versions of sqlite and
-        # libjpeg.
-        # Enable to use system sqlite.
+        # When building as part of the Android system, use system libraries
+        # where possible to reduce ROM size.
+        # TODO(steveblock): Investigate using the system version of sqlite.
         'use_system_sqlite%': 0,  # '<(android_build_type)',
-        # Enable to use system libjpeg.
-        'use_system_libjpeg%': 0,  # '<(android_build_type)',
-        # Enable to use the system expat.
         'use_system_expat%': '<(android_build_type)',
-        # Enable to use the system ICU.
         'use_system_icu%': '<(android_build_type)',
-        # Enable to use the system stlport, otherwise statically
-        # link the NDK one?
         'use_system_stlport%': '<(android_build_type)',
+
         # Copy it out one scope.
         'android_build_type%': '<(android_build_type)',
       }],  # OS=="android"
