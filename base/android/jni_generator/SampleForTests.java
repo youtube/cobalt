@@ -16,7 +16,7 @@ package org.chromium.example.jni_generator;
 // This JNINamespace annotation indicates that all native methods should be
 // generated inside this namespace, including the native class that this
 // object binds to.
-@JNINamespace("content")
+@JNINamespace("base::android")
 class SampleForTests {
   // Classes can store their C++ pointer counter part as an int that is normally initialized by
   // calling out a nativeInit() function.

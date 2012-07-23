@@ -31,7 +31,8 @@ jclass g_InnerClass_clazz = NULL;
 jclass g_SampleForTests_clazz = NULL;
 }  // namespace
 
-namespace content {
+namespace base {
+namespace android {
 
 static jint Init(JNIEnv* env, jobject obj);
 
@@ -286,6 +287,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 
   return true;
 }
-}  // namespace content
+}  // namespace android
+}  // namespace base
 
 #endif  // org_chromium_example_jni_generator_SampleForTests_JNI
