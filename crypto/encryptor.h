@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef CRYPTO_ENCRYPTOR_H_
 #define CRYPTO_ENCRYPTOR_H_
-#pragma once
 
 #include <string>
 
@@ -14,10 +13,8 @@
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
 #include "crypto/scoped_nss_types.h"
-#elif defined(OS_WIN)
-#include "crypto/scoped_capi_types.h"
 #endif
 
 namespace crypto {
@@ -33,7 +30,7 @@ class CRYPTO_EXPORT Encryptor {
 
   // This class implements a 128-bits counter to be used in AES-CTR encryption.
   // Only 128-bits counter is supported in this class.
-  class Counter {
+  class CRYPTO_EXPORT Counter {
    public:
     explicit Counter(const base::StringPiece& counter);
     ~Counter();
@@ -70,6 +67,14 @@ class CRYPTO_EXPORT Encryptor {
   bool Encrypt(const base::StringPiece& plaintext, std::string* ciphertext);
 
   // Decrypts |ciphertext| into |plaintext|.  |ciphertext| must not be empty.
+  //
+  // WARNING: In CBC mode, Decrypt() returns false if it detects the padding
+  // in the decrypted plaintext is wrong. Padding errors can result from
+  // tampered ciphertext or a wrong decryption key. But successful decryption
+  // does not imply the authenticity of the data. The caller of Decrypt()
+  // must either authenticate the ciphertext before decrypting it, or take
+  // care to not report decryption failure. Otherwise it could inadvertently
+  // be used as a padding oracle to attack the cryptosystem.
   bool Decrypt(const base::StringPiece& ciphertext, std::string* plaintext);
 
   // Sets the counter value when in CTR mode. Currently only 128-bits
@@ -113,7 +118,7 @@ class CRYPTO_EXPORT Encryptor {
              const base::StringPiece& input,
              std::string* output);
   std::string iv_;
-#elif defined(USE_NSS)
+#elif defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
   bool Crypt(PK11Context* context,
              const base::StringPiece& input,
              std::string* output);
@@ -122,15 +127,6 @@ class CRYPTO_EXPORT Encryptor {
                 std::string* output);
   ScopedPK11Slot slot_;
   ScopedSECItem param_;
-#elif defined(OS_MACOSX)
-  bool Crypt(int /*CCOperation*/ op,
-             const base::StringPiece& input,
-             std::string* output);
-
-  std::string iv_;
-#elif defined(OS_WIN)
-  ScopedHCRYPTKEY capi_key_;
-  DWORD block_size_;
 #endif
 };
 

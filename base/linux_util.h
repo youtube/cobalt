@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_LINUX_UTIL_H_
 #define BASE_LINUX_UTIL_H_
-#pragma once
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -15,7 +14,12 @@
 
 namespace base {
 
-static const char kFindInodeSwitch[] = "--find-inode";
+BASE_EXPORT extern const char kFindInodeSwitch[];
+
+// This should be kept in sync with sandbox/linux/suid/sandbox.c
+BASE_EXPORT extern const long kSUIDSandboxApiNumber;
+BASE_EXPORT extern const char kSandboxEnvironmentApiRequest[];
+BASE_EXPORT extern const char kSandboxEnvironmentApiProvides[];
 
 // This is declared here so the crash reporter can access the memory directly
 // in compromised context without going through the standard library.

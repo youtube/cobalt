@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,6 +38,26 @@ bool Addr::SanityCheck() const {
 
   const uint32 kReservedBitsMask = 0x0c000000;
   return !(value_ & kReservedBitsMask);
+}
+
+bool Addr::SanityCheckForEntry() const {
+  if (!SanityCheck() || !is_initialized())
+    return false;
+
+  if (is_separate_file() || file_type() != BLOCK_256)
+    return false;
+
+  return true;
+}
+
+bool Addr::SanityCheckForRankings() const {
+  if (!SanityCheck() || !is_initialized())
+    return false;
+
+  if (is_separate_file() || file_type() != RANKINGS || num_blocks() != 1)
+    return false;
+
+  return true;
 }
 
 }  // namespace disk_cache

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,6 +17,7 @@
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/test/multiprocess_test.h"
+#include "base/test/test_switches.h"
 #include "base/test/test_timeouts.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,14 +25,18 @@
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
+#if defined(OS_IOS)
+#include "base/test/test_listener_ios.h"
+#else
 #include "base/test/mock_chrome_application_mac.h"
-#endif
+#endif  // OS_IOS
+#endif  // OS_MACOSX
 
 #if defined(OS_ANDROID)
-#include "base/test/test_stub_android.h"
+#include "base/test/test_support_android.h"
 #endif
 
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
 #include <gtk/gtk.h>
 #endif
 
@@ -39,7 +44,7 @@ namespace {
 
 class MaybeTestDisabler : public testing::EmptyTestEventListener {
  public:
-  virtual void OnTestStart(const testing::TestInfo& test_info) {
+  virtual void OnTestStart(const testing::TestInfo& test_info) OVERRIDE {
     ASSERT_FALSE(TestSuite::IsMarkedMaybe(test_info))
         << "Probably the OS #ifdefs don't include all of the necessary "
            "platforms.\nPlease ensure that no tests have the MAYBE_ prefix "
@@ -69,18 +74,60 @@ class TestClientInitializer : public testing::EmptyTestEventListener {
 
 }  // namespace
 
+namespace base {
+
+class TestWatchAtExitManager : public testing::EmptyTestEventListener {
+ public:
+  TestWatchAtExitManager() { }
+  ~TestWatchAtExitManager() { }
+
+  virtual void OnTestStart(const testing::TestInfo& test_info) OVERRIDE {
+    initial_top_manager_ = AtExitManager::current();
+    at_exit_stack_size_ = initial_top_manager_->CallbackStackSize();
+  }
+
+  virtual void OnTestEnd(const testing::TestInfo& test_info) OVERRIDE {
+    AtExitManager* new_top_manager = AtExitManager::current();
+    size_t new_stack_size = new_top_manager->CallbackStackSize();
+
+    if (initial_top_manager_ != new_top_manager) {
+      ADD_FAILURE() << "The current AtExitManager has changed across the "
+          "test " << test_info.test_case_name() << "." << test_info.name() <<
+          " most likely because one was created without being destroyed.";
+    } else if (new_stack_size != at_exit_stack_size_) {
+      // TODO(scottbyer): clean up all the errors that result from this and
+      // turn this into a test failure with
+      // ADD_FAILURE(). http://crbug.com/133403
+      LOG(WARNING) <<
+          "AtExitManager: items were added to the callback list by " <<
+          test_info.test_case_name() << "." << test_info.name() <<
+          ". Global state should be cleaned up before a test exits.";
+    }
+  }
+
+ private:
+  AtExitManager* initial_top_manager_;
+  size_t at_exit_stack_size_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestWatchAtExitManager);
+};
+
+}  // namespace base
+
 const char TestSuite::kStrictFailureHandling[] = "strict_failure_handling";
 
-TestSuite::TestSuite(int argc, char** argv) {
+TestSuite::TestSuite(int argc, char** argv) : initialized_command_line_(false) {
   PreInitialize(argc, argv, true);
 }
 
-TestSuite::TestSuite(int argc, char** argv, bool create_at_exit_manager) {
+TestSuite::TestSuite(int argc, char** argv, bool create_at_exit_manager)
+    : initialized_command_line_(false) {
   PreInitialize(argc, argv, create_at_exit_manager);
 }
 
 TestSuite::~TestSuite() {
-  CommandLine::Reset();
+  if (initialized_command_line_)
+    CommandLine::Reset();
 }
 
 void TestSuite::PreInitialize(int argc, char** argv,
@@ -89,18 +136,23 @@ void TestSuite::PreInitialize(int argc, char** argv,
   testing::GTEST_FLAG(catch_exceptions) = false;
 #endif
   base::EnableTerminationOnHeapCorruption();
-  CommandLine::Init(argc, argv);
+  initialized_command_line_ = CommandLine::Init(argc, argv);
   testing::InitGoogleTest(&argc, argv);
 #if defined(OS_LINUX) && defined(USE_AURA)
   // When calling native char conversion functions (e.g wrctomb) we need to
   // have the locale set. In the absence of such a call the "C" locale is the
   // default. In the gtk code (below) gtk_init() implicitly sets a locale.
   setlocale(LC_ALL, "");
-#elif defined(TOOLKIT_USES_GTK)
+#elif defined(TOOLKIT_GTK)
   gtk_init_check(&argc, &argv);
-#endif  // defined(TOOLKIT_USES_GTK)
+#endif  // defined(TOOLKIT_GTK)
+
+  // On Android, AtExitManager is created in
+  // testing/android/native_test_wrapper.cc before main() is called.
+#if !defined(OS_ANDROID)
   if (create_at_exit_manager)
     at_exit_manager_.reset(new base::AtExitManager);
+#endif
 
   // Don't add additional code to this function.  Instead add it to
   // Initialize().  See bug 6436.
@@ -163,6 +215,12 @@ void TestSuite::ResetCommandLine() {
   listeners.Append(new TestClientInitializer);
 }
 
+void TestSuite::WatchAtExitManager() {
+  testing::TestEventListeners& listeners =
+      testing::UnitTest::GetInstance()->listeners();
+  listeners.Append(new TestWatchAtExitManager);
+}
+
 // Don't add additional code to this method.  Instead add it to
 // Initialize().  See bug 6436.
 int TestSuite::Run() {
@@ -174,9 +232,13 @@ int TestSuite::Run() {
   std::string client_func =
       CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kTestChildProcess);
+
   // Check to see if we are being run as a client process.
   if (!client_func.empty())
     return multi_process_function_list::InvokeChildProcessTest(client_func);
+#if defined(OS_IOS)
+  base::test_listener_ios::RegisterTestEndListener();
+#endif
   int result = RUN_ALL_TESTS();
 
   // If there are failed tests, see if we should ignore the failures.
@@ -224,19 +286,26 @@ void TestSuite::SuppressErrorDialogs() {
   // http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx
   UINT existing_flags = SetErrorMode(new_flags);
   SetErrorMode(existing_flags | new_flags);
+
+#if defined(_DEBUG) && defined(_HAS_EXCEPTIONS) && (_HAS_EXCEPTIONS == 1)
+  // Suppress the "Debug Assertion Failed" dialog.
+  // TODO(hbono): remove this code when gtest has it.
+  // http://groups.google.com/d/topic/googletestframework/OjuwNlXy5ac/discussion
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+#endif  // defined(_DEBUG) && defined(_HAS_EXCEPTIONS) && (_HAS_EXCEPTIONS == 1)
 #endif  // defined(OS_WIN)
 }
 
 void TestSuite::Initialize() {
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) && !defined(OS_IOS)
   // Some of the app unit tests spin runloops.
   mock_cr_app::RegisterMockCrApp();
 #endif
 
 #if defined(OS_ANDROID)
-  InitAndroidTestStub();
-#endif
-
+  InitAndroidTest();
+#else
   // Initialize logging.
   FilePath exe;
   PathService::Get(base::FILE_EXE, &exe);
@@ -250,6 +319,7 @@ void TestSuite::Initialize() {
   // We want process and thread IDs because we may have multiple processes.
   // Note: temporarily enabled timestamps in an effort to catch bug 6361.
   logging::SetLogItems(true, true, true, true);
+#endif  // else defined(OS_ANDROID)
 
   CHECK(base::EnableInProcessStackDumping());
 #if defined(OS_WIN)
@@ -266,14 +336,19 @@ void TestSuite::Initialize() {
     logging::SetLogAssertHandler(UnitTestAssertHandler);
   }
 
-#if !defined(OS_ANDROID)
-  // TODO(michaelbai): The icu can not be compiled in Android now, this should
-  // be enabled once icu is ready. http://b/5406077.
   icu_util::Initialize();
-#endif
 
   CatchMaybeTests();
   ResetCommandLine();
+
+  // Don't watch for AtExit items being added if we're running as a child
+  // process (e.g., browser_tests or interactive_ui_tests).
+  if (!CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kSingleProcessTestsFlag) &&
+      !CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kSingleProcessChromeFlag)) {
+    WatchAtExitManager();
+  }
 
   TestTimeouts::Initialize();
 }

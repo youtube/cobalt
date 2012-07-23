@@ -4,21 +4,27 @@
 
 #ifndef NET_DNS_DNS_CONFIG_SERVICE_H_
 #define NET_DNS_DNS_CONFIG_SERVICE_H_
-#pragma once
 
 #include <map>
 #include <string>
 #include <vector>
 
-#include "base/file_path.h"
 #include "base/gtest_prod_util.h"
-#include "base/observer_list.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
+#include "base/timer.h"
+// Needed on shared build with MSVS2010 to avoid multiple definitions of
+// std::vector<IPEndPoint>.
+#include "net/base/address_list.h"
 #include "net/base/ip_endpoint.h"  // win requires size of IPEndPoint
+#include "net/base/network_change_notifier.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_hosts.h"
-#include "net/dns/serial_worker.h"
+
+namespace base {
+class Value;
+}
 
 namespace net {
 
@@ -30,6 +36,13 @@ struct NET_EXPORT_PRIVATE DnsConfig {
   bool Equals(const DnsConfig& d) const;
 
   bool EqualsIgnoreHosts(const DnsConfig& d) const;
+
+  void CopyIgnoreHosts(const DnsConfig& src);
+
+  // Returns a Value representation of |this|.  Caller takes ownership of the
+  // returned Value.  For performance reasons, the Value only contains the
+  // number of hosts rather than the full list.
+  base::Value* ToValue() const;
 
   bool IsValid() const {
     return !nameservers.empty();
@@ -62,76 +75,80 @@ struct NET_EXPORT_PRIVATE DnsConfig {
 };
 
 
-// Service for watching when the system DNS settings have changed.
-// Depending on the platform, watches files in /etc/ or win registry.
+// Service for reading system DNS settings, on demand or when signalled by
+// NetworkChangeNotifier.
 class NET_EXPORT_PRIVATE DnsConfigService
-  : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+    : NON_EXPORTED_BASE(public base::NonThreadSafe),
+      public NetworkChangeNotifier::DNSObserver {
  public:
-  // Callback interface for the client. The observer is called on the same
-  // thread as Watch(). Observer must outlive the service.
-  class Observer {
-   public:
-    virtual ~Observer() {}
-
-    // Called only when |dns_config| is different from the last call.
-    virtual void OnConfigChanged(const DnsConfig& dns_config) = 0;
-  };
+  // Callback interface for the client, called on the same thread as Read() and
+  // Watch().
+  typedef base::Callback<void(const DnsConfig& config)> CallbackType;
 
   // Creates the platform-specific DnsConfigService.
-  static DnsConfigService* CreateSystemService();
+  static scoped_ptr<DnsConfigService> CreateSystemService();
 
   DnsConfigService();
   virtual ~DnsConfigService();
 
-  // Immediately starts watching system configuration for changes and attempts
-  // to read the configuration. For some platform implementations, the current
-  // thread must have an IO loop (for base::files::FilePathWatcher).
-  virtual void Watch() {}
+  // Attempts to read the configuration. Will run |callback| when succeeded.
+  // Can be called at most once.
+  void Read(const CallbackType& callback);
 
-  // If a config is available, |observer| will immediately be called with
-  // OnConfigChanged.
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
+  // Registers for notifications at NetworkChangeNotifier. Will attempt to read
+  // config after watch is started by NetworkChangeNotifier. Will run |callback|
+  // iff config changes from last call or should be withdrawn.
+  // Can be called at most once.
+  virtual void Watch(const CallbackType& callback);
 
  protected:
-  FRIEND_TEST_ALL_PREFIXES(DnsConfigServiceTest, NotifyOnChange);
-  friend class DnsHostsReader;
-  // To be called with new config. |config|.hosts is ignored.
-  virtual void OnConfigRead(const DnsConfig& config);
-  // To be called with new hosts. Rest of the config is assumed unchanged.
-  virtual void OnHostsRead(const DnsHosts& hosts);
+  // Called when the current config (except hosts) has changed.
+  void InvalidateConfig();
+  // Called when the current hosts have changed.
+  void InvalidateHosts();
+
+  // Called with new config. |config|.hosts is ignored.
+  void OnConfigRead(const DnsConfig& config);
+  // Called with new hosts. Rest of the config is assumed unchanged.
+  void OnHostsRead(const DnsHosts& hosts);
+
+  // NetworkChangeNotifier::DNSObserver:
+  // Must be defined by implementations.
+  virtual void OnDNSChanged(unsigned detail) OVERRIDE = 0;
+
+ private:
+  void StartTimer();
+  // Called when the timer expires.
+  void OnTimeout();
+  // Called when the config becomes complete.
+  void OnCompleteConfig();
+
+  CallbackType callback_;
 
   DnsConfig dns_config_;
-  // True after first OnConfigRead and OnHostsRead; indicate complete config.
+
+  // True after the first valid DnsConfig is received. Temporary, used
+  // to detect DNS-changer: http://crbug.com/125599
+  bool checked_rogue_dns_;
+  // True after On*Read, before Invalidate*. Tells if the config is complete.
   bool have_config_;
   bool have_hosts_;
+  // True if receiver needs to be updated when the config becomes complete.
+  bool need_update_;
+  // True if the last config sent was empty (instead of |dns_config_|).
+  // Set when |timer_| expires.
+  bool last_sent_empty_;
 
-  ObserverList<Observer> observers_;
- private:
+  // Initialized and updated on Invalidate* call.
+  base::TimeTicks last_invalidate_config_time_;
+  base::TimeTicks last_invalidate_hosts_time_;
+  // Initialized and updated when |timer_| expires.
+  base::TimeTicks last_sent_empty_time_;
+
+  // Started in Invalidate*, cleared in On*Read.
+  base::OneShotTimer<DnsConfigService> timer_;
+
   DISALLOW_COPY_AND_ASSIGN(DnsConfigService);
-};
-
-// A WatchingFileReader that reads a HOSTS file and notifies
-// DnsConfigService::OnHostsRead().
-// Client should call Cancel() when |service| is going away.
-class NET_EXPORT_PRIVATE DnsHostsReader
-  : NON_EXPORTED_BASE(public SerialWorker) {
- public:
-  DnsHostsReader(const FilePath& path, DnsConfigService* service);
-
-  virtual void DoWork() OVERRIDE;
-  virtual void OnWorkFinished() OVERRIDE;
-
- private:
-  virtual ~DnsHostsReader();
-
-  FilePath path_;
-  DnsConfigService* service_;
-  // Written in DoRead, read in OnReadFinished, no locking necessary.
-  DnsHosts dns_hosts_;
-  bool success_;
-
-  DISALLOW_COPY_AND_ASSIGN(DnsHostsReader);
 };
 
 }  // namespace net

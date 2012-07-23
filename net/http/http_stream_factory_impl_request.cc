@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_stream_factory_impl_request.h"
 
+#include "base/callback.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "net/http/http_stream_factory_impl_job.h"
@@ -22,12 +23,12 @@ HttpStreamFactoryImpl::Request::Request(const GURL& url,
       net_log_(net_log),
       completed_(false),
       was_npn_negotiated_(false),
-      protocol_negotiated_(SSLClientSocket::kProtoUnknown),
+      protocol_negotiated_(kProtoUnknown),
       using_spdy_(false) {
   DCHECK(factory_);
   DCHECK(delegate_);
 
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_REQUEST, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_REQUEST);
 }
 
 HttpStreamFactoryImpl::Request::~Request() {
@@ -36,7 +37,7 @@ HttpStreamFactoryImpl::Request::~Request() {
   else
     DCHECK(!jobs_.empty());
 
-  net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_REQUEST, NULL);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_REQUEST);
 
   for (std::set<Job*>::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
     factory_->request_map_.erase(*it);
@@ -57,14 +58,16 @@ void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
   request_set.insert(this);
 }
 
-void HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
-    const HostPortPair& http_pipelining_key) {
-  DCHECK(!http_pipelining_key_.get());
-  http_pipelining_key_.reset(new HostPortPair(http_pipelining_key));
-  RequestSet& request_set =
+bool HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
+    const HttpPipelinedHost::Key& http_pipelining_key) {
+  CHECK(!http_pipelining_key_.get());
+  http_pipelining_key_.reset(new HttpPipelinedHost::Key(http_pipelining_key));
+  bool was_new_key = !ContainsKey(factory_->http_pipelining_request_map_,
+                                  http_pipelining_key);
+  RequestVector& request_vector =
       factory_->http_pipelining_request_map_[http_pipelining_key];
-  DCHECK(!ContainsKey(request_set, this));
-  request_set.insert(this);
+  request_vector.push_back(this);
+  return was_new_key;
 }
 
 void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
@@ -75,7 +78,7 @@ void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
 
 void HttpStreamFactoryImpl::Request::Complete(
     bool was_npn_negotiated,
-    SSLClientSocket::NextProto protocol_negotiated,
+    NextProto protocol_negotiated,
     bool using_spdy,
     const BoundNetLog& job_net_log) {
   DCHECK(!completed_);
@@ -85,12 +88,10 @@ void HttpStreamFactoryImpl::Request::Complete(
   using_spdy_ = using_spdy;
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_STREAM_REQUEST_BOUND_TO_JOB,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", job_net_log.source())));
+      job_net_log.source().ToEventParametersCallback());
   job_net_log.AddEvent(
       NetLog::TYPE_HTTP_STREAM_JOB_BOUND_TO_REQUEST,
-      make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", net_log_.source())));
+      net_log_.source().ToEventParametersCallback());
 }
 
 void HttpStreamFactoryImpl::Request::OnStreamReady(
@@ -130,7 +131,16 @@ void HttpStreamFactoryImpl::Request::OnStreamFailed(
     int status,
     const SSLConfig& used_ssl_config) {
   DCHECK_NE(OK, status);
-  if (!bound_job_.get()) {
+  // |job| should only be NULL if we're being canceled by a late bound
+  // HttpPipelinedConnection (one that was not created by a job in our |jobs_|
+  // set).
+  if (!job) {
+    DCHECK(!bound_job_.get());
+    DCHECK(!jobs_.empty());
+    // NOTE(willchan): We do *NOT* call OrphanJobs() here. The reason is because
+    // we *WANT* to cancel the unnecessary Jobs from other requests if another
+    // Job completes first.
+  } else if (!bound_job_.get()) {
     // Hey, we've got other jobs! Maybe one of them will succeed, let's just
     // ignore this failure.
     if (jobs_.size() > 1) {
@@ -222,7 +232,7 @@ bool HttpStreamFactoryImpl::Request::was_npn_negotiated() const {
   return was_npn_negotiated_;
 }
 
-SSLClientSocket::NextProto HttpStreamFactoryImpl::Request::protocol_negotiated()
+NextProto HttpStreamFactoryImpl::Request::protocol_negotiated()
     const {
   DCHECK(completed_);
   return protocol_negotiated_;
@@ -255,11 +265,16 @@ HttpStreamFactoryImpl::Request::RemoveRequestFromHttpPipeliningRequestMap() {
     HttpPipeliningRequestMap& http_pipelining_request_map =
         factory_->http_pipelining_request_map_;
     DCHECK(ContainsKey(http_pipelining_request_map, *http_pipelining_key_));
-    RequestSet& request_set =
+    RequestVector& request_vector =
         http_pipelining_request_map[*http_pipelining_key_];
-    DCHECK(ContainsKey(request_set, this));
-    request_set.erase(this);
-    if (request_set.empty())
+    for (RequestVector::iterator it = request_vector.begin();
+         it != request_vector.end(); ++it) {
+      if (*it == this) {
+        request_vector.erase(it);
+        break;
+      }
+    }
+    if (request_vector.empty())
       http_pipelining_request_map.erase(*http_pipelining_key_);
     http_pipelining_key_.reset();
   }
@@ -284,7 +299,7 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
   const SSLConfig used_ssl_config = job->server_ssl_config();
   const ProxyInfo used_proxy_info = job->proxy_info();
   const bool was_npn_negotiated = job->was_npn_negotiated();
-  const SSLClientSocket::NextProto protocol_negotiated =
+  const NextProto protocol_negotiated =
       job->protocol_negotiated();
   const bool using_spdy = job->using_spdy();
   const BoundNetLog net_log = job->net_log();

@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SOCKET_STREAM_SOCKET_STREAM_JOB_H_
 #define NET_SOCKET_STREAM_SOCKET_STREAM_JOB_H_
-#pragma once
 
 #include <string>
 
@@ -17,6 +16,7 @@ class GURL;
 namespace net {
 
 class SSLConfigService;
+class SSLInfo;
 class TransportSecurityState;
 
 // SocketStreamJob represents full-duplex communication over SocketStream.
@@ -49,10 +49,10 @@ class NET_EXPORT SocketStreamJob
   virtual SocketStream::UserData* GetUserData(const void* key) const;
   virtual void SetUserData(const void* key, SocketStream::UserData* data);
 
-  URLRequestContext* context() const {
+  const URLRequestContext* context() const {
     return socket_->context();
   }
-  void set_context(URLRequestContext* context) {
+  void set_context(const URLRequestContext* context) {
     socket_->set_context(context);
   }
 
@@ -64,10 +64,17 @@ class NET_EXPORT SocketStreamJob
 
   virtual void RestartWithAuth(const AuthCredentials& credentials);
 
+  virtual void CancelWithError(int error);
+
+  virtual void CancelWithSSLError(const net::SSLInfo& ssl_info);
+
+  virtual void ContinueDespiteError();
+
   virtual void DetachDelegate();
 
  protected:
-  friend class WebSocketJobTest;
+  friend class WebSocketJobSpdy2Test;
+  friend class WebSocketJobSpdy3Test;
   friend class base::RefCountedThreadSafe<SocketStreamJob>;
   virtual ~SocketStreamJob();
 

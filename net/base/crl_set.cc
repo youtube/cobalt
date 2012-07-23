@@ -49,7 +49,8 @@ static bool DecompressZlib(uint8* out, int out_len, base::StringPiece in) {
 }
 
 CRLSet::CRLSet()
-    : sequence_(0) {
+    : sequence_(0),
+      not_after_(0) {
 }
 
 CRLSet::~CRLSet() {
@@ -137,7 +138,7 @@ static base::DictionaryValue* ReadHeader(base::StringPiece* data) {
   data->remove_prefix(header_len);
 
   scoped_ptr<Value> header(base::JSONReader::Read(
-      header_bytes.as_string(), true /* allow trailing comma */));
+      header_bytes, base::JSON_ALLOW_TRAILING_COMMAS));
   if (header.get() == NULL)
     return NULL;
 
@@ -236,8 +237,17 @@ bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
   if (!header_dict->GetInteger("Sequence", &sequence))
     return false;
 
+  double not_after;
+  if (!header_dict->GetDouble("NotAfter", &not_after)) {
+    // NotAfter is optional for now.
+    not_after = 0;
+  }
+  if (not_after < 0)
+    return false;
+
   scoped_refptr<CRLSet> crl_set(new CRLSet);
   crl_set->sequence_ = static_cast<uint32>(sequence);
+  crl_set->not_after_ = static_cast<uint64>(not_after);
 
   for (size_t crl_index = 0; !data.empty(); crl_index++) {
     std::string parent_spki_sha256;
@@ -366,8 +376,17 @@ bool CRLSet::ApplyDelta(const base::StringPiece& in_data,
     return false;
   }
 
+  double not_after;
+  if (!header_dict->GetDouble("NotAfter", &not_after)) {
+    // NotAfter is optional for now.
+    not_after = 0;
+  }
+  if (not_after < 0)
+    return false;
+
   scoped_refptr<CRLSet> crl_set(new CRLSet);
   crl_set->sequence_ = static_cast<uint32>(sequence);
+  crl_set->not_after_ = static_cast<uint64>(not_after);
 
   if (!crl_set->CopyBlockedSPKIsFromHeader(header_dict.get()))
     return false;
@@ -468,7 +487,10 @@ std::string CRLSet::Serialize() const {
       header += ",";
     header += "\"" + spki_hash_base64 + "\"";
   }
-  header += "]}";
+  header += "]";
+  if (not_after_ != 0)
+    header += StringPrintf(",\"NotAfter\":%" PRIu64, not_after_);
+  header += "}";
 
   size_t len = 2 /* header len */ + header.size();
 
@@ -549,12 +571,31 @@ CRLSet::Result CRLSet::CheckSerial(
   return GOOD;
 }
 
+bool CRLSet::IsExpired() const {
+  if (not_after_ == 0)
+    return false;
+
+  uint64 now = base::Time::Now().ToTimeT();
+  return now > not_after_;
+}
+
 uint32 CRLSet::sequence() const {
   return sequence_;
 }
 
 const CRLSet::CRLList& CRLSet::crls() const {
   return crls_;
+}
+
+// static
+CRLSet* CRLSet::EmptyCRLSetForTesting() {
+  return new CRLSet;
+}
+
+CRLSet* CRLSet::ExpiredCRLSetForTesting() {
+  CRLSet* crl_set = new CRLSet;
+  crl_set->not_after_ = 1;
+  return crl_set;
 }
 
 }  // namespace net

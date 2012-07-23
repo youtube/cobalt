@@ -14,7 +14,7 @@
 
 namespace media {
 
-enum MEDIA_EXPORT VideoCodec {
+enum VideoCodec {
   // These values are histogrammed over time; do not change their ordinal
   // values.  When deleting a codec replace it with a dummy value; when adding a
   // codec, do so at the bottom (and update kVideoCodecMax).
@@ -34,7 +34,8 @@ enum MEDIA_EXPORT VideoCodec {
 };
 
 // Video stream profile.  This *must* match PP_VideoDecoder_Profile.
-enum MEDIA_EXPORT VideoCodecProfile {
+// (enforced in webkit/plugins/ppapi/ppb_video_decoder_impl.cc)
+enum VideoCodecProfile {
   // Keep the values in this enum unique, as they imply format (h.264 vs. VP8,
   // for example), and keep the values for a particular format grouped
   // together for clarity.

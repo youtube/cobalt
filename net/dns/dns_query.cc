@@ -28,9 +28,9 @@ DnsQuery::DnsQuery(uint16 id, const base::StringPiece& qname, uint16 qtype)
   dns_protocol::Header* header =
       reinterpret_cast<dns_protocol::Header*>(io_buffer_->data());
   memset(header, 0, sizeof(dns_protocol::Header));
-  header->id = htons(id);
-  header->flags = htons(dns_protocol::kFlagRD);
-  header->qdcount = htons(1);
+  header->id = base::HostToNet16(id);
+  header->flags = base::HostToNet16(dns_protocol::kFlagRD);
+  header->qdcount = base::HostToNet16(1);
 
   // Write question section after the header.
   BigEndianWriter writer(reinterpret_cast<char*>(header + 1), question_size);
@@ -49,7 +49,7 @@ DnsQuery* DnsQuery::CloneWithNewId(uint16 id) const {
 uint16 DnsQuery::id() const {
   const dns_protocol::Header* header =
       reinterpret_cast<const dns_protocol::Header*>(io_buffer_->data());
-  return ntohs(header->id);
+  return base::NetToHost16(header->id);
 }
 
 base::StringPiece DnsQuery::qname() const {
@@ -77,7 +77,7 @@ DnsQuery::DnsQuery(const DnsQuery& orig, uint16 id) {
          io_buffer_.get()->size());
   dns_protocol::Header* header =
       reinterpret_cast<dns_protocol::Header*>(io_buffer_->data());
-  header->id = htons(id);
+  header->id = base::HostToNet16(id);
 }
 
 }  // namespace net

@@ -18,33 +18,41 @@ namespace media {
 class MEDIA_EXPORT DataBuffer : public Buffer {
  public:
   // Assumes valid data of size |buffer_size|.
-  DataBuffer(scoped_array<uint8> buffer, size_t buffer_size);
+  DataBuffer(scoped_array<uint8> buffer, int buffer_size);
 
   // Allocates buffer of size |buffer_size|. If |buffer_size| is 0, |data_| is
   // set to a NULL ptr.
-  explicit DataBuffer(size_t buffer_size);
+  explicit DataBuffer(int buffer_size);
+
+  // Create a DataBuffer whose |data_| is copied from |data|.
+  static scoped_refptr<DataBuffer> CopyFrom(const uint8* data, int size);
 
   // Buffer implementation.
   virtual const uint8* GetData() const OVERRIDE;
-  virtual size_t GetDataSize() const OVERRIDE;
+  virtual int GetDataSize() const OVERRIDE;
 
   // Returns a read-write pointer to the buffer data.
   virtual uint8* GetWritableData();
 
   // Updates the size of valid data in bytes, which must be less than or equal
   // to GetBufferSize().
-  virtual void SetDataSize(size_t data_size);
+  virtual void SetDataSize(int data_size);
 
   // Returns the size of the underlying buffer.
-  virtual size_t GetBufferSize() const;
+  virtual int GetBufferSize() const;
 
  protected:
+  // Copies from [data,data+size) to owned array.
+  DataBuffer(const uint8* data, int size);
   virtual ~DataBuffer();
 
  private:
+  // Constructor helper method for memory allocations.
+  void Initialize();
+
   scoped_array<uint8> data_;
-  size_t buffer_size_;
-  size_t data_size_;
+  int buffer_size_;
+  int data_size_;
 
   DISALLOW_COPY_AND_ASSIGN(DataBuffer);
 };

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -293,16 +293,16 @@ def Main(args):
     # If the existing values assume regressions are low deltas relative to
     # improvements, swap our regress and improve.  This value must be a
     # scores-like result.
-    if ('regress' in perf[key] and 'improve' in perf[key] and
-        perf[key]['regress'] < perf[key]['improve']):
-      assert(better != 'lower')
-      better = 'higher'
-      temp = regress
-      regress = improve
-      improve = temp
-    else:
-      assert(better != 'higher')
-      better = 'lower'
+    if 'regress' in perf[key] and 'improve' in perf[key]:
+      if perf[key]['regress'] < perf[key]['improve']:
+        assert(better != 'lower')
+        better = 'higher'
+        temp = regress
+        regress = improve
+        improve = temp
+      else:
+        assert(better != 'higher')
+        better = 'lower'
 
     if better == 'higher':
       regress = int(math.floor(regress - abs(regress*tolerance)))

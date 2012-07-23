@@ -5,8 +5,6 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 
 #include "base/logging.h"
-#include "media/base/audio_decoder_config.h"
-#include "media/base/video_decoder_config.h"
 
 namespace media {
 
@@ -23,7 +21,7 @@ int64 ConvertToTimeBase(const AVRational& time_base,
   return av_rescale_q(timestamp.InMicroseconds(), kMicrosBase, time_base);
 }
 
-static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
+AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
   switch (codec_id) {
     case CODEC_ID_AAC:
       return kCodecAAC;
@@ -33,7 +31,7 @@ static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
       return kCodecVorbis;
     case CODEC_ID_PCM_U8:
     case CODEC_ID_PCM_S16LE:
-    case CODEC_ID_PCM_S32LE:
+    case CODEC_ID_PCM_S24LE:
       return kCodecPCM;
     case CODEC_ID_FLAC:
       return kCodecFLAC;
@@ -44,7 +42,7 @@ static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
     case CODEC_ID_PCM_MULAW:
       return kCodecPCM_MULAW;
     default:
-      NOTREACHED();
+      DVLOG(1) << "Unknown audio CodecID: " << codec_id;
   }
   return kUnknownAudioCodec;
 }
@@ -52,8 +50,6 @@ static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
 static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
                                    int bits_per_channel) {
   switch (audio_codec) {
-    case kUnknownAudioCodec:
-      return CODEC_ID_NONE;
     case kCodecAAC:
       return CODEC_ID_AAC;
     case kCodecMP3:
@@ -65,10 +61,11 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
         case 16:
           return CODEC_ID_PCM_S16LE;
         case 32:
-          return CODEC_ID_PCM_S32LE;
+          return CODEC_ID_PCM_S24LE;
         default:
-          NOTREACHED() << "Unsupported bits_per_channel: " << bits_per_channel;
+          DVLOG(1) << "Unsupported bits per channel: " << bits_per_channel;
       }
+      break;
     case kCodecVorbis:
       return CODEC_ID_VORBIS;
     case kCodecFLAC:
@@ -80,12 +77,12 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
     case kCodecPCM_MULAW:
       return CODEC_ID_PCM_MULAW;
     default:
-      NOTREACHED();
+      DVLOG(1) << "Unknown AudioCodec: " << audio_codec;
   }
   return CODEC_ID_NONE;
 }
 
-static VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
+VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
   switch (codec_id) {
     case CODEC_ID_VC1:
       return kCodecVC1;
@@ -100,15 +97,13 @@ static VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
     case CODEC_ID_VP8:
       return kCodecVP8;
     default:
-      NOTREACHED();
+      DVLOG(1) << "Unknown video CodecID: " << codec_id;
   }
   return kUnknownVideoCodec;
 }
 
 static CodecID VideoCodecToCodecID(VideoCodec video_codec) {
   switch (video_codec) {
-    case kUnknownVideoCodec:
-      return CODEC_ID_NONE;
     case kCodecVC1:
       return CODEC_ID_VC1;
     case kCodecH264:
@@ -122,7 +117,7 @@ static CodecID VideoCodecToCodecID(VideoCodec video_codec) {
     case kCodecVP8:
       return CODEC_ID_VP8;
     default:
-      NOTREACHED();
+      DVLOG(1) << "Unknown VideoCodec: " << video_codec;
   }
   return CODEC_ID_NONE;
 }
@@ -148,8 +143,9 @@ static VideoCodecProfile ProfileIDToVideoCodecProfile(int profile) {
     case FF_PROFILE_H264_HIGH_444_PREDICTIVE:
       return H264PROFILE_HIGH444PREDICTIVEPROFILE;
     default:
-      return VIDEO_CODEC_PROFILE_UNKNOWN;
+      DVLOG(1) << "Unknown profile id: " << profile;
   }
+  return VIDEO_CODEC_PROFILE_UNKNOWN;
 }
 
 static int VideoCodecProfileToProfileID(VideoCodecProfile profile) {
@@ -169,8 +165,9 @@ static int VideoCodecProfileToProfileID(VideoCodecProfile profile) {
     case H264PROFILE_HIGH444PREDICTIVEPROFILE:
       return FF_PROFILE_H264_HIGH_444_PREDICTIVE;
     default:
-      return FF_PROFILE_UNKNOWN;
+      DVLOG(1) << "Unknown VideoCodecProfile: " << profile;
   }
+  return FF_PROFILE_UNKNOWN;
 }
 
 void AVCodecContextToAudioDecoderConfig(
@@ -179,14 +176,14 @@ void AVCodecContextToAudioDecoderConfig(
   DCHECK_EQ(codec_context->codec_type, AVMEDIA_TYPE_AUDIO);
 
   AudioCodec codec = CodecIDToAudioCodec(codec_context->codec_id);
-  int bits_per_channel = av_get_bits_per_sample_fmt(codec_context->sample_fmt);
+  int bytes_per_channel = av_get_bytes_per_sample(codec_context->sample_fmt);
   ChannelLayout channel_layout =
       ChannelLayoutToChromeChannelLayout(codec_context->channel_layout,
                                          codec_context->channels);
   int samples_per_second = codec_context->sample_rate;
 
   config->Initialize(codec,
-                     bits_per_channel,
+                     bytes_per_channel << 3,
                      channel_layout,
                      samples_per_second,
                      codec_context->extradata,
@@ -211,7 +208,7 @@ void AudioDecoderConfigToAVCodecContext(const AudioDecoderConfig& config,
       codec_context->sample_fmt = AV_SAMPLE_FMT_S32;
       break;
     default:
-      NOTIMPLEMENTED() << "TODO(scherkus): DO SOMETHING BETTER HERE?";
+      DVLOG(1) << "Unsupported bits per channel: " << config.bits_per_channel();
       codec_context->sample_fmt = AV_SAMPLE_FMT_NONE;
   }
 
@@ -290,35 +287,35 @@ void VideoDecoderConfigToAVCodecContext(
 ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
                                                  int channels) {
   switch (layout) {
-    case CH_LAYOUT_MONO:
+    case AV_CH_LAYOUT_MONO:
       return CHANNEL_LAYOUT_MONO;
-    case CH_LAYOUT_STEREO:
+    case AV_CH_LAYOUT_STEREO:
       return CHANNEL_LAYOUT_STEREO;
-    case CH_LAYOUT_2_1:
+    case AV_CH_LAYOUT_2_1:
       return CHANNEL_LAYOUT_2_1;
-    case CH_LAYOUT_SURROUND:
+    case AV_CH_LAYOUT_SURROUND:
       return CHANNEL_LAYOUT_SURROUND;
-    case CH_LAYOUT_4POINT0:
-      return CHANNEL_LAYOUT_4POINT0;
-    case CH_LAYOUT_2_2:
+    case AV_CH_LAYOUT_4POINT0:
+      return CHANNEL_LAYOUT_4_0;
+    case AV_CH_LAYOUT_2_2:
       return CHANNEL_LAYOUT_2_2;
-    case CH_LAYOUT_QUAD:
+    case AV_CH_LAYOUT_QUAD:
       return CHANNEL_LAYOUT_QUAD;
-    case CH_LAYOUT_5POINT0:
-      return CHANNEL_LAYOUT_5POINT0;
-    case CH_LAYOUT_5POINT1:
-      return CHANNEL_LAYOUT_5POINT1;
-    case CH_LAYOUT_5POINT0_BACK:
-      return CHANNEL_LAYOUT_5POINT0_BACK;
-    case CH_LAYOUT_5POINT1_BACK:
-      return CHANNEL_LAYOUT_5POINT1_BACK;
-    case CH_LAYOUT_7POINT0:
-      return CHANNEL_LAYOUT_7POINT0;
-    case CH_LAYOUT_7POINT1:
-      return CHANNEL_LAYOUT_7POINT1;
-    case CH_LAYOUT_7POINT1_WIDE:
-      return CHANNEL_LAYOUT_7POINT1_WIDE;
-    case CH_LAYOUT_STEREO_DOWNMIX:
+    case AV_CH_LAYOUT_5POINT0:
+      return CHANNEL_LAYOUT_5_0;
+    case AV_CH_LAYOUT_5POINT1:
+      return CHANNEL_LAYOUT_5_1;
+    case AV_CH_LAYOUT_5POINT0_BACK:
+      return CHANNEL_LAYOUT_5_0_BACK;
+    case AV_CH_LAYOUT_5POINT1_BACK:
+      return CHANNEL_LAYOUT_5_1_BACK;
+    case AV_CH_LAYOUT_7POINT0:
+      return CHANNEL_LAYOUT_7_0;
+    case AV_CH_LAYOUT_7POINT1:
+      return CHANNEL_LAYOUT_7_1;
+    case AV_CH_LAYOUT_7POINT1_WIDE:
+      return CHANNEL_LAYOUT_7_1_WIDE;
+    case AV_CH_LAYOUT_STEREO_DOWNMIX:
       return CHANNEL_LAYOUT_STEREO_DOWNMIX;
     default:
       // FFmpeg channel_layout is 0 for .wav and .mp3.  We know mono and stereo
@@ -327,9 +324,9 @@ ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
         return CHANNEL_LAYOUT_MONO;
       if (channels == 2)
         return CHANNEL_LAYOUT_STEREO;
-      DLOG(WARNING) << "Unsupported/unencountered channel layout values";
-      return CHANNEL_LAYOUT_UNSUPPORTED;
+      DVLOG(1) << "Unsupported channel layout: " << layout;
   }
+  return CHANNEL_LAYOUT_UNSUPPORTED;
 }
 
 VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format) {
@@ -339,9 +336,9 @@ VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format) {
     case PIX_FMT_YUV420P:
       return VideoFrame::YV12;
     default:
-      DLOG(WARNING) << "Unsupported PixelFormat: " << pixel_format;
-      return VideoFrame::INVALID;
+      DVLOG(1) << "Unsupported PixelFormat: " << pixel_format;
   }
+  return VideoFrame::INVALID;
 }
 
 PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
@@ -351,9 +348,9 @@ PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
     case VideoFrame::YV12:
       return PIX_FMT_YUV420P;
     default:
-      DLOG(WARNING) << "Unsupported VideoFrame Format: " << video_format;
-      return PIX_FMT_NONE;
+      DVLOG(1) << "Unsupported VideoFrame::Format: " << video_format;
   }
+  return PIX_FMT_NONE;
 }
 
 base::TimeDelta GetFrameDuration(const VideoDecoderConfig& config) {
@@ -377,7 +374,7 @@ void DestroyAVFormatContext(AVFormatContext* format_context) {
       // 1. AVStream is alive.
       // 2. AVCodecContext in AVStream is alive.
       // 3. AVCodec in AVCodecContext is alive.
-      // Notice that closing a codec context without prior avcodec_open() will
+      // Notice that closing a codec context without prior avcodec_open2() will
       // result in a crash in FFmpeg.
       if (stream && stream->codec && stream->codec->codec) {
         stream->discard = AVDISCARD_ALL;
@@ -387,7 +384,7 @@ void DestroyAVFormatContext(AVFormatContext* format_context) {
   }
 
   // Then finally cleanup the format context.
-  av_close_input_file(format_context);
+  avformat_close_input(&format_context);
 }
 
 }  // namespace media

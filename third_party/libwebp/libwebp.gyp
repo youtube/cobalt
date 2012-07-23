@@ -61,6 +61,15 @@
             'dsp/upsampling_sse2.c',
             'dsp/yuv.c',
           ],
+          'conditions': [
+            ['order_profiling != 0', {
+              'target_conditions' : [
+                ['_toolset=="target"', {
+                  'cflags!': [ '-finstrument-functions' ],
+                }],
+              ],
+            }],
+          ],
         },
         {
           'target_name': 'libwebp_utils',

@@ -15,8 +15,7 @@ class TraceEventAnalyzerTest : public testing::Test {
  public:
   void ManualSetUp();
   void OnTraceDataCollected(
-      const scoped_refptr<base::debug::TraceLog::RefCountedString>&
-          json_events_str);
+      const scoped_refptr<base::RefCountedString>& json_events_str);
   void BeginTracing();
   void EndTracing();
 
@@ -36,9 +35,8 @@ void TraceEventAnalyzerTest::ManualSetUp() {
 }
 
 void TraceEventAnalyzerTest::OnTraceDataCollected(
-    const scoped_refptr<base::debug::TraceLog::RefCountedString>&
-        json_events_str) {
-  buffer_.AddFragment(json_events_str->data);
+    const scoped_refptr<base::RefCountedString>& json_events_str) {
+  buffer_.AddFragment(json_events_str->data());
 }
 
 void TraceEventAnalyzerTest::BeginTracing() {
@@ -449,7 +447,8 @@ TEST_F(TraceEventAnalyzerTest, MergeAssociatedEventArgs) {
   const char* arg_string = "arg_string";
   BeginTracing();
   {
-    TRACE_EVENT1("cat1", "name1", "arg", arg_string);
+    TRACE_EVENT_BEGIN0("cat1", "name1");
+    TRACE_EVENT_END1("cat1", "name1", "arg", arg_string);
   }
   EndTracing();
 
@@ -459,8 +458,7 @@ TEST_F(TraceEventAnalyzerTest, MergeAssociatedEventArgs) {
   analyzer->AssociateBeginEndEvents();
 
   TraceEventVector found;
-  analyzer->FindEvents(Query::EventName() == Query::String("name1") &&
-      Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_END), &found);
+  analyzer->FindEvents(Query::MatchBeginName("name1"), &found);
   ASSERT_EQ(1u, found.size());
   std::string arg_actual;
   EXPECT_FALSE(found[0]->GetArgAsString("arg", &arg_actual));
@@ -470,33 +468,85 @@ TEST_F(TraceEventAnalyzerTest, MergeAssociatedEventArgs) {
   EXPECT_STREQ(arg_string, arg_actual.c_str());
 }
 
-// Test AssociateStartFinishEvents
-TEST_F(TraceEventAnalyzerTest, StartFinishAssocations) {
+// Test AssociateAsyncBeginEndEvents
+TEST_F(TraceEventAnalyzerTest, AsyncBeginEndAssocations) {
   ManualSetUp();
 
   BeginTracing();
   {
-    TRACE_EVENT_FINISH0("cat1", "name1", 0xA); // does not match / out of order
-    TRACE_EVENT_START0("cat1", "name1", 0xB);
-    TRACE_EVENT_START0("cat1", "name1", 0xC);
+    TRACE_EVENT_ASYNC_END0("cat1", "name1", 0xA); // no match / out of order
+    TRACE_EVENT_ASYNC_BEGIN0("cat1", "name1", 0xB);
+    TRACE_EVENT_ASYNC_BEGIN0("cat1", "name1", 0xC);
     TRACE_EVENT_INSTANT0("cat1", "name1"); // noise
     TRACE_EVENT0("cat1", "name1"); // noise
-    TRACE_EVENT_FINISH0("cat1", "name1", 0xB);
-    TRACE_EVENT_FINISH0("cat1", "name1", 0xC);
-    TRACE_EVENT_START0("cat1", "name1", 0xA); // does not match / out of order
+    TRACE_EVENT_ASYNC_END0("cat1", "name1", 0xB);
+    TRACE_EVENT_ASYNC_END0("cat1", "name1", 0xC);
+    TRACE_EVENT_ASYNC_BEGIN0("cat1", "name1", 0xA); // no match / out of order
   }
   EndTracing();
 
   scoped_ptr<TraceAnalyzer>
       analyzer(TraceAnalyzer::Create(output_.json_output));
   ASSERT_TRUE(analyzer.get());
-  analyzer->AssociateStartFinishEvents();
+  analyzer->AssociateAsyncBeginEndEvents();
 
   TraceEventVector found;
-  analyzer->FindEvents(Query::MatchStartWithFinish(), &found);
+  analyzer->FindEvents(Query::MatchAsyncBeginWithNext(), &found);
   ASSERT_EQ(2u, found.size());
   EXPECT_STRCASEEQ("B", found[0]->id.c_str());
   EXPECT_STRCASEEQ("C", found[1]->id.c_str());
+}
+
+// Test AssociateAsyncBeginEndEvents
+TEST_F(TraceEventAnalyzerTest, AsyncBeginEndAssocationsWithSteps) {
+  ManualSetUp();
+
+  BeginTracing();
+  {
+    TRACE_EVENT_ASYNC_BEGIN_STEP0("c", "n", 0xA, "s1");
+    TRACE_EVENT_ASYNC_END0("c", "n", 0xA);
+    TRACE_EVENT_ASYNC_BEGIN0("c", "n", 0xB);
+    TRACE_EVENT_ASYNC_BEGIN0("c", "n", 0xC);
+    TRACE_EVENT_ASYNC_BEGIN_STEP0("c", "n", 0xB, "s1");
+    TRACE_EVENT_ASYNC_BEGIN_STEP0("c", "n", 0xC, "s1");
+    TRACE_EVENT_ASYNC_BEGIN_STEP1("c", "n", 0xC, "s2", "a", 1);
+    TRACE_EVENT_ASYNC_END0("c", "n", 0xB);
+    TRACE_EVENT_ASYNC_END0("c", "n", 0xC);
+    TRACE_EVENT_ASYNC_BEGIN0("c", "n", 0xA);
+    TRACE_EVENT_ASYNC_BEGIN_STEP0("c", "n", 0xA, "s2");
+  }
+  EndTracing();
+
+  scoped_ptr<TraceAnalyzer>
+      analyzer(TraceAnalyzer::Create(output_.json_output));
+  ASSERT_TRUE(analyzer.get());
+  analyzer->AssociateAsyncBeginEndEvents();
+
+  TraceEventVector found;
+  analyzer->FindEvents(Query::MatchAsyncBeginWithNext(), &found);
+  ASSERT_EQ(3u, found.size());
+
+  EXPECT_STRCASEEQ("B", found[0]->id.c_str());
+  EXPECT_EQ(TRACE_EVENT_PHASE_ASYNC_STEP, found[0]->other_event->phase);
+  EXPECT_TRUE(found[0]->other_event->other_event);
+  EXPECT_EQ(TRACE_EVENT_PHASE_ASYNC_END,
+            found[0]->other_event->other_event->phase);
+
+  EXPECT_STRCASEEQ("C", found[1]->id.c_str());
+  EXPECT_EQ(TRACE_EVENT_PHASE_ASYNC_STEP, found[1]->other_event->phase);
+  EXPECT_TRUE(found[1]->other_event->other_event);
+  EXPECT_EQ(TRACE_EVENT_PHASE_ASYNC_STEP,
+            found[1]->other_event->other_event->phase);
+  double arg_actual = 0;
+  EXPECT_TRUE(found[1]->other_event->other_event->GetArgAsNumber(
+                  "a", &arg_actual));
+  EXPECT_EQ(1.0, arg_actual);
+  EXPECT_TRUE(found[1]->other_event->other_event->other_event);
+  EXPECT_EQ(TRACE_EVENT_PHASE_ASYNC_END,
+            found[1]->other_event->other_event->other_event->phase);
+
+  EXPECT_STRCASEEQ("A", found[2]->id.c_str());
+  EXPECT_EQ(TRACE_EVENT_PHASE_ASYNC_STEP, found[2]->other_event->phase);
 }
 
 // Test that the TraceAnalyzer custom associations work.
@@ -543,25 +593,25 @@ TEST_F(TraceEventAnalyzerTest, CustomAssociations) {
                        !Query::EventHasOther(), &found);
   EXPECT_EQ(1u, found.size());
 
-  // cat2 and cat4 are a associated.
+  // cat2 and cat4 are associated.
   analyzer->FindEvents(Query::EventCategory() == Query::String("cat2") &&
                        Query::OtherCategory() == Query::String("cat4"), &found);
   EXPECT_EQ(1u, found.size());
 
-  // cat4 and cat2 are a associated.
+  // cat4 and cat2 are not associated.
   analyzer->FindEvents(Query::EventCategory() == Query::String("cat4") &&
                        Query::OtherCategory() == Query::String("cat2"), &found);
-  EXPECT_EQ(1u, found.size());
+  EXPECT_EQ(0u, found.size());
 
-  // cat3 and cat5 are a associated.
+  // cat3 and cat5 are associated.
   analyzer->FindEvents(Query::EventCategory() == Query::String("cat3") &&
                        Query::OtherCategory() == Query::String("cat5"), &found);
   EXPECT_EQ(1u, found.size());
 
-  // cat5 and cat3 are a associated.
+  // cat5 and cat3 are not associated.
   analyzer->FindEvents(Query::EventCategory() == Query::String("cat5") &&
                        Query::OtherCategory() == Query::String("cat3"), &found);
-  EXPECT_EQ(1u, found.size());
+  EXPECT_EQ(0u, found.size());
 }
 
 // Verify that Query literals and types are properly casted.
@@ -594,36 +644,69 @@ TEST_F(TraceEventAnalyzerTest, RateStats) {
   event.timestamp = 0.0;
   double little_delta = 1.0;
   double big_delta = 10.0;
+  double tiny_delta = 0.1;
   RateStats stats;
+  RateStatsOptions options;
 
+  // Insert 10 events, each apart by little_delta.
   for (int i = 0; i < 10; ++i) {
     event.timestamp += little_delta;
     events.push_back(event);
     event_ptrs.push_back(&events.back());
   }
 
-  ASSERT_TRUE(GetRateStats(event_ptrs, &stats));
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats, NULL));
   EXPECT_EQ(little_delta, stats.mean_us);
   EXPECT_EQ(little_delta, stats.min_us);
   EXPECT_EQ(little_delta, stats.max_us);
   EXPECT_EQ(0.0, stats.standard_deviation_us);
 
+  // Add an event apart by big_delta.
   event.timestamp += big_delta;
   events.push_back(event);
   event_ptrs.push_back(&events.back());
 
-  ASSERT_TRUE(GetRateStats(event_ptrs, &stats));
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats, NULL));
   EXPECT_LT(little_delta, stats.mean_us);
   EXPECT_EQ(little_delta, stats.min_us);
   EXPECT_EQ(big_delta, stats.max_us);
   EXPECT_LT(0.0, stats.standard_deviation_us);
 
+  // Trim off the biggest delta and verify stats.
+  options.trim_min = 0;
+  options.trim_max = 1;
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats, &options));
+  EXPECT_EQ(little_delta, stats.mean_us);
+  EXPECT_EQ(little_delta, stats.min_us);
+  EXPECT_EQ(little_delta, stats.max_us);
+  EXPECT_EQ(0.0, stats.standard_deviation_us);
+
+  // Add an event apart by tiny_delta.
+  event.timestamp += tiny_delta;
+  events.push_back(event);
+  event_ptrs.push_back(&events.back());
+
+  // Trim off both the biggest and tiniest delta and verify stats.
+  options.trim_min = 1;
+  options.trim_max = 1;
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats, &options));
+  EXPECT_EQ(little_delta, stats.mean_us);
+  EXPECT_EQ(little_delta, stats.min_us);
+  EXPECT_EQ(little_delta, stats.max_us);
+  EXPECT_EQ(0.0, stats.standard_deviation_us);
+
+  // Verify smallest allowed number of events.
   TraceEventVector few_event_ptrs;
   few_event_ptrs.push_back(&event);
   few_event_ptrs.push_back(&event);
-  ASSERT_FALSE(GetRateStats(few_event_ptrs, &stats));
+  ASSERT_FALSE(GetRateStats(few_event_ptrs, &stats, NULL));
   few_event_ptrs.push_back(&event);
-  ASSERT_TRUE(GetRateStats(few_event_ptrs, &stats));
+  ASSERT_TRUE(GetRateStats(few_event_ptrs, &stats, NULL));
+
+  // Trim off more than allowed and verify failure.
+  options.trim_min = 0;
+  options.trim_max = 1;
+  ASSERT_FALSE(GetRateStats(few_event_ptrs, &stats, &options));
 }
 
 // Test FindFirstOf and FindLastOf.

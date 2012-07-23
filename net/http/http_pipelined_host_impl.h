@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_PIPELINED_HOST_IMPL_H_
 #define NET_HTTP_HTTP_PIPELINED_HOST_IMPL_H_
-#pragma once
 
 #include <map>
 #include <string>
@@ -37,7 +36,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
       public HttpPipelinedConnection::Delegate {
  public:
   HttpPipelinedHostImpl(HttpPipelinedHost::Delegate* delegate,
-                        const HostPortPair& origin,
+                        const HttpPipelinedHost::Key& key,
                         HttpPipelinedConnection::Factory* factory,
                         HttpPipelinedHostCapability capability);
   virtual ~HttpPipelinedHostImpl();
@@ -49,7 +48,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
       bool was_npn_negotiated,
-      SSLClientSocket::NextProto protocol_negotiated) OVERRIDE;
+      NextProto protocol_negotiated) OVERRIDE;
 
   virtual HttpPipelinedStream* CreateStreamOnExistingPipeline() OVERRIDE;
 
@@ -66,7 +65,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
       HttpPipelinedConnection* pipeline,
       HttpPipelinedConnection::Feedback feedback) OVERRIDE;
 
-  virtual const HostPortPair& origin() const OVERRIDE;
+  virtual const Key& GetKey() const OVERRIDE;
 
   // Creates a Value summary of this host's |pipelines_|. Caller assumes
   // ownership of the returned Value.
@@ -105,7 +104,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
   void NotifyAllPipelinesHaveCapacity();
 
   HttpPipelinedHost::Delegate* delegate_;
-  const HostPortPair origin_;
+  const Key key_;
   PipelineInfoMap pipelines_;
   scoped_ptr<HttpPipelinedConnection::Factory> factory_;
   HttpPipelinedHostCapability capability_;

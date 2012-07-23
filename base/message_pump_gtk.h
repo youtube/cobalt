@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MESSAGE_PUMP_GTK_H_
 #define BASE_MESSAGE_PUMP_GTK_H_
-#pragma once
 
 #include "base/message_pump_glib.h"
 
@@ -44,7 +43,6 @@ class MessagePumpDispatcher {
 class BASE_EXPORT MessagePumpGtk : public MessagePumpGlib {
  public:
   MessagePumpGtk();
-  virtual ~MessagePumpGtk();
 
   // Dispatch an available GdkEvent. Essentially this allows a subclass to do
   // some task before/after calling the default handler (EventDispatcher).
@@ -52,6 +50,9 @@ class BASE_EXPORT MessagePumpGtk : public MessagePumpGlib {
 
   // Returns default X Display.
   static Display* GetDefaultXDisplay();
+
+ protected:
+  virtual ~MessagePumpGtk();
 
  private:
   // Invoked from EventDispatcher. Notifies all observers we're about to

@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_REQUEST_INFO_H__
 #define NET_HTTP_HTTP_REQUEST_INFO_H__
-#pragma once
 
 #include <string>
 #include "base/memory/ref_counted.h"

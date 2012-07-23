@@ -4,7 +4,6 @@
 
 #ifndef NET_HTTP_HTTP_VERSION_H_
 #define NET_HTTP_HTTP_VERSION_H_
-#pragma once
 
 #include "base/basictypes.h"
 

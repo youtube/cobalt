@@ -11,7 +11,7 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "net/base/net_log.h"
+#include "base/values.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/dhcp_proxy_script_fetcher.h"
 #include "net/proxy/dhcp_proxy_script_fetcher_factory.h"
@@ -20,6 +20,7 @@
 namespace net {
 
 namespace {
+
 bool LooksLikePacScript(const string16& script) {
   // Note: this is only an approximation! It may not always work correctly,
   // however it is very likely that legitimate scripts have this exact string,
@@ -29,6 +30,7 @@ bool LooksLikePacScript(const string16& script) {
   // An exact test would have to load the script in a javascript evaluator.
   return script.find(ASCIIToUTF16("FindProxyForURL")) != string16::npos;
 }
+
 }
 
 // This is the hard-coded location used by the DNS portion of web proxy
@@ -44,6 +46,28 @@ bool LooksLikePacScript(const string16& script) {
 // For more details, also check out this comment:
 // http://code.google.com/p/chromium/issues/detail?id=18575#c20
 static const char kWpadUrl[] = "http://wpad/wpad.dat";
+
+Value* ProxyScriptDecider::PacSource::NetLogCallback(
+    const GURL* effective_pac_url,
+    NetLog::LogLevel /* log_level */) const {
+  DictionaryValue* dict = new DictionaryValue();
+  std::string source;
+  switch (type) {
+    case PacSource::WPAD_DHCP:
+      source = "WPAD DHCP";
+      break;
+    case PacSource::WPAD_DNS:
+      source = "WPAD DNS: ";
+      source += effective_pac_url->possibly_invalid_spec();
+      break;
+    case PacSource::CUSTOM:
+      source = "Custom PAC URL: ";
+      source += effective_pac_url->possibly_invalid_spec();
+      break;
+  }
+  dict->SetString("source", source);
+  return dict;
+}
 
 ProxyScriptDecider::ProxyScriptDecider(
     ProxyScriptFetcher* proxy_script_fetcher,
@@ -72,7 +96,7 @@ int ProxyScriptDecider::Start(
   DCHECK(!callback.is_null());
   DCHECK(config.HasAutomaticSettings());
 
-  net_log_.BeginEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER);
 
   fetch_pac_bytes_ = fetch_pac_bytes;
 
@@ -187,7 +211,7 @@ int ProxyScriptDecider::DoWait() {
   // Otherwise wait the specified amount of time.
   wait_timer_.Start(FROM_HERE, wait_delay_, this,
                     &ProxyScriptDecider::OnWaitTimerFired);
-  net_log_.BeginEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER_WAIT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER_WAIT);
   return ERR_IO_PENDING;
 }
 
@@ -209,16 +233,16 @@ int ProxyScriptDecider::DoFetchPacScript() {
   const PacSource& pac_source = current_pac_source();
 
   GURL effective_pac_url;
-  NetLogStringParameter* log_parameter =
-      CreateNetLogParameterAndDetermineURL(pac_source, &effective_pac_url);
+  DetermineURL(pac_source, &effective_pac_url);
 
-  net_log_.BeginEvent(
-      NetLog::TYPE_PROXY_SCRIPT_DECIDER_FETCH_PAC_SCRIPT,
-      make_scoped_refptr(log_parameter));
+  net_log_.BeginEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER_FETCH_PAC_SCRIPT,
+                      base::Bind(&PacSource::NetLogCallback,
+                                 base::Unretained(&pac_source),
+                                 &effective_pac_url));
 
   if (pac_source.type == PacSource::WPAD_DHCP) {
     if (!dhcp_proxy_script_fetcher_) {
-      net_log_.AddEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER_HAS_NO_FETCHER, NULL);
+      net_log_.AddEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER_HAS_NO_FETCHER);
       return ERR_UNEXPECTED;
     }
 
@@ -228,7 +252,7 @@ int ProxyScriptDecider::DoFetchPacScript() {
   }
 
   if (!proxy_script_fetcher_) {
-    net_log_.AddEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER_HAS_NO_FETCHER, NULL);
+    net_log_.AddEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER_HAS_NO_FETCHER);
     return ERR_UNEXPECTED;
   }
 
@@ -322,7 +346,7 @@ int ProxyScriptDecider::TryToFallbackPacSource(int error) {
   ++current_pac_source_index_;
 
   net_log_.AddEvent(
-      NetLog::TYPE_PROXY_SCRIPT_DECIDER_FALLING_BACK_TO_NEXT_PAC_SOURCE, NULL);
+      NetLog::TYPE_PROXY_SCRIPT_DECIDER_FALLING_BACK_TO_NEXT_PAC_SOURCE);
 
   next_state_ = GetStartState();
 
@@ -333,28 +357,20 @@ ProxyScriptDecider::State ProxyScriptDecider::GetStartState() const {
   return fetch_pac_bytes_ ?  STATE_FETCH_PAC_SCRIPT : STATE_VERIFY_PAC_SCRIPT;
 }
 
-NetLogStringParameter* ProxyScriptDecider::CreateNetLogParameterAndDetermineURL(
-    const PacSource& pac_source,
-    GURL* effective_pac_url) {
+void ProxyScriptDecider::DetermineURL(const PacSource& pac_source,
+                                      GURL* effective_pac_url) {
   DCHECK(effective_pac_url);
 
-  std::string source_field;
   switch (pac_source.type) {
     case PacSource::WPAD_DHCP:
-      source_field = "WPAD DHCP";
       break;
     case PacSource::WPAD_DNS:
       *effective_pac_url = GURL(kWpadUrl);
-      source_field = "WPAD DNS: ";
-      source_field += effective_pac_url->possibly_invalid_spec();
       break;
     case PacSource::CUSTOM:
       *effective_pac_url = pac_source.url;
-      source_field = "Custom PAC URL: ";
-      source_field += effective_pac_url->possibly_invalid_spec();
       break;
   }
-  return new NetLogStringParameter("source", source_field);
 }
 
 const ProxyScriptDecider::PacSource&
@@ -368,13 +384,13 @@ void ProxyScriptDecider::OnWaitTimerFired() {
 }
 
 void ProxyScriptDecider::DidComplete() {
-  net_log_.EndEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER, NULL);
+  net_log_.EndEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER);
 }
 
 void ProxyScriptDecider::Cancel() {
   DCHECK_NE(STATE_NONE, next_state_);
 
-  net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
+  net_log_.AddEvent(NetLog::TYPE_CANCELLED);
 
   switch (next_state_) {
     case STATE_WAIT_COMPLETE:

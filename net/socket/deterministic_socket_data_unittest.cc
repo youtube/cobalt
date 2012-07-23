@@ -4,6 +4,9 @@
 
 #include "net/socket/socket_test_util.h"
 
+#include <string.h>
+
+#include "base/memory/ref_counted.h"
 #include "testing/platform_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -44,7 +47,7 @@ class DeterministicSocketDataTest : public PlatformTest {
   TestCompletionCallback read_callback_;
   TestCompletionCallback write_callback_;
   StreamSocket* sock_;
-  scoped_refptr<DeterministicSocketData> data_;
+  scoped_ptr<DeterministicSocketData> data_;
 
  private:
   scoped_refptr<IOBuffer> read_buf_;
@@ -69,7 +72,8 @@ DeterministicSocketDataTest::DeterministicSocketDataTest()
       tcp_params_(new TransportSocketParams(endpoint_,
                                             LOWEST,
                                             false,
-                                            false)),
+                                            false,
+                                            OnHostResolutionCallback())),
       histograms_(""),
       socket_pool_(10, 10, &histograms_, &socket_factory_) {
 }
@@ -84,7 +88,8 @@ void DeterministicSocketDataTest::Initialize(MockRead* reads,
                                            size_t reads_count,
                                            MockWrite* writes,
                                            size_t writes_count) {
-  data_ = new DeterministicSocketData(reads, reads_count, writes, writes_count);
+  data_.reset(new DeterministicSocketData(reads, reads_count,
+                                          writes, writes_count));
   data_->set_connect_data(connect_data_);
   socket_factory_.AddSocketDataProvider(data_.get());
 
@@ -165,8 +170,8 @@ void DeterministicSocketDataTest::AssertWriteReturns(const char* data,
 
 TEST_F(DeterministicSocketDataTest, SingleSyncReadWhileStopped) {
   MockRead reads[] = {
-    MockRead(false, kMsg1, kLen1, 0),  // Sync Read
-    MockRead(false, 0, 1),  // EOF
+    MockRead(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Read
+    MockRead(SYNCHRONOUS, 0, 1),  // EOF
   };
 
   Initialize(reads, arraysize(reads), NULL, 0);
@@ -177,8 +182,8 @@ TEST_F(DeterministicSocketDataTest, SingleSyncReadWhileStopped) {
 
 TEST_F(DeterministicSocketDataTest, SingleSyncReadTooEarly) {
   MockRead reads[] = {
-    MockRead(false, kMsg1, kLen1, 1),  // Sync Read
-    MockRead(false, 0, 2),  // EOF
+    MockRead(SYNCHRONOUS, kMsg1, kLen1, 1),  // Sync Read
+    MockRead(SYNCHRONOUS, 0, 2),  // EOF
   };
 
   Initialize(reads, arraysize(reads), NULL, 0);
@@ -190,8 +195,8 @@ TEST_F(DeterministicSocketDataTest, SingleSyncReadTooEarly) {
 
 TEST_F(DeterministicSocketDataTest, SingleSyncRead) {
   MockRead reads[] = {
-    MockRead(false, kMsg1, kLen1, 0),  // Sync Read
-    MockRead(false, 0, 1),  // EOF
+    MockRead(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Read
+    MockRead(SYNCHRONOUS, 0, 1),  // EOF
   };
 
   Initialize(reads, arraysize(reads), NULL, 0);
@@ -202,14 +207,14 @@ TEST_F(DeterministicSocketDataTest, SingleSyncRead) {
 
 TEST_F(DeterministicSocketDataTest, MultipleSyncReads) {
   MockRead reads[] = {
-    MockRead(false, kMsg1, kLen1, 0),  // Sync Read
-    MockRead(false, kMsg2, kLen2, 1),  // Sync Read
-    MockRead(false, kMsg3, kLen3, 2),  // Sync Read
-    MockRead(false, kMsg3, kLen3, 3),  // Sync Read
-    MockRead(false, kMsg2, kLen2, 4),  // Sync Read
-    MockRead(false, kMsg3, kLen3, 5),  // Sync Read
-    MockRead(false, kMsg1, kLen1, 6),  // Sync Read
-    MockRead(false, 0, 7),  // EOF
+    MockRead(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Read
+    MockRead(SYNCHRONOUS, kMsg2, kLen2, 1),  // Sync Read
+    MockRead(SYNCHRONOUS, kMsg3, kLen3, 2),  // Sync Read
+    MockRead(SYNCHRONOUS, kMsg3, kLen3, 3),  // Sync Read
+    MockRead(SYNCHRONOUS, kMsg2, kLen2, 4),  // Sync Read
+    MockRead(SYNCHRONOUS, kMsg3, kLen3, 5),  // Sync Read
+    MockRead(SYNCHRONOUS, kMsg1, kLen1, 6),  // Sync Read
+    MockRead(SYNCHRONOUS, 0, 7),  // EOF
   };
 
   Initialize(reads, arraysize(reads), NULL, 0);
@@ -227,8 +232,8 @@ TEST_F(DeterministicSocketDataTest, MultipleSyncReads) {
 
 TEST_F(DeterministicSocketDataTest, SingleAsyncRead) {
   MockRead reads[] = {
-    MockRead(true, kMsg1, kLen1, 0),  // Async Read
-    MockRead(false, 0, 1),  // EOF
+    MockRead(ASYNC, kMsg1, kLen1, 0),  // Async Read
+    MockRead(SYNCHRONOUS, 0, 1),  // EOF
   };
 
   Initialize(reads, arraysize(reads), NULL, 0);
@@ -238,14 +243,14 @@ TEST_F(DeterministicSocketDataTest, SingleAsyncRead) {
 
 TEST_F(DeterministicSocketDataTest, MultipleAsyncReads) {
   MockRead reads[] = {
-      MockRead(true, kMsg1, kLen1, 0),  // Async Read
-      MockRead(true, kMsg2, kLen2, 1),  // Async Read
-      MockRead(true, kMsg3, kLen3, 2),  // Async Read
-      MockRead(true, kMsg3, kLen3, 3),  // Async Read
-      MockRead(true, kMsg2, kLen2, 4),  // Async Read
-      MockRead(true, kMsg3, kLen3, 5),  // Async Read
-      MockRead(true, kMsg1, kLen1, 6),  // Async Read
-      MockRead(false, 0, 7),  // EOF
+      MockRead(ASYNC, kMsg1, kLen1, 0),  // Async Read
+      MockRead(ASYNC, kMsg2, kLen2, 1),  // Async Read
+      MockRead(ASYNC, kMsg3, kLen3, 2),  // Async Read
+      MockRead(ASYNC, kMsg3, kLen3, 3),  // Async Read
+      MockRead(ASYNC, kMsg2, kLen2, 4),  // Async Read
+      MockRead(ASYNC, kMsg3, kLen3, 5),  // Async Read
+      MockRead(ASYNC, kMsg1, kLen1, 6),  // Async Read
+      MockRead(SYNCHRONOUS, 0, 7),  // EOF
   };
 
   Initialize(reads, arraysize(reads), NULL, 0);
@@ -261,14 +266,14 @@ TEST_F(DeterministicSocketDataTest, MultipleAsyncReads) {
 
 TEST_F(DeterministicSocketDataTest, MixedReads) {
   MockRead reads[] = {
-      MockRead(false, kMsg1, kLen1, 0),  // Sync Read
-      MockRead(true, kMsg2, kLen2, 1),   // Async Read
-      MockRead(false, kMsg3, kLen3, 2),  // Sync Read
-      MockRead(true, kMsg3, kLen3, 3),   // Async Read
-      MockRead(false, kMsg2, kLen2, 4),  // Sync Read
-      MockRead(true, kMsg3, kLen3, 5),   // Async Read
-      MockRead(false, kMsg1, kLen1, 6),  // Sync Read
-      MockRead(false, 0, 7),  // EOF
+      MockRead(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Read
+      MockRead(ASYNC, kMsg2, kLen2, 1),   // Async Read
+      MockRead(SYNCHRONOUS, kMsg3, kLen3, 2),  // Sync Read
+      MockRead(ASYNC, kMsg3, kLen3, 3),   // Async Read
+      MockRead(SYNCHRONOUS, kMsg2, kLen2, 4),  // Sync Read
+      MockRead(ASYNC, kMsg3, kLen3, 5),   // Async Read
+      MockRead(SYNCHRONOUS, kMsg1, kLen1, 6),  // Sync Read
+      MockRead(SYNCHRONOUS, 0, 7),  // EOF
   };
 
   Initialize(reads, arraysize(reads), NULL, 0);
@@ -290,7 +295,7 @@ TEST_F(DeterministicSocketDataTest, MixedReads) {
 
 TEST_F(DeterministicSocketDataTest, SingleSyncWriteWhileStopped) {
   MockWrite writes[] = {
-    MockWrite(false, kMsg1, kLen1, 0),  // Sync Read
+    MockWrite(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Read
   };
 
   Initialize(NULL, 0, writes, arraysize(writes));
@@ -301,7 +306,7 @@ TEST_F(DeterministicSocketDataTest, SingleSyncWriteWhileStopped) {
 
 TEST_F(DeterministicSocketDataTest, SingleSyncWriteTooEarly) {
   MockWrite writes[] = {
-    MockWrite(false, kMsg1, kLen1, 1),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg1, kLen1, 1),  // Sync Write
   };
 
   Initialize(NULL, 0, writes, arraysize(writes));
@@ -313,7 +318,7 @@ TEST_F(DeterministicSocketDataTest, SingleSyncWriteTooEarly) {
 
 TEST_F(DeterministicSocketDataTest, SingleSyncWrite) {
   MockWrite writes[] = {
-    MockWrite(false, kMsg1, kLen1, 0),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Write
   };
 
   Initialize(NULL, 0, writes, arraysize(writes));
@@ -325,13 +330,13 @@ TEST_F(DeterministicSocketDataTest, SingleSyncWrite) {
 
 TEST_F(DeterministicSocketDataTest, MultipleSyncWrites) {
   MockWrite writes[] = {
-    MockWrite(false, kMsg1, kLen1, 0),  // Sync Write
-    MockWrite(false, kMsg2, kLen2, 1),  // Sync Write
-    MockWrite(false, kMsg3, kLen3, 2),  // Sync Write
-    MockWrite(false, kMsg3, kLen3, 3),  // Sync Write
-    MockWrite(false, kMsg2, kLen2, 4),  // Sync Write
-    MockWrite(false, kMsg3, kLen3, 5),  // Sync Write
-    MockWrite(false, kMsg1, kLen1, 6),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg2, kLen2, 1),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg3, kLen3, 2),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg3, kLen3, 3),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg2, kLen2, 4),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg3, kLen3, 5),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg1, kLen1, 6),  // Sync Write
   };
 
   Initialize(NULL, 0, writes, arraysize(writes));
@@ -349,7 +354,7 @@ TEST_F(DeterministicSocketDataTest, MultipleSyncWrites) {
 
 TEST_F(DeterministicSocketDataTest, SingleAsyncWrite) {
   MockWrite writes[] = {
-    MockWrite(true, kMsg1, kLen1, 0),  // Async Write
+    MockWrite(ASYNC, kMsg1, kLen1, 0),  // Async Write
   };
 
   Initialize(NULL, 0, writes, arraysize(writes));
@@ -359,13 +364,13 @@ TEST_F(DeterministicSocketDataTest, SingleAsyncWrite) {
 
 TEST_F(DeterministicSocketDataTest, MultipleAsyncWrites) {
   MockWrite writes[] = {
-    MockWrite(true, kMsg1, kLen1, 0),  // Async Write
-    MockWrite(true, kMsg2, kLen2, 1),  // Async Write
-    MockWrite(true, kMsg3, kLen3, 2),  // Async Write
-    MockWrite(true, kMsg3, kLen3, 3),  // Async Write
-    MockWrite(true, kMsg2, kLen2, 4),  // Async Write
-    MockWrite(true, kMsg3, kLen3, 5),  // Async Write
-    MockWrite(true, kMsg1, kLen1, 6),  // Async Write
+    MockWrite(ASYNC, kMsg1, kLen1, 0),  // Async Write
+    MockWrite(ASYNC, kMsg2, kLen2, 1),  // Async Write
+    MockWrite(ASYNC, kMsg3, kLen3, 2),  // Async Write
+    MockWrite(ASYNC, kMsg3, kLen3, 3),  // Async Write
+    MockWrite(ASYNC, kMsg2, kLen2, 4),  // Async Write
+    MockWrite(ASYNC, kMsg3, kLen3, 5),  // Async Write
+    MockWrite(ASYNC, kMsg1, kLen1, 6),  // Async Write
   };
 
   Initialize(NULL, 0, writes, arraysize(writes));
@@ -381,13 +386,13 @@ TEST_F(DeterministicSocketDataTest, MultipleAsyncWrites) {
 
 TEST_F(DeterministicSocketDataTest, MixedWrites) {
   MockWrite writes[] = {
-    MockWrite(false, kMsg1, kLen1, 0),  // Sync Write
-    MockWrite(true, kMsg2, kLen2, 1),   // Async Write
-    MockWrite(false, kMsg3, kLen3, 2),  // Sync Write
-    MockWrite(true, kMsg3, kLen3, 3),   // Async Write
-    MockWrite(false, kMsg2, kLen2, 4),  // Sync Write
-    MockWrite(true, kMsg3, kLen3, 5),   // Async Write
-    MockWrite(false, kMsg1, kLen1, 6),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Write
+    MockWrite(ASYNC, kMsg2, kLen2, 1),   // Async Write
+    MockWrite(SYNCHRONOUS, kMsg3, kLen3, 2),  // Sync Write
+    MockWrite(ASYNC, kMsg3, kLen3, 3),   // Async Write
+    MockWrite(SYNCHRONOUS, kMsg2, kLen2, 4),  // Sync Write
+    MockWrite(ASYNC, kMsg3, kLen3, 5),   // Async Write
+    MockWrite(SYNCHRONOUS, kMsg1, kLen1, 6),  // Sync Write
   };
 
   Initialize(NULL, 0, writes, arraysize(writes));
@@ -409,14 +414,14 @@ TEST_F(DeterministicSocketDataTest, MixedWrites) {
 
 TEST_F(DeterministicSocketDataTest, MixedSyncOperations) {
   MockRead reads[] = {
-    MockRead(false, kMsg1, kLen1, 0),  // Sync Read
-    MockRead(false, kMsg2, kLen2, 3),  // Sync Read
-    MockRead(false, 0, 4),  // EOF
+    MockRead(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Read
+    MockRead(SYNCHRONOUS, kMsg2, kLen2, 3),  // Sync Read
+    MockRead(SYNCHRONOUS, 0, 4),  // EOF
   };
 
   MockWrite writes[] = {
-    MockWrite(false, kMsg2, kLen2, 1),  // Sync Write
-    MockWrite(false, kMsg3, kLen3, 2),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg2, kLen2, 1),  // Sync Write
+    MockWrite(SYNCHRONOUS, kMsg3, kLen3, 2),  // Sync Write
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
@@ -431,14 +436,14 @@ TEST_F(DeterministicSocketDataTest, MixedSyncOperations) {
 
 TEST_F(DeterministicSocketDataTest, MixedAsyncOperations) {
   MockRead reads[] = {
-    MockRead(true, kMsg1, kLen1, 0),  // Sync Read
-    MockRead(true, kMsg2, kLen2, 3),  // Sync Read
-    MockRead(true, 0, 4),  // EOF
+    MockRead(ASYNC, kMsg1, kLen1, 0),  // Sync Read
+    MockRead(ASYNC, kMsg2, kLen2, 3),  // Sync Read
+    MockRead(ASYNC, 0, 4),  // EOF
   };
 
   MockWrite writes[] = {
-    MockWrite(true, kMsg2, kLen2, 1),  // Sync Write
-    MockWrite(true, kMsg3, kLen3, 2),  // Sync Write
+    MockWrite(ASYNC, kMsg2, kLen2, 1),  // Sync Write
+    MockWrite(ASYNC, kMsg3, kLen3, 2),  // Sync Write
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
@@ -452,14 +457,14 @@ TEST_F(DeterministicSocketDataTest, MixedAsyncOperations) {
 TEST_F(DeterministicSocketDataTest, InterleavedAsyncOperations) {
   // Order of completion is read, write, write, read
   MockRead reads[] = {
-    MockRead(true, kMsg1, kLen1, 0),  // Async Read
-    MockRead(true, kMsg2, kLen2, 3),  // Async Read
-    MockRead(true, 0, 4),  // EOF
+    MockRead(ASYNC, kMsg1, kLen1, 0),  // Async Read
+    MockRead(ASYNC, kMsg2, kLen2, 3),  // Async Read
+    MockRead(ASYNC, 0, 4),  // EOF
   };
 
   MockWrite writes[] = {
-    MockWrite(true, kMsg2, kLen2, 1),  // Async Write
-    MockWrite(true, kMsg3, kLen3, 2),  // Async Write
+    MockWrite(ASYNC, kMsg2, kLen2, 1),  // Async Write
+    MockWrite(ASYNC, kMsg3, kLen3, 2),  // Async Write
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
@@ -495,14 +500,14 @@ TEST_F(DeterministicSocketDataTest, InterleavedAsyncOperations) {
 TEST_F(DeterministicSocketDataTest, InterleavedMixedOperations) {
   // Order of completion is read, write, write, read
   MockRead reads[] = {
-    MockRead(false, kMsg1, kLen1, 0),  // Sync Read
-    MockRead(true, kMsg2, kLen2, 3),   // Async Read
-    MockRead(false, 0, 4),  // EOF
+    MockRead(SYNCHRONOUS, kMsg1, kLen1, 0),  // Sync Read
+    MockRead(ASYNC, kMsg2, kLen2, 3),   // Async Read
+    MockRead(SYNCHRONOUS, 0, 4),  // EOF
   };
 
   MockWrite writes[] = {
-    MockWrite(true, kMsg2, kLen2, 1),   // Async Write
-    MockWrite(false, kMsg3, kLen3, 2),  // Sync Write
+    MockWrite(ASYNC, kMsg2, kLen2, 1),   // Async Write
+    MockWrite(SYNCHRONOUS, kMsg3, kLen3, 2),  // Sync Write
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));

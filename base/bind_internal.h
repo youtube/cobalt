@@ -9,7 +9,6 @@
 
 #ifndef BASE_BIND_INTERNAL_H_
 #define BASE_BIND_INTERNAL_H_
-#pragma once
 
 #include "base/bind_helpers.h"
 #include "base/callback_internal.h"
@@ -25,6 +24,9 @@
 namespace base {
 namespace internal {
 
+// See base/callback.h for user documentation.
+//
+//
 // CONCEPTS:
 //  Runnable -- A type (really a type class) that has a single Run() method
 //              and a RunType typedef that corresponds to the type of Run().

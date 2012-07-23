@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,7 +23,7 @@ static int OpenContext(URLContext* h, const char* filename, int flags) {
     return AVERROR(EIO);
 
   h->priv_data = protocol;
-  h->flags = URL_RDONLY;
+  h->flags = AVIO_FLAG_READ;
   h->is_streamed = protocol->IsStreaming();
   return 0;
 }
@@ -118,6 +118,7 @@ static const char kProtocol[] = "http";
 static URLProtocol kFFmpegURLProtocol = {
   kProtocol,
   &OpenContext,
+  NULL,  // url_open2
   &ReadContext,
   &WriteContext,
   &SeekContext,
@@ -129,7 +130,6 @@ FFmpegGlue::FFmpegGlue() {
   av_log_set_level(AV_LOG_QUIET);
 
   // Register our protocol glue code with FFmpeg.
-  avcodec_init();
   av_register_protocol2(&kFFmpegURLProtocol, sizeof(kFFmpegURLProtocol));
   av_lockmgr_register(&LockManagerOperation);
 

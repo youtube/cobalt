@@ -74,20 +74,6 @@ bool PathProviderPosix(int key, FilePath* result) {
 #endif
     }
     case base::DIR_SOURCE_ROOT: {
-      // Allow passing this in the environment, for more flexibility in build
-      // tree configurations (sub-project builds, gyp --output_dir, etc.)
-      scoped_ptr<base::Environment> env(base::Environment::Create());
-      std::string cr_source_root;
-      if (env->GetVar("CR_SOURCE_ROOT", &cr_source_root)) {
-        path = FilePath(cr_source_root);
-        if (file_util::PathExists(path)) {
-          *result = path;
-          return true;
-        } else {
-          DLOG(WARNING) << "CR_SOURCE_ROOT is set, but it appears to not "
-                        << "point to a directory.";
-        }
-      }
       // On POSIX, unit tests execute two levels deep from the source root.
       // For example:  out/{Debug|Release}/net_unittest
       if (PathService::Get(base::DIR_EXE, &path)) {

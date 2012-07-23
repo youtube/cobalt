@@ -4,7 +4,6 @@
 
 #ifndef NET_PROXY_PROXY_BYPASS_RULES_H_
 #define NET_PROXY_PROXY_BYPASS_RULES_H_
-#pragma once
 
 #include <string>
 #include <vector>

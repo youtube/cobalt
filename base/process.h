@@ -4,7 +4,6 @@
 
 #ifndef BASE_PROCESS_H_
 #define BASE_PROCESS_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/basictypes.h"

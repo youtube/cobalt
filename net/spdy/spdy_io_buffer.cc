@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,13 +11,14 @@ namespace net {
 uint64 SpdyIOBuffer::order_ = 0;
 
 SpdyIOBuffer::SpdyIOBuffer(
-    IOBuffer* buffer, int size, int priority, SpdyStream* stream)
+    IOBuffer* buffer, int size, RequestPriority priority, SpdyStream* stream)
   : buffer_(new DrainableIOBuffer(buffer, size)),
     priority_(priority),
     position_(++order_),
     stream_(stream) {}
 
-SpdyIOBuffer::SpdyIOBuffer() : priority_(0), position_(0), stream_(NULL) {}
+SpdyIOBuffer::SpdyIOBuffer() : priority_(HIGHEST), position_(0), stream_(NULL) {
+}
 
 SpdyIOBuffer::~SpdyIOBuffer() {}
 

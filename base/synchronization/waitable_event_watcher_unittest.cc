@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,9 +12,20 @@ namespace base {
 
 namespace {
 
+// The message loops on which each waitable event timer should be tested.
+const MessageLoop::Type testing_message_loops[] = {
+  MessageLoop::TYPE_DEFAULT,
+  MessageLoop::TYPE_IO,
+#if !defined(OS_IOS)  // iOS does not allow direct running of the UI loop.
+  MessageLoop::TYPE_UI,
+#endif
+};
+
+const int kNumTestingMessageLoops = arraysize(testing_message_loops);
+
 class QuitDelegate : public WaitableEventWatcher::Delegate {
  public:
-  virtual void OnWaitableEventSignaled(WaitableEvent* event) {
+  virtual void OnWaitableEventSignaled(WaitableEvent* event) OVERRIDE {
     MessageLoop::current()->Quit();
   }
 };
@@ -23,7 +34,7 @@ class DecrementCountDelegate : public WaitableEventWatcher::Delegate {
  public:
   explicit DecrementCountDelegate(int* counter) : counter_(counter) {
   }
-  virtual void OnWaitableEventSignaled(WaitableEvent* object) {
+  virtual void OnWaitableEventSignaled(WaitableEvent* object) OVERRIDE {
     --(*counter_);
   }
  private:
@@ -127,27 +138,27 @@ void RunTest_DeleteUnder(MessageLoop::Type message_loop_type) {
 //-----------------------------------------------------------------------------
 
 TEST(WaitableEventWatcherTest, BasicSignal) {
-  RunTest_BasicSignal(MessageLoop::TYPE_DEFAULT);
-  RunTest_BasicSignal(MessageLoop::TYPE_IO);
-  RunTest_BasicSignal(MessageLoop::TYPE_UI);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_BasicSignal(testing_message_loops[i]);
+  }
 }
 
 TEST(WaitableEventWatcherTest, BasicCancel) {
-  RunTest_BasicCancel(MessageLoop::TYPE_DEFAULT);
-  RunTest_BasicCancel(MessageLoop::TYPE_IO);
-  RunTest_BasicCancel(MessageLoop::TYPE_UI);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_BasicCancel(testing_message_loops[i]);
+  }
 }
 
 TEST(WaitableEventWatcherTest, CancelAfterSet) {
-  RunTest_CancelAfterSet(MessageLoop::TYPE_DEFAULT);
-  RunTest_CancelAfterSet(MessageLoop::TYPE_IO);
-  RunTest_CancelAfterSet(MessageLoop::TYPE_UI);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_CancelAfterSet(testing_message_loops[i]);
+  }
 }
 
 TEST(WaitableEventWatcherTest, OutlivesMessageLoop) {
-  RunTest_OutlivesMessageLoop(MessageLoop::TYPE_DEFAULT);
-  RunTest_OutlivesMessageLoop(MessageLoop::TYPE_IO);
-  RunTest_OutlivesMessageLoop(MessageLoop::TYPE_UI);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_OutlivesMessageLoop(testing_message_loops[i]);
+  }
 }
 
 #if defined(OS_WIN)
@@ -157,9 +168,9 @@ TEST(WaitableEventWatcherTest, OutlivesMessageLoop) {
 #define MAYBE_DeleteUnder DeleteUnder
 #endif
 TEST(WaitableEventWatcherTest, MAYBE_DeleteUnder) {
-  RunTest_DeleteUnder(MessageLoop::TYPE_DEFAULT);
-  RunTest_DeleteUnder(MessageLoop::TYPE_IO);
-  RunTest_DeleteUnder(MessageLoop::TYPE_UI);
+  for (int i = 0; i < kNumTestingMessageLoops; i++) {
+    RunTest_DeleteUnder(testing_message_loops[i]);
+  }
 }
 
 }  // namespace base

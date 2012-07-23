@@ -4,7 +4,6 @@
 
 #ifndef BASE_TEST_PERF_TEST_SUITE_H_
 #define BASE_TEST_PERF_TEST_SUITE_H_
-#pragma once
 
 #include "base/test/test_suite.h"
 

@@ -18,15 +18,18 @@ import base64
 import BaseHTTPServer
 import cgi
 import errno
+import httplib
+import minica
 import optparse
 import os
 import random
 import re
 import select
-import SocketServer
 import socket
-import sys
+import SocketServer
 import struct
+import sys
+import threading
 import time
 import urllib
 import urlparse
@@ -82,8 +85,17 @@ class RecordingSSLSessionCache(object):
   def __setitem__(self, sessionID, session):
     self.log.append(('insert', sessionID))
 
+
+class ClientRestrictingServerMixIn:
+  """Implements verify_request to limit connections to our configured IP
+  address."""
+
+  def verify_request(self, request, client_address):
+    return client_address[0] == self.server_address[0]
+
+
 class StoppableHTTPServer(BaseHTTPServer.HTTPServer):
-  """This is a specialization of of BaseHTTPServer to allow it
+  """This is a specialization of BaseHTTPServer to allow it
   to be exited cleanly (by setting its "stop" member to True)."""
 
   def serve_forever(self):
@@ -93,20 +105,41 @@ class StoppableHTTPServer(BaseHTTPServer.HTTPServer):
       self.handle_request()
     self.socket.close()
 
-class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
-  """This is a specialization of StoppableHTTPerver that add https support."""
 
-  def __init__(self, server_address, request_hander_class, cert_path,
+class HTTPServer(ClientRestrictingServerMixIn, StoppableHTTPServer):
+  """This is a specialization of StoppableHTTPServer that adds client
+  verification."""
+
+  pass
+
+class OCSPServer(ClientRestrictingServerMixIn, BaseHTTPServer.HTTPServer):
+  """This is a specialization of HTTPServer that serves an
+  OCSP response"""
+
+  def serve_forever_on_thread(self):
+    self.thread = threading.Thread(target = self.serve_forever,
+                                   name = "OCSPServerThread")
+    self.thread.start()
+
+  def stop_serving(self):
+    self.shutdown()
+    self.thread.join()
+
+class HTTPSServer(tlslite.api.TLSSocketServerMixIn,
+                  ClientRestrictingServerMixIn,
+                  StoppableHTTPServer):
+  """This is a specialization of StoppableHTTPServer that add https support and
+  client verification."""
+
+  def __init__(self, server_address, request_hander_class, pem_cert_and_key,
                ssl_client_auth, ssl_client_cas, ssl_bulk_ciphers,
-               record_resume_info):
-    s = open(cert_path).read()
-    x509 = tlslite.api.X509()
-    x509.parse(s)
-    self.cert_chain = tlslite.api.X509CertChain([x509])
-    s = open(cert_path).read()
-    self.private_key = tlslite.api.parsePEMKey(s, private=True)
+               record_resume_info, tls_intolerant):
+    self.cert_chain = tlslite.api.X509CertChain().parseChain(pem_cert_and_key)
+    self.private_key = tlslite.api.parsePEMKey(pem_cert_and_key, private=True)
     self.ssl_client_auth = ssl_client_auth
     self.ssl_client_cas = []
+    self.tls_intolerant = tls_intolerant
+
     for ca_file in ssl_client_cas:
         s = open(ca_file).read()
         x509 = tlslite.api.X509()
@@ -132,7 +165,8 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
                                     sessionCache=self.session_cache,
                                     reqCert=self.ssl_client_auth,
                                     settings=self.ssl_handshake_settings,
-                                    reqCAs=self.ssl_client_cas)
+                                    reqCAs=self.ssl_client_cas,
+                                    tlsIntolerant=self.tls_intolerant)
       tlsConnection.ignoreAbruptClose = True
       return True
     except tlslite.api.TLSAbruptCloseError:
@@ -143,10 +177,10 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
       return False
 
 
-class SyncHTTPServer(StoppableHTTPServer):
+class SyncHTTPServer(ClientRestrictingServerMixIn, StoppableHTTPServer):
   """An HTTP server that handles sync commands."""
 
-  def __init__(self, server_address, request_handler_class):
+  def __init__(self, server_address, xmpp_port, request_handler_class):
     # We import here to avoid pulling in chromiumsync's dependencies
     # unless strictly necessary.
     import chromiumsync
@@ -155,7 +189,7 @@ class SyncHTTPServer(StoppableHTTPServer):
     self._sync_handler = chromiumsync.TestServer()
     self._xmpp_socket_map = {}
     self._xmpp_server = xmppserver.XmppServer(
-      self._xmpp_socket_map, ('localhost', 0))
+      self._xmpp_socket_map, ('localhost', xmpp_port))
     self.xmpp_port = self._xmpp_server.getsockname()[1]
     self.authenticated = True
 
@@ -248,7 +282,13 @@ class SyncHTTPServer(StoppableHTTPServer):
                          asyncore.dispatcher.handle_expt_event)
 
 
-class TCPEchoServer(SocketServer.TCPServer):
+class FTPServer(ClientRestrictingServerMixIn, pyftpdlib.ftpserver.FTPServer):
+  """This is a specialization of FTPServer that adds client verification."""
+
+  pass
+
+
+class TCPEchoServer(ClientRestrictingServerMixIn, SocketServer.TCPServer):
   """A TCP echo server that echoes back what it has received."""
 
   def server_bind(self):
@@ -266,7 +306,7 @@ class TCPEchoServer(SocketServer.TCPServer):
     self.socket.close()
 
 
-class UDPEchoServer(SocketServer.UDPServer):
+class UDPEchoServer(ClientRestrictingServerMixIn, SocketServer.UDPServer):
   """A UDP echo server that echoes back what it has received."""
 
   def server_bind(self):
@@ -364,8 +404,12 @@ class TestPageHandler(BasePageHandler):
       self.EchoHeaderCache,
       self.EchoAllHandler,
       self.ZipFileHandler,
+      self.GDataAuthHandler,
+      self.GDataDocumentsFeedQueryHandler,
       self.FileHandler,
       self.SetCookieHandler,
+      self.SetManyCookiesHandler,
+      self.ExpectAndSetCookieHandler,
       self.SetHeaderHandler,
       self.AuthBasicHandler,
       self.AuthDigestHandler,
@@ -398,6 +442,7 @@ class TestPageHandler(BasePageHandler):
       'gif': 'image/gif',
       'jpeg' : 'image/jpeg',
       'jpg' : 'image/jpeg',
+      'json': 'application/json',
       'pdf' : 'application/pdf',
       'xml' : 'text/xml'
     }
@@ -995,7 +1040,7 @@ class TestPageHandler(BasePageHandler):
         if range[1]:
           end = int(range[1])
         else:
-          end = len(data)
+          end = len(data) - 1
 
         self.send_response(206)
         content_range = 'bytes ' + str(start) + '-' + str(end) + '/' + \
@@ -1035,6 +1080,58 @@ class TestPageHandler(BasePageHandler):
     self.end_headers()
     for cookie_value in cookie_values:
       self.wfile.write('%s' % cookie_value)
+    return True
+
+  def SetManyCookiesHandler(self):
+    """This handler just sets a given number of cookies, for testing handling
+       of large numbers of cookies."""
+
+    if not self._ShouldHandleRequest("/set-many-cookies"):
+      return False
+
+    query_char = self.path.find('?')
+    if query_char != -1:
+      num_cookies = int(self.path[query_char + 1:])
+    else:
+      num_cookies = 0
+    self.send_response(200)
+    self.send_header('', 'text/html')
+    for i in range(0, num_cookies):
+      self.send_header('Set-Cookie', 'a=')
+    self.end_headers()
+    self.wfile.write('%d cookies were sent' % num_cookies)
+    return True
+
+  def ExpectAndSetCookieHandler(self):
+    """Expects some cookies to be sent, and if they are, sets more cookies.
+
+    The expect parameter specifies a required cookie.  May be specified multiple
+    times.
+    The set parameter specifies a cookie to set if all required cookies are
+    preset.  May be specified multiple times.
+    The data parameter specifies the response body data to be returned."""
+
+    if not self._ShouldHandleRequest("/expect-and-set-cookie"):
+      return False
+
+    _, _, _, _, query, _ = urlparse.urlparse(self.path)
+    query_dict = cgi.parse_qs(query)
+    cookies = set()
+    if 'Cookie' in self.headers:
+      cookie_header = self.headers.getheader('Cookie')
+      cookies.update([s.strip() for s in cookie_header.split(';')])
+    got_all_expected_cookies = True
+    for expected_cookie in query_dict.get('expect', []):
+      if expected_cookie not in cookies:
+        got_all_expected_cookies = False
+    self.send_response(200)
+    self.send_header('Content-Type', 'text/html')
+    if got_all_expected_cookies:
+      for cookie_value in query_dict.get('set', []):
+        self.send_header('Set-Cookie', '%s' % cookie_value)
+    self.end_headers()
+    for data_value in query_dict.get('data', []):
+      self.wfile.write(data_value)
     return True
 
   def SetHeaderHandler(self):
@@ -1153,6 +1250,59 @@ class TestPageHandler(BasePageHandler):
 
     self.protocol_version = old_protocol_version
     return True
+
+  def GDataAuthHandler(self):
+    """This handler verifies the Authentication header for GData requests."""
+    if not self.server.gdata_auth_token:
+      # --auth-token is not specified, not the test case for GData.
+      return False
+
+    if not self._ShouldHandleRequest('/files/chromeos/gdata'):
+      return False
+
+    if 'GData-Version' not in self.headers:
+      self.send_error(httplib.BAD_REQUEST, 'GData-Version header is missing.')
+      return True
+
+    if 'Authorization' not in self.headers:
+      self.send_error(httplib.UNAUTHORIZED)
+      return True
+
+    field_prefix = 'Bearer '
+    authorization = self.headers['Authorization']
+    if not authorization.startswith(field_prefix):
+      self.send_error(httplib.UNAUTHORIZED)
+      return True
+
+    code = authorization[len(field_prefix):]
+    if code != self.server.gdata_auth_token:
+      self.send_error(httplib.UNAUTHORIZED)
+      return True
+
+    return False
+
+  def GDataDocumentsFeedQueryHandler(self):
+    """This handler verifies if required parameters are properly
+    specified for the GData DocumentsFeed request."""
+    if not self.server.gdata_auth_token:
+      # --auth-token is not specified, not the test case for GData.
+      return False
+
+    if not self._ShouldHandleRequest('/files/chromeos/gdata/root_feed.json'):
+      return False
+
+    (path, question, query_params) = self.path.partition('?')
+    self.query_params = urlparse.parse_qs(query_params)
+
+    if 'v' not in self.query_params:
+      self.send_error(httplib.BAD_REQUEST, 'v is not specified.')
+      return True
+    elif 'alt' not in self.query_params or self.query_params['alt'] != ['json']:
+      # currently our GData client only uses JSON format.
+      self.send_error(httplib.BAD_REQUEST, 'alt parameter is wrong.')
+      return True
+
+    return False
 
   def GetNonce(self, force_reset=False):
    """Returns a nonce that's stable per request path for the server's lifetime.
@@ -1568,16 +1718,17 @@ class SyncPageHandler(BasePageHandler):
   """Handler for the main HTTP sync server."""
 
   def __init__(self, request, client_address, sync_http_server):
-    get_handlers = [self.ChromiumSyncMigrationOpHandler,
-                    self.ChromiumSyncTimeHandler,
+    get_handlers = [self.ChromiumSyncTimeHandler,
+                    self.ChromiumSyncMigrationOpHandler,
+                    self.ChromiumSyncCredHandler,
                     self.ChromiumSyncDisableNotificationsOpHandler,
                     self.ChromiumSyncEnableNotificationsOpHandler,
                     self.ChromiumSyncSendNotificationOpHandler,
                     self.ChromiumSyncBirthdayErrorOpHandler,
                     self.ChromiumSyncTransientErrorOpHandler,
-                    self.ChromiumSyncSyncTabsOpHandler,
                     self.ChromiumSyncErrorOpHandler,
-                    self.ChromiumSyncCredHandler]
+                    self.ChromiumSyncSyncTabsOpHandler,
+                    self.ChromiumSyncCreateSyncedBookmarksOpHandler]
 
     post_handlers = [self.ChromiumSyncCommandHandler,
                      self.ChromiumSyncTimeHandler]
@@ -1622,7 +1773,8 @@ class SyncPageHandler(BasePageHandler):
     raw_reply = None
     if not self.server.GetAuthenticated():
       http_response = 401
-      challenge = 'GoogleLogin realm="http://127.0.0.1", service="chromiumsync"'
+      challenge = 'GoogleLogin realm="http://%s", service="chromiumsync"' % (
+        self.server.server_address[0])
     else:
       http_response, raw_reply = self.server.HandleCommand(
           self.path, raw_request)
@@ -1776,6 +1928,18 @@ class SyncPageHandler(BasePageHandler):
     self.wfile.write(raw_reply)
     return True;
 
+  def ChromiumSyncCreateSyncedBookmarksOpHandler(self):
+    test_name = "/chromiumsync/createsyncedbookmarks"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    result, raw_reply = self.server._sync_handler.HandleCreateSyncedBookmarks()
+    self.send_response(result)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True;
+
 
 def MakeDataDir():
   if options.data_dir:
@@ -1794,6 +1958,20 @@ def MakeDataDir():
 
   return my_data_dir
 
+class OCSPHandler(BasePageHandler):
+  def __init__(self, request, client_address, socket_server):
+    handlers = [self.OCSPResponse]
+    self.ocsp_response = socket_server.ocsp_response
+    BasePageHandler.__init__(self, request, client_address, socket_server,
+                             [], handlers, [], handlers, [])
+
+  def OCSPResponse(self):
+    self.send_response(200)
+    self.send_header('Content-Type', 'application/ocsp-response')
+    self.send_header('Content-Length', str(len(self.ocsp_response)))
+    self.end_headers()
+
+    self.wfile.write(self.ocsp_response)
 
 class TCPEchoHandler(SocketServer.BaseRequestHandler):
   """The RequestHandler class for TCP echo server.
@@ -1869,28 +2047,67 @@ def main(options, args):
     sys.stdout = logfile
 
   port = options.port
+  host = options.host
 
   server_data = {}
+  server_data['host'] = host
+
+  ocsp_server = None
 
   if options.server_type == SERVER_HTTP:
-    if options.cert:
-      # let's make sure the cert file exists.
-      if not os.path.isfile(options.cert):
-        print 'specified server cert file not found: ' + options.cert + \
-              ' exiting...'
-        return
+    if options.https:
+      pem_cert_and_key = None
+      if options.cert_and_key_file:
+        if not os.path.isfile(options.cert_and_key_file):
+          print ('specified server cert file not found: ' +
+                 options.cert_and_key_file + ' exiting...')
+          return
+        pem_cert_and_key = file(options.cert_and_key_file, 'r').read()
+      else:
+        # generate a new certificate and run an OCSP server for it.
+        ocsp_server = OCSPServer((host, 0), OCSPHandler)
+        print ('OCSP server started on %s:%d...' %
+            (host, ocsp_server.server_port))
+
+        ocsp_der = None
+        ocsp_state = None
+
+        if options.ocsp == 'ok':
+          ocsp_state = minica.OCSP_STATE_GOOD
+        elif options.ocsp == 'revoked':
+          ocsp_state = minica.OCSP_STATE_REVOKED
+        elif options.ocsp == 'invalid':
+          ocsp_state = minica.OCSP_STATE_INVALID
+        elif options.ocsp == 'unauthorized':
+          ocsp_state = minica.OCSP_STATE_UNAUTHORIZED
+        elif options.ocsp == 'unknown':
+          ocsp_state = minica.OCSP_STATE_UNKNOWN
+        else:
+          print 'unknown OCSP status: ' + options.ocsp_status
+          return
+
+        (pem_cert_and_key, ocsp_der) = \
+            minica.GenerateCertKeyAndOCSP(
+                subject = "127.0.0.1",
+                ocsp_url = ("http://%s:%d/ocsp" %
+                    (host, ocsp_server.server_port)),
+                ocsp_state = ocsp_state)
+
+        ocsp_server.ocsp_response = ocsp_der
+
       for ca_cert in options.ssl_client_ca:
         if not os.path.isfile(ca_cert):
           print 'specified trusted client CA file not found: ' + ca_cert + \
                 ' exiting...'
           return
-      server = HTTPSServer(('127.0.0.1', port), TestPageHandler, options.cert,
+      server = HTTPSServer((host, port), TestPageHandler, pem_cert_and_key,
                            options.ssl_client_auth, options.ssl_client_ca,
-                           options.ssl_bulk_cipher, options.record_resume)
-      print 'HTTPS server started on port %d...' % server.server_port
+                           options.ssl_bulk_cipher, options.record_resume,
+                           options.tls_intolerant)
+      print 'HTTPS server started on %s:%d...' % (host, server.server_port)
     else:
-      server = StoppableHTTPServer(('127.0.0.1', port), TestPageHandler)
-      print 'HTTP server started on port %d...' % server.server_port
+      server = HTTPServer((host, port), TestPageHandler)
+      print 'HTTP server started on %s:%d...' % (host, server.server_port)
 
     server.data_dir = MakeDataDir()
     server.file_root_url = options.file_root_url
@@ -1898,8 +2115,10 @@ def main(options, args):
     server._device_management_handler = None
     server.policy_keys = options.policy_keys
     server.policy_user = options.policy_user
+    server.gdata_auth_token = options.auth_token
   elif options.server_type == SERVER_SYNC:
-    server = SyncHTTPServer(('127.0.0.1', port), SyncPageHandler)
+    xmpp_port = options.xmpp_port
+    server = SyncHTTPServer((host, port), xmpp_port, SyncPageHandler)
     print 'Sync HTTP server started on port %d...' % server.server_port
     print 'Sync XMPP server started on port %d...' % server.xmpp_port
     server_data['port'] = server.server_port
@@ -1908,14 +2127,14 @@ def main(options, args):
     # Used for generating the key (randomly) that encodes the "echo request"
     # message.
     random.seed()
-    server = TCPEchoServer(('127.0.0.1', port), TCPEchoHandler)
+    server = TCPEchoServer((host, port), TCPEchoHandler)
     print 'Echo TCP server started on port %d...' % server.server_port
     server_data['port'] = server.server_port
   elif options.server_type == SERVER_UDP_ECHO:
     # Used for generating the key (randomly) that encodes the "echo request"
     # message.
     random.seed()
-    server = UDPEchoServer(('127.0.0.1', port), UDPEchoHandler)
+    server = UDPEchoServer((host, port), UDPEchoHandler)
     print 'Echo UDP server started on port %d...' % server.server_port
     server_data['port'] = server.server_port
   # means FTP Server
@@ -1939,9 +2158,8 @@ def main(options, args):
     ftp_handler.banner = ("pyftpdlib %s based ftpd ready." %
                           pyftpdlib.ftpserver.__ver__)
 
-    # Instantiate FTP server class and listen to 127.0.0.1:port
-    address = ('127.0.0.1', port)
-    server = pyftpdlib.ftpserver.FTPServer(address, ftp_handler)
+    # Instantiate FTP server class and listen to address:port
+    server = pyftpdlib.ftpserver.FTPServer((host, port), ftp_handler)
     server_data['port'] = server.socket.getsockname()[1]
     print 'FTP server started on port %d...' % server_data['port']
 
@@ -1964,10 +2182,15 @@ def main(options, args):
     startup_pipe.write(server_data_json)
     startup_pipe.close()
 
+  if ocsp_server is not None:
+    ocsp_server.serve_forever_on_thread()
+
   try:
     server.serve_forever()
   except KeyboardInterrupt:
     print 'shutting down server'
+    if ocsp_server is not None:
+      ocsp_server.stop_serving()
     server.stop = True
 
 if __name__ == '__main__':
@@ -1996,12 +2219,28 @@ if __name__ == '__main__':
   option_parser.add_option('', '--port', default='0', type='int',
                            help='Port used by the server. If unspecified, the '
                            'server will listen on an ephemeral port.')
+  option_parser.add_option('', '--xmpp-port', default='0', type='int',
+                           help='Port used by the XMPP server. If unspecified, '
+                           'the XMPP server will listen on an ephemeral port.')
   option_parser.add_option('', '--data-dir', dest='data_dir',
                            help='Directory from which to read the files.')
-  option_parser.add_option('', '--https', dest='cert',
-                           help='Specify that https should be used, specify '
-                           'the path to the cert containing the private key '
-                           'the server should use.')
+  option_parser.add_option('', '--https', action='store_true', dest='https',
+                           help='Specify that https should be used.')
+  option_parser.add_option('', '--cert-and-key-file', dest='cert_and_key_file',
+                           help='specify the path to the file containing the '
+                           'certificate and private key for the server in PEM '
+                           'format')
+  option_parser.add_option('', '--ocsp', dest='ocsp', default='ok',
+                           help='The type of OCSP response generated for the '
+                           'automatically generated certificate. One of '
+                           '[ok,revoked,invalid]')
+  option_parser.add_option('', '--tls-intolerant', dest='tls_intolerant',
+                           default='0', type='int',
+                           help='If nonzero, certain TLS connections will be'
+                           ' aborted in order to test version fallback. 1'
+                           ' means all TLS versions will be aborted. 2 means'
+                           ' TLS 1.1 or higher will be aborted. 3 means TLS'
+                           ' 1.2 or higher will be aborted.')
   option_parser.add_option('', '--https-record-resume', dest='record_resume',
                            const=True, default=False, action='store_const',
                            help='Record resumption cache events rather than'
@@ -2043,6 +2282,14 @@ if __name__ == '__main__':
                            help='Specify the user name the server should '
                            'report back to the client as the user owning the '
                            'token used for making the policy request.')
+  option_parser.add_option('', '--host', default='127.0.0.1',
+                           dest='host',
+                           help='Hostname or IP upon which the server will '
+                           'listen. Client connections will also only be '
+                           'allowed from this address.')
+  option_parser.add_option('', '--auth-token', dest='auth_token',
+                           help='Specify the auth token which should be used'
+                           'in the authorization header for GData.')
   options, args = option_parser.parse_args()
 
   sys.exit(main(options, args))

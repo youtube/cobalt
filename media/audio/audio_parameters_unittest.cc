@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,8 @@
 #include "base/string_number_conversions.h"
 #include "media/audio/audio_parameters.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace media {
 
 TEST(AudioParameters, Constructor_Default) {
   AudioParameters::Format expected_format = AudioParameters::AUDIO_PCM_LINEAR;
@@ -17,12 +19,12 @@ TEST(AudioParameters, Constructor_Default) {
 
   AudioParameters params;
 
-  EXPECT_EQ(expected_format, params.format);
-  EXPECT_EQ(expected_bits, params.bits_per_sample);
-  EXPECT_EQ(expected_channels, params.channels);
-  EXPECT_EQ(expected_channel_layout, params.channel_layout);
-  EXPECT_EQ(expected_rate, params.sample_rate);
-  EXPECT_EQ(expected_samples, params.samples_per_packet);
+  EXPECT_EQ(expected_format, params.format());
+  EXPECT_EQ(expected_bits, params.bits_per_sample());
+  EXPECT_EQ(expected_channels, params.channels());
+  EXPECT_EQ(expected_channel_layout, params.channel_layout());
+  EXPECT_EQ(expected_rate, params.sample_rate());
+  EXPECT_EQ(expected_samples, params.frames_per_buffer());
 }
 
 TEST(AudioParameters, Constructor_ParameterValues) {
@@ -30,37 +32,37 @@ TEST(AudioParameters, Constructor_ParameterValues) {
       AudioParameters::AUDIO_PCM_LOW_LATENCY;
   int expected_bits = 16;
   int expected_channels = 6;
-  ChannelLayout expected_channel_layout = CHANNEL_LAYOUT_5POINT1;
+  ChannelLayout expected_channel_layout = CHANNEL_LAYOUT_5_1;
   int expected_rate = 44100;
   int expected_samples = 880;
 
   AudioParameters params(expected_format, expected_channel_layout,
                          expected_rate, expected_bits, expected_samples);
 
-  EXPECT_EQ(expected_format, params.format);
-  EXPECT_EQ(expected_bits, params.bits_per_sample);
-  EXPECT_EQ(expected_channels, params.channels);
-  EXPECT_EQ(expected_channel_layout, params.channel_layout);
-  EXPECT_EQ(expected_rate, params.sample_rate);
-  EXPECT_EQ(expected_samples, params.samples_per_packet);
+  EXPECT_EQ(expected_format, params.format());
+  EXPECT_EQ(expected_bits, params.bits_per_sample());
+  EXPECT_EQ(expected_channels, params.channels());
+  EXPECT_EQ(expected_channel_layout, params.channel_layout());
+  EXPECT_EQ(expected_rate, params.sample_rate());
+  EXPECT_EQ(expected_samples, params.frames_per_buffer());
 }
 
-TEST(AudioParameters, GetPacketSize) {
+TEST(AudioParameters, GetBytesPerBuffer) {
   EXPECT_EQ(100, AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
                                  CHANNEL_LAYOUT_MONO, 1000,  8, 100)
-                                 .GetPacketSize());
+                                 .GetBytesPerBuffer());
   EXPECT_EQ(200, AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
                                  CHANNEL_LAYOUT_MONO, 1000,  16, 100)
-                                 .GetPacketSize());
+                                 .GetBytesPerBuffer());
   EXPECT_EQ(200, AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
                                  CHANNEL_LAYOUT_STEREO, 1000,  8, 100)
-                                 .GetPacketSize());
+                                 .GetBytesPerBuffer());
   EXPECT_EQ(200, AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
                                  CHANNEL_LAYOUT_MONO, 1000,  8, 200)
-                                 .GetPacketSize());
+                                 .GetBytesPerBuffer());
   EXPECT_EQ(800, AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
                                  CHANNEL_LAYOUT_STEREO, 1000,  16, 200)
-                                 .GetPacketSize());
+                                 .GetBytesPerBuffer());
 }
 
 TEST(AudioParameters, GetBytesPerSecond) {
@@ -163,3 +165,5 @@ TEST(AudioParameters, Compare) {
     EXPECT_FALSE(target(values[i], values[i]));
   }
 }
+
+}  // namespace media

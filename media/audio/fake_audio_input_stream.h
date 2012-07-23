@@ -9,33 +9,41 @@
 
 #include <vector>
 
-#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "base/time.h"
 #include "media/audio/audio_io.h"
-#include "media/audio/audio_parameters.h"
 
-class FakeAudioInputStream
-    : public AudioInputStream,
-      public base::RefCountedThreadSafe<FakeAudioInputStream> {
+namespace media {
+
+class AudioManagerBase;
+class AudioParameters;
+
+class MEDIA_EXPORT FakeAudioInputStream
+    : public AudioInputStream {
  public:
-  static AudioInputStream* MakeFakeStream(const AudioParameters& params);
+  static AudioInputStream* MakeFakeStream(AudioManagerBase* manager,
+                                          const AudioParameters& params);
 
   virtual bool Open() OVERRIDE;
   virtual void Start(AudioInputCallback* callback) OVERRIDE;
   virtual void Stop() OVERRIDE;
   virtual void Close() OVERRIDE;
+  virtual double GetMaxVolume() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual double GetVolume() OVERRIDE;
+  virtual void SetAutomaticGainControl(bool enabled) OVERRIDE;
+  virtual bool GetAutomaticGainControl() OVERRIDE;
 
  private:
-  // Give RefCountedThreadSafe access our destructor.
-  friend class base::RefCountedThreadSafe<FakeAudioInputStream>;
+  FakeAudioInputStream(AudioManagerBase* manager,
+                       const AudioParameters& params);
 
-  FakeAudioInputStream(const AudioParameters& params);
   virtual ~FakeAudioInputStream();
 
   void DoCallback();
 
+  AudioManagerBase* audio_manager_;
   AudioInputCallback* callback_;
   scoped_array<uint8> buffer_;
   int buffer_size_;
@@ -45,5 +53,7 @@ class FakeAudioInputStream
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioInputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_FAKE_AUDIO_INPUT_STREAM_H_

@@ -8,12 +8,16 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
-#include "net/base/default_origin_bound_cert_store.h"
+#include "base/threading/worker_pool.h"
+#include "net/base/cert_verifier.h"
+#include "net/base/default_server_bound_cert_store.h"
 #include "net/base/host_port_pair.h"
-#include "net/base/origin_bound_cert_service.h"
+#include "net/base/mock_host_resolver.h"
+#include "net/base/server_bound_cert_service.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/url_request/url_request_job_factory.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
@@ -38,68 +42,14 @@ const int kStageDestruction = 1 << 10;
 TestURLRequestContext::TestURLRequestContext()
     : initialized_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
-  context_storage_.set_host_resolver(
-      net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
-                                    net::HostResolver::kDefaultRetryAttempts,
-                                    NULL));
-  SetProxyDirect();
   Init();
 }
 
 TestURLRequestContext::TestURLRequestContext(bool delay_initialization)
     : initialized_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
-  context_storage_.set_host_resolver(
-      net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
-                                    net::HostResolver::kDefaultRetryAttempts,
-                                    NULL));
-  SetProxyDirect();
   if (!delay_initialization)
     Init();
-}
-
-TestURLRequestContext::TestURLRequestContext(const std::string& proxy)
-    : initialized_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
-  context_storage_.set_host_resolver(
-      net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
-                                    net::HostResolver::kDefaultRetryAttempts,
-                                    NULL));
-  SetProxyFromString(proxy);
-  Init();
-}
-
-TestURLRequestContext::TestURLRequestContext(const char* proxy)
-    : initialized_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
-  context_storage_.set_host_resolver(
-      net::CreateSystemHostResolver(net::HostResolver::kDefaultParallelism,
-                                    net::HostResolver::kDefaultRetryAttempts,
-                                    NULL));
-  SetProxyFromString(proxy);
-  Init();
-}
-
-TestURLRequestContext::TestURLRequestContext(const std::string& proxy,
-                                             net::HostResolver* host_resolver)
-    : initialized_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(context_storage_(this)) {
-  context_storage_.set_host_resolver(host_resolver);
-  SetProxyFromString(proxy);
-  Init();
-}
-
-void TestURLRequestContext::SetProxyFromString(const std::string& proxy) {
-  DCHECK(!initialized_);
-  net::ProxyConfig proxy_config;
-  proxy_config.proxy_rules().ParseFromString(proxy);
-  context_storage_.set_proxy_service(
-      net::ProxyService::CreateFixed(proxy_config));
-}
-
-void TestURLRequestContext::SetProxyDirect() {
-  DCHECK(!initialized_);
-  context_storage_.set_proxy_service(net::ProxyService::CreateDirect());
 }
 
 TestURLRequestContext::~TestURLRequestContext() {
@@ -109,8 +59,13 @@ TestURLRequestContext::~TestURLRequestContext() {
 void TestURLRequestContext::Init() {
   DCHECK(!initialized_);
   initialized_ = true;
+
+  if (!host_resolver())
+    context_storage_.set_host_resolver(new net::MockCachingHostResolver());
+  if (!proxy_service())
+    context_storage_.set_proxy_service(net::ProxyService::CreateDirect());
   if (!cert_verifier())
-    context_storage_.set_cert_verifier(new net::CertVerifier);
+    context_storage_.set_cert_verifier(net::CertVerifier::CreateDefault());
   if (!ftp_transaction_factory()) {
     context_storage_.set_ftp_transaction_factory(
         new net::FtpNetworkLayer(host_resolver()));
@@ -143,10 +98,11 @@ void TestURLRequestContext::Init() {
   if (!cookie_store())
     context_storage_.set_cookie_store(new net::CookieMonster(NULL, NULL));
   // In-memory origin bound cert service.
-  if (!origin_bound_cert_service()) {
-    context_storage_.set_origin_bound_cert_service(
-        new net::OriginBoundCertService(
-            new net::DefaultOriginBoundCertStore(NULL)));
+  if (!server_bound_cert_service()) {
+    context_storage_.set_server_bound_cert_service(
+        new net::ServerBoundCertService(
+            new net::DefaultServerBoundCertStore(NULL),
+            base::WorkerPool::GetTaskRunner(true)));
   }
   if (accept_language().empty())
     set_accept_language("en-us,fr");
@@ -156,13 +112,40 @@ void TestURLRequestContext::Init() {
     context_storage_.set_job_factory(new net::URLRequestJobFactory);
 }
 
-
-TestURLRequest::TestURLRequest(const GURL& url, Delegate* delegate)
-    : net::URLRequest(url, delegate) {
-  set_context(new TestURLRequestContext());
+TestURLRequest::TestURLRequest(const GURL& url,
+                               Delegate* delegate,
+                               TestURLRequestContext* context)
+    : net::URLRequest(url, delegate, context) {
 }
 
-TestURLRequest::~TestURLRequest() {}
+TestURLRequest::~TestURLRequest() {
+}
+
+TestURLRequestContextGetter::TestURLRequestContextGetter(
+    const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner)
+    : network_task_runner_(network_task_runner) {
+  DCHECK(network_task_runner_);
+}
+
+TestURLRequestContextGetter::TestURLRequestContextGetter(
+    const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner,
+    scoped_ptr<TestURLRequestContext> context)
+    : network_task_runner_(network_task_runner), context_(context.Pass()) {
+  DCHECK(network_task_runner_);
+}
+
+TestURLRequestContextGetter::~TestURLRequestContextGetter() {}
+
+TestURLRequestContext* TestURLRequestContextGetter::GetURLRequestContext() {
+  if (!context_.get())
+    context_.reset(new TestURLRequestContext);
+  return context_.get();
+}
+
+scoped_refptr<base::SingleThreadTaskRunner>
+TestURLRequestContextGetter::GetNetworkTaskRunner() const {
+  return network_task_runner_;
+}
 
 TestDelegate::TestDelegate()
     : cancel_in_rr_(false),
@@ -172,13 +155,9 @@ TestDelegate::TestDelegate()
       quit_on_complete_(true),
       quit_on_redirect_(false),
       allow_certificate_errors_(false),
-      cookie_options_bit_mask_(0),
       response_started_count_(0),
       received_bytes_count_(0),
       received_redirect_count_(0),
-      blocked_get_cookies_count_(0),
-      blocked_set_cookie_count_(0),
-      set_cookie_count_(0),
       received_data_before_response_(false),
       request_failed_(false),
       have_certificate_errors_(false),
@@ -223,39 +202,6 @@ void TestDelegate::OnSSLCertificateError(net::URLRequest* request,
     request->ContinueDespiteLastError();
   else
     request->Cancel();
-}
-
-bool TestDelegate::CanGetCookies(const net::URLRequest* request,
-                                 const net::CookieList& cookie_list) const {
-  bool allow = true;
-  if (cookie_options_bit_mask_ & NO_GET_COOKIES)
-    allow = false;
-
-  if (!allow) {
-    blocked_get_cookies_count_++;
-  }
-
-  return allow;
-}
-
-bool TestDelegate::CanSetCookie(const net::URLRequest* request,
-                                const std::string& cookie_line,
-                                net::CookieOptions* options) const {
-  bool allow = true;
-  if (cookie_options_bit_mask_ & NO_SET_COOKIE)
-    allow = false;
-
-  if (cookie_options_bit_mask_ & FORCE_SESSION)
-    options->set_force_session();
-
-
-  if (!allow) {
-    blocked_set_cookie_count_++;
-  } else {
-    set_cookie_count_++;
-  }
-
-  return allow;
 }
 
 void TestDelegate::OnResponseStarted(net::URLRequest* request) {
@@ -323,11 +269,15 @@ void TestDelegate::OnResponseCompleted(net::URLRequest* request) {
 }
 
 TestNetworkDelegate::TestNetworkDelegate()
-  : last_error_(0),
-    error_count_(0),
-    created_requests_(0),
-    destroyed_requests_(0),
-    completed_requests_(0) {
+    : last_error_(0),
+      error_count_(0),
+      created_requests_(0),
+      destroyed_requests_(0),
+      completed_requests_(0),
+      cookie_options_bit_mask_(0),
+      blocked_get_cookies_count_(0),
+      blocked_set_cookie_count_(0),
+      set_cookie_count_(0) {
 }
 
 TestNetworkDelegate::~TestNetworkDelegate() {
@@ -503,4 +453,69 @@ net::NetworkDelegate::AuthRequiredResponse TestNetworkDelegate::OnAuthRequired(
       kStageResponseStarted |  // data: URLs do not trigger sending headers
       kStageBeforeRedirect;  // a delegate can trigger a redirection
   return net::NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
+}
+
+bool TestNetworkDelegate::OnCanGetCookies(const net::URLRequest& request,
+                                          const net::CookieList& cookie_list) {
+  bool allow = true;
+  if (cookie_options_bit_mask_ & NO_GET_COOKIES)
+    allow = false;
+
+  if (!allow) {
+    blocked_get_cookies_count_++;
+  }
+
+  return allow;
+}
+
+bool TestNetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
+                                         const std::string& cookie_line,
+                                         net::CookieOptions* options) {
+  bool allow = true;
+  if (cookie_options_bit_mask_ & NO_SET_COOKIE)
+    allow = false;
+
+  if (!allow) {
+    blocked_set_cookie_count_++;
+  } else {
+    set_cookie_count_++;
+  }
+
+  return allow;
+}
+
+bool TestNetworkDelegate::OnCanAccessFile(const net::URLRequest& request,
+                                          const FilePath& path) const {
+  return true;
+}
+
+bool TestNetworkDelegate::OnCanThrottleRequest(
+    const net::URLRequest& request) const {
+  return true;
+}
+
+int TestNetworkDelegate::OnBeforeSocketStreamConnect(
+    net::SocketStream* socket,
+    const net::CompletionCallback& callback) {
+  return net::OK;
+}
+
+// static
+std::string ScopedCustomUrlRequestTestHttpHost::value_("127.0.0.1");
+
+ScopedCustomUrlRequestTestHttpHost::ScopedCustomUrlRequestTestHttpHost(
+  const std::string& new_value)
+    : old_value_(value_),
+      new_value_(new_value) {
+  value_ = new_value_;
+}
+
+ScopedCustomUrlRequestTestHttpHost::~ScopedCustomUrlRequestTestHttpHost() {
+  DCHECK_EQ(value_, new_value_);
+  value_ = old_value_;
+}
+
+// static
+const std::string& ScopedCustomUrlRequestTestHttpHost::value() {
+  return value_;
 }

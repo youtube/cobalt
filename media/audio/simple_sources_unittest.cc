@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>  // std::min
+
 #include "base/logging.h"
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
@@ -10,6 +12,8 @@
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/simple_sources.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace media {
 
 static void GenerateRandomData(char* buffer, uint32 len) {
   static bool called = false;
@@ -49,7 +53,7 @@ TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
   // Read everything from the push source.
   for (uint32 i = 0; i < kDataSize; i += kReadSize) {
     uint32 size = std::min(kDataSize - i , kReadSize);
-    EXPECT_EQ(size, push_source.OnMoreData(NULL, read_data.get(), size,
+    EXPECT_EQ(size, push_source.OnMoreData(read_data.get(), size,
                                            AudioBuffersState()));
     EXPECT_EQ(0, memcmp(data.get() + i, read_data.get(), size));
   }
@@ -71,19 +75,18 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
   scoped_ptr<AudioManager> audio_man(AudioManager::Create());
   AudioParameters params(
       AudioParameters::AUDIO_MOCK, CHANNEL_LAYOUT_MONO,
-      AudioParameters::kTelephoneSampleRate, bytes_per_sample * 2, samples);
+      AudioParameters::kTelephoneSampleRate, bytes_per_sample * 8, samples);
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(params);
   ASSERT_TRUE(NULL != oas);
   EXPECT_TRUE(oas->Open());
 
   oas->Start(&source);
   oas->Stop();
-  oas->Close();
 
-  ASSERT_TRUE(FakeAudioOutputStream::GetLastFakeStream());
+  ASSERT_TRUE(FakeAudioOutputStream::GetCurrentFakeStream());
   const int16* last_buffer =
       reinterpret_cast<int16*>(
-          FakeAudioOutputStream::GetLastFakeStream()->buffer());
+          FakeAudioOutputStream::GetCurrentFakeStream()->buffer());
   ASSERT_TRUE(NULL != last_buffer);
 
   uint32 half_period = AudioParameters::kTelephoneSampleRate / (freq * 2);
@@ -98,4 +101,7 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
   EXPECT_EQ(-5126, last_buffer[half_period + 1]);
   EXPECT_TRUE(last_buffer[half_period + 1] > last_buffer[half_period + 2]);
   EXPECT_TRUE(last_buffer[half_period + 2] > last_buffer[half_period + 3]);
+  oas->Close();
 }
+
+}  // namespace media

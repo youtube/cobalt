@@ -1,5 +1,6 @@
 include_rules = [
   "+jni",
+  "+native_client",
   "+third_party/ashmem",
   "+third_party/apple_apsl",
   "+third_party/libevent",

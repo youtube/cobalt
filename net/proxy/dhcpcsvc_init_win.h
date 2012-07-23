@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 #ifndef NET_PROXY_DHCPCSVC_INIT_WIN_H
 #define NET_PROXY_DHCPCSVC_INIT_WIN_H
-#pragma once
 
 namespace net {
 

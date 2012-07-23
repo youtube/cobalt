@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,13 +16,11 @@ void VideoCaptureDevice::GetDeviceNames(Names* device_names) {
   // Loop through all available devices and add to |device_names|.
   device_names->clear();
 
-  // TODO(mflodman) Return name and id as NSArray* instead of QTCaptureDevice*.
-  for (QTCaptureDevice* device in [VideoCaptureDeviceQTKit deviceNames]) {
+  NSDictionary* capture_devices = [VideoCaptureDeviceQTKit deviceNames];
+  for (NSString* key in capture_devices) {
     Name name;
-    NSString* qt_device_name = [device localizedDisplayName];
-    name.device_name = [qt_device_name UTF8String];
-    NSString* qt_unique_id = [device uniqueID];
-    name.unique_id = [qt_unique_id UTF8String];
+    name.device_name = [[capture_devices valueForKey:key] UTF8String];
+    name.unique_id = [key UTF8String];
     device_names->push_back(name);
   }
 }
@@ -70,11 +68,13 @@ void VideoCaptureDeviceMac::Allocate(int width, int height, int frame_rate,
   }
 
   state_ = kAllocated;
-  Capability current_settings;
-  current_settings.color = kARGB;
+  VideoCaptureCapability current_settings;
+  current_settings.color = VideoCaptureCapability::kARGB;
   current_settings.width = width;
   current_settings.height = height;
   current_settings.frame_rate = frame_rate;
+  current_settings.expected_capture_delay = 0;
+  current_settings.interlaced = false;
 
   observer_->OnFrameInfo(current_settings);
 }
@@ -130,9 +130,10 @@ bool VideoCaptureDeviceMac::Init() {
   return false;
 }
 
-void VideoCaptureDeviceMac::ReceiveFrame(const uint8* video_frame,
-                                         int video_frame_length,
-                                         const Capability& frame_info) {
+void VideoCaptureDeviceMac::ReceiveFrame(
+    const uint8* video_frame,
+    int video_frame_length,
+    const VideoCaptureCapability& frame_info) {
   observer_->OnIncomingCapturedFrame(video_frame, video_frame_length,
                                      base::Time::Now());
 }

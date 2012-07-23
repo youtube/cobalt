@@ -4,7 +4,6 @@
 
 #ifndef NET_UDP_DATAGRAM_CLIENT_SOCKET_H_
 #define NET_UDP_DATAGRAM_CLIENT_SOCKET_H_
-#pragma once
 
 #include "net/socket/socket.h"
 #include "net/udp/datagram_socket.h"

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,8 @@
 
 #include "media/audio/audio_io.h"
 #include "media/base/seekable_buffer.h"
+
+namespace media {
 
 // An audio source that produces a pure sinusoidal tone.
 class MEDIA_EXPORT SineWaveAudioSource
@@ -27,8 +29,7 @@ class MEDIA_EXPORT SineWaveAudioSource
 
   // Implementation of AudioSourceCallback.
   virtual uint32 OnMoreData(
-      AudioOutputStream* stream, uint8* dest, uint32 max_size,
-      AudioBuffersState audio_buffers) OVERRIDE;
+      uint8* dest, uint32 max_size, AudioBuffersState audio_buffers) OVERRIDE;
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
 
  protected:
@@ -72,8 +73,7 @@ class MEDIA_EXPORT PushSource
   virtual uint32 UnProcessedBytes() OVERRIDE;
 
   // Implementation of AudioSourceCallback.
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            uint8* dest,
+  virtual uint32 OnMoreData(uint8* dest,
                             uint32 max_size,
                             AudioBuffersState buffers_state) OVERRIDE;
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
@@ -87,5 +87,7 @@ class MEDIA_EXPORT PushSource
 
   media::SeekableBuffer buffer_;
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_SIMPLE_SOURCES_H_

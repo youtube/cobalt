@@ -113,6 +113,13 @@ void ConvertYUY2ToYUV(const uint8* src,
                       int width,
                       int height);
 
+void ConvertNV21ToYUV(const uint8* src,
+                      uint8* yplane,
+                      uint8* uplane,
+                      uint8* vplane,
+                      int width,
+                      int height);
+
 // Empty SIMD register state after calling optimized scaler functions.
 // This method is only used in unit test after calling SIMD functions.
 void EmptyRegisterState();

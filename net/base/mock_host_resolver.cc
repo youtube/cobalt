@@ -4,8 +4,10 @@
 
 #include "net/base/mock_host_resolver.h"
 
+#include <string>
+#include <vector>
+
 #include "base/bind.h"
-#include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
 #include "base/stl_util.h"
@@ -15,7 +17,6 @@
 #include "net/base/host_cache.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 
 namespace net {
@@ -27,14 +28,6 @@ const unsigned kMaxCacheEntries = 100;
 // TTL for the successful resolutions. Failures are not cached.
 const unsigned kCacheEntryTTLSeconds = 60;
 
-char* do_strdup(const char* src) {
-#if defined(OS_WIN)
-  return _strdup(src);
-#else
-  return strdup(src);
-#endif
-}
-
 }  // namespace
 
 int ParseAddressList(const std::string& host_list,
@@ -43,21 +36,14 @@ int ParseAddressList(const std::string& host_list,
   *addrlist = AddressList();
   std::vector<std::string> addresses;
   base::SplitString(host_list, ',', &addresses);
+  addrlist->set_canonical_name(canonical_name);
   for (size_t index = 0; index < addresses.size(); ++index) {
     IPAddressNumber ip_number;
     if (!ParseIPLiteralToNumber(addresses[index], &ip_number)) {
       LOG(WARNING) << "Not a supported IP literal: " << addresses[index];
       return ERR_UNEXPECTED;
     }
-
-    AddressList result = AddressList::CreateFromIPAddress(ip_number, -1);
-    struct addrinfo* ai = const_cast<struct addrinfo*>(result.head());
-    if (index == 0)
-      ai->ai_canonname = do_strdup(canonical_name.c_str());
-    if (!addrlist->head())
-      *addrlist = AddressList::CreateByCopyingFirstAddress(result.head());
-    else
-      addrlist->Append(result.head());
+    addrlist->push_back(IPEndPoint(ip_number, -1));
   }
   return OK;
 }
@@ -143,8 +129,9 @@ int MockHostResolverBase::ResolveFromIPLiteralOrCache(const RequestInfo& info,
                                                       AddressList* addresses) {
   IPAddressNumber ip;
   if (ParseIPLiteralToNumber(info.hostname(), &ip)) {
-    *addresses = AddressList::CreateFromIPAddressWithCname(
-        ip, info.port(), info.host_resolver_flags() & HOST_RESOLVER_CANONNAME);
+    *addresses = AddressList::CreateFromIPAddress(ip, info.port());
+    if (info.host_resolver_flags() & HOST_RESOLVER_CANONNAME)
+      addresses->SetDefaultCanonicalName();
     return OK;
   }
   int rv = ERR_DNS_CACHE_MISS;
@@ -155,8 +142,10 @@ int MockHostResolverBase::ResolveFromIPLiteralOrCache(const RequestInfo& info,
     const HostCache::Entry* entry = cache_->Lookup(key, base::TimeTicks::Now());
     if (entry) {
       rv = entry->error;
-      if (rv == OK)
-        *addresses = CreateAddressListUsingPort(entry->addrlist, info.port());
+      if (rv == OK) {
+        *addresses = entry->addrlist;
+        SetPortOnAddressList(info.port(), addresses);
+      }
     }
   }
   return rv;
@@ -181,8 +170,10 @@ int MockHostResolverBase::ResolveProc(size_t id,
       ttl = base::TimeDelta::FromSeconds(kCacheEntryTTLSeconds);
     cache_->Set(key, rv, addr, base::TimeTicks::Now(), ttl);
   }
-  if (rv == OK)
-    *addresses = CreateAddressListUsingPort(addr, info.port());
+  if (rv == OK) {
+    *addresses = addr;
+    SetPortOnAddressList(info.port(), addresses);
+  }
   return rv;
 }
 
@@ -356,13 +347,7 @@ RuleBasedHostResolverProc::~RuleBasedHostResolverProc() {
 
 RuleBasedHostResolverProc* CreateCatchAllHostResolverProc() {
   RuleBasedHostResolverProc* catchall = new RuleBasedHostResolverProc(NULL);
-#if defined(OS_ANDROID)
-  // In Android emulator, the development machine's '127.0.0.1' is mapped to
-  // '10.0.2.2'.
-  catchall->AddIPLiteralRule("*", "10.0.2.2", "localhost");
-#else
   catchall->AddIPLiteralRule("*", "127.0.0.1", "localhost");
-#endif
 
   // Next add a rules-based layer the use controls.
   return new RuleBasedHostResolverProc(catchall);

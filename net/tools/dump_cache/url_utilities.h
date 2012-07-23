@@ -4,7 +4,6 @@
 
 #ifndef NET_TOOLS_DUMP_CACHE_URL_UTILITIES_H_
 #define NET_TOOLS_DUMP_CACHE_URL_UTILITIES_H_
-#pragma once
 
 #include <string>
 

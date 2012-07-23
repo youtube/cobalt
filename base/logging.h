@@ -4,7 +4,6 @@
 
 #ifndef BASE_LOGGING_H_
 #define BASE_LOGGING_H_
-#pragma once
 
 #include <cassert>
 #include <string>

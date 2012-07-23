@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef CRYPTO_OPENSSL_UTIL_H_
 #define CRYPTO_OPENSSL_UTIL_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/location.h"
@@ -65,7 +64,7 @@ class ScopedOpenSSLSafeSizeBuffer {
   }
 
  private:
-  // Pointer to the caller's data area and it's associated size, where data
+  // Pointer to the caller's data area and its associated size, where data
   // written via safe_buffer() will [eventually] end up.
   unsigned char* output_;
   size_t output_len_;

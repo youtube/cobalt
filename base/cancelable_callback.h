@@ -41,7 +41,6 @@
 
 #ifndef BASE_CANCELABLE_CALLBACK_H_
 #define BASE_CANCELABLE_CALLBACK_H_
-#pragma once
 
 #include "base/base_export.h"
 #include "base/bind.h"
