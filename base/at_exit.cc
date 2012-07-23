@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -77,6 +77,15 @@ void AtExitManager::ProcessCallbacksNow() {
 AtExitManager::AtExitManager(bool shadow) : next_manager_(g_top_manager) {
   DCHECK(shadow || !g_top_manager);
   g_top_manager = this;
+}
+
+// static
+AtExitManager* AtExitManager::current() {
+  return g_top_manager;
+}
+
+size_t AtExitManager::CallbackStackSize() const {
+  return stack_.size();
 }
 
 }  // namespace base

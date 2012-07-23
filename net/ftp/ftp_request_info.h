@@ -4,7 +4,6 @@
 
 #ifndef NET_FTP_FTP_REQUEST_INFO_H_
 #define NET_FTP_FTP_REQUEST_INFO_H_
-#pragma once
 
 #include "googleurl/src/gurl.h"
 

@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_RAND_CALLBACK_H_
 #define NET_BASE_RAND_CALLBACK_H_
-#pragma once
 
 #include "base/callback.h"
 

@@ -7,7 +7,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/base/cert_verifier.h"
+#include "net/base/mock_cert_verifier.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service_defaults.h"
@@ -118,7 +118,7 @@ struct SessionDependencies {
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
       : host_resolver(new MockHostResolver),
-        cert_verifier(new CertVerifier),
+        cert_verifier(new MockCertVerifier),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
@@ -275,7 +275,7 @@ template<>
 CapturePreconnectsSSLSocketPool::CapturePreconnectsSocketPool(
     HostResolver* host_resolver, CertVerifier* cert_verifier)
     : SSLClientSocketPool(0, 0, NULL, host_resolver, cert_verifier, NULL,
-                          NULL, NULL, "", NULL, NULL, NULL, NULL, NULL, NULL),
+                          NULL, "", NULL, NULL, NULL, NULL, NULL, NULL),
       last_num_streams_(-1) {}
 
 TEST(HttpStreamFactoryTest, PreconnectDirect) {

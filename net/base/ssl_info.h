@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_SSL_INFO_H_
 #define NET_BASE_SSL_INFO_H_
-#pragma once
 
 #include <vector>
 
@@ -66,6 +65,9 @@ class NET_EXPORT SSLInfo {
   // True if a client certificate was sent to the server.  Note that sending
   // a Certificate message with no client certificate in it does not count.
   bool client_cert_sent;
+
+  // True if a channel ID was sent to the server.
+  bool channel_id_sent;
 
   HandshakeType handshake_type;
 

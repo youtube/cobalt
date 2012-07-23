@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_STRING16_H_
 #define BASE_STRING16_H_
-#pragma once
 
 // WHAT:
 // A version of std::basic_string that provides 2-byte characters even when
@@ -164,13 +163,17 @@ struct string16_char_traits {
 //
 // TODO(mark): File this bug with Apple and update this note with a bug number.
 
-extern template class std::basic_string<char16, base::string16_char_traits>;
+extern template
+class BASE_EXPORT std::basic_string<char16, base::string16_char_traits>;
 
 typedef std::basic_string<char16, base::string16_char_traits> string16;
 
 namespace base {
 BASE_EXPORT extern std::ostream& operator<<(std::ostream& out,
                                             const string16& str);
+
+// This is required by googletest to print a readable output on test failures.
+BASE_EXPORT extern void PrintTo(const string16& str, std::ostream* out);
 }
 
 #endif  // WCHAR_T_IS_UTF32

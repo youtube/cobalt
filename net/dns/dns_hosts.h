@@ -1,16 +1,16 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DNS_DNS_HOSTS_H_
 #define NET_DNS_DNS_HOSTS_H_
-#pragma once
 
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/file_path.h"
 #include "net/base/address_family.h"
 #include "net/base/net_export.h"
 #include "net/base/net_util.h"  // can't forward-declare IPAddressNumber
@@ -34,6 +34,12 @@ typedef std::map<DnsHostsKey, IPAddressNumber> DnsHosts;
 // in |dns_hosts|. Invalid lines are ignored (as in most implementations).
 void NET_EXPORT_PRIVATE ParseHosts(const std::string& contents,
                                    DnsHosts* dns_hosts);
+
+// As above but reads the file pointed to by |path|.
+bool NET_EXPORT_PRIVATE ParseHostsFile(const FilePath& path,
+                                       DnsHosts* dns_hosts);
+
+
 
 }  // namespace net
 

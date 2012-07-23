@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -200,6 +200,9 @@ class MultiThreadedProxyResolver::SetPacScriptJob
         base::Bind(&SetPacScriptJob::RequestComplete, this, rv));
   }
 
+ protected:
+  virtual ~SetPacScriptJob() {}
+
  private:
   // Runs the completion callback on the origin thread.
   void RequestComplete(int result_code) {
@@ -236,22 +239,19 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
 
   virtual void WaitingForThread() OVERRIDE {
     was_waiting_for_thread_ = true;
-    net_log_.BeginEvent(
-        NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD, NULL);
+    net_log_.BeginEvent(NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD);
   }
 
   virtual void FinishedWaitingForThread() OVERRIDE {
     DCHECK(executor());
 
     if (was_waiting_for_thread_) {
-      net_log_.EndEvent(
-          NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD, NULL);
+      net_log_.EndEvent(NetLog::TYPE_WAITING_FOR_PROXY_RESOLVER_THREAD);
     }
 
     net_log_.AddEvent(
         NetLog::TYPE_SUBMITTED_TO_RESOLVER_THREAD,
-        make_scoped_refptr(new NetLogIntegerParameter(
-            "thread_number", executor()->thread_number())));
+        NetLog::IntegerCallback("thread_number", executor()->thread_number()));
   }
 
   // Runs on the worker thread.
@@ -265,6 +265,9 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
         FROM_HERE,
         base::Bind(&GetProxyForURLJob::QueryComplete, this, rv));
   }
+
+ protected:
+  virtual ~GetProxyForURLJob() {}
 
  private:
   // Runs the completion callback on the origin thread.

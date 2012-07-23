@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,7 +28,7 @@ SocketStreamJob* SocketStreamJob::CreateSocketStreamJob(
   GURL socket_url(url);
   TransportSecurityState::DomainState domain_state;
   if (url.scheme() == "ws" && sts && sts->GetDomainState(
-          &domain_state, url.host(), SSLConfigService::IsSNIAvailable(ssl)) &&
+          url.host(), SSLConfigService::IsSNIAvailable(ssl), &domain_state) &&
       domain_state.ShouldRedirectHTTPToHTTPS()) {
     url_canon::Replacements<char> replacements;
     static const char kNewScheme[] = "wss";
@@ -64,6 +64,18 @@ void SocketStreamJob::Close() {
 
 void SocketStreamJob::RestartWithAuth(const AuthCredentials& credentials) {
   socket_->RestartWithAuth(credentials);
+}
+
+void SocketStreamJob::CancelWithError(int error) {
+  socket_->CancelWithError(error);
+}
+
+void SocketStreamJob::CancelWithSSLError(const net::SSLInfo& ssl_info) {
+  socket_->CancelWithSSLError(ssl_info);
+}
+
+void SocketStreamJob::ContinueDespiteError() {
+  socket_->ContinueDespiteError();
 }
 
 void SocketStreamJob::DetachDelegate() {

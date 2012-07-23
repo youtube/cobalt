@@ -92,7 +92,7 @@ var bypass = normal;
 // 1. Save this as a file (no-ads.pac) on your local disk
 //    (or, add it to your home page, if you have one)
 // 2. Select a no-ads "blackhole".
-// 3. Configure your browser to use this file as it's auto proxy configuration.
+// 3. Configure your browser to use this file as its auto proxy configuration.
 // 4. Clear your browser's cache
 //    (or else it may still show you ads it has saved on your disk).
 //
@@ -196,7 +196,7 @@ var bypass = normal;
 //		    3421 stream tcp nowait nobody /usr/local/lib/noproxy noproxy
 //
 //		  This simple script doesn't work on Linux because of the
-//		  (IMHO) broken way it's TCP stack works.  See the bottom of
+//		  (IMHO) broken way its TCP stack works.  See the bottom of
 //		  http://www.schooner.com/~loverso/no-ads/ for a complete copy
 //		  of the `noproxy' shell script.
 //

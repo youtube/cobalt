@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,8 +35,85 @@ TEST(EncryptorTest, EncryptDecrypt) {
   EXPECT_EQ(plaintext, decypted);
 }
 
+TEST(EncryptorTest, DecryptWrongKey) {
+  scoped_ptr<crypto::SymmetricKey> key(
+      crypto::SymmetricKey::DeriveKeyFromPassword(
+          crypto::SymmetricKey::AES, "password", "saltiest", 1000, 256));
+  EXPECT_TRUE(NULL != key.get());
+
+  // A wrong key that can be detected by implementations that validate every
+  // byte in the padding.
+  scoped_ptr<crypto::SymmetricKey> wrong_key(
+        crypto::SymmetricKey::DeriveKeyFromPassword(
+            crypto::SymmetricKey::AES, "wrongword", "sweetest", 1000, 256));
+  EXPECT_TRUE(NULL != wrong_key.get());
+
+  // A wrong key that can't be detected by any implementation.  The password
+  // "wrongword;" would also work.
+  scoped_ptr<crypto::SymmetricKey> wrong_key2(
+        crypto::SymmetricKey::DeriveKeyFromPassword(
+            crypto::SymmetricKey::AES, "wrongword+", "sweetest", 1000, 256));
+  EXPECT_TRUE(NULL != wrong_key2.get());
+
+  // A wrong key that can be detected by all implementations.
+  scoped_ptr<crypto::SymmetricKey> wrong_key3(
+        crypto::SymmetricKey::DeriveKeyFromPassword(
+            crypto::SymmetricKey::AES, "wrongwordx", "sweetest", 1000, 256));
+  EXPECT_TRUE(NULL != wrong_key3.get());
+
+  crypto::Encryptor encryptor;
+  // The IV must be exactly as long as the cipher block size.
+  std::string iv("the iv: 16 bytes");
+  EXPECT_EQ(16U, iv.size());
+  EXPECT_TRUE(encryptor.Init(key.get(), crypto::Encryptor::CBC, iv));
+
+  std::string plaintext("this is the plaintext");
+  std::string ciphertext;
+  EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
+
+  static const unsigned char expected_ciphertext[] = {
+    0x7D, 0x67, 0x5B, 0x53, 0xE6, 0xD8, 0x0F, 0x27,
+    0x74, 0xB1, 0x90, 0xFE, 0x6E, 0x58, 0x4A, 0xA0,
+    0x0E, 0x35, 0xE3, 0x01, 0xC0, 0xFE, 0x9A, 0xD8,
+    0x48, 0x1D, 0x42, 0xB0, 0xBA, 0x21, 0xB2, 0x0C
+  };
+
+  ASSERT_EQ(arraysize(expected_ciphertext), ciphertext.size());
+  for (size_t i = 0; i < ciphertext.size(); ++i) {
+    ASSERT_EQ(expected_ciphertext[i],
+              static_cast<unsigned char>(ciphertext[i]));
+  }
+
+  std::string decypted;
+
+  // This wrong key causes the last padding byte to be 5, which is a valid
+  // padding length, and the second to last padding byte to be 137, which is
+  // invalid.  If an implementation simply uses the last padding byte to
+  // determine the padding length without checking every padding byte,
+  // Encryptor::Decrypt() will still return true.  This is the case for NSS
+  // (crbug.com/124434).
+#if !defined(USE_NSS) && !defined(OS_WIN) && !defined(OS_MACOSX)
+  crypto::Encryptor decryptor;
+  EXPECT_TRUE(decryptor.Init(wrong_key.get(), crypto::Encryptor::CBC, iv));
+  EXPECT_FALSE(decryptor.Decrypt(ciphertext, &decypted));
+#endif
+
+  // This demonstrates that not all wrong keys can be detected by padding
+  // error. This wrong key causes the last padding byte to be 1, which is
+  // a valid padding block of length 1.
+  crypto::Encryptor decryptor2;
+  EXPECT_TRUE(decryptor2.Init(wrong_key2.get(), crypto::Encryptor::CBC, iv));
+  EXPECT_TRUE(decryptor2.Decrypt(ciphertext, &decypted));
+
+  // This wrong key causes the last padding byte to be 253, which should be
+  // rejected by all implementations.
+  crypto::Encryptor decryptor3;
+  EXPECT_TRUE(decryptor3.Init(wrong_key3.get(), crypto::Encryptor::CBC, iv));
+  EXPECT_FALSE(decryptor3.Decrypt(ciphertext, &decypted));
+}
+
 // CTR mode encryption is only implemented using NSS.
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
 
 TEST(EncryptorTest, EncryptDecryptCTR) {
   scoped_ptr<crypto::SymmetricKey> key(
@@ -72,11 +149,13 @@ TEST(EncryptorTest, EncryptDecryptCTR) {
 
 TEST(EncryptorTest, CTRCounter) {
   const int kCounterSize = 16;
-  const char kTest1[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  uint8 buf[16];
+  const unsigned char kTest1[] =
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  unsigned char buf[16];
 
   // Increment 10 times.
-  crypto::Encryptor::Counter counter1(std::string(kTest1, kCounterSize));
+  crypto::Encryptor::Counter counter1(
+      std::string(reinterpret_cast<const char*>(kTest1), kCounterSize));
   for (int i = 0; i < 10; ++i)
     counter1.Increment();
   counter1.Write(buf);
@@ -84,18 +163,26 @@ TEST(EncryptorTest, CTRCounter) {
   EXPECT_TRUE(buf[15] == 10);
 
   // Check corner cases.
-  const char kTest2[] = {0, 0, 0, 0, 0, 0, 0, 0,
-                         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  const char kExpect2[] = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-  crypto::Encryptor::Counter counter2(std::string(kTest2, kCounterSize));
+  const unsigned char kTest2[] = {
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+  };
+  const unsigned char kExpect2[] =
+      {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+  crypto::Encryptor::Counter counter2(
+      std::string(reinterpret_cast<const char*>(kTest2), kCounterSize));
   counter2.Increment();
   counter2.Write(buf);
   EXPECT_EQ(0, memcmp(buf, kExpect2, kCounterSize));
 
-  const char kTest3[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  const char kExpect3[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  crypto::Encryptor::Counter counter3(std::string(kTest3, kCounterSize));
+  const unsigned char kTest3[] = {
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+  };
+  const unsigned char kExpect3[] =
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  crypto::Encryptor::Counter counter3(
+      std::string(reinterpret_cast<const char*>(kTest3), kCounterSize));
   counter3.Increment();
   counter3.Write(buf);
   EXPECT_EQ(0, memcmp(buf, kExpect3, kCounterSize));
@@ -235,7 +322,7 @@ TEST(EncryptorTest, EncryptAES192CBCRegression) {
 
 // Not all platforms allow import/generation of symmetric keys with an
 // unsupported size.
-#if !defined(OS_WIN) && !defined(USE_NSS)
+#if !defined(USE_NSS) && !defined(OS_WIN) && !defined(OS_MACOSX)
 TEST(EncryptorTest, UnsupportedKeySize) {
   std::string key = "7 = bad";
   std::string iv = "Sweet Sixteen IV";

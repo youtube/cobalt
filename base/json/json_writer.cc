@@ -1,8 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/json/json_writer.h"
+
+#include <cmath>
 
 #include "base/json/string_escape.h"
 #include "base/logging.h"
@@ -23,38 +25,43 @@ static const char kPrettyPrintLineEnding[] = "\n";
 const char* JSONWriter::kEmptyArray = "[]";
 
 /* static */
-void JSONWriter::Write(const Value* const node,
-                       bool pretty_print,
-                       std::string* json) {
-  WriteWithOptions(node, pretty_print, 0, json);
+void JSONWriter::Write(const Value* const node, std::string* json) {
+  WriteWithOptions(node, 0, json);
 }
 
 /* static */
-void JSONWriter::WriteWithOptions(const Value* const node,
-                                  bool pretty_print,
-                                  int options,
+void JSONWriter::WriteWithOptions(const Value* const node, int options,
                                   std::string* json) {
   json->clear();
   // Is there a better way to estimate the size of the output?
   json->reserve(1024);
-  JSONWriter writer(pretty_print, json);
+
   bool escape = !(options & OPTIONS_DO_NOT_ESCAPE);
   bool omit_binary_values = !!(options & OPTIONS_OMIT_BINARY_VALUES);
-  writer.BuildJSONString(node, 0, escape, omit_binary_values);
+  bool omit_double_type_preservation =
+      !!(options & OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION);
+  bool pretty_print = !!(options & OPTIONS_PRETTY_PRINT);
+
+  JSONWriter writer(escape, omit_binary_values, omit_double_type_preservation,
+                    pretty_print, json);
+  writer.BuildJSONString(node, 0);
+
   if (pretty_print)
     json->append(kPrettyPrintLineEnding);
 }
 
-JSONWriter::JSONWriter(bool pretty_print, std::string* json)
-    : json_string_(json),
-      pretty_print_(pretty_print) {
+JSONWriter::JSONWriter(bool escape, bool omit_binary_values,
+                       bool omit_double_type_preservation, bool pretty_print,
+                       std::string* json)
+    : escape_(escape),
+      omit_binary_values_(omit_binary_values),
+      omit_double_type_preservation_(omit_double_type_preservation),
+      pretty_print_(pretty_print),
+      json_string_(json) {
   DCHECK(json);
 }
 
-void JSONWriter::BuildJSONString(const Value* const node,
-                                 int depth,
-                                 bool escape,
-                                 bool omit_binary_values) {
+void JSONWriter::BuildJSONString(const Value* const node, int depth) {
   switch (node->GetType()) {
     case Value::TYPE_NULL:
       json_string_->append("null");
@@ -83,6 +90,13 @@ void JSONWriter::BuildJSONString(const Value* const node,
         double value;
         bool result = node->GetAsDouble(&value);
         DCHECK(result);
+        if (omit_double_type_preservation_ &&
+            value <= kint64max &&
+            value >= kint64min &&
+            std::floor(value) == value) {
+          json_string_->append(Int64ToString(static_cast<int64>(value)));
+          break;
+        }
         std::string real = DoubleToString(value);
         // Ensure that the number has a .0 if there's no decimal or 'e'.  This
         // makes sure that when we read the JSON back, it's interpreted as a
@@ -109,7 +123,7 @@ void JSONWriter::BuildJSONString(const Value* const node,
         std::string value;
         bool result = node->GetAsString(&value);
         DCHECK(result);
-        if (escape) {
+        if (escape_) {
           JsonDoubleQuote(UTF8ToUTF16(value), true, json_string_);
         } else {
           JsonDoubleQuote(value, true, json_string_);
@@ -129,7 +143,7 @@ void JSONWriter::BuildJSONString(const Value* const node,
           bool result = list->Get(i, &value);
           DCHECK(result);
 
-          if (omit_binary_values && value->GetType() == Value::TYPE_BINARY) {
+          if (omit_binary_values_ && value->GetType() == Value::TYPE_BINARY) {
             continue;
           }
 
@@ -139,7 +153,7 @@ void JSONWriter::BuildJSONString(const Value* const node,
               json_string_->append(" ");
           }
 
-          BuildJSONString(value, depth, escape, omit_binary_values);
+          BuildJSONString(value, depth);
         }
 
         if (pretty_print_)
@@ -163,7 +177,7 @@ void JSONWriter::BuildJSONString(const Value* const node,
           bool result = dict->GetWithoutPathExpansion(*key_itr, &value);
           DCHECK(result);
 
-          if (omit_binary_values && value->GetType() == Value::TYPE_BINARY) {
+          if (omit_binary_values_ && value->GetType() == Value::TYPE_BINARY) {
             continue;
           }
 
@@ -181,7 +195,7 @@ void JSONWriter::BuildJSONString(const Value* const node,
           } else {
             json_string_->append(":");
           }
-          BuildJSONString(value, depth + 1, escape, omit_binary_values);
+          BuildJSONString(value, depth + 1);
         }
 
         if (pretty_print_) {
@@ -196,7 +210,7 @@ void JSONWriter::BuildJSONString(const Value* const node,
 
     case Value::TYPE_BINARY:
       {
-        if (!omit_binary_values) {
+        if (!omit_binary_values_) {
           NOTREACHED() << "Cannot serialize binary value.";
         }
         break;

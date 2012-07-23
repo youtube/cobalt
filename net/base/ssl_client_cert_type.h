@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_SSL_CLIENT_CERT_TYPE_H_
 #define NET_BASE_SSL_CLIENT_CERT_TYPE_H_
-#pragma once
 
 namespace net {
 

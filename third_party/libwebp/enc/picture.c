@@ -593,6 +593,20 @@ int WebPPictureImportBGRA(WebPPicture* const picture,
   return Import(picture, rgba, rgba_stride, 4, 1, 1);
 }
 
+int WebPPictureImportRGBX(WebPPicture* const picture,
+                          const uint8_t* const rgba, int rgba_stride) {
+  picture->colorspace &= ~WEBP_CSP_ALPHA_BIT;
+  if (!WebPPictureAlloc(picture)) return 0;
+  return Import(picture, rgba, rgba_stride, 4, 0, 0);
+}
+
+int WebPPictureImportBGRX(WebPPicture* const picture,
+                          const uint8_t* const rgba, int rgba_stride) {
+  picture->colorspace &= ~WEBP_CSP_ALPHA_BIT;
+  if (!WebPPictureAlloc(picture)) return 0;
+  return Import(picture, rgba, rgba_stride, 4, 1, 0);
+}
+
 //------------------------------------------------------------------------------
 // Simplest call:
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@ using base::TimeDelta;
 using base::TimeTicks;
 using net::BackoffEntry;
 
-BackoffEntry::Policy base_policy = { 0, 1000, 2.0, 0.0, 20000, 2000 };
+BackoffEntry::Policy base_policy = { 0, 1000, 2.0, 0.0, 20000, 2000, false };
 
 class TestBackoffEntry : public BackoffEntry {
  public:
@@ -42,9 +42,11 @@ class TestBackoffEntry : public BackoffEntry {
 TEST(BackoffEntryTest, BaseTest) {
   TestBackoffEntry entry(&base_policy);
   EXPECT_FALSE(entry.ShouldRejectRequest());
+  EXPECT_EQ(TimeDelta(), entry.GetTimeUntilRelease());
 
   entry.InformOfRequest(false);
   EXPECT_TRUE(entry.ShouldRejectRequest());
+  EXPECT_EQ(TimeDelta::FromMilliseconds(1000), entry.GetTimeUntilRelease());
 }
 
 TEST(BackoffEntryTest, CanDiscardNeverExpires) {
@@ -83,6 +85,26 @@ TEST(BackoffEntryTest, CanDiscard) {
   EXPECT_TRUE(entry.CanDiscard());
 }
 
+TEST(BackoffEntryTest, CanDiscardAlwaysDelay) {
+  BackoffEntry::Policy always_delay_policy = base_policy;
+  always_delay_policy.always_use_initial_delay = true;
+  always_delay_policy.entry_lifetime_ms = 0;
+
+  TestBackoffEntry entry(&always_delay_policy);
+
+  // Because lifetime is non-zero, we shouldn't be able to discard yet.
+  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(2000));
+  EXPECT_TRUE(entry.CanDiscard());
+
+  // Even with no failures, we wait until the delay before we allow discard.
+  entry.InformOfRequest(true);
+  EXPECT_FALSE(entry.CanDiscard());
+
+  // Wait until the delay expires, and we can discard the entry again.
+  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(1000));
+  EXPECT_TRUE(entry.CanDiscard());
+}
+
 TEST(BackoffEntryTest, CanDiscardNotStored) {
   BackoffEntry::Policy no_store_policy = base_policy;
   no_store_policy.entry_lifetime_ms = 0;
@@ -95,10 +117,13 @@ TEST(BackoffEntryTest, ShouldIgnoreFirstTwo) {
   lenient_policy.num_errors_to_ignore = 2;
 
   BackoffEntry entry(&lenient_policy);
+
   entry.InformOfRequest(false);
   EXPECT_FALSE(entry.ShouldRejectRequest());
+
   entry.InformOfRequest(false);
   EXPECT_FALSE(entry.ShouldRejectRequest());
+
   entry.InformOfRequest(false);
   EXPECT_TRUE(entry.ShouldRejectRequest());
 }
@@ -114,16 +139,19 @@ TEST(BackoffEntryTest, ReleaseTimeCalculation) {
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
   EXPECT_EQ(entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(1000), result);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(1000), entry.GetTimeUntilRelease());
 
   // 2 errors.
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
   EXPECT_EQ(entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(2000), result);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000), entry.GetTimeUntilRelease());
 
   // 3 errors.
   entry.InformOfRequest(false);
   result = entry.GetReleaseTime();
   EXPECT_EQ(entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(4000), result);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(4000), entry.GetTimeUntilRelease());
 
   // 6 errors (to check it doesn't pass maximum).
   entry.InformOfRequest(false);
@@ -132,6 +160,42 @@ TEST(BackoffEntryTest, ReleaseTimeCalculation) {
   result = entry.GetReleaseTime();
   EXPECT_EQ(
       entry.ImplGetTimeNow() + TimeDelta::FromMilliseconds(20000), result);
+}
+
+TEST(BackoffEntryTest, ReleaseTimeCalculationAlwaysDelay) {
+  BackoffEntry::Policy always_delay_policy = base_policy;
+  always_delay_policy.always_use_initial_delay = true;
+  always_delay_policy.num_errors_to_ignore = 2;
+
+  TestBackoffEntry entry(&always_delay_policy);
+
+  // With previous requests, should return "now".
+  TimeTicks result = entry.GetReleaseTime();
+  EXPECT_EQ(TimeDelta(), entry.GetTimeUntilRelease());
+
+  // 1 error.
+  entry.InformOfRequest(false);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(1000), entry.GetTimeUntilRelease());
+
+  // 2 errors.
+  entry.InformOfRequest(false);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(1000), entry.GetTimeUntilRelease());
+
+  // 3 errors, exponential backoff starts.
+  entry.InformOfRequest(false);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000), entry.GetTimeUntilRelease());
+
+  // 4 errors.
+  entry.InformOfRequest(false);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(4000), entry.GetTimeUntilRelease());
+
+  // 8 errors (to check it doesn't pass maximum).
+  entry.InformOfRequest(false);
+  entry.InformOfRequest(false);
+  entry.InformOfRequest(false);
+  entry.InformOfRequest(false);
+  result = entry.GetReleaseTime();
+  EXPECT_EQ(TimeDelta::FromMilliseconds(20000), entry.GetTimeUntilRelease());
 }
 
 TEST(BackoffEntryTest, ReleaseTimeCalculationWithJitter) {
@@ -170,6 +234,32 @@ TEST(BackoffEntryTest, FailureThenSuccess) {
   entry.InformOfRequest(false);
   EXPECT_EQ(release_time + TimeDelta::FromMilliseconds(800),
             entry.GetReleaseTime());
+}
+
+TEST(BackoffEntryTest, FailureThenSuccessAlwaysDelay) {
+  BackoffEntry::Policy always_delay_policy = base_policy;
+  always_delay_policy.always_use_initial_delay = true;
+  always_delay_policy.num_errors_to_ignore = 1;
+
+  TestBackoffEntry entry(&always_delay_policy);
+
+  // Failure count 1.
+  entry.InformOfRequest(false);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(1000), entry.GetTimeUntilRelease());
+
+  // Failure count 2.
+  entry.InformOfRequest(false);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000), entry.GetTimeUntilRelease());
+  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(2000));
+
+  // Success.  We should go back to the original delay.
+  entry.InformOfRequest(true);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(1000), entry.GetTimeUntilRelease());
+
+  // Failure count reaches 2 again.  We should increase the delay once more.
+  entry.InformOfRequest(false);
+  EXPECT_EQ(TimeDelta::FromMilliseconds(2000), entry.GetTimeUntilRelease());
+  entry.set_now(entry.GetReleaseTime() + TimeDelta::FromMilliseconds(2000));
 }
 
 TEST(BackoffEntryTest, RetainCustomHorizon) {

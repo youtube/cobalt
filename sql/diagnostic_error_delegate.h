@@ -4,7 +4,6 @@
 
 #ifndef SQL_DIAGNOSTIC_ERROR_DELEGATE_H_
 #define SQL_DIAGNOSTIC_ERROR_DELEGATE_H_
-#pragma once
 
 #include "base/logging.h"
 #include "base/metrics/histogram.h"

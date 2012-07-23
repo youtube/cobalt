@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_THREAD_H_
 #define BASE_THREAD_H_
-#pragma once
 
 #include <string>
 
@@ -117,9 +116,8 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // non-NULL after a successful call to Start. After Stop has been called,
   // this will return NULL. Callers can hold on to this even after the thread
   // is gone.
-  // TODO(sanjeevr): Look into merging MessageLoop and MessageLoopProxy.
   scoped_refptr<MessageLoopProxy> message_loop_proxy() const {
-    return message_loop_->message_loop_proxy();
+    return message_loop_ ? message_loop_->message_loop_proxy() : NULL;
   }
 
   // Returns the name of this thread (for display in debugger too).
@@ -132,8 +130,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   PlatformThreadId thread_id() const { return thread_id_; }
 
   // Returns true if the thread has been started, and not yet stopped.
-  // When a thread is running, |thread_id_| is a valid id.
-  bool IsRunning() const { return thread_id_ != kInvalidThreadId; }
+  bool IsRunning() const;
 
  protected:
   // Called just prior to starting the message loop
@@ -164,6 +161,9 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // If true, we're in the middle of stopping, and shouldn't access
   // |message_loop_|. It may non-NULL and invalid.
   bool stopping_;
+
+  // True while inside of Run().
+  bool running_;
 
   // Used to pass data to ThreadMain.
   struct StartupData;

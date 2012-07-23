@@ -1,15 +1,14 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SPDY_SPDY_WEBSOCKET_STREAM_H_
 #define NET_SPDY_SPDY_WEBSOCKET_STREAM_H_
-#pragma once
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/completion_callback.h"
 #include "net/base/request_priority.h"
@@ -40,7 +39,7 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
     // SYN_REPLY, or HEADERS frames are received. This callback may be called
     // multiple times as SPDY's delegate does.
     virtual int OnReceivedSpdyResponseHeader(
-        const spdy::SpdyHeaderBlock& headers,
+        const SpdyHeaderBlock& headers,
         int status) = 0;
 
     // Called when data is sent.
@@ -51,6 +50,9 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
 
     // Called when SpdyStream is closed.
     virtual void OnCloseSpdyStream() = 0;
+
+   protected:
+    virtual ~Delegate() {}
   };
 
   SpdyWebSocketStream(SpdySession* spdy_session, Delegate* delegate);
@@ -64,7 +66,7 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
                        RequestPriority request_priority,
                        const BoundNetLog& stream_net_log);
 
-  int SendRequest(const linked_ptr<spdy::SpdyHeaderBlock>& headers);
+  int SendRequest(scoped_ptr<SpdyHeaderBlock> headers);
   int SendData(const char* data, int length);
   void Close();
 
@@ -72,16 +74,16 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
   virtual bool OnSendHeadersComplete(int status) OVERRIDE;
   virtual int OnSendBody() OVERRIDE;
   virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
-  virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+  virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) OVERRIDE;
   virtual void OnDataReceived(const char* data, int length) OVERRIDE;
   virtual void OnDataSent(int length) OVERRIDE;
   virtual void OnClose(int status) OVERRIDE;
-  virtual void set_chunk_callback(ChunkCallback* callback) OVERRIDE;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamTest, Basic);
+  FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamSpdy2Test, Basic);
+  FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamSpdy3Test, Basic);
 
   void OnSpdyStreamCreated(int status);
 

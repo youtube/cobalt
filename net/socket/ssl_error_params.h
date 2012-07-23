@@ -1,27 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_SOCKET_SSL_ERROR_PARAMS_H_
 #define NET_SOCKET_SSL_ERROR_PARAMS_H_
-#pragma once
 
 #include "net/base/net_log.h"
 
 namespace net {
 
-// Extra parameters to attach to the NetLog when we receive an SSL error.
-class SSLErrorParams : public NetLog::EventParameters {
- public:
-  SSLErrorParams(int net_error, int ssl_lib_error);
-  virtual ~SSLErrorParams();
-
-  virtual base::Value* ToValue() const OVERRIDE;
-
- private:
-  const int net_error_;
-  const int ssl_lib_error_;
-};
+// Creates NetLog callback for when we receive an SSL error.
+NetLog::ParametersCallback CreateNetLogSSLErrorCallback(int net_error,
+                                                        int ssl_lib_error);
 
 }  // namespace net
 

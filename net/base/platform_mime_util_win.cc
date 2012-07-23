@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,6 +37,18 @@ bool PlatformMimeUtil::GetPreferredExtensionForMimeType(
     ext->erase(ext->begin());
 
   return true;
+}
+
+void PlatformMimeUtil::GetPlatformExtensionsForMimeType(
+    const std::string& mime_type,
+    base::hash_set<FilePath::StringType>* extensions) const {
+  // Multiple extensions could have the given mime type specified as their types
+  // in their 'HKCR\.<extension>\Content Type' keys. Iterating all the HKCR
+  // entries, though, is wildly impractical. Cheat by returning just the
+  // preferred extension.
+  FilePath::StringType ext;
+  if (GetPreferredExtensionForMimeType(mime_type, &ext))
+    extensions->insert(ext);
 }
 
 }  // namespace net

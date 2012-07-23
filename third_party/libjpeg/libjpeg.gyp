@@ -13,6 +13,8 @@
       }],
     ],
   },
+  # This file handles building both with our local libjpeg and with the system
+  # libjpeg.
   'conditions': [
     ['use_system_libjpeg==0', {
       'targets': [
@@ -93,6 +95,13 @@
           'direct_dependent_settings': {
             'defines': [
               'USE_SYSTEM_LIBJPEG',
+            ],
+            'conditions': [
+              ['os_bsd==1', {
+                'include_dirs': [
+                  '/usr/local/include',
+                ],
+              }],
             ],
           },
           'link_settings': {

@@ -4,7 +4,6 @@
 
 #ifndef NET_SPDY_SPDY_HTTP_STREAM_H_
 #define NET_SPDY_SPDY_HTTP_STREAM_H_
-#pragma once
 
 #include <list>
 #include <string>
@@ -14,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
+#include "net/base/upload_data.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_stream.h"
 #include "net/spdy/spdy_protocol.h"
@@ -31,7 +31,8 @@ class UploadDataStream;
 
 // The SpdyHttpStream is a HTTP-specific type of stream known to a SpdySession.
 class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
-                                          public HttpStream {
+                                          public HttpStream,
+                                          public ChunkCallback {
  public:
   SpdyHttpStream(SpdySession* spdy_session, bool direct);
   virtual ~SpdyHttpStream();
@@ -49,7 +50,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
                                const BoundNetLog& net_log,
                                const CompletionCallback& callback) OVERRIDE;
   virtual int SendRequest(const HttpRequestHeaders& headers,
-                          UploadDataStream* request_body,
+                          scoped_ptr<UploadDataStream> request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE;
   virtual uint64 GetUploadProgress() const OVERRIDE;
@@ -77,16 +78,29 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   virtual bool OnSendHeadersComplete(int status) OVERRIDE;
   virtual int OnSendBody() OVERRIDE;
   virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
-  virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+  virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) OVERRIDE;
   virtual void OnDataReceived(const char* buffer, int bytes) OVERRIDE;
   virtual void OnDataSent(int length) OVERRIDE;
   virtual void OnClose(int status) OVERRIDE;
-  virtual void set_chunk_callback(ChunkCallback* callback) OVERRIDE;
+
+  // ChunkCallback implementation.
+  virtual void OnChunkAvailable() OVERRIDE;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, FlowControlStallResume);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
+                           FlowControlStallResume);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           FlowControlStallResume);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           FlowControlStallResumeAfterSettings);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           FlowControlNegativeSendWindowSize);
+
+  // Reads the data (whether chunked or not) from the request body stream and
+  // sends the data by calling WriteStreamData on the underlying SpdyStream.
+  int SendData();
 
   // Call the user callback.
   void DoCallback(int rv);
@@ -139,6 +153,9 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
 
   // Is this spdy stream direct to the origin server (or to a proxy).
   bool direct_;
+
+  // Is the connection stalled waiting for an upload data chunk.
+  bool waiting_for_chunk_;
 
   bool send_last_chunk_;
 

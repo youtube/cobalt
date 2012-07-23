@@ -1693,6 +1693,7 @@ typedef void (GL_APIENTRYP PFNGLENDTILINGQCOMPROC) (GLbitfield preserveMask);
 #define GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE_EXT GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE
 #endif
 
+#if 0  // Defined in GL_EXT_multisampled_render_to_texture
 #ifdef GL_GLEXT_PROTOTYPES
 #define glRenderbufferStorageMultisampleEXT GLES2_GET_FUN(RenderbufferStorageMultisampleEXT)
 #if !defined(GLES2_USE_CPP_BINDINGS)
@@ -1700,6 +1701,7 @@ GL_APICALL void GL_APIENTRY glRenderbufferStorageMultisampleEXT (GLenum target, 
 #endif
 #endif /* GL_GLEXT_PROTOTYPES */
 typedef void (GL_APIENTRYP PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC) (GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height);
+#endif
 #endif
 
 #ifndef GL_EXT_framebuffer_blit
@@ -1950,6 +1952,79 @@ GL_APICALL void GL_APIENTRY glTexImageIOSurface2DCHROMIUM (GLenum target, GLsize
 #endif
 #else
 typedef void (GL_APIENTRYP PFNGLTEXIMAGEIOSURFACE2DCHROMIUM) (GLenum target, GLsizei width, GLsizei height, GLuint ioSurfaceId, GLuint plane);
+#endif
+#endif
+
+/* GL_CHROMIUM_copy_texture */
+#ifndef GL_CHROMIUM_copy_texture
+#ifndef GL_UNPACK_PREMULTIPLY_ALPHA_CHROMIUM
+#define GL_UNPACK_PREMULTIPLY_ALPHA_CHROMIUM 0x9241
+#endif
+#ifndef GL_UNPACK_UNPREMULTIPLY_ALPHA_CHROMIUM
+#define GL_UNPACK_UNPREMULTIPLY_ALPHA_CHROMIUM 0x9242
+#endif
+#ifndef GL_UNPACK_COLORSPACE_CONVERSION_CHROMIUM
+#define GL_UNPACK_COLORSPACE_CONVERSION_CHROMIUM 0x9243
+#endif
+#ifdef GL_GLEXT_PROTOTYPES
+#define glCopyTextureCHROMIUM GLES2_GET_FUN(CopyTextureCHROMIUM)
+#if !defined(GLES2_USE_CPP_BINDINGS)
+GL_APICALL void GL_APIENTRY glCopyTextureCHROMIUM (GLenum target, GLenum source_id, GLenum dest_id, GLint level, GLint internal_format);
+#endif
+#else
+typedef void (GL_APIENTRYP PFNGLCOPYTEXTURECHROMIUM) (GLenum target, GLenum source_id, GLenum dest_id, GLint level, GLint internal_format);
+#endif
+#endif
+
+/* GL_CHROMIUM_command_buffer_query */
+/* Exposes GL_CHROMIUM_command_buffer_query.
+ */
+#ifndef GL_CHROMIUM_command_buffer_query
+#define GL_CHROMIUM_command_buffer_query 1
+// TODO(gman): Get official numbers for these constants.
+#define GL_COMMANDS_ISSUED_CHROMIUM 0x84F2
+#endif
+
+/* GL_CHROMIUM_get_error_query */
+/* Exposes GL_CHROMIUM_get_error_query.
+ */
+#ifndef GL_CHROMIUM_get_error_query
+#define GL_CHROMIUM_get_error_query 1
+// TODO(gman): Get official numbers for these constants.
+#define GL_GET_ERROR_QUERY_CHROMIUM 0x84F3
+#endif
+
+/* GL_CHROMIUM_texture_mailbox */
+#ifndef GL_CHROMIUM_texture_mailbox
+#define GL_CHROMIUM_texture_mailbox 1
+#define GL_MAILBOX_SIZE_CHROMIUM 64
+#ifdef GL_GLEXT_PROTOTYPES
+#define glGenMailboxCHROMIUM GLES2_GET_FUN(GenMailboxCHROMIUM)
+#define glProduceTextureCHROMIUM GLES2_GET_FUN(ProduceTextureCHROMIUM)
+#define glConsumeTextureCHROMIUM GLES2_GET_FUN(ConsumeTextureCHROMIUM)
+#if !defined(GLES2_USE_CPP_BINDINGS)
+GL_APICALL void GL_APIENTRY glGenMailboxCHROMIUM (GLbyte* mailbox);
+GL_APICALL void GL_APIENTRY glProduceTextureCHROMIUM (GLenum target, const GLbyte* mailbox);
+GL_APICALL void GL_APIENTRY glConsumeTextureCHROMIUM (GLenum target, const  GLbyte* mailbox);
+#endif
+#else
+typedef void (GL_APIENTRYP PFNGLGENMAILBOXCHROMIUM) (GLbyte* mailbox);
+typedef void (GL_APIENTRYP PFNGLPRODUCETEXTURECHROMIUM) (GLenum target, const GLbyte* mailbox);
+typedef void (GL_APIENTRYP PFNGLCONSUMETEXTURECHROMIUM) (GLenum target, const  GLbyte* mailbox);
+#endif
+#endif
+
+/* GL_CHROMIUM_bind_uniform_location */
+#ifndef GL_CHROMIUM_bind_uniform_location
+#define GL_CHROMIUM_bind_uniform_location 1
+
+#ifdef GL_GLEXT_PROTOTYPES
+#define glBindUniformLocationCHROMIUM GLES2_GET_FUN(BindUniformLocationCHROMIUM)
+#if !defined(GLES2_USE_CPP_BINDINGS)
+GL_APICALL void GL_APIENTRY glBindUniformLocationCHROMIUM (GLuint program, GLint location, const GLchar* name);
+#endif
+#else
+typedef void (GL_APIENTRYP PFNGLBINDUNIFORMLOCATIONCHROMIUM) (GLuint program, GLint location, const GLchar* name);
 #endif
 #endif
 

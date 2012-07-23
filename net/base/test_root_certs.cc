@@ -55,4 +55,22 @@ TestRootCerts::TestRootCerts() {
   g_has_instance = true;
 }
 
+ScopedTestRoot::ScopedTestRoot() {}
+
+ScopedTestRoot::ScopedTestRoot(X509Certificate* cert) {
+  Reset(cert);
+}
+
+ScopedTestRoot::~ScopedTestRoot() {
+  Reset(NULL);
+}
+
+void ScopedTestRoot::Reset(X509Certificate* cert) {
+  if (cert_)
+    TestRootCerts::GetInstance()->Clear();
+  if (cert)
+    TestRootCerts::GetInstance()->Add(cert);
+  cert_ = cert;
+}
+
 }  // namespace net

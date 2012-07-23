@@ -48,7 +48,7 @@ TEST(DhcpProxyScriptFetcherWin, AdapterNamesAndPacURLFromDhcp) {
 class RealFetchTester {
  public:
   RealFetchTester()
-      : context_((new TestURLRequestContext())),
+      : context_(new TestURLRequestContext),
         fetcher_(new DhcpProxyScriptFetcherWin(context_.get())),
         finished_(false),
         on_completion_is_error_(false) {
@@ -114,7 +114,7 @@ class RealFetchTester {
     base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(30));
   }
 
-  scoped_refptr<URLRequestContext> context_;
+  scoped_ptr<URLRequestContext> context_;
   scoped_ptr<DhcpProxyScriptFetcherWin> fetcher_;
   bool finished_;
   string16 pac_text_;
@@ -200,7 +200,7 @@ TEST(DhcpProxyScriptFetcherWin, RealFetchWithDeferredCancel) {
   // the cancel is called before they complete.
   RealFetchTester fetcher;
   fetcher.fetcher_.reset(
-      new DelayingDhcpProxyScriptFetcherWin(fetcher.context_));
+      new DelayingDhcpProxyScriptFetcherWin(fetcher.context_.get()));
   fetcher.on_completion_is_error_ = true;
   fetcher.RunTestWithDeferredCancel();
   fetcher.WaitUntilDone();
@@ -212,8 +212,8 @@ TEST(DhcpProxyScriptFetcherWin, RealFetchWithDeferredCancel) {
 class DummyDhcpProxyScriptAdapterFetcher
     : public DhcpProxyScriptAdapterFetcher {
  public:
-  DummyDhcpProxyScriptAdapterFetcher()
-      : DhcpProxyScriptAdapterFetcher(new TestURLRequestContext()),
+  explicit DummyDhcpProxyScriptAdapterFetcher(URLRequestContext* context)
+      : DhcpProxyScriptAdapterFetcher(context),
         did_finish_(false),
         result_(OK),
         pac_script_(L"bingo"),
@@ -284,8 +284,8 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
     std::vector<std::string> mock_adapter_names_;
   };
 
-  MockDhcpProxyScriptFetcherWin()
-      : DhcpProxyScriptFetcherWin(new TestURLRequestContext()),
+  MockDhcpProxyScriptFetcherWin(URLRequestContext* context)
+      : DhcpProxyScriptFetcherWin(context),
         num_fetchers_created_(0),
         worker_finished_event_(true, false) {
     ResetTestState();
@@ -308,10 +308,11 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
                                    bool did_finish,
                                    int result,
                                    string16 pac_script,
-                                   int fetch_delay_ms) {
+                                   base::TimeDelta fetch_delay) {
     scoped_ptr<DummyDhcpProxyScriptAdapterFetcher> adapter_fetcher(
-        new DummyDhcpProxyScriptAdapterFetcher());
-    adapter_fetcher->Configure(did_finish, result, pac_script, fetch_delay_ms);
+        new DummyDhcpProxyScriptAdapterFetcher(url_request_context()));
+    adapter_fetcher->Configure(
+        did_finish, result, pac_script, fetch_delay.InMilliseconds());
     PushBackAdapter(adapter_name, adapter_fetcher.release());
   }
 
@@ -325,8 +326,8 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
     return adapter_query_.get();
   }
 
-  int ImplGetMaxWaitMs() OVERRIDE {
-    return max_wait_ms_;
+  base::TimeDelta ImplGetMaxWait() OVERRIDE {
+    return max_wait_;
   }
 
   void ImplOnGetCandidateAdapterNamesDone() OVERRIDE {
@@ -347,7 +348,7 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
     num_fetchers_created_ = 0;
     adapter_fetchers_.clear();
     adapter_query_ = new MockAdapterQuery();
-    max_wait_ms_ = TestTimeouts::tiny_timeout_ms();
+    max_wait_ = TestTimeouts::tiny_timeout();
   }
 
   bool HasPendingFetchers() {
@@ -363,7 +364,7 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
 
   scoped_refptr<MockAdapterQuery> adapter_query_;
 
-  int max_wait_ms_;
+  base::TimeDelta max_wait_;
   int num_fetchers_created_;
   base::WaitableEvent worker_finished_event_;
 };
@@ -371,7 +372,9 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
 class FetcherClient {
 public:
   FetcherClient()
-      : finished_(false),
+      : context_(new TestURLRequestContext),
+        fetcher_(context_.get()),
+        finished_(false),
         result_(ERR_UNEXPECTED) {
   }
 
@@ -409,6 +412,7 @@ public:
     fetcher_.ResetTestState();
   }
 
+  scoped_ptr<URLRequestContext> context_;
   MockDhcpProxyScriptFetcherWin fetcher_;
   bool finished_;
   int result_;
@@ -418,8 +422,9 @@ public:
 // We separate out each test's logic so that we can easily implement
 // the ReuseFetcher test at the bottom.
 void TestNormalCaseURLConfiguredOneAdapter(FetcherClient* client) {
+  TestURLRequestContext context;
   scoped_ptr<DummyDhcpProxyScriptAdapterFetcher> adapter_fetcher(
-      new DummyDhcpProxyScriptAdapterFetcher());
+      new DummyDhcpProxyScriptAdapterFetcher(&context));
   adapter_fetcher->Configure(true, OK, L"bingo", 1);
   client->fetcher_.PushBackAdapter("a", adapter_fetcher.release());
   client->RunTest();
@@ -435,11 +440,12 @@ TEST(DhcpProxyScriptFetcherWin, NormalCaseURLConfiguredOneAdapter) {
 
 void TestNormalCaseURLConfiguredMultipleAdapters(FetcherClient* client) {
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"", 1);
+      "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"",
+      base::TimeDelta::FromMilliseconds(1));
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "second", true, OK, L"bingo", 50);
+      "second", true, OK, L"bingo", base::TimeDelta::FromMilliseconds(50));
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "third", true, OK, L"rocko", 1);
+      "third", true, OK, L"rocko", base::TimeDelta::FromMilliseconds(1));
   client->RunTest();
   client->RunMessageLoopUntilComplete();
   ASSERT_EQ(OK, client->result_);
@@ -454,13 +460,14 @@ TEST(DhcpProxyScriptFetcherWin, NormalCaseURLConfiguredMultipleAdapters) {
 void TestNormalCaseURLConfiguredMultipleAdaptersWithTimeout(
     FetcherClient* client) {
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"", 1);
+      "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"",
+      base::TimeDelta::FromMilliseconds(1));
   // This will time out.
   client->fetcher_.ConfigureAndPushBackAdapter(
       "second", false, ERR_IO_PENDING, L"bingo",
-      TestTimeouts::action_timeout_ms());
+      TestTimeouts::action_timeout());
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "third", true, OK, L"rocko", 1);
+      "third", true, OK, L"rocko", base::TimeDelta::FromMilliseconds(1));
   client->RunTest();
   client->RunMessageLoopUntilComplete();
   ASSERT_EQ(OK, client->result_);
@@ -476,17 +483,20 @@ TEST(DhcpProxyScriptFetcherWin,
 void TestFailureCaseURLConfiguredMultipleAdaptersWithTimeout(
     FetcherClient* client) {
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"", 1);
+      "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"",
+      base::TimeDelta::FromMilliseconds(1));
   // This will time out.
   client->fetcher_.ConfigureAndPushBackAdapter(
       "second", false, ERR_IO_PENDING, L"bingo",
-      TestTimeouts::action_timeout_ms());
+      TestTimeouts::action_timeout());
   // This is the first non-ERR_PAC_NOT_IN_DHCP error and as such
   // should be chosen.
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "third", true, ERR_PAC_STATUS_NOT_OK, L"", 1);
+      "third", true, ERR_PAC_STATUS_NOT_OK, L"",
+      base::TimeDelta::FromMilliseconds(1));
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "fourth", true, ERR_NOT_IMPLEMENTED, L"", 1);
+      "fourth", true, ERR_NOT_IMPLEMENTED, L"",
+      base::TimeDelta::FromMilliseconds(1));
   client->RunTest();
   client->RunMessageLoopUntilComplete();
   ASSERT_EQ(ERR_PAC_STATUS_NOT_OK, client->result_);
@@ -501,15 +511,17 @@ TEST(DhcpProxyScriptFetcherWin,
 
 void TestFailureCaseNoURLConfigured(FetcherClient* client) {
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"", 1);
+      "most_preferred", true, ERR_PAC_NOT_IN_DHCP, L"",
+      base::TimeDelta::FromMilliseconds(1));
   // This will time out.
   client->fetcher_.ConfigureAndPushBackAdapter(
       "second", false, ERR_IO_PENDING, L"bingo",
-      TestTimeouts::action_timeout_ms());
+      TestTimeouts::action_timeout());
   // This is the first non-ERR_PAC_NOT_IN_DHCP error and as such
   // should be chosen.
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "third", true, ERR_PAC_NOT_IN_DHCP, L"", 1);
+      "third", true, ERR_PAC_NOT_IN_DHCP, L"",
+      base::TimeDelta::FromMilliseconds(1));
   client->RunTest();
   client->RunMessageLoopUntilComplete();
   ASSERT_EQ(ERR_PAC_NOT_IN_DHCP, client->result_);
@@ -540,15 +552,17 @@ void TestShortCircuitLessPreferredAdapters(FetcherClient* client) {
   // time.  Verify that we complete quickly and do not wait for the slow
   // adapters, i.e. we finish before timeout.
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "1", true, ERR_PAC_NOT_IN_DHCP, L"", 1);
+      "1", true, ERR_PAC_NOT_IN_DHCP, L"",
+      base::TimeDelta::FromMilliseconds(1));
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "2", true, OK, L"bingo", 1);
+      "2", true, OK, L"bingo",
+      base::TimeDelta::FromMilliseconds(1));
   client->fetcher_.ConfigureAndPushBackAdapter(
-      "3", true, OK, L"wrongo", TestTimeouts::action_max_timeout_ms());
+      "3", true, OK, L"wrongo", TestTimeouts::action_max_timeout());
 
   // Increase the timeout to ensure the short circuit mechanism has
   // time to kick in before the timeout waiting for more adapters kicks in.
-  client->fetcher_.max_wait_ms_ = TestTimeouts::action_timeout_ms();
+  client->fetcher_.max_wait_ = TestTimeouts::action_timeout();
 
   PerfTimer timer;
   client->RunTest();
@@ -558,9 +572,8 @@ void TestShortCircuitLessPreferredAdapters(FetcherClient* client) {
   // timeout, to get a second signal that it was the shortcut mechanism
   // (in OnFetcherDone) that kicked in, and not the timeout waiting for
   // more adapters.
-  ASSERT_GT(base::TimeDelta::FromMilliseconds(
-      client->fetcher_.max_wait_ms_ - (client->fetcher_.max_wait_ms_ / 10)),
-      timer.Elapsed());
+  ASSERT_GT(client->fetcher_.max_wait_ - (client->fetcher_.max_wait_ / 10),
+            timer.Elapsed());
 }
 
 TEST(DhcpProxyScriptFetcherWin, ShortCircuitLessPreferredAdapters) {
@@ -569,8 +582,9 @@ TEST(DhcpProxyScriptFetcherWin, ShortCircuitLessPreferredAdapters) {
 }
 
 void TestImmediateCancel(FetcherClient* client) {
+  TestURLRequestContext context;
   scoped_ptr<DummyDhcpProxyScriptAdapterFetcher> adapter_fetcher(
-      new DummyDhcpProxyScriptAdapterFetcher());
+      new DummyDhcpProxyScriptAdapterFetcher(&context));
   adapter_fetcher->Configure(true, OK, L"bingo", 1);
   client->fetcher_.PushBackAdapter("a", adapter_fetcher.release());
   client->RunTest();

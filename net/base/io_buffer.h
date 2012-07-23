@@ -4,7 +4,6 @@
 
 #ifndef NET_BASE_IO_BUFFER_H_
 #define NET_BASE_IO_BUFFER_H_
-#pragma once
 
 #include <string>
 

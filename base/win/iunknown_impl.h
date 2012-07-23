@@ -1,17 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_WIN_IUNKNOWN_IMPL_H_
 #define BASE_WIN_IUNKNOWN_IMPL_H_
-#pragma once
 
 #include <unknwn.h>
 
 #include "base/atomic_ref_count.h"
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 
 namespace base {
 namespace win {

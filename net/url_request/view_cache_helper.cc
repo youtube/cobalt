@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,7 +41,8 @@ std::string FormatEntryInfo(disk_cache::Entry* entry,
 }  // namespace.
 
 ViewCacheHelper::ViewCacheHelper()
-    : disk_cache_(NULL),
+    : context_(NULL),
+      disk_cache_(NULL),
       entry_(NULL),
       iter_(NULL),
       buf_len_(0),

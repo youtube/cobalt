@@ -14,7 +14,6 @@
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/proxy/proxy_resolver_request_context.h"
 #include "net/proxy/sync_host_resolver.h"
@@ -34,7 +33,7 @@ class MockHostResolverWithMultipleResults : public SyncHostResolver {
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const net::BoundNetLog& bound_net_log) OVERRIDE {
+                      const BoundNetLog& bound_net_log) OVERRIDE {
     return ParseAddressList("192.168.1.1,172.22.34.1,200.100.1.2", "",
                             addresses);
   }
@@ -52,7 +51,7 @@ class MockFailingHostResolver : public SyncHostResolver {
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const net::BoundNetLog& bound_net_log) OVERRIDE {
+                      const BoundNetLog& bound_net_log) OVERRIDE {
     count_++;
     return ERR_NAME_NOT_RESOLVED;
   }
@@ -75,7 +74,7 @@ class MockSyncHostResolver : public SyncHostResolver {
 
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const net::BoundNetLog& bound_net_log) OVERRIDE {
+                      const BoundNetLog& bound_net_log) OVERRIDE {
     return resolver_.Resolve(info, addresses, CompletionCallback(), NULL,
                              bound_net_log);
   }
@@ -168,11 +167,13 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
   HostResolver::RequestInfo info(HostPortPair("foo", 80));
   AddressList address_list;
   EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, BoundNetLog()));
-  EXPECT_EQ("192.168.2.1", NetAddressToString(address_list.head()));
+  ASSERT_FALSE(address_list.empty());
+  EXPECT_EQ("192.168.2.1", address_list.front().ToStringWithoutPort());
 
   info.set_address_family(ADDRESS_FAMILY_IPV4);
   EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, BoundNetLog()));
-  EXPECT_EQ("192.168.1.1", NetAddressToString(address_list.head()));
+  ASSERT_FALSE(address_list.empty());
+  EXPECT_EQ("192.168.1.1", address_list.front().ToStringWithoutPort());
 
   std::string ip_address;
   // Now the actual test.
@@ -266,7 +267,7 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
 TEST(ProxyResolverJSBindingsTest, NetLog) {
   MockFailingHostResolver* host_resolver = new MockFailingHostResolver;
 
-  CapturingNetLog global_log(CapturingNetLog::kUnbounded);
+  CapturingNetLog global_log;
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
@@ -274,13 +275,13 @@ TEST(ProxyResolverJSBindingsTest, NetLog) {
           host_resolver, &global_log, NULL));
 
   // Attach a capturing NetLog as the current request's log stream.
-  CapturingNetLog log(CapturingNetLog::kUnbounded);
-  BoundNetLog bound_log(NetLog::Source(NetLog::SOURCE_NONE, 0), &log);
+  CapturingNetLog log;
+  BoundNetLog bound_log(BoundNetLog::Make(&log, NetLog::SOURCE_NONE));
   ProxyResolverRequestContext context(&bound_log, NULL);
   bindings->set_current_request_context(&context);
 
   std::string ip_address;
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
   ASSERT_EQ(0u, entries.size());
 
@@ -324,7 +325,7 @@ TEST(ProxyResolverJSBindingsTest, NetLog) {
       entries, 7, NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX));
 
   // Nothing has been emitted globally yet.
-  net::CapturingNetLog::EntryList global_log_entries;
+  net::CapturingNetLog::CapturedEntryList global_log_entries;
   global_log.GetEntries(&global_log_entries);
   EXPECT_EQ(0u, global_log_entries.size());
 

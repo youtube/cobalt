@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_DISK_CACHE_ENTRY_IMPL_H_
 #define NET_DISK_CACHE_ENTRY_IMPL_H_
-#pragma once
 
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_log.h"
@@ -15,6 +14,7 @@
 namespace disk_cache {
 
 class BackendImpl;
+class InFlightBackendIO;
 class SparseControl;
 
 // This class implements the Entry interface. An object of this
@@ -39,17 +39,17 @@ class NET_EXPORT_PRIVATE EntryImpl
 
   // Background implementation of the Entry interface.
   void DoomImpl();
-  int ReadDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                   const net::CompletionCallback& callback);
-  int WriteDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                    const net::CompletionCallback& callback, bool truncate);
-  int ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                         const net::CompletionCallback& callback);
-  int WriteSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                          const net::CompletionCallback& callback);
+  int ReadDataImpl(int index, int offset, IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback);
+  int WriteDataImpl(int index, int offset, IOBuffer* buf, int buf_len,
+                    const CompletionCallback& callback, bool truncate);
+  int ReadSparseDataImpl(int64 offset, IOBuffer* buf, int buf_len,
+                         const CompletionCallback& callback);
+  int WriteSparseDataImpl(int64 offset, IOBuffer* buf, int buf_len,
+                          const CompletionCallback& callback);
   int GetAvailableRangeImpl(int64 offset, int len, int64* start);
   void CancelSparseIOImpl();
-  int ReadyForSparseIOImpl(const net::CompletionCallback& callback);
+  int ReadyForSparseIOImpl(const CompletionCallback& callback);
 
   inline CacheEntryBlock* entry() {
     return &entry_;
@@ -121,6 +121,10 @@ class NET_EXPORT_PRIVATE EntryImpl
   void IncrementIoCount();
   void DecrementIoCount();
 
+  // This entry is being returned to the user. It is always called from the
+  // primary thread (not the dedicated cache thread).
+  void OnEntryCreated(BackendImpl* backend);
+
   // Set the access times for this entry. This method provides support for
   // the upgrade tool.
   void SetTimes(base::Time last_used, base::Time last_modified);
@@ -146,25 +150,20 @@ class NET_EXPORT_PRIVATE EntryImpl
   virtual base::Time GetLastUsed() const OVERRIDE;
   virtual base::Time GetLastModified() const OVERRIDE;
   virtual int32 GetDataSize(int index) const OVERRIDE;
-  virtual int ReadData(
-      int index, int offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        const net::CompletionCallback& callback,
+  virtual int ReadData(int index, int offset, IOBuffer* buf, int buf_len,
+                       const CompletionCallback& callback) OVERRIDE;
+  virtual int WriteData(int index, int offset, IOBuffer* buf, int buf_len,
+                        const CompletionCallback& callback,
                         bool truncate) OVERRIDE;
-  virtual int ReadSparseData(
-      int64 offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int WriteSparseData(
-      int64 offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int GetAvailableRange(
-      int64 offset, int len, int64* start,
-      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int ReadSparseData(int64 offset, IOBuffer* buf, int buf_len,
+                             const CompletionCallback& callback) OVERRIDE;
+  virtual int WriteSparseData(int64 offset, IOBuffer* buf, int buf_len,
+                              const CompletionCallback& callback) OVERRIDE;
+  virtual int GetAvailableRange(int64 offset, int len, int64* start,
+                                const CompletionCallback& callback) OVERRIDE;
   virtual bool CouldBeSparse() const OVERRIDE;
   virtual void CancelSparseIO() OVERRIDE;
-  virtual int ReadyForSparseIO(
-      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int ReadyForSparseIO(const CompletionCallback& callback) OVERRIDE;
 
  private:
   enum {
@@ -176,10 +175,10 @@ class NET_EXPORT_PRIVATE EntryImpl
 
   // Do all the work for ReadDataImpl and WriteDataImpl.  Implemented as
   // separate functions to make logging of results simpler.
-  int InternalReadData(int index, int offset, net::IOBuffer* buf,
-                       int buf_len, const net::CompletionCallback& callback);
-  int InternalWriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        const net::CompletionCallback& callback, bool truncate);
+  int InternalReadData(int index, int offset, IOBuffer* buf,
+                       int buf_len, const CompletionCallback& callback);
+  int InternalWriteData(int index, int offset, IOBuffer* buf, int buf_len,
+                        const CompletionCallback& callback, bool truncate);
 
   // Initializes the storage for an internal or external data block.
   bool CreateDataBlock(int index, int size);
@@ -254,7 +253,8 @@ class NET_EXPORT_PRIVATE EntryImpl
 
   CacheEntryBlock entry_;     // Key related information for this entry.
   CacheRankingsBlock node_;   // Rankings related information for this entry.
-  BackendImpl* backend_;      // Back pointer to the cache.
+  base::WeakPtr<BackendImpl> backend_;  // Back pointer to the cache.
+  base::WeakPtr<InFlightBackendIO> background_queue_;  // In-progress queue.
   scoped_ptr<UserBuffer> user_buffers_[kNumStreams];  // Stores user data.
   // Files to store external user data and key.
   scoped_refptr<File> files_[kNumStreams + 1];
