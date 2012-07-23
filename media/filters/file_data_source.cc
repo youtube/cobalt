@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/filters/file_data_source.h"
+
 #include <limits>
 
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/utf_string_conversions.h"
-#include "media/base/pipeline.h"
-#include "media/filters/file_data_source.h"
 
 namespace media {
 
@@ -24,7 +24,7 @@ FileDataSource::FileDataSource(bool disable_file_size)
       disable_file_size_(disable_file_size) {
 }
 
-PipelineStatus FileDataSource::Initialize(const std::string& url) {
+bool FileDataSource::Initialize(const std::string& url) {
   DCHECK(!file_);
 #if defined(OS_WIN)
   FilePath file_path(UTF8ToWide(url));
@@ -36,11 +36,11 @@ PipelineStatus FileDataSource::Initialize(const std::string& url) {
   }
   if (!file_) {
     file_size_ = 0;
-    return PIPELINE_ERROR_URL_NOT_FOUND;
+    return false;
   }
   UpdateHostBytes();
 
-  return PIPELINE_OK;
+  return true;
 }
 
 void FileDataSource::set_host(DataSourceHost* host) {
