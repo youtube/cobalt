@@ -118,6 +118,8 @@ bool PCMQueueOutAudioOutputStream::Open() {
   // TODO(annacc): AudioDeviceGetPropertyInfo() is deprecated, but its
   // replacement, AudioObjectGetPropertyDataSize(), doesn't work yet with
   // kAudioDevicePropertyPreferredChannelLayout.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   err = AudioDeviceGetPropertyInfo(device_id, 0, false,
                                    kAudioDevicePropertyPreferredChannelLayout,
                                    &core_layout_size, NULL);
@@ -141,6 +143,7 @@ bool PCMQueueOutAudioOutputStream::Open() {
     HandleError(err);
     return false;
   }
+#pragma clang diagnostic pop
 
   num_core_channels_ =
       static_cast<int>(core_channel_layout->mNumberChannelDescriptions);
