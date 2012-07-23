@@ -40,6 +40,7 @@ enum BasePathKey {
                 // browser cache can be a subdirectory.
                 // This is $XDG_CACHE_HOME on Linux and
                 // ~/Library/Caches on Mac.
+  DIR_HOME,     // $HOME on POSIX-like systems.
 #endif
 
   PATH_END
