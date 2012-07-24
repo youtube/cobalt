@@ -28,6 +28,12 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 
+#if defined(OS_MACOSX)
+#include <CoreFoundation/CoreFoundation.h>
+// Avoid Mac system header macro leak.
+#undef TYPE_BOOL
+#endif
+
 #if defined(OS_POSIX)
 // For struct timeval.
 #include <sys/time.h>
@@ -274,6 +280,11 @@ class BASE_EXPORT Time {
 #if defined(OS_POSIX)
   static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
+#endif
+
+#if defined(OS_MACOSX)
+  static Time FromCFAbsoluteTime(CFAbsoluteTime t);
+  CFAbsoluteTime ToCFAbsoluteTime() const;
 #endif
 
 #if defined(OS_WIN)
