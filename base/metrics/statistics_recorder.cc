@@ -121,32 +121,32 @@ Histogram* StatisticsRecorder::RegisterOrDeleteDuplicate(Histogram* histogram) {
 // static
 void StatisticsRecorder::RegisterOrDeleteDuplicateRanges(Histogram* histogram) {
   DCHECK(histogram);
-  BucketRanges* histogram_ranges = histogram->bucket_ranges();
+  CachedRanges* histogram_ranges = histogram->cached_ranges();
   DCHECK(histogram_ranges);
   uint32 checksum = histogram->range_checksum();
-  histogram_ranges->set_checksum(checksum);
+  histogram_ranges->SetRangeChecksum(checksum);
 
   RangesMap::iterator ranges_it = ranges_->find(checksum);
   if (ranges_->end() == ranges_it) {
-    // Register the new BucketRanges.
-    std::list<BucketRanges*>* checksum_matching_list(
-        new std::list<BucketRanges*>());
+    // Register the new CachedRanges.
+    std::list<CachedRanges*>* checksum_matching_list(
+        new std::list<CachedRanges*>());
     checksum_matching_list->push_front(histogram_ranges);
     (*ranges_)[checksum] = checksum_matching_list;
     return;
   }
 
-  // Use the registered BucketRanges if the registered BucketRanges has same
-  // ranges_ as |histogram|'s BucketRanges.
-  std::list<BucketRanges*>* checksum_matching_list = ranges_it->second;
-  std::list<BucketRanges*>::iterator checksum_matching_list_it;
+  // Use the registered CachedRanges if the registered CachedRanges has same
+  // ranges_ as |histogram|'s CachedRanges.
+  std::list<CachedRanges*>* checksum_matching_list = ranges_it->second;
+  std::list<CachedRanges*>::iterator checksum_matching_list_it;
   for (checksum_matching_list_it = checksum_matching_list->begin();
        checksum_matching_list_it != checksum_matching_list->end();
        ++checksum_matching_list_it) {
-    BucketRanges* existing_histogram_ranges = *checksum_matching_list_it;
+    CachedRanges* existing_histogram_ranges = *checksum_matching_list_it;
     DCHECK(existing_histogram_ranges);
     if (existing_histogram_ranges->Equals(histogram_ranges)) {
-      histogram->set_bucket_ranges(existing_histogram_ranges);
+      histogram->set_cached_ranges(existing_histogram_ranges);
       ++number_of_vectors_saved_;
       saved_ranges_size_ += histogram_ranges->size();
       delete histogram_ranges;
@@ -154,8 +154,8 @@ void StatisticsRecorder::RegisterOrDeleteDuplicateRanges(Histogram* histogram) {
     }
   }
 
-  // We haven't found a BucketRanges which has the same ranges. Register the
-  // new BucketRanges.
+  // We haven't found a CachedRanges which has the same ranges. Register the
+  // new CachedRanges.
   DCHECK(checksum_matching_list_it == checksum_matching_list->end());
   checksum_matching_list->push_front(histogram_ranges);
 }
