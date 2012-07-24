@@ -786,6 +786,9 @@
     # Set to 1 to compile with the built in pdf viewer.
     'internal_pdf%': 0,
 
+    # Set to 1 to compile with the OpenGL ES 2.0 conformance tests.
+    'internal_gles2_conform_tests%': 0,
+
     # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
     # so Cocoa is happy (http://crbug.com/20441).
     'locales': [
