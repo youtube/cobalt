@@ -41,6 +41,11 @@
             ],
           },
         }],
+        ['OS == "android"', {
+          'defines': [
+            'SQLITE_TEMP_STORE=3',
+          ],
+        }],
         ['os_posix == 1 and OS != "mac" and use_system_sqlite', {
           'type': 'none',
           'direct_dependent_settings': {
