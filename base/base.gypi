@@ -203,8 +203,6 @@
           'mac/scoped_sending_event.mm',
           'mach_ipc_mac.h',
           'mach_ipc_mac.mm',
-          'memory/aligned_memory.cc',
-          'memory/aligned_memory.h',
           'memory/linked_ptr.h',
           'memory/mru_cache.h',
           'memory/raw_scoped_refptr_mismatch_checker.h',
