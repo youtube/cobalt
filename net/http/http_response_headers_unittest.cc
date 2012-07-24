@@ -1685,7 +1685,35 @@ TEST(HttpResponseHeadersTest, RemoveIndividualHeader) {
       "Content-Length: 450\n"
       "Cache-control: max-age=10000\n"
     },
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive  \n"
+      "Foo: bar, baz\n"
+      "Foo: bar\n"
+      "Cache-control: max-age=10000\n",
 
+      "Foo",
+
+      "bar, baz",  // Space in value.
+
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Foo: bar\n"
+      "Cache-control: max-age=10000\n"
+    },
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive  \n"
+      "Foo: bar, baz\n"
+      "Cache-control: max-age=10000\n",
+
+      "Foo",
+
+      "baz",  // Only partial match -> ignored.
+
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Foo: bar, baz\n"
+      "Cache-control: max-age=10000\n"
+    },
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
@@ -1696,7 +1724,7 @@ TEST(HttpResponseHeadersTest, RemoveIndividualHeader) {
 
     std::string name(tests[i].to_remove_name);
     std::string value(tests[i].to_remove_value);
-    parsed->RemoveHeaderWithValue(name, value);
+    parsed->RemoveHeaderLine(name, value);
 
     std::string resulting_headers;
     parsed->GetNormalizedHeaders(&resulting_headers);
