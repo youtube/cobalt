@@ -9,7 +9,6 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/time.h"
@@ -383,29 +382,26 @@ TEST(HistogramTest, CorruptBucketBounds) {
   EXPECT_EQ(Histogram::NO_INCONSISTENCIES, 0);
   EXPECT_EQ(0, histogram->FindCorruption(snapshot));  // No default corruption.
 
-  BucketRanges* bucket_ranges = histogram->bucket_ranges();
-  HistogramBase::Sample tmp = bucket_ranges->range(1);
-  bucket_ranges->set_range(1, bucket_ranges->range(2));
-  bucket_ranges->set_range(2, tmp);
+  CachedRanges* cached_ranges = histogram->cached_ranges();
+  std::swap(cached_ranges->ranges_[1], cached_ranges->ranges_[2]);
   EXPECT_EQ(Histogram::BUCKET_ORDER_ERROR | Histogram::RANGE_CHECKSUM_ERROR,
             histogram->FindCorruption(snapshot));
 
-  bucket_ranges->set_range(2, bucket_ranges->range(1));
-  bucket_ranges->set_range(1, tmp);
+  std::swap(cached_ranges->ranges_[1], cached_ranges->ranges_[2]);
   EXPECT_EQ(0, histogram->FindCorruption(snapshot));
 
-  bucket_ranges->set_range(3, bucket_ranges->range(3) + 1);
+  ++cached_ranges->ranges_[3];
   EXPECT_EQ(Histogram::RANGE_CHECKSUM_ERROR,
             histogram->FindCorruption(snapshot));
 
   // Show that two simple changes don't offset each other
-  bucket_ranges->set_range(4, bucket_ranges->range(4) - 1);
+  --cached_ranges->ranges_[4];
   EXPECT_EQ(Histogram::RANGE_CHECKSUM_ERROR,
             histogram->FindCorruption(snapshot));
 
   // Repair histogram so that destructor won't DCHECK().
-  bucket_ranges->set_range(3, bucket_ranges->range(3) - 1);
-  bucket_ranges->set_range(4, bucket_ranges->range(4) + 1);
+  --cached_ranges->ranges_[3];
+  ++cached_ranges->ranges_[4];
 }
 
 // Table was generated similarly to sample code for CRC-32 given on:
@@ -424,9 +420,9 @@ TEST(HistogramTest, Crc32TableTest) {
   }
 }
 
-// RangeTest, CustomRangeTest and CorruptBucketBounds test BucketRanges class.
-// The following tests sharing of BucketRanges object.
-TEST(HistogramTest, BucketRangesTest) {
+// RangeTest, CustomRangeTest and CorruptBucketBounds test CachedRanges class.
+// The following tests sharing of CachedRanges object.
+TEST(HistogramTest, CachedRangesTest) {
   StatisticsRecorder recorder;
   StatisticsRecorder::Histograms histograms;
 
@@ -442,11 +438,11 @@ TEST(HistogramTest, BucketRangesTest) {
   Histogram* histogram3(Histogram::FactoryGet(
       "Histogram3", 1, 64, 16, Histogram::kNoFlags));
 
-  BucketRanges* bucket_ranges1 = histogram1->bucket_ranges();
-  BucketRanges* bucket_ranges2 = histogram2->bucket_ranges();
-  BucketRanges* bucket_ranges3 = histogram3->bucket_ranges();
-  EXPECT_TRUE(bucket_ranges1->Equals(bucket_ranges2));
-  EXPECT_FALSE(bucket_ranges1->Equals(bucket_ranges3));
+  CachedRanges* cached_ranges1 = histogram1->cached_ranges();
+  CachedRanges* cached_ranges2 = histogram2->cached_ranges();
+  CachedRanges* cached_ranges3 = histogram3->cached_ranges();
+  EXPECT_TRUE(cached_ranges1->Equals(cached_ranges2));
+  EXPECT_FALSE(cached_ranges1->Equals(cached_ranges3));
 }
 
 }  // namespace base
