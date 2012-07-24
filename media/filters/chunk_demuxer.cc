@@ -857,6 +857,12 @@ void ChunkDemuxer::Shutdown() {
     if (video_)
       video_->Shutdown();
 
+    for (StreamParserMap::iterator it = stream_parser_map_.begin();
+         it != stream_parser_map_.end(); ++it) {
+      delete it->second;
+    }
+    stream_parser_map_.clear();
+
     ChangeState_Locked(SHUTDOWN);
   }
 
