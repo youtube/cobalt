@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -60,7 +60,16 @@ string16 FileVersionInfoMac::legal_copyright() {
 }
 
 string16 FileVersionInfoMac::product_version() {
+  // On OS X, CFBundleVersion is used by LaunchServices, and must follow
+  // specific formatting rules, so the four-part Chrome version is in
+  // CFBundleShortVersionString. On iOS, however, CFBundleVersion can be the
+  // full version, but CFBundleShortVersionString has a policy-enfoced limit
+  // of three version components.
+#if defined(OS_IOS)
+  return GetString16Value(CFSTR("CFBundleVersion"));
+#else
   return GetString16Value(CFSTR("CFBundleShortVersionString"));
+#endif  // defined(OS_IOS)
 }
 
 string16 FileVersionInfoMac::file_description() {
