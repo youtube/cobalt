@@ -6,6 +6,7 @@
 #include "base/scoped_temp_dir.h"
 #include "sql/connection.h"
 #include "sql/statement.h"
+#include "sql/meta_table.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/sqlite/sqlite3.h"
 
@@ -258,6 +259,19 @@ TEST_F(SQLConnectionTest, RazeLocked) {
   ASSERT_FALSE(s.Step());
   ASSERT_TRUE(db().Raze());
 }
+
+#if defined(OS_ANDROID)
+TEST_F(SQLConnectionTest, SetTempDirForSQL) {
+
+  sql::MetaTable meta_table;
+  // Below call needs a temporary directory in sqlite3
+  // On Android, it can pass only when the temporary directory is set.
+  // Otherwise, sqlite3 doesn't find the correct directory to store
+  // temporary files and will report the error 'unable to open
+  // database file'.
+  ASSERT_TRUE(meta_table.Init(&db(), 4, 4));
+}
+#endif
 
 // TODO(shess): Spin up a background thread to hold other_db, to more
 // closely match real life.  That would also allow testing

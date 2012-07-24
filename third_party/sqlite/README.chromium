@@ -192,3 +192,4 @@ Changes from Chrome:
  - fts3_85522.patch allows fts3 to work if PRAGMA is not authorized.
  - src/recover.c file implements a virtual table which can read
    through corruption.
+ - Enable the macro 'SQLITE_TEMP_STORE=3' for Android.
