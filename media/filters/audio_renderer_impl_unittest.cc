@@ -70,9 +70,9 @@ class AudioRendererImplTest : public ::testing::Test {
         .WillByDefault(Return(0));
   }
 
-  MOCK_METHOD1(OnSeekComplete, void(PipelineStatus));
-  PipelineStatusCB NewSeekCB() {
-    return base::Bind(&AudioRendererImplTest::OnSeekComplete,
+  MOCK_METHOD1(OnPrerollComplete, void(PipelineStatus));
+  PipelineStatusCB NewPrerollCB() {
+    return base::Bind(&AudioRendererImplTest::OnPrerollComplete,
                       base::Unretained(this));
   }
 
@@ -106,12 +106,10 @@ class AudioRendererImplTest : public ::testing::Test {
   }
 
   void Preroll() {
-    // Seek to trigger prerolling.
-    EXPECT_CALL(*decoder_, Read(_));
-    renderer_->Seek(base::TimeDelta(), NewSeekCB());
-
     // Fill entire buffer to complete prerolling.
-    EXPECT_CALL(*this, OnSeekComplete(PIPELINE_OK));
+    EXPECT_CALL(*decoder_, Read(_));
+    renderer_->Preroll(base::TimeDelta(), NewPrerollCB());
+    EXPECT_CALL(*this, OnPrerollComplete(PIPELINE_OK));
     DeliverRemainingAudio();
   }
 
@@ -120,15 +118,13 @@ class AudioRendererImplTest : public ::testing::Test {
     renderer_->SetPlaybackRate(1.0f);
   }
 
-  void Seek(base::TimeDelta seek_time) {
-    next_timestamp_ = seek_time;
-
-    // Seek to trigger prerolling.
-    EXPECT_CALL(*decoder_, Read(_));
-    renderer_->Seek(seek_time, NewSeekCB());
+  void Preroll(base::TimeDelta preroll_time) {
+    next_timestamp_ = preroll_time;
 
     // Fill entire buffer to complete prerolling.
-    EXPECT_CALL(*this, OnSeekComplete(PIPELINE_OK));
+    EXPECT_CALL(*decoder_, Read(_));
+    renderer_->Preroll(preroll_time, NewPrerollCB());
+    EXPECT_CALL(*this, OnPrerollComplete(PIPELINE_OK));
     DeliverRemainingAudio();
   }
 
@@ -387,17 +383,16 @@ TEST_F(AudioRendererImplTest, Underflow_ResumeFromCallback) {
 TEST_F(AudioRendererImplTest, AbortPendingRead_Preroll) {
   Initialize();
 
-  // Seek to trigger prerolling.
+  // Start prerolling.
   EXPECT_CALL(*decoder_, Read(_));
-  renderer_->Seek(base::TimeDelta(), NewSeekCB());
+  renderer_->Preroll(base::TimeDelta(), NewPrerollCB());
 
   // Simulate the decoder aborting the pending read.
-  EXPECT_CALL(*this, OnSeekComplete(PIPELINE_OK));
+  EXPECT_CALL(*this, OnPrerollComplete(PIPELINE_OK));
   AbortPendingRead();
 
-  // Seek to trigger another preroll and verify it completes
-  // normally.
-  Seek(base::TimeDelta::FromSeconds(1));
+  // Preroll again to verify it completed normally.
+  Preroll(base::TimeDelta::FromSeconds(1));
 
   ASSERT_TRUE(read_cb_.is_null());
 }
@@ -416,7 +411,7 @@ TEST_F(AudioRendererImplTest, AbortPendingRead_Pause) {
 
   AbortPendingRead();
 
-  Seek(base::TimeDelta::FromSeconds(1));
+  Preroll(base::TimeDelta::FromSeconds(1));
 }
 
 }  // namespace media

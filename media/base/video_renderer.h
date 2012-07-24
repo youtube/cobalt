@@ -75,9 +75,8 @@ class MEDIA_EXPORT VideoRenderer
   // |callback| when completed.
   //
   // Only valid to call after a successful Initialize() or Flush().
-  //
-  // TODO(scherkus): rename this to Preroll().
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& callback) = 0;
+  virtual void Preroll(base::TimeDelta time,
+                       const PipelineStatusCB& callback) = 0;
 
   // Stop all operations in preparation for being deleted, executing |callback|
   // when complete.

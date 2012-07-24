@@ -102,15 +102,16 @@ void AudioRendererImpl::Stop(const base::Closure& callback) {
   }
 }
 
-void AudioRendererImpl::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
+void AudioRendererImpl::Preroll(base::TimeDelta time,
+                                const PipelineStatusCB& cb) {
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(kPaused, state_);
   DCHECK(!pending_read_) << "Pending read must complete before seeking";
   DCHECK(pause_cb_.is_null());
-  DCHECK(seek_cb_.is_null());
-  state_ = kSeeking;
-  seek_cb_ = cb;
-  seek_timestamp_ = time;
+  DCHECK(preroll_cb_.is_null());
+  state_ = kPrerolling;
+  preroll_cb_ = cb;
+  preroll_timestamp_ = time;
 
   // Throw away everything and schedule our reads.
   audio_time_buffered_ = kNoTimestamp();
@@ -124,13 +125,8 @@ void AudioRendererImpl::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
   if (stopped_)
     return;
 
-  DoSeek();
-}
-
-void AudioRendererImpl::DoSeek() {
+  // Pause and flush the stream when we preroll to a new location.
   earliest_end_time_ = base::Time::Now();
-
-  // Pause and flush the stream when we seek to a new location.
   sink_->Pause(true);
 }
 
@@ -236,7 +232,7 @@ AudioRendererImpl::~AudioRendererImpl() {
 void AudioRendererImpl::DecodedAudioReady(AudioDecoder::Status status,
                                           const scoped_refptr<Buffer>& buffer) {
   base::AutoLock auto_lock(lock_);
-  DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying ||
+  DCHECK(state_ == kPaused || state_ == kPrerolling || state_ == kPlaying ||
          state_ == kUnderflow || state_ == kRebuffering || state_ == kStopped);
 
   CHECK(pending_read_);
@@ -274,8 +270,8 @@ void AudioRendererImpl::DecodedAudioReady(AudioDecoder::Status status,
       DCHECK(!pending_read_);
       base::ResetAndReturn(&pause_cb_).Run();
       return;
-    case kSeeking:
-      if (IsBeforeSeekTime(buffer)) {
+    case kPrerolling:
+      if (IsBeforePrerollTime(buffer)) {
         ScheduleRead_Locked();
         return;
       }
@@ -285,7 +281,7 @@ void AudioRendererImpl::DecodedAudioReady(AudioDecoder::Status status,
           return;
       }
       state_ = kPaused;
-      base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
+      base::ResetAndReturn(&preroll_cb_).Run(PIPELINE_OK);
       return;
     case kPlaying:
     case kUnderflow:
@@ -333,9 +329,10 @@ float AudioRendererImpl::GetPlaybackRate() {
   return algorithm_->playback_rate();
 }
 
-bool AudioRendererImpl::IsBeforeSeekTime(const scoped_refptr<Buffer>& buffer) {
-  return (state_ == kSeeking) && buffer && !buffer->IsEndOfStream() &&
-      (buffer->GetTimestamp() + buffer->GetDuration()) < seek_timestamp_;
+bool AudioRendererImpl::IsBeforePrerollTime(
+    const scoped_refptr<Buffer>& buffer) {
+  return (state_ == kPrerolling) && buffer && !buffer->IsEndOfStream() &&
+      (buffer->GetTimestamp() + buffer->GetDuration()) < preroll_timestamp_;
 }
 
 int AudioRendererImpl::Render(const std::vector<float*>& audio_data,
@@ -539,9 +536,9 @@ void AudioRendererImpl::HandleAbortedReadOrDecodeError(bool is_decode_error) {
         error_cb_.Run(status);
       base::ResetAndReturn(&pause_cb_).Run();
       return;
-    case kSeeking:
+    case kPrerolling:
       state_ = kPaused;
-      base::ResetAndReturn(&seek_cb_).Run(status);
+      base::ResetAndReturn(&preroll_cb_).Run(status);
       return;
     case kPlaying:
     case kUnderflow:
