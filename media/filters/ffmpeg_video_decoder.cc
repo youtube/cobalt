@@ -233,9 +233,19 @@ void FFmpegVideoDecoder::Stop(const base::Closure& closure) {
     return;
   }
 
+  stop_cb_ = closure;
+
+  // Defer stopping if a read is pending.
+  if (!read_cb_.is_null())
+    return;
+
+  DoStop();
+}
+
+void FFmpegVideoDecoder::DoStop() {
   ReleaseFFmpegResources();
   state_ = kUninitialized;
-  closure.Run();
+  base::ResetAndReturn(&stop_cb_).Run();
 }
 
 const gfx::Size& FFmpegVideoDecoder::natural_size() {
@@ -298,6 +308,12 @@ void FFmpegVideoDecoder::DoDecryptOrDecodeBuffer(
   DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kDecodeFinished);
   DCHECK(!read_cb_.is_null());
+
+  if (!stop_cb_.is_null()) {
+    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
+    DoStop();
+    return;
+  }
 
   if (!reset_cb_.is_null()) {
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
