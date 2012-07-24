@@ -43,6 +43,20 @@ ChromeClassTester::ChromeClassTester(CompilerInstance& instance)
 ChromeClassTester::~ChromeClassTester() {}
 
 void ChromeClassTester::HandleTagDeclDefinition(TagDecl* tag) {
+  // Defer processing of this tag until its containing top-level
+  // declaration has been fully parsed. See crbug.com/136863.
+  pending_class_decls_.push_back(tag);
+}
+
+bool ChromeClassTester::HandleTopLevelDecl(DeclGroupRef D) {
+  for (size_t i = 0; i < pending_class_decls_.size(); ++i)
+    CheckTag(pending_class_decls_[i]);
+  pending_class_decls_.clear();
+
+  return true;  // true means continue parsing.
+}
+
+void ChromeClassTester::CheckTag(TagDecl* tag) {
   // We handle class types here where we have semantic information. We can only
   // check structs/classes/enums here, but we get a bunch of nice semantic
   // information instead of just parsing information.
