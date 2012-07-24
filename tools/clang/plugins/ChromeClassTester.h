@@ -23,6 +23,7 @@ class ChromeClassTester : public clang::ASTConsumer {
 
   // clang::ASTConsumer:
   virtual void HandleTagDeclDefinition(clang::TagDecl* tag);
+  virtual bool HandleTopLevelDecl(clang::DeclGroupRef);
 
  protected:
   clang::CompilerInstance& instance() { return instance_; }
@@ -47,6 +48,8 @@ class ChromeClassTester : public clang::ASTConsumer {
 
  private:
   void BuildBannedLists();
+
+  void CheckTag(clang::TagDecl*);
 
   // Filtered versions of tags that are only called with things defined in
   // chrome header files.
@@ -75,6 +78,9 @@ class ChromeClassTester : public clang::ASTConsumer {
 
   // List of types that we don't check.
   std::set<std::string> ignored_record_names_;
+
+  // List of decls to check once the current top-level decl is parsed.
+  std::vector<clang::TagDecl*> pending_class_decls_;
 };
 
 #endif  // TOOLS_CLANG_PLUGINS_CHROMECLASSTESTER_H_
