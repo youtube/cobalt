@@ -66,21 +66,22 @@ static bool CheckData(const DecoderBuffer& input,
   if (!hmac.Init(hmac_key))
     return false;
 
-  // The HMAC covers the IV and the frame data.
+  // The component that initializes |input.GetDecryptConfig()| is responsible
+  // for checking that |input.GetDecryptConfig()->checksum_size()| matches
+  // what is defined by the format.
+
+  // Here, check that checksum size is not greater than the hash
+  // algorithm's digest length.
+  DCHECK_LE(input.GetDecryptConfig()->checksum_size(),
+            static_cast<int>(hmac.DigestLength()));
+
   base::StringPiece data_to_check(
       reinterpret_cast<const char*>(input.GetData()), input.GetDataSize());
+  base::StringPiece digest(
+      reinterpret_cast<const char*>(input.GetDecryptConfig()->checksum()),
+      input.GetDecryptConfig()->checksum_size());
 
-  scoped_array<uint8> calculated_hmac(new uint8[hmac.DigestLength()]);
-  if (!hmac.Sign(data_to_check, calculated_hmac.get(), hmac.DigestLength()))
-    return false;
-
-  DCHECK(input.GetDecryptConfig()->checksum_size() <=
-         static_cast<int>(hmac.DigestLength()));
-  if (memcmp(input.GetDecryptConfig()->checksum(),
-             calculated_hmac.get(),
-             input.GetDecryptConfig()->checksum_size()) != 0)
-    return false;
-  return true;
+  return hmac.VerifyTruncated(data_to_check, digest);
 }
 
 // Decrypts |input| using |key|. |encrypted_data_offset| is the number of bytes
