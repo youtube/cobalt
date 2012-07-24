@@ -751,10 +751,6 @@
               ],
             }],
           ],
-        }, {  # OS!=android
-          'dependencies': [
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-          ],
         }],
         ['OS == "linux"', {
           'conditions': [
