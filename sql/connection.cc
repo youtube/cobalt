@@ -61,6 +61,11 @@ Connection::StatementRef::StatementRef()
       stmt_(NULL) {
 }
 
+Connection::StatementRef::StatementRef(sqlite3_stmt* stmt)
+    : connection_(NULL),
+      stmt_(stmt) {
+}
+
 Connection::StatementRef::StatementRef(Connection* connection,
                                        sqlite3_stmt* stmt)
     : connection_(connection),
@@ -343,15 +348,30 @@ scoped_refptr<Connection::StatementRef> Connection::GetCachedStatement(
 scoped_refptr<Connection::StatementRef> Connection::GetUniqueStatement(
     const char* sql) {
   if (!db_)
-    return new StatementRef(this, NULL);  // Return inactive statement.
+    return new StatementRef();  // Return inactive statement.
 
   sqlite3_stmt* stmt = NULL;
   if (sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL) != SQLITE_OK) {
     // This is evidence of a syntax error in the incoming SQL.
     DLOG(FATAL) << "SQL compile error " << GetErrorMessage();
-    return new StatementRef(this, NULL);
+    return new StatementRef();
   }
   return new StatementRef(this, stmt);
+}
+
+scoped_refptr<Connection::StatementRef> Connection::GetUntrackedStatement(
+    const char* sql) const {
+  if (!db_)
+    return new StatementRef();  // Return inactive statement.
+
+  sqlite3_stmt* stmt = NULL;
+  int rc = sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL);
+  if (rc != SQLITE_OK) {
+    // This is evidence of a syntax error in the incoming SQL.
+    DLOG(FATAL) << "SQL compile error " << GetErrorMessage();
+    return new StatementRef();
+  }
+  return new StatementRef(stmt);
 }
 
 bool Connection::IsSQLValid(const char* sql) {
@@ -373,11 +393,8 @@ bool Connection::DoesIndexExist(const char* index_name) const {
 
 bool Connection::DoesTableOrIndexExist(
     const char* name, const char* type) const {
-  // GetUniqueStatement can't be const since statements may modify the
-  // database, but we know ours doesn't modify it, so the cast is safe.
-  Statement statement(const_cast<Connection*>(this)->GetUniqueStatement(
-      "SELECT name FROM sqlite_master "
-      "WHERE type=? AND name=?"));
+  const char* kSql = "SELECT name FROM sqlite_master WHERE type=? AND name=?";
+  Statement statement(GetUntrackedStatement(kSql));
   statement.BindString(0, type);
   statement.BindString(1, name);
 
@@ -390,10 +407,7 @@ bool Connection::DoesColumnExist(const char* table_name,
   sql.append(table_name);
   sql.append(")");
 
-  // Our SQL is non-mutating, so this cast is OK.
-  Statement statement(const_cast<Connection*>(this)->GetUniqueStatement(
-      sql.c_str()));
-
+  Statement statement(GetUntrackedStatement(sql.c_str()));
   while (statement.Step()) {
     if (!statement.ColumnString(1).compare(column_name))
       return true;
