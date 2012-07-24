@@ -408,69 +408,56 @@ TEST_F(CertVerifyProcTest, DigiNotarCerts) {
   }
 }
 
-// Bug 111893: This test needs a new certificate.
-TEST_F(CertVerifyProcTest, DISABLED_TestKnownRoot) {
+TEST_F(CertVerifyProcTest, TestKnownRoot) {
   FilePath certs_dir = GetTestCertsDirectory();
-  scoped_refptr<X509Certificate> cert =
-      ImportCertFromFile(certs_dir, "nist.der");
-  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
-
-  // This intermediate is only needed for old Linux machines. Modern NSS
-  // includes it as a root already.
-  scoped_refptr<X509Certificate> intermediate_cert =
-      ImportCertFromFile(certs_dir, "nist_intermediate.der");
-  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+  CertificateList certs = CreateCertificateListFromFile(
+      certs_dir, "certse.pem", X509Certificate::FORMAT_AUTO);
+  ASSERT_EQ(3U, certs.size());
 
   X509Certificate::OSCertHandles intermediates;
-  intermediates.push_back(intermediate_cert->os_cert_handle());
+  intermediates.push_back(certs[1]->os_cert_handle());
+  intermediates.push_back(certs[2]->os_cert_handle());
+
   scoped_refptr<X509Certificate> cert_chain =
-      X509Certificate::CreateFromHandle(cert->os_cert_handle(),
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
                                         intermediates);
 
   int flags = 0;
   CertVerifyResult verify_result;
-  // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
-  // against agl. Also see PublicKeyHashes in this file.
-  int error = Verify(cert_chain, "www.nist.gov", flags, NULL, &verify_result);
+  // This will blow up, June 8th, 2014. Sorry! Please disable and file a bug
+  // against agl. See also PublicKeyHashes.
+  int error = Verify(cert_chain, "cert.se", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   EXPECT_TRUE(verify_result.is_issued_by_known_root);
 }
 
-// Bug 111893: This test needs a new certificate.
-TEST_F(CertVerifyProcTest, DISABLED_PublicKeyHashes) {
+TEST_F(CertVerifyProcTest, PublicKeyHashes) {
   FilePath certs_dir = GetTestCertsDirectory();
-  // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
-  // against agl. Also see TestKnownRoot in this file.
-  scoped_refptr<X509Certificate> cert =
-      ImportCertFromFile(certs_dir, "nist.der");
-  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
-
-  // This intermediate is only needed for old Linux machines. Modern NSS
-  // includes it as a root already.
-  scoped_refptr<X509Certificate> intermediate_cert =
-      ImportCertFromFile(certs_dir, "nist_intermediate.der");
-  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
-
-  ScopedTestRoot scoped_intermediate(intermediate_cert);
+  CertificateList certs = CreateCertificateListFromFile(
+      certs_dir, "certse.pem", X509Certificate::FORMAT_AUTO);
+  ASSERT_EQ(3U, certs.size());
 
   X509Certificate::OSCertHandles intermediates;
-  intermediates.push_back(intermediate_cert->os_cert_handle());
-  scoped_refptr<X509Certificate> cert_chain =
-      X509Certificate::CreateFromHandle(cert->os_cert_handle(),
-                                        intermediates);
+  intermediates.push_back(certs[1]->os_cert_handle());
+  intermediates.push_back(certs[2]->os_cert_handle());
 
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
+                                        intermediates);
   int flags = 0;
   CertVerifyResult verify_result;
 
-  int error = Verify(cert_chain, "www.nist.gov", flags, NULL, &verify_result);
+  // This will blow up, June 8th, 2014. Sorry! Please disable and file a bug
+  // against agl. See also TestKnownRoot.
+  int error = Verify(cert_chain, "cert.se", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
-  ASSERT_LE(2u, verify_result.public_key_hashes.size());
-  EXPECT_EQ(HexEncode(kNistSPKIHash, base::kSHA1Length),
-      HexEncode(verify_result.public_key_hashes[0].data, base::kSHA1Length));
-  EXPECT_EQ("83244223D6CBF0A26FC7DE27CEBCA4BDA32612AD",
-      HexEncode(verify_result.public_key_hashes[1].data, base::kSHA1Length));
+  ASSERT_LE(3u, verify_result.public_key_hashes.size());
+  for (unsigned i = 0; i < 3; i++) {
+    EXPECT_EQ(HexEncode(kCertSESPKIs[i], base::kSHA1Length),
+        HexEncode(verify_result.public_key_hashes[i].data, base::kSHA1Length));
+  }
 }
 
 // A regression test for http://crbug.com/70293.
