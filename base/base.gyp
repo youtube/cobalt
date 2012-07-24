@@ -433,6 +433,7 @@
         'message_loop_unittest.cc',
         'message_pump_glib_unittest.cc',
         'message_pump_libevent_unittest.cc',
+        'metrics/bucket_ranges_unittest.cc',
         'metrics/field_trial_unittest.cc',
         'metrics/histogram_unittest.cc',
         'metrics/stats_table_unittest.cc',
@@ -563,7 +564,7 @@
             # TODO(ios): Remove these as base/ is unforked.
             # For now, exclude everything that doesn't build as-is, just to
             # get a minimal target building.
-	    # Unittests that don't pass.
+            # Unittests that don't pass.
             ['exclude', '^message_loop_unittest\\.cc$'],
           ],
           'actions': [
