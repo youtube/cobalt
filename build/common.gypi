@@ -879,6 +879,7 @@
         'disable_nacl%': 1,
         'use_system_bzip2%': 1,
         'use_system_libxml%': 1,
+        'use_system_sqlite%': 1,
       }],
       ['OS=="android"', {
         # Location of Android NDK.
