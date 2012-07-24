@@ -19,7 +19,6 @@ URLFetcherDownloadProgressTest.Basic
 URLFetcherUploadProgressTest.Basic
 URLFetcherStopOnRedirectTest.StopOnRedirect
 BaseFileTest.ReadonlyBaseFile
-GPUTestConfigTest.LoadCurrentConfig
 URLFetcherFileTest.SmallGet
 URLFetcherFileTest.LargeGet
 URLFetcherFileTest.CanTakeOwnershipOfFile
