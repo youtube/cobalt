@@ -2540,6 +2540,7 @@
               '-pthread',  # Not supported by Android toolchain.
             ],
             'cflags': [
+              '-U__linux__',  # Don't allow toolchain to claim -D__linux__
               '-ffunction-sections',
               '-funwind-tables',
               '-g',
