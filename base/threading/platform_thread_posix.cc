@@ -87,7 +87,7 @@ bool CreateThread(size_t stack_size, bool joinable,
     pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
   }
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) && !defined(OS_IOS)
   // The Mac OS X default for a pthread stack size is 512kB.
   // Libc-594.1.4/pthreads/pthread.c's pthread_attr_init uses
   // DEFAULT_STACK_SIZE for this purpose.
@@ -116,7 +116,7 @@ bool CreateThread(size_t stack_size, bool joinable,
                             static_cast<size_t>(stack_rlimit.rlim_cur));
     }
   }
-#endif  // OS_MACOSX
+#endif  // OS_MACOSX && !OS_IOS
 
   if (stack_size > 0)
     pthread_attr_setstacksize(&attributes, stack_size);
