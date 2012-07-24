@@ -455,7 +455,7 @@ BASE_EXPORT bool VerifyPathControlledByUser(const FilePath& base,
 // "admin", are not writable by all users, and contain no symbolic links.
 // Will return false if |path| does not exist.
 BASE_EXPORT bool VerifyPathControlledByAdmin(const FilePath& path);
-#endif  // defined(OS_MACOSX)
+#endif  // defined(OS_MACOSX) && !defined(OS_IOS)
 
 // A class to handle auto-closing of FILE*'s.
 class ScopedFILEClose {

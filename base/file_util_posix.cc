@@ -1155,6 +1155,6 @@ bool VerifyPathControlledByAdmin(const FilePath& path) {
   return VerifyPathControlledByUser(
       kFileSystemRoot, path, kRootUid, allowed_group_ids);
 }
-#endif  // defined(OS_MACOSX)
+#endif  // defined(OS_MACOSX) && !defined(OS_IOS)
 
 }  // namespace file_util
