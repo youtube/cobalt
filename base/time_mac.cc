@@ -47,10 +47,23 @@ const int64 Time::kTimeTToMicrosecondsOffset = kWindowsEpochDeltaMicroseconds;
 
 // static
 Time Time::Now() {
-  CFAbsoluteTime now =
-      CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
-  return Time(static_cast<int64>(now * kMicrosecondsPerSecond) +
+  return FromCFAbsoluteTime(CFAbsoluteTimeGetCurrent());
+}
+
+// static
+Time Time::FromCFAbsoluteTime(CFAbsoluteTime t) {
+  if (t == 0)
+    return Time();  // Consider 0 as a null Time.
+  return Time(static_cast<int64>(
+      (t + kCFAbsoluteTimeIntervalSince1970) * kMicrosecondsPerSecond) +
       kWindowsEpochDeltaMicroseconds);
+}
+
+CFAbsoluteTime Time::ToCFAbsoluteTime() const {
+  if (is_null())
+    return 0;  // Consider 0 as a null Time.
+  return (static_cast<CFAbsoluteTime>(us_ - kWindowsEpochDeltaMicroseconds) /
+      kMicrosecondsPerSecond) - kCFAbsoluteTimeIntervalSince1970;
 }
 
 // static
