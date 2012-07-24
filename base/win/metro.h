@@ -67,6 +67,9 @@ BASE_EXPORT bool IsTouchEnabled();
 // This function should ideally be called on the UI thread.
 BASE_EXPORT bool IsParentalControlActivityLoggingOn();
 
+// Handler function for the buttons on a metro dialog box
+typedef void (*MetroDialogButtonPressedHandler)();
+
 }  // namespace win
 }  // namespace base
 
