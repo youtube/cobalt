@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -338,6 +338,7 @@ class SQL_EXPORT Connection {
    public:
     // Default constructor initializes to an invalid statement.
     StatementRef();
+    explicit StatementRef(sqlite3_stmt* stmt);
     StatementRef(Connection* connection, sqlite3_stmt* stmt);
 
     // When true, the statement can be used.
@@ -386,6 +387,14 @@ class SQL_EXPORT Connection {
   // Like |Execute()|, but retries if the database is locked.
   bool ExecuteWithTimeout(const char* sql, base::TimeDelta ms_timeout)
       WARN_UNUSED_RESULT;
+
+  // Internal helper for const functions.  Like GetUniqueStatement(),
+  // except the statement is not entered into open_statements_,
+  // allowing this function to be const.  Open statements can block
+  // closing the database, so only use in cases where the last ref is
+  // released before close could be called (which should always be the
+  // case for const functions).
+  scoped_refptr<StatementRef> GetUntrackedStatement(const char* sql) const;
 
   // The actual sqlite database. Will be NULL before Init has been called or if
   // Init resulted in an error.
