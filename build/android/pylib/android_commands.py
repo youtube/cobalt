@@ -84,6 +84,13 @@ def GetEmulators():
   return devices
 
 
+def GetAVDs():
+  """Returns a list of AVDs."""
+  re_avd = re.compile('^[ ]+Name: ([a-zA-Z0-9_:.-]+)', re.MULTILINE)
+  avds = re_avd.findall(cmd_helper.GetCmdOutput(['android', 'list', 'avd']))
+  return avds
+
+
 def GetAttachedDevices():
   """Returns a list of attached, online android devices.
 
