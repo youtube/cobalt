@@ -21,7 +21,7 @@
 
 namespace base {
 
-class CachedRanges;
+class BucketRanges;
 class Histogram;
 class Lock;
 
@@ -41,12 +41,12 @@ class BASE_EXPORT StatisticsRecorder {
   // histogram (either the argument, or the pre-existing registered histogram).
   static Histogram* RegisterOrDeleteDuplicate(Histogram* histogram);
 
-  // Register, or add a new cached_ranges_ of |histogram|. If an identical
-  // cached_ranges_ is already registered, then the cached_ranges_ of
-  // |histogram| is deleted and the |histogram|'s cached_ranges_ is reset to the
-  // registered cached_ranges_.  The cached_ranges_ of |histogram| is always the
-  // registered CachedRanges (either the argument's cached_ranges_, or the
-  // pre-existing registered cached_ranges_).
+  // Register, or add a new bucket_ranges_ of |histogram|. If an identical
+  // bucket_ranges_ is already registered, then the bucket_ranges_ of
+  // |histogram| is deleted and the |histogram|'s bucket_ranges_ is reset to the
+  // registered bucket_ranges_.  The bucket_ranges_ of |histogram| is always the
+  // registered BucketRanges (either the argument's bucket_ranges_, or the
+  // pre-existing registered bucket_ranges_).
   static void RegisterOrDeleteDuplicateRanges(Histogram* histogram);
 
   // Method for collecting stats about histograms created in browser and
@@ -81,10 +81,10 @@ class BASE_EXPORT StatisticsRecorder {
   // We keep all registered histograms in a map, from name to histogram.
   typedef std::map<std::string, Histogram*> HistogramMap;
 
-  // We keep all |cached_ranges_| in a map, from checksum to a list of
-  // |cached_ranges_|.  Checksum is calculated from the |ranges_| in
-  // |cached_ranges_|.
-  typedef std::map<uint32, std::list<CachedRanges*>*> RangesMap;
+  // We keep all |bucket_ranges_| in a map, from checksum to a list of
+  // |bucket_ranges_|.  Checksum is calculated from the |ranges_| in
+  // |bucket_ranges_|.
+  typedef std::map<uint32, std::list<BucketRanges*>*> RangesMap;
 
   friend struct DefaultLazyInstanceTraits<StatisticsRecorder>;
 
@@ -93,7 +93,7 @@ class BASE_EXPORT StatisticsRecorder {
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, RecordedStartupTest);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, RangeTest);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CustomRangeTest);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, CachedRangesTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, BucketRangesTest);
 
   StatisticsRecorder();
 
