@@ -426,6 +426,7 @@ def main(argv):
     option_parser.print_usage()
     sys.exit(1)
   run_tests_helper.SetLogLevel(options.verbose_count)
+  emulator.DeleteAllTempAVDs()
   failed_tests_count = Dispatch(options)
 
   # Failures of individual test suites are communicated by printing a
