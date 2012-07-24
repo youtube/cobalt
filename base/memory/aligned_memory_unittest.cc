@@ -51,33 +51,4 @@ TEST(AlignedMemoryTest, StackAlignment) {
 #endif  // !(defined(OS_IOS) && defined(ARCH_CPU_ARM_FAMILY))
 }
 
-TEST(AlignedMemoryTest, DynamicAllocation) {
-  void* p = base::AlignedAlloc(8, 8);
-  EXPECT_TRUE(p);
-  EXPECT_ALIGNED(p, 8);
-  base::AlignedFree(p);
-
-  p = base::AlignedAlloc(8, 16);
-  EXPECT_TRUE(p);
-  EXPECT_ALIGNED(p, 16);
-  base::AlignedFree(p);
-
-  p = base::AlignedAlloc(8, 256);
-  EXPECT_TRUE(p);
-  EXPECT_ALIGNED(p, 256);
-  base::AlignedFree(p);
-
-  p = base::AlignedAlloc(8, 4096);
-  EXPECT_TRUE(p);
-  EXPECT_ALIGNED(p, 4096);
-  base::AlignedFree(p);
-}
-
-TEST(AlignedMemoryTest, ScopedDynamicAllocation) {
-  scoped_ptr_malloc<float, base::ScopedPtrAlignedFree> p(
-      static_cast<float*>(base::AlignedAlloc(8, 8)));
-  EXPECT_TRUE(p.get());
-  EXPECT_ALIGNED(p.get(), 8);
-}
-
 }  // namespace
