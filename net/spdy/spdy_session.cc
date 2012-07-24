@@ -166,12 +166,14 @@ Value* NetLogSpdyPingCallback(uint32 unique_id,
 Value* NetLogSpdyGoAwayCallback(SpdyStreamId last_stream_id,
                                 int active_streams,
                                 int unclaimed_streams,
+                                SpdyGoAwayStatus status,
                                 NetLog::LogLevel /* log_level */) {
   DictionaryValue* dict = new DictionaryValue();
   dict->SetInteger("last_accepted_stream_id",
                    static_cast<int>(last_stream_id));
   dict->SetInteger("active_streams", active_streams);
   dict->SetInteger("unclaimed_streams", unclaimed_streams);
+  dict->SetInteger("status", static_cast<int>(status));
   return dict;
 }
 
@@ -1319,7 +1321,7 @@ void SpdySession::OnSynStream(SpdyStreamId stream_id,
     std::string description = base::StringPrintf(
         "Received invalid OnSyn associated stream id %d for stream %d",
         associated_stream_id, stream_id);
-    ResetStream(stream_id, INVALID_STREAM, description);
+    ResetStream(stream_id, REFUSED_STREAM, description);
     return;
   }
 
@@ -1533,7 +1535,8 @@ void SpdySession::OnGoAway(SpdyStreamId last_accepted_stream_id,
       base::Bind(&NetLogSpdyGoAwayCallback,
                  last_accepted_stream_id,
                  active_streams_.size(),
-                 unclaimed_pushed_streams_.size()));
+                 unclaimed_pushed_streams_.size(),
+                 status));
   RemoveFromPool();
   CloseAllStreams(net::ERR_ABORTED);
 
