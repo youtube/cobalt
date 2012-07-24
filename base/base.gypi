@@ -234,8 +234,6 @@
           'message_pump_default.h',
           'message_pump_win.cc',
           'message_pump_win.h',
-          'metrics/bucket_ranges.cc',
-          'metrics/bucket_ranges.h',
           'metrics/histogram.cc',
           'metrics/histogram.h',
           'metrics/histogram_base.cc',
