@@ -27,7 +27,7 @@ class MEDIA_EXPORT AudioRenderer
   //
   // |underflow_cb| is executed when the renderer runs out of data to pass to
   // the audio card during playback. ResumeAfterUnderflow() must be called
-  // to resume playback. Pause(), Seek(), or Stop() cancels the underflow
+  // to resume playback. Pause(), Preroll(), or Stop() cancels the underflow
   // condition.
   //
   // |time_cb| is executed whenever time has advanced by way of audio rendering.
@@ -62,9 +62,8 @@ class MEDIA_EXPORT AudioRenderer
   // |callback| when completed.
   //
   // Only valid to call after a successful Initialize() or Flush().
-  //
-  // TODO(scherkus): rename this to Preroll().
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& callback) = 0;
+  virtual void Preroll(base::TimeDelta time,
+                       const PipelineStatusCB& callback) = 0;
 
   // Stop all operations in preparation for being deleted, executing |callback|
   // when complete.

@@ -94,15 +94,16 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
   playback_rate_ = playback_rate;
 }
 
-void VideoRendererBase::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
+void VideoRendererBase::Preroll(base::TimeDelta time,
+                                const PipelineStatusCB& cb) {
   base::AutoLock auto_lock(lock_);
-  DCHECK_EQ(state_, kFlushed) << "Must flush prior to seeking.";
+  DCHECK_EQ(state_, kFlushed) << "Must flush prior to prerolling.";
   DCHECK(!cb.is_null());
-  DCHECK(seek_cb_.is_null());
+  DCHECK(preroll_cb_.is_null());
 
-  state_ = kSeeking;
-  seek_cb_ = cb;
-  seek_timestamp_ = time;
+  state_ = kPrerolling;
+  preroll_cb_ = cb;
+  preroll_timestamp_ = time;
   AttemptRead_Locked();
 }
 
@@ -140,7 +141,7 @@ void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
 
   // We're all good!  Consider ourselves flushed. (ThreadMain() should never
   // see us in the kUninitialized state).
-  // Since we had an initial Seek, we consider ourself flushed, because we
+  // Since we had an initial Preroll(), we consider ourself flushed, because we
   // have not populated any buffers yet.
   state_ = kFlushed;
 
@@ -386,8 +387,8 @@ void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
     if (status == VideoDecoder::kDecryptError)
       error = PIPELINE_ERROR_DECRYPT;
 
-    if (!seek_cb_.is_null()) {
-      base::ResetAndReturn(&seek_cb_).Run(error);
+    if (!preroll_cb_.is_null()) {
+      base::ResetAndReturn(&preroll_cb_).Run(error);
       return;
     }
 
@@ -407,20 +408,20 @@ void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
   }
 
   if (!frame) {
-    if (state_ != kSeeking)
+    if (state_ != kPrerolling)
       return;
 
-    // Abort seek early for a NULL frame because we won't get more frames.
-    // A new seek will be requested after this one completes so there is no
+    // Abort preroll early for a NULL frame because we won't get more frames.
+    // A new preroll will be requested after this one completes so there is no
     // point trying to collect more frames.
     state_ = kPrerolled;
-    base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
+    base::ResetAndReturn(&preroll_cb_).Run(PIPELINE_OK);
     return;
   }
 
-  // Discard frames until we reach our desired seek timestamp.
-  if (state_ == kSeeking && !frame->IsEndOfStream() &&
-      (frame->GetTimestamp() + frame->GetDuration()) <= seek_timestamp_) {
+  // Discard frames until we reach our desired preroll timestamp.
+  if (state_ == kPrerolling && !frame->IsEndOfStream() &&
+      (frame->GetTimestamp() + frame->GetDuration()) <= preroll_timestamp_) {
     AttemptRead_Locked();
     return;
   }
@@ -458,23 +459,23 @@ void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
     return;
   }
 
-  // If we're at capacity or end of stream while seeking we need to transition
-  // to prerolled.
-  if (state_ == kSeeking) {
+  // If we're at capacity or end of stream while prerolling we need to
+  // transition to prerolled.
+  if (state_ == kPrerolling) {
     DCHECK(!current_frame_);
     state_ = kPrerolled;
 
     // Because we might remain in the prerolled state for an undetermined amount
-    // of time (i.e., we were not playing before we received a seek), we'll
+    // of time (i.e., we were not playing before we started prerolling), we'll
     // manually update the current frame and notify the subclass below.
     if (!ready_frames_.front()->IsEndOfStream()) {
       current_frame_ = ready_frames_.front();
       ready_frames_.pop_front();
     }
 
-    // ...and we're done seeking!
-    DCHECK(!seek_cb_.is_null());
-    base::ResetAndReturn(&seek_cb_).Run(PIPELINE_OK);
+    // ...and we're done prerolling!
+    DCHECK(!preroll_cb_.is_null());
+    base::ResetAndReturn(&preroll_cb_).Run(PIPELINE_OK);
 
     base::AutoUnlock ul(lock_);
     paint_cb_.Run();
