@@ -65,9 +65,9 @@ class NET_EXPORT HttpResponseHeaders
   // Removes all instances of a particular header.
   void RemoveHeader(const std::string& name);
 
-  // Removes a particular header. The header name is compared
+  // Removes a particular header line. The header name is compared
   // case-insensitively.
-  void RemoveHeaderWithValue(const std::string& name, const std::string& value);
+  void RemoveHeaderLine(const std::string& name, const std::string& value);
 
   // Adds a particular header.  |header| has to be a single header without any
   // EOL termination, just [<header-name>: <header-values>]
@@ -320,16 +320,6 @@ class NET_EXPORT HttpResponseHeaders
   // merge), not after the merge.
   void MergeWithHeaders(const std::string& raw_headers,
                         const HeaderSet& headers_to_remove);
-
-  // Replaces the current headers with the merged version of |raw_headers| and
-  // the current headers with out the header consisting of
-  // |header_to_remove_name| and |header_to_remove_value|. Note that
-  // |header_to_remove_name| is compared case-insensitively.
-  // Note that the header to remove is removed from the current headers (before
-  // the merge), not after the merge.
-  void MergeWithHeadersWithValue(const std::string& raw_headers,
-                                 const std::string& header_to_remove_name,
-                                 const std::string& header_to_remove_value);
 
   // Adds the values from any 'cache-control: no-cache="foo,bar"' headers.
   void AddNonCacheableHeaders(HeaderSet* header_names) const;
