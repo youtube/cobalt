@@ -5,7 +5,6 @@
 #ifndef BASE_MAC_FOUNDATION_UTIL_H_
 #define BASE_MAC_FOUNDATION_UTIL_H_
 
-#include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CoreFoundation.h>
 
 #include <string>
@@ -22,6 +21,12 @@
 class NSBundle;
 class NSString;
 #endif  // __OBJC__
+
+#if defined(OS_IOS)
+#include <CoreText/CoreText.h>
+#else
+#include <ApplicationServices/ApplicationServices.h>
+#endif
 
 class FilePath;
 
