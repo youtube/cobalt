@@ -351,6 +351,20 @@
             ],
           },
         }],
+        # A simple WebM encoder for animated avatars on ChromeOS.
+        ['chromeos==1', {
+          'dependencies': [
+            '../skia/skia.gyp:skia',
+            '../third_party/libvpx/libvpx.gyp:libvpx',
+            '../third_party/libyuv/libyuv.gyp:libyuv',
+          ],
+          'sources': [
+            'webm/chromeos/ebml_writer.cc',
+            'webm/chromeos/ebml_writer.h',
+            'webm/chromeos/webm_encoder.cc',
+            'webm/chromeos/webm_encoder.h',
+          ],
+        }],
         ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
           'link_settings': {
             'libraries': [
