@@ -307,6 +307,13 @@
             '../chrome/chrome.gyp:performance_ui_tests',
             '../gpu/gpu.gyp:gl_tests',
           ],
+          'conditions': [
+            ['internal_gles2_conform_tests', {
+              'dependencies': [
+                '../gpu/gles2_conform_test/gles2_conform_test.gyp:gles2_conform_test_windowless',
+              ],
+            }], # internal_gles2_conform
+          ],
         }, # target_name: chromium_gpu_builder
         {
           'target_name': 'chromium_gpu_debug_builder',
@@ -314,6 +321,13 @@
           'dependencies': [
             '../chrome/chrome.gyp:gpu_tests',
             '../gpu/gpu.gyp:gl_tests',
+          ],
+          'conditions': [
+            ['internal_gles2_conform_tests', {
+              'dependencies': [
+                '../gpu/gles2_conform_test/gles2_conform_test.gyp:gles2_conform_test_windowless',
+              ],
+            }], # internal_gles2_conform
           ],
         }, # target_name: chromium_gpu_debug_builder
         {
