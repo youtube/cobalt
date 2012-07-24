@@ -98,6 +98,11 @@ TEST_F(WorkerPoolTest, MAYBE_PostTaskAndReply) {
   const TimeDelta kMaxDuration = TestTimeouts::tiny_timeout();
   TimeTicks start = TimeTicks::Now();
   while (!tester->finished() && TimeTicks::Now() - start < kMaxDuration) {
+#if defined(OS_IOS)
+    // Ensure that the other thread has a chance to run even on a single-core
+    // device.
+    pthread_yield_np();
+#endif
     MessageLoop::current()->RunAllPending();
   }
   EXPECT_TRUE(tester->finished());
