@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,6 +42,20 @@ const char* ErrorToString(int error) {
 std::vector<int> GetAllErrorCodesForUma() {
   return base::CustomHistogram::ArrayToCustomRanges(
       kAllErrorCodes, arraysize(kAllErrorCodes));
+}
+
+Error PlatformFileErrorToNetError(
+    base::PlatformFileError file_error) {
+  switch (file_error) {
+    case base::PLATFORM_FILE_OK:
+      return net::OK;
+    case base::PLATFORM_FILE_ERROR_NOT_FOUND:
+      return net::ERR_FILE_NOT_FOUND;
+    case base::PLATFORM_FILE_ERROR_ACCESS_DENIED:
+      return net::ERR_ACCESS_DENIED;
+    default:
+      return net::ERR_FAILED;
+  }
 }
 
 }  // namespace net
