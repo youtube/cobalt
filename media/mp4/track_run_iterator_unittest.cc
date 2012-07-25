@@ -66,6 +66,7 @@ class TrackRunIteratorTest : public testing::Test {
     moof.tracks[0].header.has_default_sample_flags = true;
     moof.tracks[0].header.default_sample_duration = 1024;
     moof.tracks[0].header.default_sample_size = 4;
+    moof.tracks[0].header.sample_description_index = 0;
     moof.tracks[0].runs.resize(2);
     moof.tracks[0].runs[0].sample_count = 10;
     moof.tracks[0].runs[0].data_offset = 100;
@@ -76,6 +77,7 @@ class TrackRunIteratorTest : public testing::Test {
 
     moof.tracks[1].header.track_id = 2;
     moof.tracks[1].header.has_default_sample_flags = false;
+    moof.tracks[1].header.sample_description_index = 0;
     moof.tracks[1].decode_time.decode_time = 10;
     moof.tracks[1].runs.resize(1);
     moof.tracks[1].runs[0].sample_count = 10;
