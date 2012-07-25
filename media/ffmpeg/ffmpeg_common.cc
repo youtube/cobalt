@@ -248,7 +248,7 @@ void AVStreamToVideoDecoderConfig(
     aspect_ratio = stream->codec->sample_aspect_ratio;
 
   VideoCodec codec = CodecIDToVideoCodec(stream->codec->codec_id);
-  VideoCodecProfile profile = kCodecVP8 ? VP8PROFILE_MAIN :
+  VideoCodecProfile profile = (codec == kCodecVP8) ? VP8PROFILE_MAIN :
       ProfileIDToVideoCodecProfile(stream->codec->profile);
   config->Initialize(codec,
                      profile,
