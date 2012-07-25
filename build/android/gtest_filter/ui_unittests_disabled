@@ -24,14 +24,6 @@ FontTest.Height
 FontTest.LoadArial
 FontTest.LoadArialBold
 FontTest.Widths
-ImageTest.Copy
-ImageTest.PlatformToPlatform
-ImageTest.PlatformToSkia
-ImageTest.SkiaRefToSkia
-ImageTest.SkiaToPlatform
-ImageTest.SkiaToSkia
-ImageTest.SkiaToSkiaRef
-ImageTest.SwapRepresentations
 L10nUtilTest.GetAppLocale
 L10nUtilTest.GetDisplayNameForCountry
 L10nUtilTest.GetDisplayNameForLocale
