@@ -78,6 +78,11 @@
             '../third_party/nss/nss.gyp:*',
            ],
         }],
+        ['OS=="win" or OS=="ios" or OS=="linux"', {
+          'dependencies': [
+            '../breakpad/breakpad.gyp:*',
+           ],
+        }],
         ['OS=="mac"', {
           'dependencies': [
             '../third_party/ocmock/ocmock.gyp:*',
@@ -85,7 +90,6 @@
         }],
         ['OS=="linux"', {
           'dependencies': [
-            '../breakpad/breakpad.gyp:*',
             '../courgette/courgette.gyp:*',
             '../dbus/dbus.gyp:*',
             '../sandbox/sandbox.gyp:*',
@@ -113,7 +117,6 @@
             }],
           ],
           'dependencies': [
-            '../breakpad/breakpad.gyp:*',
             '../chrome_frame/chrome_frame.gyp:*',
             '../cloud_print/cloud_print.gyp:*',
             '../courgette/courgette.gyp:*',
