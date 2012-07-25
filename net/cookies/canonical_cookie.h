@@ -20,7 +20,6 @@ class ParsedCookie;
 
 class NET_EXPORT CanonicalCookie {
  public:
-
   // These constructors do no validation or canonicalization of their inputs;
   // the resulting CanonicalCookies should not be relied on to be canonical
   // unless the caller has done appropriate validation and canonicalization
@@ -148,8 +147,7 @@ class NET_EXPORT CanonicalCookie {
   bool httponly_;
 };
 
-class CookieList : public std::vector<CanonicalCookie> {
-};
+typedef std::vector<CanonicalCookie> CookieList;
 
 }  // namespace net
 

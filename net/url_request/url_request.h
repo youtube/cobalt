@@ -23,6 +23,7 @@
 #include "net/base/net_log.h"
 #include "net/base/network_delegate.h"
 #include "net/base/request_priority.h"
+#include "net/cookies/canonical_cookie.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/url_request/url_request_status.h"
@@ -84,7 +85,6 @@ class BlobURLRequestJobTest;
 
 namespace net {
 
-class CookieList;
 class CookieOptions;
 class HostPortPair;
 class IOBuffer;
