@@ -502,6 +502,13 @@
         'msvs_disabled_warnings': [
           4244, 4554, 4018, 4102,
         ],
+        'conditions': [
+          [ 'target_arch=="ps3" or target_arch=="blue"', {
+            'sources!': [
+              'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
+            ],
+          }],
+        ],
         'target_conditions': [
           ['<(use_glib)==0 or >(nacl_untrusted_build)==1', {
               'sources/': [
@@ -548,11 +555,6 @@
             ],
             'sources/': [
               ['include', 'sys_string_conversions_linux.cc'],
-            ],
-          }],
-          [ 'target_arch=="ps3" or target_arch=="blue"', {
-            'sources!': [
-              'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
             ],
           }],
           ['<(toolkit_uses_gtk)==0 or >(nacl_untrusted_build)==1', {
