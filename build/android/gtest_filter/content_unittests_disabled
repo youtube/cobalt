@@ -43,3 +43,5 @@ DeviceOrientationProviderTest.ObserverNotRemoved
 DeviceOrientationProviderTest.StartFailing
 # crbug.com/138138
 GpuMemoryManagerTest.StubMemoryStatsForLastManageTests
+# crbug.com/138930
+SkCanvasVideoRendererTest.*
