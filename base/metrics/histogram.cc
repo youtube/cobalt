@@ -383,7 +383,7 @@ Histogram::ClassType Histogram::histogram_type() const {
 }
 
 Histogram::Sample Histogram::ranges(size_t i) const {
-  return cached_ranges_->ranges(i);
+  return bucket_ranges_->range(i);
 }
 
 size_t Histogram::bucket_count() const {
@@ -423,7 +423,7 @@ Histogram::Histogram(const std::string& name, Sample minimum,
     declared_max_(maximum),
     bucket_count_(bucket_count),
     flags_(kNoFlags),
-    cached_ranges_(new CachedRanges(bucket_count + 1, 0)),
+    bucket_ranges_(new BucketRanges(bucket_count + 1)),
     range_checksum_(0),
     sample_() {
   Initialize();
@@ -436,7 +436,7 @@ Histogram::Histogram(const std::string& name, TimeDelta minimum,
     declared_max_(static_cast<int> (maximum.InMilliseconds())),
     bucket_count_(bucket_count),
     flags_(kNoFlags),
-    cached_ranges_(new CachedRanges(bucket_count + 1, 0)),
+    bucket_ranges_(new BucketRanges(bucket_count + 1)),
     range_checksum_(0),
     sample_() {
   Initialize();
@@ -557,12 +557,12 @@ void Histogram::Accumulate(Sample value, Count count, size_t index) {
 void Histogram::SetBucketRange(size_t i, Sample value) {
   DCHECK_GT(bucket_count_, i);
   DCHECK_GE(value, 0);
-  cached_ranges_->SetBucketRange(i, value);
+  bucket_ranges_->set_range(i, value);
 }
 
 bool Histogram::ValidateBucketRanges() const {
   // Standard assertions that all bucket ranges should satisfy.
-  DCHECK_EQ(bucket_count_ + 1, cached_ranges_->size());
+  DCHECK_EQ(bucket_count_ + 1, bucket_ranges_->size());
   DCHECK_EQ(0, ranges(0));
   DCHECK_EQ(declared_min(), ranges(1));
   DCHECK_EQ(declared_max(), ranges(bucket_count_ - 1));
@@ -571,9 +571,9 @@ bool Histogram::ValidateBucketRanges() const {
 }
 
 uint32 Histogram::CalculateRangeChecksum() const {
-  DCHECK_EQ(cached_ranges_->size(), bucket_count() + 1);
+  DCHECK_EQ(bucket_ranges_->size(), bucket_count() + 1);
   // Seed checksum.
-  uint32 checksum = static_cast<uint32>(cached_ranges_->size());
+  uint32 checksum = static_cast<uint32>(bucket_ranges_->size());
   for (size_t index = 0; index < bucket_count(); ++index)
     checksum = Crc32(checksum, ranges(index));
   return checksum;
@@ -591,7 +591,7 @@ void Histogram::Initialize() {
   size_t maximal_bucket_count = declared_max_ - declared_min_ + 2;
   DCHECK_LE(bucket_count_, maximal_bucket_count);
   DCHECK_EQ(0, ranges(0));
-  cached_ranges_->SetBucketRange(bucket_count_, kSampleType_MAX);
+  bucket_ranges_->set_range(bucket_count_, kSampleType_MAX);
 }
 
 // We generate the CRC-32 using the low order bits to select whether to XOR in
@@ -1000,8 +1000,8 @@ CustomHistogram::CustomHistogram(const std::string& name,
 }
 
 bool CustomHistogram::SerializeRanges(Pickle* pickle) const {
-  for (size_t i = 0; i < cached_ranges()->size(); ++i) {
-    if (!pickle->WriteInt(cached_ranges()->ranges(i)))
+  for (size_t i = 0; i < bucket_ranges()->size(); ++i) {
+    if (!pickle->WriteInt(bucket_ranges()->range(i)))
       return false;
   }
   return true;
@@ -1029,32 +1029,6 @@ void CustomHistogram::InitializedCustomBucketRange(
 
 double CustomHistogram::GetBucketSize(Count current, size_t i) const {
   return 1;
-}
-
-CachedRanges::CachedRanges(size_t bucket_count, int initial_value)
-    : ranges_(bucket_count, initial_value),
-      range_checksum_(0) {
-}
-
-CachedRanges::~CachedRanges() {
-}
-
-void CachedRanges::SetBucketRange(size_t i, Histogram::Sample value) {
-  DCHECK_LT(i, ranges_.size());
-  DCHECK_GE(value, 0);
-  ranges_[i] = value;
-}
-
-bool CachedRanges::Equals(CachedRanges* other) const {
-  if (range_checksum_ != other->range_checksum_)
-    return false;
-  if (ranges_.size() != other->ranges_.size())
-    return false;
-  for (size_t index = 0; index < ranges_.size(); ++index) {
-    if (ranges_[index] != other->ranges_[index])
-      return false;
-  }
-  return true;
 }
 
 }  // namespace base
