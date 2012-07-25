@@ -38,6 +38,9 @@ namespace internal {
 
 namespace {
 
+// Interval between retries to parse config. Used only until parsing succeeds.
+const int kRetryIntervalSeconds = 5;
+
 const wchar_t* const kPrimaryDnsSuffixPath =
     L"SOFTWARE\\Policies\\Microsoft\\System\\DNSClient";
 
@@ -479,11 +482,16 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
       service_->OnConfigRead(dns_config_);
     } else {
       LOG(WARNING) << "Failed to read DnsConfig.";
+      // Try again in a while in case DnsConfigWatcher missed the signal.
+      MessageLoop::current()->PostDelayedTask(
+          FROM_HERE,
+          base::Bind(&ConfigReader::WorkNow, this),
+          base::TimeDelta::FromSeconds(kRetryIntervalSeconds));
     }
   }
 
   DnsConfigServiceWin* service_;
-  // Written in DoRead(), read in OnReadFinished(). No locking required.
+  // Written in DoWork(), read in OnWorkFinished(). No locking required.
   DnsConfig dns_config_;
   bool success_;
 };
