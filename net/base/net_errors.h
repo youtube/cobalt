@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/platform_file.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -49,6 +50,10 @@ NET_EXPORT Error MapSystemError(int os_error);
 // sample values). Also note that a guard bucket is created after any valid
 // error code that is not followed immediately by a valid error code.
 std::vector<int> GetAllErrorCodesForUma();
+
+// A convenient function to translate platform file error to net error code.
+NET_EXPORT Error PlatformFileErrorToNetError(
+    base::PlatformFileError file_error);
 
 }  // namespace net
 
