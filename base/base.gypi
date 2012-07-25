@@ -655,6 +655,11 @@
               ['exclude', '^chromeos/'],
             ],
           }],
+          # Remove all unnecessary files for build_nexe.py to avoid exceeding
+          # command-line-string limitation when building NaCl on Windows.
+          ['OS == "win" and >(nacl_untrusted_build)==1', {
+              'sources/': [ ['exclude', '\\.h$'] ],
+          }],
         ],
       }],
     ],
