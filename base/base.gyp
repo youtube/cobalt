@@ -718,6 +718,8 @@
         'test/test_suite.h',
         'test/test_support_android.cc',
         'test/test_support_android.h',
+        'test/test_support_ios.h',
+        'test/test_support_ios.mm',
         'test/test_switches.cc',
         'test/test_switches.h',
         'test/test_timeouts.cc',
