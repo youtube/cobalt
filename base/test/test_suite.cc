@@ -36,6 +36,10 @@
 #include "base/test/test_support_android.h"
 #endif
 
+#if defined(OS_IOS)
+#include "base/test/test_support_ios.h"
+#endif
+
 #if defined(TOOLKIT_GTK)
 #include <gtk/gtk.h>
 #endif
@@ -302,6 +306,10 @@ void TestSuite::Initialize() {
   // Some of the app unit tests spin runloops.
   mock_cr_app::RegisterMockCrApp();
 #endif
+
+#if defined(OS_IOS)
+  InitIOSTestMessageLoop();
+#endif  // OS_IOS
 
 #if defined(OS_ANDROID)
   InitAndroidTest();
