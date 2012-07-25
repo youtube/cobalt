@@ -108,6 +108,16 @@
             ],
           },
         }],
+        ['OS=="android" and android_app_abi=="x86"', {
+          'defines': [
+            'GTEST_HAS_CLONE=0',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'GTEST_HAS_CLONE=0',
+            ],
+          },
+        }],
         ['clang==1 or OS=="android"', {
           # We want gtest features that use tr1::tuple, but we currently
           # don't support the variadic templates used by libstdc++'s
