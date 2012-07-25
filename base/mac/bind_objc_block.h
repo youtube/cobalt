@@ -5,12 +5,13 @@
 #ifndef BASE_MAC_BIND_OBJC_BLOCK_H_
 #define BASE_MAC_BIND_OBJC_BLOCK_H_
 
+#include "base/base_export.h"
 #include "base/callback_forward.h"
 
 namespace base {
 
 // Construct a closure from an objective-C block.
-base::Closure BindBlock(void(^block)());
+BASE_EXPORT base::Closure BindBlock(void(^block)());
 
 }  // namespace base
 
