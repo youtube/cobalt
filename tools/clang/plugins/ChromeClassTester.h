@@ -5,14 +5,12 @@
 #ifndef TOOLS_CLANG_PLUGINS_CHROMECLASSTESTER_H_
 #define TOOLS_CLANG_PLUGINS_CHROMECLASSTESTER_H_
 
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/AST.h"
-#include "clang/AST/TypeLoc.h"
-#include "clang/Basic/SourceManager.h"
-#include "clang/Frontend/CompilerInstance.h"
-
 #include <set>
 #include <vector>
+
+#include "clang/AST/ASTConsumer.h"
+#include "clang/AST/TypeLoc.h"
+#include "clang/Frontend/CompilerInstance.h"
 
 // A class on top of ASTConsumer that forwards classes defined in Chromium
 // headers to subclasses which implement CheckChromeClass().
@@ -23,7 +21,7 @@ class ChromeClassTester : public clang::ASTConsumer {
 
   // clang::ASTConsumer:
   virtual void HandleTagDeclDefinition(clang::TagDecl* tag);
-  virtual bool HandleTopLevelDecl(clang::DeclGroupRef);
+  virtual bool HandleTopLevelDecl(clang::DeclGroupRef group_ref);
 
  protected:
   clang::CompilerInstance& instance() { return instance_; }
