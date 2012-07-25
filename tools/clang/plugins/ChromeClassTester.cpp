@@ -9,7 +9,9 @@
 
 #include <sys/param.h>
 
+#include "clang/AST/AST.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceManager.h"
 
 using namespace clang;
 
@@ -48,7 +50,7 @@ void ChromeClassTester::HandleTagDeclDefinition(TagDecl* tag) {
   pending_class_decls_.push_back(tag);
 }
 
-bool ChromeClassTester::HandleTopLevelDecl(DeclGroupRef D) {
+bool ChromeClassTester::HandleTopLevelDecl(DeclGroupRef group_ref) {
   for (size_t i = 0; i < pending_class_decls_.size(); ++i)
     CheckTag(pending_class_decls_[i]);
   pending_class_decls_.clear();
