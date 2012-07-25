@@ -12,6 +12,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
+#include "net/cookies/canonical_cookie.h"
 
 class FilePath;
 class GURL;
@@ -28,7 +29,6 @@ namespace net {
 // NOTE: It is not okay to add any compile-time dependencies on symbols outside
 // of net/base here, because we have a net_base library. Forward declarations
 // are ok.
-class CookieList;
 class CookieOptions;
 class HttpRequestHeaders;
 class HttpResponseHeaders;
