@@ -84,7 +84,7 @@ bool WebmEncoder::EncodeFromSprite(const SkBitmap& sprite,
   fps_.den = fps_d;
 
   // Sprite is tiled vertically.
-  size_t frame_count = sprite.height() / width_;
+  frame_count_ = sprite.height() / width_;
 
   vpx_image_t image;
   vpx_img_alloc(&image, VPX_IMG_FMT_I420, width_, height_, 16);
@@ -124,7 +124,7 @@ bool WebmEncoder::EncodeFromSprite(const SkBitmap& sprite,
   if (!WriteWebmHeader())
     return false;
 
-  for (size_t frame = 0; frame < frame_count && !has_errors_; ++frame) {
+  for (size_t frame = 0; frame < frame_count_ && !has_errors_; ++frame) {
     int res = libyuv::ConvertToI420(
         src, src_frame_size,
         image.planes[VPX_PLANE_Y], image.stride[VPX_PLANE_Y],
@@ -183,6 +183,8 @@ bool WebmEncoder::WriteWebmHeader() {
     {
       // All timecodes in the segment will be expressed in milliseconds.
       Ebml_SerializeUnsigned(&ebml_writer_, TimecodeScale, 1000000);
+      double duration = 1000. * frame_count_ * fps_.den / fps_.num;
+      Ebml_SerializeFloat(&ebml_writer_, Segment_Duration, duration);
     }
     EndSubElement();  // Info
 
