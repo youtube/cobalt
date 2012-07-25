@@ -427,7 +427,7 @@
  "xp-release-dual-core/moz/total_op_b/IO_op_b": {"reva": 141869, "revb": 142490, "improve": 169, "regress": 2089, "sha1": "2f018b43"},
  "xp-release-dual-core/moz/total_op_r/IO_op_r": {"reva": 143714, "revb": 143900, "improve": -835, "regress": -290, "sha1": "82c25dc1"},
  "xp-release-dual-core/moz/vm_peak_b/vm_pk_b": {"reva": 137781, "revb": 138227, "improve": -1565492, "regress": 2464359, "sha1": "0e00a85f"},
- "xp-release-dual-core/moz/vm_peak_r/vm_pk_r": {"reva": 143714, "revb": 143900, "improve": -7754343, "regress": -5615001, "sha1": "3afca5c9"},
+ "xp-release-dual-core/moz/vm_peak_r/vm_pk_r": {"reva": 148123, "revb": 148240, "improve": -10382132, "regress": 41184461, "sha1": "fb6d2884"},
  "xp-release-dual-core/startup/warm/t": {"reva": 76825, "revb": 77094, "improve": -107, "regress": 141, "sha1": "e0dcf672"},
  "xp-release-dual-core/v8_benchmark/score/score": {"reva": 137754, "revb": 137799, "improve": 74, "regress": -208, "sha1": "f3b9c5d7"},
  "xp-release-single-core/dhtml/times/t": {"reva": 98602, "revb": 99994, "improve": -2888, "regress": 3391, "sha1": "30683762"},
