@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,7 +23,7 @@ namespace {
 // of functions.  The Sym* family of functions may only be invoked by one
 // thread at a time.  SymbolContext code may access a symbol server over the
 // network while holding the lock for this singleton.  In the case of high
-// latency, this code will adversly affect performance.
+// latency, this code will adversely affect performance.
 //
 // There is also a known issue where this backtrace code can interact
 // badly with breakpad if breakpad is invoked in a separate thread while
@@ -57,7 +57,7 @@ class SymbolContext {
   // LOG(FATAL) here because this code is called might be triggered by a
   // LOG(FATAL) itself.
   void OutputTraceToStream(const void* const* trace,
-                           int count,
+                           size_t count,
                            std::ostream* os) {
     base::AutoLock lock(lock_);
 
@@ -95,7 +95,7 @@ class SymbolContext {
         (*os) << symbol->Name << " [0x" << trace[i] << "+"
               << sym_displacement << "]";
       } else {
-        // If there is no symbol informtion, add a spacer.
+        // If there is no symbol information, add a spacer.
         (*os) << "(No symbol) [0x" << trace[i] << "]";
       }
       if (has_line) {
@@ -185,6 +185,9 @@ StackTrace::StackTrace(EXCEPTION_POINTERS* exception_pointers) {
          count_ < arraysize(trace_)) {
     trace_[count_++] = reinterpret_cast<void*>(stack_frame.AddrPC.Offset);
   }
+
+  for (size_t i = count_; i < arraysize(trace_); ++i)
+    trace_[i] = NULL;
 }
 
 void StackTrace::PrintBacktrace() const {
