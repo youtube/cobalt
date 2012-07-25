@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
+#include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_store.h"
 #include "net/base/net_export.h"
 
@@ -34,8 +35,6 @@ class TimeTicks;
 
 namespace net {
 
-class CanonicalCookie;
-class CookieList;
 class ParsedCookie;
 
 // The cookie monster is the system for storing and retrieving cookies. It has
