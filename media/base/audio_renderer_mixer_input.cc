@@ -16,6 +16,7 @@ AudioRendererMixerInput::AudioRendererMixerInput(
       volume_(1.0f),
       get_mixer_cb_(get_mixer_cb),
       remove_mixer_cb_(remove_mixer_cb),
+      mixer_(NULL),
       callback_(NULL) {
 }
 
