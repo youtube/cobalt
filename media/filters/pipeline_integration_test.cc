@@ -286,7 +286,7 @@ TEST_F(PipelineIntegrationTest, BasicPlayback_MediaSource) {
 // TODO(fgalligan): Enable test when encrypted test data is updated and new
 // decryption code is landed. http://crbug.com/132801
 TEST_F(PipelineIntegrationTest, DISABLED_EncryptedPlayback) {
-  MockMediaSource source("bear-320x240-encrypted.webm", 219726, true, true);
+  MockMediaSource source("bear-320x240-encrypted.webm", 220730, true, true);
   FakeDecryptorClient encrypted_media;
   StartPipelineWithEncryptedMedia(&source, &encrypted_media);
 
