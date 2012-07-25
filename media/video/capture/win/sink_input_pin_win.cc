@@ -4,6 +4,8 @@
 
 #include "media/video/capture/win/sink_input_pin_win.h"
 
+#include <cstring>
+
 // Avoid including strsafe.h via dshow as it will cause build warnings.
 #define NO_DSHOW_STRSAFE
 #include <dshow.h>
@@ -18,6 +20,8 @@ SinkInputPin::SinkInputPin(IBaseFilter* filter,
                            SinkFilterObserver* observer)
     : observer_(observer),
       PinBase(filter) {
+  memset(&requested_capability_, 0, sizeof(requested_capability_));
+  memset(&resulting_capability_, 0, sizeof(resulting_capability_));
 }
 
 SinkInputPin::~SinkInputPin() {}
