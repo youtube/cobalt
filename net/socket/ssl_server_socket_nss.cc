@@ -92,6 +92,8 @@ SSLServerSocketNSS::SSLServerSocketNSS(
     const SSLConfig& ssl_config)
     : transport_send_busy_(false),
       transport_recv_busy_(false),
+      user_read_buf_len_(0),
+      user_write_buf_len_(0),
       nss_fd_(NULL),
       nss_bufs_(NULL),
       transport_socket_(transport_socket),
