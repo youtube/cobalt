@@ -508,19 +508,7 @@
               'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
             ],
           }],
-        ],
-        'target_conditions': [
-          ['<(use_glib)==0 or >(nacl_untrusted_build)==1', {
-              'sources/': [
-                ['exclude', '^nix/'],
-              ],
-              'sources!': [
-                'atomicops_internals_x86_gcc.cc',
-                'message_pump_glib.cc',
-                'message_pump_aurax11.cc',
-              ],
-          }],
-          [ 'OS=="lb_shell"', {
+          ['OS=="lb_shell"', {
             'sources!': [
               'sys_info_posix.cc',
               'shared_memory_posix.cc',
@@ -555,8 +543,22 @@
             ],
             'sources/': [
               ['include', 'sys_string_conversions_linux.cc'],
+              ['exclude', '^win/'],
             ],
           }],
+        ],
+        'target_conditions': [
+          ['<(use_glib)==0 or >(nacl_untrusted_build)==1', {
+              'sources/': [
+                ['exclude', '^nix/'],
+              ],
+              'sources!': [
+                'atomicops_internals_x86_gcc.cc',
+                'message_pump_glib.cc',
+                'message_pump_aurax11.cc',
+              ],
+          }],
+
           ['<(toolkit_uses_gtk)==0 or >(nacl_untrusted_build)==1', {
             'sources!': ['message_pump_gtk.cc'],
           }],
