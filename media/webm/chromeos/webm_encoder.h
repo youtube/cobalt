@@ -70,6 +70,9 @@ class MEDIA_EXPORT WebmEncoder {
   size_t height_;
   vpx_rational_t fps_;
 
+  // Number of frames in video.
+  size_t frame_count_;
+
   // VPX config in use.
   vpx_codec_enc_cfg_t config_;
 
