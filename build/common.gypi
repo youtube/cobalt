@@ -910,7 +910,7 @@
             'android_build_type%': 0,
           },
           'android_ndk_root%': '<(android_ndk_root)',
-          'android_ndk_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(target_arch)',
+          'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-9/arch-<(target_arch)',
           'android_build_type%': '<(android_build_type)',
           'android_app_abi%': '<(android_app_abi)',
         },
@@ -976,12 +976,10 @@
         # Always use the system zlib.
         'use_system_zlib%': 1,
 
+        # Configure crash reporting and build options based on release type.
         'conditions': [
-          # Determine whether or not to use breakpad crash reporting for native
-          # code. Java code stacktraces will be collected by GoogleFeedback when
-          # chrome is installed by either market or bazaar where the installer
-          # package is automatically set to AndroidFeedback.
           ['buildtype=="Official"', {
+            # Only report crash dumps for Official builds.
             'linux_breakpad%': 1,
           }, {
             'linux_breakpad%': 0,
@@ -2523,7 +2521,6 @@
               '-pthread',  # Not supported by Android toolchain.
             ],
             'cflags': [
-              '-U__linux__',  # Don't allow toolchain to claim -D__linux__
               '-ffunction-sections',
               '-funwind-tables',
               '-g',
@@ -2531,19 +2528,13 @@
               '-fno-short-enums',
               '-finline-limit=64',
               '-Wa,--noexecstack',
-              '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
               '<@(release_extra_cflags)',
-              # Note: This include is in cflags to ensure that it comes after
-              # all of the includes.
-              '-I<(android_ndk_include)',
             ],
             'defines': [
               'ANDROID',
               '__GNU_SOURCE=1',  # Necessary for clone()
               'USE_STLPORT=1',
               '_STLP_USE_PTR_SPECIALIZATIONS=1',
-              'HAVE_SYS_UIO_H',
-              'ANDROID_BINSIZE_HACK', # Enable temporary hacks to reduce binsize.
             ],
             'ldflags!': [
               '-pthread',  # Not supported by Android toolchain.
@@ -2569,7 +2560,12 @@
               }],
               ['android_build_type==0', {
                 'defines': [
-                  'HAVE_OFF64_T',
+                  # The NDK has these things, but doesn't define the constants
+                  # to say that it does. Define them here instead.
+                  'HAVE_SYS_UIO_H',
+                ],
+                'cflags': [
+                  '--sysroot=<(android_ndk_sysroot)',
                 ],
                 'ldflags': [
                   '--sysroot=<(android_ndk_sysroot)',
@@ -2641,7 +2637,7 @@
                   '<(android_ndk_lib)/crtend_android.o',
                 ],
               }],
-              ['_type=="shared_library"', {
+              ['_type=="shared_library" or _type=="loadable_module"', {
                 'ldflags': [
                   '-Wl,-shared,-Bsymbolic',
                   # crtbegin_so.o should be the last item in ldflags.

@@ -114,3 +114,9 @@ VerifyEndEntity/CertVerifyProcWeakDigestTest.*
 VerifyIncompleteIntermediate/CertVerifyProcWeakDigestTest.*
 VerifyIncompleteEndEntity/CertVerifyProcWeakDigestTest.*
 VerifyMixed/CertVerifyProcWeakDigestTest.*
+
+# Death tests are not supported with apks.
+*DeathTest*
+# These are death tests and thus also disabled.
+PrioritizedDispatcherTest.CancelNull
+PrioritizedDispatcherTest.CancelMissing
