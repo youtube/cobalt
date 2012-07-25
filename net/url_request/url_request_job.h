@@ -17,12 +17,12 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
+#include "net/cookies/canonical_cookie.h"
 
 namespace net {
 
 class AuthChallengeInfo;
 class AuthCredentials;
-class CookieList;
 class CookieOptions;
 class HttpRequestHeaders;
 class HttpResponseInfo;
