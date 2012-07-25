@@ -413,6 +413,7 @@
         'lazy_instance_unittest.cc',
         'linked_list_unittest.cc',
         'logging_unittest.cc',
+        'mac/bind_objc_block_unittest.mm',
         'mac/foundation_util_unittest.mm',
         'mac/mac_util_unittest.mm',
         'mac/objc_property_releaser_unittest.mm',
@@ -644,6 +645,7 @@
             # Pull in specific Mac files for iOS (which have been filtered out
             # by file name rules).
             ['include', '^mac/objc_property_releaser_unittest\\.mm$'],
+            ['include', '^mac/bind_objc_block_unittest\\.mm$'],
             ['include', '^sys_string_conversions_mac_unittest\\.mm$'],
           ],
         }],
