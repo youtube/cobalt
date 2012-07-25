@@ -67,6 +67,7 @@ dev_list="apache2.2-bin bison curl elfutils fakeroot flex g++ gperf
           perl php5-cgi pkg-config python python-cherrypy3 python-dev
           python-psutil rpm ruby subversion ttf-dejavu-core ttf-indic-fonts
           ttf-kochi-gothic ttf-kochi-mincho ttf-thai-tlwg wdiff git-core
+          libc6-i386 lib32gcc1
           $chromeos_dev_list"
 
 # Run-time libraries required by chromeos only
