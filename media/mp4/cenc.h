@@ -8,25 +8,21 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "media/base/decrypt_config.h"
 
 namespace media {
 namespace mp4 {
 
 class BufferReader;
 
-struct SubsampleSizes {
-  uint16 clear_size;
-  uint32 encrypted_size;
-};
-
 struct FrameCENCInfo {
-  std::vector<uint8> iv;
-  std::vector<SubsampleSizes> subsamples;
+  uint8 iv[16];
+  std::vector<SubsampleEntry> subsamples;
 
   FrameCENCInfo();
   ~FrameCENCInfo();
   bool Parse(int iv_size, BufferReader* r);
-  size_t GetTotalSize() const;
+  size_t GetTotalSizeOfSubsamples() const;
 };
 
 

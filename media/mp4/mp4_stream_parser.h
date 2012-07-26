@@ -5,6 +5,8 @@
 #ifndef MEDIA_MP4_MP4_STREAM_PARSER_H_
 #define MEDIA_MP4_MP4_STREAM_PARSER_H_
 
+#include <vector>
+
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
@@ -45,11 +47,16 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool ParseMoov(mp4::BoxReader* reader);
   bool ParseMoof(mp4::BoxReader* reader);
 
+  bool EmitKeyNeeded(const TrackEncryption& track_encryption);
+
   bool ReadMDATsUntil(const int64 tgt_tail);
 
   void ChangeState(State new_state);
 
   bool EmitConfigs();
+  bool PrepareAVCBuffer(const AVCDecoderConfigurationRecord& avc_config,
+                        std::vector<uint8>* frame_buf,
+                        std::vector<SubsampleEntry>* subsamples) const;
   bool EnqueueSample(BufferQueue* audio_buffers,
                      BufferQueue* video_buffers,
                      bool* err);

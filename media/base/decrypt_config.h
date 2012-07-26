@@ -5,55 +5,77 @@
 #ifndef MEDIA_BASE_DECRYPT_CONFIG_H_
 #define MEDIA_BASE_DECRYPT_CONFIG_H_
 
+#include <string>
+#include <vector>
+
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
 
 namespace media {
 
-// Contains all information that a decryptor needs to decrypt a frame.
+// The Common Encryption spec provides for subsample encryption, where portions
+// of a sample are set in cleartext. A SubsampleEntry specifies the number of
+// clear and encrypted bytes in each subsample. For decryption, all of the
+// encrypted bytes in a sample should be considered a single logical stream,
+// regardless of how they are divided into subsamples, and the clear bytes
+// should not be considered as part of decryption. This is logically equivalent
+// to concatenating all 'cypher_bytes' portions of subsamples, decrypting that
+// result, and then copying each byte from the decrypted block over the
+// position of the corresponding encrypted byte.
+struct SubsampleEntry {
+  uint32 clear_bytes;
+  uint32 cypher_bytes;
+};
+
+// Contains all information that a decryptor needs to decrypt a media sample.
 class MEDIA_EXPORT DecryptConfig {
  public:
   // Keys are always 128 bits.
   static const int kDecryptionKeySize = 16;
 
-  // |key_id| is the ID that references the decryption key for this frame. |iv|
-  // is the initialization vector defined by the encrypted format. Currently
-  // |iv_size| must be 16 bytes as defined by WebM and ISO. |checksum| is the
-  // hash value of the encrypted buffer. |checksum| is defined by the
-  // encrypted format and may be NULL. |encrypted_frame_offset| is the offset
-  // into the encrypted buffer that the encrypted frame starts. The class
-  // will copy the data from |key_id|, |iv|, and |checksum|.
-  DecryptConfig(const uint8* key_id, int key_id_size,
-                const uint8* iv, int iv_size,
-                const uint8* checksum, int checksum_size,
-                int encrypted_frame_offset);
+  // |key_id| is the ID that references the decryption key for this sample.
+  // |iv| is the initialization vector defined by the encrypted format.
+  //   Currently |iv_size| must be 16 bytes as defined by WebM and ISO.
+  // |checksum| is the hash value of the encrypted buffer. |checksum| is
+  //   defined by the encrypted format and may be NULL.
+  // |data_offset| is the amount of data that should be discarded from the
+  //   head of the sample buffer before applying subsample information. A
+  //   decrypted buffer will be shorter than an encrypted buffer by this amount.
+  // |subsamples| defines the clear and encrypted portions of the sample as
+  //   described above. A decrypted buffer will be equal in size to the sum
+  //   of the subsample sizes.
+  //
+  // |data_offset| is applied after |checksum|, but before |subsamples|.
+  DecryptConfig(const std::string& key_id,
+                const std::string& iv,
+                const std::string& checksum,
+                const int data_offset,
+                const std::vector<SubsampleEntry>& subsamples);
   ~DecryptConfig();
 
-  const uint8* key_id() const { return key_id_.get(); }
-  int key_id_size() const { return key_id_size_; }
-  const uint8* iv() const { return iv_.get(); }
-  int iv_size() const { return iv_size_; }
-  const uint8* checksum() const { return checksum_.get(); }
-  int checksum_size() const { return checksum_size_; }
-  int encrypted_frame_offset() const { return encrypted_frame_offset_; }
+  const std::string& key_id() const { return key_id_; }
+  const std::string& iv() const { return iv_; }
+  const std::string& checksum() const { return checksum_; }
+  int data_offset() const { return data_offset_; }
+  const std::vector<SubsampleEntry>& subsamples() const { return subsamples_; }
 
  private:
-  const scoped_array<uint8> key_id_;
-  const int key_id_size_;
+  const std::string key_id_;
 
   // Initialization vector.
-  const scoped_array<uint8> iv_;
-  const int iv_size_;
+  const std::string iv_;
 
   // Checksum of the data to be verified before decrypting the data. This may
-  // be NULL for some formats.
-  const scoped_array<uint8> checksum_;
-  const int checksum_size_;
+  // be empty for some formats.
+  const std::string checksum_;
 
-  // This is the offset in bytes to where the encrypted data starts within
-  // the input buffer.
-  const int encrypted_frame_offset_;
+  // Amount of data to be discarded before applying subsample information.
+  const int data_offset_;
+
+  // Subsample information. May be empty for some formats, meaning entire frame
+  // (less data ignored by data_offset_) is encrypted.
+  const std::vector<SubsampleEntry> subsamples_;
 
   DISALLOW_COPY_AND_ASSIGN(DecryptConfig);
 };

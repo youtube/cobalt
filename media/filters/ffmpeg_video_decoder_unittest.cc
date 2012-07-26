@@ -4,6 +4,7 @@
 
 #include <deque>
 #include <string>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/message_loop.h"
@@ -47,10 +48,14 @@ static scoped_refptr<DecoderBuffer> CreateFakeEncryptedBuffer() {
   const int encrypted_frame_offset = 1;  // This should be non-zero.
   scoped_refptr<DecoderBuffer> buffer(new DecoderBuffer(buffer_size));
   buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
-      kFakeKeyId, arraysize(kFakeKeyId),
-      kFakeIv, DecryptConfig::kDecryptionKeySize,
-      kFakeCheckSum, arraysize(kFakeCheckSum),
-      encrypted_frame_offset)));
+      std::string(reinterpret_cast<const char*>(kFakeKeyId),
+                  arraysize(kFakeKeyId)),
+      std::string(reinterpret_cast<const char*>(kFakeIv),
+                  DecryptConfig::kDecryptionKeySize),
+      std::string(reinterpret_cast<const char*>(kFakeCheckSum),
+                  arraysize(kFakeCheckSum)),
+      encrypted_frame_offset,
+      std::vector<SubsampleEntry>())));
   return buffer;
 }
 

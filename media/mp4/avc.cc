@@ -32,7 +32,7 @@ static bool ConvertAVCToAnnexBInPlaceForLengthSize4(std::vector<uint8>* buf) {
 }
 
 // static
-bool AVC::ConvertToAnnexB(int length_size, std::vector<uint8>* buffer) {
+bool AVC::ConvertFrameToAnnexB(int length_size, std::vector<uint8>* buffer) {
   RCHECK(length_size == 1 || length_size == 2 || length_size == 4);
 
   if (length_size == 4)
@@ -59,32 +59,31 @@ bool AVC::ConvertToAnnexB(int length_size, std::vector<uint8>* buffer) {
 }
 
 // static
-bool AVC::InsertParameterSets(const AVCDecoderConfigurationRecord& avc_config,
-                         std::vector<uint8>* buffer) {
+bool AVC::ConvertConfigToAnnexB(
+    const AVCDecoderConfigurationRecord& avc_config,
+    std::vector<uint8>* buffer) {
+  DCHECK(buffer->empty());
+  buffer->clear();
   int total_size = 0;
   for (size_t i = 0; i < avc_config.sps_list.size(); i++)
     total_size += avc_config.sps_list[i].size() + kAnnexBStartCodeSize;
   for (size_t i = 0; i < avc_config.pps_list.size(); i++)
     total_size += avc_config.pps_list[i].size() + kAnnexBStartCodeSize;
-
-  std::vector<uint8> temp;
-  temp.reserve(total_size);
+  buffer->reserve(total_size);
 
   for (size_t i = 0; i < avc_config.sps_list.size(); i++) {
-    temp.insert(temp.end(), kAnnexBStartCode,
+    buffer->insert(buffer->end(), kAnnexBStartCode,
                 kAnnexBStartCode + kAnnexBStartCodeSize);
-    temp.insert(temp.end(), avc_config.sps_list[i].begin(),
+    buffer->insert(buffer->end(), avc_config.sps_list[i].begin(),
                 avc_config.sps_list[i].end());
   }
 
   for (size_t i = 0; i < avc_config.pps_list.size(); i++) {
-    temp.insert(temp.end(), kAnnexBStartCode,
-                kAnnexBStartCode + kAnnexBStartCodeSize);
-    temp.insert(temp.end(), avc_config.pps_list[i].begin(),
-                avc_config.pps_list[i].end());
+    buffer->insert(buffer->end(), kAnnexBStartCode,
+                   kAnnexBStartCode + kAnnexBStartCodeSize);
+    buffer->insert(buffer->end(), avc_config.pps_list[i].begin(),
+                   avc_config.pps_list[i].end());
   }
-
-  buffer->insert(buffer->begin(), temp.begin(), temp.end());
   return true;
 }
 

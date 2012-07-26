@@ -61,12 +61,12 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
     explicit DecryptionKey(const std::string& secret);
     ~DecryptionKey();
 
-    // Creates the encryption key and HMAC. If |derive_webm_keys| is true then
-    // the object will derive the decryption key and the HMAC key from
-    // |secret_|.
-    bool Init(bool derive_webm_keys);
+    // Creates the encryption key, and derives the WebM decryption key and HMAC.
+    bool Init();
 
     crypto::SymmetricKey* decryption_key() { return decryption_key_.get(); }
+    crypto::SymmetricKey* webm_decryption_key()
+      { return webm_decryption_key_.get(); }
     base::StringPiece hmac_key() { return base::StringPiece(hmac_key_); }
 
    private:
@@ -76,6 +76,9 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
 
     // The key used to decrypt the data.
     scoped_ptr<crypto::SymmetricKey> decryption_key_;
+
+    // The key used for decryption of WebM media, derived from the secret.
+    scoped_ptr<crypto::SymmetricKey> webm_decryption_key_;
 
     // The key used to perform the integrity check.  Currently the HMAC key is
     // defined by the WebM encrypted specification. Current encrypted WebM
