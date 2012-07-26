@@ -4939,8 +4939,8 @@ TEST_F(HttpNetworkTransactionSpdy2Test, BasicAuthSpdyProxy) {
 
   MockWrite spdy_writes[] = {
     CreateMockWrite(*req, 1, ASYNC),
-    CreateMockWrite(*connect2, 4),
-    CreateMockWrite(*rst, 5, ASYNC),
+    CreateMockWrite(*rst, 4, ASYNC),
+    CreateMockWrite(*connect2, 5),
     CreateMockWrite(*wrapped_get, 8),
   };
 
