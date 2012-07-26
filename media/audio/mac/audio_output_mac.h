@@ -8,6 +8,7 @@
 #include <AudioToolbox/AudioFormat.h>
 #include <AudioToolbox/AudioQueue.h>
 #include <AudioUnit/AudioUnit.h>
+#include <CoreAudio/CoreAudio.h>
 
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
