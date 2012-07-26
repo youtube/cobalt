@@ -59,7 +59,7 @@ static bool CheckData(const DecoderBuffer& input,
                       const base::StringPiece& hmac_key) {
   CHECK(input.GetDataSize());
   CHECK(input.GetDecryptConfig());
-  CHECK_GT(input.GetDecryptConfig()->checksum_size(), 0);
+  CHECK_GT(input.GetDecryptConfig()->checksum().size(), 0u);
   CHECK(!hmac_key.empty());
 
   crypto::HMAC hmac(crypto::HMAC::SHA1);
@@ -72,65 +72,117 @@ static bool CheckData(const DecoderBuffer& input,
 
   // Here, check that checksum size is not greater than the hash
   // algorithm's digest length.
-  DCHECK_LE(input.GetDecryptConfig()->checksum_size(),
-            static_cast<int>(hmac.DigestLength()));
+  DCHECK_LE(input.GetDecryptConfig()->checksum().size(),
+            hmac.DigestLength());
 
   base::StringPiece data_to_check(
       reinterpret_cast<const char*>(input.GetData()), input.GetDataSize());
-  base::StringPiece digest(
-      reinterpret_cast<const char*>(input.GetDecryptConfig()->checksum()),
-      input.GetDecryptConfig()->checksum_size());
 
-  return hmac.VerifyTruncated(data_to_check, digest);
+  return hmac.VerifyTruncated(data_to_check,
+                              input.GetDecryptConfig()->checksum());
 }
 
-// Decrypts |input| using |key|. |encrypted_data_offset| is the number of bytes
-// into |input| that the encrypted data starts.
-// Returns a DecoderBuffer with the decrypted data if decryption succeeded or
-// NULL if decryption failed.
+enum ClearBytesBufferSel {
+  kSrcContainsClearBytes,
+  kDstContainsClearBytes,
+};
+
+static void CopySubsamples(const std::vector<SubsampleEntry>& subsamples,
+                           const ClearBytesBufferSel sel,
+                           const uint8* src,
+                           uint8* dst) {
+  for (size_t i = 0; i < subsamples.size(); i++) {
+    const SubsampleEntry& subsample = subsamples[i];
+    if (sel == kSrcContainsClearBytes) {
+      src += subsample.clear_bytes;
+    } else {
+      dst += subsample.clear_bytes;
+    }
+    memcpy(dst, src, subsample.cypher_bytes);
+    src += subsample.cypher_bytes;
+    dst += subsample.cypher_bytes;
+  }
+}
+
+// Decrypts |input| using |key|.  Returns a DecoderBuffer with the decrypted
+// data if decryption succeeded or NULL if decryption failed.
 static scoped_refptr<DecoderBuffer> DecryptData(const DecoderBuffer& input,
-                                                crypto::SymmetricKey* key,
-                                                int encrypted_data_offset) {
+                                                crypto::SymmetricKey* key) {
   CHECK(input.GetDataSize());
   CHECK(input.GetDecryptConfig());
   CHECK(key);
 
-  // Initialize decryptor.
   crypto::Encryptor encryptor;
   if (!encryptor.Init(key, crypto::Encryptor::CTR, "")) {
     DVLOG(1) << "Could not initialize decryptor.";
     return NULL;
   }
 
-  DCHECK_EQ(input.GetDecryptConfig()->iv_size(),
-            DecryptConfig::kDecryptionKeySize);
-  // Set the counter block.
-  base::StringPiece counter_block(
-      reinterpret_cast<const char*>(input.GetDecryptConfig()->iv()),
-      input.GetDecryptConfig()->iv_size());
-  if (counter_block.empty()) {
-    DVLOG(1) << "Could not generate counter block.";
-    return NULL;
-  }
-  if (!encryptor.SetCounter(counter_block)) {
+  DCHECK_EQ(input.GetDecryptConfig()->iv().size(),
+            static_cast<size_t>(DecryptConfig::kDecryptionKeySize));
+  if (!encryptor.SetCounter(input.GetDecryptConfig()->iv())) {
     DVLOG(1) << "Could not set counter block.";
     return NULL;
   }
 
+  const int data_offset = input.GetDecryptConfig()->data_offset();
+  const char* sample =
+      reinterpret_cast<const char*>(input.GetData() + data_offset);
+  int sample_size = input.GetDataSize() - data_offset;
+
+  if (input.GetDecryptConfig()->subsamples().empty()) {
+    std::string decrypted_text;
+    base::StringPiece encrypted_text(sample, sample_size);
+    if (!encryptor.Decrypt(encrypted_text, &decrypted_text)) {
+      DVLOG(1) << "Could not decrypt data.";
+      return NULL;
+    }
+
+    // TODO(xhwang): Find a way to avoid this data copy.
+    return DecoderBuffer::CopyFrom(
+        reinterpret_cast<const uint8*>(decrypted_text.data()),
+        decrypted_text.size());
+  }
+
+  const std::vector<SubsampleEntry>& subsamples =
+      input.GetDecryptConfig()->subsamples();
+
+  int total_clear_size = 0;
+  int total_encrypted_size = 0;
+  for (size_t i = 0; i < subsamples.size(); i++) {
+    total_clear_size += subsamples[i].clear_bytes;
+    total_encrypted_size += subsamples[i].cypher_bytes;
+  }
+  if (total_clear_size + total_encrypted_size != sample_size) {
+    DVLOG(1) << "Subsample sizes do not equal input size";
+    return NULL;
+  }
+
+  // The encrypted portions of all subsamples must form a contiguous block,
+  // such that an encrypted subsample that ends away from a block boundary is
+  // immediately followed by the start of the next encrypted subsample. We
+  // copy all encrypted subsamples to a contiguous buffer, decrypt them, then
+  // copy the decrypted bytes over the encrypted bytes in the output.
+  // TODO(strobe): attempt to reduce number of memory copies
+  scoped_array<uint8> encrypted_bytes(new uint8[total_encrypted_size]);
+  CopySubsamples(subsamples, kSrcContainsClearBytes,
+                 reinterpret_cast<const uint8*>(sample), encrypted_bytes.get());
+
+  base::StringPiece encrypted_text(
+      reinterpret_cast<const char*>(encrypted_bytes.get()),
+      total_encrypted_size);
   std::string decrypted_text;
-  const char* frame =
-      reinterpret_cast<const char*>(input.GetData() + encrypted_data_offset);
-  int frame_size = input.GetDataSize() - encrypted_data_offset;
-  base::StringPiece encrypted_text(frame, frame_size);
   if (!encryptor.Decrypt(encrypted_text, &decrypted_text)) {
     DVLOG(1) << "Could not decrypt data.";
     return NULL;
   }
 
-  // TODO(xhwang): Find a way to avoid this data copy.
-  return DecoderBuffer::CopyFrom(
-      reinterpret_cast<const uint8*>(decrypted_text.data()),
-      decrypted_text.size());
+  scoped_refptr<DecoderBuffer> output = DecoderBuffer::CopyFrom(
+      reinterpret_cast<const uint8*>(sample), sample_size);
+  CopySubsamples(subsamples, kDstContainsClearBytes,
+                 reinterpret_cast<const uint8*>(decrypted_text.data()),
+                 output->GetWritableData());
+  return output;
 }
 
 AesDecryptor::AesDecryptor(DecryptorClient* client)
@@ -192,9 +244,7 @@ void AesDecryptor::AddKey(const std::string& key_system,
     return;
   }
 
-  // TODO(fgalligan): When ISO is added we will need to figure out how to
-  // detect if the encrypted data will contain an HMAC.
-  if (!decryption_key->Init(true)) {
+  if (!decryption_key->Init()) {
     DVLOG(1) << "Could not initialize decryption key.";
     client_->KeyError(key_system, session_id, Decryptor::kUnknownError, 0);
     return;
@@ -220,16 +270,12 @@ void AesDecryptor::CancelKeyRequest(const std::string& key_system,
 void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
                            const DecryptCB& decrypt_cb) {
   CHECK(encrypted->GetDecryptConfig());
-  const uint8* key_id = encrypted->GetDecryptConfig()->key_id();
-  const int key_id_size = encrypted->GetDecryptConfig()->key_id_size();
-
-  // TODO(xhwang): Avoid always constructing a string with StringPiece?
-  std::string key_id_string(reinterpret_cast<const char*>(key_id), key_id_size);
+  const std::string& key_id = encrypted->GetDecryptConfig()->key_id();
 
   DecryptionKey* key = NULL;
   {
     base::AutoLock auto_lock(key_map_lock_);
-    KeyMap::const_iterator found = key_map_.find(key_id_string);
+    KeyMap::const_iterator found = key_map_.find(key_id);
     if (found != key_map_.end())
       key = found->second;
   }
@@ -241,7 +287,7 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
     return;
   }
 
-  int checksum_size = encrypted->GetDecryptConfig()->checksum_size();
+  int checksum_size = encrypted->GetDecryptConfig()->checksum().size();
   // According to the WebM encrypted specification, it is an open question
   // what should happen when a frame fails the integrity check.
   // http://wiki.webmproject.org/encryption/webm-encryption-rfc
@@ -253,10 +299,13 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
     return;
   }
 
+  // TODO(strobe): Currently, presence of checksum is used to indicate the use
+  // of normal or WebM decryption keys. Consider a more explicit signaling
+  // mechanism and the removal of the webm_decryption_key member.
+  crypto::SymmetricKey* decryption_key = (checksum_size > 0) ?
+      key->webm_decryption_key() : key->decryption_key();
   scoped_refptr<DecoderBuffer> decrypted =
-      DecryptData(*encrypted,
-                  key->decryption_key(),
-                  encrypted->GetDecryptConfig()->encrypted_frame_offset());
+      DecryptData(*encrypted, decryption_key);
   if (!decrypted) {
     DVLOG(1) << "Decryption failed.";
     decrypt_cb.Run(kError, NULL);
@@ -275,34 +324,31 @@ AesDecryptor::DecryptionKey::DecryptionKey(
 
 AesDecryptor::DecryptionKey::~DecryptionKey() {}
 
-bool AesDecryptor::DecryptionKey::Init(bool derive_webm_keys) {
+bool AesDecryptor::DecryptionKey::Init() {
   CHECK(!secret_.empty());
-
-  if (derive_webm_keys) {
-    std::string raw_key = DeriveKey(secret_,
-                                    kWebmEncryptionSeed,
-                                    secret_.length());
-    if (raw_key.empty()) {
-      return false;
-    }
-    decryption_key_.reset(
-        crypto::SymmetricKey::Import(crypto::SymmetricKey::AES, raw_key));
-    if (!decryption_key_.get()) {
-      return false;
-    }
-
-    hmac_key_ = DeriveKey(secret_, kWebmHmacSeed, kWebmSha1DigestSize);
-    if (hmac_key_.empty()) {
-      return false;
-    }
-    return true;
-  }
-
   decryption_key_.reset(
       crypto::SymmetricKey::Import(crypto::SymmetricKey::AES, secret_));
   if (!decryption_key_.get()) {
     return false;
   }
+
+  std::string raw_key = DeriveKey(secret_,
+                                  kWebmEncryptionSeed,
+                                  secret_.length());
+  if (raw_key.empty()) {
+    return false;
+  }
+  webm_decryption_key_.reset(
+      crypto::SymmetricKey::Import(crypto::SymmetricKey::AES, raw_key));
+  if (!webm_decryption_key_.get()) {
+    return false;
+  }
+
+  hmac_key_ = DeriveKey(secret_, kWebmHmacSeed, kWebmSha1DigestSize);
+  if (hmac_key_.empty()) {
+    return false;
+  }
+
   return true;
 }
 

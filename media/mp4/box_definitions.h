@@ -217,7 +217,9 @@ struct MEDIA_EXPORT SampleTable : Box {
   DECLARE_BOX_METHODS(SampleTable);
 
   // Media Source specific: we ignore many of the sub-boxes in this box,
-  // including some that are required to be present in the BMFF spec.
+  // including some that are required to be present in the BMFF spec. This
+  // includes the 'stts', 'stsc', and 'stco' boxes, which must contain no
+  // samples in order to be compliant files.
   SampleDescription description;
 };
 

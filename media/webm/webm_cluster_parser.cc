@@ -235,10 +235,15 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
 
     scoped_array<uint8> counter_block(GenerateCounterBlock(iv));
     buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
-        video_encryption_key_id_.get(), video_encryption_key_id_size_,
-        counter_block.get(), DecryptConfig::kDecryptionKeySize,
-        data, kWebMHmacSize,
-        sizeof(iv))));
+        std::string(
+            reinterpret_cast<const char*>(video_encryption_key_id_.get()),
+            video_encryption_key_id_size_),
+        std::string(
+            reinterpret_cast<const char*>(counter_block.get()),
+            DecryptConfig::kDecryptionKeySize),
+        std::string(reinterpret_cast<const char*>(data), kWebMHmacSize),
+        sizeof(iv),
+        std::vector<SubsampleEntry>())));
   }
 
   buffer->SetTimestamp(timestamp);
