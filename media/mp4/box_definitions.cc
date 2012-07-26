@@ -27,7 +27,7 @@ FourCC ProtectionSystemSpecificHeader::BoxType() const { return FOURCC_PSSH; }
 
 bool ProtectionSystemSpecificHeader::Parse(BoxReader* reader) {
   uint32 size;
-  return reader->SkipBytes(4) &&
+  return reader->ReadFullBoxHeader() &&
          reader->ReadVec(&system_id, 16) &&
          reader->Read4(&size) &&
          reader->ReadVec(&data, size);
@@ -88,7 +88,7 @@ SchemeType::~SchemeType() {}
 FourCC SchemeType::BoxType() const { return FOURCC_SCHM; }
 
 bool SchemeType::Parse(BoxReader* reader) {
-  RCHECK(reader->SkipBytes(4) &&
+  RCHECK(reader->ReadFullBoxHeader() &&
          reader->ReadFourCC(&type) &&
          reader->Read4(&version));
   RCHECK(type == FOURCC_CENC);
@@ -103,7 +103,8 @@ FourCC TrackEncryption::BoxType() const { return FOURCC_TENC; }
 
 bool TrackEncryption::Parse(BoxReader* reader) {
   uint8 flag;
-  RCHECK(reader->SkipBytes(2) &&
+  RCHECK(reader->ReadFullBoxHeader() &&
+         reader->SkipBytes(2) &&
          reader->Read1(&flag) &&
          reader->Read1(&default_iv_size) &&
          reader->ReadVec(&default_kid, 16));
@@ -129,9 +130,11 @@ ProtectionSchemeInfo::~ProtectionSchemeInfo() {}
 FourCC ProtectionSchemeInfo::BoxType() const { return FOURCC_SINF; }
 
 bool ProtectionSchemeInfo::Parse(BoxReader* reader) {
-  return reader->ScanChildren() &&
+  RCHECK(reader->ScanChildren() &&
+         reader->ReadChild(&format) &&
          reader->ReadChild(&type) &&
-         reader->ReadChild(&info);
+         reader->ReadChild(&info));
+  return true;
 }
 
 MovieHeader::MovieHeader()
@@ -375,20 +378,15 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
          reader->Read2(&height) &&
          reader->SkipBytes(50));
 
-  RCHECK(reader->ScanChildren());
-  RCHECK(reader->MaybeReadChild(&pixel_aspect));
-  if (format == FOURCC_ENCV) {
-    RCHECK(reader->ReadChild(&sinf));
-  }
+  RCHECK(reader->ScanChildren() &&
+         reader->MaybeReadChild(&pixel_aspect));
 
-  // TODO(strobe): finalize format signaling for encrypted media
-  // (http://crbug.com/132351)
-  //
-  //  if (format == FOURCC_AVC1 ||
-  //      (format == FOURCC_ENCV &&
-  //       sinf.format.format == FOURCC_AVC1)) {
+  if (format == FOURCC_ENCV)
+    RCHECK(reader->ReadChild(&sinf));
+  if (format == FOURCC_AVC1 ||
+      (format == FOURCC_ENCV && sinf.format.format == FOURCC_AVC1)) {
     RCHECK(reader->ReadChild(&avcc));
-  //  }
+  }
   return true;
 }
 
@@ -444,9 +442,8 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
   samplerate >>= 16;
 
   RCHECK(reader->ScanChildren());
-  if (format == FOURCC_ENCA) {
+  if (format == FOURCC_ENCA)
     RCHECK(reader->ReadChild(&sinf));
-  }
   RCHECK(reader->ReadChild(&esds));
   return true;
 }
@@ -597,6 +594,7 @@ bool MovieFragmentHeader::Parse(BoxReader* reader) {
 
 TrackFragmentHeader::TrackFragmentHeader()
     : track_id(0),
+      sample_description_index(0),
       default_sample_duration(0),
       default_sample_size(0),
       default_sample_flags(0),

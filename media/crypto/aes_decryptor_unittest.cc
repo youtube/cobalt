@@ -143,6 +143,47 @@ static const unsigned char kWebmFrame0FrameDataChanged[] = {
   0x64, 0xf8
 };
 
+static const uint8 kSubsampleOriginalData[] = "Original subsample data.";
+static const int kSubsampleOriginalDataSize = 24;
+
+static const uint8 kSubsampleKeyId[] = { 0x00, 0x01, 0x02, 0x03 };
+
+static const uint8 kSubsampleKey[] = {
+  0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+  0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13
+};
+
+static const uint8 kSubsampleIv[] = {
+  0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static const uint8 kSubsampleData[] = {
+  0x4f, 0x72, 0x09, 0x16, 0x09, 0xe6, 0x79, 0xad,
+  0x70, 0x73, 0x75, 0x62, 0x09, 0xbb, 0x83, 0x1d,
+  0x4d, 0x08, 0xd7, 0x78, 0xa4, 0xa7, 0xf1, 0x2e
+};
+
+static const uint8 kPaddedSubsampleData[] = {
+  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+  0x4f, 0x72, 0x09, 0x16, 0x09, 0xe6, 0x79, 0xad,
+  0x70, 0x73, 0x75, 0x62, 0x09, 0xbb, 0x83, 0x1d,
+  0x4d, 0x08, 0xd7, 0x78, 0xa4, 0xa7, 0xf1, 0x2e
+};
+
+// Encrypted with kSubsampleKey and kSubsampleIv but without subsamples.
+static const uint8 kNoSubsampleData[] = {
+  0x2f, 0x03, 0x09, 0xef, 0x71, 0xaf, 0x31, 0x16,
+  0xfa, 0x9d, 0x18, 0x43, 0x1e, 0x96, 0x71, 0xb5,
+  0xbf, 0xf5, 0x30, 0x53, 0x9a, 0x20, 0xdf, 0x95
+};
+
+static const SubsampleEntry kSubsampleEntries[] = {
+  { 2, 7 },
+  { 3, 11 },
+  { 1, 0 },
+};
+
 class AesDecryptorTest : public testing::Test {
  public:
   AesDecryptorTest()
@@ -176,10 +217,9 @@ class AesDecryptorTest : public testing::Test {
   // an HMAC and IV prepended to an encrypted frame. Current encrypted WebM
   // request for comments specification is here
   // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-  scoped_refptr<DecoderBuffer> CreateWebMEncryptedBuffer(const uint8* data,
-                                                         int data_size,
-                                                         const uint8* key_id,
-                                                         int key_id_size) {
+  scoped_refptr<DecoderBuffer> CreateWebMEncryptedBuffer(
+      const uint8* data, int data_size,
+      const uint8* key_id, int key_id_size) {
     scoped_refptr<DecoderBuffer> encrypted_buffer = DecoderBuffer::CopyFrom(
         data + kWebMHmacSize, data_size - kWebMHmacSize);
     CHECK(encrypted_buffer);
@@ -191,10 +231,30 @@ class AesDecryptorTest : public testing::Test {
         GenerateCounterBlock(reinterpret_cast<const uint8*>(&iv), sizeof(iv));
     encrypted_buffer->SetDecryptConfig(
         scoped_ptr<DecryptConfig>(new DecryptConfig(
-            key_id, key_id_size,
-            reinterpret_cast<const uint8*>(webm_iv.data()), webm_iv.size(),
-            data, kWebMHmacSize,
-            sizeof(iv))));
+            std::string(reinterpret_cast<const char*>(key_id), key_id_size),
+            webm_iv,
+            std::string(reinterpret_cast<const char*>(data), kWebMHmacSize),
+            sizeof(iv),
+            std::vector<SubsampleEntry>())));
+    return encrypted_buffer;
+  }
+
+  scoped_refptr<DecoderBuffer> CreateSubsampleEncryptedBuffer(
+      const uint8* data, int data_size,
+      const uint8* key_id, int key_id_size,
+      const uint8* iv, int iv_size,
+      int data_offset,
+      const std::vector<SubsampleEntry>& subsample_entries) {
+    scoped_refptr<DecoderBuffer> encrypted_buffer =
+        DecoderBuffer::CopyFrom(data, data_size);
+    CHECK(encrypted_buffer);
+    encrypted_buffer->SetDecryptConfig(
+        scoped_ptr<DecryptConfig>(new DecryptConfig(
+            std::string(reinterpret_cast<const char*>(key_id), key_id_size),
+            std::string(reinterpret_cast<const char*>(iv), iv_size),
+            std::string(),
+            data_offset,
+            subsample_entries)));
     return encrypted_buffer;
   }
 
@@ -223,29 +283,21 @@ class AesDecryptorTest : public testing::Test {
   MOCK_METHOD2(BufferDecrypted, void(Decryptor::DecryptStatus,
                                      const scoped_refptr<DecoderBuffer>&));
 
-  void DecryptAndExpectToSucceed(const uint8* data, int data_size,
-                                 const uint8* plain_text,
-                                 int plain_text_size,
-                                 const uint8* key_id, int key_id_size) {
-    scoped_refptr<DecoderBuffer> encrypted_data =
-        CreateWebMEncryptedBuffer(data, data_size, key_id, key_id_size);
+  void DecryptAndExpectToSucceed(const scoped_refptr<DecoderBuffer>& encrypted,
+                                 const uint8* plain_text, int plain_text_size) {
     scoped_refptr<DecoderBuffer> decrypted;
     EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kSuccess, NotNull()))
         .WillOnce(SaveArg<1>(&decrypted));
 
-    decryptor_.Decrypt(encrypted_data, decrypt_cb_);
+    decryptor_.Decrypt(encrypted, decrypt_cb_);
     ASSERT_TRUE(decrypted);
     ASSERT_EQ(plain_text_size, decrypted->GetDataSize());
     EXPECT_EQ(0, memcmp(plain_text, decrypted->GetData(), plain_text_size));
   }
 
-  void DecryptAndExpectToFail(const uint8* data, int data_size,
-                              const uint8* plain_text, int plain_text_size,
-                              const uint8* key_id, int key_id_size) {
-    scoped_refptr<DecoderBuffer> encrypted_data =
-        CreateWebMEncryptedBuffer(data, data_size, key_id, key_id_size);
+  void DecryptAndExpectToFail(const scoped_refptr<DecoderBuffer>& encrypted) {
     EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kError, IsNull()));
-    decryptor_.Decrypt(encrypted_data, decrypt_cb_);
+    decryptor_.Decrypt(encrypted, decrypt_cb_);
   }
 
   scoped_refptr<DecoderBuffer> encrypted_data_;
@@ -255,17 +307,18 @@ class AesDecryptorTest : public testing::Test {
   AesDecryptor::DecryptCB decrypt_cb_;
 };
 
-TEST_F(AesDecryptorTest, NormalDecryption) {
+TEST_F(AesDecryptorTest, NormalWebMDecryption) {
   const WebmEncryptedData& frame = kWebmEncryptedFrames[0];
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
                            frame.key, frame.key_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(frame.encrypted_data,
-                                                    frame.encrypted_data_size,
+  scoped_refptr<DecoderBuffer> encrypted_data =
+      CreateWebMEncryptedBuffer(frame.encrypted_data,
+                                frame.encrypted_data_size,
+                                frame.key_id, frame.key_id_size);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(encrypted_data,
                                                     frame.plain_text,
-                                                    frame.plain_text_size,
-                                                    frame.key_id,
-                                                    frame.key_id_size));
+                                                    frame.plain_text_size));
 }
 
 TEST_F(AesDecryptorTest, WrongKey) {
@@ -273,12 +326,11 @@ TEST_F(AesDecryptorTest, WrongKey) {
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
                            kWebmWrongKey, arraysize(kWebmWrongKey));
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(frame.encrypted_data,
-                                                 frame.encrypted_data_size,
-                                                 frame.plain_text,
-                                                 frame.plain_text_size,
-                                                 frame.key_id,
-                                                 frame.key_id_size));
+  scoped_refptr<DecoderBuffer> encrypted_data =
+      CreateWebMEncryptedBuffer(frame.encrypted_data,
+                                frame.encrypted_data_size,
+                                frame.key_id, frame.key_id_size);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
 }
 
 TEST_F(AesDecryptorTest, KeyReplacement) {
@@ -286,20 +338,16 @@ TEST_F(AesDecryptorTest, KeyReplacement) {
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
                            kWebmWrongKey, arraysize(kWebmWrongKey));
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(frame.encrypted_data,
-                                                 frame.encrypted_data_size,
-                                                 frame.plain_text,
-                                                 frame.plain_text_size,
-                                                 frame.key_id,
-                                                 frame.key_id_size));
+  scoped_refptr<DecoderBuffer> encrypted_data =
+      CreateWebMEncryptedBuffer(frame.encrypted_data,
+                                frame.encrypted_data_size,
+                                frame.key_id, frame.key_id_size);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
                            frame.key, frame.key_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(frame.encrypted_data,
-                                                    frame.encrypted_data_size,
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(encrypted_data,
                                                     frame.plain_text,
-                                                    frame.plain_text_size,
-                                                    frame.key_id,
-                                                    frame.key_id_size));
+                                                    frame.plain_text_size));
 }
 
 TEST_F(AesDecryptorTest, WrongSizedKey) {
@@ -314,12 +362,13 @@ TEST_F(AesDecryptorTest, MultipleKeysAndFrames) {
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
                            frame.key, frame.key_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(frame.encrypted_data,
-                                                    frame.encrypted_data_size,
+  scoped_refptr<DecoderBuffer> encrypted_data =
+      CreateWebMEncryptedBuffer(frame.encrypted_data,
+                                frame.encrypted_data_size,
+                                frame.key_id, frame.key_id_size);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(encrypted_data,
                                                     frame.plain_text,
-                                                    frame.plain_text_size,
-                                                    frame.key_id,
-                                                    frame.key_id_size));
+                                                    frame.plain_text_size));
 
   const WebmEncryptedData& frame2 = kWebmEncryptedFrames[2];
   GenerateKeyRequest(frame2.key_id, frame2.key_id_size);
@@ -327,19 +376,21 @@ TEST_F(AesDecryptorTest, MultipleKeysAndFrames) {
                            frame2.key, frame2.key_size);
 
   const WebmEncryptedData& frame1 = kWebmEncryptedFrames[1];
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(frame1.encrypted_data,
-                                                    frame1.encrypted_data_size,
+  scoped_refptr<DecoderBuffer> encrypted_data1 =
+      CreateWebMEncryptedBuffer(frame1.encrypted_data,
+                                frame1.encrypted_data_size,
+                                frame1.key_id, frame1.key_id_size);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(encrypted_data1,
                                                     frame1.plain_text,
-                                                    frame1.plain_text_size,
-                                                    frame1.key_id,
-                                                    frame1.key_id_size));
+                                                    frame1.plain_text_size));
 
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(frame2.encrypted_data,
-                                                    frame2.encrypted_data_size,
+  scoped_refptr<DecoderBuffer> encrypted_data2 =
+      CreateWebMEncryptedBuffer(frame2.encrypted_data,
+                                frame2.encrypted_data_size,
+                                frame2.key_id, frame2.key_id_size);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(encrypted_data2,
                                                     frame2.plain_text,
-                                                    frame2.plain_text_size,
-                                                    frame2.key_id,
-                                                    frame2.key_id_size));
+                                                    frame2.plain_text_size));
 }
 
 TEST_F(AesDecryptorTest, HmacCheckFailure) {
@@ -347,12 +398,11 @@ TEST_F(AesDecryptorTest, HmacCheckFailure) {
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
                            frame.key, frame.key_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(kWebmFrame0HmacDataChanged,
-                                                 frame.encrypted_data_size,
-                                                 frame.plain_text,
-                                                 frame.plain_text_size,
-                                                 frame.key_id,
-                                                 frame.key_id_size));
+  scoped_refptr<DecoderBuffer> encrypted_data =
+      CreateWebMEncryptedBuffer(kWebmFrame0HmacDataChanged,
+                                frame.encrypted_data_size,
+                                frame.key_id, frame.key_id_size);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
 }
 
 TEST_F(AesDecryptorTest, IvCheckFailure) {
@@ -360,12 +410,11 @@ TEST_F(AesDecryptorTest, IvCheckFailure) {
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
                            frame.key, frame.key_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(kWebmFrame0IvDataChanged,
-                                                 frame.encrypted_data_size,
-                                                 frame.plain_text,
-                                                 frame.plain_text_size,
-                                                 frame.key_id,
-                                                 frame.key_id_size));
+  scoped_refptr<DecoderBuffer> encrypted_data =
+      CreateWebMEncryptedBuffer(kWebmFrame0IvDataChanged,
+                                frame.encrypted_data_size,
+                                frame.key_id, frame.key_id_size);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
 }
 
 TEST_F(AesDecryptorTest, DataCheckFailure) {
@@ -373,12 +422,79 @@ TEST_F(AesDecryptorTest, DataCheckFailure) {
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
                            frame.key, frame.key_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(kWebmFrame0FrameDataChanged,
-                                                 frame.encrypted_data_size,
-                                                 frame.plain_text,
-                                                 frame.plain_text_size,
-                                                 frame.key_id,
-                                                 frame.key_id_size));
+  scoped_refptr<DecoderBuffer> encrypted_data =
+      CreateWebMEncryptedBuffer(kWebmFrame0FrameDataChanged,
+                                frame.encrypted_data_size,
+                                frame.key_id, frame.key_id_size);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
+}
+
+TEST_F(AesDecryptorTest, SubsampleDecryption) {
+  GenerateKeyRequest(kSubsampleKeyId, arraysize(kSubsampleKeyId));
+  AddKeyAndExpectToSucceed(kSubsampleKeyId, arraysize(kSubsampleKeyId),
+                           kSubsampleKey, arraysize(kSubsampleKey));
+  scoped_refptr<DecoderBuffer> encrypted_data = CreateSubsampleEncryptedBuffer(
+      kSubsampleData, arraysize(kSubsampleData),
+      kSubsampleKeyId, arraysize(kSubsampleKeyId),
+      kSubsampleIv, arraysize(kSubsampleIv),
+      0,
+      std::vector<SubsampleEntry>(
+          kSubsampleEntries,
+          kSubsampleEntries + arraysize(kSubsampleEntries)));
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(
+      encrypted_data, kSubsampleOriginalData, kSubsampleOriginalDataSize));
+}
+
+// Ensures noninterference of data offset and subsample mechanisms. We never
+// expect to encounter this in the wild, but since the DecryptConfig doesn't
+// disallow such a configuration, it should be covered.
+TEST_F(AesDecryptorTest, SubsampleDecryptionWithOffset) {
+  GenerateKeyRequest(kSubsampleKeyId, arraysize(kSubsampleKeyId));
+  AddKeyAndExpectToSucceed(kSubsampleKeyId, arraysize(kSubsampleKeyId),
+                           kSubsampleKey, arraysize(kSubsampleKey));
+  scoped_refptr<DecoderBuffer> encrypted_data = CreateSubsampleEncryptedBuffer(
+      kPaddedSubsampleData, arraysize(kPaddedSubsampleData),
+      kSubsampleKeyId, arraysize(kSubsampleKeyId),
+      kSubsampleIv, arraysize(kSubsampleIv),
+      arraysize(kPaddedSubsampleData) - arraysize(kSubsampleData),
+      std::vector<SubsampleEntry>(
+          kSubsampleEntries,
+          kSubsampleEntries + arraysize(kSubsampleEntries)));
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(
+      encrypted_data, kSubsampleOriginalData, kSubsampleOriginalDataSize));
+}
+
+// No subsample or offset.
+TEST_F(AesDecryptorTest, NormalDecryption) {
+  GenerateKeyRequest(kSubsampleKeyId, arraysize(kSubsampleKeyId));
+  AddKeyAndExpectToSucceed(kSubsampleKeyId, arraysize(kSubsampleKeyId),
+                           kSubsampleKey, arraysize(kSubsampleKey));
+  scoped_refptr<DecoderBuffer> encrypted_data = CreateSubsampleEncryptedBuffer(
+      kNoSubsampleData, arraysize(kNoSubsampleData),
+      kSubsampleKeyId, arraysize(kSubsampleKeyId),
+      kSubsampleIv, arraysize(kSubsampleIv),
+      0,
+      std::vector<SubsampleEntry>());
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(
+      encrypted_data, kSubsampleOriginalData, kSubsampleOriginalDataSize));
+}
+
+TEST_F(AesDecryptorTest, IncorrectSubsampleSize) {
+  GenerateKeyRequest(kSubsampleKeyId, arraysize(kSubsampleKeyId));
+  AddKeyAndExpectToSucceed(kSubsampleKeyId, arraysize(kSubsampleKeyId),
+                           kSubsampleKey, arraysize(kSubsampleKey));
+  std::vector<SubsampleEntry> entries(
+      kSubsampleEntries,
+      kSubsampleEntries + arraysize(kSubsampleEntries));
+  entries[2].cypher_bytes += 1;
+
+  scoped_refptr<DecoderBuffer> encrypted_data = CreateSubsampleEncryptedBuffer(
+      kSubsampleData, arraysize(kSubsampleData),
+      kSubsampleKeyId, arraysize(kSubsampleKeyId),
+      kSubsampleIv, arraysize(kSubsampleIv),
+      0,
+      entries);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
 }
 
 }  // namespace media

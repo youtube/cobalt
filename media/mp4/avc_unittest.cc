@@ -23,7 +23,7 @@ static const uint8 kExpected[] = {
 static const uint8 kExpectedParamSets[] = {
   0x00, 0x00, 0x00, 0x01, 0x67, 0x12,
   0x00, 0x00, 0x00, 0x01, 0x67, 0x34,
-  0x00, 0x00, 0x00, 0x01, 0x68, 0x56, 0x78, 0x9a};
+  0x00, 0x00, 0x00, 0x01, 0x68, 0x56, 0x78};
 
 class AVCConversionTest : public testing::TestWithParam<int> {
  protected:
@@ -44,7 +44,7 @@ class AVCConversionTest : public testing::TestWithParam<int> {
 TEST_P(AVCConversionTest, ParseCorrectly) {
   std::vector<uint8> buf;
   MakeInputForLength(GetParam(), &buf);
-  EXPECT_TRUE(AVC::ConvertToAnnexB(GetParam(), &buf));
+  EXPECT_TRUE(AVC::ConvertFrameToAnnexB(GetParam(), &buf));
   EXPECT_EQ(buf.size(), sizeof(kExpected));
   EXPECT_EQ(0, memcmp(kExpected, &buf[0], sizeof(kExpected)));
 }
@@ -53,19 +53,19 @@ TEST_P(AVCConversionTest, ParsePartial) {
   std::vector<uint8> buf;
   MakeInputForLength(GetParam(), &buf);
   buf.pop_back();
-  EXPECT_FALSE(AVC::ConvertToAnnexB(GetParam(), &buf));
+  EXPECT_FALSE(AVC::ConvertFrameToAnnexB(GetParam(), &buf));
   // This tests a buffer ending in the middle of a NAL length. For length size
   // of one, this can't happen, so we skip that case.
   if (GetParam() != 1) {
     MakeInputForLength(GetParam(), &buf);
     buf.erase(buf.end() - (sizeof(kNALU2) + 1), buf.end());
-    EXPECT_FALSE(AVC::ConvertToAnnexB(GetParam(), &buf));
+    EXPECT_FALSE(AVC::ConvertFrameToAnnexB(GetParam(), &buf));
   }
 }
 
 TEST_P(AVCConversionTest, ParseEmpty) {
   std::vector<uint8> buf;
-  EXPECT_TRUE(AVC::ConvertToAnnexB(GetParam(), &buf));
+  EXPECT_TRUE(AVC::ConvertFrameToAnnexB(GetParam(), &buf));
   EXPECT_EQ(0u, buf.size());
 }
 
@@ -73,7 +73,7 @@ INSTANTIATE_TEST_CASE_P(AVCConversionTestValues,
                         AVCConversionTest,
                         ::testing::Values(1, 2, 4));
 
-TEST(AVC, InsertParameterSetsTest) {
+TEST_F(AVCConversionTest, ConvertConfigToAnnexB) {
   AVCDecoderConfigurationRecord avc_config;
   avc_config.sps_list.resize(2);
   avc_config.sps_list[0].push_back(0x67);
@@ -86,8 +86,7 @@ TEST(AVC, InsertParameterSetsTest) {
   avc_config.pps_list[0].push_back(0x78);
 
   std::vector<uint8> buf;
-  buf.push_back(0x9a);
-  EXPECT_TRUE(AVC::InsertParameterSets(avc_config, &buf));
+  EXPECT_TRUE(AVC::ConvertConfigToAnnexB(avc_config, &buf));
   EXPECT_EQ(0, memcmp(kExpectedParamSets, &buf[0],
                       sizeof(kExpectedParamSets)));
 }
