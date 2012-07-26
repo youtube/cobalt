@@ -65,6 +65,10 @@ class MEDIA_EXPORT AudioDecoderConfig {
   // otherwise.
   bool IsValidConfig() const;
 
+  // Returns true if all fields in |config| match this config.
+  // Note: The contents of |extra_data_| are compared not the raw pointers.
+  bool Matches(const AudioDecoderConfig& config) const;
+
   AudioCodec codec() const;
   int bits_per_channel() const;
   ChannelLayout channel_layout() const;

@@ -96,6 +96,10 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // otherwise.
   bool IsValidConfig() const;
 
+  // Returns true if all fields in |config| match this config.
+  // Note: The contents of |extra_data_| are compared not the raw pointers.
+  bool Matches(const VideoDecoderConfig& config) const;
+
   // Returns a human-readable string describing |*this|.  For debugging & test
   // output only.
   std::string AsHumanReadableString() const;

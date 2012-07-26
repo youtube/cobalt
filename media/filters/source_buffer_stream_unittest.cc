@@ -115,7 +115,7 @@ class SourceBufferStreamTest : public testing::Test {
     int current_position = starting_position;
     for (; current_position <= ending_position; current_position++) {
       scoped_refptr<StreamParserBuffer> buffer;
-      if (!stream_->GetNextBuffer(&buffer))
+      if (stream_->GetNextBuffer(&buffer) == SourceBufferStream::kNeedBuffer)
         break;
 
       if (expect_keyframe && current_position == starting_position)
@@ -139,7 +139,7 @@ class SourceBufferStreamTest : public testing::Test {
 
   void CheckNoNextBuffer() {
     scoped_refptr<StreamParserBuffer> buffer;
-    EXPECT_FALSE(stream_->GetNextBuffer(&buffer));
+    EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kNeedBuffer);
   }
 
   base::TimeDelta frame_duration() const { return frame_duration_; }
@@ -1163,7 +1163,7 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
   scoped_refptr<StreamParserBuffer> buffer;
 
   // GetNextBuffer() should return the next buffer at position (5 + |bump|).
-  EXPECT_TRUE(stream_->GetNextBuffer(&buffer));
+  EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kSuccess);
   EXPECT_EQ(buffer->GetDecodeTimestamp(), 5 * frame_duration() + bump);
 
   // Check rest of buffers.
@@ -1177,7 +1177,7 @@ TEST_F(SourceBufferStreamTest, Seek_StartOfSegment) {
   NewSegmentAppend_OffsetFirstBuffer(15, 5, bump);
 
   // GetNextBuffer() should return the next buffer at position (15 + |bump|).
-  EXPECT_TRUE(stream_->GetNextBuffer(&buffer));
+  EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kSuccess);
   EXPECT_EQ(buffer->GetDecodeTimestamp(), 15 * frame_duration() + bump);
 
   // Check rest of buffers.
@@ -1509,7 +1509,7 @@ TEST_F(SourceBufferStreamTest, PresentationTimestampIndependence) {
   // Check for IBB...BBP pattern.
   for (int i = 0; i < 20; i++) {
     scoped_refptr<StreamParserBuffer> buffer;
-    ASSERT_TRUE(stream_->GetNextBuffer(&buffer));
+    ASSERT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kSuccess);
 
     if (buffer->IsKeyframe()) {
       EXPECT_EQ(buffer->GetTimestamp(), buffer->GetDecodeTimestamp());
