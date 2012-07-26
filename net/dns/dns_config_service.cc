@@ -11,54 +11,6 @@
 
 namespace net {
 
-namespace {
-
-// Check if particular nameserver address is rogue. See:
-// http://www.fbi.gov/news/stories/2011/november/malware_110911/DNS-changer-malware.pdf
-bool CheckRogueDnsAddress(const IPAddressNumber& address) {
-#define U8(x) static_cast<unsigned char>(x)
-  const struct Bounds {
-    const unsigned char lower[4];  // inclusive
-    const unsigned char upper[4];  // exclusive
-  } cases[] = {
-    { { U8('\x55'), U8('\xFF'), U8('\x70'), U8('\x00') },    // 85.255.112.0
-      { U8('\x55'), U8('\xFF'), U8('\x80'), U8('\x00') } },  // 85.255.128.0
-    { { U8('\x43'), U8('\xD2'), U8('\x00'), U8('\x00') },    // 67.210.0.0
-      { U8('\x43'), U8('\xD2'), U8('\x10'), U8('\x00') } },  // 67.210.16.0
-    { { U8('\x5D'), U8('\xBC'), U8('\xA0'), U8('\x00') },    // 93.188.160.0
-      { U8('\x5D'), U8('\xBC'), U8('\xA8'), U8('\x00') } },  // 93.188.168.0
-    { { U8('\x4D'), U8('\x43'), U8('\x53'), U8('\x00') },    // 77.67.83.0
-      { U8('\x4D'), U8('\x43'), U8('\x54'), U8('\x00') } },  // 77.67.84.0
-    { { U8('\x40'), U8('\x1C'), U8('\xB2'), U8('\x00') },    // 64.28.178.0
-      { U8('\x40'), U8('\x1C'), U8('\xC0'), U8('\x00') } },  // 64.28.192.0
-  };
-#undef U8
-  for (unsigned i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    const Bounds& bounds = cases[i];
-    IPAddressNumber lower(bounds.lower, bounds.lower + 4);
-    IPAddressNumber upper(bounds.upper, bounds.upper + 4);
-    if (address.size() == kIPv6AddressSize) {
-      lower = ConvertIPv4NumberToIPv6Number(lower);
-      upper = ConvertIPv4NumberToIPv6Number(upper);
-    }
-    if ((lower <= address) && (address < upper))
-      return true;
-  }
-  return false;
-}
-
-void CheckRogueDnsConfig(const DnsConfig& config) {
-  for (size_t i = 0; i < config.nameservers.size(); ++i) {
-    if (CheckRogueDnsAddress(config.nameservers[i].address())) {
-      UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DNSChangerDetected", true);
-      return;
-    }
-  }
-  UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DNSChangerDetected", false);
-}
-
-}  // namespace
-
 // Default values are taken from glibc resolv.h.
 DnsConfig::DnsConfig()
     : append_to_multi_label_name(true),
@@ -122,8 +74,7 @@ base::Value* DnsConfig::ToValue() const {
 
 
 DnsConfigService::DnsConfigService()
-    : checked_rogue_dns_(false),
-      have_config_(false),
+    : have_config_(false),
       have_hosts_(false),
       need_update_(false),
       last_sent_empty_(true) {}
@@ -262,10 +213,6 @@ void DnsConfigService::OnCompleteConfig() {
   timer_.Stop();
   if (!need_update_)
     return;
-  if (!checked_rogue_dns_ && dns_config_.IsValid()) {
-    CheckRogueDnsConfig(dns_config_);
-    checked_rogue_dns_ = true;
-  }
   need_update_ = false;
   last_sent_empty_ = false;
   callback_.Run(dns_config_);
