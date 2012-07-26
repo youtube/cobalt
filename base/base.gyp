@@ -209,8 +209,6 @@
         'third_party/xdg_user_dirs/xdg_user_dir_lookup.cc',
         'third_party/xdg_user_dirs/xdg_user_dir_lookup.h',
         'auto_reset.h',
-        'base64.cc',
-        'base64.h',
         'event_recorder.h',
         'event_recorder_stubs.cc',
         'event_recorder_win.cc',
@@ -235,13 +233,9 @@
         'message_pump_mac.mm',
         'metrics/field_trial.cc',
         'metrics/field_trial.h',
-        'string16.cc',
-        'string16.h',
         'sync_socket.h',
         'sync_socket_win.cc',
         'sync_socket_posix.cc',
-        'time_mac.cc',
-        'time_posix.cc',
       ],
     },
     {
@@ -330,6 +324,10 @@
         'base_switches.h',
         'win/pe_image.cc',
         'win/pe_image.h',
+      ],
+      'sources!': [
+        # base64.cc depends on modp_b64.
+        'base64.cc',
       ],
       'include_dirs': [
         '..',
@@ -831,6 +829,10 @@
           },
           'defines': [
             '<@(nacl_win64_defines)',
+          ],
+          'sources!': [
+            # base64.cc depends on modp_b64.
+            'base64.cc',
           ],
           'configurations': {
             'Common_Base': {
