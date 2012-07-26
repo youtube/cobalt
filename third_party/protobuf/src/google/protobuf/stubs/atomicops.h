@@ -1,17 +1,20 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Protocol Buffers - Google's data interchange format
+// Copyright 2012 Google Inc.  All rights reserved.
+// http://code.google.com/p/protobuf/
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
 //
 //     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
+// notice, this list of conditions and the following disclaimer.
 //     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
 //     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 // "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -60,12 +63,12 @@ namespace protobuf {
 namespace internal {
 
 typedef int32 Atomic32;
-#ifdef GOOGLE_PROTOBUF_HOST_ARCH_64_BIT
+#ifdef GOOGLE_PROTOBUF_ARCH_64_BIT
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
-#if defined(__APPLE__)
-// MacOS is an exception to the implicit conversion rule above,
-// because it uses long for intptr_t.
+#if defined(GOOGLE_PROTOBUF_OS_NACL)
+// NaCl's intptr_t is not actually 64-bits on 64-bit!
+// http://code.google.com/p/nativeclient/issues/detail?id=1162
 typedef int64 Atomic64;
 #else
 typedef intptr_t Atomic64;
@@ -127,7 +130,7 @@ Atomic32 Acquire_Load(volatile const Atomic32* ptr);
 Atomic32 Release_Load(volatile const Atomic32* ptr);
 
 // 64-bit atomic operations (only available on 64-bit processors).
-#ifdef GOOGLE_PROTOBUF_HOST_ARCH_64_BIT
+#ifdef GOOGLE_PROTOBUF_ARCH_64_BIT
 Atomic64 NoBarrier_CompareAndSwap(volatile Atomic64* ptr,
                                   Atomic64 old_value,
                                   Atomic64 new_value);
@@ -147,32 +150,52 @@ void Release_Store(volatile Atomic64* ptr, Atomic64 value);
 Atomic64 NoBarrier_Load(volatile const Atomic64* ptr);
 Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 Atomic64 Release_Load(volatile const Atomic64* ptr);
-#endif  // GOOGLE_PROTOBUF_HOST_ARCH_64_BIT
+#endif  // GOOGLE_PROTOBUF_ARCH_64_BIT
 
 }  // namespace internal
 }  // namespace protobuf
 }  // namespace google
 
 // Include our platform specific implementation.
-#if defined(_MSC_VER) && \
-  (defined(GOOGLE_PROTOBUF_HOST_ARCH_IA32) || \
-   defined(GOOGLE_PROTOBUF_HOST_ARCH_X64))
-#include "atomicops_internals_x86_msvc.h"
-#elif defined(__APPLE__) && \
-  (defined(GOOGLE_PROTOBUF_HOST_ARCH_IA32) || \
-   defined(GOOGLE_PROTOBUF_HOST_ARCH_X64))
-#include "atomicops_internals_x86_macosx.h"
-#elif defined(__GNUC__) && \
-  (defined(GOOGLE_PROTOBUF_HOST_ARCH_IA32) || \
-   defined(GOOGLE_PROTOBUF_HOST_ARCH_X64))
-#include "atomicops_internals_x86_gcc.h"
-#elif defined(__GNUC__) && defined(GOOGLE_PROTOBUF_HOST_ARCH_ARM)
-#include "atomicops_internals_arm_gcc.h"
-#elif defined(__GNUC__) && defined(GOOGLE_PROTOBUF_HOST_ARCH_MIPS)
-#include "atomicops_internals_mips_gcc.h"
-#else
+#define GOOGLE_PROTOBUF_ATOMICOPS_ERROR \
 #error "Atomic operations are not supported on your platform"
+
+// MSVC.
+#if defined(_MSC_VER)
+#if defined(GOOGLE_PROTOBUF_ARCH_IA32) || defined(GOOGLE_PROTOBUF_ARCH_X64)
+#include <google/protobuf/stubs/atomicops_internals_x86_msvc.h>
+#else
+GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 #endif
+
+// Apple.
+#elif defined(GOOGLE_PROTOBUF_OS_APPLE)
+#include <google/protobuf/stubs/atomicops_internals_macosx.h>
+
+// GCC.
+#elif defined(__GNUC__)
+#if defined(GOOGLE_PROTOBUF_ARCH_IA32) || defined(GOOGLE_PROTOBUF_ARCH_X64)
+#include <google/protobuf/stubs/atomicops_internals_x86_gcc.h>
+#elif defined(GOOGLE_PROTOBUF_ARCH_ARM)
+#include <google/protobuf/stubs/atomicops_internals_arm_gcc.h>
+#elif defined(GOOGLE_PROTOBUF_ARCH_MIPS)
+#include <google/protobuf/stubs/atomicops_internals_mips_gcc.h>
+#else
+GOOGLE_PROTOBUF_ATOMICOPS_ERROR
+#endif
+
+// Unknown.
+#else
+GOOGLE_PROTOBUF_ATOMICOPS_ERROR
+#endif
+
+// On some platforms we need additional declarations to make AtomicWord
+// compatible with our other Atomic* types.
+#if defined(GOOGLE_PROTOBUF_OS_APPLE)
+#include <google/protobuf/stubs/atomicops_internals_atomicword_compat.h>
+#endif
+
+#undef GOOGLE_PROTOBUF_ATOMICOPS_ERROR
 
 #endif  // GOOGLE_PROTOBUF_NO_THREADSAFETY
 
