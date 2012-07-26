@@ -508,9 +508,6 @@ BASE_EXPORT bool WaitForExitCode(ProcessHandle handle, int* exit_code);
 // The caller is always responsible for closing the |handle|.
 BASE_EXPORT bool WaitForExitCodeWithTimeout(ProcessHandle handle,
                                             int* exit_code,
-                                            int64 timeout_milliseconds);
-BASE_EXPORT bool WaitForExitCodeWithTimeout(ProcessHandle handle,
-                                            int* exit_code,
                                             base::TimeDelta timeout);
 
 // Wait for all the processes based on the named executable to exit.  If filter
@@ -519,18 +516,12 @@ BASE_EXPORT bool WaitForExitCodeWithTimeout(ProcessHandle handle,
 // Returns true if all the processes exited, false otherwise.
 BASE_EXPORT bool WaitForProcessesToExit(
     const FilePath::StringType& executable_name,
-    int64 wait_milliseconds,
-    const ProcessFilter* filter);
-BASE_EXPORT bool WaitForProcessesToExit(
-    const FilePath::StringType& executable_name,
     base::TimeDelta wait,
     const ProcessFilter* filter);
 
 // Wait for a single process to exit. Return true if it exited cleanly within
 // the given time limit. On Linux |handle| must be a child process, however
 // on Mac and Windows it can be any process.
-BASE_EXPORT bool WaitForSingleProcess(ProcessHandle handle,
-                                      int64 wait_milliseconds);
 BASE_EXPORT bool WaitForSingleProcess(ProcessHandle handle,
                                       base::TimeDelta wait);
 
