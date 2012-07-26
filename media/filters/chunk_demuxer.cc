@@ -655,7 +655,7 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   CHECK(stream_parser.get());
 
   stream_parser->Init(
-      base::Bind(&ChunkDemuxer::OnStreamParserInitDone, this),
+      base::Bind(&ChunkDemuxer::OnStreamParserInitDone, base::Unretained(this)),
       base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this),
                  has_audio, has_video),
       audio_cb,
@@ -856,12 +856,6 @@ void ChunkDemuxer::Shutdown() {
 
     if (video_)
       video_->Shutdown();
-
-    for (StreamParserMap::iterator it = stream_parser_map_.begin();
-         it != stream_parser_map_.end(); ++it) {
-      delete it->second;
-    }
-    stream_parser_map_.clear();
 
     ChangeState_Locked(SHUTDOWN);
   }

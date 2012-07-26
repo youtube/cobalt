@@ -905,6 +905,21 @@ TEST_F(ChunkDemuxerTest, TestEOSDuringInit) {
 }
 
 TEST_F(ChunkDemuxerTest, TestEndOfStreamWithNoAppend) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Initialize(
+      &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+
+  ASSERT_EQ(AddId(), ChunkDemuxer::kOk);
+
+  CheckExpectedRanges("{ }");
+  demuxer_->EndOfStream(PIPELINE_OK);
+  ShutdownDemuxer();
+  CheckExpectedRanges("{ }");
+  demuxer_->RemoveId(kSourceId);
+  demuxer_ = NULL;
+}
+
+TEST_F(ChunkDemuxerTest, TestEndOfStreamWithNoMediaAppend) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
   CheckExpectedRanges("{ }");
