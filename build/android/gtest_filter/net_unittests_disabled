@@ -98,6 +98,9 @@ HttpCache.RangeGET_SyncOK
 HttpCache.RangeGET_Revalidate2
 HttpCache.RangeGET_Previous200
 HttpCache.RangeGET_Cancel2
+# crbug.com/139144
+UDPSocketTest.Broadcast
+
 UDPSocketTest.ConnectRandomBind
 UDPSocketTest.ClientGetLocalPeerAddresses
 # Disabled 4/13/12 by jrg.  More CertVerifyProcTest.* tests fail on
