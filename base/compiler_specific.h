@@ -114,11 +114,13 @@
 #define ALIGNAS(byte_alignment) __attribute__((aligned(byte_alignment)))
 #endif
 
-// Return the byte alignment of the given type (available at compile time).
+// Return the byte alignment of the given type (available at compile time).  Use
+// sizeof(type) prior to checking __alignof to workaround Visual C++ bug:
+// http://goo.gl/isH0C
 // Use like:
 //   ALIGNOF(int32)  // this would be 4
 #if defined(COMPILER_MSVC)
-#define ALIGNOF(type) __alignof(type)
+#define ALIGNOF(type) (sizeof(type) - sizeof(type) + __alignof(type))
 #elif defined(COMPILER_GCC)
 #define ALIGNOF(type) __alignof__(type)
 #endif
