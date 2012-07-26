@@ -83,7 +83,7 @@ class MessagePumpForUI;
 //
 class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
  public:
-if defined(__LB_SHELL__)
+#if defined(__LB_SHELL__)
   typedef base::MessagePumpShell::Dispatcher Dispatcher;
   typedef base::MessagePumpShell::Observer Observer;
 #elif !defined(OS_MACOSX) && !defined(OS_ANDROID)
