@@ -886,9 +886,9 @@ bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
 }
 
 bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
-                                int64 timeout_milliseconds) {
+                                base::TimeDelta timeout) {
   bool waitpid_success = false;
-  int status = WaitpidWithTimeout(handle, timeout_milliseconds,
+  int status = WaitpidWithTimeout(handle, timeout.InMilliseconds(),
                                   &waitpid_success);
   if (status == -1)
     return false;
@@ -903,12 +903,6 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
     return true;
   }
   return false;
-}
-
-bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
-                                base::TimeDelta timeout) {
-  return WaitForExitCodeWithTimeout(
-      handle, exit_code, timeout.InMilliseconds());
 }
 
 #if defined(OS_MACOSX)
@@ -1002,11 +996,6 @@ static bool WaitForSingleNonChildProcess(ProcessHandle handle,
   return true;
 }
 #endif  // OS_MACOSX
-
-bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
-  return WaitForSingleProcess(
-      handle, base::TimeDelta::FromMilliseconds(wait_milliseconds));
-}
 
 bool WaitForSingleProcess(ProcessHandle handle, base::TimeDelta wait) {
   ProcessHandle parent_pid = GetParentProcessId(handle);
@@ -1217,15 +1206,14 @@ bool GetAppOutputWithExitCode(const CommandLine& cl,
 }
 
 bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
-                            int64 wait_milliseconds,
+                            base::TimeDelta wait,
                             const ProcessFilter* filter) {
   bool result = false;
 
   // TODO(port): This is inefficient, but works if there are multiple procs.
   // TODO(port): use waitpid to avoid leaving zombies around
 
-  base::Time end_time = base::Time::Now() +
-      base::TimeDelta::FromMilliseconds(wait_milliseconds);
+  base::Time end_time = base::Time::Now() + wait;
   do {
     NamedProcessIterator iter(executable_name, filter);
     if (!iter.NextProcessEntry()) {
@@ -1236,12 +1224,6 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
   } while ((end_time - base::Time::Now()) > base::TimeDelta());
 
   return result;
-}
-
-bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
-                            base::TimeDelta wait,
-                            const ProcessFilter* filter) {
-  return WaitForProcessesToExit(executable_name, wait.InMilliseconds(), filter);
 }
 
 bool CleanupProcesses(const FilePath::StringType& executable_name,
