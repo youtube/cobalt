@@ -154,7 +154,7 @@
                   # Use a variable so the path gets fixed up so it is always
                   # correct when the action finally gets used.
                   'ios_run_unittest_script_path':
-                    '<(DEPTH)/testing/gtest_ios/RunUnittest.sh',
+                    '<(DEPTH)/testing/gtest_ios/run-unittest.sh',
                 },
                 'run_as': {
                   'action????': ['>(ios_run_unittest_script_path)'],
