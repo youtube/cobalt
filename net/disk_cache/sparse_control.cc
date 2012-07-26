@@ -332,6 +332,7 @@ int SparseControl::ReadyToUse(const CompletionCallback& callback) {
 
 // Static
 void SparseControl::DeleteChildren(EntryImpl* entry) {
+  DCHECK(entry);
   DCHECK(entry->GetEntryFlags() & PARENT_ENTRY);
   int data_len = entry->GetDataSize(kSparseIndex);
   if (data_len < static_cast<int>(sizeof(SparseData)) ||
@@ -350,7 +351,7 @@ void SparseControl::DeleteChildren(EntryImpl* entry) {
 
   entry->net_log().AddEvent(net::NetLog::TYPE_SPARSE_DELETE_CHILDREN);
 
-  DCHECK(entry && entry->backend_);
+  DCHECK(entry->backend_);
   ChildrenDeleter* deleter = new ChildrenDeleter(entry->backend_,
                                                  entry->GetKey());
   // The object will self destruct when finished.
