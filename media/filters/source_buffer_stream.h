@@ -13,6 +13,7 @@
 #include <deque>
 #include <list>
 #include <utility>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "media/base/audio_decoder_config.h"
@@ -29,6 +30,17 @@ class SourceBufferRange;
 class MEDIA_EXPORT SourceBufferStream {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
+
+  // Status returned by GetNextBuffer().
+  // kSuccess: Indicates that the next buffer was returned.
+  // kNeedBuffer: Indicates that we need more data before a buffer can be
+  //              returned.
+  // kConfigChange: Indicates that the next buffer requires a config change.
+  enum Status {
+    kSuccess,
+    kNeedBuffer,
+    kConfigChange,
+  };
 
   explicit SourceBufferStream(const AudioDecoderConfig& audio_config);
   explicit SourceBufferStream(const VideoDecoderConfig& video_config);
@@ -63,9 +75,10 @@ class MEDIA_EXPORT SourceBufferStream {
   // Seek() has not been called yet.
   // |out_buffer|'s timestamp may be earlier than the |timestamp| passed to
   // the last Seek() call.
-  // Returns true if |out_buffer| is filled with a valid buffer, false if
-  // there is not enough data buffered to fulfill the request.
-  bool GetNextBuffer(scoped_refptr<StreamParserBuffer>* out_buffer);
+  // Returns kSuccess if |out_buffer| is filled with a valid buffer, kNeedBuffer
+  // if there is not enough data buffered to fulfill the request, and
+  // kConfigChange if the next buffer requires a config change.
+  Status GetNextBuffer(scoped_refptr<StreamParserBuffer>* out_buffer);
 
   // Returns a list of the buffered time ranges.
   Ranges<base::TimeDelta> GetBufferedTime() const;
@@ -73,12 +86,16 @@ class MEDIA_EXPORT SourceBufferStream {
   // Returns true if we don't have any ranges or the last range is selected.
   bool IsEndSelected() const;
 
-  const AudioDecoderConfig& GetCurrentAudioDecoderConfig() {
-    return audio_config_;
-  }
-  const VideoDecoderConfig& GetCurrentVideoDecoderConfig() {
-    return video_config_;
-  }
+  const AudioDecoderConfig& GetCurrentAudioDecoderConfig();
+  const VideoDecoderConfig& GetCurrentVideoDecoderConfig();
+
+  // Notifies this object that the audio config has changed and buffers in
+  // future Append() calls should be associated with this new config.
+  bool UpdateAudioConfig(const AudioDecoderConfig& config);
+
+  // Notifies this object that the video config has changed and buffers in
+  // future Append() calls should be associated with this new config.
+  bool UpdateVideoConfig(const VideoDecoderConfig& config);
 
   // Returns the largest distance between two adjacent buffers in this stream,
   // or an estimate if no two adjacent buffers have been appended to the stream
@@ -172,11 +189,33 @@ class MEDIA_EXPORT SourceBufferStream {
   // Measures the distances between buffer timestamps and tracks the max.
   void UpdateMaxInterbufferDistance(const BufferQueue& buffers);
 
+  // Sets the config ID for each buffer to |append_config_index_|.
+  void SetConfigIds(const BufferQueue& buffers);
+
+  // Called to complete a config change. Updates |current_config_index_| to
+  // match the index of the next buffer. Calling this method causes
+  // GetNextBuffer() to stop returning kConfigChange and start returning
+  // kSuccess.
+  void CompleteConfigChange();
+
   // List of disjoint buffered ranges, ordered by start time.
   RangeList ranges_;
 
-  AudioDecoderConfig audio_config_;
-  VideoDecoderConfig video_config_;
+  // Indicates which decoder config is being used by the decoder.
+  // GetNextBuffer() is only allows to return buffers that have a
+  // config ID that matches this index. If there is a mismatch then
+  // it must signal that a config change is needed.
+  int current_config_index_;
+
+  // Indicates which decoder config to associate with new buffers
+  // being appended. Each new buffer appended has its config ID set
+  // to the value of this field.
+  int append_config_index_;
+
+  // Holds the audio/video configs for this stream. |current_config_index_|
+  // and |append_config_index_| represent indexes into one of these vectors.
+  std::vector<AudioDecoderConfig*> audio_configs_;
+  std::vector<VideoDecoderConfig*> video_configs_;
 
   // The starting time of the stream.
   base::TimeDelta stream_start_time_;

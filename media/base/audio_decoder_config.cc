@@ -81,6 +81,16 @@ bool AudioDecoderConfig::IsValidConfig() const {
       samples_per_second_ <= limits::kMaxSampleRate;
 }
 
+bool AudioDecoderConfig::Matches(const AudioDecoderConfig& config) const {
+  return ((codec() == config.codec()) &&
+          (bits_per_channel() == config.bits_per_channel()) &&
+          (channel_layout() == config.channel_layout()) &&
+          (samples_per_second() == config.samples_per_second()) &&
+          (extra_data_size() == config.extra_data_size()) &&
+          (!extra_data() || !memcmp(extra_data(), config.extra_data(),
+                                    extra_data_size())));
+}
+
 void AudioDecoderConfig::CopyFrom(const AudioDecoderConfig& audio_config) {
   Initialize(audio_config.codec(),
              audio_config.bits_per_channel(),

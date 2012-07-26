@@ -235,7 +235,8 @@ bool WebMStreamParser::Parse(const uint8* buf, int size) {
   int cur_size = 0;
 
   byte_queue_.Peek(&cur, &cur_size);
-  do {
+  while (cur_size > 0) {
+    State oldState = state_;
     switch (state_) {
       case kParsingHeaders:
         result = ParseInfoAndTracks(cur, cur_size);
@@ -255,10 +256,14 @@ bool WebMStreamParser::Parse(const uint8* buf, int size) {
       return false;
     }
 
+    if (state_ == oldState && result == 0)
+      break;
+
+    DCHECK_GE(result, 0);
     cur += result;
     cur_size -= result;
     bytes_parsed += result;
-  } while (result > 0 && cur_size > 0);
+  }
 
   byte_queue_.Pop(bytes_parsed);
   return true;

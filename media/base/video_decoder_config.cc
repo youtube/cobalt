@@ -149,6 +149,18 @@ bool VideoDecoderConfig::IsValidConfig() const {
           format_, natural_size_.width(), natural_size_.height());
 }
 
+bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
+  return ((codec() == config.codec()) &&
+          (format() == config.format()) &&
+          (profile() == config.profile()) &&
+          (coded_size() == config.coded_size()) &&
+          (visible_rect() == config.visible_rect()) &&
+          (natural_size() == config.natural_size()) &&
+          (extra_data_size() == config.extra_data_size()) &&
+          (!extra_data() || !memcmp(extra_data(), config.extra_data(),
+                                    extra_data_size())));
+}
+
 std::string VideoDecoderConfig::AsHumanReadableString() const {
   std::ostringstream s;
   s << "codec: " << codec()
