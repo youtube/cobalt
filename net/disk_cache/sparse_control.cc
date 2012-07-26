@@ -332,7 +332,6 @@ int SparseControl::ReadyToUse(const CompletionCallback& callback) {
 
 // Static
 void SparseControl::DeleteChildren(EntryImpl* entry) {
-  DCHECK(entry);
   DCHECK(entry->GetEntryFlags() & PARENT_ENTRY);
   int data_len = entry->GetDataSize(kSparseIndex);
   if (data_len < static_cast<int>(sizeof(SparseData)) ||
