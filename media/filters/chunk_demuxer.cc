@@ -326,46 +326,13 @@ Ranges<TimeDelta> ChunkDemuxerStream::GetBufferedRanges() {
 bool ChunkDemuxerStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
   DCHECK(config.IsValidConfig());
   DCHECK_EQ(type_, AUDIO);
-
-  const AudioDecoderConfig& current_config =
-      stream_->GetCurrentAudioDecoderConfig();
-
-  bool success = (current_config.codec() == config.codec()) &&
-      (current_config.bits_per_channel() == config.bits_per_channel()) &&
-      (current_config.channel_layout() == config.channel_layout()) &&
-      (current_config.samples_per_second() == config.samples_per_second()) &&
-      (current_config.extra_data_size() == config.extra_data_size()) &&
-      (!current_config.extra_data() ||
-       !memcmp(current_config.extra_data(), config.extra_data(),
-               current_config.extra_data_size()));
-
-  if (!success)
-    DVLOG(1) << "UpdateAudioConfig() : Failed to update audio config.";
-
-  return success;
+  return stream_->UpdateAudioConfig(config);
 }
 
 bool ChunkDemuxerStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
   DCHECK(config.IsValidConfig());
   DCHECK_EQ(type_, VIDEO);
-  const VideoDecoderConfig& current_config =
-      stream_->GetCurrentVideoDecoderConfig();
-
-  bool success = (current_config.codec() == config.codec()) &&
-      (current_config.format() == config.format()) &&
-      (current_config.profile() == config.profile()) &&
-      (current_config.coded_size() == config.coded_size()) &&
-      (current_config.visible_rect() == config.visible_rect()) &&
-      (current_config.natural_size() == config.natural_size()) &&
-      (current_config.extra_data_size() == config.extra_data_size()) &&
-      (!current_config.extra_data() ||
-       !memcmp(current_config.extra_data(), config.extra_data(),
-               current_config.extra_data_size()));
-
-  if (!success)
-    DVLOG(1) << "UpdateVideoConfig() : Failed to update video config.";
-
-  return success;
+  return stream_->UpdateVideoConfig(config);
 }
 
 void ChunkDemuxerStream::EndOfStream() {
@@ -448,6 +415,9 @@ const VideoDecoderConfig& ChunkDemuxerStream::video_decoder_config() {
 
 void ChunkDemuxerStream::ChangeState_Locked(State state) {
   lock_.AssertAcquired();
+  DVLOG(1) << "ChunkDemuxerStream::ChangeState_Locked() : "
+           << "type " << type_
+           << " - " << state_ << " -> " << state;
   state_ = state;
 }
 
@@ -485,17 +455,23 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
 
   switch (state_) {
     case RETURNING_DATA_FOR_READS:
-      if (stream_->GetNextBuffer(buffer)) {
-        *status = DemuxerStream::kOk;
-        return true;
+      switch (stream_->GetNextBuffer(buffer)) {
+        case SourceBufferStream::kSuccess:
+          *status = DemuxerStream::kOk;
+          return true;
+        case SourceBufferStream::kNeedBuffer:
+          if (end_of_stream_) {
+            *status = DemuxerStream::kOk;
+            *buffer = StreamParserBuffer::CreateEOSBuffer();
+            return true;
+          }
+          return false;
+        case SourceBufferStream::kConfigChange:
+          *status = kConfigChanged;
+          *buffer = NULL;
+          return true;
       }
-
-      if (end_of_stream_) {
-        *status = DemuxerStream::kOk;
-        *buffer = StreamParserBuffer::CreateEOSBuffer();
-        return true;
-      }
-      return false;
+      break;
     case WAITING_FOR_SEEK:
       // Null buffers should be returned in this state since we are waiting
       // for a seek. Any buffers in the SourceBuffer should NOT be returned

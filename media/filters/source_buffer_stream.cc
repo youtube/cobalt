@@ -9,6 +9,7 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
+#include "base/stl_util.h"
 
 namespace media {
 
@@ -92,6 +93,10 @@ class SourceBufferRange {
   // the request.
   bool GetNextBuffer(scoped_refptr<StreamParserBuffer>* out_buffer);
   bool HasNextBuffer() const;
+
+  // Returns the config ID for the buffer that will be returned by
+  // GetNextBuffer().
+  int GetNextConfigId() const;
 
   // Returns true if the range knows the position of the next buffer it should
   // return, i.e. it has been Seek()ed. This does not necessarily mean that it
@@ -229,7 +234,11 @@ static int kDefaultBufferDurationInMs = 125;
 namespace media {
 
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
-    : stream_start_time_(kNoTimestamp()),
+    : current_config_index_(0),
+      append_config_index_(0),
+      audio_configs_(1),
+      video_configs_(0),
+      stream_start_time_(kNoTimestamp()),
       seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
       selected_range_(NULL),
@@ -238,11 +247,16 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
       new_media_segment_(false),
       last_buffer_timestamp_(kNoTimestamp()),
       max_interbuffer_distance_(kNoTimestamp()) {
-  audio_config_.CopyFrom(audio_config);
+  audio_configs_[0] = new AudioDecoderConfig();
+  audio_configs_[0]->CopyFrom(audio_config);
 }
 
 SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config)
-    : stream_start_time_(kNoTimestamp()),
+    : current_config_index_(0),
+      append_config_index_(0),
+      audio_configs_(0),
+      video_configs_(1),
+      stream_start_time_(kNoTimestamp()),
       seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
       selected_range_(NULL),
@@ -251,7 +265,8 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config)
       new_media_segment_(false),
       last_buffer_timestamp_(kNoTimestamp()),
       max_interbuffer_distance_(kNoTimestamp()) {
-  video_config_.CopyFrom(video_config);
+  video_configs_[0] = new VideoDecoderConfig();
+  video_configs_[0]->CopyFrom(video_config);
 }
 
 SourceBufferStream::~SourceBufferStream() {
@@ -259,6 +274,9 @@ SourceBufferStream::~SourceBufferStream() {
     delete ranges_.front();
     ranges_.pop_front();
   }
+
+  STLDeleteElements(&audio_configs_);
+  STLDeleteElements(&video_configs_);
 }
 
 void SourceBufferStream::OnNewMediaSegment(
@@ -305,6 +323,7 @@ bool SourceBufferStream::Append(
   }
 
   UpdateMaxInterbufferDistance(buffers);
+  SetConfigIds(buffers);
 
   // Save a snapshot of stream state before range modifications are made.
   base::TimeDelta next_buffer_timestamp = GetNextBufferTimestamp();
@@ -420,6 +439,13 @@ void SourceBufferStream::UpdateMaxInterbufferDistance(
       }
     }
     prev_timestamp = current_timestamp;
+  }
+}
+
+void SourceBufferStream::SetConfigIds(const BufferQueue& buffers) {
+  for (BufferQueue::const_iterator itr = buffers.begin();
+       itr != buffers.end(); ++itr) {
+    (*itr)->SetConfigId(append_config_index_);
   }
 }
 
@@ -653,15 +679,25 @@ bool SourceBufferStream::IsSeekPending() const {
   return seek_pending_;
 }
 
-bool SourceBufferStream::GetNextBuffer(
+SourceBufferStream::Status SourceBufferStream::GetNextBuffer(
     scoped_refptr<StreamParserBuffer>* out_buffer) {
   if (!track_buffer_.empty()) {
+    if (track_buffer_.front()->GetConfigId() != current_config_index_)
+      return kConfigChange;
+
     *out_buffer = track_buffer_.front();
     track_buffer_.pop_front();
-    return true;
+    return kSuccess;
   }
 
-  return selected_range_ && selected_range_->GetNextBuffer(out_buffer);
+  if (!selected_range_ || !selected_range_->HasNextBuffer())
+    return kNeedBuffer;
+
+  if (selected_range_->GetNextConfigId() != current_config_index_)
+    return kConfigChange;
+
+  CHECK(selected_range_->GetNextBuffer(out_buffer));
+  return kSuccess;
 }
 
 base::TimeDelta SourceBufferStream::GetNextBufferTimestamp() {
@@ -729,10 +765,97 @@ bool SourceBufferStream::IsEndSelected() const {
   return ranges_.empty() || selected_range_ == ranges_.back();
 }
 
+const AudioDecoderConfig& SourceBufferStream::GetCurrentAudioDecoderConfig() {
+  CompleteConfigChange();
+  return *audio_configs_[current_config_index_];
+}
+
+const VideoDecoderConfig& SourceBufferStream::GetCurrentVideoDecoderConfig() {
+  CompleteConfigChange();
+  return *video_configs_[current_config_index_];
+}
+
 base::TimeDelta SourceBufferStream::GetMaxInterbufferDistance() const {
   if (max_interbuffer_distance_ == kNoTimestamp())
     return base::TimeDelta::FromMilliseconds(kDefaultBufferDurationInMs);
   return max_interbuffer_distance_;
+}
+
+bool SourceBufferStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
+  DCHECK(!audio_configs_.empty());
+  DCHECK(video_configs_.empty());
+
+  if (audio_configs_[0]->codec() != config.codec()) {
+    DVLOG(1) << "UpdateAudioConfig() : Codec changes not allowed.";
+    return false;
+  }
+
+  if (audio_configs_[0]->samples_per_second() != config.samples_per_second()) {
+    DVLOG(1) << "UpdateAudioConfig() : Sample rate changes not allowed.";
+    return false;
+  }
+
+  if (audio_configs_[0]->channel_layout() != config.channel_layout()) {
+    DVLOG(1) << "UpdateAudioConfig() : Channel layout changes not allowed.";
+    return false;
+  }
+
+  if (audio_configs_[0]->bits_per_channel() != config.bits_per_channel()) {
+    DVLOG(1) << "UpdateAudioConfig() : Bits per channel changes not allowed.";
+    return false;
+  }
+
+  // Check to see if the new config matches an existing one.
+  for (size_t i = 0; i < audio_configs_.size(); ++i) {
+    if (config.Matches(*audio_configs_[i])) {
+      append_config_index_ = i;
+      return true;
+    }
+  }
+
+  // No matches found so let's add this one to the list.
+  append_config_index_ = audio_configs_.size();
+  audio_configs_.resize(audio_configs_.size() + 1);
+  audio_configs_[append_config_index_] = new AudioDecoderConfig();
+  audio_configs_[append_config_index_]->CopyFrom(config);
+  return true;
+}
+
+bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
+  DCHECK(!video_configs_.empty());
+  DCHECK(audio_configs_.empty());
+
+  if (video_configs_[0]->codec() != config.codec()) {
+    DVLOG(1) << "UpdateVideoConfig() : Codec changes not allowed.";
+    return false;
+  }
+
+  // Check to see if the new config matches an existing one.
+  for (size_t i = 0; i < video_configs_.size(); ++i) {
+    if (config.Matches(*video_configs_[i])) {
+      append_config_index_ = i;
+      return true;
+    }
+  }
+
+  // No matches found so let's add this one to the list.
+  append_config_index_ = video_configs_.size();
+  video_configs_.resize(video_configs_.size() + 1);
+  video_configs_[append_config_index_] = new VideoDecoderConfig();
+  video_configs_[append_config_index_]->CopyFrom(config);
+  return true;
+}
+
+void SourceBufferStream::CompleteConfigChange() {
+  if (!track_buffer_.empty()) {
+    current_config_index_ = track_buffer_.front()->GetConfigId();
+    return;
+  }
+
+  if (!selected_range_ || !selected_range_->HasNextBuffer())
+    return;
+
+  current_config_index_ = selected_range_->GetNextConfigId();
 }
 
 SourceBufferRange::SourceBufferRange(
@@ -925,12 +1048,9 @@ bool SourceBufferRange::TruncateAt(
 
 bool SourceBufferRange::GetNextBuffer(
     scoped_refptr<StreamParserBuffer>* out_buffer) {
-  if (waiting_for_keyframe_ ||
-      next_buffer_index_ >= static_cast<int>(buffers_.size())) {
+  if (!HasNextBuffer())
     return false;
-  }
 
-  DCHECK_GE(next_buffer_index_, 0);
   *out_buffer = buffers_.at(next_buffer_index_);
   next_buffer_index_++;
   return true;
@@ -938,8 +1058,15 @@ bool SourceBufferRange::GetNextBuffer(
 
 bool SourceBufferRange::HasNextBuffer() const {
   return next_buffer_index_ >= 0 &&
-      next_buffer_index_ < static_cast<int>(buffers_.size());
+      next_buffer_index_ < static_cast<int>(buffers_.size()) &&
+      !waiting_for_keyframe_;
 }
+
+int SourceBufferRange::GetNextConfigId() const {
+  DCHECK(HasNextBuffer());
+  return buffers_.at(next_buffer_index_)->GetConfigId();
+}
+
 
 base::TimeDelta SourceBufferRange::GetNextTimestamp() const {
   DCHECK(!buffers_.empty());

@@ -356,6 +356,65 @@ class ChunkDemuxerTest : public testing::Test {
     return AppendInitSegment(true, true, false);
   }
 
+  // Initializes the demuxer with data from 2 files with different
+  // decoder configurations. This is used to test the decoder config change
+  // logic.
+  //
+  // bear-320x240.webm VideoDecoderConfig returns 320x240 for its natural_size()
+  // bear-640x360.webm VideoDecoderConfig returns 640x360 for its natural_size()
+  // The resulting video stream returns data from each file for the following
+  // time ranges.
+  // bear-320x240.webm : [0-501)       [801-2737)
+  // bear-640x360.webm :       [501-801)
+  //
+  // bear-320x240.webm AudioDecoderConfig returns 3863 for its extra_data_size()
+  // bear-640x360.webm AudioDecoderConfig returns 3935 for its extra_data_size()
+  // The resulting audio stream returns data from each file for the following
+  // time ranges.
+  // bear-320x240.webm : [0-464)       [779-2737)
+  // bear-640x360.webm :       [477-756)
+  bool InitDemuxerWithConfigChangeData() {
+    scoped_refptr<DecoderBuffer> bear1 = ReadTestDataFile("bear-320x240.webm");
+    scoped_refptr<DecoderBuffer> bear2 = ReadTestDataFile("bear-640x360.webm");
+
+    EXPECT_CALL(*client_, DemuxerOpened(_));
+    demuxer_->Initialize(
+        &host_, CreateInitDoneCB(base::TimeDelta::FromMilliseconds(2744),
+                                 PIPELINE_OK));
+
+    if (AddId(kSourceId, true, true) != ChunkDemuxer::kOk)
+      return false;
+
+    // Append the whole bear1 file.
+    if (!AppendData(bear1->GetData(), bear1->GetDataSize()))
+      return false;
+    CheckExpectedRanges(kSourceId, "{ [0,2737) }");
+
+    // Append initialization segment for bear2.
+    // Note: Offsets here and below are derived from
+    // media/test/data/bear-640x360-manifest.js and
+    // media/test/data/bear-320x240-manifest.js which were
+    // generated from media/test/data/bear-640x360.webm and
+    // media/test/data/bear-320x240.webm respectively.
+    if (!AppendData(bear2->GetData(), 4459))
+      return false;
+
+    // Append a media segment that goes from [0.477000, 0.988000).
+    if (!AppendData(bear2->GetData() + 55173, 19021))
+      return false;
+    CheckExpectedRanges(kSourceId, "{ [0,1002) [1201,2737) }");
+
+    // Append initialization segment for bear1 & fill gap with [770-1197)
+    // segment.
+    if (!AppendData(bear1->GetData(), 4370) ||
+        !AppendData(bear1->GetData() + 72737, 28183)) {
+      return false;
+    }
+    CheckExpectedRanges(kSourceId, "{ [0,2737) }");
+
+    return demuxer_->EndOfStream(PIPELINE_OK);
+  }
+
   void ShutdownDemuxer() {
     if (demuxer_) {
       EXPECT_CALL(*client_, DemuxerClosed());
@@ -527,6 +586,12 @@ class ChunkDemuxerTest : public testing::Test {
   void ExpectRead(DemuxerStream* stream, int64 timestamp_in_ms) {
     EXPECT_CALL(*this, ReadDone(DemuxerStream::kOk,
                                 HasTimestamp(timestamp_in_ms)));
+    stream->Read(base::Bind(&ChunkDemuxerTest::ReadDone,
+                            base::Unretained(this)));
+  }
+
+  void ExpectConfigChanged(DemuxerStream* stream) {
+    EXPECT_CALL(*this, ReadDone(DemuxerStream::kConfigChanged, _));
     stream->Read(base::Bind(&ChunkDemuxerTest::ReadDone,
                             base::Unretained(this)));
   }
@@ -1814,6 +1879,189 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamDuringSeek) {
   EndOfStreamHelper end_of_stream_helper(demuxer_);
   end_of_stream_helper.RequestReads();
   end_of_stream_helper.CheckIfReadDonesWereCalled(true);
+}
+
+static void ConfigChangeReadDone(DemuxerStream::Status* status_out,
+                                 scoped_refptr<DecoderBuffer>* buffer_out,
+                                 DemuxerStream::Status status,
+                                 const scoped_refptr<DecoderBuffer>& buffer) {
+  *status_out = status;
+  *buffer_out = buffer;
+}
+
+static void ReadUntilNotOkOrEndOfStream(
+    const scoped_refptr<DemuxerStream>& stream,
+    DemuxerStream::Status* status,
+    base::TimeDelta* last_timestamp) {
+  scoped_refptr<DecoderBuffer> buffer;
+
+  *last_timestamp = kNoTimestamp();
+  do {
+    stream->Read(base::Bind(&ConfigChangeReadDone, status, &buffer));
+    if (*status == DemuxerStream::kOk && !buffer->IsEndOfStream())
+      *last_timestamp = buffer->GetTimestamp();
+
+  } while (*status == DemuxerStream::kOk && !buffer->IsEndOfStream());
+}
+
+TEST_F(ChunkDemuxerTest, TestConfigChange_Video) {
+  InSequence s;
+
+  ASSERT_TRUE(InitDemuxerWithConfigChangeData());
+
+  scoped_refptr<DemuxerStream> stream =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  DemuxerStream::Status status;
+  base::TimeDelta last_timestamp;
+
+  // Fetch initial video config and verify it matches what we expect.
+  const VideoDecoderConfig& video_config_1 = stream->video_decoder_config();
+  ASSERT_TRUE(video_config_1.IsValidConfig());
+  EXPECT_EQ(video_config_1.natural_size().width(), 320);
+  EXPECT_EQ(video_config_1.natural_size().height(), 240);
+
+  ExpectRead(stream, 0);
+
+  ReadUntilNotOkOrEndOfStream(stream, &status, &last_timestamp);
+
+  ASSERT_EQ(status, DemuxerStream::kConfigChanged);
+  EXPECT_EQ(last_timestamp.InMilliseconds(), 467);
+
+  // Verify that another read will result in kConfigChanged being returned
+  // again.
+  ExpectConfigChanged(stream);
+
+  // Fetch the new decoder config.
+  const VideoDecoderConfig& video_config_2 = stream->video_decoder_config();
+  ASSERT_TRUE(video_config_2.IsValidConfig());
+  EXPECT_EQ(video_config_2.natural_size().width(), 640);
+  EXPECT_EQ(video_config_2.natural_size().height(), 360);
+
+  ExpectRead(stream, 501);
+
+  // Read until the next config change.
+  ReadUntilNotOkOrEndOfStream(stream, &status, &last_timestamp);
+  ASSERT_EQ(status, DemuxerStream::kConfigChanged);
+  EXPECT_EQ(last_timestamp.InMilliseconds(), 767);
+
+  // Verify we get another ConfigChanged status.
+  ExpectConfigChanged(stream);
+
+  // Get the new config and verify that it matches the first one.
+  ASSERT_TRUE(video_config_1.Matches(stream->video_decoder_config()));
+
+  ExpectRead(stream, 801);
+
+  // Read until the end of the stream just to make sure there aren't any other
+  // config changes.
+  ReadUntilNotOkOrEndOfStream(stream, &status, &last_timestamp);
+  ASSERT_EQ(status, DemuxerStream::kOk);
+}
+
+TEST_F(ChunkDemuxerTest, TestConfigChange_Audio) {
+  InSequence s;
+
+  ASSERT_TRUE(InitDemuxerWithConfigChangeData());
+
+  scoped_refptr<DemuxerStream> stream =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  DemuxerStream::Status status;
+  base::TimeDelta last_timestamp;
+
+  // Fetch initial audio config and verify it matches what we expect.
+  const AudioDecoderConfig& audio_config_1 = stream->audio_decoder_config();
+  ASSERT_TRUE(audio_config_1.IsValidConfig());
+  EXPECT_EQ(audio_config_1.samples_per_second(), 44100);
+  EXPECT_EQ(audio_config_1.extra_data_size(), 3863u);
+
+  ExpectRead(stream, 0);
+
+  ReadUntilNotOkOrEndOfStream(stream, &status, &last_timestamp);
+
+  ASSERT_EQ(status, DemuxerStream::kConfigChanged);
+  EXPECT_EQ(last_timestamp.InMilliseconds(), 464);
+
+  // Verify that another read will result in kConfigChanged being returned
+  // again.
+  ExpectConfigChanged(stream);
+
+  // Fetch the new decoder config.
+  const AudioDecoderConfig& audio_config_2 = stream->audio_decoder_config();
+  ASSERT_TRUE(audio_config_2.IsValidConfig());
+  EXPECT_EQ(audio_config_2.samples_per_second(), 44100);
+  EXPECT_EQ(audio_config_2.extra_data_size(), 3935u);
+
+  ExpectRead(stream, 477);
+
+  // Read until the next config change.
+  ReadUntilNotOkOrEndOfStream(stream, &status, &last_timestamp);
+  ASSERT_EQ(status, DemuxerStream::kConfigChanged);
+  EXPECT_EQ(last_timestamp.InMilliseconds(), 756);
+
+  // Verify we get another ConfigChanged status.
+  ExpectConfigChanged(stream);
+
+  // Get the new config and verify that it matches the first one.
+  ASSERT_TRUE(audio_config_1.Matches(stream->audio_decoder_config()));
+
+  ExpectRead(stream, 779);
+
+  // Read until the end of the stream just to make sure there aren't any other
+  // config changes.
+  ReadUntilNotOkOrEndOfStream(stream, &status, &last_timestamp);
+  ASSERT_EQ(status, DemuxerStream::kOk);
+}
+
+TEST_F(ChunkDemuxerTest, TestConfigChange_Seek) {
+  InSequence s;
+
+  ASSERT_TRUE(InitDemuxerWithConfigChangeData());
+
+  scoped_refptr<DemuxerStream> stream =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  // Fetch initial video config and verify it matches what we expect.
+  const VideoDecoderConfig& video_config_1 = stream->video_decoder_config();
+  ASSERT_TRUE(video_config_1.IsValidConfig());
+  EXPECT_EQ(video_config_1.natural_size().width(), 320);
+  EXPECT_EQ(video_config_1.natural_size().height(), 240);
+
+  ExpectRead(stream, 0);
+
+  // Seek to a location with a different config.
+  demuxer_->Seek(base::TimeDelta::FromMilliseconds(501),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  // Verify that the config change is signalled.
+  ExpectConfigChanged(stream);
+
+  // Fetch the new decoder config and verify it is what we expect.
+  const VideoDecoderConfig& video_config_2 = stream->video_decoder_config();
+  ASSERT_TRUE(video_config_2.IsValidConfig());
+  EXPECT_EQ(video_config_2.natural_size().width(), 640);
+  EXPECT_EQ(video_config_2.natural_size().height(), 360);
+
+  // Verify that Read() will return a buffer now.
+  ExpectRead(stream, 501);
+
+  // Seek back to the beginning and verify we get another config change.
+  demuxer_->Seek(base::TimeDelta::FromMilliseconds(0),
+                 NewExpectedStatusCB(PIPELINE_OK));
+  ExpectConfigChanged(stream);
+  ASSERT_TRUE(video_config_1.Matches(stream->video_decoder_config()));
+  ExpectRead(stream, 0);
+
+  // Seek to a location that requires a config change and then
+  // seek to a new location that has the same configuration as
+  // the start of the file without a Read() in the middle.
+  demuxer_->Seek(base::TimeDelta::FromMilliseconds(501),
+                 NewExpectedStatusCB(PIPELINE_OK));
+  demuxer_->Seek(base::TimeDelta::FromMilliseconds(801),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  // Verify that no config change is signalled.
+  ExpectRead(stream, 801);
+  ASSERT_TRUE(video_config_1.Matches(stream->video_decoder_config()));
 }
 
 }  // namespace media
