@@ -16,21 +16,23 @@ namespace {
 // Check if particular nameserver address is rogue. See:
 // http://www.fbi.gov/news/stories/2011/november/malware_110911/DNS-changer-malware.pdf
 bool CheckRogueDnsAddress(const IPAddressNumber& address) {
+#define U8(x) static_cast<unsigned char>(x)
   const struct Bounds {
     const unsigned char lower[4];  // inclusive
     const unsigned char upper[4];  // exclusive
   } cases[] = {
-    { { '\x55', '\xFF', '\x70', '\x00' },    // 85.255.112.0
-      { '\x55', '\xFF', '\x80', '\x00' } },  // 85.255.128.0
-    { { '\x43', '\xD2', '\x00', '\x00' },    // 67.210.0.0
-      { '\x43', '\xD2', '\x10', '\x00' } },  // 67.210.16.0
-    { { '\x5D', '\xBC', '\xA0', '\x00' },    // 93.188.160.0
-      { '\x5D', '\xBC', '\xA8', '\x00' } },  // 93.188.168.0
-    { { '\x4D', '\x43', '\x53', '\x00' },    // 77.67.83.0
-      { '\x4D', '\x43', '\x54', '\x00' } },  // 77.67.84.0
-    { { '\x40', '\x1C', '\xB2', '\x00' },    // 64.28.178.0
-      { '\x40', '\x1C', '\xC0', '\x00' } },  // 64.28.192.0
+    { { U8('\x55'), U8('\xFF'), U8('\x70'), U8('\x00') },    // 85.255.112.0
+      { U8('\x55'), U8('\xFF'), U8('\x80'), U8('\x00') } },  // 85.255.128.0
+    { { U8('\x43'), U8('\xD2'), U8('\x00'), U8('\x00') },    // 67.210.0.0
+      { U8('\x43'), U8('\xD2'), U8('\x10'), U8('\x00') } },  // 67.210.16.0
+    { { U8('\x5D'), U8('\xBC'), U8('\xA0'), U8('\x00') },    // 93.188.160.0
+      { U8('\x5D'), U8('\xBC'), U8('\xA8'), U8('\x00') } },  // 93.188.168.0
+    { { U8('\x4D'), U8('\x43'), U8('\x53'), U8('\x00') },    // 77.67.83.0
+      { U8('\x4D'), U8('\x43'), U8('\x54'), U8('\x00') } },  // 77.67.84.0
+    { { U8('\x40'), U8('\x1C'), U8('\xB2'), U8('\x00') },    // 64.28.178.0
+      { U8('\x40'), U8('\x1C'), U8('\xC0'), U8('\x00') } },  // 64.28.192.0
   };
+#undef U8
   for (unsigned i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
     const Bounds& bounds = cases[i];
     IPAddressNumber lower(bounds.lower, bounds.lower + 4);
