@@ -37,6 +37,7 @@
 #define MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_INPUT_MAC_H_
 
 #include <AudioUnit/AudioUnit.h>
+#include <CoreAudio/CoreAudio.h>
 
 #include "base/atomicops.h"
 #include "base/memory/scoped_ptr.h"

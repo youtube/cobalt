@@ -18,6 +18,7 @@
 #define MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_OUTPUT_MAC_H_
 
 #include <AudioUnit/AudioUnit.h>
+#include <CoreAudio/CoreAudio.h>
 
 #include "base/compiler_specific.h"
 #include "media/audio/audio_io.h"
