@@ -35,7 +35,7 @@ PCMWaveInAudioInputStream::PCMWaveInAudioInputStream(
       num_buffers_(num_buffers),
       buffer_(NULL),
       channels_(params.channels()) {
-  DCHECK(num_buffers_ > 0);
+  DCHECK_LE(0, num_buffers_);
   format_.wFormatTag = WAVE_FORMAT_PCM;
   format_.nChannels = params.channels() > 2 ? 2 : params.channels();
   format_.nSamplesPerSec = params.sample_rate();
