@@ -42,10 +42,11 @@
       'sources': [
         'src/google/protobuf/stubs/atomicops.h',
         'src/google/protobuf/stubs/atomicops_internals_arm_gcc.h',
+        'src/google/protobuf/stubs/atomicops_internals_atomicword_compat.h',
+        'src/google/protobuf/stubs/atomicops_internals_macosx.h',
         'src/google/protobuf/stubs/atomicops_internals_mips_gcc.h',
         'src/google/protobuf/stubs/atomicops_internals_x86_gcc.cc',
         'src/google/protobuf/stubs/atomicops_internals_x86_gcc.h',
-        'src/google/protobuf/stubs/atomicops_internals_x86_macosx.h',
         'src/google/protobuf/stubs/atomicops_internals_x86_msvc.cc',
         'src/google/protobuf/stubs/atomicops_internals_x86_msvc.h',
         'src/google/protobuf/stubs/common.h',
