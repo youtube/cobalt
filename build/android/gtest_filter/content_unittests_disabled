@@ -45,3 +45,5 @@ DeviceOrientationProviderTest.StartFailing
 GpuMemoryManagerTest.StubMemoryStatsForLastManageTests
 # crbug.com/138930
 SkCanvasVideoRendererTest.*
+# crbug.com/139095
+RenderWidgetTest.OnMsgPaintAtSize
