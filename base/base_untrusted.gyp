@@ -20,7 +20,7 @@
             'base_target': 1,
             'nacl_untrusted_build': 1,
             'nlib_target': 'libbase_untrusted.a',
-            'build_glibc': 0,
+            'build_glibc': 1,
             'build_newlib': 1,
             'sources': [
               'atomicops_internals_x86_gcc.cc',

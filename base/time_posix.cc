@@ -189,7 +189,7 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
 
 // TimeTicks ------------------------------------------------------------------
 // FreeBSD 6 has CLOCK_MONOLITHIC but defines _POSIX_MONOTONIC_CLOCK to -1.
-#if (defined(OS_POSIX) &&                                               \
+#if (defined(OS_POSIX) && !defined(OS_NACL) &&                          \
      defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
      defined(OS_BSD) || defined(OS_ANDROID)
 
