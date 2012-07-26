@@ -11,8 +11,8 @@
 // requires. Augment that below.
 #import "third_party/GTM/GTMDefines.h"
 
-// The Mac OS X 10.8 SDK introduced new protocols used for delegates.  These
-// protocol defintions were not present in earlier releases of the Mac OS X
+// New Mac OS X SDKs introduce new protocols used for delegates.  These
+// protocol defintions aren't not present in earlier releases of the Mac OS X
 // SDK.  In order to support building against the new SDK, which requires
 // delegates to conform to these protocols, and earlier SDKs, which do not
 // define these protocols at all, this file will provide empty protocol
@@ -21,6 +21,13 @@
 #define DEFINE_EMPTY_PROTOCOL(p) \
 @protocol p \
 @end
+
+#if !defined(MAC_OS_X_VERSION_10_7) || \
+    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
+
+DEFINE_EMPTY_PROTOCOL(NSDraggingDestination)
+
+#endif  // MAC_OS_X_VERSION_10_7
 
 #if !defined(MAC_OS_X_VERSION_10_8) || \
     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_8
