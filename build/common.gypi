@@ -1016,6 +1016,9 @@
           # chrome/app/theme/chromium/BRANDING and
           # chrome/app/theme/google_chrome/BRANDING, but is necessary to get
           # these names into the build system.
+          ['OS!="lb_shell"', {
+            'default_configuration': 'Debug', # LBPS3 provides its own configurations
+          }],
           ['branding=="Chrome"', {
             'mac_product_name%': 'Google Chrome',
           }, { # else: branding!="Chrome"
@@ -1938,15 +1941,6 @@
             'defines!': ['NDEBUG'],
           }],
         ],
-      },
-      #
-      # Concrete configurations
-      #
-      'Debug': {
-        'inherit_from': ['Common_Base', 'x86_Base', 'Debug_Base'],
-      },
-      'Release': {
-        'inherit_from': ['Common_Base', 'x86_Base', 'Release_Base'],
       },
       'conditions': [
         [ 'OS!="lb_shell"', {
