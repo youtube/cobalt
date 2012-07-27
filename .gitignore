@@ -172,7 +172,8 @@ v8.log
 /third_party/lss
 /third_party/mingw-w64
 /third_party/mkl
-/third_party/mozc
+/third_party/mozc/chrome/chromeos/renderer
+/third_party/mozc/session
 /third_party/nacl_sdk_binaries/
 /third_party/nss
 /third_party/openssl
