@@ -183,8 +183,8 @@ TEST_F(SpdySessionSpdy3Test, Ping) {
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
   scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing());
-  MockRead writes[] = {
-    CreateMockRead(*write_ping),
+  MockWrite writes[] = {
+    CreateMockWrite(*write_ping),
   };
   StaticSocketDataProvider data(
       reads, arraysize(reads), writes, arraysize(writes));
@@ -336,8 +336,8 @@ TEST_F(SpdySessionSpdy3Test, FailedPing) {
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
   scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing());
-  MockRead writes[] = {
-    CreateMockRead(*write_ping),
+  MockWrite writes[] = {
+    CreateMockWrite(*write_ping),
   };
   StaticSocketDataProvider data(
       reads, arraysize(reads), writes, arraysize(writes));
