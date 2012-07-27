@@ -123,7 +123,7 @@
 //   the rest when you execute the callback.
 //
 //   void MyFunc(int i, const std::string& str) {}
-//   base::Callback<void(int)> cb = base::Bind(&MyFunc, 23);
+//   base::Callback<void(const std::string)> cb = base::Bind(&MyFunc, 23);
 //   cb.Run("hello world");
 //
 //   When calling a function bound parameters are first, followed by unbound
