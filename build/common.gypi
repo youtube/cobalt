@@ -645,7 +645,7 @@
     # these defaults. If the SDK is installed someplace that Xcode doesn't
     # know about, set mac_sdk_path to the path to the SDK. If set to a
     # non-empty string, mac_sdk_path will be used in preference to mac_sdk.
-    'mac_sdk%': '10.6',
+    # mac_sdk gets its default value elsewhere in this file.
     'mac_sdk_path%': '',
     'mac_deployment_target%': '10.5',
 
@@ -1020,6 +1020,7 @@
           }],
 
           ['branding=="Chrome" and buildtype=="Official"', {
+            'mac_sdk%': '10.6',
             # Enable uploading crash dumps.
             'mac_breakpad_uploads%': 1,
             # Enable dumping symbols at build time for use by Mac Breakpad.
@@ -1027,6 +1028,7 @@
             # Enable Keystone auto-update support.
             'mac_keystone%': 1,
           }, { # else: branding!="Chrome" or buildtype!="Official"
+            'mac_sdk%': '<!(python mac/find_sdk.py 10.6)',
             'mac_breakpad_uploads%': 0,
             'mac_breakpad%': 0,
             'mac_keystone%': 0,
