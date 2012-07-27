@@ -112,16 +112,13 @@ void AudioFileReader::Close() {
 
 bool AudioFileReader::Read(const std::vector<float*>& audio_data,
                            size_t number_of_frames) {
+  DCHECK(format_context_ && codec_context_ && codec_) <<
+      "AudioFileReader::Read() : reader is not opened!";
+
   size_t channels = this->channels();
   DCHECK_EQ(audio_data.size(), channels);
   if (audio_data.size() != channels)
     return false;
-
-  DCHECK(format_context_ && codec_context_ && codec_);
-  if (!format_context_ || !codec_context_ || !codec_) {
-    DLOG(WARNING) << "AudioFileReader::Read() : reader is not opened!";
-    return false;
-  }
 
   // Holds decoded audio.
   scoped_ptr_malloc<AVFrame, ScopedPtrAVFree> av_frame(avcodec_alloc_frame());
