@@ -112,6 +112,27 @@
 // - All callback methods from the IMMNotificationClient interface will be
 //   called on a Windows-internal MMDevice thread.
 //
+// Experimental exclusive mode:
+//
+// - It is possible to open up a stream in exclusive mode by using the
+//   --enable-exclusive-mode command line flag.
+// - The internal buffering scheme is less flexible for exclusive streams.
+//   Hence, some manual tuning will be required before deciding what frame
+//   size to use. See the WinAudioOutputTest unit test for more details.
+// - If an application opens a stream in exclusive mode, the application has
+//   exclusive use of the audio endpoint device that plays the stream.
+// - Exclusive-mode should only be utilized when the lowest possible latency
+//   is important.
+// - In exclusive mode, the client can choose to open the stream in any audio
+//   format that the endpoint device supports, i.e. not limited to the device's
+//   current (default) configuration.
+// - Initial measurements on Windows 7 (HP Z600 workstation) have shown that
+//   the lowest possible latencies we can achieve on this machine are:
+//     o ~3.3333ms @ 48kHz <=> 160 audio frames per buffer.
+//     o ~3.6281ms @ 44.1kHz <=> 160 audio frames per buffer.
+// - See http://msdn.microsoft.com/en-us/library/windows/desktop/dd370844(v=vs.85).aspx
+//   for more details.
+
 #ifndef MEDIA_AUDIO_WIN_AUDIO_LOW_LATENCY_OUTPUT_WIN_H_
 #define MEDIA_AUDIO_WIN_AUDIO_LOW_LATENCY_OUTPUT_WIN_H_
 
@@ -163,7 +184,12 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // Retrieves the stream format that the audio engine uses for its internal
   // processing/mixing of shared-mode streams.
+  // This method should not be used in combination with exclusive-mode streams.
   static int HardwareSampleRate(ERole device_role);
+
+  // Returns AUDCLNT_SHAREMODE_EXCLUSIVE if --enable-exclusive-mode is used
+  // as command-line flag and AUDCLNT_SHAREMODE_SHARED otherwise (default).
+  static AUDCLNT_SHAREMODE GetShareMode();
 
   bool started() const { return started_; }
 
@@ -206,11 +232,18 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   void HandleError(HRESULT err);
 
   // The Open() method is divided into these sub methods.
-  HRESULT SetRenderDevice(ERole device_role);
+  HRESULT SetRenderDevice();
   HRESULT ActivateRenderDevice();
-  HRESULT GetAudioEngineStreamFormat();
   bool DesiredFormatIsSupported();
   HRESULT InitializeAudioEngine();
+
+  // Called when the device will be opened in shared mode and use the
+  // internal audio engine's mix format.
+  HRESULT SharedModeInitialization();
+
+  // Called when the device will be opened in exclusive mode and use the
+  // application specified format.
+  HRESULT ExclusiveModeInitialization();
 
   // Converts unique endpoint ID to user-friendly device name.
   std::string GetDeviceName(LPCWSTR device_id) const;
@@ -221,6 +254,8 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   // interfaces, creates a new IMMDevice and re-starts rendering using the
   // new default audio device.
   bool RestartRenderingUsingNewDefaultDevice();
+
+  AUDCLNT_SHAREMODE share_mode() const { return share_mode_; }
 
   // Initializes the COM library for use by the calling thread and sets the
   // thread's concurrency model to multi-threaded.
@@ -275,6 +310,11 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // Defines the role that the system has assigned to an audio endpoint device.
   ERole device_role_;
+
+  // The sharing mode for the connection.
+  // Valid values are AUDCLNT_SHAREMODE_SHARED and AUDCLNT_SHAREMODE_EXCLUSIVE
+  // where AUDCLNT_SHAREMODE_SHARED is the default.
+  AUDCLNT_SHAREMODE share_mode_;
 
   // Counts the number of audio frames written to the endpoint buffer.
   UINT64 num_written_frames_;

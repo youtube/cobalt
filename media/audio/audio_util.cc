@@ -20,20 +20,20 @@
 #include "base/logging.h"
 #include "base/shared_memory.h"
 #include "base/time.h"
-#if defined(OS_WIN)
-#include "base/sys_info.h"
-#include "base/win/windows_version.h"
-#include "media/audio/audio_manager_base.h"
-#endif
 #include "media/audio/audio_parameters.h"
 #include "media/audio/audio_util.h"
+
 #if defined(OS_MACOSX)
 #include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/audio/mac/audio_low_latency_output_mac.h"
-#endif
-#if defined(OS_WIN)
+#elif defined(OS_WIN)
+#include "base/command_line.h"
+#include "base/sys_info.h"
+#include "base/win/windows_version.h"
+#include "media/audio/audio_manager_base.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
+#include "media/base/media_switches.h"
 #endif
 
 using base::subtle::Atomic32;
@@ -351,16 +351,28 @@ int GetAudioHardwareSampleRate() {
     return 48000;
   }
 
+  // TODO(crogers): tune this rate for best possible WebAudio performance.
+  // WebRTC works well at 48kHz and a buffer size of 480 samples will be used
+  // for this case. Note that exclusive mode is experimental.
+  const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
+  if (cmd_line->HasSwitch(switches::kEnableExclusiveAudio)) {
+    // This sample rate will be combined with a buffer size of 256 samples
+    // (see GetAudioHardwareBufferSize()), which corresponds to an output
+    // delay of ~5.33ms.
+    return 48000;
+  }
+
   // Hardware sample-rate on Windows can be configured, so we must query.
-  // TODO(henrika): improve possibility to specify audio endpoint.
-  // Use the default device (same as for Wave) for now to be compatible.
+  // TODO(henrika): improve possibility to specify an audio endpoint.
+  // Use the default device (same as for Wave) for now to be compatible
+  // or possibly remove the ERole argument completely until it is in use.
   return WASAPIAudioOutputStream::HardwareSampleRate(eConsole);
 #elif defined(OS_ANDROID)
   return 16000;
 #else
-    // Hardware for Linux is nearly always 48KHz.
-    // TODO(crogers) : return correct value in rare non-48KHz cases.
-    return 48000;
+  // Hardware for Linux is nearly always 48KHz.
+  // TODO(crogers) : return correct value in rare non-48KHz cases.
+  return 48000;
 #endif
 }
 
@@ -397,6 +409,15 @@ size_t GetAudioHardwareBufferSize() {
     // and assume 48kHz as default sample rate.
     return 2048;
   }
+
+  // TODO(crogers): tune this size to best possible WebAudio performance.
+  // WebRTC always uses 10ms for Windows and does not call this method.
+  // Note that exclusive mode is experimental.
+  const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
+  if (cmd_line->HasSwitch(switches::kEnableExclusiveAudio)) {
+    return 256;
+  }
+
   // This call must be done on a COM thread configured as MTA.
   // TODO(tommi): http://code.google.com/p/chromium/issues/detail?id=103835.
   int mixing_sample_rate =
