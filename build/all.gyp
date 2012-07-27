@@ -78,6 +78,11 @@
             '../third_party/nss/nss.gyp:*',
            ],
         }],
+        ['OS=="lb_shell"', {
+          'dependencies!': [
+            '../third_party/modp_b64/modp_b64.gyp:*',
+          ],
+        }],
         ['OS=="mac"', {
           'dependencies': [
             '../third_party/ocmock/ocmock.gyp:*',

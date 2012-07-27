@@ -81,7 +81,11 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostPool
   base::Value* PipelineInfoToValue() const;
 
  private:
+#if defined(__LB_SHELL__)
   typedef std::map<HttpPipelinedHost::Key, HttpPipelinedHost*> HostMap;
+#else
+  typedef std::map<const HttpPipelinedHost::Key, HttpPipelinedHost*> HostMap;
+#endif
 
   HttpPipelinedHost* GetPipelinedHost(const HttpPipelinedHost::Key& key,
                                       bool create_if_not_found);

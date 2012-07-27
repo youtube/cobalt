@@ -26,6 +26,10 @@
 #include "build/build_config.h"
 #include "net/base/net_util.h"
 
+#if defined(__LB_SHELL__)
+#include "lb_platform.h"
+#endif
+
 using std::string;
 
 #if defined(OS_WIN)
@@ -210,7 +214,11 @@ void StreamListenSocket::CloseSocket(SocketDescriptor s) {
 #if defined(OS_WIN)
     closesocket(s);
 #elif defined(OS_POSIX)
+#if defined(__LB_SHELL__)
+    LB::Platform::close_socket(s);
+#else
     close(s);
+#endif
 #endif
   }
 }
@@ -221,8 +229,13 @@ void StreamListenSocket::WatchSocket(WaitState state) {
   watcher_.StartWatching(socket_event_, this);
 #elif defined(OS_POSIX)
   // Implicitly calls StartWatchingFileDescriptor().
+#if defined(__LB_SHELL__)
+  MessageLoopForIO::current()->WatchSocket(
+      socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
+#else
   MessageLoopForIO::current()->WatchFileDescriptor(
       socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
+#endif
   wait_state_ = state;
 #endif
 }

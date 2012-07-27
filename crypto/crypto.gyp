@@ -122,9 +122,8 @@
             '../../openssl/openssl.gyp:openssl_includes',
           ],
           'sources/': [
-            ['exclude', 'ec_private_key_nss\.cc$'],
-            ['exclude', 'ec_signature_creator_nss\.cc$'],
-            ['exclude', 'signature_verifier_nss\.cc$'],
+            ['exclude', '_nss.cc$'],
+            ['exclude', '_win.cc$'],
           ],
         }],
         [ 'use_openssl==1', {
