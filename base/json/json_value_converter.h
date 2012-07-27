@@ -505,7 +505,7 @@ class JSONValueConverter {
     for(size_t i = 0; i < fields_.size(); ++i) {
       const internal::FieldConverterBase<StructType>* field_converter =
           fields_[i];
-      base::Value* field = NULL;
+      const base::Value* field = NULL;
       if (dictionary_value->Get(field_converter->field_path(), &field)) {
         if (!field_converter->ConvertField(*field, output)) {
           DVLOG(1) << "failure at field " << field_converter->field_path();
