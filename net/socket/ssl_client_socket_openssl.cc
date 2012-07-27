@@ -639,12 +639,14 @@ void SSLClientSocketOpenSSL::GetSSLCertRequestInfo(
   cert_request_info->client_certs = client_certs_;
 }
 
+#if !defined(__LB_SHELL__)
+// FIXME. Removed temporarily for rebasing. SSL_export_keying_material()
+// is not found in lbshell code.
 int SSLClientSocketOpenSSL::ExportKeyingMaterial(
     const base::StringPiece& label,
     bool has_context, const base::StringPiece& context,
     unsigned char* out, unsigned int outlen) {
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
-
   int rv = SSL_export_keying_material(
       ssl_, out, outlen, const_cast<char*>(label.data()),
       label.size(),
@@ -661,6 +663,7 @@ int SSLClientSocketOpenSSL::ExportKeyingMaterial(
   }
   return OK;
 }
+#endif
 
 SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
     std::string* proto, std::string* server_protos) {

@@ -18,7 +18,9 @@ namespace net {
 namespace {
 // By definition, socklen_t is large enough to hold both sizes.
 const socklen_t kSockaddrInSize = sizeof(struct sockaddr_in);
+#if defined(IN6ADDR_ANY_INIT)
 const socklen_t kSockaddrIn6Size = sizeof(struct sockaddr_in6);
+#endif
 }
 
 IPEndPoint::IPEndPoint() : port_(0) {}
