@@ -173,7 +173,7 @@ void JSONWriter::BuildJSONString(const Value* const node, int depth) {
         for (DictionaryValue::key_iterator key_itr = dict->begin_keys();
              key_itr != dict->end_keys();
              ++key_itr) {
-          Value* value = NULL;
+          const Value* value = NULL;
           bool result = dict->GetWithoutPathExpansion(*key_itr, &value);
           DCHECK(result);
 
