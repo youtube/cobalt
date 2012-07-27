@@ -70,6 +70,11 @@
         'android_upstream_bringup%': '<(android_upstream_bringup)',
         'buildtype%': '<(buildtype)',
 
+        # Sets whether we're building with the Android SDK/NDK (and hence with
+        # Ant, value 0), or as part of the Android system (and hence with the
+        # Android build system, value 1).
+        'android_build_type%': 0,
+
         # Compute the architecture that we're building on.
         'conditions': [
           ['OS=="win" or OS=="mac" or OS=="ios"', {
@@ -130,6 +135,7 @@
       'enable_hidpi%': '<(enable_hidpi)',
       'enable_touch_ui%': '<(enable_touch_ui)',
       'android_upstream_bringup%': '<(android_upstream_bringup)',
+      'android_build_type%': '<(android_build_type)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -599,6 +605,7 @@
     'wix_path%': '<(wix_path)',
     'android_upstream_bringup%': '<(android_upstream_bringup)',
     'use_system_libjpeg%': '<(use_system_libjpeg)',
+    'android_build_type%': '<(android_build_type)',
 
     # Use system yasm instead of bundled one.
     'use_system_yasm%': 0,
@@ -906,15 +913,9 @@
                 'android_app_abi%': 'armeabi-v7a',
               }],
             ],
-
-            # Sets whether we're building with the Android SDK/NDK (and hence
-            # with Ant, value 0), or as part of the Android system (and hence
-            # with the Android build system, value 1).
-            'android_build_type%': 0,
           },
           'android_ndk_root%': '<(android_ndk_root)',
           'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-9/arch-<(target_arch)',
-          'android_build_type%': '<(android_build_type)',
           'android_app_abi%': '<(android_app_abi)',
         },
         'android_ndk_root%': '<(android_ndk_root)',
