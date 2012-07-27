@@ -48,7 +48,7 @@
             # Actions don't provide a way to redirect stdout, so a custom
             # script is invoked that will execute the first argument and write
             # the output to the file specified as the second argument.
-            '<(DEPTH)/testing/iossim/RedirectStdout.sh',
+            '<(DEPTH)/testing/iossim/redirect-stdout.sh',
             '$(BUILD_DIR)/$(CONFIGURATION)/class-dump -CiPhoneSimulator <(iphone_sim_path)/iPhoneSimulatorRemoteClient.framework',
             '<(INTERMEDIATE_DIR)/iossim/iPhoneSimulatorRemoteClient.h',
           ],
