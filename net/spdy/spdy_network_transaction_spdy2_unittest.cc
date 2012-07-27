@@ -1715,7 +1715,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, PostWithEarlySynReply) {
 
   scoped_ptr<SpdyFrame> req(ConstructSpdyPost(kUploadDataSize, NULL, 0));
   scoped_ptr<SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
-  MockRead writes[] = {
+  MockWrite writes[] = {
     CreateMockWrite(*req, 0),
     CreateMockWrite(*body, 2),
   };
