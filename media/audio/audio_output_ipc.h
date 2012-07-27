@@ -14,7 +14,7 @@ namespace media {
 
 // Contains IPC notifications for the state of the server side
 // (AudioOutputController) audio state changes and when an AudioOutputController
-// has been created.  Implemented by AudioDevice.
+// has been created.  Implemented by AudioOutputDevice.
 class MEDIA_EXPORT AudioOutputIPCDelegate {
  public:
   // Current status of the audio output stream in the browser process. Browser
@@ -51,9 +51,9 @@ class MEDIA_EXPORT AudioOutputIPCDelegate {
   virtual ~AudioOutputIPCDelegate();
 };
 
-// Provides IPC functionality for an AudioDevice.  The implementation should
-// asynchronously deliver the messages to an AudioOutputController object (or
-// create one in the case of CreateStream()), that may live in a separate
+// Provides IPC functionality for an AudioOutputDevice.  The implementation
+// should asynchronously deliver the messages to an AudioOutputController object
+// (or create one in the case of CreateStream()), that may live in a separate
 // process.
 class MEDIA_EXPORT AudioOutputIPC {
  public:
