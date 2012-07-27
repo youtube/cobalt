@@ -35,7 +35,7 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
       static_cast<const base::DictionaryValue*>(event_value);
 
   std::string phase_str;
-  base::DictionaryValue* args = NULL;
+  const base::DictionaryValue* args = NULL;
 
   if (!dictionary->GetString("ph", &phase_str)) {
     LOG(ERROR) << "ph is missing from TraceEvent JSON";
@@ -85,7 +85,7 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
     bool boolean = false;
     int int_num = 0;
     double double_num = 0.0;
-    Value* value = NULL;
+    const Value* value = NULL;
     if (args->GetWithoutPathExpansion(*keyi, &value)) {
       if (value->GetAsString(&str))
         arg_strings[*keyi] = str;
@@ -957,4 +957,3 @@ size_t CountMatches(const TraceEventVector& events,
 }
 
 }  // namespace trace_analyzer
-
