@@ -74,6 +74,12 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // it can accept a new segment.
   void Abort(const std::string& id);
 
+  // Sets a time |offset| in seconds to be applied to subsequent buffers
+  // appended to the source buffer assicated with |id|. Returns true if the
+  // offset is set properly, false if the offset cannot be applied because we're
+  // in the middle of parsing a media segment.
+  bool SetTimestampOffset(const std::string& id, double offset);
+
   // Signals an EndOfStream request.
   // Returns false if called in an unexpected state or if there is a gap between
   // the current position and the end of the buffered data.
@@ -117,10 +123,18 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   bool OnNeedKey(scoped_array<uint8> init_data, int init_data_size);
   void OnNewMediaSegment(const std::string& source_id,
                          base::TimeDelta start_timestamp);
+  void OnEndOfMediaSegment(const std::string& source_id);
 
   // Computes the intersection between the video & audio
   // buffered ranges.
   Ranges<base::TimeDelta> ComputeIntersection() const;
+
+  // Applies |time_offset| to the timestamps of |buffers|.
+  void AdjustBufferTimestamps(const StreamParser::BufferQueue& buffers,
+                              base::TimeDelta timestamp_offset);
+
+  // Returns true if |source_id| is valid, false otherwise.
+  bool IsValidId(const std::string& source_id) const;
 
   mutable base::Lock lock_;
   State state_;
@@ -137,6 +151,14 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   typedef std::map<std::string, StreamParser*> StreamParserMap;
   StreamParserMap stream_parser_map_;
+
+  // Contains state belonging to a source id.
+  struct SourceInfo {
+    base::TimeDelta timestamp_offset;
+    bool can_update_offset;
+  };
+  typedef std::map<std::string, SourceInfo> SourceInfoMap;
+  SourceInfoMap source_info_map_;
 
   // Used to ensure that (1) config data matches the type and codec provided in
   // AddId(), (2) only 1 audio and 1 video sources are added, and (3) ids may be

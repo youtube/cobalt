@@ -31,7 +31,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
                     const NewBuffersCB& audio_cb,
                     const NewBuffersCB& video_cb,
                     const NeedKeyCB& need_key_cb,
-                    const NewMediaSegmentCB& new_segment_cb) OVERRIDE;
+                    const NewMediaSegmentCB& new_segment_cb,
+                    const base::Closure& end_of_segment_cb) OVERRIDE;
   virtual void Flush() OVERRIDE;
   virtual bool Parse(const uint8* buf, int size) OVERRIDE;
 
@@ -70,6 +71,7 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   NewBuffersCB video_cb_;
   NeedKeyCB need_key_cb_;
   NewMediaSegmentCB new_segment_cb_;
+  base::Closure end_of_segment_cb_;
 
   OffsetByteQueue queue_;
 

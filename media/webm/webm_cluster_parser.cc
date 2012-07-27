@@ -43,6 +43,7 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
       block_duration_(-1),
       cluster_timecode_(-1),
       cluster_start_time_(kNoTimestamp()),
+      cluster_ended_(false),
       audio_(audio_track_num),
       video_(video_track_num) {
   CHECK_GE(video_encryption_key_id_size, 0);
@@ -59,6 +60,7 @@ void WebMClusterParser::Reset() {
   last_block_timecode_ = -1;
   cluster_timecode_ = -1;
   cluster_start_time_ = kNoTimestamp();
+  cluster_ended_ = false;
   parser_.Reset();
   audio_.Reset();
   video_.Reset();
@@ -70,10 +72,13 @@ int WebMClusterParser::Parse(const uint8* buf, int size) {
 
   int result = parser_.Parse(buf, size);
 
-  if (result <= 0)
+  if (result <= 0) {
+    cluster_ended_ = false;
     return result;
+  }
 
-  if (parser_.IsParsingComplete()) {
+  cluster_ended_ = parser_.IsParsingComplete();
+  if (cluster_ended_) {
     // If there were no buffers in this cluster, set the cluster start time to
     // be the |cluster_timecode_|.
     if (cluster_start_time_ == kNoTimestamp()) {
