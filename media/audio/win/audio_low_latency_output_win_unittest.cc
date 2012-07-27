@@ -41,7 +41,7 @@ namespace media {
 static const char kSpeechFile_16b_s_48k[] = "speech_16b_stereo_48kHz.raw";
 static const char kSpeechFile_16b_s_44k[] = "speech_16b_stereo_44kHz.raw";
 static const size_t kFileDurationMs = 20000;
-static const size_t kNumFileSegments = 1;
+static const size_t kNumFileSegments = 2;
 
 static const size_t kMaxDeltaSamples = 1000;
 static const char* kDeltaTimeMsFileName = "delta_times_ms.txt";
@@ -51,6 +51,12 @@ MATCHER_P(HasValidDelay, value, "") {
   // estimation. For now, verify that the produced output delay is always
   // larger than the selected buffer size.
   return arg.hardware_delay_bytes > value.hardware_delay_bytes;
+}
+
+// Used to terminate a loop from a different thread than the loop belongs to.
+// |loop| should be a MessageLoopProxy.
+ACTION_P(QuitLoop, loop) {
+  loop->PostTask(FROM_HERE, MessageLoop::QuitClosure());
 }
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
@@ -138,6 +144,11 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
   size_t elements_to_write_;
 };
 
+static bool ExclusiveModeIsEnabled() {
+  return (WASAPIAudioOutputStream::GetShareMode() ==
+          AUDCLNT_SHAREMODE_EXCLUSIVE);
+}
+
 // Convenience method which ensures that we are not running on the build
 // bots and that at least one valid output device can be found. We also
 // verify that we are not running on XP since the low-latency (WASAPI-
@@ -186,6 +197,14 @@ class AudioOutputStreamWrapper {
   }
 
   // Creates AudioOutputStream object using non-default parameters where the
+  // sample rate and frame size are modified.
+  AudioOutputStream* Create(int sample_rate, int samples_per_packet) {
+    sample_rate_ = sample_rate;
+    samples_per_packet_ = samples_per_packet;
+    return CreateOutputStream();
+  }
+
+  // Creates AudioOutputStream object using non-default parameters where the
   // channel layout is modified.
   AudioOutputStream* Create(ChannelLayout channel_layout) {
     channel_layout_ = channel_layout;
@@ -224,18 +243,16 @@ static AudioOutputStream* CreateDefaultAudioOutputStream(
   return aos;
 }
 
-static void QuitMessageLoop(base::MessageLoopProxy* proxy) {
-  proxy->PostTask(FROM_HERE, MessageLoop::QuitClosure());
-}
-
 // Verify that we can retrieve the current hardware/mixing sample rate
 // for all supported device roles. The ERole enumeration defines constants
 // that indicate the role that the system/user has assigned to an audio
 // endpoint device.
 // TODO(henrika): modify this test when we support full device enumeration.
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestHardwareSampleRate) {
+  // Skip this test in exclusive mode since the resulting rate is only utilized
+  // for shared mode streams.
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager.get()))
+  if (!CanRunAudioTests(audio_manager.get()) || ExclusiveModeIsEnabled())
     return;
 
   ScopedCOMInitializer com_init(ScopedCOMInitializer::kMTA);
@@ -389,8 +406,6 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
     return;
 
   MessageLoopForUI loop;
-  scoped_refptr<base::MessageLoopProxy> proxy(loop.message_loop_proxy());
-
   MockAudioSourceCallback source;
 
   // Create default WASAPI output stream which plays out in stereo using
@@ -409,11 +424,9 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
   // Wait for the first callback and verify its parameters.
   EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
                                  HasValidDelay(state)))
-      .WillOnce(
-          DoAll(
-              InvokeWithoutArgs(
-                  CreateFunctor(&QuitMessageLoop, proxy.get())),
-              Return(bytes_per_packet)));
+      .WillOnce(DoAll(
+          QuitLoop(loop.message_loop_proxy()),
+          Return(bytes_per_packet)));
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
@@ -431,8 +444,6 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
     return;
 
   MessageLoopForUI loop;
-  scoped_refptr<base::MessageLoopProxy> proxy(loop.message_loop_proxy());
-
   MockAudioSourceCallback source;
 
   // Create default WASAPI output stream which plays out in stereo using
@@ -448,14 +459,13 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
   // Set up expected minimum delay estimation.
   AudioBuffersState state(0, bytes_per_packet);
 
-  // Wait for the first callback and verify its parameters.
+  // Ensure that callbacks start correctly.
   EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
                                  HasValidDelay(state)))
-      .WillOnce(
-          DoAll(
-              InvokeWithoutArgs(
-                  CreateFunctor(&QuitMessageLoop, proxy.get())),
-              Return(bytes_per_packet)));
+      .WillOnce(DoAll(
+          QuitLoop(loop.message_loop_proxy()),
+          Return(bytes_per_packet)))
+      .WillRepeatedly(Return(bytes_per_packet));
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
@@ -471,8 +481,6 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
     return;
 
   MessageLoopForUI loop;
-  scoped_refptr<base::MessageLoopProxy> proxy(loop.message_loop_proxy());
-
   MockAudioSourceCallback source;
 
   // Create default WASAPI output stream which plays out in *mono* using
@@ -497,11 +505,10 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
 
   EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
                                  HasValidDelay(state)))
-      .WillOnce(
-          DoAll(
-              InvokeWithoutArgs(
-                  CreateFunctor(&QuitMessageLoop, proxy.get())),
-              Return(bytes_per_packet)));
+      .WillOnce(DoAll(
+          QuitLoop(loop.message_loop_proxy()),
+          Return(bytes_per_packet)))
+      .WillRepeatedly(Return(bytes_per_packet));
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
@@ -559,6 +566,201 @@ TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
   }
 
   LOG(INFO) << ">> File playout has stopped.";
+  aos->Close();
+}
+
+// Verify that we can open the output stream in exclusive mode using a
+// certain set of audio parameters and a sample rate of 48kHz.
+// The expected outcomes of each setting in this test has been derived
+// manually using log outputs (--v=1).
+TEST(WinAudioOutputTest, WASAPIExclusiveModeBufferSizesAt48kHz) {
+  if (!ExclusiveModeIsEnabled())
+    return;
+
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
+    return;
+
+  AudioOutputStreamWrapper aosw(audio_manager.get());
+
+  // 10ms @ 48kHz shall work.
+  // Note that, this is the same size as we can use for shared-mode streaming
+  // but here the endpoint buffer delay is only 10ms instead of 20ms.
+  AudioOutputStream* aos = aosw.Create(48000, 480);
+  EXPECT_TRUE(aos->Open());
+  aos->Close();
+
+  // 5ms @ 48kHz does not work due to misalignment.
+  // This test will propose an aligned buffer size of 5.3333ms.
+  // Note that we must call Close() even is Open() fails since Close() also
+  // deletes the object and we want to create a new object in the next test.
+  aos = aosw.Create(48000, 240);
+  EXPECT_FALSE(aos->Open());
+  aos->Close();
+
+  // 5.3333ms @ 48kHz should work (see test above).
+  aos = aosw.Create(48000, 256);
+  EXPECT_TRUE(aos->Open());
+  aos->Close();
+
+  // 2.6667ms is smaller than the minimum supported size (=3ms).
+  aos = aosw.Create(48000, 128);
+  EXPECT_FALSE(aos->Open());
+  aos->Close();
+
+  // 3ms does not correspond to an aligned buffer size.
+  // This test will propose an aligned buffer size of 3.3333ms.
+  aos = aosw.Create(48000, 144);
+  EXPECT_FALSE(aos->Open());
+  aos->Close();
+
+  // 3.3333ms @ 48kHz <=> smallest possible buffer size we can use.
+  aos = aosw.Create(48000, 160);
+  EXPECT_TRUE(aos->Open());
+  aos->Close();
+}
+
+// Verify that we can open the output stream in exclusive mode using a
+// certain set of audio parameters and a sample rate of 44.1kHz.
+// The expected outcomes of each setting in this test has been derived
+// manually using log outputs (--v=1).
+TEST(WinAudioOutputTest, WASAPIExclusiveModeBufferSizesAt44kHz) {
+  if (!ExclusiveModeIsEnabled())
+    return;
+
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
+    return;
+
+  AudioOutputStreamWrapper aosw(audio_manager.get());
+
+  // 10ms @ 44.1kHz does not work due to misalignment.
+  // This test will propose an aligned buffer size of 10.1587ms.
+  AudioOutputStream* aos = aosw.Create(44100, 441);
+  EXPECT_FALSE(aos->Open());
+  aos->Close();
+
+  // 10.1587ms @ 44.1kHz shall work (see test above).
+  aos = aosw.Create(44100, 448);
+  EXPECT_TRUE(aos->Open());
+  aos->Close();
+
+  // 5.8050ms @ 44.1 should work.
+  aos = aosw.Create(44100, 256);
+  EXPECT_TRUE(aos->Open());
+  aos->Close();
+
+  // 4.9887ms @ 44.1kHz does not work to misalignment.
+  // This test will propose an aligned buffer size of 5.0794ms.
+  // Note that we must call Close() even is Open() fails since Close() also
+  // deletes the object and we want to create a new object in the next test.
+  aos = aosw.Create(44100, 220);
+  EXPECT_FALSE(aos->Open());
+  aos->Close();
+
+  // 5.0794ms @ 44.1kHz shall work (see test above).
+  aos = aosw.Create(44100, 224);
+  EXPECT_TRUE(aos->Open());
+  aos->Close();
+
+  // 2.9025ms is smaller than the minimum supported size (=3ms).
+  aos = aosw.Create(44100, 132);
+  EXPECT_FALSE(aos->Open());
+  aos->Close();
+
+  // 3.01587ms is larger than the minimum size but is not aligned.
+  // This test will propose an aligned buffer size of 3.6281ms.
+  aos = aosw.Create(44100, 133);
+  EXPECT_FALSE(aos->Open());
+  aos->Close();
+
+  // 3.6281ms @ 44.1kHz <=> smallest possible buffer size we can use.
+  aos = aosw.Create(44100, 160);
+  EXPECT_TRUE(aos->Open());
+  aos->Close();
+}
+
+// Verify that we can open and start the output stream in exclusive mode at
+// the lowest possible delay at 48kHz.
+TEST(WinAudioOutputTest, WASAPIExclusiveModeMinBufferSizeAt48kHz) {
+  if (!ExclusiveModeIsEnabled())
+    return;
+
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
+    return;
+
+  MessageLoopForUI loop;
+  MockAudioSourceCallback source;
+
+  // Create exclusive-mode WASAPI output stream which plays out in stereo
+  // using the minimum buffer size at 48kHz sample rate.
+  AudioOutputStreamWrapper aosw(audio_manager.get());
+  AudioOutputStream* aos = aosw.Create(48000, 160);
+  EXPECT_TRUE(aos->Open());
+
+  // Derive the expected size in bytes of each packet.
+  uint32 bytes_per_packet = aosw.channels() * aosw.samples_per_packet() *
+      (aosw.bits_per_sample() / 8);
+
+  // Set up expected minimum delay estimation.
+  AudioBuffersState state(0, bytes_per_packet);
+
+  // Wait for the first callback and verify its parameters.
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
+                                 HasValidDelay(state)))
+      .WillOnce(DoAll(
+          QuitLoop(loop.message_loop_proxy()),
+          Return(bytes_per_packet)))
+      .WillRepeatedly(Return(bytes_per_packet));
+
+  aos->Start(&source);
+  loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
+                       TestTimeouts::action_timeout());
+  loop.Run();
+  aos->Stop();
+  aos->Close();
+}
+
+// Verify that we can open and start the output stream in exclusive mode at
+// the lowest possible delay at 44.1kHz.
+TEST(WinAudioOutputTest, WASAPIExclusiveModeMinBufferSizeAt44kHz) {
+  if (!ExclusiveModeIsEnabled())
+    return;
+
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
+    return;
+
+  MessageLoopForUI loop;
+  MockAudioSourceCallback source;
+
+  // Create exclusive-mode WASAPI output stream which plays out in stereo
+  // using the minimum buffer size at 44.1kHz sample rate.
+  AudioOutputStreamWrapper aosw(audio_manager.get());
+  AudioOutputStream* aos = aosw.Create(44100, 160);
+  EXPECT_TRUE(aos->Open());
+
+  // Derive the expected size in bytes of each packet.
+  uint32 bytes_per_packet = aosw.channels() * aosw.samples_per_packet() *
+      (aosw.bits_per_sample() / 8);
+
+  // Set up expected minimum delay estimation.
+  AudioBuffersState state(0, bytes_per_packet);
+
+  // Wait for the first callback and verify its parameters.
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
+                                 HasValidDelay(state)))
+    .WillOnce(DoAll(
+        QuitLoop(loop.message_loop_proxy()),
+        Return(bytes_per_packet)))
+    .WillRepeatedly(Return(bytes_per_packet));
+
+  aos->Start(&source);
+  loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
+                        TestTimeouts::action_timeout());
+  loop.Run();
+  aos->Stop();
   aos->Close();
 }
 

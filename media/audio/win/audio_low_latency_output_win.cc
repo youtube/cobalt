@@ -6,17 +6,28 @@
 
 #include <Functiondiscoverykeys_devpkey.h>
 
+#include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/utf_string_conversions.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/avrt_wrapper_win.h"
+#include "media/base/media_switches.h"
 
 using base::win::ScopedComPtr;
 using base::win::ScopedCOMInitializer;
+using base::win::ScopedCoMem;
 
 namespace media {
+
+// static
+AUDCLNT_SHAREMODE WASAPIAudioOutputStream::GetShareMode() {
+  const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
+  if (cmd_line->HasSwitch(switches::kEnableExclusiveAudio))
+    return AUDCLNT_SHAREMODE_EXCLUSIVE;
+  return AUDCLNT_SHAREMODE_SHARED;
+}
 
 WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
                                                  const AudioParameters& params,
@@ -31,6 +42,7 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
       volume_(1.0),
       endpoint_buffer_size_frames_(0),
       device_role_(device_role),
+      share_mode_(GetShareMode()),
       num_written_frames_(0),
       source_(NULL) {
   CHECK(com_init_.succeeded());
@@ -39,6 +51,10 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
   // Load the Avrt DLL if not already loaded. Required to support MMCSS.
   bool avrt_init = avrt::Initialize();
   DCHECK(avrt_init) << "Failed to load the avrt.dll";
+
+  if (share_mode() == AUDCLNT_SHAREMODE_EXCLUSIVE) {
+    VLOG(1) << ">> Note that EXCLUSIVE MODE is enabled <<";
+  }
 
   // Set up the desired render format specified by the client.
   format_.nSamplesPerSec = params.sample_rate();
@@ -87,7 +103,7 @@ bool WASAPIAudioOutputStream::Open() {
   // Create an IMMDeviceEnumerator interface and obtain a reference to
   // the IMMDevice interface of the default rendering device with the
   // specified role.
-  HRESULT hr = SetRenderDevice(device_role_);
+  HRESULT hr = SetRenderDevice();
   if (FAILED(hr)) {
     return false;
   }
@@ -99,21 +115,20 @@ bool WASAPIAudioOutputStream::Open() {
     return false;
   }
 
-  // Retrieve the stream format which the audio engine uses for its internal
-  // processing/mixing of shared-mode streams.
-  hr = GetAudioEngineStreamFormat();
-  if (FAILED(hr)) {
-    return false;
-  }
-
   // Verify that the selected audio endpoint supports the specified format
   // set during construction.
+  // In exclusive mode, the client can choose to open the stream in any audio
+  // format that the endpoint device supports. In shared mode, the client must
+  // open the stream in the mix format that is currently in use by the audio
+  // engine (or a format that is similar to the mix format). The audio engine's
+  // input streams and the output mix from the engine are all in this format.
   if (!DesiredFormatIsSupported()) {
     return false;
   }
 
   // Initialize the audio stream between the client and the device using
-  // shared mode and a lowest possible glitch-free latency.
+  // shared or exclusive mode and a lowest possible glitch-free latency.
+  // We will enter different code paths depending on the specified share mode.
   hr = InitializeAudioEngine();
   if (FAILED(hr)) {
     return false;
@@ -229,9 +244,12 @@ void WASAPIAudioOutputStream::Stop() {
   // Extra safety check to ensure that the buffers are cleared.
   // If the buffers are not cleared correctly, the next call to Start()
   // would fail with AUDCLNT_E_BUFFER_ERROR at IAudioRenderClient::GetBuffer().
-  UINT32 num_queued_frames = 0;
-  audio_client_->GetCurrentPadding(&num_queued_frames);
-  DCHECK_EQ(0u, num_queued_frames);
+  // This check is is only needed for shared-mode streams.
+  if (share_mode() == AUDCLNT_SHAREMODE_SHARED) {
+    UINT32 num_queued_frames = 0;
+    audio_client_->GetCurrentPadding(&num_queued_frames);
+    DCHECK_EQ(0u, num_queued_frames);
+  }
 
   // Ensure that we don't quit the main thread loop immediately next
   // time Start() is called.
@@ -276,6 +294,13 @@ void WASAPIAudioOutputStream::GetVolume(double* volume) {
 
 // static
 int WASAPIAudioOutputStream::HardwareSampleRate(ERole device_role) {
+  // Calling this function only makes sense for shared mode streams, since
+  // if the device will be opened in exclusive mode, then the application
+  // specified format is used instead. However, the result of this method can
+  // be useful for testing purposes so we don't DCHECK here.
+  DLOG_IF(WARNING, GetShareMode() == AUDCLNT_SHAREMODE_EXCLUSIVE) <<
+      "The mixing sample rate will be ignored for exclusive-mode streams.";
+
   // It is assumed that this static method is called from a COM thread, i.e.,
   // CoInitializeEx() is not called here again to avoid STA/MTA conflicts.
   ScopedComPtr<IMMDeviceEnumerator> enumerator;
@@ -311,6 +336,8 @@ int WASAPIAudioOutputStream::HardwareSampleRate(ERole device_role) {
     return 0.0;
   }
 
+  // Retrieve the stream format that the audio engine uses for its internal
+  // processing of shared-mode streams.
   base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format;
   hr = audio_client->GetMixFormat(&audio_engine_mix_format);
   if (FAILED(hr)) {
@@ -394,15 +421,29 @@ void WASAPIAudioOutputStream::Run() {
           UINT32 num_queued_frames = 0;
           uint8* audio_data = NULL;
 
-          // Get the padding value which represents the amount of rendering
-          // data that is queued up to play in the endpoint buffer.
-          hr = audio_client_->GetCurrentPadding(&num_queued_frames);
-
-          // Determine how much new data we can write to the buffer without
+          // Contains how much new data we can write to the buffer without
           // the risk of overwriting previously written data that the audio
           // engine has not yet read from the buffer.
-          size_t num_available_frames =
-              endpoint_buffer_size_frames_ - num_queued_frames;
+          size_t num_available_frames = 0;
+
+          if (share_mode() == AUDCLNT_SHAREMODE_SHARED) {
+            // Get the padding value which represents the amount of rendering
+            // data that is queued up to play in the endpoint buffer.
+            hr = audio_client_->GetCurrentPadding(&num_queued_frames);
+            num_available_frames =
+                endpoint_buffer_size_frames_ - num_queued_frames;
+          } else {
+            // While the stream is running, the system alternately sends one
+            // buffer or the other to the client. This form of double buffering
+            // is referred to as "ping-ponging". Each time the client receives
+            // a buffer from the system (triggers this event) the client must
+            // process the entire buffer. Calls to the GetCurrentPadding method
+            // are unnecessary because the packet size must always equal the
+            // buffer size. In contrast to the shared mode buffering scheme,
+            // the latency for an event-driven, exclusive-mode stream depends
+            // directly on the buffer size.
+            num_available_frames = endpoint_buffer_size_frames_;
+          }
 
           // Check if there is enough available space to fit the packet size
           // specified by the client.
@@ -411,6 +452,7 @@ void WASAPIAudioOutputStream::Run() {
 
           // Derive the number of packets we need get from the client to
           // fill up the available area in the endpoint buffer.
+          // |num_packets| will always be one for exclusive-mode streams.
           size_t num_packets = (num_available_frames / packet_size_frames_);
 
           // Get data from the client/source.
@@ -511,26 +553,29 @@ void WASAPIAudioOutputStream::HandleError(HRESULT err) {
     source_->OnError(this, static_cast<int>(err));
 }
 
-HRESULT WASAPIAudioOutputStream::SetRenderDevice(ERole device_role) {
+HRESULT WASAPIAudioOutputStream::SetRenderDevice() {
+  ScopedComPtr<IMMDeviceEnumerator> device_enumerator;
+  ScopedComPtr<IMMDevice> endpoint_device;
+
   // Create the IMMDeviceEnumerator interface.
   HRESULT hr =  CoCreateInstance(__uuidof(MMDeviceEnumerator),
                                  NULL,
                                  CLSCTX_INPROC_SERVER,
                                  __uuidof(IMMDeviceEnumerator),
-                                 device_enumerator_.ReceiveVoid());
+                                 device_enumerator.ReceiveVoid());
   if (SUCCEEDED(hr)) {
     // Retrieve the default render audio endpoint for the specified role.
     // Note that, in Windows Vista, the MMDevice API supports device roles
     // but the system-supplied user interface programs do not.
-    hr = device_enumerator_->GetDefaultAudioEndpoint(
-        eRender, device_role, endpoint_device_.Receive());
+    hr = device_enumerator->GetDefaultAudioEndpoint(
+        eRender, device_role_, endpoint_device.Receive());
     if (FAILED(hr))
       return hr;
 
     // Verify that the audio endpoint device is active. That is, the audio
     // adapter that connects to the endpoint device is present and enabled.
     DWORD state = DEVICE_STATE_DISABLED;
-    hr = endpoint_device_->GetState(&state);
+    hr = endpoint_device->GetState(&state);
     if (SUCCEEDED(hr)) {
       if (!(state & DEVICE_STATE_ACTIVE)) {
         DLOG(ERROR) << "Selected render device is not active.";
@@ -539,41 +584,145 @@ HRESULT WASAPIAudioOutputStream::SetRenderDevice(ERole device_role) {
     }
   }
 
+  if (SUCCEEDED(hr)) {
+    device_enumerator_ = device_enumerator;
+    endpoint_device_ = endpoint_device;
+  }
+
   return hr;
 }
 
 HRESULT WASAPIAudioOutputStream::ActivateRenderDevice() {
+  ScopedComPtr<IAudioClient> audio_client;
+
   // Creates and activates an IAudioClient COM object given the selected
   // render endpoint device.
   HRESULT hr = endpoint_device_->Activate(__uuidof(IAudioClient),
                                           CLSCTX_INPROC_SERVER,
                                           NULL,
-                                          audio_client_.ReceiveVoid());
+                                          audio_client.ReceiveVoid());
+  if (SUCCEEDED(hr)) {
+    // Retrieve the stream format that the audio engine uses for its internal
+    // processing/mixing of shared-mode streams.
+    audio_engine_mix_format_.Reset(NULL);
+    hr = audio_client->GetMixFormat(&audio_engine_mix_format_);
+
+    if (SUCCEEDED(hr)) {
+      audio_client_ = audio_client;
+    }
+  }
+
   return hr;
 }
 
-HRESULT WASAPIAudioOutputStream::GetAudioEngineStreamFormat() {
-  // Retrieve the stream format that the audio engine uses for its internal
-  // processing/mixing of shared-mode streams.
-  return audio_client_->GetMixFormat(&audio_engine_mix_format_);
-}
-
 bool WASAPIAudioOutputStream::DesiredFormatIsSupported() {
+  // Determine, before calling IAudioClient::Initialize(), whether the audio
+  // engine supports a particular stream format.
   // In shared mode, the audio engine always supports the mix format,
-  // which is stored in the |audio_engine_mix_format_| member. In addition,
-  // the audio engine *might* support similar formats that have the same
-  // sample rate and number of channels as the mix format but differ in
-  // the representation of audio sample values.
+  // which is stored in the |audio_engine_mix_format_| member and it is also
+  // possible to receive a proposed (closest) format if the current format is
+  // not supported.
   base::win::ScopedCoMem<WAVEFORMATEX> closest_match;
-  HRESULT hr = audio_client_->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED,
+  HRESULT hr = audio_client_->IsFormatSupported(share_mode(),
                                                 &format_,
                                                 &closest_match);
+
+  // This log can only be triggered for shared mode.
   DLOG_IF(ERROR, hr == S_FALSE) << "Format is not supported "
                                 << "but a closest match exists.";
+  // This log can be triggered both for shared and exclusive modes.
+  DLOG_IF(ERROR, hr == AUDCLNT_E_UNSUPPORTED_FORMAT) << "Unsupported format.";
+  if (hr == S_FALSE) {
+    DVLOG(1) << "wFormatTag    : " << closest_match->wFormatTag;
+    DVLOG(1) << "nChannels     : " << closest_match->nChannels;
+    DVLOG(1) << "nSamplesPerSec: " << closest_match->nSamplesPerSec;
+    DVLOG(1) << "wBitsPerSample: " << closest_match->wBitsPerSample;
+  }
+
   return (hr == S_OK);
 }
 
 HRESULT WASAPIAudioOutputStream::InitializeAudioEngine() {
+#if !defined(NDEBUG)
+  // The period between processing passes by the audio engine is fixed for a
+  // particular audio endpoint device and represents the smallest processing
+  // quantum for the audio engine. This period plus the stream latency between
+  // the buffer and endpoint device represents the minimum possible latency
+  // that an audio application can achieve in shared mode.
+  {
+    REFERENCE_TIME default_device_period = 0;
+    REFERENCE_TIME minimum_device_period = 0;
+    HRESULT hr_dbg = audio_client_->GetDevicePeriod(&default_device_period,
+      &minimum_device_period);
+    if (SUCCEEDED(hr_dbg)) {
+      // Shared mode device period.
+      DVLOG(1) << "shared mode (default) device period: "
+               << static_cast<double>(default_device_period / 10000.0)
+               << " [ms]";
+      // Exclusive mode device period.
+      DVLOG(1) << "exclusive mode (minimum) device period: "
+               << static_cast<double>(minimum_device_period / 10000.0)
+               << " [ms]";
+    }
+
+    REFERENCE_TIME latency = 0;
+    hr_dbg = audio_client_->GetStreamLatency(&latency);
+    if (SUCCEEDED(hr_dbg)) {
+      DVLOG(1) << "stream latency: " << static_cast<double>(latency / 10000.0)
+               << " [ms]";
+    }
+  }
+#endif
+
+  HRESULT hr = S_FALSE;
+
+  // Perform different initialization depending on if the device shall be
+  // opened in shared mode or in exclusive mode.
+  hr = (share_mode() == AUDCLNT_SHAREMODE_SHARED) ?
+      SharedModeInitialization() : ExclusiveModeInitialization();
+  if (FAILED(hr)) {
+    LOG(WARNING) << "IAudioClient::Initialize() failed: " << std::hex << hr;
+    return hr;
+  }
+
+  // Retrieve the length of the endpoint buffer. The buffer length represents
+  // the maximum amount of rendering data that the client can write to
+  // the endpoint buffer during a single processing pass.
+  // A typical value is 960 audio frames <=> 20ms @ 48kHz sample rate.
+  hr = audio_client_->GetBufferSize(&endpoint_buffer_size_frames_);
+  if (FAILED(hr))
+    return hr;
+  DVLOG(1) << "endpoint buffer size: " << endpoint_buffer_size_frames_
+           << " [frames]";
+
+  // The buffer scheme for exclusive mode streams is not designed for max
+  // flexibility. We only allow a "perfect match" between the packet size set
+  // by the user and the actual endpoint buffer size.
+  if (share_mode() == AUDCLNT_SHAREMODE_EXCLUSIVE &&
+      endpoint_buffer_size_frames_ != packet_size_frames_) {
+    hr = AUDCLNT_E_INVALID_SIZE;
+    DLOG(ERROR) << "AUDCLNT_E_INVALID_SIZE";
+    return hr;
+  }
+
+  // Set the event handle that the audio engine will signal each time
+  // a buffer becomes ready to be processed by the client.
+  hr = audio_client_->SetEventHandle(audio_samples_render_event_.Get());
+  if (FAILED(hr))
+    return hr;
+
+  // Get access to the IAudioRenderClient interface. This interface
+  // enables us to write output data to a rendering endpoint buffer.
+  // The methods in this interface manage the movement of data packets
+  // that contain audio-rendering data.
+  hr = audio_client_->GetService(__uuidof(IAudioRenderClient),
+                                 audio_render_client_.ReceiveVoid());
+  return hr;
+}
+
+HRESULT WASAPIAudioOutputStream::SharedModeInitialization() {
+  DCHECK_EQ(share_mode(), AUDCLNT_SHAREMODE_SHARED);
+
   // TODO(henrika): this buffer scheme is still under development.
   // The exact details are yet to be determined based on tests with different
   // audio clients.
@@ -590,7 +739,7 @@ HRESULT WASAPIAudioOutputStream::InitializeAudioEngine() {
     glitch_free_buffer_size_ms += 20;
   }
   DVLOG(1) << "glitch_free_buffer_size_ms: " << glitch_free_buffer_size_ms;
-  REFERENCE_TIME requested_buffer_duration_hns =
+  REFERENCE_TIME requested_buffer_duration =
       static_cast<REFERENCE_TIME>(glitch_free_buffer_size_ms * 10000);
 
   // Initialize the audio stream between the client and the device.
@@ -604,64 +753,63 @@ HRESULT WASAPIAudioOutputStream::InitializeAudioEngine() {
   HRESULT hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_SHARED,
                                          AUDCLNT_STREAMFLAGS_EVENTCALLBACK |
                                          AUDCLNT_STREAMFLAGS_NOPERSIST,
-                                         requested_buffer_duration_hns,
+                                         requested_buffer_duration,
                                          0,
                                          &format_,
                                          NULL);
-  if (FAILED(hr))
-    return hr;
+  return hr;
+}
 
-  // Retrieve the length of the endpoint buffer shared between the client
-  // and the audio engine. The buffer length the buffer length determines
-  // the maximum amount of rendering data that the client can write to
-  // the endpoint buffer during a single processing pass.
-  // A typical value is 960 audio frames <=> 20ms @ 48kHz sample rate.
-  hr = audio_client_->GetBufferSize(&endpoint_buffer_size_frames_);
-  if (FAILED(hr))
-    return hr;
-  DVLOG(1) << "endpoint buffer size: " << endpoint_buffer_size_frames_
-           << " [frames]";
-#ifndef NDEBUG
-  // The period between processing passes by the audio engine is fixed for a
-  // particular audio endpoint device and represents the smallest processing
-  // quantum for the audio engine. This period plus the stream latency between
-  // the buffer and endpoint device represents the minimum possible latency
-  // that an audio application can achieve in shared mode.
-  REFERENCE_TIME default_device_period = 0;
-  REFERENCE_TIME minimum_device_period = 0;
-  HRESULT hr_dbg = audio_client_->GetDevicePeriod(&default_device_period,
-                                                  &minimum_device_period);
-  if (SUCCEEDED(hr_dbg)) {
-    // Shared mode device period.
-    DVLOG(1) << "default device period: "
-             << static_cast<double>(default_device_period / 10000.0)
-             << " [ms]";
-    // Exclusive mode device period.
-    DVLOG(1) << "minimum device period: "
-             << static_cast<double>(minimum_device_period / 10000.0)
-             << " [ms]";
+HRESULT WASAPIAudioOutputStream::ExclusiveModeInitialization() {
+  DCHECK_EQ(share_mode(), AUDCLNT_SHAREMODE_EXCLUSIVE);
+
+  float f = (1000.0 * packet_size_frames_) / format_.nSamplesPerSec;
+  REFERENCE_TIME requested_buffer_duration =
+      static_cast<REFERENCE_TIME>(f * 10000.0 + 0.5);
+
+  // Initialize the audio stream between the client and the device.
+  // For an exclusive-mode stream that uses event-driven buffering, the
+  // caller must specify nonzero values for hnsPeriodicity and
+  // hnsBufferDuration, and the values of these two parameters must be equal.
+  // The Initialize method allocates two buffers for the stream. Each buffer
+  // is equal in duration to the value of the hnsBufferDuration parameter.
+  // Following the Initialize call for a rendering stream, the caller should
+  // fill the first of the two buffers before starting the stream.
+  HRESULT hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_EXCLUSIVE,
+                                         AUDCLNT_STREAMFLAGS_EVENTCALLBACK |
+                                         AUDCLNT_STREAMFLAGS_NOPERSIST,
+                                         requested_buffer_duration,
+                                         requested_buffer_duration,
+                                         &format_,
+                                         NULL);
+  if (FAILED(hr)) {
+    if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
+      LOG(ERROR) << "AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED";
+
+      UINT32 aligned_buffer_size = 0;
+      audio_client_->GetBufferSize(&aligned_buffer_size);
+      DVLOG(1) << "Use aligned buffer size instead: " << aligned_buffer_size;
+      audio_client_.Release();
+
+      // Calculate new aligned periodicity. Each unit of reference time
+      // is 100 nanoseconds.
+      REFERENCE_TIME aligned_buffer_duration = static_cast<REFERENCE_TIME>(
+          (10000000.0 * aligned_buffer_size / format_.nSamplesPerSec) + 0.5);
+
+      // It is possible to re-activate and re-initialize the audio client
+      // at this stage but we bail out with an error code instead and
+      // combine it with a log message which informs about the suggested
+      // aligned buffer size which should be used instead.
+      DVLOG(1) << "aligned_buffer_duration: "
+                << static_cast<double>(aligned_buffer_duration / 10000.0)
+                << " [ms]";
+    } else if (hr == AUDCLNT_E_INVALID_DEVICE_PERIOD) {
+      // We will get this error if we try to use a smaller buffer size than
+      // the minimum supported size (usually ~3ms on Windows 7).
+      LOG(ERROR) << "AUDCLNT_E_INVALID_DEVICE_PERIOD";
+    }
   }
 
-  REFERENCE_TIME latency = 0;
-  hr_dbg = audio_client_->GetStreamLatency(&latency);
-  if (SUCCEEDED(hr_dbg)) {
-    DVLOG(1) << "stream latency: " << static_cast<double>(latency / 10000.0)
-             << " [ms]";
-  }
-#endif
-
-  // Set the event handle that the audio engine will signal each time
-  // a buffer becomes ready to be processed by the client.
-  hr = audio_client_->SetEventHandle(audio_samples_render_event_.Get());
-  if (FAILED(hr))
-    return hr;
-
-  // Get access to the IAudioRenderClient interface. This interface
-  // enables us to write output data to a rendering endpoint buffer.
-  // The methods in this interface manage the movement of data packets
-  // that contain audio-rendering data.
-  hr = audio_client_->GetService(__uuidof(IAudioRenderClient),
-                                 audio_render_client_.ReceiveVoid());
   return hr;
 }
 
