@@ -81,6 +81,14 @@ Connection::StatementRef::~StatementRef() {
 
 void Connection::StatementRef::Close() {
   if (stmt_) {
+    // Call to AssertIOAllowed() cannot go at the beginning of the function
+    // because Close() is called unconditionally from destructor to clean
+    // connection_. And if this is inactive statement this won't cause any
+    // disk access and destructor most probably will be called on thread
+    // not allowing disk access.
+    // TODO(paivanof@gmail.com): This should move to the beginning
+    // of the function. http://crbug.com/136655.
+    AssertIOAllowed();
     sqlite3_finalize(stmt_);
     stmt_ = NULL;
   }
@@ -93,7 +101,8 @@ Connection::Connection()
       cache_size_(0),
       exclusive_locking_(false),
       transaction_nesting_(0),
-      needs_rollback_(false) {
+      needs_rollback_(false),
+      in_memory_(false) {
 }
 
 Connection::~Connection() {
@@ -109,6 +118,7 @@ bool Connection::Open(const FilePath& path) {
 }
 
 bool Connection::OpenInMemory() {
+  in_memory_ = true;
   return OpenInternal(":memory:");
 }
 
@@ -130,6 +140,13 @@ void Connection::Close() {
   ClearCache();
 
   if (db_) {
+    // Call to AssertIOAllowed() cannot go at the beginning of the function
+    // because Close() must be called from destructor to clean
+    // statement_cache_, it won't cause any disk access and it most probably
+    // will happen on thread not allowing disk access.
+    // TODO(paivanof@gmail.com): This should move to the beginning
+    // of the function. http://crbug.com/136655.
+    AssertIOAllowed();
     // TODO(shess): Histogram for failure.
     sqlite3_close(db_);
     db_ = NULL;
@@ -137,6 +154,8 @@ void Connection::Close() {
 }
 
 void Connection::Preload() {
+  AssertIOAllowed();
+
   if (!db_) {
     DLOG(FATAL) << "Cannot preload null db";
     return;
@@ -161,6 +180,8 @@ void Connection::Preload() {
 // Create an in-memory database with the existing database's page
 // size, then backup that database over the existing database.
 bool Connection::Raze() {
+  AssertIOAllowed();
+
   if (!db_) {
     DLOG(FATAL) << "Cannot raze null db";
     return false;
@@ -297,6 +318,7 @@ bool Connection::CommitTransaction() {
 }
 
 int Connection::ExecuteAndReturnErrorCode(const char* sql) {
+  AssertIOAllowed();
   if (!db_)
     return false;
   return sqlite3_exec(db_, sql, NULL, NULL, NULL);
@@ -347,6 +369,8 @@ scoped_refptr<Connection::StatementRef> Connection::GetCachedStatement(
 
 scoped_refptr<Connection::StatementRef> Connection::GetUniqueStatement(
     const char* sql) {
+  AssertIOAllowed();
+
   if (!db_)
     return new StatementRef();  // Return inactive statement.
 
@@ -375,6 +399,7 @@ scoped_refptr<Connection::StatementRef> Connection::GetUntrackedStatement(
 }
 
 bool Connection::IsSQLValid(const char* sql) {
+  AssertIOAllowed();
   sqlite3_stmt* stmt = NULL;
   if (sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL) != SQLITE_OK)
     return false;
@@ -455,6 +480,8 @@ const char* Connection::GetErrorMessage() const {
 }
 
 bool Connection::OpenInternal(const std::string& file_name) {
+  AssertIOAllowed();
+
   if (db_) {
     DLOG(FATAL) << "sql::Connection is already open.";
     return false;
