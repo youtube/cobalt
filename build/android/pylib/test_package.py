@@ -106,11 +106,30 @@ class TestPackage(object):
     return ret
 
   def PushDataAndPakFiles(self):
-    if self.test_suite_basename == 'ui_unittests':
-      self.adb.PushIfNeeded(self.test_suite_dirname + '/chrome.pak',
-                            '/data/local/tmp/paks/chrome.pak')
-      self.adb.PushIfNeeded(self.test_suite_dirname + '/locales/en-US.pak',
-                            '/data/local/tmp/paks/en-US.pak')
+    if (self.test_suite_basename == 'ui_unittests' or
+        self.test_suite_basename == 'unit_tests'):
+      self.adb.PushIfNeeded(
+          self.test_suite_dirname + '/chrome.pak',
+          '/data/local/tmp/paks/chrome.pak')
+      self.adb.PushIfNeeded(
+          self.test_suite_dirname + '/locales/en-US.pak',
+          '/data/local/tmp/paks/en-US.pak')
+    if self.test_suite_basename == 'unit_tests':
+      self.adb.PushIfNeeded(
+          self.test_suite_dirname + '/resources.pak',
+          '/data/local/tmp/paks/resources.pak')
+      self.adb.PushIfNeeded(
+          self.test_suite_dirname + '/theme_resources_100_percent.pak',
+          '/data/local/tmp/paks/theme_resources_100_percent.pak')
+      self.adb.PushIfNeeded(
+          self.test_suite_dirname + '/ui_resources_100_percent.pak',
+          '/data/local/tmp/paks/ui_resources_100_percent.pak')
+      self.adb.PushIfNeeded(self.test_suite_dirname + '/test_data',
+                            '/data/local/tmp/test_data')
+    if self.test_suite_basename == 'content_unittests':
+      self.adb.PushIfNeeded(
+          self.test_suite_dirname + '/content_resources.pak',
+          '/data/local/tmp/paks/content_resources.pak')
 
   def _WatchTestOutput(self, p):
     """Watches the test output.
