@@ -16,7 +16,8 @@
 // headers to subclasses which implement CheckChromeClass().
 class ChromeClassTester : public clang::ASTConsumer {
  public:
-  explicit ChromeClassTester(clang::CompilerInstance& instance);
+  explicit ChromeClassTester(clang::CompilerInstance& instance,
+                             bool check_inner_classes);
   virtual ~ChromeClassTester();
 
   // clang::ASTConsumer:
@@ -79,6 +80,9 @@ class ChromeClassTester : public clang::ASTConsumer {
 
   // List of decls to check once the current top-level decl is parsed.
   std::vector<clang::TagDecl*> pending_class_decls_;
+
+  // TODO: Remove once all inner classes are cleaned up.
+  bool check_inner_classes_;
 };
 
 #endif  // TOOLS_CLANG_PLUGINS_CHROMECLASSTESTER_H_

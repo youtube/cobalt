@@ -36,18 +36,24 @@ bool ends_with(const std::string& one, const std::string& two) {
 
 }  // namespace
 
-ChromeClassTester::ChromeClassTester(CompilerInstance& instance)
+ChromeClassTester::ChromeClassTester(CompilerInstance& instance,
+                                     bool check_inner_classes)
     : instance_(instance),
-      diagnostic_(instance.getDiagnostics()) {
+      diagnostic_(instance.getDiagnostics()),
+      check_inner_classes_(check_inner_classes) {
   BuildBannedLists();
 }
 
 ChromeClassTester::~ChromeClassTester() {}
 
 void ChromeClassTester::HandleTagDeclDefinition(TagDecl* tag) {
-  // Defer processing of this tag until its containing top-level
-  // declaration has been fully parsed. See crbug.com/136863.
-  pending_class_decls_.push_back(tag);
+  if (check_inner_classes_) {
+    // Defer processing of this tag until its containing top-level
+    // declaration has been fully parsed. See crbug.com/136863.
+    pending_class_decls_.push_back(tag);
+  } else {
+    CheckTag(tag);
+  }
 }
 
 bool ChromeClassTester::HandleTopLevelDecl(DeclGroupRef group_ref) {

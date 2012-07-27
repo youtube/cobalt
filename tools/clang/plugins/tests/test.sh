@@ -25,6 +25,8 @@ usage() {
 do_testcase() {
   local output="$("${CLANG_DIR}"/bin/clang -c -Wno-c++11-extensions \
       -Xclang -load -Xclang "${CLANG_DIR}"/lib/libFindBadConstructs.${LIB} \
+      -Xclang -plugin-arg-find-bad-constructs \
+      -Xclang check-inner-classes \
       -Xclang -plugin -Xclang find-bad-constructs ${1} 2>&1)"
   local diffout="$(echo "${output}" | diff - "${2}")"
   if [ "${diffout}" = "" ]; then
