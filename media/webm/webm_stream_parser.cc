@@ -192,7 +192,8 @@ void WebMStreamParser::Init(const InitCB& init_cb,
                             const NewBuffersCB& audio_cb,
                             const NewBuffersCB& video_cb,
                             const NeedKeyCB& need_key_cb,
-                            const NewMediaSegmentCB& new_segment_cb) {
+                            const NewMediaSegmentCB& new_segment_cb,
+                            const base::Closure& end_of_segment_cb) {
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!init_cb.is_null());
@@ -200,6 +201,7 @@ void WebMStreamParser::Init(const InitCB& init_cb,
   DCHECK(!audio_cb.is_null() || !video_cb.is_null());
   DCHECK(!need_key_cb.is_null());
   DCHECK(!new_segment_cb.is_null());
+  DCHECK(!end_of_segment_cb.is_null());
 
   ChangeState(kParsingHeaders);
   init_cb_ = init_cb;
@@ -208,6 +210,7 @@ void WebMStreamParser::Init(const InitCB& init_cb,
   video_cb_ = video_cb;
   need_key_cb_ = need_key_cb;
   new_segment_cb_ = new_segment_cb;
+  end_of_segment_cb_ = end_of_segment_cb;
 }
 
 void WebMStreamParser::Flush() {
@@ -416,6 +419,7 @@ int WebMStreamParser::ParseCluster(const uint8* data, int size) {
   const BufferQueue& audio_buffers = cluster_parser_->audio_buffers();
   const BufferQueue& video_buffers = cluster_parser_->video_buffers();
   base::TimeDelta cluster_start_time = cluster_parser_->cluster_start_time();
+  bool cluster_ended = cluster_parser_->cluster_ended();
 
   if (waiting_for_buffers_ && cluster_start_time != kNoTimestamp()) {
     new_segment_cb_.Run(cluster_start_time);
@@ -427,6 +431,9 @@ int WebMStreamParser::ParseCluster(const uint8* data, int size) {
 
   if (!video_buffers.empty() && !video_cb_.Run(video_buffers))
     return -1;
+
+  if (cluster_ended)
+    end_of_segment_cb_.Run();
 
   return bytes_parsed;
 }

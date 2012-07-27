@@ -982,7 +982,7 @@ SourceBufferRange* SourceBufferRange::SplitRange(base::TimeDelta timestamp) {
 
 SourceBufferRange::KeyframeMap::iterator
 SourceBufferRange::GetFirstKeyframeAt(base::TimeDelta timestamp,
-                                         bool skip_given_timestamp) {
+                                      bool skip_given_timestamp) {
   KeyframeMap::iterator result = keyframe_map_.lower_bound(timestamp);
   // lower_bound() returns the first element >= |timestamp|, so if we don't want
   // to include keyframes == |timestamp|, we have to increment the iterator

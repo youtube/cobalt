@@ -74,7 +74,8 @@ class MEDIA_EXPORT StreamParser {
                     const NewBuffersCB& audio_cb,
                     const NewBuffersCB& video_cb,
                     const NeedKeyCB& need_key_cb,
-                    const NewMediaSegmentCB& new_segment_cb) = 0;
+                    const NewMediaSegmentCB& new_segment_cb,
+                    const base::Closure& end_of_segment_cb) = 0;
 
   // Called when a seek occurs. This flushes the current parser state
   // and puts the parser in a state where it can receive data for the new seek

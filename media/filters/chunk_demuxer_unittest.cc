@@ -2064,4 +2064,70 @@ TEST_F(ChunkDemuxerTest, TestConfigChange_Seek) {
   ASSERT_TRUE(video_config_1.Matches(stream->video_decoder_config()));
 }
 
+TEST_F(ChunkDemuxerTest, TestTimestampPositiveOffset) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(kSourceId, 30));
+  scoped_ptr<Cluster> cluster(GenerateCluster(0, 2));
+  ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  GenerateExpectedReads(30000, 2, audio, video);
+}
+
+TEST_F(ChunkDemuxerTest, TestTimestampNegativeOffset) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(kSourceId, -1));
+  scoped_ptr<Cluster> cluster = GenerateCluster(1000, 2);
+  ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  GenerateExpectedReads(0, 2, audio, video);
+}
+
+TEST_F(ChunkDemuxerTest, TestTimestampOffsetSeparateStreams) {
+  std::string audio_id = "audio1";
+  std::string video_id = "video1";
+  ASSERT_TRUE(InitDemuxerAudioAndVideoSources(audio_id, video_id));
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  scoped_ptr<Cluster> cluster_a(
+      GenerateSingleStreamCluster(
+          2500, 2500 + kAudioBlockDuration * 4, kAudioTrackNum,
+          kAudioBlockDuration));
+
+  scoped_ptr<Cluster> cluster_v(
+      GenerateSingleStreamCluster(
+          0, kVideoBlockDuration * 4, kVideoTrackNum, kVideoBlockDuration));
+
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(audio_id, -2.5));
+  ASSERT_TRUE(AppendData(audio_id, cluster_a->data(), cluster_a->size()));
+  GenerateSingleStreamExpectedReads(0, 4, audio, kAudioBlockDuration);
+
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(video_id, 27.3));
+  ASSERT_TRUE(AppendData(video_id, cluster_v->data(), cluster_v->size()));
+  GenerateSingleStreamExpectedReads(27300, 4, video, kVideoBlockDuration);
+}
+
+TEST_F(ChunkDemuxerTest, TestTimestampOffsetMidParse) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  scoped_ptr<Cluster> cluster = GenerateCluster(0, 2);
+  // Append only part of the cluster data.
+  ASSERT_TRUE(AppendData(cluster->data(), cluster->size() - 13));
+
+  // Setting a timestamp should fail because we're in the middle of a cluster.
+  ASSERT_FALSE(demuxer_->SetTimestampOffset(kSourceId, 25));
+}
 }  // namespace media

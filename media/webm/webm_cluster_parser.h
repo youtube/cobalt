@@ -44,6 +44,9 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   const BufferQueue& audio_buffers() const { return audio_.buffers(); }
   const BufferQueue& video_buffers() const { return video_.buffers(); }
 
+  // Returns true if the last Parse() call stopped at the end of a cluster.
+  bool cluster_ended() const { return cluster_ended_; }
+
  private:
   // Helper class that manages per-track state.
   class Track {
@@ -88,6 +91,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   int64 cluster_timecode_;
   base::TimeDelta cluster_start_time_;
+  bool cluster_ended_;
 
   Track audio_;
   Track video_;
