@@ -136,6 +136,7 @@ v8.log
 /third_party/aosp
 /third_party/asan
 /third_party/bidichecker
+/third_party/bison
 /third_party/cacheinvalidation/files
 /third_party/chromeos_login_manager
 /third_party/chromeos_text_input
@@ -151,6 +152,7 @@ v8.log
 /third_party/gnu_binutils/
 /third_party/gold
 /third_party/googlemac
+/third_party/gperf
 /third_party/hunspell
 /third_party/hunspell_dictionaries
 /third_party/icu
@@ -180,6 +182,7 @@ v8.log
 /third_party/ots
 /third_party/pdfsqueeze
 /third_party/pefile
+/third_party/perl
 /third_party/platformsdk_win7
 /third_party/platformsdk_win8
 /third_party/ppapi
