@@ -93,6 +93,10 @@ class MP4StreamParserTest : public testing::Test {
     segment_start_ = start_dts;
   }
 
+  void EndOfSegmentF() {
+    DVLOG(1) << "EndOfSegmentF()";
+  }
+
   void InitializeParser() {
     parser_->Init(
         base::Bind(&MP4StreamParserTest::InitF, base::Unretained(this)),
@@ -100,7 +104,9 @@ class MP4StreamParserTest : public testing::Test {
         base::Bind(&MP4StreamParserTest::NewBuffersF, base::Unretained(this)),
         base::Bind(&MP4StreamParserTest::NewBuffersF, base::Unretained(this)),
         base::Bind(&MP4StreamParserTest::KeyNeededF, base::Unretained(this)),
-        base::Bind(&MP4StreamParserTest::NewSegmentF, base::Unretained(this)));
+        base::Bind(&MP4StreamParserTest::NewSegmentF, base::Unretained(this)),
+        base::Bind(&MP4StreamParserTest::EndOfSegmentF,
+                   base::Unretained(this)));
   }
 
   bool ParseMP4File(const std::string& filename, int append_bytes) {

@@ -37,13 +37,15 @@ void MP4StreamParser::Init(const InitCB& init_cb,
                            const NewBuffersCB& audio_cb,
                            const NewBuffersCB& video_cb,
                            const NeedKeyCB& need_key_cb,
-                           const NewMediaSegmentCB& new_segment_cb) {
+                           const NewMediaSegmentCB& new_segment_cb,
+                           const base::Closure& end_of_segment_cb) {
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!init_cb.is_null());
   DCHECK(!config_cb.is_null());
   DCHECK(!audio_cb.is_null() || !video_cb.is_null());
   DCHECK(!need_key_cb.is_null());
+  DCHECK(!end_of_segment_cb.is_null());
 
   ChangeState(kParsingBoxes);
   init_cb_ = init_cb;
@@ -52,6 +54,7 @@ void MP4StreamParser::Init(const InitCB& init_cb,
   video_cb_ = video_cb;
   need_key_cb_ = need_key_cb;
   new_segment_cb_ = new_segment_cb;
+  end_of_segment_cb_ = end_of_segment_cb;
 }
 
 void MP4StreamParser::Flush() {
@@ -316,8 +319,11 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     // Flush any buffers we've gotten in this chunk so that buffers don't
     // cross NewSegment() calls
     *err = !SendAndFlushSamples(audio_buffers, video_buffers);
-    if (*err) return false;
+    if (*err)
+      return false;
+
     ChangeState(kParsingBoxes);
+    end_of_segment_cb_.Run();
     return true;
   }
 
@@ -337,7 +343,8 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
   bool video = has_video_ && video_track_id_ == runs_->track_id();
 
   // Skip this entire track if it's not one we're interested in
-  if (!audio && !video) runs_->AdvanceRun();
+  if (!audio && !video)
+    runs_->AdvanceRun();
 
   // Attempt to cache the auxiliary information first. Aux info is usually
   // placed in a contiguous block before the sample data, rather than being
