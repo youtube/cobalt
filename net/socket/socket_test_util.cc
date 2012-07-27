@@ -109,7 +109,8 @@ void DumpData(const char* data, int data_len) {
   }
 }
 
-void DumpMockRead(const MockRead& r) {
+template <MockReadWriteType type>
+void DumpMockReadWrite(const MockReadWrite<type>& r) {
   if (logging::LOG_INFO < logging::GetMinLogLevel())
     return;
   DVLOG(1) << "Async:   " << (r.mode == ASYNC)
@@ -390,14 +391,14 @@ MockRead OrderedSocketData::GetNextRead() {
       sequence_number_++) {
     NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_ - 1
                               << ": Read " << read_index();
-    DumpMockRead(next_read);
+    DumpMockReadWrite(next_read);
     blocked_ = (next_read.result == ERR_IO_PENDING);
     return StaticSocketDataProvider::GetNextRead();
   }
   NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_ - 1
                             << ": I/O Pending";
   MockRead result = MockRead(ASYNC, ERR_IO_PENDING);
-  DumpMockRead(result);
+  DumpMockReadWrite(result);
   blocked_ = true;
   return result;
 }
@@ -405,7 +406,7 @@ MockRead OrderedSocketData::GetNextRead() {
 MockWriteResult OrderedSocketData::OnWrite(const std::string& data) {
   NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
                             << ": Write " << write_index();
-  DumpMockRead(PeekWrite());
+  DumpMockReadWrite(PeekWrite());
   ++sequence_number_;
   if (blocked_) {
     // TODO(willchan): This 100ms delay seems to work around some weirdness.  We
@@ -518,14 +519,14 @@ MockRead DeterministicSocketData::GetNextRead() {
       result = MockRead(SYNCHRONOUS, ERR_UNEXPECTED);
     }
     if (print_debug_)
-      DumpMockRead(result);
+      DumpMockReadWrite(result);
     return result;
   }
 
   NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
                             << ": Read " << read_index();
   if (print_debug_)
-    DumpMockRead(current_read_);
+    DumpMockReadWrite(current_read_);
 
   // Increment the sequence number if IO is complete
   if (current_read_.mode == SYNCHRONOUS)
@@ -562,7 +563,7 @@ MockWriteResult DeterministicSocketData::OnWrite(const std::string& data) {
   }
 
   if (print_debug_)
-    DumpMockRead(next_write);
+    DumpMockReadWrite(next_write);
 
   // Move to the next step if I/O is synchronous, since the operation will
   // complete when this method returns.

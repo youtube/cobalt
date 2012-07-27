@@ -280,7 +280,7 @@ TEST_P(HttpProxyClientSocketPoolSpdy2Test, NeedAuth) {
                                 kAuthChallenge,
                                 arraysize(kAuthChallenge)));
   MockRead spdy_reads[] = {
-    CreateMockWrite(*resp, 1, ASYNC),
+    CreateMockRead(*resp, 1, ASYNC),
     MockRead(ASYNC, 0, 3)
   };
 

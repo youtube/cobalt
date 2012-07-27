@@ -49,7 +49,7 @@ class SOCKSClientSocketPoolTest : public testing::Test {
    private:
     scoped_ptr<StaticSocketDataProvider> data_;
     scoped_array<MockWrite> writes_;
-    scoped_array<MockWrite> reads_;
+    scoped_array<MockRead> reads_;
   };
 
   SOCKSClientSocketPoolTest()
