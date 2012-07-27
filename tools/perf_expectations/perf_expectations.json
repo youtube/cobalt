@@ -21,7 +21,7 @@
  "linux-release-lowmem/database/select-readtransactions-read-results/t": {"reva": 137912, "revb": 138066, "improve": -259, "regress": 43, "sha1": "134b7c2d"},
  "linux-release-lowmem/database/select-readtransactions/t": {"reva": 137912, "revb": 138066, "improve": -271, "regress": 24, "sha1": "e47556fa"},
  "linux-release-lowmem/dhtml/times/t": {"reva": 98519, "revb": 104238, "improve": -148, "regress": 408, "sha1": "9be87955"},
- "linux-release-lowmem/dom_perf/Total/score": {"reva": 148248, "revb": 148268, "improve": 87, "regress": 0, "sha1": "c6050c93"},
+ "linux-release-lowmem/dom_perf/Total/score": {"reva": 148248, "revb": 148757, "improve": 129, "regress": -30, "sha1": "5f74dfb0"},
  "linux-release-lowmem/indexeddb/basic_insert/t": {"reva": 81070, "revb": 81884, "improve": -921, "regress": 824, "sha1": "0bbdebb6"},
  "linux-release-lowmem/intl1/times/t": {"reva": 142934, "revb": 143622, "improve": -818, "regress": -51, "sha1": "55c47dac"},
  "linux-release-lowmem/intl2/times/t": {"reva": 81070, "revb": 81884, "improve": -1293, "regress": 1420, "sha1": "11a73902"},
