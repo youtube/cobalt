@@ -21,7 +21,7 @@ void ExpectDictBooleanValue(bool expected_value,
 void ExpectDictDictionaryValue(const DictionaryValue& expected_value,
                                const DictionaryValue& value,
                                const std::string& key) {
-  DictionaryValue* dict_value = NULL;
+  const DictionaryValue* dict_value = NULL;
   EXPECT_TRUE(value.GetDictionary(key, &dict_value)) << key;
   EXPECT_TRUE(Value::Equals(dict_value, &expected_value)) << key;
 }
@@ -37,7 +37,7 @@ void ExpectDictIntegerValue(int expected_value,
 void ExpectDictListValue(const ListValue& expected_value,
                          const DictionaryValue& value,
                          const std::string& key) {
-  ListValue* list_value = NULL;
+  const ListValue* list_value = NULL;
   EXPECT_TRUE(value.GetList(key, &list_value)) << key;
   EXPECT_TRUE(Value::Equals(list_value, &expected_value)) << key;
 }
