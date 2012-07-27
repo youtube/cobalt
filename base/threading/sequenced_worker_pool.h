@@ -274,7 +274,6 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   friend class RefCountedThreadSafe<SequencedWorkerPool>;
   friend class DeleteHelper<SequencedWorkerPool>;
 
-  class Inner;
   class Worker;
 
   const scoped_refptr<MessageLoopProxy> constructor_message_loop_;

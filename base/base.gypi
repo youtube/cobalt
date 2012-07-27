@@ -127,6 +127,7 @@
           'file_version_info_win.cc',
           'file_version_info_win.h',
           'files/dir_reader_fallback.h',
+          'files/dir_reader_dirent.h',
           'files/dir_reader_linux.h',
           'files/dir_reader_posix.h',
           'files/file_path_watcher.cc',
@@ -347,7 +348,6 @@
           'synchronization/lock_impl.h',
           'synchronization/lock_impl_posix.cc',
           'synchronization/lock_impl_win.cc',
-          'synchronization/spin_wait.h',
           'synchronization/waitable_event.h',
           'synchronization/waitable_event_posix.cc',
           'synchronization/waitable_event_watcher.h',
@@ -503,11 +503,6 @@
           4244, 4554, 4018, 4102,
         ],
         'conditions': [
-          [ 'target_arch=="ps3" or target_arch=="blue"', {
-            'sources!': [
-              'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
-            ],
-          }],
           ['OS=="lb_shell"', {
             'sources!': [
               'sys_info_posix.cc',
@@ -543,7 +538,11 @@
             ],
             'sources/': [
               ['include', 'sys_string_conversions_linux.cc'],
-              ['exclude', '^win/'],
+            ],
+          }],
+          [ 'target_arch=="ps3" or target_arch=="blue"', {
+            'sources!': [
+              'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
             ],
           }],
         ],
@@ -558,7 +557,6 @@
                 'message_pump_aurax11.cc',
               ],
           }],
-
           ['<(toolkit_uses_gtk)==0 or >(nacl_untrusted_build)==1', {
             'sources!': ['message_pump_gtk.cc'],
           }],

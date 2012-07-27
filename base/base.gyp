@@ -199,6 +199,19 @@
             }],
           ],
         }],
+        ['OS=="lb_shell"', {
+          'dependencies!': [
+            '../third_party/modp_b64/modp_b64.gyp:modp_b64',
+            '../third_party/libevent/libevent.gyp:libevent',
+          ],
+          'sources!': [
+            'file_descriptor_shuffle.cc'
+          ],
+          'sources/': [
+            ['exclude', '^win/'],
+            ['exclude', '_win.cc$'],
+          ],
+        }],
       ],
       'sources': [
         'third_party/nspr/prcpucfg.h',
@@ -316,6 +329,13 @@
       ],
       'include_dirs': [
         '..',
+      ],
+      'conditions': [
+        ['OS == "lb_shell"', {
+          'sources/': [
+            ['exclude', '^win/'],
+          ],
+        }],
       ],
     },
     {
@@ -867,7 +887,7 @@
         },
       ],
     }],
-    ['os_posix==1 and OS!="mac" and OS!="ios"', {
+    ['os_posix==1 and OS!="mac" and OS!="ios" and OS!="lb_shell"', {
       'targets': [
         {
           'target_name': 'symbolize',

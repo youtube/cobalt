@@ -103,7 +103,6 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   // Check file access permissions.
   if (!IsFileAccessAllowed(*request, file_path))
     return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
-#endif
 #if defined(__LB_SHELL__)
   // Jail the file path to a specific folder.
   std::string jail_path(*global_game_content_path + "/local");

@@ -75,7 +75,7 @@ namespace net {
  || defined(ARCH_CPU_ARMEL) || defined(ARCH_CPU_MIPSEL)
 #define IS_LITTLE_ENDIAN 1
 #undef  IS_BIG_ENDIAN
-#elif defined(ARCH_CPU_MIPSEB)
+#elif defined(ARCH_CPU_MIPSEB) || defined(ARCH_CPU_BIG_ENDIAN)
 #define IS_BIG_ENDIAN 1
 #undef  IS_LITTLE_ENDIAN
 #else
