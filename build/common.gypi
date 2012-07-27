@@ -642,8 +642,11 @@
     # http://developer.apple.com/mac/library/technotes/tn2002/tn2064.html#SECTION3
     # Chrome normally builds with the Mac OS X 10.6 SDK and sets the
     # deployment target to 10.5.  Other projects, such as O3D, may override
-    # these defaults.
+    # these defaults. If the SDK is installed someplace that Xcode doesn't
+    # know about, set mac_sdk_path to the path to the SDK. If set to a
+    # non-empty string, mac_sdk_path will be used in preference to mac_sdk.
     'mac_sdk%': '10.6',
+    'mac_sdk_path%': '',
     'mac_deployment_target%': '10.5',
 
     # The default value for mac_strip in target_defaults. This cannot be
@@ -3296,18 +3299,26 @@
     # custom xcode_settings in target_defaults to add them to targets instead.
 
     'conditions': [
-      ['OS=="mac"', {
-        # In an Xcode Project Info window, the "Base SDK for All Configurations"
-        # setting sets the SDK on a project-wide basis.  In order to get the
-        # configured SDK to show properly in the Xcode UI, SDKROOT must be set
-        # here at the project level.
-        'SDKROOT': 'macosx<(mac_sdk)',  # -isysroot
+      # In an Xcode Project Info window, the "Base SDK for All Configurations"
+      # setting sets the SDK on a project-wide basis. In order to get the
+      # configured SDK to show properly in the Xcode UI, SDKROOT must be set
+      # here at the project level.
+      ['mac_sdk_path==""', {
+        'conditions': [
+          ['OS=="mac"', {
+            'SDKROOT': 'macosx<(mac_sdk)',  # -isysroot
+          }],
+          ['OS=="ios"', {
+            'SDKROOT': 'iphoneos<(ios_sdk)',  # -isysroot
+          }],
+        ],
+      }, {  # else: mac_sdk_path!=""
+        'SDKROOT': '<(mac_sdk_path)',  # -isysroot
       }],
       ['OS=="ios"', {
         # Just build armv7 since iOS 4.3+ only supports armv7.
         'ARCHS': '$(ARCHS_UNIVERSAL_IPHONE_OS)',
         'IPHONEOS_DEPLOYMENT_TARGET': '<(ios_deployment_target)',
-        'SDKROOT': 'iphoneos<(ios_sdk)',  # -isysroot
         # Target both iPhone and iPad.
         'TARGETED_DEVICE_FAMILY': '1,2',
       }],
