@@ -263,7 +263,8 @@ class BASE_EXPORT DictionaryValue : public Value {
   // through the |out_value| parameter, and the function will return true.
   // Otherwise, it will return false and |out_value| will be untouched.
   // Note that the dictionary always owns the value that's returned.
-  bool Get(const std::string& path, Value** out_value) const;
+  bool Get(const std::string& path, const Value** out_value) const;
+  bool Get(const std::string& path, Value** out_value);
 
   // These are convenience forms of Get().  The value will be retrieved
   // and the return value will be true if the path is valid and the value at
@@ -274,27 +275,36 @@ class BASE_EXPORT DictionaryValue : public Value {
   bool GetString(const std::string& path, std::string* out_value) const;
   bool GetString(const std::string& path, string16* out_value) const;
   bool GetStringASCII(const std::string& path, std::string* out_value) const;
-  bool GetBinary(const std::string& path, BinaryValue** out_value) const;
+  bool GetBinary(const std::string& path, const BinaryValue** out_value) const;
+  bool GetBinary(const std::string& path, BinaryValue** out_value);
   bool GetDictionary(const std::string& path,
-                     DictionaryValue** out_value) const;
-  bool GetList(const std::string& path, ListValue** out_value) const;
+                     const DictionaryValue** out_value) const;
+  bool GetDictionary(const std::string& path, DictionaryValue** out_value);
+  bool GetList(const std::string& path, const ListValue** out_value) const;
+  bool GetList(const std::string& path, ListValue** out_value);
 
   // Like Get(), but without special treatment of '.'.  This allows e.g. URLs to
   // be used as paths.
   bool GetWithoutPathExpansion(const std::string& key,
-                               Value** out_value) const;
+                               const Value** out_value) const;
+  bool GetWithoutPathExpansion(const std::string& key, Value** out_value);
   bool GetIntegerWithoutPathExpansion(const std::string& key,
                                       int* out_value) const;
   bool GetDoubleWithoutPathExpansion(const std::string& key,
-                                   double* out_value) const;
+                                     double* out_value) const;
   bool GetStringWithoutPathExpansion(const std::string& key,
                                      std::string* out_value) const;
   bool GetStringWithoutPathExpansion(const std::string& key,
                                      string16* out_value) const;
+  bool GetDictionaryWithoutPathExpansion(
+      const std::string& key,
+      const DictionaryValue** out_value) const;
   bool GetDictionaryWithoutPathExpansion(const std::string& key,
-                                         DictionaryValue** out_value) const;
+                                         DictionaryValue** out_value);
   bool GetListWithoutPathExpansion(const std::string& key,
-                                   ListValue** out_value) const;
+                                   const ListValue** out_value) const;
+  bool GetListWithoutPathExpansion(const std::string& key,
+                                   ListValue** out_value);
 
   // Removes the Value with the specified path from this dictionary (or one
   // of its child dictionaries, if the path is more than just a local key).

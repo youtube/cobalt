@@ -1323,7 +1323,7 @@ bool HttpResponseHeaders::FromNetLogParam(
   http_response_headers->release();
 
   const base::DictionaryValue* dict;
-  base::ListValue* header_list;
+  const base::ListValue* header_list;
 
   if (!event_param ||
       !event_param->GetAsDictionary(&dict) ||
