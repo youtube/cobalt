@@ -5774,8 +5774,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test, SOCKS4_SSL_GET) {
   };
 
   MockRead data_reads[] = {
-    MockWrite(ASYNC, reinterpret_cast<char*>(read_buffer),
-              arraysize(read_buffer)),
+    MockRead(ASYNC, reinterpret_cast<char*>(read_buffer),
+             arraysize(read_buffer)),
     MockRead("HTTP/1.0 200 OK\r\n"),
     MockRead("Content-Type: text/html; charset=iso-8859-1\r\n\r\n"),
     MockRead("Payload"),
@@ -5842,8 +5842,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test, SOCKS5_HTTP_GET) {
   };
 
   MockRead data_reads[] = {
-    MockWrite(ASYNC, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
-    MockWrite(ASYNC, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)),
+    MockRead(ASYNC, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
+    MockRead(ASYNC, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)),
     MockRead("HTTP/1.0 200 OK\r\n"),
     MockRead("Content-Type: text/html; charset=iso-8859-1\r\n\r\n"),
     MockRead("Payload"),
@@ -5909,8 +5909,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test, SOCKS5_SSL_GET) {
   };
 
   MockRead data_reads[] = {
-    MockWrite(ASYNC, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
-    MockWrite(ASYNC, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)),
+    MockRead(ASYNC, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
+    MockRead(ASYNC, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)),
     MockRead("HTTP/1.0 200 OK\r\n"),
     MockRead("Content-Type: text/html; charset=iso-8859-1\r\n\r\n"),
     MockRead("Payload"),
@@ -7892,7 +7892,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, GenerateAuthToken) {
     }
     TestRound(const MockWrite& write_arg, const MockRead& read_arg,
               int expected_rv_arg, const MockWrite* extra_write_arg,
-              const MockWrite* extra_read_arg)
+              const MockRead* extra_read_arg)
         : write(write_arg),
           read(read_arg),
           expected_rv(expected_rv_arg),
