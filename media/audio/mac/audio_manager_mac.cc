@@ -4,6 +4,8 @@
 
 #include <CoreAudio/AudioHardware.h>
 
+#include <string>
+
 #include "base/mac/mac_logging.h"
 #include "base/mac/mac_util.h"
 #include "base/mac/scoped_cftyperef.h"
@@ -282,7 +284,7 @@ AudioInputStream* AudioManagerMac::MakeLinearInputStream(
 AudioInputStream* AudioManagerMac::MakeLowLatencyInputStream(
     const AudioParameters& params, const std::string& device_id) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
-  // Gets the AudioDeviceID that refers to the AudioDevice with the device
+  // Gets the AudioDeviceID that refers to the AudioOutputDevice with the device
   // unique id. This AudioDeviceID is used to set the device for Audio Unit.
   AudioDeviceID audio_device_id = GetAudioDeviceIdByUId(true, device_id);
   AudioInputStream* stream = NULL;
