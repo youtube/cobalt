@@ -1034,6 +1034,7 @@ EVENT_TYPE(SPDY_SESSION_PING)
 //     "last_accepted_stream_id": <Last stream id accepted by the server, duh>,
 //     "active_streams":          <Number of active streams>,
 //     "unclaimed_streams":       <Number of unclaimed push streams>,
+//     "status":                  <The reason for the GOAWAY>,
 //   }
 EVENT_TYPE(SPDY_SESSION_GOAWAY)
 
