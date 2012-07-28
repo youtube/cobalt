@@ -178,27 +178,6 @@
       ],
     }, # target_name: All_syzygy
     {
-      'target_name': 'chromium_swarm_tests',
-      'type': 'none',
-      'dependencies': [
-        # Add new dependencies to the !ios section just below, not here (see
-        # the comment there).
-      ],
-      'conditions': [
-        ['OS!="ios"', {
-          'dependencies': [
-            # TODO(ios): This is temporary; currently almost nothing builds with
-            # OS=ios. Move dependencies back to the main dependencies section
-            # above as gyp files come online.
-            '../base/base.gyp:base_unittests_run',
-            '../chrome/chrome.gyp:browser_tests_run',
-            '../chrome/chrome.gyp:unit_tests_run',
-            '../net/net.gyp:net_unittests_run',
-          ],
-        }],
-      ],
-    }, # target_name: chromium_swarm_tests
-    {
       'target_name': 'chromium_builder_tests',
       'type': 'none',
       'dependencies': [
@@ -695,5 +674,19 @@
         },
       ],  # targets
     }], # "use_aura==1"
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'chromium_swarm_tests',
+          'type': 'none',
+          'dependencies': [
+            '../base/base.gyp:base_unittests_run',
+            '../chrome/chrome.gyp:browser_tests_run',
+            '../chrome/chrome.gyp:unit_tests_run',
+            '../net/net.gyp:net_unittests_run',
+          ],
+        }, # target_name: chromium_swarm_tests
+      ],
+    }],
   ], # conditions
 }
