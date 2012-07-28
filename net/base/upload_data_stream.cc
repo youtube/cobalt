@@ -70,7 +70,8 @@ int UploadDataStream::Init() {
 }
 
 int UploadDataStream::Read(IOBuffer* buf, int buf_len) {
-  std::vector<UploadData::Element>& elements = *upload_data_->elements();
+  std::vector<UploadData::Element>& elements =
+      *upload_data_->elements_mutable();
 
   int bytes_copied = 0;
   while (bytes_copied < buf_len && element_index_ < elements.size()) {
