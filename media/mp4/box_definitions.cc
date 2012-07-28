@@ -91,7 +91,6 @@ bool SchemeType::Parse(BoxReader* reader) {
   RCHECK(reader->ReadFullBoxHeader() &&
          reader->ReadFourCC(&type) &&
          reader->Read4(&version));
-  RCHECK(type == FOURCC_CENC);
   return true;
 }
 
@@ -132,8 +131,13 @@ FourCC ProtectionSchemeInfo::BoxType() const { return FOURCC_SINF; }
 bool ProtectionSchemeInfo::Parse(BoxReader* reader) {
   RCHECK(reader->ScanChildren() &&
          reader->ReadChild(&format) &&
-         reader->ReadChild(&type) &&
-         reader->ReadChild(&info));
+         reader->ReadChild(&type));
+  if (type.type == FOURCC_CENC)
+    RCHECK(reader->ReadChild(&info));
+  // Other protection schemes are silently ignored. Since the protection scheme
+  // type can't be determined until this box is opened, we return 'true' for
+  // non-CENC protection scheme types. It is the parent box's responsibility to
+  // ensure that this scheme type is a supported one.
   return true;
 }
 
@@ -381,8 +385,15 @@ bool VideoSampleEntry::Parse(BoxReader* reader) {
   RCHECK(reader->ScanChildren() &&
          reader->MaybeReadChild(&pixel_aspect));
 
-  if (format == FOURCC_ENCV)
-    RCHECK(reader->ReadChild(&sinf));
+  if (format == FOURCC_ENCV) {
+    // Continue scanning until a recognized protection scheme is found, or until
+    // we run out of protection schemes.
+    while (sinf.type.type != FOURCC_CENC) {
+      if (!reader->ReadChild(&sinf))
+        return false;
+    }
+  }
+
   if (format == FOURCC_AVC1 ||
       (format == FOURCC_ENCV && sinf.format.format == FOURCC_AVC1)) {
     RCHECK(reader->ReadChild(&avcc));
@@ -442,8 +453,15 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
   samplerate >>= 16;
 
   RCHECK(reader->ScanChildren());
-  if (format == FOURCC_ENCA)
-    RCHECK(reader->ReadChild(&sinf));
+  if (format == FOURCC_ENCA) {
+    // Continue scanning until a recognized protection scheme is found, or until
+    // we run out of protection schemes.
+    while (sinf.type.type != FOURCC_CENC) {
+      if (!reader->ReadChild(&sinf))
+        return false;
+    }
+  }
+
   RCHECK(reader->ReadChild(&esds));
   return true;
 }
