@@ -223,7 +223,11 @@ class NET_EXPORT UploadData
   // reused for a new UploadDataStream.
   void ResetOffset();
 
-  std::vector<Element>* elements() {
+  const std::vector<Element>* elements() const {
+    return &elements_;
+  }
+
+  std::vector<Element>* elements_mutable() {
     return &elements_;
   }
 

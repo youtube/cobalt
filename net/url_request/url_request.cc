@@ -238,7 +238,11 @@ void URLRequest::set_upload(UploadData* upload) {
 }
 
 // Get the upload data directly.
-UploadData* URLRequest::get_upload() {
+const UploadData* URLRequest::get_upload() const {
+  return upload_.get();
+}
+
+UploadData* URLRequest::get_upload_mutable() {
   return upload_.get();
 }
 
