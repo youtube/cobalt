@@ -413,7 +413,8 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   void set_upload(UploadData* upload);
 
   // Get the upload data directly.
-  UploadData* get_upload();
+  const UploadData* get_upload() const;
+  UploadData* get_upload_mutable();
 
   // Returns true if the request has a non-empty message body to upload.
   bool has_upload() const;
