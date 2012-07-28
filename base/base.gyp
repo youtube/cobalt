@@ -732,38 +732,6 @@
       ],
     },
     {
-      'target_name': 'base_unittests_run',
-      'type': 'none',
-      'dependencies': [
-        'base_unittests',
-      ],
-      'includes': [
-        'base_unittests.isolate',
-      ],
-      'actions': [
-        {
-          'action_name': 'isolate',
-          'inputs': [
-            'base_unittests.isolate',
-            '<@(isolate_dependency_tracked)',
-          ],
-          'outputs': [
-            '<(PRODUCT_DIR)/base_unittests.results',
-          ],
-          'action': [
-            'python',
-            '../tools/isolate/isolate.py',
-            '<(test_isolation_mode)',
-            '--outdir', '<(test_isolation_outdir)',
-            '--variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
-            '--variable', 'OS', '<(OS)',
-            '--result', '<@(_outputs)',
-            '--isolate', 'base_unittests.isolate',
-          ],
-        },
-      ],
-    },
-    {
       'target_name': 'test_support_perf',
       'type': 'static_library',
       'dependencies': [
@@ -1019,6 +987,42 @@
             'java_in_dir': '../base/android/javatests',
           },
           'includes': [ '../build/java.gypi' ],
+        },
+      ],
+    }],
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'base_unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'base_unittests',
+          ],
+          'includes': [
+            'base_unittests.isolate',
+          ],
+          'actions': [
+            {
+              'action_name': 'isolate',
+              'inputs': [
+                'base_unittests.isolate',
+                '<@(isolate_dependency_tracked)',
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/base_unittests.results',
+              ],
+              'action': [
+                'python',
+                '../tools/isolate/isolate.py',
+                '<(test_isolation_mode)',
+                '--outdir', '<(test_isolation_outdir)',
+                '--variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
+                '--variable', 'OS', '<(OS)',
+                '--result', '<@(_outputs)',
+                '--isolate', 'base_unittests.isolate',
+              ],
+            },
+          ],
         },
       ],
     }],
