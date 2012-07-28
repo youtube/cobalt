@@ -1740,45 +1740,6 @@
     },
   ],
   'conditions': [
-    ['inside_chromium_build==1', {
-      'targets': [
-        # This target depends on dependencies not fetched by WebKit's DEPS.
-        # In particular, ..\chrome\test\data and ..\third_party\python_26 on
-        # Windows.
-        {
-          'target_name': 'net_unittests_run',
-          'type': 'none',
-          'dependencies': [
-            'net_unittests',
-          ],
-          'includes': [
-            'net_unittests.isolate',
-          ],
-          'actions': [
-            {
-              'action_name': 'isolate',
-              'inputs': [
-                'net_unittests.isolate',
-                '<@(isolate_dependency_tracked)',
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/net_unittests.results',
-              ],
-              'action': [
-                'python',
-                '../tools/isolate/isolate.py',
-                '<(test_isolation_mode)',
-                '--outdir', '<(test_isolation_outdir)',
-                '--variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
-                '--variable', 'OS', '<(OS)',
-                '--result', '<@(_outputs)',
-                '--isolate', 'net_unittests.isolate',
-              ],
-            },
-          ],
-        },
-      ],
-    }],
     ['os_posix == 1 and OS != "mac" and OS != "android"', {
       'targets': [
         {
@@ -1977,6 +1938,42 @@
             'tools/dump_cache/url_to_filename_encoder.h',
             'tools/dump_cache/url_utilities.h',
             'tools/dump_cache/url_utilities.cc',
+          ],
+        },
+      ],
+    }],
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'net_unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'net_unittests',
+          ],
+          'includes': [
+            'net_unittests.isolate',
+          ],
+          'actions': [
+            {
+              'action_name': 'isolate',
+              'inputs': [
+                'net_unittests.isolate',
+                '<@(isolate_dependency_tracked)',
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/net_unittests.results',
+              ],
+              'action': [
+                'python',
+                '../tools/isolate/isolate.py',
+                '<(test_isolation_mode)',
+                '--outdir', '<(test_isolation_outdir)',
+                '--variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
+                '--variable', 'OS', '<(OS)',
+                '--result', '<@(_outputs)',
+                '--isolate', 'net_unittests.isolate',
+              ],
+            },
           ],
         },
       ],
