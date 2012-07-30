@@ -363,7 +363,7 @@ Histogram::Inconsistencies Histogram::FindCorruption(
     // UMA in about a half hour, so we'll eventually get the data, if it was
     // not the result of a corruption.  If histograms show that 1 is "too tight"
     // then we may try to use 2 or 3 for this slop value.
-    const int kCommonRaceBasedCountMismatch = 1;
+    const int kCommonRaceBasedCountMismatch = 5;
     if (delta > 0) {
       UMA_HISTOGRAM_COUNTS("Histogram.InconsistentCountHigh", delta);
       if (delta > kCommonRaceBasedCountMismatch)
