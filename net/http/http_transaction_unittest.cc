@@ -151,7 +151,7 @@ TestTransactionConsumer::TestTransactionConsumer(
       trans_(NULL),
       error_(net::OK) {
   // Disregard the error code.
-  factory->CreateTransaction(&trans_);
+  factory->CreateTransaction(&trans_, NULL);
   ++quit_counter_;
 }
 
@@ -341,7 +341,8 @@ void MockNetworkLayer::TransactionDoneReading() {
 }
 
 int MockNetworkLayer::CreateTransaction(
-    scoped_ptr<net::HttpTransaction>* trans) {
+    scoped_ptr<net::HttpTransaction>* trans,
+    net::HttpTransactionDelegate* delegate) {
   transaction_count_++;
   trans->reset(new MockNetworkTransaction(this));
   return net::OK;

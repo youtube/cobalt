@@ -48,6 +48,12 @@ class NetworkDelegate : public base::NonThreadSafe {
   };
   typedef base::Callback<void(AuthRequiredResponse)> AuthCallback;
 
+  enum CacheWaitState {
+    CACHE_WAIT_STATE_START,
+    CACHE_WAIT_STATE_FINISH,
+    CACHE_WAIT_STATE_RESET
+  };
+
   virtual ~NetworkDelegate() {}
 
   // Notification interface called by the network stack. Note that these
@@ -89,6 +95,9 @@ class NetworkDelegate : public base::NonThreadSafe {
 
   int NotifyBeforeSocketStreamConnect(SocketStream* socket,
                                       const CompletionCallback& callback);
+
+  void NotifyCacheWaitStateChange(const URLRequest& request,
+                                  CacheWaitState state);
 
  private:
   // This is the interface for subclasses of NetworkDelegate to implement. These
@@ -214,6 +223,17 @@ class NetworkDelegate : public base::NonThreadSafe {
   // Called before a SocketStream tries to connect.
   virtual int OnBeforeSocketStreamConnect(
       SocketStream* socket, const CompletionCallback& callback) = 0;
+
+  // Called when the completion of a URLRequest is blocking on a cache
+  // transaction (CACHE_WAIT_STATE_START), or when a URLRequest is no longer
+  // blocked on a cache transaction (CACHE_WAIT_STATE_FINISH), or when a
+  // URLRequest is reset (CACHE_WAIT_STATE_RESET), indicating
+  // cancellation of any pending cache waits for this request.  Notice that
+  // START can be called several times for the same request.  It is the
+  // responsibility of the delegate to keep track of the number of outstanding
+  // cache transactions.
+  virtual void OnCacheWaitStateChange(const URLRequest& request,
+                                      CacheWaitState state) = 0;
 };
 
 }  // namespace net
