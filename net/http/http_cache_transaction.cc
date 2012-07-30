@@ -1611,15 +1611,24 @@ int HttpCache::Transaction::BeginCacheValidation() {
   if (truncated_)
     skip_validation = !partial_->initial_validation();
 
-  if ((partial_.get() && !partial_->IsCurrentRangeCached()) || invalid_range_)
+  if (partial_.get() && (is_sparse_ || truncated_) &&
+      (!partial_->IsCurrentRangeCached() || invalid_range_)) {
+    // Force revalidation for sparse or truncated entries. Note that we don't
+    // want to ignore the regular validation logic just because a byte range was
+    // part of the request.
     skip_validation = false;
+  }
 
   if (skip_validation) {
     if (partial_.get()) {
-      // We are going to return the saved response headers to the caller, so
-      // we may need to adjust them first.
-      next_state_ = STATE_PARTIAL_HEADERS_RECEIVED;
-      return OK;
+      if (truncated_ || is_sparse_ || !invalid_range_) {
+        // We are going to return the saved response headers to the caller, so
+        // we may need to adjust them first.
+        next_state_ = STATE_PARTIAL_HEADERS_RECEIVED;
+        return OK;
+      } else {
+        partial_.reset();
+      }
     }
     cache_->ConvertWriterToReader(entry_);
     mode_ = READ;
@@ -1632,7 +1641,9 @@ int HttpCache::Transaction::BeginCacheValidation() {
     // Our mode remains READ_WRITE for a conditional request.  We'll switch to
     // either READ or WRITE mode once we hear back from the server.
     if (!ConditionalizeRequest()) {
-      DCHECK(!partial_.get());
+      if (partial_.get())
+        return DoRestartPartialRequest();
+
       DCHECK_NE(206, response_.headers->response_code());
       mode_ = WRITE;
     }
@@ -1669,13 +1680,7 @@ int HttpCache::Transaction::ValidateEntryHeadersAndContinue() {
 
   if (!partial_->UpdateFromStoredHeaders(response_.headers, entry_->disk_entry,
                                          truncated_)) {
-    // The stored data cannot be used. Get rid of it and restart this request.
-    // We need to also reset the |truncated_| flag as a new entry is created.
-    DoomPartialEntry(!range_requested_);
-    mode_ = WRITE;
-    truncated_ = false;
-    next_state_ = STATE_INIT_ENTRY;
-    return OK;
+    return DoRestartPartialRequest();
   }
 
   if (response_.headers->response_code() == 206)
@@ -1915,12 +1920,19 @@ bool HttpCache::Transaction::ValidatePartialResponse() {
       return true;
     }
 
-    if (response_code == 200 && !reading_ && !is_sparse_) {
-      // The server is sending the whole resource, and we can save it.
-      DCHECK((truncated_ && !partial_->IsLastRange()) || range_requested_);
-      partial_.reset();
-      truncated_ = false;
-      return true;
+    if (!reading_ && !is_sparse_ && !partial_response) {
+      // See if we can ignore the fact that we issued a byte range request.
+      // If the server sends 200, just store it. If it sends an error, redirect
+      // or something else, we may store the response as long as we didn't have
+      // anything already stored.
+      if (response_code == 200 ||
+          (!truncated_ && response_code != 304 && response_code != 416)) {
+        // The server is sending something else, and we can save it.
+        DCHECK((truncated_ && !partial_->IsLastRange()) || range_requested_);
+        partial_.reset();
+        truncated_ = false;
+        return true;
+      }
     }
 
     // 304 is not expected here, but we'll spare the entry (unless it was
@@ -2115,6 +2127,16 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
     return OnCacheReadError(result, false);
   }
   return result;
+}
+
+int HttpCache::Transaction::DoRestartPartialRequest() {
+  // The stored data cannot be used. Get rid of it and restart this request.
+  // We need to also reset the |truncated_| flag as a new entry is created.
+  DoomPartialEntry(!range_requested_);
+  mode_ = WRITE;
+  truncated_ = false;
+  next_state_ = STATE_INIT_ENTRY;
+  return OK;
 }
 
 // Histogram data from the end of 2010 show the following distribution of
