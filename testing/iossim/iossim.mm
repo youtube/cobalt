@@ -279,6 +279,7 @@ DTiPhoneSimulatorSessionConfig* BuildSessionConfig(
     NSString* stdoutPath,
     NSString* stderrPath,
     NSArray* appArgs,
+    NSDictionary* appEnv,
     NSNumber* deviceFamily) {
   DTiPhoneSimulatorSessionConfig* sessionConfig =
       [[[DTiPhoneSimulatorSessionConfig alloc] init] autorelease];
@@ -288,10 +289,7 @@ DTiPhoneSimulatorSessionConfig* BuildSessionConfig(
   sessionConfig.simulatedApplicationStdErrPath = stderrPath;
   sessionConfig.simulatedApplicationStdOutPath = stdoutPath;
   sessionConfig.simulatedApplicationLaunchArgs = appArgs;
-  // TODO(lliabraa): Add support for providing environment variables/values
-  // for the simulated app's environment. The environment can be set using:
-  // sessionConfig.simulatedApplicationLaunchEnvironment =
-  //     [NSDictionary dictionary];
+  sessionConfig.simulatedApplicationLaunchEnvironment = appEnv;
   sessionConfig.simulatedDeviceFamily = deviceFamily;
   return sessionConfig;
 }
@@ -374,7 +372,7 @@ BOOL InitializeSimulatorUserHome(NSString* userHomePath) {
 // Prints the usage information to stderr.
 void PrintUsage() {
   fprintf(stderr, "Usage: iossim [-d device] [-s sdkVersion] [-u homeDir] "
-      "<appPath> [<appArgs>]\n"
+      "[-e envKey=value]* <appPath> [<appArgs>]\n"
       "  where <appPath> is the path to the .app directory and appArgs are any"
       " arguments to send the simulated app.\n"
       "\n"
@@ -384,7 +382,9 @@ void PrintUsage() {
       "  -s  Specifies the SDK version to use (e.g '4.3')."
       " Will use system default if not specified.\n"
       "  -u  Specifies a user home directory for the simulator."
-      " Will create a new directory if not specified.\n");
+      " Will create a new directory if not specified.\n"
+      "  -e  Specifies an environment key=value pair that will be"
+      " set in the simulated application's environment.\n");
 }
 
 }  // namespace
@@ -402,10 +402,11 @@ int main(int argc, char* const argv[]) {
   NSString* deviceName = @"iPhone";
   NSString* simHomePath = nil;
   NSMutableArray* appArgs = [NSMutableArray array];
+  NSMutableDictionary* appEnv = [NSMutableDictionary dictionary];
 
   // Parse the optional arguments
   int c;
-  while ((c = getopt(argc, argv, "hs:d:u:")) != -1) {
+  while ((c = getopt(argc, argv, "hs:d:u:e:")) != -1) {
     switch (c) {
       case 's':
         sdkVersion = [NSString stringWithUTF8String:optarg];
@@ -416,6 +417,19 @@ int main(int argc, char* const argv[]) {
       case 'u':
         simHomePath = [[NSFileManager defaultManager]
             stringWithFileSystemRepresentation:optarg length:strlen(optarg)];
+        break;
+      case 'e': {
+        NSString* envLine = [NSString stringWithUTF8String:optarg];
+        NSRange range = [envLine rangeOfString:@"="];
+        if (range.location == NSNotFound) {
+          LogError(@"Invalid key=value argument for -e.");
+          PrintUsage();
+          exit(EXIT_FAILURE);
+        }
+        NSString* key = [envLine substringToIndex:range.location];
+        NSString* value = [envLine substringFromIndex:(range.location + 1)];
+        [appEnv setObject:value forKey:key];
+      }
         break;
       case 'h':
         PrintUsage();
@@ -496,6 +510,7 @@ int main(int argc, char* const argv[]) {
                                                               stdioPath,
                                                               stdioPath,
                                                               appArgs,
+                                                              appEnv,
                                                               deviceFamily);
   SimulatorDelegate* delegate =
   [[[SimulatorDelegate alloc] initWithStdioPath:stdioPath] autorelease];
