@@ -70,6 +70,13 @@ const NSTimeInterval kSessionStartTimeoutSeconds = 30;
 // polling interval.
 const NSTimeInterval kOutputPollIntervalSeconds = 0.1;
 
+// The path within the developer dir of the private Simulator frameworks.
+NSString* const kSimulatorFrameworkRelativePath =
+    @"Platforms/iPhoneSimulator.platform/Developer/Library/PrivateFrameworks/"
+    @"iPhoneSimulatorRemoteClient.framework";
+NSString* const kDevToolsFoundationRelativePath =
+    @"../OtherFrameworks/DevToolsFoundation.framework";
+
 const char* gToolName = "iossim";
 
 void LogError(NSString* format, ...) {
@@ -248,26 +255,87 @@ void LogWarning(NSString* format, ...) {
 
 namespace {
 
+// Finds the developer dir via xcode-select or the DEVELOPER_DIR environment
+// variable.
+NSString* FindDeveloperDir() {
+  // Check the env first.
+  NSDictionary* env = [[NSProcessInfo processInfo] environment];
+  NSString* developerDir = [env objectForKey:@"DEVELOPER_DIR"];
+  if ([developerDir length] > 0)
+    return developerDir;
+
+  // Go look for it via xcode-select.
+  NSTask* xcodeSelectTask = [[[NSTask alloc] init] autorelease];
+  [xcodeSelectTask setLaunchPath:@"/usr/bin/xcode-select"];
+  [xcodeSelectTask setArguments:[NSArray arrayWithObject:@"-print-path"]];
+
+  NSPipe* outputPipe = [NSPipe pipe];
+  [xcodeSelectTask setStandardOutput:outputPipe];
+  NSFileHandle* outputFile = [outputPipe fileHandleForReading];
+
+  [xcodeSelectTask launch];
+  NSData* outputData = [outputFile readDataToEndOfFile];
+  [xcodeSelectTask terminate];
+
+  NSString* output =
+      [[[NSString alloc] initWithData:outputData
+                             encoding:NSUTF8StringEncoding] autorelease];
+  output = [output stringByTrimmingCharactersInSet:
+      [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+  if ([output length] == 0)
+    output = nil;
+  return output;
+}
+
+// Loads the Simulator framework from the given developer dir.
+NSBundle* LoadSimulatorFramework(NSString* developerDir) {
+  // The Simulator framework depends on some of the other Xcode private
+  // frameworks; manually load them first so everything can be linked up.
+  NSString* devToolsFoundationPath = [developerDir
+      stringByAppendingPathComponent:kDevToolsFoundationRelativePath];
+  NSBundle* devToolsFoundationBundle =
+      [NSBundle bundleWithPath:devToolsFoundationPath];
+  if (![devToolsFoundationBundle load])
+    return nil;
+  NSString* simBundlePath = [developerDir
+      stringByAppendingPathComponent:kSimulatorFrameworkRelativePath];
+  NSBundle* simBundle = [NSBundle bundleWithPath:simBundlePath];
+  if (![simBundle load])
+    return nil;
+  return simBundle;
+}
+
+// Helper to find a class by name and die if it isn't found.
+Class FindClassByName(NSString* nameOfClass) {
+  Class theClass = NSClassFromString(nameOfClass);
+  if (!theClass) {
+    LogError(@"Failed to find class %@ at runtime.", nameOfClass);
+    exit(EXIT_FAILURE);
+  }
+  return theClass;
+}
+
 // Converts the given app path to an application spec, which requires an
 // absolute path.
 DTiPhoneSimulatorApplicationSpecifier* BuildAppSpec(NSString* appPath) {
+  Class applicationSpecifierClass =
+      FindClassByName(@"DTiPhoneSimulatorApplicationSpecifier");
   if (![appPath isAbsolutePath]) {
     NSString* cwd = [[NSFileManager defaultManager] currentDirectoryPath];
     appPath = [cwd stringByAppendingPathComponent:appPath];
   }
   appPath = [appPath stringByStandardizingPath];
-  return [DTiPhoneSimulatorApplicationSpecifier
-      specifierWithApplicationPath:appPath];
+  return [applicationSpecifierClass specifierWithApplicationPath:appPath];
 }
 
 // Returns the system root for the given SDK version. If sdkVersion is nil, the
 // default system root is returned.  Will return nil if the sdkVersion is not
 // valid.
 DTiPhoneSimulatorSystemRoot* BuildSystemRoot(NSString* sdkVersion) {
-  DTiPhoneSimulatorSystemRoot* systemRoot =
-      [DTiPhoneSimulatorSystemRoot defaultRoot];
+  Class systemRootClass = FindClassByName(@"DTiPhoneSimulatorSystemRoot");
+  DTiPhoneSimulatorSystemRoot* systemRoot = [systemRootClass defaultRoot];
   if (sdkVersion)
-    systemRoot = [DTiPhoneSimulatorSystemRoot rootWithSDKVersion:sdkVersion];
+    systemRoot = [systemRootClass rootWithSDKVersion:sdkVersion];
 
   return systemRoot;
 }
@@ -281,8 +349,9 @@ DTiPhoneSimulatorSessionConfig* BuildSessionConfig(
     NSArray* appArgs,
     NSDictionary* appEnv,
     NSNumber* deviceFamily) {
+  Class sessionConfigClass = FindClassByName(@"DTiPhoneSimulatorSessionConfig");
   DTiPhoneSimulatorSessionConfig* sessionConfig =
-      [[[DTiPhoneSimulatorSessionConfig alloc] init] autorelease];
+      [[[sessionConfigClass alloc] init] autorelease];
   sessionConfig.applicationToSimulateOnStart = appSpec;
   sessionConfig.simulatedSystemRoot = systemRoot;
   sessionConfig.localizedClientName = @"chromium";
@@ -296,8 +365,9 @@ DTiPhoneSimulatorSessionConfig* BuildSessionConfig(
 
 // Builds a simulator session that will use the given delegate.
 DTiPhoneSimulatorSession* BuildSession(SimulatorDelegate* delegate) {
+  Class sessionClass = FindClassByName(@"DTiPhoneSimulatorSession");
   DTiPhoneSimulatorSession* session =
-      [[[DTiPhoneSimulatorSession alloc] init] autorelease];
+      [[[sessionClass alloc] init] autorelease];
   session.delegate = delegate;
   return session;
 }
@@ -392,9 +462,17 @@ void PrintUsage() {
 int main(int argc, char* const argv[]) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
 
-  char* toolName = basename(argv[0]);
-  if (toolName != NULL)
-    gToolName = toolName;
+  // basename() may modify the passed in string and it returns a pointer to an
+  // internal buffer. Give it a copy to modify, and copy what it returns.
+  char* worker = strdup(argv[0]);
+  char* toolName = basename(worker);
+  if (toolName != NULL) {
+    toolName = strdup(toolName);
+    if (toolName != NULL)
+      gToolName = toolName;
+  }
+  if (worker != NULL)
+    free(worker);
 
   NSString* appPath = nil;
   NSString* appName = nil;
@@ -456,6 +534,18 @@ int main(int argc, char* const argv[]) {
     exit(EXIT_FAILURE);
   }
 
+  NSString* developerDir = FindDeveloperDir();
+  if (!developerDir) {
+    LogError(@"Unable to find developer directory.");
+    exit(EXIT_FAILURE);
+  }
+
+  NSBundle* simulatorFramework = LoadSimulatorFramework(developerDir);
+  if (!simulatorFramework) {
+    LogError(@"Failed to load the Simulator Framework.");
+    exit(EXIT_FAILURE);
+  }
+
   // Make sure the app path provided is legit.
   DTiPhoneSimulatorApplicationSpecifier* appSpec = BuildAppSpec(appPath);
   if (!appSpec) {
@@ -513,7 +603,7 @@ int main(int argc, char* const argv[]) {
                                                               appEnv,
                                                               deviceFamily);
   SimulatorDelegate* delegate =
-  [[[SimulatorDelegate alloc] initWithStdioPath:stdioPath] autorelease];
+      [[[SimulatorDelegate alloc] initWithStdioPath:stdioPath] autorelease];
   DTiPhoneSimulatorSession* session = BuildSession(delegate);
 
   // Start the simulator session.
