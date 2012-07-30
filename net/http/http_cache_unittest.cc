@@ -2805,6 +2805,31 @@ TEST(HttpCache, RangeGET_ModifiedResult) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
+// Tests that we cache 301s for range requests.
+TEST(HttpCache, RangeGET_301) {
+  MockHttpCache cache;
+  ScopedMockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.status = "HTTP/1.1 301 Moved Permanently";
+  transaction.response_headers = "Location: http://www.bar.com/\n";
+  transaction.data = "";
+  transaction.handler = NULL;
+  AddMockTransaction(&transaction);
+
+  // Write to the cache.
+  RunTransactionTest(cache.http_cache(), transaction);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Read from the cache.
+  RunTransactionTest(cache.http_cache(), transaction);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&transaction);
+}
+
 // Tests that we can cache range requests when the start or end is unknown.
 // We start with one suffix request, followed by a request from a given point.
 TEST(HttpCache, UnknownRangeGET_1) {
@@ -3184,13 +3209,13 @@ TEST(HttpCache, RangeGET_Previous200) {
   // Make a request for an invalid range.
   MockTransaction transaction3(kRangeGET_TransactionOK);
   transaction3.request_headers = "Range: bytes = 80-90\r\n" EXTRA_HEADER;
-  transaction3.data = "";
+  transaction3.data = transaction.data;
   transaction3.load_flags = net::LOAD_PREFERRING_CACHE;
   RunTransactionTestWithResponse(cache.http_cache(), transaction3, &headers);
   EXPECT_EQ(2, cache.disk_cache()->open_count());
-  EXPECT_EQ(0U, headers.find("HTTP/1.1 416 "));
-  EXPECT_NE(std::string::npos, headers.find("Content-Range: bytes 0-0/80"));
-  EXPECT_NE(std::string::npos, headers.find("Content-Length: 0"));
+  EXPECT_EQ(0U, headers.find("HTTP/1.1 200 "));
+  EXPECT_EQ(std::string::npos, headers.find("Content-Range:"));
+  EXPECT_EQ(std::string::npos, headers.find("Content-Length: 80"));
 
   // Make sure the entry is deactivated.
   MessageLoop::current()->RunAllPending();
@@ -3207,7 +3232,7 @@ TEST(HttpCache, RangeGET_Previous200) {
   transaction2.request_headers = kRangeGET_TransactionOK.request_headers;
   RunTransactionTestWithResponse(cache.http_cache(), transaction2, &headers);
   Verify206Response(headers, 40, 49);
-  EXPECT_EQ(5, cache.network_layer()->transaction_count());
+  EXPECT_EQ(4, cache.network_layer()->transaction_count());
   EXPECT_EQ(4, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
