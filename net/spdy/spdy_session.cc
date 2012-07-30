@@ -1016,10 +1016,10 @@ void SpdySession::CloseAllStreams(net::Error status) {
 
   while (!created_streams_.empty()) {
     CreatedStreamSet::iterator it = created_streams_.begin();
-    const scoped_refptr<SpdyStream>& stream = *it;
+    const scoped_refptr<SpdyStream> stream = *it;
+    created_streams_.erase(it);
     LogAbandonedStream(stream, status);
     stream->OnClose(status);
-    created_streams_.erase(it);
   }
 
   // We also need to drain the queue.
