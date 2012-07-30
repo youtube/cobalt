@@ -78,6 +78,7 @@ _TEST_SUITES = ['base_unittests',
                 'sql_unittests',
                 'sync_unit_tests',
                 'ui_unittests',
+                'unit_tests',
                ]
 
 
