@@ -327,6 +327,11 @@ class HttpCache::Transaction : public HttpTransaction {
   // working with range requests.
   int DoPartialCacheReadCompleted(int result);
 
+  // Restarts this transaction after deleting the cached data. It is meant to
+  // be used when the current request cannot be fulfilled due to conflicts
+  // between the byte range request and the cached entry.
+  int DoRestartPartialRequest();
+
   // Returns true if we should bother attempting to resume this request if it
   // is aborted while in progress. If |has_data| is true, the size of the stored
   // data is considered for the result.

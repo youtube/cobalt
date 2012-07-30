@@ -242,14 +242,14 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
                                           disk_cache::Entry* entry,
                                           bool truncated) {
   resource_size_ = 0;
-  if (!headers->HasStrongValidators())
-    return false;
-
   if (truncated) {
     DCHECK_EQ(headers->response_code(), 200);
     // We don't have the real length and the user may be trying to create a
     // sparse entry so let's not write to this entry.
     if (byte_range_.IsValid())
+      return false;
+
+    if (!headers->HasStrongValidators())
       return false;
 
     // Now we avoid resume if there is no content length, but that was not
@@ -270,7 +270,7 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
     return true;
   }
 
-  if (headers->response_code() == 200) {
+  if (headers->response_code() != 206) {
     DCHECK(byte_range_.IsValid());
     sparse_entry_ = false;
     resource_size_ = entry->GetDataSize(kDataStream);
