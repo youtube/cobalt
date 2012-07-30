@@ -22,6 +22,7 @@ namespace net {
 
 class PartialData;
 struct HttpRequestInfo;
+class HttpTransactionDelegate;
 
 // This is the transaction that is returned by the HttpCache transaction
 // factory.
@@ -56,7 +57,7 @@ class HttpCache::Transaction : public HttpTransaction {
     UPDATE          = READ_META | WRITE,  // READ_WRITE & ~READ_DATA
   };
 
-  explicit Transaction(HttpCache* cache);
+  Transaction(HttpCache* cache, HttpTransactionDelegate* transaction_delegate);
   virtual ~Transaction();
 
   Mode mode() const { return mode_; }
@@ -334,6 +335,9 @@ class HttpCache::Transaction : public HttpTransaction {
   // Called to signal completion of asynchronous IO.
   void OnIOComplete(int result);
 
+  void ReportCacheActionStart();
+  void ReportCacheActionFinish();
+
   State next_state_;
   const HttpRequestInfo* request_;
   BoundNetLog net_log_;
@@ -371,6 +375,7 @@ class HttpCache::Transaction : public HttpTransaction {
   uint64 final_upload_progress_;
   base::WeakPtrFactory<Transaction> weak_factory_;
   CompletionCallback io_callback_;
+  HttpTransactionDelegate* transaction_delegate_;
 };
 
 }  // namespace net

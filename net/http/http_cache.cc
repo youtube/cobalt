@@ -409,7 +409,7 @@ void HttpCache::WriteMetadata(const GURL& url,
     CreateBackend(NULL, net::CompletionCallback());
   }
 
-  HttpCache::Transaction* trans = new HttpCache::Transaction(this);
+  HttpCache::Transaction* trans = new HttpCache::Transaction(this, NULL);
   MetadataWriter* writer = new MetadataWriter(trans);
 
   // The writer will self destruct when done.
@@ -444,14 +444,15 @@ void HttpCache::OnExternalCacheHit(const GURL& url,
   disk_cache_->OnExternalCacheHit(key);
 }
 
-int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
+int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans,
+                                 HttpTransactionDelegate* delegate) {
   // Do lazy initialization of disk cache if needed.
   if (!disk_cache_.get()) {
     // We don't care about the result.
     CreateBackend(NULL, net::CompletionCallback());
   }
 
-  trans->reset(new HttpCache::Transaction(this));
+  trans->reset(new HttpCache::Transaction(this, delegate));
   return OK;
 }
 

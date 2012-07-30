@@ -500,6 +500,10 @@ int TestNetworkDelegate::OnBeforeSocketStreamConnect(
   return net::OK;
 }
 
+void TestNetworkDelegate::OnCacheWaitStateChange(const net::URLRequest& request,
+                                                 CacheWaitState state) {
+}
+
 // static
 std::string ScopedCustomUrlRequestTestHttpHost::value_("127.0.0.1");
 
