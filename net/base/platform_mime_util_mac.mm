@@ -4,7 +4,6 @@
 
 #include "net/base/platform_mime_util.h"
 
-#include <CoreServices/CoreServices.h>
 #import <Foundation/Foundation.h>
 
 #include <string>
@@ -13,6 +12,12 @@
 #include "base/mac/scoped_cftyperef.h"
 #import "base/memory/scoped_nsobject.h"
 #include "base/sys_string_conversions.h"
+
+#if defined(OS_IOS)
+#include <MobileCoreServices/MobileCoreServices.h>
+#else
+#include <CoreServices/CoreServices.h>
+#endif  // defined(OS_IOS)
 
 // SPI declaration; see the commentary in GetPlatformExtensionsForMimeType.
 

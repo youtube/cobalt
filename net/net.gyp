@@ -8,8 +8,8 @@
 
     'linux_link_kerberos%': 0,
     'conditions': [
-      ['chromeos==1 or OS=="android"', {
-        # Disable Kerberos on ChromeOS and Android, at least for now.
+      ['chromeos==1 or OS=="android" or OS=="ios"', {
+        # Disable Kerberos on ChromeOS, Android and iOS, at least for now.
         # It needs configuration (krb5.conf and so on).
         'use_kerberos%': 0,
       }, {  # chromeos == 0
@@ -37,12 +37,10 @@
         '../base/base.gyp:base_i18n',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../crypto/crypto.gyp:crypto',
         '../sdch/sdch.gyp:sdch',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
         '../third_party/zlib/zlib.gyp:zlib',
-        '../v8/tools/gyp/v8.gyp:v8',
         'net_resources',
       ],
       'sources': [
@@ -807,6 +805,15 @@
         '../base/base.gyp:base',
       ],
       'conditions': [
+        ['OS != "ios"', {
+          'dependencies': [
+            # TODO(ios): This is temporary; Move this back to the main
+            # dependencies section once crypto builds for iOS.
+            '../crypto/crypto.gyp:crypto',
+            # The v8 gyp file is not available in the iOS tree.
+            '../v8/tools/gyp/v8.gyp:v8',
+          ],
+        }],
         ['chromeos==1', {
           'sources!': [
              'base/network_change_notifier_linux.cc',
@@ -1049,11 +1056,55 @@
             ],
           },
         ],
+        [ 'OS == "ios"', {
+            'link_settings': {
+              'libraries': [
+                '$(SDKROOT)/System/Library/Frameworks/CFNetwork.framework',
+                '$(SDKROOT)/System/Library/Frameworks/MobileCoreServices.framework',
+                '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
+                '$(SDKROOT)/usr/lib/libresolv.dylib',
+              ],
+            },
+            'sources/': [
+              # TODO(ios): Right now there is only a very limited subset of net
+              # compiled on iOS, just enough to bring up the dependencies needed
+              # by the ui target.
+              ['exclude', '.*'],
+              ['include', '^base/dns_util\\.'],
+              ['include', '^base/escape\\.'],
+              ['include', '^base/ip_endpoint\\.'],
+              ['include', '^base/mime_util\\.'],
+              ['include', '^base/net_errors\\.'],
+              ['include', '^base/net_errors_posix\\.cc$'],
+              ['include', '^base/net_export\\.h$'],
+              ['include', '^base/net_log\\.'],
+              ['include', '^base/net_module\\.'],
+              ['include', '^base/net_util\\.'],
+              ['include', '^base/net_util_posix\\.cc$'],
+              ['include', '^base/platform_mime_util\\.h$'],
+              ['include', '^base/registry_controlled_domains/registry_controlled_domain\\.'],
+              ['include', '^http/http_byte_range\\.'],
+              ['include', '^http/http_content_disposition\\.'],
+              ['include', '^http/http_util\\.'],
+              ['include', '^http/http_util_icu\\.cc$'],
+              ['include', '^http/http_version\\.h$'],
+            ],
+          },
+        ],
       ],
       'target_conditions': [
+        # These source files are excluded by default platform rules, but they
+        # are needed in specific cases on other platforms. Re-including them can
+        # only be done in target_conditions as it is evaluated after the
+        # platform rules.
         ['OS == "android"', {
           'sources/': [
             ['include', '^base/platform_mime_util_linux\\.cc$'],
+          ],
+        }],
+        ['OS == "ios"', {
+          'sources/': [
+            ['include', 'base/platform_mime_util_mac\\.mm$'],
           ],
         }],
       ],
@@ -1068,7 +1119,6 @@
         '../base/base.gyp:base_i18n',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../crypto/crypto.gyp:crypto',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/zlib/zlib.gyp:zlib',
@@ -1309,6 +1359,13 @@
         'websockets/websocket_throttle_unittest.cc',
       ],
       'conditions': [
+        ['OS != "ios"', {
+          'dependencies': [
+            # TODO(ios): This is temporary; Move back to the main dependencies
+            # section as crypto is brought up for iOS.
+            '../crypto/crypto.gyp:crypto',
+          ],
+        }],
         ['chromeos==1', {
           'sources!': [
             'base/network_change_notifier_linux_unittest.cc',
@@ -1331,7 +1388,7 @@
             ],
           },
         ],
-        [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "android" and OS != "ios"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1419,7 +1476,29 @@
           'sources!': [
             'base/x509_cert_types_unittest.cc',
           ],
-        }]
+        }],
+        ['OS == "ios"', {
+          # TODO: For now this only tests the subset of code that is enabled in
+          # the net target.
+          'dependencies': [
+            '../testing/gtest.gyp:gtest_main',
+          ],
+          'dependencies!': [
+            'net_test_support',
+          ],
+          'sources/': [
+            ['exclude', '.*'],
+            ['include', '^base/dns_util_unittest\\.cc$'],
+            ['include', '^base/escape_unittest\\.cc$'],
+            ['include', '^base/ip_endpoint_unittest\\.cc$'],
+            ['include', '^base/mime_util_unittest\\.cc$'],
+            ['include', '^base/net_log_unittest\\.cc$'],
+            ['include', '^base/registry_controlled_domains/registry_controlled_domain_unittest\\.cc$'],
+            ['include', '^http/http_byte_range_unittest\\.cc$'],
+            ['include', '^http/http_content_disposition_unittest\\.cc$'],
+            ['include', '^http/http_util_unittest\\.cc$'],
+          ],
+        }],
       ],
     },
     {
@@ -1448,56 +1527,16 @@
             ],
           },
         ],
-      ],
-    },
-    {
-      'target_name': 'stress_cache',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        'net_test_support',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'disk_cache/stress_cache.cc',
-      ],
-    },
-    {
-      'target_name': 'tld_cleanup',
-      'type': 'executable',
-      'dependencies': [
-        '../base/base.gyp:base',
-        '../base/base.gyp:base_i18n',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-      ],
-      'sources': [
-        'tools/tld_cleanup/tld_cleanup.cc',
-      ],
-    },
-    {
-      'target_name': 'crash_cache',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        'net_test_support',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/crash_cache/crash_cache.cc',
-      ],
-    },
-    {
-      'target_name': 'run_testserver',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        'net_test_support',
-        '../base/base.gyp:base',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../testing/gtest.gyp:gtest',
-      ],
-      'sources': [
-        'tools/testserver/run_testserver.cc',
+        ['OS == "ios"', {
+          'sources!': [
+            # PAC scripts are not supported on iOS.
+            'proxy/proxy_resolver_perftest.cc',
+            # TODO:(ios): Enable these tests once the code to exercise is
+            # present in the net target.
+            'cookies/cookie_monster_perftest.cc',
+            'disk_cache/disk_cache_perftest.cc',
+          ],
+        }],
       ],
     },
     {
@@ -1570,7 +1609,7 @@
         'url_request/url_request_test_util.h',
       ],
       'conditions': [
-        ['inside_chromium_build==1', {
+        ['inside_chromium_build==1 and OS != "ios"', {
           'dependencies': [
             '../chrome/app/policy/cloud_policy_codegen.gyp:cloud_policy_proto_compile',
             # The test server uses Python modules generated by the sync protos.
@@ -1578,7 +1617,7 @@
             '../third_party/protobuf/protobuf.gyp:py_proto',
           ],
         }],
-        ['os_posix == 1 and OS != "mac" and OS != "android"', {
+        ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "ios"', {
           'conditions': [
             ['use_openssl==1', {
               'dependencies': [
@@ -1591,7 +1630,7 @@
             }],
           ],
         }],
-        ['os_posix == 1 and OS != "mac" and OS != "android"', {
+        ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "ios"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1628,56 +1667,6 @@
       'includes': [ '../build/grit_target.gypi' ],
     },
     {
-      'target_name': 'gdig',
-      'type': 'executable',
-      'dependencies': [
-        '../base/base.gyp:base',
-        'net',
-      ],
-      'sources': [
-        'tools/gdig/file_net_log.cc',
-        'tools/gdig/gdig.cc',
-      ],
-    },
-    {
-      'target_name': 'fetch_client',
-      'type': 'executable',
-      'variables': { 'enable_wexit_time_destructors': 1, },
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../testing/gtest.gyp:gtest',
-      ],
-      'sources': [
-        'tools/fetch/fetch_client.cc',
-      ],
-    },
-    {
-      'target_name': 'fetch_server',
-      'type': 'executable',
-      'variables': { 'enable_wexit_time_destructors': 1, },
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-      ],
-      'sources': [
-        'tools/fetch/fetch_server.cc',
-        'tools/fetch/http_listen_socket.cc',
-        'tools/fetch/http_listen_socket.h',
-        'tools/fetch/http_server.cc',
-        'tools/fetch/http_server.h',
-        'tools/fetch/http_server_request_info.cc',
-        'tools/fetch/http_server_request_info.h',
-        'tools/fetch/http_server_response_info.cc',
-        'tools/fetch/http_server_response_info.h',
-        'tools/fetch/http_session.cc',
-        'tools/fetch/http_session.h',
-      ],
-    },
-    {
       'target_name': 'http_server',
       'type': 'static_library',
       'variables': { 'enable_wexit_time_destructors': 1, },
@@ -1696,53 +1685,198 @@
         'server/web_socket.h',
       ],
     },
-    {
-      'target_name': 'dnssec_chain_verify',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
-      ],
-    },
-    {
-      'target_name': 'crl_set_dump',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/crl_set_dump/crl_set_dump.cc',
-      ],
-    },
-    {
-      'target_name': 'dns_fuzz_stub',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/dns_fuzz_stub/dns_fuzz_stub.cc',
-      ],
-    },
-    {
-      'target_name': 'net_watcher',
-      'type': 'executable',
-      'dependencies': [
-        'net',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/net_watcher/net_watcher.cc',
-      ],
-    },
   ],
   'conditions': [
-    ['os_posix == 1 and OS != "mac" and OS != "android"', {
+    ['OS != "ios"', {
+      'targets': [
+        # iOS doesn't have the concept of simple executables, these targets
+        # can't be compiled on the platform.
+        {
+          'target_name': 'dnssec_chain_verify',
+          'type': 'executable',
+          'dependencies': [
+            'net',
+            '../base/base.gyp:base',
+          ],
+          'sources': [
+            'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
+          ],
+        },
+        {
+          'target_name': 'fetch_server',
+          'type': 'executable',
+          'variables': { 'enable_wexit_time_destructors': 1, },
+          'dependencies': [
+            'net',
+            '../base/base.gyp:base',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+          ],
+          'sources': [
+            'tools/fetch/fetch_server.cc',
+            'tools/fetch/http_listen_socket.cc',
+            'tools/fetch/http_listen_socket.h',
+            'tools/fetch/http_server.cc',
+            'tools/fetch/http_server.h',
+            'tools/fetch/http_server_request_info.cc',
+            'tools/fetch/http_server_request_info.h',
+            'tools/fetch/http_server_response_info.cc',
+            'tools/fetch/http_server_response_info.h',
+            'tools/fetch/http_session.cc',
+            'tools/fetch/http_session.h',
+          ],
+        },
+        {
+          'target_name': 'gdig',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+          ],
+          'sources': [
+            'tools/gdig/file_net_log.cc',
+            'tools/gdig/gdig.cc',
+          ],
+        },
+        {
+          'target_name': 'net_watcher',
+          'type': 'executable',
+          'dependencies': [
+            'net',
+            '../base/base.gyp:base',
+          ],
+          'sources': [
+            'tools/net_watcher/net_watcher.cc',
+          ],
+        },
+        {
+          'target_name': 'crl_set_dump',
+          'type': 'executable',
+          'dependencies': [
+            'net',
+            '../base/base.gyp:base',
+          ],
+          'sources': [
+            'tools/crl_set_dump/crl_set_dump.cc',
+          ],
+        },
+        {
+          'target_name': 'tld_cleanup',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+          ],
+          'sources': [
+            'tools/tld_cleanup/tld_cleanup.cc',
+          ],
+        },
+        {
+          'target_name': 'dns_fuzz_stub',
+          'type': 'executable',
+          'dependencies': [
+            'net',
+            '../base/base.gyp:base',
+          ],
+          'sources': [
+            'tools/dns_fuzz_stub/dns_fuzz_stub.cc',
+          ],
+        },
+        {
+          'target_name': 'stress_cache',
+          'type': 'executable',
+          'dependencies': [
+            'net',
+            'net_test_support',
+            '../base/base.gyp:base',
+          ],
+          'sources': [
+            'disk_cache/stress_cache.cc',
+          ],
+        },
+        {
+          'target_name': 'crash_cache',
+          'type': 'executable',
+          'dependencies': [
+            'net',
+            'net_test_support',
+            '../base/base.gyp:base',
+          ],
+          'sources': [
+            'tools/crash_cache/crash_cache.cc',
+          ],
+        },
+        {
+          'target_name': 'run_testserver',
+          'type': 'executable',
+          'dependencies': [
+            'net',
+            'net_test_support',
+            '../base/base.gyp:base',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../testing/gtest.gyp:gtest',
+          ],
+          'sources': [
+            'tools/testserver/run_testserver.cc',
+          ],
+        },
+        {
+          'target_name': 'fetch_client',
+          'type': 'executable',
+          'variables': { 'enable_wexit_time_destructors': 1, },
+          'dependencies': [
+            'net',
+            '../base/base.gyp:base',
+            '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../testing/gtest.gyp:gtest',
+          ],
+          'sources': [
+            'tools/fetch/fetch_client.cc',
+          ],
+        },
+      ],
+    }],
+    ['inside_chromium_build==1', {
+      'targets': [
+        # This target depends on dependencies not fetched by WebKit's DEPS.
+        # In particular, ..\chrome\test\data and ..\third_party\python_26 on
+        # Windows.
+        {
+          'target_name': 'net_unittests_run',
+          'type': 'none',
+          'dependencies': [
+            'net_unittests',
+          ],
+          'includes': [
+            'net_unittests.isolate',
+          ],
+          'actions': [
+            {
+              'action_name': 'isolate',
+              'inputs': [
+                'net_unittests.isolate',
+                '<@(isolate_dependency_tracked)',
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/net_unittests.results',
+              ],
+              'action': [
+                'python',
+                '../tools/isolate/isolate.py',
+                '<(test_isolation_mode)',
+                '--outdir', '<(test_isolation_outdir)',
+                '--variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
+                '--variable', 'OS', '<(OS)',
+                '--result', '<@(_outputs)',
+                '--isolate', 'net_unittests.isolate',
+              ],
+            },
+          ],
+        },
+      ],
+    }],
+    ['os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android"', {
       'targets': [
         {
           'target_name': 'flip_in_mem_edsm_server',
