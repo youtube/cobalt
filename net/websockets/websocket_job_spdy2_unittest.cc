@@ -304,7 +304,8 @@ class MockHttpTransactionFactory : public net::HttpTransactionFactory {
   }
 
   virtual int CreateTransaction(
-      scoped_ptr<net::HttpTransaction>* trans) OVERRIDE {
+      scoped_ptr<net::HttpTransaction>* trans,
+      net::HttpTransactionDelegate* delegate) OVERRIDE {
     NOTREACHED();
     return net::ERR_UNEXPECTED;
   }

@@ -191,7 +191,8 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   void OnExternalCacheHit(const GURL& url, const std::string& http_method);
 
   // HttpTransactionFactory implementation:
-  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans) OVERRIDE;
+  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans,
+                                HttpTransactionDelegate* delegate) OVERRIDE;
   virtual HttpCache* GetCache() OVERRIDE;
   virtual HttpNetworkSession* GetSession() OVERRIDE;
 

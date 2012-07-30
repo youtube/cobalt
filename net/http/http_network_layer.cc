@@ -102,7 +102,8 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
 
 //-----------------------------------------------------------------------------
 
-int HttpNetworkLayer::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
+int HttpNetworkLayer::CreateTransaction(scoped_ptr<HttpTransaction>* trans,
+                                        HttpTransactionDelegate* delegate) {
   if (suspended_)
     return ERR_NETWORK_IO_SUSPENDED;
 

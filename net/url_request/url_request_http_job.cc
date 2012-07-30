@@ -34,6 +34,7 @@
 #include "net/http/http_response_info.h"
 #include "net/http/http_status_code.h"
 #include "net/http/http_transaction.h"
+#include "net/http/http_transaction_delegate.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
 #include "net/url_request/fraudulent_certificate_reporter.h"
@@ -72,6 +73,43 @@ class URLRequestHttpJob::HttpFilterContext : public FilterContext {
   URLRequestHttpJob* job_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpFilterContext);
+};
+
+class URLRequestHttpJob::HttpTransactionDelegateImpl
+    : public HttpTransactionDelegate {
+ public:
+  explicit HttpTransactionDelegateImpl(URLRequest* request)
+      : request_(request),
+        network_delegate_(request->context()->network_delegate())  {
+  }
+  virtual ~HttpTransactionDelegateImpl() {
+    OnDetachRequest();
+  }
+  void OnDetachRequest() {
+    if (request_ == NULL || network_delegate_ == NULL)
+      return;
+    network_delegate_->NotifyCacheWaitStateChange(
+        *request_,
+        NetworkDelegate::CACHE_WAIT_STATE_RESET);
+    request_ = NULL;
+  }
+  virtual void OnCacheActionStart() OVERRIDE {
+    if (request_ == NULL || network_delegate_ == NULL)
+      return;
+    network_delegate_->NotifyCacheWaitStateChange(
+        *request_,
+        NetworkDelegate::CACHE_WAIT_STATE_START);
+  }
+  virtual void OnCacheActionFinish() OVERRIDE {
+    if (request_ == NULL || network_delegate_ == NULL)
+      return;
+    network_delegate_->NotifyCacheWaitStateChange(
+        *request_,
+        NetworkDelegate::CACHE_WAIT_STATE_FINISH);
+  }
+ private:
+  URLRequest* request_;
+  NetworkDelegate* network_delegate_;
 };
 
 URLRequestHttpJob::HttpFilterContext::HttpFilterContext(URLRequestHttpJob* job)
@@ -178,7 +216,8 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       ALLOW_THIS_IN_INITIALIZER_LIST(on_headers_received_callback_(
           base::Bind(&URLRequestHttpJob::OnHeadersReceivedCallback,
                      base::Unretained(this)))),
-      awaiting_callback_(false) {
+      awaiting_callback_(false),
+      http_transaction_delegate_(new HttpTransactionDelegateImpl(request)) {
   URLRequestThrottlerManager* manager = request->context()->throttler_manager();
   if (manager)
     throttling_entry_ = manager->RegisterRequestUrl(request->url());
@@ -306,7 +345,7 @@ void URLRequestHttpJob::StartTransactionInternal() {
     DCHECK(request_->context()->http_transaction_factory());
 
     rv = request_->context()->http_transaction_factory()->CreateTransaction(
-        &transaction_);
+        &transaction_, http_transaction_delegate_.get());
     if (rv == OK) {
       if (!throttling_entry_ ||
           !throttling_entry_->ShouldRejectRequest(*request_)) {
@@ -1435,6 +1474,10 @@ HttpResponseHeaders* URLRequestHttpJob::GetResponseHeaders() const {
 
 void URLRequestHttpJob::NotifyURLRequestDestroyed() {
   awaiting_callback_ = false;
+}
+
+void URLRequestHttpJob::OnDetachRequest() {
+  http_transaction_delegate_->OnDetachRequest();
 }
 
 }  // namespace net

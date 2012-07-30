@@ -515,6 +515,7 @@
         'http/http_stream_parser.cc',
         'http/http_stream_parser.h',
         'http/http_transaction.h',
+        'http/http_transaction_delegate.h',
         'http/http_transaction_factory.h',
         'http/http_util.cc',
         'http/http_util.h',

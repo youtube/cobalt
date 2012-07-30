@@ -193,6 +193,10 @@ class BasicNetworkDelegate : public NetworkDelegate {
     return OK;
   }
 
+  virtual void OnCacheWaitStateChange(const net::URLRequest& request,
+                                      CacheWaitState state) OVERRIDE {
+  }
+
   DISALLOW_COPY_AND_ASSIGN(BasicNetworkDelegate);
 };
 

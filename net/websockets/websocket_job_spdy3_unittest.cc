@@ -306,7 +306,8 @@ class MockHttpTransactionFactory : public net::HttpTransactionFactory {
     EXPECT_EQ(net::OK,
               session_->InitializeWithSocket(connection, false, net::OK));
   }
-  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans) {
+  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans,
+                                net::HttpTransactionDelegate* delegate) {
     NOTREACHED();
     return net::ERR_UNEXPECTED;
   }
