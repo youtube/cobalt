@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/android/jni_android.h"
 
+#include "base/at_exit.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -21,14 +22,14 @@ const char* g_last_method;
 const char* g_last_jni_signature;
 jmethodID g_last_method_id;
 
-JNINativeInterface g_previous_functions = {0};
+const JNINativeInterface* g_previous_functions;
 
 jmethodID GetMethodIDWrapper(JNIEnv* env, jclass clazz, const char* method,
                              const char* jni_signature) {
   g_last_method = method;
   g_last_jni_signature = jni_signature;
-  g_last_method_id = g_previous_functions.GetMethodID(env, clazz, method,
-                                                      jni_signature);
+  g_last_method_id = g_previous_functions->GetMethodID(env, clazz, method,
+                                                       jni_signature);
   return g_last_method_id;
 }
 
@@ -38,15 +39,16 @@ class JNIAndroidTest : public testing::Test {
  protected:
   virtual void SetUp() {
     JNIEnv* env = AttachCurrentThread();
-    g_previous_functions = *env->functions;
-    JNINativeInterface* native_interface =
-        const_cast<JNINativeInterface*>(env->functions);
-    native_interface->GetMethodID = &GetMethodIDWrapper;
+    g_previous_functions = env->functions;
+    hooked_functions = *g_previous_functions;
+    env->functions = &hooked_functions;
+    hooked_functions.GetMethodID = &GetMethodIDWrapper;
   }
 
   virtual void TearDown() {
     JNIEnv* env = AttachCurrentThread();
-    *(const_cast<JNINativeInterface*>(env->functions)) = g_previous_functions;
+    env->functions = g_previous_functions;
+    Reset();
   }
 
   void Reset() {
@@ -54,6 +56,12 @@ class JNIAndroidTest : public testing::Test {
     g_last_jni_signature = 0;
     g_last_method_id = NULL;
   }
+  // Needed to cleanup the cached method map in the implementation between
+  // runs (e.g. if using --gtest_repeat)
+  base::ShadowingAtExitManager exit_manager;
+  // From JellyBean release, the instance of this struct provided in JNIEnv is
+  // read-only, so we deep copy it to allow individual functions to be hooked.
+  JNINativeInterface hooked_functions;
 };
 
 TEST_F(JNIAndroidTest, GetMethodIDFromClassNameCaching) {
