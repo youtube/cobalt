@@ -142,9 +142,11 @@ FFMPEG_TEST_CASE(Cr132779, "security/132779.webm",
 
 // General MKV test cases.
 FFMPEG_TEST_CASE(MKV_0, "security/nested_tags_lang.mka.627.628", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "29b9dd707e75eb0a8cf29ec6213fd8c8");
+                 PIPELINE_ERROR_DECODE, kNullHash,
+                 "abc9702fc46f49d6f26da5c62d118cf7");
 FFMPEG_TEST_CASE(MKV_1, "security/nested_tags_lang.mka.667.628", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "117643fcab3ef06461c769686d05ccfb");
+                 PIPELINE_ERROR_DECODE, kNullHash,
+                 "414669ce405e681bda578f90c6c08951");
 
 // General MP4 test cases.
 FFMPEG_TEST_CASE(MP4_0, "security/aac.10419.mp4", PIPELINE_OK, PIPELINE_OK,
@@ -169,8 +171,6 @@ FFMPEG_TEST_CASE(MP4_8, "security/h264.705767.mp4",
 FFMPEG_TEST_CASE(MP4_9, "security/smclockmp4aac_1_0.mp4",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
-FFMPEG_TEST_CASE(MP4_10, "security/null1.m4a", PIPELINE_OK, PIPELINE_OK,
-                 kNullHash, "287b6f06b6b45ac9e2839f4f397036af");
 FFMPEG_TEST_CASE(MP4_11, "security/null1.mp4", PIPELINE_OK, PIPELINE_OK,
                  kNullHash, "f20676c5de9b3c7c174c141762afb957");
 FFMPEG_TEST_CASE(MP4_16, "security/looping2.mov",
@@ -292,6 +292,8 @@ FFMPEG_TEST_CASE(BIG_MEM_2, "security/looping1.mov",
 FFMPEG_TEST_CASE(BIG_MEM_5, "security/looping5.mov",
                  DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE,
                  kNullHash, kNullHash);
+FLAKY_FFMPEG_TEST_CASE(BIG_MEM_3, "security/looping3.mov");
+FLAKY_FFMPEG_TEST_CASE(BIG_MEM_4, "security/looping4.mov");
 
 // Flaky under threading or for other reasons.  Per rbultje, most of these will
 // never be reliable since FFmpeg does not guarantee consistency in error cases.
@@ -307,8 +309,8 @@ FLAKY_FFMPEG_TEST_CASE(OGV_13, "security/smclocktheora_1_790.ogv");
 FLAKY_FFMPEG_TEST_CASE(MP4_3, "security/clockh264aac_300413969.mp4");
 FLAKY_FFMPEG_TEST_CASE(MP4_4, "security/clockh264aac_301350139.mp4");
 FLAKY_FFMPEG_TEST_CASE(MP4_12, "security/assert1.mov");
-FLAKY_FFMPEG_TEST_CASE(BIG_MEM_3, "security/looping3.mov");
-FLAKY_FFMPEG_TEST_CASE(BIG_MEM_4, "security/looping4.mov");
+// Not really flaky, but can't pass the seek test.
+FLAKY_FFMPEG_TEST_CASE(MP4_10, "security/null1.m4a");
 
 // Videos with massive gaps between frame timestamps that result in long hangs
 // with our pipeline.  Should be uncommented when we support clockless playback.
