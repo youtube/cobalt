@@ -11,6 +11,7 @@
       'dependencies': [
         'some.gyp:*',
         '../base/base.gyp:*',
+        '../net/net.gyp:*',
         '../sql/sql.gyp:*',
         '../testing/gtest.gyp:*',
         '../third_party/bzip2/bzip2.gyp:*',
@@ -37,7 +38,6 @@
             '../ipc/ipc.gyp:*',
             '../jingle/jingle.gyp:*',
             '../media/media.gyp:*',
-            '../net/net.gyp:*',
             '../ppapi/ppapi.gyp:*',
             '../ppapi/ppapi_internal.gyp:*',
             '../printing/printing.gyp:*',
