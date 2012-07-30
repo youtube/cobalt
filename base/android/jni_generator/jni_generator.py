@@ -451,11 +451,22 @@ class JNIFromJavaSource(object):
     self.content = inl_header_file_generator.GetContent()
 
   def _RemoveComments(self, contents):
-    ret = []
-    for c in [c.strip() for c in contents.split('\n')]:
-      if not c.startswith('//'):
-        ret += [c]
-    return '\n'.join(ret)
+    # We need to support both inline and block comments, and we need to handle
+    # strings that contain '//' or '/*'. Rather than trying to do all that with
+    # regexps, we just pipe the contents through the C preprocessor. We tell cpp
+    # the file has already been preprocessed, so it just removes comments and
+    # doesn't try to parse #include, #pragma etc.
+    #
+    # TODO(husky): This is a bit hacky. It would be cleaner to use a real Java
+    # parser. Maybe we could ditch JNIFromJavaSource and just always use
+    # JNIFromJavaP; or maybe we could rewrite this script in Java and use APT.
+    # http://code.google.com/p/chromium/issues/detail?id=138941
+    p = subprocess.Popen(args=['cpp', '-fpreprocessed'],
+                         stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+    stdout, _ = p.communicate(contents)
+    return stdout
 
   def GetContent(self):
     return self.content
