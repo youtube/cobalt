@@ -23,17 +23,7 @@
       ],
       'libraries': [
         '$(SDKROOT)/System/Library/Frameworks/Foundation.framework',
-        '<(iphone_sim_path)/iPhoneSimulatorRemoteClient.framework',
       ],
-      'mac_framework_dirs': [
-        '<(iphone_sim_path)',
-      ],
-      'xcode_settings': {
-        'LD_RUNPATH_SEARCH_PATHS': [
-          '<(iphone_sim_path)',
-          '<(other_frameworks_path)',
-        ]
-      },
       'actions': [
         {
           'action_name': 'generate_iphone_sim_header',
