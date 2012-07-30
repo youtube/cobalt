@@ -122,8 +122,14 @@ bool MP4StreamParser::ParseBox(bool* err) {
     moof_head_ = queue_.head();
     *err = !ParseMoof(reader.get());
 
-    // Set up first mdat offset for ParseMDATsUntil()
+    // Set up first mdat offset for ReadMDATsUntil().
     mdat_tail_ = queue_.head() + reader->size();
+
+    // Return early to avoid evicting 'moof' data from queue. Auxiliary info may
+    // be located anywhere in the file, including inside the 'moof' itself.
+    // (Since 'default-base-is-moof' is mandated, no data references can come
+    // before the head of the 'moof', so keeping this box around is sufficient.)
+    return !(*err);
   } else {
     DVLOG(2) << "Skipping unrecognized top-level box: "
              << FourCCToString(reader->type());
