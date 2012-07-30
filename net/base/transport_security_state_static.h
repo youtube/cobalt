@@ -425,6 +425,9 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {14, false, "\010irccloud\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {18, false, "\003www\010irccloud\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {20, false, "\005alpha\010irccloud\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {11, true, "\006passwd\002io", true, kNoPins, DOMAIN_NOT_PINNED },
+  {15, true, "\011browserid\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {19, true, "\005login\007persona\003org", true, kNoPins, DOMAIN_NOT_PINNED },
 };
 static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
