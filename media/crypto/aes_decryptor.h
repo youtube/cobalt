@@ -89,6 +89,13 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
     DISALLOW_COPY_AND_ASSIGN(DecryptionKey);
   };
 
+  // Sets |key| for |key_id|. The AesDecryptor takes the ownership of the |key|.
+  void SetKey(const std::string& key_id, scoped_ptr<DecryptionKey> key);
+
+  // Gets a DecryptionKey associated with |key_id|. The AesDecryptor still owns
+  // the key. Returns NULL if no key is associated with |key_id|.
+  DecryptionKey* GetKey(const std::string& key_id) const;
+
   // KeyMap owns the DecryptionKey* and must delete them when they are
   // not needed any more.
   typedef base::hash_map<std::string, DecryptionKey*> KeyMap;
@@ -97,7 +104,7 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
   // protect |key_map_|, the only member variable that is shared between
   // Decrypt() and other methods.
   KeyMap key_map_;  // Protected by the |key_map_lock_|.
-  base::Lock key_map_lock_;  // Protects the |key_map_|.
+  mutable base::Lock key_map_lock_;  // Protects the |key_map_|.
 
   // Make session ID unique per renderer by making it static.
   // TODO(xhwang): Make session ID more strictly defined if needed:
