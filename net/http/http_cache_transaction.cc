@@ -31,6 +31,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_transaction_delegate.h"
 #include "net/http/http_transaction.h"
 #include "net/http/http_util.h"
 #include "net/http/partial_data.h"
@@ -101,7 +102,9 @@ static bool HeaderMatches(const HttpRequestHeaders& headers,
 
 //-----------------------------------------------------------------------------
 
-HttpCache::Transaction::Transaction(HttpCache* cache)
+HttpCache::Transaction::Transaction(
+    HttpCache* cache,
+    HttpTransactionDelegate* transaction_delegate)
     : next_state_(STATE_NONE),
       request_(NULL),
       cache_(cache->AsWeakPtr()),
@@ -126,7 +129,8 @@ HttpCache::Transaction::Transaction(HttpCache* cache)
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
           base::Bind(&Transaction::OnIOComplete,
-                     weak_factory_.GetWeakPtr()))) {
+                     weak_factory_.GetWeakPtr()))),
+      transaction_delegate_(transaction_delegate) {
   COMPILE_ASSERT(HttpCache::Transaction::kNumValidationHeaders ==
                  arraysize(kValidationHeaders),
                  Invalid_number_of_validation_headers);
@@ -654,11 +658,13 @@ int HttpCache::Transaction::DoGetBackend() {
   cache_pending_ = true;
   next_state_ = STATE_GET_BACKEND_COMPLETE;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_GET_BACKEND);
+  ReportCacheActionStart();
   return cache_->GetBackendForTransaction(this);
 }
 
 int HttpCache::Transaction::DoGetBackendComplete(int result) {
   DCHECK(result == OK || result == ERR_FAILED);
+  ReportCacheActionFinish();
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_GET_BACKEND,
                                     result);
   cache_pending_ = false;
@@ -719,7 +725,7 @@ int HttpCache::Transaction::DoSendRequest() {
   DCHECK(!network_trans_.get());
 
   // Create a network transaction.
-  int rv = cache_->network_layer_->CreateTransaction(&network_trans_);
+  int rv = cache_->network_layer_->CreateTransaction(&network_trans_, NULL);
   if (rv != OK)
     return rv;
 
@@ -847,6 +853,7 @@ int HttpCache::Transaction::DoOpenEntry() {
   next_state_ = STATE_OPEN_ENTRY_COMPLETE;
   cache_pending_ = true;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
+  ReportCacheActionStart();
   return cache_->OpenEntry(cache_key_, &new_entry_, this);
 }
 
@@ -854,6 +861,7 @@ int HttpCache::Transaction::DoOpenEntryComplete(int result) {
   // It is important that we go to STATE_ADD_TO_ENTRY whenever the result is
   // OK, otherwise the cache will end up with an active entry without any
   // transaction attached.
+  ReportCacheActionFinish();
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY, result);
   cache_pending_ = false;
   if (result == OK) {
@@ -897,6 +905,7 @@ int HttpCache::Transaction::DoCreateEntry() {
   next_state_ = STATE_CREATE_ENTRY_COMPLETE;
   cache_pending_ = true;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
+  ReportCacheActionStart();
   return cache_->CreateEntry(cache_key_, &new_entry_, this);
 }
 
@@ -904,6 +913,7 @@ int HttpCache::Transaction::DoCreateEntryComplete(int result) {
   // It is important that we go to STATE_ADD_TO_ENTRY whenever the result is
   // OK, otherwise the cache will end up with an active entry without any
   // transaction attached.
+  ReportCacheActionFinish();
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY,
                                     result);
   cache_pending_ = false;
@@ -932,10 +942,12 @@ int HttpCache::Transaction::DoDoomEntry() {
   next_state_ = STATE_DOOM_ENTRY_COMPLETE;
   cache_pending_ = true;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
+  ReportCacheActionStart();
   return cache_->DoomEntry(cache_key_, this);
 }
 
 int HttpCache::Transaction::DoDoomEntryComplete(int result) {
+  ReportCacheActionFinish();
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY, result);
   next_state_ = STATE_CREATE_ENTRY;
   cache_pending_ = false;
@@ -1137,15 +1149,18 @@ int HttpCache::Transaction::DoTruncateCachedData() {
     return OK;
   if (net_log_.IsLoggingAllEvents())
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA);
-
+  ReportCacheActionStart();
   // Truncate the stream.
   return WriteToEntry(kResponseContentIndex, 0, NULL, 0, io_callback_);
 }
 
 int HttpCache::Transaction::DoTruncateCachedDataComplete(int result) {
-  if (net_log_.IsLoggingAllEvents() && entry_) {
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_WRITE_DATA,
-                                      result);
+  if (entry_) {
+      ReportCacheActionFinish();
+      if (net_log_.IsLoggingAllEvents()) {
+        net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_WRITE_DATA,
+                                          result);
+      }
   }
 
   next_state_ = STATE_TRUNCATE_CACHED_METADATA;
@@ -1159,13 +1174,17 @@ int HttpCache::Transaction::DoTruncateCachedMetadata() {
 
   if (net_log_.IsLoggingAllEvents())
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
+  ReportCacheActionStart();
   return WriteToEntry(kMetadataIndex, 0, NULL, 0, io_callback_);
 }
 
 int HttpCache::Transaction::DoTruncateCachedMetadataComplete(int result) {
-  if (net_log_.IsLoggingAllEvents() && entry_) {
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_WRITE_INFO,
-                                      result);
+  if (entry_) {
+    ReportCacheActionFinish();
+    if (net_log_.IsLoggingAllEvents()) {
+      net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_WRITE_INFO,
+                                        result);
+    }
   }
 
   // If this response is a redirect, then we can stop writing now.  (We don't
@@ -1207,11 +1226,13 @@ int HttpCache::Transaction::DoCacheReadResponse() {
   read_buf_ = new IOBuffer(io_buf_len_);
 
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
+  ReportCacheActionStart();
   return entry_->disk_entry->ReadData(kResponseInfoIndex, 0, read_buf_,
                                       io_buf_len_, io_callback_);
 }
 
 int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
+  ReportCacheActionFinish();
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_READ_INFO, result);
   if (result != io_buf_len_ ||
       !HttpCache::ParseResponseInfo(read_buf_->data(), io_buf_len_,
@@ -1256,14 +1277,20 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
 }
 
 int HttpCache::Transaction::DoCacheWriteResponse() {
-  if (net_log_.IsLoggingAllEvents() && entry_)
-    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
+  if (entry_) {
+    if (net_log_.IsLoggingAllEvents())
+      net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
+    ReportCacheActionStart();
+  }
   return WriteResponseInfoToEntry(false);
 }
 
 int HttpCache::Transaction::DoCacheWriteTruncatedResponse() {
-  if (net_log_.IsLoggingAllEvents() && entry_)
-    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
+  if (entry_) {
+    if (net_log_.IsLoggingAllEvents() && entry_)
+      net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
+    ReportCacheActionStart();
+  }
   return WriteResponseInfoToEntry(true);
 }
 
@@ -1272,6 +1299,7 @@ int HttpCache::Transaction::DoCacheWriteResponseComplete(int result) {
   target_state_ = STATE_NONE;
   if (!entry_)
     return OK;
+  ReportCacheActionFinish();
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_WRITE_INFO,
                                       result);
@@ -1294,12 +1322,14 @@ int HttpCache::Transaction::DoCacheReadMetadata() {
       new IOBufferWithSize(entry_->disk_entry->GetDataSize(kMetadataIndex));
 
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
+  ReportCacheActionStart();
   return entry_->disk_entry->ReadData(kMetadataIndex, 0, response_.metadata,
                                       response_.metadata->size(),
                                       io_callback_);
 }
 
 int HttpCache::Transaction::DoCacheReadMetadataComplete(int result) {
+  ReportCacheActionFinish();
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_READ_INFO, result);
   if (result != response_.metadata->size())
     return OnCacheReadError(result, false);
@@ -1328,6 +1358,7 @@ int HttpCache::Transaction::DoCacheReadData() {
 
   if (net_log_.IsLoggingAllEvents())
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_DATA);
+  ReportCacheActionStart();
   if (partial_.get()) {
     return partial_->CacheRead(entry_->disk_entry, read_buf_, io_buf_len_,
                                io_callback_);
@@ -1338,6 +1369,7 @@ int HttpCache::Transaction::DoCacheReadData() {
 }
 
 int HttpCache::Transaction::DoCacheReadDataComplete(int result) {
+  ReportCacheActionFinish();
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_READ_DATA,
                                       result);
@@ -1363,16 +1395,22 @@ int HttpCache::Transaction::DoCacheReadDataComplete(int result) {
 int HttpCache::Transaction::DoCacheWriteData(int num_bytes) {
   next_state_ = STATE_CACHE_WRITE_DATA_COMPLETE;
   write_len_ = num_bytes;
-  if (net_log_.IsLoggingAllEvents() && entry_)
-    net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA);
+  if (entry_) {
+    if (net_log_.IsLoggingAllEvents())
+      net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA);
+    ReportCacheActionStart();
+  }
 
   return AppendResponseDataToEntry(read_buf_, num_bytes, io_callback_);
 }
 
 int HttpCache::Transaction::DoCacheWriteDataComplete(int result) {
-  if (net_log_.IsLoggingAllEvents() && entry_) {
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_WRITE_DATA,
-                                      result);
+  if (entry_) {
+    ReportCacheActionFinish();
+    if (net_log_.IsLoggingAllEvents()) {
+      net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_WRITE_DATA,
+                                        result);
+    }
   }
   // Balance the AddRef from DoCacheWriteData.
   if (!cache_)
@@ -2110,6 +2148,16 @@ bool HttpCache::Transaction::CanResume(bool has_data) {
 
 void HttpCache::Transaction::OnIOComplete(int result) {
   DoLoop(result);
+}
+
+void HttpCache::Transaction::ReportCacheActionStart() {
+  if (transaction_delegate_)
+    transaction_delegate_->OnCacheActionStart();
+}
+
+void HttpCache::Transaction::ReportCacheActionFinish() {
+  if (transaction_delegate_)
+    transaction_delegate_->OnCacheActionFinish();
 }
 
 }  // namespace net
