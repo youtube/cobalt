@@ -15,26 +15,26 @@ namespace {
 int g_local_refs = 0;
 int g_global_refs = 0;
 
-JNINativeInterface g_previous_functions = {0};
+const JNINativeInterface* g_previous_functions;
 
 jobject NewGlobalRef(JNIEnv* env, jobject obj) {
   ++g_global_refs;
-  return g_previous_functions.NewGlobalRef(env, obj);
+  return g_previous_functions->NewGlobalRef(env, obj);
 }
 
 void DeleteGlobalRef(JNIEnv* env, jobject obj) {
   --g_global_refs;
-  return g_previous_functions.DeleteGlobalRef(env, obj);
+  return g_previous_functions->DeleteGlobalRef(env, obj);
 }
 
 jobject NewLocalRef(JNIEnv* env, jobject obj) {
   ++g_local_refs;
-  return g_previous_functions.NewLocalRef(env, obj);
+  return g_previous_functions->NewLocalRef(env, obj);
 }
 
 void DeleteLocalRef(JNIEnv* env, jobject obj) {
   --g_local_refs;
-  return g_previous_functions.DeleteLocalRef(env, obj);
+  return g_previous_functions->DeleteLocalRef(env, obj);
 }
 }  // namespace
 
@@ -44,21 +44,24 @@ class ScopedJavaRefTest : public testing::Test {
     g_local_refs = 0;
     g_global_refs = 0;
     JNIEnv* env = AttachCurrentThread();
-    g_previous_functions = *env->functions;
+    g_previous_functions = env->functions;
+    hooked_functions = *g_previous_functions;
+    env->functions = &hooked_functions;
     // We inject our own functions in JNINativeInterface so we can keep track
     // of the reference counting ourselves.
-    JNINativeInterface* native_interface =
-        const_cast<JNINativeInterface*>(env->functions);
-    native_interface->NewGlobalRef = &NewGlobalRef;
-    native_interface->DeleteGlobalRef = &DeleteGlobalRef;
-    native_interface->NewLocalRef = &NewLocalRef;
-    native_interface->DeleteLocalRef = &DeleteLocalRef;
+    hooked_functions.NewGlobalRef = &NewGlobalRef;
+    hooked_functions.DeleteGlobalRef = &DeleteGlobalRef;
+    hooked_functions.NewLocalRef = &NewLocalRef;
+    hooked_functions.DeleteLocalRef = &DeleteLocalRef;
   }
 
   virtual void TearDown() {
     JNIEnv* env = AttachCurrentThread();
-    *(const_cast<JNINativeInterface*>(env->functions)) = g_previous_functions;
+    env->functions = g_previous_functions;
   }
+  // From JellyBean release, the instance of this struct provided in JNIEnv is
+  // read-only, so we deep copy it to allow individual functions to be hooked.
+  JNINativeInterface hooked_functions;
 };
 
 // The main purpose of this is testing the various conversions compile.
