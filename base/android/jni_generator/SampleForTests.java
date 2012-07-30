@@ -78,6 +78,19 @@ class SampleForTests {
   @CalledByNativeUnchecked
   void methodThatThrowsException() throws Exception {}
 
+  // The generator is not confused by inline comments:
+  // @CalledByNative void thisShouldNotAppearInTheOutput();
+  // @CalledByNativeUnchecked public static void neitherShouldThis(int foo);
+
+  /**
+   * The generator is not confused by block comments:
+   * @CalledByNative void thisShouldNotAppearInTheOutputEither();
+   * @CalledByNativeUnchecked public static void andDefinitelyNotThis(int foo);
+   */
+
+  // String constants that look like comments don't confuse the generator:
+  private String arrgh = "*/*";
+
   //------------------------------------------------------------------------------------------------
   // Java fields which are accessed from C++ code only must be annotated with @AccessedByNative to
   // prevent them being eliminated when unreferenced code is stripped.
