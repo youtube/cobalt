@@ -80,11 +80,7 @@ bool MP4StreamParser::Parse(const uint8* buf, int size) {
 
   do {
     if (state_ == kParsingBoxes) {
-      if (mdat_tail_ > queue_.head()) {
-        result = queue_.Trim(mdat_tail_);
-      } else {
-        result = ParseBox(&err);
-      }
+      result = ParseBox(&err);
     } else {
       DCHECK_EQ(kEmittingSamples, state_);
       result = EnqueueSample(&audio_buffers, &video_buffers, &err);
@@ -320,6 +316,11 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     // cross NewSegment() calls
     *err = !SendAndFlushSamples(audio_buffers, video_buffers);
     if (*err)
+      return false;
+
+    // Remain in kEnqueueingSamples state, discarding data, until the end of
+    // the current 'mdat' box has been appended to the queue.
+    if (!queue_.Trim(mdat_tail_))
       return false;
 
     ChangeState(kParsingBoxes);
