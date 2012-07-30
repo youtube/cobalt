@@ -35,16 +35,21 @@ namespace base {
 
 namespace {
 
-struct SequencedTask {
+struct SequencedTask : public TrackingInfo  {
   SequencedTask()
       : sequence_token_id(0),
+        shutdown_behavior(SequencedWorkerPool::BLOCK_SHUTDOWN) {}
+
+  explicit SequencedTask(const tracked_objects::Location& from_here)
+      : base::TrackingInfo(from_here, TimeTicks()),
+        sequence_token_id(0),
         shutdown_behavior(SequencedWorkerPool::BLOCK_SHUTDOWN) {}
 
   ~SequencedTask() {}
 
   int sequence_token_id;
   SequencedWorkerPool::WorkerShutdown shutdown_behavior;
-  tracked_objects::Location location;
+  tracked_objects::Location posted_from;
   Closure task;
 };
 
@@ -481,10 +486,10 @@ bool SequencedWorkerPool::Inner::PostTask(
     WorkerShutdown shutdown_behavior,
     const tracked_objects::Location& from_here,
     const Closure& task) {
-  SequencedTask sequenced;
+  SequencedTask sequenced(from_here);
   sequenced.sequence_token_id = sequence_token.id_;
   sequenced.shutdown_behavior = shutdown_behavior;
-  sequenced.location = from_here;
+  sequenced.posted_from = from_here;
   sequenced.task = task;
 
   int create_thread_id = 0;
@@ -614,7 +619,13 @@ void SequencedWorkerPool::Inner::ThreadLoop(Worker* this_worker) {
           this_worker->set_running_sequence(
               SequenceToken(task.sequence_token_id));
 
+          tracked_objects::TrackedTime start_time =
+              tracked_objects::ThreadData::NowForStartOfRun(task.birth_tally);
+
           task.task.Run();
+
+          tracked_objects::ThreadData::TallyRunOnNamedThreadIfTracking(task,
+              start_time, tracked_objects::ThreadData::NowForEndOfRun());
 
           this_worker->set_running_sequence(SequenceToken());
 
