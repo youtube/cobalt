@@ -4,6 +4,8 @@
 
 #include "media/crypto/aes_decryptor.h"
 
+#include <vector>
+
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/string_number_conversions.h"
@@ -84,7 +86,7 @@ static bool CheckData(const DecoderBuffer& input,
 
 enum ClearBytesBufferSel {
   kSrcContainsClearBytes,
-  kDstContainsClearBytes,
+  kDstContainsClearBytes
 };
 
 static void CopySubsamples(const std::vector<SubsampleEntry>& subsamples,
@@ -250,16 +252,7 @@ void AesDecryptor::AddKey(const std::string& key_system,
     return;
   }
 
-  {
-    base::AutoLock auto_lock(key_map_lock_);
-    KeyMap::iterator found = key_map_.find(key_id_string);
-    if (found != key_map_.end()) {
-      delete found->second;
-      key_map_.erase(found);
-    }
-    key_map_[key_id_string] = decryption_key.release();
-  }
-
+  SetKey(key_id_string, decryption_key.Pass());
   client_->KeyAdded(key_system, session_id);
 }
 
@@ -272,17 +265,10 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
   CHECK(encrypted->GetDecryptConfig());
   const std::string& key_id = encrypted->GetDecryptConfig()->key_id();
 
-  DecryptionKey* key = NULL;
-  {
-    base::AutoLock auto_lock(key_map_lock_);
-    KeyMap::const_iterator found = key_map_.find(key_id);
-    if (found != key_map_.end())
-      key = found->second;
-  }
-
+  DecryptionKey* key = GetKey(key_id);
   if (!key) {
-    // TODO(fgalligan): Fire a need_key event here and add a test.
-    DVLOG(1) << "Could not find a matching key for given key ID.";
+    // TODO(xhwang): Fire a need_key event here and add a test.
+    DVLOG(1) << "Could not find a matching key for the given key ID.";
     decrypt_cb.Run(kError, NULL);
     return;
   }
@@ -317,8 +303,28 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
   decrypt_cb.Run(kSuccess, decrypted);
 }
 
-AesDecryptor::DecryptionKey::DecryptionKey(
-    const std::string& secret)
+void AesDecryptor::SetKey(const std::string& key_id,
+                          scoped_ptr<DecryptionKey> decryption_key) {
+  base::AutoLock auto_lock(key_map_lock_);
+  KeyMap::iterator found = key_map_.find(key_id);
+  if (found != key_map_.end()) {
+    delete found->second;
+    key_map_.erase(found);
+  }
+  key_map_[key_id] = decryption_key.release();
+}
+
+AesDecryptor::DecryptionKey* AesDecryptor::GetKey(
+    const std::string& key_id) const {
+  base::AutoLock auto_lock(key_map_lock_);
+  KeyMap::const_iterator found = key_map_.find(key_id);
+  if (found == key_map_.end())
+    return NULL;
+
+  return found->second;
+}
+
+AesDecryptor::DecryptionKey::DecryptionKey(const std::string& secret)
     : secret_(secret) {
 }
 
@@ -326,28 +332,25 @@ AesDecryptor::DecryptionKey::~DecryptionKey() {}
 
 bool AesDecryptor::DecryptionKey::Init() {
   CHECK(!secret_.empty());
-  decryption_key_.reset(
-      crypto::SymmetricKey::Import(crypto::SymmetricKey::AES, secret_));
-  if (!decryption_key_.get()) {
+  decryption_key_.reset(crypto::SymmetricKey::Import(
+      crypto::SymmetricKey::AES, secret_));
+  if (!decryption_key_.get())
     return false;
-  }
 
   std::string raw_key = DeriveKey(secret_,
                                   kWebmEncryptionSeed,
                                   secret_.length());
-  if (raw_key.empty()) {
+  if (raw_key.empty())
     return false;
-  }
-  webm_decryption_key_.reset(
-      crypto::SymmetricKey::Import(crypto::SymmetricKey::AES, raw_key));
-  if (!webm_decryption_key_.get()) {
+
+  webm_decryption_key_.reset(crypto::SymmetricKey::Import(
+      crypto::SymmetricKey::AES, raw_key));
+  if (!webm_decryption_key_.get())
     return false;
-  }
 
   hmac_key_ = DeriveKey(secret_, kWebmHmacSeed, kWebmSha1DigestSize);
-  if (hmac_key_.empty()) {
+  if (hmac_key_.empty())
     return false;
-  }
 
   return true;
 }
