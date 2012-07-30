@@ -84,6 +84,9 @@ class TestNetworkDelegate : public net::NetworkDelegate {
       const CompletionCallback& callback) OVERRIDE {
     return OK;
   }
+  virtual void OnCacheWaitStateChange(const net::URLRequest& request,
+                                      CacheWaitState state) OVERRIDE {
+  }
 
   bool got_pac_error_;
 };
