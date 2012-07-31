@@ -384,9 +384,9 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 }
 
 // static
-SHA1Fingerprint X509Certificate::CalculateFingerprint(
+SHA1HashValue X509Certificate::CalculateFingerprint(
     OSCertHandle cert) {
-  SHA1Fingerprint sha1;
+  SHA1HashValue sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
   DCHECK(NULL != cert->derCert.data);
@@ -400,9 +400,9 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
 }
 
 // static
-SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
+SHA1HashValue X509Certificate::CalculateCAFingerprint(
     const OSCertHandles& intermediates) {
-  SHA1Fingerprint sha1;
+  SHA1HashValue sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
   HASHContext* sha1_ctx = HASH_Create(HASH_AlgSHA1);
