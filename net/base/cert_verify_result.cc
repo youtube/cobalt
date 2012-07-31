@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,7 +24,13 @@ void CertVerifyResult::Reset() {
   has_md5_ca = false;
   has_md2_ca = false;
   is_issued_by_known_root = false;
+
   public_key_hashes.clear();
+  public_key_hashes.reserve(FINGERPRINT_TAGS_COUNT);
+  HashValueVector sha1s;
+  public_key_hashes.push_back(sha1s);
+  HashValueVector sha256s;
+  public_key_hashes.push_back(sha256s);
 }
 
-} // namespace net
+}  // namespace net

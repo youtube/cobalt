@@ -71,8 +71,11 @@ class NET_EXPORT SSLInfo {
 
   HandshakeType handshake_type;
 
-  // The hashes of the SubjectPublicKeyInfos from each certificate in the chain.
-  std::vector<SHA1Fingerprint> public_key_hashes;
+  // The hashes of the SubjectPublicKeyInfos from each certificate in the
+  // chain. This is a vector of vectors: Index the outer vector with
+  // FingerprintTag, and then the inner HashValueVectors will be
+  // fingerprints made with the algorithm named by the FingerprintTag.
+  std::vector<HashValueVector> public_key_hashes;
 };
 
 }  // namespace net
