@@ -27,7 +27,6 @@ FontTest.LoadArialBold
 FontTest.Widths
 ImageTest.CheckSkiaColor
 L10nUtilTest.GetAppLocale
-PNGCodec.EncodeBGRASkBitmapDiscardTransparency
 SkBitmapOperationsTest.CreateHSLShiftedBitmapHueOnly
 SkBitmapOperationsTest.UnPreMultiply
 L10nUtilTest.GetDisplayNameForCountry
