@@ -140,12 +140,12 @@ class JSONStringValue : public base::Value {
         string_piece_(piece) {
   }
 
-  // Value:
-  bool GetAsString(std::string* out_value) const OVERRIDE {
+  // Overridden from base::Value:
+  virtual bool GetAsString(std::string* out_value) const OVERRIDE {
     string_piece_.CopyToString(out_value);
     return true;
   }
-  bool GetAsString(string16* out_value) const OVERRIDE {
+  virtual bool GetAsString(string16* out_value) const OVERRIDE {
     *out_value = UTF8ToUTF16(string_piece_);
     return true;
   }

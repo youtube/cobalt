@@ -115,7 +115,7 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
 
  private:
   // Cleans up and stops observing the |message_loop_| thread.
-  void CancelOnMessageLoopThread() OVERRIDE;
+  virtual void CancelOnMessageLoopThread() OVERRIDE;
 
   // Inotify watches are installed for all directory components of |target_|. A
   // WatchEntry instance holds the watch descriptor for a component and the
