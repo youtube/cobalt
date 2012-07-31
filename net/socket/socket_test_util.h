@@ -619,6 +619,7 @@ class MockClientSocket : public SSLClientSocket {
                                    const base::StringPiece& context,
                                    unsigned char* out,
                                    unsigned int outlen) OVERRIDE;
+  virtual int GetTLSUniqueChannelBinding(std::string* out) OVERRIDE;
   virtual NextProtoStatus GetNextProto(std::string* proto,
                                        std::string* server_protos) OVERRIDE;
   virtual ServerBoundCertService* GetServerBoundCertService() const OVERRIDE;

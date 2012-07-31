@@ -745,6 +745,11 @@ int MockClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
   return OK;
 }
 
+int MockClientSocket::GetTLSUniqueChannelBinding(std::string* out) {
+  out->assign("MOCK_TLSUNIQ");
+  return OK;
+}
+
 ServerBoundCertService* MockClientSocket::GetServerBoundCertService() const {
   NOTREACHED();
   return NULL;
