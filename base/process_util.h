@@ -532,7 +532,7 @@ BASE_EXPORT bool WaitForSingleProcess(ProcessHandle handle,
 // any processes needed to be killed, true if they all exited cleanly within
 // the wait_milliseconds delay.
 BASE_EXPORT bool CleanupProcesses(const FilePath::StringType& executable_name,
-                                  int64 wait_milliseconds,
+                                  base::TimeDelta wait,
                                   int exit_code,
                                   const ProcessFilter* filter);
 
