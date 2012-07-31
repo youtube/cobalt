@@ -118,7 +118,8 @@ TEST_F(SystemMonitorTest, DeviceChangeNotifications) {
   for (int index = 0; index < kObservers; ++index) {
     system_monitor_->AddDevicesChangedObserver(&observers[index]);
 
-    EXPECT_CALL(observers[index], OnDevicesChanged())
+    EXPECT_CALL(observers[index],
+                OnDevicesChanged(base::SystemMonitor::DEVTYPE_UNKNOWN))
         .Times(3)
         .InSequence(mock_sequencer[index]);
     EXPECT_CALL(observers[index],
@@ -133,11 +134,11 @@ TEST_F(SystemMonitorTest, DeviceChangeNotifications) {
         .InSequence(mock_sequencer[index]);
   }
 
-  system_monitor_->ProcessDevicesChanged();
+  system_monitor_->ProcessDevicesChanged(base::SystemMonitor::DEVTYPE_UNKNOWN);
   message_loop_.RunAllPending();
 
-  system_monitor_->ProcessDevicesChanged();
-  system_monitor_->ProcessDevicesChanged();
+  system_monitor_->ProcessDevicesChanged(base::SystemMonitor::DEVTYPE_UNKNOWN);
+  system_monitor_->ProcessDevicesChanged(base::SystemMonitor::DEVTYPE_UNKNOWN);
   message_loop_.RunAllPending();
 
   system_monitor_->ProcessMediaDeviceAttached(

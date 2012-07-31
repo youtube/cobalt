@@ -51,6 +51,13 @@ class BASE_EXPORT SystemMonitor {
     RESUME_EVENT        // The system is being resumed.
   };
 
+  // Type of devices whose change need to be monitored, such as add/remove.
+  enum DeviceType {
+    DEVTYPE_AUDIO_CAPTURE,  // Audio capture device, e.g., microphone.
+    DEVTYPE_VIDEO_CAPTURE,  // Video capture device, e.g., webcam.
+    DEVTYPE_UNKNOWN,  // Other devices.
+  };
+
   // Type of location data to identify a currently attached media device.
   enum MediaDeviceType {
     TYPE_PATH,  // FilePath::StringType, e.g. a mount point.
@@ -140,7 +147,7 @@ class BASE_EXPORT SystemMonitor {
    public:
     // Notification that the devices connected to the system have changed.
     // This is only implemented on Windows currently.
-    virtual void OnDevicesChanged() {}
+    virtual void OnDevicesChanged(DeviceType device_type) {}
 
     // When a media device is attached or detached, one of these two events
     // is triggered.
@@ -178,7 +185,7 @@ class BASE_EXPORT SystemMonitor {
   void ProcessPowerMessage(PowerEvent event_id);
 
   // Cross-platform handling of a device change event.
-  void ProcessDevicesChanged();
+  void ProcessDevicesChanged(DeviceType device_type);
   void ProcessMediaDeviceAttached(const std::string& id,
                                   const string16& name,
                                   MediaDeviceType type,
@@ -204,7 +211,7 @@ class BASE_EXPORT SystemMonitor {
   void BatteryCheck();
 
   // Functions to trigger notifications.
-  void NotifyDevicesChanged();
+  void NotifyDevicesChanged(DeviceType device_type);
   void NotifyMediaDeviceAttached(const std::string& id,
                                  const string16& name,
                                  MediaDeviceType type,
