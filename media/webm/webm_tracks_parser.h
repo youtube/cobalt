@@ -16,7 +16,7 @@ namespace media {
 // Parser for WebM Tracks element.
 class WebMTracksParser : public WebMParserClient {
  public:
-  explicit WebMTracksParser(int64 timecode_scale);
+  explicit WebMTracksParser();
   virtual ~WebMTracksParser();
 
   // Parses a WebM Tracks element in |buf|.
@@ -41,8 +41,6 @@ class WebMTracksParser : public WebMParserClient {
   virtual bool OnBinary(int id, const uint8* data, int size) OVERRIDE;
   virtual bool OnString(int id, const std::string& str) OVERRIDE;
 
-  int64 timecode_scale_;
-
   int64 track_type_;
   int64 track_num_;
   scoped_ptr<WebMContentEncodingsClient> track_content_encodings_client_;
@@ -53,7 +51,7 @@ class WebMTracksParser : public WebMParserClient {
   int64 video_track_num_;
   scoped_ptr<WebMContentEncodingsClient> video_content_encodings_client_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WebMTracksParser);
+  DISALLOW_COPY_AND_ASSIGN(WebMTracksParser);
 };
 
 }  // namespace media

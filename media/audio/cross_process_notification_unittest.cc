@@ -115,7 +115,6 @@ class MultiNotifierWorker : public base::PlatformThread::Delegate {
   size_t* shared_data_;
   size_t repeats_;
   const CrossProcessNotification::Notifications* notifiers_;
-  size_t count_;
   DISALLOW_COPY_AND_ASSIGN(MultiNotifierWorker);
 };
 
