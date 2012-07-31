@@ -149,7 +149,7 @@ template <typename Type> base::subtle::Atomic32
 // Example usage:
 //
 // In your header:
-//   #include "base/memory/singleton.h"
+//   template <typename T> struct DefaultSingletonTraits;
 //   class FooClass {
 //    public:
 //     static FooClass* GetInstance();  <-- See comment below on this.
@@ -162,6 +162,7 @@ template <typename Type> base::subtle::Atomic32
 //   };
 //
 // In your source file:
+//  #include "base/memory/singleton.h"
 //  FooClass* FooClass::GetInstance() {
 //    return Singleton<FooClass>::get();
 //  }
