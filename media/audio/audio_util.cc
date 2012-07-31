@@ -546,10 +546,10 @@ int NumberOfWaveOutBuffers() {
   // 2 otherwise.
   // Entire Windows audio stack was rewritten for Windows Vista, and wave out
   // API is simulated on top of new API, so there is noticeable performance
-  // degradation compared to Windows XP. Part of regression was fixed in
-  // Windows 7. Maybe it is fixed in Vista Serice Pack, but let's be cautious.
+  // degradation compared to Windows XP. Part of regression was apparently fixed
+  // in Windows 7, but problems remain at least with some configurations.
   if ((base::SysInfo::NumberOfProcessors() < 2) ||
-      (base::win::GetVersion() == base::win::VERSION_VISTA)) {
+      (base::win::GetVersion() >= base::win::VERSION_VISTA)) {
     return 3;
   }
   return 2;
