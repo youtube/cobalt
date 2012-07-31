@@ -641,13 +641,13 @@
     # Additional documentation on these macros is available at
     # http://developer.apple.com/mac/library/technotes/tn2002/tn2064.html#SECTION3
     # Chrome normally builds with the Mac OS X 10.6 SDK and sets the
-    # deployment target to 10.5.  Other projects, such as O3D, may override
+    # deployment target to 10.6.  Other projects, such as O3D, may override
     # these defaults. If the SDK is installed someplace that Xcode doesn't
     # know about, set mac_sdk_path to the path to the SDK. If set to a
     # non-empty string, mac_sdk_path will be used in preference to mac_sdk.
     # mac_sdk gets its default value elsewhere in this file.
     'mac_sdk_path%': '',
-    'mac_deployment_target%': '10.5',
+    'mac_deployment_target%': '10.6',
 
     # The default value for mac_strip in target_defaults. This cannot be
     # set there, per the comment about variable% in a target_defaults.
