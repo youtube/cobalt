@@ -83,8 +83,8 @@ void SystemMonitor::ProcessPowerMessage(PowerEvent event_id) {
   }
 }
 
-void SystemMonitor::ProcessDevicesChanged() {
-  NotifyDevicesChanged();
+void SystemMonitor::ProcessDevicesChanged(DeviceType device_type) {
+  NotifyDevicesChanged(device_type);
 }
 
 void SystemMonitor::ProcessMediaDeviceAttached(
@@ -136,10 +136,10 @@ void SystemMonitor::RemoveDevicesChangedObserver(DevicesChangedObserver* obs) {
   devices_changed_observer_list_->RemoveObserver(obs);
 }
 
-void SystemMonitor::NotifyDevicesChanged() {
-  DVLOG(1) << "DevicesChanged";
+void SystemMonitor::NotifyDevicesChanged(DeviceType device_type) {
+  DVLOG(1) << "DevicesChanged with device type " << device_type;
   devices_changed_observer_list_->Notify(
-    &DevicesChangedObserver::OnDevicesChanged);
+      &DevicesChangedObserver::OnDevicesChanged, device_type);
 }
 
 void SystemMonitor::NotifyMediaDeviceAttached(
