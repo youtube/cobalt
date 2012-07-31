@@ -2824,6 +2824,22 @@ int SSLClientSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
   return OK;
 }
 
+int SSLClientSocketNSS::GetTLSUniqueChannelBinding(std::string* out) {
+  if (!IsConnected())
+    return ERR_SOCKET_NOT_CONNECTED;
+  unsigned char buf[64];
+  unsigned int len;
+  SECStatus result = SSL_GetChannelBinding(nss_fd_,
+                                           SSL_CHANNEL_BINDING_TLS_UNIQUE,
+                                           buf, &len, arraysize(buf));
+  if (result != SECSuccess) {
+    LogFailedNSSFunction(net_log_, "SSL_GetChannelBinding", "");
+    return MapNSSError(PORT_GetError());
+  }
+  out->assign(reinterpret_cast<char*>(buf), len);
+  return OK;
+}
+
 SSLClientSocket::NextProtoStatus
 SSLClientSocketNSS::GetNextProto(std::string* proto,
                                  std::string* server_protos) {
