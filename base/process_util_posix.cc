@@ -1268,7 +1268,8 @@ class BackgroundReaper : public PlatformThread::Delegate {
         timeout_(timeout) {
   }
 
-  void ThreadMain() {
+  // Overridden from PlatformThread::Delegate:
+  virtual void ThreadMain() OVERRIDE {
     WaitForChildToDie();
     delete this;
   }
