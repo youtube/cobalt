@@ -29,6 +29,7 @@
       'type': 'none',
       'dependencies': [
         '../base/base.gyp:base_unittests',
+        '../content/content.gyp:content_shell_test_apk',
         '../content/content.gyp:content_unittests',
         '../chrome/chrome.gyp:unit_tests',
         '../gpu/gpu.gyp:gpu_unittests',
