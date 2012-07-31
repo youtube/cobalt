@@ -16,9 +16,8 @@ namespace media {
 static const int kWebMTrackTypeVideo = 1;
 static const int kWebMTrackTypeAudio = 2;
 
-WebMTracksParser::WebMTracksParser(int64 timecode_scale)
-    : timecode_scale_(timecode_scale),
-      track_type_(-1),
+WebMTracksParser::WebMTracksParser()
+    : track_type_(-1),
       track_num_(-1),
       audio_track_num_(-1),
       video_track_num_(-1) {

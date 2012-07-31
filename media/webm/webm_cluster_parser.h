@@ -19,10 +19,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
 
-  // Size is defined by the WebM encryption specification.
-  // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-  static const int kIvSize = 8;
-
   WebMClusterParser(int64 timecode_scale,
                     int audio_track_num,
                     int video_track_num,
