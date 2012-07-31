@@ -131,8 +131,8 @@ static bool IsOCSPStaplingSupported() {
 #elif defined(USE_NSS)
 typedef SECStatus
 (*CacheOCSPResponseFromSideChannelFunction)(
-    CERTCertDBHandle *handle, CERTCertificate *cert, PRTime time,
-    SECItem *encodedResponse, void *pwArg);
+    CERTCertDBHandle* handle, CERTCertificate* cert, PRTime time,
+    SECItem* encodedResponse, void* pwArg);
 
 // On Linux, we dynamically link against the system version of libnss3.so. In
 // order to continue working on systems without up-to-date versions of NSS we
@@ -2763,10 +2763,14 @@ bool SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->connection_status =
       core_->state().ssl_connection_status;
   ssl_info->public_key_hashes = server_cert_verify_result_.public_key_hashes;
-  for (std::vector<SHA1Fingerprint>::const_iterator
-       i = side_pinned_public_keys_.begin();
-       i != side_pinned_public_keys_.end(); i++) {
-    ssl_info->public_key_hashes.push_back(*i);
+  // TODO(palmer) TODO(agl): Do side pins need to be in both SHA1 and SHA256
+  // forms? If consumers of side pins only care about SHA1, it is OK to put
+  // them only in the HASH_VALUE_SHA1 vector.
+  HashValueVector& sha1_hashes =
+      ssl_info->public_key_hashes[HASH_VALUE_SHA1];
+  for (HashValueVector::const_iterator i = side_pinned_public_keys_.begin();
+       i != side_pinned_public_keys_.end(); ++i) {
+    sha1_hashes.push_back(*i);
   }
   ssl_info->is_issued_by_known_root =
       server_cert_verify_result_.is_issued_by_known_root;
