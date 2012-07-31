@@ -142,8 +142,11 @@ void AudioOutputDevice::ShutDownOnIOThread() {
   if (stream_id_) {
     is_started_ = false;
 
-    ipc_->CloseStream(stream_id_);
-    ipc_->RemoveDelegate(stream_id_);
+    if (ipc_) {
+      ipc_->CloseStream(stream_id_);
+      ipc_->RemoveDelegate(stream_id_);
+    }
+
     stream_id_ = 0;
   }
 

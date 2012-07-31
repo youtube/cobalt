@@ -253,8 +253,10 @@ void AudioInputDevice::ShutDownOnIOThread() {
   // NOTE: |completion| may be NULL.
   // Make sure we don't call shutdown more than once.
   if (stream_id_) {
-    ipc_->CloseStream(stream_id_);
-    ipc_->RemoveDelegate(stream_id_);
+    if (ipc_) {
+      ipc_->CloseStream(stream_id_);
+      ipc_->RemoveDelegate(stream_id_);
+    }
 
     stream_id_ = 0;
     session_id_ = 0;
