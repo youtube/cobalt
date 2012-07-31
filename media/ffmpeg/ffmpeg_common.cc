@@ -254,8 +254,6 @@ void AVStreamToVideoDecoderConfig(
                      profile,
                      PixelFormatToVideoFormat(stream->codec->pix_fmt),
                      coded_size, visible_rect,
-                     stream->r_frame_rate.num,
-                     stream->r_frame_rate.den,
                      aspect_ratio.num,
                      aspect_ratio.den,
                      stream->codec->extradata,
@@ -354,14 +352,6 @@ PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
       DVLOG(1) << "Unsupported VideoFrame::Format: " << video_format;
   }
   return PIX_FMT_NONE;
-}
-
-base::TimeDelta GetFrameDuration(const VideoDecoderConfig& config) {
-  AVRational time_base = {
-    config.frame_rate_denominator(),
-    config.frame_rate_numerator()
-  };
-  return ConvertFromTimeBase(time_base, 1);
 }
 
 void DestroyAVFormatContext(AVFormatContext* format_context) {

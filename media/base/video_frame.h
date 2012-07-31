@@ -43,8 +43,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       Format format,
       size_t width,
       size_t height,
-      base::TimeDelta timestamp,
-      base::TimeDelta duration);
+      base::TimeDelta timestamp);
 
   // Call prior to CreateFrame to ensure validity of frame configuration. Called
   // automatically by VideoDecoderConfig::IsValidConfig().
@@ -62,11 +61,10 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       size_t width,
       size_t height,
       base::TimeDelta timestamp,
-      base::TimeDelta duration,
       const base::Closure& no_longer_needed);
 
-  // Creates a frame with format equals to VideoFrame::EMPTY, width, height
-  // timestamp and duration are all 0.
+  // Creates a frame with format equals to VideoFrame::EMPTY, width, height,
+  // and timestamp are all 0.
   static scoped_refptr<VideoFrame> CreateEmptyFrame();
 
   // Allocates YV12 frame based on |width| and |height|, and sets its data to
@@ -109,13 +107,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
     timestamp_ = timestamp;
   }
 
-  base::TimeDelta GetDuration() const {
-    return duration_;
-  }
-  void SetDuration(const base::TimeDelta& duration) {
-    duration_ = duration;
-  }
-
   // Used to keep a running hash of seen frames.  Expects an initialized MD5
   // context.  Calls MD5Update with the context and the contents of the frame.
   void HashFrameForTesting(base::MD5Context* context);
@@ -126,8 +117,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   VideoFrame(Format format,
              size_t video_width,
              size_t video_height,
-             base::TimeDelta timestamp,
-             base::TimeDelta duration);
+             base::TimeDelta timestamp);
   virtual ~VideoFrame();
 
   // Used internally by CreateFrame().
@@ -158,7 +148,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   base::Closure texture_no_longer_needed_;
 
   base::TimeDelta timestamp_;
-  base::TimeDelta duration_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(VideoFrame);
 };

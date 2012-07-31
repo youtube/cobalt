@@ -21,11 +21,10 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
     VideoFrame::Format format,
     size_t width,
     size_t height,
-    base::TimeDelta timestamp,
-    base::TimeDelta duration) {
+    base::TimeDelta timestamp) {
   DCHECK(IsValidConfig(format, width, height));
   scoped_refptr<VideoFrame> frame(new VideoFrame(
-      format, width, height, timestamp, duration));
+      format, width, height, timestamp));
   switch (format) {
     case VideoFrame::RGB32:
       frame->AllocateRGB(4u);
@@ -59,10 +58,9 @@ scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
     size_t width,
     size_t height,
     base::TimeDelta timestamp,
-    base::TimeDelta duration,
     const base::Closure& no_longer_needed) {
   scoped_refptr<VideoFrame> frame(
-      new VideoFrame(NATIVE_TEXTURE, width, height, timestamp, duration));
+      new VideoFrame(NATIVE_TEXTURE, width, height, timestamp));
   frame->texture_id_ = texture_id;
   frame->texture_target_ = texture_target;
   frame->texture_no_longer_needed_ = no_longer_needed;
@@ -72,7 +70,7 @@ scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
 // static
 scoped_refptr<VideoFrame> VideoFrame::CreateEmptyFrame() {
   return new VideoFrame(
-      VideoFrame::EMPTY, 0, 0, base::TimeDelta(), base::TimeDelta());
+      VideoFrame::EMPTY, 0, 0, base::TimeDelta());
 }
 
 // static
@@ -83,7 +81,7 @@ scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(int width, int height) {
   // Create our frame.
   const base::TimeDelta kZero;
   scoped_refptr<VideoFrame> frame =
-      VideoFrame::CreateFrame(VideoFrame::YV12, width, height, kZero, kZero);
+      VideoFrame::CreateFrame(VideoFrame::YV12, width, height, kZero);
 
   // Now set the data to YUV(0,128,128).
   const uint8 kBlackY = 0x00;
@@ -167,15 +165,13 @@ void VideoFrame::AllocateYUV() {
 VideoFrame::VideoFrame(VideoFrame::Format format,
                        size_t width,
                        size_t height,
-                       base::TimeDelta timestamp,
-                       base::TimeDelta duration)
+                       base::TimeDelta timestamp)
     : format_(format),
       width_(width),
       height_(height),
       texture_id_(0),
       texture_target_(0),
-      timestamp_(timestamp),
-      duration_(duration) {
+      timestamp_(timestamp) {
   memset(&strides_, 0, sizeof(strides_));
   memset(&data_, 0, sizeof(data_));
 }

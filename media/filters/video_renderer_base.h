@@ -86,6 +86,9 @@ class MEDIA_EXPORT VideoRendererBase
   void FrameReady(VideoDecoder::DecoderStatus status,
                   const scoped_refptr<VideoFrame>& frame);
 
+  // Helper method for adding a frame to |ready_frames_|
+  void AddReadyFrame(const scoped_refptr<VideoFrame>& frame);
+
   // Helper method that schedules an asynchronous read from the decoder as long
   // as there isn't a pending read and we have capacity.
   void AttemptRead_Locked();
@@ -213,6 +216,10 @@ class MEDIA_EXPORT VideoRendererBase
   TimeDeltaCB get_duration_cb_;
 
   base::TimeDelta preroll_timestamp_;
+
+  // Delayed frame used during kPrerolling to determine whether
+  // |preroll_timestamp_| is between this frame and the next one.
+  scoped_refptr<VideoFrame> prerolling_delayed_frame_;
 
   // Embedder callback for notifying a new frame is available for painting.
   base::Closure paint_cb_;
