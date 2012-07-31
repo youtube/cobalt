@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,15 +45,10 @@ class NET_EXPORT CertVerifyResult {
   bool has_md5_ca;
   bool has_md2_ca;
 
-  // If the certificate was successfully verified then this contains the
-  // fingerprints, in several hash algorithms, of the SubjectPublicKeyInfos
-  // of the chain. The fingerprint from the leaf certificate will be the
-  // first element of each sub-vector.
-  //
-  // This is a vector of vectors: Index the outer vector with
-  // FingerprintTag, and then the inner HashValueVectors will be
-  // fingerprints made with the algorithm named by the FingerprintTag.
-  std::vector<HashValueVector> public_key_hashes;
+  // If the certificate was successfully verified then this contains the SHA1
+  // fingerprints of the SubjectPublicKeyInfos of the chain. The fingerprint
+  // from the leaf certificate will be the first element of the vector.
+  std::vector<SHA1Fingerprint> public_key_hashes;
 
   // is_issued_by_known_root is true if we recognise the root CA as a standard
   // root.  If it isn't then it's probably the case that this certificate was
