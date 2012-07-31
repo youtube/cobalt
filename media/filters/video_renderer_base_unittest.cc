@@ -197,7 +197,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     if (timestamp == kEndOfStream) {
       read_cb.Run(VideoDecoder::kOk, VideoFrame::CreateEmptyFrame());
     } else {
-      read_cb.Run(VideoDecoder::kOk, CreateFrame(timestamp, kFrameDuration));
+      read_cb.Run(VideoDecoder::kOk, CreateFrame(timestamp));
     }
   }
 
@@ -250,13 +250,12 @@ class VideoRendererBaseTest : public ::testing::Test {
     event_.Reset();
   }
 
-  // Creates a frame with given timestamp and duration.
-  scoped_refptr<VideoFrame> CreateFrame(int64 timestamp, int64 duration) {
+  // Creates a frame with given timestamp.
+  scoped_refptr<VideoFrame> CreateFrame(int64 timestamp) {
     scoped_refptr<VideoFrame> frame =
         VideoFrame::CreateFrame(VideoFrame::RGB32, kNaturalSize.width(),
                                 kNaturalSize.height(),
-                                base::TimeDelta::FromMicroseconds(timestamp),
-                                base::TimeDelta::FromMicroseconds(duration));
+                                base::TimeDelta::FromMicroseconds(timestamp));
     return frame;
   }
 
@@ -369,7 +368,7 @@ class VideoRendererBaseTest : public ::testing::Test {
           read_cb.Run(VideoDecoder::kOk, VideoFrame::CreateEmptyFrame());
         } else {
           read_cb.Run(VideoDecoder::kOk,
-                      CreateFrame(i * kFrameDuration, kFrameDuration));
+                      CreateFrame(i * kFrameDuration));
           i++;
         }
       } else {
@@ -442,7 +441,7 @@ TEST_F(VideoRendererBaseTest, EndOfStream) {
   // Finish rendering the last frame, we should NOT get a new frame but instead
   // get notified of end of stream.
   DeliverFrame(kEndOfStream);
-  RenderLastFrame(kFrameDuration * limits::kMaxVideoFrames);
+  RenderLastFrame(kVideoDuration);
 
   Shutdown();
 }
