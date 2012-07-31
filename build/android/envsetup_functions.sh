@@ -146,14 +146,16 @@ common_gyp_vars() {
 ################################################################################
 # Initializes environment variables for NDK/SDK build. Only Android NDK Revision
 # 7 on Linux or Mac is offically supported. To run this script, the system
-# environment ANDROID_NDK_ROOT must be set to Android NDK's root path as well as
-# ANDROID_SDK_ROOT to the SDK root.
+# environment ANDROID_NDK_ROOT must be set to Android NDK's root path.  The
+# ANDROID_SDK_ROOT only needs to be set to override the default SDK which is in
+# the tree under $ROOT/src/third_party/android_tools/sdk.
+# TODO(navabi): Add NDK to $ROOT/src/third_party/android_tools/ndk.
 # To build Chromium for Android with NDK/SDK follow the steps below:
 #  > export ANDROID_NDK_ROOT=<android ndk root>
-#  > export ANDROID_SDK_ROOT=<android sdk root>
+#  > export ANDROID_SDK_ROOT=<android sdk root> # to override the default sdk
 #  > . build/android/envsetup.sh --sdk
 #  > make
-#############################################################################
+################################################################################
 sdk_build_init() {
   if [ ! -d "${ANDROID_NDK_ROOT}" ]; then
     echo "ANDROID_NDK_ROOT must be set to the path of Android NDK." >& 2
@@ -162,11 +164,10 @@ sdk_build_init() {
     return 1
   fi
 
+  # If ANDROID_SDK_ROOT is set when envsetup is run, use the sdk pointed to by
+  # the environment variable.  Otherwise, use the default sdk from the tree.
   if [ ! -d "${ANDROID_SDK_ROOT}" ]; then
-    echo "ANDROID_SDK_ROOT must be set to the path of Android SDK." >& 2
-    echo "which could be installed by" >& 2
-    echo "<chromium_tree>/src/build/install-build-deps-android-sdk.sh" >& 2
-    return 1
+    export ANDROID_SDK_ROOT="${CHROME_SRC}/third_party/android_tools/sdk/"
   fi
 
   # Makes sure ANDROID_BUILD_TOP is unset if build has option --sdk
