@@ -338,13 +338,13 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 }
 
 // static
-SHA1Fingerprint X509Certificate::CalculateFingerprint(
+SHA1HashValue X509Certificate::CalculateFingerprint(
     OSCertHandle cert) {
   DCHECK(NULL != cert->pbCertEncoded);
   DCHECK_NE(static_cast<DWORD>(0), cert->cbCertEncoded);
 
   BOOL rv;
-  SHA1Fingerprint sha1;
+  SHA1HashValue sha1;
   DWORD sha1_size = sizeof(sha1.data);
   rv = CryptHashCertificate(NULL, CALG_SHA1, 0, cert->pbCertEncoded,
                             cert->cbCertEncoded, sha1.data, &sha1_size);
@@ -358,9 +358,9 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
 // functions to ensure it is fast.  Reimplement this function with
 // CryptoAPI.  May need to cache the HCRYPTPROV to reduce the overhead.
 // static
-SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
+SHA1HashValue X509Certificate::CalculateCAFingerprint(
     const OSCertHandles& intermediates) {
-  SHA1Fingerprint sha1;
+  SHA1HashValue sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
   SHA1Context* sha1_ctx = SHA1_NewContext();
