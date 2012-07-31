@@ -114,7 +114,6 @@ class FFmpegDemuxerStream : public DemuxerStream {
   VideoDecoderConfig video_config_;
   Type type_;
   base::TimeDelta duration_;
-  bool discontinuous_;
   bool stopped_;
   base::TimeDelta last_packet_timestamp_;
   Ranges<base::TimeDelta> buffered_ranges_;

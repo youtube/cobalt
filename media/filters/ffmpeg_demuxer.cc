@@ -35,7 +35,6 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(
     : demuxer_(demuxer),
       stream_(stream),
       type_(UNKNOWN),
-      discontinuous_(false),
       stopped_(false),
       last_packet_timestamp_(kNoTimestamp()) {
   DCHECK(demuxer_);

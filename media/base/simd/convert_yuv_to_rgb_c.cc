@@ -39,11 +39,6 @@ static inline void ConvertYUVToRGB32_C(uint8 y,
                                         (packuswb(a) << 24);
 }
 
-// 16.16 fixed point arithmetic
-const int kFractionBits = 16;
-const int kFractionMax = 1 << kFractionBits;
-const int kFractionMask = ((1 << kFractionBits) - 1);
-
 extern "C" {
 
 void ConvertYUVToRGB32Row_C(const uint8* y_buf,

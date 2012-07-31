@@ -39,12 +39,12 @@ class MEDIA_EXPORT AudioParameters {
     AUDIO_LAST_FORMAT         // Only used for validation of format.y
   };
 
-  // Telephone quality sample rate, mostly for speech-only audio.
-  static const uint32 kTelephoneSampleRate = 8000;
-  // CD sampling rate is 44.1 KHz or conveniently 2x2x3x3x5x5x7x7.
-  static const uint32 kAudioCDSampleRate = 44100;
-  // Digital Audio Tape sample rate.
-  static const uint32 kAudioDATSampleRate = 48000;
+  enum {
+    // Telephone quality sample rate, mostly for speech-only audio.
+    kTelephoneSampleRate = 8000,
+    // CD sampling rate is 44.1 KHz or conveniently 2x2x3x3x5x5x7x7.
+    kAudioCDSampleRate = 44100,
+  };
 
   AudioParameters();
   AudioParameters(Format format, ChannelLayout channel_layout,

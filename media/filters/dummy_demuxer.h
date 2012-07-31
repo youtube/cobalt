@@ -56,8 +56,6 @@ class MEDIA_EXPORT DummyDemuxer : public Demuxer {
   virtual ~DummyDemuxer();
 
  private:
-  bool has_video_;
-  bool has_audio_;
   std::vector< scoped_refptr<DummyDemuxerStream> > streams_;
 
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxer);
