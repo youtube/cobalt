@@ -1155,6 +1155,9 @@
       ['enable_printing==1', {
         'grit_defines': ['-D', 'enable_printing'],
       }],
+      ['enable_themes==1', {
+        'grit_defines': ['-D', 'enable_themes'],
+      }],
       ['clang_use_chrome_plugins==1 and OS!="win"', {
         'clang_chrome_plugins_flags': [
           '<!@(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)'
