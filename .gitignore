@@ -22,6 +22,7 @@
 *.vtg
 *.xcodeproj
 *_proto.xml
+*_proto_cpp.xml
 *~
 .*.sw?
 .DS_Store
