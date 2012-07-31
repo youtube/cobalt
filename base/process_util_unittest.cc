@@ -504,6 +504,7 @@ TEST_F(ProcessUtilTest, MacMallocFailureDoesNotTerminate) {
 TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
   // Assert that freeing an unallocated pointer will crash the process.
   char buf[3];
+  asm("" : "=r" (buf));  // Prevent clang from being too smart.
 #if !defined(ADDRESS_SANITIZER)
   ASSERT_DEATH(free(buf), "being freed.*"
       "\\*\\*\\* set a breakpoint in malloc_error_break to debug.*"
