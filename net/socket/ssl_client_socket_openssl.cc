@@ -663,6 +663,10 @@ int SSLClientSocketOpenSSL::ExportKeyingMaterial(
   return OK;
 }
 
+int SSLClientSocketOpenSSL::GetTLSUniqueChannelBinding(std::string* out) {
+  return ERR_NOT_IMPLEMENTED;
+}
+
 SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
     std::string* proto, std::string* server_protos) {
   *proto = npn_proto_;

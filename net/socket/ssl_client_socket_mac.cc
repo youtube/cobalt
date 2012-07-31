@@ -789,6 +789,10 @@ int SSLClientSocketMac::ExportKeyingMaterial(const base::StringPiece& label,
   return ERR_NOT_IMPLEMENTED;
 }
 
+int SSLClientSocketMac::GetTLSUniqueChannelBinding(std::string* out) {
+  return ERR_NOT_IMPLEMENTED;
+}
+
 SSLClientSocket::NextProtoStatus
 SSLClientSocketMac::GetNextProto(std::string* proto,
                                  std::string* server_protos) {

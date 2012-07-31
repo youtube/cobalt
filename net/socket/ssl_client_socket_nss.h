@@ -68,13 +68,16 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // SSLClientSocket implementation.
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) OVERRIDE;
+  virtual NextProtoStatus GetNextProto(std::string* proto,
+                                       std::string* server_protos) OVERRIDE;
+
+  // SSLSocket implementation.
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
                                    bool has_context,
                                    const base::StringPiece& context,
                                    unsigned char* out,
                                    unsigned int outlen) OVERRIDE;
-  virtual NextProtoStatus GetNextProto(std::string* proto,
-                                       std::string* server_protos) OVERRIDE;
+  virtual int GetTLSUniqueChannelBinding(std::string* out) OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
