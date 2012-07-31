@@ -554,6 +554,10 @@ int SSLClientSocketWin::ExportKeyingMaterial(const base::StringPiece& label,
   return ERR_NOT_IMPLEMENTED;
 }
 
+int SSLClientSocketWin::GetTLSUniqueChannelBinding(std::string* out) {
+  return ERR_NOT_IMPLEMENTED;
+}
+
 SSLClientSocket::NextProtoStatus
 SSLClientSocketWin::GetNextProto(std::string* proto,
                                  std::string* server_protos) {

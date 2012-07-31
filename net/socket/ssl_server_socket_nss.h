@@ -32,11 +32,14 @@ class SSLServerSocketNSS : public SSLServerSocket {
 
   // SSLServerSocket interface.
   virtual int Handshake(const CompletionCallback& callback) OVERRIDE;
+
+  // SSLSocket interface.
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
                                    bool has_context,
                                    const base::StringPiece& context,
                                    unsigned char* out,
                                    unsigned int outlen) OVERRIDE;
+  virtual int GetTLSUniqueChannelBinding(std::string* out) OVERRIDE;
 
   // Socket interface (via StreamSocket).
   virtual int Read(IOBuffer* buf, int buf_len,
