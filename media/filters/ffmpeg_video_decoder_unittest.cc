@@ -36,7 +36,6 @@ namespace media {
 static const VideoFrame::Format kVideoFormat = VideoFrame::YV12;
 static const gfx::Size kCodedSize(320, 240);
 static const gfx::Rect kVisibleRect(320, 240);
-static const AVRational kFrameRate = { 100, 1 };
 static const AVRational kAspectRatio = { 1, 1 };
 static const uint8 kFakeKeyId[] = { 0x4b, 0x65, 0x79, 0x20, 0x49, 0x44 };
 static const uint8 kFakeIv[DecryptConfig::kDecryptionKeySize] = { 0 };
@@ -89,7 +88,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
 
     config_.Initialize(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
                        kVideoFormat, kCodedSize, kVisibleRect,
-                       kFrameRate.num, kFrameRate.den,
                        kAspectRatio.num, kAspectRatio.den,
                        NULL, 0, true);
   }
@@ -249,7 +247,6 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_UnsupportedDecoder) {
   VideoDecoderConfig config(kUnknownVideoCodec, VIDEO_CODEC_PROFILE_UNKNOWN,
                             kVideoFormat,
                             kCodedSize, kVisibleRect,
-                            kFrameRate.num, kFrameRate.den,
                             kAspectRatio.num, kAspectRatio.den,
                             NULL, 0);
   InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
@@ -260,7 +257,6 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_UnsupportedPixelFormat) {
   VideoDecoderConfig config(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
                             VideoFrame::INVALID,
                             kCodedSize, kVisibleRect,
-                            kFrameRate.num, kFrameRate.den,
                             kAspectRatio.num, kAspectRatio.den,
                             NULL, 0);
   InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
@@ -271,7 +267,6 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_OpenDecoderFails) {
   VideoDecoderConfig config(kCodecTheora, VIDEO_CODEC_PROFILE_UNKNOWN,
                             kVideoFormat,
                             kCodedSize, kVisibleRect,
-                            kFrameRate.num, kFrameRate.den,
                             kAspectRatio.num, kAspectRatio.den,
                             NULL, 0);
   InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);

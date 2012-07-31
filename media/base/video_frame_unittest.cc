@@ -49,8 +49,7 @@ void ExpectFrameColor(media::VideoFrame* yv12_frame, uint32 expect_rgb_color) {
   rgb_frame = media::VideoFrame::CreateFrame(VideoFrame::RGB32,
                                              yv12_frame->width(),
                                              yv12_frame->height(),
-                                             yv12_frame->GetTimestamp(),
-                                             yv12_frame->GetDuration());
+                                             yv12_frame->GetTimestamp());
 
   ASSERT_EQ(yv12_frame->width(), rgb_frame->width());
   ASSERT_EQ(yv12_frame->height(), rgb_frame->height());
@@ -87,10 +86,9 @@ void ExpectFrameExtents(VideoFrame::Format format, int planes,
   const size_t kWidth = 61;
   const size_t kHeight = 31;
   const base::TimeDelta kTimestamp = base::TimeDelta::FromMicroseconds(1337);
-  const base::TimeDelta kDuration = base::TimeDelta::FromMicroseconds(1667);
 
   scoped_refptr<VideoFrame> frame = VideoFrame::CreateFrame(
-      format, kWidth, kHeight, kTimestamp, kDuration);
+      format, kWidth, kHeight, kTimestamp);
   ASSERT_TRUE(frame);
 
   for(int plane = 0; plane < planes; plane++) {
@@ -121,12 +119,11 @@ TEST(VideoFrame, CreateFrame) {
   const size_t kWidth = 64;
   const size_t kHeight = 48;
   const base::TimeDelta kTimestamp = base::TimeDelta::FromMicroseconds(1337);
-  const base::TimeDelta kDuration = base::TimeDelta::FromMicroseconds(1667);
 
   // Create a YV12 Video Frame.
   scoped_refptr<media::VideoFrame> frame =
       VideoFrame::CreateFrame(media::VideoFrame::YV12, kWidth, kHeight,
-                              kTimestamp, kDuration);
+                              kTimestamp);
   ASSERT_TRUE(frame);
 
   // Test VideoFrame implementation.
@@ -169,7 +166,6 @@ TEST(VideoFrame, CreateBlackFrame) {
 
   // Test basic properties.
   EXPECT_EQ(0, frame->GetTimestamp().InMicroseconds());
-  EXPECT_EQ(0, frame->GetDuration().InMicroseconds());
   EXPECT_FALSE(frame->IsEndOfStream());
 
   // Test |frame| properties.

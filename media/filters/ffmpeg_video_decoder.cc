@@ -60,8 +60,6 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(
       state_(kUninitialized),
       codec_context_(NULL),
       av_frame_(NULL),
-      frame_rate_numerator_(0),
-      frame_rate_denominator_(0),
       decryptor_(NULL) {
 }
 
@@ -84,8 +82,7 @@ int FFmpegVideoDecoder::GetVideoBuffer(AVCodecContext* codec_context,
     return ret;
 
   scoped_refptr<VideoFrame> video_frame =
-      VideoFrame::CreateFrame(format, width, height,
-                              kNoTimestamp(), kNoTimestamp());
+      VideoFrame::CreateFrame(format, width, height, kNoTimestamp());
 
   for (int i = 0; i < 3; i++) {
     frame->base[i] = video_frame->data(i);
@@ -189,8 +186,6 @@ void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
   state_ = kNormal;
   av_frame_ = avcodec_alloc_frame();
   natural_size_ = config.natural_size();
-  frame_rate_numerator_ = config.frame_rate_numerator();
-  frame_rate_denominator_ = config.frame_rate_denominator();
   status_cb.Run(PIPELINE_OK);
 }
 
@@ -505,31 +500,8 @@ bool FFmpegVideoDecoder::Decode(
   }
   *video_frame = static_cast<VideoFrame*>(av_frame_->opaque);
 
-  if (frame_rate_numerator_ == 0) {
-    // A framerate of zero indicates that no timing information was available
-    // during initial stream demuxing, and that the framerate should be inferred
-    // from the first frame's duration.
-    frame_rate_numerator_ = buffer->GetDuration().InMicroseconds();
-    frame_rate_denominator_ = base::Time::kMicrosecondsPerSecond;
-  }
-
-  // Determine timestamp and calculate the duration based on the repeat
-  // picture count. According to FFmpeg docs, the total duration can be
-  // calculated as follows:
-  //   fps = 1 / time_base
-  //
-  //   duration = (1 / fps) + (repeat_pict) / (2 * fps)
-  //            = (2 + repeat_pict) / (2 * fps)
-  //            = (2 + repeat_pict) / (2 * (1 / time_base))
-  DCHECK_LE(av_frame_->repeat_pict, 2);  // Sanity check.
-  AVRational doubled_time_base;
-  doubled_time_base.num = frame_rate_denominator_;
-  doubled_time_base.den = frame_rate_numerator_ * 2;
-
   (*video_frame)->SetTimestamp(
       base::TimeDelta::FromMicroseconds(av_frame_->reordered_opaque));
-  (*video_frame)->SetDuration(
-      ConvertFromTimeBase(doubled_time_base, 2 + av_frame_->repeat_pict));
 
   return true;
 }

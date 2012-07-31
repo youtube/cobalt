@@ -79,8 +79,7 @@ void VideoFrameGenerator::ReadOnDecoderThread(const ReadCB& read_cb) {
       VideoFrame::CreateFrame(VideoFrame::YV12,
                               natural_size_.width(),
                               natural_size_.height(),
-                              current_time_,
-                              frame_duration_);
+                              current_time_);
   current_time_ += frame_duration_;
 
   // TODO(wjia): set pixel data to pre-defined patterns if it's desired to

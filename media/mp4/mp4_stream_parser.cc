@@ -222,9 +222,6 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       video_config.Initialize(kCodecH264, H264PROFILE_MAIN,  VideoFrame::YV12,
                               gfx::Size(entry.width, entry.height),
                               gfx::Rect(0, 0, entry.width, entry.height),
-                              // Framerate of zero is provided to signal that
-                              // the decoder should trust demuxer timestamps
-                              0, 1,
                               entry.pixel_aspect.h_spacing,
                               entry.pixel_aspect.v_spacing,
                               // No decoder-specific buffer needed for AVC;
