@@ -217,8 +217,9 @@ bool CertVerifyProc::IsBlacklisted(X509Certificate* cert) {
 }
 
 // static
+// NOTE: This implementation assumes and enforces that the hashes are SHA1.
 bool CertVerifyProc::IsPublicKeyBlacklisted(
-    const std::vector<SHA1Fingerprint>& public_key_hashes) {
+    const std::vector<HashValueVector>& public_key_hashes) {
   static const unsigned kNumHashes = 9;
   static const uint8 kHashes[kNumHashes][base::kSHA1Length] = {
     // Subject: CN=DigiNotar Root CA
@@ -263,11 +264,14 @@ bool CertVerifyProc::IsPublicKeyBlacklisted(
      0xd1, 0x72, 0xbd, 0x53, 0xe0, 0xd3, 0x07, 0x83, 0x4b, 0xd1},
   };
 
+  const HashValueVector& sha1_hashes = public_key_hashes[HASH_VALUE_SHA1];
   for (unsigned i = 0; i < kNumHashes; i++) {
-    for (std::vector<SHA1Fingerprint>::const_iterator
-         j = public_key_hashes.begin(); j != public_key_hashes.end(); ++j) {
-      if (memcmp(j->data, kHashes[i], base::kSHA1Length) == 0)
+    for (HashValueVector::const_iterator j = sha1_hashes.begin();
+         j != sha1_hashes.end(); ++j) {
+      if (j->tag == HASH_VALUE_SHA1 &&
+          memcmp(j->data(), kHashes[i], base::kSHA1Length) == 0) {
         return true;
+      }
     }
   }
 
