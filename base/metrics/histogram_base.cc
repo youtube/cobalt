@@ -6,6 +6,8 @@
 
 namespace base {
 
+const HistogramBase::Sample HistogramBase::kSampleType_MAX = INT_MAX;
+
 HistogramBase::HistogramBase(const std::string& name)
     : histogram_name_(name) {}
 

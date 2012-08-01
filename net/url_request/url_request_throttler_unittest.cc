@@ -228,7 +228,7 @@ void URLRequestThrottlerEntryTest::CalculateHistogramDeltas() {
       histogram->SnapshotSample(&sample);
       // Ensure |original| size is same as |sample|, then subtract original
       // values.
-      original.Resize(*histogram);
+      original.Resize(histogram->bucket_count());
       sample.Subtract(original);
     }
   }
