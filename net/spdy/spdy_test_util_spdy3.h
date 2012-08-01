@@ -6,6 +6,7 @@
 #define NET_SPDY_SPDY_TEST_UTIL_H_
 
 #include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/mock_host_resolver.h"
@@ -21,6 +22,10 @@
 #include "net/socket/socket_test_util.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_storage.h"
+
+namespace crypto {
+class ECSignatureCreatorFactory;
+}
 
 namespace net {
 
@@ -422,6 +427,11 @@ class SpdyTestStateHelper {
   ~SpdyTestStateHelper();
 
  private:
+  // In order to make CREDENTIAL frame creation deterministic, we need to
+  // use a mock EC signature creator, which needs to live throughout
+  // the life of the test.
+  scoped_ptr<crypto::ECSignatureCreatorFactory> ec_signature_creator_factory_;
+
   DISALLOW_COPY_AND_ASSIGN(SpdyTestStateHelper);
 };
 
