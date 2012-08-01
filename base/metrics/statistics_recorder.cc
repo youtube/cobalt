@@ -6,14 +6,18 @@
 
 #include "base/debug/leak_annotations.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/lock.h"
 
+using std::list;
+using std::string;
+
 namespace {
 // Initialize histogram statistics gathering system.
-base::LazyInstance<base::StatisticsRecorder>::Leaky
-    g_statistics_recorder_ = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<base::StatisticsRecorder>::Leaky g_statistics_recorder_ =
+    LAZY_INSTANCE_INITIALIZER;
 }  // namespace
 
 namespace base {
@@ -24,53 +28,6 @@ static uint32 number_of_histograms_ = 0;
 static uint32 number_of_vectors_saved_ = 0;
 // Collect the number of ranges_ elements saved because of caching ranges.
 static size_t saved_ranges_size_ = 0;
-
-// This singleton instance should be started during the single threaded portion
-// of main(), and hence it is not thread safe.  It initializes globals to
-// provide support for all future calls.
-StatisticsRecorder::StatisticsRecorder() {
-  DCHECK(!histograms_);
-  if (lock_ == NULL) {
-    // This will leak on purpose. It's the only way to make sure we won't race
-    // against the static uninitialization of the module while one of our
-    // static methods relying on the lock get called at an inappropriate time
-    // during the termination phase. Since it's a static data member, we will
-    // leak one per process, which would be similar to the instance allocated
-    // during static initialization and released only on  process termination.
-    lock_ = new base::Lock;
-  }
-  base::AutoLock auto_lock(*lock_);
-  histograms_ = new HistogramMap;
-  ranges_ = new RangesMap;
-}
-
-StatisticsRecorder::~StatisticsRecorder() {
-  DCHECK(histograms_ && lock_);
-
-  if (dump_on_exit_) {
-    std::string output;
-    WriteGraph("", &output);
-    DLOG(INFO) << output;
-  }
-  // Clean up.
-  HistogramMap* histograms = NULL;
-  {
-    base::AutoLock auto_lock(*lock_);
-    histograms = histograms_;
-    histograms_ = NULL;
-  }
-  RangesMap* ranges = NULL;
-  {
-    base::AutoLock auto_lock(*lock_);
-    ranges = ranges_;
-    ranges_ = NULL;
-  }
-  // We are going to leak the histograms and the ranges.
-  delete histograms;
-  delete ranges;
-  // We don't delete lock_ on purpose to avoid having to properly protect
-  // against it going away after we checked for NULL in the static methods.
-}
 
 // static
 void StatisticsRecorder::Initialize() {
@@ -87,77 +44,96 @@ bool StatisticsRecorder::IsActive() {
   return NULL != histograms_;
 }
 
+// static
 Histogram* StatisticsRecorder::RegisterOrDeleteDuplicate(Histogram* histogram) {
   // As per crbug.com/79322 the histograms are intentionally leaked, so we need
   // to annotate them. Because ANNOTATE_LEAKING_OBJECT_PTR may be used only once
   // for an object, the duplicates should not be annotated.
   // Callers are responsible for not calling RegisterOrDeleteDuplicate(ptr)
   // twice if (lock_ == NULL) || (!histograms_).
-  DCHECK(histogram->HasValidRangeChecksum());
   if (lock_ == NULL) {
     ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
     return histogram;
   }
-  base::AutoLock auto_lock(*lock_);
-  if (!histograms_) {
-    ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
-    return histogram;
+
+  Histogram* histogram_to_delete = NULL;
+  Histogram* histogram_to_return = NULL;
+  {
+    base::AutoLock auto_lock(*lock_);
+    if (histograms_ == NULL) {
+      ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
+      histogram_to_return = histogram;
+    } else {
+      const string& name = histogram->histogram_name();
+      HistogramMap::iterator it = histograms_->find(name);
+      if (histograms_->end() == it) {
+        (*histograms_)[name] = histogram;
+        ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
+        ++number_of_histograms_;
+        histogram_to_return = histogram;
+      } else if (histogram == it->second) {
+        // The histogram was registered before.
+        histogram_to_return = histogram;
+      } else {
+        // We already have one histogram with this name.
+        histogram_to_return = it->second;
+        histogram_to_delete = histogram;
+      }
+    }
   }
-  const std::string name = histogram->histogram_name();
-  HistogramMap::iterator it = histograms_->find(name);
-  // Avoid overwriting a previous registration.
-  if (histograms_->end() == it) {
-    (*histograms_)[name] = histogram;
-    ANNOTATE_LEAKING_OBJECT_PTR(histogram);  // see crbug.com/79322
-    RegisterOrDeleteDuplicateRanges(histogram);
-    ++number_of_histograms_;
-  } else {
-    delete histogram;  // We already have one by this name.
-    histogram = it->second;
-  }
-  return histogram;
+  delete histogram_to_delete;
+  return histogram_to_return;
 }
 
 // static
-void StatisticsRecorder::RegisterOrDeleteDuplicateRanges(Histogram* histogram) {
-  DCHECK(histogram);
-  BucketRanges* histogram_ranges = histogram->bucket_ranges();
-  DCHECK(histogram_ranges);
-  uint32 checksum = histogram->range_checksum();
-  histogram_ranges->set_checksum(checksum);
+const BucketRanges* StatisticsRecorder::RegisterOrDeleteDuplicateRanges(
+    const BucketRanges* ranges) {
+  DCHECK(ranges->HasValidChecksum());
+  scoped_ptr<const BucketRanges> ranges_deleter;
 
-  RangesMap::iterator ranges_it = ranges_->find(checksum);
-  if (ranges_->end() == ranges_it) {
-    // Register the new BucketRanges.
-    std::list<BucketRanges*>* checksum_matching_list(
-        new std::list<BucketRanges*>());
-    checksum_matching_list->push_front(histogram_ranges);
-    (*ranges_)[checksum] = checksum_matching_list;
-    return;
+  if (lock_ == NULL) {
+    ANNOTATE_LEAKING_OBJECT_PTR(ranges);
+    return ranges;
   }
 
-  // Use the registered BucketRanges if the registered BucketRanges has same
-  // ranges_ as |histogram|'s BucketRanges.
-  std::list<BucketRanges*>* checksum_matching_list = ranges_it->second;
-  std::list<BucketRanges*>::iterator checksum_matching_list_it;
+  base::AutoLock auto_lock(*lock_);
+  if (ranges_ == NULL) {
+    ANNOTATE_LEAKING_OBJECT_PTR(ranges);
+    return ranges;
+  }
+
+  list<const BucketRanges*>* checksum_matching_list;
+  RangesMap::iterator ranges_it = ranges_->find(ranges->checksum());
+  if (ranges_->end() == ranges_it) {
+    // Add a new matching list to map.
+    checksum_matching_list = new list<const BucketRanges*>();
+    ANNOTATE_LEAKING_OBJECT_PTR(checksum_matching_list);
+    (*ranges_)[ranges->checksum()] = checksum_matching_list;
+  } else {
+    checksum_matching_list = ranges_it->second;
+  }
+
+  list<const BucketRanges*>::iterator checksum_matching_list_it;
   for (checksum_matching_list_it = checksum_matching_list->begin();
        checksum_matching_list_it != checksum_matching_list->end();
        ++checksum_matching_list_it) {
-    BucketRanges* existing_histogram_ranges = *checksum_matching_list_it;
-    DCHECK(existing_histogram_ranges);
-    if (existing_histogram_ranges->Equals(histogram_ranges)) {
-      histogram->set_bucket_ranges(existing_histogram_ranges);
-      ++number_of_vectors_saved_;
-      saved_ranges_size_ += histogram_ranges->size();
-      delete histogram_ranges;
-      return;
+    const BucketRanges* existing_ranges = *checksum_matching_list_it;
+    if (existing_ranges->Equals(ranges)) {
+      if (existing_ranges == ranges) {
+        return ranges;
+      } else {
+        ++number_of_vectors_saved_;
+        saved_ranges_size_ += ranges->size();
+        ranges_deleter.reset(ranges);
+        return existing_ranges;
+      }
     }
   }
-
   // We haven't found a BucketRanges which has the same ranges. Register the
   // new BucketRanges.
-  DCHECK(checksum_matching_list_it == checksum_matching_list->end());
-  checksum_matching_list->push_front(histogram_ranges);
+  checksum_matching_list->push_front(ranges);
+  ANNOTATE_LEAKING_OBJECT_PTR(ranges);
+  return ranges;
 }
 
 // static
@@ -246,8 +222,9 @@ void StatisticsRecorder::GetHistograms(Histograms* output) {
   if (lock_ == NULL)
     return;
   base::AutoLock auto_lock(*lock_);
-  if (!histograms_)
+  if (histograms_ == NULL)
     return;
+
   for (HistogramMap::iterator it = histograms_->begin();
        histograms_->end() != it;
        ++it) {
@@ -257,12 +234,35 @@ void StatisticsRecorder::GetHistograms(Histograms* output) {
 }
 
 // static
+void StatisticsRecorder::GetBucketRanges(
+    std::vector<const BucketRanges*>* output) {
+  if (lock_ == NULL)
+    return;
+  base::AutoLock auto_lock(*lock_);
+  if (ranges_ == NULL)
+    return;
+
+  for (RangesMap::iterator it = ranges_->begin();
+       ranges_->end() != it;
+       ++it) {
+    list<const BucketRanges*>* ranges_list = it->second;
+    list<const BucketRanges*>::iterator ranges_list_it;
+    for (ranges_list_it = ranges_list->begin();
+         ranges_list_it != ranges_list->end();
+         ++ranges_list_it) {
+      output->push_back(*ranges_list_it);
+    }
+  }
+}
+
+// static
 Histogram* StatisticsRecorder::FindHistogram(const std::string& name) {
   if (lock_ == NULL)
     return NULL;
   base::AutoLock auto_lock(*lock_);
-  if (!histograms_)
+  if (histograms_ == NULL)
     return NULL;
+
   HistogramMap::iterator it = histograms_->find(name);
   if (histograms_->end() == it)
     return NULL;
@@ -275,8 +275,9 @@ void StatisticsRecorder::GetSnapshot(const std::string& query,
   if (lock_ == NULL)
     return;
   base::AutoLock auto_lock(*lock_);
-  if (!histograms_)
+  if (histograms_ == NULL)
     return;
+
   for (HistogramMap::iterator it = histograms_->begin();
        histograms_->end() != it;
        ++it) {
@@ -284,6 +285,49 @@ void StatisticsRecorder::GetSnapshot(const std::string& query,
       snapshot->push_back(it->second);
   }
 }
+
+// This singleton instance should be started during the single threaded portion
+// of main(), and hence it is not thread safe.  It initializes globals to
+// provide support for all future calls.
+StatisticsRecorder::StatisticsRecorder() {
+  DCHECK(!histograms_);
+  if (lock_ == NULL) {
+    // This will leak on purpose. It's the only way to make sure we won't race
+    // against the static uninitialization of the module while one of our
+    // static methods relying on the lock get called at an inappropriate time
+    // during the termination phase. Since it's a static data member, we will
+    // leak one per process, which would be similar to the instance allocated
+    // during static initialization and released only on  process termination.
+    lock_ = new base::Lock;
+  }
+  base::AutoLock auto_lock(*lock_);
+  histograms_ = new HistogramMap;
+  ranges_ = new RangesMap;
+}
+
+StatisticsRecorder::~StatisticsRecorder() {
+  DCHECK(histograms_ && ranges_ && lock_);
+  if (dump_on_exit_) {
+    string output;
+    WriteGraph("", &output);
+    DLOG(INFO) << output;
+  }
+
+  // Clean up.
+  scoped_ptr<HistogramMap> histograms_deleter;
+  scoped_ptr<RangesMap> ranges_deleter;
+  // We don't delete lock_ on purpose to avoid having to properly protect
+  // against it going away after we checked for NULL in the static methods.
+  {
+    base::AutoLock auto_lock(*lock_);
+    histograms_deleter.reset(histograms_);
+    ranges_deleter.reset(ranges_);
+    histograms_ = NULL;
+    ranges_ = NULL;
+  }
+  // We are going to leak the histograms and the ranges.
+}
+
 
 // static
 StatisticsRecorder::HistogramMap* StatisticsRecorder::histograms_ = NULL;

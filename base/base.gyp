@@ -438,6 +438,7 @@
         'metrics/field_trial_unittest.cc',
         'metrics/histogram_unittest.cc',
         'metrics/stats_table_unittest.cc',
+        'metrics/statistics_recorder_unittest.cc',
         'observer_list_unittest.cc',
         'os_compat_android_unittest.cc',
         'path_service_unittest.cc',
