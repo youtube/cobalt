@@ -76,6 +76,13 @@ NSString* const kSimulatorFrameworkRelativePath =
     @"iPhoneSimulatorRemoteClient.framework";
 NSString* const kDevToolsFoundationRelativePath =
     @"../OtherFrameworks/DevToolsFoundation.framework";
+NSString* const kSimulatorRelativePath =
+    @"Platforms/iPhoneSimulator.platform/Developer/Applications/"
+    @"iPhone Simulator.app";
+
+// Simulator Error String Key. This can be found by looking in the Simulator's
+// Localizable.strings files.
+NSString* const kSimulatorAppQuitErrorKey = @"The simulated application quit.";
 
 const char* gToolName = "iossim";
 
@@ -111,8 +118,10 @@ void LogWarning(NSString* format, ...) {
 // simulator.
 @interface SimulatorDelegate : NSObject <DTiPhoneSimulatorSessionDelegate> {
  @private
-  NSString* stdioPath_;  // weak
+  NSString* stdioPath_;
+  NSString* developerDir_;
   NSThread* outputThread_;
+  NSBundle* simulatorBundle_;
   BOOL appRunning_;
 }
 @end
@@ -129,16 +138,21 @@ void LogWarning(NSString* format, ...) {
 @implementation SimulatorDelegate
 
 // Specifies the file locations of the simulated app's stdout and stderr.
-- (SimulatorDelegate*)initWithStdioPath:(NSString*)stdioPath {
+- (SimulatorDelegate*)initWithStdioPath:(NSString*)stdioPath
+                           developerDir:(NSString*)developerDir {
   self = [super init];
-  if (self)
+  if (self) {
     stdioPath_ = [stdioPath copy];
+    developerDir_ = [developerDir copy];
+  }
 
   return self;
 }
 
 - (void)dealloc {
   [stdioPath_ release];
+  [developerDir_ release];
+  [simulatorBundle_ release];
   [super dealloc];
 }
 
@@ -168,6 +182,25 @@ void LogWarning(NSString* format, ...) {
   [pool drain];
 }
 
+// Fetches a localized error string from the Simulator.
+- (NSString *)localizedSimulatorErrorString:(NSString*)stringKey {
+  // Lazy load of the simulator bundle.
+  if (simulatorBundle_ == nil) {
+    NSString* simulatorPath = [developerDir_
+        stringByAppendingPathComponent:kSimulatorRelativePath];
+    simulatorBundle_ = [NSBundle bundleWithPath:simulatorPath];
+  }
+  NSString *localizedStr =
+      [simulatorBundle_ localizedStringForKey:stringKey
+                                        value:nil
+                                        table:nil];
+  if ([localizedStr length])
+    return localizedStr;
+  // Failed to get a value, follow Cocoa conventions and use the key as the
+  // string.
+  return stringKey;
+}
+
 - (void)session:(DTiPhoneSimulatorSession*)session
        didStart:(BOOL)started
       withError:(NSError*)error {
@@ -193,7 +226,9 @@ void LogWarning(NSString* format, ...) {
       exit(EXIT_FAILURE);
     }
 
-    LogError(@"Simulator failed to start: %@", [error localizedDescription]);
+    LogError(@"Simulator failed to start: \"%@\" (%@:%ld)",
+             [error localizedDescription],
+             [error domain], static_cast<long int>([error code]));
     exit(EXIT_FAILURE);
   }
 
@@ -218,8 +253,23 @@ void LogWarning(NSString* format, ...) {
   }
 
   if (error) {
-    LogError(@"Simulator ended with error: %@", [error localizedDescription]);
-    exit(EXIT_FAILURE);
+    // There appears to be a race condition where sometimes the simulator
+    // framework will end with an error, but the error is that the simulated
+    // app cleanly shut down; try to trap this error and don't fail the
+    // simulator run.
+    NSString* localizedDescription = [error localizedDescription];
+    NSString* ignorableErrorStr =
+        [self localizedSimulatorErrorString:kSimulatorAppQuitErrorKey];
+    if ([ignorableErrorStr isEqual:localizedDescription]) {
+      LogWarning(@"Ignoring that Simulator ended with: \"%@\" (%@:%ld)",
+                 localizedDescription, [error domain],
+                 static_cast<long int>([error code]));
+    } else {
+      LogError(@"Simulator ended with error: \"%@\" (%@:%ld)",
+               localizedDescription, [error domain],
+               static_cast<long int>([error code]));
+      exit(EXIT_FAILURE);
+    }
   }
 
   // Check if the simulated app exited abnormally by looking for system log
@@ -603,7 +653,8 @@ int main(int argc, char* const argv[]) {
                                                               appEnv,
                                                               deviceFamily);
   SimulatorDelegate* delegate =
-      [[[SimulatorDelegate alloc] initWithStdioPath:stdioPath] autorelease];
+      [[[SimulatorDelegate alloc] initWithStdioPath:stdioPath
+                                       developerDir:developerDir] autorelease];
   DTiPhoneSimulatorSession* session = BuildSession(delegate);
 
   // Start the simulator session.
@@ -614,10 +665,13 @@ int main(int argc, char* const argv[]) {
 
   // Spin the runtime indefinitely. When the delegate gets the message that the
   // app has quit it will exit this program.
-  if (started)
+  if (started) {
     [[NSRunLoop mainRunLoop] run];
-  else
-    LogError(@"Simulator failed to start: %@", [error localizedDescription]);
+  } else {
+    LogError(@"Simulator failed to start:  \"%@\" (%@:%ld)",
+             [error localizedDescription],
+             [error domain], static_cast<long int>([error code]));
+  }
 
   // Note that this code is only executed if the simulator fails to start
   // because once the main run loop is started, only the delegate calling
