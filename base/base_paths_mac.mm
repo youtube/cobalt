@@ -59,8 +59,16 @@ bool PathProviderMac(int key, FilePath* result) {
           reinterpret_cast<const void*>(&base::PathProviderMac));
     case base::DIR_CACHE:
       return base::mac::GetUserDirectory(NSCachesDirectory, result);
-    case base::DIR_APP_DATA:
-      return base::mac::GetUserDirectory(NSApplicationSupportDirectory, result);
+    case base::DIR_APP_DATA: {
+      bool success = base::mac::GetUserDirectory(NSApplicationSupportDirectory,
+                                                 result);
+#if defined(OS_IOS)
+      // On IOS, this directory does not exist unless it is created explicitly.
+      if (success && !file_util::PathExists(*result))
+        success = file_util::CreateDirectory(*result);
+#endif  // defined(OS_IOS)
+      return success;
+    }
     case base::DIR_SOURCE_ROOT: {
       // Go through PathService to catch overrides.
       if (!PathService::Get(base::FILE_EXE, result))
