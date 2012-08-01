@@ -453,6 +453,7 @@
         'gfx/skia_utils_gtk.h',
         'gfx/sys_color_change_listener.cc',
         'gfx/sys_color_change_listener.h',
+        'gfx/text_constants.h',
         'gfx/transform.cc',
         'gfx/transform.h',
         'gfx/transform_util.cc',
