@@ -1,5 +1,6 @@
 Name: David M. Gay's floating point routines
 URL: http://www.netlib.org/fp/
+License: MIT-like
 
 Original dtoa.c file can be found at <http://www.netlib.org/fp/dtoa.c>.
 Original g_fmt.c file can be found at <http://www.netlib.org/fp/g_fmt.c>.
