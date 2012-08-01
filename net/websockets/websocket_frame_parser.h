@@ -27,7 +27,7 @@ class NET_EXPORT_PRIVATE WebSocketFrameParser {
   ~WebSocketFrameParser();
 
   // Decodes the given byte stream and stores parsed WebSocket frames in
-  // |frames|.
+  // |frame_chunks|.
   //
   // If the parser encounters invalid payload length format, Decode() fails
   // and returns false. Once Decode() has failed, the parser refuses to decode
