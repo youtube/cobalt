@@ -1,6 +1,7 @@
 Name: dynamic annotations
 URL: http://code.google.com/p/data-race-test/wiki/DynamicAnnotations
 Version: 4384
+License: BSD
 
 One header and one source file (dynamic_annotations.h and dynamic_annotations.c)
 in this directory define runtime macros useful for annotating synchronization

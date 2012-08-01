@@ -1,6 +1,7 @@
 Name: libxml
 URL: http://xmlsoft.org
 Version: 2.7.7
+License: MIT
 License File: src/COPYING
 Security Critical: yes
 

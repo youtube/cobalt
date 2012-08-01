@@ -2,6 +2,8 @@ Name: modp base64 decoder
 Short Name: stringencoders
 URL: http://code.google.com/p/stringencoders/
 Version: unknown
+License: BSD
+Security Critical: yes
 
 Description:
 The modp_b64.c file was modified to remove the inclusion of modp's config.h
