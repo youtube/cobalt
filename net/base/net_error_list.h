@@ -368,9 +368,7 @@ NET_ERROR(CERT_INVALID, -207)
 // signature algorithm.
 NET_ERROR(CERT_WEAK_SIGNATURE_ALGORITHM, -208)
 
-// The domain has CERT records which are tagged as being an exclusive list of
-// valid fingerprints. But the certificate presented was not in this list.
-NET_ERROR(CERT_NOT_IN_DNS, -209)
+// -209 is availible: was CERT_NOT_IN_DNS.
 
 // The host name specified in the certificate is not unique.
 NET_ERROR(CERT_NON_UNIQUE_NAME, -210)

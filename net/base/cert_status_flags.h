@@ -29,7 +29,7 @@ static const CertStatus CERT_STATUS_UNABLE_TO_CHECK_REVOCATION = 1 << 5;
 static const CertStatus CERT_STATUS_REVOKED                    = 1 << 6;
 static const CertStatus CERT_STATUS_INVALID                    = 1 << 7;
 static const CertStatus CERT_STATUS_WEAK_SIGNATURE_ALGORITHM   = 1 << 8;
-static const CertStatus CERT_STATUS_NOT_IN_DNS                 = 1 << 9;
+// 1 << 9 was used for CERT_STATUS_NOT_IN_DNS
 static const CertStatus CERT_STATUS_NON_UNIQUE_NAME            = 1 << 10;
 static const CertStatus CERT_STATUS_WEAK_KEY                   = 1 << 11;
 
