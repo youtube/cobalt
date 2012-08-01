@@ -36,9 +36,7 @@ class MEDIA_EXPORT DecryptConfig {
 
   // |key_id| is the ID that references the decryption key for this sample.
   // |iv| is the initialization vector defined by the encrypted format.
-  //   Currently |iv| must be 16 bytes as defined by WebM and ISO. Or must be
-  //   empty which signals to perform the integrity check on an unencrypted
-  //   frame as defined WebM.
+  //   Currently |iv_size| must be 16 bytes as defined by WebM and ISO.
   // |checksum| is the hash value of the encrypted buffer. |checksum| is
   //   defined by the encrypted format and may be NULL.
   // |data_offset| is the amount of data that should be discarded from the
