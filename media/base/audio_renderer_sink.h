@@ -55,10 +55,6 @@ class AudioRendererSink
   // Resumes playback after calling Pause().
   virtual void Play() = 0;
 
-  // Called to inform the sink of a change in playback rate. Override if
-  // subclass needs the playback rate.
-  virtual void SetPlaybackRate(float rate) {}
-
   // Sets the playback volume, with range [0.0, 1.0] inclusive.
   // Returns |true| on success.
   virtual bool SetVolume(double volume) = 0;

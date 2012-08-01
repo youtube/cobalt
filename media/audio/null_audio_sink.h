@@ -33,7 +33,6 @@ class MEDIA_EXPORT NullAudioSink
   virtual void Stop() OVERRIDE;
   virtual void Pause(bool flush) OVERRIDE;
   virtual void Play() OVERRIDE;
-  virtual void SetPlaybackRate(float rate) OVERRIDE;
   virtual bool SetVolume(double volume) OVERRIDE;
 
   // Enables audio frame hashing and reinitializes the MD5 context.  Must be
@@ -58,7 +57,6 @@ class MEDIA_EXPORT NullAudioSink
 
   AudioParameters params_;
   bool initialized_;
-  float playback_rate_;
   bool playing_;
   RenderCallback* callback_;
 
