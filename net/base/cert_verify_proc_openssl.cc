@@ -50,7 +50,6 @@ CertStatus MapCertErrorToCertStatus(int err) {
 // TODO(bulach): what should we map to these status?
       return CERT_STATUS_NO_REVOCATION_MECHANISM;
       return CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
-      return CERT_STATUS_NOT_IN_DNS;
 #endif
     case X509_V_ERR_CERT_REVOKED:
       return CERT_STATUS_REVOKED;
