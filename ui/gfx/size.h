@@ -13,6 +13,8 @@
 
 #if defined(OS_WIN)
 typedef struct tagSIZE SIZE;
+#elif defined(OS_IOS)
+#include <CoreGraphics/CoreGraphics.h>
 #elif defined(OS_MACOSX)
 #include <ApplicationServices/ApplicationServices.h>
 #endif
