@@ -13,7 +13,6 @@ namespace media {
 
 NullAudioSink::NullAudioSink()
     : initialized_(false),
-      playback_rate_(0.0),
       playing_(false),
       callback_(NULL),
       thread_("NullAudioThread"),
@@ -62,11 +61,6 @@ void NullAudioSink::Pause(bool /* flush */) {
   SetPlaying(false);
 }
 
-void NullAudioSink::SetPlaybackRate(float rate) {
-  base::AutoLock auto_lock(lock_);
-  playback_rate_ = rate;
-}
-
 bool NullAudioSink::SetVolume(double volume) {
   // Audio is always muted.
   return volume == 0.0;
@@ -89,7 +83,6 @@ void NullAudioSink::FillBufferTask() {
   base::TimeDelta delay;
   // Only consume buffers when actually playing.
   if (playing_)  {
-    DCHECK_GT(playback_rate_, 0.0f);
     int requested_frames = params_.frames_per_buffer();
     int frames_received = callback_->Render(audio_data_, requested_frames, 0);
     int frames_per_millisecond =
@@ -111,9 +104,9 @@ void NullAudioSink::FillBufferTask() {
       }
     }
 
-    // Calculate our sleep duration, taking playback rate into consideration.
+    // Calculate our sleep duration.
     delay = base::TimeDelta::FromMilliseconds(
-        frames_received / (frames_per_millisecond * playback_rate_));
+        frames_received / frames_per_millisecond);
   } else {
     // If paused, sleep for 10 milliseconds before polling again.
     delay = base::TimeDelta::FromMilliseconds(10);

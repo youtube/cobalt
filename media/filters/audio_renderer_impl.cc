@@ -306,9 +306,6 @@ void AudioRendererImpl::SetPlaybackRate(float playback_rate) {
   DCHECK_LE(0.0f, playback_rate);
 
   if (!stopped_) {
-    // Notify sink of new playback rate.
-    sink_->SetPlaybackRate(playback_rate);
-
     // We have two cases here:
     // Play: GetPlaybackRate() == 0.0 && playback_rate != 0.0
     // Pause: GetPlaybackRate() != 0.0 && playback_rate == 0.0
