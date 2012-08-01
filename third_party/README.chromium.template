@@ -4,7 +4,7 @@ URL: The URL where the package lives
 Version: A searchable version number for the package (if the package does not version or is versioned by date or revision this field should be "0" and the revision, or date should be enumerated in the appropriate field)
 Date: (OPTIONAL if version is supplied) The date that the package was updated
 Revision: (OPTIONAL if version is supplied) The current revision of the package
-License: The license under which the package is distributed
+License: The license under which the package is distributed. Arbitrary text is allowed, but prefer standard forms, eg MIT/X11/BSD/Apache 2.0/GPL/LGPL.
 License File: (OPTIONAL) File that contains a copy of the packages license
 Security Critical: Either yes or no depending on whether this package is shipped in releases. For example openssl is critical where cygwin is not.
 

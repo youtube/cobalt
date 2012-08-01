@@ -1,5 +1,6 @@
 Name: google-glog's symbolization library
 URL: http://code.google.com/p/google-glog/
+License: BSD
 
 The following files are copied AS-IS from:
 http://code.google.com/p/google-glog/source/browse/#svn/trunk/src (r76)
