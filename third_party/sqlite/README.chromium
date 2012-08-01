@@ -3,6 +3,7 @@ URL: http://sqlite.org/
 Version: 3.7.6.3
 Included In Release: Yes
 Security Critical: Yes
+License: Public domain
 
 Instructions for importing a new release of SQLite from sqlite.org.
 
