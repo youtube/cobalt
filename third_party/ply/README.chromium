@@ -1,7 +1,10 @@
 Name: PLY (Python Lex-Yacc)
 Current version: 3.4
 URL: http://www.dabeaz.com/ply/ply-3.4.tar.gz
+License: BSD
 License File: LICENSE
+Security Critical: no
+Version: 3.4
 
 This directory contains a copy of these ply-3.4 components:
 
