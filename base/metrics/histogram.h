@@ -9,14 +9,31 @@
 // It supports calls to accumulate either time intervals (which are processed
 // as integral number of milliseconds), or arbitrary integral units.
 
-// The default layout of buckets is exponential.  For example, buckets might
-// contain (sequentially) the count of values in the following intervals:
+// For Histogram(exponential histogram), LinearHistogram and CustomHistogram,
+// the minimum for a declared range is 1 (instead of 0), while the maximum is
+// (HistogramBase::kSampleType_MAX - 1). Currently you can declare histograms
+// with ranges exceeding those limits (e.g. 0 as minimal or
+// HistogramBase::kSampleType_MAX as maximal), but those excesses will be
+// silently clamped to those limits (for backwards compatibility with existing
+// code). Best practice is to not exceed the limits.
+
+// For Histogram and LinearHistogram, the maximum for a declared range should
+// always be larger (not equal) than minmal range. Zero and
+// HistogramBase::kSampleType_MAX are implicitly added as first and last ranges,
+// so the smallest legal bucket_count is 3. However CustomHistogram can have
+// bucket count as 2 (when you give a custom ranges vector containing only 1
+// range).
+// For these 3 kinds of histograms, the max bucket count is always
+// (Histogram::kBucketCount_MAX - 1).
+
+// The buckets layout of class Histogram is exponential. For example, buckets
+// might contain (sequentially) the count of values in the following intervals:
 // [0,1), [1,2), [2,4), [4,8), [8,16), [16,32), [32,64), [64,infinity)
 // That bucket allocation would actually result from construction of a histogram
 // for values between 1 and 64, with 8 buckets, such as:
-// Histogram count(L"some name", 1, 64, 8);
+// Histogram count("some name", 1, 64, 8);
 // Note that the underflow bucket [0,1) and the overflow bucket [64,infinity)
-// are not counted by the constructor in the user supplied "bucket_count"
+// are also counted by the constructor in the user supplied "bucket_count"
 // argument.
 // The above example has an exponential ratio of 2 (doubling the bucket width
 // in each consecutive bucket.  The Histogram class automatically calculates
@@ -28,8 +45,9 @@
 // at the low end of the histogram scale, but allows the histogram to cover a
 // gigantic range with the addition of very few buckets.
 
-// Histograms use a pattern involving a function static variable, that is a
-// pointer to a histogram.  This static is explicitly initialized on any thread
+// Usually we use macros to define and use a histogram. These macros use a
+// pattern involving a function static variable, that is a pointer to a
+// histogram.  This static is explicitly initialized on any thread
 // that detects a uninitialized (NULL) pointer.  The potentially racy
 // initialization is not a problem as it is always set to point to the same
 // value (i.e., the FactoryGet always returns the same value).  FactoryGet
@@ -177,9 +195,10 @@ class Lock;
             boundary_value + 1, base::Histogram::kNoFlags))
 
 // Support histograming of an enumerated value. Samples should be one of the
-// std::vector<int> list provided via |custom_ranges|. You can use the helper
-// function |base::CustomHistogram::ArrayToCustomRanges(samples, num_samples)|
-// to transform a C-style array of valid sample values to a std::vector<int>.
+// std::vector<int> list provided via |custom_ranges|. See comments above
+// CustomRanges::FactoryGet about the requirement of |custom_ranges|.
+// You can use the helper function CustomHistogram::ArrayToCustomRanges to
+// transform a C-style array of valid sample values to a std::vector<int>.
 #define HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::CustomHistogram::FactoryGet(name, custom_ranges, \
@@ -338,13 +357,13 @@ class BASE_EXPORT Histogram : public HistogramBase {
     LINEAR_HISTOGRAM,
     BOOLEAN_HISTOGRAM,
     CUSTOM_HISTOGRAM,
-    NOT_VALID_IN_RENDERER
+    NOT_VALID_IN_RENDERER,
   };
 
   enum BucketLayout {
     EXPONENTIAL,
     LINEAR,
-    CUSTOM
+    CUSTOM,
   };
 
   enum Flags {
@@ -381,17 +400,17 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
   class BASE_EXPORT SampleSet {
    public:
-    explicit SampleSet();
+    explicit SampleSet(size_t size);
+    SampleSet();
     ~SampleSet();
 
-    // Adjust size of counts_ for use with given histogram.
-    void Resize(const Histogram& histogram);
-    void CheckSize(const Histogram& histogram) const;
+    void Resize(size_t size);
 
     // Accessor for histogram to make routine additions.
     void Accumulate(Sample value, Count count, size_t index);
 
     // Accessor methods.
+    size_t size() const { return counts_.size(); }
     Count counts(size_t i) const { return counts_[i]; }
     Count TotalCount() const;
     int64 sum() const { return sum_; }
@@ -447,9 +466,15 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                    base::TimeDelta maximum,
                                    size_t bucket_count,
                                    Flags flags);
+
   // Time call for use with DHISTOGRAM*.
   // Returns TimeTicks::Now() in debug and TimeTicks() in release build.
   static TimeTicks DebugNow();
+
+  static void InitializeBucketRanges(Sample minimum,
+                                     Sample maximum,
+                                     size_t bucket_count,
+                                     BucketRanges* ranges);
 
   virtual void Add(Sample value) OVERRIDE;
 
@@ -507,42 +532,43 @@ class BASE_EXPORT Histogram : public HistogramBase {
   Sample declared_min() const { return declared_min_; }
   Sample declared_max() const { return declared_max_; }
   virtual Sample ranges(size_t i) const;
-  uint32 range_checksum() const { return range_checksum_; }
   virtual size_t bucket_count() const;
-  BucketRanges* bucket_ranges() const { return bucket_ranges_; }
-  void set_bucket_ranges(BucketRanges* bucket_ranges) {
-    bucket_ranges_ = bucket_ranges;
-  }
+  const BucketRanges* bucket_ranges() const { return bucket_ranges_; }
+
   // Snapshot the current complete set of sample data.
   // Override with atomic/locked snapshot if needed.
   virtual void SnapshotSample(SampleSet* sample) const;
 
-  virtual bool HasConstructorArguments(Sample minimum, Sample maximum,
-                                       size_t bucket_count);
-
-  virtual bool HasConstructorTimeDeltaArguments(TimeDelta minimum,
-                                                TimeDelta maximum,
-                                                size_t bucket_count);
-  // Return true iff the range_checksum_ matches current |ranges_| vector in
-  // |bucket_ranges_|.
-  bool HasValidRangeChecksum() const;
-
+  virtual bool HasConstructionArguments(Sample minimum,
+                                        Sample maximum,
+                                        size_t bucket_count);
  protected:
-  Histogram(const std::string& name, Sample minimum,
-            Sample maximum, size_t bucket_count);
-  Histogram(const std::string& name, TimeDelta minimum,
-            TimeDelta maximum, size_t bucket_count);
+  // |bucket_count| and |ranges| should contain the underflow and overflow
+  // buckets. See top comments for example.
+  Histogram(const std::string& name,
+            Sample minimum,
+            Sample maximum,
+            size_t bucket_count,
+            const BucketRanges* ranges);
 
   virtual ~Histogram();
+
+  // This function validates histogram construction arguments. It returns false
+  // if some of the arguments are totally bad.
+  // Note. Currently it allow some bad input, e.g. 0 as minimum, but silently
+  // converts it to good input: 1.
+  // TODO(kaiwang): Be more restrict and return false for any bad input, and
+  // make this a readonly validating function.
+  static bool InspectConstructionArguments(const std::string& name,
+                                           Sample* minimum,
+                                           Sample* maximum,
+                                           size_t* bucket_count);
 
   // Serialize the histogram's ranges to |*pickle|, returning true on success.
   // Most subclasses can leave this no-op implementation, but some will want to
   // override it, especially if the ranges cannot be re-derived from other
   // serialized parameters.
   virtual bool SerializeRanges(Pickle* pickle) const;
-
-  // Initialize ranges_ mapping in bucket_ranges_.
-  void InitializeBucketRange();
 
   // Method to override to skip the display of the i'th bucket if it's empty.
   virtual bool PrintEmptyBucket(size_t index) const;
@@ -555,9 +581,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // Get normalized size, relative to the ranges(i).
   virtual double GetBucketSize(Count current, size_t i) const;
 
-  // Recalculate range_checksum_.
-  void ResetRangeChecksum();
-
   // Return a string description of what goes in a given bucket.
   // Most commonly this is the numeric value, but in derived classes it may
   // be a name (or string description) given to the bucket.
@@ -569,18 +592,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // Update all our internal data, including histogram
   virtual void Accumulate(Sample value, Count count, size_t index);
 
-  //----------------------------------------------------------------------------
-  // Accessors for derived classes.
-  //----------------------------------------------------------------------------
-  void SetBucketRange(size_t i, Sample value);
-
-  // Validate that ranges_ in bucket_ranges_ was created sensibly (top and
-  // bottom range values relate properly to the declared_min_ and
-  // declared_max_).
-  bool ValidateBucketRanges() const;
-
-  virtual uint32 CalculateRangeChecksum() const;
-
  private:
   // Allow tests to corrupt our innards for testing purposes.
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptBucketBounds);
@@ -589,12 +600,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, Crc32TableTest);
 
   friend class StatisticsRecorder;  // To allow it to delete duplicates.
-
-  // Post constructor initialization.
-  void Initialize();
-
-  // Checksum function for accumulating range values into a checksum.
-  static uint32 Crc32(uint32 sum, Sample range);
+  friend class StatisticsRecorderTest;
 
   //----------------------------------------------------------------------------
   // Helpers for emitting Ascii graphic.  Each method appends data to output.
@@ -625,11 +631,8 @@ class BASE_EXPORT Histogram : public HistogramBase {
   void WriteAsciiBucketGraph(double current_size, double max_size,
                              std::string* output) const;
 
-  //----------------------------------------------------------------------------
-  // Table for generating Crc32 values.
-  static const uint32 kCrcTable[256];
-  //----------------------------------------------------------------------------
-  // Invariant values set at/near construction time
+  // Does not own this object. Should get from StatisticsRecorder.
+  const BucketRanges* bucket_ranges_;
 
   Sample declared_min_;  // Less than this goes into counts_[0]
   Sample declared_max_;  // Over this goes into counts_[bucket_count_ - 1].
@@ -637,17 +640,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
   // Flag the histogram for recording by UMA via metric_services.h.
   Flags flags_;
-
-  // For each index, show the least value that can be stored in the
-  // corresponding bucket. We also append one extra element in this array,
-  // containing kSampleType_MAX, to make calculations easy.
-  // The dimension of ranges_ in bucket_ranges_ is bucket_count + 1.
-  BucketRanges* bucket_ranges_;
-
-  // For redundancy, we store a checksum of all the sample ranges when ranges
-  // are generated.  If ever there is ever a difference, then the histogram must
-  // have been corrupted.
-  uint32 range_checksum_;
 
   // Finally, provide the state that changes with the addition of each new
   // sample.
@@ -677,6 +669,11 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                    size_t bucket_count,
                                    Flags flags);
 
+  static void InitializeBucketRanges(Sample minimum,
+                                     Sample maximum,
+                                     size_t bucket_count,
+                                     BucketRanges* ranges);
+
   // Overridden from Histogram:
   virtual ClassType histogram_type() const OVERRIDE;
 
@@ -686,14 +683,12 @@ class BASE_EXPORT LinearHistogram : public Histogram {
       const DescriptionPair descriptions[]) OVERRIDE;
 
  protected:
-  LinearHistogram(const std::string& name, Sample minimum,
-                  Sample maximum, size_t bucket_count);
+  LinearHistogram(const std::string& name,
+                  Sample minimum,
+                  Sample maximum,
+                  size_t bucket_count,
+                  const BucketRanges* ranges);
 
-  LinearHistogram(const std::string& name, TimeDelta minimum,
-                  TimeDelta maximum, size_t bucket_count);
-
-  // Initialize ranges_ mapping in bucket_ranges_.
-  void InitializeBucketRange();
   virtual double GetBucketSize(Count current, size_t i) const OVERRIDE;
 
   // If we have a description for a bucket, then return that.  Otherwise
@@ -726,7 +721,7 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
   virtual void AddBoolean(bool value) OVERRIDE;
 
  private:
-  explicit BooleanHistogram(const std::string& name);
+  BooleanHistogram(const std::string& name, const BucketRanges* ranges);
 
   DISALLOW_COPY_AND_ASSIGN(BooleanHistogram);
 };
@@ -736,7 +731,10 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
 // CustomHistogram is a histogram for a set of custom integers.
 class BASE_EXPORT CustomHistogram : public Histogram {
  public:
-
+  // |custom_ranges| contains a vector of limits on ranges. Each limit should be
+  // > 0 and < kSampleType_MAX. (Currently 0 is still accepted for backward
+  // compatibility). The limits can be unordered or contain duplication, but
+  // client should not depend on this.
   static Histogram* FactoryGet(const std::string& name,
                                const std::vector<Sample>& custom_ranges,
                                Flags flags);
@@ -749,24 +747,26 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   // This function ensures that a guard bucket exists right after any
   // valid sample value (unless the next higher sample is also a valid value),
   // so that invalid samples never fall into the same bucket as valid samples.
+  // TODO(kaiwang): Change name to ArrayToCustomEnumRanges.
   static std::vector<Sample> ArrayToCustomRanges(const Sample* values,
                                                  size_t num_values);
 
   // Helper for deserializing CustomHistograms.  |*ranges| should already be
   // correctly sized before this call.  Return true on success.
   static bool DeserializeRanges(PickleIterator* iter,
-                                std::vector<Histogram::Sample>* ranges);
-
-
+                                std::vector<Sample>* ranges);
  protected:
   CustomHistogram(const std::string& name,
-                  const std::vector<Sample>& custom_ranges);
+                  const BucketRanges* ranges);
 
   virtual bool SerializeRanges(Pickle* pickle) const OVERRIDE;
 
-  // Initialize ranges_ mapping in bucket_ranges_.
-  void InitializedCustomBucketRange(const std::vector<Sample>& custom_ranges);
   virtual double GetBucketSize(Count current, size_t i) const OVERRIDE;
+
+ private:
+  static bool ValidateCustomRanges(const std::vector<Sample>& custom_ranges);
+  static BucketRanges* CreateBucketRangesFromCustomRanges(
+      const std::vector<Sample>& custom_ranges);
 
   DISALLOW_COPY_AND_ASSIGN(CustomHistogram);
 };

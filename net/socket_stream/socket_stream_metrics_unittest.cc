@@ -41,7 +41,7 @@ TEST(SocketStreamMetricsTest, ProtocolType) {
 
   Histogram::SampleSet sample;
   histogram->SnapshotSample(&sample);
-  original.Resize(*histogram);  // Ensure |original| size is same as |sample|.
+  original.Resize(histogram->bucket_count());
   sample.Subtract(original);  // Cancel the original values.
   EXPECT_EQ(1, sample.counts(SocketStreamMetrics::PROTOCOL_UNKNOWN));
   EXPECT_EQ(2, sample.counts(SocketStreamMetrics::PROTOCOL_WEBSOCKET));
@@ -75,7 +75,7 @@ TEST(SocketStreamMetricsTest, ConnectionType) {
 
   Histogram::SampleSet sample;
   histogram->SnapshotSample(&sample);
-  original.Resize(*histogram);
+  original.Resize(histogram->bucket_count());
   sample.Subtract(original);
   EXPECT_EQ(1, sample.counts(SocketStreamMetrics::ALL_CONNECTIONS));
   EXPECT_EQ(2, sample.counts(SocketStreamMetrics::TUNNEL_CONNECTION));
@@ -106,7 +106,7 @@ TEST(SocketStreamMetricsTest, WireProtocolType) {
 
   Histogram::SampleSet sample;
   histogram->SnapshotSample(&sample);
-  original.Resize(*histogram);
+  original.Resize(histogram->bucket_count());
   sample.Subtract(original);
   EXPECT_EQ(3, sample.counts(SocketStreamMetrics::WIRE_PROTOCOL_WEBSOCKET));
   EXPECT_EQ(7, sample.counts(SocketStreamMetrics::WIRE_PROTOCOL_SPDY));
