@@ -558,7 +558,7 @@ void GetECServerBoundCertAndProof(
 // Constructs a standard SPDY SYN_STREAM frame for a GET request with
 // a credential set.
 SpdyFrame* ConstructCredentialRequestFrame(int slot, const GURL& url,
-                                                 int stream_id) {
+                                           int stream_id) {
   const SpdyHeaderInfo syn_headers = {
     SYN_STREAM,
     stream_id,
@@ -735,52 +735,7 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
   ASSERT_EQ(200, response.headers->response_code());
 }
 
-class MockECSignatureCreator : public crypto::ECSignatureCreator {
-  public:
-   explicit MockECSignatureCreator(crypto::ECPrivateKey* key) : key_(key) {}
-
-   virtual bool Sign(const uint8* data,
-                     int data_len,
-                     std::vector<uint8>* signature) OVERRIDE {
-     std::vector<uint8> private_key_value;
-     key_->ExportValue(&private_key_value);
-     std::string head = "fakesignature";
-     std::string tail = "/fakesignature";
-
-     signature->clear();
-     signature->insert(signature->end(), head.begin(), head.end());
-     signature->insert(signature->end(), private_key_value.begin(),
-                       private_key_value.end());
-     signature->insert(signature->end(), '-');
-     signature->insert(signature->end(), data, data + data_len);
-     signature->insert(signature->end(), tail.begin(), tail.end());
-     return true;
-   }
-
- private:
-   crypto::ECPrivateKey* key_;
-   DISALLOW_COPY_AND_ASSIGN(MockECSignatureCreator);
-};
-
-class MockECSignatureCreatorFactory : public crypto::ECSignatureCreatorFactory {
- public:
-  MockECSignatureCreatorFactory() {}
-  virtual ~MockECSignatureCreatorFactory() {}
-
-  virtual crypto::ECSignatureCreator* Create(
-      crypto::ECPrivateKey* key) OVERRIDE {
-    return new MockECSignatureCreator(key);
-  }
- private:
-   DISALLOW_COPY_AND_ASSIGN(MockECSignatureCreatorFactory);
-};
-
 TEST_F(SpdyHttpStreamSpdy3Test, SendCredentialsEC) {
-  scoped_ptr<crypto::ECSignatureCreatorFactory> ec_signature_creator_factory(
-      new MockECSignatureCreatorFactory());
-  crypto::ECSignatureCreator::SetFactoryForTesting(
-      ec_signature_creator_factory.get());
-
   scoped_refptr<base::SequencedWorkerPool> sequenced_worker_pool =
       new base::SequencedWorkerPool(1, "SpdyHttpStreamSpdy3Test");
   scoped_ptr<ServerBoundCertService> server_bound_cert_service(
