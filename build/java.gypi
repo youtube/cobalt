@@ -46,6 +46,7 @@
         'ant',
         '-DPRODUCT_DIR=<(ant_build_out)',
         '-DPACKAGE_NAME=<(package_name)',
+        '-DANDROID_SDK=<(android_sdk)',
         '-buildfile',
         '<(java_in_dir)/<(package_name).xml',
       ]
