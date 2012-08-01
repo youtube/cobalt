@@ -63,6 +63,13 @@ bool GetElement(base::StringPiece* in,
 NET_EXPORT_PRIVATE bool ExtractSPKIFromDERCert(base::StringPiece cert,
                                                base::StringPiece* spki_out);
 
+// ExtractSubjectPublicKeyFromSPKI parses the DER encoded SubjectPublicKeyInfo
+// in |spki| and extracts the bytes of the SubjectPublicKey. On successful
+// return, |spk_out| is set to contain the public key, pointing into |spki|.
+NET_EXPORT_PRIVATE bool ExtractSubjectPublicKeyFromSPKI(
+    base::StringPiece spki,
+    base::StringPiece* spk_out);
+
 // ExtractCRLURLsFromDERCert parses the DER encoded certificate in |cert| and
 // extracts the URL of each CRL. On successful return, the elements of
 // |urls_out| point into |cert|.
