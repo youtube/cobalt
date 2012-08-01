@@ -41,8 +41,8 @@ class BASE_EXPORT_PRIVATE BucketRanges {
 
   // Checksum methods to verify whether the ranges are corrupted (e.g. bad
   // memory access).
-  uint32 CalculateChecksum();
-  bool HasValidChecksum();
+  uint32 CalculateChecksum() const;
+  bool HasValidChecksum() const;
   void ResetChecksum();
 
   // Return true iff |other| object has same ranges_ as |this| object's ranges_.
@@ -63,6 +63,10 @@ class BASE_EXPORT_PRIVATE BucketRanges {
 
   DISALLOW_COPY_AND_ASSIGN(BucketRanges);
 };
+
+//////////////////////////////////////////////////////////////////////////////
+// Expose only for test.
+BASE_EXPORT_PRIVATE extern const uint32 kCrcTable[256];
 
 }  // namespace base
 

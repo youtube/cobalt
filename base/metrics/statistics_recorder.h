@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// StatisticsRecorder handles all histograms in the system. It provides a
-// general place for histograms to register, and supports a global API for
-// accessing (i.e., dumping, or graphing) the data in all the histograms.
+// StatisticsRecorder holds all Histograms and BucketRanges that are used by
+// Histograms in the system. It provides a general place for
+// Histograms/BucketRanges to register, and supports a global API for accessing
+// (i.e., dumping, or graphing) the data.
 
 #ifndef BASE_METRICS_STATISTICS_RECORDER_H_
 #define BASE_METRICS_STATISTICS_RECORDER_H_
@@ -41,13 +42,12 @@ class BASE_EXPORT StatisticsRecorder {
   // histogram (either the argument, or the pre-existing registered histogram).
   static Histogram* RegisterOrDeleteDuplicate(Histogram* histogram);
 
-  // Register, or add a new bucket_ranges_ of |histogram|. If an identical
-  // bucket_ranges_ is already registered, then the bucket_ranges_ of
-  // |histogram| is deleted and the |histogram|'s bucket_ranges_ is reset to the
-  // registered bucket_ranges_.  The bucket_ranges_ of |histogram| is always the
-  // registered BucketRanges (either the argument's bucket_ranges_, or the
-  // pre-existing registered bucket_ranges_).
-  static void RegisterOrDeleteDuplicateRanges(Histogram* histogram);
+  // Register, or add a new BucketRanges. If an identically BucketRanges is
+  // already registered, then the argument |ranges| will deleted. The returned
+  // value is always the registered BucketRanges (either the argument, or the
+  // pre-existing one).
+  static const BucketRanges* RegisterOrDeleteDuplicateRanges(
+      const BucketRanges* ranges);
 
   // Method for collecting stats about histograms created in browser and
   // renderer processes. |suffix| is appended to histogram names. |suffix| could
@@ -62,6 +62,9 @@ class BASE_EXPORT StatisticsRecorder {
 
   // Method for extracting histograms which were marked for use by UMA.
   static void GetHistograms(Histograms* output);
+
+  // Method for extracting BucketRanges used by all histograms registered.
+  static void GetBucketRanges(std::vector<const BucketRanges*>* output);
 
   // Find a histogram by name. It matches the exact name. This method is thread
   // safe.  It returns NULL if a matching histogram is not found.
@@ -84,26 +87,21 @@ class BASE_EXPORT StatisticsRecorder {
   // We keep all |bucket_ranges_| in a map, from checksum to a list of
   // |bucket_ranges_|.  Checksum is calculated from the |ranges_| in
   // |bucket_ranges_|.
-  typedef std::map<uint32, std::list<BucketRanges*>*> RangesMap;
+  typedef std::map<uint32, std::list<const BucketRanges*>*> RangesMap;
 
   friend struct DefaultLazyInstanceTraits<StatisticsRecorder>;
+  friend class StatisticsRecorderTest;
 
-  // Allow tests to access our innards for testing purposes.
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, StartupShutdownTest);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, RecordedStartupTest);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, RangeTest);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, CustomRangeTest);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, BucketRangesTest);
-
+  // The constructor just initializes static members. Usually client code should
+  // use Initialize to do this. But in test code, you can friend this class and
+  // call destructor/constructor to get a clean StatisticsRecorder.
   StatisticsRecorder();
-
   ~StatisticsRecorder();
 
   static HistogramMap* histograms_;
-
   static RangesMap* ranges_;
 
-  // lock protects access to the above map.
+  // Lock protects access to above maps.
   static base::Lock* lock_;
 
   // Dump all known histograms to log.

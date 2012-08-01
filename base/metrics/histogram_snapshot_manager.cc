@@ -76,7 +76,8 @@ void HistogramSnapshotManager::PrepareDelta(const Histogram& histogram) {
   if (logged_samples_.end() == it) {
     // Add new entry
     already_logged = &logged_samples_[histogram.histogram_name()];
-    already_logged->Resize(histogram);  // Complete initialization.
+    // Complete initialization.
+    already_logged->Resize(histogram.bucket_count());
   } else {
     already_logged = &(it->second);
     int64 discrepancy(already_logged->TotalCount() -
