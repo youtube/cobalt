@@ -12,9 +12,12 @@
 #include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/stringprintf.h"
+#include "base/values.h"
 #include "net/base/address_list.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
+#include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
@@ -24,6 +27,23 @@
 #include "net/spdy/spdy_session.h"
 
 namespace net {
+
+namespace {
+
+Value* NetLogSpdySendRequestCallback(const SpdyHeaderBlock* headers,
+                                     NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  ListValue* headers_list = new ListValue();
+  for (SpdyHeaderBlock::const_iterator it = headers->begin();
+       it != headers->end(); ++it) {
+    headers_list->Append(new StringValue(base::StringPrintf(
+        "%s: %s", it->first.c_str(), it->second.c_str())));
+  }
+  dict->Set("headers", headers_list);
+  return dict;
+}
+
+}  // namespace
 
 SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session,
                                bool direct)
@@ -198,6 +218,9 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
   CreateSpdyHeadersFromHttpRequest(*request_info_, request_headers,
                                    headers.get(), stream_->GetProtocolVersion(),
                                    direct_);
+  stream_->net_log().AddEvent(
+      NetLog::TYPE_HTTP_TRANSACTION_SPDY_SEND_REQUEST_HEADERS,
+      base::Bind(&NetLogSpdySendRequestCallback, headers.get()));
   stream_->set_spdy_headers(headers.Pass());
 
   stream_->SetRequestTime(request_time);
