@@ -8,10 +8,13 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 
 namespace net {
+
+class IOBufferWithSize;
 
 // Represents a WebSocket frame header.
 //
@@ -73,8 +76,9 @@ struct NET_EXPORT_PRIVATE WebSocketFrameChunk {
   // Indicates this part is the last chunk of a frame.
   bool final_chunk;
 
-  // |data| is always unmasked even if the frame is masked.
-  std::vector<char> data;
+  // |data| is always unmasked even if the frame is masked. |data| might be
+  // null in the first chunk.
+  scoped_refptr<IOBufferWithSize> data;
 };
 
 // Contains four-byte data representing "masking key" of WebSocket frames.
