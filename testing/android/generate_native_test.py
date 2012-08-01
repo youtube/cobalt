@@ -128,9 +128,9 @@ class NativeTestApkGenerator(object):
         logging.warn('%s --> %s', jar, dest)
         shutil.copyfile(jar, dest)
 
-  def CreateBundle(self, ant_compile):
+  def CreateBundle(self, sdk_build):
     """Create the apk bundle source and assemble components."""
-    if not ant_compile:
+    if not sdk_build:
       self._SOURCE_FILES.append('Android.mk')
       self._REPLACEME_FILES.append('Android.mk')
     self._CopyTemplateFilesAndClearDir()
@@ -180,6 +180,11 @@ def main(argv):
                     help='Output directory for generated files.')
   parser.add_option('--app_abi', default='armeabi',
                     help='ABI for native shared library')
+  parser.add_option('--sdk-build', type='int', default=1,
+                    help='Unless set to 0, build the generated apk with ant. '
+                         'Otherwise assume compiling within the Android '
+                         'source tree using Android.mk.')
+  # FIXME(beverloo): Remove --ant-compile when all users adopted.
   parser.add_option('--ant-compile', action='store_true',
                     help=('If specified, build the generated apk with ant. '
                           'Otherwise assume compiling within the Android '
@@ -207,9 +212,9 @@ def main(argv):
                                 jars=jar_list,
                                 output_directory=options.output,
                                 target_abi=options.app_abi)
-  ntag.CreateBundle(options.ant_compile)
+  ntag.CreateBundle(options.sdk_build or options.ant_compile)
 
-  if options.ant_compile:
+  if options.sdk_build or options.ant_compile:
     ntag.Compile(options.ant_args)
   else:
     ntag.CompileAndroidMk()
