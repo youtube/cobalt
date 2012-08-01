@@ -31,7 +31,6 @@
         '../third_party/zlib/zlib.gyp:zlib',
         'base/strings/ui_strings.gyp:ui_strings',
         'ui_resources',
-        '<(libjpeg_gyp_path):libjpeg',
       ],
       'defines': [
         'UI_IMPLEMENTATION',
@@ -407,6 +406,7 @@
         'gfx/point_base.h',
         'gfx/point_f.cc',
         'gfx/point_f.h',
+        'gfx/point3.h',
         'gfx/rect.cc',
         'gfx/rect.h',
         'gfx/rect_base.h',
@@ -466,6 +466,11 @@
         'ui_controls/ui_controls_win.cc',
       ],
       'conditions': [
+        ['OS!="ios"', {
+          'dependencies': [
+            '<(libjpeg_gyp_path):libjpeg',
+          ],
+        }],
         # TODO(asvitkine): Switch all platforms to use canvas_skia.cc.
         #                  http://crbug.com/105550
         ['use_canvas_skia==1', {
@@ -548,7 +553,7 @@
           ],
           'link_settings': {
             'libraries': [
-              '-lXcursor',  # For XCursor* function calls in x11_util.cc. 
+              '-lXcursor',  # For XCursor* function calls in x11_util.cc.
               '-lXrender',  # For XRender* function calls in x11_util.cc.
             ],
           },
@@ -677,6 +682,30 @@
             ],
           },
         }],
+        ['OS=="ios"', {
+          'sources/': [
+            # iOS uses so little of ui that it is is easier to simply exclude
+            # everything and then just select the parts needed.
+            # TODO(ios): Add new files as they are made iOS ready.
+            ['exclude', '^base/'],
+            ['exclude', '^ui_controls/'],
+            ['exclude', '^gfx/'],
+            ['include', '^gfx/point\\.'],
+            ['include', '^gfx/point_base\\.h'],
+            ['include', '^gfx/point3\\.h'],
+            ['include', '^gfx/rect\\.'],
+            ['include', '^gfx/rect_base\\.h'],
+            ['include', '^gfx/rect_base_impl\\.h'],
+            ['include', '^gfx/size\\.'],
+            ['include', '^gfx/size_base\\.h'],
+            ['include', '^gfx/size_base_impl\\.h'],
+          ],
+          'link_settings': {
+            'libraries': [
+              '$(SDKROOT)/System/Library/Frameworks/CoreGraphics.framework',
+            ],
+          },
+        }],
         ['use_x11==1', {
           'all_dependent_settings': {
             'ldflags': [
@@ -729,7 +758,8 @@
     },
   ],
   'conditions': [
-    ['inside_chromium_build==1', {
+    ['inside_chromium_build == 1 and OS != "ios"', {
+      # TODO(ios): The ui tests do not compile yet on iOS.
       'includes': [
         'ui_unittests.gypi',
       ],

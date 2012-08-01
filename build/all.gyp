@@ -19,6 +19,7 @@
         '../third_party/libxml/libxml.gyp:*',
         '../third_party/sqlite/sqlite.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
+        '../ui/ui.gyp:*',
         'temp_gyp/googleurl.gyp:*',
         # Add new dependencies to the !ios section just below, not here (see
         # the comment there).
@@ -32,7 +33,6 @@
             '../chrome/chrome.gyp:*',
             '../content/content.gyp:*',
             '../crypto/crypto.gyp:*',
-            '../ui/ui.gyp:*',
             '../gpu/gpu.gyp:*',
             '../gpu/tools/tools.gyp:*',
             '../ipc/ipc.gyp:*',
