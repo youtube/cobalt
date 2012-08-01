@@ -50,7 +50,13 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
 
   bool EmitKeyNeeded(const TrackEncryption& track_encryption);
 
-  bool ReadMDATsUntil(const int64 tgt_tail);
+  // To retain proper framing, each 'mdat' atom must be read; to limit memory
+  // usage, the atom's data needs to be discarded incrementally as frames are
+  // extracted from the stream. This function discards data from the stream up
+  // to |offset|, updating the |mdat_tail_| value so that framing can be
+  // retained after all 'mdat' information has been read.
+  // Returns 'true' on success, 'false' if there was an error.
+  bool ReadAndDiscardMDATsUntil(const int64 offset);
 
   void ChangeState(State new_state);
 
