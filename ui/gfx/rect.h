@@ -22,6 +22,10 @@
 typedef struct tagRECT RECT;
 #elif defined(TOOLKIT_GTK)
 typedef struct _GdkRectangle GdkRectangle;
+#elif defined(OS_IOS)
+#include <CoreGraphics/CoreGraphics.h>
+#elif defined(OS_MACOSX)
+#include <ApplicationServices/ApplicationServices.h>
 #endif
 
 namespace gfx {
