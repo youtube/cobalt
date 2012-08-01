@@ -33,20 +33,16 @@ StatsHistogram* StatsHistogram::FactoryGet(const std::string& name) {
     // To avoid racy destruction at shutdown, the following will be leaked.
     StatsHistogram* stats_histogram =
         new StatsHistogram(name, minimum, maximum, bucket_count);
-    stats_histogram->InitializeBucketRange();
     stats_histogram->SetFlags(kUmaTargetedHistogramFlag);
     histogram = StatisticsRecorder::RegisterOrDeleteDuplicate(stats_histogram);
   }
 
   DCHECK(HISTOGRAM == histogram->histogram_type());
-  DCHECK(histogram->HasConstructorArguments(minimum, maximum, bucket_count));
+  DCHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
 
   // We're preparing for an otherwise unsafe upcast by ensuring we have the
   // proper class type.
   StatsHistogram* return_histogram = static_cast<StatsHistogram*>(histogram);
-  // Validate upcast by seeing that we're probably providing the checksum.
-  CHECK_EQ(return_histogram->StatsHistogram::CalculateRangeChecksum(),
-           return_histogram->CalculateRangeChecksum());
   return return_histogram;
 }
 
@@ -85,12 +81,6 @@ void StatsHistogram::SnapshotSample(SampleSet* sample) const {
 Histogram::Inconsistencies StatsHistogram::FindCorruption(
     const SampleSet& snapshot) const {
   return NO_INCONSISTENCIES;  // This class won't monitor inconsistencies.
-}
-
-uint32 StatsHistogram::CalculateRangeChecksum() const {
-  // We don't calculate checksums, so at least establish a unique constant.
-  const uint32 kStatsHistogramChecksum = 0x0cecce;
-  return kStatsHistogramChecksum;
 }
 
 }  // namespace disk_cache

@@ -17,7 +17,7 @@ class BASE_EXPORT HistogramBase {
   typedef int Sample;  // Used for samples.
   typedef int Count;   // Used to count samples.
 
-  static const Sample kSampleType_MAX = INT_MAX;
+  static const Sample kSampleType_MAX;  // INT_MAX
 
   HistogramBase(const std::string& name);
   virtual ~HistogramBase();
