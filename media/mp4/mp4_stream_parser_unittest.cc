@@ -120,12 +120,15 @@ class MP4StreamParserTest : public testing::Test {
   }
 };
 
-
-
 TEST_F(MP4StreamParserTest, TestUnalignedAppend) {
   // Test small, non-segment-aligned appends (small enough to exercise
   // incremental append system)
   ParseMP4File("bear.1280x720_dash.mp4", 512);
+}
+
+TEST_F(MP4StreamParserTest, TestBytewiseAppend) {
+  // Ensure no incremental errors occur when parsing
+  ParseMP4File("bear.1280x720_dash.mp4", 1);
 }
 
 TEST_F(MP4StreamParserTest, TestMultiFragmentAppend) {
@@ -146,6 +149,9 @@ TEST_F(MP4StreamParserTest, TestReinitialization) {
                                  buffer->GetDataSize(),
                                  512));
 }
+
+// TODO(strobe): Create and test media which uses CENC auxiliary info stored
+// inside a private box
 
 }  // namespace mp4
 }  // namespace media

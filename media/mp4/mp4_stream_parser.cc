@@ -86,8 +86,7 @@ bool MP4StreamParser::Parse(const uint8* buf, int size) {
       result = EnqueueSample(&audio_buffers, &video_buffers, &err);
       if (result) {
         int64 max_clear = runs_->GetMaxClearOffset() + moof_head_;
-        DCHECK(max_clear <= queue_.tail());
-        err = !(ReadMDATsUntil(max_clear) && queue_.Trim(max_clear));
+        err = !ReadAndDiscardMDATsUntil(max_clear);
       }
     }
   } while (result && !err);
@@ -435,29 +434,26 @@ bool MP4StreamParser::SendAndFlushSamples(BufferQueue* audio_buffers,
   return !err;
 }
 
-bool MP4StreamParser::ReadMDATsUntil(const int64 tgt_offset) {
-  DCHECK(tgt_offset <= queue_.tail());
-
-  while (mdat_tail_ < tgt_offset) {
+bool MP4StreamParser::ReadAndDiscardMDATsUntil(const int64 offset) {
+  bool err = false;
+  while (mdat_tail_ < offset) {
     const uint8* buf;
     int size;
     queue_.PeekAt(mdat_tail_, &buf, &size);
 
     FourCC type;
     int box_sz;
-    bool err;
     if (!BoxReader::StartTopLevelBox(buf, size, &type, &box_sz, &err))
-      return false;
+      break;
 
     if (type != FOURCC_MDAT) {
       DLOG(WARNING) << "Unexpected type while parsing MDATs: "
                     << FourCCToString(type);
     }
-
     mdat_tail_ += box_sz;
   }
-
-  return true;
+  queue_.Trim(std::min(mdat_tail_, offset));
+  return !err;
 }
 
 void MP4StreamParser::ChangeState(State new_state) {
