@@ -5,6 +5,7 @@
 #include "net/websockets/websocket_frame_parser.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -12,6 +13,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "net/base/big_endian.h"
+#include "net/base/io_buffer.h"
 #include "net/websockets/websocket_frame.h"
 
 namespace {
@@ -120,6 +122,7 @@ void WebSocketFrameParser::DecodeFrameHeader() {
   bool masked = (second_byte & kMaskBit) != 0;
   uint64 payload_length = second_byte & kPayloadLengthMask;
   bool valid_length_format = true;
+  bool message_too_big = false;
   if (payload_length == kPayloadLengthWithTwoByteExtendedLengthField) {
     if (end - current < 2)
       return;
@@ -138,8 +141,10 @@ void WebSocketFrameParser::DecodeFrameHeader() {
         payload_length > static_cast<uint64>(kint64max)) {
       valid_length_format = false;
     }
+    if (payload_length > static_cast<uint64>(kint32max))
+      message_too_big = true;
   }
-  if (!valid_length_format) {
+  if (!valid_length_format || message_too_big) {
     failed_ = true;
     buffer_.clear();
     current_read_pos_ = 0;
@@ -178,26 +183,33 @@ scoped_ptr<WebSocketFrameChunk> WebSocketFrameParser::DecodeFramePayload(
   uint64 next_size = std::min<uint64>(
       end - current,
       current_frame_header_->payload_length - frame_offset_);
+  // This check must pass because |payload_length| is already checked to be
+  // less than std::numeric_limits<int>::max() when the header is parsed.
+  DCHECK_LE(next_size, static_cast<uint64>(kint32max));
 
   scoped_ptr<WebSocketFrameChunk> frame_chunk(new WebSocketFrameChunk);
   if (first_chunk) {
     frame_chunk->header.reset(new WebSocketFrameHeader(*current_frame_header_));
   }
   frame_chunk->final_chunk = false;
-  frame_chunk->data.assign(current, current + next_size);
-  if (current_frame_header_->masked) {
-    // Unmask the payload.
-    // TODO(yutak): This could be faster by doing unmasking for each
-    // machine word (instead of each byte).
-    size_t key_offset = frame_offset_ % kMaskingKeyLength;
-    for (uint64 i = 0; i < next_size; ++i) {
-      frame_chunk->data[i] ^= masking_key_[key_offset];
-      key_offset = (key_offset + 1) % kMaskingKeyLength;
+  if (next_size) {
+    frame_chunk->data = new IOBufferWithSize(static_cast<int>(next_size));
+    char* io_data = frame_chunk->data->data();
+    memcpy(io_data, current, next_size);
+    if (current_frame_header_->masked) {
+      // Unmask the payload.
+      // TODO(yutak): This could be faster by doing unmasking for each
+      // machine word (instead of each byte).
+      size_t key_offset = frame_offset_ % kMaskingKeyLength;
+      for (uint64 i = 0; i < next_size; ++i) {
+        io_data[i] ^= masking_key_[key_offset];
+        key_offset = (key_offset + 1) % kMaskingKeyLength;
+      }
     }
-  }
 
-  current_read_pos_ += next_size;
-  frame_offset_ += next_size;
+    current_read_pos_ += next_size;
+    frame_offset_ += next_size;
+  }
 
   DCHECK_LE(frame_offset_, current_frame_header_->payload_length);
   if (frame_offset_ == current_frame_header_->payload_length) {
