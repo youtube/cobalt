@@ -132,6 +132,9 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
       const base::TimeTicks& delayed_work_time) OVERRIDE {
     Waitable::GetInstance()->Signal();
   }
+
+ protected:
+  virtual ~MessagePumpForUIStub() {}
 };
 
 base::MessagePump* CreateMessagePumpForUIStub() {
