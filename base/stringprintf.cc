@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,12 +26,14 @@ inline int vsnprintfT(char* buffer,
   return base::vsnprintf(buffer, buf_size, format, argptr);
 }
 
+#if !defined(OS_ANDROID)
 inline int vsnprintfT(wchar_t* buffer,
                       size_t buf_size,
                       const wchar_t* format,
                       va_list argptr) {
   return base::vswprintf(buffer, buf_size, format, argptr);
 }
+#endif
 
 // Templatized backend for StringPrintF/StringAppendF. This does not finalize
 // the va_list, the caller is expected to do that.
@@ -116,6 +118,7 @@ std::string StringPrintf(const char* format, ...) {
   return result;
 }
 
+#if !defined(OS_ANDROID)
 std::wstring StringPrintf(const wchar_t* format, ...) {
   va_list ap;
   va_start(ap, format);
@@ -124,6 +127,7 @@ std::wstring StringPrintf(const wchar_t* format, ...) {
   va_end(ap);
   return result;
 }
+#endif
 
 std::string StringPrintV(const char* format, va_list ap) {
   std::string result;
@@ -140,6 +144,7 @@ const std::string& SStringPrintf(std::string* dst, const char* format, ...) {
   return *dst;
 }
 
+#if !defined(OS_ANDROID)
 const std::wstring& SStringPrintf(std::wstring* dst,
                                   const wchar_t* format, ...) {
   va_list ap;
@@ -149,6 +154,7 @@ const std::wstring& SStringPrintf(std::wstring* dst,
   va_end(ap);
   return *dst;
 }
+#endif
 
 void StringAppendF(std::string* dst, const char* format, ...) {
   va_list ap;
@@ -157,19 +163,23 @@ void StringAppendF(std::string* dst, const char* format, ...) {
   va_end(ap);
 }
 
+#if !defined(OS_ANDROID)
 void StringAppendF(std::wstring* dst, const wchar_t* format, ...) {
   va_list ap;
   va_start(ap, format);
   StringAppendV(dst, format, ap);
   va_end(ap);
 }
+#endif
 
 void StringAppendV(std::string* dst, const char* format, va_list ap) {
   StringAppendVT(dst, format, ap);
 }
 
+#if !defined(OS_ANDROID)
 void StringAppendV(std::wstring* dst, const wchar_t* format, va_list ap) {
   StringAppendVT(dst, format, ap);
 }
+#endif
 
 }  // namespace base
