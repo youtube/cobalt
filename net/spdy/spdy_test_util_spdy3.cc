@@ -10,6 +10,8 @@
 #include "base/compiler_specific.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "crypto/ec_private_key.h"
+#include "crypto/ec_signature_creator.h"
 #include "net/base/mock_cert_verifier.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
@@ -37,6 +39,50 @@ void ParseUrl(const char* const url, std::string* scheme, std::string* host,
     host->append(gurl.port());
   }
 }
+
+// An ECSignatureCreator that returns deterministic signatures.
+class MockECSignatureCreator : public crypto::ECSignatureCreator {
+ public:
+  explicit MockECSignatureCreator(crypto::ECPrivateKey* key) : key_(key) {}
+
+  virtual bool Sign(const uint8* data,
+                    int data_len,
+                    std::vector<uint8>* signature) OVERRIDE {
+    std::vector<uint8> private_key_value;
+    key_->ExportValue(&private_key_value);
+    std::string head = "fakesignature";
+    std::string tail = "/fakesignature";
+
+    signature->clear();
+    signature->insert(signature->end(), head.begin(), head.end());
+    signature->insert(signature->end(), private_key_value.begin(),
+                      private_key_value.end());
+    signature->insert(signature->end(), '-');
+    signature->insert(signature->end(), data, data + data_len);
+    signature->insert(signature->end(), tail.begin(), tail.end());
+    return true;
+  }
+
+ private:
+  crypto::ECPrivateKey* key_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockECSignatureCreator);
+};
+
+// An ECSignatureCreatorFactory creates MockECSignatureCreator.
+class MockECSignatureCreatorFactory : public crypto::ECSignatureCreatorFactory {
+ public:
+  MockECSignatureCreatorFactory() {}
+  virtual ~MockECSignatureCreatorFactory() {}
+
+  virtual crypto::ECSignatureCreator* Create(
+      crypto::ECPrivateKey* key) OVERRIDE {
+    return new MockECSignatureCreator(key);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockECSignatureCreatorFactory);
+};
 
 }  // namespace
 
@@ -996,7 +1042,11 @@ const SpdyHeaderInfo MakeSpdyHeader(SpdyControlType type) {
   return kHeader;
 }
 
-SpdyTestStateHelper::SpdyTestStateHelper() {
+SpdyTestStateHelper::SpdyTestStateHelper()
+    : ec_signature_creator_factory_(new MockECSignatureCreatorFactory()) {
+  // Use the mock signature creator.
+  crypto::ECSignatureCreator::SetFactoryForTesting(
+      ec_signature_creator_factory_.get());
   // Pings can be non-deterministic, because they are sent via timer.
   SpdySession::set_enable_ping_based_connection_checking(false);
   // Avoid sending a non-default initial receive window size settings
@@ -1012,6 +1062,7 @@ SpdyTestStateHelper::~SpdyTestStateHelper() {
   SpdySession::ResetStaticSettingsToInit();
   // TODO(rch): save/restore this value
   BufferedSpdyFramer::set_enable_compression_default(true);
+  crypto::ECSignatureCreator::SetFactoryForTesting(NULL);
 }
 
 }  // namespace test_spdy3
