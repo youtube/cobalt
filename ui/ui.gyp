@@ -292,6 +292,8 @@
         'base/win/extra_sdk_defines.h',
         'base/win/foreground_helper.cc',
         'base/win/foreground_helper.h',
+        'base/win/hidden_window.cc',
+        'base/win/hidden_window.h',
         'base/win/hwnd_util.cc',
         'base/win/hwnd_util.h',
         'base/win/hwnd_subclass.cc',
