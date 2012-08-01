@@ -285,17 +285,24 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
     return;
   }
 
-  // TODO(strobe): Currently, presence of checksum is used to indicate the use
-  // of normal or WebM decryption keys. Consider a more explicit signaling
-  // mechanism and the removal of the webm_decryption_key member.
-  crypto::SymmetricKey* decryption_key = (checksum_size > 0) ?
-      key->webm_decryption_key() : key->decryption_key();
-  scoped_refptr<DecoderBuffer> decrypted =
-      DecryptData(*encrypted, decryption_key);
-  if (!decrypted) {
-    DVLOG(1) << "Decryption failed.";
-    decrypt_cb.Run(kError, NULL);
-    return;
+  scoped_refptr<DecoderBuffer> decrypted;
+  // An empty iv string signals that the frame is unencrypted.
+  if (encrypted->GetDecryptConfig()->iv().empty()) {
+    int data_offset = encrypted->GetDecryptConfig()->data_offset();
+    decrypted = DecoderBuffer::CopyFrom(encrypted->GetData() + data_offset,
+                                        encrypted->GetDataSize() - data_offset);
+  } else {
+    // TODO(strobe): Currently, presence of checksum is used to indicate the use
+    // of normal or WebM decryption keys. Consider a more explicit signaling
+    // mechanism and the removal of the webm_decryption_key member.
+    crypto::SymmetricKey* decryption_key = (checksum_size > 0) ?
+        key->webm_decryption_key() : key->decryption_key();
+    decrypted = DecryptData(*encrypted, decryption_key);
+    if (!decrypted) {
+      DVLOG(1) << "Decryption failed.";
+      decrypt_cb.Run(kError, NULL);
+      return;
+    }
   }
 
   decrypted->SetTimestamp(encrypted->GetTimestamp());
