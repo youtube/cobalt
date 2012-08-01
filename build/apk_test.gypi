@@ -47,7 +47,7 @@
               '<(android_app_abi)',
               '--ant-args',
               '-DPRODUCT_DIR=<(ant_build_out)',
-              '--ant-compile'
+              '--sdk-build=<(sdk_build)',
             ],
           }],
         }],  # 'OS == "android" and gtest_target_type == "shared_library"
