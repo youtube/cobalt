@@ -27,8 +27,9 @@ class NET_EXPORT ParsedCookie {
   ParsedCookie(const std::string& cookie_line);
   ~ParsedCookie();
 
-  // You should not call any other methods on the class if !IsValid
-  bool IsValid() const { return is_valid_; }
+  // You should not call any other methods except for SetName/SetValue on the
+  // class if !IsValid.
+  bool IsValid() const;
 
   const std::string& Name() const { return pairs_[0].first; }
   const std::string& Token() const { return Name(); }
@@ -55,8 +56,24 @@ class NET_EXPORT ParsedCookie {
   //   "BLAH=hah; path=/; domain=.google.com"
   size_t NumberOfAttributes() const { return pairs_.size() - 1; }
 
-  // For debugging only!
-  std::string DebugString() const;
+  // These functions set the respective properties of the cookie. If the
+  // parameters are empty, the respective properties are cleared.
+  // The functions return false in case an error occurred.
+  // The cookie needs to be assigned a name/value before setting the other
+  // attributes.
+  bool SetName(const std::string& name);
+  bool SetValue(const std::string& value);
+  bool SetPath(const std::string& path);
+  bool SetDomain(const std::string& domain);
+  bool SetMACKey(const std::string& mac_key);
+  bool SetMACAlgorithm(const std::string& mac_algorithm);
+  bool SetExpires(const std::string& expires);
+  bool SetMaxAge(const std::string& maxage);
+  bool SetIsSecure(bool is_secure);
+  bool SetIsHttpOnly(bool is_http_only);
+
+  // Returns the cookie description as it appears in a HTML response header.
+  std::string ToCookieLine() const;
 
   // Returns an iterator pointing to the first terminator character found in
   // the given string.
@@ -87,14 +104,31 @@ class NET_EXPORT ParsedCookie {
   static std::string ParseValueString(const std::string& value);
 
  private:
-  static const char kTerminator[];
-  static const int  kTerminatorLen;
-  static const char kWhitespace[];
-  static const char kValueSeparator[];
-  static const char kTokenSeparator[];
-
   void ParseTokenValuePairs(const std::string& cookie_line);
   void SetupAttributes();
+
+  // Sets a key/value pair for a cookie. |index| has to point to one of the
+  // |*_index_| fields in ParsedCookie and is updated to the position where
+  // the key/value pair is set in |pairs_|. Accordingly, |key| has to correspond
+  // to the token matching |index|. If |value| contains invalid characters, the
+  // cookie parameter is not changed and the function returns false.
+  // If |value| is empty/false the key/value pair is removed.
+  bool SetString(size_t* index,
+                 const std::string& key,
+                 const std::string& value);
+  bool SetBool(size_t* index,
+               const std::string& key,
+               bool value);
+
+  // Helper function for SetString and SetBool handling the case that the
+  // key/value pair shall not be removed.
+  bool SetAttributePair(size_t* index,
+                        const std::string& key,
+                        const std::string& value);
+
+  // Removes the key/value pair from a cookie that is identified by |index|.
+  // |index| refers to a position in |pairs_|.
+  void ClearAttributePair(size_t index);
 
   PairList pairs_;
   bool is_valid_;
