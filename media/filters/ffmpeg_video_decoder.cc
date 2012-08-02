@@ -75,14 +75,22 @@ int FFmpegVideoDecoder::GetVideoBuffer(AVCodecContext* codec_context,
     return AVERROR(EINVAL);
   DCHECK(format == VideoFrame::YV12 || format == VideoFrame::YV16);
 
-  int width = codec_context->width;
-  int height = codec_context->height;
+  gfx::Size size(codec_context->width, codec_context->height);
   int ret;
-  if ((ret = av_image_check_size(width, height, 0, NULL)) < 0)
+  if ((ret = av_image_check_size(size.width(), size.height(), 0, NULL)) < 0)
     return ret;
 
+  gfx::Size natural_size;
+  if (codec_context->sample_aspect_ratio.num > 0) {
+    natural_size = GetNaturalSize(size,
+                                  codec_context->sample_aspect_ratio.num,
+                                  codec_context->sample_aspect_ratio.den);
+  } else {
+    natural_size = demuxer_stream_->video_decoder_config().natural_size();
+  }
+
   scoped_refptr<VideoFrame> video_frame =
-      VideoFrame::CreateFrame(format, width, height, kNoTimestamp());
+      VideoFrame::CreateFrame(format, size, natural_size, kNoTimestamp());
 
   for (int i = 0; i < 3; i++) {
     frame->base[i] = video_frame->data(i);
@@ -185,7 +193,6 @@ void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
   // Success!
   state_ = kNormal;
   av_frame_ = avcodec_alloc_frame();
-  natural_size_ = config.natural_size();
   status_cb.Run(PIPELINE_OK);
 }
 
@@ -241,10 +248,6 @@ void FFmpegVideoDecoder::DoStop() {
   ReleaseFFmpegResources();
   state_ = kUninitialized;
   base::ResetAndReturn(&stop_cb_).Run();
-}
-
-const gfx::Size& FFmpegVideoDecoder::natural_size() {
-  return natural_size_;
 }
 
 void FFmpegVideoDecoder::set_decryptor(Decryptor* decryptor) {

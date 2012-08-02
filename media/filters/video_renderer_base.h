@@ -116,6 +116,10 @@ class MEDIA_EXPORT VideoRendererBase
   // Return the number of frames currently held by this class.
   int NumFrames_Locked() const;
 
+  // Updates |current_frame_| to the next frame on |ready_frames_| and calls
+  // |size_changed_cb_| if the natural size changes.
+  void SetCurrentFrameToNextReadyFrame();
+
   // Used for accessing data members.
   base::Lock lock_;
 
@@ -227,6 +231,9 @@ class MEDIA_EXPORT VideoRendererBase
   // Callback to execute to inform the player if the video decoder's output is
   // opaque.
   SetOpaqueCB set_opaque_cb_;
+
+  // The last natural size |size_changed_cb_| was called with.
+  gfx::Size last_natural_size_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
 };

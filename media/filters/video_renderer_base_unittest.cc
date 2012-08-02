@@ -94,9 +94,6 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     InSequence s;
 
-    // We expect the video size to be set.
-    EXPECT_CALL(*this, OnNaturalSizeChanged(kNaturalSize));
-
     // Set playback rate before anything else happens.
     renderer_->SetPlaybackRate(1.0f);
 
@@ -115,6 +112,9 @@ class VideoRendererBaseTest : public ::testing::Test {
         base::Bind(&VideoRendererBaseTest::GetTime, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::GetDuration,
                    base::Unretained(this)));
+
+    // We expect the video size to be set.
+    EXPECT_CALL(*this, OnNaturalSizeChanged(kNaturalSize));
 
     // Start prerolling.
     Preroll(0);
@@ -253,8 +253,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   // Creates a frame with given timestamp.
   scoped_refptr<VideoFrame> CreateFrame(int64 timestamp) {
     scoped_refptr<VideoFrame> frame =
-        VideoFrame::CreateFrame(VideoFrame::RGB32, kNaturalSize.width(),
-                                kNaturalSize.height(),
+        VideoFrame::CreateFrame(VideoFrame::RGB32, kNaturalSize, kNaturalSize,
                                 base::TimeDelta::FromMicroseconds(timestamp));
     return frame;
   }
