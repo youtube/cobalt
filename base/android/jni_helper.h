@@ -10,12 +10,17 @@
 #include "base/android/scoped_java_ref.h"
 
 // Manages WeakGlobalRef lifecycle.
+// This class is not thread-safe w.r.t. get() and reset(). Multiple threads may
+// safely use get() concurrently, but if the user calls reset() (or of course,
+// calls the destructor) they'll need to provide their own synchronization.
 class JavaObjectWeakGlobalRef {
  public:
   JavaObjectWeakGlobalRef(JNIEnv* env, jobject obj);
   virtual ~JavaObjectWeakGlobalRef();
 
   base::android::ScopedJavaLocalRef<jobject> get(JNIEnv* env) const;
+
+  void reset();
 
  private:
   jweak obj_;
@@ -26,6 +31,6 @@ class JavaObjectWeakGlobalRef {
 // Get the real object stored in the weak reference returned as a
 // ScopedJavaLocalRef.
 base::android::ScopedJavaLocalRef<jobject> GetRealObject(
-    JNIEnv* env, jobject obj);
+    JNIEnv* env, jweak obj);
 
 #endif  // BASE_ANDROID_JNI_HELPER_H_
