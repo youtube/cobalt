@@ -19,7 +19,8 @@ DecryptConfig::DecryptConfig(const std::string& key_id,
       data_offset_(data_offset),
       subsamples_(subsamples) {
   CHECK_GT(key_id.size(), 0u);
-  CHECK_EQ(iv.size(), static_cast<size_t>(DecryptConfig::kDecryptionKeySize));
+  CHECK(iv.size() == static_cast<size_t>(DecryptConfig::kDecryptionKeySize) ||
+        iv.empty());
   CHECK_GE(data_offset, 0);
 }
 
