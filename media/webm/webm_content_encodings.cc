@@ -12,7 +12,6 @@ ContentEncoding::ContentEncoding()
       scope_(kScopeInvalid),
       type_(kTypeInvalid),
       encryption_algo_(kEncAlgoInvalid),
-      encryption_key_id_size_(0),
       cipher_mode_(kCipherModeInvalid) {
 }
 
@@ -22,9 +21,8 @@ void ContentEncoding::SetEncryptionKeyId(const uint8* encryption_key_id,
                                          int size) {
   DCHECK(encryption_key_id);
   DCHECK_GT(size, 0);
-  encryption_key_id_.reset(new uint8[size]);
-  memcpy(encryption_key_id_.get(), encryption_key_id, size);
-  encryption_key_id_size_ = size;
+  encryption_key_id_.assign(reinterpret_cast<const char*>(encryption_key_id),
+                            size);
 }
 
 }  // namespace media

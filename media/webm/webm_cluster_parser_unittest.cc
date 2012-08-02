@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "media/webm/cluster_builder.h"
 #include "media/webm/webm_cluster_parser.h"
@@ -125,7 +127,7 @@ class WebMClusterParserTest  : public testing::Test {
       : parser_(new WebMClusterParser(kTimecodeScale,
                                       kAudioTrackNum,
                                       kVideoTrackNum,
-                                      NULL, 0)) {
+                                      std::string())) {
   }
 
  protected:
