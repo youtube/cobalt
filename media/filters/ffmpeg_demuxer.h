@@ -84,7 +84,9 @@ class FFmpegDemuxerStream : public DemuxerStream {
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
-  virtual Ranges<base::TimeDelta> GetBufferedRanges() OVERRIDE;
+
+  // Returns the range of buffered data in this stream.
+  Ranges<base::TimeDelta> GetBufferedRanges() const;
 
   // Returns elapsed time based on the already queued packets.
   // Used to determine stream duration when it's not known ahead of time.
@@ -209,6 +211,11 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // Signal the blocked thread that the read has completed, with |size| bytes
   // read or kReadError in case of error.
   virtual void SignalReadCompleted(int size);
+
+  // Returns the stream from |streams_| that matches |type| as an
+  // FFmpegDemuxerStream.
+  scoped_refptr<FFmpegDemuxerStream> GetFFmpegStream(
+      DemuxerStream::Type type) const;
 
   DemuxerHost* host_;
 
