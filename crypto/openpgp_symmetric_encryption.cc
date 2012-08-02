@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/rand_util.h"
+#include "crypto/random.h"
 #include "crypto/scoped_nss_types.h"
 #include "crypto/nss_util.h"
 
@@ -680,7 +680,8 @@ class Encrypter {
     ske.push_back(3);  // iterated and salted S2K
     ske.push_back(2);  // SHA-1
 
-    uint64 salt64 = base::RandUint64();
+    uint64 salt64;
+    crypto::RandBytes(&salt64, sizeof(salt64));
     ByteString salt(sizeof(salt64), 0);
 
     // It's a random value, so endianness doesn't matter.
@@ -710,7 +711,7 @@ class Encrypter {
     static const unsigned kBlockSize = 16;  // AES block size
 
     uint8 prefix[kBlockSize + 2], fre[kBlockSize], iv[kBlockSize];
-    base::RandBytes(iv, kBlockSize);
+    crypto::RandBytes(iv, kBlockSize);
     memset(fre, 0, sizeof(fre));
 
     ScopedPK11Context aes_context;
