@@ -41,6 +41,7 @@ base::LazyInstance<URandomFd> g_urandom_fd = LAZY_INSTANCE_INITIALIZER;
 
 namespace base {
 
+// NOTE: This function must be cryptographically secure. http://crbug.com/140076
 uint64 RandUint64() {
   uint64 number;
 
