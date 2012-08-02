@@ -1067,11 +1067,6 @@
           },
         ],
         [ 'OS == "android"', {
-            'defines': [
-              # Android can shut down the app at any time, so the cookies must
-              # be saved to permanent storage.
-              'ENABLE_PERSISTENT_SESSION_COOKIES'
-            ],
             'dependencies': [
               '../third_party/openssl/openssl.gyp:openssl',
               'net_jni_headers',
@@ -1479,10 +1474,6 @@
           },
         ],
         [ 'OS == "android"', {
-            'defines': [
-              # Android can shut down our app at any time, so we persist session cookies.
-              'ENABLE_PERSISTENT_SESSION_COOKIES'
-            ],
             'dependencies': [
               '../third_party/openssl/openssl.gyp:openssl',
             ],
