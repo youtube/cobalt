@@ -14,46 +14,46 @@
 namespace media {
 namespace mp4 {
 
-static const uint8 kTestBox[] = {
-  // Test box containing three children
-  0x00, 0x00, 0x00, 0x40, 't', 'e', 's', 't',
+static const uint8 kSkipBox[] = {
+  // Top-level test box containing three children
+  0x00, 0x00, 0x00, 0x40, 's', 'k', 'i', 'p',
   0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
   0xf9, 0x0a, 0x0b, 0x0c, 0xfd, 0x0e, 0x0f, 0x10,
-  // Ordinary child box
-  0x00, 0x00, 0x00, 0x0c,  'c',  'h',  'l',  'd', 0xde, 0xad, 0xbe, 0xef,
-  // Extended-size child box
-  0x00, 0x00, 0x00, 0x01,  'c',  'h',  'l',  'd',
+  // Ordinary (8-byte header) child box
+  0x00, 0x00, 0x00, 0x0c,  'p',  's',  's',  'h', 0xde, 0xad, 0xbe, 0xef,
+  // Extended-size header child box
+  0x00, 0x00, 0x00, 0x01,  'p',  's',  's',  'h',
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14,
   0xfa, 0xce, 0xca, 0xfe,
-  // Empty box
-  0x00, 0x00, 0x00, 0x08,  'm',  'p',  't',  'y',
+  // Empty free box
+  0x00, 0x00, 0x00, 0x08,  'f',  'r',  'e',  'e',
   // Trailing garbage
   0x00 };
 
-struct EmptyBox : Box {
+struct FreeBox : Box {
   virtual bool Parse(BoxReader* reader) OVERRIDE {
     return true;
   }
-  virtual FourCC BoxType() const OVERRIDE { return FOURCC_MPTY; }
+  virtual FourCC BoxType() const OVERRIDE { return FOURCC_FREE; }
 };
 
-struct ChildBox : Box {
+struct PsshBox : Box {
   uint32 val;
 
   virtual bool Parse(BoxReader* reader) OVERRIDE {
     return reader->Read4(&val);
   }
-  virtual FourCC BoxType() const OVERRIDE { return FOURCC_CHLD; }
+  virtual FourCC BoxType() const OVERRIDE { return FOURCC_PSSH; }
 };
 
-struct TestBox : Box {
+struct SkipBox : Box {
   uint8 a, b;
   uint16 c;
   int32 d;
   int64 e;
 
-  std::vector<ChildBox> kids;
-  EmptyBox mpty;
+  std::vector<PsshBox> kids;
+  FreeBox mpty;
 
   virtual bool Parse(BoxReader* reader) OVERRIDE {
     RCHECK(reader->ReadFullBoxHeader() &&
@@ -66,19 +66,19 @@ struct TestBox : Box {
            reader->ReadChildren(&kids) &&
            reader->MaybeReadChild(&mpty);
   }
-  virtual FourCC BoxType() const OVERRIDE { return FOURCC_TEST; }
+  virtual FourCC BoxType() const OVERRIDE { return FOURCC_SKIP; }
 
-  TestBox();
-  ~TestBox();
+  SkipBox();
+  ~SkipBox();
 };
 
-TestBox::TestBox() {}
-TestBox::~TestBox() {}
+SkipBox::SkipBox() {}
+SkipBox::~SkipBox() {}
 
 class BoxReaderTest : public testing::Test {
  protected:
   std::vector<uint8> GetBuf() {
-    return std::vector<uint8>(kTestBox, kTestBox + sizeof(kTestBox));
+    return std::vector<uint8>(kSkipBox, kSkipBox + sizeof(kSkipBox));
   }
 };
 
@@ -90,7 +90,7 @@ TEST_F(BoxReaderTest, ExpectedOperationTest) {
   EXPECT_FALSE(err);
   EXPECT_TRUE(reader.get());
 
-  TestBox box;
+  SkipBox box;
   EXPECT_TRUE(box.Parse(reader.get()));
   EXPECT_EQ(0x01, reader->version());
   EXPECT_EQ(0x020304u, reader->flags());
@@ -129,7 +129,7 @@ TEST_F(BoxReaderTest, InnerTooLongTest) {
   scoped_ptr<BoxReader> reader(
       BoxReader::ReadTopLevelBox(&buf[0], buf.size(), &err));
 
-  TestBox box;
+  SkipBox box;
   EXPECT_FALSE(box.Parse(reader.get()));
 }
 
@@ -137,23 +137,12 @@ TEST_F(BoxReaderTest, WrongFourCCTest) {
   std::vector<uint8> buf = GetBuf();
   bool err;
 
-  // Use an unknown FourCC both on an outer box and an inner one.
+  // Set an unrecognized top-level FourCC.
   buf[5] = 1;
-  buf[28] = 1;
   scoped_ptr<BoxReader> reader(
       BoxReader::ReadTopLevelBox(&buf[0], buf.size(), &err));
-
-  TestBox box;
-  std::vector<ChildBox> kids;
-  // This should still work; the outer box reader doesn't care about the FourCC,
-  // since it assumes you've already examined it before deciding what to parse.
-  EXPECT_TRUE(box.Parse(reader.get()));
-  EXPECT_EQ(0x74017374, reader->type());
-  // Parsing the TestBox should have left the modified inner box unread, which
-  // we collect here.
-  EXPECT_TRUE(reader->ReadAllChildren(&kids));
-  EXPECT_EQ(1u, kids.size());
-  EXPECT_EQ(0xdeadbeef, kids[0].val);
+  EXPECT_FALSE(reader.get());
+  EXPECT_TRUE(err);
 }
 
 TEST_F(BoxReaderTest, ChildrenTest) {
@@ -164,12 +153,12 @@ TEST_F(BoxReaderTest, ChildrenTest) {
 
   EXPECT_TRUE(reader->SkipBytes(16) && reader->ScanChildren());
 
-  EmptyBox mpty;
-  EXPECT_TRUE(reader->ReadChild(&mpty));
-  EXPECT_FALSE(reader->ReadChild(&mpty));
-  EXPECT_TRUE(reader->MaybeReadChild(&mpty));
+  FreeBox free;
+  EXPECT_TRUE(reader->ReadChild(&free));
+  EXPECT_FALSE(reader->ReadChild(&free));
+  EXPECT_TRUE(reader->MaybeReadChild(&free));
 
-  std::vector<ChildBox> kids;
+  std::vector<PsshBox> kids;
 
   EXPECT_TRUE(reader->ReadAllChildren(&kids));
   EXPECT_EQ(2u, kids.size());

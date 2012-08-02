@@ -91,6 +91,11 @@ class MEDIA_EXPORT BoxReader : public BufferReader {
                                int* box_size,
                                bool* err) WARN_UNUSED_RESULT;
 
+  // Returns true if |type| is recognized to be a top-level box, false
+  // otherwise. This returns true for some boxes which we do not parse.
+  // Helpful in debugging misaligned appends.
+  static bool IsValidTopLevelBox(const FourCC& type);
+
   // Scan through all boxes within the current box, starting at the current
   // buffer position. Must be called before any of the *Child functions work.
   bool ScanChildren() WARN_UNUSED_RESULT;
