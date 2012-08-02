@@ -61,19 +61,8 @@ common_vars_defines() {
   # to canonicalize them (remove double '/', remove trailing '/', etc).
   DEFINES="OS=android"
   DEFINES+=" host_os=${host_os}"
-  DEFINES+=" linux_fpic=1"
-  DEFINES+=" release_optimize=s"
-  DEFINES+=" linux_use_tcmalloc=0"
-  DEFINES+=" disable_nacl=1"
-  DEFINES+=" remoting=0"
-  DEFINES+=" p2p_apis=0"
-  DEFINES+=" enable_touch_events=1"
-  DEFINES+=" build_ffmpegsumo=0"
 
-  DEFINES+=" gtest_target_type=shared_library"
-  if [ -z "$CHROME_ANDROID_OFFICIAL_BUILD" ]; then
-    DEFINES+=" branding=Chromium"
-  else
+  if [ -n "$CHROME_ANDROID_OFFICIAL_BUILD" ]; then
     DEFINES+=" branding=Chrome"
     DEFINES+=" buildtype=Official"
 

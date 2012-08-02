@@ -455,6 +455,7 @@
         ['OS=="android"', {
           'proprietary_codecs%': 1,
           'enable_webrtc%': 0,
+          'remoting%': 0,
         }],
 
         ['OS=="ios"', {
@@ -944,6 +945,8 @@
         'enable_automation%': 0,
         'enable_printing%': 0,
         'java_bridge%': 1,
+        'build_ffmpegsumo%': 0,
+        'linux_use_tcmalloc%': 0,
 
         # Disable Native Client.
         'disable_nacl%': 1,
@@ -963,11 +966,10 @@
 
         'p2p_apis%' : 0,
 
-        'gtest_target_type%': '<(gtest_target_type)',
         # TODO(jrg): when 'gtest_target_type'=='shared_library' and
         # OS==android, make all gtest_targets depend on
         # testing/android/native_test.gyp:native_test_apk.
-        ### 'gtest_target_type': 'shared_libary',
+        'gtest_target_type%': 'shared_library',
 
         # Uses system APIs for decoding audio and video.
         'use_libffmpeg%': '0',
@@ -2079,6 +2081,9 @@
                 ],
               }],
               ['OS=="android"', {
+                'variables': {
+                  'release_optimize%': 's',
+                },
                 'cflags': [
                   '-fomit-frame-pointer',
                 ],
