@@ -25,22 +25,13 @@ WebMTracksParser::WebMTracksParser()
 
 WebMTracksParser::~WebMTracksParser() {}
 
-const uint8* WebMTracksParser::video_encryption_key_id() const {
+const std::string& WebMTracksParser::video_encryption_key_id() const {
   if (!video_content_encodings_client_.get())
-    return NULL;
+    return EmptyString();
 
   DCHECK(!video_content_encodings_client_->content_encodings().empty());
   return video_content_encodings_client_->content_encodings()[0]->
       encryption_key_id();
-}
-
-int WebMTracksParser::video_encryption_key_id_size() const {
-  if (!video_content_encodings_client_.get())
-    return 0;
-
-  DCHECK(!video_content_encodings_client_->content_encodings().empty());
-  return video_content_encodings_client_->content_encodings()[0]->
-      encryption_key_id_size();
 }
 
 int WebMTracksParser::Parse(const uint8* buf, int size) {

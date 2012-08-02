@@ -5,6 +5,8 @@
 #ifndef MEDIA_WEBM_WEBM_TRACKS_PARSER_H_
 #define MEDIA_WEBM_WEBM_TRACKS_PARSER_H_
 
+#include <string>
+
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
@@ -29,8 +31,7 @@ class WebMTracksParser : public WebMParserClient {
   int64 audio_track_num() const { return audio_track_num_; }
   int64 video_track_num() const { return video_track_num_; }
 
-  const uint8* video_encryption_key_id() const;
-  int video_encryption_key_id_size() const;
+  const std::string& video_encryption_key_id() const;
 
  private:
   // WebMParserClient methods
