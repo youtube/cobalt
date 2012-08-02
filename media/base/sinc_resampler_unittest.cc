@@ -9,9 +9,10 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/command_line.h"
 #include "base/logging.h"
-#include "base/memory/scoped_ptr.h"
-#include "base/stringprintf.h"
+#include "base/string_number_conversions.h"
+#include "base/time.h"
 #include "media/base/sinc_resampler.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -19,6 +20,12 @@
 using testing::_;
 
 namespace media {
+
+static const double kSampleRateRatio = 192000.0 / 44100.0;
+static const double kKernelInterpolationFactor = 0.5;
+
+// Command line switch for runtime adjustment of ConvolveBenchmark iterations.
+static const char kConvolveIterations[] = "convolve-iterations";
 
 // Helper class to ensure ChunkedResample() functions properly.
 class MockSource {
@@ -33,7 +40,6 @@ TEST(SincResamplerTest, ChunkedResample) {
 
   // Choose a high ratio of input to output samples which will result in quick
   // exhaustion of SincResampler's internal buffers.
-  static const double kSampleRateRatio = 192000.0 / 44100.0;
   SincResampler resampler(
       kSampleRateRatio,
       base::Bind(&MockSource::ProvideInput, base::Unretained(&mock_source)));
@@ -50,6 +56,102 @@ TEST(SincResamplerTest, ChunkedResample) {
   testing::Mock::VerifyAndClear(&mock_source);
   EXPECT_CALL(mock_source, ProvideInput(_, _)).Times(kChunks);
   resampler.Resample(resampled_destination.get(), max_chunk_size);
+}
+
+// Ensure various optimized Convolve() methods return the same value.  Only run
+// this test if other optimized methods exist, otherwise the default Convolve()
+// will be tested by the parameterized SincResampler tests below.
+#if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
+TEST(SincResamplerTest, Convolve) {
+  // Initialize a dummy resampler.
+  MockSource mock_source;
+  SincResampler resampler(
+      kSampleRateRatio,
+      base::Bind(&MockSource::ProvideInput, base::Unretained(&mock_source)));
+
+  // Convolve_SSE() is slightly more precise than Convolve_C(), so comparison
+  // must be done using an epsilon.
+  static const double kEpsilon = 0.00000005;
+
+  // Use a kernel from SincResampler as input and kernel data, this has the
+  // benefit of already being properly sized and aligned for Convolve_SSE().
+  double result = resampler.Convolve_C(
+      resampler.kernel_storage_.get(), resampler.kernel_storage_.get(),
+      resampler.kernel_storage_.get(), kKernelInterpolationFactor);
+  double result2 = resampler.Convolve_SSE(
+      resampler.kernel_storage_.get(), resampler.kernel_storage_.get(),
+      resampler.kernel_storage_.get(), kKernelInterpolationFactor);
+  EXPECT_NEAR(result2, result, kEpsilon);
+
+  // Test Convolve_SSE() w/ unaligned input pointer.
+  result = resampler.Convolve_C(
+      resampler.kernel_storage_.get() + 1, resampler.kernel_storage_.get(),
+      resampler.kernel_storage_.get(), kKernelInterpolationFactor);
+  result2 = resampler.Convolve_SSE(
+      resampler.kernel_storage_.get() + 1, resampler.kernel_storage_.get(),
+      resampler.kernel_storage_.get(), kKernelInterpolationFactor);
+  EXPECT_NEAR(result2, result, kEpsilon);
+}
+#endif
+
+// Benchmark for the various Convolve() methods.  Make sure to build with
+// branding=Chrome so that DCHECKs are compiled out when benchmarking.  Original
+// benchmarks were run with --convolve-iterations=50000000.
+TEST(SincResamplerTest, ConvolveBenchmark) {
+  // Initialize a dummy resampler.
+  MockSource mock_source;
+  SincResampler resampler(
+      kSampleRateRatio,
+      base::Bind(&MockSource::ProvideInput, base::Unretained(&mock_source)));
+
+  // Retrieve benchmark iterations from command line.
+  int convolve_iterations = 10;
+  std::string iterations(CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+      kConvolveIterations));
+  if (!iterations.empty())
+    base::StringToInt(iterations, &convolve_iterations);
+
+  printf("Benchmarking %d iterations:\n", convolve_iterations);
+
+  // Benchmark Convolve_C().
+  base::TimeTicks start = base::TimeTicks::HighResNow();
+  for (int i = 0; i < convolve_iterations; ++i) {
+    resampler.Convolve_C(
+        resampler.kernel_storage_.get(), resampler.kernel_storage_.get(),
+        resampler.kernel_storage_.get(), kKernelInterpolationFactor);
+  }
+  double total_time_c_ms =
+      (base::TimeTicks::HighResNow() - start).InMillisecondsF();
+  printf("Convolve_C took %.2fms.\n", total_time_c_ms);
+
+#if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
+  // Benchmark Convolve_SSE() with unaligned input pointer.
+  start = base::TimeTicks::HighResNow();
+  for (int j = 0; j < convolve_iterations; ++j) {
+    resampler.Convolve_SSE(
+        resampler.kernel_storage_.get() + 1, resampler.kernel_storage_.get(),
+        resampler.kernel_storage_.get(), kKernelInterpolationFactor);
+  }
+  double total_time_sse_unaligned_ms =
+      (base::TimeTicks::HighResNow() - start).InMillisecondsF();
+  printf("Convolve_SSE (unaligned) took %.2fms; which is %.2fx faster than"
+         " Convolve_C.\n", total_time_sse_unaligned_ms,
+         total_time_c_ms / total_time_sse_unaligned_ms);
+
+  // Benchmark Convolve_SSE() with aligned input pointer.
+  start = base::TimeTicks::HighResNow();
+  for (int j = 0; j < convolve_iterations; ++j) {
+    resampler.Convolve_SSE(
+        resampler.kernel_storage_.get(), resampler.kernel_storage_.get(),
+        resampler.kernel_storage_.get(), kKernelInterpolationFactor);
+  }
+  double total_time_sse_aligned_ms =
+      (base::TimeTicks::HighResNow() - start).InMillisecondsF();
+  printf("Convolve_SSE (aligned) took %.2fms; which is %.2fx faster than"
+         " Convolve_C and %.2fx faster than Convolve_SSE (unaligned).\n",
+         total_time_sse_aligned_ms, total_time_c_ms / total_time_sse_aligned_ms,
+         total_time_sse_unaligned_ms / total_time_sse_aligned_ms);
+#endif
 }
 
 // Fake audio source for testing the resampler.  Generates a sinusoidal linear
