@@ -10,6 +10,7 @@
 #include <set>
 
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/mp4/box_definitions.h"
 #include "media/mp4/rcheck.h"
 
@@ -95,14 +96,22 @@ BoxReader::~BoxReader() {
   }
 }
 
+// static
 BoxReader* BoxReader::ReadTopLevelBox(const uint8* buf,
                                       const int buf_size,
                                       bool* err) {
-  BoxReader* reader = new BoxReader(buf, buf_size);
-  if (reader->ReadHeader(err) && reader->size() <= buf_size) {
-    return reader;
+  scoped_ptr<BoxReader> reader(new BoxReader(buf, buf_size));
+  if (!reader->ReadHeader(err))
+    return NULL;
+
+  if (!IsValidTopLevelBox(reader->type())) {
+    *err = true;
+    return NULL;
   }
-  delete reader;
+
+  if (reader->size() <= buf_size)
+    return reader.release();
+
   return NULL;
 }
 
@@ -114,9 +123,39 @@ bool BoxReader::StartTopLevelBox(const uint8* buf,
                                  bool* err) {
   BoxReader reader(buf, buf_size);
   if (!reader.ReadHeader(err)) return false;
+  if (!IsValidTopLevelBox(reader.type())) {
+    *err = true;
+    return false;
+  }
   *type = reader.type();
   *box_size = reader.size();
   return true;
+}
+
+// static
+bool BoxReader::IsValidTopLevelBox(const FourCC& type) {
+  switch (type) {
+    case FOURCC_FTYP:
+    case FOURCC_PDIN:
+    case FOURCC_MOOV:
+    case FOURCC_MOOF:
+    case FOURCC_MFRA:
+    case FOURCC_MDAT:
+    case FOURCC_FREE:
+    case FOURCC_SKIP:
+    case FOURCC_META:
+    case FOURCC_MECO:
+    case FOURCC_STYP:
+    case FOURCC_SIDX:
+    case FOURCC_SSIX:
+    case FOURCC_PRFT:
+      return true;
+    default:
+      // Hex is used to show nonprintable characters and aid in debugging
+      LOG(WARNING) << "Unrecognized top-level box type 0x"
+                   << std::hex << type;
+      return false;
+  }
 }
 
 bool BoxReader::ScanChildren() {
