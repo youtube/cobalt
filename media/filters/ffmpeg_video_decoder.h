@@ -31,7 +31,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual void Reset(const base::Closure& closure) OVERRIDE;
   virtual void Stop(const base::Closure& closure) OVERRIDE;
-  virtual const gfx::Size& natural_size() OVERRIDE;
 
   // Must be called prior to initialization if decrypted buffers will be
   // encountered.
@@ -106,14 +105,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // FFmpeg structures owned by this object.
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;
-
-  // Frame rate of the video.
-  int frame_rate_numerator_;
-  int frame_rate_denominator_;
-
-  // TODO(scherkus): I think this should be calculated by VideoRenderers based
-  // on information provided by VideoDecoders (i.e., aspect ratio).
-  gfx::Size natural_size_;
 
   // Pointer to the demuxer stream that will feed us compressed buffers.
   scoped_refptr<DemuxerStream> demuxer_stream_;

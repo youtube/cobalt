@@ -35,7 +35,6 @@ class MEDIA_EXPORT VideoFrameGenerator : public VideoDecoder {
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual void Reset(const base::Closure& closure) OVERRIDE;
   virtual void Stop(const base::Closure& closure) OVERRIDE;
-  virtual const gfx::Size& natural_size() OVERRIDE;
 
  protected:
   virtual ~VideoFrameGenerator();
@@ -50,7 +49,7 @@ class MEDIA_EXPORT VideoFrameGenerator : public VideoDecoder {
   void StopOnDecoderThread(const base::Closure& closure);
 
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
-  gfx::Size natural_size_;
+  gfx::Size size_;
   bool stopped_;
 
   base::TimeDelta current_time_;

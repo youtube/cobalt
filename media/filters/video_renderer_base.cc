@@ -137,9 +137,6 @@ void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
   get_time_cb_ = get_time_cb;
   get_duration_cb_ = get_duration_cb;
 
-  // Notify the pipeline of the video dimensions.
-  size_changed_cb_.Run(decoder_->natural_size());
-
   // We're all good!  Consider ourselves flushed. (ThreadMain() should never
   // see us in the kUninitialized state).
   // Since we had an initial Preroll(), we consider ourself flushed, because we
@@ -300,12 +297,23 @@ void VideoRendererBase::ThreadMain() {
     // signal to the client that a new frame is available.
     DCHECK(!pending_paint_);
     DCHECK(!ready_frames_.empty());
-    current_frame_ = ready_frames_.front();
-    ready_frames_.pop_front();
+    SetCurrentFrameToNextReadyFrame();
     AttemptRead_Locked();
 
     base::AutoUnlock auto_unlock(lock_);
     paint_cb_.Run();
+  }
+}
+
+void VideoRendererBase::SetCurrentFrameToNextReadyFrame() {
+  current_frame_ = ready_frames_.front();
+  ready_frames_.pop_front();
+
+  // Notify the pipeline of natural_size() changes.
+  const gfx::Size& natural_size = current_frame_->natural_size();
+  if (natural_size != last_natural_size_) {
+    size_changed_cb_.Run(natural_size);
+    last_natural_size_ = natural_size;
   }
 }
 
@@ -457,10 +465,8 @@ void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
     // Because we might remain in the prerolled state for an undetermined amount
     // of time (i.e., we were not playing before we started prerolling), we'll
     // manually update the current frame and notify the subclass below.
-    if (!ready_frames_.front()->IsEndOfStream()) {
-      current_frame_ = ready_frames_.front();
-      ready_frames_.pop_front();
-    }
+    if (!ready_frames_.front()->IsEndOfStream())
+      SetCurrentFrameToNextReadyFrame();
 
     // ...and we're done prerolling!
     DCHECK(!preroll_cb_.is_null());

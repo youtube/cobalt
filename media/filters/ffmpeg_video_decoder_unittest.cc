@@ -101,7 +101,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   void InitializeWithConfigAndStatus(const VideoDecoderConfig& config,
                                      PipelineStatus status) {
     EXPECT_CALL(*demuxer_, video_decoder_config())
-        .WillOnce(ReturnRef(config));
+        .WillRepeatedly(ReturnRef(config));
 
     decoder_->Initialize(demuxer_, NewExpectedStatusCB(status),
                          base::Bind(&MockStatisticsCB::OnStatistics,
@@ -167,8 +167,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
   // the file named |test_file_name|. This function expects both buffers
   // to decode to frames that are the same size.
   void DecodeIFrameThenTestFile(const std::string& test_file_name,
-                                size_t expected_width,
-                                size_t expected_height) {
+                                int expected_width,
+                                int expected_height) {
     Initialize();
 
     VideoDecoder::DecoderStatus status_a;
@@ -189,17 +189,15 @@ class FFmpegVideoDecoderTest : public testing::Test {
     Read(&status_a, &video_frame_a);
     Read(&status_b, &video_frame_b);
 
-    size_t original_width = static_cast<size_t>(kVisibleRect.width());
-    size_t original_height = static_cast<size_t>(kVisibleRect.height());
-
+    gfx::Size original_size = kVisibleRect.size();
     EXPECT_EQ(status_a, VideoDecoder::kOk);
     EXPECT_EQ(status_b, VideoDecoder::kOk);
     ASSERT_TRUE(video_frame_a);
     ASSERT_TRUE(video_frame_b);
-    EXPECT_EQ(original_width, video_frame_a->width());
-    EXPECT_EQ(original_height, video_frame_a->height());
-    EXPECT_EQ(expected_width, video_frame_b->width());
-    EXPECT_EQ(expected_height, video_frame_b->height());
+    EXPECT_EQ(original_size.width(), video_frame_a->data_size().width());
+    EXPECT_EQ(original_size.height(), video_frame_a->data_size().height());
+    EXPECT_EQ(expected_width, video_frame_b->data_size().width());
+    EXPECT_EQ(expected_height, video_frame_b->data_size().height());
   }
 
   void Read(VideoDecoder::DecoderStatus* status,
