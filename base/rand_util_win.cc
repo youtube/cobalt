@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,6 +21,7 @@ uint32 RandUint32() {
 
 namespace base {
 
+// NOTE: This function must be cryptographically secure. http://crbug.com/140076
 uint64 RandUint64() {
   uint32 first_half = RandUint32();
   uint32 second_half = RandUint32();
