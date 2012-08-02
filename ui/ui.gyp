@@ -765,36 +765,7 @@
       # TODO(ios): The ui tests do not compile yet on iOS.
       'includes': [
         'ui_unittests.gypi',
-      ],
-      'targets': [
-        {
-          # TODO(rsesek): Remove this target once ui_unittests is run on the
-          # waterfall instead of gfx_unittests.
-          'target_name': 'gfx_unittests',
-          'type': 'none',
-          'dependencies': [
-            'ui_unittests',
-          ],
-          'actions': [
-            {
-              'message': 'TEMPORARY: Copying ui_unittests to gfx_unittests',
-              'variables': {
-                'ui_copy_target': '<(PRODUCT_DIR)/ui_unittests<(EXECUTABLE_SUFFIX)',
-                'ui_copy_dest': '<(PRODUCT_DIR)/gfx_unittests<(EXECUTABLE_SUFFIX)',
-              },
-              'inputs': ['<(ui_copy_target)'],
-              'outputs': ['<(ui_copy_dest)'],
-              'action_name': 'TEMP_copy_ui_unittests',
-              'action': [
-                'python', '-c',
-                'import os, shutil; ' \
-                'shutil.copyfile(\'<(ui_copy_target)\', \'<(ui_copy_dest)\'); ' \
-                'os.chmod(\'<(ui_copy_dest)\', 0700)'
-              ]
-            }
-          ],
-        },
-      ],
-    }],
+      ]},
+    ],
   ],
 }
