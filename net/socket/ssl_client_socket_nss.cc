@@ -3125,17 +3125,6 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   #error "You need to install NSS-3.12 or later to build chromium"
 #endif
 
-#ifdef SSL_ENABLE_DEFLATE
-  // Some web servers have been found to break if TLS is used *or* if DEFLATE
-  // is advertised. Thus, if TLS is disabled (probably because we are doing
-  // SSLv3 fallback), we disable DEFLATE also.
-  // See http://crbug.com/31628
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_DEFLATE,
-                     ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1);
-  if (rv != SECSuccess)
-    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_DEFLATE");
-#endif
-
 #ifdef SSL_ENABLE_FALSE_START
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_FALSE_START,
                      ssl_config_.false_start_enabled);
