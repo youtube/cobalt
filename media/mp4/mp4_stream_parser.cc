@@ -462,7 +462,7 @@ bool MP4StreamParser::ReadAndDiscardMDATsUntil(const int64 offset) {
       break;
 
     if (type != FOURCC_MDAT) {
-      DLOG(WARNING) << "Unexpected type while parsing MDATs: "
+      DLOG(WARNING) << "Unexpected box type while parsing MDATs: "
                     << FourCCToString(type);
     }
     mdat_tail_ += box_sz;
