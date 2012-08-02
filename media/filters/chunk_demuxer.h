@@ -136,6 +136,16 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Returns true if |source_id| is valid, false otherwise.
   bool IsValidId(const std::string& source_id) const;
 
+  // Increases |duration_| if the newly appended |buffers| exceed the current
+  // |duration_|. The |duration_| is set to the end buffered timestamp of
+  // |stream|.
+  void IncreaseDurationIfNecessary(
+      const StreamParser::BufferQueue& buffers,
+      const scoped_refptr<ChunkDemuxerStream>& stream);
+
+  // Sets |duration_| to |new_duration| and notifies |host_|.
+  void UpdateDuration(base::TimeDelta new_duration);
+
   mutable base::Lock lock_;
   State state_;
 
