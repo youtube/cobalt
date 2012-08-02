@@ -458,12 +458,12 @@ bool Histogram::InspectConstructionArguments(const string& name,
                                              size_t* bucket_count) {
   // Defensive code for backward compatibility.
   if (*minimum < 1) {
-    DLOG(WARNING) << "Histogram: " << name << " Bad minimum: " << *minimum;
+    DVLOG(1) << "Histogram: " << name << " has bad minimum: " << *minimum;
     *minimum = 1;
   }
   if (*maximum >= kSampleType_MAX) {
-    DLOG(WARNING) << "Histogram: " << name << " Bad maximum: " << *maximum;
-    *maximum = kSampleType_MAX;
+    DVLOG(1) << "Histogram: " << name << " has bad maximum: " << *maximum;
+    *maximum = kSampleType_MAX - 1;
   }
 
   if (*bucket_count < 3 || *bucket_count >= kBucketCount_MAX)
