@@ -479,6 +479,39 @@ TEST(Allocators, Recalloc) {
     }
   }
 }
+
+// Test windows specific _aligned_malloc() and _aligned_free() methods.
+TEST(Allocators, AlignedMalloc) {
+  // Try allocating data with a bunch of alignments and sizes
+  static const int kTestAlignments[] = {8, 16, 256, 4096, 8192, 16384};
+  for (int size = 1; size > 0; size = NextSize(size)) {
+    for (int i = 0; i < ARRAYSIZE(kTestAlignments); ++i) {
+      unsigned char* ptr = static_cast<unsigned char*>(
+          _aligned_malloc(size, kTestAlignments[i]));
+      CheckAlignment(ptr, kTestAlignments[i]);
+      Fill(ptr, size);
+      EXPECT_TRUE(Valid(ptr, size));
+
+      // Make a second allocation of the same size and alignment to prevent
+      // allocators from passing this test by accident.  Per jar, tcmalloc
+      // provides allocations for new (never before seen) sizes out of a thread
+      // local heap of a given "size class."  Each time the test requests a new
+      // size, it will usually get the first element of a span, which is a
+      // 4K aligned allocation.
+      unsigned char* ptr2 = static_cast<unsigned char*>(
+          _aligned_malloc(size, kTestAlignments[i]));
+      CheckAlignment(ptr2, kTestAlignments[i]);
+      Fill(ptr2, size);
+      EXPECT_TRUE(Valid(ptr2, size));
+
+      // Should never happen, but sanity check just in case.
+      ASSERT_NE(ptr, ptr2);
+      _aligned_free(ptr);
+      _aligned_free(ptr2);
+    }
+  }
+}
+
 #endif
 
 
