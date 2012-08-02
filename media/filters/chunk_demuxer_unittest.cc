@@ -2130,4 +2130,36 @@ TEST_F(ChunkDemuxerTest, TestTimestampOffsetMidParse) {
   // Setting a timestamp should fail because we're in the middle of a cluster.
   ASSERT_FALSE(demuxer_->SetTimestampOffset(kSourceId, 25));
 }
+
+TEST_F(ChunkDemuxerTest, TestDurationChange) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  // Add data leading up to the currently set duration.
+  scoped_ptr<Cluster> first_cluster = GenerateCluster(
+      kDefaultDuration().InMilliseconds() - kAudioBlockDuration,
+      kDefaultDuration().InMilliseconds() - kVideoBlockDuration, 2);
+  ASSERT_TRUE(AppendData(first_cluster->data(), first_cluster->size()));
+
+  // Now add data past the duration and expect a new duration to be signalled.
+  scoped_ptr<Cluster> second_cluster = GenerateCluster(
+      kDefaultDuration().InMilliseconds(), 4);
+  EXPECT_CALL(host_, SetDuration(
+      kDefaultDuration() + base::TimeDelta::FromMilliseconds(
+          kAudioBlockDuration * 2)));
+  ASSERT_TRUE(AppendData(second_cluster->data(), second_cluster->size()));
+}
+
+TEST_F(ChunkDemuxerTest, TestDurationChangeTimestampOffset) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(kSourceId,
+                                           kDefaultDuration().InSecondsF()));
+  scoped_ptr<Cluster> cluster = GenerateCluster(0, 4);
+
+  EXPECT_CALL(host_, SetDuration(
+      kDefaultDuration() + base::TimeDelta::FromMilliseconds(
+          kAudioBlockDuration * 2)));
+  ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
+}
+
 }  // namespace media
