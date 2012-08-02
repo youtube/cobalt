@@ -58,12 +58,18 @@ void MP4StreamParser::Init(const InitCB& init_cb,
   end_of_segment_cb_ = end_of_segment_cb;
 }
 
-void MP4StreamParser::Flush() {
-  DCHECK_NE(state_, kWaitingForInit);
-
+void MP4StreamParser::Reset() {
   queue_.Reset();
+  moov_.reset();
+  runs_.reset();
   moof_head_ = 0;
   mdat_tail_ = 0;
+}
+
+void MP4StreamParser::Flush() {
+  DCHECK_NE(state_, kWaitingForInit);
+  Reset();
+  ChangeState(kParsingBoxes);
 }
 
 bool MP4StreamParser::Parse(const uint8* buf, int size) {
@@ -97,9 +103,7 @@ bool MP4StreamParser::Parse(const uint8* buf, int size) {
 
   if (err) {
     DLOG(ERROR) << "Error while parsing MP4";
-    queue_.Reset();
-    moov_.reset();
-    runs_.reset();
+    Reset();
     ChangeState(kError);
     return false;
   }
@@ -378,8 +382,12 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     std::vector<SubsampleEntry> subsamples;
     if (decrypt_config.get())
       subsamples = decrypt_config->subsamples();
-    RCHECK(PrepareAVCBuffer(runs_->video_description().avcc,
-                            &frame_buf, &subsamples));
+    if (!PrepareAVCBuffer(runs_->video_description().avcc,
+                          &frame_buf, &subsamples)) {
+      DLOG(ERROR) << "Failed to prepare AVC sample for decode";
+      *err = true;
+      return false;
+    }
     if (!subsamples.empty()) {
       decrypt_config.reset(new DecryptConfig(
           decrypt_config->key_id(),
@@ -392,7 +400,11 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
 
   if (audio) {
     const AAC& aac = runs_->audio_description().esds.aac;
-    RCHECK(aac.ConvertEsdsToADTS(&frame_buf));
+    if (!aac.ConvertEsdsToADTS(&frame_buf)) {
+      DLOG(ERROR) << "Failed to convert ESDS to ADTS";
+      *err = true;
+      return false;
+    }
   }
 
   scoped_refptr<StreamParserBuffer> stream_buf =
