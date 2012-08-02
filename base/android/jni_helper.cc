@@ -15,8 +15,14 @@ JavaObjectWeakGlobalRef::JavaObjectWeakGlobalRef(JNIEnv* env, jobject obj)
 }
 
 JavaObjectWeakGlobalRef::~JavaObjectWeakGlobalRef() {
-  DCHECK(obj_);
-  AttachCurrentThread()->DeleteWeakGlobalRef(obj_);
+  reset();
+}
+
+void JavaObjectWeakGlobalRef::reset() {
+  if (obj_) {
+    AttachCurrentThread()->DeleteWeakGlobalRef(obj_);
+    obj_ = NULL;
+  }
 }
 
 base::android::ScopedJavaLocalRef<jobject>
@@ -25,9 +31,12 @@ base::android::ScopedJavaLocalRef<jobject>
 }
 
 base::android::ScopedJavaLocalRef<jobject> GetRealObject(
-    JNIEnv* env, jobject obj) {
-  jobject real = env->NewLocalRef(obj);
-  if (!real)
-    DLOG(ERROR) << "The real object has been deleted!";
+    JNIEnv* env, jweak obj) {
+  jobject real = NULL;
+  if (obj) {
+    real = env->NewLocalRef(obj);
+    if (!real)
+      DLOG(ERROR) << "The real object has been deleted!";
+  }
   return base::android::ScopedJavaLocalRef<jobject>(env, real);
 }
