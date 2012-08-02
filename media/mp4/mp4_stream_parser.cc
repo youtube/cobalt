@@ -11,6 +11,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
+#include "media/base/video_util.h"
 #include "media/mp4/box_definitions.h"
 #include "media/mp4/box_reader.h"
 #include "media/mp4/es_descriptor.h"
@@ -218,14 +219,16 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       RCHECK(EmitKeyNeeded(entry.sinf.info.track_encryption));
 
       // TODO(strobe): Recover correct crop box
+      gfx::Size coded_size(entry.width, entry.height);
+      gfx::Rect visible_rect(coded_size);
+      gfx::Size natural_size = GetNaturalSize(visible_rect.size(),
+                                              entry.pixel_aspect.h_spacing,
+                                              entry.pixel_aspect.v_spacing);
       video_config.Initialize(kCodecH264, H264PROFILE_MAIN,  VideoFrame::YV12,
-                              gfx::Size(entry.width, entry.height),
-                              gfx::Rect(0, 0, entry.width, entry.height),
-                              entry.pixel_aspect.h_spacing,
-                              entry.pixel_aspect.v_spacing,
+                              coded_size, visible_rect, natural_size,
                               // No decoder-specific buffer needed for AVC;
                               // SPS/PPS are embedded in the video stream
-                              NULL, 0, false);
+                              NULL, 0, true);
       has_video_ = true;
       video_track_id_ = track->header.track_id;
     }

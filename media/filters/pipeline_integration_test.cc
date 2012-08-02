@@ -283,6 +283,13 @@ TEST_F(PipelineIntegrationTest, BasicPlayback_MediaSource) {
   Stop();
 }
 
+TEST_F(PipelineIntegrationTest, BasicPlayback_16x9AspectRatio) {
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240-16x9-aspect.webm"),
+                    PIPELINE_OK));
+  Play();
+  ASSERT_TRUE(WaitUntilOnEnded());
+}
+
 // TODO(fgalligan): Enable test when encrypted test data is updated and new
 // decryption code is landed. http://crbug.com/132801
 TEST_F(PipelineIntegrationTest, DISABLED_EncryptedPlayback) {
