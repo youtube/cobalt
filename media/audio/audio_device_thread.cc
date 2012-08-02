@@ -8,6 +8,7 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
+#include "base/memory/aligned_memory.h"
 #include "base/message_loop.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
@@ -189,7 +190,7 @@ AudioDeviceThread::Callback::Callback(
 
 AudioDeviceThread::Callback::~Callback() {
   for (size_t i = 0; i < audio_data_.size(); ++i)
-    delete [] audio_data_[i];
+    base::AlignedFree(audio_data_[i]);
 }
 
 void AudioDeviceThread::Callback::InitializeOnAudioThread() {
@@ -198,10 +199,11 @@ void AudioDeviceThread::Callback::InitializeOnAudioThread() {
   MapSharedMemory();
   DCHECK(shared_memory_.memory() != NULL);
 
+  // Allocate buffer with a 16-byte alignment to allow SSE optimizations.
   audio_data_.reserve(audio_parameters_.channels());
   for (int i = 0; i < audio_parameters_.channels(); ++i) {
-    float* channel_data = new float[audio_parameters_.frames_per_buffer()];
-    audio_data_.push_back(channel_data);
+    audio_data_.push_back(static_cast<float*>(base::AlignedAlloc(
+        sizeof(float) * audio_parameters_.frames_per_buffer(), 16)));
   }
 }
 
