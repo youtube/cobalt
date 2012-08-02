@@ -1,10 +1,15 @@
 Name: xdg-mime
-URL: http://portland.freedesktop.org/wiki/
+URL: http://freedesktop.org
+License: Academic Free License version 2.0 or LGPL v2
 
 The code in this directory is synced from:
 http://svn.gnome.org/svn/glib/trunk/gio/xdgmime/
 @ r7784 on 2009/05/11.
 This version contains some bugfixes to the original code.
 
+The above link is dead and the code is now hosted at
+http://cgit.freedesktop.org/xdg/xdgmime.
+
 In addition, we have the following patch(es):
 - compile.patch: small tweaks to make the code compile.
+- Added a LICENSE file.
