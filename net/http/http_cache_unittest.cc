@@ -2355,9 +2355,7 @@ TEST(HttpCache, SimplePUT_Miss) {
 TEST(HttpCache, SimplePUT_Invalidate) {
   MockHttpCache cache;
 
-  MockTransaction transaction(kSimplePOST_Transaction);
-  transaction.method = "GET";
-
+  MockTransaction transaction(kSimpleGET_Transaction);
   MockHttpRequest req1(transaction);
 
   // Attempt to populate the cache.
@@ -2408,9 +2406,7 @@ TEST(HttpCache, SimpleDELETE_Miss) {
 TEST(HttpCache, SimpleDELETE_Invalidate) {
   MockHttpCache cache;
 
-  MockTransaction transaction(kSimplePOST_Transaction);
-  transaction.method = "GET";
-
+  MockTransaction transaction(kSimpleGET_Transaction);
   MockHttpRequest req1(transaction);
 
   // Attempt to populate the cache.
