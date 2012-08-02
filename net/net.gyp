@@ -1031,32 +1031,6 @@
             },
           },
         ],
-        [ 'OS == "android"', {
-            'defines': [
-              # Android can shut down our app at any time, so we persist session cookies.
-              'ENABLE_PERSISTENT_SESSION_COOKIES'
-            ],
-            'dependencies': [
-              '../third_party/openssl/openssl.gyp:openssl',
-              'net_jni_headers',
-            ],
-            'sources!': [
-              'base/openssl_memory_private_key_store.cc',
-            ],
-          }, {  # else OS! = "android"
-            'defines': [
-              # These are the features Android doesn't support.
-              'ENABLE_MEDIA_CODEC_THEORA',
-            ],
-          },
-        ],
-        [ 'OS == "linux"', {
-            'dependencies': [
-              '../build/linux/system.gyp:dbus',
-              '../dbus/dbus.gyp:dbus',
-            ],
-          },
-        ],
         [ 'OS == "ios"', {
             'link_settings': {
               'libraries': [
@@ -1092,6 +1066,33 @@
             ],
           },
         ],
+        [ 'OS == "android"', {
+            'defines': [
+              # Android can shut down the app at any time, so the cookies must
+              # be saved to permanent storage.
+              'ENABLE_PERSISTENT_SESSION_COOKIES'
+            ],
+            'dependencies': [
+              '../third_party/openssl/openssl.gyp:openssl',
+              'net_jni_headers',
+            ],
+            'sources!': [
+              'base/openssl_memory_private_key_store.cc',
+            ],
+          }, {  # else OS! = "android"
+            'defines': [
+              # These are the features Android doesn't support.
+              'ENABLE_MEDIA_CODEC_THEORA',
+            ],
+          },
+        ],
+        [ 'OS == "linux"', {
+            'dependencies': [
+              '../build/linux/system.gyp:dbus',
+              '../dbus/dbus.gyp:dbus',
+            ],
+          },
+        ],
       ],
       'target_conditions': [
         # These source files are excluded by default platform rules, but they
@@ -1114,8 +1115,6 @@
       'target_name': 'net_unittests',
       'type': '<(gtest_target_type)',
       'dependencies': [
-        'net',
-        'net_test_support',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
@@ -1123,6 +1122,8 @@
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/zlib/zlib.gyp:zlib',
+        'net',
+        'net_test_support',
       ],
       'sources': [
         'base/address_list_unittest.cc',
@@ -1448,6 +1449,28 @@
             ],
           },
         ],
+        ['OS == "ios"', {
+          # TODO: For now this only tests the subset of code that is enabled in
+          # the net target.
+          'dependencies': [
+            '../testing/gtest.gyp:gtest_main',
+          ],
+          'dependencies!': [
+            'net_test_support',
+          ],
+          'sources/': [
+            ['exclude', '.*'],
+            ['include', '^base/dns_util_unittest\\.cc$'],
+            ['include', '^base/escape_unittest\\.cc$'],
+            ['include', '^base/ip_endpoint_unittest\\.cc$'],
+            ['include', '^base/mime_util_unittest\\.cc$'],
+            ['include', '^base/net_log_unittest\\.cc$'],
+            ['include', '^base/registry_controlled_domains/registry_controlled_domain_unittest\\.cc$'],
+            ['include', '^http/http_byte_range_unittest\\.cc$'],
+            ['include', '^http/http_content_disposition_unittest\\.cc$'],
+            ['include', '^http/http_util_unittest\\.cc$'],
+          ],
+        }],
         [ 'OS == "linux"', {
             'dependencies': [
               '../build/linux/system.gyp:dbus',
@@ -1478,41 +1501,19 @@
             'base/x509_cert_types_unittest.cc',
           ],
         }],
-        ['OS == "ios"', {
-          # TODO: For now this only tests the subset of code that is enabled in
-          # the net target.
-          'dependencies': [
-            '../testing/gtest.gyp:gtest_main',
-          ],
-          'dependencies!': [
-            'net_test_support',
-          ],
-          'sources/': [
-            ['exclude', '.*'],
-            ['include', '^base/dns_util_unittest\\.cc$'],
-            ['include', '^base/escape_unittest\\.cc$'],
-            ['include', '^base/ip_endpoint_unittest\\.cc$'],
-            ['include', '^base/mime_util_unittest\\.cc$'],
-            ['include', '^base/net_log_unittest\\.cc$'],
-            ['include', '^base/registry_controlled_domains/registry_controlled_domain_unittest\\.cc$'],
-            ['include', '^http/http_byte_range_unittest\\.cc$'],
-            ['include', '^http/http_content_disposition_unittest\\.cc$'],
-            ['include', '^http/http_util_unittest\\.cc$'],
-          ],
-        }],
       ],
     },
     {
       'target_name': 'net_perftests',
       'type': 'executable',
       'dependencies': [
-        'net',
-        'net_test_support',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_perf',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../testing/gtest.gyp:gtest',
+        'net',
+        'net_test_support',
       ],
       'sources': [
         'cookies/cookie_monster_perftest.cc',
@@ -1544,10 +1545,10 @@
       'target_name': 'net_test_support',
       'type': 'static_library',
       'dependencies': [
-        'net',
         '../base/base.gyp:base',
         '../base/base.gyp:test_support_base',
         '../testing/gtest.gyp:gtest',
+        'net',
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
@@ -1672,8 +1673,8 @@
       'type': 'static_library',
       'variables': { 'enable_wexit_time_destructors': 1, },
       'dependencies': [
-        'net',
         '../base/base.gyp:base',
+        'net',
       ],
       'sources': [
         'server/http_connection.cc',
@@ -1693,14 +1694,63 @@
         # iOS doesn't have the concept of simple executables, these targets
         # can't be compiled on the platform.
         {
+          'target_name': 'crash_cache',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+            'net_test_support',
+          ],
+          'sources': [
+            'tools/crash_cache/crash_cache.cc',
+          ],
+        },
+        {
+          'target_name': 'crl_set_dump',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+          ],
+          'sources': [
+            'tools/crl_set_dump/crl_set_dump.cc',
+          ],
+        },
+        {
+          'target_name': 'dns_fuzz_stub',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+          ],
+          'sources': [
+            'tools/dns_fuzz_stub/dns_fuzz_stub.cc',
+          ],
+        },
+        {
           'target_name': 'dnssec_chain_verify',
           'type': 'executable',
           'dependencies': [
-            'net',
             '../base/base.gyp:base',
+            'net',
           ],
           'sources': [
             'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
+          ],
+        },
+        {
+          'target_name': 'fetch_client',
+          'type': 'executable',
+          'variables': { 'enable_wexit_time_destructors': 1, },
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../testing/gtest.gyp:gtest',
+            'net',
+          ],
+          'sources': [
+            'tools/fetch/fetch_client.cc',
           ],
         },
         {
@@ -1708,9 +1758,9 @@
           'type': 'executable',
           'variables': { 'enable_wexit_time_destructors': 1, },
           'dependencies': [
-            'net',
             '../base/base.gyp:base',
             '../build/temp_gyp/googleurl.gyp:googleurl',
+            'net',
           ],
           'sources': [
             'tools/fetch/fetch_server.cc',
@@ -1742,22 +1792,37 @@
           'target_name': 'net_watcher',
           'type': 'executable',
           'dependencies': [
-            'net',
             '../base/base.gyp:base',
+            'net',
           ],
           'sources': [
             'tools/net_watcher/net_watcher.cc',
           ],
         },
         {
-          'target_name': 'crl_set_dump',
+          'target_name': 'run_testserver',
           'type': 'executable',
           'dependencies': [
-            'net',
             '../base/base.gyp:base',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../testing/gtest.gyp:gtest',
+            'net',
+            'net_test_support',
           ],
           'sources': [
-            'tools/crl_set_dump/crl_set_dump.cc',
+            'tools/testserver/run_testserver.cc',
+          ],
+        },
+        {
+          'target_name': 'stress_cache',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+            'net_test_support',
+          ],
+          'sources': [
+            'disk_cache/stress_cache.cc',
           ],
         },
         {
@@ -1772,70 +1837,6 @@
             'tools/tld_cleanup/tld_cleanup.cc',
           ],
         },
-        {
-          'target_name': 'dns_fuzz_stub',
-          'type': 'executable',
-          'dependencies': [
-            'net',
-            '../base/base.gyp:base',
-          ],
-          'sources': [
-            'tools/dns_fuzz_stub/dns_fuzz_stub.cc',
-          ],
-        },
-        {
-          'target_name': 'stress_cache',
-          'type': 'executable',
-          'dependencies': [
-            'net',
-            'net_test_support',
-            '../base/base.gyp:base',
-          ],
-          'sources': [
-            'disk_cache/stress_cache.cc',
-          ],
-        },
-        {
-          'target_name': 'crash_cache',
-          'type': 'executable',
-          'dependencies': [
-            'net',
-            'net_test_support',
-            '../base/base.gyp:base',
-          ],
-          'sources': [
-            'tools/crash_cache/crash_cache.cc',
-          ],
-        },
-        {
-          'target_name': 'run_testserver',
-          'type': 'executable',
-          'dependencies': [
-            'net',
-            'net_test_support',
-            '../base/base.gyp:base',
-            '../build/temp_gyp/googleurl.gyp:googleurl',
-            '../testing/gtest.gyp:gtest',
-          ],
-          'sources': [
-            'tools/testserver/run_testserver.cc',
-          ],
-        },
-        {
-          'target_name': 'fetch_client',
-          'type': 'executable',
-          'variables': { 'enable_wexit_time_destructors': 1, },
-          'dependencies': [
-            'net',
-            '../base/base.gyp:base',
-            '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-            '../build/temp_gyp/googleurl.gyp:googleurl',
-            '../testing/gtest.gyp:gtest',
-          ],
-          'sources': [
-            'tools/fetch/fetch_client.cc',
-          ],
-        },
       ],
     }],
     ['os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android"', {
@@ -1848,8 +1849,8 @@
           ],
           'dependencies': [
             '../base/base.gyp:base',
-            'net',
             '../third_party/openssl/openssl.gyp:openssl',
+            'net',
           ],
           'sources': [
             'tools/dump_cache/url_to_filename_encoder.cc',
@@ -1946,12 +1947,12 @@
           'type': 'executable',
           'dependencies': [
             '../base/base.gyp:base',
-            'curvecp',
-            'net',
-            'net_test_support',
             '../testing/gmock.gyp:gmock',
             '../testing/gtest.gyp:gtest',
             '../third_party/zlib/zlib.gyp:zlib',
+            'curvecp',
+            'net',
+            'net_test_support',
           ],
           'sources': [
             'curvecp/curvecp_transfer_unittest.cc',
@@ -2022,9 +2023,9 @@
           'target_name': 'dump_cache',
           'type': 'executable',
           'dependencies': [
+            '../base/base.gyp:base',
             'net',
             'net_test_support',
-            '../base/base.gyp:base',
           ],
           'sources': [
             'tools/dump_cache/cache_dumper.cc',
