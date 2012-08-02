@@ -542,17 +542,20 @@ bool IsWASAPISupported() {
 }
 
 int NumberOfWaveOutBuffers() {
-  // Simple heuristic: use 3 buffers on single-core system or on Vista,
-  // 2 otherwise.
-  // Entire Windows audio stack was rewritten for Windows Vista, and wave out
-  // API is simulated on top of new API, so there is noticeable performance
-  // degradation compared to Windows XP. Part of regression was apparently fixed
-  // in Windows 7, but problems remain at least with some configurations.
-  if ((base::SysInfo::NumberOfProcessors() < 2) ||
-      (base::win::GetVersion() >= base::win::VERSION_VISTA)) {
+  // The entire Windows audio stack was rewritten for Windows Vista, and the
+  // wave out API is simulated on top of new API, so there is noticeable
+  // performance degradation compared to Windows XP. So use 4 buffers for Vista.
+  if (base::win::GetVersion() == base::win::VERSION_VISTA)
+    return 4;
+
+  // Part of regression was apparently fixed in Windows 7, but problems remain
+  // at least with some configurations (compared to XP). So use 3 buffers for
+  // Windows 7 and higher.
+  if (base::win::GetVersion() >= base::win::VERSION_WIN7)
     return 3;
-  }
-  return 2;
+
+  // Otherwise (for XP), use 3 buffers on single-core systems and 2 otherwise.
+  return (base::SysInfo::NumberOfProcessors() < 2) ? 3 : 2;
 }
 
 #endif
