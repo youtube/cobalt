@@ -60,10 +60,6 @@ namespace net {
 
 namespace {
 
-#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
-const int kPersistentSessionCookieExpiryInDays = 14;
-#endif
-
 // Determine the cookie domain to use for setting the specified cookie.
 bool GetCookieDomain(const GURL& url,
                      const ParsedCookie& pc,
@@ -109,7 +105,6 @@ std::string CanonPathWithString(const GURL& url,
 CanonicalCookie::CanonicalCookie()
     : secure_(false),
       httponly_(false) {
-  SetSessionCookieExpiryTime();
 }
 
 CanonicalCookie::CanonicalCookie(
@@ -130,8 +125,6 @@ CanonicalCookie::CanonicalCookie(
       last_access_date_(last_access),
       secure_(secure),
       httponly_(httponly) {
-  if (expiration.is_null())
-    SetSessionCookieExpiryTime();
 }
 
 CanonicalCookie::CanonicalCookie(const GURL& url, const ParsedCookie& pc)
@@ -147,8 +140,6 @@ CanonicalCookie::CanonicalCookie(const GURL& url, const ParsedCookie& pc)
       httponly_(pc.IsHttpOnly()) {
   if (pc.HasExpires())
     expiry_date_ = CanonExpiration(pc, creation_date_, creation_date_);
-  else
-    SetSessionCookieExpiryTime();
 
   // Do the best we can with the domain.
   std::string cookie_domain;
@@ -212,15 +203,6 @@ Time CanonicalCookie::CanonExpiration(const ParsedCookie& pc,
 
   // Invalid or no expiration, persistent cookie.
   return Time();
-}
-
-void CanonicalCookie::SetSessionCookieExpiryTime() {
-#if defined(ENABLE_PERSISTENT_SESSION_COOKIES)
-  // Mobile apps can sometimes be shut down without any warning, so the session
-  // cookie has to be persistent and given a default expiration time.
-  expiry_date_ = base::Time::Now() +
-      base::TimeDelta::FromDays(kPersistentSessionCookieExpiryInDays);
-#endif
 }
 
 CanonicalCookie* CanonicalCookie::Create(const GURL& url,
