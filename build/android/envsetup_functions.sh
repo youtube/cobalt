@@ -191,7 +191,10 @@ sdk_build_init() {
   DEFINES+=" android_static_lib='NOT_SDK_COMPLIANT'"
   DEFINES+=\
 " android_sdk=${ANDROID_SDK_ROOT}/platforms/android-${ANDROID_SDK_VERSION}"
+  DEFINES+=" android_sdk_root=${ANDROID_SDK_ROOT}"
   DEFINES+=" android_sdk_tools=${ANDROID_SDK_ROOT}/platform-tools"
+  DEFINES+=" android_sdk_version=${ANDROID_SDK_VERSION}"
+  DEFINES+=" android_toolchain=${ANDROID_TOOLCHAIN}"
 
   common_gyp_vars
 
@@ -245,7 +248,10 @@ ${ANDROID_SDK_VERSION}
   # The non-SDK build currently requires the SDK path to build the framework
   # Java aidl files. TODO(steveblock): Investigate avoiding this requirement.
   DEFINES+=" android_sdk=${ANDROID_SDK_ROOT}"
+  DEFINES+=" android_sdk_root=${ANDROID_SDK_ROOT}"
   DEFINES+=" android_sdk_tools=${ANDROID_SDK_ROOT}/../tools/linux"
+  DEFINES+=" android_sdk_version=${ANDROID_SDK_VERSION}"
+  DEFINES+=" android_toolchain=${ANDROID_TOOLCHAIN}"
 
   common_gyp_vars
 }
@@ -268,7 +274,10 @@ webview_build_init() {
   DEFINES+=" android_build_type=1"
   DEFINES+=" android_upstream_bringup=1"
   DEFINES+=" android_sdk=\$(GYP_ABS_ANDROID_TOP_DIR)/${ANDROID_SDK}"
+  DEFINES+=" android_sdk_root=${ANDROID_SDK_ROOT}"
   DEFINES+=" android_sdk_tools=\$(GYP_ABS_ANDROID_TOP_DIR)/${ANDROID_SDK_TOOLS}"
+  DEFINES+=" android_sdk_version=${ANDROID_SDK_VERSION}"
+  DEFINES+=" android_toolchain=${ANDROID_TOOLCHAIN}"
   export GYP_DEFINES="${DEFINES}"
 
   export GYP_GENERATORS="android"
