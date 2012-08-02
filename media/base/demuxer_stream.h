@@ -64,9 +64,6 @@ class MEDIA_EXPORT DemuxerStream
   // if type() != VIDEO.
   virtual const VideoDecoderConfig& video_decoder_config() = 0;
 
-  // Returns time ranges known to have been seen by this stream.
-  virtual Ranges<base::TimeDelta> GetBufferedRanges() = 0;
-
   // Returns the type of stream.
   virtual Type type() = 0;
 

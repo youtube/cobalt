@@ -176,6 +176,9 @@ class ChunkDemuxerStream : public DemuxerStream {
   // Returns true if buffers were successfully added.
   bool Append(const StreamParser::BufferQueue& buffers);
 
+  // Returns the range of buffered data in this stream, capped at |duration|.
+  Ranges<TimeDelta> GetBufferedRanges(base::TimeDelta duration) const;
+
   // Signal to the stream that buffers handed in through subsequent calls to
   // Append() belong to a media segment that starts at |start_timestamp|.
   void OnNewMediaSegment(TimeDelta start_timestamp);
@@ -199,7 +202,6 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
-  virtual Ranges<TimeDelta> GetBufferedRanges() OVERRIDE;
 
  protected:
   virtual ~ChunkDemuxerStream();
@@ -318,9 +320,20 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
   return true;
 }
 
-Ranges<TimeDelta> ChunkDemuxerStream::GetBufferedRanges() {
+Ranges<TimeDelta> ChunkDemuxerStream::GetBufferedRanges(
+    base::TimeDelta duration) const {
   base::AutoLock auto_lock(lock_);
-  return stream_->GetBufferedTime();
+  Ranges<TimeDelta> range = stream_->GetBufferedTime();
+
+  if (range.size() == 0u)
+    return range;
+
+  // Clamp the end of the stream's buffered ranges to fit within the duration.
+  // This can be done by intersecting the stream's range with the valid time
+  // range.
+  Ranges<TimeDelta> valid_time_range;
+  valid_time_range.Add(range.start(0), duration);
+  return range.IntersectionWith(valid_time_range);
 }
 
 bool ChunkDemuxerStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
@@ -671,12 +684,12 @@ Ranges<TimeDelta> ChunkDemuxer::GetBufferedRanges(const std::string& id) const {
 
   if (id == source_id_audio_ && id != source_id_video_) {
     // Only include ranges that have been buffered in |audio_|
-    return audio_ ? audio_->GetBufferedRanges() : Ranges<TimeDelta>();
+    return audio_ ? audio_->GetBufferedRanges(duration_) : Ranges<TimeDelta>();
   }
 
   if (id != source_id_audio_ && id == source_id_video_) {
     // Only include ranges that have been buffered in |video_|
-    return video_ ? video_->GetBufferedRanges() : Ranges<TimeDelta>();
+    return video_ ? video_->GetBufferedRanges(duration_) : Ranges<TimeDelta>();
   }
 
   return ComputeIntersection();
@@ -689,8 +702,8 @@ Ranges<TimeDelta> ChunkDemuxer::ComputeIntersection() const {
     return Ranges<TimeDelta>();
 
   // Include ranges that have been buffered in both |audio_| and |video_|.
-  Ranges<TimeDelta> audio_ranges = audio_->GetBufferedRanges();
-  Ranges<TimeDelta> video_ranges = video_->GetBufferedRanges();
+  Ranges<TimeDelta> audio_ranges = audio_->GetBufferedRanges(duration_);
+  Ranges<TimeDelta> video_ranges = video_->GetBufferedRanges(duration_);
   Ranges<TimeDelta> result = audio_ranges.IntersectionWith(video_ranges);
 
   if (state_ == ENDED && result.size() > 0) {
@@ -763,13 +776,7 @@ bool ChunkDemuxer::AppendData(const std::string& id,
       std::swap(cb, seek_cb_);
     }
 
-    if (audio_ && !video_) {
-      ranges = audio_->GetBufferedRanges();
-    } else if (!audio_ && video_) {
-      ranges = video_->GetBufferedRanges();
-    } else {
-      ranges = ComputeIntersection();
-    }
+    ranges = GetBufferedRanges();
   }
 
   for (size_t i = 0; i < ranges.size(); ++i)
@@ -825,10 +832,12 @@ bool ChunkDemuxer::EndOfStream(PipelineStatus status) {
   if (video_)
     video_->EndOfStream();
 
-  if (status != PIPELINE_OK)
+  if (status != PIPELINE_OK) {
     ReportError_Locked(status);
-  else
+  } else {
     ChangeState_Locked(ENDED);
+    DecreaseDurationIfNecessary();
+  }
 
   return true;
 }
@@ -1121,12 +1130,30 @@ void ChunkDemuxer::IncreaseDurationIfNecessary(
   if (buffers.back()->GetTimestamp() <= duration_)
     return;
 
-  Ranges<TimeDelta> ranges = stream->GetBufferedRanges();
+  Ranges<TimeDelta> ranges = stream->GetBufferedRanges(kInfiniteDuration());
   DCHECK_GT(ranges.size(), 0u);
 
   base::TimeDelta last_timestamp_buffered = ranges.end(ranges.size() - 1);
   if (last_timestamp_buffered > duration_)
     UpdateDuration(last_timestamp_buffered);
+}
+
+void ChunkDemuxer::DecreaseDurationIfNecessary() {
+  Ranges<TimeDelta> ranges = GetBufferedRanges();
+  if (ranges.size() == 0u)
+    return;
+
+  base::TimeDelta last_timestamp_buffered = ranges.end(ranges.size() - 1);
+  if (last_timestamp_buffered < duration_)
+    UpdateDuration(last_timestamp_buffered);
+}
+
+Ranges<TimeDelta> ChunkDemuxer::GetBufferedRanges() const {
+  if (audio_ && !video_)
+    return audio_->GetBufferedRanges(duration_);
+  else if (!audio_ && video_)
+    return video_->GetBufferedRanges(duration_);
+  return ComputeIntersection();
 }
 
 }  // namespace media

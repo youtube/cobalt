@@ -237,7 +237,7 @@ base::TimeDelta FFmpegDemuxerStream::GetElapsedTime() const {
   return ConvertStreamTimestamp(stream_->time_base, stream_->cur_dts);
 }
 
-Ranges<base::TimeDelta> FFmpegDemuxerStream::GetBufferedRanges() {
+Ranges<base::TimeDelta> FFmpegDemuxerStream::GetBufferedRanges() const {
   base::AutoLock auto_lock(lock_);
   return buffered_ranges_;
 }
@@ -323,7 +323,12 @@ void FFmpegDemuxer::Initialize(DemuxerHost* host,
 
 scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(
     DemuxerStream::Type type) {
-  StreamVector::iterator iter;
+  return GetFFmpegStream(type);
+}
+
+scoped_refptr<FFmpegDemuxerStream> FFmpegDemuxer::GetFFmpegStream(
+    DemuxerStream::Type type) const {
+  StreamVector::const_iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
     if (*iter && (*iter)->type() == type) {
       return *iter;
@@ -717,9 +722,10 @@ void FFmpegDemuxer::SignalReadCompleted(int size) {
 void FFmpegDemuxer::NotifyBufferingChanged() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   Ranges<base::TimeDelta> buffered;
-  scoped_refptr<DemuxerStream> audio =
-      audio_disabled_ ? NULL : GetStream(DemuxerStream::AUDIO);
-  scoped_refptr<DemuxerStream> video = GetStream(DemuxerStream::VIDEO);
+  scoped_refptr<FFmpegDemuxerStream> audio =
+      audio_disabled_ ? NULL : GetFFmpegStream(DemuxerStream::AUDIO);
+  scoped_refptr<FFmpegDemuxerStream> video =
+      GetFFmpegStream(DemuxerStream::VIDEO);
   if (audio && video) {
     buffered = audio->GetBufferedRanges().IntersectionWith(
         video->GetBufferedRanges());

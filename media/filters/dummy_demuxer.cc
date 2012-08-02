@@ -32,10 +32,6 @@ void DummyDemuxerStream::Read(const ReadCB& read_cb) {}
 
 void DummyDemuxerStream::EnableBitstreamConverter() {}
 
-Ranges<base::TimeDelta> DummyDemuxerStream::GetBufferedRanges() {
-  return Ranges<base::TimeDelta>();
-}
-
 DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio) {
   streams_.resize(DemuxerStream::NUM_TYPES);
   if (has_audio)

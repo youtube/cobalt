@@ -143,8 +143,15 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
       const StreamParser::BufferQueue& buffers,
       const scoped_refptr<ChunkDemuxerStream>& stream);
 
+  // Decreases |duration_| if the buffered region is less than |duration_| when
+  // EndOfStream() is called.
+  void DecreaseDurationIfNecessary();
+
   // Sets |duration_| to |new_duration| and notifies |host_|.
   void UpdateDuration(base::TimeDelta new_duration);
+
+  // Returns the ranges representing the buffered data in the demuxer.
+  Ranges<base::TimeDelta> GetBufferedRanges() const;
 
   mutable base::Lock lock_;
   State state_;
