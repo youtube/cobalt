@@ -137,6 +137,19 @@ TEST_F(MP4StreamParserTest, TestMultiFragmentAppend) {
   ParseMP4File("bear.1280x720_dash.mp4", 768432);
 }
 
+TEST_F(MP4StreamParserTest, TestFlush) {
+  // Flush while reading sample data, then start a new stream.
+  InitializeParser();
+
+  scoped_refptr<DecoderBuffer> buffer =
+      ReadTestDataFile("bear.1280x720_dash.mp4");
+  EXPECT_TRUE(AppendDataInPieces(buffer->GetData(), 65536, 512));
+  parser_->Flush();
+  EXPECT_TRUE(AppendDataInPieces(buffer->GetData(),
+                                 buffer->GetDataSize(),
+                                 512));
+}
+
 TEST_F(MP4StreamParserTest, TestReinitialization) {
   InitializeParser();
 

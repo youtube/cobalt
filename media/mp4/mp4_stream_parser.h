@@ -70,6 +70,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool SendAndFlushSamples(BufferQueue* audio_buffers,
                            BufferQueue* video_buffers);
 
+  void Reset();
+
   State state_;
   InitCB init_cb_;
   NewConfigCB config_cb_;
