@@ -467,10 +467,6 @@
         'ui_controls/ui_controls_gtk.cc',
         'ui_controls/ui_controls_mac.mm',
         'ui_controls/ui_controls_win.cc',
-        'window_snapshot/window_snapshot_aura.cc',
-        'window_snapshot/window_snapshot_gtk.cc',
-        'window_snapshot/window_snapshot_mac.mm',
-        'window_snapshot/window_snapshot_win.cc',
       ],
       'conditions': [
         ['OS!="ios"', {
@@ -512,7 +508,6 @@
             ['exclude', 'base/x/work_area_watcher_x.cc'],
             ['exclude', 'base/x/work_area_watcher_x.h'],
             ['exclude', 'ui_controls_win.cc'],
-            ['exclude', 'window_snapshot/window_snapshot_win.cc'],
            ],
         }, {  # use_aura!=1
           'sources!': [
