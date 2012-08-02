@@ -4,6 +4,8 @@
 
 #include "media/webm/webm_cluster_parser.h"
 
+#include <vector>
+
 #include "base/logging.h"
 #include "base/sys_byteorder.h"
 #include "media/base/data_buffer.h"
@@ -33,10 +35,9 @@ static scoped_array<uint8> GenerateCounterBlock(uint64 iv) {
 WebMClusterParser::WebMClusterParser(int64 timecode_scale,
                                      int audio_track_num,
                                      int video_track_num,
-                                     const uint8* video_encryption_key_id,
-                                     int video_encryption_key_id_size)
+                                     const std::string& video_encryption_key_id)
     : timecode_multiplier_(timecode_scale / 1000.0),
-      video_encryption_key_id_size_(video_encryption_key_id_size),
+      video_encryption_key_id_(video_encryption_key_id),
       parser_(kWebMIdCluster, this),
       last_block_timecode_(-1),
       block_data_size_(-1),
@@ -46,12 +47,6 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
       cluster_ended_(false),
       audio_(audio_track_num),
       video_(video_track_num) {
-  CHECK_GE(video_encryption_key_id_size, 0);
-  if (video_encryption_key_id_size > 0) {
-    video_encryption_key_id_.reset(new uint8[video_encryption_key_id_size]);
-    memcpy(video_encryption_key_id_.get(), video_encryption_key_id,
-           video_encryption_key_id_size);
-  }
 }
 
 WebMClusterParser::~WebMClusterParser() {}
@@ -220,8 +215,8 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   // Every encrypted Block has an HMAC and IV prepended to it. Current encrypted
   // WebM request for comments specification is here
   // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-  bool encrypted = track_num == video_.track_num() &&
-                   video_encryption_key_id_.get();
+  bool encrypted =
+      track_num == video_.track_num() && !video_encryption_key_id_.empty();
   // If encrypted skip past the HMAC. Encrypted buffers must include the IV and
   // the encrypted frame because the decryptor will verify this data before
   // decryption. The HMAC and IV will be copied into DecryptConfig.
@@ -240,9 +235,7 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
 
     scoped_array<uint8> counter_block(GenerateCounterBlock(iv));
     buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
-        std::string(
-            reinterpret_cast<const char*>(video_encryption_key_id_.get()),
-            video_encryption_key_id_size_),
+        video_encryption_key_id_,
         std::string(
             reinterpret_cast<const char*>(counter_block.get()),
             DecryptConfig::kDecryptionKeySize),

@@ -4,6 +4,8 @@
 
 #include "media/webm/webm_stream_parser.h"
 
+#include <string>
+
 #include "base/callback.h"
 #include "base/logging.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -357,21 +359,21 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
   }
 
   // TODO(xhwang): Support decryption of audio (see http://crbug.com/123421).
-  if (tracks_parser.video_encryption_key_id()) {
-    int key_id_size = tracks_parser.video_encryption_key_id_size();
+  if (!tracks_parser.video_encryption_key_id().empty()) {
+    std::string key_id = tracks_parser.video_encryption_key_id();
+    int key_id_size = key_id.size();
     CHECK_GT(key_id_size, 0);
     CHECK_LT(key_id_size, 2048);
-    scoped_array<uint8> key_id(new uint8[key_id_size]);
-    memcpy(key_id.get(), tracks_parser.video_encryption_key_id(), key_id_size);
-    need_key_cb_.Run(key_id.Pass(), key_id_size);
+    scoped_array<uint8> key_id_array(new uint8[key_id_size]);
+    memcpy(key_id_array.get(), key_id.data(), key_id_size);
+    need_key_cb_.Run(key_id_array.Pass(), key_id_size);
   }
 
   cluster_parser_.reset(new WebMClusterParser(
       info_parser.timecode_scale(),
       tracks_parser.audio_track_num(),
       tracks_parser.video_track_num(),
-      tracks_parser.video_encryption_key_id(),
-      tracks_parser.video_encryption_key_id_size()));
+      tracks_parser.video_encryption_key_id()));
 
   ChangeState(kParsingClusters);
 

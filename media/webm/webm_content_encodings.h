@@ -5,6 +5,8 @@
 #ifndef MEDIA_WEBM_WEBM_CONTENT_ENCODINGS_H_
 #define MEDIA_WEBM_WEBM_CONTENT_ENCODINGS_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
@@ -64,9 +66,7 @@ class MEDIA_EXPORT ContentEncoding {
     encryption_algo_ = encryption_algo;
   }
 
-  const uint8* encryption_key_id() const { return encryption_key_id_.get(); }
-  int encryption_key_id_size() const { return encryption_key_id_size_; }
-
+  const std::string& encryption_key_id() const { return encryption_key_id_; }
   void SetEncryptionKeyId(const uint8* encryption_key_id, int size);
 
   CipherMode cipher_mode() const { return cipher_mode_; }
@@ -77,8 +77,7 @@ class MEDIA_EXPORT ContentEncoding {
   Scope scope_;
   Type type_;
   EncryptionAlgo encryption_algo_;
-  scoped_array<uint8> encryption_key_id_;
-  int encryption_key_id_size_;
+  std::string encryption_key_id_;
   CipherMode cipher_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(ContentEncoding);

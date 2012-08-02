@@ -248,8 +248,7 @@ bool WebMContentEncodingsClient::OnBinary(int id, const uint8* data, int size) {
   DCHECK_GT(size, 0);
 
   if (id == kWebMIdContentEncKeyID) {
-    if (cur_content_encoding_->encryption_key_id() ||
-        cur_content_encoding_->encryption_key_id_size()) {
+    if (!cur_content_encoding_->encryption_key_id().empty()) {
       DVLOG(1) << "Unexpected multiple ContentEncKeyID";
       return false;
     }

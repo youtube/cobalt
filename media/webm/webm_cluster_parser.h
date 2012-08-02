@@ -22,8 +22,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   WebMClusterParser(int64 timecode_scale,
                     int audio_track_num,
                     int video_track_num,
-                    const uint8* video_encryption_key_id,
-                    int video_encryption_key_id_size);
+                    const std::string& video_encryption_key_id);
   virtual ~WebMClusterParser();
 
   // Resets the parser state so it can accept a new cluster.
@@ -75,8 +74,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   double timecode_multiplier_;  // Multiplier used to convert timecodes into
                                 // microseconds.
-  scoped_array<uint8> video_encryption_key_id_;
-  int video_encryption_key_id_size_;
+  std::string video_encryption_key_id_;
 
   WebMListParser parser_;
 
