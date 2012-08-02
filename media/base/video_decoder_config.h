@@ -72,7 +72,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
                      VideoFrame::Format format,
                      const gfx::Size& coded_size,
                      const gfx::Rect& visible_rect,
-                     int aspect_ratio_numerator, int aspect_ratio_denominator,
+                     const gfx::Size& natural_size,
                      const uint8* extra_data, size_t extra_data_size);
 
   ~VideoDecoderConfig();
@@ -83,7 +83,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
                   VideoFrame::Format format,
                   const gfx::Size& coded_size,
                   const gfx::Rect& visible_rect,
-                  int aspect_ratio_numerator, int aspect_ratio_denominator,
+                  const gfx::Size& natural_size,
                   const uint8* extra_data, size_t extra_data_size,
                   bool record_stats);
 
@@ -119,13 +119,6 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // into account.
   gfx::Size natural_size() const;
 
-  // Aspect ratio of the decoded video frame expressed as a fraction.
-  //
-  // TODO(scherkus): think of a better way to avoid having video decoders
-  // handle tricky aspect ratio dimension calculations.
-  int aspect_ratio_numerator() const;
-  int aspect_ratio_denominator() const;
-
   // Optional byte data required to initialize video decoders, such as H.264
   // AAVC data.
   uint8* extra_data() const;
@@ -140,9 +133,6 @@ class MEDIA_EXPORT VideoDecoderConfig {
   gfx::Size coded_size_;
   gfx::Rect visible_rect_;
   gfx::Size natural_size_;
-
-  int aspect_ratio_numerator_;
-  int aspect_ratio_denominator_;
 
   scoped_array<uint8> extra_data_;
   size_t extra_data_size_;
