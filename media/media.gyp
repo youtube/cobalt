@@ -847,6 +847,7 @@
         'yuv_convert',
         '../base/base.gyp:base',
         '../skia/skia.gyp:skia',
+        '../ui/ui.gyp:ui',
       ],
       'sources': [
         'tools/scaler_bench/scaler_bench.cc',
@@ -920,6 +921,7 @@
             'yuv_convert',
             '../base/base.gyp:base',
             '../ui/gl/gl.gyp:gl',
+            '../ui/ui.gyp:ui',
           ],
           'sources': [
             'tools/shader_bench/cpu_color_painter.cc',
@@ -985,6 +987,7 @@
             'yuv_convert',
             '../base/base.gyp:base',
             '../ui/gl/gl.gyp:gl',
+            '../ui/ui.gyp:ui',
           ],
           'link_settings': {
             'libraries': [

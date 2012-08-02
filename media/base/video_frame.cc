@@ -19,12 +19,12 @@ namespace media {
 // static
 scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
     VideoFrame::Format format,
-    size_t width,
-    size_t height,
+    const gfx::Size& data_size,
+    const gfx::Size& natural_size,
     base::TimeDelta timestamp) {
-  DCHECK(IsValidConfig(format, width, height));
+  DCHECK(IsValidConfig(format, data_size, natural_size));
   scoped_refptr<VideoFrame> frame(new VideoFrame(
-      format, width, height, timestamp));
+      format, data_size, natural_size, timestamp));
   switch (format) {
     case VideoFrame::RGB32:
       frame->AllocateRGB(4u);
@@ -40,27 +40,30 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
 }
 
 // static
-bool VideoFrame::IsValidConfig(
-    VideoFrame::Format format,
-    size_t width,
-    size_t height) {
-
+bool VideoFrame::IsValidConfig(VideoFrame::Format format,
+                               const gfx::Size& data_size,
+                               const gfx::Size& natural_size) {
   return (format != VideoFrame::INVALID &&
-          width > 0 && height > 0 &&
-          width <= limits::kMaxDimension && height <= limits::kMaxDimension &&
-          width * height <= limits::kMaxCanvas);
+          data_size.width() > 0 && data_size.height() > 0 &&
+          data_size.width() <= limits::kMaxDimension &&
+          data_size.height() <= limits::kMaxDimension &&
+          data_size.width() * data_size.height() <= limits::kMaxCanvas &&
+          natural_size.width() > 0 && natural_size.height() > 0 &&
+          natural_size.width() <= limits::kMaxDimension &&
+          natural_size.height() <= limits::kMaxDimension &&
+          natural_size.width() * natural_size.height() <= limits::kMaxCanvas);
 }
 
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
     uint32 texture_id,
     uint32 texture_target,
-    size_t width,
-    size_t height,
+    const gfx::Size& data_size,
+    const gfx::Size& natural_size,
     base::TimeDelta timestamp,
     const base::Closure& no_longer_needed) {
   scoped_refptr<VideoFrame> frame(
-      new VideoFrame(NATIVE_TEXTURE, width, height, timestamp));
+      new VideoFrame(NATIVE_TEXTURE, data_size, natural_size, timestamp));
   frame->texture_id_ = texture_id;
   frame->texture_target_ = texture_target;
   frame->texture_no_longer_needed_ = no_longer_needed;
@@ -70,18 +73,18 @@ scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
 // static
 scoped_refptr<VideoFrame> VideoFrame::CreateEmptyFrame() {
   return new VideoFrame(
-      VideoFrame::EMPTY, 0, 0, base::TimeDelta());
+      VideoFrame::EMPTY, gfx::Size(), gfx::Size(), base::TimeDelta());
 }
 
 // static
-scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(int width, int height) {
-  DCHECK_GT(width, 0);
-  DCHECK_GT(height, 0);
+scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(
+    const gfx::Size& data_size) {
+  DCHECK(IsValidConfig(VideoFrame::YV12, data_size, data_size));
 
   // Create our frame.
   const base::TimeDelta kZero;
   scoped_refptr<VideoFrame> frame =
-      VideoFrame::CreateFrame(VideoFrame::YV12, width, height, kZero);
+      VideoFrame::CreateFrame(VideoFrame::YV12, data_size, data_size, kZero);
 
   // Now set the data to YUV(0,128,128).
   const uint8 kBlackY = 0x00;
@@ -103,8 +106,9 @@ static const int kFramePadBytes = 15;
 void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
   // Round up to align at least at a 16-byte boundary for each row.
   // This is sufficient for MMX and SSE2 reads (movq/movdqa).
-  size_t bytes_per_row = RoundUp(width_, kFrameSizeAlignment) * bytes_per_pixel;
-  size_t aligned_height = RoundUp(height_, kFrameSizeAlignment);
+  size_t bytes_per_row = RoundUp(data_size_.width(),
+                                 kFrameSizeAlignment) * bytes_per_pixel;
+  size_t aligned_height = RoundUp(data_size_.height(), kFrameSizeAlignment);
   strides_[VideoFrame::kRGBPlane] = bytes_per_row;
 #if !defined(OS_ANDROID)
   // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
@@ -136,7 +140,7 @@ void VideoFrame::AllocateYUV() {
   // The *2 here is because some formats (e.g. h264) allow interlaced coding,
   // and then the size needs to be a multiple of two macroblocks (vertically).
   // See libavcodec/utils.c:avcodec_align_dimensions2().
-  size_t y_height = RoundUp(height_, kFrameSizeAlignment * 2);
+  size_t y_height = RoundUp(data_size_.height(), kFrameSizeAlignment * 2);
   size_t uv_height = format_ == VideoFrame::YV12 ? y_height / 2 : y_height;
   size_t y_bytes = y_height * y_stride;
   size_t uv_bytes = uv_height * uv_stride;
@@ -163,12 +167,12 @@ void VideoFrame::AllocateYUV() {
 }
 
 VideoFrame::VideoFrame(VideoFrame::Format format,
-                       size_t width,
-                       size_t height,
+                       const gfx::Size& data_size,
+                       const gfx::Size& natural_size,
                        base::TimeDelta timestamp)
     : format_(format),
-      width_(width),
-      height_(height),
+      data_size_(data_size),
+      natural_size_(natural_size),
       texture_id_(0),
       texture_target_(0),
       timestamp_(timestamp) {
@@ -223,17 +227,18 @@ int VideoFrame::stride(size_t plane) const {
 
 int VideoFrame::row_bytes(size_t plane) const {
   DCHECK(IsValidPlane(plane));
+  int width = data_size_.width();
   switch (format_) {
     // 32bpp.
     case RGB32:
-      return width_ * 4;
+      return width * 4;
 
     // Planar, 8bpp.
     case YV12:
     case YV16:
       if (plane == kYPlane)
-        return width_;
-      return RoundUp(width_, 2) / 2;
+        return width;
+      return RoundUp(width, 2) / 2;
 
     default:
       break;
@@ -246,15 +251,16 @@ int VideoFrame::row_bytes(size_t plane) const {
 
 int VideoFrame::rows(size_t plane) const {
   DCHECK(IsValidPlane(plane));
+  int height = data_size_.height();
   switch (format_) {
     case RGB32:
     case YV16:
-      return height_;
+      return height;
 
     case YV12:
       if (plane == kYPlane)
-        return height_;
-      return RoundUp(height_, 2) / 2;
+        return height;
+      return RoundUp(height, 2) / 2;
 
     default:
       break;

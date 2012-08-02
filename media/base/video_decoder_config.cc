@@ -108,8 +108,7 @@ bool VideoDecoderConfig::IsValidConfig() const {
   return codec_ != kUnknownVideoCodec &&
       natural_size_.width() > 0 &&
       natural_size_.height() > 0 &&
-      VideoFrame::IsValidConfig(
-          format_, natural_size_.width(), natural_size_.height());
+      VideoFrame::IsValidConfig(format_, visible_rect().size(), natural_size_);
 }
 
 bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
