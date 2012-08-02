@@ -47,6 +47,8 @@ static const int kVideoBlockDuration = 33;
 
 static const char* kSourceId = "SourceId";
 static const char* kDefaultFirstClusterRange = "{ [0,46) }";
+static const int kDefaultFirstClusterEndTimestamp = 66;
+static const int kDefaultSecondClusterEndTimestamp = 132;
 
 base::TimeDelta kDefaultDuration() {
   return base::TimeDelta::FromMilliseconds(201224);
@@ -1100,6 +1102,8 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamWithPendingReads) {
   end_of_stream_helper_1.CheckIfReadDonesWereCalled(false);
   end_of_stream_helper_2.CheckIfReadDonesWereCalled(false);
 
+  EXPECT_CALL(host_, SetDuration(
+      base::TimeDelta::FromMilliseconds(kVideoBlockDuration)));
   demuxer_->EndOfStream(PIPELINE_OK);
 
   end_of_stream_helper_1.CheckIfReadDonesWereCalled(true);
@@ -1139,6 +1143,8 @@ TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
   EXPECT_TRUE(video_read_done_1);
   end_of_stream_helper_1.CheckIfReadDonesWereCalled(false);
 
+  EXPECT_CALL(host_, SetDuration(
+      base::TimeDelta::FromMilliseconds(kVideoBlockDuration)));
   EXPECT_TRUE(demuxer_->EndOfStream(PIPELINE_OK));
 
   end_of_stream_helper_1.CheckIfReadDonesWereCalled(true);
@@ -1697,6 +1703,7 @@ TEST_F(ChunkDemuxerTest, GetBufferedRanges_EndOfStream) {
 
   CheckExpectedRanges("{ [0,90) }");
 
+  EXPECT_CALL(host_, SetDuration(base::TimeDelta::FromMilliseconds(100)));
   demuxer_->EndOfStream(PIPELINE_OK);
 
   CheckExpectedRanges("{ [0,100) }");
@@ -1813,6 +1820,7 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamFailures) {
 
   // Make sure that end of stream fails because there is a gap between
   // the current position(0) and the end of the appended data.
+  EXPECT_CALL(host_, SetDuration(base::TimeDelta::FromMilliseconds(50)));
   ASSERT_FALSE(demuxer_->EndOfStream(PIPELINE_OK));
 
   // Seek to an time that is inside the last ranges for both streams
@@ -1863,6 +1871,8 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamDuringSeek) {
   demuxer_->StartWaitingForSeek();
 
   ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
+  EXPECT_CALL(host_, SetDuration(
+      base::TimeDelta::FromMilliseconds(kDefaultSecondClusterEndTimestamp)));
   demuxer_->EndOfStream(PIPELINE_OK);
 
   demuxer_->Seek(base::TimeDelta::FromSeconds(0),
@@ -2133,20 +2143,36 @@ TEST_F(ChunkDemuxerTest, TestTimestampOffsetMidParse) {
 
 TEST_F(ChunkDemuxerTest, TestDurationChange) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
+  static const int kStreamDuration = kDefaultDuration().InMilliseconds();
 
   // Add data leading up to the currently set duration.
   scoped_ptr<Cluster> first_cluster = GenerateCluster(
-      kDefaultDuration().InMilliseconds() - kAudioBlockDuration,
-      kDefaultDuration().InMilliseconds() - kVideoBlockDuration, 2);
+      kStreamDuration - kAudioBlockDuration,
+      kStreamDuration - kVideoBlockDuration, 2);
   ASSERT_TRUE(AppendData(first_cluster->data(), first_cluster->size()));
 
-  // Now add data past the duration and expect a new duration to be signalled.
+  CheckExpectedRanges(kSourceId, "{ [201191,201224) }");
+
+  // Add data at the currently set duration. The duration should not increase.
   scoped_ptr<Cluster> second_cluster = GenerateCluster(
-      kDefaultDuration().InMilliseconds(), 4);
-  EXPECT_CALL(host_, SetDuration(
-      kDefaultDuration() + base::TimeDelta::FromMilliseconds(
-          kAudioBlockDuration * 2)));
+      kDefaultDuration().InMilliseconds(), 2);
   ASSERT_TRUE(AppendData(second_cluster->data(), second_cluster->size()));
+
+  // Range should not be affected.
+  CheckExpectedRanges(kSourceId, "{ [201191,201224) }");
+
+  // Now add data past the duration and expect a new duration to be signalled.
+  static const int kNewStreamDuration =
+      kStreamDuration + kAudioBlockDuration * 2;
+  scoped_ptr<Cluster> third_cluster = GenerateCluster(
+      kStreamDuration + kAudioBlockDuration,
+      kStreamDuration + kVideoBlockDuration, 2);
+  EXPECT_CALL(host_, SetDuration(
+      base::TimeDelta::FromMilliseconds(kNewStreamDuration)));
+  ASSERT_TRUE(AppendData(third_cluster->data(), third_cluster->size()));
+
+  // See that the range has increased appropriately.
+  CheckExpectedRanges(kSourceId, "{ [201191,201270) }");
 }
 
 TEST_F(ChunkDemuxerTest, TestDurationChangeTimestampOffset) {
@@ -2160,6 +2186,17 @@ TEST_F(ChunkDemuxerTest, TestDurationChangeTimestampOffset) {
       kDefaultDuration() + base::TimeDelta::FromMilliseconds(
           kAudioBlockDuration * 2)));
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
+}
+
+TEST_F(ChunkDemuxerTest, TestEndOfStreamTruncateDuration) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  scoped_ptr<Cluster> cluster_a(kDefaultFirstCluster());
+  ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
+
+  EXPECT_CALL(host_, SetDuration(
+      base::TimeDelta::FromMilliseconds(kDefaultFirstClusterEndTimestamp)));
+  demuxer_->EndOfStream(PIPELINE_OK);
 }
 
 }  // namespace media

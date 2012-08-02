@@ -39,7 +39,7 @@ class Ranges {
   void clear();
 
   // Computes the intersection between this range and |other|.
-  Ranges<T> IntersectionWith(const Ranges<T>& other);
+  Ranges<T> IntersectionWith(const Ranges<T>& other) const;
 
  private:
   // Wrapper around DCHECK_LT allowing comparisons of operator<<'able T's.
@@ -133,7 +133,7 @@ void Ranges<T>::clear() {
 }
 
 template<class T>
-Ranges<T> Ranges<T>::IntersectionWith(const Ranges<T>& other) {
+Ranges<T> Ranges<T>::IntersectionWith(const Ranges<T>& other) const {
   Ranges<T> result;
 
   size_t i = 0;
