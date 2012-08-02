@@ -242,8 +242,8 @@ TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
   EXPECT_EQ(0, video_config.visible_rect().y());
   EXPECT_EQ(320, video_config.visible_rect().width());
   EXPECT_EQ(240, video_config.visible_rect().height());
-  EXPECT_EQ(1, video_config.aspect_ratio_numerator());
-  EXPECT_EQ(1, video_config.aspect_ratio_denominator());
+  EXPECT_EQ(320, video_config.natural_size().width());
+  EXPECT_EQ(240, video_config.natural_size().height());
   EXPECT_FALSE(video_config.extra_data());
   EXPECT_EQ(0u, video_config.extra_data_size());
 
