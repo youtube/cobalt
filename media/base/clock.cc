@@ -80,9 +80,12 @@ void Clock::SetMaxTime(base::TimeDelta max_time) {
 }
 
 void Clock::SetDuration(base::TimeDelta duration) {
-  DCHECK(duration_ == kNoTimestamp() || duration_ == kInfiniteDuration());
   DCHECK(duration > base::TimeDelta());
   duration_ = duration;
+
+  media_time_ = ClampToValidTimeRange(media_time_);
+  if (max_time_ != kNoTimestamp())
+    max_time_ = ClampToValidTimeRange(max_time_);
 }
 
 base::TimeDelta Clock::ElapsedViaProvidedTime(const base::Time& time) const {
