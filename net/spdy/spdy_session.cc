@@ -675,6 +675,30 @@ SpdyCredentialControlFrame* SpdySession::CreateCredentialFrame(
   return credential_frame.release();
 }
 
+SpdyHeadersControlFrame* SpdySession::CreateHeadersFrame(
+    SpdyStreamId stream_id,
+    const SpdyHeaderBlock& headers,
+    SpdyControlFlags flags) {
+  // Find our stream
+  CHECK(IsStreamActive(stream_id));
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
+  CHECK_EQ(stream->stream_id(), stream_id);
+
+  // Create a HEADER frame.
+  scoped_ptr<SpdyHeadersControlFrame> frame(
+      buffered_spdy_framer_->CreateHeaders(stream_id, flags, true, &headers));
+
+  if (net_log().IsLoggingAllEvents()) {
+    bool fin = flags & CONTROL_FLAG_FIN;
+    net_log().AddEvent(
+        NetLog::TYPE_SPDY_SESSION_SEND_HEADERS,
+        base::Bind(&NetLogSpdySynCallback,
+                   &headers, fin, /*unidirectional=*/false,
+                   stream_id, 0));
+  }
+  return frame.release();
+}
+
 SpdyDataFrame* SpdySession::CreateDataFrame(SpdyStreamId stream_id,
                                             net::IOBuffer* data, int len,
                                             SpdyDataFlags flags) {
@@ -1523,7 +1547,7 @@ void SpdySession::OnHeaders(SpdyStreamId stream_id,
                             const SpdyHeaderBlock& headers) {
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(
-        NetLog::TYPE_SPDY_SESSION_HEADERS,
+        NetLog::TYPE_SPDY_SESSION_RECV_HEADERS,
         base::Bind(&NetLogSpdySynCallback,
                    &headers, fin, /*unidirectional=*/false,
                    stream_id, 0));
