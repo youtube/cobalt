@@ -820,7 +820,7 @@ bool ListValue::Set(size_t index, Value* in_value) {
   return true;
 }
 
-bool ListValue::Get(size_t index, Value** out_value) const {
+bool ListValue::Get(size_t index, const Value** out_value) const {
   if (index >= list_.size())
     return false;
 
@@ -830,8 +830,14 @@ bool ListValue::Get(size_t index, Value** out_value) const {
   return true;
 }
 
+bool ListValue::Get(size_t index, Value** out_value) {
+  return static_cast<const ListValue&>(*this).Get(
+      index,
+      const_cast<const Value**>(out_value));
+}
+
 bool ListValue::GetBoolean(size_t index, bool* bool_value) const {
-  Value* value;
+  const Value* value;
   if (!Get(index, &value))
     return false;
 
@@ -839,7 +845,7 @@ bool ListValue::GetBoolean(size_t index, bool* bool_value) const {
 }
 
 bool ListValue::GetInteger(size_t index, int* out_value) const {
-  Value* value;
+  const Value* value;
   if (!Get(index, &value))
     return false;
 
@@ -847,7 +853,7 @@ bool ListValue::GetInteger(size_t index, int* out_value) const {
 }
 
 bool ListValue::GetDouble(size_t index, double* out_value) const {
-  Value* value;
+  const Value* value;
   if (!Get(index, &value))
     return false;
 
@@ -855,7 +861,7 @@ bool ListValue::GetDouble(size_t index, double* out_value) const {
 }
 
 bool ListValue::GetString(size_t index, std::string* out_value) const {
-  Value* value;
+  const Value* value;
   if (!Get(index, &value))
     return false;
 
@@ -863,47 +869,66 @@ bool ListValue::GetString(size_t index, std::string* out_value) const {
 }
 
 bool ListValue::GetString(size_t index, string16* out_value) const {
-  Value* value;
+  const Value* value;
   if (!Get(index, &value))
     return false;
 
   return value->GetAsString(out_value);
 }
 
-bool ListValue::GetBinary(size_t index, BinaryValue** out_value) const {
-  Value* value;
+bool ListValue::GetBinary(size_t index, const BinaryValue** out_value) const {
+  const Value* value;
   bool result = Get(index, &value);
   if (!result || !value->IsType(TYPE_BINARY))
     return false;
 
   if (out_value)
-    *out_value = static_cast<BinaryValue*>(value);
+    *out_value = static_cast<const BinaryValue*>(value);
 
   return true;
 }
 
-bool ListValue::GetDictionary(size_t index, DictionaryValue** out_value) const {
-  Value* value;
+bool ListValue::GetBinary(size_t index, BinaryValue** out_value) {
+  return static_cast<const ListValue&>(*this).GetBinary(
+      index,
+      const_cast<const BinaryValue**>(out_value));
+}
+
+bool ListValue::GetDictionary(size_t index,
+                              const DictionaryValue** out_value) const {
+  const Value* value;
   bool result = Get(index, &value);
   if (!result || !value->IsType(TYPE_DICTIONARY))
     return false;
 
   if (out_value)
-    *out_value = static_cast<DictionaryValue*>(value);
+    *out_value = static_cast<const DictionaryValue*>(value);
 
   return true;
 }
 
-bool ListValue::GetList(size_t index, ListValue** out_value) const {
-  Value* value;
+bool ListValue::GetDictionary(size_t index, DictionaryValue** out_value) {
+  return static_cast<const ListValue&>(*this).GetDictionary(
+      index,
+      const_cast<const DictionaryValue**>(out_value));
+}
+
+bool ListValue::GetList(size_t index, const ListValue** out_value) const {
+  const Value* value;
   bool result = Get(index, &value);
   if (!result || !value->IsType(TYPE_LIST))
     return false;
 
   if (out_value)
-    *out_value = static_cast<ListValue*>(value);
+    *out_value = static_cast<const ListValue*>(value);
 
   return true;
+}
+
+bool ListValue::GetList(size_t index, ListValue** out_value) {
+  return static_cast<const ListValue&>(*this).GetList(
+      index,
+      const_cast<const ListValue**>(out_value));
 }
 
 bool ListValue::Remove(size_t index, Value** out_value) {

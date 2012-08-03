@@ -220,10 +220,10 @@ bool TraceEventTestFixture::FindNonMatchingValue(const char* key,
   return FindMatchingTraceEntry(key_values);
 }
 
-bool IsStringInDict(const char* string_to_match, DictionaryValue* dict) {
+bool IsStringInDict(const char* string_to_match, const DictionaryValue* dict) {
   for (DictionaryValue::key_iterator ikey = dict->begin_keys();
        ikey != dict->end_keys(); ++ikey) {
-    Value* child = NULL;
+    const Value* child = NULL;
     if (!dict->GetWithoutPathExpansion(*ikey, &child))
       continue;
 
@@ -237,7 +237,7 @@ bool IsStringInDict(const char* string_to_match, DictionaryValue* dict) {
   }
 
   // Recurse to test arguments
-  DictionaryValue* args_dict = NULL;
+  const DictionaryValue* args_dict = NULL;
   dict->GetDictionary("args", &args_dict);
   if (args_dict)
     return IsStringInDict(string_to_match, args_dict);
@@ -245,13 +245,14 @@ bool IsStringInDict(const char* string_to_match, DictionaryValue* dict) {
   return false;
 }
 
-DictionaryValue* FindTraceEntry(const ListValue& trace_parsed,
-                                const char* string_to_match,
-                                DictionaryValue* match_after_this_item = NULL) {
+const DictionaryValue* FindTraceEntry(
+    const ListValue& trace_parsed,
+    const char* string_to_match,
+    const DictionaryValue* match_after_this_item = NULL) {
   // Scan all items
   size_t trace_parsed_count = trace_parsed.GetSize();
   for (size_t i = 0; i < trace_parsed_count; i++) {
-    Value* value = NULL;
+    const Value* value = NULL;
     trace_parsed.Get(i, &value);
     if (match_after_this_item) {
       if (value == match_after_this_item)
@@ -260,7 +261,7 @@ DictionaryValue* FindTraceEntry(const ListValue& trace_parsed,
     }
     if (!value || value->GetType() != Value::TYPE_DICTIONARY)
       continue;
-    DictionaryValue* dict = static_cast<DictionaryValue*>(value);
+    const DictionaryValue* dict = static_cast<const DictionaryValue*>(value);
 
     if (IsStringInDict(string_to_match, dict))
       return dict;
@@ -268,17 +269,17 @@ DictionaryValue* FindTraceEntry(const ListValue& trace_parsed,
   return NULL;
 }
 
-std::vector<DictionaryValue*> FindTraceEntries(
+std::vector<const DictionaryValue*> FindTraceEntries(
     const ListValue& trace_parsed,
     const char* string_to_match) {
-  std::vector<DictionaryValue*> hits;
+  std::vector<const DictionaryValue*> hits;
   size_t trace_parsed_count = trace_parsed.GetSize();
   for (size_t i = 0; i < trace_parsed_count; i++) {
-    Value* value = NULL;
+    const Value* value = NULL;
     trace_parsed.Get(i, &value);
     if (!value || value->GetType() != Value::TYPE_DICTIONARY)
       continue;
-    DictionaryValue* dict = static_cast<DictionaryValue*>(value);
+    const DictionaryValue* dict = static_cast<const DictionaryValue*>(value);
 
     if (IsStringInDict(string_to_match, dict))
       hits.push_back(dict);
@@ -365,7 +366,7 @@ void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
 }
 
 void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed) {
-  DictionaryValue* item = NULL;
+  const DictionaryValue* item = NULL;
 
 #define EXPECT_FIND_(string) \
     EXPECT_TRUE((item = FindTraceEntry(trace_parsed, string)));
@@ -598,11 +599,11 @@ void ValidateInstantEventPresentOnEveryThread(const ListValue& trace_parsed,
 
   size_t trace_parsed_count = trace_parsed.GetSize();
   for (size_t i = 0; i < trace_parsed_count; i++) {
-    Value* value = NULL;
+    const Value* value = NULL;
     trace_parsed.Get(i, &value);
     if (!value || value->GetType() != Value::TYPE_DICTIONARY)
       continue;
-    DictionaryValue* dict = static_cast<DictionaryValue*>(value);
+    const DictionaryValue* dict = static_cast<const DictionaryValue*>(value);
     std::string name;
     dict->GetString("name", &name);
     if (name != "multi thread event")
@@ -1149,12 +1150,12 @@ TEST_F(TraceEventTestFixture, ThreadNames) {
 
   std::string tmp;
   int tmp_int;
-  DictionaryValue* item;
+  const DictionaryValue* item;
 
   // Make sure we get thread name metadata.
   // Note, the test suite may have created a ton of threads.
   // So, we'll have thread names for threads we didn't create.
-  std::vector<DictionaryValue*> items =
+  std::vector<const DictionaryValue*> items =
       FindTraceEntries(trace_parsed_, "thread_name");
   for (int i = 0; i < static_cast<int>(items.size()); i++) {
     item = items[i];
@@ -1201,11 +1202,11 @@ TEST_F(TraceEventTestFixture, ThreadNameChanges) {
 
   TraceLog::GetInstance()->SetEnabled(false);
 
-  std::vector<DictionaryValue*> items =
+  std::vector<const DictionaryValue*> items =
       FindTraceEntries(trace_parsed_, "thread_name");
   EXPECT_EQ(1u, items.size());
   ASSERT_GT(items.size(), 0u);
-  DictionaryValue* item = items[0];
+  const DictionaryValue* item = items[0];
   ASSERT_TRUE(item);
   int tid;
   EXPECT_TRUE(item->GetInteger("tid", &tid));
@@ -1250,7 +1251,7 @@ TEST_F(TraceEventTestFixture, AtExit) {
     ASSERT_FALSE(TraceLog::GetInstance());
 
     // Now that singleton is destroyed, check what trace events were recorded
-    DictionaryValue* item = NULL;
+    const DictionaryValue* item = NULL;
     ListValue& trace_parsed = trace_parsed_;
     EXPECT_FIND_("is recorded 1");
     EXPECT_FIND_("is recorded 2");
@@ -1330,9 +1331,9 @@ TEST_F(TraceEventTestFixture, DeepCopy) {
   EXPECT_FALSE(FindTraceEntry(trace_parsed_, name2.c_str()));
   EXPECT_FALSE(FindTraceEntry(trace_parsed_, name3.c_str()));
 
-  DictionaryValue* entry1 = FindTraceEntry(trace_parsed_, kOriginalName1);
-  DictionaryValue* entry2 = FindTraceEntry(trace_parsed_, kOriginalName2);
-  DictionaryValue* entry3 = FindTraceEntry(trace_parsed_, kOriginalName3);
+  const DictionaryValue* entry1 = FindTraceEntry(trace_parsed_, kOriginalName1);
+  const DictionaryValue* entry2 = FindTraceEntry(trace_parsed_, kOriginalName2);
+  const DictionaryValue* entry3 = FindTraceEntry(trace_parsed_, kOriginalName3);
   ASSERT_TRUE(entry1);
   ASSERT_TRUE(entry2);
   ASSERT_TRUE(entry3);
