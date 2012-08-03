@@ -70,6 +70,15 @@ BASE_EXPORT bool IsParentalControlActivityLoggingOn();
 // Handler function for the buttons on a metro dialog box
 typedef void (*MetroDialogButtonPressedHandler)();
 
+// Function to display metro style notifications.
+typedef void (*MetroNotification)(const char* origin_url,
+                                  const char* icon_url,
+                                  const wchar_t* title,
+                                  const wchar_t* body,
+                                  const wchar_t* display_source,
+                                  const char* notification_id);
+
+
 }  // namespace win
 }  // namespace base
 
