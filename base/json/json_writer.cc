@@ -139,7 +139,7 @@ void JSONWriter::BuildJSONString(const Value* const node, int depth) {
 
         const ListValue* list = static_cast<const ListValue*>(node);
         for (size_t i = 0; i < list->GetSize(); ++i) {
-          Value* value = NULL;
+          const Value* value = NULL;
           bool result = list->Get(i, &value);
           DCHECK(result);
 

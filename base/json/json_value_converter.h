@@ -273,7 +273,7 @@ class RepeatedValueConverter : public ValueConverter<ScopedVector<Element> > {
 
     field->reserve(list->GetSize());
     for (size_t i = 0; i < list->GetSize(); ++i) {
-      base::Value* element = NULL;
+      const base::Value* element = NULL;
       if (!list->Get(i, &element))
         continue;
 
@@ -307,7 +307,7 @@ class RepeatedMessageConverter
 
     field->reserve(list->GetSize());
     for (size_t i = 0; i < list->GetSize(); ++i) {
-      base::Value* element = NULL;
+      const base::Value* element = NULL;
       if (!list->Get(i, &element))
         continue;
 
@@ -344,7 +344,7 @@ class RepeatedCustomValueConverter
 
     field->reserve(list->GetSize());
     for (size_t i = 0; i < list->GetSize(); ++i) {
-      base::Value* element = NULL;
+      const base::Value* element = NULL;
       if (!list->Get(i, &element))
         continue;
 
