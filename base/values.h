@@ -414,7 +414,8 @@ class BASE_EXPORT ListValue : public Value {
   // Gets the Value at the given index.  Modifies |out_value| (and returns true)
   // only if the index falls within the current list range.
   // Note that the list always owns the Value passed out via |out_value|.
-  bool Get(size_t index, Value** out_value) const;
+  bool Get(size_t index, const Value** out_value) const;
+  bool Get(size_t index, Value** out_value);
 
   // Convenience forms of Get().  Modifies |out_value| (and returns true)
   // only if the index is valid and the Value at that index can be returned
@@ -424,9 +425,12 @@ class BASE_EXPORT ListValue : public Value {
   bool GetDouble(size_t index, double* out_value) const;
   bool GetString(size_t index, std::string* out_value) const;
   bool GetString(size_t index, string16* out_value) const;
-  bool GetBinary(size_t index, BinaryValue** out_value) const;
-  bool GetDictionary(size_t index, DictionaryValue** out_value) const;
-  bool GetList(size_t index, ListValue** out_value) const;
+  bool GetBinary(size_t index, const BinaryValue** out_value) const;
+  bool GetBinary(size_t index, BinaryValue** out_value);
+  bool GetDictionary(size_t index, const DictionaryValue** out_value) const;
+  bool GetDictionary(size_t index, DictionaryValue** out_value);
+  bool GetList(size_t index, const ListValue** out_value) const;
+  bool GetList(size_t index, ListValue** out_value);
 
   // Removes the Value with the specified index from this list.
   // If |out_value| is non-NULL, the removed Value AND ITS OWNERSHIP will be
