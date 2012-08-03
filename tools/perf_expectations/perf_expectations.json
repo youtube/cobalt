@@ -35,7 +35,7 @@
  "linux-release/dom_perf/Total/score": {"reva": 148252, "revb": 149619, "improve": 97, "regress": -23, "sha1": "a223cb17"},
  "linux-release/dromaeo_jslib/jslib/score": {"reva": 144704, "revb": 145298, "better": "higher", "improve": 39, "regress": -6, "sha1": "a33d92a1"},
  "linux-release/intl1/times/t": {"reva": 143878, "revb": 143908, "improve": -320, "regress": -170, "sha1": "9b3e7d33"},
- "linux-release/intl2/times/t": {"reva": 149625, "revb": 149636, "improve": -297, "regress": -218, "sha1": "bced63df"},
+ "linux-release/intl2/times/t": {"reva": 149625, "revb": 149848, "improve": -387, "regress": -208, "sha1": "b36a9768"},
  "linux-release/media_tests_av_perf/audio_latency/latency": {"reva": 143995, "revb": 144097, "type": "absolute", "better": "lower", "improve": 31, "regress": 55, "sha1": "c8079ca0"},
  "linux-release/media_tests_av_perf/audio_latency/latency_bg_clip": {"reva": 143995, "revb": 144097, "type": "absolute", "better": "lower", "improve": 95, "regress": 156, "sha1": "64584dac"},
  "linux-release/media_tests_av_perf/cpu/crowd1080.webm": {"reva": 143995, "revb": 144097, "type": "absolute", "better": "lower", "improve": 26, "regress": 34, "sha1": "584ed6e7"},
