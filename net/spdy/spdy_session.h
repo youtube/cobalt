@@ -205,6 +205,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                                                     const std::string& cert,
                                                     RequestPriority priority);
 
+  // Write a HEADERS frame to the stream.
+  SpdyHeadersControlFrame* CreateHeadersFrame(SpdyStreamId stream_id,
+                                              const SpdyHeaderBlock& headers,
+                                              SpdyControlFlags flags);
+
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
   SpdyDataFrame* CreateDataFrame(SpdyStreamId stream_id,

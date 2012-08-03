@@ -145,7 +145,8 @@ TEST_F(SpdyStreamSpdy2Test, SendDataAfterOpen) {
   TestCompletionCallback callback;
 
   scoped_ptr<TestSpdyStreamDelegate> delegate(
-      new TestSpdyStreamDelegate(stream.get(), buf.get(), callback.callback()));
+      new TestSpdyStreamDelegate(
+          stream.get(), NULL, buf.get(), callback.callback()));
   stream->SetDelegate(delegate.get());
 
   EXPECT_FALSE(stream->HasUrl());
@@ -170,6 +171,105 @@ TEST_F(SpdyStreamSpdy2Test, SendDataAfterOpen) {
   EXPECT_EQ(std::string("\0hello!\xff", 8), delegate->received_data());
   EXPECT_EQ(8, delegate->data_sent());
   EXPECT_TRUE(delegate->closed());
+}
+
+TEST_F(SpdyStreamSpdy2Test, SendHeaderAndDataAfterOpen) {
+  SpdySessionDependencies session_deps;
+
+  session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps);
+  SpdySessionPoolPeer pool_peer_(session_->spdy_session_pool());
+
+  scoped_ptr<SpdyFrame> expected_request(ConstructSpdyWebSocket(
+      1,
+      "/chat",
+      "server.example.com",
+      "http://example.com"));
+  scoped_ptr<SpdyFrame> expected_headers(ConstructSpdyWebSocketHeadersFrame(
+      1, "6", true));
+  scoped_ptr<SpdyFrame> expected_message(ConstructSpdyBodyFrame("hello!", 6));
+  MockWrite writes[] = {
+    CreateMockWrite(*expected_request),
+    CreateMockWrite(*expected_headers),
+    CreateMockWrite(*expected_message)
+  };
+  writes[0].sequence_number = 0;
+  writes[1].sequence_number = 2;
+  writes[1].sequence_number = 3;
+
+  scoped_ptr<SpdyFrame> response(
+      ConstructSpdyWebSocketSynReply(1));
+  MockRead reads[] = {
+    CreateMockRead(*response),
+    MockRead(ASYNC, 0, 0), // EOF
+  };
+  reads[0].sequence_number = 1;
+  reads[1].sequence_number = 4;
+
+  OrderedSocketData data(reads, arraysize(reads),
+                         writes, arraysize(writes));
+  MockConnect connect_data(SYNCHRONOUS, OK);
+  data.set_connect_data(connect_data);
+
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  scoped_refptr<SpdySession> session(CreateSpdySession());
+  const char* kStreamUrl = "ws://server.example.com/chat";
+  GURL url(kStreamUrl);
+
+  HostPortPair host_port_pair("server.example.com", 80);
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(host_port_pair, LOWEST, false, false,
+                                OnHostResolutionCallback()));
+
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
+                                 LOWEST, CompletionCallback(),
+                                 session_->GetTransportSocketPool(
+                                     HttpNetworkSession::NORMAL_SOCKET_POOL),
+                                 BoundNetLog()));
+  session->InitializeWithSocket(connection.release(), false, OK);
+
+  scoped_refptr<SpdyStream> stream;
+  ASSERT_EQ(
+      OK,
+      session->CreateStream(url, LOWEST, &stream, BoundNetLog(),
+                            CompletionCallback()));
+  scoped_refptr<IOBufferWithSize> buf(new IOBufferWithSize(6));
+  memcpy(buf->data(), "hello!", 6);
+  TestCompletionCallback callback;
+  scoped_ptr<SpdyHeaderBlock> message_headers(new SpdyHeaderBlock);
+  (*message_headers)["opcode"] = "1";
+  (*message_headers)["length"] = "6";
+  (*message_headers)["fin"] = "1";
+
+  scoped_ptr<TestSpdyStreamDelegate> delegate(
+      new TestSpdyStreamDelegate(stream.get(),
+                                 message_headers.release(),
+                                 buf.get(),
+                                 callback.callback()));
+  stream->SetDelegate(delegate.get());
+
+  EXPECT_FALSE(stream->HasUrl());
+
+  scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
+  (*headers)["path"] = url.path();
+  (*headers)["host"] = url.host();
+  (*headers)["version"] = "WebSocket/13";
+  (*headers)["scheme"] = url.scheme();
+  (*headers)["origin"] = "http://example.com";
+  stream->set_spdy_headers(headers.Pass());
+  EXPECT_TRUE(stream->HasUrl());
+
+  EXPECT_EQ(ERR_IO_PENDING, stream->SendRequest(true));
+
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  EXPECT_TRUE(delegate->send_headers_completed());
+  EXPECT_EQ("101", (*delegate->response())["status"]);
+  EXPECT_EQ(std::string(), delegate->received_data());
+  // TODO(toyoshim): OnDataSent should be invoked when each data frame is sent.
+  // But current implementation invokes also when each HEADERS frame is sent.
+  //EXPECT_EQ(6, delegate->data_sent());
 }
 
 TEST_F(SpdyStreamSpdy2Test, PushedStream) {
@@ -319,7 +419,8 @@ TEST_F(SpdyStreamSpdy2Test, StreamError) {
   TestCompletionCallback callback;
 
   scoped_ptr<TestSpdyStreamDelegate> delegate(
-      new TestSpdyStreamDelegate(stream.get(), buf.get(), callback.callback()));
+      new TestSpdyStreamDelegate(
+          stream.get(), NULL, buf.get(), callback.callback()));
   stream->SetDelegate(delegate.get());
 
   EXPECT_FALSE(stream->HasUrl());

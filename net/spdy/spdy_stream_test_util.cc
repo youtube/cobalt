@@ -14,9 +14,11 @@ namespace test {
 
 TestSpdyStreamDelegate::TestSpdyStreamDelegate(
     SpdyStream* stream,
+    SpdyHeaderBlock* headers,
     IOBufferWithSize* buf,
     const CompletionCallback& callback)
     : stream_(stream),
+      headers_(headers),
       buf_(buf),
       callback_(callback),
       send_headers_completed_(false),
@@ -47,6 +49,10 @@ int TestSpdyStreamDelegate::OnResponseReceived(const SpdyHeaderBlock& response,
                                                int status) {
   EXPECT_TRUE(send_headers_completed_);
   *response_ = response;
+  if (headers_.get()) {
+    EXPECT_EQ(ERR_IO_PENDING,
+              stream_->WriteHeaders(headers_.release()));
+  }
   if (buf_) {
     EXPECT_EQ(ERR_IO_PENDING,
               stream_->WriteStreamData(buf_.get(), buf_->size(),
