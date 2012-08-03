@@ -73,7 +73,8 @@ SpdyStream::SpdyStream(SpdySession* session,
       net_log_(net_log),
       send_bytes_(0),
       recv_bytes_(0),
-      domain_bound_cert_type_(CLIENT_CERT_INVALID_TYPE) {
+      domain_bound_cert_type_(CLIENT_CERT_INVALID_TYPE),
+      domain_bound_cert_request_handle_(NULL) {
 }
 
 class SpdyStream::SpdyStreamIOBufferProducer
