@@ -150,6 +150,8 @@
         'base/dragdrop/os_exchange_data_provider_gtk.h',
         'base/dragdrop/os_exchange_data_provider_win.cc',
         'base/dragdrop/os_exchange_data_provider_win.h',
+        'base/event.cc',
+        'base/event.h',
         'base/events.h',
         'base/gestures/gesture_configuration.cc',
         'base/gestures/gesture_configuration.h',
@@ -729,6 +731,8 @@
         }],
         ['toolkit_views==0', {
           'sources!': [
+            'base/event.cc',
+            'base/event.h',
             'base/x/events_x.cc',
           ],
         }],
