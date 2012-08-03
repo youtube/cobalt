@@ -58,7 +58,7 @@ int WebMClusterParser::Parse(const uint8* buf, int size) {
 
   int result = parser_.Parse(buf, size);
 
-  if (result <= 0) {
+  if (result < 0) {
     cluster_ended_ = false;
     return result;
   }
