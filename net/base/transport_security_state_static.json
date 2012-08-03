@@ -283,6 +283,9 @@
     { "name": "passwd.io", "include_subdomains": true, "mode": "force-https" },
     { "name": "browserid.org", "include_subdomains": true, "mode": "force-https" },
     { "name": "login.persona.org", "include_subdomains": true, "mode": "force-https" },
+    { "name": "neonisi.com", "mode": "force-https" },
+    { "name": "www.neonisi.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "shops.neonisi.com", "include_subdomains": true, "mode": "force-https" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
