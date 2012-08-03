@@ -235,6 +235,9 @@ void FFmpegVideoDecoder::Stop(const base::Closure& closure) {
     return;
   }
 
+  if (decryptor_)
+    decryptor_->Stop();
+
   stop_cb_ = closure;
 
   // Defer stopping if a read is pending.
@@ -358,7 +361,8 @@ void FFmpegVideoDecoder::DoBufferDecrypted(
     return;
   }
 
-  if (decrypt_status == Decryptor::kError) {
+  if (decrypt_status == Decryptor::kNoKey ||
+      decrypt_status == Decryptor::kError) {
     state_ = kDecodeFinished;
     base::ResetAndReturn(&read_cb_).Run(kDecryptError, NULL);
     return;

@@ -4,10 +4,14 @@
 
 #include "media/filters/chunk_demuxer.h"
 
+#include <algorithm>
+#include <deque>
+
 #include "base/bind.h"
 #include "base/callback_helpers.h"
+#include "base/location.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/string_util.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/stream_parser_buffer.h"
@@ -381,14 +385,15 @@ void ChunkDemuxerStream::Shutdown() {
     it->Run(DemuxerStream::kOk, StreamParserBuffer::CreateEOSBuffer());
 }
 
-// Helper function that makes sure |read_cb| runs on |message_loop|.
-static void RunOnMessageLoop(const DemuxerStream::ReadCB& read_cb,
-                             MessageLoop* message_loop,
-                             DemuxerStream::Status status,
-                             const scoped_refptr<DecoderBuffer>& buffer) {
-  if (MessageLoop::current() != message_loop) {
-    message_loop->PostTask(FROM_HERE, base::Bind(
-        &RunOnMessageLoop, read_cb, message_loop, status, buffer));
+// Helper function that makes sure |read_cb| runs on |message_loop_proxy|.
+static void RunOnMessageLoop(
+    const DemuxerStream::ReadCB& read_cb,
+    const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
+    DemuxerStream::Status status,
+    const scoped_refptr<DecoderBuffer>& buffer) {
+  if (!message_loop_proxy->BelongsToCurrentThread()) {
+    message_loop_proxy->PostTask(FROM_HERE, base::Bind(
+        &RunOnMessageLoop, read_cb, message_loop_proxy, status, buffer));
     return;
   }
 
@@ -441,7 +446,7 @@ void ChunkDemuxerStream::DeferRead_Locked(const ReadCB& read_cb) {
   // Wrap & store |read_cb| so that it will
   // get called on the current MessageLoop.
   read_cbs_.push_back(base::Bind(&RunOnMessageLoop, read_cb,
-                                 MessageLoop::current()));
+                                 base::MessageLoopProxy::current()));
 }
 
 void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
