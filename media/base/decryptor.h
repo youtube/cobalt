@@ -20,7 +20,7 @@ class DecoderBuffer;
 // All public methods other than Decrypt() will be called on the renderer
 // thread. Therefore, these calls should be fast and nonblocking, with key
 // events fired asynchronously. Decrypt() will be called on the (video/audio)
-// decoder thread synchronously.
+// decoder thread.
 class MEDIA_EXPORT Decryptor {
  public:
   enum KeyError {
@@ -34,7 +34,8 @@ class MEDIA_EXPORT Decryptor {
 
   enum DecryptStatus {
     kSuccess,  // Decryption successfully completed. Decrypted buffer ready.
-    kError  // Error occurred during decryption.
+    kNoKey,  // No key is available to decrypt.
+    kError  // Key is available but an error occurred during decryption.
   };
 
   Decryptor() {}
@@ -68,12 +69,18 @@ class MEDIA_EXPORT Decryptor {
   //
   // If the returned status is kSuccess, the |encrypted| buffer is successfully
   // decrypted and the decrypted buffer is ready to be read.
+  // If the returned status is kNoKey, no decryption key is available to decrypt
+  // |encrypted| buffer. In this case the decrypted buffer must be NULL.
   // If the returned status is kError, unexpected error has occurred. In this
   // case the decrypted buffer must be NULL.
   typedef base::Callback<void(DecryptStatus,
                               const scoped_refptr<DecoderBuffer>&)> DecryptCB;
   virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) = 0;
+
+  // Stops the decryptor and fires any pending DecryptCB immediately with kError
+  // and NULL buffer.
+  virtual void Stop() = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Decryptor);

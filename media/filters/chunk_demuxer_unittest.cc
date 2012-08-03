@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/bind.h"
+#include "base/message_loop.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/mock_callback.h"
@@ -671,6 +672,7 @@ class ChunkDemuxerTest : public testing::Test {
     return true;
   }
 
+  MessageLoop message_loop_;
   MockDemuxerHost host_;
 
   scoped_ptr<MockChunkDemuxerClient> client_;

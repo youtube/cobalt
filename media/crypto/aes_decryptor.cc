@@ -267,9 +267,8 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
 
   DecryptionKey* key = GetKey(key_id);
   if (!key) {
-    // TODO(xhwang): Fire a need_key event here and add a test.
     DVLOG(1) << "Could not find a matching key for the given key ID.";
-    decrypt_cb.Run(kError, NULL);
+    decrypt_cb.Run(kNoKey, NULL);
     return;
   }
 
@@ -308,6 +307,9 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
   decrypted->SetTimestamp(encrypted->GetTimestamp());
   decrypted->SetDuration(encrypted->GetDuration());
   decrypt_cb.Run(kSuccess, decrypted);
+}
+
+void AesDecryptor::Stop() {
 }
 
 void AesDecryptor::SetKey(const std::string& key_id,

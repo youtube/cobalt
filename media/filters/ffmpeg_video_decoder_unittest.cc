@@ -479,6 +479,28 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_DecryptError) {
   message_loop_.RunAllPending();
 }
 
+// Test the case that the decryptor has no key to decrypt the encrypted buffer.
+TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoDecryptionKey) {
+  Initialize();
+
+  // Simulate decoding a single encrypted frame.
+  EXPECT_CALL(*demuxer_, Read(_))
+      .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
+  EXPECT_CALL(*decryptor_, Decrypt(encrypted_i_frame_buffer_, _))
+      .WillRepeatedly(RunDecryptCB(Decryptor::kNoKey,
+                                   scoped_refptr<media::DecoderBuffer>()));
+
+  // Our read should still get satisfied with end of stream frame during an
+  // error.
+  VideoDecoder::DecoderStatus status;
+  scoped_refptr<VideoFrame> video_frame;
+  Read(&status, &video_frame);
+  EXPECT_EQ(VideoDecoder::kDecryptError, status);
+  EXPECT_FALSE(video_frame);
+
+  message_loop_.RunAllPending();
+}
+
 // Test the case that the decryptor fails to decrypt the encrypted buffer but
 // cannot detect the decryption error and returns a corrupted buffer.
 TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_CorruptedBufferReturned) {
