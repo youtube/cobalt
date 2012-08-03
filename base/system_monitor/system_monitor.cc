@@ -104,8 +104,9 @@ void SystemMonitor::ProcessMediaDeviceAttached(
 
 void SystemMonitor::ProcessMediaDeviceDetached(const std::string& id) {
   MediaDeviceMap::iterator it = media_device_map_.find(id);
-  if (it != media_device_map_.end())
-    media_device_map_.erase(it);
+  if (it == media_device_map_.end())
+    return;
+  media_device_map_.erase(it);
   NotifyMediaDeviceDetached(id);
 }
 
