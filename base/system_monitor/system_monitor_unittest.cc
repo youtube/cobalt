@@ -131,7 +131,7 @@ TEST_F(SystemMonitorTest, DeviceChangeNotifications) {
     EXPECT_CALL(observers[index], OnMediaDeviceDetached(kDeviceId1))
         .InSequence(mock_sequencer[index]);
     EXPECT_CALL(observers[index], OnMediaDeviceDetached(kDeviceId2))
-        .InSequence(mock_sequencer[index]);
+        .Times(0).InSequence(mock_sequencer[index]);
   }
 
   system_monitor_->ProcessDevicesChanged(base::SystemMonitor::DEVTYPE_UNKNOWN);
