@@ -581,7 +581,7 @@ struct PublicKeyPins {
 struct HSTSPreload {
   uint8 length;
   bool include_subdomains;
-  char dns_name[30];
+  char dns_name[34];
   bool https_required;
   PublicKeyPins pins;
   SecondLevelDomainName second_level_domain_name;

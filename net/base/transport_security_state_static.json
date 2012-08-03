@@ -165,6 +165,8 @@
     { "name": "googleplex.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
     { "name": "groups.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
     { "name": "apis.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "chromiumcodereview.appspot.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    { "name": "codereview.appspot.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
 
     // chart.apis.google.com is *not* HSTS because the certificate doesn't match
     // and there are lots of links out there that still use the name. The correct
