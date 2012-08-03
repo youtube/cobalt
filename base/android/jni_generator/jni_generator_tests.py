@@ -1491,5 +1491,22 @@ static bool RegisterNativesImpl(JNIEnv* env) {
         content, 'org/chromium/example/jni_generator/SampleForTests')
     self.assertTextEquals(golden_content, jni_from_java.GetContent())
 
+  def testNoWrappingPreprocessorLines(self):
+    test_data = """
+    package com.google.lookhowextremelylongiam.snarf.icankeepthisupallday;
+
+    class ReallyLongClassNamesAreAllTheRage {
+        private static native int nativeTest();
+    }
+    """
+    jni_from_java = jni_generator.JNIFromJavaSource(
+        test_data, ('com/google/lookhowextremelylongiam/snarf/'
+                    'icankeepthisupallday/ReallyLongClassNamesAreAllTheRage'))
+    jni_lines = jni_from_java.GetContent().split('\n')
+    line = filter(lambda line: line.lstrip().startswith('#ifndef'),
+                  jni_lines)[0]
+    self.assertTrue(len(line) > 80,
+                    ('Expected #ifndef line to be > 80 chars: ', line))
+
 if __name__ == '__main__':
   unittest.main()
