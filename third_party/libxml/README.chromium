@@ -28,6 +28,8 @@ Modifications:
 - Add a fix for proper escaping of xpointer expressions, commit upstream is pending.
 - Add helper classes in chromium/libxml_utils.cc and chromium/include/libxml/libxml_utils.h.
 - Add a tweak to limit problems caused by excessive strings and buffers.
+- Change the xmlNs struct a little bit, so it looks like it has no children
+if treated as a generic xmlNode object.
 
 To import a new snapshot of libxml:
 
