@@ -52,6 +52,7 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
   // succeeded through |decrypt_cb|.
   virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) OVERRIDE;
+  virtual void Stop() OVERRIDE;
 
  private:
   // Helper class that manages the decryption key and HMAC key. The HMAC key

@@ -346,6 +346,17 @@ TEST_F(AesDecryptorTest, WrongKey) {
   ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
 }
 
+TEST_F(AesDecryptorTest, NoKey) {
+  const WebmEncryptedData& frame = kWebmEncryptedFrames[0];
+  GenerateKeyRequest(frame.key_id, frame.key_id_size);
+
+  scoped_refptr<DecoderBuffer> encrypted_data =
+      CreateWebMEncryptedBuffer(frame.encrypted_data, frame.encrypted_data_size,
+                                frame.key_id, frame.key_id_size);
+  EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kNoKey, IsNull()));
+  decryptor_.Decrypt(encrypted_data, decrypt_cb_);
+}
+
 TEST_F(AesDecryptorTest, KeyReplacement) {
   const WebmEncryptedData& frame = kWebmEncryptedFrames[0];
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
