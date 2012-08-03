@@ -15,6 +15,7 @@
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
+#include "media/base/serial_runner.h"
 #include "ui/gfx/size.h"
 
 class MessageLoop;
@@ -310,14 +311,12 @@ class MEDIA_EXPORT Pipeline
   // Callbacks executed by filters upon completing initialization.
   void OnFilterInitialize(PipelineStatus status);
 
-  // Callback executed by filters upon completing Play(), Pause(), or Stop().
-  void OnFilterStateTransition();
-
-  // Callback executed by filters upon completing Seek().
-  void OnFilterStateTransitionWithStatus(PipelineStatus status);
+  // Callback executed by filters upon completing Play(), Pause(), Flush(),
+  // Seek() or Stop().
+  void OnFilterStateTransition(PipelineStatus status);
 
   // Callback executed by filters when completing teardown operations.
-  void OnTeardownStateTransition();
+  void OnTeardownStateTransition(PipelineStatus status);
 
   // Callback executed by filters to update statistics.
   void OnUpdateStatistics(const PipelineStatistics& stats);
@@ -415,10 +414,10 @@ class MEDIA_EXPORT Pipeline
 
   // Initiates an asynchronous Pause/Seek/Play/Stop() call sequence executing
   // |done_cb| when completed.
-  void DoPause(const base::Closure& done_cb);
-  void DoFlush(const base::Closure& done_cb);
-  void DoPlay(const base::Closure& done_cb);
-  void DoStop(const base::Closure& done_cb);
+  void DoPause(const PipelineStatusCB& done_cb);
+  void DoFlush(const PipelineStatusCB& done_cb);
+  void DoPlay(const PipelineStatusCB& done_cb);
+  void DoStop(const PipelineStatusCB& done_cb);
 
   // Initiates an asynchronous Seek() and preroll call sequence executing
   // |done_cb| with the final status when completed. If |skip_demuxer_seek| is
@@ -562,6 +561,8 @@ class MEDIA_EXPORT Pipeline
   // Time of pipeline creation; is non-zero only until the pipeline first
   // reaches "kStarted", at which point it is used & zeroed out.
   base::Time creation_time_;
+
+  scoped_ptr<SerialRunner> pending_callbacks_;
 
   DISALLOW_COPY_AND_ASSIGN(Pipeline);
 };
