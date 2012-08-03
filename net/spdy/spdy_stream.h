@@ -88,6 +88,21 @@ class NET_EXPORT_PRIVATE SpdyStream
     DISALLOW_COPY_AND_ASSIGN(Delegate);
   };
 
+  // Indicates pending frame type.
+  enum PendingFrameType {
+    TYPE_HEADER,
+    TYPE_DATA
+  };
+
+  // Structure to contains pending frame information.
+  typedef struct {
+    PendingFrameType type;
+    union {
+      SpdyHeaderBlock* header_block;
+      SpdyDataFrame* data_frame;
+    };
+  } PendingFrame;
+
   // SpdyStream constructor
   SpdyStream(SpdySession* session,
              bool pushed,
@@ -222,6 +237,10 @@ class NET_EXPORT_PRIVATE SpdyStream
   // For non push stream, it will send SYN_STREAM frame.
   int SendRequest(bool has_upload_data);
 
+  // Sends a HEADERS frame. SpdyStream owns |headers| and will release it after
+  // the HEADERS frame is actually sent.
+  int WriteHeaders(SpdyHeaderBlock* headers);
+
   // Sends DATA frame.
   int WriteStreamData(IOBuffer* data, int length,
                       SpdyDataFlags flags);
@@ -345,7 +364,7 @@ class NET_EXPORT_PRIVATE SpdyStream
   scoped_ptr<SpdyHeaderBlock> response_;
   base::Time response_time_;
 
-  std::list<SpdyFrame*> pending_data_frames_;
+  std::list<PendingFrame> pending_frames_;
 
   State io_state_;
 
