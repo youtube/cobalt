@@ -344,11 +344,11 @@ class HighResNowSingleton {
   }
 
   bool IsUsingHighResClock() {
-    return ticks_per_microsecond_ != 0.0;
+    return ticks_per_second_ != 0.0;
   }
 
   void DisableHighResClock() {
-    ticks_per_microsecond_ = 0.0;
+    ticks_per_second_ = 0.0;
   }
 
   TimeDelta Now() {
@@ -371,9 +371,23 @@ class HighResNowSingleton {
     return abs(static_cast<long>((UnreliableNow() - ReliableNow()) - skew_));
   }
 
+  int64 QPCValueToMicroseconds(LONGLONG qpc_value) {
+    if (!ticks_per_second_)
+      return 0;
+
+    // Intentionally calculate microseconds in a round about manner to avoid
+    // overflow and precision issues. Think twice before simplifying!
+    int64 whole_seconds = qpc_value / ticks_per_second_;
+    int64 leftover_ticks = qpc_value % ticks_per_second_;
+    int64 microseconds = (whole_seconds * Time::kMicrosecondsPerSecond) +
+                         ((leftover_ticks * Time::kMicrosecondsPerSecond) /
+                          ticks_per_second_);
+    return microseconds;
+  }
+
  private:
   HighResNowSingleton()
-    : ticks_per_microsecond_(0.0),
+    : ticks_per_second_(0),
       skew_(0) {
     InitializeClock();
 
@@ -389,8 +403,7 @@ class HighResNowSingleton {
     LARGE_INTEGER ticks_per_sec = {0};
     if (!QueryPerformanceFrequency(&ticks_per_sec))
       return;  // Broken, we don't guarantee this function works.
-    ticks_per_microsecond_ = static_cast<float>(ticks_per_sec.QuadPart) /
-      static_cast<float>(Time::kMicrosecondsPerSecond);
+    ticks_per_second_ = ticks_per_sec.QuadPart;
 
     skew_ = UnreliableNow() - ReliableNow();
   }
@@ -399,7 +412,7 @@ class HighResNowSingleton {
   int64 UnreliableNow() {
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
-    return static_cast<int64>(now.QuadPart / ticks_per_microsecond_);
+    return QPCValueToMicroseconds(now.QuadPart);
   }
 
   // Get the number of microseconds since boot in a reliable fashion.
@@ -407,9 +420,7 @@ class HighResNowSingleton {
     return RolloverProtectedNow().InMicroseconds();
   }
 
-  // Cached clock frequency -> microseconds. This assumes that the clock
-  // frequency is faster than one microsecond (which is 1MHz, should be OK).
-  float ticks_per_microsecond_;  // 0 indicates QPF failed and we're broken.
+  int64 ticks_per_second_;  // 0 indicates QPF failed and we're broken.
   int64 skew_;  // Skew between lo-res and hi-res clocks (for debugging).
 
   friend struct DefaultSingletonTraits<HighResNowSingleton>;
@@ -446,6 +457,20 @@ int64 TimeTicks::GetQPCDriftMicroseconds() {
 }
 
 // static
+TimeTicks TimeTicks::FromQPCValue(LONGLONG qpc_value) {
+  return TimeTicks(
+      HighResNowSingleton::GetInstance()->QPCValueToMicroseconds(qpc_value));
+}
+
+// static
 bool TimeTicks::IsHighResClockWorking() {
   return HighResNowSingleton::GetInstance()->IsUsingHighResClock();
+}
+
+// TimeDelta ------------------------------------------------------------------
+
+// static
+TimeDelta TimeDelta::FromQPCValue(LONGLONG qpc_value) {
+  return TimeDelta(
+      HighResNowSingleton::GetInstance()->QPCValueToMicroseconds(qpc_value));
 }

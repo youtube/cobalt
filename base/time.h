@@ -64,6 +64,9 @@ class BASE_EXPORT TimeDelta {
   static TimeDelta FromSeconds(int64 secs);
   static TimeDelta FromMilliseconds(int64 ms);
   static TimeDelta FromMicroseconds(int64 us);
+#if defined(OS_WIN)
+  static TimeDelta FromQPCValue(LONGLONG qpc_value);
+#endif
 
   // Converts an integer value representing TimeDelta to a class. This is used
   // when deserializing a |TimeDelta| structure, using a value known to be
@@ -509,6 +512,8 @@ class BASE_EXPORT TimeTicks {
 #if defined(OS_WIN)
   // Get the absolute value of QPC time drift. For testing.
   static int64 GetQPCDriftMicroseconds();
+
+  static TimeTicks FromQPCValue(LONGLONG qpc_value);
 
   // Returns true if the high resolution clock is working on this system.
   // This is only for testing.
