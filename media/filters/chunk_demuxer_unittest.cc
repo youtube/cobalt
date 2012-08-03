@@ -1213,9 +1213,7 @@ TEST_F(ChunkDemuxerTest, TestWebMFile_AudioAndVideo) {
                             base::TimeDelta::FromMilliseconds(2744)));
 }
 
-// TODO(acolwell): Fix bear-320x240-live.webm so that all clusters begin with
-// keyframes and reenable test. (crbug.com/136438)
-TEST_F(ChunkDemuxerTest, DISABLED_TestWebMFile_LiveAudioAndVideo) {
+TEST_F(ChunkDemuxerTest, TestWebMFile_LiveAudioAndVideo) {
   struct BufferTimestamps buffer_timestamps[] = {
     {0, 0},
     {33, 3},
