@@ -150,8 +150,6 @@
         'base/dragdrop/os_exchange_data_provider_gtk.h',
         'base/dragdrop/os_exchange_data_provider_win.cc',
         'base/dragdrop/os_exchange_data_provider_win.h',
-        'base/event.cc',
-        'base/event.h',
         'base/events.h',
         'base/gestures/gesture_configuration.cc',
         'base/gestures/gesture_configuration.h',
@@ -576,8 +574,6 @@
                 ['exclude', '^base/dragdrop/os_exchange_data.h'],
                 ['exclude', '^base/dragdrop/os_exchange_data_provider_gtk.cc'],
                 ['exclude', '^base/dragdrop/os_exchange_data_provider_gtk.h'],
-                ['exclude', '^base/event.cc'],
-                ['exclude', '^base/event.h'],
               ],
             }, {
               # Note: because of gyp predence rules this has to be defined as
