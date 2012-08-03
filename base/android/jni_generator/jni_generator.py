@@ -880,7 +880,8 @@ jclass g_${JAVA_CLASS}_clazz = NULL;""")
 def WrapOutput(output):
   ret = []
   for line in output.splitlines():
-    if len(line) < 80:
+    # Do not wrap lines under 80 characters or preprocessor directives.
+    if len(line) < 80 or line.lstrip()[:1] == '#':
       stripped = line.rstrip()
       if len(ret) == 0 or len(ret[-1]) or len(stripped):
         ret.append(stripped)
