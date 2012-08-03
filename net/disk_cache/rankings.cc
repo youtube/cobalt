@@ -906,7 +906,7 @@ int Rankings::CheckListSection(List list, Addr end1, Addr end2, bool forward,
 void Rankings::QuickListCheck() {
   for (int i = 0; i < LAST_ELEMENT; i++) {
     int rv = CheckHeadAndTail(static_cast<List>(i));
-    CACHE_UMA(CACHE_ERROR, "QuickListCheck", 0, rv);
+    CACHE_UMA(CACHE_ERROR, "QuickListCheck", 0, rv * -1);
   }
 }
 
