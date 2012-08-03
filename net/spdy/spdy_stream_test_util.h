@@ -17,6 +17,7 @@ namespace test {
 class TestSpdyStreamDelegate : public SpdyStream::Delegate {
  public:
   TestSpdyStreamDelegate(SpdyStream* stream,
+                         SpdyHeaderBlock* headers,
                          IOBufferWithSize* buf,
                          const CompletionCallback& callback);
   virtual ~TestSpdyStreamDelegate();
@@ -41,6 +42,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
 
  private:
   SpdyStream* stream_;
+  scoped_ptr<SpdyHeaderBlock> headers_;
   scoped_refptr<IOBufferWithSize> buf_;
   CompletionCallback callback_;
   bool send_headers_completed_;
