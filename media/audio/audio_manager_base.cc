@@ -142,15 +142,13 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
   if (!dispatcher) {
     base::TimeDelta close_delay =
         base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds);
-// TODO(dalecurtis): Temporarily disable the mixer for non-Windows/Mac platforms
-// until a fix for http://crbug.com/138098 can be found.
-#if defined(OS_WIN) || defined(OS_MACOSX)
     const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
-    if (!cmd_line->HasSwitch(switches::kDisableAudioMixer)) {
+    // TODO(dalecurtis): Browser side mixing has a couple issues that must be
+    // fixed before it can be turned on by default: http://crbug.com/138098 and
+    // http://crbug.com/140247
+    if (cmd_line->HasSwitch(switches::kEnableAudioMixer)) {
       dispatcher = new AudioOutputMixer(this, params, close_delay);
-    } else
-#endif
-    {
+    } else {
       dispatcher = new AudioOutputDispatcherImpl(this, params, close_delay);
     }
   }
