@@ -41,6 +41,8 @@
           'android/jni_string.h',
           'android/locale_utils.cc',
           'android/locale_utils.h',
+          'android/path_service.cc',
+          'android/path_service.h',
           'android/path_utils.cc',
           'android/path_utils.h',
           'at_exit.cc',

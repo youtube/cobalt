@@ -10,6 +10,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_registrar.h"
 #include "base/android/locale_utils.h"
+#include "base/android/path_service.h"
 #include "base/android/path_utils.h"
 
 namespace base {
@@ -18,6 +19,7 @@ namespace android {
 static RegistrationMethod kBaseRegisteredMethods[] = {
   { "BuildInfo", base::android::BuildInfo::RegisterBindings },
   { "LocaleUtils", base::android::RegisterLocaleUtils },
+  { "PathService", base::android::RegisterPathService },
   { "PathUtils", base::android::RegisterPathUtils },
   { "SystemMessageHandler", base::MessagePumpForUI::RegisterBindings },
 };
