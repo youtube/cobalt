@@ -93,7 +93,12 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       const AddressList& addresses,
       NetLog* net_log,
       const NetLog::Source& source) {
+#if defined(__LB_SHELL__)
+    // TODO: Implement TCPClientSocket class
+    return NULL;
+#else
     return new TCPClientSocket(addresses, net_log, source);
+#endif
   }
 
   virtual SSLClientSocket* CreateSSLClientSocket(
