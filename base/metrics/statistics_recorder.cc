@@ -132,7 +132,6 @@ const BucketRanges* StatisticsRecorder::RegisterOrDeleteDuplicateRanges(
   // We haven't found a BucketRanges which has the same ranges. Register the
   // new BucketRanges.
   checksum_matching_list->push_front(ranges);
-  ANNOTATE_LEAKING_OBJECT_PTR(ranges);
   return ranges;
 }
 
