@@ -319,4 +319,48 @@ TEST(HistogramTest, CorruptBucketBounds) {
   bucket_ranges->set_range(4, bucket_ranges->range(4) + 1);
 }
 
+#if GTEST_HAS_DEATH_TEST
+// For Histogram, LinearHistogram and CustomHistogram, the minimum for a
+// declared range is 1, while the maximum is (HistogramBase::kSampleType_MAX -
+// 1). But we accept ranges exceeding those limits, and silently clamped to
+// those limits. This is for backwards compatibility.
+TEST(HistogramDeathTest, BadRangesTest) {
+  Histogram* histogram = Histogram::FactoryGet(
+      "BadRanges", 0, HistogramBase::kSampleType_MAX, 8, Histogram::kNoFlags);
+  EXPECT_EQ(1, histogram->declared_min());
+  EXPECT_EQ(HistogramBase::kSampleType_MAX - 1, histogram->declared_max());
+
+  Histogram* linear_histogram = LinearHistogram::FactoryGet(
+      "BadRangesLinear", 0, HistogramBase::kSampleType_MAX, 8,
+      Histogram::kNoFlags);
+  EXPECT_EQ(1, linear_histogram->declared_min());
+  EXPECT_EQ(HistogramBase::kSampleType_MAX - 1,
+            linear_histogram->declared_max());
+
+  vector<int> custom_ranges;
+  custom_ranges.push_back(0);
+  custom_ranges.push_back(5);
+  Histogram* custom_histogram1 = CustomHistogram::FactoryGet(
+      "BadRangesCustom", custom_ranges, Histogram::kNoFlags);
+  const BucketRanges* ranges = custom_histogram1->bucket_ranges();
+  ASSERT_EQ(3u, ranges->size());
+  EXPECT_EQ(0, ranges->range(0));
+  EXPECT_EQ(5, ranges->range(1));
+  EXPECT_EQ(HistogramBase::kSampleType_MAX, ranges->range(2));
+
+  // CustomHistogram does not accepts kSampleType_MAX as range.
+  custom_ranges.push_back(HistogramBase::kSampleType_MAX);
+  EXPECT_DEATH(CustomHistogram::FactoryGet("BadRangesCustom2", custom_ranges,
+                                           Histogram::kNoFlags),
+               "");
+
+  // CustomHistogram needs at least 1 valid range.
+  custom_ranges.clear();
+  custom_ranges.push_back(0);
+  EXPECT_DEATH(CustomHistogram::FactoryGet("BadRangesCustom3", custom_ranges,
+                                           Histogram::kNoFlags),
+               "");
+}
+#endif
+
 }  // namespace base
