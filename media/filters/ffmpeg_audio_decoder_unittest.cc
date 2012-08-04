@@ -68,7 +68,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
 
   void Initialize() {
     EXPECT_CALL(*demuxer_, audio_decoder_config())
-        .WillOnce(ReturnRef(config_));
+        .WillRepeatedly(ReturnRef(config_));
 
     decoder_->Initialize(demuxer_,
                          NewExpectedStatusCB(PIPELINE_OK),
@@ -151,13 +151,10 @@ TEST_F(FFmpegAudioDecoderTest, ProduceAudioSamples) {
   Read();
   Read();
 
-  // We should have three decoded audio buffers.
-  //
-  // TODO(scherkus): timestamps are off by one packet due to decoder delay.
   ASSERT_EQ(3u, decoded_audio_.size());
   ExpectDecodedAudio(0, 0, 2902);
-  ExpectDecodedAudio(1, 0, 13061);
-  ExpectDecodedAudio(2, 2902, 23219);
+  ExpectDecodedAudio(1, 2902, 13061);
+  ExpectDecodedAudio(2, 15963, 23220);
 
   // Call one more time to trigger EOS.
   Read();

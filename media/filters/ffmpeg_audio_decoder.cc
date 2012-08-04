@@ -16,16 +16,6 @@
 
 namespace media {
 
-// Returns true if the decode result was a timestamp packet and not actual audio
-// data.
-static inline bool IsTimestampMarkerPacket(int result, Buffer* input) {
-  // We can get a positive result but no decoded data.  This is ok because this
-  // this can be a marker packet that only contains timestamp.
-  return result > 0 && !input->IsEndOfStream() &&
-      input->GetTimestamp() != kNoTimestamp() &&
-      input->GetDuration() != kNoTimestamp();
-}
-
 // Returns true if the decode result was end of stream.
 static inline bool IsEndOfStream(int result, int decoded_size, Buffer* input) {
   // Three conditions to meet to declare end of stream for this decoder:
@@ -35,7 +25,6 @@ static inline bool IsEndOfStream(int result, int decoded_size, Buffer* input) {
   return result == 0 && decoded_size == 0 && input->IsEndOfStream();
 }
 
-
 FFmpegAudioDecoder::FFmpegAudioDecoder(
     const base::Callback<MessageLoop*()>& message_loop_cb)
     : message_loop_factory_cb_(message_loop_cb),
@@ -44,6 +33,11 @@ FFmpegAudioDecoder::FFmpegAudioDecoder(
       bits_per_channel_(0),
       channel_layout_(CHANNEL_LAYOUT_NONE),
       samples_per_second_(0),
+      bytes_per_frame_(0),
+      output_timestamp_base_(kNoTimestamp()),
+      total_frames_decoded_(0),
+      last_input_timestamp_(kNoTimestamp()),
+      output_bytes_to_drop_(0),
       av_frame_(NULL) {
 }
 
@@ -146,13 +140,16 @@ void FFmpegAudioDecoder::DoInitialize(
   bits_per_channel_ = config.bits_per_channel();
   channel_layout_ = config.channel_layout();
   samples_per_second_ = config.samples_per_second();
-
+  bytes_per_frame_ = codec_context_->channels * bits_per_channel_ / 8;
   status_cb.Run(PIPELINE_OK);
 }
 
 void FFmpegAudioDecoder::DoReset(const base::Closure& closure) {
   avcodec_flush_buffers(codec_context_);
-  estimated_next_timestamp_ = kNoTimestamp();
+  output_timestamp_base_ = kNoTimestamp();
+  total_frames_decoded_ = 0;
+  last_input_timestamp_ = kNoTimestamp();
+  output_bytes_to_drop_ = 0;
   closure.Run();
 }
 
@@ -181,14 +178,32 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
     return;
   }
 
-  // FFmpeg tends to seek Ogg audio streams in the middle of nowhere, giving us
-  // a whole bunch of AV_NOPTS_VALUE packets.  Discard them until we find
-  // something valid.  Refer to http://crbug.com/49709
-  if (input->GetTimestamp() == kNoTimestamp() &&
-      estimated_next_timestamp_ == kNoTimestamp() &&
-      !input->IsEndOfStream()) {
-    ReadFromDemuxerStream();
-    return;
+  // Make sure we are notified if http://crbug.com/49709 returns.
+  CHECK(input->GetTimestamp() != kNoTimestamp() ||
+        output_timestamp_base_ != kNoTimestamp() ||
+        input->IsEndOfStream())
+      << "First buffers received don't have timestamps!";
+
+  bool is_vorbis = codec_context_->codec_id == CODEC_ID_VORBIS;
+  if (!input->IsEndOfStream()) {
+    if (last_input_timestamp_ == kNoTimestamp()) {
+      if (is_vorbis && (input->GetTimestamp() < base::TimeDelta())) {
+        // Dropping frames for negative timestamps as outlined in section A.2
+        // in the Vorbis spec. http://xiph.org/vorbis/doc/Vorbis_I_spec.html
+        int frames_to_drop = floor(
+            0.5 + -input->GetTimestamp().InSecondsF() * samples_per_second_);
+        output_bytes_to_drop_ = bytes_per_frame_ * frames_to_drop;
+      } else {
+        last_input_timestamp_ = input->GetTimestamp();
+      }
+    } else if (input->GetTimestamp() < last_input_timestamp_) {
+      base::TimeDelta diff = input->GetTimestamp() - last_input_timestamp_;
+      DVLOG(1) << "Input timestamps are not monotonically increasing! "
+               << " ts " << input->GetTimestamp().InMicroseconds() << " us"
+               << " diff " << diff.InMicroseconds() << " us";
+      base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
+      return;
+    }
   }
 
   AVPacket packet;
@@ -221,6 +236,22 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
     return;
   }
 
+  if (result > 0)
+    DCHECK_EQ(result, input->GetDataSize());
+
+  if (output_timestamp_base_ == kNoTimestamp() && !input->IsEndOfStream()) {
+    DCHECK(input->GetTimestamp() != kNoTimestamp());
+    if (output_bytes_to_drop_ > 0) {
+      // Currently Vorbis is the only codec that causes us to drop samples.
+      // If we have to drop samples it always means the timeline starts at 0.
+      DCHECK(is_vorbis);
+      output_timestamp_base_ = base::TimeDelta();
+    } else {
+      output_timestamp_base_ = input->GetTimestamp();
+    }
+  }
+
+  const uint8* decoded_audio_data = NULL;
   int decoded_audio_size = 0;
   if (frame_decoded) {
     int output_sample_rate = av_frame_->sample_rate;
@@ -231,6 +262,7 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
       return;
     }
 
+    decoded_audio_data = av_frame_->data[0];
     decoded_audio_size = av_samples_get_buffer_size(
         NULL, codec_context_->channels, av_frame_->nb_samples,
         codec_context_->sample_fmt, 1);
@@ -238,30 +270,41 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
 
   scoped_refptr<DataBuffer> output;
 
+  if (decoded_audio_size > 0 && output_bytes_to_drop_ > 0) {
+    int dropped_size = std::min(decoded_audio_size, output_bytes_to_drop_);
+    decoded_audio_data += dropped_size;
+    decoded_audio_size -= dropped_size;
+    output_bytes_to_drop_ -= dropped_size;
+  }
+
   if (decoded_audio_size > 0) {
+    DCHECK_EQ(decoded_audio_size % bytes_per_frame_, 0)
+        << "Decoder didn't output full frames";
+
     // Copy the audio samples into an output buffer.
     output = new DataBuffer(decoded_audio_size);
     output->SetDataSize(decoded_audio_size);
     uint8* data = output->GetWritableData();
-    memcpy(data, av_frame_->data[0], decoded_audio_size);
+    memcpy(data, decoded_audio_data, decoded_audio_size);
 
-    UpdateDurationAndTimestamp(input, output);
-  } else if (IsTimestampMarkerPacket(result, input)) {
-    // Nothing else to do here but update our estimation.
-    estimated_next_timestamp_ = input->GetTimestamp() + input->GetDuration();
+    base::TimeDelta timestamp = GetNextOutputTimestamp();
+    total_frames_decoded_ += decoded_audio_size / bytes_per_frame_;
+
+    output->SetTimestamp(timestamp);
+    output->SetDuration(GetNextOutputTimestamp() - timestamp);
   } else if (IsEndOfStream(result, decoded_audio_size, input)) {
     // Create an end of stream output buffer.
     output = new DataBuffer(0);
-    output->SetTimestamp(input->GetTimestamp());
-    output->SetDuration(input->GetDuration());
   }
 
   // Decoding finished successfully, update stats and execute callback.
   statistics_cb_.Run(statistics);
-  if (output)
-    base::ResetAndReturn(&read_cb_).Run(kOk, output);
-  else
+
+  if (!output) {
     ReadFromDemuxerStream();
+    return;
+  }
+  base::ResetAndReturn(&read_cb_).Run(kOk, output);
 }
 
 void FFmpegAudioDecoder::ReadFromDemuxerStream() {
@@ -281,34 +324,10 @@ void FFmpegAudioDecoder::DecodeBuffer(
       &FFmpegAudioDecoder::DoDecodeBuffer, this, status, buffer));
 }
 
-void FFmpegAudioDecoder::UpdateDurationAndTimestamp(
-    const Buffer* input,
-    DataBuffer* output) {
-  // Always calculate duration based on the actual number of samples decoded.
-  base::TimeDelta duration = CalculateDuration(output->GetDataSize());
-  output->SetDuration(duration);
-
-  // Use the incoming timestamp if it's valid.
-  if (input->GetTimestamp() != kNoTimestamp()) {
-    output->SetTimestamp(input->GetTimestamp());
-    estimated_next_timestamp_ = input->GetTimestamp() + duration;
-    return;
-  }
-
-  // Otherwise use an estimated timestamp and attempt to update the estimation
-  // as long as it's valid.
-  output->SetTimestamp(estimated_next_timestamp_);
-  if (estimated_next_timestamp_ != kNoTimestamp()) {
-    estimated_next_timestamp_ += duration;
-  }
+base::TimeDelta FFmpegAudioDecoder::GetNextOutputTimestamp() const {
+  DCHECK(output_timestamp_base_ != kNoTimestamp());
+  double decoded_us = (total_frames_decoded_ / samples_per_second_) *
+      base::Time::kMicrosecondsPerSecond;
+  return output_timestamp_base_ + base::TimeDelta::FromMicroseconds(decoded_us);
 }
-
-base::TimeDelta FFmpegAudioDecoder::CalculateDuration(int size) {
-  int64 denominator = ChannelLayoutToChannelCount(channel_layout_) *
-      bits_per_channel_ / 8 * samples_per_second_;
-  double microseconds = size /
-      (denominator / static_cast<double>(base::Time::kMicrosecondsPerSecond));
-  return base::TimeDelta::FromMicroseconds(static_cast<int64>(microseconds));
-}
-
 }  // namespace media
