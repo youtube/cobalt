@@ -17,7 +17,8 @@
 class ChromeClassTester : public clang::ASTConsumer {
  public:
   explicit ChromeClassTester(clang::CompilerInstance& instance,
-                             bool check_inner_classes);
+                             bool check_inner_classes,
+                             bool check_cc_directory);
   virtual ~ChromeClassTester();
 
   // clang::ASTConsumer:
@@ -83,6 +84,9 @@ class ChromeClassTester : public clang::ASTConsumer {
 
   // TODO: Remove once all inner classes are cleaned up.
   bool check_inner_classes_;
+
+  // TODO(jamesr): Remove once cc/ directory compiles without warnings.
+  bool check_cc_directory_;
 };
 
 #endif  // TOOLS_CLANG_PLUGINS_CHROMECLASSTESTER_H_
