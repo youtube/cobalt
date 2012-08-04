@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,5 +15,4 @@ TEST(SysStrings, ConversionsFromNSString) {
   // Conversions should be able to handle a NULL value without crashing.
   EXPECT_STREQ("", base::SysNSStringToUTF8(nil).c_str());
   EXPECT_EQ(string16(), base::SysNSStringToUTF16(nil));
-  EXPECT_STREQ(L"", base::SysNSStringToWide(nil).c_str());
 }
