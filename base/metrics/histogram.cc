@@ -883,14 +883,15 @@ double CustomHistogram::GetBucketSize(Count current, size_t i) const {
 // static
 bool CustomHistogram::ValidateCustomRanges(
     const vector<Sample>& custom_ranges) {
-  if (custom_ranges.size() < 1)
-    return false;
+  bool has_valid_range = false;
   for (size_t i = 0; i < custom_ranges.size(); i++) {
-    Sample s = custom_ranges[i];
-    if (s < 0 || s > HistogramBase::kSampleType_MAX - 1)
+    Sample sample = custom_ranges[i];
+    if (sample < 0 || sample > HistogramBase::kSampleType_MAX - 1)
       return false;
+    if (sample != 0)
+      has_valid_range = true;
   }
-  return true;
+  return has_valid_range;
 }
 
 // static
