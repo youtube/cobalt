@@ -293,7 +293,7 @@
           'conditions': [
             ['internal_gles2_conform_tests', {
               'dependencies': [
-                '../gpu/gles2_conform_test/gles2_conform_test.gyp:gles2_conform_test_windowless',
+                '../gpu/gles2_conform_test/gles2_conform_test.gyp:gles2_conform_test',
               ],
             }], # internal_gles2_conform
           ],
@@ -308,7 +308,7 @@
           'conditions': [
             ['internal_gles2_conform_tests', {
               'dependencies': [
-                '../gpu/gles2_conform_test/gles2_conform_test.gyp:gles2_conform_test_windowless',
+                '../gpu/gles2_conform_test/gles2_conform_test.gyp:gles2_conform_test',
               ],
             }], # internal_gles2_conform
           ],
