@@ -52,6 +52,7 @@
 #include "net/proxy/proxy_service.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/test/test_server.h"
+#include "net/url_request/ftp_protocol_handler.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_file_dir_job.h"
 #include "net/url_request/url_request_http_job.h"
@@ -4111,6 +4112,38 @@ class URLRequestTestFTP : public URLRequestTest {
  protected:
   TestServer test_server_;
 };
+
+// Make sure an FTP request using an unsafe ports fails.
+TEST_F(URLRequestTestFTP, UnsafePort) {
+  ASSERT_TRUE(test_server_.Start());
+
+  URLRequestJobFactory job_factory;
+
+  GURL url("ftp://127.0.0.1:7");
+  FtpProtocolHandler ftp_protocol_handler(
+      default_context_.network_delegate(),
+      default_context_.ftp_transaction_factory(),
+      default_context_.ftp_auth_cache());
+  job_factory.SetProtocolHandler(
+      "ftp",
+      new FtpProtocolHandler(default_context_.network_delegate(),
+                             default_context_.ftp_transaction_factory(),
+                             default_context_.ftp_auth_cache()));
+  default_context_.set_job_factory(&job_factory);
+
+  TestDelegate d;
+  {
+    URLRequest r(url, &d, &default_context_);
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    EXPECT_FALSE(r.is_pending());
+    EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
+    EXPECT_EQ(ERR_UNSAFE_PORT, r.status().error());
+  }
+}
 
 // Flaky, see http://crbug.com/25045.
 TEST_F(URLRequestTestFTP, DISABLED_FTPDirectoryListing) {
