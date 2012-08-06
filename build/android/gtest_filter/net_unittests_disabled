@@ -27,6 +27,7 @@ SOCKSClientSocketTest.*
 SSLClientSocketTest.*
 PythonUtils.PythonRunTime
 URLRequestTestHTTP.*
+URLRequestTestFTP.*
 HTTPSRequestTest.HTTPSMismatchedTest
 HTTPSRequestTest.HTTPSExpiredTest
 HTTPSRequestTest.HTTPSPreloadedHSTSTest
