@@ -194,7 +194,11 @@ void SpdyStream::PushedStreamReplayData() {
     // We don't have complete headers.  Assume we're waiting for another
     // HEADERS frame.  Since we don't have headers, we had better not have
     // any pending data frames.
-    DCHECK_EQ(0U, pending_buffers_.size());
+    if (pending_buffers_.size() != 0U) {
+      LogStreamError(ERR_SPDY_PROTOCOL_ERROR,
+                     "HEADERS incomplete headers, but pending data frames.");
+      session_->CloseStream(stream_id_, ERR_SPDY_PROTOCOL_ERROR);
+    }
     return;
   }
 
@@ -508,7 +512,12 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     return;
   }
 
-  delegate_->OnDataReceived(data, length);
+  if (delegate_->OnDataReceived(data, length) != net::OK) {
+    // |delegate_| rejected the data.
+    LogStreamError(ERR_SPDY_PROTOCOL_ERROR, "Delegate rejected the data");
+    session_->CloseStream(stream_id_, ERR_SPDY_PROTOCOL_ERROR);
+    return;
+  }
 }
 
 // This function is only called when an entire frame is written.
