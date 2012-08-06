@@ -489,7 +489,7 @@ int SpdyProxyClientSocket::OnResponseReceived(
 }
 
 // Called when data is received.
-void SpdyProxyClientSocket::OnDataReceived(const char* data, int length) {
+int SpdyProxyClientSocket::OnDataReceived(const char* data, int length) {
   if (length > 0) {
     // Save the received data.
     scoped_refptr<IOBuffer> io_buffer(new IOBuffer(length));
@@ -505,6 +505,7 @@ void SpdyProxyClientSocket::OnDataReceived(const char* data, int length) {
     user_buffer_ = NULL;
     c.Run(rv);
   }
+  return OK;
 }
 
 void SpdyProxyClientSocket::OnDataSent(int length)  {

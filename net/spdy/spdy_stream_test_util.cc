@@ -61,8 +61,9 @@ int TestSpdyStreamDelegate::OnResponseReceived(const SpdyHeaderBlock& response,
   return status;
 }
 
-void TestSpdyStreamDelegate::OnDataReceived(const char* buffer, int bytes) {
+int TestSpdyStreamDelegate::OnDataReceived(const char* buffer, int bytes) {
   received_data_ += std::string(buffer, bytes);
+  return OK;
 }
 
 void TestSpdyStreamDelegate::OnDataSent(int length) {

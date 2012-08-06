@@ -920,8 +920,13 @@ int HttpNetworkTransaction::DoReadBodyComplete(int result) {
     // TODO(mbelshe): The keepalive property is really a property of
     //    the stream.  No need to compute it here just to pass back
     //    to the stream's Close function.
-    if (stream_->CanFindEndOfResponse())
-      keep_alive = GetResponseHeaders()->IsKeepAlive();
+    // TODO(rtenneti): CanFindEndOfResponse should return false if there are no
+    // ResponseHeaders.
+    if (stream_->CanFindEndOfResponse()) {
+      HttpResponseHeaders* headers = GetResponseHeaders();
+      if (headers)
+        keep_alive = headers->IsKeepAlive();
+    }
   }
 
   // Clean up connection if we are done.
