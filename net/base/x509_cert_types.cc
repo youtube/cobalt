@@ -38,7 +38,7 @@ int CompareSHA1Hashes(const void* a, const void* b) {
 }  // namespace
 
 // static
-bool IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
+bool IsSHA1HashInSortedArray(const SHA1HashValue& hash,
                              const uint8* array,
                              size_t array_byte_len) {
   DCHECK_EQ(0u, array_byte_len % base::kSHA1Length);
