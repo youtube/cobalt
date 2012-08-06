@@ -570,11 +570,6 @@ void ChunkDemuxer::OnAudioRendererDisabled() {
   audio_ = NULL;
 }
 
-int ChunkDemuxer::GetBitrate() {
-  // TODO(acolwell): Implement bitrate reporting.
-  return 0;
-}
-
 // Demuxer implementation.
 scoped_refptr<DemuxerStream> ChunkDemuxer::GetStream(
     DemuxerStream::Type type) {

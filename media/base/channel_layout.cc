@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,6 +23,7 @@ static const int kLayoutToChannels[] = {
     8,   // CHANNEL_LAYOUT_7POINT1_WIDE
     2};  // CHANNEL_LAYOUT_STEREO_DOWNMIX
 
+#if defined(OS_MACOSX) || defined(USE_PULSEAUDIO)
 const int kChannelOrderings[CHANNEL_LAYOUT_MAX][CHANNELS_MAX] = {
   // FL | FR | FC | LFE | BL | BR | FLofC | FRofC | BC | SL | SR | StL | StR
 
@@ -79,6 +80,7 @@ const int kChannelOrderings[CHANNEL_LAYOUT_MAX][CHANNELS_MAX] = {
 
   // FL | FR | FC | LFE | BL | BR | FLofC | FRofC | BC | SL | SR | StL | StR
   };
+#endif
 
 int ChannelLayoutToChannelCount(ChannelLayout layout) {
   return kLayoutToChannels[layout];

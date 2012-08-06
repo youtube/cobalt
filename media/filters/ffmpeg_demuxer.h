@@ -156,7 +156,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
-  virtual int GetBitrate() OVERRIDE;
 
   // FFmpegURLProtocol implementation.
   virtual size_t Read(size_t size, uint8* data) OVERRIDE;

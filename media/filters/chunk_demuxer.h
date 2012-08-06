@@ -44,7 +44,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
-  virtual int GetBitrate() OVERRIDE;
 
   // Methods used by an external object to control this demuxer.
   void StartWaitingForSeek();

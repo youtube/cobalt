@@ -19,9 +19,7 @@ class MockAudioRendererSink : public AudioRendererSink {
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(Pause, void(bool flush));
   MOCK_METHOD0(Play, void());
-  MOCK_METHOD1(SetPlaybackRate, void(float rate));
   MOCK_METHOD1(SetVolume, bool(double volume));
-  MOCK_METHOD1(GetVolume, void(double* volume));
 
   virtual void Initialize(const AudioParameters& params,
                           RenderCallback* renderer) OVERRIDE;

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,29 +27,6 @@ void ConvertARGBToYUVRow_SSSE3(const uint8* argb,
                                uint8* v,
                                int width);
 
-// Convert a row of 24-bit RGB pixels to YV12 pixels.
-void ConvertRGBToYUVEven_SSSE3(const uint8* rgb,
-                               uint8* y,
-                               uint8* u,
-                               uint8* v,
-                               int width);
-void ConvertRGBToYUVOdd_SSSE3(const uint8* rgb,
-                              uint8* y,
-                              uint8* u,
-                              uint8* v,
-                              int width);
-
-// Convert a row of 32-bit RGB pixels to YV12 pixels.
-void ConvertARGBToYUVEven_SSSE3(const uint8* argb,
-                                uint8* y,
-                                uint8* u,
-                                uint8* v,
-                                int width);
-void ConvertARGBToYUVOdd_SSSE3(const uint8* argb,
-                               uint8* y,
-                               uint8* u,
-                               uint8* v,
-                               int width);
 #ifdef __cplusplus
 }
 #endif

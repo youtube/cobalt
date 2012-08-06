@@ -64,10 +64,6 @@ class MEDIA_EXPORT Demuxer : public base::RefCountedThreadSafe<Demuxer> {
   // Returns the starting time for the media file.
   virtual base::TimeDelta GetStartTime() const = 0;
 
-  // Returns the content bitrate. May be obtained from container or
-  // approximated. Returns 0 if it is unknown.
-  virtual int GetBitrate() = 0;
-
  protected:
   friend class base::RefCountedThreadSafe<Demuxer>;
   virtual ~Demuxer();
