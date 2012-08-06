@@ -157,7 +157,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   CompletionCallback user_connect_callback_;
 
   CertVerifyResult server_cert_verify_result_;
-  std::vector<SHA1Fingerprint> side_pinned_public_keys_;
+  HashValueVector side_pinned_public_keys_;
 
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;

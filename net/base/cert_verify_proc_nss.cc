@@ -4,6 +4,9 @@
 
 #include "net/base/cert_verify_proc_nss.h"
 
+#include <string>
+#include <vector>
+
 #include <cert.h>
 #include <nss.h>
 #include <prerror.h>
@@ -597,9 +600,19 @@ bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
   return false;
 }
 
-SHA1Fingerprint CertPublicKeyHash(CERTCertificate* cert) {
-  SHA1Fingerprint hash;
-  SECStatus rv = HASH_HashBuf(HASH_AlgSHA1, hash.data,
+HashValue CertPublicKeyHashSHA1(CERTCertificate* cert) {
+  HashValue hash;
+  hash.tag = HASH_VALUE_SHA1;
+  SECStatus rv = HASH_HashBuf(HASH_AlgSHA1, hash.data(),
+                              cert->derPublicKey.data, cert->derPublicKey.len);
+  DCHECK_EQ(rv, SECSuccess);
+  return hash;
+}
+
+HashValue CertPublicKeyHashSHA256(CERTCertificate* cert) {
+  HashValue hash;
+  hash.tag = HASH_VALUE_SHA256;
+  SECStatus rv = HASH_HashBuf(HASH_AlgSHA256, hash.data(),
                               cert->derPublicKey.data, cert->derPublicKey.len);
   DCHECK_EQ(rv, SECSuccess);
   return hash;
@@ -607,14 +620,18 @@ SHA1Fingerprint CertPublicKeyHash(CERTCertificate* cert) {
 
 void AppendPublicKeyHashes(CERTCertList* cert_list,
                            CERTCertificate* root_cert,
-                           std::vector<SHA1Fingerprint>* hashes) {
+                           std::vector<HashValueVector>* hashes) {
+  // TODO(palmer): Generalize this to handle any and all HashValueTags.
   for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
        !CERT_LIST_END(node, cert_list);
        node = CERT_LIST_NEXT(node)) {
-    hashes->push_back(CertPublicKeyHash(node->cert));
+    (*hashes)[HASH_VALUE_SHA1].push_back(CertPublicKeyHashSHA1(node->cert));
+    (*hashes)[HASH_VALUE_SHA256].push_back(CertPublicKeyHashSHA256(node->cert));
   }
-  if (root_cert)
-    hashes->push_back(CertPublicKeyHash(root_cert));
+  if (root_cert) {
+    (*hashes)[HASH_VALUE_SHA1].push_back(CertPublicKeyHashSHA1(root_cert));
+    (*hashes)[HASH_VALUE_SHA256].push_back(CertPublicKeyHashSHA256(root_cert));
+  }
 }
 
 // Studied Mozilla's code (esp. security/manager/ssl/src/nsIdentityChecking.cpp
@@ -667,7 +684,7 @@ bool VerifyEV(CERTCertificate* cert_handle, int flags, CRLSet* crl_set) {
       return false;
   }
 
-  SHA1Fingerprint fingerprint =
+  SHA1HashValue fingerprint =
       X509Certificate::CalculateFingerprint(root_ca);
   std::vector<SECOidTag> ev_policy_tags;
   if (!metadata->GetPolicyOIDsForCA(fingerprint, &ev_policy_tags))
