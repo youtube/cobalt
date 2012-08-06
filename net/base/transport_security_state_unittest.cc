@@ -6,13 +6,11 @@
 
 #include <algorithm>
 #include <string>
-#include <vector>
 
 #include "base/base64.h"
 #include "base/file_path.h"
 #include "base/sha1.h"
 #include "base/string_piece.h"
-#include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_test_util.h"
 #include "net/base/cert_verifier.h"
@@ -22,7 +20,6 @@
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/test_root_certs.h"
-#include "net/base/x509_cert_types.h"
 #include "net/base/x509_certificate.h"
 #include "net/http/http_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -94,8 +91,7 @@ TEST_F(TransportSecurityStateTest, BogusHeaders) {
 }
 
 static bool GetPublicKeyHash(const net::X509Certificate::OSCertHandle& cert,
-                             HashValue* fingerprint,
-                             HashValueTag tag) {
+                             SHA1Fingerprint* fingerprint) {
   std::string der_bytes;
   if (!net::X509Certificate::GetDEREncoded(cert, &der_bytes))
     return false;
@@ -104,52 +100,28 @@ static bool GetPublicKeyHash(const net::X509Certificate::OSCertHandle& cert,
   if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki))
     return false;
 
-  fingerprint->tag = tag;
-  switch (tag) {
-    case HASH_VALUE_SHA1:
-      base::SHA1HashBytes(reinterpret_cast<const unsigned char*>(spki.data()),
-                          spki.size(), fingerprint->data());
-      break;
-    case HASH_VALUE_SHA256:
-      crypto::SHA256HashString(spki, fingerprint->data(),
-                               crypto::kSHA256Length);
-      break;
-    default:
-      NOTREACHED() << "Unknown HashValueTag " << tag;
-  }
-
+  base::SHA1HashBytes(reinterpret_cast<const unsigned char*>(spki.data()),
+                      spki.size(), fingerprint->data);
   return true;
 }
 
-static std::string GetPinFromCert(X509Certificate* cert, HashValueTag tag) {
-  HashValue spki_hash;
-  EXPECT_TRUE(GetPublicKeyHash(cert->os_cert_handle(), &spki_hash, tag));
+static std::string GetPinFromCert(X509Certificate* cert) {
+  SHA1Fingerprint spki_hash;
+  EXPECT_TRUE(GetPublicKeyHash(cert->os_cert_handle(), &spki_hash));
 
   std::string base64;
-  base::Base64Encode(base::StringPiece(
-      reinterpret_cast<char*>(spki_hash.data()), spki_hash.size()), &base64);
-
-  std::string label;
-  switch (tag) {
-    case HASH_VALUE_SHA1:
-      label = "pin-sha1=";
-      break;
-    case HASH_VALUE_SHA256:
-      label = "pin-sha256=";
-      break;
-    default:
-      NOTREACHED() << "Unknown HashValueTag " << tag;
-  }
-
-  return label + HttpUtil::Quote(base64);
+  base::Base64Encode(base::StringPiece(reinterpret_cast<char*>(spki_hash.data),
+                                       sizeof(spki_hash.data)),
+                     &base64);
+  return "pin-sha1=" + HttpUtil::Quote(base64);
 }
 
-static void TestBogusPinsHeaders(HashValueTag tag) {
+TEST_F(TransportSecurityStateTest, BogusPinsHeaders) {
   TransportSecurityState::DomainState state;
   SSLInfo ssl_info;
   ssl_info.cert =
       ImportCertFromFile(GetTestCertsDirectory(), "test_mail_google_com.pem");
-  std::string good_pin = GetPinFromCert(ssl_info.cert, tag);
+  std::string good_pin = GetPinFromCert(ssl_info.cert);
   base::Time now = base::Time::Now();
 
   // The backup pin is fake --- it just has to not be in the chain.
@@ -206,14 +178,6 @@ static void TestBogusPinsHeaders(HashValueTag tag) {
   EXPECT_EQ(state.upgrade_mode,
             TransportSecurityState::DomainState::MODE_FORCE_HTTPS);
   EXPECT_FALSE(state.include_subdomains);
-}
-
-TEST_F(TransportSecurityStateTest, BogusPinsHeadersSHA1) {
-  TestBogusPinsHeaders(HASH_VALUE_SHA1);
-}
-
-TEST_F(TransportSecurityStateTest, BogusPinsHeadersSHA256) {
-  TestBogusPinsHeaders(HASH_VALUE_SHA256);
 }
 
 TEST_F(TransportSecurityStateTest, ValidSTSHeaders) {
@@ -276,7 +240,7 @@ TEST_F(TransportSecurityStateTest, ValidSTSHeaders) {
   EXPECT_TRUE(state.include_subdomains);
 }
 
-static void TestValidPinsHeaders(HashValueTag tag) {
+TEST_F(TransportSecurityStateTest, ValidPinsHeaders) {
   TransportSecurityState::DomainState state;
   base::Time expiry;
   base::Time now = base::Time::Now();
@@ -316,8 +280,7 @@ static void TestValidPinsHeaders(HashValueTag tag) {
   // Normally, ssl_client_socket_nss would do this, but for a unit test we
   // fake it.
   ssl_info.public_key_hashes = result.public_key_hashes;
-  std::string good_pin = GetPinFromCert(ssl_info.cert, /*tag*/HASH_VALUE_SHA1);
-  DLOG(WARNING) << "good pin: " << good_pin;
+  std::string good_pin = GetPinFromCert(ssl_info.cert);
 
   // The backup pin is fake --- we just need an SPKI hash that does not match
   // the hash of any SPKI in the certificate chain.
@@ -391,14 +354,6 @@ static void TestValidPinsHeaders(HashValueTag tag) {
   expiry = now +
       base::TimeDelta::FromSeconds(TransportSecurityState::kMaxHSTSAgeSecs);
   EXPECT_EQ(expiry, state.dynamic_spki_hashes_expiry);
-}
-
-TEST_F(TransportSecurityStateTest, ValidPinsHeadersSHA1) {
-  TestValidPinsHeaders(HASH_VALUE_SHA1);
-}
-
-TEST_F(TransportSecurityStateTest, ValidPinsHeadersSHA256) {
-  TestValidPinsHeaders(HASH_VALUE_SHA256);
 }
 
 TEST_F(TransportSecurityStateTest, SimpleMatches) {
@@ -828,7 +783,7 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state.GetDomainState("chrome.google.com", true, &domain_state));
   EXPECT_TRUE(HasPins("chrome.google.com"));
 
-  std::vector<HashValueVector> hashes;
+  FingerprintVector hashes;
   // Checks that a built-in list does exist.
   EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(hashes));
   EXPECT_FALSE(HasPins("www.paypal.com"));
@@ -874,16 +829,19 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
 }
 
 static bool AddHash(const std::string& type_and_base64,
-                    HashValueVector* out) {
-  HashValue hash;
-
-  if (!TransportSecurityState::ParsePin(type_and_base64, &hash))
-    return false;
-
-  out->push_back(hash);
-  return true;
+                    FingerprintVector* out) {
+  std::string hash_str;
+  if (type_and_base64.find("sha1/") == 0 &&
+      base::Base64Decode(type_and_base64.substr(5, type_and_base64.size() - 5),
+                         &hash_str) &&
+      hash_str.size() == base::kSHA1Length) {
+    SHA1Fingerprint hash;
+    memcpy(hash.data, hash_str.data(), sizeof(hash.data));
+    out->push_back(hash);
+    return true;
+  }
+  return false;
 }
-
 
 TEST_F(TransportSecurityStateTest, PinValidationWithRejectedCerts) {
   // kGoodPath is plus.google.com via Google Internet Authority.
@@ -904,7 +862,7 @@ TEST_F(TransportSecurityStateTest, PinValidationWithRejectedCerts) {
     NULL,
   };
 
-  HashValueVector good_hashes, bad_hashes;
+  std::vector<net::SHA1Fingerprint> good_hashes, bad_hashes;
 
   for (size_t i = 0; kGoodPath[i]; i++) {
     EXPECT_TRUE(AddHash(kGoodPath[i], &good_hashes));
@@ -918,13 +876,8 @@ TEST_F(TransportSecurityStateTest, PinValidationWithRejectedCerts) {
   EXPECT_TRUE(state.GetDomainState("plus.google.com", true, &domain_state));
   EXPECT_TRUE(domain_state.HasPins());
 
-  std::vector<HashValueVector> good;
-  good.push_back(good_hashes);
-  EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(good));
-
-  std::vector<HashValueVector> bad;
-  bad.push_back(bad_hashes);
-  EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(bad));
+  EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(good_hashes));
+  EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(bad_hashes));
 }
 
 TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
@@ -945,7 +898,7 @@ TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
     NULL,
   };
 
-  HashValueVector good_hashes, bad_hashes;
+  std::vector<net::SHA1Fingerprint> good_hashes, bad_hashes;
 
   for (size_t i = 0; kGoodPath[i]; i++) {
     EXPECT_TRUE(AddHash(kGoodPath[i], &good_hashes));
@@ -959,13 +912,8 @@ TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
   EXPECT_TRUE(state.GetDomainState("blog.torproject.org", true, &domain_state));
   EXPECT_TRUE(domain_state.HasPins());
 
-  std::vector<HashValueVector> good;
-  good.push_back(good_hashes);
-  EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(good));
-
-  std::vector<HashValueVector> bad;
-  bad.push_back(bad_hashes);
-  EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(bad));
+  EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(good_hashes));
+  EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(bad_hashes));
 }
 
 TEST_F(TransportSecurityStateTest, OptionalHSTSCertPins) {

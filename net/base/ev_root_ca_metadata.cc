@@ -33,7 +33,7 @@ struct EVMetadata {
 
   // The SHA-1 fingerprint of the root CA certificate, used as a unique
   // identifier for a root CA certificate.
-  SHA1HashValue fingerprint;
+  SHA1Fingerprint fingerprint;
 
   // The EV policy OIDs of the root CA.
   const char policy_oids[kMaxOIDsPerCA][kMaxOIDLength];
@@ -73,7 +73,7 @@ static const EVMetadata ev_root_ca_metadata[] = {
   // https://premiumecc.affirmtrust.com:4433/
   { { { 0xb8, 0x23, 0x6b, 0x00, 0x2f, 0x1d, 0x16, 0x86, 0x53, 0x01,
         0x55, 0x6c, 0x11, 0xa4, 0x37, 0xca, 0xeb, 0xff, 0xc3, 0xbb } },
-    {"1.3.6.1.4.1.34697.2.4", ""},
+   {"1.3.6.1.4.1.34697.2.4", ""},
   },
   // CertPlus Class 2 Primary CA (KEYNECTIS)
   // https://www.keynectis.com/
@@ -322,7 +322,7 @@ EVRootCAMetadata* EVRootCAMetadata::GetInstance() {
 #if defined(USE_NSS)
 
 bool EVRootCAMetadata::GetPolicyOIDsForCA(
-    const SHA1HashValue& fingerprint,
+    const SHA1Fingerprint& fingerprint,
     std::vector<PolicyOID>* policy_oids) const {
   PolicyOIDMap::const_iterator iter = ev_policy_.find(fingerprint);
   if (iter == ev_policy_.end())
@@ -342,7 +342,7 @@ int EVRootCAMetadata::NumPolicyOIDs() const {
   return policy_oids_.size();
 }
 
-bool EVRootCAMetadata::AddEVCA(const SHA1HashValue& fingerprint,
+bool EVRootCAMetadata::AddEVCA(const SHA1Fingerprint& fingerprint,
                                const char* policy) {
   if (ev_policy_.find(fingerprint) != ev_policy_.end())
     return false;
@@ -357,7 +357,7 @@ bool EVRootCAMetadata::AddEVCA(const SHA1HashValue& fingerprint,
   return true;
 }
 
-bool EVRootCAMetadata::RemoveEVCA(const SHA1HashValue& fingerprint) {
+bool EVRootCAMetadata::RemoveEVCA(const SHA1Fingerprint& fingerprint) {
   PolicyOIDMap::iterator it = ev_policy_.find(fingerprint);
   if (it == ev_policy_.end())
     return false;
@@ -416,7 +416,7 @@ bool EVRootCAMetadata::IsEVPolicyOID(PolicyOID policy_oid) const {
   return false;
 }
 
-bool EVRootCAMetadata::HasEVPolicyOID(const SHA1HashValue& fingerprint,
+bool EVRootCAMetadata::HasEVPolicyOID(const SHA1Fingerprint& fingerprint,
                                       PolicyOID policy_oid) const {
   for (size_t i = 0; i < arraysize(ev_root_ca_metadata); i++) {
     if (!fingerprint.Equals(ev_root_ca_metadata[i].fingerprint))
@@ -434,7 +434,7 @@ bool EVRootCAMetadata::HasEVPolicyOID(const SHA1HashValue& fingerprint,
   return it != extra_cas_.end() && it->second == policy_oid;
 }
 
-bool EVRootCAMetadata::AddEVCA(const SHA1HashValue& fingerprint,
+bool EVRootCAMetadata::AddEVCA(const SHA1Fingerprint& fingerprint,
                                const char* policy) {
   for (size_t i = 0; i < arraysize(ev_root_ca_metadata); i++) {
     if (fingerprint.Equals(ev_root_ca_metadata[i].fingerprint))
@@ -448,7 +448,7 @@ bool EVRootCAMetadata::AddEVCA(const SHA1HashValue& fingerprint,
   return true;
 }
 
-bool EVRootCAMetadata::RemoveEVCA(const SHA1HashValue& fingerprint) {
+bool EVRootCAMetadata::RemoveEVCA(const SHA1Fingerprint& fingerprint) {
   ExtraEVCAMap::iterator it = extra_cas_.find(fingerprint);
   if (it == extra_cas_.end())
     return false;
@@ -461,12 +461,12 @@ bool EVRootCAMetadata::RemoveEVCA(const SHA1HashValue& fingerprint) {
 // These are just stub functions for platforms where we don't use this EV
 // metadata.
 
-bool EVRootCAMetadata::AddEVCA(const SHA1HashValue& fingerprint,
+bool EVRootCAMetadata::AddEVCA(const SHA1Fingerprint& fingerprint,
                                const char* policy) {
   return true;
 }
 
-bool EVRootCAMetadata::RemoveEVCA(const SHA1HashValue& fingerprint) {
+bool EVRootCAMetadata::RemoveEVCA(const SHA1Fingerprint& fingerprint) {
   return true;
 }
 

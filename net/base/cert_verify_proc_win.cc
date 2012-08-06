@@ -4,9 +4,6 @@
 
 #include "net/base/cert_verify_proc_win.h"
 
-#include <string>
-#include <vector>
-
 #include "base/memory/scoped_ptr.h"
 #include "base/sha1.h"
 #include "base/string_util.h"
@@ -285,7 +282,7 @@ bool IsIssuedByKnownRoot(PCCERT_CHAIN_CONTEXT chain_context) {
   PCERT_CHAIN_ELEMENT* element = first_chain->rgpElement;
   PCCERT_CONTEXT cert = element[num_elements - 1]->pCertContext;
 
-  SHA1HashValue hash = X509Certificate::CalculateFingerprint(cert);
+  SHA1Fingerprint hash = X509Certificate::CalculateFingerprint(cert);
   return IsSHA1HashInSortedArray(
       hash, &kKnownRootCertSHA1Hashes[0][0], sizeof(kKnownRootCertSHA1Hashes));
 }
@@ -444,7 +441,7 @@ bool CheckRevocationWithCRLSet(PCCERT_CHAIN_CONTEXT chain,
 }
 
 void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
-                           std::vector<HashValueVector>* hashes) {
+                           std::vector<SHA1Fingerprint>* hashes) {
   if (chain->cChain == 0)
     return;
 
@@ -462,16 +459,10 @@ void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
     if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
       continue;
 
-    HashValue sha1;
-    sha1.tag = HASH_VALUE_SHA1;
+    SHA1Fingerprint hash;
     base::SHA1HashBytes(reinterpret_cast<const uint8*>(spki_bytes.data()),
-                        spki_bytes.size(), sha1.data());
-    (*hashes)[HASH_VALUE_SHA1].push_back(sha1);
-
-    HashValue sha256;
-    sha256.tag = HASH_VALUE_SHA256;
-    crypto::SHA256HashString(spki_bytes, sha1.data(), crypto::kSHA256Length);
-    (*hashes)[HASH_VALUE_SHA256].push_back(sha256);
+                        spki_bytes.size(), hash.data);
+    hashes->push_back(hash);
   }
 }
 
@@ -512,7 +503,7 @@ bool CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
 
   // Look up the EV policy OID of the root CA.
   PCCERT_CONTEXT root_cert = element[num_elements - 1]->pCertContext;
-  SHA1HashValue fingerprint =
+  SHA1Fingerprint fingerprint =
       X509Certificate::CalculateFingerprint(root_cert);
   EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
   return metadata->HasEVPolicyOID(fingerprint, policy_oid);
