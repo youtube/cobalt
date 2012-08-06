@@ -6,13 +6,9 @@
 
 #include <openssl/x509v3.h>
 
-#include <string>
-#include <vector>
-
 #include "base/logging.h"
 #include "base/sha1.h"
 #include "crypto/openssl_util.h"
-#include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
@@ -135,7 +131,7 @@ void GetCertChainInfo(X509_STORE_CTX* store_ctx,
 }
 
 void AppendPublicKeyHashes(X509_STORE_CTX* store_ctx,
-                           std::vector<HashValueVector>* hashes) {
+                           std::vector<SHA1Fingerprint>* hashes) {
   STACK_OF(X509)* chain = X509_STORE_CTX_get_chain(store_ctx);
   for (int i = 0; i < sk_X509_num(chain); ++i) {
     X509* cert = sk_X509_value(chain, i);
@@ -149,16 +145,10 @@ void AppendPublicKeyHashes(X509_STORE_CTX* store_ctx,
     if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
       continue;
 
-    HashValue sha1;
-    sha1.tag = HASH_VALUE_SHA1;
+    SHA1Fingerprint hash;
     base::SHA1HashBytes(reinterpret_cast<const uint8*>(spki_bytes.data()),
-                        spki_bytes.size(), sha1.data());
-    (*hashes)[HASH_VALUE_SHA1].push_back(sha1);
-
-    HashValue sha256;
-    sha256.tag = HASH_VALUE_SHA256;
-    crypto::SHA256HashString(spki_bytes, sha1.data(), crypto::kSHA256Length);
-    (*hashes)[HASH_VALUE_SHA256].push_back(sha256);
+                        spki_bytes.size(), hash.data);
+    hashes->push_back(hash);
   }
 }
 
