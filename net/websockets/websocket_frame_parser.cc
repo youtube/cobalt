@@ -36,7 +36,7 @@ namespace net {
 WebSocketFrameParser::WebSocketFrameParser()
     : current_read_pos_(0),
       frame_offset_(0),
-      failed_(false) {
+      websocket_error_(WEB_SOCKET_OK) {
   std::fill(masking_key_,
             masking_key_ + WebSocketFrameHeader::kMaskingKeyLength,
             '\0');
@@ -49,7 +49,7 @@ bool WebSocketFrameParser::Decode(
     const char* data,
     size_t length,
     ScopedVector<WebSocketFrameChunk>* frame_chunks) {
-  if (failed_)
+  if (websocket_error_ != WEB_SOCKET_OK)
     return false;
   if (!length)
     return true;
@@ -61,7 +61,7 @@ bool WebSocketFrameParser::Decode(
     bool first_chunk = false;
     if (!current_frame_header_.get()) {
       DecodeFrameHeader();
-      if (failed_)
+      if (websocket_error_ != WEB_SOCKET_OK)
         return false;
       // If frame header is incomplete, then carry over the remaining
       // data to the next round of Decode().
@@ -121,8 +121,6 @@ void WebSocketFrameParser::DecodeFrameHeader() {
 
   bool masked = (second_byte & kMaskBit) != 0;
   uint64 payload_length = second_byte & kPayloadLengthMask;
-  bool valid_length_format = true;
-  bool message_too_big = false;
   if (payload_length == kPayloadLengthWithTwoByteExtendedLengthField) {
     if (end - current < 2)
       return;
@@ -131,7 +129,7 @@ void WebSocketFrameParser::DecodeFrameHeader() {
     current += 2;
     payload_length = payload_length_16;
     if (payload_length <= kMaxPayloadLengthWithoutExtendedLengthField)
-      valid_length_format = false;
+      websocket_error_ = WEB_SOCKET_ERR_PROTOCOL_ERROR;
   } else if (payload_length == kPayloadLengthWithEightByteExtendedLengthField) {
     if (end - current < 8)
       return;
@@ -139,13 +137,12 @@ void WebSocketFrameParser::DecodeFrameHeader() {
     current += 8;
     if (payload_length <= kuint16max ||
         payload_length > static_cast<uint64>(kint64max)) {
-      valid_length_format = false;
+      websocket_error_ = WEB_SOCKET_ERR_PROTOCOL_ERROR;
+    } else if (payload_length > static_cast<uint64>(kint32max)) {
+      websocket_error_ = WEB_SOCKET_ERR_MESSAGE_TOO_BIG;
     }
-    if (payload_length > static_cast<uint64>(kint32max))
-      message_too_big = true;
   }
-  if (!valid_length_format || message_too_big) {
-    failed_ = true;
+  if (websocket_error_ != WEB_SOCKET_OK) {
     buffer_.clear();
     current_read_pos_ = 0;
     current_frame_header_.reset();
