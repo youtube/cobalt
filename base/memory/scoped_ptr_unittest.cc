@@ -12,7 +12,8 @@ namespace {
 class ConDecLoggerParent {
  public:
   virtual ~ConDecLoggerParent() {}
-  virtual void set_ptr(int* ptr) = 0;
+
+  virtual void SetPtr(int* ptr) = 0;
 
   virtual int SomeMeth(int x) const = 0;
 };
@@ -20,15 +21,16 @@ class ConDecLoggerParent {
 class ConDecLogger : public ConDecLoggerParent {
  public:
   ConDecLogger() : ptr_(NULL) { }
-  explicit ConDecLogger(int* ptr) { set_ptr(ptr); }
+  explicit ConDecLogger(int* ptr) { SetPtr(ptr); }
   virtual ~ConDecLogger() { --*ptr_; }
 
-  virtual void set_ptr(int* ptr) OVERRIDE { ptr_ = ptr; ++*ptr_; }
+  virtual void SetPtr(int* ptr) OVERRIDE { ptr_ = ptr; ++*ptr_; }
 
   virtual int SomeMeth(int x) const OVERRIDE { return x; }
 
  private:
   int* ptr_;
+
   DISALLOW_COPY_AND_ASSIGN(ConDecLogger);
 };
 
@@ -195,7 +197,7 @@ TEST(ScopedPtrTest, ScopedArray) {
     EXPECT_TRUE(scoper.get());
     EXPECT_EQ(&scoper[0], scoper.get());
     for (int i = 0; i < kNumLoggers; ++i) {
-      scoper[i].set_ptr(&constructed);
+      scoper[i].SetPtr(&constructed);
     }
     EXPECT_EQ(12, constructed);
 
@@ -215,7 +217,7 @@ TEST(ScopedPtrTest, ScopedArray) {
 
     scoper.reset(new ConDecLogger[kNumLoggers]);
     for (int i = 0; i < kNumLoggers; ++i) {
-      scoper[i].set_ptr(&constructed);
+      scoper[i].SetPtr(&constructed);
     }
     EXPECT_EQ(12, constructed);
     scoper.reset();
@@ -223,7 +225,7 @@ TEST(ScopedPtrTest, ScopedArray) {
 
     scoper.reset(new ConDecLogger[kNumLoggers]);
     for (int i = 0; i < kNumLoggers; ++i) {
-      scoper[i].set_ptr(&constructed);
+      scoper[i].SetPtr(&constructed);
     }
     EXPECT_EQ(12, constructed);
     ConDecLogger* ptr = scoper.release();
@@ -242,7 +244,7 @@ TEST(ScopedPtrTest, ScopedArray) {
 
     ConDecLogger* loggers = new ConDecLogger[kNumLoggers];
     for (int i = 0; i < kNumLoggers; ++i) {
-      loggers[i].set_ptr(&constructed);
+      loggers[i].SetPtr(&constructed);
     }
     scoper1.reset(loggers);
     EXPECT_EQ(loggers, scoper1.get());
