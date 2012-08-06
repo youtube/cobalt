@@ -1,4 +1,4 @@
-# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -25,11 +25,8 @@
   ],
   'action': ['<@(grit_cmd)',
              '-i', '<(grit_grd_file)', 'build',
-             # Combine the -f with the path to avoid gyp reinterpreting the path
-             # in terms of msvs' path structure.
-             '-fGRIT_DIR/../gritsettings/resource_ids',
+             '-f', 'GRIT_DIR/../gritsettings/resource_ids',
              '-o', '<(grit_out_dir)',
              '<@(grit_defines)' ],
-  'msvs_cygwin_shell': 0,
   'message': 'Generating resources from <(grit_grd_file)',
 }
