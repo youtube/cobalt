@@ -200,12 +200,27 @@ bool Connection::Raze() {
 
   // Get the page size from the current connection, then propagate it
   // to the null database.
-  Statement s(GetUniqueStatement("PRAGMA page_size"));
-  if (!s.Step())
-    return false;
-  const std::string sql = StringPrintf("PRAGMA page_size=%d", s.ColumnInt(0));
-  if (!null_db.Execute(sql.c_str()))
-    return false;
+  {
+    Statement s(GetUniqueStatement("PRAGMA page_size"));
+    if (!s.Step())
+      return false;
+    const std::string sql = StringPrintf("PRAGMA page_size=%d",
+                                         s.ColumnInt(0));
+    if (!null_db.Execute(sql.c_str()))
+      return false;
+  }
+
+  // Get the value of auto_vacuum from the current connection, then propagate it
+  // to the null database.
+  {
+    Statement s(GetUniqueStatement("PRAGMA auto_vacuum"));
+    if (!s.Step())
+      return false;
+    const std::string sql = StringPrintf("PRAGMA auto_vacuum=%d",
+                                         s.ColumnInt(0));
+    if (!null_db.Execute(sql.c_str()))
+      return false;
+  }
 
   // The page size doesn't take effect until a database has pages, and
   // at this point the null database has none.  Changing the schema
