@@ -589,6 +589,9 @@ class MockClientSocketFactory : public ClientSocketFactory {
 
 class MockClientSocket : public SSLClientSocket {
  public:
+  // Value returned by GetTLSUniqueChannelBinding().
+  static const char kTlsUnique[];
+
   // TODO(ajwong): Why do we need net::NetLog?
   explicit MockClientSocket(net::NetLog* net_log);
 

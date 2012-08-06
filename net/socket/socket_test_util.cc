@@ -686,6 +686,8 @@ SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
 void MockClientSocketFactory::ClearSSLSessionCache() {
 }
 
+const char MockClientSocket::kTlsUnique[] = "MOCK_TLSUNIQ";
+
 MockClientSocket::MockClientSocket(net::NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       connected_(false),
@@ -746,7 +748,7 @@ int MockClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
 }
 
 int MockClientSocket::GetTLSUniqueChannelBinding(std::string* out) {
-  out->assign("MOCK_TLSUNIQ");
+  out->assign(MockClientSocket::kTlsUnique);
   return OK;
 }
 
