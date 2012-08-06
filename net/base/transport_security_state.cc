@@ -33,7 +33,6 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/dns_util.h"
 #include "net/base/ssl_info.h"
-#include "net/base/x509_cert_types.h"
 #include "net/base/x509_certificate.h"
 #include "net/http/http_util.h"
 
@@ -219,78 +218,69 @@ static StringPair Split(const std::string& source, char delimiter) {
   return pair;
 }
 
+// TODO(palmer): Support both sha256 and sha1. This will require additional
+// infrastructure code changes and can come in a later patch.
+//
 // static
 bool TransportSecurityState::ParsePin(const std::string& value,
-                                      HashValue* out) {
+                                      SHA1Fingerprint* out) {
   StringPair slash = Split(Strip(value), '/');
-
-  if (slash.first == "sha1")
-    out->tag = HASH_VALUE_SHA1;
-  else if (slash.first == "sha256")
-    out->tag = HASH_VALUE_SHA256;
-  else
+  if (slash.first != "sha1")
     return false;
 
   std::string decoded;
   if (!base::Base64Decode(slash.second, &decoded) ||
-      decoded.size() != out->size()) {
+      decoded.size() != arraysize(out->data)) {
     return false;
   }
 
-  memcpy(out->data(), decoded.data(), out->size());
+  memcpy(out->data, decoded.data(), arraysize(out->data));
   return true;
 }
 
 static bool ParseAndAppendPin(const std::string& value,
-                              HashValueVector* fingerprints) {
+                      FingerprintVector* fingerprints) {
   // The base64'd fingerprint MUST be a quoted-string. 20 bytes base64'd is 28
-  // characters; 32 bytes base64'd is 44 characters.
+  // characters; 32 bytes base64'd is 44 characters. TODO(palmer): Support
+  // SHA256.
   size_t size = value.size();
-  if ((size != 30 && size != 46) || value[0] != '"' || value[size - 1] != '"')
+  if (size != 30 || value[0] != '"' || value[size - 1] != '"')
     return false;
 
   std::string unquoted = HttpUtil::Unquote(value);
   std::string decoded;
-  HashValue fp;
+  SHA1Fingerprint fp;
 
-  // This code has to assume that 32 bytes is SHA-256 and 20 bytes is SHA-1.
-  // Currently, those are the only two possibilities, so the assumption is
-  // valid.
-  if (!base::Base64Decode(unquoted, &decoded))
+  if (!base::Base64Decode(unquoted, &decoded) ||
+      decoded.size() != arraysize(fp.data)) {
     return false;
+  }
 
-  if (decoded.size() == 20)
-    fp.tag = HASH_VALUE_SHA1;
-  else if (decoded.size() == 32)
-    fp.tag = HASH_VALUE_SHA256;
-  else
-    return false;
-
-  memcpy(fp.data(), decoded.data(), fp.size());
+  memcpy(fp.data, decoded.data(), arraysize(fp.data));
   fingerprints->push_back(fp);
   return true;
 }
 
-struct HashValuesEqualPredicate {
-  explicit HashValuesEqualPredicate(const HashValue& fingerprint) :
+struct FingerprintsEqualPredicate {
+  explicit FingerprintsEqualPredicate(const SHA1Fingerprint& fingerprint) :
       fingerprint_(fingerprint) {}
 
-  bool operator()(const HashValue& other) const {
+  bool operator()(const SHA1Fingerprint& other) const {
     return fingerprint_.Equals(other);
   }
 
-  const HashValue& fingerprint_;
+  const SHA1Fingerprint& fingerprint_;
 };
 
 // Returns true iff there is an item in |pins| which is not present in
 // |from_cert_chain|. Such an SPKI hash is called a "backup pin".
-static bool IsBackupPinPresent(const HashValueVector& pins,
-                               const HashValueVector& from_cert_chain) {
-  for (HashValueVector::const_iterator
+static bool IsBackupPinPresent(const FingerprintVector& pins,
+                               const FingerprintVector& from_cert_chain) {
+  for (FingerprintVector::const_iterator
        i = pins.begin(); i != pins.end(); ++i) {
-    HashValueVector::const_iterator j =
+    FingerprintVector::const_iterator j =
         std::find_if(from_cert_chain.begin(), from_cert_chain.end(),
-                     HashValuesEqualPredicate(*i));
+                     FingerprintsEqualPredicate(*i));
       if (j == from_cert_chain.end())
         return true;
   }
@@ -298,12 +288,12 @@ static bool IsBackupPinPresent(const HashValueVector& pins,
   return false;
 }
 
-static bool HashesIntersect(const HashValueVector& a,
-                            const HashValueVector& b) {
-  for (HashValueVector::const_iterator
+static bool HashesIntersect(const FingerprintVector& a,
+                            const FingerprintVector& b) {
+  for (FingerprintVector::const_iterator
        i = a.begin(); i != a.end(); ++i) {
-    HashValueVector::const_iterator j =
-        std::find_if(b.begin(), b.end(), HashValuesEqualPredicate(*i));
+    FingerprintVector::const_iterator j =
+        std::find_if(b.begin(), b.end(), FingerprintsEqualPredicate(*i));
       if (j != b.end())
         return true;
   }
@@ -316,30 +306,17 @@ static bool HashesIntersect(const HashValueVector& a,
 // backup pin is a pin intended for disaster recovery, not day-to-day use, and
 // thus must be absent from the certificate chain. The Public-Key-Pins header
 // specification requires both.
-static bool IsPinListValid(const HashValueVector& pins,
+static bool IsPinListValid(const FingerprintVector& pins,
                            const SSLInfo& ssl_info) {
-  // Fast fail: 1 live + 1 backup = at least 2 pins. (Check for actual
-  // liveness and backupness below.)
   if (pins.size() < 2)
     return false;
 
-  // Site operators might pin a key using either the SHA-1 or SHA-256 hash
-  // of the SPKI. So check for success using either hash function.
-  //
-  // TODO(palmer): Make this generic so that it works regardless of what
-  // HashValueTags are defined in the future.
-  const HashValueVector& from_cert_chain_sha1 =
-      ssl_info.public_key_hashes[HASH_VALUE_SHA1];
-  const HashValueVector& from_cert_chain_sha256 =
-      ssl_info.public_key_hashes[HASH_VALUE_SHA256];
-
-  if (from_cert_chain_sha1.empty() && from_cert_chain_sha256.empty())
+  const FingerprintVector& from_cert_chain = ssl_info.public_key_hashes;
+  if (from_cert_chain.empty())
     return false;
 
-  return (IsBackupPinPresent(pins, from_cert_chain_sha1) ||
-          IsBackupPinPresent(pins, from_cert_chain_sha256)) &&
-         (HashesIntersect(pins, from_cert_chain_sha1) ||
-          HashesIntersect(pins, from_cert_chain_sha256));
+  return IsBackupPinPresent(pins, from_cert_chain) &&
+      HashesIntersect(pins, from_cert_chain);
 }
 
 // "Public-Key-Pins" ":"
@@ -351,7 +328,7 @@ bool TransportSecurityState::DomainState::ParsePinsHeader(
     const SSLInfo& ssl_info) {
   bool parsed_max_age = false;
   int max_age_candidate = 0;
-  HashValueVector pins;
+  FingerprintVector pins;
 
   std::string source = value;
 
@@ -372,10 +349,11 @@ bool TransportSecurityState::DomainState::ParsePinsHeader(
       if (max_age_candidate > kMaxHSTSAgeSecs)
         max_age_candidate = kMaxHSTSAgeSecs;
       parsed_max_age = true;
-    } else if (LowerCaseEqualsASCII(equals.first, "pin-sha1") ||
-               LowerCaseEqualsASCII(equals.first, "pin-sha256")) {
+    } else if (LowerCaseEqualsASCII(equals.first, "pin-sha1")) {
       if (!ParseAndAppendPin(equals.second, &pins))
         return false;
+    } else if (LowerCaseEqualsASCII(equals.first, "pin-sha256")) {
+      // TODO(palmer)
     } else {
       // Silently ignore unknown directives for forward compatibility.
     }
@@ -391,7 +369,7 @@ bool TransportSecurityState::DomainState::ParsePinsHeader(
 
   dynamic_spki_hashes.clear();
   if (max_age_candidate > 0) {
-    for (HashValueVector::const_iterator i = pins.begin();
+    for (FingerprintVector::const_iterator i = pins.begin();
          i != pins.end(); ++i) {
       dynamic_spki_hashes.push_back(*i);
     }
@@ -498,8 +476,8 @@ bool TransportSecurityState::DomainState::ParseSTSHeader(
 }
 
 static bool AddHash(const std::string& type_and_base64,
-                    HashValueVector* out) {
-  HashValue hash;
+                    FingerprintVector* out) {
+  SHA1Fingerprint hash;
 
   if (!TransportSecurityState::ParsePin(type_and_base64, &hash))
     return false;
@@ -765,13 +743,13 @@ void TransportSecurityState::AddOrUpdateForcedHosts(
 }
 
 static std::string HashesToBase64String(
-    const HashValueVector& hashes) {
+    const FingerprintVector& hashes) {
   std::vector<std::string> hashes_strs;
-  for (HashValueVector::const_iterator
+  for (FingerprintVector::const_iterator
        i = hashes.begin(); i != hashes.end(); i++) {
     std::string s;
-    const std::string hash_str(reinterpret_cast<const char*>(i->data()),
-                               i->size());
+    const std::string hash_str(reinterpret_cast<const char*>(i->data),
+                               sizeof(i->data));
     base::Base64Encode(hash_str, &s);
     hashes_strs.push_back(s);
   }
@@ -789,43 +767,24 @@ TransportSecurityState::DomainState::~DomainState() {
 }
 
 bool TransportSecurityState::DomainState::IsChainOfPublicKeysPermitted(
-    const std::vector<HashValueVector>& hashes) const {
-  // Validate that hashes is not empty. By the time this code is called (in
-  // production), that should never happen, but it's good to be defensive.
-  // And, hashes *can* be empty in some test scenarios.
-  bool empty = true;
-  for (size_t i = 0; i < hashes.size(); ++i) {
-    if (hashes[i].size()) {
-      empty = false;
-      break;
-    }
-  }
-  if (empty) {
-    LOG(ERROR) << "Rejecting empty certificate chain for public key pinned "
-                  "domain " << domain;
+    const FingerprintVector& hashes) const {
+  if (HashesIntersect(bad_static_spki_hashes, hashes)) {
+    LOG(ERROR) << "Rejecting public key chain for domain " << domain
+               << ". Validated chain: " << HashesToBase64String(hashes)
+               << ", matches one or more bad hashes: "
+               << HashesToBase64String(bad_static_spki_hashes);
     return false;
   }
 
-  for (size_t i = 0; i < hashes.size(); ++i) {
-    if (HashesIntersect(bad_static_spki_hashes, hashes[i])) {
-      LOG(ERROR) << "Rejecting public key chain for domain " << domain
-                 << ". Validated chain: " << HashesToBase64String(hashes[i])
-                 << ", matches one or more bad hashes: "
-                 << HashesToBase64String(bad_static_spki_hashes);
-      return false;
-    }
+  if (!(dynamic_spki_hashes.empty() && static_spki_hashes.empty()) &&
+      !HashesIntersect(dynamic_spki_hashes, hashes) &&
+      !HashesIntersect(static_spki_hashes, hashes)) {
+    LOG(ERROR) << "Rejecting public key chain for domain " << domain
+               << ". Validated chain: " << HashesToBase64String(hashes)
+               << ", expected: " << HashesToBase64String(dynamic_spki_hashes)
+               << " or: " << HashesToBase64String(static_spki_hashes);
 
-    if (!(dynamic_spki_hashes.empty() && static_spki_hashes.empty()) &&
-        hashes[i].size() > 0 &&
-        !HashesIntersect(dynamic_spki_hashes, hashes[i]) &&
-        !HashesIntersect(static_spki_hashes, hashes[i])) {
-      LOG(ERROR) << "Rejecting public key chain for domain " << domain
-                 << ". Validated chain: " << HashesToBase64String(hashes[i])
-                 << ", expected: " << HashesToBase64String(dynamic_spki_hashes)
-                 << " or: " << HashesToBase64String(static_spki_hashes);
-
-      return false;
-    }
+    return false;
   }
 
   return true;

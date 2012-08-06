@@ -7,12 +7,10 @@
 
 #include <string.h>
 
-#include <algorithm>
 #include <set>
 #include <string>
 #include <vector>
 
-#include "base/logging.h"
 #include "base/string_piece.h"
 #include "build/build_config.h"
 #include "net/base/net_export.h"
@@ -30,132 +28,32 @@ namespace net {
 class X509Certificate;
 
 // SHA-1 fingerprint (160 bits) of a certificate.
-struct NET_EXPORT SHA1HashValue {
-  bool Equals(const SHA1HashValue& other) const {
+struct NET_EXPORT SHA1Fingerprint {
+  bool Equals(const SHA1Fingerprint& other) const {
     return memcmp(data, other.data, sizeof(data)) == 0;
   }
 
   unsigned char data[20];
 };
 
-class NET_EXPORT SHA1HashValueLessThan {
+// In the future there will be a generic Fingerprint type, with at least two
+// implementations: SHA1 and SHA256. See http://crbug.com/117914. Until that
+// work is done (in a separate patch) this typedef bridges the gap.
+typedef SHA1Fingerprint Fingerprint;
+
+typedef std::vector<Fingerprint> FingerprintVector;
+
+class NET_EXPORT SHA1FingerprintLessThan {
  public:
-  bool operator() (const SHA1HashValue& lhs,
-                   const SHA1HashValue& rhs) const {
+  bool operator() (const SHA1Fingerprint& lhs,
+                   const SHA1Fingerprint& rhs) const {
     return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
   }
 };
-
-struct NET_EXPORT SHA256HashValue {
-  bool Equals(const SHA256HashValue& other) const {
-    return memcmp(data, other.data, sizeof(data)) == 0;
-  }
-
-  unsigned char data[32];
-};
-
-class NET_EXPORT SHA256HashValueLessThan {
- public:
-  bool operator() (const SHA256HashValue& lhs,
-                   const SHA256HashValue& rhs) const {
-    return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
-  }
-};
-
-enum HashValueTag {
-  HASH_VALUE_SHA1,
-  HASH_VALUE_SHA256,
-
-  // This must always be last.
-  HASH_VALUE_TAGS_COUNT
-};
-
-struct NET_EXPORT HashValue {
-  bool Equals(const HashValue& other) const {
-    if (tag != other.tag)
-      return false;
-    switch (tag) {
-      case HASH_VALUE_SHA1:
-        return fingerprint.sha1.Equals(other.fingerprint.sha1);
-        break;
-      case HASH_VALUE_SHA256:
-        return fingerprint.sha256.Equals(other.fingerprint.sha256);
-        break;
-      default:
-        NOTREACHED() << "Unknown HashValueTag " << tag;
-        return false;
-    }
-  }
-
-  size_t size() const {
-    switch (tag) {
-      case HASH_VALUE_SHA1:
-        return sizeof(fingerprint.sha1.data);
-        break;
-      case HASH_VALUE_SHA256:
-        return sizeof(fingerprint.sha256.data);
-        break;
-      default:
-        NOTREACHED() << "Unknown HashValueTag " << tag;
-        return 0;
-    }
-  }
-
-  unsigned char* data() {
-    switch (tag) {
-      case HASH_VALUE_SHA1:
-        return fingerprint.sha1.data;
-        break;
-      case HASH_VALUE_SHA256:
-        return fingerprint.sha256.data;
-        break;
-      default:
-        NOTREACHED() << "Unknown HashValueTag " << tag;
-        return NULL;
-    }
-  }
-
-  const unsigned char* data() const {
-    switch (tag) {
-      case HASH_VALUE_SHA1:
-        return fingerprint.sha1.data;
-        break;
-      case HASH_VALUE_SHA256:
-        return fingerprint.sha256.data;
-        break;
-      default:
-        NOTREACHED() << "Unknown HashValueTag " << tag;
-        return NULL;
-    }
-  }
-
-  HashValueTag tag;
-
-  union {
-    SHA1HashValue sha1;
-    SHA256HashValue sha256;
-  } fingerprint;
-};
-
-class NET_EXPORT HashValueLessThan {
- public:
-  bool operator() (const HashValue& lhs,
-                   const HashValue& rhs) const {
-    size_t lhs_size = lhs.size();
-    size_t rhs_size = rhs.size();
-    int r = memcmp(lhs.data(), rhs.data(), std::min(lhs_size, rhs_size));
-
-    if (r == 0 && lhs_size != rhs_size)
-      return lhs_size < rhs_size;
-    return r < 0;
-  }
-};
-
-typedef std::vector<HashValue> HashValueVector;
 
 // IsSHA1HashInSortedArray returns true iff |hash| is in |array|, a sorted
 // array of SHA1 hashes.
-bool NET_EXPORT IsSHA1HashInSortedArray(const SHA1HashValue& hash,
+bool NET_EXPORT IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
                                         const uint8* array,
                                         size_t array_byte_len);
 
@@ -232,10 +130,10 @@ class NET_EXPORT CertPolicy {
 
  private:
   // The set of fingerprints of allowed certificates.
-  std::set<SHA1HashValue, SHA1HashValueLessThan> allowed_;
+  std::set<SHA1Fingerprint, SHA1FingerprintLessThan> allowed_;
 
   // The set of fingerprints of denied certificates.
-  std::set<SHA1HashValue, SHA1HashValueLessThan> denied_;
+  std::set<SHA1Fingerprint, SHA1FingerprintLessThan> denied_;
 };
 
 #if defined(OS_MACOSX) && !defined(OS_IOS)
