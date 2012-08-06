@@ -19,7 +19,6 @@
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
-        '../third_party/openmax/openmax.gyp:il',
         '../ui/ui.gyp:ui',
         'yuv_convert',
       ],

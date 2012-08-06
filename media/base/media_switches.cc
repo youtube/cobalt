@@ -13,12 +13,12 @@ const char kAlsaOutputDevice[] = "alsa-output-device";
 const char kAlsaInputDevice[] = "alsa-input-device";
 #endif
 
-#if defined(OS_LINUX)
+#if defined(USE_CRAS)
 // Use CRAS, the ChromeOS audio server.
 const char kUseCras[] = "use-cras";
 #endif
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(USE_PULSEAUDIO)
 // Use PulseAudio on platforms that support it.
 const char kUsePulseAudio[] = "use-pulseaudio";
 #endif

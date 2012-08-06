@@ -88,11 +88,6 @@ uint32 PushSource::UnProcessedBytes() {
   return buffer_.forward_bytes();
 }
 
-void PushSource::ClearAll() {
-  // Cleanup() will discard all the data.
-  CleanUp();
-}
-
 void PushSource::CleanUp() {
   buffer_.Clear();
 }

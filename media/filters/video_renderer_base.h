@@ -107,9 +107,6 @@ class MEDIA_EXPORT VideoRendererBase
       const scoped_refptr<VideoFrame>& next_frame,
       float playback_rate);
 
-  // Safely handles entering to an error state.
-  void EnterErrorState_Locked(PipelineStatus status);
-
   // Helper function that flushes the buffers when a Stop() or error occurs.
   void DoStopOrError_Locked();
 

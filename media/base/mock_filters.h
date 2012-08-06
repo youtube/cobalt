@@ -65,7 +65,6 @@ class MockDemuxer : public Demuxer {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
   MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(DemuxerStream::Type));
   MOCK_CONST_METHOD0(GetStartTime, base::TimeDelta());
-  MOCK_METHOD0(GetBitrate, int());
 
  protected:
   virtual ~MockDemuxer();
@@ -84,7 +83,6 @@ class MockDemuxerStream : public DemuxerStream {
   MOCK_METHOD0(audio_decoder_config, const AudioDecoderConfig&());
   MOCK_METHOD0(video_decoder_config, const VideoDecoderConfig&());
   MOCK_METHOD0(EnableBitstreamConverter, void());
-  MOCK_METHOD0(GetBufferedRanges, Ranges<base::TimeDelta>());
 
  protected:
   virtual ~MockDemuxerStream();
@@ -123,7 +121,6 @@ class MockAudioDecoder : public AudioDecoder {
                                 const PipelineStatusCB&,
                                 const StatisticsCB&));
   MOCK_METHOD1(Read, void(const ReadCB&));
-  MOCK_METHOD1(ProduceAudioSamples, void(scoped_refptr<Buffer>));
   MOCK_METHOD0(bits_per_channel, int(void));
   MOCK_METHOD0(channel_layout, ChannelLayout(void));
   MOCK_METHOD0(samples_per_second, int(void));
@@ -283,12 +280,6 @@ class MockFilterCollection {
 // Helper gmock action that calls SetError() on behalf of the provided filter.
 ACTION_P2(SetError, filter, error) {
   filter->host()->SetError(error);
-}
-
-// Helper gmock action that calls SetDuration() on behalf of the provided
-// filter.
-ACTION_P2(SetDuration, filter, duration) {
-  filter->host()->SetDuration(duration);
 }
 
 ACTION(RunClosure) {

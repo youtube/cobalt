@@ -568,12 +568,6 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
   status_cb.Run(PIPELINE_OK);
 }
 
-
-int FFmpegDemuxer::GetBitrate() {
-  DCHECK(format_context_) << "Initialize() has not been called";
-  return bitrate_;
-}
-
 void FFmpegDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 

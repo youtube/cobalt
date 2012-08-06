@@ -46,8 +46,6 @@ class MockMediaSource : public ChunkDemuxerClient {
     decryptor_client_ = decryptor_client;
   }
 
-  const std::string& url() const { return url_; }
-
   void Seek(int new_position, int seek_append_size) {
     chunk_demuxer_->StartWaitingForSeek();
 

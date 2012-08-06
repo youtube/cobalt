@@ -124,9 +124,4 @@ bool IsMediaLibraryInitialized() {
   return g_media_library_is_initialized;
 }
 
-bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
-  NOTIMPLEMENTED() << "OpenMAX is not used in Windows.";
-  return false;
-}
-
 }  // namespace media

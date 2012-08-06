@@ -78,9 +78,6 @@ class MEDIA_EXPORT PushSource
                             AudioBuffersState buffers_state) OVERRIDE;
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
 
-  // Discard all buffered data and reset to initial state.
-  void ClearAll();
-
  private:
   // Free acquired resources.
   void CleanUp();

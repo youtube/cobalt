@@ -15,10 +15,6 @@
 #include "base/stringize_macros.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "third_party/ffmpeg/ffmpeg_stubs.h"
-#if defined(OS_LINUX)
-// OpenMAX IL stub is generated only on Linux.
-#include "third_party/openmax/il_stubs.h"
-#endif
 
 namespace tp_ffmpeg = third_party_ffmpeg;
 
@@ -101,31 +97,5 @@ void InitializeMediaLibraryForTesting() {
 bool IsMediaLibraryInitialized() {
   return g_media_library_is_initialized;
 }
-
-#if defined(OS_LINUX)
-namespace tp_openmax = third_party_openmax;
-bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
-  // TODO(ajwong): We need error resolution.
-  tp_openmax::StubPathMap paths;
-  for (int i = 0; i < static_cast<int>(tp_openmax::kNumStubModules); ++i) {
-    tp_openmax::StubModules module = static_cast<tp_openmax::StubModules>(i);
-
-    // Add the OpenMAX library first so it takes precedence.
-    paths[module].push_back(module_dir.Append(openmax_name).value());
-  }
-
-  bool result = tp_openmax::InitializeStubs(paths);
-  if (!result) {
-    LOG(FATAL) << "Cannot load " << openmax_name << "."
-               << " Make sure it exists for OpenMAX.";
-  }
-  return result;
-}
-#else
-bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
-  NOTIMPLEMENTED() << "OpenMAX is only used in Linux.";
-  return false;
-}
-#endif
 
 }  // namespace media
