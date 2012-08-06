@@ -43,7 +43,9 @@ class ClosingDelegate : public SpdyStream::Delegate {
                                  int status) OVERRIDE {
     return OK;
   }
-  virtual void OnDataReceived(const char* data, int length) OVERRIDE {}
+  virtual int OnDataReceived(const char* data, int length) OVERRIDE {
+    return OK;
+  }
   virtual void OnDataSent(int length) OVERRIDE {}
   virtual void OnClose(int status) OVERRIDE {
     stream_->Close();
@@ -75,7 +77,8 @@ class TestSpdyStreamDelegate : public net::SpdyStream::Delegate {
     return status;
   }
 
-  virtual void OnDataReceived(const char* buffer, int bytes) {
+  virtual int OnDataReceived(const char* buffer, int bytes) {
+    return OK;
   }
 
   virtual void OnDataSent(int length) {

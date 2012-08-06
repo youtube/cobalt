@@ -72,7 +72,8 @@ class NET_EXPORT_PRIVATE SpdyStream
                                    int status) = 0;
 
     // Called when data is received.
-    virtual void OnDataReceived(const char* data, int length) = 0;
+    // Returns network error code. OK when it successfully receives data.
+    virtual int OnDataReceived(const char* data, int length) = 0;
 
     // Called when data is sent.
     virtual void OnDataSent(int length) = 0;

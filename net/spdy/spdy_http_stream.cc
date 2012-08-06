@@ -411,11 +411,12 @@ int SpdyHttpStream::OnResponseReceived(const SpdyHeaderBlock& response,
   return status;
 }
 
-void SpdyHttpStream::OnDataReceived(const char* data, int length) {
+int SpdyHttpStream::OnDataReceived(const char* data, int length) {
   // SpdyStream won't call us with data if the header block didn't contain a
   // valid set of headers.  So we don't expect to not have headers received
   // here.
-  DCHECK(response_headers_received_);
+  if (!response_headers_received_)
+    return ERR_INCOMPLETE_SPDY_HEADERS;
 
   // Note that data may be received for a SpdyStream prior to the user calling
   // ReadResponseBody(), therefore user_buffer_ may be NULL.  This may often
@@ -433,6 +434,7 @@ void SpdyHttpStream::OnDataReceived(const char* data, int length) {
       ScheduleBufferedReadCallback();
     }
   }
+  return OK;
 }
 
 void SpdyHttpStream::OnDataSent(int length) {
