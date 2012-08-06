@@ -11,24 +11,24 @@ found in the LICENSE file.
     Building native test runner ChromeNativeTests_replaceme.apk
   </description>
 
-  <property environment="env"/>
-  <property name="sdk.dir" location="${env.ANDROID_SDK_ROOT}"/>
-  <property name="sdk.version" value="${env.ANDROID_SDK_VERSION}"/>
-  <property name="toolchain.dir" location="${env.ANDROID_TOOLCHAIN}"/>
-  <property name="src" location="."/>
-  <property name="source.dir" location="java/src"/>
+  <!--
+    TODO(yfriedman): This target can be invoked from multiple depths. So we use ${PRODUCT_DIR} to normalize the paths. This could be cleaned up.
+  -->
+  <import file="${PRODUCT_DIR}/../../build/android/ant/common.xml"/>
+  <import file="${PRODUCT_DIR}/../../build/android/ant/sdk-targets.xml"/>
+  <!--
+    TODO(yfriedman): Remove the need to specify this. We should generate the packages in a way such
+    that it's not required.
+  -->
+  <property name="source.absolute.dir" value="java/src"/>
+  <path id="javac.custom.classpath">
+    <pathelement location="${ANDROID_SDK}/android.jar" />
+  </path>
   <property name="target.abi" value="${APP_ABI}"/>
 
-  <property name="target" value="android-${env.ANDROID_SDK_VERSION}"/>
   <path id="native.libs.gdbserver">
     <fileset file="${toolchain.dir}/../../gdbserver"/>
   </path>
-
-  <condition property="location.base" 
-             value="${sdk.dir}" 
-             else="${sdk.dir}/platforms/android-${sdk.version}">
-    <isset property="env.ANDROID_BUILD_TOP"/>
-  </condition>
 
   <!-- We expect PRODUCT_DIR to be set like the gyp var
        (e.g. $ROOT/out/Debug) -->
