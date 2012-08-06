@@ -13,6 +13,7 @@
 #include "net/base/default_server_bound_cert_store.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
+#include "net/spdy/spdy_credential_builder.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_test_util_spdy3.h"
@@ -532,25 +533,12 @@ void GetECServerBoundCertAndProof(
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_EQ(CLIENT_CERT_ECDSA_SIGN, cert_type);
 
-  unsigned char secret[32];
-  memset(secret, 'A', arraysize(secret));
+  SpdyCredential credential;
+  SpdyCredentialBuilder::Build(MockClientSocket::kTlsUnique, cert_type, key,
+                               *cert, 2, &credential);
 
-  // Convert the key string into a vector<unit8>
-  std::vector<uint8> key_data(key.begin(), key.end());
-
-  base::StringPiece spki_piece;
-  ASSERT_TRUE(asn1::ExtractSPKIFromDERCert(*cert, &spki_piece));
-  std::vector<uint8> spki(spki_piece.data(),
-                          spki_piece.data() + spki_piece.size());
-
-  std::vector<uint8> proof_data;
-  scoped_ptr<crypto::ECPrivateKey> private_key(
-      crypto::ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
-          ServerBoundCertService::kEPKIPassword, key_data, spki));
-  scoped_ptr<crypto::ECSignatureCreator> creator(
-      crypto::ECSignatureCreator::Create(private_key.get()));
-  creator->Sign(secret, arraysize(secret), &proof_data);
-  proof->assign(proof_data.begin(), proof_data.end());
+  cert->assign(credential.certs[0]);
+  proof->assign(credential.proof);
 }
 
 }  // namespace
