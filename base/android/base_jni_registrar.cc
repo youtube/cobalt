@@ -10,7 +10,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_registrar.h"
 #include "base/android/locale_utils.h"
-#include "base/android/path_service.h"
+#include "base/android/path_service_android.h"
 #include "base/android/path_utils.h"
 
 namespace base {
