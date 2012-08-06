@@ -176,9 +176,6 @@ class MEDIA_EXPORT AudioInputController
   virtual void OnError(AudioInputStream* stream, int code) OVERRIDE;
 
   bool LowLatencyMode() const { return sync_writer_ != NULL; }
-  scoped_refptr<base::MessageLoopProxy> message_loop() const {
-    return message_loop_;
-  }
 
  protected:
   friend class base::RefCountedThreadSafe<AudioInputController>;

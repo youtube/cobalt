@@ -49,7 +49,6 @@ class MEDIA_EXPORT DummyDemuxer : public Demuxer {
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
-  virtual int GetBitrate() OVERRIDE;
 
  protected:
   virtual ~DummyDemuxer();

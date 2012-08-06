@@ -56,10 +56,6 @@ base::TimeDelta DummyDemuxer::GetStartTime() const {
   return base::TimeDelta();
 }
 
-int DummyDemuxer::GetBitrate() {
-  return 0;
-}
-
 DummyDemuxer::~DummyDemuxer() {}
 
 }  // namespace media

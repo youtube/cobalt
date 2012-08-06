@@ -364,9 +364,6 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
   int64 decoded_video_duration() { return decoded_video_duration_; }
   int64 duration() { return duration_; }
 
-  AVFormatContext* av_format_context() {
-    return av_format_context_;
-  }
   AVStream* av_audio_stream() {
     return av_format_context_->streams[audio_stream_index_];
   }

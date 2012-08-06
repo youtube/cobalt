@@ -43,7 +43,6 @@ class MEDIA_EXPORT VideoCaptureHandlerProxy
 
   // Retrieves the state of the VideoCapture. Must be called on main thread.
   const VideoCaptureState& state() const { return state_; }
-  VideoCapture::EventHandler* proxied() const { return proxied_; }
 
   // VideoCapture::EventHandler implementation, called on VC thread.
   virtual void OnStarted(VideoCapture* capture) OVERRIDE;

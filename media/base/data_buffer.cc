@@ -43,11 +43,6 @@ void DataBuffer::Initialize() {
   data_.reset(new uint8[buffer_size_]);
 }
 
-scoped_refptr<DataBuffer> DataBuffer::CopyFrom(const uint8* data,
-                                               int data_size) {
-  return make_scoped_refptr(new DataBuffer(data, data_size));
-}
-
 const uint8* DataBuffer::GetData() const {
   return data_.get();
 }

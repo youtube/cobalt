@@ -355,14 +355,6 @@ class StreamWrapper {
     return CreateStream();
   }
 
-  // Creates Audio[Input|Output]Stream object using non-default
-  // parameters where the frame size is modified.
-  StreamType* Create(int samples_per_packet) {
-    samples_per_packet_ = samples_per_packet;
-    return CreateStream();
-  }
-
-  AudioParameters::Format format() const { return format_; }
   int channels() const {
     return ChannelLayoutToChannelCount(channel_layout_);
   }

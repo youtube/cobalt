@@ -127,17 +127,6 @@ class FFmpegDemuxerTest : public testing::Test {
     demuxer_->duration_known_ = duration_known;
   }
 
-  // Creates a data source with the given |file_name|. If |disable_file_size|
-  // then the data source pretends it does not know the file size (e.g. often
-  // when streaming video). Uses this data source to initialize a demuxer, then
-  // returns true if the bitrate is valid, false otherwise.
-  bool VideoHasValidBitrate(
-      const std::string& file_name, bool disable_file_size) {
-    CreateDemuxer(file_name, disable_file_size);
-    InitializeDemuxer();
-    return demuxer_->GetBitrate() > 0;
-  }
-
   bool IsStreamStopped(DemuxerStream::Type type) {
     DemuxerStream* stream = demuxer_->GetStream(type);
     CHECK(stream);
@@ -578,22 +567,6 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
 
   demuxer_->Stop(NewExpectedClosure());
   message_loop_.RunAllPending();
-}
-
-TEST_F(FFmpegDemuxerTest, GetBitrate_SetInContainer) {
-  EXPECT_TRUE(VideoHasValidBitrate("bear.ogv", false));
-}
-
-TEST_F(FFmpegDemuxerTest, GetBitrate_UnsetInContainer_KnownSize) {
-  EXPECT_TRUE(VideoHasValidBitrate("bear-320x240.webm", false));
-}
-
-TEST_F(FFmpegDemuxerTest, GetBitrate_SetInContainer_NoFileSize) {
-  EXPECT_TRUE(VideoHasValidBitrate("bear.ogv", true));
-}
-
-TEST_F(FFmpegDemuxerTest, GetBitrate_UnsetInContainer_NoFileSize) {
-  EXPECT_TRUE(VideoHasValidBitrate("bear-320x240.webm", true));
 }
 
 TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {

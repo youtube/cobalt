@@ -16,7 +16,6 @@ using testing::_;
 using testing::AllOf;
 using testing::AtLeast;
 using testing::DoAll;
-using testing::Eq;
 using testing::Field;
 using testing::InSequence;
 using testing::Invoke;
@@ -147,10 +146,6 @@ class AlsaPcmOutputStreamTest : public testing::Test {
     packet_->SetDataSize(kTestPacketSize);
     test_stream->buffer_.reset(new media::SeekableBuffer(0, kTestPacketSize));
     test_stream->buffer_->Append(packet_.get());
-  }
-
-  MockAudioManagerLinux& mock_manager() {
-    return *(mock_manager_.get());
   }
 
   static const ChannelLayout kTestChannelLayout;
