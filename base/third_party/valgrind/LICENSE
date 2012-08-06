@@ -1,15 +1,9 @@
-   ----------------------------------------------------------------
-
-   Notice that the following BSD-style license applies to this one
-   file (valgrind.h) only.  The rest of Valgrind is licensed under the
-   terms of the GNU General Public License, version 2, unless
-   otherwise indicated.  See the COPYING file in the source
-   distribution for details.
+   Notice that the following BSD-style license applies to the Valgrind header
+   files used by Chromium (valgrind.h and memcheck.h). However, the rest of
+   Valgrind is licensed under the terms of the GNU General Public License,
+   version 2, unless otherwise indicated.
 
    ----------------------------------------------------------------
-
-   This file is part of Valgrind, a dynamic binary instrumentation
-   framework.
 
    Copyright (C) 2000-2008 Julian Seward.  All rights reserved.
 
