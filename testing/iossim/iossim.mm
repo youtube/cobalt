@@ -668,7 +668,7 @@ int main(int argc, char* const argv[]) {
   if (started) {
     [[NSRunLoop mainRunLoop] run];
   } else {
-    LogError(@"Simulator failed to start:  \"%@\" (%@:%ld)",
+    LogError(@"Simulator failed request to start:  \"%@\" (%@:%ld)",
              [error localizedDescription],
              [error domain], static_cast<long int>([error code]));
   }
