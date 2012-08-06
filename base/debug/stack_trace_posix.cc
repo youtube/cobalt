@@ -148,22 +148,12 @@ bool GetBacktraceStrings(void *const *trace, int size,
 }  // namespace
 
 StackTrace::StackTrace() {
-#if defined(OS_MACOSX) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-  if (backtrace == NULL) {
-    count_ = 0;
-    return;
-  }
-#endif
   // Though the backtrace API man page does not list any possible negative
   // return values, we take no chance.
   count_ = std::max(backtrace(trace_, arraysize(trace_)), 0);
 }
 
 void StackTrace::PrintBacktrace() const {
-#if defined(OS_MACOSX) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-  if (backtrace_symbols_fd == NULL)
-    return;
-#endif
   fflush(stderr);
   std::vector<std::string> trace_strings;
   GetBacktraceStrings(trace_, count_, &trace_strings, NULL);
@@ -173,10 +163,6 @@ void StackTrace::PrintBacktrace() const {
 }
 
 void StackTrace::OutputToStream(std::ostream* os) const {
-#if defined(OS_MACOSX) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-  if (backtrace_symbols == NULL)
-    return;
-#endif
   std::vector<std::string> trace_strings;
   std::string error_message;
   if (GetBacktraceStrings(trace_, count_, &trace_strings, &error_message)) {
