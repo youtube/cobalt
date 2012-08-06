@@ -31,6 +31,7 @@
 #include "net/base/server_bound_cert_service.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties.h"
+#include "net/spdy/spdy_credential_builder.h"
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_protocol.h"
@@ -626,42 +627,19 @@ SpdyCredentialControlFrame* SpdySession::CreateCredentialFrame(
     const std::string& cert,
     RequestPriority priority) {
   DCHECK(is_secure_);
-  unsigned char secret[32];  // 32 bytes from the spec
-  GetSSLClientSocket()->ExportKeyingMaterial("SPDY certificate proof",
-                                             true, origin,
-                                             secret, arraysize(secret));
-
-  // Convert the key string into a vector<unit8>
-  std::vector<uint8> key_data;
-  for (size_t i = 0; i < key.length(); i++) {
-    key_data.push_back(key[i]);
-  }
-
-  std::vector<uint8> proof;
-  switch (type) {
-    case CLIENT_CERT_ECDSA_SIGN: {
-      base::StringPiece spki_piece;
-      asn1::ExtractSPKIFromDERCert(cert, &spki_piece);
-      std::vector<uint8> spki(spki_piece.data(),
-                              spki_piece.data() + spki_piece.size());
-      scoped_ptr<crypto::ECPrivateKey> private_key(
-          crypto::ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
-              ServerBoundCertService::kEPKIPassword, key_data, spki));
-      scoped_ptr<crypto::ECSignatureCreator> creator(
-          crypto::ECSignatureCreator::Create(private_key.get()));
-      creator->Sign(secret, arraysize(secret), &proof);
-      break;
-    }
-    default:
-      NOTREACHED();
-  }
+  SSLClientSocket* ssl_socket = GetSSLClientSocket();
+  DCHECK(ssl_socket);
+  DCHECK(ssl_socket->WasChannelIDSent());
 
   SpdyCredential credential;
-  GURL origin_url(origin);
-  credential.slot =
-      credential_state_.SetHasCredential(origin_url);
-  credential.certs.push_back(cert);
-  credential.proof.assign(proof.begin(), proof.end());
+  std::string tls_unique;
+  ssl_socket->GetTLSUniqueChannelBinding(&tls_unique);
+  size_t slot = credential_state_.SetHasCredential(GURL(origin));
+  int rv = SpdyCredentialBuilder::Build(tls_unique, type, key, cert, slot,
+                                        &credential);
+  DCHECK_EQ(OK, rv);
+  if (rv != OK)
+    return NULL;
 
   DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<SpdyCredentialControlFrame> credential_frame(
