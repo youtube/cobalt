@@ -107,9 +107,10 @@ int SpdyWebSocketStream::OnResponseReceived(
   return delegate_->OnReceivedSpdyResponseHeader(response, status);
 }
 
-void SpdyWebSocketStream::OnDataReceived(const char* data, int length) {
+int SpdyWebSocketStream::OnDataReceived(const char* data, int length) {
   DCHECK(delegate_);
   delegate_->OnReceivedSpdyData(data, length);
+  return OK;
 }
 
 void SpdyWebSocketStream::OnDataSent(int length) {
