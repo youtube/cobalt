@@ -145,7 +145,7 @@ class NativeTestApkGenerator(object):
     """
     cmd = ['ant']
     if ant_args:
-      cmd.append(ant_args)
+      cmd.extend(ant_args)
     cmd.append("-DAPP_ABI=" + self._target_abi)
     cmd.extend(['-buildfile',
                 os.path.join(self._output_directory, 'native_test_apk.xml')])
@@ -189,7 +189,7 @@ def main(argv):
                     help=('If specified, build the generated apk with ant. '
                           'Otherwise assume compiling within the Android '
                           'source tree using Android.mk.'))
-  parser.add_option('--ant-args',
+  parser.add_option('--ant-args', action='append',
                     help='extra args for ant')
 
   options, _ = parser.parse_args(argv)
