@@ -1,0 +1,64 @@
+<!--
+  Copyright (c) 2012 The Chromium Authors. All rights reserved.
+  Use of this source code is governed by a BSD-style license that can be
+  found in the LICENSE file.
+-->
+<project name="chromium-jars" default="dist">
+  <!--
+    Common ant build file for for chromium_*.jars.
+    For creating a new chromium_*.jar :
+    1. Use build/java.gyp action. This action will set PACKAGE_NAME.
+    The jar will be created as chromium_${PACKAGE_NAME} in
+    ${PRODUCT_DIR}/lib.java.
+    2. Set javac.custom.classpath to classpath to use for javac.
+    3. Override javac.srcdir for providing custom source directory for javac.
+  -->
+
+  <import file="common.xml"/>
+  <property-location name="src" location="src"/>
+  <property-location name="lib.dir" location="${PRODUCT_DIR}/lib.java"
+      check-exists="false"/>
+  <property-location name="dest.dir" location="${PRODUCT_DIR}/java/${PACKAGE_NAME}"
+      check-exists="false"/>
+
+  <target name="init">
+    <!-- Create the time stamp -->
+    <tstamp/>
+    <!-- Create the build directory structure used by compile -->
+    <mkdir dir="${lib.dir}"/>
+    <mkdir dir="${dest.dir}"/>
+  </target>
+
+  <!--
+    Compile target for jars. Requires javac.custom.classpath to be set.
+    Optionally javac.srcdir can be overridden to custom path for src
+    directories.
+  -->
+  <target name="compile" depends="init" description="Compiles source." >
+    <fail message="Error: javac.custom.classpath is not set. Please set it to
+        classpath for javac.">
+      <condition>
+        <not><isreference refid="javac.custom.classpath"/></not>
+      </condition>
+    </fail>
+    <property-value name="javac.srcdir" value ="${src}"/>
+    <echo>Compiling ${javac.srcdir}, classpath: ${toString:javac.custom.classpath}</echo>
+    <javac srcdir="${javac.srcdir}" destdir="${dest.dir}" debug="true" includeantruntime="false">
+      <classpath>
+        <path refid="javac.custom.classpath" />
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="dist" depends="compile"
+      description="Generate chromium_${PACKAGE_NAME}.jar.">
+    <!-- Create the distribution directory -->
+    <mkdir dir="${lib.dir}" />
+    <jar jarfile="${lib.dir}/chromium_${PACKAGE_NAME}.jar" basedir="${dest.dir}"/>
+  </target>
+
+  <target name="clean" description="clean up">
+    <!-- Delete the appropriate directory trees -->
+    <delete dir="${dest.dir}" />
+  </target>
+</project>
