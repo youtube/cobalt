@@ -34,12 +34,18 @@ AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
     case CODEC_ID_PCM_S16LE:
     case CODEC_ID_PCM_S24LE:
       return kCodecPCM;
+    case CODEC_ID_PCM_S16BE:
+      return kCodecPCM_S16BE;
+    case CODEC_ID_PCM_S24BE:
+      return kCodecPCM_S24BE;
     case CODEC_ID_FLAC:
       return kCodecFLAC;
     case CODEC_ID_AMR_NB:
       return kCodecAMR_NB;
     case CODEC_ID_AMR_WB:
       return kCodecAMR_WB;
+    case CODEC_ID_GSM_MS:
+      return kCodecGSM_MS;
     case CODEC_ID_PCM_MULAW:
       return kCodecPCM_MULAW;
     default:
@@ -67,6 +73,10 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
           DVLOG(1) << "Unsupported bits per channel: " << bits_per_channel;
       }
       break;
+    case kCodecPCM_S16BE:
+      return CODEC_ID_PCM_S16BE;
+    case kCodecPCM_S24BE:
+      return CODEC_ID_PCM_S24BE;
     case kCodecVorbis:
       return CODEC_ID_VORBIS;
     case kCodecFLAC:
@@ -75,6 +85,8 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
       return CODEC_ID_AMR_NB;
     case kCodecAMR_WB:
       return CODEC_ID_AMR_WB;
+    case kCodecGSM_MS:
+      return CODEC_ID_GSM_MS;
     case kCodecPCM_MULAW:
       return CODEC_ID_PCM_MULAW;
     default:
