@@ -253,11 +253,7 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
   DCHECK_GT(process_id, 1) << " tried to kill invalid process_id";
   if (process_id <= 1)
     return false;
-  static unsigned kMaxSleepMs = 1000;
-  unsigned sleep_ms = 4;
-
   bool result = kill(process_id, SIGTERM) == 0;
-
   if (result && wait) {
     int tries = 60;
 
@@ -266,6 +262,8 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
       // processes may take some time doing leak checking.
       tries *= 2;
     }
+
+    unsigned sleep_ms = 4;
 
     // The process may not end immediately due to pending I/O
     bool exited = false;
@@ -286,6 +284,7 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
       }
 
       usleep(sleep_ms * 1000);
+      const unsigned kMaxSleepMs = 1000;
       if (sleep_ms < kMaxSleepMs)
         sleep_ms *= 2;
     }
