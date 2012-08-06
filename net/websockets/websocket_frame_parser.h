@@ -12,6 +12,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "net/base/net_export.h"
+#include "net/websockets/websocket_errors.h"
 #include "net/websockets/websocket_frame.h"
 
 namespace net {
@@ -39,9 +40,11 @@ class NET_EXPORT_PRIVATE WebSocketFrameParser {
               size_t length,
               ScopedVector<WebSocketFrameChunk>* frame_chunks);
 
-  // Returns true if the parser has ever failed to decode a WebSocket frame.
-  // TODO(yutak): Provide human-readable description of failure.
-  bool failed() const { return failed_; }
+  // Returns WEB_SOCKET_OK if the parser has not failed to decode WebSocket
+  // frames. Otherwise returns WebSocketError which is defined in
+  // websocket_errors.h. We can convert net::WebSocketError to net::Error by
+  // using WebSocketErrorToNetError().
+  WebSocketError websocket_error() const { return websocket_error_; }
 
  private:
   // Tries to decode a frame header from |current_read_pos_|.
@@ -74,7 +77,7 @@ class NET_EXPORT_PRIVATE WebSocketFrameParser {
   // Amount of payload data read so far for the current frame.
   uint64 frame_offset_;
 
-  bool failed_;
+  WebSocketError websocket_error_;
 
   DISALLOW_COPY_AND_ASSIGN(WebSocketFrameParser);
 };
