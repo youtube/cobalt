@@ -18,8 +18,7 @@ namespace {
 class PowerTest : public SystemMonitor::PowerObserver {
  public:
   PowerTest()
-      : battery_(false),
-        power_state_changes_(0),
+      : power_state_changes_(0),
         suspends_(0),
         resumes_(0) {
   }
@@ -38,13 +37,11 @@ class PowerTest : public SystemMonitor::PowerObserver {
   }
 
   // Test status counts.
-  bool battery() { return battery_; }
   int power_state_changes() { return power_state_changes_; }
   int suspends() { return suspends_; }
   int resumes() { return resumes_; }
 
  private:
-  bool battery_;   // Do we currently think we're on battery power.
   int power_state_changes_;  // Count of OnPowerStateChange notifications.
   int suspends_;  // Count of OnSuspend notifications.
   int resumes_;  // Count of OnResume notifications.
