@@ -54,6 +54,10 @@
 #include <grp.h>
 #endif
 
+#if defined(OS_CHROMEOS)
+#include "base/chromeos/chromeos_version.h"
+#endif
+
 namespace file_util {
 
 namespace {
@@ -1016,6 +1020,11 @@ bool GetShmemTempDir(FilePath* path, bool executable) {
 #endif  // !defined(OS_ANDROID)
 
 FilePath GetHomeDir() {
+#if defined(OS_CHROMEOS)
+  if (base::chromeos::IsRunningOnChromeOS())
+    return FilePath("/home/chronos/user");
+#endif
+
   const char* home_dir = getenv("HOME");
   if (home_dir && home_dir[0])
     return FilePath(home_dir);
