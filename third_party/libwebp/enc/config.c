@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -9,7 +9,6 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#include <assert.h>
 #include "../webp/encode.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -20,9 +19,9 @@ extern "C" {
 // WebPConfig
 //------------------------------------------------------------------------------
 
-int WebPConfigInitInternal(WebPConfig* const config,
+int WebPConfigInitInternal(WebPConfig* config,
                            WebPPreset preset, float quality, int version) {
-  if (version != WEBP_ENCODER_ABI_VERSION) {
+  if (WEBP_ABI_IS_INCOMPATIBLE(version, WEBP_ENCODER_ABI_VERSION)) {
     return 0;   // caller/system version mismatch!
   }
   if (config == NULL) return 0;
@@ -41,8 +40,12 @@ int WebPConfigInitInternal(WebPConfig* const config,
   config->show_compressed = 0;
   config->preprocessing = 0;
   config->autofilter = 0;
-  config->alpha_compression = 0;
   config->partition_limit = 0;
+  config->alpha_compression = 1;
+  config->alpha_filtering = 1;
+  config->alpha_quality = 100;
+  config->lossless = 0;
+  config->image_hint = WEBP_HINT_DEFAULT;
 
   // TODO(skal): tune.
   switch (preset) {
@@ -77,7 +80,7 @@ int WebPConfigInitInternal(WebPConfig* const config,
   return WebPValidateConfig(config);
 }
 
-int WebPValidateConfig(const WebPConfig* const config) {
+int WebPValidateConfig(const WebPConfig* config) {
   if (config == NULL) return 0;
   if (config->quality < 0 || config->quality > 100)
     return 0;
@@ -110,6 +113,14 @@ int WebPValidateConfig(const WebPConfig* const config) {
   if (config->partition_limit < 0 || config->partition_limit > 100)
     return 0;
   if (config->alpha_compression < 0)
+    return 0;
+  if (config->alpha_filtering < 0)
+    return 0;
+  if (config->alpha_quality < 0 || config->alpha_quality > 100)
+    return 0;
+  if (config->lossless < 0 || config->lossless > 1)
+    return 0;
+  if (config->image_hint >= WEBP_HINT_LAST)
     return 0;
   return 1;
 }
