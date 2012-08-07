@@ -987,9 +987,6 @@
         'use_system_skia%': '0',
         'use_system_harfbuzz%': '0',
 
-        # Always use the system zlib.
-        'use_system_zlib%': 1,
-
         # Configure crash reporting and build options based on release type.
         'conditions': [
           ['buildtype=="Official"', {
