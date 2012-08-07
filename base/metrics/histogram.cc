@@ -134,7 +134,9 @@ Histogram* Histogram::FactoryGet(const string& name,
                                  Sample maximum,
                                  size_t bucket_count,
                                  Flags flags) {
-  CHECK(InspectConstructionArguments(name, &minimum, &maximum, &bucket_count));
+  bool valid_arguments =
+      InspectConstructionArguments(name, &minimum, &maximum, &bucket_count);
+  DCHECK(valid_arguments);
 
   Histogram* histogram = StatisticsRecorder::FindHistogram(name);
   if (!histogram) {
@@ -465,8 +467,15 @@ bool Histogram::InspectConstructionArguments(const string& name,
     DVLOG(1) << "Histogram: " << name << " has bad maximum: " << *maximum;
     *maximum = kSampleType_MAX - 1;
   }
+  if (*bucket_count >= kBucketCount_MAX) {
+    DVLOG(1) << "Histogram: " << name << " has bad bucket_count: "
+             << *bucket_count;
+    *bucket_count = kBucketCount_MAX - 1;
+  }
 
-  if (*bucket_count < 3 || *bucket_count >= kBucketCount_MAX)
+  if (*minimum >= *maximum)
+    return false;
+  if (*bucket_count < 3)
     return false;
   if (*bucket_count > static_cast<size_t>(*maximum - *minimum + 2))
     return false;
@@ -677,8 +686,9 @@ Histogram* LinearHistogram::FactoryGet(const string& name,
                                        Sample maximum,
                                        size_t bucket_count,
                                        Flags flags) {
-  CHECK(Histogram::InspectConstructionArguments(name, &minimum, &maximum,
-                                                &bucket_count));
+  bool valid_arguments = Histogram::InspectConstructionArguments(
+      name, &minimum, &maximum, &bucket_count);
+  DCHECK(valid_arguments);
 
   Histogram* histogram = StatisticsRecorder::FindHistogram(name);
   if (!histogram) {
