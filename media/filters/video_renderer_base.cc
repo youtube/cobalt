@@ -382,7 +382,7 @@ VideoRendererBase::~VideoRendererBase() {
   DCHECK(state_ == kUninitialized || state_ == kStopped) << state_;
 }
 
-void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
+void VideoRendererBase::FrameReady(VideoDecoder::Status status,
                                    const scoped_refptr<VideoFrame>& frame) {
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, kUninitialized);

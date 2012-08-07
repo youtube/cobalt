@@ -274,7 +274,7 @@ class AesDecryptorTest : public testing::Test {
                       session_id_string_);
   }
 
-  MOCK_METHOD2(BufferDecrypted, void(Decryptor::DecryptStatus,
+  MOCK_METHOD2(BufferDecrypted, void(Decryptor::Status,
                                      const scoped_refptr<DecoderBuffer>&));
 
   void DecryptAndExpectToSucceed(const scoped_refptr<DecoderBuffer>& encrypted,

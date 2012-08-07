@@ -65,11 +65,11 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // Callback called by the decryptor to deliver decrypted data buffer and
   // reporting decrypt status. This callback could be called synchronously or
   // asynchronously.
-  void BufferDecrypted(Decryptor::DecryptStatus decrypt_status,
+  void BufferDecrypted(Decryptor::Status decrypt_status,
                        const scoped_refptr<DecoderBuffer>& buffer);
 
   // Carries out the operation scheduled by BufferDecrypted().
-  void DoBufferDecrypted(Decryptor::DecryptStatus decrypt_status,
+  void DoBufferDecrypted(Decryptor::Status decrypt_status,
                          const scoped_refptr<DecoderBuffer>& buffer);
 
   void DecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
