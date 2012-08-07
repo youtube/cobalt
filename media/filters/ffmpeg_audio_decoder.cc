@@ -178,11 +178,14 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
     return;
   }
 
-  // Make sure we are notified if http://crbug.com/49709 returns.
-  CHECK(input->GetTimestamp() != kNoTimestamp() ||
-        output_timestamp_base_ != kNoTimestamp() ||
-        input->IsEndOfStream())
-      << "First buffers received don't have timestamps!";
+  // Make sure we are notified if http://crbug.com/49709 returns.  Issue also
+  // occurs with some damaged files.
+  if (!input->IsEndOfStream() && input->GetTimestamp() == kNoTimestamp() &&
+      output_timestamp_base_ == kNoTimestamp()) {
+    DVLOG(1) << "Received a buffer without timestamps!";
+    base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
+    return;
+  }
 
   bool is_vorbis = codec_context_->codec_id == CODEC_ID_VORBIS;
   if (!input->IsEndOfStream()) {
