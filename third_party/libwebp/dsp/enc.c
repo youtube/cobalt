@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -9,6 +9,8 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#include <stdlib.h>  // for abs()
+#include "./dsp.h"
 #include "../enc/vp8enci.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -93,7 +95,7 @@ static void InitTables(void) {
   }
 }
 
-static inline uint8_t clip_8b(int v) {
+static WEBP_INLINE uint8_t clip_8b(int v) {
   return (!(v & ~0xff)) ? v : v < 0 ? 0 : 255;
 }
 
@@ -107,8 +109,8 @@ static const int kC1 = 20091 + (1 << 16);
 static const int kC2 = 35468;
 #define MUL(a, b) (((a) * (b)) >> 16)
 
-static inline void ITransformOne(const uint8_t* ref, const int16_t* in,
-                                 uint8_t* dst) {
+static WEBP_INLINE void ITransformOne(const uint8_t* ref, const int16_t* in,
+                                      uint8_t* dst) {
   int C[4 * 4], *tmp;
   int i;
   tmp = C;
@@ -241,14 +243,15 @@ static void FTransformWHT(const int16_t* in, int16_t* out) {
 
 #define DST(x, y) dst[(x) + (y) * BPS]
 
-static inline void Fill(uint8_t* dst, int value, int size) {
+static WEBP_INLINE void Fill(uint8_t* dst, int value, int size) {
   int j;
   for (j = 0; j < size; ++j) {
     memset(dst + j * BPS, value, size);
   }
 }
 
-static inline void VerticalPred(uint8_t* dst, const uint8_t* top, int size) {
+static WEBP_INLINE void VerticalPred(uint8_t* dst,
+                                     const uint8_t* top, int size) {
   int j;
   if (top) {
     for (j = 0; j < size; ++j) memcpy(dst + j * BPS, top, size);
@@ -257,7 +260,8 @@ static inline void VerticalPred(uint8_t* dst, const uint8_t* top, int size) {
   }
 }
 
-static inline void HorizontalPred(uint8_t* dst, const uint8_t* left, int size) {
+static WEBP_INLINE void HorizontalPred(uint8_t* dst,
+                                       const uint8_t* left, int size) {
   if (left) {
     int j;
     for (j = 0; j < size; ++j) {
@@ -268,8 +272,8 @@ static inline void HorizontalPred(uint8_t* dst, const uint8_t* left, int size) {
   }
 }
 
-static inline void TrueMotion(uint8_t* dst, const uint8_t* left,
-                              const uint8_t* top, int size) {
+static WEBP_INLINE void TrueMotion(uint8_t* dst, const uint8_t* left,
+                                   const uint8_t* top, int size) {
   int y;
   if (left) {
     if (top) {
@@ -298,9 +302,9 @@ static inline void TrueMotion(uint8_t* dst, const uint8_t* left,
   }
 }
 
-static inline void DCMode(uint8_t* dst, const uint8_t* left,
-                          const uint8_t* top,
-                          int size, int round, int shift) {
+static WEBP_INLINE void DCMode(uint8_t* dst, const uint8_t* left,
+                               const uint8_t* top,
+                               int size, int round, int shift) {
   int DC = 0;
   int j;
   if (top) {
@@ -543,7 +547,8 @@ static void Intra4Preds(uint8_t* dst, const uint8_t* top) {
 //------------------------------------------------------------------------------
 // Metric
 
-static inline int GetSSE(const uint8_t* a, const uint8_t* b, int w, int h) {
+static WEBP_INLINE int GetSSE(const uint8_t* a, const uint8_t* b,
+                              int w, int h) {
   int count = 0;
   int y, x;
   for (y = 0; y < h; ++y) {
@@ -667,7 +672,7 @@ static int QuantizeBlock(int16_t in[16], int16_t out[16],
 //------------------------------------------------------------------------------
 // Block copy
 
-static inline void Copy(const uint8_t* src, uint8_t* dst, int size) {
+static WEBP_INLINE void Copy(const uint8_t* src, uint8_t* dst, int size) {
   int y;
   for (y = 0; y < size; ++y) {
     memcpy(dst, src, size);
@@ -677,8 +682,6 @@ static inline void Copy(const uint8_t* src, uint8_t* dst, int size) {
 }
 
 static void Copy4x4(const uint8_t* src, uint8_t* dst) { Copy(src, dst, 4); }
-static void Copy8x8(const uint8_t* src, uint8_t* dst) { Copy(src, dst, 8); }
-static void Copy16x16(const uint8_t* src, uint8_t* dst) { Copy(src, dst, 16); }
 
 //------------------------------------------------------------------------------
 // Initialization
@@ -701,8 +704,6 @@ VP8WMetric VP8TDisto4x4;
 VP8WMetric VP8TDisto16x16;
 VP8QuantizeBlock VP8EncQuantizeBlock;
 VP8BlockCopy VP8Copy4x4;
-VP8BlockCopy VP8Copy8x8;
-VP8BlockCopy VP8Copy16x16;
 
 extern void VP8EncDspInitSSE2(void);
 
@@ -726,12 +727,10 @@ void VP8EncDspInit(void) {
   VP8TDisto16x16 = Disto16x16;
   VP8EncQuantizeBlock = QuantizeBlock;
   VP8Copy4x4 = Copy4x4;
-  VP8Copy8x8 = Copy8x8;
-  VP8Copy16x16 = Copy16x16;
 
   // If defined, use CPUInfo() to overwrite some pointers with faster versions.
   if (VP8GetCPUInfo) {
-#if defined(__SSE2__) || defined(_MSC_VER)
+#if defined(WEBP_USE_SSE2)
     if (VP8GetCPUInfo(kSSE2)) {
       VP8EncDspInitSSE2();
     }

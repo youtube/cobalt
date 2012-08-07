@@ -1,30 +1,31 @@
 Name: WebP image encoder/decoder
 Short Name: libwebp
-URL: http://code.google.com/speed/webp
-Version: v0.1.3
+URL: http://developers.google.com/speed/webp
+Version: v0.2.0-rc1
 License: BSD
 License File: LICENSE
 Security Critical: Yes
 
 Description:
 Source archive:
-  http://code.google.com/p/webp/downloads/detail?name=libwebp-0.1.3.tar.gz
+  http://code.google.com/p/webp/downloads/detail?name=libwebp-0.2.0-rc1.tar.gz
 
-WebP is an image format that does lossy compression of digital photographic
-images. WebP consists of a codec based on VP8, that Google open-sourced in May
-2010 and a container based on RIFF. Webmasters, web developers and browser
-developers can use WebP to compress, archive and distribute digital images more
-efficiently.
+WebP is an image format that does both lossy and lossless compression of
+digital photographic images. WebP consists of a codec based on VP8, that Google
+open-sourced in May 2010 and a container based on RIFF. Webmasters, web
+developers and browser developers can use WebP to compress, archive and
+distribute digital images more efficiently.
 
 Local changes:
- * Fix cast and initialization warnings
- * Removed from types.h the risky: #ifdef ANSI / #define inline /#endif
  * Removed examples/, documentation and build related files, keeping only
-   the contents of src/.
+   the contents of src/ less mux/ which is unused.
  * Merged COPYING/PATENTS to LICENSE
- * Add BGRX and RGBX variants to the WEBPImportPicture API (needs to be
-   upstreamed to libwebp master).
- * Fix for possible int / size_t overflow in buffer-size calculations
-Upstream cherry-picks:
-7bb6a9c idec: fix internal state corruption
-89cd1bb idec: fix WebPIUpdate failure
+ * Added cpu-features.[hc] from the Android NDK to dsp/.
+ * Revert VP8 encoder changes to avoid WebKit layout test conflicts
+   (fast/canvas/canvas-toDataURL)
+   WebKit bug tracking test update:
+     https://bugs.webkit.org/show_bug.cgi?id=93310
+   Changes reverted:
+     0de3096 use 16bit counters for recording proba counts
+     7f23678 fix for LevelCost + little speed-up
+     7107d54 further speed-up/cleanup of RecordCoeffs() and GetResidualCost()

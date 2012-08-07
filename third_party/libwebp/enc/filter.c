@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -9,8 +9,7 @@
 //
 // Author: somnath@google.com (Somnath Banerjee)
 
-#include <math.h>
-#include "vp8enci.h"
+#include "./vp8enci.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -49,7 +48,7 @@ static void InitTables(void) {
 // Edge filtering functions
 
 // 4 pixels in, 2 pixels out
-static inline void do_filter2(uint8_t* p, int step) {
+static WEBP_INLINE void do_filter2(uint8_t* p, int step) {
   const int p1 = p[-2*step], p0 = p[-step], q0 = p[0], q1 = p[step];
   const int a = 3 * (q0 - p0) + sclip1[1020 + p1 - q1];
   const int a1 = sclip2[112 + ((a + 4) >> 3)];
@@ -59,7 +58,7 @@ static inline void do_filter2(uint8_t* p, int step) {
 }
 
 // 4 pixels in, 4 pixels out
-static inline void do_filter4(uint8_t* p, int step) {
+static WEBP_INLINE void do_filter4(uint8_t* p, int step) {
   const int p1 = p[-2*step], p0 = p[-step], q0 = p[0], q1 = p[step];
   const int a = 3 * (q0 - p0);
   const int a1 = sclip2[112 + ((a + 4) >> 3)];
@@ -72,17 +71,18 @@ static inline void do_filter4(uint8_t* p, int step) {
 }
 
 // high edge-variance
-static inline int hev(const uint8_t* p, int step, int thresh) {
+static WEBP_INLINE int hev(const uint8_t* p, int step, int thresh) {
   const int p1 = p[-2*step], p0 = p[-step], q0 = p[0], q1 = p[step];
   return (abs0[255 + p1 - p0] > thresh) || (abs0[255 + q1 - q0] > thresh);
 }
 
-static inline int needs_filter(const uint8_t* p, int step, int thresh) {
+static WEBP_INLINE int needs_filter(const uint8_t* p, int step, int thresh) {
   const int p1 = p[-2*step], p0 = p[-step], q0 = p[0], q1 = p[step];
   return (2 * abs0[255 + p0 - q0] + abs1[255 + p1 - q1]) <= thresh;
 }
 
-static inline int needs_filter2(const uint8_t* p, int step, int t, int it) {
+static WEBP_INLINE int needs_filter2(const uint8_t* p,
+                                     int step, int t, int it) {
   const int p3 = p[-4*step], p2 = p[-3*step], p1 = p[-2*step], p0 = p[-step];
   const int q0 = p[0], q1 = p[step], q2 = p[2*step], q3 = p[3*step];
   if ((2 * abs0[255 + p0 - q0] + abs1[255 + p1 - q1]) > t)
@@ -132,8 +132,9 @@ static void SimpleHFilter16i(uint8_t* p, int stride, int thresh) {
 //------------------------------------------------------------------------------
 // Complex In-loop filtering (Paragraph 15.3)
 
-static inline void FilterLoop24(uint8_t* p, int hstride, int vstride, int size,
-                                int thresh, int ithresh, int hev_thresh) {
+static WEBP_INLINE void FilterLoop24(uint8_t* p,
+                                     int hstride, int vstride, int size,
+                                     int thresh, int ithresh, int hev_thresh) {
   while (size-- > 0) {
     if (needs_filter2(p, hstride, thresh, ithresh)) {
       if (hev(p, hstride, hev_thresh)) {
@@ -233,14 +234,21 @@ static void DoFilter(const VP8EncIterator* const it, int level) {
 // SSIM metric
 
 enum { KERNEL = 3 };
-typedef struct {
-  double w, xm, ym, xxm, xym, yym;
-} SSIMStats;
+static const double kMinValue = 1.e-10;  // minimal threshold
 
-static void Accumulate(const uint8_t* src1, int stride1,
-                       const uint8_t* src2, int stride2,
-                       int xo, int yo, int W, int H,
-                       SSIMStats* const stats) {
+void VP8SSIMAddStats(const DistoStats* const src, DistoStats* const dst) {
+  dst->w   += src->w;
+  dst->xm  += src->xm;
+  dst->ym  += src->ym;
+  dst->xxm += src->xxm;
+  dst->xym += src->xym;
+  dst->yym += src->yym;
+}
+
+static void VP8SSIMAccumulate(const uint8_t* src1, int stride1,
+                              const uint8_t* src2, int stride2,
+                              int xo, int yo, int W, int H,
+                              DistoStats* const stats) {
   const int ymin = (yo - KERNEL < 0) ? 0 : yo - KERNEL;
   const int ymax = (yo + KERNEL > H - 1) ? H - 1 : yo + KERNEL;
   const int xmin = (xo - KERNEL < 0) ? 0 : xo - KERNEL;
@@ -262,7 +270,7 @@ static void Accumulate(const uint8_t* src1, int stride1,
   }
 }
 
-static double GetSSIM(const SSIMStats* const stats) {
+double VP8SSIMGet(const DistoStats* const stats) {
   const double xmxm = stats->xm * stats->xm;
   const double ymym = stats->ym * stats->ym;
   const double xmym = stats->xm * stats->ym;
@@ -280,26 +288,49 @@ static double GetSSIM(const SSIMStats* const stats) {
   C2 = 58.5225 * w2;
   fnum = (2 * xmym + C1) * (2 * sxy + C2);
   fden = (xmxm + ymym + C1) * (sxx + syy + C2);
-  return (fden != 0) ? fnum / fden : 0.;
+  return (fden != 0.) ? fnum / fden : kMinValue;
+}
+
+double VP8SSIMGetSquaredError(const DistoStats* const s) {
+  if (s->w > 0.) {
+    const double iw2 = 1. / (s->w * s->w);
+    const double sxx = s->xxm * s->w - s->xm * s->xm;
+    const double syy = s->yym * s->w - s->ym * s->ym;
+    const double sxy = s->xym * s->w - s->xm * s->ym;
+    const double SSE = iw2 * (sxx + syy - 2. * sxy);
+    if (SSE > kMinValue) return SSE;
+  }
+  return kMinValue;
+}
+
+void VP8SSIMAccumulatePlane(const uint8_t* src1, int stride1,
+                            const uint8_t* src2, int stride2,
+                            int W, int H, DistoStats* const stats) {
+  int x, y;
+  for (y = 0; y < H; ++y) {
+    for (x = 0; x < W; ++x) {
+      VP8SSIMAccumulate(src1, stride1, src2, stride2, x, y, W, H, stats);
+    }
+  }
 }
 
 static double GetMBSSIM(const uint8_t* yuv1, const uint8_t* yuv2) {
   int x, y;
-  SSIMStats s = { .0, .0, .0, .0, .0, .0 };
+  DistoStats s = { .0, .0, .0, .0, .0, .0 };
 
   // compute SSIM in a 10 x 10 window
   for (x = 3; x < 13; x++) {
     for (y = 3; y < 13; y++) {
-      Accumulate(yuv1 + Y_OFF, BPS, yuv2 + Y_OFF, BPS, x, y, 16, 16, &s);
+      VP8SSIMAccumulate(yuv1 + Y_OFF, BPS, yuv2 + Y_OFF, BPS, x, y, 16, 16, &s);
     }
   }
   for (x = 1; x < 7; x++) {
     for (y = 1; y < 7; y++) {
-      Accumulate(yuv1 + U_OFF, BPS, yuv2 + U_OFF, BPS, x, y, 8, 8, &s);
-      Accumulate(yuv1 + V_OFF, BPS, yuv2 + V_OFF, BPS, x, y, 8, 8, &s);
+      VP8SSIMAccumulate(yuv1 + U_OFF, BPS, yuv2 + U_OFF, BPS, x, y, 8, 8, &s);
+      VP8SSIMAccumulate(yuv1 + V_OFF, BPS, yuv2 + V_OFF, BPS, x, y, 8, 8, &s);
     }
   }
-  return GetSSIM(&s);
+  return VP8SSIMGet(&s);
 }
 
 //------------------------------------------------------------------------------
