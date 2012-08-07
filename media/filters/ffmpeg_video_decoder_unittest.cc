@@ -71,14 +71,15 @@ class FFmpegVideoDecoderTest : public testing::Test {
  public:
   FFmpegVideoDecoderTest()
       : decryptor_(new MockDecryptor()),
-        decoder_(new FFmpegVideoDecoder(base::Bind(&Identity<MessageLoop*>,
-                                                   &message_loop_))),
+        decoder_(NULL),
         demuxer_(new StrictMock<MockDemuxerStream>()),
         read_cb_(base::Bind(&FFmpegVideoDecoderTest::FrameReady,
                             base::Unretained(this))) {
     CHECK(FFmpegGlue::GetInstance());
 
-    decoder_->set_decryptor(decryptor_.get());
+    decoder_ = new FFmpegVideoDecoder(base::Bind(&Identity<MessageLoop*>,
+                                                 &message_loop_),
+                                      decryptor_.get());
 
     // Initialize various test buffers.
     frame_buffer_.reset(new uint8[kCodedSize.GetArea()]);
