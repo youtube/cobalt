@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -10,8 +10,10 @@
 // Author: Skal (pascal.massimino@gmail.com)
 
 #include <stdlib.h>
-#include "vp8i.h"
-#include "webpi.h"
+
+#include "./vp8i.h"
+#include "./webpi.h"
+#include "../utils/utils.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -21,14 +23,26 @@ extern "C" {
 // WebPDecBuffer
 
 // Number of bytes per pixel for the different color-spaces.
-static const int kModeBpp[MODE_LAST] = { 3, 4, 3, 4, 4, 2, 2, 1, 1 };
+static const int kModeBpp[MODE_LAST] = {
+  3, 4, 3, 4, 4, 2, 2,
+  4, 4, 4, 2,    // pre-multiplied modes
+  1, 1 };
+
+// Check that webp_csp_mode is within the bounds of WEBP_CSP_MODE.
+// Convert to an integer to handle both the unsigned/signed enum cases
+// without the need for casting to remove type limit warnings.
+static int IsValidColorspace(int webp_csp_mode) {
+  return (webp_csp_mode >= MODE_RGB && webp_csp_mode < MODE_LAST);
+}
 
 static VP8StatusCode CheckDecBuffer(const WebPDecBuffer* const buffer) {
   int ok = 1;
-  WEBP_CSP_MODE mode = buffer->colorspace;
+  const WEBP_CSP_MODE mode = buffer->colorspace;
   const int width = buffer->width;
   const int height = buffer->height;
-  if (mode >= MODE_YUV) {   // YUV checks
+  if (!IsValidColorspace(mode)) {
+    ok = 0;
+  } else if (!WebPIsRGBMode(mode)) {   // YUV checks
     const WebPYUVABuffer* const buf = &buffer->u.YUVA;
     const uint64_t y_size = (uint64_t)buf->y_stride * height;
     const uint64_t u_size = (uint64_t)buf->u_stride * ((height + 1) / 2);
@@ -37,18 +51,23 @@ static VP8StatusCode CheckDecBuffer(const WebPDecBuffer* const buffer) {
     ok &= (y_size <= buf->y_size);
     ok &= (u_size <= buf->u_size);
     ok &= (v_size <= buf->v_size);
-    ok &= (a_size <= buf->a_size);
     ok &= (buf->y_stride >= width);
     ok &= (buf->u_stride >= (width + 1) / 2);
     ok &= (buf->v_stride >= (width + 1) / 2);
-    if (buf->a) {
+    ok &= (buf->y != NULL);
+    ok &= (buf->u != NULL);
+    ok &= (buf->v != NULL);
+    if (mode == MODE_YUVA) {
       ok &= (buf->a_stride >= width);
+      ok &= (a_size <= buf->a_size);
+      ok &= (buf->a != NULL);
     }
   } else {    // RGB checks
     const WebPRGBABuffer* const buf = &buffer->u.RGBA;
     const uint64_t size = (uint64_t)buf->stride * height;
     ok &= (size <= buf->size);
     ok &= (buf->stride >= width * kModeBpp[mode]);
+    ok &= (buf->rgba != NULL);
   }
   return ok ? VP8_STATUS_OK : VP8_STATUS_INVALID_PARAM;
 }
@@ -56,23 +75,22 @@ static VP8StatusCode CheckDecBuffer(const WebPDecBuffer* const buffer) {
 static VP8StatusCode AllocateBuffer(WebPDecBuffer* const buffer) {
   const int w = buffer->width;
   const int h = buffer->height;
+  const WEBP_CSP_MODE mode = buffer->colorspace;
 
-  if (w <= 0 || h <= 0) {
+  if (w <= 0 || h <= 0 || !IsValidColorspace(mode)) {
     return VP8_STATUS_INVALID_PARAM;
   }
 
   if (!buffer->is_external_memory && buffer->private_memory == NULL) {
     uint8_t* output;
-    WEBP_CSP_MODE mode = buffer->colorspace;
-    int stride;
     int uv_stride = 0, a_stride = 0;
-    uint64_t size, uv_size = 0, a_size = 0, total_size;
+    uint64_t uv_size = 0, a_size = 0, total_size;
     // We need memory and it hasn't been allocated yet.
     // => initialize output buffer, now that dimensions are known.
-    stride = w * kModeBpp[mode];
-    size = (uint64_t)stride * h;
+    const int stride = w * kModeBpp[mode];
+    const uint64_t size = (uint64_t)stride * h;
 
-    if (mode >= MODE_YUV) {
+    if (!WebPIsRGBMode(mode)) {
       uv_stride = (w + 1) / 2;
       uv_size = (uint64_t)uv_stride * ((h + 1) / 2);
       if (mode == MODE_YUVA) {
@@ -83,16 +101,13 @@ static VP8StatusCode AllocateBuffer(WebPDecBuffer* const buffer) {
     total_size = size + 2 * uv_size + a_size;
 
     // Security/sanity checks
-    if (((size_t)total_size != total_size) || (total_size >= (1ULL << 40))) {
-      return VP8_STATUS_INVALID_PARAM;
-    }
-
-    buffer->private_memory = output = (uint8_t*)malloc((size_t)total_size);
+    output = (uint8_t*)WebPSafeMalloc(total_size, sizeof(*output));
     if (output == NULL) {
       return VP8_STATUS_OUT_OF_MEMORY;
     }
+    buffer->private_memory = output;
 
-    if (mode >= MODE_YUV) {   // YUVA initialization
+    if (!WebPIsRGBMode(mode)) {   // YUVA initialization
       WebPYUVABuffer* const buf = &buffer->u.YUVA;
       buf->y = output;
       buf->y_stride = stride;
@@ -140,7 +155,7 @@ VP8StatusCode WebPAllocateDecBuffer(int w, int h,
       if (options->scaled_width <= 0 || options->scaled_height <= 0) {
         return VP8_STATUS_INVALID_PARAM;
       }
-      w  = options->scaled_width;
+      w = options->scaled_width;
       h = options->scaled_height;
     }
   }
@@ -154,15 +169,17 @@ VP8StatusCode WebPAllocateDecBuffer(int w, int h,
 //------------------------------------------------------------------------------
 // constructors / destructors
 
-int WebPInitDecBufferInternal(WebPDecBuffer* const buffer, int version) {
-  if (version != WEBP_DECODER_ABI_VERSION) return 0;  // version mismatch
-  if (!buffer) return 0;
+int WebPInitDecBufferInternal(WebPDecBuffer* buffer, int version) {
+  if (WEBP_ABI_IS_INCOMPATIBLE(version, WEBP_DECODER_ABI_VERSION)) {
+    return 0;  // version mismatch
+  }
+  if (buffer == NULL) return 0;
   memset(buffer, 0, sizeof(*buffer));
   return 1;
 }
 
-void WebPFreeDecBuffer(WebPDecBuffer* const buffer) {
-  if (buffer) {
+void WebPFreeDecBuffer(WebPDecBuffer* buffer) {
+  if (buffer != NULL) {
     if (!buffer->is_external_memory)
       free(buffer->private_memory);
     buffer->private_memory = NULL;
@@ -171,9 +188,9 @@ void WebPFreeDecBuffer(WebPDecBuffer* const buffer) {
 
 void WebPCopyDecBuffer(const WebPDecBuffer* const src,
                        WebPDecBuffer* const dst) {
-  if (src && dst) {
+  if (src != NULL && dst != NULL) {
     *dst = *src;
-    if (src->private_memory) {
+    if (src->private_memory != NULL) {
       dst->is_external_memory = 1;   // dst buffer doesn't own the memory.
       dst->private_memory = NULL;
     }
@@ -182,9 +199,9 @@ void WebPCopyDecBuffer(const WebPDecBuffer* const src,
 
 // Copy and transfer ownership from src to dst (beware of parameter order!)
 void WebPGrabDecBuffer(WebPDecBuffer* const src, WebPDecBuffer* const dst) {
-  if (src && dst) {
+  if (src != NULL && dst != NULL) {
     *dst = *src;
-    if (src->private_memory) {
+    if (src->private_memory != NULL) {
       src->is_external_memory = 1;   // src relinquishes ownership
       src->private_memory = NULL;
     }

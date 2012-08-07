@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -7,7 +7,7 @@
 //
 // Multi-threaded worker
 //
-// Author: skal@google.com (Pascal Massimino)
+// Author: Skal (pascal.massimino@gmail.com)
 
 #ifndef WEBP_UTILS_THREAD_H_
 #define WEBP_UTILS_THREAD_H_

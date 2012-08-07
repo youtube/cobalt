@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -14,7 +14,9 @@
 #include <string.h>
 #include <math.h>
 
-#include "vp8enci.h"
+#include "./vp8enci.h"
+#include "./vp8li.h"
+#include "../utils/utils.h"
 
 // #define PRINT_MEMORY_INFO
 
@@ -45,11 +47,11 @@ static int DummyWriter(const uint8_t* data, size_t data_size,
   return 1;
 }
 
-int WebPPictureInitInternal(WebPPicture* const picture, int version) {
-  if (version != WEBP_ENCODER_ABI_VERSION) {
+int WebPPictureInitInternal(WebPPicture* picture, int version) {
+  if (WEBP_ABI_IS_INCOMPATIBLE(version, WEBP_ENCODER_ABI_VERSION)) {
     return 0;   // caller/system version mismatch!
   }
-  if (picture) {
+  if (picture != NULL) {
     memset(picture, 0, sizeof(*picture));
     picture->writer = DummyWriter;
     WebPEncodingSetError(picture, VP8_ENC_OK);
@@ -142,8 +144,8 @@ static void MapConfigToTools(VP8Encoder* const enc) {
 //              LFStats: 2048
 // Picture size (yuv): 589824
 
-static VP8Encoder* InitEncoder(const WebPConfig* const config,
-                               WebPPicture* const picture) {
+static VP8Encoder* InitVP8Encoder(const WebPConfig* const config,
+                                  WebPPicture* const picture) {
   const int use_filter =
       (config->filter_strength > 0) || (config->autofilter > 0);
   const int mb_w = (picture->width + 15) >> 4;
@@ -163,13 +165,14 @@ static VP8Encoder* InitEncoder(const WebPConfig* const config,
       config->autofilter ? sizeof(LFStats) + ALIGN_CST : 0;
   VP8Encoder* enc;
   uint8_t* mem;
-  size_t size = sizeof(VP8Encoder) + ALIGN_CST  // main struct
-              + cache_size                      // working caches
-              + info_size                       // modes info
-              + preds_size                      // prediction modes
-              + samples_size                    // top/left samples
-              + nz_size                         // coeff context bits
-              + lf_stats_size;                  // autofilter stats
+  const uint64_t size = (uint64_t)sizeof(VP8Encoder)   // main struct
+                      + ALIGN_CST                      // cache alignment
+                      + cache_size                     // working caches
+                      + info_size                      // modes info
+                      + preds_size                     // prediction modes
+                      + samples_size                   // top/left samples
+                      + nz_size                        // coeff context bits
+                      + lf_stats_size;                 // autofilter stats
 
 #ifdef PRINT_MEMORY_INFO
   printf("===================================\n");
@@ -197,7 +200,7 @@ static VP8Encoder* InitEncoder(const WebPConfig* const config,
          mb_w * mb_h * 384 * sizeof(uint8_t));
   printf("===================================\n");
 #endif
-  mem = (uint8_t*)malloc(size);
+  mem = (uint8_t*)WebPSafeMalloc(size, sizeof(*mem));
   if (mem == NULL) {
     WebPEncodingSetError(picture, VP8_ENC_ERROR_OUT_OF_MEMORY);
     return NULL;
@@ -242,6 +245,7 @@ static VP8Encoder* InitEncoder(const WebPConfig* const config,
   enc->config_ = config;
   enc->profile_ = use_filter ? ((config->filter_type == 1) ? 0 : 1) : 2;
   enc->pic_ = picture;
+  enc->percent_ = 0;
 
   MapConfigToTools(enc);
   VP8EncDspInit();
@@ -250,18 +254,18 @@ static VP8Encoder* InitEncoder(const WebPConfig* const config,
   ResetFilterHeader(enc);
   ResetBoundaryPredictions(enc);
 
-#ifdef WEBP_EXPERIMENTAL_FEATURES
   VP8EncInitAlpha(enc);
+#ifdef WEBP_EXPERIMENTAL_FEATURES
   VP8EncInitLayer(enc);
 #endif
 
   return enc;
 }
 
-static void DeleteEncoder(VP8Encoder* enc) {
-  if (enc) {
-#ifdef WEBP_EXPERIMENTAL_FEATURES
+static void DeleteVP8Encoder(VP8Encoder* enc) {
+  if (enc != NULL) {
     VP8EncDeleteAlpha(enc);
+#ifdef WEBP_EXPERIMENTAL_FEATURES
     VP8EncDeleteLayer(enc);
 #endif
     free(enc);
@@ -282,11 +286,12 @@ static void FinalizePSNR(const VP8Encoder* const enc) {
   stats->PSNR[1] = (float)GetPSNR(sse[1], size / 4);
   stats->PSNR[2] = (float)GetPSNR(sse[2], size / 4);
   stats->PSNR[3] = (float)GetPSNR(sse[0] + sse[1] + sse[2], size * 3 / 2);
+  stats->PSNR[4] = (float)GetPSNR(sse[3], size);
 }
 
 static void StoreStats(VP8Encoder* const enc) {
   WebPAuxStats* const stats = enc->pic_->stats;
-  if (stats) {
+  if (stats != NULL) {
     int i, s;
     for (i = 0; i < NUM_MB_SEGMENTS; ++i) {
       stats->segment_level[i] = enc->dqm_[i].fstrength_;
@@ -301,19 +306,32 @@ static void StoreStats(VP8Encoder* const enc) {
       stats->block_count[i] = enc->block_count_[i];
     }
   }
+  WebPReportProgress(enc->pic_, 100, &enc->percent_);  // done!
 }
 
-int WebPEncodingSetError(WebPPicture* const pic, WebPEncodingError error) {
-  assert((int)error <= VP8_ENC_ERROR_BAD_WRITE);
+int WebPEncodingSetError(const WebPPicture* const pic,
+                         WebPEncodingError error) {
+  assert((int)error < VP8_ENC_ERROR_LAST);
   assert((int)error >= VP8_ENC_OK);
-  pic->error_code = error;
+  ((WebPPicture*)pic)->error_code = error;
   return 0;
 }
 
+int WebPReportProgress(const WebPPicture* const pic,
+                       int percent, int* const percent_store) {
+  if (percent_store != NULL && percent != *percent_store) {
+    *percent_store = percent;
+    if (pic->progress_hook && !pic->progress_hook(percent, pic)) {
+      // user abort requested
+      WebPEncodingSetError(pic, VP8_ENC_ERROR_USER_ABORT);
+      return 0;
+    }
+  }
+  return 1;  // ok
+}
 //------------------------------------------------------------------------------
 
-int WebPEncode(const WebPConfig* const config, WebPPicture* const pic) {
-  VP8Encoder* enc;
+int WebPEncode(const WebPConfig* config, WebPPicture* pic) {
   int ok;
 
   if (pic == NULL)
@@ -325,23 +343,43 @@ int WebPEncode(const WebPConfig* const config, WebPPicture* const pic) {
     return WebPEncodingSetError(pic, VP8_ENC_ERROR_INVALID_CONFIGURATION);
   if (pic->width <= 0 || pic->height <= 0)
     return WebPEncodingSetError(pic, VP8_ENC_ERROR_BAD_DIMENSION);
-  if (pic->y == NULL || pic->u == NULL || pic->v == NULL)
-    return WebPEncodingSetError(pic, VP8_ENC_ERROR_NULL_PARAMETER);
   if (pic->width > WEBP_MAX_DIMENSION || pic->height > WEBP_MAX_DIMENSION)
     return WebPEncodingSetError(pic, VP8_ENC_ERROR_BAD_DIMENSION);
 
-  enc = InitEncoder(config, pic);
-  if (enc == NULL) return 0;  // pic->error is already set.
-  ok = VP8EncAnalyze(enc)
-    && VP8StatLoop(enc)
-    && VP8EncLoop(enc)
+  if (pic->stats != NULL) memset(pic->stats, 0, sizeof(*pic->stats));
+
+  if (!config->lossless) {
+    VP8Encoder* enc = NULL;
+    if (pic->y == NULL || pic->u == NULL || pic->v == NULL) {
+      if (pic->argb != NULL) {
+        if (!WebPPictureARGBToYUVA(pic, WEBP_YUV420)) return 0;
+      } else {
+        return WebPEncodingSetError(pic, VP8_ENC_ERROR_NULL_PARAMETER);
+      }
+    }
+
+    enc = InitVP8Encoder(config, pic);
+    if (enc == NULL) return 0;  // pic->error is already set.
+    // Note: each of the tasks below account for 20% in the progress report.
+    ok = VP8EncAnalyze(enc)
+      && VP8StatLoop(enc)
+      && VP8EncLoop(enc)
+      && VP8EncFinishAlpha(enc)
 #ifdef WEBP_EXPERIMENTAL_FEATURES
-    && VP8EncFinishAlpha(enc)
-    && VP8EncFinishLayer(enc)
+      && VP8EncFinishLayer(enc)
 #endif
-    && VP8EncWrite(enc);
-  StoreStats(enc);
-  DeleteEncoder(enc);
+      && VP8EncWrite(enc);
+    StoreStats(enc);
+    if (!ok) {
+      VP8EncFreeBitWriters(enc);
+    }
+    DeleteVP8Encoder(enc);
+  } else {
+    if (pic->argb == NULL)
+      return WebPEncodingSetError(pic, VP8_ENC_ERROR_NULL_PARAMETER);
+
+    ok = VP8LEncodeImage(config, pic);  // Sets pic->error in case of problem.
+  }
 
   return ok;
 }
