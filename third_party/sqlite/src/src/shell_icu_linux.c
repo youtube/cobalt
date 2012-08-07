@@ -3,6 +3,7 @@
 
 #include <limits.h>
 #include <unistd.h>
+#include "unicode/putil.h"
 #include "unicode/udata.h"
 
 /*
