@@ -322,7 +322,7 @@ void FFmpegVideoDecoder::DoDecryptOrDecodeBuffer(
   }
 
   if (status != DemuxerStream::kOk) {
-    DecoderStatus decoder_status =
+    Status decoder_status =
         (status == DemuxerStream::kAborted) ? kOk : kDecodeError;
     base::ResetAndReturn(&read_cb_).Run(decoder_status, NULL);
     return;
@@ -340,14 +340,14 @@ void FFmpegVideoDecoder::DoDecryptOrDecodeBuffer(
 }
 
 void FFmpegVideoDecoder::BufferDecrypted(
-    Decryptor::DecryptStatus decrypt_status,
+    Decryptor::Status decrypt_status,
     const scoped_refptr<DecoderBuffer>& buffer) {
   message_loop_->PostTask(FROM_HERE, base::Bind(
       &FFmpegVideoDecoder::DoBufferDecrypted, this, decrypt_status, buffer));
 }
 
 void FFmpegVideoDecoder::DoBufferDecrypted(
-    Decryptor::DecryptStatus decrypt_status,
+    Decryptor::Status decrypt_status,
     const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kUninitialized);
