@@ -185,12 +185,10 @@ class PipelineIntegrationTest
  public:
   void StartPipelineWithMediaSource(MockMediaSource* source) {
     pipeline_->Start(
-        CreateFilterCollection(source),
+        CreateFilterCollection(source, NULL),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
         QuitOnStatusCB(PIPELINE_OK));
-
-    ASSERT_TRUE(decoder_.get());
 
     message_loop_.Run();
   }
@@ -199,13 +197,11 @@ class PipelineIntegrationTest
       MockMediaSource* source,
       FakeDecryptorClient* encrypted_media) {
     pipeline_->Start(
-        CreateFilterCollection(source),
+        CreateFilterCollection(source, encrypted_media->decryptor()),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
         QuitOnStatusCB(PIPELINE_OK));
 
-    ASSERT_TRUE(decoder_.get());
-    decoder_->set_decryptor(encrypted_media->decryptor());
     source->set_decryptor_client(encrypted_media);
 
     message_loop_.Run();

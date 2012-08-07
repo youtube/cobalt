@@ -22,7 +22,8 @@ class DecoderBuffer;
 
 class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
  public:
-  FFmpegVideoDecoder(const base::Callback<MessageLoop*()>& message_loop_cb);
+  FFmpegVideoDecoder(const base::Callback<MessageLoop*()>& message_loop_cb,
+                     Decryptor* decryptor);
 
   // VideoDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -31,10 +32,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual void Reset(const base::Closure& closure) OVERRIDE;
   virtual void Stop(const base::Closure& closure) OVERRIDE;
-
-  // Must be called prior to initialization if decrypted buffers will be
-  // encountered.
-  void set_decryptor(Decryptor* decryptor);
 
   // Callback called from within FFmpeg to allocate a buffer based on
   // the dimensions of |codec_context|. See AVCodecContext.get_buffer
