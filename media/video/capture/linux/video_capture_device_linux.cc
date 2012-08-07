@@ -85,10 +85,11 @@ void VideoCaptureDevice::GetDeviceNames(Names* device_names) {
       // Failed to open this device.
       continue;
     }
-    // Test if this is a V4L2 device.
+    // Test if this is a V4L2 capture device.
     v4l2_capability cap;
     if ((ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0) &&
-        (cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
+        (cap.capabilities & V4L2_CAP_VIDEO_CAPTURE) &&
+        !(cap.capabilities & V4L2_CAP_VIDEO_OUTPUT)) {
       // This is a V4L2 video capture device
       name.device_name = StringPrintf("%s", cap.card);
       device_names->push_back(name);
@@ -203,10 +204,11 @@ void VideoCaptureDeviceLinux::OnAllocate(int width,
     return;
   }
 
-  // Test if this is a V4L2 device.
+  // Test if this is a V4L2 capture device.
   v4l2_capability cap;
   if (!((ioctl(device_fd_, VIDIOC_QUERYCAP, &cap) == 0) &&
-      (cap.capabilities & V4L2_CAP_VIDEO_CAPTURE))) {
+      (cap.capabilities & V4L2_CAP_VIDEO_CAPTURE) &&
+      !(cap.capabilities & V4L2_CAP_VIDEO_OUTPUT))) {
     // This is not a V4L2 video capture device.
     close(device_fd_);
     device_fd_ = -1;
