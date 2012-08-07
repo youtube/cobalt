@@ -128,7 +128,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   // Sets up expectations and actions to put FFmpegVideoDecoder in an active
   // decoding state.
   void EnterDecodingState() {
-    VideoDecoder::DecoderStatus status;
+    VideoDecoder::Status status;
     scoped_refptr<VideoFrame> video_frame;
     DecodeSingleFrame(i_frame_buffer_, &status, &video_frame);
 
@@ -141,7 +141,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   // of stream state.
   void EnterEndOfStreamState() {
     scoped_refptr<VideoFrame> video_frame;
-    VideoDecoder::DecoderStatus status;
+    VideoDecoder::Status status;
     Read(&status, &video_frame);
     EXPECT_EQ(status, VideoDecoder::kOk);
     ASSERT_TRUE(video_frame);
@@ -153,7 +153,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   // and multithreaded decoders. End of stream buffers are used to trigger
   // the frame to be returned in the multithreaded decoder case.
   void DecodeSingleFrame(const scoped_refptr<DecoderBuffer>& buffer,
-                         VideoDecoder::DecoderStatus* status,
+                         VideoDecoder::Status* status,
                          scoped_refptr<VideoFrame>* video_frame) {
     EXPECT_CALL(*demuxer_, Read(_))
         .WillOnce(ReturnBuffer(buffer))
@@ -172,8 +172,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
                                 int expected_height) {
     Initialize();
 
-    VideoDecoder::DecoderStatus status_a;
-    VideoDecoder::DecoderStatus status_b;
+    VideoDecoder::Status status_a;
+    VideoDecoder::Status status_b;
     scoped_refptr<VideoFrame> video_frame_a;
     scoped_refptr<VideoFrame> video_frame_b;
 
@@ -201,7 +201,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     EXPECT_EQ(expected_height, video_frame_b->data_size().height());
   }
 
-  void Read(VideoDecoder::DecoderStatus* status,
+  void Read(VideoDecoder::Status* status,
             scoped_refptr<VideoFrame>* video_frame) {
     EXPECT_CALL(*this, FrameReady(_, _))
         .WillOnce(DoAll(SaveArg<0>(status), SaveArg<1>(video_frame)));
@@ -211,7 +211,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     message_loop_.RunAllPending();
   }
 
-  MOCK_METHOD2(FrameReady, void(VideoDecoder::DecoderStatus,
+  MOCK_METHOD2(FrameReady, void(VideoDecoder::Status,
                                 const scoped_refptr<VideoFrame>&));
 
   MessageLoop message_loop_;
@@ -329,7 +329,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_Normal) {
   Initialize();
 
   // Simulate decoding a single frame.
-  VideoDecoder::DecoderStatus status;
+  VideoDecoder::Status status;
   scoped_refptr<VideoFrame> video_frame;
   DecodeSingleFrame(i_frame_buffer_, &status, &video_frame);
 
@@ -345,9 +345,9 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_0ByteFrame) {
 
   scoped_refptr<DecoderBuffer> zero_byte_buffer = new DecoderBuffer(0);
 
-  VideoDecoder::DecoderStatus status_a;
-  VideoDecoder::DecoderStatus status_b;
-  VideoDecoder::DecoderStatus status_c;
+  VideoDecoder::Status status_a;
+  VideoDecoder::Status status_b;
+  VideoDecoder::Status status_c;
   scoped_refptr<VideoFrame> video_frame_a;
   scoped_refptr<VideoFrame> video_frame_b;
   scoped_refptr<VideoFrame> video_frame_c;
@@ -392,7 +392,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_DecodeError) {
 
   // Our read should still get satisfied with end of stream frame during an
   // error.
-  VideoDecoder::DecoderStatus status;
+  VideoDecoder::Status status;
   scoped_refptr<VideoFrame> video_frame;
   Read(&status, &video_frame);
   EXPECT_EQ(status, VideoDecoder::kDecodeError);
@@ -409,7 +409,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_DecodeError) {
 TEST_F(FFmpegVideoDecoderTest, DecodeFrame_DecodeErrorAtEndOfStream) {
   Initialize();
 
-  VideoDecoder::DecoderStatus status;
+  VideoDecoder::Status status;
   scoped_refptr<VideoFrame> video_frame;
   DecodeSingleFrame(corrupt_i_frame_buffer_, &status, &video_frame);
 
@@ -449,7 +449,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_Normal) {
   EXPECT_CALL(*decryptor_, Decrypt(encrypted_i_frame_buffer_, _))
       .WillRepeatedly(RunDecryptCB(Decryptor::kSuccess, i_frame_buffer_));
 
-  VideoDecoder::DecoderStatus status;
+  VideoDecoder::Status status;
   scoped_refptr<VideoFrame> video_frame;
   DecodeSingleFrame(encrypted_i_frame_buffer_, &status, &video_frame);
 
@@ -471,7 +471,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_DecryptError) {
 
   // Our read should still get satisfied with end of stream frame during an
   // error.
-  VideoDecoder::DecoderStatus status;
+  VideoDecoder::Status status;
   scoped_refptr<VideoFrame> video_frame;
   Read(&status, &video_frame);
   EXPECT_EQ(VideoDecoder::kDecryptError, status);
@@ -493,7 +493,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoDecryptionKey) {
 
   // Our read should still get satisfied with end of stream frame during an
   // error.
-  VideoDecoder::DecoderStatus status;
+  VideoDecoder::Status status;
   scoped_refptr<VideoFrame> video_frame;
   Read(&status, &video_frame);
   EXPECT_EQ(VideoDecoder::kDecryptError, status);
@@ -516,7 +516,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_CorruptedBufferReturned) {
 
   // Our read should still get satisfied with end of stream frame during an
   // error.
-  VideoDecoder::DecoderStatus status;
+  VideoDecoder::Status status;
   scoped_refptr<VideoFrame> video_frame;
   Read(&status, &video_frame);
   EXPECT_EQ(VideoDecoder::kDecodeError, status);
@@ -622,7 +622,7 @@ TEST_F(FFmpegVideoDecoderTest, AbortPendingRead) {
   EXPECT_CALL(*demuxer_, Read(_))
       .WillOnce(ReturnBuffer(scoped_refptr<DecoderBuffer>()));
 
-  VideoDecoder::DecoderStatus status;
+  VideoDecoder::Status status;
   scoped_refptr<VideoFrame> video_frame;
 
   Read(&status, &video_frame);
