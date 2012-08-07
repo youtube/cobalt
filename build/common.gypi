@@ -17,17 +17,23 @@
     'variables': {
       'variables': {
         'variables': {
-          # Whether we're building a ChromeOS build.
-          'chromeos%': 0,
+          'variables': {
+            # Whether we're building a ChromeOS build.
+            'chromeos%': 0,
+
+            # Whether or not we are using the Aura windowing framework.
+            'use_aura%': 0,
+
+            # Whether or not we are building the Ash shell.
+            'use_ash%': 0,
+          },
+          # Copy conditionally-set variables out one scope.
+          'chromeos%': '<(chromeos)',
+          'use_aura%': '<(use_aura)',
+          'use_ash%': '<(use_ash)',
 
           # Whether we are using Views Toolkit
           'toolkit_views%': 0,
-
-          # Whether or not we are using the Aura windowing framework.
-          'use_aura%': 0,
-
-          # Whether or not we are building the Ash shell.
-          'use_ash%': 0,
 
           # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
           'use_openssl%': 0,
@@ -57,6 +63,24 @@
           # based on 'buildtype' (i.e. we don't care about saving symbols for
           # non-Official # builds).
           'buildtype%': 'Dev',
+
+          'conditions': [
+            # ChromeOS implies ash.
+            ['chromeos==1', {
+              'use_ash%': 1,
+              'use_aura%': 1,
+            }],
+
+            # For now, Windows builds that |use_aura| should also imply using
+            # ash. This rule should be removed for the future when Windows is
+            # using the aura windows without the ash interface.
+            ['use_aura==1 and OS=="win"', {
+              'use_ash%': 1,
+            }],
+            ['use_ash==1', {
+              'use_aura%': 1,
+            }],
+          ],
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
@@ -87,28 +111,18 @@
               '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
           }],
 
-          # Chromeos implies ash.
-          ['chromeos==1', {
-            'use_ash%': 1,
-            'use_aura%': 1,
-          }],
-
-          # For now, Windows *AND* Linux builds that |use_aura| should also
-          # imply using ash. This rule should be removed for the future when
-          # both Linux and Windows are using the aura windows without the ash
-          # interface.
-          ['use_aura==1 and OS=="win"', {
-            'use_ash%': 1,
-          }],
-          ['use_ash==1', {
-            'use_aura%': 1,
-          }],
-
           # Set default value of toolkit_views based on OS.
           ['OS=="win" or chromeos==1 or use_aura==1', {
             'toolkit_views%': 1,
           }, {
             'toolkit_views%': 0,
+          }],
+
+          # Set toolkit_uses_gtk for the Chromium browser on Linux.
+          ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris") and use_aura==0', {
+            'toolkit_uses_gtk%': 1,
+          }, {
+            'toolkit_uses_gtk%': 0,
           }],
 
           # Enable HiDPI on Mac OS.
@@ -127,6 +141,7 @@
       'chromeos%': '<(chromeos)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
+      'toolkit_uses_gtk%': '<(toolkit_uses_gtk)',
       'use_aura%': '<(use_aura)',
       'use_ash%': '<(use_ash)',
       'use_openssl%': '<(use_openssl)',
@@ -412,13 +427,6 @@
           'use_x11%': 1,
         }],
 
-        # Set toolkit_uses_gtk for the Chromium browser on Linux.
-        ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris") and use_aura==0', {
-          'toolkit_uses_gtk%': 1,
-        }, {
-          'toolkit_uses_gtk%': 0,
-        }],
-
         # We always use skia text rendering in Aura on Windows, since GDI
         # doesn't agree with our BackingStore.
         # TODO(beng): remove once skia text rendering is on by default.
@@ -436,7 +444,7 @@
           'use_gnome_keyring%': 1,
         }],
 
-        ['toolkit_views==0 or OS=="mac" or OS=="ios"', {
+        ['toolkit_uses_gtk==1 or OS=="mac" or OS=="ios"', {
           # GTK+, Mac and iOS want Title Case strings
           'use_titlecase_in_grd_files%': 1,
         }],
