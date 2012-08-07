@@ -119,11 +119,8 @@ class TestPackage(object):
           self.test_suite_dirname + '/resources.pak',
           '/data/local/tmp/paks/resources.pak')
       self.adb.PushIfNeeded(
-          self.test_suite_dirname + '/theme_resources_100_percent.pak',
-          '/data/local/tmp/paks/theme_resources_100_percent.pak')
-      self.adb.PushIfNeeded(
-          self.test_suite_dirname + '/ui_resources_100_percent.pak',
-          '/data/local/tmp/paks/ui_resources_100_percent.pak')
+          self.test_suite_dirname + '/chrome_100_percent.pak',
+          '/data/local/tmp/paks/chrome_100_percent.pak')
       self.adb.PushIfNeeded(self.test_suite_dirname + '/test_data',
                             '/data/local/tmp/test_data')
     if self.test_suite_basename == 'content_unittests':
