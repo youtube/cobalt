@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2011 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -10,7 +10,9 @@
 // Author: somnath@google.com (Somnath Banerjee)
 //         cduvivier@google.com (Christian Duvivier)
 
-#if defined(__SSE2__) || defined(_MSC_VER)
+#include "./dsp.h"
+
+#if defined(WEBP_USE_SSE2)
 
 #include <emmintrin.h>
 #include "../dec/vp8i.h"
@@ -341,8 +343,8 @@ static void NeedsFilter(const __m128i* p1, const __m128i* p0, const __m128i* q0,
 // Edge filtering functions
 
 // Applies filter on 2 pixels (p0 and q0)
-static inline void DoFilter2(const __m128i* p1, __m128i* p0, __m128i* q0,
-                             const __m128i* q1, int thresh) {
+static WEBP_INLINE void DoFilter2(const __m128i* p1, __m128i* p0, __m128i* q0,
+                                  const __m128i* q1, int thresh) {
   __m128i a, mask;
   const __m128i sign_bit = _mm_set1_epi8(0x80);
   const __m128i p1s = _mm_xor_si128(*p1, sign_bit);
@@ -362,8 +364,9 @@ static inline void DoFilter2(const __m128i* p1, __m128i* p0, __m128i* q0,
 }
 
 // Applies filter on 4 pixels (p1, p0, q0 and q1)
-static inline void DoFilter4(__m128i* p1, __m128i *p0, __m128i* q0, __m128i* q1,
-                             const __m128i* mask, int hev_thresh) {
+static WEBP_INLINE void DoFilter4(__m128i* p1, __m128i *p0,
+                                  __m128i* q0, __m128i* q1,
+                                  const __m128i* mask, int hev_thresh) {
   __m128i not_hev;
   __m128i t1, t2, t3;
   const __m128i sign_bit = _mm_set1_epi8(0x80);
@@ -408,9 +411,9 @@ static inline void DoFilter4(__m128i* p1, __m128i *p0, __m128i* q0, __m128i* q1,
 }
 
 // Applies filter on 6 pixels (p2, p1, p0, q0, q1 and q2)
-static inline void DoFilter6(__m128i *p2, __m128i* p1, __m128i *p0,
-                             __m128i* q0, __m128i* q1, __m128i *q2,
-                             const __m128i* mask, int hev_thresh) {
+static WEBP_INLINE void DoFilter6(__m128i *p2, __m128i* p1, __m128i *p0,
+                                  __m128i* q0, __m128i* q1, __m128i *q2,
+                                  const __m128i* mask, int hev_thresh) {
   __m128i a, not_hev;
   const __m128i sign_bit = _mm_set1_epi8(0x80);
 
@@ -466,8 +469,8 @@ static inline void DoFilter6(__m128i *p2, __m128i* p1, __m128i *p0,
 //
 // TODO(somnath): Investigate _mm_shuffle* also see if it can be broken into
 // two Load4x4() to avoid code duplication.
-static inline void Load8x4(const uint8_t* b, int stride,
-                           __m128i* p, __m128i* q) {
+static WEBP_INLINE void Load8x4(const uint8_t* b, int stride,
+                                __m128i* p, __m128i* q) {
   __m128i t1, t2;
 
   // Load 0th, 1st, 4th and 5th rows
@@ -506,9 +509,10 @@ static inline void Load8x4(const uint8_t* b, int stride,
   *q = _mm_unpackhi_epi32(t1, t2);
 }
 
-static inline void Load16x4(const uint8_t* r0, const uint8_t* r8, int stride,
-                            __m128i* p1, __m128i* p0,
-                            __m128i* q0, __m128i* q1) {
+static WEBP_INLINE void Load16x4(const uint8_t* r0, const uint8_t* r8,
+                                 int stride,
+                                 __m128i* p1, __m128i* p0,
+                                 __m128i* q0, __m128i* q1) {
   __m128i t1, t2;
   // Assume the pixels around the edge (|) are numbered as follows
   //                00 01 | 02 03
@@ -540,7 +544,7 @@ static inline void Load16x4(const uint8_t* r0, const uint8_t* r8, int stride,
   *q1 = _mm_unpackhi_epi64(t2, *q1);
 }
 
-static inline void Store4x4(__m128i* x, uint8_t* dst, int stride) {
+static WEBP_INLINE void Store4x4(__m128i* x, uint8_t* dst, int stride) {
   int i;
   for (i = 0; i < 4; ++i, dst += stride) {
     *((int32_t*)dst) = _mm_cvtsi128_si32(*x);
@@ -549,8 +553,9 @@ static inline void Store4x4(__m128i* x, uint8_t* dst, int stride) {
 }
 
 // Transpose back and store
-static inline void Store16x4(uint8_t* r0, uint8_t* r8, int stride, __m128i* p1,
-                             __m128i* p0, __m128i* q0, __m128i* q1) {
+static WEBP_INLINE void Store16x4(uint8_t* r0, uint8_t* r8, int stride,
+                                  __m128i* p1, __m128i* p0,
+                                  __m128i* q0, __m128i* q1) {
   __m128i t1;
 
   // p0 = 71 70 61 60 51 50 41 40 31 30 21 20 11 10 01 00
@@ -895,4 +900,4 @@ void VP8DspInitSSE2(void) {
 }    // extern "C"
 #endif
 
-#endif   //__SSE2__ || _MSC_VER
+#endif   // WEBP_USE_SSE2

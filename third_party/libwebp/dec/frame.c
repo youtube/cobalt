@@ -1,4 +1,4 @@
-// Copyright 2010 Google Inc.
+// Copyright 2010 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -11,6 +11,7 @@
 
 #include <stdlib.h>
 #include "./vp8i.h"
+#include "../utils/utils.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -19,54 +20,7 @@ extern "C" {
 #define ALIGN_MASK (32 - 1)
 
 //------------------------------------------------------------------------------
-// For multi-threaded decoding we need to use 3 rows of 16 pixels as delay line.
-//
-// Reason is: the deblocking filter cannot deblock the bottom horizontal edges
-// immediately, and needs to wait for first few rows of the next macroblock to
-// be decoded. Hence, deblocking is lagging behind by 4 or 8 pixels (depending
-// on strength).
-// With two threads, the vertical positions of the rows being decoded are:
-// Decode:  [ 0..15][16..31][32..47][48..63][64..79][...
-// Deblock:         [ 0..11][12..27][28..43][44..59][...
-// If we use two threads and two caches of 16 pixels, the sequence would be:
-// Decode:  [ 0..15][16..31][ 0..15!!][16..31][ 0..15][...
-// Deblock:         [ 0..11][12..27!!][-4..11][12..27][...
-// The problem occurs during row [12..15!!] that both the decoding and
-// deblocking threads are writing simultaneously.
-// With 3 cache lines, one get a safe write pattern:
-// Decode:  [ 0..15][16..31][32..47][ 0..15][16..31][32..47][0..
-// Deblock:         [ 0..11][12..27][28..43][-4..11][12..27][28...
-// Note that multi-threaded output _without_ deblocking can make use of two
-// cache lines of 16 pixels only, since there's no lagging behind. The decoding
-// and output process have non-concurrent writing:
-// Decode:  [ 0..15][16..31][ 0..15][16..31][...
-// io->put:         [ 0..15][16..31][ 0..15][...
-
-#define MT_CACHE_LINES 3
-#define ST_CACHE_LINES 1   // 1 cache row only for single-threaded case
-
-// Initialize multi/single-thread worker
-static int InitThreadContext(VP8Decoder* const dec) {
-  dec->cache_id_ = 0;
-  if (dec->use_threads_) {
-    WebPWorker* const worker = &dec->worker_;
-    if (!WebPWorkerReset(worker)) {
-      return VP8SetError(dec, VP8_STATUS_OUT_OF_MEMORY,
-                         "thread initialization failed.");
-    }
-    worker->data1 = dec;
-    worker->data2 = (void*)&dec->thread_ctx_.io_;
-    worker->hook = (WebPWorkerHook)VP8FinishRow;
-    dec->num_caches_ =
-      (dec->filter_type_ > 0) ? MT_CACHE_LINES : MT_CACHE_LINES - 1;
-  } else {
-    dec->num_caches_ = ST_CACHE_LINES;
-  }
-  return 1;
-}
-
-//------------------------------------------------------------------------------
-// Memory setup
+// Filtering
 
 // kFilterExtraRows[] = How many extra lines are needed on the MB boundary
 // for caching, given a filtering level.
@@ -75,125 +29,7 @@ static int InitThreadContext(VP8Decoder* const dec) {
 //                 U/V, so it's 8 samples total (because of the 2x upsampling).
 static const uint8_t kFilterExtraRows[3] = { 0, 2, 8 };
 
-static int AllocateMemory(VP8Decoder* const dec) {
-  const int num_caches = dec->num_caches_;
-  const int mb_w = dec->mb_w_;
-  const int intra_pred_mode_size = 4 * mb_w * sizeof(uint8_t);
-  const int top_size = (16 + 8 + 8) * mb_w;
-  const int mb_info_size = (mb_w + 1) * sizeof(VP8MB);
-  const int f_info_size =
-    (dec->filter_type_ > 0) ?
-        mb_w * (dec->use_threads_ ? 2 : 1) * sizeof(VP8FInfo)
-      : 0;
-  const int yuv_size = YUV_SIZE * sizeof(*dec->yuv_b_);
-  const int coeffs_size = 384 * sizeof(*dec->coeffs_);
-  const int cache_height = (16 * num_caches
-                         + kFilterExtraRows[dec->filter_type_]) * 3 / 2;
-  const int cache_size = top_size * cache_height;
-  const int alpha_size =
-    dec->alpha_data_ ? (dec->pic_hdr_.width_ * dec->pic_hdr_.height_) : 0;
-  const int needed = intra_pred_mode_size
-                   + top_size + mb_info_size + f_info_size
-                   + yuv_size + coeffs_size
-                   + cache_size + alpha_size + ALIGN_MASK;
-  uint8_t* mem;
-
-  if (needed > dec->mem_size_) {
-    free(dec->mem_);
-    dec->mem_size_ = 0;
-    dec->mem_ = (uint8_t*)malloc(needed);
-    if (dec->mem_ == NULL) {
-      return VP8SetError(dec, VP8_STATUS_OUT_OF_MEMORY,
-                         "no memory during frame initialization.");
-    }
-    dec->mem_size_ = needed;
-  }
-
-  mem = (uint8_t*)dec->mem_;
-  dec->intra_t_ = (uint8_t*)mem;
-  mem += intra_pred_mode_size;
-
-  dec->y_t_ = (uint8_t*)mem;
-  mem += 16 * mb_w;
-  dec->u_t_ = (uint8_t*)mem;
-  mem += 8 * mb_w;
-  dec->v_t_ = (uint8_t*)mem;
-  mem += 8 * mb_w;
-
-  dec->mb_info_ = ((VP8MB*)mem) + 1;
-  mem += mb_info_size;
-
-  dec->f_info_ = f_info_size ? (VP8FInfo*)mem : NULL;
-  mem += f_info_size;
-  dec->thread_ctx_.id_ = 0;
-  dec->thread_ctx_.f_info_ = dec->f_info_;
-  if (dec->use_threads_) {
-    // secondary cache line. The deblocking process need to make use of the
-    // filtering strength from previous macroblock row, while the new ones
-    // are being decoded in parallel. We'll just swap the pointers.
-    dec->thread_ctx_.f_info_ += mb_w;
-  }
-
-  mem = (uint8_t*)((uintptr_t)(mem + ALIGN_MASK) & ~ALIGN_MASK);
-  assert((yuv_size & ALIGN_MASK) == 0);
-  dec->yuv_b_ = (uint8_t*)mem;
-  mem += yuv_size;
-
-  dec->coeffs_ = (int16_t*)mem;
-  mem += coeffs_size;
-
-  dec->cache_y_stride_ = 16 * mb_w;
-  dec->cache_uv_stride_ = 8 * mb_w;
-  {
-    const int extra_rows = kFilterExtraRows[dec->filter_type_];
-    const int extra_y = extra_rows * dec->cache_y_stride_;
-    const int extra_uv = (extra_rows / 2) * dec->cache_uv_stride_;
-    dec->cache_y_ = ((uint8_t*)mem) + extra_y;
-    dec->cache_u_ = dec->cache_y_
-                  + 16 * num_caches * dec->cache_y_stride_ + extra_uv;
-    dec->cache_v_ = dec->cache_u_
-                  + 8 * num_caches * dec->cache_uv_stride_ + extra_uv;
-    dec->cache_id_ = 0;
-  }
-  mem += cache_size;
-
-  // alpha plane
-  dec->alpha_plane_ = alpha_size ? (uint8_t*)mem : NULL;
-  mem += alpha_size;
-
-  // note: left-info is initialized once for all.
-  memset(dec->mb_info_ - 1, 0, mb_info_size);
-
-  // initialize top
-  memset(dec->intra_t_, B_DC_PRED, intra_pred_mode_size);
-
-  return 1;
-}
-
-static void InitIo(VP8Decoder* const dec, VP8Io* io) {
-  // prepare 'io'
-  io->mb_y = 0;
-  io->y = dec->cache_y_;
-  io->u = dec->cache_u_;
-  io->v = dec->cache_v_;
-  io->y_stride = dec->cache_y_stride_;
-  io->uv_stride = dec->cache_uv_stride_;
-  io->fancy_upsampling = 0;    // default
-  io->a = NULL;
-}
-
-int VP8InitFrame(VP8Decoder* const dec, VP8Io* io) {
-  if (!InitThreadContext(dec)) return 0;  // call first. Sets dec->num_caches_.
-  if (!AllocateMemory(dec)) return 0;
-  InitIo(dec, io);
-  VP8DspInit();  // Init critical function pointers and look-up tables.
-  return 1;
-}
-
-//------------------------------------------------------------------------------
-// Filtering
-
-static inline int hev_thresh_from_level(int level, int keyframe) {
+static WEBP_INLINE int hev_thresh_from_level(int level, int keyframe) {
   if (keyframe) {
     return (level >= 40) ? 2 : (level >= 15) ? 1 : 0;
   } else {
@@ -326,7 +162,7 @@ void VP8StoreBlock(VP8Decoder* const dec) {
 #define MACROBLOCK_VPOS(mb_y)  ((mb_y) * 16)    // vertical position of a MB
 
 // Finalize and transmit a complete row. Return false in case of user-abort.
-int VP8FinishRow(VP8Decoder* const dec, VP8Io* io) {
+static int FinishRow(VP8Decoder* const dec, VP8Io* const io) {
   int ok = 1;
   const VP8ThreadContext* const ctx = &dec->thread_ctx_;
   const int extra_y_rows = kFilterExtraRows[dec->filter_type_];
@@ -365,15 +201,18 @@ int VP8FinishRow(VP8Decoder* const dec, VP8Io* io) {
       y_end = io->crop_bottom;    // make sure we don't overflow on last row.
     }
     io->a = NULL;
-#ifdef WEBP_EXPERIMENTAL_FEATURES
-    if (dec->alpha_data_) {
+    if (dec->alpha_data_ != NULL && y_start < y_end) {
+      // TODO(skal): several things to correct here:
+      // * testing presence of alpha with dec->alpha_data_ is not a good idea
+      // * we're actually decompressing the full plane only once. It should be
+      //   more obvious from signature.
+      // * we could free alpha_data_ right after this call, but we don't own.
       io->a = VP8DecompressAlphaRows(dec, y_start, y_end - y_start);
       if (io->a == NULL) {
         return VP8SetError(dec, VP8_STATUS_BITSTREAM_ERROR,
                            "Could not decode alpha data.");
       }
     }
-#endif
     if (y_start < io->crop_top) {
       const int delta_y = io->crop_top - y_start;
       y_start = io->crop_top;
@@ -381,7 +220,7 @@ int VP8FinishRow(VP8Decoder* const dec, VP8Io* io) {
       io->y += dec->cache_y_stride_ * delta_y;
       io->u += dec->cache_uv_stride_ * (delta_y >> 1);
       io->v += dec->cache_uv_stride_ * (delta_y >> 1);
-      if (io->a) {
+      if (io->a != NULL) {
         io->a += io->width * delta_y;
       }
     }
@@ -389,7 +228,7 @@ int VP8FinishRow(VP8Decoder* const dec, VP8Io* io) {
       io->y += io->crop_left;
       io->u += io->crop_left >> 1;
       io->v += io->crop_left >> 1;
-      if (io->a) {
+      if (io->a != NULL) {
         io->a += io->crop_left;
       }
       io->mb_y = y_start - io->crop_top;
@@ -421,7 +260,7 @@ int VP8ProcessRow(VP8Decoder* const dec, VP8Io* const io) {
     // ctx->id_ and ctx->f_info_ are already set
     ctx->mb_y_ = dec->mb_y_;
     ctx->filter_row_ = dec->filter_row_;
-    ok = VP8FinishRow(dec, io);
+    ok = FinishRow(dec, io);
   } else {
     WebPWorker* const worker = &dec->worker_;
     // Finish previous job *before* updating context
@@ -482,8 +321,13 @@ VP8StatusCode VP8EnterCritical(VP8Decoder* const dec, VP8Io* const io) {
       dec->tl_mb_y_ = 0;
     } else {
       // For simple filter, we can filter only the cropped region.
-      dec->tl_mb_y_ = io->crop_top >> 4;
-      dec->tl_mb_x_ = io->crop_left >> 4;
+      // We include 'extra_pixels' on the other side of the boundary, since
+      // vertical or horizontal filtering of the previous macroblock can
+      // modify some abutting pixels.
+      dec->tl_mb_x_ = (io->crop_left - extra_pixels) >> 4;
+      dec->tl_mb_y_ = (io->crop_top - extra_pixels) >> 4;
+      if (dec->tl_mb_x_ < 0) dec->tl_mb_x_ = 0;
+      if (dec->tl_mb_y_ < 0) dec->tl_mb_y_ = 0;
     }
     // We need some 'extra' pixels on the right/bottom.
     dec->br_mb_y_ = (io->crop_bottom + 15 + extra_pixels) >> 4;
@@ -511,6 +355,177 @@ int VP8ExitCritical(VP8Decoder* const dec, VP8Io* const io) {
 }
 
 //------------------------------------------------------------------------------
+// For multi-threaded decoding we need to use 3 rows of 16 pixels as delay line.
+//
+// Reason is: the deblocking filter cannot deblock the bottom horizontal edges
+// immediately, and needs to wait for first few rows of the next macroblock to
+// be decoded. Hence, deblocking is lagging behind by 4 or 8 pixels (depending
+// on strength).
+// With two threads, the vertical positions of the rows being decoded are:
+// Decode:  [ 0..15][16..31][32..47][48..63][64..79][...
+// Deblock:         [ 0..11][12..27][28..43][44..59][...
+// If we use two threads and two caches of 16 pixels, the sequence would be:
+// Decode:  [ 0..15][16..31][ 0..15!!][16..31][ 0..15][...
+// Deblock:         [ 0..11][12..27!!][-4..11][12..27][...
+// The problem occurs during row [12..15!!] that both the decoding and
+// deblocking threads are writing simultaneously.
+// With 3 cache lines, one get a safe write pattern:
+// Decode:  [ 0..15][16..31][32..47][ 0..15][16..31][32..47][0..
+// Deblock:         [ 0..11][12..27][28..43][-4..11][12..27][28...
+// Note that multi-threaded output _without_ deblocking can make use of two
+// cache lines of 16 pixels only, since there's no lagging behind. The decoding
+// and output process have non-concurrent writing:
+// Decode:  [ 0..15][16..31][ 0..15][16..31][...
+// io->put:         [ 0..15][16..31][ 0..15][...
+
+#define MT_CACHE_LINES 3
+#define ST_CACHE_LINES 1   // 1 cache row only for single-threaded case
+
+// Initialize multi/single-thread worker
+static int InitThreadContext(VP8Decoder* const dec) {
+  dec->cache_id_ = 0;
+  if (dec->use_threads_) {
+    WebPWorker* const worker = &dec->worker_;
+    if (!WebPWorkerReset(worker)) {
+      return VP8SetError(dec, VP8_STATUS_OUT_OF_MEMORY,
+                         "thread initialization failed.");
+    }
+    worker->data1 = dec;
+    worker->data2 = (void*)&dec->thread_ctx_.io_;
+    worker->hook = (WebPWorkerHook)FinishRow;
+    dec->num_caches_ =
+      (dec->filter_type_ > 0) ? MT_CACHE_LINES : MT_CACHE_LINES - 1;
+  } else {
+    dec->num_caches_ = ST_CACHE_LINES;
+  }
+  return 1;
+}
+
+#undef MT_CACHE_LINES
+#undef ST_CACHE_LINES
+
+//------------------------------------------------------------------------------
+// Memory setup
+
+static int AllocateMemory(VP8Decoder* const dec) {
+  const int num_caches = dec->num_caches_;
+  const int mb_w = dec->mb_w_;
+  // Note: we use 'size_t' when there's no overflow risk, uint64_t otherwise.
+  const size_t intra_pred_mode_size = 4 * mb_w * sizeof(uint8_t);
+  const size_t top_size = (16 + 8 + 8) * mb_w;
+  const size_t mb_info_size = (mb_w + 1) * sizeof(VP8MB);
+  const size_t f_info_size =
+      (dec->filter_type_ > 0) ?
+          mb_w * (dec->use_threads_ ? 2 : 1) * sizeof(VP8FInfo)
+        : 0;
+  const size_t yuv_size = YUV_SIZE * sizeof(*dec->yuv_b_);
+  const size_t coeffs_size = 384 * sizeof(*dec->coeffs_);
+  const size_t cache_height = (16 * num_caches
+                            + kFilterExtraRows[dec->filter_type_]) * 3 / 2;
+  const size_t cache_size = top_size * cache_height;
+  // alpha_size is the only one that scales as width x height.
+  const uint64_t alpha_size = (dec->alpha_data_ != NULL) ?
+      (uint64_t)dec->pic_hdr_.width_ * dec->pic_hdr_.height_ : 0ULL;
+  const uint64_t needed = (uint64_t)intra_pred_mode_size
+                        + top_size + mb_info_size + f_info_size
+                        + yuv_size + coeffs_size
+                        + cache_size + alpha_size + ALIGN_MASK;
+  uint8_t* mem;
+
+  if (needed != (size_t)needed) return 0;  // check for overflow
+  if (needed > dec->mem_size_) {
+    free(dec->mem_);
+    dec->mem_size_ = 0;
+    dec->mem_ = WebPSafeMalloc(needed, sizeof(uint8_t));
+    if (dec->mem_ == NULL) {
+      return VP8SetError(dec, VP8_STATUS_OUT_OF_MEMORY,
+                         "no memory during frame initialization.");
+    }
+    // down-cast is ok, thanks to WebPSafeAlloc() above.
+    dec->mem_size_ = (size_t)needed;
+  }
+
+  mem = (uint8_t*)dec->mem_;
+  dec->intra_t_ = (uint8_t*)mem;
+  mem += intra_pred_mode_size;
+
+  dec->y_t_ = (uint8_t*)mem;
+  mem += 16 * mb_w;
+  dec->u_t_ = (uint8_t*)mem;
+  mem += 8 * mb_w;
+  dec->v_t_ = (uint8_t*)mem;
+  mem += 8 * mb_w;
+
+  dec->mb_info_ = ((VP8MB*)mem) + 1;
+  mem += mb_info_size;
+
+  dec->f_info_ = f_info_size ? (VP8FInfo*)mem : NULL;
+  mem += f_info_size;
+  dec->thread_ctx_.id_ = 0;
+  dec->thread_ctx_.f_info_ = dec->f_info_;
+  if (dec->use_threads_) {
+    // secondary cache line. The deblocking process need to make use of the
+    // filtering strength from previous macroblock row, while the new ones
+    // are being decoded in parallel. We'll just swap the pointers.
+    dec->thread_ctx_.f_info_ += mb_w;
+  }
+
+  mem = (uint8_t*)((uintptr_t)(mem + ALIGN_MASK) & ~ALIGN_MASK);
+  assert((yuv_size & ALIGN_MASK) == 0);
+  dec->yuv_b_ = (uint8_t*)mem;
+  mem += yuv_size;
+
+  dec->coeffs_ = (int16_t*)mem;
+  mem += coeffs_size;
+
+  dec->cache_y_stride_ = 16 * mb_w;
+  dec->cache_uv_stride_ = 8 * mb_w;
+  {
+    const int extra_rows = kFilterExtraRows[dec->filter_type_];
+    const int extra_y = extra_rows * dec->cache_y_stride_;
+    const int extra_uv = (extra_rows / 2) * dec->cache_uv_stride_;
+    dec->cache_y_ = ((uint8_t*)mem) + extra_y;
+    dec->cache_u_ = dec->cache_y_
+                  + 16 * num_caches * dec->cache_y_stride_ + extra_uv;
+    dec->cache_v_ = dec->cache_u_
+                  + 8 * num_caches * dec->cache_uv_stride_ + extra_uv;
+    dec->cache_id_ = 0;
+  }
+  mem += cache_size;
+
+  // alpha plane
+  dec->alpha_plane_ = alpha_size ? (uint8_t*)mem : NULL;
+  mem += alpha_size;
+
+  // note: left-info is initialized once for all.
+  memset(dec->mb_info_ - 1, 0, mb_info_size);
+
+  // initialize top
+  memset(dec->intra_t_, B_DC_PRED, intra_pred_mode_size);
+
+  return 1;
+}
+
+static void InitIo(VP8Decoder* const dec, VP8Io* io) {
+  // prepare 'io'
+  io->mb_y = 0;
+  io->y = dec->cache_y_;
+  io->u = dec->cache_u_;
+  io->v = dec->cache_v_;
+  io->y_stride = dec->cache_y_stride_;
+  io->uv_stride = dec->cache_uv_stride_;
+  io->a = NULL;
+}
+
+int VP8InitFrame(VP8Decoder* const dec, VP8Io* io) {
+  if (!InitThreadContext(dec)) return 0;  // call first. Sets dec->num_caches_.
+  if (!AllocateMemory(dec)) return 0;
+  InitIo(dec, io);
+  VP8DspInit();  // Init critical function pointers and look-up tables.
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 // Main reconstruction function.
 
 static const int kScan[16] = {
@@ -520,7 +535,7 @@ static const int kScan[16] = {
   0 + 12 * BPS,  4 + 12 * BPS, 8 + 12 * BPS, 12 + 12 * BPS
 };
 
-static inline int CheckMode(VP8Decoder* const dec, int mode) {
+static WEBP_INLINE int CheckMode(VP8Decoder* const dec, int mode) {
   if (mode == B_DC_PRED) {
     if (dec->mb_x_ == 0) {
       return (dec->mb_y_ == 0) ? B_DC_PRED_NOTOPLEFT : B_DC_PRED_NOLEFT;
@@ -531,7 +546,7 @@ static inline int CheckMode(VP8Decoder* const dec, int mode) {
   return mode;
 }
 
-static inline void Copy32b(uint8_t* dst, uint8_t* src) {
+static WEBP_INLINE void Copy32b(uint8_t* dst, uint8_t* src) {
   *(uint32_t*)dst = *(uint32_t*)src;
 }
 

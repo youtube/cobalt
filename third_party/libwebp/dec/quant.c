@@ -1,4 +1,4 @@
-// Copyright 2010 Google Inc.
+// Copyright 2010 Google Inc. All Rights Reserved.
 //
 // This code is licensed under the same terms as WebM:
 //  Software License Agreement:  http://www.webmproject.org/license/software/
@@ -9,13 +9,13 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#include "vp8i.h"
+#include "./vp8i.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-static inline int clip(int v, int M) {
+static WEBP_INLINE int clip(int v, int M) {
   return v < 0 ? 0 : v > M ? M : v;
 }
 
@@ -94,8 +94,10 @@ void VP8ParseQuant(VP8Decoder* const dec) {
       m->y1_mat_[1] = kAcTable[clip(q + 0,       127)];
 
       m->y2_mat_[0] = kDcTable[clip(q + dqy2_dc, 127)] * 2;
-      // TODO(skal): make it another table?
-      m->y2_mat_[1] = kAcTable[clip(q + dqy2_ac, 127)] * 155 / 100;
+      // For all x in [0..284], x*155/100 is bitwise equal to (x*101581) >> 16.
+      // The smallest precision for that is '(x*6349) >> 12' but 16 is a good
+      // word size.
+      m->y2_mat_[1] = (kAcTable[clip(q + dqy2_ac, 127)] * 101581) >> 16;
       if (m->y2_mat_[1] < 8) m->y2_mat_[1] = 8;
 
       m->uv_mat_[0] = kDcTable[clip(q + dquv_dc, 117)];

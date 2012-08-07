@@ -10,26 +10,6 @@
     ['use_system_libwebp==0', {
       'targets': [
         {
-          'target_name': 'libwebp_enc',
-          'type': 'static_library',
-          'include_dirs': ['.'],
-          'sources': [
-            'enc/alpha.c',
-            'enc/analysis.c',
-            'enc/config.c',
-            'enc/cost.c',
-            'enc/filter.c',
-            'enc/frame.c',
-            'enc/iterator.c',
-            'enc/layer.c',
-            'enc/picture.c',
-            'enc/quant.c',
-            'enc/syntax.c',
-            'enc/tree.c',
-            'enc/webpenc.c',
-          ],
-        },
-        {
           'target_name': 'libwebp_dec',
           'type': 'static_library',
           'include_dirs': ['.'],
@@ -43,6 +23,7 @@
             'dec/quant.c',
             'dec/tree.c',
             'dec/vp8.c',
+            'dec/vp8l.c',
             'dec/webp.c',
           ],
         },
@@ -53,15 +34,21 @@
           'sources': [
             'dsp/cpu.c',
             'dsp/dec.c',
-            'dsp/dec_neon.c',
             'dsp/dec_sse2.c',
             'dsp/enc.c',
             'dsp/enc_sse2.c',
+            'dsp/lossless.c',
             'dsp/upsampling.c',
             'dsp/upsampling_sse2.c',
             'dsp/yuv.c',
           ],
           'conditions': [
+            ['OS == "android"', {
+              'include_dirs': ['./dsp'],
+              'sources': [
+                'dsp/cpu-features.c',
+              ],
+            }],
             ['order_profiling != 0', {
               'target_conditions' : [
                 ['_toolset=="target"', {
@@ -72,22 +59,75 @@
           ],
         },
         {
+          'target_name': 'libwebp_dsp_neon',
+          'type': 'static_library',
+          'include_dirs': ['.'],
+          'sources': [
+            'dsp/dec_neon.c',
+          ],
+          'conditions': [
+            ['armv7 == 1', {
+              # behavior similar dsp_neon.c.neon in an Android.mk
+              'cflags!': [ '-mfpu=vfpv3-d16' ],
+              'cflags': [ '-mfpu=neon' ],
+            }],
+            ['order_profiling != 0', {
+              'target_conditions' : [
+                ['_toolset=="target"', {
+                  'cflags!': [ '-finstrument-functions' ],
+                }],
+              ],
+            }],
+          ],
+        },
+        {
+          'target_name': 'libwebp_enc',
+          'type': 'static_library',
+          'include_dirs': ['.'],
+          'sources': [
+            'enc/alpha.c',
+            'enc/analysis.c',
+            'enc/backward_references.c',
+            'enc/config.c',
+            'enc/cost.c',
+            'enc/filter.c',
+            'enc/frame.c',
+            'enc/histogram.c',
+            'enc/iterator.c',
+            'enc/layer.c',
+            'enc/picture.c',
+            'enc/quant.c',
+            'enc/syntax.c',
+            'enc/tree.c',
+            'enc/vp8l.c',
+            'enc/webpenc.c',
+          ],
+        },
+        {
           'target_name': 'libwebp_utils',
           'type': 'static_library',
           'include_dirs': ['.'],
           'sources': [
             'utils/bit_reader.c',
             'utils/bit_writer.c',
+            'utils/color_cache.c',
+            'utils/filters.c',
+            'utils/huffman.c',
+            'utils/huffman_encode.c',
+            'utils/quant_levels.c',
+            'utils/rescaler.c',
             'utils/thread.c',
+            'utils/utils.c',
           ],
         },
         {
           'target_name': 'libwebp',
           'type': 'none',
           'dependencies' : [
-            'libwebp_enc',
             'libwebp_dec',
             'libwebp_dsp',
+            'libwebp_dsp_neon',
+            'libwebp_enc',
             'libwebp_utils',
           ],
           'direct_dependent_settings': {
