@@ -29,8 +29,6 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
   virtual void ShowAudioInputSettings() OVERRIDE;
   virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)
       OVERRIDE;
-  virtual void MuteAll() OVERRIDE;
-  virtual void UnMuteAll() OVERRIDE;
 
   // Implementation of AudioManagerBase.
   virtual AudioOutputStream* MakeLinearOutputStream(

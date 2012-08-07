@@ -121,12 +121,6 @@ bool AudioManagerWin::HasAudioInputDevices() {
   return (::waveInGetNumDevs() != 0);
 }
 
-void AudioManagerWin::MuteAll() {
-}
-
-void AudioManagerWin::UnMuteAll() {
-}
-
 string16 AudioManagerWin::GetAudioInputDeviceModel() {
   // Get the default audio capture device and its device interface name.
   DWORD device_id = 0;

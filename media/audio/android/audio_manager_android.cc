@@ -36,14 +36,6 @@ bool AudioManagerAndroid::HasAudioInputDevices() {
   return false;
 }
 
-void AudioManagerAndroid::MuteAll() {
-  NOTIMPLEMENTED();
-}
-
-void AudioManagerAndroid::UnMuteAll() {
-  NOTIMPLEMENTED();
-}
-
 AudioOutputStream* AudioManagerAndroid::MakeLinearOutputStream(
       const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());

@@ -58,12 +58,6 @@ media::AudioInputStream* MockAudioManager::MakeAudioInputStream(
   return NULL;
 }
 
-void MockAudioManager::MuteAll() {
-}
-
-void MockAudioManager::UnMuteAll() {
-}
-
 bool MockAudioManager::IsRecordingInProcess() {
   return false;
 }

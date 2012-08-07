@@ -106,11 +106,6 @@ class MEDIA_EXPORT AudioManager {
   virtual AudioInputStream* MakeAudioInputStream(
       const AudioParameters& params, const std::string& device_id) = 0;
 
-  // Muting continues playback but effectively the volume is set to zero.
-  // Un-muting returns the volume to the previous level.
-  virtual void MuteAll() = 0;
-  virtual void UnMuteAll() = 0;
-
   // Used to determine if something else is currently making use of audio input.
   virtual bool IsRecordingInProcess() = 0;
 
