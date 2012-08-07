@@ -26,6 +26,10 @@ class SourceBufferStreamTest : public testing::Test {
     stream_->SetStartTime(base::TimeDelta());
   }
 
+  void SetMemoryLimit(int buffers_of_data) {
+    stream_->set_memory_limit(buffers_of_data * kDataSize);
+  }
+
   void SetStreamInfo(int frames_per_second, int keyframes_per_second) {
     frames_per_second_ = frames_per_second;
     keyframes_per_second_ = keyframes_per_second;
@@ -1526,6 +1530,296 @@ TEST_F(SourceBufferStreamTest, PresentationTimestampIndependence) {
       EXPECT_LT(buffer->GetTimestamp(), buffer->GetDecodeTimestamp());
     }
   }
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_DeleteFront) {
+  // Set memory limit to 20 buffers.
+  SetMemoryLimit(20);
+
+  // Append 20 buffers at positions 0 through 19.
+  NewSegmentAppend(0, 1, &kDataA);
+  for (int i = 1; i < 20; i++)
+    AppendBuffers(i, 1, &kDataA);
+
+  // None of the buffers should trigger garbage collection, so all data should
+  // be there as expected.
+  CheckExpectedRanges("{ [0,19) }");
+  Seek(0);
+  CheckExpectedBuffers(0, 19, &kDataA);
+
+  // Seek to the middle of the stream.
+  Seek(10);
+
+  // Append 5 buffers to the end of the stream.
+  AppendBuffers(20, 5, &kDataA);
+
+  // GC should have deleted the first 5 buffers.
+  CheckExpectedRanges("{ [5,24) }");
+  CheckExpectedBuffers(10, 24, &kDataA);
+  Seek(5);
+  CheckExpectedBuffers(5, 9, &kDataA);
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_DeleteFrontGOPsAtATime) {
+  // Set memory limit to 20 buffers.
+  SetMemoryLimit(20);
+
+  // Append 20 buffers at positions 0 through 19.
+  NewSegmentAppend(0, 20, &kDataA);
+
+  // Seek to position 10.
+  Seek(10);
+
+  // Add one buffer to put the memory over the cap.
+  AppendBuffers(20, 1, &kDataA);
+
+  // GC should have deleted the first 5 buffers so that the range still begins
+  // with a keyframe.
+  CheckExpectedRanges("{ [5,20) }");
+  CheckExpectedBuffers(10, 20, &kDataA);
+  Seek(5);
+  CheckExpectedBuffers(5, 9, &kDataA);
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_DeleteBack) {
+  // Set memory limit to 5 buffers.
+  SetMemoryLimit(5);
+
+  // Seek to position 0.
+  Seek(0);
+
+  // Append 20 buffers at positions 0 through 19.
+  NewSegmentAppend(0, 20, &kDataA);
+
+  // Should leave the first 5 buffers from 0 to 4.
+  CheckExpectedRanges("{ [0,4) }");
+  CheckExpectedBuffers(0, 4, &kDataA);
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_DeleteFrontAndBack) {
+  // Set memory limit to 3 buffers.
+  SetMemoryLimit(3);
+
+  // Seek to position 15.
+  Seek(15);
+
+  // Append 20 buffers at positions 0 through 19.
+  NewSegmentAppend(0, 20, &kDataA);
+
+  // Should leave 3 buffers, starting at the seek position.
+  CheckExpectedRanges("{ [15,17) }");
+  CheckExpectedBuffers(15, 17, &kDataA);
+  CheckNoNextBuffer();
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_DeleteFrontAndBack2) {
+  // Set memory limit to 1 buffer.
+  SetMemoryLimit(1);
+
+  // Seek to position 15.
+  Seek(15);
+
+  // Append 20 buffers at positions 0 through 19.
+  NewSegmentAppend(0, 20, &kDataA);
+
+  // Should leave just the buffer at position 15.
+  CheckExpectedRanges("{ [15,15) }");
+  CheckExpectedBuffers(15, 15, &kDataA);
+  CheckNoNextBuffer();
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_DeleteSeveralRanges) {
+  // Append 5 buffers at positions 0 through 4.
+  NewSegmentAppend(0, 5, &kDataA);
+
+  // Append 5 buffers at positions 10 through 14.
+  NewSegmentAppend(10, 5, &kDataA);
+
+  // Append 5 buffers at positions 20 through 24.
+  NewSegmentAppend(20, 5, &kDataA);
+
+  // Append 5 buffers at positions 30 through 34.
+  NewSegmentAppend(30, 5, &kDataA);
+
+  CheckExpectedRanges("{ [0,4) [10,14) [20,24) [30,34) }");
+
+  // Seek to position 21.
+  Seek(20);
+  CheckExpectedBuffers(20, 20, &kDataA);
+
+  // Set memory limit to 1 buffer.
+  SetMemoryLimit(1);
+
+  // Append 5 buffers at positions 40 through 44. This will trigger GC.
+  NewSegmentAppend(40, 5, &kDataA);
+
+  // Should delete everything except current buffer and the keyframe before it.
+  CheckExpectedRanges("{ [20,21) }");
+  CheckExpectedBuffers(21, 21, &kDataA);
+  CheckNoNextBuffer();
+
+  // Make sure appending before and after the ranges didn't somehow break.
+  SetMemoryLimit(100);
+  NewSegmentAppend(0, 10, &kDataA);
+  CheckExpectedRanges("{ [0,9) [20,21) }");
+  Seek(0);
+  CheckExpectedBuffers(0, 9, &kDataA);
+
+  NewSegmentAppend(30, 10, &kDataA);
+  CheckExpectedRanges("{ [0,9) [20,21) [30,39) }");
+  Seek(30);
+  CheckExpectedBuffers(30, 39, &kDataA);
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_NoSeek) {
+  // Set memory limit to 20 buffers.
+  SetMemoryLimit(20);
+
+  // Append 25 buffers at positions 0 through 24.
+  NewSegmentAppend(0, 25, &kDataA);
+
+  // GC deletes the first 5 buffers to keep the memory limit within cap.
+  CheckExpectedRanges("{ [5,24) }");
+  CheckNoNextBuffer();
+  Seek(5);
+  CheckExpectedBuffers(5, 24, &kDataA);
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_PendingSeek) {
+  // Append 10 buffers at positions 0 through 9.
+  NewSegmentAppend(0, 10, &kDataA);
+
+  // Append 5 buffers at positions 25 through 29.
+  NewSegmentAppend(25, 5, &kDataA);
+
+  // Seek to position 15.
+  Seek(15);
+  CheckNoNextBuffer();
+
+  CheckExpectedRanges("{ [0,9) [25,29) }");
+
+  // Set memory limit to 5 buffers.
+  SetMemoryLimit(5);
+
+  // Append 5 buffers as positions 30 to 34 to trigger GC.
+  AppendBuffers(30, 5, &kDataA);
+
+  // The current algorithm will delete from the beginning until the memory is
+  // under cap.
+  CheckExpectedRanges("{ [30,34) }");
+
+  // Expand memory limit again so that GC won't be triggered.
+  SetMemoryLimit(100);
+
+  // Append data to fulfill seek.
+  NewSegmentAppend(15, 5, &kDataA);
+
+  // Check to make sure all is well.
+  CheckExpectedRanges("{ [15,19) [30,34) }");
+  CheckExpectedBuffers(15, 19, &kDataA);
+  Seek(30);
+  CheckExpectedBuffers(30, 34, &kDataA);
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_NeedsMoreData) {
+  // Set memory limit to 10 buffers.
+  SetMemoryLimit(10);
+
+  // Append 10 buffers at positions 0 through 9.
+  NewSegmentAppend(0, 10, &kDataA);
+
+  // Advance next buffer position to 10.
+  Seek(0);
+  CheckExpectedBuffers(0, 9, &kDataA);
+  CheckNoNextBuffer();
+
+  // Append 20 buffers at positions 15 through 34.
+  NewSegmentAppend(15, 20, &kDataA);
+
+  // GC should have saved the keyframe before the current seek position and the
+  // data closest to the current seek position.
+  CheckExpectedRanges("{ [5,9) [15,19) }");
+
+  // Now fulfill the seek at position 10. This will make GC delete the data
+  // before position 10 to keep it within cap.
+  NewSegmentAppend(10, 5, &kDataA);
+  CheckExpectedRanges("{ [10,19) }");
+  CheckExpectedBuffers(10, 19, &kDataA);
+}
+
+TEST_F(SourceBufferStreamTest, GarbageCollection_TrackBuffer) {
+  // Set memory limit to 3 buffers.
+  SetMemoryLimit(3);
+
+  // Seek to position 15.
+  Seek(15);
+
+  // Append 20 buffers at positions 0 through 19.
+  NewSegmentAppend(0, 20, &kDataA);
+
+  // Should leave 3 buffers starting at 15.
+  CheckExpectedRanges("{ [15,17) }");
+
+  // Seek ahead to position 16.
+  CheckExpectedBuffers(15, 15, &kDataA);
+
+  // Add 5 buffers from position 20 to 24.
+  NewSegmentAppend(20, 5, &kDataA);
+
+  // The newly added buffers should be garbage collected immediately.
+  CheckExpectedRanges("{ [15,17) }");
+
+  // Completely overlap the existing buffers.
+  NewSegmentAppend(0, 20, &kDataB);
+
+  // Because buffers 16 and 17 are not keyframes, they are moved to the track
+  // buffer upon overlap. The source buffer (i.e. not the track buffer) is now
+  // waiting for the next keyframe, which is why buffers 18 and 19 are not GC'd.
+  CheckExpectedRanges("{ [15,19) }");
+  CheckExpectedBuffers(16, 17, &kDataA);
+  CheckNoNextBuffer();
+
+  // Now add a keyframe at position 20.
+  AppendBuffers(20, 5, &kDataB);
+
+  // Should garbage collect such that there are 3 frames remaining, starting at
+  // the keyframe.
+  CheckExpectedRanges("{ [20,22) }");
+  CheckExpectedBuffers(20, 22, &kDataB);
+  CheckNoNextBuffer();
+}
+
+// Currently disabled because of bug: crbug.com/140875.
+TEST_F(SourceBufferStreamTest, DISABLED_GarbageCollection_WaitingForKeyframe) {
+  // Set memory limit to 10 buffers.
+  SetMemoryLimit(10);
+
+  // Append 5 buffers at positions 10 through 14 and exhaust the buffers.
+  NewSegmentAppend(10, 5, &kDataA);
+  Seek(10);
+  CheckExpectedBuffers(10, 14, &kDataA);
+  CheckExpectedRanges("{ [10,14) }");
+
+  // We are now stalled at position 15.
+  CheckNoNextBuffer();
+
+  // Do an end overlap that causes the latter half of the range to be deleted.
+  NewSegmentAppend(5, 6, &kDataA);
+  CheckNoNextBuffer();
+  CheckExpectedRanges("{ [5,10) }");
+
+  // Append buffers from position 20 to 29. This should trigger GC.
+  NewSegmentAppend(20, 10, &kDataA);
+
+  // GC should keep the keyframe before the seek position 15, and the next 9
+  // buffers closest to the seek position.
+  CheckNoNextBuffer();
+  CheckExpectedRanges("{ [10,10) [20,28) }");
+
+  // Fulfill the seek by appending one buffer at 15.
+  NewSegmentAppend(15, 1, &kDataA);
+  CheckExpectedBuffers(15, 15, &kDataA);
+  CheckExpectedRanges("{ [15,15) [20,28) }");
 }
 
 // TODO(vrk): Add unit tests where keyframes are unaligned between streams.
