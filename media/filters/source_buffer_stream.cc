@@ -231,6 +231,12 @@ static bool BufferComparator(
 // is set and there's not enough information to get a better estimate.
 static int kDefaultBufferDurationInMs = 125;
 
+// The amount of time the beginning of the buffered data can differ from the
+// start time in order to still be considered the start of stream.
+static base::TimeDelta kSeekToStartFudgeRoom() {
+  return base::TimeDelta::FromMilliseconds(1000);
+}
+
 namespace media {
 
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
@@ -388,10 +394,15 @@ bool SourceBufferStream::Append(
   return true;
 }
 
-bool SourceBufferStream::IsBeforeFirstRange(base::TimeDelta timestamp) const {
+bool SourceBufferStream::ShouldSeekToStartOfBuffered(
+    base::TimeDelta seek_timestamp) const {
   if (ranges_.empty())
     return false;
-  return timestamp < ranges_.front()->GetStartTimestamp();
+  base::TimeDelta beginning_of_buffered =
+      ranges_.front()->GetStartTimestamp();
+  base::TimeDelta start_time_delta = beginning_of_buffered - stream_start_time_;
+  return seek_timestamp <= beginning_of_buffered &&
+      start_time_delta < kSeekToStartFudgeRoom();
 }
 
 bool SourceBufferStream::IsMonotonicallyIncreasing(
@@ -651,7 +662,7 @@ void SourceBufferStream::Seek(base::TimeDelta timestamp) {
   SetSelectedRange(NULL);
   track_buffer_.clear();
 
-  if (IsBeforeFirstRange(timestamp)) {
+  if (ShouldSeekToStartOfBuffered(timestamp)) {
     SetSelectedRange(ranges_.front());
     ranges_.front()->SeekToStart();
     seek_pending_ = false;
