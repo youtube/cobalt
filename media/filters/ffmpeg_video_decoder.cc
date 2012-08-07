@@ -54,13 +54,14 @@ static int GetThreadCount(CodecID codec_id) {
 }
 
 FFmpegVideoDecoder::FFmpegVideoDecoder(
-    const base::Callback<MessageLoop*()>& message_loop_cb)
+    const base::Callback<MessageLoop*()>& message_loop_cb,
+    Decryptor* decryptor)
     : message_loop_factory_cb_(message_loop_cb),
       message_loop_(NULL),
       state_(kUninitialized),
       codec_context_(NULL),
       av_frame_(NULL),
-      decryptor_(NULL) {
+      decryptor_(decryptor) {
 }
 
 int FFmpegVideoDecoder::GetVideoBuffer(AVCodecContext* codec_context,
@@ -254,11 +255,6 @@ void FFmpegVideoDecoder::DoStop() {
   ReleaseFFmpegResources();
   state_ = kUninitialized;
   base::ResetAndReturn(&stop_cb_).Run();
-}
-
-void FFmpegVideoDecoder::set_decryptor(Decryptor* decryptor) {
-  DCHECK_EQ(state_, kUninitialized);
-  decryptor_ = decryptor;
 }
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder() {

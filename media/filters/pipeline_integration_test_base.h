@@ -12,11 +12,12 @@
 #include "media/base/message_loop_factory.h"
 #include "media/base/pipeline.h"
 #include "media/filters/chunk_demuxer.h"
-#include "media/filters/ffmpeg_video_decoder.h"
 #include "media/filters/video_renderer_base.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
+
+class Decryptor;
 
 // Empty MD5 hash string.  Used to verify empty audio or video tracks.
 extern const char kNullHash[];
@@ -53,7 +54,7 @@ class PipelineIntegrationTestBase {
   bool WaitUntilCurrentTimeIsAfter(const base::TimeDelta& wait_time);
   scoped_ptr<FilterCollection> CreateFilterCollection(const std::string& url);
   scoped_ptr<FilterCollection> CreateFilterCollection(
-      ChunkDemuxerClient* client);
+      ChunkDemuxerClient* client, Decryptor* decryptor);
 
   // Returns the MD5 hash of all video frames seen.  Should only be called once
   // after playback completes.  First time hashes should be generated with
@@ -72,7 +73,6 @@ class PipelineIntegrationTestBase {
   bool hashing_enabled_;
   scoped_ptr<MessageLoopFactory> message_loop_factory_;
   scoped_refptr<Pipeline> pipeline_;
-  scoped_refptr<FFmpegVideoDecoder> decoder_;
   scoped_refptr<VideoRendererBase> renderer_;
   scoped_refptr<NullAudioSink> audio_sink_;
   bool ended_;
@@ -86,7 +86,7 @@ class PipelineIntegrationTestBase {
   void OnError(PipelineStatus status);
   void QuitAfterCurrentTimeTask(const base::TimeDelta& quit_time);
   scoped_ptr<FilterCollection> CreateFilterCollection(
-      const scoped_refptr<Demuxer>& demuxer);
+      const scoped_refptr<Demuxer>& demuxer, Decryptor* decryptor);
   void OnVideoRendererPaint();
 
   MOCK_METHOD1(OnSetOpaque, void(bool));
