@@ -103,7 +103,13 @@ class MEDIA_EXPORT SourceBufferStream {
   base::TimeDelta GetMaxInterbufferDistance() const;
 
  private:
+  friend class SourceBufferStreamTest;
   typedef std::list<SourceBufferRange*> RangeList;
+
+  void set_memory_limit(int memory_limit) { memory_limit_ = memory_limit; }
+
+  // Frees up space if the SourceBufferStream is taking up too much memory.
+  void GarbageCollectIfNeeded();
 
   // Appends |new_buffers| into |range_for_new_buffers_itr|, handling start and
   // end overlaps if necessary.
@@ -251,6 +257,9 @@ class MEDIA_EXPORT SourceBufferStream {
 
   // Stores the largest distance between two adjacent buffers in this stream.
   base::TimeDelta max_interbuffer_distance_;
+
+// The maximum amount of data in bytes the stream will keep in memory.
+  int memory_limit_;
 
   DISALLOW_COPY_AND_ASSIGN(SourceBufferStream);
 };
