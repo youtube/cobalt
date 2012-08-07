@@ -34,7 +34,6 @@ class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
   virtual void Close() OVERRIDE;
 
   uint8* buffer() { return buffer_.get(); }
-  double volume() { return volume_; }
 
  private:
   explicit FakeAudioOutputStream(AudioManagerBase* manager,

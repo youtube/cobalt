@@ -78,14 +78,10 @@ class MockAudioManagerLinux : public AudioManagerLinux {
   MOCK_METHOD0(Init, void());
   MOCK_METHOD0(HasAudioOutputDevices, bool());
   MOCK_METHOD0(HasAudioInputDevices, bool());
-  MOCK_METHOD0(MuteAll, void());
-  MOCK_METHOD0(UnMuteAll, void());
   MOCK_METHOD1(MakeLinearOutputStream, AudioOutputStream*(
       const AudioParameters& params));
   MOCK_METHOD1(MakeLowLatencyOutputStream, AudioOutputStream*(
       const AudioParameters& params));
-  MOCK_METHOD2(MakeLinearOutputStream, AudioInputStream*(
-      const AudioParameters& params, const std::string& device_id));
   MOCK_METHOD2(MakeLowLatencyInputStream, AudioInputStream*(
       const AudioParameters& params, const std::string& device_id));
 

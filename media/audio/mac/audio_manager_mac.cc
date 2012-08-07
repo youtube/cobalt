@@ -255,14 +255,6 @@ void AudioManagerMac::GetAudioInputDeviceNames(
   }
 }
 
-void AudioManagerMac::MuteAll() {
-  // TODO(cpu): implement.
-}
-
-void AudioManagerMac::UnMuteAll() {
-  // TODO(cpu): implement.
-}
-
 AudioOutputStream* AudioManagerMac::MakeLinearOutputStream(
     const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());

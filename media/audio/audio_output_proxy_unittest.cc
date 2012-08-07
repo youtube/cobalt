@@ -54,7 +54,6 @@ class MockAudioManager : public AudioManager {
   MockAudioManager() {}
 
   MOCK_METHOD0(Init, void());
-  MOCK_METHOD0(Cleanup, void());
   MOCK_METHOD0(HasAudioOutputDevices, bool());
   MOCK_METHOD0(HasAudioInputDevices, bool());
   MOCK_METHOD0(GetAudioInputDeviceModel, string16());
@@ -64,8 +63,6 @@ class MockAudioManager : public AudioManager {
       const AudioParameters& params));
   MOCK_METHOD2(MakeAudioInputStream, AudioInputStream*(
       const AudioParameters& params, const std::string& device_id));
-  MOCK_METHOD0(MuteAll, void());
-  MOCK_METHOD0(UnMuteAll, void());
   MOCK_METHOD0(CanShowAudioInputSettings, bool());
   MOCK_METHOD0(ShowAudioInputSettings, void());
   MOCK_METHOD0(GetMessageLoop, scoped_refptr<base::MessageLoopProxy>());
