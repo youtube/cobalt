@@ -636,10 +636,12 @@
               'DelayLoadDLLs': [
                 'd2d1.dll',
                 'd3d10_1.dll',
+                'dwmapi.dll',
               ],
               'AdditionalDependencies': [
                 'd2d1.lib',
                 'd3d10_1.lib',
+                'dwmapi.lib',
               ],
             },
           },
@@ -647,6 +649,7 @@
             'libraries': [
               '-limm32.lib',
               '-ld2d1.lib',
+              '-ldwmapi.lib',
               '-loleacc.lib',
             ],
           },
