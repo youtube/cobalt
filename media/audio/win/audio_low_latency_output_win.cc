@@ -21,6 +21,300 @@ using base::win::ScopedCoMem;
 
 namespace media {
 
+typedef uint32 ChannelConfig;
+
+// Ensure that the alignment of members will be on a boundary that is a
+// multiple of 1 byte.
+#pragma pack(push)
+#pragma pack(1)
+
+struct LayoutMono_16bit {
+  int16 center;
+};
+
+struct LayoutStereo_16bit {
+  int16 left;
+  int16 right;
+};
+
+struct Layout5_1_16bit {
+  int16 front_left;
+  int16 front_right;
+  int16 front_center;
+  int16 low_frequency;
+  int16 back_left;
+  int16 back_right;
+};
+
+struct Layout7_1_16bit {
+  int16 front_left;
+  int16 front_right;
+  int16 front_center;
+  int16 low_frequency;
+  int16 back_left;
+  int16 back_right;
+  int16 side_left;
+  int16 side_right;
+};
+
+#pragma pack(pop)
+
+// Retrieves the stream format that the audio engine uses for its internal
+// processing/mixing of shared-mode streams.
+static HRESULT GetMixFormat(ERole device_role, WAVEFORMATEX** device_format) {
+  // Note that we are using the IAudioClient::GetMixFormat() API to get the
+  // device format in this function. It is in fact possible to be "more native",
+  // and ask the endpoint device directly for its properties. Given a reference
+  // to the IMMDevice interface of an endpoint object, a client can obtain a
+  // reference to the endpoint object's property store by calling the
+  // IMMDevice::OpenPropertyStore() method. However, I have not been able to
+  // access any valuable information using this method on my HP Z600 desktop,
+  // hence it feels more appropriate to use the IAudioClient::GetMixFormat()
+  // approach instead.
+
+  // Calling this function only makes sense for shared mode streams, since
+  // if the device will be opened in exclusive mode, then the application
+  // specified format is used instead. However, the result of this method can
+  // be useful for testing purposes so we don't DCHECK here.
+  DLOG_IF(WARNING, WASAPIAudioOutputStream::GetShareMode() ==
+          AUDCLNT_SHAREMODE_EXCLUSIVE) <<
+      "The mixing sample rate will be ignored for exclusive-mode streams.";
+
+  // It is assumed that this static method is called from a COM thread, i.e.,
+  // CoInitializeEx() is not called here again to avoid STA/MTA conflicts.
+  ScopedComPtr<IMMDeviceEnumerator> enumerator;
+  HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator),
+                                NULL,
+                                CLSCTX_INPROC_SERVER,
+                                __uuidof(IMMDeviceEnumerator),
+                                enumerator.ReceiveVoid());
+  if (FAILED(hr)) {
+    NOTREACHED() << "error code: " << std::hex << hr;
+    return hr;
+  }
+
+  ScopedComPtr<IMMDevice> endpoint_device;
+  hr = enumerator->GetDefaultAudioEndpoint(eRender,
+                                           device_role,
+                                           endpoint_device.Receive());
+  if (FAILED(hr)) {
+    // This will happen if there's no audio output device found or available
+    // (e.g. some audio cards that have outputs will still report them as
+    // "not found" when no speaker is plugged into the output jack).
+    LOG(WARNING) << "No audio end point: " << std::hex << hr;
+    return hr;
+  }
+
+  ScopedComPtr<IAudioClient> audio_client;
+  hr = endpoint_device->Activate(__uuidof(IAudioClient),
+                                 CLSCTX_INPROC_SERVER,
+                                 NULL,
+                                 audio_client.ReceiveVoid());
+  DCHECK(SUCCEEDED(hr)) << "Failed to activate device: " << std::hex << hr;
+  if (SUCCEEDED(hr)) {
+    hr = audio_client->GetMixFormat(device_format);
+    DCHECK(SUCCEEDED(hr)) << "GetMixFormat: " << std::hex << hr;
+  }
+
+  return hr;
+}
+
+// Retrieves an integer mask which corresponds to the channel layout the
+// audio engine uses for its internal processing/mixing of shared-mode
+// streams. This mask indicates which channels are present in the multi-
+// channel stream. The least significant bit corresponds with the Front Left
+// speaker, the next least significant bit corresponds to the Front Right
+// speaker, and so on, continuing in the order defined in KsMedia.h.
+// See http://msdn.microsoft.com/en-us/library/windows/hardware/ff537083(v=vs.85).aspx
+// for more details.
+static ChannelConfig GetChannelConfig() {
+  // Use a WAVEFORMATEXTENSIBLE structure since it can specify both the
+  // number of channels and the mapping of channels to speakers for
+  // multichannel devices.
+  base::win::ScopedCoMem<WAVEFORMATPCMEX> format_ex;
+  HRESULT hr = S_FALSE;
+  hr = GetMixFormat(eConsole, reinterpret_cast<WAVEFORMATEX**>(&format_ex));
+  if (FAILED(hr))
+    return 0;
+
+  // The dwChannelMask member specifies which channels are present in the
+  // multichannel stream. The least significant bit corresponds to the
+  // front left speaker, the next least significant bit corresponds to the
+  // front right speaker, and so on.
+  // See http://msdn.microsoft.com/en-us/library/windows/desktop/dd757714(v=vs.85).aspx
+  // for more details on the channel mapping.
+  DVLOG(2) << "dwChannelMask: 0x" << std::hex << format_ex->dwChannelMask;
+
+#if !defined(NDEBUG)
+  // See http://en.wikipedia.org/wiki/Surround_sound for more details on
+  // how to name various speaker configurations. The list below is not complete.
+  const char* speaker_config = "Undefined";
+  switch (format_ex->dwChannelMask) {
+    case KSAUDIO_SPEAKER_MONO:
+      speaker_config = "Mono";
+      break;
+    case KSAUDIO_SPEAKER_STEREO:
+      speaker_config = "Stereo";
+      break;
+    case KSAUDIO_SPEAKER_5POINT1_SURROUND:
+      speaker_config = "5.1 surround";
+      break;
+    case KSAUDIO_SPEAKER_5POINT1:
+      speaker_config = "5.1";
+      break;
+    case KSAUDIO_SPEAKER_7POINT1_SURROUND:
+      speaker_config = "7.1 surround";
+      break;
+    case KSAUDIO_SPEAKER_7POINT1:
+      speaker_config = "7.1";
+      break;
+    default:
+      break;
+  }
+  DVLOG(2) << "speaker configuration: " << speaker_config;
+#endif
+
+  return static_cast<ChannelConfig>(format_ex->dwChannelMask);
+}
+
+// Converts Microsoft's channel configuration to ChannelLayout.
+// This mapping is not perfect but the best we can do given the current
+// ChannelLayout enumerator and the Windows-specific speaker configurations
+// defined in ksmedia.h. Don't assume that the channel ordering in
+// ChannelLayout is exactly the same as the Windows specific configuration.
+// As an example: KSAUDIO_SPEAKER_7POINT1_SURROUND is mapped to
+// CHANNEL_LAYOUT_7_1 but the positions of Back L, Back R and Side L, Side R
+// speakers are different in these two definitions.
+static ChannelLayout ChannelConfigToChannelLayout(ChannelConfig config) {
+  switch (config) {
+    case KSAUDIO_SPEAKER_DIRECTOUT:
+      return CHANNEL_LAYOUT_NONE;
+    case KSAUDIO_SPEAKER_MONO:
+      return CHANNEL_LAYOUT_MONO;
+    case KSAUDIO_SPEAKER_STEREO:
+      return CHANNEL_LAYOUT_STEREO;
+    case KSAUDIO_SPEAKER_QUAD:
+      return CHANNEL_LAYOUT_QUAD;
+    case KSAUDIO_SPEAKER_SURROUND:
+      return CHANNEL_LAYOUT_4_0;
+    case KSAUDIO_SPEAKER_5POINT1:
+      return CHANNEL_LAYOUT_5_1_BACK;
+    case KSAUDIO_SPEAKER_5POINT1_SURROUND:
+      return CHANNEL_LAYOUT_5_1;
+    case KSAUDIO_SPEAKER_7POINT1:
+      return CHANNEL_LAYOUT_7_1_WIDE;
+    case KSAUDIO_SPEAKER_7POINT1_SURROUND:
+      return CHANNEL_LAYOUT_7_1;
+    default:
+      DVLOG(1) << "Unsupported channel layout: " << config;
+      return CHANNEL_LAYOUT_UNSUPPORTED;
+  }
+}
+
+// mono/stereo -> N.1 up-mixing where N=out_channels-1.
+// See http://www.w3.org/TR/webaudio/#UpMix-sub for details.
+// TODO(henrika): try to reduce the size of this function.
+// TODO(henrika): use ChannelLayout for channel parameters.
+// TODO(henrika): can we do this in-place by processing the samples in
+// reverse order when sizeof(out) > sizeof(in) (upmixing)?
+// TODO(henrika): add support for other bit-depths as well?
+static int ChannelUpMix(void* input,
+                        void* output,
+                        int in_channels,
+                        int out_channels,
+                        size_t number_of_input_bytes,
+                        int bytes_per_sample) {
+  DCHECK_GT(out_channels, in_channels);
+  DCHECK_EQ(bytes_per_sample, 2);
+
+  if (bytes_per_sample != 2) {
+    LOG(ERROR) << "Only 16-bit samples are supported.";
+    return 0;
+  }
+
+  const int kChannelRatio = out_channels / in_channels;
+
+  // 1 -> 2
+  if (in_channels == 1 && out_channels == 2) {
+    LayoutMono_16bit* in = reinterpret_cast<LayoutMono_16bit*>(input);
+    LayoutStereo_16bit* out = reinterpret_cast<LayoutStereo_16bit*>(output);
+    int number_of_input_mono_samples = (number_of_input_bytes >> 1);
+
+    // Copy same input mono sample to both output channels.
+    for (int i = 0; i < number_of_input_mono_samples; ++i) {
+      out->left = in->center;
+      out->right = in->center;
+      in++;
+      out++;
+    }
+
+    return (kChannelRatio * number_of_input_bytes);
+  }
+
+  // 1 -> 7.1
+  if (in_channels == 1 && out_channels == 8) {
+    LayoutMono_16bit* in = reinterpret_cast<LayoutMono_16bit*>(input);
+    Layout7_1_16bit* out = reinterpret_cast<Layout7_1_16bit*>(output);
+    int number_of_input_mono_samples = (number_of_input_bytes >> 1);
+
+    // Zero out all frames first.
+    memset(out, 0, number_of_input_mono_samples * sizeof(out[0]));
+
+    // Copy input sample to output center channel.
+    for (int i = 0; i < number_of_input_mono_samples; ++i) {
+      out->front_center = in->center;
+      in++;
+      out++;
+    }
+
+    return (kChannelRatio * number_of_input_bytes);
+  }
+
+  // 2 -> 5.1
+  if (in_channels == 2 && out_channels == 6) {
+    LayoutStereo_16bit* in = reinterpret_cast<LayoutStereo_16bit*>(input);
+    Layout5_1_16bit* out = reinterpret_cast<Layout5_1_16bit*>(output);
+    int number_of_input_stereo_samples = (number_of_input_bytes >> 2);
+
+    // Zero out all frames first.
+    memset(out, 0, number_of_input_stereo_samples * sizeof(out[0]));
+
+    // Copy left and right input channels to the same output channels.
+    for (int i = 0; i < number_of_input_stereo_samples; ++i) {
+      out->front_left = in->left;
+      out->front_right = in->right;
+      in++;
+      out++;
+    }
+
+    return (kChannelRatio * number_of_input_bytes);
+  }
+
+  // 2 -> 7.1
+  if (in_channels == 2 && out_channels == 8) {
+    LayoutStereo_16bit* in = reinterpret_cast<LayoutStereo_16bit*>(input);
+    Layout7_1_16bit* out = reinterpret_cast<Layout7_1_16bit*>(output);
+    int number_of_input_stereo_samples = (number_of_input_bytes >> 2);
+
+    // Zero out all frames first.
+    memset(out, 0, number_of_input_stereo_samples * sizeof(out[0]));
+
+    // Copy left and right input channels to the same output channels.
+    for (int i = 0; i < number_of_input_stereo_samples; ++i) {
+      out->front_left = in->left;
+      out->front_right = in->right;
+      in++;
+      out++;
+    }
+
+    return (kChannelRatio * number_of_input_bytes);
+  }
+
+  LOG(ERROR) << "Up-mixing " << in_channels << "->"
+             << out_channels << " is not supported.";
+  return 0;
+}
+
 // static
 AUDCLNT_SHAREMODE WASAPIAudioOutputStream::GetShareMode() {
   const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
@@ -43,6 +337,7 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
       endpoint_buffer_size_frames_(0),
       device_role_(device_role),
       share_mode_(GetShareMode()),
+      client_channel_count_(params.channels()),
       num_written_frames_(0),
       source_(NULL) {
   CHECK(com_init_.succeeded());
@@ -52,26 +347,54 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
   bool avrt_init = avrt::Initialize();
   DCHECK(avrt_init) << "Failed to load the avrt.dll";
 
-  if (share_mode() == AUDCLNT_SHAREMODE_EXCLUSIVE) {
+  if (share_mode_ == AUDCLNT_SHAREMODE_EXCLUSIVE) {
     VLOG(1) << ">> Note that EXCLUSIVE MODE is enabled <<";
   }
 
-  // Set up the desired render format specified by the client.
-  format_.nSamplesPerSec = params.sample_rate();
-  format_.wFormatTag = WAVE_FORMAT_PCM;
-  format_.wBitsPerSample = params.bits_per_sample();
-  format_.nChannels = params.channels();
-  format_.nBlockAlign = (format_.wBitsPerSample / 8) * format_.nChannels;
-  format_.nAvgBytesPerSec = format_.nSamplesPerSec * format_.nBlockAlign;
-  format_.cbSize = 0;
+  // Set up the desired render format specified by the client. We use the
+  // WAVE_FORMAT_EXTENSIBLE structure to ensure that multiple channel ordering
+  // and high precision data can be supported.
+
+  // Begin with the WAVEFORMATEX structure that specifies the basic format.
+  WAVEFORMATEX* format = &format_.Format;
+  format->wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+  format->nChannels =  HardwareChannelCount();
+  format->nSamplesPerSec = params.sample_rate();
+  format->wBitsPerSample = params.bits_per_sample();
+  format->nBlockAlign = (format->wBitsPerSample / 8) * format->nChannels;
+  format->nAvgBytesPerSec = format->nSamplesPerSec * format->nBlockAlign;
+  format->cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+
+  // Add the parts which are unique to WAVE_FORMAT_EXTENSIBLE.
+  format_.Samples.wValidBitsPerSample = params.bits_per_sample();
+  format_.dwChannelMask = GetChannelConfig();
+  format_.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
 
   // Size in bytes of each audio frame.
-  frame_size_ = format_.nBlockAlign;
+  frame_size_ = format->nBlockAlign;
+
+  // It is possible to set the number of channels in |params| to a lower value
+  // than we use as the internal number of audio channels when the audio stream
+  // is opened. If this mode (channel_factor_ > 1) is set, the native audio
+  // layer will expect a larger number of channels in the interleaved audio
+  // stream and a channel up-mix will be performed after the OnMoreData()
+  // callback to compensate for the lower number of channels provided by the
+  // audio source.
+  // Example: params.channels() is 2 and endpoint_channel_count() is 8 =>
+  // the audio stream is opened up in 7.1 surround mode but the source only
+  // provides a stereo signal as input, i.e., a stereo up-mix (2 -> 7.1) will
+  // take place before sending the stream to the audio driver.
+  DVLOG(1) << "Channel mixing " << client_channel_count_ << "->"
+           << endpoint_channel_count() << " is requested.";
+  LOG_IF(ERROR, channel_factor() < 1)
+      << "Channel mixing " << client_channel_count_ << "->"
+      << endpoint_channel_count() << " is not supported.";
 
   // Store size (in different units) of audio packets which we expect to
   // get from the audio endpoint device in each render event.
-  packet_size_frames_ = params.GetBytesPerBuffer() / format_.nBlockAlign;
-  packet_size_bytes_ = params.GetBytesPerBuffer();
+  packet_size_frames_ =
+      (channel_factor() * params.GetBytesPerBuffer()) / format->nBlockAlign;
+  packet_size_bytes_ = channel_factor() * params.GetBytesPerBuffer();
   packet_size_ms_ = (1000.0 * packet_size_frames_) / params.sample_rate();
   DVLOG(1) << "Number of bytes per audio frame  : " << frame_size_;
   DVLOG(1) << "Number of audio frames per packet: " << packet_size_frames_;
@@ -99,6 +422,21 @@ bool WASAPIAudioOutputStream::Open() {
   DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
   if (opened_)
     return true;
+
+  // Down-mixing is currently not supported. The number of channels provided
+  // by the audio source must be less than or equal to the number of native
+  // channels (given by endpoint_channel_count()) which is the channel count
+  // used when opening the default endpoint device.
+  if (channel_factor() < 1) {
+    LOG(ERROR) << "Channel down-mixing is not supported";
+    return false;
+  }
+
+  // Only 16-bit audio is supported in combination with channel up-mixing.
+  if (channel_factor() > 1 && (format_.Format.wBitsPerSample != 16)) {
+    LOG(ERROR) << "16-bit audio is required when channel up-mixing is active.";
+    return false;
+  }
 
   // Create an IMMDeviceEnumerator interface and obtain a reference to
   // the IMMDevice interface of the default rendering device with the
@@ -245,7 +583,7 @@ void WASAPIAudioOutputStream::Stop() {
   // If the buffers are not cleared correctly, the next call to Start()
   // would fail with AUDCLNT_E_BUFFER_ERROR at IAudioRenderClient::GetBuffer().
   // This check is is only needed for shared-mode streams.
-  if (share_mode() == AUDCLNT_SHAREMODE_SHARED) {
+  if (share_mode_ == AUDCLNT_SHAREMODE_SHARED) {
     UINT32 num_queued_frames = 0;
     audio_client_->GetCurrentPadding(&num_queued_frames);
     DCHECK_EQ(0u, num_queued_frames);
@@ -293,59 +631,37 @@ void WASAPIAudioOutputStream::GetVolume(double* volume) {
 }
 
 // static
+int WASAPIAudioOutputStream::HardwareChannelCount() {
+  // Use a WAVEFORMATEXTENSIBLE structure since it can specify both the
+  // number of channels and the mapping of channels to speakers for
+  // multichannel devices.
+  base::win::ScopedCoMem<WAVEFORMATPCMEX> format_ex;
+  HRESULT hr = GetMixFormat(
+      eConsole, reinterpret_cast<WAVEFORMATEX**>(&format_ex));
+  if (FAILED(hr))
+    return 0;
+
+  // Number of channels in the stream. Corresponds to the number of bits
+  // set in the dwChannelMask.
+  DVLOG(1) << "endpoint channels (out): " << format_ex->Format.nChannels;
+
+  return static_cast<int>(format_ex->Format.nChannels);
+}
+
+// static
+ChannelLayout WASAPIAudioOutputStream::HardwareChannelLayout() {
+  return ChannelConfigToChannelLayout(GetChannelConfig());
+}
+
+// static
 int WASAPIAudioOutputStream::HardwareSampleRate(ERole device_role) {
-  // Calling this function only makes sense for shared mode streams, since
-  // if the device will be opened in exclusive mode, then the application
-  // specified format is used instead. However, the result of this method can
-  // be useful for testing purposes so we don't DCHECK here.
-  DLOG_IF(WARNING, GetShareMode() == AUDCLNT_SHAREMODE_EXCLUSIVE) <<
-      "The mixing sample rate will be ignored for exclusive-mode streams.";
+  base::win::ScopedCoMem<WAVEFORMATEX> format;
+  HRESULT hr = GetMixFormat(device_role, &format);
+  if (FAILED(hr))
+    return 0;
 
-  // It is assumed that this static method is called from a COM thread, i.e.,
-  // CoInitializeEx() is not called here again to avoid STA/MTA conflicts.
-  ScopedComPtr<IMMDeviceEnumerator> enumerator;
-  HRESULT hr =  CoCreateInstance(__uuidof(MMDeviceEnumerator),
-                                 NULL,
-                                 CLSCTX_INPROC_SERVER,
-                                 __uuidof(IMMDeviceEnumerator),
-                                 enumerator.ReceiveVoid());
-  if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << std::hex << hr;
-    return 0.0;
-  }
-
-  ScopedComPtr<IMMDevice> endpoint_device;
-  hr = enumerator->GetDefaultAudioEndpoint(eRender,
-                                           device_role,
-                                           endpoint_device.Receive());
-  if (FAILED(hr)) {
-    // This will happen if there's no audio output device found or available
-    // (e.g. some audio cards that have outputs will still report them as
-    // "not found" when no speaker is plugged into the output jack).
-    LOG(WARNING) << "No audio end point: " << std::hex << hr;
-    return 0.0;
-  }
-
-  ScopedComPtr<IAudioClient> audio_client;
-  hr = endpoint_device->Activate(__uuidof(IAudioClient),
-                                 CLSCTX_INPROC_SERVER,
-                                 NULL,
-                                 audio_client.ReceiveVoid());
-  if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << std::hex << hr;
-    return 0.0;
-  }
-
-  // Retrieve the stream format that the audio engine uses for its internal
-  // processing of shared-mode streams.
-  base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format;
-  hr = audio_client->GetMixFormat(&audio_engine_mix_format);
-  if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << std::hex << hr;
-    return 0.0;
-  }
-
-  return static_cast<int>(audio_engine_mix_format->nSamplesPerSec);
+  DVLOG(2) << "nSamplesPerSec: " << format->nSamplesPerSec;
+  return static_cast<int>(format->nSamplesPerSec);
 }
 
 void WASAPIAudioOutputStream::Run() {
@@ -426,7 +742,7 @@ void WASAPIAudioOutputStream::Run() {
           // engine has not yet read from the buffer.
           size_t num_available_frames = 0;
 
-          if (share_mode() == AUDCLNT_SHAREMODE_SHARED) {
+          if (share_mode_ == AUDCLNT_SHAREMODE_SHARED) {
             // Get the padding value which represents the amount of rendering
             // data that is queued up to play in the endpoint buffer.
             hr = audio_client_->GetCurrentPadding(&num_queued_frames);
@@ -478,7 +794,7 @@ void WASAPIAudioOutputStream::Run() {
             if (SUCCEEDED(hr)) {
               // Stream position of the sample that is currently playing
               // through the speaker.
-              double pos_sample_playing_frames = format_.nSamplesPerSec *
+              double pos_sample_playing_frames = format_.Format.nSamplesPerSec *
                   (static_cast<double>(position) / device_frequency);
 
               // Stream position of the last sample written to the endpoint
@@ -499,15 +815,42 @@ void WASAPIAudioOutputStream::Run() {
             // time stamp can be used at the client side to compensate for
             // the delay between the usage of the delay value and the time
             // of generation.
-            uint32 num_filled_bytes = source_->OnMoreData(
-                audio_data, packet_size_bytes_,
-                AudioBuffersState(0, audio_delay_bytes));
+
+            uint32 num_filled_bytes = 0;
+            const int bytes_per_sample = format_.Format.wBitsPerSample >> 3;
+
+            if (channel_factor() == 1) {
+              // Case I: no up-mixing.
+              num_filled_bytes = source_->OnMoreData(
+                  audio_data, packet_size_bytes_,
+                  AudioBuffersState(0, audio_delay_bytes));
+            } else {
+              // Case II: up-mixing.
+              const int audio_source_size_bytes =
+                  packet_size_bytes_ / channel_factor();
+              scoped_array<uint8> buffer;
+              buffer.reset(new uint8[audio_source_size_bytes]);
+
+              num_filled_bytes = source_->OnMoreData(
+                  buffer.get(), audio_source_size_bytes,
+                  AudioBuffersState(0, audio_delay_bytes));
+
+              // Do channel up-mixing on 16-bit PCM samples.
+              num_filled_bytes = ChannelUpMix(buffer.get(),
+                                              &audio_data[0],
+                                              client_channel_count_,
+                                              endpoint_channel_count(),
+                                              num_filled_bytes,
+                                              bytes_per_sample);
+            }
 
             // Perform in-place, software-volume adjustments.
+            // TODO(henrika): it is possible to adjust the volume in the
+            // ChannelUpMix() function.
             media::AdjustVolume(audio_data,
                                 num_filled_bytes,
-                                format_.nChannels,
-                                format_.wBitsPerSample >> 3,
+                                endpoint_channel_count(),
+                                bytes_per_sample,
                                 volume_);
 
             // Zero out the part of the packet which has not been filled by
@@ -515,7 +858,7 @@ void WASAPIAudioOutputStream::Run() {
             // situation.
             if (num_filled_bytes < packet_size_bytes_) {
               memset(&audio_data[num_filled_bytes], 0,
-                    (packet_size_bytes_ - num_filled_bytes));
+                     (packet_size_bytes_ - num_filled_bytes));
             }
 
             // Release the buffer space acquired in the GetBuffer() call.
@@ -558,11 +901,11 @@ HRESULT WASAPIAudioOutputStream::SetRenderDevice() {
   ScopedComPtr<IMMDevice> endpoint_device;
 
   // Create the IMMDeviceEnumerator interface.
-  HRESULT hr =  CoCreateInstance(__uuidof(MMDeviceEnumerator),
-                                 NULL,
-                                 CLSCTX_INPROC_SERVER,
-                                 __uuidof(IMMDeviceEnumerator),
-                                 device_enumerator.ReceiveVoid());
+  HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator),
+                                NULL,
+                                CLSCTX_INPROC_SERVER,
+                                __uuidof(IMMDeviceEnumerator),
+                                device_enumerator.ReceiveVoid());
   if (SUCCEEDED(hr)) {
     // Retrieve the default render audio endpoint for the specified role.
     // Note that, in Windows Vista, the MMDevice API supports device roles
@@ -605,7 +948,8 @@ HRESULT WASAPIAudioOutputStream::ActivateRenderDevice() {
     // Retrieve the stream format that the audio engine uses for its internal
     // processing/mixing of shared-mode streams.
     audio_engine_mix_format_.Reset(NULL);
-    hr = audio_client->GetMixFormat(&audio_engine_mix_format_);
+    hr = audio_client->GetMixFormat(
+        reinterpret_cast<WAVEFORMATEX**>(&audio_engine_mix_format_));
 
     if (SUCCEEDED(hr)) {
       audio_client_ = audio_client;
@@ -622,10 +966,10 @@ bool WASAPIAudioOutputStream::DesiredFormatIsSupported() {
   // which is stored in the |audio_engine_mix_format_| member and it is also
   // possible to receive a proposed (closest) format if the current format is
   // not supported.
-  base::win::ScopedCoMem<WAVEFORMATEX> closest_match;
-  HRESULT hr = audio_client_->IsFormatSupported(share_mode(),
-                                                &format_,
-                                                &closest_match);
+  base::win::ScopedCoMem<WAVEFORMATEXTENSIBLE> closest_match;
+  HRESULT hr = audio_client_->IsFormatSupported(
+      share_mode_, reinterpret_cast<WAVEFORMATEX*>(&format_),
+      reinterpret_cast<WAVEFORMATEX**>(&closest_match));
 
   // This log can only be triggered for shared mode.
   DLOG_IF(ERROR, hr == S_FALSE) << "Format is not supported "
@@ -633,10 +977,10 @@ bool WASAPIAudioOutputStream::DesiredFormatIsSupported() {
   // This log can be triggered both for shared and exclusive modes.
   DLOG_IF(ERROR, hr == AUDCLNT_E_UNSUPPORTED_FORMAT) << "Unsupported format.";
   if (hr == S_FALSE) {
-    DVLOG(1) << "wFormatTag    : " << closest_match->wFormatTag;
-    DVLOG(1) << "nChannels     : " << closest_match->nChannels;
-    DVLOG(1) << "nSamplesPerSec: " << closest_match->nSamplesPerSec;
-    DVLOG(1) << "wBitsPerSample: " << closest_match->wBitsPerSample;
+    DVLOG(1) << "wFormatTag    : " << closest_match->Format.wFormatTag;
+    DVLOG(1) << "nChannels     : " << closest_match->Format.nChannels;
+    DVLOG(1) << "nSamplesPerSec: " << closest_match->Format.nSamplesPerSec;
+    DVLOG(1) << "wBitsPerSample: " << closest_match->Format.wBitsPerSample;
   }
 
   return (hr == S_OK);
@@ -678,7 +1022,7 @@ HRESULT WASAPIAudioOutputStream::InitializeAudioEngine() {
 
   // Perform different initialization depending on if the device shall be
   // opened in shared mode or in exclusive mode.
-  hr = (share_mode() == AUDCLNT_SHAREMODE_SHARED) ?
+  hr = (share_mode_ == AUDCLNT_SHAREMODE_SHARED) ?
       SharedModeInitialization() : ExclusiveModeInitialization();
   if (FAILED(hr)) {
     LOG(WARNING) << "IAudioClient::Initialize() failed: " << std::hex << hr;
@@ -698,7 +1042,7 @@ HRESULT WASAPIAudioOutputStream::InitializeAudioEngine() {
   // The buffer scheme for exclusive mode streams is not designed for max
   // flexibility. We only allow a "perfect match" between the packet size set
   // by the user and the actual endpoint buffer size.
-  if (share_mode() == AUDCLNT_SHAREMODE_EXCLUSIVE &&
+  if (share_mode_ == AUDCLNT_SHAREMODE_EXCLUSIVE &&
       endpoint_buffer_size_frames_ != packet_size_frames_) {
     hr = AUDCLNT_E_INVALID_SIZE;
     DLOG(ERROR) << "AUDCLNT_E_INVALID_SIZE";
@@ -721,17 +1065,17 @@ HRESULT WASAPIAudioOutputStream::InitializeAudioEngine() {
 }
 
 HRESULT WASAPIAudioOutputStream::SharedModeInitialization() {
-  DCHECK_EQ(share_mode(), AUDCLNT_SHAREMODE_SHARED);
+  DCHECK_EQ(share_mode_, AUDCLNT_SHAREMODE_SHARED);
 
   // TODO(henrika): this buffer scheme is still under development.
   // The exact details are yet to be determined based on tests with different
   // audio clients.
   int glitch_free_buffer_size_ms = static_cast<int>(packet_size_ms_ + 0.5);
-  if (audio_engine_mix_format_->nSamplesPerSec == 48000) {
+  if (audio_engine_mix_format_->Format.nSamplesPerSec == 48000) {
     // Initial tests have shown that we have to add 10 ms extra to
     // ensure that we don't run empty for any packet size.
     glitch_free_buffer_size_ms += 10;
-  } else if (audio_engine_mix_format_->nSamplesPerSec == 44100) {
+  } else if (audio_engine_mix_format_->Format.nSamplesPerSec == 44100) {
     // Initial tests have shown that we have to add 20 ms extra to
     // ensure that we don't run empty for any packet size.
     glitch_free_buffer_size_ms += 20;
@@ -750,20 +1094,21 @@ HRESULT WASAPIAudioOutputStream::SharedModeInitialization() {
   // If we requests a buffer size that is smaller than the audio engine's
   // minimum required buffer size, the method sets the buffer size to this
   // minimum buffer size rather than to the buffer size requested.
-  HRESULT hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_SHARED,
-                                         AUDCLNT_STREAMFLAGS_EVENTCALLBACK |
-                                         AUDCLNT_STREAMFLAGS_NOPERSIST,
-                                         requested_buffer_duration,
-                                         0,
-                                         &format_,
-                                         NULL);
+  HRESULT hr = S_FALSE;
+  hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_SHARED,
+                                 AUDCLNT_STREAMFLAGS_EVENTCALLBACK |
+                                 AUDCLNT_STREAMFLAGS_NOPERSIST,
+                                 requested_buffer_duration,
+                                 0,
+                                 reinterpret_cast<WAVEFORMATEX*>(&format_),
+                                 NULL);
   return hr;
 }
 
 HRESULT WASAPIAudioOutputStream::ExclusiveModeInitialization() {
-  DCHECK_EQ(share_mode(), AUDCLNT_SHAREMODE_EXCLUSIVE);
+  DCHECK_EQ(share_mode_, AUDCLNT_SHAREMODE_EXCLUSIVE);
 
-  float f = (1000.0 * packet_size_frames_) / format_.nSamplesPerSec;
+  float f = (1000.0 * packet_size_frames_) / format_.Format.nSamplesPerSec;
   REFERENCE_TIME requested_buffer_duration =
       static_cast<REFERENCE_TIME>(f * 10000.0 + 0.5);
 
@@ -775,13 +1120,14 @@ HRESULT WASAPIAudioOutputStream::ExclusiveModeInitialization() {
   // is equal in duration to the value of the hnsBufferDuration parameter.
   // Following the Initialize call for a rendering stream, the caller should
   // fill the first of the two buffers before starting the stream.
-  HRESULT hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_EXCLUSIVE,
-                                         AUDCLNT_STREAMFLAGS_EVENTCALLBACK |
-                                         AUDCLNT_STREAMFLAGS_NOPERSIST,
-                                         requested_buffer_duration,
-                                         requested_buffer_duration,
-                                         &format_,
-                                         NULL);
+  HRESULT hr = S_FALSE;
+  hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_EXCLUSIVE,
+                                 AUDCLNT_STREAMFLAGS_EVENTCALLBACK |
+                                 AUDCLNT_STREAMFLAGS_NOPERSIST,
+                                 requested_buffer_duration,
+                                 requested_buffer_duration,
+                                 reinterpret_cast<WAVEFORMATEX*>(&format_),
+                                 NULL);
   if (FAILED(hr)) {
     if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
       LOG(ERROR) << "AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED";
@@ -794,7 +1140,8 @@ HRESULT WASAPIAudioOutputStream::ExclusiveModeInitialization() {
       // Calculate new aligned periodicity. Each unit of reference time
       // is 100 nanoseconds.
       REFERENCE_TIME aligned_buffer_duration = static_cast<REFERENCE_TIME>(
-          (10000000.0 * aligned_buffer_size / format_.nSamplesPerSec) + 0.5);
+          (10000000.0 * aligned_buffer_size / format_.Format.nSamplesPerSec)
+          + 0.5);
 
       // It is possible to re-activate and re-initialize the audio client
       // at this stage but we bail out with an error code instead and
@@ -834,7 +1181,7 @@ HRESULT WASAPIAudioOutputStream::QueryInterface(REFIID iid, void** object) {
 }
 
 STDMETHODIMP WASAPIAudioOutputStream::OnDeviceStateChanged(LPCWSTR device_id,
-                                                      DWORD new_state) {
+                                                           DWORD new_state) {
 #ifndef NDEBUG
   std::string device_name = GetDeviceName(device_id);
   std::string device_state;
@@ -862,8 +1209,8 @@ STDMETHODIMP WASAPIAudioOutputStream::OnDeviceStateChanged(LPCWSTR device_id,
   return S_OK;
 }
 
-HRESULT WASAPIAudioOutputStream::OnDefaultDeviceChanged(EDataFlow flow,
-    ERole role, LPCWSTR new_default_device_id) {
+HRESULT WASAPIAudioOutputStream::OnDefaultDeviceChanged(
+    EDataFlow flow, ERole role, LPCWSTR new_default_device_id) {
   if (new_default_device_id == NULL) {
     // The user has removed or disabled the default device for our
     // particular role, and no other device is available to take that role.

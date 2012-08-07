@@ -72,6 +72,21 @@
 //   supported format (X) and the new default device - to which we would like
 //   to switch - uses another format (Y), which is not supported given the
 //   configured audio parameters.
+// - The audio device is always opened with the same number of channels as
+//   it supports natively (see HardwareChannelCount()). Channel up-mixing will
+//   take place if the |params| parameter in the constructor contains a lower
+//   number of channels than the number of native channels. As an example: if
+//   the clients provides a channel count of 2 and a 7.1 headset is detected,
+//   then 2 -> 7.1 up-mixing will take place for each OnMoreData() callback.
+// - Channel down-mixing is currently not supported. It is possible to create
+//   an instance for this case but calls to Open() will fail.
+// - Support for 8-bit audio has not yet been verified and tested.
+// - Open() will fail if channel up-mixing is done for 8-bit audio.
+// - Supported channel up-mixing cases (client config -> endpoint config):
+//    o 1 -> 2
+//    o 1 -> 7.1
+//    o 2 -> 5.1
+//    o 2 -> 7.1
 //
 // Core Audio API details:
 //
@@ -115,7 +130,7 @@
 // Experimental exclusive mode:
 //
 // - It is possible to open up a stream in exclusive mode by using the
-//   --enable-exclusive-mode command line flag.
+//   --enable-exclusive-audio command line flag.
 // - The internal buffering scheme is less flexible for exclusive streams.
 //   Hence, some manual tuning will be required before deciding what frame
 //   size to use. See the WinAudioOutputTest unit test for more details.
@@ -143,6 +158,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/gtest_prod_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/win/scoped_co_mem.h"
@@ -182,9 +198,19 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   virtual void SetVolume(double volume) OVERRIDE;
   virtual void GetVolume(double* volume) OVERRIDE;
 
-  // Retrieves the stream format that the audio engine uses for its internal
-  // processing/mixing of shared-mode streams.
-  // This method should not be used in combination with exclusive-mode streams.
+  // Retrieves the number of channels the audio engine uses for its internal
+  // processing/mixing of shared-mode streams for the default endpoint device.
+  static int HardwareChannelCount();
+
+  // Retrieves the channel layout the audio engine uses for its internal
+  // processing/mixing of shared-mode streams for the default endpoint device.
+  // Note that we convert an internal channel layout mask (see ChannelMask())
+  // into a Chrome-specific channel layout enumerator in this method, hence
+  // the match might not be perfect.
+  static ChannelLayout HardwareChannelLayout();
+
+  // Retrieves the sample rate the audio engine uses for its internal
+  // processing/mixing of shared-mode streams for the default endpoint device.
   static int HardwareSampleRate(ERole device_role);
 
   // Returns AUDCLNT_SHAREMODE_EXCLUSIVE if --enable-exclusive-mode is used
@@ -194,6 +220,8 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   bool started() const { return started_; }
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(WASAPIAudioOutputStreamTest, HardwareChannelCount);
+
   // Implementation of IUnknown (trivial in this case). See
   // msdn.microsoft.com/en-us/library/windows/desktop/dd371403(v=vs.85).aspx
   // for details regarding why proper implementations of AddRef(), Release()
@@ -255,7 +283,18 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   // new default audio device.
   bool RestartRenderingUsingNewDefaultDevice();
 
-  AUDCLNT_SHAREMODE share_mode() const { return share_mode_; }
+  // Returns the number of channels the audio engine uses for its internal
+  // processing/mixing of shared-mode streams for the default endpoint device.
+  int endpoint_channel_count() { return format_.Format.nChannels; }
+
+  // The ratio between the the number of native audio channels used by the
+  // audio device and the number of audio channels from the client.
+  // TODO(henrika): using int as indicator of the required type of channel
+  // mixing is not a perfect solution. E.g. 2->2.1 will result in a ratio of
+  // 2/3 which is truncated to 1 and 1 means "no mixing is required".
+  int channel_factor() const {
+    return (format_.Format.nChannels / client_channel_count_);
+  }
 
   // Initializes the COM library for use by the calling thread and sets the
   // thread's concurrency model to multi-threaded.
@@ -272,12 +311,14 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   base::DelegateSimpleThread* render_thread_;
 
   // Contains the desired audio format which is set up at construction.
-  WAVEFORMATEX format_;
+  // Extended PCM waveform format structure based on WAVEFORMATEXTENSIBLE.
+  // Use this for multiple channel and hi-resolution PCM data.
+  WAVEFORMATPCMEX format_;
 
   // Copy of the audio format which we know the audio engine supports.
   // It is recommended to ensure that the sample rate in |format_| is identical
   // to the sample rate in |audio_engine_mix_format_|.
-  base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format_;
+  base::win::ScopedCoMem<WAVEFORMATPCMEX> audio_engine_mix_format_;
 
   bool opened_;
   bool started_;
@@ -315,6 +356,11 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   // Valid values are AUDCLNT_SHAREMODE_SHARED and AUDCLNT_SHAREMODE_EXCLUSIVE
   // where AUDCLNT_SHAREMODE_SHARED is the default.
   AUDCLNT_SHAREMODE share_mode_;
+
+  // The channel count set by the client in |params| which is provided to the
+  // constructor. The client must feed the AudioSourceCallback::OnMoreData()
+  // callback with PCM-data that contains this number of channels.
+  int client_channel_count_;
 
   // Counts the number of audio frames written to the endpoint buffer.
   UINT64 num_written_frames_;

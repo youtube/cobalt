@@ -40,6 +40,8 @@ namespace media {
 
 static const char kSpeechFile_16b_s_48k[] = "speech_16b_stereo_48kHz.raw";
 static const char kSpeechFile_16b_s_44k[] = "speech_16b_stereo_44kHz.raw";
+static const char kSpeechFile_16b_m_48k[] = "speech_16b_mono_48kHz.raw";
+static const char kSpeechFile_16b_m_44k[] = "speech_16b_mono_44kHz.raw";
 static const size_t kFileDurationMs = 20000;
 static const size_t kNumFileSegments = 2;
 
@@ -248,7 +250,7 @@ static AudioOutputStream* CreateDefaultAudioOutputStream(
 // that indicate the role that the system/user has assigned to an audio
 // endpoint device.
 // TODO(henrika): modify this test when we support full device enumeration.
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestHardwareSampleRate) {
+TEST(WASAPIAudioOutputStreamTest, HardwareSampleRate) {
   // Skip this test in exclusive mode since the resulting rate is only utilized
   // for shared mode streams.
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
@@ -275,7 +277,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestHardwareSampleRate) {
 }
 
 // Test Create(), Close() calling sequence.
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestCreateAndClose) {
+TEST(WASAPIAudioOutputStreamTest, CreateAndClose) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -283,8 +285,45 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestCreateAndClose) {
   aos->Close();
 }
 
+// Verify that the created object is configured to use the same number of
+// audio channels as is reported by the static HardwareChannelCount() method.
+TEST(WASAPIAudioOutputStreamTest, HardwareChannelCount) {
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
+    return;
+
+  ScopedCOMInitializer com_init(ScopedCOMInitializer::kMTA);
+
+  // First, verify that we can read a valid native/hardware channel-count.
+  int hardware_channel_count = WASAPIAudioOutputStream::HardwareChannelCount();
+  EXPECT_GE(hardware_channel_count, 1);
+
+  AudioOutputStreamWrapper aosw(audio_manager.get());
+  WASAPIAudioOutputStream* aos =
+      static_cast<WASAPIAudioOutputStream*>(aosw.Create(CHANNEL_LAYOUT_MONO));
+
+  // Next, ensure that the created output stream object is really using the
+  // hardware channel-count.
+  EXPECT_EQ(hardware_channel_count, aos->endpoint_channel_count());
+  aos->Close();
+
+  // Try to use a non-supported combination of channel configurations if the
+  // number of hardware channels is 2.
+  if (hardware_channel_count == 2) {
+    // It should be possible to create and object even for an invalid channel-
+    // count combination (7.1 -> 2).
+    WASAPIAudioOutputStream* aos =
+      static_cast<WASAPIAudioOutputStream*>(aosw.Create(CHANNEL_LAYOUT_7_1));
+
+    // But an attempt to open a stream shall fail since down-mixing is not
+    // yet supported.
+    EXPECT_FALSE(aos->Open());
+    aos->Close();
+  }
+}
+
 // Test Open(), Close() calling sequence.
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenAndClose) {
+TEST(WASAPIAudioOutputStreamTest, OpenAndClose) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -294,7 +333,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenAndClose) {
 }
 
 // Test Open(), Start(), Close() calling sequence.
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenStartAndClose) {
+TEST(WASAPIAudioOutputStreamTest, OpenStartAndClose) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -308,7 +347,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenStartAndClose) {
 }
 
 // Test Open(), Start(), Stop(), Close() calling sequence.
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenStartStopAndClose) {
+TEST(WASAPIAudioOutputStreamTest, OpenStartStopAndClose) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -323,7 +362,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenStartStopAndClose) {
 }
 
 // Test SetVolume(), GetVolume()
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestVolume) {
+TEST(WASAPIAudioOutputStreamTest, Volume) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -360,7 +399,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestVolume) {
 }
 
 // Test some additional calling sequences.
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMiscCallingSequences) {
+TEST(WASAPIAudioOutputStreamTest, MiscCallingSequences) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -400,7 +439,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMiscCallingSequences) {
 }
 
 // Use default packet size (10ms) and verify that rendering starts.
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
+TEST(WASAPIAudioOutputStreamTest, PacketSizeInMilliseconds) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -438,7 +477,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
 
 // Use a fixed packets size (independent of sample rate) and verify
 // that rendering starts.
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
+TEST(WASAPIAudioOutputStreamTest, PacketSizeInSamples) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -446,8 +485,9 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
   MessageLoopForUI loop;
   MockAudioSourceCallback source;
 
-  // Create default WASAPI output stream which plays out in stereo using
-  // the shared mixing rate. The buffer size is set to 1024 samples.
+  // Create default WASAPI output stream which reads data in stereo using
+  // the native mixing rate and channel count. The buffer size is set to
+  // 1024 samples.
   AudioOutputStreamWrapper aosw(audio_manager.get());
   AudioOutputStream* aos = aosw.Create(1024);
   EXPECT_TRUE(aos->Open());
@@ -475,7 +515,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
   aos->Close();
 }
 
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
+TEST(WASAPIAudioOutputStreamTest, Mono) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -483,19 +523,12 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
   MessageLoopForUI loop;
   MockAudioSourceCallback source;
 
-  // Create default WASAPI output stream which plays out in *mono* using
-  // the shared mixing rate. The default buffer size is 10ms.
+  // Create default WASAPI output stream which reads data  *mono* using
+  // the native mixing rate and channel count. The default buffer size is 10ms.
   AudioOutputStreamWrapper aosw(audio_manager.get());
   AudioOutputStream* aos = aosw.Create(CHANNEL_LAYOUT_MONO);
+  EXPECT_TRUE(aos->Open());
 
-  bool opened = aos->Open();
-  if (!opened) {
-    // It was not possible to open this audio device in mono.
-    // No point in continuing the test so let's break here.
-    LOG(WARNING) << "Mono is not supported. Skipping test.";
-    aos->Close();
-    return;
-  }
   // Derive the expected size in bytes of each packet.
   uint32 bytes_per_packet = aosw.channels() * aosw.samples_per_packet() *
                            (aosw.bits_per_sample() / 8);
@@ -519,13 +552,13 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
 }
 
 // This test is intended for manual tests and should only be enabled
-// when it is required to store the captured data on a local file.
+// when it is required to play out data from a local PCM file.
 // By default, GTest will print out YOU HAVE 1 DISABLED TEST.
 // To include disabled tests in test execution, just invoke the test program
 // with --gtest_also_run_disabled_tests or set the GTEST_ALSO_RUN_DISABLED_TESTS
 // environment variable to a value greater than 0.
 // The test files are approximately 20 seconds long.
-TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
+TEST(WASAPIAudioOutputStreamTest, DISABLED_ReadFromStereoFile) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
@@ -548,11 +581,13 @@ TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
   }
   ReadFromFileAudioSource file_source(file_name);
 
-  LOG(INFO) << "File name     : " << file_name.c_str();
-  LOG(INFO) << "Sample rate   : " << aosw.sample_rate();
-  LOG(INFO) << "File size     : " << file_source.file_size();
-  LOG(INFO) << "#file segments: " << kNumFileSegments;
-  LOG(INFO) << ">> Listen to the file while playing...";
+  LOG(INFO) << "File name      : " << file_name.c_str();
+  LOG(INFO) << "Sample rate    : " << aosw.sample_rate();
+  LOG(INFO) << "Bits per sample: " << aosw.bits_per_sample();
+  LOG(INFO) << "#channels      : " << aosw.channels();
+  LOG(INFO) << "File size      : " << file_source.file_size();
+  LOG(INFO) << "#file segments : " << kNumFileSegments;
+  LOG(INFO) << ">> Listen to the stereo file while playing...";
 
   for (int i = 0; i < kNumFileSegments; i++) {
     // Each segment will start with a short (~20ms) block of zeros, hence
@@ -565,7 +600,54 @@ TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
     aos->Stop();
   }
 
-  LOG(INFO) << ">> File playout has stopped.";
+  LOG(INFO) << ">> Stereo file playout has stopped.";
+  aos->Close();
+}
+
+// Same as the stereo test but reading and playing out a mono file instead.
+// It means that most likely a 1->2 channel up-mix will be performed.
+TEST(WASAPIAudioOutputStreamTest, DISABLED_ReadFromMonoFile) {
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
+    return;
+
+  AudioOutputStreamWrapper aosw(audio_manager.get());
+  AudioOutputStream* aos = aosw.Create(CHANNEL_LAYOUT_MONO);
+  EXPECT_TRUE(aos->Open());
+
+  std::string file_name;
+  if (aosw.sample_rate() == 48000) {
+    file_name = kSpeechFile_16b_m_48k;
+  } else if (aosw.sample_rate() == 44100) {
+    file_name = kSpeechFile_16b_m_44k;
+  } else if (aosw.sample_rate() == 96000) {
+    // Use 48kHz file at 96kHz as well. Will sound like Donald Duck.
+    file_name = kSpeechFile_16b_m_48k;
+  } else {
+    FAIL() << "This test supports 44.1, 48kHz and 96kHz only.";
+    return;
+  }
+  ReadFromFileAudioSource file_source(file_name);
+
+  LOG(INFO) << "File name     : " << file_name.c_str();
+  LOG(INFO) << "Sample rate   : " << aosw.sample_rate();
+  LOG(INFO) << "#channels     : " << aosw.channels();
+  LOG(INFO) << "File size     : " << file_source.file_size();
+  LOG(INFO) << "#file segments: " << kNumFileSegments;
+  LOG(INFO) << ">> Listen to the mono file while playing...";
+
+  for (int i = 0; i < kNumFileSegments; i++) {
+    // Each segment will start with a short (~20ms) block of zeros, hence
+    // some short glitches might be heard in this test if kNumFileSegments
+    // is larger than one. The exact length of the silence period depends on
+    // the selected sample rate.
+    aos->Start(&file_source);
+    base::PlatformThread::Sleep(
+      base::TimeDelta::FromMilliseconds(kFileDurationMs / kNumFileSegments));
+    aos->Stop();
+  }
+
+  LOG(INFO) << ">> Mono file playout has stopped.";
   aos->Close();
 }
 
@@ -573,7 +655,7 @@ TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
 // certain set of audio parameters and a sample rate of 48kHz.
 // The expected outcomes of each setting in this test has been derived
 // manually using log outputs (--v=1).
-TEST(WinAudioOutputTest, WASAPIExclusiveModeBufferSizesAt48kHz) {
+TEST(WASAPIAudioOutputStreamTest, ExclusiveModeBufferSizesAt48kHz) {
   if (!ExclusiveModeIsEnabled())
     return;
 
@@ -624,7 +706,7 @@ TEST(WinAudioOutputTest, WASAPIExclusiveModeBufferSizesAt48kHz) {
 // certain set of audio parameters and a sample rate of 44.1kHz.
 // The expected outcomes of each setting in this test has been derived
 // manually using log outputs (--v=1).
-TEST(WinAudioOutputTest, WASAPIExclusiveModeBufferSizesAt44kHz) {
+TEST(WASAPIAudioOutputStreamTest, ExclusiveModeBufferSizesAt44kHz) {
   if (!ExclusiveModeIsEnabled())
     return;
 
@@ -682,7 +764,7 @@ TEST(WinAudioOutputTest, WASAPIExclusiveModeBufferSizesAt44kHz) {
 
 // Verify that we can open and start the output stream in exclusive mode at
 // the lowest possible delay at 48kHz.
-TEST(WinAudioOutputTest, WASAPIExclusiveModeMinBufferSizeAt48kHz) {
+TEST(WASAPIAudioOutputStreamTest, ExclusiveModeMinBufferSizeAt48kHz) {
   if (!ExclusiveModeIsEnabled())
     return;
 
@@ -724,7 +806,7 @@ TEST(WinAudioOutputTest, WASAPIExclusiveModeMinBufferSizeAt48kHz) {
 
 // Verify that we can open and start the output stream in exclusive mode at
 // the lowest possible delay at 44.1kHz.
-TEST(WinAudioOutputTest, WASAPIExclusiveModeMinBufferSizeAt44kHz) {
+TEST(WASAPIAudioOutputStreamTest, ExclusiveModeMinBufferSizeAt44kHz) {
   if (!ExclusiveModeIsEnabled())
     return;
 

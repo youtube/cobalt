@@ -110,7 +110,7 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   static int HardwareSampleRate(const std::string& device_id);
 
   // Retrieves the number of audio channels used by the audio engine for its
-  // internal processing/mixing of shared-mode streams given a specifed device.
+  // internal processing/mixing of shared-mode streams given a specified device.
   static uint32 HardwareChannelCount(const std::string& device_id);
 
   bool started() const { return started_; }
