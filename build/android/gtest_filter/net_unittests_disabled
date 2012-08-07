@@ -124,3 +124,6 @@ VerifyMixed/CertVerifyProcWeakDigestTest.*
 # These are death tests and thus also disabled.
 PrioritizedDispatcherTest.CancelNull
 PrioritizedDispatcherTest.CancelMissing
+
+# crbug.com/140991
+SpdyCredentialBuilderTest.*
