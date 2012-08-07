@@ -165,7 +165,6 @@ def JavaParamToJni(param):
       'Lorg/chromium/content/browser/ContentVideoView',
       'Lorg/chromium/content/browser/ContentViewClient',
       'Lorg/chromium/content/browser/ContentViewCore',
-      'Lorg/chromium/content/browser/ContentHttpAuthHandler',
       'Lorg/chromium/content/browser/DeviceOrientation',
       'Lorg/chromium/content/browser/FileChooserParams',
       'Lorg/chromium/content/browser/FindNotificationDetails',
