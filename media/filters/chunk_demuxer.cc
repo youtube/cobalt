@@ -611,7 +611,8 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   DCHECK_GT(codecs.size(), 0u);
   base::AutoLock auto_lock(lock_);
 
-  if (state_ != WAITING_FOR_INIT && state_ != INITIALIZING)
+  if ((state_ != WAITING_FOR_INIT && state_ != INITIALIZING) ||
+      stream_parser_map_.count(id) > 0u)
     return kReachedIdLimit;
 
   bool has_audio = false;
