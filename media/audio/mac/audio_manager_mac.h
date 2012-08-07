@@ -23,8 +23,6 @@ class MEDIA_EXPORT AudioManagerMac : public AudioManagerBase {
   virtual bool HasAudioInputDevices() OVERRIDE;
   virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)
       OVERRIDE;
-  virtual void MuteAll() OVERRIDE;
-  virtual void UnMuteAll() OVERRIDE;
 
   // Implementation of AudioManagerBase.
   virtual AudioOutputStream* MakeLinearOutputStream(

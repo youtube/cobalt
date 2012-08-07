@@ -61,10 +61,6 @@ class TestAudioInputController : public AudioInputController {
   // Returns the event handler installed on the AudioInputController.
   EventHandler* event_handler() const { return event_handler_; }
 
-  // Returns the AudioParameters passed by the requester upon creation through
-  // AudioManager::Create(...).
-  const AudioParameters& audio_parameters() const { return audio_parameters_; }
-
   // Notifies the TestAudioControllerOpened() event to the delegate (if any).
   virtual void Record() OVERRIDE;
 

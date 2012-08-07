@@ -46,10 +46,6 @@ class MockAudioManager : public media::AudioManager {
       const media::AudioParameters& params,
       const std::string& device_id) OVERRIDE;
 
-  virtual void MuteAll() OVERRIDE;
-
-  virtual void UnMuteAll() OVERRIDE;
-
   virtual bool IsRecordingInProcess() OVERRIDE;
 
   virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE;

@@ -62,14 +62,6 @@ void AudioManagerLinux::Init() {
   wrapper_.reset(new AlsaWrapper());
 }
 
-void AudioManagerLinux::MuteAll() {
-  NOTIMPLEMENTED();
-}
-
-void AudioManagerLinux::UnMuteAll() {
-  NOTIMPLEMENTED();
-}
-
 bool AudioManagerLinux::CanShowAudioInputSettings() {
   scoped_ptr<base::Environment> env(base::Environment::Create());
 
