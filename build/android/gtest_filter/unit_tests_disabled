@@ -140,3 +140,6 @@ PromoResourceServiceTest.NotificationPromoTest
 ExperimentsHelperTest.DisableAfterInitialization
 ExperimentsHelperTest.AssociateGoogleVariationID
 ExperimentsHelperTest.NoAssociation
+
+# crbug.com/141473
+AutofillManagerTest.UpdatePasswordSyncState
