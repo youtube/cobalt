@@ -120,7 +120,7 @@ TEST_F(CertVerifyProcTest, PaypalNullCertParsing) {
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), paypal_null_cert);
 
-  const SHA1HashValue& fingerprint =
+  const SHA1Fingerprint& fingerprint =
       paypal_null_cert->fingerprint();
   for (size_t i = 0; i < 20; ++i)
     EXPECT_EQ(paypal_null_fingerprint[i], fingerprint.data[i]);
@@ -397,13 +397,11 @@ TEST_F(CertVerifyProcTest, DigiNotarCerts) {
 
     std::string spki_sha1 = base::SHA1HashString(spki.as_string());
 
-    std::vector<HashValueVector> public_keys(HASH_VALUE_TAGS_COUNT);
-    public_keys[HASH_VALUE_SHA1] = HashValueVector();
-    HashValue fingerprint;
-    fingerprint.tag = HASH_VALUE_SHA1;
-    ASSERT_EQ(fingerprint.size(), spki_sha1.size());
-    memcpy(fingerprint.data(), spki_sha1.data(), spki_sha1.size());
-    public_keys[HASH_VALUE_SHA1].push_back(fingerprint);
+    std::vector<SHA1Fingerprint> public_keys;
+    SHA1Fingerprint fingerprint;
+    ASSERT_EQ(sizeof(fingerprint.data), spki_sha1.size());
+    memcpy(fingerprint.data, spki_sha1.data(), spki_sha1.size());
+    public_keys.push_back(fingerprint);
 
     EXPECT_TRUE(CertVerifyProc::IsPublicKeyBlacklisted(public_keys)) <<
         "Public key not blocked for " << kDigiNotarFilenames[i];
@@ -455,14 +453,10 @@ TEST_F(CertVerifyProcTest, PublicKeyHashes) {
   int error = Verify(cert_chain, "cert.se", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
-  ASSERT_LE(static_cast<size_t>(HASH_VALUE_TAGS_COUNT),
-            verify_result.public_key_hashes.size());
-  const HashValueVector& sha1_hashes =
-      verify_result.public_key_hashes[HASH_VALUE_SHA1];
-  ASSERT_LE(3u, sha1_hashes.size());
-  for (unsigned i = 0; i < 3; ++i) {
+  ASSERT_LE(3u, verify_result.public_key_hashes.size());
+  for (unsigned i = 0; i < 3; i++) {
     EXPECT_EQ(HexEncode(kCertSESPKIs[i], base::kSHA1Length),
-              HexEncode(sha1_hashes[i].data(), base::kSHA1Length));
+        HexEncode(verify_result.public_key_hashes[i].data, base::kSHA1Length));
   }
 }
 
