@@ -173,6 +173,7 @@ class ChunkDemuxerStream : public DemuxerStream {
 
   void StartWaitingForSeek();
   void Seek(TimeDelta time);
+  void CancelPendingSeek();
   bool IsSeekPending() const;
 
   // Add buffers to this stream.  Buffers are stored in SourceBufferStreams,
@@ -214,6 +215,7 @@ class ChunkDemuxerStream : public DemuxerStream {
   enum State {
     RETURNING_DATA_FOR_READS,
     WAITING_FOR_SEEK,
+    CANCELED,
     SHUTDOWN,
   };
 
@@ -280,10 +282,27 @@ void ChunkDemuxerStream::Seek(TimeDelta time) {
 
   DCHECK(read_cbs_.empty());
 
+  // Ignore seek requests when canceled.
+  if (state_ == CANCELED)
+    return;
+
   stream_->Seek(time);
 
   if (state_ == WAITING_FOR_SEEK)
     ChangeState_Locked(RETURNING_DATA_FOR_READS);
+}
+
+void ChunkDemuxerStream::CancelPendingSeek() {
+  DVLOG(1) << "CancelPendingSeek()";
+  ReadCBQueue read_cbs;
+  {
+    base::AutoLock auto_lock(lock_);
+    ChangeState_Locked(CANCELED);
+    std::swap(read_cbs_, read_cbs);
+  }
+
+  for (ReadCBQueue::iterator it = read_cbs.begin(); it != read_cbs.end(); ++it)
+    it->Run(kAborted, NULL);
 }
 
 bool ChunkDemuxerStream::IsSeekPending() const {
@@ -490,6 +509,7 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
           return true;
       }
       break;
+    case CANCELED:
     case WAITING_FOR_SEEK:
       // Null buffers should be returned in this state since we are waiting
       // for a seek. Any buffers in the SourceBuffer should NOT be returned
@@ -540,6 +560,7 @@ void ChunkDemuxer::Stop(const base::Closure& callback) {
 void ChunkDemuxer::Seek(TimeDelta time, const PipelineStatusCB& cb) {
   DVLOG(1) << "Seek(" << time.InSecondsF() << ")";
   DCHECK(time >= start_time_);
+  DCHECK(seek_cb_.is_null());
 
   PipelineStatus status = PIPELINE_ERROR_INVALID_STATE;
   {
@@ -603,6 +624,24 @@ void ChunkDemuxer::StartWaitingForSeek() {
     video_->StartWaitingForSeek();
 
   ChangeState_Locked(INITIALIZED);
+}
+
+void ChunkDemuxer::CancelPendingSeek() {
+  PipelineStatusCB cb;
+  {
+    base::AutoLock auto_lock(lock_);
+    if (IsSeekPending_Locked() && !seek_cb_.is_null()) {
+      std::swap(cb, seek_cb_);
+    }
+    if (audio_)
+      audio_->CancelPendingSeek();
+
+    if (video_)
+      video_->CancelPendingSeek();
+  }
+
+  if (!cb.is_null())
+    cb.Run(PIPELINE_OK);
 }
 
 ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,

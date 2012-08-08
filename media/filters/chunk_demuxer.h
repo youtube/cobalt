@@ -47,6 +47,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   // Methods used by an external object to control this demuxer.
   void StartWaitingForSeek();
+  void CancelPendingSeek();
 
   // Registers a new |id| to use for AppendData() calls. |type| indicates
   // the MIME type for the data that we intend to append for this ID.

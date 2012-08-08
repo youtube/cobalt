@@ -86,6 +86,14 @@ static void OnReadDone(const base::TimeDelta& expected_time,
   *called = true;
 }
 
+static void OnReadDone_AbortExpected(
+    bool* called, DemuxerStream::Status status,
+    const scoped_refptr<DecoderBuffer>& buffer) {
+  EXPECT_EQ(status, DemuxerStream::kAborted);
+  EXPECT_EQ(NULL, buffer.get());
+  *called = true;
+}
+
 static void OnReadDone_EOSExpected(bool* called,
                                    DemuxerStream::Status status,
                                    const scoped_refptr<DecoderBuffer>& buffer) {
@@ -1487,6 +1495,79 @@ TEST_F(ChunkDemuxerTest, TestRemoveId) {
   scoped_refptr<DemuxerStream> video =
       demuxer_->GetStream(DemuxerStream::VIDEO);
   GenerateSingleStreamExpectedReads(0, 4, video, kVideoBlockDuration);
+}
+
+TEST_F(ChunkDemuxerTest, TestSeekCanceled) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  // Append cluster at the beginning of the stream.
+  scoped_ptr<Cluster> start_cluster(GenerateCluster(0, 4));
+  ASSERT_TRUE(AppendData(start_cluster->data(), start_cluster->size()));
+
+  // Seek to an unbuffered region.
+  demuxer_->StartWaitingForSeek();
+  demuxer_->Seek(base::TimeDelta::FromSeconds(50),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  // Attempt to read in unbuffered area; should not fulfill the read.
+  bool audio_read_done = false;
+  bool video_read_done = false;
+  audio->Read(base::Bind(&OnReadDone_AbortExpected, &audio_read_done));
+  video->Read(base::Bind(&OnReadDone_AbortExpected, &video_read_done));
+  EXPECT_FALSE(audio_read_done);
+  EXPECT_FALSE(video_read_done);
+
+  // Now cancel the pending seek, which should flush the reads with empty
+  // buffers.
+  demuxer_->CancelPendingSeek();
+  EXPECT_TRUE(audio_read_done);
+  EXPECT_TRUE(video_read_done);
+
+  // A seek back to the buffered region should succeed.
+  demuxer_->StartWaitingForSeek();
+  demuxer_->Seek(base::TimeDelta::FromSeconds(0),
+                 NewExpectedStatusCB(PIPELINE_OK));
+  GenerateExpectedReads(0, 4, audio, video);
+}
+
+TEST_F(ChunkDemuxerTest, TestSeekCanceledWhileWaitingForSeek) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  // Append cluster at the beginning of the stream.
+  scoped_ptr<Cluster> start_cluster(GenerateCluster(0, 4));
+  ASSERT_TRUE(AppendData(start_cluster->data(), start_cluster->size()));
+
+  // Start waiting for a seek.
+  demuxer_->StartWaitingForSeek();
+
+  // Now cancel the upcoming seek to an unbuffered region.
+  demuxer_->CancelPendingSeek();
+  demuxer_->Seek(base::TimeDelta::FromSeconds(50),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  // Read requests should be fulfilled with empty buffers.
+  bool audio_read_done = false;
+  bool video_read_done = false;
+  audio->Read(base::Bind(&OnReadDone_AbortExpected, &audio_read_done));
+  video->Read(base::Bind(&OnReadDone_AbortExpected, &video_read_done));
+  EXPECT_TRUE(audio_read_done);
+  EXPECT_TRUE(video_read_done);
+
+  // A seek back to the buffered region should succeed.
+  demuxer_->StartWaitingForSeek();
+  demuxer_->Seek(base::TimeDelta::FromSeconds(0),
+                 NewExpectedStatusCB(PIPELINE_OK));
+  GenerateExpectedReads(0, 4, audio, video);
 }
 
 // Test that Seek() successfully seeks to all source IDs.
