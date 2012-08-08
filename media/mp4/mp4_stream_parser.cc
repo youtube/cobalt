@@ -145,7 +145,6 @@ bool MP4StreamParser::ParseBox(bool* err) {
 
 
 bool MP4StreamParser::ParseMoov(BoxReader* reader) {
-  // TODO(strobe): Respect edit lists.
   moov_.reset(new Movie);
   RCHECK(moov_->Parse(reader));
   runs_.reset(new TrackRunIterator(moov_.get()));

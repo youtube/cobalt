@@ -261,23 +261,55 @@ TEST_F(TrackRunIteratorTest, MinDecodeTest) {
 }
 
 TEST_F(TrackRunIteratorTest, ReorderingTest) {
+  // Test frame reordering and edit list support. The frames have the following
+  // decode timestamps:
+  //
+  //   0ms 40ms   120ms     240ms
+  //   | 0 | 1  - | 2  -  - |
+  //
+  // ...and these composition timestamps, after edit list adjustment:
+  //
+  //   0ms 40ms       160ms  240ms
+  //   | 0 | 2  -  -  | 1 - |
+
+  // Create an edit list with one entry, with an initial start time of 80ms
+  // (that is, 2 / kVideoTimescale) and a duration of zero (which is treated as
+  // infinite according to 14496-12:2012). This will cause the first 80ms of the
+  // media timeline - which will be empty, due to CTS biasing - to be discarded.
   iter_.reset(new TrackRunIterator(&moov_));
+  EditListEntry entry;
+  entry.segment_duration = 0;
+  entry.media_time = 2;
+  entry.media_rate_integer = 1;
+  entry.media_rate_fraction = 0;
+  moov_.tracks[1].edit.list.edits.push_back(entry);
+
+  // Add CTS offsets. Without bias, the CTS offsets for the first three frames
+  // would simply be [0, 3, -2]. Since CTS offsets should be non-negative for
+  // maximum compatibility, these values are biased up to [2, 5, 0], and the
+  // extra 80ms is removed via the edit list.
   MovieFragment moof = CreateFragment();
   std::vector<int32>& cts_offsets =
     moof.tracks[1].runs[0].sample_composition_time_offsets;
   cts_offsets.resize(10);
   cts_offsets[0] = 2;
-  cts_offsets[1] = -1;
+  cts_offsets[1] = 5;
+  cts_offsets[2] = 0;
   moof.tracks[1].decode_time.decode_time = 0;
+
   ASSERT_TRUE(iter_->Init(moof));
   iter_->AdvanceRun();
   EXPECT_EQ(iter_->dts(), TimeDeltaFromRational(0, kVideoScale));
-  EXPECT_EQ(iter_->cts(), TimeDeltaFromRational(2, kVideoScale));
+  EXPECT_EQ(iter_->cts(), TimeDeltaFromRational(0, kVideoScale));
   EXPECT_EQ(iter_->duration(), TimeDeltaFromRational(1, kVideoScale));
   iter_->AdvanceSample();
   EXPECT_EQ(iter_->dts(), TimeDeltaFromRational(1, kVideoScale));
-  EXPECT_EQ(iter_->cts(), TimeDeltaFromRational(0, kVideoScale));
+  EXPECT_EQ(iter_->cts(), TimeDeltaFromRational(4, kVideoScale));
   EXPECT_EQ(iter_->duration(), TimeDeltaFromRational(2, kVideoScale));
+  iter_->AdvanceSample();
+  EXPECT_EQ(iter_->dts(), TimeDeltaFromRational(3, kVideoScale));
+  EXPECT_EQ(iter_->cts(), TimeDeltaFromRational(1, kVideoScale));
+  EXPECT_EQ(iter_->duration(), TimeDeltaFromRational(3, kVideoScale));
 }
 
 TEST_F(TrackRunIteratorTest, IgnoreUnknownAuxInfoTest) {
