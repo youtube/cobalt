@@ -55,6 +55,9 @@ the one you want."
   echo "${CHROME_SRC}"
 fi
 
+# Android sdk platform version to use
+export ANDROID_SDK_VERSION=16
+
 # Source functions script.  The file is in the same directory as this script.
 . "$(dirname $BASH_SOURCE)"/envsetup_functions.sh
 
