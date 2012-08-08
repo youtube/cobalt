@@ -175,7 +175,7 @@ class Emulator(object):
         'create', 'avd',
         '--name', avd_name,
         '--abi', self.abi,
-        '--target', 'android-15',
+        '--target', 'android-16',
         '-c', '64M',
         '--force',
     ]
