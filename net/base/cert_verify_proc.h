@@ -75,9 +75,9 @@ class NET_EXPORT CertVerifyProc
   static bool IsBlacklisted(X509Certificate* cert);
 
   // IsPublicKeyBlacklisted returns true iff one of |public_key_hashes| (which
-  // are hashes of SubjectPublicKeyInfo structures) is explicitly blocked.
+  // are SHA1 hashes of SubjectPublicKeyInfo structures) is explicitly blocked.
   static bool IsPublicKeyBlacklisted(
-      const std::vector<HashValueVector>& public_key_hashes);
+      const std::vector<SHA1Fingerprint>& public_key_hashes);
 };
 
 }  // namespace net
