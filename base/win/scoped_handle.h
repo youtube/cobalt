@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/move.h"
 
 namespace base {
 namespace win {
@@ -36,6 +37,8 @@ extern "C" {
 //     takes a raw handle pointer only.
 template <class Traits, class Verifier>
 class GenericScopedHandle {
+  MOVE_ONLY_TYPE_FOR_CPP_03(GenericScopedHandle, RValue)
+
  public:
   typedef typename Traits::Handle Handle;
 
@@ -45,12 +48,24 @@ class GenericScopedHandle {
     Set(handle);
   }
 
+  // Move constructor for C++03 move emulation of this type.
+  GenericScopedHandle(RValue& other) : handle_(other.Take()) {
+  }
+
   ~GenericScopedHandle() {
     Close();
   }
 
   bool IsValid() const {
     return Traits::IsHandleValid(handle_);
+  }
+
+  // Move operator= for C++03 move emulation of this type.
+  GenericScopedHandle& operator=(RValue& other) {
+    // Swapping the handles helps to avoid problems while assigning a handle
+    // to itself. It is also cheap and matches base::scoped_ptr behavior.
+    Swap(other);
+    return *this;
   }
 
   void Set(Handle handle) {
@@ -82,6 +97,12 @@ class GenericScopedHandle {
     return &handle_;
   }
 
+  void Swap(GenericScopedHandle& other) {
+    Handle tmp = handle_;
+    handle_ = other.handle_;
+    other.handle_ = tmp;
+  }
+
   // Transfers ownership away from this object.
   Handle Take() {
     Handle temp = handle_;
@@ -106,8 +127,6 @@ class GenericScopedHandle {
 
  private:
   Handle handle_;
-
-  DISALLOW_COPY_AND_ASSIGN(GenericScopedHandle);
 };
 
 #undef BASE_WIN_GET_CALLER
