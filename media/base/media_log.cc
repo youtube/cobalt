@@ -81,8 +81,6 @@ const char* MediaLog::PipelineStateToString(Pipeline::State state) {
       return "starting";
     case Pipeline::kStarted:
       return "started";
-    case Pipeline::kEnded:
-      return "ended";
     case Pipeline::kStopping:
       return "stopping";
     case Pipeline::kStopped:
