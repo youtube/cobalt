@@ -71,6 +71,7 @@ TrackRunIterator::~TrackRunIterator() {}
 static void PopulateSampleInfo(const TrackExtends& trex,
                                const TrackFragmentHeader& tfhd,
                                const TrackFragmentRun& trun,
+                               const int64 edit_list_offset,
                                const uint32 i,
                                SampleInfo* sample_info) {
   if (i < trun.sample_sizes.size()) {
@@ -94,6 +95,7 @@ static void PopulateSampleInfo(const TrackExtends& trex,
   } else {
     sample_info->cts_offset = 0;
   }
+  sample_info->cts_offset += edit_list_offset;
 
   uint32 flags;
   if (i < trun.sample_flags.size()) {
@@ -164,6 +166,23 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
     RCHECK(desc_idx > 0);  // Descriptions are one-indexed in the file
     desc_idx -= 1;
 
+    // Process edit list to remove CTS offset introduced in the presence of
+    // B-frames (those that contain a single edit with a nonnegative media
+    // time). Other uses of edit lists are not supported, as they are
+    // both uncommon and better served by higher-level protocols.
+    int64 edit_list_offset = 0;
+    const std::vector<EditListEntry>& edits = trak->edit.list.edits;
+    if (!edits.empty()) {
+      if (edits.size() > 1)
+        DVLOG(1) << "Multi-entry edit box detected; some components ignored.";
+
+      if (edits[0].media_time < 0) {
+        DVLOG(1) << "Empty edit list entry ignored.";
+      } else {
+        edit_list_offset = -edits[0].media_time;
+      }
+    }
+
     int64 run_start_dts = traf.decode_time.decode_time;
     int sample_count_sum = 0;
 
@@ -226,7 +245,8 @@ bool TrackRunIterator::Init(const MovieFragment& moof) {
 
       tri.samples.resize(trun.sample_count);
       for (size_t k = 0; k < trun.sample_count; k++) {
-        PopulateSampleInfo(*trex, traf.header, trun, k, &tri.samples[k]);
+        PopulateSampleInfo(*trex, traf.header, trun, edit_list_offset,
+                           k, &tri.samples[k]);
         run_start_dts += tri.samples[k].duration;
       }
       runs_.push_back(tri);
