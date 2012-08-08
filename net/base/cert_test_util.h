@@ -40,12 +40,12 @@ scoped_refptr<X509Certificate> ImportCertFromFile(const FilePath& certs_dir,
 class ScopedTestEVPolicy {
  public:
   ScopedTestEVPolicy(EVRootCAMetadata* ev_root_ca_metadata,
-                     const SHA1HashValue& fingerprint,
+                     const SHA1Fingerprint& fingerprint,
                      const char* policy);
   ~ScopedTestEVPolicy();
 
  private:
-  SHA1HashValue fingerprint_;
+  SHA1Fingerprint fingerprint_;
   EVRootCAMetadata* const ev_root_ca_metadata_;
 };
 

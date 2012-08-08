@@ -91,10 +91,9 @@ class NET_EXPORT TransportSecurityState
     //
     // |bad_static_spki_hashes| contains public keys that we don't want to
     // trust.
-    bool IsChainOfPublicKeysPermitted(
-        const std::vector<HashValueVector>& hashes) const;
+    bool IsChainOfPublicKeysPermitted(const FingerprintVector& hashes) const;
 
-    // Returns true if any of the HashValueVectors |static_spki_hashes|,
+    // Returns true if any of the FingerprintVectors |static_spki_hashes|,
     // |bad_static_spki_hashes|, or |dynamic_spki_hashes| contains any
     // items.
     bool HasPins() const;
@@ -132,10 +131,10 @@ class NET_EXPORT TransportSecurityState
     // |dynamic_spki_hashes| take precedence over |static_spki_hashes|.
     // That is, |IsChainOfPublicKeysPermitted| first checks dynamic pins and
     // then checks static pins.
-    HashValueVector static_spki_hashes;
+    FingerprintVector static_spki_hashes;
 
     // Optional; hashes of dynamically pinned SubjectPublicKeyInfos.
-    HashValueVector dynamic_spki_hashes;
+    FingerprintVector dynamic_spki_hashes;
 
     // The absolute time (UTC) when the |dynamic_spki_hashes| expire.
     base::Time dynamic_spki_hashes_expiry;
@@ -143,7 +142,7 @@ class NET_EXPORT TransportSecurityState
     // Optional; hashes of static known-bad SubjectPublicKeyInfos which
     // MUST NOT intersect with the set of SPKIs in the TLS server's
     // certificate chain.
-    HashValueVector bad_static_spki_hashes;
+    FingerprintVector bad_static_spki_hashes;
 
     // The following members are not valid when stored in |enabled_hosts_|:
 
@@ -256,7 +255,7 @@ class NET_EXPORT TransportSecurityState
   // Decodes a pin string |value| (e.g. "sha1/hvfkN/qlp/zhXR3cuerq6jd2Z7g=").
   // If parsing succeeded, updates |*out| and returns true; otherwise returns
   // false without updating |*out|.
-  static bool ParsePin(const std::string& value, HashValue* out);
+  static bool ParsePin(const std::string& value, Fingerprint* out);
 
   // The maximum number of seconds for which we'll cache an HSTS request.
   static const long int kMaxHSTSAgeSecs;
