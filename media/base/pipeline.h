@@ -80,6 +80,9 @@ class MEDIA_EXPORT PipelineStatusNotification {
 //         |                                              |
 //         V      Seek()/Stop()                           |
 //   [ Started ] -------------------------> [ Pausing (for each filter) ]
+//         |                                              ^
+//         |   OnRendererEnded()             Seek()/Stop()    |
+//         `-------------> [ Ended ] ---------------------'
 //                                                        ^  SetError()
 //                                                        |
 //                                         [ Any State Other Than InitXXX ]
@@ -243,6 +246,7 @@ class MEDIA_EXPORT Pipeline
     kFlushing,
     kStarting,
     kStarted,
+    kEnded,
     kStopping,
     kStopped,
     kError,
