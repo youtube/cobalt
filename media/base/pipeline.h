@@ -252,10 +252,6 @@ class MEDIA_EXPORT Pipeline
     kError,
   };
 
-  // Reset the state of the pipeline object to the initial state.  This method
-  // is used by the constructor, and the Stop() method.
-  void ResetState();
-
   // Updates |state_|. All state transitions should use this call.
   void SetState(State next_state);
 
