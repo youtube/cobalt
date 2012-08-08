@@ -15,6 +15,10 @@
 
 namespace media {
 
+base::TimeDelta VideoRendererBase::kMaxLastFrameDuration() {
+  return base::TimeDelta::FromMilliseconds(250);
+}
+
 VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb,
                                      const SetOpaqueCB& set_opaque_cb,
                                      bool drop_frames)
@@ -70,7 +74,7 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
     state_ = kStopped;
 
     statistics_cb_.Reset();
-    time_cb_.Reset();
+    max_time_cb_.Reset();
     if (!pending_paint_ && !pending_paint_with_last_available_)
       DoStopOrError_Locked();
 
@@ -111,7 +115,7 @@ void VideoRendererBase::Preroll(base::TimeDelta time,
 void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
                                    const PipelineStatusCB& init_cb,
                                    const StatisticsCB& statistics_cb,
-                                   const TimeCB& time_cb,
+                                   const TimeCB& max_time_cb,
                                    const NaturalSizeChangedCB& size_changed_cb,
                                    const base::Closure& ended_cb,
                                    const PipelineStatusCB& error_cb,
@@ -121,7 +125,7 @@ void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
   DCHECK(decoder);
   DCHECK(!init_cb.is_null());
   DCHECK(!statistics_cb.is_null());
-  DCHECK(!time_cb.is_null());
+  DCHECK(!max_time_cb.is_null());
   DCHECK(!size_changed_cb.is_null());
   DCHECK(!ended_cb.is_null());
   DCHECK(!get_time_cb.is_null());
@@ -130,7 +134,7 @@ void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
   decoder_ = decoder;
 
   statistics_cb_ = statistics_cb;
-  time_cb_ = time_cb;
+  max_time_cb_ = max_time_cb;
   size_changed_cb_ = size_changed_cb;
   ended_cb_ = ended_cb;
   error_cb_ = error_cb;
@@ -484,13 +488,30 @@ void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
   // frame rate.  Another way for this to happen is for the container to state a
   // smaller duration than the largest packet timestamp.
   base::TimeDelta duration = get_duration_cb_.Run();
-  if (frame->GetTimestamp() > duration || frame->IsEndOfStream()) {
+  if (frame->IsEndOfStream()) {
+    base::TimeDelta end_timestamp = kNoTimestamp();
+    if (!ready_frames_.empty()) {
+      end_timestamp = std::min(
+          duration,
+          ready_frames_.back()->GetTimestamp() + kMaxLastFrameDuration());
+    } else if (current_frame_) {
+      end_timestamp =
+          std::min(duration,
+                   current_frame_->GetTimestamp() + kMaxLastFrameDuration());
+    }
+    frame->SetTimestamp(end_timestamp);
+  } else if (frame->GetTimestamp() > duration) {
     frame->SetTimestamp(duration);
   }
 
   ready_frames_.push_back(frame);
   DCHECK_LE(NumFrames_Locked(), limits::kMaxVideoFrames);
-  time_cb_.Run(frame->GetTimestamp());
+
+  base::TimeDelta max_clock_time =
+      frame->IsEndOfStream() ? duration : frame->GetTimestamp();
+  DCHECK(max_clock_time != kNoTimestamp());
+  max_time_cb_.Run(max_clock_time);
+
   frame_available_.Signal();
 }
 

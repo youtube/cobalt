@@ -28,6 +28,9 @@ class MEDIA_EXPORT VideoRendererBase
  public:
   typedef base::Callback<void(bool)> SetOpaqueCB;
 
+  // Maximum duration of the last frame.
+  static base::TimeDelta kMaxLastFrameDuration();
+
   // |paint_cb| is executed on the video frame timing thread whenever a new
   // frame is available for painting via GetCurrentFrame().
   //
@@ -50,7 +53,7 @@ class MEDIA_EXPORT VideoRendererBase
   virtual void Initialize(const scoped_refptr<VideoDecoder>& decoder,
                           const PipelineStatusCB& init_cb,
                           const StatisticsCB& statistics_cb,
-                          const TimeCB& time_cb,
+                          const TimeCB& max_time_cb,
                           const NaturalSizeChangedCB& size_changed_cb,
                           const base::Closure& ended_cb,
                           const PipelineStatusCB& error_cb,
@@ -209,7 +212,7 @@ class MEDIA_EXPORT VideoRendererBase
 
   // Event callbacks.
   StatisticsCB statistics_cb_;
-  TimeCB time_cb_;
+  TimeCB max_time_cb_;
   NaturalSizeChangedCB size_changed_cb_;
   base::Closure ended_cb_;
   PipelineStatusCB error_cb_;
