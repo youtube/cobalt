@@ -730,6 +730,36 @@ bool HttpUtil::HasStrongValidators(HttpVersion version,
   return ((date - last_modified).InSeconds() >= 60);
 }
 
+// Functions for histogram initialization.  The code 0 is put in the map to
+// track status codes that are invalid.
+// TODO(gavinp): Greatly prune the collected codes once we learn which
+// ones are not sent in practice, to reduce upload size & memory use.
+
+enum {
+  HISTOGRAM_MIN_HTTP_STATUS_CODE = 100,
+  HISTOGRAM_MAX_HTTP_STATUS_CODE = 599,
+};
+
+// static
+std::vector<int> HttpUtil::GetStatusCodesForHistogram() {
+  std::vector<int> codes;
+  codes.reserve(
+      HISTOGRAM_MAX_HTTP_STATUS_CODE - HISTOGRAM_MIN_HTTP_STATUS_CODE + 2);
+  codes.push_back(0);
+  for (int i = HISTOGRAM_MIN_HTTP_STATUS_CODE;
+       i <= HISTOGRAM_MAX_HTTP_STATUS_CODE; ++i)
+    codes.push_back(i);
+  return codes;
+}
+
+// static
+int HttpUtil::MapStatusCodeForHistogram(int code) {
+  if (HISTOGRAM_MIN_HTTP_STATUS_CODE <= code &&
+      code <= HISTOGRAM_MAX_HTTP_STATUS_CODE)
+    return code;
+  return 0;
+}
+
 // BNF from section 4.2 of RFC 2616:
 //
 //   message-header = field-name ":" [ field-value ]

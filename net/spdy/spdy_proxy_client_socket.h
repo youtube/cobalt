@@ -113,6 +113,8 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
     STATE_CLOSED
   };
 
+  void LogBlockedTunnelResponse() const;
+
   void OnIOComplete(int result);
 
   int DoLoop(int last_io_result);

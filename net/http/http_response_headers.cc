@@ -99,34 +99,6 @@ bool ShouldUpdateHeader(const std::string::const_iterator& name_begin,
   return true;
 }
 
-// Functions for histogram initialization.  The code 0 is put in the
-// response map to track response codes that are invalid.
-// TODO(gavinp): Greatly prune the collected codes once we learn which
-// ones are not sent in practice, to reduce upload size & memory use.
-
-enum {
-  HISTOGRAM_MIN_HTTP_RESPONSE_CODE = 100,
-  HISTOGRAM_MAX_HTTP_RESPONSE_CODE = 599,
-};
-
-std::vector<int> GetAllHttpResponseCodes() {
-  std::vector<int> codes;
-  codes.reserve(
-      HISTOGRAM_MAX_HTTP_RESPONSE_CODE - HISTOGRAM_MIN_HTTP_RESPONSE_CODE + 2);
-  codes.push_back(0);
-  for (int i = HISTOGRAM_MIN_HTTP_RESPONSE_CODE;
-       i <= HISTOGRAM_MAX_HTTP_RESPONSE_CODE; ++i)
-    codes.push_back(i);
-  return codes;
-}
-
-int MapHttpResponseCode(int code) {
-  if (HISTOGRAM_MIN_HTTP_RESPONSE_CODE <= code &&
-      code <= HISTOGRAM_MAX_HTTP_RESPONSE_CODE)
-    return code;
-  return 0;
-}
-
 void CheckDoesNotHaveEmbededNulls(const std::string& str) {
   // Care needs to be taken when adding values to the raw headers string to
   // make sure it does not contain embeded NULLs. Any embeded '\0' may be
@@ -154,7 +126,7 @@ HttpResponseHeaders::HttpResponseHeaders(const std::string& raw_input)
   Parse(raw_input);
 
   // The most important thing to do with this histogram is find out
-  // the existence of unusual HTTP response codes.  As it happens
+  // the existence of unusual HTTP status codes.  As it happens
   // right now, there aren't double-constructions of response headers
   // using this constructor, so our counts should also be accurate,
   // without instantiating the histogram in two places.  It is also
@@ -164,11 +136,12 @@ HttpResponseHeaders::HttpResponseHeaders(const std::string& raw_input)
   // HttpResponseHeader that was serialized, and initialization of the
   // new object from that pickle.
   UMA_HISTOGRAM_CUSTOM_ENUMERATION("Net.HttpResponseCode",
-                                   MapHttpResponseCode(response_code_),
+                                   HttpUtil::MapStatusCodeForHistogram(
+                                       response_code_),
                                    // Note the third argument is only
                                    // evaluated once, see macro
                                    // definition for details.
-                                   GetAllHttpResponseCodes());
+                                   HttpUtil::GetStatusCodesForHistogram());
 }
 
 HttpResponseHeaders::HttpResponseHeaders(const Pickle& pickle,
