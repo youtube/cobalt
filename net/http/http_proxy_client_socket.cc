@@ -236,7 +236,7 @@ int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
     // We reach this case when the user cancels a 407 proxy auth prompt.
     // See http://crbug.com/8473.
     DCHECK_EQ(407, response_.headers->response_code());
-    LogBlockedTunnelResponse(response_.headers->response_code());
+    LogBlockedTunnelResponse();
 
     return ERR_TUNNEL_CONNECTION_FAILED;
   }
@@ -309,10 +309,11 @@ int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
   return OK;
 }
 
-void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
-  LOG(WARNING) << "Blocked proxy response with status " << response_code
-               << " to CONNECT request for "
-               << GetHostAndPort(request_.url) << ".";
+void HttpProxyClientSocket::LogBlockedTunnelResponse() const {
+  ProxyClientSocket::LogBlockedTunnelResponse(
+      response_.headers->response_code(),
+      request_.url,
+      is_https_proxy_);
 }
 
 void HttpProxyClientSocket::DoCallback(int result) {
@@ -477,6 +478,19 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
       // The only safe thing to do here is to fail the connection because our
       // client is expecting an SSL protected response.
       // See http://crbug.com/7338.
+
+    case 302:  // Found / Moved Temporarily
+      // Attempt to follow redirects from HTTPS proxies, but only if we can
+      // sanitize the response.  This still allows a rogue HTTPS proxy to
+      // redirect an HTTPS site load to a similar-looking site, but no longer
+      // allows it to impersonate the site the user requested.
+      if (is_https_proxy_ && SanitizeProxyRedirect(&response_, request_.url))
+        return ERR_HTTPS_PROXY_TUNNEL_RESPONSE;
+
+      // We're not using an HTTPS proxy, or we couldn't sanitize the redirect.
+      LogBlockedTunnelResponse();
+      return ERR_TUNNEL_CONNECTION_FAILED;
+
     case 407:  // Proxy Authentication Required
       // We need this status code to allow proxy authentication.  Our
       // authentication code is smart enough to avoid being tricked by an
@@ -485,15 +499,13 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
       return HandleProxyAuthChallenge(auth_, &response_, net_log_);
 
     default:
-      if (is_https_proxy_)
-        return ERR_HTTPS_PROXY_TUNNEL_RESPONSE;
-      // For all other status codes, we conservatively fail the CONNECT
-      // request.
+      // Ignore response to avoid letting the proxy impersonate the target
+      // server.  (See http://crbug.com/137891.)
       // We lose something by doing this.  We have seen proxy 403, 404, and
       // 501 response bodies that contain a useful error message.  For
       // example, Squid uses a 404 response to report the DNS error: "The
       // domain name does not exist."
-      LogBlockedTunnelResponse(response_.headers->response_code());
+      LogBlockedTunnelResponse();
       return ERR_TUNNEL_CONNECTION_FAILED;
   }
 }
