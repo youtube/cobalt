@@ -266,17 +266,18 @@ void AudioOutputDevice::AudioThreadCallback::Process(int pending_data) {
   TRACE_EVENT0("audio", "AudioOutputDevice::FireRenderCallback");
 
   // Update the audio-delay measurement then ask client to render audio.
-  size_t num_frames = render_callback_->Render(audio_data_,
-      audio_parameters_.frames_per_buffer(), audio_delay_milliseconds);
+  size_t num_frames = render_callback_->Render(
+      audio_bus_.get(), audio_delay_milliseconds);
 
   // Interleave, scale, and clip to int.
-  // TODO(crogers/vrk): Figure out a way to avoid the float -> int -> float
-  // conversions that happen in the <audio> and WebRTC scenarios.
-  InterleaveFloatToInt(audio_data_, shared_memory_.memory(),
-      num_frames, audio_parameters_.bits_per_sample() / 8);
+  // TODO(dalecurtis): Remove this when we have float everywhere.
+  InterleaveFloatToInt(
+      audio_bus_.get(), shared_memory_.memory(), num_frames,
+      audio_parameters_.bits_per_sample() / 8);
 
   // Let the host know we are done.
-  SetActualDataSizeInBytes(&shared_memory_, memory_length_,
+  SetActualDataSizeInBytes(
+      &shared_memory_, memory_length_,
       num_frames * audio_parameters_.GetBytesPerFrame());
 }
 

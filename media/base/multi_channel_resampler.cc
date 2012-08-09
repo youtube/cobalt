@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/logging.h"
+#include "media/base/audio_bus.h"
 
 namespace media {
 
@@ -14,7 +15,6 @@ MultiChannelResampler::MultiChannelResampler(int channels,
                                              double io_sample_rate_ratio,
                                              const ReadCB& read_cb)
     : last_frame_count_(0),
-      first_frame_count_(0),
       read_cb_(read_cb) {
   // Allocate each channel's resampler.
   resamplers_.reserve(channels);
@@ -24,17 +24,10 @@ MultiChannelResampler::MultiChannelResampler(int channels,
   }
 }
 
-MultiChannelResampler::~MultiChannelResampler() {
-  // Clean up |resampler_audio_data_|.  Skip the first channel since we never
-  // allocated that, but just used the destination passed into ProvideInput().
-  for (size_t i = 1; i < resampler_audio_data_.size(); ++i)
-    delete [] resampler_audio_data_[i];
-  resampler_audio_data_.clear();
-}
+MultiChannelResampler::~MultiChannelResampler() {}
 
-void MultiChannelResampler::Resample(const std::vector<float*>& destination,
-                                     int frames) {
-  DCHECK_EQ(destination.size(), resamplers_.size());
+void MultiChannelResampler::Resample(AudioBus* audio_bus, int frames) {
+  DCHECK_EQ(static_cast<size_t>(audio_bus->channels()), resamplers_.size());
 
   // We need to ensure that SincResampler only calls ProvideInput once for each
   // channel.  To ensure this, we chunk the number of requested frames into
@@ -55,7 +48,8 @@ void MultiChannelResampler::Resample(const std::vector<float*>& destination,
       // the first channel, then it will call it for the remaining channels,
       // since they all buffer in the same way and are processing the same
       // number of frames.
-      resamplers_[i]->Resample(destination[i] + frames_done, frames_this_time);
+      resamplers_[i]->Resample(
+          audio_bus->channel(i) + frames_done, frames_this_time);
     }
 
     frames_done += frames_this_time;
@@ -66,32 +60,37 @@ void MultiChannelResampler::ProvideInput(int channel, float* destination,
                                          int frames) {
   // Get the data from the multi-channel provider when the first channel asks
   // for it.  For subsequent channels, we can just dish out the channel data
-  // from that (stored in |resampler_audio_data_|).
+  // from that (stored in |resampler_audio_bus_|).
   if (channel == 0) {
-    // Allocate staging arrays on the first request.
-    if (resampler_audio_data_.size() == 0) {
-      first_frame_count_ = frames;
-      // Skip allocation of the first buffer, since we'll use |destination|
-      // directly for that.
-      resampler_audio_data_.reserve(resamplers_.size());
+    // Allocate staging arrays on the first request and if the frame size or
+    // |destination| changes (should only happen once).
+    if (!resampler_audio_bus_.get() ||
+        resampler_audio_bus_->frames() != frames ||
+        wrapped_resampler_audio_bus_->channel(0) != destination) {
+      resampler_audio_bus_ = AudioBus::Create(resamplers_.size(), frames);
+
+      // Create a channel vector based on |resampler_audio_bus_| but using
+      // |destination| directly for the first channel and then wrap it in a new
+      // AudioBus so we can avoid an extra memcpy later.
+      resampler_audio_data_.clear();
+      resampler_audio_data_.reserve(resampler_audio_bus_->channels());
       resampler_audio_data_.push_back(destination);
-      for (size_t i = 1; i < resamplers_.size(); ++i)
-        resampler_audio_data_.push_back(new float[frames]);
-    } else {
-      DCHECK_LE(frames, first_frame_count_);
-      resampler_audio_data_[0] = destination;
+      for (int i = 1; i < resampler_audio_bus_->channels(); ++i)
+        resampler_audio_data_.push_back(resampler_audio_bus_->channel(i));
+      wrapped_resampler_audio_bus_ = AudioBus::WrapVector(
+          frames, resampler_audio_data_);
     }
 
     last_frame_count_ = frames;
-    read_cb_.Run(resampler_audio_data_, frames);
+    read_cb_.Run(wrapped_resampler_audio_bus_.get());
   } else {
     // All channels must ask for the same amount.  This should always be the
     // case, but let's just make sure.
     DCHECK_EQ(frames, last_frame_count_);
 
     // Copy the channel data from what we received from |read_cb_|.
-    memcpy(destination, resampler_audio_data_[channel],
-           sizeof(*resampler_audio_data_[channel]) * frames);
+    memcpy(destination, resampler_audio_bus_->channel(channel),
+           sizeof(*resampler_audio_bus_->channel(channel)) * frames);
   }
 }
 

@@ -5,8 +5,6 @@
 #ifndef MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_
 #define MEDIA_BASE_FAKE_AUDIO_RENDER_CALLBACK_H_
 
-#include <vector>
-
 #include "media/base/audio_renderer_sink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -24,8 +22,7 @@ class FakeAudioRenderCallback : public AudioRendererSink::RenderCallback {
 
   // Renders a sine wave into the provided audio data buffer.  If |half_fill_|
   // is set, will only fill half the buffer.
-  int Render(const std::vector<float*>& audio_data, int number_of_frames,
-             int audio_delay_milliseconds) OVERRIDE;
+  int Render(AudioBus* audio_bus, int audio_delay_milliseconds) OVERRIDE;
   MOCK_METHOD0(OnRenderError, void());
 
   // Toggles only filling half the requested amount during Render().

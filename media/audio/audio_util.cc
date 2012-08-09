@@ -22,6 +22,7 @@
 #include "base/time.h"
 #include "media/audio/audio_parameters.h"
 #include "media/audio/audio_util.h"
+#include "media/base/audio_bus.h"
 
 #if defined(OS_MACOSX)
 #include "media/audio/mac/audio_low_latency_input_mac.h"
@@ -230,7 +231,7 @@ bool DeinterleaveAudioChannel(void* source,
 // |Format| is the destination type, |Fixed| is a type larger than |Format|
 // such that operations can be made without overflowing.
 template<class Format, class Fixed>
-static void InterleaveFloatToInt(const std::vector<float*>& source,
+static void InterleaveFloatToInt(const AudioBus* source,
                                  void* dst_bytes, size_t number_of_frames) {
   Format* destination = reinterpret_cast<Format*>(dst_bytes);
   Fixed max_value = std::numeric_limits<Format>::max();
@@ -243,9 +244,9 @@ static void InterleaveFloatToInt(const std::vector<float*>& source,
     min_value = -(bias - 1);
   }
 
-  int channels = source.size();
+  int channels = source->channels();
   for (int i = 0; i < channels; ++i) {
-    float* channel_data = source[i];
+    const float* channel_data = source->channel(i);
     for (size_t j = 0; j < number_of_frames; ++j) {
       Fixed sample = max_value * channel_data[j];
       if (sample > max_value)
@@ -258,7 +259,7 @@ static void InterleaveFloatToInt(const std::vector<float*>& source,
   }
 }
 
-void InterleaveFloatToInt(const std::vector<float*>& source, void* dst,
+void InterleaveFloatToInt(const AudioBus* source, void* dst,
                           size_t number_of_frames, int bytes_per_sample) {
   switch (bytes_per_sample) {
     case 1:
