@@ -64,6 +64,7 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
@@ -108,7 +109,7 @@ class Lock;
       // histogram.  FactoryGet includes locks on a global histogram name map
       // and is completely thread safe.
       histogram_pointer = base::Histogram::FactoryGet(
-          name, min, max, bucket_count, base::Histogram::kNoFlags);
+          name, min, max, bucket_count, base::HistogramBase::kNoFlags);
 
       // Use Release_Store to ensure that the histogram data is made available
       // globally before we make the pointer visible.
@@ -171,7 +172,7 @@ class Lock;
 #define HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::Histogram::FactoryGet(name, min, max, bucket_count, \
-                                    base::Histogram::kNoFlags))
+                                    base::HistogramBase::kNoFlags))
 
 #define HISTOGRAM_PERCENTAGE(name, under_one_hundred) \
     HISTOGRAM_ENUMERATION(name, under_one_hundred, 101)
@@ -181,7 +182,7 @@ class Lock;
 #define HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, AddTime(sample), \
         base::Histogram::FactoryTimeGet(name, min, max, bucket_count, \
-                                        base::Histogram::kNoFlags))
+                                        base::HistogramBase::kNoFlags))
 
 // Support histograming of an enumerated value.  The samples should always be
 // strictly less than |boundary_value| -- this prevents you from running into
@@ -192,7 +193,7 @@ class Lock;
 #define HISTOGRAM_ENUMERATION(name, sample, boundary_value) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::LinearHistogram::FactoryGet(name, 1, boundary_value, \
-            boundary_value + 1, base::Histogram::kNoFlags))
+            boundary_value + 1, base::HistogramBase::kNoFlags))
 
 // Support histograming of an enumerated value. Samples should be one of the
 // std::vector<int> list provided via |custom_ranges|. See comments above
@@ -202,7 +203,7 @@ class Lock;
 #define HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges) \
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::CustomHistogram::FactoryGet(name, custom_ranges, \
-                                          base::Histogram::kNoFlags))
+                                          base::HistogramBase::kNoFlags))
 
 //------------------------------------------------------------------------------
 // Define Debug vs non-debug flavors of macros.
@@ -366,20 +367,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
     CUSTOM,
   };
 
-  enum Flags {
-    kNoFlags = 0,
-    kUmaTargetedHistogramFlag = 0x1,  // Histogram should be UMA uploaded.
-
-    // Indicate that the histogram was pickled to be sent across an IPC Channel.
-    // If we observe this flag on a histogram being aggregated into after IPC,
-    // then we are running in a single process mode, and the aggregation should
-    // not take place (as we would be aggregating back into the source
-    // histogram!).
-    kIPCSerializationSourceFlag = 0x10,
-
-    kHexRangePrintingFlag = 0x8000,  // Fancy bucket-naming supported.
-  };
-
   enum Inconsistencies {
     NO_INCONSISTENCIES = 0x0,
     RANGE_CHECKSUM_ERROR = 0x1,
@@ -460,12 +447,12 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                Sample minimum,
                                Sample maximum,
                                size_t bucket_count,
-                               Flags flags);
+                               int32 flags);
   static Histogram* FactoryTimeGet(const std::string& name,
                                    base::TimeDelta minimum,
                                    base::TimeDelta maximum,
                                    size_t bucket_count,
-                                   Flags flags);
+                                   int32 flags);
 
   // Time call for use with DHISTOGRAM*.
   // Returns TimeTicks::Now() in debug and TimeTicks() in release build.
@@ -494,13 +481,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // The following methods provide graphical histogram displays.
   virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
   virtual void WriteAscii(std::string* output) const OVERRIDE;
-
-  // Support generic flagging of Histograms.
-  // 0x1 Currently used to mark this histogram to be recorded by UMA..
-  // 0x8000 means print ranges in hex.
-  void SetFlags(Flags flags) { flags_ = static_cast<Flags> (flags_ | flags); }
-  void ClearFlags(Flags flags) { flags_ = static_cast<Flags>(flags_ & ~flags); }
-  int flags() const { return flags_; }
 
   // Convenience methods for serializing/deserializing the histograms.
   // Histograms from Renderer process are serialized and sent to the browser.
@@ -638,9 +618,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   Sample declared_max_;  // Over this goes into counts_[bucket_count_ - 1].
   size_t bucket_count_;  // Dimension of counts_[].
 
-  // Flag the histogram for recording by UMA via metric_services.h.
-  Flags flags_;
-
   // Finally, provide the state that changes with the addition of each new
   // sample.
   SampleSet sample_;
@@ -662,12 +639,12 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                Sample minimum,
                                Sample maximum,
                                size_t bucket_count,
-                               Flags flags);
+                               int32 flags);
   static Histogram* FactoryTimeGet(const std::string& name,
                                    TimeDelta minimum,
                                    TimeDelta maximum,
                                    size_t bucket_count,
-                                   Flags flags);
+                                   int32 flags);
 
   static void InitializeBucketRanges(Sample minimum,
                                      Sample maximum,
@@ -714,7 +691,7 @@ class BASE_EXPORT LinearHistogram : public Histogram {
 // BooleanHistogram is a histogram for booleans.
 class BASE_EXPORT BooleanHistogram : public LinearHistogram {
  public:
-  static Histogram* FactoryGet(const std::string& name, Flags flags);
+  static Histogram* FactoryGet(const std::string& name, int32 flags);
 
   virtual ClassType histogram_type() const OVERRIDE;
 
@@ -737,7 +714,7 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   // client should not depend on this.
   static Histogram* FactoryGet(const std::string& name,
                                const std::vector<Sample>& custom_ranges,
-                               Flags flags);
+                               int32 flags);
 
   // Overridden from Histogram:
   virtual ClassType histogram_type() const OVERRIDE;
