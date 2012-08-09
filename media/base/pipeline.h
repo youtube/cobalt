@@ -80,9 +80,6 @@ class MEDIA_EXPORT PipelineStatusNotification {
 //         |                                              |
 //         V      Seek()/Stop()                           |
 //   [ Started ] -------------------------> [ Pausing (for each filter) ]
-//         |                                              ^
-//         |   OnRendererEnded()             Seek()/Stop()    |
-//         `-------------> [ Ended ] ---------------------'
 //                                                        ^  SetError()
 //                                                        |
 //                                         [ Any State Other Than InitXXX ]
@@ -246,7 +243,6 @@ class MEDIA_EXPORT Pipeline
     kFlushing,
     kStarting,
     kStarted,
-    kEnded,
     kStopping,
     kStopped,
     kError,
@@ -301,8 +297,9 @@ class MEDIA_EXPORT Pipeline
   // Callback executed when the natural size of the video has changed.
   void OnNaturalVideoSizeChanged(const gfx::Size& size);
 
-  // Callback executed when either of the renderers have ended.
-  void OnRendererEnded();
+  // Callbacks executed when a renderer has ended.
+  void OnAudioRendererEnded();
+  void OnVideoRendererEnded();
 
   // Callbacks executed by filters upon completing initialization.
   void OnFilterInitialize(PipelineStatus status);
@@ -357,8 +354,10 @@ class MEDIA_EXPORT Pipeline
   // Carries out notifying filters that we are seeking to a new timestamp.
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& seek_cb);
 
-  // Carries out handling a notification from a renderer that it has ended.
-  void OnRendererEndedTask();
+  // Handles audio/video ended logic and running |ended_cb_|.
+  void DoAudioRendererEnded();
+  void DoVideoRendererEnded();
+  void RunEndedCallbackIfNeeded();
 
   // Carries out disabling the audio renderer.
   void AudioDisabledTask();
@@ -518,6 +517,10 @@ class MEDIA_EXPORT Pipeline
   // For kSeeking we need to remember where we're seeking between filter
   // replies.
   base::TimeDelta seek_timestamp_;
+
+  // Whether we've received the audio/video ended events.
+  bool audio_ended_;
+  bool video_ended_;
 
   // Set to true in DisableAudioRendererTask().
   bool audio_disabled_;
