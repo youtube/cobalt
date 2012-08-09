@@ -5,10 +5,10 @@
 #ifndef BASE_METRICS_HISTOGRAM_BASE_H_
 #define BASE_METRICS_HISTOGRAM_BASE_H_
 
-#include <climits>
 #include <string>
 
 #include "base/base_export.h"
+#include "base/basictypes.h"
 
 namespace base {
 
@@ -19,10 +19,31 @@ class BASE_EXPORT HistogramBase {
 
   static const Sample kSampleType_MAX;  // INT_MAX
 
+  enum Flags {
+    kNoFlags = 0,
+    kUmaTargetedHistogramFlag = 0x1,  // Histogram should be UMA uploaded.
+
+    // Indicate that the histogram was pickled to be sent across an IPC Channel.
+    // If we observe this flag on a histogram being aggregated into after IPC,
+    // then we are running in a single process mode, and the aggregation should
+    // not take place (as we would be aggregating back into the source
+    // histogram!).
+    kIPCSerializationSourceFlag = 0x10,
+
+    // Only for Histogram and its sub classes: fancy bucket-naming support.
+    kHexRangePrintingFlag = 0x8000,
+  };
+
+
   HistogramBase(const std::string& name);
   virtual ~HistogramBase();
 
   std::string histogram_name() const { return histogram_name_; }
+
+  // Operations with Flags enum.
+  int32 flags() const { return flags_; }
+  void SetFlags(int32 flags);
+  void ClearFlags(int32 flags);
 
   virtual void Add(Sample value) = 0;
 
@@ -32,6 +53,9 @@ class BASE_EXPORT HistogramBase {
 
  private:
   const std::string histogram_name_;
+  int32 flags_;
+
+  DISALLOW_COPY_AND_ASSIGN(HistogramBase);
 };
 
 }  // namespace base
