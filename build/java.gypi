@@ -26,18 +26,26 @@
 #
 # Finally, the generated jar-file will be:
 #   <(PRODUCT_DIR)/lib.java/chromium_base.jar
-#
-# TODO(yfriedman): The "finally" statement isn't entirely true yet, as we don't
-# auto-generate the ant file yet.
 
 {
+  'direct_dependent_settings': {
+    'variables': {
+      'input_jars_paths': ['<(PRODUCT_DIR)/lib.java/chromium_<(package_name).jar'],
+    },
+  },
+  'variables': {
+    'input_jars_paths': [],
+  },
   'actions': [
     {
       'action_name': 'ant_<(package_name)',
       'message': 'Building <(package_name) java sources.',
       'inputs': [
-         '<(java_in_dir)/<(package_name).xml',
-         '<!@(find <(java_in_dir) -name "*.java")'
+        'android/ant/common.xml',
+        'android/ant/chromium-jars.xml',
+        '<(java_in_dir)/<(package_name).xml',
+        '<!@(find <(java_in_dir) -name "*.java")',
+        '>@(input_jars_paths)',
       ],
       'outputs': [
         '<(PRODUCT_DIR)/lib.java/chromium_<(package_name).jar',
