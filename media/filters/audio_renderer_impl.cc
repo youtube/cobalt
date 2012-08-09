@@ -200,13 +200,6 @@ void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
   init_cb.Run(PIPELINE_OK);
 }
 
-bool AudioRendererImpl::HasEnded() {
-  base::AutoLock auto_lock(lock_);
-  DCHECK(!rendered_end_of_stream_ || !algorithm_->CanFillBuffer());
-
-  return received_end_of_stream_ && rendered_end_of_stream_;
-}
-
 void AudioRendererImpl::ResumeAfterUnderflow(bool buffer_more_audio) {
   base::AutoLock auto_lock(lock_);
   if (state_ == kUnderflow) {
