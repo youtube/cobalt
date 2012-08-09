@@ -115,14 +115,10 @@ bool PCMQueueOutAudioOutputStream::Open() {
   }
   // Get the size of the channel layout.
   UInt32 core_layout_size;
-  // TODO(annacc): AudioDeviceGetPropertyInfo() is deprecated, but its
-  // replacement, AudioObjectGetPropertyDataSize(), doesn't work yet with
-  // kAudioDevicePropertyPreferredChannelLayout.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  err = AudioDeviceGetPropertyInfo(device_id, 0, false,
-                                   kAudioDevicePropertyPreferredChannelLayout,
-                                   &core_layout_size, NULL);
+  property_address.mSelector = kAudioDevicePropertyPreferredChannelLayout;
+  property_address.mScope = kAudioDevicePropertyScopeOutput;
+  err = AudioObjectGetPropertyDataSize(device_id, &property_address, 0, NULL,
+                                       &core_layout_size);
   if (err != noErr) {
     HandleError(err);
     return false;
@@ -133,17 +129,13 @@ bool PCMQueueOutAudioOutputStream::Open() {
   core_channel_layout.reset(
       reinterpret_cast<AudioChannelLayout*>(malloc(core_layout_size)));
   memset(core_channel_layout.get(), 0, core_layout_size);
-  // TODO(annacc): AudioDeviceGetProperty() is deprecated, but its
-  // replacement, AudioObjectGetPropertyData(), doesn't work yet with
-  // kAudioDevicePropertyPreferredChannelLayout.
-  err = AudioDeviceGetProperty(device_id, 0, false,
-                               kAudioDevicePropertyPreferredChannelLayout,
-                               &core_layout_size, core_channel_layout.get());
+  err = AudioObjectGetPropertyData(device_id, &property_address, 0, NULL,
+                                   &core_layout_size,
+                                   core_channel_layout.get());
   if (err != noErr) {
     HandleError(err);
     return false;
   }
-#pragma clang diagnostic pop
 
   num_core_channels_ =
       static_cast<int>(core_channel_layout->mNumberChannelDescriptions);
