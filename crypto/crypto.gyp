@@ -35,7 +35,7 @@
         4018,
       ],
       'conditions': [
-        [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android"', {
           'dependencies': [
             '../build/linux/system.gyp:ssl',
           ],
@@ -48,7 +48,7 @@
               },
             ],
           ],
-        }, {  # os_posix != 1 or OS == "mac" or OS == "android"
+        }, {  # os_posix != 1 or OS == "mac" or OS == "ios" or OS == "android"
             'sources/': [
               ['exclude', '_nss\.cc$'],
               ['include', 'ec_private_key_nss\.cc$'],
@@ -100,7 +100,7 @@
             'mac_security_services_lock.h',
           ],
         }],
-        [ 'OS == "mac" or OS == "win"', {
+        [ 'OS == "mac" or OS == "ios" or OS == "win"', {
           'dependencies': [
             '../third_party/nss/nss.gyp:nspr',
             '../third_party/nss/nss.gyp:nss',
@@ -262,7 +262,7 @@
         '../testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "android" and OS != "ios"', {
           'conditions': [
             [ 'linux_use_tcmalloc==1', {
                 'dependencies': [
@@ -274,15 +274,24 @@
           'dependencies': [
             '../build/linux/system.gyp:ssl',
           ],
-        }, {  # os_posix != 1 or OS == "mac" or OS == "android"
+        }, {  # os_posix != 1 or OS == "mac" or OS == "android" or OS == "ios"
           'sources!': [
             'rsa_private_key_nss_unittest.cc',
             'openpgp_symmetric_encryption_unittest.cc',
           ]
         }],
-        [ 'OS == "mac" or OS == "win"', {
+        [ 'OS == "mac" or OS == "ios" or OS == "win"', {
           'dependencies': [
             '../third_party/nss/nss.gyp:nss',
+          ],
+        }],
+        ['OS == "ios"', {
+          'sources!': [
+            # These tests are excluded because they test classes that are not
+            # implemented on iOS.
+            'rsa_private_key_unittest.cc',
+            'signature_creator_unittest.cc',
+            'signature_verifier_unittest.cc',
           ],
         }],
         [ 'OS == "mac"', {
