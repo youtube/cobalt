@@ -579,6 +579,19 @@ bool TCPClientSocketLibevent::SetNoDelay(bool no_delay) {
   return SetTCPNoDelay(socket, no_delay);
 }
 
+void TCPClientSocketLibevent::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
+  if (!socket_->read_callback_.is_null())
+    socket_->DidCompleteRead();
+}
+
+void TCPClientSocketLibevent::WriteWatcher::OnFileCanWriteWithoutBlocking(int) {
+  if (socket_->waiting_connect()) {
+    socket_->DidCompleteConnect();
+  } else if (!socket_->write_callback_.is_null()) {
+    socket_->DidCompleteWrite();
+  }
+}
+
 void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
   if (net_error == OK)
     UpdateConnectionTypeHistograms(CONNECTION_ANY);

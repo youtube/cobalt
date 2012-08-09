@@ -86,6 +86,18 @@ HttpAuth::AuthorizationResult HttpAuth::HandleChallengeResponse(
   return HttpAuth::AUTHORIZATION_RESULT_REJECT;
 }
 
+HttpAuth::ChallengeTokenizer::ChallengeTokenizer(
+    std::string::const_iterator begin,
+    std::string::const_iterator end)
+    : begin_(begin),
+      end_(end),
+      scheme_begin_(begin),
+      scheme_end_(begin),
+      params_begin_(end),
+      params_end_(end) {
+  Init(begin, end);
+}
+
 HttpUtil::NameValuePairsIterator HttpAuth::ChallengeTokenizer::param_pairs()
     const {
   return HttpUtil::NameValuePairsIterator(params_begin_, params_end_, ',');

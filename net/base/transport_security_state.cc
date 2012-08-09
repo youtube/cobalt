@@ -54,6 +54,13 @@ TransportSecurityState::TransportSecurityState()
   : delegate_(NULL) {
 }
 
+TransportSecurityState::Iterator::Iterator(const TransportSecurityState& state)
+    : iterator_(state.enabled_hosts_.begin()),
+      end_(state.enabled_hosts_.end()) {
+}
+
+TransportSecurityState::Iterator::~Iterator() {}
+
 void TransportSecurityState::SetDelegate(
     TransportSecurityState::Delegate* delegate) {
   delegate_ = delegate;

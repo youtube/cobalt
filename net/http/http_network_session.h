@@ -47,19 +47,7 @@ class NET_EXPORT HttpNetworkSession
       NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   struct NET_EXPORT Params {
-    Params()
-        : client_socket_factory(NULL),
-          host_resolver(NULL),
-          cert_verifier(NULL),
-          server_bound_cert_service(NULL),
-          transport_security_state(NULL),
-          proxy_service(NULL),
-          ssl_config_service(NULL),
-          http_auth_handler_factory(NULL),
-          network_delegate(NULL),
-          http_server_properties(NULL),
-          net_log(NULL),
-          force_http_pipelining(false) {}
+    Params();
 
     ClientSocketFactory* client_socket_factory;
     HostResolver* host_resolver;

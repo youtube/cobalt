@@ -82,6 +82,24 @@ NetworkChangeNotifierMac::GetCurrentConnectionType() const {
   return connection_type_;
 }
 
+void NetworkChangeNotifierMac::Forwarder::Init()  {
+  net_config_watcher_->SetInitialConnectionType();
+}
+
+void NetworkChangeNotifierMac::Forwarder::StartReachabilityNotifications() {
+  net_config_watcher_->StartReachabilityNotifications();
+}
+
+void NetworkChangeNotifierMac::Forwarder::SetDynamicStoreNotificationKeys(
+    SCDynamicStoreRef store)  {
+  net_config_watcher_->SetDynamicStoreNotificationKeys(store);
+}
+
+void NetworkChangeNotifierMac::Forwarder::OnNetworkConfigChange(
+    CFArrayRef changed_keys)  {
+  net_config_watcher_->OnNetworkConfigChange(changed_keys);
+}
+
 void NetworkChangeNotifierMac::SetInitialConnectionType() {
   // Called on notifier thread.
 
