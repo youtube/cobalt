@@ -189,6 +189,15 @@ void UpdateTimes(disk_cache::CacheRankingsBlock* node, bool modified) {
 
 namespace disk_cache {
 
+Rankings::ScopedRankingsBlock::ScopedRankingsBlock() : rankings_(NULL) {}
+
+Rankings::ScopedRankingsBlock::ScopedRankingsBlock(Rankings* rankings)
+    : rankings_(rankings) {}
+
+Rankings::ScopedRankingsBlock::ScopedRankingsBlock(
+    Rankings* rankings, CacheRankingsBlock* node)
+    : scoped_ptr<CacheRankingsBlock>(node), rankings_(rankings) {}
+
 Rankings::Iterator::Iterator(Rankings* rankings) {
   memset(this, 0, sizeof(Iterator));
   my_rankings = rankings;

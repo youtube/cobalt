@@ -60,9 +60,7 @@ class NET_EXPORT SocketStream
   class NET_EXPORT Delegate {
    public:
     virtual int OnStartOpenConnection(SocketStream* socket,
-                                      const CompletionCallback& callback) {
-      return OK;
-    }
+                                      const CompletionCallback& callback);
 
     // Called when socket stream has been connected.  The socket stream accepts
     // at most |max_pending_send_allowed| so that a client of the socket stream
@@ -86,19 +84,14 @@ class NET_EXPORT SocketStream
     // The delegate should call RestartWithAuth() if credential for |auth_info|
     // is found in password database, or call Close() to close the connection.
     virtual void OnAuthRequired(SocketStream* socket,
-                                AuthChallengeInfo* auth_info) {
-      // By default, no credential is available and close the connection.
-      socket->Close();
-    }
+                                AuthChallengeInfo* auth_info);
 
     // Called when using SSL and the server responds with a certificate with an
     // error. The delegate should call CancelBecauseOfCertError() or
     // ContinueDespiteCertError() to resume connection handling.
     virtual void OnSSLCertificateError(SocketStream* socket,
                                        const SSLInfo& ssl_info,
-                                       bool fatal) {
-      socket->CancelWithSSLError(ssl_info);
-    }
+                                       bool fatal);
 
     // Called when an error occured.
     // This is only for error reporting to the delegate.
@@ -107,18 +100,14 @@ class NET_EXPORT SocketStream
 
     // Called when reading cookies to allow the delegate to block access to the
     // cookie.
-    virtual bool CanGetCookies(SocketStream* socket, const GURL& url) {
-      return true;
-    }
+    virtual bool CanGetCookies(SocketStream* socket, const GURL& url);
 
     // Called when a cookie is set to allow the delegate to block access to the
     // cookie.
     virtual bool CanSetCookie(SocketStream* request,
                               const GURL& url,
                               const std::string& cookie_line,
-                              CookieOptions* options) {
-      return true;
-    }
+                              CookieOptions* options);
 
    protected:
     virtual ~Delegate() {}
@@ -211,7 +200,7 @@ class NET_EXPORT SocketStream
     std::string headers_;
 
     private:
-     virtual ~RequestHeaders() { data_ = NULL; }
+     virtual ~RequestHeaders();
   };
 
   class ResponseHeaders : public IOBuffer {

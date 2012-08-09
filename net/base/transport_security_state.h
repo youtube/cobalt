@@ -151,13 +151,10 @@ class NET_EXPORT TransportSecurityState
     std::string domain;
   };
 
-  class Iterator {
+  class NET_EXPORT Iterator {
    public:
-    explicit Iterator(const TransportSecurityState& state)
-        : iterator_(state.enabled_hosts_.begin()),
-          end_(state.enabled_hosts_.end()) {
-    }
-    ~Iterator() {}
+    explicit Iterator(const TransportSecurityState& state);
+    ~Iterator();
 
     bool HasNext() const { return iterator_ != end_; }
     void Advance() { ++iterator_; }
