@@ -15,13 +15,3 @@
  }
 -
 -
---- a/xdgmimeglob.c
-+++ b/xdgmimeglob.c
-@@ -375,7 +375,6 @@
-   int i, n;
-   MimeWeight mimes[10];
-   int n_mimes = 10;
--  xdg_unichar_t *ucs4;
-   int len;
- 
-   /* First, check the literals */
