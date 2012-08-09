@@ -260,6 +260,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   void FlushIndex();
 
   // Backend implementation.
+  virtual net::CacheType GetCacheType() const OVERRIDE;
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
                         const CompletionCallback& callback) OVERRIDE;

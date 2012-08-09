@@ -124,6 +124,10 @@ void MemBackendImpl::RemoveFromRankingList(MemEntryImpl* entry) {
   rankings_.Remove(entry);
 }
 
+net::CacheType MemBackendImpl::GetCacheType() const {
+  return net::MEMORY_CACHE;
+}
+
 int32 MemBackendImpl::GetEntryCount() const {
   return static_cast<int32>(entries_.size());
 }
