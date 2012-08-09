@@ -81,6 +81,8 @@ class MEDIA_EXPORT SincResampler {
   float* const r3_;
   float* const r4_;
   float* const r5_;
+
+  DISALLOW_COPY_AND_ASSIGN(SincResampler);
 };
 
 }  // namespace media

@@ -13,13 +13,13 @@
 // audio device or we haven't written an audio implementation for a particular
 // platform yet.
 
-#include <vector>
-
 #include "base/md5.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "media/base/audio_renderer_sink.h"
 
 namespace media {
+class AudioBus;
 
 class MEDIA_EXPORT NullAudioSink
     : NON_EXPORTED_BASE(public AudioRendererSink) {
@@ -53,7 +53,7 @@ class MEDIA_EXPORT NullAudioSink
   void SetPlaying(bool is_playing);
 
   // A buffer passed to FillBuffer to advance playback.
-  std::vector<float*> audio_data_;
+  scoped_ptr<AudioBus> audio_bus_;
 
   AudioParameters params_;
   bool initialized_;

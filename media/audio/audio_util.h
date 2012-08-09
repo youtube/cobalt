@@ -6,7 +6,6 @@
 #define MEDIA_AUDIO_AUDIO_UTIL_H_
 
 #include <string>
-#include <vector>
 
 #include "base/basictypes.h"
 #include "media/base/channel_layout.h"
@@ -17,6 +16,7 @@ class SharedMemory;
 }
 
 namespace media {
+class AudioBus;
 
 // For all audio functions 3 audio formats are supported:
 // 8 bits unsigned 0 to 255.
@@ -86,7 +86,7 @@ MEDIA_EXPORT bool DeinterleaveAudioChannel(void* source,
 // The size of the |source| vector determines the number of channels.
 // The |destination| buffer is assumed to be large enough to hold the
 // result. Thus it must be at least size: number_of_frames * source.size()
-MEDIA_EXPORT void InterleaveFloatToInt(const std::vector<float*>& source,
+MEDIA_EXPORT void InterleaveFloatToInt(const AudioBus* audio_bus,
                                        void* destination,
                                        size_t number_of_frames,
                                        int bytes_per_sample);

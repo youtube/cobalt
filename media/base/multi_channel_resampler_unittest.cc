@@ -8,6 +8,7 @@
 #include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "media/base/audio_bus.h"
 #include "media/base/multi_channel_resampler.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -37,33 +38,20 @@ class MultiChannelResamplerTest
     : public testing::TestWithParam<int> {
  public:
   MultiChannelResamplerTest() {}
-  virtual ~MultiChannelResamplerTest() {
-    if (!audio_data_.empty()) {
-      for (size_t i = 0; i < audio_data_.size(); ++i)
-        delete [] audio_data_[i];
-      audio_data_.clear();
-    }
-  }
+  virtual ~MultiChannelResamplerTest() {}
 
   void InitializeAudioData(int channels, int frames) {
     frames_ = frames;
-    audio_data_.reserve(channels);
-    for (int i = 0; i < channels; ++i) {
-      audio_data_.push_back(new float[frames]);
-
-      // Zero initialize so we can be sure every value has been provided.
-      memset(audio_data_[i], 0, sizeof(*audio_data_[i]) * frames);
-    }
+    audio_bus_ = AudioBus::Create(channels, frames);
   }
 
   // MultiChannelResampler::MultiChannelAudioSourceProvider implementation, just
   // fills the provided audio_data with |kFillValue|.
-  virtual void ProvideInput(const std::vector<float*>& audio_data,
-                            int number_of_frames) {
-    EXPECT_EQ(audio_data.size(), audio_data_.size());
-    for (size_t i = 0; i < audio_data.size(); ++i)
-      for (int j = 0; j < number_of_frames; ++j)
-        audio_data[i][j] = kFillValue;
+  virtual void ProvideInput(AudioBus* audio_bus) {
+    EXPECT_EQ(audio_bus->channels(), audio_bus_->channels());
+    for (int i = 0; i < audio_bus->channels(); ++i)
+      for (int j = 0; j < audio_bus->frames(); ++j)
+        audio_bus->channel(i)[j] = kFillValue;
   }
 
   void MultiChannelTest(int channels, int frames, double expected_max_rms_error,
@@ -73,7 +61,7 @@ class MultiChannelResamplerTest
         channels, kScaleFactor, base::Bind(
             &MultiChannelResamplerTest::ProvideInput,
             base::Unretained(this)));
-    resampler.Resample(audio_data_, frames);
+    resampler.Resample(audio_bus_.get(), frames);
     TestValues(expected_max_rms_error, expected_max_error);
   }
 
@@ -91,19 +79,19 @@ class MultiChannelResamplerTest
     // Calculate Root-Mean-Square-Error for the resampling.
     double max_error = 0.0;
     double sum_of_squares = 0.0;
-    for (size_t i = 0; i < audio_data_.size(); ++i) {
+    for (int i = 0; i < audio_bus_->channels(); ++i) {
       for (int j = 0; j < frames_; ++j) {
         // Ensure all values are accounted for.
-        ASSERT_NE(audio_data_[i][j], 0);
+        ASSERT_NE(audio_bus_->channel(i)[j], 0);
 
-        double error = fabs(audio_data_[i][j] - kFillValue);
+        double error = fabs(audio_bus_->channel(i)[j] - kFillValue);
         max_error = std::max(max_error, error);
         sum_of_squares += error * error;
       }
     }
 
     double rms_error = sqrt(
-        sum_of_squares / (frames_ * audio_data_.size()));
+        sum_of_squares / (frames_ * audio_bus_->channels()));
 
     EXPECT_LE(rms_error, expected_max_rms_error);
     EXPECT_LE(max_error, expected_max_error);
@@ -111,7 +99,7 @@ class MultiChannelResamplerTest
 
  protected:
   int frames_;
-  std::vector<float*> audio_data_;
+  scoped_ptr<AudioBus> audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(MultiChannelResamplerTest);
 };

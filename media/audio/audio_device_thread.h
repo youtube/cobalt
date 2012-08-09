@@ -5,10 +5,9 @@
 #ifndef MEDIA_AUDIO_AUDIO_DEVICE_THREAD_H_
 #define MEDIA_AUDIO_AUDIO_DEVICE_THREAD_H_
 
-#include <vector>
-
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/shared_memory.h"
 #include "base/sync_socket.h"
 #include "base/synchronization/lock.h"
@@ -18,6 +17,7 @@
 class MessageLoop;
 
 namespace media {
+class AudioBus;
 
 // Data transfer between browser and render process uses a combination
 // of sync sockets and shared memory. To read from the socket and render
@@ -60,7 +60,7 @@ class MEDIA_EXPORT AudioDeviceThread {
 
     // Audio buffers that are allocated in InitializeOnAudioThread() based on
     // info from audio_parameters_.
-    std::vector<float*> audio_data_;
+    scoped_ptr<AudioBus> audio_bus_;
     base::SharedMemory shared_memory_;
     const int memory_length_;
 

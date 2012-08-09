@@ -325,13 +325,11 @@ bool AudioRendererImpl::IsBeforePrerollTime(
       (buffer->GetTimestamp() + buffer->GetDuration()) < preroll_timestamp_;
 }
 
-int AudioRendererImpl::Render(const std::vector<float*>& audio_data,
-                              int number_of_frames,
+int AudioRendererImpl::Render(AudioBus* audio_bus,
                               int audio_delay_milliseconds) {
   if (stopped_ || GetPlaybackRate() == 0.0f) {
     // Output silence if stopped.
-    for (size_t i = 0; i < audio_data.size(); ++i)
-      memset(audio_data[i], 0, sizeof(float) * number_of_frames);
+    audio_bus->Zero();
     return 0;
   }
 
@@ -348,30 +346,29 @@ int AudioRendererImpl::Render(const std::vector<float*>& audio_data,
 
   int bytes_per_frame = audio_parameters_.GetBytesPerFrame();
 
-  const int buf_size = number_of_frames * bytes_per_frame;
+  const int buf_size = audio_bus->frames() * bytes_per_frame;
   scoped_array<uint8> buf(new uint8[buf_size]);
 
-  int frames_filled = FillBuffer(buf.get(), number_of_frames, request_delay);
+  int frames_filled = FillBuffer(buf.get(), audio_bus->frames(), request_delay);
   int bytes_filled = frames_filled * bytes_per_frame;
   DCHECK_LE(bytes_filled, buf_size);
   UpdateEarliestEndTime(bytes_filled, request_delay, base::Time::Now());
 
   // Deinterleave each audio channel.
-  int channels = audio_data.size();
+  int channels = audio_bus->channels();
   for (int channel_index = 0; channel_index < channels; ++channel_index) {
     media::DeinterleaveAudioChannel(buf.get(),
-                                    audio_data[channel_index],
+                                    audio_bus->channel(channel_index),
                                     channels,
                                     channel_index,
                                     bytes_per_frame / channels,
                                     frames_filled);
 
     // If FillBuffer() didn't give us enough data then zero out the remainder.
-    if (frames_filled < number_of_frames) {
-      int frames_to_zero = number_of_frames - frames_filled;
-      memset(audio_data[channel_index] + frames_filled,
-             0,
-             sizeof(float) * frames_to_zero);
+    if (frames_filled < audio_bus->frames()) {
+      int frames_to_zero = audio_bus->frames() - frames_filled;
+      memset(audio_bus->channel(channel_index) + frames_filled, 0,
+             sizeof(*audio_bus->channel(channel_index)) * frames_to_zero);
     }
   }
   return frames_filled;

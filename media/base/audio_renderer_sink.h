@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "media/audio/audio_parameters.h"
+#include "media/base/audio_bus.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -22,14 +23,9 @@ class AudioRendererSink
  public:
   class RenderCallback {
    public:
-    // Fills entire buffer of length |number_of_frames| but returns actual
-    // number of frames it got from its source (|number_of_frames| in case of
-    // continuous stream). That actual number of frames is passed to host
-    // together with PCM audio data and host is free to use or ignore it.
-    // TODO(crogers): use base:Callback instead.
-    virtual int Render(const std::vector<float*>& audio_data,
-                       int number_of_frames,
-                       int audio_delay_milliseconds) = 0;
+    // Attempts to completely fill all channels of |audio_bus|, returns actual
+    // number of frames filled.
+    virtual int Render(AudioBus* audio_bus, int audio_delay_milliseconds) = 0;
 
     // Signals an error has occurred.
     virtual void OnRenderError() = 0;
