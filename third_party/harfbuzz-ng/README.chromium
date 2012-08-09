@@ -5,6 +5,8 @@ Version: unknown
 Date: 20120608
 Revision: 0bb0f5d41976ae27c5c7a51cbb82144b48315a4b
 Security Critical: yes
+License: MIT
+License File: NOT_SHIPPED
 
 Description:
 This is harfbuzz-ng, a new implementation of harfbuzz with a different
