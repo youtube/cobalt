@@ -37,6 +37,7 @@
         '../base/base.gyp:base_i18n',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
+        '../crypto/crypto.gyp:crypto',
         '../sdch/sdch.gyp:sdch',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
@@ -811,9 +812,6 @@
       'conditions': [
         ['OS != "ios"', {
           'dependencies': [
-            # TODO(ios): This is temporary; Move this back to the main
-            # dependencies section once crypto builds for iOS.
-            '../crypto/crypto.gyp:crypto',
             # The v8 gyp file is not available in the iOS tree.
             '../v8/tools/gyp/v8.gyp:v8',
           ],
