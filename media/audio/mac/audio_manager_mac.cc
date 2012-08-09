@@ -7,7 +7,6 @@
 #include <string>
 
 #include "base/mac/mac_logging.h"
-#include "base/mac/mac_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
 #include "media/audio/mac/audio_input_mac.h"
@@ -21,10 +20,6 @@ namespace media {
 
 // Maximum number of output streams that can be open simultaneously.
 static const int kMaxOutputStreams = 50;
-
-// By experiment the maximum number of audio streams allowed in Leopard
-// is 18. But we put a slightly smaller number just to be safe.
-static const int kMaxOutputStreamsLeopard = 15;
 
 static bool HasAudioHardware(AudioObjectPropertySelector selector) {
   AudioDeviceID output_device_id = kAudioObjectUnknown;
@@ -212,16 +207,7 @@ static AudioDeviceID GetAudioDeviceIdByUId(bool is_input,
 }
 
 AudioManagerMac::AudioManagerMac() {
-  // We are hitting a bug in Leopard where too many audio streams will cause
-  // a deadlock in the AudioQueue API when starting the stream. Unfortunately
-  // there's no way to detect it within the AudioQueue API, so we put a
-  // special hard limit only for Leopard.
-  // See bug: http://crbug.com/30242
-  // In OS other than OSX Leopard, the number of audio streams
-  // allowed is a lot more.
-  int max_output_stream = base::mac::IsOSLeopardOrEarlier() ?
-      kMaxOutputStreamsLeopard : kMaxOutputStreams;
-  SetMaxOutputStreamsAllowed(max_output_stream);
+  SetMaxOutputStreamsAllowed(kMaxOutputStreams);
 }
 
 AudioManagerMac::~AudioManagerMac() {
