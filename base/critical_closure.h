@@ -25,7 +25,7 @@ namespace base {
 #if defined(OS_IOS)
 base::Closure MakeCriticalClosure(const base::Closure& closure);
 #else
-base::Closure MakeCriticalClosure(const base::Closure& closure) {
+inline base::Closure MakeCriticalClosure(const base::Closure& closure) {
   // No-op for platforms where the application does not need to acquire
   // background time for closures to finish when it goes into the background.
   return closure;
