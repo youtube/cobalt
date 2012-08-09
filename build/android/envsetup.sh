@@ -103,11 +103,6 @@ export AR_target=$(basename ${ANDROID_TOOLCHAIN}/*-ar)
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
   echo "GYP_GENERATORS set to '$GYP_GENERATORS'"
-  if [[ $GYP_DEFINES =~ "clang=1" ]]; then
-    echo -n "NOTE: You have \`clang=1' in \$GYP_DEFINES; "
-    echo "did you mean to run \`android_clang_gyp'?"
-  fi
-
   "${CHROME_SRC}/build/gyp_chromium" --depth="${CHROME_SRC}" --check "$@"
 }
 

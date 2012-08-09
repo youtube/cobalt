@@ -2222,7 +2222,7 @@
                         'cflags': [ '-mfpu=neon', ],
                       }, {
                         'cflags': [ '-mfpu=<(arm_fpu)', ],
-                      }]
+                      }],
                     ],
                   }],
                   ['OS=="android"', {
@@ -2265,6 +2265,15 @@
                           '__ARM_ARCH_5T__',
                           '__ARM_ARCH_5E__',
                           '__ARM_ARCH_5TE__',
+                        ],
+                      }],
+                      ['clang==1', {
+                        'cflags!': [
+                          # Clang does not support the following options.
+                          '-mthumb-interwork',
+                          '-finline-limit=64',
+                          '-fno-tree-sra',
+                          '-Wno-psabi',
                         ],
                       }],
                     ],
@@ -2582,6 +2591,33 @@
             'conditions': [
               ['android_upstream_bringup==1', {
                 'defines': ['ANDROID_UPSTREAM_BRINGUP=1',],
+              }],
+              ['clang==1', {
+                'cflags': [
+                  # Work around incompatibilities between bionic and clang
+                  # headers.
+                  '-D__compiler_offsetof=__builtin_offsetof',
+                  '-Dnan=__builtin_nan',
+                ],
+                'conditions': [
+                  ['target_arch=="arm"', {
+                    'cflags': [
+                      '-target arm-linux-androideabi',
+                      '-mllvm -arm-enable-ehabi',
+                    ],
+                    'ldflags': [
+                      '-target arm-linux-androideabi',
+                    ],
+                  }],
+                  ['target_arch=="ia32"', {
+                    'cflags': [
+                      '-target x86-linux-androideabi',
+                    ],
+                    'ldflags': [
+                      '-target x86-linux-androideabi',
+                    ],
+                  }],
+                ],
               }],
               ['android_build_type==0', {
                 'defines': [
@@ -3284,7 +3320,7 @@
         ],
       },
     }],
-    ['clang==1 and OS!="android"', {
+    ['clang==1', {
       'make_global_settings': [
         ['CC', '<(make_clang_dir)/bin/clang'],
         ['CXX', '<(make_clang_dir)/bin/clang++'],
@@ -3294,7 +3330,7 @@
         ['LINK.host', '$(LINK)'],
       ],
     }],
-    ['OS=="android" and "<(GENERATOR)"!="ninja"', {
+    ['OS=="android" and clang==0 and "<(GENERATOR)"!="ninja"', {
       # Hardcode the compiler names in the Makefile so that
       # it won't depend on the environment at make time.
       'make_global_settings': [
