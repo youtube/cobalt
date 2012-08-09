@@ -13,6 +13,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "media/audio/audio_util.h"
+#include "media/base/audio_bus.h"
 
 using base::PlatformThread;
 
@@ -188,23 +189,17 @@ AudioDeviceThread::Callback::Callback(
   CHECK_NE(samples_per_ms_, 0);
 }
 
-AudioDeviceThread::Callback::~Callback() {
-  for (size_t i = 0; i < audio_data_.size(); ++i)
-    base::AlignedFree(audio_data_[i]);
-}
+AudioDeviceThread::Callback::~Callback() {}
 
 void AudioDeviceThread::Callback::InitializeOnAudioThread() {
-  DCHECK(audio_data_.empty());
+  DCHECK(!audio_bus_.get());
 
   MapSharedMemory();
   DCHECK(shared_memory_.memory() != NULL);
 
-  // Allocate buffer with a 16-byte alignment to allow SSE optimizations.
-  audio_data_.reserve(audio_parameters_.channels());
-  for (int i = 0; i < audio_parameters_.channels(); ++i) {
-    audio_data_.push_back(static_cast<float*>(base::AlignedAlloc(
-        sizeof(float) * audio_parameters_.frames_per_buffer(), 16)));
-  }
+  // TODO(dalecurtis): Instead of creating a new AudioBus and memcpy'ing into
+  // the shared memory we should wrap the shared memory.
+  audio_bus_ = AudioBus::Create(audio_parameters_);
 }
 
 }  // namespace media.

@@ -88,8 +88,7 @@ class MEDIA_EXPORT AudioInputDevice
  public:
   class MEDIA_EXPORT CaptureCallback {
    public:
-    virtual void Capture(const std::vector<float*>& audio_data,
-                         int number_of_frames,
+    virtual void Capture(AudioBus* audio_bus,
                          int audio_delay_milliseconds,
                          double volume) = 0;
     virtual void OnCaptureError() = 0;
