@@ -175,6 +175,19 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_CACHE_WRITE_DATA_COMPLETE
   };
 
+  // Used for categorizing transactions for reporting in histograms. Patterns
+  // cover relatively common use cases being measured and considered for
+  // optimization. Many use cases that are more complex or uncommon are binned
+  // as PATTERN_NOT_COVERED, and details are not reported.
+  enum TransactionPattern {
+    PATTERN_UNDEFINED,
+    PATTERN_NOT_COVERED,
+    PATTERN_ENTRY_NOT_CACHED,
+    PATTERN_ENTRY_USED,
+    PATTERN_ENTRY_VALIDATED,
+    PATTERN_ENTRY_UPDATED,
+  };
+
   // This is a helper function used to trigger a completion callback.  It may
   // only be called if callback_ is non-null.
   void DoCallback(int rv);
@@ -342,6 +355,8 @@ class HttpCache::Transaction : public HttpTransaction {
 
   void ReportCacheActionStart();
   void ReportCacheActionFinish();
+  void UpdateTransactionPattern(TransactionPattern new_transaction_pattern);
+  void RecordHistograms();
 
   State next_state_;
   const HttpRequestInfo* request_;
@@ -353,7 +368,6 @@ class HttpCache::Transaction : public HttpTransaction {
   ValidationHeaders external_validation_;
   base::WeakPtr<HttpCache> cache_;
   HttpCache::ActiveEntry* entry_;
-  base::TimeTicks entry_lock_waiting_since_;
   HttpCache::ActiveEntry* new_entry_;
   scoped_ptr<HttpTransaction> network_trans_;
   CompletionCallback callback_;  // Consumer's callback.
@@ -380,6 +394,15 @@ class HttpCache::Transaction : public HttpTransaction {
   uint64 final_upload_progress_;
   base::WeakPtrFactory<Transaction> weak_factory_;
   CompletionCallback io_callback_;
+
+  // Members used to track data for histograms.
+  TransactionPattern transaction_pattern_;
+  int bytes_read_from_cache_;
+  int bytes_read_from_network_;
+  base::TimeTicks entry_lock_waiting_since_;
+  base::TimeTicks first_cache_access_since_;
+  base::TimeTicks send_request_since_;
+
   HttpTransactionDelegate* transaction_delegate_;
 };
 

@@ -67,6 +67,9 @@ class NET_EXPORT Backend {
   // callback from within this method.
   virtual ~Backend() {}
 
+  // Returns the type of this cache.
+  virtual net::CacheType GetCacheType() const = 0;
+
   // Returns the number of entries in the cache.
   virtual int32 GetEntryCount() const = 0;
 

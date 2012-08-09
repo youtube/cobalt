@@ -1323,6 +1323,10 @@ void BackendImpl::FlushIndex() {
 
 // ------------------------------------------------------------------------
 
+net::CacheType BackendImpl::GetCacheType() const {
+  return cache_type_;
+}
+
 int32 BackendImpl::GetEntryCount() const {
   if (!index_ || disabled_)
     return 0;

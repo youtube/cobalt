@@ -62,6 +62,7 @@ class NET_EXPORT_PRIVATE MemBackendImpl : public Backend {
   void RemoveFromRankingList(MemEntryImpl* entry);
 
   // Backend interface.
+  virtual net::CacheType GetCacheType() const OVERRIDE;
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
                         const CompletionCallback& callback) OVERRIDE;
