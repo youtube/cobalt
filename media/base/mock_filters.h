@@ -274,11 +274,6 @@ class MockFilterCollection {
   DISALLOW_COPY_AND_ASSIGN(MockFilterCollection);
 };
 
-// Helper gmock action that calls SetError() on behalf of the provided filter.
-ACTION_P2(SetError, filter, error) {
-  filter->host()->SetError(error);
-}
-
 ACTION(RunClosure) {
   arg0.Run();
 }
