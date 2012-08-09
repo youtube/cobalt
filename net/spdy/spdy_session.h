@@ -374,13 +374,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     PendingCreateStream(const GURL& url, RequestPriority priority,
                         scoped_refptr<SpdyStream>* spdy_stream,
                         const BoundNetLog& stream_net_log,
-                        const CompletionCallback& callback)
-        : url(&url),
-          priority(priority),
-          spdy_stream(spdy_stream),
-          stream_net_log(&stream_net_log),
-          callback(callback) {
-    }
+                        const CompletionCallback& callback);
 
     ~PendingCreateStream();
 
@@ -411,8 +405,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                               SpdyIOBufferProducerCompare> WriteQueue;
 
   struct CallbackResultPair {
-    CallbackResultPair(const CompletionCallback& callback_in, int result_in)
-        : callback(callback_in), result(result_in) {}
+    CallbackResultPair(const CompletionCallback& callback_in, int result_in);
     ~CallbackResultPair();
 
     CompletionCallback callback;

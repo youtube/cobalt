@@ -52,6 +52,22 @@ Value* NetLogHostPortPairCallback(const HostPortPair* host_port_pair,
 
 }  // anonymous namespace
 
+HttpPipelinedConnection*
+HttpPipelinedConnectionImpl::Factory::CreateNewPipeline(
+    ClientSocketHandle* connection,
+    HttpPipelinedConnection::Delegate* delegate,
+    const HostPortPair& origin,
+    const SSLConfig& used_ssl_config,
+    const ProxyInfo& used_proxy_info,
+    const BoundNetLog& net_log,
+    bool was_npn_negotiated,
+    NextProto protocol_negotiated) {
+  return new HttpPipelinedConnectionImpl(connection, delegate, origin,
+                                         used_ssl_config, used_proxy_info,
+                                         net_log, was_npn_negotiated,
+                                         protocol_negotiated);
+}
+
 HttpPipelinedConnectionImpl::HttpPipelinedConnectionImpl(
     ClientSocketHandle* connection,
     HttpPipelinedConnection::Delegate* delegate,

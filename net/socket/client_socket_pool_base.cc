@@ -198,6 +198,16 @@ ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
 }
 
+ClientSocketPoolBaseHelper::CallbackResultPair::CallbackResultPair()
+    : result(OK) {
+}
+
+ClientSocketPoolBaseHelper::CallbackResultPair::CallbackResultPair(
+    const CompletionCallback& callback_in, int result_in)
+    : callback(callback_in),
+      result(result_in) {
+}
+
 ClientSocketPoolBaseHelper::CallbackResultPair::~CallbackResultPair() {}
 
 // InsertRequestIntoQueue inserts the request into the queue based on
