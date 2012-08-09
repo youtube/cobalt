@@ -116,19 +116,11 @@ class MEDIA_EXPORT Pipeline
              const PipelineStatusCB& error_cb,
              const PipelineStatusCB& start_cb);
 
-  // Asynchronously stops the pipeline and resets it to an uninitialized state.
+  // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
+  // teardown has completed.
   //
-  // If provided, |stop_cb| will be executed when the pipeline has been
-  // completely torn down and reset to an uninitialized state.  It is acceptable
-  // to call Start() again once the callback has finished executing.
-  //
-  // Stop() must be called before destroying the pipeline.  Clients can
-  // determine whether Stop() must be called by checking IsRunning().
-  //
-  // It is an error to call this method if the pipeline has not started.
-  //
-  // TODO(scherkus): ideally clients would destroy the pipeline after calling
-  // Stop() and create a new pipeline as needed.
+  // Stop() must complete before destroying the pipeline. It it permissible to
+  // call Stop() at any point during the lifetime of the pipeline.
   void Stop(const base::Closure& stop_cb);
 
   // Attempt to seek to the position specified by time.  |seek_cb| will be
@@ -201,9 +193,6 @@ class MEDIA_EXPORT Pipeline
   // Gets the current pipeline statistics.
   PipelineStatistics GetStatistics() const;
 
-  // TODO(scherkus): Remove IsInitializedForTesting() after stop/error teardown
-  // paths are sane, see http://crbug.com/110228
-  bool IsInitializedForTesting();
   void SetClockForTesting(Clock* clock);
   void SetErrorForTesting(PipelineStatus status);
 
@@ -234,7 +223,6 @@ class MEDIA_EXPORT Pipeline
     kStarted,
     kStopping,
     kStopped,
-    kError,
   };
 
   // Updates |state_|. All state transitions should use this call.
@@ -242,12 +230,6 @@ class MEDIA_EXPORT Pipeline
 
   // Simple method used to make sure the pipeline is running normally.
   bool IsPipelineOk();
-
-  // Helper method to tell whether we are stopped or in error.
-  bool IsPipelineStopped();
-
-  // Helper method to tell whether we are in transition to stop state.
-  bool IsPipelineTearingDown();
 
   // Helper method to tell whether we are in transition to seek state.
   bool IsPipelineSeeking();
@@ -328,7 +310,7 @@ class MEDIA_EXPORT Pipeline
   void StopTask(const base::Closure& stop_cb);
 
   // Carries out stopping and destroying all filters, placing the pipeline in
-  // the kError state.
+  // the kStopped state.
   void ErrorChangedTask(PipelineStatus error);
 
   // Carries out notifying filters that the playback rate has changed.
@@ -434,9 +416,6 @@ class MEDIA_EXPORT Pipeline
 
   // Whether or not the pipeline is perform a stop operation.
   bool tearing_down_;
-
-  // Whether or not an error triggered the teardown.
-  bool error_caused_teardown_;
 
   // Whether or not a playback rate change should be done once seeking is done.
   bool playback_rate_change_pending_;
