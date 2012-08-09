@@ -11,6 +11,7 @@
       'dependencies': [
         'some.gyp:*',
         '../base/base.gyp:*',
+        '../crypto/crypto.gyp:*',
         '../net/net.gyp:*',
         '../sql/sql.gyp:*',
         '../testing/gtest.gyp:*',
@@ -32,7 +33,6 @@
           'dependencies': [
             '../chrome/chrome.gyp:*',
             '../content/content.gyp:*',
-            '../crypto/crypto.gyp:*',
             '../gpu/gpu.gyp:*',
             '../gpu/tools/tools.gyp:*',
             '../ipc/ipc.gyp:*',
