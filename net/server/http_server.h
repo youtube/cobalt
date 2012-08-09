@@ -16,6 +16,7 @@ namespace net {
 
 class HttpConnection;
 class HttpServerRequestInfo;
+class IPEndPoint;
 class WebSocket;
 
 class HttpServer : public StreamListenSocket::Delegate,
@@ -52,6 +53,9 @@ class HttpServer : public StreamListenSocket::Delegate,
   void Send404(int connection_id);
   void Send500(int connection_id, const std::string& message);
   void Close(int connection_id);
+
+  // Copies the local address to |address|. Returns a network error code.
+  int GetLocalAddress(IPEndPoint* address);
 
   // ListenSocketDelegate
   virtual void DidAccept(StreamListenSocket* server,
