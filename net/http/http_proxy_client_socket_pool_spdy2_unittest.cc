@@ -16,6 +16,7 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
@@ -529,16 +530,92 @@ TEST_P(HttpProxyClientSocketPoolSpdy2Test, TunnelSetupError) {
   data_->RunFor(2);
 
   rv = callback_.WaitForResult();
+  // All Proxy CONNECT responses are not trustworthy
+  EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
+  EXPECT_FALSE(handle_.is_initialized());
+  EXPECT_FALSE(handle_.socket());
+}
+
+TEST_P(HttpProxyClientSocketPoolSpdy2Test, TunnelSetupRedirect) {
+  const std::string redirectTarget = "https://foo.google.com/";
+
+  const std::string responseText = "HTTP/1.1 302 Found\r\n"
+                                   "Location: " + redirectTarget + "\r\n"
+                                   "Set-Cookie: foo=bar\r\n"
+                                   "\r\n";
+  MockWrite writes[] = {
+    MockWrite(ASYNC, 0,
+              "CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n"
+              "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(ASYNC, 1, responseText.c_str()),
+  };
+  scoped_ptr<SpdyFrame> req(
+      ConstructSpdyConnect(kAuthHeaders, kAuthHeadersSize, 1));
+  scoped_ptr<SpdyFrame> rst(ConstructSpdyRstStream(1, CANCEL));
+
+  MockWrite spdy_writes[] = {
+    CreateMockWrite(*req, 0, ASYNC),
+  };
+
+  const char* const responseHeaders[] = {
+    "location", redirectTarget.c_str(),
+    "set-cookie", "foo=bar",
+  };
+  const int responseHeadersSize = arraysize(responseHeaders) / 2;
+  scoped_ptr<SpdyFrame> resp(
+      ConstructSpdySynReplyError("302 Found",
+                                 responseHeaders, responseHeadersSize,
+                                 1));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*resp, 1, ASYNC),
+    MockRead(ASYNC, 0, 2),
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
+             spdy_reads, arraysize(spdy_reads), spdy_writes,
+             arraysize(spdy_writes));
+  AddAuthToCache();
+
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_FALSE(handle_.is_initialized());
+  EXPECT_FALSE(handle_.socket());
+
+  data_->RunFor(2);
+
+  rv = callback_.WaitForResult();
+
   if (GetParam() == HTTP) {
-    // HTTP Proxy CONNECT responses are not trustworthy
+    // We don't trust 302 responses to CONNECT from HTTP proxies.
     EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
     EXPECT_FALSE(handle_.is_initialized());
     EXPECT_FALSE(handle_.socket());
   } else {
-    // HTTPS or SPDY Proxy CONNECT responses are trustworthy
+    // Expect ProxyClientSocket to return the proxy's response, sanitized.
     EXPECT_EQ(ERR_HTTPS_PROXY_TUNNEL_RESPONSE, rv);
     EXPECT_TRUE(handle_.is_initialized());
-    EXPECT_TRUE(handle_.socket());
+    ASSERT_TRUE(handle_.socket());
+
+    const ProxyClientSocket* tunnel_socket =
+        static_cast<ProxyClientSocket*>(handle_.socket());
+    const HttpResponseInfo* response = tunnel_socket->GetConnectResponseInfo();
+    const HttpResponseHeaders* headers = response->headers;
+
+    // Make sure Set-Cookie header was stripped.
+    EXPECT_FALSE(headers->HasHeader("set-cookie"));
+
+    // Make sure Content-Length: 0 header was added.
+    EXPECT_TRUE(headers->HasHeaderValue("content-length", "0"));
+
+    // Make sure Location header was included and correct.
+    std::string location;
+    EXPECT_TRUE(headers->IsRedirect(&location));
+    EXPECT_EQ(location, redirectTarget);
   }
 }
 

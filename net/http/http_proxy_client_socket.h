@@ -112,7 +112,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   int PrepareForAuthRestart();
   int DidDrainBodyForAuthRestart(bool keep_alive);
 
-  void LogBlockedTunnelResponse(int response_code) const;
+  void LogBlockedTunnelResponse() const;
 
   void DoCallback(int result);
   void OnIOComplete(int result);
