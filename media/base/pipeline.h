@@ -217,6 +217,7 @@ class MEDIA_EXPORT Pipeline
   PipelineStatistics GetStatistics() const;
 
   void SetClockForTesting(Clock* clock);
+  void SetErrorForTesting(PipelineStatus status);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(PipelineTest, GetBufferedTimeRanges);
