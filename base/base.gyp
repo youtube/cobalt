@@ -438,6 +438,7 @@
         'metrics/bucket_ranges_unittest.cc',
         'metrics/field_trial_unittest.cc',
         'metrics/histogram_unittest.cc',
+        'metrics/sparse_histogram_unittest.cc',
         'metrics/stats_table_unittest.cc',
         'metrics/statistics_recorder_unittest.cc',
         'observer_list_unittest.cc',
