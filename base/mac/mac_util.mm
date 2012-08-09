@@ -560,25 +560,12 @@ int MacOSXMinorVersion() {
 }
 
 enum {
-  LEOPARD_MINOR_VERSION = 5,
   SNOW_LEOPARD_MINOR_VERSION = 6,
   LION_MINOR_VERSION = 7,
   MOUNTAIN_LION_MINOR_VERSION = 8,
 };
 
 }  // namespace
-
-#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6)
-bool IsOSLeopard() {
-  return MacOSXMinorVersion() == LEOPARD_MINOR_VERSION;
-}
-#endif
-
-#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6)
-bool IsOSLeopardOrEarlier() {
-  return MacOSXMinorVersion() <= LEOPARD_MINOR_VERSION;
-}
-#endif
 
 #if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
 bool IsOSSnowLeopard() {

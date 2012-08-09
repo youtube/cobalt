@@ -775,7 +775,7 @@ bool CanGetContextForCFAllocator() {
 }
 
 CFAllocatorContext* ContextForCFAllocator(CFAllocatorRef allocator) {
-  if (base::mac::IsOSLeopard() || base::mac::IsOSSnowLeopard()) {
+  if (base::mac::IsOSSnowLeopard()) {
     ChromeCFAllocatorLeopards* our_allocator =
         const_cast<ChromeCFAllocatorLeopards*>(
             reinterpret_cast<const ChromeCFAllocatorLeopards*>(allocator));
