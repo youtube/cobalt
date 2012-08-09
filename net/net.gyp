@@ -1980,6 +1980,9 @@
           'dependencies': [
             '../base/base.gyp:base_java',
           ],
+          'export_dependent_settings': [
+            '../base/base.gyp:base_java',
+          ],
           'includes': [ '../build/java.gypi' ],
         },
       ],
@@ -1993,17 +1996,12 @@
           'target_name': 'net_unittests_apk',
           'type': 'none',
           'dependencies': [
-            '../base/base.gyp:base_java',
             'net_java',
             'net_unittests',
           ],
           'variables': {
             'test_suite_name': 'net_unittests',
             'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)net_unittests<(SHARED_LIB_SUFFIX)',
-            'input_jars_paths': [
-              '<(PRODUCT_DIR)/lib.java/chromium_base.jar',
-              '<(PRODUCT_DIR)/lib.java/chromium_net.jar',
-             ],
           },
           'includes': [ '../build/apk_test.gypi' ],
         },
