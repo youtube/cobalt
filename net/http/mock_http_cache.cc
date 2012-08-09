@@ -339,6 +339,10 @@ MockDiskCache::~MockDiskCache() {
   ReleaseAll();
 }
 
+net::CacheType MockDiskCache::GetCacheType() const {
+  return net::DISK_CACHE;
+}
+
 int32 MockDiskCache::GetEntryCount() const {
   return static_cast<int32>(entries_.size());
 }
