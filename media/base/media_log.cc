@@ -87,8 +87,6 @@ const char* MediaLog::PipelineStateToString(Pipeline::State state) {
       return "stopping";
     case Pipeline::kStopped:
       return "stopped";
-    case Pipeline::kError:
-      return "error";
   }
   NOTREACHED();
   return NULL;
