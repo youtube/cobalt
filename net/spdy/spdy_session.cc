@@ -324,7 +324,25 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 }
 
+SpdySession::PendingCreateStream::PendingCreateStream(
+    const GURL& url, RequestPriority priority,
+    scoped_refptr<SpdyStream>* spdy_stream,
+    const BoundNetLog& stream_net_log,
+    const CompletionCallback& callback)
+    : url(&url),
+      priority(priority),
+      spdy_stream(spdy_stream),
+      stream_net_log(&stream_net_log),
+      callback(callback) {
+}
+
 SpdySession::PendingCreateStream::~PendingCreateStream() {}
+
+SpdySession::CallbackResultPair::CallbackResultPair(
+    const CompletionCallback& callback_in, int result_in)
+    : callback(callback_in),
+      result(result_in) {
+}
 
 SpdySession::CallbackResultPair::~CallbackResultPair() {}
 

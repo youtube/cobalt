@@ -44,6 +44,36 @@ static const int kReadBufferSize = 4096;
 
 namespace net {
 
+int SocketStream::Delegate::OnStartOpenConnection(
+    SocketStream* socket, const CompletionCallback& callback) {
+  return OK;
+}
+
+void SocketStream::Delegate::OnAuthRequired(SocketStream* socket,
+                                            AuthChallengeInfo* auth_info) {
+  // By default, no credential is available and close the connection.
+  socket->Close();
+}
+
+void SocketStream::Delegate::OnSSLCertificateError(
+    SocketStream* socket,
+    const SSLInfo& ssl_info,
+    bool fatal) {
+  socket->CancelWithSSLError(ssl_info);
+}
+
+bool SocketStream::Delegate::CanGetCookies(SocketStream* socket,
+                                           const GURL& url) {
+  return true;
+}
+
+bool SocketStream::Delegate::CanSetCookie(SocketStream* request,
+                                          const GURL& url,
+                                          const std::string& cookie_line,
+                                          CookieOptions* options) {
+  return true;
+}
+
 SocketStream::ResponseHeaders::ResponseHeaders() : IOBuffer() {}
 
 void SocketStream::ResponseHeaders::Realloc(size_t new_size) {
@@ -272,6 +302,8 @@ SocketStream::~SocketStream() {
   DCHECK(!delegate_);
   DCHECK(!pac_request_);
 }
+
+SocketStream::RequestHeaders::~RequestHeaders() { data_ = NULL; }
 
 void SocketStream::set_addresses(const AddressList& addresses) {
   addresses_ = addresses;

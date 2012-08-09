@@ -65,15 +65,11 @@ class NET_EXPORT_PRIVATE MultiThreadedCertVerifier
                            RequestParamsComparators);
 
   // Input parameters of a certificate verification request.
-  struct RequestParams {
+  struct NET_EXPORT_PRIVATE RequestParams {
     RequestParams(const SHA1Fingerprint& cert_fingerprint_arg,
                   const SHA1Fingerprint& ca_fingerprint_arg,
                   const std::string& hostname_arg,
-                  int flags_arg)
-        : cert_fingerprint(cert_fingerprint_arg),
-          ca_fingerprint(ca_fingerprint_arg),
-          hostname(hostname_arg),
-          flags(flags_arg) {}
+                  int flags_arg);
 
     bool operator<(const RequestParams& other) const {
       // |flags| is compared before |cert_fingerprint|, |ca_fingerprint|, and

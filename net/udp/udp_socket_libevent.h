@@ -127,10 +127,7 @@ class NET_EXPORT UDPSocketLibevent : public base::NonThreadSafe {
 
     // MessageLoopForIO::Watcher methods
 
-    virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {
-      if (!socket_->read_callback_.is_null())
-        socket_->DidCompleteRead();
-    }
+    virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE;
 
     virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {}
 
@@ -148,10 +145,7 @@ class NET_EXPORT UDPSocketLibevent : public base::NonThreadSafe {
 
     virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {}
 
-    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
-      if (!socket_->write_callback_.is_null())
-        socket_->DidCompleteWrite();
-    }
+    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE;
 
    private:
     UDPSocketLibevent* const socket_;

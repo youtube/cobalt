@@ -491,6 +491,11 @@ ConnectJob* SSLClientSocketPool::SSLConnectJobFactory::NewConnectJob(
                            context_, delegate, net_log_);
 }
 
+base::TimeDelta
+SSLClientSocketPool::SSLConnectJobFactory::ConnectionTimeout() const {
+  return timeout_;
+}
+
 int SSLClientSocketPool::RequestSocket(const std::string& group_name,
                                        const void* socket_params,
                                        RequestPriority priority,

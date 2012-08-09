@@ -36,19 +36,11 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
         : net_config_watcher_(net_config_watcher) {}
 
     // NetworkConfigWatcherMac::Delegate implementation:
-    virtual void Init() OVERRIDE {
-      net_config_watcher_->SetInitialConnectionType();
-    }
-    virtual void StartReachabilityNotifications() OVERRIDE {
-      net_config_watcher_->StartReachabilityNotifications();
-    }
+    virtual void Init() OVERRIDE;
+    virtual void StartReachabilityNotifications() OVERRIDE;
     virtual void SetDynamicStoreNotificationKeys(
-        SCDynamicStoreRef store) OVERRIDE {
-      net_config_watcher_->SetDynamicStoreNotificationKeys(store);
-    }
-    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) OVERRIDE {
-      net_config_watcher_->OnNetworkConfigChange(changed_keys);
-    }
+        SCDynamicStoreRef store) OVERRIDE;
+    virtual void OnNetworkConfigChange(CFArrayRef changed_keys) OVERRIDE;
 
    private:
     NetworkChangeNotifierMac* const net_config_watcher_;
