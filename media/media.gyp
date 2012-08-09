@@ -1019,17 +1019,12 @@
           'target_name': 'media_unittests_apk',
           'type': 'none',
           'dependencies': [
-            '../base/base.gyp:base_java',
             'media_java',
             'media_unittests',
           ],
           'variables': {
             'test_suite_name': 'media_unittests',
             'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)media_unittests<(SHARED_LIB_SUFFIX)',
-            'input_jars_paths': [
-              '<(PRODUCT_DIR)/lib.java/chromium_base.jar',
-              '<(PRODUCT_DIR)/lib.java/chromium_media.jar',
-             ],
           },
           'includes': [ '../build/apk_test.gypi' ],
         },
@@ -1066,7 +1061,12 @@
         {
           'target_name': 'media_java',
           'type': 'none',
-          'dependencies': [ '../base/base.gyp:base_java' ],
+          'dependencies': [
+            '../base/base.gyp:base_java',
+          ],
+          'export_dependent_settings': [
+            '../base/base.gyp:base_java',
+          ],
           'variables': {
             'package_name': 'media',
             'java_in_dir': 'base/android/java',
