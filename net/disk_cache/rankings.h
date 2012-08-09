@@ -64,10 +64,9 @@ class Rankings {
   // iterators that may go stale.
   class ScopedRankingsBlock : public scoped_ptr<CacheRankingsBlock> {
    public:
-    ScopedRankingsBlock() : rankings_(NULL) {}
-    explicit ScopedRankingsBlock(Rankings* rankings) : rankings_(rankings) {}
-    ScopedRankingsBlock(Rankings* rankings, CacheRankingsBlock* node)
-        : scoped_ptr<CacheRankingsBlock>(node), rankings_(rankings) {}
+    ScopedRankingsBlock();
+    explicit ScopedRankingsBlock(Rankings* rankings);
+    ScopedRankingsBlock(Rankings* rankings, CacheRankingsBlock* node);
 
     ~ScopedRankingsBlock() {
       rankings_->FreeRankingsBlock(get());

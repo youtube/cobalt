@@ -380,6 +380,12 @@ HttpProxyClientSocketPool::HttpProxyConnectJobFactory::NewConnectJob(
                                  net_log_);
 }
 
+base::TimeDelta
+HttpProxyClientSocketPool::HttpProxyConnectJobFactory::ConnectionTimeout(
+    ) const {
+  return timeout_;
+}
+
 HttpProxyClientSocketPool::HttpProxyClientSocketPool(
     int max_sockets,
     int max_sockets_per_group,

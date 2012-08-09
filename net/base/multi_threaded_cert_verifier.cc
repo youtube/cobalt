@@ -460,6 +460,16 @@ void MultiThreadedCertVerifier::CancelRequest(RequestHandle req) {
   request->Cancel();
 }
 
+MultiThreadedCertVerifier::RequestParams::RequestParams(
+    const SHA1Fingerprint& cert_fingerprint_arg,
+    const SHA1Fingerprint& ca_fingerprint_arg,
+    const std::string& hostname_arg,
+    int flags_arg)
+    : cert_fingerprint(cert_fingerprint_arg),
+      ca_fingerprint(ca_fingerprint_arg),
+      hostname(hostname_arg),
+      flags(flags_arg) {}
+
 // HandleResult is called by CertVerifierWorker on the origin message loop.
 // It deletes CertVerifierJob.
 void MultiThreadedCertVerifier::HandleResult(

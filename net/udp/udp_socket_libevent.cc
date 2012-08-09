@@ -292,6 +292,16 @@ void UDPSocketLibevent::AllowBroadcast() {
   socket_options_ |= SOCKET_OPTION_BROADCAST;
 }
 
+void UDPSocketLibevent::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
+  if (!socket_->read_callback_.is_null())
+    socket_->DidCompleteRead();
+}
+
+void UDPSocketLibevent::WriteWatcher::OnFileCanWriteWithoutBlocking(int) {
+  if (!socket_->write_callback_.is_null())
+    socket_->DidCompleteWrite();
+}
+
 void UDPSocketLibevent::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(!read_callback_.is_null());

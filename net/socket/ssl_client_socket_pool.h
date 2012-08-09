@@ -265,9 +265,7 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
         const PoolBase::Request& request,
         ConnectJob::Delegate* delegate) const OVERRIDE;
 
-    virtual base::TimeDelta ConnectionTimeout() const OVERRIDE {
-      return timeout_;
-    }
+    virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
    private:
     TransportClientSocketPool* const transport_pool_;

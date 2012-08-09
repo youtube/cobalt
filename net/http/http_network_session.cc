@@ -46,6 +46,20 @@ net::ClientSocketPoolManager* CreateSocketPoolManager(
 
 namespace net {
 
+HttpNetworkSession::Params::Params()
+    : client_socket_factory(NULL),
+      host_resolver(NULL),
+      cert_verifier(NULL),
+      server_bound_cert_service(NULL),
+      transport_security_state(NULL),
+      proxy_service(NULL),
+      ssl_config_service(NULL),
+      http_auth_handler_factory(NULL),
+      network_delegate(NULL),
+      http_server_properties(NULL),
+      net_log(NULL),
+      force_http_pipelining(false) {}
+
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
 HttpNetworkSession::HttpNetworkSession(const Params& params)
     : net_log_(params.net_log),
