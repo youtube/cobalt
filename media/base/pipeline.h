@@ -83,7 +83,6 @@ class MEDIA_EXPORT PipelineStatusNotification {
 //                                                        ^  SetError()
 //                                                        |
 //                                         [ Any State Other Than InitXXX ]
-
 //
 // Initialization is a series of state transitions from "Created" through each
 // filter initialization state.  When all filter initialization states have
@@ -103,24 +102,15 @@ class MEDIA_EXPORT Pipeline
   Pipeline(MessageLoop* message_loop, MediaLog* media_log);
 
   // Build a pipeline to using the given filter collection to construct a filter
-  // chain.
+  // chain, executing |start_cb| when initialization has completed.
   //
-  // Pipeline initialization is an inherently asynchronous process.  Clients can
-  // either poll the IsInitialized() method (discouraged) or optionally pass in
-  // |start_cb|, which will be executed when initialization completes.
-  //
-  // The following permanent callbacks will be executed as follows:
-  //   |start_cb_| will be executed when Start is done (successfully or not).
+  // The following permanent callbacks will be executed as follows up until
+  // Stop() has completed:
   //   |ended_cb| will be executed whenever the media reaches the end.
-  //   |error_cb_| will be executed whenever an error occurs but hasn't
-  //               been reported already through another callback.
-  //
-  // These callbacks are only executed after Start() has been called and until
-  // Stop() has completed.
+  //   |error_cb| will be executed whenever an error occurs but hasn't
+  //              been reported already through another callback.
   //
   // It is an error to call this method after the pipeline has already started.
-  //
-  // TODO(scherkus): remove IsInitialized() and force clients to use callbacks.
   void Start(scoped_ptr<FilterCollection> filter_collection,
              const PipelineStatusCB& ended_cb,
              const PipelineStatusCB& error_cb,
@@ -154,11 +144,6 @@ class MEDIA_EXPORT Pipeline
   // returns true, it is expected that Stop() will be called before destroying
   // the pipeline.
   bool IsRunning() const;
-
-  // Returns true if the pipeline has been started and fully initialized to a
-  // point where playback controls will be respected.  Note that it is possible
-  // for a pipeline to be started but not initialized (i.e., an error occurred).
-  bool IsInitialized() const;
 
   // Returns true if the media has audio.
   bool HasAudio() const;
@@ -216,6 +201,9 @@ class MEDIA_EXPORT Pipeline
   // Gets the current pipeline statistics.
   PipelineStatistics GetStatistics() const;
 
+  // TODO(scherkus): Remove IsInitializedForTesting() after stop/error teardown
+  // paths are sane, see http://crbug.com/110228
+  bool IsInitializedForTesting();
   void SetClockForTesting(Clock* clock);
   void SetErrorForTesting(PipelineStatus status);
 
@@ -260,9 +248,6 @@ class MEDIA_EXPORT Pipeline
 
   // Helper method to tell whether we are in transition to stop state.
   bool IsPipelineTearingDown();
-
-  // We could also be delayed by a transition during seek is performed.
-  bool IsPipelineStopPending();
 
   // Helper method to tell whether we are in transition to seek state.
   bool IsPipelineSeeking();
@@ -446,9 +431,6 @@ class MEDIA_EXPORT Pipeline
 
   // Whether or not the pipeline is in transition for a seek operation.
   bool seek_pending_;
-
-  // Whether or not the pipeline is pending a stop operation.
-  bool stop_pending_;
 
   // Whether or not the pipeline is perform a stop operation.
   bool tearing_down_;
