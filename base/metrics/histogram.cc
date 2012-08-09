@@ -133,7 +133,7 @@ Histogram* Histogram::FactoryGet(const string& name,
                                  Sample minimum,
                                  Sample maximum,
                                  size_t bucket_count,
-                                 Flags flags) {
+                                 int32 flags) {
   bool valid_arguments =
       InspectConstructionArguments(name, &minimum, &maximum, &bucket_count);
   DCHECK(valid_arguments);
@@ -162,7 +162,7 @@ Histogram* Histogram::FactoryTimeGet(const string& name,
                                      TimeDelta minimum,
                                      TimeDelta maximum,
                                      size_t bucket_count,
-                                     Flags flags) {
+                                     int32 flags) {
   return FactoryGet(name, minimum.InMilliseconds(), maximum.InMilliseconds(),
                     bucket_count, flags);
 }
@@ -442,7 +442,6 @@ Histogram::Histogram(const string& name,
     declared_min_(minimum),
     declared_max_(maximum),
     bucket_count_(bucket_count),
-    flags_(kNoFlags),
     sample_(bucket_count) {}
 
 Histogram::~Histogram() {
@@ -531,7 +530,7 @@ double Histogram::GetBucketSize(Count current, size_t i) const {
 
 const string Histogram::GetAsciiBucketRange(size_t i) const {
   string result;
-  if (kHexRangePrintingFlag & flags_)
+  if (kHexRangePrintingFlag & flags())
     StringAppendF(&result, "%#x", ranges(i));
   else
     StringAppendF(&result, "%d", ranges(i));
@@ -636,8 +635,8 @@ void Histogram::WriteAsciiHeader(const SampleSet& snapshot,
 
     StringAppendF(output, ", average = %.1f", average);
   }
-  if (flags_ & ~kHexRangePrintingFlag)
-    StringAppendF(output, " (flags = 0x%x)", flags_ & ~kHexRangePrintingFlag);
+  if (flags() & ~kHexRangePrintingFlag)
+    StringAppendF(output, " (flags = 0x%x)", flags() & ~kHexRangePrintingFlag);
 }
 
 void Histogram::WriteAsciiBucketContext(const int64 past,
@@ -685,7 +684,7 @@ Histogram* LinearHistogram::FactoryGet(const string& name,
                                        Sample minimum,
                                        Sample maximum,
                                        size_t bucket_count,
-                                       Flags flags) {
+                                       int32 flags) {
   bool valid_arguments = Histogram::InspectConstructionArguments(
       name, &minimum, &maximum, &bucket_count);
   DCHECK(valid_arguments);
@@ -715,7 +714,7 @@ Histogram* LinearHistogram::FactoryTimeGet(const string& name,
                                            TimeDelta minimum,
                                            TimeDelta maximum,
                                            size_t bucket_count,
-                                           Flags flags) {
+                                           int32 flags) {
   return FactoryGet(name, minimum.InMilliseconds(), maximum.InMilliseconds(),
                     bucket_count, flags);
 }
@@ -781,7 +780,7 @@ void LinearHistogram::InitializeBucketRanges(Sample minimum,
 // This section provides implementation for BooleanHistogram.
 //------------------------------------------------------------------------------
 
-Histogram* BooleanHistogram::FactoryGet(const string& name, Flags flags) {
+Histogram* BooleanHistogram::FactoryGet(const string& name, int32 flags) {
   Histogram* histogram = StatisticsRecorder::FindHistogram(name);
   if (!histogram) {
     // To avoid racy destruction at shutdown, the following will be leaked.
@@ -819,7 +818,7 @@ BooleanHistogram::BooleanHistogram(const string& name,
 
 Histogram* CustomHistogram::FactoryGet(const string& name,
                                        const vector<Sample>& custom_ranges,
-                                       Flags flags) {
+                                       int32 flags) {
   CHECK(ValidateCustomRanges(custom_ranges));
 
   Histogram* histogram = StatisticsRecorder::FindHistogram(name);
