@@ -166,11 +166,6 @@ void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
   init_cb.Run(PIPELINE_OK);
 }
 
-bool VideoRendererBase::HasEnded() {
-  base::AutoLock auto_lock(lock_);
-  return state_ == kEnded;
-}
-
 // PlatformThread::Delegate implementation.
 void VideoRendererBase::ThreadMain() {
   base::PlatformThread::SetName("CrVideoRenderer");

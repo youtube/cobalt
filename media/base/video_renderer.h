@@ -85,9 +85,6 @@ class MEDIA_EXPORT VideoRenderer
   // Updates the current playback rate.
   virtual void SetPlaybackRate(float playback_rate) = 0;
 
-  // Returns true if all video data has been rendered.
-  virtual bool HasEnded() = 0;
-
  protected:
   friend class base::RefCountedThreadSafe<VideoRenderer>;
 

@@ -72,9 +72,6 @@ class MEDIA_EXPORT AudioRenderer
   // Updates the current playback rate.
   virtual void SetPlaybackRate(float playback_rate) = 0;
 
-  // Returns true if all audio data has been played back by the audio device.
-  virtual bool HasEnded() = 0;
-
   // Sets the output volume.
   virtual void SetVolume(float volume) = 0;
 

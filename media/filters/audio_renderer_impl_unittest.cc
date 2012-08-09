@@ -262,12 +262,10 @@ TEST_F(AudioRendererImplTest, EndOfStream) {
   // Fulfill the read with an end-of-stream packet, we shouldn't report ended
   // nor have a read until we drain the internal buffer.
   DeliverEndOfStream();
-  EXPECT_FALSE(renderer_->HasEnded());
 
   // Drain internal buffer, now we should report ended.
   EXPECT_CALL(*this, OnEnded());
   EXPECT_TRUE(ConsumeBufferedData(bytes_buffered(), NULL));
-  EXPECT_TRUE(renderer_->HasEnded());
 }
 
 TEST_F(AudioRendererImplTest, Underflow) {
