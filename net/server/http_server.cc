@@ -83,8 +83,7 @@ void HttpServer::Send500(int connection_id, const std::string& message) {
   connection->Send500(message);
 }
 
-void HttpServer::Close(int connection_id)
-{
+void HttpServer::Close(int connection_id) {
   HttpConnection* connection = FindConnection(connection_id);
   if (connection == NULL)
     return;
@@ -92,6 +91,10 @@ void HttpServer::Close(int connection_id)
   // Initiating close from server-side does not lead to the DidClose call.
   // Do it manually here.
   DidClose(connection->socket_);
+}
+
+int HttpServer::GetLocalAddress(IPEndPoint* address) {
+  return server_->GetLocalAddress(address);
 }
 
 void HttpServer::DidAccept(StreamListenSocket* server,

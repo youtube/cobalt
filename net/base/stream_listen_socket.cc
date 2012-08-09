@@ -24,6 +24,8 @@
 #include "base/sys_byteorder.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
+#include "net/base/ip_endpoint.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
 using std::string;
@@ -113,6 +115,21 @@ void StreamListenSocket::Send(const char* bytes, int len,
 
 void StreamListenSocket::Send(const string& str, bool append_linefeed) {
   Send(str.data(), static_cast<int>(str.length()), append_linefeed);
+}
+
+int StreamListenSocket::GetLocalAddress(IPEndPoint* address) {
+  SockaddrStorage storage;
+  if (getsockname(socket_, storage.addr, &storage.addr_len)) {
+#if defined(OS_WIN)
+    int err = WSAGetLastError();
+#else
+    int err = errno;
+#endif
+    return MapSystemError(err);
+  }
+  if (!address->FromSockAddr(storage.addr, storage.addr_len))
+    return ERR_FAILED;
+  return OK;
 }
 
 SocketDescriptor StreamListenSocket::AcceptSocket() {
