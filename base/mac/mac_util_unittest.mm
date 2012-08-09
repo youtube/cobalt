@@ -151,22 +151,7 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
   base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
 
   if (major == 10) {
-    if (minor == 5) {
-      EXPECT_TRUE(IsOSLeopard());
-      EXPECT_TRUE(IsOSLeopardOrEarlier());
-      EXPECT_FALSE(IsOSSnowLeopard());
-      EXPECT_TRUE(IsOSSnowLeopardOrEarlier());
-      EXPECT_FALSE(IsOSSnowLeopardOrLater());
-      EXPECT_FALSE(IsOSLion());
-      EXPECT_TRUE(IsOSLionOrEarlier());
-      EXPECT_FALSE(IsOSLionOrLater());
-      EXPECT_FALSE(IsOSMountainLion());
-      EXPECT_FALSE(IsOSMountainLionOrLater());
-      EXPECT_FALSE(
-          IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
-    } else if (minor == 6) {
-      EXPECT_FALSE(IsOSLeopard());
-      EXPECT_FALSE(IsOSLeopardOrEarlier());
+    if (minor == 6) {
       EXPECT_TRUE(IsOSSnowLeopard());
       EXPECT_TRUE(IsOSSnowLeopardOrEarlier());
       EXPECT_TRUE(IsOSSnowLeopardOrLater());
@@ -178,8 +163,6 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
       EXPECT_FALSE(
           IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
     } else if (minor == 7) {
-      EXPECT_FALSE(IsOSLeopard());
-      EXPECT_FALSE(IsOSLeopardOrEarlier());
       EXPECT_FALSE(IsOSSnowLeopard());
       EXPECT_FALSE(IsOSSnowLeopardOrEarlier());
       EXPECT_TRUE(IsOSSnowLeopardOrLater());
@@ -191,8 +174,6 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
       EXPECT_FALSE(
           IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
     } else if (minor == 8) {
-      EXPECT_FALSE(IsOSLeopard());
-      EXPECT_FALSE(IsOSLeopardOrEarlier());
       EXPECT_FALSE(IsOSSnowLeopard());
       EXPECT_FALSE(IsOSSnowLeopardOrEarlier());
       EXPECT_TRUE(IsOSSnowLeopardOrLater());
