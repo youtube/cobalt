@@ -47,6 +47,8 @@ typedef SOCKET SocketDescriptor;
 
 namespace net {
 
+class IPEndPoint;
+
 class NET_EXPORT StreamListenSocket
     : public base::RefCountedThreadSafe<StreamListenSocket>,
 #if defined(OS_WIN)
@@ -78,6 +80,9 @@ class NET_EXPORT StreamListenSocket
   // Send data to the socket.
   void Send(const char* bytes, int len, bool append_linefeed = false);
   void Send(const std::string& str, bool append_linefeed = false);
+
+  // Copies the local address to |address|. Returns a network error code.
+  int GetLocalAddress(IPEndPoint* address);
 
   static const SocketDescriptor kInvalidSocket;
   static const int kSocketError;
