@@ -504,6 +504,13 @@
         ],
         'conditions': [
           ['OS=="lb_shell"', {
+            'sources': [
+              'message_pump_shell.cc',
+              'message_pump_shell.h',
+              'synchronization/condition_variable_shell.cc',
+              'synchronization/lock_impl_shell.cc',
+              'synchronization/waitable_event_shell.cc',
+            ],
             'sources!': [
               'sys_info_posix.cc',
               'shared_memory_posix.cc',
@@ -527,14 +534,6 @@
               'metrics/stats_table.cc',
               'metrics/stats_table.h',
               'native_library_posix.cc',
-              'synchronization/lock_impl_posix.cc',
-              'synchronization/condition_variable_posix.cc',
-            ],
-            'sources': [
-              'message_pump_shell.cc',
-              'message_pump_shell.h',
-              'synchronization/lock_impl_shell.cc',
-              'synchronization/condition_variable_shell.cc',
             ],
             'sources/': [
               ['include', 'sys_string_conversions_linux.cc'],
