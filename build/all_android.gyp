@@ -90,6 +90,7 @@
       'target_name': 'android_in_progress',
       'type': 'none',
       'dependencies': [
+        '../android_webview/lib/android_webview.gyp:libwebview',
         '../content/content.gyp:content_browsertests',
       ],
     },
