@@ -25,9 +25,6 @@ FontTest.Height
 FontTest.LoadArial
 FontTest.LoadArialBold
 FontTest.Widths
-ImageTest.CheckSkiaColor
-SkBitmapOperationsTest.CreateHSLShiftedBitmapHueOnly
-SkBitmapOperationsTest.UnPreMultiply
 L10nUtilTest.GetDisplayNameForCountry
 L10nUtilTest.GetDisplayNameForLocale
 ResourceBundle.DelegateGetFont
