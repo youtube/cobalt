@@ -49,7 +49,8 @@ class GenericScopedHandle {
   }
 
   // Move constructor for C++03 move emulation of this type.
-  GenericScopedHandle(RValue& other) : handle_(other.Take()) {
+  GenericScopedHandle(RValue& other) : handle_(Traits::NullHandle()) {
+    Set(other.Take());
   }
 
   ~GenericScopedHandle() {
@@ -62,9 +63,9 @@ class GenericScopedHandle {
 
   // Move operator= for C++03 move emulation of this type.
   GenericScopedHandle& operator=(RValue& other) {
-    // Swapping the handles helps to avoid problems while assigning a handle
-    // to itself. It is also cheap and matches base::scoped_ptr behavior.
-    Swap(other);
+    if (this != &other) {
+      Set(other.Take());
+    }
     return *this;
   }
 
@@ -95,12 +96,6 @@ class GenericScopedHandle {
     Verifier::StartTracking(INVALID_HANDLE_VALUE, this, BASE_WIN_GET_CALLER,
                             tracked_objects::GetProgramCounter());
     return &handle_;
-  }
-
-  void Swap(GenericScopedHandle& other) {
-    Handle tmp = handle_;
-    handle_ = other.handle_;
-    other.handle_ = tmp;
   }
 
   // Transfers ownership away from this object.
