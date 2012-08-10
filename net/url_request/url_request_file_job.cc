@@ -200,7 +200,7 @@ bool URLRequestFileJob::IsRedirectResponse(GURL* location,
 
   FilePath new_path = file_path_;
   bool resolved;
-  resolved = file_util::ResolveShortcut(&new_path);
+  resolved = file_util::ResolveShortcut(new_path, &new_path, NULL);
 
   // If shortcut is not resolved succesfully, do not redirect.
   if (!resolved)
