@@ -809,12 +809,16 @@
             '../../openssl/openssl.gyp:openssl_includes',
           ],
           'sources': [
+            'disk_cache/cache_util_shell.cc',
+            'disk_cache/file_shell.cc',
             'disk_cache/mapped_file_shell.cc',
           ],
           'sources/': [
             # no UDP
             ['exclude', 'udp'],
             # or file tree access
+            ['exclude', 'disk_cache/cache_util_posix.cc'],
+            ['exclude', 'disk_cache/file_posix.cc'],
             ['exclude', 'disk_cache/mapped_file_posix.cc'],
             # or SDCH, Shared Dictionary Compression over HTTP
             ['exclude', 'sdch'],
