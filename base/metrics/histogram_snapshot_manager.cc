@@ -4,7 +4,10 @@
 
 #include "base/metrics/histogram_snapshot_manager.h"
 
+#include "base/compiler_specific.h"
+#include "base/debug/alias.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/string_util.h"
 
 using base::Histogram;
 using base::StatisticsRecorder;
@@ -43,6 +46,12 @@ void HistogramSnapshotManager::PrepareDelta(const Histogram& histogram) {
   const std::string& histogram_name = histogram.histogram_name();
 
   int corruption = histogram.FindCorruption(snapshot);
+
+  char histogram_name_buf[128];
+  base::strlcpy(histogram_name_buf,
+                histogram_name.c_str(),
+                arraysize(histogram_name_buf));
+  base::debug::Alias(histogram_name_buf);
 
   // Crash if we detect that our histograms have been overwritten.  This may be
   // a fair distance from the memory smasher, but we hope to correlate these
