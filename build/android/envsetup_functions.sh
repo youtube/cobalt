@@ -146,11 +146,10 @@ common_gyp_vars() {
 #  > make
 ################################################################################
 sdk_build_init() {
+  # If ANDROID_NDK_ROOT is set when envsetup is run, use the ndk pointed to by
+  # the environment variable.  Otherwise, use the default ndk from the tree.
   if [ ! -d "${ANDROID_NDK_ROOT}" ]; then
-    echo "ANDROID_NDK_ROOT must be set to the path of Android NDK." >& 2
-    echo "which could be installed by" >& 2
-    echo "<chromium_tree>/src/build/install-build-deps-android-sdk.sh" >& 2
-    return 1
+    export ANDROID_NDK_ROOT="${CHROME_SRC}/third_party/android_tools/ndk/"
   fi
 
   # If ANDROID_SDK_ROOT is set when envsetup is run, use the sdk pointed to by
