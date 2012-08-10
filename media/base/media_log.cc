@@ -69,8 +69,6 @@ const char* MediaLog::PipelineStateToString(Pipeline::State state) {
       return "initAudioDecoder";
     case Pipeline::kInitAudioRenderer:
       return "initAudioRenderer";
-    case Pipeline::kInitVideoDecoder:
-      return "initVideoDecoder";
     case Pipeline::kInitVideoRenderer:
       return "initVideoRenderer";
     case Pipeline::kPausing:
