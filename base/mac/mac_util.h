@@ -128,8 +128,6 @@ BASE_EXPORT bool WasLaunchedAsHiddenLoginItem();
 
 // Snow Leopard is Mac OS X 10.6, Darwin 10.
 BASE_EXPORT bool IsOSSnowLeopard();
-BASE_EXPORT bool IsOSSnowLeopardOrEarlier();
-BASE_EXPORT bool IsOSSnowLeopardOrLater();
 
 // Lion is Mac OS X 10.7, Darwin 11.
 BASE_EXPORT bool IsOSLion();
@@ -151,17 +149,10 @@ BASE_EXPORT
 // constant-value inline functions. The MAC_OS_X_VERSION_MIN_REQUIRED macro
 // contains the value of the deployment target.
 
-#if defined(MAC_OS_X_VERSION_10_6) && \
-    MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
-#define BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6
-inline bool IsOSSnowLeopardOrLater() { return true; }
-#endif
-
 #if defined(MAC_OS_X_VERSION_10_7) && \
     MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7
 #define BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7
 inline bool IsOSSnowLeopard() { return false; }
-inline bool IsOSSnowLeopardOrEarlier() { return false; }
 inline bool IsOSLionOrLater() { return true; }
 #endif
 
