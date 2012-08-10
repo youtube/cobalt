@@ -31,7 +31,6 @@ class AudioDecoder;
 class Clock;
 class FilterCollection;
 class MediaLog;
-class VideoDecoder;
 class VideoRenderer;
 
 // Adapter for using asynchronous Pipeline methods in code that wants to run
@@ -214,7 +213,6 @@ class MEDIA_EXPORT Pipeline
     kInitDemuxer,
     kInitAudioDecoder,
     kInitAudioRenderer,
-    kInitVideoDecoder,
     kInitVideoRenderer,
     kPausing,
     kSeeking,
@@ -352,16 +350,16 @@ class MEDIA_EXPORT Pipeline
 
   // Returns true if the asynchronous action of creating decoder has started.
   // Returns false if this method did nothing because the corresponding
-  // audio/video stream does not exist.
+  // audio stream does not exist.
   bool InitializeAudioDecoder(const scoped_refptr<Demuxer>& demuxer);
-  bool InitializeVideoDecoder(const scoped_refptr<Demuxer>& demuxer);
 
   // Initializes a renderer and connects it with decoder. Returns true if the
   // asynchronous action of creating renderer has started. Returns
   // false if this method did nothing because the corresponding audio/video
   // stream does not exist.
   bool InitializeAudioRenderer(const scoped_refptr<AudioDecoder>& decoder);
-  bool InitializeVideoRenderer(const scoped_refptr<VideoDecoder>& decoder);
+  bool InitializeVideoRenderer(
+      const scoped_refptr<DemuxerStream>& stream);
 
   // Kicks off destroying filters. Called by StopTask() and ErrorChangedTask().
   // When we start to tear down the pipeline, we will consider two cases:
@@ -496,17 +494,16 @@ class MEDIA_EXPORT Pipeline
   PipelineStatusCB ended_cb_;
   PipelineStatusCB error_cb_;
 
-  // Decoder reference used for signalling imminent shutdown.
-  // This is a HACK necessary because WebMediaPlayerImpl::Destroy() holds the
-  // renderer thread loop hostage for until PipelineImpl::Stop() calls its
-  // callback.
-  // This reference should only be used for this hack and no other purposes.
-  // http://crbug.com/110228 tracks removing this hack.
-  scoped_refptr<VideoDecoder> video_decoder_;
-
-  // Renderer references used for setting the volume and determining
+  // Audio renderer reference used for setting the volume and determining
   // when playback has finished.
   scoped_refptr<AudioRenderer> audio_renderer_;
+
+  // Video Renderer reference used for determining when playback has finished
+  // and for signalling imminent shutdown.
+  // The signalling imminent shutdown is a HACK necessary because
+  // WebMediaPlayerImpl::Destroy() holds the render thread loop hostage
+  // until PipelineImpl::Stop() calls its callback.
+  // http://crbug.com/110228 tracks removing this hack.
   scoped_refptr<VideoRenderer> video_renderer_;
 
   // Demuxer reference used for setting the preload value.

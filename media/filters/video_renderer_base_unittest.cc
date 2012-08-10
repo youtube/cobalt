@@ -34,10 +34,15 @@ static const int kVideoDuration = kFrameDuration * 100;
 static const int kEndOfStream = -1;
 static const gfx::Size kNaturalSize(16u, 16u);
 
+ACTION_P(RunPipelineStatusCB1, status) {
+  arg1.Run(status);
+}
+
 class VideoRendererBaseTest : public ::testing::Test {
  public:
   VideoRendererBaseTest()
       : decoder_(new MockVideoDecoder()),
+        demuxer_stream_(new MockDemuxerStream()),
         cv_(&lock_),
         event_(false, false),
         timeout_(TestTimeouts::action_timeout()),
@@ -50,6 +55,9 @@ class VideoRendererBaseTest : public ::testing::Test {
         base::Bind(&VideoRendererBaseTest::Paint, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::OnSetOpaque, base::Unretained(this)),
         true);
+
+    EXPECT_CALL(*demuxer_stream_, type())
+        .WillRepeatedly(Return(DemuxerStream::VIDEO));
 
     // We expect these to be called but we don't care how/when.
     EXPECT_CALL(*decoder_, Stop(_))
@@ -98,13 +106,29 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     InSequence s;
 
+    EXPECT_CALL(*decoder_, Initialize(_, _, _))
+      .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
+
     // Set playback rate before anything else happens.
     renderer_->SetPlaybackRate(1.0f);
 
     // Initialize, we shouldn't have any reads.
+    InitializeRenderer(PIPELINE_OK);
+
+    // We expect the video size to be set.
+    EXPECT_CALL(*this, OnNaturalSizeChanged(kNaturalSize));
+
+    // Start prerolling.
+    Preroll(0);
+  }
+
+  void InitializeRenderer(PipelineStatus expected_status) {
+    VideoRendererBase::VideoDecoderList decoders;
+    decoders.push_back(decoder_);
     renderer_->Initialize(
-        decoder_,
-        NewExpectedStatusCB(PIPELINE_OK),
+        demuxer_stream_,
+        decoders,
+        NewExpectedStatusCB(expected_status),
         base::Bind(&MockStatisticsCB::OnStatistics,
                    base::Unretained(&statistics_cb_object_)),
         base::Bind(&VideoRendererBaseTest::OnTimeUpdate,
@@ -116,12 +140,6 @@ class VideoRendererBaseTest : public ::testing::Test {
         base::Bind(&VideoRendererBaseTest::GetTime, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::GetDuration,
                    base::Unretained(this)));
-
-    // We expect the video size to be set.
-    EXPECT_CALL(*this, OnNaturalSizeChanged(kNaturalSize));
-
-    // Start prerolling.
-    Preroll(0);
   }
 
   // Instead of immediately satisfying a decoder Read request, queue it up.
@@ -311,6 +329,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   // Fixture members.
   scoped_refptr<VideoRendererBase> renderer_;
   scoped_refptr<MockVideoDecoder> decoder_;
+  scoped_refptr<MockDemuxerStream> demuxer_stream_;
   MockStatisticsCB statistics_cb_object_;
 
   // Receives all the buffers that renderer had provided to |decoder_|.
@@ -670,5 +689,14 @@ TEST_F(VideoRendererBaseTest, AbortPendingRead_Preroll) {
   VerifyNotPrerolling();
   Shutdown();
 }
+
+TEST_F(VideoRendererBaseTest, VideoDecoder_InitFailure) {
+  InSequence s;
+
+  EXPECT_CALL(*decoder_, Initialize(_, _, _))
+      .WillOnce(RunPipelineStatusCB1(PIPELINE_ERROR_DECODE));
+  InitializeRenderer(PIPELINE_ERROR_DECODE);
+
+ }
 
 }  // namespace media
