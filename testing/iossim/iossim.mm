@@ -63,7 +63,7 @@ const int kIPadFamily = 2;
 // If this timeout occurs iossim will likely exit with non-zero status; the
 // exception being if the app is invoked and completes execution before the
 // session is started (this case is handled in session:didStart:withError).
-const NSTimeInterval kSessionStartTimeoutSeconds = 30;
+const NSTimeInterval kDefaultSessionStartTimeoutSeconds = 30;
 
 // While the simulated app is running, its stdout is redirected to a file which
 // is polled by iossim and written to iossim's stdout using the following
@@ -492,7 +492,7 @@ BOOL InitializeSimulatorUserHome(NSString* userHomePath) {
 // Prints the usage information to stderr.
 void PrintUsage() {
   fprintf(stderr, "Usage: iossim [-d device] [-s sdkVersion] [-u homeDir] "
-      "[-e envKey=value]* <appPath> [<appArgs>]\n"
+      "[-e envKey=value]* [-t startupTimeout] <appPath> [<appArgs>]\n"
       "  where <appPath> is the path to the .app directory and appArgs are any"
       " arguments to send the simulated app.\n"
       "\n"
@@ -504,7 +504,10 @@ void PrintUsage() {
       "  -u  Specifies a user home directory for the simulator."
       " Will create a new directory if not specified.\n"
       "  -e  Specifies an environment key=value pair that will be"
-      " set in the simulated application's environment.\n");
+      " set in the simulated application's environment.\n"
+      "  -t  Specifies the session startup timeout (in seconds)."
+      " Defaults to %d.\n",
+      static_cast<int>(kDefaultSessionStartTimeoutSeconds));
 }
 
 }  // namespace
@@ -531,10 +534,11 @@ int main(int argc, char* const argv[]) {
   NSString* simHomePath = nil;
   NSMutableArray* appArgs = [NSMutableArray array];
   NSMutableDictionary* appEnv = [NSMutableDictionary dictionary];
+  NSTimeInterval sessionStartTimeout = kDefaultSessionStartTimeoutSeconds;
 
   // Parse the optional arguments
   int c;
-  while ((c = getopt(argc, argv, "hs:d:u:e:")) != -1) {
+  while ((c = getopt(argc, argv, "hs:d:u:e:t:")) != -1) {
     switch (c) {
       case 's':
         sdkVersion = [NSString stringWithUTF8String:optarg];
@@ -557,6 +561,17 @@ int main(int argc, char* const argv[]) {
         NSString* key = [envLine substringToIndex:range.location];
         NSString* value = [envLine substringFromIndex:(range.location + 1)];
         [appEnv setObject:value forKey:key];
+      }
+        break;
+      case 't': {
+        int timeout = atoi(optarg);
+        if (timeout > 0) {
+          sessionStartTimeout = static_cast<NSTimeInterval>(timeout);
+        } else {
+          LogError(@"Invalid startup timeout (%s).", optarg);
+          PrintUsage();
+          exit(EXIT_FAILURE);
+        }
       }
         break;
       case 'h':
@@ -660,7 +675,7 @@ int main(int argc, char* const argv[]) {
   // Start the simulator session.
   NSError* error;
   BOOL started = [session requestStartWithConfig:config
-                                         timeout:kSessionStartTimeoutSeconds
+                                         timeout:sessionStartTimeout
                                            error:&error];
 
   // Spin the runtime indefinitely. When the delegate gets the message that the
