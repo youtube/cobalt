@@ -11,6 +11,7 @@
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
+#include "media/base/demuxer_stream.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
@@ -50,7 +51,8 @@ class MEDIA_EXPORT VideoRendererBase
                     bool drop_frames);
 
   // VideoRenderer implementation.
-  virtual void Initialize(const scoped_refptr<VideoDecoder>& decoder,
+  virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
+                          const VideoDecoderList& decoders,
                           const PipelineStatusCB& init_cb,
                           const StatisticsCB& statistics_cb,
                           const TimeCB& max_time_cb,
@@ -66,6 +68,7 @@ class MEDIA_EXPORT VideoRendererBase
                        const PipelineStatusCB& cb) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
+  virtual void PrepareForShutdownHack() OVERRIDE;
 
   // PlatformThread::Delegate implementation.
   virtual void ThreadMain() OVERRIDE;
@@ -118,6 +121,18 @@ class MEDIA_EXPORT VideoRendererBase
   // Updates |current_frame_| to the next frame on |ready_frames_| and calls
   // |size_changed_cb_| if the natural size changes.
   void SetCurrentFrameToNextReadyFrame();
+
+  // Pops the front of |decoders|, assigns it to |decoder_| and then
+  // calls initialize on the new decoder.
+  void InitializeNextDecoder(const scoped_refptr<DemuxerStream>& demuxer_stream,
+                             scoped_ptr<VideoDecoderList> decoders);
+
+  // Called when |decoder_| initialization completes.
+  // |demuxer_stream| & |decoders| are used if initialization failed and
+  // InitializeNextDecoder() needs to be called again.
+  void OnDecoderInitDone(const scoped_refptr<DemuxerStream>& demuxer_stream,
+                         scoped_ptr<VideoDecoderList> decoders,
+                         PipelineStatus status);
 
   // Used for accessing data members.
   base::Lock lock_;
@@ -210,6 +225,7 @@ class MEDIA_EXPORT VideoRendererBase
   PipelineStatusCB preroll_cb_;
 
   // Event callbacks.
+  PipelineStatusCB init_cb_;
   StatisticsCB statistics_cb_;
   TimeCB max_time_cb_;
   NaturalSizeChangedCB size_changed_cb_;

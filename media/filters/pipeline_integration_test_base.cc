@@ -197,7 +197,8 @@ PipelineIntegrationTestBase::CreateFilterCollection(
                  base::Unretained(message_loop_factory_.get()),
                  "VideoDecoderThread"),
       decryptor);
-  collection->AddVideoDecoder(decoder);
+  collection->GetVideoDecoders()->push_back(decoder);
+
   // Disable frame dropping if hashing is enabled.
   renderer_ = new VideoRendererBase(
       base::Bind(&PipelineIntegrationTestBase::OnVideoRendererPaint,

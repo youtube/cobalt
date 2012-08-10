@@ -25,6 +25,8 @@ class VideoRenderer;
 // http://crbug.com/110800
 class MEDIA_EXPORT FilterCollection {
  public:
+  typedef std::list<scoped_refptr<VideoDecoder> > VideoDecoderList;
+
   FilterCollection();
   ~FilterCollection();
 
@@ -34,12 +36,8 @@ class MEDIA_EXPORT FilterCollection {
 
   // Adds a filter to the collection.
   void AddAudioDecoder(AudioDecoder* audio_decoder);
-  void AddVideoDecoder(VideoDecoder* video_decoder);
   void AddAudioRenderer(AudioRenderer* audio_renderer);
   void AddVideoRenderer(VideoRenderer* video_renderer);
-
-  // Is the collection empty?
-  bool IsEmpty() const;
 
   // Remove remaining filters.
   void Clear();
@@ -49,14 +47,15 @@ class MEDIA_EXPORT FilterCollection {
   // If a filter is returned it is removed from the collection.
   // Filters are selected in FIFO order.
   void SelectAudioDecoder(scoped_refptr<AudioDecoder>* out);
-  void SelectVideoDecoder(scoped_refptr<VideoDecoder>* out);
   void SelectAudioRenderer(scoped_refptr<AudioRenderer>* out);
   void SelectVideoRenderer(scoped_refptr<VideoRenderer>* out);
+
+  VideoDecoderList* GetVideoDecoders();
 
  private:
   scoped_refptr<Demuxer> demuxer_;
   std::list<scoped_refptr<AudioDecoder> > audio_decoders_;
-  std::list<scoped_refptr<VideoDecoder> > video_decoders_;
+  VideoDecoderList video_decoders_;
   std::list<scoped_refptr<AudioRenderer> > audio_renderers_;
   std::list<scoped_refptr<VideoRenderer> > video_renderers_;
 

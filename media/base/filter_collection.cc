@@ -29,23 +29,12 @@ void FilterCollection::AddAudioDecoder(AudioDecoder* audio_decoder) {
   audio_decoders_.push_back(audio_decoder);
 }
 
-void FilterCollection::AddVideoDecoder(VideoDecoder* video_decoder) {
-  video_decoders_.push_back(video_decoder);
-}
-
 void FilterCollection::AddAudioRenderer(AudioRenderer* audio_renderer) {
   audio_renderers_.push_back(audio_renderer);
 }
 
 void FilterCollection::AddVideoRenderer(VideoRenderer* video_renderer) {
   video_renderers_.push_back(video_renderer);
-}
-
-bool FilterCollection::IsEmpty() const {
-  return audio_decoders_.empty() &&
-      video_decoders_.empty() &&
-      audio_renderers_.empty() &&
-      video_renderers_.empty();
 }
 
 void FilterCollection::Clear() {
@@ -64,15 +53,6 @@ void FilterCollection::SelectAudioDecoder(scoped_refptr<AudioDecoder>* out) {
   audio_decoders_.pop_front();
 }
 
-void FilterCollection::SelectVideoDecoder(scoped_refptr<VideoDecoder>* out) {
-  if (video_decoders_.empty()) {
-    *out = NULL;
-    return;
-  }
-  *out = video_decoders_.front();
-  video_decoders_.pop_front();
-}
-
 void FilterCollection::SelectAudioRenderer(scoped_refptr<AudioRenderer>* out) {
   if (audio_renderers_.empty()) {
     *out = NULL;
@@ -89,6 +69,11 @@ void FilterCollection::SelectVideoRenderer(scoped_refptr<VideoRenderer>* out) {
   }
   *out = video_renderers_.front();
   video_renderers_.pop_front();
+}
+
+FilterCollection::VideoDecoderList*
+FilterCollection::GetVideoDecoders() {
+  return &video_decoders_;
 }
 
 }  // namespace media
