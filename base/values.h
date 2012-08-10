@@ -339,10 +339,12 @@ class BASE_EXPORT DictionaryValue : public Value {
   // YOU SHOULD ALWAYS USE THE XXXWithoutPathExpansion() APIs WITH THESE, NOT
   // THE NORMAL XXX() APIs.  This makes sure things will work correctly if any
   // keys have '.'s in them.
-  class key_iterator
+  class BASE_EXPORT key_iterator
       : private std::iterator<std::input_iterator_tag, const std::string> {
    public:
-    explicit key_iterator(ValueMap::const_iterator itr) { itr_ = itr; }
+    explicit key_iterator(ValueMap::const_iterator itr);
+    // Not explicit, because this is a copy constructor.
+    key_iterator(const key_iterator& rhs);
     key_iterator operator++() {
       ++itr_;
       return *this;
@@ -360,10 +362,9 @@ class BASE_EXPORT DictionaryValue : public Value {
 
   // This class provides an iterator over both keys and values in the
   // dictionary.  It can't be used to modify the dictionary.
-  class Iterator {
+  class BASE_EXPORT Iterator {
    public:
-    explicit Iterator(const DictionaryValue& target)
-        : target_(target), it_(target.dictionary_.begin()) {}
+    explicit Iterator(const DictionaryValue& target);
 
     bool HasNext() const { return it_ != target_.dictionary_.end(); }
     void Advance() { ++it_; }
