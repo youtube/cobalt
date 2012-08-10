@@ -22,6 +22,17 @@ static SystemMonitor* g_system_monitor = NULL;
 static int kDelayedBatteryCheckMs = 10 * 1000;
 #endif  // defined(ENABLE_BATTERY_MONITORING)
 
+SystemMonitor::MediaDeviceInfo::MediaDeviceInfo(
+    const std::string& id,
+    const string16& device_name,
+    MediaDeviceType device_type,
+    const FilePath::StringType& device_location)
+    : unique_id(id),
+      name(device_name),
+      type(device_type),
+      location(device_location) {
+}
+
 SystemMonitor::SystemMonitor()
     : power_observer_list_(new ObserverListThreadSafe<PowerObserver>()),
       devices_changed_observer_list_(

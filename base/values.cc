@@ -750,6 +750,18 @@ void DictionaryValue::Swap(DictionaryValue* other) {
   dictionary_.swap(other->dictionary_);
 }
 
+DictionaryValue::key_iterator::key_iterator(ValueMap::const_iterator itr) {
+  itr_ = itr;
+}
+
+DictionaryValue::key_iterator::key_iterator(const key_iterator& rhs) {
+  itr_ = rhs.itr_;
+}
+
+DictionaryValue::Iterator::Iterator(const DictionaryValue& target)
+    : target_(target),
+      it_(target.dictionary_.begin()) {}
+
 DictionaryValue* DictionaryValue::DeepCopy() const {
   DictionaryValue* result = new DictionaryValue;
 

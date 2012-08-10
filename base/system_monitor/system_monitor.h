@@ -64,16 +64,11 @@ class BASE_EXPORT SystemMonitor {
     TYPE_MTP,   // (W)string to locate a MTP device, e.g. its usb bus/port.
   };
 
-  struct MediaDeviceInfo {
+  struct BASE_EXPORT MediaDeviceInfo {
     MediaDeviceInfo(const std::string& id,
                     const string16& device_name,
                     MediaDeviceType device_type,
-                    const FilePath::StringType& device_location)
-        : unique_id(id),
-          name(device_name),
-          type(device_type),
-          location(device_location) {
-    }
+                    const FilePath::StringType& device_location);
 
     // Unique media device id - persists between device attachments.
     std::string unique_id;
