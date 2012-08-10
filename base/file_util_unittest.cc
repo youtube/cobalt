@@ -1617,6 +1617,8 @@ TEST_F(FileUtilTest, ResolveShortcutTest) {
   EXPECT_TRUE(SUCCEEDED(result));
   result = shell->SetDescription(L"ResolveShortcutTest");
   EXPECT_TRUE(SUCCEEDED(result));
+  result = shell->SetArguments(L"--args");
+  EXPECT_TRUE(SUCCEEDED(result));
   result = persist->Save(link_file.value().c_str(), TRUE);
   EXPECT_TRUE(SUCCEEDED(result));
   if (persist)
@@ -1625,8 +1627,10 @@ TEST_F(FileUtilTest, ResolveShortcutTest) {
     shell->Release();
 
   bool is_solved;
-  is_solved = file_util::ResolveShortcut(&link_file);
+  std::wstring args;
+  is_solved = file_util::ResolveShortcut(link_file, &link_file, &args);
   EXPECT_TRUE(is_solved);
+  EXPECT_EQ(L"--args", args);
   std::wstring contents;
   contents = ReadTextFile(link_file);
   EXPECT_EQ(L"This is the target.", contents);
@@ -1649,8 +1653,8 @@ TEST_F(FileUtilTest, CreateShortcutTest) {
                   target_file.value().c_str(), link_file.value().c_str(), NULL,
                   NULL, NULL, NULL, 0, NULL,
                   file_util::SHORTCUT_CREATE_ALWAYS));
-  FilePath resolved_name = link_file;
-  EXPECT_TRUE(file_util::ResolveShortcut(&resolved_name));
+  FilePath resolved_name;
+  EXPECT_TRUE(file_util::ResolveShortcut(link_file, &resolved_name, NULL));
   std::wstring read_contents = ReadTextFile(resolved_name);
   EXPECT_EQ(file_contents, read_contents);
 

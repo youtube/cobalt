@@ -235,10 +235,16 @@ enum ShortcutOptions {
 };
 
 // Resolve Windows shortcut (.LNK file)
-// This methods tries to resolve a shortcut .LNK file. If the |path| is valid
-// returns true and puts the target into the |path|, otherwise returns
-// false leaving the path as it is.
-BASE_EXPORT bool ResolveShortcut(FilePath* path);
+// This methods tries to resolve a shortcut .LNK file. The path of the shortcut
+// to resolve is in |shortcut_path|. If |target_path| is not NULL, the target
+// will be resolved and placed in |target_path|. If |args| is not NULL, the
+// arguments will be retrieved and placed in |args|. The function returns true
+// if all requested fields are are found successfully.
+// Callers can safely use the same variable for both |shortcut_path| and
+// |target_path|.
+BASE_EXPORT bool ResolveShortcut(const FilePath& shortcut_path,
+                                 FilePath* target_path,
+                                 string16* args);
 
 // Creates (or updates) a Windows shortcut (.LNK file)
 // This method creates (or updates) a shortcut link using the information given.
