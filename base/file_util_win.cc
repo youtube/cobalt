@@ -332,38 +332,53 @@ bool GetFileCreationLocalTime(const std::wstring& filename,
   return GetFileCreationLocalTimeFromHandle(file_handle.Get(), creation_time);
 }
 
-bool ResolveShortcut(FilePath* path) {
+bool ResolveShortcut(const FilePath& shortcut_path,
+                     FilePath* target_path,
+                     string16* args) {
   base::ThreadRestrictions::AssertIOAllowed();
 
   HRESULT result;
   base::win::ScopedComPtr<IShellLink> i_shell_link;
-  bool is_resolved = false;
 
-  // Get pointer to the IShellLink interface
+  // Get pointer to the IShellLink interface.
   result = i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
                                        CLSCTX_INPROC_SERVER);
-  if (SUCCEEDED(result)) {
-    base::win::ScopedComPtr<IPersistFile> persist;
-    // Query IShellLink for the IPersistFile interface
-    result = persist.QueryFrom(i_shell_link);
-    if (SUCCEEDED(result)) {
-      WCHAR temp_path[MAX_PATH];
-      // Load the shell link
-      result = persist->Load(path->value().c_str(), STGM_READ);
-      if (SUCCEEDED(result)) {
-        // Try to find the target of a shortcut
-        result = i_shell_link->Resolve(0, SLR_NO_UI);
-        if (SUCCEEDED(result)) {
-          result = i_shell_link->GetPath(temp_path, MAX_PATH,
-                                  NULL, SLGP_UNCPRIORITY);
-          *path = FilePath(temp_path);
-          is_resolved = true;
-        }
-      }
-    }
+  if (FAILED(result))
+    return false;
+
+  base::win::ScopedComPtr<IPersistFile> persist;
+  // Query IShellLink for the IPersistFile interface.
+  result = persist.QueryFrom(i_shell_link);
+  if (FAILED(result))
+    return false;
+
+  // Load the shell link.
+  result = persist->Load(shortcut_path.value().c_str(), STGM_READ);
+  if (FAILED(result))
+    return false;
+
+  WCHAR temp[MAX_PATH];
+  if (target_path) {
+    // Try to find the target of a shortcut.
+    result = i_shell_link->Resolve(0, SLR_NO_UI);
+    if (FAILED(result))
+      return false;
+
+    result = i_shell_link->GetPath(temp, MAX_PATH, NULL, SLGP_UNCPRIORITY);
+    if (FAILED(result))
+      return false;
+
+    *target_path = FilePath(temp);
   }
 
-  return is_resolved;
+  if (args) {
+    result = i_shell_link->GetArguments(temp, MAX_PATH);
+    if (FAILED(result))
+      return false;
+
+    *args = string16(temp);
+  }
+  return true;
 }
 
 bool CreateOrUpdateShortcutLink(const wchar_t *source,
@@ -389,7 +404,7 @@ bool CreateOrUpdateShortcutLink(const wchar_t *source,
   base::win::ScopedComPtr<IShellLink> i_shell_link;
   base::win::ScopedComPtr<IPersistFile> i_persist_file;
 
-  // Get pointer to the IShellLink interface
+  // Get pointer to the IShellLink interface.
   if (FAILED(i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
                                          CLSCTX_INPROC_SERVER)) ||
       FAILED(i_persist_file.QueryFrom(i_shell_link))) {
