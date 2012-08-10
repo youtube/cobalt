@@ -153,8 +153,6 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
   if (major == 10) {
     if (minor == 6) {
       EXPECT_TRUE(IsOSSnowLeopard());
-      EXPECT_TRUE(IsOSSnowLeopardOrEarlier());
-      EXPECT_TRUE(IsOSSnowLeopardOrLater());
       EXPECT_FALSE(IsOSLion());
       EXPECT_TRUE(IsOSLionOrEarlier());
       EXPECT_FALSE(IsOSLionOrLater());
@@ -164,8 +162,6 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
           IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
     } else if (minor == 7) {
       EXPECT_FALSE(IsOSSnowLeopard());
-      EXPECT_FALSE(IsOSSnowLeopardOrEarlier());
-      EXPECT_TRUE(IsOSSnowLeopardOrLater());
       EXPECT_TRUE(IsOSLion());
       EXPECT_TRUE(IsOSLionOrEarlier());
       EXPECT_TRUE(IsOSLionOrLater());
@@ -175,8 +171,6 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
           IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
     } else if (minor == 8) {
       EXPECT_FALSE(IsOSSnowLeopard());
-      EXPECT_FALSE(IsOSSnowLeopardOrEarlier());
-      EXPECT_TRUE(IsOSSnowLeopardOrLater());
       EXPECT_FALSE(IsOSLion());
       EXPECT_FALSE(IsOSLionOrEarlier());
       EXPECT_TRUE(IsOSLionOrLater());

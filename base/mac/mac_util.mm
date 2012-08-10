@@ -475,7 +475,7 @@ bool WasLaunchedAsHiddenLoginItem() {
   if (!item.get()) {
     // Lion can launch items for the resume feature.  So log an error only for
     // Snow Leopard or earlier.
-    if (IsOSSnowLeopardOrEarlier())
+    if (IsOSSnowLeopard())
       DLOG(ERROR) <<
           "Process launched at Login but can't access Login Item List.";
 
@@ -570,18 +570,6 @@ enum {
 #if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
 bool IsOSSnowLeopard() {
   return MacOSXMinorVersion() == SNOW_LEOPARD_MINOR_VERSION;
-}
-#endif
-
-#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_7)
-bool IsOSSnowLeopardOrEarlier() {
-  return MacOSXMinorVersion() <= SNOW_LEOPARD_MINOR_VERSION;
-}
-#endif
-
-#if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GE_10_6)
-bool IsOSSnowLeopardOrLater() {
-  return MacOSXMinorVersion() >= SNOW_LEOPARD_MINOR_VERSION;
 }
 #endif
 
