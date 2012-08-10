@@ -218,6 +218,10 @@
                 ],
               },
             }],
+            # http://www.xmlsoft.org/threads.html says that this is required
+            # when using libxml from several threads, which can possibly happen
+            # in chrome. On linux, this is picked up by transitivity from
+            # pkg-config output from build/linux/system.gyp.
             ['OS=="mac" or OS=="android"', {'defines': ['_REENTRANT']}],
             ['OS=="win"', {
               'product_name': 'libxml2',
