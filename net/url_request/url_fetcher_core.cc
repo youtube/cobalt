@@ -371,6 +371,7 @@ void URLFetcherCore::GetExtraRequestHeaders(
 void URLFetcherCore::SetRequestContext(
     URLRequestContextGetter* request_context_getter) {
   DCHECK(!request_context_getter_);
+  DCHECK(request_context_getter);
   request_context_getter_ = request_context_getter;
 }
 
