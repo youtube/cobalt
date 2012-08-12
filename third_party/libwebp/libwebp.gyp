@@ -60,16 +60,18 @@
         },
         {
           'target_name': 'libwebp_dsp_neon',
-          'type': 'static_library',
-          'include_dirs': ['.'],
-          'sources': [
-            'dsp/dec_neon.c',
-          ],
           'conditions': [
             ['armv7 == 1', {
+              'type': 'static_library',
+              'include_dirs': ['.'],
+              'sources': [
+                'dsp/dec_neon.c',
+              ],
               # behavior similar dsp_neon.c.neon in an Android.mk
               'cflags!': [ '-mfpu=vfpv3-d16' ],
               'cflags': [ '-mfpu=neon' ],
+            },{  # "armv7 != 1"
+              'type': 'none',
             }],
             ['order_profiling != 0', {
               'target_conditions' : [
