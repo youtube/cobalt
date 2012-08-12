@@ -22,7 +22,8 @@ const char kNullHash[] = "d41d8cd98f00b204e9800998ecf8427e";
 PipelineIntegrationTestBase::PipelineIntegrationTestBase()
     : hashing_enabled_(false),
       message_loop_factory_(new MessageLoopFactory()),
-      pipeline_(new Pipeline(&message_loop_, new MediaLog())),
+      pipeline_(new Pipeline(message_loop_.message_loop_proxy(),
+                             new MediaLog())),
       ended_(false),
       pipeline_status_(PIPELINE_OK) {
   base::MD5Init(&md5_context_);
@@ -171,8 +172,9 @@ scoped_ptr<FilterCollection>
 PipelineIntegrationTestBase::CreateFilterCollection(const std::string& url) {
   scoped_refptr<FileDataSource> data_source = new FileDataSource();
   CHECK(data_source->Initialize(url));
-  return CreateFilterCollection(new FFmpegDemuxer(&message_loop_, data_source),
-                                NULL);
+  return CreateFilterCollection(
+      new FFmpegDemuxer(message_loop_.message_loop_proxy(), data_source),
+      NULL);
 }
 
 scoped_ptr<FilterCollection>
@@ -191,11 +193,11 @@ PipelineIntegrationTestBase::CreateFilterCollection(
   collection->AddAudioDecoder(new FFmpegAudioDecoder(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
-                 "AudioDecoderThread")));
+                 media::MessageLoopFactory::kAudioDecoder)));
   scoped_refptr<VideoDecoder> decoder = new FFmpegVideoDecoder(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
-                 "VideoDecoderThread"),
+                 media::MessageLoopFactory::kVideoDecoder),
       decryptor);
   collection->GetVideoDecoders()->push_back(decoder);
 

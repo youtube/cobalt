@@ -140,7 +140,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
 class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
  public:
-  FFmpegDemuxer(MessageLoop* message_loop,
+  FFmpegDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                 const scoped_refptr<DataSource>& data_source);
 
   // Posts a task to perform additional demuxing.
@@ -165,7 +165,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual bool IsStreaming() OVERRIDE;
 
   // Provide access to FFmpegDemuxerStream.
-  MessageLoop* message_loop();
+  scoped_refptr<base::MessageLoopProxy> message_loop();
 
   // Allow FFmpegDemuxerStream to notify us when there is updated information
   // about what buffered data is available.
@@ -218,7 +218,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   DemuxerHost* host_;
 
-  MessageLoop* message_loop_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   // FFmpeg context handle.
   AVFormatContext* format_context_;

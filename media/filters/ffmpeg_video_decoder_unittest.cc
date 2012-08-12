@@ -77,9 +77,10 @@ class FFmpegVideoDecoderTest : public testing::Test {
                             base::Unretained(this))) {
     CHECK(FFmpegGlue::GetInstance());
 
-    decoder_ = new FFmpegVideoDecoder(base::Bind(&Identity<MessageLoop*>,
-                                                 &message_loop_),
-                                      decryptor_.get());
+    decoder_ = new FFmpegVideoDecoder(
+        base::Bind(&Identity<scoped_refptr<base::MessageLoopProxy> >,
+                   message_loop_.message_loop_proxy()),
+        decryptor_.get());
 
     // Initialize various test buffers.
     frame_buffer_.reset(new uint8[kCodedSize.GetArea()]);

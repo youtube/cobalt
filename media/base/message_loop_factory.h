@@ -27,35 +27,32 @@ namespace media {
 // TODO(scherkus): replace this with something simpler http://crbug.com/116873
 class MEDIA_EXPORT MessageLoopFactory {
  public:
+  enum Type {
+    kAudioDecoder,
+    kVideoDecoder,
+    kPipeline
+  };
+
   MessageLoopFactory();
 
-  // Get the message loop associated with |name|. A new MessageLoop
-  // is created if the factory doesn't have one associated with |name|.
-  //
-  // |name| must not be an empty string.
-  MessageLoop* GetMessageLoop(const std::string& name);
-
-  // Get the message loop proxy associated with |name|. A new MessageLoopProxy
-  // is created if the factory doesn't have one associated with |name|.
-  //
-  // |name| must not be an empty string.
-  scoped_refptr<base::MessageLoopProxy> GetMessageLoopProxy(
-      const std::string& name);
+  // Get the message loop proxy associated with |type|. A new MessageLoopProxy
+  // is created if the factory doesn't have one associated with |type|.
+  scoped_refptr<base::MessageLoopProxy> GetMessageLoop(Type type);
 
  private:
   // Only allow scoped_ptr<> to delete factory.
   friend class scoped_ptr<MessageLoopFactory>;
   ~MessageLoopFactory();
 
-  // Returns the thread associated with |name| creating a new thread if needed.
-  base::Thread* GetThread(const std::string& name);
+  // Returns the thread associated with |type| creating a new thread if needed.
+  base::Thread* GetThread(Type type);
 
   // Lock used to serialize access for the following data members.
   base::Lock lock_;
 
-  // List of pairs of created threads and their names.  We use a list to ensure
+  // List of pairs of created threads and their types.  We use a list to ensure
   // threads are stopped & deleted in reverse order of creation.
-  typedef std::list<std::pair<std::string, base::Thread*> > ThreadList;
+  typedef std::list<std::pair<Type, base::Thread*> > ThreadList;
   ThreadList threads_;
 
   DISALLOW_COPY_AND_ASSIGN(MessageLoopFactory);

@@ -11,10 +11,12 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/video_decoder.h"
 
-class MessageLoop;
-
 struct AVCodecContext;
 struct AVFrame;
+
+namespace base {
+class MessageLoopProxy;
+}
 
 namespace media {
 
@@ -22,7 +24,9 @@ class DecoderBuffer;
 
 class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
  public:
-  FFmpegVideoDecoder(const base::Callback<MessageLoop*()>& message_loop_cb,
+  typedef base::Callback<
+      scoped_refptr<base::MessageLoopProxy>()> MessageLoopFactoryCB;
+  FFmpegVideoDecoder(const MessageLoopFactoryCB& message_loop_factory_cb,
                      Decryptor* decryptor);
 
   // VideoDecoder implementation.
@@ -87,9 +91,9 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   void DoStop();
 
   // This is !is_null() iff Initialize() hasn't been called.
-  base::Callback<MessageLoop*()> message_loop_factory_cb_;
+  MessageLoopFactoryCB message_loop_factory_cb_;
 
-  MessageLoop* message_loop_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   DecoderState state_;
 
