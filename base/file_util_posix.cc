@@ -227,9 +227,9 @@ bool Delete(const FilePath& path, bool recursive) {
   bool success = true;
   std::stack<std::string> directories;
   directories.push(path.value());
-  FileEnumerator traversal(path, true, static_cast<FileEnumerator::FileType>(
-        FileEnumerator::FILES | FileEnumerator::DIRECTORIES |
-        FileEnumerator::SHOW_SYM_LINKS));
+  FileEnumerator traversal(path, true,
+      FileEnumerator::FILES | FileEnumerator::DIRECTORIES |
+      FileEnumerator::SHOW_SYM_LINKS);
   for (FilePath current = traversal.Next(); success && !current.empty();
        current = traversal.Next()) {
     FileEnumerator::FindInfo info;
@@ -315,12 +315,9 @@ bool CopyDirectory(const FilePath& from_path,
     return false;
 
   bool success = true;
-  FileEnumerator::FileType traverse_type =
-      static_cast<FileEnumerator::FileType>(FileEnumerator::FILES |
-      FileEnumerator::SHOW_SYM_LINKS);
+  int traverse_type = FileEnumerator::FILES | FileEnumerator::SHOW_SYM_LINKS;
   if (recursive)
-    traverse_type = static_cast<FileEnumerator::FileType>(
-        traverse_type | FileEnumerator::DIRECTORIES);
+    traverse_type |= FileEnumerator::DIRECTORIES;
   FileEnumerator traversal(from_path, recursive, traverse_type);
 
   // We have to mimic windows behavior here. |to_path| may not exist yet,
@@ -743,7 +740,7 @@ bool SetCurrentDirectory(const FilePath& path) {
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileType file_type)
+                               int file_type)
     : current_directory_entry_(0),
       root_path_(root_path),
       recursive_(recursive),
@@ -755,7 +752,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileType file_type,
+                               int file_type,
                                const FilePath::StringType& pattern)
     : current_directory_entry_(0),
       root_path_(root_path),
