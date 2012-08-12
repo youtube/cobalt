@@ -20,27 +20,34 @@ MessageLoopFactory::~MessageLoopFactory() {
   threads_.clear();
 }
 
-MessageLoop* MessageLoopFactory::GetMessageLoop(const std::string& name) {
-  return GetThread(name)->message_loop();
+scoped_refptr<base::MessageLoopProxy> MessageLoopFactory::GetMessageLoop(
+    Type type) {
+  return GetThread(type)->message_loop_proxy();
 }
 
-scoped_refptr<base::MessageLoopProxy>
-MessageLoopFactory::GetMessageLoopProxy(const std::string& name) {
-  return GetThread(name)->message_loop_proxy();
-}
-
-base::Thread* MessageLoopFactory::GetThread(const std::string& name) {
-  DCHECK(!name.empty());
-
+base::Thread* MessageLoopFactory::GetThread(Type type) {
   base::AutoLock auto_lock(lock_);
   for (ThreadList::iterator it = threads_.begin(); it != threads_.end(); ++it) {
-    if (it->first == name)
+    if (it->first == type)
       return it->second;
   }
 
-  base::Thread* thread = new base::Thread(name.c_str());
+  const char* name = NULL;
+  switch (type) {
+    case kAudioDecoder:
+      name = "AudioDecoderThread";
+      break;
+    case kVideoDecoder:
+      name = "VideoDecoderThread";
+      break;
+    case kPipeline:
+      name = "PipelineThread";
+      break;
+  }
+
+  base::Thread* thread = new base::Thread(name);
   CHECK(thread->Start()) << "Failed to start thread: " << name;
-  threads_.push_back(std::make_pair(name, thread));
+  threads_.push_back(std::make_pair(type, thread));
   return thread;
 }
 

@@ -23,7 +23,7 @@ class VideoFrame;
 class MEDIA_EXPORT VideoFrameGenerator : public VideoDecoder {
  public:
   VideoFrameGenerator(
-      base::MessageLoopProxy* message_loop_proxy,
+      const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
       const gfx::Size& size,
       const base::TimeDelta& frame_duration);
 

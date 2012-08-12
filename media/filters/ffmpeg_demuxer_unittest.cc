@@ -83,7 +83,8 @@ class FFmpegDemuxerTest : public testing::Test {
     EXPECT_CALL(host_, AddBufferedTimeRange(_, _)).Times(AnyNumber());
 
     CreateDataSource(name, disable_file_size);
-    demuxer_ = new FFmpegDemuxer(&message_loop_, data_source_);
+    demuxer_ = new FFmpegDemuxer(message_loop_.message_loop_proxy(),
+                                 data_source_);
   }
 
   MOCK_METHOD1(CheckPoint, void(int v));

@@ -8,12 +8,15 @@
 #include <list>
 
 #include "base/callback.h"
-#include "base/message_loop.h"
 #include "media/base/audio_decoder.h"
 #include "media/base/demuxer_stream.h"
 
 struct AVCodecContext;
 struct AVFrame;
+
+namespace base {
+class MessageLoopProxy;
+}
 
 namespace media {
 
@@ -22,7 +25,10 @@ class DecoderBuffer;
 
 class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  public:
-  FFmpegAudioDecoder(const base::Callback<MessageLoop*()>& message_loop_cb);
+  typedef base::Callback<
+      scoped_refptr<base::MessageLoopProxy>()> MessageLoopFactoryCB;
+  explicit FFmpegAudioDecoder(
+      const MessageLoopFactoryCB& message_loop_factory_cb);
 
   // AudioDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -58,8 +64,9 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   base::TimeDelta GetNextOutputTimestamp() const;
 
   // This is !is_null() iff Initialize() hasn't been called.
-  base::Callback<MessageLoop*()> message_loop_factory_cb_;
-  MessageLoop* message_loop_;
+  MessageLoopFactoryCB message_loop_factory_cb_;
+
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   scoped_refptr<DemuxerStream> demuxer_stream_;
   StatisticsCB statistics_cb_;
