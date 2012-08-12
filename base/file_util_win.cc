@@ -799,7 +799,7 @@ bool SetCurrentDirectory(const FilePath& directory) {
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileType file_type)
+                               int file_type)
     : recursive_(recursive),
       file_type_(file_type),
       has_find_data_(false),
@@ -812,7 +812,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileType file_type,
+                               int file_type,
                                const FilePath::StringType& pattern)
     : recursive_(recursive),
       file_type_(file_type),

@@ -523,8 +523,8 @@ class BASE_EXPORT FileEnumerator {
   // files in one directory will be returned before any files in a
   // subdirectory.
   //
-  // |file_type| specifies whether the enumerator should match files,
-  // directories, or both.
+  // |file_type|, a bit mask of FileType, specifies whether the enumerator
+  // should match files, directories, or both.
   //
   // |pattern| is an optional pattern for which files to match. This
   // works like shell globbing. For example, "*.txt" or "Foo???.doc".
@@ -537,10 +537,10 @@ class BASE_EXPORT FileEnumerator {
   // TODO(erikkay): Fix the pattern matching to work at all levels.
   FileEnumerator(const FilePath& root_path,
                  bool recursive,
-                 FileType file_type);
+                 int file_type);
   FileEnumerator(const FilePath& root_path,
                  bool recursive,
-                 FileType file_type,
+                 int file_type,
                  const FilePath::StringType& pattern);
   ~FileEnumerator();
 
@@ -587,7 +587,7 @@ class BASE_EXPORT FileEnumerator {
 
   FilePath root_path_;
   bool recursive_;
-  FileType file_type_;
+  int file_type_;
   FilePath::StringType pattern_;  // Empty when we want to find everything.
 
   // A stack that keeps track of which subdirectories we still need to
