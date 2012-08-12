@@ -32,6 +32,7 @@ class BASE_EXPORT SupportsUserData {
   // delete the object if it is changed or the object is destroyed.
   Data* GetUserData(const void* key) const;
   void SetUserData(const void* key, Data* data);
+  void RemoveUserData(const void* key);
 
  protected:
   virtual ~SupportsUserData();
