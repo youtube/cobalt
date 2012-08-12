@@ -12,7 +12,7 @@
 namespace media {
 
 VideoFrameGenerator::VideoFrameGenerator(
-    base::MessageLoopProxy* message_loop_proxy,
+    const scoped_refptr<base::MessageLoopProxy>& message_loop_proxy,
     const gfx::Size& size,
     const base::TimeDelta& frame_duration)
     : message_loop_proxy_(message_loop_proxy),

@@ -98,7 +98,8 @@ class MEDIA_EXPORT Pipeline
       public DemuxerHost {
  public:
   // Constructs a media pipeline that will execute on |message_loop|.
-  Pipeline(MessageLoop* message_loop, MediaLog* media_log);
+  Pipeline(const scoped_refptr<base::MessageLoopProxy>& message_loop,
+           MediaLog* media_log);
 
   // Build a pipeline to using the given filter collection to construct a filter
   // chain, executing |start_cb| when initialization has completed.

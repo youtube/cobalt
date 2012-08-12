@@ -6,6 +6,8 @@
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
+#include "base/location.h"
+#include "base/message_loop_proxy.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/data_buffer.h"
 #include "media/base/decoder_buffer.h"
@@ -26,8 +28,8 @@ static inline bool IsEndOfStream(int result, int decoded_size, Buffer* input) {
 }
 
 FFmpegAudioDecoder::FFmpegAudioDecoder(
-    const base::Callback<MessageLoop*()>& message_loop_cb)
-    : message_loop_factory_cb_(message_loop_cb),
+    const MessageLoopFactoryCB& message_loop_factory_cb)
+    : message_loop_factory_cb_(message_loop_factory_cb),
       message_loop_(NULL),
       codec_context_(NULL),
       bits_per_channel_(0),
@@ -49,8 +51,7 @@ void FFmpegAudioDecoder::Initialize(
   FFmpegGlue::GetInstance();
 
   if (!message_loop_) {
-    message_loop_ = message_loop_factory_cb_.Run();
-    message_loop_factory_cb_.Reset();
+    message_loop_ = base::ResetAndReturn(&message_loop_factory_cb_).Run();
   } else {
     // TODO(scherkus): initialization currently happens more than once in
     // PipelineIntegrationTest.BasicPlayback.
@@ -154,7 +155,7 @@ void FFmpegAudioDecoder::DoReset(const base::Closure& closure) {
 }
 
 void FFmpegAudioDecoder::DoRead(const ReadCB& read_cb) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(!read_cb.is_null());
   CHECK(read_cb_.is_null()) << "Overlapping decodes are not supported.";
 
@@ -165,7 +166,7 @@ void FFmpegAudioDecoder::DoRead(const ReadCB& read_cb) {
 void FFmpegAudioDecoder::DoDecodeBuffer(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& input) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(!read_cb_.is_null());
 
   if (status != DemuxerStream::kOk) {
