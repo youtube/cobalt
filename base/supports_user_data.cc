@@ -19,6 +19,10 @@ void SupportsUserData::SetUserData(const void* key, Data* data) {
   user_data_[key] = linked_ptr<Data>(data);
 }
 
+void SupportsUserData::RemoveUserData(const void* key) {
+  user_data_.erase(key);
+}
+
 SupportsUserData::~SupportsUserData() {}
 
 }  // namespace base
