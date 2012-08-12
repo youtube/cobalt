@@ -101,9 +101,8 @@ bool CopyRecursiveDirNoCache(const FilePath& source_dir,
     return false;
 
   bool success = true;
-  FileEnumerator::FileType traverse_type =
-      static_cast<FileEnumerator::FileType>(FileEnumerator::FILES |
-      FileEnumerator::SHOW_SYM_LINKS | FileEnumerator::DIRECTORIES);
+  int traverse_type = FileEnumerator::FILES |
+      FileEnumerator::SHOW_SYM_LINKS | FileEnumerator::DIRECTORIES;
   FileEnumerator traversal(source_dir, true, traverse_type);
 
   // dest_dir may not exist yet, start the loop with dest_dir
