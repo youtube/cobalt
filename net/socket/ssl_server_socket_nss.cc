@@ -103,7 +103,7 @@ SSLServerSocketNSS::SSLServerSocketNSS(
       completed_handshake_(false) {
   ssl_config_.false_start_enabled = false;
   ssl_config_.version_min = SSL_PROTOCOL_VERSION_SSL3;
-  ssl_config_.version_max = SSL_PROTOCOL_VERSION_TLS1_1;
+  ssl_config_.version_max = SSL_PROTOCOL_VERSION_TLS1;
 
   // TODO(hclam): Need a better way to clone a key.
   std::vector<uint8> key_bytes;
