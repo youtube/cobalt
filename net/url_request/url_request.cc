@@ -611,7 +611,7 @@ void URLRequest::NotifyResponseStarted() {
       // In some cases (e.g. an event was canceled), we might have sent the
       // completion event and receive a NotifyResponseStarted() later.
       if (!has_notified_completion_ && status_.is_success()) {
-        if (context_ && context_->network_delegate())
+        if (context_->network_delegate())
           context_->network_delegate()->NotifyResponseStarted(this);
       }
 
@@ -695,7 +695,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
         NetLog::StringCallback("location", &location.possibly_invalid_spec()));
   }
 
-  if (context_ && context_->network_delegate())
+  if (context_->network_delegate())
     context_->network_delegate()->NotifyBeforeRedirect(this, location);
 
   if (redirect_limit_ <= 0) {
@@ -789,7 +789,7 @@ void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
   NetworkDelegate::AuthRequiredResponse rv =
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
   auth_info_ = auth_info;
-  if (context_ && context_->network_delegate()) {
+  if (context_->network_delegate()) {
     rv = context_->network_delegate()->NotifyAuthRequired(
         this,
         *auth_info,
@@ -856,7 +856,7 @@ void URLRequest::NotifySSLCertificateError(const SSLInfo& ssl_info,
 
 bool URLRequest::CanGetCookies(const CookieList& cookie_list) const {
   DCHECK(!(load_flags_ & LOAD_DO_NOT_SEND_COOKIES));
-  if (context_ && context_->network_delegate()) {
+  if (context_->network_delegate()) {
     return context_->network_delegate()->CanGetCookies(*this,
                                                               cookie_list);
   }
@@ -866,7 +866,7 @@ bool URLRequest::CanGetCookies(const CookieList& cookie_list) const {
 bool URLRequest::CanSetCookie(const std::string& cookie_line,
                               CookieOptions* options) const {
   DCHECK(!(load_flags_ & LOAD_DO_NOT_SAVE_COOKIES));
-  if (context_ && context_->network_delegate()) {
+  if (context_->network_delegate()) {
     return context_->network_delegate()->CanSetCookie(*this,
                                                              cookie_line,
                                                              options);
@@ -899,7 +899,7 @@ void URLRequest::NotifyRequestCompleted() {
 
   is_pending_ = false;
   has_notified_completion_ = true;
-  if (context_ && context_->network_delegate())
+  if (context_->network_delegate())
     context_->network_delegate()->NotifyCompleted(this, job_ != NULL);
 }
 
