@@ -1602,7 +1602,6 @@ HostResolverImpl::HostResolverImpl(
   NetworkChangeNotifier::AddIPAddressObserver(this);
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && \
     !defined(OS_ANDROID)
-  NetworkChangeNotifier::AddDNSObserver(this);
   EnsureDnsReloaderInit();
 #endif
 
@@ -1620,7 +1619,6 @@ HostResolverImpl::~HostResolverImpl() {
   STLDeleteValues(&jobs_);
 
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
-  NetworkChangeNotifier::RemoveDNSObserver(this);
 }
 
 void HostResolverImpl::SetMaxQueuedJobs(size_t value) {
@@ -1983,25 +1981,6 @@ void HostResolverImpl::OnIPAddressChanged() {
   // |this| may be deleted inside AbortAllInProgressJobs().
 }
 
-void HostResolverImpl::OnDNSChanged(unsigned detail) {
-  // Ignore signals about watches.
-  const unsigned kIgnoredDetail =
-      NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED |
-      NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED;
-  if ((detail & ~kIgnoredDetail) == 0)
-    return;
-  // If the DNS server has changed, existing cached info could be wrong so we
-  // have to drop our internal cache :( Note that OS level DNS caches, such
-  // as NSCD's cache should be dropped automatically by the OS when
-  // resolv.conf changes so we don't need to do anything to clear that cache.
-  if (cache_.get())
-    cache_->clear();
-  // Existing jobs will have been sent to the original server so they need to
-  // be aborted.
-  AbortAllInProgressJobs();
-  // |this| may be deleted inside AbortAllInProgressJobs().
-}
-
 void HostResolverImpl::OnDnsConfigChanged(const DnsConfig& dns_config) {
   if (net_log_) {
     net_log_->AddGlobalEntry(
@@ -2009,21 +1988,31 @@ void HostResolverImpl::OnDnsConfigChanged(const DnsConfig& dns_config) {
         base::Bind(&NetLogDnsConfigCallback, &dns_config));
   }
 
-  // TODO(szym): Remove once http://crbug.com/125599 is resolved.
+  // TODO(szym): Remove once http://crbug.com/137914 is resolved.
   received_dns_config_ = dns_config.IsValid();
 
   // Life check to bail once |this| is deleted.
   base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
 
-  if (dns_client_.get()) {
-    // We want a new factory in place, before we Abort running Jobs, so that the
-    // newly started jobs use the new factory.
+  // We want a new DnsSession in place, before we Abort running Jobs, so that
+  // the newly started jobs use the new config.
+  if (dns_client_.get())
     dns_client_->SetConfig(dns_config);
-    OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_SETTINGS);
-    // |this| may be deleted inside OnDNSChanged().
-    if (self)
-      TryServingAllJobsFromHosts();
-  }
+
+  // If the DNS server has changed, existing cached info could be wrong so we
+  // have to drop our internal cache :( Note that OS level DNS caches, such
+  // as NSCD's cache should be dropped automatically by the OS when
+  // resolv.conf changes so we don't need to do anything to clear that cache.
+  if (cache_.get())
+    cache_->clear();
+
+  // Existing jobs will have been sent to the original server so they need to
+  // be aborted.
+  AbortAllInProgressJobs();
+
+  // |this| may be deleted inside AbortAllInProgressJobs().
+  if (self)
+    TryServingAllJobsFromHosts();
 }
 
 bool HostResolverImpl::HaveDnsConfig() const {
