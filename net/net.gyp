@@ -809,6 +809,7 @@
             '../../openssl/openssl.gyp:openssl_includes',
           ],
           'sources': [
+            'base/file_stream_shell.cc',
             'disk_cache/cache_util_shell.cc',
             'disk_cache/file_shell.cc',
             'disk_cache/mapped_file_shell.cc',
@@ -817,6 +818,7 @@
             # no UDP
             ['exclude', 'udp'],
             # or file tree access
+            ['exclude', 'base/file_stream_posix.cc'],
             ['exclude', 'disk_cache/cache_util_posix.cc'],
             ['exclude', 'disk_cache/file_posix.cc'],
             ['exclude', 'disk_cache/mapped_file_posix.cc'],
