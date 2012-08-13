@@ -57,8 +57,7 @@ URLRequestJob* URLRequestJobManager::CreateJob(
 
   // We do this here to avoid asking interceptors about unsupported schemes.
   const URLRequestJobFactory* job_factory = NULL;
-  if (request->context())
-    job_factory = request->context()->job_factory();
+  job_factory = request->context()->job_factory();
 
   const std::string& scheme = request->url().scheme();  // already lowercase
   if (job_factory) {
@@ -138,8 +137,7 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptRedirect(
   }
 
   const URLRequestJobFactory* job_factory = NULL;
-  if (request->context())
-    job_factory = request->context()->job_factory();
+  job_factory = request->context()->job_factory();
 
   const std::string& scheme = request->url().scheme();  // already lowercase
   if (job_factory) {
@@ -175,8 +173,7 @@ URLRequestJob* URLRequestJobManager::MaybeInterceptResponse(
   }
 
   const URLRequestJobFactory* job_factory = NULL;
-  if (request->context())
-    job_factory = request->context()->job_factory();
+  job_factory = request->context()->job_factory();
 
   const std::string& scheme = request->url().scheme();  // already lowercase
   if (job_factory) {
