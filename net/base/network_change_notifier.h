@@ -10,8 +10,11 @@
 #include "base/synchronization/lock.h"
 #include "net/base/net_export.h"
 
+class GURL;
+
 namespace net {
 
+class HistogramWatcher;
 class NetworkChangeNotifierFactory;
 
 namespace internal {
@@ -177,6 +180,15 @@ class NET_EXPORT NetworkChangeNotifier {
     NotifyObserversOfIPAddressChange();
   }
 
+  // Let the NetworkChangeNotifier know we received some data.
+  // This is used strictly for producing histogram data about the accuracy of
+  // the NetworkChangenotifier's online detection.
+  static void NotifyDataReceived(const GURL& source);
+
+  // Register the Observer callbacks for producing histogram data.  This
+  // should be called from the network thread to avoid race conditions.
+  static void InitHistogramWatcher();
+
  protected:
   friend class internal::DnsConfigWatcher;
 
@@ -229,6 +241,9 @@ class NET_EXPORT NetworkChangeNotifier {
   //             http://crbug.com/116139
   base::Lock watching_dns_lock_;
   bool watching_dns_;
+
+  // A little-piggy-back observer that simply logs UMA histogram data.
+  scoped_ptr<HistogramWatcher> histogram_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifier);
 };
