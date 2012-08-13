@@ -35,6 +35,7 @@
   },
   'variables': {
     'input_jars_paths': [],
+    'additional_src_dirs': [],
   },
   'actions': [
     {
@@ -54,6 +55,7 @@
         'ant',
         '-DPRODUCT_DIR=<(ant_build_out)',
         '-DPACKAGE_NAME=<(package_name)',
+        '-DADDITIONAL_SRC_DIRS=>(additional_src_dirs)',
         '-DANDROID_SDK=<(android_sdk)',
         '-DANDROID_SDK_ROOT=<(android_sdk_root)',
         '-DANDROID_SDK_TOOLS=<(android_sdk_tools)',
