@@ -103,7 +103,7 @@ void TransportClientSocketTest::SetUp() {
   ::testing::TestWithParam<ClientSocketTestTypes>::SetUp();
 
   // Find a free port to listen on
-  scoped_refptr<TCPListenSocket> sock = NULL;
+  scoped_refptr<TCPListenSocket> sock;
   int port;
   // Range of ports to listen on.  Shouldn't need to try many.
   const int kMinPort = 10100;
