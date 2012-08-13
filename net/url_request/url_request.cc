@@ -20,6 +20,7 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
+#include "net/base/network_change_notifier.h"
 #include "net/base/network_delegate.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/upload_data.h"
@@ -878,6 +879,11 @@ void URLRequest::NotifyReadCompleted(int bytes_read) {
   // Notify in case the entire URL Request has been finished.
   if (bytes_read <= 0)
     NotifyRequestCompleted();
+
+  // Notify NetworkChangeNotifier that we just received network data.
+  // This is to identify cases where the NetworkChangeNotifier thinks we
+  // are off-line but we are still receiving network data (crbug.com/124069).
+  NetworkChangeNotifier::NotifyDataReceived(url());
 
   if (delegate_)
     delegate_->OnReadCompleted(this, bytes_read);
