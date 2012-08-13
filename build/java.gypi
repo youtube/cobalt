@@ -44,7 +44,6 @@
       'inputs': [
         'android/ant/common.xml',
         'android/ant/chromium-jars.xml',
-        '<(java_in_dir)/<(package_name).xml',
         '<!@(find <(java_in_dir) -name "*.java")',
         '>@(input_jars_paths)',
       ],
@@ -55,14 +54,16 @@
         'ant',
         '-DPRODUCT_DIR=<(ant_build_out)',
         '-DPACKAGE_NAME=<(package_name)',
+        '-DINPUT_JARS_PATHS=>(input_jars_paths)',
         '-DADDITIONAL_SRC_DIRS=>(additional_src_dirs)',
         '-DANDROID_SDK=<(android_sdk)',
         '-DANDROID_SDK_ROOT=<(android_sdk_root)',
         '-DANDROID_SDK_TOOLS=<(android_sdk_tools)',
         '-DANDROID_SDK_VERSION=<(android_sdk_version)',
         '-DANDROID_TOOLCHAIN=<(android_toolchain)',
+        '-Dbasedir=<(java_in_dir)',
         '-buildfile',
-        '<(java_in_dir)/<(package_name).xml',
+        '<(DEPTH)/build/android/ant/chromium-jars.xml'
       ]
     },
   ],

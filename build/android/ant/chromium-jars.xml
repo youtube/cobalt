@@ -7,15 +7,27 @@
   <!--
     Common ant build file for for chromium_*.jars.
     For creating a new chromium_*.jar :
-    1. Use build/java.gyp action. This action will set PACKAGE_NAME.
+    1. Use build/java.gypi action.
     The jar will be created as chromium_${PACKAGE_NAME} in
     ${PRODUCT_DIR}/lib.java.
-    2. Set javac.custom.classpath to classpath to use for javac.
-    3. Override javac.srcdir for providing custom source directory for javac.
   -->
+  <description>
+    Building ${PROJECT_NAME}/ java source code with ant.
+  </description>
 
   <import file="common.xml"/>
-  <property-location name="src" location="src"/>
+
+  <path id="javac.custom.classpath">
+    <filelist dir="/" files="${INPUT_JARS_PATHS}"/>
+    <pathelement location="${ANDROID_SDK}/android.jar" />
+  </path>
+
+  <path id="javac.srcdirs.additional">
+    <filelist dir="/" files="${ADDITIONAL_SRC_DIRS}" />
+  </path>
+
+  <property-value name="javac.srcdir" value="src:${toString:javac.srcdirs.additional}"/>
+
   <property-location name="lib.dir" location="${PRODUCT_DIR}/lib.java"
       check-exists="false"/>
   <property-location name="dest.dir" location="${PRODUCT_DIR}/java/${PACKAGE_NAME}"
@@ -29,11 +41,6 @@
     <mkdir dir="${dest.dir}"/>
   </target>
 
-  <!--
-    Compile target for jars. Requires javac.custom.classpath to be set.
-    Optionally javac.srcdir can be overridden to custom path for src
-    directories.
-  -->
   <target name="compile" depends="init" description="Compiles source." >
     <fail message="Error: javac.custom.classpath is not set. Please set it to
         classpath for javac.">
@@ -41,13 +48,16 @@
         <not><isreference refid="javac.custom.classpath"/></not>
       </condition>
     </fail>
-    <property-value name="javac.srcdir" value ="${src}"/>
+
     <echo>Compiling ${javac.srcdir}, classpath: ${toString:javac.custom.classpath}</echo>
-    <javac srcdir="${javac.srcdir}" destdir="${dest.dir}" debug="true" includeantruntime="false">
-      <classpath>
-        <path refid="javac.custom.classpath" />
-      </classpath>
-    </javac>
+
+    <javac
+      srcdir="${javac.srcdir}"
+      destdir="${dest.dir}"
+      classpathref="javac.custom.classpath"
+      debug="true"
+      includeantruntime="false"
+    />
   </target>
 
   <target name="dist" depends="compile"
