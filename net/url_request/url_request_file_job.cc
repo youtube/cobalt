@@ -253,10 +253,7 @@ void URLRequestFileJob::SetExtraRequestHeaders(
 // static
 bool URLRequestFileJob::IsFileAccessAllowed(const URLRequest& request,
                                             const FilePath& path) {
-  const URLRequestContext* context = request.context();
-  if (!context)
-    return false;
-  const NetworkDelegate* delegate = context->network_delegate();
+  const NetworkDelegate* delegate = request.context()->network_delegate();
   if (delegate)
     return delegate->CanAccessFile(request, path);
   return false;
