@@ -204,8 +204,21 @@
             '../third_party/modp_b64/modp_b64.gyp:modp_b64',
             '../third_party/libevent/libevent.gyp:libevent',
           ],
+          'sources': [
+            'debug/debugger_shell.cc',
+            'debug/stack_trace_shell.cc',
+            'sys_string_conversions_shell.cc',
+            'threading/thread_local_shell.cc',
+            'threading/thread_local_storage_shell.cc',
+          ],
           'sources!': [
-            'file_descriptor_shuffle.cc'
+            'debug/debugger_posix.cc',
+            'debug/stack_trace_posix.cc',
+            'file_descriptor_shuffle.cc',
+            'sys_string_conversions_posix.cc',
+            'threading/thread_local_posix.cc',
+            'threading/thread_local_storage_posix.cc',
+            
           ],
           'sources/': [
             ['exclude', '^win/'],
