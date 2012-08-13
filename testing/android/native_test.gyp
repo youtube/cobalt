@@ -38,12 +38,16 @@
               ],
               'action': [
                 'ant',
+                # TODO: All of these paths are absolute paths right now, while
+                # we really should be using relative paths for anything that is
+                # checked in to the Chromium tree (among which the SDK).
                 '-DPRODUCT_DIR=<(ant_build_out)',
                 '-DANDROID_SDK=<(android_sdk)',
                 '-DANDROID_SDK_ROOT=<(android_sdk_root)',
                 '-DANDROID_SDK_TOOLS=<(android_sdk_tools)',
                 '-DANDROID_SDK_VERSION=<(android_sdk_version)',
                 '-DANDROID_TOOLCHAIN=<(android_toolchain)',
+                '-DCHROMIUM_SRC=<(ant_build_out)/../..',
                 '-buildfile',
                 '<(DEPTH)/testing/android/native_test_apk.xml',
               ]

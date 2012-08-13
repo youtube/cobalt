@@ -12,10 +12,15 @@ found in the LICENSE file.
   </description>
 
   <!--
-    TODO(yfriedman): This target can be invoked from multiple depths. So we use ${PRODUCT_DIR} to normalize the paths. This could be cleaned up.
+    TODO(beverloo): Remove this property when all gyp files (also those in
+    WebKit) define the CHROMIUM_SRC property. This works because properties
+    in ant files are immutable.
   -->
-  <import file="${PRODUCT_DIR}/../../build/android/ant/common.xml"/>
-  <import file="${PRODUCT_DIR}/../../build/android/ant/sdk-targets.xml"/>
+  <property name="CHROMIUM_SRC" value="${PRODUCT_DIR}/../.." />
+
+  <import file="${CHROMIUM_SRC}/build/android/ant/common.xml"/>
+  <import file="${CHROMIUM_SRC}/build/android/ant/sdk-targets.xml"/>
+
   <!--
     TODO(yfriedman): Remove the need to specify this. We should generate the packages in a way such
     that it's not required.

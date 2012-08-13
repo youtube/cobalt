@@ -61,6 +61,8 @@
               '-DANDROID_SDK_VERSION=<(android_sdk_version)',
               '--ant-args',
               '-DANDROID_TOOLCHAIN=<(android_toolchain)',
+              '--ant-args',
+              '-DCHROMIUM_SRC=<(ant_build_out)/../..',
               '--ant-compile'
             ],
           }],
