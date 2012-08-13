@@ -29,6 +29,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_stream_factory.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
@@ -1040,7 +1041,7 @@ int SocketStream::DoSSLHandleCertError(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(IsCertificateError(result));
   result = HandleCertificateError(result);
-  if (result == ERR_IO_PENDING)
+  if (result == OK || result == ERR_IO_PENDING)
     next_state_ = STATE_SSL_HANDLE_CERT_ERROR_COMPLETE;
   else
     next_state_ = STATE_CLOSE;
@@ -1297,12 +1298,16 @@ void SocketStream::DoRestartWithAuth() {
 
 int SocketStream::HandleCertificateError(int result) {
   DCHECK(IsCertificateError(result));
+  SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(socket_.get());
+  DCHECK(ssl_socket);
+
+  if (HttpStreamFactory::ignore_certificate_errors() &&
+      ssl_socket->IgnoreCertError(result, LOAD_IGNORE_ALL_CERT_ERRORS))
+    return OK;
 
   if (!delegate_)
     return result;
 
-  SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(socket_.get());
-  DCHECK(ssl_socket);
   SSLInfo ssl_info;
   ssl_socket->GetSSLInfo(&ssl_info);
 
