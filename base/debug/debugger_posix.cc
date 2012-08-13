@@ -63,7 +63,7 @@ namespace base {
 namespace debug {
 
 bool SpawnDebuggerOnProcess(unsigned process_id) {
-#if OS_ANDROID || OS_NACL
+#if OS_ANDROID || OS_NACL || defined(__LB_SHELL__)
   NOTIMPLEMENTED();
   return false;
 #else
