@@ -10,6 +10,7 @@
 #   'target_name': 'aidl_aidl-file-name',
 #   'type': 'none',
 #   'variables': {
+#     'package_name': <name-of-package>
 #     'aidl_interface_file': '<interface-path>/<interface-file>.aidl',
 #   },
 #   'sources': {
@@ -25,8 +26,15 @@
 #   <(PRODUCT_DIR)/lib.java/<input-file1>.java
 #   <(PRODUCT_DIR)/lib.java/<input-file2>.java
 #   ...
+#
+# TODO(cjhopman): dependents need to rebuild when this target's inputs have changed.
 
 {
+  'direct_dependent_settings': {
+    'variables': {
+      'additional_src_dirs': ['<(SHARED_INTERMEDIATE_DIR)/<(package_name)/aidl/'],
+    },
+  },
   'rules': [
     {
       'rule_name': 'compile_aidl',
@@ -36,14 +44,14 @@
         '<(aidl_interface_file)',
       ],
       'outputs': [
-        '<(PRODUCT_DIR)/lib.java/<(RULE_INPUT_ROOT).java',
+        '<(SHARED_INTERMEDIATE_DIR)/<(package_name)/aidl/<(RULE_INPUT_ROOT).java',
       ],
       'action': [
         '<(android_sdk_tools)/aidl',
         '-p<(android_sdk)/framework.aidl',
         '-p<(aidl_interface_file)',
         '<(RULE_INPUT_PATH)',
-        '<(PRODUCT_DIR)/lib.java/<(RULE_INPUT_ROOT).java',
+        '<(SHARED_INTERMEDIATE_DIR)/<(package_name)/aidl/<(RULE_INPUT_ROOT).java',
       ],
     },
   ],
