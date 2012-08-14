@@ -52,7 +52,7 @@ bool  SetTCPKeepAlive(int fd, bool enable, int delay) {
     PLOG(ERROR) << "Failed to set SO_KEEPALIVE on fd: " << fd;
     return false;
   }
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
   // Set seconds until first TCP keep alive.
   if (setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &delay, sizeof(delay))) {
     PLOG(ERROR) << "Failed to set TCP_KEEPIDLE on fd: " << fd;
