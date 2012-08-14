@@ -74,11 +74,11 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // it can accept a new segment.
   void Abort(const std::string& id);
 
-  // Sets a time |offset| in seconds to be applied to subsequent buffers
-  // appended to the source buffer assicated with |id|. Returns true if the
-  // offset is set properly, false if the offset cannot be applied because we're
-  // in the middle of parsing a media segment.
-  bool SetTimestampOffset(const std::string& id, double offset);
+  // Sets a time |offset| to be applied to subsequent buffers appended to the
+  // source buffer assicated with |id|. Returns true if the offset is set
+  // properly, false if the offset cannot be applied because we're in the
+  // middle of parsing a media segment.
+  bool SetTimestampOffset(const std::string& id, base::TimeDelta offset);
 
   // Signals an EndOfStream request.
   // Returns false if called in an unexpected state or if there is a gap between
