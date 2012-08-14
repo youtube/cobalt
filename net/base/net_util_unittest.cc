@@ -3049,6 +3049,29 @@ TEST(NetUtilTest, ConvertIPv4NumberToIPv6Number) {
             DumpIPNumber(ipv6_number));
 }
 
+TEST(NetUtilTest, IsIPv4Mapped) {
+  IPAddressNumber ipv4_number;
+  EXPECT_TRUE(ParseIPLiteralToNumber("192.168.0.1", &ipv4_number));
+  EXPECT_FALSE(IsIPv4Mapped(ipv4_number));
+
+  IPAddressNumber ipv6_number;
+  EXPECT_TRUE(ParseIPLiteralToNumber("::1", &ipv4_number));
+  EXPECT_FALSE(IsIPv4Mapped(ipv6_number));
+
+  IPAddressNumber ipv4mapped_number;
+  EXPECT_TRUE(ParseIPLiteralToNumber("::ffff:0101:1", &ipv4mapped_number));
+  EXPECT_TRUE(IsIPv4Mapped(ipv4mapped_number));
+}
+
+TEST(NetUtilTest, ConvertIPv4MappedToIPv4) {
+  IPAddressNumber ipv4mapped_number;
+  EXPECT_TRUE(ParseIPLiteralToNumber("::ffff:0101:1", &ipv4mapped_number));
+  IPAddressNumber expected;
+  EXPECT_TRUE(ParseIPLiteralToNumber("1.1.0.1", &expected));
+  IPAddressNumber result = ConvertIPv4MappedToIPv4(ipv4mapped_number);
+  EXPECT_EQ(expected, result);
+}
+
 // Test parsing invalid CIDR notation literals.
 TEST(NetUtilTest, ParseCIDRBlock_Invalid) {
   const char* bad_literals[] = {
