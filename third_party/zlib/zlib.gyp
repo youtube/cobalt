@@ -5,12 +5,12 @@
 {
   'variables': {
     'conditions': [
-      [ 'OS=="none"', {
-        # Because we have a patched zlib, we cannot use the system libz.
+      [ 'os_posix == 1 and OS != "mac" and OS != "ios" and OS != "openbsd"', {
+        # Link to system .so since we already use it due to GTK.
         # TODO(pvalchev): OpenBSD is purposefully left out, as the system
         # zlib brings up an incompatibility that breaks rendering.
         'use_system_zlib%': 1,
-      }, {
+      }, {  # os_posix != 1 or OS == "mac" or OS == "ios" or OS == "openbsd"
         'use_system_zlib%': 0,
       }],
     ],
@@ -70,8 +70,6 @@
               'sources!': [
                 'contrib/minizip/iowin32.c'
               ],
-            }], ['OS=="android"', {
-              'toolsets': ['target', 'host'],
             }],
           ],
         }, {
