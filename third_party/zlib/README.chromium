@@ -16,6 +16,3 @@ A few minor changes, all marked with "Google":
 - Added 'mozzconf.h' to mangle the function names.
 - Added an #ifdef to prevent zlib.h from mangling its functions.
 The 'google.patch' file represents our changes from the original zlib-1.2.5.
-
-A more significant change to support mixed-source data compression. See
-crbug.com/139744 and mixed-source.patch.
