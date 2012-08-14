@@ -80,6 +80,7 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       started_to_send_handshake_request_(false),
       handshake_request_sent_(0),
       response_cookies_save_index_(0),
+      spdy_protocol_version_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_for_send_pending_(this)) {
 }
@@ -312,7 +313,9 @@ int WebSocketJob::OnReceivedSpdyResponseHeader(
   if (status != OK)
     return status;
   // TODO(toyoshim): Fallback to non-spdy connection?
-  handshake_response_->ParseResponseHeaderBlock(headers, challenge_);
+  handshake_response_->ParseResponseHeaderBlock(headers,
+                                                challenge_,
+                                                spdy_protocol_version_);
 
   SaveCookiesAndNotifyHeaderComplete();
   return OK;
@@ -389,7 +392,7 @@ void WebSocketJob::DoSendData() {
   if (spdy_websocket_stream_.get()) {
     scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
     handshake_request_->GetRequestHeaderBlock(
-        socket_->url(), headers.get(), &challenge_);
+        socket_->url(), headers.get(), &challenge_, spdy_protocol_version_);
     spdy_websocket_stream_->SendRequest(headers.Pass());
   } else {
     const std::string& handshake_request =
@@ -567,6 +570,7 @@ int WebSocketJob::TrySpdyStream() {
     return OK;
 
   // Create SpdyWebSocketStream.
+  spdy_protocol_version_ = spdy_session->GetProtocolVersion();
   spdy_websocket_stream_.reset(new SpdyWebSocketStream(spdy_session, this));
 
   int result = spdy_websocket_stream_->InitializeStream(
