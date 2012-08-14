@@ -14,9 +14,12 @@
 #include <algorithm>
 #include <string>
 
+#include "base/compiler_specific.h"
+#include "base/debug/alias.h"
 #include "base/logging.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/pickle.h"
+#include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/lock.h"
 
@@ -129,6 +132,29 @@ bool Histogram::SampleSet::Deserialize(PickleIterator* iter) {
   return count == redundant_count_;
 }
 
+// TODO(rtenneti): delete this code after debugging.
+void CheckCorruption(const Histogram& histogram) {
+  const std::string& histogram_name = histogram.histogram_name();
+  char histogram_name_buf[128];
+  base::strlcpy(histogram_name_buf,
+                histogram_name.c_str(),
+                arraysize(histogram_name_buf));
+  base::debug::Alias(histogram_name_buf);
+
+  Sample previous_range = -1;  // Bottom range is always 0.
+  for (size_t index = 0; index < histogram.bucket_count(); ++index) {
+    int new_range = histogram.ranges(index);
+    if (previous_range >= new_range) {
+      CHECK(false);  // Crash for the bucket order corruption.
+    }
+    previous_range = new_range;
+  }
+
+  if (!histogram.bucket_ranges()->HasValidChecksum()) {
+    CHECK(false);  // Crash for the checksum corruption.
+  }
+}
+
 Histogram* Histogram::FactoryGet(const string& name,
                                  Sample minimum,
                                  Sample maximum,
@@ -152,6 +178,8 @@ Histogram* Histogram::FactoryGet(const string& name,
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
+  // TODO(rtenneti): delete this code after debugging.
+  CheckCorruption(*histogram);
 
   CHECK_EQ(HISTOGRAM, histogram->histogram_type());
   CHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
@@ -704,6 +732,8 @@ Histogram* LinearHistogram::FactoryGet(const string& name,
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
+  // TODO(rtenneti): delete this code after debugging.
+  CheckCorruption(*histogram);
 
   CHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
   CHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
@@ -795,6 +825,8 @@ Histogram* BooleanHistogram::FactoryGet(const string& name, int32 flags) {
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
+  // TODO(rtenneti): delete this code after debugging.
+  CheckCorruption(*histogram);
 
   CHECK_EQ(BOOLEAN_HISTOGRAM, histogram->histogram_type());
   return histogram;
@@ -835,6 +867,8 @@ Histogram* CustomHistogram::FactoryGet(const string& name,
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
+  // TODO(rtenneti): delete this code after debugging.
+  CheckCorruption(*histogram);
 
   CHECK_EQ(histogram->histogram_type(), CUSTOM_HISTOGRAM);
   return histogram;
