@@ -1937,6 +1937,8 @@
               }],
             ],
           }],
+          # TODO(wangxianzhu): Remove this. This is temporarily kept before
+          # default build type switched to Debug.
           # Android enables DCHECK()s on non-Official release builds.
           ['OS=="android" and buildtype!="Official"', {
             'defines!': ['NDEBUG'],
@@ -2026,25 +2028,22 @@
             ],
             'conditions' : [
               ['OS=="android"', {
+                # Some configurations are copied from Release_Base to reduce
+                # the binary size.
+                'variables': {
+                  'debug_optimize%': 's',
+                },
                 'cflags': [
-                  '-fno-omit-frame-pointer',
+                  '-fno-ident',
+                  '-fomit-frame-pointer',
+                  '-fdata-sections',
+                  '-ffunction-sections',
                 ],
-              }],
-            ],
-            'target_conditions' : [
-              ['_toolset=="target"', {
-                'conditions': [
-                  ['OS=="android" and debug_optimize==0 and target_arch=="arm"', {
-                    'cflags': [
-                      '-mlong-calls',  # Needed when compiling with -O0
-                    ],
-                  }],
-                  ['arm_thumb==1', {
-                    'cflags': [
-                      '-marm',
-                    ],
-                  }],
-                 ],
+                'ldflags': [
+                  '-Wl,-O1',
+                  '-Wl,--as-needed',
+                  '-Wl,--gc-sections',
+                ],
               }],
             ],
           },
@@ -2502,16 +2501,15 @@
         'libvpx_path': 'lib/linux/arm',
       },
       'target_defaults': {
-        # Build a Release build by default to match Android build behavior.
-        # This is typical with Android because Debug builds tend to be much
-        # larger and run very slowly on constrained devices. It is still
-        # possible to do a Debug build by specifying BUILDTYPE=Debug on the
-        # 'make' command line.
+        # TODO(wangxianzhu): We used to build Release version with DCHECK
+        # by default. Now we build Release without DCHECK, and build Debug
+        # with size optimizations. Remove the following line after everyone
+        # knows how to deal with the change.
         'default_configuration': 'Release',
 
         'variables': {
           'release_extra_cflags%': '',
-         },
+        },
 
         'target_conditions': [
           # Settings for building device targets using Android's toolchain.
