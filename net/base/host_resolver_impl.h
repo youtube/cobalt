@@ -19,13 +19,16 @@
 #include "net/base/host_resolver.h"
 #include "net/base/host_resolver_proc.h"
 #include "net/base/net_export.h"
-#include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/prioritized_dispatcher.h"
-#include "net/dns/dns_client.h"
-#include "net/dns/dns_config_service.h"
 
 namespace net {
+
+class BoundNetLog;
+class DnsClient;
+struct DnsConfig;
+class DnsConfigService;
+class NetLog;
 
 // For each hostname that is requested, HostResolver creates a
 // HostResolverImpl::Job. When this job gets dispatched it creates a ProcTask
