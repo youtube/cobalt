@@ -417,6 +417,9 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Returns true if a frame could be compressed.
   bool IsCompressible(const SpdyFrame& frame) const;
 
+  // Returns a new SpdyControlFrame with the compressed payload of |frame|.
+  SpdyControlFrame* CompressControlFrame(const SpdyControlFrame& frame);
+
   // Get the minimum size of the control frame for the given control frame
   // type. This is useful for validating frame blocks.
   static size_t GetMinimumControlFrameSize(int version, SpdyControlType type);
@@ -525,9 +528,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   void WriteHeaderBlock(SpdyFrameBuilder* frame,
                         const SpdyHeaderBlock* headers) const;
 
-  void WriteHeaderBlockToZ(const SpdyHeaderBlock* headers,
-                           z_stream* out) const;
-
   // Set the error code and moves the framer into the error state.
   void set_error(SpdyError error);
 
@@ -535,10 +535,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // header length, and variable payload pointer.
   bool GetFrameBoundaries(const SpdyFrame& frame, int* payload_length,
                           int* header_length, const char** payload) const;
-
-  // Returns a new SpdyControlFrame with the compressed payload of |frame|.
-  SpdyControlFrame* CompressControlFrame(const SpdyControlFrame& frame,
-                                         const SpdyHeaderBlock* headers);
 
   // The size of the control frame buffer.
   // Since this is only used for control frame headers, the maximum control
