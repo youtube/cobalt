@@ -836,16 +836,14 @@ void ChunkDemuxer::Abort(const std::string& id) {
   stream_parser_map_[id]->Flush();
 }
 
-bool ChunkDemuxer::SetTimestampOffset(const std::string& id, double offset) {
-  DVLOG(1) << "SetTimestampOffset(" << id << ", " << offset << ")";
+bool ChunkDemuxer::SetTimestampOffset(const std::string& id, TimeDelta offset) {
+  DVLOG(1) << "SetTimestampOffset(" << id << ", " << offset.InSecondsF() << ")";
   CHECK(IsValidId(id));
 
   if (!source_info_map_[id].can_update_offset)
     return false;
 
-  TimeDelta time_offset = TimeDelta::FromMicroseconds(
-      offset * base::Time::kMicrosecondsPerSecond);
-  source_info_map_[id].timestamp_offset = time_offset;
+  source_info_map_[id].timestamp_offset = offset;
   return true;
 }
 
