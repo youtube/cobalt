@@ -331,6 +331,14 @@
             }],
           ],
         }, # target_name: chromium_builder_qa
+        {
+          'target_name': 'chromium_builder_perf_av',
+          'type': 'none',
+          'dependencies': [
+            'chromium_builder_qa',  # needed for perf pyauto tests
+            '../webkit/webkit.gyp:pull_in_DumpRenderTree',  # to run layout tests
+          ],
+        },  # target_name: chromium_builder_perf_av
       ],  # targets
     }],
     ['OS=="mac"', {
