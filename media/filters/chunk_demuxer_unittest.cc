@@ -2196,7 +2196,8 @@ TEST_F(ChunkDemuxerTest, TestConfigChange_Seek) {
 TEST_F(ChunkDemuxerTest, TestTimestampPositiveOffset) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
-  ASSERT_TRUE(demuxer_->SetTimestampOffset(kSourceId, 30));
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(
+      kSourceId, base::TimeDelta::FromSeconds(30)));
   scoped_ptr<Cluster> cluster(GenerateCluster(0, 2));
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
@@ -2210,7 +2211,8 @@ TEST_F(ChunkDemuxerTest, TestTimestampPositiveOffset) {
 TEST_F(ChunkDemuxerTest, TestTimestampNegativeOffset) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
-  ASSERT_TRUE(demuxer_->SetTimestampOffset(kSourceId, -1));
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(
+      kSourceId, base::TimeDelta::FromSeconds(-1)));
   scoped_ptr<Cluster> cluster = GenerateCluster(1000, 2);
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
@@ -2249,8 +2251,10 @@ TEST_F(ChunkDemuxerTest, TestTimestampOffsetSeparateStreams) {
       GenerateSingleStreamCluster(
           0, kVideoBlockDuration * 4, kVideoTrackNum, kVideoBlockDuration));
 
-  ASSERT_TRUE(demuxer_->SetTimestampOffset(audio_id, -2.5));
-  ASSERT_TRUE(demuxer_->SetTimestampOffset(video_id, -2.5));
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(
+      audio_id, base::TimeDelta::FromMilliseconds(-2500)));
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(
+      video_id, base::TimeDelta::FromMilliseconds(-2500)));
   ASSERT_TRUE(AppendData(audio_id, cluster_a1->data(), cluster_a1->size()));
   ASSERT_TRUE(AppendData(video_id, cluster_v1->data(), cluster_v1->size()));
   GenerateSingleStreamExpectedReads(0, 4, audio, kAudioBlockDuration);
@@ -2260,8 +2264,10 @@ TEST_F(ChunkDemuxerTest, TestTimestampOffsetSeparateStreams) {
   demuxer_->Seek(base::TimeDelta::FromMilliseconds(27300),
                  NewExpectedStatusCB(PIPELINE_OK));
 
-  ASSERT_TRUE(demuxer_->SetTimestampOffset(audio_id, 27.3));
-  ASSERT_TRUE(demuxer_->SetTimestampOffset(video_id, 27.3));
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(
+      audio_id, base::TimeDelta::FromMilliseconds(27300)));
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(
+      video_id, base::TimeDelta::FromMilliseconds(27300)));
   ASSERT_TRUE(AppendData(audio_id, cluster_a2->data(), cluster_a2->size()));
   ASSERT_TRUE(AppendData(video_id, cluster_v2->data(), cluster_v2->size()));
   GenerateSingleStreamExpectedReads(27300, 4, video, kVideoBlockDuration);
@@ -2276,7 +2282,8 @@ TEST_F(ChunkDemuxerTest, TestTimestampOffsetMidParse) {
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size() - 13));
 
   // Setting a timestamp should fail because we're in the middle of a cluster.
-  ASSERT_FALSE(demuxer_->SetTimestampOffset(kSourceId, 25));
+  ASSERT_FALSE(demuxer_->SetTimestampOffset(
+      kSourceId, base::TimeDelta::FromSeconds(25)));
 }
 
 TEST_F(ChunkDemuxerTest, TestDurationChange) {
@@ -2316,8 +2323,7 @@ TEST_F(ChunkDemuxerTest, TestDurationChange) {
 TEST_F(ChunkDemuxerTest, TestDurationChangeTimestampOffset) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
-  ASSERT_TRUE(demuxer_->SetTimestampOffset(kSourceId,
-                                           kDefaultDuration().InSecondsF()));
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(kSourceId, kDefaultDuration()));
   scoped_ptr<Cluster> cluster = GenerateCluster(0, 4);
 
   EXPECT_CALL(host_, SetDuration(
