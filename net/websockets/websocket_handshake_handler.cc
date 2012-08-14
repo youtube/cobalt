@@ -266,13 +266,23 @@ HttpRequestInfo WebSocketHandshakeRequestHandler::GetRequestInfo(
 }
 
 bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
-    const GURL& url, SpdyHeaderBlock* headers, std::string* challenge) {
+    const GURL& url,
+    SpdyHeaderBlock* headers,
+    std::string* challenge,
+    int spdy_protocol_version) {
   // Construct opening handshake request headers as a SPDY header block.
   // For details, see WebSocket Layering over SPDY/3 Draft 8.
-  (*headers)["path"] = url.path();
-  (*headers)["version"] =
+  if (spdy_protocol_version <= 2) {
+    (*headers)["path"] = url.path();
+    (*headers)["version"] =
       base::StringPrintf("%s%d", "WebSocket/", protocol_version_);
-  (*headers)["scheme"] = url.scheme();
+    (*headers)["scheme"] = url.scheme();
+  } else {
+    (*headers)[":path"] = url.path();
+    (*headers)[":version"] =
+      base::StringPrintf("%s%d", "WebSocket/", protocol_version_);
+    (*headers)[":scheme"] = url.scheme();
+  }
 
   HttpUtil::HeadersIterator iter(headers_.begin(), headers_.end(), "\r\n");
   while (iter.GetNext()) {
@@ -291,10 +301,29 @@ bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
       *challenge = iter.values();
       // Sec-WebSocket-Key is not sent to a server.
       continue;
+    } else if (LowerCaseEqualsASCII(iter.name_begin(),
+                                    iter.name_end(),
+                                    "host") ||
+               LowerCaseEqualsASCII(iter.name_begin(),
+                                    iter.name_end(),
+                                    "origin") ||
+               LowerCaseEqualsASCII(iter.name_begin(),
+                                    iter.name_end(),
+                                    "sec-websocket-protocol") ||
+               LowerCaseEqualsASCII(iter.name_begin(),
+                                    iter.name_end(),
+                                    "sec-websocket-extensions")) {
+      // TODO(toyoshim): Some WebSocket extensions may not be compatible with
+      // SPDY. We should omit them from a Sec-WebSocket-Extension header.
+      std::string name;
+      if (spdy_protocol_version <= 2)
+        name = StringToLowerASCII(iter.name());
+      else
+        name = ":" + StringToLowerASCII(iter.name());
+      (*headers)[name] = iter.values();
+      continue;
     }
     // Others should be sent out to |headers|.
-    // TODO(toyoshim): Some WebSocket extensions are not compatible with SPDY.
-    // We should remove them from a Sec-WebSocket-Extension header.
     std::string name = StringToLowerASCII(iter.name());
     SpdyHeaderBlock::iterator found = headers->find(name);
     if (found == headers->end()) {
@@ -427,11 +456,16 @@ bool WebSocketHandshakeResponseHandler::ParseResponseInfo(
 
 bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
     const SpdyHeaderBlock& headers,
-    const std::string& challenge) {
-  std::string response_message;
-  SpdyHeaderBlock::const_iterator status = headers.find("status");
+    const std::string& challenge,
+    int spdy_protocol_version) {
+  SpdyHeaderBlock::const_iterator status;
+  if (spdy_protocol_version <= 2)
+    status = headers.find("status");
+  else
+    status = headers.find(":status");
   if (status == headers.end())
     return false;
+  std::string response_message;
   response_message =
       base::StringPrintf("%s%s\r\n", "HTTP/1.1 ", status->second.c_str());
   response_message += "Upgrade: websocket\r\n";
@@ -449,7 +483,10 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
     // For each value, if the server sends a NUL-separated list of values,
     // we separate that back out into individual headers for each value
     // in the list.
-    if (LowerCaseEqualsASCII(iter->first, "status")) {
+    if ((spdy_protocol_version <= 2 &&
+         LowerCaseEqualsASCII(iter->first, "status")) ||
+        (spdy_protocol_version >= 3 &&
+         LowerCaseEqualsASCII(iter->first, ":status"))) {
       // The status value is already handled as the first line of
       // |response_message|. Just skip here.
       continue;
@@ -464,7 +501,12 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
         tval = value.substr(start, (end - start));
       else
         tval = value.substr(start);
-      response_message += iter->first + ": " + tval + "\r\n";
+      if (spdy_protocol_version >= 3 &&
+          (LowerCaseEqualsASCII(iter->first, ":sec-websocket-protocol") ||
+           LowerCaseEqualsASCII(iter->first, ":sec-websocket-extensions")))
+        response_message += iter->first.substr(1) + ": " + tval + "\r\n";
+      else
+        response_message += iter->first + ": " + tval + "\r\n";
       start = end + 1;
     } while (end != std::string::npos);
   }
