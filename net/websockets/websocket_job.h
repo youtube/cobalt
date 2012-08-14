@@ -138,6 +138,7 @@ class NET_EXPORT WebSocketJob
   scoped_refptr<DrainableIOBuffer> current_send_buffer_;
   std::vector<char> received_data_after_handshake_;
 
+  int spdy_protocol_version_;
   scoped_ptr<SpdyWebSocketStream> spdy_websocket_stream_;
   std::string challenge_;
 
