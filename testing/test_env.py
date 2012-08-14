@@ -30,7 +30,7 @@ def run_executable(cmd, env):
     - Reuses sys.executable automatically.
   """
   # Many tests assume a English interface...
-  env['LANGUAGE'] = 'en_US.UTF-8'
+  env['LANG'] = 'en_US.UTF-8'
   # Used by base/base_paths_linux.cc as an override. Just make sure the default
   # logic is used.
   env.pop('CR_SOURCE_ROOT', None)
