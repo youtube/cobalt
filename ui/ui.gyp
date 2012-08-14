@@ -744,10 +744,12 @@
         }],
         ['OS=="android"', {
           'sources!': [
+            'base/dragdrop/drag_utils.cc',
+            'base/dragdrop/drag_utils.h',
             'base/touch/touch_factory.cc',
             'base/touch/touch_factory.h',
-            'gfx/pango_util.h',
             'gfx/pango_util.cc',
+            'gfx/pango_util.h',
             'gfx/platform_font_pango.cc',
             'gfx/platform_font_pango.h',
           ],
