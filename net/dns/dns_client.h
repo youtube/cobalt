@@ -10,14 +10,12 @@
 
 namespace net {
 
-class AddressSorter;
 struct DnsConfig;
 class DnsTransactionFactory;
 class NetLog;
 
-// Convenience wrapper which allows easy injection of DnsTransaction into
-// HostResolverImpl. Pointers returned by the Get* methods are only guaranteed
-// to remain valid until next time SetConfig is called.
+// Convenience wrapper allows easy injection of DnsTransaction into
+// HostResolverImpl.
 class NET_EXPORT DnsClient {
  public:
   virtual ~DnsClient() {}
@@ -30,9 +28,6 @@ class NET_EXPORT DnsClient {
 
   // Returns NULL if the current config is not valid.
   virtual DnsTransactionFactory* GetTransactionFactory() = 0;
-
-  // Returns NULL if the current config is not valid.
-  virtual AddressSorter* GetAddressSorter() = 0;
 
   // Creates default client.
   static scoped_ptr<DnsClient> CreateClient(NetLog* net_log);
