@@ -544,17 +544,17 @@ const char WebSocketJobSpdy3Test::kDataHello[] = "Hello, ";
 const char WebSocketJobSpdy3Test::kDataWorld[] = "World!\n";
 
 const char* const WebSocketJobSpdy3Test::kHandshakeRequestForSpdy[] = {
-  "path", "/demo",
-  "version", "WebSocket/13",
-  "scheme", "ws",
-  "host", "example.com",
-  "origin", "http://example.com",
-  "sec-websocket-protocol", "sample"
+  ":path", "/demo",
+  ":version", "WebSocket/13",
+  ":scheme", "ws",
+  ":host", "example.com",
+  ":origin", "http://example.com",
+  ":sec-websocket-protocol", "sample"
 };
 
 const char* const WebSocketJobSpdy3Test::kHandshakeResponseForSpdy[] = {
-  "status", "101 Switching Protocols",
-  "sec-websocket-protocol", "sample"
+  ":status", "101 Switching Protocols",
+  ":sec-websocket-protocol", "sample"
 };
 
 const size_t WebSocketJobSpdy3Test::kHandshakeRequestWithoutCookieLength =
