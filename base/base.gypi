@@ -574,6 +574,7 @@
           }],
           ['OS == "android" and >(nacl_untrusted_build)==0', {
             'sources!': [
+              'base_paths_posix.cc',
               'files/file_path_watcher_kqueue.cc',
               'system_monitor/system_monitor_posix.cc',
             ],
