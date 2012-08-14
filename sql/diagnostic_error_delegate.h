@@ -12,10 +12,6 @@
 
 namespace sql {
 
-// The histogram values from sqlite result codes currently range from 1 to 26
-// but 50 gives them room to grow.
-static const int kMaxSqliteError = 50;
-
 // This class handles the exceptional sqlite errors that we might encounter
 // if for example the db is corrupted. Right now we just generate a UMA
 // histogram for release and an assert for debug builds.
@@ -43,7 +39,9 @@ class DiagnosticErrorDelegate : public ErrorDelegate {
     // Trim off the extended error codes.
     error &= 0xff;
 
-    UMA_HISTOGRAM_ENUMERATION(UniqueT::name(), error, kMaxSqliteError);
+    // The histogram values from sqlite result codes go currently from 1 to
+    // 26 currently but 50 gives them room to grow.
+    UMA_HISTOGRAM_ENUMERATION(UniqueT::name(), error, 50);
   }
 };
 
