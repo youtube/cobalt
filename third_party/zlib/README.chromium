@@ -3,6 +3,7 @@ URL: http://zlib.net/
 Version: 1.2.5
 Security Critical: yes
 License: Custom license
+License Android Compatible: yes
 
 Description:
 General purpose compression library
