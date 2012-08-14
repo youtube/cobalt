@@ -280,15 +280,13 @@ DnsResponse::Result DnsResponse::ParseToAddressList(
   }
 
   // TODO(szym): Extract TTL for NODATA results. http://crbug.com/115051
-  if (ip_addresses.empty())
-    return DNS_NO_ADDRESSES;
 
   // getcanonname in eglibc returns the first owner name of an A or AAAA RR.
   // If the response passed all the checks so far, then |expected_name| is it.
   *addr_list = AddressList::CreateFromIPAddressList(ip_addresses,
                                                     expected_name);
   *ttl = base::TimeDelta::FromSeconds(std::min(cname_ttl_sec, addr_ttl_sec));
-  return DNS_SUCCESS;
+  return DNS_PARSE_OK;
 }
 
 }  // namespace net
