@@ -3330,16 +3330,16 @@
         ['LINK.host', '$(LINK)'],
       ],
     }],
-    ['OS=="android" and clang==0 and "<(GENERATOR)"!="ninja"', {
+    ['OS=="android" and clang==0', {
       # Hardcode the compiler names in the Makefile so that
       # it won't depend on the environment at make time.
       'make_global_settings': [
         ['CC', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
         ['CXX', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-g++)'],
         ['LINK', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
-        ['CC.host', '<!(which gcc)'],
-        ['CXX.host', '<!(which g++)'],
-        ['LINK.host', '<!(which g++)'],
+        ['CC.host', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} <!(which gcc))'],
+        ['CXX.host', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} <!(which g++))'],
+        ['LINK.host', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} <!(which g++))'],
       ],
     }],
   ],
