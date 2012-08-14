@@ -299,7 +299,7 @@ TEST(DnsResponseTest, ParseToAddressList) {
     DnsResponse response(t.response_data, t.response_size, t.query_size);
     AddressList addr_list;
     base::TimeDelta ttl;
-    EXPECT_EQ(DnsResponse::DNS_PARSE_OK,
+    EXPECT_EQ(DnsResponse::DNS_SUCCESS,
               response.ParseToAddressList(&addr_list, &ttl));
     std::vector<const char*> expected_addresses(
         t.expected_addresses,
@@ -429,9 +429,8 @@ TEST(DnsResponseTest, ParseToAddressListFail) {
       DnsResponse::DNS_CNAME_AFTER_ADDRESS },
     { kResponseTTLMismatch, arraysize(kResponseTTLMismatch),
       DnsResponse::DNS_ADDRESS_TTL_MISMATCH },
-    // Not actually a failure, just an empty result.
     { kResponseNoAddresses, arraysize(kResponseNoAddresses),
-      DnsResponse::DNS_PARSE_OK },
+      DnsResponse::DNS_NO_ADDRESSES },
   };
 
   const size_t kQuerySize = 12 + 7;

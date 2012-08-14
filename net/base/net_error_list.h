@@ -658,6 +658,3 @@ NET_ERROR(DNS_CACHE_MISS, -804)
 
 // Suffix search list rules prevent resolution of the given host name.
 NET_ERROR(DNS_SEARCH_EMPTY, -805)
-
-// Failed to sort addresses according to RFC3484.
-NET_ERROR(DNS_SORT_ERROR, -806)
