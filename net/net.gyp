@@ -1073,6 +1073,7 @@
               'net_jni_headers',
             ],
             'sources!': [
+              'base/dnssec_chain_verifier.cc',
               'base/openssl_memory_private_key_store.cc',
             ],
           }, {  # else OS! = "android"
