@@ -101,6 +101,7 @@ typedef struct z_stream_s {
     int     data_type;  /* best guess about the data type: binary or text */
     uLong   adler;      /* adler32 value of the uncompressed data */
     uLong   reserved;   /* reserved for future use */
+    int     clas;
 } z_stream;
 
 typedef z_stream FAR *z_streamp;
@@ -206,6 +207,10 @@ typedef gz_header FAR *gz_headerp;
 /* The deflate compression method (the only one supported in this version) */
 
 #define Z_NULL  0  /* for initializing zalloc, zfree, opaque */
+
+#define Z_CLASS_STANDARD 0
+#define Z_CLASS_COOKIE 1
+#define Z_CLASS_HUFFMAN_ONLY 2
 
 #define zlib_version zlibVersion()
 /* for compatibility with versions < 1.0.2 */
