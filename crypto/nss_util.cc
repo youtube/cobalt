@@ -452,6 +452,9 @@ class NSSInitSingleton {
         LOG(ERROR) << "Error initializing NSS without a persistent "
                       "database: " << GetNSSErrorMessage();
       }
+#if defined(OS_IOS)
+      root_ = InitDefaultRootCerts();
+#endif  // defined(OS_IOS)
     } else {
 #if defined(USE_NSS)
       FilePath database_dir = GetInitialConfigDirectory();
@@ -538,7 +541,7 @@ class NSSInitSingleton {
     }
   }
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
   // Load nss's built-in root certs.
   SECMODModule* InitDefaultRootCerts() {
     SECMODModule* root = LoadModule("Root Certs", "libnssckbi.so", NULL);
