@@ -296,11 +296,6 @@ bool BufferedSpdyFramer::IsCompressible(const SpdyFrame& frame) const {
   return spdy_framer_.IsCompressible(frame);
 }
 
-SpdyControlFrame* BufferedSpdyFramer::CompressControlFrame(
-    const SpdyControlFrame& frame) {
-  return spdy_framer_.CompressControlFrame(frame);
-}
-
 // static
 void BufferedSpdyFramer::set_enable_compression_default(bool value) {
   g_enable_compression_default = value;

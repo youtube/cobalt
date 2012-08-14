@@ -661,6 +661,155 @@ void SpdyFramer::WriteHeaderBlock(SpdyFrameBuilder* frame,
   }
 }
 
+// These constants are used by zlib to differentiate between normal data and
+// cookie data. Cookie data is handled specially by zlib when compressing.
+enum ZDataClass {
+  // kZStandardData is compressed normally, save that it will never match
+  // against any other class of data in the window.
+  kZStandardData = Z_CLASS_STANDARD,
+  // kZCookieData is compressed in its own Huffman blocks and only matches in
+  // its entirety and only against other kZCookieData blocks. Any matches must
+  // be preceeded by a kZStandardData byte, or a semicolon to prevent matching
+  // a suffix. It's assumed that kZCookieData ends in a semicolon to prevent
+  // prefix matches.
+  kZCookieData = Z_CLASS_COOKIE,
+  // kZHuffmanOnlyData is only Huffman compressed - no matches are performed
+  // against the window.
+  kZHuffmanOnlyData = Z_CLASS_HUFFMAN_ONLY,
+};
+
+// WriteZ writes |data| to the deflate context |out|. WriteZ will flush as
+// needed when switching between classes of data.
+static void WriteZ(const base::StringPiece& data,
+                   ZDataClass clas,
+                   z_stream* out) {
+  int rv;
+
+  // If we are switching from standard to non-standard data then we need to end
+  // the current Huffman context to avoid it leaking between them.
+  if (out->clas == kZStandardData &&
+      clas != kZStandardData) {
+    out->avail_in = 0;
+    rv = deflate(out, Z_PARTIAL_FLUSH);
+    DCHECK_EQ(Z_OK, rv);
+    DCHECK_EQ(0u, out->avail_in);
+    DCHECK_LT(0u, out->avail_out);
+  }
+
+  out->next_in = reinterpret_cast<Bytef*>(const_cast<char*>(data.data()));
+  out->avail_in = data.size();
+  out->clas = clas;
+  if (clas == kZStandardData) {
+    rv = deflate(out, Z_NO_FLUSH);
+  } else {
+    rv = deflate(out, Z_PARTIAL_FLUSH);
+  }
+  DCHECK_EQ(Z_OK, rv);
+  DCHECK_EQ(0u, out->avail_in);
+  DCHECK_LT(0u, out->avail_out);
+}
+
+// WriteLengthZ writes |n| as a |length|-byte, big-endian number to |out|.
+static void WriteLengthZ(size_t n,
+                         unsigned length,
+                         ZDataClass clas,
+                         z_stream* out) {
+  char buf[4];
+  DCHECK_LE(length, sizeof(buf));
+  for (unsigned i = 1; i <= length; i++) {
+    buf[length - i] = n;
+    n >>= 8;
+  }
+  WriteZ(base::StringPiece(buf, length), clas, out);
+}
+
+// WriteHeaderBlockToZ serialises |headers| to the deflate context |z| in a
+// manner that resists the length of the compressed data from compromising
+// cookie data.
+void SpdyFramer::WriteHeaderBlockToZ(const SpdyHeaderBlock* headers,
+                                     z_stream* z) const {
+  unsigned length_length = 4;
+  if (spdy_version_ < 3)
+    length_length = 2;
+
+  WriteLengthZ(headers->size(), length_length, kZStandardData, z);
+
+  std::map<std::string, std::string>::const_iterator it;
+  for (it = headers->begin(); it != headers->end(); ++it) {
+    WriteLengthZ(it->first.size(), length_length, kZStandardData, z);
+    WriteZ(it->first, kZStandardData, z);
+
+    if (it->first == "cookie") {
+      // We require the cookie values to end with a semi-colon and (save for
+      // the first) to start with one too. The values are already separated by
+      // semicolons in the header, but there's usually whitespace in there too.
+      // So we accumulate the values without whitespace in |cookie_values| and
+      // write them out, along with a final semicolon to terminate the last
+      // cookie.
+
+      std::string last_cookie;
+      std::vector<base::StringPiece> cookie_values;
+      size_t cookie_length = 0;
+      base::StringPiece cookie_data(it->second);
+
+      for (;;) {
+        while (!cookie_data.empty() &&
+               (cookie_data[0] == ' ' || cookie_data[0] == '\t')) {
+          cookie_data.remove_prefix(1);
+        }
+        if (cookie_data.empty())
+          break;
+
+        size_t i;
+        for (i = 0; i < cookie_data.size(); i++) {
+          if (cookie_data[i] == ';')
+            break;
+        }
+        if (i < cookie_data.size()) {
+          cookie_values.push_back(cookie_data.substr(0, i+1));
+          cookie_length += i+1;
+          cookie_data.remove_prefix(i + 1);
+        } else {
+          last_cookie = cookie_data.as_string() + ";";
+          cookie_values.push_back(last_cookie);
+          cookie_length += last_cookie.size();
+          cookie_data.remove_prefix(i);
+        }
+      }
+
+      WriteLengthZ(cookie_length, length_length, kZStandardData, z);
+      for (std::vector<base::StringPiece>::const_iterator
+           i = cookie_values.begin(); i != cookie_values.end(); i++) {
+        WriteZ(*i, kZCookieData, z);
+      }
+    } else if (it->first == "accept" ||
+               it->first == "accept-charset" ||
+               it->first == "accept-encoding" ||
+               it->first == "accept-language" ||
+               it->first == "host" ||
+               it->first == "version" ||
+               it->first == "method" ||
+               it->first == "scheme" ||
+               it->first == ":host" ||
+               it->first == ":version" ||
+               it->first == ":method" ||
+               it->first == ":scheme" ||
+               it->first == "user-agent") {
+      WriteLengthZ(it->second.size(), length_length, kZStandardData, z);
+      WriteZ(it->second, kZStandardData, z);
+    } else {
+      // Non-whitelisted headers are Huffman compressed in their own block, but
+      // don't match against the window.
+      WriteLengthZ(it->second.size(), length_length, kZStandardData, z);
+      WriteZ(it->second, kZHuffmanOnlyData, z);
+    }
+  }
+
+  z->avail_in = 0;
+  int rv = deflate(z, Z_SYNC_FLUSH);
+  DCHECK_EQ(Z_OK, rv);
+  z->clas = kZStandardData;
+}
 
 size_t SpdyFramer::ProcessControlFrameBeforeHeaderBlock(const char* data,
                                                         size_t len) {
@@ -1122,7 +1271,7 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
       reinterpret_cast<SpdySynStreamControlFrame*>(frame.take()));
   if (compressed) {
     return reinterpret_cast<SpdySynStreamControlFrame*>(
-        CompressControlFrame(*syn_frame.get()));
+        CompressControlFrame(*syn_frame.get(), headers));
   }
   return syn_frame.release();
 }
@@ -1155,7 +1304,7 @@ SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(
       reinterpret_cast<SpdySynReplyControlFrame*>(frame.take()));
   if (compressed) {
     return reinterpret_cast<SpdySynReplyControlFrame*>(
-        CompressControlFrame(*reply_frame.get()));
+        CompressControlFrame(*reply_frame.get(), headers));
   }
   return reply_frame.release();
 }
@@ -1251,7 +1400,7 @@ SpdyHeadersControlFrame* SpdyFramer::CreateHeaders(
       reinterpret_cast<SpdyHeadersControlFrame*>(frame.take()));
   if (compressed) {
     return reinterpret_cast<SpdyHeadersControlFrame*>(
-        CompressControlFrame(*headers_frame.get()));
+        CompressControlFrame(*headers_frame.get(), headers));
   }
   return headers_frame.release();
 }
@@ -1431,7 +1580,8 @@ bool SpdyFramer::GetFrameBoundaries(const SpdyFrame& frame,
 }
 
 SpdyControlFrame* SpdyFramer::CompressControlFrame(
-    const SpdyControlFrame& frame) {
+    const SpdyControlFrame& frame,
+    const SpdyHeaderBlock* headers) {
   z_stream* compressor = GetHeaderCompressor();
   if (!compressor)
     return NULL;
@@ -1452,6 +1602,10 @@ SpdyControlFrame* SpdyFramer::CompressControlFrame(
 
   // Create an output frame.
   int compressed_max_size = deflateBound(compressor, payload_length);
+  // Since we'll be performing lots of flushes when compressing the data,
+  // zlib's lower bounds may be insufficient.
+  compressed_max_size *= 2;
+
   size_t new_frame_size = header_length + compressed_max_size;
   if ((frame.type() == SYN_REPLY || frame.type() == HEADERS) &&
       spdy_version_ < 3) {
@@ -1462,24 +1616,10 @@ SpdyControlFrame* SpdyFramer::CompressControlFrame(
   memcpy(new_frame->data(), frame.data(),
          frame.length() + SpdyFrame::kHeaderSize);
 
-  compressor->next_in = reinterpret_cast<Bytef*>(const_cast<char*>(payload));
-  compressor->avail_in = payload_length;
   compressor->next_out = reinterpret_cast<Bytef*>(new_frame->data()) +
                           header_length;
   compressor->avail_out = compressed_max_size;
-
-  // Make sure that all the data we pass to zlib is defined.
-  // This way, all Valgrind reports on the compressed data are zlib's fault.
-  (void)VALGRIND_CHECK_MEM_IS_DEFINED(compressor->next_in,
-                                      compressor->avail_in);
-
-  int rv = deflate(compressor, Z_SYNC_FLUSH);
-  if (rv != Z_OK) {  // How can we know that it compressed everything?
-    // This shouldn't happen, right?
-    LOG(WARNING) << "deflate failure: " << rv;
-    return NULL;
-  }
-
+  WriteHeaderBlockToZ(headers, compressor);
   int compressed_size = compressed_max_size - compressor->avail_out;
 
   // We trust zlib. Also, we can't do anything about it.
