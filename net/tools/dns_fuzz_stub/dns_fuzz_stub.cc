@@ -149,7 +149,7 @@ void RunTestCase(uint16 id, std::string& qname, uint16 qtype,
   base::TimeDelta ttl;
   net::DnsResponse::Result result = response.ParseToAddressList(
       &address_list, &ttl);
-  if (result != net::DnsResponse::DNS_PARSE_OK) {
+  if (result != net::DnsResponse::DNS_SUCCESS) {
     LOG(INFO) << "ParseToAddressList failed: " << result;
     return;
   }
