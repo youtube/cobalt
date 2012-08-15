@@ -51,9 +51,8 @@ class FindBadConstructsConsumer : public ChromeClassTester {
   FindBadConstructsConsumer(CompilerInstance& instance,
                             bool check_refcounted_dtors,
                             bool check_virtuals_in_implementations,
-                            bool check_inner_classes,
                             bool check_cc_directory)
-      : ChromeClassTester(instance, check_inner_classes, check_cc_directory),
+      : ChromeClassTester(instance, check_cc_directory),
         check_refcounted_dtors_(check_refcounted_dtors),
         check_virtuals_in_implementations_(check_virtuals_in_implementations) {
   }
@@ -398,7 +397,6 @@ class FindBadConstructsAction : public PluginASTAction {
   FindBadConstructsAction()
       : check_refcounted_dtors_(true),
         check_virtuals_in_implementations_(true),
-        check_inner_classes_(false),
         check_cc_directory_(false) {
   }
 
@@ -408,7 +406,7 @@ class FindBadConstructsAction : public PluginASTAction {
                                          llvm::StringRef ref) {
     return new FindBadConstructsConsumer(
         instance, check_refcounted_dtors_, check_virtuals_in_implementations_,
-        check_inner_classes_, check_cc_directory_);
+        check_cc_directory_);
   }
 
   virtual bool ParseArgs(const CompilerInstance& instance,
@@ -421,7 +419,7 @@ class FindBadConstructsAction : public PluginASTAction {
       } else if (args[i] == "skip-virtuals-in-implementations") {
         check_virtuals_in_implementations_ = false;
       } else if (args[i] == "check-inner-classes") {
-        check_inner_classes_ = true;
+        // TODO(hans): Remove this once it's removed from plugin_flags.sh.
       } else if (args[i] == "check-cc-directory") {
         check_cc_directory_ = true;
       } else {
@@ -436,7 +434,6 @@ class FindBadConstructsAction : public PluginASTAction {
  private:
   bool check_refcounted_dtors_;
   bool check_virtuals_in_implementations_;
-  bool check_inner_classes_;
   bool check_cc_directory_;
 };
 
