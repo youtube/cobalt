@@ -28,6 +28,10 @@ class Value;
 
 namespace net {
 
+// Always use 1 second timeout (followed by binary exponential backoff).
+// TODO(szym): Remove code which reads timeout from system.
+const unsigned kDnsTimeoutSeconds = 1;
+
 // DnsConfig stores configuration of the system resolver.
 struct NET_EXPORT_PRIVATE DnsConfig {
   DnsConfig();
