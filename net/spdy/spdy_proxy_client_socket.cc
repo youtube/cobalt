@@ -512,6 +512,11 @@ int SpdyProxyClientSocket::OnResponseReceived(
   return OK;
 }
 
+void SpdyProxyClientSocket::OnHeadersSent() {
+  // Proxy client sockets don't send any HEADERS frame.
+  NOTREACHED();
+}
+
 // Called when data is received.
 int SpdyProxyClientSocket::OnDataReceived(const char* data, int length) {
   if (length > 0) {
