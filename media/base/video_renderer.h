@@ -37,8 +37,8 @@ class MEDIA_EXPORT VideoRenderer
   // Used to query the current time or duration of the media.
   typedef base::Callback<base::TimeDelta()> TimeDeltaCB;
 
-  // Initialize a VideoRenderer with the given VideoDecoder, executing
-  // |init_cb| callback upon completion.
+  // Initialize a VideoRenderer with the given DemuxerStream and
+  // VideoDecoderList, executing |init_cb| callback upon completion.
   //
   // |statistics_cb| is executed periodically with video rendering stats, such
   // as dropped frames.
