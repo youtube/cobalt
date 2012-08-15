@@ -43,6 +43,7 @@ class ClosingDelegate : public SpdyStream::Delegate {
                                  int status) OVERRIDE {
     return OK;
   }
+  virtual void OnHeadersSent() OVERRIDE {}
   virtual int OnDataReceived(const char* data, int length) OVERRIDE {
     return OK;
   }
@@ -55,36 +56,36 @@ class ClosingDelegate : public SpdyStream::Delegate {
 };
 
 
-class TestSpdyStreamDelegate : public net::SpdyStream::Delegate {
+class TestSpdyStreamDelegate : public SpdyStream::Delegate {
  public:
   explicit TestSpdyStreamDelegate(const CompletionCallback& callback)
       : callback_(callback) {}
   virtual ~TestSpdyStreamDelegate() {}
 
-  virtual bool OnSendHeadersComplete(int status) { return true; }
+  virtual bool OnSendHeadersComplete(int status) OVERRIDE { return true; }
 
-  virtual int OnSendBody() {
+  virtual int OnSendBody() OVERRIDE {
     return ERR_UNEXPECTED;
   }
 
-  virtual int OnSendBodyComplete(int /*status*/, bool* /*eof*/) {
+  virtual int OnSendBodyComplete(int /*status*/, bool* /*eof*/) OVERRIDE {
     return ERR_UNEXPECTED;
   }
 
   virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
-                                 int status) {
+                                 int status) OVERRIDE {
     return status;
   }
 
-  virtual int OnDataReceived(const char* buffer, int bytes) {
+  virtual void OnHeadersSent() OVERRIDE {}
+  virtual int OnDataReceived(const char* buffer, int bytes) OVERRIDE {
     return OK;
   }
 
-  virtual void OnDataSent(int length) {
-  }
+  virtual void OnDataSent(int length) OVERRIDE {}
 
-  virtual void OnClose(int status) {
+  virtual void OnClose(int status) OVERRIDE {
     CompletionCallback callback = callback_;
     callback_.Reset();
     callback.Run(OK);

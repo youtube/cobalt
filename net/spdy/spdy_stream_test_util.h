@@ -28,6 +28,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
   virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) OVERRIDE;
+  virtual void OnHeadersSent() OVERRIDE;
   virtual int OnDataReceived(const char* buffer, int bytes) OVERRIDE;
   virtual void OnDataSent(int length) OVERRIDE;
   virtual void OnClose(int status) OVERRIDE;
@@ -37,6 +38,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
     return response_;
   }
   const std::string& received_data() const { return received_data_; }
+  int headers_sent() const { return headers_sent_; }
   int data_sent() const { return data_sent_; }
   bool closed() const {  return closed_; }
 
@@ -48,6 +50,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
   bool send_headers_completed_;
   linked_ptr<SpdyHeaderBlock> response_;
   std::string received_data_;
+  int headers_sent_;
   int data_sent_;
   bool closed_;
 
