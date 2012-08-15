@@ -23,6 +23,7 @@ TestSpdyStreamDelegate::TestSpdyStreamDelegate(
       callback_(callback),
       send_headers_completed_(false),
       response_(new SpdyHeaderBlock),
+      headers_sent_(0),
       data_sent_(0),
       closed_(false) {
 }
@@ -59,6 +60,10 @@ int TestSpdyStreamDelegate::OnResponseReceived(const SpdyHeaderBlock& response,
                                        DATA_FLAG_NONE));
   }
   return status;
+}
+
+void TestSpdyStreamDelegate::OnHeadersSent() {
+  headers_sent_++;
 }
 
 int TestSpdyStreamDelegate::OnDataReceived(const char* buffer, int bytes) {
