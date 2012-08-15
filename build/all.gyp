@@ -156,14 +156,6 @@
             '../net/third_party/nss/ssl.gyp:*',
           ],
         }],
-        ['disable_nacl==0 and disable_nacl_untrusted==0', {
-          'dependencies': [
-            '../base/base_untrusted.gyp:*',
-            '../ipc/ipc_untrusted.gyp:*',
-            '../ppapi/ppapi_proxy_untrusted.gyp:*',
-            '../ppapi/ppapi_shared_untrusted.gyp:*',
-          ],
-        }],
       ],
     }, # target_name: All
     {
@@ -242,12 +234,6 @@
         ['OS=="linux"', {
           'dependencies': [
             '../sandbox/sandbox.gyp:sandbox_linux_unittests',
-          ],
-        }],
-        ['disable_nacl==0 and disable_nacl_untrusted==0', {
-          'dependencies': [
-            # TODO(bbudge): drop this when we have switched the NaCl proxy to IPC.
-            '../ppapi/ppapi_proxy_untrusted.gyp:ppapi_proxy_untrusted',
           ],
         }],
       ],
