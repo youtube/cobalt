@@ -67,8 +67,14 @@ dev_list="apache2.2-bin bison curl elfutils fakeroot flex g++ gperf
           perl php5-cgi pkg-config python python-cherrypy3 python-dev
           python-psutil rpm ruby subversion ttf-dejavu-core ttf-indic-fonts
           ttf-kochi-gothic ttf-kochi-mincho ttf-thai-tlwg wdiff git-core
-          libc6-i386 lib32gcc1
           $chromeos_dev_list"
+
+# 64-bit systems need a minimum set of 32-bit compat packages for the pre-built
+# NaCL binaries. These are always needed, regardless of whether or not we want
+# the full 32-bit "cross-compile" support (--lib32).
+if [ "$(uname -m)" = "x86_64" ]; then
+  dev_list="${dev_list} libc6-i386 lib32gcc1"
+fi
 
 # Run-time libraries required by chromeos only
 chromeos_lib_list="libpulse0 libbz2-1.0 libcurl4-gnutls-dev"
