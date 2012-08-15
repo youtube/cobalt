@@ -1217,8 +1217,6 @@
       # TODO(rnk): Combine with tsan config to share the builder.
       # http://crbug.com/108155
       ['build_for_tool=="drmemory"', {
-        # DrMemory can't handle the debug CRT dll, so build static.
-        'component': 'static_library',
         # These runtime checks force initialization of stack vars which blocks
         # DrMemory's uninit detection.
         'win_debug_RuntimeChecks': '0',
@@ -1227,6 +1225,9 @@
         # Try to disable optimizations that mess up stacks in a release build.
         'win_release_InlineFunctionExpansion': '0',
         'win_release_OmitFramePointers': '0',
+        # Ditto for debug, to support bumping win_debug_Optimization.
+        'win_debug_InlineFunctionExpansion': 0,
+        'win_debug_OmitFramePointers': 0,
         # Keep the code under #ifndef NVALGRIND.
         'release_valgrind_build': 1,
       }],
