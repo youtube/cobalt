@@ -414,6 +414,15 @@
           ],
         },
         {
+          'target_name': 'chromium_builder_asan_mac',
+          'type': 'none',
+          'dependencies': [
+            '../chrome/chrome.gyp:chrome',
+            '../net/net.gyp:dns_fuzz_stub',
+            '../webkit/webkit.gyp:pull_in_DumpRenderTree',
+          ],
+        },
+        {
           'target_name': 'chromium_builder_dbg_valgrind_mac',
           'type': 'none',
           'dependencies': [
