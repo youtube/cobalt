@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/rand_util.h"
 #include "net/base/net_log.h"
+#include "net/dns/address_sorter.h"
 #include "net/dns/dns_config_service.h"
 #include "net/dns/dns_session.h"
 #include "net/dns/dns_transaction.h"
@@ -18,7 +19,9 @@ namespace {
 
 class DnsClientImpl : public DnsClient {
  public:
-  explicit DnsClientImpl(NetLog* net_log) : net_log_(net_log) {}
+  explicit DnsClientImpl(NetLog* net_log)
+      : address_sorter_(AddressSorter::CreateAddressSorter()),
+        net_log_(net_log) {}
 
   virtual void SetConfig(const DnsConfig& config) OVERRIDE {
     factory_.reset();
@@ -40,9 +43,14 @@ class DnsClientImpl : public DnsClient {
     return session_.get() ? factory_.get() : NULL;
   }
 
+  virtual AddressSorter* GetAddressSorter() OVERRIDE {
+    return address_sorter_.get();
+  }
+
  private:
   scoped_refptr<DnsSession> session_;
   scoped_ptr<DnsTransactionFactory> factory_;
+  scoped_ptr<AddressSorter> address_sorter_;
 
   NetLog* net_log_;
 };
