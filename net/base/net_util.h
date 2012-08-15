@@ -424,6 +424,14 @@ NET_EXPORT_PRIVATE bool ParseIPLiteralToNumber(const std::string& ip_literal,
 NET_EXPORT_PRIVATE IPAddressNumber ConvertIPv4NumberToIPv6Number(
     const IPAddressNumber& ipv4_number);
 
+// Returns true iff |address| is an IPv4-mapped IPv6 address.
+NET_EXPORT_PRIVATE bool IsIPv4Mapped(const IPAddressNumber& address);
+
+// Converts an IPv4-mapped IPv6 address to IPv4 address. Should only be called
+// on IPv4-mapped IPv6 addresses.
+NET_EXPORT_PRIVATE IPAddressNumber ConvertIPv4MappedToIPv4(
+    const IPAddressNumber& address);
+
 // Parses an IP block specifier from CIDR notation to an
 // (IP address, prefix length) pair. Returns true on success and fills
 // |*ip_number| with the numeric value of the IP address and sets
