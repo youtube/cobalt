@@ -511,7 +511,7 @@ class DnsTransactionImpl : public DnsTransaction,
           if (MoreAttemptsAllowed()) {
             result = MakeAttempt();
           } else {
-            return AttemptResult(ERR_DNS_SERVER_FAILED, NULL);
+            return AttemptResult(result.rv, NULL);
           }
           break;
       }
