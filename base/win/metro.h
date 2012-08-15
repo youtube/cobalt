@@ -55,6 +55,10 @@ BASE_EXPORT HMODULE GetMetroModule();
 // in Windows Metro mode.
 BASE_EXPORT bool IsMetroProcess();
 
+// Returns true if this process is running under Text Services Framework (TSF)
+// and browser must be TSF-aware.
+BASE_EXPORT bool IsTsfAwareRequired();
+
 // Allocates and returns the destination string via the LocalAlloc API after
 // copying the src to it.
 BASE_EXPORT wchar_t* LocalAllocAndCopyString(const string16& src);
