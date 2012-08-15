@@ -522,6 +522,7 @@
           'type': 'none',
           'dependencies': [
             '../base/base.gyp:base_unittests',
+            '../chrome/chrome.gyp:unit_tests',
             '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../content/content.gyp:content_unittests',
             '../crypto/crypto.gyp:crypto_unittests',
