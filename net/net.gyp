@@ -1994,6 +1994,23 @@
           ],
           'includes': [ '../build/java.gypi' ],
         },
+        {
+          'target_name': 'net_javatests',
+          'type': 'none',
+          'variables': {
+            'package_name': 'net_javatests',
+            'java_in_dir': '../net/android/javatests',
+          },
+          'dependencies': [
+            '../base/base.gyp:base_java',
+            '../base/base.gyp:base_java_test_support',
+          ],
+          'export_dependent_settings': [
+            '../base/base.gyp:base_java',
+            '../base/base.gyp:base_java_test_support',
+          ],
+          'includes': [ '../build/java.gypi' ],
+        },
       ],
     }],
     # Special target to wrap a gtest_target_type==shared_library
