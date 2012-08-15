@@ -63,7 +63,6 @@
               '-DANDROID_TOOLCHAIN=<(android_toolchain)',
               '--ant-args',
               '-DCHROMIUM_SRC=<(ant_build_out)/../..',
-              '--ant-compile'
             ],
           }],
         }],  # 'OS == "android" and gtest_target_type == "shared_library"

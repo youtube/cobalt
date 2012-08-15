@@ -163,7 +163,7 @@ class NativeTestApkGenerator(object):
       import compile_android_mk  # pylint: disable=F0401
     except:
       raise AssertionError('Not in Android source tree. '
-                           'Please use --ant-compile.')
+                           'Please use --sdk-build.')
     compile_android_mk.CompileAndroidMk(self._native_library,
                                         self._output_directory)
 
@@ -184,11 +184,6 @@ def main(argv):
                     help='Unless set to 0, build the generated apk with ant. '
                          'Otherwise assume compiling within the Android '
                          'source tree using Android.mk.')
-  # FIXME(beverloo): Remove --ant-compile when all users adopted.
-  parser.add_option('--ant-compile', action='store_true',
-                    help=('If specified, build the generated apk with ant. '
-                          'Otherwise assume compiling within the Android '
-                          'source tree using Android.mk.'))
   parser.add_option('--ant-args', action='append',
                     help='extra args for ant')
 
@@ -212,9 +207,9 @@ def main(argv):
                                 jars=jar_list,
                                 output_directory=options.output,
                                 target_abi=options.app_abi)
-  ntag.CreateBundle(options.sdk_build or options.ant_compile)
+  ntag.CreateBundle(options.sdk_build)
 
-  if options.sdk_build or options.ant_compile:
+  if options.sdk_build:
     ntag.Compile(options.ant_args)
   else:
     ntag.CompileAndroidMk()
