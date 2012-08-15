@@ -107,7 +107,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     InSequence s;
 
     EXPECT_CALL(*decoder_, Initialize(_, _, _))
-      .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
+        .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
 
     // Set playback rate before anything else happens.
     renderer_->SetPlaybackRate(1.0f);
@@ -696,7 +696,6 @@ TEST_F(VideoRendererBaseTest, VideoDecoder_InitFailure) {
   EXPECT_CALL(*decoder_, Initialize(_, _, _))
       .WillOnce(RunPipelineStatusCB1(PIPELINE_ERROR_DECODE));
   InitializeRenderer(PIPELINE_ERROR_DECODE);
-
- }
+}
 
 }  // namespace media
