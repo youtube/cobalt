@@ -5,6 +5,9 @@
 #ifndef NET_DNS_DNS_TEST_UTIL_H_
 #define NET_DNS_DNS_TEST_UTIL_H_
 
+#include <string>
+#include <vector>
+
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/dns/dns_config_service.h"
@@ -166,8 +169,25 @@ static const int kT3TTL = 0x00000015;
 static const unsigned kT3RecordCount = arraysize(kT3IpAddresses) + 2;
 
 class DnsClient;
+
+struct MockDnsClientRule {
+  enum Result {
+    FAIL_SYNC,   // Fail synchronously with ERR_NAME_NOT_RESOLVED.
+    FAIL_ASYNC,  // Fail asynchronously with ERR_NAME_NOT_RESOLVED.
+    EMPTY,       // Return an empty response.
+    OK,          // Return a response with loopback address.
+  };
+
+  std::string prefix;
+  uint16 qtype;
+  Result result;
+};
+
+typedef std::vector<MockDnsClientRule> MockDnsClientRuleList;
+
 // Creates mock DnsClient for testing HostResolverImpl.
-scoped_ptr<DnsClient> CreateMockDnsClient(const DnsConfig& config);
+scoped_ptr<DnsClient> CreateMockDnsClient(const DnsConfig& config,
+                                          const MockDnsClientRuleList& rules);
 
 class MockDnsConfigService : public DnsConfigService {
  public:
