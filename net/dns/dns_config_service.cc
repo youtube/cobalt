@@ -11,11 +11,12 @@
 
 namespace net {
 
-// Default values are taken from glibc resolv.h.
+// Default values are taken from glibc resolv.h except timeout which is set to
+// |kDnsTimeoutSeconds|.
 DnsConfig::DnsConfig()
     : append_to_multi_label_name(true),
       ndots(1),
-      timeout(base::TimeDelta::FromSeconds(5)),
+      timeout(base::TimeDelta::FromSeconds(kDnsTimeoutSeconds)),
       attempts(2),
       rotate(false),
       edns0(false) {}
