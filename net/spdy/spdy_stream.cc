@@ -142,11 +142,13 @@ SpdyFrame* SpdyStream::ProduceNextFrame() {
     PendingFrame frame = pending_frames_.front();
     pending_frames_.pop_front();
 
+    waiting_completions_.push_back(frame.type);
+
     if (frame.type == TYPE_DATA) {
       // Send queued data frame.
       return frame.data_frame;
     } else {
-      DCHECK(frame.type == TYPE_HEADER);
+      DCHECK(frame.type == TYPE_HEADERS);
       // Create actual HEADERS frame just in time because it depends on
       // compression context and should not be reordered after the creation.
       SpdyFrame* header_frame = session_->CreateHeadersFrame(
@@ -589,7 +591,7 @@ int SpdyStream::WriteHeaders(SpdyHeaderBlock* headers) {
   CHECK_GT(stream_id_, 0u);
 
   PendingFrame frame;
-  frame.type = TYPE_HEADER;
+  frame.type = TYPE_HEADERS;
   frame.header_block = headers;
   pending_frames_.push_back(frame);
 
@@ -831,8 +833,16 @@ int SpdyStream::DoSendBodyComplete(int result) {
 }
 
 int SpdyStream::DoOpen(int result) {
-  if (delegate_)
-    delegate_->OnDataSent(result);
+  if (delegate_) {
+    FrameType type = waiting_completions_.front();
+    waiting_completions_.pop_front();
+    if (type == TYPE_DATA) {
+      delegate_->OnDataSent(result);
+    } else {
+      DCHECK(type == TYPE_HEADERS);
+      delegate_->OnHeadersSent();
+    }
+  }
   io_state_ = STATE_OPEN;
   return result;
 }

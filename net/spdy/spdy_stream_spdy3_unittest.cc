@@ -267,10 +267,9 @@ TEST_F(SpdyStreamSpdy3Test, SendHeaderAndDataAfterOpen) {
 
   EXPECT_TRUE(delegate->send_headers_completed());
   EXPECT_EQ("101", (*delegate->response())[":status"]);
+  EXPECT_EQ(1, delegate->headers_sent());
   EXPECT_EQ(std::string(), delegate->received_data());
-  // TODO(toyoshim): OnDataSent should be invoked when each data frame is sent.
-  // But current implementation invokes also when each HEADERS frame is sent.
-  //EXPECT_EQ(6, delegate->data_sent());
+  EXPECT_EQ(6, delegate->data_sent());
 }
 
 TEST_F(SpdyStreamSpdy3Test, PushedStream) {
