@@ -37,11 +37,9 @@ bool ends_with(const std::string& one, const std::string& two) {
 }  // namespace
 
 ChromeClassTester::ChromeClassTester(CompilerInstance& instance,
-                                     bool check_inner_classes,
                                      bool check_cc_directory)
     : instance_(instance),
       diagnostic_(instance.getDiagnostics()),
-      check_inner_classes_(check_inner_classes),
       check_cc_directory_(check_cc_directory) {
   BuildBannedLists();
 }
@@ -49,13 +47,7 @@ ChromeClassTester::ChromeClassTester(CompilerInstance& instance,
 ChromeClassTester::~ChromeClassTester() {}
 
 void ChromeClassTester::HandleTagDeclDefinition(TagDecl* tag) {
-  if (check_inner_classes_) {
-    // Defer processing of this tag until its containing top-level
-    // declaration has been fully parsed. See crbug.com/136863.
-    pending_class_decls_.push_back(tag);
-  } else {
-    CheckTag(tag);
-  }
+  pending_class_decls_.push_back(tag);
 }
 
 bool ChromeClassTester::HandleTopLevelDecl(DeclGroupRef group_ref) {
