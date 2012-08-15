@@ -1659,6 +1659,45 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   JobMap::iterator jobit = jobs_.find(key);
   Job* job;
   if (jobit == jobs_.end()) {
+    // If we couldn't find the desired address family, check to see if the
+    // other family is in the cache or another job, which indicates waste,
+    // and we should fix crbug.com/139811.
+    {
+      bool ipv4 = key.address_family == ADDRESS_FAMILY_IPV4;
+      Key other_family_key = key;
+      other_family_key.address_family = ipv4 ?
+          ADDRESS_FAMILY_UNSPECIFIED : ADDRESS_FAMILY_IPV4;
+      bool found_other_family_cache = false;
+      bool found_other_family_job = false;
+      if (default_address_family_ == ADDRESS_FAMILY_UNSPECIFIED) {
+        found_other_family_cache = cache_.get() &&
+            cache_->Lookup(other_family_key, base::TimeTicks::Now()) != NULL;
+        if (!found_other_family_cache)
+          found_other_family_job = jobs_.count(other_family_key) > 0;
+      }
+      enum {  // Used in UMA_HISTOGRAM_ENUMERATION.
+        AF_WASTE_IPV4_ONLY,
+        AF_WASTE_CACHE_IPV4,
+        AF_WASTE_CACHE_UNSPEC,
+        AF_WASTE_JOB_IPV4,
+        AF_WASTE_JOB_UNSPEC,
+        AF_WASTE_NONE_IPV4,
+        AF_WASTE_NONE_UNSPEC,
+        AF_WASTE_MAX,  // Bounding value.
+      } category = AF_WASTE_MAX;
+      if (default_address_family_ != ADDRESS_FAMILY_UNSPECIFIED) {
+        category = AF_WASTE_IPV4_ONLY;
+      } else if (found_other_family_cache) {
+        category = ipv4 ? AF_WASTE_CACHE_IPV4 : AF_WASTE_CACHE_UNSPEC;
+      } else if (found_other_family_job) {
+        category = ipv4 ? AF_WASTE_JOB_IPV4 : AF_WASTE_JOB_UNSPEC;
+      } else {
+        category = ipv4 ? AF_WASTE_NONE_IPV4 : AF_WASTE_NONE_UNSPEC;
+      }
+      UMA_HISTOGRAM_ENUMERATION("DNS.ResolveUnspecWaste", category,
+                                AF_WASTE_MAX);
+    }
+
     // Create new Job.
     job = new Job(this, key, info.priority(), request_net_log);
     job->Schedule();
@@ -1820,46 +1859,8 @@ bool HostResolverImpl::ServeFromCache(const Key& key,
   if (!info.allow_cached_response() || !cache_.get())
     return false;
 
-  base::TimeTicks current_time = base::TimeTicks::Now();
-  const HostCache::Entry* cache_entry = cache_->Lookup(key, current_time);
-
-  {
-    bool found = cache_entry != NULL;
-    bool ipv4 = key.address_family == ADDRESS_FAMILY_IPV4;
-    // If we couldn't find the desired address family, check to see if the
-    // other family is in the cache, which indicates waste, and we should fix
-    // crbug.com/139811.
-    bool found_other_family = false;
-    if (!found && default_address_family_ == ADDRESS_FAMILY_UNSPECIFIED) {
-      Key other_family_key = key;
-      other_family_key.address_family = ipv4 ?
-          ADDRESS_FAMILY_UNSPECIFIED : ADDRESS_FAMILY_IPV4;
-      found_other_family =
-          cache_->Lookup(other_family_key, current_time) != NULL;
-    }
-    enum {  // Used in HISTOGRAM_ENUMERATION.
-      CACHE_IPV4_ONLY_FOUND,
-      CACHE_IPV4_ONLY_MISS,
-      CACHE_FOUND_IPV4,
-      CACHE_FOUND_UNSPEC,
-      CACHE_WASTE_IPV4,
-      CACHE_WASTE_UNSPEC,
-      CACHE_MISS_IPV4,
-      CACHE_MISS_UNSPEC,
-      CACHE_MAX,  // Bounding value.
-    } category = CACHE_MAX;
-    if (default_address_family_ != ADDRESS_FAMILY_UNSPECIFIED) {
-      category = found ? CACHE_IPV4_ONLY_FOUND : CACHE_IPV4_ONLY_MISS;
-    } else if (found) {
-      category = ipv4 ? CACHE_FOUND_IPV4 : CACHE_FOUND_UNSPEC;
-    } else if (found_other_family) {
-      category = ipv4 ? CACHE_WASTE_IPV4 : CACHE_WASTE_UNSPEC;
-    } else {
-      category = ipv4 ? CACHE_MISS_IPV4 : CACHE_MISS_UNSPEC;
-    }
-    UMA_HISTOGRAM_ENUMERATION("DNS.ResolveCacheCategory", category, CACHE_MAX);
-  }
-
+  const HostCache::Entry* cache_entry = cache_->Lookup(
+      key, base::TimeTicks::Now());
   if (!cache_entry)
     return false;
 
