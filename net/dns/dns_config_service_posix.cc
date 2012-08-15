@@ -58,6 +58,8 @@ ConfigParsePosixResult ReadDnsConfig(DnsConfig* config) {
   res_nclose(&res);
 #endif
 #endif
+  // Override timeout value to match default setting on Windows.
+  config->timeout = base::TimeDelta::FromSeconds(kDnsTimeoutSeconds);
   return result;
 }
 
