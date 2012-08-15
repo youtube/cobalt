@@ -13,6 +13,7 @@
 #include "base/atomicops.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/critical_closure.h"
 #include "base/logging.h"
 #include "base/memory/linked_ptr.h"
 #include "base/message_loop_proxy.h"
@@ -490,7 +491,9 @@ bool SequencedWorkerPool::Inner::PostTask(
   sequenced.sequence_token_id = sequence_token.id_;
   sequenced.shutdown_behavior = shutdown_behavior;
   sequenced.posted_from = from_here;
-  sequenced.task = task;
+  sequenced.task =
+      shutdown_behavior == BLOCK_SHUTDOWN ?
+      base::MakeCriticalClosure(task) : task;
 
   int create_thread_id = 0;
   {
