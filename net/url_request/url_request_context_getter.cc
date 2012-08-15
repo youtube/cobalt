@@ -22,7 +22,13 @@ void URLRequestContextGetter::OnDestruct() const {
     if (network_task_runner->BelongsToCurrentThread()) {
       delete this;
     } else {
-      network_task_runner->DeleteSoon(FROM_HERE, this);
+      if (!network_task_runner->DeleteSoon(FROM_HERE, this)) {
+        // Can't force-delete the object here, because some derived classes
+        // can only be deleted on the owning thread, so just emit a warning to
+        // aid in debugging.
+        DLOG(WARNING) << "URLRequestContextGetter leaking due to no owning"
+                      << " thread.";
+      }
     }
   }
   // If no IO message loop proxy was available, we will just leak memory.
