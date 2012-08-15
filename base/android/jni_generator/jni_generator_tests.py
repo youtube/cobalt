@@ -201,7 +201,7 @@ class TestGenerator(unittest.TestCase):
                             ],
                      java_class_name=None,
                      type='method',
-                     p0_type='device_orientation::DataFetcherImplAndroid'),
+                     p0_type='content::DataFetcherImplAndroid'),
     ]
     self.assertListEquals(golden_natives, natives)
     h = jni_generator.InlHeaderFileGenerator('', 'org/chromium/TestJni',
