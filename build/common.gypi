@@ -130,8 +130,8 @@
             'enable_hidpi%': 1,
           }],
 
-          # Enable touch UI on Metro and Chrome OS.
-          ['OS=="win" or chromeos==1', {
+          # Enable touch UI on Metro.
+          ['OS=="win"', {
             'enable_touch_ui%': 1,
           }],
         ],
