@@ -133,7 +133,7 @@ bool Histogram::SampleSet::Deserialize(PickleIterator* iter) {
 }
 
 // TODO(rtenneti): delete this code after debugging.
-void CheckCorruption(const Histogram& histogram) {
+void CheckCorruption(const Histogram& histogram, bool new_histogram) {
   const std::string& histogram_name = histogram.histogram_name();
   char histogram_name_buf[128];
   base::strlcpy(histogram_name_buf,
@@ -141,18 +141,18 @@ void CheckCorruption(const Histogram& histogram) {
                 arraysize(histogram_name_buf));
   base::debug::Alias(histogram_name_buf);
 
+  bool debug_new_histogram[1];
+  debug_new_histogram[0] = new_histogram;
+  base::debug::Alias(debug_new_histogram);
+
   Sample previous_range = -1;  // Bottom range is always 0.
   for (size_t index = 0; index < histogram.bucket_count(); ++index) {
     int new_range = histogram.ranges(index);
-    if (previous_range >= new_range) {
-      CHECK(false);  // Crash for the bucket order corruption.
-    }
+    CHECK_LT(previous_range, new_range);
     previous_range = new_range;
   }
 
-  if (!histogram.bucket_ranges()->HasValidChecksum()) {
-    CHECK(false);  // Crash for the checksum corruption.
-  }
+  CHECK(histogram.bucket_ranges()->HasValidChecksum());
 }
 
 Histogram* Histogram::FactoryGet(const string& name,
@@ -174,12 +174,14 @@ Histogram* Histogram::FactoryGet(const string& name,
 
     Histogram* tentative_histogram =
         new Histogram(name, minimum, maximum, bucket_count, registered_ranges);
+    CheckCorruption(*tentative_histogram, true);
+
     tentative_histogram->SetFlags(flags);
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
   // TODO(rtenneti): delete this code after debugging.
-  CheckCorruption(*histogram);
+  CheckCorruption(*histogram, false);
 
   CHECK_EQ(HISTOGRAM, histogram->histogram_type());
   CHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
@@ -728,12 +730,14 @@ Histogram* LinearHistogram::FactoryGet(const string& name,
     LinearHistogram* tentative_histogram =
         new LinearHistogram(name, minimum, maximum, bucket_count,
                             registered_ranges);
+    CheckCorruption(*tentative_histogram, true);
+
     tentative_histogram->SetFlags(flags);
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
   // TODO(rtenneti): delete this code after debugging.
-  CheckCorruption(*histogram);
+  CheckCorruption(*histogram, false);
 
   CHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
   CHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
@@ -821,12 +825,14 @@ Histogram* BooleanHistogram::FactoryGet(const string& name, int32 flags) {
 
     BooleanHistogram* tentative_histogram =
         new BooleanHistogram(name, registered_ranges);
+    CheckCorruption(*tentative_histogram, true);
+
     tentative_histogram->SetFlags(flags);
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
   // TODO(rtenneti): delete this code after debugging.
-  CheckCorruption(*histogram);
+  CheckCorruption(*histogram, false);
 
   CHECK_EQ(BOOLEAN_HISTOGRAM, histogram->histogram_type());
   return histogram;
@@ -862,13 +868,15 @@ Histogram* CustomHistogram::FactoryGet(const string& name,
     // To avoid racy destruction at shutdown, the following will be leaked.
     CustomHistogram* tentative_histogram =
         new CustomHistogram(name, registered_ranges);
+    CheckCorruption(*tentative_histogram, true);
+
     tentative_histogram->SetFlags(flags);
 
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
   }
   // TODO(rtenneti): delete this code after debugging.
-  CheckCorruption(*histogram);
+  CheckCorruption(*histogram, false);
 
   CHECK_EQ(histogram->histogram_type(), CUSTOM_HISTOGRAM);
   return histogram;
