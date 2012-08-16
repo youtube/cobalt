@@ -25,9 +25,16 @@ bool IsOSSnowLeopardOrLater() { return true; }
 #include "base/memory/singleton.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "crypto/nss_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
+
+#if defined(OS_WIN)
+#include "base/win/windows_version.h"
+#elif defined(OS_MACOSX)
+#include "base/mac/mac_util.h"
+#endif
 
 namespace net {
 
@@ -68,6 +75,17 @@ class NSSSSLInitSingleton {
     // Enable SSL.
     SSL_OptionSetDefault(SSL_SECURITY, PR_TRUE);
 
+    // Disable ECDSA cipher suites on platforms that do not support ECDSA
+    // signed certificates, as servers may use the presence of such
+    // ciphersuites as a hint to send an ECDSA certificate.
+#if defined(OS_WIN)
+    if (base::win::GetVersion() < base::win::VERSION_VISTA)
+      DisableECDSA();
+#elif defined(OS_MACOSX)
+    if (!base::mac::IsOSSnowLeopardOrLater())
+      DisableECDSA();
+#endif
+
     // All other SSL options are set per-session by SSLClientSocket and
     // SSLServerSocket.
   }
@@ -75,6 +93,19 @@ class NSSSSLInitSingleton {
   ~NSSSSLInitSingleton() {
     // Have to clear the cache, or NSS_Shutdown fails with SEC_ERROR_BUSY.
     SSL_ClearSessionCache();
+  }
+
+  void DisableECDSA() {
+    const PRUint16* ciphersuites = SSL_GetImplementedCiphers();
+    const unsigned num_ciphersuites = SSL_GetNumImplementedCiphers();
+    SECStatus rv;
+    SSLCipherSuiteInfo info;
+
+    for (unsigned i = 0; i < num_ciphersuites; i++) {
+      rv = SSL_GetCipherSuiteInfo(ciphersuites[i], &info, sizeof(info));
+      if (rv == SECSuccess && info.authAlgorithm == ssl_auth_ecdsa)
+        SSL_CipherPrefSetDefault(ciphersuites[i], PR_FALSE);
+    }
   }
 };
 
