@@ -200,13 +200,17 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
       } else {
         last_input_timestamp_ = input->GetTimestamp();
       }
-    } else if (input->GetTimestamp() < last_input_timestamp_) {
-      base::TimeDelta diff = input->GetTimestamp() - last_input_timestamp_;
-      DVLOG(1) << "Input timestamps are not monotonically increasing! "
-               << " ts " << input->GetTimestamp().InMicroseconds() << " us"
-               << " diff " << diff.InMicroseconds() << " us";
-      base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
-      return;
+    } else if (input->GetTimestamp() != kNoTimestamp()) {
+      if (input->GetTimestamp() < last_input_timestamp_) {
+        base::TimeDelta diff = input->GetTimestamp() - last_input_timestamp_;
+        DVLOG(1) << "Input timestamps are not monotonically increasing! "
+                 << " ts " << input->GetTimestamp().InMicroseconds() << " us"
+                 << " diff " << diff.InMicroseconds() << " us";
+        base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
+        return;
+      }
+
+      last_input_timestamp_ = input->GetTimestamp();
     }
   }
 
