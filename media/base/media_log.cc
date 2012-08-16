@@ -152,10 +152,10 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateBooleanEvent(
   return event.Pass();
 }
 
-scoped_ptr<MediaLogEvent> MediaLog::CreateIntegerEvent(
-    MediaLogEvent::Type type, const char* property, int64 value) {
+scoped_ptr<MediaLogEvent> MediaLog::CreateStringEvent(
+    MediaLogEvent::Type type, const char* property, const std::string& value) {
   scoped_ptr<MediaLogEvent> event(CreateEvent(type));
-  event->params.SetInteger(property, value);
+  event->params.SetString(property, value);
   return event.Pass();
 }
 
