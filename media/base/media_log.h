@@ -31,8 +31,8 @@ class MEDIA_EXPORT MediaLog : public base::RefCountedThreadSafe<MediaLog> {
   scoped_ptr<MediaLogEvent> CreateEvent(MediaLogEvent::Type type);
   scoped_ptr<MediaLogEvent> CreateBooleanEvent(
       MediaLogEvent::Type type, const char* property, bool value);
-  scoped_ptr<MediaLogEvent> CreateIntegerEvent(
-      MediaLogEvent::Type type, const char* property, int64 value);
+  scoped_ptr<MediaLogEvent> CreateStringEvent(
+      MediaLogEvent::Type type, const char* property, const std::string& value);
   scoped_ptr<MediaLogEvent> CreateTimeEvent(
       MediaLogEvent::Type type, const char* property, base::TimeDelta value);
   scoped_ptr<MediaLogEvent> CreateLoadEvent(const std::string& url);
