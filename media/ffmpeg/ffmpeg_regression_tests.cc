@@ -145,6 +145,9 @@ FFMPEG_TEST_CASE(Cr140165, "security/140165.ogg", PIPELINE_ERROR_DECODE,
 FFMPEG_TEST_CASE(Cr140647, "security/140647.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
                  kNullHash, kNullHash);
+FFMPEG_TEST_CASE(Cr142738, "content/crbug142738.ogg", PIPELINE_OK, PIPELINE_OK,
+                 kNullHash,
+                 "70deafc85a38a6711a3441c8a75414c2");
 
 // General MKV test cases.
 FFMPEG_TEST_CASE(MKV_0, "security/nested_tags_lang.mka.627.628", PIPELINE_OK,
