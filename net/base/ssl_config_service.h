@@ -74,6 +74,9 @@ struct NET_EXPORT SSLConfig {
   // - FORTEZZA cipher suites (obsolete).
   // - IDEA cipher suites (RFC 5469 explains why).
   // - Anonymous cipher suites.
+  // - ECDSA cipher suites on platforms that do not support ECDSA signed
+  //   certificates, as servers may use the presence of such ciphersuites as a
+  //   hint to send an ECDSA certificate.
   // The ciphers listed in |disabled_cipher_suites| will be removed in addition
   // to the above list.
   //
