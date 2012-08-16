@@ -786,7 +786,7 @@ ssl3_NegotiateVersion(sslSocket *ss, SSL3ProtocolVersion peerVersion,
     }
 
     ss->version = PR_MIN(peerVersion, ss->vrange.max);
-    PORT_Assert(ssl3_VersionIsSupported(ssl_variant_stream, ss->version));
+    PORT_Assert(ssl3_VersionIsSupported(ss->protocolVariant, ss->version));
 
     return SECSuccess;
 }
