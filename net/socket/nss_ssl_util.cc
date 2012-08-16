@@ -2,6 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// HACK for crbug.com/142782. I've put it all the way up here to avoid a merge
+// collision
+namespace base {
+namespace mac {
+bool IsOSSnowLeopardOrLater() { return true; }
+}  // namespace mac
+}  // namespace base
+
 #include "net/socket/nss_ssl_util.h"
 
 #include <nss.h>
