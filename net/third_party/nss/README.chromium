@@ -90,10 +90,14 @@ Patches:
   * Don't crash when the SSL keylog file cannot be opened.
     patches/sslkeylogerror.patch
 
-  * Sets the record layer version number of ClientHello to at most TLS 1.0
+  * Set the record layer version number of ClientHello to at most TLS 1.0
     if we don't know what protocol version the server supports.
     https://bugzilla.mozilla.org/show_bug.cgi?id=774547
     patches/recordlayerversion.patch
+
+  * Replace hardcoded ssl_variant_stream by ss->protocolVariant.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=681065
+    patches/sslprotocolvariant.patch
 
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
