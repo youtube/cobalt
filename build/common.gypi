@@ -927,6 +927,9 @@
         'android_ndk_lib': '<(android_ndk_sysroot)/usr/lib',
         'android_app_abi%': '<(android_app_abi)',
 
+        # Location of the "strip" binary, used by both gyp and scripts.
+        'android_strip%' : '<!(/bin/echo -n <(android_toolchain)/*-strip)',
+
         # Provides an absolute path to PRODUCT_DIR (e.g. out/Release). Used
         # to specify the output directory for Ant in the Android build.
         'ant_build_out': '`cd <(PRODUCT_DIR) && pwd -P`',
@@ -2575,7 +2578,7 @@
             'libraries': [
               '-l<(android_stlport_library)',
               # Manually link the libgcc.a that the cross compiler uses.
-              '<!(${ANDROID_TOOLCHAIN}/*-gcc -print-libgcc-file-name)',
+              '<!(<(android_toolchain)/*-gcc -print-libgcc-file-name)',
               '-lc',
               '-ldl',
               '-lstdc++',
@@ -3327,9 +3330,9 @@
       # Hardcode the compiler names in the Makefile so that
       # it won't depend on the environment at make time.
       'make_global_settings': [
-        ['CC', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
-        ['CXX', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-g++)'],
-        ['LINK', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
+        ['CC', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} <(android_toolchain)/*-gcc)'],
+        ['CXX', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} <(android_toolchain)/*-g++)'],
+        ['LINK', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} <(android_toolchain)/*-gcc)'],
         ['CC.host', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} <!(which gcc))'],
         ['CXX.host', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} <!(which g++))'],
         ['LINK.host', '<!(/bin/echo -n ${ANDROID_GOMA_WRAPPER} <!(which g++))'],
