@@ -80,7 +80,9 @@
       # orange, not red).
       'target_name': 'android_experimental',
       'type': 'none',
-      'dependencies': [],
+      'dependencies': [
+        '../android_webview/lib/android_webview.gyp:libwebview',
+      ],
     },
     {
       # In-progress targets that are expected to fail and are NOT run
@@ -88,7 +90,6 @@
       'target_name': 'android_in_progress',
       'type': 'none',
       'dependencies': [
-        '../android_webview/lib/android_webview.gyp:libwebview',
         '../content/content.gyp:content_browsertests',
       ],
     },
