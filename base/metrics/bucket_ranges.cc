@@ -103,7 +103,7 @@ BucketRanges::~BucketRanges() {}
 
 void BucketRanges::set_range(size_t i, HistogramBase::Sample value) {
   DCHECK_LT(i, ranges_.size());
-  DCHECK_GE(value, 0);
+  CHECK_GE(value, 0);
   ranges_[i] = value;
 }
 
