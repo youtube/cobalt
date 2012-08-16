@@ -631,7 +631,8 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
 
 #if defined(OS_WIN)
   // Please see MessagePumpWin for definitions of these methods.
-  void RegisterIOHandler(HANDLE file_handle, IOHandler* handler);
+  void RegisterIOHandler(HANDLE file, IOHandler* handler);
+  bool RegisterJobObject(HANDLE job, IOHandler* handler);
   bool WaitForIOCompletion(DWORD timeout, IOHandler* filter);
 
  protected:

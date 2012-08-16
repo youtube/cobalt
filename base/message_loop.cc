@@ -751,6 +751,10 @@ void MessageLoopForIO::RegisterIOHandler(HANDLE file, IOHandler* handler) {
   pump_io()->RegisterIOHandler(file, handler);
 }
 
+bool MessageLoopForIO::RegisterJobObject(HANDLE job, IOHandler* handler) {
+  return pump_io()->RegisterJobObject(job, handler);
+}
+
 bool MessageLoopForIO::WaitForIOCompletion(DWORD timeout, IOHandler* filter) {
   return pump_io()->WaitForIOCompletion(timeout, filter);
 }
