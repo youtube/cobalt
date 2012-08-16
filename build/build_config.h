@@ -142,12 +142,6 @@
 #define WCHAR_T_IS_UNSIGNED 0
 #endif
 
-#if defined(OS_CHROMEOS)
-// Single define to trigger whether CrOS fonts have BCI on.
-// In that case font sizes/deltas should be adjusted.
-//define CROS_FONTS_USING_BCI
-#endif
-
 #if defined(OS_ANDROID)
 // The compiler thinks std::string::const_iterator and "const char*" are
 // equivalent types.
