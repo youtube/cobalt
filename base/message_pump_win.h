@@ -296,6 +296,12 @@ class BASE_EXPORT MessagePumpForIO : public MessagePumpWin {
   // |handler| must be valid as long as there is pending IO for the given file.
   void RegisterIOHandler(HANDLE file_handle, IOHandler* handler);
 
+  // Register the handler to be used to process job events. The registration
+  // persists as long as the job object is live, so |handler| must be valid
+  // until the job object is destroyed. Returns true if the registration
+  // succeeded, and false otherwise.
+  bool RegisterJobObject(HANDLE job_handle, IOHandler* handler);
+
   // Waits for the next IO completion that should be processed by |filter|, for
   // up to |timeout| milliseconds. Return true if any IO operation completed,
   // regardless of the involved handler, and false if the timeout expired. If
@@ -316,6 +322,11 @@ class BASE_EXPORT MessagePumpForIO : public MessagePumpWin {
     IOContext* context;
     DWORD bytes_transfered;
     DWORD error;
+
+    // In some cases |context| can be a non-pointer value casted to a pointer.
+    // |has_valid_io_context| is true if |context| is a valid IOContext
+    // pointer, and false otherwise.
+    bool has_valid_io_context;
   };
 
   virtual void DoRunLoop();
@@ -325,6 +336,14 @@ class BASE_EXPORT MessagePumpForIO : public MessagePumpWin {
   bool ProcessInternalIOItem(const IOItem& item);
   void WillProcessIOEvent();
   void DidProcessIOEvent();
+
+  // Converts an IOHandler pointer to a completion port key.
+  // |has_valid_io_context| specifies whether completion packets posted to
+  // |handler| will have valid OVERLAPPED pointers.
+  static ULONG_PTR HandlerToKey(IOHandler* handler, bool has_valid_io_context);
+
+  // Converts a completion port key to an IOHandler pointer.
+  static IOHandler* KeyToHandler(ULONG_PTR key, bool* has_valid_io_context);
 
   // The completion port associated with this thread.
   win::ScopedHandle port_;
