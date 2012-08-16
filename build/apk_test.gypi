@@ -46,6 +46,7 @@
               '">@(input_jars_paths)"',
               '--output',
               '<(PRODUCT_DIR)/<(test_suite_name)_apk',
+              '--strip-binary=<(android_strip)',
               '--app_abi',
               '<(android_app_abi)',
               '--sdk-build=<(sdk_build)',

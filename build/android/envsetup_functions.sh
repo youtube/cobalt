@@ -54,6 +54,7 @@ common_vars_defines() {
   # Must be after CHROME_SRC is set.
   export PATH=$PATH:${CHROME_SRC}/build/android
 
+  # TODO(beverloo): Remove these once all consumers updated to --strip-binary.
   export OBJCOPY=$(echo ${ANDROID_TOOLCHAIN}/*-objcopy)
   export STRIP=$(echo ${ANDROID_TOOLCHAIN}/*-strip)
 
