@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/debug/trace_event.h"
+#include "base/debug/trace_event_unittest.h"
 
 #include "base/bind.h"
 #include "base/command_line.h"
+#include "base/debug/trace_event.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/memory/ref_counted_memory.h"
@@ -19,6 +20,8 @@
 #include "base/values.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using base::debug::HighResSleepForTraceTest;
 
 namespace base {
 namespace debug {
@@ -633,6 +636,13 @@ void TraceCallsWithCachedCategoryPointersPointers(const char* name_str) {
 
 }  // namespace
 
+void HighResSleepForTraceTest(base::TimeDelta elapsed) {
+  base::TimeTicks end_time = base::TimeTicks::HighResNow() + elapsed;
+  do {
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(1));
+  } while (base::TimeTicks::HighResNow() < end_time);
+}
+
 // Simple Test for emitting data and validating it was received.
 TEST_F(TraceEventTestFixture, DataCaptured) {
   ManualTestSetUp();
@@ -843,7 +853,7 @@ TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
     // 100+ seconds to avoid flakiness.
     TRACE_EVENT_IF_LONGER_THAN0(100000000, "time", "threshold long1");
     TRACE_EVENT_IF_LONGER_THAN0(200000000, "time", "threshold long2");
-    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(20));
+    HighResSleepForTraceTest(base::TimeDelta::FromMilliseconds(20));
   }
 
   // Test that a normal nested event remains after it's parent event is dropped.
@@ -868,8 +878,7 @@ TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
             TRACE_EVENT_IF_LONGER_THAN0(1000, "time", "3threshold1000");
             {
               TRACE_EVENT_IF_LONGER_THAN0(100, "time", "3threshold100");
-              base::PlatformThread::Sleep(
-                  base::TimeDelta::FromMilliseconds(20));
+              HighResSleepForTraceTest(base::TimeDelta::FromMilliseconds(20));
             }
           }
         }
@@ -893,8 +902,7 @@ TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
             {
               TRACE_EVENT_IF_LONGER_THAN0(200000000, "time",
                                           "4thresholdlong2");
-              base::PlatformThread::Sleep(
-                  base::TimeDelta::FromMilliseconds(20));
+              HighResSleepForTraceTest(base::TimeDelta::FromMilliseconds(20));
             }
           }
         }
