@@ -52,9 +52,11 @@ class NativeTestApkGenerator(object):
                       'native_test_apk.xml',
                       'res/values/strings.xml']
 
-  def __init__(self, native_library, jars, output_directory, target_abi):
+  def __init__(self, native_library, jars, strip_binary, output_directory,
+               target_abi):
     self._native_library = native_library
     self._jars = jars
+    self._strip_binary = strip_binary
     self._output_directory = os.path.abspath(output_directory)
     self._target_abi = target_abi
     self._root_name = None
@@ -116,9 +118,9 @@ class NativeTestApkGenerator(object):
         os.makedirs(destdir)
       dest = os.path.join(destdir, os.path.basename(self._native_library))
       logging.warn('strip %s --> %s', self._native_library, dest)
-      strip = os.environ['STRIP']
       cmd_helper.RunCmd(
-          [strip, '--strip-unneeded', self._native_library, '-o', dest])
+          [self._strip_binary, '--strip-unneeded', self._native_library, '-o',
+           dest])
     if self._jars:
       destdir = os.path.join(self._output_directory, 'java/libs')
       if not os.path.exists(destdir):
@@ -180,6 +182,8 @@ def main(argv):
                     help='Output directory for generated files.')
   parser.add_option('--app_abi', default='armeabi',
                     help='ABI for native shared library')
+  parser.add_option('--strip-binary',
+                    help='Binary to use for stripping the native libraries.')
   parser.add_option('--sdk-build', type='int', default=1,
                     help='Unless set to 0, build the generated apk with ant. '
                          'Otherwise assume compiling within the Android '
@@ -198,6 +202,11 @@ def main(argv):
   if options.verbose:
     logging.basicConfig(level=logging.DEBUG, format=' %(message)s')
 
+  if not options.strip_binary:
+    options.strip_binary = os.getenv('STRIP')
+    if not options.strip_binary:
+      raise Exception('No tool for stripping the libraries has been supplied')
+
   # Remove all quotes from the jars string
   jar_list = []
   if options.jars:
@@ -205,6 +214,7 @@ def main(argv):
 
   ntag = NativeTestApkGenerator(native_library=options.native_library,
                                 jars=jar_list,
+                                strip_binary=options.strip_binary,
                                 output_directory=options.output,
                                 target_abi=options.app_abi)
   ntag.CreateBundle(options.sdk_build)
