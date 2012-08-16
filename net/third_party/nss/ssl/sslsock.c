@@ -1921,7 +1921,7 @@ SSL_VersionRangeSet(PRFileDesc *fd, const SSLVersionRange *vrange)
 	return SECFailure;
     }
 
-    if (!ssl3_VersionRangeIsValid(ssl_variant_stream, vrange)) {
+    if (!ssl3_VersionRangeIsValid(ss->protocolVariant, vrange)) {
 	PORT_SetError(SSL_ERROR_INVALID_VERSION_RANGE);
 	return SECFailure;
     }
