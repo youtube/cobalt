@@ -2,14 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// HACK for crbug.com/142782. I've put it all the way up here to avoid a merge
-// collision
-namespace base {
-namespace mac {
-bool IsOSSnowLeopardOrLater() { return true; }
-}  // namespace mac
-}  // namespace base
-
 #include "net/socket/nss_ssl_util.h"
 
 #include <nss.h>
@@ -32,8 +24,6 @@ bool IsOSSnowLeopardOrLater() { return true; }
 
 #if defined(OS_WIN)
 #include "base/win/windows_version.h"
-#elif defined(OS_MACOSX)
-#include "base/mac/mac_util.h"
 #endif
 
 namespace net {
@@ -62,6 +52,15 @@ class NSSSSLInitSingleton {
 #define pSSL_ImplementedCiphers SSL_ImplementedCiphers
 #endif
 
+    // Disable ECDSA cipher suites on platforms that do not support ECDSA
+    // signed certificates, as servers may use the presence of such
+    // ciphersuites as a hint to send an ECDSA certificate.
+    bool disableECDSA = false;
+#if defined(OS_WIN)
+    if (base::win::GetVersion() < base::win::VERSION_VISTA)
+      disableECDSA = true;
+#endif
+
     // Explicitly enable exactly those ciphers with keys of at least 80 bits
     for (int i = 0; i < SSL_NumImplementedCiphers; i++) {
       SSLCipherSuiteInfo info;
@@ -69,22 +68,13 @@ class NSSSSLInitSingleton {
                                  sizeof(info)) == SECSuccess) {
         SSL_CipherPrefSetDefault(pSSL_ImplementedCiphers[i],
                                  (info.effectiveKeyBits >= 80));
+        if (info.authAlgorithm == ssl_auth_ecdsa && disableECDSA)
+          SSL_CipherPrefSetDefault(pSSL_ImplementedCiphers[i], PR_FALSE);
       }
     }
 
     // Enable SSL.
     SSL_OptionSetDefault(SSL_SECURITY, PR_TRUE);
-
-    // Disable ECDSA cipher suites on platforms that do not support ECDSA
-    // signed certificates, as servers may use the presence of such
-    // ciphersuites as a hint to send an ECDSA certificate.
-#if defined(OS_WIN)
-    if (base::win::GetVersion() < base::win::VERSION_VISTA)
-      DisableECDSA();
-#elif defined(OS_MACOSX)
-    if (!base::mac::IsOSSnowLeopardOrLater())
-      DisableECDSA();
-#endif
 
     // All other SSL options are set per-session by SSLClientSocket and
     // SSLServerSocket.
@@ -93,19 +83,6 @@ class NSSSSLInitSingleton {
   ~NSSSSLInitSingleton() {
     // Have to clear the cache, or NSS_Shutdown fails with SEC_ERROR_BUSY.
     SSL_ClearSessionCache();
-  }
-
-  void DisableECDSA() {
-    const PRUint16* ciphersuites = SSL_GetImplementedCiphers();
-    const unsigned num_ciphersuites = SSL_GetNumImplementedCiphers();
-    SECStatus rv;
-    SSLCipherSuiteInfo info;
-
-    for (unsigned i = 0; i < num_ciphersuites; i++) {
-      rv = SSL_GetCipherSuiteInfo(ciphersuites[i], &info, sizeof(info));
-      if (rv == SECSuccess && info.authAlgorithm == ssl_auth_ecdsa)
-        SSL_CipherPrefSetDefault(ciphersuites[i], PR_FALSE);
-    }
   }
 };
 
