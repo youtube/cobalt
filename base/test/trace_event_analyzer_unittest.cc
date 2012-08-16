@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/bind.h"
+#include "base/debug/trace_event_unittest.h"
 #include "base/test/trace_event_analyzer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -392,7 +393,7 @@ TEST_F(TraceEventAnalyzerTest, Duration) {
     {
       TRACE_EVENT0("cat2", "name3"); // found by duration query
       TRACE_EVENT_INSTANT0("noise", "name4"); // not searched for, just noise
-      base::PlatformThread::Sleep(kSleepTime);
+      base::debug::HighResSleepForTraceTest(kSleepTime);
       TRACE_EVENT0("cat2", "name5"); // not found (duration too short)
     }
   }
