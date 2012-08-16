@@ -703,7 +703,7 @@
     # Needed for some of the largest modules.
     'msvs_debug_link_nonincremental%': '1',
 
-    # Turn on Use Library Dependency Inputs for linking chrome.dll on Windows
+    # Turns on Use Library Dependency Inputs for linking chrome.dll on Windows
     # to get incremental linking to be faster in debug builds.
     'incremental_chrome_dll%': '0',
 
@@ -1045,6 +1045,10 @@
         'conditions': [
           ['component=="shared_library"', {
             'win_use_allocator_shim%': 0,
+          }],
+          ['"<(GENERATOR)"=="ninja"', {
+            # Only enabled by default for ninja because it's buggy in VS.
+            'incremental_chrome_dll%': 1,
           }],
           # Whether to use multiple cores to compile with visual studio. This is
           # optional because it sometimes causes corruption on VS 2005.
