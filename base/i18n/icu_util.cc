@@ -33,6 +33,8 @@
 
 #if defined(OS_WIN)
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_SHARED
+#elif defined(OS_IOS)
+#define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_FILE
 #else
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_STATIC
 #endif
