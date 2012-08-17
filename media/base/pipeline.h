@@ -97,24 +97,41 @@ class MEDIA_EXPORT Pipeline
     : public base::RefCountedThreadSafe<Pipeline>,
       public DemuxerHost {
  public:
+  // Buffering states the pipeline transitions between during playback.
+  // kHaveMetadata:
+  //   Indicates that the following things are known:
+  //   content duration, natural size, start time, and whether the content has
+  //   audio and/or video in supported formats.
+  // kPrerollCompleted:
+  //   All renderers have buffered enough data to satisfy preroll and are ready
+  //   to start playback.
+  enum BufferingState {
+    kHaveMetadata,
+    kPrerollCompleted,
+  };
+
+  typedef base::Callback<void(BufferingState)> BufferingStateCB;
+
   // Constructs a media pipeline that will execute on |message_loop|.
   Pipeline(const scoped_refptr<base::MessageLoopProxy>& message_loop,
            MediaLog* media_log);
 
   // Build a pipeline to using the given filter collection to construct a filter
-  // chain, executing |start_cb| when initialization has completed.
+  // chain, executing |seek_cb| when the initial seek/preroll has completed.
   //
   // The following permanent callbacks will be executed as follows up until
   // Stop() has completed:
   //   |ended_cb| will be executed whenever the media reaches the end.
   //   |error_cb| will be executed whenever an error occurs but hasn't
   //              been reported already through another callback.
-  //
+  //   |buffering_state_cb| Optional callback that will be executed whenever the
+  //                    pipeline's buffering state changes.
   // It is an error to call this method after the pipeline has already started.
   void Start(scoped_ptr<FilterCollection> filter_collection,
              const PipelineStatusCB& ended_cb,
              const PipelineStatusCB& error_cb,
-             const PipelineStatusCB& start_cb);
+             const PipelineStatusCB& seek_cb,
+             const BufferingStateCB& buffering_state_cb);
 
   // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
   // teardown has completed.
@@ -233,11 +250,9 @@ class MEDIA_EXPORT Pipeline
   // Helper method to tell whether we are in transition to seek state.
   bool IsPipelineSeeking();
 
-  // Helper method to execute callback from Start() and reset
-  // |filter_collection_|. Called when initialization completes
-  // normally or when pipeline is stopped or error occurs during
-  // initialization.
-  void FinishInitialization();
+  // Helper method that runs & resets |seek_cb_| and resets |seek_timestamp_|
+  // and |seek_pending_|.
+  void FinishSeek();
 
   // Returns true if the given state is one that transitions to a new state
   // after iterating through each filter.
@@ -296,7 +311,8 @@ class MEDIA_EXPORT Pipeline
   void StartTask(scoped_ptr<FilterCollection> filter_collection,
                  const PipelineStatusCB& ended_cb,
                  const PipelineStatusCB& error_cb,
-                 const PipelineStatusCB& start_cb);
+                 const PipelineStatusCB& seek_cb,
+                 const BufferingStateCB& buffering_state_cb);
 
   // InitializeTask() performs initialization in multiple passes. It is executed
   // as a result of calling Start() or InitializationComplete() that advances
@@ -494,6 +510,7 @@ class MEDIA_EXPORT Pipeline
   base::Closure stop_cb_;
   PipelineStatusCB ended_cb_;
   PipelineStatusCB error_cb_;
+  BufferingStateCB buffering_state_cb_;
 
   // Audio renderer reference used for setting the volume and determining
   // when playback has finished.

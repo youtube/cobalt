@@ -88,11 +88,15 @@ void PipelineIntegrationTestBase::OnError(PipelineStatus status) {
 
 bool PipelineIntegrationTestBase::Start(const std::string& url,
                                         PipelineStatus expected_status) {
+  EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
+  EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
   pipeline_->Start(
       CreateFilterCollection(url),
       base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnError, base::Unretained(this)),
-      QuitOnStatusCB(expected_status));
+      QuitOnStatusCB(expected_status),
+      base::Bind(&PipelineIntegrationTestBase::OnBufferingState,
+                 base::Unretained(this)));
   message_loop_.Run();
   return (pipeline_status_ == PIPELINE_OK);
 }
@@ -105,11 +109,15 @@ bool PipelineIntegrationTestBase::Start(const std::string& url,
 }
 
 bool PipelineIntegrationTestBase::Start(const std::string& url) {
+  EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
+  EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
   pipeline_->Start(
       CreateFilterCollection(url),
       base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnError, base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnStatusCallback,
+                 base::Unretained(this)),
+      base::Bind(&PipelineIntegrationTestBase::OnBufferingState,
                  base::Unretained(this)));
   message_loop_.Run();
   return (pipeline_status_ == PIPELINE_OK);
@@ -126,6 +134,7 @@ void PipelineIntegrationTestBase::Pause() {
 bool PipelineIntegrationTestBase::Seek(base::TimeDelta seek_time) {
   ended_ = false;
 
+  EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
   pipeline_->Seek(seek_time, QuitOnStatusCB(PIPELINE_OK));
   message_loop_.Run();
   return (pipeline_status_ == PIPELINE_OK);

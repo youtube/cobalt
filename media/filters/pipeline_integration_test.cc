@@ -184,11 +184,15 @@ class PipelineIntegrationTest
       public PipelineIntegrationTestBase {
  public:
   void StartPipelineWithMediaSource(MockMediaSource* source) {
+    EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
+    EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
     pipeline_->Start(
         CreateFilterCollection(source, NULL),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
-        QuitOnStatusCB(PIPELINE_OK));
+        QuitOnStatusCB(PIPELINE_OK),
+        base::Bind(&PipelineIntegrationTest::OnBufferingState,
+                   base::Unretained(this)));
 
     message_loop_.Run();
   }
@@ -196,11 +200,15 @@ class PipelineIntegrationTest
   void StartPipelineWithEncryptedMedia(
       MockMediaSource* source,
       FakeDecryptorClient* encrypted_media) {
+    EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
+    EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
     pipeline_->Start(
         CreateFilterCollection(source, encrypted_media->decryptor()),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
-        QuitOnStatusCB(PIPELINE_OK));
+        QuitOnStatusCB(PIPELINE_OK),
+        base::Bind(&PipelineIntegrationTest::OnBufferingState,
+                   base::Unretained(this)));
 
     source->set_decryptor_client(encrypted_media);
 
