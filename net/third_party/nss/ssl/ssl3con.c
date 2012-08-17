@@ -2285,9 +2285,10 @@ ssl3_SendRecord(   sslSocket *        ss,
     capRecordVersion = ((flags & ssl_SEND_FLAG_CAP_RECORD_VERSION) != 0);
 
     if (capRecordVersion) {
-	/* ssl_SEND_FLAG_CAP_RECORD_VERSION can only be used with
-	 * TLS ClientHello. */
+	/* ssl_SEND_FLAG_CAP_RECORD_VERSION can only be used with the
+	 * TLS initial ClientHello. */
 	PORT_Assert(!IS_DTLS(ss));
+	PORT_Assert(!ss->firstHsDone);
 	PORT_Assert(type == content_handshake);
 	PORT_Assert(ss->ssl3.hs.ws == wait_server_hello);
     }
@@ -4010,7 +4011,7 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
     int              num_suites;
     int              actual_count = 0;
     PRBool           isTLS = PR_FALSE;
-    PRBool           serverVersionKnown = PR_FALSE;
+    PRBool           requestingResume = PR_FALSE;
     PRInt32          total_exten_len = 0;
     unsigned         numCompressionMethods;
     PRInt32          flags;
@@ -4038,6 +4039,23 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
     rv = ssl3_RestartHandshakeHashes(ss);
     if (rv != SECSuccess) {
 	return rv;
+    }
+
+    /*
+     * During a renegotiation, ss->clientHelloVersion will be used again to
+     * work around a Windows SChannel bug. Ensure that it is still enabled.
+     */
+    if (ss->firstHsDone) {
+	if (SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
+	    PORT_SetError(SSL_ERROR_SSL_DISABLED);
+	    return SECFailure;
+	}
+
+	if (ss->clientHelloVersion < ss->vrange.min ||
+	    ss->clientHelloVersion > ss->vrange.max) {
+	    PORT_SetError(SSL_ERROR_NO_CYPHER_OVERLAP);
+	    return SECFailure;
+	}
     }
 
     /* We ignore ss->sec.ci.sid here, and use ssl_Lookup because Lookup
@@ -4087,9 +4105,41 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
 	    sidOK = PR_FALSE;
 	}
 
-	if (sidOK && ssl3_NegotiateVersion(ss, sid->version,
-					   PR_FALSE) != SECSuccess) {
-	    sidOK = PR_FALSE;
+	/* TLS 1.0 (RFC 2246) Appendix E says:
+	 *   Whenever a client already knows the highest protocol known to
+	 *   a server (for example, when resuming a session), it should
+	 *   initiate the connection in that native protocol.
+	 * So we pass sid->version to ssl3_NegotiateVersion() here, except
+	 * when renegotiating.
+	 *
+	 * Windows SChannel compares the client_version inside the RSA
+	 * EncryptedPreMasterSecret of a renegotiation with the
+	 * client_version of the initial ClientHello rather than the
+	 * ClientHello in the renegotiation. To work around this bug, we
+	 * continue to use the client_version used in the initial
+	 * ClientHello when renegotiating.
+	 */
+	if (sidOK) {
+	    if (ss->firstHsDone) {
+		/*
+		 * The client_version of the initial ClientHello is still
+		 * available in ss->clientHelloVersion. Ensure that
+		 * sid->version is bounded within
+		 * [ss->vrange.min, ss->clientHelloVersion], otherwise we
+		 * can't use sid.
+		 */
+		if (sid->version >= ss->vrange.min &&
+		    sid->version <= ss->clientHelloVersion) {
+		    ss->version = ss->clientHelloVersion;
+		} else {
+		    sidOK = PR_FALSE;
+		}
+	    } else {
+		if (ssl3_NegotiateVersion(ss, sid->version,
+					  PR_FALSE) != SECSuccess) {
+		    sidOK = PR_FALSE;
+		}
+	    }
 	}
 
 	if (!sidOK) {
@@ -4101,7 +4151,7 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
     }
 
     if (sid) {
-	serverVersionKnown = PR_TRUE;
+	requestingResume = PR_TRUE;
 	SSL_AtomicIncrementLong(& ssl3stats.sch_sid_cache_hits );
 
 	/* Are we attempting a stateless session resume? */
@@ -4116,10 +4166,22 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
     } else {
 	SSL_AtomicIncrementLong(& ssl3stats.sch_sid_cache_misses );
 
-	rv = ssl3_NegotiateVersion(ss, SSL_LIBRARY_VERSION_MAX_SUPPORTED,
-				   PR_TRUE);
-	if (rv != SECSuccess)
-	    return rv;	/* error code was set */
+	/*
+	 * Windows SChannel compares the client_version inside the RSA
+	 * EncryptedPreMasterSecret of a renegotiation with the
+	 * client_version of the initial ClientHello rather than the
+	 * ClientHello in the renegotiation. To work around this bug, we
+	 * continue to use the client_version used in the initial
+	 * ClientHello when renegotiating.
+	 */
+	if (ss->firstHsDone) {
+	    ss->version = ss->clientHelloVersion;
+	} else {
+	    rv = ssl3_NegotiateVersion(ss, SSL_LIBRARY_VERSION_MAX_SUPPORTED,
+				       PR_TRUE);
+	    if (rv != SECSuccess)
+		return rv;	/* error code was set */
+	}
 
 	sid = ssl3_NewSessionID(ss, PR_FALSE);
 	if (!sid) {
@@ -4219,6 +4281,10 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
 	return rv;	/* err set by ssl3_AppendHandshake* */
     }
 
+    if (ss->firstHsDone) {
+	/* Work around the Windows SChannel bug described above. */ 
+	PORT_Assert(ss->version == ss->clientHelloVersion);
+    }
     ss->clientHelloVersion = ss->version;
     if (IS_DTLS(ss)) {
 	PRUint16 version;
@@ -4338,7 +4404,7 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
     }
 
     flags = 0;
-    if (!serverVersionKnown && !IS_DTLS(ss)) {
+    if (!ss->firstHsDone && !requestingResume && !IS_DTLS(ss)) {
 	flags |= ssl_SEND_FLAG_CAP_RECORD_VERSION;
     }
     rv = ssl3_FlushHandshake(ss, flags);
