@@ -20,7 +20,7 @@ adb_all() {
     echo "Example: adb_all install Chrome.apk"
     return 1
   fi
-  local DEVICES=$(adb_blocking_get_devices)
+  local DEVICES=$(adb_get_devices -b)
   local NUM_DEVICES=$(echo $DEVICES | wc -w)
   if (( $NUM_DEVICES > 1 )); then
     echo "Looping over $NUM_DEVICES devices"
@@ -42,7 +42,7 @@ adb_device_loop() {
         'adb shell cat /data/local.prop)"'
     return 1
   fi
-  local DEVICES=$(adb_blocking_get_devices)
+  local DEVICES=$(adb_get_devices -b)
   # Do not change DEVICE variable name - part of api
   for DEVICE in $DEVICES; do
     DEV_TYPE=$(adb -s $DEVICE shell getprop ro.product.device | sed 's/\r//')
@@ -67,19 +67,21 @@ wipe_all_devices() {
     echo "If fastboot fails, run: 'sudo adduser $(whoami) plugdev'"
   fi
 
-  local DEVICES=$(adb_blocking_get_devices)
+  local DEVICES=$(adb_get_devices -b)
 
   if [[ $1 != '-f' ]]; then
     echo "This will ERASE ALL DATA from $(echo $DEVICES | wc -w) device."
     read -p "Hit enter to continue"
   fi
 
-  _adb_multi "$DEVICES" "root"
-  _adb_multi "$DEVICES" "wait-for-device"
   _adb_multi "$DEVICES" "reboot bootloader"
+  # Subshell to isolate job list
+  (
   for DEVICE in $DEVICES; do
-    fastboot_erase $DEVICE
+    fastboot_erase $DEVICE &
   done
+  wait
+  )
 
   # Reboot devices together
   for DEVICE in $DEVICES; do
@@ -106,10 +108,11 @@ fastboot_erase() {
   fastboot $SERIAL erase userdata
 }
 
-# Block until adb detects a device, then return list of serials
-adb_blocking_get_devices() {
+# Get list of devices connected via adb
+# Args: -b block until adb detects a device
+adb_get_devices() {
   local DEVICES="$(adb devices | grep 'device$')"
-  if [[ -z $DEVICES ]]; then
+  if [[ -z $DEVICES && $1 == '-b' ]]; then
     echo '- waiting for device -' >&2
     local DEVICES="$(adb wait-for-device devices | grep 'device$')"
   fi
