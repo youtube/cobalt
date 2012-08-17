@@ -436,6 +436,11 @@
           # Disable the heap checker in tcmalloc.
           'defines': [
             'NO_HEAP_CHECK',
+           ],
+        }],
+        [ 'clang==1', {
+          'cflags': [
+            '-Wno-non-literal-null-conversion',
           ],
         }],
       ],
