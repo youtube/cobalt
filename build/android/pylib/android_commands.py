@@ -9,11 +9,8 @@ Assumes adb binary is currently on system path.
 
 import collections
 import datetime
-import io_stats_parser
 import logging
-import optparse
 import os
-import pexpect
 import re
 import shlex
 import subprocess
@@ -21,10 +18,12 @@ import sys
 import tempfile
 import time
 
+import pexpect
+import io_stats_parser
 
 # adb_interface.py is under ../../../third_party/android_testrunner/
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..',
-   '..', '..', 'third_party', 'android_testrunner'))
+                             '..', '..', 'third_party', 'android_testrunner'))
 import adb_interface
 import cmd_helper
 import errors  #  is under ../../../third_party/android_testrunner/errors.py
@@ -51,7 +50,7 @@ JAVA_ASSERT_PROPERTY = 'dalvik.vm.enableassertions'
 
 BOOT_COMPLETE_RE = re.compile(
     'android.intent.action.MEDIA_MOUNTED path: /\w+/sdcard\d?'
-    + '|' + 'PowerManagerService(\(\s+\d+\))?: bootCompleted')
+    '|PowerManagerService(\(\s+\d+\))?: bootCompleted')
 
 MEMORY_INFO_RE = re.compile('^(?P<key>\w+):\s+(?P<usage_kb>\d+) kB$')
 NVIDIA_MEMORY_INFO_RE = re.compile('^\s*(?P<user>\S+)\s*(?P<name>\S+)\s*'
@@ -107,7 +106,7 @@ def GetAttachedDevices():
   """
   re_device = re.compile('^([a-zA-Z0-9_:.-]+)\tdevice$', re.MULTILINE)
   devices = re_device.findall(cmd_helper.GetCmdOutput(['adb', 'devices']))
-  preferred_device = os.environ.get("ANDROID_SERIAL")
+  preferred_device = os.environ.get('ANDROID_SERIAL')
   if preferred_device in devices:
     devices.remove(preferred_device)
     devices.insert(0, preferred_device)
@@ -196,7 +195,7 @@ def _GetFilesFromRecursiveLsOutput(path, ls_output, re_file, utc_offset=None):
         utc_delta = datetime.timedelta(hours=int(utc_offset[1:3]),
                                        minutes=int(utc_offset[3:5]))
         if utc_offset[0:1] == '-':
-          utc_delta = -utc_delta;
+          utc_delta = -utc_delta
         lastmod -= utc_delta
       files[filename] = (int(file_match.group('size')), lastmod)
   return files
@@ -244,7 +243,7 @@ class AndroidCommands(object):
     return self._root_enabled
 
   def GetDeviceYear(self):
-    """Returns the year information of the date on device"""
+    """Returns the year information of the date on device."""
     return self.RunShellCommand('date +%Y')[0]
 
   def WaitForDevicePm(self):
@@ -264,7 +263,7 @@ class AndroidCommands(object):
         return  # Success
       except errors.WaitForResponseTimedOutError as e:
         last_err = e
-        logging.warning('Restarting and retrying after timeout: %s' % str(e))
+        logging.warning('Restarting and retrying after timeout: %s', e)
         retries -= 1
         self.RestartShell()
     raise last_err  # Only reached after max retries, re-raise the last error.
@@ -289,12 +288,14 @@ class AndroidCommands(object):
     if os.environ.get('USING_HIVE'):
       logging.warning('Ignoring reboot request as we are on hive')
       return
-    if full_reboot:
+    if full_reboot or not self.IsRootEnabled():
       self._adb.SendCommand('reboot')
+      timeout = 300
     else:
       self.RestartShell()
+      timeout = 120
     self.WaitForDevicePm()
-    self.StartMonitoringLogcat(timeout=120)
+    self.StartMonitoringLogcat(timeout=timeout)
     self.WaitForLogMatch(BOOT_COMPLETE_RE, None)
 
   def Uninstall(self, package):
@@ -311,24 +312,59 @@ class AndroidCommands(object):
     logging.info('>>> $' + uninstall_command)
     return self._adb.SendCommand(uninstall_command, timeout_time=60)
 
-  def Install(self, package_file_path):
+  def Install(self, package_file_path, reinstall=False):
     """Installs the specified package to the device.
 
     Args:
       package_file_path: Path to .apk file to install.
+      reinstall: Whether to reinstall over existing package
 
     Returns:
       A status string returned by adb install
     """
     assert os.path.isfile(package_file_path)
 
-    install_command = 'install %s' % package_file_path
+    if reinstall:
+      install_cmd = 'install -r %s'
+    else:
+      install_cmd = 'install %s'
 
-    logging.info('>>> $' + install_command)
-    return self._adb.SendCommand(install_command, timeout_time=2*60)
+    return self._adb.SendCommand(install_cmd % package_file_path,
+                                 timeout_time=2*60, retry_count=0)
+
+  def ManagedInstall(self, apk_path, keep_data, package_name=None,
+                     reboots_on_failure=2):
+    """Installs specified package and reboots device on timeouts.
+
+    Args:
+      apk_path: Path to .apk file to install.
+      keep_data: Whether to keep data if package already exists
+      package_name: Package name (only needed if keep_data=False)
+      reboots_on_failure: number of time to reboot if package manager is frozen.
+
+    Returns:
+      A status string returned by adb install
+    """
+    reboots_left = reboots_on_failure
+    while True:
+      try:
+        if not keep_data:
+          self.Uninstall(package_name)
+        install_status = self.Install(apk_path, keep_data)
+        if 'Success' in install_status:
+          return install_status
+      except errors.WaitForResponseTimedOutError:
+        logging.info('Timout on installing %s' % apk_path)
+
+      if reboots_left <= 0:
+        raise Exception('Install failure')
+
+      # Force a hard reboot on last attempt
+      self.Reboot(full_reboot=(reboots_left == 1))
+      reboots_left -= 1
 
   def MakeSystemFolderWritable(self):
-    """Remounts the /system folder rw.  """
+    """Remounts the /system folder rw."""
     out = self._adb.SendCommand('remount')
     if out.strip() != 'remount succeeded':
       raise errors.MsgException('Remount failed: %s' % out)
@@ -391,7 +427,7 @@ class AndroidCommands(object):
     wait_period = 5
     while not sdcard_ready and attempts * wait_period < timeout_time:
       output = self.RunShellCommand('ls /sdcard/')
-      if len(output) > 0:
+      if output:
         sdcard_ready = True
       else:
         time.sleep(wait_period)
@@ -420,8 +456,10 @@ class AndroidCommands(object):
     """
     logging.info('>>> $' + command)
     if "'" in command: logging.warning(command + " contains ' quotes")
-    result = self._adb.SendShellCommand("'%s'" % command,
-                                        timeout_time).splitlines()
+    result = self._adb.SendShellCommand(
+        "'%s'" % command, timeout_time).splitlines()
+    if ['error: device not found'] == result:
+      raise errors.DeviceUnresponsiveError('device not found')
     if log_result:
       logging.info('\n>>> '.join(result))
     return result
@@ -483,7 +521,6 @@ class AndroidCommands(object):
       cmd += ' --start-profiler ' + trace_file_name
     self.RunShellCommand(cmd)
 
-
   def CloseApplication(self, package):
     """Attempt to close down the application, using increasing violence.
 
@@ -532,7 +569,7 @@ class AndroidCommands(object):
     else:
       is_equal = local_contents == device_contents
     if is_equal:
-      logging.info('%s is up-to-date. Skipping file push.' % device_path)
+      logging.info('%s is up-to-date. Skipping file push.', device_path)
       return
 
     # They don't match, so remove everything first and then create it.
@@ -648,7 +685,7 @@ class AndroidCommands(object):
     self.RunShellCommand('echo 3 > ' + DROP_CACHES)
 
   def StartMonitoringLogcat(self, clear=True, timeout=10, logfile=None,
-                            filters=[]):
+                            filters=None):
     """Starts monitoring the output of logcat, for use with WaitForLogMatch.
 
     Args:
@@ -759,7 +796,7 @@ class AndroidCommands(object):
     # Cannot evaluate directly as 0 is a possible value.
     # Better to read the self.logcat_process.stdout before killing it,
     # Otherwise the communicate may return incomplete output due to pipe break.
-    if self.logcat_process.poll() == None:
+    if self.logcat_process.poll() is None:
       self.logcat_process.kill()
     (output, _) = self.logcat_process.communicate()
     self.logcat_process = None
@@ -898,7 +935,7 @@ class AndroidCommands(object):
     """Returns the memory usage for all processes whose name contains |pacakge|.
 
     Args:
-      name: A string holding process name to lookup pid list for.
+      package: A string holding process name to lookup pid list for.
 
     Returns:
       A tuple containg:
@@ -922,8 +959,7 @@ class AndroidCommands(object):
     return usage_dict, smaps
 
   def ProcessesUsingDevicePort(self, device_port):
-    """Lists the processes using the specified device port on loopback
-       interface.
+    """Lists processes using the specified device port on loopback interface.
 
     Args:
       device_port: Port on device we want to check.
@@ -932,7 +968,7 @@ class AndroidCommands(object):
       A list of (pid, process_name) tuples using the specified port.
     """
     tcp_results = self.RunShellCommand('cat /proc/net/tcp', log_result=False)
-    tcp_address = "0100007F:%04X" % device_port
+    tcp_address = '0100007F:%04X' % device_port
     pids = []
     for single_connect in tcp_results:
       connect_results = single_connect.split()
@@ -951,7 +987,7 @@ class AndroidCommands(object):
           # Column 1 is the pid
           # Column 8 is the Inode in use
           if process_results[8] == socket_name:
-            pids.append( (int(process_results[1]), process_results[0]) )
+            pids.append((int(process_results[1]), process_results[0]))
         break
     logging.info('PidsUsingDevicePort: %s', pids)
     return pids
