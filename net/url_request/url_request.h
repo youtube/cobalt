@@ -31,7 +31,6 @@
 class FilePath;
 // Temporary layering violation to allow existing users of a deprecated
 // interface.
-class AutoUpdateInterceptor;
 class ChildProcessSecurityPolicyTest;
 class ComponentUpdateInterceptor;
 class TestAutomationProvider;
@@ -60,6 +59,7 @@ class ResourceDispatcherHostTest;
 // Temporary layering violation to allow existing users of a deprecated
 // interface.
 namespace extensions {
+class AutoUpdateInterceptor;
 class UserScriptListenerTest;
 }
 
@@ -181,7 +181,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   class NET_EXPORT Deprecated {
    private:
     // TODO(willchan): Kill off these friend declarations.
-    friend class ::AutoUpdateInterceptor;
+    friend class extensions::AutoUpdateInterceptor;
     friend class ::ChildProcessSecurityPolicyTest;
     friend class ::ComponentUpdateInterceptor;
     friend class ::TestAutomationProvider;
