@@ -97,13 +97,8 @@ class TestPackageApk(TestPackage):
   def StripAndCopyExecutable(self):
     # Always uninstall the previous one (by activity name); we don't
     # know what was embedded in it.
-    logging.info('Uninstalling any activity with the test name')
-    self.adb.Adb().SendCommand('uninstall org.chromium.native_test',
-                               timeout_time=60*5)
-    logging.info('Installing new apk')
-    self.adb.Adb().SendCommand('install -r ' + self.test_suite_full,
-                               timeout_time=60*5)
-    logging.info('Install has completed.')
+    self.adb.ManagedInstall(self.test_suite_full, False,
+                            package_name='org.chromium.native_test')
 
   def _GetTestSuiteBaseName(self):
     """Returns the  base name of the test suite."""
