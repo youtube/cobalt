@@ -65,6 +65,12 @@
     <!-- Create the distribution directory -->
     <mkdir dir="${lib.dir}" />
     <jar jarfile="${lib.dir}/chromium_${PACKAGE_NAME}.jar" basedir="${dest.dir}"/>
+
+    <!-- If Gyp thinks this output is stale but Ant doesn't, the modification
+         time should still be updated. Otherwise, this target will continue to
+         be rebuilt in future builds.
+    -->
+    <touch file="${lib.dir}/chromium_${PACKAGE_NAME}.jar"/>
   </target>
 
   <target name="clean" description="clean up">
