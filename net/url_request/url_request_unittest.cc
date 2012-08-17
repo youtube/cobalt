@@ -1485,9 +1485,10 @@ class HTTPSOCSPTest : public HTTPSRequestTest {
  public:
   HTTPSOCSPTest()
       : context_(true),
-        ev_test_policy_(EVRootCAMetadata::GetInstance(),
-                        kOCSPTestCertFingerprint,
-                        kOCSPTestCertPolicy) {
+        ev_test_policy_(
+            new ScopedTestEVPolicy(EVRootCAMetadata::GetInstance(),
+                                   kOCSPTestCertFingerprint,
+                                   kOCSPTestCertPolicy)) {
   }
 
   virtual void SetUp() OVERRIDE {
@@ -1540,7 +1541,7 @@ class HTTPSOCSPTest : public HTTPSRequestTest {
 
   scoped_ptr<ScopedTestRoot> test_root_;
   TestURLRequestContext context_;
-  ScopedTestEVPolicy ev_test_policy_;
+  scoped_ptr<ScopedTestEVPolicy> ev_test_policy_;
 };
 
 static CertStatus ExpectedCertStatusForFailedOnlineRevocationCheck() {
@@ -1570,8 +1571,7 @@ static bool SystemUsesChromiumEVMetadata() {
 #endif
 }
 
-static bool
-SystemSupportsOCSP() {
+static bool SystemSupportsOCSP() {
 #if defined(USE_OPENSSL)
   // http://crbug.com/117478 - OpenSSL does not support OCSP.
   return false;
@@ -1674,7 +1674,8 @@ TEST_F(HTTPSEVCRLSetTest, MissingCRLSetAndInvalidOCSP) {
             cert_status & CERT_STATUS_ALL_ERRORS);
 
   EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
-  EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
+  EXPECT_EQ(SystemUsesChromiumEVMetadata(),
+            static_cast<bool>(cert_status & CERT_STATUS_REV_CHECKING_ENABLED));
 }
 
 TEST_F(HTTPSEVCRLSetTest, MissingCRLSetAndGoodOCSP) {
@@ -1695,8 +1696,8 @@ TEST_F(HTTPSEVCRLSetTest, MissingCRLSetAndGoodOCSP) {
 
   EXPECT_EQ(SystemUsesChromiumEVMetadata(),
             static_cast<bool>(cert_status & CERT_STATUS_IS_EV));
-
-  EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
+  EXPECT_EQ(SystemUsesChromiumEVMetadata(),
+            static_cast<bool>(cert_status & CERT_STATUS_REV_CHECKING_ENABLED));
 }
 
 TEST_F(HTTPSEVCRLSetTest, ExpiredCRLSet) {
@@ -1718,7 +1719,8 @@ TEST_F(HTTPSEVCRLSetTest, ExpiredCRLSet) {
             cert_status & CERT_STATUS_ALL_ERRORS);
 
   EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
-  EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
+  EXPECT_EQ(SystemUsesChromiumEVMetadata(),
+            static_cast<bool>(cert_status & CERT_STATUS_REV_CHECKING_ENABLED));
 }
 
 TEST_F(HTTPSEVCRLSetTest, FreshCRLSet) {
@@ -1738,6 +1740,34 @@ TEST_F(HTTPSEVCRLSetTest, FreshCRLSet) {
   EXPECT_EQ(SystemUsesChromiumEVMetadata(),
             static_cast<bool>(cert_status & CERT_STATUS_IS_EV));
 
+  EXPECT_FALSE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
+}
+
+TEST_F(HTTPSEVCRLSetTest, ExpiredCRLSetAndRevokedNonEVCert) {
+  // Test that when EV verification is requested, but online revocation
+  // checking is disabled, and the leaf certificate is not in fact EV, that
+  // no revocation checking actually happens.
+  if (!SystemSupportsOCSP()) {
+    LOG(WARNING) << "Skipping test because system doesn't support OCSP";
+    return;
+  }
+
+  // Unmark the certificate's OID as EV, which should disable revocation
+  // checking (as per the user preference)
+  ev_test_policy_.reset();
+
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_AUTO);
+  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_REVOKED;
+  SSLConfigService::SetCRLSet(
+      scoped_refptr<CRLSet>(CRLSet::ExpiredCRLSetForTesting()));
+
+  CertStatus cert_status;
+  DoConnection(https_options, &cert_status);
+
+  EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
+
+  EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
   EXPECT_FALSE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
 }
 
