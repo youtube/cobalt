@@ -75,28 +75,60 @@ class SpdyCredentialBuilderTest : public testing::Test {
   SpdyCredential credential_;
 };
 
-TEST_F(SpdyCredentialBuilderTest, GetCredentialSecret) {
+// http://crbug.com/142833, http://crbug.com/140991. The following tests fail
+// with OpenSSL due to the unimplemented ec_private_key_openssl.cc.
+#if defined(USE_OPENSSL)
+#define MAYBE_GetCredentialSecret DISABLED_GetCredentialSecret
+#else
+#define MAYBE_GetCredentialSecret GetCredentialSecret
+#endif
+
+TEST_F(SpdyCredentialBuilderTest, MAYBE_GetCredentialSecret) {
   std::string secret_str(kSecretPrefix, arraysize(kSecretPrefix));
   secret_str.append(MockClientSocket::kTlsUnique);
 
   EXPECT_EQ(secret_str, GetCredentialSecret());
 }
 
-TEST_F(SpdyCredentialBuilderTest, SucceedsWithECDSACert) {
+#if defined(USE_OPENSSL)
+#define MAYBE_SucceedsWithECDSACert DISABLED_SucceedsWithECDSACert
+#else
+#define MAYBE_SucceedsWithECDSACert SucceedsWithECDSACert
+#endif
+
+TEST_F(SpdyCredentialBuilderTest, MAYBE_SucceedsWithECDSACert) {
   EXPECT_EQ(OK, BuildWithType(CLIENT_CERT_ECDSA_SIGN));
 }
 
-TEST_F(SpdyCredentialBuilderTest, FailsWithRSACert) {
+#if defined(USE_OPENSSL)
+#define MAYBE_FailsWithRSACert DISABLED_FailsWithRSACert
+#else
+#define MAYBE_FailsWithRSACert FailsWithRSACert
+#endif
+
+TEST_F(SpdyCredentialBuilderTest, MAYBE_FailsWithRSACert) {
   EXPECT_EQ(ERR_BAD_SSL_CLIENT_AUTH_CERT,
             BuildWithType(CLIENT_CERT_RSA_SIGN));
 }
 
-TEST_F(SpdyCredentialBuilderTest, SetsSlotCorrectly) {
+#if defined(USE_OPENSSL)
+#define MAYBE_SetsSlotCorrectly DISABLED_SetsSlotCorrectly
+#else
+#define MAYBE_SetsSlotCorrectly SetsSlotCorrectly
+#endif
+
+TEST_F(SpdyCredentialBuilderTest, MAYBE_SetsSlotCorrectly) {
   ASSERT_EQ(OK, Build());
   EXPECT_EQ(kSlot, credential_.slot);
 }
 
-TEST_F(SpdyCredentialBuilderTest, SetsCertCorrectly) {
+#if defined(USE_OPENSSL)
+#define MAYBE_SetsCertCorrectly DISABLED_SetsCertCorrectly
+#else
+#define MAYBE_SetsCertCorrectly SetsCertCorrectly
+#endif
+
+TEST_F(SpdyCredentialBuilderTest, MAYBE_SetsCertCorrectly) {
   ASSERT_EQ(OK, Build());
   base::StringPiece spki;
   ASSERT_TRUE(asn1::ExtractSPKIFromDERCert(cert_, &spki));
@@ -108,7 +140,13 @@ TEST_F(SpdyCredentialBuilderTest, SetsCertCorrectly) {
   EXPECT_EQ(spk.substr(2, spk.length()).as_string(), credential_.certs[0]);
 }
 
-TEST_F(SpdyCredentialBuilderTest, SetsProofCorrectly) {
+#if defined(USE_OPENSSL)
+#define MAYBE_SetsProofCorrectly DISABLED_SetsProofCorrectly
+#else
+#define MAYBE_SetsProofCorrectly SetsProofCorrectly
+#endif
+
+TEST_F(SpdyCredentialBuilderTest, MAYBE_SetsProofCorrectly) {
   ASSERT_EQ(OK, Build());
   base::StringPiece spki;
   ASSERT_TRUE(asn1::ExtractSPKIFromDERCert(cert_, &spki));
