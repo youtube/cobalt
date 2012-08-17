@@ -119,6 +119,7 @@ v8.log
 /remoting/appengine/
 /remoting/proto/chromotocol_proto_lib.xml
 /remoting/proto/trace_proto_lib.xml
+/remoting/remoting_elevated_controller.xml
 /remoting/remoting_host_event_logger.xml
 /remoting/remoting_host_installation.xml
 /remoting/remoting_host_installation_unittest.xml
