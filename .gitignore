@@ -87,6 +87,7 @@ v8.log
 /chrome/test/data/perf/frame_rate/content
 /chrome/test/data/perf/frame_rate/private
 /chrome/test/data/perf/private/
+/chrome/test/data/plugin/
 /chrome/test/data/pyauto_private
 /chrome/tools/memory
 /chrome/tools/test/reference_build
@@ -100,9 +101,9 @@ v8.log
 /gpu/gles2_conform_test
 /gyp-mac-tool
 /llvm
-/media/yuv_convert_simd_x86.xml
 /media/test/data/content
 /media/test/data/security
+/media/yuv_convert_simd_x86.xml
 /metro_driver
 /native_client
 /net/Debug
@@ -136,6 +137,7 @@ v8.log
 /third_party/WebKit
 /third_party/adobe/flash/binaries
 /third_party/adobe/flash/symbols
+/third_party/amd/
 /third_party/angle
 /third_party/aosp
 /third_party/asan
