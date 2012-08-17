@@ -82,12 +82,11 @@ int CertVerifyProc::Verify(X509Certificate* cert,
   // CRLSet has expired, then enable online revocation checks. If the online
   // check fails, EV status won't be shown.
   //
-  // A possible optimisation is to only enable online revocation checking in
-  // the event that the leaf certificate appears to include a EV policy ID.
-  // However, it's expected that having a current CRLSet will be very common.
+  // TODO(rsleevi): http://crbug.com/142974 - Allow preferences to fully
+  // disable revocation checking.
   if ((flags & X509Certificate::VERIFY_EV_CERT) &&
       (!crl_set || crl_set->IsExpired())) {
-    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY;
   }
 
   int rv = VerifyInternal(cert, hostname, flags, crl_set, verify_result);

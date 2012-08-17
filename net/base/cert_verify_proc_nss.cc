@@ -28,21 +28,11 @@ namespace net {
 
 namespace {
 
-class ScopedCERTCertificatePolicies {
- public:
-  explicit ScopedCERTCertificatePolicies(CERTCertificatePolicies* policies)
-      : policies_(policies) {}
-
-  ~ScopedCERTCertificatePolicies() {
-    if (policies_)
-      CERT_DestroyCertificatePoliciesExtension(policies_);
-  }
-
- private:
-  CERTCertificatePolicies* policies_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedCERTCertificatePolicies);
-};
+typedef scoped_ptr_malloc<
+    CERTCertificatePolicies,
+    crypto::NSSDestroyer<CERTCertificatePolicies,
+                         CERT_DestroyCertificatePoliciesExtension> >
+    ScopedCERTCertificatePolicies;
 
 // ScopedCERTValOutParam manages destruction of values in the CERTValOutParam
 // array that cvout points to.  cvout must be initialized as passed to
@@ -551,10 +541,10 @@ CERTCertificatePolicies* DecodeCertPolicies(
 // certificatePolicies extension.  Returns SEC_OID_UNKNOWN if the certificate
 // has no certificate policy.
 SECOidTag GetFirstCertPolicy(X509Certificate::OSCertHandle cert_handle) {
-  CERTCertificatePolicies* policies = DecodeCertPolicies(cert_handle);
-  if (!policies)
+  ScopedCERTCertificatePolicies policies(DecodeCertPolicies(cert_handle));
+  if (!policies.get())
     return SEC_OID_UNKNOWN;
-  ScopedCERTCertificatePolicies scoped_policies(policies);
+
   CERTPolicyInfo* policy_info = policies->policyInfos[0];
   if (!policy_info)
     return SEC_OID_UNKNOWN;
@@ -574,27 +564,6 @@ SECOidTag GetFirstCertPolicy(X509Certificate::OSCertHandle cert_handle) {
   od.mechanism = CKM_INVALID_MECHANISM;
   od.supportedExtension = INVALID_CERT_EXTENSION;
   return SECOID_AddEntry(&od);
-}
-
-bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
-                       SECOidTag ev_policy_tag) {
-  CERTCertificatePolicies* policies = DecodeCertPolicies(cert_handle);
-  if (!policies) {
-    LOG(ERROR) << "Cert has no policies extension or extension couldn't be "
-                  "decoded.";
-    return false;
-  }
-  ScopedCERTCertificatePolicies scoped_policies(policies);
-  CERTPolicyInfo** policy_infos = policies->policyInfos;
-  while (*policy_infos != NULL) {
-    CERTPolicyInfo* policy_info = *policy_infos++;
-    SECOidTag oid_tag = policy_info->oid;
-    if (oid_tag == SEC_OID_UNKNOWN)
-      continue;
-    if (oid_tag == ev_policy_tag)
-      return true;
-  }
-  return false;
 }
 
 SHA1Fingerprint CertPublicKeyHash(CERTCertificate* cert) {
@@ -617,6 +586,35 @@ void AppendPublicKeyHashes(CERTCertList* cert_list,
     hashes->push_back(CertPublicKeyHash(root_cert));
 }
 
+// Returns true if |cert_handle| contains a policy OID that is an EV policy
+// OID according to |metadata|, storing the resulting policy OID in
+// |*ev_policy_oid|. A true return is not sufficient to establish that a
+// certificate is EV, but a false return is sufficient to establish the
+// certificate cannot be EV.
+bool IsEVCandidate(EVRootCAMetadata* metadata,
+                   CERTCertificate* cert_handle,
+                   SECOidTag* ev_policy_oid) {
+  DCHECK(cert_handle);
+  ScopedCERTCertificatePolicies policies(DecodeCertPolicies(cert_handle));
+  if (!policies.get())
+    return false;
+
+  CERTPolicyInfo** policy_infos = policies->policyInfos;
+  while (*policy_infos != NULL) {
+    CERTPolicyInfo* policy_info = *policy_infos++;
+    // If the Policy OID is unknown, that implicitly means it has not been
+    // registered as an EV policy.
+    if (policy_info->oid == SEC_OID_UNKNOWN)
+      continue;
+    if (metadata->IsEVPolicyOID(policy_info->oid)) {
+      *ev_policy_oid = policy_info->oid;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Studied Mozilla's code (esp. security/manager/ssl/src/nsIdentityChecking.cpp
 // and nsNSSCertHelper.cpp) to learn how to verify EV certificate.
 // TODO(wtc): A possible optimization is that we get the trust anchor from
@@ -624,9 +622,11 @@ void AppendPublicKeyHashes(CERTCertList* cert_list,
 // anchor.  If the trust anchor has no EV policy, we know the cert isn't EV.
 // Otherwise, we pass just that EV policy (as opposed to all the EV policies)
 // to the second PKIXVerifyCert call.
-bool VerifyEV(CERTCertificate* cert_handle, int flags, CRLSet* crl_set) {
-  EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
-
+bool VerifyEV(CERTCertificate* cert_handle,
+              int flags,
+              CRLSet* crl_set,
+              EVRootCAMetadata* metadata,
+              SECOidTag ev_policy_oid) {
   CERTValOutParam cvout[3];
   int cvout_index = 0;
   cvout[cvout_index].type = cert_po_certList;
@@ -640,12 +640,16 @@ bool VerifyEV(CERTCertificate* cert_handle, int flags, CRLSet* crl_set) {
   cvout[cvout_index].type = cert_po_end;
   ScopedCERTValOutParam scoped_cvout(cvout);
 
+  bool rev_checking_enabled =
+      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) ||
+      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY);
+
   SECStatus status = PKIXVerifyCert(
       cert_handle,
-      flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED,
+      rev_checking_enabled,
       flags & X509Certificate::VERIFY_CERT_IO_ENABLED,
-      metadata->GetPolicyOIDs(),
-      metadata->NumPolicyOIDs(),
+      &ev_policy_oid,
+      1,
       cvout);
   if (status != SECSuccess)
     return false;
@@ -669,17 +673,7 @@ bool VerifyEV(CERTCertificate* cert_handle, int flags, CRLSet* crl_set) {
 
   SHA1Fingerprint fingerprint =
       X509Certificate::CalculateFingerprint(root_ca);
-  std::vector<SECOidTag> ev_policy_tags;
-  if (!metadata->GetPolicyOIDsForCA(fingerprint, &ev_policy_tags))
-    return false;
-  DCHECK(!ev_policy_tags.empty());
-
-  for (std::vector<SECOidTag>::const_iterator
-       i = ev_policy_tags.begin(); i != ev_policy_tags.end(); ++i) {
-    if (CheckCertPolicies(cert_handle, *i))
-      return true;
-  }
-  return false;
+  return metadata->HasEVPolicyOID(fingerprint, ev_policy_oid);
 }
 
 }  // namespace
@@ -718,10 +712,17 @@ int CertVerifyProcNSS::VerifyInternal(X509Certificate* cert,
   cvout[cvout_index].type = cert_po_end;
   ScopedCERTValOutParam scoped_cvout(cvout);
 
+  EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
+  SECOidTag ev_policy_oid = SEC_OID_UNKNOWN;
+  bool is_ev_candidate =
+      (flags & X509Certificate::VERIFY_EV_CERT) &&
+      IsEVCandidate(metadata, cert_handle, &ev_policy_oid);
   bool cert_io_enabled = flags & X509Certificate::VERIFY_CERT_IO_ENABLED;
   bool check_revocation =
-      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) &&
-      cert_io_enabled;
+      cert_io_enabled &&
+      ((flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) ||
+       ((flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY) &&
+        is_ev_candidate));
   if (check_revocation)
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
 
@@ -770,8 +771,8 @@ int CertVerifyProcNSS::VerifyInternal(X509Certificate* cert,
   verify_result->is_issued_by_known_root =
       IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
 
-  if ((flags & X509Certificate::VERIFY_EV_CERT) &&
-      VerifyEV(cert_handle, flags, crl_set)) {
+  if ((flags & X509Certificate::VERIFY_EV_CERT) && is_ev_candidate &&
+      VerifyEV(cert_handle, flags, crl_set, metadata, ev_policy_oid)) {
     verify_result->cert_status |= CERT_STATUS_IS_EV;
   }
 
