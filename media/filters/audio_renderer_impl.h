@@ -212,8 +212,6 @@ class MEDIA_EXPORT AudioRendererImpl
 
   bool underflow_disabled_;
 
-  AudioDecoder::ReadCB read_cb_;
-
   DISALLOW_COPY_AND_ASSIGN(AudioRendererImpl);
 };
 

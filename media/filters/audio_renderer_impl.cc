@@ -26,9 +26,7 @@ AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
       stopped_(false),
       sink_(sink),
       is_initialized_(false),
-      underflow_disabled_(false),
-      read_cb_(base::Bind(&AudioRendererImpl::DecodedAudioReady,
-                          base::Unretained(this))) {
+      underflow_disabled_(false) {
 }
 
 void AudioRendererImpl::Play(const base::Closure& callback) {
@@ -292,7 +290,7 @@ void AudioRendererImpl::ScheduleRead_Locked() {
   if (pending_read_ || state_ == kPaused)
     return;
   pending_read_ = true;
-  decoder_->Read(read_cb_);
+  decoder_->Read(base::Bind(&AudioRendererImpl::DecodedAudioReady, this));
 }
 
 void AudioRendererImpl::SetPlaybackRate(float playback_rate) {
