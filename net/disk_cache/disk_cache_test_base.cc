@@ -14,7 +14,8 @@
 #include "net/disk_cache/mem_backend_impl.h"
 
 DiskCacheTest::DiskCacheTest() {
-  cache_path_ = GetCacheFilePath();
+  CHECK(temp_dir_.CreateUniqueTempDir());
+  cache_path_ = temp_dir_.path();
   if (!MessageLoop::current())
     message_loop_.reset(new MessageLoopForIO());
 }
