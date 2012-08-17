@@ -90,6 +90,7 @@ class PipelineIntegrationTestBase {
   void OnVideoRendererPaint();
 
   MOCK_METHOD1(OnSetOpaque, void(bool));
+  MOCK_METHOD1(OnBufferingState, void(Pipeline::BufferingState));
 };
 
 }  // namespace media
