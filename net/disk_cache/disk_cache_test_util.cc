@@ -16,20 +16,6 @@
 using base::Time;
 using base::TimeDelta;
 
-namespace {
-
-FilePath BuildCachePath(const std::string& name) {
-  FilePath path;
-  PathService::Get(base::DIR_TEMP, &path);  // Ignore return value;
-  path = path.AppendASCII(name);
-  if (!file_util::PathExists(path))
-    file_util::CreateDirectory(path);
-
-  return path;
-}
-
-}  // namespace.
-
 std::string GenerateKey(bool same_length) {
   char key[200];
   CacheTestFillBuffer(key, sizeof(key), same_length);
@@ -53,10 +39,6 @@ void CacheTestFillBuffer(char* buffer, size_t len, bool no_nulls) {
   }
   if (len && !buffer[0])
     buffer[0] = 'g';
-}
-
-FilePath GetCacheFilePath() {
-  return BuildCachePath("cache_test");
 }
 
 bool CreateCacheTestFile(const FilePath& name) {
@@ -89,21 +71,6 @@ bool CheckCacheIntegrity(const FilePath& path, bool new_eviction, uint32 mask) {
   if (cache->SyncInit() != net::OK)
     return false;
   return cache->SelfCheck() >= 0;
-}
-
-ScopedTestCache::ScopedTestCache(const FilePath& path) : path_(path) {
-  bool result = DeleteCache(path_);
-  DCHECK(result);
-}
-
-ScopedTestCache::ScopedTestCache(const std::string& name)
-    : path_(BuildCachePath(name)) {
-  bool result = DeleteCache(path_);
-  DCHECK(result);
-}
-
-ScopedTestCache::~ScopedTestCache() {
-  file_util::Delete(path(), true);
 }
 
 // -----------------------------------------------------------------------
