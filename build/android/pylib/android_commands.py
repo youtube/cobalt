@@ -223,8 +223,6 @@ class AndroidCommands(object):
     self._adb = adb_interface.AdbInterface()
     if device:
       self._adb.SetTargetSerial(device)
-    root_test_output = self.RunShellCommand('ls /root')[0]
-    self._root_enabled = not 'Permission denied' in root_test_output
     self._logcat = None
     self._original_governor = None
     self._pushed_files = []
@@ -234,13 +232,10 @@ class AndroidCommands(object):
     """Returns our AdbInterface to avoid us wrapping all its methods."""
     return self._adb
 
-  def EnableAdbRoot(self):
-    self._root_enabled = self.Adb().EnableAdbRoot()
-    self._adb.SendCommand('wait-for-device')
-
   def IsRootEnabled(self):
-    """Returns whether or not _adb.EnabledAdbRoot() has succeeded."""
-    return self._root_enabled
+    """Checks if root is enabled on the device."""
+    root_test_output = self.RunShellCommand('ls /root') or ['']
+    return not 'Permission denied' in root_test_output[0]
 
   def GetDeviceYear(self):
     """Returns the year information of the date on device."""
