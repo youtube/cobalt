@@ -13,6 +13,11 @@
 
 #include <bitset>
 
+// It would be nice to include the X11 headers here so that we use Window
+// instead of its typedef of unsigned long, but we can't because everything in
+// chrome includes us through base/message_loop.h, and X11's crappy #define
+// heavy headers muck up half of chrome.
+
 typedef struct _GPollFD GPollFD;
 typedef struct _GSource GSource;
 typedef struct _XDisplay Display;
@@ -33,9 +38,23 @@ class BASE_EXPORT MessagePumpAuraX11 : public MessagePumpGlib {
   // Sets the default dispatcher to process native events.
   static void SetDefaultDispatcher(MessagePumpDispatcher* dispatcher);
 
+  // Returns the UI message pump.
+  static MessagePumpAuraX11* Current();
+
   // Internal function. Called by the glib source dispatch function. Processes
   // all available X events.
   bool DispatchXEvents();
+
+  // Blocks on the X11 event queue until we receive notification from the
+  // xserver that |w| has been mapped; StructureNotifyMask events on |w| are
+  // pulled out from the queue and dispatched out of order.
+  //
+  // For those that know X11, this is really a wrapper around XWindowEvent
+  // which still makes sure the preempted event is dispatched instead of
+  // dropped on the floor. This method exists because mapping a window is
+  // asynchronous (and we receive an XEvent when mapped), while there are also
+  // functions which require a mapped window.
+  void BlockUntilWindowMapped(unsigned long window);
 
  protected:
   virtual ~MessagePumpAuraX11();
