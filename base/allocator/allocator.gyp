@@ -6,6 +6,7 @@
   'variables': {
     'jemalloc_dir': '../../third_party/jemalloc/chromium',
     'tcmalloc_dir': '../../third_party/tcmalloc/chromium',
+    'use_vtable_verify%': 0,
   },
   'targets': [
     {
@@ -393,6 +394,11 @@
               '-Wl,-u_Z21InitialMallocHook_NewPKvm,-u_Z22InitialMallocHook_MMapPKvS0_miiil,-u_Z22InitialMallocHook_SbrkPKvl',
               '-Wl,-u_ZN15HeapLeakChecker12IgnoreObjectEPKv,-u_ZN15HeapLeakChecker14UnIgnoreObjectEPKv',
           ]},
+        }],
+        [ 'use_vtable_verify==1', {
+          'cflags': [
+            '-fvtable-verify=preinit',
+          ],
         }],
         [ 'linux_use_debugallocation==1', {
           'sources!': [
