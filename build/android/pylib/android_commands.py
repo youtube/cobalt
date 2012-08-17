@@ -224,9 +224,8 @@ class AndroidCommands(object):
     self._adb = adb_interface.AdbInterface()
     if device:
       self._adb.SetTargetSerial(device)
-    # So many users require root that we just always do it. This could
-    # be made more fine grain if necessary.
-    self._root_enabled = self._adb.EnableAdbRoot()
+    root_test_output = self.RunShellCommand('ls /root')[0]
+    self._root_enabled = not 'Permission denied' in root_test_output
     self._logcat = None
     self._original_governor = None
     self._pushed_files = []
@@ -235,6 +234,10 @@ class AndroidCommands(object):
   def Adb(self):
     """Returns our AdbInterface to avoid us wrapping all its methods."""
     return self._adb
+
+  def EnableAdbRoot(self):
+    self._root_enabled = self.Adb().EnableAdbRoot()
+    self._adb.SendCommand('wait-for-device')
 
   def IsRootEnabled(self):
     """Returns whether or not _adb.EnabledAdbRoot() has succeeded."""
