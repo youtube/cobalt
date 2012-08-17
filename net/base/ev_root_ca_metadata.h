@@ -12,6 +12,7 @@
 #endif
 
 #include <map>
+#include <set>
 #include <vector>
 
 #include "net/base/net_export.h"
@@ -36,14 +37,7 @@ class NET_EXPORT_PRIVATE EVRootCAMetadata {
 
   static EVRootCAMetadata* GetInstance();
 
-#if defined(USE_NSS)
-  // If the root CA cert has an EV policy OID, returns true and appends the
-  // policy OIDs to |*policy_oids|.  Otherwise, returns false.
-  bool GetPolicyOIDsForCA(const SHA1Fingerprint& fingerprint,
-                          std::vector<PolicyOID>* policy_oids) const;
-  const PolicyOID* GetPolicyOIDs() const;
-  int NumPolicyOIDs() const;
-#elif defined(OS_WIN)
+#if defined(USE_NSS) || defined(OS_WIN)
   // Returns true if policy_oid is an EV policy OID of some root CA.
   bool IsEVPolicyOID(PolicyOID policy_oid) const;
 
@@ -77,7 +71,7 @@ class NET_EXPORT_PRIVATE EVRootCAMetadata {
   static bool RegisterOID(const char* policy, PolicyOID* out);
 
   PolicyOIDMap ev_policy_;
-  std::vector<PolicyOID> policy_oids_;
+  std::set<PolicyOID> policy_oids_;
 #elif defined(OS_WIN)
   typedef std::map<SHA1Fingerprint, std::string,
                    SHA1FingerprintLessThan> ExtraEVCAMap;

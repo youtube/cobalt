@@ -8,7 +8,13 @@
 #include "net/base/x509_cert_types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if defined(USE_NSS)
+#include "crypto/scoped_nss_types.h"
+#endif
+
 namespace net {
+
+namespace {
 
 static const char kVerisignPolicy[] = "2.16.840.1.113733.1.7.23.6";
 static const char kThawtePolicy[] = "2.16.840.1.113733.1.7.48.1";
@@ -20,75 +26,119 @@ static const SHA1Fingerprint kFakeFingerprint =
     { { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99 } };
 
+#if defined(USE_NSS) || defined(OS_WIN)
+class EVOidData {
+ public:
+  EVOidData();
+  bool Init();
+
+  EVRootCAMetadata::PolicyOID verisign_policy;
+  EVRootCAMetadata::PolicyOID thawte_policy;
+  EVRootCAMetadata::PolicyOID fake_policy;
+};
+
+#endif  // defined(USE_NSS) || defined(OS_WIN)
+
 #if defined(USE_NSS)
 
-TEST(EVRootCAMetadataTest, Basic) {
-  EVRootCAMetadata* ev_metadata(EVRootCAMetadata::GetInstance());
-  std::vector<EVRootCAMetadata::PolicyOID> oids;
+SECOidTag RegisterOID(PLArenaPool* arena, const char* oid_string) {
+  SECOidData oid_data;
+  memset(&oid_data, 0, sizeof(oid_data));
+  oid_data.offset = SEC_OID_UNKNOWN;
+  oid_data.desc = oid_string;
+  oid_data.mechanism = CKM_INVALID_MECHANISM;
+  oid_data.supportedExtension = INVALID_CERT_EXTENSION;
 
-  EXPECT_TRUE(ev_metadata->GetPolicyOIDsForCA(kVerisignFingerprint, &oids));
-  EXPECT_LT(0u, oids.size());
-  oids.clear();
+  SECStatus rv = SEC_StringToOID(arena, &oid_data.oid, oid_string, 0);
+  if (rv != SECSuccess)
+    return SEC_OID_UNKNOWN;
 
-  EXPECT_FALSE(ev_metadata->GetPolicyOIDsForCA(kFakeFingerprint, &oids));
-  EXPECT_EQ(0u, oids.size());
+  return SECOID_AddEntry(&oid_data);
 }
 
-TEST(EVRootCAMetadataTest, AddRemove) {
-  EVRootCAMetadata* ev_metadata(EVRootCAMetadata::GetInstance());
-  std::vector<EVRootCAMetadata::PolicyOID> oids;
+EVOidData::EVOidData()
+    : verisign_policy(SEC_OID_UNKNOWN),
+      thawte_policy(SEC_OID_UNKNOWN),
+      fake_policy(SEC_OID_UNKNOWN) {
+}
 
-  EXPECT_FALSE(ev_metadata->GetPolicyOIDsForCA(kFakeFingerprint, &oids));
+bool EVOidData::Init() {
+  crypto::ScopedPLArenaPool pool(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
+  if (!pool.get())
+    return false;
 
-  {
-    ScopedTestEVPolicy test_ev_policy(ev_metadata, kFakeFingerprint,
-                                      kFakePolicy);
+  verisign_policy = RegisterOID(pool.get(), kVerisignPolicy);
+  thawte_policy = RegisterOID(pool.get(), kThawtePolicy);
+  fake_policy = RegisterOID(pool.get(), kFakePolicy);
 
-    EXPECT_TRUE(ev_metadata->GetPolicyOIDsForCA(kFakeFingerprint, &oids));
-    EXPECT_EQ(1u, oids.size());
-  }
-
-  EXPECT_FALSE(ev_metadata->GetPolicyOIDsForCA(kFakeFingerprint, &oids));
+  return verisign_policy != SEC_OID_UNKNOWN &&
+         thawte_policy != SEC_OID_UNKNOWN &&
+         fake_policy != SEC_OID_UNKNOWN;
 }
 
 #elif defined(OS_WIN)
 
-TEST(EVRootCAMetadataTest, Basic) {
-  EVRootCAMetadata* ev_metadata(EVRootCAMetadata::GetInstance());
-
-  EXPECT_TRUE(ev_metadata->IsEVPolicyOID(kVerisignPolicy));
-  EXPECT_FALSE(ev_metadata->IsEVPolicyOID(kFakePolicy));
-  EXPECT_TRUE(ev_metadata->HasEVPolicyOID(kVerisignFingerprint,
-                                          kVerisignPolicy));
-  EXPECT_FALSE(ev_metadata->HasEVPolicyOID(kFakeFingerprint,
-                                           kVerisignPolicy));
-  EXPECT_FALSE(ev_metadata->HasEVPolicyOID(kVerisignFingerprint,
-                                           kFakePolicy));
-  EXPECT_FALSE(ev_metadata->HasEVPolicyOID(kVerisignFingerprint,
-                                           kThawtePolicy));
+EVOidData::EVOidData()
+    : verisign_policy(kVerisignPolicy),
+      thawte_policy(kThawtePolicy),
+      fake_policy(kFakePolicy) {
 }
 
-TEST(EVRootCAMetadataTest, AddRemove) {
+bool EVOidData::Init() {
+  return true;
+}
+
+#endif
+
+#if defined(USE_NSS) || defined(OS_WIN)
+
+class EVRootCAMetadataTest : public testing::Test {
+ protected:
+  virtual void SetUp() OVERRIDE {
+    ASSERT_TRUE(ev_oid_data.Init());
+  }
+
+  EVOidData ev_oid_data;
+};
+
+TEST_F(EVRootCAMetadataTest, Basic) {
   EVRootCAMetadata* ev_metadata(EVRootCAMetadata::GetInstance());
 
-  EXPECT_FALSE(ev_metadata->IsEVPolicyOID(kFakePolicy));
+  EXPECT_TRUE(ev_metadata->IsEVPolicyOID(ev_oid_data.verisign_policy));
+  EXPECT_FALSE(ev_metadata->IsEVPolicyOID(ev_oid_data.fake_policy));
+  EXPECT_TRUE(ev_metadata->HasEVPolicyOID(kVerisignFingerprint,
+                                          ev_oid_data.verisign_policy));
   EXPECT_FALSE(ev_metadata->HasEVPolicyOID(kFakeFingerprint,
-                                           kFakePolicy));
+                                           ev_oid_data.verisign_policy));
+  EXPECT_FALSE(ev_metadata->HasEVPolicyOID(kVerisignFingerprint,
+                                           ev_oid_data.fake_policy));
+  EXPECT_FALSE(ev_metadata->HasEVPolicyOID(kVerisignFingerprint,
+                                           ev_oid_data.thawte_policy));
+}
+
+TEST_F(EVRootCAMetadataTest, AddRemove) {
+  EVRootCAMetadata* ev_metadata(EVRootCAMetadata::GetInstance());
+
+  EXPECT_FALSE(ev_metadata->IsEVPolicyOID(ev_oid_data.fake_policy));
+  EXPECT_FALSE(ev_metadata->HasEVPolicyOID(kFakeFingerprint,
+                                           ev_oid_data.fake_policy));
 
   {
     ScopedTestEVPolicy test_ev_policy(ev_metadata, kFakeFingerprint,
                                       kFakePolicy);
 
-    EXPECT_TRUE(ev_metadata->IsEVPolicyOID(kFakePolicy));
+    EXPECT_TRUE(ev_metadata->IsEVPolicyOID(ev_oid_data.fake_policy));
     EXPECT_TRUE(ev_metadata->HasEVPolicyOID(kFakeFingerprint,
-                                            kFakePolicy));
+                                            ev_oid_data.fake_policy));
   }
 
-  EXPECT_FALSE(ev_metadata->IsEVPolicyOID(kFakePolicy));
+  EXPECT_FALSE(ev_metadata->IsEVPolicyOID(ev_oid_data.fake_policy));
   EXPECT_FALSE(ev_metadata->HasEVPolicyOID(kFakeFingerprint,
-                                           kFakePolicy));
+                                           ev_oid_data.fake_policy));
 }
 
-#endif // defined(OS_WIN)
+#endif  // defined(USE_NSS) || defined(OS_WIN)
+
+}  // namespace
 
 }  // namespace net

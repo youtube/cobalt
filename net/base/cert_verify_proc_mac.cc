@@ -157,6 +157,7 @@ OSStatus CreateTrustPolicies(const std::string& hostname,
   // revocation preference.
   status = x509_util::CreateRevocationPolicies(
       (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED),
+      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY),
       local_policies);
   if (status)
     return status;
@@ -380,6 +381,8 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
   tp_action_data.ActionFlags = CSSM_TP_ACTION_FETCH_CERT_FROM_NET |
                                CSSM_TP_ACTION_TRUST_SETTINGS;
 
+  // Note: For EV certificates, the Apple TP will handle setting these flags
+  // as part of EV evaluation.
   if (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) {
     // Require a positive result from an OCSP responder or a CRL (or both)
     // for every certificate in the chain. The Apple TP automatically
@@ -564,6 +567,8 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
           if (CFDictionaryContainsKey(ev_dict,
                                       kSecEVOrganizationName)) {
             verify_result->cert_status |= CERT_STATUS_IS_EV;
+            if (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY)
+              verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
           }
         }
       }
