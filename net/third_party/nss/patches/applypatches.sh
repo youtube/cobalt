@@ -48,6 +48,8 @@ patch -p5 < $patches_dir/tlsunique.patch
 
 patch -p5 < $patches_dir/sslkeylogerror.patch
 
-patch -p4 < $patches_dir/recordlayerversion.patch
+patch -p5 < $patches_dir/recordlayerversion.patch
 
 patch -p5 < $patches_dir/sslprotocolvariant.patch
+
+patch -p5 < $patches_dir/renegoclientversion.patch
