@@ -247,6 +247,9 @@
               'cflags': [
                 '-Wno-pointer-sign',
                 '-Wno-empty-body',
+
+                # See http://crbug.com/138571#c8
+                '-Wno-ignored-attributes',
               ],
             }],
           ],
