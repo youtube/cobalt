@@ -38,15 +38,16 @@
 // //       8 July, 2015, and after that all instances will be in "StandardMem".
 // scoped_refptr<base::FieldTrial> trial(
 //     base::FieldTrialList::FactoryGetFieldTrial("MemoryExperiment", 1000,
-//                                                "StandardMem", 2015, 7, 8));
-// const int kHighMemGroup =
+//                                                "StandardMem", 2015, 7, 8,
+//                                                NULL));
+// const int high_mem_group =
 //     trial->AppendGroup("HighMem", 20);  // 2% in HighMem group.
-// const int kLowMemGroup =
+// const int low_mem_group =
 //     trial->AppendGroup("LowMem", 20);   // 2% in LowMem group.
 // // Take action depending of which group we randomly land in.
-// if (trial->group() == kHighMemGroup)
+// if (trial->group() == high_mem_group)
 //   SetPruningAlgorithm(kType1);  // Sample setting of browser state.
-// else if (trial->group() == kLowMemGroup)
+// else if (trial->group() == low_mem_group)
 //   SetPruningAlgorithm(kType2);  // Sample alternate setting.
 
 // We then, in addition to our original histogram, output histograms which have
