@@ -139,6 +139,12 @@ void MessagePumpAuraX11::SetDefaultDispatcher(
   g_default_dispatcher = dispatcher;
 }
 
+// static
+MessagePumpAuraX11* MessagePumpAuraX11::Current() {
+  MessageLoopForUI* loop = MessageLoopForUI::current();
+  return static_cast<MessagePumpAuraX11*>(loop->pump_ui());
+}
+
 bool MessagePumpAuraX11::DispatchXEvents() {
   Display* display = GetDefaultXDisplay();
   DCHECK(display);
@@ -154,6 +160,23 @@ bool MessagePumpAuraX11::DispatchXEvents() {
       return TRUE;
   }
   return TRUE;
+}
+
+void MessagePumpAuraX11::BlockUntilWindowMapped(unsigned long window) {
+  XEvent event;
+
+  Display* display = GetDefaultXDisplay();
+  DCHECK(display);
+
+  MessagePumpDispatcher* dispatcher =
+      GetDispatcher() ? GetDispatcher() : g_default_dispatcher;
+
+  do {
+    // Block until there's a message of |event_mask| type on |w|. Then remove
+    // it from the queue and stuff it in |event|.
+    XWindowEvent(display, window, StructureNotifyMask, &event);
+    ProcessXEvent(dispatcher, &event);
+  } while (event.type != MapNotify);
 }
 
 MessagePumpAuraX11::~MessagePumpAuraX11() {

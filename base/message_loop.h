@@ -30,7 +30,7 @@
 #include "base/message_pump_libevent.h"
 #if !defined(OS_MACOSX) && !defined(OS_ANDROID)
 
-#if defined(USE_AURA) && !defined(OS_NACL)
+#if defined(USE_AURA) && defined(USE_X11) && !defined(OS_NACL)
 #include "base/message_pump_aurax11.h"
 #else
 #include "base/message_pump_gtk.h"
@@ -571,6 +571,10 @@ class BASE_EXPORT MessageLoopForUI : public MessageLoop {
   void RemoveObserver(Observer* observer);
 
  protected:
+#if defined(USE_AURA) && defined(USE_X11) && !defined(OS_NACL)
+  friend class base::MessagePumpAuraX11;
+#endif
+
   // TODO(rvargas): Make this platform independent.
   base::MessagePumpForUI* pump_ui() {
     return static_cast<base::MessagePumpForUI*>(pump_.get());
