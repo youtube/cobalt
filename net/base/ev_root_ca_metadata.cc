@@ -320,26 +320,22 @@ EVRootCAMetadata* EVRootCAMetadata::GetInstance() {
 }
 
 #if defined(USE_NSS)
+bool EVRootCAMetadata::IsEVPolicyOID(PolicyOID policy_oid) const {
+  return policy_oids_.find(policy_oid) != policy_oids_.end();
+}
 
-bool EVRootCAMetadata::GetPolicyOIDsForCA(
+bool EVRootCAMetadata::HasEVPolicyOID(
     const SHA1Fingerprint& fingerprint,
-    std::vector<PolicyOID>* policy_oids) const {
+    PolicyOID policy_oid) const {
   PolicyOIDMap::const_iterator iter = ev_policy_.find(fingerprint);
   if (iter == ev_policy_.end())
     return false;
   for (std::vector<PolicyOID>::const_iterator
        j = iter->second.begin(); j != iter->second.end(); ++j) {
-    policy_oids->push_back(*j);
+    if (*j == policy_oid)
+      return true;
   }
-  return true;
-}
-
-const EVRootCAMetadata::PolicyOID* EVRootCAMetadata::GetPolicyOIDs() const {
-  return &policy_oids_[0];
-}
-
-int EVRootCAMetadata::NumPolicyOIDs() const {
-  return policy_oids_.size();
+  return false;
 }
 
 bool EVRootCAMetadata::AddEVCA(const SHA1Fingerprint& fingerprint,
@@ -352,7 +348,7 @@ bool EVRootCAMetadata::AddEVCA(const SHA1Fingerprint& fingerprint,
     return false;
 
   ev_policy_[fingerprint].push_back(oid);
-  policy_oids_.push_back(oid);
+  policy_oids_.insert(oid);
 
   return true;
 }
@@ -363,12 +359,7 @@ bool EVRootCAMetadata::RemoveEVCA(const SHA1Fingerprint& fingerprint) {
     return false;
   PolicyOID oid = it->second[0];
   ev_policy_.erase(it);
-
-  std::vector<PolicyOID>::iterator it2 = std::find(
-      policy_oids_.begin(), policy_oids_.end(), oid);
-  if (it2 == policy_oids_.end())
-    return false;
-  policy_oids_.erase(it2);
+  policy_oids_.erase(oid);
   return true;
 }
 
@@ -491,7 +482,7 @@ EVRootCAMetadata::EVRootCAMetadata() {
       }
 
       ev_policy_[metadata.fingerprint].push_back(policy);
-      policy_oids_.push_back(policy);
+      policy_oids_.insert(policy);
     }
   }
 #endif
