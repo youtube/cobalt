@@ -349,7 +349,8 @@ class AndroidCommands(object):
         if 'Success' in install_status:
           return install_status
       except errors.WaitForResponseTimedOutError:
-        logging.info('Timout on installing %s' % apk_path)
+        print '@@@STEP_WARNINGS@@@'
+        logging.info('Timeout on installing %s' % apk_path)
 
       if reboots_left <= 0:
         raise Exception('Install failure')
