@@ -240,10 +240,13 @@ bool SharedMemory::Map(uint32 bytes) {
                  MAP_SHARED, mapped_file_, 0);
 
   bool mmap_succeeded = memory_ != (void*)-1 && memory_ != NULL;
-  if (mmap_succeeded)
+  if (mmap_succeeded) {
     mapped_size_ = bytes;
-  else
+    DCHECK_EQ(0U, reinterpret_cast<uintptr_t>(memory_) &
+        (SharedMemory::MAP_MINIMUM_ALIGNMENT - 1));
+  } else {
     memory_ = NULL;
+  }
 
   return mmap_succeeded;
 }
