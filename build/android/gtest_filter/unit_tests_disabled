@@ -134,9 +134,9 @@ PrerenderTest.*
 RenderWidgetTest.OnMsgPaintAtSize
 
 # crbug.com/139643
-ExperimentsHelperTest.DisableAfterInitialization
-ExperimentsHelperTest.AssociateGoogleVariationID
-ExperimentsHelperTest.NoAssociation
+VariationsHelperTest.DisableAfterInitialization
+VariationsHelperTest.AssociateGoogleVariationID
+VariationsHelperTest.NoAssociation
 
 # crbug.com/141473
 AutofillManagerTest.UpdatePasswordSyncState
