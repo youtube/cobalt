@@ -1618,7 +1618,6 @@
             'cflags!': [
               '-Wall',
               '-Wextra',
-              '-Werror',
             ],
             'cflags_cc': [
               # Don't warn about hash_map in third-party code.
@@ -1634,6 +1633,12 @@
               # http://code.google.com/p/chromium/issues/detail?id=90453
               '-Wsign-compare',
             ]
+          }],
+          # TODO: Fix all warnings on chromeos too.
+          [ 'os_posix==1 and OS!="mac" and OS!="ios" and (clang!=1 or chromeos==1)', {
+            'cflags!': [
+              '-Werror',
+            ],
           }],
           [ 'os_posix==1 and os_bsd!=1 and OS!="mac" and OS!="android"', {
             'cflags': [
