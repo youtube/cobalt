@@ -315,6 +315,16 @@
                 '../chrome/chrome.gyp:pyautolib',
               ],
             }],
+            ['OS=="mac"', {
+              'dependencies': [
+                '../remoting/remoting.gyp:remoting_me2me_host_archive',
+              ],
+            }],
+            ['OS=="win" and component != "shared_library" and wix_exists == "True" and sas_dll_exists == "True"', {
+              'dependencies': [
+                '../remoting/remoting.gyp:remoting_host_installation',
+              ],
+            }],
           ],
         }, # target_name: chromium_builder_qa
         {
