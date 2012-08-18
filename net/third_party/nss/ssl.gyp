@@ -89,6 +89,13 @@
       ],
       'msvs_disabled_warnings': [4018, 4244],
       'conditions': [
+        [ 'clang == 1', {
+          'cflags': [
+            # See http://crbug.com/138571#c8. In short, sslsecur.c picks up the
+            # system's cert.h because cert.h isn't in chromium's repo.
+            '-Wno-incompatible-pointer-types',
+          ],
+        }],
         [ 'OS == "mac" or OS == "ios"', {
           'defines': [
             'XP_UNIX',
