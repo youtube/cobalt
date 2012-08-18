@@ -260,14 +260,14 @@ BASE_EXPORT bool ResolveShortcut(const FilePath& shortcut_path,
 // properties on an existing shortcut will be modified. If the shortcut does not
 // exist, this method is a no-op and returns false.
 BASE_EXPORT bool CreateOrUpdateShortcutLink(const wchar_t *source,
-                                    const wchar_t *destination,
-                                    const wchar_t *working_dir,
-                                    const wchar_t *arguments,
-                                    const wchar_t *description,
-                                    const wchar_t *icon,
-                                    int icon_index,
-                                    const wchar_t* app_id,
-                                    uint32 options);
+                                            const wchar_t *destination,
+                                            const wchar_t *working_dir,
+                                            const wchar_t *arguments,
+                                            const wchar_t *description,
+                                            const wchar_t *icon,
+                                            int icon_index,
+                                            const wchar_t* app_id,
+                                            uint32 options);
 
 // Pins a shortcut to the Windows 7 taskbar. The shortcut file must already
 // exist and be a shortcut that points to an executable.
