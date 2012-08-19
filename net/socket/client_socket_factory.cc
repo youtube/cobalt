@@ -64,11 +64,11 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
     CertDatabase::RemoveObserver(this);
   }
 
-  virtual void OnUserCertAdded(const X509Certificate* cert) {
+  virtual void OnUserCertAdded(const X509Certificate* cert) OVERRIDE {
     ClearSSLSessionCache();
   }
 
-  virtual void OnCertTrustChanged(const X509Certificate* cert) {
+  virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE {
     // Per wtc, we actually only need to flush when trust is reduced.
     // Always flush now because OnCertTrustChanged does not tell us this.
     // See comments in ClientSocketPoolManager::OnCertTrustChanged.
@@ -79,14 +79,14 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       DatagramSocket::BindType bind_type,
       const RandIntCallback& rand_int_cb,
       NetLog* net_log,
-      const NetLog::Source& source) {
+      const NetLog::Source& source) OVERRIDE {
     return new UDPClientSocket(bind_type, rand_int_cb, net_log, source);
   }
 
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
       NetLog* net_log,
-      const NetLog::Source& source) {
+      const NetLog::Source& source) OVERRIDE {
     return new TCPClientSocket(addresses, net_log, source);
   }
 
@@ -94,7 +94,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      const SSLClientSocketContext& context) {
+      const SSLClientSocketContext& context) OVERRIDE {
     // nss_thread_task_runner_ may be NULL if g_use_dedicated_nss_thread is
     // false or if the dedicated NSS thread failed to start. If so, cause NSS
     // functions to execute on the current task runner.
@@ -137,7 +137,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
 #endif
   }
 
-  void ClearSSLSessionCache() {
+  virtual void ClearSSLSessionCache() OVERRIDE {
     SSLClientSocket::ClearSessionCache();
   }
 

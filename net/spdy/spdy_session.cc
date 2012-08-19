@@ -1164,7 +1164,7 @@ class SimpleSpdyIOBufferProducer : public SpdySession::SpdyIOBufferProducer {
     return priority_;
   }
 
-  virtual SpdyIOBuffer* ProduceNextBuffer(SpdySession* session) {
+  virtual SpdyIOBuffer* ProduceNextBuffer(SpdySession* session) OVERRIDE {
     return SpdySession::SpdyIOBufferProducer::CreateIOBuffer(
         frame_.get(), priority_, NULL);
   }

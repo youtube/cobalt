@@ -373,9 +373,10 @@ class UnsetProxyConfigService : public ProxyConfigService {
   UnsetProxyConfigService() {}
   virtual ~UnsetProxyConfigService() {}
 
-  virtual void AddObserver(Observer* observer) {}
-  virtual void RemoveObserver(Observer* observer) {}
-  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config) {
+  virtual void AddObserver(Observer* observer) OVERRIDE {}
+  virtual void RemoveObserver(Observer* observer) OVERRIDE {}
+  virtual ConfigAvailability GetLatestProxyConfig(
+      ProxyConfig* config) OVERRIDE {
     return CONFIG_UNSET;
   }
 };
