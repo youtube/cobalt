@@ -71,7 +71,7 @@ class ConfigReader : public SerialWorker {
   explicit ConfigReader(const CallbackType& callback)
       : callback_(callback), success_(false) {}
 
-  void DoWork() OVERRIDE {
+  virtual void DoWork() OVERRIDE {
     base::TimeTicks start_time = base::TimeTicks::Now();
     ConfigParsePosixResult result = ReadDnsConfig(&dns_config_);
     success_ = (result == CONFIG_PARSE_POSIX_OK);
@@ -82,7 +82,7 @@ class ConfigReader : public SerialWorker {
                         base::TimeTicks::Now() - start_time);
   }
 
-  void OnWorkFinished() OVERRIDE {
+  virtual void OnWorkFinished() OVERRIDE {
     DCHECK(!IsCancelled());
     if (success_) {
       callback_.Run(dns_config_);

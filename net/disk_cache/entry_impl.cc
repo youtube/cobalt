@@ -40,9 +40,9 @@ class SyncCallback: public disk_cache::FileIOCallback {
     entry->AddRef();
     entry->IncrementIoCount();
   }
-  ~SyncCallback() {}
+  virtual ~SyncCallback() {}
 
-  virtual void OnFileIOComplete(int bytes_copied);
+  virtual void OnFileIOComplete(int bytes_copied) OVERRIDE;
   void Discard();
 
  private:

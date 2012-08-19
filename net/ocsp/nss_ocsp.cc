@@ -254,7 +254,7 @@ class OCSPRequestSession
 
   virtual void OnReceivedRedirect(net::URLRequest* request,
                                   const GURL& new_url,
-                                  bool* defer_redirect) {
+                                  bool* defer_redirect) OVERRIDE {
     DCHECK_EQ(request, request_);
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 
@@ -265,7 +265,7 @@ class OCSPRequestSession
     }
   }
 
-  virtual void OnResponseStarted(net::URLRequest* request) {
+  virtual void OnResponseStarted(net::URLRequest* request) OVERRIDE {
     DCHECK_EQ(request, request_);
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 
@@ -279,7 +279,8 @@ class OCSPRequestSession
     OnReadCompleted(request_, bytes_read);
   }
 
-  virtual void OnReadCompleted(net::URLRequest* request, int bytes_read) {
+  virtual void OnReadCompleted(net::URLRequest* request,
+                               int bytes_read) OVERRIDE {
     DCHECK_EQ(request, request_);
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 

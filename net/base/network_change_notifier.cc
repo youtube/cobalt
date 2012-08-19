@@ -31,7 +31,7 @@ NetworkChangeNotifierFactory* g_network_change_notifier_factory = NULL;
 
 class MockNetworkChangeNotifier : public NetworkChangeNotifier {
  public:
-  virtual ConnectionType GetCurrentConnectionType() const {
+  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE {
     return CONNECTION_UNKNOWN;
   }
 };
