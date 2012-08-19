@@ -836,7 +836,7 @@ class HostComponentTransform : public AppendComponentTransform {
  private:
   virtual string16 Execute(
       const std::string& component_text,
-      std::vector<size_t>* offsets_into_component) const {
+      std::vector<size_t>* offsets_into_component) const OVERRIDE {
     return IDNToUnicodeWithOffsets(component_text, languages_,
                                    offsets_into_component);
   }
@@ -853,7 +853,7 @@ class NonHostComponentTransform : public AppendComponentTransform {
  private:
   virtual string16 Execute(
       const std::string& component_text,
-      std::vector<size_t>* offsets_into_component) const {
+      std::vector<size_t>* offsets_into_component) const OVERRIDE {
     return (unescape_rules_ == UnescapeRule::NONE) ?
         UTF8ToUTF16AndAdjustOffsets(component_text, offsets_into_component) :
         UnescapeAndDecodeUTF8URLComponentWithOffsets(component_text,

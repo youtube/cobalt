@@ -55,15 +55,15 @@ class URLRequestHttpJob::HttpFilterContext : public FilterContext {
   virtual ~HttpFilterContext();
 
   // FilterContext implementation.
-  virtual bool GetMimeType(std::string* mime_type) const;
-  virtual bool GetURL(GURL* gurl) const;
-  virtual base::Time GetRequestTime() const;
-  virtual bool IsCachedContent() const;
-  virtual bool IsDownload() const;
-  virtual bool IsSdchResponse() const;
-  virtual int64 GetByteReadCount() const;
-  virtual int GetResponseCode() const;
-  virtual void RecordPacketStats(StatisticSelector statistic) const;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
+  virtual bool GetURL(GURL* gurl) const OVERRIDE;
+  virtual base::Time GetRequestTime() const OVERRIDE;
+  virtual bool IsCachedContent() const OVERRIDE;
+  virtual bool IsDownload() const OVERRIDE;
+  virtual bool IsSdchResponse() const OVERRIDE;
+  virtual int64 GetByteReadCount() const OVERRIDE;
+  virtual int GetResponseCode() const OVERRIDE;
+  virtual void RecordPacketStats(StatisticSelector statistic) const OVERRIDE;
 
   // Method to allow us to reset filter context for a response that should have
   // been SDCH encoded when there is an update due to an explicit HTTP header.
