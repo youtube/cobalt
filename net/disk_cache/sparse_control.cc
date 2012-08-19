@@ -56,7 +56,7 @@ class ChildrenDeleter
   ChildrenDeleter(disk_cache::BackendImpl* backend, const std::string& name)
       : backend_(backend->GetWeakPtr()), name_(name), signature_(0) {}
 
-  virtual void OnFileIOComplete(int bytes_copied);
+  virtual void OnFileIOComplete(int bytes_copied) OVERRIDE;
 
   // Two ways of deleting the children: if we have the children map, use Start()
   // directly, otherwise pass the data address to ReadData().
@@ -65,7 +65,7 @@ class ChildrenDeleter
 
  private:
   friend class base::RefCounted<ChildrenDeleter>;
-  ~ChildrenDeleter() {}
+  virtual ~ChildrenDeleter() {}
 
   void DeleteChildren();
 
