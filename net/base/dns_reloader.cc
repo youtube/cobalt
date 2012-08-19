@@ -84,7 +84,7 @@ class DnsReloader : public net::NetworkChangeNotifier::DNSObserver {
     net::NetworkChangeNotifier::AddDNSObserver(this);
   }
 
-  ~DnsReloader() {
+  virtual ~DnsReloader() {
     NOTREACHED();  // LeakyLazyInstance is not destructed.
   }
 
