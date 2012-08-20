@@ -24,7 +24,9 @@ namespace net {
 // A request job that handles reading file URLs
 class NET_EXPORT URLRequestFileJob : public URLRequestJob {
  public:
-  URLRequestFileJob(URLRequest* request, const FilePath& file_path);
+  URLRequestFileJob(URLRequest* request,
+                    const FilePath& file_path,
+                    NetworkDelegate* network_delegate);
 
   static URLRequest::ProtocolFactory Factory;
 
@@ -52,12 +54,6 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
   FilePath file_path_;
 
  private:
-  // Tests to see if access to |path| is allowed. If g_allow_file_access_ is
-  // true, then this will return true. If the NetworkDelegate associated with
-  // the |request| says it's OK, then this will also return true.
-  static bool IsFileAccessAllowed(const URLRequest& request,
-                                  const FilePath& path);
-
   // Callback after fetching file info on a background thread.
   void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
 
