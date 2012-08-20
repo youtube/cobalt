@@ -111,8 +111,8 @@ class BasicNetworkDelegate : public NetworkDelegate {
     return OK;
   }
 
-  virtual void OnCacheWaitStateChange(const URLRequest& request,
-                                      CacheWaitState state) OVERRIDE {
+  virtual void OnRequestWaitStateChange(const URLRequest& request,
+                                        RequestWaitState state) OVERRIDE {
   }
 
   DISALLOW_COPY_AND_ASSIGN(BasicNetworkDelegate);
