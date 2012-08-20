@@ -2249,6 +2249,7 @@
                       # compiler (r5-r7). This can be verified using
                       # TestWebKitAPI's WTF.Checked_int8_t test.
                       '-fno-tree-sra',
+                      '-fuse-ld=gold',
                       '-Wno-psabi',
                     ],
                     # Android now supports .relro sections properly.
@@ -2258,6 +2259,7 @@
                     'ldflags': [
                         '-Wl,-z,relro',
                         '-Wl,-z,now',
+                        '-fuse-ld=gold',
                     ],
                     'conditions': [
                       ['arm_thumb == 1', {
@@ -2285,6 +2287,7 @@
                           '-mthumb-interwork',
                           '-finline-limit=64',
                           '-fno-tree-sra',
+                          '-fuse-ld=gold',
                           '-Wno-psabi',
                         ],
                       }],
