@@ -212,7 +212,7 @@ void LogWarning(NSString* format, ...) {
     // account for this case, check if the simulated app's stdio file was
     // ever created and if it exists dump it to stdout and return success.
     NSFileManager* fileManager = [NSFileManager defaultManager];
-    if ([fileManager fileExistsAtPath:stdioPath_ isDirectory:NO]) {
+    if ([fileManager fileExistsAtPath:stdioPath_]) {
       appRunning_ = NO;
       [self tailOutput];
       // Note that exiting in this state leaves a process running
