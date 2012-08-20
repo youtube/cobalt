@@ -27,13 +27,15 @@ common_check_toolchain() {
 common_vars_defines() {
 
   # Set toolchain path according to product architecture.
-  toolchain_arch="arm"
+  toolchain_arch="arm-linux-androideabi"
   if [[ "${TARGET_PRODUCT}" =~ .*x86.* ]]; then
     toolchain_arch="x86"
+    toolchain_dir="linux-x86"
   fi
 
+  toolchain_version="4.6"
   toolchain_target=$(basename \
-    ${ANDROID_NDK_ROOT}/toolchains/${toolchain_arch}-*)
+    ${ANDROID_NDK_ROOT}/toolchains/${toolchain_arch}-${toolchain_version})
   toolchain_path="${ANDROID_NDK_ROOT}/toolchains/${toolchain_target}"\
 "/prebuilt/${toolchain_dir}/bin/"
 
@@ -207,7 +209,6 @@ sdk_build_init() {
 
 }
 
-
 ################################################################################
 # Initializes environment variables for build with android source.  This expects
 # android environment to be set up along with lunch.  To build:
@@ -221,14 +222,24 @@ non_sdk_build_init() {
   # having to cd to $ANDROID_BUILD_TOP.
   export TOP="$ANDROID_BUILD_TOP"
 
-  # We export "ANDROID_NDK_ROOT" for building Chromium for Android by NDK.
-  export ANDROID_NDK_ROOT=${ANDROID_BUILD_TOP}/prebuilts/ndk/android-ndk-r7
+  # Set "ANDROID_NDK_ROOT" as checked-in version, if it was not set.
+  if [ ! -d "$ANDROID_NDK_ROOT" ] ; then
+    export ANDROID_NDK_ROOT="${CHROME_SRC}/third_party/android_tools/ndk/"
+  fi
+  if [ ! -d "$ANDROID_NDK_ROOT" ] ; then
+    echo "Can not find Android NDK root ${ANDROID_NDK_ROOT}." >& 2
+    return 1
+  fi
 
   # We export "ANDROID_SDK_ROOT" for building Java source with the SDK.
   export ANDROID_SDK_ROOT=${ANDROID_BUILD_TOP}/prebuilts/sdk/\
 ${ANDROID_SDK_VERSION}
   # Needed by android antfiles when creating apks.
   export ANDROID_SDK_HOME=${ANDROID_SDK_ROOT}
+
+  # Unset ANDROID_TOOLCHAIN, so it could be set to checked-in 64-bit toolchain.
+  # in common_vars_defines
+  unset ANDROID_TOOLCHAIN
 
   common_vars_defines
 
