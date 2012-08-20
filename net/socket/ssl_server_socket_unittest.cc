@@ -335,7 +335,7 @@ class SSLServerSocketTest : public PlatformTest {
     ssl_config.false_start_enabled = false;
     ssl_config.channel_id_enabled = false;
     ssl_config.version_min = SSL_PROTOCOL_VERSION_SSL3;
-    ssl_config.version_max = SSL_PROTOCOL_VERSION_TLS1;
+    ssl_config.version_max = SSL_PROTOCOL_VERSION_TLS1_1;
 
     // Certificate provided by the host doesn't need authority.
     net::SSLConfig::CertAndStatus cert_and_status;
