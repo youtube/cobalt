@@ -95,10 +95,11 @@ if [[ -d $GOMA_DIR ]]; then
 fi
 export ANDROID_GOMA_WRAPPER
 
-export CC_target=$(basename ${ANDROID_TOOLCHAIN}/*-gcc)
-export CXX_target=$(basename ${ANDROID_TOOLCHAIN}/*-g++)
-export LINK_target=$(basename ${ANDROID_TOOLCHAIN}/*-gcc)
-export AR_target=$(basename ${ANDROID_TOOLCHAIN}/*-ar)
+export CC_target="${ANDROID_GOMA_WRAPPER} $(echo -n ${ANDROID_TOOLCHAIN}/*-gcc)"
+export CXX_target="${ANDROID_GOMA_WRAPPER} \
+  $(echo -n ${ANDROID_TOOLCHAIN}/*-g++)"
+export LINK_target=$(echo -n ${ANDROID_TOOLCHAIN}/*-gcc)
+export AR_target=$(echo -n ${ANDROID_TOOLCHAIN}/*-ar)
 
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
