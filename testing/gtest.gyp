@@ -64,6 +64,9 @@
           },
         }],
         ['OS == "ios"', {
+          'dependencies' : [
+            '<(DEPTH)/testing/iossim/iossim.gyp:iossim',
+          ],
           'direct_dependent_settings': {
             'target_conditions': [
               # Turn all tests into bundles on iOS because that's the only
