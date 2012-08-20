@@ -1825,6 +1825,10 @@ TEST_F(HTTPSRequestTest, SSLv3Fallback) {
 // than necessary.
 TEST_F(HTTPSRequestTest, TLSv1Fallback) {
   uint16 default_version_max = SSLConfigService::default_version_max();
+  // The OpenSSL library in use may not support TLS 1.1.
+#if !defined(USE_OPENSSL)
+  EXPECT_GT(default_version_max, SSL_PROTOCOL_VERSION_TLS1);
+#endif
   if (default_version_max <= SSL_PROTOCOL_VERSION_TLS1)
     return;
 
