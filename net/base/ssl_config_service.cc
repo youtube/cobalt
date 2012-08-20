@@ -18,7 +18,16 @@ namespace net {
 
 static uint16 g_default_version_min = SSL_PROTOCOL_VERSION_SSL3;
 
-static uint16 g_default_version_max = SSL_PROTOCOL_VERSION_TLS1;
+static uint16 g_default_version_max =
+#if defined(USE_OPENSSL)
+#if defined(SSL_OP_NO_TLSv1_1)
+    SSL_PROTOCOL_VERSION_TLS1_1;
+#else
+    SSL_PROTOCOL_VERSION_TLS1;
+#endif
+#else
+    SSL_PROTOCOL_VERSION_TLS1_1;
+#endif
 
 SSLConfig::CertAndStatus::CertAndStatus() : cert_status(0) {}
 
