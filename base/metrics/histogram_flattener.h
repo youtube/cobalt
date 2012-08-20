@@ -14,18 +14,28 @@
 
 namespace base {
 
-// HistogramFlattener is an interface for the logistics of gathering up
-// available histograms for recording. The implementors handle the exact lower
-// level recording mechanism, or error report mechanism.
+// HistogramFlattener is an interface used by HistogramSnapshotManager, which
+// handles the logistics of gathering up available histograms for recording.
+// The implementors handle the exact lower level recording mechanism, or
+// error report mechanism.
 class BASE_EXPORT HistogramFlattener {
  public:
   virtual void RecordDelta(const base::Histogram& histogram,
                            const base::Histogram::SampleSet& snapshot) = 0;
 
-  // Record various errors found during attempts to record histograms.
-  virtual void InconsistencyDetected(int problem) = 0;
-  virtual void UniqueInconsistencyDetected(int problem) = 0;
-  virtual void SnapshotProblemResolved(int amount) = 0;
+  // Will be called each time a type of Inconsistenies is seen on a histogram,
+  // during inspections done internally in HistogramSnapshotManager class.
+  virtual void InconsistencyDetected(Histogram::Inconsistencies problem) = 0;
+
+  // Will be called when a type of Inconsistenies is seen for the first time
+  // on a histogram.
+  virtual void UniqueInconsistencyDetected(
+      Histogram::Inconsistencies problem) = 0;
+
+  // Will be called when the total logged sample count of a histogram
+  // differs from the sum of logged sample count in all the buckets.  The
+  // argument |amount| is the non-zero discrepancy.
+  virtual void InconsistencyDetectedInLoggedCount(int amount) = 0;
 
  protected:
   HistogramFlattener() {}
