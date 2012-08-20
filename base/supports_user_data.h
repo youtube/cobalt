@@ -20,7 +20,8 @@ class BASE_EXPORT SupportsUserData {
   SupportsUserData();
 
   // Derive from this class and add your own data members to associate extra
-  // information with this object. Use GetUserData(key) and SetUserData()
+  // information with this object. Alternatively, add this as a public base
+  // class to any class with a virtual destructor.
   class BASE_EXPORT Data {
    public:
     virtual ~Data() {}
@@ -40,7 +41,7 @@ class BASE_EXPORT SupportsUserData {
  private:
   typedef std::map<const void*, linked_ptr<Data> > DataMap;
 
-  // Externally-defined data accessible by key
+  // Externally-defined data accessible by key.
   DataMap user_data_;
 
   DISALLOW_COPY_AND_ASSIGN(SupportsUserData);
