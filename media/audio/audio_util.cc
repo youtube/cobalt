@@ -12,16 +12,15 @@
 // that a lot of the functions can be simplified and made more elegant. Revisit
 // after other audio cleanup is done. (crbug.com/120319)
 
+#include "media/audio/audio_util.h"
+
 #include <algorithm>
 #include <limits>
 
-#include "base/atomicops.h"
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/shared_memory.h"
 #include "base/time.h"
 #include "media/audio/audio_parameters.h"
-#include "media/audio/audio_util.h"
 #include "media/base/audio_bus.h"
 
 #if defined(OS_MACOSX)
@@ -35,10 +34,6 @@
 #include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/base/media_switches.h"
 #endif
-
-using base::subtle::Atomic32;
-
-const uint32 kUnknownDataSize = static_cast<uint32>(-1);
 
 namespace media {
 
@@ -481,56 +476,6 @@ size_t GetHighLatencyOutputBufferSize(int sample_rate) {
     samples *= 2;
   }
   return samples;
-}
-
-// When transferring data in the shared memory, first word is size of data
-// in bytes. Actual data starts immediately after it.
-
-uint32 TotalSharedMemorySizeInBytes(uint32 packet_size) {
-  // Need to reserve extra 4 bytes for size of data.
-  return packet_size + sizeof(Atomic32);
-}
-
-uint32 PacketSizeSizeInBytes(uint32 shared_memory_created_size) {
-  return shared_memory_created_size - sizeof(Atomic32);
-}
-
-uint32 GetActualDataSizeInBytes(base::SharedMemory* shared_memory,
-                                uint32 shared_memory_size) {
-  char* ptr = static_cast<char*>(shared_memory->memory()) + shared_memory_size;
-  DCHECK_EQ(0u, reinterpret_cast<size_t>(ptr) & 3);
-
-  // Actual data size stored at the end of the buffer.
-  uint32 actual_data_size =
-      base::subtle::Acquire_Load(reinterpret_cast<volatile Atomic32*>(ptr));
-  return std::min(actual_data_size, shared_memory_size);
-}
-
-void SetActualDataSizeInBytes(base::SharedMemory* shared_memory,
-                              uint32 shared_memory_size,
-                              uint32 actual_data_size) {
-  char* ptr = static_cast<char*>(shared_memory->memory()) + shared_memory_size;
-  DCHECK_EQ(0u, reinterpret_cast<size_t>(ptr) & 3);
-
-  // Set actual data size at the end of the buffer.
-  base::subtle::Release_Store(reinterpret_cast<volatile Atomic32*>(ptr),
-                              actual_data_size);
-}
-
-void SetUnknownDataSize(base::SharedMemory* shared_memory,
-                        uint32 shared_memory_size) {
-  SetActualDataSizeInBytes(shared_memory, shared_memory_size, kUnknownDataSize);
-}
-
-bool IsUnknownDataSize(base::SharedMemory* shared_memory,
-                       uint32 shared_memory_size) {
-  char* ptr = static_cast<char*>(shared_memory->memory()) + shared_memory_size;
-  DCHECK_EQ(0u, reinterpret_cast<size_t>(ptr) & 3);
-
-  // Actual data size stored at the end of the buffer.
-  uint32 actual_data_size =
-      base::subtle::Acquire_Load(reinterpret_cast<volatile Atomic32*>(ptr));
-  return actual_data_size == kUnknownDataSize;
 }
 
 #if defined(OS_WIN)
