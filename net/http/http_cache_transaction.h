@@ -355,6 +355,8 @@ class HttpCache::Transaction : public HttpTransaction {
 
   void ReportCacheActionStart();
   void ReportCacheActionFinish();
+  void ReportNetworkActionStart();
+  void ReportNetworkActionFinish();
   void UpdateTransactionPattern(TransactionPattern new_transaction_pattern);
   void RecordHistograms();
 

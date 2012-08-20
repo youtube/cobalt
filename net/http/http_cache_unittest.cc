@@ -62,28 +62,56 @@ class DeleteCacheCompletionCallback : public net::TestCompletionCallbackBase {
 
 class TestHttpTransactionDelegate : public net::HttpTransactionDelegate {
  public:
-  explicit TestHttpTransactionDelegate(int num_actions_to_observe)
-      : num_remaining_actions_to_observe_(num_actions_to_observe),
-        action_in_progress_(false) {
+  TestHttpTransactionDelegate(int num_cache_actions_to_observe,
+                              int num_network_actions_to_observe)
+      : num_callbacks_observed_(0),
+        num_remaining_cache_actions_to_observe_(num_cache_actions_to_observe),
+        num_remaining_network_actions_to_observe_(
+            num_network_actions_to_observe),
+        cache_action_in_progress_(false),
+        network_action_in_progress_(false) {
   }
   virtual ~TestHttpTransactionDelegate() {
-    EXPECT_EQ(0, num_remaining_actions_to_observe_);
-    EXPECT_FALSE(action_in_progress_);
+    EXPECT_EQ(0, num_remaining_cache_actions_to_observe_);
+    EXPECT_EQ(0, num_remaining_network_actions_to_observe_);
+    EXPECT_FALSE(cache_action_in_progress_);
+    EXPECT_FALSE(network_action_in_progress_);
   }
-  virtual void OnCacheActionStart() {
-    EXPECT_FALSE(action_in_progress_);
-    EXPECT_GT(num_remaining_actions_to_observe_, 0);
-    num_remaining_actions_to_observe_--;
-    action_in_progress_ = true;
+  virtual void OnCacheActionStart() OVERRIDE {
+    num_callbacks_observed_++;
+    EXPECT_FALSE(cache_action_in_progress_);
+    EXPECT_FALSE(network_action_in_progress_);
+    EXPECT_GT(num_remaining_cache_actions_to_observe_, 0);
+    num_remaining_cache_actions_to_observe_--;
+    cache_action_in_progress_ = true;
   }
-  virtual void OnCacheActionFinish() {
-    EXPECT_TRUE(action_in_progress_);
-    action_in_progress_ = false;
+  virtual void OnCacheActionFinish() OVERRIDE {
+    num_callbacks_observed_++;
+    EXPECT_TRUE(cache_action_in_progress_);
+    cache_action_in_progress_ = false;
+  }
+  virtual void OnNetworkActionStart() OVERRIDE {
+    num_callbacks_observed_++;
+    EXPECT_FALSE(cache_action_in_progress_);
+    EXPECT_FALSE(network_action_in_progress_);
+    EXPECT_GT(num_remaining_network_actions_to_observe_, 0);
+    num_remaining_network_actions_to_observe_--;
+    network_action_in_progress_ = true;
+  }
+  virtual void OnNetworkActionFinish() OVERRIDE {
+    num_callbacks_observed_++;
+    EXPECT_TRUE(network_action_in_progress_);
+    network_action_in_progress_ = false;
   }
 
+  int num_callbacks_observed() { return num_callbacks_observed_; }
+
  private:
-  int num_remaining_actions_to_observe_;
-  bool action_in_progress_;
+  int num_callbacks_observed_;
+  int num_remaining_cache_actions_to_observe_;
+  int num_remaining_network_actions_to_observe_;
+  bool cache_action_in_progress_;
+  bool network_action_in_progress_;
 };
 
 void ReadAndVerifyTransaction(net::HttpTransaction* trans,
@@ -104,14 +132,18 @@ void RunTransactionTestWithRequestAndLogAndDelegate(
     const MockHttpRequest& request,
     net::HttpResponseInfo* response_info,
     const net::BoundNetLog& net_log,
-    int num_delegate_actions) {
+    int num_cache_delegate_actions,
+    int num_network_delegate_actions) {
   net::TestCompletionCallback callback;
 
   // write to the cache
 
   scoped_ptr<TestHttpTransactionDelegate> delegate;
-  if (num_delegate_actions != kNoDelegateTransactionCheck) {
-    delegate.reset(new TestHttpTransactionDelegate(num_delegate_actions));
+  if (num_cache_delegate_actions != kNoDelegateTransactionCheck &&
+      num_network_delegate_actions != kNoDelegateTransactionCheck) {
+    delegate.reset(
+        new TestHttpTransactionDelegate(num_cache_delegate_actions,
+                                        num_network_delegate_actions));
   }
   scoped_ptr<net::HttpTransaction> trans;
   int rv = cache->CreateTransaction(&trans, delegate.get());
@@ -138,7 +170,7 @@ void RunTransactionTestWithRequest(net::HttpCache* cache,
                                    net::HttpResponseInfo* response_info) {
   RunTransactionTestWithRequestAndLogAndDelegate(
       cache, trans_info, request, response_info, net::BoundNetLog(),
-      kNoDelegateTransactionCheck);
+      kNoDelegateTransactionCheck, kNoDelegateTransactionCheck);
 }
 
 void RunTransactionTestWithLog(net::HttpCache* cache,
@@ -146,15 +178,16 @@ void RunTransactionTestWithLog(net::HttpCache* cache,
                                const net::BoundNetLog& log) {
   RunTransactionTestWithRequestAndLogAndDelegate(
       cache, trans_info, MockHttpRequest(trans_info), NULL, log,
-      kNoDelegateTransactionCheck);
+      kNoDelegateTransactionCheck, kNoDelegateTransactionCheck);
 }
 
 void RunTransactionTestWithDelegate(net::HttpCache* cache,
                                     const MockTransaction& trans_info,
-                                    int num_delegate_actions) {
+                                    int num_cache_delegate_actions,
+                                    int num_network_delegate_actions) {
   RunTransactionTestWithRequestAndLogAndDelegate(
       cache, trans_info, MockHttpRequest(trans_info), NULL, net::BoundNetLog(),
-      num_delegate_actions);
+      num_cache_delegate_actions, num_network_delegate_actions);
 }
 
 void RunTransactionTest(net::HttpCache* cache,
@@ -3905,7 +3938,13 @@ TEST(HttpCache, SetTruncatedFlag) {
   MockHttpRequest request(transaction);
 
   scoped_ptr<Context> c(new Context());
-  int rv = cache.http_cache()->CreateTransaction(&c->trans, NULL);
+  // We use a test delegate to ensure that after initiating destruction
+  // of the transaction, no further delegate callbacks happen.
+  // We initialize the TestHttpTransactionDelegate with the correct number of
+  // cache actions and network actions to be reported.
+  scoped_ptr<TestHttpTransactionDelegate> delegate(
+      new TestHttpTransactionDelegate(7, 3));
+  int rv = cache.http_cache()->CreateTransaction(&c->trans, delegate.get());
   EXPECT_EQ(net::OK, rv);
 
   rv = c->trans->Start(&request, c->callback.callback(), net::BoundNetLog());
@@ -3929,10 +3968,21 @@ TEST(HttpCache, SetTruncatedFlag) {
   EXPECT_FALSE(c->callback.have_result());
 
   MockHttpCache::SetTestMode(TEST_MODE_SYNC_ALL);
+  int num_delegate_callbacks_before_destruction =
+      delegate->num_callbacks_observed();
 
   // Destroy the transaction.
   c->trans.reset();
   MockHttpCache::SetTestMode(0);
+
+  // Ensure the delegate received no callbacks during destruction.
+  EXPECT_EQ(num_delegate_callbacks_before_destruction,
+            delegate->num_callbacks_observed());
+
+  // Since the transaction was aborted in the middle of network I/O, we will
+  // manually call the delegate so that its pending I/O operation will be
+  // closed (which is what the test delegate is expecting).
+  delegate->OnNetworkActionFinish();
 
   // Make sure that we don't invoke the callback. We may have an issue if the
   // UrlRequestJob is killed directly (without cancelling the UrlRequest) so we
@@ -5023,7 +5073,8 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit_TransactionDelegate) {
   // Write to the cache.
   RunTransactionTestWithDelegate(cache.http_cache(),
                                  kSimpleGET_Transaction,
-                                 8);
+                                 8,
+                                 3);
 
   // Force this transaction to read from the cache.
   MockTransaction transaction(kSimpleGET_Transaction);
@@ -5031,5 +5082,6 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit_TransactionDelegate) {
 
   RunTransactionTestWithDelegate(cache.http_cache(),
                                  kSimpleGET_Transaction,
-                                 5);
+                                 5,
+                                 0);
 }
