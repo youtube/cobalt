@@ -894,6 +894,11 @@
         'use_system_bzip2%': 1,
         'use_system_libxml%': 1,
         'use_system_sqlite%': 1,
+
+        # The Mac SDK is set for iOS builds and passed through to Mac
+        # sub-builds. This allows the Mac sub-build SDK in an iOS build to be
+        # overridden from the command line the same way it is for a Mac build.
+        'mac_sdk%': '<!(python <(DEPTH)/build/mac/find_sdk.py 10.6)',
       }],
       ['OS=="android"', {
         # Location of Android NDK.
