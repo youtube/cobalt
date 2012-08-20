@@ -84,8 +84,9 @@ class URLRequestFileJob::AsyncResolver
 };
 
 URLRequestFileJob::URLRequestFileJob(URLRequest* request,
-                                     const FilePath& file_path)
-    : URLRequestJob(request, request->context()->network_delegate()),
+                                     const FilePath& file_path,
+                                     NetworkDelegate* network_delegate)
+    : URLRequestJob(request, network_delegate),
       file_path_(file_path),
       stream_(NULL),
       is_directory_(false),
@@ -99,8 +100,11 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   const bool is_file = FileURLToFilePath(request->url(), &file_path);
 
   // Check file access permissions.
-  if (!IsFileAccessAllowed(*request, file_path))
+  if (!request->context()->network_delegate() ||
+      !request->context()->network_delegate()->CanAccessFile(
+          *request, file_path)) {
     return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
+  }
 
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
@@ -115,7 +119,8 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
 
   // Use a regular file request job for all non-directories (including invalid
   // file names).
-  return new URLRequestFileJob(request, file_path);
+  return new URLRequestFileJob(
+      request, file_path, request->context()->network_delegate());
 }
 
 void URLRequestFileJob::Start() {
@@ -248,15 +253,6 @@ void URLRequestFileJob::SetExtraRequestHeaders(
       }
     }
   }
-}
-
-// static
-bool URLRequestFileJob::IsFileAccessAllowed(const URLRequest& request,
-                                            const FilePath& path) {
-  const NetworkDelegate* delegate = request.context()->network_delegate();
-  if (delegate)
-    return delegate->CanAccessFile(request, path);
-  return false;
 }
 
 URLRequestFileJob::~URLRequestFileJob() {
