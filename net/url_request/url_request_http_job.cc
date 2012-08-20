@@ -80,7 +80,9 @@ class URLRequestHttpJob::HttpTransactionDelegateImpl
  public:
   explicit HttpTransactionDelegateImpl(URLRequest* request)
       : request_(request),
-        network_delegate_(request->context()->network_delegate())  {
+        network_delegate_(request->context()->network_delegate()),
+        cache_active_(false),
+        network_active_(false) {
   }
   virtual ~HttpTransactionDelegateImpl() {
     OnDetachRequest();
@@ -88,28 +90,54 @@ class URLRequestHttpJob::HttpTransactionDelegateImpl
   void OnDetachRequest() {
     if (request_ == NULL || network_delegate_ == NULL)
       return;
-    network_delegate_->NotifyCacheWaitStateChange(
+    network_delegate_->NotifyRequestWaitStateChange(
         *request_,
-        NetworkDelegate::CACHE_WAIT_STATE_RESET);
+        NetworkDelegate::REQUEST_WAIT_STATE_RESET);
+    cache_active_ = false;
+    network_active_ = false;
     request_ = NULL;
   }
   virtual void OnCacheActionStart() OVERRIDE {
     if (request_ == NULL || network_delegate_ == NULL)
       return;
-    network_delegate_->NotifyCacheWaitStateChange(
+    DCHECK(!cache_active_ && !network_active_);
+    cache_active_ = true;
+    network_delegate_->NotifyRequestWaitStateChange(
         *request_,
-        NetworkDelegate::CACHE_WAIT_STATE_START);
+        NetworkDelegate::REQUEST_WAIT_STATE_CACHE_START);
   }
   virtual void OnCacheActionFinish() OVERRIDE {
     if (request_ == NULL || network_delegate_ == NULL)
       return;
-    network_delegate_->NotifyCacheWaitStateChange(
+    DCHECK(cache_active_ && !network_active_);
+    cache_active_ = false;
+    network_delegate_->NotifyRequestWaitStateChange(
         *request_,
-        NetworkDelegate::CACHE_WAIT_STATE_FINISH);
+        NetworkDelegate::REQUEST_WAIT_STATE_CACHE_FINISH);
+  }
+  virtual void OnNetworkActionStart() OVERRIDE {
+    if (request_ == NULL || network_delegate_ == NULL)
+      return;
+    DCHECK(!cache_active_ && !network_active_);
+    network_active_ = true;
+    network_delegate_->NotifyRequestWaitStateChange(
+        *request_,
+        NetworkDelegate::REQUEST_WAIT_STATE_NETWORK_START);
+  }
+  virtual void OnNetworkActionFinish() OVERRIDE {
+    if (request_ == NULL || network_delegate_ == NULL)
+      return;
+    DCHECK(!cache_active_ && network_active_);
+    network_active_ = false;
+    network_delegate_->NotifyRequestWaitStateChange(
+        *request_,
+        NetworkDelegate::REQUEST_WAIT_STATE_NETWORK_FINISH);
   }
  private:
   URLRequest* request_;
   NetworkDelegate* network_delegate_;
+  bool cache_active_;
+  bool network_active_;
 };
 
 URLRequestHttpJob::HttpFilterContext::HttpFilterContext(URLRequestHttpJob* job)
@@ -880,6 +908,8 @@ void URLRequestHttpJob::Start() {
 }
 
 void URLRequestHttpJob::Kill() {
+  http_transaction_delegate_->OnDetachRequest();
+
   if (!transaction_.get())
     return;
 
