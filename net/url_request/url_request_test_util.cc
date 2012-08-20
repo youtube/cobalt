@@ -500,8 +500,9 @@ int TestNetworkDelegate::OnBeforeSocketStreamConnect(
   return net::OK;
 }
 
-void TestNetworkDelegate::OnCacheWaitStateChange(const net::URLRequest& request,
-                                                 CacheWaitState state) {
+void TestNetworkDelegate::OnRequestWaitStateChange(
+    const net::URLRequest& request,
+    RequestWaitState state) {
 }
 
 // static
