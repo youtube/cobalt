@@ -55,9 +55,13 @@ void HistogramSnapshotManager::PrepareDelta(const Histogram& histogram) {
   // Checksum corruption might not have caused order corruption.
   CHECK_EQ(0, Histogram::RANGE_CHECKSUM_ERROR & corruption);
 
+  // Note, at this point corruption can only be COUNT_HIGH_ERROR or
+  // COUNT_LOW_ERROR and they never arise together, so we don't need to extract
+  // bits from corruption.
   if (corruption) {
     NOTREACHED();
-    histogram_flattener_->InconsistencyDetected(corruption);
+    histogram_flattener_->InconsistencyDetected(
+        static_cast<Histogram::Inconsistencies>(corruption));
     // Don't record corrupt data to metrics survices.
     if (NULL == inconsistencies_.get())
       inconsistencies_.reset(new ProblemMap);
@@ -65,7 +69,8 @@ void HistogramSnapshotManager::PrepareDelta(const Histogram& histogram) {
     if (old_corruption == (corruption | old_corruption))
       return;  // We've already seen this corruption for this histogram.
     (*inconsistencies_)[histogram_name] |= corruption;
-    histogram_flattener_->UniqueInconsistencyDetected(corruption);
+    histogram_flattener_->UniqueInconsistencyDetected(
+        static_cast<Histogram::Inconsistencies>(corruption));
     return;
   }
 
@@ -87,7 +92,7 @@ void HistogramSnapshotManager::PrepareDelta(const Histogram& histogram) {
       int problem = static_cast<int>(discrepancy);
       if (problem != discrepancy)
         problem = INT_MAX;
-      histogram_flattener_->SnapshotProblemResolved(problem);
+      histogram_flattener_->InconsistencyDetectedInLoggedCount(problem);
       // With no valid baseline, we'll act like we've recorded everything in our
       // snapshot.
       already_logged->Subtract(*already_logged);
