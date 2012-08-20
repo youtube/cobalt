@@ -154,6 +154,8 @@ HttpCache::Transaction::~Transaction() {
   // after this point.
   callback_.Reset();
 
+  transaction_delegate_ = NULL;
+
   if (cache_) {
     if (entry_) {
       bool cancel_request = reading_;
@@ -745,12 +747,15 @@ int HttpCache::Transaction::DoSendRequest() {
   if (rv != OK)
     return rv;
 
+  ReportNetworkActionStart();
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
   rv = network_trans_->Start(request_, io_callback_, net_log_);
   return rv;
 }
 
 int HttpCache::Transaction::DoSendRequestComplete(int result) {
+  ReportNetworkActionFinish();
+
   if (!cache_)
     return ERR_UNEXPECTED;
 
@@ -839,12 +844,15 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
 }
 
 int HttpCache::Transaction::DoNetworkRead() {
+  ReportNetworkActionStart();
   next_state_ = STATE_NETWORK_READ_COMPLETE;
   return network_trans_->Read(read_buf_, io_buf_len_, io_callback_);
 }
 
 int HttpCache::Transaction::DoNetworkReadComplete(int result) {
   DCHECK(mode_ & WRITE || mode_ == NONE);
+
+  ReportNetworkActionFinish();
 
   if (!cache_)
     return ERR_UNEXPECTED;
@@ -1319,7 +1327,7 @@ int HttpCache::Transaction::DoCacheWriteResponse() {
 
 int HttpCache::Transaction::DoCacheWriteTruncatedResponse() {
   if (entry_) {
-    if (net_log_.IsLoggingAllEvents() && entry_)
+    if (net_log_.IsLoggingAllEvents())
       net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
     ReportCacheActionStart();
   }
@@ -1773,6 +1781,7 @@ int HttpCache::Transaction::RestartNetworkRequest() {
   DCHECK(network_trans_.get());
   DCHECK_EQ(STATE_NONE, next_state_);
 
+  ReportNetworkActionStart();
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
   int rv = network_trans_->RestartIgnoringLastError(io_callback_);
   if (rv != ERR_IO_PENDING)
@@ -1786,6 +1795,7 @@ int HttpCache::Transaction::RestartNetworkRequestWithCertificate(
   DCHECK(network_trans_.get());
   DCHECK_EQ(STATE_NONE, next_state_);
 
+  ReportNetworkActionStart();
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
   int rv = network_trans_->RestartWithCertificate(client_cert, io_callback_);
   if (rv != ERR_IO_PENDING)
@@ -1799,6 +1809,7 @@ int HttpCache::Transaction::RestartNetworkRequestWithAuth(
   DCHECK(network_trans_.get());
   DCHECK_EQ(STATE_NONE, next_state_);
 
+  ReportNetworkActionStart();
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
   int rv = network_trans_->RestartWithAuth(credentials, io_callback_);
   if (rv != ERR_IO_PENDING)
@@ -2083,6 +2094,9 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
        response_.headers->HasHeaderValue("cache-control", "no-store")) ||
       net::IsCertStatusError(response_.ssl_info.cert_status)) {
     DoneWritingToEntry(false);
+    ReportCacheActionFinish();
+    if (net_log_.IsLoggingAllEvents())
+      net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
     return OK;
   }
 
@@ -2230,6 +2244,16 @@ void HttpCache::Transaction::ReportCacheActionStart() {
 void HttpCache::Transaction::ReportCacheActionFinish() {
   if (transaction_delegate_)
     transaction_delegate_->OnCacheActionFinish();
+}
+
+void HttpCache::Transaction::ReportNetworkActionStart() {
+  if (transaction_delegate_)
+    transaction_delegate_->OnNetworkActionStart();
+}
+
+void HttpCache::Transaction::ReportNetworkActionFinish() {
+  if (transaction_delegate_)
+    transaction_delegate_->OnNetworkActionFinish();
 }
 
 void HttpCache::Transaction::UpdateTransactionPattern(
