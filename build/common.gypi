@@ -456,8 +456,11 @@
         }],
 
         ['OS=="android"', {
-          'proprietary_codecs%': 1,
+          'enable_extensions%': 0,
+          'enable_printing%': 0,
+          'enable_themes%': 0,
           'enable_webrtc%': 0,
+          'proprietary_codecs%': 1,
           'remoting%': 0,
         }],
 
@@ -952,18 +955,13 @@
         'configuration_policy%': 0,
         'input_speech%': 0,
         'enable_web_intents%': 0,
-        'enable_extensions%': 0,
         'enable_automation%': 0,
-        'enable_printing%': 0,
         'java_bridge%': 1,
         'build_ffmpegsumo%': 0,
         'linux_use_tcmalloc%': 0,
 
         # Disable Native Client.
         'disable_nacl%': 1,
-
-        # Android does not support themes.
-        'enable_themes%': 0,
 
         # Android does not support background apps.
         'enable_background%': 0,
