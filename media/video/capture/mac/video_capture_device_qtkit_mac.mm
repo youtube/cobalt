@@ -91,6 +91,8 @@
       // The device is still running.
       [self stopCapture];
     }
+    [[[captureSession_ outputs] objectAtIndex:0] setDelegate:nil];
+    [captureSession_ removeOutput:[[captureSession_ outputs] objectAtIndex:0]];
     [captureSession_ release];
     captureSession_ = nil;
     [captureDeviceInput_ release];
