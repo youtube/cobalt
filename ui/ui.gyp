@@ -728,7 +728,9 @@
             ],
             'link_settings': {
               'libraries': [
-                '-lX11 -lXcursor',
+                '-lX11',
+                '-lXcursor',
+                '-lXrandr',  # For XRR* function calls in x11_util.cc.
               ],
             },
           },
