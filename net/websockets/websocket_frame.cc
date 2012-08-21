@@ -42,6 +42,20 @@ WebSocketFrameChunk::WebSocketFrameChunk() : final_chunk(false) {
 WebSocketFrameChunk::~WebSocketFrameChunk() {
 }
 
+int GetWebSocketFrameHeaderSize(const WebSocketFrameHeader& header) {
+  int extended_length_size = 0;
+  if (header.payload_length > kMaxPayloadLengthWithoutExtendedLengthField &&
+      header.payload_length <= kuint16max) {
+    extended_length_size = 2;
+  } else if (header.payload_length > kuint16max) {
+    extended_length_size = 8;
+  }
+
+  return (WebSocketFrameHeader::kBaseHeaderSize +
+          extended_length_size +
+          (header.masked ? WebSocketFrameHeader::kMaskingKeyLength : 0));
+}
+
 int WriteWebSocketFrameHeader(const WebSocketFrameHeader& header,
                               const WebSocketMaskingKey* masking_key,
                               char* buffer,
@@ -63,17 +77,7 @@ int WriteWebSocketFrameHeader(const WebSocketFrameHeader& header,
   // This function constructs frame header (the first three in the list
   // above).
 
-  size_t extended_length_size = 0;
-  if (header.payload_length > kMaxPayloadLengthWithoutExtendedLengthField &&
-      header.payload_length <= kuint16max) {
-    extended_length_size = 2;
-  } else if (header.payload_length > kuint16max) {
-    extended_length_size = 8;
-  }
-  int header_size =
-      WebSocketFrameHeader::kBaseHeaderSize +
-      extended_length_size +
-      (header.masked ? WebSocketFrameHeader::kMaskingKeyLength : 0);
+  int header_size = GetWebSocketFrameHeaderSize(header);
   if (header_size > buffer_size)
     return ERR_INVALID_ARGUMENT;
 
@@ -87,6 +91,7 @@ int WriteWebSocketFrameHeader(const WebSocketFrameHeader& header,
   first_byte |= header.opcode & kOpCodeMask;
   buffer[buffer_index++] = first_byte;
 
+  int extended_length_size = 0;
   uint8 second_byte = 0u;
   second_byte |= header.masked ? kMaskBit : 0u;
   if (header.payload_length <=
@@ -94,17 +99,19 @@ int WriteWebSocketFrameHeader(const WebSocketFrameHeader& header,
     second_byte |= header.payload_length;
   } else if (header.payload_length <= kuint16max) {
     second_byte |= kPayloadLengthWithTwoByteExtendedLengthField;
+    extended_length_size = 2;
   } else {
     second_byte |= kPayloadLengthWithEightByteExtendedLengthField;
+    extended_length_size = 8;
   }
   buffer[buffer_index++] = second_byte;
 
   // Writes "extended payload length" field.
-  if (extended_length_size == 2u) {
+  if (extended_length_size == 2) {
     uint16 payload_length_16 = static_cast<uint16>(header.payload_length);
     WriteBigEndian(buffer + buffer_index, payload_length_16);
     buffer_index += sizeof(uint16);
-  } else if (extended_length_size == 8u) {
+  } else if (extended_length_size == 8) {
     WriteBigEndian(buffer + buffer_index, header.payload_length);
     buffer_index += sizeof(uint64);
   }
