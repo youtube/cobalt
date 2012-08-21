@@ -20,10 +20,9 @@ class MockDevicesChangedObserver
 
   MOCK_METHOD1(OnDevicesChanged,
                void(base::SystemMonitor::DeviceType device_type));
-  MOCK_METHOD4(OnMediaDeviceAttached,
+  MOCK_METHOD3(OnMediaDeviceAttached,
                void(const std::string& id,
                     const string16& name,
-                    base::SystemMonitor::MediaDeviceType type,
                     const FilePath::StringType& location));
   MOCK_METHOD1(OnMediaDeviceDetached, void(const std::string& id));
 
