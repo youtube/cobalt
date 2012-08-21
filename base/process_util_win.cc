@@ -69,6 +69,39 @@ long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
   return EXCEPTION_CONTINUE_SEARCH;
 }
 
+// Connects back to a console if available.
+void AttachToConsole() {
+  if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
+    unsigned int result = GetLastError();
+    // Was probably already attached.
+    if (result == ERROR_ACCESS_DENIED)
+      return;
+
+    if (result == ERROR_INVALID_HANDLE || result == ERROR_INVALID_HANDLE) {
+      // TODO(maruel): Walk up the process chain if deemed necessary.
+    }
+    // Continue even if the function call fails.
+    AllocConsole();
+  }
+  // http://support.microsoft.com/kb/105305
+  int raw_out = _open_osfhandle(
+      reinterpret_cast<intptr_t>(GetStdHandle(STD_OUTPUT_HANDLE)), _O_TEXT);
+  *stdout = *_fdopen(raw_out, "w");
+  setvbuf(stdout, NULL, _IONBF, 0);
+
+  int raw_err = _open_osfhandle(
+      reinterpret_cast<intptr_t>(GetStdHandle(STD_ERROR_HANDLE)), _O_TEXT);
+  *stderr = *_fdopen(raw_err, "w");
+  setvbuf(stderr, NULL, _IONBF, 0);
+
+  int raw_in = _open_osfhandle(
+      reinterpret_cast<intptr_t>(GetStdHandle(STD_INPUT_HANDLE)), _O_TEXT);
+  *stdin = *_fdopen(raw_in, "r");
+  setvbuf(stdin, NULL, _IONBF, 0);
+  // Fix all cout, wcout, cin, wcin, cerr, wcerr, clog and wclog.
+  std::ios::sync_with_stdio();
+}
+
 void OnNoMemory() {
   // Kill the process. This is important for security, since WebKit doesn't
   // NULL-check many memory allocations. If a malloc fails, returns NULL, and
@@ -133,38 +166,6 @@ void TimerExpiredTask::KillProcess() {
 }
 
 }  // namespace
-
-void RouteStdioToConsole() {
-  if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
-    unsigned int result = GetLastError();
-    // Was probably already attached.
-    if (result == ERROR_ACCESS_DENIED)
-      return;
-
-    if (result == ERROR_INVALID_HANDLE || result == ERROR_INVALID_HANDLE) {
-      // TODO(maruel): Walk up the process chain if deemed necessary.
-    }
-    // Continue even if the function call fails.
-    AllocConsole();
-  }
-  // http://support.microsoft.com/kb/105305
-  int raw_out = _open_osfhandle(
-      reinterpret_cast<intptr_t>(GetStdHandle(STD_OUTPUT_HANDLE)), _O_TEXT);
-  *stdout = *_fdopen(raw_out, "w");
-  setvbuf(stdout, NULL, _IONBF, 0);
-
-  int raw_err = _open_osfhandle(
-      reinterpret_cast<intptr_t>(GetStdHandle(STD_ERROR_HANDLE)), _O_TEXT);
-  *stderr = *_fdopen(raw_err, "w");
-  setvbuf(stderr, NULL, _IONBF, 0);
-
-  int raw_in = _open_osfhandle(
-      reinterpret_cast<intptr_t>(GetStdHandle(STD_INPUT_HANDLE)), _O_TEXT);
-  *stdin = *_fdopen(raw_in, "r");
-  setvbuf(stdin, NULL, _IONBF, 0);
-  // Fix all cout, wcout, cin, wcin, cerr, wcerr, clog and wclog.
-  std::ios::sync_with_stdio();
-}
 
 ProcessId GetCurrentProcId() {
   return ::GetCurrentProcessId();
@@ -953,7 +954,7 @@ bool EnableInProcessStackDumping() {
   // Add stack dumping support on exception on windows. Similar to OS_POSIX
   // signal() handling in process_util_posix.cc.
   g_previous_filter = SetUnhandledExceptionFilter(&StackDumpExceptionFilter);
-  RouteStdioToConsole();
+  AttachToConsole();
   return true;
 }
 
