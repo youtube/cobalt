@@ -12,16 +12,17 @@ _SDK_OUT_DIR = os.path.join(constants.CHROME_DIR, 'out')
 
 
 def AddBuildTypeOption(option_parser):
-  # TODO(wangxianzhu): Change to Debug when we build Debug by default.
-  default_build_type = 'Release'
+  default_build_type = 'Debug'
   if 'BUILDTYPE' in os.environ:
     default_build_type = os.environ['BUILDTYPE']
   option_parser.add_option('--debug', action='store_const', const='Debug',
                            dest='build_type', default=default_build_type,
-                           help='If set, run test suites under out/Debug.')
+                           help='If set, run test suites under out/Debug. '
+                                'Default is env var BUILDTYPE or Debug')
   option_parser.add_option('--release', action='store_const', const='Release',
                            dest='build_type',
-                           help='If set, run test suites under out/Release.')
+                           help='If set, run test suites under out/Release. '
+                                'Default is env var BUILDTYPE or Debug.')
 
 
 def CreateTestRunnerOptionParser(usage=None, default_timeout=60):
