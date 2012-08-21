@@ -4,13 +4,13 @@
 {
   duration: 2.740000,
   type: 'video/webm; codecs="vp8, vorbis"',
-  init: { offset: 0, size: 4459},
+  init: { offset: 0, size: 4340},
   media: [
-    { offset: 4459, size: 50714, timecode: 0.000000 },
-    { offset: 55173, size: 19021, timecode: 0.477000 },
-    { offset: 74194, size: 19810, timecode: 0.988000 },
-    { offset: 94004, size: 21706, timecode: 1.496000 },
-    { offset: 115710, size: 20249, timecode: 1.990000 },
-    { offset: 135959, size: 9946, timecode: 2.489000 },
+    { offset: 4340, size: 50950, timecode: 0.000000},
+    { offset: 55290, size: 18785, timecode: 0.527000},
+    { offset: 74075, size: 19810, timecode: 1.014000},
+    { offset: 93885, size: 21706, timecode: 1.522000},
+    { offset: 115591, size: 20249, timecode: 2.016000},
+    { offset: 135840, size: 9946, timecode: 2.515000},
   ]
 }
