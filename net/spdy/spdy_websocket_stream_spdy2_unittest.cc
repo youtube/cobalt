@@ -63,15 +63,13 @@ class SpdyWebSocketStreamEventRecorder : public SpdyWebSocketStream::Delegate {
   void SetOnSentHeaders(const StreamEventCallback& callback) {
     on_sent_headers_ = callback;
   }
-  void SetOnReceivedHeader(
-      const StreamEventCallback& callback) {
+  void SetOnReceivedHeader(const StreamEventCallback& callback) {
     on_received_header_ = callback;
   }
   void SetOnSentData(const StreamEventCallback& callback) {
     on_sent_data_ = callback;
   }
-  void SetOnReceivedData(
-      const StreamEventCallback& callback) {
+  void SetOnReceivedData(const StreamEventCallback& callback) {
     on_received_data_ = callback;
   }
   void SetOnClose(const StreamEventCallback& callback) {
@@ -210,30 +208,13 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   void Prepare(SpdyStreamId stream_id) {
     stream_id_ = stream_id;
 
-    const char* const request_headers[] = {
-      "url", "ws://example.com/echo",
-      "origin", "http://example.com/wsdemo",
-    };
-
-    int request_header_count = arraysize(request_headers) / 2;
-
-    const char* const response_headers[] = {
-      "sec-websocket-location", "ws://example.com/echo",
-      "sec-websocket-origin", "http://example.com/wsdemo",
-    };
-
-    int response_header_count = arraysize(response_headers) / 2;
-
-    request_frame_.reset(ConstructSpdyWebSocketHandshakeRequestFrame(
-        request_headers,
-        request_header_count,
+    request_frame_.reset(ConstructSpdyWebSocketSynStream(
         stream_id_,
-        HIGHEST));
-    response_frame_.reset(ConstructSpdyWebSocketHandshakeResponseFrame(
-        response_headers,
-        response_header_count,
-        stream_id_,
-        HIGHEST));
+        "/echo",
+        "example.com",
+        "http://example.com/wsdemo"));
+
+    response_frame_.reset(ConstructSpdyWebSocketSynReply(stream_id_));
 
     message_frame_.reset(ConstructSpdyWebSocketDataFrame(
         kMessageFrame,
@@ -247,6 +228,7 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
         stream_id_,
         false));
   }
+
   int InitSession(MockRead* reads, size_t reads_count,
                   MockWrite* writes, size_t writes_count,
                   bool throttling) {
@@ -282,9 +264,13 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
     EXPECT_EQ(OK, callback.WaitForResult());
     return session_->InitializeWithSocket(connection.release(), false, OK);
   }
+
   void SendRequest() {
     scoped_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
-    (*headers)["url"] = "ws://example.com/echo";
+    (*headers)["path"] = "/echo";
+    (*headers)["host"] = "example.com";
+    (*headers)["version"] = "WebSocket/13";
+    (*headers)["scheme"] = "ws";
     (*headers)["origin"] = "http://example.com/wsdemo";
 
     websocket_stream_->SendRequest(headers.Pass());
@@ -320,8 +306,10 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   SpdyTestStateHelper spdy_state_;
 };
 
-const char SpdyWebSocketStreamSpdy2Test::kMessageFrame[] = "\0hello\xff";
-const char SpdyWebSocketStreamSpdy2Test::kClosingFrame[] = "\xff\0";
+// TODO(toyoshim): Replace old framing data to new one, then use HEADERS and
+// data frames.
+const char SpdyWebSocketStreamSpdy2Test::kMessageFrame[] = "\x81\x05hello";
+const char SpdyWebSocketStreamSpdy2Test::kClosingFrame[] = "\x88\0";
 const size_t SpdyWebSocketStreamSpdy2Test::kMessageFrameLength =
     arraysize(SpdyWebSocketStreamSpdy2Test::kMessageFrame) - 1;
 const size_t SpdyWebSocketStreamSpdy2Test::kClosingFrameLength =
