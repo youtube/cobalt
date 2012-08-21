@@ -102,8 +102,10 @@ class GenericScopedHandle {
   Handle Take() {
     Handle temp = handle_;
     handle_ = Traits::NullHandle();
-    Verifier::StopTracking(temp, this, BASE_WIN_GET_CALLER,
-                           tracked_objects::GetProgramCounter());
+    if (Traits::IsHandleValid(temp)) {
+      Verifier::StopTracking(temp, this, BASE_WIN_GET_CALLER,
+                             tracked_objects::GetProgramCounter());
+    }
     return temp;
   }
 
