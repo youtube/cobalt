@@ -314,6 +314,8 @@
         'base/win/shell.h',
         'base/win/singleton_hwnd.cc',
         'base/win/singleton_hwnd.h',
+        'base/win/tsf_text_store.cc',
+        'base/win/tsf_text_store.h',
         'base/win/window_impl.cc',
         'base/win/window_impl.h',
         'base/work_area_watcher_observer.h',
