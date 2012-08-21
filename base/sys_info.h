@@ -81,6 +81,15 @@ class BASE_EXPORT SysInfo {
 #endif // defined(OS_CHROMEOS)
 
 #if defined(OS_ANDROID)
+  // Returns the Android build's codename.
+  static std::string GetAndroidBuildCodename();
+
+  // Returns the Android build ID.
+  static std::string GetAndroidBuildID();
+
+  // Returns the device's name.
+  static std::string GetDeviceName();
+
   static int DalvikHeapSizeMB();
 #endif // defined(OS_ANDROID)
 };
