@@ -9,7 +9,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "media/audio/audio_manager_base.h"
-#include "media/audio/audio_util.h"
 #include "media/base/audio_bus.h"
 
 namespace media {
@@ -333,15 +332,7 @@ void AudioInputDevice::AudioThreadCallback::Process(int pending_data) {
 
   // Deinterleave each channel and convert to 32-bit floating-point
   // with nominal range -1.0 -> +1.0.
-  for (int channel_index = 0; channel_index < audio_bus_->channels();
-       ++channel_index) {
-    DeinterleaveAudioChannel(memory,
-                             audio_bus_->channel(channel_index),
-                             audio_bus_->channels(),
-                             channel_index,
-                             bytes_per_sample,
-                             audio_bus_->frames());
-  }
+  audio_bus_->FromInterleaved(memory, audio_bus_->frames(), bytes_per_sample);
 
   // Deliver captured data to the client in floating point format
   // and update the audio-delay measurement.
