@@ -11,5 +11,5 @@ ROOT=$(cd "$(dirname $0)"; pwd)
 if [ $# -gt 0 ]; then
   exec ${ROOT}/gdb_apk -r -g "$*"
 else
-  exec ${ROOT}/gdb_apk -r -p org.chromium.content_shell -l ${ROOT}/../../out/Release/lib.target/
+  exec ${ROOT}/gdb_apk -r -p org.chromium.content_shell
 fi

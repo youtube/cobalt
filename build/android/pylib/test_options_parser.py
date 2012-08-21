@@ -8,6 +8,20 @@ import constants
 import optparse
 import os
 
+_SDK_OUT_DIR = os.path.join(constants.CHROME_DIR, 'out')
+
+
+def AddBuildTypeOption(option_parser):
+  # TODO(wangxianzhu): Change to Debug when we build Debug by default.
+  default_build_type = 'Release'
+  if 'BUILDTYPE' in os.environ:
+    default_build_type = os.environ['BUILDTYPE']
+  option_parser.add_option('--debug', action='store_const', const='Debug',
+                           dest='build_type', default=default_build_type,
+                           help='If set, run test suites under out/Debug.')
+  option_parser.add_option('--release', action='store_const', const='Release',
+                           dest='build_type',
+                           help='If set, run test suites under out/Release.')
 
 
 def CreateTestRunnerOptionParser(usage=None, default_timeout=60):
@@ -37,6 +51,7 @@ def CreateTestRunnerOptionParser(usage=None, default_timeout=60):
                            dest='tool',
                            help='Run the test under a tool '
                            '(use --tool help to list them)')
+  AddBuildTypeOption(option_parser)
   return option_parser
 
 
@@ -68,7 +83,10 @@ def ParseInstrumentationArgs(args):
                                  'of the result. (Default is 1)'))
   option_parser.add_option('--test-apk', dest='test_apk',
                            help=('The name of the apk containing the tests '
-                                 '(without the .apk extension).'))
+                                 '(without the .apk extension) or for SDK '
+                                 'builds, the path to the APK from '
+                                 'out/(Debug|Release) (for example, '
+                                 'content_shell_test/ContentShellTest-debug).'))
   option_parser.add_option('--screenshot', dest='screenshot_failures',
                            action='store_true',
                            help='Capture screenshots of test failures')
@@ -97,12 +115,13 @@ def ParseInstrumentationArgs(args):
   elif options.python_only:
     options.run_java_tests = False
 
-  options.test_apk_path = os.path.join(constants.CHROME_DIR,
-                                       'out', 'Release',
+  options.test_apk_path = os.path.join(_SDK_OUT_DIR,
+                                       options.build_type,
                                        '%s.apk' % options.test_apk)
-  options.test_apk_jar_path = os.path.join(constants.CHROME_DIR,
-                                           'out', 'Release',
-                                           '%s.jar' % options.test_apk)
+  options.test_apk_jar_path = os.path.join(_SDK_OUT_DIR,
+                                           options.build_type,
+                                           '%s.jar'
+                                           % options.test_apk)
   if options.annotation_str:
     options.annotation = options.annotation_str.split()
   elif options.test_filter:

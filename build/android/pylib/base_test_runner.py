@@ -31,11 +31,12 @@ class BaseTestRunner(object):
   the Run() method will set up tests, run them and tear them down.
   """
 
-  def __init__(self, device, tool, shard_index):
+  def __init__(self, device, tool, shard_index, build_type):
     """
       Args:
         device: Tests will run on the device of this ID.
         shard_index: Index number of the shard on which the test suite will run.
+        build_type: 'Release' or 'Debug'.
     """
     self.device = device
     self.adb = android_commands.AndroidCommands(device=device)
@@ -60,6 +61,7 @@ class BaseTestRunner(object):
     # starting it in TestServerThread.
     self.test_server_spawner_port = 0
     self.test_server_port = 0
+    self.build_type = build_type
 
   def _PushTestServerPortInfoToDevice(self):
     """Pushes the latest port information to device."""
@@ -165,7 +167,7 @@ class BaseTestRunner(object):
     if self._forwarder:
       self._forwarder.Close()
     self._forwarder = Forwarder(
-        self.adb, port_pairs, self.tool, '127.0.0.1')
+        self.adb, port_pairs, self.tool, '127.0.0.1', self.build_type)
 
   def StartForwarderForHttpServer(self):
     """Starts a forwarder for the HTTP server.
@@ -232,4 +234,4 @@ class BaseTestRunner(object):
     self._spawner_forwarder = Forwarder(
         self.adb,
         [(self.test_server_spawner_port, self.test_server_spawner_port)],
-        self.tool, '127.0.0.1')
+        self.tool, '127.0.0.1', self.build_type)
