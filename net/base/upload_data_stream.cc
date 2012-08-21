@@ -45,10 +45,10 @@ int UploadDataStream::Init() {
   // modification time from WebKit is based on time_t precision. So we
   // have to convert both to time_t to compare. This check is used for
   // sliced files.
-  const std::vector<UploadData::Element>& elements = *upload_data_->elements();
+  const std::vector<UploadElement>& elements = *upload_data_->elements();
   for (size_t i = 0; i < elements.size(); ++i) {
-    const UploadData::Element& element = elements[i];
-    if (element.type() == UploadData::TYPE_FILE &&
+    const UploadElement& element = elements[i];
+    if (element.type() == UploadElement::TYPE_FILE &&
         !element.expected_file_modification_time().is_null()) {
       // Temporarily allow until fix: http://crbug.com/72001.
       base::ThreadRestrictions::ScopedAllowIO allow_io;
@@ -70,12 +70,12 @@ int UploadDataStream::Init() {
 }
 
 int UploadDataStream::Read(IOBuffer* buf, int buf_len) {
-  std::vector<UploadData::Element>& elements =
+  std::vector<UploadElement>& elements =
       *upload_data_->elements_mutable();
 
   int bytes_copied = 0;
   while (bytes_copied < buf_len && element_index_ < elements.size()) {
-    UploadData::Element& element = elements[element_index_];
+    UploadElement& element = elements[element_index_];
 
     bytes_copied += element.ReadSync(buf->data() + bytes_copied,
                                      buf_len - bytes_copied);
@@ -95,7 +95,7 @@ int UploadDataStream::Read(IOBuffer* buf, int buf_len) {
 }
 
 bool UploadDataStream::IsEOF() const {
-  const std::vector<UploadData::Element>& elements = *upload_data_->elements();
+  const std::vector<UploadElement>& elements = *upload_data_->elements();
 
   // Check if all elements are consumed.
   if (element_index_ == elements.size()) {
