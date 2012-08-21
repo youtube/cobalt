@@ -208,6 +208,7 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
 }
 
 void FFmpegDemuxerStream::EnableBitstreamConverter() {
+  base::AutoLock auto_lock(lock_);
   // Called by hardware decoder to require different bitstream converter.
   // Currently we assume that converter is determined by codec_id;
   DCHECK(stream_);
