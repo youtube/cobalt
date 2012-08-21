@@ -2056,6 +2056,10 @@ TEST_F(ChunkDemuxerTest, TestConfigChange_Video) {
   ASSERT_EQ(status, DemuxerStream::kConfigChanged);
   EXPECT_EQ(last_timestamp.InMilliseconds(), 501);
 
+  // Verify that another read will result in kConfigChanged being returned
+  // again.
+  ExpectConfigChanged(stream);
+
   // Fetch the new decoder config.
   const VideoDecoderConfig& video_config_2 = stream->video_decoder_config();
   ASSERT_TRUE(video_config_2.IsValidConfig());
@@ -2068,6 +2072,9 @@ TEST_F(ChunkDemuxerTest, TestConfigChange_Video) {
   ReadUntilNotOkOrEndOfStream(stream, &status, &last_timestamp);
   ASSERT_EQ(status, DemuxerStream::kConfigChanged);
   EXPECT_EQ(last_timestamp.InMilliseconds(), 793);
+
+  // Verify we get another ConfigChanged status.
+  ExpectConfigChanged(stream);
 
   // Get the new config and verify that it matches the first one.
   ASSERT_TRUE(video_config_1.Matches(stream->video_decoder_config()));
@@ -2103,6 +2110,10 @@ TEST_F(ChunkDemuxerTest, TestConfigChange_Audio) {
   ASSERT_EQ(status, DemuxerStream::kConfigChanged);
   EXPECT_EQ(last_timestamp.InMilliseconds(), 524);
 
+  // Verify that another read will result in kConfigChanged being returned
+  // again.
+  ExpectConfigChanged(stream);
+
   // Fetch the new decoder config.
   const AudioDecoderConfig& audio_config_2 = stream->audio_decoder_config();
   ASSERT_TRUE(audio_config_2.IsValidConfig());
@@ -2115,6 +2126,9 @@ TEST_F(ChunkDemuxerTest, TestConfigChange_Audio) {
   ReadUntilNotOkOrEndOfStream(stream, &status, &last_timestamp);
   ASSERT_EQ(status, DemuxerStream::kConfigChanged);
   EXPECT_EQ(last_timestamp.InMilliseconds(), 759);
+
+  // Verify we get another ConfigChanged status.
+  ExpectConfigChanged(stream);
 
   // Get the new config and verify that it matches the first one.
   ASSERT_TRUE(audio_config_1.Matches(stream->audio_decoder_config()));

@@ -62,6 +62,11 @@ class MP4StreamParserTest : public testing::Test {
                    const VideoDecoderConfig& vc) {
     DVLOG(1) << "NewConfigF: audio=" << ac.IsValidConfig()
              << ", video=" << vc.IsValidConfig();
+
+    // TODO(strobe): Until http://crbug.com/122913 is fixed, we want to make
+    // sure that this callback isn't called more than once per stream. Remove
+    // when that bug is fixed.
+    EXPECT_FALSE(configs_received_);
     configs_received_ = true;
     return true;
   }
