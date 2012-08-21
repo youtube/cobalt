@@ -851,6 +851,12 @@
     # Native Client is enabled by default.
     'disable_nacl%': 0,
 
+    # Whether to build full debug version for Debug configuration on Android.
+    # Compared to full debug version, the default Debug configuration on Android
+    # has no full v8 debug, has size optimization and linker gc section, so that
+    # we can build a debug version with acceptable size and performance.
+    'android_full_debug%': 0,
+
     'sas_dll_exists': '<!(python <(DEPTH)/build/dir_exists.py <(sas_dll_path))',
     'wix_exists': '<!(python <(DEPTH)/build/dir_exists.py <(wix_path))',
 
@@ -1951,12 +1957,6 @@
               }],
             ],
           }],
-          # TODO(wangxianzhu): Remove this. This is temporarily kept before
-          # default build type switched to Debug.
-          # Android enables DCHECK()s on non-Official release builds.
-          ['OS=="android" and buildtype!="Official"', {
-            'defines!': ['NDEBUG'],
-          }],
         ],
       },
       #
@@ -2041,7 +2041,7 @@
               '-g',
             ],
             'conditions' : [
-              ['OS=="android"', {
+              ['OS=="android" and android_full_debug==0', {
                 # Some configurations are copied from Release_Base to reduce
                 # the binary size.
                 'variables': {
@@ -2517,12 +2517,6 @@
         'libvpx_path': 'lib/linux/arm',
       },
       'target_defaults': {
-        # TODO(wangxianzhu): We used to build Release version with DCHECK
-        # by default. Now we build Release without DCHECK, and build Debug
-        # with size optimizations. Remove the following line after everyone
-        # knows how to deal with the change.
-        'default_configuration': 'Release',
-
         'variables': {
           'release_extra_cflags%': '',
         },

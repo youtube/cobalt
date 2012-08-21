@@ -97,7 +97,7 @@ rooted_phone=0
 
 root=$(dirname $0)/../..
 package_name=org.chromium.content_shell
-shared_lib_dir=$root/out/${BUILDTYPE:-Release}/lib.target
+shared_lib_dir=$root/out/${BUILDTYPE:-Debug}/lib.target
 gdb_args=''
 
 #process options
