@@ -15,10 +15,14 @@ static const int kDefaultKeyframesPerSecond = 6;
 static const uint8 kDataA = 0x11;
 static const uint8 kDataB = 0x33;
 static const int kDataSize = 1;
+static const gfx::Size kCodedSize(320, 240);
 
 class SourceBufferStreamTest : public testing::Test {
  protected:
   SourceBufferStreamTest() {
+    config_.Initialize(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
+                       VideoFrame::YV12, kCodedSize, gfx::Rect(kCodedSize),
+                       kCodedSize, NULL, 0, false);
     stream_.reset(new SourceBufferStream(config_));
     SetStreamInfo(kDefaultFramesPerSecond, kDefaultKeyframesPerSecond);
 
@@ -119,7 +123,10 @@ class SourceBufferStreamTest : public testing::Test {
     int current_position = starting_position;
     for (; current_position <= ending_position; current_position++) {
       scoped_refptr<StreamParserBuffer> buffer;
-      if (stream_->GetNextBuffer(&buffer) == SourceBufferStream::kNeedBuffer)
+      SourceBufferStream::Status status = stream_->GetNextBuffer(&buffer);
+
+      EXPECT_NE(status, SourceBufferStream::kConfigChange);
+      if (status != SourceBufferStream::kSuccess)
         break;
 
       if (expect_keyframe && current_position == starting_position)
@@ -144,6 +151,13 @@ class SourceBufferStreamTest : public testing::Test {
   void CheckNoNextBuffer() {
     scoped_refptr<StreamParserBuffer> buffer;
     EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kNeedBuffer);
+  }
+
+  void CheckConfig(const VideoDecoderConfig& config) {
+    const VideoDecoderConfig& actual = stream_->GetCurrentVideoDecoderConfig();
+    EXPECT_TRUE(actual.Matches(config))
+        << "Expected: " << config.AsHumanReadableString()
+        << "\nActual: " << actual.AsHumanReadableString();
   }
 
   base::TimeDelta frame_duration() const { return frame_duration_; }
@@ -1821,6 +1835,93 @@ TEST_F(SourceBufferStreamTest, DISABLED_GarbageCollection_WaitingForKeyframe) {
   CheckExpectedBuffers(15, 15, &kDataA);
   CheckExpectedRanges("{ [15,15) [20,28) }");
 }
+
+TEST_F(SourceBufferStreamTest, ConfigChange_Basic) {
+  gfx::Size kNewCodedSize(kCodedSize.width() * 2, kCodedSize.height() * 2);
+  VideoDecoderConfig new_config(
+      kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN, VideoFrame::YV12, kNewCodedSize,
+      gfx::Rect(kNewCodedSize), kNewCodedSize, NULL, 0);
+  ASSERT_FALSE(new_config.Matches(config_));
+
+  Seek(0);
+  CheckConfig(config_);
+
+  // Append 5 buffers at positions 0 through 4
+  NewSegmentAppend(0, 5, &kDataA);
+
+  CheckConfig(config_);
+
+  // Signal a config change.
+  stream_->UpdateVideoConfig(new_config);
+
+  // Make sure updating the config doesn't change anything since new_config
+  // should not be associated with the buffer GetNextBuffer() will return.
+  CheckConfig(config_);
+
+  // Append 5 buffers at positions 5 through 9.
+  NewSegmentAppend(5, 5, &kDataB);
+
+  // Consume the buffers associated with the initial config.
+  scoped_refptr<StreamParserBuffer> buffer;
+  for (int i = 0; i < 5; i++) {
+    EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kSuccess);
+    CheckConfig(config_);
+  }
+
+  // Verify the next attempt to get a buffer will signal that a config change
+  // has happened.
+  EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kConfigChange);
+
+  // Verify that the new config is now returned.
+  CheckConfig(new_config);
+
+  // Consume the remaining buffers associated with the new config.
+  for (int i = 0; i < 5; i++) {
+    CheckConfig(new_config);
+    EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kSuccess);
+  }
+}
+
+TEST_F(SourceBufferStreamTest, ConfigChange_Seek) {
+  scoped_refptr<StreamParserBuffer> buffer;
+  gfx::Size kNewCodedSize(kCodedSize.width() * 2, kCodedSize.height() * 2);
+  VideoDecoderConfig new_config(
+      kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN, VideoFrame::YV12, kNewCodedSize,
+      gfx::Rect(kNewCodedSize), kNewCodedSize, NULL, 0);
+
+  Seek(0);
+  NewSegmentAppend(0, 5, &kDataA);
+  stream_->UpdateVideoConfig(new_config);
+  NewSegmentAppend(5, 5, &kDataB);
+
+  // Seek to the start of the buffers with the new config and make sure a
+  // config change is signalled.
+  CheckConfig(config_);
+  Seek(5);
+  CheckConfig(config_);
+  EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kConfigChange);
+  CheckConfig(new_config);
+  CheckExpectedBuffers(5, 9, &kDataB);
+
+
+  // Seek to the start which has a different config. Don't fetch any buffers and
+  // seek back to buffers with the current config. Make sure a config change
+  // isn't signalled in this case.
+  CheckConfig(new_config);
+  Seek(0);
+  Seek(7);
+  CheckExpectedBuffers(5, 9, &kDataB);
+
+
+  // Seek to the start and make sure a config change is signalled.
+  CheckConfig(new_config);
+  Seek(0);
+  CheckConfig(new_config);
+  EXPECT_EQ(stream_->GetNextBuffer(&buffer), SourceBufferStream::kConfigChange);
+  CheckConfig(config_);
+  CheckExpectedBuffers(0, 4, &kDataA);
+}
+
 
 // TODO(vrk): Add unit tests where keyframes are unaligned between streams.
 // (crbug.com/133557)

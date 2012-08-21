@@ -5,6 +5,7 @@
 #include "media/filters/pipeline_integration_test_base.h"
 
 #include "base/bind.h"
+#include "base/string_util.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decryptor_client.h"
 #include "media/base/test_data_util.h"
@@ -17,24 +18,33 @@ static const char kSourceId[] = "SourceId";
 static const char kClearKeySystem[] = "org.w3.clearkey";
 static const uint8 kInitData[] = { 0x69, 0x6e, 0x69, 0x74 };
 
+static const char kWebM[] = "video/webm; codecs=\"vp8,vorbis\"";
+static const char kAudioOnlyWebM[] = "video/webm; codecs=\"vorbis\"";
+static const char kVideoOnlyWebM[] = "video/webm; codecs=\"vp8\"";
+static const char kMP4[] = "video/mp4; codecs=\"avc1.4D4041,mp4a.40.2\"";
+
 // Key used to encrypt video track in test file "bear-320x240-encrypted.webm".
 static const uint8 kSecretKey[] = {
   0xeb, 0xdd, 0x62, 0xf1, 0x68, 0x14, 0xd2, 0x7b,
   0x68, 0xef, 0x12, 0x2a, 0xfc, 0xe4, 0xae, 0x3c
 };
 
+static const int kAppendWholeFile = -1;
+
 // Helper class that emulates calls made on the ChunkDemuxer by the
 // Media Source API.
 class MockMediaSource : public ChunkDemuxerClient {
  public:
-  MockMediaSource(const std::string& filename, int initial_append_size,
-                  bool has_audio, bool has_video)
+  MockMediaSource(const std::string& filename, const std::string& mimetype,
+                  int initial_append_size)
       : url_(GetTestDataURL(filename)),
         current_position_(0),
         initial_append_size_(initial_append_size),
-        has_audio_(has_audio),
-        has_video_(has_video) {
+        mimetype_(mimetype) {
     file_data_ = ReadTestDataFile(filename);
+
+    if (initial_append_size_ == kAppendWholeFile)
+      initial_append_size_ = file_data_->GetDataSize();
 
     DCHECK_GT(initial_append_size_, 0);
     DCHECK_LE(initial_append_size_, file_data_->GetDataSize());
@@ -67,6 +77,13 @@ class MockMediaSource : public ChunkDemuxerClient {
     current_position_ += size;
   }
 
+  void AppendAtTime(const base::TimeDelta& timestampOffset,
+                    const uint8* pData, int size) {
+    CHECK(chunk_demuxer_->SetTimestampOffset(kSourceId, timestampOffset));
+    CHECK(chunk_demuxer_->AppendData(kSourceId, pData, size));
+    CHECK(chunk_demuxer_->SetTimestampOffset(kSourceId, base::TimeDelta()));
+  }
+
   void EndOfStream() {
     chunk_demuxer_->EndOfStream(PIPELINE_OK);
   }
@@ -81,14 +98,15 @@ class MockMediaSource : public ChunkDemuxerClient {
   virtual void DemuxerOpened(ChunkDemuxer* demuxer) {
     chunk_demuxer_ = demuxer;
 
+    size_t semicolon = mimetype_.find(";");
+    std::string type = mimetype_.substr(0, semicolon);
+    size_t quote1 = mimetype_.find("\"");
+    size_t quote2 = mimetype_.find("\"", quote1 + 1);
+    std::string codecStr = mimetype_.substr(quote1 + 1, quote2 - quote1 - 1);
     std::vector<std::string> codecs;
-    if (has_audio_)
-      codecs.push_back("vorbis");
+    Tokenize(codecStr, ",", &codecs);
 
-    if (has_video_)
-      codecs.push_back("vp8");
-
-    chunk_demuxer_->AddId(kSourceId, "video/webm", codecs);
+    CHECK_EQ(chunk_demuxer_->AddId(kSourceId, type, codecs), ChunkDemuxer::kOk);
     AppendData(initial_append_size_);
   }
 
@@ -109,8 +127,7 @@ class MockMediaSource : public ChunkDemuxerClient {
   scoped_refptr<DecoderBuffer> file_data_;
   int current_position_;
   int initial_append_size_;
-  bool has_audio_;
-  bool has_video_;
+  std::string mimetype_;
   scoped_refptr<ChunkDemuxer> chunk_demuxer_;
   DecryptorClient* decryptor_client_;
 };
@@ -219,14 +236,13 @@ class PipelineIntegrationTest
   // seek happens while there is a pending read on the ChunkDemuxer
   // and no data is available.
   bool TestSeekDuringRead(const std::string& filename,
+                          const std::string& mimetype,
                           int initial_append_size,
                           base::TimeDelta start_seek_time,
                           base::TimeDelta seek_time,
                           int seek_file_position,
-                          int seek_append_size,
-                          bool has_audio,
-                          bool has_video) {
-    MockMediaSource source(filename, initial_append_size, has_audio, has_video);
+                          int seek_append_size) {
+    MockMediaSource source(filename, mimetype, initial_append_size);
     StartPipelineWithMediaSource(&source);
 
     if (pipeline_status_ != PIPELINE_OK)
@@ -269,7 +285,7 @@ TEST_F(PipelineIntegrationTest, BasicPlaybackHashed) {
 }
 
 TEST_F(PipelineIntegrationTest, BasicPlayback_MediaSource) {
-  MockMediaSource source("bear-320x240.webm", 219229, true, true);
+  MockMediaSource source("bear-320x240.webm", kWebM, 219229);
   StartPipelineWithMediaSource(&source);
   source.EndOfStream();
   ASSERT_EQ(pipeline_status_, PIPELINE_OK);
@@ -285,6 +301,57 @@ TEST_F(PipelineIntegrationTest, BasicPlayback_MediaSource) {
   Stop();
 }
 
+TEST_F(PipelineIntegrationTest, MediaSource_ConfigChange_WebM) {
+  MockMediaSource source("bear-320x240-16x9-aspect.webm", kWebM,
+                         kAppendWholeFile);
+  StartPipelineWithMediaSource(&source);
+
+  scoped_refptr<DecoderBuffer> second_file =
+      ReadTestDataFile("bear-640x360.webm");
+
+  source.AppendAtTime(base::TimeDelta::FromSeconds(2),
+                      second_file->GetData(), second_file->GetDataSize());
+
+  source.EndOfStream();
+  ASSERT_EQ(pipeline_status_, PIPELINE_OK);
+
+  EXPECT_EQ(pipeline_->GetBufferedTimeRanges().size(), 1u);
+  EXPECT_EQ(pipeline_->GetBufferedTimeRanges().start(0).InMilliseconds(), 0);
+  EXPECT_EQ(pipeline_->GetBufferedTimeRanges().end(0).InMilliseconds(), 4763);
+
+  Play();
+
+  ASSERT_TRUE(WaitUntilOnEnded());
+  source.Abort();
+  Stop();
+}
+
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
+TEST_F(PipelineIntegrationTest, MediaSource_ConfigChange_MP4) {
+  MockMediaSource source("bear.640x360_dash.mp4", kMP4, kAppendWholeFile);
+  StartPipelineWithMediaSource(&source);
+
+  scoped_refptr<DecoderBuffer> second_file =
+      ReadTestDataFile("bear.1280x720_dash.mp4");
+
+  source.AppendAtTime(base::TimeDelta::FromSeconds(2),
+                      second_file->GetData(), second_file->GetDataSize());
+
+  source.EndOfStream();
+  ASSERT_EQ(pipeline_status_, PIPELINE_OK);
+
+  EXPECT_EQ(pipeline_->GetBufferedTimeRanges().size(), 1u);
+  EXPECT_EQ(pipeline_->GetBufferedTimeRanges().start(0).InMilliseconds(), 0);
+  EXPECT_EQ(pipeline_->GetBufferedTimeRanges().end(0).InMilliseconds(), 4736);
+
+  Play();
+
+  ASSERT_TRUE(WaitUntilOnEnded());
+  source.Abort();
+  Stop();
+}
+#endif
+
 TEST_F(PipelineIntegrationTest, BasicPlayback_16x9AspectRatio) {
   ASSERT_TRUE(Start(GetTestDataURL("bear-320x240-16x9-aspect.webm"),
                     PIPELINE_OK));
@@ -293,7 +360,7 @@ TEST_F(PipelineIntegrationTest, BasicPlayback_16x9AspectRatio) {
 }
 
 TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
-  MockMediaSource source("bear-320x240-encrypted.webm", 220788, true, true);
+  MockMediaSource source("bear-320x240-encrypted.webm", kWebM, 220788);
   FakeDecryptorClient encrypted_media;
   StartPipelineWithEncryptedMedia(&source, &encrypted_media);
 
@@ -353,18 +420,20 @@ TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePlaying) {
 
 // Verify audio decoder & renderer can handle aborted demuxer reads.
 TEST_F(PipelineIntegrationTest, ChunkDemuxerAbortRead_AudioOnly) {
-  ASSERT_TRUE(TestSeekDuringRead("bear-320x240-audio-only.webm", 8192,
+  ASSERT_TRUE(TestSeekDuringRead("bear-320x240-audio-only.webm", kAudioOnlyWebM,
+                                 8192,
                                  base::TimeDelta::FromMilliseconds(464),
                                  base::TimeDelta::FromMilliseconds(617),
-                                 0x10CA, 19730, true, false));
+                                 0x10CA, 19730));
 }
 
 // Verify video decoder & renderer can handle aborted demuxer reads.
 TEST_F(PipelineIntegrationTest, ChunkDemuxerAbortRead_VideoOnly) {
-  ASSERT_TRUE(TestSeekDuringRead("bear-320x240-video-only.webm", 32768,
+  ASSERT_TRUE(TestSeekDuringRead("bear-320x240-video-only.webm", kVideoOnlyWebM,
+                                 32768,
                                  base::TimeDelta::FromMilliseconds(200),
                                  base::TimeDelta::FromMilliseconds(1668),
-                                 0x1C896, 65536, false, true));
+                                 0x1C896, 65536));
 }
 
 }  // namespace media
