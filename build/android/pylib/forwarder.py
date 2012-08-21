@@ -17,7 +17,7 @@ class Forwarder(object):
   _FORWARDER_PATH = '/data/local/tmp/forwarder'
   _TIMEOUT_SECS = 30
 
-  def __init__(self, adb, port_pairs, tool, host_name):
+  def __init__(self, adb, port_pairs, tool, host_name, build_type):
     """Forwards TCP ports on the device back to the host.
 
     Works like adb forward, but in reverse.
@@ -31,8 +31,9 @@ class Forwarder(object):
                  DevicePortForHostPort method.
       tool: Tool class to use to get wrapper, if necessary, for executing the
             forwarder (see valgrind_tools.py).
-      host_name: Optional. Address to forward to, must be addressable from the
-                 host machine. Usually this is omitted and loopback is used.
+      host_name: Address to forward to, must be addressable from the
+                 host machine. Usually use loopback '127.0.0.1'.
+      build_type: 'Release' or 'Debug'.
 
     Raises:
       Exception on failure to forward the port.
@@ -41,7 +42,7 @@ class Forwarder(object):
     self._host_to_device_port_map = dict()
     self._process = None
     adb.PushIfNeeded(
-        os.path.join(CHROME_DIR, 'out', 'Release', 'forwarder'),
+        os.path.join(CHROME_DIR, 'out', build_type, 'forwarder'),
         Forwarder._FORWARDER_PATH)
     forward_string = ['%d:%d:%s' %
                       (device, host, host_name) for device, host in port_pairs]
