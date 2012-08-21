@@ -15,6 +15,8 @@ namespace net {
 
 UploadElement::UploadElement()
     : type_(TYPE_BYTES),
+      bytes_start_(NULL),
+      bytes_length_(0),
       file_range_offset_(0),
       file_range_length_(kuint64max),
       is_last_chunk_(false),
@@ -38,9 +40,8 @@ UploadElement::~UploadElement() {
 void UploadElement::SetToChunk(const char* bytes,
                                int bytes_len,
                                bool is_last_chunk) {
-  bytes_.clear();
-  bytes_.insert(bytes_.end(), bytes, bytes + bytes_len);
   type_ = TYPE_CHUNK;
+  buf_.assign(bytes, bytes + bytes_len);
   is_last_chunk_ = is_last_chunk;
 }
 
@@ -49,10 +50,7 @@ uint64 UploadElement::GetContentLength() {
     return content_length_;
 
   if (type_ == TYPE_BYTES || type_ == TYPE_CHUNK)
-    return static_cast<uint64>(bytes_.size());
-  else if (type_ == TYPE_BLOB)
-    // The blob reference will be resolved later.
-    return 0;
+    return bytes_length();
 
   DCHECK_EQ(TYPE_FILE, type_);
   DCHECK(!file_stream_);
@@ -146,9 +144,8 @@ int UploadElement::ReadFromMemorySync(char* buf, int buf_len) {
   // Check if we have anything to copy first, because we are getting
   // the address of an element in |bytes_| and that will throw an
   // exception if |bytes_| is an empty vector.
-  if (num_bytes_to_read > 0) {
-    memcpy(buf, &bytes_[offset_], num_bytes_to_read);
-  }
+  if (num_bytes_to_read > 0)
+    memcpy(buf, bytes() + offset_, num_bytes_to_read);
 
   offset_ += num_bytes_to_read;
   return num_bytes_to_read;
