@@ -25,11 +25,9 @@ static int kDelayedBatteryCheckMs = 10 * 1000;
 SystemMonitor::MediaDeviceInfo::MediaDeviceInfo(
     const std::string& id,
     const string16& device_name,
-    MediaDeviceType device_type,
     const FilePath::StringType& device_location)
     : unique_id(id),
       name(device_name),
-      type(device_type),
       location(device_location) {
 }
 
@@ -101,16 +99,15 @@ void SystemMonitor::ProcessDevicesChanged(DeviceType device_type) {
 void SystemMonitor::ProcessMediaDeviceAttached(
     const std::string& id,
     const string16& name,
-    MediaDeviceType type,
     const FilePath::StringType& location) {
-  MediaDeviceInfo info(id, name, type, location);
+  MediaDeviceInfo info(id, name, location);
   if (ContainsKey(media_device_map_, id)) {
     // This can happen if our unique id scheme fails. Ignore the incoming
     // non-unique attachment.
     return;
   }
   media_device_map_.insert(std::make_pair(id, info));
-  NotifyMediaDeviceAttached(id, name, type, location);
+  NotifyMediaDeviceAttached(id, name, location);
 }
 
 void SystemMonitor::ProcessMediaDeviceDetached(const std::string& id) {
@@ -157,12 +154,11 @@ void SystemMonitor::NotifyDevicesChanged(DeviceType device_type) {
 void SystemMonitor::NotifyMediaDeviceAttached(
     const std::string& id,
     const string16& name,
-    MediaDeviceType type,
     const FilePath::StringType& location) {
   DVLOG(1) << "MediaDeviceAttached with name " << UTF16ToUTF8(name)
            << " and id " << id;
   devices_changed_observer_list_->Notify(
-    &DevicesChangedObserver::OnMediaDeviceAttached, id, name, type, location);
+    &DevicesChangedObserver::OnMediaDeviceAttached, id, name, location);
 }
 
 void SystemMonitor::NotifyMediaDeviceDetached(const std::string& id) {
