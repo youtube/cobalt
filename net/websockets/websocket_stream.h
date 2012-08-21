@@ -41,8 +41,8 @@ class WebSocketStream {
   // Initializes stream. Must be called before calling SendHandshakeRequest().
   // Returns a net error code, possibly ERR_IO_PENDING, as stated above.
   //
-  // |request_info->url| must be a URL starting with "ws://" or "wss://".
-  // |request_info->method| must be "GET". |request_info->upload_data| is
+  // |request_info.url| must be a URL starting with "ws://" or "wss://".
+  // |request_info.method| must be "GET". |request_info.upload_data| is
   // ignored.
   virtual int InitializeStream(const HttpRequestInfo& request_info,
                                const BoundNetLog& net_log,
