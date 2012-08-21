@@ -258,8 +258,14 @@ class MEDIA_EXPORT SourceBufferStream {
   // Stores the largest distance between two adjacent buffers in this stream.
   base::TimeDelta max_interbuffer_distance_;
 
-// The maximum amount of data in bytes the stream will keep in memory.
+  // The maximum amount of data in bytes the stream will keep in memory.
   int memory_limit_;
+
+  // Indicates that a kConfigChanged status has been reported by GetNextBuffer()
+  // and GetCurrentXXXDecoderConfig() must be called to update the current
+  // config. GetNextBuffer() must not be called again until
+  // GetCurrentXXXDecoderConfig() has been called.
+  bool config_change_pending_;
 
   DISALLOW_COPY_AND_ASSIGN(SourceBufferStream);
 };
