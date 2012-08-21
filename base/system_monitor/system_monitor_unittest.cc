@@ -122,7 +122,6 @@ TEST_F(SystemMonitorTest, DeviceChangeNotifications) {
     EXPECT_CALL(observers[index],
                 OnMediaDeviceAttached(kDeviceId1,
                                       kDeviceName,
-                                      base::SystemMonitor::TYPE_PATH,
                                       testing::_))
         .InSequence(mock_sequencer[index]);
     EXPECT_CALL(observers[index], OnMediaDeviceDetached(kDeviceId1))
@@ -141,7 +140,6 @@ TEST_F(SystemMonitorTest, DeviceChangeNotifications) {
   system_monitor_->ProcessMediaDeviceAttached(
       kDeviceId1,
       kDeviceName,
-      base::SystemMonitor::TYPE_PATH,
       FILE_PATH_LITERAL("path"));
   message_loop_.RunAllPending();
 
@@ -162,7 +160,6 @@ TEST_F(SystemMonitorTest, GetAttachedMediaDevicesAttachDetach) {
   const FilePath kDevicePath1(FILE_PATH_LITERAL("/testfoo"));
   system_monitor_->ProcessMediaDeviceAttached(kDeviceId1,
                                               kDeviceName1,
-                                              base::SystemMonitor::TYPE_PATH,
                                               kDevicePath1.value());
   message_loop_.RunAllPending();
   std::vector<SystemMonitor::MediaDeviceInfo> devices =
@@ -170,7 +167,6 @@ TEST_F(SystemMonitorTest, GetAttachedMediaDevicesAttachDetach) {
   ASSERT_EQ(1U, devices.size());
   EXPECT_EQ(kDeviceId1, devices[0].unique_id);
   EXPECT_EQ(kDeviceName1, devices[0].name);
-  EXPECT_EQ(base::SystemMonitor::TYPE_PATH, devices[0].type);
   EXPECT_EQ(kDevicePath1.value(), devices[0].location);
 
   const std::string kDeviceId2 = "44";
@@ -178,18 +174,15 @@ TEST_F(SystemMonitorTest, GetAttachedMediaDevicesAttachDetach) {
   const FilePath kDevicePath2(FILE_PATH_LITERAL("/testbar"));
   system_monitor_->ProcessMediaDeviceAttached(kDeviceId2,
                                               kDeviceName2,
-                                              base::SystemMonitor::TYPE_PATH,
                                               kDevicePath2.value());
   message_loop_.RunAllPending();
   devices = system_monitor_->GetAttachedMediaDevices();
   ASSERT_EQ(2U, devices.size());
   EXPECT_EQ(kDeviceId1, devices[0].unique_id);
   EXPECT_EQ(kDeviceName1, devices[0].name);
-  EXPECT_EQ(base::SystemMonitor::TYPE_PATH, devices[0].type);
   EXPECT_EQ(kDevicePath1.value(), devices[0].location);
   EXPECT_EQ(kDeviceId2, devices[1].unique_id);
   EXPECT_EQ(kDeviceName2, devices[1].name);
-  EXPECT_EQ(base::SystemMonitor::TYPE_PATH, devices[1].type);
   EXPECT_EQ(kDevicePath2.value(), devices[1].location);
 
   system_monitor_->ProcessMediaDeviceDetached(kDeviceId1);
@@ -198,7 +191,6 @@ TEST_F(SystemMonitorTest, GetAttachedMediaDevicesAttachDetach) {
   ASSERT_EQ(1U, devices.size());
   EXPECT_EQ(kDeviceId2, devices[0].unique_id);
   EXPECT_EQ(kDeviceName2, devices[0].name);
-  EXPECT_EQ(base::SystemMonitor::TYPE_PATH, devices[0].type);
   EXPECT_EQ(kDevicePath2.value(), devices[0].location);
 
   system_monitor_->ProcessMediaDeviceDetached(kDeviceId2);
