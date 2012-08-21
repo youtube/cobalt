@@ -31,8 +31,6 @@
       'sources': [
         'audio/android/audio_manager_android.cc',
         'audio/android/audio_manager_android.h',
-        'audio/android/audio_track_output_android.cc',
-        'audio/android/audio_track_output_android.h',
         'audio/android/opensles_input.cc',
         'audio/android/opensles_input.h',
         'audio/android/opensles_output.cc',
@@ -349,16 +347,7 @@
             'webm/webm_stream_parser.h',
           ],
         }],
-        # The below 'android' condition were added temporarily and should be
-        # removed in downstream, because there is no Java environment setup in
-        # upstream yet.
         ['OS == "android"', {
-          'sources!':[
-            'audio/android/audio_track_output_android.cc',
-          ],
-          'sources':[
-            'audio/android/audio_track_output_stub_android.cc',
-          ],
           'link_settings': {
             'libraries': [
               '-lOpenSLES',
