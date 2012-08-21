@@ -138,12 +138,6 @@ enum TerminationStatus {
 BASE_EXPORT extern size_t g_oom_size;
 #endif
 
-#if defined(OS_WIN)
-// Output multi-process printf, cout, cerr, etc to the cmd.exe console that ran
-// chrome. This is not thread-safe: only call from main thread.
-BASE_EXPORT void RouteStdioToConsole();
-#endif
-
 // Returns the id of the current process.
 BASE_EXPORT ProcessId GetCurrentProcId();
 
@@ -838,7 +832,7 @@ BASE_EXPORT malloc_zone_t* GetPurgeableZone();
 
 // Enables stack dump to console output on exception and signals.
 // When enabled, the process will quit immediately. This is meant to be used in
-// unit_tests only! This is not thread-safe: only call from main thread.
+// unit_tests only!
 BASE_EXPORT bool EnableInProcessStackDumping();
 
 // If supported on the platform, and the user has sufficent rights, increase
