@@ -2048,7 +2048,6 @@
                   'debug_optimize%': 's',
                 },
                 'cflags': [
-                  '-fno-ident',
                   '-fomit-frame-pointer',
                   '-fdata-sections',
                   '-ffunction-sections',

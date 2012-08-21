@@ -89,6 +89,7 @@ class TestRunner(BaseTestRunner):
 
     Args:
       options: An options object with the following required attributes:
+      -  build_type: 'Release' or 'Debug'.
       -  install_apk: Re-installs the apk if opted.
       -  save_perf_json: Whether or not to save the JSON file from UI perf
             tests.
@@ -108,12 +109,14 @@ class TestRunner(BaseTestRunner):
     Raises:
       FatalTestException: if coverage metadata is not available.
     """
-    BaseTestRunner.__init__(self, device, options.tool, shard_index)
+    BaseTestRunner.__init__(
+        self, device, options.tool, shard_index, options.build_type)
 
     if not apks:
       apks = [apk_info.ApkInfo(options.test_apk_path,
                                options.test_apk_jar_path)]
 
+    self.build_type = options.build_type
     self.install_apk = options.install_apk
     self.save_perf_json = options.save_perf_json
     self.screenshot_failures = options.screenshot_failures
@@ -268,8 +271,8 @@ class TestRunner(BaseTestRunner):
 
     if self.ports_to_forward:
       for port in self.ports_to_forward:
-        self.forwarders.append(
-            Forwarder(self.adb, [(port, port)], self.tool, '127.0.0.1'))
+        self.forwarders.append(Forwarder(
+            self.adb, [(port, port)], self.tool, '127.0.0.1', self.build_type))
     self.CopyTestFilesOnce()
     self.flags.AddFlags(['--enable-test-intents'])
 
