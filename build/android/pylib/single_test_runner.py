@@ -31,12 +31,13 @@ class SingleTestRunner(BaseTestRunner):
     tool: Name of the Valgrind tool.
     shard_index: index number of the shard on which the test suite will run.
     dump_debug_info: Whether or not to dump debug information.
+    build_type: 'Release' or 'Debug'.
   """
 
   def __init__(self, device, test_suite, gtest_filter, test_arguments, timeout,
                rebaseline, performance_test, cleanup_test_files, tool_name,
-               shard_index, dump_debug_info, fast_and_loose):
-    BaseTestRunner.__init__(self, device, tool_name, shard_index)
+               shard_index, dump_debug_info, fast_and_loose, build_type):
+    BaseTestRunner.__init__(self, device, tool_name, shard_index, build_type)
     self._running_on_emulator = self.device.startswith('emulator')
     self._gtest_filter = gtest_filter
     self._test_arguments = test_arguments
@@ -48,6 +49,7 @@ class SingleTestRunner(BaseTestRunner):
       self.dump_debug_info = None
     self.fast_and_loose = fast_and_loose
 
+    logging.warning('Test suite: ' + test_suite)
     if os.path.splitext(test_suite)[1] == '.apk':
       self.test_package = TestPackageApk(self.adb, device,
           test_suite, timeout, rebaseline, performance_test, cleanup_test_files,
