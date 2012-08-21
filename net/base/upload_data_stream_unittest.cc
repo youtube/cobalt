@@ -85,8 +85,8 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
   const uint64 kFakeSize = kTestDataSize*2;
 
-  std::vector<UploadData::Element> elements;
-  UploadData::Element element;
+  std::vector<UploadElement> elements;
+  UploadElement element;
   element.SetToFilePath(temp_file_path);
   element.SetContentLength(kFakeSize);
   elements.push_back(element);
@@ -118,8 +118,8 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
 void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,
                                              const base::Time& time,
                                              bool error_expected) {
-  std::vector<UploadData::Element> elements;
-  UploadData::Element element;
+  std::vector<UploadElement> elements;
+  UploadElement element;
   element.SetToFilePathRange(file_path, 1, 2, time);
   elements.push_back(element);
   // Don't use upload_data_ here, as this function is called twice, and
@@ -162,8 +162,8 @@ TEST_F(UploadDataStreamTest, UploadDataReused) {
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
 
   // Prepare |upload_data_| that contains a file.
-  std::vector<UploadData::Element> elements;
-  UploadData::Element element;
+  std::vector<UploadElement> elements;
+  UploadElement element;
   element.SetToFilePath(temp_file_path);
   elements.push_back(element);
   upload_data_->SetElements(elements);
