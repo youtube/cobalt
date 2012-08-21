@@ -58,16 +58,9 @@ class BASE_EXPORT SystemMonitor {
     DEVTYPE_UNKNOWN,  // Other devices.
   };
 
-  // Type of location data to identify a currently attached media device.
-  enum MediaDeviceType {
-    TYPE_PATH,  // FilePath::StringType, e.g. a mount point.
-    TYPE_MTP,   // (W)string to locate a MTP device, e.g. its usb bus/port.
-  };
-
   struct BASE_EXPORT MediaDeviceInfo {
     MediaDeviceInfo(const std::string& id,
                     const string16& device_name,
-                    MediaDeviceType device_type,
                     const FilePath::StringType& device_location);
 
     // Unique media device id - persists between device attachments.
@@ -75,9 +68,6 @@ class BASE_EXPORT SystemMonitor {
 
     // Human readable media device name.
     string16 name;
-
-    // Media device type.
-    MediaDeviceType type;
 
     // Current attached media device location.
     FilePath::StringType location;
@@ -148,7 +138,6 @@ class BASE_EXPORT SystemMonitor {
     // is triggered.
     virtual void OnMediaDeviceAttached(const std::string& id,
                                        const string16& name,
-                                       MediaDeviceType type,
                                        const FilePath::StringType& location) {}
 
     virtual void OnMediaDeviceDetached(const std::string& id) {}
@@ -183,7 +172,6 @@ class BASE_EXPORT SystemMonitor {
   void ProcessDevicesChanged(DeviceType device_type);
   void ProcessMediaDeviceAttached(const std::string& id,
                                   const string16& name,
-                                  MediaDeviceType type,
                                   const FilePath::StringType& location);
   void ProcessMediaDeviceDetached(const std::string& id);
 
@@ -209,7 +197,6 @@ class BASE_EXPORT SystemMonitor {
   void NotifyDevicesChanged(DeviceType device_type);
   void NotifyMediaDeviceAttached(const std::string& id,
                                  const string16& name,
-                                 MediaDeviceType type,
                                  const FilePath::StringType& data);
   void NotifyMediaDeviceDetached(const std::string& id);
   void NotifyPowerStateChange();
