@@ -26,7 +26,7 @@ std::vector<uint8> ToVector(base::StringPiece piece) {
 }  // namespace
 
 // static
-int SpdyCredentialBuilder::Build(std::string tls_unique,
+int SpdyCredentialBuilder::Build(const std::string& tls_unique,
                                  SSLClientCertType type,
                                  const std::string& key,
                                  const std::string& cert,
@@ -73,7 +73,8 @@ int SpdyCredentialBuilder::Build(std::string tls_unique,
 }
 
 // static
-std::string SpdyCredentialBuilder::GetCredentialSecret(std::string tls_unique) {
+std::string SpdyCredentialBuilder::GetCredentialSecret(
+    const std::string& tls_unique) {
   const char prefix[] = "SPDY CREDENTIAL ChannelID\0client -> server";
   std::string secret(prefix, arraysize(prefix));
   secret.append(tls_unique);
