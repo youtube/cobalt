@@ -237,14 +237,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
     }
   }
 
-  // TODO(strobe): For now, we avoid sending new configs on a new
-  // reinitialization segment, and instead simply embed the updated parameter
-  // sets into the video stream.  The conditional should be removed when
-  // http://crbug.com/122913 is fixed.  (We detect whether we've already sent
-  // configs by looking at init_cb_ instead of config_cb_, because init_cb_
-  // should only be fired once even after that bug is fixed.)
-  if (!init_cb_.is_null())
-    RCHECK(config_cb_.Run(audio_config, video_config));
+  RCHECK(config_cb_.Run(audio_config, video_config));
 
   base::TimeDelta duration;
   if (moov_->extends.header.fragment_duration > 0) {
