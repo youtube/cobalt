@@ -15,28 +15,47 @@ namespace media {
 class AudioParameters;
 
 // Scoped container for "busing" audio channel data around.  Each channel is
-// stored in planar format and guaranteed to have a 16-byte alignment.  AudioBus
-// objects can be created normally or via wrapping.  Normally, AudioBus will
-// dice up a contiguous memory block for channel data.  When wrapped, AudioBus
-// instead routes requests for channel data to the wrapped object.
+// stored in planar format and guaranteed to be aligned by kChannelAlignment.
+// AudioBus objects can be created normally or via wrapping.  Normally, AudioBus
+// will dice up a contiguous memory block for channel data.  When wrapped,
+// AudioBus instead routes requests for channel data to the wrapped object.
 class MEDIA_EXPORT AudioBus {
  public:
+  // Guaranteed alignment of each channel's data; use 16-byte alignment for easy
+  // SSE optimizations.
+  enum { kChannelAlignment = 16 };
+
   // Creates a new AudioBus and allocates |channels| of length |frames|.  Uses
-  // channels() and frames_per_buffer() if given an AudioParameters object.
+  // channels() and frames_per_buffer() from AudioParameters if given.
   static scoped_ptr<AudioBus> Create(int channels, int frames);
   static scoped_ptr<AudioBus> Create(const AudioParameters& params);
 
   // Creates a new AudioBus from an existing channel vector.  Does not transfer
   // ownership of |channel_data| to AudioBus; i.e., |channel_data| must outlive
-  // the returned AudioBus.  Each channel pointer must be 16-byte aligned.
+  // the returned AudioBus.  Each channel must be aligned by kChannelAlignment.
   static scoped_ptr<AudioBus> WrapVector(
       int frames, const std::vector<float*>& channel_data);
 
-  // Returns a raw pointer to internal channel data.  Useful for copying state
-  // between two AudioBus objects created with the same parameters.  data_size()
-  // is in bytes.  Can not be used with an AudioBus constructed via wrapping.
-  void* data();
-  int data_size() const;
+  // Creates a new AudioBus by wrapping an existing block of memory.  Block must
+  // be at least CalculateMemorySize() bytes in size.  |data| must outlive the
+  // returned AudioBus.  |data| must be aligned by kChannelAlignment.
+  static scoped_ptr<AudioBus> WrapMemory(int channels, int frames, void* data);
+  static scoped_ptr<AudioBus> WrapMemory(const AudioParameters& params,
+                                         void* data);
+  // Returns the required memory size to use the WrapMemory() method.
+  static int CalculateMemorySize(const AudioParameters& params);
+
+  // Helper methods for converting an AudioBus from and to interleaved integer
+  // data.  Expects interleaving to be [ch0, ch1, ..., chN, ch0, ch1, ...] with
+  // |bytes_per_sample| per value.  Values are scaled and bias corrected during
+  // conversion.  ToInterleaved() will also clip values to format range.
+  // Handles uint8, int16, and int32 currently.
+  void FromInterleaved(const void* source, int frames, int bytes_per_sample);
+  void ToInterleaved(int frames, int bytes_per_sample, void* dest) const;
+
+  // Helper method for copying channel data from one AudioBus to another.  Both
+  // AudioBus object must have the same frames() and channels().
+  void CopyTo(AudioBus* dest) const;
 
   // Returns a raw pointer to the requested channel.  Pointer is guaranteed to
   // have a 16-byte alignment.
@@ -55,11 +74,15 @@ class MEDIA_EXPORT AudioBus {
   ~AudioBus();
 
   AudioBus(int channels, int frames);
+  AudioBus(int channels, int frames, float* data);
   AudioBus(int frames, const std::vector<float*>& channel_data);
+
+  // Helper method for building |channel_data_| from a block of memory.  |data|
+  // must be at least BlockSize() bytes in size.
+  void BuildChannelData(int channels, int aligned_frame, float* data);
 
   // Contiguous block of channel memory.
   scoped_ptr_malloc<float, base::ScopedPtrAlignedFree> data_;
-  int data_size_;
 
   std::vector<float*> channel_data_;
   int frames_;

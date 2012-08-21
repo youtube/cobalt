@@ -182,6 +182,8 @@ bool FoldChannels(void* buf,
   return false;
 }
 
+// TODO(dalecurtis): Delete once everywhere is using the AudioBus version:
+// http://crbug.com/120319.
 bool DeinterleaveAudioChannel(void* source,
                               float* destination,
                               int channels,
@@ -226,54 +228,6 @@ bool DeinterleaveAudioChannel(void* source,
      break;
   }
   return false;
-}
-
-// |Format| is the destination type, |Fixed| is a type larger than |Format|
-// such that operations can be made without overflowing.
-template<class Format, class Fixed>
-static void InterleaveFloatToInt(const AudioBus* source,
-                                 void* dst_bytes, size_t number_of_frames) {
-  Format* destination = reinterpret_cast<Format*>(dst_bytes);
-  Fixed max_value = std::numeric_limits<Format>::max();
-  Fixed min_value = std::numeric_limits<Format>::min();
-
-  Format bias = 0;
-  if (!std::numeric_limits<Format>::is_signed) {
-    bias = max_value / 2;
-    max_value = bias;
-    min_value = -(bias - 1);
-  }
-
-  int channels = source->channels();
-  for (int i = 0; i < channels; ++i) {
-    const float* channel_data = source->channel(i);
-    for (size_t j = 0; j < number_of_frames; ++j) {
-      Fixed sample = max_value * channel_data[j];
-      if (sample > max_value)
-        sample = max_value;
-      else if (sample < min_value)
-        sample = min_value;
-
-      destination[j * channels + i] = static_cast<Format>(sample) + bias;
-    }
-  }
-}
-
-void InterleaveFloatToInt(const AudioBus* source, void* dst,
-                          size_t number_of_frames, int bytes_per_sample) {
-  switch (bytes_per_sample) {
-    case 1:
-      InterleaveFloatToInt<uint8, int32>(source, dst, number_of_frames);
-      break;
-    case 2:
-      InterleaveFloatToInt<int16, int32>(source, dst, number_of_frames);
-      break;
-    case 4:
-      InterleaveFloatToInt<int32, int64>(source, dst, number_of_frames);
-      break;
-    default:
-      break;
-  }
 }
 
 // TODO(enal): use template specialization and size-specific intrinsics.

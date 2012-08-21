@@ -352,23 +352,10 @@ int AudioRendererImpl::Render(AudioBus* audio_bus,
   DCHECK_LE(bytes_filled, buf_size);
   UpdateEarliestEndTime(bytes_filled, request_delay, base::Time::Now());
 
-  // Deinterleave each audio channel.
-  int channels = audio_bus->channels();
-  for (int channel_index = 0; channel_index < channels; ++channel_index) {
-    media::DeinterleaveAudioChannel(buf.get(),
-                                    audio_bus->channel(channel_index),
-                                    channels,
-                                    channel_index,
-                                    bytes_per_frame / channels,
-                                    frames_filled);
+  // Deinterleave audio data into the output bus.
+  audio_bus->FromInterleaved(
+      buf.get(), frames_filled, audio_parameters_.bits_per_sample() / 8);
 
-    // If FillBuffer() didn't give us enough data then zero out the remainder.
-    if (frames_filled < audio_bus->frames()) {
-      int frames_to_zero = audio_bus->frames() - frames_filled;
-      memset(audio_bus->channel(channel_index) + frames_filled, 0,
-             sizeof(*audio_bus->channel(channel_index)) * frames_to_zero);
-    }
-  }
   return frames_filled;
 }
 

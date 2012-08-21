@@ -265,7 +265,7 @@ TEST_F(PipelineIntegrationTest, BasicPlaybackHashed) {
   ASSERT_TRUE(WaitUntilOnEnded());
 
   EXPECT_EQ(GetVideoHash(), "f0be120a90a811506777c99a2cdf7cc1");
-  EXPECT_EQ(GetAudioHash(), "6138555be3389e6aba4c8e6f70195d50");
+  EXPECT_EQ(GetAudioHash(), "5699a4415b620e45b9d0aae531c9df76");
 }
 
 TEST_F(PipelineIntegrationTest, BasicPlayback_MediaSource) {
