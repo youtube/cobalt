@@ -504,35 +504,6 @@ SpdyFrame* ConstructSpdyConnect(const char* const extra_headers[],
                                    arraysize(kConnectHeaders));
 }
 
-// Constructs a standard SPDY SYN_STREAM frame for a WebSocket over SPDY
-// opening handshake.
-SpdyFrame* ConstructSpdyWebSocket(int stream_id,
-                                  const char* path,
-                                  const char* host,
-                                  const char* origin) {
-  const char* const kWebSocketHeaders[] = {
-    ":path",
-    path,
-    ":host",
-    host,
-    ":version",
-    "WebSocket/13",
-    ":scheme",
-    "ws",
-    ":origin",
-    origin
-  };
-  return ConstructSpdyControlFrame(/*extra_headers*/ NULL,
-                                   /*extra_header_count*/ 0,
-                                   /*compressed*/ false,
-                                   stream_id,
-                                   LOWEST,
-                                   SYN_STREAM,
-                                   CONTROL_FLAG_NONE,
-                                   kWebSocketHeaders,
-                                   arraysize(kWebSocketHeaders));
-}
-
 // Constructs a standard SPDY push SYN packet.
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
@@ -710,25 +681,6 @@ SpdyFrame* ConstructSpdyGetSynReply(const char* const extra_headers[],
                                    arraysize(kStandardGetHeaders));
 }
 
-// Constructs a standard SPDY SYN_REPLY packet to match the WebSocket over SPDY
-// opening handshake.
-// Returns a SpdyFrame.
-SpdyFrame* ConstructSpdyWebSocketSynReply(int stream_id) {
-  static const char* const kStandardWebSocketHeaders[] = {
-    ":status",
-    "101"
-  };
-  return ConstructSpdyControlFrame(NULL,
-                                   0,
-                                   false,
-                                   stream_id,
-                                   LOWEST,
-                                   SYN_REPLY,
-                                   CONTROL_FLAG_NONE,
-                                   kStandardWebSocketHeaders,
-                                   arraysize(kStandardWebSocketHeaders));
-}
-
 // Constructs a standard SPDY POST SYN packet.
 // |content_length| is the size of post data.
 // |extra_headers| are the extra header-value pairs, which typically
@@ -833,29 +785,6 @@ SpdyFrame* ConstructSpdyBodyFrame(int stream_id, const char* data,
   BufferedSpdyFramer framer(3);
   return framer.CreateDataFrame(
       stream_id, data, len, fin ? DATA_FLAG_FIN : DATA_FLAG_NONE);
-}
-
-// Constructs a SPDY HEADERS frame for a WebSocket frame over SPDY.
-SpdyFrame* ConstructSpdyWebSocketHeadersFrame(int stream_id,
-                                              const char* length,
-                                              bool fin) {
-  static const char* const kHeaders[] = {
-    ":opcode",
-    "1",  // text frame
-    ":length",
-    length,
-    ":fin",
-    fin ? "1" : "0"
-  };
-  return ConstructSpdyControlFrame(/*extra_headers*/ NULL,
-                                   /*extra_header_count*/ 0,
-                                   /*compression*/ false,
-                                   stream_id,
-                                   LOWEST,
-                                   HEADERS,
-                                   CONTROL_FLAG_NONE,
-                                   kHeaders,
-                                   arraysize(kHeaders));
 }
 
 // Wraps |frame| in the payload of a data frame in stream |stream_id|.
