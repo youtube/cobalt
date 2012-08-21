@@ -80,6 +80,10 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   bool Decode(const scoped_refptr<DecoderBuffer>& buffer,
               scoped_refptr<VideoFrame>* video_frame);
 
+  // Handles (re-)initializing the decoder with a (new) config.
+  // Returns true if initialization was successful.
+  bool ConfigureDecoder();
+
   // Releases resources associated with |codec_context_| and |av_frame_|
   // and resets them to NULL.
   void ReleaseFFmpegResources();
