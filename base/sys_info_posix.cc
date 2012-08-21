@@ -13,6 +13,7 @@
 #include "base/basictypes.h"
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 
 #if defined(OS_ANDROID)
@@ -40,6 +41,8 @@ int SysInfo::NumberOfProcessors() {
 
 // static
 int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
   struct statvfs stats;
   if (statvfs(path.value().c_str(), &stats) != 0) {
     return -1;
