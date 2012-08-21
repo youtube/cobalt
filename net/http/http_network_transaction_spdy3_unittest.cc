@@ -6497,8 +6497,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UploadFileSmallerThanLength) {
   ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
   const uint64 kFakeSize = 100000;  // file is actually blank
 
-  std::vector<UploadData::Element> elements;
-  UploadData::Element element;
+  std::vector<UploadElement> elements;
+  UploadElement element;
   element.SetToFilePath(temp_file_path);
   element.SetContentLength(kFakeSize);
   elements.push_back(element);
@@ -6555,8 +6555,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UploadUnreadableFile) {
                                    temp_file_content.length()));
   ASSERT_TRUE(file_util::MakeFileUnreadable(temp_file));
 
-  std::vector<UploadData::Element> elements;
-  UploadData::Element element;
+  std::vector<UploadElement> elements;
+  UploadElement element;
   element.SetToFilePath(temp_file);
   elements.push_back(element);
   request.upload_data->SetElements(elements);
@@ -6610,8 +6610,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UnreadableUploadFileAfterAuthRestart) {
   ASSERT_TRUE(file_util::WriteFile(temp_file, temp_file_contents.c_str(),
                                    temp_file_contents.length()));
 
-  std::vector<UploadData::Element> elements;
-  UploadData::Element element;
+  std::vector<UploadElement> elements;
+  UploadElement element;
   element.SetToFilePath(temp_file);
   elements.push_back(element);
   request.upload_data->SetElements(elements);
