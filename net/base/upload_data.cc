@@ -45,12 +45,6 @@ void UploadData::AppendFileRange(const FilePath& file_path,
                                       expected_modification_time);
 }
 
-void UploadData::AppendBlob(const GURL& blob_url) {
-  DCHECK(!is_chunked_);
-  elements_.push_back(UploadElement());
-  elements_.back().SetToBlobUrl(blob_url);
-}
-
 void UploadData::AppendChunk(const char* bytes,
                              int bytes_len,
                              bool is_last_chunk) {
