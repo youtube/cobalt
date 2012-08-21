@@ -234,13 +234,6 @@ SpdyFrame* ConstructSpdyConnect(const char* const extra_headers[],
                                 int extra_header_count,
                                 int stream_id);
 
-// Constructs a standard SPDY SYN_STREAM frame for WebSocket over SPDY
-// opening handshake.
-SpdyFrame* ConstructSpdyWebSocket(int stream_id,
-                                  const char* path,
-                                  const char* host,
-                                  const char* origin);
-
 // Constructs a standard SPDY push SYN packet.
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
@@ -283,11 +276,6 @@ SpdyFrame* ConstructSpdyGetSynReply(const char* const extra_headers[],
 // Returns a SpdyFrame.
 SpdyFrame* ConstructSpdyGetSynReplyRedirect(int stream_id);
 
-// Constructs a standard SPDY SYN_REPLY packet to match the WebSocket over SPDY
-// opening handshake.
-// Returns a SpdyFrame.
-SpdyFrame* ConstructSpdyWebSocketSynReply(int stream_id);
-
 // Constructs a standard SPDY SYN_REPLY packet with an Internal Server
 // Error status code.
 // Returns a SpdyFrame.
@@ -329,11 +317,6 @@ SpdyFrame* ConstructSpdyBodyFrame(int stream_id,
 // Constructs a single SPDY data frame with the given content.
 SpdyFrame* ConstructSpdyBodyFrame(int stream_id, const char* data,
                                   uint32 len, bool fin);
-
-// Constructs a SPDY HEADERS frame for a WebSocket frame over SPDY.
-SpdyFrame* ConstructSpdyWebSocketHeadersFrame(int stream_id,
-                                              const char* length,
-                                              bool fin);
 
 // Wraps |frame| in the payload of a data frame in stream |stream_id|.
 SpdyFrame* ConstructWrappedSpdyFrame(const scoped_ptr<SpdyFrame>& frame,
