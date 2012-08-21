@@ -270,10 +270,10 @@ void AudioOutputDevice::AudioThreadCallback::Process(int pending_data) {
       audio_bus_.get(), audio_delay_milliseconds);
 
   // Interleave, scale, and clip to int.
-  // TODO(dalecurtis): Remove this when we have float everywhere.
-  InterleaveFloatToInt(
-      audio_bus_.get(), shared_memory_.memory(), num_frames,
-      audio_parameters_.bits_per_sample() / 8);
+  // TODO(dalecurtis): Remove this when we have float everywhere:
+  // http://crbug.com/114700
+  audio_bus_->ToInterleaved(num_frames, audio_parameters_.bits_per_sample() / 8,
+                            shared_memory_.memory());
 
   // Let the host know we are done.
   SetActualDataSizeInBytes(

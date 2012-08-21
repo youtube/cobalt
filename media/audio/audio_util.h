@@ -80,17 +80,6 @@ MEDIA_EXPORT bool DeinterleaveAudioChannel(void* source,
                                            int bytes_per_sample,
                                            size_t number_of_frames);
 
-// InterleaveFloatToInt scales, clips, and interleaves the planar
-// floating-point audio contained in |source| to the |destination|.
-// The floating-point data is in a canonical range of -1.0 -> +1.0.
-// The size of the |source| vector determines the number of channels.
-// The |destination| buffer is assumed to be large enough to hold the
-// result. Thus it must be at least size: number_of_frames * source.size()
-MEDIA_EXPORT void InterleaveFloatToInt(const AudioBus* audio_bus,
-                                       void* destination,
-                                       size_t number_of_frames,
-                                       int bytes_per_sample);
-
 // Returns the default audio output hardware sample-rate.
 MEDIA_EXPORT int GetAudioHardwareSampleRate();
 
