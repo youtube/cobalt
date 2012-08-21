@@ -41,8 +41,7 @@ class NET_EXPORT UploadElement {
     type_ = type;
   }
 
-  const char* bytes() const { return bytes_start_ ? bytes_start_ : &buf_[0]; }
-  uint64 bytes_length() const { return buf_.size() + bytes_length_; }
+  const std::vector<char>& bytes() const { return bytes_; }
   const FilePath& file_path() const { return file_path_; }
   uint64 file_range_offset() const { return file_range_offset_; }
   uint64 file_range_length() const { return file_range_length_; }
@@ -54,16 +53,7 @@ class NET_EXPORT UploadElement {
 
   void SetToBytes(const char* bytes, int bytes_len) {
     type_ = TYPE_BYTES;
-    buf_.assign(bytes, bytes + bytes_len);
-  }
-
-  // This does not copy the given data and the caller should make sure
-  // the data is secured somewhere else (e.g. by attaching the data
-  // using SetUserData).
-  void SetToSharedBytes(const char* bytes, int bytes_len) {
-    type_ = TYPE_BYTES;
-    bytes_start_ = bytes;
-    bytes_length_ = bytes_len;
+    bytes_.assign(bytes, bytes + bytes_len);
   }
 
   void SetToFilePath(const FilePath& path) {
@@ -138,9 +128,7 @@ class NET_EXPORT UploadElement {
   }
 
   Type type_;
-  std::vector<char> buf_;
-  const char* bytes_start_;
-  uint64 bytes_length_;
+  std::vector<char> bytes_;
   FilePath file_path_;
   uint64 file_range_offset_;
   uint64 file_range_length_;

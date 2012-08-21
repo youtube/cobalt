@@ -53,6 +53,8 @@ class NET_EXPORT UploadData
                        uint64 offset, uint64 length,
                        const base::Time& expected_modification_time);
 
+  void AppendBlob(const GURL& blob_url);
+
   // Adds the given chunk of bytes to be sent immediately with chunked transfer
   // encoding.
   void AppendChunk(const char* bytes, int bytes_len, bool is_last_chunk);
