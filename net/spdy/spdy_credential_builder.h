@@ -19,7 +19,7 @@ struct SpdyCredential;
 // SPDY CREDENTIAL frames.
 class NET_EXPORT_PRIVATE SpdyCredentialBuilder {
  public:
-  static int Build(std::string tls_unique,
+  static int Build(const std::string& tls_unique,
                    SSLClientCertType type,
                    const std::string& key,
                    const std::string& cert,
@@ -30,7 +30,7 @@ class NET_EXPORT_PRIVATE SpdyCredentialBuilder {
   friend class SpdyCredentialBuilderTest;
 
   // Returns the secret data to be signed as part of a credential frame.
-  static std::string GetCredentialSecret(std::string tls_unique);
+  static std::string GetCredentialSecret(const std::string& tls_unique);
 };
 
 }  // namespace net
