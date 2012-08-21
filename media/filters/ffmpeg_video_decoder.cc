@@ -158,44 +158,13 @@ void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
   demuxer_stream_ = stream;
   statistics_cb_ = statistics_cb;
 
-  const VideoDecoderConfig& config = stream->video_decoder_config();
-
-  // TODO(scherkus): this check should go in Pipeline prior to creating
-  // decoder objects.
-  if (!config.IsValidConfig()) {
-    DLOG(ERROR) << "Invalid video stream - " << config.AsHumanReadableString();
-    status_cb.Run(PIPELINE_ERROR_DECODE);
-    return;
-  }
-
-  // Initialize AVCodecContext structure.
-  codec_context_ = avcodec_alloc_context3(NULL);
-  VideoDecoderConfigToAVCodecContext(config, codec_context_);
-
-  // Enable motion vector search (potentially slow), strong deblocking filter
-  // for damaged macroblocks, and set our error detection sensitivity.
-  codec_context_->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
-  codec_context_->err_recognition = AV_EF_CAREFUL;
-  codec_context_->thread_count = GetThreadCount(codec_context_->codec_id);
-  codec_context_->opaque = this;
-  codec_context_->flags |= CODEC_FLAG_EMU_EDGE;
-  codec_context_->get_buffer = GetVideoBufferImpl;
-  codec_context_->release_buffer = ReleaseVideoBufferImpl;
-
-  AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
-  if (!codec) {
-    status_cb.Run(PIPELINE_ERROR_DECODE);
-    return;
-  }
-
-  if (avcodec_open2(codec_context_, codec, NULL) < 0) {
+  if (!ConfigureDecoder()) {
     status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
   // Success!
   state_ = kNormal;
-  av_frame_ = avcodec_alloc_frame();
   status_cb.Run(PIPELINE_OK);
 }
 
@@ -320,10 +289,18 @@ void FFmpegVideoDecoder::DoDecryptOrDecodeBuffer(
     return;
   }
 
-  if (status != DemuxerStream::kOk) {
-    Status decoder_status =
-        (status == DemuxerStream::kAborted) ? kOk : kDecodeError;
-    base::ResetAndReturn(&read_cb_).Run(decoder_status, NULL);
+  if (status == DemuxerStream::kAborted) {
+    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
+    return;
+  }
+
+  if (status == DemuxerStream::kConfigChanged) {
+    if (!ConfigureDecoder()) {
+      base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
+      return;
+    }
+
+    ReadFromDemuxerStream();
     return;
   }
 
@@ -522,6 +499,42 @@ void FFmpegVideoDecoder::ReleaseFFmpegResources() {
     av_free(av_frame_);
     av_frame_ = NULL;
   }
+}
+
+bool FFmpegVideoDecoder::ConfigureDecoder() {
+  const VideoDecoderConfig& config = demuxer_stream_->video_decoder_config();
+
+  if (!config.IsValidConfig()) {
+    DLOG(ERROR) << "Invalid video stream - " << config.AsHumanReadableString();
+    return false;
+  }
+
+  // Release existing decoder resources if necessary.
+  ReleaseFFmpegResources();
+
+  // Initialize AVCodecContext structure.
+  codec_context_ = avcodec_alloc_context3(NULL);
+  VideoDecoderConfigToAVCodecContext(config, codec_context_);
+
+  // Enable motion vector search (potentially slow), strong deblocking filter
+  // for damaged macroblocks, and set our error detection sensitivity.
+  codec_context_->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
+  codec_context_->err_recognition = AV_EF_CAREFUL;
+  codec_context_->thread_count = GetThreadCount(codec_context_->codec_id);
+  codec_context_->opaque = this;
+  codec_context_->flags |= CODEC_FLAG_EMU_EDGE;
+  codec_context_->get_buffer = GetVideoBufferImpl;
+  codec_context_->release_buffer = ReleaseVideoBufferImpl;
+
+  AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
+  if (!codec)
+    return false;
+
+  if (avcodec_open2(codec_context_, codec, NULL) < 0)
+    return false;
+
+  av_frame_ = avcodec_alloc_frame();
+  return true;
 }
 
 }  // namespace media
