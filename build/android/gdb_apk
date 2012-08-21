@@ -97,12 +97,13 @@ rooted_phone=0
 
 root=$(dirname $0)/../..
 package_name=org.chromium.content_shell
-shared_lib_dir=$root/out/Release/lib.target
+shared_lib_dir=$root/out/${BUILDTYPE:-Release}/lib.target
 gdb_args=''
 
 #process options
 process_options "$@"
 echo "Debug package $package_name"
+echo "Assume native shared library is under $shared_lib_dir"
 
 data_dir=/data/data/$package_name
 gdb_server_on_device=$data_dir/lib/gdbserver

@@ -82,16 +82,19 @@ _TEST_SUITES = ['base_unittests',
                ]
 
 
-def FullyQualifiedTestSuites(exe, option_test_suite):
+def TestSuiteDir(build_type):
+  """Return the base directory of test suites."""
+  return os.path.abspath(os.path.join(constants.CHROME_DIR, 'out', build_type))
+
+def FullyQualifiedTestSuites(exe, option_test_suite, build_type):
   """Return a fully qualified list
 
   Args:
     exe: if True, use the executable-based test runner.
     option_test_suite: the test_suite specified as an option.
+    build_type: 'Release' or 'Debug'.
   """
-  # Assume the test suites are in out/Release.
-  test_suite_dir = os.path.abspath(os.path.join(constants.CHROME_DIR,
-                                                'out', 'Release'))
+  test_suite_dir = TestSuiteDir(build_type)
   if option_test_suite:
     all_test_suites = [option_test_suite]
   else:
@@ -101,7 +104,7 @@ def FullyQualifiedTestSuites(exe, option_test_suite):
     qualified_test_suites = [os.path.join(test_suite_dir, t)
                              for t in all_test_suites]
   else:
-    # out/Release/$SUITE_apk/$SUITE-debug.apk
+    # out/(Debug|Release)/$SUITE_apk/$SUITE-debug.apk
     qualified_test_suites = [os.path.join(test_suite_dir,
                                           t + '_apk',
                                           t + '-debug.apk')
@@ -195,7 +198,8 @@ class TestSharder(BaseTestSharder):
 
   def __init__(self, attached_devices, test_suite, gtest_filter,
                test_arguments, timeout, rebaseline, performance_test,
-               cleanup_test_files, tool, log_dump_name, fast_and_loose):
+               cleanup_test_files, tool, log_dump_name, fast_and_loose,
+               build_type):
     BaseTestSharder.__init__(self, attached_devices)
     self.test_suite = test_suite
     self.test_suite_basename = os.path.basename(test_suite)
@@ -208,10 +212,12 @@ class TestSharder(BaseTestSharder):
     self.tool = tool
     self.log_dump_name = log_dump_name
     self.fast_and_loose = fast_and_loose
+    self.build_type = build_type
     test = SingleTestRunner(self.attached_devices[0], test_suite, gtest_filter,
                             test_arguments, timeout, rebaseline,
                             performance_test, cleanup_test_files, tool, 0,
-                            not not self.log_dump_name, fast_and_loose)
+                            not not self.log_dump_name, fast_and_loose,
+                            build_type)
     self.tests = []
     if not self.gtest_filter:
       # No filter has been specified, let's add all tests then.
@@ -245,7 +251,8 @@ class TestSharder(BaseTestSharder):
                             test_filter, self.test_arguments, self.timeout,
                             self.rebaseline, self.performance_test,
                             self.cleanup_test_files, self.tool, index,
-                            not not self.log_dump_name, self.fast_and_loose)
+                            not not self.log_dump_name, self.fast_and_loose,
+                            self.build_type)
 
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
@@ -256,8 +263,7 @@ class TestSharder(BaseTestSharder):
     if self.log_dump_name:
       # Zip all debug info outputs into a file named by log_dump_name.
       debug_info.GTestDebugInfo.ZipAndCleanResults(
-          os.path.join(constants.CHROME_DIR, 'out', 'Release',
-                       'debug_info_dumps'),
+          os.path.join(TestSuiteDir(self.build_type), 'debug_info_dumps'),
           self.log_dump_name)
 
 
@@ -317,7 +323,8 @@ def _RunATestSuite(options):
                         options.timeout, options.rebaseline,
                         options.performance_test,
                         options.cleanup_test_files, options.tool,
-                        options.log_dump, options.fast_and_loose)
+                        options.log_dump, options.fast_and_loose,
+                        options.build_type)
   test_results = sharder.RunShardedTests()
 
   for buildbot_emulator in buildbot_emulators:
@@ -355,7 +362,8 @@ def Dispatch(options):
     xvfb = Xvfb()
     xvfb.Start()
 
-  all_test_suites = FullyQualifiedTestSuites(options.exe, options.test_suite)
+  all_test_suites = FullyQualifiedTestSuites(options.exe, options.test_suite,
+                                             options.build_type)
   failures = 0
   for suite in all_test_suites:
     options.test_suite = suite
@@ -422,6 +430,7 @@ def main(argv):
   option_parser.add_option('--exe', action='store_true',
                            help='If set, use the exe test runner instead of '
                            'the APK.')
+
   options, args = option_parser.parse_args(argv)
   if len(args) > 1:
     print 'Unknown argument:', args[1:]
