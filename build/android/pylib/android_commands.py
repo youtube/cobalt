@@ -436,7 +436,7 @@ class AndroidCommands(object):
   # possible without using a private (local) adb_shell instance (to ensure no
   # other command interleaves usage of it), which would defeat the main aim of
   # being able to reuse the adb shell instance across commands.
-  def RunShellCommand(self, command, timeout_time=20, log_result=True):
+  def RunShellCommand(self, command, timeout_time=20, log_result=False):
     """Send a command to the adb shell and return the result.
 
     Args:
@@ -584,7 +584,7 @@ class AndroidCommands(object):
     if not re.search('^[0-9]', output.splitlines()[-1]):
       logging.critical('PUSH FAILED: ' + output)
 
-  def GetFileContents(self, filename, log_result=True):
+  def GetFileContents(self, filename, log_result=False):
     """Gets contents from the file specified by |filename|."""
     return self.RunShellCommand('if [ -f "' + filename + '" ]; then cat "' +
                                 filename + '"; fi', log_result=log_result)
