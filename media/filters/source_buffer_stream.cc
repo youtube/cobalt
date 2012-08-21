@@ -270,6 +270,8 @@ namespace media {
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
     : current_config_index_(0),
       append_config_index_(0),
+      audio_configs_(1),
+      video_configs_(0),
       stream_start_time_(kNoTimestamp()),
       seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
@@ -280,14 +282,15 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
       last_buffer_timestamp_(kNoTimestamp()),
       max_interbuffer_distance_(kNoTimestamp()),
       memory_limit_(kDefaultAudioMemoryLimit) {
-  DCHECK(audio_config.IsValidConfig());
-  audio_configs_.push_back(new AudioDecoderConfig());
-  audio_configs_.back()->CopyFrom(audio_config);
+  audio_configs_[0] = new AudioDecoderConfig();
+  audio_configs_[0]->CopyFrom(audio_config);
 }
 
 SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config)
     : current_config_index_(0),
       append_config_index_(0),
+      audio_configs_(0),
+      video_configs_(1),
       stream_start_time_(kNoTimestamp()),
       seek_pending_(false),
       seek_buffer_timestamp_(kNoTimestamp()),
@@ -298,9 +301,8 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config)
       last_buffer_timestamp_(kNoTimestamp()),
       max_interbuffer_distance_(kNoTimestamp()),
       memory_limit_(kDefaultVideoMemoryLimit) {
-  DCHECK(video_config.IsValidConfig());
-  video_configs_.push_back(new VideoDecoderConfig());
-  video_configs_.back()->CopyFrom(video_config);
+  video_configs_[0] = new VideoDecoderConfig();
+  video_configs_[0]->CopyFrom(video_config);
 }
 
 SourceBufferStream::~SourceBufferStream() {
@@ -734,7 +736,6 @@ void SourceBufferStream::Seek(base::TimeDelta timestamp) {
   DCHECK(timestamp >= stream_start_time_);
   SetSelectedRange(NULL);
   track_buffer_.clear();
-  config_change_pending_ = false;
 
   if (ShouldSeekToStartOfBuffered(timestamp)) {
     SetSelectedRange(ranges_.front());
@@ -766,13 +767,9 @@ bool SourceBufferStream::IsSeekPending() const {
 
 SourceBufferStream::Status SourceBufferStream::GetNextBuffer(
     scoped_refptr<StreamParserBuffer>* out_buffer) {
-  CHECK(!config_change_pending_);
-
   if (!track_buffer_.empty()) {
-    if (track_buffer_.front()->GetConfigId() != current_config_index_) {
-      config_change_pending_ = true;
+    if (track_buffer_.front()->GetConfigId() != current_config_index_)
       return kConfigChange;
-    }
 
     *out_buffer = track_buffer_.front();
     track_buffer_.pop_front();
@@ -782,10 +779,8 @@ SourceBufferStream::Status SourceBufferStream::GetNextBuffer(
   if (!selected_range_ || !selected_range_->HasNextBuffer())
     return kNeedBuffer;
 
-  if (selected_range_->GetNextConfigId() != current_config_index_) {
-    config_change_pending_ = true;
+  if (selected_range_->GetNextConfigId() != current_config_index_)
     return kConfigChange;
-  }
 
   CHECK(selected_range_->GetNextBuffer(out_buffer));
   return kSuccess;
@@ -857,14 +852,12 @@ bool SourceBufferStream::IsEndSelected() const {
 }
 
 const AudioDecoderConfig& SourceBufferStream::GetCurrentAudioDecoderConfig() {
-  if (config_change_pending_)
-    CompleteConfigChange();
+  CompleteConfigChange();
   return *audio_configs_[current_config_index_];
 }
 
 const VideoDecoderConfig& SourceBufferStream::GetCurrentVideoDecoderConfig() {
-  if (config_change_pending_)
-    CompleteConfigChange();
+  CompleteConfigChange();
   return *video_configs_[current_config_index_];
 }
 
@@ -940,15 +933,15 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
 }
 
 void SourceBufferStream::CompleteConfigChange() {
-  config_change_pending_ = false;
-
   if (!track_buffer_.empty()) {
     current_config_index_ = track_buffer_.front()->GetConfigId();
     return;
   }
 
-  if (selected_range_ && selected_range_->HasNextBuffer())
-    current_config_index_ = selected_range_->GetNextConfigId();
+  if (!selected_range_ || !selected_range_->HasNextBuffer())
+    return;
+
+  current_config_index_ = selected_range_->GetNextConfigId();
 }
 
 SourceBufferRange::SourceBufferRange(
