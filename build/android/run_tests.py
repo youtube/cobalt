@@ -256,7 +256,8 @@ class TestSharder(BaseTestSharder):
 
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
-    test_results.LogFull('Unit test', os.path.basename(self.test_suite))
+    test_results.LogFull('Unit test', os.path.basename(self.test_suite),
+                         self.build_type)
     PrintAnnotationForTestResults(test_results)
     if test_results.failed and self.rebaseline:
       test_runners[0].UpdateFilter(test_results.failed)
