@@ -89,7 +89,6 @@ ExtensionAppsPromo.*
 ComponentLoaderTest.*
 ExtensionFromUserScript.*
 ExtensionFromWebApp.*
-ExtensionIconImageTest.*
 ExtensionIconManagerTest.*
 ExtensionServiceTest.*
 ExtensionServiceTestSimple.*
@@ -142,3 +141,6 @@ VariationsHelperTest.NoAssociation
 # crbug.com/141473
 AutofillManagerTest.UpdatePasswordSyncState
 AutofillManagerTest.UpdatePasswordGenerationState
+
+# crbug.com/144227
+ExtensionIconImageTest.*
