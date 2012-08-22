@@ -359,18 +359,6 @@ class ChunkDemuxerTest : public testing::Test {
     return success;
   }
 
-  bool InitDemuxer_ExpectInitFailure() {
-    EXPECT_CALL(*client_, DemuxerOpened(_));
-    demuxer_->Initialize(
-        &host_, CreateInitDoneCB(
-            kDefaultDuration(), DEMUXER_ERROR_COULD_NOT_OPEN));
-
-    if (AddId(kSourceId, true, true) != ChunkDemuxer::kOk)
-      return false;
-
-    return AppendInitSegment(true, true, false);
-  }
-
   // Initializes the demuxer with data from 2 files with different
   // decoder configurations. This is used to test the decoder config change
   // logic.
@@ -748,10 +736,18 @@ TEST_F(ChunkDemuxerTest, TestInit) {
   }
 }
 
-// Makes sure that pipeline reports an error if Shutdown()
-// is called before the first cluster is passed to the demuxer.
-TEST_F(ChunkDemuxerTest, TestShutdownBeforeFirstCluster) {
-  ASSERT_TRUE(InitDemuxer_ExpectInitFailure());
+// Make sure that the demuxer reports an error if Shutdown()
+// is called before all the initialization segments are appended.
+TEST_F(ChunkDemuxerTest, TestShutdownBeforeAllInitSegmentsAppended) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Initialize(
+      &host_, CreateInitDoneCB(
+          kDefaultDuration(), DEMUXER_ERROR_COULD_NOT_OPEN));
+
+  EXPECT_EQ(AddId("audio", true, false), ChunkDemuxer::kOk);
+  EXPECT_EQ(AddId("video", false, true), ChunkDemuxer::kOk);
+
+  EXPECT_TRUE(AppendInitSegment("audio", true, false, false));
 }
 
 // Test that Seek() completes successfully when the first cluster
@@ -777,14 +773,6 @@ TEST_F(ChunkDemuxerTest, TestAppendDataAfterSeek) {
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
   Checkpoint(2);
-}
-
-// Test that parsing errors are handled for clusters appended before init
-// completes.
-TEST_F(ChunkDemuxerTest, TestErrorWhileParsingClusterBeforeInitCompletes) {
-  ASSERT_TRUE(InitDemuxer_ExpectInitFailure());
-
-  ASSERT_TRUE(AppendGarbage());
 }
 
 // Test that parsing errors are handled for clusters appended after init.
@@ -1361,11 +1349,9 @@ TEST_F(ChunkDemuxerTest, TestParseErrorDuringInit) {
   EXPECT_CALL(*client_, DemuxerOpened(_));
   demuxer_->Initialize(
       &host_, CreateInitDoneCB(
-          kDefaultDuration(), DEMUXER_ERROR_COULD_NOT_OPEN));
+          kNoTimestamp(), DEMUXER_ERROR_COULD_NOT_OPEN));
 
   ASSERT_EQ(AddId(), ChunkDemuxer::kOk);
-
-  ASSERT_TRUE(AppendInitSegment(true, true, false));
 
   uint8 tmp = 0;
   ASSERT_TRUE(demuxer_->AppendData(kSourceId, &tmp, 1));
@@ -2186,6 +2172,10 @@ TEST_F(ChunkDemuxerTest, TestTimestampPositiveOffset) {
       kSourceId, base::TimeDelta::FromSeconds(30)));
   scoped_ptr<Cluster> cluster(GenerateCluster(0, 2));
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
+
+  demuxer_->StartWaitingForSeek();
+  demuxer_->Seek(base::TimeDelta::FromMilliseconds(30000),
+                 NewExpectedStatusCB(PIPELINE_OK));
 
   scoped_refptr<DemuxerStream> audio =
       demuxer_->GetStream(DemuxerStream::AUDIO);
