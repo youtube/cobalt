@@ -130,7 +130,7 @@ class TestResults(object):
     """Returns the all broken tests including failed, crashed, unknown."""
     return self.failed + self.crashed + self.unknown
 
-  def LogFull(self, test_group, test_suite):
+  def LogFull(self, test_group, test_suite, build_type):
     """Output broken test logs, summarize in a log file and the test output."""
     # Output all broken tests or 'passed' if none broken.
     logging.critical('*' * 80)
@@ -151,7 +151,7 @@ class TestResults(object):
     # Summarize in a log file, if tests are running on bots.
     if test_group and test_suite and os.environ.get('BUILDBOT_BUILDERNAME'):
       log_file_path = os.path.join(constants.CHROME_DIR, 'out',
-                                   'Release', 'test_logs')
+                                   build_type, 'test_logs')
       if not os.path.exists(log_file_path):
         os.mkdir(log_file_path)
       full_file_name = os.path.join(log_file_path, test_group)
