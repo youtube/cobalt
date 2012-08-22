@@ -404,6 +404,7 @@ net::Error SpdySession::InitializeWithSocket(
   buffered_spdy_framer_.reset(new BufferedSpdyFramer(version));
   buffered_spdy_framer_->set_visitor(this);
   SendInitialSettings();
+  UMA_HISTOGRAM_ENUMERATION("Net.SpdyVersion", protocol, kProtoMaximumVersion);
 
   // Write out any data that we might have to send, such as the settings frame.
   WriteSocketLater();
