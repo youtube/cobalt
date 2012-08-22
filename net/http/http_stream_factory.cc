@@ -170,6 +170,7 @@ void HttpStreamFactory::EnableNpnHttpOnly() {
 
 // static
 void HttpStreamFactory::EnableNpnSpdy3() {
+  set_use_alternate_protocols(true);
   std::vector<std::string> next_protos;
   next_protos.push_back("http/1.1");
   next_protos.push_back("spdy/2");
