@@ -25,9 +25,6 @@ class SourceBufferStreamTest : public testing::Test {
                        kCodedSize, NULL, 0, false);
     stream_.reset(new SourceBufferStream(config_));
     SetStreamInfo(kDefaultFramesPerSecond, kDefaultKeyframesPerSecond);
-
-    // Set start time to the beginning of the stream.
-    stream_->SetStartTime(base::TimeDelta());
   }
 
   void SetMemoryLimit(int buffers_of_data) {

@@ -153,7 +153,7 @@ class MockVideoRenderer : public VideoRenderer {
   MOCK_METHOD2(Preroll, void(base::TimeDelta time, const PipelineStatusCB& cb));
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD0(PrepareForShutdownHack, void());
+  virtual void PrepareForShutdownHack() {}
 
  protected:
   virtual ~MockVideoRenderer();
