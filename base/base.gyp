@@ -201,7 +201,6 @@
         }],
         ['OS=="lb_shell"', {
           'dependencies!': [
-            '../third_party/modp_b64/modp_b64.gyp:modp_b64',
             '../third_party/libevent/libevent.gyp:libevent',
           ],
           'sources': [
@@ -210,6 +209,7 @@
             'sys_string_conversions_shell.cc',
             'threading/thread_local_shell.cc',
             'threading/thread_local_storage_shell.cc',
+            'threading/worker_pool_shell.cc',
           ],
           'sources!': [
             'debug/debugger_posix.cc',
