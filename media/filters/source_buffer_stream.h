@@ -51,9 +51,6 @@ class MEDIA_EXPORT SourceBufferStream {
   // starting at |media_segment_start_time|.
   void OnNewMediaSegment(base::TimeDelta media_segment_start_time);
 
-  // Sets the start time of the stream.
-  void SetStartTime(base::TimeDelta stream_start_time);
-
   // Add the |buffers| to the SourceBufferStream. Buffers within the queue are
   // expected to be in order, but multiple calls to Append() may add buffers out
   // of order or overlapping. Assumes all buffers within |buffers| are in
@@ -222,9 +219,6 @@ class MEDIA_EXPORT SourceBufferStream {
   // and |append_config_index_| represent indexes into one of these vectors.
   std::vector<AudioDecoderConfig*> audio_configs_;
   std::vector<VideoDecoderConfig*> video_configs_;
-
-  // The starting time of the stream.
-  base::TimeDelta stream_start_time_;
 
   // True if more data needs to be appended before the Seek() can complete,
   // false if no Seek() has been requested or the Seek() is completed.
