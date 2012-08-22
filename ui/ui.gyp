@@ -442,6 +442,8 @@
         'gfx/scoped_cg_context_save_gstate_mac.h',
         'gfx/scoped_ns_graphics_context_save_gstate_mac.h',
         'gfx/scoped_ns_graphics_context_save_gstate_mac.mm',
+        'gfx/scoped_ui_graphics_push_context_ios.h',
+        'gfx/scoped_ui_graphics_push_context_ios.mm',
         'gfx/scrollbar_size.cc',
         'gfx/scrollbar_size.h',
         'gfx/selection_model.cc',
@@ -714,6 +716,7 @@
             ['include', '^gfx/size\\.'],
             ['include', '^gfx/size_base\\.h'],
             ['include', '^gfx/size_base_impl\\.h'],
+            ['include', '^gfx/scoped_ui_graphics_push_context_ios\\.'],
           ],
           'link_settings': {
             'libraries': [
