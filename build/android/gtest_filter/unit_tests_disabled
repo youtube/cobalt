@@ -89,6 +89,7 @@ ExtensionAppsPromo.*
 ComponentLoaderTest.*
 ExtensionFromUserScript.*
 ExtensionFromWebApp.*
+ExtensionIconImageTest.*
 ExtensionIconManagerTest.*
 ExtensionServiceTest.*
 ExtensionServiceTestSimple.*
