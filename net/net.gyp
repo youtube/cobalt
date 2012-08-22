@@ -810,6 +810,7 @@
           ],
           'sources': [
             'base/file_stream_shell.cc',
+            'base/net_util_shell.cc',
             'disk_cache/cache_util_shell.cc',
             'disk_cache/file_shell.cc',
             'disk_cache/mapped_file_shell.cc',
