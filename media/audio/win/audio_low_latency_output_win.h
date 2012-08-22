@@ -159,6 +159,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/win/scoped_co_mem.h"
@@ -308,7 +309,7 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // Rendering is driven by this thread (which has no message loop).
   // All OnMoreData() callbacks will be called from this thread.
-  base::DelegateSimpleThread* render_thread_;
+  scoped_ptr<base::DelegateSimpleThread> render_thread_;
 
   // Contains the desired audio format which is set up at construction.
   // Extended PCM waveform format structure based on WAVEFORMATEXTENSIBLE.
