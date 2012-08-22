@@ -329,7 +329,6 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
     : com_init_(ScopedCOMInitializer::kMTA),
       creating_thread_id_(base::PlatformThread::CurrentId()),
       manager_(manager),
-      render_thread_(NULL),
       opened_(false),
       started_(false),
       restart_rendering_mode_(false),
@@ -528,7 +527,8 @@ void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
 
   // Create and start the thread that will drive the rendering by waiting for
   // render events.
-  render_thread_ = new base::DelegateSimpleThread(this, "wasapi_render_thread");
+  render_thread_.reset(
+      new base::DelegateSimpleThread(this, "wasapi_render_thread"));
   render_thread_->Start();
   if (!render_thread_->HasBeenStarted()) {
     DLOG(ERROR) << "Failed to start WASAPI render thread.";
@@ -540,7 +540,7 @@ void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
   if (FAILED(hr)) {
     SetEvent(stop_render_event_.Get());
     render_thread_->Join();
-    render_thread_ = NULL;
+    render_thread_.reset();
     HandleError(hr);
     return;
   }
@@ -566,10 +566,10 @@ void WASAPIAudioOutputStream::Stop() {
   }
 
   // Wait until the thread completes and perform cleanup.
-  if (render_thread_) {
+  if (render_thread_.get()) {
     SetEvent(stop_render_event_.Get());
     render_thread_->Join();
-    render_thread_ = NULL;
+    render_thread_.reset();
   }
 
   // Flush all pending data and reset the audio clock stream position to 0.
