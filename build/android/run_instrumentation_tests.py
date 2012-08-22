@@ -17,19 +17,21 @@ from pylib import run_tests_helper
 from pylib.test_result import TestResults
 
 
-def SummarizeResults(java_results, python_results, annotation):
+def SummarizeResults(java_results, python_results, annotation, build_type):
   """Summarize the results from the various test types.
 
   Args:
     java_results: a TestResults object with java test case results.
     python_results: a TestResults object with python test case results.
     annotation: the annotation used for these results.
+    build_type: 'Release' or 'Debug'.
 
   Returns:
     A tuple (all_results, summary_string, num_failing)
   """
   all_results = TestResults.FromTestResults([java_results, python_results])
-  summary_string = all_results.LogFull('Instrumentation', annotation)
+  summary_string = all_results.LogFull('Instrumentation', annotation,
+                                       build_type)
   num_failing = (len(all_results.failed) + len(all_results.crashed) +
                  len(all_results.unknown))
   return all_results, summary_string, num_failing
@@ -61,7 +63,7 @@ def DispatchInstrumentationTests(options):
     python_results = run_python_tests.DispatchPythonTests(options)
 
   all_results, summary_string, num_failing = SummarizeResults(
-      java_results, python_results, options.annotation)
+      java_results, python_results, options.annotation, options.build_type)
   return num_failing
 
 
