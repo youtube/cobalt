@@ -15,12 +15,22 @@ Usage:
   python find_sdk.py 10.6  # Ignores SDKs < 10.6
 """
 
+from optparse import OptionParser
+
+
 def parse_version(version_str):
   """'10.6' => [10, 6]"""
   return map(int, re.findall(r'(\d+)', version_str))
 
 
-def main(min_sdk_version):
+def main():
+  parser = OptionParser()
+  parser.add_option("--verify",
+                    action="store_true", dest="verify", default=False,
+                    help="return the sdk argument and warn if it doesn't exist")
+  (options, args) = parser.parse_args()
+  min_sdk_version = args[0]
+
   job = subprocess.Popen(['xcode-select', '-print-path'],
                          stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT)
@@ -44,10 +54,26 @@ def main(min_sdk_version):
           if parse_version(s) >= parse_version(min_sdk_version)]
   if not sdks:
     raise Exception('No %s+ SDK found' % min_sdk_version)
-  print sorted(sdks, key=parse_version)[0]
+  best_sdk = sorted(sdks, key=parse_version)[0]
+
+  if options.verify and best_sdk != min_sdk_version:
+    print >>sys.stderr, ''
+    print >>sys.stderr, '                                           vvvvvvv'
+    print >>sys.stderr, ''
+    print >>sys.stderr, \
+        'This build requires the %s SDK, but it was not found on your system.' \
+        % min_sdk_version
+    print >>sys.stderr, \
+        'Either install it, or explicitly set mac_sdk in your GYP_DEFINES.'
+    print >>sys.stderr, ''
+    print >>sys.stderr, '                                           ^^^^^^^'
+    print >>sys.stderr, ''
+    return min_sdk_version
+
+  return best_sdk
 
 
 if __name__ == '__main__':
   if sys.platform != 'darwin':
     raise Exception("This script only runs on Mac")
-  main(min_sdk_version=sys.argv[1])
+  print main()
