@@ -109,9 +109,9 @@ def run_executable(cmd, build_dir, env):
       # Some ChromeOS tests need a window manager. Technically, it could be
       # another script but that would be overkill.
       try:
-        cmd = ['icewm']
+        ice_cmd = ['icewm']
         subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+            ice_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
       except OSError:
         print >> sys.stderr, 'Failed to run %s' % ' '.join(cmd)
         return 1
