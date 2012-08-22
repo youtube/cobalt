@@ -1034,7 +1034,7 @@
           }],
 
           ['branding=="Chrome" and buildtype=="Official"', {
-            'mac_sdk%': '10.6',
+            'mac_sdk%': '<!(python <(DEPTH)/build/mac/find_sdk.py --verify 10.6)',
             # Enable uploading crash dumps.
             'mac_breakpad_uploads%': 1,
             # Enable dumping symbols at build time for use by Mac Breakpad.
