@@ -56,6 +56,7 @@ v8.log
 /chrome/app/theme/google_chrome
 /chrome/browser/autofill/internal
 /chrome/browser/extensions/default_extensions/chromeos
+/chrome/browser/google/linkdoctor_internal
 /chrome/browser/intents/internal/
 /chrome/browser/performance_monitor/performance_monitor.xml
 /chrome/browser/protector/internal
