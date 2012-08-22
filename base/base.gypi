@@ -50,6 +50,7 @@
           'atomic_ref_count.h',
           'atomic_sequence_num.h',
           'atomicops.h',
+          'atomicops_internals_gcc.h',
           'atomicops_internals_mac.h',
           'atomicops_internals_x86_gcc.cc',
           'atomicops_internals_x86_gcc.h',
