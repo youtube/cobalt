@@ -49,10 +49,13 @@ def start_xvfb(xvfb_path, display):
   Args:
     xvfb_path: Path to Xvfb.
   """
-  proc = subprocess.Popen(
-      [xvfb_path, display, '-screen', '0', '1024x768x24', '-ac'],
-      stdout=subprocess.PIPE,
-      stderr=subprocess.STDOUT)
+  cmd = [xvfb_path, display, '-screen', '0', '1024x768x24', '-ac']
+  try:
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  except OSError:
+    print >> sys.stderr, 'Failed to run %s' % ' '.join(cmd)
+    return 0
   return proc.pid
 
 
@@ -96,6 +99,8 @@ def run_executable(cmd, build_dir, env):
       # Defaults to X display 9.
       display = ':9'
       pid = start_xvfb(xvfb, display)
+      if not pid:
+        return 1
       env['DISPLAY'] = display
       if not wait_for_xvfb(os.path.join(build_dir, 'xdisplaycheck'), env):
         return 3
@@ -103,8 +108,13 @@ def run_executable(cmd, build_dir, env):
       env['_CHROMIUM_INSIDE_XVFB'] = '1'
       # Some ChromeOS tests need a window manager. Technically, it could be
       # another script but that would be overkill.
-      subprocess.Popen(
-          'icewm', stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+      try:
+        cmd = ['icewm']
+        subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+      except OSError:
+        print >> sys.stderr, 'Failed to run %s' % ' '.join(cmd)
+        return 1
     return test_env.run_executable(cmd, env)
   finally:
     if pid:
