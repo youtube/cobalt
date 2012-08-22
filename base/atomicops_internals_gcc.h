@@ -17,9 +17,11 @@ inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
                                          Atomic32 new_value) {
   Atomic32 prev_value;
   do {
-    prev_value = __sync_val_compare_and_swap(ptr, old_value, new_value);
-  } while (prev_value != old_value);
-  return old_value;
+    if (__sync_bool_compare_and_swap(ptr, old_value, new_value))
+      return old_value;
+    prev_value = *ptr;
+  } while (prev_value == old_value);
+  return prev_value;
 }
 
 inline Atomic32 NoBarrier_AtomicExchange(volatile Atomic32* ptr,
