@@ -124,5 +124,41 @@ bool IsParentalControlActivityLoggingOn() {
   return parental_control_logging_required;
 }
 
+// Metro driver exports for getting the launch type, initial url, initial
+// search term, etc.
+extern "C" {
+typedef const wchar_t* (*GetInitialUrl)();
+typedef const wchar_t* (*GetInitialSearchString)();
+typedef base::win::MetroLaunchType (*GetLaunchType)(
+    base::win::MetroPreviousExecutionState* previous_state);
+}
+
+MetroLaunchType GetMetroLaunchParams(string16* params) {
+  HMODULE metro = base::win::GetMetroModule();
+  if (!metro)
+    return base::win::METRO_LAUNCH_ERROR;
+
+  GetLaunchType get_launch_type = reinterpret_cast<GetLaunchType>(
+      ::GetProcAddress(metro, "GetLaunchType"));
+  DCHECK(get_launch_type);
+
+  base::win::MetroLaunchType launch_type = get_launch_type(NULL);
+
+  if ((launch_type == base::win::METRO_PROTOCOL) ||
+      (launch_type == base::win::METRO_LAUNCH)) {
+    GetInitialUrl initial_metro_url = reinterpret_cast<GetInitialUrl>(
+        ::GetProcAddress(metro, "GetInitialUrl"));
+    DCHECK(initial_metro_url);
+    *params = initial_metro_url();
+  } else if (launch_type == base::win::METRO_SEARCH) {
+    GetInitialSearchString initial_search_string =
+        reinterpret_cast<GetInitialSearchString>(
+            ::GetProcAddress(metro, "GetInitialSearchString"));
+    DCHECK(initial_search_string);
+    *params = initial_search_string();
+  }
+  return launch_type;
+}
+
 }  // namespace win
 }  // namespace base
