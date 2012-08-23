@@ -25,7 +25,7 @@ class DnsClientImpl : public DnsClient {
 
   virtual void SetConfig(const DnsConfig& config) OVERRIDE {
     factory_.reset();
-    session_.release();
+    session_ = NULL;
     if (config.IsValid()) {
       session_ = new DnsSession(config,
                                 ClientSocketFactory::GetDefaultFactory(),
