@@ -155,19 +155,6 @@ void CheckCorruption(const Histogram& histogram, bool new_histogram) {
   CHECK(histogram.bucket_ranges()->HasValidChecksum());
 }
 
-// TODO(hshi): http://crbug.com/143714 delete this code after debugging.
-void CheckOrDumpHistogram(const Histogram& histogram, bool status) {
-  if (status)
-    return;
-  const std::string& histogram_name = histogram.histogram_name();
-  char histogram_name_buf[128];
-  base::strlcpy(histogram_name_buf,
-                histogram_name.c_str(),
-                arraysize(histogram_name_buf));
-  base::debug::Alias(histogram_name_buf);
-  CHECK(false);
-}
-
 Histogram* Histogram::FactoryGet(const string& name,
                                  Sample minimum,
                                  Sample maximum,
@@ -197,11 +184,7 @@ Histogram* Histogram::FactoryGet(const string& name,
   CheckCorruption(*histogram, false);
 
   CHECK_EQ(HISTOGRAM, histogram->histogram_type());
-
-  // TODO(hshi): http://crbug.com/143714 delete this code after debugging.
-  bool has_construction_arguments =
-      histogram->HasConstructionArguments(minimum, maximum, bucket_count);
-  CheckOrDumpHistogram(*histogram, has_construction_arguments);
+  CHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
   return histogram;
 }
 
@@ -757,11 +740,7 @@ Histogram* LinearHistogram::FactoryGet(const string& name,
   CheckCorruption(*histogram, false);
 
   CHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
-
-  // TODO(hshi): http://crbug.com/143714 delete this code after debugging.
-  bool has_construction_arguments =
-      histogram->HasConstructionArguments(minimum, maximum, bucket_count);
-  CheckOrDumpHistogram(*histogram, has_construction_arguments);
+  CHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
   return histogram;
 }
 
