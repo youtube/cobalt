@@ -17,6 +17,7 @@
 #include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/crl_set.h"
 #include "net/base/ev_root_ca_metadata.h"
@@ -641,13 +642,13 @@ bool VerifyEV(CERTCertificate* cert_handle,
   ScopedCERTValOutParam scoped_cvout(cvout);
 
   bool rev_checking_enabled =
-      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) ||
-      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY);
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED) ||
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY);
 
   SECStatus status = PKIXVerifyCert(
       cert_handle,
       rev_checking_enabled,
-      flags & X509Certificate::VERIFY_CERT_IO_ENABLED,
+      flags & CertVerifier::VERIFY_CERT_IO_ENABLED,
       &ev_policy_oid,
       1,
       cvout);
@@ -715,13 +716,13 @@ int CertVerifyProcNSS::VerifyInternal(X509Certificate* cert,
   EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
   SECOidTag ev_policy_oid = SEC_OID_UNKNOWN;
   bool is_ev_candidate =
-      (flags & X509Certificate::VERIFY_EV_CERT) &&
+      (flags & CertVerifier::VERIFY_EV_CERT) &&
       IsEVCandidate(metadata, cert_handle, &ev_policy_oid);
-  bool cert_io_enabled = flags & X509Certificate::VERIFY_CERT_IO_ENABLED;
+  bool cert_io_enabled = flags & CertVerifier::VERIFY_CERT_IO_ENABLED;
   bool check_revocation =
       cert_io_enabled &&
-      ((flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) ||
-       ((flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY) &&
+      ((flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED) ||
+       ((flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY) &&
         is_ev_candidate));
   if (check_revocation)
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
@@ -771,7 +772,7 @@ int CertVerifyProcNSS::VerifyInternal(X509Certificate* cert,
   verify_result->is_issued_by_known_root =
       IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
 
-  if ((flags & X509Certificate::VERIFY_EV_CERT) && is_ev_candidate &&
+  if ((flags & CertVerifier::VERIFY_EV_CERT) && is_ev_candidate &&
       VerifyEV(cert_handle, flags, crl_set, metadata, ev_policy_oid)) {
     verify_result->cert_status |= CERT_STATUS_IS_EV;
   }

@@ -13,6 +13,7 @@
 #include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/crl_set.h"
 #include "net/base/ev_root_ca_metadata.h"
@@ -545,7 +546,7 @@ int CertVerifyProcWin::VerifyInternal(X509Certificate* cert,
   // Get the certificatePolicies extension of the certificate.
   scoped_ptr_malloc<CERT_POLICIES_INFO> policies_info;
   LPSTR ev_policy_oid = NULL;
-  if (flags & X509Certificate::VERIFY_EV_CERT) {
+  if (flags & CertVerifier::VERIFY_EV_CERT) {
     GetCertPoliciesInfo(cert_handle, &policies_info);
     if (policies_info.get()) {
       EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
@@ -567,9 +568,9 @@ int CertVerifyProcWin::VerifyInternal(X509Certificate* cert,
   DWORD chain_flags = CERT_CHAIN_CACHE_END_CERT |
                       CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT;
   const bool rev_checking_enabled =
-      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) ||
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED) ||
       (ev_policy_oid != NULL &&
-       (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY));
+       (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY));
 
   if (rev_checking_enabled) {
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
