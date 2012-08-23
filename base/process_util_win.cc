@@ -152,7 +152,7 @@ void RouteStdioToConsole() {
 
   if (freopen("CONOUT$", "w", stdout))
     setvbuf(stdout, NULL, _IONBF, 0);
-  if (freopen("CONERR$", "w", stderr))
+  if (freopen("CONOUT$", "w", stderr))
     setvbuf(stderr, NULL, _IONBF, 0);
 
   // Fix all cout, wcout, cin, wcin, cerr, wcerr, clog and wclog.
