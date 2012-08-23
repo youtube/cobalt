@@ -201,11 +201,11 @@ TEST(ObserverListTest, BasicTest) {
 
   FOR_EACH_OBSERVER(Foo, observer_list, Observe(10));
 
-  EXPECT_EQ(a.total, 20);
-  EXPECT_EQ(b.total, -20);
-  EXPECT_EQ(c.total, 0);
-  EXPECT_EQ(d.total, -10);
-  EXPECT_EQ(e.total, 0);
+  EXPECT_EQ(20, a.total);
+  EXPECT_EQ(-20, b.total);
+  EXPECT_EQ(0, c.total);
+  EXPECT_EQ(-10, d.total);
+  EXPECT_EQ(0, e.total);
 }
 
 TEST(ObserverListThreadSafeTest, BasicTest) {
@@ -232,10 +232,10 @@ TEST(ObserverListThreadSafeTest, BasicTest) {
   observer_list->Notify(&Foo::Observe, 10);
   loop.RunAllPending();
 
-  EXPECT_EQ(a.total, 20);
-  EXPECT_EQ(b.total, -20);
-  EXPECT_EQ(c.total, 0);
-  EXPECT_EQ(d.total, -10);
+  EXPECT_EQ(20, a.total);
+  EXPECT_EQ(-20, b.total);
+  EXPECT_EQ(0, c.total);
+  EXPECT_EQ(-10, d.total);
 }
 
 TEST(ObserverListThreadSafeTest, RemoveObserver) {
@@ -255,8 +255,8 @@ TEST(ObserverListThreadSafeTest, RemoveObserver) {
   observer_list->Notify(&Foo::Observe, 10);
   loop.RunAllPending();
 
-  EXPECT_EQ(a.total, 0);
-  EXPECT_EQ(b.total, 0);
+  EXPECT_EQ(0, a.total);
+  EXPECT_EQ(0, b.total);
 
   observer_list->AddObserver(&a);
 
@@ -266,8 +266,8 @@ TEST(ObserverListThreadSafeTest, RemoveObserver) {
   observer_list->Notify(&Foo::Observe, 10);
   loop.RunAllPending();
 
-  EXPECT_EQ(a.total, 10);
-  EXPECT_EQ(b.total, 0);
+  EXPECT_EQ(10, a.total);
+  EXPECT_EQ(0, b.total);
 }
 
 TEST(ObserverListThreadSafeTest, WithoutMessageLoop) {
