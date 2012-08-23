@@ -158,7 +158,7 @@ def JavaParamToJni(param):
       'Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar',
       ('Lcom/google/android/apps/chrome/preferences/ChromeNativePreferences$'
        'PasswordListObserver'),
-      'Lorg/chromium/android_webview/WebViewWebContentsDelegateAndroid',
+      'Lorg/chromium/android_webview/AwWebContentsDelegate',
       'Lorg/chromium/base/SystemMessageHandler',
       'Lorg/chromium/chrome/browser/ChromeWebContentsDelegateAndroid',
       'Lorg/chromium/chrome/browser/JSModalDialog',
