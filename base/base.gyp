@@ -453,7 +453,6 @@
         'process_util_unittest_mac.h',
         'process_util_unittest_mac.mm',
         'profiler/tracked_time_unittest.cc',
-        'property_bag_unittest.cc',
         'rand_util_unittest.cc',
         'scoped_native_library_unittest.cc',
         'scoped_observer.h',
