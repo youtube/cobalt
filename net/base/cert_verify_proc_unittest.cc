@@ -12,6 +12,7 @@
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_test_util.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/crl_set.h"
 #include "net/base/net_errors.h"
@@ -105,7 +106,7 @@ TEST_F(CertVerifyProcTest, MAYBE_EVVerification) {
 
   scoped_refptr<CRLSet> crl_set(CRLSet::EmptyCRLSetForTesting());
   CertVerifyResult verify_result;
-  int flags = X509Certificate::VERIFY_EV_CERT;
+  int flags = CertVerifier::VERIFY_EV_CERT;
   int error = Verify(comodo_chain, "comodo.com", flags, crl_set.get(),
                      &verify_result);
   EXPECT_EQ(OK, error);
@@ -212,8 +213,8 @@ TEST_F(CertVerifyProcTest, DISABLED_GlobalSignR3EVTest) {
                                         intermediates);
 
   CertVerifyResult verify_result;
-  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
-              X509Certificate::VERIFY_EV_CERT;
+  int flags = CertVerifier::VERIFY_REV_CHECKING_ENABLED |
+              CertVerifier::VERIFY_EV_CERT;
   int error = Verify(cert_chain, "2029.globalsign.com", flags, NULL,
                      &verify_result);
   if (error == OK)
@@ -361,7 +362,7 @@ TEST_F(CertVerifyProcTest, GoogleDigiNotarTest) {
                                         intermediates);
 
   CertVerifyResult verify_result;
-  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+  int flags = CertVerifier::VERIFY_REV_CHECKING_ENABLED;
   int error = Verify(cert_chain, "mail.google.com", flags, NULL,
                      &verify_result);
   EXPECT_NE(OK, error);

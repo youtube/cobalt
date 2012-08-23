@@ -294,7 +294,7 @@ TEST_F(MultiThreadedCertVerifierTest, RequestParamsComparators) {
     {  // The same certificate, chain, and host, but with different flags
        // are different validation keys.
       MultiThreadedCertVerifier::RequestParams(a_key, a_key, "www.example.test",
-                                               X509Certificate::VERIFY_EV_CERT),
+                                               CertVerifier::VERIFY_EV_CERT),
       MultiThreadedCertVerifier::RequestParams(a_key, a_key, "www.example.test",
                                                0),
       1,
