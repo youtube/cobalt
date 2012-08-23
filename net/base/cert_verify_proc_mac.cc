@@ -17,6 +17,7 @@
 #include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/crl_set.h"
 #include "net/base/net_errors.h"
@@ -156,8 +157,8 @@ OSStatus CreateTrustPolicies(const std::string& hostname,
   // revocation checking policies and instead respect the application-level
   // revocation preference.
   status = x509_util::CreateRevocationPolicies(
-      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED),
-      (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY),
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED),
+      (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY),
       local_policies);
   if (status)
     return status;
@@ -383,7 +384,7 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
 
   // Note: For EV certificates, the Apple TP will handle setting these flags
   // as part of EV evaluation.
-  if (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED) {
+  if (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED) {
     // Require a positive result from an OCSP responder or a CRL (or both)
     // for every certificate in the chain. The Apple TP automatically
     // excludes the self-signed root from this requirement. If a certificate
@@ -536,7 +537,7 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
-  if (flags & X509Certificate::VERIFY_EV_CERT) {
+  if (flags & CertVerifier::VERIFY_EV_CERT) {
     // Determine the certificate's EV status using SecTrustCopyExtendedResult(),
     // which we need to look up because the function wasn't added until
     // Mac OS X 10.5.7.
@@ -567,7 +568,7 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
           if (CFDictionaryContainsKey(ev_dict,
                                       kSecEVOrganizationName)) {
             verify_result->cert_status |= CERT_STATUS_IS_EV;
-            if (flags & X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY)
+            if (flags & CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY)
               verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
           }
         }
