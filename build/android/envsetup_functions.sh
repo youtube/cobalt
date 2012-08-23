@@ -125,7 +125,9 @@ common_vars_defines() {
 ################################################################################
 common_gyp_vars() {
   export GYP_DEFINES="${DEFINES}"
-  export GYP_GENERATORS="make-android"
+
+  # Set GYP_GENERATORS to make-android if it's currently unset or null.
+  export GYP_GENERATORS="${GYP_GENERATORS:-make-android}"
 
   # Use our All target as the default
   export GYP_GENERATOR_FLAGS="${GYP_GENERATOR_FLAGS} default_target=All"
