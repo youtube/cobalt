@@ -43,9 +43,6 @@ CreditCardTest.SetInfoExpirationMonth
 # crbug.com/139398
 DownloadItemModelTest.InterruptTooltip
 
-# crbug.com/139434
-LeveldbValueStore/ValueStoreTest.DotsInKeyNamesWithDicts/0
-
 # Tests crashing in the APK
 # DEATH test, forking and doing bad stuff, not supported yet.
 IncognitoModePrefsDeathTest.GetAvailabilityBadValue
