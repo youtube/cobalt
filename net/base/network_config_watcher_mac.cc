@@ -17,6 +17,7 @@ namespace net {
 
 namespace {
 
+#if !defined(OS_IOS)
 // Called back by OS.  Calls OnNetworkConfigChange().
 void DynamicStoreCallback(SCDynamicStoreRef /* store */,
                           CFArrayRef changed_keys,
@@ -25,6 +26,7 @@ void DynamicStoreCallback(SCDynamicStoreRef /* store */,
       static_cast<NetworkConfigWatcherMac::Delegate*>(config_delegate);
   net_config_delegate->OnNetworkConfigChange(changed_keys);
 }
+#endif  // !defined(OS_IOS)
 
 class NetworkConfigWatcherMacThread : public base::Thread {
  public:
@@ -89,6 +91,8 @@ void NetworkConfigWatcherMacThread::CleanUp() {
 }
 
 void NetworkConfigWatcherMacThread::InitNotifications() {
+#if !defined(OS_IOS)
+  // SCDynamicStore API does not exist on iOS.
   // Add a run loop source for a dynamic store to the current run loop.
   SCDynamicStoreContext context = {
     0,          // Version 0.
@@ -103,10 +107,13 @@ void NetworkConfigWatcherMacThread::InitNotifications() {
       NULL, store.get(), 0));
   CFRunLoopAddSource(CFRunLoopGetCurrent(), run_loop_source_.get(),
                      kCFRunLoopCommonModes);
+#endif  // !defined(OS_IOS)
 
   // Set up notifications for interface and IP address changes.
   delegate_->StartReachabilityNotifications();
+#if !defined(OS_IOS)
   delegate_->SetDynamicStoreNotificationKeys(store.get());
+#endif  // !defined(OS_IOS)
 }
 
 }  // namespace
