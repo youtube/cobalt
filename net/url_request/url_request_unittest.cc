@@ -1384,9 +1384,10 @@ TEST_F(HTTPSRequestTest, DISABLED_HTTPSGetTest) {
 }
 
 TEST_F(HTTPSRequestTest, HTTPSMismatchedTest) {
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
-  TestServer test_server(https_options,
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_MISMATCHED_NAME);
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -1416,9 +1417,10 @@ TEST_F(HTTPSRequestTest, HTTPSMismatchedTest) {
 }
 
 TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_EXPIRED);
-  TestServer test_server(https_options,
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_EXPIRED);
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -1506,9 +1508,10 @@ class HTTPSOCSPTest : public HTTPSRequestTest {
 #endif
   }
 
-  void DoConnection(const TestServer::HTTPSOptions& https_options,
+  void DoConnection(const TestServer::SSLOptions& ssl_options,
                     CertStatus* out_cert_status) {
-    TestServer test_server(https_options,
+    TestServer test_server(TestServer::TYPE_HTTPS,
+                           ssl_options,
                            FilePath(FILE_PATH_LITERAL("net/data/ssl")));
     ASSERT_TRUE(test_server.Start());
 
@@ -1591,11 +1594,11 @@ TEST_F(HTTPSOCSPTest, Valid) {
     return;
   }
 
-  TestServer::HTTPSOptions https_options(TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_OK;
+  TestServer::SSLOptions ssl_options(TestServer::SSLOptions::CERT_AUTO);
+  ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_OK;
 
   CertStatus cert_status = 0;
-  DoConnection(https_options, &cert_status);
+  DoConnection(ssl_options, &cert_status);
 
   EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
 
@@ -1611,12 +1614,12 @@ TEST_F(HTTPSOCSPTest, Revoked) {
     return;
   }
 
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_REVOKED;
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_AUTO);
+  ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_REVOKED;
 
   CertStatus cert_status;
-  DoConnection(https_options, &cert_status);
+  DoConnection(ssl_options, &cert_status);
 
 #if !defined(OS_MACOSX)
   // Doesn't pass on OS X yet for reasons that need to be investigated.
@@ -1632,12 +1635,12 @@ TEST_F(HTTPSOCSPTest, Invalid) {
     return;
   }
 
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_AUTO);
+  ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_INVALID;
 
   CertStatus cert_status = 0;
-  DoConnection(https_options, &cert_status);
+  DoConnection(ssl_options, &cert_status);
 
   EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
             cert_status & CERT_STATUS_ALL_ERRORS);
@@ -1662,13 +1665,13 @@ TEST_F(HTTPSEVCRLSetTest, MissingCRLSetAndInvalidOCSP) {
     return;
   }
 
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_AUTO);
+  ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_INVALID;
   SSLConfigService::SetCRLSet(scoped_refptr<CRLSet>());
 
   CertStatus cert_status = 0;
-  DoConnection(https_options, &cert_status);
+  DoConnection(ssl_options, &cert_status);
 
   EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
             cert_status & CERT_STATUS_ALL_ERRORS);
@@ -1684,13 +1687,13 @@ TEST_F(HTTPSEVCRLSetTest, MissingCRLSetAndGoodOCSP) {
     return;
   }
 
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_OK;
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_AUTO);
+  ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_OK;
   SSLConfigService::SetCRLSet(scoped_refptr<CRLSet>());
 
   CertStatus cert_status;
-  DoConnection(https_options, &cert_status);
+  DoConnection(ssl_options, &cert_status);
 
   EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
 
@@ -1706,14 +1709,14 @@ TEST_F(HTTPSEVCRLSetTest, ExpiredCRLSet) {
     return;
   }
 
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_AUTO);
+  ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_INVALID;
   SSLConfigService::SetCRLSet(
       scoped_refptr<CRLSet>(CRLSet::ExpiredCRLSetForTesting()));
 
   CertStatus cert_status;
-  DoConnection(https_options, &cert_status);
+  DoConnection(ssl_options, &cert_status);
 
   EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
             cert_status & CERT_STATUS_ALL_ERRORS);
@@ -1724,14 +1727,14 @@ TEST_F(HTTPSEVCRLSetTest, ExpiredCRLSet) {
 }
 
 TEST_F(HTTPSEVCRLSetTest, FreshCRLSet) {
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_AUTO);
+  ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_INVALID;
   SSLConfigService::SetCRLSet(
       scoped_refptr<CRLSet>(CRLSet::EmptyCRLSetForTesting()));
 
   CertStatus cert_status = 0;
-  DoConnection(https_options, &cert_status);
+  DoConnection(ssl_options, &cert_status);
 
   // With a valid, fresh CRLSet the bad OCSP response shouldn't matter because
   // we wont check it.
@@ -1756,14 +1759,14 @@ TEST_F(HTTPSEVCRLSetTest, ExpiredCRLSetAndRevokedNonEVCert) {
   // checking (as per the user preference)
   ev_test_policy_.reset();
 
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_REVOKED;
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_AUTO);
+  ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_REVOKED;
   SSLConfigService::SetCRLSet(
       scoped_refptr<CRLSet>(CRLSet::ExpiredCRLSetForTesting()));
 
   CertStatus cert_status;
-  DoConnection(https_options, &cert_status);
+  DoConnection(ssl_options, &cert_status);
 
   EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
 
@@ -1781,14 +1784,14 @@ class HTTPSCRLSetTest : public HTTPSOCSPTest {
 };
 
 TEST_F(HTTPSCRLSetTest, ExpiredCRLSet) {
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_AUTO);
+  ssl_options.ocsp_status = TestServer::SSLOptions::OCSP_INVALID;
   SSLConfigService::SetCRLSet(
       scoped_refptr<CRLSet>(CRLSet::ExpiredCRLSetForTesting()));
 
   CertStatus cert_status = 0;
-  DoConnection(https_options, &cert_status);
+  DoConnection(ssl_options, &cert_status);
 
   // If we're not trying EV verification then, even if the CRLSet has expired,
   // we don't fall back to online revocation checks.
@@ -1798,10 +1801,11 @@ TEST_F(HTTPSCRLSetTest, ExpiredCRLSet) {
 }
 
 TEST_F(HTTPSRequestTest, SSLv3Fallback) {
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_OK);
-  https_options.tls_intolerant = TestServer::HTTPSOptions::TLS_INTOLERANT_ALL;
-  TestServer test_server(https_options,
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_OK);
+  ssl_options.tls_intolerant = TestServer::SSLOptions::TLS_INTOLERANT_ALL;
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -1832,11 +1836,12 @@ TEST_F(HTTPSRequestTest, TLSv1Fallback) {
   if (default_version_max <= SSL_PROTOCOL_VERSION_TLS1)
     return;
 
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_OK);
-  https_options.tls_intolerant =
-      TestServer::HTTPSOptions::TLS_INTOLERANT_TLS1_1;
-  TestServer test_server(https_options,
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_OK);
+  ssl_options.tls_intolerant =
+      TestServer::SSLOptions::TLS_INTOLERANT_TLS1_1;
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -1860,9 +1865,10 @@ TEST_F(HTTPSRequestTest, TLSv1Fallback) {
 // the |certificate_errors_are_fatal| flag correctly. This flag will cause
 // the interstitial to be fatal.
 TEST_F(HTTPSRequestTest, HTTPSPreloadedHSTSTest) {
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
-  TestServer test_server(https_options,
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_MISMATCHED_NAME);
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -1903,9 +1909,10 @@ TEST_F(HTTPSRequestTest, HTTPSPreloadedHSTSTest) {
 TEST_F(HTTPSRequestTest, HTTPSErrorsNoClobberTSSTest) {
   // The actual problem -- CERT_MISMATCHED_NAME in this case -- doesn't
   // matter. It just has to be any error.
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
-  TestServer test_server(https_options,
+  TestServer::SSLOptions ssl_options(
+      TestServer::SSLOptions::CERT_MISMATCHED_NAME);
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -1985,9 +1992,10 @@ class SSLClientAuthTestDelegate : public TestDelegate {
 // - Getting a certificate request in an SSL renegotiation sending the
 //   HTTP request.
 TEST_F(HTTPSRequestTest, ClientAuthTest) {
-  TestServer::HTTPSOptions https_options;
-  https_options.request_client_certificate = true;
-  TestServer test_server(https_options,
+  TestServer::SSLOptions ssl_options;
+  ssl_options.request_client_certificate = true;
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -2020,9 +2028,10 @@ TEST_F(HTTPSRequestTest, ClientAuthTest) {
 TEST_F(HTTPSRequestTest, ResumeTest) {
   // Test that we attempt a session resume when making two connections to the
   // same host.
-  TestServer::HTTPSOptions https_options;
-  https_options.record_resume = true;
-  TestServer test_server(https_options,
+  TestServer::SSLOptions ssl_options;
+  ssl_options.record_resume = true;
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -2087,9 +2096,10 @@ TEST_F(HTTPSRequestTest, ResumeTest) {
 TEST_F(HTTPSRequestTest, SSLSessionCacheShardTest) {
   // Test that sessions aren't resumed when the value of ssl_session_cache_shard
   // differs.
-  TestServer::HTTPSOptions https_options;
-  https_options.record_resume = true;
-  TestServer test_server(https_options,
+  TestServer::SSLOptions ssl_options;
+  ssl_options.record_resume = true;
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
