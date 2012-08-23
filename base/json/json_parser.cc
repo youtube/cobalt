@@ -208,7 +208,10 @@ JSONParser::~JSONParser() {
 Value* JSONParser::Parse(const StringPiece& input) {
   // TODO(rsesek): Windows has problems with StringPiece/hidden roots. Fix
   // <http://crbug.com/126107> when my Windows box arrives.
-#if defined(OS_WIN)
+  // For Android, swapping string doesn't mean swapping internal pointers
+  // but swapping contents. Since it can't provide the performance gain,
+  // set the below flag to disable the optimization and make it work.
+#if defined(OS_WIN) || defined(OS_ANDROID)
   options_ |= JSON_DETACHABLE_CHILDREN;
 #endif
 
