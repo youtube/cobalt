@@ -103,7 +103,8 @@ int FFmpegVideoDecoder::GetVideoBuffer(AVCodecContext* codec_context,
     frame->linesize[i] = video_frame->stride(i);
   }
 
-  frame->opaque = video_frame.release();
+  frame->opaque = NULL;
+  video_frame.swap(reinterpret_cast<VideoFrame**>(&frame->opaque));
   frame->type = FF_BUFFER_TYPE_USER;
   frame->pkt_pts = codec_context->pkt ? codec_context->pkt->pts :
                                         AV_NOPTS_VALUE;
@@ -120,12 +121,8 @@ static int GetVideoBufferImpl(AVCodecContext* s, AVFrame* frame) {
 }
 
 static void ReleaseVideoBufferImpl(AVCodecContext* s, AVFrame* frame) {
-  // We're releasing the reference to the buffer allocated in
-  // GetVideoBuffer() here, so the explicit Release() here is
-  // intentional.
-  scoped_refptr<VideoFrame> video_frame =
-      static_cast<VideoFrame*>(frame->opaque);
-  video_frame->Release();
+  scoped_refptr<VideoFrame> video_frame;
+  video_frame.swap(reinterpret_cast<VideoFrame**>(&frame->opaque));
 
   // The FFmpeg API expects us to zero the data pointers in
   // this callback
