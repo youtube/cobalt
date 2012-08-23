@@ -155,18 +155,17 @@ void CheckCorruption(const Histogram& histogram, bool new_histogram) {
   CHECK(histogram.bucket_ranges()->HasValidChecksum());
 }
 
-// TODO(hshi): delete this code after debugging.
-void CheckConstructionArguments(const Histogram& histogram,
-                                bool has_construction_arguments) {
-  if (!has_construction_arguments) {
-    const std::string& histogram_name = histogram.histogram_name();
-    char histogram_name_buf[128];
-    base::strlcpy(histogram_name_buf,
-                  histogram_name.c_str(),
-                  arraysize(histogram_name_buf));
-    base::debug::Alias(histogram_name_buf);
-    CHECK(false);
-  }
+// TODO(hshi): http://crbug.com/143714 delete this code after debugging.
+void CheckOrDumpHistogram(const Histogram& histogram, bool status) {
+  if (status)
+    return;
+  const std::string& histogram_name = histogram.histogram_name();
+  char histogram_name_buf[128];
+  base::strlcpy(histogram_name_buf,
+                histogram_name.c_str(),
+                arraysize(histogram_name_buf));
+  base::debug::Alias(histogram_name_buf);
+  CHECK(false);
 }
 
 Histogram* Histogram::FactoryGet(const string& name,
@@ -199,10 +198,10 @@ Histogram* Histogram::FactoryGet(const string& name,
 
   CHECK_EQ(HISTOGRAM, histogram->histogram_type());
 
-  // TODO(hshi): delete this code after debugging.
+  // TODO(hshi): http://crbug.com/143714 delete this code after debugging.
   bool has_construction_arguments =
       histogram->HasConstructionArguments(minimum, maximum, bucket_count);
-  CheckConstructionArguments(*histogram, has_construction_arguments);
+  CheckOrDumpHistogram(*histogram, has_construction_arguments);
   return histogram;
 }
 
@@ -759,10 +758,10 @@ Histogram* LinearHistogram::FactoryGet(const string& name,
 
   CHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
 
-  // TODO(hshi): delete this code after debugging.
+  // TODO(hshi): http://crbug.com/143714 delete this code after debugging.
   bool has_construction_arguments =
       histogram->HasConstructionArguments(minimum, maximum, bucket_count);
-  CheckConstructionArguments(*histogram, has_construction_arguments);
+  CheckOrDumpHistogram(*histogram, has_construction_arguments);
   return histogram;
 }
 
