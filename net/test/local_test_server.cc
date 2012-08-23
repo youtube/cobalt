@@ -65,9 +65,10 @@ LocalTestServer::LocalTestServer(Type type,
     NOTREACHED();
 }
 
-LocalTestServer::LocalTestServer(const HTTPSOptions& https_options,
+LocalTestServer::LocalTestServer(Type type,
+                                 const SSLOptions& ssl_options,
                                  const FilePath& document_root)
-    : BaseTestServer(https_options) {
+    : BaseTestServer(type, ssl_options) {
   if (!Init(document_root))
     NOTREACHED();
 }
@@ -152,9 +153,9 @@ bool LocalTestServer::Init(const FilePath& document_root) {
     return false;
   SetResourcePath(src_dir.Append(document_root),
                   src_dir.AppendASCII("net")
-                          .AppendASCII("data")
-                          .AppendASCII("ssl")
-                          .AppendASCII("certificates"));
+                         .AppendASCII("data")
+                         .AppendASCII("ssl")
+                         .AppendASCII("certificates"));
   return true;
 }
 
@@ -225,6 +226,10 @@ bool LocalTestServer::AddCommandLineArguments(CommandLine* command_line) const {
     case TYPE_HTTP:
     case TYPE_HTTPS:
       // The default type is HTTP, no argument required.
+      break;
+    case TYPE_WS:
+    case TYPE_WSS:
+      // TODO(toyoshim): Handle correctly. See, http://crbug.com/137639 .
       break;
     case TYPE_FTP:
       command_line->AppendArg("-f");

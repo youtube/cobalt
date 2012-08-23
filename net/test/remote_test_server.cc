@@ -63,10 +63,10 @@ RemoteTestServer::RemoteTestServer(Type type,
     NOTREACHED();
 }
 
-RemoteTestServer::RemoteTestServer(
-    const HTTPSOptions& https_options,
-    const FilePath& document_root)
-    : BaseTestServer(https_options),
+RemoteTestServer::RemoteTestServer(Type type,
+                                   const SSLOptions& ssl_options,
+                                   const FilePath& document_root)
+    : BaseTestServer(type, ssl_options),
       spawner_server_port_(0) {
   if (!Init(document_root))
     NOTREACHED();

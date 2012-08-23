@@ -110,9 +110,11 @@ TEST_F(SSLClientSocketTest, Connect) {
 }
 
 TEST_F(SSLClientSocketTest, ConnectExpired) {
-  net::TestServer::HTTPSOptions https_options(
-      net::TestServer::HTTPSOptions::CERT_EXPIRED);
-  net::TestServer test_server(https_options, FilePath());
+  net::TestServer::SSLOptions ssl_options(
+      net::TestServer::SSLOptions::CERT_EXPIRED);
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              ssl_options,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   cert_verifier_->set_default_result(net::ERR_CERT_DATE_INVALID);
@@ -155,9 +157,11 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 }
 
 TEST_F(SSLClientSocketTest, ConnectMismatched) {
-  net::TestServer::HTTPSOptions https_options(
-      net::TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
-  net::TestServer test_server(https_options, FilePath());
+  net::TestServer::SSLOptions ssl_options(
+      net::TestServer::SSLOptions::CERT_MISMATCHED_NAME);
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              ssl_options,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   cert_verifier_->set_default_result(net::ERR_CERT_COMMON_NAME_INVALID);
@@ -202,9 +206,11 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 // Attempt to connect to a page which requests a client certificate. It should
 // return an error code on connect.
 TEST_F(SSLClientSocketTest, ConnectClientAuthCertRequested) {
-  net::TestServer::HTTPSOptions https_options;
-  https_options.request_client_certificate = true;
-  net::TestServer test_server(https_options, FilePath());
+  net::TestServer::SSLOptions ssl_options;
+  ssl_options.request_client_certificate = true;
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              ssl_options,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -262,9 +268,11 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthCertRequested) {
 //
 // TODO(davidben): Also test providing an actual certificate.
 TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
-  net::TestServer::HTTPSOptions https_options;
-  https_options.request_client_certificate = true;
-  net::TestServer test_server(https_options, FilePath());
+  net::TestServer::SSLOptions ssl_options;
+  ssl_options.request_client_certificate = true;
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              ssl_options,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -667,11 +675,13 @@ TEST_F(SSLClientSocketTest, CipherSuiteDisables) {
     0x0005,  // TLS_RSA_WITH_RC4_128_SHA
   };
 
-  net::TestServer::HTTPSOptions https_options;
+  net::TestServer::SSLOptions ssl_options;
   // Enable only RC4 on the test server.
-  https_options.bulk_ciphers =
-      net::TestServer::HTTPSOptions::BULK_CIPHER_RC4;
-  net::TestServer test_server(https_options, FilePath());
+  ssl_options.bulk_ciphers =
+      net::TestServer::SSLOptions::BULK_CIPHER_RC4;
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              ssl_options,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -869,9 +879,10 @@ TEST_F(SSLClientSocketTest, VerifyReturnChainProperlyOrdered) {
   net::ScopedTestRoot scoped_root(root_cert);
 
   // Set up a test server with CERT_CHAIN_WRONG_ROOT.
-  net::TestServer::HTTPSOptions https_options(
-      net::TestServer::HTTPSOptions::CERT_CHAIN_WRONG_ROOT);
-  net::TestServer test_server(https_options,
+  net::TestServer::SSLOptions ssl_options(
+      net::TestServer::SSLOptions::CERT_CHAIN_WRONG_ROOT);
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              ssl_options,
                               FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
