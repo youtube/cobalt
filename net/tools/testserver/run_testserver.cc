@@ -112,18 +112,18 @@ int main(int argc, const char* argv[]) {
     return RunSyncTest() ? 0 : -1;
   }
 
-  net::TestServer::HTTPSOptions https_options;
+  net::TestServer::SSLOptions ssl_options;
   if (command_line->HasSwitch("https-cert")) {
     server_type = net::TestServer::TYPE_HTTPS;
     std::string cert_option = command_line->GetSwitchValueASCII("https-cert");
     if (cert_option == "ok") {
-      https_options.server_certificate = net::TestServer::HTTPSOptions::CERT_OK;
+      ssl_options.server_certificate = net::TestServer::SSLOptions::CERT_OK;
     } else if (cert_option == "mismatched-name") {
-      https_options.server_certificate =
-          net::TestServer::HTTPSOptions::CERT_MISMATCHED_NAME;
+      ssl_options.server_certificate =
+          net::TestServer::SSLOptions::CERT_MISMATCHED_NAME;
     } else if (cert_option == "expired") {
-      https_options.server_certificate =
-          net::TestServer::HTTPSOptions::CERT_EXPIRED;
+      ssl_options.server_certificate =
+          net::TestServer::SSLOptions::CERT_EXPIRED;
     } else {
       printf("Error: --https-cert has invalid value %s\n", cert_option.c_str());
       PrintUsage();
@@ -141,7 +141,9 @@ int main(int argc, const char* argv[]) {
   scoped_ptr<net::TestServer> test_server;
   switch (server_type) {
     case net::TestServer::TYPE_HTTPS: {
-      test_server.reset(new net::TestServer(https_options, doc_root));
+      test_server.reset(new net::TestServer(server_type,
+                                            ssl_options,
+                                            doc_root));
       break;
     }
     case net::TestServer::TYPE_SYNC: {
