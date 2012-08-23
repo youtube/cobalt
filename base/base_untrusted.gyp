@@ -7,7 +7,7 @@
     'chromium_code': 1,
   },
   'includes': [
-    '../native_client/build/untrusted.gypi',
+    '../build/common_untrusted.gypi',
     'base.gypi',
   ],
   'conditions': [
@@ -23,7 +23,6 @@
             'build_glibc': 1,
             'build_newlib': 1,
             'sources': [
-              'atomicops_internals_x86_gcc.cc',
               'string16.cc',
               'sync_socket_nacl.cc',
               'third_party/nspr/prtime.cc',
