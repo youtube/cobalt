@@ -236,7 +236,6 @@ class FastTransactionServer {
 bool FastTransactionServer::no_store;
 
 const MockTransaction kFastNoStoreGET_Transaction = {
-  net::OK,
   "http://www.google.com/nostore",
   "GET",
   base::Time(),
@@ -374,7 +373,6 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
 }
 
 const MockTransaction kRangeGET_TransactionOK = {
-  net::OK,
   "http://www.google.com/range",
   "GET",
   base::Time(),
@@ -1793,14 +1791,14 @@ static void ConditionalizedRequestUpdatesCacheHelper(
 
   // We will control the network layer's responses for |kUrl| using
   // |mock_network_response|.
-  MockTransaction mock_network_response = { net::OK, 0 };
+  MockTransaction mock_network_response = { 0 };
   mock_network_response.url = kUrl;
   AddMockTransaction(&mock_network_response);
 
   // Request |kUrl| for the first time. It should hit the network and
   // receive |kNetResponse1|, which it saves into the HTTP cache.
 
-  MockTransaction request = { net::OK, 0 };
+  MockTransaction request = { 0 };
   request.url = kUrl;
   request.method = "GET";
   request.request_headers = "";
@@ -1984,11 +1982,11 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache4) {
 
   // We will control the network layer's responses for |kUrl| using
   // |mock_network_response|.
-  MockTransaction mock_network_response = { net::OK, 0 };
+  MockTransaction mock_network_response = { 0 };
   mock_network_response.url = kUrl;
   AddMockTransaction(&mock_network_response);
 
-  MockTransaction request = { net::OK, 0 };
+  MockTransaction request = { 0 };
   request.url = kUrl;
   request.method = "GET";
   request.request_headers = kExtraRequestHeaders;
@@ -2028,11 +2026,11 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache5) {
 
   // We will control the network layer's responses for |kUrl| using
   // |mock_network_response|.
-  MockTransaction mock_network_response = { net::OK, 0 };
+  MockTransaction mock_network_response = { 0 };
   mock_network_response.url = kUrl;
   AddMockTransaction(&mock_network_response);
 
-  MockTransaction request = { net::OK, 0 };
+  MockTransaction request = { 0 };
   request.url = kUrl;
   request.method = "GET";
   request.request_headers = kExtraRequestHeaders;
@@ -4660,14 +4658,14 @@ TEST(HttpCache, UpdatesRequestResponseTimeOn304) {
   const char* kUrl = "http://foobar";
   const char* kData = "body";
 
-  MockTransaction mock_network_response = { net::OK, 0 };
+  MockTransaction mock_network_response = { 0 };
   mock_network_response.url = kUrl;
 
   AddMockTransaction(&mock_network_response);
 
   // Request |kUrl|, causing |kNetResponse1| to be written to the cache.
 
-  MockTransaction request = { net::OK, 0 };
+  MockTransaction request = { 0 };
   request.url = kUrl;
   request.method = "GET";
   request.request_headers = "";
