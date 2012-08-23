@@ -28,10 +28,11 @@ namespace net {
 namespace {
 
 std::string GetHostname(BaseTestServer::Type type,
-                        const BaseTestServer::HTTPSOptions& options) {
-  if (type == BaseTestServer::TYPE_HTTPS &&
+                        const BaseTestServer::SSLOptions& options) {
+  if ((type == BaseTestServer::TYPE_HTTPS ||
+       type == BaseTestServer::TYPE_WSS) &&
       options.server_certificate ==
-          BaseTestServer::HTTPSOptions::CERT_MISMATCHED_NAME) {
+          BaseTestServer::SSLOptions::CERT_MISMATCHED_NAME) {
     // Return a different hostname string that resolves to the same hostname.
     return "localhost";
   }
@@ -41,37 +42,37 @@ std::string GetHostname(BaseTestServer::Type type,
 }
 
 void GetCiphersList(int cipher, base::ListValue* values) {
-  if (cipher & BaseTestServer::HTTPSOptions::BULK_CIPHER_RC4)
+  if (cipher & BaseTestServer::SSLOptions::BULK_CIPHER_RC4)
     values->Append(base::Value::CreateStringValue("rc4"));
-  if (cipher & BaseTestServer::HTTPSOptions::BULK_CIPHER_AES128)
+  if (cipher & BaseTestServer::SSLOptions::BULK_CIPHER_AES128)
     values->Append(base::Value::CreateStringValue("aes128"));
-  if (cipher & BaseTestServer::HTTPSOptions::BULK_CIPHER_AES256)
+  if (cipher & BaseTestServer::SSLOptions::BULK_CIPHER_AES256)
     values->Append(base::Value::CreateStringValue("aes256"));
-  if (cipher & BaseTestServer::HTTPSOptions::BULK_CIPHER_3DES)
+  if (cipher & BaseTestServer::SSLOptions::BULK_CIPHER_3DES)
     values->Append(base::Value::CreateStringValue("3des"));
 }
 
 }  // namespace
 
-BaseTestServer::HTTPSOptions::HTTPSOptions()
+BaseTestServer::SSLOptions::SSLOptions()
     : server_certificate(CERT_OK),
       ocsp_status(OCSP_OK),
       request_client_certificate(false),
-      bulk_ciphers(HTTPSOptions::BULK_CIPHER_ANY),
+      bulk_ciphers(SSLOptions::BULK_CIPHER_ANY),
       record_resume(false),
       tls_intolerant(TLS_INTOLERANT_NONE) {}
 
-BaseTestServer::HTTPSOptions::HTTPSOptions(
-    BaseTestServer::HTTPSOptions::ServerCertificate cert)
+BaseTestServer::SSLOptions::SSLOptions(
+    BaseTestServer::SSLOptions::ServerCertificate cert)
     : server_certificate(cert),
       request_client_certificate(false),
-      bulk_ciphers(HTTPSOptions::BULK_CIPHER_ANY),
+      bulk_ciphers(SSLOptions::BULK_CIPHER_ANY),
       record_resume(false),
       tls_intolerant(TLS_INTOLERANT_NONE) {}
 
-BaseTestServer::HTTPSOptions::~HTTPSOptions() {}
+BaseTestServer::SSLOptions::~SSLOptions() {}
 
-FilePath BaseTestServer::HTTPSOptions::GetCertificateFile() const {
+FilePath BaseTestServer::SSLOptions::GetCertificateFile() const {
   switch (server_certificate) {
     case CERT_OK:
     case CERT_MISMATCHED_NAME:
@@ -90,7 +91,7 @@ FilePath BaseTestServer::HTTPSOptions::GetCertificateFile() const {
   return FilePath();
 }
 
-std::string BaseTestServer::HTTPSOptions::GetOCSPArgument() const {
+std::string BaseTestServer::SSLOptions::GetOCSPArgument() const {
   if (server_certificate != CERT_AUTO)
     return "";
 
@@ -121,12 +122,13 @@ BaseTestServer::BaseTestServer(Type type, const std::string& host)
   Init(host);
 }
 
-BaseTestServer::BaseTestServer(const HTTPSOptions& https_options)
-    : https_options_(https_options),
-      type_(TYPE_HTTPS),
+BaseTestServer::BaseTestServer(Type type, const SSLOptions& ssl_options)
+    : ssl_options_(ssl_options),
+      type_(type),
       started_(false),
       log_to_console_(false) {
-  Init(GetHostname(TYPE_HTTPS, https_options));
+  DCHECK(type == TYPE_HTTPS || type == TYPE_WSS);
+  Init(GetHostname(type, ssl_options));
 }
 
 BaseTestServer::~BaseTestServer() {}
@@ -152,6 +154,10 @@ std::string BaseTestServer::GetScheme() const {
       return "http";
     case TYPE_HTTPS:
       return "https";
+    case TYPE_WS:
+      return "ws";
+    case TYPE_WSS:
+      return "wss";
     case TYPE_TCP_ECHO:
     case TYPE_UDP_ECHO:
     default:
@@ -303,7 +309,7 @@ bool BaseTestServer::LoadTestRootCert() const {
 bool BaseTestServer::SetupWhenServerStarted() {
   DCHECK(host_port_pair_.port());
 
-  if (type_ == TYPE_HTTPS && !LoadTestRootCert())
+  if ((type_ == TYPE_HTTPS || type_ == TYPE_WSS) && !LoadTestRootCert())
       return false;
 
   started_ = true;
@@ -339,7 +345,7 @@ bool BaseTestServer::GenerateArguments(base::DictionaryValue* arguments) const {
 
     // Check the certificate arguments of the HTTPS server.
     FilePath certificate_path(certificates_dir_);
-    FilePath certificate_file(https_options_.GetCertificateFile());
+    FilePath certificate_file(ssl_options_.GetCertificateFile());
     if (!certificate_file.value().empty()) {
       certificate_path = certificate_path.Append(certificate_file);
       if (certificate_path.IsAbsolute() &&
@@ -351,18 +357,18 @@ bool BaseTestServer::GenerateArguments(base::DictionaryValue* arguments) const {
       arguments->SetString("cert-and-key-file", certificate_path.value());
     }
 
-    std::string ocsp_arg = https_options_.GetOCSPArgument();
+    std::string ocsp_arg = ssl_options_.GetOCSPArgument();
     if (!ocsp_arg.empty())
       arguments->SetString("ocsp", ocsp_arg);
 
     // Check the client certificate related arguments.
-    if (https_options_.request_client_certificate)
+    if (ssl_options_.request_client_certificate)
       arguments->Set("ssl-client-auth", base::Value::CreateNullValue());
     scoped_ptr<base::ListValue> ssl_client_certs(new base::ListValue());
 
     std::vector<FilePath>::const_iterator it;
-    for (it = https_options_.client_authorities.begin();
-         it != https_options_.client_authorities.end(); ++it) {
+    for (it = ssl_options_.client_authorities.begin();
+         it != ssl_options_.client_authorities.end(); ++it) {
       if (it->IsAbsolute() && !file_util::PathExists(*it)) {
         LOG(ERROR) << "Client authority path " << it->value()
                    << " doesn't exist. Can't launch https server.";
@@ -376,14 +382,14 @@ bool BaseTestServer::GenerateArguments(base::DictionaryValue* arguments) const {
 
     // Check bulk cipher argument.
     scoped_ptr<base::ListValue> bulk_cipher_values(new base::ListValue());
-    GetCiphersList(https_options_.bulk_ciphers, bulk_cipher_values.get());
+    GetCiphersList(ssl_options_.bulk_ciphers, bulk_cipher_values.get());
     if (bulk_cipher_values->GetSize())
       arguments->Set("ssl-bulk-cipher", bulk_cipher_values.release());
-    if (https_options_.record_resume)
+    if (ssl_options_.record_resume)
       arguments->Set("https-record-resume", base::Value::CreateNullValue());
-    if (https_options_.tls_intolerant != HTTPSOptions::TLS_INTOLERANT_NONE) {
+    if (ssl_options_.tls_intolerant != SSLOptions::TLS_INTOLERANT_NONE) {
       arguments->Set("tls-intolerant",
-          base::Value::CreateIntegerValue(https_options_.tls_intolerant));
+          base::Value::CreateIntegerValue(ssl_options_.tls_intolerant));
     }
   }
   return true;
