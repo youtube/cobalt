@@ -97,7 +97,7 @@ string16 FileVersionInfoMac::special_build() {
 }
 
 string16 FileVersionInfoMac::last_change() {
-  return GetString16Value(CFSTR("SVNRevision"));
+  return GetString16Value(CFSTR("SCMRevision"));
 }
 
 bool FileVersionInfoMac::is_official_build() {

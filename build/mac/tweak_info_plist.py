@@ -101,8 +101,8 @@ def _AddVersionKeys(plist):
   return True
 
 
-def _DoSVNKeys(plist, add_keys):
-  """Adds the SVN information, visible in about:version, to property list. If
+def _DoSCMKeys(plist, add_keys):
+  """Adds the SCM information, visible in about:version, to property list. If
   |add_keys| is True, it will insert the keys, otherwise it will remove them."""
   scm_path, scm_revision = None, None
   if add_keys:
@@ -111,16 +111,16 @@ def _DoSVNKeys(plist, add_keys):
     scm_path, scm_revision = version_info.url, version_info.revision
 
   # See if the operation failed.
-  _RemoveKeys(plist, 'SVNRevision')
+  _RemoveKeys(plist, 'SCMRevision')
   if scm_revision != None:
-    plist['SVNRevision'] = scm_revision
+    plist['SCMRevision'] = scm_revision
   elif add_keys:
-    print >>sys.stderr, 'Could not determine svn revision.  This may be OK.'
+    print >>sys.stderr, 'Could not determine SCM revision.  This may be OK.'
 
   if scm_path != None:
-    plist['SVNPath'] = scm_path
+    plist['SCMPath'] = scm_path
   else:
-    _RemoveKeys(plist, 'SVNPath')
+    _RemoveKeys(plist, 'SCMPath')
 
 
 def _DoPDFKeys(plist, add_keys):
@@ -220,8 +220,8 @@ def Main(argv):
       help='Enable Breakpad\'s uploading of crash dumps [1 or 0]')
   parser.add_option('--keystone', dest='use_keystone', action='store',
       type='int', default=False, help='Enable Keystone [1 or 0]')
-  parser.add_option('--svn', dest='add_svn_info', action='store', type='int',
-      default=True, help='Add SVN metadata [1 or 0]')
+  parser.add_option('--scm', dest='add_scm_info', action='store', type='int',
+      default=True, help='Add SCM metadata [1 or 0]')
   parser.add_option('--pdf', dest='add_pdf_support', action='store', type='int',
       default=False, help='Add PDF file handler support [1 or 0]')
   parser.add_option('--branding', dest='branding', action='store',
@@ -271,8 +271,8 @@ def Main(argv):
   else:
     _RemoveKeystoneKeys(plist)
 
-  # Adds or removes any SVN keys.
-  _DoSVNKeys(plist, options.add_svn_info)
+  # Adds or removes any SCM keys.
+  _DoSCMKeys(plist, options.add_scm_info)
 
   # Adds or removes the PDF file handler entry.
   _DoPDFKeys(plist, options.add_pdf_support)
