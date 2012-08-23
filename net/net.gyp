@@ -1059,6 +1059,7 @@
               ['include', '^base/ip_endpoint\\.'],
               ['include', '^base/mime_util\\.'],
               ['include', '^base/net_errors\\.'],
+              ['include', '^base/network_change_notifier\\.'],
               ['include', '^base/net_errors_posix\\.cc$'],
               ['include', '^base/net_export\\.h$'],
               ['include', '^base/net_log\\.'],
@@ -1111,6 +1112,8 @@
         }],
         ['OS == "ios"', {
           'sources/': [
+            ['include', 'base/network_change_notifier_mac\\.cc$'],
+            ['include', 'base/network_config_watcher_mac\\.cc$'],
             ['include', 'base/platform_mime_util_mac\\.mm$'],
           ],
         }],

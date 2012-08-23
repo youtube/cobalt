@@ -23,6 +23,24 @@ static bool CalculateReachability(SCNetworkConnectionFlags flags) {
   return reachable && !connection_required;
 }
 
+NetworkChangeNotifier::ConnectionType CalculateConnectionType(
+    SCNetworkConnectionFlags flags) {
+  bool reachable = CalculateReachability(flags);
+  if (reachable) {
+#if defined(OS_IOS)
+    return (flags & kSCNetworkReachabilityFlagsIsWWAN) ?
+        NetworkChangeNotifier::CONNECTION_3G :
+        NetworkChangeNotifier::CONNECTION_WIFI;
+#else
+    // TODO(droger): Get something more detailed than CONNECTION_UNKNOWN.
+    // http://crbug.com/112937
+    return NetworkChangeNotifier::CONNECTION_UNKNOWN;
+#endif  // defined(OS_IOS)
+  } else {
+    return NetworkChangeNotifier::CONNECTION_NONE;
+  }
+}
+
 class NetworkChangeNotifierMac::DnsWatcherThread : public base::Thread {
  public:
   DnsWatcherThread() : base::Thread("DnsWatcher") {}
@@ -116,16 +134,16 @@ void NetworkChangeNotifierMac::SetInitialConnectionType() {
       kCFAllocatorDefault, reinterpret_cast<struct sockaddr*>(&addr)));
 
   SCNetworkConnectionFlags flags;
-  bool reachable = true;
-  if (SCNetworkReachabilityGetFlags(reachability_, &flags))
-    reachable = CalculateReachability(flags);
-  else
+  ConnectionType connection_type = CONNECTION_UNKNOWN;
+  if (SCNetworkReachabilityGetFlags(reachability_, &flags)) {
+    connection_type = CalculateConnectionType(flags);
+  } else {
     LOG(ERROR) << "Could not get initial network connection type,"
                << "assuming online.";
+  }
   {
     base::AutoLock lock(connection_type_lock_);
-    // TODO(droger): Get something more detailed than CONNECTION_UNKNOWN.
-    connection_type_ = reachable ? CONNECTION_UNKNOWN : CONNECTION_NONE;
+    connection_type_ = connection_type;
     connection_type_initialized_ = true;
     initial_connection_type_cv_.Signal();
   }
@@ -160,6 +178,10 @@ void NetworkChangeNotifierMac::StartReachabilityNotifications() {
 
 void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
     SCDynamicStoreRef store) {
+#if defined(OS_IOS)
+  // SCDynamicStore API does not exist on iOS.
+  NOTREACHED();
+#else
   base::mac::ScopedCFTypeRef<CFMutableArrayRef> notification_keys(
       CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
   base::mac::ScopedCFTypeRef<CFStringRef> key(
@@ -178,9 +200,14 @@ void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
       store, notification_keys.get(), NULL);
   // TODO(willchan): Figure out a proper way to handle this rather than crash.
   CHECK(ret);
+#endif  // defined(OS_IOS)
 }
 
 void NetworkChangeNotifierMac::OnNetworkConfigChange(CFArrayRef changed_keys) {
+#if defined(OS_IOS)
+  // SCDynamicStore API does not exist on iOS.
+  NOTREACHED();
+#else
   DCHECK_EQ(run_loop_.get(), CFRunLoopGetCurrent());
 
   for (CFIndex i = 0; i < CFArrayGetCount(changed_keys); ++i) {
@@ -198,6 +225,7 @@ void NetworkChangeNotifierMac::OnNetworkConfigChange(CFArrayRef changed_keys) {
       NOTREACHED();
     }
   }
+#endif  // defined(OS_IOS)
 }
 
 // static
@@ -210,9 +238,7 @@ void NetworkChangeNotifierMac::ReachabilityCallback(
 
   DCHECK_EQ(notifier_mac->run_loop_.get(), CFRunLoopGetCurrent());
 
-  // TODO(droger): Get something more detailed than CONNECTION_UNKNOWN.
-  ConnectionType new_type = CalculateReachability(flags) ? CONNECTION_UNKNOWN
-                                                         : CONNECTION_NONE;
+  ConnectionType new_type = CalculateConnectionType(flags);
   ConnectionType old_type;
   {
     base::AutoLock lock(notifier_mac->connection_type_lock_);
@@ -221,6 +247,13 @@ void NetworkChangeNotifierMac::ReachabilityCallback(
   }
   if (old_type != new_type)
     NotifyObserversOfConnectionTypeChange();
+
+#if defined(OS_IOS)
+  // On iOS, the SCDynamicStore API does not exist, and we use the reachability
+  // API to detect IP address changes instead.
+  if (new_type != CONNECTION_NONE)
+    NotifyObserversOfIPAddressChange();
+#endif  // defined(OS_IOS)
 }
 
 }  // namespace net
