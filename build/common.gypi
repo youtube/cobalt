@@ -2042,7 +2042,7 @@
               '_DEBUG',
             ],
             'cflags': [
-              '-O>(debug_optimize)',
+              '-O<(debug_optimize)',
               '-g',
             ],
             'conditions' : [
