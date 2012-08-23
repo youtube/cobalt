@@ -11,6 +11,7 @@
 #include "crypto/openssl_util.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"

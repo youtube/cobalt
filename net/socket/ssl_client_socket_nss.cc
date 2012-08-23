@@ -3369,11 +3369,11 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
 
   int flags = 0;
   if (ssl_config_.rev_checking_enabled)
-    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+    flags |= CertVerifier::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
-    flags |= X509Certificate::VERIFY_EV_CERT;
+    flags |= CertVerifier::VERIFY_EV_CERT;
   if (ssl_config_.cert_io_enabled)
-    flags |= X509Certificate::VERIFY_CERT_IO_ENABLED;
+    flags |= CertVerifier::VERIFY_CERT_IO_ENABLED;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   return verifier_->Verify(
       core_->state().server_cert, host_and_port_.host(), flags,
