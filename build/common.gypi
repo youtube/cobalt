@@ -1554,6 +1554,11 @@
         'conditions': [
           ['win_z7!=0', {
             'msvs_settings': {
+              # Generates debug info when win_z7=1
+              # even if fastbuild=1 (that makes GenerateDebugInformation false).
+              'VCLinkerTool': {
+                'GenerateDebugInformation': 'true',
+              },
               'VCCLCompilerTool': {
                 'DebugInformationFormat': '1',
               }
