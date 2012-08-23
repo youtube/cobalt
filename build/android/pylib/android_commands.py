@@ -11,6 +11,7 @@ import collections
 import datetime
 import logging
 import os
+import random
 import re
 import shlex
 import subprocess
@@ -312,29 +313,33 @@ class AndroidCommands(object):
 
     Args:
       package_file_path: Path to .apk file to install.
-      reinstall: Whether to reinstall over existing package
+      reinstall: Reinstall an existing apk, keeping the data.
 
     Returns:
       A status string returned by adb install
     """
     assert os.path.isfile(package_file_path)
 
+    install_cmd = ['install']
+
     if reinstall:
-      install_cmd = 'install -r %s'
-    else:
-      install_cmd = 'install %s'
+      install_cmd.append('-r')
 
-    return self._adb.SendCommand(install_cmd % package_file_path,
-                                 timeout_time=2*60, retry_count=0)
+    install_cmd.append(package_file_path)
+    install_cmd = ' '.join(install_cmd)
 
-  def ManagedInstall(self, apk_path, keep_data, package_name=None,
+    logging.info('>>> $' + install_cmd)
+    return self._adb.SendCommand(install_cmd, timeout_time=2*60, retry_count=0)
+
+  def ManagedInstall(self, apk_path, keep_data=False, package_name=None,
                      reboots_on_failure=2):
     """Installs specified package and reboots device on timeouts.
 
     Args:
       apk_path: Path to .apk file to install.
-      keep_data: Whether to keep data if package already exists
-      package_name: Package name (only needed if keep_data=False)
+      keep_data: Reinstalls instead of uninstalling first, preserving the
+        application data.
+      package_name: Package name (only needed if keep_data=False).
       reboots_on_failure: number of time to reboot if package manager is frozen.
 
     Returns:
@@ -344,8 +349,9 @@ class AndroidCommands(object):
     while True:
       try:
         if not keep_data:
+          assert package_name
           self.Uninstall(package_name)
-        install_status = self.Install(apk_path, keep_data)
+        install_status = self.Install(apk_path, reinstall=keep_data)
         if 'Success' in install_status:
           return install_status
       except errors.WaitForResponseTimedOutError:
@@ -987,3 +993,35 @@ class AndroidCommands(object):
         break
     logging.info('PidsUsingDevicePort: %s', pids)
     return pids
+
+  def RunMonkey(self, package_name, category=None, throttle=100, seed=None,
+                event_count=10000, verbosity=1, extra_args=''):
+    """Runs monkey test for a given package.
+
+    Args:
+      package_name: Allowed package.
+      category: A list of allowed categories.
+      throttle: Delay between events (ms).
+      seed: Seed value for pseduo-random generator. Same seed value
+        generates the same sequence of events. Seed is randomized by
+        default.
+      event_count: Number of events to generate.
+      verbosity: Verbosity level [0-3].
+      extra_args: A string of other args to pass to the command verbatim.
+
+    Returns:
+      Output of the test run.
+    """
+    category = category or []
+    seed = seed or random.randint(1, 100)
+
+    cmd = ['monkey',
+           '-p %s' % package_name,
+           ' '.join(['-c %s' % c for c in category]),
+           '--throttle %d' % throttle,
+           '-s %d' % seed,
+           '-v ' * verbosity,
+           extra_args,
+           '%s' % event_count]
+    return self.RunShellCommand(' '.join(cmd),
+                                timeout_time=event_count*throttle*1.5)
