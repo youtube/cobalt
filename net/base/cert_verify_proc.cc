@@ -8,6 +8,7 @@
 #include "base/sha1.h"
 #include "build/build_config.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/crl_set.h"
 #include "net/base/net_errors.h"
@@ -84,9 +85,9 @@ int CertVerifyProc::Verify(X509Certificate* cert,
   //
   // TODO(rsleevi): http://crbug.com/142974 - Allow preferences to fully
   // disable revocation checking.
-  if ((flags & X509Certificate::VERIFY_EV_CERT) &&
+  if ((flags & CertVerifier::VERIFY_EV_CERT) &&
       (!crl_set || crl_set->IsExpired())) {
-    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED_EV_ONLY;
+    flags |= CertVerifier::VERIFY_REV_CHECKING_ENABLED_EV_ONLY;
   }
 
   int rv = VerifyInternal(cert, hostname, flags, crl_set, verify_result);
