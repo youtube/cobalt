@@ -637,9 +637,9 @@ snd_pcm_sframes_t AlsaPcmOutputStream::GetCurrentDelay() {
     }
   }
 
-  // snd_pcm_delay() may not work in the beginning of the stream. In this case
-  // return delay of data we know currently is in the ALSA's buffer.
-  if (delay < 0)
+  // snd_pcm_delay() sometimes returns crazy values. In this case return delay
+  // of data we know currently is in ALSA's buffer.
+  if (delay < 0 || static_cast<snd_pcm_uframes_t>(delay) > alsa_buffer_frames_)
     delay = alsa_buffer_frames_ - GetAvailableFrames();
 
   return delay;
