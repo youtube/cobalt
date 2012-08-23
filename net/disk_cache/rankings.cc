@@ -803,6 +803,8 @@ int Rankings::CheckList(List list) {
   if (rv == ERR_NO_ERROR)
     return head_items;
 
+  DetailedCheck(list);
+
   Addr last3, last4;
   int tail_items;
   int rv2 = CheckListSection(list, last1, last2, false,  // Tail to head.
@@ -909,6 +911,111 @@ int Rankings::CheckListSection(List list, Addr end1, Addr end2, bool forward,
     }
   } while (current != end1 && current != end2);
   return ERR_NO_ERROR;
+}
+
+// TODO(rvargas): remove when we figure why we have corrupt heads.
+// This is basically the same code as CheckListSection except that it starts
+// at a random node and it iterates until it finds something looking like the
+// last node.
+int Rankings::CheckListSegment(Addr start,
+                               bool forward,
+                               Addr* last,
+                               int* num_items) {
+  Addr current = start;
+  *last = current;
+  *num_items = 0;
+  if (!current.is_initialized())
+    return ERR_NO_ERROR;
+
+  if (!current.SanityCheckForRankings())
+    return ERR_INVALID_HEAD;
+
+  scoped_ptr<CacheRankingsBlock> node;
+  Addr prev_addr;
+  const int kMaxItemsToCheck = 100000;
+  do {
+    node.reset(new CacheRankingsBlock(backend_->File(current), current));
+    node->Load();
+    // The head may point to the wrong node so don't use SanityCheck().
+    if (ExplodedSanityCheck(node.get()))
+      return ERR_INVALID_ENTRY;
+
+    CacheAddr next = forward ? node->Data()->next : node->Data()->prev;
+    CacheAddr prev = forward ? node->Data()->prev : node->Data()->next;
+
+    if (prev_addr.is_initialized() && prev != prev_addr.value())
+      return ERR_INVALID_PREV;
+
+    Addr next_addr(next);
+    if (!next_addr.SanityCheckForRankings())
+      return ERR_INVALID_NEXT;
+
+    prev_addr = current;
+    current = next_addr;
+    *last = current;
+    (*num_items)++;
+
+    if (next_addr == prev_addr)
+      return ERR_NO_ERROR;
+  } while (*num_items < kMaxItemsToCheck);
+  return ERR_NO_ERROR;
+}
+
+// TODO(rvargas): remove when we figure why we have corrupt heads.
+void Rankings::DetailedCheck(List list) {
+  int rv = CheckHeadAndTail(list);
+  Addr last;
+  int num_items = 0;
+  int error = ERR_NO_ERROR;
+  if (rv == ERR_INVALID_PREV) {
+    error = CheckListSegment(heads_[list], false, &last, &num_items);
+  } else if (rv == ERR_INVALID_NEXT) {
+    error = CheckListSegment(tails_[list], true, &last, &num_items);
+  } else if (rv == ERR_INVALID_ENTRY) {
+    scoped_ptr<CacheRankingsBlock> head;
+    head.reset(new CacheRankingsBlock(backend_->File(heads_[list]),
+                                      heads_[list]));
+    head->Load();
+    int result = ExplodedSanityCheck(head.get());
+    if (!result) {
+      scoped_ptr<CacheRankingsBlock> tail;
+      tail.reset(new CacheRankingsBlock(backend_->File(tails_[list]),
+                                        tails_[list]));
+      tail->Load();
+      result = ExplodedSanityCheck(tail.get());
+    }
+    CACHE_UMA(CACHE_ERROR, "DetailedListCheckSanity", 0, result);
+    return;
+  }
+  CACHE_UMA(CACHE_ERROR, "DetailedListCheck", 0, -error);
+  CACHE_UMA(COUNTS, "DetailedListCheckCount", 0, num_items);
+}
+
+// TODO(rvargas): remove when we figure why we have corrupt heads.
+// This is basically SanityCheck().
+int Rankings::ExplodedSanityCheck(CacheRankingsBlock* node) {
+  int error = 0;
+  const int kBlockHashFailed = 1;
+  if (!node->VerifyHash())
+    error = kBlockHashFailed;
+
+  const RankingsNode* data = node->Data();
+  const int kHasOnlyOneOfNextAndPrev = 2;
+  if ((!data->next && data->prev) || (data->next && !data->prev))
+    error += kHasOnlyOneOfNextAndPrev;
+
+  const int kHasNeitherNextNorPrev = 4;
+  if (!data->next && !data->prev)
+    error += kHasNeitherNextNorPrev;
+
+  Addr next_addr(data->next);
+  Addr prev_addr(data->prev);
+  const int kFailsSanityCheck = 8;
+  if (!next_addr.SanityCheck() || next_addr.file_type() != RANKINGS ||
+      !prev_addr.SanityCheck() || prev_addr.file_type() != RANKINGS)
+    error += kFailsSanityCheck;
+
+  return error;
 }
 
 // TODO(rvargas): remove when we figure why we have corrupt heads.
