@@ -82,6 +82,7 @@ v8.log
 /chrome/test/data/firefox2_searchplugins
 /chrome/test/data/firefox3_profile/searchplugins
 /chrome/test/data/firefox3_searchplugins
+/chrome/test/data/gpu/vectortown_endurance/
 /chrome/test/data/layout_tests
 /chrome/test/data/osdd
 /chrome/test/data/perf/canvas_bench
