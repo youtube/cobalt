@@ -64,6 +64,12 @@ class URLRequestHttpJob : public URLRequestJob {
 
   void RestartTransactionWithAuth(const AuthCredentials& credentials);
 
+  void RetryRequestOnError(int result);
+
+  // Returns true if this request should be retried after receiving the given
+  // error as a result of a call to Start.
+  bool ShouldRetryRequest(int result) const;
+
   // Overridden from URLRequestJob:
   virtual void SetUpload(UploadData* upload) OVERRIDE;
   virtual void SetExtraRequestHeaders(
@@ -148,6 +154,8 @@ class URLRequestHttpJob : public URLRequestJob {
 
   void RecordTimer();
   void ResetTimer();
+
+  void RecordRetryResult(int result) const;
 
   virtual void UpdatePacketReadTimes() OVERRIDE;
   void RecordPacketStats(FilterContext::StatisticSelector statistic) const;
@@ -239,6 +247,15 @@ class URLRequestHttpJob : public URLRequestJob {
   bool awaiting_callback_;
 
   scoped_ptr<HttpTransactionDelegateImpl> http_transaction_delegate_;
+
+  // True if the request job has automatically retried the request as a result
+  // of an error.
+  bool has_retried_;
+
+  // The network error code error that |this| was automatically retried as a
+  // result of, if any.  If this request has not been retried, must be 0.
+  // Reset once it's been used to log histograms.
+  int error_before_retry_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
 };
