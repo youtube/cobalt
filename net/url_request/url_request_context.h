@@ -22,6 +22,7 @@
 #include "net/base/transport_security_state.h"
 #include "net/http/http_server_properties.h"
 #include "net/ftp/ftp_auth_cache.h"
+#include "net/url_request/url_request.h"
 
 namespace net {
 class CertVerifier;
@@ -50,6 +51,9 @@ class NET_EXPORT URLRequestContext
 
   // Copies the state from |other| into this context.
   void CopyFrom(const URLRequestContext* other);
+
+  URLRequest* CreateRequest(
+      const GURL& url, URLRequest::Delegate* delegate) const;
 
   NetLog* net_log() const {
     return net_log_;
