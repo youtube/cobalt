@@ -223,6 +223,23 @@ TEST_F(CertVerifyProcTest, DISABLED_GlobalSignR3EVTest) {
     EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
 }
 
+// Test that verifying an ECDSA certificate doesn't crash on XP. (See
+// crbug.com/144466).
+TEST_F(CertVerifyProcTest, ECDSA_RSA) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir,
+                         "prime256v1-ecdsa-ee-by-1024-rsa-intermediate.pem");
+
+  CertVerifyResult verify_result;
+  Verify(cert, "127.0.0.1", 0, NULL, &verify_result);
+
+  // We don't check verify_result because the certificate is signed by an
+  // unknown CA and will be considered invalid on XP because of the ECDSA
+  // public key.
+}
+
 // Currently, only RSA and DSA keys are checked for weakness, and our example
 // weak size is 768. These could change in the future.
 //
