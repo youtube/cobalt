@@ -2026,7 +2026,16 @@ void BackendImpl::ReportStats() {
     return;
 
   CACHE_UMA(HOURS, "UseTime", 0, static_cast<int>(use_hours));
-  CACHE_UMA(PERCENTAGE, "HitRatio", 0, stats_.GetHitRatio());
+  const int hit_percentage = stats_.GetHitRatio();
+  CACHE_UMA(PERCENTAGE, "HitRatio", 0, hit_percentage);
+
+  // For any bin in HitRatioByTotalTime, the HitRatio of caches of that age is
+  // approximately the value of HitRatioByTotalTime / TotalTime. Likewise for
+  // HitRatioByUseTime.
+  if (base::RandInt(0, 99) < hit_percentage)
+    CACHE_UMA(HOURS, "HitRatioByTotalTime", 0, implicit_cast<int>(total_hours));
+  if (base::RandInt(0, 99) < hit_percentage)
+    CACHE_UMA(HOURS, "HitRatioByUseTime", 0, implicit_cast<int>(use_hours));
 
   int64 trim_rate = stats_.GetCounter(Stats::TRIM_ENTRY) / use_hours;
   CACHE_UMA(COUNTS, "TrimRate", 0, static_cast<int>(trim_rate));
