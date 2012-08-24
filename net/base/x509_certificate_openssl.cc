@@ -440,8 +440,14 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
 void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
                                        size_t* size_bits,
                                        PublicKeyType* type) {
+  *type = kPublicKeyTypeUnknown;
+  *size_bits = 0;
+
   crypto::ScopedOpenSSL<EVP_PKEY, EVP_PKEY_free> scoped_key(
       X509_get_pubkey(cert_handle));
+  if (!scoped_key.get())
+    return;
+
   CHECK(scoped_key.get());
   EVP_PKEY* key = scoped_key.get();
 
@@ -461,10 +467,6 @@ void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
     case EVP_PKEY_DH:
       *type = kPublicKeyTypeDH;
       *size_bits = EVP_PKEY_size(key) * 8;
-      break;
-    default:
-      *type = kPublicKeyTypeUnknown;
-      *size_bits = 0;
       break;
   }
 }
