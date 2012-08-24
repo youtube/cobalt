@@ -12,8 +12,8 @@ DataProtocolHandler::DataProtocolHandler() {
 }
 
 URLRequestJob* DataProtocolHandler::MaybeCreateJob(
-    URLRequest* request) const {
-  return new URLRequestDataJob(request);
+    URLRequest* request, NetworkDelegate* network_delegate) const {
+  return new URLRequestDataJob(request, network_delegate);
 }
 
 }  // namespace net

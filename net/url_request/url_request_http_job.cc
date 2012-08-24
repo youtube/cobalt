@@ -208,23 +208,26 @@ void URLRequestHttpJob::HttpFilterContext::RecordPacketStats(
 // TODO(darin): make sure the port blocking code is not lost
 // static
 URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
+                                          NetworkDelegate* network_delegate,
                                           const std::string& scheme) {
   DCHECK(scheme == "http" || scheme == "https");
 
   if (!request->context()->http_transaction_factory()) {
     NOTREACHED() << "requires a valid context";
-    return new URLRequestErrorJob(request, ERR_INVALID_ARGUMENT);
+    return new URLRequestErrorJob(
+        request, network_delegate, ERR_INVALID_ARGUMENT);
   }
 
   GURL redirect_url;
   if (request->GetHSTSRedirect(&redirect_url))
-    return new URLRequestRedirectJob(request, redirect_url);
-  return new URLRequestHttpJob(request);
+    return new URLRequestRedirectJob(request, network_delegate, redirect_url);
+  return new URLRequestHttpJob(request, network_delegate);
 }
 
 
-URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
-    : URLRequestJob(request, request->context()->network_delegate()),
+URLRequestHttpJob::URLRequestHttpJob(URLRequest* request,
+                                     NetworkDelegate* network_delegate)
+    : URLRequestJob(request, network_delegate),
       response_info_(NULL),
       response_cookies_save_index_(0),
       proxy_auth_state_(AUTH_STATE_DONT_NEED_AUTH),

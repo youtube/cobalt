@@ -378,19 +378,22 @@ class TestJobInterceptor : public URLRequestJobFactory::Interceptor {
       : main_intercept_job_(NULL) {
   }
 
-  virtual URLRequestJob* MaybeIntercept(URLRequest* request) const OVERRIDE {
+  virtual URLRequestJob* MaybeIntercept(
+      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE {
     URLRequestJob* job = main_intercept_job_;
     main_intercept_job_ = NULL;
     return job;
   }
 
   virtual URLRequestJob* MaybeInterceptRedirect(
-      const GURL& location, URLRequest* request) const OVERRIDE {
+      const GURL& location,
+      URLRequest* request,
+      NetworkDelegate* network_delegate) const OVERRIDE {
     return NULL;
   }
 
   virtual URLRequestJob* MaybeInterceptResponse(
-      URLRequest* request) const OVERRIDE {
+      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE {
     return NULL;
   }
 
@@ -3560,8 +3563,8 @@ TEST_F(URLRequestTestHTTP, InterceptPost302RedirectGet) {
                     base::UintToString(arraysize(kData) - 1));
   req.SetExtraRequestHeaders(headers);
 
-  URLRequestRedirectJob* job =
-      new URLRequestRedirectJob(&req, test_server_.GetURL("echo"));
+  URLRequestRedirectJob* job = new URLRequestRedirectJob(
+      &req, default_context_.network_delegate(), test_server_.GetURL("echo"));
   AddTestInterceptor()->set_main_intercept_job(job);
 
   req.Start();
@@ -3583,8 +3586,8 @@ TEST_F(URLRequestTestHTTP, InterceptPost307RedirectPost) {
                     base::UintToString(arraysize(kData) - 1));
   req.SetExtraRequestHeaders(headers);
 
-  URLRequestRedirectJob* job =
-      new URLRequestRedirectJob(&req, test_server_.GetURL("echo"));
+  URLRequestRedirectJob* job = new URLRequestRedirectJob(
+      &req, default_context_.network_delegate(), test_server_.GetURL("echo"));
   job->set_redirect_code(
       URLRequestRedirectJob::REDIRECT_307_TEMPORARY_REDIRECT);
   AddTestInterceptor()->set_main_intercept_job(job);
@@ -3598,8 +3601,8 @@ TEST_F(URLRequestTestHTTP, InterceptPost307RedirectPost) {
 // Custom URLRequestJobs for use with interceptor tests
 class RestartTestJob : public URLRequestTestJob {
  public:
-  explicit RestartTestJob(URLRequest* request)
-    : URLRequestTestJob(request, true) {}
+  RestartTestJob(URLRequest* request, NetworkDelegate* network_delegate)
+    : URLRequestTestJob(request, network_delegate, true) {}
  protected:
   virtual void StartAsync() {
     this->NotifyRestartRequired();
@@ -3610,8 +3613,8 @@ class RestartTestJob : public URLRequestTestJob {
 
 class CancelTestJob : public URLRequestTestJob {
  public:
-  explicit CancelTestJob(URLRequest* request)
-    : URLRequestTestJob(request, true) {}
+  explicit CancelTestJob(URLRequest* request, NetworkDelegate* network_delegate)
+    : URLRequestTestJob(request, network_delegate, true) {}
  protected:
   virtual void StartAsync() {
     request_->Cancel();
@@ -3622,8 +3625,9 @@ class CancelTestJob : public URLRequestTestJob {
 
 class CancelThenRestartTestJob : public URLRequestTestJob {
  public:
-  explicit CancelThenRestartTestJob(URLRequest* request)
-      : URLRequestTestJob(request, true) {
+  explicit CancelThenRestartTestJob(URLRequest* request,
+                                    NetworkDelegate* network_delegate)
+      : URLRequestTestJob(request, network_delegate, true) {
   }
  protected:
   virtual void StartAsync() {
@@ -3655,69 +3659,76 @@ class TestInterceptor : URLRequest::Interceptor {
     URLRequest::Deprecated::UnregisterRequestInterceptor(this);
   }
 
-  virtual URLRequestJob* MaybeIntercept(URLRequest* request) {
+  virtual URLRequestJob* MaybeIntercept(URLRequest* request,
+                                        NetworkDelegate* network_delegate) {
     if (restart_main_request_) {
       restart_main_request_ = false;
       did_restart_main_ = true;
-      return new RestartTestJob(request);
+      return new RestartTestJob(request, network_delegate);
     }
     if (cancel_main_request_) {
       cancel_main_request_ = false;
       did_cancel_main_ = true;
-      return new CancelTestJob(request);
+      return new CancelTestJob(request, network_delegate);
     }
     if (cancel_then_restart_main_request_) {
       cancel_then_restart_main_request_ = false;
       did_cancel_then_restart_main_ = true;
-      return new CancelThenRestartTestJob(request);
+      return new CancelThenRestartTestJob(request, network_delegate);
     }
     if (simulate_main_network_error_) {
       simulate_main_network_error_ = false;
       did_simulate_error_main_ = true;
       // will error since the requeted url is not one of its canned urls
-      return new URLRequestTestJob(request, true);
+      return new URLRequestTestJob(request, network_delegate, true);
     }
     if (!intercept_main_request_)
       return NULL;
     intercept_main_request_ = false;
     did_intercept_main_ = true;
     return new URLRequestTestJob(request,
-                                      main_headers_,
-                                      main_data_,
-                                      true);
+                                 network_delegate,
+                                 main_headers_,
+                                 main_data_,
+                                 true);
   }
 
-  virtual URLRequestJob* MaybeInterceptRedirect(URLRequest* request,
-                                                     const GURL& location) {
+  virtual URLRequestJob* MaybeInterceptRedirect(
+      URLRequest* request,
+      NetworkDelegate* network_delegate,
+      const GURL& location) {
     if (cancel_redirect_request_) {
       cancel_redirect_request_ = false;
       did_cancel_redirect_ = true;
-      return new CancelTestJob(request);
+      return new CancelTestJob(request, network_delegate);
     }
     if (!intercept_redirect_)
       return NULL;
     intercept_redirect_ = false;
     did_intercept_redirect_ = true;
     return new URLRequestTestJob(request,
-                                      redirect_headers_,
-                                      redirect_data_,
-                                      true);
+                                 network_delegate,
+                                 redirect_headers_,
+                                 redirect_data_,
+                                 true);
   }
 
-  virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request) {
+  virtual URLRequestJob* MaybeInterceptResponse(
+      URLRequest* request, NetworkDelegate* network_delegate) {
     if (cancel_final_request_) {
       cancel_final_request_ = false;
       did_cancel_final_ = true;
-      return new CancelTestJob(request);
+      return new CancelTestJob(request, network_delegate);
     }
     if (!intercept_final_response_)
       return NULL;
     intercept_final_response_ = false;
     did_intercept_final_ = true;
     return new URLRequestTestJob(request,
-                                      final_headers_,
-                                      final_data_,
-                                      true);
+                                 network_delegate,
+                                 final_headers_,
+                                 final_data_,
+                                 true);
   }
 
   // Whether to intercept the main request, and if so the response to return.
@@ -4161,13 +4172,11 @@ TEST_F(URLRequestTestFTP, UnsafePort) {
 
   GURL url("ftp://127.0.0.1:7");
   FtpProtocolHandler ftp_protocol_handler(
-      default_context_.network_delegate(),
       default_context_.ftp_transaction_factory(),
       default_context_.ftp_auth_cache());
   job_factory.SetProtocolHandler(
       "ftp",
-      new FtpProtocolHandler(default_context_.network_delegate(),
-                             default_context_.ftp_transaction_factory(),
+      new FtpProtocolHandler(default_context_.ftp_transaction_factory(),
                              default_context_.ftp_auth_cache()));
   default_context_.set_job_factory(&job_factory);
 

@@ -11,14 +11,16 @@
 
 namespace net {
 
-URLRequestDataJob::URLRequestDataJob(URLRequest* request)
-    : URLRequestSimpleJob(request) {
+URLRequestDataJob::URLRequestDataJob(
+    URLRequest* request, NetworkDelegate* network_delegate)
+    : URLRequestSimpleJob(request, network_delegate) {
 }
 
 // static
 URLRequestJob* URLRequestDataJob::Factory(URLRequest* request,
+                                          NetworkDelegate* network_delegate,
                                           const std::string& scheme) {
-  return new URLRequestDataJob(request);
+  return new URLRequestDataJob(request, network_delegate);
 }
 
 int URLRequestDataJob::GetData(std::string* mime_type,

@@ -71,6 +71,7 @@ class NET_EXPORT URLRequestFilter {
 
   // Helper method that looks up the request in the url_handler_map_.
   URLRequestJob* FindRequestHandler(URLRequest* request,
+                                    NetworkDelegate* network_delegate,
                                     const std::string& scheme);
 
   // Maps hostnames to factories.  Hostnames take priority over URLs.
