@@ -2882,21 +2882,6 @@
               'OTHER_CFLAGS': [
                 '-faddress-sanitizer',
               ],
-              'OTHER_LDFLAGS': [
-                '-faddress-sanitizer',
-                # The symbols below are referenced in the ASan runtime
-                # library (compiled on OS X 10.6), but may be unavailable
-                # on the prior OS X versions. Because Chromium is currently
-                # targeting 10.5.0, we need to explicitly mark these
-                # symbols as dynamic_lookup.
-                '-Wl,-U,_malloc_default_purgeable_zone',
-                '-Wl,-U,_malloc_zone_memalign',
-                '-Wl,-U,_dispatch_sync_f',
-                '-Wl,-U,_dispatch_async_f',
-                '-Wl,-U,_dispatch_barrier_async_f',
-                '-Wl,-U,_dispatch_group_async_f',
-                '-Wl,-U,_dispatch_after_f',
-              ],
             },
             'defines': [
               'ADDRESS_SANITIZER',
@@ -2906,6 +2891,27 @@
         'target_conditions': [
           ['_type!="static_library"', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-search_paths_first']},
+            'conditions': [
+              ['asan==1', {
+                'xcode_settings': {
+                  'OTHER_LDFLAGS': [
+                    '-faddress-sanitizer',
+                    # The symbols below are referenced in the ASan runtime
+                    # library (compiled on OS X 10.6), but may be unavailable
+                    # on the prior OS X versions. Because Chromium is
+                    # currently targeting 10.5.0, we need to explicitly mark
+                    # these symbols as dynamic_lookup.
+                    '-Wl,-U,_malloc_default_purgeable_zone',
+                    '-Wl,-U,_malloc_zone_memalign',
+                    '-Wl,-U,_dispatch_sync_f',
+                    '-Wl,-U,_dispatch_async_f',
+                    '-Wl,-U,_dispatch_barrier_async_f',
+                    '-Wl,-U,_dispatch_group_async_f',
+                    '-Wl,-U,_dispatch_after_f',
+                  ],
+                },
+              }],
+            ],
           }],
           ['_mac_bundle', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
