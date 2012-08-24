@@ -56,7 +56,7 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_file_dir_job.h"
 #include "net/url_request/url_request_http_job.h"
-#include "net/url_request/url_request_job_factory.h"
+#include "net/url_request/url_request_job_factory_impl.h"
 #include "net/url_request/url_request_redirect_job.h"
 #include "net/url_request/url_request_test_job.h"
 #include "net/url_request/url_request_test_util.h"
@@ -438,7 +438,7 @@ class URLRequestTest : public PlatformTest {
 
  protected:
   TestNetworkDelegate default_network_delegate_;  // must outlive URLRequest
-  URLRequestJobFactory job_factory_;
+  URLRequestJobFactoryImpl job_factory_;
   TestURLRequestContext default_context_;
 };
 
@@ -4168,7 +4168,7 @@ class URLRequestTestFTP : public URLRequestTest {
 TEST_F(URLRequestTestFTP, UnsafePort) {
   ASSERT_TRUE(test_server_.Start());
 
-  URLRequestJobFactory job_factory;
+  URLRequestJobFactoryImpl job_factory;
 
   GURL url("ftp://127.0.0.1:7");
   FtpProtocolHandler ftp_protocol_handler(
