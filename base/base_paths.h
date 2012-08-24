@@ -42,6 +42,9 @@ enum BasePathKey {
                 // ~/Library/Caches on Mac.
   DIR_HOME,     // $HOME on POSIX-like systems.
 #endif
+#if defined(OS_ANDROID)
+  DIR_ANDROID_EXTERNAL_STORAGE,  // Android external storage directory.
+#endif
 
   PATH_END
 };
