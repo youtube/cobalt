@@ -12,6 +12,27 @@
   },
   'targets': [
     {
+      # Minimal target for NaCl and other renderer side media clients which only
+      # need to send audio data across the shared memory to the browser process.
+      'target_name': 'shared_memory_support',
+      'type': '<(component)',
+      'dependencies': [
+        '../base/base.gyp:base',
+      ],
+      'defines': [
+        'MEDIA_IMPLEMENTATION',
+      ],
+      'include_dirs': [
+        '..',
+      ],
+      'includes': [
+        'shared_memory_support.gypi',
+      ],
+      'sources': [
+        '<@(shared_memory_support_sources)',
+      ],
+    },
+    {
       'target_name': 'media',
       'type': '<(component)',
       'dependencies': [
@@ -19,6 +40,7 @@
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
+        'shared_memory_support',
         '../ui/ui.gyp:ui',
         'yuv_convert',
       ],
@@ -71,8 +93,6 @@
         'audio/audio_output_mixer.h',
         'audio/audio_output_proxy.cc',
         'audio/audio_output_proxy.h',
-        'audio/audio_parameters.cc',
-        'audio/audio_parameters.h',
         'audio/audio_util.cc',
         'audio/audio_util.h',
         'audio/cross_process_notification.cc',
@@ -135,8 +155,6 @@
         'audio/win/waveout_output_win.h',
         'base/android/media_jni_registrar.cc',
         'base/android/media_jni_registrar.h',
-        'base/audio_bus.cc',
-        'base/audio_bus.h',
         'base/audio_decoder.cc',
         'base/audio_decoder.h',
         'base/audio_decoder_config.cc',
@@ -155,8 +173,6 @@
         'base/buffers.h',
         'base/byte_queue.cc',
         'base/byte_queue.h',
-        'base/channel_layout.cc',
-        'base/channel_layout.h',
         'base/clock.cc',
         'base/clock.h',
         'base/data_buffer.cc',
@@ -179,7 +195,6 @@
         'base/filter_collection.h',
         'base/media.h',
         'base/media_android.cc',
-        'base/media_export.h',
         'base/media_log.cc',
         'base/media_log.h',
         'base/media_log_event.h',
@@ -662,6 +677,7 @@
       'dependencies': [
         'media',
         'media_test_support',
+        'shared_memory_support',
         'yuv_convert',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',

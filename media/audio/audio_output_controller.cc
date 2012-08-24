@@ -11,15 +11,13 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
+#include "media/audio/shared_memory_util.h"
 
 using base::Time;
 using base::TimeDelta;
 using base::WaitableEvent;
 
 namespace media {
-
-// Signal a pause in low-latency mode.
-const int AudioOutputController::kPauseMark = -1;
 
 // Polling-related constants.
 const int AudioOutputController::kPollNumAttempts = 3;
