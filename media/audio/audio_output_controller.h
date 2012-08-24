@@ -68,10 +68,6 @@ class MEDIA_EXPORT AudioOutputController
     : public base::RefCountedThreadSafe<AudioOutputController>,
       public AudioOutputStream::AudioSourceCallback {
  public:
-  // Value sent by the controller to the renderer in low-latency mode
-  // indicating that the stream is paused.
-  static const int kPauseMark;
-
   // An event handler that receives events from the AudioOutputController. The
   // following methods are called on the audio manager thread.
   class MEDIA_EXPORT EventHandler {
