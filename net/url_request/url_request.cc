@@ -134,10 +134,50 @@ void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
 ///////////////////////////////////////////////////////////////////////////////
 // URLRequest
 
+// TODO(shalev): Get rid of this constructor in favour of the one below it.
 URLRequest::URLRequest(const GURL& url,
                        Delegate* delegate,
                        const URLRequestContext* context)
     : context_(context),
+      network_delegate_(context->network_delegate()),
+      net_log_(BoundNetLog::Make(context->net_log(),
+                                 NetLog::SOURCE_URL_REQUEST)),
+      url_chain_(1, url),
+      method_("GET"),
+      referrer_policy_(CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE),
+      load_flags_(LOAD_NORMAL),
+      delegate_(delegate),
+      is_pending_(false),
+      redirect_limit_(kMaxRedirects),
+      final_upload_progress_(0),
+      priority_(LOWEST),
+      identifier_(GenerateURLRequestIdentifier()),
+      blocked_on_delegate_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(before_request_callback_(
+          base::Bind(&URLRequest::BeforeRequestComplete,
+                     base::Unretained(this)))),
+      has_notified_completion_(false),
+      creation_time_(base::TimeTicks::Now()) {
+  SIMPLE_STATS_COUNTER("URLRequestCount");
+
+  // Sanity check out environment.
+  DCHECK(MessageLoop::current()) << "The current MessageLoop must exist";
+
+  DCHECK(MessageLoop::current()->IsType(MessageLoop::TYPE_IO)) << ""
+      "The current MessageLoop must be TYPE_IO";
+
+  CHECK(context);
+  context->url_requests()->insert(this);
+
+  net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE);
+}
+
+URLRequest::URLRequest(const GURL& url,
+                       Delegate* delegate,
+                       const URLRequestContext* context,
+                       NetworkDelegate* network_delegate)
+    : context_(context),
+      network_delegate_(network_delegate),
       net_log_(BoundNetLog::Make(context->net_log(),
                                  NetLog::SOURCE_URL_REQUEST)),
       url_chain_(1, url),
@@ -173,8 +213,8 @@ URLRequest::URLRequest(const GURL& url,
 URLRequest::~URLRequest() {
   Cancel();
 
-  if (context_->network_delegate()) {
-    context_->network_delegate()->NotifyURLRequestDestroyed(this);
+  if (network_delegate_) {
+    network_delegate_->NotifyURLRequestDestroyed(this);
     if (job_)
       job_->NotifyURLRequestDestroyed();
   }
@@ -413,12 +453,14 @@ void URLRequest::set_delegate(Delegate* delegate) {
 }
 
 void URLRequest::Start() {
+  DCHECK_EQ(network_delegate_, context_->network_delegate());
+
   g_url_requests_started = true;
   response_info_.request_time = Time::Now();
 
   // Only notify the delegate for the initial request.
-  if (context_->network_delegate()) {
-    int error = context_->network_delegate()->NotifyBeforeURLRequest(
+  if (network_delegate_) {
+    int error = network_delegate_->NotifyBeforeURLRequest(
         this, before_request_callback_, &delegate_redirect_url_);
     if (error == net::ERR_IO_PENDING) {
       // Paused on the delegate, will invoke |before_request_callback_| later.
@@ -430,7 +472,7 @@ void URLRequest::Start() {
   }
 
   StartJob(URLRequestJobManager::GetInstance()->CreateJob(
-      this, context_->network_delegate()));
+      this, network_delegate_));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -438,6 +480,7 @@ void URLRequest::Start() {
 void URLRequest::BeforeRequestComplete(int error) {
   DCHECK(!job_);
   DCHECK_NE(ERR_IO_PENDING, error);
+  DCHECK_EQ(network_delegate_, context_->network_delegate());
 
   // Check that there are no callbacks to already canceled requests.
   DCHECK_NE(URLRequestStatus::CANCELED, status_.status());
@@ -449,20 +492,20 @@ void URLRequest::BeforeRequestComplete(int error) {
     std::string source("delegate");
     net_log_.AddEvent(NetLog::TYPE_CANCELLED,
                       NetLog::StringCallback("source", &source));
-    StartJob(new URLRequestErrorJob(this, context_->network_delegate(), error));
+    StartJob(new URLRequestErrorJob(this, network_delegate_, error));
   } else if (!delegate_redirect_url_.is_empty()) {
     GURL new_url;
     new_url.Swap(&delegate_redirect_url_);
 
     URLRequestRedirectJob* job = new URLRequestRedirectJob(
-        this, context_->network_delegate(), new_url);
+        this, network_delegate_, new_url);
     // Use status code 307 to preserve the method, so POST requests work.
     job->set_redirect_code(
         URLRequestRedirectJob::REDIRECT_307_TEMPORARY_REDIRECT);
     StartJob(job);
   } else {
     StartJob(URLRequestJobManager::GetInstance()->CreateJob(
-        this, context_->network_delegate()));
+        this, network_delegate_));
   }
 }
 
@@ -496,7 +539,7 @@ void URLRequest::Restart() {
   // Should only be called if the original job didn't make any progress.
   DCHECK(job_ && !job_->has_response_started());
   RestartWithJob(URLRequestJobManager::GetInstance()->CreateJob(
-      this, context_->network_delegate()));
+      this, network_delegate_));
 }
 
 void URLRequest::RestartWithJob(URLRequestJob *job) {
@@ -592,7 +635,7 @@ void URLRequest::NotifyReceivedRedirect(const GURL& location,
                                         bool* defer_redirect) {
   URLRequestJob* job =
       URLRequestJobManager::GetInstance()->MaybeInterceptRedirect(
-          this, context_->network_delegate(), location);
+          this, network_delegate_, location);
   if (job) {
     RestartWithJob(job);
   } else if (delegate_) {
@@ -609,7 +652,7 @@ void URLRequest::NotifyResponseStarted() {
 
   URLRequestJob* job =
       URLRequestJobManager::GetInstance()->MaybeInterceptResponse(
-          this, context_->network_delegate());
+          this, network_delegate_);
   if (job) {
     RestartWithJob(job);
   } else {
@@ -617,8 +660,8 @@ void URLRequest::NotifyResponseStarted() {
       // In some cases (e.g. an event was canceled), we might have sent the
       // completion event and receive a NotifyResponseStarted() later.
       if (!has_notified_completion_ && status_.is_success()) {
-        if (context_->network_delegate())
-          context_->network_delegate()->NotifyResponseStarted(this);
+        if (network_delegate_)
+          network_delegate_->NotifyResponseStarted(this);
       }
 
       // Notify in case the entire URL Request has been finished.
@@ -701,8 +744,8 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
         NetLog::StringCallback("location", &location.possibly_invalid_spec()));
   }
 
-  if (context_->network_delegate())
-    context_->network_delegate()->NotifyBeforeRedirect(this, location);
+  if (network_delegate_)
+    network_delegate_->NotifyBeforeRedirect(this, location);
 
   if (redirect_limit_ <= 0) {
     DVLOG(1) << "disallowing redirect: exceeds limit";
@@ -795,8 +838,8 @@ void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
   NetworkDelegate::AuthRequiredResponse rv =
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
   auth_info_ = auth_info;
-  if (context_->network_delegate()) {
-    rv = context_->network_delegate()->NotifyAuthRequired(
+  if (network_delegate_) {
+    rv = network_delegate_->NotifyAuthRequired(
         this,
         *auth_info,
         base::Bind(&URLRequest::NotifyAuthRequiredComplete,
@@ -862,9 +905,8 @@ void URLRequest::NotifySSLCertificateError(const SSLInfo& ssl_info,
 
 bool URLRequest::CanGetCookies(const CookieList& cookie_list) const {
   DCHECK(!(load_flags_ & LOAD_DO_NOT_SEND_COOKIES));
-  if (context_->network_delegate()) {
-    return context_->network_delegate()->CanGetCookies(*this,
-                                                              cookie_list);
+  if (network_delegate_) {
+    return network_delegate_->CanGetCookies(*this, cookie_list);
   }
   return g_default_can_use_cookies;
 }
@@ -872,10 +914,8 @@ bool URLRequest::CanGetCookies(const CookieList& cookie_list) const {
 bool URLRequest::CanSetCookie(const std::string& cookie_line,
                               CookieOptions* options) const {
   DCHECK(!(load_flags_ & LOAD_DO_NOT_SAVE_COOKIES));
-  if (context_->network_delegate()) {
-    return context_->network_delegate()->CanSetCookie(*this,
-                                                             cookie_line,
-                                                             options);
+  if (network_delegate_) {
+    return network_delegate_->CanSetCookie(*this, cookie_line, options);
   }
   return g_default_can_use_cookies;
 }
@@ -906,8 +946,8 @@ void URLRequest::NotifyRequestCompleted() {
 
   is_pending_ = false;
   has_notified_completion_ = true;
-  if (context_->network_delegate())
-    context_->network_delegate()->NotifyCompleted(this, job_ != NULL);
+  if (network_delegate_)
+    network_delegate_->NotifyCompleted(this, job_ != NULL);
 }
 
 void URLRequest::SetBlockedOnDelegate() {
