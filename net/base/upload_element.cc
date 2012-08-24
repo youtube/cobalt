@@ -19,7 +19,6 @@ UploadElement::UploadElement()
       bytes_length_(0),
       file_range_offset_(0),
       file_range_length_(kuint64max),
-      is_last_chunk_(false),
       override_content_length_(false),
       content_length_computed_(false),
       content_length_(-1),
@@ -37,19 +36,11 @@ UploadElement::~UploadElement() {
   }
 }
 
-void UploadElement::SetToChunk(const char* bytes,
-                               int bytes_len,
-                               bool is_last_chunk) {
-  type_ = TYPE_CHUNK;
-  buf_.assign(bytes, bytes + bytes_len);
-  is_last_chunk_ = is_last_chunk;
-}
-
 uint64 UploadElement::GetContentLength() {
   if (override_content_length_ || content_length_computed_)
     return content_length_;
 
-  if (type_ == TYPE_BYTES || type_ == TYPE_CHUNK)
+  if (type_ == TYPE_BYTES)
     return bytes_length();
 
   DCHECK_EQ(TYPE_FILE, type_);
@@ -82,7 +73,7 @@ uint64 UploadElement::GetContentLength() {
 }
 
 int UploadElement::ReadSync(char* buf, int buf_len) {
-  if (type_ == TYPE_BYTES || type_ == TYPE_CHUNK) {
+  if (type_ == TYPE_BYTES) {
     return ReadFromMemorySync(buf, buf_len);
   } else if (type_ == TYPE_FILE) {
     return ReadFromFileSync(buf, buf_len);
@@ -136,7 +127,7 @@ FileStream* UploadElement::OpenFileStream() {
 
 int UploadElement::ReadFromMemorySync(char* buf, int buf_len) {
   DCHECK_LT(0, buf_len);
-  DCHECK(type_ == TYPE_BYTES || type_ == TYPE_CHUNK);
+  DCHECK(type_ == TYPE_BYTES);
 
   const size_t num_bytes_to_read = std::min(BytesRemaining(),
                                             static_cast<uint64>(buf_len));
