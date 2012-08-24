@@ -9,11 +9,16 @@
 #include "base/message_loop_proxy.h"
 #include "base/threading/thread.h"
 #include "media/audio/audio_output_dispatcher_impl.h"
-#include "media/audio/audio_output_mixer.h"
 #include "media/audio/audio_output_proxy.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/base/media_switches.h"
+
+// TODO(dalecurtis): Temporarily disabled while switching pipeline to use float,
+// http://crbug.com/114700
+#if defined(ENABLE_AUDIO_MIXER)
+#include "media/audio/audio_output_mixer.h"
+#endif
 
 namespace media {
 
@@ -142,15 +147,16 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
   if (!dispatcher) {
     base::TimeDelta close_delay =
         base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds);
-    const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
     // TODO(dalecurtis): Browser side mixing has a couple issues that must be
     // fixed before it can be turned on by default: http://crbug.com/138098 and
     // http://crbug.com/140247
-    if (cmd_line->HasSwitch(switches::kEnableAudioMixer)) {
+#if defined(ENABLE_AUDIO_MIXER)
+    const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
+    if (cmd_line->HasSwitch(switches::kEnableAudioMixer))
       dispatcher = new AudioOutputMixer(this, params, close_delay);
-    } else {
+    else
+#endif
       dispatcher = new AudioOutputDispatcherImpl(this, params, close_delay);
-    }
   }
   return new AudioOutputProxy(dispatcher);
 }
