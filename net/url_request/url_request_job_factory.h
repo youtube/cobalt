@@ -5,10 +5,10 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_JOB_FACTORY_H_
 #define NET_URL_REQUEST_URL_REQUEST_JOB_FACTORY_H_
 
-#include <map>
 #include <string>
-#include <vector>
+
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/net_export.h"
 
@@ -23,6 +23,7 @@ class URLRequestJob;
 class NET_EXPORT URLRequestJobFactory
     : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
+  // TODO(shalev): Move this to URLRequestJobFactoryImpl.
   class NET_EXPORT ProtocolHandler {
    public:
     virtual ~ProtocolHandler();
@@ -31,6 +32,7 @@ class NET_EXPORT URLRequestJobFactory
         URLRequest* request, NetworkDelegate* network_delegate) const = 0;
   };
 
+  // TODO(shalev): Move this to URLRequestJobFactoryImpl.
   class NET_EXPORT Interceptor {
    public:
     virtual ~Interceptor();
@@ -70,45 +72,43 @@ class NET_EXPORT URLRequestJobFactory
   };
 
   URLRequestJobFactory();
-  ~URLRequestJobFactory();
+  virtual ~URLRequestJobFactory();
 
+  // TODO(shalev): Remove this from the interface.
   // Sets the ProtocolHandler for a scheme. Returns true on success, false on
   // failure (a ProtocolHandler already exists for |scheme|). On success,
   // URLRequestJobFactory takes ownership of |protocol_handler|.
-  bool SetProtocolHandler(const std::string& scheme,
-                          ProtocolHandler* protocol_handler);
+  virtual bool SetProtocolHandler(const std::string& scheme,
+                                  ProtocolHandler* protocol_handler) = 0;
 
+  // TODO(shalev): Remove this from the interface.
   // Takes ownership of |interceptor|. Adds it to the end of the Interceptor
   // list.
-  void AddInterceptor(Interceptor* interceptor);
+  virtual void AddInterceptor(Interceptor* interceptor) = 0;
 
-  URLRequestJob* MaybeCreateJobWithInterceptor(
-      URLRequest* request, NetworkDelegate* network_delegate) const;
+  // TODO(shalev): Consolidate MaybeCreateJobWithInterceptor and
+  // MaybeCreateJobWithProtocolHandler into a single method.
+  virtual URLRequestJob* MaybeCreateJobWithInterceptor(
+      URLRequest* request, NetworkDelegate* network_delegate) const = 0;
 
-  URLRequestJob* MaybeCreateJobWithProtocolHandler(
+  virtual URLRequestJob* MaybeCreateJobWithProtocolHandler(
       const std::string& scheme,
       URLRequest* request,
-      NetworkDelegate* network_delegate) const;
+      NetworkDelegate* network_delegate) const = 0;
 
-  URLRequestJob* MaybeInterceptRedirect(
+  virtual URLRequestJob* MaybeInterceptRedirect(
       const GURL& location,
       URLRequest* request,
-      NetworkDelegate* network_delegate) const;
+      NetworkDelegate* network_delegate) const = 0;
 
-  URLRequestJob* MaybeInterceptResponse(
-      URLRequest* request, NetworkDelegate* network_delegate) const;
+  virtual URLRequestJob* MaybeInterceptResponse(
+      URLRequest* request, NetworkDelegate* network_delegate) const = 0;
 
-  bool IsHandledProtocol(const std::string& scheme) const;
+  virtual bool IsHandledProtocol(const std::string& scheme) const = 0;
 
-  bool IsHandledURL(const GURL& url) const;
+  virtual bool IsHandledURL(const GURL& url) const = 0;
 
  private:
-  typedef std::map<std::string, ProtocolHandler*> ProtocolHandlerMap;
-  typedef std::vector<Interceptor*> InterceptorList;
-
-  ProtocolHandlerMap protocol_handler_map_;
-  InterceptorList interceptors_;
-
   DISALLOW_COPY_AND_ASSIGN(URLRequestJobFactory);
 };
 
