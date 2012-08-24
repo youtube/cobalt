@@ -14,6 +14,7 @@ namespace media {
   class VideoCaptureDeviceMac;
 }
 
+@class QTCaptureDecompressedVideoOutput;
 @class QTCaptureDeviceInput;
 @class QTCaptureSession;
 
@@ -29,6 +30,7 @@ namespace media {
   // QTKit variables.
   QTCaptureSession *captureSession_;
   QTCaptureDeviceInput *captureDeviceInput_;
+  QTCaptureDecompressedVideoOutput *captureDecompressedOutput_;
 }
 
 // Returns a dictionary of capture devices with friendly name and unique id.

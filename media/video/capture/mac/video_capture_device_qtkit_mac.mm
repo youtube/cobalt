@@ -42,6 +42,7 @@
 - (void)dealloc {
   [captureSession_ release];
   [captureDeviceInput_ release];
+  [captureDecompressedOutput_ release];
   [super dealloc];
 }
 
@@ -72,10 +73,10 @@
     captureDeviceInput_ = [[QTCaptureDeviceInput alloc] initWithDevice:device];
     captureSession_ = [[QTCaptureSession alloc] init];
 
-    QTCaptureDecompressedVideoOutput *captureDecompressedOutput =
-        [[[QTCaptureDecompressedVideoOutput alloc] init] autorelease];
-    [captureDecompressedOutput setDelegate:self];
-    if (![captureSession_ addOutput:captureDecompressedOutput error:&error]) {
+    captureDecompressedOutput_ =
+        [[QTCaptureDecompressedVideoOutput alloc] init];
+    [captureDecompressedOutput_ setDelegate:self];
+    if (![captureSession_ addOutput:captureDecompressedOutput_ error:&error]) {
       DLOG(ERROR) << "Could not connect video capture output."
                   << [[error localizedDescription] UTF8String];
       return NO;
@@ -91,12 +92,14 @@
       // The device is still running.
       [self stopCapture];
     }
-    [[[captureSession_ outputs] objectAtIndex:0] setDelegate:nil];
-    [captureSession_ removeOutput:[[captureSession_ outputs] objectAtIndex:0]];
+    [captureDecompressedOutput_ setDelegate:nil];
+    [captureSession_ removeOutput:captureDecompressedOutput_];
     [captureSession_ release];
     captureSession_ = nil;
     [captureDeviceInput_ release];
     captureDeviceInput_ = nil;
+    [captureDecompressedOutput_ release];
+    captureDecompressedOutput_ = nil;
     return YES;
   }
 }
