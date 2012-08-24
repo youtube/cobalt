@@ -1011,9 +1011,12 @@ int Rankings::ExplodedSanityCheck(CacheRankingsBlock* node) {
   Addr next_addr(data->next);
   Addr prev_addr(data->prev);
   const int kFailsSanityCheck = 8;
-  if (!next_addr.SanityCheck() || next_addr.file_type() != RANKINGS ||
-      !prev_addr.SanityCheck() || prev_addr.file_type() != RANKINGS)
+  if ((data->next &&
+       (!next_addr.SanityCheck() || next_addr.file_type() != RANKINGS)) ||
+      (data->prev &&
+       (!prev_addr.SanityCheck() || prev_addr.file_type() != RANKINGS))) {
     error += kFailsSanityCheck;
+  }
 
   return error;
 }
