@@ -2,22 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Test of FieldTrial class
-
 #include "base/metrics/field_trial.h"
-
 #include "base/rand_util.h"
 #include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include <limits>
-
 namespace base {
 
 class FieldTrialTest : public testing::Test {
  public:
-  FieldTrialTest() : trial_list_("client_id") {
+  FieldTrialTest() : trial_list_(NULL) {
     Time now = Time::NowFromSystemTime();
     TimeDelta oneYear = TimeDelta::FromDays(365);
     Time::Exploded exploded;
@@ -372,96 +367,6 @@ TEST_F(FieldTrialTest, MakeName) {
   trial->group();
   EXPECT_EQ("Histogram_Winner",
             FieldTrial::MakeName("Histogram", "Field Trial"));
-}
-
-TEST_F(FieldTrialTest, HashClientId) {
-  double results[] = {
-      FieldTrial::HashClientId("hi", "1"),
-      FieldTrial::HashClientId("there", "1"),
-  };
-  ASSERT_NE(results[0], results[1]);
-  for (size_t i = 0; i < arraysize(results); ++i) {
-    ASSERT_LE(0.0, results[i]);
-    ASSERT_GT(1.0, results[i]);
-  }
-
-  ASSERT_EQ(FieldTrial::HashClientId("yo", "1"),
-            FieldTrial::HashClientId("yo", "1"));
-  ASSERT_NE(FieldTrial::HashClientId("yo", "something"),
-            FieldTrial::HashClientId("yo", "else"));
-}
-
-TEST_F(FieldTrialTest, HashClientIdIsUniform) {
-  // Choose a random start number but go sequentially from there, so
-  // that each test tries a different range but we never provide uniformly
-  // distributed input data.
-  int current_number = RandInt(0, std::numeric_limits<int>::max());
-
-  // The expected value of a random distribution is the average over all
-  // samples as the number of samples approaches infinity.  For a uniform
-  // distribution from [0.0, 1.0) this would be 0.5.
-  //
-  // We do kSamplesBetweenChecks at a time and check if the value has converged
-  // to a narrow interval around 0.5.  A non-uniform distribution would likely
-  // converge at something different, or not converge consistently within this
-  // range (i.e. the test would start timing out occasionally).
-  int kSamplesBetweenChecks = 300;
-  int num_samples = 0;
-  double total_value = 0.0;
-  while (true) {
-    for (int i = 0; i < kSamplesBetweenChecks; ++i) {
-      total_value += FieldTrial::HashClientId(
-          IntToString(current_number++), "salt");
-      num_samples++;
-    }
-
-    double average = total_value / num_samples;
-    double kExpectedMin = 0.48;
-    double kExpectedMax = 0.52;
-
-    if (num_samples > 1000 &&
-        (average < kExpectedMin || average > kExpectedMax)) {
-      // Only printed once we have enough samples that it's very unlikely
-      // things haven't converged.
-      printf("After %d samples, the average was %f, outside the expected\n"
-             "range (%f, %f). We will add more samples and check after every\n"
-             "%d samples. If the average does not converge, something\n"
-             "is broken. If it does converge, the test will pass.\n",
-             num_samples, average,
-             kExpectedMin, kExpectedMax, kSamplesBetweenChecks);
-    } else {
-      // Success.
-      break;
-    }
-  }
-}
-
-TEST_F(FieldTrialTest, UseOneTimeRandomization) {
-  // Simply asserts that two trials using one-time randomization
-  // that have different names, normally generate different results.
-  //
-  // Note that depending on the one-time random initialization, they
-  // _might_ actually give the same result, but we know that given
-  // the particular client_id we use for unit tests they won't.
-  scoped_refptr<FieldTrial> trials[] = {
-    FieldTrialList::FactoryGetFieldTrial("one", 100, "default",
-                                          next_year_, 1, 1, NULL),
-    FieldTrialList::FactoryGetFieldTrial("two", 100, "default",
-                                          next_year_, 1, 1, NULL),
-  };
-
-  for (size_t i = 0; i < arraysize(trials); ++i) {
-    trials[i]->UseOneTimeRandomization();
-
-    for (int j = 0; j < 100; ++j) {
-      trials[i]->AppendGroup("", 1);
-    }
-  }
-
-  // The trials are most likely to give different results since they have
-  // different names.
-  ASSERT_NE(trials[0]->group(), trials[1]->group());
-  ASSERT_NE(trials[0]->group_name(), trials[1]->group_name());
 }
 
 TEST_F(FieldTrialTest, DisableImmediately) {

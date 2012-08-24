@@ -95,6 +95,18 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
  public:
   typedef int Probability;  // Probability type for being selected in a trial.
 
+  // EntropyProvider is an interface for providing entropy for one-time
+  // randomized (persistent) field trials.
+  class BASE_EXPORT EntropyProvider {
+   public:
+    virtual ~EntropyProvider();
+
+    // Returns a double in the range of [0, 1) based on |trial_name| that will
+    // be used for the dice roll for the specified field trial. A given instance
+    // should always return the same value given the same input |trial_name|.
+    virtual double GetEntropyForTrial(const std::string& trial_name) const = 0;
+  };
+
   // A pair representing a Field Trial and its selected group.
   struct SelectedGroup {
     std::string trial;
@@ -203,12 +215,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // Returns the group_name. A winner need not have been chosen.
   std::string group_name_internal() const { return group_name_; }
 
-  // Calculates a uniformly-distributed double between [0.0, 1.0) given
-  // a |client_id| and a |trial_name| (the latter is used as salt to avoid
-  // separate one-time randomized trials from all having the same results).
-  static double HashClientId(const std::string& client_id,
-                             const std::string& trial_name);
-
   // The name of the field trial, as can be found via the FieldTrialList.
   const std::string name_;
 
@@ -274,16 +280,17 @@ class BASE_EXPORT FieldTrialList {
                                             const std::string& group_name) = 0;
 
    protected:
-    virtual ~Observer() {}
+    virtual ~Observer();
   };
 
   // This singleton holds the global list of registered FieldTrials.
   //
-  // |client_id| should be an opaque, diverse ID for this client that does not
-  // change between sessions, to enable one-time randomized trials. The empty
-  // string may be provided, in which case one-time randomized trials will
-  // not be available.
-  explicit FieldTrialList(const std::string& client_id);
+  // To support one-time randomized field trials, specify a non-NULL
+  // |entropy_provider| which should be a source of uniformly distributed
+  // entropy values. Takes ownership of |entropy_provider|. If one time
+  // randomization is not desired, pass in NULL for |entropy_provider|.
+  explicit FieldTrialList(const FieldTrial::EntropyProvider* entropy_provider);
+
   // Destructor Release()'s references to all registered FieldTrial instances.
   ~FieldTrialList();
 
@@ -389,16 +396,15 @@ class BASE_EXPORT FieldTrialList {
   // Return the number of active field trials.
   static size_t GetFieldTrialCount();
 
-  // Returns true if you can call |FieldTrial::UseOneTimeRandomization()|
-  // without error, i.e. if a non-empty string was provided as the client_id
-  // when constructing the FieldTrialList singleton.
-  static bool IsOneTimeRandomizationEnabled();
+  // If one-time randomization is enabled, returns a weak pointer to the
+  // corresponding EntropyProvider. Otherwise, returns NULL.
+  static const FieldTrial::EntropyProvider*
+      GetEntropyProviderForOneTimeRandomization();
 
-  // Returns an opaque, diverse ID for this client that does not change
-  // between sessions.
-  //
-  // Returns the empty string if one-time randomization is not enabled.
-  static const std::string& client_id();
+  // Returns true if you can call |FieldTrial::UseOneTimeRandomization()|
+  // without error, i.e. if a non-NULL entropy provider was specified when
+  // constructing the FieldTrialList singleton.
+  static bool IsOneTimeRandomizationEnabled();
 
  private:
   // A map from FieldTrial names to the actual instances.
@@ -429,9 +435,9 @@ class BASE_EXPORT FieldTrialList {
   base::Lock lock_;
   RegistrationList registered_;
 
-  // An opaque, diverse ID for this client that does not change
-  // between sessions, or the empty string if not initialized.
-  std::string client_id_;
+  // Entropy provider to be used for one-time randomized field trials. If NULL,
+  // one-time randomization is not supported.
+  scoped_ptr<const FieldTrial::EntropyProvider> entropy_provider_;
 
   // List of observers to be notified when a group is selected for a FieldTrial.
   scoped_refptr<ObserverListThreadSafe<Observer> > observer_list_;
