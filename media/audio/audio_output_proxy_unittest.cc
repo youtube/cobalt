@@ -8,11 +8,16 @@
 #include "base/message_loop_proxy.h"
 #include "base/threading/platform_thread.h"
 #include "media/audio/audio_output_dispatcher_impl.h"
-#include "media/audio/audio_output_mixer.h"
 #include "media/audio/audio_output_proxy.h"
 #include "media/audio/audio_manager.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+// TODO(dalecurtis): Temporarily disabled while switching pipeline to use float,
+// http://crbug.com/114700
+#if defined(ENABLE_AUDIO_MIXER)
+#include "media/audio/audio_output_mixer.h"
+#endif
 
 using ::testing::_;
 using ::testing::AllOf;
@@ -105,7 +110,9 @@ class AudioOutputProxyTest : public testing::Test {
     dispatcher_impl_ = new AudioOutputDispatcherImpl(&manager(),
                                                      params,
                                                      close_delay);
+#if defined(ENABLE_AUDIO_MIXER)
     mixer_ = new AudioOutputMixer(&manager(), params, close_delay);
+#endif
 
     // Necessary to know how long the dispatcher will wait before posting
     // StopStreamTask.
@@ -240,7 +247,9 @@ class AudioOutputProxyTest : public testing::Test {
 
   MessageLoop message_loop_;
   scoped_refptr<AudioOutputDispatcherImpl> dispatcher_impl_;
+#if defined(ENABLE_AUDIO_MIXER)
   scoped_refptr<AudioOutputMixer> mixer_;
+#endif
   base::TimeDelta pause_delay_;
   MockAudioManager manager_;
   MockAudioSourceCallback callback_;
@@ -251,18 +260,22 @@ TEST_F(AudioOutputProxyTest, CreateAndClose) {
   proxy->Close();
 }
 
+#if defined(ENABLE_AUDIO_MIXER)
 TEST_F(AudioOutputProxyTest, CreateAndClose_Mixer) {
   AudioOutputProxy* proxy = new AudioOutputProxy(mixer_);
   proxy->Close();
 }
+#endif
 
 TEST_F(AudioOutputProxyTest, OpenAndClose) {
   OpenAndClose(dispatcher_impl_);
 }
 
+#if defined(ENABLE_AUDIO_MIXER)
 TEST_F(AudioOutputProxyTest, OpenAndClose_Mixer) {
   OpenAndClose(mixer_);
 }
+#endif
 
 // Create a stream, and verify that it is closed after kTestCloseDelayMs.
 // if it doesn't start playing.
@@ -294,25 +307,31 @@ TEST_F(AudioOutputProxyTest, StartAndStop) {
   StartAndStop(dispatcher_impl_);
 }
 
+#if defined(ENABLE_AUDIO_MIXER)
 TEST_F(AudioOutputProxyTest, StartAndStop_Mixer) {
   StartAndStop(mixer_);
 }
+#endif
 
 TEST_F(AudioOutputProxyTest, CloseAfterStop) {
   CloseAfterStop(dispatcher_impl_);
 }
 
+#if defined(ENABLE_AUDIO_MIXER)
 TEST_F(AudioOutputProxyTest, CloseAfterStop_Mixer) {
   CloseAfterStop(mixer_);
 }
+#endif
 
 TEST_F(AudioOutputProxyTest, TwoStreams) {
   TwoStreams(dispatcher_impl_);
 }
 
+#if defined(ENABLE_AUDIO_MIXER)
 TEST_F(AudioOutputProxyTest, TwoStreams_Mixer) {
   TwoStreams(mixer_);
 }
+#endif
 
 // Two streams: verify that second stream is allocated when the first
 // starts playing.
@@ -355,6 +374,7 @@ TEST_F(AudioOutputProxyTest, TwoStreams_OnePlaying) {
   proxy2->Close();
 }
 
+#if defined(ENABLE_AUDIO_MIXER)
 // Two streams: verify that only one device will be created.
 TEST_F(AudioOutputProxyTest, TwoStreams_OnePlaying_Mixer) {
   MockAudioOutputStream stream;
@@ -387,6 +407,7 @@ TEST_F(AudioOutputProxyTest, TwoStreams_OnePlaying_Mixer) {
   proxy2->Close();
   WaitForCloseTimer(kTestCloseDelayMs);
 }
+#endif
 
 // Two streams, both are playing. Dispatcher should not open a third stream.
 TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying) {
@@ -435,6 +456,7 @@ TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying) {
   proxy2->Close();
 }
 
+#if defined(ENABLE_AUDIO_MIXER)
 // Two streams, both are playing. Still have to use single device.
 // Also verifies that every proxy stream gets its own pending_bytes.
 TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying_Mixer) {
@@ -497,14 +519,17 @@ TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying_Mixer) {
   proxy2->Close();
   WaitForCloseTimer(kTestCloseDelayMs);
 }
+#endif
 
 TEST_F(AudioOutputProxyTest, OpenFailed) {
   OpenFailed(dispatcher_impl_);
 }
 
+#if defined(ENABLE_AUDIO_MIXER)
 TEST_F(AudioOutputProxyTest, OpenFailed_Mixer) {
   OpenFailed(mixer_);
 }
+#endif
 
 // Start() method failed.
 TEST_F(AudioOutputProxyTest, StartFailed) {
@@ -542,6 +567,7 @@ TEST_F(AudioOutputProxyTest, StartFailed) {
   proxy->Close();
 }
 
+#if defined(ENABLE_AUDIO_MIXER)
 // Start() method failed.
 TEST_F(AudioOutputProxyTest, StartFailed_Mixer) {
   MockAudioOutputStream stream;
@@ -585,5 +611,6 @@ TEST_F(AudioOutputProxyTest, StartFailed_Mixer) {
   proxy2->Close();
   WaitForCloseTimer(kTestCloseDelayMs);
 }
+#endif
 
 }  // namespace media
