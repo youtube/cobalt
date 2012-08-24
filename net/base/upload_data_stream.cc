@@ -81,7 +81,7 @@ int UploadDataStream::Read(IOBuffer* buf, int buf_len) {
                                      buf_len - bytes_copied);
 
     if (element.BytesRemaining() == 0)
-        ++element_index_;
+      ++element_index_;
 
     if (is_chunked() && !merge_chunks_)
       break;
@@ -99,12 +99,9 @@ bool UploadDataStream::IsEOF() const {
 
   // Check if all elements are consumed.
   if (element_index_ == elements.size()) {
-    // If the upload data is chunked, check if the last element is the
-    // last chunk.
-    if (!upload_data_->is_chunked() ||
-        (!elements.empty() && elements.back().is_last_chunk())) {
+    // If the upload data is chunked, check if the last chunk is appended.
+    if (!upload_data_->is_chunked() || upload_data_->last_chunk_appended())
       return true;
-    }
   }
   return false;
 }
