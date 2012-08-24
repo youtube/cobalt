@@ -245,6 +245,7 @@
         'base/models/menu_model.cc',
         'base/models/menu_model.h',
         'base/models/menu_model_delegate.h',
+        'base/models/menu_separator_types.h',
         'base/models/simple_menu_model.cc',
         'base/models/simple_menu_model.h',
         'base/models/table_model.cc',
