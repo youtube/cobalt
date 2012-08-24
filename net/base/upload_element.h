@@ -24,21 +24,12 @@ class NET_EXPORT UploadElement {
   enum Type {
     TYPE_BYTES,
     TYPE_FILE,
-
-    // A block of bytes to be sent in chunked encoding immediately, without
-    // waiting for rest of the data.
-    TYPE_CHUNK,
   };
 
   UploadElement();
   ~UploadElement();
 
   Type type() const { return type_; }
-  // Explicitly sets the type of this UploadElement. Used during IPC
-  // marshalling.
-  void set_type(Type type) {
-    type_ = type;
-  }
 
   const char* bytes() const { return bytes_start_ ? bytes_start_ : &buf_[0]; }
   uint64 bytes_length() const { return buf_.size() + bytes_length_; }
@@ -81,17 +72,6 @@ class NET_EXPORT UploadElement {
     expected_file_modification_time_ = expected_modification_time;
   }
 
-  // Though similar to bytes, a chunk indicates that the element is sent via
-  // chunked transfer encoding and not buffered until the full upload data
-  // is available.
-  void SetToChunk(const char* bytes, int bytes_len, bool is_last_chunk);
-
-  bool is_last_chunk() const { return is_last_chunk_; }
-  // Sets whether this is the last chunk. Used during IPC marshalling.
-  void set_is_last_chunk(bool is_last_chunk) {
-    is_last_chunk_ = is_last_chunk;
-  }
-
   // Returns the byte-length of the element.  For files that do not exist, 0
   // is returned.  This is done for consistency with Mozilla.
   uint64 GetContentLength();
@@ -115,7 +95,7 @@ class NET_EXPORT UploadElement {
   FileStream* OpenFileStream();
 
   // Reads up to |buf_len| bytes synchronously from memory (i.e. type_ is
-  // TYPE_BYTES or TYPE_CHUNK).
+  // TYPE_BYTES).
   int ReadFromMemorySync(char* buf, int buf_len);
 
   // Reads up to |buf_len| bytes synchronously from a file (i.e. type_ is
@@ -136,7 +116,6 @@ class NET_EXPORT UploadElement {
   uint64 file_range_offset_;
   uint64 file_range_length_;
   base::Time expected_file_modification_time_;
-  bool is_last_chunk_;
   bool override_content_length_;
   bool content_length_computed_;
   uint64 content_length_;
