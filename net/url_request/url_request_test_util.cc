@@ -16,7 +16,7 @@
 #include "net/base/server_bound_cert_service.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties_impl.h"
-#include "net/url_request/url_request_job_factory.h"
+#include "net/url_request/url_request_job_factory_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -109,7 +109,7 @@ void TestURLRequestContext::Init() {
   if (accept_charset().empty())
     set_accept_charset("iso-8859-1,*,utf-8");
   if (!job_factory())
-    context_storage_.set_job_factory(new net::URLRequestJobFactory);
+    context_storage_.set_job_factory(new net::URLRequestJobFactoryImpl);
 }
 
 TestURLRequest::TestURLRequest(const GURL& url,
