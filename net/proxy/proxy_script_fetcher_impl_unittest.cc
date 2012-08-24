@@ -49,19 +49,21 @@ struct FetchResult {
 class CheckNoRevocationFlagSetInterceptor :
     public URLRequestJobFactory::Interceptor {
  public:
-  virtual URLRequestJob* MaybeIntercept(URLRequest* request) const OVERRIDE {
+  virtual URLRequestJob* MaybeIntercept(
+      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE {
     EXPECT_TRUE(request->load_flags() & LOAD_DISABLE_CERT_REVOCATION_CHECKING);
     return NULL;
   }
 
-  virtual URLRequestJob* MaybeInterceptRedirect(const GURL& location,
-                                                URLRequest* request)
-      const OVERRIDE {
+  virtual URLRequestJob* MaybeInterceptRedirect(
+      const GURL& location,
+      URLRequest* request,
+      NetworkDelegate* network_delegate) const OVERRIDE {
     return NULL;
   }
 
-  virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request)
-      const OVERRIDE{
+  virtual URLRequestJob* MaybeInterceptResponse(
+      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE {
     return NULL;
   }
 };

@@ -26,7 +26,9 @@ class NET_EXPORT URLRequestRedirectJob : public URLRequestJob {
   };
 
   // Constructs a job that redirects to the specified URL.
-  URLRequestRedirectJob(URLRequest* request, const GURL& redirect_destination);
+  URLRequestRedirectJob(URLRequest* request,
+                        NetworkDelegate* network_delegate,
+                        const GURL& redirect_destination);
 
   // Change the HTTP status code to use for the redirect. Default is
   // REDIRECT_302_FOUND.

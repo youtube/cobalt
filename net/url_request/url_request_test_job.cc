@@ -15,8 +15,6 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
-#include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
 
 namespace net {
 
@@ -81,12 +79,14 @@ std::string URLRequestTestJob::test_error_headers() {
 
 // static
 URLRequestJob* URLRequestTestJob::Factory(URLRequest* request,
+                                          NetworkDelegate* network_delegate,
                                           const std::string& scheme) {
-  return new URLRequestTestJob(request);
+  return new URLRequestTestJob(request, network_delegate);
 }
 
-URLRequestTestJob::URLRequestTestJob(URLRequest* request)
-    : URLRequestJob(request, request->context()->network_delegate()),
+URLRequestTestJob::URLRequestTestJob(URLRequest* request,
+                                     NetworkDelegate* network_delegate)
+    : URLRequestJob(request, network_delegate),
       auto_advance_(false),
       stage_(WAITING),
       offset_(0),
@@ -96,8 +96,9 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request)
 }
 
 URLRequestTestJob::URLRequestTestJob(URLRequest* request,
+                                     NetworkDelegate* network_delegate,
                                      bool auto_advance)
-    : URLRequestJob(request, request->context()->network_delegate()),
+    : URLRequestJob(request, network_delegate),
       auto_advance_(auto_advance),
       stage_(WAITING),
       offset_(0),
@@ -107,10 +108,11 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request,
 }
 
 URLRequestTestJob::URLRequestTestJob(URLRequest* request,
+                                     NetworkDelegate* network_delegate,
                                      const std::string& response_headers,
                                      const std::string& response_data,
                                      bool auto_advance)
-    : URLRequestJob(request, request->context()->network_delegate()),
+    : URLRequestJob(request, network_delegate),
       auto_advance_(auto_advance),
       stage_(WAITING),
       response_headers_(new HttpResponseHeaders(response_headers)),

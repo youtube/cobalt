@@ -119,6 +119,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // factories to be queried.  If no factory handles the request, then the
   // default job will be used.
   typedef URLRequestJob* (ProtocolFactory)(URLRequest* request,
+                                           NetworkDelegate* network_delegate,
                                            const std::string& scheme);
 
   // HTTP request/response header IDs (via some preprocessor fun) for use with
@@ -153,7 +154,8 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     // Called for every request made.  Should return a new job to handle the
     // request if it should be intercepted, or NULL to allow the request to
     // be handled in the normal manner.
-    virtual URLRequestJob* MaybeIntercept(URLRequest* request) = 0;
+    virtual URLRequestJob* MaybeIntercept(
+        URLRequest* request, NetworkDelegate* network_delegate) = 0;
 
     // Called after having received a redirect response, but prior to the
     // the request delegate being informed of the redirect. Can return a new
@@ -161,8 +163,10 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     // to allow the normal handling to continue. If a new job is provided,
     // the delegate never sees the original redirect response, instead the
     // response produced by the intercept job will be returned.
-    virtual URLRequestJob* MaybeInterceptRedirect(URLRequest* request,
-                                                  const GURL& location);
+    virtual URLRequestJob* MaybeInterceptRedirect(
+        URLRequest* request,
+        NetworkDelegate* network_delegate,
+        const GURL& location);
 
     // Called after having received a final response, but prior to the
     // the request delegate being informed of the response. This is also
@@ -172,7 +176,8 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     // continue. If a new job is provided, the delegate never sees the original
     // response, instead the response produced by the intercept job will be
     // returned.
-    virtual URLRequestJob* MaybeInterceptResponse(URLRequest* request);
+    virtual URLRequestJob* MaybeInterceptResponse(
+        URLRequest* request, NetworkDelegate* network_delegate);
   };
 
   // Deprecated interfaces in net::URLRequest. They have been moved to

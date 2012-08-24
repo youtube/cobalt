@@ -31,10 +31,11 @@ class URLRequestContext;
 class URLRequestHttpJob : public URLRequestJob {
  public:
   static URLRequestJob* Factory(URLRequest* request,
+                                NetworkDelegate* network_delegate,
                                 const std::string& scheme);
 
  protected:
-  explicit URLRequestHttpJob(URLRequest* request);
+  URLRequestHttpJob(URLRequest* request, NetworkDelegate* network_delegate);
 
   // Shadows URLRequestJob's version of this method so we can grab cookies.
   void NotifyHeadersComplete();

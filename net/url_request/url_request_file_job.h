@@ -25,8 +25,8 @@ namespace net {
 class NET_EXPORT URLRequestFileJob : public URLRequestJob {
  public:
   URLRequestFileJob(URLRequest* request,
-                    const FilePath& file_path,
-                    NetworkDelegate* network_delegate);
+                    NetworkDelegate* network_delegate,
+                    const FilePath& file_path);
 
   static URLRequest::ProtocolFactory Factory;
 

@@ -9,14 +9,13 @@
 #include "base/message_loop.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
-#include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_status.h"
 
 namespace net {
 
-URLRequestSimpleJob::URLRequestSimpleJob(URLRequest* request)
-    : URLRequestJob(request, request->context()->network_delegate()),
+URLRequestSimpleJob::URLRequestSimpleJob(
+    URLRequest* request, NetworkDelegate* network_delegate)
+    : URLRequestJob(request, network_delegate),
       data_offset_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
