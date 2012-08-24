@@ -428,12 +428,18 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
 void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
                                        size_t* size_bits,
                                        PublicKeyType* type) {
+  *type = kPublicKeyTypeUnknown;
+  *size_bits = 0;
+
   PCCRYPT_OID_INFO oid_info = CryptFindOIDInfo(
       CRYPT_OID_INFO_OID_KEY,
       cert_handle->pCertInfo->SubjectPublicKeyInfo.Algorithm.pszObjId,
       CRYPT_PUBKEY_ALG_OID_GROUP_ID);
-  PCHECK(oid_info);
-  CHECK(oid_info->dwGroupId == CRYPT_PUBKEY_ALG_OID_GROUP_ID);
+  if (!oid_info)
+    return;
+
+  CHECK_EQ(oid_info->dwGroupId,
+           static_cast<DWORD>(CRYPT_PUBKEY_ALG_OID_GROUP_ID));
 
   *size_bits = CertGetPublicKeyLength(
       X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
@@ -452,10 +458,6 @@ void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
       break;
     case CALG_ECDH:
       *type = kPublicKeyTypeECDH;
-      break;
-    default:
-      *type = kPublicKeyTypeUnknown;
-      *size_bits = 0;
       break;
   }
 }
