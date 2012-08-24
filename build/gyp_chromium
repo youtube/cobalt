@@ -56,8 +56,10 @@ def apply_gyp_environment(file_path=None):
   except SyntaxError, e:
     e.filename = os.path.abspath(file_path)
     raise
-  supported_vars = ( 'CHROMIUM_GYP_FILE',
+  supported_vars = ( 'CC',
+                     'CHROMIUM_GYP_FILE',
                      'CHROMIUM_GYP_SYNTAX_CHECK',
+                     'CXX',
                      'GYP_DEFINES',
                      'GYP_GENERATOR_FLAGS',
                      'GYP_GENERATOR_OUTPUT',
