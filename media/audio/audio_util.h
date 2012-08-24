@@ -100,21 +100,6 @@ MEDIA_EXPORT ChannelLayout GetAudioInputHardwareChannelLayout(
 // conjunction with AUDIO_PCM_LINEAR.
 MEDIA_EXPORT size_t GetHighLatencyOutputBufferSize(int sample_rate);
 
-// Functions that handle data buffer passed between processes in the shared
-// memory. Called on both IPC sides.
-
-MEDIA_EXPORT uint32 TotalSharedMemorySizeInBytes(uint32 packet_size);
-MEDIA_EXPORT uint32 PacketSizeSizeInBytes(uint32 shared_memory_created_size);
-MEDIA_EXPORT uint32 GetActualDataSizeInBytes(base::SharedMemory* shared_memory,
-                                             uint32 shared_memory_size);
-MEDIA_EXPORT void SetActualDataSizeInBytes(base::SharedMemory* shared_memory,
-                                           uint32 shared_memory_size,
-                                           uint32 actual_data_size);
-MEDIA_EXPORT void SetUnknownDataSize(base::SharedMemory* shared_memory,
-                                     uint32 shared_memory_size);
-MEDIA_EXPORT bool IsUnknownDataSize(base::SharedMemory* shared_memory,
-                                    uint32 shared_memory_size);
-
 #if defined(OS_WIN)
 
 // Does Windows support WASAPI? We are checking in lot of places, and

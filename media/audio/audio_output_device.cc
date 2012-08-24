@@ -10,6 +10,7 @@
 #include "base/time.h"
 #include "media/audio/audio_output_controller.h"
 #include "media/audio/audio_util.h"
+#include "media/audio/shared_memory_util.h"
 
 namespace media {
 
@@ -253,7 +254,7 @@ void AudioOutputDevice::AudioThreadCallback::MapSharedMemory() {
 
 // Called whenever we receive notifications about pending data.
 void AudioOutputDevice::AudioThreadCallback::Process(int pending_data) {
-  if (pending_data == AudioOutputController::kPauseMark) {
+  if (pending_data == kPauseMark) {
     memset(shared_memory_.memory(), 0, memory_length_);
     SetActualDataSizeInBytes(&shared_memory_, memory_length_, 0);
     return;
