@@ -28,6 +28,9 @@ std::string GetDownloadsDirectory();
 // ApplicationInfo.nativeLibraryDir on the Java side.
 std::string GetNativeLibraryDirectory();
 
+// Returns the absolute path to the external storage directory.
+std::string GetExternalStorageDirectory();
+
 bool RegisterPathUtils(JNIEnv* env);
 
 }  // namespace android
