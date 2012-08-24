@@ -60,6 +60,10 @@ bool PathProviderAndroid(int key, FilePath* result) {
       *result = file_util::GetHomeDir();
       return true;
     }
+    case base::DIR_ANDROID_EXTERNAL_STORAGE: {
+      *result = FilePath(base::android::GetExternalStorageDirectory());
+      return true;
+    }
     default: {
       // Note: the path system expects this function to override the default
       // behavior. So no need to log an error if we don't support a given
