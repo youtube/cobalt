@@ -56,18 +56,21 @@ int FieldTrialList::kExpirationYearInFuture = 0;
 FieldTrial::FieldTrial(const std::string& name,
                        const Probability total_probability,
                        const std::string& default_group_name)
-  : name_(name),
-    divisor_(total_probability),
-    default_group_name_(default_group_name),
-    random_(static_cast<Probability>(divisor_ * RandDouble())),
-    accumulated_group_probability_(0),
-    next_group_number_(kDefaultGroupNumber + 1),
-    group_(kNotFinalized),
-    enable_field_trial_(true),
-    forced_(false) {
+    : name_(name),
+      divisor_(total_probability),
+      default_group_name_(default_group_name),
+      random_(static_cast<Probability>(divisor_ * RandDouble())),
+      accumulated_group_probability_(0),
+      next_group_number_(kDefaultGroupNumber + 1),
+      group_(kNotFinalized),
+      enable_field_trial_(true),
+      forced_(false) {
   DCHECK_GT(total_probability, 0);
   DCHECK(!name_.empty());
   DCHECK(!default_group_name_.empty());
+}
+
+FieldTrial::EntropyProvider::~EntropyProvider() {
 }
 
 void FieldTrial::UseOneTimeRandomization() {
@@ -76,14 +79,16 @@ void FieldTrial::UseOneTimeRandomization() {
     return;
   DCHECK_EQ(group_, kNotFinalized);
   DCHECK_EQ(kDefaultGroupNumber + 1, next_group_number_);
-  if (!FieldTrialList::IsOneTimeRandomizationEnabled()) {
+  const EntropyProvider* entropy_provider =
+      FieldTrialList::GetEntropyProviderForOneTimeRandomization();
+  if (!entropy_provider) {
     NOTREACHED();
     Disable();
     return;
   }
 
   random_ = static_cast<Probability>(
-      divisor_ * HashClientId(FieldTrialList::client_id(), name_));
+      divisor_ * entropy_provider->GetEntropyForTrial(name_));
 }
 
 void FieldTrial::Disable() {
@@ -198,27 +203,6 @@ void FieldTrial::SetGroupChoice(const std::string& name, int number) {
   DVLOG(1) << "Field trial: " << name_ << " Group choice:" << group_name_;
 }
 
-// static
-double FieldTrial::HashClientId(const std::string& client_id,
-                                const std::string& trial_name) {
-  // SHA-1 is designed to produce a uniformly random spread in its output space,
-  // even for nearly-identical inputs, so it helps massage whatever client_id
-  // and trial_name we get into something with a uniform distribution, which
-  // is desirable so that we don't skew any part of the 0-100% spectrum.
-  std::string input(client_id + trial_name);
-  unsigned char sha1_hash[kSHA1Length];
-  SHA1HashBytes(reinterpret_cast<const unsigned char*>(input.c_str()),
-                input.size(),
-                sha1_hash);
-
-  COMPILE_ASSERT(sizeof(uint64) < sizeof(sha1_hash), need_more_data);
-  uint64 bits;
-  memcpy(&bits, sha1_hash, sizeof(bits));
-  bits = base::ByteSwapToLE64(bits);
-
-  return BitsToOpenEndedUnitInterval(bits);
-}
-
 //------------------------------------------------------------------------------
 // FieldTrialList methods and members.
 
@@ -228,9 +212,13 @@ FieldTrialList* FieldTrialList::global_ = NULL;
 // static
 bool FieldTrialList::used_without_global_ = false;
 
-FieldTrialList::FieldTrialList(const std::string& client_id)
+FieldTrialList::Observer::~Observer() {
+}
+
+FieldTrialList::FieldTrialList(
+    const FieldTrial::EntropyProvider* entropy_provider)
     : application_start_time_(TimeTicks::Now()),
-      client_id_(client_id),
+      entropy_provider_(entropy_provider),
       observer_list_(new ObserverListThreadSafe<FieldTrialList::Observer>(
           ObserverListBase<FieldTrialList::Observer>::NOTIFY_EXISTING_ONLY)) {
   DCHECK(!global_);
@@ -446,22 +434,19 @@ size_t FieldTrialList::GetFieldTrialCount() {
 }
 
 // static
-bool FieldTrialList::IsOneTimeRandomizationEnabled() {
+const FieldTrial::EntropyProvider*
+    FieldTrialList::GetEntropyProviderForOneTimeRandomization() {
   if (!global_) {
     used_without_global_ = true;
-    return false;
+    return NULL;
   }
 
-  return !global_->client_id_.empty();
+  return global_->entropy_provider_.get();
 }
 
 // static
-const std::string& FieldTrialList::client_id() {
-  DCHECK(global_);
-  if (!global_)
-    return EmptyString();
-
-  return global_->client_id_;
+bool FieldTrialList::IsOneTimeRandomizationEnabled() {
+  return GetEntropyProviderForOneTimeRandomization() != NULL;
 }
 
 FieldTrial* FieldTrialList::PreLockedFind(const std::string& name) {
