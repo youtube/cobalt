@@ -312,10 +312,16 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     virtual ~Delegate() {}
   };
 
+  // TODO(shalev): Get rid of this constructor in favour of the one below it.
   // Initialize an URL request.
   URLRequest(const GURL& url,
              Delegate* delegate,
              const URLRequestContext* context);
+
+  URLRequest(const GURL& url,
+             Delegate* delegate,
+             const URLRequestContext* context,
+             NetworkDelegate* network_delegate);
 
   // If destroyed after Start() has been called but while IO is pending,
   // then the request will be effectively canceled and the delegate
@@ -734,10 +740,12 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   void SetBlockedOnDelegate();
   void SetUnblockedOnDelegate();
 
-  // Contextual information used for this request (can be NULL). This contains
+  // Contextual information used for this request. Cannot be NULL. This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket pool, etc.)
   const URLRequestContext* context_;
+
+  NetworkDelegate* network_delegate_;
 
   // Tracks the time spent in various load states throughout this request.
   BoundNetLog net_log_;
