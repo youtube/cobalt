@@ -710,6 +710,14 @@
     # to get incremental linking to be faster in debug builds.
     'incremental_chrome_dll%': '0',
 
+    # The default settings for third party code for treating
+    # warnings-as-errors. Ideally, this would not be required, however there
+    # is some third party code that takes a long time to fix/roll. So, this
+    # flag allows us to have warnings as errors in general to prevent
+    # regressions in most modules, while working on the bits that are
+    # remaining.
+    'win_third_party_warn_as_error%': 'true',
+
     # This is the location of the sandbox binary. Chrome looks for this before
     # running the zygote process. If found, and SUID, it will be used to
     # sandbox the zygote process and, thus, all renderer processes.
@@ -1677,10 +1685,17 @@
             'msvs_settings': {
               'VCCLCompilerTool': {
                 'WarningLevel': '3',
-                'WarnAsError': 'false', # TODO(maruel): Enable it.
+                'WarnAsError': '<(win_third_party_warn_as_error)',
                 'Detect64BitPortabilityProblems': 'false',
               },
             },
+            'conditions': [
+              ['buildtype=="Official"', {
+                'msvs_settings': {
+                  'VCCLCompilerTool': { 'WarnAsError': 'false' },
+                }
+              }],
+            ],
           }],
           # TODO(darin): Unfortunately, some third_party code depends on base/
           [ 'OS=="win" and component=="shared_library"', {
