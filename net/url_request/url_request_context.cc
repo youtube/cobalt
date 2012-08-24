@@ -63,6 +63,11 @@ void URLRequestContext::CopyFrom(const URLRequestContext* other) {
   set_throttler_manager(other->throttler_manager_);
 }
 
+URLRequest* URLRequestContext::CreateRequest(
+    const GURL& url, URLRequest::Delegate* delegate) const {
+  return new URLRequest(url, delegate, this, network_delegate_);
+}
+
 void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
   cookie_store_ = cookie_store;
 }
