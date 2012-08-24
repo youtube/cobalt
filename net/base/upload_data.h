@@ -65,6 +65,9 @@ class NET_EXPORT UploadData
   void set_is_chunked(bool set) { is_chunked_ = set; }
   bool is_chunked() const { return is_chunked_; }
 
+  void set_last_chunk_appended(bool set) { last_chunk_appended_ = set; }
+  bool last_chunk_appended() const { return last_chunk_appended_; }
+
   // Gets the total size in bytes of the data to upload. Computing the
   // content length can result in performing file IO hence the operation is
   // done asynchronously. Runs the callback with the content length once the
@@ -119,6 +122,7 @@ class NET_EXPORT UploadData
   int64 identifier_;
   ChunkCallback* chunk_callback_;
   bool is_chunked_;
+  bool last_chunk_appended_;
 
   DISALLOW_COPY_AND_ASSIGN(UploadData);
 };

@@ -25,7 +25,8 @@ void OnGetContentLengthComplete(
 UploadData::UploadData()
     : identifier_(0),
       chunk_callback_(NULL),
-      is_chunked_(false) {
+      is_chunked_(false),
+      last_chunk_appended_(false) {
 }
 
 void UploadData::AppendBytes(const char* bytes, int bytes_len) {
@@ -49,8 +50,10 @@ void UploadData::AppendChunk(const char* bytes,
                              int bytes_len,
                              bool is_last_chunk) {
   DCHECK(is_chunked_);
+  DCHECK(!last_chunk_appended_);
   elements_.push_back(UploadElement());
-  elements_.back().SetToChunk(bytes, bytes_len, is_last_chunk);
+  elements_.back().SetToBytes(bytes, bytes_len);
+  last_chunk_appended_ = is_last_chunk;
   if (chunk_callback_)
     chunk_callback_->OnChunkAvailable();
 }
