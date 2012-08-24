@@ -72,6 +72,10 @@
         'audio/audio_input_device.h',
         'audio/audio_input_ipc.cc',
         'audio/audio_input_ipc.h',
+        # TODO(dalecurtis): Temporarily disabled while switching pipeline to use
+        # float, http://crbug.com/114700
+        # 'audio/audio_output_mixer.cc',
+        # 'audio/audio_output_mixer.h',
         'audio/audio_input_stream_impl.cc',
         'audio/audio_input_stream_impl.h',
         'audio/audio_io.h',
@@ -89,8 +93,6 @@
         'audio/audio_output_dispatcher_impl.h',
         'audio/audio_output_ipc.cc',
         'audio/audio_output_ipc.h',
-        'audio/audio_output_mixer.cc',
-        'audio/audio_output_mixer.h',
         'audio/audio_output_proxy.cc',
         'audio/audio_output_proxy.h',
         'audio/audio_util.cc',
