@@ -127,6 +127,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   ReadQueue read_queue_;
 
   scoped_ptr<FFmpegH264ToAnnexBBitstreamConverter> bitstream_converter_;
+  bool bitstream_converter_enabled_;
 
   // Used to synchronize access to |buffer_queue_|, |read_queue_|, and
   // |stopped_|. This is so other threads can get access to buffers that have

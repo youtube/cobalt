@@ -36,7 +36,8 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(
       stream_(stream),
       type_(UNKNOWN),
       stopped_(false),
-      last_packet_timestamp_(kNoTimestamp()) {
+      last_packet_timestamp_(kNoTimestamp()),
+      bitstream_converter_enabled_(false) {
   DCHECK(demuxer_);
 
   // Determine our media format.
@@ -56,6 +57,11 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(
 
   // Calculate the duration.
   duration_ = ConvertStreamTimestamp(stream->time_base, stream->duration);
+
+  if (stream_->codec->codec_id == CODEC_ID_H264) {
+    bitstream_converter_.reset(
+        new FFmpegH264ToAnnexBBitstreamConverter(stream_->codec));
+  }
 }
 
 bool FFmpegDemuxerStream::HasPendingReads() {
@@ -81,7 +87,7 @@ void FFmpegDemuxerStream::EnqueuePacket(
     buffer = DecoderBuffer::CreateEOSBuffer();
   } else {
     // Convert the packet if there is a bitstream filter.
-    if (packet->data && bitstream_converter_.get() &&
+    if (packet->data && bitstream_converter_enabled_ &&
         !bitstream_converter_->ConvertPacket(packet.get())) {
       LOG(ERROR) << "Format converstion failed.";
     }
@@ -209,12 +215,8 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
 
 void FFmpegDemuxerStream::EnableBitstreamConverter() {
   base::AutoLock auto_lock(lock_);
-  // Called by hardware decoder to require different bitstream converter.
-  // Currently we assume that converter is determined by codec_id;
-  DCHECK(stream_);
-  DCHECK_EQ(stream_->codec->codec_id, CODEC_ID_H264);
-  bitstream_converter_.reset(
-      new FFmpegH264ToAnnexBBitstreamConverter(stream_->codec));
+  CHECK(bitstream_converter_.get());
+  bitstream_converter_enabled_ = true;
 }
 
 const AudioDecoderConfig& FFmpegDemuxerStream::audio_decoder_config() {
