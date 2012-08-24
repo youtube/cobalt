@@ -35,17 +35,20 @@ URLRequestFtpJob::URLRequestFtpJob(
 
 // static
 URLRequestJob* URLRequestFtpJob::Factory(URLRequest* request,
+                                         NetworkDelegate* network_delegate,
                                          const std::string& scheme) {
   DCHECK_EQ(scheme, "ftp");
 
   int port = request->url().IntPort();
   if (request->url().has_port() &&
       !IsPortAllowedByFtp(port) && !IsPortAllowedByOverride(port)) {
-    return new URLRequestErrorJob(request, ERR_UNSAFE_PORT);
+    return new URLRequestErrorJob(request,
+                                  network_delegate,
+                                  ERR_UNSAFE_PORT);
   }
 
   return new URLRequestFtpJob(request,
-                              request->context()->network_delegate(),
+                              network_delegate,
                               request->context()->ftp_transaction_factory(),
                               request->context()->ftp_auth_cache());
 }

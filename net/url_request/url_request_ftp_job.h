@@ -31,6 +31,7 @@ class URLRequestFtpJob : public URLRequestJob {
 
   // TODO(shalev): get rid of this function in favor of FtpProtocolHandler.
   static URLRequestJob* Factory(URLRequest* request,
+                                NetworkDelegate* network_delegate,
                                 const std::string& scheme);
 
   // Overridden from URLRequestJob:

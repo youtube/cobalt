@@ -18,7 +18,7 @@ class URLRequest;
 
 class NET_EXPORT URLRequestSimpleJob : public URLRequestJob {
  public:
-  explicit URLRequestSimpleJob(URLRequest* request);
+  URLRequestSimpleJob(URLRequest* request, NetworkDelegate* network_delegate);
 
   virtual void Start() OVERRIDE;
   virtual bool ReadRawData(IOBuffer* buf,

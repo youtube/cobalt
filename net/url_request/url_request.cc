@@ -96,12 +96,13 @@ void URLRequest::Deprecated::UnregisterRequestInterceptor(
 
 URLRequestJob* URLRequest::Interceptor::MaybeInterceptRedirect(
     URLRequest* request,
+    NetworkDelegate* network_delegate,
     const GURL& location) {
   return NULL;
 }
 
 URLRequestJob* URLRequest::Interceptor::MaybeInterceptResponse(
-    URLRequest* request) {
+    URLRequest* request, NetworkDelegate* network_delegate) {
   return NULL;
 }
 
@@ -428,7 +429,8 @@ void URLRequest::Start() {
     return;
   }
 
-  StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
+  StartJob(URLRequestJobManager::GetInstance()->CreateJob(
+      this, context_->network_delegate()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -447,18 +449,20 @@ void URLRequest::BeforeRequestComplete(int error) {
     std::string source("delegate");
     net_log_.AddEvent(NetLog::TYPE_CANCELLED,
                       NetLog::StringCallback("source", &source));
-    StartJob(new URLRequestErrorJob(this, error));
+    StartJob(new URLRequestErrorJob(this, context_->network_delegate(), error));
   } else if (!delegate_redirect_url_.is_empty()) {
     GURL new_url;
     new_url.Swap(&delegate_redirect_url_);
 
-    URLRequestRedirectJob* job = new URLRequestRedirectJob(this, new_url);
+    URLRequestRedirectJob* job = new URLRequestRedirectJob(
+        this, context_->network_delegate(), new_url);
     // Use status code 307 to preserve the method, so POST requests work.
     job->set_redirect_code(
         URLRequestRedirectJob::REDIRECT_307_TEMPORARY_REDIRECT);
     StartJob(job);
   } else {
-    StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
+    StartJob(URLRequestJobManager::GetInstance()->CreateJob(
+        this, context_->network_delegate()));
   }
 }
 
@@ -491,7 +495,8 @@ void URLRequest::StartJob(URLRequestJob* job) {
 void URLRequest::Restart() {
   // Should only be called if the original job didn't make any progress.
   DCHECK(job_ && !job_->has_response_started());
-  RestartWithJob(URLRequestJobManager::GetInstance()->CreateJob(this));
+  RestartWithJob(URLRequestJobManager::GetInstance()->CreateJob(
+      this, context_->network_delegate()));
 }
 
 void URLRequest::RestartWithJob(URLRequestJob *job) {
@@ -586,8 +591,8 @@ void URLRequest::StopCaching() {
 void URLRequest::NotifyReceivedRedirect(const GURL& location,
                                         bool* defer_redirect) {
   URLRequestJob* job =
-      URLRequestJobManager::GetInstance()->MaybeInterceptRedirect(this,
-                                                                  location);
+      URLRequestJobManager::GetInstance()->MaybeInterceptRedirect(
+          this, context_->network_delegate(), location);
   if (job) {
     RestartWithJob(job);
   } else if (delegate_) {
@@ -603,7 +608,8 @@ void URLRequest::NotifyResponseStarted() {
                                     net_error);
 
   URLRequestJob* job =
-      URLRequestJobManager::GetInstance()->MaybeInterceptResponse(this);
+      URLRequestJobManager::GetInstance()->MaybeInterceptResponse(
+          this, context_->network_delegate());
   if (job) {
     RestartWithJob(job);
   } else {

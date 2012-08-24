@@ -7,25 +7,24 @@
 #include "base/logging.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/url_request/url_request.h"
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_dir_job.h"
 #include "net/url_request/url_request_file_job.h"
 
 namespace net {
 
-FileProtocolHandler::FileProtocolHandler(
-    NetworkDelegate* network_delegate)
-    : network_delegate_(network_delegate) {
-}
+FileProtocolHandler::FileProtocolHandler() { }
 
-URLRequestJob* FileProtocolHandler::MaybeCreateJob(URLRequest* request) const {
+URLRequestJob* FileProtocolHandler::MaybeCreateJob(
+    URLRequest* request, NetworkDelegate* network_delegate) const {
   FilePath file_path;
   const bool is_file = FileURLToFilePath(request->url(), &file_path);
 
   // Check file access permissions.
-  if (!network_delegate_ ||
-      !network_delegate_->CanAccessFile(*request, file_path)) {
-    return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
+  if (!network_delegate ||
+      !network_delegate->CanAccessFile(*request, file_path)) {
+    return new URLRequestErrorJob(request, network_delegate, ERR_ACCESS_DENIED);
   }
 
   // We need to decide whether to create URLRequestFileJob for file access or
@@ -37,12 +36,12 @@ URLRequestJob* FileProtocolHandler::MaybeCreateJob(URLRequest* request) const {
   if (is_file &&
       file_util::EndsWithSeparator(file_path) &&
       file_path.IsAbsolute()) {
-    return new URLRequestFileDirJob(request, file_path);
+    return new URLRequestFileDirJob(request, network_delegate, file_path);
   }
 
   // Use a regular file request job for all non-directories (including invalid
   // file names).
-  return new URLRequestFileJob(request, file_path, network_delegate_);
+  return new URLRequestFileJob(request, network_delegate, file_path);
 }
 
 }  // namespace net

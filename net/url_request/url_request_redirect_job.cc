@@ -7,14 +7,13 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
-#include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
 
 namespace net {
 
 URLRequestRedirectJob::URLRequestRedirectJob(URLRequest* request,
+                                             NetworkDelegate* network_delegate,
                                              const GURL& redirect_destination)
-    : URLRequestJob(request, request->context()->network_delegate()),
+    : URLRequestJob(request, network_delegate),
       redirect_destination_(redirect_destination),
       http_status_code_(302),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
