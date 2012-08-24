@@ -16,7 +16,7 @@ class URLRequest;
 
 class URLRequestDataJob : public URLRequestSimpleJob {
  public:
-  explicit URLRequestDataJob(URLRequest* request);
+  URLRequestDataJob(URLRequest* request, NetworkDelegate* network_delegate);
 
   static URLRequest::ProtocolFactory Factory;
 

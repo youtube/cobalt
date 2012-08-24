@@ -35,8 +35,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/http/http_util.h"
-#include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_dir_job.h"
 
@@ -84,8 +82,8 @@ class URLRequestFileJob::AsyncResolver
 };
 
 URLRequestFileJob::URLRequestFileJob(URLRequest* request,
-                                     const FilePath& file_path,
-                                     NetworkDelegate* network_delegate)
+                                     NetworkDelegate* network_delegate,
+                                     const FilePath& file_path)
     : URLRequestJob(request, network_delegate),
       file_path_(file_path),
       stream_(NULL),
@@ -95,17 +93,16 @@ URLRequestFileJob::URLRequestFileJob(URLRequest* request,
 
 // static
 URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
+                                          NetworkDelegate* network_delegate,
                                           const std::string& scheme) {
   FilePath file_path;
   const bool is_file = FileURLToFilePath(request->url(), &file_path);
 
   // Check file access permissions.
-  if (!request->context()->network_delegate() ||
-      !request->context()->network_delegate()->CanAccessFile(
-          *request, file_path)) {
-    return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
+  if (!network_delegate ||
+      !network_delegate->CanAccessFile(*request, file_path)) {
+    return new URLRequestErrorJob(request, network_delegate, ERR_ACCESS_DENIED);
   }
-
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
   // filesystem, we only look at the path string here.
@@ -115,12 +112,11 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   if (is_file &&
       file_util::EndsWithSeparator(file_path) &&
       file_path.IsAbsolute())
-    return new URLRequestFileDirJob(request, file_path);
+    return new URLRequestFileDirJob(request, network_delegate, file_path);
 
   // Use a regular file request job for all non-directories (including invalid
   // file names).
-  return new URLRequestFileJob(
-      request, file_path, request->context()->network_delegate());
+  return new URLRequestFileJob(request, network_delegate, file_path);
 }
 
 void URLRequestFileJob::Start() {

@@ -15,8 +15,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_status.h"
 
 #if defined(OS_POSIX)
 #include <sys/stat.h>
@@ -25,8 +24,9 @@
 namespace net {
 
 URLRequestFileDirJob::URLRequestFileDirJob(URLRequest* request,
+                                           NetworkDelegate* network_delegate,
                                            const FilePath& dir_path)
-    : URLRequestJob(request, request->context()->network_delegate()),
+    : URLRequestJob(request, network_delegate),
       ALLOW_THIS_IN_INITIALIZER_LIST(lister_(dir_path, this)),
       dir_path_(dir_path),
       canceled_(false),
