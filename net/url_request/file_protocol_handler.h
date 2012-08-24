@@ -19,12 +19,11 @@ class URLRequestJob;
 class NET_EXPORT FileProtocolHandler :
     public URLRequestJobFactory::ProtocolHandler {
  public:
-  explicit FileProtocolHandler(NetworkDelegate* network_delegate);
-  virtual URLRequestJob* MaybeCreateJob(URLRequest* request) const OVERRIDE;
+  FileProtocolHandler();
+  virtual URLRequestJob* MaybeCreateJob(
+      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE;
 
  private:
-  NetworkDelegate* network_delegate_;
-
   DISALLOW_COPY_AND_ASSIGN(FileProtocolHandler);
 };
 

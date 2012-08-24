@@ -56,14 +56,14 @@ void URLRequestJobFactory::AddInterceptor(Interceptor* interceptor) {
 }
 
 URLRequestJob* URLRequestJobFactory::MaybeCreateJobWithInterceptor(
-    URLRequest* request) const {
+    URLRequest* request, NetworkDelegate* network_delegate) const {
   DCHECK(CalledOnValidThread());
   URLRequestJob* job = NULL;
 
   if (!(request->load_flags() & LOAD_DISABLE_INTERCEPT)) {
     InterceptorList::const_iterator i;
     for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-      job = (*i)->MaybeIntercept(request);
+      job = (*i)->MaybeIntercept(request, network_delegate);
       if (job)
         return job;
     }
@@ -73,24 +73,26 @@ URLRequestJob* URLRequestJobFactory::MaybeCreateJobWithInterceptor(
 
 URLRequestJob* URLRequestJobFactory::MaybeCreateJobWithProtocolHandler(
     const std::string& scheme,
-    URLRequest* request) const {
+    URLRequest* request,
+    NetworkDelegate* network_delegate) const {
   DCHECK(CalledOnValidThread());
   ProtocolHandlerMap::const_iterator it = protocol_handler_map_.find(scheme);
   if (it == protocol_handler_map_.end())
     return NULL;
-  return it->second->MaybeCreateJob(request);
+  return it->second->MaybeCreateJob(request, network_delegate);
 }
 
 URLRequestJob* URLRequestJobFactory::MaybeInterceptRedirect(
     const GURL& location,
-    URLRequest* request) const {
+    URLRequest* request,
+    NetworkDelegate* network_delegate) const {
   DCHECK(CalledOnValidThread());
   URLRequestJob* job = NULL;
 
   if (!(request->load_flags() & LOAD_DISABLE_INTERCEPT)) {
     InterceptorList::const_iterator i;
     for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-      job = (*i)->MaybeInterceptRedirect(location, request);
+      job = (*i)->MaybeInterceptRedirect(location, request, network_delegate);
       if (job)
         return job;
     }
@@ -99,14 +101,14 @@ URLRequestJob* URLRequestJobFactory::MaybeInterceptRedirect(
 }
 
 URLRequestJob* URLRequestJobFactory::MaybeInterceptResponse(
-    URLRequest* request) const {
+    URLRequest* request, NetworkDelegate* network_delegate) const {
   DCHECK(CalledOnValidThread());
   URLRequestJob* job = NULL;
 
   if (!(request->load_flags() & LOAD_DISABLE_INTERCEPT)) {
     InterceptorList::const_iterator i;
     for (i = interceptors_.begin(); i != interceptors_.end(); ++i) {
-      job = (*i)->MaybeInterceptResponse(request);
+      job = (*i)->MaybeInterceptResponse(request, network_delegate);
       if (job)
         return job;
     }

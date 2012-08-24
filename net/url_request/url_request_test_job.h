@@ -39,16 +39,19 @@ class NET_EXPORT_PRIVATE URLRequestTestJob : public URLRequestJob {
  public:
   // Constructs a job to return one of the canned responses depending on the
   // request url, with auto advance disabled.
-  explicit URLRequestTestJob(URLRequest* request);
+  URLRequestTestJob(URLRequest* request, NetworkDelegate* network_delegate);
 
   // Constructs a job to return one of the canned responses depending on the
   // request url, optionally with auto advance enabled.
-  URLRequestTestJob(URLRequest* request, bool auto_advance);
+  URLRequestTestJob(URLRequest* request,
+                    NetworkDelegate* network_delegate,
+                    bool auto_advance);
 
   // Constructs a job to return the given response regardless of the request
   // url. The headers should include the HTTP status line and be formatted as
   // expected by HttpResponseHeaders.
   URLRequestTestJob(URLRequest* request,
+                    net::NetworkDelegate* network_delegate,
                     const std::string& response_headers,
                     const std::string& response_data,
                     bool auto_advance);

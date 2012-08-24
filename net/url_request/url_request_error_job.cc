@@ -8,14 +8,13 @@
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "net/base/net_errors.h"
-#include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_status.h"
 
 namespace net {
 
-URLRequestErrorJob::URLRequestErrorJob(URLRequest* request, int error)
-    : URLRequestJob(request, request->context()->network_delegate()),
+URLRequestErrorJob::URLRequestErrorJob(
+    URLRequest* request, NetworkDelegate* network_delegate, int error)
+    : URLRequestJob(request, network_delegate),
       error_(error),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 

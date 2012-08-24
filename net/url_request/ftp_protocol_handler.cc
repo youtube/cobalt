@@ -15,26 +15,24 @@
 namespace net {
 
 FtpProtocolHandler::FtpProtocolHandler(
-    NetworkDelegate* network_delegate,
     FtpTransactionFactory* ftp_transaction_factory,
     FtpAuthCache* ftp_auth_cache)
-    : network_delegate_(network_delegate),
-      ftp_transaction_factory_(ftp_transaction_factory),
+    : ftp_transaction_factory_(ftp_transaction_factory),
       ftp_auth_cache_(ftp_auth_cache) {
   DCHECK(ftp_transaction_factory_);
   DCHECK(ftp_auth_cache_);
 }
 
 URLRequestJob* FtpProtocolHandler::MaybeCreateJob(
-    URLRequest* request) const {
+    URLRequest* request, NetworkDelegate* network_delegate) const {
   int port = request->url().IntPort();
   if (request->url().has_port() &&
       !IsPortAllowedByFtp(port) && !IsPortAllowedByOverride(port)) {
-    return new URLRequestErrorJob(request, ERR_UNSAFE_PORT);
+    return new URLRequestErrorJob(request, network_delegate, ERR_UNSAFE_PORT);
   }
 
   return new URLRequestFtpJob(request,
-                              network_delegate_,
+                              network_delegate,
                               ftp_transaction_factory_,
                               ftp_auth_cache_);
 }
