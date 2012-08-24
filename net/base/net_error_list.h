@@ -199,7 +199,10 @@ NET_ERROR(PROXY_CONNECTION_FAILED, -130)
 // that a mandatory PAC script could not be fetched, parsed or executed.
 NET_ERROR(MANDATORY_PROXY_CONFIGURATION_FAILED, -131)
 
-// -132 was formerly ERR_ESET_ANTI_VIRUS_SSL_INTERCEPTION
+// We detected an ESET product intercepting our HTTPS connections. Since these
+// products are False Start intolerant, we return this error so that we can
+// give the user a helpful error message rather than have the connection hang.
+NET_ERROR(ESET_ANTI_VIRUS_SSL_INTERCEPTION, -132)
 
 // We've hit the max socket limit for the socket pool while preconnecting.  We
 // don't bother trying to preconnect more sockets.
