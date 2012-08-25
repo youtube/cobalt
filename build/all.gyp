@@ -31,6 +31,7 @@
         # as gyp files come online.
         ['OS!="ios"', {
           'dependencies': [
+            '../cc/cc_tests.gyp:*',
             '../chrome/chrome.gyp:*',
             '../content/content.gyp:*',
             '../gpu/gpu.gyp:*',
