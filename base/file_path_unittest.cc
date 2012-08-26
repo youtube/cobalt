@@ -753,6 +753,10 @@ TEST_F(FilePathTest, Extension2) {
     { FPL("/foo.bar////"),           FPL(".bar") },
     { FPL("/foo.bar/.."),            FPL("") },
     { FPL("/foo.bar/..////"),        FPL("") },
+    { FPL("/foo.1234.user.js"),      FPL(".user.js") },
+    { FPL("foo.user.js"),            FPL(".user.js") },
+    { FPL("/foo.1234.luser.js"),     FPL(".js") },
+    { FPL("/user.js"),               FPL(".js") },
   };
   for (unsigned int i = 0; i < arraysize(cases); ++i) {
     FilePath path(cases[i].input);
