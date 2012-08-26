@@ -116,86 +116,84 @@ TEST_F(SystemMonitorTest, DeviceChangeNotifications) {
     system_monitor_->AddDevicesChangedObserver(&observers[index]);
 
     EXPECT_CALL(observers[index],
-                OnDevicesChanged(base::SystemMonitor::DEVTYPE_UNKNOWN))
+                OnDevicesChanged(SystemMonitor::DEVTYPE_UNKNOWN))
         .Times(3)
         .InSequence(mock_sequencer[index]);
-    EXPECT_CALL(observers[index],
-                OnMediaDeviceAttached(kDeviceId1,
-                                      kDeviceName,
-                                      testing::_))
+    EXPECT_CALL(observers[index], OnRemovableStorageAttached(kDeviceId1,
+                                                             kDeviceName,
+                                                             testing::_))
         .InSequence(mock_sequencer[index]);
-    EXPECT_CALL(observers[index], OnMediaDeviceDetached(kDeviceId1))
+    EXPECT_CALL(observers[index], OnRemovableStorageDetached(kDeviceId1))
         .InSequence(mock_sequencer[index]);
-    EXPECT_CALL(observers[index], OnMediaDeviceDetached(kDeviceId2))
+    EXPECT_CALL(observers[index], OnRemovableStorageDetached(kDeviceId2))
         .Times(0).InSequence(mock_sequencer[index]);
   }
 
-  system_monitor_->ProcessDevicesChanged(base::SystemMonitor::DEVTYPE_UNKNOWN);
+  system_monitor_->ProcessDevicesChanged(SystemMonitor::DEVTYPE_UNKNOWN);
   message_loop_.RunAllPending();
 
-  system_monitor_->ProcessDevicesChanged(base::SystemMonitor::DEVTYPE_UNKNOWN);
-  system_monitor_->ProcessDevicesChanged(base::SystemMonitor::DEVTYPE_UNKNOWN);
+  system_monitor_->ProcessDevicesChanged(SystemMonitor::DEVTYPE_UNKNOWN);
+  system_monitor_->ProcessDevicesChanged(SystemMonitor::DEVTYPE_UNKNOWN);
   message_loop_.RunAllPending();
 
-  system_monitor_->ProcessMediaDeviceAttached(
-      kDeviceId1,
-      kDeviceName,
-      FILE_PATH_LITERAL("path"));
+  system_monitor_->ProcessRemovableStorageAttached(kDeviceId1,
+                                                   kDeviceName,
+                                                   FILE_PATH_LITERAL("path"));
   message_loop_.RunAllPending();
 
-  system_monitor_->ProcessMediaDeviceDetached(kDeviceId1);
-  system_monitor_->ProcessMediaDeviceDetached(kDeviceId2);
+  system_monitor_->ProcessRemovableStorageDetached(kDeviceId1);
+  system_monitor_->ProcessRemovableStorageDetached(kDeviceId2);
   message_loop_.RunAllPending();
 }
 
-TEST_F(SystemMonitorTest, GetAttachedMediaDevicesEmpty) {
-  std::vector<SystemMonitor::MediaDeviceInfo> devices =
-      system_monitor_->GetAttachedMediaDevices();
+TEST_F(SystemMonitorTest, GetAttachedRemovableStorageEmpty) {
+  std::vector<SystemMonitor::RemovableStorageInfo> devices =
+      system_monitor_->GetAttachedRemovableStorage();
   EXPECT_EQ(0U, devices.size());
 }
 
-TEST_F(SystemMonitorTest, GetAttachedMediaDevicesAttachDetach) {
+TEST_F(SystemMonitorTest, GetAttachedRemovableStorageAttachDetach) {
   const std::string kDeviceId1 = "42";
   const string16 kDeviceName1 = ASCIIToUTF16("test");
   const FilePath kDevicePath1(FILE_PATH_LITERAL("/testfoo"));
-  system_monitor_->ProcessMediaDeviceAttached(kDeviceId1,
-                                              kDeviceName1,
-                                              kDevicePath1.value());
+  system_monitor_->ProcessRemovableStorageAttached(kDeviceId1,
+                                                   kDeviceName1,
+                                                   kDevicePath1.value());
   message_loop_.RunAllPending();
-  std::vector<SystemMonitor::MediaDeviceInfo> devices =
-      system_monitor_->GetAttachedMediaDevices();
+  std::vector<SystemMonitor::RemovableStorageInfo> devices =
+      system_monitor_->GetAttachedRemovableStorage();
   ASSERT_EQ(1U, devices.size());
-  EXPECT_EQ(kDeviceId1, devices[0].unique_id);
+  EXPECT_EQ(kDeviceId1, devices[0].device_id);
   EXPECT_EQ(kDeviceName1, devices[0].name);
   EXPECT_EQ(kDevicePath1.value(), devices[0].location);
 
   const std::string kDeviceId2 = "44";
   const string16 kDeviceName2 = ASCIIToUTF16("test2");
   const FilePath kDevicePath2(FILE_PATH_LITERAL("/testbar"));
-  system_monitor_->ProcessMediaDeviceAttached(kDeviceId2,
-                                              kDeviceName2,
-                                              kDevicePath2.value());
+  system_monitor_->ProcessRemovableStorageAttached(kDeviceId2,
+                                                   kDeviceName2,
+                                                   kDevicePath2.value());
   message_loop_.RunAllPending();
-  devices = system_monitor_->GetAttachedMediaDevices();
+  devices = system_monitor_->GetAttachedRemovableStorage();
   ASSERT_EQ(2U, devices.size());
-  EXPECT_EQ(kDeviceId1, devices[0].unique_id);
+  EXPECT_EQ(kDeviceId1, devices[0].device_id);
   EXPECT_EQ(kDeviceName1, devices[0].name);
   EXPECT_EQ(kDevicePath1.value(), devices[0].location);
-  EXPECT_EQ(kDeviceId2, devices[1].unique_id);
+  EXPECT_EQ(kDeviceId2, devices[1].device_id);
   EXPECT_EQ(kDeviceName2, devices[1].name);
   EXPECT_EQ(kDevicePath2.value(), devices[1].location);
 
-  system_monitor_->ProcessMediaDeviceDetached(kDeviceId1);
+  system_monitor_->ProcessRemovableStorageDetached(kDeviceId1);
   message_loop_.RunAllPending();
-  devices = system_monitor_->GetAttachedMediaDevices();
+  devices = system_monitor_->GetAttachedRemovableStorage();
   ASSERT_EQ(1U, devices.size());
-  EXPECT_EQ(kDeviceId2, devices[0].unique_id);
+  EXPECT_EQ(kDeviceId2, devices[0].device_id);
   EXPECT_EQ(kDeviceName2, devices[0].name);
   EXPECT_EQ(kDevicePath2.value(), devices[0].location);
 
-  system_monitor_->ProcessMediaDeviceDetached(kDeviceId2);
+  system_monitor_->ProcessRemovableStorageDetached(kDeviceId2);
   message_loop_.RunAllPending();
-  devices = system_monitor_->GetAttachedMediaDevices();
+  devices = system_monitor_->GetAttachedRemovableStorage();
   EXPECT_EQ(0U, devices.size());
 }
 
