@@ -20,11 +20,11 @@ class MockDevicesChangedObserver
 
   MOCK_METHOD1(OnDevicesChanged,
                void(base::SystemMonitor::DeviceType device_type));
-  MOCK_METHOD3(OnMediaDeviceAttached,
+  MOCK_METHOD3(OnRemovableStorageAttached,
                void(const std::string& id,
                     const string16& name,
                     const FilePath::StringType& location));
-  MOCK_METHOD1(OnMediaDeviceDetached, void(const std::string& id));
+  MOCK_METHOD1(OnRemovableStorageDetached, void(const std::string& id));
 
   DISALLOW_COPY_AND_ASSIGN(MockDevicesChangedObserver);
 };
