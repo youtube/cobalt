@@ -44,7 +44,8 @@ typedef FilePath::StringType StringType;
 
 namespace {
 
-const char* kCommonDoubleExtensions[] = { "gz", "z", "bz2" };
+const char* kCommonDoubleExtensionSuffixes[] = { "gz", "z", "bz2" };
+const char* kCommonDoubleExtensions[] = { "user.js" };
 
 // If this FilePath contains a drive letter specification, returns the
 // position of the last character of the drive letter specification,
@@ -130,30 +131,32 @@ StringType::size_type ExtensionSeparatorPosition(const StringType& path) {
   if (last_dot == StringType::npos || last_dot == 0U)
     return last_dot;
 
-  // Special case .<extension1>.<extension2>, but only if the final extension
-  // is one of a few common double extensions.
-  StringType extension(path, last_dot + 1);
-  bool is_common_double_extension = false;
-  for (size_t i = 0; i < arraysize(kCommonDoubleExtensions); ++i) {
-    if (LowerCaseEqualsASCII(extension, kCommonDoubleExtensions[i]))
-      is_common_double_extension = true;
-  }
-  if (!is_common_double_extension)
-    return last_dot;
-
-  // Check that <extension1> is 1-4 characters, otherwise fall back to
-  // <extension2>.
   const StringType::size_type penultimate_dot =
       path.rfind(FilePath::kExtensionSeparator, last_dot - 1);
   const StringType::size_type last_separator =
       path.find_last_of(FilePath::kSeparators, last_dot - 1,
                         arraysize(FilePath::kSeparators) - 1);
-  if (penultimate_dot != StringType::npos &&
-      (last_separator == StringType::npos ||
-      penultimate_dot > last_separator) &&
-      last_dot - penultimate_dot <= 5U &&
-      last_dot - penultimate_dot > 1U) {
-    return penultimate_dot;
+
+  if (penultimate_dot == StringType::npos ||
+      (last_separator != StringType::npos &&
+       penultimate_dot < last_separator)) {
+    return last_dot;
+  }
+
+  for (size_t i = 0; i < arraysize(kCommonDoubleExtensions); ++i) {
+    StringType extension(path, penultimate_dot + 1);
+    if (LowerCaseEqualsASCII(extension, kCommonDoubleExtensions[i]))
+      return penultimate_dot;
+  }
+
+  StringType extension(path, last_dot + 1);
+  for (size_t i = 0; i < arraysize(kCommonDoubleExtensionSuffixes); ++i) {
+    if (LowerCaseEqualsASCII(extension, kCommonDoubleExtensionSuffixes[i])) {
+      if ((last_dot - penultimate_dot) <= 5U &&
+          (last_dot - penultimate_dot) > 1U) {
+        return penultimate_dot;
+      }
+    }
   }
 
   return last_dot;
