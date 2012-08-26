@@ -83,6 +83,11 @@ void UDPSocketWin::Close() {
   read_watcher_.StopWatching();
   write_watcher_.StopWatching();
 
+  WSACloseEvent(read_overlapped_.hEvent);
+  memset(&read_overlapped_, 0xaf, sizeof(read_overlapped_));
+  WSACloseEvent(write_overlapped_.hEvent);
+  memset(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
+
   closesocket(socket_);
   socket_ = INVALID_SOCKET;
 }
@@ -379,6 +384,7 @@ int UDPSocketWin::InternalRecvFrom(IOBuffer* buf, int buf_len,
 
   DWORD flags = 0;
   DWORD num;
+  CHECK_NE(INVALID_SOCKET, socket_);
   AssertEventNotSignaled(read_overlapped_.hEvent);
   int rv = WSARecvFrom(socket_, &read_buffer, 1, &num, &flags, addr,
                        &recv_addr_len_, &read_overlapped_, NULL);
