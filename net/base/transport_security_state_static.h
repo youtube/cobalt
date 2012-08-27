@@ -434,7 +434,6 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {17, true, "\003www\007neonisi\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {19, true, "\005shops\007neonisi\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {17, true, "\014piratenlogin\002de", true, kNoPins, DOMAIN_NOT_PINNED },
-  {14, true, "\005arivo\003com\002br", true, kNoPins, DOMAIN_NOT_PINNED },
   {15, true, "\011howrandom\003org", true, kNoPins, DOMAIN_NOT_PINNED },
   {13, false, "\010intercom\002io", true, kNoPins, DOMAIN_NOT_PINNED },
   {17, false, "\003api\010intercom\002io", true, kNoPins, DOMAIN_NOT_PINNED },
