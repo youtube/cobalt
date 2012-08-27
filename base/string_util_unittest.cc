@@ -767,6 +767,44 @@ TEST(StringUtilTest, JoinString) {
   EXPECT_EQ("a|b|c|| ", JoinString(in, '|'));
 }
 
+// Test for JoinString overloaded with std::string separator
+TEST(StringUtilTest, JoinStringWithString) {
+  std::string separator(", ");
+  std::vector<std::string> parts;
+  EXPECT_EQ(std::string(), JoinString(parts, separator));
+
+  parts.push_back("a");
+  EXPECT_EQ("a", JoinString(parts, separator));
+
+  parts.push_back("b");
+  parts.push_back("c");
+  EXPECT_EQ("a, b, c", JoinString(parts, separator));
+
+  parts.push_back("");
+  EXPECT_EQ("a, b, c, ", JoinString(parts, separator));
+  parts.push_back(" ");
+  EXPECT_EQ("a|b|c|| ", JoinString(parts, "|"));
+}
+
+// Test for JoinString overloaded with string16 separator
+TEST(StringUtilTest, JoinStringWithString16) {
+  string16 separator = ASCIIToUTF16(", ");
+  std::vector<string16> parts;
+  EXPECT_EQ(string16(), JoinString(parts, separator));
+
+  parts.push_back(ASCIIToUTF16("a"));
+  EXPECT_EQ(ASCIIToUTF16("a"), JoinString(parts, separator));
+
+  parts.push_back(ASCIIToUTF16("b"));
+  parts.push_back(ASCIIToUTF16("c"));
+  EXPECT_EQ(ASCIIToUTF16("a, b, c"), JoinString(parts, separator));
+
+  parts.push_back(ASCIIToUTF16(""));
+  EXPECT_EQ(ASCIIToUTF16("a, b, c, "), JoinString(parts, separator));
+  parts.push_back(ASCIIToUTF16(" "));
+  EXPECT_EQ(ASCIIToUTF16("a|b|c|| "), JoinString(parts, ASCIIToUTF16("|")));
+}
+
 TEST(StringUtilTest, StartsWith) {
   EXPECT_TRUE(StartsWithASCII("javascript:url", "javascript", true));
   EXPECT_FALSE(StartsWithASCII("JavaScript:url", "javascript", true));
