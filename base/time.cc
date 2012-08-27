@@ -9,6 +9,8 @@
 #include <float.h>
 #endif
 
+#include <limits>
+
 #include "base/sys_string_conversions.h"
 #include "base/third_party/nspr/prtime.h"
 
@@ -62,6 +64,11 @@ int64 TimeDelta::InMicroseconds() const {
 }
 
 // Time -----------------------------------------------------------------------
+
+// static
+Time Time::Max() {
+  return Time(std::numeric_limits<int64>::max());
+}
 
 // static
 Time Time::FromTimeT(time_t tt) {
