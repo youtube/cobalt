@@ -254,6 +254,10 @@ class BASE_EXPORT Time {
   // times are increasing, or that two calls to Now() won't be the same.
   static Time Now();
 
+  // Returns the maximum time, which should be greater than any reasonable time
+  // with which we might compare it.
+  static Time Max();
+
   // Returns the current time. Same as Now() except that this function always
   // uses system time so that there are no discrepancies between the returned
   // time and system time even on virtual environments including our test bot.

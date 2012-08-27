@@ -479,6 +479,12 @@ TEST_F(TimeTest, ExplodeBeforeUnixEpoch) {
   EXPECT_EQ(1, exploded.millisecond);
 }
 
+TEST_F(TimeTest, Max) {
+  EXPECT_EQ(base::Time::Max(), base::Time::Max());
+  EXPECT_GT(base::Time::Max(), base::Time::Now());
+  EXPECT_GT(base::Time::Max(), base::Time());
+}
+
 TEST(TimeTicks, Deltas) {
   for (int index = 0; index < 50; index++) {
     TimeTicks ticks_start = TimeTicks::Now();
