@@ -41,6 +41,8 @@
       # iOS uses a small subset of ui. common_sources are the only files that
       # are built on iOS.
       'common_sources' : [
+        'base/models/tree_node_iterator.h',
+        'base/models/tree_node_model.h',
         'gfx/point.cc',
         'gfx/point.h',
         'gfx/point_base.h',
@@ -253,8 +255,6 @@
         'base/models/table_model_observer.h',
         'base/models/tree_model.cc',
         'base/models/tree_model.h',
-        'base/models/tree_node_iterator.h',
-        'base/models/tree_node_model.h',
         'base/native_theme/native_theme.cc',
         'base/native_theme/native_theme.h',
         'base/native_theme/native_theme_android.cc',
@@ -773,8 +773,7 @@
     },
   ],
   'conditions': [
-    ['inside_chromium_build == 1 and OS != "ios"', {
-      # TODO(ios): The ui tests do not compile yet on iOS.
+    ['inside_chromium_build == 1', {
       'includes': [
         'ui_unittests.gypi',
       ]},
