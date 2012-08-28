@@ -1293,7 +1293,7 @@ Value* HttpResponseHeaders::NetLogCallback(
 bool HttpResponseHeaders::FromNetLogParam(
     const base::Value* event_param,
     scoped_refptr<HttpResponseHeaders>* http_response_headers) {
-  http_response_headers->release();
+  *http_response_headers = NULL;
 
   const base::DictionaryValue* dict;
   const base::ListValue* header_list;
