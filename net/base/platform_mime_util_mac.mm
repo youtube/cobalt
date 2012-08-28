@@ -19,12 +19,15 @@
 #include <CoreServices/CoreServices.h>
 #endif  // defined(OS_IOS)
 
+#if !defined(OS_IOS)
 // SPI declaration; see the commentary in GetPlatformExtensionsForMimeType.
+// iOS must not use any private API, per Apple guideline.
 
 @interface NSURLFileTypeMappings : NSObject
 + (NSURLFileTypeMappings*)sharedMappings;
 - (NSArray*)extensionsForMIMEType:(NSString*)mimeType;
 @end
+#endif  // !defined(OS_IOS)
 
 namespace net {
 
@@ -76,6 +79,9 @@ bool PlatformMimeUtil::GetPreferredExtensionForMimeType(
 void PlatformMimeUtil::GetPlatformExtensionsForMimeType(
     const std::string& mime_type,
     base::hash_set<FilePath::StringType>* extensions) const {
+#if defined(OS_IOS)
+  NSArray* extensions_list = nil;
+#else
   // There is no API for this that uses UTIs. The WebKitSystemInterface call
   // WKGetExtensionsForMIMEType() is a thin wrapper around
   // [[NSURLFileTypeMappings sharedMappings] extensionsForMIMEType:], which is
@@ -88,6 +94,7 @@ void PlatformMimeUtil::GetPlatformExtensionsForMimeType(
   NSArray* extensions_list =
       [[NSURLFileTypeMappings sharedMappings]
           extensionsForMIMEType:base::SysUTF8ToNSString(mime_type)];
+#endif  // defined(OS_IOS)
 
   if (extensions_list) {
     for (NSString* extension in extensions_list)
