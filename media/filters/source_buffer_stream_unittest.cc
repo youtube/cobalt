@@ -1919,6 +1919,129 @@ TEST_F(SourceBufferStreamTest, ConfigChange_Seek) {
   CheckExpectedBuffers(0, 4, &kDataA);
 }
 
+TEST_F(SourceBufferStreamTest, SetExplicitDuration) {
+  // Append 2 buffers at positions 5 through 6.
+  NewSegmentAppend(5, 2);
+
+  // Append 2 buffers at positions 10 through 11.
+  NewSegmentAppend(10, 2);
+
+  // Append 2 buffers at positions 15 through 16.
+  NewSegmentAppend(15, 2);
+
+  // Check expected ranges.
+  CheckExpectedRanges("{ [5,6) [10,11) [15,16) }");
+
+  // Set duration to be between buffers 6 and 10.
+  stream_->OnSetDuration(frame_duration() * 8);
+
+  // Should truncate the data after 6.
+  CheckExpectedRanges("{ [5,6) }");
+
+  // Adding data past the previous duration should still work.
+  NewSegmentAppend(0, 20);
+  CheckExpectedRanges("{ [0,19) }");
+}
+
+TEST_F(SourceBufferStreamTest, SetExplicitDuration_EdgeCase) {
+  // Append 10 buffers at positions 10 through 19.
+  NewSegmentAppend(10, 10);
+
+  // Append 5 buffers at positions 25 through 29.
+  NewSegmentAppend(25, 5);
+
+  // Check expected ranges.
+  CheckExpectedRanges("{ [10,19) [25,29) }");
+
+  // Set duration to be right before buffer 25.
+  stream_->OnSetDuration(frame_duration() * 25);
+
+  // Should truncate the last range.
+  CheckExpectedRanges("{ [10,19) }");
+}
+
+TEST_F(SourceBufferStreamTest, SetExplicitDuration_DeletePartialRange) {
+  // Append 5 buffers at positions 0 through 4.
+  NewSegmentAppend(0, 5);
+
+  // Append 10 buffers at positions 10 through 19.
+  NewSegmentAppend(10, 10);
+
+  // Append 5 buffers at positions 25 through 29.
+  NewSegmentAppend(25, 5);
+
+  // Check expected ranges.
+  CheckExpectedRanges("{ [0,4) [10,19) [25,29) }");
+
+  // Set duration to be between buffers 13 and 14.
+  stream_->OnSetDuration(frame_duration() * 14);
+
+  // Should truncate the data after 13.
+  CheckExpectedRanges("{ [0,4) [10,13) }");
+}
+
+TEST_F(SourceBufferStreamTest, SetExplicitDuration_DeleteSelectedRange) {
+  // Append 2 buffers at positions 5 through 6.
+  NewSegmentAppend(5, 2);
+
+  // Append 2 buffers at positions 10 through 11.
+  NewSegmentAppend(10, 2);
+
+  // Append 2 buffers at positions 15 through 16.
+  NewSegmentAppend(15, 2);
+
+  // Check expected ranges.
+  CheckExpectedRanges("{ [5,6) [10,11) [15,16) }");
+
+  // Seek to 10.
+  Seek(10);
+
+  // Set duration to be after position 3.
+  stream_->OnSetDuration(frame_duration() * 4);
+
+  // Expect everything to be deleted, and should not have next buffer anymore.
+  CheckNoNextBuffer();
+  CheckExpectedRanges("{ }");
+
+  // Appending data at position 10 should not fulfill the seek.
+  // (If the duration is set to be something smaller than the current seek
+  // point, then the seek point is reset and the SourceBufferStream waits
+  // for a new seek request. Therefore even if the data is re-appended, it
+  // should not fulfill the old seek.)
+  NewSegmentAppend(0, 15);
+  CheckNoNextBuffer();
+  CheckExpectedRanges("{ [0,14) }");
+}
+
+TEST_F(SourceBufferStreamTest, SetExplicitDuration_DeletePartialSelectedRange) {
+  // Append 5 buffers at positions 0 through 4.
+  NewSegmentAppend(0, 5);
+
+  // Append 20 buffers at positions 10 through 29.
+  NewSegmentAppend(10, 20);
+
+  // Check expected ranges.
+  CheckExpectedRanges("{ [0,4) [10,29) }");
+
+  // Seek to position 10.
+  Seek(10);
+
+  // Set duration to be between buffers 24 and 25.
+  stream_->OnSetDuration(frame_duration() * 25);
+
+  // Should truncate the data after 24.
+  CheckExpectedRanges("{ [0,4) [10,24) }");
+
+  // The seek position should not be lost.
+  CheckExpectedBuffers(10, 10);
+
+  // Now set the duration immediately after buffer 10.
+  stream_->OnSetDuration(frame_duration() * 11);
+
+  // Seek position should be reset.
+  CheckNoNextBuffer();
+  CheckExpectedRanges("{ [0,4) [10,10) }");
+}
 
 // TODO(vrk): Add unit tests where keyframes are unaligned between streams.
 // (crbug.com/133557)

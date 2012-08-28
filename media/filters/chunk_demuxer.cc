@@ -181,6 +181,9 @@ class ChunkDemuxerStream : public DemuxerStream {
   // Returns true if buffers were successfully added.
   bool Append(const StreamParser::BufferQueue& buffers);
 
+  // Signal to the stream that duration has changed to |duration|.
+  void OnSetDuration(base::TimeDelta duration);
+
   // Returns the range of buffered data in this stream, capped at |duration|.
   Ranges<TimeDelta> GetBufferedRanges(base::TimeDelta duration) const;
 
@@ -333,6 +336,11 @@ bool ChunkDemuxerStream::Append(const StreamParser::BufferQueue& buffers) {
     it->Run();
 
   return true;
+}
+
+void ChunkDemuxerStream::OnSetDuration(base::TimeDelta duration) {
+  base::AutoLock auto_lock(lock_);
+  stream_->OnSetDuration(duration);
 }
 
 Ranges<TimeDelta> ChunkDemuxerStream::GetBufferedRanges(
@@ -822,6 +830,21 @@ void ChunkDemuxer::Abort(const std::string& id) {
   CHECK(IsValidId(id));
 
   stream_parser_map_[id]->Flush();
+}
+
+void ChunkDemuxer::SetDuration(base::TimeDelta duration) {
+  DVLOG(1) << "SetDuration(" << duration.InSecondsF() << ")";
+
+  if (duration == duration_)
+    return;
+
+  UpdateDuration(duration);
+
+  if (audio_)
+    audio_->OnSetDuration(duration);
+
+  if (video_)
+    video_->OnSetDuration(duration);
 }
 
 bool ChunkDemuxer::SetTimestampOffset(const std::string& id, TimeDelta offset) {

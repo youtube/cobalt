@@ -67,6 +67,10 @@ class MEDIA_EXPORT SourceBufferStream {
   // buffered data and is waiting for more data to be appended.
   bool IsSeekPending() const;
 
+  // Notifies the SourceBufferStream that the media duration has been changed to
+  // |duration| so it should drop any data past that point.
+  void OnSetDuration(base::TimeDelta duration);
+
   // Fills |out_buffer| with a new buffer. Buffers are presented in order from
   // the last call to Seek(), or starting with the first buffer appended if
   // Seek() has not been called yet.
@@ -176,6 +180,9 @@ class MEDIA_EXPORT SourceBufferStream {
   // Sets the |selected_range_| to |range| and resets the next buffer position
   // for the previous |selected_range_|.
   void SetSelectedRange(SourceBufferRange* range);
+
+  // Resets this stream back to an unseeked state.
+  void ResetSeekState();
 
   // Returns true if |seek_timestamp| refers to the beginning of the first range
   // in |ranges_|, false otherwise or if |ranges_| is empty.

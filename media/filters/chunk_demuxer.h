@@ -74,6 +74,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // it can accept a new segment.
   void Abort(const std::string& id);
 
+  // Notifies the demuxer that the duration of the media has changed to
+  // |duration|.
+  void SetDuration(base::TimeDelta duration);
+
   // Sets a time |offset| to be applied to subsequent buffers appended to the
   // source buffer assicated with |id|. Returns true if the offset is set
   // properly, false if the offset cannot be applied because we're in the
