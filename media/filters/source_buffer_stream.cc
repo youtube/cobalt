@@ -83,6 +83,7 @@ class SourceBufferRange {
   // a buffer at that position would have been deleted.
   bool TruncateAt(scoped_refptr<StreamParserBuffer> buffer,
                   BufferQueue* deleted_buffers);
+  bool TruncateAt(base::TimeDelta timestamp);
   // Deletes all buffers in range.
   bool DeleteAll(BufferQueue* deleted_buffers);
 
@@ -415,6 +416,12 @@ bool SourceBufferStream::Append(
   return true;
 }
 
+void SourceBufferStream::ResetSeekState() {
+  SetSelectedRange(NULL);
+  track_buffer_.clear();
+  config_change_pending_ = false;
+}
+
 bool SourceBufferStream::ShouldSeekToStartOfBuffered(
     base::TimeDelta seek_timestamp) const {
   if (ranges_.empty())
@@ -721,9 +728,7 @@ void SourceBufferStream::MergeWithAdjacentRangeIfNecessary(
 
 void SourceBufferStream::Seek(base::TimeDelta timestamp) {
   DCHECK(timestamp >= base::TimeDelta());
-  SetSelectedRange(NULL);
-  track_buffer_.clear();
-  config_change_pending_ = false;
+  ResetSeekState();
 
   if (ShouldSeekToStartOfBuffered(timestamp)) {
     SetSelectedRange(ranges_.front());
@@ -751,6 +756,34 @@ void SourceBufferStream::Seek(base::TimeDelta timestamp) {
 
 bool SourceBufferStream::IsSeekPending() const {
   return seek_pending_;
+}
+
+void SourceBufferStream::OnSetDuration(base::TimeDelta duration) {
+  RangeList::iterator itr = ranges_.end();
+  for (itr = ranges_.begin(); itr != ranges_.end(); ++itr) {
+    if ((*itr)->GetEndTimestamp() > duration)
+      break;
+  }
+  if (itr == ranges_.end())
+    return;
+
+  // Need to partially truncate this range.
+  if ((*itr)->GetStartTimestamp() < duration) {
+    bool deleted_seek_point = (*itr)->TruncateAt(duration);
+    if (deleted_seek_point)
+      ResetSeekState();
+    ++itr;
+  }
+
+  // Delete all ranges that begin after |duration|.
+  while (itr != ranges_.end()) {
+    // If we're about to delete the selected range, also reset the seek state.
+    DCHECK((*itr)->GetStartTimestamp() >= duration);
+    if (*itr== selected_range_)
+      ResetSeekState();
+    delete *itr;
+    itr = ranges_.erase(itr);
+  }
 }
 
 SourceBufferStream::Status SourceBufferStream::GetNextBuffer(
@@ -1089,6 +1122,15 @@ bool SourceBufferRange::DeleteAll(BufferQueue* removed_buffers) {
   return TruncateAt(buffers_.begin(), removed_buffers);
 }
 
+bool SourceBufferRange::TruncateAt(base::TimeDelta timestamp) {
+  // Need to make a dummy buffer with timestamp |timestamp| in order to search
+  // the |buffers_| container.
+  scoped_refptr<StreamParserBuffer> dummy_buffer =
+      StreamParserBuffer::CopyFrom(NULL, 0, false);
+  dummy_buffer->SetDecodeTimestamp(timestamp);
+  return TruncateAt(dummy_buffer, NULL);
+}
+
 bool SourceBufferRange::TruncateAt(
     scoped_refptr<StreamParserBuffer> buffer, BufferQueue* removed_buffers) {
   // Find the place in |buffers_| where we will begin deleting data.
@@ -1210,8 +1252,7 @@ void SourceBufferRange::FreeBufferRange(
 
 bool SourceBufferRange::TruncateAt(
     const BufferQueue::iterator& starting_point, BufferQueue* removed_buffers) {
-  DCHECK(removed_buffers);
-  DCHECK(removed_buffers->empty());
+  DCHECK(!removed_buffers || removed_buffers->empty());
 
   // Return if we're not deleting anything.
   if (starting_point == buffers_.end())
@@ -1224,7 +1265,7 @@ bool SourceBufferRange::TruncateAt(
     base::TimeDelta next_buffer_timestamp = GetNextTimestamp();
     if (next_buffer_timestamp == kNoTimestamp() ||
         next_buffer_timestamp >= (*starting_point)->GetDecodeTimestamp()) {
-      if (HasNextBuffer()) {
+      if (HasNextBuffer() && removed_buffers) {
         int starting_offset = starting_point - buffers_.begin();
         int next_buffer_offset = next_buffer_index_ - starting_offset;
         DCHECK_GE(next_buffer_offset, 0);
