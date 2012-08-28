@@ -124,6 +124,11 @@ NET_EXPORT void GetMediaTypesBlacklistedForTests(
 NET_EXPORT void GetMediaCodecsBlacklistedForTests(
     std::vector<std::string>* codecs);
 
+// Returns the IANA media type contained in |mime_type|, or an empty
+// string if |mime_type| does not specifify a known media type.
+// Supported media types are defined at:
+// http://www.iana.org/assignments/media-types/index.html
+NET_EXPORT const std::string GetIANAMediaType(const std::string& mime_type);
 }  // namespace net
 
 #endif  // NET_BASE_MIME_UTIL_H__

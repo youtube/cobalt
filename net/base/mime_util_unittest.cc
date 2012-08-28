@@ -168,4 +168,21 @@ TEST(MimeUtilTest, TestIsMimeType) {
   EXPECT_FALSE(IsMimeType("text/"));
 }
 
+TEST(MimeUtilTest, TestToIANAMediaType) {
+  EXPECT_EQ("", GetIANAMediaType("texting/driving"));
+  EXPECT_EQ("", GetIANAMediaType("ham/sandwich"));
+  EXPECT_EQ("", GetIANAMediaType(""));
+  EXPECT_EQ("", GetIANAMediaType("/application/hamsandwich"));
+
+  EXPECT_EQ("application", GetIANAMediaType("application/poodle-wrestler"));
+  EXPECT_EQ("audio", GetIANAMediaType("audio/mpeg"));
+  EXPECT_EQ("example", GetIANAMediaType("example/yomomma"));
+  EXPECT_EQ("image", GetIANAMediaType("image/png"));
+  EXPECT_EQ("message", GetIANAMediaType("message/sipfrag"));
+  EXPECT_EQ("model", GetIANAMediaType("model/vrml"));
+  EXPECT_EQ("multipart", GetIANAMediaType("multipart/mixed"));
+  EXPECT_EQ("text", GetIANAMediaType("text/plain"));
+  EXPECT_EQ("video", GetIANAMediaType("video/H261"));
+}
+
 }  // namespace net
