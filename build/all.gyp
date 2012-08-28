@@ -65,6 +65,7 @@
             '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
             '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:generate_devtools_zip',
             '../v8/tools/gyp/v8.gyp:*',
+            '../webkit/compositor/compositor_tests.gyp:*',
             '../webkit/support/webkit_support.gyp:*',
             '../webkit/webkit.gyp:*',
             '<(libjpeg_gyp_path):*',
