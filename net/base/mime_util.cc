@@ -17,6 +17,27 @@
 
 using std::string;
 
+namespace {
+
+struct MediaType {
+  const char name[12];
+  const char matcher[13];
+};
+
+static const MediaType kIanaMediaTypes[] = {
+  { "application", "application/" },
+  { "audio", "audio/" },
+  { "example", "example/" },
+  { "image", "image/" },
+  { "message", "message/" },
+  { "model", "model/" },
+  { "multipart", "multipart/" },
+  { "text", "text/" },
+  { "video", "video/" },
+};
+
+}  // namespace
+
 namespace net {
 
 // Singleton utility class for mime types.
@@ -869,6 +890,15 @@ void GetMediaCodecsBlacklistedForTests(std::vector<std::string>* codecs) {
   for (size_t i = 0; i < arraysize(proprietary_media_codecs); ++i)
     codecs->push_back(proprietary_media_codecs[i]);
 #endif
+}
+
+const std::string GetIANAMediaType(const std::string& mime_type) {
+  for (size_t i = 0; i < arraysize(kIanaMediaTypes); ++i) {
+    if (StartsWithASCII(mime_type, kIanaMediaTypes[i].matcher, true)) {
+      return kIanaMediaTypes[i].name;
+    }
+  }
+  return "";
 }
 
 }  // namespace net
