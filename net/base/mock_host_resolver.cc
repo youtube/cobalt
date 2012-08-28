@@ -18,6 +18,9 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/test_completion_callback.h"
+#if defined(OS_WIN)
+#include "net/base/winsock_init.h"
+#endif
 
 namespace net {
 
@@ -324,6 +327,9 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
         case Rule::kResolverTypeFail:
           return ERR_NAME_NOT_RESOLVED;
         case Rule::kResolverTypeSystem:
+#if defined(OS_WIN)
+          net::EnsureWinsockInit();
+#endif
           return SystemHostResolverProc(effective_host,
                                         address_family,
                                         host_resolver_flags,
