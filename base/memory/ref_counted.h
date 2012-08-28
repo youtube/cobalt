@@ -9,6 +9,7 @@
 
 #include "base/atomic_ref_count.h"
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
 #include "base/threading/thread_collision_warner.h"
 
 namespace base {
@@ -260,7 +261,7 @@ class scoped_refptr {
   // If this object holds a NULL pointer, the return value is NULL.
   // After this operation, this object will hold a NULL pointer,
   // and will not own the object any more.
-  T* release() {
+  T* release() WARN_UNUSED_RESULT {
     T* retVal = ptr_;
     ptr_ = NULL;
     return retVal;
