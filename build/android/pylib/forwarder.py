@@ -9,12 +9,12 @@ import re
 import sys
 
 import android_commands
-from constants import CHROME_DIR
+import constants
 
 class Forwarder(object):
   """Class to manage port forwards from the device to the host."""
 
-  _FORWARDER_PATH = '/data/local/tmp/forwarder'
+  _FORWARDER_PATH = constants.TEST_EXECUTABLE_DIR + '/forwarder'
   _TIMEOUT_SECS = 30
 
   def __init__(self, adb, port_pairs, tool, host_name, build_type):
@@ -42,7 +42,7 @@ class Forwarder(object):
     self._host_to_device_port_map = dict()
     self._process = None
     adb.PushIfNeeded(
-        os.path.join(CHROME_DIR, 'out', build_type, 'forwarder'),
+        os.path.join(constants.CHROME_DIR, 'out', build_type, 'forwarder'),
         Forwarder._FORWARDER_PATH)
     forward_string = ['%d:%d:%s' %
                       (device, host, host_name) for device, host in port_pairs]
