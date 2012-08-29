@@ -1205,7 +1205,10 @@
         # plugins now.
         'clang_use_chrome_plugins%': 0,
       }],
-
+      ['asan==1 and OS=="mac"', {
+        # See http://crbug.com/145503.
+        'component': "static_library",
+      }],
       ['tsan==1', {
         'clang%': 1,
       }],
