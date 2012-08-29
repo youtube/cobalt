@@ -195,7 +195,7 @@ AesDecryptor::~AesDecryptor() {
   STLDeleteValues(&key_map_);
 }
 
-void AesDecryptor::GenerateKeyRequest(const std::string& key_system,
+bool AesDecryptor::GenerateKeyRequest(const std::string& key_system,
                                       const uint8* init_data,
                                       int init_data_length) {
   std::string session_id_string(base::UintToString(next_session_id_++));
@@ -207,6 +207,7 @@ void AesDecryptor::GenerateKeyRequest(const std::string& key_system,
 
   client_->KeyMessage(key_system, session_id_string,
                       message.Pass(), message_length, "");
+  return true;
 }
 
 void AesDecryptor::AddKey(const std::string& key_system,
