@@ -184,15 +184,6 @@ class Xvfb(object):
       self._pid = 0
 
 
-def PrintAnnotationForTestResults(test_results):
-  if test_results.timed_out:
-    buildbot_report.PrintWarning()
-  elif test_results.failed or test_results.crashed or test_results.overall_fail:
-    buildbot_report.PrintError()
-  else:
-    print 'Step success!'  # No annotation needed
-
-
 class TestSharder(BaseTestSharder):
   """Responsible for sharding the tests on the connected devices."""
 
@@ -258,7 +249,7 @@ class TestSharder(BaseTestSharder):
     """Notifies that we completed the tests."""
     test_results.LogFull('Unit test', os.path.basename(self.test_suite),
                          self.build_type)
-    PrintAnnotationForTestResults(test_results)
+    test_results.PrintAnnotation()
     if test_results.failed and self.rebaseline:
       test_runners[0].UpdateFilter(test_results.failed)
     if self.log_dump_name:
