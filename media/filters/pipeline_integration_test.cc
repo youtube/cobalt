@@ -180,8 +180,8 @@ class FakeDecryptorClient : public DecryptorClient {
     // session (which will call KeyMessage).
     if (current_key_system_.empty()) {
       DCHECK(current_session_id_.empty());
-      decryptor_.GenerateKeyRequest(kClearKeySystem,
-                                    kInitData, arraysize(kInitData));
+      EXPECT_TRUE(decryptor_.GenerateKeyRequest(
+          kClearKeySystem, kInitData, arraysize(kInitData)));
     }
 
     EXPECT_FALSE(current_key_system_.empty());

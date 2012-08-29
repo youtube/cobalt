@@ -42,7 +42,10 @@ class MEDIA_EXPORT Decryptor {
   virtual ~Decryptor() {}
 
   // Generates a key request for the |key_system| with |init_data| provided.
-  virtual void GenerateKeyRequest(const std::string& key_system,
+  // Returns true if generating key request succeeded, false otherwise.
+  // Note: AddKey() and CancelKeyRequest() should only be called after
+  // GenerateKeyRequest() returns true.
+  virtual bool GenerateKeyRequest(const std::string& key_system,
                                   const uint8* init_data,
                                   int init_data_length) = 0;
 
