@@ -82,6 +82,8 @@
       'type': 'none',
       'dependencies': [
         '../android_webview/lib/android_webview.gyp:libwebview',
+        '../android_webview/lib/android_webview.gyp:android_webview_apk',
+        '../android_webview/lib/android_webview.gyp:android_webview_test_apk',
       ],
     },
     {
