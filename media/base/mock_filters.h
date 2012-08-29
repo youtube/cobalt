@@ -195,7 +195,7 @@ class MockDecryptor : public Decryptor {
   MockDecryptor();
   virtual ~MockDecryptor();
 
-  MOCK_METHOD3(GenerateKeyRequest, void(const std::string& key_system,
+  MOCK_METHOD3(GenerateKeyRequest, bool(const std::string& key_system,
                                         const uint8* init_data,
                                         int init_data_length));
   MOCK_METHOD6(AddKey, void(const std::string& key_system,
