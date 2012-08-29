@@ -1021,7 +1021,9 @@ class AndroidCommands(object):
            '--throttle %d' % throttle,
            '-s %d' % seed,
            '-v ' * verbosity,
+           '--monitor-native-crashes',
+           '--kill-process-after-error',
            extra_args,
-           '%s' % event_count]
+           '%d' % event_count]
     return self.RunShellCommand(' '.join(cmd),
                                 timeout_time=event_count*throttle*1.5)

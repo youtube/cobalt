@@ -9,6 +9,7 @@ import os
 import time
 import traceback
 
+import buildbot_report
 import constants
 
 
@@ -193,3 +194,12 @@ class TestResults(object):
                                            [t.name for t in self.unknown])
     logging.critical(summary_string)
     return summary_string
+
+  def PrintAnnotation(self):
+    """Print buildbot annotations for test results."""
+    if self.timed_out:
+      buildbot_report.PrintWarning()
+    elif self.failed or self.crashed or self.overall_fail:
+      buildbot_report.PrintError()
+    else:
+      print 'Step success!'  # No annotation needed
