@@ -48,5 +48,5 @@ def main():
   return run_executable(sys.argv[1:], os.environ.copy())
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   sys.exit(main())
