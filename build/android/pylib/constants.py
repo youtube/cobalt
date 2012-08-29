@@ -35,3 +35,7 @@ TEST_SERVER_PORT_LAST = 30000
 # A file to record next valid port of test server.
 TEST_SERVER_PORT_FILE = '/tmp/test_server_port'
 TEST_SERVER_PORT_LOCKFILE = '/tmp/test_server_port.lock'
+
+# TODO(nileshagrawal): Move test data location to /sdcard
+TEST_DATA_DIR = '/data/local/tmp'
+TEST_EXECUTABLE_DIR = '/data/local/tmp'
