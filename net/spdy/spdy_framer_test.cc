@@ -1669,9 +1669,7 @@ TEST_P(SpdyFramerTest, CreateSynStreamUncompressed) {
   }
 }
 
-// TODO(agl): reenable this test once disabling SPDY compression has been
-// tested on Canary. See crbug.com/139744.
-TEST_P(SpdyFramerTest, DISABLED_CreateSynStreamCompressed) {
+TEST_P(SpdyFramerTest, CreateSynStreamCompressed) {
   SpdyFramer framer(spdy_version_);
   framer.set_enable_compression(true);
 
@@ -1859,9 +1857,7 @@ TEST_P(SpdyFramerTest, CreateSynReplyUncompressed) {
   }
 }
 
-// TODO(agl): reenable this test once disabling SPDY compression has been
-// tested on Canary. See crbug.com/139744.
-TEST_P(SpdyFramerTest, DISABLED_CreateSynReplyCompressed) {
+TEST_P(SpdyFramerTest, CreateSynReplyCompressed) {
   SpdyFramer framer(spdy_version_);
   framer.set_enable_compression(true);
 
@@ -2253,9 +2249,7 @@ TEST_P(SpdyFramerTest, CreateHeadersUncompressed) {
   }
 }
 
-// TODO(agl): reenable this test once disabling SPDY compression has been
-// tested on Canary. See crbug.com/139744.
-TEST_P(SpdyFramerTest, DISABLED_CreateHeadersCompressed) {
+TEST_P(SpdyFramerTest, CreateHeadersCompressed) {
   SpdyFramer framer(spdy_version_);
   framer.set_enable_compression(true);
 
