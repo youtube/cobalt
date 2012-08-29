@@ -103,6 +103,13 @@ CERTCertificate* CreateCertificate(
   CERTValidity* validity = CERT_CreateValidity(
       crypto::BaseTimeToPRTime(not_valid_before),
       crypto::BaseTimeToPRTime(not_valid_after));
+  if (!validity) {
+    PRErrorCode prerr = PR_GetError();
+    LOG(ERROR) << "Failed to create certificate validity object: " << prerr;
+    CERT_DestroyName(subject_name);
+    CERT_DestroyCertificateRequest(cert_request);
+    return NULL;
+  }
   CERTCertificate* cert = CERT_CreateCertificate(serial_number, subject_name,
                                                  validity, cert_request);
   if (!cert) {
