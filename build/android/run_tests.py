@@ -8,17 +8,17 @@
 
 1. Copy over test binary to /data/local on device.
 2. Resources: chrome/unit_tests requires resources (chrome.pak and en-US.pak)
-   to be deployed to the device (in /data/local/tmp).
+   to be deployed to the device (in TEST_DATA_DIR).
 3. Environment:
 3.1. chrome/unit_tests requires (via chrome_paths.cc) a directory named:
-     /data/local/tmp/chrome/test/data
+     TEST_DATA_DIR + /chrome/test/data
 3.2. page_cycler_tests have following requirements,
 3.2.1  the following data on host:
        <chrome_src_dir>/tools/page_cycler
        <chrome_src_dir>/data/page_cycler
 3.2.2. two data directories to store above test data on device named:
-       /data/local/tmp/tools/ (for database perf test)
-       /data/local/tmp/data/ (for other perf tests)
+       TEST_DATA_DIR + /tools/ (for database perf test)
+       TEST_DATA_DIR + /data/ (for other perf tests)
 3.2.3. a http server to serve http perf tests.
        The http root is host's <chrome_src_dir>/data/page_cycler/, port 8000.
 3.2.4  a tool named forwarder is also required to run on device to

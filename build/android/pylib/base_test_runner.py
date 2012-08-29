@@ -10,6 +10,7 @@ import tempfile
 import time
 
 import android_commands
+import constants
 from chrome_test_server_spawner import SpawningServer
 import constants
 from flag_changer import FlagChanger
@@ -21,7 +22,8 @@ from valgrind_tools import CreateTool
 
 # A file on device to store ports of net test server. The format of the file is
 # test-spawner-server-port:test-server-port
-NET_TEST_SERVER_PORT_INFO_FILE = '/data/local/tmp/net-test-server-ports'
+NET_TEST_SERVER_PORT_INFO_FILE = \
+  constants.TEST_DATA_DIR + '/net-test-server-ports'
 
 
 class BaseTestRunner(object):
@@ -114,10 +116,10 @@ class BaseTestRunner(object):
           os.path.join(dest_dir, p))
 
   def LinkSdCardPathsToTempDir(self, paths):
-    """Link |paths| which are under sdcard to /data/local/tmp.
+    """Link |paths| which are under sdcard to constants.TEST_DATA_DIR.
 
     For example, the test data '/sdcard/my_data' will be linked to
-    '/data/local/tmp/my_data'.
+    'TEST_DATA_DIR/my_data'.
 
     Args:
       paths: A list of files and directories relative to /sdcard.
@@ -128,7 +130,7 @@ class BaseTestRunner(object):
       assert link_name, 'Linked paths must be in a subdir of /sdcard/.'
       link_name = link_name.split('/')[0]
       if link_name not in links:
-        mapped_device_path = '/data/local/tmp/' + link_name
+        mapped_device_path = constants.TEST_DATA_DIR + '/' + link_name
         # Unlink the mapped_device_path at first in case it was mapped to
         # a wrong path. Add option '-r' becuase the old path could be a dir.
         self.adb.RunShellCommand('rm -r %s' %  mapped_device_path)
