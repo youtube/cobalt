@@ -65,7 +65,7 @@ def FilterTests(test_names, pattern_list, inclusive):
 class TestRunner(BaseTestRunner):
   """Responsible for running a series of tests connected to a single device."""
 
-  _DEVICE_DATA_DIR = '/data/local/tmp/chrome/test/data'
+  _DEVICE_DATA_DIR = constants.TEST_DATA_DIR + '/chrome/test/data'
   _EMMA_JAR = os.path.join(os.environ.get('ANDROID_BUILD_TOP', ''),
                            'external/emma/lib/emma.jar')
   _COVERAGE_MERGED_FILENAME = 'unittest_coverage.es'

@@ -8,6 +8,7 @@ import re
 import sys
 
 import cmd_helper
+import constants
 import logging
 import shutil
 import tempfile
@@ -47,8 +48,8 @@ class TestPackageApk(TestPackage):
     command_line_file.write(self.test_suite_basename + ' ' + options)
     command_line_file.flush()
     self.adb.PushIfNeeded(command_line_file.name,
-                          '/data/local/tmp/' +
-                          'chrome-native-tests-command-line')
+                          constants.TEST_DATA_DIR +
+                          '/chrome-native-tests-command-line')
 
   def _GetGTestReturnCode(self):
     return None
