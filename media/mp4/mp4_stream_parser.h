@@ -64,6 +64,9 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool PrepareAVCBuffer(const AVCDecoderConfigurationRecord& avc_config,
                         std::vector<uint8>* frame_buf,
                         std::vector<SubsampleEntry>* subsamples) const;
+  bool PrepareAACBuffer(const AAC& aac_config,
+                        std::vector<uint8>* frame_buf,
+                        std::vector<SubsampleEntry>* subsamples) const;
   bool EnqueueSample(BufferQueue* audio_buffers,
                      BufferQueue* video_buffers,
                      bool* err);

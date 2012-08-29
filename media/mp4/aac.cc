@@ -156,7 +156,7 @@ ChannelLayout AAC::channel_layout() const {
 }
 
 bool AAC::ConvertEsdsToADTS(std::vector<uint8>* buffer) const {
-  size_t size = buffer->size() + 7;
+  size_t size = buffer->size() + kADTSHeaderSize;
 
   DCHECK(profile_ >= 1 && profile_ <= 4 && frequency_index_ != 0xf &&
          channel_config_ <= 7);
@@ -167,7 +167,7 @@ bool AAC::ConvertEsdsToADTS(std::vector<uint8>* buffer) const {
 
   std::vector<uint8>& adts = *buffer;
 
-  adts.insert(buffer->begin(), 7, 0);
+  adts.insert(buffer->begin(), kADTSHeaderSize, 0);
   adts[0] = 0xff;
   adts[1] = 0xf1;
   adts[2] = ((profile_ - 1) << 6) + (frequency_index_ << 2) +
