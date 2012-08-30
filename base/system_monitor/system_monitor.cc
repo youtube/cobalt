@@ -22,6 +22,9 @@ static SystemMonitor* g_system_monitor = NULL;
 static int kDelayedBatteryCheckMs = 10 * 1000;
 #endif  // defined(ENABLE_BATTERY_MONITORING)
 
+SystemMonitor::RemovableStorageInfo::RemovableStorageInfo() {
+}
+
 SystemMonitor::RemovableStorageInfo::RemovableStorageInfo(
     const std::string& id,
     const string16& device_name,
