@@ -9,26 +9,21 @@
     '../native_client/build/untrusted.gypi',
   ],
   'target_defaults': {
-    'variables': {
-      'conditions': [
-        ['target_arch=="arm"', {
+    'conditions': [
+      ['target_arch=="arm"', {
+        'variables': {
           'clang': 1,
-          'defines': [
-            # Needed by build/build_config.h processor architecture detection.
-            '__ARMEL__',
-            # Needed by base/third_party/nspr/prtime.cc.
-            '__arm__',
-            # Disable ValGrind. The assembly code it generates causes the build
-            # to fail.
-            'NVALGRIND',
-          ],
-          'compile_flags': [
-             # Disable C++ 11 extensions. Chrome's OVERRIDE macro will generate
-             # warnings that cause the build to fail.
-             '-Wno-c++11-extensions',
-          ],
-        }],
-      ],
-    },
+        },
+        'defines': [
+          # Needed by build/build_config.h processor architecture detection.
+          '__ARMEL__',
+          # Needed by base/third_party/nspr/prtime.cc.
+          '__arm__',
+          # Disable ValGrind. The assembly code it generates causes the build
+          # to fail.
+          'NVALGRIND',
+        ],
+      }],
+    ],
   },
 }
