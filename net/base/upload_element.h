@@ -122,7 +122,7 @@ class NET_EXPORT UploadElement {
 
   // The byte offset from the beginning of the element data. Used to track
   // the current position when reading data.
-  size_t offset_;
+  uint64 offset_;
 
   // The stream of the element data, if this element is of TYPE_FILE.
   FileStream* file_stream_;
