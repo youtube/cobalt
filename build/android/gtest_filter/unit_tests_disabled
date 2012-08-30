@@ -141,7 +141,3 @@ AutofillManagerTest.UpdatePasswordGenerationState
 
 # crbug.com/144227
 ExtensionIconImageTest.*
-
-# crbug.com/144161
-PasswordStoreDefaultTest.NonASCIIData
-PasswordStoreTest.IgnoreOldWwwGoogleLogins
