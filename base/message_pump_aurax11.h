@@ -12,6 +12,8 @@
 #include "base/message_pump_observer.h"
 
 #include <bitset>
+#include <map>
+#include <vector>
 
 // It would be nice to include the X11 headers here so that we use Window
 // instead of its typedef of unsigned long, but we can't because everything in
@@ -25,7 +27,12 @@ typedef struct _XDisplay Display;
 namespace base {
 
 // This class implements a message-pump for dispatching X events.
-class BASE_EXPORT MessagePumpAuraX11 : public MessagePumpGlib {
+//
+// If there's a current dispatcher given through RunWithDispatcher(), that
+// dispatcher receives events. Otherwise, we route to messages to dispatchers
+// who have subscribed to messages from a specific X11 window.
+class BASE_EXPORT MessagePumpAuraX11 : public MessagePumpGlib,
+                                       public MessagePumpDispatcher {
  public:
   MessagePumpAuraX11();
 
@@ -35,11 +42,20 @@ class BASE_EXPORT MessagePumpAuraX11 : public MessagePumpGlib {
   // Returns true if the system supports XINPUT2.
   static bool HasXInput2();
 
-  // Sets the default dispatcher to process native events.
-  static void SetDefaultDispatcher(MessagePumpDispatcher* dispatcher);
-
   // Returns the UI message pump.
   static MessagePumpAuraX11* Current();
+
+  // Adds/Removes |dispatcher| for the |xid|. This will route all messages from
+  // the window |xid| to |dispatcher.
+  void AddDispatcherForWindow(MessagePumpDispatcher* dispatcher,
+                              unsigned long xid);
+  void RemoveDispatcherForWindow(unsigned long xid);
+
+  // Adds/Removes |dispatcher| to receive all events sent to the X root
+  // window. A root window can have multiple dispatchers, and events on root
+  // windows will be dispatched to all.
+  void AddDispatcherForRootWindow(MessagePumpDispatcher* dispatcher);
+  void RemoveDispatcherForRootWindow(MessagePumpDispatcher* dispatcher);
 
   // Internal function. Called by the glib source dispatch function. Processes
   // all available X events.
@@ -54,12 +70,15 @@ class BASE_EXPORT MessagePumpAuraX11 : public MessagePumpGlib {
   // dropped on the floor. This method exists because mapping a window is
   // asynchronous (and we receive an XEvent when mapped), while there are also
   // functions which require a mapped window.
-  void BlockUntilWindowMapped(unsigned long window);
+  void BlockUntilWindowMapped(unsigned long xid);
 
  protected:
   virtual ~MessagePumpAuraX11();
 
  private:
+  typedef std::map<unsigned long, MessagePumpDispatcher*> DispatchersMap;
+  typedef std::vector<MessagePumpDispatcher*> Dispatchers;
+
   // Initializes the glib event source for X.
   void InitXSource();
 
@@ -73,11 +92,23 @@ class BASE_EXPORT MessagePumpAuraX11 : public MessagePumpGlib {
   bool WillProcessXEvent(XEvent* xevent);
   void DidProcessXEvent(XEvent* xevent);
 
+  // Returns the Dispatcher based on the event's target window.
+  MessagePumpDispatcher* GetDispatcherForXEvent(
+      const base::NativeEvent& xev) const;
+
+  // Overridden from MessagePumpDispatcher:
+  virtual bool Dispatch(const base::NativeEvent& event) OVERRIDE;
+
   // The event source for X events.
   GSource* x_source_;
 
   // The poll attached to |x_source_|.
   scoped_ptr<GPollFD> x_poll_;
+
+  DispatchersMap dispatchers_;
+  Dispatchers root_window_dispatchers_;
+
+  unsigned long x_root_window_;
 
   DISALLOW_COPY_AND_ASSIGN(MessagePumpAuraX11);
 };
