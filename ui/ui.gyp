@@ -476,6 +476,7 @@
             ['include', 'gfx/point'],
             ['include', 'gfx/rect'],
             ['include', 'gfx/size'],
+            ['include', 'gfx/skia_util.cc'],
           ],
         }, { # OS != "lb_shell"
           'dependencies': [
