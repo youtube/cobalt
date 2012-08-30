@@ -114,7 +114,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   void Close(int pipeline_id,
              bool not_reusable);
 
-  uint64 GetUploadProgress(int pipeline_id) const;
+  UploadProgress GetUploadProgress(int pipeline_id) const;
 
   HttpResponseInfo* GetResponseInfo(int pipeline_id);
 

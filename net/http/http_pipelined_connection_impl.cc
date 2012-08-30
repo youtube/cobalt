@@ -615,7 +615,8 @@ int HttpPipelinedConnectionImpl::ReadResponseBody(
       buf, buf_len, callback);
 }
 
-uint64 HttpPipelinedConnectionImpl::GetUploadProgress(int pipeline_id) const {
+UploadProgress HttpPipelinedConnectionImpl::GetUploadProgress(
+    int pipeline_id) const {
   CHECK(ContainsKey(stream_info_map_, pipeline_id));
   CHECK(stream_info_map_.find(pipeline_id)->second.parser.get());
   return stream_info_map_.find(pipeline_id)->second.parser->GetUploadProgress();

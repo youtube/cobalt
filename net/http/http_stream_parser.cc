@@ -877,11 +877,11 @@ void HttpStreamParser::CalculateResponseBodySize() {
   }
 }
 
-uint64 HttpStreamParser::GetUploadProgress() const {
+UploadProgress HttpStreamParser::GetUploadProgress() const {
   if (!request_body_.get())
-    return 0;
+    return UploadProgress();
 
-  return request_body_->position();
+  return UploadProgress(request_body_->position(), request_body_->size());
 }
 
 HttpResponseInfo* HttpStreamParser::GetResponseInfo() {
