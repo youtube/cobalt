@@ -233,8 +233,8 @@ void URLRequestFtpJob::CancelAuth() {
                  weak_factory_.GetWeakPtr(), OK));
 }
 
-uint64 URLRequestFtpJob::GetUploadProgress() const {
-  return 0;
+UploadProgress URLRequestFtpJob::GetUploadProgress() const {
+  return UploadProgress();
 }
 
 bool URLRequestFtpJob::ReadRawData(IOBuffer* buf,

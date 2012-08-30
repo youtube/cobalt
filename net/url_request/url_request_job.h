@@ -17,6 +17,7 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
+#include "net/base/upload_progress.h"
 #include "net/cookies/canonical_cookie.h"
 
 namespace net {
@@ -99,7 +100,7 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
   virtual LoadState GetLoadState() const;
 
   // Called to get the upload progress in bytes.
-  virtual uint64 GetUploadProgress() const;
+  virtual UploadProgress GetUploadProgress() const;
 
   // Called to fetch the charset for this request.  Only makes sense for some
   // types of requests. Returns true on success.  Calling this on a type that
