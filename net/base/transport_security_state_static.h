@@ -438,6 +438,7 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {13, false, "\010intercom\002io", true, kNoPins, DOMAIN_NOT_PINNED },
   {17, false, "\003api\010intercom\002io", true, kNoPins, DOMAIN_NOT_PINNED },
   {17, false, "\003www\010intercom\002io", true, kNoPins, DOMAIN_NOT_PINNED },
+  {17, true, "\010fatzebra\003com\002au", true, kNoPins, DOMAIN_NOT_PINNED },
 };
 static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
