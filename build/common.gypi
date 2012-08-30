@@ -1199,11 +1199,6 @@
 
       ['asan==1', {
         'clang%': 1,
-        # Do not use Chrome plugins for Clang. The Clang version in
-        # third_party/asan may be different from the default one.
-        # TODO(glider): this isn't true anymore, need to check if we can use the
-        # plugins now.
-        'clang_use_chrome_plugins%': 0,
       }],
       ['asan==1 and OS=="mac"', {
         # See http://crbug.com/145503.
@@ -2914,18 +2909,6 @@
                 'xcode_settings': {
                   'OTHER_LDFLAGS': [
                     '-faddress-sanitizer',
-                    # The symbols below are referenced in the ASan runtime
-                    # library (compiled on OS X 10.6), but may be unavailable
-                    # on the prior OS X versions. Because Chromium is
-                    # currently targeting 10.5.0, we need to explicitly mark
-                    # these symbols as dynamic_lookup.
-                    '-Wl,-U,_malloc_default_purgeable_zone',
-                    '-Wl,-U,_malloc_zone_memalign',
-                    '-Wl,-U,_dispatch_sync_f',
-                    '-Wl,-U,_dispatch_async_f',
-                    '-Wl,-U,_dispatch_barrier_async_f',
-                    '-Wl,-U,_dispatch_group_async_f',
-                    '-Wl,-U,_dispatch_after_f',
                   ],
                 },
               }],
