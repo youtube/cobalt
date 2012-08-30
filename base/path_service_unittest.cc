@@ -32,10 +32,12 @@ bool ReturnsValidPath(int dir_type) {
 }
 
 #if defined(OS_WIN)
-// Function to test DIR_LOCAL_APP_DATA_LOW on Windows XP. Make sure it fails.
+// Function to test any directory keys that are not supported on some versions
+// of Windows. Checks that the function fails and that the returned path is
+// empty.
 bool ReturnsInvalidPath(int dir_type) {
   FilePath path;
-  bool result = PathService::Get(base::DIR_LOCAL_APP_DATA_LOW, &path);
+  bool result = PathService::Get(dir_type, &path);
   return !result && path.empty();
 }
 #endif
@@ -60,14 +62,24 @@ TEST_F(PathServiceTest, Get) {
   }
 #if defined(OS_WIN)
   for (int key = base::PATH_WIN_START + 1; key < base::PATH_WIN_END; ++key) {
-    if (key == base::DIR_LOCAL_APP_DATA_LOW &&
-        base::win::GetVersion() < base::win::VERSION_VISTA) {
-      // DIR_LOCAL_APP_DATA_LOW is not supported prior Vista and is expected to
-      // fail.
-      EXPECT_TRUE(ReturnsInvalidPath(key)) << key;
-    } else {
-      EXPECT_TRUE(ReturnsValidPath(key)) << key;
+    bool valid = true;
+    switch(key) {
+      case base::DIR_LOCAL_APP_DATA_LOW:
+        // DIR_LOCAL_APP_DATA_LOW is not supported prior Vista and is expected
+        // to fail.
+        valid = base::win::GetVersion() >= base::win::VERSION_VISTA;
+        break;
+      case base::DIR_APP_SHORTCUTS:
+        // DIR_APP_SHORTCUTS is not supported prior Windows 8 and is expected to
+        // fail.
+        valid = base::win::GetVersion() >= base::win::VERSION_WIN8;
+        break;
     }
+
+    if (valid)
+      EXPECT_TRUE(ReturnsValidPath(key)) << key;
+    else
+      EXPECT_TRUE(ReturnsInvalidPath(key)) << key;
   }
 #elif defined(OS_MACOSX)
   for (int key = base::PATH_MAC_START + 1; key < base::PATH_MAC_END; ++key) {
