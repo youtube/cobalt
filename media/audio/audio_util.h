@@ -67,19 +67,6 @@ MEDIA_EXPORT bool FoldChannels(void* buf,
                                int bytes_per_sample,
                                float volume);
 
-// DeinterleaveAudioChannel() takes interleaved audio buffer |source|
-// of the given |sample_fmt| and |number_of_channels| and extracts
-// |number_of_frames| data for the given |channel_index| and
-// puts it in the floating point |destination|.
-// It returns |true| on success, or |false| if the |sample_fmt| is
-// not recognized.
-MEDIA_EXPORT bool DeinterleaveAudioChannel(void* source,
-                                           float* destination,
-                                           int channels,
-                                           int channel_index,
-                                           int bytes_per_sample,
-                                           size_t number_of_frames);
-
 // Returns the default audio output hardware sample-rate.
 MEDIA_EXPORT int GetAudioHardwareSampleRate();
 

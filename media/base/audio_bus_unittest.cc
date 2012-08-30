@@ -14,7 +14,7 @@
 static const int kChannels = 6;
 static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_5_1;
 // Use a buffer size which is intentionally not a multiple of kChannelAlignment.
-static const int kFrameCount = media::AudioBus::kChannelAlignment * 128 - 1;
+static const int kFrameCount = media::AudioBus::kChannelAlignment * 32 - 1;
 static const int kSampleRate = 48000;
 
 namespace media {
@@ -35,7 +35,7 @@ class AudioBusTest : public testing::Test {
 
   void VerifyValue(const float data[], int size, float value) {
     for (int i = 0; i < size; ++i)
-      ASSERT_FLOAT_EQ(value, data[i]);
+      ASSERT_FLOAT_EQ(value, data[i]) << "i=" << i;
   }
 
   // Verify values for each channel in |result| against |expected|.
@@ -190,19 +190,42 @@ TEST_F(AudioBusTest, CopyTo) {
 TEST_F(AudioBusTest, Zero) {
   scoped_ptr<AudioBus> bus = AudioBus::Create(kChannels, kFrameCount);
 
-  // First fill the bus with dummy data.
+  // Fill the bus with dummy data.
   for (int i = 0; i < bus->channels(); ++i)
     std::fill(bus->channel(i), bus->channel(i) + bus->frames(), i + 1);
 
-  // Zero half the frames of each channel.
+  // Zero first half the frames of each channel.
   bus->ZeroFrames(kFrameCount / 2);
-  for (int i = 0; i < bus->channels(); ++i)
+  for (int i = 0; i < bus->channels(); ++i) {
+    SCOPED_TRACE("First Half Zero");
     VerifyValue(bus->channel(i), kFrameCount / 2, 0);
+    VerifyValue(bus->channel(i) + kFrameCount / 2,
+                kFrameCount - kFrameCount / 2, i + 1);
+  }
+
+  // Fill the bus with dummy data.
+  for (int i = 0; i < bus->channels(); ++i)
+    std::fill(bus->channel(i), bus->channel(i) + bus->frames(), i + 1);
+
+  // Zero the last half of the frames.
+  bus->ZeroFramesPartial(kFrameCount / 2, kFrameCount - kFrameCount / 2);
+  for (int i = 0; i < bus->channels(); ++i) {
+    SCOPED_TRACE("Last Half Zero");
+    VerifyValue(bus->channel(i) + kFrameCount / 2,
+                kFrameCount - kFrameCount / 2, 0);
+    VerifyValue(bus->channel(i), kFrameCount / 2, i + 1);
+  }
+
+  // Fill the bus with dummy data.
+  for (int i = 0; i < bus->channels(); ++i)
+    std::fill(bus->channel(i), bus->channel(i) + bus->frames(), i + 1);
 
   // Zero all the frames of each channel.
   bus->Zero();
-  for (int i = 0; i < bus->channels(); ++i)
+  for (int i = 0; i < bus->channels(); ++i) {
+    SCOPED_TRACE("All Zero");
     VerifyValue(bus->channel(i), bus->frames(), 0);
+  }
 }
 
 // Each test vector represents two channels of data in the following arbitrary
@@ -233,22 +256,50 @@ TEST_F(AudioBusTest, FromInterleaved) {
   }
   {
     SCOPED_TRACE("uint8");
+    bus->Zero();
     bus->FromInterleaved(
         kTestVectorUint8, kTestVectorFrames, sizeof(*kTestVectorUint8));
     VerifyBus(bus.get(), expected.get());
   }
   {
     SCOPED_TRACE("int16");
+    bus->Zero();
     bus->FromInterleaved(
         kTestVectorInt16, kTestVectorFrames, sizeof(*kTestVectorInt16));
     VerifyBus(bus.get(), expected.get());
   }
   {
     SCOPED_TRACE("int32");
+    bus->Zero();
     bus->FromInterleaved(
         kTestVectorInt32, kTestVectorFrames, sizeof(*kTestVectorInt32));
     VerifyBus(bus.get(), expected.get());
   }
+}
+
+// Verify FromInterleavedPartial() deinterleaves audio correctly.
+TEST_F(AudioBusTest, FromInterleavedPartial) {
+  // Only deinterleave the middle two frames in each channel.
+  static const int kPartialStart = 1;
+  static const int kPartialFrames = 2;
+  ASSERT_LE(kPartialStart + kPartialFrames, kTestVectorFrames);
+
+  scoped_ptr<AudioBus> bus = AudioBus::Create(
+      kTestVectorChannels, kTestVectorFrames);
+  scoped_ptr<AudioBus> expected = AudioBus::Create(
+      kTestVectorChannels, kTestVectorFrames);
+  expected->Zero();
+  for (int ch = 0; ch < kTestVectorChannels; ++ch) {
+    memcpy(expected->channel(ch) + kPartialStart,
+           kTestVectorResult[ch] + kPartialStart,
+           kPartialFrames * sizeof(*expected->channel(ch)));
+  }
+
+  bus->Zero();
+  bus->FromInterleavedPartial(
+      kTestVectorInt32 + kPartialStart * bus->channels(), kPartialStart,
+      kPartialFrames, sizeof(*kTestVectorInt32));
+  VerifyBus(bus.get(), expected.get());
 }
 
 // Verify ToInterleaved() interleaves audio in suported formats correctly.
