@@ -944,7 +944,7 @@ void URLFetcherCore::DisownFile() {
 void URLFetcherCore::InformDelegateUploadProgress() {
   DCHECK(network_task_runner_->BelongsToCurrentThread());
   if (request_.get()) {
-    int64 current = request_->GetUploadProgress();
+    int64 current = request_->GetUploadProgress().position();
     if (current_upload_bytes_ != current) {
       current_upload_bytes_ = current;
       int64 total = -1;
