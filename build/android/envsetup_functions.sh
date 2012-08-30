@@ -92,31 +92,47 @@ common_vars_defines() {
   # and V8 mksnapshot.
   case "${TARGET_PRODUCT}" in
     "passion"|"soju"|"sojua"|"sojus"|"yakju"|"mysid"|"nakasi")
-      DEFINES+=" target_arch=arm"
       DEFINES+=" arm_neon=1 armv7=1 arm_thumb=1"
       DEFINES+=" ${ORDER_DEFINES}"
+      TARGET_ARCH="arm"
       ;;
     "trygon"|"tervigon")
-      DEFINES+=" target_arch=arm"
       DEFINES+=" arm_neon=0 armv7=1 arm_thumb=1 arm_fpu=vfpv3-d16"
       DEFINES+=" ${ORDER_DEFINES}"
+      TARGET_ARCH="arm"
       ;;
     "full")
-      DEFINES+=" target_arch=arm"
       DEFINES+=" arm_neon=0 armv7=0 arm_thumb=1 arm_fpu=vfp"
+      TARGET_ARCH="arm"
       ;;
     *x86*)
     # TODO(tedbo): The ia32 build fails on ffmpeg, so we disable it here.
-      DEFINES+=" target_arch=ia32 use_libffmpeg=0"
+      DEFINES+=" use_libffmpeg=0"
 
       host_arch=$(uname -m | sed -e \
         's/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/')
       DEFINES+=" host_arch=${host_arch}"
+      TARGET_ARCH="x86"
       ;;
     *)
       echo "TARGET_PRODUCT: ${TARGET_PRODUCT} is not supported." >& 2
       return 1
   esac
+
+  case "${TARGET_ARCH}" in
+    "arm")
+      DEFINES+=" target_arch=arm"
+      ;;
+    "x86")
+      DEFINES+=" target_arch=ia32"
+      ;;
+    *)
+      echo "TARGET_ARCH: ${TARGET_ARCH} is not supported." >& 2
+      return 1
+  esac
+
+  DEFINES+=" android_gdbserver=${ANDROID_NDK_ROOT}/prebuilt/\
+android-${TARGET_ARCH}/gdbserver/gdbserver"
 }
 
 
