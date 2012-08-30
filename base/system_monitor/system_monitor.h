@@ -59,6 +59,7 @@ class BASE_EXPORT SystemMonitor {
   };
 
   struct BASE_EXPORT RemovableStorageInfo {
+    RemovableStorageInfo();
     RemovableStorageInfo(const std::string& id,
                          const string16& device_name,
                          const FilePath::StringType& device_location);
