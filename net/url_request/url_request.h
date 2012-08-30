@@ -23,6 +23,7 @@
 #include "net/base/net_log.h"
 #include "net/base/network_delegate.h"
 #include "net/base/request_priority.h"
+#include "net/base/upload_progress.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_info.h"
@@ -455,7 +456,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   }
 
   // Returns the current upload progress in bytes.
-  uint64 GetUploadProgress() const;
+  UploadProgress GetUploadProgress() const;
 
   // Get response header(s) by ID or name.  These methods may only be called
   // once the delegate's OnResponseStarted method has been called.  Headers
@@ -785,7 +786,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
 
   // Cached value for use after we've orphaned the job handling the
   // first transaction in a request involving redirects.
-  uint64 final_upload_progress_;
+  UploadProgress final_upload_progress_;
 
   // The priority level for this request.  Objects like ClientSocketPool use
   // this to determine which URLRequest to allocate sockets to first.
