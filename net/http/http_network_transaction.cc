@@ -374,9 +374,9 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
   }
 }
 
-uint64 HttpNetworkTransaction::GetUploadProgress() const {
+UploadProgress HttpNetworkTransaction::GetUploadProgress() const {
   if (!stream_.get())
-    return 0;
+    return UploadProgress();
 
   return stream_->GetUploadProgress();
 }

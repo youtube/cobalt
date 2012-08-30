@@ -62,7 +62,7 @@ int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
                               response, callback);
 }
 
-uint64 HttpBasicStream::GetUploadProgress() const {
+UploadProgress HttpBasicStream::GetUploadProgress() const {
   return parser_->GetUploadProgress();
 }
 

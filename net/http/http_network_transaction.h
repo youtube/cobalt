@@ -60,7 +60,7 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   virtual void DoneReading() OVERRIDE {}
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
   virtual LoadState GetLoadState() const OVERRIDE;
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const OVERRIDE;
 
   // HttpStreamRequest::Delegate methods:
   virtual void OnStreamReady(const SSLConfig& used_ssl_config,

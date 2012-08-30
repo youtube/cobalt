@@ -47,7 +47,7 @@ class HttpBasicStream : public HttpStream {
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE;
 
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const OVERRIDE;
 
   virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE;
 
