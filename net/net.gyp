@@ -22,6 +22,12 @@
       }, {
         'posix_avoid_mmap%': 0,
       }],
+      ['OS=="ios"', {
+        # Websockets and socket stream are not used on iOS.
+        'enable_websockets%': 0,
+      }, {
+        'enable_websockets%': 1,
+      }],
     ],
   },
   'includes': [
@@ -1000,6 +1006,16 @@
               'base/cert_verify_proc_nss.h',
             ],
         }],
+        [ 'enable_websockets != 1', {
+            'sources/': [
+              ['exclude', '^socket_stream/'],
+              ['exclude', '^websockets/'],
+            ],
+            'sources!': [
+              'spdy/spdy_websocket_stream.cc',
+              'spdy/spdy_websocket_stream.h',
+            ],
+        }],
         [ 'OS == "win"', {
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
@@ -1442,6 +1458,13 @@
             ],
           },
         ],
+        [ 'enable_websockets != 1', {
+            'sources/': [
+              ['exclude', '^socket_stream/'],
+              ['exclude', '^websockets/'],
+              ['exclude', '^spdy/spdy_websocket_stream_spdy._unittest\\.cc$'],
+            ],
+        }],
         [ 'OS == "win"', {
             'sources!': [
               'dns/dns_config_service_posix_unittest.cc',
