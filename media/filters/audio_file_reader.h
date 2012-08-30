@@ -8,7 +8,6 @@
 #include <vector>
 #include "media/filters/ffmpeg_glue.h"
 
-struct AVCodec;
 struct AVCodecContext;
 struct AVFormatContext;
 
@@ -16,6 +15,7 @@ namespace base { class TimeDelta; }
 
 namespace media {
 
+class AudioBus;
 class FFmpegURLProtocol;
 
 class MEDIA_EXPORT AudioFileReader {
@@ -32,12 +32,13 @@ class MEDIA_EXPORT AudioFileReader {
   bool Open();
   void Close();
 
-  // After a call to Open(), reads |number_of_frames| into |audio_data|.
+  // After a call to Open(), attempts to fully fill |audio_bus| with decoded
+  // audio data.  Any unfilled frames will be zeroed out.
   // |audio_data| must be of the same size as channels().
   // The audio data will be decoded as floating-point linear PCM with
   // a nominal range of -1.0 -> +1.0.
   // Returns |true| on success.
-  bool Read(const std::vector<float*>& audio_data, size_t number_of_frames);
+  bool Read(AudioBus* audio_bus);
 
   // These methods can be called once Open() has been called.
   int channels() const;
@@ -49,7 +50,6 @@ class MEDIA_EXPORT AudioFileReader {
   FFmpegURLProtocol* protocol_;
   AVFormatContext* format_context_;
   AVCodecContext* codec_context_;
-  AVCodec* codec_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioFileReader);
 };

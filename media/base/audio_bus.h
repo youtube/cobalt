@@ -49,9 +49,17 @@ class MEDIA_EXPORT AudioBus {
   // data.  Expects interleaving to be [ch0, ch1, ..., chN, ch0, ch1, ...] with
   // |bytes_per_sample| per value.  Values are scaled and bias corrected during
   // conversion.  ToInterleaved() will also clip values to format range.
-  // Handles uint8, int16, and int32 currently.
+  // Handles uint8, int16, and int32 currently.  FromInterleaved() will zero out
+  // any unfilled frames when |frames| is less than frames().
   void FromInterleaved(const void* source, int frames, int bytes_per_sample);
   void ToInterleaved(int frames, int bytes_per_sample, void* dest) const;
+
+  // Similar to FromInterleaved() above, but meant for streaming sources.  Does
+  // not zero out remaining frames, the caller is responsible for doing so using
+  // ZeroFramesPartial().  Frames are deinterleaved from the start of |source|
+  // to channel(x)[start_frame].
+  void FromInterleavedPartial(const void* source, int start_frame, int frames,
+                              int bytes_per_sample);
 
   // Helper method for copying channel data from one AudioBus to another.  Both
   // AudioBus object must have the same frames() and channels().
@@ -68,6 +76,7 @@ class MEDIA_EXPORT AudioBus {
   // Helper method for zeroing out all channels of audio data.
   void Zero();
   void ZeroFrames(int frames);
+  void ZeroFramesPartial(int start_frame, int frames);
 
  private:
   friend class scoped_ptr<AudioBus>;
