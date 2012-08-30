@@ -62,7 +62,7 @@ uint64 UploadElement::GetContentLength() {
 
   int64 length = 0;
   if (!file_util::GetFileSize(file_path_, &length))
-      return 0;
+    return 0;
 
   if (file_range_offset_ >= static_cast<uint64>(length))
     return 0;  // range is beyond eof
