@@ -5,6 +5,7 @@
 #ifndef BASE_MESSAGE_PUMP_GLIB_H_
 #define BASE_MESSAGE_PUMP_GLIB_H_
 
+#include "base/base_export.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
@@ -31,7 +32,7 @@ class MessagePumpDispatcher;
 
 // This class implements a base MessagePump needed for TYPE_UI MessageLoops on
 // platforms using GLib.
-class MessagePumpGlib : public MessagePump {
+class BASE_EXPORT MessagePumpGlib : public MessagePump {
  public:
   MessagePumpGlib();
 
