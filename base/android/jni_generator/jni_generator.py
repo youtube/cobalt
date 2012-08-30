@@ -161,7 +161,7 @@ def JavaParamToJni(param):
       'Lorg/chromium/android_webview/AwWebContentsDelegate',
       'Lorg/chromium/base/SystemMessageHandler',
       'Lorg/chromium/chrome/browser/ChromeWebContentsDelegateAndroid',
-      'Lorg/chromium/chrome/browser/JSModalDialog',
+      'Lorg/chromium/chrome/browser/JavascriptAppModalDialog',
       'Lorg/chromium/chrome/browser/ProcessUtils',
       'Lorg/chromium/chrome/browser/SelectFileDialog',
       'Lorg/chromium/chrome/browser/component/web_contents_delegate_android/WebContentsDelegateAndroid',
