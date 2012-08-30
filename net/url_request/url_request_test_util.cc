@@ -67,8 +67,12 @@ void TestURLRequestContext::Init() {
   if (!cert_verifier())
     context_storage_.set_cert_verifier(net::CertVerifier::CreateDefault());
   if (!ftp_transaction_factory()) {
+#if !defined(DISABLE_FTP_SUPPORT)
     context_storage_.set_ftp_transaction_factory(
         new net::FtpNetworkLayer(host_resolver()));
+#else
+    context_storage_.set_ftp_transaction_factory(NULL);
+#endif  // !defined(DISABLE_FTP_SUPPORT)
   }
   if (!ssl_config_service())
     context_storage_.set_ssl_config_service(new net::SSLConfigServiceDefaults);

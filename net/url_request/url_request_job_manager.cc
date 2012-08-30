@@ -37,7 +37,9 @@ static const SchemeToFactory kBuiltinFactories[] = {
   { "http", URLRequestHttpJob::Factory },
   { "https", URLRequestHttpJob::Factory },
   { "file", URLRequestFileJob::Factory },
+#if !defined(DISABLE_FTP_SUPPORT)
   { "ftp", URLRequestFtpJob::Factory },
+#endif
   { "about", URLRequestAboutJob::Factory },
   { "data", URLRequestDataJob::Factory },
 };

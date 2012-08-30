@@ -160,7 +160,13 @@ class NET_EXPORT URLRequestContext
   }
 
   // Gets the FTP authentication cache for this context.
-  FtpAuthCache* ftp_auth_cache() const { return ftp_auth_cache_.get(); }
+  FtpAuthCache* ftp_auth_cache() const {
+#if !defined(DISABLE_FTP_SUPPORT)
+    return ftp_auth_cache_.get();
+#else
+    return NULL;
+#endif
+  }
 
   // Gets the value of 'Accept-Charset' header field.
   const std::string& accept_charset() const { return accept_charset_; }
@@ -227,7 +233,9 @@ class NET_EXPORT URLRequestContext
   HttpServerProperties* http_server_properties_;
   scoped_refptr<CookieStore> cookie_store_;
   TransportSecurityState* transport_security_state_;
+#if !defined(DISABLE_FTP_SUPPORT)
   scoped_ptr<FtpAuthCache> ftp_auth_cache_;
+#endif
   std::string accept_language_;
   std::string accept_charset_;
   // The charset of the referrer where this request comes from. It's not

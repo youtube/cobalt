@@ -27,7 +27,9 @@ URLRequestContext::URLRequestContext()
       network_delegate_(NULL),
       http_server_properties_(NULL),
       transport_security_state_(NULL),
+#if !defined(DISABLE_FTP_SUPPORT)
       ftp_auth_cache_(new FtpAuthCache),
+#endif
       http_transaction_factory_(NULL),
       ftp_transaction_factory_(NULL),
       job_factory_(NULL),
