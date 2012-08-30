@@ -22,6 +22,11 @@
             # to fail.
             'NVALGRIND',
           ],
+          'compile_flags': [
+             # Disable C++ 11 extensions. Chrome's OVERRIDE macro will generate
+             # warnings that cause the build to fail.
+             '-Wno-c++11-extensions',
+          ],
         }],
       ],
     },
