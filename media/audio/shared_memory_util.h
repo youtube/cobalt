@@ -22,17 +22,17 @@ enum { kPauseMark = -1 };
 MEDIA_EXPORT uint32 TotalSharedMemorySizeInBytes(uint32 packet_size);
 MEDIA_EXPORT uint32 PacketSizeInBytes(uint32 shared_memory_created_size);
 MEDIA_EXPORT uint32 GetActualDataSizeInBytes(base::SharedMemory* shared_memory,
-                                             uint32 shared_memory_size);
+                                             uint32 packet_size);
 MEDIA_EXPORT void SetActualDataSizeInBytes(base::SharedMemory* shared_memory,
-                                           uint32 shared_memory_size,
+                                           uint32 packet_size,
                                            uint32 actual_data_size);
 MEDIA_EXPORT void SetActualDataSizeInBytes(void* shared_memory_ptr,
-                                           uint32 shared_memory_size,
+                                           uint32 packet_size,
                                            uint32 actual_data_size);
 MEDIA_EXPORT void SetUnknownDataSize(base::SharedMemory* shared_memory,
-                                     uint32 shared_memory_size);
+                                     uint32 packet_size);
 MEDIA_EXPORT bool IsUnknownDataSize(base::SharedMemory* shared_memory,
-                                    uint32 shared_memory_size);
+                                    uint32 packet_size);
 
 }  // namespace media
 
