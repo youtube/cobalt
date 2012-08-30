@@ -615,6 +615,7 @@
     'sas_dll_path%': '<(sas_dll_path)',
     'wix_path%': '<(wix_path)',
     'android_upstream_bringup%': '<(android_upstream_bringup)',
+    'use_libjpeg_turbo%': '<(use_libjpeg_turbo)',
     'use_system_libjpeg%': '<(use_system_libjpeg)',
     'android_build_type%': '<(android_build_type)',
 
@@ -1397,6 +1398,9 @@
       }],
       ['use_ash==1', {
         'defines': ['USE_ASH=1'],
+      }],
+      ['use_libjpeg_turbo==1', {
+        'defines': ['USE_LIBJPEG_TURBO=1'],
       }],
       ['use_nss==1', {
         'defines': ['USE_NSS=1'],
