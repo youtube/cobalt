@@ -78,7 +78,7 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual void Start() OVERRIDE;
   virtual void Kill() OVERRIDE;
   virtual LoadState GetLoadState() const OVERRIDE;
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const OVERRIDE;
   virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
   virtual bool GetCharset(std::string* charset) OVERRIDE;
   virtual void GetResponseInfo(HttpResponseInfo* info) OVERRIDE;

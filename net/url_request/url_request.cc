@@ -149,7 +149,6 @@ URLRequest::URLRequest(const GURL& url,
       delegate_(delegate),
       is_pending_(false),
       redirect_limit_(kMaxRedirects),
-      final_upload_progress_(0),
       priority_(LOWEST),
       identifier_(GenerateURLRequestIdentifier()),
       blocked_on_delegate_(false),
@@ -187,7 +186,6 @@ URLRequest::URLRequest(const GURL& url,
       delegate_(delegate),
       is_pending_(false),
       redirect_limit_(kMaxRedirects),
-      final_upload_progress_(0),
       priority_(LOWEST),
       identifier_(GenerateURLRequestIdentifier()),
       blocked_on_delegate_(false),
@@ -327,12 +325,12 @@ LoadStateWithParam URLRequest::GetLoadState() const {
                             string16());
 }
 
-uint64 URLRequest::GetUploadProgress() const {
+UploadProgress URLRequest::GetUploadProgress() const {
   if (!job_) {
     // We haven't started or the request was cancelled
-    return 0;
+    return UploadProgress();
   }
-  if (final_upload_progress_) {
+  if (final_upload_progress_.position()) {
     // The first job completed and none of the subsequent series of
     // GETs when following redirects will upload anything, so we return the
     // cached results from the initial job, the POST.
@@ -793,7 +791,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
   url_chain_.push_back(location);
   --redirect_limit_;
 
-  if (!final_upload_progress_)
+  if (!final_upload_progress_.position())
     final_upload_progress_ = job_->GetUploadProgress();
 
   PrepareToRestart();
