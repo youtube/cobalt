@@ -530,6 +530,11 @@
           'use_canvas_skia%': 1,
         }],
 
+        ['chromeos==1', {
+          # When building for ChromeOS we dont want Chromium to use libjpeg_turbo.
+          'use_libjpeg_turbo%': 0,
+        }],
+
         ['OS=="android"', {
           # When building as part of the Android system, use system libraries
           # where possible to reduce ROM size.
