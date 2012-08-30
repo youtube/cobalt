@@ -8,7 +8,7 @@
 #include "base/basictypes.h"
 #include "base/string_util.h"
 #include "base/time.h"
-#include "media/audio/audio_util.h"
+#include "media/base/audio_bus.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_glue.h"
 
@@ -17,8 +17,7 @@ namespace media {
 AudioFileReader::AudioFileReader(FFmpegURLProtocol* protocol)
     : protocol_(protocol),
       format_context_(NULL),
-      codec_context_(NULL),
-      codec_(NULL) {
+      codec_context_(NULL) {
 }
 
 AudioFileReader::~AudioFileReader() {
@@ -81,9 +80,9 @@ bool AudioFileReader::Open() {
     return false;
 
   avformat_find_stream_info(format_context_, NULL);
-  codec_ = avcodec_find_decoder(codec_context_->codec_id);
-  if (codec_) {
-    if ((result = avcodec_open2(codec_context_, codec_, NULL)) < 0) {
+  AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
+  if (codec) {
+    if ((result = avcodec_open2(codec_context_, codec, NULL)) < 0) {
       DLOG(WARNING) << "AudioFileReader::Open() : could not open codec -"
           << " result: " << result;
       return false;
@@ -98,11 +97,10 @@ bool AudioFileReader::Open() {
 }
 
 void AudioFileReader::Close() {
-  if (codec_context_ && codec_)
+  if (codec_context_) {
     avcodec_close(codec_context_);
-
-  codec_context_ = NULL;
-  codec_ = NULL;
+    codec_context_ = NULL;
+  }
 
   if (format_context_) {
     avformat_close_input(&format_context_);
@@ -110,15 +108,15 @@ void AudioFileReader::Close() {
   }
 }
 
-bool AudioFileReader::Read(const std::vector<float*>& audio_data,
-                           size_t number_of_frames) {
-  DCHECK(format_context_ && codec_context_ && codec_) <<
+bool AudioFileReader::Read(AudioBus* audio_bus) {
+  DCHECK(format_context_ && codec_context_) <<
       "AudioFileReader::Read() : reader is not opened!";
 
-  size_t channels = this->channels();
-  DCHECK_EQ(audio_data.size(), channels);
-  if (audio_data.size() != channels)
+  DCHECK_EQ(audio_bus->channels(), channels());
+  if (audio_bus->channels() != channels())
     return false;
+
+  size_t bytes_per_sample = av_get_bytes_per_sample(codec_context_->sample_fmt);
 
   // Holds decoded audio.
   scoped_ptr_malloc<AVFrame, ScopedPtrAVFree> av_frame(avcodec_alloc_frame());
@@ -126,9 +124,9 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
   // Read until we hit EOF or we've read the requested number of frames.
   AVPacket packet;
   int result = 0;
-  size_t current_frame = 0;
+  int current_frame = 0;
 
-  while (current_frame < number_of_frames &&
+  while (current_frame < audio_bus->frames() &&
          (result = av_read_frame(format_context_, &packet)) >= 0) {
     avcodec_get_frame_defaults(av_frame.get());
     int frame_decoded = 0;
@@ -140,45 +138,35 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
       DLOG(WARNING)
           << "AudioFileReader::Read() : error in avcodec_decode_audio3() -"
           << result;
-
-      // Fail if nothing has been decoded, otherwise return partial data.
-      return current_frame > 0;
+      break;
     }
 
     if (!frame_decoded)
       continue;
 
-    // Determine the number of sample-frames we just decoded.
-    size_t bytes_per_sample =
-        av_get_bytes_per_sample(codec_context_->sample_fmt);
-    size_t frames_read = av_frame->nb_samples;
+    // Determine the number of sample-frames we just decoded.  Check overflow.
+    int frames_read = av_frame->nb_samples;
+    if (frames_read < 0)
+      break;
 
     // Truncate, if necessary, if the destination isn't big enough.
-    if (current_frame + frames_read > number_of_frames)
-      frames_read = number_of_frames - current_frame;
+    if (current_frame + frames_read > audio_bus->frames())
+      frames_read = audio_bus->frames() - current_frame;
 
     // Deinterleave each channel and convert to 32bit floating-point
     // with nominal range -1.0 -> +1.0.
-    for (size_t channel_index = 0; channel_index < channels;
-         ++channel_index) {
-      if (!DeinterleaveAudioChannel(av_frame->data[0],
-                                    audio_data[channel_index] + current_frame,
-                                    channels,
-                                    channel_index,
-                                    bytes_per_sample,
-                                    frames_read)) {
-        DLOG(WARNING)
-            << "AudioFileReader::Read() : Unsupported sample format : "
-            << codec_context_->sample_fmt
-            << " codec_->id : " << codec_->id;
-        return false;
-      }
-    }
+    audio_bus->FromInterleavedPartial(
+        av_frame->data[0], current_frame, frames_read, bytes_per_sample);
 
     current_frame += frames_read;
   }
 
-  return true;
+  // Zero any remaining frames.
+  audio_bus->ZeroFramesPartial(
+      current_frame, audio_bus->frames() - current_frame);
+
+  // Fail if nothing has been decoded, otherwise return partial data.
+  return current_frame > 0;
 }
 
 }  // namespace media

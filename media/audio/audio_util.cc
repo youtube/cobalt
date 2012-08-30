@@ -177,54 +177,6 @@ bool FoldChannels(void* buf,
   return false;
 }
 
-// TODO(dalecurtis): Delete once everywhere is using the AudioBus version:
-// http://crbug.com/120319.
-bool DeinterleaveAudioChannel(void* source,
-                              float* destination,
-                              int channels,
-                              int channel_index,
-                              int bytes_per_sample,
-                              size_t number_of_frames) {
-  switch (bytes_per_sample) {
-    case 1:
-    {
-      uint8* source8 = reinterpret_cast<uint8*>(source) + channel_index;
-      const float kScale = 1.0f / 128.0f;
-      for (unsigned i = 0; i < number_of_frames; ++i) {
-        destination[i] = kScale * (static_cast<int>(*source8) - 128);
-        source8 += channels;
-      }
-      return true;
-    }
-
-    case 2:
-    {
-      int16* source16 = reinterpret_cast<int16*>(source) + channel_index;
-      const float kScale = 1.0f / 32768.0f;
-      for (unsigned i = 0; i < number_of_frames; ++i) {
-        destination[i] = kScale * *source16;
-        source16 += channels;
-      }
-      return true;
-    }
-
-    case 4:
-    {
-      int32* source32 = reinterpret_cast<int32*>(source) + channel_index;
-      const float kScale = 1.0f / 2147483648.0f;
-      for (unsigned i = 0; i < number_of_frames; ++i) {
-        destination[i] = kScale * *source32;
-        source32 += channels;
-      }
-      return true;
-    }
-
-    default:
-     break;
-  }
-  return false;
-}
-
 // TODO(enal): use template specialization and size-specific intrinsics.
 //             Call is on the time-critical path, and by using SSE/AVX
 //             instructions we can speed things up by ~4-8x, more for the case

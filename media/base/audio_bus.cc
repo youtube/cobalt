@@ -33,8 +33,8 @@ static int CalculateMemorySizeInternal(int channels, int frames,
 // |Format| is the destination type, |Fixed| is a type larger than |Format|
 // such that operations can be made without overflowing.
 template<class Format, class Fixed>
-static void FromInterleavedInternal(const void* src, int frames,
-                                    AudioBus* dest) {
+static void FromInterleavedInternal(const void* src, int start_frame,
+                                    int frames, AudioBus* dest) {
   const Format* source = static_cast<const Format*>(src);
 
   static const Fixed kBias = std::numeric_limits<Format>::is_signed ? 0 :
@@ -47,7 +47,8 @@ static void FromInterleavedInternal(const void* src, int frames,
   int channels = dest->channels();
   for (int ch = 0; ch < channels; ++ch) {
     float* channel_data = dest->channel(ch);
-    for (int i = 0, offset = ch; i < frames; ++i, offset += channels) {
+    for (int i = start_frame, offset = ch; i < start_frame + frames;
+         ++i, offset += channels) {
       Fixed v = static_cast<Fixed>(source[offset]) - kBias;
       channel_data[i] = v * (v < 0 ? kMinScale : kMaxScale);
     }
@@ -87,11 +88,17 @@ static void ToInterleavedInternal(const AudioBus* source, int frames,
 
 static void ValidateConfig(int channels, int frames) {
   CHECK_GT(frames, 0);
-  CHECK_LE(frames, limits::kMaxSamplesPerPacket);
   CHECK_GT(channels, 0);
   CHECK_LE(channels, limits::kMaxChannels);
-  DCHECK_LT(limits::kMaxSamplesPerPacket * limits::kMaxChannels,
-            std::numeric_limits<int>::max());
+}
+
+static void CheckOverflow(int start_frame, int frames, int total_frames) {
+  CHECK_GE(start_frame, 0);
+  CHECK_GE(frames, 0);
+  CHECK_GT(total_frames, 0);
+  int sum = start_frame + frames;
+  CHECK_LE(sum, total_frames);
+  CHECK_GE(sum, 0);
 }
 
 AudioBus::AudioBus(int channels, int frames)
@@ -160,10 +167,20 @@ scoped_ptr<AudioBus> AudioBus::WrapMemory(const AudioParameters& params,
       static_cast<float*>(data)));
 }
 
+void AudioBus::ZeroFramesPartial(int start_frame, int frames) {
+  CheckOverflow(start_frame, frames, frames_);
+
+  if (frames <= 0)
+    return;
+
+  for (size_t i = 0; i < channel_data_.size(); ++i) {
+    memset(channel_data_[i] + start_frame, 0,
+           frames * sizeof(*channel_data_[i]));
+  }
+}
+
 void AudioBus::ZeroFrames(int frames) {
-  DCHECK_LE(frames, frames_);
-  for (size_t i = 0; i < channel_data_.size(); ++i)
-    memset(channel_data_[i], 0, frames * sizeof(*channel_data_[i]));
+  ZeroFramesPartial(0, frames);
 }
 
 void AudioBus::Zero() {
@@ -186,37 +203,41 @@ void AudioBus::BuildChannelData(int channels, int aligned_frames, float* data) {
 }
 
 // TODO(dalecurtis): See if intrinsic optimizations help any here.
-void AudioBus::FromInterleaved(const void* source, int frames,
-                               int bytes_per_sample) {
-  DCHECK_LE(frames, frames_);
+void AudioBus::FromInterleavedPartial(const void* source, int start_frame,
+                                      int frames, int bytes_per_sample) {
+  CheckOverflow(start_frame, frames, frames_);
   switch (bytes_per_sample) {
     case 1:
-      FromInterleavedInternal<uint8, int16>(source, frames, this);
+      FromInterleavedInternal<uint8, int16>(source, start_frame, frames, this);
       break;
     case 2:
-      FromInterleavedInternal<int16, int32>(source, frames, this);
+      FromInterleavedInternal<int16, int32>(source, start_frame, frames, this);
       break;
     case 4:
-      FromInterleavedInternal<int32, int64>(source, frames, this);
+      FromInterleavedInternal<int32, int64>(source, start_frame, frames, this);
       break;
     default:
       NOTREACHED() << "Unsupported bytes per sample encountered.";
-      Zero();
+      ZeroFramesPartial(start_frame, frames);
       return;
   }
 
-  // Zero any remaining frames.
-  int remaining_frames = (frames_ - frames);
-  if (remaining_frames) {
-    for (int ch = 0; ch < channels(); ++ch)
-      memset(channel(ch) + frames, 0, sizeof(*channel(ch)) * remaining_frames);
+  // Don't clear remaining frames if this is a partial deinterleave.
+  if (!start_frame) {
+    // Zero any remaining frames.
+    ZeroFramesPartial(frames, frames_ - frames);
   }
+}
+
+void AudioBus::FromInterleaved(const void* source, int frames,
+                               int bytes_per_sample) {
+  FromInterleavedPartial(source, 0, frames, bytes_per_sample);
 }
 
 // TODO(dalecurtis): See if intrinsic optimizations help any here.
 void AudioBus::ToInterleaved(int frames, int bytes_per_sample,
                              void* dest) const {
-  DCHECK_LE(frames, frames_);
+  CheckOverflow(0, frames, frames_);
   switch (bytes_per_sample) {
     case 1:
       ToInterleavedInternal<uint8, int16>(this, frames, dest);
