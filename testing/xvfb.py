@@ -113,7 +113,7 @@ def run_executable(cmd, build_dir, env):
         subprocess.Popen(
             ice_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
       except OSError:
-        print >> sys.stderr, 'Failed to run %s' % ' '.join(cmd)
+        print >> sys.stderr, 'Failed to run %s' % ' '.join(ice_cmd)
         return 1
     return test_env.run_executable(cmd, env)
   finally:
