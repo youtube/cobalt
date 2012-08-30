@@ -85,7 +85,9 @@ class MockHttpStream : public HttpStream {
                           const CompletionCallback& callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
-  virtual uint64 GetUploadProgress() const OVERRIDE { return 0; }
+  virtual UploadProgress GetUploadProgress() const OVERRIDE {
+    return UploadProgress();
+  }
   virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }

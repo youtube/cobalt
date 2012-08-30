@@ -99,11 +99,12 @@ const HttpResponseInfo* SpdyHttpStream::GetResponseInfo() const {
   return response_info_;
 }
 
-uint64 SpdyHttpStream::GetUploadProgress() const {
+UploadProgress SpdyHttpStream::GetUploadProgress() const {
   if (!request_body_stream_.get())
-    return 0;
+    return UploadProgress();
 
-  return request_body_stream_->position();
+  return UploadProgress(request_body_stream_->position(),
+                        request_body_stream_->size());
 }
 
 int SpdyHttpStream::ReadResponseHeaders(const CompletionCallback& callback) {

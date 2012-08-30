@@ -119,7 +119,7 @@ class HttpCache::Transaction : public HttpTransaction {
   virtual void DoneReading() OVERRIDE;
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
   virtual LoadState GetLoadState() const OVERRIDE;
-  virtual uint64 GetUploadProgress(void) const OVERRIDE;
+  virtual UploadProgress GetUploadProgress(void) const OVERRIDE;
 
  private:
   static const size_t kNumValidationHeaders = 2;
@@ -393,7 +393,7 @@ class HttpCache::Transaction : public HttpTransaction {
   int effective_load_flags_;
   int write_len_;
   scoped_ptr<PartialData> partial_;  // We are dealing with range requests.
-  uint64 final_upload_progress_;
+  UploadProgress final_upload_progress_;
   base::WeakPtrFactory<Transaction> weak_factory_;
   CompletionCallback io_callback_;
 

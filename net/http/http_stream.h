@@ -19,6 +19,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
+#include "net/base/upload_progress.h"
 
 namespace net {
 
@@ -53,7 +54,7 @@ class NET_EXPORT_PRIVATE HttpStream {
                           const CompletionCallback& callback) = 0;
 
   // Queries the UploadDataStream for its progress (bytes sent).
-  virtual uint64 GetUploadProgress() const = 0;
+  virtual UploadProgress GetUploadProgress() const = 0;
 
   // Reads from the underlying socket until the response headers have been
   // completely received. ERR_IO_PENDING is returned if the operation could
