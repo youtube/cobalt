@@ -61,7 +61,7 @@ class URLRequestFtpJob : public URLRequestJob {
   virtual void CancelAuth() OVERRIDE;
 
   // TODO(ibrar):  Yet to give another look at this function.
-  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const OVERRIDE;
   virtual bool ReadRawData(IOBuffer* buf,
                            int buf_size,
                            int *bytes_read) OVERRIDE;
