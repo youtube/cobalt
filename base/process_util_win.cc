@@ -150,10 +150,15 @@ void RouteStdioToConsole() {
     AllocConsole();
   }
 
+  // Arbitrary byte count to use when buffering output lines.  More
+  // means potential waste, less means more risk of interleaved
+  // log-lines in output.
+  enum { kOutputBufferSize = 64 * 1024 };
+
   if (freopen("CONOUT$", "w", stdout))
-    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IOLBF, kOutputBufferSize);
   if (freopen("CONOUT$", "w", stderr))
-    setvbuf(stderr, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IOLBF, kOutputBufferSize);
 
   // Fix all cout, wcout, cin, wcin, cerr, wcerr, clog and wclog.
   std::ios::sync_with_stdio();
