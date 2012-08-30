@@ -50,6 +50,19 @@ class ScopedCOMInitializer {
     thread_id_ = GetCurrentThreadId();
 #endif
     hr_ = CoInitializeEx(NULL, init);
+#ifndef NDEBUG
+    switch (hr_) {
+      case S_FALSE:
+        LOG(ERROR) << "Multiple CoInitialize() called for thread "
+                   << thread_id_;
+        break;
+      case RPC_E_CHANGED_MODE:
+        DCHECK(false) << "Invalid COM thread model change";
+        break;
+      default:
+        break;
+    }
+#endif
   }
 
   HRESULT hr_;
