@@ -22,6 +22,7 @@ namespace media {
 
 class DataBuffer;
 class DecoderBuffer;
+struct QueuedAudioBuffer;
 
 class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  public:
@@ -91,6 +92,10 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   AVFrame* av_frame_;
 
   ReadCB read_cb_;
+
+  // Since multiple frames may be decoded from the same packet we need to queue
+  // them up and hand them out as we receive Read() calls.
+  std::list<QueuedAudioBuffer> queued_audio_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FFmpegAudioDecoder);
 };

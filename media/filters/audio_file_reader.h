@@ -50,6 +50,7 @@ class MEDIA_EXPORT AudioFileReader {
   FFmpegURLProtocol* protocol_;
   AVFormatContext* format_context_;
   AVCodecContext* codec_context_;
+  int stream_index_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioFileReader);
 };
