@@ -10,6 +10,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
+#include "base/win/scoped_co_mem.h"
 #include "base/win/windows_version.h"
 
 // http://blogs.msdn.com/oldnewthing/archive/2004/10/25/247180.aspx
@@ -123,6 +124,18 @@ bool PathProviderWin(int key, FilePath* result) {
       // For example:  chrome/{Debug|Release}/ui_tests.exe
       PathService::Get(base::DIR_EXE, &executableDir);
       cur = executableDir.DirName().DirName();
+      break;
+    }
+    case base::DIR_APP_SHORTCUTS: {
+      if (win::GetVersion() < win::VERSION_WIN8)
+        return false;
+
+      base::win::ScopedCoMem<wchar_t> path_buf;
+      if (FAILED(SHGetKnownFolderPath(FOLDERID_ApplicationShortcuts, 0, NULL,
+                                      &path_buf)))
+        return false;
+
+      cur = FilePath(string16(path_buf));
       break;
     }
     default:
