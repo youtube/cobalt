@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <secerr.h>
 
+#include <algorithm>
 #include <string>
 
 #include "base/basictypes.h"
@@ -44,6 +45,10 @@ namespace {
 // Protects |g_request_context|.
 pthread_mutex_t g_request_context_lock = PTHREAD_MUTEX_INITIALIZER;
 URLRequestContext* g_request_context = NULL;
+
+// The default timeout for network fetches in NSS is 60 seconds. Choose a
+// saner upper limit for OCSP/CRL/AIA fetches.
+const int kNetworkFetchTimeoutInSecs = 15;
 
 class OCSPRequestSession;
 
@@ -442,9 +447,14 @@ class OCSPServerSession {
         path_and_query_string));
     VLOG(1) << "URL [" << url_string << "]";
     GURL url(url_string);
-    return new OCSPRequestSession(
-        url, http_request_method,
+
+    // NSS does not expose public functions to adjust the fetch timeout when
+    // using libpkix, so hardcode the upper limit for network fetches.
+    base::TimeDelta actual_timeout = std::min(
+        base::TimeDelta::FromSeconds(kNetworkFetchTimeoutInSecs),
         base::TimeDelta::FromMilliseconds(PR_IntervalToMilliseconds(timeout)));
+
+    return new OCSPRequestSession(url, http_request_method, actual_timeout);
   }
 
 
