@@ -135,7 +135,6 @@ HttpCache::Transaction::Transaction(
       read_offset_(0),
       effective_load_flags_(0),
       write_len_(0),
-      final_upload_progress_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
           base::Bind(&Transaction::OnIOComplete,
@@ -420,7 +419,7 @@ LoadState HttpCache::Transaction::GetLoadState() const {
   return LOAD_STATE_IDLE;
 }
 
-uint64 HttpCache::Transaction::GetUploadProgress() const {
+UploadProgress HttpCache::Transaction::GetUploadProgress() const {
   if (network_trans_.get())
     return network_trans_->GetUploadProgress();
   return final_upload_progress_;

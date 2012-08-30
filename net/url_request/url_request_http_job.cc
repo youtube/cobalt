@@ -1022,7 +1022,7 @@ LoadState URLRequestHttpJob::GetLoadState() const {
 }
 
 uint64 URLRequestHttpJob::GetUploadProgress() const {
-  return transaction_.get() ? transaction_->GetUploadProgress() : 0;
+  return transaction_.get() ? transaction_->GetUploadProgress().position() : 0;
 }
 
 bool URLRequestHttpJob::GetMimeType(std::string* mime_type) const {

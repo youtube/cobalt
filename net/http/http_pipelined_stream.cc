@@ -51,7 +51,7 @@ int HttpPipelinedStream::SendRequest(
                                 request_body.Pass(), response, callback);
 }
 
-uint64 HttpPipelinedStream::GetUploadProgress() const {
+UploadProgress HttpPipelinedStream::GetUploadProgress() const {
   return pipeline_->GetUploadProgress(pipeline_id_);
 }
 
