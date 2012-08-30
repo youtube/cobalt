@@ -271,6 +271,7 @@
         'base/upload_data_stream.h',
         'base/upload_element.cc',
         'base/upload_element.h',
+        'base/upload_progress.h',
         'base/winsock_init.cc',
         'base/winsock_init.h',
         'base/winsock_util.cc',

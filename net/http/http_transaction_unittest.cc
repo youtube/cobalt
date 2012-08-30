@@ -326,8 +326,8 @@ net::LoadState MockNetworkTransaction::GetLoadState() const {
   return net::LOAD_STATE_IDLE;
 }
 
-uint64 MockNetworkTransaction::GetUploadProgress() const {
-  return 0;
+net::UploadProgress MockNetworkTransaction::GetUploadProgress() const {
+  return net::UploadProgress();
 }
 
 void MockNetworkTransaction::CallbackLater(
