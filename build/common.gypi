@@ -308,6 +308,9 @@
       # Enable the task manager by default.
       'enable_task_manager%': 1,
 
+      # Enable FTP support by default.
+      'disable_ftp_support%': 0,
+
       # XInput2 multitouch support is disabled by default (use_xi2_mt=0).
       # Setting to non-zero value enables XI2 MT. When XI2 MT is enabled,
       # the input value also defines the required XI2 minor minimum version.
@@ -466,6 +469,7 @@
 
         ['OS=="ios"', {
           'enable_automation%': 0,
+          'disable_ftp_support%': 1,
           'remoting%': 0,
         }],
 
@@ -605,6 +609,7 @@
     'enable_automation%': '<(enable_automation)',
     'enable_printing%': '<(enable_printing)',
     'enable_captive_portal_detection%': '<(enable_captive_portal_detection)',
+    'disable_ftp_support%': '<(disable_ftp_support)',
     'force_rlz_use_chrome_net%': '<(force_rlz_use_chrome_net)',
     'enable_task_manager%': '<(enable_task_manager)',
     'sas_dll_path%': '<(sas_dll_path)',
@@ -1616,6 +1621,9 @@
       }],
       ['enable_captive_portal_detection==1', {
         'defines': ['ENABLE_CAPTIVE_PORTAL_DETECTION=1'],
+      }],
+      ['disable_ftp_support==1', {
+        'defines': ['DISABLE_FTP_SUPPORT=1'],
       }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [

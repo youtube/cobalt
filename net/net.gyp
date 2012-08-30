@@ -890,6 +890,18 @@
             'disk_cache/mapped_file_avoid_mmap_posix.cc',
           ],
         }],
+        [ 'disable_ftp_support==1', {
+            'sources/': [
+              ['exclude', '^ftp/'],
+            ],
+            'sources!': [
+              'url_request/ftp_protocol_handler.cc',
+              'url_request/ftp_protocol_handler.h',
+              'url_request/url_request_ftp_job.cc',
+              'url_request/url_request_ftp_job.h',
+            ],
+          },
+        ],
         ['use_openssl==1', {
             'sources!': [
               'base/cert_database_nss.cc',
@@ -1092,6 +1104,7 @@
               ['include', '^http/http_util\\.'],
               ['include', '^http/http_util_icu\\.cc$'],
               ['include', '^http/http_version\\.h$'],
+              ['include', '^url_request/url_request_job_manager\\.'],
             ],
           },
         ],
@@ -1465,6 +1478,15 @@
               ['exclude', '^spdy/spdy_websocket_stream_spdy._unittest\\.cc$'],
             ],
         }],
+        [ 'disable_ftp_support==1', {
+            'sources/': [
+              ['exclude', '^ftp/'],
+            ],
+            'sources!': [
+              'url_request/url_request_ftp_job_unittest.cc',
+            ],
+          },
+        ],
         [ 'OS == "win"', {
             'sources!': [
               'dns/dns_config_service_posix_unittest.cc',
