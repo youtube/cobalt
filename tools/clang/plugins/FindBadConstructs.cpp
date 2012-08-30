@@ -418,8 +418,6 @@ class FindBadConstructsAction : public PluginASTAction {
         check_refcounted_dtors_ = false;
       } else if (args[i] == "skip-virtuals-in-implementations") {
         check_virtuals_in_implementations_ = false;
-      } else if (args[i] == "check-inner-classes") {
-        // TODO(hans): Remove this once it's removed from plugin_flags.sh.
       } else if (args[i] == "check-cc-directory") {
         check_cc_directory_ = true;
       } else {
