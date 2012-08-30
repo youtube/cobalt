@@ -178,6 +178,7 @@ def JavaParamToJni(param):
       'Lorg/chromium/content/app/SandboxedProcessService',
       'Lorg/chromium/content/browser/TouchPoint',
       'Lorg/chromium/content/browser/WaitableNativeEvent',
+      'Lorg/chromium/content/browser/WebContentsObserverAndroid',
       'Lorg/chromium/content/common/DeviceInfo',
       'Lorg/chromium/content/common/SurfaceTextureListener',
       'Lorg/chromium/media/MediaPlayerListener',
