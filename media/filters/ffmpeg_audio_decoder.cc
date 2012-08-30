@@ -18,6 +18,12 @@
 
 namespace media {
 
+// Helper structure for managing multiple decoded audio frames per packet.
+struct QueuedAudioBuffer {
+  AudioDecoder::Status status;
+  scoped_refptr<Buffer> buffer;
+};
+
 // Returns true if the decode result was end of stream.
 static inline bool IsEndOfStream(int result, int decoded_size, Buffer* input) {
   // Three conditions to meet to declare end of stream for this decoder:
@@ -151,6 +157,7 @@ void FFmpegAudioDecoder::DoReset(const base::Closure& closure) {
   total_frames_decoded_ = 0;
   last_input_timestamp_ = kNoTimestamp();
   output_bytes_to_drop_ = 0;
+  queued_audio_.clear();
   closure.Run();
 }
 
@@ -160,7 +167,17 @@ void FFmpegAudioDecoder::DoRead(const ReadCB& read_cb) {
   CHECK(read_cb_.is_null()) << "Overlapping decodes are not supported.";
 
   read_cb_ = read_cb;
-  ReadFromDemuxerStream();
+
+  // If we don't have any queued audio from the last packet we decoded, ask for
+  // more data from the demuxer to satisfy this read.
+  if (queued_audio_.empty()) {
+    ReadFromDemuxerStream();
+    return;
+  }
+
+  base::ResetAndReturn(&read_cb_).Run(
+      queued_audio_.front().status, queued_audio_.front().buffer);
+  queued_audio_.pop_front();
 }
 
 void FFmpegAudioDecoder::DoDecodeBuffer(
@@ -168,6 +185,7 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
     const scoped_refptr<DecoderBuffer>& input) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(!read_cb_.is_null());
+  DCHECK(queued_audio_.empty());
 
   if (status != DemuxerStream::kOk) {
     DCHECK(!input);
@@ -219,100 +237,126 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
   packet.data = const_cast<uint8*>(input->GetData());
   packet.size = input->GetDataSize();
 
-  PipelineStatistics statistics;
-  statistics.audio_bytes_decoded = input->GetDataSize();
+  // Each audio packet may contain several frames, so we must call the decoder
+  // until we've exhausted the packet.  Regardless of the packet size we always
+  // want to hand it to the decoder at least once, otherwise we would end up
+  // skipping end of stream packets since they have a size of zero.
+  do {
+    // Reset frame to default values.
+    avcodec_get_frame_defaults(av_frame_);
 
-  // Reset frame to default values.
-  avcodec_get_frame_defaults(av_frame_);
+    int frame_decoded = 0;
+    int result = avcodec_decode_audio4(
+        codec_context_, av_frame_, &frame_decoded, &packet);
 
-  int frame_decoded = 0;
-  int result = avcodec_decode_audio4(
-      codec_context_, av_frame_, &frame_decoded, &packet);
+    if (result < 0) {
+      DCHECK(!input->IsEndOfStream())
+          << "End of stream buffer produced an error! "
+          << "This is quite possibly a bug in the audio decoder not handling "
+          << "end of stream AVPackets correctly.";
 
-  if (result < 0) {
-    DCHECK(!input->IsEndOfStream())
-        << "End of stream buffer produced an error! "
-        << "This is quite possibly a bug in the audio decoder not handling "
-        << "end of stream AVPackets correctly.";
+      DLOG(ERROR)
+          << "Error decoding an audio frame with timestamp: "
+          << input->GetTimestamp().InMicroseconds() << " us, duration: "
+          << input->GetDuration().InMicroseconds() << " us, packet size: "
+          << input->GetDataSize() << " bytes";
 
-    DLOG(ERROR) << "Error decoding an audio frame with timestamp: "
-                << input->GetTimestamp().InMicroseconds() << " us, duration: "
-                << input->GetDuration().InMicroseconds() << " us, packet size: "
-                << input->GetDataSize() << " bytes";
+      // TODO(dalecurtis): We should return a kDecodeError here instead:
+      // http://crbug.com/145276
+      break;
+    }
 
+    // Update packet size and data pointer in case we need to call the decoder
+    // with the remaining bytes from this packet.
+    packet.size -= result;
+    packet.data += result;
+
+    if (output_timestamp_base_ == kNoTimestamp() && !input->IsEndOfStream()) {
+      DCHECK(input->GetTimestamp() != kNoTimestamp());
+      if (output_bytes_to_drop_ > 0) {
+        // Currently Vorbis is the only codec that causes us to drop samples.
+        // If we have to drop samples it always means the timeline starts at 0.
+        DCHECK(is_vorbis);
+        output_timestamp_base_ = base::TimeDelta();
+      } else {
+        output_timestamp_base_ = input->GetTimestamp();
+      }
+    }
+
+    const uint8* decoded_audio_data = NULL;
+    int decoded_audio_size = 0;
+    if (frame_decoded) {
+      int output_sample_rate = av_frame_->sample_rate;
+      if (output_sample_rate != samples_per_second_) {
+        DLOG(ERROR) << "Output sample rate (" << output_sample_rate
+                    << ") doesn't match expected rate " << samples_per_second_;
+
+        // This is an unrecoverable error, so bail out.
+        QueuedAudioBuffer queue_entry = { kDecodeError, NULL };
+        queued_audio_.push_back(queue_entry);
+        break;
+      }
+
+      decoded_audio_data = av_frame_->data[0];
+      decoded_audio_size = av_samples_get_buffer_size(
+          NULL, codec_context_->channels, av_frame_->nb_samples,
+          codec_context_->sample_fmt, 1);
+    }
+
+    scoped_refptr<DataBuffer> output;
+
+    if (decoded_audio_size > 0 && output_bytes_to_drop_ > 0) {
+      int dropped_size = std::min(decoded_audio_size, output_bytes_to_drop_);
+      decoded_audio_data += dropped_size;
+      decoded_audio_size -= dropped_size;
+      output_bytes_to_drop_ -= dropped_size;
+    }
+
+    if (decoded_audio_size > 0) {
+      DCHECK_EQ(decoded_audio_size % bytes_per_frame_, 0)
+          << "Decoder didn't output full frames";
+
+      // Copy the audio samples into an output buffer.
+      output = new DataBuffer(decoded_audio_size);
+      output->SetDataSize(decoded_audio_size);
+      uint8* data = output->GetWritableData();
+      memcpy(data, decoded_audio_data, decoded_audio_size);
+
+      base::TimeDelta timestamp = GetNextOutputTimestamp();
+      total_frames_decoded_ += decoded_audio_size / bytes_per_frame_;
+
+      output->SetTimestamp(timestamp);
+      output->SetDuration(GetNextOutputTimestamp() - timestamp);
+    } else if (IsEndOfStream(result, decoded_audio_size, input)) {
+      DCHECK_EQ(packet.size, 0);
+      // Create an end of stream output buffer.
+      output = new DataBuffer(0);
+    }
+
+    if (output) {
+      QueuedAudioBuffer queue_entry = { kOk, output };
+      queued_audio_.push_back(queue_entry);
+    }
+
+    // Decoding finished successfully, update statistics.
+    if (result > 0) {
+      PipelineStatistics statistics;
+      statistics.audio_bytes_decoded = result;
+      statistics_cb_.Run(statistics);
+    }
+  } while (packet.size > 0);
+
+  // We exhausted the provided packet, but it wasn't enough for a frame.  Ask
+  // for more data in order to fulfill this read.
+  if (queued_audio_.empty()) {
     ReadFromDemuxerStream();
     return;
   }
 
-  if (result > 0)
-    DCHECK_EQ(result, input->GetDataSize());
-
-  if (output_timestamp_base_ == kNoTimestamp() && !input->IsEndOfStream()) {
-    DCHECK(input->GetTimestamp() != kNoTimestamp());
-    if (output_bytes_to_drop_ > 0) {
-      // Currently Vorbis is the only codec that causes us to drop samples.
-      // If we have to drop samples it always means the timeline starts at 0.
-      DCHECK(is_vorbis);
-      output_timestamp_base_ = base::TimeDelta();
-    } else {
-      output_timestamp_base_ = input->GetTimestamp();
-    }
-  }
-
-  const uint8* decoded_audio_data = NULL;
-  int decoded_audio_size = 0;
-  if (frame_decoded) {
-    int output_sample_rate = av_frame_->sample_rate;
-    if (output_sample_rate != samples_per_second_) {
-      DLOG(ERROR) << "Output sample rate (" << output_sample_rate
-                  << ") doesn't match expected rate " << samples_per_second_;
-      base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
-      return;
-    }
-
-    decoded_audio_data = av_frame_->data[0];
-    decoded_audio_size = av_samples_get_buffer_size(
-        NULL, codec_context_->channels, av_frame_->nb_samples,
-        codec_context_->sample_fmt, 1);
-  }
-
-  scoped_refptr<DataBuffer> output;
-
-  if (decoded_audio_size > 0 && output_bytes_to_drop_ > 0) {
-    int dropped_size = std::min(decoded_audio_size, output_bytes_to_drop_);
-    decoded_audio_data += dropped_size;
-    decoded_audio_size -= dropped_size;
-    output_bytes_to_drop_ -= dropped_size;
-  }
-
-  if (decoded_audio_size > 0) {
-    DCHECK_EQ(decoded_audio_size % bytes_per_frame_, 0)
-        << "Decoder didn't output full frames";
-
-    // Copy the audio samples into an output buffer.
-    output = new DataBuffer(decoded_audio_size);
-    output->SetDataSize(decoded_audio_size);
-    uint8* data = output->GetWritableData();
-    memcpy(data, decoded_audio_data, decoded_audio_size);
-
-    base::TimeDelta timestamp = GetNextOutputTimestamp();
-    total_frames_decoded_ += decoded_audio_size / bytes_per_frame_;
-
-    output->SetTimestamp(timestamp);
-    output->SetDuration(GetNextOutputTimestamp() - timestamp);
-  } else if (IsEndOfStream(result, decoded_audio_size, input)) {
-    // Create an end of stream output buffer.
-    output = new DataBuffer(0);
-  }
-
-  // Decoding finished successfully, update stats and execute callback.
-  statistics_cb_.Run(statistics);
-
-  if (!output) {
-    ReadFromDemuxerStream();
-    return;
-  }
-  base::ResetAndReturn(&read_cb_).Run(kOk, output);
+  // Execute callback to return the first frame we decoded.
+  base::ResetAndReturn(&read_cb_).Run(
+      queued_audio_.front().status, queued_audio_.front().buffer);
+  queued_audio_.pop_front();
 }
 
 void FFmpegAudioDecoder::ReadFromDemuxerStream() {

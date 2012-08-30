@@ -17,7 +17,8 @@ namespace media {
 AudioFileReader::AudioFileReader(FFmpegURLProtocol* protocol)
     : protocol_(protocol),
       format_context_(NULL),
-      codec_context_(NULL) {
+      codec_context_(NULL),
+      stream_index_(0) {
 }
 
 AudioFileReader::~AudioFileReader() {
@@ -71,6 +72,7 @@ bool AudioFileReader::Open() {
     AVCodecContext* c = format_context_->streams[i]->codec;
     if (c->codec_type == AVMEDIA_TYPE_AUDIO) {
       codec_context_ = c;
+      stream_index_ = i;
       break;
     }
   }
@@ -123,42 +125,62 @@ bool AudioFileReader::Read(AudioBus* audio_bus) {
 
   // Read until we hit EOF or we've read the requested number of frames.
   AVPacket packet;
-  int result = 0;
   int current_frame = 0;
+  bool continue_decoding = true;
 
-  while (current_frame < audio_bus->frames() &&
-         (result = av_read_frame(format_context_, &packet)) >= 0) {
-    avcodec_get_frame_defaults(av_frame.get());
-    int frame_decoded = 0;
-    int result = avcodec_decode_audio4(
-        codec_context_, av_frame.get(), &frame_decoded, &packet);
-    av_free_packet(&packet);
-
-    if (result < 0) {
-      DLOG(WARNING)
-          << "AudioFileReader::Read() : error in avcodec_decode_audio3() -"
-          << result;
-      break;
+  while (current_frame < audio_bus->frames() && continue_decoding &&
+         av_read_frame(format_context_, &packet) >= 0 &&
+         av_dup_packet(&packet) >= 0) {
+    // Skip packets from other streams.
+    if (packet.stream_index != stream_index_) {
+      av_free_packet(&packet);
+      continue;
     }
 
-    if (!frame_decoded)
-      continue;
+    // Make a shallow copy of packet so we can slide packet.data as frames are
+    // decoded from the packet; otherwise av_free_packet() will corrupt memory.
+    AVPacket packet_temp = packet;
+    do {
+      avcodec_get_frame_defaults(av_frame.get());
+      int frame_decoded = 0;
+      int result = avcodec_decode_audio4(
+          codec_context_, av_frame.get(), &frame_decoded, &packet_temp);
 
-    // Determine the number of sample-frames we just decoded.  Check overflow.
-    int frames_read = av_frame->nb_samples;
-    if (frames_read < 0)
-      break;
+      if (result < 0) {
+        DLOG(WARNING)
+            << "AudioFileReader::Read() : error in avcodec_decode_audio4() -"
+            << result;
+        continue_decoding = false;
+        break;
+      }
 
-    // Truncate, if necessary, if the destination isn't big enough.
-    if (current_frame + frames_read > audio_bus->frames())
-      frames_read = audio_bus->frames() - current_frame;
+      // Update packet size and data pointer in case we need to call the decoder
+      // with the remaining bytes from this packet.
+      packet_temp.size -= result;
+      packet_temp.data += result;
 
-    // Deinterleave each channel and convert to 32bit floating-point
-    // with nominal range -1.0 -> +1.0.
-    audio_bus->FromInterleavedPartial(
-        av_frame->data[0], current_frame, frames_read, bytes_per_sample);
+      if (!frame_decoded)
+        continue;
 
-    current_frame += frames_read;
+      // Determine the number of sample-frames we just decoded.  Check overflow.
+      int frames_read = av_frame->nb_samples;
+      if (frames_read < 0) {
+        continue_decoding = false;
+        break;
+      }
+
+      // Truncate, if necessary, if the destination isn't big enough.
+      if (current_frame + frames_read > audio_bus->frames())
+        frames_read = audio_bus->frames() - current_frame;
+
+      // Deinterleave each channel and convert to 32bit floating-point
+      // with nominal range -1.0 -> +1.0.
+      audio_bus->FromInterleavedPartial(
+          av_frame->data[0], current_frame, frames_read, bytes_per_sample);
+
+      current_frame += frames_read;
+    } while (packet_temp.size > 0);
+    av_free_packet(&packet);
   }
 
   // Zero any remaining frames.
