@@ -5,6 +5,7 @@
 #ifndef BASE_MESSAGE_PUMP_OBSERVER_H
 #define BASE_MESSAGE_PUMP_OBSERVER_H
 
+#include "base/base_export.h"
 #include "base/event_types.h"
 
 namespace base {
