@@ -311,7 +311,6 @@ class DelayedSocketData : public StaticSocketDataProvider {
   //               a MockRead to complete.
   // |reads| the list of MockRead completions.
   // |writes| the list of MockWrite completions.
-  // Note: All MockReads and MockWrites must be async.
   // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
   //       MockRead(true, 0, 0);
   DelayedSocketData(int write_delay,
@@ -323,7 +322,6 @@ class DelayedSocketData : public StaticSocketDataProvider {
   // |write_delay| the number of MockWrites to complete before allowing
   //               a MockRead to complete.
   // |writes| the list of MockWrite completions.
-  // Note: All MockReads and MockWrites must be async.
   // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
   //       MockRead(true, 0, 0);
   DelayedSocketData(const MockConnect& connect, int write_delay,
