@@ -806,10 +806,12 @@
         ['OS=="lb_shell"', {
           'dependencies': [
             '../../openssl/openssl.gyp:openssl',
-            '../../openssl/openssl.gyp:openssl_includes',
+            '../../openssl/openssl.gyp:openssl_includes'
           ],
           'sources': [
+            'base/file_stream_metrics_shell.cc',
             'base/file_stream_shell.cc',
+            'base/net_errors_shell.cc',
             'base/net_util_shell.cc',
             'disk_cache/cache_util_shell.cc',
             'disk_cache/file_shell.cc',
@@ -837,8 +839,6 @@
             ['exclude', 'crl_filter'],
             # no support for a recursive resolver
             ['exclude', 'base/dnsrr_resolver.cc'],
-            # dns_config_service is never referenced. Disable for now until it's needed.
-            ['exclude', 'dns/dns_config_service*'],
             # remove windows files
             ['exclude', '_win.cc$'],
           ]
