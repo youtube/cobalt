@@ -146,7 +146,7 @@ TEST_F(FFmpegAudioDecoderTest, ProduceAudioSamples) {
       .Times(5)
       .WillRepeatedly(InvokeReadPacket(this));
   EXPECT_CALL(statistics_cb_, OnStatistics(_))
-      .Times(5);
+      .Times(4);
 
   Read();
   Read();
