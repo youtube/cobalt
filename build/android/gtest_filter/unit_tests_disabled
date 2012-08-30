@@ -141,3 +141,10 @@ AutofillManagerTest.UpdatePasswordGenerationState
 
 # crbug.com/144227
 ExtensionIconImageTest.*
+
+# crbug.com/145799
+SQLiteCursorTest.Run
+
+# crbug.com/145843
+EntropyProviderTest.UseOneTimeRandomizationSHA1
+EntropyProviderTest.UseOneTimeRandomizationPermuted
