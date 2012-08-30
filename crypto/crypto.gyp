@@ -65,6 +65,13 @@
               'symmetric_key_win.cc',
             ],
         }],
+        [ 'OS != "mac" and OS != "ios"', {
+          'sources!': [
+            'apple_keychain.h',
+            'mock_apple_keychain.cc',
+            'mock_apple_keychain.h',
+          ],
+        }],
         [ 'OS == "android"', {
             'dependencies': [
               '../third_party/openssl/openssl.gyp:openssl',
@@ -86,6 +93,12 @@
             },
           },
         ],
+        [ 'OS == "ios"', {
+          'sources!': [
+            # This class is stubbed out on iOS.
+            'rsa_private_key.cc',
+          ],
+        }],
         [ 'OS == "mac"', {
           'link_settings': {
             'libraries': [
@@ -156,18 +169,13 @@
             ],
         },],
       ],
-      'target_conditions' : [
-        [ 'OS == "ios"', {
-          'sources!': [
-            # This class is stubbed out on iOS.
-            'rsa_private_key.cc',
-          ],
-        }],
-      ],
       'sources': [
         # NOTE: all transitive dependencies of HMAC on windows need
         #     to be placed in the source list above.
         '<@(hmac_win64_related_sources)',
+        'apple_keychain.h',
+        'apple_keychain_ios.mm',
+        'apple_keychain_mac.mm',
         'capi_util.cc',
         'capi_util.h',
         'crypto_export.h',
@@ -188,12 +196,12 @@
         'encryptor_openssl.cc',
         'hmac_nss.cc',
         'hmac_openssl.cc',
-        'keychain_mac.cc',
-        'keychain_mac.h',
         'mac_security_services_lock.cc',
         'mac_security_services_lock.h',
-        'mock_keychain_mac.cc',
-        'mock_keychain_mac.h',
+        'mock_apple_keychain.cc',
+        'mock_apple_keychain.h',
+        'mock_apple_keychain_ios.cc',
+        'mock_apple_keychain_mac.cc',
         'p224_spake.cc',
         'p224_spake.h',
         'nss_util.cc',
