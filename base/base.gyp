@@ -206,6 +206,8 @@
           'sources': [
             'debug/debugger_shell.cc',
             'debug/stack_trace_shell.cc',
+            'guid_shell.cc',
+            'safe_strerror_shell.cc',
             'sys_string_conversions_shell.cc',
             'threading/thread_local_shell.cc',
             'threading/thread_local_storage_shell.cc',
