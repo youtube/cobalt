@@ -7,23 +7,21 @@
 
 #include "base/basictypes.h"
 #include "base/observer_list_threadsafe.h"
-#include "base/synchronization/lock.h"
 #include "net/base/net_export.h"
 
 class GURL;
 
 namespace net {
 
+struct DnsConfig;
 class HistogramWatcher;
 class NetworkChangeNotifierFactory;
 
-namespace internal {
-class DnsConfigWatcher;
-
 #if defined(OS_LINUX)
+namespace internal {
 class AddressTrackerLinux;
-#endif
 }
+#endif
 
 // NetworkChangeNotifier monitors the system for network changes, and notifies
 // registered observers of those events.  Observers may register on any thread,
@@ -32,22 +30,6 @@ class AddressTrackerLinux;
 // destroyed on the same thread.
 class NET_EXPORT NetworkChangeNotifier {
  public:
-  // Flags which are ORed together to form |detail| in OnDNSChanged.
-  //
-  // TODO(akalin): Name this enum type and use it instead of plain
-  // 'unsigned' in OnDNSChanged.  ORing together enum values always
-  // results in a valid enum value by the C++ standard.
-  enum {
-    // The DNS configuration (name servers, suffix search) has changed.
-    CHANGE_DNS_SETTINGS = 1 << 0,
-    // The HOSTS file has changed.
-    CHANGE_DNS_HOSTS = 1 << 1,
-    // The watcher has started.
-    CHANGE_DNS_WATCH_STARTED = 1 << 2,
-    // The watcher has failed and will not be available until further notice.
-    CHANGE_DNS_WATCH_FAILED = 1 << 3,
-  };
-
   // Using the terminology of the Network Information API:
   // http://www.w3.org/TR/netinfo-api.
   enum ConnectionType {
@@ -93,8 +75,8 @@ class NET_EXPORT NetworkChangeNotifier {
   class NET_EXPORT DNSObserver {
    public:
     // Will be called when the DNS settings of the system may have changed.
-    // The flags set in |detail| provide the specific set of changes.
-    virtual void OnDNSChanged(unsigned detail) = 0;
+    // Use GetDnsConfig to obtain the current settings.
+    virtual void OnDNSChanged() = 0;
 
    protected:
     DNSObserver() {}
@@ -108,7 +90,7 @@ class NET_EXPORT NetworkChangeNotifier {
 
   // See the description of NetworkChangeNotifier::GetConnectionType().
   // Implementations must be thread-safe. Implementations must also be
-  // cheap as this could be called (repeatedly) from the IO thread.
+  // cheap as this could be called (repeatedly) from the network thread.
   virtual ConnectionType GetCurrentConnectionType() const = 0;
 
   // Replaces the default class factory instance of NetworkChangeNotifier class.
@@ -131,6 +113,10 @@ class NET_EXPORT NetworkChangeNotifier {
   // attempt to a particular remote site will be successful.
   static ConnectionType GetConnectionType();
 
+  // Retrieve the last read DnsConfig. This could be expensive if the system has
+  // a large HOSTS file.
+  static void GetDnsConfig(DnsConfig* config);
+
 #if defined(OS_LINUX)
   // Returns the AddressTrackerLinux if present.
   static const internal::AddressTrackerLinux* GetAddressTracker();
@@ -147,9 +133,6 @@ class NET_EXPORT NetworkChangeNotifier {
   static bool IsOffline() {
     return GetConnectionType() == CONNECTION_NONE;
   }
-
-  // Returns true if DNS watcher is operational.
-  static bool IsWatchingDNS();
 
   // Like Create(), but for use in tests.  The mock object doesn't monitor any
   // events, it merely rebroadcasts notifications when requested.
@@ -190,12 +173,11 @@ class NET_EXPORT NetworkChangeNotifier {
   static void InitHistogramWatcher();
 
  protected:
-  friend class internal::DnsConfigWatcher;
-
   NetworkChangeNotifier();
 
 #if defined(OS_LINUX)
   // Returns the AddressTrackerLinux if present.
+  // TODO(szym): Retrieve AddressMap from NetworkState. http://crbug.com/144212
   virtual const internal::AddressTrackerLinux*
       GetAddressTrackerInternal() const;
 #endif
@@ -205,11 +187,17 @@ class NET_EXPORT NetworkChangeNotifier {
   // tests.
   static void NotifyObserversOfIPAddressChange();
   static void NotifyObserversOfConnectionTypeChange();
-  static void NotifyObserversOfDNSChange(unsigned detail);
+  static void NotifyObserversOfDNSChange();
+
+  // Stores |config| in NetworkState and notifies observers.
+  static void SetDnsConfig(const DnsConfig& config);
 
  private:
+  friend class HostResolverImplDnsTest;
   friend class NetworkChangeNotifierLinuxTest;
   friend class NetworkChangeNotifierWinTest;
+
+  class NetworkState;
 
   // Allows a second NetworkChangeNotifier to be created for unit testing, so
   // the test suite can create a MockNetworkChangeNotifier, but platform
@@ -235,12 +223,8 @@ class NET_EXPORT NetworkChangeNotifier {
   const scoped_refptr<ObserverListThreadSafe<DNSObserver> >
       resolver_state_observer_list_;
 
-  // True iff DNS watchers are operational.
-  // Otherwise, OnDNSChanged might not be issued for future changes.
-  // TODO(szym): This is a temporary interface, consider restarting them.
-  //             http://crbug.com/116139
-  base::Lock watching_dns_lock_;
-  bool watching_dns_;
+  // The current network state. Hosts DnsConfig, exposed via GetDnsConfig.
+  scoped_ptr<NetworkState> network_state_;
 
   // A little-piggy-back observer that simply logs UMA histogram data.
   scoped_ptr<HistogramWatcher> histogram_watcher_;

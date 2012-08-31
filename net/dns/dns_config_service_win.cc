@@ -10,6 +10,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/files/file_path_watcher.h"
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
@@ -21,6 +22,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
+#include "base/win/object_watcher.h"
 #include "base/win/registry.h"
 #include "base/win/windows_version.h"
 #include "googleurl/src/url_canon.h"
@@ -272,6 +274,48 @@ HostsParseWinResult AddLocalhostEntries(DnsHosts* hosts) {
   return HOSTS_PARSE_WIN_OK;
 }
 
+// Watches a single registry key for changes.
+class RegistryWatcher : public base::win::ObjectWatcher::Delegate,
+                        public base::NonThreadSafe {
+ public:
+  typedef base::Callback<void(bool succeeded)> CallbackType;
+  RegistryWatcher() {}
+
+  bool Watch(const wchar_t* key, const CallbackType& callback) {
+    DCHECK(CalledOnValidThread());
+    DCHECK(!callback.is_null());
+    DCHECK(callback_.is_null());
+    callback_ = callback;
+    if (key_.Open(HKEY_LOCAL_MACHINE, key, KEY_NOTIFY) != ERROR_SUCCESS)
+      return false;
+    if (key_.StartWatching() != ERROR_SUCCESS)
+      return false;
+    if (!watcher_.StartWatching(key_.watch_event(), this))
+      return false;
+    return true;
+  }
+
+  virtual void OnObjectSignaled(HANDLE object) OVERRIDE {
+    DCHECK(CalledOnValidThread());
+    bool succeeded = (key_.StartWatching() == ERROR_SUCCESS) &&
+                      watcher_.StartWatching(key_.watch_event(), this);
+    if (!succeeded && key_.Valid()) {
+      watcher_.StopWatching();
+      key_.StopWatching();
+      key_.Close();
+    }
+    if (!callback_.is_null())
+      callback_.Run(succeeded);
+  }
+
+ private:
+  CallbackType callback_;
+  base::win::RegKey key_;
+  base::win::ObjectWatcher watcher_;
+
+  DISALLOW_COPY_AND_ASSIGN(RegistryWatcher);
+};
+
 }  // namespace
 
 FilePath GetHostsPath() {
@@ -450,6 +494,77 @@ ConfigParseWinResult ConvertSettingsToDnsConfig(
   return CONFIG_PARSE_WIN_OK;
 }
 
+// Watches registry and HOSTS file for changes. Must live on a thread which
+// allows IO.
+class DnsConfigServiceWin::Watcher
+    : public NetworkChangeNotifier::IPAddressObserver {
+ public:
+  explicit Watcher(DnsConfigServiceWin* service) : service_(service) {}
+  ~Watcher() {
+    NetworkChangeNotifier::RemoveIPAddressObserver(this);
+  }
+
+  bool Watch() {
+    RegistryWatcher::CallbackType callback =
+        base::Bind(&DnsConfigServiceWin::OnConfigChanged,
+                   base::Unretained(service_));
+
+    bool success = true;
+
+    // The Tcpip key must be present.
+    if (!tcpip_watcher_.Watch(kTcpipPath, callback)) {
+      LOG(ERROR) << "DNS registry watch failed to start.";
+      success = false;
+    }
+
+    // Watch for IPv6 nameservers.
+    tcpip6_watcher_.Watch(kTcpip6Path, callback);
+
+    // DNS suffix search list and devolution can be configured via group
+    // policy which sets this registry key. If the key is missing, the policy
+    // does not apply, and the DNS client uses Tcpip and Dnscache settings.
+    // If a policy is installed, DnsConfigService will need to be restarted.
+    // BUG=99509
+
+    dnscache_watcher_.Watch(kDnscachePath, callback);
+    policy_watcher_.Watch(kPolicyPath, callback);
+
+    if (!hosts_watcher_.Watch(GetHostsPath(),
+                              base::Bind(&Watcher::OnHostsChanged,
+                                         base::Unretained(this)))) {
+      LOG(ERROR) << "DNS hosts watch failed to start.";
+      success = false;
+    } else {
+      // Also need to observe changes to local non-loopback IP for DnsHosts.
+      NetworkChangeNotifier::AddIPAddressObserver(this);
+    }
+    return success;
+  }
+
+ private:
+  void OnHostsChanged(const FilePath& path, bool error) {
+    if (error)
+      NetworkChangeNotifier::RemoveIPAddressObserver(this);
+    service_->OnHostsChanged(!error);
+  }
+
+  // NetworkChangeNotifier::IPAddressObserver:
+  virtual void OnIPAddressChanged() OVERRIDE {
+    // Need to update non-loopback IP of local host.
+    service_->OnHostsChanged(true);
+  }
+
+  DnsConfigServiceWin* service_;
+
+  RegistryWatcher tcpip_watcher_;
+  RegistryWatcher tcpip6_watcher_;
+  RegistryWatcher dnscache_watcher_;
+  RegistryWatcher policy_watcher_;
+  base::files::FilePathWatcher hosts_watcher_;
+
+  DISALLOW_COPY_AND_ASSIGN(Watcher);
+};
+
 // Reads config from registry and IpHelper. All work performed on WorkerPool.
 class DnsConfigServiceWin::ConfigReader : public SerialWorker {
  public:
@@ -541,46 +656,43 @@ class DnsConfigServiceWin::HostsReader : public SerialWorker {
 };
 
 DnsConfigServiceWin::DnsConfigServiceWin()
-    : config_reader_(new ConfigReader(this)),
+    : watcher_(new Watcher(this)),
+      config_reader_(new ConfigReader(this)),
       hosts_reader_(new HostsReader(this)) {}
 
 DnsConfigServiceWin::~DnsConfigServiceWin() {
   config_reader_->Cancel();
   hosts_reader_->Cancel();
-  NetworkChangeNotifier::RemoveIPAddressObserver(this);
 }
 
-void DnsConfigServiceWin::Watch(const CallbackType& callback) {
-  DnsConfigService::Watch(callback);
-  // Also need to observe changes to local non-loopback IP for DnsHosts.
-  NetworkChangeNotifier::AddIPAddressObserver(this);
+void DnsConfigServiceWin::ReadNow() {
+  config_reader_->WorkNow();
+  hosts_reader_->WorkNow();
 }
 
-void DnsConfigServiceWin::OnDNSChanged(unsigned detail) {
-  if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) {
-    InvalidateConfig();
-    InvalidateHosts();
-    // We don't trust a config that we cannot watch in the future.
-    config_reader_->Cancel();
-    hosts_reader_->Cancel();
-    return;
-  }
-  if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED)
-    detail = ~0;  // Assume everything changed.
-  if (detail & NetworkChangeNotifier::CHANGE_DNS_SETTINGS) {
-    InvalidateConfig();
+bool DnsConfigServiceWin::StartWatching() {
+  // TODO(szym): re-start watcher if that makes sense. http://crbug.com/116139
+  return watcher_->Watch();
+}
+
+void DnsConfigServiceWin::OnConfigChanged(bool succeeded) {
+  InvalidateConfig();
+  if (succeeded) {
     config_reader_->WorkNow();
-  }
-  if (detail & NetworkChangeNotifier::CHANGE_DNS_HOSTS) {
-    InvalidateHosts();
-    hosts_reader_->WorkNow();
+  } else {
+    LOG(ERROR) << "DNS config watch failed.";
+    set_watch_failed(true);
   }
 }
 
-void DnsConfigServiceWin::OnIPAddressChanged() {
-  // Need to update non-loopback IP of local host.
-  if (NetworkChangeNotifier::IsWatchingDNS())
-    OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_HOSTS);
+void DnsConfigServiceWin::OnHostsChanged(bool succeeded) {
+  InvalidateHosts();
+  if (succeeded) {
+    hosts_reader_->WorkNow();
+  } else {
+    LOG(ERROR) << "DNS hosts watch failed.";
+    set_watch_failed(true);
+  }
 }
 
 }  // namespace internal

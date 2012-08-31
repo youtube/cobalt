@@ -3,11 +3,15 @@
 // found in the LICENSE file.
 
 #include "net/base/network_change_notifier.h"
-#include "net/base/network_change_notifier_factory.h"
+
 #include "base/metrics/histogram.h"
+#include "base/synchronization/lock.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_util.h"
+#include "net/base/network_change_notifier_factory.h"
+#include "net/dns/dns_config_service.h"
+
 #if defined(OS_WIN)
 #include "net/base/network_change_notifier_win.h"
 #elif defined(OS_LINUX) && !defined(OS_CHROMEOS)
@@ -56,7 +60,7 @@ class HistogramWatcher
   // from the network thread.  This avoids multi-threaded race conditions
   // because the only other interface, |NotifyDataReceived| is also
   // only called from the network thread.
-  void InitHistogramWatcher() {
+  void Init() {
     NetworkChangeNotifier::AddConnectionTypeObserver(this);
     NetworkChangeNotifier::AddIPAddressObserver(this);
     NetworkChangeNotifier::AddDNSObserver(this);
@@ -100,11 +104,9 @@ class HistogramWatcher
   }
 
   // NetworkChangeNotifier::DNSObserver implementation.
-  virtual void OnDNSChanged(unsigned detail) OVERRIDE {
-    if (detail == NetworkChangeNotifier::CHANGE_DNS_SETTINGS) {
-      UMA_HISTOGRAM_MEDIUM_TIMES("NCN.DNSConfigChange",
-                                 SinceLast(&last_dns_change_));
-    }
+  virtual void OnDNSChanged() OVERRIDE {
+    UMA_HISTOGRAM_MEDIUM_TIMES("NCN.DNSConfigChange",
+                               SinceLast(&last_dns_change_));
   }
 
   // Record histogram data whenever we receive a packet but think we're
@@ -139,6 +141,27 @@ class HistogramWatcher
   int32 offline_packets_received_;
 
   DISALLOW_COPY_AND_ASSIGN(HistogramWatcher);
+};
+
+// NetworkState is thread safe.
+class NetworkChangeNotifier::NetworkState {
+ public:
+  NetworkState() {}
+  ~NetworkState() {}
+
+  void GetDnsConfig(DnsConfig* config) const {
+    base::AutoLock lock(lock_);
+    *config = dns_config_;
+  }
+
+  void SetDnsConfig(const DnsConfig& dns_config) {
+    base::AutoLock lock(lock_);
+    dns_config_ = dns_config;
+  }
+
+ private:
+  mutable base::Lock lock_;
+  DnsConfig dns_config_;
 };
 
 NetworkChangeNotifier::~NetworkChangeNotifier() {
@@ -191,6 +214,15 @@ NetworkChangeNotifier::GetConnectionType() {
 }
 
 // static
+void NetworkChangeNotifier::GetDnsConfig(DnsConfig* config) {
+  if (!g_network_change_notifier) {
+    *config = DnsConfig();
+  } else {
+    g_network_change_notifier->network_state_->GetDnsConfig(config);
+  }
+}
+
+// static
 void NetworkChangeNotifier::NotifyDataReceived(const GURL& source) {
   if (!g_network_change_notifier)
     return;
@@ -201,7 +233,7 @@ void NetworkChangeNotifier::NotifyDataReceived(const GURL& source) {
 void NetworkChangeNotifier::InitHistogramWatcher() {
   if (!g_network_change_notifier)
     return;
-  g_network_change_notifier->histogram_watcher_->InitHistogramWatcher();
+  g_network_change_notifier->histogram_watcher_->Init();
 }
 
 #if defined(OS_LINUX)
@@ -212,14 +244,6 @@ NetworkChangeNotifier::GetAddressTracker() {
         g_network_change_notifier->GetAddressTrackerInternal() : NULL;
 }
 #endif
-
-// static
-bool NetworkChangeNotifier::IsWatchingDNS() {
-  if (!g_network_change_notifier)
-    return false;
-  base::AutoLock lock(g_network_change_notifier->watching_dns_lock_);
-  return g_network_change_notifier->watching_dns_;
-}
 
 // static
 NetworkChangeNotifier* NetworkChangeNotifier::CreateMock() {
@@ -279,10 +303,10 @@ NetworkChangeNotifier::NetworkChangeNotifier()
       resolver_state_observer_list_(
         new ObserverListThreadSafe<DNSObserver>(
             ObserverListBase<DNSObserver>::NOTIFY_EXISTING_ONLY)),
-      watching_dns_(false) {
+      network_state_(new NetworkState()),
+      histogram_watcher_(new HistogramWatcher()) {
   DCHECK(!g_network_change_notifier);
   g_network_change_notifier = this;
-  histogram_watcher_.reset(new HistogramWatcher());
 }
 
 #if defined(OS_LINUX)
@@ -301,24 +325,19 @@ void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
 }
 
 // static
-void NetworkChangeNotifier::NotifyObserversOfDNSChange(unsigned detail) {
+void NetworkChangeNotifier::NotifyObserversOfDNSChange() {
   if (g_network_change_notifier) {
-    {
-      base::AutoLock lock(g_network_change_notifier->watching_dns_lock_);
-      if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED) {
-        g_network_change_notifier->watching_dns_ = true;
-      } else if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) {
-        g_network_change_notifier->watching_dns_ = false;
-      }
-      // Include detail that watch is off to spare the call to IsWatchingDNS.
-      if (!g_network_change_notifier->watching_dns_)
-        detail |= NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED;
-    }
-    DCHECK(!(detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) ||
-           !(detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED));
     g_network_change_notifier->resolver_state_observer_list_->Notify(
-        &DNSObserver::OnDNSChanged, detail);
+        &DNSObserver::OnDNSChanged);
   }
+}
+
+// static
+void NetworkChangeNotifier::SetDnsConfig(const DnsConfig& config) {
+  if (!g_network_change_notifier)
+    return;
+  g_network_change_notifier->network_state_->SetDnsConfig(config);
+  NotifyObserversOfDNSChange();
 }
 
 void NetworkChangeNotifier::NotifyObserversOfConnectionTypeChange() {

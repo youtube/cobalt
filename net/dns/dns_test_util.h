@@ -189,19 +189,6 @@ typedef std::vector<MockDnsClientRule> MockDnsClientRuleList;
 scoped_ptr<DnsClient> CreateMockDnsClient(const DnsConfig& config,
                                           const MockDnsClientRuleList& rules);
 
-class MockDnsConfigService : public DnsConfigService {
- public:
-  virtual ~MockDnsConfigService();
-
-  // NetworkChangeNotifier::DNSObserver:
-  virtual void OnDNSChanged(unsigned detail) OVERRIDE;
-
-  // Expose the protected methods for tests.
-  void ChangeConfig(const DnsConfig& config);
-  void ChangeHosts(const DnsHosts& hosts);
-};
-
-
 }  // namespace net
 
 #endif  // NET_DNS_DNS_TEST_UTIL_H_
