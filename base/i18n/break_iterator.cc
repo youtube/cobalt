@@ -31,6 +31,9 @@ bool BreakIterator::Init() {
   UErrorCode status = U_ZERO_ERROR;
   UBreakIteratorType break_type;
   switch (break_type_) {
+    case BREAK_CHARACTER:
+      break_type = UBRK_CHARACTER;
+      break;
     case BREAK_WORD:
       break_type = UBRK_WORD;
       break;
@@ -59,6 +62,7 @@ bool BreakIterator::Advance() {
   int32_t status;
   prev_ = pos_;
   switch (break_type_) {
+    case BREAK_CHARACTER:
     case BREAK_WORD:
     case BREAK_LINE:
       pos = ubrk_next(static_cast<UBreakIterator*>(iter_));
