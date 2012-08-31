@@ -387,8 +387,9 @@ void HttpCache::Transaction::StopCaching() {
   // the next piece of code that executes know that we are now reading directly
   // from the net.
   if (cache_ && entry_ && (mode_ & WRITE) && network_trans_.get() &&
-      !is_sparse_ && !range_requested_)
+      !is_sparse_ && !range_requested_) {
     mode_ = NONE;
+  }
 }
 
 void HttpCache::Transaction::DoneReading() {
@@ -1558,8 +1559,9 @@ void HttpCache::Transaction::SetRequest(const BoundNetLog& net_log,
     if (request_->extra_headers.GetHeader(
             info.request_header_name, &validation_value)) {
       if (!external_validation_.values[i].empty() ||
-          validation_value.empty())
+          validation_value.empty()) {
         external_validation_error = true;
+      }
       external_validation_.values[i] = validation_value;
       external_validation_.initialized = true;
       break;
@@ -1617,8 +1619,9 @@ bool HttpCache::Transaction::ShouldPassThrough() {
     return false;
 
   if (request_->method == "POST" &&
-      request_->upload_data && request_->upload_data->identifier())
+      request_->upload_data && request_->upload_data->identifier()) {
     return false;
+  }
 
   if (request_->method == "PUT" && request_->upload_data)
     return false;
@@ -1707,8 +1710,9 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
   DCHECK(mode_ == READ_WRITE);
 
   if (response_.headers->response_code() != 206 && !partial_.get() &&
-      !truncated_)
+      !truncated_) {
     return BeginCacheValidation();
+  }
 
   // Partial requests should not be recorded in histograms.
   UpdateTransactionPattern(PATTERN_NOT_COVERED);
@@ -1831,13 +1835,15 @@ bool HttpCache::Transaction::RequiresValidation() {
     return true;
 
   if (response_.headers->RequiresValidation(
-          response_.request_time, response_.response_time, Time::Now()))
+          response_.request_time, response_.response_time, Time::Now())) {
     return true;
+  }
 
   // Since Vary header computation is fairly expensive, we save it for last.
   if (response_.vary_data.is_valid() &&
-      !response_.vary_data.MatchesRequest(*request_, *response_.headers))
+      !response_.vary_data.MatchesRequest(*request_, *response_.headers)) {
     return true;
+  }
 
   return false;
 }
@@ -1850,8 +1856,9 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
 
   // This only makes sense for cached 200 or 206 responses.
   if (response_.headers->response_code() != 200 &&
-      response_.headers->response_code() != 206)
+      response_.headers->response_code() != 206) {
     return false;
+  }
 
   // We should have handled this case before.
   DCHECK(response_.headers->response_code() != 206 ||
@@ -2029,11 +2036,10 @@ void HttpCache::Transaction::IgnoreRangeRequest() {
   // using the cache and see what happens. Most likely this is the first
   // response from the server (it's not changing its mind midway, right?).
   UpdateTransactionPattern(PATTERN_NOT_COVERED);
-  if (mode_ & WRITE) {
+  if (mode_ & WRITE)
     DoneWritingToEntry(mode_ != WRITE);
-  } else if (mode_ & READ && entry_) {
+  else if (mode_ & READ && entry_)
     cache_->DoneReadingFromEntry(entry_, this);
-  }
 
   partial_.reset(NULL);
   entry_ = NULL;
@@ -2103,9 +2109,8 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
   // headers; when in record mode, record everything.
   bool skip_transient_headers = (cache_->mode() != RECORD);
 
-  if (truncated) {
+  if (truncated)
     DCHECK_EQ(200, response_.headers->response_code());
-  }
 
   scoped_refptr<PickledIOBuffer> data(new PickledIOBuffer());
   response_.Persist(data->pickle(), skip_transient_headers, truncated);
@@ -2225,8 +2230,9 @@ bool HttpCache::Transaction::CanResume(bool has_data) {
 
   if (response_.headers->GetContentLength() <= 0 ||
       response_.headers->HasHeaderValue("Accept-Ranges", "none") ||
-      !response_.headers->HasStrongValidators())
+      !response_.headers->HasStrongValidators()) {
     return false;
+  }
 
   return true;
 }
