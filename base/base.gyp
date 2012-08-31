@@ -940,6 +940,18 @@
           },
           'includes': [ '../build/java.gypi' ],
         },
+        {
+          'target_name': 'base_java_test_support',
+          'type': 'none',
+          'dependencies': [
+            'base_java',
+          ],
+          'variables': {
+            'package_name': 'base_javatests',
+            'java_in_dir': '../base/android/javatests',
+          },
+          'includes': [ '../build/java.gypi' ],
+        },
       ],
     }],
     ['OS == "win"', {
@@ -978,18 +990,6 @@
             'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)base_unittests<(SHARED_LIB_SUFFIX)',
           },
           'includes': [ '../build/apk_test.gypi' ],
-        },
-        {
-          'target_name': 'base_java_test_support',
-          'type': 'none',
-          'dependencies': [
-            'base_java',
-          ],
-          'variables': {
-            'package_name': 'base_javatests',
-            'java_in_dir': '../base/android/javatests',
-          },
-          'includes': [ '../build/java.gypi' ],
         },
       ],
     }],
