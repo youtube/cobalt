@@ -46,6 +46,8 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
                                 public ProxyConfigService::Observer,
                                 NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
+  static const size_t kDefaultNumPacThreads = 4;
+
   // This interface defines the set of policies for when to poll the PAC
   // script for changes.
   //
@@ -198,51 +200,8 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // to downloading and testing the PAC files.
   void ForceReloadProxyConfig();
 
-  // Creates a proxy service that polls |proxy_config_service| to notice when
-  // the proxy settings change. We take ownership of |proxy_config_service|.
-  //
-  // |num_pac_threads| specifies the maximum number of threads to use for
-  // executing PAC scripts. Threads are created lazily on demand.
-  // If |0| is specified, then a default number of threads will be selected.
-  //
-  // Having more threads avoids stalling proxy resolve requests when the
-  // PAC script takes a while to run. This is particularly a problem when PAC
-  // scripts do synchronous DNS resolutions, since that can take on the order
-  // of seconds.
-  //
-  // However, the disadvantages of using more than 1 thread are:
-  //   (a) can cause compatibility issues for scripts that rely on side effects
-  //       between runs (such scripts should not be common though).
-  //   (b) increases the memory used by proxy resolving, as each thread will
-  //       duplicate its own script context.
-
-  // |proxy_script_fetcher| specifies the dependency to use for downloading
-  // any PAC scripts. The resulting ProxyService will take ownership of it.
-  //
-  // |dhcp_proxy_script_fetcher| specifies the dependency to use for attempting
-  // to retrieve the most appropriate PAC script configured in DHCP. The
-  // resulting ProxyService will take ownership of it.
-  //
-  // |host_resolver| points to the host resolving dependency the PAC script
-  // should use for any DNS queries. It must remain valid throughout the
-  // lifetime of the ProxyService.
-  //
-  // ##########################################################################
-  // # See the warnings in net/proxy/proxy_resolver_v8.h describing the
-  // # multi-threading model. In order for this to be safe to use, *ALL* the
-  // # other V8's running in the process must use v8::Locker.
-  // ##########################################################################
-  static ProxyService* CreateUsingV8ProxyResolver(
-      ProxyConfigService* proxy_config_service,
-      size_t num_pac_threads,
-      ProxyScriptFetcher* proxy_script_fetcher,
-      DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
-      HostResolver* host_resolver,
-      NetLog* net_log,
-      NetworkDelegate* network_delegate);
-
-  // Same as CreateUsingV8ProxyResolver, except it uses system libraries
-  // for evaluating the PAC script if available, otherwise skips
+  // Same as CreateProxyServiceUsingV8ProxyResolver, except it uses system
+  // libraries for evaluating the PAC script if available, otherwise skips
   // proxy autoconfig.
   static ProxyService* CreateUsingSystemProxyResolver(
       ProxyConfigService* proxy_config_service,
