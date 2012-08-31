@@ -596,8 +596,6 @@
         'proxy/proxy_resolver_script.h',
         'proxy/proxy_resolver_script_data.cc',
         'proxy/proxy_resolver_script_data.h',
-        'proxy/proxy_resolver_v8.cc',
-        'proxy/proxy_resolver_v8.h',
         'proxy/proxy_resolver_winhttp.cc',
         'proxy/proxy_resolver_winhttp.h',
         'proxy/proxy_retry_info.h',
@@ -825,12 +823,6 @@
         '../base/base.gyp:base',
       ],
       'conditions': [
-        ['OS != "ios"', {
-          'dependencies': [
-            # The v8 gyp file is not available in the iOS tree.
-            '../v8/tools/gyp/v8.gyp:v8',
-          ],
-        }],
         ['chromeos==1', {
           'sources!': [
              'base/network_change_notifier_linux.cc',
@@ -1150,6 +1142,35 @@
       ],
     },
     {
+      'target_name': 'net_with_v8',
+      'type': '<(component)',
+      'variables': { 'enable_wexit_time_destructors': 1, },
+      'dependencies': [
+        '../base/base.gyp:base',
+        '../build/temp_gyp/googleurl.gyp:googleurl',
+        'net'
+      ],
+      'defines': [
+        'NET_IMPLEMENTATION',
+      ],
+      'sources': [
+        'proxy/proxy_resolver_v8.cc',
+        'proxy/proxy_resolver_v8.h',
+        'proxy/proxy_service_v8.cc',
+        'proxy/proxy_service_v8.h',
+      ],
+      'conditions': [
+        ['OS != "ios"',
+          {
+            'dependencies': [
+              # The v8 gyp file is not available in the iOS tree.
+              '../v8/tools/gyp/v8.gyp:v8',
+            ],
+          }
+        ],
+      ],
+    },
+    {
       'target_name': 'net_unittests',
       'type': '<(gtest_target_type)',
       'dependencies': [
@@ -1162,6 +1183,7 @@
         '../third_party/zlib/zlib.gyp:zlib',
         'net',
         'net_test_support',
+        'net_with_v8',
       ],
       'sources': [
         'base/address_list_unittest.cc',
@@ -1568,6 +1590,7 @@
         '../testing/gtest.gyp:gtest',
         'net',
         'net_test_support',
+        'net_with_v8',
       ],
       'sources': [
         'cookies/cookie_monster_perftest.cc',
@@ -1603,6 +1626,7 @@
         '../base/base.gyp:test_support_base',
         '../testing/gtest.gyp:gtest',
         'net',
+        'net_with_v8',
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
@@ -1802,6 +1826,7 @@
             '../build/temp_gyp/googleurl.gyp:googleurl',
             '../testing/gtest.gyp:gtest',
             'net',
+            'net_with_v8',
           ],
           'sources': [
             'tools/fetch/fetch_client.cc',
@@ -1848,6 +1873,7 @@
           'dependencies': [
             '../base/base.gyp:base',
             'net',
+            'net_with_v8',
           ],
           'sources': [
             'tools/net_watcher/net_watcher.cc',
