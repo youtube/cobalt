@@ -64,9 +64,6 @@ ValueStoreFrontendTest.GetExistingData
 # crbug.com/139421
 ChromeSelectFilePolicyTest.ExpectAsynchronousListenerCall
 
-# crbug.com/139412
-UserStyleSheetWatcherTest.StyleLoad
-
 # http://crbug.com/139033
 ChromeDownloadManagerDelegateTest.StartDownload_PromptAlways
 
