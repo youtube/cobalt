@@ -373,10 +373,10 @@ bool FilePathWatcherImpl::Watch(const FilePath& path,
   std::vector<FilePath::StringType> comps;
   target_.GetComponents(&comps);
   DCHECK(!comps.empty());
-  for (std::vector<FilePath::StringType>::const_iterator comp(++comps.begin());
-       comp != comps.end(); ++comp) {
+  std::vector<FilePath::StringType>::const_iterator comp = comps.begin();
+  for (++comp; comp != comps.end(); ++comp)
     watches_.push_back(WatchEntry(InotifyReader::kInvalidWatch, *comp));
-  }
+
   watches_.push_back(WatchEntry(InotifyReader::kInvalidWatch,
                                 FilePath::StringType()));
   return UpdateWatches();
