@@ -246,11 +246,9 @@ NET_ERROR(MSG_TOO_BIG, -142)
 // A SPDY session already exists, and should be used instead of this connection.
 NET_ERROR(SPDY_SESSION_ALREADY_EXISTS, -143)
 
-// Violation of limits (e.g. imposed to prevent DoS).
-NET_ERROR(LIMIT_VIOLATION, -144)
+// Error -144 was removed (LIMIT_VIOLATION).
 
-// WebSocket protocol error occurred.
-NET_ERROR(WS_PROTOCOL_ERROR, -145)
+// Error -145 was removed (WS_PROTOCOL_ERROR).
 
 // Connection was aborted for switching to another ptotocol.
 // WebSocket abort SocketStream connection when alternate protocol is found.
