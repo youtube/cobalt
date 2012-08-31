@@ -15,6 +15,7 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -259,7 +260,7 @@ TEST_F(FilePathWatcherTest, DeletedFile) {
 }
 
 TEST_F(FilePathWatcherTest, Callback) {
-  FilePathWatcher watcher;
+  FilePathWatcher* watcher = new FilePathWatcher();
   bool called_back = false;
 
   MessageLoop* file_loop = file_thread_.message_loop();
@@ -273,7 +274,7 @@ TEST_F(FilePathWatcherTest, Callback) {
   // has been installed.
   file_thread_.message_loop_proxy()->PostTaskAndReply(
       FROM_HERE,
-      base::Bind(SetupWatchCallback, test_file(), &watcher, callback),
+      base::Bind(SetupWatchCallback, test_file(), watcher, callback),
       base::Bind(&MessageLoop::Quit, base::Unretained(&loop_)));
   loop_.Run();
 
@@ -282,6 +283,20 @@ TEST_F(FilePathWatcherTest, Callback) {
   ASSERT_TRUE(WriteFile(test_file(), "content"));
   loop_.Run();
   EXPECT_TRUE(called_back);
+
+  // Multiple events might have triggered, meaning that multiple
+  // QuitLoopWatchCallback have been posted. The FilePathWatcher can only cancel
+  // on the FILE thread, and thus that callback might still trigger after this
+  // function returns. Make sure the |watcher| is deleted before returning and
+  // destroying |called_back|.
+  // A better fix requires significant changes to the FilePathWatcher.
+  // TODO(joaodasilva): fix the FPW interface. http://crbug.com/145653
+  file_thread_.message_loop_proxy()->DeleteSoon(FROM_HERE, watcher);
+  file_thread_.message_loop_proxy()->PostTaskAndReply(
+      FROM_HERE,
+      base::Bind(base::DoNothing),
+      base::Bind(&MessageLoop::Quit, base::Unretained(&loop_)));
+  loop_.Run();
 }
 
 // Used by the DeleteDuringNotify test below.
