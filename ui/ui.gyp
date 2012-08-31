@@ -519,8 +519,6 @@
             ['exclude', 'base/dialogs/select_file_dialog_mac.mm'],
             ['exclude', 'base/dialogs/select_file_dialog_win.cc'],
             ['exclude', 'base/dragdrop/drag_utils_win.cc'],
-            ['exclude', 'base/win/mouse_wheel_util.cc'],
-            ['exclude', 'base/win/mouse_wheel_util.h'],
             ['exclude', 'base/work_area_watcher_observer.h'],
             ['exclude', 'base/x/active_window_watcher_x.cc'],
             ['exclude', 'base/x/active_window_watcher_x.h'],
