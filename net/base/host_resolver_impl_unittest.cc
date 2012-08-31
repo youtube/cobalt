@@ -435,7 +435,6 @@ class HostResolverImplTest : public testing::Test {
         HostCache::CreateDefaultCache(),
         DefaultLimits(),
         DefaultParams(proc_),
-        scoped_ptr<DnsConfigService>(NULL),
         scoped_ptr<DnsClient>(NULL),
         NULL));
   }
@@ -450,7 +449,6 @@ class HostResolverImplTest : public testing::Test {
         HostCache::CreateDefaultCache(),
         limits,
         params,
-        scoped_ptr<DnsConfigService>(NULL),
         scoped_ptr<DnsClient>(NULL),
         NULL));
   }
@@ -763,7 +761,6 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
       NULL,
       DefaultLimits(),
       DefaultParams(proc_),
-      scoped_ptr<DnsConfigService>(NULL),
       scoped_ptr<DnsClient>(NULL),
       NULL));
 
@@ -1201,7 +1198,6 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
       new HostResolverImpl(HostCache::CreateDefaultCache(),
                            DefaultLimits(),
                            params,
-                           scoped_ptr<DnsConfigService>(NULL),
                            scoped_ptr<DnsClient>(NULL),
                            NULL));
 
@@ -1252,12 +1248,10 @@ class HostResolverImplDnsTest : public HostResolverImplTest {
   }
 
   void CreateResolver() {
-    config_service_ = new MockDnsConfigService();
     resolver_.reset(new HostResolverImpl(
         HostCache::CreateDefaultCache(),
         DefaultLimits(),
         DefaultParams(proc_),
-        scoped_ptr<DnsConfigService>(config_service_),
         CreateMockDnsClient(DnsConfig(), dns_rules_),
         NULL));
   }
@@ -1271,13 +1265,12 @@ class HostResolverImplDnsTest : public HostResolverImplTest {
   }
 
   void ChangeDnsConfig(const DnsConfig& config) {
-    config_service_->ChangeConfig(config);
-    config_service_->ChangeHosts(config.hosts);
+    NetworkChangeNotifier::SetDnsConfig(config);
+    // Notification is delivered asynchronously.
+    MessageLoop::current()->RunAllPending();
   }
 
   MockDnsClientRuleList dns_rules_;
-  // Owned by |resolver_|.
-  MockDnsConfigService* config_service_;
 };
 
 // TODO(szym): Test AbortAllInProgressJobs due to DnsConfig change.
@@ -1352,7 +1345,8 @@ TEST_F(HostResolverImplDnsTest, DnsTaskUnspec) {
 
 TEST_F(HostResolverImplDnsTest, ServeFromHosts) {
   // Initially, use empty HOSTS file.
-  ChangeDnsConfig(CreateValidDnsConfig());
+  DnsConfig config = CreateValidDnsConfig();
+  ChangeDnsConfig(config);
 
   proc_->AddRuleForAllFamilies("", "");  // Default to failures.
   proc_->SignalMultiple(1u);  // For the first request which misses.
@@ -1372,7 +1366,8 @@ TEST_F(HostResolverImplDnsTest, ServeFromHosts) {
   hosts[DnsHostsKey("er_both", ADDRESS_FAMILY_IPV6)] = local_ipv6;
 
   // Update HOSTS file.
-  config_service_->ChangeHosts(hosts);
+  config.hosts = hosts;
+  ChangeDnsConfig(config);
 
   Request* req1 = CreateRequest("er_ipv4", 80);
   EXPECT_EQ(OK, req1->Resolve());

@@ -26,8 +26,6 @@ namespace net {
 
 class BoundNetLog;
 class DnsClient;
-struct DnsConfig;
-class DnsConfigService;
 class NetLog;
 
 // For each hostname that is requested, HostResolver creates a
@@ -62,6 +60,7 @@ class NET_EXPORT HostResolverImpl
     : public HostResolver,
       NON_EXPORTED_BASE(public base::NonThreadSafe),
       public NetworkChangeNotifier::IPAddressObserver,
+      public NetworkChangeNotifier::DNSObserver,
       public base::SupportsWeakPtr<HostResolverImpl> {
  public:
   // Parameters for ProcTask which resolves hostnames using HostResolveProc.
@@ -120,7 +119,6 @@ class NET_EXPORT HostResolverImpl
   HostResolverImpl(HostCache* cache,
                    const PrioritizedDispatcher::Limits& job_limits,
                    const ProcTaskParams& proc_params,
-                   scoped_ptr<DnsConfigService> dns_config_service,
                    scoped_ptr<DnsClient> dns_client,
                    NetLog* net_log);
 
@@ -221,8 +219,8 @@ class NET_EXPORT HostResolverImpl
   // NetworkChangeNotifier::IPAddressObserver:
   virtual void OnIPAddressChanged() OVERRIDE;
 
-  // DnsConfigService callback:
-  void OnDnsConfigChanged(const DnsConfig& dns_config);
+  // NetworkChangeNotifier::DNSObserver:
+  virtual void OnDNSChanged() OVERRIDE;
 
   // True if have a DnsClient with a valid DnsConfig.
   bool HaveDnsConfig() const;
@@ -249,8 +247,6 @@ class NET_EXPORT HostResolverImpl
 
   // Address family to use when the request doesn't specify one.
   AddressFamily default_address_family_;
-
-  scoped_ptr<DnsConfigService> dns_config_service_;
 
   // If present, used by DnsTask and ServeFromHosts to resolve requests.
   scoped_ptr<DnsClient> dns_client_;

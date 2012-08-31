@@ -8,6 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
+#include "base/files/file_path_watcher.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
@@ -17,6 +18,7 @@
 #include "net/base/net_util.h"
 #include "net/dns/dns_hosts.h"
 #include "net/dns/dns_protocol.h"
+#include "net/dns/notify_watcher_mac.h"
 #include "net/dns/serial_worker.h"
 
 namespace net {
@@ -26,11 +28,51 @@ namespace internal {
 
 namespace {
 
+const FilePath::CharType* kFilePathHosts = FILE_PATH_LITERAL("/etc/hosts");
+
+#if defined(OS_MACOSX)
+// From 10.7.3 configd-395.10/dnsinfo/dnsinfo.h
+static const char* kDnsNotifyKey =
+    "com.apple.system.SystemConfiguration.dns_configuration";
+
+class ConfigWatcher {
+ public:
+  bool Watch(const base::Callback<void(bool succeeded)>& callback) {
+    return watcher_.Watch(kDnsNotifyKey, callback);
+  }
+
+ private:
+  NotifyWatcherMac watcher_;
+};
+#else
+
 #ifndef _PATH_RESCONF  // Normally defined in <resolv.h>
 #define _PATH_RESCONF "/etc/resolv.conf"
 #endif
 
-const FilePath::CharType* kFilePathHosts = FILE_PATH_LITERAL("/etc/hosts");
+static const FilePath::CharType* kFilePathConfig =
+    FILE_PATH_LITERAL(_PATH_RESCONF);
+
+class ConfigWatcher {
+ public:
+  typedef base::Callback<void(bool succeeded)> CallbackType;
+
+  bool Watch(const CallbackType& callback) {
+    callback_ = callback;
+    return watcher_.Watch(FilePath(kFilePathConfig),
+                          base::Bind(&ConfigWatcher::OnCallback,
+                                     base::Unretained(this)));
+  }
+
+ private:
+  void OnCallback(const FilePath& path, bool error) {
+    callback_.Run(!error);
+  }
+
+  base::files::FilePathWatcher watcher_;
+  CallbackType callback_;
+};
+#endif
 
 ConfigParsePosixResult ReadDnsConfig(DnsConfig* config) {
   ConfigParsePosixResult result;
@@ -63,13 +105,48 @@ ConfigParsePosixResult ReadDnsConfig(DnsConfig* config) {
   return result;
 }
 
+}  // namespace
+
+class DnsConfigServicePosix::Watcher {
+ public:
+  explicit Watcher(DnsConfigServicePosix* service) : service_(service) {}
+  ~Watcher() {}
+
+  bool Watch() {
+    bool success = true;
+    if (!config_watcher_.Watch(
+        base::Bind(&DnsConfigServicePosix::OnConfigChanged,
+                   base::Unretained(service_)))) {
+      LOG(ERROR) << "DNS config watch failed to start.";
+      success = false;
+    }
+    if (!hosts_watcher_.Watch(FilePath(kFilePathHosts),
+                              base::Bind(&Watcher::OnHostsChanged,
+                                         base::Unretained(this)))) {
+      LOG(ERROR) << "DNS hosts watch failed to start.";
+      success = false;
+    }
+    return success;
+  }
+
+ private:
+  void OnHostsChanged(const FilePath& path, bool error) {
+    service_->OnHostsChanged(!error);
+  }
+
+  DnsConfigServicePosix* service_;
+  ConfigWatcher config_watcher_;
+  base::files::FilePathWatcher hosts_watcher_;
+
+  DISALLOW_COPY_AND_ASSIGN(Watcher);
+};
+
 // A SerialWorker that uses libresolv to initialize res_state and converts
 // it to DnsConfig.
-class ConfigReader : public SerialWorker {
+class DnsConfigServicePosix::ConfigReader : public SerialWorker {
  public:
-  typedef base::Callback<void(const DnsConfig& config)> CallbackType;
-  explicit ConfigReader(const CallbackType& callback)
-      : callback_(callback), success_(false) {}
+  explicit ConfigReader(DnsConfigServicePosix* service)
+      : service_(service), success_(false) {}
 
   virtual void DoWork() OVERRIDE {
     base::TimeTicks start_time = base::TimeTicks::Now();
@@ -85,7 +162,7 @@ class ConfigReader : public SerialWorker {
   virtual void OnWorkFinished() OVERRIDE {
     DCHECK(!IsCancelled());
     if (success_) {
-      callback_.Run(dns_config_);
+      service_->OnConfigRead(dns_config_);
     } else {
       LOG(WARNING) << "Failed to read DnsConfig.";
     }
@@ -94,7 +171,7 @@ class ConfigReader : public SerialWorker {
  private:
   virtual ~ConfigReader() {}
 
-  const CallbackType callback_;
+  DnsConfigServicePosix* service_;
   // Written in DoWork, read in OnWorkFinished, no locking necessary.
   DnsConfig dns_config_;
   bool success_;
@@ -103,11 +180,10 @@ class ConfigReader : public SerialWorker {
 };
 
 // A SerialWorker that reads the HOSTS file and runs Callback.
-class HostsReader : public SerialWorker {
+class DnsConfigServicePosix::HostsReader : public SerialWorker {
  public:
-  typedef base::Callback<void(const DnsHosts& hosts)> CallbackType;
-  explicit HostsReader(const CallbackType& callback)
-      : path_(kFilePathHosts), callback_(callback), success_(false) {}
+  explicit HostsReader(DnsConfigServicePosix* service)
+      :  service_(service), path_(kFilePathHosts), success_(false) {}
 
  private:
   virtual ~HostsReader() {}
@@ -122,12 +198,13 @@ class HostsReader : public SerialWorker {
 
   virtual void OnWorkFinished() OVERRIDE {
     if (success_) {
-      callback_.Run(hosts_);
+      service_->OnHostsRead(hosts_);
     } else {
       LOG(WARNING) << "Failed to read DnsHosts.";
     }
   }
 
+  DnsConfigServicePosix* service_;
   const FilePath path_;
   const CallbackType callback_;
   // Written in DoWork, read in OnWorkFinished, no locking necessary.
@@ -137,40 +214,43 @@ class HostsReader : public SerialWorker {
   DISALLOW_COPY_AND_ASSIGN(HostsReader);
 };
 
-}  // namespace
-
-DnsConfigServicePosix::DnsConfigServicePosix() {
-  config_reader_ = new ConfigReader(
-      base::Bind(&DnsConfigServicePosix::OnConfigRead,
-                 base::Unretained(this)));
-  hosts_reader_ = new HostsReader(
-      base::Bind(&DnsConfigServicePosix::OnHostsRead,
-                 base::Unretained(this)));
-}
+DnsConfigServicePosix::DnsConfigServicePosix()
+    : watcher_(new Watcher(this)),
+      config_reader_(new ConfigReader(this)),
+      hosts_reader_(new HostsReader(this)) {}
 
 DnsConfigServicePosix::~DnsConfigServicePosix() {
   config_reader_->Cancel();
   hosts_reader_->Cancel();
 }
 
-void DnsConfigServicePosix::OnDNSChanged(unsigned detail) {
-  if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) {
-    InvalidateConfig();
-    InvalidateHosts();
-    // We don't trust a config that we cannot watch in the future.
-    config_reader_->Cancel();
-    hosts_reader_->Cancel();
-    return;
-  }
-  if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED)
-    detail = ~0;  // Assume everything changed.
-  if (detail & NetworkChangeNotifier::CHANGE_DNS_SETTINGS) {
-    InvalidateConfig();
+void DnsConfigServicePosix::ReadNow() {
+  config_reader_->WorkNow();
+  hosts_reader_->WorkNow();
+}
+
+bool DnsConfigServicePosix::StartWatching() {
+  // TODO(szym): re-start watcher if that makes sense. http://crbug.com/116139
+  return watcher_->Watch();
+}
+
+void DnsConfigServicePosix::OnConfigChanged(bool succeeded) {
+  InvalidateConfig();
+  if (succeeded) {
     config_reader_->WorkNow();
+  } else {
+    LOG(ERROR) << "DNS config watch failed.";
+    set_watch_failed(true);
   }
-  if (detail & NetworkChangeNotifier::CHANGE_DNS_HOSTS) {
-    InvalidateHosts();
+}
+
+void DnsConfigServicePosix::OnHostsChanged(bool succeeded) {
+  InvalidateHosts();
+  if (succeeded) {
     hosts_reader_->WorkNow();
+  } else {
+    LOG(ERROR) << "DNS hosts watch failed.";
+    set_watch_failed(true);
   }
 }
 
@@ -283,7 +363,9 @@ class StubDnsConfigService : public DnsConfigService {
  public:
   StubDnsConfigService() {}
   virtual ~StubDnsConfigService() {}
-  virtual void OnDNSChanged(unsigned detail) OVERRIDE {}
+ private:
+  virtual void ReadNow() OVERRIDE {}
+  virtual bool StartWatching() OVERRIDE { return false; }
 };
 // static
 scoped_ptr<DnsConfigService> DnsConfigService::CreateSystemService() {

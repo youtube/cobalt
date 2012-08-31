@@ -15,8 +15,6 @@
 
 namespace net {
 
-class SerialWorker;
-
 // Use DnsConfigService::CreateSystemService to use it outside of tests.
 namespace internal {
 
@@ -26,11 +24,20 @@ class NET_EXPORT_PRIVATE DnsConfigServicePosix : public DnsConfigService {
   virtual ~DnsConfigServicePosix();
 
  private:
-  // NetworkChangeNotifier::DNSObserver:
-  virtual void OnDNSChanged(unsigned detail) OVERRIDE;
+  class Watcher;
+  class ConfigReader;
+  class HostsReader;
 
-  scoped_refptr<SerialWorker> config_reader_;
-  scoped_refptr<SerialWorker> hosts_reader_;
+  // DnsConfigService:
+  virtual void ReadNow() OVERRIDE;
+  virtual bool StartWatching() OVERRIDE;
+
+  void OnConfigChanged(bool succeeded);
+  void OnHostsChanged(bool succeeded);
+
+  scoped_ptr<Watcher> watcher_;
+  scoped_refptr<ConfigReader> config_reader_;
+  scoped_refptr<HostsReader> hosts_reader_;
 
   DISALLOW_COPY_AND_ASSIGN(DnsConfigServicePosix);
 };

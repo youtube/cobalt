@@ -47,7 +47,7 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierWin
   int sequential_failures() { return sequential_failures_; }
 
  private:
-  class DnsWatcherThread;
+  class DnsConfigServiceThread;
   friend class NetworkChangeNotifierWinTest;
 
   // NetworkChangeNotifier methods:
@@ -90,8 +90,8 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierWin
   // Used for calling WatchForAddressChange again on failure.
   base::WeakPtrFactory<NetworkChangeNotifierWin> weak_factory_;
 
-  // Thread on which we can run DnsConfigWatcher.
-  scoped_ptr<DnsWatcherThread> dns_watcher_thread_;
+  // Thread on which we can run DnsConfigService.
+  scoped_ptr<DnsConfigServiceThread> dns_config_service_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierWin);
 };

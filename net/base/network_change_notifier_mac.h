@@ -26,8 +26,6 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   // NetworkChangeNotifier implementation:
   virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
 
-  class DnsWatcherThread;
-
   // Forwarder just exists to keep the NetworkConfigWatcherMac API out of
   // NetworkChangeNotifierMac's public API.
   class Forwarder : public NetworkConfigWatcherMac::Delegate {
@@ -46,6 +44,9 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
     NetworkChangeNotifierMac* const net_config_watcher_;
     DISALLOW_COPY_AND_ASSIGN(Forwarder);
   };
+
+ private:
+  class DnsConfigServiceThread;
 
   // Methods directly called by the NetworkConfigWatcherMac::Delegate:
   void StartReachabilityNotifications();
@@ -70,8 +71,7 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   Forwarder forwarder_;
   scoped_ptr<const NetworkConfigWatcherMac> config_watcher_;
 
-  // Thread on which we can run DnsConfigWatcher, which requires TYPE_IO.
-  scoped_ptr<DnsWatcherThread> dns_watcher_thread_;
+  scoped_ptr<DnsConfigServiceThread> dns_config_service_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };
