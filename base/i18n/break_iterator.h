@@ -65,6 +65,7 @@ class BASE_I18N_EXPORT BreakIterator {
     // implement it separately.
     BREAK_SPACE = BREAK_LINE,
     BREAK_NEWLINE,
+    BREAK_CHARACTER,
   };
 
   // Requires |str| to live as long as the BreakIterator does.
