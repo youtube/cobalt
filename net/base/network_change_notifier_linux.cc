@@ -26,7 +26,7 @@
 #include "dbus/object_proxy.h"
 #include "net/base/address_tracker_linux.h"
 #include "net/base/net_errors.h"
-#include "net/dns/dns_config_watcher.h"
+#include "net/dns/dns_config_service.h"
 
 namespace net {
 
@@ -262,7 +262,7 @@ class NetworkChangeNotifierLinux::Thread : public base::Thread {
   // Used to detect online/offline state changes.
   NetworkManagerApi network_manager_api_;
 
-  internal::DnsConfigWatcher dns_watcher_;
+  scoped_ptr<DnsConfigService> dns_config_service_;
   internal::AddressTrackerLinux address_tracker_;
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
@@ -285,13 +285,15 @@ NetworkChangeNotifierLinux::Thread::~Thread() {
 
 void NetworkChangeNotifierLinux::Thread::Init() {
   network_manager_api_.Init();
-  dns_watcher_.Init();
+  dns_config_service_ = DnsConfigService::CreateSystemService();
+  dns_config_service_->WatchConfig(
+      base::Bind(&NetworkChangeNotifier::SetDnsConfig));
   address_tracker_.Init();
 }
 
 void NetworkChangeNotifierLinux::Thread::CleanUp() {
   network_manager_api_.CleanUp();
-  dns_watcher_.CleanUp();
+  dns_config_service_.reset();
 }
 
 NetworkChangeNotifierLinux* NetworkChangeNotifierLinux::Create() {

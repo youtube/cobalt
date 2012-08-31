@@ -9,11 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/threading/thread.h"
-#include "net/dns/dns_config_watcher.h"
-
-#ifndef _PATH_RESCONF  // Normally defined in <resolv.h>
-#define _PATH_RESCONF "/etc/resolv.conf"
-#endif
+#include "net/dns/dns_config_service.h"
 
 namespace net {
 
@@ -41,26 +37,29 @@ NetworkChangeNotifier::ConnectionType CalculateConnectionType(
   }
 }
 
-class NetworkChangeNotifierMac::DnsWatcherThread : public base::Thread {
+// Thread on which we can run DnsConfigService, which requires a TYPE_IO
+// message loop.
+class NetworkChangeNotifierMac::DnsConfigServiceThread : public base::Thread {
  public:
-  DnsWatcherThread() : base::Thread("DnsWatcher") {}
+  DnsConfigServiceThread() : base::Thread("DnsConfigService") {}
 
-  virtual ~DnsWatcherThread() {
+  virtual ~DnsConfigServiceThread() {
     Stop();
   }
 
   virtual void Init() OVERRIDE {
-    watcher_.Init();
+    service_ = DnsConfigService::CreateSystemService();
+    service_->WatchConfig(base::Bind(&NetworkChangeNotifier::SetDnsConfig));
   }
 
   virtual void CleanUp() OVERRIDE {
-    watcher_.CleanUp();
+    service_.reset();
   }
 
  private:
-  internal::DnsConfigWatcher watcher_;
+  scoped_ptr<DnsConfigService> service_;
 
-  DISALLOW_COPY_AND_ASSIGN(DnsWatcherThread);
+  DISALLOW_COPY_AND_ASSIGN(DnsConfigServiceThread);
 };
 
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
@@ -68,12 +67,12 @@ NetworkChangeNotifierMac::NetworkChangeNotifierMac()
       connection_type_initialized_(false),
       initial_connection_type_cv_(&connection_type_lock_),
       forwarder_(this),
-      dns_watcher_thread_(new DnsWatcherThread()) {
+      dns_config_service_thread_(new DnsConfigServiceThread()) {
   // Must be initialized after the rest of this object, as it may call back into
   // SetInitialConnectionType().
   config_watcher_.reset(new NetworkConfigWatcherMac(&forwarder_));
-  dns_watcher_thread_->StartWithOptions(
-      base::Thread::Options(MessageLoop::TYPE_IO, 0));
+  dns_config_service_thread_->StartWithOptions(
+        base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {

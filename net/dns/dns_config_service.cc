@@ -75,33 +75,30 @@ base::Value* DnsConfig::ToValue() const {
 
 
 DnsConfigService::DnsConfigService()
-    : have_config_(false),
+    : watch_failed_(false),
+      have_config_(false),
       have_hosts_(false),
       need_update_(false),
       last_sent_empty_(true) {}
 
 DnsConfigService::~DnsConfigService() {
-  // Must always clean up.
-  NetworkChangeNotifier::RemoveDNSObserver(this);
 }
 
-void DnsConfigService::Read(const CallbackType& callback) {
+void DnsConfigService::ReadConfig(const CallbackType& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(!callback.is_null());
   DCHECK(callback_.is_null());
   callback_ = callback;
-  OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED);
+  ReadNow();
 }
 
-void DnsConfigService::Watch(const CallbackType& callback) {
+void DnsConfigService::WatchConfig(const CallbackType& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK(!callback.is_null());
   DCHECK(callback_.is_null());
-  NetworkChangeNotifier::AddDNSObserver(this);
   callback_ = callback;
-  if (NetworkChangeNotifier::IsWatchingDNS())
-    OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED);
-  // else: Wait until signal before reading.
+  watch_failed_ = !StartWatching();
+  ReadNow();
 }
 
 void DnsConfigService::InvalidateConfig() {
@@ -149,7 +146,7 @@ void DnsConfigService::OnConfigRead(const DnsConfig& config) {
   UMA_HISTOGRAM_BOOLEAN("AsyncDNS.ConfigChange", changed);
 
   have_config_ = true;
-  if (have_hosts_)
+  if (have_hosts_ || watch_failed_)
     OnCompleteConfig();
 }
 
@@ -169,7 +166,7 @@ void DnsConfigService::OnHostsRead(const DnsHosts& hosts) {
   UMA_HISTOGRAM_BOOLEAN("AsyncDNS.HostsChange", changed);
 
   have_hosts_ = true;
-  if (have_config_)
+  if (have_config_ || watch_failed_)
     OnCompleteConfig();
 }
 
@@ -216,7 +213,12 @@ void DnsConfigService::OnCompleteConfig() {
     return;
   need_update_ = false;
   last_sent_empty_ = false;
-  callback_.Run(dns_config_);
+  if (watch_failed_) {
+    // If a watch failed, the config may not be accurate, so report empty.
+    callback_.Run(DnsConfig());
+  } else {
+    callback_.Run(dns_config_);
+  }
 }
 
 }  // namespace net

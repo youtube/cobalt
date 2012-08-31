@@ -122,25 +122,24 @@ ConfigParseWinResult NET_EXPORT_PRIVATE ConvertSettingsToDnsConfig(
     DnsConfig* dns_config);
 
 // Use DnsConfigService::CreateSystemService to use it outside of tests.
-class NET_EXPORT_PRIVATE DnsConfigServiceWin
-    : public DnsConfigService,
-      public NetworkChangeNotifier::IPAddressObserver {
+class NET_EXPORT_PRIVATE DnsConfigServiceWin : public DnsConfigService {
  public:
   DnsConfigServiceWin();
   virtual ~DnsConfigServiceWin();
 
-  virtual void Watch(const CallbackType& callback) OVERRIDE;
-
  private:
+  class Watcher;
   class ConfigReader;
   class HostsReader;
 
-  // NetworkChangeNotifier::DNSObserver:
-  virtual void OnDNSChanged(unsigned detail) OVERRIDE;
+  // DnsConfigService:
+  virtual void ReadNow() OVERRIDE;
+  virtual bool StartWatching() OVERRIDE;
 
-  // NetworkChangeNotifier::IPAddressObserver:
-  virtual void OnIPAddressChanged() OVERRIDE;
+  void OnConfigChanged(bool succeeded);
+  void OnHostsChanged(bool succeeded);
 
+  scoped_ptr<Watcher> watcher_;
   scoped_refptr<ConfigReader> config_reader_;
   scoped_refptr<HostsReader> hosts_reader_;
 

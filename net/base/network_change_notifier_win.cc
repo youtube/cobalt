@@ -13,7 +13,7 @@
 #include "base/threading/thread.h"
 #include "base/time.h"
 #include "net/base/winsock_init.h"
-#include "net/dns/dns_config_watcher.h"
+#include "net/dns/dns_config_service.h"
 
 #pragma comment(lib, "iphlpapi.lib")
 
@@ -26,38 +26,39 @@ const int kWatchForAddressChangeRetryIntervalMs = 500;
 
 }  // namespace
 
-// Thread on which we can run DnsConfigWatcher, which requires AssertIOAllowed
+// Thread on which we can run DnsConfigService, which requires AssertIOAllowed
 // to open registry keys and to handle FilePathWatcher updates.
-class NetworkChangeNotifierWin::DnsWatcherThread : public base::Thread {
+class NetworkChangeNotifierWin::DnsConfigServiceThread : public base::Thread {
  public:
-  DnsWatcherThread() : base::Thread("DnsWatcher") {}
+  DnsConfigServiceThread() : base::Thread("DnsConfigService") {}
 
-  virtual ~DnsWatcherThread() {
+  virtual ~DnsConfigServiceThread() {
     Stop();
   }
 
   virtual void Init() OVERRIDE {
-    watcher_.Init();
+    service_ = DnsConfigService::CreateSystemService();
+    service_->WatchConfig(base::Bind(&NetworkChangeNotifier::SetDnsConfig));
   }
 
   virtual void CleanUp() OVERRIDE {
-    watcher_.CleanUp();
+    service_.reset();
   }
 
  private:
-  internal::DnsConfigWatcher watcher_;
+  scoped_ptr<DnsConfigService> service_;
 
-  DISALLOW_COPY_AND_ASSIGN(DnsWatcherThread);
+  DISALLOW_COPY_AND_ASSIGN(DnsConfigServiceThread);
 };
 
 NetworkChangeNotifierWin::NetworkChangeNotifierWin()
     : is_watching_(false),
       sequential_failures_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-      dns_watcher_thread_(new DnsWatcherThread()) {
+      dns_config_service_thread_(new DnsConfigServiceThread()) {
   memset(&addr_overlapped_, 0, sizeof addr_overlapped_);
   addr_overlapped_.hEvent = WSACreateEvent();
-  dns_watcher_thread_->StartWithOptions(
+  dns_config_service_thread_->StartWithOptions(
       base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 

@@ -51,29 +51,6 @@ const char* ConnectionTypeToString(
   }
 }
 
-std::string DNSDetailToString(unsigned detail) {
-  const char kSeparator[] = " | ";
-  std::string detail_str;
-  if (detail & net::NetworkChangeNotifier::CHANGE_DNS_SETTINGS)
-    detail_str += "CHANGE_DNS_SETTINGS";
-  if (detail & net::NetworkChangeNotifier::CHANGE_DNS_HOSTS) {
-    if (!detail_str.empty())
-      detail_str += kSeparator;
-    detail_str += "CHANGE_DNS_HOSTS";
-  }
-  if (detail & net::NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED) {
-    if (!detail_str.empty())
-      detail_str += kSeparator;
-    detail_str += "CHANGE_DNS_WATCH_STARTED";
-  }
-  if (detail & net::NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) {
-    if (!detail_str.empty())
-      detail_str += kSeparator;
-    detail_str += "CHANGE_DNS_WATCH_FAILED";
-  }
-  return detail_str;
-}
-
 std::string ProxyConfigToString(const net::ProxyConfig& config) {
   scoped_ptr<base::Value> config_value(config.ToValue());
   std::string str;
@@ -119,8 +96,8 @@ class NetWatcher :
   }
 
   // net::NetworkChangeNotifier::DNSObserver implementation.
-  virtual void OnDNSChanged(unsigned detail) OVERRIDE {
-    LOG(INFO) << "OnDNSChanged(" << DNSDetailToString(detail) << ")";
+  virtual void OnDNSChanged() OVERRIDE {
+    LOG(INFO) << "OnDNSChanged()";
   }
 
   // net::ProxyConfigService::Observer implementation.
@@ -186,12 +163,6 @@ int main(int argc, char* argv[]) {
   }
 
   LOG(INFO) << "Watching for network events...";
-
-  if (net::NetworkChangeNotifier::IsWatchingDNS()) {
-    LOG(INFO) << "Watching for DNS changes...";
-  } else {
-    LOG(INFO) << "Not watching for DNS changes";
-  }
 
   // Start watching for events.
   network_loop.Run();
