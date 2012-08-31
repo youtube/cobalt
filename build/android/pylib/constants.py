@@ -19,7 +19,7 @@ CHROME_SHELL_PACKAGE = 'org.chromium.chrome.browser.test'
 CHROME_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                           '..', '..', '..'))
 
-# Ports arrangement for various test servers used in Clank.
+# Ports arrangement for various test servers used in Chrome for Android.
 # Lighttpd server will attempt to use 9000 as default port, if unavailable it
 # will find a free port from 8001 - 8999.
 LIGHTTPD_DEFAULT_PORT = 9000
