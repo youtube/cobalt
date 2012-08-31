@@ -134,13 +134,13 @@ void AndroidLogPrinter::OnTestProgramStart(
     const ::testing::UnitTest& unit_test) {
   std::string msg = StringPrintf("[ START      ] %d",
                                  unit_test.test_to_run_count());
-  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
 }
 
 void AndroidLogPrinter::OnTestStart(const ::testing::TestInfo& test_info) {
   std::string msg = StringPrintf("[ RUN      ] %s.%s",
                                  test_info.test_case_name(), test_info.name());
-  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
 }
 
 void AndroidLogPrinter::OnTestPartResult(
@@ -151,21 +151,21 @@ void AndroidLogPrinter::OnTestPartResult(
       test_part_result.file_name(),
       test_part_result.line_number(),
       test_part_result.summary());
-  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
 }
 
 void AndroidLogPrinter::OnTestEnd(const ::testing::TestInfo& test_info) {
   std::string msg = StringPrintf("%s %s.%s",
       test_info.result()->Failed() ? "[  FAILED  ]" : "[       OK ]",
       test_info.test_case_name(), test_info.name());
-  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
 }
 
 void AndroidLogPrinter::OnTestProgramEnd(
     const ::testing::UnitTest& unit_test) {
   std::string msg = StringPrintf("[ END      ] %d",
          unit_test.successful_test_count());
-  log_write(ANDROID_LOG_VERBOSE, msg.c_str());
+  log_write(ANDROID_LOG_ERROR, msg.c_str());
 }
 
 }  // namespace

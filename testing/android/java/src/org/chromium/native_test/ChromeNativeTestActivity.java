@@ -69,13 +69,13 @@ public class ChromeNativeTestActivity extends Activity {
     }
 
     private void runTests() {
-        Log.d(TAG, ">>nativeRunTests");
+        Log.e(TAG, ">>nativeRunTests");
         // This directory is used by build/android/pylib/test_package_apk.py.
         File filesDir = new File(Environment.getExternalStorageDirectory(),
                                  "native_tests/");
         filesDir.mkdirs();
         nativeRunTests(filesDir.getAbsolutePath(), getApplicationContext());
-        Log.d(TAG, "<<nativeRunTests");
+        Log.e(TAG, "<<nativeRunTests");
     }
 
     // Signal a failure of the native test loader to python scripts
