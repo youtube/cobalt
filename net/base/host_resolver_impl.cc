@@ -408,7 +408,6 @@ class PriorityTracker {
 HostResolver* CreateHostResolver(size_t max_concurrent_resolves,
                                  size_t max_retry_attempts,
                                  HostCache* cache,
-                                 scoped_ptr<DnsConfigService> config_service,
                                  scoped_ptr<DnsClient> dns_client,
                                  NetLog* net_log) {
   if (max_concurrent_resolves == HostResolver::kDefaultParallelism)
@@ -423,7 +422,6 @@ HostResolver* CreateHostResolver(size_t max_concurrent_resolves,
       cache,
       limits,
       HostResolverImpl::ProcTaskParams(NULL, max_retry_attempts),
-      config_service.Pass(),
       dns_client.Pass(),
       net_log);
 
@@ -440,7 +438,6 @@ HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
   return CreateHostResolver(max_concurrent_resolves,
                             max_retry_attempts,
                             HostCache::CreateDefaultCache(),
-                            DnsConfigService::CreateSystemService(),
                             scoped_ptr<DnsClient>(NULL),
                             net_log);
 }
@@ -451,7 +448,6 @@ HostResolver* CreateNonCachingSystemHostResolver(size_t max_concurrent_resolves,
   return CreateHostResolver(max_concurrent_resolves,
                             max_retry_attempts,
                             NULL,
-                            scoped_ptr<DnsConfigService>(NULL),
                             scoped_ptr<DnsClient>(NULL),
                             net_log);
 }
@@ -462,7 +458,6 @@ HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
   return CreateHostResolver(max_concurrent_resolves,
                             max_retry_attempts,
                             HostCache::CreateDefaultCache(),
-                            DnsConfigService::CreateSystemService(),
                             DnsClient::CreateClient(net_log),
                             net_log);
 }
@@ -1663,7 +1658,6 @@ HostResolverImpl::HostResolverImpl(
     HostCache* cache,
     const PrioritizedDispatcher::Limits& job_limits,
     const ProcTaskParams& proc_params,
-    scoped_ptr<DnsConfigService> dns_config_service,
     scoped_ptr<DnsClient> dns_client,
     NetLog* net_log)
     : cache_(cache),
@@ -1671,7 +1665,6 @@ HostResolverImpl::HostResolverImpl(
       max_queued_jobs_(job_limits.total_jobs * 100u),
       proc_params_(proc_params),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
-      dns_config_service_(dns_config_service.Pass()),
       dns_client_(dns_client.Pass()),
       received_dns_config_(false),
       ipv6_probe_monitoring_(false),
@@ -1694,16 +1687,12 @@ HostResolverImpl::HostResolverImpl(
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
 #endif
   NetworkChangeNotifier::AddIPAddressObserver(this);
+  NetworkChangeNotifier::AddDNSObserver(this);
+  OnDNSChanged();
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && \
     !defined(OS_ANDROID)
   EnsureDnsReloaderInit();
 #endif
-
-  if (dns_config_service_.get()) {
-    dns_config_service_->Watch(
-        base::Bind(&HostResolverImpl::OnDnsConfigChanged,
-                   base::Unretained(this)));
-  }
 }
 
 HostResolverImpl::~HostResolverImpl() {
@@ -1713,6 +1702,7 @@ HostResolverImpl::~HostResolverImpl() {
   STLDeleteValues(&jobs_);
 
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
+  NetworkChangeNotifier::RemoveDNSObserver(this);
 }
 
 void HostResolverImpl::SetMaxQueuedJobs(size_t value) {
@@ -2114,7 +2104,9 @@ void HostResolverImpl::OnIPAddressChanged() {
   // |this| may be deleted inside AbortAllInProgressJobs().
 }
 
-void HostResolverImpl::OnDnsConfigChanged(const DnsConfig& dns_config) {
+void HostResolverImpl::OnDNSChanged() {
+  DnsConfig dns_config;
+  NetworkChangeNotifier::GetDnsConfig(&dns_config);
   if (net_log_) {
     net_log_->AddGlobalEntry(
         NetLog::TYPE_DNS_CONFIG_CHANGED,

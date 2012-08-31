@@ -19,8 +19,6 @@ namespace {
 class DnsConfigServiceTest : public testing::Test {
  public:
   void OnConfigChanged(const DnsConfig& config) {
-    EXPECT_FALSE(config.Equals(last_config_)) <<
-        "Config must be different from last call.";
     last_config_ = config;
     if (quit_on_config_)
       MessageLoop::current()->Quit();
@@ -29,7 +27,8 @@ class DnsConfigServiceTest : public testing::Test {
  protected:
   class TestDnsConfigService : public DnsConfigService {
    public:
-    virtual void OnDNSChanged(unsigned detail) OVERRIDE {}
+    virtual void ReadNow() OVERRIDE {}
+    virtual bool StartWatching() OVERRIDE { return true; }
 
     // Expose the protected methods to this test suite.
     void InvalidateConfig() {
@@ -46,6 +45,10 @@ class DnsConfigServiceTest : public testing::Test {
 
     void OnHostsRead(const DnsHosts& hosts) {
       DnsConfigService::OnHostsRead(hosts);
+    }
+
+    void set_watch_failed(bool value) {
+      DnsConfigService::set_watch_failed(value);
     }
   };
 
@@ -64,7 +67,7 @@ class DnsConfigServiceTest : public testing::Test {
   DnsConfig MakeConfig(unsigned seed) {
     DnsConfig config;
     IPAddressNumber ip;
-    EXPECT_TRUE(ParseIPLiteralToNumber("1.2.3.4", &ip));
+    CHECK(ParseIPLiteralToNumber("1.2.3.4", &ip));
     config.nameservers.push_back(IPEndPoint(ip, seed & 0xFFFF));
     EXPECT_TRUE(config.IsValid());
     return config;
@@ -84,8 +87,8 @@ class DnsConfigServiceTest : public testing::Test {
     quit_on_config_ = false;
 
     service_.reset(new TestDnsConfigService());
-    service_->Watch(base::Bind(&DnsConfigServiceTest::OnConfigChanged,
-                               base::Unretained(this)));
+    service_->WatchConfig(base::Bind(&DnsConfigServiceTest::OnConfigChanged,
+                                     base::Unretained(this)));
     EXPECT_FALSE(last_config_.IsValid());
   }
 
@@ -103,11 +106,9 @@ TEST_F(DnsConfigServiceTest, FirstConfig) {
 
   service_->OnConfigRead(config);
   // No hosts yet, so no config.
-  EXPECT_FALSE(last_config_.IsValid());
+  EXPECT_TRUE(last_config_.Equals(DnsConfig()));
 
   service_->OnHostsRead(config.hosts);
-  // Empty hosts is acceptable.
-  EXPECT_TRUE(last_config_.IsValid());
   EXPECT_TRUE(last_config_.Equals(config));
 }
 
@@ -118,29 +119,34 @@ TEST_F(DnsConfigServiceTest, Timeout) {
 
   service_->OnConfigRead(config);
   service_->OnHostsRead(config.hosts);
-  EXPECT_TRUE(last_config_.IsValid());
+  EXPECT_FALSE(last_config_.Equals(DnsConfig()));
   EXPECT_TRUE(last_config_.Equals(config));
 
   service_->InvalidateConfig();
   WaitForConfig(TestTimeouts::action_timeout());
-  EXPECT_FALSE(last_config_.IsValid());
+  EXPECT_FALSE(last_config_.Equals(config));
+  EXPECT_TRUE(last_config_.Equals(DnsConfig()));
 
   service_->OnConfigRead(config);
+  EXPECT_FALSE(last_config_.Equals(DnsConfig()));
   EXPECT_TRUE(last_config_.Equals(config));
 
   service_->InvalidateHosts();
   WaitForConfig(TestTimeouts::action_timeout());
-  EXPECT_FALSE(last_config_.IsValid());
+  EXPECT_FALSE(last_config_.Equals(config));
+  EXPECT_TRUE(last_config_.Equals(DnsConfig()));
 
+  DnsConfig bad_config = last_config_ = MakeConfig(0xBAD);
   service_->InvalidateConfig();
-  // We don't expect an update. This should time out. If we get an update,
-  // we'll detect unchanged config.
+  // We don't expect an update. This should time out.
   WaitForConfig(base::TimeDelta::FromMilliseconds(100) +
                 TestTimeouts::tiny_timeout());
-  EXPECT_FALSE(last_config_.IsValid());
+  EXPECT_TRUE(last_config_.Equals(bad_config)) << "Unexpected change";
 
+  last_config_ = DnsConfig();
   service_->OnConfigRead(config);
   service_->OnHostsRead(config.hosts);
+  EXPECT_FALSE(last_config_.Equals(DnsConfig()));
   EXPECT_TRUE(last_config_.Equals(config));
 }
 
@@ -150,14 +156,15 @@ TEST_F(DnsConfigServiceTest, SameConfig) {
 
   service_->OnConfigRead(config);
   service_->OnHostsRead(config.hosts);
+  EXPECT_FALSE(last_config_.Equals(DnsConfig()));
   EXPECT_TRUE(last_config_.Equals(config));
 
-  // OnConfigChanged will catch if there was no change.
+  last_config_ = DnsConfig();
   service_->OnConfigRead(config);
-  EXPECT_TRUE(last_config_.Equals(config));
+  EXPECT_TRUE(last_config_.Equals(DnsConfig())) << "Unexpected change";
 
   service_->OnHostsRead(config.hosts);
-  EXPECT_TRUE(last_config_.Equals(config));
+  EXPECT_TRUE(last_config_.Equals(DnsConfig())) << "Unexpected change";
 }
 
 TEST_F(DnsConfigServiceTest, DifferentConfig) {
@@ -174,6 +181,7 @@ TEST_F(DnsConfigServiceTest, DifferentConfig) {
 
   service_->OnConfigRead(config1);
   service_->OnHostsRead(config1.hosts);
+  EXPECT_FALSE(last_config_.Equals(DnsConfig()));
   EXPECT_TRUE(last_config_.Equals(config1));
 
   // It doesn't matter for this tests, but increases coverage.
@@ -181,12 +189,54 @@ TEST_F(DnsConfigServiceTest, DifferentConfig) {
   service_->InvalidateHosts();
 
   service_->OnConfigRead(config2);
-  service_->OnHostsRead(config2.hosts);
+  EXPECT_TRUE(last_config_.Equals(config1)) << "Unexpected change";
+  service_->OnHostsRead(config2.hosts);  // Not an actual change.
+  EXPECT_FALSE(last_config_.Equals(config1));
   EXPECT_TRUE(last_config_.Equals(config2));
 
   service_->OnConfigRead(config3);
+  EXPECT_TRUE(last_config_.EqualsIgnoreHosts(config3));
   service_->OnHostsRead(config3.hosts);
+  EXPECT_FALSE(last_config_.Equals(config2));
   EXPECT_TRUE(last_config_.Equals(config3));
+}
+
+TEST_F(DnsConfigServiceTest, WatchFailure) {
+  DnsConfig config1 = MakeConfig(1);
+  DnsConfig config2 = MakeConfig(2);
+  config1.hosts = MakeHosts(1);
+  config2.hosts = MakeHosts(2);
+
+  service_->OnConfigRead(config1);
+  service_->OnHostsRead(config1.hosts);
+  EXPECT_FALSE(last_config_.Equals(DnsConfig()));
+  EXPECT_TRUE(last_config_.Equals(config1));
+
+  // Simulate watch failure.
+  service_->set_watch_failed(true);
+  service_->InvalidateConfig();
+  WaitForConfig(TestTimeouts::action_timeout());
+  EXPECT_FALSE(last_config_.Equals(config1));
+  EXPECT_TRUE(last_config_.Equals(DnsConfig()));
+
+  DnsConfig bad_config = last_config_ = MakeConfig(0xBAD);
+  // Actual change in config, so expect an update, but it should be empty.
+  service_->OnConfigRead(config1);
+  EXPECT_FALSE(last_config_.Equals(bad_config));
+  EXPECT_TRUE(last_config_.Equals(DnsConfig()));
+
+  last_config_ = bad_config;
+  // Actual change in config, so expect an update, but it should be empty.
+  service_->InvalidateConfig();
+  service_->OnConfigRead(config2);
+  EXPECT_FALSE(last_config_.Equals(bad_config));
+  EXPECT_TRUE(last_config_.Equals(DnsConfig()));
+
+  last_config_ = bad_config;
+  // No change, so no update.
+  service_->InvalidateConfig();
+  service_->OnConfigRead(config2);
+  EXPECT_TRUE(last_config_.Equals(bad_config));
 }
 
 #if (defined(OS_POSIX) && !defined(OS_ANDROID)) || defined(OS_WIN)
@@ -196,8 +246,8 @@ TEST_F(DnsConfigServiceTest, FLAKY_GetSystemConfig) {
   service_.reset();
   scoped_ptr<DnsConfigService> service(DnsConfigService::CreateSystemService());
 
-  service->Read(base::Bind(&DnsConfigServiceTest::OnConfigChanged,
-                           base::Unretained(this)));
+  service->ReadConfig(base::Bind(&DnsConfigServiceTest::OnConfigChanged,
+                                 base::Unretained(this)));
   base::TimeDelta kTimeout = TestTimeouts::action_max_timeout();
   WaitForConfig(kTimeout);
   ASSERT_TRUE(last_config_.IsValid()) << "Did not receive DnsConfig in " <<

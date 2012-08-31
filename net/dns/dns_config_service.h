@@ -18,7 +18,6 @@
 // std::vector<IPEndPoint>.
 #include "net/base/address_list.h"
 #include "net/base/ip_endpoint.h"  // win requires size of IPEndPoint
-#include "net/base/network_change_notifier.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_hosts.h"
 
@@ -80,13 +79,12 @@ struct NET_EXPORT_PRIVATE DnsConfig {
 
 
 // Service for reading system DNS settings, on demand or when signalled by
-// NetworkChangeNotifier.
+// internal watchers and NetworkChangeNotifier.
 class NET_EXPORT_PRIVATE DnsConfigService
-    : NON_EXPORTED_BASE(public base::NonThreadSafe),
-      public NetworkChangeNotifier::DNSObserver {
+    : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
-  // Callback interface for the client, called on the same thread as Read() and
-  // Watch().
+  // Callback interface for the client, called on the same thread as
+  // ReadConfig() and WatchConfig().
   typedef base::Callback<void(const DnsConfig& config)> CallbackType;
 
   // Creates the platform-specific DnsConfigService.
@@ -97,15 +95,20 @@ class NET_EXPORT_PRIVATE DnsConfigService
 
   // Attempts to read the configuration. Will run |callback| when succeeded.
   // Can be called at most once.
-  void Read(const CallbackType& callback);
+  void ReadConfig(const CallbackType& callback);
 
-  // Registers for notifications at NetworkChangeNotifier. Will attempt to read
-  // config after watch is started by NetworkChangeNotifier. Will run |callback|
-  // iff config changes from last call or should be withdrawn.
-  // Can be called at most once.
-  virtual void Watch(const CallbackType& callback);
+  // Registers systems watchers. Will attempt to read config after watch starts,
+  // but only if watchers started successfully. Will run |callback| iff config
+  // changes from last call or has to be withdrawn. Can be called at most once.
+  // Might require MessageLoopForIO.
+  void WatchConfig(const CallbackType& callback);
 
  protected:
+  // Immediately attempts to read the current configuration.
+  virtual void ReadNow() = 0;
+  // Registers system watchers. Returns true iff succeeds.
+  virtual bool StartWatching() = 0;
+
   // Called when the current config (except hosts) has changed.
   void InvalidateConfig();
   // Called when the current hosts have changed.
@@ -116,21 +119,22 @@ class NET_EXPORT_PRIVATE DnsConfigService
   // Called with new hosts. Rest of the config is assumed unchanged.
   void OnHostsRead(const DnsHosts& hosts);
 
-  // NetworkChangeNotifier::DNSObserver:
-  // Must be defined by implementations.
-  virtual void OnDNSChanged(unsigned detail) OVERRIDE = 0;
+  void set_watch_failed(bool value) { watch_failed_ = value; }
 
  private:
+  // The timer counts from the last Invalidate* until complete config is read.
   void StartTimer();
-  // Called when the timer expires.
   void OnTimeout();
-  // Called when the config becomes complete.
+  // Called when the config becomes complete. Stops the timer.
   void OnCompleteConfig();
 
   CallbackType callback_;
 
   DnsConfig dns_config_;
 
+  // True if any of the necessary watchers failed. In that case, the service
+  // will communicate changes via OnTimeout, but will only send empty DnsConfig.
+  bool watch_failed_;
   // True after On*Read, before Invalidate*. Tells if the config is complete.
   bool have_config_;
   bool have_hosts_;
