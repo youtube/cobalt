@@ -30,7 +30,6 @@ common_vars_defines() {
   toolchain_arch="arm-linux-androideabi"
   if [[ "${TARGET_PRODUCT}" =~ .*x86.* ]]; then
     toolchain_arch="x86"
-    toolchain_dir="linux-x86"
   fi
 
   toolchain_version="4.6"
