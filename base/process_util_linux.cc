@@ -68,6 +68,11 @@ bool ReadProcStats(pid_t pid, std::string* buffer) {
 // Returns true if successful.
 bool ParseProcStats(const std::string& stats_data,
                     std::vector<std::string>* proc_stats) {
+  // |stats_data| may be empty if the process disappeared somehow.
+  // e.g. http://crbug.com/145811
+  if (stats_data.empty())
+    return false;
+
   // The stat file is formatted as:
   // pid (process name) data1 data2 .... dataN
   // Look for the closing paren by scanning backwards, to avoid being fooled by
