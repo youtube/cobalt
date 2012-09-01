@@ -341,8 +341,6 @@
         'disk_cache/file_lock.h',
         'disk_cache/file_posix.cc',
         'disk_cache/file_win.cc',
-        'disk_cache/hash.cc',
-        'disk_cache/hash.h',
         'disk_cache/histogram_macros.h',
         'disk_cache/in_flight_backend_io.cc',
         'disk_cache/in_flight_backend_io.h',
