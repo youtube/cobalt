@@ -137,6 +137,7 @@ def JavaParamToJni(param):
       'Landroid/view/KeyEvent',
       'Landroid/graphics/Rect',
       'Landroid/graphics/RectF',
+      'Landroid/os/Message',
       'Landroid/view/View',
       'Landroid/graphics/Matrix',
       'Landroid/graphics/Point',
