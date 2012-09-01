@@ -16,6 +16,7 @@
 #include "base/memory/ref_counted_memory.h"
 #include "base/observer_list.h"
 #include "base/string_util.h"
+#include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/timer.h"
 
@@ -89,6 +90,7 @@ class BASE_EXPORT TraceEvent {
     return parameter_copy_storage_.get();
   }
 
+  const unsigned char* category_enabled() const { return category_enabled_; }
   const char* name() const { return name_; }
 
  private:
@@ -154,6 +156,16 @@ class BASE_EXPORT TraceResultBuffer {
 
 class BASE_EXPORT TraceLog {
  public:
+  // Notification is a mask of one or more of the following events.
+  enum Notification {
+    // The trace buffer does not flush dynamically, so when it fills up,
+    // subsequent trace events will be dropped. This callback is generated when
+    // the trace buffer is full. The callback must be thread safe.
+    TRACE_BUFFER_FULL = 1 << 0,
+    // A subscribed trace-event occurred.
+    EVENT_WATCH_NOTIFICATION = 1 << 1
+  };
+
   static TraceLog* GetInstance();
 
   // Get set of known categories. This can change as new code paths are reached.
@@ -213,23 +225,21 @@ class BASE_EXPORT TraceLog {
 
   float GetBufferPercentFull() const;
 
-  // When enough events are collected, they are handed (in bulk) to
-  // the output callback. If no callback is set, the output will be
-  // silently dropped. The callback must be thread safe. The string format is
+  // Set the thread-safe notification callback. The callback can occur at any
+  // time and from any thread. WARNING: It is possible for the previously set
+  // callback to be called during OR AFTER a call to SetNotificationCallback.
+  // Therefore, the target of the callback must either be a global function,
+  // ref-counted object or a LazyInstance with Leaky traits (or equivalent).
+  typedef base::Callback<void(int)> NotificationCallback;
+  void SetNotificationCallback(const NotificationCallback& cb);
+
+  // Flush all collected events to the given output callback. The callback will
+  // be called one or more times with IPC-bite-size chunks. The string format is
   // undefined. Use TraceResultBuffer to convert one or more trace strings to
   // JSON.
   typedef base::Callback<void(const scoped_refptr<base::RefCountedString>&)>
       OutputCallback;
-  void SetOutputCallback(const OutputCallback& cb);
-
-  // The trace buffer does not flush dynamically, so when it fills up,
-  // subsequent trace events will be dropped. This callback is generated when
-  // the trace buffer is full. The callback must be thread safe.
-  typedef base::Callback<void(void)> BufferFullCallback;
-  void SetBufferFullCallback(const BufferFullCallback& cb);
-
-  // Flushes all logged data to the callback.
-  void Flush();
+  void Flush(const OutputCallback& cb);
 
   // Called by TRACE_EVENT* macros, don't call this directly.
   static const unsigned char* GetCategoryEnabled(const char* name);
@@ -263,6 +273,16 @@ class BASE_EXPORT TraceLog {
                                const void* id,
                                const std::string& extra);
 
+  // For every matching event, a notification will be fired. NOTE: the
+  // notification will fire for each matching event that has already occurred
+  // since tracing was started (including before tracing if the process was
+  // started with tracing turned on).
+  void SetWatchEvent(const std::string& category_name,
+                     const std::string& event_name);
+  // Cancel the watch event. If tracing is enabled, this may race with the
+  // watch event notification firing.
+  void CancelWatchEvent();
+
   int process_id() const { return process_id_; }
 
   // Exposed for unittesting:
@@ -287,6 +307,29 @@ class BASE_EXPORT TraceLog {
   // by the Singleton class.
   friend struct StaticMemorySingletonTraits<TraceLog>;
 
+  // Helper class for managing notification_thread_count_ and running
+  // notification callbacks. This is very similar to a reader-writer lock, but
+  // shares the lock with TraceLog and manages the notification flags.
+  class NotificationHelper {
+   public:
+    inline explicit NotificationHelper(TraceLog* trace_log);
+    inline ~NotificationHelper();
+
+    // Called only while TraceLog::lock_ is held. This ORs the given
+    // notification with any existing notifcations.
+    inline void AddNotificationWhileLocked(int notification);
+
+    // Called only while TraceLog::lock_ is NOT held. If there are any pending
+    // notifications from previous calls to AddNotificationWhileLocked, this
+    // will call the NotificationCallback.
+    inline void SendNotificationIfAny();
+
+   private:
+    TraceLog* trace_log_;
+    NotificationCallback callback_copy_;
+    int notification_;
+  };
+
   TraceLog();
   ~TraceLog();
   const unsigned char* GetCategoryEnabledInternal(const char* name);
@@ -295,10 +338,10 @@ class BASE_EXPORT TraceLog {
 
   // TODO(nduca): switch to per-thread trace buffers to reduce thread
   // synchronization.
+  // This lock protects TraceLog member accesses from arbitrary threads.
   Lock lock_;
   bool enabled_;
-  OutputCallback output_callback_;
-  BufferFullCallback buffer_full_callback_;
+  NotificationCallback notification_callback_;
   std::vector<TraceEvent> logged_events_;
   std::vector<std::string> included_categories_;
   std::vector<std::string> excluded_categories_;
@@ -311,6 +354,10 @@ class BASE_EXPORT TraceLog {
   unsigned long long process_id_hash_;
 
   int process_id_;
+
+  // Allow tests to wake up when certain events occur.
+  const unsigned char* watch_category_;
+  std::string watch_event_name_;
 
   DISALLOW_COPY_AND_ASSIGN(TraceLog);
 };
