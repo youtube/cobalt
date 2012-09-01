@@ -55,16 +55,18 @@ TEST_F(UploadDataStreamTest, EmptyUploadData) {
   upload_data_->AppendBytes("", 0);
   scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
   ASSERT_EQ(OK, stream->Init());
+  EXPECT_TRUE(stream->IsInMemory());
   ASSERT_TRUE(stream.get());
   EXPECT_EQ(0U, stream->size());
   EXPECT_EQ(0U, stream->position());
   EXPECT_TRUE(stream->IsEOF());
 }
 
-TEST_F(UploadDataStreamTest, ConsumeAll) {
+TEST_F(UploadDataStreamTest, ConsumeAllBytes) {
   upload_data_->AppendBytes(kTestData, kTestDataSize);
   scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
   ASSERT_EQ(OK, stream->Init());
+  EXPECT_TRUE(stream->IsInMemory());
   ASSERT_TRUE(stream.get());
   EXPECT_EQ(kTestDataSize, stream->size());
   EXPECT_EQ(0U, stream->position());
@@ -76,6 +78,35 @@ TEST_F(UploadDataStreamTest, ConsumeAll) {
   }
   EXPECT_EQ(kTestDataSize, stream->position());
   ASSERT_TRUE(stream->IsEOF());
+}
+
+TEST_F(UploadDataStreamTest, File) {
+  FilePath temp_file_path;
+  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
+  ASSERT_EQ(static_cast<int>(kTestDataSize),
+            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
+
+  std::vector<UploadElement> elements;
+  UploadElement element;
+  element.SetToFilePath(temp_file_path);
+  elements.push_back(element);
+  upload_data_->SetElements(elements);
+
+  scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
+  ASSERT_EQ(OK, stream->Init());
+  EXPECT_FALSE(stream->IsInMemory());
+  ASSERT_TRUE(stream.get());
+  EXPECT_EQ(kTestDataSize, stream->size());
+  EXPECT_EQ(0U, stream->position());
+  EXPECT_FALSE(stream->IsEOF());
+  scoped_refptr<IOBuffer> buf = new IOBuffer(kTestBufferSize);
+  while (!stream->IsEOF()) {
+    int bytes_read = stream->Read(buf, kTestBufferSize);
+    ASSERT_LE(0, bytes_read);  // Not an error.
+  }
+  EXPECT_EQ(kTestDataSize, stream->position());
+  ASSERT_TRUE(stream->IsEOF());
+  file_util::Delete(temp_file_path, false);
 }
 
 TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
@@ -91,10 +122,10 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   element.SetContentLength(kFakeSize);
   elements.push_back(element);
   upload_data_->SetElements(elements);
-  EXPECT_EQ(kFakeSize, upload_data_->GetContentLengthSync());
 
   scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
   ASSERT_EQ(OK, stream->Init());
+  EXPECT_FALSE(stream->IsInMemory());
   ASSERT_TRUE(stream.get());
   EXPECT_EQ(kFakeSize, stream->size());
   EXPECT_EQ(0U, stream->position());
@@ -113,6 +144,60 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   EXPECT_EQ(read_counter, stream->position());
 
   file_util::Delete(temp_file_path, false);
+}
+
+TEST_F(UploadDataStreamTest, FileAndBytes) {
+  FilePath temp_file_path;
+  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
+  ASSERT_EQ(static_cast<int>(kTestDataSize),
+            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
+
+  const uint64 kFileRangeOffset = 1;
+  const uint64 kFileRangeLength = 4;
+  upload_data_->AppendFileRange(
+      temp_file_path, kFileRangeOffset, kFileRangeLength, base::Time());
+
+  upload_data_->AppendBytes(kTestData, kTestDataSize);
+
+  const uint64 kStreamSize = kTestDataSize + kFileRangeLength;
+  scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
+  ASSERT_EQ(OK, stream->Init());
+  EXPECT_FALSE(stream->IsInMemory());
+  ASSERT_TRUE(stream.get());
+  EXPECT_EQ(kStreamSize, stream->size());
+  EXPECT_EQ(0U, stream->position());
+  EXPECT_FALSE(stream->IsEOF());
+  scoped_refptr<IOBuffer> buf = new IOBuffer(kTestBufferSize);
+  while (!stream->IsEOF()) {
+    int bytes_read = stream->Read(buf, kTestBufferSize);
+    ASSERT_LE(0, bytes_read);  // Not an error.
+  }
+  EXPECT_EQ(kStreamSize, stream->position());
+  ASSERT_TRUE(stream->IsEOF());
+
+  file_util::Delete(temp_file_path, false);
+}
+
+TEST_F(UploadDataStreamTest, Chunk) {
+  upload_data_->set_is_chunked(true);
+  upload_data_->AppendChunk(kTestData, kTestDataSize, false);
+  upload_data_->AppendChunk(kTestData, kTestDataSize, true);
+
+  const uint64 kStreamSize = kTestDataSize*2;
+  scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
+  ASSERT_EQ(OK, stream->Init());
+  EXPECT_FALSE(stream->IsInMemory());
+  ASSERT_TRUE(stream.get());
+  EXPECT_EQ(0U, stream->size());  // Content-Length is 0 for chunked data.
+  EXPECT_EQ(0U, stream->position());
+  EXPECT_FALSE(stream->IsEOF());
+  scoped_refptr<IOBuffer> buf = new IOBuffer(kTestBufferSize);
+  while (!stream->IsEOF()) {
+    int bytes_read = stream->Read(buf, kTestBufferSize);
+    ASSERT_LE(0, bytes_read);  // Not an error.
+  }
+  EXPECT_EQ(kStreamSize, stream->position());
+  ASSERT_TRUE(stream->IsEOF());
 }
 
 void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,
@@ -167,12 +252,12 @@ TEST_F(UploadDataStreamTest, UploadDataReused) {
   element.SetToFilePath(temp_file_path);
   elements.push_back(element);
   upload_data_->SetElements(elements);
-  EXPECT_EQ(kTestDataSize, upload_data_->GetContentLengthSync());
 
   // Confirm that the file is read properly.
   {
     UploadDataStream stream(upload_data_);
     ASSERT_EQ(OK, stream.Init());
+    EXPECT_EQ(kTestDataSize, stream.size());
     EXPECT_EQ(kTestData, ReadFromUploadDataStream(&stream));
   }
 
@@ -181,6 +266,7 @@ TEST_F(UploadDataStreamTest, UploadDataReused) {
   {
     UploadDataStream stream(upload_data_);
     ASSERT_EQ(OK, stream.Init());
+    EXPECT_EQ(kTestDataSize, stream.size());
     EXPECT_EQ(kTestData, ReadFromUploadDataStream(&stream));
   }
 

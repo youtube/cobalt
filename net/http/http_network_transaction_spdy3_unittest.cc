@@ -6503,7 +6503,6 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UploadFileSmallerThanLength) {
   element.SetContentLength(kFakeSize);
   elements.push_back(element);
   request.upload_data->SetElements(elements);
-  EXPECT_EQ(kFakeSize, request.upload_data->GetContentLengthSync());
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\n\r\n"),
