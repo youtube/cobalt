@@ -151,6 +151,8 @@
           'guid.h',
           'guid_posix.cc',
           'guid_win.cc',
+          'hash.cc',
+          'hash.h',
           'hash_tables.h',
           'hi_res_timer_manager_posix.cc',
           'hi_res_timer_manager_win.cc',
