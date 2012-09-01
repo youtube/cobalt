@@ -8,6 +8,7 @@
 #include "base/bind_helpers.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/hash.h"
 #include "base/message_loop.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
@@ -26,7 +27,6 @@
 #include "net/disk_cache/errors.h"
 #include "net/disk_cache/experiments.h"
 #include "net/disk_cache/file.h"
-#include "net/disk_cache/hash.h"
 #include "net/disk_cache/mem_backend_impl.h"
 
 // This has to be defined before including histogram_macros.h from this file.
@@ -665,7 +665,7 @@ void BackendImpl::SyncOnExternalCacheHit(const std::string& key) {
   if (disabled_)
     return;
 
-  uint32 hash = Hash(key);
+  uint32 hash = base::Hash(key);
   bool error;
   EntryImpl* cache_entry = MatchEntry(key, hash, false, Addr(), &error);
   if (cache_entry) {
@@ -681,7 +681,7 @@ EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
     return NULL;
 
   TimeTicks start = TimeTicks::Now();
-  uint32 hash = Hash(key);
+  uint32 hash = base::Hash(key);
   Trace("Open hash 0x%x", hash);
 
   bool error;
@@ -714,7 +714,7 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
     return NULL;
 
   TimeTicks start = TimeTicks::Now();
-  uint32 hash = Hash(key);
+  uint32 hash = base::Hash(key);
   Trace("Create hash 0x%x", hash);
 
   scoped_refptr<EntryImpl> parent;

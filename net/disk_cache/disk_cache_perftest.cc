@@ -7,6 +7,7 @@
 #include "base/basictypes.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/hash.h"
 #include "base/perftimer.h"
 #include "base/string_util.h"
 #include "base/threading/thread.h"
@@ -20,7 +21,6 @@
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
-#include "net/disk_cache/hash.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -152,7 +152,7 @@ TEST_F(DiskCacheTest, Hash) {
   PerfTimeLogger timer("Hash disk cache keys");
   for (int i = 0; i < 300000; i++) {
     std::string key = GenerateKey(true);
-    disk_cache::Hash(key);
+    base::Hash(key);
   }
   timer.Done();
 }
