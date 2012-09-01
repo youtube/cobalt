@@ -7,21 +7,23 @@
 #include <algorithm>
 
 #include "base/bind.h"
+#include "base/debug/leak_annotations.h"
 #include "base/debug/trace_event.h"
 #include "base/file_util.h"
 #include "base/format_macros.h"
 #include "base/lazy_instance.h"
 #include "base/memory/singleton.h"
 #include "base/process_util.h"
+#include "base/stl_util.h"
 #include "base/stringprintf.h"
 #include "base/string_tokenizer.h"
-#include "base/threading/platform_thread.h"
-#include "base/threading/thread_local.h"
-#include "base/utf_string_conversions.h"
-#include "base/stl_util.h"
+#include "base/string_util.h"
 #include "base/sys_info.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
+#include "base/threading/platform_thread.h"
+#include "base/threading/thread_local.h"
 #include "base/time.h"
+#include "base/utf_string_conversions.h"
 
 #if defined(OS_WIN)
 #include "base/debug/trace_event_win.h"
@@ -316,14 +318,37 @@ void TraceResultBuffer::Finish() {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+TraceLog::NotificationHelper::NotificationHelper(TraceLog* trace_log)
+    : trace_log_(trace_log),
+      notification_(0) {
+}
+
+TraceLog::NotificationHelper::~NotificationHelper() {
+}
+
+void TraceLog::NotificationHelper::AddNotificationWhileLocked(
+    int notification) {
+  if (trace_log_->notification_callback_.is_null())
+    return;
+  if (notification_ == 0)
+    callback_copy_ = trace_log_->notification_callback_;
+  notification_ |= notification;
+}
+
+void TraceLog::NotificationHelper::SendNotificationIfAny() {
+  if (notification_)
+    callback_copy_.Run(notification_);
+}
+
 // static
 TraceLog* TraceLog::GetInstance() {
   return Singleton<TraceLog, StaticMemorySingletonTraits<TraceLog> >::get();
 }
 
 TraceLog::TraceLog()
-    : enabled_(false)
-    , dispatching_to_observer_list_(false) {
+    : enabled_(false),
+      dispatching_to_observer_list_(false),
+      watch_category_(NULL) {
   // Trace is enabled or disabled on one thread while other threads are
   // accessing the enabled flag. We don't care whether edge-case events are
   // traced or not, so we allow races on the enabled flag to keep the trace
@@ -406,7 +431,11 @@ const unsigned char* TraceLog::GetCategoryEnabledInternal(const char* name) {
       "must increase TRACE_EVENT_MAX_CATEGORIES";
   if (g_category_index < TRACE_EVENT_MAX_CATEGORIES) {
     int new_index = g_category_index++;
-    g_categories[new_index] = name;
+    // Don't hold on to the name pointer, so that we can create categories with
+    // strings not known at compile time (this is required by SetWatchEvent).
+    const char* new_name = base::strdup(name);
+    ANNOTATE_LEAKING_OBJECT_PTR(new_name);
+    g_categories[new_index] = new_name;
     DCHECK(!g_category_enabled[new_index]);
     if (enabled_) {
       // Note that if both included and excluded_categories are empty, the else
@@ -491,31 +520,30 @@ void TraceLog::GetEnabledTraceCategories(
 }
 
 void TraceLog::SetDisabled() {
-  {
-    AutoLock lock(lock_);
-    if (!enabled_)
-      return;
+  AutoLock lock(lock_);
+  if (!enabled_)
+    return;
 
-    if (dispatching_to_observer_list_) {
-      DLOG(ERROR)
-          << "Cannot manipulate TraceLog::Enabled state from an observer.";
-      return;
-    }
+  if (dispatching_to_observer_list_) {
+    DLOG(ERROR)
+        << "Cannot manipulate TraceLog::Enabled state from an observer.";
+    return;
+  }
 
-    dispatching_to_observer_list_ = true;
-    FOR_EACH_OBSERVER(EnabledStateChangedObserver, enabled_state_observer_list_,
-                      OnTraceLogWillDisable());
-    dispatching_to_observer_list_ = false;
+  dispatching_to_observer_list_ = true;
+  FOR_EACH_OBSERVER(EnabledStateChangedObserver, enabled_state_observer_list_,
+                    OnTraceLogWillDisable());
+  dispatching_to_observer_list_ = false;
 
-    enabled_ = false;
-    included_categories_.clear();
-    excluded_categories_.clear();
-    for (int i = 0; i < g_category_index; i++)
-      g_category_enabled[i] = 0;
-    AddThreadNameMetadataEvents();
-    AddClockSyncMetadataEvents();
-  }  // release lock
-  Flush();
+  enabled_ = false;
+  included_categories_.clear();
+  excluded_categories_.clear();
+  watch_category_ = NULL;
+  watch_event_name_ = "";
+  for (int i = 0; i < g_category_index; i++)
+    g_category_enabled[i] = 0;
+  AddThreadNameMetadataEvents();
+  AddClockSyncMetadataEvents();
 }
 
 void TraceLog::SetEnabled(bool enabled) {
@@ -538,27 +566,18 @@ float TraceLog::GetBufferPercentFull() const {
   return (float)((double)logged_events_.size()/(double)kTraceEventBufferSize);
 }
 
-void TraceLog::SetOutputCallback(const TraceLog::OutputCallback& cb) {
+void TraceLog::SetNotificationCallback(
+    const TraceLog::NotificationCallback& cb) {
   AutoLock lock(lock_);
-  output_callback_ = cb;
+  notification_callback_ = cb;
 }
 
-void TraceLog::SetBufferFullCallback(const TraceLog::BufferFullCallback& cb) {
-  AutoLock lock(lock_);
-  buffer_full_callback_ = cb;
-}
-
-void TraceLog::Flush() {
+void TraceLog::Flush(const TraceLog::OutputCallback& cb) {
   std::vector<TraceEvent> previous_logged_events;
-  OutputCallback output_callback_copy;
   {
     AutoLock lock(lock_);
     previous_logged_events.swap(logged_events_);
-    output_callback_copy = output_callback_;
   }  // release lock
-
-  if (output_callback_copy.is_null())
-    return;
 
   for (size_t i = 0;
        i < previous_logged_events.size();
@@ -569,7 +588,7 @@ void TraceLog::Flush() {
                                    i,
                                    kTraceEventBatchSize,
                                    &(json_events_str_ptr->data()));
-    output_callback_copy.Run(json_events_str_ptr);
+    cb.Run(json_events_str_ptr);
   }
 }
 
@@ -586,7 +605,7 @@ int TraceLog::AddTraceEvent(char phase,
                             unsigned char flags) {
   DCHECK(name);
   TimeTicks now = TimeTicks::NowFromSystemTraceTime();
-  BufferFullCallback buffer_full_callback_copy;
+  NotificationHelper notifier(this);
   int ret_begin_id = -1;
   {
     AutoLock lock(lock_);
@@ -652,13 +671,14 @@ int TraceLog::AddTraceEvent(char phase,
                    num_args, arg_names, arg_types, arg_values,
                    flags));
 
-    if (logged_events_.size() == kTraceEventBufferSize) {
-      buffer_full_callback_copy = buffer_full_callback_;
-    }
+    if (logged_events_.size() == kTraceEventBufferSize)
+      notifier.AddNotificationWhileLocked(TRACE_BUFFER_FULL);
+
+    if (watch_category_ == category_enabled && watch_event_name_ == name)
+      notifier.AddNotificationWhileLocked(EVENT_WATCH_NOTIFICATION);
   }  // release lock
 
-  if (!buffer_full_callback_copy.is_null())
-    buffer_full_callback_copy.Run();
+  notifier.SendNotificationIfAny();
 
   return ret_begin_id;
 }
@@ -684,6 +704,41 @@ void TraceLog::AddTraceEventEtw(char phase,
 #endif
   INTERNAL_TRACE_EVENT_ADD(phase, "ETW Trace Event", name,
                            TRACE_EVENT_FLAG_COPY, "id", id, "extra", extra);
+}
+
+void TraceLog::SetWatchEvent(const std::string& category_name,
+                             const std::string& event_name) {
+  const unsigned char* category = GetCategoryEnabled(category_name.c_str());
+  int notify_count = 0;
+  {
+    AutoLock lock(lock_);
+    watch_category_ = category;
+    watch_event_name_ = event_name;
+
+    // First, search existing events for watch event because we want to catch it
+    // even if it has already occurred.
+    for (size_t i = 0u; i < logged_events_.size(); ++i) {
+      if (category == logged_events_[i].category_enabled() &&
+          strcmp(event_name.c_str(), logged_events_[i].name()) == 0) {
+        ++notify_count;
+      }
+    }
+  }  // release lock
+
+  // Send notification for each event found.
+  for (int i = 0; i < notify_count; ++i) {
+    NotificationHelper notifier(this);
+    lock_.Acquire();
+    notifier.AddNotificationWhileLocked(EVENT_WATCH_NOTIFICATION);
+    lock_.Release();
+    notifier.SendNotificationIfAny();
+  }
+}
+
+void TraceLog::CancelWatchEvent() {
+  AutoLock lock(lock_);
+  watch_category_ = NULL;
+  watch_event_name_ = "";
 }
 
 void TraceLog::AddClockSyncMetadataEvents() {
