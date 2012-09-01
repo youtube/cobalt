@@ -15,7 +15,6 @@
 #include "net/base/upload_element.h"
 
 class FilePath;
-class GURL;
 
 namespace base {
 class Time;
@@ -68,28 +67,6 @@ class NET_EXPORT UploadData
   void set_last_chunk_appended(bool set) { last_chunk_appended_ = set; }
   bool last_chunk_appended() const { return last_chunk_appended_; }
 
-  // Gets the total size in bytes of the data to upload. Computing the
-  // content length can result in performing file IO hence the operation is
-  // done asynchronously. Runs the callback with the content length once the
-  // computation is done.
-  typedef base::Callback<void(uint64 content_length)> ContentLengthCallback;
-  void GetContentLength(const ContentLengthCallback& callback);
-
-  // Returns the total size in bytes of the data to upload, for testing.
-  // This version may perform file IO on the current thread. This function
-  // will fail if called on a thread where file IO is prohibited. Usually
-  // used for testing, but Chrome Frame also uses this version.
-  uint64 GetContentLengthSync();
-
-  // Returns true if the upload data is entirely in memory (i.e. the
-  // upload data is not chunked, and all elemnts are of TYPE_BYTES).
-  bool IsInMemory() const;
-
-  // Resets the offset of each upload data element to zero, so that the
-  // upload data can be reread. This can happen if the same upload data is
-  // reused for a new UploadDataStream.
-  void ResetOffset();
-
   const std::vector<UploadElement>* elements() const {
     return &elements_;
   }
@@ -111,9 +88,6 @@ class NET_EXPORT UploadData
   int64 identifier() const { return identifier_; }
 
  private:
-  // Helper function for GetContentLength().
-  void DoGetContentLength(uint64* content_length);
-
   friend class base::RefCounted<UploadData>;
 
   virtual ~UploadData();

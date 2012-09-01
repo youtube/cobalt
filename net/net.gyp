@@ -1235,7 +1235,6 @@
         'base/transport_security_state_unittest.cc',
         'base/unix_domain_socket_posix_unittest.cc',
         'base/upload_data_stream_unittest.cc',
-        'base/upload_data_unittest.cc',
         'base/x509_certificate_unittest.cc',
         'base/x509_cert_types_unittest.cc',
         'base/x509_util_nss_unittest.cc',
