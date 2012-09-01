@@ -11,17 +11,6 @@
 
 namespace net {
 
-namespace {
-
-// Helper function for GetContentLength().
-void OnGetContentLengthComplete(
-    const UploadData::ContentLengthCallback& callback,
-    uint64* content_length) {
-  callback.Run(*content_length);
-}
-
-}  // namespace
-
 UploadData::UploadData()
     : identifier_(0),
       chunk_callback_(NULL),
@@ -62,56 +51,8 @@ void UploadData::set_chunk_callback(ChunkCallback* callback) {
   chunk_callback_ = callback;
 }
 
-void UploadData::GetContentLength(const ContentLengthCallback& callback) {
-  uint64* result = new uint64(0);
-  const bool task_is_slow = true;
-  const bool posted = base::WorkerPool::PostTaskAndReply(
-      FROM_HERE,
-      base::Bind(&UploadData::DoGetContentLength, this, result),
-      base::Bind(&OnGetContentLengthComplete, callback, base::Owned(result)),
-      task_is_slow);
-  DCHECK(posted);
-}
-
-uint64 UploadData::GetContentLengthSync() {
-  uint64 content_length = 0;
-  DoGetContentLength(&content_length);
-  return content_length;
-}
-
-bool UploadData::IsInMemory() const {
-  // Chunks are in memory, but UploadData does not have all the chunks at
-  // once. Chunks are provided progressively with AppendChunk() as chunks
-  // are ready. Check is_chunked_ here, rather than relying on the loop
-  // below, as there is a case that is_chunked_ is set to true, but the
-  // first chunk is not yet delivered.
-  if (is_chunked_)
-    return false;
-
-  for (size_t i = 0; i < elements_.size(); ++i) {
-    if (elements_[i].type() != UploadElement::TYPE_BYTES)
-      return false;
-  }
-  return true;
-}
-
-void UploadData::ResetOffset() {
-  for (size_t i = 0; i < elements_.size(); ++i)
-    elements_[i].ResetOffset();
-}
-
 void UploadData::SetElements(const std::vector<UploadElement>& elements) {
   elements_ = elements;
-}
-
-void UploadData::DoGetContentLength(uint64* content_length) {
-  *content_length = 0;
-
-  if (is_chunked_)
-    return;
-
-  for (size_t i = 0; i < elements_.size(); ++i)
-    *content_length += elements_[i].GetContentLength();
 }
 
 UploadData::~UploadData() {
