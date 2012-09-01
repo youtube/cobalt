@@ -26,11 +26,7 @@ class TraceEventAnalyzerTest : public testing::Test {
 
 void TraceEventAnalyzerTest::ManualSetUp() {
   base::debug::TraceLog::Resurrect();
-  base::debug::TraceLog* tracelog = base::debug::TraceLog::GetInstance();
-  ASSERT_TRUE(tracelog);
-  tracelog->SetOutputCallback(
-    base::Bind(&TraceEventAnalyzerTest::OnTraceDataCollected,
-               base::Unretained(this)));
+  ASSERT_TRUE(base::debug::TraceLog::GetInstance());
   buffer_.SetOutputCallback(output_.GetCallback());
   output_.json_output.clear();
 }
@@ -48,6 +44,9 @@ void TraceEventAnalyzerTest::BeginTracing() {
 
 void TraceEventAnalyzerTest::EndTracing() {
   base::debug::TraceLog::GetInstance()->SetEnabled(false);
+  base::debug::TraceLog::GetInstance()->Flush(
+      base::Bind(&TraceEventAnalyzerTest::OnTraceDataCollected,
+                 base::Unretained(this)));
   buffer_.Finish();
 }
 
