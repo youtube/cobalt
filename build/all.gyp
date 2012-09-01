@@ -138,14 +138,15 @@
         }],
         ['toolkit_views==1', {
           'dependencies': [
+            '../ui/views/controls/webview/webview.gyp:*',
             '../ui/views/views.gyp:*',
           ],
         }],
         ['use_aura==1', {
           'dependencies': [
+            '../ash/ash.gyp:*',
             '../ui/aura/aura.gyp:*',
             '../ui/oak/oak.gyp:*',
-            '../ash/ash.gyp:*',
           ],
         }],
         ['remoting==1', {
