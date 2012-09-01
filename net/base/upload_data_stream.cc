@@ -34,10 +34,14 @@ UploadDataStream::~UploadDataStream() {
 
 int UploadDataStream::Init() {
   DCHECK(!initialized_successfully_);
-
+  std::vector<UploadElement>* elements = upload_data_->elements_mutable();
   {
     base::ThreadRestrictions::ScopedAllowIO allow_io;
-    total_size_ = upload_data_->GetContentLengthSync();
+    total_size_ = 0;
+    if (!is_chunked()) {
+      for (size_t i = 0; i < elements->size(); ++i)
+        total_size_ += (*elements)[i].GetContentLength();
+    }
   }
 
   // If the underlying file has been changed and the expected file
@@ -45,9 +49,8 @@ int UploadDataStream::Init() {
   // modification time from WebKit is based on time_t precision. So we
   // have to convert both to time_t to compare. This check is used for
   // sliced files.
-  const std::vector<UploadElement>& elements = *upload_data_->elements();
-  for (size_t i = 0; i < elements.size(); ++i) {
-    const UploadElement& element = elements[i];
+  for (size_t i = 0; i < elements->size(); ++i) {
+    const UploadElement& element = (*elements)[i];
     if (element.type() == UploadElement::TYPE_FILE &&
         !element.expected_file_modification_time().is_null()) {
       // Temporarily allow until fix: http://crbug.com/72001.
@@ -63,7 +66,8 @@ int UploadDataStream::Init() {
 
   // Reset the offset, as upload_data_ may already be read (i.e. UploadData
   // can be reused for a new UploadDataStream).
-  upload_data_->ResetOffset();
+  for (size_t i = 0; i < elements->size(); ++i)
+    (*elements)[i].ResetOffset();
 
   initialized_successfully_ = true;
   return OK;
@@ -107,9 +111,20 @@ bool UploadDataStream::IsEOF() const {
 }
 
 bool UploadDataStream::IsInMemory() const {
-  DCHECK(initialized_successfully_);
+  // Chunks are in memory, but UploadData does not have all the chunks at
+  // once. Chunks are provided progressively with AppendChunk() as chunks
+  // are ready. Check is_chunked_ here, rather than relying on the loop
+  // below, as there is a case that is_chunked_ is set to true, but the
+  // first chunk is not yet delivered.
+  if (is_chunked())
+    return false;
 
-  return upload_data_->IsInMemory();
+  const std::vector<UploadElement>& elements = *upload_data_->elements();
+  for (size_t i = 0; i < elements.size(); ++i) {
+    if (elements[i].type() != UploadElement::TYPE_BYTES)
+      return false;
+  }
+  return true;
 }
 
 }  // namespace net
