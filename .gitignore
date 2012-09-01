@@ -7,7 +7,6 @@
 *.props
 *.pyc
 *.rules
-*.scons
 *.sdf
 *.sln
 *.suo
