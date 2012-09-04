@@ -10,6 +10,7 @@ import optparse
 import os
 import sys
 
+from pylib import buildbot_report
 from pylib.android_commands import GetAttachedDevices
 from pylib.cmd_helper import GetCmdOutput
 
@@ -70,8 +71,9 @@ def CheckForMissingDevices(options, adb_online_devs):
 
   missing_devs = list(set(last_devices) - set(adb_online_devs))
   if missing_devs:
-    print '@@@STEP_WARNINGS@@@'
-    print '@@@STEP_SUMMARY_TEXT@%s not detected.@@@' % missing_devs
+    buildbot_report.PrintWarning()
+    buildbot_report.PrintSummaryText(
+        '%d devices not detected.' % len(missing_devs))
     print 'Current online devices: %s' % adb_online_devs
     print '%s are no longer visible. Were they removed?\n' % missing_devs
     print 'SHERIFF: See go/chrome_device_monitor'
@@ -80,9 +82,10 @@ def CheckForMissingDevices(options, adb_online_devs):
     print GetCmdOutput(['adb', 'devices'])
   else:
     new_devs = set(adb_online_devs) - set(last_devices)
-    if new_devs:
-      print '@@@STEP_WARNINGS@@@'
-      print '@@@STEP_SUMMARY_TEXT@New devices detected :-)@@@'
+    if new_devs and os.path.exists(last_devices_path):
+      buildbot_report.PrintWarning()
+      buildbot_report.PrintSummaryText(
+          '%d new devices detected' % len(new_devs))
       print ('New devices detected %s. And now back to your '
              'regularly scheduled program.' % list(new_devs))
 
@@ -101,8 +104,8 @@ def main():
   options, args = parser.parse_args()
   if args:
     parser.error('Unknown options %s' % args)
+  buildbot_report.PrintNamedStep('Device Status Check')
   devices = GetAttachedDevices()
-
   types, builds, reports = [], [], []
   if devices:
     types, builds, reports = zip(*[DeviceInfo(dev) for dev in devices])
@@ -110,9 +113,8 @@ def main():
   unique_types = list(set(types))
   unique_builds = list(set(builds))
 
-  print ('@@@BUILD_STEP Device Status Check - '
-         '%d online devices, types %s, builds %s@@@'
-         % (len(devices), unique_types, unique_builds))
+  buildbot_report.PrintMsg('Online devices: %d. Device types %s, builds %s'
+                           % (len(devices), unique_types, unique_builds))
   print '\n'.join(reports)
   CheckForMissingDevices(options, devices)
 
