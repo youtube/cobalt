@@ -32,6 +32,7 @@
 .gdbinit
 .metadata
 .project
+.pydevproject
 # Settings directory for eclipse
 /.settings
 tags
@@ -200,6 +201,7 @@ v8.log
 /third_party/psyco_win32
 /third_party/pthreads-win32
 /third_party/pyftpdlib/src
+/third_party/pywebsocket/src
 /third_party/pylib
 /third_party/pymox/src
 /third_party/python_24
