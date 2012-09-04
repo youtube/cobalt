@@ -10,6 +10,7 @@ import sys
 import time
 
 from pylib import apk_info
+from pylib import buildbot_report
 from pylib import test_options_parser
 from pylib import run_java_tests
 from pylib import run_python_tests
@@ -70,6 +71,8 @@ def DispatchInstrumentationTests(options):
 def main(argv):
   options = test_options_parser.ParseInstrumentationArgs(argv)
   run_tests_helper.SetLogLevel(options.verbose_count)
+  buildbot_report.PrintNamedStep('Instrumentation tests: %s'
+                                 % ', '.join(options.annotation))
   return DispatchInstrumentationTests(options)
 
 
