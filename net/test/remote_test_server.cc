@@ -6,6 +6,8 @@
 
 #include <vector>
 
+#include "base/base_paths.h"
+#include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -29,7 +31,16 @@ namespace {
 // to a single testing device.
 // The mapping between the test server spawner and the individual Python test
 // servers is written to a file on the device prior to executing any tests.
-const char kTestServerPortInfoFile[] = "/data/local/tmp/net-test-server-ports";
+FilePath GetTestServerPortInfoFile() {
+#if !defined(OS_ANDROID)
+  return FilePath("/tmp/net-test-server-ports");
+#else
+  FilePath test_data_dir;
+  PathService::Get(base::DIR_ANDROID_EXTERNAL_STORAGE, &test_data_dir);
+  test_data_dir.Append("net-test-server-ports");
+  return test_data_dir;
+#endif
+}
 
 // Please keep it sync with dictionary SERVER_TYPES in testserver.py
 std::string GetServerTypeString(BaseTestServer::Type type) {
@@ -139,7 +150,7 @@ bool RemoteTestServer::Init(const FilePath& document_root) {
 
   // Parse file to extract the ports information.
   std::string port_info;
-  if (!file_util::ReadFileToString(FilePath(kTestServerPortInfoFile),
+  if (!file_util::ReadFileToString(GetTestServerPortInfoFile(),
                                    &port_info) ||
       port_info.empty()) {
     return false;
