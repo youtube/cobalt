@@ -23,6 +23,13 @@
 //   include_subdomains: (optional bool) whether subdomains of |name| are also covered
 //   mode: (optional string) "force-https" iff covered names should require HTTPS
 //   pins: (optional string) the |name| member of an object in |pinsets|
+//   snionly: (optional bool) if true then this entry is only enforced if TLS is
+//       enabled because the site in question only serves the correct
+//       certificate if SNI is sent. Note that this only covers the case where
+//       TLS has been disabled by explicit configuration. If TLS was disabled
+//       because of SSLv3 fallback, then the entry is still in force and a
+//       fatal certificate error will result. Spurious certificate errors are
+//       an unfortunate result of SSLv3 fallback.
 
 {
   "pinsets": [
