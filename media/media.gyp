@@ -12,27 +12,6 @@
   },
   'targets': [
     {
-      # Minimal target for NaCl and other renderer side media clients which only
-      # need to send audio data across the shared memory to the browser process.
-      'target_name': 'shared_memory_support',
-      'type': '<(component)',
-      'dependencies': [
-        '../base/base.gyp:base',
-      ],
-      'defines': [
-        'MEDIA_IMPLEMENTATION',
-      ],
-      'include_dirs': [
-        '..',
-      ],
-      'includes': [
-        'shared_memory_support.gypi',
-      ],
-      'sources': [
-        '<@(shared_memory_support_sources)',
-      ],
-    },
-    {
       'target_name': 'media',
       'type': '<(component)',
       'dependencies': [
@@ -514,166 +493,6 @@
       ],
     },
     {
-      'target_name': 'yuv_convert',
-      'type': 'static_library',
-      'include_dirs': [
-        '..',
-      ],
-      'conditions': [
-        ['order_profiling != 0', {
-          'target_conditions' : [
-            ['_toolset=="target"', {
-              'cflags!': [ '-finstrument-functions' ],
-            }],
-          ],
-        }],
-        [ 'target_arch == "ia32" or target_arch == "x64"', {
-          'dependencies': [
-            'yuv_convert_simd_x86',
-          ],
-        }],
-        [ 'target_arch == "arm"', {
-          'dependencies': [
-            'yuv_convert_simd_arm',
-          ],
-        }],
-      ],
-      'sources': [
-        'base/yuv_convert.cc',
-        'base/yuv_convert.h',
-      ],
-    },
-    {
-      'target_name': 'yuv_convert_simd_x86',
-      'type': 'static_library',
-      'include_dirs': [
-        '..',
-      ],
-      'sources': [
-        'base/simd/convert_rgb_to_yuv_c.cc',
-        'base/simd/convert_rgb_to_yuv_sse2.cc',
-        'base/simd/convert_rgb_to_yuv_ssse3.asm',
-        'base/simd/convert_rgb_to_yuv_ssse3.cc',
-        'base/simd/convert_rgb_to_yuv_ssse3.inc',
-        'base/simd/convert_yuv_to_rgb_c.cc',
-        'base/simd/convert_yuv_to_rgb_mmx.asm',
-        'base/simd/convert_yuv_to_rgb_mmx.inc',
-        'base/simd/convert_yuv_to_rgb_sse.asm',
-        'base/simd/convert_yuv_to_rgb_x86.cc',
-        'base/simd/filter_yuv.h',
-        'base/simd/filter_yuv_c.cc',
-        'base/simd/filter_yuv_mmx.cc',
-        'base/simd/filter_yuv_sse2.cc',
-        'base/simd/linear_scale_yuv_to_rgb_mmx.asm',
-        'base/simd/linear_scale_yuv_to_rgb_mmx.inc',
-        'base/simd/linear_scale_yuv_to_rgb_sse.asm',
-        'base/simd/scale_yuv_to_rgb_mmx.asm',
-        'base/simd/scale_yuv_to_rgb_mmx.inc',
-        'base/simd/scale_yuv_to_rgb_sse.asm',
-        'base/simd/yuv_to_rgb_table.cc',
-        'base/simd/yuv_to_rgb_table.h',
-      ],
-      'conditions': [
-        ['order_profiling != 0', {
-          'target_conditions' : [
-            ['_toolset=="target"', {
-              'cflags!': [ '-finstrument-functions' ],
-            }],
-          ],
-        }],
-        [ 'target_arch == "x64"', {
-          # Source files optimized for X64 systems.
-          'sources': [
-            'base/simd/linear_scale_yuv_to_rgb_mmx_x64.asm',
-            'base/simd/scale_yuv_to_rgb_sse2_x64.asm',
-          ],
-        }],
-        [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
-          'cflags': [
-            '-msse2',
-          ],
-        }],
-        [ 'OS == "mac"', {
-          'configurations': {
-            'Debug': {
-              'xcode_settings': {
-                # gcc on the mac builds horribly unoptimized sse code in debug
-                # mode. Since this is rarely going to be debugged, run with full
-                # optimizations in Debug as well as Release.
-                'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
-               },
-             },
-          },
-        }],
-        [ 'OS=="win"', {
-          'variables': {
-            'yasm_flags': [
-              '-DWIN32',
-              '-DMSVC',
-              '-DCHROMIUM',
-              '-Isimd',
-            ],
-          },
-        }],
-        [ 'OS=="mac"', {
-          'variables': {
-            'yasm_flags': [
-              '-DPREFIX',
-              '-DMACHO',
-              '-DCHROMIUM',
-              '-Isimd',
-            ],
-          },
-        }],
-        [ 'os_posix==1 and OS!="mac"', {
-          'variables': {
-            'conditions': [
-              [ 'target_arch=="ia32"', {
-                'yasm_flags': [
-                  '-DX86_32',
-                  '-DELF',
-                  '-DCHROMIUM',
-                  '-Isimd',
-                ],
-              }, {
-                'yasm_flags': [
-                  '-DARCH_X86_64',
-                  '-DELF',
-                  '-DPIC',
-                  '-DCHROMIUM',
-                  '-Isimd',
-                ],
-              }],
-            ],
-          },
-        }],
-      ],
-      'variables': {
-        'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/media',
-      },
-      'msvs_2010_disable_uldi_when_referenced': 1,
-      'includes': [
-        '../third_party/yasm/yasm_compile.gypi',
-      ],
-    },
-    {
-      'target_name': 'yuv_convert_simd_arm',
-      'type': 'static_library',
-      'include_dirs': [
-        '..',
-      ],
-      'sources': [
-        'base/simd/convert_rgb_to_yuv.h',
-        'base/simd/convert_rgb_to_yuv_c.cc',
-        'base/simd/convert_yuv_to_rgb.h',
-        'base/simd/convert_yuv_to_rgb_c.cc',
-        'base/simd/filter_yuv.h',
-        'base/simd/filter_yuv_c.cc',
-        'base/simd/yuv_to_rgb_table.cc',
-        'base/simd/yuv_to_rgb_table.h',
-      ],
-    },
-    {
       'target_name': 'media_unittests',
       'type': '<(gtest_target_type)',
       'dependencies': [
@@ -854,40 +673,226 @@
         'base/mock_filters.h',
       ],
     },
-    {
-      'target_name': 'scaler_bench',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        'yuv_convert',
-        '../base/base.gyp:base',
-        '../skia/skia.gyp:skia',
-        '../ui/ui.gyp:ui',
-      ],
-      'sources': [
-        'tools/scaler_bench/scaler_bench.cc',
-      ],
-    },
-    {
-      'target_name': 'qt_faststart',
-      'type': 'executable',
-      'sources': [
-        'tools/qt_faststart/qt_faststart.c'
-      ],
-    },
-    {
-      'target_name': 'seek_tester',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/seek_tester/seek_tester.cc',
-      ],
-    },
   ],
   'conditions': [
+    ['OS != "ios"', {
+      'targets': [
+        {
+          # Minimal target for NaCl and other renderer side media clients which
+          # only need to send audio data across the shared memory to the browser
+          # process.
+          'target_name': 'shared_memory_support',
+          'type': '<(component)',
+          'dependencies': [
+            '../base/base.gyp:base',
+          ],
+          'defines': [
+            'MEDIA_IMPLEMENTATION',
+          ],
+          'include_dirs': [
+            '..',
+          ],
+          'includes': [
+            'shared_memory_support.gypi',
+          ],
+          'sources': [
+            '<@(shared_memory_support_sources)',
+          ],
+        },
+        {
+          'target_name': 'yuv_convert',
+          'type': 'static_library',
+          'include_dirs': [
+            '..',
+          ],
+          'conditions': [
+            ['order_profiling != 0', {
+              'target_conditions' : [
+                ['_toolset=="target"', {
+                  'cflags!': [ '-finstrument-functions' ],
+                }],
+              ],
+            }],
+            [ 'target_arch == "ia32" or target_arch == "x64"', {
+              'dependencies': [
+                'yuv_convert_simd_x86',
+              ],
+            }],
+            [ 'target_arch == "arm"', {
+              'dependencies': [
+                'yuv_convert_simd_arm',
+              ],
+            }],
+          ],
+          'sources': [
+            'base/yuv_convert.cc',
+            'base/yuv_convert.h',
+          ],
+        },
+        {
+          'target_name': 'yuv_convert_simd_x86',
+          'type': 'static_library',
+          'include_dirs': [
+            '..',
+          ],
+          'sources': [
+            'base/simd/convert_rgb_to_yuv_c.cc',
+            'base/simd/convert_rgb_to_yuv_sse2.cc',
+            'base/simd/convert_rgb_to_yuv_ssse3.asm',
+            'base/simd/convert_rgb_to_yuv_ssse3.cc',
+            'base/simd/convert_rgb_to_yuv_ssse3.inc',
+            'base/simd/convert_yuv_to_rgb_c.cc',
+            'base/simd/convert_yuv_to_rgb_mmx.asm',
+            'base/simd/convert_yuv_to_rgb_mmx.inc',
+            'base/simd/convert_yuv_to_rgb_sse.asm',
+            'base/simd/convert_yuv_to_rgb_x86.cc',
+            'base/simd/filter_yuv.h',
+            'base/simd/filter_yuv_c.cc',
+            'base/simd/filter_yuv_mmx.cc',
+            'base/simd/filter_yuv_sse2.cc',
+            'base/simd/linear_scale_yuv_to_rgb_mmx.asm',
+            'base/simd/linear_scale_yuv_to_rgb_mmx.inc',
+            'base/simd/linear_scale_yuv_to_rgb_sse.asm',
+            'base/simd/scale_yuv_to_rgb_mmx.asm',
+            'base/simd/scale_yuv_to_rgb_mmx.inc',
+            'base/simd/scale_yuv_to_rgb_sse.asm',
+            'base/simd/yuv_to_rgb_table.cc',
+            'base/simd/yuv_to_rgb_table.h',
+          ],
+          'conditions': [
+            ['order_profiling != 0', {
+              'target_conditions' : [
+                ['_toolset=="target"', {
+                  'cflags!': [ '-finstrument-functions' ],
+                }],
+              ],
+            }],
+            [ 'target_arch == "x64"', {
+              # Source files optimized for X64 systems.
+              'sources': [
+                'base/simd/linear_scale_yuv_to_rgb_mmx_x64.asm',
+                'base/simd/scale_yuv_to_rgb_sse2_x64.asm',
+              ],
+            }],
+            [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
+              'cflags': [
+                '-msse2',
+              ],
+            }],
+            [ 'OS == "mac"', {
+              'configurations': {
+                'Debug': {
+                  'xcode_settings': {
+                    # gcc on the mac builds horribly unoptimized sse code in
+                    # debug mode. Since this is rarely going to be debugged,
+                    # run with full optimizations in Debug as well as Release.
+                    'GCC_OPTIMIZATION_LEVEL': '3',  # -O3
+                   },
+                 },
+              },
+            }],
+            [ 'OS=="win"', {
+              'variables': {
+                'yasm_flags': [
+                  '-DWIN32',
+                  '-DMSVC',
+                  '-DCHROMIUM',
+                  '-Isimd',
+                ],
+              },
+            }],
+            [ 'OS=="mac"', {
+              'variables': {
+                'yasm_flags': [
+                  '-DPREFIX',
+                  '-DMACHO',
+                  '-DCHROMIUM',
+                  '-Isimd',
+                ],
+              },
+            }],
+            [ 'os_posix==1 and OS!="mac"', {
+              'variables': {
+                'conditions': [
+                  [ 'target_arch=="ia32"', {
+                    'yasm_flags': [
+                      '-DX86_32',
+                      '-DELF',
+                      '-DCHROMIUM',
+                      '-Isimd',
+                    ],
+                  }, {
+                    'yasm_flags': [
+                      '-DARCH_X86_64',
+                      '-DELF',
+                      '-DPIC',
+                      '-DCHROMIUM',
+                      '-Isimd',
+                    ],
+                  }],
+                ],
+              },
+            }],
+          ],
+          'variables': {
+            'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/media',
+          },
+          'msvs_2010_disable_uldi_when_referenced': 1,
+          'includes': [
+            '../third_party/yasm/yasm_compile.gypi',
+          ],
+        },
+        {
+          'target_name': 'yuv_convert_simd_arm',
+          'type': 'static_library',
+          'include_dirs': [
+            '..',
+          ],
+          'sources': [
+            'base/simd/convert_rgb_to_yuv.h',
+            'base/simd/convert_rgb_to_yuv_c.cc',
+            'base/simd/convert_yuv_to_rgb.h',
+            'base/simd/convert_yuv_to_rgb_c.cc',
+            'base/simd/filter_yuv.h',
+            'base/simd/filter_yuv_c.cc',
+            'base/simd/yuv_to_rgb_table.cc',
+            'base/simd/yuv_to_rgb_table.h',
+          ],
+        },
+        {
+          'target_name': 'scaler_bench',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            'yuv_convert',
+            '../base/base.gyp:base',
+            '../skia/skia.gyp:skia',
+            '../ui/ui.gyp:ui',
+          ],
+          'sources': [
+            'tools/scaler_bench/scaler_bench.cc',
+          ],
+        },
+        {
+          'target_name': 'qt_faststart',
+          'type': 'executable',
+          'sources': [
+            'tools/qt_faststart/qt_faststart.c'
+          ],
+        },
+        {
+          'target_name': 'seek_tester',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+          ],
+          'sources': [
+            'tools/seek_tester/seek_tester.cc',
+          ],
+        },
+      ],
+    }],
     ['OS=="win"', {
       'targets': [
         {
@@ -992,7 +997,7 @@
         },
       ],
     }],
-    ['os_posix == 1 and OS != "mac" and OS != "android"', {
+    ['os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android"', {
       'targets': [
         {
           'target_name': 'player_x11',
@@ -1088,8 +1093,10 @@
         },
 
       ],
-    }, { # OS != "android"'
-      # Android does not use ffmpeg, so disable the targets which require it.
+    }],
+    ['OS != "android" and OS != "ios"', {
+      # Android and iOS do not use ffmpeg, so disable the targets which require
+      # it.
       'targets': [
         {
           'target_name': 'ffmpeg_unittests',
