@@ -273,7 +273,7 @@ def _RunATestSuite(options):
     0 if successful, number of failing tests otherwise.
   """
   step_name = os.path.basename(options.test_suite).replace('-debug.apk', '')
-  buildbot_report.PrintNamedStep('Test suite %s' % step_name)
+  buildbot_report.PrintNamedStep(step_name)
   attached_devices = []
   buildbot_emulators = []
 
