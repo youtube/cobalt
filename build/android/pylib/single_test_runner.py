@@ -252,13 +252,10 @@ class SingleTestRunner(BaseTestRunner):
     self.tool.CopyFiles()
     test_data = self.GetDataFilesForTestSuite()
     if test_data and not self.fast_and_loose:
-      # Due to the large size of certain test data, we use sdcard to store the
-      # test data and create symbolic links to map them to data/local/tmp/.
-      # Before that, make sure SD card is ready.
+      # Make sure SD card is ready.
       self.adb.WaitForSdCardReady(20)
       for data in test_data:
-        self.CopyTestData([data], '/sdcard/')
-      self.LinkSdCardPathsToTempDir(test_data)
+        self.CopyTestData([data], constants.TEST_DATA_DIR)
 
   def RunTestsWithFilter(self):
     """Runs a tests via a small, temporary shell script."""

@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "base/android/path_utils.h"
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -14,10 +15,6 @@
 #include "base/synchronization/waitable_event.h"
 
 namespace {
-
-// The test implementation of AndroidOS stores everything in the following
-// directory.
-const char* kAndroidTestTempDirectory = "/data/local/tmp";
 
 struct RunState {
   RunState(base::MessagePump::Delegate* delegate, int run_depth)
@@ -141,15 +138,16 @@ base::MessagePump* CreateMessagePumpForUIStub() {
   return new MessagePumpForUIStub();
 };
 
-// Provides the test path for DIR_MODULE, DIR_CACHE and DIR_ANDROID_APP_DATA.
+// Provides the test path for DIR_MODULE and DIR_ANDROID_APP_DATA.
 bool GetTestProviderPath(int key, FilePath* result) {
   switch (key) {
     case base::DIR_MODULE: {
-      *result = FilePath(kAndroidTestTempDirectory);
+      *result = FilePath(base::android::GetExternalStorageDirectory());
       return true;
     }
     case base::DIR_ANDROID_APP_DATA: {
-      *result = FilePath(kAndroidTestTempDirectory);
+      // For tests, app data is put in external storage.
+      *result = FilePath(base::android::GetExternalStorageDirectory());
       return true;
     }
     default:
@@ -183,7 +181,6 @@ void InitAndroidTestLogging() {
 
 void InitAndroidTestPaths() {
   InitPathProvider(DIR_MODULE);
-  InitPathProvider(DIR_CACHE);
   InitPathProvider(DIR_ANDROID_APP_DATA);
 }
 
