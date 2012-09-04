@@ -292,6 +292,7 @@
     { "name": "api.intercom.io", "mode": "force-https" },
     { "name": "www.intercom.io", "mode": "force-https" },
     { "name": "fatzebra.com.au", "include_subdomains": true, "mode": "force-https" },
+    { "name": "csawctf.poly.edu", "include_subdomains": true, "mode": "force-https" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
