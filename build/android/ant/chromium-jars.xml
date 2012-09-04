@@ -26,12 +26,22 @@
     <filelist files="${ADDITIONAL_SRC_DIRS}" />
   </path>
 
-  <property-value name="javac.srcdir" value="src:${toString:javac.srcdirs.additional}"/>
+  <property-value
+    name="javac.srcdir"
+    value="src:${toString:javac.srcdirs.additional}"
+  />
 
-  <property-location name="lib.dir" location="${PRODUCT_DIR}/lib.java"
-      check-exists="false"/>
-  <property-location name="dest.dir" location="${PRODUCT_DIR}/java/${PACKAGE_NAME}"
-      check-exists="false"/>
+  <property-location
+    name="lib.dir"
+    location="${PRODUCT_DIR}/lib.java"
+    check-exists="false"
+  />
+
+  <property-location
+    name="dest.dir"
+    location="${PRODUCT_DIR}/java/${PACKAGE_NAME}"
+    check-exists="false"
+  />
 
   <target name="init">
     <!-- Create the time stamp -->
@@ -39,6 +49,15 @@
     <!-- Create the build directory structure used by compile -->
     <mkdir dir="${lib.dir}"/>
     <mkdir dir="${dest.dir}"/>
+
+    <!-- Remove all .class files from dest.dir. This prevents inclusion of
+         incorrect .class files in the final .jar. For example, if a .java file
+         was deleted, the .jar should not contain the .class files for that
+         .java from previous builds.
+    -->
+    <delete>
+      <fileset dir="${dest.dir}" includes="**/*.class"/>
+    </delete>
   </target>
 
   <target name="compile" depends="init" description="Compiles source." >
@@ -49,7 +68,9 @@
       </condition>
     </fail>
 
-    <echo>Compiling ${javac.srcdir}, classpath: ${toString:javac.custom.classpath}</echo>
+    <echo>
+      Compiling ${javac.srcdir}, classpath: ${toString:javac.custom.classpath}
+    </echo>
 
     <javac
       srcdir="${javac.srcdir}"
@@ -63,8 +84,10 @@
   <target name="dist" depends="compile"
       description="Generate chromium_${PACKAGE_NAME}.jar.">
     <!-- Create the distribution directory -->
-    <mkdir dir="${lib.dir}" />
-    <jar jarfile="${lib.dir}/chromium_${PACKAGE_NAME}.jar" basedir="${dest.dir}"/>
+    <jar
+      jarfile="${lib.dir}/chromium_${PACKAGE_NAME}.jar"
+      basedir="${dest.dir}"
+    />
 
     <!-- If Gyp thinks this output is stale but Ant doesn't, the modification
          time should still be updated. Otherwise, this target will continue to
