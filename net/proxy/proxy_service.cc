@@ -34,6 +34,9 @@
 #if defined(OS_WIN)
 #include "net/proxy/proxy_config_service_win.h"
 #include "net/proxy/proxy_resolver_winhttp.h"
+#elif defined(OS_IOS)
+#include "net/proxy/proxy_config_service_ios.h"
+#include "net/proxy/proxy_resolver_mac.h"
 #elif defined(OS_MACOSX)
 #include "net/proxy/proxy_config_service_mac.h"
 #include "net/proxy/proxy_resolver_mac.h"
@@ -1319,6 +1322,8 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
     MessageLoop* file_loop) {
 #if defined(OS_WIN)
   return new ProxyConfigServiceWin();
+#elif defined(OS_IOS)
+  return new ProxyConfigServiceIOS(io_thread_task_runner);
 #elif defined(OS_MACOSX)
   return new ProxyConfigServiceMac(io_thread_task_runner);
 #elif defined(OS_CHROMEOS)
