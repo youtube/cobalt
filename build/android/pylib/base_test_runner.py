@@ -110,29 +110,6 @@ class BaseTestRunner(object):
           os.path.join(constants.CHROME_DIR, p),
           os.path.join(dest_dir, p))
 
-  def LinkSdCardPathsToTempDir(self, paths):
-    """Link |paths| which are under sdcard to constants.TEST_DATA_DIR.
-
-    For example, the test data '/sdcard/my_data' will be linked to
-    'TEST_DATA_DIR/my_data'.
-
-    Args:
-      paths: A list of files and directories relative to /sdcard.
-    """
-    links = set()
-    for path in paths:
-      link_name = os.path.dirname(path)
-      assert link_name, 'Linked paths must be in a subdir of /sdcard/.'
-      link_name = link_name.split('/')[0]
-      if link_name not in links:
-        mapped_device_path = constants.TEST_DATA_DIR + '/' + link_name
-        # Unlink the mapped_device_path at first in case it was mapped to
-        # a wrong path. Add option '-r' becuase the old path could be a dir.
-        self.adb.RunShellCommand('rm -r %s' %  mapped_device_path)
-        self.adb.RunShellCommand(
-            'ln -s /sdcard/%s %s' % (link_name, mapped_device_path))
-        links.add(link_name)
-
   def LaunchTestHttpServer(self, document_root, port=None,
                            extra_config_contents=None):
     """Launches an HTTP server to serve HTTP tests.
