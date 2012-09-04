@@ -43,11 +43,6 @@ class BaseTestRunner(object):
     self.device = device
     self.adb = android_commands.AndroidCommands(device=device)
     self.tool = CreateTool(tool, self.adb)
-    # Synchronize date/time between host and device. Otherwise same file on
-    # host and device may have different timestamp which may cause
-    # AndroidCommands.PushIfNeeded failed, or a test which may compare timestamp
-    # got from http head and local time could be failed.
-    self.adb.SynchronizeDateTime()
     self._http_server = None
     self._forwarder = None
     self._forwarder_device_port = 8000
