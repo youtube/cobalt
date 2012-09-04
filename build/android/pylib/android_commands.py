@@ -22,10 +22,12 @@ import time
 import pexpect
 import io_stats_parser
 
-# adb_interface.py is under ../../../third_party/android_testrunner/
-sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..',
-                             '..', '..', 'third_party', 'android_testrunner'))
+CHROME_SRC = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)), '..', '..', '..')
+
+sys.path.append(os.path.join(CHROME_SRC, 'third_party', 'android_testrunner'))
 import adb_interface
+
 import cmd_helper
 import errors  #  is under ../../../third_party/android_testrunner/errors.py
 
@@ -66,6 +68,7 @@ KEYCODE_DPAD_RIGHT = 22
 KEYCODE_ENTER = 66
 KEYCODE_MENU = 82
 
+MD5SUM_DEVICE_PATH = '/data/local/tmp/md5sum_bin'
 
 def GetEmulators():
   """Returns a list of emulators.  Does not filter by status (e.g. offline).
@@ -112,42 +115,6 @@ def GetAttachedDevices():
     devices.remove(preferred_device)
     devices.insert(0, preferred_device)
   return devices
-
-
-def _GetHostFileInfo(file_name):
-  """Returns a tuple containing size and modified UTC time for file_name."""
-  # The time accuracy on device is only to minute level, remove the second and
-  # microsecond from host results.
-  utc_time = datetime.datetime.utcfromtimestamp(os.path.getmtime(file_name))
-  time_delta = datetime.timedelta(seconds=utc_time.second,
-                                  microseconds=utc_time.microsecond)
-  return os.path.getsize(file_name), utc_time - time_delta
-
-
-def ListHostPathContents(path):
-  """Lists files in all subdirectories of |path|.
-
-  Args:
-    path: The path to list.
-
-  Returns:
-    A dict of {"name": (size, lastmod), ...}.
-  """
-  if os.path.isfile(path):
-    return {os.path.basename(path): _GetHostFileInfo(path)}
-  ret = {}
-  for root, dirs, files in os.walk(path):
-    for d in dirs:
-      if d.startswith('.'):
-        dirs.remove(d)  # Prune the dir for subsequent iterations.
-    for f in files:
-      if f.startswith('.'):
-        continue
-      full_file_name = os.path.join(root, f)
-      file_name = os.path.relpath(full_file_name, path)
-      ret[file_name] = _GetHostFileInfo(full_file_name)
-  return ret
-
 
 def _GetFilesFromRecursiveLsOutput(path, ls_output, re_file, utc_offset=None):
   """Gets a list of files from `ls` command output.
@@ -201,6 +168,20 @@ def _GetFilesFromRecursiveLsOutput(path, ls_output, re_file, utc_offset=None):
       files[filename] = (int(file_match.group('size')), lastmod)
   return files
 
+def _ComputeFileListHash(md5sum_output):
+  """Returns a list of MD5 strings from the provided md5sum output."""
+  return [line.split('  ')[0] for line in md5sum_output]
+
+def _HasAdbPushSucceeded(command_output):
+  """Returns whether adb push has succeeded from the provided output."""
+  if not command_output:
+    return False
+  # Success looks like this: "3035 KB/s (12512056 bytes in 4.025s)"
+  # Errors look like this: "failed to copy  ... "
+  if not re.search('^[0-9]', command_output.splitlines()[-1]):
+    logging.critical('PUSH FAILED: ' + command_output)
+    return False
+  return True
 
 def GetLogTimestamp(log_line, year):
   """Returns the timestamp of the given |log_line| in the given year."""
@@ -228,6 +209,7 @@ class AndroidCommands(object):
     self._original_governor = None
     self._pushed_files = []
     self._device_utc_offset = self.RunShellCommand('date +%z')[0]
+    self._md5sum_path = ''
 
   def Adb(self):
     """Returns our AdbInterface to avoid us wrapping all its methods."""
@@ -263,10 +245,6 @@ class AndroidCommands(object):
         retries -= 1
         self.RestartShell()
     raise last_err  # Only reached after max retries, re-raise the last error.
-
-  def SynchronizeDateTime(self):
-    """Synchronize date/time between host and device."""
-    self._adb.SendShellCommand('date -u %f' % time.time())
 
   def RestartShell(self):
     """Restarts the shell on the device. Does not block for it to return."""
@@ -552,26 +530,34 @@ class AndroidCommands(object):
     """Pushes |local_path| to |device_path|.
 
     Works for files and directories. This method skips copying any paths in
-    |test_data_paths| that already exist on the device with the same timestamp
-    and size.
+    |test_data_paths| that already exist on the device with the same hash.
 
     All pushed files can be removed by calling RemovePushedFiles().
     """
     assert os.path.exists(local_path), 'Local path not found %s' % local_path
-    self._pushed_files.append(device_path)
 
-    # If the path contents are the same, there's nothing to do.
-    local_contents = ListHostPathContents(local_path)
-    device_contents = self.ListPathContents(device_path)
-    # Only compare the size and timestamp if only copying a file because
-    # the filename on device can be renamed.
-    if os.path.isfile(local_path):
-      assert len(local_contents) == 1
-      is_equal = local_contents.values() == device_contents.values()
-    else:
-      is_equal = local_contents == device_contents
-    if is_equal:
-      logging.info('%s is up-to-date. Skipping file push.', device_path)
+    if not self._md5sum_path:
+      default_build_type = os.environ.get('BUILD_TYPE', 'Debug')
+      md5sum_path = '%s/out/%s/md5sum_bin' % (CHROME_SRC, default_build_type)
+      if not os.path.exists(md5sum_path):
+        md5sum_path = '%s/out/Release/md5sum_bin' % (CHROME_SRC)
+        if not os.path.exists(md5sum_path):
+          print >>sys.stderr, 'Please build md5sum.'
+          sys.exit(1)
+      if not self.FileExistsOnDevice(MD5SUM_DEVICE_PATH):
+        command = 'push %s %s' % (md5sum_path, MD5SUM_DEVICE_PATH)
+        assert _HasAdbPushSucceeded(self._adb.SendCommand(command))
+      self._md5sum_path = md5sum_path
+
+    self._pushed_files.append(device_path)
+    hashes_on_device = _ComputeFileListHash(
+        self.RunShellCommand(MD5SUM_DEVICE_PATH + ' ' + device_path))
+    assert os.path.exists(local_path), 'Local path not found %s' % local_path
+    hashes_on_host = _ComputeFileListHash(
+        subprocess.Popen(
+            '%s_host %s' % (self._md5sum_path, local_path),
+            stdout=subprocess.PIPE, shell=True).stdout)
+    if hashes_on_device == hashes_on_host:
       return
 
     # They don't match, so remove everything first and then create it.
@@ -584,11 +570,8 @@ class AndroidCommands(object):
     push_command = 'push %s %s' % (local_path, device_path)
     logging.info('>>> $' + push_command)
     output = self._adb.SendCommand(push_command, timeout_time=30*60)
-    assert output
-    # Success looks like this: "3035 KB/s (12512056 bytes in 4.025s)"
-    # Errors look like this: "failed to copy  ... "
-    if not re.search('^[0-9]', output.splitlines()[-1]):
-      logging.critical('PUSH FAILED: ' + output)
+    assert _HasAdbPushSucceeded(output)
+
 
   def GetFileContents(self, filename, log_result=False):
     """Gets contents from the file specified by |filename|."""
@@ -993,6 +976,20 @@ class AndroidCommands(object):
         break
     logging.info('PidsUsingDevicePort: %s', pids)
     return pids
+
+  def FileExistsOnDevice(self, file_name):
+    """Checks whether the given (regular) file exists on the device.
+
+    Args:
+      file_name: Full path of file to check.
+
+    Returns:
+      True if the file exists, False otherwise.
+    """
+    assert '"' not in file_name, 'file_name cannot contain double quotes'
+    status = self._adb.SendShellCommand(
+        '\'test -f "%s"; echo $?\'' % (file_name))
+    return int(status) == 0
 
   def RunMonkey(self, package_name, category=None, throttle=100, seed=None,
                 event_count=10000, verbosity=1, extra_args=''):

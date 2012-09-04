@@ -29,21 +29,22 @@
       'type': 'none',
       'dependencies': [
         '../base/base.gyp:base_unittests',
+        '../chrome/chrome.gyp:unit_tests',
         '../content/content.gyp:content_shell_test_apk',
         '../content/content.gyp:content_unittests',
-        '../chrome/chrome.gyp:unit_tests',
         '../gpu/gpu.gyp:gpu_unittests',
-        '../sql/sql.gyp:sql_unittests',
-        '../sync/sync.gyp:sync_unit_tests',
         '../ipc/ipc.gyp:ipc_tests',
         '../net/net.gyp:net_unittests',
-        '../ui/ui.gyp:ui_unittests',
+        '../sql/sql.gyp:sql_unittests',
+        '../sync/sync.gyp:sync_unit_tests',
         '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
-        # From here down: not added to run_tests.py yet.
-        '../jingle/jingle.gyp:jingle_unittests',
         '../tools/android/device_stats_monitor/device_stats_monitor.gyp:device_stats_monitor',
         '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
         '../tools/android/forwarder/forwarder.gyp:forwarder',
+        '../tools/android/md5sum/md5sum.gyp:md5sum',
+        '../ui/ui.gyp:ui_unittests',
+        # From here down: not added to run_tests.py yet.
+        '../jingle/jingle.gyp:jingle_unittests',
         '../media/media.gyp:media_unittests',
         # Required by ui_unittests.
         # TODO(wangxianzhu): It'd better let ui_unittests depend on it, but
