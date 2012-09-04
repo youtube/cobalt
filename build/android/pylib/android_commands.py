@@ -690,6 +690,28 @@ class AndroidCommands(object):
     else:
       args.append('*:v')
 
+    if logfile:
+      class NewLineNormalizer(object):
+        """A file-like object to normalize EOLs to '\n'.
+
+        Pexpect runs adb within a pseudo-tty device (see
+        http://www.noah.org/wiki/pexpect), so any '\n' printed by adb is written
+        as '\r\n' to the logfile. Since adb already uses '\r\n' to terminate
+        lines, the log ends up having '\r\r\n' at the end of each line. This
+        filter replaces the above with a single '\n' in the data stream.
+        """
+        def __init__(self, output):
+          self.output = output
+
+        def write(self, data):
+          data = data.replace('\r\r\n', '\n')
+          self.output.write(data)
+
+        def flush(self):
+          self.output.flush()
+
+      logfile = NewLineNormalizer(logfile)
+
     # Spawn logcat and syncronize with it.
     for _ in range(4):
       self._logcat = pexpect.spawn('adb', args, timeout=timeout,
