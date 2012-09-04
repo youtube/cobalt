@@ -569,6 +569,8 @@
         'proxy/proxy_config_service_android.h',
         'proxy/proxy_config_service_fixed.cc',
         'proxy/proxy_config_service_fixed.h',
+        'proxy/proxy_config_service_ios.cc',
+        'proxy/proxy_config_service_ios.h',
         'proxy/proxy_config_service_linux.cc',
         'proxy/proxy_config_service_linux.h',
         'proxy/proxy_config_service_mac.cc',
@@ -1090,6 +1092,11 @@
               ['include', '^http/http_util_icu\\.cc$'],
               ['include', '^http/http_version\\.h$'],
               ['include', '^url_request/url_request_job_manager\\.'],
+              ['include', '^proxy/dhcp_proxy_script_fetcher\\.'],
+              ['include', '^proxy/polling_proxy_config_service\\.'],
+              ['include', '^proxy/proxy_config\\.'],
+              ['include', '^proxy/proxy_config_service_ios\\.'],
+              ['include', '^proxy/proxy_service\\.'],
             ],
           },
         ],
@@ -1132,6 +1139,7 @@
             ['include', 'base/network_change_notifier_mac\\.cc$'],
             ['include', 'base/network_config_watcher_mac\\.cc$'],
             ['include', 'base/platform_mime_util_mac\\.mm$'],
+            ['include', 'proxy/proxy_resolver_mac\\.cc$'],
           ],
         }],
       ],
@@ -1529,9 +1537,6 @@
           'dependencies': [
             '../testing/gtest.gyp:gtest_main',
           ],
-          'dependencies!': [
-            'net_test_support',
-          ],
           'sources/': [
             ['exclude', '.*'],
             ['include', '^base/dns_util_unittest\\.cc$'],
@@ -1543,6 +1548,7 @@
             ['include', '^http/http_byte_range_unittest\\.cc$'],
             ['include', '^http/http_content_disposition_unittest\\.cc$'],
             ['include', '^http/http_util_unittest\\.cc$'],
+            ['include', '^proxy/proxy_config_service_common_unittest\\.cc$'],
           ],
         }],
         [ 'OS == "linux"', {
