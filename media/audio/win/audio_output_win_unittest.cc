@@ -628,6 +628,7 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
                                            2 * bytes_100_ms)))
           .Times(AnyNumber())
           .WillRepeatedly(Return(0));
+      break;
     default:
       ASSERT_TRUE(false) << "Unexpected number of buffers";
   }
