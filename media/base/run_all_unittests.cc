@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/test/main_hook.h"
 #include "base/test/test_suite.h"
 #include "media/base/media.h"
 
@@ -22,5 +23,6 @@ void TestSuiteNoAtExit::Initialize() {
 }
 
 int main(int argc, char** argv) {
+  MainHook hook(main, argc, argv);
   return TestSuiteNoAtExit(argc, argv).Run();
 }
