@@ -64,6 +64,11 @@ ACTION_P(SignalEvent, event) {
   event->Signal();
 }
 
+// Custom action to clear a memory buffer.
+ACTION(ClearBuffer) {
+  arg0->Zero();
+}
+
 // Closes AudioOutputController synchronously.
 static void CloseAudioController(AudioOutputController* controller) {
   controller->Close(MessageLoop::QuitClosure());
@@ -126,7 +131,7 @@ TEST_F(AudioOutputControllerTest, PlayPauseClose) {
   EXPECT_CALL(sync_reader, UpdatePendingBytes(_))
       .Times(AtLeast(2));
   EXPECT_CALL(sync_reader, Read(_))
-      .WillRepeatedly(DoAll(SignalEvent(&event),
+      .WillRepeatedly(DoAll(ClearBuffer(), SignalEvent(&event),
                             Return(4)));
   EXPECT_CALL(sync_reader, DataReady())
       .WillRepeatedly(Return(true));
@@ -198,7 +203,7 @@ TEST_F(AudioOutputControllerTest, PlayPausePlayClose) {
   EXPECT_CALL(sync_reader, UpdatePendingBytes(_))
       .Times(AtLeast(1));
   EXPECT_CALL(sync_reader, Read(_))
-      .WillRepeatedly(DoAll(SignalEvent(&event), Return(4)));
+      .WillRepeatedly(DoAll(ClearBuffer(), SignalEvent(&event), Return(4)));
   EXPECT_CALL(sync_reader, DataReady())
       .WillRepeatedly(Return(true));
   EXPECT_CALL(sync_reader, Close());
