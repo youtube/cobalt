@@ -101,7 +101,8 @@ bool LocalTestServer::LaunchPython(const FilePath& testserver_path) {
           getenv(kPythonPathEnv);
   CommandLine python_command(FilePath(FILE_PATH_LITERAL("python")));
 
-  python_command.AppendArgPath(testserver_path);
+  AddPythonArguments(testserver_path, &python_command);
+
   if (!AddCommandLineArguments(&python_command))
     return false;
 

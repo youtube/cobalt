@@ -392,6 +392,12 @@ bool BaseTestServer::GenerateArguments(base::DictionaryValue* arguments) const {
           base::Value::CreateIntegerValue(ssl_options_.tls_intolerant));
     }
   }
+
+  return GenerateAdditionalArguments(arguments);
+}
+
+bool BaseTestServer::GenerateAdditionalArguments(
+    base::DictionaryValue* arguments) const {
   return true;
 }
 
