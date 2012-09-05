@@ -187,6 +187,7 @@ size_t g_init_max_concurrent_streams = 100;
 size_t g_max_concurrent_stream_limit = 256;
 size_t g_default_initial_rcv_window_size = 10 * 1024 * 1024;  // 10MB
 bool g_enable_ping_based_connection_checking = true;
+bool g_enable_credential_frames = false;
 
 typedef base::TimeTicks (*ExternalTimeFunc)(void);
 
@@ -232,6 +233,12 @@ void SpdySession::set_enable_ping_based_connection_checking(bool enable) {
 }
 
 // static
+void SpdySession::set_enable_credential_frames(bool enable) {
+  g_enable_credential_frames = enable;
+}
+
+
+// static
 void SpdySession::set_init_max_concurrent_streams(size_t value) {
   g_init_max_concurrent_streams =
       std::min(value, g_max_concurrent_stream_limit);
@@ -250,6 +257,7 @@ void SpdySession::ResetStaticSettingsToInit() {
   g_max_concurrent_stream_limit = 256;
   g_default_initial_rcv_window_size = kSpdyStreamInitialWindowSize;
   g_enable_ping_based_connection_checking = true;
+  g_enable_credential_frames = false;
   g_time_func = base::TimeTicks::Now;
 }
 
@@ -427,7 +435,8 @@ bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
   if (!GetSSLInfo(&ssl_info, &was_npn_negotiated, &protocol_negotiated))
     return true;   // This is not a secure session, so all domains are okay.
 
-  return !ssl_info.channel_id_sent && !ssl_info.client_cert_sent &&
+  return !ssl_info.client_cert_sent &&
+      (g_enable_credential_frames || !ssl_info.channel_id_sent) &&
       ssl_info.cert->VerifyNameMatch(domain);
 }
 

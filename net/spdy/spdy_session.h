@@ -263,6 +263,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Enable sending of PING frame with each request.
   static void set_enable_ping_based_connection_checking(bool enable);
 
+  // Enable the sending of CREDENTIAL frames.
+  static void set_enable_credential_frames(bool enable);
+
   // The initial max concurrent streams per session, can be overridden by the
   // server via SETTINGS.
   static void set_init_max_concurrent_streams(size_t value);
