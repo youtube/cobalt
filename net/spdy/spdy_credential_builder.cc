@@ -8,7 +8,6 @@
 #include "base/string_piece.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/ec_signature_creator.h"
-#include "crypto/signature_creator.h"
 #include "net/base/asn1_util.h"
 #include "net/base/server_bound_cert_service.h"
 #include "net/base/net_errors.h"
