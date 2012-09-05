@@ -345,6 +345,8 @@
         'base/win/shell.h',
         'base/win/singleton_hwnd.cc',
         'base/win/singleton_hwnd.h',
+        'base/win/tsf_bridge.cc',
+        'base/win/tsf_bridge.h',
         'base/win/tsf_text_store.cc',
         'base/win/tsf_text_store.h',
         'base/win/window_impl.cc',
