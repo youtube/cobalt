@@ -277,6 +277,19 @@ CERTCertificate* CreateSelfSignedCert(
   return cert;
 }
 
+bool IsSupportedValidityRange(base::Time not_valid_before,
+                              base::Time not_valid_after) {
+  CERTValidity* validity = CERT_CreateValidity(
+      crypto::BaseTimeToPRTime(not_valid_before),
+      crypto::BaseTimeToPRTime(not_valid_after));
+
+  if (!validity)
+    return false;
+
+  CERT_DestroyValidity(validity);
+  return true;
+}
+
 bool CreateDomainBoundCertEC(
     crypto::ECPrivateKey* key,
     const std::string& domain,

@@ -55,6 +55,12 @@ class NET_EXPORT ServerBoundCertService
   // the origin otherwise.
   static std::string GetDomainForHost(const std::string& host);
 
+  // Tests whether the system time is within the supported range for
+  // certificate generation.  This value is cached when ServerBoundCertService
+  // is created, so if the system time is changed by a huge amount, this may no
+  // longer hold.
+  bool IsSystemTimeValid() const { return is_system_time_valid_; }
+
   // Fetches the domain bound cert for the specified origin of the specified
   // type if one exists and creates one otherwise. Returns OK if successful or
   // an error code upon failure.
@@ -133,6 +139,8 @@ class NET_EXPORT ServerBoundCertService
   uint64 requests_;
   uint64 cert_store_hits_;
   uint64 inflight_joins_;
+
+  bool is_system_time_valid_;
 
   DISALLOW_COPY_AND_ASSIGN(ServerBoundCertService);
 };
