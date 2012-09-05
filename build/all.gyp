@@ -188,6 +188,7 @@
             # TODO(ios): This is temporary; currently almost nothing builds with
             # OS=ios. Move dependencies back to the main dependencies section
             # above as gyp files come online.
+            '../cc/cc_tests.gyp:cc_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
@@ -209,6 +210,7 @@
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
             '../ui/ui.gyp:ui_unittests',
+            '../webkit/compositor_bindings/compositor_bindings_tests.gyp:webkit_compositor_bindings_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         }],
@@ -358,6 +360,7 @@
           'target_name': 'chromium_builder_dbg',
           'type': 'none',
           'dependencies': [
+            '../cc/cc_tests.gyp:cc_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
@@ -378,6 +381,7 @@
             '../sync/sync.gyp:sync_unit_tests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
+            '../webkit/compositor_bindings/compositor_bindings_tests.gyp:webkit_compositor_bindings_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
@@ -385,6 +389,7 @@
           'target_name': 'chromium_builder_rel',
           'type': 'none',
           'dependencies': [
+            '../cc/cc_tests.gyp:cc_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:performance_browser_tests',
             '../chrome/chrome.gyp:performance_ui_tests',
@@ -405,6 +410,7 @@
             '../sync/sync.gyp:sync_unit_tests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
+            '../webkit/compositor_bindings/compositor_bindings_tests.gyp:webkit_compositor_bindings_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
@@ -469,6 +475,7 @@
           'target_name': 'chromium_builder',
           'type': 'none',
           'dependencies': [
+            '../cc/cc_tests.gyp:cc_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:installer_util_unittests',
             '../chrome/chrome.gyp:interactive_ui_tests',
@@ -502,8 +509,9 @@
             '../sync/sync.gyp:sync_unit_tests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
-            '../webkit/webkit.gyp:pull_in_copy_TestNetscapePlugIn',
             '../ui/views/views.gyp:views_unittests',
+            '../webkit/compositor_bindings/compositor_bindings_tests.gyp:webkit_compositor_bindings_unittests',
+            '../webkit/webkit.gyp:pull_in_copy_TestNetscapePlugIn',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
@@ -627,6 +635,7 @@
           'target_name': 'aura_builder',
           'type': 'none',
           'dependencies': [
+            '../cc/cc_tests.gyp:cc_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:chrome',
             '../chrome/chrome.gyp:interactive_ui_tests',
@@ -638,6 +647,7 @@
             '../ui/ui.gyp:ui_unittests',
             '../ui/views/views.gyp:views',
             '../ui/views/views.gyp:views_unittests',
+            '../webkit/compositor_bindings/compositor_bindings_tests.gyp:webkit_compositor_bindings_unittests',
             '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
           ],
           'conditions': [
