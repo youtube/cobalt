@@ -94,19 +94,13 @@ bool LocalTestServer::GetTestServerDirectory(FilePath* directory) {
   return true;
 }
 
-bool LocalTestServer::GetTestServerPath(FilePath* testserver_path) const {
-  if (!GetTestServerDirectory(testserver_path))
-    return false;
-  *testserver_path = testserver_path->Append(FILE_PATH_LITERAL(
-      "testserver.py"));
-  return true;
-}
-
 bool LocalTestServer::Start() {
   // Get path to Python server script.
   FilePath testserver_path;
-  if (!GetTestServerPath(&testserver_path))
+  if (!GetTestServerDirectory(&testserver_path))
     return false;
+  testserver_path =
+      testserver_path.Append(FILE_PATH_LITERAL("testserver.py"));
 
   if (!SetPythonPath())
     return false;
@@ -165,12 +159,8 @@ bool LocalTestServer::Init(const FilePath& document_root) {
   return true;
 }
 
-bool LocalTestServer::SetPythonPath() const {
-  return SetPythonPathStatic();
-}
-
 // static
-bool LocalTestServer::SetPythonPathStatic() {
+bool LocalTestServer::SetPythonPath() {
   FilePath third_party_dir;
   if (!PathService::Get(base::DIR_SOURCE_ROOT, &third_party_dir)) {
     LOG(ERROR) << "Failed to get DIR_SOURCE_ROOT";
@@ -263,15 +253,6 @@ bool LocalTestServer::AddCommandLineArguments(CommandLine* command_line) const {
   }
 
   return true;
-}
-
-void LocalTestServer::AddPythonArguments(const FilePath& testserver_path,
-                                         CommandLine* command_line) const {
-  // Make python stdout and stderr unbuffered, to prevent incomplete stderr on
-  // win bots, and also fix mixed up ordering of stdout and stderr.
-  command_line->AppendSwitch("-u");
-
-  command_line->AppendArgPath(testserver_path);
 }
 
 }  // namespace net
