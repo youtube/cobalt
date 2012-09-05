@@ -1868,6 +1868,19 @@
           ],
         },
         {
+          'target_name': 'get_server_time',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            'net',
+          ],
+          'sources': [
+            'tools/get_server_time/get_server_time.cc',
+          ],
+        },
+        {
           'target_name': 'net_watcher',
           'type': 'executable',
           'dependencies': [

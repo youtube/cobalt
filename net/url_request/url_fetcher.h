@@ -36,6 +36,10 @@ typedef std::vector<std::string> ResponseCookies;
 //   URLFetcher* fetcher = URLFetcher::Create("http://www.google.com",
 //                                            URLFetcher::GET, this);
 //
+// You must also set a request context getter:
+//
+//   fetcher->SetRequestContext(&my_request_context_getter);
+//
 // Then, optionally set properties on this object, like the request context or
 // extra headers:
 //   fetcher->set_extra_request_headers("X-Foo: bar");
