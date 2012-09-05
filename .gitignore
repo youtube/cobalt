@@ -136,6 +136,7 @@ v8.log
 /seccompsandbox
 /testing/gmock
 /testing/gtest
+/testing/iossim/third_party/
 /testserver.log
 /third_party/GTM
 /third_party/WebKit
@@ -143,6 +144,7 @@ v8.log
 /third_party/adobe/flash/symbols
 /third_party/amd/
 /third_party/angle
+/third_party/android_tools/
 /third_party/aosp
 /third_party/asan
 /third_party/bidichecker
