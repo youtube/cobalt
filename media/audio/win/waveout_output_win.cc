@@ -90,7 +90,8 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       volume_(1),
       channels_(params.channels()),
       pending_bytes_(0),
-      waiting_handle_(NULL) {
+      waiting_handle_(NULL),
+      audio_bus_(AudioBus::Create(params)) {
   format_.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
   format_.Format.nChannels = params.channels();
   format_.Format.nSamplesPerSec = params.sample_rate();
@@ -341,10 +342,17 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
   uint32 scaled_pending_bytes = pending_bytes_ * channels_ /
                                 format_.Format.nChannels;
   // TODO(sergeyu): Specify correct hardware delay for AudioBuffersState.
-  uint32 used = callback_->OnMoreData(
-      reinterpret_cast<uint8*>(buffer->lpData), buffer_size_,
-      AudioBuffersState(scaled_pending_bytes, 0));
+  int frames_filled = callback_->OnMoreData(
+      audio_bus_.get(), AudioBuffersState(scaled_pending_bytes, 0));
+  uint32 used = frames_filled * audio_bus_->channels() *
+      format_.Format.wBitsPerSample / 8;
+
   if (used <= buffer_size_) {
+    // Note: If this ever changes to output raw float the data must be clipped
+    // and sanitized since it may come from an untrusted source such as NaCl.
+    audio_bus_->ToInterleaved(
+        frames_filled, format_.Format.wBitsPerSample / 8, buffer->lpData);
+
     buffer->dwBufferLength = used * format_.Format.nChannels / channels_;
     if (channels_ > 2 && format_.Format.nChannels == 2) {
       media::FoldChannels(buffer->lpData, used,

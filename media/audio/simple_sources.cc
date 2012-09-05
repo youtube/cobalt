@@ -1,95 +1,64 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// MSVC++ requires this to be set before any other includes to get M_PI.
+#define _USE_MATH_DEFINES
+#include <cmath>
 
 #include "media/audio/simple_sources.h"
 
-#include <math.h>
 #include <algorithm>
 
-#include "base/basictypes.h"
 #include "base/logging.h"
-#include "base/memory/ref_counted.h"
-#include "media/audio/audio_io.h"
-#include "media/base/data_buffer.h"
+#include "media/audio/audio_util.h"
 
 namespace media {
 
 //////////////////////////////////////////////////////////////////////////////
 // SineWaveAudioSource implementation.
 
-SineWaveAudioSource::SineWaveAudioSource(Format format, int channels,
+SineWaveAudioSource::SineWaveAudioSource(int channels,
                                          double freq, double sample_freq)
-    : format_(format),
-      channels_(channels),
-      freq_(freq),
-      sample_freq_(sample_freq),
-      time_state_(0) {
-  // TODO(cpu): support other formats.
-  DCHECK((format_ == FORMAT_16BIT_LINEAR_PCM) && (channels_ == 1));
+    : channels_(channels),
+      f_(freq / sample_freq),
+      time_state_(0),
+      cap_(0) {
 }
 
 // The implementation could be more efficient if a lookup table is constructed
 // but it is efficient enough for our simple needs.
-uint32 SineWaveAudioSource::OnMoreData(
-    uint8* dest, uint32 max_size, AudioBuffersState audio_buffers) {
-  const double kTwoPi = 2.0 * 3.141592653589;
-  double f = freq_ / sample_freq_;
-  int16* sin_tbl = reinterpret_cast<int16*>(dest);
-  uint32 len = max_size / sizeof(int16);
+int SineWaveAudioSource::OnMoreData(AudioBus* audio_bus,
+                                    AudioBuffersState audio_buffers) {
+  base::AutoLock auto_lock(time_lock_);
 
   // The table is filled with s(t) = kint16max*sin(Theta*t),
   // where Theta = 2*PI*fs.
   // We store the discrete time value |t| in a member to ensure that the
   // next pass starts at a correct state.
-  for (uint32 n = 0; n < len; ++n) {
-    double theta = kTwoPi * f;
-    double ksinx = kint16max * sin(theta * time_state_);
-    sin_tbl[n] = (ksinx > 0.0f) ? static_cast<int16>(ksinx + 0.5) :
-        static_cast<int16>(ksinx - 0.5);
-    ++time_state_;
+  int max_frames = cap_ > 0 ?
+      std::min(audio_bus->frames(), cap_ - time_state_) : audio_bus->frames();
+  for (int i = 0; i < max_frames; ++i)
+    audio_bus->channel(0)[i] = sin(2.0 * M_PI * f_ * time_state_++);
+  for (int i = 1; i < audio_bus->channels(); ++i) {
+    memcpy(audio_bus->channel(i), audio_bus->channel(0),
+           max_frames * sizeof(*audio_bus->channel(i)));
   }
-  return max_size;
+  return max_frames;
 }
 
 void SineWaveAudioSource::OnError(AudioOutputStream* stream, int code) {
   NOTREACHED();
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// PushSource implementation.
-
-PushSource::PushSource()
-    : buffer_(0, 0) {
+void SineWaveAudioSource::CapSamples(int cap) {
+  base::AutoLock auto_lock(time_lock_);
+  DCHECK_GT(cap, 0);
+  cap_ = cap;
 }
 
-PushSource::~PushSource() { }
-
-uint32 PushSource::OnMoreData(
-    uint8* dest, uint32 max_size, AudioBuffersState buffers_state) {
-  return buffer_.Read(dest, max_size);
-}
-
-void PushSource::OnError(AudioOutputStream* stream, int code) {
-  NOTREACHED();
-}
-
-// TODO(cpu): Manage arbitrary large sizes.
-bool PushSource::Write(const void *data, uint32 len) {
-  if (len == 0) {
-    NOTREACHED();
-    return false;
-  }
-  buffer_.Append(static_cast<const uint8*>(data), len);
-  return true;
-}
-
-uint32 PushSource::UnProcessedBytes() {
-  return buffer_.forward_bytes();
-}
-
-void PushSource::CleanUp() {
-  buffer_.Clear();
+void SineWaveAudioSource::Reset() {
+  base::AutoLock auto_lock(time_lock_);
+  time_state_ = 0;
 }
 
 }  // namespace media

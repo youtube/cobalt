@@ -33,7 +33,7 @@ class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
   virtual void GetVolume(double* volume) OVERRIDE;
   virtual void Close() OVERRIDE;
 
-  uint8* buffer() { return buffer_.get(); }
+  AudioBus* audio_bus() { return audio_bus_.get(); }
 
  private:
   explicit FakeAudioOutputStream(AudioManagerBase* manager,
@@ -46,8 +46,7 @@ class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
   AudioManagerBase* audio_manager_;
   double volume_;
   AudioSourceCallback* callback_;
-  scoped_array<uint8> buffer_;
-  uint32 bytes_per_buffer_;
+  scoped_ptr<AudioBus> audio_bus_;
   bool closed_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioOutputStream);

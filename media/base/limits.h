@@ -36,6 +36,8 @@ enum {
   kMaxChannels = 32,
   kMaxBitsPerSample = 64,
   kMaxSamplesPerPacket = kMaxSampleRate,
+  kMaxPacketSizeInBytes =
+      (kMaxBitsPerSample / 8) * kMaxChannels * kMaxSamplesPerPacket,
 };
 
 }  // namespace limits

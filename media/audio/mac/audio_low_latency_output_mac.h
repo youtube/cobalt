@@ -99,6 +99,9 @@ class AUAudioOutputStream : public AudioOutputStream {
   // The flag used to stop the streaming.
   bool stopped_;
 
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
+
   DISALLOW_COPY_AND_ASSIGN(AUAudioOutputStream);
 };
 

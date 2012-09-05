@@ -66,7 +66,8 @@ class MEDIA_EXPORT AudioBus {
   void CopyTo(AudioBus* dest) const;
 
   // Returns a raw pointer to the requested channel.  Pointer is guaranteed to
-  // have a 16-byte alignment.
+  // have a 16-byte alignment.  Warning: Do not rely on having sane (i.e. not
+  // inf, nan, or between [-1.0, 1.0]) values in the channel data.
   float* channel(int channel) { return channel_data_[channel]; }
   const float* channel(int channel) const { return channel_data_[channel]; }
 

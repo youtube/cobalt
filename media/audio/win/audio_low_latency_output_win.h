@@ -393,6 +393,9 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   // This event will be signaled when stream switching shall take place.
   base::win::ScopedHandle stream_switch_event_;
 
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
+
   DISALLOW_COPY_AND_ASSIGN(WASAPIAudioOutputStream);
 };
 

@@ -24,7 +24,8 @@ const int AudioOutputController::kPollNumAttempts = 3;
 const int AudioOutputController::kPollPauseInMilliseconds = 3;
 
 AudioOutputController::AudioOutputController(EventHandler* handler,
-                                             SyncReader* sync_reader)
+                                             SyncReader* sync_reader,
+                                             const AudioParameters& params)
     : handler_(handler),
       stream_(NULL),
       volume_(1.0),
@@ -32,6 +33,7 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
       sync_reader_(sync_reader),
       message_loop_(NULL),
       number_polling_attempts_left_(0),
+      params_(params),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)) {
 }
 
@@ -68,12 +70,12 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
 
   // Starts the audio controller thread.
   scoped_refptr<AudioOutputController> controller(new AudioOutputController(
-      event_handler, sync_reader));
+      event_handler, sync_reader, params));
 
   controller->message_loop_ = audio_manager->GetMessageLoop();
   controller->message_loop_->PostTask(FROM_HERE, base::Bind(
       &AudioOutputController::DoCreate, controller,
-      base::Unretained(audio_manager), params));
+      base::Unretained(audio_manager)));
   return controller;
 }
 
@@ -108,8 +110,7 @@ void AudioOutputController::SetVolume(double volume) {
       &AudioOutputController::DoSetVolume, this, volume));
 }
 
-void AudioOutputController::DoCreate(AudioManager* audio_manager,
-                                     const AudioParameters& params) {
+void AudioOutputController::DoCreate(AudioManager* audio_manager) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Close() can be called before DoCreate() is executed.
@@ -118,7 +119,7 @@ void AudioOutputController::DoCreate(AudioManager* audio_manager,
   DCHECK_EQ(kEmpty, state_);
 
   DoStopCloseAndClearStream(NULL);
-  stream_ = audio_manager->MakeAudioOutputStreamProxy(params);
+  stream_ = audio_manager->MakeAudioOutputStreamProxy(params_);
   if (!stream_) {
     // TODO(hclam): Define error types.
     handler_->OnError(this, 0);
@@ -282,9 +283,8 @@ void AudioOutputController::DoReportError(int code) {
     handler_->OnError(this, code);
 }
 
-uint32 AudioOutputController::OnMoreData(uint8* dest,
-                                         uint32 max_size,
-                                         AudioBuffersState buffers_state) {
+int AudioOutputController::OnMoreData(AudioBus* audio_bus,
+                                      AudioBuffersState buffers_state) {
   TRACE_EVENT0("audio", "AudioOutputController::OnMoreData");
 
   {
@@ -295,9 +295,10 @@ uint32 AudioOutputController::OnMoreData(uint8* dest,
       return 0;
     }
   }
-  uint32 size = sync_reader_->Read(dest, max_size);
-  sync_reader_->UpdatePendingBytes(buffers_state.total_bytes() + size);
-  return size;
+  int frames = sync_reader_->Read(audio_bus);
+  sync_reader_->UpdatePendingBytes(
+      buffers_state.total_bytes() + frames * params_.GetBytesPerFrame());
+  return frames;
 }
 
 void AudioOutputController::WaitTillDataReady() {

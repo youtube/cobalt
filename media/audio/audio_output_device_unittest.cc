@@ -173,7 +173,7 @@ TEST_F(AudioOutputDeviceTest, CreateStream) {
   // than just the audio data, so we must call TotalSharedMemorySizeInBytes()
   // to get the actual size needed to fit the audio data plus the extra data.
   int memory_size = TotalSharedMemorySizeInBytes(
-      default_audio_parameters_.GetBytesPerBuffer());
+      AudioBus::CalculateMemorySize(default_audio_parameters_));
   SharedMemory shared_memory;
   ASSERT_TRUE(shared_memory.CreateAndMapAnonymous(memory_size));
   memset(shared_memory.memory(), 0xff, memory_size);
@@ -215,7 +215,7 @@ TEST_F(AudioOutputDeviceTest, CreateStream) {
           Return(kNumberOfFramesToProcess)));
 
   audio_device->OnStreamCreated(duplicated_memory_handle, audio_device_socket,
-                                memory_size);
+                                PacketSizeInBytes(memory_size));
 
   io_loop_.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
                            TestTimeouts::action_timeout());

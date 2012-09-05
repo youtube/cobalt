@@ -192,14 +192,8 @@ AudioDeviceThread::Callback::Callback(
 AudioDeviceThread::Callback::~Callback() {}
 
 void AudioDeviceThread::Callback::InitializeOnAudioThread() {
-  DCHECK(!audio_bus_.get());
-
   MapSharedMemory();
   DCHECK(shared_memory_.memory() != NULL);
-
-  // TODO(dalecurtis): Instead of creating a new AudioBus and memcpy'ing into
-  // the shared memory we should wrap the shared memory.
-  audio_bus_ = AudioBus::Create(audio_parameters_);
 }
 
 }  // namespace media.
