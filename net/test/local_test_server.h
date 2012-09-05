@@ -43,15 +43,26 @@ class LocalTestServer : public BaseTestServer {
   bool Stop();
 
   // Modify PYTHONPATH to contain libraries we need.
-  static bool SetPythonPath() WARN_UNUSED_RESULT;
+  virtual bool SetPythonPath() const WARN_UNUSED_RESULT;
+
+  // This is a static version so that RunSyncTest in run_testserver.py can use
+  // it.
+  // TODO(mattm): We should refactor that so this isn't necessary.
+  static bool SetPythonPathStatic() WARN_UNUSED_RESULT;
 
   // Returns true if successfully stored the FilePath for the directory of the
   // testserver python script in |*directory|.
   static bool GetTestServerDirectory(FilePath* directory) WARN_UNUSED_RESULT;
 
+  // Returns true if successfully stored the FilePath for the testserver python
+  // script in |*testserver_path|.
+  virtual bool GetTestServerPath(FilePath* testserver_path) const
+      WARN_UNUSED_RESULT;
+
   // Adds the command line arguments for the Python test server to
   // |command_line|. Returns true on success.
-  virtual bool AddCommandLineArguments(CommandLine* command_line) const;
+  virtual bool AddCommandLineArguments(CommandLine* command_line) const
+      WARN_UNUSED_RESULT;
 
  private:
   bool Init(const FilePath& document_root);
@@ -61,6 +72,11 @@ class LocalTestServer : public BaseTestServer {
 
   // Waits for the server to start. Returns true on success.
   bool WaitToStart() WARN_UNUSED_RESULT;
+
+  // Adds the Python command line arguments and test server path to
+  // |command_line|.
+  void AddPythonArguments(const FilePath& testserver_path,
+                          CommandLine* command_line) const;
 
   // Handle of the Python process running the test server.
   base::ProcessHandle process_handle_;
