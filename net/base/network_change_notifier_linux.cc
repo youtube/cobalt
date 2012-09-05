@@ -285,10 +285,10 @@ NetworkChangeNotifierLinux::Thread::~Thread() {
 
 void NetworkChangeNotifierLinux::Thread::Init() {
   network_manager_api_.Init();
+  address_tracker_.Init();
   dns_config_service_ = DnsConfigService::CreateSystemService();
   dns_config_service_->WatchConfig(
       base::Bind(&NetworkChangeNotifier::SetDnsConfig));
-  address_tracker_.Init();
 }
 
 void NetworkChangeNotifierLinux::Thread::CleanUp() {
