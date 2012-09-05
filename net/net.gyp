@@ -1181,6 +1181,7 @@
         '../base/base.gyp:base_i18n',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
+        '../crypto/crypto.gyp:crypto',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/zlib/zlib.gyp:zlib',
@@ -1427,13 +1428,6 @@
         'websockets/websocket_throttle_unittest.cc',
       ],
       'conditions': [
-        ['OS != "ios"', {
-          'dependencies': [
-            # TODO(ios): This is temporary; Move back to the main dependencies
-            # section as crypto is brought up for iOS.
-            '../crypto/crypto.gyp:crypto',
-          ],
-        }],
         ['chromeos==1', {
           'sources!': [
             'base/network_change_notifier_linux_unittest.cc',
