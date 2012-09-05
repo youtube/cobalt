@@ -733,6 +733,15 @@
         'test/values_test_util.cc',
         'test/values_test_util.h',
       ],
+      'target_conditions': [
+        ['OS == "ios"', {
+          'sources/': [
+            # Pull in specific Mac files for iOS (which have been filtered out
+            # by file name rules).
+            ['include', '^test/test_file_util_mac\\.cc$'],
+          ],
+        }],
+      ],  # target_conditions
     },
     {
       'target_name': 'test_support_perf',
