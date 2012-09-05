@@ -37,8 +37,7 @@ FilePath GetTestServerPortInfoFile() {
 #else
   FilePath test_data_dir;
   PathService::Get(base::DIR_ANDROID_EXTERNAL_STORAGE, &test_data_dir);
-  test_data_dir.Append("net-test-server-ports");
-  return test_data_dir;
+  return test_data_dir.Append("net-test-server-ports");
 #endif
 }
 
