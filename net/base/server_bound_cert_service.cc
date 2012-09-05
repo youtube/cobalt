@@ -37,6 +37,10 @@ namespace {
 
 const int kKeySizeInBits = 1024;
 const int kValidityPeriodInDays = 365;
+// When we check the system time, we add this many days to the end of the check
+// so the result will still hold even after chrome has been running for a
+// while.
+const int kSystemTimeValidityBufferInDays = 90;
 
 bool IsSupportedCertType(uint8 type) {
   switch(type) {
@@ -361,7 +365,12 @@ ServerBoundCertService::ServerBoundCertService(
       task_runner_(task_runner),
       requests_(0),
       cert_store_hits_(0),
-      inflight_joins_(0) {}
+      inflight_joins_(0) {
+  base::Time start = base::Time::Now();
+  base::Time end = start + base::TimeDelta::FromDays(
+          kValidityPeriodInDays + kSystemTimeValidityBufferInDays);
+  is_system_time_valid_ = x509_util::IsSupportedValidityRange(start, end);
+}
 
 ServerBoundCertService::~ServerBoundCertService() {
   STLDeleteValues(&inflight_);

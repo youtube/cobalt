@@ -15,6 +15,14 @@ namespace net {
 
 namespace x509_util {
 
+bool IsSupportedValidityRange(base::Time not_valid_before,
+                              base::Time not_valid_after) {
+  // TODO(mattm): The validity field of a certificate can only encode years
+  // 1-9999.
+  NOTIMPLEMENTED();
+  return true;
+}
+
 bool CreateDomainBoundCertEC(
     crypto::ECPrivateKey* key,
     const std::string& domain,

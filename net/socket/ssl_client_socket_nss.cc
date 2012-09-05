@@ -81,6 +81,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
 #include "crypto/ec_private_key.h"
+#include "crypto/nss_util.h"
 #include "crypto/nss_util_internal.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_nss_types.h"
@@ -1074,14 +1075,16 @@ bool SSLClientSocketNSS::Core::Init(PRFileDesc* socket,
   }
 
   if (ssl_config_.channel_id_enabled) {
-    if (crypto::ECPrivateKey::IsSupported()) {
+    if (!crypto::ECPrivateKey::IsSupported()) {
+      DVLOG(1) << "Elliptic Curve not supported, not enabling channel ID.";
+    } else if (!server_bound_cert_service_->IsSystemTimeValid()) {
+      DVLOG(1) << "System time is weird, not enabling channel ID.";
+    } else {
       rv = SSL_SetClientChannelIDCallback(
           nss_fd_, SSLClientSocketNSS::Core::ClientChannelIDHandler, this);
       if (rv != SECSuccess)
         LogFailedNSSFunction(*weak_net_log_, "SSL_SetClientChannelIDCallback",
                              "");
-    } else {
-      DVLOG(1) << "Elliptic Curve not supported, not enabling channel ID.";
     }
   }
 
@@ -2513,13 +2516,20 @@ void SSLClientSocketNSS::Core::RecordChannelIDSupport() const {
     DISABLED = 0,
     CLIENT_ONLY = 1,
     CLIENT_AND_SERVER = 2,
+    CLIENT_NO_ECC = 3,
+    CLIENT_BAD_SYSTEM_TIME = 4,
     DOMAIN_BOUND_CERT_USAGE_MAX
   } supported = DISABLED;
-  if (channel_id_xtn_negotiated_)
+  if (channel_id_xtn_negotiated_) {
     supported = CLIENT_AND_SERVER;
-  else if (ssl_config_.channel_id_enabled &&
-           crypto::ECPrivateKey::IsSupported())
-    supported = CLIENT_ONLY;
+  } else if (ssl_config_.channel_id_enabled) {
+    if (!crypto::ECPrivateKey::IsSupported())
+      supported = CLIENT_NO_ECC;
+    else if (!server_bound_cert_service_->IsSystemTimeValid())
+      supported = CLIENT_BAD_SYSTEM_TIME;
+    else
+      supported = CLIENT_ONLY;
+  }
   UMA_HISTOGRAM_ENUMERATION("DomainBoundCerts.Support", supported,
                             DOMAIN_BOUND_CERT_USAGE_MAX);
 }
