@@ -141,6 +141,9 @@ void AddressTrackerLinux::Init() {
   }
 
   netlink_fd_ = sock;
+
+  // Consume any pending messages to populate the AddressMap, but don't notify.
+  ReadMessages();
 }
 
 AddressTrackerLinux::AddressMap AddressTrackerLinux::GetAddressMap() const {
