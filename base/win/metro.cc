@@ -12,8 +12,6 @@
 namespace base {
 namespace win {
 
-const char kActivateApplication[] = "ActivateApplication";
-
 HMODULE GetMetroModule() {
   const HMODULE kUninitialized = reinterpret_cast<HMODULE>(1);
   static HMODULE metro_module = kUninitialized;
