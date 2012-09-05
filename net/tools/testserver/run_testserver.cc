@@ -27,7 +27,7 @@ static void PrintUsage() {
 
 // Launches the chromiumsync_test script, testing the --sync functionality.
 static bool RunSyncTest() {
- if (!net::TestServer::SetPythonPath()) {
+ if (!net::TestServer::SetPythonPathStatic()) {
     LOG(ERROR) << "Error trying to set python path. Exiting.";
     return false;
   }

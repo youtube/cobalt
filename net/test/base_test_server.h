@@ -206,7 +206,13 @@ class BaseTestServer {
 
   // Generates a DictionaryValue with the arguments for launching the external
   // Python test server.
-  bool GenerateArguments(base::DictionaryValue* arguments) const;
+  bool GenerateArguments(base::DictionaryValue* arguments) const
+    WARN_UNUSED_RESULT;
+
+  // Subclasses can override this to add arguments that are specific to their
+  // own test servers.
+  virtual bool GenerateAdditionalArguments(
+      base::DictionaryValue* arguments) const WARN_UNUSED_RESULT;
 
  private:
   void Init(const std::string& host);
