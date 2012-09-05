@@ -105,6 +105,9 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   // signal "stop completed" from the last buffer's callback.
   int num_buffers_left_;
 
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
+
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };
 

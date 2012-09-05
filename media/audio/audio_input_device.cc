@@ -35,6 +35,7 @@ class AudioInputDevice::AudioThreadCallback
 
  private:
   CaptureCallback* capture_callback_;
+  scoped_ptr<AudioBus> audio_bus_;
   DISALLOW_COPY_AND_ASSIGN(AudioThreadCallback);
 };
 
@@ -307,6 +308,7 @@ AudioInputDevice::AudioThreadCallback::AudioThreadCallback(
     CaptureCallback* capture_callback)
     : AudioDeviceThread::Callback(audio_parameters, memory, memory_length),
       capture_callback_(capture_callback) {
+  audio_bus_ = AudioBus::Create(audio_parameters_);
 }
 
 AudioInputDevice::AudioThreadCallback::~AudioThreadCallback() {

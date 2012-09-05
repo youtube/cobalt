@@ -72,7 +72,8 @@ CrasOutputStream::CrasOutputStream(const AudioParameters& params,
       state_(kCreated),
       volume_(1.0),
       manager_(manager),
-      source_callback_(NULL) {
+      source_callback_(NULL),
+      audio_bus_(AudioBus::Create(params)) {
   // We must have a manager.
   DCHECK(manager_);
 
@@ -278,9 +279,14 @@ uint32 CrasOutputStream::Render(size_t frames,
 
   uint32 frames_latency = latency_usec * frame_rate_ / 1000000;
   uint32 bytes_latency = frames_latency * bytes_per_frame_;
-  uint32 rendered = source_callback_->OnMoreData(
-      buffer, frames * bytes_per_frame_, AudioBuffersState(0, bytes_latency));
-  return rendered / bytes_per_frame_;
+  DCHECK_EQ(frames, static_cast<size_t>(audio_bus_->frames()));
+  int frames_filled = source_callback_->OnMoreData(
+      audio_bus_.get(), AudioBuffersState(0, bytes_latency));
+  // Note: If this ever changes to output raw float the data must be clipped and
+  // sanitized since it may come from an untrusted source such as NaCl.
+  audio_bus_->ToInterleaved(
+      frames_filled, bytes_per_frame_ / (frames * num_channels_), buffer);
+  return frames_filled;
 }
 
 void CrasOutputStream::NotifyStreamError(int err) {

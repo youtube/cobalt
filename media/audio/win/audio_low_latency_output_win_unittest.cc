@@ -44,6 +44,7 @@ static const char kSpeechFile_16b_m_48k[] = "speech_16b_mono_48kHz.raw";
 static const char kSpeechFile_16b_m_44k[] = "speech_16b_mono_44kHz.raw";
 static const size_t kFileDurationMs = 20000;
 static const size_t kNumFileSegments = 2;
+static const int kBitsPerSample = 16;
 
 static const size_t kMaxDeltaSamples = 1000;
 static const char* kDeltaTimeMsFileName = "delta_times_ms.txt";
@@ -63,9 +64,8 @@ ACTION_P(QuitLoop, loop) {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD3(OnMoreData, uint32(uint8* dest,
-                                  uint32 max_size,
-                                  AudioBuffersState buffers_state));
+  MOCK_METHOD2(OnMoreData, int(AudioBus* audio_bus,
+                               AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
 
@@ -110,9 +110,8 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
   }
 
   // AudioOutputStream::AudioSourceCallback implementation.
-  virtual uint32 OnMoreData(uint8* dest,
-                            uint32 max_size,
-                            AudioBuffersState buffers_state) {
+  virtual int OnMoreData(AudioBus* audio_bus,
+                         AudioBuffersState buffers_state) {
     // Store time difference between two successive callbacks in an array.
     // These values will be written to a file in the destructor.
     int diff = (base::Time::Now() - previous_call_time_).InMilliseconds();
@@ -122,15 +121,20 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
       ++elements_to_write_;
     }
 
+    int max_size =
+        audio_bus->frames() * audio_bus->channels() * kBitsPerSample / 8;
+
     // Use samples read from a data file and fill up the audio buffer
     // provided to us in the callback.
     if (pos_ + static_cast<int>(max_size) > file_size())
       max_size = file_size() - pos_;
+    int frames = max_size / (audio_bus->channels() * kBitsPerSample / 8);
     if (max_size) {
-      memcpy(dest, file_->GetData() + pos_, max_size);
+      audio_bus->FromInterleaved(
+          file_->GetData() + pos_, frames, kBitsPerSample / 8);
       pos_ += max_size;
     }
-    return max_size;
+    return frames;
   }
 
   virtual void OnError(AudioOutputStream* stream, int code) {}
@@ -176,7 +180,7 @@ class AudioOutputStreamWrapper {
         audio_man_(audio_manager),
         format_(AudioParameters::AUDIO_PCM_LOW_LATENCY),
         channel_layout_(CHANNEL_LAYOUT_STEREO),
-        bits_per_sample_(16) {
+        bits_per_sample_(kBitsPerSample) {
     // Use native/mixing sample rate and 10ms frame size as default.
     sample_rate_ = static_cast<int>(
         WASAPIAudioOutputStream::HardwareSampleRate(eConsole));
@@ -461,11 +465,10 @@ TEST(WASAPIAudioOutputStreamTest, PacketSizeInMilliseconds) {
   AudioBuffersState state(0, bytes_per_packet);
 
   // Wait for the first callback and verify its parameters.
-  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
-                                 HasValidDelay(state)))
+  EXPECT_CALL(source, OnMoreData(NotNull(), HasValidDelay(state)))
       .WillOnce(DoAll(
           QuitLoop(loop.message_loop_proxy()),
-          Return(bytes_per_packet)));
+          Return(aosw.samples_per_packet())));
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
@@ -500,12 +503,11 @@ TEST(WASAPIAudioOutputStreamTest, PacketSizeInSamples) {
   AudioBuffersState state(0, bytes_per_packet);
 
   // Ensure that callbacks start correctly.
-  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
-                                 HasValidDelay(state)))
+  EXPECT_CALL(source, OnMoreData(NotNull(), HasValidDelay(state)))
       .WillOnce(DoAll(
           QuitLoop(loop.message_loop_proxy()),
-          Return(bytes_per_packet)))
-      .WillRepeatedly(Return(bytes_per_packet));
+          Return(aosw.samples_per_packet())))
+      .WillRepeatedly(Return(aosw.samples_per_packet()));
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
@@ -536,12 +538,11 @@ TEST(WASAPIAudioOutputStreamTest, Mono) {
   // Set up expected minimum delay estimation.
   AudioBuffersState state(0, bytes_per_packet);
 
-  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
-                                 HasValidDelay(state)))
+  EXPECT_CALL(source, OnMoreData(NotNull(), HasValidDelay(state)))
       .WillOnce(DoAll(
           QuitLoop(loop.message_loop_proxy()),
-          Return(bytes_per_packet)))
-      .WillRepeatedly(Return(bytes_per_packet));
+          Return(aosw.samples_per_packet())))
+      .WillRepeatedly(Return(aosw.samples_per_packet()));
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
@@ -789,12 +790,11 @@ TEST(WASAPIAudioOutputStreamTest, ExclusiveModeMinBufferSizeAt48kHz) {
   AudioBuffersState state(0, bytes_per_packet);
 
   // Wait for the first callback and verify its parameters.
-  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
-                                 HasValidDelay(state)))
+  EXPECT_CALL(source, OnMoreData(NotNull(), HasValidDelay(state)))
       .WillOnce(DoAll(
           QuitLoop(loop.message_loop_proxy()),
-          Return(bytes_per_packet)))
-      .WillRepeatedly(Return(bytes_per_packet));
+          Return(aosw.samples_per_packet())))
+      .WillRepeatedly(Return(aosw.samples_per_packet()));
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
@@ -831,12 +831,11 @@ TEST(WASAPIAudioOutputStreamTest, ExclusiveModeMinBufferSizeAt44kHz) {
   AudioBuffersState state(0, bytes_per_packet);
 
   // Wait for the first callback and verify its parameters.
-  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
-                                 HasValidDelay(state)))
+  EXPECT_CALL(source, OnMoreData(NotNull(), HasValidDelay(state)))
     .WillOnce(DoAll(
         QuitLoop(loop.message_loop_proxy()),
-        Return(bytes_per_packet)))
-    .WillRepeatedly(Return(bytes_per_packet));
+        Return(aosw.samples_per_packet())))
+    .WillRepeatedly(Return(aosw.samples_per_packet()));
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),

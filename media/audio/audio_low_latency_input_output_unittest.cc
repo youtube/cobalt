@@ -218,9 +218,8 @@ class FullDuplexAudioSinkSource
   virtual void OnError(AudioInputStream* stream, int code) OVERRIDE {}
 
   // AudioOutputStream::AudioSourceCallback.
-  virtual uint32 OnMoreData(uint8* dest,
-                            uint32 max_size,
-                            AudioBuffersState buffers_state) OVERRIDE {
+  virtual int OnMoreData(AudioBus* audio_bus,
+                         AudioBuffersState buffers_state) OVERRIDE {
     base::AutoLock lock(lock_);
 
     // Update one component in the AudioDelayState for the packet
@@ -240,9 +239,21 @@ class FullDuplexAudioSinkSource
       ++output_elements_to_write_;
     }
 
+    int size;
+    const uint8* source;
     // Read the data from the seekable media buffer which contains
     // captured data at the same size and sample rate as the output side.
-    return buffer_->Read(dest, max_size);
+    if (buffer_->GetCurrentChunk(&source, &size) && size > 0) {
+      EXPECT_EQ(channels_, audio_bus->channels());
+      size = std::min(audio_bus->frames() * frame_size_, size);
+      EXPECT_EQ(static_cast<size_t>(size) % sizeof(*audio_bus->channel(0)), 0U);
+      audio_bus->FromInterleaved(
+          source, size / frame_size_, frame_size_ / channels_);
+      buffer_->Seek(size);
+      return size / frame_size_;
+    }
+
+    return 0;
   }
 
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE {}
@@ -261,7 +272,7 @@ class FullDuplexAudioSinkSource
   int sample_rate_;
   int samples_per_packet_;
   int channels_;
-  size_t frame_size_;
+  int frame_size_;
   double frames_to_ms_;
   scoped_array<AudioDelayState> delay_states_;
   size_t input_elements_to_write_;

@@ -338,7 +338,8 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
       share_mode_(GetShareMode()),
       client_channel_count_(params.channels()),
       num_written_frames_(0),
-      source_(NULL) {
+      source_(NULL),
+      audio_bus_(AudioBus::Create(params)) {
   CHECK(com_init_.succeeded());
   DCHECK(manager_);
 
@@ -821,9 +822,15 @@ void WASAPIAudioOutputStream::Run() {
 
             if (channel_factor() == 1) {
               // Case I: no up-mixing.
-              num_filled_bytes = source_->OnMoreData(
-                  audio_data, packet_size_bytes_,
-                  AudioBuffersState(0, audio_delay_bytes));
+              int frames_filled = source_->OnMoreData(
+                  audio_bus_.get(), AudioBuffersState(0, audio_delay_bytes));
+              num_filled_bytes = frames_filled * frame_size_;
+              DCHECK_LE(num_filled_bytes, packet_size_bytes_);
+              // Note: If this ever changes to output raw float the data must be
+              // clipped and sanitized since it may come from an untrusted
+              // source such as NaCl.
+              audio_bus_->ToInterleaved(
+                  frames_filled, bytes_per_sample, audio_data);
             } else {
               // Case II: up-mixing.
               const int audio_source_size_bytes =
@@ -831,9 +838,17 @@ void WASAPIAudioOutputStream::Run() {
               scoped_array<uint8> buffer;
               buffer.reset(new uint8[audio_source_size_bytes]);
 
-              num_filled_bytes = source_->OnMoreData(
-                  buffer.get(), audio_source_size_bytes,
-                  AudioBuffersState(0, audio_delay_bytes));
+              int frames_filled = source_->OnMoreData(
+                  audio_bus_.get(), AudioBuffersState(0, audio_delay_bytes));
+              num_filled_bytes =
+                  frames_filled * bytes_per_sample * audio_bus_->channels();
+              DCHECK_LE(num_filled_bytes,
+                        static_cast<size_t>(audio_source_size_bytes));
+              // Note: If this ever changes to output raw float the data must be
+              // clipped and sanitized since it may come from an untrusted
+              // source such as NaCl.
+              audio_bus_->ToInterleaved(
+                  frames_filled, bytes_per_sample, buffer.get());
 
               // Do channel up-mixing on 16-bit PCM samples.
               num_filled_bytes = ChannelUpMix(buffer.get(),

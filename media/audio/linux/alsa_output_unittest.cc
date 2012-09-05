@@ -68,8 +68,8 @@ class MockAlsaWrapper : public AlsaWrapper {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD3(OnMoreData, uint32(uint8* dest, uint32 max_size,
-                                  AudioBuffersState buffers_state));
+  MOCK_METHOD2(OnMoreData, int(AudioBus* audio_bus,
+                               AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
 
@@ -428,8 +428,8 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
       .WillRepeatedly(Return(SND_PCM_STATE_RUNNING));
   EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(kFakeHandle, _))
       .WillRepeatedly(DoAll(SetArgumentPointee<1>(0), Return(0)));
-  EXPECT_CALL(mock_callback, OnMoreData(_, kTestPacketSize, _))
-      .WillRepeatedly(Return(kTestPacketSize));
+  EXPECT_CALL(mock_callback, OnMoreData(_, _))
+      .WillRepeatedly(Return(kTestFramesPerPacket));
   EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, _, _))
       .WillRepeatedly(Return(kTestFramesPerPacket));
 
@@ -587,15 +587,15 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket) {
       .WillRepeatedly(Return(0));  // Buffer is full.
 
   // Return a partially filled packet.
-  EXPECT_CALL(mock_callback, OnMoreData(_, _, _))
-      .WillOnce(Return(10));
+  EXPECT_CALL(mock_callback, OnMoreData(_, _))
+      .WillOnce(Return(kTestFramesPerPacket / 2));
 
   bool source_exhausted;
   test_stream->set_source_callback(&mock_callback);
   test_stream->packet_size_ = kTestPacketSize;
   test_stream->BufferPacket(&source_exhausted);
 
-  EXPECT_EQ(10, test_stream->buffer_->forward_bytes());
+  EXPECT_EQ(kTestPacketSize / 2, test_stream->buffer_->forward_bytes());
   EXPECT_FALSE(source_exhausted);
   test_stream->Close();
 }
@@ -613,15 +613,15 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Negative) {
       .WillOnce(DoAll(SetArgumentPointee<1>(-1), Return(0)));
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(_))
       .WillRepeatedly(Return(0));  // Buffer is full.
-  EXPECT_CALL(mock_callback, OnMoreData(_, _, _))
-      .WillOnce(Return(10));
+  EXPECT_CALL(mock_callback, OnMoreData(_, _))
+      .WillOnce(Return(kTestFramesPerPacket / 2));
 
   bool source_exhausted;
   test_stream->set_source_callback(&mock_callback);
   test_stream->packet_size_ = kTestPacketSize;
   test_stream->BufferPacket(&source_exhausted);
 
-  EXPECT_EQ(10, test_stream->buffer_->forward_bytes());
+  EXPECT_EQ(kTestPacketSize / 2, test_stream->buffer_->forward_bytes());
   EXPECT_FALSE(source_exhausted);
   test_stream->Close();
 }
@@ -634,21 +634,21 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Underrun) {
   // If ALSA has underrun then we should assume a delay of zero.
   MockAudioSourceCallback mock_callback;
   EXPECT_CALL(mock_alsa_wrapper_, PcmState(_))
-     .WillOnce(Return(SND_PCM_STATE_XRUN));
+      .WillOnce(Return(SND_PCM_STATE_XRUN));
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(_))
       .WillRepeatedly(Return(0));  // Buffer is full.
   EXPECT_CALL(mock_callback,
-              OnMoreData(_, _, AllOf(
+              OnMoreData(_, AllOf(
                   Field(&AudioBuffersState::pending_bytes, 0),
                   Field(&AudioBuffersState::hardware_delay_bytes, 0))))
-      .WillOnce(Return(10));
+      .WillOnce(Return(kTestFramesPerPacket / 2));
 
   bool source_exhausted;
   test_stream->set_source_callback(&mock_callback);
   test_stream->packet_size_ = kTestPacketSize;
   test_stream->BufferPacket(&source_exhausted);
 
-  EXPECT_EQ(10, test_stream->buffer_->forward_bytes());
+  EXPECT_EQ(kTestPacketSize / 2, test_stream->buffer_->forward_bytes());
   EXPECT_FALSE(source_exhausted);
   test_stream->Close();
 }
