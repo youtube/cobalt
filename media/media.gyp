@@ -9,6 +9,14 @@
     'use_pulseaudio%': 0,
     # Override to dynamically link the cras (ChromeOS audio) library.
     'use_cras%': 0,
+    'conditions': [
+      ['OS == "android" or OS == "ios"', {
+        # Android and iOS don't use ffmpeg.
+        'use_ffmpeg%': 0,
+      }, {  # 'OS != "android" and OS != "ios"'
+        'use_ffmpeg%': 1,
+      }],
+    ],
   },
   'targets': [
     {
@@ -16,12 +24,9 @@
       'type': '<(component)',
       'dependencies': [
         '../base/base.gyp:base',
-        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
-        'shared_memory_support',
         '../ui/ui.gyp:ui',
-        'yuv_convert',
       ],
       'defines': [
         'MEDIA_IMPLEMENTATION',
@@ -175,7 +180,6 @@
         'base/filter_collection.cc',
         'base/filter_collection.h',
         'base/media.h',
-        'base/media_android.cc',
         'base/media_log.cc',
         'base/media_log.h',
         'base/media_log_event.h',
@@ -308,14 +312,19 @@
         ],
       },
       'conditions': [
-        # Android doesn't use ffmpeg, so make the dependency conditional
-        # and exclude the sources which depend on ffmpeg.
-        ['OS != "android"', {
+        ['OS != "ios"', {
+          'dependencies': [
+            '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+            'shared_memory_support',
+            'yuv_convert',
+          ],
+        }],
+        ['use_ffmpeg == 1', {
           'dependencies': [
             '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
           ],
-        }],
-        ['OS == "android"', {
+        }, {  # use_ffmpeg == 0
+          # Exclude the sources that depend on ffmpeg.
           'sources!': [
             'base/media_posix.cc',
             'ffmpeg/ffmpeg_common.cc',
@@ -345,7 +354,44 @@
             'webm/webm_stream_parser.h',
           ],
         }],
+        ['OS == "ios"', {
+          'includes': [
+            # For shared_memory_support_sources variable.
+            'shared_memory_support.gypi',
+          ],
+          'sources': [
+            'base/media_stub.cc',
+            # These sources are normally built via a dependency on the
+            # shared_memory_support target, but that target is not built on iOS.
+            # Instead, directly build only the files that are needed for iOS.
+            '<@(shared_memory_support_sources)',
+          ],
+          'sources/': [
+            # iOS support is limited to audio input only.
+            ['exclude', '.*'],
+            ['include', '^audio/audio_buffers_state\\.'],
+            ['include', '^audio/audio_input_controller\\.'],
+            ['include', '^audio/audio_io\\.h$'],
+            ['include', '^audio/audio_manager\\.'],
+            ['include', '^audio/audio_manager_base\\.'],
+            ['include', '^audio/audio_parameters\\.'],
+            ['include', '^audio/fake_audio_input_stream\\.'],
+            ['include', '^audio/fake_audio_output_stream\\.'],
+            ['include', '^base/channel_layout\\.'],
+            ['include', '^base/media\\.h$'],
+            ['include', '^base/media_stub\\.cc$'],
+          ],
+          'link_settings': {
+            'libraries': [
+              '$(SDKROOT)/System/Library/Frameworks/AudioToolbox.framework',
+              '$(SDKROOT)/System/Library/Frameworks/CoreAudio.framework',
+            ],
+          },
+        }],
         ['OS == "android"', {
+          'sources': [
+            'base/media_stub.cc',
+          ],
           'link_settings': {
             'libraries': [
               '-lOpenSLES',
@@ -498,8 +544,6 @@
       'dependencies': [
         'media',
         'media_test_support',
-        'shared_memory_support',
-        'yuv_convert',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_base',
@@ -576,13 +620,32 @@
         'webm/webm_parser_unittest.cc',
       ],
       'conditions': [
-        ['os_posix==1 and OS!="mac"', {
+        ['OS != "ios"', {
+          'dependencies': [
+            'shared_memory_support',
+            'yuv_convert',
+          ],
+        }],
+        ['use_ffmpeg == 1', {
+          'dependencies': [
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+        }],
+        ['os_posix==1 and OS!="mac" and OS!="ios"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
                 '../base/allocator/allocator.gyp:allocator',
               ],
             }],
+          ],
+        }],
+        ['OS == "ios"', {
+          'sources/': [
+            ['exclude', '.*'],
+            ['include', '^audio/audio_parameters_unittest\\.cc$'],
+            ['include', '^base/mock_reader\\.h$'],
+            ['include', '^base/run_all_unittests\\.cc$'],
           ],
         }],
         ['OS=="android"', {
@@ -608,10 +671,6 @@
                 '../testing/android/native_test.gyp:native_test_native_code',
               ],
             }],
-          ],
-        }, {  # OS!=android
-          'dependencies': [
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
           ],
         }],
         ['OS == "linux"', {
