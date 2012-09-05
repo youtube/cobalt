@@ -94,9 +94,7 @@ bool LocalTestServer::LaunchPython(const FilePath& testserver_path) {
       .Append(FILE_PATH_LITERAL("python.exe"));
 
   CommandLine python_command(python_exe);
-
-  AddPythonArguments(testserver_path, &python_command);
-
+  python_command.AppendArgPath(testserver_path);
   if (!AddCommandLineArguments(&python_command))
     return false;
 
@@ -178,3 +176,4 @@ bool LocalTestServer::WaitToStart() {
 }
 
 }  // namespace net
+
