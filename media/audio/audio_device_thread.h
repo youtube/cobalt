@@ -13,6 +13,7 @@
 #include "base/synchronization/lock.h"
 #include "media/base/media_export.h"
 #include "media/audio/audio_parameters.h"
+#include "media/audio/shared_memory_util.h"
 
 class MessageLoop;
 
@@ -60,7 +61,6 @@ class MEDIA_EXPORT AudioDeviceThread {
 
     // Audio buffers that are allocated in InitializeOnAudioThread() based on
     // info from audio_parameters_.
-    scoped_ptr<AudioBus> audio_bus_;
     base::SharedMemory shared_memory_;
     const int memory_length_;
 

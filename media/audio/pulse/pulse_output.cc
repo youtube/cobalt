@@ -310,10 +310,16 @@ bool PulseAudioOutputStream::BufferPacketFromSource() {
   // to happen in practice though.
   scoped_refptr<media::DataBuffer> packet =
       new media::DataBuffer(packet_size_);
-  size_t packet_size = RunDataCallback(packet->GetWritableData(),
-                                       packet->GetBufferSize(),
-                                       AudioBuffersState(buffer_delay,
-                                                         hardware_delay));
+  int frames_filled = RunDataCallback(
+      audio_bus_.get(), AudioBuffersState(buffer_delay, hardware_delay));
+  size_t packet_size = frames_filled * bytes_per_frame_;
+
+  DCHECK_LE(packet_size, packet_size_);
+  // Note: If this ever changes to output raw float the data must be clipped and
+  // sanitized since it may come from an untrusted source such as NaCl.
+  audio_bus_->ToInterleaved(
+      frames_filled, bytes_per_frame_ / channel_count_,
+      packet->GetWritableData());
 
   if (packet_size == 0)
     return false;
@@ -421,10 +427,10 @@ void PulseAudioOutputStream::GetVolume(double* volume) {
   *volume = volume_;
 }
 
-uint32 PulseAudioOutputStream::RunDataCallback(
-    uint8* dest, uint32 max_size, AudioBuffersState buffers_state) {
+int PulseAudioOutputStream::RunDataCallback(
+    AudioBus* audio_bus, AudioBuffersState buffers_state) {
   if (source_callback_)
-    return source_callback_->OnMoreData(dest, max_size, buffers_state);
+    return source_callback_->OnMoreData(audio_bus, buffers_state);
 
   return 0;
 }

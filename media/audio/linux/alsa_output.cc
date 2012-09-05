@@ -91,7 +91,7 @@ static const int kAlsaMaxSampleRate = 48000;
 // (which is also 5 channels).
 //
 // TODO(ajwong): The source data should have enough info to tell us if we want
-// surround41 versus surround51, etc., instead of needing us to guess base don
+// surround41 versus surround51, etc., instead of needing us to guess based on
 // channel number.  Fix API to pass that data down.
 static const char* GuessSpecificDeviceName(uint32 channels) {
   switch (channels) {
@@ -175,8 +175,10 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       state_(kCreated),
       volume_(1.0f),
-      source_callback_(NULL) {
+      source_callback_(NULL),
+      audio_bus_(AudioBus::Create(params)) {
   DCHECK(manager_->GetMessageLoop()->BelongsToCurrentThread());
+  DCHECK_EQ(audio_bus_->frames() * bytes_per_frame_, packet_size_);
 
   // Sanity check input values.
   if (params.sample_rate() > kAlsaMaxSampleRate ||
@@ -376,22 +378,20 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
 
     scoped_refptr<media::DataBuffer> packet =
         new media::DataBuffer(packet_size_);
-    int packet_size = RunDataCallback(packet->GetWritableData(),
-                                      packet->GetBufferSize(),
-                                      AudioBuffersState(buffer_delay,
-                                                        hardware_delay));
-    CHECK_LE(packet_size, packet->GetBufferSize());
+    int frames_filled = RunDataCallback(
+        audio_bus_.get(), AudioBuffersState(buffer_delay, hardware_delay));
+    size_t packet_size = frames_filled * bytes_per_frame_;
+    DCHECK_LE(packet_size, packet_size_);
+    // Note: If this ever changes to output raw float the data must be clipped
+    // and sanitized since it may come from an untrusted source such as NaCl.
+    audio_bus_->ToInterleaved(
+        frames_filled, bytes_per_sample_, packet->GetWritableData());
 
     // Reset the |last_fill_time| to avoid back to back RunDataCallback().
     last_fill_time_ = base::Time::Now();
 
-    // This should not happen, but in case it does, drop any trailing bytes
-    // that aren't large enough to make a frame.  Without this, packet writing
-    // may stall because the last few bytes in the packet may never get used by
-    // WritePacket.
-    DCHECK_EQ(0u, packet_size % bytes_per_frame_);
-    packet_size = (packet_size / bytes_per_frame_) * bytes_per_frame_;
-
+    // TODO(dalecurtis): Channel downmixing, upmixing, should be done in mixer;
+    // volume adjust should use SSE optimized vector_fmul() prior to interleave.
     if (should_downmix_) {
       if (media::FoldChannels(packet->GetWritableData(),
                               packet_size,
@@ -784,13 +784,12 @@ bool AlsaPcmOutputStream::IsOnAudioThread() const {
   return message_loop_ && message_loop_ == MessageLoop::current();
 }
 
-uint32 AlsaPcmOutputStream::RunDataCallback(uint8* dest,
-                                            uint32 max_size,
-                                            AudioBuffersState buffers_state) {
+int AlsaPcmOutputStream::RunDataCallback(AudioBus* audio_bus,
+                                         AudioBuffersState buffers_state) {
   TRACE_EVENT0("audio", "AlsaPcmOutputStream::RunDataCallback");
 
   if (source_callback_)
-    return source_callback_->OnMoreData(dest, max_size, buffers_state);
+    return source_callback_->OnMoreData(audio_bus, buffers_state);
 
   return 0;
 }

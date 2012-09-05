@@ -152,9 +152,7 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
   // is passed into the output stream, but ownership is not transfered which
   // requires a synchronization on access of the |source_callback_| to avoid
   // using a deleted callback.
-  uint32 RunDataCallback(uint8* dest,
-                         uint32 max_size,
-                         AudioBuffersState buffers_state);
+  int RunDataCallback(AudioBus* audio_bus, AudioBuffersState buffers_state);
   void RunErrorCallback(int code);
 
   // Changes the AudioSourceCallback to proxy calls to.  Pass in NULL to
@@ -212,6 +210,9 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
   AudioSourceCallback* source_callback_;
 
   base::Time last_fill_time_;  // Time for the last OnMoreData() callback.
+
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmOutputStream);
 };

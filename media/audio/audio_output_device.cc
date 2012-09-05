@@ -33,6 +33,7 @@ class AudioOutputDevice::AudioThreadCallback
 
  private:
   AudioRendererSink::RenderCallback* render_callback_;
+  scoped_ptr<AudioBus> audio_bus_;
   DISALLOW_COPY_AND_ASSIGN(AudioThreadCallback);
 };
 
@@ -49,7 +50,7 @@ AudioOutputDevice::AudioOutputDevice(
 }
 
 void AudioOutputDevice::Initialize(const AudioParameters& params,
-                             RenderCallback* callback) {
+                                   RenderCallback* callback) {
   CHECK_EQ(0, stream_id_) <<
       "AudioOutputDevice::Initialize() must be called before Start()";
 
@@ -194,7 +195,6 @@ void AudioOutputDevice::OnStreamCreated(
     base::SyncSocket::Handle socket_handle,
     int length) {
   DCHECK(message_loop()->BelongsToCurrentThread());
-  DCHECK_GE(length, audio_parameters_.GetBytesPerBuffer());
 #if defined(OS_WIN)
   DCHECK(handle);
   DCHECK(socket_handle);
@@ -250,6 +250,8 @@ AudioOutputDevice::AudioThreadCallback::~AudioThreadCallback() {
 
 void AudioOutputDevice::AudioThreadCallback::MapSharedMemory() {
   shared_memory_.Map(TotalSharedMemorySizeInBytes(memory_length_));
+  DCHECK_EQ(memory_length_, AudioBus::CalculateMemorySize(audio_parameters_));
+  audio_bus_ = AudioBus::WrapMemory(audio_parameters_, shared_memory_.memory());
 }
 
 // Called whenever we receive notifications about pending data.
@@ -266,20 +268,20 @@ void AudioOutputDevice::AudioThreadCallback::Process(int pending_data) {
 
   TRACE_EVENT0("audio", "AudioOutputDevice::FireRenderCallback");
 
-  // Update the audio-delay measurement then ask client to render audio.
+  // Update the audio-delay measurement then ask client to render audio.  Since
+  // |audio_bus_| is wrapping the shared memory the Render() call is writing
+  // directly into the shared memory.
   size_t num_frames = render_callback_->Render(
       audio_bus_.get(), audio_delay_milliseconds);
 
-  // Interleave, scale, and clip to int.
-  // TODO(dalecurtis): Remove this when we have float everywhere:
-  // http://crbug.com/114700
-  audio_bus_->ToInterleaved(num_frames, audio_parameters_.bits_per_sample() / 8,
-                            shared_memory_.memory());
-
   // Let the host know we are done.
+  // TODO(dalecurtis): Technically this is not always correct.  Due to channel
+  // padding for alignment, there may be more data available than this.  We're
+  // relying on AudioSyncReader::Read() to parse this with that in mind.  Rename
+  // these methods to Set/GetActualFrameCount().
   SetActualDataSizeInBytes(
       &shared_memory_, memory_length_,
-      num_frames * audio_parameters_.GetBytesPerFrame());
+      num_frames * sizeof(*audio_bus_->channel(0)) * audio_bus_->channels());
 }
 
 }  // namespace media.

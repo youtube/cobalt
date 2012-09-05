@@ -27,6 +27,7 @@ using ::testing::Mock;
 using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::SetArrayArgument;
+using media::AudioBus;
 using media::AudioBuffersState;
 using media::AudioInputStream;
 using media::AudioManager;
@@ -78,8 +79,8 @@ class MockAudioManager : public AudioManager {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD3(OnMoreData, uint32(uint8* dest, uint32 max_size,
-                                  AudioBuffersState buffers_state));
+  MOCK_METHOD2(OnMoreData, int(AudioBus* audio_bus,
+                               AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
 

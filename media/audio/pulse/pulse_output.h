@@ -28,8 +28,6 @@
 
 namespace media {
 
-class SeekableBuffer;
-
 #if defined(OS_LINUX)
 class AudioManagerLinux;
 typedef AudioManagerLinux AudioManagerPulse;
@@ -41,6 +39,7 @@ typedef AudioManagerOpenBSD AudioManagerPulse;
 #endif
 
 class AudioParameters;
+class SeekableBuffer;
 
 class PulseAudioOutputStream : public AudioOutputStream {
  public:
@@ -50,12 +49,12 @@ class PulseAudioOutputStream : public AudioOutputStream {
   virtual ~PulseAudioOutputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open();
-  virtual void Close();
-  virtual void Start(AudioSourceCallback* callback);
-  virtual void Stop();
-  virtual void SetVolume(double volume);
-  virtual void GetVolume(double* volume);
+  virtual bool Open() OVERRIDE;
+  virtual void Close() OVERRIDE;
+  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual void GetVolume(double* volume) OVERRIDE;
 
  private:
   // PulseAudio Callbacks.
@@ -77,8 +76,7 @@ class PulseAudioOutputStream : public AudioOutputStream {
   void WriteToStream(size_t bytes_to_write, size_t* bytes_written);
 
   // API for Proxying calls to the AudioSourceCallback provided during Start().
-  uint32 RunDataCallback(uint8* dest, uint32 max_size,
-                         AudioBuffersState buffers_state);
+  int RunDataCallback(AudioBus* audio_bus, AudioBuffersState buffers_state);
 
   // Close() helper function to free internal structs.
   void Reset();
@@ -126,6 +124,9 @@ class PulseAudioOutputStream : public AudioOutputStream {
 
   // Callback to audio data source.
   AudioSourceCallback* source_callback_;
+
+  // Container for retrieving data from AudioSourceCallback::OnMoreData().
+  scoped_ptr<AudioBus> audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(PulseAudioOutputStream);
 };
