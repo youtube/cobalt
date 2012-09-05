@@ -104,7 +104,12 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
     base::PlatformThread::Sleep(kInterval);
     waited += kInterval;
   } while (status == base::TERMINATION_STATUS_STILL_RUNNING &&
+// Waiting for more time for process termination on android devices.
+#if defined(OS_ANDROID)
+           waited < TestTimeouts::large_test_timeout());
+#else
            waited < TestTimeouts::action_max_timeout());
+#endif
 
   return status;
 }
