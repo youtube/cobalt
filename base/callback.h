@@ -748,6 +748,69 @@ class Callback<R(A1, A2, A3, A4, A5, A6, A7)> : public internal::CallbackBase {
 
 };
 
+template <typename R, typename A1, typename A2, typename A3, typename A4,
+    typename A5, typename A6, typename A7, typename A8>
+class Callback<R(A1, A2, A3, A4, A5, A6, A7, A8)>
+    : public internal::CallbackBase {
+ public:
+  typedef R(RunType)(A1, A2, A3, A4, A5, A6, A7, A8);
+
+  Callback() : CallbackBase(NULL) { }
+
+  // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
+  // return the exact Callback<> type.  See base/bind.h for details.
+  template <typename Runnable, typename BindRunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, BindRunType,
+           BoundArgsType>* bind_state)
+      : CallbackBase(bind_state) {
+
+    // Force the assignment to a local variable of PolymorphicInvoke
+    // so the compiler will typecheck that the passed in Run() method has
+    // the correct type.
+    PolymorphicInvoke invoke_func =
+        &internal::BindState<Runnable, BindRunType, BoundArgsType>
+            ::InvokerType::Run;
+    polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
+  }
+
+  bool Equals(const Callback& other) const {
+    return CallbackBase::Equals(other);
+  }
+
+  R Run(typename internal::CallbackParamTraits<A1>::ForwardType a1,
+        typename internal::CallbackParamTraits<A2>::ForwardType a2,
+        typename internal::CallbackParamTraits<A3>::ForwardType a3,
+        typename internal::CallbackParamTraits<A4>::ForwardType a4,
+        typename internal::CallbackParamTraits<A5>::ForwardType a5,
+        typename internal::CallbackParamTraits<A6>::ForwardType a6,
+        typename internal::CallbackParamTraits<A7>::ForwardType a7,
+        typename internal::CallbackParamTraits<A8>::ForwardType a8) const {
+    PolymorphicInvoke f =
+        reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
+
+    return f(bind_state_.get(), internal::CallbackForward(a1),
+             internal::CallbackForward(a2),
+             internal::CallbackForward(a3),
+             internal::CallbackForward(a4),
+             internal::CallbackForward(a5),
+             internal::CallbackForward(a6),
+             internal::CallbackForward(a7),
+             internal::CallbackForward(a8));
+  }
+
+ private:
+  typedef R(*PolymorphicInvoke)(
+      internal::BindStateBase*,
+          typename internal::CallbackParamTraits<A1>::ForwardType,
+          typename internal::CallbackParamTraits<A2>::ForwardType,
+          typename internal::CallbackParamTraits<A3>::ForwardType,
+          typename internal::CallbackParamTraits<A4>::ForwardType,
+          typename internal::CallbackParamTraits<A5>::ForwardType,
+          typename internal::CallbackParamTraits<A6>::ForwardType,
+          typename internal::CallbackParamTraits<A7>::ForwardType,
+          typename internal::CallbackParamTraits<A8>::ForwardType);
+
+};
 
 // Syntactic sugar to make Callbacks<void(void)> easier to declare since it
 // will be used in a lot of APIs with delayed execution.
