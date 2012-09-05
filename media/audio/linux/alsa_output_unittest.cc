@@ -204,6 +204,12 @@ void* AlsaPcmOutputStreamTest::kFakeHints[] = {
     kSurround40, kSurround41, kSurround50, kSurround51,
     kSurround70, kSurround71, NULL };
 
+// Custom action to clear a memory buffer.
+static void ClearBuffer(AudioBus* audio_bus,
+                        AudioBuffersState buffers_state) {
+  audio_bus->Zero();
+}
+
 TEST_F(AlsaPcmOutputStreamTest, ConstructedState) {
   AlsaPcmOutputStream* test_stream = CreateStream(kTestChannelLayout);
   EXPECT_EQ(AlsaPcmOutputStream::kCreated, test_stream->state());
@@ -429,7 +435,7 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(kFakeHandle, _))
       .WillRepeatedly(DoAll(SetArgumentPointee<1>(0), Return(0)));
   EXPECT_CALL(mock_callback, OnMoreData(_, _))
-      .WillRepeatedly(Return(kTestFramesPerPacket));
+      .WillRepeatedly(DoAll(Invoke(ClearBuffer), Return(kTestFramesPerPacket)));
   EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, _, _))
       .WillRepeatedly(Return(kTestFramesPerPacket));
 
@@ -588,7 +594,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket) {
 
   // Return a partially filled packet.
   EXPECT_CALL(mock_callback, OnMoreData(_, _))
-      .WillOnce(Return(kTestFramesPerPacket / 2));
+      .WillOnce(DoAll(Invoke(ClearBuffer), Return(kTestFramesPerPacket / 2)));
 
   bool source_exhausted;
   test_stream->set_source_callback(&mock_callback);
@@ -614,7 +620,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Negative) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(_))
       .WillRepeatedly(Return(0));  // Buffer is full.
   EXPECT_CALL(mock_callback, OnMoreData(_, _))
-      .WillOnce(Return(kTestFramesPerPacket / 2));
+      .WillOnce(DoAll(Invoke(ClearBuffer), Return(kTestFramesPerPacket / 2)));
 
   bool source_exhausted;
   test_stream->set_source_callback(&mock_callback);
@@ -641,7 +647,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Underrun) {
               OnMoreData(_, AllOf(
                   Field(&AudioBuffersState::pending_bytes, 0),
                   Field(&AudioBuffersState::hardware_delay_bytes, 0))))
-      .WillOnce(Return(kTestFramesPerPacket / 2));
+      .WillOnce(DoAll(Invoke(ClearBuffer), Return(kTestFramesPerPacket / 2)));
 
   bool source_exhausted;
   test_stream->set_source_callback(&mock_callback);
