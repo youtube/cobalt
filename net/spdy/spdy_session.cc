@@ -23,7 +23,6 @@
 #include "base/values.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/ec_signature_creator.h"
-#include "crypto/signature_creator.h"
 #include "net/base/asn1_util.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/net_log.h"
