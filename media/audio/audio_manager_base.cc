@@ -140,6 +140,11 @@ AudioInputStream* AudioManagerBase::MakeAudioInputStream(
 
 AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
     const AudioParameters& params) {
+#if defined(OS_IOS)
+  // IOS implements audio input only.
+  NOTIMPLEMENTED();
+  return NULL;
+#else
   DCHECK(GetMessageLoop()->BelongsToCurrentThread());
 
   scoped_refptr<AudioOutputDispatcher>& dispatcher =
@@ -159,6 +164,7 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
       dispatcher = new AudioOutputDispatcherImpl(this, params, close_delay);
   }
   return new AudioOutputProxy(dispatcher);
+#endif  // defined(OS_IOS)
 }
 
 bool AudioManagerBase::CanShowAudioInputSettings() {
@@ -226,6 +232,10 @@ void AudioManagerBase::Shutdown() {
 }
 
 void AudioManagerBase::ShutdownOnAudioThread() {
+// IOS implements audio input only.
+#if defined(OS_IOS)
+  return;
+#else
   // This should always be running on the audio thread, but since we've cleared
   // the audio_thread_ member pointer when we get here, we can't verify exactly
   // what thread we're running on.  The method is not public though and only
@@ -246,6 +256,7 @@ void AudioManagerBase::ShutdownOnAudioThread() {
   }
 
   output_dispatchers_.clear();
+#endif  // defined(OS_IOS)
 }
 
 }  // namespace media
