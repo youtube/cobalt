@@ -57,32 +57,12 @@ function bb_baseline_setup {
 
   bb_parse_args "$@"
 
-  if [ ! -d "${SRC_ROOT}" ] ; then
-    echo "Please specify a valid source root directory as an arg"
-    echo '@@@STEP_FAILURE@@@'
-    return 1
-  fi
   cd $SRC_ROOT
-
-  if [ ! -f build/android/envsetup.sh ] ; then
-    echo "No envsetup.sh"
-    echo "@@@STEP_FAILURE@@@"
-    return 1
-  fi
-
-  for mandatory_directory in $(dirname "${ANDROID_SDK_ROOT}") \
-    $(dirname "${ANDROID_NDK_ROOT}") ; do
-    if [[ ! -d "${mandatory_directory}" ]]; then
-      echo "Directory ${mandatory_directory} does not exist."
-      echo "Build cannot continue."
-      echo "@@@STEP_FAILURE@@@"
-      return 1
-    fi
-  done
-
   if [ ! "$BUILDBOT_CLOBBER" = "" ]; then
     NEED_CLOBBER=1
   fi
+
+  export GOMA_DIR=/b/build/goma
 
   local BUILDTOOL=$(bb_get_json_prop "$FACTORY_PROPERTIES" buildtool)
   if [ $BUILDTOOL = "ninja" ]; then
@@ -110,44 +90,12 @@ function bb_baseline_setup {
 
 # Setup goma.  Used internally to buildbot_functions.sh.
 function bb_setup_goma_internal {
-
-  # Quick bail if I messed things up and can't wait for the CQ to
-  # flush out.
-  # TODO(jrg): remove this condition when things are
-  # proven stable (4/1/12 or so).
-  if [ -f /usr/local/google/DISABLE_GOMA ]; then
-    echo "@@@STEP_WARNINGS@@@"
-    echo "Goma disabled with a local file"
-    return
-  fi
-
-  goma_dir=${goma_dir:-/b/build/goma}
-  if [ -f ${goma_dir}/goma.key ]; then
-    export GOMA_API_KEY_FILE=${goma_dir}/goma.key
-  fi
-  local goma_ctl=$(which goma_ctl.sh)
-  if [ "${goma_ctl}" != "" ]; then
-    local goma_dir=$(dirname ${goma_ctl})
-  fi
-
-  if [ ! -f ${goma_dir}/goma_ctl.sh ]; then
-    echo "@@@STEP_WARNINGS@@@"
-    echo "Goma not found on this machine; defaulting to make"
-    return
-  fi
-  export GOMA_DIR=${goma_dir}
-  echo "GOMA_DIR: " $GOMA_DIR
-
+  export GOMA_API_KEY_FILE=${GOMA_DIR}/goma.key
   export GOMA_COMPILER_PROXY_DAEMON_MODE=true
   export GOMA_COMPILER_PROXY_RPC_TIMEOUT_SECS=300
-  export PATH=$GOMA_DIR:$PATH
 
   echo "Starting goma"
-  if [ "$NEED_CLOBBER" -eq 1 ]; then
-    ${GOMA_DIR}/goma_ctl.sh restart
-  else
-    ${GOMA_DIR}/goma_ctl.sh ensure_start
-  fi
+  ${GOMA_DIR}/goma_ctl.sh ensure_start
   trap bb_stop_goma_internal SIGHUP SIGINT SIGTERM
 }
 
@@ -198,7 +146,7 @@ function bb_goma_make {
 function bb_goma_ninja {
   echo "Using ninja to build."
   local TARGET=$1
-  ninja -C out/$BUILDTYPE -j16 -l16 $TARGET
+  ninja -C out/$BUILDTYPE -j120 -l20 $TARGET
 }
 
 # Compile step
