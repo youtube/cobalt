@@ -145,10 +145,7 @@ class SingleTestRunner(BaseTestRunner):
       test_files = [
           'base/data/file_util_unittest',
           'base/data/json/bom_feff.json',
-          'net/data/cache_tests/insert_load1',
-          'net/data/cache_tests/dirty_entry5',
-          'net/data/ssl/certificates/',
-          'ui/base/test/data/data_pack_unittest',
+          'chrome/browser/resources/software_rendering_list.json',
           'chrome/test/data/download-test1.lib',
           'chrome/test/data/extensions/bad_magic.crx',
           'chrome/test/data/extensions/good.crx',
@@ -181,6 +178,10 @@ class SingleTestRunner(BaseTestRunner):
           'chrome/test/data/webui/',
           'chrome/test/data/zip',
           'chrome/third_party/mock4js/',
+          'net/data/cache_tests/insert_load1',
+          'net/data/cache_tests/dirty_entry5',
+          'net/data/ssl/certificates/',
+          'ui/base/test/data/data_pack_unittest',
         ]
       if self.test_package.test_suite_basename == 'unit_tests':
         test_files += ['chrome/test/data/simple_open_search.xml']
