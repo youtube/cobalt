@@ -5,8 +5,9 @@
 #
 # Buildbot annotator script for the main waterfall.  Compile only.
 
-BB_SRC_ROOT="$(cd "$(dirname $0)/../.."; pwd)"
-. "${BB_SRC_ROOT}/build/android/buildbot_functions.sh"
+BB_DIR="$(dirname $0)"
+BB_SRC_ROOT="$(cd  "$BB_DIR/../../.."; pwd)"
+. "$BB_DIR/buildbot_functions.sh"
 
 # SHERIFF: if you need to quickly turn the main waterfall android bots
 # green (preventing tree closures), uncomment the next line (and send
