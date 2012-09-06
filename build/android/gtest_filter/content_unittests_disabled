@@ -18,7 +18,3 @@ GpuMemoryManagerTest.StubMemoryStatsForLastManageTests
 SkCanvasVideoRendererTest.*
 # crbug.com/139095
 RenderWidgetTest.OnMsgPaintAtSize
-
-# We don't use the GPU blacklist and we don't fetch the deps project for the
-# blacklist data so this test is not relevant for us.
-GpuBlacklistTest.CurrentBlacklistValidation
