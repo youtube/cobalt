@@ -4,8 +4,10 @@
 # found in the LICENSE file.
 #
 # Buildbot annotator script for tester half of android trybots
-BB_SRC_ROOT="$(cd "$(dirname $0)/../.."; pwd)"
-. "${BB_SRC_ROOT}/build/android/buildbot_functions.sh"
+
+BB_DIR="$(dirname $0)"
+BB_SRC_ROOT="$(cd  "$BB_DIR/../../.."; pwd)"
+. "$BB_DIR/buildbot_functions.sh"
 
 # SHERIFF: if you need to quickly turn "android" trybots green,
 # uncomment the next line (and send appropriate email out):
