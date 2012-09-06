@@ -23,8 +23,8 @@ from forwarder import Forwarder
 from json_perf_parser import GetAverageRunInfoFromJSONString
 from perf_tests_helper import PrintPerfResult
 import sharded_tests_queue
-from test_result import JAVA, SingleTestResult, TestResults
-
+from test_result import SingleTestResult, TestResults
+import valgrind_tools
 
 _PERF_TEST_ANNOTATION = 'PerfTest'
 
@@ -168,10 +168,9 @@ class TestRunner(BaseTestRunner):
       self.adb.PushIfNeeded(host_test_files_path,
                             TestRunner._DEVICE_DATA_DIR)
     if self.install_apk:
-      # Install -r is not reliable, so uninstall it first.
       for apk in self.apks:
-        self.adb.Adb().SendCommand('uninstall ' + apk.GetPackageName())
-        self.adb.Adb().SendCommand('install ' + apk.GetApkPath())
+        self.adb.ManagedInstall(apk.GetApkPath(),
+                                package_name=apk.GetPackageName())
     self.tool.CopyFiles()
     TestRunner._DEVICE_HAS_TEST_FILES[self.device] = True
 
@@ -400,11 +399,7 @@ class TestRunner(BaseTestRunner):
 
   def _SetupIndividualTestTimeoutScale(self, test):
     timeout_scale = self._GetIndividualTestTimeoutScale(test)
-    if timeout_scale == 1:
-      value = '""'
-    else:
-      value = '%f' % timeout_scale
-    self.adb.RunShellCommand('setprop chrome.timeout_scale %s' % value)
+    valgrind_tools.SetChromeTimeoutScale(self.adb, timeout_scale)
 
   def _GetIndividualTestTimeoutScale(self, test):
     """Returns the timeout scale for the given |test|."""
@@ -468,12 +463,10 @@ class TestRunner(BaseTestRunner):
             log = 'No information.'
           if self.screenshot_failures or log.find('INJECT_EVENTS perm') >= 0:
             self._TakeScreenshot(test)
-          result = (log.split('\n')[0], log)
           self.test_results.failed += [SingleTestResult(test, start_date_ms,
-                                                        duration_ms, JAVA, log,
-                                                        result)]
+                                                        duration_ms, log)]
         else:
-          result = [SingleTestResult(test, start_date_ms, duration_ms, JAVA)]
+          result = [SingleTestResult(test, start_date_ms, duration_ms)]
           self.test_results.ok += result
       # Catch exceptions thrown by StartInstrumentation().
       # See ../../third_party/android/testrunner/adb_interface.py
@@ -490,8 +483,7 @@ class TestRunner(BaseTestRunner):
           message = 'No information.'
         self.test_results.crashed += [SingleTestResult(test, start_date_ms,
                                                        duration_ms,
-                                                       JAVA, message,
-                                                       (message, message))]
+                                                       message)]
         test_result = None
       self.TestTeardown(test, test_result)
     return self.test_results
@@ -585,13 +577,10 @@ def DispatchJavaTests(options, apks):
 
   logging.info('Will run: %s', str(tests))
 
-  if (len(attached_devices) > 1 and
-      not coverage and
-      not options.wait_for_debugger):
-    sharder = TestSharder(attached_devices, options, tests, apks)
-    test_results = sharder.RunShardedTests()
-  else:
-    runner = TestRunner(options, attached_devices[0], tests, coverage, 0, apks,
-                        [])
-    test_results = runner.Run()
+  if len(attached_devices) > 1 and (coverage or options.wait_for_debugger):
+    logging.warning('Coverage / debugger can not be sharded, '
+                    'using first available device')
+    attached_devices = attached_devices[:1]
+  sharder = TestSharder(attached_devices, options, tests, apks)
+  test_results = sharder.RunShardedTests()
   return test_results

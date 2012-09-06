@@ -96,6 +96,9 @@ class TestPackage(object):
     for test in all_tests:
       if not test:
         continue
+      if test[0] != ' ' and not test.endswith('.'):
+        # Ignore any lines with unexpected format.
+        continue
       if test[0] != ' ' and test.endswith('.'):
         current = test
         continue
