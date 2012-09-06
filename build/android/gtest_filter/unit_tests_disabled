@@ -19,10 +19,6 @@ HistoryProfileTest.TypicalProfileVersion
 SQLitePersistentCookieStoreTest.TestDontLoadOldSessionCookies
 SQLitePersistentCookieStoreTest.PersistIsPersistent
 
-# We don't use the GPU blacklist and we don't fetch the deps project for the
-# blacklist data so this test is not relevant for us.
-GpuBlacklistTest.CurrentBlacklistValidation
-
 # http://crbug.com/117940
 TemplateURLTest.*
 TemplateURLPrepopulateDataTest.*
@@ -126,6 +122,9 @@ ImageOperations.ResizeShouldAverageColors
 # crbug.com/138275
 PrerenderTest.*
 RenderWidgetTest.OnMsgPaintAtSize
+
+# crbug.com/146857
+TopSitesTest.Blacklisting
 
 # crbug.com/139643
 VariationsHelperTest.DisableAfterInitialization
