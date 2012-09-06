@@ -230,7 +230,7 @@ class MEDIA_EXPORT AudioInputController
   // when an audio input device is unplugged whilst recording on Windows.
   // See http://crbug.com/79936 for details.
   // This member is only touched by the audio thread.
-  scoped_ptr<base::DelayTimer<AudioInputController> > no_data_timer_;
+  scoped_ptr<base::Timer> no_data_timer_;
 
   // This flag is used to signal that we are receiving OnData() calls, i.e,
   // that data is active. It can be touched by the audio thread and by the

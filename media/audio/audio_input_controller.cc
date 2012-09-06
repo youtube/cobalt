@@ -10,7 +10,14 @@
 
 namespace {
 const int kMaxInputChannels = 2;
-const int kTimerResetInterval = 1;  // One second.
+const int kTimerResetIntervalSeconds = 1;
+#if defined(OS_IOS)
+// The first callback on iOS is received after the current background
+// audio has faded away.
+const int kTimerInitialIntervalSeconds = 4;
+#else
+const int kTimerInitialIntervalSeconds = 1;
+#endif  // defined(OS_IOS)
 }
 
 namespace media {
@@ -139,14 +146,12 @@ void AudioInputController::DoCreate(AudioManager* audio_manager,
   }
 
   DCHECK(!no_data_timer_.get());
-  // Create the data timer which will call DoCheckForNoData() after a delay
-  // of |kTimerResetInterval| seconds. The timer is started in DoRecord()
-  // and restarted in each DoCheckForNoData() callback.
-  no_data_timer_.reset(new base::DelayTimer<AudioInputController>(FROM_HERE,
-      base::TimeDelta::FromSeconds(kTimerResetInterval),
-      this,
-      &AudioInputController::DoCheckForNoData));
-
+  // Create the data timer which will call DoCheckForNoData(). The timer
+  // is started in DoRecord() and restarted in each DoCheckForNoData() callback.
+  no_data_timer_.reset(new base::Timer(
+      FROM_HERE, base::TimeDelta::FromSeconds(kTimerInitialIntervalSeconds),
+      base::Bind(&AudioInputController::DoCheckForNoData,
+      base::Unretained(this)), false));
   state_ = kCreated;
   handler_->OnCreated(this);
 }
@@ -162,7 +167,7 @@ void AudioInputController::DoRecord() {
     state_ = kRecording;
   }
 
-  // Start the data timer. Once |kTimerResetInterval| seconds have passed,
+  // Start the data timer. Once |kTimerResetIntervalSeconds| have passed,
   // a callback to DoCheckForNoData() is made.
   no_data_timer_->Reset();
 
@@ -243,8 +248,12 @@ void AudioInputController::DoCheckForNoData() {
   // flag will only be disabled during a very short period.
   SetDataIsActive(false);
 
-  // Restart the timer to ensure that we check the flag in one second again.
-  no_data_timer_->Reset();
+  // Restart the timer to ensure that we check the flag again in
+  // |kTimerResetIntervalSeconds|.
+  no_data_timer_->Start(
+      FROM_HERE, base::TimeDelta::FromSeconds(kTimerResetIntervalSeconds),
+      base::Bind(&AudioInputController::DoCheckForNoData,
+      base::Unretained(this)));
 }
 
 void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
