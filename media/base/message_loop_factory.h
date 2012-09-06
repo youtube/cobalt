@@ -28,8 +28,7 @@ namespace media {
 class MEDIA_EXPORT MessageLoopFactory {
  public:
   enum Type {
-    kAudioDecoder,
-    kVideoDecoder,
+    kDecoder,
     kPipeline
   };
 
