@@ -45,8 +45,7 @@ class MonkeyTest(python_test_base.PythonTestBase):
     crashed = (not before_pids or not after_pids
                or after_pids[0] != before_pids[0])
     result = test_result.SingleTestResult(self.qualified_name, start_ms,
-                                          duration_ms, test_result.PYTHON,
-                                          log=output)
+                                          duration_ms, log=output)
     results = test_result.TestResults()
 
     if 'Monkey finished' in output and not crashed:
@@ -69,18 +68,11 @@ def DispatchPythonTests(options):
     raise Exception('You have no devices attached or visible!')
 
   # Actually run the tests.
-  # TODO(frankf): Test sharder should really be handling the case
-  # where only 1 device is attached.
-  if len(attached_devices) > 1:
-    logging.debug('Sharding Python tests.')
-    available_tests *= len(attached_devices)
-    sharder = python_test_sharder.PythonTestSharder(
-        attached_devices, 1, available_tests)
-    result = sharder.RunShardedTests()
-  else:
-    logging.debug('Running Python tests serially.')
-    result = python_test_caller.CallPythonTest(available_tests[0],
-                                               attached_devices[0], 0)
+  logging.debug('Running monkey tests.')
+  available_tests *= len(attached_devices)
+  sharder = python_test_sharder.PythonTestSharder(
+      attached_devices, 1, available_tests)
+  result = sharder.RunShardedTests()
   result.LogFull('Monkey', 'Monkey', build_type)
   result.PrintAnnotation()
 

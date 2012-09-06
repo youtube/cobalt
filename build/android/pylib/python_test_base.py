@@ -27,7 +27,7 @@ import android_commands
 import apk_info
 from run_java_tests import TestRunner
 import test_options_parser
-from test_result import SingleTestResult, TestResults, PYTHON
+from test_result import SingleTestResult, TestResults
 
 
 # aka the parent of com.google.android
@@ -138,16 +138,9 @@ class PythonTestBase(object):
       if not log:
         log = 'No logging information.'
 
-      short_error_msg = single_result.log.split('\n')[0]
-      # err_info is ostensibly for Sponge to consume; it's a short error
-      # message and a longer one.
-      err_info = (short_error_msg, log)
-
       python_result = SingleTestResult(self.qualified_name, start_ms,
                                        duration_ms,
-                                       PYTHON,
-                                       log,
-                                       err_info)
+                                       log)
 
       # Figure out where the test belonged. There's probably a cleaner way of
       # doing this.
@@ -160,8 +153,7 @@ class PythonTestBase(object):
 
     else:
       python_result = SingleTestResult(self.qualified_name, start_ms,
-                                       duration_ms,
-                                       PYTHON)
+                                       duration_ms)
       test_results.ok = [python_result]
 
     return test_results
