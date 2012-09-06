@@ -96,7 +96,8 @@ void URLRequestContext::AssertNoURLRequests() const {
     base::debug::Alias(&has_delegate);
     base::debug::Alias(&load_flags);
     base::debug::Alias(&stack_trace);
-    CHECK(false);
+    CHECK(false) << "Leaked " << num_requests << " URLRequest(s). First URL: "
+                 << request->url().spec().c_str() << ".";
   }
 }
 
