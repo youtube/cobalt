@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/synchronization/lock.h"
 #include "media/video/capture/video_capture_device.h"
 #include "media/video/capture/video_capture_types.h"
 
@@ -55,6 +56,7 @@ class VideoCaptureDeviceMac : public VideoCaptureDevice {
   VideoCaptureDevice::Name device_name_;
   VideoCaptureDevice::EventHandler* observer_;
   InternalState state_;
+  base::Lock lock_;
 
   VideoCaptureDeviceQTKit* capture_device_;
 
