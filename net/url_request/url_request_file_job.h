@@ -30,10 +30,6 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
 
   static URLRequest::ProtocolFactory Factory;
 
-#if defined(OS_CHROMEOS)
-  static bool AccessDisabled(const FilePath& file_path);
-#endif
-
   // URLRequestJob:
   virtual void Start() OVERRIDE;
   virtual void Kill() OVERRIDE;
