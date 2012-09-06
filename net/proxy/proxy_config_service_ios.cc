@@ -97,17 +97,12 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
 
 }  // namespace
 
-ProxyConfigServiceIOS::ProxyConfigServiceIOS(
-    base::SingleThreadTaskRunner* io_thread_task_runner)
-    : PollingProxyConfigService(
-          base::TimeDelta::FromSeconds(kPollIntervalSec),
-          GetCurrentProxyConfig),
-      io_thread_task_runner_(io_thread_task_runner) {
-  DCHECK(io_thread_task_runner_);
+ProxyConfigServiceIOS::ProxyConfigServiceIOS()
+    : PollingProxyConfigService(base::TimeDelta::FromSeconds(kPollIntervalSec),
+                                GetCurrentProxyConfig) {
 }
 
 ProxyConfigServiceIOS::~ProxyConfigServiceIOS() {
-  DCHECK(io_thread_task_runner_->BelongsToCurrentThread());
 }
 
 }  // namespace net
