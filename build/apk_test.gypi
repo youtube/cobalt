@@ -61,8 +61,6 @@
               '--ant-args',
               '-DANDROID_SDK_VERSION=<(android_sdk_version)',
               '--ant-args',
-              '-DANDROID_TOOLCHAIN=<(android_toolchain)',
-              '--ant-args',
               '-DANDROID_GDBSERVER=<(android_gdbserver)',
               '--ant-args',
               '-DCHROMIUM_SRC=<(ant_build_out)/../..',
