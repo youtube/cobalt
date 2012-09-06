@@ -95,11 +95,16 @@ if [[ -d $GOMA_DIR ]]; then
 fi
 export ANDROID_GOMA_WRAPPER
 
-export CC_target="${ANDROID_GOMA_WRAPPER} $(echo -n ${ANDROID_TOOLCHAIN}/*-gcc)"
-export CXX_target="${ANDROID_GOMA_WRAPPER} \
-  $(echo -n ${ANDROID_TOOLCHAIN}/*-g++)"
-export LINK_target=$(echo -n ${ANDROID_TOOLCHAIN}/*-gcc)
-export AR_target=$(echo -n ${ANDROID_TOOLCHAIN}/*-ar)
+# http://crbug.com/143889.
+if ! echo "$GYP_DEFINES" | tr ' ' '\n' | grep -q '^clang=' | tail -n1 | \
+    grep -xq clang=1; then
+  export CC_target="${ANDROID_GOMA_WRAPPER} \
+    $(echo -n ${ANDROID_TOOLCHAIN}/*-gcc)"
+  export CXX_target="${ANDROID_GOMA_WRAPPER} \
+    $(echo -n ${ANDROID_TOOLCHAIN}/*-g++)"
+  export LINK_target=$(echo -n ${ANDROID_TOOLCHAIN}/*-gcc)
+  export AR_target=$(echo -n ${ANDROID_TOOLCHAIN}/*-ar)
+fi
 
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
