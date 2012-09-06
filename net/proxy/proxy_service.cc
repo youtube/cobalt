@@ -1323,7 +1323,7 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 #if defined(OS_WIN)
   return new ProxyConfigServiceWin();
 #elif defined(OS_IOS)
-  return new ProxyConfigServiceIOS(io_thread_task_runner);
+  return new ProxyConfigServiceIOS();
 #elif defined(OS_MACOSX)
   return new ProxyConfigServiceMac(io_thread_task_runner);
 #elif defined(OS_CHROMEOS)
