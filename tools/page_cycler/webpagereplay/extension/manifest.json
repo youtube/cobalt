@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 {
+  "manifest_version": 2,
   "name": "Chromium Page Cycler with Web Page Replay.",
   "version": "1.0.0.0",
   "description": "Chromium Page Cycler with Web Page Replay.",
-  "background_page": "background.html",
+  "background": {
+    "page": "background.html"
+  },
   "content_scripts": [
     { "matches": ["file:///*/start.html*"],
       "js": ["start.js"],
