@@ -443,6 +443,13 @@
             '-Wno-non-literal-null-conversion',
           ],
         }],
+        ['order_profiling != 0', {
+          'target_conditions' : [
+            ['_toolset=="target"', {
+              'cflags!': [ '-finstrument-functions' ],
+            }],
+          ],
+        }],
       ],
     },
     {
