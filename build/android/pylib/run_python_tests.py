@@ -90,15 +90,14 @@ def DispatchPythonTests(options):
     test_files_copier.CopyTestFilesOnce()
 
   # Actually run the tests.
-  if (len(attached_devices) > 1 and
-      not options.wait_for_debugger):
-    logging.debug('Sharding Python tests.')
-    sharder = PythonTestSharder(attached_devices, options.shard_retries,
-                                available_tests)
-    test_results = sharder.RunShardedTests()
-  else:
-    logging.debug('Running Python tests serially.')
-    test_results = _RunPythonTests(available_tests, attached_devices[0])
+  if len(attached_devices) > 1 and options.wait_for_debugger:
+    logging.warning('Debugger can not be sharded, '
+                    'using first available device')
+    attached_devices = attached_devices[:1]
+  logging.debug('Running Python tests')
+  sharder = PythonTestSharder(attached_devices, options.shard_retries,
+                              available_tests)
+  test_results = sharder.RunShardedTests()
 
   return test_results
 
