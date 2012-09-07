@@ -21,6 +21,7 @@ class HistogramSynchronizer;
 class GpuChannelHost;
 class MetricsService;
 class NativeBackendKWallet;
+class ScopedAllowWaitForLegacyWebViewApi;
 class TestingAutomationProvider;
 class TextInputClientMac;
 
@@ -161,6 +162,7 @@ class BASE_EXPORT ThreadRestrictions {
   // BEGIN ALLOWED USAGE.
   friend class content::RenderWidgetHelper;
   friend class ::HistogramSynchronizer;
+  friend class ::ScopedAllowWaitForLegacyWebViewApi;
   friend class ::TestingAutomationProvider;
   friend class SequencedWorkerPool;
   friend class SimpleThread;
