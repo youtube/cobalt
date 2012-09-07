@@ -1301,9 +1301,12 @@ int SocketStream::HandleCertificateError(int result) {
   SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(socket_.get());
   DCHECK(ssl_socket);
 
-  if (HttpStreamFactory::ignore_certificate_errors() &&
-      ssl_socket->IgnoreCertError(result, LOAD_IGNORE_ALL_CERT_ERRORS))
-    return OK;
+  if (SSLClientSocket::IgnoreCertError(result, LOAD_IGNORE_ALL_CERT_ERRORS)) {
+    const HttpNetworkSession::Params* session_params =
+        context_->GetNetworkSessionParams();
+    if (session_params && session_params->ignore_certificate_errors)
+      return OK;
+  }
 
   if (!delegate_)
     return result;

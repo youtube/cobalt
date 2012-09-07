@@ -72,16 +72,6 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
         pool_(1, 1, &histograms_, &factory_) {
   }
 
-  virtual void SetUp() OVERRIDE {
-    default_pipelining_enabled_ = HttpStreamFactory::http_pipelining_enabled();
-    HttpStreamFactory::set_http_pipelining_enabled(true);
-  }
-
-  virtual void TearDown() OVERRIDE {
-    MessageLoop::current()->RunAllPending();
-    HttpStreamFactory::set_http_pipelining_enabled(default_pipelining_enabled_);
-  }
-
   void Initialize(bool force_http_pipelining) {
     // Normally, this code could just go in SetUp(). For a few of these tests,
     // we change the default number of sockets per group. That needs to be done
@@ -99,6 +89,7 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
     session_params.http_auth_handler_factory = auth_handler_factory_.get();
     session_params.http_server_properties = &http_server_properties_;
     session_params.force_http_pipelining = force_http_pipelining;
+    session_params.http_pipelining_enabled = true;
     session_ = new HttpNetworkSession(session_params);
   }
 
@@ -231,7 +222,6 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
   ScopedVector<DeterministicSocketData> data_vector_;
   TestCompletionCallback callback_;
   ScopedVector<HttpRequestInfo> request_info_vector_;
-  bool default_pipelining_enabled_;
 
   SimpleProxyConfigService* proxy_config_service_;
   scoped_ptr<ProxyService> proxy_service_;

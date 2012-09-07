@@ -123,6 +123,10 @@ base::Value* HttpStreamFactoryImpl::PipelineInfoToValue() const {
   return http_pipelined_host_pool_.PipelineInfoToValue();
 }
 
+const HostMappingRules* HttpStreamFactoryImpl::GetHostMappingRules() const {
+  return session_->params().host_mapping_rules;
+}
+
 bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
     const GURL& original_url,
     GURL* alternate_url) const {
