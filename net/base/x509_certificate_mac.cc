@@ -577,9 +577,9 @@ void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
 }
 
 // static
-SHA1Fingerprint X509Certificate::CalculateFingerprint(
+SHA1HashValue X509Certificate::CalculateFingerprint(
     OSCertHandle cert) {
-  SHA1Fingerprint sha1;
+  SHA1HashValue sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
   CSSM_DATA cert_data;
@@ -596,9 +596,9 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
 }
 
 // static
-SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
+SHA1HashValue X509Certificate::CalculateCAFingerprint(
     const OSCertHandles& intermediates) {
-  SHA1Fingerprint sha1;
+  SHA1HashValue sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
   // The CC_SHA(3cc) man page says all CC_SHA1_xxx routines return 1, so
@@ -720,7 +720,7 @@ bool X509Certificate::GetSSLClientCertificates(
       continue;
 
     // Skip duplicates (a cert may be in multiple keychains).
-    const SHA1Fingerprint& fingerprint = cert->fingerprint();
+    const SHA1HashValue& fingerprint = cert->fingerprint();
     unsigned i;
     for (i = 0; i < certs->size(); ++i) {
       if ((*certs)[i]->fingerprint().Equals(fingerprint))

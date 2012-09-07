@@ -241,10 +241,10 @@ class NET_EXPORT X509Certificate
   const base::Time& valid_expiry() const { return valid_expiry_; }
 
   // The fingerprint of this certificate.
-  const SHA1Fingerprint& fingerprint() const { return fingerprint_; }
+  const SHA1HashValue& fingerprint() const { return fingerprint_; }
 
   // The fingerprint of the intermediate CA certificates.
-  const SHA1Fingerprint& ca_fingerprint() const {
+  const SHA1HashValue& ca_fingerprint() const {
     return ca_fingerprint_;
   }
 
@@ -419,11 +419,11 @@ class NET_EXPORT X509Certificate
 
   // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
   // (all zero) fingerprint on failure.
-  static SHA1Fingerprint CalculateFingerprint(OSCertHandle cert_handle);
+  static SHA1HashValue CalculateFingerprint(OSCertHandle cert_handle);
 
   // Calculates the SHA-1 fingerprint of the intermediate CA certificates.
   // Returns an empty (all zero) fingerprint on failure.
-  static SHA1Fingerprint CalculateCAFingerprint(
+  static SHA1HashValue CalculateCAFingerprint(
       const OSCertHandles& intermediates);
 
  private:
@@ -489,10 +489,10 @@ class NET_EXPORT X509Certificate
   base::Time valid_expiry_;
 
   // The fingerprint of this certificate.
-  SHA1Fingerprint fingerprint_;
+  SHA1HashValue fingerprint_;
 
   // The fingerprint of the intermediate CA certificates.
-  SHA1Fingerprint ca_fingerprint_;
+  SHA1HashValue ca_fingerprint_;
 
   // The serial number of this certificate, DER encoded.
   std::string serial_number_;
