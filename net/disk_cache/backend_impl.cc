@@ -1977,7 +1977,14 @@ void BackendImpl::ReportStats() {
 
   int current_size = data_->header.num_bytes / (1024 * 1024);
   int max_size = max_size_ / (1024 * 1024);
+  int hit_ratio_as_percentage = stats_.GetHitRatio();
+
   CACHE_UMA(COUNTS_10000, "Size2", 0, current_size);
+  // For any bin in HitRatioBySize2, the hit ratio of caches of that size is the
+  // ratio of that bin's total count to the count in the same bin in the Size2
+  // histogram.
+  if (base::RandInt(0, 99) < hit_ratio_as_percentage)
+    CACHE_UMA(COUNTS_10000, "HitRatioBySize2", 0, current_size);
   CACHE_UMA(COUNTS_10000, "MaxSize2", 0, max_size);
   if (!max_size)
     max_size++;
@@ -2013,6 +2020,11 @@ void BackendImpl::ReportStats() {
   // that event, start reporting this:
 
   CACHE_UMA(HOURS, "TotalTime", 0, static_cast<int>(total_hours));
+  // For any bin in HitRatioByTotalTime, the hit ratio of caches of that total
+  // time is the ratio of that bin's total count to the count in the same bin in
+  // the TotalTime histogram.
+  if (base::RandInt(0, 99) < hit_ratio_as_percentage)
+    CACHE_UMA(HOURS, "HitRatioByTotalTime", 0, implicit_cast<int>(total_hours));
 
   int64 use_hours = stats_.GetCounter(Stats::LAST_REPORT_TIMER) / 120;
   stats_.SetCounter(Stats::LAST_REPORT_TIMER, stats_.GetCounter(Stats::TIMER));
@@ -2026,16 +2038,12 @@ void BackendImpl::ReportStats() {
     return;
 
   CACHE_UMA(HOURS, "UseTime", 0, static_cast<int>(use_hours));
-  int hit_ratio_as_percentage = stats_.GetHitRatio();
-  CACHE_UMA(PERCENTAGE, "HitRatio", 0, hit_ratio_as_percentage);
-
-  // For any bin in HitRatioByTotalTime, the HitRatio of caches of that age is
-  // approximately the value of HitRatioByTotalTime / TotalTime. Likewise for
-  // HitRatioByUseTime.
-  if (base::RandInt(0, 99) < hit_ratio_as_percentage)
-    CACHE_UMA(HOURS, "HitRatioByTotalTime", 0, implicit_cast<int>(total_hours));
+  // For any bin in HitRatioByUseTime, the hit ratio of caches of that use time
+  // is the ratio of that bin's total count to the count in the same bin in the
+  // UseTime histogram.
   if (base::RandInt(0, 99) < hit_ratio_as_percentage)
     CACHE_UMA(HOURS, "HitRatioByUseTime", 0, implicit_cast<int>(use_hours));
+  CACHE_UMA(PERCENTAGE, "HitRatio", 0, hit_ratio_as_percentage);
 
   int64 trim_rate = stats_.GetCounter(Stats::TRIM_ENTRY) / use_hours;
   CACHE_UMA(COUNTS, "TrimRate", 0, static_cast<int>(trim_rate));
