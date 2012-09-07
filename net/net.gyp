@@ -25,8 +25,11 @@
       ['OS=="ios"', {
         # Websockets and socket stream are not used on iOS.
         'enable_websockets%': 0,
+        # iOS does not use V8.
+        'use_v8_in_net%': 0,
       }, {
         'enable_websockets%': 1,
+        'use_v8_in_net%': 1,
       }],
     ],
   },
@@ -1145,35 +1148,6 @@
       ],
     },
     {
-      'target_name': 'net_with_v8',
-      'type': '<(component)',
-      'variables': { 'enable_wexit_time_destructors': 1, },
-      'dependencies': [
-        '../base/base.gyp:base',
-        '../build/temp_gyp/googleurl.gyp:googleurl',
-        'net'
-      ],
-      'defines': [
-        'NET_IMPLEMENTATION',
-      ],
-      'sources': [
-        'proxy/proxy_resolver_v8.cc',
-        'proxy/proxy_resolver_v8.h',
-        'proxy/proxy_service_v8.cc',
-        'proxy/proxy_service_v8.h',
-      ],
-      'conditions': [
-        ['OS != "ios"',
-          {
-            'dependencies': [
-              # The v8 gyp file is not available in the iOS tree.
-              '../v8/tools/gyp/v8.gyp:v8',
-            ],
-          }
-        ],
-      ],
-    },
-    {
       'target_name': 'net_unittests',
       'type': '<(gtest_target_type)',
       'dependencies': [
@@ -1187,7 +1161,6 @@
         '../third_party/zlib/zlib.gyp:zlib',
         'net',
         'net_test_support',
-        'net_with_v8',
       ],
       'sources': [
         'base/address_list_unittest.cc',
@@ -1502,6 +1475,16 @@
             ],
           },
         ],
+        [ 'use_v8_in_net==1', {
+            'dependencies': [
+              'net_with_v8',
+            ],
+          }, {  # else: !use_v8_in_net
+            'sources!': [
+              'proxy/proxy_resolver_v8_unittest.cc',
+            ],
+          },
+        ],
         [ 'OS == "win"', {
             'sources!': [
               'dns/dns_config_service_posix_unittest.cc',
@@ -1584,7 +1567,6 @@
         '../testing/gtest.gyp:gtest',
         'net',
         'net_test_support',
-        'net_with_v8',
       ],
       'sources': [
         'cookies/cookie_monster_perftest.cc',
@@ -1592,6 +1574,16 @@
         'proxy/proxy_resolver_perftest.cc',
       ],
       'conditions': [
+        [ 'use_v8_in_net==1', {
+            'dependencies': [
+              'net_with_v8',
+            ],
+          }, {  # else: !use_v8_in_net
+            'sources!': [
+              'proxy/proxy_resolver_perftest.cc',
+            ],
+          },
+        ],
         # This is needed to trigger the dll copy step on windows.
         # TODO(mark): Specifying this here shouldn't be necessary.
         [ 'OS == "win"', {
@@ -1620,7 +1612,6 @@
         '../base/base.gyp:test_support_base',
         '../testing/gtest.gyp:gtest',
         'net',
-        'net_with_v8',
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
@@ -1721,6 +1712,12 @@
             'test/spawner_communicator.h',
           ],
         }],
+        [ 'use_v8_in_net==1', {
+            'dependencies': [
+              'net_with_v8',
+            ],
+          },
+        ],
       ],
     },
     {
@@ -1761,6 +1758,30 @@
     },
   ],
   'conditions': [
+    ['use_v8_in_net == 1', {
+      'targets': [
+        {
+          'target_name': 'net_with_v8',
+          'type': '<(component)',
+          'variables': { 'enable_wexit_time_destructors': 1, },
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../build/temp_gyp/googleurl.gyp:googleurl',
+            '../v8/tools/gyp/v8.gyp:v8',
+            'net'
+          ],
+          'defines': [
+            'NET_IMPLEMENTATION',
+          ],
+          'sources': [
+            'proxy/proxy_resolver_v8.cc',
+            'proxy/proxy_resolver_v8.h',
+            'proxy/proxy_service_v8.cc',
+            'proxy/proxy_service_v8.h',
+          ],
+        },
+      ],
+    }],
     ['OS != "ios"', {
       'targets': [
         # iOS doesn't have the concept of simple executables, these targets
