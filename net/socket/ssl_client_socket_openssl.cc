@@ -9,6 +9,7 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/opensslv.h>
 
 #include "base/bind.h"
 #include "base/memory/singleton.h"
@@ -46,8 +47,10 @@ const size_t kSessionCacheMaxEntires = 1024;
 // the server supports NPN, choosing "http/1.1" is the best answer.
 const char kDefaultSupportedNPNProtocol[] = "http/1.1";
 
-// This method doesn't seemed to have made it into the OpenSSL headers.
+#if OPENSSL_VERSION_NUMBER < 0x1000103fL
+// This method doesn't seem to have made it into the OpenSSL headers.
 unsigned long SSL_CIPHER_get_id(const SSL_CIPHER* cipher) { return cipher->id; }
+#endif
 
 // Used for encoding the |connection_status| field of an SSLInfo object.
 int EncodeSSLConnectionStatus(int cipher_suite,
