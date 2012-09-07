@@ -640,6 +640,8 @@
             'gfx/icon_util.h',
             'base/native_theme/native_theme_win.cc',
             'base/native_theme/native_theme_win.h',
+            'base/touch/touch_device_win.cc',
+            'base/touch/touch_device_win.h',
           ],
           'sources!': [
             'base/touch/touch_factory.cc',
