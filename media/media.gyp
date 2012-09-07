@@ -89,6 +89,8 @@
         'audio/fake_audio_input_stream.h',
         'audio/fake_audio_output_stream.cc',
         'audio/fake_audio_output_stream.h',
+        'audio/ios/audio_manager_ios.h',
+        'audio/ios/audio_manager_ios.mm',
         'audio/linux/alsa_input.cc',
         'audio/linux/alsa_input.h',
         'audio/linux/alsa_output.cc',
@@ -379,6 +381,8 @@
             ['include', '^audio/audio_parameters\\.'],
             ['include', '^audio/fake_audio_input_stream\\.'],
             ['include', '^audio/fake_audio_output_stream\\.'],
+            ['include', '^audio/ios/audio_manager_ios\\.'],
+            ['include', '^base/audio_bus\\.'],
             ['include', '^base/channel_layout\\.'],
             ['include', '^base/media\\.h$'],
             ['include', '^base/media_stub\\.cc$'],
@@ -539,6 +543,15 @@
           ],
         }],
       ],
+      'target_conditions': [
+        ['OS == "ios"', {
+          'sources/': [
+            # Pull in specific Mac files for iOS (which have been filtered out
+            # by file name rules).
+            ['include', '^audio/mac/audio_input_mac\\.'],
+          ],
+        }],
+      ],
     },
     {
       'target_name': 'media_unittests',
@@ -566,6 +579,7 @@
         'audio/audio_parameters_unittest.cc',
         'audio/audio_util_unittest.cc',
         'audio/cross_process_notification_unittest.cc',
+        'audio/ios/audio_manager_ios_unittest.cc',
         'audio/linux/alsa_output_unittest.cc',
         'audio/mac/audio_low_latency_input_mac_unittest.cc',
         'audio/mac/audio_output_mac_unittest.cc',
@@ -646,7 +660,10 @@
         ['OS == "ios"', {
           'sources/': [
             ['exclude', '.*'],
+            ['include', '^audio/audio_input_controller_unittest\\.cc$'],
+            ['include', '^audio/audio_input_unittest\\.cc$'],
             ['include', '^audio/audio_parameters_unittest\\.cc$'],
+            ['include', '^audio/ios/audio_manager_ios_unittest\\.cc$'],
             ['include', '^base/mock_reader\\.h$'],
             ['include', '^base/run_all_unittests\\.cc$'],
           ],

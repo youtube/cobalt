@@ -14,14 +14,14 @@
 
 namespace media {
 
-class AudioManagerMac;
+class AudioManagerBase;
 
 // Implementation of AudioInputStream for Mac OS X using the audio queue service
 // present in OS 10.5 and later. Design reflects PCMQueueOutAudioOutputStream.
 class PCMQueueInAudioInputStream : public AudioInputStream {
  public:
   // Parameters as per AudioManager::MakeAudioInputStream.
-  PCMQueueInAudioInputStream(AudioManagerMac* manager,
+  PCMQueueInAudioInputStream(AudioManagerBase* manager,
                              const AudioParameters& params);
   virtual ~PCMQueueInAudioInputStream();
 
@@ -65,7 +65,7 @@ class PCMQueueInAudioInputStream : public AudioInputStream {
   static const int kNumberBuffers = 3;
 
   // Manager that owns this stream, used for closing down.
-  AudioManagerMac* manager_;
+  AudioManagerBase* manager_;
   // We use the callback mostly to periodically supply the recorded audio data.
   AudioInputCallback* callback_;
   // Structure that holds the stream format details such as bitrate.
