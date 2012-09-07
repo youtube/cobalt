@@ -552,6 +552,7 @@ void URLFetcherStopOnRedirectTest::OnURLFetchComplete(
   callback_called_ = true;
   EXPECT_EQ(GURL(kRedirectTarget), source->GetURL());
   EXPECT_EQ(URLRequestStatus::CANCELED, source->GetStatus().status());
+  EXPECT_EQ(ERR_ABORTED, source->GetStatus().error());
   EXPECT_EQ(301, source->GetResponseCode());
   CleanupAfterFetchComplete();
 }
