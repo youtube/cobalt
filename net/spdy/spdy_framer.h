@@ -16,6 +16,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/sys_byteorder.h"
 #include "net/base/net_export.h"
+#include "net/spdy/spdy_header_block.h"
 #include "net/spdy/spdy_protocol.h"
 
 typedef struct z_stream_s z_stream;  // Forward declaration for zlib.
@@ -42,10 +43,6 @@ namespace test {
 class TestSpdyVisitor;
 
 }  // namespace test
-
-// A datastructure for holding a set of headers from either a
-// SYN_STREAM or SYN_REPLY frame.
-typedef std::map<std::string, std::string> SpdyHeaderBlock;
 
 // A datastructure for holding the ID and flag fields for SETTINGS.
 // Conveniently handles converstion to/from wire format.
