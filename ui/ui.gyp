@@ -183,7 +183,7 @@
         'base/dragdrop/os_exchange_data_provider_gtk.h',
         'base/dragdrop/os_exchange_data_provider_win.cc',
         'base/dragdrop/os_exchange_data_provider_win.h',
-        'base/event.cc',
+        'base/events/event.cc',
         'base/events/event.h',
         'base/events/event_constants.h',
         'base/events/event_dispatcher.h',
@@ -743,7 +743,7 @@
         }],
         ['toolkit_views==0', {
           'sources!': [
-            'base/event.cc',
+            'base/events/event.cc',
             'base/events/event.h',
             'base/x/events_x.cc',
           ],
