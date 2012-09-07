@@ -45,10 +45,10 @@ class NET_EXPORT CertVerifyResult {
   bool has_md5_ca;
   bool has_md2_ca;
 
-  // If the certificate was successfully verified then this contains the SHA1
-  // fingerprints of the SubjectPublicKeyInfos of the chain. The fingerprint
-  // from the leaf certificate will be the first element of the vector.
-  std::vector<SHA1Fingerprint> public_key_hashes;
+  // If the certificate was successfully verified then this contains the
+  // hashes, in several hash algorithms, of the SubjectPublicKeyInfos of the
+  // chain.
+  HashValueVector public_key_hashes;
 
   // is_issued_by_known_root is true if we recognise the root CA as a standard
   // root.  If it isn't then it's probably the case that this certificate was

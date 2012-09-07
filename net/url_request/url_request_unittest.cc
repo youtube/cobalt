@@ -147,7 +147,7 @@ void CheckSSLInfo(const SSLInfo& ssl_info) {
   EXPECT_NE(0, cipher_suite);
 }
 
-bool FingerprintsEqual(const FingerprintVector& a, const FingerprintVector& b) {
+bool FingerprintsEqual(const HashValueVector& a, const HashValueVector& b) {
   size_t size = a.size();
 
   if (size != b.size())
@@ -553,7 +553,7 @@ class URLRequestTestHTTP : public URLRequestTest {
                         strlen(expected_data)));
   }
 
-  bool DoManyCookiesRequest(int num_cookies){
+  bool DoManyCookiesRequest(int num_cookies) {
     TestDelegate d;
     URLRequest r(test_server_.GetURL("set-many-cookies?" +
                                      base::IntToString(num_cookies)),
@@ -567,7 +567,7 @@ class URLRequestTestHTTP : public URLRequestTest {
 
     bool is_success = r.status().is_success();
 
-    if (!is_success){
+    if (!is_success) {
       // Requests handled by ChromeFrame send a less precise error message,
       // ERR_CONNECTION_ABORTED.
       EXPECT_TRUE(r.status().error() == ERR_RESPONSE_HEADERS_TOO_BIG ||
@@ -1478,7 +1478,7 @@ class TestSSLConfigService : public SSLConfigService {
 
 // This the fingerprint of the "Testing CA" certificate used by the testserver.
 // See net/data/ssl/certificates/ocsp-test-root.pem.
-static const SHA1Fingerprint kOCSPTestCertFingerprint =
+static const SHA1HashValue kOCSPTestCertFingerprint =
   { { 0xf1, 0xad, 0xf6, 0xce, 0x42, 0xac, 0xe7, 0xb4, 0xf4, 0x24,
       0xdb, 0x1a, 0xf7, 0xa0, 0x9f, 0x09, 0xa1, 0xea, 0xf1, 0x5c } };
 

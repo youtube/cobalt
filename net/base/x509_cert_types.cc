@@ -38,7 +38,7 @@ int CompareSHA1Hashes(const void* a, const void* b) {
 }  // namespace
 
 // static
-bool IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
+bool IsSHA1HashInSortedArray(const SHA1HashValue& hash,
                              const uint8* array,
                              size_t array_byte_len) {
   DCHECK_EQ(0u, array_byte_len % base::kSHA1Length);
@@ -141,6 +141,54 @@ bool ParseCertificateDate(const base::StringPiece& raw_date,
 
   *time = base::Time::FromUTCExploded(exploded);
   return true;
+}
+
+bool HashValue::Equals(const HashValue& other) const {
+  if (tag != other.tag)
+    return false;
+  switch (tag) {
+    case HASH_VALUE_SHA1:
+      return fingerprint.sha1.Equals(other.fingerprint.sha1);
+    case HASH_VALUE_SHA256:
+      return fingerprint.sha256.Equals(other.fingerprint.sha256);
+    default:
+      NOTREACHED() << "Unknown HashValueTag " << tag;
+      return false;
+  }
+}
+
+size_t HashValue::size() const {
+  switch (tag) {
+    case HASH_VALUE_SHA1:
+      return sizeof(fingerprint.sha1.data);
+    case HASH_VALUE_SHA256:
+      return sizeof(fingerprint.sha256.data);
+    default:
+      NOTREACHED() << "Unknown HashValueTag " << tag;
+      // Although this is NOTREACHED, this function might be inlined and its
+      // return value can be passed to memset as the length argument. If we
+      // returned 0 here, it might result in what appears (in some stages of
+      // compilation) to be a call to to memset with a length argument of 0,
+      // which results in a warning. Therefore, we return a dummy value
+      // here.
+      return sizeof(fingerprint.sha1.data);
+  }
+}
+
+unsigned char* HashValue::data() {
+  return const_cast<unsigned char*>(const_cast<const HashValue*>(this)->data());
+}
+
+const unsigned char* HashValue::data() const {
+  switch (tag) {
+    case HASH_VALUE_SHA1:
+      return fingerprint.sha1.data;
+    case HASH_VALUE_SHA256:
+      return fingerprint.sha256.data;
+    default:
+      NOTREACHED() << "Unknown HashValueTag " << tag;
+      return NULL;
+  }
 }
 
 }  // namespace net

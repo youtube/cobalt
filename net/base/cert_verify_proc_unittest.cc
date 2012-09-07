@@ -121,7 +121,7 @@ TEST_F(CertVerifyProcTest, PaypalNullCertParsing) {
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), paypal_null_cert);
 
-  const SHA1Fingerprint& fingerprint =
+  const SHA1HashValue& fingerprint =
       paypal_null_cert->fingerprint();
   for (size_t i = 0; i < 20; ++i)
     EXPECT_EQ(paypal_null_fingerprint[i], fingerprint.data[i]);
@@ -415,11 +415,11 @@ TEST_F(CertVerifyProcTest, DigiNotarCerts) {
 
     std::string spki_sha1 = base::SHA1HashString(spki.as_string());
 
-    std::vector<SHA1Fingerprint> public_keys;
-    SHA1Fingerprint fingerprint;
-    ASSERT_EQ(sizeof(fingerprint.data), spki_sha1.size());
-    memcpy(fingerprint.data, spki_sha1.data(), spki_sha1.size());
-    public_keys.push_back(fingerprint);
+    HashValueVector public_keys;
+    HashValue hash(HASH_VALUE_SHA1);
+    ASSERT_EQ(hash.size(), spki_sha1.size());
+    memcpy(hash.data(), spki_sha1.data(), spki_sha1.size());
+    public_keys.push_back(hash);
 
     EXPECT_TRUE(CertVerifyProc::IsPublicKeyBlacklisted(public_keys)) <<
         "Public key not blocked for " << kDigiNotarFilenames[i];
@@ -472,9 +472,18 @@ TEST_F(CertVerifyProcTest, PublicKeyHashes) {
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   ASSERT_LE(3u, verify_result.public_key_hashes.size());
-  for (unsigned i = 0; i < 3; i++) {
+
+  HashValueVector sha1_hashes;
+  for (unsigned i = 0; i < verify_result.public_key_hashes.size(); ++i) {
+    if (verify_result.public_key_hashes[i].tag != HASH_VALUE_SHA1)
+      continue;
+    sha1_hashes.push_back(verify_result.public_key_hashes[i]);
+  }
+  ASSERT_LE(3u, sha1_hashes.size());
+
+  for (unsigned i = 0; i < 3; ++i) {
     EXPECT_EQ(HexEncode(kCertSESPKIs[i], base::kSHA1Length),
-        HexEncode(verify_result.public_key_hashes[i].data, base::kSHA1Length));
+              HexEncode(sha1_hashes[i].data(), base::kSHA1Length));
   }
 }
 
