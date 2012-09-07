@@ -65,7 +65,7 @@ function bb_baseline_setup {
   export GOMA_DIR=/b/build/goma
 
   local BUILDTOOL=$(bb_get_json_prop "$FACTORY_PROPERTIES" buildtool)
-  if [ $BUILDTOOL = "ninja" ]; then
+  if [[ $BUILDTOOL = ninja ]]; then
     export GYP_GENERATORS=ninja
   fi
 
@@ -93,6 +93,10 @@ function bb_setup_goma_internal {
   export GOMA_API_KEY_FILE=${GOMA_DIR}/goma.key
   export GOMA_COMPILER_PROXY_DAEMON_MODE=true
   export GOMA_COMPILER_PROXY_RPC_TIMEOUT_SECS=300
+
+  echo "Killing old goma processes"
+  ${GOMA_DIR}/goma_ctl.sh stop || true
+  killall compiler_proxy || true
 
   echo "Starting goma"
   ${GOMA_DIR}/goma_ctl.sh ensure_start
@@ -158,7 +162,7 @@ function bb_compile {
   bb_setup_goma_internal
 
   BUILDTOOL=$(bb_get_json_prop "$FACTORY_PROPERTIES" buildtool)
-  if [ $BUILDTOOL = "ninja" ]; then
+  if [[ $BUILDTOOL = ninja ]]; then
     bb_goma_ninja All
   else
     bb_goma_make
@@ -174,7 +178,7 @@ function bb_compile_experimental {
   for target in ${EXPERIMENTAL_TARGETS} ; do
     echo "@@@BUILD_STEP Experimental Compile $target @@@"
     set +e
-    if [ $BUILDTOOL = "ninja" ]; then
+    if [[ $BUILDTOOL = ninja ]]; then
       bb_goma_ninja "${target}"
     else
       bb_goma_make -k "${target}"
