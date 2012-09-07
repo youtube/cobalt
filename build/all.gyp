@@ -14,7 +14,9 @@
         '../crypto/crypto.gyp:*',
         '../media/media.gyp:*',
         '../net/net.gyp:*',
+        '../sdch/sdch.gyp:*',
         '../sql/sql.gyp:*',
+        '../testing/gmock.gyp:*',
         '../testing/gtest.gyp:*',
         '../third_party/bzip2/bzip2.gyp:*',
         '../third_party/icu/icu.gyp:*',
@@ -23,13 +25,8 @@
         '../third_party/zlib/zlib.gyp:*',
         '../ui/ui.gyp:*',
         'temp_gyp/googleurl.gyp:*',
-        # Add new dependencies to the !ios section just below, not here (see
-        # the comment there).
       ],
       'conditions': [
-        # TODO(ios): This is temporary; currently almost nothing builds with
-        # OS=ios. Move dependencies back to the main dependencies section above
-        # as gyp files come online.
         ['OS!="ios"', {
           'dependencies': [
             '../cc/cc_tests.gyp:*',
@@ -42,10 +39,8 @@
             '../ppapi/ppapi.gyp:*',
             '../ppapi/ppapi_internal.gyp:*',
             '../printing/printing.gyp:*',
-            '../sdch/sdch.gyp:*',
             '../skia/skia.gyp:*',
             '../sync/sync.gyp:*',
-            '../testing/gmock.gyp:*',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:*',
             '../third_party/cld/cld.gyp:*',
             '../third_party/codesighs/codesighs.gyp:*',
@@ -178,16 +173,16 @@
       'type': 'none',
       'dependencies': [
         '../base/base.gyp:base_unittests',
+        '../crypto/crypto.gyp:crypto_unittests',
+        '../media/media.gyp:media_unittests',
+        '../net/net.gyp:net_unittests',
         '../sql/sql.gyp:sql_unittests',
-        # Add new dependencies to the !ios section just below, not here (see
-        # the comment there).
+        '../ui/ui.gyp:ui_unittests',
+        'temp_gyp/googleurl.gyp:googleurl_unittests',
       ],
       'conditions': [
         ['OS!="ios"', {
           'dependencies': [
-            # TODO(ios): This is temporary; currently almost nothing builds with
-            # OS=ios. Move dependencies back to the main dependencies section
-            # above as gyp files come online.
             '../cc/cc_tests.gyp:cc_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:interactive_ui_tests',
@@ -197,21 +192,16 @@
             '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
-            '../crypto/crypto.gyp:crypto_unittests',
             '../gpu/gpu.gyp:gpu_unittests',
             '../gpu/gles2_conform_support/gles2_conform_support.gyp:gles2_conform_support',
             '../ipc/ipc.gyp:ipc_tests',
             '../jingle/jingle.gyp:jingle_unittests',
-            '../media/media.gyp:media_unittests',
-            '../net/net.gyp:net_unittests',
             '../printing/printing.gyp:printing_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../sync/sync.gyp:sync_unit_tests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
-            '../ui/ui.gyp:ui_unittests',
             '../webkit/compositor_bindings/compositor_bindings_tests.gyp:webkit_compositor_bindings_unittests',
-            'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         }],
         ['OS=="win"', {
