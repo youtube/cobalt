@@ -4,17 +4,20 @@
 
 #include "media/audio/mac/audio_input_mac.h"
 
-#include <CoreServices/CoreServices.h>
-
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/mac/mac_logging.h"
+#include "media/audio/audio_manager_base.h"
 #include "media/audio/audio_util.h"
-#include "media/audio/mac/audio_manager_mac.h"
+
+#if !defined(OS_IOS)
+#include <CoreServices/CoreServices.h>
+#endif
 
 namespace media {
 
 PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
-    AudioManagerMac* manager, const AudioParameters& params)
+    AudioManagerBase* manager, const AudioParameters& params)
     : manager_(manager),
       callback_(NULL),
       audio_queue_(NULL),
@@ -134,8 +137,8 @@ bool PCMQueueInAudioInputStream::GetAutomaticGainControl() {
 void PCMQueueInAudioInputStream::HandleError(OSStatus err) {
   if (callback_)
     callback_->OnError(this, static_cast<int>(err));
-  NOTREACHED() << "error " << GetMacOSStatusErrorString(err)
-               << " (" << err << ")";
+  // This point should never be reached.
+  OSSTATUS_DCHECK(0, err);
 }
 
 bool PCMQueueInAudioInputStream::SetupBuffers() {
