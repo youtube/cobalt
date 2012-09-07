@@ -397,6 +397,8 @@
         'gfx/favicon_size.h',
         'gfx/font.h',
         'gfx/font.cc',
+        'gfx/font_fallback_win.cc',
+        'gfx/font_fallback_win.h',
         'gfx/font_list.h',
         'gfx/font_list.cc',
         'gfx/font_render_params_android.cc',
