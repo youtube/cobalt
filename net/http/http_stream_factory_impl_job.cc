@@ -561,7 +561,7 @@ int HttpStreamFactoryImpl::Job::StartInternal() {
 int HttpStreamFactoryImpl::Job::DoStart() {
   int port = request_info_.url.EffectiveIntPort();
   origin_ = HostPortPair(request_info_.url.HostNoBrackets(), port);
-  origin_url_ = HttpStreamFactory::ApplyHostMappingRules(
+  origin_url_ = stream_factory_->ApplyHostMappingRules(
       request_info_.url, &origin_);
   http_pipelining_key_.reset(new HttpPipelinedHost::Key(origin_));
 
@@ -1206,7 +1206,7 @@ int HttpStreamFactoryImpl::Job::HandleCertificateError(int error) {
   server_ssl_config_.allowed_bad_certs.push_back(bad_cert);
 
   int load_flags = request_info_.load_flags;
-  if (HttpStreamFactory::ignore_certificate_errors())
+  if (session_->params().ignore_certificate_errors)
     load_flags |= LOAD_IGNORE_ALL_CERT_ERRORS;
   if (ssl_socket->IgnoreCertError(error, load_flags))
     return OK;
@@ -1268,7 +1268,7 @@ bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() {
   if (session_->force_http_pipelining()) {
     return true;
   }
-  if (!HttpStreamFactory::http_pipelining_enabled()) {
+  if (!session_->params().http_pipelining_enabled) {
     return false;
   }
   if (using_ssl_) {

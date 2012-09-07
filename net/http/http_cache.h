@@ -30,6 +30,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_transaction_factory.h"
 
 class GURL;
@@ -118,19 +119,8 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
 
   // The disk cache is initialized lazily (by CreateTransaction) in this case.
   // The HttpCache takes ownership of the |backend_factory|.
-  HttpCache(HostResolver* host_resolver,
-            CertVerifier* cert_verifier,
-            ServerBoundCertService* server_bound_cert_service,
-            TransportSecurityState* transport_security_state,
-            ProxyService* proxy_service,
-            const std::string& ssl_session_cache_shard,
-            SSLConfigService* ssl_config_service,
-            HttpAuthHandlerFactory* http_auth_handler_factory,
-            NetworkDelegate* network_delegate,
-            HttpServerProperties* http_server_properties,
-            NetLog* net_log,
-            BackendFactory* backend_factory,
-            const std::string& trusted_spdy_proxy);
+  HttpCache(const net::HttpNetworkSession::Params& params,
+            BackendFactory* backend_factory);
 
   // The disk cache is initialized lazily (by CreateTransaction) in  this case.
   // Provide an existing HttpNetworkSession, the cache can construct a

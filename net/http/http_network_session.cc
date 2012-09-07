@@ -58,7 +58,12 @@ HttpNetworkSession::Params::Params()
       network_delegate(NULL),
       http_server_properties(NULL),
       net_log(NULL),
-      force_http_pipelining(false) {}
+      host_mapping_rules(NULL),
+      force_http_pipelining(false),
+      ignore_certificate_errors(false),
+      http_pipelining_enabled(false),
+      testing_fixed_http_port(0),
+      testing_fixed_https_port(0) {}
 
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
 HttpNetworkSession::HttpNetworkSession(const Params& params)
