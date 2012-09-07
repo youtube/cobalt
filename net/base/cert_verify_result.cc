@@ -24,7 +24,8 @@ void CertVerifyResult::Reset() {
   has_md5_ca = false;
   has_md2_ca = false;
   is_issued_by_known_root = false;
+
   public_key_hashes.clear();
 }
 
-} // namespace net
+}  // namespace net

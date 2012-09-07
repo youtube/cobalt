@@ -288,8 +288,8 @@ void X509Certificate::ResetCertStore() {
 }
 
 // static
-SHA1Fingerprint X509Certificate::CalculateFingerprint(OSCertHandle cert) {
-  SHA1Fingerprint sha1;
+SHA1HashValue X509Certificate::CalculateFingerprint(OSCertHandle cert) {
+  SHA1HashValue sha1;
   unsigned int sha1_size = static_cast<unsigned int>(sizeof(sha1.data));
   int ret = X509_digest(cert, EVP_sha1(), sha1.data, &sha1_size);
   CHECK(ret);
@@ -298,9 +298,9 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(OSCertHandle cert) {
 }
 
 // static
-SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
+SHA1HashValue X509Certificate::CalculateCAFingerprint(
     const OSCertHandles& intermediates) {
-  SHA1Fingerprint sha1;
+  SHA1HashValue sha1;
   memset(sha1.data, 0, sizeof(sha1.data));
 
   SHA_CTX sha1_ctx;

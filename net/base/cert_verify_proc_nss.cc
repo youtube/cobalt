@@ -4,6 +4,9 @@
 
 #include "net/base/cert_verify_proc_nss.h"
 
+#include <string>
+#include <vector>
+
 #include <cert.h>
 #include <nss.h>
 #include <prerror.h>
@@ -567,9 +570,17 @@ SECOidTag GetFirstCertPolicy(X509Certificate::OSCertHandle cert_handle) {
   return SECOID_AddEntry(&od);
 }
 
-SHA1Fingerprint CertPublicKeyHash(CERTCertificate* cert) {
-  SHA1Fingerprint hash;
-  SECStatus rv = HASH_HashBuf(HASH_AlgSHA1, hash.data,
+HashValue CertPublicKeyHashSHA1(CERTCertificate* cert) {
+  HashValue hash(HASH_VALUE_SHA1);
+  SECStatus rv = HASH_HashBuf(HASH_AlgSHA1, hash.data(),
+                              cert->derPublicKey.data, cert->derPublicKey.len);
+  DCHECK_EQ(SECSuccess, rv);
+  return hash;
+}
+
+HashValue CertPublicKeyHashSHA256(CERTCertificate* cert) {
+  HashValue hash(HASH_VALUE_SHA256);
+  SECStatus rv = HASH_HashBuf(HASH_AlgSHA256, hash.data(),
                               cert->derPublicKey.data, cert->derPublicKey.len);
   DCHECK_EQ(rv, SECSuccess);
   return hash;
@@ -577,14 +588,17 @@ SHA1Fingerprint CertPublicKeyHash(CERTCertificate* cert) {
 
 void AppendPublicKeyHashes(CERTCertList* cert_list,
                            CERTCertificate* root_cert,
-                           std::vector<SHA1Fingerprint>* hashes) {
+                           HashValueVector* hashes) {
   for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
        !CERT_LIST_END(node, cert_list);
        node = CERT_LIST_NEXT(node)) {
-    hashes->push_back(CertPublicKeyHash(node->cert));
+    hashes->push_back(CertPublicKeyHashSHA1(node->cert));
+    hashes->push_back(CertPublicKeyHashSHA256(node->cert));
   }
-  if (root_cert)
-    hashes->push_back(CertPublicKeyHash(root_cert));
+  if (root_cert) {
+    hashes->push_back(CertPublicKeyHashSHA1(root_cert));
+    hashes->push_back(CertPublicKeyHashSHA256(root_cert));
+  }
 }
 
 // Returns true if |cert_handle| contains a policy OID that is an EV policy
@@ -672,7 +686,7 @@ bool VerifyEV(CERTCertificate* cert_handle,
       return false;
   }
 
-  SHA1Fingerprint fingerprint =
+  SHA1HashValue fingerprint =
       X509Certificate::CalculateFingerprint(root_ca);
   return metadata->HasEVPolicyOID(fingerprint, ev_policy_oid);
 }
