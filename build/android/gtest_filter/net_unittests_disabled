@@ -57,7 +57,8 @@ X509CertificateWeakDigestTest.*
 FtpDirectoryListingParserTest.*
 */X509CertificateWeakDigestTest.*
 TransportSecurityStateTest.BogusPinsHeaders
-TransportSecurityStateTest.ValidPinsHeaders
+TransportSecurityStateTest.ValidPinsHeadersSHA1
+TransportSecurityStateTest.ValidPinsHeadersSHA256
 HTTPSRequestTest.ResumeTest
 HTTPSRequestTest.SSLSessionCacheShardTest
 HTTPSRequestTest.HTTPSErrorsNoClobberTSSTest
