@@ -1727,7 +1727,7 @@ class SyncPageHandler(BasePageHandler):
                     self.ChromiumSyncBirthdayErrorOpHandler,
                     self.ChromiumSyncTransientErrorOpHandler,
                     self.ChromiumSyncErrorOpHandler,
-                    self.ChromiumSyncSyncTabsOpHandler,
+                    self.ChromiumSyncSyncTabFaviconsOpHandler,
                     self.ChromiumSyncCreateSyncedBookmarksOpHandler]
 
     post_handlers = [self.ChromiumSyncCommandHandler,
@@ -1916,11 +1916,11 @@ class SyncPageHandler(BasePageHandler):
     self.wfile.write(raw_reply)
     return True;
 
-  def ChromiumSyncSyncTabsOpHandler(self):
-    test_name = "/chromiumsync/synctabs"
+  def ChromiumSyncSyncTabFaviconsOpHandler(self):
+    test_name = "/chromiumsync/synctabfavicons"
     if not self._ShouldHandleRequest(test_name):
       return False
-    result, raw_reply = self.server._sync_handler.HandleSetSyncTabs()
+    result, raw_reply = self.server._sync_handler.HandleSetSyncTabFavicons()
     self.send_response(result)
     self.send_header('Content-Type', 'text/html')
     self.send_header('Content-Length', len(raw_reply))
