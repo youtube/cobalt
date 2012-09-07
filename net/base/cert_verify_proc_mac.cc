@@ -8,6 +8,9 @@
 #include <CoreServices/CoreServices.h>
 #include <Security/Security.h>
 
+#include <string>
+#include <vector>
+
 #include "base/logging.h"
 #include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
@@ -233,7 +236,7 @@ void GetCertChainInfo(CFArrayRef cert_chain,
 }
 
 void AppendPublicKeyHashes(CFArrayRef chain,
-                           std::vector<SHA1Fingerprint>* hashes) {
+                           HashValueVector* hashes) {
   const CFIndex n = CFArrayGetCount(chain);
   for (CFIndex i = 0; i < n; i++) {
     SecCertificateRef cert = reinterpret_cast<SecCertificateRef>(
@@ -248,9 +251,13 @@ void AppendPublicKeyHashes(CFArrayRef chain,
     if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki_bytes))
       continue;
 
-    SHA1Fingerprint hash;
-    CC_SHA1(spki_bytes.data(), spki_bytes.size(), hash.data);
-    hashes->push_back(hash);
+    HashValue sha1(HASH_VALUE_SHA1);
+    CC_SHA1(spki_bytes.data(), spki_bytes.size(), sha1.data());
+    hashes->push_back(sha1);
+
+    HashValue sha256(HASH_VALUE_SHA256);
+    CC_SHA256(spki_bytes.data(), spki_bytes.size(), sha256.data());
+    hashes->push_back(sha256);
   }
 }
 
@@ -327,7 +334,7 @@ bool IsIssuedByKnownRoot(CFArrayRef chain) {
     return false;
   SecCertificateRef root_ref = reinterpret_cast<SecCertificateRef>(
       const_cast<void*>(CFArrayGetValueAtIndex(chain, n - 1)));
-  SHA1Fingerprint hash = X509Certificate::CalculateFingerprint(root_ref);
+  SHA1HashValue hash = X509Certificate::CalculateFingerprint(root_ref);
   return IsSHA1HashInSortedArray(
       hash, &kKnownRootCertSHA1Hashes[0][0], sizeof(kKnownRootCertSHA1Hashes));
 }

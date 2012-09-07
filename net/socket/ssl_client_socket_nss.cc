@@ -2773,9 +2773,8 @@ bool SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->connection_status =
       core_->state().ssl_connection_status;
   ssl_info->public_key_hashes = server_cert_verify_result_.public_key_hashes;
-  for (std::vector<SHA1Fingerprint>::const_iterator
-       i = side_pinned_public_keys_.begin();
-       i != side_pinned_public_keys_.end(); i++) {
+  for (HashValueVector::const_iterator i = side_pinned_public_keys_.begin();
+       i != side_pinned_public_keys_.end(); ++i) {
     ssl_info->public_key_hashes.push_back(*i);
   }
   ssl_info->is_issued_by_known_root =

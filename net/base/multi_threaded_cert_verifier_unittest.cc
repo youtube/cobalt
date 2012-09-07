@@ -243,10 +243,10 @@ TEST_F(MultiThreadedCertVerifierTest, CancelRequestThenQuit) {
 }
 
 TEST_F(MultiThreadedCertVerifierTest, RequestParamsComparators) {
-  SHA1Fingerprint a_key;
+  SHA1HashValue a_key;
   memset(a_key.data, 'a', sizeof(a_key.data));
 
-  SHA1Fingerprint z_key;
+  SHA1HashValue z_key;
   memset(z_key.data, 'z', sizeof(z_key.data));
 
   struct {

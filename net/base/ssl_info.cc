@@ -30,6 +30,7 @@ SSLInfo& SSLInfo::operator=(const SSLInfo& info) {
   channel_id_sent = info.channel_id_sent;
   handshake_type = info.handshake_type;
   public_key_hashes = info.public_key_hashes;
+
   return *this;
 }
 
@@ -42,6 +43,7 @@ void SSLInfo::Reset() {
   client_cert_sent = false;
   channel_id_sent = false;
   handshake_type = HANDSHAKE_UNKNOWN;
+
   public_key_hashes.clear();
 }
 
