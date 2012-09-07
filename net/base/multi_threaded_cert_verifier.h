@@ -66,8 +66,8 @@ class NET_EXPORT_PRIVATE MultiThreadedCertVerifier
 
   // Input parameters of a certificate verification request.
   struct NET_EXPORT_PRIVATE RequestParams {
-    RequestParams(const SHA1Fingerprint& cert_fingerprint_arg,
-                  const SHA1Fingerprint& ca_fingerprint_arg,
+    RequestParams(const SHA1HashValue& cert_fingerprint_arg,
+                  const SHA1HashValue& ca_fingerprint_arg,
                   const std::string& hostname_arg,
                   int flags_arg);
 
@@ -88,8 +88,8 @@ class NET_EXPORT_PRIVATE MultiThreadedCertVerifier
       return hostname < other.hostname;
     }
 
-    SHA1Fingerprint cert_fingerprint;
-    SHA1Fingerprint ca_fingerprint;
+    SHA1HashValue cert_fingerprint;
+    SHA1HashValue ca_fingerprint;
     std::string hostname;
     int flags;
   };

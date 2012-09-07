@@ -71,8 +71,9 @@ class NET_EXPORT SSLInfo {
 
   HandshakeType handshake_type;
 
-  // The hashes of the SubjectPublicKeyInfos from each certificate in the chain.
-  std::vector<SHA1Fingerprint> public_key_hashes;
+  // The hashes, in several algorithms, of the SubjectPublicKeyInfos from
+  // each certificate in the chain.
+  HashValueVector public_key_hashes;
 };
 
 }  // namespace net

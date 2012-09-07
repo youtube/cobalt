@@ -461,8 +461,8 @@ void MultiThreadedCertVerifier::CancelRequest(RequestHandle req) {
 }
 
 MultiThreadedCertVerifier::RequestParams::RequestParams(
-    const SHA1Fingerprint& cert_fingerprint_arg,
-    const SHA1Fingerprint& ca_fingerprint_arg,
+    const SHA1HashValue& cert_fingerprint_arg,
+    const SHA1HashValue& ca_fingerprint_arg,
     const std::string& hostname_arg,
     int flags_arg)
     : cert_fingerprint(cert_fingerprint_arg),
