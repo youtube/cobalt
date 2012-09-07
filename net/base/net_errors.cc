@@ -49,10 +49,12 @@ Error PlatformFileErrorToNetError(
   switch (file_error) {
     case base::PLATFORM_FILE_OK:
       return net::OK;
-    case base::PLATFORM_FILE_ERROR_NOT_FOUND:
-      return net::ERR_FILE_NOT_FOUND;
     case base::PLATFORM_FILE_ERROR_ACCESS_DENIED:
       return net::ERR_ACCESS_DENIED;
+    case base::PLATFORM_FILE_ERROR_INVALID_URL:
+      return net::ERR_INVALID_URL;
+    case base::PLATFORM_FILE_ERROR_NOT_FOUND:
+      return net::ERR_FILE_NOT_FOUND;
     default:
       return net::ERR_FAILED;
   }
