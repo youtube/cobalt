@@ -13,6 +13,7 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
+#include "net/spdy/spdy_header_block.h"
 #include "net/spdy/spdy_websocket_stream.h"
 
 class GURL;
