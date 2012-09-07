@@ -27,6 +27,7 @@
 #include "net/socket/stream_socket.h"
 #include "net/spdy/buffered_spdy_framer.h"
 #include "net/spdy/spdy_credential_state.h"
+#include "net/spdy/spdy_header_block.h"
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
