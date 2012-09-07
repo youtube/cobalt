@@ -61,7 +61,12 @@ class NET_EXPORT HttpNetworkSession
     NetworkDelegate* network_delegate;
     HttpServerProperties* http_server_properties;
     NetLog* net_log;
+    HostMappingRules* host_mapping_rules;
     bool force_http_pipelining;
+    bool ignore_certificate_errors;
+    bool http_pipelining_enabled;
+    uint16 testing_fixed_http_port;
+    uint16 testing_fixed_https_port;
     std::string trusted_spdy_proxy;
   };
 
@@ -129,6 +134,10 @@ class NET_EXPORT HttpNetworkSession
 
   // Returns the original Params used to construct this session.
   const Params& params() const { return params_; }
+
+  void set_http_pipelining_enabled(bool enable) {
+    params_.http_pipelining_enabled = enable;
+  }
 
  private:
   friend class base::RefCounted<HttpNetworkSession>;

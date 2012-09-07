@@ -17,8 +17,6 @@ namespace net {
 // with |ResetStaticSettingsToInit|. This is critical for unit test isolation.
 
 // static
-const HostMappingRules* HttpStreamFactory::host_mapping_rules_ = NULL;
-// static
 std::vector<std::string>* HttpStreamFactory::next_protos_ = NULL;
 // static
 bool HttpStreamFactory::enabled_protocols_[NUM_ALTERNATE_PROTOCOLS];
@@ -32,31 +30,20 @@ bool HttpStreamFactory::force_spdy_over_ssl_ = true;
 bool HttpStreamFactory::force_spdy_always_ = false;
 // static
 std::list<HostPortPair>* HttpStreamFactory::forced_spdy_exclusions_ = NULL;
-// static
-bool HttpStreamFactory::ignore_certificate_errors_ = false;
-// static
-bool HttpStreamFactory::http_pipelining_enabled_ = false;
-// static
-uint16 HttpStreamFactory::testing_fixed_http_port_ = 0;
-// static
-uint16 HttpStreamFactory::testing_fixed_https_port_ = 0;
 
 HttpStreamFactory::~HttpStreamFactory() {}
 
 // static
 void HttpStreamFactory::ResetStaticSettingsToInit() {
   // WARNING: These must match the initializers above.
-  delete host_mapping_rules_;
   delete next_protos_;
   delete forced_spdy_exclusions_;
-  host_mapping_rules_ = NULL;
   next_protos_ = NULL;
   spdy_enabled_ = true;
   use_alternate_protocols_ = false;
   force_spdy_over_ssl_ = true;
   force_spdy_always_ = false;
   forced_spdy_exclusions_ = NULL;
-  ignore_certificate_errors_ = false;
   for (int i = 0; i < NUM_ALTERNATE_PROTOCOLS; ++i)
     enabled_protocols_[i] = false;
 }
@@ -100,7 +87,9 @@ void HttpStreamFactory::ProcessAlternateProtocol(
   }
 
   HostPortPair host_port(http_host_port_pair);
-  host_mapping_rules().RewriteHost(&host_port);
+  const HostMappingRules* mapping_rules = GetHostMappingRules();
+  if (mapping_rules)
+    mapping_rules->RewriteHost(&host_port);
 
   if (http_server_properties->HasAlternateProtocol(host_port)) {
     const PortAlternateProtocolPair existing_alternate =
@@ -115,7 +104,8 @@ void HttpStreamFactory::ProcessAlternateProtocol(
 
 GURL HttpStreamFactory::ApplyHostMappingRules(const GURL& url,
                                               HostPortPair* endpoint) {
-  if (host_mapping_rules().RewriteHost(endpoint)) {
+  const HostMappingRules* mapping_rules = GetHostMappingRules();
+  if (mapping_rules && mapping_rules->RewriteHost(endpoint)) {
     url_canon::Replacements<char> replacements;
     const std::string port_str = base::IntToString(endpoint->port());
     replacements.SetPort(port_str.c_str(),
@@ -202,21 +192,6 @@ void HttpStreamFactory::SetNextProtos(const std::vector<std::string>& value) {
   enabled_protocols_[NPN_SPDY_1] = false;
 }
 
-// static
-void HttpStreamFactory::SetHostMappingRules(const std::string& rules) {
-  HostMappingRules* host_mapping_rules = new HostMappingRules;
-  host_mapping_rules->SetRulesFromString(rules);
-  delete host_mapping_rules_;
-  host_mapping_rules_ = host_mapping_rules;
-}
-
 HttpStreamFactory::HttpStreamFactory() {}
-
-// static
-const HostMappingRules& HttpStreamFactory::host_mapping_rules() {
-  if (!host_mapping_rules_)
-    host_mapping_rules_ = new HostMappingRules;
-  return *host_mapping_rules_;
-}
 
 }  // namespace net
