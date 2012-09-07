@@ -20,6 +20,7 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_server_properties.h"
 #include "net/ftp/ftp_auth_cache.h"
 #include "net/url_request/url_request.h"
@@ -51,6 +52,9 @@ class NET_EXPORT URLRequestContext
 
   // Copies the state from |other| into this context.
   void CopyFrom(const URLRequestContext* other);
+
+  // May return NULL if this context doesn't have an associated network session.
+  const HttpNetworkSession::Params* GetNetworkSessionParams() const;
 
   URLRequest* CreateRequest(
       const GURL& url, URLRequest::Delegate* delegate) const;
