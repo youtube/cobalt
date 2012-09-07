@@ -25,6 +25,7 @@
 
 namespace net {
 
+class HostMappingRules;
 class ProxyConfigService;
 class URLRequestContext;
 
@@ -62,6 +63,19 @@ class NET_EXPORT URLRequestContextBuilder {
     FilePath path;
   };
 
+  struct NET_EXPORT HttpNetworkSessionParams {
+    HttpNetworkSessionParams();
+    ~HttpNetworkSessionParams();
+
+    // These fields mirror those in net::HttpNetworkSession::Params;
+    bool ignore_certificate_errors;
+    HostMappingRules* host_mapping_rules;
+    bool http_pipelining_enabled;
+    uint16 testing_fixed_http_port;
+    uint16 testing_fixed_https_port;
+    std::string trusted_spdy_proxy;
+  };
+
   URLRequestContextBuilder();
   ~URLRequestContextBuilder();
 
@@ -90,6 +104,12 @@ class NET_EXPORT URLRequestContextBuilder {
   void EnableHttpCache(const HttpCacheParams& params);
   void DisableHttpCache();
 
+  // Override default net::HttpNetworkSession::Params settings.
+  void set_http_network_session_params(
+      const HttpNetworkSessionParams& http_network_session_params) {
+    http_network_session_params_ = http_network_session_params;
+  }
+
   URLRequestContext* Build();
 
  private:
@@ -98,6 +118,7 @@ class NET_EXPORT URLRequestContextBuilder {
   HostResolverParams host_resolver_params_;
   bool http_cache_enabled_;
   HttpCacheParams http_cache_params_;
+  HttpNetworkSessionParams http_network_session_params_;
 #if defined(OS_LINUX)
   scoped_ptr<ProxyConfigService> proxy_config_service_;
 #endif  // defined(OS_LINUX)

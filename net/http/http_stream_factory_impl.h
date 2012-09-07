@@ -43,6 +43,7 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
                                  const SSLConfig& server_ssl_config,
                                  const SSLConfig& proxy_ssl_config) OVERRIDE;
   virtual base::Value* PipelineInfoToValue() const OVERRIDE;
+  virtual const HostMappingRules* GetHostMappingRules() const OVERRIDE;
 
   // HttpPipelinedHostPool::Delegate interface
   virtual void OnHttpPipelinedHostHasAdditionalCapacity(

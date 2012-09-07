@@ -181,6 +181,17 @@ URLRequestContextBuilder::HttpCacheParams::HttpCacheParams()
       max_size(0) {}
 URLRequestContextBuilder::HttpCacheParams::~HttpCacheParams() {}
 
+URLRequestContextBuilder::HttpNetworkSessionParams::HttpNetworkSessionParams()
+    : ignore_certificate_errors(false),
+      host_mapping_rules(NULL),
+      http_pipelining_enabled(false),
+      testing_fixed_http_port(0),
+      testing_fixed_https_port(0),
+      trusted_spdy_proxy() {}
+
+URLRequestContextBuilder::HttpNetworkSessionParams::~HttpNetworkSessionParams()
+{}
+
 URLRequestContextBuilder::URLRequestContextBuilder()
     : ftp_enabled_(false),
       http_cache_enabled_(true) {}
@@ -237,8 +248,38 @@ URLRequestContext* URLRequestContextBuilder::Build() {
   storage->set_http_server_properties(new net::HttpServerPropertiesImpl);
   storage->set_cert_verifier(CertVerifier::CreateDefault());
 
+  net::HttpNetworkSession::Params network_session_params;
+  network_session_params.host_resolver = host_resolver;
+  network_session_params.cert_verifier = context->cert_verifier();
+  network_session_params.transport_security_state =
+      context->transport_security_state();
+  network_session_params.proxy_service = context->proxy_service();
+  network_session_params.ssl_config_service =
+      context->ssl_config_service();
+  network_session_params.http_auth_handler_factory =
+      context->http_auth_handler_factory();
+  network_session_params.network_delegate =
+      context->network_delegate();
+  network_session_params.http_server_properties =
+      context->http_server_properties();
+  network_session_params.net_log = context->net_log();
+  network_session_params.ignore_certificate_errors =
+      http_network_session_params_.ignore_certificate_errors;
+  network_session_params.host_mapping_rules =
+      http_network_session_params_.host_mapping_rules;
+  network_session_params.http_pipelining_enabled =
+      http_network_session_params_.http_pipelining_enabled;
+  network_session_params.testing_fixed_http_port =
+      http_network_session_params_.testing_fixed_http_port;
+  network_session_params.testing_fixed_https_port =
+      http_network_session_params_.testing_fixed_https_port;
+  network_session_params.trusted_spdy_proxy =
+      http_network_session_params_.trusted_spdy_proxy;
+
   HttpTransactionFactory* http_transaction_factory = NULL;
   if (http_cache_enabled_) {
+    network_session_params.server_bound_cert_service =
+        context->server_bound_cert_service();
     HttpCache::BackendFactory* http_cache_backend = NULL;
     if (http_cache_params_.type == HttpCacheParams::DISK) {
       context->StartCacheThread();
@@ -251,36 +292,12 @@ URLRequestContext* URLRequestContextBuilder::Build() {
       http_cache_backend =
           HttpCache::DefaultBackend::InMemory(http_cache_params_.max_size);
     }
+
     http_transaction_factory = new HttpCache(
-        context->host_resolver(),
-        context->cert_verifier(),
-        context->server_bound_cert_service(),
-        context->transport_security_state(),
-        context->proxy_service(),
-        "",
-        context->ssl_config_service(),
-        context->http_auth_handler_factory(),
-        context->network_delegate(),
-        context->http_server_properties(),
-        context->net_log(),
-        http_cache_backend,
-        "" /* trusted_spdy_proxy */ );
+        network_session_params, http_cache_backend);
   } else {
-    HttpNetworkSession::Params session_params;
-    session_params.host_resolver = context->host_resolver();
-    session_params.cert_verifier = context->cert_verifier();
-    session_params.transport_security_state =
-        context->transport_security_state();
-    session_params.proxy_service = context->proxy_service();
-    session_params.ssl_config_service = context->ssl_config_service();
-    session_params.http_auth_handler_factory =
-        context->http_auth_handler_factory();
-    session_params.network_delegate = context->network_delegate();
-    session_params.http_server_properties =
-        context->http_server_properties();
-    session_params.net_log = context->net_log();
     scoped_refptr<net::HttpNetworkSession> network_session(
-        new net::HttpNetworkSession(session_params));
+        new net::HttpNetworkSession(network_session_params));
 
     http_transaction_factory = new HttpNetworkLayer(network_session);
   }
