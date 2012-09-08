@@ -5,6 +5,7 @@
 #include "base/message_pump_aurax11.h"
 
 #include <glib.h>
+#include <X11/X.h>
 #include <X11/extensions/XInput2.h>
 #include <X11/XKBlib.h>
 
@@ -48,6 +49,7 @@ GSourceFuncs XSourceFuncs = {
 // TODO(erg): This can be changed to something more sane like
 // MessagePumpAuraX11::Current()->display() once MessagePumpGtk goes away.
 Display* g_xdisplay = NULL;
+int g_xinput_opcode = -1;
 
 bool InitializeXInput2Internal() {
   Display* display = base::MessagePumpAuraX11::GetDefaultXDisplay();
@@ -61,6 +63,7 @@ bool InitializeXInput2Internal() {
     DVLOG(1) << "X Input extension not available.";
     return false;
   }
+  g_xinput_opcode = xiopcode;
 
 #if defined(USE_XI2_MT)
   // USE_XI2_MT also defines the required XI2 minor minimum version.
@@ -81,6 +84,15 @@ bool InitializeXInput2Internal() {
 #endif
 
   return true;
+}
+
+Window FindEventTarget(const base::NativeEvent& xev) {
+  Window target = xev->xany.window;
+  if (xev->type == GenericEvent &&
+      static_cast<XIEvent*>(xev->xcookie.data)->extension == g_xinput_opcode) {
+    target = static_cast<XIDeviceEvent*>(xev->xcookie.data)->event;
+  }
+  return target;
 }
 
 bool InitializeXInput2() {
@@ -273,11 +285,7 @@ void MessagePumpAuraX11::DidProcessXEvent(XEvent* xevent) {
 
 MessagePumpDispatcher* MessagePumpAuraX11::GetDispatcherForXEvent(
     const base::NativeEvent& xev) const {
-  ::Window x_window = xev->xany.window;
-  if (xev->type == GenericEvent) {
-    XIDeviceEvent* xievent = static_cast<XIDeviceEvent*>(xev->xcookie.data);
-    x_window = xievent->event;
-  }
+  ::Window x_window = FindEventTarget(xev);
   DispatchersMap::const_iterator it = dispatchers_.find(x_window);
   return it != dispatchers_.end() ? it->second : NULL;
 }
@@ -293,7 +301,8 @@ bool MessagePumpAuraX11::Dispatch(const base::NativeEvent& xev) {
     }
     return true;
   }
-  if (xev->xany.window == x_root_window_) {
+
+  if (FindEventTarget(xev) == x_root_window_) {
     for (Dispatchers::const_iterator it = root_window_dispatchers_.begin();
          it != root_window_dispatchers_.end();
          ++it) {
