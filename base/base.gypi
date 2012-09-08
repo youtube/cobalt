@@ -509,6 +509,8 @@
           'win/startup_information.h',
           'win/scoped_variant.cc',
           'win/scoped_variant.h',
+          'win/text_services_message_filter.cc',
+          'win/text_services_message_filter.h',
           'win/windows_version.cc',
           'win/windows_version.h',
           'win/win_util.cc',

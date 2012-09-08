@@ -11,6 +11,7 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_pump.h"
 #include "base/message_pump_dispatcher.h"
 #include "base/message_pump_observer.h"
@@ -126,11 +127,43 @@ class BASE_EXPORT MessagePumpWin : public MessagePump {
 //
 class BASE_EXPORT MessagePumpForUI : public MessagePumpWin {
  public:
+  // A MessageFilter implements the common Peek/Translate/Dispatch code to deal
+  // with windows messages.
+  // This abstraction is used to inject TSF message peeking. See
+  // TextServicesMessageFilter.
+  class BASE_EXPORT MessageFilter {
+   public:
+    virtual ~MessageFilter() {}
+    // Implements the functionality exposed by the OS through PeekMessage.
+    virtual BOOL DoPeekMessage(MSG* msg,
+                               HWND window_handle,
+                               UINT msg_filter_min,
+                               UINT msg_filter_max,
+                               UINT remove_msg) {
+      return PeekMessage(msg, window_handle, msg_filter_min, msg_filter_max,
+                         remove_msg);
+    }
+    // Returns true if |message| was consumed by the filter and no extra
+    // processing is required. If this method returns false, it is the
+    // responsibility of the caller to ensure that normal processing takes
+    // place.
+    // The priority to consume messages is the following:
+    // - Native Windows' message filter (CallMsgFilter).
+    // - MessageFilter::ProcessMessage.
+    // - MessagePumpDispatcher.
+    // - TranslateMessage / DispatchMessage.
+    virtual bool ProcessMessage(const MSG& msg) { return false;}
+  };
   // The application-defined code passed to the hook procedure.
   static const int kMessageFilterCode = 0x5001;
 
   MessagePumpForUI();
   virtual ~MessagePumpForUI();
+
+  // Sets a new MessageFilter. MessagePumpForUI takes ownership of
+  // |message_filter|. When SetMessageFilter is called, old MessageFilter is
+  // deleted.
+  void SetMessageFilter(scoped_ptr<MessageFilter> message_filter);
 
   // MessagePump methods:
   virtual void ScheduleWork();
@@ -142,8 +175,10 @@ class BASE_EXPORT MessagePumpForUI : public MessagePumpWin {
   void PumpOutPendingPaintMessages();
 
  private:
-  static LRESULT CALLBACK WndProcThunk(
-      HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
+  static LRESULT CALLBACK WndProcThunk(HWND window_handle,
+                                       UINT message,
+                                       WPARAM wparam,
+                                       LPARAM lparam);
   virtual void DoRunLoop();
   void InitMessageWnd();
   void WaitForWork();
@@ -158,6 +193,8 @@ class BASE_EXPORT MessagePumpForUI : public MessagePumpWin {
 
   // A hidden message-only window.
   HWND message_hwnd_;
+
+  scoped_ptr<MessageFilter> message_filter_;
 };
 
 //-----------------------------------------------------------------------------
