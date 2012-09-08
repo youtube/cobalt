@@ -80,6 +80,11 @@ std::string SysInfo::CPUArchitecture() {
 }
 
 // static
+std::string SysInfo::CPUModelName() {
+  return win::OSInfo::GetInstance()->processor_model_name();
+}
+
+// static
 size_t SysInfo::VMAllocationGranularity() {
   return win::OSInfo::GetInstance()->allocation_granularity();
 }
