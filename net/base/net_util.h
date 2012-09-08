@@ -47,6 +47,17 @@ namespace net {
 typedef uint32 FormatUrlType;
 typedef uint32 FormatUrlTypes;
 
+// IPAddressNumber is used to represent an IP address's numeric value as an
+// array of bytes, from most significant to least significant. This is the
+// network byte ordering.
+//
+// IPv4 addresses will have length 4, whereas IPv6 address will have length 16.
+typedef std::vector<unsigned char> IPAddressNumber;
+typedef std::vector<IPAddressNumber> IPAddressList;
+
+static const size_t kIPv4AddressSize = 4;
+static const size_t kIPv6AddressSize = 16;
+
 // Nothing is ommitted.
 NET_EXPORT extern const FormatUrlType kFormatUrlOmitNothing;
 
@@ -108,16 +119,39 @@ struct SockaddrStorage {
   struct sockaddr* const addr;
 };
 
-// Returns the string representation of an address, like "192.168.0.1".
-// Returns empty string on failure.
+// Extracts the IP address and port portions of a sockaddr.
+bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
+                              socklen_t sock_addr_len,
+                              const unsigned char** address,
+                              size_t* address_len,
+                              uint16* port);
+
+// Returns the string representation of an IP address.
+// For example: "192.168.0.1" or "::1".
+NET_EXPORT std::string IPAddressToString(const uint8* address,
+                                         size_t address_len);
+
+// Returns the string representation of an IP address along with its port.
+// For example: "192.168.0.1:99" or "[::1]:80".
+NET_EXPORT std::string IPAddressToStringWithPort(const uint8* address,
+                                                 size_t address_len,
+                                                 uint16 port);
+
+// Same as IPAddressToString() but for a sockaddr.
 NET_EXPORT std::string NetAddressToString(const struct sockaddr* net_address,
                                           socklen_t address_len);
 
-// Same as NetAddressToString, but additionally includes the port number. For
-// example: "192.168.0.1:99" or "[::1]:80".
+// Same as IPAddressToStringWithPort() but for a sockaddr.
 NET_EXPORT std::string NetAddressToStringWithPort(
     const struct sockaddr* net_address,
     socklen_t address_len);
+
+// Same as IPAddressToString() but for an IPAddressNumber.
+NET_EXPORT std::string IPAddressToString(const IPAddressNumber& addr);
+
+// Same as IPAddressToStringWithPort() but for an IPAddressNumber.
+NET_EXPORT std::string IPAddressToStringWithPort(
+    const IPAddressNumber& addr, uint16 port);
 
 // Returns the hostname of the current system. Returns empty string on failure.
 NET_EXPORT std::string GetHostName();
@@ -402,17 +436,6 @@ NET_EXPORT IPv6SupportResult TestIPv6Support();
 // i.e. if only 127.0.0.1 and ::1 are routable.
 // Also returns false if it cannot determine this.
 bool HaveOnlyLoopbackAddresses();
-
-// IPAddressNumber is used to represent an IP address's numeric value as an
-// array of bytes, from most significant to least significant. This is the
-// network byte ordering.
-//
-// IPv4 addresses will have length 4, whereas IPv6 address will have length 16.
-typedef std::vector<unsigned char> IPAddressNumber;
-typedef std::vector<IPAddressNumber> IPAddressList;
-
-static const size_t kIPv4AddressSize = 4;
-static const size_t kIPv6AddressSize = 16;
 
 // Parses an IP address literal (either IPv4 or IPv6) to its numeric value.
 // Returns true on success and fills |ip_number| with the numeric value.

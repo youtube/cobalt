@@ -163,10 +163,6 @@ TEST_F(IPEndPointTest, ToString) {
     int port = 100 + index;
     IPEndPoint endpoint(tests[index].ip_address, port);
     const std::string result = endpoint.ToString();
-    if (tests[index].ipv6 && result.empty()) {
-      // NetAddressToStringWithPort may fail on systems without IPv6.
-      continue;
-    }
     EXPECT_EQ(tests[index].host_normalized + ":" + base::IntToString(port),
               result);
   }
