@@ -16,6 +16,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/test_completion_callback.h"
+#include "net/http/http_network_session.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/socket_test_util.h"
 #include "net/url_request/url_request_test_util.h"
@@ -433,6 +434,119 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
   EXPECT_EQ(SocketStreamEvent::EVENT_CLOSE, events[4].event_type);
 
   // TODO(eroman): Add back NetLogTest here...
+}
+
+TEST_F(SocketStreamTest, BasicAuthProxyWithAuthCache) {
+  MockClientSocketFactory mock_socket_factory;
+  MockWrite data_writes[] = {
+    // WebSocket(SocketStream) always uses CONNECT when it is configured to use
+    // proxy so the port may not be 443.
+    MockWrite("CONNECT example.com:80 HTTP/1.1\r\n"
+              "Host: example.com\r\n"
+              "Proxy-Connection: keep-alive\r\n"
+              "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+  };
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 Connection Established\r\n"),
+    MockRead("Proxy-agent: Apache/2.2.8\r\n"),
+    MockRead("\r\n"),
+    MockRead(ASYNC, ERR_IO_PENDING)
+  };
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads),
+                                 data_writes, arraysize(data_writes));
+  mock_socket_factory.AddSocketDataProvider(&data);
+
+  TestCompletionCallback test_callback;
+  scoped_ptr<SocketStreamEventRecorder> delegate(
+      new SocketStreamEventRecorder(test_callback.callback()));
+  delegate->SetOnConnected(base::Bind(&SocketStreamEventRecorder::DoClose,
+                                      base::Unretained(delegate.get())));
+
+  scoped_refptr<SocketStream> socket_stream(
+      new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
+
+  TestURLRequestContextWithProxy context("myproxy:70");
+  HttpAuthCache* auth_cache =
+      context.http_transaction_factory()->GetSession()->http_auth_cache();
+  auth_cache->Add(GURL("http://myproxy:70"),
+                  "MyRealm1",
+                  HttpAuth::AUTH_SCHEME_BASIC,
+                  "Basic realm=MyRealm1",
+                  AuthCredentials(ASCIIToUTF16("foo"),
+                                  ASCIIToUTF16("bar")),
+                  "/");
+
+  socket_stream->set_context(&context);
+  socket_stream->SetClientSocketFactory(&mock_socket_factory);
+
+  socket_stream->Connect();
+
+  test_callback.WaitForResult();
+
+  const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
+  ASSERT_EQ(4U, events.size());
+  EXPECT_EQ(SocketStreamEvent::EVENT_START_OPEN_CONNECTION,
+            events[0].event_type);
+  EXPECT_EQ(SocketStreamEvent::EVENT_CONNECTED, events[1].event_type);
+  EXPECT_EQ(net::ERR_ABORTED, events[2].error_code);
+  EXPECT_EQ(SocketStreamEvent::EVENT_CLOSE, events[3].event_type);
+}
+
+TEST_F(SocketStreamTest, WSSBasicAuthProxyWithAuthCache) {
+  MockClientSocketFactory mock_socket_factory;
+  MockWrite data_writes1[] = {
+    MockWrite("CONNECT example.com:443 HTTP/1.1\r\n"
+              "Host: example.com\r\n"
+              "Proxy-Connection: keep-alive\r\n"
+              "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+  };
+  MockRead data_reads1[] = {
+    MockRead("HTTP/1.1 200 Connection Established\r\n"),
+    MockRead("Proxy-agent: Apache/2.2.8\r\n"),
+    MockRead("\r\n"),
+    MockRead(ASYNC, ERR_IO_PENDING)
+  };
+  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                 data_writes1, arraysize(data_writes1));
+  mock_socket_factory.AddSocketDataProvider(&data1);
+
+  SSLSocketDataProvider data2(ASYNC, OK);
+  mock_socket_factory.AddSSLSocketDataProvider(&data2);
+
+  TestCompletionCallback test_callback;
+  scoped_ptr<SocketStreamEventRecorder> delegate(
+      new SocketStreamEventRecorder(test_callback.callback()));
+  delegate->SetOnConnected(base::Bind(&SocketStreamEventRecorder::DoClose,
+                                      base::Unretained(delegate.get())));
+
+  scoped_refptr<SocketStream> socket_stream(
+      new SocketStream(GURL("wss://example.com/demo"), delegate.get()));
+
+  TestURLRequestContextWithProxy context("myproxy:70");
+  HttpAuthCache* auth_cache =
+      context.http_transaction_factory()->GetSession()->http_auth_cache();
+  auth_cache->Add(GURL("http://myproxy:70"),
+                  "MyRealm1",
+                  HttpAuth::AUTH_SCHEME_BASIC,
+                  "Basic realm=MyRealm1",
+                  AuthCredentials(ASCIIToUTF16("foo"),
+                                  ASCIIToUTF16("bar")),
+                  "/");
+
+  socket_stream->set_context(&context);
+  socket_stream->SetClientSocketFactory(&mock_socket_factory);
+
+  socket_stream->Connect();
+
+  test_callback.WaitForResult();
+
+  const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
+  ASSERT_EQ(4U, events.size());
+  EXPECT_EQ(SocketStreamEvent::EVENT_START_OPEN_CONNECTION,
+            events[0].event_type);
+  EXPECT_EQ(SocketStreamEvent::EVENT_CONNECTED, events[1].event_type);
+  EXPECT_EQ(net::ERR_ABORTED, events[2].error_code);
+  EXPECT_EQ(SocketStreamEvent::EVENT_CLOSE, events[3].event_type);
 }
 
 TEST_F(SocketStreamTest, IOPending) {
