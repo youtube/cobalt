@@ -480,10 +480,66 @@ TEST_F(TimeTest, ExplodeBeforeUnixEpoch) {
 }
 
 TEST_F(TimeTest, Max) {
-  EXPECT_EQ(base::Time::Max(), base::Time::Max());
-  EXPECT_GT(base::Time::Max(), base::Time::Now());
-  EXPECT_GT(base::Time::Max(), base::Time());
+  Time max = Time::Max();
+  EXPECT_TRUE(max.is_max());
+  EXPECT_EQ(max, Time::Max());
+  EXPECT_GT(max, Time::Now());
+  EXPECT_GT(max, Time());
 }
+
+TEST_F(TimeTest, MaxConversions) {
+  Time t = Time::Max();
+  EXPECT_EQ(std::numeric_limits<int64>::max(), t.ToInternalValue());
+
+  t = Time::FromDoubleT(std::numeric_limits<double>::max());
+  EXPECT_TRUE(t.is_max());
+  EXPECT_EQ(std::numeric_limits<double>::max(), t.ToDoubleT());
+
+  t = Time::FromJsTime(std::numeric_limits<double>::max());
+  EXPECT_TRUE(t.is_max());
+  EXPECT_EQ(std::numeric_limits<double>::max(), t.ToJsTime());
+
+  t = Time::FromTimeT(std::numeric_limits<time_t>::max());
+  EXPECT_TRUE(t.is_max());
+  EXPECT_EQ(std::numeric_limits<time_t>::max(), t.ToTimeT());
+
+#if defined(OS_POSIX)
+  struct timeval tval;
+  tval.tv_sec = std::numeric_limits<time_t>::max();
+  tval.tv_usec = static_cast<suseconds_t>(Time::kMicrosecondsPerSecond) - 1;
+  t = Time::FromTimeVal(tval);
+  EXPECT_TRUE(t.is_max());
+  tval = t.ToTimeVal();
+  EXPECT_EQ(std::numeric_limits<time_t>::max(), tval.tv_sec);
+  EXPECT_EQ(static_cast<suseconds_t>(Time::kMicrosecondsPerSecond) - 1,
+      tval.tv_usec);
+#endif
+
+#if defined(OS_MACOSX)
+  t = Time::FromCFAbsoluteTime(std::numeric_limits<CFAbsoluteTime>::max());
+  EXPECT_TRUE(t.is_max());
+  EXPECT_EQ(std::numeric_limits<CFAbsoluteTime>::max(), t.ToCFAbsoluteTime());
+#endif
+
+#if defined(OS_WIN)
+  FILETIME ftime;
+  ftime.dwHighDateTime = std::numeric_limits<DWORD>::max();
+  ftime.dwLowDateTime = std::numeric_limits<DWORD>::max();
+  t = Time::FromFileTime(ftime);
+  EXPECT_TRUE(t.is_max());
+  ftime = t.ToFileTime();
+  EXPECT_EQ(std::numeric_limits<DWORD>::max(), ftime.dwHighDateTime);
+  EXPECT_EQ(std::numeric_limits<DWORD>::max(), ftime.dwLowDateTime);
+#endif
+}
+
+#if defined(OS_MACOSX)
+TEST_F(TimeTest, TimeTOverflow) {
+  Time t = Time::FromInternalValue(std::numeric_limits<int64>::max() - 1);
+  EXPECT_FALSE(t.is_max());
+  EXPECT_EQ(std::numeric_limits<time_t>::max(), t.ToTimeT());
+}
+#endif
 
 TEST(TimeTicks, Deltas) {
   for (int index = 0; index < 50; index++) {
