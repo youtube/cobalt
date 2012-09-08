@@ -45,6 +45,8 @@
 #include <windows.h>
 #endif
 
+#include <limits>
+
 namespace base {
 
 class Time;
@@ -244,6 +246,11 @@ class BASE_EXPORT Time {
   // Returns true if the time object has not been initialized.
   bool is_null() const {
     return us_ == 0;
+  }
+
+  // Returns true if the time object is the maximum time.
+  bool is_max() const {
+    return us_ == std::numeric_limits<int64>::max();
   }
 
   // Returns the time for epoch in Unix-like system (Jan 1, 1970).
