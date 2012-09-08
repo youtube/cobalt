@@ -2254,6 +2254,29 @@ TEST(NetUtilTest, GetHostAndOptionalPort) {
   }
 }
 
+TEST(NetUtilTest, IPAddressToString) {
+  uint8 addr1[4] = {0, 0, 0, 0};
+  EXPECT_EQ("0.0.0.0", IPAddressToString(addr1, sizeof(addr1)));
+
+  uint8 addr2[4] = {192, 168, 0, 1};
+  EXPECT_EQ("192.168.0.1", IPAddressToString(addr2, sizeof(addr2)));
+
+  uint8 addr3[16] = {0xFE, 0xDC, 0xBA, 0x98};
+  EXPECT_EQ("fedc:ba98::", IPAddressToString(addr3, sizeof(addr3)));
+}
+
+TEST(NetUtilTest, IPAddressToStringWithPort) {
+  uint8 addr1[4] = {0, 0, 0, 0};
+  EXPECT_EQ("0.0.0.0:3", IPAddressToStringWithPort(addr1, sizeof(addr1), 3));
+
+  uint8 addr2[4] = {192, 168, 0, 1};
+  EXPECT_EQ("192.168.0.1:99",
+            IPAddressToStringWithPort(addr2, sizeof(addr2), 99));
+
+  uint8 addr3[16] = {0xFE, 0xDC, 0xBA, 0x98};
+  EXPECT_EQ("[fedc:ba98::]:8080",
+            IPAddressToStringWithPort(addr3, sizeof(addr3), 8080));
+}
 
 TEST(NetUtilTest, NetAddressToString_IPv4) {
   const struct {
