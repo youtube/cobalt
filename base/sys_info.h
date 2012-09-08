@@ -55,6 +55,10 @@ class BASE_EXPORT SysInfo {
   // across platforms.
   static std::string CPUArchitecture();
 
+  // Returns the CPU model name of the system. If it can not be figured out,
+  // an empty string is returned.
+  static std::string CPUModelName();
+
   // Return the smallest amount of memory (in bytes) which the VM system will
   // allocate.
   static size_t VMAllocationGranularity();

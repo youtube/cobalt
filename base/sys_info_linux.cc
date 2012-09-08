@@ -46,4 +46,23 @@ size_t SysInfo::MaxSharedMemorySize() {
   return static_cast<size_t>(limit);
 }
 
+// static
+std::string SysInfo::CPUModelName() {
+  const char kModelNamePrefix[] = "model name";
+  std::string contents;
+  file_util::ReadFileToString(FilePath("/proc/cpuinfo"), &contents);
+  DCHECK(!contents.empty());
+  if (!contents.empty()) {
+    std::istringstream iss(contents);
+    std::string line;
+    while (std::getline(iss, line)){
+      if (line.compare(0, strlen(kModelNamePrefix), kModelNamePrefix) == 0) {
+        size_t pos = line.find(": ");
+        return line.substr(pos + 2);
+      }
+    }
+  }
+  return std::string();
+}
+
 }  // namespace base
