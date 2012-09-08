@@ -19,9 +19,6 @@
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service.h"
-#include "net/http/http_auth.h"
-#include "net/http/http_auth_cache.h"
-#include "net/http/http_auth_handler.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/url_request/url_request.h"
@@ -33,7 +30,7 @@ class AuthChallengeInfo;
 class ClientSocketFactory;
 class CookieOptions;
 class HostResolver;
-class HttpAuthHandlerFactory;
+class HttpAuthController;
 class SSLConfigService;
 class SSLInfo;
 class SingleRequestHostResolver;
@@ -230,6 +227,8 @@ class NET_EXPORT SocketStream
     STATE_RESOLVE_PROTOCOL_COMPLETE,
     STATE_TCP_CONNECT,
     STATE_TCP_CONNECT_COMPLETE,
+    STATE_GENERATE_PROXY_AUTH_TOKEN,
+    STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE,
     STATE_WRITE_TUNNEL_HEADERS,
     STATE_WRITE_TUNNEL_HEADERS_COMPLETE,
     STATE_READ_TUNNEL_HEADERS,
@@ -288,6 +287,8 @@ class NET_EXPORT SocketStream
   int DoResolveProtocolComplete(int result);
   int DoTcpConnect(int result);
   int DoTcpConnectComplete(int result);
+  int DoGenerateProxyAuthToken();
+  int DoGenerateProxyAuthTokenComplete(int result);
   int DoWriteTunnelHeaders();
   int DoWriteTunnelHeadersComplete(int result);
   int DoReadTunnelHeaders();
@@ -328,7 +329,6 @@ class NET_EXPORT SocketStream
   HostResolver* host_resolver_;
   CertVerifier* cert_verifier_;
   ServerBoundCertService* server_bound_cert_service_;
-  HttpAuthHandlerFactory* http_auth_handler_factory_;
   ClientSocketFactory* factory_;
 
   ProxyMode proxy_mode_;
@@ -337,10 +337,7 @@ class NET_EXPORT SocketStream
   ProxyService::PacRequest* pac_request_;
   ProxyInfo proxy_info_;
 
-  HttpAuthCache auth_cache_;
-  scoped_ptr<HttpAuthHandler> auth_handler_;
-  HttpAuth::Identity auth_identity_;
-  scoped_refptr<AuthChallengeInfo> auth_info_;
+  scoped_refptr<HttpAuthController> proxy_auth_controller_;
 
   scoped_refptr<RequestHeaders> tunnel_request_headers_;
   size_t tunnel_request_headers_bytes_sent_;

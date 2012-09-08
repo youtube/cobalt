@@ -243,6 +243,9 @@ bool LocalTestServer::AddCommandLineArguments(CommandLine* command_line) const {
     case TYPE_UDP_ECHO:
       command_line->AppendArg("--udp-echo");
       break;
+    case TYPE_BASIC_AUTH_PROXY:
+      command_line->AppendArg("--basic-auth-proxy");
+      break;
     case TYPE_GDATA:
       command_line->AppendArg(
           std::string("--auth-token") + "=" + BaseTestServer::kGDataAuthToken);

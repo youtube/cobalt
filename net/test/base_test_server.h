@@ -31,6 +31,7 @@ class BaseTestServer {
   typedef std::pair<std::string, std::string> StringPair;
 
   enum Type {
+    TYPE_BASIC_AUTH_PROXY,
     TYPE_FTP,
     TYPE_GDATA,
     TYPE_HTTP,
