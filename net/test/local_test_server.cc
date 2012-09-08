@@ -105,6 +105,10 @@ bool LocalTestServer::Start() {
   if (!SetPythonPath())
     return false;
 
+  // Ensures that python testserver output, if any, will not clash with
+  // post-test gtest output.
+  EnablePythonUnbufferedMode();
+
   if (!LaunchPython(testserver_path))
     return false;
 
