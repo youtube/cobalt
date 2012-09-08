@@ -141,10 +141,23 @@ Time Time::NowFromSystemTime() {
 
 // static
 Time Time::FromFileTime(FILETIME ft) {
+  if (bit_cast<int64, FILETIME>(ft) == 0)
+    return Time();
+  if (ft.dwHighDateTime == std::numeric_limits<DWORD>::max() &&
+      ft.dwLowDateTime == std::numeric_limits<DWORD>::max())
+    return Max();
   return Time(FileTimeToMicroseconds(ft));
 }
 
 FILETIME Time::ToFileTime() const {
+  if (is_null())
+    return bit_cast<FILETIME, int64>(0);
+  if (is_max()) {
+    FILETIME result;
+    result.dwHighDateTime = std::numeric_limits<DWORD>::max();
+    result.dwLowDateTime = std::numeric_limits<DWORD>::max();
+    return result;
+  }
   FILETIME utc_ft;
   MicrosecondsToFileTime(us_, &utc_ft);
   return utc_ft;
