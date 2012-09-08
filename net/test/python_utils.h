@@ -12,9 +12,6 @@ class FilePath;
 // This is the python path variable name.
 extern const char kPythonPathEnv[];
 
-// This is the python unbuffered variable name.
-extern const char kPythonUnbufferedEnv[];
-
 // Appends the dir to python path environment variable.
 void AppendToPythonPath(const FilePath& dir);
 
@@ -23,10 +20,5 @@ bool GetPyProtoPath(FilePath* dir);
 
 // Returns the path that should be used to launch Python.
 bool GetPythonRunTime(FilePath* path) WARN_UNUSED_RESULT;
-
-// Sets the environment variable that forces python console output to be
-// unbuffered. Used so that buffered logs don't interfere with gtest logs after
-// a test has been run.
-void EnablePythonUnbufferedMode();
 
 #endif  // NET_TEST_PYTHON_UTILS_H_
