@@ -537,6 +537,10 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 //
 class BASE_EXPORT MessageLoopForUI : public MessageLoop {
  public:
+#if defined(OS_WIN)
+  typedef base::MessagePumpForUI::MessageFilter MessageFilter;
+#endif
+
   MessageLoopForUI() : MessageLoop(TYPE_UI) {
   }
 
@@ -569,6 +573,13 @@ class BASE_EXPORT MessageLoopForUI : public MessageLoop {
   // methods.
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
+
+#if defined(OS_WIN)
+  // Plese see MessagePumpForUI for definitions of this method.
+  void SetMessageFilter(scoped_ptr<MessageFilter> message_filter) {
+    pump_ui()->SetMessageFilter(message_filter.Pass());
+  }
+#endif
 
  protected:
 #if defined(USE_AURA) && defined(USE_X11) && !defined(OS_NACL)
