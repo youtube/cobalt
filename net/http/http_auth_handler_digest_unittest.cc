@@ -632,6 +632,34 @@ TEST(HttpAuthHandlerDigest, RespondToProxyChallengeHttps) {
             auth_token);
 }
 
+TEST(HttpAuthHandlerDigest, RespondToProxyChallengeWs) {
+  std::string auth_token;
+  EXPECT_TRUE(RespondToChallenge(
+      HttpAuth::AUTH_PROXY,
+      "http://proxy.intranet.corp.com:3128",
+      "ws://www.example.com/echo",
+      kSimpleChallenge,
+      &auth_token));
+  EXPECT_EQ("Digest username=\"foo\", realm=\"Oblivion\", "
+            "nonce=\"nonce-value\", uri=\"www.example.com:80\", "
+            "response=\"aa1df184f68d5b6ab9d9aa4f88e41b4c\"",
+            auth_token);
+}
+
+TEST(HttpAuthHandlerDigest, RespondToProxyChallengeWss) {
+  std::string auth_token;
+  EXPECT_TRUE(RespondToChallenge(
+      HttpAuth::AUTH_PROXY,
+      "http://proxy.intranet.corp.com:3128",
+      "wss://www.example.com/echo",
+      kSimpleChallenge,
+      &auth_token));
+  EXPECT_EQ("Digest username=\"foo\", realm=\"Oblivion\", "
+            "nonce=\"nonce-value\", uri=\"www.example.com:443\", "
+            "response=\"3270da8467afbe9ddf2334a48d46e9b9\"",
+            auth_token);
+}
+
 TEST(HttpAuthHandlerDigest, RespondToChallengeAuthQop) {
   std::string auth_token;
   EXPECT_TRUE(RespondToChallenge(

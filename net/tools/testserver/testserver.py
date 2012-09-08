@@ -64,6 +64,7 @@ SERVER_FTP = 1
 SERVER_SYNC = 2
 SERVER_TCP_ECHO = 3
 SERVER_UDP_ECHO = 4
+SERVER_BASIC_AUTH_PROXY = 5
 
 # Using debug() seems to cause hangs on XP: see http://crbug.com/64515 .
 debug_output = sys.stderr
@@ -2019,6 +2020,115 @@ class UDPEchoHandler(SocketServer.BaseRequestHandler):
     socket.sendto(return_data, self.client_address)
 
 
+class BasicAuthProxyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+  """A request handler that behaves as a proxy server which requires
+  basic authentication. Only CONNECT, GET and HEAD is supported for now.
+  """
+
+  _AUTH_CREDENTIAL = 'Basic Zm9vOmJhcg==' # foo:bar
+
+  def parse_request(self):
+    """Overrides parse_request to check credential."""
+
+    if not BaseHTTPServer.BaseHTTPRequestHandler.parse_request(self):
+      return False
+
+    auth = self.headers.getheader('Proxy-Authorization')
+    if auth != self._AUTH_CREDENTIAL:
+      self.send_response(407)
+      self.send_header('Proxy-Authenticate', 'Basic realm="MyRealm1"')
+      self.end_headers()
+      return False
+
+    return True
+
+  def _start_read_write(self, sock):
+    sock.setblocking(0)
+    self.request.setblocking(0)
+    rlist = [self.request, sock]
+    while True:
+      ready_sockets, unused, errors = select.select(rlist, [], [])
+      if errors:
+        self.send_response(500)
+        self.end_headers()
+        return
+      for s in ready_sockets:
+        received = s.recv(1024)
+        if len(received) == 0:
+          return
+        if s == self.request:
+          other = sock
+        else:
+          other = self.request
+        other.send(received)
+
+  def _do_common_method(self):
+    url = urlparse.urlparse(self.path)
+    port = url.port
+    if not port:
+      if url.scheme == 'http':
+        port = 80
+      elif url.scheme == 'https':
+        port = 443
+    if not url.hostname or not port:
+      self.send_response(400)
+      self.end_headers()
+      return
+
+    if len(url.path) == 0:
+      path = '/'
+    else:
+      path = url.path
+    if len(url.query) > 0:
+      path = '%s?%s' % (url.path, url.query)
+
+    sock = None
+    try:
+      sock = socket.create_connection((url.hostname, port))
+      sock.send('%s %s %s\r\n' % (
+          self.command, path, self.protocol_version))
+      for header in self.headers.headers:
+        header = header.strip()
+        if (header.lower().startswith('connection') or
+            header.lower().startswith('proxy')):
+          continue
+        sock.send('%s\r\n' % header)
+      sock.send('\r\n')
+      self._start_read_write(sock)
+    except:
+      self.send_response(500)
+      self.end_headers()
+    finally:
+      if sock is not None:
+        sock.close()
+
+  def do_CONNECT(self):
+    try:
+      pos = self.path.rfind(':')
+      host = self.path[:pos]
+      port = int(self.path[pos+1:])
+    except:
+      self.send_response(400)
+      self.end_headers()
+
+    try:
+      sock = socket.create_connection((host, port))
+      self.send_response(200, 'Connection established')
+      self.end_headers()
+      self._start_read_write(sock)
+    except:
+      self.send_response(500)
+      self.end_headers()
+    finally:
+      sock.close()
+
+  def do_GET(self):
+    self._do_common_method()
+
+  def do_HEAD(self):
+    self._do_common_method()
+
+
 class FileMultiplexer:
   def __init__(self, fd1, fd2) :
     self.__fd1 = fd1
@@ -2137,6 +2247,10 @@ def main(options, args):
     server = UDPEchoServer((host, port), UDPEchoHandler)
     print 'Echo UDP server started on port %d...' % server.server_port
     server_data['port'] = server.server_port
+  elif options.server_type == SERVER_BASIC_AUTH_PROXY:
+    server = HTTPServer((host, port), BasicAuthProxyRequestHandler)
+    print 'BasicAuthProxy server started on port %d...' % server.server_port
+    server_data['port'] = server.server_port
   # means FTP Server
   else:
     my_data_dir = MakeDataDir()
@@ -2211,6 +2325,11 @@ if __name__ == '__main__':
                            const=SERVER_UDP_ECHO, default=SERVER_HTTP,
                            dest='server_type',
                            help='start up a udp echo server.')
+  option_parser.add_option('', '--basic-auth-proxy', action='store_const',
+                           const=SERVER_BASIC_AUTH_PROXY, default=SERVER_HTTP,
+                           dest='server_type',
+                           help='start up a proxy server which requires basic '
+                           'authentication.')
   option_parser.add_option('', '--log-to-console', action='store_const',
                            const=True, default=False,
                            dest='log_to_console',
