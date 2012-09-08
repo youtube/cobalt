@@ -14,6 +14,7 @@
 #include "base/utf_string_conversions.h"
 
 const char kPythonPathEnv[] = "PYTHONPATH";
+const char kPythonUnbufferedEnv[] = "PYTHONUNBUFFERED";
 
 void AppendToPythonPath(const FilePath& dir) {
   scoped_ptr<base::Environment> env(base::Environment::Create());
@@ -114,4 +115,11 @@ bool GetPythonRunTime(FilePath* dir) {
   *dir = FilePath("python");
 #endif
   return true;
+}
+
+void EnablePythonUnbufferedMode() {
+  // Python output will be unbuffered if kPythonUnbufferedEnv is set to any
+  // non-empty string.
+  scoped_ptr<base::Environment> env(base::Environment::Create());
+  env->SetVar(kPythonUnbufferedEnv, "true");
 }
