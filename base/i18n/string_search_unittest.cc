@@ -26,23 +26,37 @@ TEST(StringSearchTest, ASCII) {
   if (locale_is_posix)
     SetICUDefaultLocale("en_US");
 
+  size_t index = 0;
+  size_t length = 0;
+
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      ASCIIToUTF16("hello"), ASCIIToUTF16("hello world")));
+      ASCIIToUTF16("hello"), ASCIIToUTF16("hello world"), &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(5U, length);
 
   EXPECT_FALSE(StringSearchIgnoringCaseAndAccents(
-      ASCIIToUTF16("h    e l l o"), ASCIIToUTF16("h   e l l o")));
+      ASCIIToUTF16("h    e l l o"), ASCIIToUTF16("h   e l l o"),
+      &index, &length));
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      ASCIIToUTF16("aabaaa"), ASCIIToUTF16("aaabaabaaa")));
+      ASCIIToUTF16("aabaaa"), ASCIIToUTF16("aaabaabaaa"), &index, &length));
+  EXPECT_EQ(4U, index);
+  EXPECT_EQ(6U, length);
 
   EXPECT_FALSE(StringSearchIgnoringCaseAndAccents(
-      ASCIIToUTF16("searching within empty string"), string16()));
+      ASCIIToUTF16("searching within empty string"), string16(),
+      &index, &length));
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      string16(), ASCIIToUTF16("searching for empty string")));
+      string16(), ASCIIToUTF16("searching for empty string"), &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(0U, length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      ASCIIToUTF16("case insensitivity"), ASCIIToUTF16("CaSe InSeNsItIvItY")));
+      ASCIIToUTF16("case insensitivity"), ASCIIToUTF16("CaSe InSeNsItIvItY"),
+      &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(18U, length);
 
   if (locale_is_posix)
     SetICUDefaultLocale(default_locale.data());
@@ -55,74 +69,112 @@ TEST(StringSearchTest, UnicodeLocaleIndependent) {
   const string16 a_base = WideToUTF16(L"a");
 
   // Composed characters
-  const string16 e_with_accute_accent = WideToUTF16(L"\u00e9");
-  const string16 E_with_accute_accent = WideToUTF16(L"\u00c9");
+  const string16 e_with_acute_accent = WideToUTF16(L"\u00e9");
+  const string16 E_with_acute_accent = WideToUTF16(L"\u00c9");
   const string16 e_with_grave_accent = WideToUTF16(L"\u00e8");
   const string16 E_with_grave_accent = WideToUTF16(L"\u00c8");
-  const string16 a_with_accute_accent = WideToUTF16(L"\u00e1");
+  const string16 a_with_acute_accent = WideToUTF16(L"\u00e1");
 
   // Decomposed characters
-  const string16 e_with_accute_combining_mark = WideToUTF16(L"e\u0301");
-  const string16 E_with_accute_combining_mark = WideToUTF16(L"E\u0301");
+  const string16 e_with_acute_combining_mark = WideToUTF16(L"e\u0301");
+  const string16 E_with_acute_combining_mark = WideToUTF16(L"E\u0301");
   const string16 e_with_grave_combining_mark = WideToUTF16(L"e\u0300");
   const string16 E_with_grave_combining_mark = WideToUTF16(L"E\u0300");
-  const string16 a_with_accute_combining_mark = WideToUTF16(L"a\u0301");
+  const string16 a_with_acute_combining_mark = WideToUTF16(L"a\u0301");
 
   std::string default_locale(uloc_getDefault());
   bool locale_is_posix = (default_locale == "en_US_POSIX");
   if (locale_is_posix)
     SetICUDefaultLocale("en_US");
 
-  EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_base, e_with_accute_accent));
+  size_t index = 0;
+  size_t length = 0;
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_with_accute_accent, e_base));
+      e_base, e_with_acute_accent, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_acute_accent.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_base, e_with_accute_combining_mark));
+      e_with_acute_accent, e_base, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_base.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_with_accute_combining_mark, e_base));
+      e_base, e_with_acute_combining_mark, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_acute_combining_mark.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_with_accute_combining_mark, e_with_accute_accent));
+      e_with_acute_combining_mark, e_base, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_base.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_with_accute_accent, e_with_accute_combining_mark));
+      e_with_acute_combining_mark, e_with_acute_accent,
+      &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_acute_accent.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_with_accute_combining_mark, e_with_grave_combining_mark));
+      e_with_acute_accent, e_with_acute_combining_mark,
+      &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_acute_combining_mark.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_with_grave_combining_mark, e_with_accute_combining_mark));
+      e_with_acute_combining_mark, e_with_grave_combining_mark,
+      &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_grave_combining_mark.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_with_accute_combining_mark, e_with_grave_accent));
+      e_with_grave_combining_mark, e_with_acute_combining_mark,
+      &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_acute_combining_mark.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      e_with_grave_accent, e_with_accute_combining_mark));
+      e_with_acute_combining_mark, e_with_grave_accent, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_grave_accent.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      E_with_accute_accent, e_with_accute_accent));
+      e_with_grave_accent, e_with_acute_combining_mark, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_acute_combining_mark.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      E_with_grave_accent, e_with_accute_accent));
+      E_with_acute_accent, e_with_acute_accent, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_acute_accent.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      E_with_accute_combining_mark, e_with_grave_accent));
+      E_with_grave_accent, e_with_acute_accent, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_acute_accent.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      E_with_grave_combining_mark, e_with_accute_accent));
+      E_with_acute_combining_mark, e_with_grave_accent, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_grave_accent.size(), length);
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      E_base, e_with_grave_accent));
+      E_with_grave_combining_mark, e_with_acute_accent, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_acute_accent.size(), length);
+
+  EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
+      E_base, e_with_grave_accent, &index, &length));
+  EXPECT_EQ(0U, index);
+  EXPECT_EQ(e_with_grave_accent.size(), length);
 
   EXPECT_FALSE(StringSearchIgnoringCaseAndAccents(
-      a_with_accute_accent, e_with_accute_accent));
+      a_with_acute_accent, e_with_acute_accent, &index, &length));
 
   EXPECT_FALSE(StringSearchIgnoringCaseAndAccents(
-      a_with_accute_combining_mark, e_with_accute_combining_mark));
+      a_with_acute_combining_mark, e_with_acute_combining_mark,
+      &index, &length));
 
   if (locale_is_posix)
     SetICUDefaultLocale(default_locale.data());
@@ -136,17 +188,16 @@ TEST(StringSearchTest, UnicodeLocaleDependent) {
   const string16 a_with_ring = WideToUTF16(L"\u00e5");
 
   EXPECT_TRUE(StringSearchIgnoringCaseAndAccents(
-      a_base, a_with_ring));
+      a_base, a_with_ring, NULL, NULL));
 
   const char* default_locale = uloc_getDefault();
   SetICUDefaultLocale("da");
 
   EXPECT_FALSE(StringSearchIgnoringCaseAndAccents(
-      a_base, a_with_ring));
+      a_base, a_with_ring, NULL, NULL));
 
   SetICUDefaultLocale(default_locale);
 }
 
 }  // namespace i18n
 }  // namespace base
-
