@@ -141,3 +141,6 @@ ExtensionIconImageTest.*
 # crbug.com/145843
 EntropyProviderTest.UseOneTimeRandomizationSHA1
 EntropyProviderTest.UseOneTimeRandomizationPermuted
+
+# crbug.com/147500
+ManifestTest.RestrictedKeys
