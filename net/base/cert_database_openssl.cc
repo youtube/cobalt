@@ -14,9 +14,6 @@
 
 namespace net {
 
-CertDatabase::CertDatabase() {
-}
-
 int CertDatabase::CheckUserCert(X509Certificate* cert) {
   if (!cert)
     return ERR_CERT_INVALID;
