@@ -55,16 +55,16 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
               base::SequencedWorkerPool::CONTINUE_ON_SHUTDOWN);
     }
 
-    CertDatabase::AddObserver(this);
+    CertDatabase::GetInstance()->AddObserver(this);
   }
 
   virtual ~DefaultClientSocketFactory() {
     // Note: This code never runs, as the factory is defined as a Leaky
     // singleton.
-    CertDatabase::RemoveObserver(this);
+    CertDatabase::GetInstance()->RemoveObserver(this);
   }
 
-  virtual void OnUserCertAdded(const X509Certificate* cert) OVERRIDE {
+  virtual void OnCertAdded(const X509Certificate* cert) OVERRIDE {
     ClearSSLSessionCache();
   }
 

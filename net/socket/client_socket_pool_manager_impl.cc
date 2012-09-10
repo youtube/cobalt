@@ -83,11 +83,11 @@ ClientSocketPoolManagerImpl::ClientSocketPoolManagerImpl(
       ssl_for_https_proxy_pool_histograms_("SSLforHTTPSProxy"),
       http_proxy_pool_histograms_("HTTPProxy"),
       ssl_socket_pool_for_proxies_histograms_("SSLForProxies") {
-  CertDatabase::AddObserver(this);
+  CertDatabase::GetInstance()->AddObserver(this);
 }
 
 ClientSocketPoolManagerImpl::~ClientSocketPoolManagerImpl() {
-  CertDatabase::RemoveObserver(this);
+  CertDatabase::GetInstance()->RemoveObserver(this);
 }
 
 void ClientSocketPoolManagerImpl::FlushSocketPools() {
@@ -371,7 +371,7 @@ Value* ClientSocketPoolManagerImpl::SocketPoolInfoToValue() const {
   return list;
 }
 
-void ClientSocketPoolManagerImpl::OnUserCertAdded(const X509Certificate* cert) {
+void ClientSocketPoolManagerImpl::OnCertAdded(const X509Certificate* cert) {
   FlushSocketPools();
 }
 

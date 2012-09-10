@@ -210,6 +210,8 @@
         'base/network_config_watcher_mac.h',
         'base/network_delegate.cc',
         'base/network_delegate.h',
+        'base/nss_cert_database.cc',
+        'base/nss_cert_database.h',
         'base/nss_memio.c',
         'base/nss_memio.h',
         'base/openssl_memory_private_key_store.cc',
@@ -903,6 +905,8 @@
               'base/dnssec_keyset.cc',
               'base/dnssec_keyset.h',
               'base/keygen_handler_nss.cc',
+              'base/nss_cert_database.cc',
+              'base/nss_cert_database.h',
               'base/nss_memio.c',
               'base/nss_memio.h',
               'base/test_root_certs_nss.cc',
@@ -986,6 +990,8 @@
               'base/cert_database_nss.cc',
               'base/crypto_module_nss.cc',
               'base/keygen_handler_nss.cc',
+              'base/nss_cert_database.cc',
+              'base/nss_cert_database.h',
               'base/test_root_certs_nss.cc',
               'base/x509_certificate_nss.cc',
               'ocsp/nss_ocsp.cc',
@@ -1169,7 +1175,6 @@
         'base/address_tracker_linux_unittest.cc',
         'base/backoff_entry_unittest.cc',
         'base/big_endian_unittest.cc',
-        'base/cert_database_nss_unittest.cc',
         'base/cert_verify_proc_unittest.cc',
         'base/crl_set_unittest.cc',
         'base/data_url_unittest.cc',
@@ -1200,6 +1205,7 @@
         'base/net_util_unittest.cc',
         'base/network_change_notifier_linux_unittest.cc',
         'base/network_change_notifier_win_unittest.cc',
+        'base/nss_cert_database_unittest.cc',
         'base/pem_tokenizer_unittest.cc',
         'base/prioritized_dispatcher_unittest.cc',
         'base/priority_queue_unittest.cc',
@@ -1414,9 +1420,9 @@
             'dependencies': [
               '../build/linux/system.gyp:ssl',
             ],
-          }, {  # else: OS is not in the above list
+          }, {  # else use_glib == 0: !posix || mac
             'sources!': [
-              'base/cert_database_nss_unittest.cc',
+              'base/nss_cert_database_unittest.cc',
             ],
           },
         ],
@@ -1453,8 +1459,8 @@
             #               functionality is ported to OpenSSL.
             'sources!': [
               'base/x509_util_nss_unittest.cc',
-              'base/cert_database_nss_unittest.cc',
               'base/dnssec_unittest.cc',
+              'base/nss_cert_database_unittest.cc',
             ],
           }, {  # else !use_openssl: remove the unneeded files
             'sources!': [
