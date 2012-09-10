@@ -2111,6 +2111,7 @@
           },
           'dependencies': [
             '../base/base.gyp:base',
+            'net_errors_java',
           ],
           'export_dependent_settings': [
             '../base/base.gyp:base',
@@ -2135,6 +2136,39 @@
             'net_java',
           ],
           'includes': [ '../build/java.gypi' ],
+        },
+        {
+          # This should be extracted to a gypi file and parameterized if
+          # we have more use cases of using the preprocessor to build java files.
+          'target_name': 'net_errors_java',
+          'type': 'none',
+          'direct_dependent_settings': {
+            'variables': {
+              'additional_src_dirs': ['<(SHARED_INTERMEDIATE_DIR)/net/template/'],
+            },
+          },
+          'actions': [
+            {
+              'action_name': 'generate_net_errors_java',
+              'inputs': [
+                'android/java/net_errors_java.template',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/net/template/NetError.java',
+              ],
+              'action': [
+                'gcc',
+                '-x', 'c-header',
+                '-E', '-P',
+                '-I', '..',
+                '-o',
+                '<@(_outputs)',
+                '<@(_inputs)',
+              ],
+              'message': 'Preprocessing <(_inputs)',
+              'process_outputs_as_sources': 1,
+            },
+          ],
         },
       ],
     }],
