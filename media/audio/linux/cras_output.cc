@@ -285,7 +285,7 @@ uint32 CrasOutputStream::Render(size_t frames,
   // Note: If this ever changes to output raw float the data must be clipped and
   // sanitized since it may come from an untrusted source such as NaCl.
   audio_bus_->ToInterleaved(
-      frames_filled, bytes_per_frame_ / (frames * num_channels_), buffer);
+      frames_filled, bytes_per_frame_ / num_channels_, buffer);
   return frames_filled;
 }
 
