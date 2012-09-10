@@ -21,34 +21,34 @@ class MEDIA_EXPORT AudioFifo {
   virtual ~AudioFifo();
 
   // Pushes all audio channel data from |source| to the FIFO.
-  // Returns false if the allocated space is not sufficient.  Partial data is
-  // not written to the FIFO for this overflow case.
-  bool Push(const AudioBus* source);
+  // Push() will crash if the allocated space is insufficient.
+  void Push(const AudioBus* source);
 
   // Consumes |frames_to_consume| audio frames from the FIFO and copies
-  // them to |destination|.
-  // Returns false if the FIFO does not contain |frames_to_consume| frames
-  // or if there is not sufficient space in |destination| to store the frames.
-  bool Consume(AudioBus* destination, int frames_to_consume);
+  // them to |destination| starting at position |start_frame|.
+  // Consume() will crash if the FIFO does not contain |frames_to_consume|
+  // frames or if there is insufficient space in |destination| to store the
+  // frames.
+  void Consume(AudioBus* destination, int start_frame, int frames_to_consume);
 
   // Empties the FIFO without deallocating any memory.
   void Clear();
 
   // Number of actual audio frames in the FIFO.
-  int frames_in_fifo() const { return frames_in_fifo_; }
+  int frames() const { return frames_; }
 
  private:
-  int max_frames() const { return max_frames_in_fifo_; }
+  int max_frames() const { return max_frames_; }
 
   // The actual FIFO is an audio bus implemented as a ring buffer.
   scoped_ptr<AudioBus> audio_bus_;
 
   // Maximum number of elements the FIFO can contain.
   // This value is set by |frames| in the constructor.
-  const int max_frames_in_fifo_;
+  const int max_frames_;
 
   // Number of actual elements in the FIFO.
-  int frames_in_fifo_;
+  int frames_;
 
   // Current read position.
   int read_pos_;
