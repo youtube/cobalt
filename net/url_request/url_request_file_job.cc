@@ -38,6 +38,10 @@
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_dir_job.h"
 
+#if defined(OS_WIN)
+#include "base/win/shortcut.h"
+#endif
+
 namespace net {
 
 class URLRequestFileJob::AsyncResolver
@@ -201,7 +205,7 @@ bool URLRequestFileJob::IsRedirectResponse(GURL* location,
 
   FilePath new_path = file_path_;
   bool resolved;
-  resolved = file_util::ResolveShortcut(new_path, &new_path, NULL);
+  resolved = base::win::ResolveShortcut(new_path, &new_path, NULL);
 
   // If shortcut is not resolved succesfully, do not redirect.
   if (!resolved)
