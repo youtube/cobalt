@@ -768,6 +768,18 @@ static const char* kStandardVideoTypes[] = {
   "video/x-ms-wmv"
 };
 
+struct StandardType {
+  const char* leading_mime_type;
+  const char** standard_types;
+  size_t standard_types_len;
+};
+static const StandardType kStandardTypes[] = {
+  { "image/", kStandardImageTypes, arraysize(kStandardImageTypes) },
+  { "audio/", kStandardAudioTypes, arraysize(kStandardAudioTypes) },
+  { "video/", kStandardVideoTypes, arraysize(kStandardVideoTypes) },
+  { NULL, NULL, 0 }
+};
+
 void GetExtensionsFromHardCodedMappings(
     const MimeInfo* mappings,
     size_t mappings_len,
@@ -826,44 +838,47 @@ void HashSetToVector(base::hash_set<T>* source, std::vector<T>* target) {
 }
 }
 
-void GetImageExtensions(std::vector<FilePath::StringType>* extensions) {
-  base::hash_set<FilePath::StringType> unique_extensions;
-  GetExtensionsHelper(kStandardImageTypes, arraysize(kStandardImageTypes),
-                      "image/", &unique_extensions);
-  HashSetToVector(&unique_extensions, extensions);
-}
-
-void GetAudioExtensions(std::vector<FilePath::StringType>* extensions) {
-  base::hash_set<FilePath::StringType> unique_extensions;
-  GetExtensionsHelper(kStandardAudioTypes, arraysize(kStandardAudioTypes),
-                      "audio/", &unique_extensions);
-  HashSetToVector(&unique_extensions, extensions);
-}
-
-void GetVideoExtensions(std::vector<FilePath::StringType>* extensions) {
-  base::hash_set<FilePath::StringType> unique_extensions;
-  GetExtensionsHelper(kStandardVideoTypes, arraysize(kStandardVideoTypes),
-                      "video/", &unique_extensions);
-  HashSetToVector(&unique_extensions, extensions);
-}
-
-void GetExtensionsForMimeType(const std::string& mime_type,
+void GetExtensionsForMimeType(const std::string& unsafe_mime_type,
                               std::vector<FilePath::StringType>* extensions) {
+  if (unsafe_mime_type == "*/*" || unsafe_mime_type == "*")
+    return;
+
+  const std::string mime_type = StringToLowerASCII(unsafe_mime_type);
   base::hash_set<FilePath::StringType> unique_extensions;
-  g_mime_util.Get().GetPlatformExtensionsForMimeType(mime_type,
-                                                     &unique_extensions);
 
-  // Also look up the extensions from hard-coded mappings in case that some
-  // supported extensions are not registered in the system registry, like ogg.
-  GetExtensionsFromHardCodedMappings(primary_mappings,
-                                     arraysize(primary_mappings),
-                                     mime_type,
-                                     &unique_extensions);
+  if (EndsWith(mime_type, "/*", true)) {
+    std::string leading_mime_type = mime_type.substr(0, mime_type.length() - 2);
 
-  GetExtensionsFromHardCodedMappings(secondary_mappings,
-                                     arraysize(secondary_mappings),
-                                     mime_type,
-                                     &unique_extensions);
+    // Find the matching StandardType from within kStandardTypes, or fall
+    // through to the last (default) StandardType.
+    const StandardType* type = NULL;
+    for (size_t i = 0; i < arraysize(kStandardTypes); ++i) {
+      type = &(kStandardTypes[i]);
+      if (type->leading_mime_type &&
+          leading_mime_type == type->leading_mime_type)
+        break;
+    }
+    DCHECK(type);
+    GetExtensionsHelper(type->standard_types,
+                        type->standard_types_len,
+                        leading_mime_type,
+                        &unique_extensions);
+  } else {
+    g_mime_util.Get().GetPlatformExtensionsForMimeType(mime_type,
+                                                       &unique_extensions);
+
+    // Also look up the extensions from hard-coded mappings in case that some
+    // supported extensions are not registered in the system registry, like ogg.
+    GetExtensionsFromHardCodedMappings(primary_mappings,
+                                       arraysize(primary_mappings),
+                                       mime_type,
+                                       &unique_extensions);
+
+    GetExtensionsFromHardCodedMappings(secondary_mappings,
+                                       arraysize(secondary_mappings),
+                                       mime_type,
+                                       &unique_extensions);
+  }
 
   HashSetToVector(&unique_extensions, extensions);
 }
