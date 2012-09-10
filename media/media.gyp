@@ -1159,10 +1159,10 @@
           'target_name': 'media_java',
           'type': 'none',
           'dependencies': [
-            '../base/base.gyp:base_java',
+            '../base/base.gyp:base',
           ],
           'export_dependent_settings': [
-            '../base/base.gyp:base_java',
+            '../base/base.gyp:base',
           ],
           'variables': {
             'package_name': 'media',
