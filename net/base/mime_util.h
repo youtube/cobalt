@@ -88,27 +88,9 @@ NET_EXPORT bool IsSupportedStrictMediaMimeType(
     const std::string& mime_type,
     const std::vector<std::string>& codecs);
 
-// Get the extensions for images files.
-// Note that we do not erase the existing elements in the the provided vector.
-// Instead, we append the result to it.
-NET_EXPORT void GetImageExtensions(
-    std::vector<FilePath::StringType>* extensions);
-
-// Get the extensions for audio files.
-// Note that we do not erase the existing elements in the the provided vector.
-// Instead, we append the result to it.
-NET_EXPORT void GetAudioExtensions(
-    std::vector<FilePath::StringType>* extensions);
-
-// Get the extensions for video files.
-// Note that we do not erase the existing elements in the the provided vector.
-// Instead, we append the result to it.
-NET_EXPORT void GetVideoExtensions(
-    std::vector<FilePath::StringType>* extensions);
-
-// Get the extensions associated with the given mime type.
-// There could be multiple extensions for a given mime type, like "html,htm"
-// for "text/html".
+// Get the extensions associated with the given mime type. This should be passed
+// in lower case. There could be multiple extensions for a given mime type, like
+// "html,htm" for "text/html", or "txt,text,html,..." for "text/*".
 // Note that we do not erase the existing elements in the the provided vector.
 // Instead, we append the result to it.
 NET_EXPORT void GetExtensionsForMimeType(
