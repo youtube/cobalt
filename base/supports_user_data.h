@@ -10,6 +10,7 @@
 #include "base/base_export.h"
 #include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/threading/thread_checker.h"
 
 namespace base {
 
@@ -35,6 +36,12 @@ class BASE_EXPORT SupportsUserData {
   void SetUserData(const void* key, Data* data);
   void RemoveUserData(const void* key);
 
+  // SupportsUserData is not thread-safe, and on debug build will assert it is
+  // only used on one thread. Calling this method allows the caller to hand
+  // the SupportsUserData instance across threads. Use only if you are taking
+  // full control of the synchronization of that hand over.
+  void DetachUserDataThread();
+
  protected:
   virtual ~SupportsUserData();
 
@@ -43,6 +50,8 @@ class BASE_EXPORT SupportsUserData {
 
   // Externally-defined data accessible by key.
   DataMap user_data_;
+  // Guards usage of |user_data_|
+  ThreadChecker thread_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(SupportsUserData);
 };
