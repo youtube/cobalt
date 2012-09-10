@@ -18,7 +18,7 @@ class BaseTestResult(object):
 
   def __init__(self, name, log):
     self.name = name
-    self.log = log
+    self.log = log.replace('\r', '')
 
 
 class SingleTestResult(BaseTestResult):
