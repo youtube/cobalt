@@ -1111,6 +1111,14 @@
             ],
           },
         ],
+        ['OS=="android" and _toolset=="target"', {
+          'dependencies': [
+             'net_java',
+          ],
+          'export_dependent_settings': [
+            'net_java',
+          ],
+        }],
         [ 'OS == "android"', {
             'dependencies': [
               '../third_party/openssl/openssl.gyp:openssl',
@@ -2102,10 +2110,10 @@
             'java_in_dir': '../net/android/java',
           },
           'dependencies': [
-            '../base/base.gyp:base_java',
+            '../base/base.gyp:base',
           ],
           'export_dependent_settings': [
-            '../base/base.gyp:base_java',
+            '../base/base.gyp:base',
           ],
           'includes': [ '../build/java.gypi' ],
         },
@@ -2117,12 +2125,14 @@
             'java_in_dir': '../net/android/javatests',
           },
           'dependencies': [
-            '../base/base.gyp:base_java',
+            '../base/base.gyp:base',
             '../base/base.gyp:base_java_test_support',
+            'net_java',
           ],
           'export_dependent_settings': [
-            '../base/base.gyp:base_java',
+            '../base/base.gyp:base',
             '../base/base.gyp:base_java_test_support',
+            'net_java',
           ],
           'includes': [ '../build/java.gypi' ],
         },
