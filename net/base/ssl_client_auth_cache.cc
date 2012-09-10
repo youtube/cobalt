@@ -10,11 +10,11 @@
 namespace net {
 
 SSLClientAuthCache::SSLClientAuthCache() {
-  CertDatabase::AddObserver(this);
+  CertDatabase::GetInstance()->AddObserver(this);
 }
 
 SSLClientAuthCache::~SSLClientAuthCache() {
-  CertDatabase::RemoveObserver(this);
+  CertDatabase::GetInstance()->RemoveObserver(this);
 }
 
 bool SSLClientAuthCache::Lookup(
@@ -41,7 +41,7 @@ void SSLClientAuthCache::Remove(const std::string& server) {
   cache_.erase(server);
 }
 
-void SSLClientAuthCache::OnUserCertAdded(const X509Certificate* cert) {
+void SSLClientAuthCache::OnCertAdded(const X509Certificate* cert) {
   cache_.clear();
 }
 

@@ -15,9 +15,6 @@
 
 namespace net {
 
-CertDatabase::CertDatabase() {
-}
-
 int CertDatabase::CheckUserCert(X509Certificate* cert) {
   if (!cert)
     return ERR_CERT_INVALID;
@@ -48,7 +45,7 @@ int CertDatabase::AddUserCert(X509Certificate* cert) {
   }
   switch (err) {
     case noErr:
-      CertDatabase::NotifyObserversOfUserCertAdded(cert);
+      CertDatabase::NotifyObserversOfCertAdded(cert);
       // Fall through.
     case errSecDuplicateItem:
       return OK;

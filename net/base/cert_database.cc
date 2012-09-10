@@ -7,59 +7,81 @@
 #include "base/memory/singleton.h"
 #include "base/observer_list_threadsafe.h"
 
+#if defined(USE_NSS)
+#include "net/base/nss_cert_database.h"
+#endif
+
 namespace net {
 
-CertDatabase::ImportCertFailure::ImportCertFailure(
-    X509Certificate* cert, int err)
-    : certificate(cert), net_error(err) {
-}
-
-CertDatabase::ImportCertFailure::~ImportCertFailure() {
-}
-
-// CertDatabaseNotifier notifies registered observers when new user certificates
-// are added to the database.
-class CertDatabaseNotifier {
+#if defined(USE_NSS)
+// Helper that observes events from the NSSCertDatabase and forwards them to
+// the given CertDatabase.
+class CertDatabase::Notifier : public NSSCertDatabase::Observer {
  public:
-  CertDatabaseNotifier()
-      : observer_list_(new ObserverListThreadSafe<CertDatabase::Observer>) {
+  explicit Notifier(CertDatabase* cert_db) : cert_db_(cert_db) {
+    NSSCertDatabase::GetInstance()->AddObserver(this);
   }
 
-  static CertDatabaseNotifier* GetInstance() {
-    return Singleton<CertDatabaseNotifier>::get();
+  virtual ~Notifier() {
+    NSSCertDatabase::GetInstance()->RemoveObserver(this);
   }
 
-  friend struct DefaultSingletonTraits<CertDatabaseNotifier>;
-  friend class CertDatabase;
+  // NSSCertDatabase::Observer implementation:
+  virtual void OnCertAdded(const X509Certificate* cert) OVERRIDE {
+    cert_db_->NotifyObserversOfCertAdded(cert);
+  }
+
+  virtual void OnCertRemoved(const X509Certificate* cert) OVERRIDE {
+    cert_db_->NotifyObserversOfCertRemoved(cert);
+  }
+
+  virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE {
+    cert_db_->NotifyObserversOfCertTrustChanged(cert);
+  }
 
  private:
-  const scoped_refptr<ObserverListThreadSafe<CertDatabase::Observer> >
-      observer_list_;
+  CertDatabase* cert_db_;
+
+  DISALLOW_COPY_AND_ASSIGN(Notifier);
 };
+#endif
+
+// static
+CertDatabase* CertDatabase::GetInstance() {
+  return Singleton<CertDatabase>::get();
+}
+
+CertDatabase::CertDatabase()
+    : observer_list_(new ObserverListThreadSafe<Observer>) {
+#if defined(USE_NSS)
+  // Observe NSSCertDatabase events and forward them to observers of
+  // CertDatabase. This also makes sure that NSS has been initialized.
+  notifier_.reset(new Notifier(this));
+#endif
+}
+
+CertDatabase::~CertDatabase() {}
 
 void CertDatabase::AddObserver(Observer* observer) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->AddObserver(observer);
+  observer_list_->AddObserver(observer);
 }
 
 void CertDatabase::RemoveObserver(Observer* observer) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->RemoveObserver(observer);
+  observer_list_->RemoveObserver(observer);
 }
 
-void CertDatabase::NotifyObserversOfUserCertAdded(const X509Certificate* cert) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
-      &CertDatabase::Observer::OnUserCertAdded, make_scoped_refptr(cert));
+void CertDatabase::NotifyObserversOfCertAdded(const X509Certificate* cert) {
+  observer_list_->Notify(&Observer::OnCertAdded, make_scoped_refptr(cert));
 }
 
-void CertDatabase::NotifyObserversOfUserCertRemoved(
-    const X509Certificate* cert) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
-      &CertDatabase::Observer::OnUserCertRemoved, make_scoped_refptr(cert));
+void CertDatabase::NotifyObserversOfCertRemoved(const X509Certificate* cert) {
+  observer_list_->Notify(&Observer::OnCertRemoved, make_scoped_refptr(cert));
 }
 
 void CertDatabase::NotifyObserversOfCertTrustChanged(
     const X509Certificate* cert) {
-  CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
-      &CertDatabase::Observer::OnCertTrustChanged, make_scoped_refptr(cert));
+  observer_list_->Notify(
+      &Observer::OnCertTrustChanged, make_scoped_refptr(cert));
 }
 
 }  // namespace net
