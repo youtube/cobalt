@@ -20,7 +20,10 @@
 
 {
   'variables': {
-    'input_jars_paths': [],
+    'input_jars_paths': [
+      # Needed by ChromeNativeTestActivity.java.
+      '<(PRODUCT_DIR)/lib.java/chromium_base.jar',
+    ],
   },
   'target_conditions': [
     ['_toolset == "target"', {
