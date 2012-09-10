@@ -180,6 +180,9 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   // referred to by |url| and |http_method|.
   void OnExternalCacheHit(const GURL& url, const std::string& http_method);
 
+  // Initializes the Infinite Cache, if selected by the field trial.
+  void InitializeInfiniteCache(const FilePath& path);
+
   // HttpTransactionFactory implementation:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans,
                                 HttpTransactionDelegate* delegate) OVERRIDE;
