@@ -39,23 +39,20 @@ static int UpdatePos(int pos, int step, int max_size) {
 
 AudioFifo::AudioFifo(int channels, int frames)
     : audio_bus_(AudioBus::Create(channels, frames)),
-      max_frames_in_fifo_(frames),
-      frames_in_fifo_(0),
+      max_frames_(frames),
+      frames_(0),
       read_pos_(0),
       write_pos_(0) {}
 
 AudioFifo::~AudioFifo() {}
 
-bool AudioFifo::Push(const AudioBus* source) {
+void AudioFifo::Push(const AudioBus* source) {
   DCHECK(source);
   DCHECK_EQ(source->channels(), audio_bus_->channels());
 
   // Ensure that there is space for the new data in the FIFO.
   const int source_size = source->frames();
-  if (frames_in_fifo_ + source_size > max_frames()) {
-    DLOG(ERROR) << "FIFO overflow.";
-    return false;
-  }
+  CHECK_LE(source_size + frames_, max_frames_);
 
   // Figure out if wrapping is needed and if so what segment sizes we need
   // when adding the new audio bus content to the FIFO.
@@ -76,28 +73,23 @@ bool AudioFifo::Push(const AudioBus* source) {
     }
   }
 
-  frames_in_fifo_ += source_size;
-  DCHECK_LE(frames_in_fifo_, max_frames());
+  frames_ += source_size;
+  DCHECK_LE(frames_, max_frames());
   write_pos_ = UpdatePos(write_pos_, source_size, max_frames());
-  return true;
 }
 
-bool AudioFifo::Consume(AudioBus* destination, int frames_to_consume) {
+void AudioFifo::Consume(AudioBus* destination,
+                        int start_frame,
+                        int frames_to_consume) {
   DCHECK(destination);
   DCHECK_EQ(destination->channels(), audio_bus_->channels());
 
   // It is not possible to ask for more data than what is available in the FIFO.
-  if (frames_to_consume > frames_in_fifo_) {
-    DLOG(ERROR) << "FIFO underrun.";
-    return false;
-  }
+  CHECK_LE(frames_to_consume, frames_);
 
   // A copy from the FIFO to |destination| will only be performed if the
   // allocated memory in |destination| is sufficient.
-  if (frames_to_consume > destination->frames()) {
-    DLOG(ERROR) << "Insufficient space in destination.";
-    return false;
-  }
+  CHECK_LE(frames_to_consume + start_frame, destination->frames());
 
   // Figure out if wrapping is needed and if so what segment sizes we need
   // when removing audio bus content from the FIFO.
@@ -113,20 +105,20 @@ bool AudioFifo::Consume(AudioBus* destination, int frames_to_consume) {
     const float* src = audio_bus_->channel(ch);
 
     // Copy a selected part of the FIFO to the destination.
-    memcpy(&dest[0], &src[read_pos_], consume_size * sizeof(src[0]));
+    memcpy(&dest[start_frame], &src[read_pos_], consume_size * sizeof(src[0]));
     if (wrap_size > 0) {
       // Wrapping is needed: copy remaining part to the destination.
-      memcpy(&dest[consume_size], &src[0], wrap_size * sizeof(src[0]));
+      memcpy(&dest[consume_size + start_frame], &src[0],
+             wrap_size * sizeof(src[0]));
     }
   }
 
-  frames_in_fifo_ -= frames_to_consume;
+  frames_ -= frames_to_consume;
   read_pos_ = UpdatePos(read_pos_, frames_to_consume, max_frames());
-  return true;
 }
 
 void AudioFifo::Clear() {
-  frames_in_fifo_ = 0;
+  frames_ = 0;
   read_pos_ = 0;
   write_pos_ = 0;
 }
