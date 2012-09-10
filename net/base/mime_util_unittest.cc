@@ -86,6 +86,7 @@ TEST(MimeUtilTest, MatchesMimeType) {
                                    "application/html+xml"));
   EXPECT_TRUE(MatchesMimeType("application/*+xml", "application/+xml"));
   EXPECT_TRUE(MatchesMimeType("aaa*aaa", "aaaaaa"));
+  EXPECT_TRUE(MatchesMimeType("*", ""));
   EXPECT_FALSE(MatchesMimeType("video/", "video/x-mpeg"));
   EXPECT_FALSE(MatchesMimeType("", "video/x-mpeg"));
   EXPECT_FALSE(MatchesMimeType("", ""));
@@ -183,6 +184,45 @@ TEST(MimeUtilTest, TestToIANAMediaType) {
   EXPECT_EQ("multipart", GetIANAMediaType("multipart/mixed"));
   EXPECT_EQ("text", GetIANAMediaType("text/plain"));
   EXPECT_EQ("video", GetIANAMediaType("video/H261"));
+}
+
+TEST(MimeUtilTest, TestGetExtensionsForMimeType) {
+  const struct {
+    const char* mime_type;
+    size_t min_expected_size;
+    const char* contained_result;
+  } tests[] = {
+    { "text/plain", 2, "txt" },
+    { "*",          0, NULL  },
+    { "message/*",  1, "eml" },
+    { "MeSsAge/*",  1, "eml" },
+    { "image/bmp",  1, "bmp" },
+    { "video/*",    5, "mp4" },
+    { "audio/*",    6, "oga" },
+    { "aUDIo/*",    6, "wav" },
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    std::vector<FilePath::StringType> extensions;
+    GetExtensionsForMimeType(tests[i].mime_type, &extensions);
+    ASSERT_TRUE(tests[i].min_expected_size <= extensions.size());
+
+    if (!tests[i].contained_result)
+      continue;
+
+    bool found = false;
+    for (size_t j = 0; !found && j < extensions.size(); ++j) {
+#if defined(OS_WIN)
+      if (extensions[j] == UTF8ToWide(tests[i].contained_result))
+        found = true;
+#else
+      if (extensions[j] == tests[i].contained_result)
+        found = true;
+#endif
+    }
+    ASSERT_TRUE(found) << "Must find at least the contained result within "
+                       << tests[i].mime_type;
+  }
 }
 
 }  // namespace net
