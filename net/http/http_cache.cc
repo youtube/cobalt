@@ -19,6 +19,7 @@
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
+#include "base/metrics/field_trial.h"
 #include "base/pickle.h"
 #include "base/stl_util.h"
 #include "base/string_number_conversions.h"
@@ -384,6 +385,12 @@ void HttpCache::OnExternalCacheHit(const GURL& url,
   request_info.method = http_method;
   std::string key = GenerateCacheKey(&request_info);
   disk_cache_->OnExternalCacheHit(key);
+}
+
+void HttpCache::InitializeInfiniteCache(const FilePath& path) {
+  if (base::FieldTrialList::FindFullName("InfiniteCache") != "Yes")
+    return;
+  // TODO(rvargas): initialize the infinite cache
 }
 
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans,
