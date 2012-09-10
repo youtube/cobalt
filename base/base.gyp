@@ -122,10 +122,11 @@
             }],
           ],
           'dependencies': [
+            'base_java',
+            'base_jni_headers',
             'symbolize',
             '../third_party/ashmem/ashmem.gyp:ashmem',
             '../third_party/icu/icu.gyp:icuuc',
-            'base_jni_headers',
           ],
           'include_dirs': [
             '<(SHARED_INTERMEDIATE_DIR)/base',
@@ -140,6 +141,9 @@
           ],
           'sources!': [
             'debug/stack_trace_posix.cc',
+          ],
+          'export_dependent_settings': [
+            'base_java',
           ],
         }],
         ['os_bsd==1', {
