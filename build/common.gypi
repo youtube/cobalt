@@ -469,6 +469,7 @@
 
         ['OS=="ios"', {
           'enable_automation%': 0,
+          'enable_webrtc%': 0,
           'disable_ftp_support%': 1,
           'remoting%': 0,
         }],
@@ -918,6 +919,7 @@
       }],  # os_posix==1 and OS!="mac" and OS!="ios"
       ['OS=="ios"', {
         'disable_nacl%': 1,
+        'enable_gpu%': 0,
         'icu_use_data_file_flag%': 1,
         'use_system_bzip2%': 1,
         'use_system_libxml%': 1,
