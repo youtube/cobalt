@@ -382,13 +382,12 @@ MultiThreadedCertVerifier::MultiThreadedCertVerifier()
       cache_hits_(0),
       inflight_joins_(0),
       verify_proc_(CertVerifyProc::CreateDefault()) {
-  CertDatabase::AddObserver(this);
+  CertDatabase::GetInstance()->AddObserver(this);
 }
 
 MultiThreadedCertVerifier::~MultiThreadedCertVerifier() {
   STLDeleteValues(&inflight_);
-
-  CertDatabase::RemoveObserver(this);
+  CertDatabase::GetInstance()->RemoveObserver(this);
 }
 
 int MultiThreadedCertVerifier::Verify(X509Certificate* cert,
