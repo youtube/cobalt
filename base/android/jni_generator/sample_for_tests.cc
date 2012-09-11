@@ -36,6 +36,28 @@ class CPPClass {
   }
 };
 
+static jint Init(JNIEnv* env, jobject obj) {
+  return 0;
+}
+
+static jdouble GetDoubleFunction(JNIEnv*, jobject) {
+  return 0;
+}
+
+static jfloat GetFloatFunction(JNIEnv*, jclass) {
+  return 0;
+}
+
+static void SetNonPODDatatype(JNIEnv*, jobject, jobject) {}
+
+static jobject GetNonPODDatatype(JNIEnv*, jobject) {
+  return NULL;
+}
+
+static jint InnerFunction(JNIEnv*, jclass) {
+  return 0;
+}
+
 } // namespace android
 } // namespace base
 
