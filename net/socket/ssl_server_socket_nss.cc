@@ -40,7 +40,12 @@
 #include "net/socket/nss_ssl_util.h"
 #include "net/socket/ssl_error_params.h"
 
-static const int kRecvBufferSize = 4096;
+// SSL plaintext fragments are shorter than 16KB. Although the record layer
+// overhead is allowed to be 2K + 5 bytes, in practice the overhead is much
+// smaller than 1KB. So a 17KB buffer should be large enough to hold an
+// entire SSL record.
+static const int kRecvBufferSize = 17 * 1024;
+static const int kSendBufferSize = 17 * 1024;
 
 #define GotoState(s) next_handshake_state_ = s
 
@@ -313,8 +318,7 @@ bool SSLServerSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
 
 int SSLServerSocketNSS::InitializeSSLOptions() {
   // Transport connected, now hook it up to nss
-  // TODO(port): specify rx and tx buffer sizes separately
-  nss_fd_ = memio_CreateIOLayer(kRecvBufferSize);
+  nss_fd_ = memio_CreateIOLayer(kRecvBufferSize, kSendBufferSize);
   if (nss_fd_ == NULL) {
     return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR error code.
   }

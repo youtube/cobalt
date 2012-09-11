@@ -350,7 +350,7 @@ static PRStatus memio_InitializeLayerName(void)
 
 /*--------------- public memio functions -----------------------*/
 
-PRFileDesc *memio_CreateIOLayer(int bufsize)
+PRFileDesc *memio_CreateIOLayer(int readbufsize, int writebufsize)
 {
     PRFileDesc *fd;
     struct PRFilePrivate *secret;
@@ -362,8 +362,8 @@ PRFileDesc *memio_CreateIOLayer(int bufsize)
     secret = malloc(sizeof(struct PRFilePrivate));
     memset(secret, 0, sizeof(*secret));
 
-    memio_buffer_new(&secret->readbuf, bufsize);
-    memio_buffer_new(&secret->writebuf, bufsize);
+    memio_buffer_new(&secret->readbuf, readbufsize);
+    memio_buffer_new(&secret->writebuf, writebufsize);
     fd->secret = secret;
     return fd;
 }

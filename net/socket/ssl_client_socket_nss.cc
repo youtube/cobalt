@@ -118,7 +118,12 @@
 #include <dlfcn.h>
 #endif
 
-static const int kRecvBufferSize = 4096;
+// SSL plaintext fragments are shorter than 16KB. Although the record layer
+// overhead is allowed to be 2K + 5 bytes, in practice the overhead is much
+// smaller than 1KB. So a 17KB buffer should be large enough to hold an
+// entire SSL record.
+static const int kRecvBufferSize = 17 * 1024;
+static const int kSendBufferSize = 17 * 1024;
 
 #if defined(OS_WIN)
 // CERT_OCSP_RESPONSE_PROP_ID is only implemented on Vista+, but it can be
@@ -3067,8 +3072,7 @@ void SSLClientSocketNSS::InitCore() {
 
 int SSLClientSocketNSS::InitializeSSLOptions() {
   // Transport connected, now hook it up to nss
-  // TODO(port): specify rx and tx buffer sizes separately
-  nss_fd_ = memio_CreateIOLayer(kRecvBufferSize);
+  nss_fd_ = memio_CreateIOLayer(kRecvBufferSize, kSendBufferSize);
   if (nss_fd_ == NULL) {
     return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR error code.
   }
