@@ -6,13 +6,14 @@
 #define NET_BASE_UPLOAD_DATA_STREAM_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_vector.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_data.h"
 
 namespace net {
 
-class FileStream;
 class IOBuffer;
+class UploadElementReader;
 
 class NET_EXPORT UploadDataStream {
  public:
@@ -75,6 +76,7 @@ class NET_EXPORT UploadDataStream {
   static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
 
   scoped_refptr<UploadData> upload_data_;
+  ScopedVector<UploadElementReader> element_readers_;
 
   // Index of the current upload element (i.e. the element currently being
   // read). The index is used as a cursor to iterate over elements in

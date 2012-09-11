@@ -33,7 +33,7 @@
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
-#include "net/base/upload_data.h"
+#include "net/base/upload_file_element_reader.h"
 #include "net/http/http_auth_handler_digest.h"
 #include "net/http/http_auth_handler_mock.h"
 #include "net/http/http_auth_handler_ntlm.h"
@@ -6496,11 +6496,12 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UploadFileSmallerThanLength) {
   FilePath temp_file_path;
   ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
   const uint64 kFakeSize = 100000;  // file is actually blank
+  UploadFileElementReader::ScopedOverridingContentLengthForTests
+      overriding_content_length(kFakeSize);
 
   std::vector<UploadElement> elements;
   UploadElement element;
   element.SetToFilePath(temp_file_path);
-  element.SetContentLength(kFakeSize);
   elements.push_back(element);
   request.upload_data->SetElements(elements);
 
@@ -6634,7 +6635,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UnreadableUploadFileAfterAuthRestart) {
     MockWrite("POST /upload HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Connection: keep-alive\r\n"
-              "Content-Length: 16\r\n"
+              "Content-Length: 0\r\n"
               "Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
     MockWrite(SYNCHRONOUS, unreadable_contents.c_str(),
               temp_file_contents.length()),
