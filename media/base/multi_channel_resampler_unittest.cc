@@ -48,10 +48,11 @@ class MultiChannelResamplerTest
   // MultiChannelResampler::MultiChannelAudioSourceProvider implementation, just
   // fills the provided audio_data with |kFillValue|.
   virtual void ProvideInput(AudioBus* audio_bus) {
+    float fill_value = fill_junk_values_ ? (1 / kFillValue) : kFillValue;
     EXPECT_EQ(audio_bus->channels(), audio_bus_->channels());
     for (int i = 0; i < audio_bus->channels(); ++i)
       for (int j = 0; j < audio_bus->frames(); ++j)
-        audio_bus->channel(i)[j] = kFillValue;
+        audio_bus->channel(i)[j] = fill_value;
   }
 
   void MultiChannelTest(int channels, int frames, double expected_max_rms_error,
@@ -61,6 +62,12 @@ class MultiChannelResamplerTest
         channels, kScaleFactor, base::Bind(
             &MultiChannelResamplerTest::ProvideInput,
             base::Unretained(this)));
+    // First prime the resampler with some junk data, so we can verify Flush().
+    fill_junk_values_ = true;
+    resampler.Resample(audio_bus_.get(), 1);
+    resampler.Flush();
+    fill_junk_values_ = false;
+    // If Flush() didn't work, the rest of the tests will fail.
     resampler.Resample(audio_bus_.get(), frames);
     TestValues(expected_max_rms_error, expected_max_error);
   }
@@ -99,6 +106,7 @@ class MultiChannelResamplerTest
 
  protected:
   int frames_;
+  bool fill_junk_values_;
   scoped_ptr<AudioBus> audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(MultiChannelResamplerTest);
