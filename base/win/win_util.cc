@@ -175,17 +175,13 @@ bool SetAppIdForPropertyStore(IPropertyStore* property_store,
                                         app_id);
 }
 
-bool SetDualModeForPropertyStore(IPropertyStore* property_store,
-                                 bool is_dual_mode) {
+bool SetDualModeForPropertyStore(IPropertyStore* property_store) {
   return SetBooleanValueForPropertyStore(property_store,
                                          PKEY_AppUserModel_DualMode,
-                                         is_dual_mode) &&
-         // TODO (gab): This property no longer exists in the final Win8 release
-         // and should be deleted from all shortcuts as it could interfere with
-         // a future (Win9+) property.
+                                         true) &&
          SetUInt32ValueForPropertyStore(property_store,
                                         PKEY_AppUserModel_DualMode_UK,
-                                        is_dual_mode ? 1U : 0U);
+                                        1U);
 }
 
 static const char16 kAutoRunKeyPath[] =
