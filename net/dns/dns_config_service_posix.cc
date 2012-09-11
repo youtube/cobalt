@@ -215,8 +215,7 @@ class DnsConfigServicePosix::HostsReader : public SerialWorker {
 };
 
 DnsConfigServicePosix::DnsConfigServicePosix()
-    : watcher_(new Watcher(this)),
-      config_reader_(new ConfigReader(this)),
+    : config_reader_(new ConfigReader(this)),
       hosts_reader_(new HostsReader(this)) {}
 
 DnsConfigServicePosix::~DnsConfigServicePosix() {
@@ -231,6 +230,7 @@ void DnsConfigServicePosix::ReadNow() {
 
 bool DnsConfigServicePosix::StartWatching() {
   // TODO(szym): re-start watcher if that makes sense. http://crbug.com/116139
+  watcher_.reset(new Watcher(this));
   return watcher_->Watch();
 }
 
