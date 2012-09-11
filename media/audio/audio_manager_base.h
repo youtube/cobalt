@@ -80,6 +80,15 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   virtual AudioInputStream* MakeLowLatencyInputStream(
       const AudioParameters& params, const std::string& device_id) = 0;
 
+  // Returns the preferred hardware audio output parameters for opening output
+  // streams in the |AUDIO_PCM_LOW_LATENCY| format.
+  // TODO(dalecurtis): Retrieve the |channel_layout| value from hardware instead
+  // of accepting the value.
+  // TODO(dalecurtis): Each AudioManager should implement their own version, see
+  // http://crbug.com/137326
+  virtual AudioParameters GetPreferredLowLatencyOutputStreamParameters(
+      ChannelLayout channel_layout);
+
  protected:
   AudioManagerBase();
 

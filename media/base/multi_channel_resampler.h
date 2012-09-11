@@ -34,6 +34,9 @@ class MEDIA_EXPORT MultiChannelResampler {
   // Resamples |frames| of data from |read_cb_| into AudioBus.
   void Resample(AudioBus* audio_bus, int frames);
 
+  // Flush all buffered data and reset internal indices.
+  void Flush();
+
  private:
   // SincResampler::ReadCB implementation.  ProvideInput() will be called for
   // each channel (in channel order) as SincResampler needs more data.

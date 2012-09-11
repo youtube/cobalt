@@ -214,6 +214,12 @@ int SincResampler::ChunkSize() {
   return kBlockSize / io_sample_rate_ratio_;
 }
 
+void SincResampler::Flush() {
+  virtual_source_idx_ = 0;
+  buffer_primed_ = false;
+  memset(input_buffer_.get(), 0, sizeof(*input_buffer_.get()) * kBufferSize);
+}
+
 float SincResampler::Convolve(const float* input_ptr, const float* k1,
                               const float* k2,
                               double kernel_interpolation_factor) {

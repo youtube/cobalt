@@ -10,6 +10,8 @@
 #include "base/threading/thread.h"
 #include "media/audio/audio_output_dispatcher_impl.h"
 #include "media/audio/audio_output_proxy.h"
+#include "media/audio/audio_output_resampler.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/base/media_switches.h"
@@ -147,22 +149,39 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
 #else
   DCHECK(GetMessageLoop()->BelongsToCurrentThread());
 
-  scoped_refptr<AudioOutputDispatcher>& dispatcher =
-      output_dispatchers_[params];
-  if (!dispatcher) {
-    base::TimeDelta close_delay =
-        base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds);
-    // TODO(dalecurtis): Browser side mixing has a couple issues that must be
-    // fixed before it can be turned on by default: http://crbug.com/138098 and
-    // http://crbug.com/140247
-#if defined(ENABLE_AUDIO_MIXER)
-    const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
-    if (cmd_line->HasSwitch(switches::kEnableAudioMixer))
-      dispatcher = new AudioOutputMixer(this, params, close_delay);
-    else
-#endif
-      dispatcher = new AudioOutputDispatcherImpl(this, params, close_delay);
+  AudioOutputDispatchersMap::iterator it = output_dispatchers_.find(params);
+  if (it != output_dispatchers_.end())
+    return new AudioOutputProxy(it->second);
+
+  base::TimeDelta close_delay =
+      base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds);
+
+  const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
+  if (cmd_line->HasSwitch(switches::kEnableAudioOutputResampler) &&
+      params.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+    scoped_refptr<AudioOutputDispatcher> dispatcher = new AudioOutputResampler(
+        this, params,
+        GetPreferredLowLatencyOutputStreamParameters(params.channel_layout()),
+        close_delay);
+    output_dispatchers_[params] = dispatcher;
+    return new AudioOutputProxy(dispatcher);
   }
+
+#if defined(ENABLE_AUDIO_MIXER)
+  // TODO(dalecurtis): Browser side mixing has a couple issues that must be
+  // fixed before it can be turned on by default: http://crbug.com/138098 and
+  // http://crbug.com/140247
+  if (cmd_line->HasSwitch(switches::kEnableAudioMixer)) {
+    scoped_refptr<AudioOutputDispatcher> dispatcher =
+        new AudioOutputMixer(this, params, close_delay);
+    output_dispatchers_[params] = dispatcher;
+    return new AudioOutputProxy(dispatcher);
+  }
+#endif
+
+  scoped_refptr<AudioOutputDispatcher> dispatcher =
+      new AudioOutputDispatcherImpl(this, params, close_delay);
+  output_dispatchers_[params] = dispatcher;
   return new AudioOutputProxy(dispatcher);
 #endif  // defined(OS_IOS)
 }
@@ -257,6 +276,15 @@ void AudioManagerBase::ShutdownOnAudioThread() {
 
   output_dispatchers_.clear();
 #endif  // defined(OS_IOS)
+}
+
+AudioParameters AudioManagerBase::GetPreferredLowLatencyOutputStreamParameters(
+    ChannelLayout channel_layout) {
+  // TODO(dalecurtis): This should include bits per channel and channel layout
+  // eventually.
+  return AudioParameters(
+      AudioParameters::AUDIO_PCM_LOW_LATENCY, channel_layout,
+      GetAudioHardwareSampleRate(), 16, GetAudioHardwareBufferSize());
 }
 
 }  // namespace media

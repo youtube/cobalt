@@ -94,4 +94,10 @@ void MultiChannelResampler::ProvideInput(int channel, float* destination,
   }
 }
 
+void MultiChannelResampler::Flush() {
+  last_frame_count_ = 0;
+  for (size_t i = 0; i < resamplers_.size(); ++i)
+    resamplers_[i]->Flush();
+}
+
 }  // namespace media

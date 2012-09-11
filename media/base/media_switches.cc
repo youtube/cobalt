@@ -38,4 +38,7 @@ const char kVideoThreads[] = "video-threads";
 // Enable browser-side audio mixer.
 const char kEnableAudioMixer[] = "enable-audio-mixer";
 
+// Enable AudioOutputResampler for automatic audio resampling and rebuffering.
+const char kEnableAudioOutputResampler[] = "enable-audio-output-resampler";
+
 }  // namespace switches
