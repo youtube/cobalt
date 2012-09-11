@@ -8,17 +8,18 @@
 
 1. Copy over test binary to /data/local on device.
 2. Resources: chrome/unit_tests requires resources (chrome.pak and en-US.pak)
-   to be deployed to the device (in TEST_DATA_DIR).
+   to be deployed to the device. We use the device's $EXTERNAL_STORAGE as the
+   base dir (which maps to Context.getExternalFilesDir()).
 3. Environment:
 3.1. chrome/unit_tests requires (via chrome_paths.cc) a directory named:
-     TEST_DATA_DIR + /chrome/test/data
+     $EXTERNAL_STORAGE + /chrome/test/data
 3.2. page_cycler_tests have following requirements,
 3.2.1  the following data on host:
        <chrome_src_dir>/tools/page_cycler
        <chrome_src_dir>/data/page_cycler
 3.2.2. two data directories to store above test data on device named:
-       TEST_DATA_DIR + /tools/ (for database perf test)
-       TEST_DATA_DIR + /data/ (for other perf tests)
+       $EXTERNAL_STORAGE + /tools/ (for database perf test)
+       $EXTERNAL_STORAGE + /data/ (for other perf tests)
 3.2.3. a http server to serve http perf tests.
        The http root is host's <chrome_src_dir>/data/page_cycler/, port 8000.
 3.2.4  a tool named forwarder is also required to run on device to

@@ -36,5 +36,4 @@ TEST_SERVER_PORT_LAST = 30000
 TEST_SERVER_PORT_FILE = '/tmp/test_server_port'
 TEST_SERVER_PORT_LOCKFILE = '/tmp/test_server_port.lock'
 
-TEST_DATA_DIR = '/sdcard'
 TEST_EXECUTABLE_DIR = '/data/local/tmp'
