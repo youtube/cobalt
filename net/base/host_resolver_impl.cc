@@ -1688,7 +1688,8 @@ HostResolverImpl::HostResolverImpl(
 #endif
   NetworkChangeNotifier::AddIPAddressObserver(this);
   NetworkChangeNotifier::AddDNSObserver(this);
-  OnDNSChanged();
+  if (!HaveDnsConfig())
+    OnDNSChanged();
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && \
     !defined(OS_ANDROID)
   EnsureDnsReloaderInit();
