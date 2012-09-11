@@ -2260,6 +2260,12 @@ TEST_F(ChunkDemuxerTest, TestTimestampOffsetMidParse) {
   // Setting a timestamp should fail because we're in the middle of a cluster.
   ASSERT_FALSE(demuxer_->SetTimestampOffset(
       kSourceId, base::TimeDelta::FromSeconds(25)));
+
+  demuxer_->Abort(kSourceId);
+  // After Abort(), setting a timestamp should succeed since we're no longer
+  // in the middle of a cluster
+  ASSERT_TRUE(demuxer_->SetTimestampOffset(
+      kSourceId, base::TimeDelta::FromSeconds(25)));
 }
 
 TEST_F(ChunkDemuxerTest, TestDurationChange) {
