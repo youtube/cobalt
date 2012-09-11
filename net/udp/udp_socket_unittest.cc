@@ -136,7 +136,7 @@ TEST_F(UDPSocketTest, Connect) {
   scoped_ptr<UDPServerSocket> server(
       new UDPServerSocket(&server_log, NetLog::Source()));
   int rv = server->Listen(bind_address);
-  EXPECT_EQ(OK, rv);
+  ASSERT_EQ(OK, rv);
 
   // Setup the client.
   IPEndPoint server_address;
@@ -338,13 +338,13 @@ TEST_F(UDPSocketTest, VerifyConnectBindsAddr) {
   CreateUDPAddress("0.0.0.0", kPort1, &bind_address);
   UDPServerSocket server1(NULL, NetLog::Source());
   int rv = server1.Listen(bind_address);
-  EXPECT_EQ(OK, rv);
+  ASSERT_EQ(OK, rv);
 
   // Setup the second server to listen.
   CreateUDPAddress("0.0.0.0", kPort2, &bind_address);
   UDPServerSocket server2(NULL, NetLog::Source());
   rv = server2.Listen(bind_address);
-  EXPECT_EQ(OK, rv);
+  ASSERT_EQ(OK, rv);
 
   // Setup the client, connected to server 1.
   IPEndPoint server_address;
