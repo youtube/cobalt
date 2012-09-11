@@ -226,6 +226,57 @@ BASE_EXPORT bool SetPosixFilePermissions(const FilePath& path,
 #endif  // defined(OS_POSIX)
 
 #if defined(OS_WIN)
+enum ShortcutOptions {
+  SHORTCUT_NO_OPTIONS = 0,
+  // Set DualMode property for Windows 8 Metro-enabled shortcuts.
+  SHORTCUT_DUAL_MODE = 1 << 0,
+  // Create a new shortcut (overwriting if necessary).
+  SHORTCUT_CREATE_ALWAYS = 1 << 1,
+};
+
+// Resolve Windows shortcut (.LNK file)
+// This methods tries to resolve a shortcut .LNK file. The path of the shortcut
+// to resolve is in |shortcut_path|. If |target_path| is not NULL, the target
+// will be resolved and placed in |target_path|. If |args| is not NULL, the
+// arguments will be retrieved and placed in |args|. The function returns true
+// if all requested fields are are found successfully.
+// Callers can safely use the same variable for both |shortcut_path| and
+// |target_path|.
+BASE_EXPORT bool ResolveShortcut(const FilePath& shortcut_path,
+                                 FilePath* target_path,
+                                 string16* args);
+
+// Creates (or updates) a Windows shortcut (.LNK file)
+// This method creates (or updates) a shortcut link using the information given.
+// Ensure you have initialized COM before calling into this function.
+// |destination| is required. |source| is required when SHORTCUT_CREATE_ALWAYS
+// is specified in |options|. All other parameters are optional and may be NULL.
+// |source| is the existing file, |destination| is the new link file to be
+// created; for best results pass the filename with the .lnk extension.
+// The |icon| can specify a dll or exe in which case the icon index is the
+// resource id. |app_id| is the app model id for the shortcut on Win7.
+// |options|: bitfield for which the options come from ShortcutOptions.
+// If SHORTCUT_CREATE_ALWAYS is not set in |options|, only specified (non-null)
+// properties on an existing shortcut will be modified. If the shortcut does not
+// exist, this method is a no-op and returns false.
+BASE_EXPORT bool CreateOrUpdateShortcutLink(const wchar_t *source,
+                                            const wchar_t *destination,
+                                            const wchar_t *working_dir,
+                                            const wchar_t *arguments,
+                                            const wchar_t *description,
+                                            const wchar_t *icon,
+                                            int icon_index,
+                                            const wchar_t* app_id,
+                                            uint32 options);
+
+// Pins a shortcut to the Windows 7 taskbar. The shortcut file must already
+// exist and be a shortcut that points to an executable.
+BASE_EXPORT bool TaskbarPinShortcutLink(const wchar_t* shortcut);
+
+// Unpins a shortcut from the Windows 7 taskbar. The shortcut must exist and
+// already be pinned to the taskbar.
+BASE_EXPORT bool TaskbarUnpinShortcutLink(const wchar_t* shortcut);
+
 // Copy from_path to to_path recursively and then delete from_path recursively.
 // Returns true if all operations succeed.
 // This function simulates Move(), but unlike Move() it works across volumes.
