@@ -110,27 +110,28 @@ class TestPackage(object):
     return ret
 
   def PushDataAndPakFiles(self):
+    external_storage = self.adb.GetExternalStorage()
     if (self.test_suite_basename == 'ui_unittests' or
         self.test_suite_basename == 'unit_tests'):
       self.adb.PushIfNeeded(
           self.test_suite_dirname + '/chrome.pak',
-          constants.TEST_DATA_DIR + '/paks/chrome.pak')
+          external_storage + '/paks/chrome.pak')
       self.adb.PushIfNeeded(
           self.test_suite_dirname + '/locales/en-US.pak',
-          constants.TEST_DATA_DIR + '/paks/en-US.pak')
+          external_storage + '/paks/en-US.pak')
     if self.test_suite_basename == 'unit_tests':
       self.adb.PushIfNeeded(
           self.test_suite_dirname + '/resources.pak',
-          constants.TEST_DATA_DIR + '/paks/resources.pak')
+          external_storage + '/paks/resources.pak')
       self.adb.PushIfNeeded(
           self.test_suite_dirname + '/chrome_100_percent.pak',
-          constants.TEST_DATA_DIR + '/paks/chrome_100_percent.pak')
+          external_storage + '/paks/chrome_100_percent.pak')
       self.adb.PushIfNeeded(self.test_suite_dirname + '/test_data',
-                            constants.TEST_DATA_DIR + '/test_data')
+                            external_storage + '/test_data')
     if self.test_suite_basename == 'content_unittests':
       self.adb.PushIfNeeded(
           self.test_suite_dirname + '/content_resources.pak',
-          constants.TEST_DATA_DIR + '/paks/content_resources.pak')
+          external_storage + '/paks/content_resources.pak')
 
   def _WatchTestOutput(self, p):
     """Watches the test output.

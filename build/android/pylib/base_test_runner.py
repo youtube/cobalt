@@ -22,8 +22,7 @@ from valgrind_tools import CreateTool
 
 # A file on device to store ports of net test server. The format of the file is
 # test-spawner-server-port:test-server-port
-NET_TEST_SERVER_PORT_INFO_FILE = \
-  constants.TEST_DATA_DIR + '/net-test-server-ports'
+NET_TEST_SERVER_PORT_INFO_FILE = 'net-test-server-ports'
 
 
 class BaseTestRunner(object):
@@ -62,7 +61,8 @@ class BaseTestRunner(object):
 
   def _PushTestServerPortInfoToDevice(self):
     """Pushes the latest port information to device."""
-    self.adb.SetFileContents(NET_TEST_SERVER_PORT_INFO_FILE,
+    self.adb.SetFileContents(self.adb.GetExternalStorage() + '/' +
+                             NET_TEST_SERVER_PORT_INFO_FILE,
                              '%d:%d' % (self.test_server_spawner_port,
                                         self.test_server_port))
 
