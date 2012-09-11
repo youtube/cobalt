@@ -27,7 +27,6 @@ static MockTransactionMap mock_transactions;
 // mock transaction data
 
 const MockTransaction kSimpleGET_Transaction = {
-  net::OK,
   "http://www.google.com/",
   "GET",
   base::Time(),
@@ -43,7 +42,6 @@ const MockTransaction kSimpleGET_Transaction = {
 };
 
 const MockTransaction kSimplePOST_Transaction = {
-  net::OK,
   "http://bugdatabase.com/edit",
   "POST",
   base::Time(),
@@ -59,7 +57,6 @@ const MockTransaction kSimplePOST_Transaction = {
 };
 
 const MockTransaction kTypicalGET_Transaction = {
-  net::OK,
   "http://www.example.com/~foo/bar.html",
   "GET",
   base::Time(),
@@ -76,7 +73,6 @@ const MockTransaction kTypicalGET_Transaction = {
 };
 
 const MockTransaction kETagGET_Transaction = {
-  net::OK,
   "http://www.google.com/foopy",
   "GET",
   base::Time(),
@@ -93,7 +89,6 @@ const MockTransaction kETagGET_Transaction = {
 };
 
 const MockTransaction kRangeGET_Transaction = {
-  net::OK,
   "http://www.google.com/",
   "GET",
   base::Time(),
@@ -131,9 +126,6 @@ const MockTransaction* FindMockTransaction(const GURL& url) {
 }
 
 void AddMockTransaction(const MockTransaction* trans) {
-  // To return a result asynchronously, set the TEST_MODE_SYNC_NET_START bit
-  // of |test_mode|.
-  ASSERT_NE(net::ERR_IO_PENDING, trans->start_result);
   mock_transactions[GURL(trans->url).spec()] = trans;
 }
 
@@ -238,38 +230,35 @@ int MockNetworkTransaction::Start(const net::HttpRequestInfo* request,
   if (!t)
     return net::ERR_FAILED;
 
-  net::Error result = t->start_result;
+  std::string resp_status = t->status;
+  std::string resp_headers = t->response_headers;
+  std::string resp_data = t->data;
+  if (t->handler)
+    (t->handler)(request, &resp_status, &resp_headers, &resp_data);
+
+  std::string header_data = base::StringPrintf(
+      "%s\n%s\n", resp_status.c_str(), resp_headers.c_str());
+  std::replace(header_data.begin(), header_data.end(), '\n', '\0');
+
+  response_.request_time = base::Time::Now();
+  if (!t->request_time.is_null())
+    response_.request_time = t->request_time;
+
+  response_.was_cached = false;
+
+  response_.response_time = base::Time::Now();
+  if (!t->response_time.is_null())
+    response_.response_time = t->response_time;
+
+  response_.headers = new net::HttpResponseHeaders(header_data);
+  response_.ssl_info.cert_status = t->cert_status;
+  data_ = resp_data;
   test_mode_ = t->test_mode;
-  if (result == net::OK) {
-    std::string resp_status = t->status;
-    std::string resp_headers = t->response_headers;
-    std::string resp_data = t->data;
-    if (t->handler)
-      (t->handler)(request, &resp_status, &resp_headers, &resp_data);
-
-    std::string header_data = base::StringPrintf(
-        "%s\n%s\n", resp_status.c_str(), resp_headers.c_str());
-    std::replace(header_data.begin(), header_data.end(), '\n', '\0');
-
-    response_.request_time = base::Time::Now();
-    if (!t->request_time.is_null())
-      response_.request_time = t->request_time;
-
-    response_.was_cached = false;
-
-    response_.response_time = base::Time::Now();
-    if (!t->response_time.is_null())
-      response_.response_time = t->response_time;
-
-    response_.headers = new net::HttpResponseHeaders(header_data);
-    response_.ssl_info.cert_status = t->cert_status;
-    data_ = resp_data;
-  }
 
   if (test_mode_ & TEST_MODE_SYNC_NET_START)
-    return result;
+    return net::OK;
 
-  CallbackLater(callback, result);
+  CallbackLater(callback, net::OK);
   return net::ERR_IO_PENDING;
 }
 
