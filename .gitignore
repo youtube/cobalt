@@ -102,6 +102,7 @@ v8.log
 /data
 /delegate_execute
 /googleurl
+/google_apis/internal
 /gpu/gles2_conform_test
 /gyp-mac-tool
 /llvm
