@@ -2,8 +2,8 @@ Name: harfbuzz-ng
 Short Name: harfbuzz-ng
 URL: http://freedesktop.org/wiki/Software/HarfBuzz
 Version: unknown
-Date: 20120608
-Revision: 0bb0f5d41976ae27c5c7a51cbb82144b48315a4b
+Date: 20120910
+Revision: 811eefe225d20b20f1de20c6e62a0ebd6d89102a
 Security Critical: yes
 License: MIT
 License File: NOT_SHIPPED

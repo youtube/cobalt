@@ -33,11 +33,10 @@
 
 #include "hb-unicode-private.hh"
 
-#include <unicode/uversion.h>
 #include <unicode/uchar.h>
 #include <unicode/unorm.h>
 #include <unicode/ustring.h>
-
+#include <unicode/uversion.h>
 
 
 hb_script_t
@@ -63,13 +62,13 @@ hb_icu_script_from_script (hb_script_t script)
 }
 
 
-static unsigned int
+static hb_unicode_combining_class_t
 hb_icu_unicode_combining_class (hb_unicode_funcs_t *ufuncs HB_UNUSED,
 				hb_codepoint_t      unicode,
 				void               *user_data HB_UNUSED)
 
 {
-  return u_getCombiningClass (unicode);
+  return (hb_unicode_combining_class_t) u_getCombiningClass (unicode);
 }
 
 static unsigned int
@@ -164,6 +163,10 @@ hb_icu_unicode_script (hb_unicode_funcs_t *ufuncs HB_UNUSED,
   return hb_icu_script_to_script (scriptCode);
 }
 
+#if U_ICU_VERSION_MAJOR_NUM >= 49
+static const UNormalizer2 *normalizer;
+#endif
+
 static hb_bool_t
 hb_icu_unicode_compose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
 			hb_codepoint_t      a,
@@ -171,11 +174,20 @@ hb_icu_unicode_compose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
 			hb_codepoint_t     *ab,
 			void               *user_data HB_UNUSED)
 {
-  if (!a || !b)
-    return false;
+#if U_ICU_VERSION_MAJOR_NUM >= 49
+  {
+    UChar32 ret = unorm2_composePair (normalizer, a, b);
+    if (ret < 0) return false;
+    *ab = ret;
+    return true;
+  }
+#endif
+
+  /* We don't ifdef-out the fallback code such that compiler always
+   * sees it and makes sure it's compilable. */
 
   UChar utf16[4], normalized[5];
-  int len;
+  unsigned int len;
   hb_bool_t ret, err;
   UErrorCode icu_err;
 
@@ -207,8 +219,34 @@ hb_icu_unicode_decompose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
 			  hb_codepoint_t     *b,
 			  void               *user_data HB_UNUSED)
 {
-  UChar utf16[2], normalized[20];
-  int len;
+#if U_ICU_VERSION_MAJOR_NUM >= 49
+  {
+    UChar decomposed[4];
+    int len;
+    UErrorCode icu_err = U_ZERO_ERROR;
+    len = unorm2_getRawDecomposition (normalizer, ab, decomposed,
+				      ARRAY_LENGTH (decomposed), &icu_err);
+    if (U_FAILURE (icu_err) || len < 0) return false;
+
+    len = u_countChar32 (decomposed, len);
+    if (len == 1) {
+      U16_GET_UNSAFE (decomposed, 0, *a);
+      *b = 0;
+      return *a != ab;
+    } else if (len == 2) {
+      len =0;
+      U16_NEXT_UNSAFE (decomposed, len, *a);
+      U16_NEXT_UNSAFE (decomposed, len, *b);
+    }
+    return true;
+  }
+#endif
+
+  /* We don't ifdef-out the fallback code such that compiler always
+   * sees it and makes sure it's compilable. */
+
+  UChar utf16[2], normalized[2 * HB_UNICODE_MAX_DECOMPOSITION_LEN + 1];
+  unsigned int len;
   hb_bool_t ret, err;
   UErrorCode icu_err;
 
@@ -271,23 +309,63 @@ hb_icu_unicode_decompose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
   return ret;
 }
 
+static unsigned int
+hb_icu_unicode_decompose_compatibility (hb_unicode_funcs_t *ufuncs HB_UNUSED,
+					hb_codepoint_t      u,
+					hb_codepoint_t     *decomposed,
+					void               *user_data HB_UNUSED)
+{
+  UChar utf16[2], normalized[2 * HB_UNICODE_MAX_DECOMPOSITION_LEN + 1];
+  unsigned int len;
+  int32_t utf32_len;
+  hb_bool_t err;
+  UErrorCode icu_err;
 
-extern HB_INTERNAL const hb_unicode_funcs_t _hb_icu_unicode_funcs;
-const hb_unicode_funcs_t _hb_icu_unicode_funcs = {
-  HB_OBJECT_HEADER_STATIC,
+  /* Copy @u into a UTF-16 array to be passed to ICU. */
+  len = 0;
+  err = FALSE;
+  U16_APPEND (utf16, len, ARRAY_LENGTH (utf16), u, err);
+  if (err)
+    return 0;
 
-  NULL, /* parent */
-  true, /* immutable */
-  {
-#define HB_UNICODE_FUNC_IMPLEMENT(name) hb_icu_unicode_##name,
-    HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
-#undef HB_UNICODE_FUNC_IMPLEMENT
-  }
-};
+  /* Normalise the codepoint using NFKD mode. */
+  icu_err = U_ZERO_ERROR;
+  len = unorm_normalize (utf16, len, UNORM_NFKD, 0, normalized, ARRAY_LENGTH (normalized), &icu_err);
+  if (icu_err)
+    return 0;
+
+  /* Convert the decomposed form from UTF-16 to UTF-32. */
+  icu_err = U_ZERO_ERROR;
+  u_strToUTF32 ((UChar32*) decomposed, HB_UNICODE_MAX_DECOMPOSITION_LEN, &utf32_len, normalized, len, &icu_err);
+  if (icu_err)
+    return 0;
+
+  return utf32_len;
+}
+
 
 hb_unicode_funcs_t *
 hb_icu_get_unicode_funcs (void)
 {
+  static const hb_unicode_funcs_t _hb_icu_unicode_funcs = {
+    HB_OBJECT_HEADER_STATIC,
+
+    NULL, /* parent */
+    true, /* immutable */
+    {
+#define HB_UNICODE_FUNC_IMPLEMENT(name) hb_icu_unicode_##name,
+      HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
+#undef HB_UNICODE_FUNC_IMPLEMENT
+    }
+  };
+
+#if U_ICU_VERSION_MAJOR_NUM >= 49
+  if (!hb_atomic_ptr_get (&normalizer)) {
+    UErrorCode icu_err = U_ZERO_ERROR;
+    /* We ignore failure in getNFCInstace(). */
+    hb_atomic_ptr_cmpexch (&normalizer, NULL, unorm2_getNFCInstance (&icu_err));
+  }
+#endif
   return const_cast<hb_unicode_funcs_t *> (&_hb_icu_unicode_funcs);
 }
 
