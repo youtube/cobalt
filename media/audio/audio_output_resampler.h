@@ -66,8 +66,9 @@ class MEDIA_EXPORT AudioOutputResampler
   // Called by MultiChannelResampler when more data is necessary.
   void ProvideInput(AudioBus* audio_bus);
 
-  // Called by AudioPullFifo when more data is necessary.
-  void SourceCallback(AudioBus* audio_bus);
+  // Called by AudioPullFifo when more data is necessary.  Requires
+  // |source_lock_| to have been acquired.
+  void SourceCallback_Locked(AudioBus* audio_bus);
 
   // Used by StopStream()/CloseStream()/Shutdown() to clear internal state.
   // TODO(dalecurtis): Probably only one of these methods needs to call this,
@@ -86,6 +87,8 @@ class MEDIA_EXPORT AudioOutputResampler
 
   // Used to buffer data between the client and the output device in cases where
   // the client buffer size is not the same as the output device buffer size.
+  // Bound to SourceCallback_Locked() so must only be used when |source_lock_|
+  // has already been acquired.
   scoped_ptr<AudioPullFifo> audio_fifo_;
 
   // Ratio of input bytes to output bytes used to correct playback delay with
