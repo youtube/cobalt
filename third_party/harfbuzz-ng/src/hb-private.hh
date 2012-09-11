@@ -66,14 +66,19 @@
 
 
 #undef MIN
-template <typename Type> static inline Type MIN (const Type &a, const Type &b) { return a < b ? a : b; }
+template <typename Type>
+static inline Type MIN (const Type &a, const Type &b) { return a < b ? a : b; }
 
 #undef MAX
-template <typename Type> static inline Type MAX (const Type &a, const Type &b) { return a > b ? a : b; }
+template <typename Type>
+static inline Type MAX (const Type &a, const Type &b) { return a > b ? a : b; }
 
 
 #undef  ARRAY_LENGTH
-#define ARRAY_LENGTH(__array) ((signed int) (sizeof (__array) / sizeof (__array[0])))
+template <typename Type, unsigned int n>
+static inline unsigned int ARRAY_LENGTH (const Type (&a)[n]) { return n; }
+/* A const version, but does not detect erratically being called on pointers. */
+#define ARRAY_LENGTH_CONST(__array) ((signed int) (sizeof (__array) / sizeof (__array[0])))
 
 #define HB_STMT_START do
 #define HB_STMT_END   while (0)
@@ -442,6 +447,11 @@ struct hb_lockable_set_t
 
   inline void finish (lock_t &l)
   {
+    if (!items.len) {
+      /* No need for locking. */
+      items.finish ();
+      return;
+    }
     l.lock ();
     while (items.len) {
       item_t old = items[items.len - 1];
@@ -464,7 +474,17 @@ struct hb_lockable_set_t
 static inline uint16_t hb_be_uint16 (const uint16_t v)
 {
   const uint8_t *V = (const uint8_t *) &v;
-  return (uint16_t) (V[0] << 8) + V[1];
+  return (V[0] << 8) | V[1];
+}
+
+static inline uint16_t hb_uint16_swap (const uint16_t v)
+{
+  return (v >> 8) | (v << 8);
+}
+
+static inline uint32_t hb_uint32_swap (const uint32_t v)
+{
+  return (hb_uint16_swap (v) << 16) | hb_uint16_swap (v >> 16);
 }
 
 /* Note, of the following macros, uint16_get is the one called many many times.
@@ -547,21 +567,29 @@ _hb_debug_msg_va (const char *what,
     fprintf (stderr, " %*s  ", (unsigned int) (2 * sizeof (void *)), "");
 
   if (indented) {
-    static const char bars[] = "││││││││││││││││││││││││││││││││││││││││";
-    fprintf (stderr, "%2d %s├%s",
+/* One may want to add ASCII version of these.  See:
+ * https://bugs.freedesktop.org/show_bug.cgi?id=50970 */
+#define VBAR	"\342\224\202"	/* U+2502 BOX DRAWINGS LIGHT VERTICAL */
+#define VRBAR	"\342\224\234"	/* U+251C BOX DRAWINGS LIGHT VERTICAL AND RIGHT */
+#define DLBAR	"\342\225\256"	/* U+256E BOX DRAWINGS LIGHT ARC DOWN AND LEFT */
+#define ULBAR	"\342\225\257"	/* U+256F BOX DRAWINGS LIGHT ARC UP AND LEFT */
+#define LBAR	"\342\225\264"	/* U+2574 BOX DRAWINGS LIGHT LEFT */
+    static const char bars[] = VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR VBAR;
+    fprintf (stderr, "%2d %s" VRBAR "%s",
 	     level,
-	     bars + sizeof (bars) - 1 - MIN ((unsigned int) sizeof (bars), 3 * level),
-	     level_dir ? (level_dir > 0 ? "╮" : "╯") : "╴");
+	     bars + sizeof (bars) - 1 - MIN ((unsigned int) sizeof (bars), (unsigned int) (sizeof (VBAR) - 1) * level),
+	     level_dir ? (level_dir > 0 ? DLBAR : ULBAR) : LBAR);
   } else
-    fprintf (stderr, "   ├╴");
+    fprintf (stderr, "   " VRBAR LBAR);
 
   if (func) {
-    /* If there's a class name, just write that. */
-    const char *dotdot = strstr (func, "::");
+    /* Skip return type */
     const char *space = strchr (func, ' ');
-    if (space && dotdot && space < dotdot)
+    if (space)
       func = space + 1;
-    unsigned int func_len = dotdot ? dotdot - func : strlen (func);
+    /* Skip parameter list */
+    const char *paren = strchr (func, '(');
+    unsigned int func_len = paren ? paren - func : strlen (func);
     fprintf (stderr, "%.*s: ", func_len, func);
   }
 
@@ -659,14 +687,14 @@ struct hb_auto_trace_t {
     if (plevel) --*plevel;
   }
 
-  inline bool ret (bool v)
+  inline bool ret (bool v, unsigned int line = 0)
   {
     if (unlikely (returned)) {
       fprintf (stderr, "OUCH, double calls to TRACE_RETURN.  This is a bug, please report.\n");
       return v;
     }
 
-    _hb_debug_msg<max_level> (what, obj, NULL, true, plevel ? *plevel : 1, -1, "return %s", v ? "true" : "false");
+    _hb_debug_msg<max_level> (what, obj, NULL, true, plevel ? *plevel : 1, -1, "return %s (line %d)", v ? "true" : "false", line);
     if (plevel) --*plevel;
     plevel = NULL;
     returned = true;
@@ -689,10 +717,10 @@ struct hb_auto_trace_t<0> {
 				   ...) {}
 
   template <typename T>
-  inline T ret (T v) { return v; }
+  inline T ret (T v, unsigned int line = 0) { return v; }
 };
 
-#define TRACE_RETURN(RET) trace.ret (RET)
+#define TRACE_RETURN(RET) trace.ret (RET, __LINE__)
 
 /* Misc */
 
@@ -701,7 +729,7 @@ struct hb_auto_trace_t<0> {
  * Checks for lo <= u <= hi but with an optimization if lo and hi
  * are only different in a contiguous set of lower-most bits.
  */
-template <typename T> inline bool
+template <typename T> static inline bool
 hb_in_range (T u, T lo, T hi)
 {
   if ( ((lo^hi) & lo) == 0 &&
@@ -712,16 +740,23 @@ hb_in_range (T u, T lo, T hi)
     return lo <= u && u <= hi;
 }
 
+template <typename T> static inline bool
+hb_in_ranges (T u, T lo1, T hi1, T lo2, T hi2, T lo3, T hi3)
+{
+  return hb_in_range (u, lo1, hi1) || hb_in_range (u, lo2, hi2) || hb_in_range (u, lo3, hi3);
+}
+
 
 /* Useful for set-operations on small enums.
  * For example, for testing "x ∈ {x1, x2, x3}" use:
  * (FLAG(x) & (FLAG(x1) | FLAG(x2) | FLAG(x3)))
  */
 #define FLAG(x) (1<<(x))
+#define FLAG_RANGE(x,y) (ASSERT_STATIC_EXPR_ZERO ((x) < (y)) + FLAG(y+1) - FLAG(x))
 
 
-template <typename T> inline void
-hb_bubble_sort (T *array, unsigned int len, int(*compar)(const T *, const T *))
+template <typename T, typename T2> inline void
+hb_bubble_sort (T *array, unsigned int len, int(*compar)(const T *, const T *), T2 *array2)
 {
   if (unlikely (!len))
     return;
@@ -731,11 +766,21 @@ hb_bubble_sort (T *array, unsigned int len, int(*compar)(const T *, const T *))
     unsigned int new_k = 0;
 
     for (unsigned int j = 0; j < k; j++)
-      if (compar (&array[j], &array[j+1]) > 0) {
-        T t;
-	t = array[j];
-	array[j] = array[j + 1];
-	array[j + 1] = t;
+      if (compar (&array[j], &array[j+1]) > 0)
+      {
+        {
+	  T t;
+	  t = array[j];
+	  array[j] = array[j + 1];
+	  array[j + 1] = t;
+	}
+        if (array2)
+        {
+	  T2 t;
+	  t = array2[j];
+	  array2[j] = array2[j + 1];
+	  array2[j + 1] = t;
+	}
 
 	new_k = j;
       }
@@ -743,7 +788,28 @@ hb_bubble_sort (T *array, unsigned int len, int(*compar)(const T *, const T *))
   } while (k);
 }
 
+template <typename T> inline void
+hb_bubble_sort (T *array, unsigned int len, int(*compar)(const T *, const T *))
+{
+  hb_bubble_sort (array, len, compar, (int *) NULL);
+}
 
+static inline hb_bool_t
+hb_codepoint_parse (const char *s, unsigned int len, int base, hb_codepoint_t *out)
+{
+  /* Pain because we don't know whether s is nul-terminated. */
+  char buf[64];
+  strncpy (buf, s, MIN (ARRAY_LENGTH (buf) - 1, len));
+  buf[MIN (ARRAY_LENGTH (buf) - 1, len)] = '\0';
+
+  char *end;
+  errno = 0;
+  unsigned long v = strtoul (buf, &end, base);
+  if (errno) return false;
+  if (*end) return false;
+  *out = v;
+  return true;
+}
 
 
 #endif /* HB_PRIVATE_HH */

@@ -24,16 +24,21 @@
  * Google Author(s): Behdad Esfahbod
  */
 
-#include "hb-atomic-private.hh"
-#include "hb-mutex-private.hh"
+#ifndef HB_OT_SHAPE_FALLBACK_PRIVATE_HH
+#define HB_OT_SHAPE_FALLBACK_PRIVATE_HH
+
+#include "hb-private.hh"
+
+#include "hb-ot-shape-private.hh"
 
 
-#if defined(HB_ATOMIC_INT_NIL)
-#pragma message("Could not find any system to define atomic_int macros, library may NOT be thread-safe.")
-#endif
-#if defined(HB_MUTEX_IMPL_NIL)
-#pragma message("Could not find any system to define mutex macros, library may NOT be thread-safe.")
-#endif
-#if defined(HB_ATOMIC_INT_NIL) || defined(HB_MUTEX_IMPL_NIL)
-#pragma message("To suppress these warnings, define HB_NO_MT.")
-#endif
+HB_INTERNAL void _hb_ot_shape_fallback_position (const hb_ot_shape_plan_t *plan,
+						 hb_font_t *font,
+						 hb_buffer_t  *buffer);
+
+HB_INTERNAL void _hb_ot_shape_fallback_position_recategorize_marks (const hb_ot_shape_plan_t *plan,
+								    hb_font_t *font,
+								    hb_buffer_t  *buffer);
+
+
+#endif /* HB_OT_SHAPE_FALLBACK_PRIVATE_HH */

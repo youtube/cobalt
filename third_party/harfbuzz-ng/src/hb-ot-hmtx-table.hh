@@ -30,6 +30,8 @@
 #include "hb-open-type-private.hh"
 
 
+namespace OT {
+
 
 /*
  * hmtx -- The Horizontal Metrics Table
@@ -57,7 +59,7 @@ struct hmtx
     return TRACE_RETURN (true);
   }
 
-  private:
+  protected:
   LongHorMetric	longHorMetric[VAR];	/* Paired advance width and left side
 					 * bearing values for each glyph. The
 					 * value numOfHMetrics comes from
@@ -82,5 +84,9 @@ struct hmtx
   public:
   DEFINE_SIZE_ARRAY2 (0, longHorMetric, leftSideBearingX);
 };
+
+
+} // namespace OT
+
 
 #endif /* HB_OT_HMTX_TABLE_HH */

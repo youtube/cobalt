@@ -158,7 +158,7 @@ hb_ft_get_glyph_v_origin (hb_font_t *font HB_UNUSED,
 }
 
 static hb_position_t
-hb_ft_get_glyph_h_kerning (hb_font_t *font HB_UNUSED,
+hb_ft_get_glyph_h_kerning (hb_font_t *font,
 			   void *font_data,
 			   hb_codepoint_t left_glyph,
 			   hb_codepoint_t right_glyph,
@@ -167,7 +167,8 @@ hb_ft_get_glyph_h_kerning (hb_font_t *font HB_UNUSED,
   FT_Face ft_face = (FT_Face) font_data;
   FT_Vector kerningv;
 
-  if (FT_Get_Kerning (ft_face, left_glyph, right_glyph, FT_KERNING_DEFAULT, &kerningv))
+  FT_Kerning_Mode mode = font->x_ppem ? FT_KERNING_DEFAULT : FT_KERNING_UNFITTED;
+  if (FT_Get_Kerning (ft_face, left_glyph, right_glyph, mode, &kerningv))
     return 0;
 
   return kerningv.x;
@@ -200,7 +201,7 @@ hb_ft_get_glyph_extents (hb_font_t *font HB_UNUSED,
   extents->x_bearing = ft_face->glyph->metrics.horiBearingX;
   extents->y_bearing = ft_face->glyph->metrics.horiBearingY;
   extents->width = ft_face->glyph->metrics.width;
-  extents->height = ft_face->glyph->metrics.height;
+  extents->height = -ft_face->glyph->metrics.height;
   return true;
 }
 
@@ -232,7 +233,7 @@ hb_ft_get_glyph_contour_point (hb_font_t *font HB_UNUSED,
 }
 
 static hb_bool_t
-hb_ft_get_glyph_name (hb_font_t *font,
+hb_ft_get_glyph_name (hb_font_t *font HB_UNUSED,
 		      void *font_data,
 		      hb_codepoint_t glyph,
 		      char *name, unsigned int size,
@@ -248,7 +249,7 @@ hb_ft_get_glyph_name (hb_font_t *font,
 }
 
 static hb_bool_t
-hb_ft_get_glyph_from_name (hb_font_t *font,
+hb_ft_get_glyph_from_name (hb_font_t *font HB_UNUSED,
 			   void *font_data,
 			   const char *name, int len, /* -1 means nul-terminated */
 			   hb_codepoint_t *glyph,
@@ -463,10 +464,14 @@ hb_ft_font_set_funcs (hb_font_t *font)
 
   FT_Select_Charmap (ft_face, FT_ENCODING_UNICODE);
 
+  assert (font->y_scale >= 0);
   FT_Set_Char_Size (ft_face,
 		    font->x_scale, font->y_scale,
+		    0, 0);
+#if 0
 		    font->x_ppem * 72 * 64 / font->x_scale,
 		    font->y_ppem * 72 * 64 / font->y_scale);
+#endif
 
   ft_face->generic.data = blob;
   ft_face->generic.finalizer = (FT_Generic_Finalizer) _release_blob;

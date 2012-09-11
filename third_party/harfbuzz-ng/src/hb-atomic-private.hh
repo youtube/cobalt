@@ -42,16 +42,28 @@
 #if 0
 
 
-#elif !defined(HB_NO_MT) && defined(_MSC_VER) && _MSC_VER >= 1600
+#elif !defined(HB_NO_MT) && defined(_MSC_VER) || defined(__MINGW32__)
 
-#include <intrin.h>
-#pragma intrinsic(_InterlockedExchangeAdd, _InterlockedCompareExchangePointer)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+/* mingw32 does not have MemoryBarrier.
+ * MemoryBarrier may be defined as a macro or a function.
+ * Just make a failsafe version for ourselves. */
+#ifdef MemoryBarrier
+#define HBMemoryBarrier MemoryBarrier
+#else
+static inline void HBMemoryBarrier (void) {
+  long dummy = 0;
+  InterlockedExchange (&dummy, 1);
+}
+#endif
 
 typedef long hb_atomic_int_t;
-#define hb_atomic_int_add(AI, V)	_InterlockedExchangeAdd (&(AI), (V))
+#define hb_atomic_int_add(AI, V)	InterlockedExchangeAdd (&(AI), (V))
 
-#define hb_atomic_ptr_get(P)		(MemoryBarrier (), (void *) *(P))
-#define hb_atomic_ptr_cmpexch(P,O,N)	(_InterlockedCompareExchangePointer ((void **) (P), (void *) (N), (void *) (O)) == (void *) (O))
+#define hb_atomic_ptr_get(P)		(HBMemoryBarrier (), (void *) *(P))
+#define hb_atomic_ptr_cmpexch(P,O,N)	(InterlockedCompareExchangePointer ((void **) (P), (void *) (N), (void *) (O)) == (void *) (O))
 
 
 #elif !defined(HB_NO_MT) && defined(__APPLE__)
@@ -65,7 +77,7 @@ typedef int32_t hb_atomic_int_t;
 #define hb_atomic_ptr_cmpexch(P,O,N)	OSAtomicCompareAndSwapPtrBarrier ((void *) (O), (void *) (N), (void **) (P))
 
 
-#elif !defined(HB_NO_MT) && defined(HAVE_INTEL_ATOMIC_PRIMITIVES) && !defined(__MINGW32__)
+#elif !defined(HB_NO_MT) && defined(HAVE_INTEL_ATOMIC_PRIMITIVES)
 
 typedef int hb_atomic_int_t;
 #define hb_atomic_int_add(AI, V)	__sync_fetch_and_add (&(AI), (V))
