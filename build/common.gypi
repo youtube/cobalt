@@ -2367,6 +2367,9 @@
               # Warns on switches on enums that cover all enum values but
               # also contain a default: branch. Chrome is full of that.
               '-Wno-covered-switch-default',
+
+              # TODO(thakis): Remove this.
+              '-Wno-implicit-conversion-floating-point-to-bool',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
@@ -2872,6 +2875,9 @@
                 # Warns on switches on enums that cover all enum values but
                 # also contain a default: branch. Chrome is full of that.
                 '-Wno-covered-switch-default',
+
+                # TODO(thakis): Remove this.
+                '-Wno-implicit-conversion-floating-point-to-bool',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
