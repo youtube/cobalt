@@ -4,6 +4,7 @@
 
 import re
 
+import android_commands
 
 # Valid values of result type.
 RESULT_TYPES = {'unimportant': 'RESULT ',
@@ -69,3 +70,41 @@ def PrintPerfResult(measurement, trace, values, units, result_type='default',
   if print_to_stdout:
     print output
   return output
+
+
+class PerfTestSetup(object):
+  """Provides methods for setting up a device for perf testing."""
+  _DROP_CACHES = '/proc/sys/vm/drop_caches'
+  _SCALING_GOVERNOR = '/sys/devices/system/cpu/cpu%d/cpufreq/scaling_governor'
+
+  def __init__(self, adb):
+    self._adb = adb
+    num_cpus = self._adb.GetFileContents('/sys/devices/system/cpu/online',
+                                         log_result=False)
+    assert num_cpus, 'Unable to find /sys/devices/system/cpu/online'
+    self._num_cpus = int(num_cpus[0].split('-')[-1])
+    self._original_scaling_governor = None
+
+  def DropRamCaches(self):
+    """Drops the filesystem ram caches for performance testing."""
+    self._adb.RunShellCommand('echo 3 > ' + PerfTestSetup._DROP_CACHES)
+
+  def SetUp(self):
+    """Sets up performance tests."""
+    if not self._original_scaling_governor:
+      self._original_scaling_governor = self._adb.GetFileContents(
+          PerfTestSetup._SCALING_GOVERNOR % 0,
+          log_result=False)[0]
+      self._SetScalingGovernorInternal('performance')
+    self.DropRamCaches()
+
+  def TearDown(self):
+    """Tears down performance tests."""
+    if self._original_scaling_governor:
+      self._SetScalingGovernorInternal(self._original_scaling_governor)
+    self._original_scaling_governor = None
+
+  def _SetScalingGovernorInternal(self, value):
+    for cpu in range(self._num_cpus):
+      self._adb.RunShellCommand(
+          ('echo %s > ' + PerfTestSetup._SCALING_GOVERNOR) % (value, cpu))
