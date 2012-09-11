@@ -70,6 +70,10 @@ Time Time::Now() {
   struct timezone tz = { 0, 0 };  // UTC
   if (gettimeofday(&tv, &tz) != 0) {
     DCHECK(0) << "Could not determine time of day";
+    LOG_ERRNO(ERROR) << "Call to gettimeofday failed.";
+    // Return null instead of uninitialized |tv| value, which contains random
+    // garbage data. This may result in the crash seen in crbug.com/147570.
+    return Time();
   }
   // Combine seconds and microseconds in a 64-bit field containing microseconds
   // since the epoch.  That's enough for nearly 600 centuries.  Adjust from
