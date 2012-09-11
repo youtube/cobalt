@@ -23,14 +23,15 @@ class NET_EXPORT_PRIVATE DnsConfigServicePosix : public DnsConfigService {
   DnsConfigServicePosix();
   virtual ~DnsConfigServicePosix();
 
+ protected:
+  // DnsConfigService:
+  virtual void ReadNow() OVERRIDE;
+  virtual bool StartWatching() OVERRIDE;
+
  private:
   class Watcher;
   class ConfigReader;
   class HostsReader;
-
-  // DnsConfigService:
-  virtual void ReadNow() OVERRIDE;
-  virtual bool StartWatching() OVERRIDE;
 
   void OnConfigChanged(bool succeeded);
   void OnHostsChanged(bool succeeded);
