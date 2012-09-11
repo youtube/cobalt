@@ -1011,6 +1011,11 @@ class AndroidCommands(object):
     assert '"' not in file_name, 'file_name cannot contain double quotes'
     status = self._adb.SendShellCommand(
         '\'test -f "%s"; echo $?\'' % (file_name))
+    if 'test: not found' not in status:
+      return int(status) == 0
+
+    status = self._adb.SendShellCommand(
+        '\'ls "%s" >/dev/null 2>&1; echo $?\'' % (file_name))
     return int(status) == 0
 
   def RunMonkey(self, package_name, category=None, throttle=100, seed=None,
