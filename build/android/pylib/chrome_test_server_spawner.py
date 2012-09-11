@@ -193,7 +193,8 @@ class TestServerThread(threading.Thread):
       if self.arguments.has_key('ssl-client-auth'):
         self.command_line.append('--ssl-client-auth')
       if self.arguments.has_key('tls-intolerant'):
-        self.command_line.append('--tls-intolerant')
+        self.command_line.append('--tls-intolerant=%s' %
+                                 self.arguments['tls-intolerant'])
       if self.arguments.has_key('ssl-client-ca'):
         for ca in self.arguments['ssl-client-ca']:
           self.command_line.append('--ssl-client-ca=%s' %
