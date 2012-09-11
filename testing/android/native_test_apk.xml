@@ -19,7 +19,6 @@ found in the LICENSE file.
   <property name="CHROMIUM_SRC" value="${PRODUCT_DIR}/../.." />
 
   <import file="${CHROMIUM_SRC}/build/android/ant/common.xml"/>
-  <import file="${CHROMIUM_SRC}/build/android/ant/sdk-targets.xml"/>
 
   <!--
     TODO(yfriedman): Remove the need to specify this. We should generate the packages in a way such
@@ -88,6 +87,7 @@ found in the LICENSE file.
     </if>
   </target>
 
+  <import file="${CHROMIUM_SRC}/build/android/ant/sdk-targets.xml"/>
   <import file="${sdk.dir}/tools/ant/build.xml" />
 
 </project>
