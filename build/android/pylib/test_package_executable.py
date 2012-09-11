@@ -18,7 +18,7 @@ from test_package import TestPackage
 class TestPackageExecutable(TestPackage):
   """A helper class for running stand-alone executables."""
 
-  _TEST_RUNNER_RET_VAL_FILE = constants.TEST_DATA_DIR + '/gtest_retval'
+  _TEST_RUNNER_RET_VAL_FILE = 'gtest_retval'
 
   def __init__(self, adb, device, test_suite, timeout, rebaseline,
                performance_test, cleanup_test_files, tool, dump_debug_info,
@@ -48,7 +48,9 @@ class TestPackageExecutable(TestPackage):
     ret_code_file = tempfile.NamedTemporaryFile()
     try:
       if not self.adb.Adb().Pull(
-          TestPackageExecutable._TEST_RUNNER_RET_VAL_FILE, ret_code_file.name):
+          self.adb.GetExternalStorage() + '/' +
+          TestPackageExecutable._TEST_RUNNER_RET_VAL_FILE,
+          ret_code_file.name):
         logging.critical('Unable to pull gtest ret val file %s',
                          ret_code_file.name)
         raise ValueError
@@ -74,7 +76,8 @@ class TestPackageExecutable(TestPackage):
       logging.info('NATIVE_COVERAGE_DEPTH_STRIP is not defined: '
                    'No native coverage.')
       return ''
-    export_string = 'export GCOV_PREFIX="%s/gcov"\n' % constants.TEST_DATA_DIR
+    export_string = ('export GCOV_PREFIX="%s/gcov"\n' %
+                     self.adb.GetExternalStorage())
     export_string += 'export GCOV_PREFIX_STRIP=%s\n' % depth
     return export_string
 

@@ -41,10 +41,6 @@ PEXPECT_LINE_RE = re.compile('\n([^\r]*)\r')
 # appear at the start of any line of a command's output.
 SHELL_PROMPT = '~+~PQ\x17RS~+~'
 
-# This only works for single core devices.
-SCALING_GOVERNOR = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor'
-DROP_CACHES = '/proc/sys/vm/drop_caches'
-
 # Java properties file
 LOCAL_PROPERTIES_PATH = '/data/local.prop'
 
@@ -206,10 +202,10 @@ class AndroidCommands(object):
     if device:
       self._adb.SetTargetSerial(device)
     self._logcat = None
-    self._original_governor = None
     self._pushed_files = []
     self._device_utc_offset = self.RunShellCommand('date +%z')[0]
     self._md5sum_path = ''
+    self._external_storage = ''
 
   def Adb(self):
     """Returns our AdbInterface to avoid us wrapping all its methods."""
@@ -223,6 +219,12 @@ class AndroidCommands(object):
   def GetDeviceYear(self):
     """Returns the year information of the date on device."""
     return self.RunShellCommand('date +%Y')[0]
+
+  def GetExternalStorage(self):
+    if not self._external_storage:
+      self._external_storage = self.RunShellCommand('echo $EXTERNAL_STORAGE')[0]
+      assert self._external_storage, 'Unable to find $EXTERNAL_STORAGE'
+    return self._external_storage
 
   def WaitForDevicePm(self):
     """Blocks until the device's package manager is available.
@@ -296,7 +298,8 @@ class AndroidCommands(object):
     Returns:
       A status string returned by adb install
     """
-    assert os.path.isfile(package_file_path)
+    assert os.path.isfile(package_file_path), ('<%s> is not file' %
+                                               package_file_path)
 
     install_cmd = ['install']
 
@@ -405,8 +408,9 @@ class AndroidCommands(object):
     sdcard_ready = False
     attempts = 0
     wait_period = 5
+    external_storage = self.GetExternalStorage()
     while not sdcard_ready and attempts * wait_period < timeout_time:
-      output = self.RunShellCommand('ls /sdcard/')
+      output = self.RunShellCommand('ls ' + external_storage)
       if output:
         sdcard_ready = True
       else:
@@ -613,21 +617,6 @@ class AndroidCommands(object):
         path, self.RunShellCommand('ls -lR %s' % path), re_file,
         self._device_utc_offset)
 
-  def SetupPerformanceTest(self):
-    """Sets up performance tests."""
-    # Disable CPU scaling to reduce noise in tests
-    if not self._original_governor:
-      self._original_governor = self.GetFileContents(
-          SCALING_GOVERNOR, log_result=False)
-      self.RunShellCommand('echo performance > ' + SCALING_GOVERNOR)
-    self.DropRamCaches()
-
-  def TearDownPerformanceTest(self):
-    """Tears down performance tests."""
-    if self._original_governor:
-      self.RunShellCommand('echo %s > %s' % (self._original_governor[0],
-                                             SCALING_GOVERNOR))
-    self._original_governor = None
 
   def SetJavaAssertsEnabled(self, enable):
     """Sets or removes the device java assertions property.
@@ -665,9 +654,6 @@ class AndroidCommands(object):
                                               enable and 'all' or ''))
     return True
 
-  def DropRamCaches(self):
-    """Drops the filesystem ram caches for performance testing."""
-    self.RunShellCommand('echo 3 > ' + DROP_CACHES)
 
   def StartMonitoringLogcat(self, clear=True, timeout=10, logfile=None,
                             filters=None):
