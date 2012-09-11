@@ -830,6 +830,7 @@ void ChunkDemuxer::Abort(const std::string& id) {
   CHECK(IsValidId(id));
 
   stream_parser_map_[id]->Flush();
+  source_info_map_[id].can_update_offset = true;
 }
 
 void ChunkDemuxer::SetDuration(base::TimeDelta duration) {
