@@ -38,6 +38,8 @@ AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
       input_params.frames_per_buffer() != output_params.frames_per_buffer()) {
     // Only resample if necessary since it's expensive.
     if (input_params.sample_rate() != output_params.sample_rate()) {
+      DVLOG(1) << "Resampling from " << input_params.sample_rate() << " to "
+               << output_params.sample_rate();
       double io_sample_rate_ratio = input_params.sample_rate() /
           static_cast<double>(output_params.sample_rate());
       // Include the I/O resampling ratio in our global I/O ratio.
@@ -60,10 +62,15 @@ AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
     // read in chunk sizes they're configured for.
     if (input_params.sample_rate() != output_params.sample_rate() ||
         input_params.frames_per_buffer() != output_params.frames_per_buffer()) {
+      DVLOG(1) << "Rebuffering from " << input_params.frames_per_buffer()
+               << " to " << output_params.frames_per_buffer();
       audio_fifo_.reset(new AudioPullFifo(
           input_params.channels(), input_params.frames_per_buffer(), base::Bind(
-              &AudioOutputResampler::SourceCallback, base::Unretained(this))));
+              &AudioOutputResampler::SourceCallback_Locked,
+              base::Unretained(this))));
     }
+
+    DVLOG(1) << "I/O ratio is " << io_ratio_;
   }
 
   // TODO(dalecurtis): All this code should be merged into AudioOutputMixer once
@@ -122,12 +129,19 @@ void AudioOutputResampler::Shutdown() {
 
 int AudioOutputResampler::OnMoreData(AudioBus* audio_bus,
                                      AudioBuffersState buffers_state) {
+  base::AutoLock auto_lock(source_lock_);
+  // While we waited for |source_lock_| the callback might have been cleared.
+  if (!source_callback_) {
+    audio_bus->Zero();
+    return audio_bus->frames();
+  }
+
   current_buffers_state_ = buffers_state;
 
   if (!resampler_.get() && !audio_fifo_.get()) {
     // We have no internal buffers, so clear any outstanding audio data.
     outstanding_audio_bytes_ = 0;
-    SourceCallback(audio_bus);
+    SourceCallback_Locked(audio_bus);
     return audio_bus->frames();
   }
 
@@ -151,13 +165,8 @@ int AudioOutputResampler::OnMoreData(AudioBus* audio_bus,
   return audio_bus->frames();
 }
 
-void AudioOutputResampler::SourceCallback(AudioBus* audio_bus) {
-  base::AutoLock auto_lock(source_lock_);
-  // While we waited for |source_lock_| it might have been cleared.
-  if (!source_callback_) {
-    audio_bus->Zero();
-    return;
-  }
+void AudioOutputResampler::SourceCallback_Locked(AudioBus* audio_bus) {
+  source_lock_.AssertAcquired();
 
   // Adjust playback delay to include the state of the internal buffers used by
   // the resampler and/or the FIFO.  Since the sample rate and bits per channel

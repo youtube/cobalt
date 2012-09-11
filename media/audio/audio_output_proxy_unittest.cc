@@ -7,6 +7,7 @@
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/simple_thread.h"
 #include "media/audio/audio_output_dispatcher_impl.h"
 #include "media/audio/audio_output_proxy.h"
 #include "media/audio/audio_output_resampler.h"
@@ -44,6 +45,12 @@ static const int kTestCloseDelayMs = 100;
 // Used in the test where we don't want a stream to be closed unexpectedly.
 static const int kTestBigCloseDelaySeconds = 1000;
 
+// Delay between callbacks to AudioSourceCallback::OnMoreData.
+static const int kOnMoreDataCallbackDelayMs = 10;
+
+// Let start run long enough for many OnMoreData callbacks to occur.
+static const int kStartRunTimeMs = kOnMoreDataCallbackDelayMs * 10;
+
 class MockAudioOutputStream : public AudioOutputStream {
  public:
   MockAudioOutputStream() {}
@@ -80,9 +87,51 @@ class MockAudioManager : public AudioManager {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD2(OnMoreData, int(AudioBus* audio_bus,
-                               AudioBuffersState buffers_state));
+  int OnMoreData(AudioBus* audio_bus, AudioBuffersState buffers_state) {
+    audio_bus->Zero();
+    return audio_bus->frames();
+  }
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
+};
+
+// Simple class for repeatedly calling OnMoreData() to expose shutdown issues
+// with AudioSourceCallback users.
+class AudioThreadRunner : public base::DelegateSimpleThread::Delegate {
+ public:
+  AudioThreadRunner(AudioOutputStream::AudioSourceCallback* callback,
+                   base::TimeDelta delay, const AudioParameters& params)
+      : delay_(delay),
+        callback_(callback),
+        bus_(media::AudioBus::Create(params)),
+        running_(true) {
+    CHECK(delay_ > base::TimeDelta());
+  }
+
+  virtual void Run() {
+    while (true) {
+      {
+        base::AutoLock auto_lock(lock_);
+        if (!running_)
+          return;
+      }
+      base::PlatformThread::Sleep(delay_);
+      callback_->OnMoreData(bus_.get(), AudioBuffersState());
+    }
+  }
+
+  void Stop() {
+    base::AutoLock auto_lock(lock_);
+    running_ = false;
+  }
+
+ private:
+  base::TimeDelta delay_;
+  AudioOutputStream::AudioSourceCallback* callback_;
+  scoped_ptr<media::AudioBus> bus_;
+  bool running_;
+  base::Lock lock_;
+
+  DISALLOW_COPY_AND_ASSIGN(AudioThreadRunner);
 };
 
 }  // namespace
@@ -106,25 +155,22 @@ class AudioOutputProxyTest : public testing::Test {
     message_loop_.RunAllPending();
   }
 
-  void InitDispatcher(base::TimeDelta close_delay) {
-    AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR,
-                           CHANNEL_LAYOUT_STEREO, 44100, 16, 1024);
+  virtual void InitDispatcher(base::TimeDelta close_delay) {
+    params_ = AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
+                              CHANNEL_LAYOUT_STEREO, 44100, 16, 1024);
     dispatcher_impl_ = new AudioOutputDispatcherImpl(&manager(),
-                                                     params,
+                                                     params_,
                                                      close_delay);
 #if defined(ENABLE_AUDIO_MIXER)
-    mixer_ = new AudioOutputMixer(&manager(), params, close_delay);
+    mixer_ = new AudioOutputMixer(&manager(), params_, close_delay);
 #endif
-
-    AudioParameters out_params(AudioParameters::AUDIO_PCM_LINEAR,
-                               CHANNEL_LAYOUT_STEREO, 48000, 16, 128);
-    resampler_ = new AudioOutputResampler(
-        &manager(), params, out_params, close_delay);
 
     // Necessary to know how long the dispatcher will wait before posting
     // StopStreamTask.
     pause_delay_ = dispatcher_impl_->pause_delay_;
   }
+
+  virtual void OnStart() {}
 
   MockAudioManager& manager() {
     return manager_;
@@ -176,6 +222,7 @@ class AudioOutputProxyTest : public testing::Test {
     EXPECT_TRUE(proxy->Open());
 
     proxy->Start(&callback_);
+    OnStart();
     proxy->Stop();
 
     proxy->Close();
@@ -203,6 +250,7 @@ class AudioOutputProxyTest : public testing::Test {
     EXPECT_TRUE(proxy->Open());
 
     proxy->Start(&callback_);
+    OnStart();
     proxy->Stop();
 
     // Wait for StopStream() to post StopStreamTask().
@@ -307,6 +355,7 @@ class AudioOutputProxyTest : public testing::Test {
 
     proxy1->Start(&callback_);
     message_loop_.RunAllPending();
+    OnStart();
     proxy1->Stop();
 
     proxy1->Close();
@@ -350,6 +399,7 @@ class AudioOutputProxyTest : public testing::Test {
 
     proxy1->Start(&callback_);
     proxy2->Start(&callback_);
+    OnStart();
     proxy1->Stop();
     proxy2->Stop();
 
@@ -397,10 +447,63 @@ class AudioOutputProxyTest : public testing::Test {
 #if defined(ENABLE_AUDIO_MIXER)
   scoped_refptr<AudioOutputMixer> mixer_;
 #endif
-  scoped_refptr<AudioOutputResampler> resampler_;
   base::TimeDelta pause_delay_;
   MockAudioManager manager_;
   MockAudioSourceCallback callback_;
+  AudioParameters params_;
+};
+
+class AudioOutputResamplerTest : public AudioOutputProxyTest {
+ public:
+  virtual void TearDown() {
+    AudioOutputProxyTest::TearDown();
+    ShutdownAudioThread();
+  }
+
+  void StartAudioThread() {
+    audio_thread_runner_.reset(new AudioThreadRunner(
+        resampler_,
+        base::TimeDelta::FromMilliseconds(kOnMoreDataCallbackDelayMs),
+        params_));
+    audio_thread_.reset(new base::DelegateSimpleThread(
+        audio_thread_runner_.get(), "AudioThreadRunner"));
+    audio_thread_->Start();
+  }
+
+  void ShutdownAudioThread() {
+    if (!audio_thread_.get()) {
+      ASSERT_FALSE(audio_thread_runner_.get());
+      return;
+    }
+    ASSERT_TRUE(audio_thread_runner_.get());
+    audio_thread_runner_->Stop();
+    audio_thread_->Join();
+  }
+
+  virtual void InitDispatcher(base::TimeDelta close_delay) {
+    AudioOutputProxyTest::InitDispatcher(close_delay);
+    // Attempt shutdown of audio thread in case InitDispatcher() was called
+    // previously.
+    ShutdownAudioThread();
+    resampler_params_ = AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
+                                        CHANNEL_LAYOUT_STEREO, 48000, 16, 128);
+    resampler_ = new AudioOutputResampler(
+        &manager(), params_, resampler_params_, close_delay);
+    StartAudioThread();
+  }
+
+  virtual void OnStart() {
+    // Let start run for a bit.
+    message_loop_.RunAllPending();
+    base::PlatformThread::Sleep(
+        base::TimeDelta::FromMilliseconds(kStartRunTimeMs));
+  }
+
+ protected:
+  AudioParameters resampler_params_;
+  scoped_refptr<AudioOutputResampler> resampler_;
+  scoped_ptr<AudioThreadRunner> audio_thread_runner_;
+  scoped_ptr<base::DelegateSimpleThread> audio_thread_;
 };
 
 TEST_F(AudioOutputProxyTest, CreateAndClose) {
@@ -415,7 +518,7 @@ TEST_F(AudioOutputProxyTest, CreateAndClose_Mixer) {
 }
 #endif
 
-TEST_F(AudioOutputProxyTest, CreateAndClose_Resampler) {
+TEST_F(AudioOutputResamplerTest, CreateAndClose) {
   AudioOutputProxy* proxy = new AudioOutputProxy(resampler_);
   proxy->Close();
 }
@@ -430,7 +533,7 @@ TEST_F(AudioOutputProxyTest, OpenAndClose_Mixer) {
 }
 #endif
 
-TEST_F(AudioOutputProxyTest, OpenAndClose_Resampler) {
+TEST_F(AudioOutputResamplerTest, OpenAndClose) {
   OpenAndClose(resampler_);
 }
 
@@ -442,7 +545,7 @@ TEST_F(AudioOutputProxyTest, CreateAndWait) {
 
 // Create a stream, and verify that it is closed after kTestCloseDelayMs.
 // if it doesn't start playing.
-TEST_F(AudioOutputProxyTest, CreateAndWait_Resampler) {
+TEST_F(AudioOutputResamplerTest, CreateAndWait) {
   CreateAndWait(resampler_);
 }
 
@@ -456,7 +559,7 @@ TEST_F(AudioOutputProxyTest, StartAndStop_Mixer) {
 }
 #endif
 
-TEST_F(AudioOutputProxyTest, StartAndStop_Resampler) {
+TEST_F(AudioOutputResamplerTest, StartAndStop) {
   StartAndStop(resampler_);
 }
 
@@ -470,7 +573,7 @@ TEST_F(AudioOutputProxyTest, CloseAfterStop_Mixer) {
 }
 #endif
 
-TEST_F(AudioOutputProxyTest, CloseAfterStop_Resampler) {
+TEST_F(AudioOutputResamplerTest, CloseAfterStop) {
   CloseAfterStop(resampler_);
 }
 
@@ -484,7 +587,7 @@ TEST_F(AudioOutputProxyTest, TwoStreams_Mixer) {
 }
 #endif
 
-TEST_F(AudioOutputProxyTest, TwoStreams_Resampler) {
+TEST_F(AudioOutputResamplerTest, TwoStreams) {
   TwoStreams(resampler_);
 }
 
@@ -530,7 +633,7 @@ TEST_F(AudioOutputProxyTest, TwoStreams_OnePlaying_Mixer) {
 }
 #endif
 
-TEST_F(AudioOutputProxyTest, TwoStreams_OnePlaying_Resampler) {
+TEST_F(AudioOutputResamplerTest, TwoStreams_OnePlaying) {
   InitDispatcher(base::TimeDelta::FromSeconds(kTestBigCloseDelaySeconds));
   TwoStreams_OnePlaying(resampler_);
 }
@@ -606,7 +709,7 @@ TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying_Mixer) {
 }
 #endif
 
-TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying_Resampler) {
+TEST_F(AudioOutputResamplerTest, TwoStreams_BothPlaying) {
   InitDispatcher(base::TimeDelta::FromSeconds(kTestBigCloseDelaySeconds));
   TwoStreams_BothPlaying(resampler_);
 }
@@ -621,7 +724,7 @@ TEST_F(AudioOutputProxyTest, OpenFailed_Mixer) {
 }
 #endif
 
-TEST_F(AudioOutputProxyTest, OpenFailed_Resampler) {
+TEST_F(AudioOutputResamplerTest, OpenFailed) {
   OpenFailed(resampler_);
 }
 
@@ -676,7 +779,7 @@ TEST_F(AudioOutputProxyTest, StartFailed_Mixer) {
 }
 #endif
 
-TEST_F(AudioOutputProxyTest, StartFailed_Resampler) {
+TEST_F(AudioOutputResamplerTest, StartFailed) {
   StartFailed(resampler_);
 }
 
