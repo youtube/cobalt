@@ -33,6 +33,14 @@ class MockSource {
   MOCK_METHOD2(ProvideInput, void(float* destination, int frames));
 };
 
+ACTION(ClearBuffer) {
+  memset(arg0, 0, arg1 * sizeof(float));
+}
+
+ACTION(FillBuffer) {
+  memset(arg0, 1, arg1 * sizeof(float));
+}
+
 // Test requesting multiples of ChunkSize() frames results in the proper number
 // of callbacks.
 TEST(SincResamplerTest, ChunkedResample) {
@@ -49,13 +57,39 @@ TEST(SincResamplerTest, ChunkedResample) {
   scoped_array<float> resampled_destination(new float[max_chunk_size]);
 
   // Verify requesting ChunkSize() frames causes a single callback.
-  EXPECT_CALL(mock_source, ProvideInput(_, _)).Times(1);
+  EXPECT_CALL(mock_source, ProvideInput(_, _))
+      .Times(1).WillOnce(ClearBuffer());
   resampler.Resample(resampled_destination.get(), resampler.ChunkSize());
 
   // Verify requesting kChunks * ChunkSize() frames causes kChunks callbacks.
   testing::Mock::VerifyAndClear(&mock_source);
-  EXPECT_CALL(mock_source, ProvideInput(_, _)).Times(kChunks);
+  EXPECT_CALL(mock_source, ProvideInput(_, _))
+      .Times(kChunks).WillRepeatedly(ClearBuffer());
   resampler.Resample(resampled_destination.get(), max_chunk_size);
+}
+
+// Test flush resets the internal state properly.
+TEST(SincResamplerTest, Flush) {
+  MockSource mock_source;
+  SincResampler resampler(
+      kSampleRateRatio,
+      base::Bind(&MockSource::ProvideInput, base::Unretained(&mock_source)));
+  scoped_array<float> resampled_destination(new float[resampler.ChunkSize()]);
+
+  // Fill the resampler with junk data.
+  EXPECT_CALL(mock_source, ProvideInput(_, _))
+      .Times(1).WillOnce(FillBuffer());
+  resampler.Resample(resampled_destination.get(), resampler.ChunkSize() / 2);
+  ASSERT_NE(resampled_destination[0], 0);
+
+  // Flush and request more data, which should all be zeros now.
+  resampler.Flush();
+  testing::Mock::VerifyAndClear(&mock_source);
+  EXPECT_CALL(mock_source, ProvideInput(_, _))
+      .Times(1).WillOnce(ClearBuffer());
+  resampler.Resample(resampled_destination.get(), resampler.ChunkSize() / 2);
+  for (int i = 0; i < resampler.ChunkSize() / 2; ++i)
+    ASSERT_EQ(resampled_destination[i], 0);
 }
 
 // Ensure various optimized Convolve() methods return the same value.  Only run
