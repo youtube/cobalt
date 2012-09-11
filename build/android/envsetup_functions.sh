@@ -64,7 +64,7 @@ common_vars_defines() {
   DEFINES="OS=android"
   DEFINES+=" host_os=${host_os}"
 
-  if [ -n "$CHROME_ANDROID_OFFICIAL_BUILD" ]; then
+  if [[ -n "$CHROME_ANDROID_OFFICIAL_BUILD" ]]; then
     DEFINES+=" branding=Chrome"
     DEFINES+=" buildtype=Official"
 
@@ -168,13 +168,16 @@ common_gyp_vars() {
 sdk_build_init() {
   # If ANDROID_NDK_ROOT is set when envsetup is run, use the ndk pointed to by
   # the environment variable.  Otherwise, use the default ndk from the tree.
-  if [ ! -d "${ANDROID_NDK_ROOT}" ]; then
+  if [[ -z "${ANDROID_NDK_ROOT}" || ! -d "${ANDROID_NDK_ROOT}" ]]; then
     export ANDROID_NDK_ROOT="${CHROME_SRC}/third_party/android_tools/ndk/"
   fi
 
-  # If ANDROID_SDK_ROOT is set when envsetup is run, use the sdk pointed to by
-  # the environment variable.  Otherwise, use the default sdk from the tree.
-  if [ ! -d "${ANDROID_SDK_ROOT}" ]; then
+  # If ANDROID_SDK_ROOT is set when envsetup is run, and if it has the
+  # right SDK-compatible directory layout, use the sdk pointed to by the
+  # environment variable.  Otherwise, use the default sdk from the tree.
+  local sdk_suffix=platforms/android-${ANDROID_SDK_VERSION}
+  if [[ -z "${ANDROID_SDK_ROOT}" || \
+       ! -d "${ANDROID_SDK_ROOT}/${sdk_suffix}" ]]; then
     export ANDROID_SDK_ROOT="${CHROME_SRC}/third_party/android_tools/sdk/"
   fi
 
@@ -206,8 +209,7 @@ sdk_build_init() {
   DEFINES+=" android_product_out=${CHROME_SRC}/out/android"
   DEFINES+=" android_lib='NOT_SDK_COMPLIANT'"
   DEFINES+=" android_static_lib='NOT_SDK_COMPLIANT'"
-  DEFINES+=\
-" android_sdk=${ANDROID_SDK_ROOT}/platforms/android-${ANDROID_SDK_VERSION}"
+  DEFINES+=" android_sdk=${ANDROID_SDK_ROOT}/${sdk_suffix}"
   DEFINES+=" android_sdk_root=${ANDROID_SDK_ROOT}"
   DEFINES+=" android_sdk_tools=${ANDROID_SDK_ROOT}/platform-tools"
   DEFINES+=" android_sdk_version=${ANDROID_SDK_VERSION}"
@@ -215,7 +217,7 @@ sdk_build_init() {
 
   common_gyp_vars
 
-  if [ -n "$CHROME_ANDROID_BUILD_WEBVIEW" ]; then
+  if [[ -n "$CHROME_ANDROID_BUILD_WEBVIEW" ]]; then
     # Can not build WebView with NDK/SDK because it needs the Android build
     # system and build inside an Android source tree.
     echo "Can not build WebView with NDK/SDK.  Requires android source tree." \
@@ -240,10 +242,10 @@ non_sdk_build_init() {
   export TOP="$ANDROID_BUILD_TOP"
 
   # Set "ANDROID_NDK_ROOT" as checked-in version, if it was not set.
-  if [ ! -d "$ANDROID_NDK_ROOT" ] ; then
+  if [[ "${ANDROID_NDK_ROOT}" || ! -d "$ANDROID_NDK_ROOT" ]] ; then
     export ANDROID_NDK_ROOT="${CHROME_SRC}/third_party/android_tools/ndk/"
   fi
-  if [ ! -d "$ANDROID_NDK_ROOT" ] ; then
+  if [[ ! -d "${ANDROID_NDK_ROOT}" ]] ; then
     echo "Can not find Android NDK root ${ANDROID_NDK_ROOT}." >& 2
     return 1
   fi
@@ -263,7 +265,7 @@ ${ANDROID_SDK_VERSION}
   DEFINES+=" sdk_build=0"
   DEFINES+=" android_product_out=${ANDROID_PRODUCT_OUT}"
 
-  if [ -n "$CHROME_ANDROID_BUILD_WEBVIEW" ]; then
+  if [[ -n "$CHROME_ANDROID_BUILD_WEBVIEW" ]]; then
     webview_build_init
     return
   fi
