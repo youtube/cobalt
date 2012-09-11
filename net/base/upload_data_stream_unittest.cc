@@ -16,6 +16,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/upload_data.h"
+#include "net/base/upload_file_element_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -116,10 +117,12 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
   const uint64 kFakeSize = kTestDataSize*2;
 
+  UploadFileElementReader::ScopedOverridingContentLengthForTests
+      overriding_content_length(kFakeSize);
+
   std::vector<UploadElement> elements;
   UploadElement element;
   element.SetToFilePath(temp_file_path);
-  element.SetContentLength(kFakeSize);
   elements.push_back(element);
   upload_data_->SetElements(elements);
 
