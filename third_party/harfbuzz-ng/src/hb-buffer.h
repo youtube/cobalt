@@ -40,9 +40,9 @@
 HB_BEGIN_DECLS
 
 
-typedef struct _hb_buffer_t hb_buffer_t;
+typedef struct hb_buffer_t hb_buffer_t;
 
-typedef struct _hb_glyph_info_t {
+typedef struct hb_glyph_info_t {
   hb_codepoint_t codepoint;
   hb_mask_t      mask;
   uint32_t       cluster;
@@ -52,7 +52,7 @@ typedef struct _hb_glyph_info_t {
   hb_var_int_t   var2;
 } hb_glyph_info_t;
 
-typedef struct _hb_glyph_position_t {
+typedef struct hb_glyph_position_t {
   hb_position_t  x_advance;
   hb_position_t  y_advance;
   hb_position_t  x_offset;
@@ -61,6 +61,12 @@ typedef struct _hb_glyph_position_t {
   /*< private >*/
   hb_var_int_t   var;
 } hb_glyph_position_t;
+
+typedef enum {
+  HB_BUFFER_CONTENT_TYPE_INVALID = 0,
+  HB_BUFFER_CONTENT_TYPE_UNICODE,
+  HB_BUFFER_CONTENT_TYPE_GLYPHS
+} hb_buffer_content_type_t;
 
 
 hb_buffer_t *
@@ -85,6 +91,14 @@ hb_buffer_set_user_data (hb_buffer_t        *buffer,
 void *
 hb_buffer_get_user_data (hb_buffer_t        *buffer,
 			 hb_user_data_key_t *key);
+
+
+void
+hb_buffer_set_content_type (hb_buffer_t              *buffer,
+			    hb_buffer_content_type_t  content_type);
+
+hb_buffer_content_type_t
+hb_buffer_get_content_type (hb_buffer_t *buffer);
 
 
 void
@@ -191,6 +205,19 @@ hb_buffer_get_glyph_infos (hb_buffer_t  *buffer,
 hb_glyph_position_t *
 hb_buffer_get_glyph_positions (hb_buffer_t  *buffer,
                                unsigned int *length);
+
+
+/* Reorders a glyph buffer to have canonical in-cluster glyph order / position.
+ * The resulting clusters should behave identical to pre-reordering clusters.
+ * NOTE: This has nothing to do with Unicode normalization. */
+void
+hb_buffer_normalize_glyphs (hb_buffer_t *buffer);
+
+/*
+ * NOT IMPLEMENTED
+ void
+ hb_buffer_normalize_characters (hb_buffer_t *buffer);
+*/
 
 
 HB_END_DECLS

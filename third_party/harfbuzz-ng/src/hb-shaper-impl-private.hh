@@ -24,16 +24,20 @@
  * Google Author(s): Behdad Esfahbod
  */
 
-#include "hb-atomic-private.hh"
-#include "hb-mutex-private.hh"
+#ifndef HB_SHAPER_IMPL_PRIVATE_HH
+#define HB_SHAPER_IMPL_PRIVATE_HH
+
+#include "hb-private.hh"
+
+#include "hb-shaper-private.hh"
+#include "hb-shape-plan-private.hh"
+#include "hb-font-private.hh"
+#include "hb-buffer-private.hh"
 
 
-#if defined(HB_ATOMIC_INT_NIL)
-#pragma message("Could not find any system to define atomic_int macros, library may NOT be thread-safe.")
+#ifdef HB_SHAPER
+#define HB_SHAPER_DATA_GET(object) HB_SHAPER_DATA (HB_SHAPER, object)
 #endif
-#if defined(HB_MUTEX_IMPL_NIL)
-#pragma message("Could not find any system to define mutex macros, library may NOT be thread-safe.")
-#endif
-#if defined(HB_ATOMIC_INT_NIL) || defined(HB_MUTEX_IMPL_NIL)
-#pragma message("To suppress these warnings, define HB_NO_MT.")
-#endif
+
+
+#endif /* HB_SHAPER_IMPL_PRIVATE_HH */

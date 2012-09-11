@@ -24,16 +24,31 @@
  * Google Author(s): Behdad Esfahbod
  */
 
-#include "hb-atomic-private.hh"
-#include "hb-mutex-private.hh"
+#ifndef HB_SHAPER_LIST_HH
+#define HB_SHAPER_LIST_HH
+#endif /* HB_SHAPER_LIST_HH */ /* Dummy header guards */
 
+/* v--- Add new shapers in the right place here. */
+#ifdef HAVE_GRAPHITE2
+HB_SHAPER_IMPLEMENT (graphite2)
+#endif
+#ifdef HAVE_UNISCRIBE
+HB_SHAPER_IMPLEMENT (uniscribe)
+#endif
+#ifdef HAVE_CORETEXT
+HB_SHAPER_IMPLEMENT (coretext)
+#endif
 
-#if defined(HB_ATOMIC_INT_NIL)
-#pragma message("Could not find any system to define atomic_int macros, library may NOT be thread-safe.")
+#ifdef HAVE_OT
+HB_SHAPER_IMPLEMENT (ot) /* <--- This is our main OpenType shaper. */
 #endif
-#if defined(HB_MUTEX_IMPL_NIL)
-#pragma message("Could not find any system to define mutex macros, library may NOT be thread-safe.")
+
+#ifdef HAVE_HB_OLD
+HB_SHAPER_IMPLEMENT (old)
 #endif
-#if defined(HB_ATOMIC_INT_NIL) || defined(HB_MUTEX_IMPL_NIL)
-#pragma message("To suppress these warnings, define HB_NO_MT.")
+
+#ifdef HAVE_ICU_LE
+HB_SHAPER_IMPLEMENT (icu_le)
 #endif
+
+HB_SHAPER_IMPLEMENT (fallback) /* <--- This should be last. */
