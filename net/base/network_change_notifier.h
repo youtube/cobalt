@@ -33,13 +33,13 @@ class NET_EXPORT NetworkChangeNotifier {
   // Using the terminology of the Network Information API:
   // http://www.w3.org/TR/netinfo-api.
   enum ConnectionType {
-    CONNECTION_UNKNOWN, // A connection exists, but its type is unknown.
-    CONNECTION_ETHERNET,
-    CONNECTION_WIFI,
-    CONNECTION_2G,
-    CONNECTION_3G,
-    CONNECTION_4G,
-    CONNECTION_NONE     // No connection.
+    CONNECTION_UNKNOWN = 0, // A connection exists, but its type is unknown.
+    CONNECTION_ETHERNET = 1,
+    CONNECTION_WIFI = 2,
+    CONNECTION_2G = 3,
+    CONNECTION_3G = 4,
+    CONNECTION_4G = 5,
+    CONNECTION_NONE = 6     // No connection.
   };
 
   class NET_EXPORT IPAddressObserver {

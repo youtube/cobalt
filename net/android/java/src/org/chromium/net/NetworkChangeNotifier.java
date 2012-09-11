@@ -20,9 +20,18 @@ import org.chromium.base.NativeClassQualifiedName;
  */
 @JNINamespace("net")
 public class NetworkChangeNotifier {
+    // These constants must always match the ones in network_change_notifier.h.
+    public static final int CONNECTION_UNKNOWN = 0;
+    public static final int CONNECTION_ETHERNET = 1;
+    public static final int CONNECTION_WIFI = 2;
+    public static final int CONNECTION_2G = 3;
+    public static final int CONNECTION_3G = 4;
+    public static final int CONNECTION_4G = 5;
+    public static final int CONNECTION_NONE = 6;
+
     private final Context mContext;
     private int mNativeChangeNotifier;
-    private boolean mIsConnected;
+    private int mConnectionType;
     private NetworkChangeNotifierAutoDetect mAutoDetector;
 
     private static NetworkChangeNotifier sInstance;
@@ -32,7 +41,7 @@ public class NetworkChangeNotifier {
     private NetworkChangeNotifier(Context context, int nativeChangeNotifier) {
         mContext = context;
         mNativeChangeNotifier = nativeChangeNotifier;
-        mIsConnected = true;
+        mConnectionType = CONNECTION_UNKNOWN;
         sInstance = this;
     }
 
@@ -78,8 +87,9 @@ public class NetworkChangeNotifier {
     }
 
     private void forceConnectivityStateInternal(boolean forceOnline) {
-        if (mIsConnected != forceOnline) {
-            mIsConnected = forceOnline;
+        boolean connectionCurrentlyExists = mConnectionType != CONNECTION_NONE;
+        if (connectionCurrentlyExists != forceOnline) {
+            mConnectionType = forceOnline ? CONNECTION_UNKNOWN : CONNECTION_NONE;
             notifyNativeObservers();
         }
     }
@@ -91,11 +101,11 @@ public class NetworkChangeNotifier {
     }
 
     @CalledByNative
-    private boolean isConnected() {
+    private int connectionType() {
         if (mAutoDetector != null) {
-            return mAutoDetector.isConnected();
+            return mAutoDetector.connectionType();
         }
-        return mIsConnected;
+        return mConnectionType;
     }
 
     @CalledByNative
