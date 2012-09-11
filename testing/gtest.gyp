@@ -121,7 +121,7 @@
             ],
           },
         }],
-        ['clang==1 or OS=="android"', {
+        ['OS=="android"', {
           # We want gtest features that use tr1::tuple, but we currently
           # don't support the variadic templates used by libstdc++'s
           # implementation. gtest supports this scenario by providing its
