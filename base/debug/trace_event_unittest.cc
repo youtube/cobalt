@@ -352,9 +352,9 @@ void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
                              "name1", "value1",
                              "name2", "value2");
 
-    TRACE_EVENT_ASYNC_BEGIN_STEP0("all", "TRACE_EVENT_ASYNC_BEGIN_STEP0 call",
+    TRACE_EVENT_ASYNC_STEP0("all", "TRACE_EVENT_ASYNC_STEP0 call",
                                   5, "step1");
-    TRACE_EVENT_ASYNC_BEGIN_STEP1("all", "TRACE_EVENT_ASYNC_BEGIN_STEP1 call",
+    TRACE_EVENT_ASYNC_STEP1("all", "TRACE_EVENT_ASYNC_STEP1 call",
                                   5, "step2", "name1", "value1");
 
     TRACE_EVENT_ASYNC_END0("all", "TRACE_EVENT_ASYNC_END0 call", 5);
@@ -483,11 +483,11 @@ void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed) {
   EXPECT_SUB_FIND_("name2");
   EXPECT_SUB_FIND_("value2");
 
-  EXPECT_FIND_("TRACE_EVENT_ASYNC_BEGIN_STEP0 call");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_STEP0 call");
   EXPECT_SUB_FIND_("id");
   EXPECT_SUB_FIND_("5");
   EXPECT_SUB_FIND_("step1");
-  EXPECT_FIND_("TRACE_EVENT_ASYNC_BEGIN_STEP1 call");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_STEP1 call");
   EXPECT_SUB_FIND_("id");
   EXPECT_SUB_FIND_("5");
   EXPECT_SUB_FIND_("step2");
@@ -1026,7 +1026,7 @@ TEST_F(TraceEventTestFixture, AsyncBeginEndEvents) {
 
   unsigned long long id = 0xfeedbeeffeedbeefull;
   TRACE_EVENT_ASYNC_BEGIN0( "cat", "name1", id);
-  TRACE_EVENT_ASYNC_BEGIN_STEP0( "cat", "name1", id, "step1");
+  TRACE_EVENT_ASYNC_STEP0( "cat", "name1", id, "step1");
   TRACE_EVENT_ASYNC_END0("cat", "name1", id);
   TRACE_EVENT_BEGIN0( "cat", "name2");
   TRACE_EVENT_ASYNC_BEGIN0( "cat", "name3", 0);
