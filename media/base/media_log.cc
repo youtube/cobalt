@@ -59,37 +59,6 @@ const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
   return NULL;
 }
 
-const char* MediaLog::PipelineStateToString(Pipeline::State state) {
-  switch (state) {
-    case Pipeline::kCreated:
-      return "created";
-    case Pipeline::kInitDemuxer:
-      return "initDemuxer";
-    case Pipeline::kInitAudioDecoder:
-      return "initAudioDecoder";
-    case Pipeline::kInitAudioRenderer:
-      return "initAudioRenderer";
-    case Pipeline::kInitVideoRenderer:
-      return "initVideoRenderer";
-    case Pipeline::kPausing:
-      return "pausing";
-    case Pipeline::kSeeking:
-      return "seeking";
-    case Pipeline::kFlushing:
-      return "flushing";
-    case Pipeline::kStarting:
-      return "starting";
-    case Pipeline::kStarted:
-      return "started";
-    case Pipeline::kStopping:
-      return "stopping";
-    case Pipeline::kStopped:
-      return "stopped";
-  }
-  NOTREACHED();
-  return NULL;
-}
-
 const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
   switch (status) {
     case PIPELINE_OK:
@@ -106,8 +75,6 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "pipeline: abort";
     case PIPELINE_ERROR_INITIALIZATION_FAILED:
       return "pipeline: initialization failed";
-    case PIPELINE_ERROR_REQUIRED_FILTER_MISSING:
-      return "pipeline: required filter missing";
     case PIPELINE_ERROR_COULD_NOT_RENDER:
       return "pipeline: could not render";
     case PIPELINE_ERROR_READ:
@@ -182,7 +149,7 @@ scoped_ptr<MediaLogEvent> MediaLog::CreatePipelineStateChangedEvent(
     Pipeline::State state) {
   scoped_ptr<MediaLogEvent> event(
       CreateEvent(MediaLogEvent::PIPELINE_STATE_CHANGED));
-  event->params.SetString("pipeline_state", PipelineStateToString(state));
+  event->params.SetString("pipeline_state", Pipeline::GetStateString(state));
   return event.Pass();
 }
 

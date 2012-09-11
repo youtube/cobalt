@@ -20,18 +20,14 @@ static void RunBoundClosure(
   bound_closure.Run(base::Bind(status_cb, PIPELINE_OK));
 }
 
-// Runs |status_cb| with |last_status| on |message_loop|, trampolining if
-// necessary.
+// Runs |status_cb| with |last_status| on |message_loop|.
 static void RunOnMessageLoop(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const PipelineStatusCB& status_cb,
     PipelineStatus last_status) {
-  if (!message_loop->BelongsToCurrentThread()) {
-    message_loop->PostTask(FROM_HERE, base::Bind(
-        &RunOnMessageLoop, message_loop, status_cb, last_status));
-    return;
-  }
-  status_cb.Run(last_status);
+  // Force post to permit cancellation of a series in the scenario where all
+  // bound functions run on the same thread.
+  message_loop->PostTask(FROM_HERE, base::Bind(status_cb, last_status));
 }
 
 SerialRunner::Queue::Queue() {}
