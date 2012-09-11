@@ -2527,6 +2527,12 @@
     ['OS=="android"', {
       'variables': {
         'target_arch%': 'arm',  # target_arch in android terms.
+        # This is the id for the archived chrome symbols. Each build that
+        # archives symbols is assigned an id which is then added to GYP_DEFINES.
+        # This is written to the device log on crashes just prior to dropping a
+        # tombstone. Tools can determine the location of the archived symbols
+        # from the id.
+        'chrome_symbols_id%': '',
         'conditions': [
           # Android uses x86 instead of ia32 for their target_arch designation.
           ['target_arch=="ia32"', {
@@ -2611,6 +2617,7 @@
               '__GNU_SOURCE=1',  # Necessary for clone()
               'USE_STLPORT=1',
               '_STLP_USE_PTR_SPECIALIZATIONS=1',
+              'CHROME_SYMBOLS_ID="<(chrome_symbols_id)"',
             ],
             'ldflags!': [
               '-pthread',  # Not supported by Android toolchain.
