@@ -40,12 +40,12 @@ case "${host_os}" in
 esac
 
 CURRENT_DIR="$(readlink -f "$(dirname $BASH_SOURCE)/../../")"
-if [ -z "${CHROME_SRC}" ]; then
+if [[ -z "${CHROME_SRC}" ]]; then
   # If $CHROME_SRC was not set, assume current directory is CHROME_SRC.
   export CHROME_SRC="${CURRENT_DIR}"
 fi
 
-if [ "${CURRENT_DIR/"${CHROME_SRC}"/}" == "${CURRENT_DIR}" ]; then
+if [[ "${CURRENT_DIR/"${CHROME_SRC}"/}" == "${CURRENT_DIR}" ]]; then
   # If current directory is not in $CHROME_SRC, it might be set for other
   # source tree. If $CHROME_SRC was set correctly and we are in the correct
   # directory, "${CURRENT_DIR/"${CHROME_SRC}"/}" will be "".
@@ -61,12 +61,13 @@ export ANDROID_SDK_VERSION=16
 # Source functions script.  The file is in the same directory as this script.
 . "$(dirname $BASH_SOURCE)"/envsetup_functions.sh
 
-if [ "${ANDROID_SDK_BUILD}" -eq 1 ]; then
+if [[ "${ANDROID_SDK_BUILD}" -eq 1 ]]; then
   sdk_build_init
 # Sets up environment for building Chromium for Android with source. Expects
 # android environment setup and lunch.
-elif [ -z "$ANDROID_BUILD_TOP" -o -z "$ANDROID_TOOLCHAIN" -o \
-  -z "$ANDROID_PRODUCT_OUT" ]; then
+elif [[ -z "$ANDROID_BUILD_TOP" || \
+        -z "$ANDROID_TOOLCHAIN" || \
+        -z "$ANDROID_PRODUCT_OUT" ]]; then
   echo "Android build environment variables must be set."
   echo "Please cd to the root of your Android tree and do: "
   echo "  . build/envsetup.sh"
@@ -79,7 +80,7 @@ else
 fi
 
 # Workaround for valgrind build
-if [ -n "$CHROME_ANDROID_VALGRIND_BUILD" ]; then
+if [[ -n "$CHROME_ANDROID_VALGRIND_BUILD" ]]; then
 # arm_thumb=0 is a workaround for https://bugs.kde.org/show_bug.cgi?id=270709
   DEFINES+=" arm_thumb=0 release_extra_cflags='-fno-inline\
  -fno-omit-frame-pointer -fno-builtin' release_valgrind_build=1\
