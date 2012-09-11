@@ -9,14 +9,10 @@
 
 #include "base/basictypes.h"
 #include "base/file_path.h"
-#include "base/gtest_prod_util.h"
 #include "base/time.h"
-#include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
 
 namespace net {
-
-class FileStream;
 
 // A class representing an element contained by UploadData.
 class NET_EXPORT UploadElement {
@@ -72,42 +68,7 @@ class NET_EXPORT UploadElement {
     expected_file_modification_time_ = expected_modification_time;
   }
 
-  // Returns the byte-length of the element.  For files that do not exist, 0
-  // is returned.  This is done for consistency with Mozilla.
-  uint64 GetContentLength();
-
-  // Reads up to |buf_len| bytes synchronously. Returns the number of bytes
-  // read. This function never fails. If there's less data to read than we
-  // initially observed, then pad with zero (this can happen with files).
-  // |buf_len| must be greater than 0.
-  int ReadSync(char* buf, int buf_len);
-
-  // Returns the number of bytes remaining to read.
-  uint64 BytesRemaining();
-
-  // Resets the offset to zero and closes the file stream if opened, so
-  // that the element can be reread.
-  void ResetOffset();
-
  private:
-  // Returns a FileStream opened for reading for this element, positioned
-  // at |file_range_offset_|. Returns NULL if the file is not openable.
-  FileStream* OpenFileStream();
-
-  // Reads up to |buf_len| bytes synchronously from memory (i.e. type_ is
-  // TYPE_BYTES).
-  int ReadFromMemorySync(char* buf, int buf_len);
-
-  // Reads up to |buf_len| bytes synchronously from a file (i.e. type_ is
-  // TYPE_FILE).
-  int ReadFromFileSync(char* buf, int buf_len);
-
-  // Allows tests to override the result of GetContentLength.
-  void SetContentLength(uint64 content_length) {
-    override_content_length_ = true;
-    content_length_ = content_length;
-  }
-
   Type type_;
   std::vector<char> buf_;
   const char* bytes_start_;
@@ -116,24 +77,6 @@ class NET_EXPORT UploadElement {
   uint64 file_range_offset_;
   uint64 file_range_length_;
   base::Time expected_file_modification_time_;
-  bool override_content_length_;
-  bool content_length_computed_;
-  uint64 content_length_;
-
-  // The byte offset from the beginning of the element data. Used to track
-  // the current position when reading data.
-  uint64 offset_;
-
-  // The stream of the element data, if this element is of TYPE_FILE.
-  FileStream* file_stream_;
-
-  FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, FileSmallerThanLength);
-  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
-                           UploadFileSmallerThanLength);
-  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy2Test,
-                           UploadFileSmallerThanLength);
-  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy3Test,
-                           UploadFileSmallerThanLength);
 };
 
 #if defined(UNIT_TEST)
