@@ -21,7 +21,6 @@
         '../content/content.gyp:content_shell_apk',
         '<@(android_app_targets)',
         'android_builder_tests',
-        '../chrome/chrome.gyp:chromium_testshell'
       ],
     }, # target_name: All
     {
