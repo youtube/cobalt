@@ -49,17 +49,6 @@ static const char kAvailDictionaryHeader[] = "Avail-Dictionary";
 
 namespace net {
 
-namespace {
-
-// Array of all network error codes.  Needed for histograms.
-const int kAllNetErrorCodes[] = {
-#define NET_ERROR(label, value) -(value),
-#include "net/base/net_error_list.h"
-#undef NET_ERROR
-};
-
-}  // namespace
-
 class URLRequestHttpJob::HttpFilterContext : public FilterContext {
  public:
   explicit HttpFilterContext(URLRequestHttpJob* job);
@@ -258,9 +247,7 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request,
           base::Bind(&URLRequestHttpJob::OnHeadersReceivedCallback,
                      base::Unretained(this)))),
       awaiting_callback_(false),
-      http_transaction_delegate_(new HttpTransactionDelegateImpl(request)),
-      has_retried_(false),
-      error_before_retry_(OK) {
+      http_transaction_delegate_(new HttpTransactionDelegateImpl(request)) {
   URLRequestThrottlerManager* manager = request->context()->throttler_manager();
   if (manager)
     throttling_entry_ = manager->RegisterRequestUrl(request->url());
@@ -773,14 +760,6 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
 
   const URLRequestContext* context = request_->context();
 
-  // If this was a retry, record whether or not we successfully connected to
-  // the server on the second try.
-  if (error_before_retry_ != OK) {
-    DCHECK(has_retried_);
-    RecordRetryResult(result);
-    error_before_retry_ = OK;
-  }
-
   if (result == ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN &&
       transaction_->GetResponseInfo() != NULL) {
     FraudulentCertificateReporter* reporter =
@@ -837,8 +816,6 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     NotifyCertificateRequested(
         transaction_->GetResponseInfo()->cert_request_info);
-  } else if (ShouldRetryRequest(result)) {
-    RetryRequestOnError(result);
   } else {
     NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, result));
   }
@@ -888,78 +865,6 @@ void URLRequestHttpJob::RestartTransactionWithAuth(
   request_info_.extra_headers.RemoveHeader(HttpRequestHeaders::kCookie);
 
   AddCookieHeaderAndStart();
-}
-
-void URLRequestHttpJob::RetryRequestOnError(int result) {
-  // Should have a transaction that returned the result, but should not have
-  // received headers yet.
-  DCHECK(transaction_.get());
-  DCHECK(!response_info_);
-  DCHECK(result != OK && result != ERR_IO_PENDING);
-
-  error_before_retry_ = result;
-  has_retried_ = true;
-  ResetTimer();
-  transaction_.reset();
-
-  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
-  StartTransactionInternal();
-}
-
-bool URLRequestHttpJob::ShouldRetryRequest(int result) const {
-  // Request must not have been cancelled, and no response info may have been
-  // received yet.
-  DCHECK(transaction_.get());
-  DCHECK(request_);
-  DCHECK(!response_info_);
-
-  // Don't retry if the request has already been retried or it's not a GET.
-  if (has_retried_ || request_->method() != "GET") {
-    return false;
-  }
-
-
-  // If the HTTP job has already taken too long, do not retry the request.
-  base::TimeDelta request_duration = base::TimeTicks::Now() - start_time_;
-  if (request_duration >= base::TimeDelta::FromSeconds(10))
-    return false;
-
-  // TODO(mmenke):  Look at the metrics and figure out which, if any, of these
-  //                error codes it's worth retrying on.
-  switch (result) {
-    // These four error codes will also result in a retry in NetworkTransaction,
-    // in the case of a reused socket.  It's unclear how much correlation there
-    // is between receiving one of these errors on a reused socket and on a
-    // fresh socket on retry.
-    case ERR_CONNECTION_RESET:
-    case ERR_CONNECTION_CLOSED:
-    case ERR_CONNECTION_ABORTED:
-    case ERR_SOCKET_NOT_CONNECTED:
-
-    // System errors.
-    case ERR_FAILED:
-    case ERR_UNEXPECTED:
-
-    // Connection errors.
-    case ERR_CONNECTION_REFUSED:
-    case ERR_CONNECTION_FAILED:
-    case ERR_NAME_NOT_RESOLVED:
-    case ERR_INTERNET_DISCONNECTED:
-    case ERR_ADDRESS_UNREACHABLE:
-    case ERR_NETWORK_ACCESS_DENIED:
-    case ERR_ADDRESS_IN_USE:
-
-    // Content errors.
-    case ERR_EMPTY_RESPONSE:
-
-    // Cache errors.
-    case ERR_CACHE_MISS:
-    case ERR_CACHE_READ_FAILURE:
-      return true;
-
-    default:
-      return false;
-  }
 }
 
 void URLRequestHttpJob::SetUpload(UploadData* upload) {
@@ -1414,38 +1319,6 @@ void URLRequestHttpJob::ResetTimer() {
     return;
   }
   request_creation_time_ = base::Time::Now();
-}
-
-void URLRequestHttpJob::RecordRetryResult(int result) const {
-  if (request_info_.load_flags & LOAD_MAIN_FRAME) {
-    if (result != OK) {
-      UMA_HISTOGRAM_CUSTOM_ENUMERATION(
-          "Net.NetworkErrorsRecovered.MainFrame",
-          -error_before_retry_,
-          base::CustomHistogram::ArrayToCustomRanges(
-              kAllNetErrorCodes, arraysize(kAllNetErrorCodes)));
-    } else {
-      UMA_HISTOGRAM_CUSTOM_ENUMERATION(
-          "Net.NetworkErrorsUnrecovered.MainFrame",
-          -error_before_retry_,
-          base::CustomHistogram::ArrayToCustomRanges(
-              kAllNetErrorCodes, arraysize(kAllNetErrorCodes)));
-    }
-  } else {
-    if (result != OK) {
-      UMA_HISTOGRAM_CUSTOM_ENUMERATION(
-          "Net.NetworkErrorsRecovered.Subresource",
-          -error_before_retry_,
-          base::CustomHistogram::ArrayToCustomRanges(
-              kAllNetErrorCodes, arraysize(kAllNetErrorCodes)));
-    } else {
-      UMA_HISTOGRAM_CUSTOM_ENUMERATION(
-          "Net.NetworkErrorsUnrecovered.Subresource",
-          -error_before_retry_,
-          base::CustomHistogram::ArrayToCustomRanges(
-              kAllNetErrorCodes, arraysize(kAllNetErrorCodes)));
-    }
-  }
 }
 
 void URLRequestHttpJob::UpdatePacketReadTimes() {

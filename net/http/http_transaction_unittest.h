@@ -48,11 +48,6 @@ typedef void (*MockTransactionHandler)(const net::HttpRequestInfo* request,
                                        std::string* response_data);
 
 struct MockTransaction {
-  // Net error code returned as a result of starting the transaction.  If not
-  // net::OK, all response-related fields will be ignored.  Must not be
-  // ERR_IO_PENDING.
-  net::Error start_result;
-
   const char* url;
   const char* method;
   // If |request_time| is unspecified, the current time will be used.
