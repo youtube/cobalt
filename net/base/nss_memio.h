@@ -37,7 +37,7 @@ typedef struct memio_Private memio_Private;
 ----------------------------------------------------------------------*/
 
 /* Create the I/O layer and its two circular buffers. */
-PRFileDesc *memio_CreateIOLayer(int bufsize);
+PRFileDesc *memio_CreateIOLayer(int readbufsize, int writebufsize);
 
 /* Must call before trying to make an ssl connection */
 void memio_SetPeerName(PRFileDesc *fd, const PRNetAddr *peername);
