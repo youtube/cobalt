@@ -192,13 +192,13 @@ hb_glib_script_from_script (hb_script_t script)
 }
 
 
-static unsigned int
+static hb_unicode_combining_class_t
 hb_glib_unicode_combining_class (hb_unicode_funcs_t *ufuncs HB_UNUSED,
 				 hb_codepoint_t      unicode,
 				 void               *user_data HB_UNUSED)
 
 {
-  return g_unichar_combining_class (unicode);
+  return (hb_unicode_combining_class_t) g_unichar_combining_class (unicode);
 }
 
 static unsigned int
@@ -250,12 +250,9 @@ hb_glib_unicode_compose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
   /* We don't ifdef-out the fallback code such that compiler always
    * sees it and makes sure it's compilable. */
 
-  if (!a || !b)
-    return false;
-
   gchar utf8[12];
   gchar *normalized;
-  gint len;
+  int len;
   hb_bool_t ret;
 
   len = g_unichar_to_utf8 (a, utf8);
@@ -292,7 +289,7 @@ hb_glib_unicode_decompose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
 
   gchar utf8[6];
   gchar *normalized;
-  gint len;
+  int len;
   hb_bool_t ret;
 
   len = g_unichar_to_utf8 (ab, utf8);
@@ -336,23 +333,52 @@ hb_glib_unicode_decompose (hb_unicode_funcs_t *ufuncs HB_UNUSED,
   return ret;
 }
 
+static unsigned int
+hb_glib_unicode_decompose_compatibility (hb_unicode_funcs_t *ufuncs,
+					 hb_codepoint_t      u,
+					 hb_codepoint_t     *decomposed,
+					 void               *user_data HB_UNUSED)
+{
+#if GLIB_CHECK_VERSION(2,29,12)
+  return g_unichar_fully_decompose (u, TRUE, decomposed, HB_UNICODE_MAX_DECOMPOSITION_LEN);
+#endif
 
-extern HB_INTERNAL const hb_unicode_funcs_t _hb_glib_unicode_funcs;
-const hb_unicode_funcs_t _hb_glib_unicode_funcs = {
-  HB_OBJECT_HEADER_STATIC,
+  /* If the user doesn't have GLib >= 2.29.12 we have to perform
+   * a round trip to UTF-8 and the associated memory management dance. */
+  gchar utf8[6];
+  gchar *utf8_decomposed, *c;
+  gsize utf8_len, utf8_decomposed_len, i;
 
-  NULL, /* parent */
-  true, /* immutable */
-  {
-#define HB_UNICODE_FUNC_IMPLEMENT(name) hb_glib_unicode_##name,
-    HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
-#undef HB_UNICODE_FUNC_IMPLEMENT
-  }
-};
+  /* Convert @u to UTF-8 and normalise it in NFKD mode. This performs the compatibility decomposition. */
+  utf8_len = g_unichar_to_utf8 (u, utf8);
+  utf8_decomposed = g_utf8_normalize (utf8, utf8_len, G_NORMALIZE_NFKD);
+  utf8_decomposed_len = g_utf8_strlen (utf8_decomposed, -1);
+
+  assert (utf8_decomposed_len <= HB_UNICODE_MAX_DECOMPOSITION_LEN);
+
+  for (i = 0, c = utf8_decomposed; i < utf8_decomposed_len; i++, c = g_utf8_next_char (c))
+    *decomposed++ = g_utf8_get_char (c);
+
+  g_free (utf8_decomposed);
+
+  return utf8_decomposed_len;
+}
 
 hb_unicode_funcs_t *
 hb_glib_get_unicode_funcs (void)
 {
+  static const hb_unicode_funcs_t _hb_glib_unicode_funcs = {
+    HB_OBJECT_HEADER_STATIC,
+
+    NULL, /* parent */
+    true, /* immutable */
+    {
+#define HB_UNICODE_FUNC_IMPLEMENT(name) hb_glib_unicode_##name,
+      HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
+#undef HB_UNICODE_FUNC_IMPLEMENT
+    }
+  };
+
   return const_cast<hb_unicode_funcs_t *> (&_hb_glib_unicode_funcs);
 }
 

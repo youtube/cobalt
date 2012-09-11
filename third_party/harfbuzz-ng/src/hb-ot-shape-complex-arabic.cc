@@ -1,5 +1,5 @@
 /*
- * Copyright © 2010  Google, Inc.
+ * Copyright © 2010,2012  Google, Inc.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -28,9 +28,8 @@
 #include "hb-ot-shape-private.hh"
 
 
-
 /* buffer var allocations */
-#define arabic_shaping_action() complex_var_temporary_u8() /* arabic shaping action */
+#define arabic_shaping_action() complex_var_u8_0() /* arabic shaping action */
 
 
 /*
@@ -81,25 +80,7 @@ static unsigned int get_joining_type (hb_codepoint_t u, hb_unicode_general_categ
 	 JOINING_TYPE_T : JOINING_TYPE_U;
 }
 
-static hb_codepoint_t get_arabic_shape (hb_codepoint_t u, unsigned int shape)
-{
-  if (likely (hb_in_range<hb_codepoint_t> (u, SHAPING_TABLE_FIRST, SHAPING_TABLE_LAST)) && shape < 4)
-    return shaping_table[u - SHAPING_TABLE_FIRST][shape];
-  return u;
-}
-
-static uint16_t get_ligature (hb_codepoint_t first, hb_codepoint_t second)
-{
-  if (unlikely (!second)) return 0;
-  for (unsigned i = 0; i < ARRAY_LENGTH (ligature_table); i++)
-    if (ligature_table[i].first == first)
-      for (unsigned j = 0; j < ARRAY_LENGTH (ligature_table[i].ligatures); j++)
-	if (ligature_table[i].ligatures[j].second == second)
-	  return ligature_table[i].ligatures[j].ligature;
-  return 0;
-}
-
-static const hb_tag_t arabic_syriac_features[] =
+static const hb_tag_t arabic_features[] =
 {
   HB_TAG('i','n','i','t'),
   HB_TAG('m','e','d','i'),
@@ -127,9 +108,7 @@ enum {
 
   NONE,
 
-  COMMON_NUM_FEATURES = 4,
-  SYRIAC_NUM_FEATURES = 7,
-  TOTAL_NUM_FEATURES = NONE
+  ARABIC_NUM_FEATURES = NONE
 };
 
 static const struct arabic_state_table_entry {
@@ -163,11 +142,16 @@ static const struct arabic_state_table_entry {
 };
 
 
+static void
+arabic_fallback_shape (const hb_ot_shape_plan_t *plan,
+		       hb_font_t *font,
+		       hb_buffer_t *buffer);
 
-void
-_hb_ot_shape_complex_collect_features_arabic (hb_ot_map_builder_t *map,
-					      const hb_segment_properties_t *props)
+static void
+collect_features_arabic (hb_ot_shape_planner_t *plan)
 {
+  hb_ot_map_builder_t *map = &plan->map;
+
   /* For Language forms (in ArabicOT speak), we do the iso/fina/medi/init together,
    * then rlig and calt each in their own stage.  This makes IranNastaliq's ALLAH
    * ligature work correctly. It's unfortunate though...
@@ -181,69 +165,68 @@ _hb_ot_shape_complex_collect_features_arabic (hb_ot_map_builder_t *map,
   map->add_bool_feature (HB_TAG('c','c','m','p'));
   map->add_bool_feature (HB_TAG('l','o','c','l'));
 
-  map->add_gsub_pause (NULL, NULL);
+  map->add_gsub_pause (NULL);
 
-  unsigned int num_features = props->script == HB_SCRIPT_SYRIAC ? SYRIAC_NUM_FEATURES : COMMON_NUM_FEATURES;
-  for (unsigned int i = 0; i < num_features; i++)
-    map->add_bool_feature (arabic_syriac_features[i], false);
+  for (unsigned int i = 0; i < ARABIC_NUM_FEATURES; i++)
+    map->add_bool_feature (arabic_features[i], false, i < 4); /* The first four features have fallback. */
 
-  map->add_gsub_pause (NULL, NULL);
+  map->add_gsub_pause (NULL);
 
-  map->add_bool_feature (HB_TAG('r','l','i','g'));
-  map->add_gsub_pause (NULL, NULL);
+  map->add_bool_feature (HB_TAG('r','l','i','g'), true, true);
+  map->add_gsub_pause (arabic_fallback_shape);
 
   map->add_bool_feature (HB_TAG('c','a','l','t'));
-  map->add_gsub_pause (NULL, NULL);
+  map->add_gsub_pause (NULL);
 
   /* ArabicOT spec enables 'cswh' for Arabic where as for basic shaper it's disabled by default. */
   map->add_bool_feature (HB_TAG('c','s','w','h'));
 }
 
-hb_ot_shape_normalization_mode_t
-_hb_ot_shape_complex_normalization_preference_arabic (void)
-{
-  return HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS;
-}
+#include "hb-ot-shape-complex-arabic-fallback.hh"
 
+struct arabic_shape_plan_t
+{
+  ASSERT_POD ();
+
+  /* The "+ 1" in the next array is to accommodate for the "NONE" command,
+   * which is not an OpenType feature, but this simplifies the code by not
+   * having to do a "if (... < NONE) ..." and just rely on the fact that
+   * mask_array[NONE] == 0. */
+  hb_mask_t mask_array[ARABIC_NUM_FEATURES + 1];
+
+  bool do_fallback;
+  arabic_fallback_plan_t *fallback_plan;
+};
+
+static void *
+data_create_arabic (const hb_ot_shape_plan_t *plan)
+{
+  arabic_shape_plan_t *arabic_plan = (arabic_shape_plan_t *) calloc (1, sizeof (arabic_shape_plan_t));
+  if (unlikely (!arabic_plan))
+    return NULL;
+
+  arabic_plan->do_fallback = plan->props.script == HB_SCRIPT_ARABIC;
+  for (unsigned int i = 0; i < ARABIC_NUM_FEATURES; i++) {
+    arabic_plan->mask_array[i] = plan->map.get_1_mask (arabic_features[i]);
+    if (i < 4)
+      arabic_plan->do_fallback = arabic_plan->do_fallback && plan->map.needs_fallback (arabic_features[i]);
+  }
+
+  return arabic_plan;
+}
 
 static void
-arabic_fallback_shape (hb_font_t *font, hb_buffer_t *buffer)
+data_destroy_arabic (void *data)
 {
-  unsigned int count = buffer->len;
-  hb_codepoint_t glyph;
+  arabic_shape_plan_t *arabic_plan = (arabic_shape_plan_t *) data;
 
-  /* Shape to presentation forms */
-  for (unsigned int i = 0; i < count; i++) {
-    hb_codepoint_t u = buffer->info[i].codepoint;
-    hb_codepoint_t shaped = get_arabic_shape (u, buffer->info[i].arabic_shaping_action());
-    if (shaped != u && hb_font_get_glyph (font, shaped, 0, &glyph))
-      buffer->info[i].codepoint = shaped;
-  }
+  arabic_fallback_plan_destroy (arabic_plan->fallback_plan);
 
-  /* Mandatory ligatures */
-  buffer->clear_output ();
-  for (buffer->idx = 0; buffer->idx + 1 < count;) {
-    hb_codepoint_t ligature = get_ligature (buffer->cur().codepoint,
-					    buffer->cur(+1).codepoint);
-    if (likely (!ligature) || !(hb_font_get_glyph (font, ligature, 0, &glyph))) {
-      buffer->next_glyph ();
-      continue;
-    }
-
-    buffer->replace_glyphs (2, 1, &ligature);
-
-    /* Technically speaking we can skip marks and stuff, like the GSUB path does.
-     * But who cares, we're in fallback! */
-  }
-  for (; buffer->idx < count;)
-      buffer->next_glyph ();
-  buffer->swap_buffers ();
+  free (data);
 }
 
-void
-_hb_ot_shape_complex_setup_masks_arabic (hb_ot_map_t *map,
-					 hb_buffer_t *buffer,
-					 hb_font_t *font)
+static void
+arabic_joining (hb_buffer_t *buffer)
 {
   unsigned int count = buffer->len;
   unsigned int prev = 0, state = 0;
@@ -270,30 +253,58 @@ _hb_ot_shape_complex_setup_masks_arabic (hb_ot_map_t *map,
     state = entry->next_state;
   }
 
-  hb_mask_t mask_array[TOTAL_NUM_FEATURES + 1] = {0};
-  hb_mask_t total_masks = 0;
-  unsigned int num_masks = buffer->props.script == HB_SCRIPT_SYRIAC ? SYRIAC_NUM_FEATURES : COMMON_NUM_FEATURES;
-  for (unsigned int i = 0; i < num_masks; i++) {
-    mask_array[i] = map->get_1_mask (arabic_syriac_features[i]);
-    total_masks |= mask_array[i];
-  }
-
-  if (total_masks) {
-    /* Has OpenType tables */
-    for (unsigned int i = 0; i < count; i++)
-      buffer->info[i].mask |= mask_array[buffer->info[i].arabic_shaping_action()];
-  } else if (buffer->props.script == HB_SCRIPT_ARABIC) {
-    /* Fallback Arabic shaping to Presentation Forms */
-    /* Pitfalls:
-     * - This path fires if user force-set init/medi/fina/isol off,
-     * - If font does not declare script 'arab', well, what to do?
-     *   Most probably it's safe to assume that init/medi/fina/isol
-     *   still mean Arabic shaping, although they do not have to.
-     */
-    arabic_fallback_shape (font, buffer);
-  }
-
   HB_BUFFER_DEALLOCATE_VAR (buffer, arabic_shaping_action);
 }
 
+static void
+setup_masks_arabic (const hb_ot_shape_plan_t *plan,
+		    hb_buffer_t              *buffer,
+		    hb_font_t                *font)
+{
+  const arabic_shape_plan_t *arabic_plan = (const arabic_shape_plan_t *) plan->data;
 
+  arabic_joining (buffer);
+  unsigned int count = buffer->len;
+  for (unsigned int i = 0; i < count; i++)
+    buffer->info[i].mask |= arabic_plan->mask_array[buffer->info[i].arabic_shaping_action()];
+}
+
+
+static void
+arabic_fallback_shape (const hb_ot_shape_plan_t *plan,
+		       hb_font_t *font,
+		       hb_buffer_t *buffer)
+{
+  const arabic_shape_plan_t *arabic_plan = (const arabic_shape_plan_t *) plan->data;
+
+  if (!arabic_plan->do_fallback)
+    return;
+
+retry:
+  arabic_fallback_plan_t *fallback_plan = (arabic_fallback_plan_t *) hb_atomic_ptr_get (&arabic_plan->fallback_plan);
+  if (unlikely (!fallback_plan))
+  {
+    /* This sucks.  We need a font to build the fallback plan... */
+    fallback_plan = arabic_fallback_plan_create (plan, font);
+    if (unlikely (!hb_atomic_ptr_cmpexch (&(const_cast<arabic_shape_plan_t *> (arabic_plan))->fallback_plan, NULL, fallback_plan))) {
+      arabic_fallback_plan_destroy (fallback_plan);
+      goto retry;
+    }
+  }
+
+  arabic_fallback_plan_shape (fallback_plan, font, buffer);
+}
+
+
+const hb_ot_complex_shaper_t _hb_ot_complex_shaper_arabic =
+{
+  "arabic",
+  collect_features_arabic,
+  NULL, /* override_features */
+  data_create_arabic,
+  data_destroy_arabic,
+  NULL, /* preprocess_text_arabic */
+  NULL, /* normalization_preference */
+  setup_masks_arabic,
+  true, /* zero_width_attached_marks */
+};
