@@ -30,6 +30,8 @@
 #include "hb-open-type-private.hh"
 
 
+namespace OT {
+
 
 /*
  * maxp -- The Maximum Profile Table
@@ -52,7 +54,7 @@ struct maxp
   }
 
   /* We only implement version 0.5 as none of the extra fields in version 1.0 are useful. */
-  private:
+  protected:
   FixedVersion	version;		/* Version of the maxp table (0.5 or 1.0),
 					 * 0x00005000 or 0x00010000. */
   USHORT	numGlyphs;		/* The number of glyphs in the font. */
@@ -60,6 +62,8 @@ struct maxp
   DEFINE_SIZE_STATIC (6);
 };
 
+
+} // namespace OT
 
 
 #endif /* HB_OT_MAXP_TABLE_HH */

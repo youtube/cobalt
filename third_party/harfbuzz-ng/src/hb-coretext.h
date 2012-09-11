@@ -1,5 +1,5 @@
 /*
- * Copyright © 2012  Google, Inc.
+ * Copyright © 2012  Mozilla Foundation.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -21,19 +21,23 @@
  * ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
  * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
- * Google Author(s): Behdad Esfahbod
+ * Mozilla Author(s): Jonathan Kew
  */
 
-#include "hb-atomic-private.hh"
-#include "hb-mutex-private.hh"
+#ifndef HB_CORETEXT_H
+#define HB_CORETEXT_H
+
+#include "hb.h"
+
+#include <ApplicationServices/ApplicationServices.h>
+
+HB_BEGIN_DECLS
 
 
-#if defined(HB_ATOMIC_INT_NIL)
-#pragma message("Could not find any system to define atomic_int macros, library may NOT be thread-safe.")
-#endif
-#if defined(HB_MUTEX_IMPL_NIL)
-#pragma message("Could not find any system to define mutex macros, library may NOT be thread-safe.")
-#endif
-#if defined(HB_ATOMIC_INT_NIL) || defined(HB_MUTEX_IMPL_NIL)
-#pragma message("To suppress these warnings, define HB_NO_MT.")
-#endif
+CTFontRef
+hb_coretext_font_get_ct_font (hb_font_t *font);
+
+
+HB_END_DECLS
+
+#endif /* HB_CORETEXT_H */
