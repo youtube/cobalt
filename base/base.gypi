@@ -505,6 +505,8 @@
           'win/scoped_process_information.cc',
           'win/scoped_process_information.h',
           'win/scoped_select_object.h',
+          'win/shortcut.cc',
+          'win/shortcut.h',
           'win/startup_information.cc',
           'win/startup_information.h',
           'win/scoped_variant.cc',
