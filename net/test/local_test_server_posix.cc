@@ -97,11 +97,9 @@ namespace net {
 bool LocalTestServer::LaunchPython(const FilePath& testserver_path) {
   // Log is useful in the event you want to run a nearby script (e.g. a test) in
   // the same environment as the TestServer.
-  VLOG(1) << "LaunchPython called with PYTHONPATH = " << getenv(kPythonPathEnv);
-
-  CommandLine python_command(CommandLine::NO_PROGRAM);
-  if (!GetPythonCommand(&python_command))
-    return false;
+  VLOG(1) << "LaunchPython called with PYTHONPATH = " <<
+          getenv(kPythonPathEnv);
+  CommandLine python_command(FilePath(FILE_PATH_LITERAL("python")));
 
   python_command.AppendArgPath(testserver_path);
   if (!AddCommandLineArguments(&python_command))
