@@ -45,12 +45,11 @@ TEST(PythonUtils, Append) {
 }
 
 TEST(PythonUtils, PythonRunTime) {
-  FilePath dir;
-  EXPECT_TRUE(GetPythonRunTime(&dir));
+  CommandLine cmd_line(CommandLine::NO_PROGRAM);
+  EXPECT_TRUE(GetPythonCommand(&cmd_line));
 
   // Run a python command to print a string and make sure the output is what
   // we want.
-  CommandLine cmd_line(dir);
   cmd_line.AppendArg("-c");
   std::string input("PythonUtilsTest");
   std::string python_cmd = StringPrintf("print '%s';", input.c_str());
