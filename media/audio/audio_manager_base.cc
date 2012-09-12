@@ -280,11 +280,17 @@ void AudioManagerBase::ShutdownOnAudioThread() {
 
 AudioParameters AudioManagerBase::GetPreferredLowLatencyOutputStreamParameters(
     ChannelLayout channel_layout) {
+#if defined(OS_IOS)
+  // IOS implements audio input only.
+  NOTIMPLEMENTED();
+  return AudioParameters();
+#else
   // TODO(dalecurtis): This should include bits per channel and channel layout
   // eventually.
   return AudioParameters(
       AudioParameters::AUDIO_PCM_LOW_LATENCY, channel_layout,
       GetAudioHardwareSampleRate(), 16, GetAudioHardwareBufferSize());
+#endif  // defined(OS_IOS)
 }
 
 }  // namespace media
