@@ -5,8 +5,10 @@
 #include "base/values.h"
 
 #include <algorithm>
+#include <ostream>
 
 #include "base/float_util.h"
+#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -1055,6 +1057,14 @@ bool ListValue::Equals(const Value* other) const {
 }
 
 ValueSerializer::~ValueSerializer() {
+}
+
+std::ostream& operator<<(std::ostream& out, const Value& value) {
+  std::string json;
+  JSONWriter::WriteWithOptions(&value,
+                               JSONWriter::OPTIONS_PRETTY_PRINT,
+                               &json);
+  return out << json;
 }
 
 }  // namespace base

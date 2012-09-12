@@ -505,6 +505,9 @@ class BASE_EXPORT ValueSerializer {
   virtual Value* Deserialize(int* error_code, std::string* error_str) = 0;
 };
 
+// Stream operator so Values can be used in assertion statements.
+BASE_EXPORT std::ostream& operator<<(std::ostream& out, const Value& value);
+
 }  // namespace base
 
 // http://crbug.com/88666
