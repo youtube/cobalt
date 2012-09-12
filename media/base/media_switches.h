@@ -35,6 +35,8 @@ MEDIA_EXPORT extern const char kEnableAudioMixer[];
 
 MEDIA_EXPORT extern const char kEnableAudioOutputResampler[];
 
+MEDIA_EXPORT extern const char kEnableWebAudioInput[];
+
 }  // namespace switches
 
 #endif  // MEDIA_BASE_MEDIA_SWITCHES_H_

@@ -83,6 +83,8 @@ class MEDIA_EXPORT AudioOutputController
 
   // A synchronous reader interface used by AudioOutputController for
   // synchronous reading.
+  // TODO(crogers): find a better name for this class and the Read() method
+  // now that it can handle synchronized I/O.
   class SyncReader {
    public:
     virtual ~SyncReader() {}
@@ -92,9 +94,10 @@ class MEDIA_EXPORT AudioOutputController
     // prepare more data and perform synchronization.
     virtual void UpdatePendingBytes(uint32 bytes) = 0;
 
-    // Attempt to completely fill |audio_bus|, return the actual number of
+    // Attempt to completely fill |dest|, return the actual number of
     // frames that could be read.
-    virtual int Read(AudioBus* audio_bus) = 0;
+    // |source| may optionally be provided for input data.
+    virtual int Read(AudioBus* source, AudioBus* dest) = 0;
 
     // Close this synchronous reader.
     virtual void Close() = 0;
@@ -144,8 +147,11 @@ class MEDIA_EXPORT AudioOutputController
 
   ///////////////////////////////////////////////////////////////////////////
   // AudioSourceCallback methods.
-  virtual int OnMoreData(AudioBus* audio_bus,
+  virtual int OnMoreData(AudioBus* dest,
                          AudioBuffersState buffers_state) OVERRIDE;
+  virtual int OnMoreIOData(AudioBus* source,
+                           AudioBus* dest,
+                           AudioBuffersState buffers_state) OVERRIDE;
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
   virtual void WaitTillDataReady() OVERRIDE;
 

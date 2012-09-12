@@ -91,6 +91,9 @@ class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
     audio_bus->Zero();
     return audio_bus->frames();
   }
+  MOCK_METHOD3(OnMoreIOData, int(AudioBus* source,
+                                 AudioBus* dest,
+                                 AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
 

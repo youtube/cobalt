@@ -177,8 +177,10 @@ void AudioDeviceThread::Thread::Run() {
 
 AudioDeviceThread::Callback::Callback(
     const AudioParameters& audio_parameters,
+    int input_channels,
     base::SharedMemoryHandle memory, int memory_length)
     : audio_parameters_(audio_parameters),
+      input_channels_(input_channels),
       samples_per_ms_(audio_parameters.sample_rate() / 1000),
       bytes_per_ms_(audio_parameters.channels() *
                     (audio_parameters_.bits_per_sample() / 8) *

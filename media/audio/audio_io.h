@@ -57,11 +57,15 @@ class MEDIA_EXPORT AudioOutputStream {
   // itself such as creating Windows or initializing COM.
   class MEDIA_EXPORT AudioSourceCallback {
    public:
-    // Provide more data by fully filling |audio_bus|.  The source will return
+    // Provide more data by fully filling |dest|.  The source will return
     // the number of frames it filled.  |buffers_state| contains current state
     // of the buffers, and can be used by the source to calculate delay.
-    virtual int OnMoreData(AudioBus* audio_bus,
+    virtual int OnMoreData(AudioBus* dest,
                            AudioBuffersState buffers_state) = 0;
+
+    virtual int OnMoreIOData(AudioBus* source,
+                             AudioBus* dest,
+                             AudioBuffersState buffers_state) = 0;
 
     // There was an error while playing a buffer. Audio source cannot be
     // destroyed yet. No direct action needed by the AudioStream, but it is

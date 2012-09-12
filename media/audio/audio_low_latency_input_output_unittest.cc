@@ -256,6 +256,13 @@ class FullDuplexAudioSinkSource
     return 0;
   }
 
+  virtual int OnMoreIOData(AudioBus* source,
+                           AudioBus* dest,
+                           AudioBuffersState buffers_state) OVERRIDE {
+    NOTREACHED();
+    return 0;
+  }
+
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE {}
   virtual void WaitTillDataReady() OVERRIDE {}
 

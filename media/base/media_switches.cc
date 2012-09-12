@@ -41,4 +41,7 @@ const char kEnableAudioMixer[] = "enable-audio-mixer";
 // Enable AudioOutputResampler for automatic audio resampling and rebuffering.
 const char kEnableAudioOutputResampler[] = "enable-audio-output-resampler";
 
+// Enable live audio input with getUserMedia() and the Web Audio API.
+const char kEnableWebAudioInput[] = "enable-webaudio-input";
+
 }  // namespace switches

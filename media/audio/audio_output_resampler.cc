@@ -127,13 +127,19 @@ void AudioOutputResampler::Shutdown() {
   dispatcher_->Shutdown();
 }
 
-int AudioOutputResampler::OnMoreData(AudioBus* audio_bus,
+int AudioOutputResampler::OnMoreData(AudioBus* dest,
                                      AudioBuffersState buffers_state) {
+  return OnMoreIOData(NULL, dest, buffers_state);
+}
+
+int AudioOutputResampler::OnMoreIOData(AudioBus* source,
+                                       AudioBus* dest,
+                                       AudioBuffersState buffers_state) {
   base::AutoLock auto_lock(source_lock_);
   // While we waited for |source_lock_| the callback might have been cleared.
   if (!source_callback_) {
-    audio_bus->Zero();
-    return audio_bus->frames();
+    dest->Zero();
+    return dest->frames();
   }
 
   current_buffers_state_ = buffers_state;
@@ -141,17 +147,17 @@ int AudioOutputResampler::OnMoreData(AudioBus* audio_bus,
   if (!resampler_.get() && !audio_fifo_.get()) {
     // We have no internal buffers, so clear any outstanding audio data.
     outstanding_audio_bytes_ = 0;
-    SourceCallback_Locked(audio_bus);
-    return audio_bus->frames();
+    SourceCallback_Locked(dest);
+    return dest->frames();
   }
 
   if (resampler_.get())
-    resampler_->Resample(audio_bus, audio_bus->frames());
+    resampler_->Resample(dest, dest->frames());
   else
-    ProvideInput(audio_bus);
+    ProvideInput(dest);
 
   // Calculate how much data is left in the internal FIFO and resampler buffers.
-  outstanding_audio_bytes_ -= audio_bus->frames() * output_bytes_per_frame_;
+  outstanding_audio_bytes_ -= dest->frames() * output_bytes_per_frame_;
   // Due to rounding errors while multiplying against |io_ratio_|,
   // |outstanding_audio_bytes_| might (rarely) slip below zero.
   if (outstanding_audio_bytes_ < 0) {
@@ -162,7 +168,7 @@ int AudioOutputResampler::OnMoreData(AudioBus* audio_bus,
 
   // Always return the full number of frames requested, ProvideInput() will pad
   // with silence if it wasn't able to acquire enough data.
-  return audio_bus->frames();
+  return dest->frames();
 }
 
 void AudioOutputResampler::SourceCallback_Locked(AudioBus* audio_bus) {
