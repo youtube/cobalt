@@ -32,6 +32,14 @@ class MultiChannelResampler;
 // and redirecting to the appropriate resampling or FIFO callback which passes
 // through to the original callback only when necessary.
 //
+// AOR will automatically fall back from AUDIO_PCM_LOW_LATENCY to
+// AUDIO_PCM_LINEAR if the output device fails to open at the requested output
+// parameters.
+// TODO(dalecurtis): Ideally the low latency path will be as reliable as the
+// high latency path once we have channel mixing and support querying for the
+// hardware's configured bit depth.  Monitor the UMA stats for fallback and
+// remove fallback support once it's stable.  http://crbug.com/148418
+//
 // Currently channel downmixing and upmixing is not supported.
 // TODO(dalecurtis): Add channel remixing.  http://crbug.com/138762
 class MEDIA_EXPORT AudioOutputResampler
@@ -66,6 +74,9 @@ class MEDIA_EXPORT AudioOutputResampler
   friend class base::RefCountedThreadSafe<AudioOutputResampler>;
   virtual ~AudioOutputResampler();
 
+  // Used to initialize the FIFO and resamplers.
+  void Initialize();
+
   // Called by MultiChannelResampler when more data is necessary.
   void ProvideInput(AudioBus* audio_bus);
 
@@ -98,9 +109,8 @@ class MEDIA_EXPORT AudioOutputResampler
   // regard to buffering and resampling.
   double io_ratio_;
 
-  // Helper values for determining playback delay adjustment.
-  int input_bytes_per_frame_;
-  int output_bytes_per_frame_;
+  // Used by AudioOutputDispatcherImpl; kept so we can reinitialize on the fly.
+  base::TimeDelta close_delay_;
 
   // Last AudioBuffersState object received via OnMoreData(), used to correct
   // playback delay by ProvideInput() and passed on to |source_callback_|.
@@ -109,6 +119,9 @@ class MEDIA_EXPORT AudioOutputResampler
   // Total number of bytes (in terms of output parameters) stored in resampler
   // or FIFO buffers which have not been sent to the audio device.
   int outstanding_audio_bytes_;
+
+  // AudioParameters used to setup the output stream.
+  AudioParameters output_params_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioOutputResampler);
 };
