@@ -12,6 +12,10 @@
 namespace base {
 namespace win {
 
+namespace {
+bool g_should_tsf_aware_required = false;
+}
+
 HMODULE GetMetroModule() {
   const HMODULE kUninitialized = reinterpret_cast<HMODULE>(1);
   static HMODULE metro_module = kUninitialized;
@@ -74,7 +78,35 @@ bool IsMetroProcess() {
 bool IsTsfAwareRequired() {
   // Although this function is equal to IsMetroProcess at this moment,
   // Chrome for Win7 and Vista may support TSF in the future.
-  return IsMetroProcess();
+  return g_should_tsf_aware_required || IsMetroProcess();
+}
+
+void SetForceToUseTsf() {
+  g_should_tsf_aware_required = true;
+
+  // Since Windows 8 Metro mode disables CUAS (Cicero Unaware Application
+  // Support) via ImmDisableLegacyIME API, Chrome must be fully TSF-aware on
+  // Metro mode. For debugging purposes, explicitly call ImmDisableLegacyIME so
+  // that one can test TSF functionality even on Windows 8 desktop mode. Note
+  // that CUAS cannot be disabled on Windows Vista/7 where ImmDisableLegacyIME
+  // is not available.
+  typedef BOOL (* ImmDisableLegacyIMEFunc)();
+  HMODULE imm32 = ::GetModuleHandleA("imm32.dll");
+  if (imm32 == NULL)
+    return;
+
+  ImmDisableLegacyIMEFunc imm_disable_legacy_ime =
+      reinterpret_cast<ImmDisableLegacyIMEFunc>(
+          ::GetProcAddress(imm32, "ImmDisableLegacyIME"));
+
+  if (imm_disable_legacy_ime == NULL) {
+    // Unsupported API, just do nothing.
+    return;
+  }
+
+  if (!imm_disable_legacy_ime()) {
+    DVLOG(1) << "Failed to disable legacy IME.";
+  }
 }
 
 wchar_t* LocalAllocAndCopyString(const string16& src) {
