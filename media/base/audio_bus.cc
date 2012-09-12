@@ -20,14 +20,17 @@ static bool IsAligned(void* ptr) {
 // Calculates the required size for an AudioBus with the given params, sets
 // |aligned_frames| to the actual frame length of each channel array.
 static int CalculateMemorySizeInternal(int channels, int frames,
-                                       int* aligned_frames) {
-  CHECK(aligned_frames);
-  // Choose a size such that each channel will be aligned by kChannelAlignment
-  // when stored in a contiguous block.
-  *aligned_frames =
+                                       int* out_aligned_frames) {
+  // Choose a size such that each channel will be aligned by
+  // kChannelAlignment when stored in a contiguous block.
+  int aligned_frames =
       ((frames * sizeof(float) + AudioBus::kChannelAlignment - 1) &
        ~(AudioBus::kChannelAlignment - 1)) / sizeof(float);
-  return sizeof(float) * channels * (*aligned_frames);
+
+  if (out_aligned_frames)
+    *out_aligned_frames = aligned_frames;
+
+  return sizeof(float) * channels * aligned_frames;
 }
 
 // |Format| is the destination type, |Fixed| is a type larger than |Format|
@@ -188,9 +191,12 @@ void AudioBus::Zero() {
 }
 
 int AudioBus::CalculateMemorySize(const AudioParameters& params) {
-  int aligned_frames = 0;
   return CalculateMemorySizeInternal(
-      params.channels(), params.frames_per_buffer(), &aligned_frames);
+      params.channels(), params.frames_per_buffer(), NULL);
+}
+
+int AudioBus::CalculateMemorySize(int channels, int frames) {
+  return CalculateMemorySizeInternal(channels, frames, NULL);
 }
 
 void AudioBus::BuildChannelData(int channels, int aligned_frames, float* data) {

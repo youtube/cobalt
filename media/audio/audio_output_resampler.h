@@ -54,8 +54,11 @@ class MEDIA_EXPORT AudioOutputResampler
   virtual void Shutdown() OVERRIDE;
 
   // AudioSourceCallback interface.
-  virtual int OnMoreData(AudioBus* audio_bus,
+  virtual int OnMoreData(AudioBus* dest,
                          AudioBuffersState buffers_state) OVERRIDE;
+  virtual int OnMoreIOData(AudioBus* source,
+                           AudioBus* dest,
+                           AudioBuffersState buffers_state) OVERRIDE;
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
   virtual void WaitTillDataReady() OVERRIDE;
 

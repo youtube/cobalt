@@ -283,9 +283,15 @@ void AudioOutputController::DoReportError(int code) {
     handler_->OnError(this, code);
 }
 
-int AudioOutputController::OnMoreData(AudioBus* audio_bus,
+int AudioOutputController::OnMoreData(AudioBus* dest,
                                       AudioBuffersState buffers_state) {
-  TRACE_EVENT0("audio", "AudioOutputController::OnMoreData");
+  return OnMoreIOData(NULL, dest, buffers_state);
+}
+
+int AudioOutputController::OnMoreIOData(AudioBus* source,
+                                        AudioBus* dest,
+                                        AudioBuffersState buffers_state) {
+  TRACE_EVENT0("audio", "AudioOutputController::OnMoreIOData");
 
   {
     // Check state and do nothing if we are not playing.
@@ -295,7 +301,8 @@ int AudioOutputController::OnMoreData(AudioBus* audio_bus,
       return 0;
     }
   }
-  int frames = sync_reader_->Read(audio_bus);
+
+  int frames = sync_reader_->Read(source, dest);
   sync_reader_->UpdatePendingBytes(
       buffers_state.total_bytes() + frames * params_.GetBytesPerFrame());
   return frames;

@@ -23,9 +23,14 @@ class AudioRendererSink
  public:
   class RenderCallback {
    public:
-    // Attempts to completely fill all channels of |audio_bus|, returns actual
+    // Attempts to completely fill all channels of |dest|, returns actual
     // number of frames filled.
-    virtual int Render(AudioBus* audio_bus, int audio_delay_milliseconds) = 0;
+    virtual int Render(AudioBus* dest, int audio_delay_milliseconds) = 0;
+
+    // Synchronized audio I/O - see InitializeIO() below.
+    virtual void RenderIO(AudioBus* source,
+                          AudioBus* dest,
+                          int audio_delay_milliseconds) {}
 
     // Signals an error has occurred.
     virtual void OnRenderError() = 0;
@@ -38,6 +43,17 @@ class AudioRendererSink
   // It must be called before any of the other methods.
   virtual void Initialize(const AudioParameters& params,
                           RenderCallback* callback) = 0;
+
+  // InitializeIO() may be called instead of Initialize() for clients who wish
+  // to have synchronized input and output.  |input_channels| specifies the
+  // number of input channels which will be at the same sample-rate
+  // and buffer-size as the output as specified in |params|.
+  // The callback's RenderIO() method will be called instead of Render(),
+  // providing the synchronized input data at the same time as when new
+  // output data is to be rendered.
+  virtual void InitializeIO(const AudioParameters& params,
+                            int input_channels,
+                            RenderCallback* callback) {}
 
   // Starts audio playback.
   virtual void Start() = 0;

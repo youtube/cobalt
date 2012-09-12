@@ -46,6 +46,13 @@ int SineWaveAudioSource::OnMoreData(AudioBus* audio_bus,
   return max_frames;
 }
 
+int SineWaveAudioSource::OnMoreIOData(AudioBus* source,
+                                      AudioBus* dest,
+                                      AudioBuffersState audio_buffers) {
+  NOTREACHED();
+  return 0;
+}
+
 void SineWaveAudioSource::OnError(AudioOutputStream* stream, int code) {
   NOTREACHED();
 }

@@ -11,6 +11,7 @@
 #include "media/audio/audio_output_controller.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/shared_memory_util.h"
+#include "media/base/limits.h"
 
 namespace media {
 
@@ -21,6 +22,7 @@ class AudioOutputDevice::AudioThreadCallback
     : public AudioDeviceThread::Callback {
  public:
   AudioThreadCallback(const AudioParameters& audio_parameters,
+                      int input_channels,
                       base::SharedMemoryHandle memory,
                       int memory_length,
                       AudioRendererSink::RenderCallback* render_callback);
@@ -33,7 +35,8 @@ class AudioOutputDevice::AudioThreadCallback
 
  private:
   AudioRendererSink::RenderCallback* render_callback_;
-  scoped_ptr<AudioBus> audio_bus_;
+  scoped_ptr<AudioBus> input_bus_;
+  scoped_ptr<AudioBus> output_bus_;
   DISALLOW_COPY_AND_ASSIGN(AudioThreadCallback);
 };
 
@@ -41,6 +44,7 @@ AudioOutputDevice::AudioOutputDevice(
     AudioOutputIPC* ipc,
     const scoped_refptr<base::MessageLoopProxy>& io_loop)
     : ScopedLoopObserver(io_loop),
+      input_channels_(0),
       callback_(NULL),
       ipc_(ipc),
       stream_id_(0),
@@ -60,6 +64,15 @@ void AudioOutputDevice::Initialize(const AudioParameters& params,
   callback_ = callback;
 }
 
+void AudioOutputDevice::InitializeIO(const AudioParameters& params,
+                                     int input_channels,
+                                     RenderCallback* callback) {
+  DCHECK_GE(input_channels, 0);
+  DCHECK_LT(input_channels, limits::kMaxChannels);
+  input_channels_ = input_channels;
+  Initialize(params, callback);
+}
+
 AudioOutputDevice::~AudioOutputDevice() {
   // The current design requires that the user calls Stop() before deleting
   // this class.
@@ -70,7 +83,7 @@ void AudioOutputDevice::Start() {
   DCHECK(callback_) << "Initialize hasn't been called";
   message_loop()->PostTask(FROM_HERE,
       base::Bind(&AudioOutputDevice::CreateStreamOnIOThread, this,
-                 audio_parameters_));
+                 audio_parameters_, input_channels_));
 }
 
 void AudioOutputDevice::Stop() {
@@ -105,7 +118,8 @@ bool AudioOutputDevice::SetVolume(double volume) {
   return true;
 }
 
-void AudioOutputDevice::CreateStreamOnIOThread(const AudioParameters& params) {
+void AudioOutputDevice::CreateStreamOnIOThread(const AudioParameters& params,
+                                               int input_channels) {
   DCHECK(message_loop()->BelongsToCurrentThread());
   // Make sure we don't create the stream more than once.
   DCHECK_EQ(0, stream_id_);
@@ -113,7 +127,7 @@ void AudioOutputDevice::CreateStreamOnIOThread(const AudioParameters& params) {
     return;
 
   stream_id_ = ipc_->AddDelegate(this);
-  ipc_->CreateStream(stream_id_, params);
+  ipc_->CreateStream(stream_id_, params, input_channels);
 }
 
 void AudioOutputDevice::PlayOnIOThread() {
@@ -214,7 +228,7 @@ void AudioOutputDevice::OnStreamCreated(
 
   DCHECK(audio_thread_.IsStopped());
   audio_callback_.reset(new AudioOutputDevice::AudioThreadCallback(
-      audio_parameters_, handle, length, callback_));
+      audio_parameters_, input_channels_, handle, length, callback_));
   audio_thread_.Start(audio_callback_.get(), socket_handle,
       "AudioOutputDevice");
 
@@ -238,10 +252,14 @@ void AudioOutputDevice::WillDestroyCurrentMessageLoop() {
 
 AudioOutputDevice::AudioThreadCallback::AudioThreadCallback(
     const AudioParameters& audio_parameters,
+    int input_channels,
     base::SharedMemoryHandle memory,
     int memory_length,
     AudioRendererSink::RenderCallback* render_callback)
-    : AudioDeviceThread::Callback(audio_parameters, memory, memory_length),
+    : AudioDeviceThread::Callback(audio_parameters,
+                                  input_channels,
+                                  memory,
+                                  memory_length),
       render_callback_(render_callback) {
 }
 
@@ -250,8 +268,27 @@ AudioOutputDevice::AudioThreadCallback::~AudioThreadCallback() {
 
 void AudioOutputDevice::AudioThreadCallback::MapSharedMemory() {
   shared_memory_.Map(TotalSharedMemorySizeInBytes(memory_length_));
-  DCHECK_EQ(memory_length_, AudioBus::CalculateMemorySize(audio_parameters_));
-  audio_bus_ = AudioBus::WrapMemory(audio_parameters_, shared_memory_.memory());
+
+  // Calculate output and input memory size.
+  int output_memory_size = AudioBus::CalculateMemorySize(audio_parameters_);
+  int frames = audio_parameters_.frames_per_buffer();
+  int input_memory_size =
+      AudioBus::CalculateMemorySize(input_channels_, frames);
+
+  int io_size = output_memory_size + input_memory_size;
+
+  DCHECK_EQ(memory_length_, io_size);
+
+  output_bus_ =
+      AudioBus::WrapMemory(audio_parameters_, shared_memory_.memory());
+
+  if (input_channels_ > 0) {
+    // The input data is after the output data.
+    char* input_data =
+        static_cast<char*>(shared_memory_.memory()) + output_memory_size;
+    input_bus_ =
+        AudioBus::WrapMemory(input_channels_, frames, input_data);
+  }
 }
 
 // Called whenever we receive notifications about pending data.
@@ -269,10 +306,18 @@ void AudioOutputDevice::AudioThreadCallback::Process(int pending_data) {
   TRACE_EVENT0("audio", "AudioOutputDevice::FireRenderCallback");
 
   // Update the audio-delay measurement then ask client to render audio.  Since
-  // |audio_bus_| is wrapping the shared memory the Render() call is writing
+  // |output_bus_| is wrapping the shared memory the Render() call is writing
   // directly into the shared memory.
-  size_t num_frames = render_callback_->Render(
-      audio_bus_.get(), audio_delay_milliseconds);
+  size_t num_frames = audio_parameters_.frames_per_buffer();
+
+  if (input_bus_.get() && input_channels_ > 0) {
+    render_callback_->RenderIO(input_bus_.get(),
+                               output_bus_.get(),
+                               audio_delay_milliseconds);
+  } else {
+    num_frames = render_callback_->Render(output_bus_.get(),
+                                          audio_delay_milliseconds);
+  }
 
   // Let the host know we are done.
   // TODO(dalecurtis): Technically this is not always correct.  Due to channel
@@ -281,7 +326,7 @@ void AudioOutputDevice::AudioThreadCallback::Process(int pending_data) {
   // these methods to Set/GetActualFrameCount().
   SetActualDataSizeInBytes(
       &shared_memory_, memory_length_,
-      num_frames * sizeof(*audio_bus_->channel(0)) * audio_bus_->channels());
+      num_frames * sizeof(*output_bus_->channel(0)) * output_bus_->channels());
 }
 
 }  // namespace media.
