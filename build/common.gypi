@@ -628,6 +628,9 @@
     # Use system yasm instead of bundled one.
     'use_system_yasm%': 0,
 
+    # Use compositor implementation in cc/ instead of in WebKit.
+    'use_libcc_for_compositor%': 1,
+
     # Default to enabled PIE; this is important for ASLR but we may need to be
     # able to turn it off for various reasons.
     'linux_disable_pie%': 0,
