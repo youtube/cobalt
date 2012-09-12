@@ -191,6 +191,8 @@
         'base/events/event.cc',
         'base/events/event.h',
         'base/events/event_constants.h',
+        'base/events/event_functions.cc',
+        'base/events/event_functions.h',
         'base/events/event_dispatcher.cc',
         'base/events/event_dispatcher.h',
         'base/events/event_handler.h',
