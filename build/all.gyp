@@ -24,6 +24,7 @@
         '../third_party/sqlite/sqlite.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
         '../ui/ui.gyp:*',
+        '../webkit/support/webkit_support.gyp:*',
         'temp_gyp/googleurl.gyp:*',
       ],
       'conditions': [
@@ -61,7 +62,6 @@
             '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:generate_devtools_zip',
             '../v8/tools/gyp/v8.gyp:*',
             '../webkit/compositor_bindings/compositor_bindings_tests.gyp:*',
-            '../webkit/support/webkit_support.gyp:*',
             '../webkit/webkit.gyp:*',
             '<(libjpeg_gyp_path):*',
           ],
