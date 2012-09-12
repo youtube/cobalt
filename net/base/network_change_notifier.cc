@@ -101,6 +101,7 @@ class HistogramWatcher
 
     offline_packets_received_ = 0;
     last_connection_type_ = type;
+    polling_interval_ = base::TimeDelta::FromSeconds(1);
   }
 
   // NetworkChangeNotifier::DNSObserver implementation.
@@ -123,6 +124,22 @@ class HistogramWatcher
                                current_time - last_connection_change_);
     offline_packets_received_++;
     last_offline_packet_received_ = current_time;
+
+    if ((current_time - last_polled_connection_) > polling_interval_) {
+      polling_interval_ *= 2;
+      last_polled_connection_ = current_time;
+      base::TimeTicks started_get_connection_type = base::TimeTicks::Now();
+      last_polled_connection_type_ =
+          NetworkChangeNotifier::GetConnectionType();
+      UMA_HISTOGRAM_TIMES("NCN.GetConnectionTypeTime",
+                          base::TimeTicks::Now() -
+                          started_get_connection_type);
+    }
+    if (last_polled_connection_type_ ==
+        NetworkChangeNotifier::CONNECTION_NONE) {
+      UMA_HISTOGRAM_MEDIUM_TIMES("NCN.PollingOfflineDataRecv",
+                                 current_time - last_connection_change_);
+    }
   }
 
  private:
@@ -137,7 +154,19 @@ class HistogramWatcher
   base::TimeTicks last_connection_change_;
   base::TimeTicks last_dns_change_;
   base::TimeTicks last_offline_packet_received_;
+  base::TimeTicks last_polled_connection_;
+  // |polling_interval_| is initialized by |OnConnectionTypeChanged| on our
+  // first transition to offline and on subsequent transitions.  Once offline,
+  // |polling_interval_| doubles as offline data is received and we poll
+  // with |NetworkChangeNotifier::GetConnectionType| to verify the connection
+  // state.
+  base::TimeDelta polling_interval_;
+  // |last_connection_type_| is the last value passed to
+  // |OnConnectionTypeChanged|.
   NetworkChangeNotifier::ConnectionType last_connection_type_;
+  // |last_polled_connection_type_| is last result from calling
+  // |NetworkChangeNotifier::GetConnectionType| in |NotifyDataReceived|.
+  NetworkChangeNotifier::ConnectionType last_polled_connection_type_;
   int32 offline_packets_received_;
 
   DISALLOW_COPY_AND_ASSIGN(HistogramWatcher);
