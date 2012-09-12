@@ -25,7 +25,7 @@ import ports
 
 
 # Path that are needed to import necessary modules when running testserver.py.
-os.environ['PYTHONPATH'] += ':%s:%s:%s:%s' % (
+os.environ['PYTHONPATH'] = os.environ.get('PYTHONPATH', '') + ':%s:%s:%s:%s' % (
     os.path.join(constants.CHROME_DIR, 'third_party'),
     os.path.join(constants.CHROME_DIR, 'third_party', 'tlslite'),
     os.path.join(constants.CHROME_DIR, 'third_party', 'pyftpdlib', 'src'),
