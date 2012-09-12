@@ -12,6 +12,8 @@ import android.util.Log;
 import org.chromium.base.CalledByNative;
 import org.chromium.base.CalledByNativeUnchecked;
 
+import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.URLConnection;
@@ -84,6 +86,59 @@ class AndroidNetworkLibrary {
             }
         }
         return true;
+    }
+
+    /**
+     * @return the network interfaces list (if any) string. The items in
+     *         the list string are delimited by a semicolon ";", each item
+     *         is a network interface name and address pair and formatted
+     *         as "name,address". e.g.
+     *           eth0,10.0.0.2;eth0,fe80::5054:ff:fe12:3456
+     *         represents a network list string which containts two items.
+     */
+    @CalledByNative
+    static public String getNetworkList() {
+        Enumeration<NetworkInterface> list = null;
+        try {
+            list = NetworkInterface.getNetworkInterfaces();
+            if (list == null) return "";
+        } catch (SocketException e) {
+            Log.w(TAG, "Unable to get network interfaces: " + e);
+            return "";
+        }
+
+        StringBuilder result = new StringBuilder();
+        while (list.hasMoreElements()) {
+            NetworkInterface netIf = list.nextElement();
+            try {
+                // Skip loopback interfaces, and ones which are down.
+                if (!netIf.isUp() || netIf.isLoopback())
+                    continue;
+                Enumeration<InetAddress> addressList = netIf.getInetAddresses();
+                while (addressList.hasMoreElements()) {
+                    InetAddress address = addressList.nextElement();
+                    // Skip loopback addresses configured on non-loopback interfaces.
+                    if (address.isLoopbackAddress())
+                        continue;
+                    StringBuilder addressString = new StringBuilder();
+                    addressString.append(netIf.getName());
+                    addressString.append(",");
+
+                    String ipAddress = address.getHostAddress();
+                    if (address instanceof Inet6Address && ipAddress.contains("%")) {
+                        ipAddress = ipAddress.substring(0, ipAddress.lastIndexOf("%"));
+                    }
+                    addressString.append(ipAddress);
+
+                    if (result.length() != 0)
+                        result.append(";");
+                    result.append(addressString.toString());
+                }
+            } catch (SocketException e) {
+                continue;
+            }
+        }
+        return result.toString();
     }
 
     /**
