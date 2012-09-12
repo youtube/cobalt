@@ -35,7 +35,10 @@ class MockRenderCallback : public AudioRendererSink::RenderCallback {
   MockRenderCallback() {}
   virtual ~MockRenderCallback() {}
 
-  MOCK_METHOD2(Render, int(AudioBus* audio_bus, int audio_delay_milliseconds));
+  MOCK_METHOD2(Render, int(AudioBus* dest, int audio_delay_milliseconds));
+  MOCK_METHOD3(RenderIO, void(AudioBus* source,
+                              AudioBus* dest,
+                              int audio_delay_milliseconds));
   MOCK_METHOD0(OnRenderError, void());
 };
 
@@ -47,8 +50,8 @@ class MockAudioOutputIPC : public AudioOutputIPC {
   MOCK_METHOD1(AddDelegate, int(AudioOutputIPCDelegate* delegate));
   MOCK_METHOD1(RemoveDelegate, void(int stream_id));
 
-  MOCK_METHOD2(CreateStream,
-      void(int stream_id, const AudioParameters& params));
+  MOCK_METHOD3(CreateStream,
+      void(int stream_id, const AudioParameters& params, int input_channels));
   MOCK_METHOD1(PlayStream, void(int stream_id));
   MOCK_METHOD1(CloseStream, void(int stream_id));
   MOCK_METHOD2(SetVolume, void(int stream_id, double volume));
@@ -103,6 +106,8 @@ class AudioOutputDeviceTest : public testing::Test {
         &audio_output_ipc_, io_loop_.message_loop_proxy());
   }
 
+  void TestCreateStream(bool synchronized_io);
+
   void set_stream_id(int stream_id) { stream_id_ = stream_id; }
 
  protected:
@@ -124,6 +129,16 @@ TEST_F(AudioOutputDeviceTest, Initialize) {
   io_loop_.RunAllPending();
 }
 
+// Similar to Initialize() test, but using synchronized I/O.
+TEST_F(AudioOutputDeviceTest, InitializeIO) {
+  scoped_refptr<AudioOutputDevice> audio_device(CreateAudioDevice());
+  const int input_channels = 2;  // test stereo synchronized input
+  audio_device->InitializeIO(default_audio_parameters_,
+                             input_channels,
+                             &callback_);
+  io_loop_.RunAllPending();
+}
+
 // Calls Start() followed by an immediate Stop() and check for the basic message
 // filter messages being sent in that case.
 TEST_F(AudioOutputDeviceTest, StartStop) {
@@ -137,7 +152,7 @@ TEST_F(AudioOutputDeviceTest, StartStop) {
   audio_device->Start();
   audio_device->Stop();
 
-  EXPECT_CALL(audio_output_ipc_, CreateStream(_, _));
+  EXPECT_CALL(audio_output_ipc_, CreateStream(_, _, _));
   EXPECT_CALL(audio_output_ipc_, CloseStream(_));
 
   io_loop_.RunAllPending();
@@ -146,9 +161,19 @@ TEST_F(AudioOutputDeviceTest, StartStop) {
 // Starts an audio stream, creates a shared memory section + SyncSocket pair
 // that AudioOutputDevice must use for audio data.  It then sends a request for
 // a single audio packet and quits when the packet has been sent.
-TEST_F(AudioOutputDeviceTest, CreateStream) {
+void AudioOutputDeviceTest::TestCreateStream(bool synchronized_io) {
+  int input_channels = synchronized_io ? 2 : 0;
+
   scoped_refptr<AudioOutputDevice> audio_device(CreateAudioDevice());
-  audio_device->Initialize(default_audio_parameters_, &callback_);
+  if (synchronized_io) {
+    // Request output and synchronized input.
+    audio_device->InitializeIO(default_audio_parameters_,
+                               input_channels,
+                               &callback_);
+  } else {
+    // Output only.
+    audio_device->Initialize(default_audio_parameters_, &callback_);
+  }
 
   EXPECT_CALL(audio_output_ipc_, AddDelegate(audio_device.get()))
       .WillOnce(Return(1));
@@ -156,7 +181,7 @@ TEST_F(AudioOutputDeviceTest, CreateStream) {
 
   audio_device->Start();
 
-  EXPECT_CALL(audio_output_ipc_, CreateStream(_, _))
+  EXPECT_CALL(audio_output_ipc_, CreateStream(_, _, _))
       .WillOnce(WithArgs<0>(
           Invoke(this, &AudioOutputDeviceTest::set_stream_id)));
 
@@ -168,12 +193,22 @@ TEST_F(AudioOutputDeviceTest, CreateStream) {
   // stream id.
   ASSERT_NE(stream_id_, -1);
 
+  // Calculate output and input memory size.
+  int output_memory_size =
+      AudioBus::CalculateMemorySize(default_audio_parameters_);
+
+  int frames = default_audio_parameters_.frames_per_buffer();
+  int input_memory_size =
+      AudioBus::CalculateMemorySize(input_channels, frames);
+
+  int io_buffer_size = output_memory_size + input_memory_size;
+
   // This is where it gets a bit hacky.  The shared memory contract between
   // AudioOutputDevice and its browser side counter part includes a bit more
   // than just the audio data, so we must call TotalSharedMemorySizeInBytes()
   // to get the actual size needed to fit the audio data plus the extra data.
-  int memory_size = TotalSharedMemorySizeInBytes(
-      AudioBus::CalculateMemorySize(default_audio_parameters_));
+  int memory_size = TotalSharedMemorySizeInBytes(io_buffer_size);
+
   SharedMemory shared_memory;
   ASSERT_TRUE(shared_memory.CreateAndMapAnonymous(memory_size));
   memset(shared_memory.memory(), 0xff, memory_size);
@@ -207,12 +242,18 @@ TEST_F(AudioOutputDeviceTest, CreateStream) {
   // So, for the sake of this test, we consider the call to Render a sign
   // of success and quit the loop.
 
-  const int kNumberOfFramesToProcess = 0;
-
-  EXPECT_CALL(callback_, Render(_, _))
-      .WillOnce(DoAll(
-          QuitLoop(io_loop_.message_loop_proxy()),
-          Return(kNumberOfFramesToProcess)));
+  if (synchronized_io) {
+    // For synchronized I/O, we expect RenderIO().
+    EXPECT_CALL(callback_, RenderIO(_, _, _))
+        .WillOnce(QuitLoop(io_loop_.message_loop_proxy()));
+  } else {
+    // For output only we expect Render().
+    const int kNumberOfFramesToProcess = 0;
+    EXPECT_CALL(callback_, Render(_, _))
+        .WillOnce(DoAll(
+            QuitLoop(io_loop_.message_loop_proxy()),
+            Return(kNumberOfFramesToProcess)));
+  }
 
   audio_device->OnStreamCreated(duplicated_memory_handle, audio_device_socket,
                                 PacketSizeInBytes(memory_size));
@@ -226,6 +267,16 @@ TEST_F(AudioOutputDeviceTest, CreateStream) {
 
   audio_device->Stop();
   io_loop_.RunAllPending();
+}
+
+// Full test with output only.
+TEST_F(AudioOutputDeviceTest, CreateStream) {
+  TestCreateStream(false);
+}
+
+// Same as CreateStream() test, but also tests synchronized I/O.
+TEST_F(AudioOutputDeviceTest, CreateStreamWithInput) {
+  TestCreateStream(true);
 }
 
 }  // namespace media.

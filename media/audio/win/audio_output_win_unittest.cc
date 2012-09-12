@@ -54,6 +54,12 @@ class TestSourceBasic : public AudioOutputStream::AudioSourceCallback {
     audio_bus->Zero();
     return audio_bus->frames();
   }
+  virtual int OnMoreIOData(AudioBus* source,
+                           AudioBus* dest,
+                           AudioBuffersState buffers_state) {
+    NOTREACHED();
+    return 0;
+  }
   // AudioSourceCallback::OnError implementation:
   virtual void OnError(AudioOutputStream* stream, int code) {
     ++had_error_;
@@ -102,6 +108,9 @@ class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
  public:
   MOCK_METHOD2(OnMoreData, int(AudioBus* audio_bus,
                                AudioBuffersState buffers_state));
+  MOCK_METHOD3(OnMoreIOData, int(AudioBus* source,
+                                 AudioBus* dest,
+                                 AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 
   static int ClearData(AudioBus* audio_bus, AudioBuffersState buffers_state) {
@@ -588,6 +597,12 @@ class SyncSocketSource : public AudioOutputStream::AudioSourceCallback {
     DCHECK_EQ(static_cast<size_t>(size) % sizeof(*audio_bus_->channel(0)), 0U);
     audio_bus_->CopyTo(audio_bus);
     return audio_bus_->frames();
+  }
+  virtual int OnMoreIOData(AudioBus* source,
+                           AudioBus* dest,
+                           AudioBuffersState buffers_state) {
+    NOTREACHED();
+    return 0;
   }
   // AudioSourceCallback::OnError implementation:
   virtual void OnError(AudioOutputStream* stream, int code) {

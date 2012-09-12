@@ -306,7 +306,7 @@ AudioInputDevice::AudioThreadCallback::AudioThreadCallback(
     base::SharedMemoryHandle memory,
     int memory_length,
     CaptureCallback* capture_callback)
-    : AudioDeviceThread::Callback(audio_parameters, memory, memory_length),
+    : AudioDeviceThread::Callback(audio_parameters, 0, memory, memory_length),
       capture_callback_(capture_callback) {
   audio_bus_ = AudioBus::Create(audio_parameters_);
 }

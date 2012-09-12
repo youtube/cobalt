@@ -52,7 +52,7 @@ class MockAudioOutputControllerSyncReader
   MockAudioOutputControllerSyncReader() {}
 
   MOCK_METHOD1(UpdatePendingBytes, void(uint32 bytes));
-  MOCK_METHOD1(Read, int(AudioBus* audio_bus));
+  MOCK_METHOD2(Read, int(AudioBus* source, AudioBus* dest));
   MOCK_METHOD0(Close, void());
   MOCK_METHOD0(DataReady, bool());
 
@@ -66,7 +66,7 @@ ACTION_P(SignalEvent, event) {
 
 // Custom action to clear a memory buffer.
 ACTION(ClearBuffer) {
-  arg0->Zero();
+  arg1->Zero();
 }
 
 // Closes AudioOutputController synchronously.
@@ -130,7 +130,7 @@ TEST_F(AudioOutputControllerTest, PlayPauseClose) {
   MockAudioOutputControllerSyncReader sync_reader;
   EXPECT_CALL(sync_reader, UpdatePendingBytes(_))
       .Times(AtLeast(2));
-  EXPECT_CALL(sync_reader, Read(_))
+  EXPECT_CALL(sync_reader, Read(_, _))
       .WillRepeatedly(DoAll(ClearBuffer(), SignalEvent(&event),
                             Return(4)));
   EXPECT_CALL(sync_reader, DataReady())
@@ -202,7 +202,7 @@ TEST_F(AudioOutputControllerTest, PlayPausePlayClose) {
   MockAudioOutputControllerSyncReader sync_reader;
   EXPECT_CALL(sync_reader, UpdatePendingBytes(_))
       .Times(AtLeast(1));
-  EXPECT_CALL(sync_reader, Read(_))
+  EXPECT_CALL(sync_reader, Read(_, _))
       .WillRepeatedly(DoAll(ClearBuffer(), SignalEvent(&event), Return(4)));
   EXPECT_CALL(sync_reader, DataReady())
       .WillRepeatedly(Return(true));
