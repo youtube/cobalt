@@ -36,7 +36,6 @@
 
 #include "base/bind.h"
 #include "media/base/test_data_util.h"
-#include "media/filters/chunk_demuxer_client.h"
 
 namespace media {
 

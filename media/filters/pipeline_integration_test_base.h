@@ -53,8 +53,6 @@ class PipelineIntegrationTestBase {
   void Stop();
   bool WaitUntilCurrentTimeIsAfter(const base::TimeDelta& wait_time);
   scoped_ptr<FilterCollection> CreateFilterCollection(const std::string& url);
-  scoped_ptr<FilterCollection> CreateFilterCollection(
-      ChunkDemuxerClient* client, Decryptor* decryptor);
 
   // Returns the MD5 hash of all video frames seen.  Should only be called once
   // after playback completes.  First time hashes should be generated with
