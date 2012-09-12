@@ -8,15 +8,55 @@
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
+#include "base/metrics/histogram.h"
 #include "base/time.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_output_dispatcher_impl.h"
 #include "media/audio/audio_output_proxy.h"
 #include "media/audio/audio_util.h"
+#include "media/audio/sample_rates.h"
 #include "media/base/audio_pull_fifo.h"
+#include "media/base/limits.h"
 #include "media/base/multi_channel_resampler.h"
 
+#if defined(OS_WIN)
+#include "media/audio/win/audio_low_latency_output_win.h"
+#endif
+
 namespace media {
+
+static void RecordStats(const AudioParameters& output_params) {
+  UMA_HISTOGRAM_ENUMERATION(
+      "Media.HardwareAudioBitsPerChannel", output_params.bits_per_sample(),
+      limits::kMaxBitsPerSample);
+#if defined(OS_WIN)
+  // TODO(dalecurtis): Since channel mixing is handled by the output device
+  // right now and not by AudioOutputResampler, we need to query for hardware
+  // channel information.  Remove once AOR handles this, http://crbug.com/138762
+  UMA_HISTOGRAM_ENUMERATION(
+      "Media.HardwareAudioChannelLayout",
+      WASAPIAudioOutputStream::HardwareChannelLayout(), CHANNEL_LAYOUT_MAX);
+  UMA_HISTOGRAM_ENUMERATION(
+      "Media.HardwareAudioChannelCount",
+      WASAPIAudioOutputStream::HardwareChannelCount(), limits::kMaxChannels);
+#else
+  UMA_HISTOGRAM_ENUMERATION(
+      "Media.HardwareAudioChannelLayout", output_params.channel_layout(),
+      CHANNEL_LAYOUT_MAX);
+  UMA_HISTOGRAM_ENUMERATION(
+      "Media.HardwareAudioChannelCount", output_params.channels(),
+      limits::kMaxChannels);
+#endif
+  AudioSampleRate asr = media::AsAudioSampleRate(output_params.sample_rate());
+  if (asr != kUnexpectedAudioSampleRate) {
+    UMA_HISTOGRAM_ENUMERATION(
+        "Media.HardwareAudioSamplesPerSecond", asr, kUnexpectedAudioSampleRate);
+  } else {
+    UMA_HISTOGRAM_COUNTS(
+        "Media.HardwareAudioSamplesPerSecondUnexpected",
+        output_params.sample_rate());
+  }
+}
 
 AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
                                            const AudioParameters& input_params,
@@ -77,6 +117,9 @@ AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
   // we've stabilized the issues there.
   dispatcher_ = new AudioOutputDispatcherImpl(
       audio_manager, output_params, close_delay);
+
+  // Record UMA statistics for the hardware configuration.
+  RecordStats(output_params);
 }
 
 AudioOutputResampler::~AudioOutputResampler() {}

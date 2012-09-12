@@ -16,6 +16,9 @@ AudioSampleRate AsAudioSampleRate(int sample_rate) {
     case 11025: return k11025Hz;
     case 22050: return k22050Hz;
     case 44100: return k44100Hz;
+    case 88200: return k88200Hz;
+    case 176400: return k176400Hz;
+    case 192000: return k192000Hz;
   }
   return kUnexpectedAudioSampleRate;
 }
