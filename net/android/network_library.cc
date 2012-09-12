@@ -87,7 +87,8 @@ bool GetMimeTypeFromExtension(const std::string& extension,
           env, extension_string.obj());
 
   if (!ret.obj()) {
-    LOG(WARNING) << "Call to getMimeTypeFromExtension failed";
+    LOG(WARNING) << "Call to getMimeTypeFromExtension failed for extension: "
+        << extension;
     return false;
   }
   *result = ConvertJavaStringToUTF8(ret);
