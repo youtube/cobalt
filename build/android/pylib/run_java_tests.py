@@ -162,12 +162,17 @@ class TestRunner(BaseTestRunner):
       logging.warning('Already copied test files to device %s, skipping.',
                       self.device)
       return
-    host_test_files_path = (constants.CHROME_DIR +
-                            '/chrome/test/data/android/device_files')
-    if os.path.exists(host_test_files_path):
-      self.adb.PushIfNeeded(host_test_files_path,
-                            self.adb.GetExternalStorage() + '/' +
-                            TestRunner._DEVICE_DATA_DIR)
+    host_test_files = [
+        ('android_webview/test/data/device_files', 'webview'),
+        ('content/test/data/android/device_files', 'content'),
+        ('chrome/test/data/android/device_files', 'chrome')
+    ]
+    for (host_src, dst_layer) in host_test_files:
+      host_test_files_path = constants.CHROME_DIR + '/' + host_src
+      if os.path.exists(host_test_files_path):
+        self.adb.PushIfNeeded(host_test_files_path,
+                              self.adb.GetExternalStorage() + '/' +
+                              TestRunner._DEVICE_DATA_DIR + '/' + dst_layer)
     if self.install_apk:
       for apk in self.apks:
         self.adb.ManagedInstall(apk.GetApkPath(),
