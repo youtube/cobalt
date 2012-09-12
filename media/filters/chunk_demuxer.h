@@ -19,7 +19,6 @@
 
 namespace media {
 
-class ChunkDemuxerClient;
 class ChunkDemuxerStream;
 class FFmpegURLProtocol;
 
@@ -33,7 +32,14 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
     kReachedIdLimit,  // Reached ID limit. We can't handle any more IDs.
   };
 
-  explicit ChunkDemuxer(ChunkDemuxerClient* client);
+  typedef base::Callback<void(scoped_array<uint8> init_data,
+                              int init_data_size)> NeedKeyCB;
+
+  // |open_cb| Run when Initialize() is called to signal that the demuxer
+  //   is ready to receive media data via AppenData().
+  // |need_key_cb| Run when the demuxer determines that an encryption key is
+  //   needed to decrypt the content.
+  ChunkDemuxer(const base::Closure& open_cb, const NeedKeyCB& need_key_cb);
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
@@ -160,7 +166,9 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   State state_;
 
   DemuxerHost* host_;
-  ChunkDemuxerClient* client_;
+  base::Closure open_cb_;
+  NeedKeyCB need_key_cb_;
+
   PipelineStatusCB init_cb_;
   PipelineStatusCB seek_cb_;
 

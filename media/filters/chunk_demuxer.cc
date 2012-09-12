@@ -16,7 +16,6 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
-#include "media/filters/chunk_demuxer_client.h"
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
 #include "media/mp4/mp4_stream_parser.h"
 #endif
@@ -529,25 +528,27 @@ bool ChunkDemuxerStream::GetNextBuffer_Locked(
   return false;
 }
 
-ChunkDemuxer::ChunkDemuxer(ChunkDemuxerClient* client)
+ChunkDemuxer::ChunkDemuxer(const base::Closure& open_cb,
+                           const NeedKeyCB& need_key_cb)
     : state_(WAITING_FOR_INIT),
       host_(NULL),
-      client_(client) {
-  DCHECK(client);
+      open_cb_(open_cb),
+      need_key_cb_(need_key_cb) {
+  DCHECK(!open_cb_.is_null());
+  DCHECK(!need_key_cb_.is_null());
 }
 
 void ChunkDemuxer::Initialize(DemuxerHost* host, const PipelineStatusCB& cb) {
   DVLOG(1) << "Init()";
-  {
-    base::AutoLock auto_lock(lock_);
-    DCHECK_EQ(state_, WAITING_FOR_INIT);
-    host_ = host;
 
-    ChangeState_Locked(INITIALIZING);
-    init_cb_ = cb;
-  }
+  base::AutoLock auto_lock(lock_);
+  DCHECK_EQ(state_, WAITING_FOR_INIT);
+  host_ = host;
 
-  client_->DemuxerOpened(this);
+  ChangeState_Locked(INITIALIZING);
+  init_cb_ = cb;
+
+  base::ResetAndReturn(&open_cb_).Run();
 }
 
 void ChunkDemuxer::Stop(const base::Closure& callback) {
@@ -914,8 +915,6 @@ void ChunkDemuxer::Shutdown() {
 
   if (!cb.is_null())
     cb.Run(PIPELINE_ERROR_ABORT);
-
-  client_->DemuxerClosed();
 }
 
 void ChunkDemuxer::ChangeState_Locked(State new_state) {
@@ -1102,9 +1101,13 @@ bool ChunkDemuxer::OnVideoBuffers(const StreamParser::BufferQueue& buffers) {
   return true;
 }
 
+// TODO(acolwell): Remove bool from StreamParser::NeedKeyCB so that
+// this method can be removed and need_key_cb_ can be passed directly
+// to the parser.
 bool ChunkDemuxer::OnNeedKey(scoped_array<uint8> init_data,
                              int init_data_size) {
-  client_->DemuxerNeedKey(init_data.Pass(), init_data_size);
+  lock_.AssertAcquired();
+  need_key_cb_.Run(init_data.Pass(), init_data_size);
   return true;
 }
 
