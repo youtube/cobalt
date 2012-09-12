@@ -468,9 +468,14 @@
         }],
 
         ['OS=="ios"', {
-          'enable_automation%': 0,
-          'enable_webrtc%': 0,
+          'configuration_policy%': 0,
           'disable_ftp_support%': 1,
+          'enable_automation%': 0,
+          'enable_extensions%': 0,
+          'enable_printing%': 0,
+          'enable_themes%': 0,
+          'enable_webrtc%': 0,
+          'notifications%': 0,
           'remoting%': 0,
         }],
 
