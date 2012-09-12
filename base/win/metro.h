@@ -54,6 +54,13 @@ BASE_EXPORT bool IsMetroProcess();
 // and browser must be TSF-aware.
 BASE_EXPORT bool IsTsfAwareRequired();
 
+// Sets browser to use Text Service Framework (TSF) regardless of process
+// status. On Windows 8, this function also disables CUAS (Cicero Unaware
+// Application Support) to emulate Windows Metro mode in terms of IME
+// functionality. This should be beneficial in QA process because on can test
+// IME functionality in Windows 8 desktop mode.
+BASE_EXPORT void SetForceToUseTsf();
+
 // Allocates and returns the destination string via the LocalAlloc API after
 // copying the src to it.
 BASE_EXPORT wchar_t* LocalAllocAndCopyString(const string16& src);
