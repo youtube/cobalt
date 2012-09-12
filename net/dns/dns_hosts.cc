@@ -6,6 +6,7 @@
 
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 
@@ -47,24 +48,25 @@ void ParseHosts(const std::string& contents, DnsHosts* dns_hosts) {
   }
 }
 
-// Reads the contents of the file at |path| into |str| if the total length is
-// less than |max_size|.
-static bool ReadFile(const FilePath& path, int64 max_size, std::string* str) {
-  int64 size;
-  if (!file_util::GetFileSize(path, &size) || size > max_size)
-    return false;
-  return file_util::ReadFileToString(path, str);
-}
-
 bool ParseHostsFile(const FilePath& path, DnsHosts* dns_hosts) {
   dns_hosts->clear();
   // Missing file indicates empty HOSTS.
   if (!file_util::PathExists(path))
     return true;
 
-  std::string contents;
+  int64 size;
+  if (!file_util::GetFileSize(path, &size))
+    return false;
+
+  UMA_HISTOGRAM_COUNTS("AsyncDNS.HostsSize", size);
+
+  // Reject HOSTS files larger than |kMaxHostsSize|.
   const int64 kMaxHostsSize = 1 << 16;
-  if (!ReadFile(path, kMaxHostsSize, &contents))
+  if (size > kMaxHostsSize)
+    return false;
+
+  std::string contents;
+  if (!file_util::ReadFileToString(path, &contents))
     return false;
 
   ParseHosts(contents, dns_hosts);
