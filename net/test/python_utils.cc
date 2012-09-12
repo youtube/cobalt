@@ -5,6 +5,7 @@
 #include "net/test/python_utils.h"
 
 #include "base/base_paths.h"
+#include "base/command_line.h"
 #include "base/environment.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -103,15 +104,26 @@ bool GetPyProtoPath(FilePath* dir) {
   return true;
 }
 
-bool GetPythonRunTime(FilePath* dir) {
+bool GetPythonCommand(CommandLine* python_cmd) {
+  DCHECK(python_cmd);
+  FilePath dir;
 #if defined(OS_WIN)
-  if (!PathService::Get(base::DIR_SOURCE_ROOT, dir))
+  if (!PathService::Get(base::DIR_SOURCE_ROOT, &dir))
     return false;
-  *dir = dir->Append(FILE_PATH_LITERAL("third_party"))
-      .Append(FILE_PATH_LITERAL("python_26"))
-      .Append(FILE_PATH_LITERAL("python.exe"));
+  dir = dir.Append(FILE_PATH_LITERAL("third_party"))
+           .Append(FILE_PATH_LITERAL("python_26"))
+           .Append(FILE_PATH_LITERAL("python.exe"));
 #elif defined(OS_POSIX)
-  *dir = FilePath("python");
+  dir = FilePath("python");
 #endif
+
+  python_cmd->SetProgram(dir);
+
+#if defined(OS_POSIX)
+  // Launch python in unbuffered mode, so that python output doesn't mix with
+  // gtest output in buildbot log files. See http://crbug.com/147368.
+  python_cmd->AppendArg("-u");
+#endif
+
   return true;
 }
