@@ -1024,8 +1024,12 @@ bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,
   DVLOG(1) << "OnNewConfigs(" << has_audio << ", " << has_video
            << ", " << audio_config.IsValidConfig()
            << ", " << video_config.IsValidConfig() << ")";
-  CHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   lock_.AssertAcquired();
+
+  if (!audio_config.IsValidConfig() && !video_config.IsValidConfig()) {
+    DVLOG(1) << "OnNewConfigs() : Audio & video config are not valid!";
+    return false;
+  }
 
   // Signal an error if we get configuration info for stream types that weren't
   // specified in AddId() or more configs after a stream is initialized.
