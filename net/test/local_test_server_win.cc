@@ -20,6 +20,7 @@
 #include "base/threading/thread.h"
 #include "base/utf_string_conversions.h"
 #include "base/win/scoped_handle.h"
+#include "net/test/python_utils.h"
 
 #pragma comment(lib, "crypt32.lib")
 
@@ -85,15 +86,10 @@ bool ReadData(HANDLE read_fd, HANDLE write_fd,
 namespace net {
 
 bool LocalTestServer::LaunchPython(const FilePath& testserver_path) {
-  FilePath python_exe;
-  if (!PathService::Get(base::DIR_SOURCE_ROOT, &python_exe))
+  CommandLine python_command(CommandLine::NO_PROGRAM);
+  if (!GetPythonCommand(&python_command))
     return false;
-  python_exe = python_exe
-      .Append(FILE_PATH_LITERAL("third_party"))
-      .Append(FILE_PATH_LITERAL("python_26"))
-      .Append(FILE_PATH_LITERAL("python.exe"));
 
-  CommandLine python_command(python_exe);
   python_command.AppendArgPath(testserver_path);
   if (!AddCommandLineArguments(&python_command))
     return false;
