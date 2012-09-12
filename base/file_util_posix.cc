@@ -830,11 +830,6 @@ bool FileEnumerator::IsDirectory(const FindInfo& info) {
 }
 
 // static
-bool FileEnumerator::IsLink(const FindInfo& info) {
-  return S_ISLNK(info.stat.st_mode);
-}
-
-// static
 FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
   return FilePath(find_info.filename);
 }
