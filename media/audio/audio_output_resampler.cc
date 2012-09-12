@@ -29,24 +29,32 @@ static void RecordStats(const AudioParameters& output_params) {
   UMA_HISTOGRAM_ENUMERATION(
       "Media.HardwareAudioBitsPerChannel", output_params.bits_per_sample(),
       limits::kMaxBitsPerSample);
+
+  bool recorded_wasapi_config = false;
 #if defined(OS_WIN)
   // TODO(dalecurtis): Since channel mixing is handled by the output device
   // right now and not by AudioOutputResampler, we need to query for hardware
   // channel information.  Remove once AOR handles this, http://crbug.com/138762
-  UMA_HISTOGRAM_ENUMERATION(
-      "Media.HardwareAudioChannelLayout",
-      WASAPIAudioOutputStream::HardwareChannelLayout(), CHANNEL_LAYOUT_MAX);
-  UMA_HISTOGRAM_ENUMERATION(
-      "Media.HardwareAudioChannelCount",
-      WASAPIAudioOutputStream::HardwareChannelCount(), limits::kMaxChannels);
-#else
-  UMA_HISTOGRAM_ENUMERATION(
-      "Media.HardwareAudioChannelLayout", output_params.channel_layout(),
-      CHANNEL_LAYOUT_MAX);
-  UMA_HISTOGRAM_ENUMERATION(
-      "Media.HardwareAudioChannelCount", output_params.channels(),
-      limits::kMaxChannels);
+  if (IsWASAPISupported()) {
+    recorded_wasapi_config = true;
+    UMA_HISTOGRAM_ENUMERATION(
+        "Media.HardwareAudioChannelLayout",
+        WASAPIAudioOutputStream::HardwareChannelLayout(), CHANNEL_LAYOUT_MAX);
+    UMA_HISTOGRAM_ENUMERATION(
+        "Media.HardwareAudioChannelCount",
+        WASAPIAudioOutputStream::HardwareChannelCount(), limits::kMaxChannels);
+  }
 #endif
+
+  if (!recorded_wasapi_config) {
+    UMA_HISTOGRAM_ENUMERATION(
+        "Media.HardwareAudioChannelLayout", output_params.channel_layout(),
+        CHANNEL_LAYOUT_MAX);
+    UMA_HISTOGRAM_ENUMERATION(
+        "Media.HardwareAudioChannelCount", output_params.channels(),
+        limits::kMaxChannels);
+  }
+
   AudioSampleRate asr = media::AsAudioSampleRate(output_params.sample_rate());
   if (asr != kUnexpectedAudioSampleRate) {
     UMA_HISTOGRAM_ENUMERATION(
