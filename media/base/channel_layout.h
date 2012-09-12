@@ -7,57 +7,59 @@
 
 #include "media/base/media_export.h"
 
+// Enumerates the various representations of the ordering of audio channels.
+// Logged to UMA, so never reuse a value, always add new/greater ones!
 enum ChannelLayout {
   CHANNEL_LAYOUT_NONE = 0,
-  CHANNEL_LAYOUT_UNSUPPORTED,
+  CHANNEL_LAYOUT_UNSUPPORTED = 1,
 
   // Front C
-  CHANNEL_LAYOUT_MONO,
+  CHANNEL_LAYOUT_MONO = 2,
 
   // Front L, Front R
-  CHANNEL_LAYOUT_STEREO,
+  CHANNEL_LAYOUT_STEREO = 3,
 
   // Front L, Front R, Back C
-  CHANNEL_LAYOUT_2_1,
+  CHANNEL_LAYOUT_2_1 = 4,
 
   // Front L, Front R, Front C
-  CHANNEL_LAYOUT_SURROUND,
+  CHANNEL_LAYOUT_SURROUND = 5,
 
   // Front L, Front R, Front C, Back C
-  CHANNEL_LAYOUT_4_0,
+  CHANNEL_LAYOUT_4_0 = 6,
 
   // Front L, Front R, Side L, Side R
-  CHANNEL_LAYOUT_2_2,
+  CHANNEL_LAYOUT_2_2 = 7,
 
   // Front L, Front R, Back L, Back R
-  CHANNEL_LAYOUT_QUAD,
+  CHANNEL_LAYOUT_QUAD = 8,
 
   // Front L, Front R, Front C, Side L, Side R
-  CHANNEL_LAYOUT_5_0,
+  CHANNEL_LAYOUT_5_0 = 9,
 
   // Front L, Front R, Front C, Side L, Side R, LFE
-  CHANNEL_LAYOUT_5_1,
+  CHANNEL_LAYOUT_5_1 = 10,
 
   // Front L, Front R, Front C, Back L, Back R
-  CHANNEL_LAYOUT_5_0_BACK,
+  CHANNEL_LAYOUT_5_0_BACK = 11,
 
   // Front L, Front R, Front C, Back L, Back R, LFE
-  CHANNEL_LAYOUT_5_1_BACK,
+  CHANNEL_LAYOUT_5_1_BACK = 12,
 
   // Front L, Front R, Front C, Side L, Side R, Back L, Back R
-  CHANNEL_LAYOUT_7_0,
+  CHANNEL_LAYOUT_7_0 = 13,
 
   // Front L, Front R, Front C, Side L, Side R, LFE, Back L, Back R
-  CHANNEL_LAYOUT_7_1,
+  CHANNEL_LAYOUT_7_1 = 14,
 
   // Front L, Front R, Front C, Back L, Back R, LFE, Front LofC, Front RofC
-  CHANNEL_LAYOUT_7_1_WIDE,
+  CHANNEL_LAYOUT_7_1_WIDE = 15,
 
   // Stereo L, Stereo R
-  CHANNEL_LAYOUT_STEREO_DOWNMIX,
+  CHANNEL_LAYOUT_STEREO_DOWNMIX = 16,
 
   // Total number of layouts.
-  CHANNEL_LAYOUT_MAX
+  CHANNEL_LAYOUT_MAX  // Must always be last!
 };
 
 enum Channels {
