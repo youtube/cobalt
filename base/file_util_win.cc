@@ -845,11 +845,6 @@ bool FileEnumerator::IsDirectory(const FindInfo& info) {
 }
 
 // static
-bool FileEnumerator::IsLink(const FindInfo& info) {
-  return false;
-}
-
-// static
 FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
   return FilePath(find_info.cFileName);
 }
