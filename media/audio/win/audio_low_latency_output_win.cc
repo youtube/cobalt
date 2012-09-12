@@ -1086,15 +1086,17 @@ HRESULT WASAPIAudioOutputStream::SharedModeInitialization() {
   // The exact details are yet to be determined based on tests with different
   // audio clients.
   int glitch_free_buffer_size_ms = static_cast<int>(packet_size_ms_ + 0.5);
-  if (audio_engine_mix_format_->Format.nSamplesPerSec == 48000) {
+  if (audio_engine_mix_format_->Format.nSamplesPerSec % 8000 == 0) {
     // Initial tests have shown that we have to add 10 ms extra to
     // ensure that we don't run empty for any packet size.
     glitch_free_buffer_size_ms += 10;
-  } else if (audio_engine_mix_format_->Format.nSamplesPerSec == 44100) {
+  } else if (audio_engine_mix_format_->Format.nSamplesPerSec % 11025 == 0) {
     // Initial tests have shown that we have to add 20 ms extra to
     // ensure that we don't run empty for any packet size.
     glitch_free_buffer_size_ms += 20;
   } else {
+    DLOG(WARNING) << "Unsupported sample rate "
+        << audio_engine_mix_format_->Format.nSamplesPerSec << " detected";
     glitch_free_buffer_size_ms += 20;
   }
   DVLOG(1) << "glitch_free_buffer_size_ms: " << glitch_free_buffer_size_ms;

@@ -323,12 +323,20 @@ size_t GetAudioHardwareBufferSize() {
   // TODO(tommi): http://code.google.com/p/chromium/issues/detail?id=103835.
   int mixing_sample_rate =
       WASAPIAudioOutputStream::HardwareSampleRate(eConsole);
-  if (mixing_sample_rate == 48000)
-    return 480;
-  else if (mixing_sample_rate == 44100)
-    return 448;
-  else
-    return 960;
+
+  // Use different buffer sizes depening on the sample rate . The existing
+  // WASAPI implementation is tuned to provide the most stable callback
+  // sequence using these combinations.
+  if (mixing_sample_rate % 11025 == 0)
+    // Use buffer size of ~10.15873 ms.
+    return (112 * (mixing_sample_rate / 11025));
+
+  if (mixing_sample_rate % 8000 == 0)
+    // Use buffer size of 10ms.
+    return (80 * (mixing_sample_rate / 8000));
+
+  LOG(ERROR) << "Unknown sample rate " << mixing_sample_rate << " detected.";
+  return (mixing_sample_rate / 100);
 #else
   return 2048;
 #endif
