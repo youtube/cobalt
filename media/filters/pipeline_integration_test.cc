@@ -10,7 +10,6 @@
 #include "media/base/decryptor_client.h"
 #include "media/base/test_data_util.h"
 #include "media/crypto/aes_decryptor.h"
-#include "media/filters/chunk_demuxer_client.h"
 
 namespace media {
 
@@ -33,7 +32,7 @@ static const int kAppendWholeFile = -1;
 
 // Helper class that emulates calls made on the ChunkDemuxer by the
 // Media Source API.
-class MockMediaSource : public ChunkDemuxerClient {
+class MockMediaSource {
  public:
   MockMediaSource(const std::string& filename, const std::string& mimetype,
                   int initial_append_size)
@@ -41,6 +40,10 @@ class MockMediaSource : public ChunkDemuxerClient {
         current_position_(0),
         initial_append_size_(initial_append_size),
         mimetype_(mimetype) {
+    chunk_demuxer_ = new ChunkDemuxer(
+        base::Bind(&MockMediaSource::DemuxerOpened, base::Unretained(this)),
+        base::Bind(&MockMediaSource::DemuxerNeedKey, base::Unretained(this)));
+
     file_data_ = ReadTestDataFile(filename);
 
     if (initial_append_size_ == kAppendWholeFile)
@@ -52,6 +55,7 @@ class MockMediaSource : public ChunkDemuxerClient {
 
   virtual ~MockMediaSource() {}
 
+  const scoped_refptr<ChunkDemuxer>& demuxer() const { return chunk_demuxer_; }
   void set_decryptor_client(DecryptorClient* decryptor_client) {
     decryptor_client_ = decryptor_client;
   }
@@ -92,12 +96,16 @@ class MockMediaSource : public ChunkDemuxerClient {
     if (!chunk_demuxer_.get())
       return;
     chunk_demuxer_->Shutdown();
+    chunk_demuxer_ = NULL;
   }
 
-  // ChunkDemuxerClient methods.
-  virtual void DemuxerOpened(ChunkDemuxer* demuxer) {
-    chunk_demuxer_ = demuxer;
+  void DemuxerOpened() {
+    MessageLoop::current()->PostTask(
+        FROM_HERE, base::Bind(&MockMediaSource::DemuxerOpenedTask,
+                              base::Unretained(this)));
+  }
 
+  void DemuxerOpenedTask() {
     size_t semicolon = mimetype_.find(";");
     std::string type = mimetype_.substr(0, semicolon);
     size_t quote1 = mimetype_.find("\"");
@@ -110,12 +118,7 @@ class MockMediaSource : public ChunkDemuxerClient {
     AppendData(initial_append_size_);
   }
 
-  virtual void DemuxerClosed() {
-    chunk_demuxer_ = NULL;
-  }
-
-  virtual void DemuxerNeedKey(scoped_array<uint8> init_data,
-                              int init_data_size) {
+  void DemuxerNeedKey(scoped_array<uint8> init_data, int init_data_size) {
     DCHECK(init_data.get());
     DCHECK_GT(init_data_size, 0);
     DCHECK(decryptor_client_);
@@ -204,7 +207,7 @@ class PipelineIntegrationTest
     EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
     EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
     pipeline_->Start(
-        CreateFilterCollection(source, NULL),
+        CreateFilterCollection(source->demuxer(), NULL),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
         QuitOnStatusCB(PIPELINE_OK),
@@ -220,7 +223,7 @@ class PipelineIntegrationTest
     EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
     EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
     pipeline_->Start(
-        CreateFilterCollection(source, encrypted_media->decryptor()),
+        CreateFilterCollection(source->demuxer(), encrypted_media->decryptor()),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
         QuitOnStatusCB(PIPELINE_OK),

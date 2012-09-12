@@ -188,13 +188,6 @@ PipelineIntegrationTestBase::CreateFilterCollection(const std::string& url) {
 
 scoped_ptr<FilterCollection>
 PipelineIntegrationTestBase::CreateFilterCollection(
-    ChunkDemuxerClient* client,
-    Decryptor* decryptor) {
-  return CreateFilterCollection(new ChunkDemuxer(client), decryptor);
-}
-
-scoped_ptr<FilterCollection>
-PipelineIntegrationTestBase::CreateFilterCollection(
     const scoped_refptr<Demuxer>& demuxer,
     Decryptor* decryptor) {
   scoped_ptr<FilterCollection> collection(new FilterCollection());
