@@ -44,6 +44,12 @@ bool StoreKeyPair(const uint8* public_key,
 // Also returns false if it cannot determine this.
 bool HaveOnlyLoopbackAddresses();
 
+// Return a string containing a list of network interfaces, each item is a
+// network name and address pair.
+// e.g. "eth0,10.0.0.2;eth0,fe80::5054:ff:fe12:3456" is a result string
+// containing two items.
+std::string GetNetworkList();
+
 // Get the mime type (if any) that is associated with the file extension.
 // Returns true if a corresponding mime type exists.
 bool GetMimeTypeFromExtension(const std::string& extension,
