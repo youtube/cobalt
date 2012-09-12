@@ -40,13 +40,13 @@ static bool RunSyncTest() {
 
   sync_test_path =
       sync_test_path.Append(FILE_PATH_LITERAL("chromiumsync_test.py"));
-  FilePath python_runtime;
-  if (!GetPythonRunTime(&python_runtime)) {
+
+  CommandLine python_command(CommandLine::NO_PROGRAM);
+  if (!GetPythonCommand(&python_command)) {
     LOG(ERROR) << "Could not get python runtime command.";
     return false;
   }
 
-  CommandLine python_command(python_runtime);
   python_command.AppendArgPath(sync_test_path);
   if (!base::LaunchProcess(python_command, base::LaunchOptions(), NULL)) {
     LOG(ERROR) << "Failed to launch test script.";
