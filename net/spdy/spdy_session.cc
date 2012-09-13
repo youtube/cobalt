@@ -435,7 +435,10 @@ bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
     return true;   // This is not a secure session, so all domains are okay.
 
   return !ssl_info.client_cert_sent &&
-      (g_enable_credential_frames || !ssl_info.channel_id_sent) &&
+      (g_enable_credential_frames || !ssl_info.channel_id_sent ||
+       ServerBoundCertService::GetDomainForHost(domain) ==
+       ServerBoundCertService::GetDomainForHost(
+           host_port_proxy_pair_.first.host())) &&
       ssl_info.cert->VerifyNameMatch(domain);
 }
 
