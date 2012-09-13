@@ -22,6 +22,13 @@
         '<@(android_app_targets)',
         'android_builder_tests',
       ],
+      'conditions': [
+        ['sdk_build==1', {
+          'dependencies': [
+            '../chrome/chrome.gyp:chromium_testshell',
+          ],
+        }],  # sdk_build==1
+      ],  # conditions
     }, # target_name: All
     {
       # The current list of tests for android.  This is temporary
