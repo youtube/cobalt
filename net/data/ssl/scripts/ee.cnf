@@ -28,5 +28,13 @@ email = test@test.example
 otherName = 1.2.3.4;UTF8:ignore me
 dirName = more_san_sanity
 
+[req_spdy_pooling]
+subjectAltName = @spdy_pooling
+
 [more_san_sanity]
 CN=127.0.0.3
+
+[spdy_pooling]
+DNS.1 = www.example.org
+DNS.2 = mail.example.org
+DNS.3 = mail.example.com
