@@ -319,11 +319,14 @@ void WrapPathWithLTRFormatting(const FilePath& path,
 }
 
 string16 GetDisplayStringInLTRDirectionality(const string16& text) {
-  if (!IsRTL())
-    return text;
-  string16 text_mutable(text);
-  WrapStringWithLTRFormatting(&text_mutable);
-  return text_mutable;
+  // Always wrap the string in RTL UI (it may be appended to RTL string).
+  // Also wrap strings with an RTL first strong character direction in LTR UI.
+  if (IsRTL() || GetFirstStrongCharacterDirection(text) == RIGHT_TO_LEFT) {
+    string16 text_mutable(text);
+    WrapStringWithLTRFormatting(&text_mutable);
+    return text_mutable;
+  }
+  return text;
 }
 
 string16 StripWrappingBidiControlCharacters(const string16& text) {
