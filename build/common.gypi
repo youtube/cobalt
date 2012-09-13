@@ -891,6 +891,24 @@
     'windows_sdk_default_path': '<(DEPTH)/third_party/platformsdk_win8/files',
     'directx_sdk_default_path': '<(DEPTH)/third_party/directxsdk/files',
 
+    # Set these to bake API keys and OAuth client IDs/secrets into
+    # your build.  If they are not baked in, you can instead set
+    # environment variables to provide the keys at runtime (see
+    # src/google_apis/google_api_keys.h for details).  Features that
+    # require server-side APIs may fail to work if no keys are
+    # provided.
+    #
+    # Note that if you are building an official build or if you set
+    # use_official_google_api_keys to 1, these values will be ignored
+    # and the official keys will be used instead.
+    'google_api_key%': '',
+    'google_default_client_id%': '',
+    'google_default_client_secret%': '',
+
+    # Set this to 1 to use the Google-internal file containing
+    # official API keys for Google Chrome even in a developer build.
+    'use_official_google_api_keys%': 0,
+
     'conditions': [
       ['OS=="win" and "<!(python <(DEPTH)/build/dir_exists.py <(windows_sdk_default_path))"=="True"', {
         'windows_sdk_path%': '<(windows_sdk_default_path)',
