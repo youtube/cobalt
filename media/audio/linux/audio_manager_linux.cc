@@ -40,12 +40,21 @@ static const char* kInvalidAudioInputDevices[] = {
   "dmix",
 };
 
+static const char kCrasAutomaticDeviceName[] = "Automatic";
+static const char kCrasAutomaticDeviceId[] = "automatic";
+
 // Implementation of AudioManager.
 bool AudioManagerLinux::HasAudioOutputDevices() {
+  if (UseCras())
+    return true;
+
   return HasAnyAlsaAudioDevice(kStreamPlayback);
 }
 
 bool AudioManagerLinux::HasAudioInputDevices() {
+  if (UseCras())
+    return true;
+
   return HasAnyAlsaAudioDevice(kStreamCapture);
 }
 
@@ -93,7 +102,28 @@ void AudioManagerLinux::ShowAudioInputSettings() {
 void AudioManagerLinux::GetAudioInputDeviceNames(
     media::AudioDeviceNames* device_names) {
   DCHECK(device_names->empty());
+  if (UseCras()) {
+    GetCrasAudioInputDevices(device_names);
+    return;
+  }
+
   GetAlsaAudioInputDevices(device_names);
+}
+
+bool AudioManagerLinux::UseCras() {
+#if defined(USE_CRAS)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseCras)) {
+    return true;
+  }
+#endif
+  return false;
+}
+
+void AudioManagerLinux::GetCrasAudioInputDevices(
+    media::AudioDeviceNames* device_names) {
+  // Cras will route audio from a proper physical device automatically.
+  device_names->push_back(media::AudioDeviceName(
+      kCrasAutomaticDeviceName, kCrasAutomaticDeviceId));
 }
 
 void AudioManagerLinux::GetAlsaAudioInputDevices(
@@ -270,7 +300,7 @@ AudioInputStream* AudioManagerLinux::MakeLowLatencyInputStream(
 AudioOutputStream* AudioManagerLinux::MakeOutputStream(
     const AudioParameters& params) {
 #if defined(USE_CRAS)
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseCras)) {
+  if (UseCras()) {
     return new CrasOutputStream(params, this);
   }
 #endif
@@ -293,7 +323,7 @@ AudioOutputStream* AudioManagerLinux::MakeOutputStream(
 AudioInputStream* AudioManagerLinux::MakeInputStream(
     const AudioParameters& params, const std::string& device_id) {
 #if defined(USE_CRAS)
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseCras)) {
+  if (UseCras()) {
     return new CrasInputStream(params, this);
   }
 #endif

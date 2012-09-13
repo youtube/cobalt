@@ -49,6 +49,12 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
     kStreamCapture,
   };
 
+  // Returns true if cras should be used for input/output.
+  bool UseCras();
+
+  // Gets a list of available cras input devices.
+  void GetCrasAudioInputDevices(media::AudioDeviceNames* device_names);
+
   // Gets a list of available ALSA input devices.
   void GetAlsaAudioInputDevices(media::AudioDeviceNames* device_names);
 
