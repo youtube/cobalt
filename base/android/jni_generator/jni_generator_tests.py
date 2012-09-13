@@ -393,7 +393,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     { "nativeGetDefaultBookmarkFolder",
 "("
 ")"
-"Lcom/google/android/apps/chrome/ChromeBrowserProvider$BookmarkNode;",
+"Lorg/chromium/chrome/browser/ChromeBrowserProvider$BookmarkNode;",
     reinterpret_cast<void*>(GetDefaultBookmarkFolder) },
     { "nativeQueryBookmarkFromAPI",
 "("
