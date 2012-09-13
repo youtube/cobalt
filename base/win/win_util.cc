@@ -218,6 +218,16 @@ bool ShouldCrashOnProcessDetach() {
   return g_crash_on_process_detach;
 }
 
+bool IsMachineATablet() {
+  if (base::win::GetVersion() < base::win::VERSION_WIN7)
+    return false;
+  // TODO(ananta): Add keyboard detection logic if it can be made reliable.
+  const int kPenInput = NID_INTEGRATED_PEN | NID_EXTERNAL_PEN;
+  const int kMultiTouch = NID_INTEGRATED_TOUCH | NID_MULTI_INPUT | NID_READY;
+  int sm = GetSystemMetrics(SM_DIGITIZER);
+  return ((sm & kMultiTouch) == kMultiTouch) && ((sm & kPenInput) == 0);
+}
+
 }  // namespace win
 }  // namespace base
 
