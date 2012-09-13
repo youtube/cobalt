@@ -11,7 +11,6 @@ import collections
 import datetime
 import logging
 import os
-import random
 import re
 import shlex
 import subprocess
@@ -1003,37 +1002,3 @@ class AndroidCommands(object):
     status = self._adb.SendShellCommand(
         '\'ls "%s" >/dev/null 2>&1; echo $?\'' % (file_name))
     return int(status) == 0
-
-  def RunMonkey(self, package_name, category=None, throttle=100, seed=None,
-                event_count=10000, verbosity=1, extra_args=''):
-    """Runs monkey test for a given package.
-
-    Args:
-      package_name: Allowed package.
-      category: A list of allowed categories.
-      throttle: Delay between events (ms).
-      seed: Seed value for pseduo-random generator. Same seed value
-        generates the same sequence of events. Seed is randomized by
-        default.
-      event_count: Number of events to generate.
-      verbosity: Verbosity level [0-3].
-      extra_args: A string of other args to pass to the command verbatim.
-
-    Returns:
-      Output of the test run.
-    """
-    category = category or []
-    seed = seed or random.randint(1, 100)
-
-    cmd = ['monkey',
-           '-p %s' % package_name,
-           ' '.join(['-c %s' % c for c in category]),
-           '--throttle %d' % throttle,
-           '-s %d' % seed,
-           '-v ' * verbosity,
-           '--monitor-native-crashes',
-           '--kill-process-after-error',
-           extra_args,
-           '%d' % event_count]
-    return self.RunShellCommand(' '.join(cmd),
-                                timeout_time=event_count*throttle*1.5)
