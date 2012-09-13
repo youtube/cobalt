@@ -91,13 +91,6 @@ class MEDIA_EXPORT VideoRenderer
   // Updates the current playback rate.
   virtual void SetPlaybackRate(float playback_rate) = 0;
 
-  // Prepare decoder for shutdown.  This is a HACK needed because
-  // PipelineImpl::Stop() goes through a Pause/Flush/Stop dance to all its
-  // filters, waiting for each state transition to complete before starting the
-  // next, but WebMediaPlayerImpl::Destroy() holds the renderer loop hostage for
-  // the duration. http://crbug.com/110228 tracks removing this.
-  virtual void PrepareForShutdownHack() = 0;
-
  protected:
   friend class base::RefCountedThreadSafe<VideoRenderer>;
 

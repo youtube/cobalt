@@ -214,12 +214,6 @@ void VideoRendererBase::OnDecoderInitDone(
   base::ResetAndReturn(&init_cb_).Run(PIPELINE_OK);
 }
 
-void VideoRendererBase::PrepareForShutdownHack() {
-  base::AutoLock auto_lock(lock_);
-  if (decoder_)
-    decoder_->PrepareForShutdownHack();
-}
-
 // PlatformThread::Delegate implementation.
 void VideoRendererBase::ThreadMain() {
   base::PlatformThread::SetName("CrVideoRenderer");
