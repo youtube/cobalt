@@ -749,7 +749,7 @@ void SSLClientSocketPoolTest::TestIPPoolingDisabled(
     AddressList addresses;
   } test_hosts[] = {
     { "www.webkit.org",    "192.0.2.33,192.168.0.1,192.168.0.5" },
-    { "js.webkit.org",     "192.168.0.4,192.168.0.1,192.0.2.33" },
+    { "js.webkit.com",     "192.168.0.4,192.168.0.1,192.0.2.33" },
   };
 
   TestCompletionCallback callback;
