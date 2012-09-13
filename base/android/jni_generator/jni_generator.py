@@ -148,7 +148,6 @@ def JavaParamToJni(param):
   app_param_list = [
       'Landroid/graphics/SurfaceTexture',
       'Lcom/google/android/apps/chrome/AutofillData',
-      'Lcom/google/android/apps/chrome/ChromeBrowserProvider$BookmarkNode',
       'Lcom/google/android/apps/chrome/ChromeHttpAuthHandler',
       'Lcom/google/android/apps/chrome/ChromeContextMenuInfo',
       'Lcom/google/android/apps/chrome/OmniboxSuggestion',
@@ -161,6 +160,7 @@ def JavaParamToJni(param):
        'PasswordListObserver'),
       'Lorg/chromium/android_webview/AwWebContentsDelegate',
       'Lorg/chromium/base/SystemMessageHandler',
+      'Lorg/chromium/chrome/browser/ChromeBrowserProvider$BookmarkNode',
       'Lorg/chromium/chrome/browser/ChromeWebContentsDelegateAndroid',
       'Lorg/chromium/chrome/browser/FindMatchRectsDetails',
       'Lorg/chromium/chrome/browser/FindNotificationDetails',
