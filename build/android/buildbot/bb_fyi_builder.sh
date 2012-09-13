@@ -3,11 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
-# Buildbot annotator script for the FYI waterfall builder.
-# Compiler and zip the build.
-
-# SHERIFF: there should be no need to disable this bot.
-# The FYI waterfall does not close the tree.
+# Buildbot annotator script for the fyi waterfall and fyi trybots.
+# Compile and zip the build.
 
 BB_DIR="$(dirname $0)"
 BB_SRC_ROOT="$(cd  "$BB_DIR/../../.."; pwd)"
