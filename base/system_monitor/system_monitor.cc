@@ -103,27 +103,35 @@ void SystemMonitor::ProcessRemovableStorageAttached(
     const std::string& id,
     const string16& name,
     const FilePath::StringType& location) {
-  if (ContainsKey(removable_storage_map_, id)) {
-    // This can happen if our unique id scheme fails. Ignore the incoming
-    // non-unique attachment.
-    return;
+  {
+    base::AutoLock lock(removable_storage_lock_);
+    if (ContainsKey(removable_storage_map_, id)) {
+      // This can happen if our unique id scheme fails. Ignore the incoming
+      // non-unique attachment.
+      return;
+    }
+    RemovableStorageInfo info(id, name, location);
+    removable_storage_map_.insert(std::make_pair(id, info));
   }
-  RemovableStorageInfo info(id, name, location);
-  removable_storage_map_.insert(std::make_pair(id, info));
   NotifyRemovableStorageAttached(id, name, location);
 }
 
 void SystemMonitor::ProcessRemovableStorageDetached(const std::string& id) {
-  RemovableStorageMap::iterator it = removable_storage_map_.find(id);
-  if (it == removable_storage_map_.end())
-    return;
-  removable_storage_map_.erase(it);
+  {
+    base::AutoLock lock(removable_storage_lock_);
+    RemovableStorageMap::iterator it = removable_storage_map_.find(id);
+    if (it == removable_storage_map_.end())
+      return;
+    removable_storage_map_.erase(it);
+  }
   NotifyRemovableStorageDetached(id);
 }
 
 std::vector<SystemMonitor::RemovableStorageInfo>
 SystemMonitor::GetAttachedRemovableStorage() const {
   std::vector<RemovableStorageInfo> results;
+
+  base::AutoLock lock(removable_storage_lock_);
   for (RemovableStorageMap::const_iterator it = removable_storage_map_.begin();
        it != removable_storage_map_.end();
        ++it) {
