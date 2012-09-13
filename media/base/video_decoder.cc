@@ -14,6 +14,4 @@ bool VideoDecoder::HasAlpha() const {
   return false;
 }
 
-void VideoDecoder::PrepareForShutdownHack() {}
-
 }  // namespace media

@@ -452,16 +452,9 @@ class MEDIA_EXPORT Pipeline
   PipelineStatusCB error_cb_;
   BufferingStateCB buffering_state_cb_;
 
-  // Audio renderer reference used for setting the volume and determining
-  // when playback has finished.
+  // Renderer references used for setting the volume, playback rate, and
+  // determining when playback has finished.
   scoped_refptr<AudioRenderer> audio_renderer_;
-
-  // Video Renderer reference used for determining when playback has finished
-  // and for signalling imminent shutdown.
-  // The signalling imminent shutdown is a HACK necessary because
-  // WebMediaPlayerImpl::Destroy() holds the render thread loop hostage
-  // until PipelineImpl::Stop() calls its callback.
-  // http://crbug.com/110228 tracks removing this hack.
   scoped_refptr<VideoRenderer> video_renderer_;
 
   // Demuxer reference used for setting the preload value.
