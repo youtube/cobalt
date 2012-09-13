@@ -64,14 +64,6 @@ class MEDIA_EXPORT VideoDecoder
   // that return formats with an alpha channel.
   virtual bool HasAlpha() const;
 
-  // Prepare decoder for shutdown.  This is a HACK needed because
-  // PipelineImpl::Stop() goes through a Pause/Flush/Stop dance to all its
-  // filters, waiting for each state transition to complete before starting the
-  // next, but WebMediaPlayerImpl::Destroy() holds the renderer loop hostage for
-  // the duration.  Default implementation does nothing; derived decoders may
-  // override as needed.  http://crbug.com/110228 tracks removing this.
-  virtual void PrepareForShutdownHack();
-
  protected:
   friend class base::RefCountedThreadSafe<VideoDecoder>;
   virtual ~VideoDecoder();

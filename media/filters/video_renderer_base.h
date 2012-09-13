@@ -68,7 +68,6 @@ class MEDIA_EXPORT VideoRendererBase
                        const PipelineStatusCB& cb) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
-  virtual void PrepareForShutdownHack() OVERRIDE;
 
   // PlatformThread::Delegate implementation.
   virtual void ThreadMain() OVERRIDE;
