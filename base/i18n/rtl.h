@@ -117,11 +117,8 @@ BASE_I18N_EXPORT void WrapStringWithRTLFormatting(string16* text);
 BASE_I18N_EXPORT void WrapPathWithLTRFormatting(const FilePath& path,
                                                 string16* rtl_safe_path);
 
-// Given the string in |text|, this function returns the adjusted string having
-// LTR directionality for display purpose. Which means that in RTL locale the
-// string is wrapped with LRE (Left-To-Right Embedding) and PDF (Pop
-// Directional Formatting) marks and returned. In LTR locale, the string itself
-// is returned.
+// Return the string in |text| wrapped with LRE (Left-To-Right Embedding) and
+// PDF (Pop Directional Formatting) marks, if needed for UI display purposes.
 BASE_I18N_EXPORT string16 GetDisplayStringInLTRDirectionality(
     const string16& text) WARN_UNUSED_RESULT;
 
