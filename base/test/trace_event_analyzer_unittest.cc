@@ -128,15 +128,14 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   ASSERT_TRUE(event.has_other_event());
   double duration = event.GetAbsTimeToOtherEvent();
 
-  Query event_pid = (Query::EventPid() == Query::Int(event.thread.process_id));
-  Query event_tid = (Query::EventTid() == Query::Int(event.thread.thread_id));
-  Query event_time = (Query::EventTime() == Query::Double(event.timestamp));
-  Query event_duration = (Query::EventDuration() == Query::Double(duration));
-  Query event_phase = (Query::EventPhase() == Query::Phase(event.phase));
-  Query event_category =
-      (Query::EventCategory() == Query::String(event.category));
-  Query event_name = (Query::EventName() == Query::String(event.name));
-  Query event_id = (Query::EventId() == Query::String(event.id));
+  Query event_pid = Query::EventPidIs(event.thread.process_id);
+  Query event_tid = Query::EventTidIs(event.thread.thread_id);
+  Query event_time = Query::EventTimeIs(event.timestamp);
+  Query event_duration = Query::EventDurationIs(duration);
+  Query event_phase = Query::EventPhaseIs(event.phase);
+  Query event_category = Query::EventCategoryIs(event.category);
+  Query event_name = Query::EventNameIs(event.name);
+  Query event_id = Query::EventIdIs(event.id);
   Query event_has_arg1 = Query::EventHasNumberArg("num");
   Query event_has_arg2 = Query::EventHasStringArg("str");
   Query event_arg1 =
@@ -144,14 +143,13 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   Query event_arg2 =
       (Query::EventArg("str") == Query::String(event.arg_strings["str"]));
   Query event_has_other = Query::EventHasOther();
-  Query other_pid = (Query::OtherPid() == Query::Int(other.thread.process_id));
-  Query other_tid = (Query::OtherTid() == Query::Int(other.thread.thread_id));
-  Query other_time = (Query::OtherTime() == Query::Double(other.timestamp));
-  Query other_phase = (Query::OtherPhase() == Query::Phase(other.phase));
-  Query other_category =
-      (Query::OtherCategory() == Query::String(other.category));
-  Query other_name = (Query::OtherName() == Query::String(other.name));
-  Query other_id = (Query::OtherId() == Query::String(other.id));
+  Query other_pid = Query::OtherPidIs(other.thread.process_id);
+  Query other_tid = Query::OtherTidIs(other.thread.thread_id);
+  Query other_time = Query::OtherTimeIs(other.timestamp);
+  Query other_phase = Query::OtherPhaseIs(other.phase);
+  Query other_category = Query::OtherCategoryIs(other.category);
+  Query other_name = Query::OtherNameIs(other.name);
+  Query other_id = Query::OtherIdIs(other.id);
   Query other_has_arg1 = Query::OtherHasNumberArg("num2");
   Query other_has_arg2 = Query::OtherHasStringArg("str2");
   Query other_arg1 =

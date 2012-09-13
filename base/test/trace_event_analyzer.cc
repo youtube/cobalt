@@ -694,8 +694,8 @@ bool TraceAnalyzer::SetEvents(const std::string& json_events) {
 void TraceAnalyzer::AssociateBeginEndEvents() {
   using trace_analyzer::Query;
 
-  Query begin(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_BEGIN));
-  Query end(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_END));
+  Query begin(Query::EventPhaseIs(TRACE_EVENT_PHASE_BEGIN));
+  Query end(Query::EventPhaseIs(TRACE_EVENT_PHASE_END));
   Query match(Query::EventName() == Query::OtherName() &&
               Query::EventCategory() == Query::OtherCategory() &&
               Query::EventTid() == Query::OtherTid() &&
@@ -708,10 +708,10 @@ void TraceAnalyzer::AssociateAsyncBeginEndEvents() {
   using trace_analyzer::Query;
 
   Query begin(
-      Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_ASYNC_BEGIN) ||
-      Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_ASYNC_STEP));
-  Query end(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_ASYNC_END) ||
-            Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_ASYNC_STEP));
+      Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_BEGIN) ||
+      Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_STEP));
+  Query end(Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_END) ||
+            Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_STEP));
   Query match(Query::EventName() == Query::OtherName() &&
               Query::EventCategory() == Query::OtherCategory() &&
               Query::EventId() == Query::OtherId());
@@ -788,10 +788,17 @@ size_t TraceAnalyzer::FindEvents(const Query& query, TraceEventVector* output) {
   return FindMatchingEvents(raw_events_, query, output);
 }
 
-const TraceEvent* TraceAnalyzer::FindOneEvent(const Query& query) {
+const TraceEvent* TraceAnalyzer::FindFirstOf(const Query& query) {
   TraceEventVector output;
   if (FindEvents(query, &output) > 0)
     return output.front();
+  return NULL;
+}
+
+const TraceEvent* TraceAnalyzer::FindLastOf(const Query& query) {
+  TraceEventVector output;
+  if (FindEvents(query, &output) > 0)
+    return output.back();
   return NULL;
 }
 
