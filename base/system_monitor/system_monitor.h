@@ -160,6 +160,10 @@ class BASE_EXPORT SystemMonitor {
   void RemovePowerObserver(PowerObserver* obs);
   void RemoveDevicesChangedObserver(DevicesChangedObserver* obs);
 
+  // The ProcessFoo() style methods are a broken pattern and should not
+  // be copied. Any significant addition to this class is blocked on
+  // refactoring to improve the state of affairs. See http://crbug.com/149059
+
 #if defined(OS_WIN)
   // Windows-specific handling of a WM_POWERBROADCAST message.
   // Embedders of this API should hook their top-level window
