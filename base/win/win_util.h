@@ -105,6 +105,11 @@ BASE_EXPORT bool ReadCommandFromAutoRun(HKEY root_key,
 BASE_EXPORT void SetShouldCrashOnProcessDetach(bool crash);
 BASE_EXPORT bool ShouldCrashOnProcessDetach();
 
+// A tablet by this definition is something that has integrated multi-touch
+// but is not also pen-enabled. For example a Thinkpad X220 tablet is not
+// considered a tabled while a Samsum 700T tablet is.
+BASE_EXPORT bool IsMachineATablet();
+
 // Get the size of a struct up to and including the specified member.
 // This is necessary to set compatible struct sizes for different versions
 // of certain Windows APIs (e.g. SystemParametersInfo).
