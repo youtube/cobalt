@@ -109,6 +109,7 @@
         'base/clipboard/clipboard.h',
         'base/clipboard/clipboard_android.cc',
         'base/clipboard/clipboard_aurax11.cc',
+        'base/clipboard/clipboard_chromeos.cc',
         'base/clipboard/clipboard_gtk.cc',
         'base/clipboard/clipboard_mac.mm',
         'base/clipboard/clipboard_util_win.cc',
@@ -370,6 +371,8 @@
         'base/x/valuators.h',
         'base/x/work_area_watcher_x.cc',
         'base/x/work_area_watcher_x.h',
+        'base/x/x11_atom_cache.cc',
+        'base/x/x11_atom_cache.h',
         'base/x/x11_util.cc',
         'base/x/x11_util.h',
         'base/x/x11_util_internal.h',
@@ -641,6 +644,11 @@
             'base/native_theme/native_theme_gtk.cc',
             'base/native_theme/native_theme_gtk.h',
           ]
+        }],
+        ['chromeos==1', {
+          'sources!': [
+            'base/clipboard/clipboard_aurax11.cc',
+          ],
         }],
         ['OS=="win"', {
           'sources': [
