@@ -215,6 +215,42 @@ class Query {
 
   static Query EventId() { return Query(EVENT_ID); }
 
+  static Query EventPidIs(int process_id) {
+    return Query(EVENT_PID) == Query::Int(process_id);
+  }
+
+  static Query EventTidIs(int thread_id) {
+    return Query(EVENT_TID) == Query::Int(thread_id);
+  }
+
+  static Query EventThreadIs(const TraceEvent::ProcessThreadID& thread) {
+    return EventPidIs(thread.process_id) && EventTidIs(thread.thread_id);
+  }
+
+  static Query EventTimeIs(double timestamp) {
+    return Query(EVENT_TIME) == Query::Double(timestamp);
+  }
+
+  static Query EventDurationIs(double duration) {
+    return Query(EVENT_DURATION) == Query::Double(duration);
+  }
+
+  static Query EventPhaseIs(char phase) {
+    return Query(EVENT_PHASE) == Query::Phase(phase);
+  }
+
+  static Query EventCategoryIs(const std::string& category) {
+    return Query(EVENT_CATEGORY) == Query::String(category);
+  }
+
+  static Query EventNameIs(const std::string& name) {
+    return Query(EVENT_NAME) == Query::String(name);
+  }
+
+  static Query EventIdIs(const std::string& id) {
+    return Query(EVENT_ID) == Query::String(id);
+  }
+
   // Evaluates to true if arg exists and is a string.
   static Query EventHasStringArg(const std::string& arg_name) {
     return Query(EVENT_HAS_STRING_ARG, arg_name);
@@ -250,14 +286,50 @@ class Query {
 
   static Query OtherId() { return Query(OTHER_ID); }
 
+  static Query OtherPidIs(int process_id) {
+    return Query(OTHER_PID) == Query::Int(process_id);
+  }
+
+  static Query OtherTidIs(int thread_id) {
+    return Query(OTHER_TID) == Query::Int(thread_id);
+  }
+
+  static Query OtherThreadIs(const TraceEvent::ProcessThreadID& thread) {
+    return OtherPidIs(thread.process_id) && OtherTidIs(thread.thread_id);
+  }
+
+  static Query OtherTimeIs(double timestamp) {
+    return Query(OTHER_TIME) == Query::Double(timestamp);
+  }
+
+  static Query OtherPhaseIs(char phase) {
+    return Query(OTHER_PHASE) == Query::Phase(phase);
+  }
+
+  static Query OtherCategoryIs(const std::string& category) {
+    return Query(OTHER_CATEGORY) == Query::String(category);
+  }
+
+  static Query OtherNameIs(const std::string& name) {
+    return Query(OTHER_NAME) == Query::String(name);
+  }
+
+  static Query OtherIdIs(const std::string& id) {
+    return Query(OTHER_ID) == Query::String(id);
+  }
+
+  // Evaluates to true if arg exists and is a string.
   static Query OtherHasStringArg(const std::string& arg_name) {
     return Query(OTHER_HAS_STRING_ARG, arg_name);
   }
 
+  // Evaluates to true if arg exists and is a number.
+  // Number arguments include types double, int and bool.
   static Query OtherHasNumberArg(const std::string& arg_name) {
     return Query(OTHER_HAS_NUMBER_ARG, arg_name);
   }
 
+  // Evaluates to arg value (string or number).
   static Query OtherArg(const std::string& arg_name) {
     return Query(OTHER_ARG, arg_name);
   }
@@ -509,8 +581,8 @@ class TraceAnalyzer {
   // NOTE: AssociateEvents will overwrite existing other_event associations if
   // the queries pass for events that already had a previous association.
   //
-  // After calling FindEvents or FindOneEvent, it is not allowed to call
-  // AssociateEvents again.
+  // After calling any Find* method, it is not allowed to call AssociateEvents
+  // again.
   void AssociateEvents(const Query& first,
                        const Query& second,
                        const Query& match);
@@ -522,8 +594,11 @@ class TraceAnalyzer {
   // Find all events that match query and replace output vector.
   size_t FindEvents(const Query& query, TraceEventVector* output);
 
-  // Helper method: find first event that matches query
-  const TraceEvent* FindOneEvent(const Query& query);
+  // Find first event that matches query or NULL if not found.
+  const TraceEvent* FindFirstOf(const Query& query);
+
+  // Find last event that matches query or NULL if not found.
+  const TraceEvent* FindLastOf(const Query& query);
 
   const std::string& GetThreadName(const TraceEvent::ProcessThreadID& thread);
 
