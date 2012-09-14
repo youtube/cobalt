@@ -87,7 +87,7 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   // TODO(dalecurtis): Each AudioManager should implement their own version, see
   // http://crbug.com/137326
   virtual AudioParameters GetPreferredLowLatencyOutputStreamParameters(
-      ChannelLayout channel_layout);
+      const AudioParameters& input_params);
 
  protected:
   AudioManagerBase();
