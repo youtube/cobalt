@@ -157,7 +157,7 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
       base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds);
 
   const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
-  if (cmd_line->HasSwitch(switches::kEnableAudioOutputResampler) &&
+  if (!cmd_line->HasSwitch(switches::kDisableAudioOutputResampler) &&
       params.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     scoped_refptr<AudioOutputDispatcher> dispatcher = new AudioOutputResampler(
         this, params, GetPreferredLowLatencyOutputStreamParameters(params),
