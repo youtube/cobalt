@@ -6,6 +6,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
@@ -17,6 +18,7 @@
 #include "media/audio/sample_rates.h"
 #include "media/base/audio_pull_fifo.h"
 #include "media/base/limits.h"
+#include "media/base/media_switches.h"
 #include "media/base/multi_channel_resampler.h"
 
 namespace media {
@@ -149,6 +151,13 @@ bool AudioOutputResampler::OpenStream() {
   // nothing more to be done.
   if (output_params_.format() == AudioParameters::AUDIO_PCM_LINEAR)
     return false;
+
+  if (CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableAudioFallback)) {
+    LOG(ERROR) << "Open failed and automatic fallback to high latency audio "
+               << "path is disabled, aborting.";
+    return false;
+  }
 
   DLOG(ERROR) << "Unable to open audio device in low latency mode.  Falling "
               << "back to high latency audio output.";
