@@ -256,6 +256,15 @@ class BASE_EXPORT DictionaryValue : public Value {
   // be used as paths.
   void SetWithoutPathExpansion(const std::string& key, Value* in_value);
 
+  // Convenience forms of SetWithoutPathExpansion().
+  void SetBooleanWithoutPathExpansion(const std::string& path, bool in_value);
+  void SetIntegerWithoutPathExpansion(const std::string& path, int in_value);
+  void SetDoubleWithoutPathExpansion(const std::string& path, double in_value);
+  void SetStringWithoutPathExpansion(const std::string& path,
+                                     const std::string& in_value);
+  void SetStringWithoutPathExpansion(const std::string& path,
+                                     const string16& in_value);
+
   // Gets the Value associated with the given path starting from this object.
   // A path has the form "<key>" or "<key>.<key>.[...]", where "." indexes
   // into the next DictionaryValue down.  If the path can be resolved
@@ -451,6 +460,15 @@ class BASE_EXPORT ListValue : public Value {
 
   // Appends a Value to the end of the list.
   void Append(Value* in_value);
+
+  // Convenience forms of Append.
+  void AppendBoolean(bool in_value);
+  void AppendInteger(int in_value);
+  void AppendDouble(double in_value);
+  void AppendString(const std::string& in_value);
+  void AppendString(const string16& in_value);
+  void AppendStrings(const std::vector<std::string>& in_values);
+  void AppendStrings(const std::vector<string16>& in_values);
 
   // Appends a Value if it's not already present. Takes ownership of the
   // |in_value|. Returns true if successful, or false if the value was already
