@@ -443,6 +443,31 @@ void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
   }
 }
 
+void DictionaryValue::SetBooleanWithoutPathExpansion(
+    const std::string& path, bool in_value) {
+  SetWithoutPathExpansion(path, CreateBooleanValue(in_value));
+}
+
+void DictionaryValue::SetIntegerWithoutPathExpansion(
+    const std::string& path, int in_value) {
+  SetWithoutPathExpansion(path, CreateIntegerValue(in_value));
+}
+
+void DictionaryValue::SetDoubleWithoutPathExpansion(
+    const std::string& path, double in_value) {
+  SetWithoutPathExpansion(path, CreateDoubleValue(in_value));
+}
+
+void DictionaryValue::SetStringWithoutPathExpansion(
+    const std::string& path, const std::string& in_value) {
+  SetWithoutPathExpansion(path, CreateStringValue(in_value));
+}
+
+void DictionaryValue::SetStringWithoutPathExpansion(
+    const std::string& path, const string16& in_value) {
+  SetWithoutPathExpansion(path, CreateStringValue(in_value));
+}
+
 bool DictionaryValue::Get(
     const std::string& path, const Value** out_value) const {
   DCHECK(IsStringUTF8(path));
@@ -985,6 +1010,40 @@ void ListValue::Erase(iterator iter, Value** out_value) {
 void ListValue::Append(Value* in_value) {
   DCHECK(in_value);
   list_.push_back(in_value);
+}
+
+void ListValue::AppendBoolean(bool in_value) {
+  Append(CreateBooleanValue(in_value));
+}
+
+void ListValue::AppendInteger(int in_value) {
+  Append(CreateIntegerValue(in_value));
+}
+
+void ListValue::AppendDouble(double in_value) {
+  Append(CreateDoubleValue(in_value));
+}
+
+void ListValue::AppendString(const std::string& in_value) {
+  Append(CreateStringValue(in_value));
+}
+
+void ListValue::AppendString(const string16& in_value) {
+  Append(CreateStringValue(in_value));
+}
+
+void ListValue::AppendStrings(const std::vector<std::string>& in_values) {
+  for (std::vector<std::string>::const_iterator it = in_values.begin();
+       it != in_values.end(); ++it) {
+    AppendString(*it);
+  }
+}
+
+void ListValue::AppendStrings(const std::vector<string16>& in_values) {
+  for (std::vector<string16>::const_iterator it = in_values.begin();
+       it != in_values.end(); ++it) {
+    AppendString(*it);
+  }
 }
 
 bool ListValue::AppendIfNotPresent(Value* in_value) {
