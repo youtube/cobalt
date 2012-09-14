@@ -98,7 +98,6 @@ WebApplicationTest.GetShortcutInfoForTab
 
 # crbug.com/139411
 AutocompleteProviderTest.*
-HistoryQuickProviderTest.*
 HistoryContentsProviderBodyOnlyTest.*
 HistoryContentsProviderTest.*
 HQPOrderingTest.*
