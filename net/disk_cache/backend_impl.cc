@@ -686,14 +686,22 @@ EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
 
   bool error;
   EntryImpl* cache_entry = MatchEntry(key, hash, false, Addr(), &error);
-  if (!cache_entry) {
-    stats_.OnEvent(Stats::OPEN_MISS);
-    return NULL;
-  }
-
-  if (ENTRY_NORMAL != cache_entry->entry()->Data()->state) {
+  if (cache_entry && ENTRY_NORMAL != cache_entry->entry()->Data()->state) {
     // The entry was already evicted.
     cache_entry->Release();
+    cache_entry = NULL;
+  }
+
+  int current_size = data_->header.num_bytes / (1024 * 1024);
+  int64 total_hours = stats_.GetCounter(Stats::TIMER) / 120;
+  int64 no_use_hours = stats_.GetCounter(Stats::LAST_REPORT_TIMER) / 120;
+  int64 use_hours = total_hours - no_use_hours;
+
+  if (!cache_entry) {
+    CACHE_UMA(AGE_MS, "OpenTime.Miss", 0, start);
+    CACHE_UMA(COUNTS_10000, "AllOpenBySize.Miss", 0, current_size);
+    CACHE_UMA(HOURS, "AllOpenByTotalHours.Miss", 0, total_hours);
+    CACHE_UMA(HOURS, "AllOpenByUseHours.Miss", 0, use_hours);
     stats_.OnEvent(Stats::OPEN_MISS);
     return NULL;
   }
@@ -704,6 +712,9 @@ EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
   Trace("Open hash 0x%x end: 0x%x", hash,
         cache_entry->entry()->address().value());
   CACHE_UMA(AGE_MS, "OpenTime", 0, start);
+  CACHE_UMA(COUNTS_10000, "AllOpenBySize.Hit", 0, current_size);
+  CACHE_UMA(HOURS, "AllOpenByTotalHours.Hit", 0, total_hours);
+  CACHE_UMA(HOURS, "AllOpenByUseHours.Hit", 0, use_hours);
   stats_.OnEvent(Stats::OPEN_HIT);
   SIMPLE_STATS_COUNTER("disk_cache.hit");
   return cache_entry;
