@@ -160,8 +160,7 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
   if (cmd_line->HasSwitch(switches::kEnableAudioOutputResampler) &&
       params.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     scoped_refptr<AudioOutputDispatcher> dispatcher = new AudioOutputResampler(
-        this, params,
-        GetPreferredLowLatencyOutputStreamParameters(params.channel_layout()),
+        this, params, GetPreferredLowLatencyOutputStreamParameters(params),
         close_delay);
     output_dispatchers_[params] = dispatcher;
     return new AudioOutputProxy(dispatcher);
@@ -279,7 +278,7 @@ void AudioManagerBase::ShutdownOnAudioThread() {
 }
 
 AudioParameters AudioManagerBase::GetPreferredLowLatencyOutputStreamParameters(
-    ChannelLayout channel_layout) {
+    const AudioParameters& input_params) {
 #if defined(OS_IOS)
   // IOS implements audio input only.
   NOTIMPLEMENTED();
@@ -288,7 +287,7 @@ AudioParameters AudioManagerBase::GetPreferredLowLatencyOutputStreamParameters(
   // TODO(dalecurtis): This should include bits per channel and channel layout
   // eventually.
   return AudioParameters(
-      AudioParameters::AUDIO_PCM_LOW_LATENCY, channel_layout,
+      AudioParameters::AUDIO_PCM_LOW_LATENCY, input_params.channel_layout(),
       GetAudioHardwareSampleRate(), 16, GetAudioHardwareBufferSize());
 #endif  // defined(OS_IOS)
 }

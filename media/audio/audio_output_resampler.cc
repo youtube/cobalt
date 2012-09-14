@@ -92,6 +92,7 @@ AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
       close_delay_(close_delay),
       outstanding_audio_bytes_(0),
       output_params_(output_params) {
+  DCHECK_EQ(output_params_.format(), AudioParameters::AUDIO_PCM_LOW_LATENCY);
   Initialize();
   // Record UMA statistics for the hardware configuration.
   RecordStats(output_params_);
@@ -145,6 +146,8 @@ void AudioOutputResampler::Initialize() {
     }
 
     DVLOG(1) << "I/O ratio is " << io_ratio_;
+  } else {
+    DVLOG(1) << "Input and output params are the same; in pass-through mode.";
   }
 
   // TODO(dalecurtis): All this code should be merged into AudioOutputMixer once
@@ -183,8 +186,8 @@ bool AudioOutputResampler::OpenStream() {
   // a new high latency appropriate buffer size.  |kMinLowLatencyFrameSize| is
   // arbitrarily based on Pepper Flash's MAXIMUM frame size for low latency.
   static const int kMinLowLatencyFrameSize = 2048;
-  int frames_per_buffer = std::max(
-      std::min(params_.frames_per_buffer(), kMinLowLatencyFrameSize),
+  int frames_per_buffer = std::min(
+      std::max(params_.frames_per_buffer(), kMinLowLatencyFrameSize),
       static_cast<int>(GetHighLatencyOutputBufferSize(params_.sample_rate())));
 
   output_params_ = AudioParameters(
