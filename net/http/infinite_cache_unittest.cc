@@ -180,6 +180,7 @@ TEST(InfiniteCache, Delete) {
 }
 
 TEST(InfiniteCache, DeleteBetween) {
+#if !defined(OS_ANDROID)
   ScopedTempDir dir;
   ASSERT_TRUE(dir.CreateUniqueTempDir());
   FilePath path = dir.path().Append(FILE_PATH_LITERAL("infinite"));
@@ -231,4 +232,5 @@ TEST(InfiniteCache, DeleteBetween) {
   EXPECT_EQ(1, cb.GetResult(cache->QueryItemsForTest(cb.callback())));
   ProcessRequest(kTypicalGET_Transaction, cache.get());
   EXPECT_EQ(1, cb.GetResult(cache->QueryItemsForTest(cb.callback())));
+#endif  // OS_ANDROID
 }
