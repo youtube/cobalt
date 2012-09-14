@@ -28,12 +28,18 @@ static void RecordStats(const AudioParameters& output_params) {
   UMA_HISTOGRAM_ENUMERATION(
       "Media.HardwareAudioBitsPerChannel", output_params.bits_per_sample(),
       limits::kMaxBitsPerSample);
+// WASAPIAudioOutputStream will record this information for us.
+// TODO(dalecurtis): This should go away when we support channel mixing and will
+// receive the actual hardware channel parameters via |output_params|.  See
+// http://crbug.com/138762
+#if !defined(OS_WIN)
   UMA_HISTOGRAM_ENUMERATION(
       "Media.HardwareAudioChannelLayout", output_params.channel_layout(),
       CHANNEL_LAYOUT_MAX);
   UMA_HISTOGRAM_ENUMERATION(
       "Media.HardwareAudioChannelCount", output_params.channels(),
       limits::kMaxChannels);
+#endif
 
   AudioSampleRate asr = media::AsAudioSampleRate(output_params.sample_rate());
   if (asr != kUnexpectedAudioSampleRate) {
@@ -51,12 +57,18 @@ static void RecordFallbackStats(const AudioParameters& output_params) {
   UMA_HISTOGRAM_ENUMERATION(
       "Media.FallbackHardwareAudioBitsPerChannel",
       output_params.bits_per_sample(), limits::kMaxBitsPerSample);
+// WASAPIAudioOutputStream will record this information for us.
+// TODO(dalecurtis): This should go away when we support channel mixing and will
+// receive the actual hardware channel parameters via |output_params|.  See
+// http://crbug.com/138762
+#if !defined(OS_WIN)
   UMA_HISTOGRAM_ENUMERATION(
       "Media.FallbackHardwareAudioChannelLayout",
       output_params.channel_layout(), CHANNEL_LAYOUT_MAX);
   UMA_HISTOGRAM_ENUMERATION(
       "Media.FallbackHardwareAudioChannelCount",
       output_params.channels(), limits::kMaxChannels);
+#endif
 
   AudioSampleRate asr = media::AsAudioSampleRate(output_params.sample_rate());
   if (asr != kUnexpectedAudioSampleRate) {

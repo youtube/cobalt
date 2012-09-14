@@ -9,10 +9,12 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/metrics/histogram.h"
 #include "base/utf_string_conversions.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/avrt_wrapper_win.h"
+#include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
 using base::win::ScopedComPtr;
@@ -315,6 +317,18 @@ static int ChannelUpMix(void* input,
   return 0;
 }
 
+// Record UMA statistics when a low latency Open() call fails.
+// TODO(dalecurtis): This should be done by AudioOutputResampler() once it
+// supports channel remixing.  http://crbug.com/138762
+static void RecordFallbackStats() {
+  UMA_HISTOGRAM_ENUMERATION(
+    "Media.FallbackHardwareAudioChannelLayout",
+    WASAPIAudioOutputStream::HardwareChannelLayout(), CHANNEL_LAYOUT_MAX);
+  UMA_HISTOGRAM_ENUMERATION(
+    "Media.FallbackHardwareAudioChannelCount",
+    WASAPIAudioOutputStream::HardwareChannelCount(), limits::kMaxChannels);
+}
+
 // static
 AUDCLNT_SHAREMODE WASAPIAudioOutputStream::GetShareMode() {
   const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
@@ -350,6 +364,15 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
   if (share_mode_ == AUDCLNT_SHAREMODE_EXCLUSIVE) {
     VLOG(1) << ">> Note that EXCLUSIVE MODE is enabled <<";
   }
+
+  // TODO(dalecurtis): This should be done by AudioOutputResampler() once it
+  // supports channel remixing.  http://crbug.com/138762
+  UMA_HISTOGRAM_ENUMERATION(
+    "Media.HardwareAudioChannelLayout", HardwareChannelLayout(),
+    CHANNEL_LAYOUT_MAX);
+  UMA_HISTOGRAM_ENUMERATION(
+    "Media.HardwareAudioChannelCount", HardwareChannelCount(),
+    limits::kMaxChannels);
 
   // Set up the desired render format specified by the client. We use the
   // WAVE_FORMAT_EXTENSIBLE structure to ensure that multiple channel ordering
@@ -429,12 +452,14 @@ bool WASAPIAudioOutputStream::Open() {
   // used when opening the default endpoint device.
   if (channel_factor() < 1) {
     LOG(ERROR) << "Channel down-mixing is not supported";
+    RecordFallbackStats();
     return false;
   }
 
   // Only 16-bit audio is supported in combination with channel up-mixing.
   if (channel_factor() > 1 && (format_.Format.wBitsPerSample != 16)) {
     LOG(ERROR) << "16-bit audio is required when channel up-mixing is active.";
+    RecordFallbackStats();
     return false;
   }
 
@@ -443,6 +468,7 @@ bool WASAPIAudioOutputStream::Open() {
   // specified role.
   HRESULT hr = SetRenderDevice();
   if (FAILED(hr)) {
+    RecordFallbackStats();
     return false;
   }
 
@@ -450,6 +476,7 @@ bool WASAPIAudioOutputStream::Open() {
   // an audio stream between an audio application and the audio engine.
   hr = ActivateRenderDevice();
   if (FAILED(hr)) {
+    RecordFallbackStats();
     return false;
   }
 
@@ -461,6 +488,7 @@ bool WASAPIAudioOutputStream::Open() {
   // engine (or a format that is similar to the mix format). The audio engine's
   // input streams and the output mix from the engine are all in this format.
   if (!DesiredFormatIsSupported()) {
+    RecordFallbackStats();
     return false;
   }
 
@@ -469,6 +497,7 @@ bool WASAPIAudioOutputStream::Open() {
   // We will enter different code paths depending on the specified share mode.
   hr = InitializeAudioEngine();
   if (FAILED(hr)) {
+    RecordFallbackStats();
     return false;
   }
 
@@ -476,6 +505,8 @@ bool WASAPIAudioOutputStream::Open() {
   // Only OnDefaultDeviceChanged() and OnDeviceStateChanged() and are
   // non-trivial.
   hr = device_enumerator_->RegisterEndpointNotificationCallback(this);
+  if (FAILED(hr))
+    RecordFallbackStats();
 
   opened_ = true;
   return SUCCEEDED(hr);
