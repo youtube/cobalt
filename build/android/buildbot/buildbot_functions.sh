@@ -69,7 +69,6 @@ function bb_baseline_setup {
     export GYP_GENERATORS=ninja
   fi
 
-  . build/android/envsetup.sh
 
   if [ "$NEED_CLOBBER" -eq 1 ]; then
     echo "@@@BUILD_STEP Clobber@@@"
@@ -82,6 +81,9 @@ function bb_baseline_setup {
       echo "@@@STEP_WARNINGS@@@"
     fi
   fi
+
+  . build/android/envsetup.sh
+  export GYP_DEFINES+=" fastbuild=1"
 
   # Should be called only after envsetup is done.
   bb_run_gclient_hooks
