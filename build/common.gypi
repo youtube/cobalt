@@ -1906,7 +1906,7 @@
           },
         },
         'conditions': [
-          ['OS=="linux"', {
+          ['OS=="linux" or OS=="android"', {
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': [
