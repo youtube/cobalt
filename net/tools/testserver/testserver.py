@@ -19,6 +19,7 @@ import BaseHTTPServer
 import cgi
 import errno
 import httplib
+import logging
 import minica
 import optparse
 import os
@@ -40,6 +41,7 @@ import zlib
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import echo_message
+from mod_pywebsocket.standalone import WebSocketServer
 import pyftpdlib.ftpserver
 import tlslite
 import tlslite.api
@@ -65,12 +67,39 @@ SERVER_SYNC = 2
 SERVER_TCP_ECHO = 3
 SERVER_UDP_ECHO = 4
 SERVER_BASIC_AUTH_PROXY = 5
+SERVER_WEBSOCKET = 6
+
+# Default request queue size for WebSocketServer.
+_DEFAULT_REQUEST_QUEUE_SIZE = 128
 
 # Using debug() seems to cause hangs on XP: see http://crbug.com/64515 .
 debug_output = sys.stderr
 def debug(str):
   debug_output.write(str + "\n")
   debug_output.flush()
+
+class WebSocketOptions:
+  """Holds options for WebSocketServer."""
+
+  def __init__(self, host, port, data_dir):
+    self.request_queue_size = _DEFAULT_REQUEST_QUEUE_SIZE
+    self.server_host = host
+    self.port = port
+    self.websock_handlers = data_dir
+    self.scan_dir = None
+    self.allow_handlers_outside_root_dir = False
+    self.websock_handlers_map_file = None
+    self.cgi_directories = []
+    self.is_executable_method = None
+    self.allow_draft75 = False
+    self.strict = True
+
+    # TODO(toyoshim): Support SSL and authenticates (http://crbug.com/137639)
+    self.use_tls = False
+    self.private_key = None
+    self.certificate = None
+    self.tls_client_ca = None
+    self.use_basic_auth = False
 
 class RecordingSSLSessionCache(object):
   """RecordingSSLSessionCache acts as a TLS session cache and maintains a log of
@@ -2226,6 +2255,16 @@ def main(options, args):
     server.policy_keys = options.policy_keys
     server.policy_user = options.policy_user
     server.gdata_auth_token = options.auth_token
+  elif options.server_type == SERVER_WEBSOCKET:
+    # Launch pywebsocket via WebSocketServer.
+    logger = logging.getLogger()
+    logger.addHandler(logging.StreamHandler())
+    # TODO(toyoshim): Remove following os.chdir. Currently this operation
+    # is required to work correctly. It should be fixed from pywebsocket side.
+    os.chdir(MakeDataDir())
+    server = WebSocketServer(WebSocketOptions(host, port, MakeDataDir()))
+    print 'WebSocket server started on %s:%d...' % (host, server.server_port)
+    server_data['port'] = server.server_port
   elif options.server_type == SERVER_SYNC:
     xmpp_port = options.xmpp_port
     server = SyncHTTPServer((host, port), xmpp_port, SyncPageHandler)
@@ -2330,6 +2369,10 @@ if __name__ == '__main__':
                            dest='server_type',
                            help='start up a proxy server which requires basic '
                            'authentication.')
+  option_parser.add_option('', '--websocket', action='store_const',
+                           const=SERVER_WEBSOCKET, default=SERVER_HTTP,
+                           dest='server_type',
+                           help='start up a WebSocket server.')
   option_parser.add_option('', '--log-to-console', action='store_const',
                            const=True, default=False,
                            dest='log_to_console',
