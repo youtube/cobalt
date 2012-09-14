@@ -317,4 +317,24 @@ AudioManager* CreateAudioManager() {
   return new AudioManagerWin();
 }
 
+AudioParameters AudioManagerWin::GetPreferredLowLatencyOutputStreamParameters(
+    const AudioParameters& input_params) {
+  // If WASAPI isn't supported we'll fallback to WaveOut, which will take care
+  // of resampling and bits per sample changes.  By setting these equal to the
+  // input values, AudioOutputResampler will skip resampling and bit per sample
+  // differences (since the input parameters will match the output parameters).
+  int sample_rate = input_params.sample_rate();
+  int bits_per_sample = input_params.bits_per_sample();
+  if (IsWASAPISupported()) {
+    sample_rate = GetAudioHardwareSampleRate();
+    bits_per_sample = 16;
+  }
+
+  // TODO(dalecurtis): This should include bits per channel and channel layout
+  // eventually.
+  return AudioParameters(
+      AudioParameters::AUDIO_PCM_LOW_LATENCY, input_params.channel_layout(),
+      sample_rate, bits_per_sample, GetAudioHardwareBufferSize());
+}
+
 }  // namespace media

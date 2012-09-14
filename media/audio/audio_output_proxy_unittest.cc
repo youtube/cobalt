@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "base/command_line.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/platform_thread.h"
@@ -12,6 +13,7 @@
 #include "media/audio/audio_output_proxy.h"
 #include "media/audio/audio_output_resampler.h"
 #include "media/audio/audio_manager.h"
+#include "media/base/media_switches.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -484,17 +486,13 @@ class AudioOutputResamplerTest : public AudioOutputProxyTest {
   }
 
   virtual void InitDispatcher(base::TimeDelta close_delay) {
-    InitDispatcher(close_delay, AudioParameters::AUDIO_PCM_LINEAR);
-  }
-
-  virtual void InitDispatcher(base::TimeDelta close_delay,
-                              AudioParameters::Format output_format) {
     AudioOutputProxyTest::InitDispatcher(close_delay);
     // Attempt shutdown of audio thread in case InitDispatcher() was called
     // previously.
     ShutdownAudioThread();
     resampler_params_ = AudioParameters(
-        output_format, CHANNEL_LAYOUT_STEREO, 48000, 16, 128);
+        AudioParameters::AUDIO_PCM_LOW_LATENCY, CHANNEL_LAYOUT_STEREO,
+        48000, 16, 128);
     resampler_ = new AudioOutputResampler(
         &manager(), params_, resampler_params_, close_delay);
     StartAudioThread();
@@ -733,6 +731,8 @@ TEST_F(AudioOutputProxyTest, OpenFailed_Mixer) {
 #endif
 
 TEST_F(AudioOutputResamplerTest, OpenFailed) {
+  CommandLine::ForCurrentProcess()->AppendSwitch(
+      switches::kDisableAudioFallback);
   OpenFailed(resampler_);
 }
 
@@ -794,9 +794,6 @@ TEST_F(AudioOutputResamplerTest, StartFailed) {
 // Simulate AudioOutputStream::Create() failure with a low latency stream and
 // ensure AudioOutputResampler falls back to the high latency path.
 TEST_F(AudioOutputResamplerTest, LowLatencyCreateFailedFallback) {
-  InitDispatcher(base::TimeDelta::FromSeconds(kTestCloseDelayMs),
-                 AudioParameters::AUDIO_PCM_LOW_LATENCY);
-
   MockAudioOutputStream stream;
   EXPECT_CALL(manager(), MakeAudioOutputStream(_))
       .Times(2)
@@ -816,9 +813,6 @@ TEST_F(AudioOutputResamplerTest, LowLatencyCreateFailedFallback) {
 // Simulate AudioOutputStream::Open() failure with a low latency stream and
 // ensure AudioOutputResampler falls back to the high latency path.
 TEST_F(AudioOutputResamplerTest, LowLatencyOpenFailedFallback) {
-  InitDispatcher(base::TimeDelta::FromSeconds(kTestCloseDelayMs),
-                 AudioParameters::AUDIO_PCM_LOW_LATENCY);
-
   MockAudioOutputStream failed_stream;
   MockAudioOutputStream okay_stream;
   EXPECT_CALL(manager(), MakeAudioOutputStream(_))
@@ -843,9 +837,6 @@ TEST_F(AudioOutputResamplerTest, LowLatencyOpenFailedFallback) {
 // Simulate failures to open both the low latency and the fallback high latency
 // stream and ensure AudioOutputResampler terminates normally.
 TEST_F(AudioOutputResamplerTest, LowLatencyFallbackFailed) {
-  InitDispatcher(base::TimeDelta::FromSeconds(kTestCloseDelayMs),
-                 AudioParameters::AUDIO_PCM_LOW_LATENCY);
-
   EXPECT_CALL(manager(), MakeAudioOutputStream(_))
       .Times(2)
       .WillRepeatedly(Return(static_cast<AudioOutputStream*>(NULL)));
