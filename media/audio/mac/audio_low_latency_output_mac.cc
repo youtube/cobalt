@@ -7,10 +7,12 @@
 #include <CoreServices/CoreServices.h>
 
 #include "base/basictypes.h"
+#include "base/command_line.h"
 #include "base/logging.h"
 #include "base/mac/mac_logging.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
+#include "media/base/media_switches.h"
 
 namespace media {
 
@@ -220,6 +222,10 @@ void AUAudioOutputStream::GetVolume(double* volume) {
 OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
                                      AudioBufferList* io_data,
                                      const AudioTimeStamp* output_time_stamp) {
+  static const bool kDisableAudioOutputResampler =
+      CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableAudioOutputResampler);
+
   // Update the playout latency.
   double playout_latency_frames = GetPlayoutLatency(output_time_stamp);
 
@@ -228,9 +234,18 @@ OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
   uint32 hardware_pending_bytes = static_cast<uint32>
       ((playout_latency_frames + 0.5) * format_.mBytesPerFrame);
 
-  DCHECK_EQ(number_of_frames, static_cast<UInt32>(audio_bus_->frames()));
-  int frames_filled = source_->OnMoreData(
-      audio_bus_.get(), AudioBuffersState(0, hardware_pending_bytes));
+  // If we specify a buffer size which is too low, the OS will ask for more data
+  // to fulfill the hardware request, so resize the AudioBus as appropriate.
+  // This change requires AudioOutputResampler to prevent buffer size mismatches
+  // downstream, so glitch if it's not enabled.
+  if (!kDisableAudioOutputResampler &&
+      static_cast<UInt32>(audio_bus_->frames()) != number_of_frames) {
+    audio_bus_ = AudioBus::Create(audio_bus_->channels(), number_of_frames);
+  }
+
+  int frames_filled = std::min(source_->OnMoreData(
+      audio_bus_.get(), AudioBuffersState(0, hardware_pending_bytes)),
+      static_cast<int>(number_of_frames));
   // Note: If this ever changes to output raw float the data must be clipped and
   // sanitized since it may come from an untrusted source such as NaCl.
   audio_bus_->ToInterleaved(
