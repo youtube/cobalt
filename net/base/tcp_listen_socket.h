@@ -22,13 +22,14 @@ class NET_EXPORT TCPListenSocket : public StreamListenSocket {
   static scoped_refptr<TCPListenSocket> CreateAndListen(
       const std::string& ip, int port, StreamListenSocket::Delegate* del);
 
+  // Get raw TCP socket descriptor bound to ip:port.
+  static SocketDescriptor CreateAndBind(const std::string& ip, int port);
+
  protected:
   friend class scoped_refptr<TCPListenSocket>;
 
   TCPListenSocket(SocketDescriptor s, StreamListenSocket::Delegate* del);
   virtual ~TCPListenSocket();
-
-  static SocketDescriptor CreateAndBind(const std::string& ip, int port);
 
   // Implements StreamListenSocket::Accept.
   virtual void Accept() OVERRIDE;
