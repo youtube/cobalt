@@ -290,11 +290,9 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // The ratio between the the number of native audio channels used by the
   // audio device and the number of audio channels from the client.
-  // TODO(henrika): using int as indicator of the required type of channel
-  // mixing is not a perfect solution. E.g. 2->2.1 will result in a ratio of
-  // 2/3 which is truncated to 1 and 1 means "no mixing is required".
-  int channel_factor() const {
-    return (format_.Format.nChannels / client_channel_count_);
+  double channel_factor() const {
+    return (format_.Format.nChannels / static_cast<double> (
+        client_channel_count_));
   }
 
   // Initializes the COM library for use by the calling thread and sets the
