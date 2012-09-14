@@ -30,6 +30,8 @@ class BaseTestServer {
  public:
   typedef std::pair<std::string, std::string> StringPair;
 
+  // Following types represent protocol schemes. See also
+  // http://www.iana.org/assignments/uri-schemes.html
   enum Type {
     TYPE_BASIC_AUTH_PROXY,
     TYPE_FTP,
@@ -179,6 +181,11 @@ class BaseTestServer {
       const std::string& original_path,
       const std::vector<StringPair>& text_to_replace,
       std::string* replacement_path);
+
+  static bool UsingSSL(Type type) {
+    return type == BaseTestServer::TYPE_HTTPS ||
+           type == BaseTestServer::TYPE_WSS;
+  }
 
  protected:
   virtual ~BaseTestServer();
