@@ -29,13 +29,15 @@ MEDIA_EXPORT extern const char kUsePulseAudio[];
 MEDIA_EXPORT extern const char kEnableExclusiveAudio[];
 #endif
 
-MEDIA_EXPORT extern const char kVideoThreads[];
+MEDIA_EXPORT extern const char kDisableAudioFallback[];
 
 MEDIA_EXPORT extern const char kEnableAudioMixer[];
 
 MEDIA_EXPORT extern const char kEnableAudioOutputResampler[];
 
 MEDIA_EXPORT extern const char kEnableWebAudioInput[];
+
+MEDIA_EXPORT extern const char kVideoThreads[];
 
 }  // namespace switches
 
