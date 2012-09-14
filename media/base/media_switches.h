@@ -31,9 +31,9 @@ MEDIA_EXPORT extern const char kEnableExclusiveAudio[];
 
 MEDIA_EXPORT extern const char kDisableAudioFallback[];
 
-MEDIA_EXPORT extern const char kEnableAudioMixer[];
+MEDIA_EXPORT extern const char kDisableAudioOutputResampler[];
 
-MEDIA_EXPORT extern const char kEnableAudioOutputResampler[];
+MEDIA_EXPORT extern const char kEnableAudioMixer[];
 
 MEDIA_EXPORT extern const char kEnableWebAudioInput[];
 
