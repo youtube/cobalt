@@ -50,9 +50,6 @@ std::string GetServerTypeString(BaseTestServer::Type type) {
     case BaseTestServer::TYPE_HTTP:
     case BaseTestServer::TYPE_HTTPS:
       return "http";
-    case BaseTestServer::TYPE_WS:
-    case BaseTestServer::TYPE_WSS:
-      return "ws";
     case BaseTestServer::TYPE_SYNC:
       return "sync";
     case BaseTestServer::TYPE_TCP_ECHO:
