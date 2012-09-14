@@ -117,6 +117,8 @@
         'audio/mac/audio_manager_mac.h',
         'audio/mac/audio_output_mac.cc',
         'audio/mac/audio_output_mac.h',
+        'audio/mac/audio_unified_mac.cc',
+        'audio/mac/audio_unified_mac.h',
         'audio/null_audio_sink.cc',
         'audio/null_audio_sink.h',
         'audio/openbsd/audio_manager_openbsd.cc',
