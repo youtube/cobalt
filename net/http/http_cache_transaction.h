@@ -57,9 +57,7 @@ class HttpCache::Transaction : public HttpTransaction {
     UPDATE          = READ_META | WRITE,  // READ_WRITE & ~READ_DATA
   };
 
-  Transaction(HttpCache* cache,
-              HttpTransactionDelegate* transaction_delegate,
-              InfiniteCacheTransaction* infinite_cache_transaction);
+  Transaction(HttpCache* cache, HttpTransactionDelegate* transaction_delegate);
   virtual ~Transaction();
 
   Mode mode() const { return mode_; }
@@ -374,7 +372,6 @@ class HttpCache::Transaction : public HttpTransaction {
   HttpCache::ActiveEntry* entry_;
   HttpCache::ActiveEntry* new_entry_;
   scoped_ptr<HttpTransaction> network_trans_;
-  scoped_ptr<InfiniteCacheTransaction> infinite_cache_transaction_;
   CompletionCallback callback_;  // Consumer's callback.
   HttpResponseInfo response_;
   HttpResponseInfo auth_response_;
