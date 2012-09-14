@@ -233,7 +233,8 @@ struct LaunchOptions {
   LaunchOptions() : wait(false),
 #if defined(OS_WIN)
                     start_hidden(false), inherit_handles(false), as_user(NULL),
-                    empty_desktop_name(false), job_handle(NULL)
+                    empty_desktop_name(false), job_handle(NULL),
+                    force_breakaway_from_job_(false)
 #else
                     environ(NULL), fds_to_remap(NULL), maximize_rlimits(NULL),
                     new_process_group(false)
@@ -274,6 +275,11 @@ struct LaunchOptions {
   // be terminated immediately and LaunchProcess() will fail if assignment to
   // the job object fails.
   HANDLE job_handle;
+
+  // If set to true, ensures that the child process is launched with the
+  // CREATE_BREAKAWAY_FROM_JOB flag which allows it to breakout of the parent
+  // job if any.
+  bool force_breakaway_from_job_;
 #else
   // If non-NULL, set/unset environment variables.
   // See documentation of AlterEnvironment().

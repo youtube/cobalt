@@ -317,6 +317,9 @@ bool LaunchProcess(const string16& cmdline,
     flags |= CREATE_BREAKAWAY_FROM_JOB;
   }
 
+  if (options.force_breakaway_from_job_)
+    flags |= CREATE_BREAKAWAY_FROM_JOB;
+
   base::win::ScopedProcessInformation process_info;
 
   if (options.as_user) {
