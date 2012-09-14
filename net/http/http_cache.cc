@@ -352,7 +352,7 @@ void HttpCache::WriteMetadata(const GURL& url,
     CreateBackend(NULL, net::CompletionCallback());
   }
 
-  HttpCache::Transaction* trans = new HttpCache::Transaction(this, NULL, NULL);
+  HttpCache::Transaction* trans = new HttpCache::Transaction(this, NULL);
   MetadataWriter* writer = new MetadataWriter(trans);
 
   // The writer will self destruct when done.
@@ -390,8 +390,7 @@ void HttpCache::OnExternalCacheHit(const GURL& url,
 void HttpCache::InitializeInfiniteCache(const FilePath& path) {
   if (base::FieldTrialList::FindFullName("InfiniteCache") != "Yes")
     return;
-  // To be enabled after everything is fully wired.
-  // infinite_cache_.Init(path);
+  // TODO(rvargas): initialize the infinite cache
 }
 
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans,
@@ -402,10 +401,7 @@ int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans,
     CreateBackend(NULL, net::CompletionCallback());
   }
 
-  InfiniteCacheTransaction* infinite_cache_transaction =
-      infinite_cache_.CreateInfiniteCacheTransaction();
-  trans->reset(new HttpCache::Transaction(this, delegate,
-                                          infinite_cache_transaction));
+  trans->reset(new HttpCache::Transaction(this, delegate));
   return OK;
 }
 
