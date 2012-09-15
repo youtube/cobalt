@@ -391,7 +391,7 @@ void HttpCache::InitializeInfiniteCache(const FilePath& path) {
   if (base::FieldTrialList::FindFullName("InfiniteCache") != "Yes")
     return;
   // To be enabled after everything is fully wired.
-  // infinite_cache_.Init(path);
+  infinite_cache_.Init(path);
 }
 
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans,
