@@ -11,12 +11,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
-
-namespace {
-
-const char kSelfExe[] = "/proc/self/exe";
-
-}  // namespace
+#include "base/process_util.h"
 
 namespace base {
 
@@ -24,9 +19,9 @@ bool PathProviderAndroid(int key, FilePath* result) {
   switch (key) {
     case base::FILE_EXE: {
       char bin_dir[PATH_MAX + 1];
-      int bin_dir_size = readlink(kSelfExe, bin_dir, PATH_MAX);
+      int bin_dir_size = readlink(kProcSelfExe, bin_dir, PATH_MAX);
       if (bin_dir_size < 0 || bin_dir_size > PATH_MAX) {
-        NOTREACHED() << "Unable to resolve " << kSelfExe << ".";
+        NOTREACHED() << "Unable to resolve " << kProcSelfExe << ".";
         return false;
       }
       bin_dir[bin_dir_size] = 0;
