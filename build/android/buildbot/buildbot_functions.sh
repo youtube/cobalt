@@ -62,13 +62,11 @@ function bb_baseline_setup {
     NEED_CLOBBER=1
   fi
 
-  export GOMA_DIR=/b/build/goma
 
   local BUILDTOOL=$(bb_get_json_prop "$FACTORY_PROPERTIES" buildtool)
   if [[ $BUILDTOOL = ninja ]]; then
     export GYP_GENERATORS=ninja
   fi
-
 
   if [ "$NEED_CLOBBER" -eq 1 ]; then
     echo "@@@BUILD_STEP Clobber@@@"
@@ -82,6 +80,7 @@ function bb_baseline_setup {
     fi
   fi
 
+  bb_setup_goma_internal
   . build/android/envsetup.sh
   export GYP_DEFINES+=" fastbuild=1"
 
@@ -92,6 +91,7 @@ function bb_baseline_setup {
 
 # Setup goma.  Used internally to buildbot_functions.sh.
 function bb_setup_goma_internal {
+  export GOMA_DIR=/b/build/goma
   export GOMA_API_KEY_FILE=${GOMA_DIR}/goma.key
   export GOMA_COMPILER_PROXY_DAEMON_MODE=true
   export GOMA_COMPILER_PROXY_RPC_TIMEOUT_SECS=300
@@ -101,7 +101,7 @@ function bb_setup_goma_internal {
   killall compiler_proxy || true
 
   echo "Starting goma"
-  ${GOMA_DIR}/goma_ctl.sh ensure_start
+  ${GOMA_DIR}/goma_ctl.sh start
   trap bb_stop_goma_internal SIGHUP SIGINT SIGTERM
 }
 
@@ -160,8 +160,6 @@ function bb_compile {
   # This must be named 'compile', not 'Compile', for CQ interaction.
   # Talk to maruel for details.
   echo "@@@BUILD_STEP compile@@@"
-
-  bb_setup_goma_internal
 
   BUILDTOOL=$(bb_get_json_prop "$FACTORY_PROPERTIES" buildtool)
   if [[ $BUILDTOOL = ninja ]]; then
