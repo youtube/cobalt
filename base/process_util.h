@@ -205,6 +205,9 @@ const int kMaxOomScore = 1000;
 // translate the given value into [0, 15].  Some aliasing of values
 // may occur in that case, of course.
 BASE_EXPORT bool AdjustOOMScore(ProcessId process, int score);
+
+// /proc/self/exe refers to the current executable.
+BASE_EXPORT extern const char kProcSelfExe[];
 #endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
 #if defined(OS_POSIX)
@@ -706,6 +709,8 @@ class BASE_EXPORT ProcessMetrics {
 #else
   class PortProvider {
    public:
+    virtual ~PortProvider() {}
+
     // Should return the mach task for |process| if possible, or else
     // |MACH_PORT_NULL|. Only processes that this returns tasks for will have
     // metrics on OS X (except for the current process, which always gets
