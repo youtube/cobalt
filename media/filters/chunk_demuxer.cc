@@ -361,12 +361,14 @@ Ranges<TimeDelta> ChunkDemuxerStream::GetBufferedRanges(
 bool ChunkDemuxerStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
   DCHECK(config.IsValidConfig());
   DCHECK_EQ(type_, AUDIO);
+  base::AutoLock auto_lock(lock_);
   return stream_->UpdateAudioConfig(config);
 }
 
 bool ChunkDemuxerStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
   DCHECK(config.IsValidConfig());
   DCHECK_EQ(type_, VIDEO);
+  base::AutoLock auto_lock(lock_);
   return stream_->UpdateVideoConfig(config);
 }
 
