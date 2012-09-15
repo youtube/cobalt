@@ -930,6 +930,7 @@ class SSLClientSocketNSS::Core : public base::RefCountedThreadSafe<Core> {
   // The current handshake state. Mirrors |nss_handshake_state_|.
   HandshakeState network_handshake_state_;
 
+  // The service for retrieving Channel ID keys.  May be NULL.
   ServerBoundCertService* server_bound_cert_service_;
   ServerBoundCertService::RequestHandle domain_bound_cert_request_handle_;
 
@@ -1080,7 +1081,9 @@ bool SSLClientSocketNSS::Core::Init(PRFileDesc* socket,
   }
 
   if (ssl_config_.channel_id_enabled) {
-    if (!crypto::ECPrivateKey::IsSupported()) {
+    if (!server_bound_cert_service_) {
+      DVLOG(1) << "NULL server_bound_cert_service_, not enabling channel ID.";
+    } else if (!crypto::ECPrivateKey::IsSupported()) {
       DVLOG(1) << "Elliptic Curve not supported, not enabling channel ID.";
     } else if (!server_bound_cert_service_->IsSystemTimeValid()) {
       DVLOG(1) << "System time is weird, not enabling channel ID.";
@@ -2523,12 +2526,15 @@ void SSLClientSocketNSS::Core::RecordChannelIDSupport() const {
     CLIENT_AND_SERVER = 2,
     CLIENT_NO_ECC = 3,
     CLIENT_BAD_SYSTEM_TIME = 4,
+    CLIENT_NO_SERVER_BOUND_CERT_SERVICE = 5,
     DOMAIN_BOUND_CERT_USAGE_MAX
   } supported = DISABLED;
   if (channel_id_xtn_negotiated_) {
     supported = CLIENT_AND_SERVER;
   } else if (ssl_config_.channel_id_enabled) {
-    if (!crypto::ECPrivateKey::IsSupported())
+    if (!server_bound_cert_service_)
+      supported = CLIENT_NO_SERVER_BOUND_CERT_SERVICE;
+    else if (!crypto::ECPrivateKey::IsSupported())
       supported = CLIENT_NO_ECC;
     else if (!server_bound_cert_service_->IsSystemTimeValid())
       supported = CLIENT_BAD_SYSTEM_TIME;
