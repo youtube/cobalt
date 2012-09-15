@@ -48,6 +48,10 @@ ScopedJavaLocalRef<jstring> ConvertUTF8ToJavaString(
 }
 
 string16 ConvertJavaStringToUTF16(JNIEnv* env, jstring str) {
+  if (!str) {
+    LOG(WARNING) << " ConvertJavaStringToUTF16 called with null string.";
+    return string16();
+  }
   const jchar* chars = env->GetStringChars(str, NULL);
   DCHECK(chars);
   // GetStringChars isn't required to NULL-terminate the strings
