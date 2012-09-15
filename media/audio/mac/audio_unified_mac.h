@@ -5,7 +5,7 @@
 #ifndef MEDIA_AUDIO_MAC_AUDIO_UNIFIED_MAC_H_
 #define MEDIA_AUDIO_MAC_AUDIO_UNIFIED_MAC_H_
 
-#include <AudioUnit/AudioUnit.h>
+#include <CoreAudio/CoreAudio.h>
 
 #include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_io.h"
