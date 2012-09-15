@@ -183,9 +183,6 @@ class NET_EXPORT SSLConfigService
   static void SetDefaultVersionMax(uint16 version_max);
   static uint16 default_version_max();
 
-  // Force channel ID support to be enabled.
-  static void EnableChannelIDTrial();
-
   // Is SNI available in this configuration?
   static bool IsSNIAvailable(SSLConfigService* service);
 
