@@ -162,7 +162,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;
 
-  // For domain bound certificates in client auth.
+  // The service for retrieving Channel ID keys.  May be NULL.
   ServerBoundCertService* server_bound_cert_service_;
 
   // ssl_session_cache_shard_ is an opaque string that partitions the SSL
