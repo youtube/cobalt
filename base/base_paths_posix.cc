@@ -14,6 +14,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
+#include "base/process_util.h"
 #include "base/nix/xdg_util.h"
 
 #if defined(OS_FREEBSD)
@@ -25,10 +26,6 @@
 
 namespace base {
 
-#if defined(OS_LINUX)
-const char kSelfExe[] = "/proc/self/exe";
-#endif
-
 bool PathProviderPosix(int key, FilePath* result) {
   FilePath path;
   switch (key) {
@@ -36,8 +33,8 @@ bool PathProviderPosix(int key, FilePath* result) {
     case base::FILE_MODULE: {  // TODO(evanm): is this correct?
 #if defined(OS_LINUX)
       FilePath bin_dir;
-      if (!file_util::ReadSymbolicLink(FilePath(kSelfExe), &bin_dir)) {
-        NOTREACHED() << "Unable to resolve " << kSelfExe << ".";
+      if (!file_util::ReadSymbolicLink(FilePath(kProcSelfExe), &bin_dir)) {
+        NOTREACHED() << "Unable to resolve " << kProcSelfExe << ".";
         return false;
       }
       *result = bin_dir;
@@ -65,7 +62,7 @@ bool PathProviderPosix(int key, FilePath* result) {
       return true;
 #elif defined(OS_OPENBSD)
       // There is currently no way to get the executable path on OpenBSD
-      char *cpath;
+      char* cpath;
       if ((cpath = getenv("CHROME_EXE_PATH")) != NULL)
         *result = FilePath(cpath);
       else
