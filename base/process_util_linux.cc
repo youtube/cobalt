@@ -288,6 +288,8 @@ namespace base {
 size_t g_oom_size = 0U;
 #endif
 
+const char kProcSelfExe[] = "/proc/self/exe";
+
 ProcessId GetParentProcessId(ProcessHandle process) {
   ProcessId pid = ReadProcStatsAndGetFieldAsInt(process, VM_PPID);
   if (pid)
