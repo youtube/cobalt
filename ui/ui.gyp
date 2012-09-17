@@ -452,6 +452,7 @@
         'gfx/path_aura.cc',
         'gfx/path_gtk.cc',
         'gfx/path_win.cc',
+        'gfx/path_win.h',
         'gfx/platform_font.h',
         'gfx/platform_font_android.cc',
         'gfx/platform_font_ios.h',
@@ -570,7 +571,6 @@
             ['exclude', 'base/dragdrop/os_exchange_data_provider_win.h'],
             ['exclude', 'base/native_theme/native_theme_win.cc'],
             ['exclude', 'base/native_theme/native_theme_win.h'],
-            ['exclude', 'gfx/path_win.cc'],
           ],
         }],
         ['use_aura==0 and toolkit_views==0', {
