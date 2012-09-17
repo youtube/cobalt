@@ -270,7 +270,7 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     return true;
   }
 
-  void ShutDown() {
+  virtual void ShutDown() OVERRIDE {
     if (client_) {
       DCHECK(task_runner_->BelongsToCurrentThread());
       // We must explicitly disable gconf notifications here, because the gconf
@@ -287,7 +287,8 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     }
   }
 
-  bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate) {
+  virtual bool SetUpNotifications(
+      ProxyConfigServiceLinux::Delegate* delegate) OVERRIDE {
     DCHECK(client_);
     DCHECK(task_runner_->BelongsToCurrentThread());
     GError* error = NULL;
@@ -596,7 +597,7 @@ class SettingGetterImplGSettings
     return true;
   }
 
-  void ShutDown() {
+  virtual void ShutDown() OVERRIDE {
     if (client_) {
       DCHECK(task_runner_->BelongsToCurrentThread());
       // This also disables gsettings notifications.
@@ -611,7 +612,8 @@ class SettingGetterImplGSettings
     }
   }
 
-  bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate) {
+  virtual bool SetUpNotifications(
+      ProxyConfigServiceLinux::Delegate* delegate) OVERRIDE {
     DCHECK(client_);
     DCHECK(task_runner_->BelongsToCurrentThread());
     notify_delegate_ = delegate;
@@ -1002,7 +1004,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     return true;
   }
 
-  void ShutDown() {
+  virtual void ShutDown() OVERRIDE {
     if (inotify_fd_ >= 0) {
       ResetCachedSettings();
       inotify_watcher_.StopWatchingFileDescriptor();
@@ -1011,7 +1013,8 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     }
   }
 
-  bool SetUpNotifications(ProxyConfigServiceLinux::Delegate* delegate) {
+  virtual bool SetUpNotifications(
+      ProxyConfigServiceLinux::Delegate* delegate) OVERRIDE {
     DCHECK(inotify_fd_ >= 0);
     DCHECK(MessageLoop::current() == file_loop_);
     // We can't just watch the kioslaverc file directly, since KDE will write
@@ -1036,12 +1039,12 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
   }
 
   // Implement base::MessagePumpLibevent::Watcher.
-  void OnFileCanReadWithoutBlocking(int fd) {
+  virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE {
     DCHECK_EQ(fd, inotify_fd_);
     DCHECK(MessageLoop::current() == file_loop_);
     OnChangeNotification();
   }
-  void OnFileCanWriteWithoutBlocking(int fd) {
+  virtual void OnFileCanWriteWithoutBlocking(int fd) OVERRIDE {
     NOTREACHED();
   }
 
