@@ -7,6 +7,7 @@
 import logging
 import optparse
 import random
+import sys
 import time
 
 from pylib import android_commands
@@ -17,10 +18,6 @@ from pylib import test_result
 
 
 class MonkeyTest(python_test_base.PythonTestBase):
-  def __init__(self, test_name, options):
-    self.options = options
-    super(MonkeyTest, self).__init__(test_name)
-
   def testMonkey(self):
     start_ms = int(time.time()) * 1000
 
@@ -107,8 +104,9 @@ def DispatchPythonTests(options):
   # Actually run the tests.
   logging.debug('Running monkey tests.')
   available_tests *= len(attached_devices)
+  options.ensure_value('shard_retries',1)
   sharder = python_test_sharder.PythonTestSharder(
-      attached_devices, 1, available_tests)
+      attached_devices, available_tests, options)
   result = sharder.RunShardedTests()
   result.LogFull('Monkey', 'Monkey', options.build_type)
   result.PrintAnnotation()
@@ -139,9 +137,11 @@ def main():
   (options, args) = parser.parse_args()
 
   if args:
+    parser.print_help(sys.stderr)
     parser.error('Unknown arguments: %s' % args)
 
   if not options.package_name:
+    parser.print_help(sys.stderr)
     parser.error('Missing package name')
 
   if options.category:
