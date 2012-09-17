@@ -51,6 +51,7 @@ failed on device.
 
 import fnmatch
 import logging
+import optparse
 import os
 import signal
 import subprocess
@@ -375,8 +376,8 @@ def ListTestSuites():
 
 
 def main(argv):
-  option_parser = test_options_parser.CreateTestRunnerOptionParser(
-      None, default_timeout=0)
+  option_parser = optparse.OptionParser()
+  test_options_parser.AddTestRunnerOptions(option_parser, default_timeout=0)
   option_parser.add_option('-s', '--suite', dest='test_suite',
                            help='Executable name of the test suite to run '
                            '(use -s help to list them)')
