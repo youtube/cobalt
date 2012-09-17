@@ -54,6 +54,7 @@ static void RecordStats(const AudioParameters& output_params) {
 
 // Record UMA statistics for hardware output configuration after fallback.
 static void RecordFallbackStats(const AudioParameters& output_params) {
+  UMA_HISTOGRAM_BOOLEAN("Media.FallbackToHighLatencyAudioPath", true);
   UMA_HISTOGRAM_ENUMERATION(
       "Media.FallbackHardwareAudioBitsPerChannel",
       output_params.bits_per_sample(), limits::kMaxBitsPerSample);
@@ -82,6 +83,25 @@ static void RecordFallbackStats(const AudioParameters& output_params) {
   }
 }
 
+// Converts low latency based |output_params| into high latency appropriate
+// output parameters in error situations.
+static AudioParameters SetupFallbackParams(
+    const AudioParameters& input_params, const AudioParameters& output_params) {
+  // Choose AudioParameters appropriate for opening the device in high latency
+  // mode.  |kMinLowLatencyFrameSize| is arbitrarily based on Pepper Flash's
+  // MAXIMUM frame size for low latency.
+  static const int kMinLowLatencyFrameSize = 2048;
+  int frames_per_buffer = std::min(
+      std::max(input_params.frames_per_buffer(), kMinLowLatencyFrameSize),
+      static_cast<int>(
+          GetHighLatencyOutputBufferSize(input_params.sample_rate())));
+
+  return AudioParameters(
+      AudioParameters::AUDIO_PCM_LINEAR, input_params.channel_layout(),
+      input_params.sample_rate(), input_params.bits_per_sample(),
+      frames_per_buffer);
+}
+
 AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
                                            const AudioParameters& input_params,
                                            const AudioParameters& output_params,
@@ -93,9 +113,25 @@ AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
       outstanding_audio_bytes_(0),
       output_params_(output_params) {
   DCHECK_EQ(output_params_.format(), AudioParameters::AUDIO_PCM_LOW_LATENCY);
-  Initialize();
+
   // Record UMA statistics for the hardware configuration.
-  RecordStats(output_params_);
+  RecordStats(output_params);
+
+  // Immediately fallback if we're given invalid output parameters.  This may
+  // happen if the OS provided us junk values for the hardware configuration.
+  if (!output_params_.IsValid()) {
+    LOG(ERROR) << "Invalid audio output parameters recieved; using fallback "
+               << "path. Channels: " << output_params_.channels() << ", "
+               << "Sample Rate: " << output_params_.sample_rate() << ", "
+               << "Bits Per Sample: " << output_params_.bits_per_sample()
+               << ", Frames Per Buffer: " << output_params_.frames_per_buffer();
+    // Record UMA statistics about the hardware which triggered the failure so
+    // we can debug and triage later.
+    RecordFallbackStats(output_params);
+    output_params_ = SetupFallbackParams(input_params, output_params);
+  }
+
+  Initialize();
 }
 
 AudioOutputResampler::~AudioOutputResampler() {}
@@ -158,7 +194,9 @@ void AudioOutputResampler::Initialize() {
 
 bool AudioOutputResampler::OpenStream() {
   if (dispatcher_->OpenStream()) {
-    UMA_HISTOGRAM_BOOLEAN("Media.FallbackToHighLatencyAudioPath", false);
+    // Only record the UMA statistic if we didn't fallback during construction.
+    if (output_params_.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY)
+      UMA_HISTOGRAM_BOOLEAN("Media.FallbackToHighLatencyAudioPath", false);
     return true;
   }
 
@@ -177,22 +215,10 @@ bool AudioOutputResampler::OpenStream() {
   DLOG(ERROR) << "Unable to open audio device in low latency mode.  Falling "
               << "back to high latency audio output.";
 
-  // Record UMA statistics about the hardware which triggered the failure so we
-  // can debug and triage later.
-  UMA_HISTOGRAM_BOOLEAN("Media.FallbackToHighLatencyAudioPath", true);
+  // Record UMA statistics about the hardware which triggered the failure so
+  // we can debug and triage later.
   RecordFallbackStats(output_params_);
-
-  // Open failed!  Attempt to open the output device in high latency mode using
-  // a new high latency appropriate buffer size.  |kMinLowLatencyFrameSize| is
-  // arbitrarily based on Pepper Flash's MAXIMUM frame size for low latency.
-  static const int kMinLowLatencyFrameSize = 2048;
-  int frames_per_buffer = std::min(
-      std::max(params_.frames_per_buffer(), kMinLowLatencyFrameSize),
-      static_cast<int>(GetHighLatencyOutputBufferSize(params_.sample_rate())));
-
-  output_params_ = AudioParameters(
-      AudioParameters::AUDIO_PCM_LINEAR, params_.channel_layout(),
-      params_.sample_rate(), params_.bits_per_sample(), frames_per_buffer);
+  output_params_ = SetupFallbackParams(params_, output_params_);
   Initialize();
 
   // Retry, if this fails, there's nothing left to do but report the error back.
