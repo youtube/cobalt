@@ -18,11 +18,6 @@ using base::android::GetClass;
 using base::android::GetMethodID;
 using base::android::ScopedJavaLocalRef;
 
-JavaVM* g_jvm = NULL;
-
-base::LazyInstance<base::android::ScopedJavaGlobalRef<jobject> >
-    g_application_context = LAZY_INSTANCE_INITIALIZER;
-
 struct MethodIdentifier {
   const char* class_name;
   const char* method;
@@ -48,11 +43,17 @@ struct MethodIdentifier {
 };
 
 typedef std::map<MethodIdentifier, jmethodID> MethodIDMap;
-base::LazyInstance<MethodIDMap>::Leaky
-    g_method_id_map = LAZY_INSTANCE_INITIALIZER;
+
 const base::subtle::AtomicWord kUnlocked = 0;
 const base::subtle::AtomicWord kLocked = 1;
 base::subtle::AtomicWord g_method_id_map_lock = kUnlocked;
+JavaVM* g_jvm = NULL;
+// Leak the global app context, as it is used from a non-joinable worker thread
+// that may still be running at shutdown. There is no harm in doing this.
+base::LazyInstance<base::android::ScopedJavaGlobalRef<jobject> >::Leaky
+    g_application_context = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<MethodIDMap>::Leaky
+    g_method_id_map = LAZY_INSTANCE_INITIALIZER;
 
 std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
   ScopedJavaLocalRef<jclass> throwable_clazz =
@@ -156,7 +157,7 @@ jmethodID GetMethodID(JNIEnv* env,
                       const JavaRef<jclass>& clazz,
                       const char* method_name,
                       const char* jni_signature) {
-  // We can't use clazz.env() as that may be from a different thread.
+  // clazz.env() can not be used as that may be from a different thread.
   return GetMethodID(env, clazz.obj(), method_name, jni_signature);
 }
 
@@ -304,14 +305,14 @@ bool ClearException(JNIEnv* env) {
 void CheckException(JNIEnv* env) {
   if (!HasException(env)) return;
 
-  // Ugh, we are going to die, might as well tell breakpad about it.
+  // Exception has been found, might as well tell breakpad about it.
   jthrowable java_throwable = env->ExceptionOccurred();
   if (!java_throwable) {
-    // Nothing we can do.
+    // Do nothing but return false.
     CHECK(false);
   }
 
-  // Clear the pending exception, we do have a reference to it.
+  // Clear the pending exception, since a local reference is now held.
   env->ExceptionClear();
 
   // Set the exception_string in BuildInfo so that breakpad can read it.
