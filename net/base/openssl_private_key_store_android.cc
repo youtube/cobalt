@@ -47,12 +47,19 @@ class OpenSSLKeyStoreAndroid : public OpenSSLPrivateKeyStore {
   }
 
   static OpenSSLKeyStoreAndroid* GetInstance() {
-    return Singleton<OpenSSLKeyStoreAndroid>::get();
+    // Leak the OpenSSL key store as it is used from a non-joinable worker
+    // thread that may still be running at shutdown.
+    return Singleton<
+        OpenSSLKeyStoreAndroid,
+        OpenSSLKeyStoreAndroidLeakyTraits>::get();
   }
 
  private:
-  OpenSSLKeyStoreAndroid() {}
   friend struct DefaultSingletonTraits<OpenSSLKeyStoreAndroid>;
+  typedef LeakySingletonTraits<OpenSSLKeyStoreAndroid>
+      OpenSSLKeyStoreAndroidLeakyTraits;
+
+  OpenSSLKeyStoreAndroid() {}
 
   DISALLOW_COPY_AND_ASSIGN(OpenSSLKeyStoreAndroid);
 };
