@@ -19,8 +19,7 @@ namespace media {
 WASAPIAudioInputStream::WASAPIAudioInputStream(
     AudioManagerWin* manager, const AudioParameters& params,
     const std::string& device_id)
-    : com_init_(ScopedCOMInitializer::kMTA),
-      manager_(manager),
+    : manager_(manager),
       capture_thread_(NULL),
       opened_(false),
       started_(false),
