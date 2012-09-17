@@ -35,6 +35,7 @@ TCPServerSocketLibevent::TCPServerSocketLibevent(
     const net::NetLog::Source& source)
     : socket_(kInvalidSocket),
       accept_socket_(NULL),
+      reuse_address_(false),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
   net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE,
                       source.ToEventParametersCallback());
@@ -44,6 +45,13 @@ TCPServerSocketLibevent::~TCPServerSocketLibevent() {
   if (socket_ != kInvalidSocket)
     Close();
   net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE);
+}
+
+void TCPServerSocketLibevent::AllowAddressReuse() {
+  DCHECK(CalledOnValidThread());
+  DCHECK_EQ(socket_, kInvalidSocket);
+
+  reuse_address_ = true;
 }
 
 int TCPServerSocketLibevent::Listen(const IPEndPoint& address, int backlog) {
@@ -63,11 +71,15 @@ int TCPServerSocketLibevent::Listen(const IPEndPoint& address, int backlog) {
     return result;
   }
 
+  int result = SetSocketOptions();
+  if (result != OK)
+    return result;
+
   SockaddrStorage storage;
   if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
-  int result = bind(socket_, storage.addr, storage.addr_len);
+  result = bind(socket_, storage.addr, storage.addr_len);
   if (result < 0) {
     PLOG(ERROR) << "bind() returned an error";
     result = MapSystemError(errno);
@@ -123,6 +135,17 @@ int TCPServerSocketLibevent::Accept(
   }
 
   return result;
+}
+
+int TCPServerSocketLibevent::SetSocketOptions() {
+  int true_value = 1;
+  if (reuse_address_) {
+    int rv = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &true_value,
+                        sizeof(true_value));
+    if (rv < 0)
+      return MapSystemError(errno);
+  }
+  return OK;
 }
 
 int TCPServerSocketLibevent::AcceptInternal(
