@@ -48,6 +48,13 @@ common_vars_defines() {
   export PATH=$PATH:${ANDROID_NDK_ROOT}
   export PATH=$PATH:${ANDROID_SDK_ROOT}/tools
   export PATH=$PATH:${ANDROID_SDK_ROOT}/platform-tools
+
+  # This must be set before ANDROID_TOOLCHAIN, so that clang could find the
+  # gold linker.
+  # TODO(michaelbai): Remove this path once the gold linker become the default
+  # linker.
+  export PATH=$PATH:${CHROME_SRC}/build/android/${toolchain_arch}-gold
+
   # Must have tools like arm-linux-androideabi-gcc on the path for ninja
   export PATH=$PATH:${ANDROID_TOOLCHAIN}
 
