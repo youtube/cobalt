@@ -14,13 +14,10 @@
 #include "base/synchronization/lock.h"
 #include "media/audio/audio_manager.h"
 
-namespace base {
-class Thread;
-}
-
 namespace media {
 
 class AudioOutputDispatcher;
+class AudioThread;
 
 // AudioManagerBase provides AudioManager functions common for all platforms.
 class MEDIA_EXPORT AudioManagerBase : public AudioManager {
@@ -108,7 +105,7 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
 
   // Thread used to interact with AudioOutputStreams created by this
   // audio manger.
-  scoped_ptr<base::Thread> audio_thread_;
+  scoped_ptr<media::AudioThread> audio_thread_;
   mutable base::Lock audio_thread_lock_;
 
   // Map of cached AudioOutputDispatcher instances.  Must only be touched

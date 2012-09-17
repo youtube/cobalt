@@ -386,8 +386,7 @@ AUDCLNT_SHAREMODE WASAPIAudioOutputStream::GetShareMode() {
 WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
                                                  const AudioParameters& params,
                                                  ERole device_role)
-    : com_init_(ScopedCOMInitializer::kMTA),
-      creating_thread_id_(base::PlatformThread::CurrentId()),
+    : creating_thread_id_(base::PlatformThread::CurrentId()),
       manager_(manager),
       opened_(false),
       started_(false),
@@ -400,7 +399,6 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
       num_written_frames_(0),
       source_(NULL),
       audio_bus_(AudioBus::Create(params)) {
-  CHECK(com_init_.succeeded());
   DCHECK(manager_);
 
   // Load the Avrt DLL if not already loaded. Required to support MMCSS.

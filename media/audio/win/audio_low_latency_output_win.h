@@ -90,10 +90,6 @@
 //
 // Core Audio API details:
 //
-// - CoInitializeEx() is called on the creating thread and on the internal
-//   capture thread. Each thread's concurrency model and apartment is set
-//   to multi-threaded (MTA). CHECK() is called to ensure that we crash if
-//   CoInitializeEx(MTA) fails.
 // - The public API methods (Open(), Start(), Stop() and Close()) must be
 //   called on constructing thread. The reason is that we want to ensure that
 //   the COM environment is the same for all API implementations.
@@ -294,10 +290,6 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
     return (format_.Format.nChannels / static_cast<double> (
         client_channel_count_));
   }
-
-  // Initializes the COM library for use by the calling thread and sets the
-  // thread's concurrency model to multi-threaded.
-  base::win::ScopedCOMInitializer com_init_;
 
   // Contains the thread ID of the creating thread.
   base::PlatformThreadId creating_thread_id_;
