@@ -297,6 +297,9 @@ void InfiniteCacheTransaction::OnDataRead(const char* data, int data_len) {
   if (!data_len)
     return Finish();
 
+  if (data_len < 0)
+    return OnTruncatedResponse();
+
   resource_data_->details.response_size += data_len;
 
   resource_data_->details.response_hash =
