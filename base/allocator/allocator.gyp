@@ -316,6 +316,7 @@
             'libcmt',
           ],
           'include_dirs': [
+            '<(jemalloc_dir)',
             '<(tcmalloc_dir)/src/windows',
           ],
           'sources!': [
