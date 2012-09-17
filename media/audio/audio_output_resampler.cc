@@ -212,6 +212,10 @@ bool AudioOutputResampler::OpenStream() {
     return false;
   }
 
+  // TODO(dalecurtis): Is it better to recreate the whole |dispatcher_| ?  See
+  // http://crbug.com/149815
+  dispatcher_->CloseStream(NULL);
+
   DLOG(ERROR) << "Unable to open audio device in low latency mode.  Falling "
               << "back to high latency audio output.";
 
