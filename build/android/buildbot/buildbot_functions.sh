@@ -98,7 +98,7 @@ function bb_setup_goma_internal {
 
   echo "Killing old goma processes"
   ${GOMA_DIR}/goma_ctl.sh stop || true
-  killall compiler_proxy || true
+  killall -9 compiler_proxy || true
 
   echo "Starting goma"
   ${GOMA_DIR}/goma_ctl.sh start
