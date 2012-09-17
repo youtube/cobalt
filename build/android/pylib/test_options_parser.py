@@ -12,6 +12,7 @@ _SDK_OUT_DIR = os.path.join(constants.CHROME_DIR, 'out')
 
 
 def AddBuildTypeOption(option_parser):
+  """Decorates OptionParser with build type option."""
   default_build_type = 'Debug'
   if 'BUILDTYPE' in os.environ:
     default_build_type = os.environ['BUILDTYPE']
@@ -25,9 +26,9 @@ def AddBuildTypeOption(option_parser):
                                 'Default is env var BUILDTYPE or Debug.')
 
 
-def CreateTestRunnerOptionParser(usage=None, default_timeout=60):
-  """Returns a new OptionParser with arguments applicable to all tests."""
-  option_parser = optparse.OptionParser(usage=usage)
+def AddTestRunnerOptions(option_parser, default_timeout=60):
+  """Decorates OptionParser with options applicable to all tests."""
+
   option_parser.add_option('-t', dest='timeout',
                            help='Timeout to wait for each test',
                            type='int',
@@ -53,13 +54,12 @@ def CreateTestRunnerOptionParser(usage=None, default_timeout=60):
                            help='Run the test under a tool '
                            '(use --tool help to list them)')
   AddBuildTypeOption(option_parser)
-  return option_parser
 
 
-def ParseInstrumentationArgs(args):
-  """Parse arguments and return options with defaults."""
+def AddInstrumentationOptions(option_parser):
+  """Decorates OptionParser with instrumentation tests options."""
 
-  option_parser = CreateTestRunnerOptionParser()
+  AddTestRunnerOptions(option_parser)
   option_parser.add_option('-w', '--wait_debugger', dest='wait_for_debugger',
                            action='store_true', help='Wait for debugger.')
   option_parser.add_option('-I', dest='install_apk', help='Install APK.',
@@ -102,7 +102,8 @@ def ParseInstrumentationArgs(args):
   option_parser.add_option('--python_test_root',
                            help='Root of the python-driven tests.')
 
-  options, args = option_parser.parse_args(args)
+def ValidateInstrumentationOptions(options, args):
+  """Validate options/arguments and populate options with defaults."""
   if len(args) > 1:
     option_parser.error('Unknown argument:', args[1:])
   if options.java_only and options.python_only:
@@ -130,4 +131,3 @@ def ParseInstrumentationArgs(args):
   else:
     options.annotation = ['Smoke', 'SmallTest', 'MediumTest', 'LargeTest']
 
-  return options
