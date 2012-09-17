@@ -547,6 +547,40 @@
           'use_system_libjpeg%': '<(android_build_type)',
         }],
       ],
+
+      # Set this to 1 to use the Google-internal file containing
+      # official API keys for Google Chrome even in a developer build.
+      # Setting this variable explicitly to 1 will cause your build to
+      # fail if the internal file is missing.
+      #
+      # Set this to 0 to not use the internal file, even when it
+      # exists in your checkout.
+      #
+      # Leave set to 2 to have this variable implicitly set to 1 if
+      # you have src/google_apis/internal/google_chrome_api_keys.h in
+      # your checkout, and implicitly set to 0 if not.
+      #
+      # Note that official builds always behave as if this variable
+      # was explicitly set to 1, i.e. they always use official keys,
+      # and will fail to build if the internal file is missing.
+      'use_official_google_api_keys%': 2,
+
+      # Set these to bake the specified API keys and OAuth client
+      # IDs/secrets into your build.
+      #
+      # If you create a build without values baked in, you can instead
+      # set environment variables to provide the keys at runtime (see
+      # src/google_apis/google_api_keys.h for details).  Features that
+      # require server-side APIs may fail to work if no keys are
+      # provided.
+      #
+      # Note that if you are building an official build or if
+      # use_official_google_api_keys has been set to 1 (explicitly or
+      # implicitly), these values will be ignored and the official
+      # keys will be used instead.
+      'google_api_key%': '',
+      'google_default_client_id%': '',
+      'google_default_client_secret%': '',
     },
 
     # Copy conditionally-set variables out one scope.
@@ -629,6 +663,10 @@
     'use_libjpeg_turbo%': '<(use_libjpeg_turbo)',
     'use_system_libjpeg%': '<(use_system_libjpeg)',
     'android_build_type%': '<(android_build_type)',
+    'use_official_google_api_keys%': '<(use_official_google_api_keys)',
+    'google_api_key%': '<(google_api_key)',
+    'google_default_client_id%': '<(google_default_client_id)',
+    'google_default_client_secret%': '<(google_default_client_secret)',
 
     # Use system yasm instead of bundled one.
     'use_system_yasm%': 0,
@@ -891,24 +929,6 @@
     'windows_sdk_default_path': '<(DEPTH)/third_party/platformsdk_win8/files',
     'directx_sdk_default_path': '<(DEPTH)/third_party/directxsdk/files',
 
-    # Set these to bake API keys and OAuth client IDs/secrets into
-    # your build.  If they are not baked in, you can instead set
-    # environment variables to provide the keys at runtime (see
-    # src/google_apis/google_api_keys.h for details).  Features that
-    # require server-side APIs may fail to work if no keys are
-    # provided.
-    #
-    # Note that if you are building an official build or if you set
-    # use_official_google_api_keys to 1, these values will be ignored
-    # and the official keys will be used instead.
-    'google_api_key%': '',
-    'google_default_client_id%': '',
-    'google_default_client_secret%': '',
-
-    # Set this to 1 to use the Google-internal file containing
-    # official API keys for Google Chrome even in a developer build.
-    'use_official_google_api_keys%': 0,
-
     'conditions': [
       ['OS=="win" and "<!(python <(DEPTH)/build/dir_exists.py <(windows_sdk_default_path))"=="True"', {
         'windows_sdk_path%': '<(windows_sdk_default_path)',
@@ -919,6 +939,15 @@
         'directx_sdk_path%': '<(directx_sdk_default_path)',
       }, {
         'directx_sdk_path%': '$(DXSDK_DIR)',
+      }],
+      # If use_official_google_api_keys is already set (to 0 or 1), we
+      # do none of the implicit checking.  If it is set to 1 and the
+      # internal keys file is missing, the build will fail at compile
+      # time.  If it is set to 0 and keys are not provided by other
+      # means, a warning will be printed at compile time.
+      ['use_official_google_api_keys==2', {
+        'use_official_google_api_keys%':
+            '<!(python <(DEPTH)/google_apis/build/check_internal.py <(DEPTH)/google_apis/internal/google_chrome_api_keys.h)',
       }],
       ['os_posix==1 and OS!="mac" and OS!="ios"', {
         # Figure out the python architecture to decide if we build pyauto.
