@@ -362,8 +362,9 @@ TEST_F(PipelineIntegrationTest, BasicPlayback_16x9AspectRatio) {
   ASSERT_TRUE(WaitUntilOnEnded());
 }
 
-TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
-  MockMediaSource source("bear-320x240-encrypted.webm", kWebM, 220788);
+// TODO(fgalligan): Enable after HMAC has been removed. http://crbug.com/150014
+TEST_F(PipelineIntegrationTest, DISABLED_EncryptedPlayback) {
+  MockMediaSource source("bear-320x240-encrypted.webm", kWebM, 219816);
   FakeDecryptorClient encrypted_media;
   StartPipelineWithEncryptedMedia(&source, &encrypted_media);
 
