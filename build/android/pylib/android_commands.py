@@ -547,9 +547,8 @@ class AndroidCommands(object):
         if not os.path.exists(md5sum_path):
           print >>sys.stderr, 'Please build md5sum.'
           sys.exit(1)
-      if not self.FileExistsOnDevice(MD5SUM_DEVICE_PATH):
-        command = 'push %s %s' % (md5sum_path, MD5SUM_DEVICE_PATH)
-        assert _HasAdbPushSucceeded(self._adb.SendCommand(command))
+      command = 'push %s %s' % (md5sum_path, MD5SUM_DEVICE_PATH)
+      assert _HasAdbPushSucceeded(self._adb.SendCommand(command))
       self._md5sum_path = md5sum_path
 
     self._pushed_files.append(device_path)
