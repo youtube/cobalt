@@ -41,38 +41,33 @@ bool IsMetroProcess() {
     kImmersiveTrue,
     kImmersiveFalse
   };
-  typedef BOOL (WINAPI* IsImmersiveProcessFunc)(HANDLE process);
-
   // The immersive state of a process can never change.
   // Look it up once and cache it here.
   static ImmersiveState state = kImmersiveUnknown;
 
   if (state == kImmersiveUnknown) {
-    // The lookup hasn't been done yet. Note that the code below here is
-    // idempotent, so it doesn't matter if it races to assignment on multiple
-    // threads.
-    HMODULE user32 = ::GetModuleHandleA("user32.dll");
-    DCHECK(user32 != NULL);
-
-    IsImmersiveProcessFunc is_immersive_process =
-        reinterpret_cast<IsImmersiveProcessFunc>(
-            ::GetProcAddress(user32, "IsImmersiveProcess"));
-
-    if (is_immersive_process != NULL) {
-      if (is_immersive_process(::GetCurrentProcess())) {
-        state = kImmersiveTrue;
-      } else {
-        state = kImmersiveFalse;
-      }
+    if (IsProcessImmersive(::GetCurrentProcess())) {
+      state = kImmersiveTrue;
     } else {
-      // No "IsImmersiveProcess" export on user32.dll, so this is pre-Windows8
-      // and therefore not immersive.
       state = kImmersiveFalse;
     }
   }
   DCHECK_NE(kImmersiveUnknown, state);
-
   return state == kImmersiveTrue;
+}
+
+bool IsProcessImmersive(HANDLE process) {
+  typedef BOOL (WINAPI* IsImmersiveProcessFunc)(HANDLE process);
+  HMODULE user32 = ::GetModuleHandleA("user32.dll");
+  DCHECK(user32 != NULL);
+
+  IsImmersiveProcessFunc is_immersive_process =
+      reinterpret_cast<IsImmersiveProcessFunc>(
+          ::GetProcAddress(user32, "IsImmersiveProcess"));
+
+  if (is_immersive_process)
+    return is_immersive_process(process) ? true: false;
+  return false;
 }
 
 bool IsTsfAwareRequired() {
