@@ -27,9 +27,11 @@
         'enable_websockets%': 0,
         # iOS does not use V8.
         'use_v8_in_net%': 0,
+        'enable_built_in_dns%': 0,
       }, {
         'enable_websockets%': 1,
         'use_v8_in_net%': 1,
+        'enable_built_in_dns%': 1,
       }],
     ],
   },
@@ -895,18 +897,28 @@
             'disk_cache/mapped_file_avoid_mmap_posix.cc',
           ],
         }],
-        [ 'disable_ftp_support==1', {
-            'sources/': [
-              ['exclude', '^ftp/'],
-            ],
-            'sources!': [
-              'url_request/ftp_protocol_handler.cc',
-              'url_request/ftp_protocol_handler.h',
-              'url_request/url_request_ftp_job.cc',
-              'url_request/url_request_ftp_job.h',
-            ],
-          },
-        ],
+        ['disable_ftp_support==1', {
+          'sources/': [
+            ['exclude', '^ftp/'],
+          ],
+          'sources!': [
+            'url_request/ftp_protocol_handler.cc',
+            'url_request/ftp_protocol_handler.h',
+            'url_request/url_request_ftp_job.cc',
+            'url_request/url_request_ftp_job.h',
+          ],
+        }],
+        ['enable_built_in_dns==1', {
+          'defines': [
+            'ENABLE_BUILT_IN_DNS',
+          ]
+        }, { # else
+          'sources!': [
+            'dns/address_sorter_posix.cc',
+            'dns/address_sorter_posix.h',
+            'dns/dns_client.cc',
+          ],
+        }],
         ['use_openssl==1', {
             'sources!': [
               'base/cert_database_nss.cc',
@@ -1521,6 +1533,13 @@
             ],
             'sources!': [
               'url_request/url_request_ftp_job_unittest.cc',
+            ],
+          },
+        ],
+        [ 'enable_built_in_dns!=1', {
+            'sources!': [
+              'dns/address_sorter_posix_unittest.cc',
+              'dns/address_sorter_unittest.cc',
             ],
           },
         ],
