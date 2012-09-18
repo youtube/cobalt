@@ -465,16 +465,20 @@ int UDPSocketLibevent::SetSocketOptions() {
                         sizeof(true_value));
     if (rv < 0)
       return MapSystemError(errno);
-#if defined(SO_REUSEPORT)
+  }
+  if (socket_options_ & SOCKET_OPTION_BROADCAST) {
+    int rv;
+#if defined(OS_MACOSX)
+    // SO_REUSEPORT on OSX permits multiple processes to each receive
+    // UDP multicast or broadcast datagrams destined for the bound
+    // port.
     rv = setsockopt(socket_, SOL_SOCKET, SO_REUSEPORT, &true_value,
                     sizeof(true_value));
     if (rv < 0)
       return MapSystemError(errno);
-#endif
-  }
-  if (socket_options_ & SOCKET_OPTION_BROADCAST) {
-    int rv = setsockopt(socket_, SOL_SOCKET, SO_BROADCAST, &true_value,
-                        sizeof(true_value));
+#endif  // defined(OS_MACOSX)
+    rv = setsockopt(socket_, SOL_SOCKET, SO_BROADCAST, &true_value,
+                    sizeof(true_value));
     if (rv < 0)
       return MapSystemError(errno);
   }
