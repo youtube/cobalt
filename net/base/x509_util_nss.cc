@@ -7,8 +7,10 @@
 
 #include <cert.h>
 #include <cryptohi.h>
+#include <nss.h>
 #include <pk11pub.h>
 #include <prerror.h>
+#include <secder.h>
 #include <secmod.h>
 #include <secport.h>
 
@@ -16,11 +18,15 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
+#include "base/pickle.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/nss_util.h"
 #include "crypto/nss_util_internal.h"
 #include "crypto/scoped_nss_types.h"
 #include "crypto/third_party/nss/chromium-nss.h"
+#include "net/base/x509_certificate.h"
+
+namespace net {
 
 namespace {
 
@@ -248,9 +254,26 @@ bool CreateDomainBoundCertInternal(
   return true;
 }
 
-}  // namespace
+// Callback for CERT_DecodeCertPackage(), used in
+// CreateOSCertHandlesFromBytes().
+SECStatus PR_CALLBACK CollectCertsCallback(void* arg,
+                                           SECItem** certs,
+                                           int num_certs) {
+  X509Certificate::OSCertHandles* results =
+      reinterpret_cast<X509Certificate::OSCertHandles*>(arg);
 
-namespace net {
+  for (int i = 0; i < num_certs; ++i) {
+    X509Certificate::OSCertHandle handle =
+        X509Certificate::CreateOSCertHandleFromBytes(
+            reinterpret_cast<char*>(certs[i]->data), certs[i]->len);
+    if (handle)
+      results->push_back(handle);
+  }
+
+  return SECSuccess;
+}
+
+}  // namespace
 
 namespace x509_util {
 
@@ -306,6 +329,203 @@ bool CreateDomainBoundCertEC(
                                        not_valid_after,
                                        der_cert);
 }
+
+#if defined(USE_NSS) || defined(OS_IOS)
+void ParsePrincipal(CERTName* name, CertPrincipal* principal) {
+  typedef char* (*CERTGetNameFunc)(CERTName* name);
+
+  // TODO(jcampan): add business_category and serial_number.
+  // TODO(wtc): NSS has the CERT_GetOrgName, CERT_GetOrgUnitName, and
+  // CERT_GetDomainComponentName functions, but they return only the most
+  // general (the first) RDN.  NSS doesn't have a function for the street
+  // address.
+  static const SECOidTag kOIDs[] = {
+    SEC_OID_AVA_STREET_ADDRESS,
+    SEC_OID_AVA_ORGANIZATION_NAME,
+    SEC_OID_AVA_ORGANIZATIONAL_UNIT_NAME,
+    SEC_OID_AVA_DC };
+
+  std::vector<std::string>* values[] = {
+    &principal->street_addresses,
+    &principal->organization_names,
+    &principal->organization_unit_names,
+    &principal->domain_components };
+  DCHECK_EQ(arraysize(kOIDs), arraysize(values));
+
+  CERTRDN** rdns = name->rdns;
+  for (size_t rdn = 0; rdns[rdn]; ++rdn) {
+    CERTAVA** avas = rdns[rdn]->avas;
+    for (size_t pair = 0; avas[pair] != 0; ++pair) {
+      SECOidTag tag = CERT_GetAVATag(avas[pair]);
+      for (size_t oid = 0; oid < arraysize(kOIDs); ++oid) {
+        if (kOIDs[oid] == tag) {
+          SECItem* decode_item = CERT_DecodeAVAValue(&avas[pair]->value);
+          if (!decode_item)
+            break;
+          // TODO(wtc): Pass decode_item to CERT_RFC1485_EscapeAndQuote.
+          std::string value(reinterpret_cast<char*>(decode_item->data),
+                            decode_item->len);
+          values[oid]->push_back(value);
+          SECITEM_FreeItem(decode_item, PR_TRUE);
+          break;
+        }
+      }
+    }
+  }
+
+  // Get CN, L, S, and C.
+  CERTGetNameFunc get_name_funcs[4] = {
+    CERT_GetCommonName, CERT_GetLocalityName,
+    CERT_GetStateName, CERT_GetCountryName };
+  std::string* single_values[4] = {
+    &principal->common_name, &principal->locality_name,
+    &principal->state_or_province_name, &principal->country_name };
+  for (size_t i = 0; i < arraysize(get_name_funcs); ++i) {
+    char* value = get_name_funcs[i](name);
+    if (value) {
+      single_values[i]->assign(value);
+      PORT_Free(value);
+    }
+  }
+}
+
+void ParseDate(const SECItem* der_date, base::Time* result) {
+  PRTime prtime;
+  SECStatus rv = DER_DecodeTimeChoice(&prtime, der_date);
+  DCHECK_EQ(SECSuccess, rv);
+  *result = crypto::PRTimeToBaseTime(prtime);
+}
+
+std::string ParseSerialNumber(const CERTCertificate* certificate) {
+  return std::string(reinterpret_cast<char*>(certificate->serialNumber.data),
+                     certificate->serialNumber.len);
+}
+
+void GetSubjectAltName(CERTCertificate* cert_handle,
+                       std::vector<std::string>* dns_names,
+                       std::vector<std::string>* ip_addrs) {
+  if (dns_names)
+    dns_names->clear();
+  if (ip_addrs)
+    ip_addrs->clear();
+
+  SECItem alt_name;
+  SECStatus rv = CERT_FindCertExtension(cert_handle,
+                                        SEC_OID_X509_SUBJECT_ALT_NAME,
+                                        &alt_name);
+  if (rv != SECSuccess)
+    return;
+
+  PLArenaPool* arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+  DCHECK(arena != NULL);
+
+  CERTGeneralName* alt_name_list;
+  alt_name_list = CERT_DecodeAltNameExtension(arena, &alt_name);
+  SECITEM_FreeItem(&alt_name, PR_FALSE);
+
+  CERTGeneralName* name = alt_name_list;
+  while (name) {
+    // DNSName and IPAddress are encoded as IA5String and OCTET STRINGs
+    // respectively, both of which can be byte copied from
+    // SECItemType::data into the appropriate output vector.
+    if (dns_names && name->type == certDNSName) {
+      dns_names->push_back(std::string(
+          reinterpret_cast<char*>(name->name.other.data),
+          name->name.other.len));
+    } else if (ip_addrs && name->type == certIPAddress) {
+      ip_addrs->push_back(std::string(
+          reinterpret_cast<char*>(name->name.other.data),
+          name->name.other.len));
+    }
+    name = CERT_GetNextGeneralName(name);
+    if (name == alt_name_list)
+      break;
+  }
+  PORT_FreeArena(arena, PR_FALSE);
+}
+
+X509Certificate::OSCertHandles CreateOSCertHandlesFromBytes(
+    const char* data,
+    int length,
+    X509Certificate::Format format) {
+  X509Certificate::OSCertHandles results;
+  if (length < 0)
+    return results;
+
+  crypto::EnsureNSSInit();
+
+  if (!NSS_IsInitialized())
+    return results;
+
+  switch (format) {
+    case X509Certificate::FORMAT_SINGLE_CERTIFICATE: {
+      X509Certificate::OSCertHandle handle =
+          X509Certificate::CreateOSCertHandleFromBytes(data, length);
+      if (handle)
+        results.push_back(handle);
+      break;
+    }
+    case X509Certificate::FORMAT_PKCS7: {
+      // Make a copy since CERT_DecodeCertPackage may modify it
+      std::vector<char> data_copy(data, data + length);
+
+      SECStatus result = CERT_DecodeCertPackage(&data_copy[0],
+          length, CollectCertsCallback, &results);
+      if (result != SECSuccess)
+        results.clear();
+      break;
+    }
+    default:
+      NOTREACHED() << "Certificate format " << format << " unimplemented";
+      break;
+  }
+
+  return results;
+}
+
+X509Certificate::OSCertHandle ReadOSCertHandleFromPickle(
+    PickleIterator* pickle_iter) {
+  const char* data;
+  int length;
+  if (!pickle_iter->ReadData(&data, &length))
+    return NULL;
+
+  return X509Certificate::CreateOSCertHandleFromBytes(data, length);
+}
+
+void GetPublicKeyInfo(CERTCertificate* handle,
+                      size_t* size_bits,
+                      X509Certificate::PublicKeyType* type) {
+  // Since we might fail, set the output parameters to default values first.
+  *type = X509Certificate::kPublicKeyTypeUnknown;
+  *size_bits = 0;
+
+  crypto::ScopedSECKEYPublicKey key(CERT_ExtractPublicKey(handle));
+  if (!key.get())
+    return;
+
+  *size_bits = SECKEY_PublicKeyStrengthInBits(key.get());
+
+  switch (key->keyType) {
+    case rsaKey:
+      *type = X509Certificate::kPublicKeyTypeRSA;
+      break;
+    case dsaKey:
+      *type = X509Certificate::kPublicKeyTypeDSA;
+      break;
+    case dhKey:
+      *type = X509Certificate::kPublicKeyTypeDH;
+      break;
+    case ecKey:
+      *type = X509Certificate::kPublicKeyTypeECDSA;
+      break;
+    default:
+      *type = X509Certificate::kPublicKeyTypeUnknown;
+      *size_bits = 0;
+      break;
+  }
+}
+#endif  // defined(USE_NSS) || defined(OS_IOS)
 
 } // namespace x509_util
 
