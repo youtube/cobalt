@@ -479,7 +479,7 @@ void InfiniteCache::Worker::DeleteDataBetween(base::Time initial_time,
   file_util::Delete(path_, false);
   StoreData();
   *result = OK;
-  UMA_HISTOGRAM_BOOLEAN("InfiniteCache.DeleteAll", true);
+  UMA_HISTOGRAM_BOOLEAN("InfiniteCache.DeleteRange", true);
 }
 
 void InfiniteCache::Worker::Process(
