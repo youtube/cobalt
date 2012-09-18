@@ -227,11 +227,12 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       gfx::Size natural_size = GetNaturalSize(visible_rect.size(),
                                               entry.pixel_aspect.h_spacing,
                                               entry.pixel_aspect.v_spacing);
+      bool is_encrypted = entry.sinf.info.track_encryption.is_encrypted;
       video_config.Initialize(kCodecH264, H264PROFILE_MAIN,  VideoFrame::YV12,
                               coded_size, visible_rect, natural_size,
                               // No decoder-specific buffer needed for AVC;
                               // SPS/PPS are embedded in the video stream
-                              NULL, 0, true);
+                              NULL, 0, is_encrypted, true);
       has_video_ = true;
       video_track_id_ = track->header.track_id;
     }
