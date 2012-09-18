@@ -81,6 +81,7 @@ TEST(MimeUtilTest, LookupTypes) {
 TEST(MimeUtilTest, MatchesMimeType) {
   EXPECT_TRUE(MatchesMimeType("*", "video/x-mpeg"));
   EXPECT_TRUE(MatchesMimeType("video/*", "video/x-mpeg"));
+  EXPECT_TRUE(MatchesMimeType("video/*", "video/*"));
   EXPECT_TRUE(MatchesMimeType("video/x-mpeg", "video/x-mpeg"));
   EXPECT_TRUE(MatchesMimeType("application/*+xml",
                                    "application/html+xml"));
