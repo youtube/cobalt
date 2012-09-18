@@ -51,6 +51,8 @@ BuildInfo::BuildInfo(JNIEnv* env)
           env, GetApplicationContext()))),
       package_version_name_(StrDupJString(Java_BuildInfo_getPackageVersionName(
           env, GetApplicationContext()))),
+      package_label_(StrDupJString(Java_BuildInfo_getPackageLabel(
+          env, GetApplicationContext()))),
       java_exception_info_(NULL) {
 }
 
