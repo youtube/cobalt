@@ -6,6 +6,9 @@
 
 #include "base/logging.h"
 
+using base::subtle::Atomic32;
+using base::subtle::NoBarrier_Store;
+
 namespace media {
 
 // Given current position in the FIFO, the maximum number of elements in the
@@ -40,11 +43,18 @@ static int UpdatePos(int pos, int step, int max_size) {
 AudioFifo::AudioFifo(int channels, int frames)
     : audio_bus_(AudioBus::Create(channels, frames)),
       max_frames_(frames),
-      frames_(0),
+      frames_pushed_(0),
+      frames_consumed_(0),
       read_pos_(0),
       write_pos_(0) {}
 
 AudioFifo::~AudioFifo() {}
+
+int AudioFifo::frames() const {
+  int delta = frames_pushed_ - frames_consumed_;
+  base::subtle::MemoryBarrier();
+  return delta;
+}
 
 void AudioFifo::Push(const AudioBus* source) {
   DCHECK(source);
@@ -52,7 +62,7 @@ void AudioFifo::Push(const AudioBus* source) {
 
   // Ensure that there is space for the new data in the FIFO.
   const int source_size = source->frames();
-  CHECK_LE(source_size + frames_, max_frames_);
+  CHECK_LE(source_size + frames(), max_frames_);
 
   // Figure out if wrapping is needed and if so what segment sizes we need
   // when adding the new audio bus content to the FIFO.
@@ -73,8 +83,13 @@ void AudioFifo::Push(const AudioBus* source) {
     }
   }
 
-  frames_ += source_size;
-  DCHECK_LE(frames_, max_frames());
+  // Ensure the data is *really* written before updating |frames_pushed_|.
+  base::subtle::MemoryBarrier();
+
+  Atomic32 new_frames_pushed = frames_pushed_ + source_size;
+  NoBarrier_Store(&frames_pushed_, new_frames_pushed);
+
+  DCHECK_LE(frames(), max_frames());
   write_pos_ = UpdatePos(write_pos_, source_size, max_frames());
 }
 
@@ -85,7 +100,7 @@ void AudioFifo::Consume(AudioBus* destination,
   DCHECK_EQ(destination->channels(), audio_bus_->channels());
 
   // It is not possible to ask for more data than what is available in the FIFO.
-  CHECK_LE(frames_to_consume, frames_);
+  CHECK_LE(frames_to_consume, frames());
 
   // A copy from the FIFO to |destination| will only be performed if the
   // allocated memory in |destination| is sufficient.
@@ -113,12 +128,15 @@ void AudioFifo::Consume(AudioBus* destination,
     }
   }
 
-  frames_ -= frames_to_consume;
+  Atomic32 new_frames_consumed = frames_consumed_ + frames_to_consume;
+  NoBarrier_Store(&frames_consumed_, new_frames_consumed);
+
   read_pos_ = UpdatePos(read_pos_, frames_to_consume, max_frames());
 }
 
 void AudioFifo::Clear() {
-  frames_ = 0;
+  frames_pushed_ = 0;
+  frames_consumed_ = 0;
   read_pos_ = 0;
   write_pos_ = 0;
 }

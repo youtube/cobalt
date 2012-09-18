@@ -105,7 +105,8 @@ static void CheckOverflow(int start_frame, int frames, int total_frames) {
 }
 
 AudioBus::AudioBus(int channels, int frames)
-    : frames_(frames) {
+    : frames_(frames),
+      can_set_channel_data_(false) {
   ValidateConfig(channels, frames_);
 
   int aligned_frames = 0;
@@ -118,7 +119,8 @@ AudioBus::AudioBus(int channels, int frames)
 }
 
 AudioBus::AudioBus(int channels, int frames, float* data)
-    : frames_(frames) {
+    : frames_(frames),
+      can_set_channel_data_(false) {
   ValidateConfig(channels, frames_);
 
   int aligned_frames = 0;
@@ -129,12 +131,21 @@ AudioBus::AudioBus(int channels, int frames, float* data)
 
 AudioBus::AudioBus(int frames, const std::vector<float*>& channel_data)
     : channel_data_(channel_data),
-      frames_(frames) {
+      frames_(frames),
+      can_set_channel_data_(false) {
   ValidateConfig(channel_data_.size(), frames_);
 
   // Sanity check wrapped vector for alignment and channel count.
   for (size_t i = 0; i < channel_data_.size(); ++i)
     DCHECK(IsAligned(channel_data_[i]));
+}
+
+AudioBus::AudioBus(int channels)
+    : channel_data_(channels),
+      frames_(0),
+      can_set_channel_data_(true) {
+  for (size_t i = 0; i < channel_data_.size(); ++i)
+    channel_data_[i] = NULL;
 }
 
 AudioBus::~AudioBus() {}
@@ -146,6 +157,10 @@ scoped_ptr<AudioBus> AudioBus::Create(int channels, int frames) {
 scoped_ptr<AudioBus> AudioBus::Create(const AudioParameters& params) {
   return scoped_ptr<AudioBus>(new AudioBus(
       params.channels(), params.frames_per_buffer()));
+}
+
+scoped_ptr<AudioBus> AudioBus::CreateWrapper(int channels) {
+  return scoped_ptr<AudioBus>(new AudioBus(channels));
 }
 
 scoped_ptr<AudioBus> AudioBus::WrapVector(
@@ -168,6 +183,19 @@ scoped_ptr<AudioBus> AudioBus::WrapMemory(const AudioParameters& params,
   return scoped_ptr<AudioBus>(new AudioBus(
       params.channels(), params.frames_per_buffer(),
       static_cast<float*>(data)));
+}
+
+void AudioBus::SetChannelData(int channel, float* data) {
+  CHECK(can_set_channel_data_);
+  CHECK_GE(channel, 0);
+  CHECK_LT(static_cast<size_t>(channel), channel_data_.size());
+  DCHECK(IsAligned(data));
+  channel_data_[channel] = data;
+}
+
+void AudioBus::set_frames(int frames) {
+  CHECK(can_set_channel_data_);
+  frames_ = frames;
 }
 
 void AudioBus::ZeroFramesPartial(int start_frame, int frames) {

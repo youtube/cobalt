@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/command_line.h"
 #include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
@@ -14,7 +15,10 @@
 #include "media/audio/mac/audio_low_latency_output_mac.h"
 #include "media/audio/mac/audio_manager_mac.h"
 #include "media/audio/mac/audio_output_mac.h"
+#include "media/audio/mac/audio_synchronized_mac.h"
+#include "media/audio/mac/audio_unified_mac.h"
 #include "media/base/limits.h"
+#include "media/base/media_switches.h"
 
 namespace media {
 
@@ -37,6 +41,45 @@ static bool HasAudioHardware(AudioObjectPropertySelector selector) {
                                             &output_device_id);
   return err == kAudioHardwareNoError &&
       output_device_id != kAudioObjectUnknown;
+}
+
+// Returns true if the default input device is the same as
+// the default output device.
+static bool HasUnifiedDefaultIO() {
+  AudioDeviceID input_id, output_id;
+
+  AudioObjectPropertyAddress pa;
+  pa.mSelector = kAudioHardwarePropertyDefaultInputDevice;
+  pa.mScope = kAudioObjectPropertyScopeGlobal;
+  pa.mElement = kAudioObjectPropertyElementMaster;
+  UInt32 size = sizeof(input_id);
+
+  // Get the default input.
+  OSStatus result = AudioObjectGetPropertyData(
+      kAudioObjectSystemObject,
+      &pa,
+      0,
+      0,
+      &size,
+      &input_id);
+
+  if (result != noErr)
+    return false;
+
+  // Get the default output.
+  pa.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+  result = AudioObjectGetPropertyData(
+      kAudioObjectSystemObject,
+      &pa,
+      0,
+      0,
+      &size,
+      &output_id);
+
+  if (result != noErr)
+    return false;
+
+  return input_id == output_id;
 }
 
 static void GetAudioDeviceInfo(bool is_input,
@@ -250,6 +293,20 @@ AudioOutputStream* AudioManagerMac::MakeLinearOutputStream(
 AudioOutputStream* AudioManagerMac::MakeLowLatencyOutputStream(
     const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
+
+  // TODO(crogers): remove once we properly handle input device selection.
+  if (CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kEnableWebAudioInput)) {
+    if (HasUnifiedDefaultIO())
+      return new AudioHardwareUnifiedStream(this, params);
+
+    // kAudioDeviceUnknown translates to "use default" here.
+    return new AudioSynchronizedStream(this,
+                                       params,
+                                       kAudioDeviceUnknown,
+                                       kAudioDeviceUnknown);
+  }
+
   return new AUAudioOutputStream(this, params);
 }
 
