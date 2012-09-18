@@ -91,6 +91,14 @@ bool enable_histogrammer_ = false;
 
 MessageLoop::MessagePumpFactory* message_pump_for_ui_factory_ = NULL;
 
+// Create a process-wide unique ID to represent this task in trace events. This
+// will be mangled with a Process ID hash to reduce the likelyhood of colliding
+// with MessageLoop pointers on other processes.
+uint64 GetTaskTraceID(const PendingTask& task, MessageLoop* loop) {
+  return (static_cast<uint64>(task.sequence_num) << 32) |
+         static_cast<uint64>(reinterpret_cast<intptr_t>(loop));
+}
+
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -434,6 +442,8 @@ bool MessageLoop::ProcessNextDelayedNonNestableTask() {
 }
 
 void MessageLoop::RunTask(const PendingTask& pending_task) {
+  TRACE_EVENT_FLOW_END0("task", "MessageLoop::PostTask",
+      TRACE_ID_MANGLE(GetTaskTraceID(pending_task, this)));
   TRACE_EVENT2("task", "MessageLoop::RunTask",
                "src_file", pending_task.posted_from.file_name(),
                "src_func", pending_task.posted_from.function_name());
@@ -482,13 +492,8 @@ bool MessageLoop::DeferOrRunPendingTask(const PendingTask& pending_task) {
 }
 
 void MessageLoop::AddToDelayedWorkQueue(const PendingTask& pending_task) {
-  // Move to the delayed work queue.  Initialize the sequence number
-  // before inserting into the delayed_work_queue_.  The sequence number
-  // is used to faciliate FIFO sorting when two tasks have the same
-  // delayed_run_time value.
-  PendingTask new_pending_task(pending_task);
-  new_pending_task.sequence_num = next_sequence_num_++;
-  delayed_work_queue_.push(new_pending_task);
+  // Move to the delayed work queue.
+  delayed_work_queue_.push(pending_task);
 }
 
 void MessageLoop::ReloadWorkQueue() {
@@ -585,6 +590,14 @@ void MessageLoop::AddToIncomingQueue(PendingTask* pending_task) {
   scoped_refptr<base::MessagePump> pump;
   {
     base::AutoLock locked(incoming_queue_lock_);
+
+    // Initialize the sequence number. The sequence number is used for delayed
+    // tasks (to faciliate FIFO sorting when two tasks have the same
+    // delayed_run_time value) and for identifying the task in about:tracing.
+    pending_task->sequence_num = next_sequence_num_++;
+
+    TRACE_EVENT_FLOW_BEGIN0("task", "MessageLoop::PostTask",
+        TRACE_ID_MANGLE(GetTaskTraceID(*pending_task, this)));
 
     bool was_empty = incoming_queue_.empty();
     incoming_queue_.push(*pending_task);
