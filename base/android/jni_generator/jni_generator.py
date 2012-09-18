@@ -151,6 +151,7 @@ def JavaParamToJni(param):
       'Lcom/google/android/apps/chrome/AutofillData',
       'Lcom/google/android/apps/chrome/ChromeHttpAuthHandler',
       'Lcom/google/android/apps/chrome/ChromeContextMenuInfo',
+      'Lcom/google/android/apps/chrome/ChromeWindow',
       'Lcom/google/android/apps/chrome/OmniboxSuggestion',
       'Lcom/google/android/apps/chrome/PageInfoViewer',
       'Lcom/google/android/apps/chrome/Tab',
@@ -170,7 +171,6 @@ def JavaParamToJni(param):
       'Lorg/chromium/chrome/browser/FindNotificationDetails',
       'Lorg/chromium/chrome/browser/JavascriptAppModalDialog',
       'Lorg/chromium/chrome/browser/ProcessUtils',
-      'Lorg/chromium/chrome/browser/SelectFileDialog',
       'Lorg/chromium/chrome/browser/component/web_contents_delegate_android/WebContentsDelegateAndroid',
       'Lorg/chromium/content/browser/ContentVideoView',
       'Lorg/chromium/content/browser/ContentViewClient',
@@ -191,6 +191,8 @@ def JavaParamToJni(param):
       'Lorg/chromium/media/MediaPlayerListener',
       'Lorg/chromium/net/NetworkChangeNotifier',
       'Lorg/chromium/net/ProxyChangeListener',
+      'Lorg/chromium/ui/gfx/NativeWindow',
+      'Lorg/chromium/ui/SelectFileDialog',
   ]
   if param == 'byte[][]':
     return '[[B'
