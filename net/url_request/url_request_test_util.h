@@ -37,6 +37,7 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_context_storage.h"
+#include "net/url_request/url_request_job_factory.h"
 
 using base::TimeDelta;
 
@@ -294,6 +295,29 @@ class ScopedCustomUrlRequestTestHttpHost {
   const std::string new_value_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedCustomUrlRequestTestHttpHost);
+};
+
+//-----------------------------------------------------------------------------
+
+// A simple Interceptor that returns a pre-built URLRequestJob only once.
+class TestJobInterceptor : public net::URLRequestJobFactory::Interceptor {
+ public:
+  TestJobInterceptor();
+
+  virtual net::URLRequestJob* MaybeIntercept(
+      net::URLRequest* request,
+      net::NetworkDelegate* network_delegate) const OVERRIDE;
+  virtual net::URLRequestJob* MaybeInterceptRedirect(
+      const GURL& location,
+      net::URLRequest* request,
+      net::NetworkDelegate* network_delegate) const OVERRIDE;
+  virtual net::URLRequestJob* MaybeInterceptResponse(
+      net::URLRequest* request,
+      net::NetworkDelegate* network_delegate) const OVERRIDE;
+  void set_main_intercept_job(net::URLRequestJob* job);
+
+ private:
+  mutable net::URLRequestJob* main_intercept_job_;
 };
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_TEST_UTIL_H_
