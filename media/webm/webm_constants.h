@@ -199,11 +199,9 @@ const int64 kWebMUnknownSize = GG_LONGLONG(0x00FFFFFFFFFFFFFF);
 
 const uint8 kWebMFlagKeyframe = 0x80;
 
-// The size is from the WebM encrypted specification. Current encrypted WebM
-// request for comments specification is here
+// Current encrypted WebM request for comments specification is here
 // http://wiki.webmproject.org/encryption/webm-encryption-rfc
 const uint8 kWebMFlagEncryptedFrame = 0x1;
-const int kWebMHmacSize = 12;
 
 }  // namespace media
 

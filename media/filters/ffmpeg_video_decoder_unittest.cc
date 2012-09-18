@@ -40,7 +40,6 @@ static const gfx::Rect kVisibleRect(320, 240);
 static const gfx::Size kNaturalSize(320, 240);
 static const uint8 kFakeKeyId[] = { 0x4b, 0x65, 0x79, 0x20, 0x49, 0x44 };
 static const uint8 kFakeIv[DecryptConfig::kDecryptionKeySize] = { 0 };
-static const uint8 kFakeCheckSum[] = { 0, 0 };
 
 // Create a fake non-empty encrypted buffer.
 static scoped_refptr<DecoderBuffer> CreateFakeEncryptedBuffer() {
@@ -52,8 +51,6 @@ static scoped_refptr<DecoderBuffer> CreateFakeEncryptedBuffer() {
                   arraysize(kFakeKeyId)),
       std::string(reinterpret_cast<const char*>(kFakeIv),
                   DecryptConfig::kDecryptionKeySize),
-      std::string(reinterpret_cast<const char*>(kFakeCheckSum),
-                  arraysize(kFakeCheckSum)),
       encrypted_frame_offset,
       std::vector<SubsampleEntry>())));
   return buffer;

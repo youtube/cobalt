@@ -203,46 +203,42 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   base::TimeDelta timestamp = base::TimeDelta::FromMicroseconds(
       (cluster_timecode_ + timecode) * timecode_multiplier_);
 
-  // Every encrypted Block has an HMAC and IV prepended to it. Current encrypted
-  // WebM request for comments specification is here
+  // Every encrypted Block has a signal byte and IV prepended to it. Current
+  // encrypted WebM request for comments specification is here
   // http://wiki.webmproject.org/encryption/webm-encryption-rfc
   bool is_track_encrypted =
       track_num == video_.track_num() && !video_encryption_key_id_.empty();
-
-  // If stream is encrypted skip past the HMAC. Encrypted buffers must include
-  // the signal byte, the IV (if frame is encrypted) and
-  // the frame because the decryptor will verify this data before decryption.
-  // The HMAC and IV will be copied into DecryptConfig.
-  int offset = (is_track_encrypted) ? kWebMHmacSize : 0;
 
   // The first bit of the flags is set when the block contains only keyframes.
   // http://www.matroska.org/technical/specs/index.html
   bool is_keyframe = (flags & 0x80) != 0;
   scoped_refptr<StreamParserBuffer> buffer =
-      StreamParserBuffer::CopyFrom(data + offset, size - offset, is_keyframe);
+      StreamParserBuffer::CopyFrom(data, size, is_keyframe);
 
   if (is_track_encrypted) {
-    uint8 signal_byte = data[kWebMHmacSize];
+    uint8 signal_byte = data[0];
     int data_offset = sizeof(signal_byte);
 
     // Setting the DecryptConfig object of the buffer while leaving the
     // initialization vector empty will tell the decryptor that the frame is
-    // unencrypted but integrity should still be checked.
+    // unencrypted.
     std::string counter_block;
 
     if (signal_byte & kWebMFlagEncryptedFrame) {
       uint64 network_iv;
-      memcpy(&network_iv, data + kWebMHmacSize + data_offset,
-             sizeof(network_iv));
+      memcpy(&network_iv, data + data_offset, sizeof(network_iv));
       const uint64 iv = base::NetToHost64(network_iv);
       counter_block = GenerateCounterBlock(iv);
       data_offset += sizeof(iv);
     }
 
+    // TODO(fgalligan): Revisit if DecryptConfig needs to be set on unencrypted
+    // frames after the CDM API is finalized.
+    // Unencrypted frames of potentially encrypted streams currently set
+    // DecryptConfig.
     buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
         video_encryption_key_id_,
         counter_block,
-        std::string(reinterpret_cast<const char*>(data), kWebMHmacSize),
         data_offset,
         std::vector<SubsampleEntry>())));
   }

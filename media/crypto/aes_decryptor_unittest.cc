@@ -41,8 +41,7 @@ struct WebmEncryptedData {
 static const char kClearKeySystem[] = "org.w3.clearkey";
 
 // Frames 0 & 1 are encrypted with the same key. Frame 2 is encrypted with a
-// different key. Frame 3 has the same HMAC key as frame 2, but frame 3 is
-// unencrypted.
+// different key. Frame 3 is unencrypted.
 const WebmEncryptedData kWebmEncryptedFrames[] = {
   {
     // plaintext
@@ -57,12 +56,10 @@ const WebmEncryptedData kWebmEncryptedFrames[] = {
       0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23
       }, 16,
     // encrypted_data
-    { 0x3c, 0x4e, 0xb8, 0xd9, 0x5c, 0x20, 0x48, 0x18,
-      0x4f, 0x03, 0x74, 0xa1, 0x01, 0xff, 0xff, 0xff,
-      0xff, 0xff, 0xff, 0xff, 0xff, 0x99, 0xaa, 0xff,
-      0xb7, 0x74, 0x02, 0x4e, 0x1c, 0x75, 0x3d, 0xee,
-      0xcb, 0x64, 0xf7
-      }, 35
+    { 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xf0, 0xd1, 0x12, 0xd5, 0x24, 0x81, 0x96,
+      0x55, 0x1b, 0x68, 0x9f, 0x38, 0x91, 0x85
+      }, 23
   },
   {
     // plaintext
@@ -77,13 +74,11 @@ const WebmEncryptedData kWebmEncryptedFrames[] = {
       0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23
       }, 16,
     // encrypted_data
-    { 0xe8, 0x4c, 0x51, 0x33, 0x14, 0x0d, 0xc7, 0x17,
-      0x32, 0x60, 0xc9, 0xd0, 0x01, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0xec, 0x8e, 0x87,
-      0x21, 0xd3, 0xb9, 0x1c, 0x61, 0xf6, 0x5a, 0x60,
-      0xaa, 0x07, 0x0e, 0x96, 0xd0, 0x54, 0x5d, 0x35,
-      0x9a, 0x4a, 0xd3
-      }, 43
+    { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x57, 0x66, 0xf4, 0x12, 0x1a, 0xed, 0xb5,
+      0x79, 0x1c, 0x8e, 0x25, 0xd7, 0x17, 0xe7, 0x5e,
+      0x16, 0xe3, 0x40, 0x08, 0x27, 0x11, 0xe9
+      }, 31
   },
   {
     // plaintext
@@ -97,12 +92,10 @@ const WebmEncryptedData kWebmEncryptedFrames[] = {
       0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40
       }, 16,
     // encrypted_data
-    { 0x46, 0x93, 0x8c, 0x93, 0x48, 0xf9, 0xeb, 0x30,
-      0x74, 0x55, 0x6b, 0xf2, 0x01, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x01, 0x48, 0x5e, 0x4a,
-      0x41, 0x2a, 0x8b, 0xf4, 0xc6, 0x47, 0x54, 0x90,
-      0x34, 0xf4, 0x8b
-      }, 35
+    { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x01, 0x9c, 0x71, 0x26, 0x57, 0x3e, 0x25, 0x37,
+      0xf7, 0x31, 0x81, 0x19, 0x64, 0xce, 0xbc
+      }, 23
   },
   {
     // plaintext
@@ -116,14 +109,14 @@ const WebmEncryptedData kWebmEncryptedFrames[] = {
       0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40
       }, 16,
     // encrypted_data
-    { 0xee, 0xd6, 0xf5, 0x64, 0x5f, 0xe0, 0x6a, 0xa2,
-      0x9e, 0xd6, 0xce, 0x34, 0x00, 0x43, 0x68, 0x61,
-      0x6e, 0x67, 0x65, 0x64, 0x20, 0x4f, 0x72, 0x69,
-      0x67, 0x69, 0x6e, 0x61, 0x6c, 0x20, 0x64, 0x61,
-      0x74, 0x61, 0x2e
-      }, 35
+    { 0x00, 0x43, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x64,
+      0x20, 0x4f, 0x72, 0x69, 0x67, 0x69, 0x6e, 0x61,
+      0x6c, 0x20, 0x64, 0x61, 0x74, 0x61, 0x2e
+      }, 23
   }
 };
+
+
 
 static const uint8 kWebmWrongSizedKey[] = { 0x20, 0x20 };
 
@@ -184,28 +177,28 @@ static std::string GenerateCounterBlock(const uint8* iv, int iv_size) {
 // Creates a WebM encrypted buffer that the demuxer would pass to the
 // decryptor. |data| is the payload of a WebM encrypted Block. |key_id| is
 // initialization data from the WebM file. Every encrypted Block has
-// an HMAC and a signal byte prepended to a frame. If the frame is encrypted
-// then an IV is prepended to the Block. Current encrypted WebM request for
-// comments specification is here
+// a signal byte prepended to a frame. If the frame is encrypted then an IV is
+// prepended to the Block. Current encrypted WebM request for comments
+// specification is here
 // http://wiki.webmproject.org/encryption/webm-encryption-rfc
 static scoped_refptr<DecoderBuffer> CreateWebMEncryptedBuffer(
     const uint8* data, int data_size,
     const uint8* key_id, int key_id_size) {
   scoped_refptr<DecoderBuffer> encrypted_buffer = DecoderBuffer::CopyFrom(
-      data + kWebMHmacSize, data_size - kWebMHmacSize);
+      data, data_size);
   CHECK(encrypted_buffer);
 
-  uint8 signal_byte = data[kWebMHmacSize];
+  uint8 signal_byte = data[0];
   int data_offset = sizeof(signal_byte);
 
   // Setting the DecryptConfig object of the buffer while leaving the
   // initialization vector empty will tell the decryptor that the frame is
-  // unencrypted but integrity should still be checked.
+  // unencrypted.
   std::string counter_block_str;
 
   if (signal_byte & kWebMFlagEncryptedFrame) {
     uint64 network_iv;
-    memcpy(&network_iv, data + kWebMHmacSize + data_offset, sizeof(network_iv));
+    memcpy(&network_iv, data + data_offset, sizeof(network_iv));
     const uint64 iv = base::NetToHost64(network_iv);
     counter_block_str =
         GenerateCounterBlock(reinterpret_cast<const uint8*>(&iv), sizeof(iv));
@@ -216,7 +209,6 @@ static scoped_refptr<DecoderBuffer> CreateWebMEncryptedBuffer(
       scoped_ptr<DecryptConfig>(new DecryptConfig(
           std::string(reinterpret_cast<const char*>(key_id), key_id_size),
           counter_block_str,
-          std::string(reinterpret_cast<const char*>(data), kWebMHmacSize),
           data_offset,
           std::vector<SubsampleEntry>())));
   return encrypted_buffer;
@@ -235,7 +227,6 @@ static scoped_refptr<DecoderBuffer> CreateSubsampleEncryptedBuffer(
       scoped_ptr<DecryptConfig>(new DecryptConfig(
           std::string(reinterpret_cast<const char*>(key_id), key_id_size),
           std::string(reinterpret_cast<const char*>(iv), iv_size),
-          std::string(),
           data_offset,
           subsample_entries)));
   return encrypted_buffer;
@@ -288,6 +279,32 @@ class AesDecryptorTest : public testing::Test {
     ASSERT_TRUE(decrypted);
     ASSERT_EQ(plain_text_size, decrypted->GetDataSize());
     EXPECT_EQ(0, memcmp(plain_text, decrypted->GetData(), plain_text_size));
+  }
+
+  void DecryptAndExpectDataMismatch(
+        const scoped_refptr<DecoderBuffer>& encrypted,
+        const uint8* plain_text, int plain_text_size) {
+    scoped_refptr<DecoderBuffer> decrypted;
+    EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kSuccess, NotNull()))
+        .WillOnce(SaveArg<1>(&decrypted));
+
+    decryptor_.Decrypt(encrypted, decrypt_cb_);
+    ASSERT_TRUE(decrypted);
+    ASSERT_EQ(plain_text_size, decrypted->GetDataSize());
+    EXPECT_NE(0, memcmp(plain_text, decrypted->GetData(), plain_text_size));
+  }
+
+  void DecryptAndExpectSizeDataMismatch(
+        const scoped_refptr<DecoderBuffer>& encrypted,
+        const uint8* plain_text, int plain_text_size) {
+    scoped_refptr<DecoderBuffer> decrypted;
+    EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kSuccess, NotNull()))
+        .WillOnce(SaveArg<1>(&decrypted));
+
+    decryptor_.Decrypt(encrypted, decrypt_cb_);
+    ASSERT_TRUE(decrypted);
+    EXPECT_NE(plain_text_size, decrypted->GetDataSize());
+    EXPECT_NE(0, memcmp(plain_text, decrypted->GetData(), plain_text_size));
   }
 
   void DecryptAndExpectToFail(const scoped_refptr<DecoderBuffer>& encrypted) {
@@ -344,7 +361,9 @@ TEST_F(AesDecryptorTest, WrongKey) {
       CreateWebMEncryptedBuffer(frame.encrypted_data,
                                 frame.encrypted_data_size,
                                 frame.key_id, frame.key_id_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectDataMismatch(encrypted_data,
+                                                       frame.plain_text,
+                                                       frame.plain_text_size));
 }
 
 TEST_F(AesDecryptorTest, NoKey) {
@@ -372,7 +391,9 @@ TEST_F(AesDecryptorTest, KeyReplacement) {
       CreateWebMEncryptedBuffer(frame.encrypted_data,
                                 frame.encrypted_data_size,
                                 frame.key_id, frame.key_id_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectDataMismatch(encrypted_data,
+                                                       frame.plain_text,
+                                                       frame.plain_text_size));
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
                            frame.key, frame.key_size);
   ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed(encrypted_data,
@@ -423,26 +444,7 @@ TEST_F(AesDecryptorTest, MultipleKeysAndFrames) {
                                                     frame2.plain_text_size));
 }
 
-TEST_F(AesDecryptorTest, HmacCheckFailure) {
-  const WebmEncryptedData& frame = kWebmEncryptedFrames[0];
-  GenerateKeyRequest(frame.key_id, frame.key_id_size);
-  AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
-                           frame.key, frame.key_size);
-
-  // Change byte 0 to modify the HMAC. Bytes 0-11 of WebM encrypted data
-  // contains the HMAC.
-  std::vector<uint8> frame_with_bad_hmac(
-      frame.encrypted_data, frame.encrypted_data + frame.encrypted_data_size);
-  frame_with_bad_hmac[0]++;
-
-  scoped_refptr<DecoderBuffer> encrypted_data =
-      CreateWebMEncryptedBuffer(&frame_with_bad_hmac[0],
-                                frame.encrypted_data_size,
-                                frame.key_id, frame.key_id_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
-}
-
-TEST_F(AesDecryptorTest, IvCheckFailure) {
+TEST_F(AesDecryptorTest, CorruptedIv) {
   const WebmEncryptedData& frame = kWebmEncryptedFrames[0];
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
@@ -452,16 +454,18 @@ TEST_F(AesDecryptorTest, IvCheckFailure) {
   // contains the IV.
   std::vector<uint8> frame_with_bad_iv(
       frame.encrypted_data, frame.encrypted_data + frame.encrypted_data_size);
-  frame_with_bad_iv[kWebMHmacSize + 1]++;
+  frame_with_bad_iv[1]++;
 
   scoped_refptr<DecoderBuffer> encrypted_data =
       CreateWebMEncryptedBuffer(&frame_with_bad_iv[0],
                                 frame.encrypted_data_size,
                                 frame.key_id, frame.key_id_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectDataMismatch(encrypted_data,
+                                                       frame.plain_text,
+                                                       frame.plain_text_size));
 }
 
-TEST_F(AesDecryptorTest, DataCheckFailure) {
+TEST_F(AesDecryptorTest, CorruptedData) {
   const WebmEncryptedData& frame = kWebmEncryptedFrames[0];
   GenerateKeyRequest(frame.key_id, frame.key_id_size);
   AddKeyAndExpectToSucceed(frame.key_id, frame.key_id_size,
@@ -477,7 +481,9 @@ TEST_F(AesDecryptorTest, DataCheckFailure) {
       CreateWebMEncryptedBuffer(&frame_with_bad_vp8_data[0],
                                 frame.encrypted_data_size,
                                 frame.key_id, frame.key_id_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectDataMismatch(encrypted_data,
+                                                       frame.plain_text,
+                                                       frame.plain_text_size));
 }
 
 TEST_F(AesDecryptorTest, EncryptedAsUnencryptedFailure) {
@@ -490,13 +496,16 @@ TEST_F(AesDecryptorTest, EncryptedAsUnencryptedFailure) {
   // 12 of WebM encrypted data contains the signal byte.
   std::vector<uint8> frame_with_wrong_signal_byte(
       frame.encrypted_data, frame.encrypted_data + frame.encrypted_data_size);
-  frame_with_wrong_signal_byte[kWebMHmacSize] = 0;
+  frame_with_wrong_signal_byte[0] = 0;
 
   scoped_refptr<DecoderBuffer> encrypted_data =
       CreateWebMEncryptedBuffer(&frame_with_wrong_signal_byte[0],
                                 frame.encrypted_data_size,
                                 frame.key_id, frame.key_id_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
+  ASSERT_NO_FATAL_FAILURE(
+      DecryptAndExpectSizeDataMismatch(encrypted_data,
+                                       frame.plain_text,
+                                       frame.plain_text_size));
 }
 
 TEST_F(AesDecryptorTest, UnencryptedAsEncryptedFailure) {
@@ -506,16 +515,19 @@ TEST_F(AesDecryptorTest, UnencryptedAsEncryptedFailure) {
                            frame.key, frame.key_size);
 
   // Change signal byte from an unencrypted frame to an encrypted frame. Byte
-  // 12 of WebM encrypted data contains the signal byte.
+  // 0 of WebM encrypted data contains the signal byte.
   std::vector<uint8> frame_with_wrong_signal_byte(
       frame.encrypted_data, frame.encrypted_data + frame.encrypted_data_size);
-  frame_with_wrong_signal_byte[kWebMHmacSize] = kWebMFlagEncryptedFrame;
+  frame_with_wrong_signal_byte[0] = kWebMFlagEncryptedFrame;
 
   scoped_refptr<DecoderBuffer> encrypted_data =
       CreateWebMEncryptedBuffer(&frame_with_wrong_signal_byte[0],
                                 frame.encrypted_data_size,
                                 frame.key_id, frame.key_id_size);
-  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail(encrypted_data));
+  ASSERT_NO_FATAL_FAILURE(
+      DecryptAndExpectSizeDataMismatch(encrypted_data,
+                                       frame.plain_text,
+                                       frame.plain_text_size));
 }
 
 TEST_F(AesDecryptorTest, SubsampleDecryption) {
