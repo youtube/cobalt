@@ -82,7 +82,10 @@ class MEDIA_EXPORT AudioOutputResampler
 
   // Called by AudioPullFifo when more data is necessary.  Requires
   // |source_lock_| to have been acquired.
-  void SourceCallback_Locked(AudioBus* audio_bus);
+  void SourceCallback_Locked(AudioBus* dest);
+
+  // Passes through |source| to the |source_callback_| OnMoreIOData() call.
+  void SourceIOCallback_Locked(AudioBus* source, AudioBus* dest);
 
   // Used by StopStream()/CloseStream()/Shutdown() to clear internal state.
   // TODO(dalecurtis): Probably only one of these methods needs to call this,
