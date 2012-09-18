@@ -23,9 +23,10 @@ VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
                                        const gfx::Rect& visible_rect,
                                        const gfx::Size& natural_size,
                                        const uint8* extra_data,
-                                       size_t extra_data_size) {
+                                       size_t extra_data_size,
+                                       bool is_encrypted) {
   Initialize(codec, profile, format, coded_size, visible_rect, natural_size,
-             extra_data, extra_data_size, true);
+             extra_data, extra_data_size, is_encrypted, true);
 }
 
 VideoDecoderConfig::~VideoDecoderConfig() {}
@@ -60,6 +61,7 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
                                     const gfx::Size& natural_size,
                                     const uint8* extra_data,
                                     size_t extra_data_size,
+                                    bool is_encrypted,
                                     bool record_stats) {
   CHECK((extra_data_size != 0) == (extra_data != NULL));
 
@@ -90,6 +92,8 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   } else {
     extra_data_.reset();
   }
+
+  is_encrypted_ = is_encrypted;
 }
 
 void VideoDecoderConfig::CopyFrom(const VideoDecoderConfig& video_config) {
@@ -101,6 +105,7 @@ void VideoDecoderConfig::CopyFrom(const VideoDecoderConfig& video_config) {
              video_config.natural_size(),
              video_config.extra_data(),
              video_config.extra_data_size(),
+             video_config.is_encrypted(),
              false);
 }
 
@@ -120,7 +125,8 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
           (natural_size() == config.natural_size()) &&
           (extra_data_size() == config.extra_data_size()) &&
           (!extra_data() || !memcmp(extra_data(), config.extra_data(),
-                                    extra_data_size())));
+                                    extra_data_size())) &&
+          (is_encrypted() == config.is_encrypted()));
 }
 
 std::string VideoDecoderConfig::AsHumanReadableString() const {
@@ -134,7 +140,8 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << "," << visible_rect().width()
     << "," << visible_rect().height() << "]"
     << " natural size: [" << natural_size().width()
-    << "," << natural_size().height() << "]";
+    << "," << natural_size().height() << "]"
+    << " encryption: [" << (is_encrypted() ? "true" : "false") << "]";
   return s.str();
 }
 
@@ -168,6 +175,10 @@ uint8* VideoDecoderConfig::extra_data() const {
 
 size_t VideoDecoderConfig::extra_data_size() const {
   return extra_data_size_;
+}
+
+bool VideoDecoderConfig::is_encrypted() const {
+  return is_encrypted_;
 }
 
 }  // namespace media

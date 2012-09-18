@@ -940,6 +940,11 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
   DCHECK(!video_configs_.empty());
   DCHECK(audio_configs_.empty());
 
+  if (video_configs_[0]->is_encrypted() != config.is_encrypted()) {
+    DVLOG(1) << "UpdateVideoConfig() : Encryption changes not allowed.";
+    return false;
+  }
+
   if (video_configs_[0]->codec() != config.codec()) {
     DVLOG(1) << "UpdateVideoConfig() : Codec changes not allowed.";
     return false;

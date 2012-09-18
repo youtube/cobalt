@@ -58,8 +58,7 @@ class MP4StreamParserTest : public testing::Test {
               << ", dur=" << duration.InMilliseconds();
   }
 
-  bool NewConfigF(const AudioDecoderConfig& ac,
-                   const VideoDecoderConfig& vc) {
+  bool NewConfigF(const AudioDecoderConfig& ac, const VideoDecoderConfig& vc) {
     DVLOG(1) << "NewConfigF: audio=" << ac.IsValidConfig()
              << ", video=" << vc.IsValidConfig();
     configs_received_ = true;

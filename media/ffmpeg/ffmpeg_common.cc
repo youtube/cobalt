@@ -269,8 +269,8 @@ void AVStreamToVideoDecoderConfig(
                      profile,
                      PixelFormatToVideoFormat(stream->codec->pix_fmt),
                      coded_size, visible_rect, natural_size,
-                     stream->codec->extradata,
-                     stream->codec->extradata_size,
+                     stream->codec->extradata, stream->codec->extradata_size,
+                     false,
                      true);
 }
 
