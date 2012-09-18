@@ -299,6 +299,7 @@
         'base/x509_cert_types_win.cc',
         'base/x509_certificate.cc',
         'base/x509_certificate.h',
+        'base/x509_certificate_ios.cc',
         'base/x509_certificate_mac.cc',
         'base/x509_certificate_net_log_param.cc',
         'base/x509_certificate_net_log_param.h',
@@ -306,6 +307,8 @@
         'base/x509_certificate_openssl.cc',
         'base/x509_certificate_win.cc',
         'base/x509_util.h',
+        'base/x509_util_ios.cc',
+        'base/x509_util_ios.h',
         'base/x509_util_mac.cc',
         'base/x509_util_mac.h',
         'base/x509_util_nss.cc',
@@ -1078,10 +1081,15 @@
           },
         ],
         [ 'OS == "ios"', {
+            'dependencies': [
+              '../third_party/nss/nss.gyp:nss',
+              'third_party/nss/ssl.gyp:libssl',
+            ],
             'link_settings': {
               'libraries': [
                 '$(SDKROOT)/System/Library/Frameworks/CFNetwork.framework',
                 '$(SDKROOT)/System/Library/Frameworks/MobileCoreServices.framework',
+                '$(SDKROOT)/System/Library/Frameworks/Security.framework',
                 '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
                 '$(SDKROOT)/usr/lib/libresolv.dylib',
               ],
@@ -1091,8 +1099,10 @@
               # compiled on iOS, just enough to bring up the dependencies needed
               # by the ui target.
               ['exclude', '.*'],
+              ['include', '^base/asn1_util\\.'],
               ['include', '^base/dns_util\\.'],
               ['include', '^base/escape\\.'],
+              ['include', '^base/ev_root_ca_metadata\\.'],
               ['include', '^base/ip_endpoint\\.'],
               ['include', '^base/mime_util\\.'],
               ['include', '^base/net_errors\\.'],
@@ -1104,7 +1114,13 @@
               ['include', '^base/net_util\\.'],
               ['include', '^base/net_util_posix\\.cc$'],
               ['include', '^base/platform_mime_util\\.h$'],
+              ['include', '^base/pem_tokenizer\\.cc$'],
+              ['include', '^base/pem_tokenizer\\.h$'],
               ['include', '^base/registry_controlled_domains/registry_controlled_domain\\.'],
+              ['include', '^base/x509_certificate\\.'],
+              ['include', '^base/x509_certificate_ios\\.'],
+              ['include', '^base/x509_cert_types\\.'],
+              ['include', '^base/x509_util_ios\\.'],
               ['include', '^http/http_byte_range\\.'],
               ['include', '^http/http_content_disposition\\.'],
               ['include', '^http/http_util\\.'],
@@ -1167,6 +1183,11 @@
             ['include', 'base/network_config_watcher_mac\\.cc$'],
             ['include', 'base/platform_mime_util_mac\\.mm$'],
             ['include', 'proxy/proxy_resolver_mac\\.cc$'],
+            # The iOS implementation only partially uses NSS and thus does not
+            # defines |use_nss|. In particular the |USE_NSS| preprocessor
+            # definition is not used. The following files are needed though:
+            ['include', 'base/x509_util_nss\\.cc$'],
+            ['include', 'base/x509_util_nss\\.h$'],
           ],
         }],
       ],
@@ -1536,25 +1557,28 @@
             ],
           },
         ],
-        ['OS == "ios"', {
-          # TODO: For now this only tests the subset of code that is enabled in
-          # the net target.
-          'dependencies': [
-            '../testing/gtest.gyp:gtest_main',
-          ],
-          'sources/': [
-            ['exclude', '.*'],
-            ['include', '^base/dns_util_unittest\\.cc$'],
-            ['include', '^base/escape_unittest\\.cc$'],
-            ['include', '^base/ip_endpoint_unittest\\.cc$'],
-            ['include', '^base/mime_util_unittest\\.cc$'],
-            ['include', '^base/net_log_unittest\\.cc$'],
-            ['include', '^base/registry_controlled_domains/registry_controlled_domain_unittest\\.cc$'],
-            ['include', '^http/http_byte_range_unittest\\.cc$'],
-            ['include', '^http/http_content_disposition_unittest\\.cc$'],
-            ['include', '^http/http_util_unittest\\.cc$'],
-            ['include', '^proxy/proxy_config_service_common_unittest\\.cc$'],
-          ],
+        [ 'OS == "ios"', {
+            # TODO: For now this only tests the subset of code that is enabled
+            # in the net target.
+            'dependencies': [
+              '../third_party/nss/nss.gyp:nss',
+              '../testing/gtest.gyp:gtest_main',
+            ],
+            'sources/': [
+              ['exclude', '.*'],
+              ['include', '^base/dns_util_unittest\\.cc$'],
+              ['include', '^base/escape_unittest\\.cc$'],
+              ['include', '^base/ip_endpoint_unittest\\.cc$'],
+              ['include', '^base/mime_util_unittest\\.cc$'],
+              ['include', '^base/net_log_unittest\\.cc$'],
+              ['include', '^base/pem_tokenizer_unittest\\.cc$'],
+              ['include', '^base/registry_controlled_domains/registry_controlled_domain_unittest\\.cc$'],
+              ['include', '^base/x509_certificate_unittest\\.cc$'],
+              ['include', '^http/http_byte_range_unittest\\.cc$'],
+              ['include', '^http/http_content_disposition_unittest\\.cc$'],
+              ['include', '^http/http_util_unittest\\.cc$'],
+              ['include', '^proxy/proxy_config_service_common_unittest\\.cc$'],
+            ],
         }],
         [ 'OS == "linux"', {
             'dependencies': [
@@ -1738,6 +1762,11 @@
             'test/remote_test_server.h',
             'test/spawner_communicator.cc',
             'test/spawner_communicator.h',
+          ],
+        }],
+        ['OS == "ios"', {
+          'dependencies': [
+            '../third_party/nss/nss.gyp:nss',
           ],
         }],
         [ 'use_v8_in_net==1', {
