@@ -455,11 +455,16 @@ HostResolver* CreateNonCachingSystemHostResolver(size_t max_concurrent_resolves,
 HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
                                       size_t max_retry_attempts,
                                       NetLog* net_log) {
+#if !defined(ENABLE_BUILT_IN_DNS)
+  NOTREACHED();
+  return NULL;
+#else
   return CreateHostResolver(max_concurrent_resolves,
                             max_retry_attempts,
                             HostCache::CreateDefaultCache(),
                             DnsClient::CreateClient(net_log),
                             net_log);
+#endif  // !defined(ENABLE_BUILT_IN_DNS)
 }
 
 //-----------------------------------------------------------------------------
