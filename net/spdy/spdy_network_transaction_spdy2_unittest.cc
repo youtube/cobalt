@@ -1655,7 +1655,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, EmptyPost) {
   const uint64 kContentLength = 0;
   scoped_ptr<UploadDataStream> stream(
       new UploadDataStream(request.upload_data));
-  ASSERT_EQ(OK, stream->Init());
+  ASSERT_EQ(OK, stream->InitSync());
   ASSERT_EQ(kContentLength, stream->size());
 
   scoped_ptr<SpdyFrame> req(ConstructSpdyPost(kContentLength, NULL, 0));
@@ -1700,7 +1700,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, PostWithEarlySynReply) {
   const uint64 kContentLength = sizeof(upload);
   scoped_ptr<UploadDataStream> stream(
       new UploadDataStream(request.upload_data));
-  ASSERT_EQ(OK, stream->Init());
+  ASSERT_EQ(OK, stream->InitSync());
   ASSERT_EQ(kContentLength, stream->size());
   scoped_ptr<SpdyFrame> stream_reply(ConstructSpdyPostSynReply(NULL, 0));
   scoped_ptr<SpdyFrame> stream_body(ConstructSpdyBodyFrame(1, true));
