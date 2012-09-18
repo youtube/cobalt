@@ -173,7 +173,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendChunkedPost) {
 
   scoped_ptr<UploadDataStream> upload_stream(
       new UploadDataStream(request.upload_data));
-  ASSERT_EQ(OK, upload_stream->Init());
+  ASSERT_EQ(OK, upload_stream->InitSync());
   EXPECT_EQ(ERR_IO_PENDING, http_stream.SendRequest(
       headers, upload_stream.Pass(), &response, callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
@@ -268,7 +268,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPost) {
 
   scoped_ptr<UploadDataStream> upload_stream(
       new UploadDataStream(request.upload_data));
-  ASSERT_EQ(OK, upload_stream->Init());
+  ASSERT_EQ(OK, upload_stream->InitSync());
 
   request.upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
 
@@ -404,7 +404,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPostWithWindowUpdate) {
 
   scoped_ptr<UploadDataStream> upload_stream(
       new UploadDataStream(request.upload_data));
-  ASSERT_EQ(OK, upload_stream->Init());
+  ASSERT_EQ(OK, upload_stream->InitSync());
 
   request.upload_data->AppendChunk(kUploadData, kUploadDataSize, true);
 

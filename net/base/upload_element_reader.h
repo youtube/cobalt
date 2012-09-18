@@ -6,6 +6,7 @@
 #define NET_BASE_UPLOAD_ELEMENT_READER_H_
 
 #include "base/basictypes.h"
+#include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -21,8 +22,13 @@ class NET_EXPORT UploadElementReader {
   // Creates an appropriate UploadElementReader instance for the given element.
   static UploadElementReader* Create(const UploadElement& element);
 
-  // Initializes the instance synchronously.
-  virtual int InitSync() = 0;
+  // Initializes the instance synchronously when possible, otherwise does
+  // initialization aynschronously, returns ERR_IO_PENDING and runs callback.
+  virtual int Init(const CompletionCallback& callback) = 0;
+
+  // Initializes the instance always synchronously.
+  // Use this method only in tests and Chrome Frame.
+  virtual int InitSync();
 
   // Returns the byte-length of the element.  For files that do not exist, 0
   // is returned.  This is done for consistency with Mozilla.

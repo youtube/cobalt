@@ -5,6 +5,7 @@
 #include "net/base/upload_element_reader.h"
 
 #include "base/logging.h"
+#include "net/base/net_errors.h"
 #include "net/base/upload_bytes_element_reader.h"
 #include "net/base/upload_element.h"
 #include "net/base/upload_file_element_reader.h"
@@ -29,6 +30,11 @@ UploadElementReader* UploadElementReader::Create(const UploadElement& element) {
   }
   DCHECK(reader);
   return reader;
+}
+
+int UploadElementReader::InitSync() {
+  NOTREACHED() << "This instance does not support InitSync().";
+  return ERR_NOT_IMPLEMENTED;
 }
 
 bool UploadElementReader::IsInMemory() const {
