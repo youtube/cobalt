@@ -7,6 +7,7 @@
 import constants
 import optparse
 import os
+import sys
 
 _SDK_OUT_DIR = os.path.join(constants.CHROME_DIR, 'out')
 
@@ -102,13 +103,14 @@ def AddInstrumentationOptions(option_parser):
   option_parser.add_option('--python_test_root',
                            help='Root of the python-driven tests.')
 
-def ValidateInstrumentationOptions(options, args):
+def ValidateInstrumentationOptions(option_parser, options, args):
   """Validate options/arguments and populate options with defaults."""
   if len(args) > 1:
-    option_parser.error('Unknown argument:', args[1:])
+    option_parser.print_help(sys.stderr)
+    option_parser.error('Unknown arguments: %s' % args[1:])
   if options.java_only and options.python_only:
     option_parser.error('Options java_only (-j) and python_only (-p) '
-                        'are mutually exclusive')
+                        'are mutually exclusive.')
 
   options.run_java_tests = True
   options.run_python_tests = True
@@ -130,4 +132,3 @@ def ValidateInstrumentationOptions(options, args):
     options.annotation = []
   else:
     options.annotation = ['Smoke', 'SmallTest', 'MediumTest', 'LargeTest']
-
