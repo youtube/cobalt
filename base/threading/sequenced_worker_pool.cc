@@ -14,6 +14,7 @@
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/critical_closure.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/memory/linked_ptr.h"
 #include "base/message_loop_proxy.h"
@@ -39,16 +40,19 @@ namespace {
 struct SequencedTask : public TrackingInfo  {
   SequencedTask()
       : sequence_token_id(0),
+        trace_id(0),
         shutdown_behavior(SequencedWorkerPool::BLOCK_SHUTDOWN) {}
 
   explicit SequencedTask(const tracked_objects::Location& from_here)
       : base::TrackingInfo(from_here, TimeTicks()),
         sequence_token_id(0),
+        trace_id(0),
         shutdown_behavior(SequencedWorkerPool::BLOCK_SHUTDOWN) {}
 
   ~SequencedTask() {}
 
   int sequence_token_id;
+  int trace_id;
   SequencedWorkerPool::WorkerShutdown shutdown_behavior;
   tracked_objects::Location posted_from;
   Closure task;
@@ -206,6 +210,15 @@ bool SequencedWorkerPoolSequencedTaskRunner::PostDelayedTaskAssertZeroDelay(
          " delays";
   return pool_->PostSequencedWorkerTaskWithShutdownBehavior(
       token_, from_here, task, shutdown_behavior_);
+}
+
+// Create a process-wide unique ID to represent this task in trace events. This
+// will be mangled with a Process ID hash to reduce the likelyhood of colliding
+// with MessageLoop pointers on other processes.
+uint64 GetTaskTraceID(const SequencedTask& task,
+                      void* pool) {
+  return (static_cast<uint64>(task.trace_id) << 32) |
+         static_cast<uint64>(reinterpret_cast<intptr_t>(pool));
 }
 
 }  // namespace
@@ -396,6 +409,9 @@ class SequencedWorkerPool::Inner {
   // Lists all sequence tokens currently executing.
   std::set<int> current_sequences_;
 
+  // An ID for each posted task to distinguish the task from others in traces.
+  int trace_id_;
+
   // Set when Shutdown is called and no further tasks should be
   // allowed, though we may still be running existing tasks.
   bool shutdown_called_;
@@ -451,6 +467,7 @@ SequencedWorkerPool::Inner::Inner(
       blocking_shutdown_thread_count_(0),
       pending_task_count_(0),
       blocking_shutdown_pending_task_count_(0),
+      trace_id_(0),
       shutdown_called_(false),
       testing_observer_(observer) {}
 
@@ -500,6 +517,12 @@ bool SequencedWorkerPool::Inner::PostTask(
     AutoLock lock(lock_);
     if (shutdown_called_)
       return false;
+
+    // The trace_id is used for identifying the task in about:tracing.
+    sequenced.trace_id = trace_id_++;
+
+    TRACE_EVENT_FLOW_BEGIN0("task", "SequencedWorkerPool::PostTask",
+        TRACE_ID_MANGLE(GetTaskTraceID(sequenced, static_cast<void*>(this))));
 
     // Now that we have the lock, apply the named token rules.
     if (optional_token_name)
@@ -605,6 +628,11 @@ void SequencedWorkerPool::Inner::ThreadLoop(Worker* this_worker) {
       SequencedTask task;
       std::vector<Closure> delete_these_outside_lock;
       if (GetWork(&task, &delete_these_outside_lock)) {
+        TRACE_EVENT_FLOW_END0("task", "SequencedWorkerPool::PostTask",
+            TRACE_ID_MANGLE(GetTaskTraceID(task, static_cast<void*>(this))));
+        TRACE_EVENT2("task", "SequencedWorkerPool::ThreadLoop",
+                     "src_file", task.posted_from.file_name(),
+                     "src_func", task.posted_from.function_name());
         int new_thread_id = WillRunWorkerTask(task);
         {
           AutoUnlock unlock(lock_);
