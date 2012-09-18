@@ -50,6 +50,10 @@ BASE_EXPORT HMODULE GetMetroModule();
 // in Windows Metro mode.
 BASE_EXPORT bool IsMetroProcess();
 
+// Returns true if the process identified by the handle passed in is an
+// immersive (Metro) process.
+BASE_EXPORT bool IsProcessImmersive(HANDLE process);
+
 // Returns true if this process is running under Text Services Framework (TSF)
 // and browser must be TSF-aware.
 BASE_EXPORT bool IsTsfAwareRequired();
