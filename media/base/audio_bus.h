@@ -30,6 +30,11 @@ class MEDIA_EXPORT AudioBus {
   static scoped_ptr<AudioBus> Create(int channels, int frames);
   static scoped_ptr<AudioBus> Create(const AudioParameters& params);
 
+  // Creates a new AudioBus with the given number of channels, but zero length.
+  // It's expected to be used with SetChannelData() and set_frames() to
+  // wrap externally allocated memory.
+  static scoped_ptr<AudioBus> CreateWrapper(int channels);
+
   // Creates a new AudioBus from an existing channel vector.  Does not transfer
   // ownership of |channel_data| to AudioBus; i.e., |channel_data| must outlive
   // the returned AudioBus.  Each channel must be aligned by kChannelAlignment.
@@ -74,9 +79,11 @@ class MEDIA_EXPORT AudioBus {
   // inf, nan, or between [-1.0, 1.0]) values in the channel data.
   float* channel(int channel) { return channel_data_[channel]; }
   const float* channel(int channel) const { return channel_data_[channel]; }
+  void SetChannelData(int channel, float* data);
 
   int channels() const { return channel_data_.size(); }
   int frames() const { return frames_; }
+  void set_frames(int frames);
 
   // Helper method for zeroing out all channels of audio data.
   void Zero();
@@ -90,6 +97,7 @@ class MEDIA_EXPORT AudioBus {
   AudioBus(int channels, int frames);
   AudioBus(int channels, int frames, float* data);
   AudioBus(int frames, const std::vector<float*>& channel_data);
+  explicit AudioBus(int channels);
 
   // Helper method for building |channel_data_| from a block of memory.  |data|
   // must be at least BlockSize() bytes in size.
@@ -100,6 +108,9 @@ class MEDIA_EXPORT AudioBus {
 
   std::vector<float*> channel_data_;
   int frames_;
+
+  // Protect SetChannelData() and set_frames() for use by CreateWrapper().
+  bool can_set_channel_data_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioBus);
 };

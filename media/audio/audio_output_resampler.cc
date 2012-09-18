@@ -289,7 +289,7 @@ int AudioOutputResampler::OnMoreIOData(AudioBus* source,
   if (!resampler_.get() && !audio_fifo_.get()) {
     // We have no internal buffers, so clear any outstanding audio data.
     outstanding_audio_bytes_ = 0;
-    SourceCallback_Locked(dest);
+    SourceIOCallback_Locked(source, dest);
     return dest->frames();
   }
 
@@ -315,7 +315,12 @@ int AudioOutputResampler::OnMoreIOData(AudioBus* source,
   return dest->frames();
 }
 
-void AudioOutputResampler::SourceCallback_Locked(AudioBus* audio_bus) {
+void AudioOutputResampler::SourceCallback_Locked(AudioBus* dest) {
+  SourceIOCallback_Locked(NULL, dest);
+}
+
+void AudioOutputResampler::SourceIOCallback_Locked(
+    AudioBus* source, AudioBus* dest) {
   source_lock_.AssertAcquired();
 
   // Adjust playback delay to include the state of the internal buffers used by
@@ -326,14 +331,14 @@ void AudioOutputResampler::SourceCallback_Locked(AudioBus* audio_bus) {
       (current_buffers_state_.total_bytes() + outstanding_audio_bytes_);
 
   // Retrieve data from the original callback.  Zero any unfilled frames.
-  int frames = source_callback_->OnMoreData(audio_bus, new_buffers_state);
-  if (frames < audio_bus->frames())
-    audio_bus->ZeroFramesPartial(frames, audio_bus->frames() - frames);
+  int frames = source_callback_->OnMoreIOData(source, dest, new_buffers_state);
+  if (frames < dest->frames())
+    dest->ZeroFramesPartial(frames, dest->frames() - frames);
 
   // Scale the number of frames we got back in terms of input bytes to output
   // bytes accordingly.
   outstanding_audio_bytes_ +=
-      (audio_bus->frames() * params_.GetBytesPerFrame()) / io_ratio_;
+      (dest->frames() * params_.GetBytesPerFrame()) / io_ratio_;
 }
 
 void AudioOutputResampler::ProvideInput(AudioBus* audio_bus) {
