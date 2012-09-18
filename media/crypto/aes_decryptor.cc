@@ -10,7 +10,6 @@
 #include "base/stl_util.h"
 #include "base/string_number_conversions.h"
 #include "crypto/encryptor.h"
-#include "crypto/hmac.h"
 #include "crypto/symmetric_key.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
@@ -18,71 +17,7 @@
 
 namespace media {
 
-// The size is from the WebM encrypted specification. Current encrypted WebM
-// request for comments specification is here
-// http://wiki.webmproject.org/encryption/webm-encryption-rfc
-static const int kWebmSha1DigestSize = 20;
-static const char kWebmHmacSeed[] = "hmac-key";
-static const char kWebmEncryptionSeed[] = "encryption-key";
-
 uint32 AesDecryptor::next_session_id_ = 1;
-
-// Derives a key using SHA1 HMAC. |secret| is the base secret to derive
-// the key from. |seed| is the known message to the HMAC algorithm. |key_size|
-// is how many bytes are returned in the key. Returns a string containing the
-// key on success. Returns an empty string on failure.
-static std::string DeriveKey(const base::StringPiece& secret,
-                             const base::StringPiece& seed,
-                             int key_size) {
-  CHECK(!secret.empty());
-  CHECK(!seed.empty());
-  CHECK_GT(key_size, 0);
-
-  crypto::HMAC hmac(crypto::HMAC::SHA1);
-  if (!hmac.Init(secret)) {
-    DVLOG(1) << "Could not initialize HMAC with secret data.";
-    return std::string();
-  }
-
-  scoped_array<uint8> calculated_hmac(new uint8[hmac.DigestLength()]);
-  if (!hmac.Sign(seed, calculated_hmac.get(), hmac.DigestLength())) {
-    DVLOG(1) << "Could not calculate HMAC.";
-    return std::string();
-  }
-
-  return std::string(reinterpret_cast<const char*>(calculated_hmac.get()),
-                     key_size);
-}
-
-// Checks data in |input| matches the HMAC in |input|. The check is using the
-// SHA1 algorithm. |hmac_key| is the key of the HMAC algorithm. Returns true if
-// the integrity check passes.
-static bool CheckData(const DecoderBuffer& input,
-                      const base::StringPiece& hmac_key) {
-  CHECK(input.GetDataSize());
-  CHECK(input.GetDecryptConfig());
-  CHECK_GT(input.GetDecryptConfig()->checksum().size(), 0u);
-  CHECK(!hmac_key.empty());
-
-  crypto::HMAC hmac(crypto::HMAC::SHA1);
-  if (!hmac.Init(hmac_key))
-    return false;
-
-  // The component that initializes |input.GetDecryptConfig()| is responsible
-  // for checking that |input.GetDecryptConfig()->checksum_size()| matches
-  // what is defined by the format.
-
-  // Here, check that checksum size is not greater than the hash
-  // algorithm's digest length.
-  DCHECK_LE(input.GetDecryptConfig()->checksum().size(),
-            hmac.DigestLength());
-
-  base::StringPiece data_to_check(
-      reinterpret_cast<const char*>(input.GetData()), input.GetDataSize());
-
-  return hmac.VerifyTruncated(data_to_check,
-                              input.GetDecryptConfig()->checksum());
-}
 
 enum ClearBytesBufferSel {
   kSrcContainsClearBytes,
@@ -273,18 +208,6 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
     return;
   }
 
-  int checksum_size = encrypted->GetDecryptConfig()->checksum().size();
-  // According to the WebM encrypted specification, it is an open question
-  // what should happen when a frame fails the integrity check.
-  // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-  if (checksum_size > 0 &&
-      !key->hmac_key().empty() &&
-      !CheckData(*encrypted, key->hmac_key())) {
-    DVLOG(1) << "Integrity check failed.";
-    decrypt_cb.Run(kError, NULL);
-    return;
-  }
-
   scoped_refptr<DecoderBuffer> decrypted;
   // An empty iv string signals that the frame is unencrypted.
   if (encrypted->GetDecryptConfig()->iv().empty()) {
@@ -292,11 +215,7 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
     decrypted = DecoderBuffer::CopyFrom(encrypted->GetData() + data_offset,
                                         encrypted->GetDataSize() - data_offset);
   } else {
-    // TODO(strobe): Currently, presence of checksum is used to indicate the use
-    // of normal or WebM decryption keys. Consider a more explicit signaling
-    // mechanism and the removal of the webm_decryption_key member.
-    crypto::SymmetricKey* decryption_key = (checksum_size > 0) ?
-        key->webm_decryption_key() : key->decryption_key();
+    crypto::SymmetricKey* decryption_key = key->decryption_key();
     decrypted = DecryptData(*encrypted, decryption_key);
     if (!decrypted) {
       DVLOG(1) << "Decryption failed.";
@@ -346,22 +265,6 @@ bool AesDecryptor::DecryptionKey::Init() {
       crypto::SymmetricKey::AES, secret_));
   if (!decryption_key_.get())
     return false;
-
-  std::string raw_key = DeriveKey(secret_,
-                                  kWebmEncryptionSeed,
-                                  secret_.length());
-  if (raw_key.empty())
-    return false;
-
-  webm_decryption_key_.reset(crypto::SymmetricKey::Import(
-      crypto::SymmetricKey::AES, raw_key));
-  if (!webm_decryption_key_.get())
-    return false;
-
-  hmac_key_ = DeriveKey(secret_, kWebmHmacSeed, kWebmSha1DigestSize);
-  if (hmac_key_.empty())
-    return false;
-
   return true;
 }
 

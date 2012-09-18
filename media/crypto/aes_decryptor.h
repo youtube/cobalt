@@ -25,8 +25,7 @@ namespace media {
 class DecryptorClient;
 
 // Decrypts an AES encrypted buffer into an unencrypted buffer. The AES
-// encryption must be CTR with a key size of 128bits. Optionally checks the
-// integrity of the encrypted data.
+// encryption must be CTR with a key size of 128bits.
 class MEDIA_EXPORT AesDecryptor : public Decryptor {
  public:
   // The AesDecryptor does not take ownership of the |client|. The |client|
@@ -46,46 +45,33 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
                       const std::string& session_id) OVERRIDE;
   virtual void CancelKeyRequest(const std::string& key_system,
                                 const std::string& session_id) OVERRIDE;
-  // Decrypts |encrypted| buffer. |encrypted| should not be NULL. |encrypted|
-  // will signal if an integrity check must be performed before decryption.
-  // Returns a DecoderBuffer with the decrypted data if the decryption
-  // succeeded through |decrypt_cb|.
+  // Decrypts |encrypted| buffer. |encrypted| should not be NULL. Returns a
+  // DecoderBuffer with the decrypted data if the decryption succeeded through
+  // |decrypt_cb|.
   virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) OVERRIDE;
   virtual void Stop() OVERRIDE;
 
  private:
-  // Helper class that manages the decryption key and HMAC key. The HMAC key
-  // may be NULL.
+  // TODO(fgalligan): Remove this and change KeyMap to use crypto::SymmetricKey
+  // as there are no decryptors that are performing an integrity check.
+  // Helper class that manages the decryption key.
   class DecryptionKey {
    public:
     explicit DecryptionKey(const std::string& secret);
     ~DecryptionKey();
 
-    // Creates the encryption key, and derives the WebM decryption key and HMAC.
+    // Creates the encryption key.
     bool Init();
 
     crypto::SymmetricKey* decryption_key() { return decryption_key_.get(); }
-    crypto::SymmetricKey* webm_decryption_key()
-      { return webm_decryption_key_.get(); }
-    base::StringPiece hmac_key() { return base::StringPiece(hmac_key_); }
 
    private:
-    // The base secret that is used to derive the decryption key and optionally
-    // the HMAC key.
+    // The base secret that is used to create the decryption key.
     const std::string secret_;
 
     // The key used to decrypt the data.
     scoped_ptr<crypto::SymmetricKey> decryption_key_;
-
-    // The key used for decryption of WebM media, derived from the secret.
-    scoped_ptr<crypto::SymmetricKey> webm_decryption_key_;
-
-    // The key used to perform the integrity check.  Currently the HMAC key is
-    // defined by the WebM encrypted specification. Current encrypted WebM
-    // request for comments specification is here
-    // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-    std::string hmac_key_;
 
     DISALLOW_COPY_AND_ASSIGN(DecryptionKey);
   };

@@ -10,12 +10,10 @@ namespace media {
 
 DecryptConfig::DecryptConfig(const std::string& key_id,
                              const std::string& iv,
-                             const std::string& checksum,
                              const int data_offset,
                              const std::vector<SubsampleEntry>& subsamples)
     : key_id_(key_id),
       iv_(iv),
-      checksum_(checksum),
       data_offset_(data_offset),
       subsamples_(subsamples) {
   CHECK_GT(key_id.size(), 0u);

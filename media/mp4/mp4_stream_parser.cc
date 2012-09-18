@@ -414,7 +414,6 @@ bool MP4StreamParser::EnqueueSample(BufferQueue* audio_buffers,
     decrypt_config.reset(new DecryptConfig(
         decrypt_config->key_id(),
         decrypt_config->iv(),
-        decrypt_config->checksum(),
         decrypt_config->data_offset(),
         subsamples));
   }
