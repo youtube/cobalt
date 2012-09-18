@@ -505,7 +505,8 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   bool os_modal_loop_;
 #endif
 
-  // The next sequence number to use for delayed tasks.
+  // The next sequence number to use for delayed tasks. Updating this counter is
+  // protected by incoming_queue_lock_.
   int next_sequence_num_;
 
   ObserverList<TaskObserver> task_observers_;
