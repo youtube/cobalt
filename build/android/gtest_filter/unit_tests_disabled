@@ -95,6 +95,7 @@ ExtensionSettingsSyncTest.*
 ExtensionUpdaterTest.*
 UserScriptListenerTest.*
 WebApplicationTest.GetShortcutInfoForTab
+ExtensionActionIconFactoryTest.*
 
 # crbug.com/139411
 AutocompleteProviderTest.*
