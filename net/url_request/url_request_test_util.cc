@@ -528,3 +528,31 @@ ScopedCustomUrlRequestTestHttpHost::~ScopedCustomUrlRequestTestHttpHost() {
 const std::string& ScopedCustomUrlRequestTestHttpHost::value() {
   return value_;
 }
+
+TestJobInterceptor::TestJobInterceptor() : main_intercept_job_(NULL) {
+}
+
+net::URLRequestJob* TestJobInterceptor::MaybeIntercept(
+      net::URLRequest* request,
+      net::NetworkDelegate* network_delegate) const {
+  net::URLRequestJob* job = main_intercept_job_;
+  main_intercept_job_ = NULL;
+  return job;
+}
+
+net::URLRequestJob* TestJobInterceptor::MaybeInterceptRedirect(
+      const GURL& location,
+      net::URLRequest* request,
+      net::NetworkDelegate* network_delegate) const {
+  return NULL;
+}
+
+net::URLRequestJob* TestJobInterceptor::MaybeInterceptResponse(
+      net::URLRequest* request,
+      net::NetworkDelegate* network_delegate) const {
+  return NULL;
+}
+
+void TestJobInterceptor::set_main_intercept_job(net::URLRequestJob* job) {
+  main_intercept_job_ = job;
+}
