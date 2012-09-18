@@ -98,6 +98,8 @@
       ],
       'all_sources': [
         '<@(_common_sources)',
+        'android/ui_jni_registrar.cc',
+        'android/ui_jni_registrar.h',
         'base/accelerators/accelerator.cc',
         'base/accelerators/accelerator.h',
         'base/accelerators/accelerator_cocoa.h',
@@ -178,6 +180,8 @@
         'base/dialogs/gtk/select_file_dialog_impl_kde.cc',
         'base/dialogs/select_file_dialog.cc',
         'base/dialogs/select_file_dialog.h',
+        'base/dialogs/select_file_dialog_android.cc',
+        'base/dialogs/select_file_dialog_android.h',
         'base/dialogs/select_file_dialog_factory.cc',
         'base/dialogs/select_file_dialog_factory.h',
         'base/dialogs/select_file_dialog_mac.h',
@@ -398,6 +402,8 @@
         'gfx/android/gfx_jni_registrar.h',
         'gfx/android/java_bitmap.cc',
         'gfx/android/java_bitmap.h',
+        'gfx/android/window_android.cc',
+        'gfx/android/window_android.h',
         'gfx/blit.cc',
         'gfx/blit.h',
         'gfx/canvas.cc',
@@ -785,6 +791,16 @@
             'gfx/platform_font_pango.cc',
             'gfx/platform_font_pango.h',
           ],
+          'dependencies': [
+            'ui_java',
+            'ui_jni_headers',
+          ],
+          'include_dirs': [
+            '<(SHARED_INTERMEDIATE_DIR)/ui',
+          ],
+          'export_dependent_settings': [
+            'ui_java',
+          ],
         }],
         ['OS=="android" or OS=="ios"', {
           'sources!': [
@@ -811,5 +827,36 @@
         'ui_unittests.gypi',
       ]},
     ],
+    ['OS=="android"' , {
+       'targets': [
+         {
+           'target_name': 'ui_jni_headers',
+           'type': 'none',
+           'sources': [
+             'android/java/src/org/chromium/ui/gfx/NativeWindow.java',
+             'android/java/src/org/chromium/ui/SelectFileDialog.java',
+           ],
+           'variables': {
+             'jni_gen_dir': 'ui',
+           },
+           'includes': [ '../build/jni_generator.gypi' ],
+         },
+         {
+           'target_name': 'ui_java',
+           'type': 'none',
+           'variables': {
+             'package_name': 'ui',
+             'java_in_dir': '../ui/android/java',
+           },
+           'dependencies': [
+             '../base/base.gyp:base_java',
+           ],
+           'export_dependent_settings': [
+             '../base/base.gyp:base_java',
+           ],
+           'includes': [ '../build/java.gypi' ],
+         },
+       ],
+    }],
   ],
 }
