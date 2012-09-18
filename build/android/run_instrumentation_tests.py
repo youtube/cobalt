@@ -73,7 +73,8 @@ def main(argv):
   option_parser = optparse.OptionParser()
   test_options_parser.AddInstrumentationOptions(option_parser)
   options, args = option_parser.parse_args(argv)
-  test_options_parser.ValidateInstrumentationOptions(options, args)
+  test_options_parser.ValidateInstrumentationOptions(option_parser, options,
+                                                     args)
 
   run_tests_helper.SetLogLevel(options.verbose_count)
   buildbot_report.PrintNamedStep('Instrumentation tests: %s'
