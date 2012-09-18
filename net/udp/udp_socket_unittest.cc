@@ -131,10 +131,11 @@ TEST_F(UDPSocketTest, Connect) {
 
   // Setup the server to listen.
   IPEndPoint bind_address;
-  CreateUDPAddress("0.0.0.0", kPort, &bind_address);
+  CreateUDPAddress("127.0.0.1", kPort, &bind_address);
   CapturingNetLog server_log;
   scoped_ptr<UDPServerSocket> server(
       new UDPServerSocket(&server_log, NetLog::Source()));
+  server->AllowAddressReuse();
   int rv = server->Listen(bind_address);
   ASSERT_EQ(OK, rv);
 
@@ -201,7 +202,13 @@ TEST_F(UDPSocketTest, Connect) {
       client_entries, 5, NetLog::TYPE_SOCKET_ALIVE));
 }
 
+// UDPSocketPrivate_Broadcast is disabled for OSX because it requires
+// root permissions on OSX 10.7+.
+#if defined(OS_MACOSX)
+TEST_F(UDPSocketTest, DISABLED_Broadcast) {
+#else
 TEST_F(UDPSocketTest, Broadcast) {
+#endif
   const int kPort = 9999;
   std::string first_message("first message"), second_message("second message");
 
@@ -335,14 +342,16 @@ TEST_F(UDPSocketTest, VerifyConnectBindsAddr) {
 
   // Setup the first server to listen.
   IPEndPoint bind_address;
-  CreateUDPAddress("0.0.0.0", kPort1, &bind_address);
+  CreateUDPAddress("127.0.0.1", kPort1, &bind_address);
   UDPServerSocket server1(NULL, NetLog::Source());
+  server1.AllowAddressReuse();
   int rv = server1.Listen(bind_address);
   ASSERT_EQ(OK, rv);
 
   // Setup the second server to listen.
-  CreateUDPAddress("0.0.0.0", kPort2, &bind_address);
+  CreateUDPAddress("127.0.0.1", kPort2, &bind_address);
   UDPServerSocket server2(NULL, NetLog::Source());
+  server2.AllowAddressReuse();
   rv = server2.Listen(bind_address);
   ASSERT_EQ(OK, rv);
 
