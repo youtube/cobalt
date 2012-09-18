@@ -196,17 +196,21 @@ function bb_run_tests_emulator {
   build/android/run_tests.py -e --xvfb --verbose
 }
 
-# Run tests on an actual device.  (Better have one plugged in!)
-function bb_run_unit_tests {
+function bb_spawn_logcat_monitor_and_status {
   python build/android/device_status_check.py
   local LOGCAT_DUMP_DIR="$CHROME_SRC/out/logcat"
   rm -rf "$LOGCAT_DUMP_DIR"
   python build/android/adb_logcat_monitor.py "$LOGCAT_DUMP_DIR" &
+}
 
-  build/android/run_tests.py --xvfb --verbose
-
+function bb_print_logcat {
   echo "@@@BUILD_STEP Logcat dump@@@"
   python build/android/adb_logcat_printer.py "$LOGCAT_DUMP_DIR"
+}
+
+# Run tests on an actual device.  (Better have one plugged in!)
+function bb_run_unit_tests {
+  build/android/run_tests.py --xvfb --verbose
 }
 
 # Run instrumentation test.
