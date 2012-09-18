@@ -5,8 +5,11 @@
 #ifndef NET_BASE_UPLOAD_DATA_STREAM_H_
 #define NET_BASE_UPLOAD_DATA_STREAM_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
+#include "base/memory/weak_ptr.h"
+#include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_data.h"
 
@@ -24,10 +27,17 @@ class NET_EXPORT UploadDataStream {
   // before calling any other method. It is not valid to call any method
   // (other than the destructor) if Init() returns a failure.
   //
+  // Does the initialization synchronously and returns the result if possible,
+  // otherwise returns ERR_IO_PENDING and runs the callback with the result.
+  //
   // Returns OK on success. Returns ERR_UPLOAD_FILE_CHANGED if the expected
   // file modification time is set (usually not set, but set for sliced
   // files) and the target file is changed.
-  int Init();
+  int Init(const CompletionCallback& callback);
+
+  // Initializes the stream synchronously.
+  // Use this method only in tests and Chrome Frame.
+  int InitSync();
 
   // Reads up to |buf_len| bytes from the upload data stream to |buf|. The
   // number of bytes read is returned. Partial reads are allowed.  Zero is
@@ -71,6 +81,22 @@ class NET_EXPORT UploadDataStream {
   friend class SpdyNetworkTransactionSpdy2Test;
   friend class SpdyNetworkTransactionSpdy3Test;
 
+  // TODO(hashimoto): Stop directly accsssing element_readers_ from tests and
+  // remove these friend declarations.
+  FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, InitAsync);
+  FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, InitAsyncFailureAsync);
+  FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, InitAsyncFailureSync);
+
+  // Runs Init() for all element readers.
+  // This method is used to implement Init().
+  void InitInternal(int start_index,
+                    const CompletionCallback& callback,
+                    int previous_result);
+
+  // Finalizes the initialization process.
+  // This method is used to implement Init().
+  void FinalizeInitialization();
+
   // These methods are provided only to be used by unit tests.
   static void ResetMergeChunks();
   static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
@@ -89,6 +115,8 @@ class NET_EXPORT UploadDataStream {
 
   // True if the initialization was successful.
   bool initialized_successfully_;
+
+  base::WeakPtrFactory<UploadDataStream> weak_ptr_factory_;
 
   // TODO(satish): Remove this once we have a better way to unit test POST
   // requests with chunked uploads.
