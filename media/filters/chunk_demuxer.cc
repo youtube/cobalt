@@ -226,7 +226,7 @@ class ChunkDemuxerStream : public DemuxerStream {
   void DeferRead_Locked(const ReadCB& read_cb);
 
   // Creates closures that bind ReadCBs in |read_cbs_| to data in
-  // |buffers_| and pops the callbacks & buffers from the respecive queues.
+  // |buffers_| and pops the callbacks & buffers from the respective queues.
   void CreateReadDoneClosures_Locked(ClosureQueue* closures);
 
   // Gets the value to pass to the next Read() callback. Returns true if
@@ -1016,7 +1016,6 @@ void ChunkDemuxer::OnStreamParserInitDone(bool success, TimeDelta duration) {
   // The demuxer is now initialized after the |start_timestamp_| was set.
   ChangeState_Locked(INITIALIZED);
   base::ResetAndReturn(&init_cb_).Run(PIPELINE_OK);
-
 }
 
 bool ChunkDemuxer::OnNewConfigs(bool has_audio, bool has_video,

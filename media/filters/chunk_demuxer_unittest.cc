@@ -683,21 +683,21 @@ class ChunkDemuxerTest : public testing::Test {
 
 TEST_F(ChunkDemuxerTest, TestInit) {
   // Test no streams, audio-only, video-only, and audio & video scenarios,
-  // with video content encoded or not.
+  // with video encrypted or not.
   for (int i = 0; i < 8; i++) {
     bool has_audio = (i & 0x1) != 0;
     bool has_video = (i & 0x2) != 0;
-    bool video_content_encoded = (i & 0x4) != 0;
+    bool is_video_encrypted = (i & 0x4) != 0;
 
     // No test on invalid combination.
-    if (!has_video && video_content_encoded)
+    if (!has_video && is_video_encrypted)
       continue;
 
     CreateNewDemuxer();
-    if (has_video && video_content_encoded)
+    if (has_video && is_video_encrypted)
       EXPECT_CALL(*this, NeedKeyMock(NotNull(), 16));
 
-    ASSERT_TRUE(InitDemuxer(has_audio, has_video, video_content_encoded));
+    ASSERT_TRUE(InitDemuxer(has_audio, has_video, is_video_encrypted));
 
     scoped_refptr<DemuxerStream> audio_stream =
         demuxer_->GetStream(DemuxerStream::AUDIO);
@@ -719,6 +719,8 @@ TEST_F(ChunkDemuxerTest, TestInit) {
         demuxer_->GetStream(DemuxerStream::VIDEO);
     if (has_video) {
       EXPECT_TRUE(video_stream);
+      EXPECT_EQ(is_video_encrypted,
+                video_stream->video_decoder_config().is_encrypted());
     } else {
       EXPECT_FALSE(video_stream);
     }
@@ -1160,7 +1162,6 @@ TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
 
 // Make sure AppendData() will accept elements that span multiple calls.
 TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
-
   EXPECT_CALL(*this, DemuxerOpened());
   demuxer_->Initialize(
       &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));

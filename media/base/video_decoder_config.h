@@ -5,6 +5,8 @@
 #ifndef MEDIA_BASE_VIDEO_DECODER_CONFIG_H_
 #define MEDIA_BASE_VIDEO_DECODER_CONFIG_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
@@ -73,7 +75,8 @@ class MEDIA_EXPORT VideoDecoderConfig {
                      const gfx::Size& coded_size,
                      const gfx::Rect& visible_rect,
                      const gfx::Size& natural_size,
-                     const uint8* extra_data, size_t extra_data_size);
+                     const uint8* extra_data, size_t extra_data_size,
+                     bool is_encrypted);
 
   ~VideoDecoderConfig();
 
@@ -85,6 +88,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
                   const gfx::Rect& visible_rect,
                   const gfx::Size& natural_size,
                   const uint8* extra_data, size_t extra_data_size,
+                  bool is_encrypted,
                   bool record_stats);
 
   // Deep copies |video_config|.
@@ -124,6 +128,11 @@ class MEDIA_EXPORT VideoDecoderConfig {
   uint8* extra_data() const;
   size_t extra_data_size() const;
 
+  // Whether the video stream is potentially encrypted.
+  // Note that in a potentially encrypted video stream, individual buffers
+  // can be encrypted or not encrypted.
+  bool is_encrypted() const;
+
  private:
   VideoCodec codec_;
   VideoCodecProfile profile_;
@@ -136,6 +145,8 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   scoped_array<uint8> extra_data_;
   size_t extra_data_size_;
+
+  bool is_encrypted_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoDecoderConfig);
 };

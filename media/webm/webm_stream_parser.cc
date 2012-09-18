@@ -346,27 +346,42 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
   }
 
   FFmpegConfigHelper config_helper;
-
   if (!config_helper.Parse(data, bytes_parsed)) {
     DVLOG(1) << "Failed to parse config data.";
     return -1;
   }
 
-  if (!config_cb_.Run(config_helper.audio_config(),
-                      config_helper.video_config())) {
-    DVLOG(1) << "New config data isn't allowed.";
-    return -1;
-  }
-
   // TODO(xhwang): Support decryption of audio (see http://crbug.com/123421).
-  if (!tracks_parser.video_encryption_key_id().empty()) {
+  bool is_video_encrypted = !tracks_parser.video_encryption_key_id().empty();
+
+  VideoDecoderConfig video_config;
+  if (is_video_encrypted) {
+    const VideoDecoderConfig& original_video_config =
+        config_helper.video_config();
+    video_config.Initialize(original_video_config.codec(),
+                            original_video_config.profile(),
+                            original_video_config.format(),
+                            original_video_config.coded_size(),
+                            original_video_config.visible_rect(),
+                            original_video_config.natural_size(),
+                            original_video_config.extra_data(),
+                            original_video_config.extra_data_size(),
+                            is_video_encrypted, false);
+
+    // Fire needkey event.
     std::string key_id = tracks_parser.video_encryption_key_id();
     int key_id_size = key_id.size();
-    CHECK_GT(key_id_size, 0);
-    CHECK_LT(key_id_size, 2048);
+    DCHECK_GT(key_id_size, 0);
     scoped_array<uint8> key_id_array(new uint8[key_id_size]);
     memcpy(key_id_array.get(), key_id.data(), key_id_size);
     need_key_cb_.Run(key_id_array.Pass(), key_id_size);
+  } else {
+    video_config.CopyFrom(config_helper.video_config());
+  }
+
+  if (!config_cb_.Run(config_helper.audio_config(), video_config)) {
+    DVLOG(1) << "New config data isn't allowed.";
+    return -1;
   }
 
   cluster_parser_.reset(new WebMClusterParser(
