@@ -8,6 +8,7 @@
 #include "base/message_loop.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
+#include "media/audio/audio_device_thread.h"
 #include "media/audio/audio_output_controller.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/shared_memory_util.h"
@@ -49,7 +50,8 @@ AudioOutputDevice::AudioOutputDevice(
       ipc_(ipc),
       stream_id_(0),
       play_on_start_(true),
-      is_started_(false) {
+      is_started_(false),
+      audio_thread_(new AudioDeviceThread()) {
   CHECK(ipc_);
 }
 
@@ -89,7 +91,8 @@ void AudioOutputDevice::Start() {
 void AudioOutputDevice::Stop() {
   {
     base::AutoLock auto_lock(audio_thread_lock_);
-    audio_thread_.Stop(MessageLoop::current());
+    audio_thread_->Stop(MessageLoop::current());
+    audio_thread_.reset();
   }
 
   message_loop()->PostTask(FROM_HERE,
@@ -173,8 +176,13 @@ void AudioOutputDevice::ShutDownOnIOThread() {
   // Another situation is when the IO thread goes away before Stop() is called
   // in which case, we cannot use the message loop to close the thread handle
   // and can't not rely on the main thread existing either.
+  base::AutoLock auto_lock_(audio_thread_lock_);
+  if (!audio_thread_.get())
+    return;
+
   base::ThreadRestrictions::ScopedAllowIO allow_io;
-  audio_thread_.Stop(NULL);
+  audio_thread_->Stop(NULL);
+  audio_thread_.reset();
   audio_callback_.reset();
 }
 
@@ -199,7 +207,8 @@ void AudioOutputDevice::OnStateChanged(AudioOutputIPCDelegate::State state) {
     // TODO(tommi): Add an explicit contract for clearing the callback
     // object.  Possibly require calling Initialize again or provide
     // a callback object via Start() and clear it in Stop().
-    if (!audio_thread_.IsStopped())
+    base::AutoLock auto_lock_(audio_thread_lock_);
+    if (audio_thread_.get() && !audio_thread_->IsStopped())
       callback_->OnRenderError();
   }
 }
@@ -224,13 +233,18 @@ void AudioOutputDevice::OnStreamCreated(
   // delegate and hence it should not receive callbacks.
   DCHECK(stream_id_);
 
+  // No-op in the case where the client calls Stop() before OnStreamCreated() is
+  // called, otherwise we spin up the thread with a potentially freed
+  // |callback_| pointer.
   base::AutoLock auto_lock(audio_thread_lock_);
+  if (!audio_thread_.get())
+    return;
 
-  DCHECK(audio_thread_.IsStopped());
+  DCHECK(audio_thread_->IsStopped());
   audio_callback_.reset(new AudioOutputDevice::AudioThreadCallback(
       audio_parameters_, input_channels_, handle, length, callback_));
-  audio_thread_.Start(audio_callback_.get(), socket_handle,
-      "AudioOutputDevice");
+  audio_thread_->Start(
+      audio_callback_.get(), socket_handle, "AudioOutputDevice");
 
   // We handle the case where Play() and/or Pause() may have been called
   // multiple times before OnStreamCreated() gets called.
