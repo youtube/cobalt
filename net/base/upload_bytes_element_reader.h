@@ -17,6 +17,7 @@ class NET_EXPORT_PRIVATE UploadBytesElementReader : public UploadElementReader {
   virtual ~UploadBytesElementReader();
 
   // UploadElementReader overrides:
+  virtual int Init(const CompletionCallback& callback) OVERRIDE;
   virtual int InitSync() OVERRIDE;
   virtual uint64 GetContentLength() const OVERRIDE;
   virtual uint64 BytesRemaining() const OVERRIDE;

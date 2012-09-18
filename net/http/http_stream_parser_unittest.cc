@@ -97,7 +97,7 @@ TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_NoBody) {
 TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_EmptyBody) {
   scoped_refptr<UploadData> upload_data = new UploadData;
   scoped_ptr<UploadDataStream> body(new UploadDataStream(upload_data));
-  ASSERT_EQ(OK, body->Init());
+  ASSERT_EQ(OK, body->InitSync());
   // Shouldn't be merged if upload data is empty.
   ASSERT_FALSE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
       "some header", body.get()));
@@ -110,7 +110,7 @@ TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_ChunkedBody) {
   upload_data->AppendChunk(payload.data(), payload.size(), true);
 
   scoped_ptr<UploadDataStream> body(new UploadDataStream(upload_data));
-  ASSERT_EQ(OK, body->Init());
+  ASSERT_EQ(OK, body->InitSync());
   // Shouldn't be merged if upload data carries chunked data.
   ASSERT_FALSE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
       "some header", body.get()));
@@ -129,7 +129,7 @@ TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_FileBody) {
   upload_data->AppendFileRange(temp_file_path, 0, 0, base::Time());
 
   scoped_ptr<UploadDataStream> body(new UploadDataStream(upload_data));
-  ASSERT_EQ(OK, body->Init());
+  ASSERT_EQ(OK, body->InitSync());
   // Shouldn't be merged if upload data carries a file, as it's not in-memory.
   ASSERT_FALSE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
       "some header", body.get()));
@@ -141,7 +141,7 @@ TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_SmallBodyInMemory) {
   upload_data->AppendBytes(payload.data(), payload.size());
 
   scoped_ptr<UploadDataStream> body(new UploadDataStream(upload_data));
-  ASSERT_EQ(OK, body->Init());
+  ASSERT_EQ(OK, body->InitSync());
   // Yes, should be merged if the in-memory body is small here.
   ASSERT_TRUE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
       "some header", body.get()));
@@ -153,7 +153,7 @@ TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_LargeBodyInMemory) {
   upload_data->AppendBytes(payload.data(), payload.size());
 
   scoped_ptr<UploadDataStream> body(new UploadDataStream(upload_data));
-  ASSERT_EQ(OK, body->Init());
+  ASSERT_EQ(OK, body->InitSync());
   // Shouldn't be merged if the in-memory body is large here.
   ASSERT_FALSE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
       "some header", body.get()));
@@ -226,7 +226,7 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
 
   scoped_ptr<UploadDataStream> upload_stream(
       new UploadDataStream(upload_data));
-  ASSERT_EQ(OK, upload_stream->Init());
+  ASSERT_EQ(OK, upload_stream->InitSync());
 
   HttpRequestHeaders request_headers;
   request_headers.SetHeader("Host", "localhost");

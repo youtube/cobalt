@@ -24,7 +24,8 @@ UploadDataStream::UploadDataStream(UploadData* upload_data)
       element_index_(0),
       total_size_(0),
       current_position_(0),
-      initialized_successfully_(false) {
+      initialized_successfully_(false),
+      weak_ptr_factory_(this) {
   const std::vector<UploadElement>& elements = *upload_data_->elements();
   for (size_t i = 0; i < elements.size(); ++i)
     element_readers_.push_back(UploadElementReader::Create(elements[i]));
@@ -33,21 +34,31 @@ UploadDataStream::UploadDataStream(UploadData* upload_data)
 UploadDataStream::~UploadDataStream() {
 }
 
-int UploadDataStream::Init() {
+int UploadDataStream::Init(const CompletionCallback& callback) {
   DCHECK(!initialized_successfully_);
 
-  uint64 total_size = 0;
+  // Use fast path when initialization can be done synchronously.
+  if (IsInMemory())
+    return InitSync();
+
+  InitInternal(0, callback, OK);
+  return ERR_IO_PENDING;
+}
+
+int UploadDataStream::InitSync() {
+  DCHECK(!initialized_successfully_);
+
+  // Initialize all readers synchronously.
   for (size_t i = 0; i < element_readers_.size(); ++i) {
     UploadElementReader* reader = element_readers_[i];
     const int result = reader->InitSync();
-    if (result != OK)
+    if (result != OK) {
+      element_readers_.clear();
       return result;
-    if (!is_chunked())
-      total_size += reader->GetContentLength();
+    }
   }
-  total_size_ = total_size;
 
-  initialized_successfully_ = true;
+  FinalizeInitialization();
   return OK;
 }
 
@@ -116,6 +127,56 @@ bool UploadDataStream::IsInMemory() const {
       return false;
   }
   return true;
+}
+
+void UploadDataStream::InitInternal(int start_index,
+                                    const CompletionCallback& callback,
+                                    int previous_result) {
+  DCHECK(!initialized_successfully_);
+  DCHECK_NE(ERR_IO_PENDING, previous_result);
+
+  // Check the last result.
+  if (previous_result != OK) {
+    element_readers_.clear();
+    callback.Run(previous_result);
+    return;
+  }
+
+  // Call Init() for all elements.
+  for (size_t i = start_index; i < element_readers_.size(); ++i) {
+    UploadElementReader* reader = element_readers_[i];
+    // When new_result is ERR_IO_PENDING, InitInternal() will be called
+    // with start_index == i + 1 when reader->Init() finishes.
+    const int new_result = reader->Init(
+        base::Bind(&UploadDataStream::InitInternal,
+                   weak_ptr_factory_.GetWeakPtr(),
+                   i + 1,
+                   callback));
+    if (new_result != OK) {
+      if (new_result != ERR_IO_PENDING) {
+        element_readers_.clear();
+        callback.Run(new_result);
+      }
+      return;
+    }
+  }
+
+  // Finalize initialization.
+  FinalizeInitialization();
+  callback.Run(OK);
+}
+
+void UploadDataStream::FinalizeInitialization() {
+  DCHECK(!initialized_successfully_);
+  if (!is_chunked()) {
+    uint64 total_size = 0;
+    for (size_t i = 0; i < element_readers_.size(); ++i) {
+      UploadElementReader* reader = element_readers_[i];
+      total_size += reader->GetContentLength();
+    }
+    total_size_ = total_size;
+  }
+  initialized_successfully_ = true;
 }
 
 }  // namespace net

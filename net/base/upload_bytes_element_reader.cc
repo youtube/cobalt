@@ -19,6 +19,10 @@ UploadBytesElementReader::UploadBytesElementReader(const char* bytes,
 UploadBytesElementReader::~UploadBytesElementReader() {
 }
 
+int UploadBytesElementReader::Init(const CompletionCallback& callback) {
+  return OK;
+}
+
 int UploadBytesElementReader::InitSync() {
   return OK;
 }
