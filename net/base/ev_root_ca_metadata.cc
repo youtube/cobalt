@@ -4,7 +4,7 @@
 
 #include "net/base/ev_root_ca_metadata.h"
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 #include <cert.h>
 #include <pkcs11n.h>
 #include <secerr.h>
@@ -15,7 +15,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 #include "crypto/nss_util.h"
 #endif
 
@@ -319,7 +319,7 @@ EVRootCAMetadata* EVRootCAMetadata::GetInstance() {
   return g_ev_root_ca_metadata.Pointer();
 }
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 bool EVRootCAMetadata::IsEVPolicyOID(PolicyOID policy_oid) const {
   return policy_oids_.find(policy_oid) != policy_oids_.end();
 }

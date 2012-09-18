@@ -680,6 +680,8 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   X509Certificate::FreeOSCertHandle(google_handle);
 }
 
+#if !defined(OS_IOS)
+// TODO(ios): Not yet implemented on iOS.
 #if defined(OS_MACOSX)
 TEST(X509CertificateTest, IsIssuedBy) {
   FilePath certs_dir = GetTestCertsDirectory();
@@ -726,7 +728,9 @@ TEST(X509CertificateTest, IsIssuedBy) {
   EXPECT_FALSE(mit_davidben_cert->IsIssuedBy(foaf_issuers));
 }
 #endif  // defined(OS_MACOSX)
+#endif  // !defined(OS_IOS)
 
+#if !defined(OS_IOS)  // TODO(ios): Unable to create certificates.
 #if defined(USE_NSS) || defined(OS_WIN) || defined(OS_MACOSX)
 // This test creates a self-signed cert from a private key and then verify the
 // content of the certificate.
@@ -850,6 +854,7 @@ TEST(X509CertificateTest, GetDEREncoded) {
   EXPECT_FALSE(der_cert.empty());
 }
 #endif
+#endif  // !defined(OS_IOS)
 
 class X509CertificateParseTest
     : public testing::TestWithParam<CertificateFormatTestData> {
