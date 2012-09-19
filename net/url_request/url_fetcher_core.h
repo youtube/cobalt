@@ -91,9 +91,9 @@ class URLFetcherCore
   base::TimeDelta GetBackoffDelay() const;
   void SaveResponseToFileAtPath(
       const FilePath& file_path,
-      scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
+      scoped_refptr<base::TaskRunner> file_task_runner);
   void SaveResponseToTemporaryFile(
-      scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
+      scoped_refptr<base::TaskRunner> file_task_runner);
   HttpResponseHeaders* GetResponseHeaders() const;
   HostPortPair GetSocketAddress() const;
   bool WasFetchedViaProxy() const;
@@ -162,12 +162,12 @@ class URLFetcherCore
   // |URLFetcherCore::response_destination_| == TEMP_FILE ||
   // |URLFetcherCore::response_destination_| == PERMANENT_FILE.  Each
   // instance of FileWriter is owned by a URLFetcherCore, which
-  // manages its lifetime and never transfers ownership.  While
-  // writing to a file, all function calls happen on the IO thread.
+  // manages its lifetime and never transfers ownership. All file operations
+  // happen on |file_task_runner_|.
   class FileWriter {
    public:
     FileWriter(URLFetcherCore* core,
-               scoped_refptr<base::SingleThreadTaskRunner> file_task_runner);
+               scoped_refptr<base::TaskRunner> file_task_runner);
     ~FileWriter();
 
     void CreateFileAtPath(const FilePath& file_path);
@@ -187,8 +187,8 @@ class URLFetcherCore
     // Close the file if it is open.
     void CloseFileAndCompleteRequest();
 
-    // Remove the file if we have created one.
-    void RemoveFile();
+    // Close the file if it is open and then delete it.
+    void CloseAndDeleteFile();
 
     const FilePath& file_path() const { return file_path_; }
     int64 total_bytes_written() { return total_bytes_written_; }
@@ -212,6 +212,10 @@ class URLFetcherCore
     // Callback which gets the result of closing the file.
     void DidCloseFile(base::PlatformFileError error);
 
+    // Callback which gets the result of closing the file. Deletes the file if
+    // it has been created.
+    void DeleteFile(base::PlatformFileError error_code);
+
     // The URLFetcherCore which instantiated this class.
     URLFetcherCore* core_;
 
@@ -222,8 +226,8 @@ class URLFetcherCore
     // Callbacks are created for use with base::FileUtilProxy.
     base::WeakPtrFactory<URLFetcherCore::FileWriter> weak_factory_;
 
-    // Task runner for the thread on which file operations should happen.
-    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner_;
+    // Task runner on which file operations should happen.
+    scoped_refptr<base::TaskRunner> file_task_runner_;
 
     // Path to the file.  This path is empty when there is no file.
     FilePath file_path_;
@@ -301,9 +305,8 @@ class URLFetcherCore
   scoped_refptr<base::SingleThreadTaskRunner> delegate_task_runner_;
                                      // Task runner for the creating thread.
   scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
-                                     // Task runner for the thread
-                                     // on which the request IO happens.
-  scoped_refptr<base::SingleThreadTaskRunner> file_task_runner_;
+                                     // Task runner for file access.
+  scoped_refptr<base::TaskRunner> file_task_runner_;
                                      // Task runner for the thread
                                      // on which file access happens.
   scoped_ptr<URLRequest> request_;   // The actual request this wraps

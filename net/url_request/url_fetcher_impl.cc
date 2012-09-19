@@ -104,13 +104,13 @@ base::TimeDelta URLFetcherImpl::GetBackoffDelay() const {
 
 void URLFetcherImpl::SaveResponseToFileAtPath(
     const FilePath& file_path,
-    scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) {
-  core_->SaveResponseToFileAtPath(file_path, file_message_loop_proxy);
+    scoped_refptr<base::TaskRunner> file_task_runner) {
+  core_->SaveResponseToFileAtPath(file_path, file_task_runner);
 }
 
 void URLFetcherImpl::SaveResponseToTemporaryFile(
-    scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) {
-  core_->SaveResponseToTemporaryFile(file_message_loop_proxy);
+    scoped_refptr<base::TaskRunner> file_task_runner) {
+  core_->SaveResponseToTemporaryFile(file_task_runner);
 }
 
 HttpResponseHeaders* URLFetcherImpl::GetResponseHeaders() const {
