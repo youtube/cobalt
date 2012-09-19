@@ -984,7 +984,7 @@ class AndroidCommands(object):
     return pids
 
   def FileExistsOnDevice(self, file_name):
-    """Checks whether the given (regular) file exists on the device.
+    """Checks whether the given file exists on the device.
 
     Args:
       file_name: Full path of file to check.
@@ -994,7 +994,7 @@ class AndroidCommands(object):
     """
     assert '"' not in file_name, 'file_name cannot contain double quotes'
     status = self._adb.SendShellCommand(
-        '\'test -f "%s"; echo $?\'' % (file_name))
+        '\'test -e "%s"; echo $?\'' % (file_name))
     if 'test: not found' not in status:
       return int(status) == 0
 
