@@ -49,9 +49,7 @@ class MockCertVerifyProc : public CertVerifyProc {
 
 class MultiThreadedCertVerifierTest : public ::testing::Test {
  public:
-  MultiThreadedCertVerifierTest() {
-    verifier_.SetCertVerifyProc(new MockCertVerifyProc());
-  }
+  MultiThreadedCertVerifierTest() : verifier_(new MockCertVerifyProc()) {}
   virtual ~MultiThreadedCertVerifierTest() {}
 
  protected:
