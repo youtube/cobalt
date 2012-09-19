@@ -85,10 +85,9 @@ def AddInstrumentationOptions(option_parser):
                                  'of the result. (Default is 1)'))
   option_parser.add_option('--test-apk', dest='test_apk',
                            help=('The name of the apk containing the tests '
-                                 '(without the .apk extension) or for SDK '
-                                 'builds, the path to the APK from '
-                                 'out/(Debug|Release) (for example, '
-                                 'content_shell_test/ContentShellTest-debug).'))
+                                 '(without the .apk extension). For SDK '
+                                 'builds, the apk name without the debug '
+                                 'suffix(for example, ContentShellTest).'))
   option_parser.add_option('--screenshot', dest='screenshot_failures',
                            action='store_true',
                            help='Capture screenshots of test failures')
@@ -119,13 +118,15 @@ def ValidateInstrumentationOptions(option_parser, options, args):
   elif options.python_only:
     options.run_java_tests = False
 
+  # In case of SDK Build, the jars and apks have a -debug suffix.
   options.test_apk_path = os.path.join(_SDK_OUT_DIR,
                                        options.build_type,
-                                       '%s.apk' % options.test_apk)
+                                       constants.SDK_BUILD_APKS_DIR,
+                                       '%s-debug.apk' % options.test_apk)
   options.test_apk_jar_path = os.path.join(_SDK_OUT_DIR,
                                            options.build_type,
-                                           '%s.jar'
-                                           % options.test_apk)
+                                           constants.SDK_BUILD_TEST_JAVALIB_DIR,
+                                           '%s-debug.jar' % options.test_apk)
   if options.annotation_str:
     options.annotation = options.annotation_str.split()
   elif options.test_filter:
