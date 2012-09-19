@@ -19,12 +19,12 @@ AudioOutputProxy::AudioOutputProxy(AudioOutputDispatcher* dispatcher)
 
 AudioOutputProxy::~AudioOutputProxy() {
   DCHECK(CalledOnValidThread());
-  DCHECK(state_ == kCreated || state_ == kClosed);
+  CHECK(state_ == kCreated || state_ == kClosed) << "State is: " << state_;
 }
 
 bool AudioOutputProxy::Open() {
   DCHECK(CalledOnValidThread());
-  DCHECK_EQ(state_, kCreated);
+  CHECK_EQ(state_, kCreated);
 
   if (!dispatcher_->OpenStream()) {
     state_ = kError;
@@ -37,7 +37,7 @@ bool AudioOutputProxy::Open() {
 
 void AudioOutputProxy::Start(AudioSourceCallback* callback) {
   DCHECK(CalledOnValidThread());
-  DCHECK_EQ(state_, kOpened);
+  CHECK_EQ(state_, kOpened);
 
   if (!dispatcher_->StartStream(callback, this)) {
     state_ = kError;
