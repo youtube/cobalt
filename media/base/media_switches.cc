@@ -18,7 +18,7 @@ const char kAlsaInputDevice[] = "alsa-input-device";
 const char kUseCras[] = "use-cras";
 #endif
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(__LB_SHELL__)
 // Use PulseAudio on platforms that support it.
 const char kUsePulseAudio[] = "use-pulseaudio";
 #endif

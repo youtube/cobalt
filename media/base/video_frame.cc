@@ -8,7 +8,7 @@
 #include "base/string_piece.h"
 #include "media/base/limits.h"
 #include "media/base/video_util.h"
-#if !defined(OS_ANDROID)
+#if !defined(OS_ANDROID) && !defined(__LB_SHELL__)
 #include "media/ffmpeg/ffmpeg_common.h"
 #endif
 
@@ -108,7 +108,7 @@ void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
   size_t bytes_per_row = RoundUp(width_, kFrameSizeAlignment) * bytes_per_pixel;
   size_t aligned_height = RoundUp(height_, kFrameSizeAlignment);
   strides_[VideoFrame::kRGBPlane] = bytes_per_row;
-#if !defined(OS_ANDROID)
+#if !defined(OS_ANDROID) && !defined(__LB_SHELL__)
   // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
   // doesn't need to be repeated in every single user of aligned data.
   data_[VideoFrame::kRGBPlane] = reinterpret_cast<uint8*>(
@@ -143,7 +143,7 @@ void VideoFrame::AllocateYUV() {
   size_t y_bytes = y_height * y_stride;
   size_t uv_bytes = uv_height * uv_stride;
 
-#if !defined(OS_ANDROID)
+#if !defined(OS_ANDROID) && !defined(__LB_SHELL__)
   // TODO(dalecurtis): use DataAligned or so, so this #ifdef hackery
   // doesn't need to be repeated in every single user of aligned data.
   // The extra line of UV being allocated is because h264 chroma MC
@@ -190,7 +190,7 @@ VideoFrame::~VideoFrame() {
   // on the heap, and other |data| pointers point inside the same, single block
   // so just delete index 0.
   if (data_[0]) {
-#if !defined(OS_ANDROID)
+#if !defined(OS_ANDROID) && !defined(__LB_SHELL__)
     av_free(data_[0]);
 #else
     delete[] data_[0];

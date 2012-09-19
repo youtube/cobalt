@@ -43,6 +43,18 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
   virtual const DecryptConfig* GetDecryptConfig() const;
   virtual void SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config);
 
+#if defined(__LB_SHELL__)
+  // because we re-use buffers we add a simple handle to allow us to track them
+  void SetHandle(uint32 handle);
+  uint32 GetHandle();
+  // we re-use buffers, their data size is different from their "buffer size"
+  // buffer size is set at creation time. We repurpose DataSize on each reuse
+  // it can vary from [0..BufferSize]. This function returns the actual size
+  // of the entire buffer.
+  int GetBufferSize();
+  void SetDataSize(int size);
+#endif
+
  protected:
   // Allocates a buffer of size |size| >= 0 and copies |data| into it.  Buffer
   // will be padded and aligned as necessary.  If |data| is NULL then |data_| is
@@ -54,6 +66,10 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
   int buffer_size_;
   uint8* data_;
   scoped_ptr<DecryptConfig> decrypt_config_;
+#if defined(__LB_SHELL__)
+  uint32 handle_;
+  int data_size_;
+#endif
 
   // Constructor helper method for memory allocations.
   void Initialize();
