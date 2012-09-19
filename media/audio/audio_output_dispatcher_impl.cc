@@ -85,12 +85,10 @@ void AudioOutputDispatcherImpl::StopStream(AudioOutputProxy* stream_proxy) {
 
   AudioStreamMap::iterator it = proxy_to_physical_map_.find(stream_proxy);
   // StopStream() may have already been called.
-  if (it == proxy_to_physical_map_.end()) {
-    // TODO(dalecurtis): StopStream() shouldn't be called twice!  See the bug:
-    // http://crbug.com/149815
-    LOG(WARNING) << "AudioOutputDispatcherImpl::StopStream() called twice!";
+  // TODO(dalecurtis): StopStream() shouldn't be called twice!  See:
+  // http://crbug.com/149815 and http://crbug.com/150619
+  if (it == proxy_to_physical_map_.end())
     return;
-  }
   AudioOutputStream* physical_stream = it->second;
   proxy_to_physical_map_.erase(it);
 
