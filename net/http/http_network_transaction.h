@@ -118,6 +118,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
     STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE,
     STATE_GENERATE_SERVER_AUTH_TOKEN,
     STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE,
+    STATE_INIT_REQUEST_BODY,
+    STATE_INIT_REQUEST_BODY_COMPLETE,
     STATE_BUILD_REQUEST,
     STATE_BUILD_REQUEST_COMPLETE,
     STATE_SEND_REQUEST,
@@ -151,6 +153,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   int DoGenerateProxyAuthTokenComplete(int result);
   int DoGenerateServerAuthToken();
   int DoGenerateServerAuthTokenComplete(int result);
+  int DoInitRequestBody();
+  int DoInitRequestBodyComplete(int result);
   int DoBuildRequest();
   int DoBuildRequestComplete(int result);
   int DoSendRequest();
