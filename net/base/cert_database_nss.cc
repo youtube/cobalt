@@ -9,11 +9,53 @@
 #include <secmod.h>
 
 #include "base/logging.h"
+#include "base/observer_list_threadsafe.h"
 #include "crypto/nss_util.h"
 #include "net/base/net_errors.h"
+#include "net/base/nss_cert_database.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
+
+// Helper that observes events from the NSSCertDatabase and forwards them to
+// the given CertDatabase.
+class CertDatabase::Notifier : public NSSCertDatabase::Observer {
+ public:
+  explicit Notifier(CertDatabase* cert_db) : cert_db_(cert_db) {
+    NSSCertDatabase::GetInstance()->AddObserver(this);
+  }
+
+  virtual ~Notifier() {
+    NSSCertDatabase::GetInstance()->RemoveObserver(this);
+  }
+
+  // NSSCertDatabase::Observer implementation:
+  virtual void OnCertAdded(const X509Certificate* cert) OVERRIDE {
+    cert_db_->NotifyObserversOfCertAdded(cert);
+  }
+
+  virtual void OnCertRemoved(const X509Certificate* cert) OVERRIDE {
+    cert_db_->NotifyObserversOfCertRemoved(cert);
+  }
+
+  virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE {
+    cert_db_->NotifyObserversOfCertTrustChanged(cert);
+  }
+
+ private:
+  CertDatabase* cert_db_;
+
+  DISALLOW_COPY_AND_ASSIGN(Notifier);
+};
+
+CertDatabase::CertDatabase()
+    : observer_list_(new ObserverListThreadSafe<Observer>) {
+  // Observe NSSCertDatabase events and forward them to observers of
+  // CertDatabase. This also makes sure that NSS has been initialized.
+  notifier_.reset(new Notifier(this));
+}
+
+CertDatabase::~CertDatabase() {}
 
 int CertDatabase::CheckUserCert(X509Certificate* cert_obj) {
   if (!cert_obj)
