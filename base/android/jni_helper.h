@@ -15,17 +15,21 @@
 // calls the destructor) they'll need to provide their own synchronization.
 class JavaObjectWeakGlobalRef {
  public:
+  JavaObjectWeakGlobalRef();
+  JavaObjectWeakGlobalRef(const JavaObjectWeakGlobalRef& orig);
   JavaObjectWeakGlobalRef(JNIEnv* env, jobject obj);
   virtual ~JavaObjectWeakGlobalRef();
+
+  void operator=(const JavaObjectWeakGlobalRef& rhs);
 
   base::android::ScopedJavaLocalRef<jobject> get(JNIEnv* env) const;
 
   void reset();
 
  private:
-  jweak obj_;
+  void Assign(const JavaObjectWeakGlobalRef& rhs);
 
-  DISALLOW_COPY_AND_ASSIGN(JavaObjectWeakGlobalRef);
+  jweak obj_;
 };
 
 // Get the real object stored in the weak reference returned as a
