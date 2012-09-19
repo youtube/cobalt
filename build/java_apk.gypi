@@ -50,7 +50,7 @@
         '>@(additional_input_paths)',
       ],
       'outputs': [
-        '<(PRODUCT_DIR)/<(package_name)/<(apk_name)-debug.apk',
+        '<(PRODUCT_DIR)/apks/<(apk_name)-debug.apk',
       ],
       'action': [
         'ant',
@@ -66,6 +66,7 @@
         '-DCONFIGURATION_NAME=<(CONFIGURATION_NAME)',
         '-DINPUT_JARS_PATHS=>(input_jars_paths)',
         '-DADDITIONAL_SRC_DIRS=>(additional_src_dirs)',
+        '-DCHROMIUM_SRC=<(ant_build_out)/../..',
         '-DRESOURCE_DIR=<(resource_dir)',
         '-buildfile',
         '<(java_in_dir)/<(package_name)_apk.xml'

@@ -229,7 +229,7 @@ function bb_run_instrumentation_test {
 # Run content shell instrumentation test on device.
 function bb_run_instrumentation_tests {
   build/android/adb_install_content_shell
-  local TEST_APK="content_shell_test/ContentShellTest-debug"
+  local TEST_APK="ContentShellTest"
   # Use -I to install the test apk only on the first run.
   # TODO(bulach): remove the second once we have a Smoke test.
   bb_run_instrumentation_test ${TEST_APK} "-I -A Smoke"
