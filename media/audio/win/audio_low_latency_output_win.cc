@@ -652,6 +652,9 @@ void WASAPIAudioOutputStream::Stop() {
     render_thread_.reset();
   }
 
+  // Clear source callback, it'll be set again on the next Start() call.
+  source_ = NULL;
+
   // Flush all pending data and reset the audio clock stream position to 0.
   hr = audio_client_->Reset();
   if (FAILED(hr)) {
