@@ -13,7 +13,6 @@
     for aidl and javac. This file defines targets which can be used to
     override targets used by tools.
   -->
-
   <!--
     Override the -compile target.
     This target requires 'javac.custom.classpath' to be set to reference
@@ -92,6 +91,20 @@
           </emma>
         </then>
       </if>
+      <!--
+        If the project needs a test jar then generate a jar containing
+        all compiled classes and referenced jars.
+      -->
+      <if condition="${generate.test.jar}">
+        <then>
+          <echo level="info">Creating test jar file:
+              ${ant.project.name}-debug.jar</echo>
+          <property-location name="create.test.jar.file"
+              location="${CHROMIUM_SRC}/build/android/ant/create-test-jar.js"/>
+          <script language="javascript" src="${create.test.jar.file}"/>
+        </then>
+      </if>
+
     </do-only-if-manifest-hasCode>
   </target>
 
@@ -115,9 +128,9 @@
 
   <!-- SDK tools assume that out.packaged.file is signed and name it "...-unaligned" -->
   <property name="out.packaged.file"
-    value="${out.dir}/${ant.project.name}-debug-unsigned.apk" />
+    value="${apks.dir}/${ant.project.name}-debug-unsigned.apk" />
   <property name="out.unaligned.file"
-    value="${out.dir}/${ant.project.name}-debug-unaligned.apk" />
+    value="${apks.dir}/${ant.project.name}-debug-unaligned.apk" />
 
   <!-- By default, the SDK tools build only aligns the APK in the -do-debug target. -->
   <target name="-do-debug"

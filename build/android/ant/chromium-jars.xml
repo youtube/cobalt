@@ -19,22 +19,16 @@
 
   <path id="javac.custom.classpath">
     <filelist files="${INPUT_JARS_PATHS}"/>
-    <pathelement location="${ANDROID_SDK}/android.jar" />
+    <pathelement location="${ANDROID_SDK}/android.jar"/>
   </path>
 
   <path id="javac.srcdirs.additional">
-    <filelist files="${ADDITIONAL_SRC_DIRS}" />
+    <filelist files="${ADDITIONAL_SRC_DIRS}"/>
   </path>
 
   <property-value
     name="javac.srcdir"
     value="src:${toString:javac.srcdirs.additional}"
-  />
-
-  <property-location
-    name="lib.dir"
-    location="${PRODUCT_DIR}/lib.java"
-    check-exists="false"
   />
 
   <property-location
@@ -47,7 +41,6 @@
     <!-- Create the time stamp -->
     <tstamp/>
     <!-- Create the build directory structure used by compile -->
-    <mkdir dir="${lib.dir}"/>
     <mkdir dir="${dest.dir}"/>
 
     <!-- Remove all .class files from dest.dir. This prevents inclusion of
@@ -60,7 +53,7 @@
     </delete>
   </target>
 
-  <target name="compile" depends="init" description="Compiles source." >
+  <target name="compile" depends="init" description="Compiles source.">
     <fail message="Error: javac.custom.classpath is not set. Please set it to
         classpath for javac.">
       <condition>
@@ -85,7 +78,7 @@
       description="Generate chromium_${PACKAGE_NAME}.jar.">
     <!-- Create the distribution directory -->
     <jar
-      jarfile="${lib.dir}/chromium_${PACKAGE_NAME}.jar"
+      jarfile="${lib.java.dir}/chromium_${PACKAGE_NAME}.jar"
       basedir="${dest.dir}"
     />
 
@@ -93,11 +86,11 @@
          time should still be updated. Otherwise, this target will continue to
          be rebuilt in future builds.
     -->
-    <touch file="${lib.dir}/chromium_${PACKAGE_NAME}.jar"/>
+    <touch file="${lib.java.dir}/chromium_${PACKAGE_NAME}.jar"/>
   </target>
 
   <target name="clean" description="clean up">
     <!-- Delete the appropriate directory trees -->
-    <delete dir="${dest.dir}" />
+    <delete dir="${dest.dir}"/>
   </target>
 </project>

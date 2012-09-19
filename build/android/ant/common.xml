@@ -75,4 +75,16 @@
   <property-value name="target" value="android-${ANDROID_SDK_VERSION}"/>
   <property name="source.dir" location="src"/>
   <property-location name="android.gdbserver" location="${ANDROID_GDBSERVER}"/>
+  <!--
+       Common directories used by SDK Build, when making changes here
+       make sure to update gyp files and test scripts constants in
+       build/android/pylib/constants.py
+  -->
+  <!-- Common directory for chromium_*.jars. -->
+  <property-location name="lib.java.dir" location="${PRODUCT_DIR}/lib.java"/>
+  <!-- Common directory for test jars. -->
+  <property-location name="test.lib.java.dir"
+    location="${PRODUCT_DIR}/test.lib.java"/>
+  <!-- Common directory for apks. -->
+  <property-location name="apks.dir" location="${PRODUCT_DIR}/apks"/>
 </project>

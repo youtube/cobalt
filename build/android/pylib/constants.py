@@ -37,3 +37,7 @@ TEST_SERVER_PORT_FILE = '/tmp/test_server_port'
 TEST_SERVER_PORT_LOCKFILE = '/tmp/test_server_port.lock'
 
 TEST_EXECUTABLE_DIR = '/data/local/tmp'
+# Directories for common java libraries for SDK build.
+# These constants are defined in build/android/ant/common.xml
+SDK_BUILD_TEST_JAVALIB_DIR = 'test.lib.java'
+SDK_BUILD_APKS_DIR = 'apks'
