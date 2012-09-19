@@ -63,6 +63,12 @@ class MockECSignatureCreator : public crypto::ECSignatureCreator {
     return true;
   }
 
+  virtual bool DecodeSignature(const std::vector<uint8>& signature,
+                               std::vector<uint8>* out_raw_sig) {
+    *out_raw_sig = signature;
+    return true;
+  }
+
  private:
   crypto::ECPrivateKey* key_;
 
