@@ -312,6 +312,12 @@ void AudioOutputResampler::StopStream(AudioOutputProxy* stream_proxy) {
 }
 
 void AudioOutputResampler::CloseStream(AudioOutputProxy* stream_proxy) {
+  // Force StopStream() before CloseStream().
+  // TODO(dalecurtis): This shouldn't be necessary, but somewhere in the chain
+  // CloseStream() is occurring without a StopStream() which causes the callback
+  // provided by OnMoreDataResampler to go away before the output stream is
+  // ready.  http://crbug.com/150619
+  StopStream(stream_proxy);
   dispatcher_->CloseStream(stream_proxy);
 
   // We assume that StopStream() is always called prior to CloseStream(), so
@@ -375,7 +381,6 @@ void OnMoreDataResampler::Start(
 
 void OnMoreDataResampler::Stop() {
   base::AutoLock auto_lock(source_lock_);
-  DCHECK(source_callback_);
   source_callback_ = NULL;
   outstanding_audio_bytes_ = 0;
   if (audio_fifo_.get())
