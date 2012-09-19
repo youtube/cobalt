@@ -962,6 +962,52 @@ TEST_F(SourceBufferStreamTest, End_Overlap_Selected_NoKeyframeAfterNew2) {
   CheckExpectedBuffers(20, 20, &kDataB, true);
 }
 
+// This test covers the case where new buffers end-overlap an existing, selected
+// range, and the next keyframe in a separate range.
+// index:  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0
+// old  :           |A*a*a a a|          |A a a a a|
+// new  :  B b b b b B
+// after: |B b b b b B|                  |A a a a a|
+// track:             |a a a a|
+TEST_F(SourceBufferStreamTest, End_Overlap_Selected_NoKeyframeAfterNew3) {
+  // Append 5 buffers at positions 5 through 9.
+  NewSegmentAppend(5, 5, &kDataA);
+
+  // Append 5 buffers at positions 15 through 19.
+  NewSegmentAppend(15, 5, &kDataA);
+
+  // Check expected range.
+  CheckExpectedRanges("{ [5,9) [15,19) }");
+
+  // Seek to position 5, then move to position 6.
+  Seek(5);
+  CheckExpectedBuffers(5, 5, &kDataA);
+
+  // Now append 6 buffers at positions 0 through 5.
+  NewSegmentAppend(0, 6, &kDataB);
+
+  // Check expected range.
+  CheckExpectedRanges("{ [0,5) [15,19) }");
+
+  // Check for data in the track buffer.
+  CheckExpectedBuffers(6, 9, &kDataA);
+
+  // Now there's no data to fulfill the request.
+  CheckNoNextBuffer();
+
+  // Let's fill in the gap, buffers 6 through 14.
+  AppendBuffers(6, 9, &kDataB);
+
+  // Check expected range.
+  CheckExpectedRanges("{ [0,19) }");
+
+  // We should be able to get the next buffer.
+  CheckExpectedBuffers(10, 14, &kDataB);
+
+  // We should be able to get the next buffer.
+  CheckExpectedBuffers(15, 19, &kDataA);
+}
+
 // This test covers the case when new buffers overlap the middle of a selected
 // range. This tests the case when there is no split and the next buffer is a
 // keyframe.
