@@ -56,7 +56,7 @@ void URLFetcherCore::Registry::CancelAll() {
 
 URLFetcherCore::FileWriter::FileWriter(
     URLFetcherCore* core,
-    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner)
+    scoped_refptr<base::TaskRunner> file_task_runner)
     : core_(core),
       error_code_(base::PLATFORM_FILE_OK),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
@@ -65,7 +65,7 @@ URLFetcherCore::FileWriter::FileWriter(
 }
 
 URLFetcherCore::FileWriter::~FileWriter() {
-  RemoveFile();
+  CloseAndDeleteFile();
 }
 
 void URLFetcherCore::FileWriter::CreateFileAtPath(
@@ -124,7 +124,7 @@ void URLFetcherCore::FileWriter::ContinueWrite(
 
   if (base::PLATFORM_FILE_OK != error_code) {
     error_code_ = error_code;
-    RemoveFile();
+    CloseAndDeleteFile();
     core_->delegate_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&URLFetcherCore::InformDelegateFetchIsComplete, core_));
@@ -171,24 +171,32 @@ void URLFetcherCore::FileWriter::CloseFileAndCompleteRequest() {
   }
 }
 
-void URLFetcherCore::FileWriter::RemoveFile() {
+void URLFetcherCore::FileWriter::CloseAndDeleteFile() {
   DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
 
+  if (file_handle_ == base::kInvalidPlatformFileValue) {
+    DeleteFile(base::PLATFORM_FILE_OK);
+    return;
+  }
   // Close the file if it is open.
-  if (file_handle_ != base::kInvalidPlatformFileValue) {
-    base::FileUtilProxy::Close(
-        file_task_runner_, file_handle_,
-        base::FileUtilProxy::StatusCallback());  // No callback: Ignore errors.
-    file_handle_ = base::kInvalidPlatformFileValue;
-  }
+  base::FileUtilProxy::Close(
+      file_task_runner_, file_handle_,
+      base::Bind(&URLFetcherCore::FileWriter::DeleteFile,
+                 weak_factory_.GetWeakPtr()));
+  file_handle_ = base::kInvalidPlatformFileValue;
+}
 
-  if (!file_path_.empty()) {
-    base::FileUtilProxy::Delete(
-        file_task_runner_, file_path_,
-        false,  // No need to recurse, as the path is to a file.
-        base::FileUtilProxy::StatusCallback());  // No callback: Ignore errors.
-    DisownFile();
-  }
+void URLFetcherCore::FileWriter::DeleteFile(
+    base::PlatformFileError error_code) {
+  DCHECK(core_->network_task_runner_->BelongsToCurrentThread());
+  if (file_path_.empty())
+    return;
+
+  base::FileUtilProxy::Delete(
+      file_task_runner_, file_path_,
+      false,  // No need to recurse, as the path is to a file.
+      base::FileUtilProxy::StatusCallback());
+  DisownFile();
 }
 
 void URLFetcherCore::FileWriter::DidCreateFile(
@@ -214,7 +222,7 @@ void URLFetcherCore::FileWriter::DidCreateFileInternal(
 
   if (base::PLATFORM_FILE_OK != error_code) {
     error_code_ = error_code;
-    RemoveFile();
+    CloseAndDeleteFile();
     core_->delegate_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&URLFetcherCore::InformDelegateFetchIsComplete, core_));
@@ -236,7 +244,7 @@ void URLFetcherCore::FileWriter::DidCloseFile(
 
   if (base::PLATFORM_FILE_OK != error_code) {
     error_code_ = error_code;
-    RemoveFile();
+    CloseAndDeleteFile();
     core_->delegate_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&URLFetcherCore::InformDelegateFetchIsComplete, core_));
@@ -412,7 +420,7 @@ base::TimeDelta URLFetcherCore::GetBackoffDelay() const {
 
 void URLFetcherCore::SaveResponseToFileAtPath(
     const FilePath& file_path,
-    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner) {
+    scoped_refptr<base::TaskRunner> file_task_runner) {
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   file_task_runner_ = file_task_runner;
   response_destination_ = URLFetcherCore::PERMANENT_FILE;
@@ -420,7 +428,7 @@ void URLFetcherCore::SaveResponseToFileAtPath(
 }
 
 void URLFetcherCore::SaveResponseToTemporaryFile(
-    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner) {
+    scoped_refptr<base::TaskRunner> file_task_runner) {
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
   file_task_runner_ = file_task_runner;
   response_destination_ = URLFetcherCore::TEMP_FILE;

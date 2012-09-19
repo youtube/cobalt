@@ -110,9 +110,9 @@ class TestURLFetcher : public URLFetcher {
   virtual base::TimeDelta GetBackoffDelay() const OVERRIDE;
   virtual void SaveResponseToFileAtPath(
       const FilePath& file_path,
-      scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) OVERRIDE;
+      scoped_refptr<base::TaskRunner> file_task_runner) OVERRIDE;
   virtual void SaveResponseToTemporaryFile(
-      scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) OVERRIDE;
+      scoped_refptr<base::TaskRunner> file_task_runner) OVERRIDE;
   virtual HttpResponseHeaders* GetResponseHeaders() const OVERRIDE;
   virtual HostPortPair GetSocketAddress() const OVERRIDE;
   virtual bool WasFetchedViaProxy() const OVERRIDE;
