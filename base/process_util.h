@@ -842,11 +842,6 @@ BASE_EXPORT void EnableTerminationOnHeapCorruption();
 // Turns on process termination if memory runs out.
 BASE_EXPORT void EnableTerminationOnOutOfMemory();
 
-#if defined(OS_MACOSX)
-// Exposed for testing.
-BASE_EXPORT malloc_zone_t* GetPurgeableZone();
-#endif  // defined(OS_MACOSX)
-
 // Enables stack dump to console output on exception and signals.
 // When enabled, the process will quit immediately. This is meant to be used in
 // unit_tests only! This is not thread-safe: only call from main thread.
@@ -865,6 +860,20 @@ BASE_EXPORT void RaiseProcessToHighPriority();
 // in the child after forking will restore the standard exception handler.
 // See http://crbug.com/20371/ for more details.
 void RestoreDefaultExceptionHandler();
+#endif  // defined(OS_MACOSX)
+
+#if defined(OS_MACOSX)
+// Very large images or svg canvases can cause huge mallocs.  Skia
+// does tricks on tcmalloc-based systems to allow malloc to fail with
+// a NULL rather than hit the oom crasher.  This replicates that for
+// OSX.
+//
+// IF YOU USE THIS WITHOUT CONSULTING YOUR FRIENDLY OSX DEVELOPER,
+// YOUR CODE IS LIKELY TO BE REVERTED.  THANK YOU.
+//
+// TODO(shess): Weird place to put it, but this is where the OOM
+// killer currently lives.
+BASE_EXPORT void* UncheckedMalloc(size_t size);
 #endif  // defined(OS_MACOSX)
 
 }  // namespace base
