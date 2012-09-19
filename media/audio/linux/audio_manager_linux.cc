@@ -11,6 +11,7 @@
 #include "base/process_util.h"
 #include "base/stl_util.h"
 #include "media/audio/audio_output_dispatcher.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/linux/alsa_input.h"
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
@@ -340,6 +341,28 @@ AudioInputStream* AudioManagerLinux::MakeInputStream(
 
 AudioManager* CreateAudioManager() {
   return new AudioManagerLinux();
+}
+
+AudioParameters AudioManagerLinux::GetPreferredLowLatencyOutputStreamParameters(
+    const AudioParameters& input_params) {
+  // Since Linux doesn't actually have a low latency path the hardware buffer
+  // size is quite large in order to prevent glitches with general usage.  Some
+  // clients, such as WebRTC, have a more limited use case and work acceptably
+  // with a smaller buffer size.  The check below allows clients which want to
+  // try a smaller buffer size on Linux to do so.
+  int buffer_size = 0;
+  if (static_cast<size_t>(input_params.frames_per_buffer()) <
+      GetAudioHardwareBufferSize()) {
+    buffer_size = input_params.frames_per_buffer();
+  } else {
+    buffer_size = GetAudioHardwareBufferSize();
+  }
+
+  // TODO(dalecurtis): This should include bits per channel and channel layout
+  // eventually.
+  return AudioParameters(
+      AudioParameters::AUDIO_PCM_LOW_LATENCY, input_params.channel_layout(),
+      GetAudioHardwareSampleRate(), 16, buffer_size);
 }
 
 }  // namespace media
