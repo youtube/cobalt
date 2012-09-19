@@ -6,7 +6,6 @@
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
-#include "base/file_util.h"
 #include "base/message_loop.h"
 #include "base/sys_string_conversions.h"
 #include "base/utf_string_conversions.h"
@@ -67,7 +66,7 @@ void URLRequestFileDirJob::Kill() {
 }
 
 bool URLRequestFileDirJob::ReadRawData(IOBuffer* buf, int buf_size,
-                                       int *bytes_read) {
+                                       int* bytes_read) {
   DCHECK(bytes_read);
   *bytes_read = 0;
 
@@ -124,11 +123,11 @@ void URLRequestFileDirJob::OnListFile(
   // ICU's datetime formatting APIs expect time in UTC and take into account
   // the timezone before formatting.
   data_.append(GetDirectoryListingEntry(
-      data.info.cFileName, std::string(),
-      (data.info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? true : false,
+      data.info.cFileName,
+      std::string(),
+      ((data.info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0),
       size,
       base::Time::FromFileTime(data.info.ftLastWriteTime)));
-
 #elif defined(OS_POSIX)
   // TOOD(jungshik): The same issue as for the directory name.
   data_.append(GetDirectoryListingEntry(
@@ -176,8 +175,8 @@ void URLRequestFileDirJob::CompleteRead() {
   }
 }
 
-bool URLRequestFileDirJob::FillReadBuffer(char *buf, int buf_size,
-                                          int *bytes_read) {
+bool URLRequestFileDirJob::FillReadBuffer(char* buf, int buf_size,
+                                          int* bytes_read) {
   DCHECK(bytes_read);
 
   *bytes_read = 0;
