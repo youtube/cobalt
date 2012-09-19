@@ -3,14 +3,15 @@
 // found in the LICENSE file.
 
 // This class sets up the environment for running the native tests inside an
-// android application. It outputs (to logcat) markers identifying the
-// START/END/CRASH of the test suite, FAILURE/SUCCESS of individual tests etc.
+// android application. It outputs (to a fifo) markers identifying the
+// START/PASSED/CRASH of the test suite, FAILURE/SUCCESS of individual tests,
+// etc.
 // These markers are read by the test runner script to generate test results.
-// It injects an event listener in gtest to detect various test stages and
-// installs signal handlers to detect crashes.
+// It installs signal handlers to detect crashes.
 
 #include <android/log.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 
 #include "base/android/base_jni_registrar.h"
@@ -36,8 +37,14 @@ extern int main(int argc, char** argv);
 
 namespace {
 
-void log_write(int level, const char* msg) {
-  __android_log_write(level, "chromium", msg);
+const char kLogTag[] = "chromium";
+const char kCrashedMarker[] = "[ CRASHED      ]\n";
+
+void AndroidLogError(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  __android_log_vprint(ANDROID_LOG_ERROR, kLogTag, format, args);
+  va_end(args);
 }
 
 // The list of signals which are considered to be crashes.
@@ -48,13 +55,14 @@ const int kExceptionSignals[] = {
 struct sigaction g_old_sa[NSIG];
 
 // This function runs in a compromised context. It should not allocate memory.
-void SignalHandler(int sig, siginfo_t *info, void *reserved)
-{
+void SignalHandler(int sig, siginfo_t* info, void* reserved) {
   // Output the crash marker.
-  log_write(ANDROID_LOG_ERROR, "[ CRASHED      ]");
+  write(STDOUT_FILENO, kCrashedMarker, sizeof(kCrashedMarker));
   g_old_sa[sig].sa_sigaction(sig, info, reserved);
 }
 
+// TODO(nileshagrawal): now that we're using FIFO, test scripts can detect EOF.
+// Remove the signal handlers.
 void InstallHandlers() {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
@@ -103,70 +111,35 @@ int ArgsToArgv(const std::vector<std::string>& args,
   return argc;
 }
 
-// As we are the native side of an Android app, we don't have any 'console', so
-// gtest's standard output goes nowhere.
-// Instead, we inject an "EventListener" in gtest and then we print the results
-// using LOG, which goes to adb logcat.
-class AndroidLogPrinter : public ::testing::EmptyTestEventListener {
+void CreateFIFO(const char* fifo_path) {
+  unlink(fifo_path);
+  if (mkfifo(fifo_path, 0666)) {
+    AndroidLogError("Failed to create fifo %s: %s\n",
+                    fifo_path, strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+}
+
+void Redirect(FILE* stream, const char* path, const char* mode) {
+  if (!freopen(path, mode, stream)) {
+    AndroidLogError("Failed to redirect stream to file: %s: %s\n",
+                    path, strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+}
+
+class ScopedMainEntryLogger {
  public:
-  void Init(int* argc, char** argv);
+  ScopedMainEntryLogger() {
+    printf(">>ScopedMainEntryLogger\n");
+  }
 
-  // EmptyTestEventListener
-  virtual void OnTestProgramStart(
-      const ::testing::UnitTest& unit_test) OVERRIDE;
-  virtual void OnTestStart(const ::testing::TestInfo& test_info) OVERRIDE;
-  virtual void OnTestPartResult(
-      const ::testing::TestPartResult& test_part_result) OVERRIDE;
-  virtual void OnTestEnd(const ::testing::TestInfo& test_info) OVERRIDE;
-  virtual void OnTestProgramEnd(const ::testing::UnitTest& unit_test) OVERRIDE;
+  ~ScopedMainEntryLogger() {
+    printf("<<ScopedMainEntryLogger\n");
+    fflush(stdout);
+    fflush(stderr);
+  }
 };
-
-void AndroidLogPrinter::Init(int* argc, char** argv) {
-  // InitGoogleTest must be called befure we add ourselves as a listener.
-  ::testing::InitGoogleTest(argc, argv);
-  ::testing::TestEventListeners& listeners =
-      ::testing::UnitTest::GetInstance()->listeners();
-  // Adds a listener to the end.  Google Test takes the ownership.
-  listeners.Append(this);
-}
-
-void AndroidLogPrinter::OnTestProgramStart(
-    const ::testing::UnitTest& unit_test) {
-  std::string msg = StringPrintf("[ START      ] %d",
-                                 unit_test.test_to_run_count());
-  log_write(ANDROID_LOG_ERROR, msg.c_str());
-}
-
-void AndroidLogPrinter::OnTestStart(const ::testing::TestInfo& test_info) {
-  std::string msg = StringPrintf("[ RUN      ] %s.%s",
-                                 test_info.test_case_name(), test_info.name());
-  log_write(ANDROID_LOG_ERROR, msg.c_str());
-}
-
-void AndroidLogPrinter::OnTestPartResult(
-    const ::testing::TestPartResult& test_part_result) {
-  std::string msg = StringPrintf(
-      "%s in %s:%d\n%s\n",
-      test_part_result.failed() ? "*** Failure" : "Success",
-      test_part_result.file_name(),
-      test_part_result.line_number(),
-      test_part_result.summary());
-  log_write(ANDROID_LOG_ERROR, msg.c_str());
-}
-
-void AndroidLogPrinter::OnTestEnd(const ::testing::TestInfo& test_info) {
-  std::string msg = StringPrintf("%s %s.%s",
-      test_info.result()->Failed() ? "[  FAILED  ]" : "[       OK ]",
-      test_info.test_case_name(), test_info.name());
-  log_write(ANDROID_LOG_ERROR, msg.c_str());
-}
-
-void AndroidLogPrinter::OnTestProgramEnd(
-    const ::testing::UnitTest& unit_test) {
-  std::string msg = StringPrintf("[ END      ] %d",
-         unit_test.successful_test_count());
-  log_write(ANDROID_LOG_ERROR, msg.c_str());
-}
 
 }  // namespace
 
@@ -190,9 +163,11 @@ static void RunTests(JNIEnv* env,
 
   FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
   // A few options, such "--gtest_list_tests", will just use printf directly
-  // and won't use the "AndroidLogPrinter". Redirect stdout to a known file.
-  FilePath stdout_path(files_dir.Append(FilePath("stdout.txt")));
-  freopen(stdout_path.value().c_str(), "w", stdout);
+  // Redirect stdout and stderr to a known file.
+  FilePath fifo_path(files_dir.Append(FilePath("test.fifo")));
+  CreateFIFO(fifo_path.value().c_str());
+  Redirect(stdout, fifo_path.value().c_str(), "w");
+  Redirect(stderr, fifo_path.value().c_str(), "w");
 
   std::vector<std::string> args;
   ParseArgsFromCommandLineFile(&args);
@@ -200,10 +175,6 @@ static void RunTests(JNIEnv* env,
   // We need to pass in a non-const char**.
   std::vector<char*> argv;
   int argc = ArgsToArgv(args, &argv);
-
-  // This object is owned by gtest.
-  AndroidLogPrinter* log = new AndroidLogPrinter();
-  log->Init(&argc, &argv[0]);
 
   // Fully initialize command line with arguments.
   CommandLine::ForCurrentProcess()->AppendArguments(
@@ -213,10 +184,11 @@ static void RunTests(JNIEnv* env,
     std::string msg = StringPrintf("Native test waiting for GDB because "
                                    "flag %s was supplied",
                                    switches::kWaitForDebugger);
-    log_write(ANDROID_LOG_VERBOSE, msg.c_str());
+    __android_log_write(ANDROID_LOG_VERBOSE, kLogTag, msg.c_str());
     base::debug::WaitForDebugger(24 * 60 * 60, false);
   }
 
+  ScopedMainEntryLogger scoped_main_entry_logger;
   main(argc, &argv[0]);
 }
 

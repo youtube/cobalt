@@ -10,9 +10,12 @@ import sys
 import cmd_helper
 import constants
 import logging
+import pexpect
+import shlex
 import shutil
 import tempfile
 from test_package import TestPackage
+import time
 
 
 class TestPackageApk(TestPackage):
@@ -29,11 +32,6 @@ class TestPackageApk(TestPackage):
     tool: Name of the Valgrind tool.
     dump_debug_info: A debug_info object.
   """
-
-  # The stdout.txt path is determined by:
-  # testing/android/java/src/org/chromium/native_test/
-  #     ChromeNativeTestActivity.java
-  APK_STDOUT_FILE = '/sdcard/native_tests/stdout.txt'
 
   def __init__(self, adb, device, test_suite, timeout, rebaseline,
                performance_test, cleanup_test_files, tool,
@@ -54,28 +52,49 @@ class TestPackageApk(TestPackage):
   def _GetGTestReturnCode(self):
     return None
 
+  def _GetFifo(self):
+    # The test.fifo path is determined by:
+    # testing/android/java/src/org/chromium/native_test/
+    #     ChromeNativeTestActivity.java and
+    # testing/android/native_test_launcher.cc
+    return os.path.join(self.adb.GetExternalStorage(),
+                        'native_tests', 'test.fifo')
+
+  def _ClearFifo(self):
+    self.adb.RunShellCommand('rm -f ' + self._GetFifo())
+
+  def _WatchFifo(self, timeout):
+    i = 0
+    for i in range(5):
+      if self.adb.FileExistsOnDevice(self._GetFifo()):
+        print 'Fifo created...'
+        break
+      time.sleep(i)
+    else:
+      sys.exit('Unable to find fifo on device %s ' % self._GetFifo())
+    args = shlex.split(self.adb.Adb()._target_arg)
+    args += ['shell', 'cat', self._GetFifo()]
+    return pexpect.spawn('adb', args, timeout=timeout, logfile=sys.stdout)
+
   def GetAllTests(self):
     """Returns a list of all tests available in the test suite."""
     self._CreateTestRunnerScript('--gtest_list_tests')
     try:
       self.tool.SetupEnvironment()
       # Clear and start monitoring logcat.
-      self.adb.StartMonitoringLogcat(clear=True,
-                                     timeout=30 * self.tool.GetTimeoutScale())
+      self._ClearFifo()
       self.adb.RunShellCommand(
           'am start -n '
           'org.chromium.native_test/'
           'org.chromium.native_test.ChromeNativeTestActivity')
       # Wait for native test to complete.
-      self.adb.WaitForLogMatch(re.compile('<<nativeRunTests'), None)
+      p = self._WatchFifo(timeout=30 * self.tool.GetTimeoutScale())
+      p.expect("<<ScopedMainEntryLogger")
+      p.close()
     finally:
       self.tool.CleanUpEnvironment()
-    # Copy stdout.txt and read contents.
-    stdout_file = tempfile.NamedTemporaryFile()
-    ret = []
-    self.adb.Adb().Pull(TestPackageApk.APK_STDOUT_FILE, stdout_file.name)
     # We need to strip the trailing newline.
-    content = [line.rstrip() for line in open(stdout_file.name)]
+    content = [line.rstrip() for line in p.before.splitlines()]
     ret = self._ParseGTestListTests(content)
     return ret
 
@@ -84,16 +103,16 @@ class TestPackageApk(TestPackage):
                                                             test_arguments))
 
   def RunTestsAndListResults(self):
-    self.adb.StartMonitoringLogcat(clear=True, logfile=sys.stdout)
     try:
       self.tool.SetupEnvironment()
+      self._ClearFifo()
       self.adb.RunShellCommand(
        'am start -n '
         'org.chromium.native_test/'
         'org.chromium.native_test.ChromeNativeTestActivity')
     finally:
       self.tool.CleanUpEnvironment()
-    return self._WatchTestOutput(self.adb.GetMonitoredLogCat())
+    return self._WatchTestOutput(self._WatchFifo(timeout=10))
 
   def StripAndCopyExecutable(self):
     # Always uninstall the previous one (by activity name); we don't

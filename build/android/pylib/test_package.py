@@ -39,7 +39,7 @@ class TestPackage(object):
     self.test_suite = os.path.splitext(test_suite)[0]
     self.test_suite_basename = self._GetTestSuiteBaseName()
     self.test_suite_dirname = os.path.dirname(
-        self.test_suite.split(self.test_suite_basename)[0]);
+        self.test_suite.split(self.test_suite_basename)[0])
     self.rebaseline = rebaseline
     self.performance_test = performance_test
     self.cleanup_test_files = cleanup_test_files
@@ -144,19 +144,20 @@ class TestPackage(object):
     timed_out = False
     overall_fail = False
     re_run = re.compile('\[ RUN      \] ?(.*)\r\n')
-    # APK tests rely on the END tag.
-    re_end = re.compile('\[ END      \] ?(.*)\r\n')
+    # APK tests rely on the PASSED tag.
+    re_passed = re.compile('\[  PASSED  \] ?(.*)\r\n')
     # Signal handlers are installed before starting tests
     # to output the CRASHED marker when a crash happens.
     re_crash = re.compile('\[ CRASHED      \](.*)\r\n')
     re_fail = re.compile('\[  FAILED  \] ?(.*)\r\n')
     re_runner_fail = re.compile('\[ RUNNER_FAILED \] ?(.*)\r\n')
-    re_ok = re.compile('\[       OK \] ?(.*)\r\n')
+    re_ok = re.compile('\[       OK \] ?(.*?) .*\r\n')
     io_stats_before = self._BeginGetIOStats()
     try:
       while True:
-        found = p.expect([re_run, re_end, re_runner_fail], timeout=self.timeout)
-        if found == 1:  # matched END.
+        found = p.expect([re_run, re_passed, re_runner_fail],
+                         timeout=self.timeout)
+        if found == 1:  # matched PASSED.
           break
         if found == 2:  # RUNNER_FAILED
           logging.error('RUNNER_FAILED')
@@ -167,8 +168,9 @@ class TestPackage(object):
         full_test_name = p.match.group(1).replace('\r', '')
         found = p.expect([re_ok, re_fail, re_crash], timeout=self.timeout)
         if found == 0:  # re_ok
-          ok_tests += [BaseTestResult(full_test_name, p.before)]
-          continue
+          if full_test_name == p.match.group(1).replace('\r', ''):
+            ok_tests += [BaseTestResult(full_test_name, p.before)]
+            continue
         if found == 2: # re_crash
           crashed_tests += [BaseTestResult(full_test_name, p.before)]
           overall_fail = True
