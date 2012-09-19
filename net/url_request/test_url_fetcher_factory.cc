@@ -125,11 +125,11 @@ base::TimeDelta TestURLFetcher::GetBackoffDelay() const {
 
 void TestURLFetcher::SaveResponseToFileAtPath(
     const FilePath& file_path,
-    scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) {
+    scoped_refptr<base::TaskRunner> file_task_runner) {
 }
 
 void TestURLFetcher::SaveResponseToTemporaryFile(
-    scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy) {
+    scoped_refptr<base::TaskRunner> file_task_runner) {
 }
 
 HttpResponseHeaders* TestURLFetcher::GetResponseHeaders() const {
