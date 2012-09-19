@@ -158,8 +158,12 @@ void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
   // Create a callback so our algorithm can request more reads.
   base::Closure cb = base::Bind(&AudioRendererImpl::ScheduleRead_Locked, this);
 
+#if !defined(__LB_SHELL__)
   // Construct the algorithm.
   algorithm_.reset(new AudioRendererAlgorithm());
+#else
+  algorithm_.reset(AudioRendererAlgorithm::Create());
+#endif
 
   // Initialize our algorithm with media properties, initial playback rate,
   // and a callback to request more reads from the data source.
@@ -179,6 +183,12 @@ void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
 
   if (config_ok)
     algorithm_->Initialize(channels, sample_rate, bits_per_channel, 0.0f, cb);
+
+#if defined(__LB_SHELL__)
+  // our algorithm implementation is allowed to resample audio to meet hardware
+  // requirements
+  sample_rate = algorithm_->output_sample_rate();
+#endif
 
   // We use the AUDIO_PCM_LINEAR flag because AUDIO_PCM_LOW_LATENCY
   // does not currently support all the sample-rates that we require.
@@ -271,7 +281,8 @@ void AudioRendererImpl::DecodedAudioReady(AudioDecoder::Status status,
       if (!buffer->IsEndOfStream())
         algorithm_->EnqueueBuffer(buffer);
       DCHECK(!pending_read_);
-      base::ResetAndReturn(&pause_cb_).Run();
+      if (!pause_cb_.is_null())
+        base::ResetAndReturn(&pause_cb_).Run();
       return;
     case kSeeking:
       if (IsBeforeSeekTime(buffer)) {
@@ -341,9 +352,11 @@ int AudioRendererImpl::Render(const std::vector<float*>& audio_data,
                               int number_of_frames,
                               int audio_delay_milliseconds) {
   if (stopped_ || GetPlaybackRate() == 0.0f) {
+#if !defined(__LB_SHELL__)
     // Output silence if stopped.
     for (size_t i = 0; i < audio_data.size(); ++i)
       memset(audio_data[i], 0, sizeof(float) * number_of_frames);
+#endif
     return 0;
   }
 
@@ -361,29 +374,41 @@ int AudioRendererImpl::Render(const std::vector<float*>& audio_data,
   int bytes_per_frame = audio_parameters_.GetBytesPerFrame();
 
   const int buf_size = number_of_frames * bytes_per_frame;
-  scoped_array<uint8> buf(new uint8[buf_size]);
-
-  int frames_filled = FillBuffer(buf.get(), number_of_frames, request_delay);
+  int frames_filled = 0;
+  scoped_array<uint8> buf(NULL);
+  if (audio_data.size() > 1) {
+    buf = scoped_array<uint8>(new uint8[buf_size]);
+    frames_filled = FillBuffer(buf.get(), number_of_frames, request_delay);
+  } else {
+    // __LB_SHELL__ support not de-interleaving the supplied audio data,
+    // if the sink asks for only one channel of audio data just copy it
+    // directly there
+    frames_filled = FillBuffer((uint8*)audio_data[0],
+                               number_of_frames,
+                               request_delay);
+  }
   int bytes_filled = frames_filled * bytes_per_frame;
   DCHECK_LE(bytes_filled, buf_size);
   UpdateEarliestEndTime(bytes_filled, request_delay, base::Time::Now());
 
   // Deinterleave each audio channel.
-  int channels = audio_data.size();
-  for (int channel_index = 0; channel_index < channels; ++channel_index) {
-    media::DeinterleaveAudioChannel(buf.get(),
-                                    audio_data[channel_index],
-                                    channels,
-                                    channel_index,
-                                    bytes_per_frame / channels,
-                                    frames_filled);
+  if (audio_data.size() > 1) {
+    int channels = audio_data.size();
+    for (int channel_index = 0; channel_index < channels; ++channel_index) {
+      media::DeinterleaveAudioChannel(buf.get(),
+                                      audio_data[channel_index],
+                                      channels,
+                                      channel_index,
+                                      bytes_per_frame / channels,
+                                      frames_filled);
 
-    // If FillBuffer() didn't give us enough data then zero out the remainder.
-    if (frames_filled < number_of_frames) {
-      int frames_to_zero = number_of_frames - frames_filled;
-      memset(audio_data[channel_index] + frames_filled,
-             0,
-             sizeof(float) * frames_to_zero);
+      // If FillBuffer() didn't give us enough data then zero out the remainder.
+      if (frames_filled < number_of_frames) {
+        int frames_to_zero = number_of_frames - frames_filled;
+        memset(audio_data[channel_index] + frames_filled,
+               0,
+               sizeof(float) * frames_to_zero);
+      }
     }
   }
   return frames_filled;
@@ -405,6 +430,9 @@ uint32 AudioRendererImpl::FillBuffer(uint8* dest,
 
     // Mute audio by returning 0 when not playing.
     if (state_ != kPlaying) {
+#if defined(__LB_SHELL__)
+      return 0;
+#else
       // TODO(scherkus): To keep the audio hardware busy we write at most 8k of
       // zeros.  This gets around the tricky situation of pausing and resuming
       // the audio IPC layer in Chrome.  Ideally, we should return zero and then
@@ -416,6 +444,7 @@ uint32 AudioRendererImpl::FillBuffer(uint8* dest,
           std::min(kZeroLength, requested_frames * bytes_per_frame_);
       memset(dest, 0, zeros_to_write);
       return zeros_to_write / bytes_per_frame_;
+#endif
     }
 
     // We use the following conditions to determine end of playback:

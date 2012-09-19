@@ -27,7 +27,12 @@
 #include "media/base/audio_renderer.h"
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/buffers.h"
+#if !defined(__LB_SHELL__)
 #include "media/filters/audio_renderer_algorithm.h"
+#else
+#include "base/gtest_prod_util.h"
+#include "media/filters/shell_audio_renderer_algorithm.h"
+#endif
 
 namespace media {
 
