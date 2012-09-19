@@ -12,6 +12,10 @@ DataBuffer::DataBuffer(scoped_array<uint8> buffer, int buffer_size)
       data_(buffer.Pass()),
       buffer_size_(buffer_size),
       data_size_(buffer_size) {
+#if defined(__LB_SHELL__)
+  // passing a refptr isn't going to work for our C-based memalign pointer
+  NOTREACHED();
+#endif
 }
 
 DataBuffer::DataBuffer(int buffer_size)
@@ -29,7 +33,13 @@ DataBuffer::DataBuffer(const uint8* data, int data_size)
   memcpy(data_.get(), data, data_size_);
 }
 
-DataBuffer::~DataBuffer() {}
+DataBuffer::~DataBuffer() {
+#if defined(__LB_SHELL__)
+  // use free instead of delete[]
+  uint8* old_buffer = data_.release();
+  if (old_buffer) free(old_buffer);
+#endif
+}
 
 void DataBuffer::Initialize() {
   // Prevent arbitrary pointers.
@@ -38,8 +48,14 @@ void DataBuffer::Initialize() {
     data_.reset();
     return;
   }
-
+#if defined(__LB_SHELL__)
+  // align size to platform requirement bytes as well
+  buffer_size_ = ((buffer_size_ + kShellMediaBufferAlignment - 1) /
+                  kShellMediaBufferAlignment) * kShellMediaBufferAlignment;
+  data_.reset((uint8*)memalign(kShellMediaBufferAlignment, buffer_size_));
+#else
   data_.reset(new uint8[buffer_size_]);
+#endif
 }
 
 scoped_refptr<DataBuffer> DataBuffer::CopyFrom(const uint8* data,

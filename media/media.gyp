@@ -15,12 +15,10 @@
       'target_name': 'media',
       'type': '<(component)',
       'dependencies': [
-        'yuv_convert',
         '../base/base.gyp:base',
         '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
-        '../third_party/openmax/openmax.gyp:il',
         '../ui/ui.gyp:ui',
       ],
       'defines': [
@@ -108,6 +106,9 @@
         'audio/pulse/pulse_output.h',
         'audio/sample_rates.cc',
         'audio/sample_rates.h',
+        'audio/shell_wav_test_probe.cc',
+        'audio/shell_wav_test_probe.h',
+        'audio/shell_audio_sink.h',
         'audio/simple_sources.cc',
         'audio/simple_sources.h',
         'audio/win/audio_low_latency_input_win.cc',
@@ -189,6 +190,8 @@
         'base/ranges.h',
         'base/seekable_buffer.cc',
         'base/seekable_buffer.h',
+        'base/shell_buffer_factory.cc',
+        'base/shell_buffer_factory.h',
         'base/sinc_resampler.cc',
         'base/sinc_resampler.h',
         'base/state_matrix.cc',
@@ -241,6 +244,11 @@
         'filters/h264_to_annex_b_bitstream_converter.h',
         'filters/in_memory_url_protocol.cc',
         'filters/in_memory_url_protocol.h',
+        'filters/shell_audio_decoder.h',
+        'filters/shell_demuxer.cc',
+        'filters/shell_demuxer.h',
+        'filters/shell_audio_renderer_algorithm.h',
+        'filters/shell_video_decoder.h',
         'filters/source_buffer_stream.cc',
         'filters/source_buffer_stream.h',
         'filters/video_frame_generator.cc',
@@ -334,6 +342,25 @@
             'webm/webm_cluster_parser.h',
             'webm/webm_stream_parser.cc',
             'webm/webm_stream_parser.h',
+          ],
+        }],
+        ['OS == "lb_shell"', {
+          'sources/': [
+          # media is not excluding windows sources automatically.
+          # forcibly exclude them.
+          ['exclude', 'win'],
+          # android excludes these, we include them again
+          ['include', 'filters/chunk_demuxer'],
+          # we use our own AudioRendererAlgorithm
+          ['exclude', 'filters/audio_renderer_algorithm'],
+         ],
+        }, { # OS != lb_shell
+          'dependencies': [
+            'yuv_convert',
+            '../third_party/openmax/openmax.gyp:il',
+          ],
+          'sources/': [
+            ['exclude', 'shell_'],
           ],
         }],
         # The below 'android' condition were added temporarily and should be
@@ -454,7 +481,7 @@
             'video/capture/video_capture_device_dummy.h',
           ],
         }],
-        ['proprietary_codecs==1 or branding=="Chrome"', {
+        ['proprietary_codecs==1 or branding=="Chrome" or OS=="lb_shell"', {
           'sources': [
             'mp4/avc.cc',
             'mp4/avc.h',

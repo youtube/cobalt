@@ -33,6 +33,20 @@
 
 namespace media {
 
+// LB_SHELL is designed to leverage hardware audio and video decoders, which
+// have specific byte-alignment for buffers. DataBuffer and DecoderBuffer both
+// support modifications for LB_SHELL that enforce these alignments, which are
+// defined here.
+#if defined(__LB_SHELL__)
+#if defined(__LB_PS3__)
+static const int kShellMediaBufferAlignment = 128;
+#elif defined(__LB_LINUX__)
+static const int kShellMediaBufferAlignment = 4;
+#elif
+#error need to define kShellMediaBufferAlignment for your platform.
+#endif
+#endif
+
 // Indicates an invalid or missing timestamp.
 MEDIA_EXPORT extern inline base::TimeDelta kNoTimestamp() {
   return base::TimeDelta::FromMicroseconds(kint64min);

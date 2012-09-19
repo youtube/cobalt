@@ -21,7 +21,7 @@ extern const char kAlsaInputDevice[];
 MEDIA_EXPORT extern const char kUseCras[];
 #endif
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(__LB_SHELL__)
 MEDIA_EXPORT extern const char kUsePulseAudio[];
 #endif
 

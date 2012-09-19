@@ -13,10 +13,12 @@
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/chunk_demuxer_client.h"
-#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || defined(__LB_SHELL__)
 #include "media/mp4/mp4_stream_parser.h"
 #endif
+#if !defined(__LB_SHELL__)
 #include "media/webm/webm_stream_parser.h"
+#endif
 
 using base::TimeDelta;
 
@@ -35,6 +37,7 @@ struct SupportedTypeInfo {
   const CodecInfo** codecs;
 };
 
+#if !defined(__LB_SHELL__)
 static const CodecInfo kVP8CodecInfo = { "vp8", DemuxerStream::VIDEO };
 static const CodecInfo kVorbisCodecInfo = { "vorbis", DemuxerStream::AUDIO };
 
@@ -52,8 +55,9 @@ static const CodecInfo* kAudioWebMCodecs[] = {
 static StreamParser* BuildWebMParser() {
   return new WebMStreamParser();
 }
+#endif
 
-#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || defined(__LB_SHELL__)
 static const CodecInfo kH264CodecInfo = { "avc1.*", DemuxerStream::VIDEO };
 static const CodecInfo kAACCodecInfo = { "mp4a.40.*", DemuxerStream::AUDIO };
 
@@ -74,9 +78,11 @@ static StreamParser* BuildMP4Parser() {
 #endif
 
 static const SupportedTypeInfo kSupportedTypeInfo[] = {
+#if !defined(__LB_SHELL__)
   { "video/webm", &BuildWebMParser, kVideoWebMCodecs },
   { "audio/webm", &BuildWebMParser, kAudioWebMCodecs },
-#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
+#endif
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS) || defined(__LB_SHELL__)
   { "video/mp4", &BuildMP4Parser, kVideoMP4Codecs },
   { "audio/mp4", &BuildMP4Parser, kAudioMP4Codecs },
 #endif
