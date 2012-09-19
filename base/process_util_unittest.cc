@@ -1092,83 +1092,58 @@ TEST_F(OutOfMemoryDeathTest, ViaSharedLibraries) {
 // Android doesn't implement posix_memalign().
 #if defined(OS_POSIX) && !defined(OS_ANDROID)
 TEST_F(OutOfMemoryDeathTest, Posix_memalign) {
-  typedef int (*memalign_t)(void **, size_t, size_t);
-#if defined(OS_MACOSX)
-  // posix_memalign only exists on >= 10.6. Use dlsym to grab it at runtime
-  // because it may not be present in the SDK used for compilation.
-  memalign_t memalign =
-      reinterpret_cast<memalign_t>(dlsym(RTLD_DEFAULT, "posix_memalign"));
-#else
-  memalign_t memalign = posix_memalign;
-#endif  // defined(OS_MACOSX)
-  if (memalign) {
-    // Grab the return value of posix_memalign to silence a compiler warning
-    // about unused return values. We don't actually care about the return
-    // value, since we're asserting death.
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        EXPECT_EQ(ENOMEM, memalign(&value_, 8, test_size_));
-      }, "");
-  }
+  // Grab the return value of posix_memalign to silence a compiler warning
+  // about unused return values. We don't actually care about the return
+  // value, since we're asserting death.
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      EXPECT_EQ(ENOMEM, posix_memalign(&value_, 8, test_size_));
+    }, "");
 }
 #endif  // defined(OS_POSIX) && !defined(OS_ANDROID)
 
 #if defined(OS_MACOSX)
 
-// Purgeable zone tests (if it exists)
+// Purgeable zone tests
 
 TEST_F(OutOfMemoryDeathTest, MallocPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-  if (zone)
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = malloc_zone_malloc(zone, test_size_);
-      }, "");
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_malloc(zone, test_size_);
+    }, "");
 }
 
 TEST_F(OutOfMemoryDeathTest, ReallocPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-  if (zone)
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = malloc_zone_realloc(zone, NULL, test_size_);
-      }, "");
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_realloc(zone, NULL, test_size_);
+    }, "");
 }
 
 TEST_F(OutOfMemoryDeathTest, CallocPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-  if (zone)
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = malloc_zone_calloc(zone, 1024, test_size_ / 1024L);
-      }, "");
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_calloc(zone, 1024, test_size_ / 1024L);
+    }, "");
 }
 
 TEST_F(OutOfMemoryDeathTest, VallocPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-  if (zone)
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = malloc_zone_valloc(zone, test_size_);
-      }, "");
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_valloc(zone, test_size_);
+    }, "");
 }
 
 TEST_F(OutOfMemoryDeathTest, PosixMemalignPurgeable) {
-  malloc_zone_t* zone = base::GetPurgeableZone();
-
-  typedef void* (*zone_memalign_t)(malloc_zone_t*, size_t, size_t);
-  // malloc_zone_memalign only exists on >= 10.6. Use dlsym to grab it at
-  // runtime because it may not be present in the SDK used for compilation.
-  zone_memalign_t zone_memalign =
-      reinterpret_cast<zone_memalign_t>(
-        dlsym(RTLD_DEFAULT, "malloc_zone_memalign"));
-
-  if (zone && zone_memalign) {
-    ASSERT_DEATH({
-        SetUpInDeathAssert();
-        value_ = zone_memalign(zone, 8, test_size_);
-      }, "");
-  }
+  malloc_zone_t* zone = malloc_default_purgeable_zone();
+  ASSERT_DEATH({
+      SetUpInDeathAssert();
+      value_ = malloc_zone_memalign(zone, 8, test_size_);
+    }, "");
 }
 
 // Since these allocation functions take a signed size, it's possible that
