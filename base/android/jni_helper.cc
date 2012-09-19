@@ -9,6 +9,15 @@
 
 using base::android::AttachCurrentThread;
 
+JavaObjectWeakGlobalRef::JavaObjectWeakGlobalRef()
+  : obj_(NULL) {
+}
+
+JavaObjectWeakGlobalRef::JavaObjectWeakGlobalRef(
+    const JavaObjectWeakGlobalRef& orig) {
+  Assign(orig);
+}
+
 JavaObjectWeakGlobalRef::JavaObjectWeakGlobalRef(JNIEnv* env, jobject obj)
     : obj_(env->NewWeakGlobalRef(obj)) {
   DCHECK(obj_);
@@ -16,6 +25,10 @@ JavaObjectWeakGlobalRef::JavaObjectWeakGlobalRef(JNIEnv* env, jobject obj)
 
 JavaObjectWeakGlobalRef::~JavaObjectWeakGlobalRef() {
   reset();
+}
+
+void JavaObjectWeakGlobalRef::operator=(const JavaObjectWeakGlobalRef& rhs) {
+  Assign(rhs);
 }
 
 void JavaObjectWeakGlobalRef::reset() {
@@ -39,4 +52,9 @@ base::android::ScopedJavaLocalRef<jobject> GetRealObject(
       DLOG(ERROR) << "The real object has been deleted!";
   }
   return base::android::ScopedJavaLocalRef<jobject>(env, real);
+}
+
+void JavaObjectWeakGlobalRef::Assign(const JavaObjectWeakGlobalRef& other) {
+  JNIEnv* env = AttachCurrentThread();
+  obj_ = env->NewWeakGlobalRef(other.obj_);
 }
