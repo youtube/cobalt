@@ -376,12 +376,13 @@ class CertVerifierJob {
   const BoundNetLog net_log_;
 };
 
-MultiThreadedCertVerifier::MultiThreadedCertVerifier()
+MultiThreadedCertVerifier::MultiThreadedCertVerifier(
+    CertVerifyProc* verify_proc)
     : cache_(kMaxCacheEntries),
       requests_(0),
       cache_hits_(0),
       inflight_joins_(0),
-      verify_proc_(CertVerifyProc::CreateDefault()) {
+      verify_proc_(verify_proc) {
   CertDatabase::GetInstance()->AddObserver(this);
 }
 
@@ -508,10 +509,6 @@ void MultiThreadedCertVerifier::OnCertTrustChanged(
   DCHECK(CalledOnValidThread());
 
   ClearCache();
-}
-
-void MultiThreadedCertVerifier::SetCertVerifyProc(CertVerifyProc* verify_proc) {
-  verify_proc_ = verify_proc;
 }
 
 }  // namespace net
