@@ -694,15 +694,21 @@ void SourceBufferStream::UpdateTrackBuffer(const BufferQueue& deleted_buffers) {
   // See if the next range contains the keyframe after the end of the
   // |track_buffer_|, and if so, change |selected_range_|.
   RangeList::iterator next_range_itr = ++(GetSelectedRangeItr());
-  if (next_range_itr != ranges_.end()) {
-    (*next_range_itr)->SeekAheadPast(
-        track_buffer_.back()->GetDecodeTimestamp());
-    if ((*next_range_itr)->HasNextBuffer() &&
-        selected_range_->IsNextInSequence(
-            track_buffer_.back(), (*next_range_itr)->GetNextTimestamp())) {
-      SetSelectedRange(*next_range_itr);
-    }
+  if (next_range_itr == ranges_.end())
+    return;
+
+  (*next_range_itr)->SeekAheadPast(
+      track_buffer_.back()->GetDecodeTimestamp());
+
+  if (!(*next_range_itr)->HasNextBuffer())
+    return;
+
+  if (!selected_range_->IsNextInSequence(
+          track_buffer_.back(), (*next_range_itr)->GetNextTimestamp())) {
+    (*next_range_itr)->ResetNextBufferPosition();
+    return;
   }
+  SetSelectedRange(*next_range_itr);
 }
 
 void SourceBufferStream::MergeWithAdjacentRangeIfNecessary(
