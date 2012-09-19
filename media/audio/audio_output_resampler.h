@@ -68,10 +68,6 @@ class MEDIA_EXPORT AudioOutputResampler
   // Used to initialize the FIFO and resamplers.
   void Initialize();
 
-  // Used by StopStream()/CloseStream() to clear internal state.  When
-  // |delete_callback| is set, the callbacks[stream_proxy] is destroyed.
-  void Reset(AudioOutputProxy* stream_proxy, bool delete_callback);
-
   // Dispatcher to proxy all AudioOutputDispatcher calls too.
   scoped_refptr<AudioOutputDispatcher> dispatcher_;
 
