@@ -53,17 +53,17 @@ TEST(ECSignatureCreatorTest, BasicTest) {
   std::vector<uint8> public_key_info;
   ASSERT_TRUE(key_original->ExportPublicKey(&public_key_info));
 
-  // This is the algorithm ID for SHA-1 with EC encryption.
-  const uint8 kECDSAWithSHA1AlgorithmID[] = {
-    0x30, 0x0b,
-      0x06, 0x07,
-        0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x01,
+  // This is the algorithm ID for SHA-256 with EC encryption.
+  const uint8 kECDSAWithSHA256AlgorithmID[] = {
+    0x30, 0x0c,
+      0x06, 0x08,
+        0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02,
       0x05, 0x00
   };
   crypto::SignatureVerifier verifier;
   ASSERT_TRUE(verifier.VerifyInit(
-      kECDSAWithSHA1AlgorithmID, sizeof(kECDSAWithSHA1AlgorithmID),
-      &signature.front(), signature.size(),
+      kECDSAWithSHA256AlgorithmID, sizeof(kECDSAWithSHA256AlgorithmID),
+      &signature[0], signature.size(),
       &public_key_info.front(), public_key_info.size()));
 
   verifier.VerifyUpdate(reinterpret_cast<const uint8*>(data.c_str()),

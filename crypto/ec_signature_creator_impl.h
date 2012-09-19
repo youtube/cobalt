@@ -19,8 +19,12 @@ class ECSignatureCreatorImpl : public ECSignatureCreator {
                     int data_len,
                     std::vector<uint8>* signature) OVERRIDE;
 
+  virtual bool DecodeSignature(const std::vector<uint8>& der_sig,
+                               std::vector<uint8>* out_raw_sig) OVERRIDE;
+
  private:
   ECPrivateKey* key_;
+  size_t signature_len_;
 
   DISALLOW_COPY_AND_ASSIGN(ECSignatureCreatorImpl);
 };
