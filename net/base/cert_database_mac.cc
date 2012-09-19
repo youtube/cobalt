@@ -8,12 +8,19 @@
 
 #include "base/logging.h"
 #include "base/mac/mac_logging.h"
+#include "base/observer_list_threadsafe.h"
 #include "base/synchronization/lock.h"
 #include "crypto/mac_security_services_lock.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
+
+CertDatabase::CertDatabase()
+    : observer_list_(new ObserverListThreadSafe<Observer>) {
+}
+
+CertDatabase::~CertDatabase() {}
 
 int CertDatabase::CheckUserCert(X509Certificate* cert) {
   if (!cert)
