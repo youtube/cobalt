@@ -264,7 +264,7 @@ TEST_F(AudioOutputDeviceTest, StartStop) {
   StopAudioDevice();
 }
 
-TEST_F(AudioOutputDeviceTest, StopBeforeRender) {
+TEST_F(AudioOutputDeviceTest, DISABLED_StopBeforeRender) {
   StartAudioDevice(false);
 
   // Call Stop() but don't run the IO loop yet.

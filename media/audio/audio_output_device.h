@@ -64,14 +64,13 @@
 #include "base/message_loop.h"
 #include "base/shared_memory.h"
 #include "media/base/media_export.h"
+#include "media/audio/audio_device_thread.h"
 #include "media/audio/audio_output_ipc.h"
 #include "media/audio/audio_parameters.h"
 #include "media/audio/scoped_loop_observer.h"
 #include "media/base/audio_renderer_sink.h"
 
 namespace media {
-
-class AudioDeviceThread;
 
 class MEDIA_EXPORT AudioOutputDevice
     : NON_EXPORTED_BASE(public AudioRendererSink),
@@ -158,7 +157,7 @@ class MEDIA_EXPORT AudioOutputDevice
   // In order to avoid a race between OnStreamCreated and Stop(), we use this
   // guard to control stopping and starting the audio thread.
   base::Lock audio_thread_lock_;
-  scoped_ptr<AudioDeviceThread> audio_thread_;
+  AudioDeviceThread audio_thread_;
   scoped_ptr<AudioOutputDevice::AudioThreadCallback> audio_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioOutputDevice);
