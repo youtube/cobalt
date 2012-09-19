@@ -28,6 +28,9 @@
 #   <(PRODUCT_DIR)/lib.java/chromium_base.jar
 
 {
+  'dependencies': [
+    '<(DEPTH)/build/all_android.gyp:build_output_dirs'
+  ],
   'direct_dependent_settings': {
     'variables': {
       'input_jars_paths': ['<(PRODUCT_DIR)/lib.java/chromium_<(package_name).jar'],
