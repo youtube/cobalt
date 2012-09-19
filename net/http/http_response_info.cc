@@ -221,7 +221,7 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
 
   was_fetched_via_proxy = (flags & RESPONSE_INFO_WAS_PROXY) != 0;
 
-  *response_truncated = (flags & RESPONSE_INFO_TRUNCATED) ? true : false;
+  *response_truncated = (flags & RESPONSE_INFO_TRUNCATED) != 0;
 
   return true;
 }

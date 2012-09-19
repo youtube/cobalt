@@ -152,7 +152,7 @@ void StressTheCache(int iteration) {
   for (int i = 0;; i++) {
     int slot = rand() % kNumEntries;
     int key = rand() % kNumKeys;
-    bool truncate = rand() % 2 ? false : true;
+    bool truncate = (rand() % 2 == 0);
     int size = kSize - (rand() % 20) * kSize / 20;
 
     if (entries[slot])

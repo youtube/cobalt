@@ -451,8 +451,7 @@ bool EntryImpl::IsSameEntry(const std::string& key, uint32 hash) {
       static_cast<size_t>(entry_.Data()->key_len) != key.size())
     return false;
 
-  std::string my_key = GetKey();
-  return key.compare(my_key) ? false : true;
+  return (key.compare(GetKey()) == 0);
 }
 
 void EntryImpl::InternalDoom() {
