@@ -27,8 +27,7 @@ class OnMoreDataResampler : public AudioOutputStream::AudioSourceCallback {
  public:
   OnMoreDataResampler(double io_ratio,
                       const AudioParameters& input_params,
-                      const AudioParameters& output_params,
-                      AudioOutputStream::AudioSourceCallback* callback);
+                      const AudioParameters& output_params);
   virtual ~OnMoreDataResampler();
 
   // AudioSourceCallback interface.
@@ -39,6 +38,10 @@ class OnMoreDataResampler : public AudioOutputStream::AudioSourceCallback {
                            AudioBuffersState buffers_state) OVERRIDE;
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
   virtual void WaitTillDataReady() OVERRIDE;
+
+  // Sets |source_callback_|.  If this is not a new object, then Stop() must be
+  // called before Start().
+  void Start(AudioOutputStream::AudioSourceCallback* callback);
 
   // Clears |source_callback_| and flushes the resampler.
   void Stop();
@@ -279,11 +282,12 @@ bool AudioOutputResampler::StartStream(
     CallbackMap::iterator it = callbacks_.find(stream_proxy);
     if (it == callbacks_.end()) {
       resampler_callback = new OnMoreDataResampler(
-          io_ratio_, params_, output_params_, callback);
+          io_ratio_, params_, output_params_);
       callbacks_[stream_proxy] = resampler_callback;
     } else {
       resampler_callback = it->second;
     }
+    resampler_callback->Start(callback);
   }
   return dispatcher_->StartStream(resampler_callback, stream_proxy);
 }
@@ -293,27 +297,33 @@ void AudioOutputResampler::StreamVolumeSet(AudioOutputProxy* stream_proxy,
   dispatcher_->StreamVolumeSet(stream_proxy, volume);
 }
 
-void AudioOutputResampler::Reset(AudioOutputProxy* stream_proxy,
-                                 bool delete_callback) {
-  base::AutoLock auto_lock(callbacks_lock_);
-  CallbackMap::iterator it = callbacks_.find(stream_proxy);
-  if (it != callbacks_.end()) {
-    it->second->Stop();
-    if (delete_callback) {
-      delete it->second;
-      callbacks_.erase(it);
-    }
-  }
-}
-
 void AudioOutputResampler::StopStream(AudioOutputProxy* stream_proxy) {
   dispatcher_->StopStream(stream_proxy);
-  Reset(stream_proxy, false);
+
+  // Now that StopStream() has completed the underlying physical stream should
+  // be stopped and no longer calling OnMoreData(), making it safe to Stop() the
+  // OnMoreDataResampler.
+  {
+    base::AutoLock auto_lock(callbacks_lock_);
+    CallbackMap::iterator it = callbacks_.find(stream_proxy);
+    if (it != callbacks_.end())
+      it->second->Stop();
+  }
 }
 
 void AudioOutputResampler::CloseStream(AudioOutputProxy* stream_proxy) {
   dispatcher_->CloseStream(stream_proxy);
-  Reset(stream_proxy, true);
+
+  // We assume that StopStream() is always called prior to CloseStream(), so
+  // that it is safe to delete the OnMoreDataResampler here.
+  {
+    base::AutoLock auto_lock(callbacks_lock_);
+    CallbackMap::iterator it = callbacks_.find(stream_proxy);
+    if (it != callbacks_.end()) {
+      delete it->second;
+      callbacks_.erase(it);
+    }
+  }
 }
 
 void AudioOutputResampler::Shutdown() {
@@ -323,10 +333,9 @@ void AudioOutputResampler::Shutdown() {
 
 OnMoreDataResampler::OnMoreDataResampler(
     double io_ratio, const AudioParameters& input_params,
-    const AudioParameters& output_params,
-    AudioOutputStream::AudioSourceCallback* callback)
+    const AudioParameters& output_params)
     : io_ratio_(io_ratio),
-      source_callback_(callback),
+      source_callback_(NULL),
       outstanding_audio_bytes_(0),
       output_bytes_per_frame_(output_params.GetBytesPerFrame()),
       input_bytes_per_frame_(input_params.GetBytesPerFrame()) {
@@ -357,8 +366,16 @@ OnMoreDataResampler::OnMoreDataResampler(
 
 OnMoreDataResampler::~OnMoreDataResampler() {}
 
+void OnMoreDataResampler::Start(
+    AudioOutputStream::AudioSourceCallback* callback) {
+  base::AutoLock auto_lock(source_lock_);
+  DCHECK(!source_callback_);
+  source_callback_ = callback;
+}
+
 void OnMoreDataResampler::Stop() {
   base::AutoLock auto_lock(source_lock_);
+  DCHECK(source_callback_);
   source_callback_ = NULL;
   outstanding_audio_bytes_ = 0;
   if (audio_fifo_.get())
