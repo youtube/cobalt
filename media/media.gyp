@@ -147,8 +147,12 @@
         'audio/win/wavein_input_win.h',
         'audio/win/waveout_output_win.cc',
         'audio/win/waveout_output_win.h',
+        'base/android/cookie_getter.cc',
+        'base/android/cookie_getter.h',
         'base/android/media_jni_registrar.cc',
         'base/android/media_jni_registrar.h',
+        'base/android/media_player_bridge_manager.cc',
+        'base/android/media_player_bridge_manager.h',
         'base/audio_decoder.cc',
         'base/audio_decoder.h',
         'base/audio_decoder_config.cc',
@@ -1153,6 +1157,8 @@
           'sources': [
             'base/android/media_player_bridge.cc',
             'base/android/media_player_bridge.h',
+            'base/android/media_player_listener.cc',
+            'base/android/media_player_listener.h',
           ],
           'dependencies': [
             '../base/base.gyp:base',
