@@ -55,7 +55,7 @@ int SpdyCredentialBuilder::Build(const std::string& tls_unique,
   public_key = public_key.substr(2, public_key.length());
 
   // Convert the strings into a vector<unit8>
-  std::vector<uint8> proof_vector;
+  std::vector<uint8> der_signature;
   scoped_ptr<crypto::ECPrivateKey> private_key(
       crypto::ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
           ServerBoundCertService::kEPKIPassword,
@@ -63,7 +63,13 @@ int SpdyCredentialBuilder::Build(const std::string& tls_unique,
   scoped_ptr<crypto::ECSignatureCreator> creator(
       crypto::ECSignatureCreator::Create(private_key.get()));
   creator->Sign(reinterpret_cast<const unsigned char *>(secret.data()),
-                secret.length(), &proof_vector);
+                secret.length(), &der_signature);
+
+  std::vector<uint8> proof_vector;
+  if (!creator->DecodeSignature(der_signature, &proof_vector)) {
+    NOTREACHED();
+    return ERR_UNEXPECTED;
+  }
 
   credential->slot = slot;
   credential->certs.push_back(public_key.as_string());
