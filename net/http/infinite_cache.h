@@ -54,7 +54,7 @@ class NET_EXPORT_PRIVATE InfiniteCacheTransaction {
 
   // Called when the resource is served from the cache, so OnDataRead will not
   // be called for this request.
-  void OnServedFromCache();
+  void OnServedFromCache(const HttpResponseInfo* response);
 
  private:
   friend class InfiniteCache;
