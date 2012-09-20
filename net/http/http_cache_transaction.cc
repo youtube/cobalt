@@ -1419,7 +1419,7 @@ int HttpCache::Transaction::DoCacheReadData() {
   next_state_ = STATE_CACHE_READ_DATA_COMPLETE;
 
   if (infinite_cache_transaction_.get())
-    infinite_cache_transaction_->OnServedFromCache();
+    infinite_cache_transaction_->OnServedFromCache(&response_);
 
   if (net_log_.IsLoggingAllEvents())
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_DATA);
