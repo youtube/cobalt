@@ -42,7 +42,41 @@ public class NetworkChangeNotifier {
         mContext = context;
         mNativeChangeNotifier = nativeChangeNotifier;
         mConnectionType = CONNECTION_UNKNOWN;
-        sInstance = this;
+    }
+
+    private void destroy() {
+        if (mAutoDetector != null) {
+            mAutoDetector.destroy();
+        }
+        mNativeChangeNotifier = 0;
+    }
+
+    /**
+     * Creates the singleton used by the native-side NetworkChangeNotifier.
+     */
+    @CalledByNative
+    static NetworkChangeNotifier createInstance(Context context, int nativeChangeNotifier) {
+        assert sInstance == null;
+        sInstance = new NetworkChangeNotifier(context, nativeChangeNotifier);
+        return sInstance;
+    }
+
+    /**
+     * Destroys the singleton used by the native-side NetworkChangeNotifier.
+     */
+    @CalledByNative
+    private static void destroyInstance() {
+        assert sInstance != null;
+        sInstance.destroy();
+        sInstance = null;
+    }
+
+    /**
+     * Returns the instance used by the native-side NetworkChangeNotifier.
+     */
+    public static NetworkChangeNotifier getInstance() {
+        assert sInstance != null;
+        return sInstance;
     }
 
     /**
@@ -80,6 +114,7 @@ public class NetworkChangeNotifier {
      * @param networkAvailable True if the NetworkChangeNotifier should
      *     perceive a "connected" state, false implies "disconnected".
      */
+    @CalledByNative
     public static void forceConnectivityState(boolean networkAvailable) {
         assert sInstance != null;
         setAutoDetectConnectivityState(false);
@@ -90,13 +125,13 @@ public class NetworkChangeNotifier {
         boolean connectionCurrentlyExists = mConnectionType != CONNECTION_NONE;
         if (connectionCurrentlyExists != forceOnline) {
             mConnectionType = forceOnline ? CONNECTION_UNKNOWN : CONNECTION_NONE;
-            notifyNativeObservers();
+            notifyObserversOfConnectionTypeChange();
         }
     }
 
-    void notifyNativeObservers() {
+    void notifyObserversOfConnectionTypeChange() {
         if (mNativeChangeNotifier != 0) {
-            nativeNotifyObservers(mNativeChangeNotifier);
+            nativeNotifyObserversOfConnectionTypeChange(mNativeChangeNotifier);
         }
     }
 
@@ -108,25 +143,12 @@ public class NetworkChangeNotifier {
         return mConnectionType;
     }
 
-    @CalledByNative
-    private void destroy() {
-        if (mAutoDetector != null) {
-            mAutoDetector.destroy();
-        }
-        mNativeChangeNotifier = 0;
-        sInstance = null;
-    }
-
-    @CalledByNative
-    private static NetworkChangeNotifier create(Context context, int nativeNetworkChangeNotifier) {
-        return new NetworkChangeNotifier(context, nativeNetworkChangeNotifier);
-    }
-
-    @NativeClassQualifiedName("android::NetworkChangeNotifier")
-    private native void nativeNotifyObservers(int nativePtr);
+    @NativeClassQualifiedName("NetworkChangeNotifierAndroid")
+    private native void nativeNotifyObserversOfConnectionTypeChange(int nativePtr);
 
     // For testing only.
     public static NetworkChangeNotifierAutoDetect getAutoDetectorForTest() {
+        assert sInstance != null;
         return sInstance.mAutoDetector;
     }
 }

@@ -9,33 +9,35 @@
 #include "jni/NetworkChangeNotifier_jni.h"
 
 namespace net {
-namespace android {
 
-NetworkChangeNotifier::NetworkChangeNotifier() {
+NetworkChangeNotifierAndroid::NetworkChangeNotifierAndroid() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  CreateJavaObject(env);
-}
-
-NetworkChangeNotifier::~NetworkChangeNotifier() {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  Java_NetworkChangeNotifier_destroy(
-      env, java_network_change_notifier_.obj());
-}
-
-void NetworkChangeNotifier::CreateJavaObject(JNIEnv* env) {
   java_network_change_notifier_.Reset(
-      Java_NetworkChangeNotifier_create(
+      Java_NetworkChangeNotifier_createInstance(
           env,
           base::android::GetApplicationContext(),
           reinterpret_cast<jint>(this)));
 }
 
-void NetworkChangeNotifier::NotifyObservers(JNIEnv* env, jobject obj) {
-  NotifyObserversOfConnectionTypeChange();
+NetworkChangeNotifierAndroid::~NetworkChangeNotifierAndroid() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_NetworkChangeNotifier_destroyInstance(env);
+  java_network_change_notifier_.Reset();
 }
 
-net::NetworkChangeNotifier::ConnectionType
-    NetworkChangeNotifier::GetCurrentConnectionType() const {
+void NetworkChangeNotifierAndroid::NotifyObserversOfConnectionTypeChange(
+    JNIEnv* env,
+    jobject obj) {
+  NetworkChangeNotifier::NotifyObserversOfConnectionTypeChange();
+}
+
+void NetworkChangeNotifierAndroid::ForceConnectivityState(bool state) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_NetworkChangeNotifier_forceConnectivityState(env, state);
+}
+
+NetworkChangeNotifier::ConnectionType
+    NetworkChangeNotifierAndroid::GetCurrentConnectionType() const {
   JNIEnv* env = base::android::AttachCurrentThread();
 
   // Pull the connection type from the Java-side then convert it to a
@@ -64,9 +66,8 @@ net::NetworkChangeNotifier::ConnectionType
 }
 
 // static
-bool NetworkChangeNotifier::Register(JNIEnv* env) {
+bool NetworkChangeNotifierAndroid::Register(JNIEnv* env) {
   return RegisterNativesImpl(env);
 }
 
-}  // namespace android
 }  // namespace net
