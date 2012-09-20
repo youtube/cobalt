@@ -49,7 +49,8 @@ AudioOutputDevice::AudioOutputDevice(
       ipc_(ipc),
       stream_id_(0),
       play_on_start_(true),
-      is_started_(false) {
+      is_started_(false),
+      stopping_hack_(false) {
   CHECK(ipc_);
 }
 
@@ -90,6 +91,7 @@ void AudioOutputDevice::Stop() {
   {
     base::AutoLock auto_lock(audio_thread_lock_);
     audio_thread_.Stop(MessageLoop::current());
+    stopping_hack_ = true;
   }
 
   message_loop()->PostTask(FROM_HERE,
@@ -170,12 +172,15 @@ void AudioOutputDevice::ShutDownOnIOThread() {
   // OnStreamCreated is called in cases where Start/Stop are called before we
   // get the OnStreamCreated callback.  To handle that corner case, we call
   // Stop(). In most cases, the thread will already be stopped.
+  //
   // Another situation is when the IO thread goes away before Stop() is called
   // in which case, we cannot use the message loop to close the thread handle
-  // and can't not rely on the main thread existing either.
+  // and can't rely on the main thread existing either.
+  base::AutoLock auto_lock_(audio_thread_lock_);
   base::ThreadRestrictions::ScopedAllowIO allow_io;
   audio_thread_.Stop(NULL);
   audio_callback_.reset();
+  stopping_hack_ = false;
 }
 
 void AudioOutputDevice::SetVolumeOnIOThread(double volume) {
@@ -224,7 +229,21 @@ void AudioOutputDevice::OnStreamCreated(
   // delegate and hence it should not receive callbacks.
   DCHECK(stream_id_);
 
+  // We can receive OnStreamCreated() on the IO thread after the client has
+  // called Stop() but before ShutDownOnIOThread() is processed. In such a
+  // situation |callback_| might point to freed memory. Instead of starting
+  // |audio_thread_| do nothing and wait for ShutDownOnIOThread() to get called.
+  //
+  // TODO(scherkus): The real fix is to have sane ownership semantics. The fact
+  // that |callback_| (which should own and outlive this object!) can point to
+  // freed memory is a mess. AudioRendererSink should be non-refcounted so that
+  // owners (WebRtcAudioDeviceImpl, AudioRendererImpl, etc...) can Stop() and
+  // delete as they see fit. AudioOutputDevice should internally use WeakPtr
+  // to handle teardown and thread hopping. See http://crbug.com/151051 for
+  // details.
   base::AutoLock auto_lock(audio_thread_lock_);
+  if (stopping_hack_)
+    return;
 
   DCHECK(audio_thread_.IsStopped());
   audio_callback_.reset(new AudioOutputDevice::AudioThreadCallback(
