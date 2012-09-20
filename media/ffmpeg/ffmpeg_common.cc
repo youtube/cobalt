@@ -4,10 +4,31 @@
 
 #include "media/ffmpeg/ffmpeg_common.h"
 
+#include "base/basictypes.h"
 #include "base/logging.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/video_util.h"
 
 namespace media {
+
+// Why FF_INPUT_BUFFER_PADDING_SIZE? FFmpeg assumes all input buffers are
+// padded. Check here to ensure FFmpeg only receives data padded to its
+// specifications.
+COMPILE_ASSERT(DecoderBuffer::kPaddingSize >= FF_INPUT_BUFFER_PADDING_SIZE,
+               decoder_buffer_padding_size_does_not_fit_ffmpeg_requirement);
+
+// Alignment requirement by FFmpeg for input buffers. This need to be updated
+// to match FFmpeg when it changes.
+#if defined(ARCH_CPU_ARM_FAMILY)
+static const int kFFmpegInputBufferAlignmentSize = 16;
+#else
+static const int kFFmpegInputBufferAlignmentSize = 32;
+#endif
+// Check here to ensure FFmpeg only receives data aligned to its specifications.
+COMPILE_ASSERT(
+    DecoderBuffer::kAlignmentSize >= kFFmpegInputBufferAlignmentSize &&
+    DecoderBuffer::kAlignmentSize % kFFmpegInputBufferAlignmentSize == 0,
+    decoder_buffer_alignment_size_does_not_fit_ffmpeg_requirement);
 
 static const AVRational kMicrosBase = { 1, base::Time::kMicrosecondsPerSecond };
 
