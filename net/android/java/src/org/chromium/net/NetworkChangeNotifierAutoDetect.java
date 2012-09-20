@@ -28,14 +28,21 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
     private final NetworkConnectivityIntentFilter mIntentFilter =
             new NetworkConnectivityIntentFilter();
 
-    private final NetworkChangeNotifier mOwner;
+    private final Observer mObserver;
 
     private final Context mContext;
     private boolean mRegistered;
     private int mConnectionType;
 
-    public NetworkChangeNotifierAutoDetect(NetworkChangeNotifier owner, Context context) {
-        mOwner = owner;
+    /**
+     * Observer notified on the UI thread whenever a new connection type was detected.
+     */
+    public static interface Observer {
+        public void onConnectionTypeChanged(int newConnectionType);
+    }
+
+    public NetworkChangeNotifierAutoDetect(Observer observer, Context context) {
+        mObserver = observer;
         mContext = context;
         mConnectionType = currentConnectionType(context);
 
@@ -44,10 +51,6 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
           registerReceiver();
         }
         status.registerListener(this);
-    }
-
-    public int connectionType() {
-        return mConnectionType;
     }
 
     public void destroy() {
@@ -130,7 +133,7 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         if (newConnectionType != mConnectionType) {
             mConnectionType = newConnectionType;
             Log.d(TAG, "Network connectivity changed, type is: " + mConnectionType);
-            mOwner.notifyObserversOfConnectionTypeChange();
+            mObserver.onConnectionTypeChanged(newConnectionType);
         }
     }
 
