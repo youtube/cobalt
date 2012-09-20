@@ -13,7 +13,8 @@ VideoDecoderConfig::VideoDecoderConfig()
     : codec_(kUnknownVideoCodec),
       profile_(VIDEO_CODEC_PROFILE_UNKNOWN),
       format_(VideoFrame::INVALID),
-      extra_data_size_(0) {
+      extra_data_size_(0),
+      is_encrypted_(false) {
 }
 
 VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
