@@ -60,8 +60,7 @@ class NET_EXPORT HostResolverImpl
     : public HostResolver,
       NON_EXPORTED_BASE(public base::NonThreadSafe),
       public NetworkChangeNotifier::IPAddressObserver,
-      public NetworkChangeNotifier::DNSObserver,
-      public base::SupportsWeakPtr<HostResolverImpl> {
+      public NetworkChangeNotifier::DNSObserver {
  public:
   // Parameters for ProcTask which resolves hostnames using HostResolveProc.
   //
@@ -247,6 +246,8 @@ class NET_EXPORT HostResolverImpl
 
   // Address family to use when the request doesn't specify one.
   AddressFamily default_address_family_;
+
+  base::WeakPtrFactory<HostResolverImpl> weak_ptr_factory_;
 
   // If present, used by DnsTask and ServeFromHosts to resolve requests.
   scoped_ptr<DnsClient> dns_client_;
