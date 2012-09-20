@@ -130,7 +130,7 @@ public class NetworkChangeNotifierAutoDetect extends BroadcastReceiver
         if (newConnectionType != mConnectionType) {
             mConnectionType = newConnectionType;
             Log.d(TAG, "Network connectivity changed, type is: " + mConnectionType);
-            mOwner.notifyNativeObservers();
+            mOwner.notifyObserversOfConnectionTypeChange();
         }
     }
 
