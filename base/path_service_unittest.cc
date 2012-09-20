@@ -8,12 +8,14 @@
 #include "base/file_util.h"
 #include "base/file_path.h"
 #include "base/scoped_temp_dir.h"
-#if defined(OS_WIN)
-#include "base/win/windows_version.h"
-#endif
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gtest/include/gtest/gtest-spi.h"
 #include "testing/platform_test.h"
+
+#if defined(OS_WIN)
+#include "base/win/windows_version.h"
+#endif
 
 namespace {
 
@@ -26,9 +28,15 @@ bool ReturnsValidPath(int dir_type) {
   // If chromium has never been started on this account, the cache path may not
   // exist.
   if (dir_type == base::DIR_CACHE)
-    return result && !path.value().empty();
+    return result && !path.empty();
 #endif
-  return result && !path.value().empty() && file_util::PathExists(path);
+#if defined(OS_LINUX)
+  // On the linux try-bots: a path is returned (e.g. /home/chrome-bot/Desktop),
+  // but it doesn't exist.
+  if (dir_type == base::DIR_USER_DESKTOP)
+    return result && !path.empty();
+#endif
+  return result && !path.empty() && file_util::PathExists(path);
 }
 
 #if defined(OS_WIN)
@@ -53,10 +61,10 @@ typedef PlatformTest PathServiceTest;
 // later changes to Get broke the semantics of the function and yielded the
 // correct value while returning false.)
 TEST_F(PathServiceTest, Get) {
-  for (int key = base::DIR_CURRENT; key < base::PATH_END; ++key) {
+  for (int key = base::PATH_START + 1; key < base::PATH_END; ++key) {
 #if defined(OS_ANDROID)
-    if (key == base::FILE_MODULE)
-      continue;  // Android doesn't implement FILE_MODULE;
+    if (key == base::FILE_MODULE || key == base::DIR_USER_DESKTOP)
+      continue;  // Android doesn't implement FILE_MODULE and DIR_USER_DESKTOP;
 #endif
     EXPECT_PRED1(ReturnsValidPath, key);
   }
@@ -83,7 +91,17 @@ TEST_F(PathServiceTest, Get) {
   }
 #elif defined(OS_MACOSX)
   for (int key = base::PATH_MAC_START + 1; key < base::PATH_MAC_END; ++key) {
-      EXPECT_PRED1(ReturnsValidPath, key);
+    EXPECT_PRED1(ReturnsValidPath, key);
+  }
+#elif defined(OS_ANDROID)
+  for (int key = base::PATH_ANDROID_START + 1; key < base::PATH_ANDROID_END;
+       ++key) {
+    EXPECT_PRED1(ReturnsValidPath, key);
+  }
+#elif defined(OS_POSIX)
+  for (int key = base::PATH_POSIX_START + 1; key < base::PATH_POSIX_END;
+       ++key) {
+    EXPECT_PRED1(ReturnsValidPath, key);
   }
 #endif
 }
