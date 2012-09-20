@@ -35,6 +35,12 @@ enum {
   DIR_APP_SHORTCUTS,      // Where tiles on the start screen are stored, only
                           // for Windows 8. Maps to "Local\AppData\Microsoft\
                           // Windows\Application Shortcuts\".
+  DIR_COMMON_DESKTOP,     // Directory for the common desktop (visible
+                          // on all user's Desktop).
+  DIR_USER_QUICK_LAUNCH,  // Directory for the quick launch shortcuts.
+  DIR_DEFAULT_USER_QUICK_LAUNCH,  // Directory for the quick launch shortcuts
+                                  // of the Default user.
+
   PATH_WIN_END
 };
 
