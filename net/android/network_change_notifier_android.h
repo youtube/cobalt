@@ -11,30 +11,32 @@
 #include "net/base/network_change_notifier.h"
 
 namespace net {
-namespace android {
 
-class NetworkChangeNotifier : public net::NetworkChangeNotifier {
+class NetworkChangeNotifierAndroidTest;
+
+class NetworkChangeNotifierAndroid : public NetworkChangeNotifier {
  public:
-  NetworkChangeNotifier();
-  virtual ~NetworkChangeNotifier();
+  NetworkChangeNotifierAndroid();
+  virtual ~NetworkChangeNotifierAndroid();
 
-  void NotifyObservers(JNIEnv* env, jobject obj);
+  void NotifyObserversOfConnectionTypeChange(JNIEnv* env, jobject obj);
 
   static bool Register(JNIEnv* env);
 
  private:
-  void CreateJavaObject(JNIEnv* env);
+  friend class NetworkChangeNotifierAndroidTest;
 
   // NetworkChangeNotifier:
-  virtual net::NetworkChangeNotifier::ConnectionType
+  virtual NetworkChangeNotifier::ConnectionType
       GetCurrentConnectionType() const OVERRIDE;
+
+  void ForceConnectivityState(bool state);
 
   base::android::ScopedJavaGlobalRef<jobject> java_network_change_notifier_;
 
-  DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifier);
+  DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierAndroid);
 };
 
-}  // namespace android
 }  // namespace net
 
 #endif  // NET_ANDROID_NETWORK_CHANGE_NOTIFIER_ANDROID_H_

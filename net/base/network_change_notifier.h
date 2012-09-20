@@ -194,6 +194,7 @@ class NET_EXPORT NetworkChangeNotifier {
 
  private:
   friend class HostResolverImplDnsTest;
+  friend class NetworkChangeNotifierAndroidTest;
   friend class NetworkChangeNotifierLinuxTest;
   friend class NetworkChangeNotifierWinTest;
 
