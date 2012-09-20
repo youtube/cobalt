@@ -26,6 +26,7 @@ using testing::Invoke;
 using testing::Return;
 using testing::WithArgs;
 using testing::StrictMock;
+using testing::Values;
 
 namespace media {
 
@@ -91,23 +92,26 @@ ACTION_P(QuitLoop, loop) {
 
 }  // namespace.
 
-class AudioOutputDeviceTest : public testing::Test {
+class AudioOutputDeviceTest
+    : public testing::Test,
+      public testing::WithParamInterface<bool> {
  public:
   AudioOutputDeviceTest()
       : default_audio_parameters_(AudioParameters::AUDIO_PCM_LINEAR,
                                   CHANNEL_LAYOUT_STEREO,
                                   48000, 16, 1024),
         audio_device_(new AudioOutputDevice(
-            &audio_output_ipc_, io_loop_.message_loop_proxy())) {
+            &audio_output_ipc_, io_loop_.message_loop_proxy())),
+        synchronized_io_(GetParam()),
+        input_channels_(synchronized_io_ ? 2 : 0) {
   }
 
   ~AudioOutputDeviceTest() {}
 
-  int CalculateMemorySize(bool synchronized_io);
-
-  void StartAudioDevice(bool synchronized_io);
-  void CreateStream(bool synchronized_io);
-  void ExpectRenderCallback(bool synchronized_io);
+  void Initialize();
+  void StartAudioDevice();
+  void CreateStream();
+  void ExpectRenderCallback();
   void WaitUntilRenderCallback();
   void StopAudioDevice();
 
@@ -122,6 +126,10 @@ class AudioOutputDeviceTest : public testing::Test {
   scoped_refptr<AudioOutputDevice> audio_device_;
 
  private:
+  int CalculateMemorySize();
+
+  const bool synchronized_io_;
+  const int input_channels_;
   SharedMemory shared_memory_;
   CancelableSyncSocket browser_socket_;
   CancelableSyncSocket renderer_socket_;
@@ -131,16 +139,14 @@ class AudioOutputDeviceTest : public testing::Test {
 
 static const int kStreamId = 123;
 
-int AudioOutputDeviceTest::CalculateMemorySize(bool synchronized_io) {
-  int kInputChannels = synchronized_io ? 2 : 0;
-
+int AudioOutputDeviceTest::CalculateMemorySize() {
   // Calculate output and input memory size.
   int output_memory_size =
       AudioBus::CalculateMemorySize(default_audio_parameters_);
 
   int frames = default_audio_parameters_.frames_per_buffer();
   int input_memory_size =
-      AudioBus::CalculateMemorySize(kInputChannels, frames);
+      AudioBus::CalculateMemorySize(input_channels_, frames);
 
   int io_buffer_size = output_memory_size + input_memory_size;
 
@@ -151,19 +157,19 @@ int AudioOutputDeviceTest::CalculateMemorySize(bool synchronized_io) {
   return TotalSharedMemorySizeInBytes(io_buffer_size);
 }
 
-void AudioOutputDeviceTest::StartAudioDevice(bool synchronized_io) {
-  const int kInputChannels = synchronized_io ? 2 : 0;
-
-  if (synchronized_io) {
-    // Request output and synchronized input.
+void AudioOutputDeviceTest::Initialize() {
+  if (synchronized_io_) {
     audio_device_->InitializeIO(default_audio_parameters_,
-                                kInputChannels,
+                                input_channels_,
                                 &callback_);
   } else {
-    // Output only.
-    audio_device_->Initialize(default_audio_parameters_, &callback_);
+    audio_device_->Initialize(default_audio_parameters_,
+                              &callback_);
   }
+  io_loop_.RunAllPending();
+}
 
+void AudioOutputDeviceTest::StartAudioDevice() {
   audio_device_->Start();
 
   EXPECT_CALL(audio_output_ipc_, AddDelegate(audio_device_.get()))
@@ -173,8 +179,9 @@ void AudioOutputDeviceTest::StartAudioDevice(bool synchronized_io) {
   io_loop_.RunAllPending();
 }
 
-void AudioOutputDeviceTest::CreateStream(bool synchronized_io) {
-  const int kMemorySize = CalculateMemorySize(synchronized_io);
+void AudioOutputDeviceTest::CreateStream() {
+  const int kMemorySize = CalculateMemorySize();
+
   ASSERT_TRUE(shared_memory_.CreateAndMapAnonymous(kMemorySize));
   memset(shared_memory_.memory(), 0xff, kMemorySize);
 
@@ -196,12 +203,13 @@ void AudioOutputDeviceTest::CreateStream(bool synchronized_io) {
   io_loop_.RunAllPending();
 }
 
-void AudioOutputDeviceTest::ExpectRenderCallback(bool synchronized_io) {
+void AudioOutputDeviceTest::ExpectRenderCallback() {
   // We should get a 'play' notification when we call OnStreamCreated().
   // Respond by asking for some audio data.  This should ask our callback
   // to provide some audio data that AudioOutputDevice then writes into the
   // shared memory section.
-  const int kMemorySize = CalculateMemorySize(synchronized_io);
+  const int kMemorySize = CalculateMemorySize();
+
   EXPECT_CALL(audio_output_ipc_, PlayStream(kStreamId))
       .WillOnce(SendPendingBytes(&browser_socket_, kMemorySize));
 
@@ -212,7 +220,7 @@ void AudioOutputDeviceTest::ExpectRenderCallback(bool synchronized_io) {
   // writing the interleaved audio data into the shared memory section.
   // So, for the sake of this test, we consider the call to Render a sign
   // of success and quit the loop.
-  if (synchronized_io) {
+  if (synchronized_io_) {
     // For synchronized I/O, we expect RenderIO().
     EXPECT_CALL(callback_, RenderIO(_, _, _))
         .WillOnce(QuitLoop(io_loop_.message_loop_proxy()));
@@ -234,38 +242,40 @@ void AudioOutputDeviceTest::WaitUntilRenderCallback() {
 }
 
 void AudioOutputDeviceTest::StopAudioDevice() {
+  audio_device_->Stop();
+
   EXPECT_CALL(audio_output_ipc_, CloseStream(kStreamId));
   EXPECT_CALL(audio_output_ipc_, RemoveDelegate(kStreamId));
 
-  audio_device_->Stop();
   io_loop_.RunAllPending();
 }
 
-// The simplest test for AudioOutputDevice.  Used to test construction of
-// AudioOutputDevice and that the runtime environment is set up correctly.
-TEST_F(AudioOutputDeviceTest, Initialize) {
-  audio_device_->Initialize(default_audio_parameters_, &callback_);
-  io_loop_.RunAllPending();
-}
-
-// Similar to Initialize() test, but using synchronized I/O.
-TEST_F(AudioOutputDeviceTest, InitializeIO) {
-  const int kInputChannels = 2;  // Test stereo synchronized input.
-  audio_device_->InitializeIO(default_audio_parameters_,
-                              kInputChannels,
-                              &callback_);
-  io_loop_.RunAllPending();
+TEST_P(AudioOutputDeviceTest, Initialize) {
+  Initialize();
 }
 
 // Calls Start() followed by an immediate Stop() and check for the basic message
 // filter messages being sent in that case.
-TEST_F(AudioOutputDeviceTest, StartStop) {
-  StartAudioDevice(false);
+TEST_P(AudioOutputDeviceTest, StartStop) {
+  Initialize();
+  StartAudioDevice();
   StopAudioDevice();
 }
 
-TEST_F(AudioOutputDeviceTest, DISABLED_StopBeforeRender) {
-  StartAudioDevice(false);
+// AudioOutputDevice supports multiple start/stop sequences.
+TEST_P(AudioOutputDeviceTest, StartStopStartStop) {
+  Initialize();
+  StartAudioDevice();
+  StopAudioDevice();
+  StartAudioDevice();
+  StopAudioDevice();
+}
+
+// Simulate receiving OnStreamCreated() prior to processing ShutDownOnIOThread()
+// on the IO loop.
+TEST_P(AudioOutputDeviceTest, StopBeforeRender) {
+  Initialize();
+  StartAudioDevice();
 
   // Call Stop() but don't run the IO loop yet.
   audio_device_->Stop();
@@ -274,25 +284,20 @@ TEST_F(AudioOutputDeviceTest, DISABLED_StopBeforeRender) {
   // getting created.
   EXPECT_CALL(audio_output_ipc_, CloseStream(kStreamId));
   EXPECT_CALL(audio_output_ipc_, RemoveDelegate(kStreamId));
-  CreateStream(false);
+  CreateStream();
 }
 
 // Full test with output only.
-TEST_F(AudioOutputDeviceTest, CreateStream) {
-  StartAudioDevice(false);
-  ExpectRenderCallback(false);
-  CreateStream(false);
+TEST_P(AudioOutputDeviceTest, CreateStream) {
+  Initialize();
+  StartAudioDevice();
+  ExpectRenderCallback();
+  CreateStream();
   WaitUntilRenderCallback();
   StopAudioDevice();
 }
 
-// Same as CreateStream() test, but also tests synchronized I/O.
-TEST_F(AudioOutputDeviceTest, CreateStreamWithInput) {
-  StartAudioDevice(true);
-  ExpectRenderCallback(true);
-  CreateStream(true);
-  WaitUntilRenderCallback();
-  StopAudioDevice();
-}
+INSTANTIATE_TEST_CASE_P(Render, AudioOutputDeviceTest, Values(false));
+INSTANTIATE_TEST_CASE_P(RenderIO, AudioOutputDeviceTest, Values(true));
 
 }  // namespace media.
