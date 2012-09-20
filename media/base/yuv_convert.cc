@@ -443,8 +443,8 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
   static void (*convert_proc)(const uint8*, uint8*, uint8*, uint8*,
                               int, int, int, int, int) = NULL;
   if (!convert_proc) {
-#if defined(ARCH_CPU_ARM_FAMILY)
-    // For ARM processors, always use C version.
+#if defined(ARCH_CPU_ARM_FAMILY) || defined(ARCH_CPU_MIPS_FAMILY)
+    // For ARM and MIPS processors, always use C version.
     // TODO(hclam): Implement a NEON version.
     convert_proc = &ConvertRGB32ToYUV_C;
 #else
@@ -471,7 +471,7 @@ void ConvertRGB24ToYUV(const uint8* rgbframe,
                        int rgbstride,
                        int ystride,
                        int uvstride) {
-#if defined(ARCH_CPU_ARM_FAMILY)
+#if defined(ARCH_CPU_ARM_FAMILY) || defined(ARCH_CPU_MIPS_FAMILY)
   ConvertRGB24ToYUV_C(rgbframe, yplane, uplane, vplane, width, height,
                       rgbstride, ystride, uvstride);
 #else
@@ -542,7 +542,7 @@ void ConvertYUVToRGB32(const uint8* yplane,
                        int uvstride,
                        int rgbstride,
                        YUVType yuv_type) {
-#if defined(ARCH_CPU_ARM_FAMILY)
+#if defined(ARCH_CPU_ARM_FAMILY) || defined(ARCH_CPU_MIPS_FAMILY)
   ConvertYUVToRGB32_C(yplane, uplane, vplane, rgbframe,
                       width, height, ystride, uvstride, rgbstride, yuv_type);
 #else
