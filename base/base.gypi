@@ -63,6 +63,7 @@
           'base_paths_mac.h',
           'base_paths_mac.mm',
           'base_paths_posix.cc',
+          'base_paths_posix.h',
           'base_paths_win.cc',
           'base_paths_win.h',
           'base_switches.h',
