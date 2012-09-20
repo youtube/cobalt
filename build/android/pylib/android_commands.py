@@ -215,6 +215,20 @@ class AndroidCommands(object):
     root_test_output = self.RunShellCommand('ls /root') or ['']
     return not 'Permission denied' in root_test_output[0]
 
+  def EnableAdbRoot(self):
+    """Enables adb root on the device.
+
+      Returns:
+        True: if output from executing adb reboot was as expected.
+        False: otherwise.
+    """
+    return_value = self._adb.EnableAdbRoot()
+    # EnableAdbRoot inserts a call for wait-for-device only when adb logcat
+    # output matches what is expected. Just to be safe add a call to
+    # wait-for-device.
+    self._adb.SendCommand('wait-for-device')
+    return return_value
+
   def GetDeviceYear(self):
     """Returns the year information of the date on device."""
     return self.RunShellCommand('date +%Y')[0]
