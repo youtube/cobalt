@@ -4,10 +4,6 @@
 
 #include "base/string_util.h"
 #include "media/base/decoder_buffer.h"
-#if !defined(OS_ANDROID)
-#include "media/ffmpeg/ffmpeg_common.h"
-#endif
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -51,30 +47,22 @@ TEST(DecoderBufferTest, PaddingAlignment) {
       reinterpret_cast<const uint8*>(&kData), kDataSize));
   ASSERT_TRUE(buffer2);
 
-  // FFmpeg padding data should always be zeroed.
-  for(int i = 0; i < FF_INPUT_BUFFER_PADDING_SIZE; i++)
+  // Padding data should always be zeroed.
+  for(int i = 0; i < DecoderBuffer::kPaddingSize; i++)
     EXPECT_EQ((buffer2->GetData() + kDataSize)[i], 0);
 
   // If the data is padded correctly we should be able to read and write past
-  // the end of the data by FF_INPUT_BUFFER_PADDING_SIZE bytes without crashing
+  // the end of the data by DecoderBuffer::kPaddingSize bytes without crashing
   // or Valgrind/ASAN throwing errors.
   const uint8 kFillChar = 0xFF;
   memset(
       buffer2->GetWritableData() + kDataSize, kFillChar,
-      FF_INPUT_BUFFER_PADDING_SIZE);
-  for(int i = 0; i < FF_INPUT_BUFFER_PADDING_SIZE; i++)
+      DecoderBuffer::kPaddingSize);
+  for(int i = 0; i < DecoderBuffer::kPaddingSize; i++)
     EXPECT_EQ((buffer2->GetData() + kDataSize)[i], kFillChar);
 
-  // These alignments will need to be updated to match FFmpeg when it changes.
-#if defined(ARCH_CPU_ARM_FAMILY)
-  // FFmpeg data should be aligned on a 16 byte boundary for ARM.
-  const int kDataAlignment = 16;
-#else
-  // FFmpeg data should be aligned on a 32 byte boundary for x86.
-  const int kDataAlignment = 32;
-#endif
   EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(
-      buffer2->GetData()) & (kDataAlignment - 1));
+      buffer2->GetData()) & (DecoderBuffer::kAlignmentSize - 1));
 }
 #endif
 
