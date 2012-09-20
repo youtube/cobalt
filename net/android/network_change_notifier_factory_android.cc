@@ -10,6 +10,8 @@ namespace net {
 
 NetworkChangeNotifierFactoryAndroid::NetworkChangeNotifierFactoryAndroid() {}
 
+NetworkChangeNotifierFactoryAndroid::~NetworkChangeNotifierFactoryAndroid() {}
+
 NetworkChangeNotifier* NetworkChangeNotifierFactoryAndroid::CreateInstance() {
   return new NetworkChangeNotifierAndroid();
 }
