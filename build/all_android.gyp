@@ -17,7 +17,6 @@
       'target_name': 'All',
       'type': 'none',
       'dependencies': [
-        '../android_webview/android_webview.gyp:android_webview_apk',
         '../content/content.gyp:content_shell_apk',
         '<@(android_app_targets)',
         'android_builder_tests',
@@ -25,6 +24,7 @@
       'conditions': [
         ['sdk_build==1', {
           'dependencies': [
+            '../android_webview/android_webview.gyp:android_webview_apk',
             '../chrome/chrome.gyp:chromium_testshell',
           ],
         }],  # sdk_build==1
@@ -42,7 +42,6 @@
       'target_name': 'android_builder_tests',
       'type': 'none',
       'dependencies': [
-        '../android_webview/android_webview.gyp:android_webview_test_apk',
         '../base/android/jni_generator/jni_generator.gyp:jni_generator_tests',
         '../base/base.gyp:base_unittests',
         '../chrome/chrome.gyp:unit_tests',
@@ -94,7 +93,12 @@
             '../sync/sync.gyp:sync_unit_tests_apk',
             '../ui/ui.gyp:ui_unittests_apk',
           ],
-        }]
+        }],
+        ['sdk_build==1', {
+          'dependencies': [
+            '../android_webview/android_webview.gyp:android_webview_test_apk',
+          ],
+        }],
       ],
     },
     {
