@@ -96,9 +96,6 @@ struct ShortcutProperties {
   // The app model id for the shortcut (Win7+).
   string16 app_id;
   // Whether this is a dual mode shortcut (Win8+).
-  // For now this property can only be set to true (i.e. once set it cannot be
-  // unset).
-  // TODO (gab): Make it possible to set this property to false.
   bool dual_mode;
   // Bitfield made of IndividualProperties. Properties set in |options| will be
   // set on the shortcut, others will be ignored.
