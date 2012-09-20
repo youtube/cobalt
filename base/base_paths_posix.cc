@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Defines base::PathProviderPosix, default path provider on POSIX OSes that
-// don't have their own base_paths_OS.cc implementation (i.e. all but Mac and
-// Android).
+#include "base/base_paths.h"
 
 #include <ostream>
 #include <string>
 
-#include "base/base_paths.h"
+#include "build/build_config.h"
 #include "base/environment.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -18,7 +16,6 @@
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/nix/xdg_util.h"
-#include "build/build_config.h"
 
 #if defined(OS_FREEBSD)
 #include <sys/param.h>
@@ -99,9 +96,6 @@ bool PathProviderPosix(int key, FilePath* result) {
                   << "Try running from your chromium/src directory.";
       return false;
     }
-    case base::DIR_USER_DESKTOP:
-      *result = base::nix::GetXDGUserDirectory("DESKTOP", "Desktop");
-      return true;
     case base::DIR_CACHE: {
       scoped_ptr<base::Environment> env(base::Environment::Create());
       FilePath cache_dir(base::nix::GetXDGDirectory(env.get(), "XDG_CACHE_HOME",
@@ -109,9 +103,10 @@ bool PathProviderPosix(int key, FilePath* result) {
       *result = cache_dir;
       return true;
     }
-    case base::DIR_HOME:
+    case base::DIR_HOME: {
       *result = file_util::GetHomeDir();
       return true;
+    }
   }
   return false;
 }
