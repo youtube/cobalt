@@ -389,7 +389,6 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
     : creating_thread_id_(base::PlatformThread::CurrentId()),
       manager_(manager),
       opened_(false),
-      started_(false),
       restart_rendering_mode_(false),
       volume_(1.0),
       endpoint_buffer_size_frames_(0),
@@ -562,13 +561,13 @@ bool WASAPIAudioOutputStream::Open() {
 
 void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
   DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
-  DCHECK(callback);
-  DLOG_IF(ERROR, !opened_) << "Open() has not been called successfully";
-  if (!opened_)
-    return;
+  CHECK(callback);
+  CHECK(opened_);
 
-  if (started_)
+  if (render_thread_.get()) {
+    CHECK_EQ(callback, source_);
     return;
+  }
 
   if (restart_rendering_mode_) {
     // The selected audio device has been removed or disabled and a new
@@ -610,10 +609,6 @@ void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
   render_thread_.reset(
       new base::DelegateSimpleThread(this, "wasapi_render_thread"));
   render_thread_->Start();
-  if (!render_thread_->HasBeenStarted()) {
-    DLOG(ERROR) << "Failed to start WASAPI render thread.";
-    return;
-  }
 
   // Start streaming data between the endpoint buffer and the audio engine.
   hr = audio_client_->Start();
@@ -622,21 +617,13 @@ void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
     render_thread_->Join();
     render_thread_.reset();
     HandleError(hr);
-    return;
   }
-
-  started_ = true;
 }
 
 void WASAPIAudioOutputStream::Stop() {
   DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
-  if (!started_)
+  if (!render_thread_.get())
     return;
-
-  // Shut down the render thread.
-  if (stop_render_event_.IsValid()) {
-    SetEvent(stop_render_event_.Get());
-  }
 
   // Stop output audio streaming.
   HRESULT hr = audio_client_->Stop();
@@ -646,11 +633,13 @@ void WASAPIAudioOutputStream::Stop() {
   }
 
   // Wait until the thread completes and perform cleanup.
-  if (render_thread_.get()) {
-    SetEvent(stop_render_event_.Get());
-    render_thread_->Join();
-    render_thread_.reset();
-  }
+  SetEvent(stop_render_event_.Get());
+  render_thread_->Join();
+  render_thread_.reset();
+
+  // Ensure that we don't quit the main thread loop immediately next
+  // time Start() is called.
+  ResetEvent(stop_render_event_.Get());
 
   // Clear source callback, it'll be set again on the next Start() call.
   source_ = NULL;
@@ -671,12 +660,6 @@ void WASAPIAudioOutputStream::Stop() {
     audio_client_->GetCurrentPadding(&num_queued_frames);
     DCHECK_EQ(0u, num_queued_frames);
   }
-
-  // Ensure that we don't quit the main thread loop immediately next
-  // time Start() is called.
-  ResetEvent(stop_render_event_.Get());
-
-  started_ = false;
 }
 
 void WASAPIAudioOutputStream::Close() {
@@ -999,6 +982,8 @@ void WASAPIAudioOutputStream::Run() {
 }
 
 void WASAPIAudioOutputStream::HandleError(HRESULT err) {
+  CHECK((started() && GetCurrentThreadId() == render_thread_->tid()) ||
+        (!started() && GetCurrentThreadId() == creating_thread_id_));
   NOTREACHED() << "Error code: " << std::hex << err;
   if (source_)
     source_->OnError(this, static_cast<int>(err));

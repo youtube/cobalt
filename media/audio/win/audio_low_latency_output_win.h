@@ -1,7 +1,7 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // Implementation of AudioOutputStream for Windows using Windows Core Audio
 // WASAPI for low latency rendering.
 //
@@ -214,7 +214,7 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   // as command-line flag and AUDCLNT_SHAREMODE_SHARED otherwise (default).
   static AUDCLNT_SHAREMODE GetShareMode();
 
-  bool started() const { return started_; }
+  bool started() const { return render_thread_.get() != NULL; }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(WASAPIAudioOutputStreamTest, HardwareChannelCount);
@@ -312,7 +312,6 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   base::win::ScopedCoMem<WAVEFORMATPCMEX> audio_engine_mix_format_;
 
   bool opened_;
-  bool started_;
 
   // Set to true as soon as a new default device is detected, and cleared when
   // the streaming has switched from using the old device to the new device.
