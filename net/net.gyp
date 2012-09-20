@@ -60,8 +60,8 @@
         'android/net_jni_registrar.h',
         'android/network_change_notifier_android.cc',
         'android/network_change_notifier_android.h',
-        'android/network_change_notifier_factory.cc',
-        'android/network_change_notifier_factory.h',
+        'android/network_change_notifier_factory_android.cc',
+        'android/network_change_notifier_factory_android.h',
         'android/network_library.cc',
         'android/network_library.h',
         'base/address_family.h',
@@ -1220,6 +1220,7 @@
         'net_test_support',
       ],
       'sources': [
+        'android/network_change_notifier_android_unittest.cc',
         'base/address_list_unittest.cc',
         'base/address_tracker_linux_unittest.cc',
         'base/backoff_entry_unittest.cc',

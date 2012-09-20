@@ -16,7 +16,8 @@ namespace android {
 
 static base::android::RegistrationMethod kNetRegisteredMethods[] = {
   { "AndroidNetworkLibrary", net::android::RegisterNetworkLibrary },
-  { "NetworkChangeNotifier", net::android::NetworkChangeNotifier::Register },
+  { "NetworkChangeNotifierAndroid",
+    net::NetworkChangeNotifierAndroid::Register },
   { "ProxyConfigService", net::ProxyConfigServiceAndroid::Register },
 };
 
