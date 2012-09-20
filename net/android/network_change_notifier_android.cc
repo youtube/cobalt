@@ -4,13 +4,59 @@
 
 #include "net/android/network_change_notifier_android.h"
 
-#include "base/logging.h"
 #include "base/android/jni_android.h"
+#include "base/logging.h"
 #include "jni/NetworkChangeNotifier_jni.h"
 
 namespace net {
 
+namespace {
+
+// Returns whether the provided connection type is known.
+bool CheckConnectionType(int connection_type) {
+  switch (connection_type) {
+    case NetworkChangeNotifier::CONNECTION_UNKNOWN:
+    case NetworkChangeNotifier::CONNECTION_ETHERNET:
+    case NetworkChangeNotifier::CONNECTION_WIFI:
+    case NetworkChangeNotifier::CONNECTION_2G:
+    case NetworkChangeNotifier::CONNECTION_3G:
+    case NetworkChangeNotifier::CONNECTION_4G:
+    case NetworkChangeNotifier::CONNECTION_NONE:
+      return true;
+    default:
+      NOTREACHED() << "Unknown connection type received: " << connection_type;
+      return false;
+  }
+}
+
+}  // namespace
+
+NetworkChangeNotifierAndroid::~NetworkChangeNotifierAndroid() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_NetworkChangeNotifier_destroyInstance(env);
+}
+
+void NetworkChangeNotifierAndroid::NotifyObserversOfConnectionTypeChange(
+    JNIEnv* env,
+    jobject obj,
+    jint new_connection_type) {
+  int connection_type = CheckConnectionType(new_connection_type) ?
+      new_connection_type : CONNECTION_UNKNOWN;
+  SetConnectionType(connection_type);
+  NetworkChangeNotifier::NotifyObserversOfConnectionTypeChange();
+}
+
+jint NetworkChangeNotifierAndroid::GetConnectionType(JNIEnv* env, jobject obj) {
+  return GetCurrentConnectionType();
+}
+
+// static
+bool NetworkChangeNotifierAndroid::Register(JNIEnv* env) {
+  return RegisterNativesImpl(env);
+}
+
 NetworkChangeNotifierAndroid::NetworkChangeNotifierAndroid() {
+  SetConnectionType(CONNECTION_UNKNOWN);
   JNIEnv* env = base::android::AttachCurrentThread();
   java_network_change_notifier_.Reset(
       Java_NetworkChangeNotifier_createInstance(
@@ -19,16 +65,9 @@ NetworkChangeNotifierAndroid::NetworkChangeNotifierAndroid() {
           reinterpret_cast<jint>(this)));
 }
 
-NetworkChangeNotifierAndroid::~NetworkChangeNotifierAndroid() {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  Java_NetworkChangeNotifier_destroyInstance(env);
-  java_network_change_notifier_.Reset();
-}
-
-void NetworkChangeNotifierAndroid::NotifyObserversOfConnectionTypeChange(
-    JNIEnv* env,
-    jobject obj) {
-  NetworkChangeNotifier::NotifyObserversOfConnectionTypeChange();
+void NetworkChangeNotifierAndroid::SetConnectionType(int connection_type) {
+  base::AutoLock auto_lock(lock_);
+  connection_type_ = connection_type;
 }
 
 void NetworkChangeNotifierAndroid::ForceConnectivityState(bool state) {
@@ -38,36 +77,8 @@ void NetworkChangeNotifierAndroid::ForceConnectivityState(bool state) {
 
 NetworkChangeNotifier::ConnectionType
     NetworkChangeNotifierAndroid::GetCurrentConnectionType() const {
-  JNIEnv* env = base::android::AttachCurrentThread();
-
-  // Pull the connection type from the Java-side then convert it to a
-  // native-side NetworkChangeNotifier::ConnectionType.
-  jint connection_type = Java_NetworkChangeNotifier_connectionType(
-      env, java_network_change_notifier_.obj());
-  switch (connection_type) {
-    case CONNECTION_UNKNOWN:
-      return CONNECTION_UNKNOWN;
-    case CONNECTION_ETHERNET:
-      return CONNECTION_ETHERNET;
-    case CONNECTION_WIFI:
-      return CONNECTION_WIFI;
-    case CONNECTION_2G:
-      return CONNECTION_2G;
-    case CONNECTION_3G:
-      return CONNECTION_3G;
-    case CONNECTION_4G:
-      return CONNECTION_4G;
-    case CONNECTION_NONE:
-      return CONNECTION_NONE;
-    default:
-      NOTREACHED() << "Unknown connection type received: " << connection_type;
-      return CONNECTION_NONE;
-  }
-}
-
-// static
-bool NetworkChangeNotifierAndroid::Register(JNIEnv* env) {
-  return RegisterNativesImpl(env);
+  base::AutoLock auto_lock(lock_);
+  return static_cast<NetworkChangeNotifier::ConnectionType>(connection_type_);
 }
 
 }  // namespace net

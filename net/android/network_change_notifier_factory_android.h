@@ -18,6 +18,7 @@ class NetworkChangeNotifierFactoryAndroid :
     public NetworkChangeNotifierFactory {
  public:
   NetworkChangeNotifierFactoryAndroid();
+  virtual ~NetworkChangeNotifierFactoryAndroid();
 
   // Overrides of NetworkChangeNotifierFactory.
   virtual NetworkChangeNotifier* CreateInstance() OVERRIDE;
