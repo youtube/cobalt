@@ -11,7 +11,7 @@
 namespace base {
 
 bool PathProvider(int key, FilePath* result) {
-  // NOTE: DIR_CURRENT is a special case in PathService::Get
+  // NOTE: DIR_CURRENT is a special cased in PathService::Get
 
   FilePath cur;
   switch (key) {
