@@ -14,8 +14,8 @@ BB_SRC_ROOT="$(cd  "$BB_DIR/../../.."; pwd)"
 ## bb_force_bot_green_and_exit
 
 bb_baseline_setup "$BB_SRC_ROOT" "$@"
-bb_extract_build
 bb_spawn_logcat_monitor_and_status
+bb_extract_build
 bb_reboot_phones
 bb_run_unit_tests
 bb_print_logcat
