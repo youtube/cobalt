@@ -63,15 +63,16 @@ class SourceBufferRange {
   // Seeks to the beginning of the range.
   void SeekToStart();
 
-  // Finds the next keyframe from |buffers_| after |timestamp|, and creates and
-  // returns a new SourceBufferRange with the buffers from that keyframe onward.
+  // Finds the next keyframe from |buffers_| after |timestamp| (or at
+  // |timestamp| if |is_exclusive| is false) and creates and returns a new
+  // SourceBufferRange with the buffers from that keyframe onward.
   // The buffers in the new SourceBufferRange are moved out of this range. If
   // there is no keyframe after |timestamp|, SplitRange() returns null and this
   // range is unmodified.
-  SourceBufferRange* SplitRange(base::TimeDelta timestamp);
+  SourceBufferRange* SplitRange(base::TimeDelta timestamp, bool is_exclusive);
 
-  // Deletes the buffers from this range whose timestamps are greater than or
-  // equal to |buffer|'s timestamp.
+  // Deletes the buffers from this range starting at |timestamp|, exclusive if
+  // |is_exclusive| is true, inclusive otherwise.
   // Resets |next_buffer_index_| if the buffer at |next_buffer_index_| was
   // deleted, and deletes the |keyframe_map_| entries for the buffers that
   // were removed.
@@ -81,9 +82,8 @@ class SourceBufferRange {
   // may return true even if it does not add any buffers to |deleted_buffers|.
   // This indicates that the range had not buffered |next_buffer_index_|, but
   // a buffer at that position would have been deleted.
-  bool TruncateAt(scoped_refptr<StreamParserBuffer> buffer,
-                  BufferQueue* deleted_buffers);
-  bool TruncateAt(base::TimeDelta timestamp);
+  bool TruncateAt(base::TimeDelta timestamp,
+                  BufferQueue* deleted_buffers, bool is_exclusive);
   // Deletes all buffers in range.
   bool DeleteAll(BufferQueue* deleted_buffers);
 
@@ -163,6 +163,12 @@ class SourceBufferRange {
   // |skip_given_timestamp| is true, the seek will go to a keyframe with a
   // timestamp strictly greater than |timestamp|.
   void SeekAhead(base::TimeDelta timestamp, bool skip_given_timestamp);
+
+  // Returns an iterator in |buffers_| pointing to the buffer at |timestamp|.
+  // If |skip_given_timestamp| is true, this returns the first buffer with
+  // timestamp greater than |timestamp|.
+  BufferQueue::iterator GetBufferItrAt(
+      base::TimeDelta timestamp, bool skip_given_timestamp);
 
   // Returns an iterator in |keyframe_map_| pointing to the next keyframe after
   // |timestamp|. If |skip_given_timestamp| is true, this returns the first
@@ -251,6 +257,16 @@ static bool BufferComparator(
   return first->GetDecodeTimestamp() < second->GetDecodeTimestamp();
 }
 
+// Returns an estimate of how far from the beginning or end of a range a buffer
+// can be to still be considered in the range, given the |approximate_duration|
+// of a buffer in the stream.
+static base::TimeDelta ComputeFudgeRoom(base::TimeDelta approximate_duration) {
+  // Because we do not know exactly when is the next timestamp, any buffer
+  // that starts within 2x the approximate duration of a buffer is considered
+  // within this range.
+  return 2 * approximate_duration;
+}
+
 // An arbitrarily-chosen number to estimate the duration of a buffer if none
 // is set and there's not enough information to get a better estimate.
 static int kDefaultBufferDurationInMs = 125;
@@ -317,12 +333,20 @@ SourceBufferStream::~SourceBufferStream() {
 void SourceBufferStream::OnNewMediaSegment(
     base::TimeDelta media_segment_start_time) {
   media_segment_start_time_ = media_segment_start_time;
-
-  // Find the range that will house the buffers appended through the next
-  // Append() call.
-  range_for_next_append_ = FindExistingRangeFor(media_segment_start_time);
   new_media_segment_ = true;
-  last_buffer_timestamp_ = kNoTimestamp();
+
+  RangeList::iterator last_range = range_for_next_append_;
+  range_for_next_append_ = FindExistingRangeFor(media_segment_start_time);
+
+  // Only reset |last_buffer_timestamp_| if this new media segment is not
+  // adjacent to the previous media segment appended to the stream.
+  if (range_for_next_append_ == ranges_.end() ||
+      !AreAdjacentInSequence(
+          last_buffer_timestamp_, media_segment_start_time)) {
+    last_buffer_timestamp_ = kNoTimestamp();
+  } else {
+    DCHECK(last_range == range_for_next_append_);
+  }
 }
 
 bool SourceBufferStream::Append(
@@ -539,46 +563,65 @@ void SourceBufferStream::InsertIntoExistingRange(
 
   SourceBufferRange* range_for_new_buffers = *range_for_new_buffers_itr;
 
-  // If this is a simple case where we can just append to the end of the range,
-  // do so and return.
-  if (range_for_new_buffers->CanAppendBuffersToEnd(new_buffers)) {
-    range_for_new_buffers->AppendBuffersToEnd(new_buffers);
-    return;
+  if (last_buffer_timestamp_ != kNoTimestamp()) {
+    // Clean up the old buffers between the last appended buffer and the
+    // beginning of |new_buffers|.
+    *deleted_next_buffer =
+        DeleteBetween(
+            range_for_new_buffers, last_buffer_timestamp_,
+            new_buffers.front()->GetDecodeTimestamp(), true,
+            deleted_buffers);
   }
 
-  // Otherwise, this is either a start overlap or an middle overlap.
+  // If we cannot append the |new_buffers| to the end of the existing range,
+  // this is either a start overlap or an middle overlap. Delete the buffers
+  // that |new_buffers| overlaps.
+  if (!range_for_new_buffers->CanAppendBuffersToEnd(new_buffers)) {
+    *deleted_next_buffer |=
+        DeleteBetween(
+            range_for_new_buffers, new_buffers.front()->GetDecodeTimestamp(),
+            new_buffers.back()->GetDecodeTimestamp(), false,
+            deleted_buffers);
+  }
 
-  // In case this is a middle overlap, save the buffers that come after the end
-  // of |new_buffers|, and add them into a new range.
+  range_for_new_buffers->AppendBuffersToEnd(new_buffers);
+}
+
+bool SourceBufferStream::DeleteBetween(
+    SourceBufferRange* range, base::TimeDelta start_timestamp,
+    base::TimeDelta end_timestamp, bool is_range_exclusive,
+    BufferQueue* deleted_buffers) {
   SourceBufferRange* new_next_range =
-      range_for_new_buffers->SplitRange(
-          new_buffers.back()->GetDecodeTimestamp());
+      range->SplitRange(end_timestamp, is_range_exclusive);
 
   if (new_next_range)
     AddToRanges(new_next_range);
 
-  // Delete the buffers that are overlapped by |new_buffers|, then append
-  // |new_buffers| to the end of the range.
   BufferQueue saved_buffers;
-  bool deleted_next_buffer_from_range =
-      range_for_new_buffers->TruncateAt(new_buffers.front(), &saved_buffers);
-  range_for_new_buffers->AppendBuffersToEnd(new_buffers);
+  bool deleted_next_buffer =
+      range->TruncateAt(start_timestamp, &saved_buffers, is_range_exclusive);
 
-  if (selected_range_ != range_for_new_buffers)
-    return;
+  if (selected_range_ != range)
+    return deleted_next_buffer;
 
-  DCHECK(!*deleted_next_buffer);
+  DCHECK(deleted_buffers->empty());
   *deleted_buffers = saved_buffers;
-  *deleted_next_buffer = deleted_next_buffer_from_range;
 
-  // If this was a middle overlap resulting in a new range, and the next buffer
-  // position has been transferred to the newly created range, update the
-  // |selected_range_| accordingly.
+  // If the next buffer position has transferred to the split range, set the
+  // selected range accordingly.
   if (new_next_range && new_next_range->HasNextBufferPosition()) {
-    DCHECK(!range_for_new_buffers->HasNextBufferPosition());
-    DCHECK(!*deleted_next_buffer);
+    DCHECK(!range->HasNextBufferPosition());
+    DCHECK(!deleted_next_buffer);
     SetSelectedRange(new_next_range);
   }
+  return deleted_next_buffer;
+}
+
+bool SourceBufferStream::AreAdjacentInSequence(
+    base::TimeDelta first_timestamp, base::TimeDelta second_timestamp) const {
+  return first_timestamp < second_timestamp &&
+      second_timestamp <=
+      first_timestamp + ComputeFudgeRoom(GetMaxInterbufferDistance());
 }
 
 void SourceBufferStream::ResolveCompleteOverlaps(
@@ -627,7 +670,8 @@ void SourceBufferStream::ResolveEndOverlap(
   next_range_itr = ranges_.erase(next_range_itr);
 
   SourceBufferRange* new_next_range =
-      overlapped_range->SplitRange(range_with_new_buffers->GetEndTimestamp());
+      overlapped_range->SplitRange(
+          range_with_new_buffers->GetEndTimestamp(), true);
 
   // If there were non-overlapped buffers, add the new range to |ranges_|.
   if (new_next_range)
@@ -657,9 +701,6 @@ void SourceBufferStream::ResolveEndOverlap(
 
 void SourceBufferStream::UpdateTrackBuffer(const BufferQueue& deleted_buffers) {
   DCHECK(!deleted_buffers.empty());
-  if (!track_buffer_.empty())
-    return;
-
   DCHECK(selected_range_);
   DCHECK(selected_range_->HasNextBufferPosition());
 
@@ -775,7 +816,7 @@ void SourceBufferStream::OnSetDuration(base::TimeDelta duration) {
 
   // Need to partially truncate this range.
   if ((*itr)->GetStartTimestamp() < duration) {
-    bool deleted_seek_point = (*itr)->TruncateAt(duration);
+    bool deleted_seek_point = (*itr)->TruncateAt(duration, NULL, false);
     if (deleted_seek_point)
       ResetSeekState();
     ++itr;
@@ -1064,10 +1105,12 @@ void SourceBufferRange::SeekToStart() {
   next_buffer_index_ = 0;
 }
 
-SourceBufferRange* SourceBufferRange::SplitRange(base::TimeDelta timestamp) {
-  // Find the first keyframe after |timestamp|, not including |timestamp|.
+SourceBufferRange* SourceBufferRange::SplitRange(
+    base::TimeDelta timestamp, bool is_exclusive) {
+  // Find the first keyframe after |timestamp|. If |is_exclusive|, do not
+  // include keyframes at |timestamp|.
   KeyframeMap::iterator new_beginning_keyframe =
-      GetFirstKeyframeAt(timestamp, true);
+      GetFirstKeyframeAt(timestamp, is_exclusive);
 
   // If there is no keyframe after |timestamp|, we can't split the range.
   if (new_beginning_keyframe == keyframe_map_.end())
@@ -1102,18 +1145,28 @@ SourceBufferRange* SourceBufferRange::SplitRange(base::TimeDelta timestamp) {
   return split_range;
 }
 
+SourceBufferRange::BufferQueue::iterator SourceBufferRange::GetBufferItrAt(
+    base::TimeDelta timestamp, bool skip_given_timestamp) {
+  // Need to make a dummy buffer with timestamp |timestamp| in order to search
+  // the |buffers_| container.
+  scoped_refptr<StreamParserBuffer> dummy_buffer =
+      StreamParserBuffer::CopyFrom(NULL, 0, false);
+  dummy_buffer->SetDecodeTimestamp(timestamp);
+
+  if (skip_given_timestamp) {
+    return std::upper_bound(
+        buffers_.begin(), buffers_.end(), dummy_buffer, BufferComparator);
+  }
+  return std::lower_bound(
+      buffers_.begin(), buffers_.end(), dummy_buffer, BufferComparator);
+}
+
 SourceBufferRange::KeyframeMap::iterator
 SourceBufferRange::GetFirstKeyframeAt(base::TimeDelta timestamp,
                                       bool skip_given_timestamp) {
-  KeyframeMap::iterator result = keyframe_map_.lower_bound(timestamp);
-  // lower_bound() returns the first element >= |timestamp|, so if we don't want
-  // to include keyframes == |timestamp|, we have to increment the iterator
-  // accordingly.
-  if (skip_given_timestamp &&
-      result != keyframe_map_.end() && result->first == timestamp) {
-    ++result;
-  }
-  return result;
+  return skip_given_timestamp ?
+      keyframe_map_.upper_bound(timestamp) :
+      keyframe_map_.lower_bound(timestamp);
 }
 
 SourceBufferRange::KeyframeMap::iterator
@@ -1133,22 +1186,12 @@ bool SourceBufferRange::DeleteAll(BufferQueue* removed_buffers) {
   return TruncateAt(buffers_.begin(), removed_buffers);
 }
 
-bool SourceBufferRange::TruncateAt(base::TimeDelta timestamp) {
-  // Need to make a dummy buffer with timestamp |timestamp| in order to search
-  // the |buffers_| container.
-  scoped_refptr<StreamParserBuffer> dummy_buffer =
-      StreamParserBuffer::CopyFrom(NULL, 0, false);
-  dummy_buffer->SetDecodeTimestamp(timestamp);
-  return TruncateAt(dummy_buffer, NULL);
-}
-
 bool SourceBufferRange::TruncateAt(
-    scoped_refptr<StreamParserBuffer> buffer, BufferQueue* removed_buffers) {
+    base::TimeDelta timestamp, BufferQueue* removed_buffers,
+    bool is_exclusive) {
   // Find the place in |buffers_| where we will begin deleting data.
   BufferQueue::iterator starting_point =
-      std::lower_bound(buffers_.begin(), buffers_.end(),
-                       buffer,
-                       BufferComparator);
+      GetBufferItrAt(timestamp, is_exclusive);
   return TruncateAt(starting_point, removed_buffers);
 }
 
@@ -1420,10 +1463,7 @@ bool SourceBufferRange::IsNextInSequence(
 }
 
 base::TimeDelta SourceBufferRange::GetFudgeRoom() const {
-  // Because we do not know exactly when is the next timestamp, any buffer
-  // that starts within 2x the approximate duration of a buffer is considered
-  // within this range.
-  return 2 * GetApproximateDuration();
+  return ComputeFudgeRoom(GetApproximateDuration());
 }
 
 base::TimeDelta SourceBufferRange::GetApproximateDuration() const {

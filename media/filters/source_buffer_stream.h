@@ -155,6 +155,25 @@ class MEDIA_EXPORT SourceBufferStream {
   void MergeWithAdjacentRangeIfNecessary(
       const RangeList::iterator& range_with_new_buffers_itr);
 
+  // Deletes the buffers between |start_timestamp|, |end_timestamp| from
+  // |range|. Deletes between [start,end] if |is_range_exclusive| is true, or
+  // (start,end) if |is_range_exclusive| is false.
+  // Buffers are deleted in GOPs, so this method may delete buffers past
+  // |end_timestamp| if the keyframe a buffer depends on was deleted.
+  // Returns true if the |next_buffer_index_| is reset, and places the buffers
+  // removed from the range starting at |next_buffer_index_| in
+  // |deleted_buffers|.
+  bool DeleteBetween(SourceBufferRange* range,
+                     base::TimeDelta start_timestamp,
+                     base::TimeDelta end_timestamp,
+                     bool is_range_exclusive,
+                     BufferQueue* deleted_buffers);
+
+  // Returns true if |second_timestamp| is the timestamp of the next buffer in
+  // sequence after |first_timestamp|, false otherwise.
+  bool AreAdjacentInSequence(
+      base::TimeDelta first_timestamp, base::TimeDelta second_timestamp) const;
+
   // Helper method that returns the timestamp for the next buffer that
   // |selected_range_| will return from GetNextBuffer() call, or kNoTimestamp()
   // if in between seeking (i.e. |selected_range_| is null).
