@@ -26,8 +26,6 @@ namespace base {
 #elif defined(OS_ANDROID)
   bool PathProviderAndroid(int key, FilePath* result);
 #elif defined(OS_POSIX)
-  // PathProviderPosix is the default path provider on POSIX OSes other than
-  // Mac and Android.
   bool PathProviderPosix(int key, FilePath* result);
 #endif
 }
@@ -87,8 +85,8 @@ Provider base_provider_android = {
   base::PathProviderAndroid,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_ANDROID_START,
-  base::PATH_ANDROID_END,
+  0,
+  0,
 #endif
   true
 };
@@ -99,8 +97,8 @@ Provider base_provider_posix = {
   base::PathProviderPosix,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_POSIX_START,
-  base::PATH_POSIX_END,
+  0,
+  0,
 #endif
   true
 };
