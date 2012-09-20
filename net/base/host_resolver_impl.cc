@@ -1150,7 +1150,8 @@ class HostResolverImpl::DnsTask : public base::SupportsWeakPtr<DnsTask> {
       // Sort could complete synchronously.
       client_->GetAddressSorter()->Sort(
           addr_list,
-          base::Bind(&DnsTask::OnSortComplete, AsWeakPtr(),
+          base::Bind(&DnsTask::OnSortComplete,
+                     AsWeakPtr(),
                      base::TimeTicks::Now(),
                      ttl));
     } else {
@@ -1222,7 +1223,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
       const Key& key,
       RequestPriority priority,
       const BoundNetLog& request_net_log)
-      : resolver_(resolver->AsWeakPtr()),
+      : resolver_(resolver->weak_ptr_factory_.GetWeakPtr()),
         key_(key),
         priority_tracker_(priority),
         had_non_speculative_request_(false),
@@ -1670,6 +1671,7 @@ HostResolverImpl::HostResolverImpl(
       max_queued_jobs_(job_limits.total_jobs * 100u),
       proc_params_(proc_params),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
+      weak_ptr_factory_(this),
       dns_client_(dns_client.Pass()),
       received_dns_config_(false),
       ipv6_probe_monitoring_(false),
@@ -2064,7 +2066,7 @@ void HostResolverImpl::AbortAllInProgressJobs() {
   DCHECK_EQ(dispatcher_.num_running_jobs(), jobs_to_abort.size());
 
   // Life check to bail once |this| is deleted.
-  base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
+  base::WeakPtr<HostResolverImpl> self = weak_ptr_factory_.GetWeakPtr();
 
   // Then Abort them.
   for (size_t i = 0; self && i < jobs_to_abort.size(); ++i) {
@@ -2081,7 +2083,7 @@ void HostResolverImpl::TryServingAllJobsFromHosts() {
   // http://crbug.com/117655
 
   // Life check to bail once |this| is deleted.
-  base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
+  base::WeakPtr<HostResolverImpl> self = weak_ptr_factory_.GetWeakPtr();
 
   for (JobMap::iterator it = jobs_.begin(); self && it != jobs_.end(); ) {
     Job* job = it->second;
@@ -2123,7 +2125,7 @@ void HostResolverImpl::OnDNSChanged() {
   received_dns_config_ = dns_config.IsValid();
 
   // Life check to bail once |this| is deleted.
-  base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
+  base::WeakPtr<HostResolverImpl> self = weak_ptr_factory_.GetWeakPtr();
 
   // We want a new DnsSession in place, before we Abort running Jobs, so that
   // the newly started jobs use the new config.
