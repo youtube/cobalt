@@ -8,6 +8,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/synchronization/lock.h"
 #include "net/base/network_change_notifier.h"
 
 namespace net {
@@ -16,23 +17,35 @@ class NetworkChangeNotifierAndroidTest;
 
 class NetworkChangeNotifierAndroid : public NetworkChangeNotifier {
  public:
-  NetworkChangeNotifierAndroid();
   virtual ~NetworkChangeNotifierAndroid();
 
-  void NotifyObserversOfConnectionTypeChange(JNIEnv* env, jobject obj);
+  // Called from Java on the UI thread.
+  void NotifyObserversOfConnectionTypeChange(
+      JNIEnv* env, jobject obj, jint new_connection_type);
+  jint GetConnectionType(JNIEnv* env, jobject obj);
 
   static bool Register(JNIEnv* env);
 
  private:
   friend class NetworkChangeNotifierAndroidTest;
+  friend class NetworkChangeNotifierFactoryAndroid;
 
-  // NetworkChangeNotifier:
-  virtual NetworkChangeNotifier::ConnectionType
-      GetCurrentConnectionType() const OVERRIDE;
+  NetworkChangeNotifierAndroid();
+
+  void SetConnectionType(int connection_type);
 
   void ForceConnectivityState(bool state);
 
+  // NetworkChangeNotifier:
+  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
+
   base::android::ScopedJavaGlobalRef<jobject> java_network_change_notifier_;
+  // TODO(pliard): http://crbug.com/150867. Use an atomic integer for the
+  // connection type without the lock once a non-subtle atomic integer is
+  // available under base/. That might never happen though.
+  mutable base::Lock lock_;  // Protects the state below.
+  // Written from the UI thread, read from any thread.
+  int connection_type_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierAndroid);
 };
