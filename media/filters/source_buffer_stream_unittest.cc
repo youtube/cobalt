@@ -7,6 +7,9 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
+#include "base/string_split.h"
+#include "base/string_util.h"
 #include "media/base/data_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -74,8 +77,20 @@ class SourceBufferStreamTest : public testing::Test {
                   base::TimeDelta(), true, data, kDataSize);
   }
 
+  void NewSegmentAppendOneByOne(const std::string& buffers_to_append) {
+    AppendBuffersOneByOne(buffers_to_append, true);
+  }
+
+  void AppendBuffersOneByOne(const std::string& buffers_to_append) {
+    AppendBuffersOneByOne(buffers_to_append, false);
+  }
+
   void Seek(int position) {
     stream_->Seek(position * frame_duration_);
+  }
+
+  void SeekToTimestamp(base::TimeDelta timestamp) {
+    stream_->Seek(timestamp);
   }
 
   void CheckExpectedRanges(const std::string& expected) {
@@ -89,7 +104,21 @@ class SourceBufferStreamTest : public testing::Test {
       ss << "[" << start << "," << end << ") ";
     }
     ss << "}";
-    EXPECT_EQ(ss.str(), expected);
+    EXPECT_EQ(expected, ss.str());
+  }
+
+  void CheckExpectedRangesByTimestamp(const std::string& expected) {
+    Ranges<base::TimeDelta> r = stream_->GetBufferedTime();
+
+    std::stringstream ss;
+    ss << "{ ";
+    for (size_t i = 0; i < r.size(); ++i) {
+      int64 start = r.start(i).InMilliseconds();
+      int64 end = r.end(i).InMilliseconds();
+      ss << "[" << start << "," << end << ") ";
+    }
+    ss << "}";
+    EXPECT_EQ(expected, ss.str());
   }
 
   void CheckExpectedBuffers(
@@ -145,6 +174,25 @@ class SourceBufferStreamTest : public testing::Test {
     }
 
     EXPECT_EQ(ending_position + 1, current_position);
+  }
+
+  void CheckExpectedBuffers(const std::string& expected) {
+    std::vector<std::string> timestamps;
+    base::SplitString(expected, ' ', &timestamps);
+    for (size_t i = 0; i < timestamps.size(); i++) {
+      scoped_refptr<StreamParserBuffer> buffer;
+      SourceBufferStream::Status status = stream_->GetNextBuffer(&buffer);
+
+      EXPECT_EQ(SourceBufferStream::kSuccess, status);
+      if (status != SourceBufferStream::kSuccess)
+        break;
+
+      std::stringstream ss;
+      ss << buffer->GetDecodeTimestamp().InMilliseconds();
+      if (buffer->IsKeyframe())
+        ss << "K";
+      EXPECT_EQ(timestamps[i], ss.str());
+    }
   }
 
   void CheckNoNextBuffer() {
@@ -213,6 +261,39 @@ class SourceBufferStreamTest : public testing::Test {
     }
     if (!queue.empty())
       EXPECT_EQ(expect_success, stream_->Append(queue));
+  }
+
+  void AppendBuffersOneByOne(const std::string& buffers_to_append,
+                             bool start_new_segment) {
+    std::vector<std::string> timestamps;
+    base::SplitString(buffers_to_append, ' ', &timestamps);
+
+    CHECK_GT(timestamps.size(), 0u);
+
+    for (size_t i = 0; i < timestamps.size(); i++) {
+      bool is_keyframe = false;
+      if (EndsWith(timestamps[i], "K", true)) {
+        is_keyframe = true;
+        // Remove the "K" off of the token.
+        timestamps[i] = timestamps[i].substr(0, timestamps[i].length() - 1);
+      }
+      int time_in_ms;
+      CHECK(base::StringToInt(timestamps[i], &time_in_ms));
+
+      // Create buffer.
+      scoped_refptr<StreamParserBuffer> buffer =
+          StreamParserBuffer::CopyFrom(&kDataA, kDataSize, is_keyframe);
+      base::TimeDelta timestamp =
+          base::TimeDelta::FromMilliseconds(time_in_ms);
+      buffer->SetDecodeTimestamp(timestamp);
+
+      if (i == 0u && start_new_segment)
+        stream_->OnNewMediaSegment(timestamp);
+
+      SourceBufferStream::BufferQueue queue;
+      queue.push_back(buffer);
+      EXPECT_TRUE(stream_->Append(queue));
+    }
   }
 
   int frames_per_second_;
@@ -1128,6 +1209,82 @@ TEST_F(SourceBufferStreamTest, Middle_Overlap_Selected_4) {
   CheckExpectedBuffers(5, 7, &kDataB);
   Seek(10);
   CheckExpectedBuffers(10, 14, &kDataA);
+}
+
+TEST_F(SourceBufferStreamTest, Overlap_OneByOne) {
+  // Append 5 buffers starting at 10ms, 30ms apart.
+  NewSegmentAppendOneByOne("10K 40 70 100 130");
+
+  // The range ends at 160, accounting for the last buffer's duration.
+  CheckExpectedRangesByTimestamp("{ [10,160) }");
+
+  // Overlap with 10 buffers starting at the beginning, appended one at a
+  // time.
+  NewSegmentAppend(0, 1, &kDataB);
+  for (int i = 1; i < 10; i++)
+    AppendBuffers(i, 1, &kDataB);
+
+  // All data should be replaced.
+  Seek(0);
+  CheckExpectedRanges("{ [0,9) }");
+  CheckExpectedBuffers(0, 9, &kDataB);
+}
+
+TEST_F(SourceBufferStreamTest, Overlap_OneByOne_DeleteGroup) {
+  NewSegmentAppendOneByOne("10K 40 70 100 130K");
+  CheckExpectedRangesByTimestamp("{ [10,160) }");
+
+  // Seek to 130ms.
+  SeekToTimestamp(base::TimeDelta::FromMilliseconds(130));
+
+  // Overlap with a new segment from 0 to 120ms.
+  NewSegmentAppendOneByOne("0K 120");
+
+  // Next buffer should still be 130ms.
+  CheckExpectedBuffers("130K");
+
+  // Check the final buffers is correct.
+  SeekToTimestamp(base::TimeDelta::FromMilliseconds(0));
+  CheckExpectedBuffers("0K 120 130K");
+}
+
+TEST_F(SourceBufferStreamTest, Overlap_OneByOne_BetweenMediaSegments) {
+  // Append 5 buffers starting at 110ms, 30ms apart.
+  NewSegmentAppendOneByOne("110K 140 170 200 230");
+  CheckExpectedRangesByTimestamp("{ [110,260) }");
+
+  // Now append 2 media segments from 0ms to 210ms, 30ms apart. Note that the
+  // old keyframe 110ms falls in between these two segments.
+  NewSegmentAppendOneByOne("0K 30 60 90");
+  NewSegmentAppendOneByOne("120K 150 180 210");
+  CheckExpectedRangesByTimestamp("{ [0,240) }");
+
+  // Check the final buffers is correct; the keyframe at 110ms should be
+  // deleted.
+  SeekToTimestamp(base::TimeDelta::FromMilliseconds(0));
+  CheckExpectedBuffers("0K 30 60 90 120K 150 180 210");
+}
+
+TEST_F(SourceBufferStreamTest, Overlap_OneByOne_TrackBuffer) {
+  NewSegmentAppendOneByOne("10K 40 70 100K 125 130K");
+  CheckExpectedRangesByTimestamp("{ [10,160) }");
+
+  // Seek to 70ms.
+  SeekToTimestamp(base::TimeDelta::FromMilliseconds(10));
+  CheckExpectedBuffers("10K 40");
+
+  // Overlap with a new segment from 0 to 120ms.
+  NewSegmentAppendOneByOne("0K 30 60 90 120K");
+  CheckExpectedRangesByTimestamp("{ [0,160) }");
+
+  // Should return frames 70ms and 100ms from the track buffer, then switch
+  // to the new data at 120K, then switch back to the old data at 130K. The
+  // frame at 125ms that depended on keyframe 100ms should have been deleted.
+  CheckExpectedBuffers("70 100K 120K 130K");
+
+  // Check the final result: should not include data from the track buffer.
+  SeekToTimestamp(base::TimeDelta::FromMilliseconds(0));
+  CheckExpectedBuffers("0K 30 60 90 120K 130K");
 }
 
 TEST_F(SourceBufferStreamTest, Seek_Keyframe) {
