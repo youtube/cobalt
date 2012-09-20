@@ -18,6 +18,10 @@
 #include "base/base_paths_android.h"
 #endif
 
+#if defined(OS_POSIX)
+#include "base/base_paths_posix.h"
+#endif
+
 namespace base {
 
 enum BasePathKey {
@@ -34,17 +38,7 @@ enum BasePathKey {
   DIR_SOURCE_ROOT,  // Returns the root of the source tree.  This key is useful
                     // for tests that need to locate various resources.  It
                     // should not be used outside of test code.
-#if defined(OS_POSIX)
-  DIR_CACHE,    // Directory where to put cache data.  Note this is
-                // *not* where the browser cache lives, but the
-                // browser cache can be a subdirectory.
-                // This is $XDG_CACHE_HOME on Linux and
-                // ~/Library/Caches on Mac.
-  DIR_HOME,     // $HOME on POSIX-like systems.
-#endif
-#if defined(OS_ANDROID)
-  DIR_ANDROID_EXTERNAL_STORAGE,  // Android external storage directory.
-#endif
+  DIR_USER_DESKTOP,  // The current user's Desktop.
 
   PATH_END
 };
