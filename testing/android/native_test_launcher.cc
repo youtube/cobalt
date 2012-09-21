@@ -118,7 +118,8 @@ int ArgsToArgv(const std::vector<std::string>& args,
 
 void CreateFIFO(const char* fifo_path) {
   unlink(fifo_path);
-  if (mkfifo(fifo_path, 0666)) {
+  // Default permissions for mkfifo is ignored, chmod is required.
+  if (mkfifo(fifo_path, 0666) || chmod(fifo_path, 0666)) {
     AndroidLogError("Failed to create fifo %s: %s\n",
                     fifo_path, strerror(errno));
     exit(EXIT_FAILURE);
