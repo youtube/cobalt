@@ -57,21 +57,19 @@ class TestPackageApk(TestPackage):
     # testing/android/java/src/org/chromium/native_test/
     #     ChromeNativeTestActivity.java and
     # testing/android/native_test_launcher.cc
-    return os.path.join(self.adb.GetExternalStorage(),
-                        'native_tests', 'test.fifo')
+    return '/data/data/org.chromium.native_test/files/test.fifo'
 
   def _ClearFifo(self):
     self.adb.RunShellCommand('rm -f ' + self._GetFifo())
 
   def _WatchFifo(self, timeout):
-    i = 0
     for i in range(5):
       if self.adb.FileExistsOnDevice(self._GetFifo()):
         print 'Fifo created...'
         break
       time.sleep(i)
     else:
-      sys.exit('Unable to find fifo on device %s ' % self._GetFifo())
+      raise Exception('Unable to find fifo on device %s ' % self._GetFifo())
     args = shlex.split(self.adb.Adb()._target_arg)
     args += ['shell', 'cat', self._GetFifo()]
     return pexpect.spawn('adb', args, timeout=timeout, logfile=sys.stdout)
