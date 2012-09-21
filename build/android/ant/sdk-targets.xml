@@ -13,6 +13,17 @@
     for aidl and javac. This file defines targets which can be used to
     override targets used by tools.
   -->
+  <target name="-pre-compile">
+    <!--
+      Remove all .class files from the output directory. This prevents inclusion of incorrect .class
+      files in the final apk. For example, if a .java file was deleted, the apk should not contain
+      the .class files for that .java from previous builds.
+    -->
+    <delete>
+      <fileset dir="${out.classes.absolute.dir}" includes="**/*.class"/>
+    </delete>
+  </target>
+
   <!--
     Override the -compile target.
     This target requires 'javac.custom.classpath' to be set to reference
