@@ -9,7 +9,6 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
@@ -43,8 +42,7 @@ class OnMoreDataResampler;
 //
 // Currently channel downmixing and upmixing is not supported.
 // TODO(dalecurtis): Add channel remixing.  http://crbug.com/138762
-class MEDIA_EXPORT AudioOutputResampler
-    : public AudioOutputDispatcher {
+class MEDIA_EXPORT AudioOutputResampler : public AudioOutputDispatcher {
  public:
   AudioOutputResampler(AudioManager* audio_manager,
                        const AudioParameters& input_params,
@@ -71,11 +69,10 @@ class MEDIA_EXPORT AudioOutputResampler
   // Dispatcher to proxy all AudioOutputDispatcher calls too.
   scoped_refptr<AudioOutputDispatcher> dispatcher_;
 
-  // Vector of each outstanding OnMoreDataResampler object.  A new instance is
-  // created on every StartStream() call.  Access must be locked.
+  // Map of outstanding OnMoreDataResampler objects.  A new object is created
+  // on every StartStream() call and destroyed on CloseStream().
   typedef std::map<AudioOutputProxy*, OnMoreDataResampler*> CallbackMap;
   CallbackMap callbacks_;
-  base::Lock callbacks_lock_;
 
   // Ratio of input bytes to output bytes used to correct playback delay with
   // regard to buffering and resampling.
@@ -86,6 +83,10 @@ class MEDIA_EXPORT AudioOutputResampler
 
   // AudioParameters used to setup the output stream.
   AudioParameters output_params_;
+
+  // Whether any streams have been opened through |dispatcher_|, if so we can't
+  // fallback on future OpenStream() failures.
+  bool streams_opened_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioOutputResampler);
 };

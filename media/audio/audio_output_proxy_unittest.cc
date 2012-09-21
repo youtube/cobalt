@@ -867,4 +867,77 @@ TEST_F(AudioOutputResamplerTest, LowLatencyFallbackFailed) {
   WaitForCloseTimer(kTestCloseDelayMs);
 }
 
+// Simulate an eventual OpenStream() failure; i.e. successful OpenStream() calls
+// eventually followed by one which fails; root cause of http://crbug.com/150619
+TEST_F(AudioOutputResamplerTest, LowLatencyOpenEventuallyFails) {
+  MockAudioOutputStream stream1(params_);
+  MockAudioOutputStream stream2(params_);
+  MockAudioOutputStream stream3(params_);
+
+  // Setup the mock such that all three streams are successfully created.
+  EXPECT_CALL(manager(), MakeAudioOutputStream(_))
+      .WillOnce(Return(&stream1))
+      .WillOnce(Return(&stream2))
+      .WillOnce(Return(&stream3))
+      .WillRepeatedly(Return(static_cast<AudioOutputStream*>(NULL)));
+
+  // Stream1 should be able to successfully open and start.
+  EXPECT_CALL(stream1, Open())
+      .WillOnce(Return(true));
+  EXPECT_CALL(stream1, Close())
+      .Times(1);
+  EXPECT_CALL(stream1, SetVolume(_))
+      .Times(1);
+
+  // Stream2 should also be able to successfully open and start.
+  EXPECT_CALL(stream2, Open())
+      .WillOnce(Return(true));
+  EXPECT_CALL(stream2, Close())
+      .Times(1);
+  EXPECT_CALL(stream2, SetVolume(_))
+      .Times(1);
+
+  // Stream3 should fail on Open() (yet still be closed since
+  // MakeAudioOutputStream returned a valid AudioOutputStream object).
+  EXPECT_CALL(stream3, Open())
+      .WillOnce(Return(false));
+  EXPECT_CALL(stream3, Close())
+      .Times(1);
+
+  // Open and start the first proxy and stream.
+  AudioOutputProxy* proxy1 = new AudioOutputProxy(resampler_);
+  EXPECT_TRUE(proxy1->Open());
+  proxy1->Start(&callback_);
+  OnStart();
+
+  // Open and start the second proxy and stream.
+  AudioOutputProxy* proxy2 = new AudioOutputProxy(resampler_);
+  EXPECT_TRUE(proxy2->Open());
+  proxy2->Start(&callback_);
+  OnStart();
+
+  // Attempt to open the third stream which should fail.
+  AudioOutputProxy* proxy3 = new AudioOutputProxy(resampler_);
+  EXPECT_FALSE(proxy3->Open());
+
+  // Perform the required Stop()/Close() shutdown dance for each proxy.  Under
+  // the hood each proxy should correctly call CloseStream() if OpenStream()
+  // succeeded or not.
+  proxy3->Stop();
+  proxy3->Close();
+  proxy2->Stop();
+  proxy2->Close();
+  proxy1->Stop();
+  proxy1->Close();
+
+  // Wait for all of the messages to fly and then verify stream behavior.
+  WaitForCloseTimer(kTestCloseDelayMs);
+  EXPECT_TRUE(stream1.stop_called());
+  EXPECT_TRUE(stream1.start_called());
+  EXPECT_TRUE(stream2.stop_called());
+  EXPECT_TRUE(stream2.start_called());
+  EXPECT_FALSE(stream3.stop_called());
+  EXPECT_FALSE(stream3.start_called());
+}
+
 }  // namespace media
