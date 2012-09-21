@@ -163,8 +163,6 @@ bool BoxReader::ScanChildren() {
   scanned_ = true;
 
   bool err = false;
-  // TODO(strobe): Check or correct for multimap not inserting elements in
-  // consistent order.
   while (pos() < size()) {
     BoxReader child(&buf_[pos_], size_ - pos_);
     if (!child.ReadHeader(&err)) break;
