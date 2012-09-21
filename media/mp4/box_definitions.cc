@@ -225,8 +225,7 @@ FourCC SampleDescription::BoxType() const { return FOURCC_STSD; }
 bool SampleDescription::Parse(BoxReader* reader) {
   uint32 count;
   RCHECK(reader->SkipBytes(4) &&
-         reader->Read4(&count) &&
-         reader->ScanChildren());
+         reader->Read4(&count));
   video_entries.clear();
   audio_entries.clear();
 
