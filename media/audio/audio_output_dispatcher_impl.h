@@ -40,7 +40,7 @@ class MEDIA_EXPORT AudioOutputDispatcherImpl : public AudioOutputDispatcher {
                             const base::TimeDelta& close_delay);
 
   // Opens a new physical stream if there are no pending streams in
-  // |idle_streams_|.
+  // |idle_streams_|.  Do not call Close() or Stop() if this method fails.
   virtual bool OpenStream() OVERRIDE;
 
   // If there are pending streams in |idle_streams_| then it reuses one of

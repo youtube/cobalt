@@ -19,15 +19,15 @@ AudioOutputProxy::AudioOutputProxy(AudioOutputDispatcher* dispatcher)
 
 AudioOutputProxy::~AudioOutputProxy() {
   DCHECK(CalledOnValidThread());
-  CHECK(state_ == kCreated || state_ == kClosed) << "State is: " << state_;
+  DCHECK(state_ == kCreated || state_ == kClosed) << "State is: " << state_;
 }
 
 bool AudioOutputProxy::Open() {
   DCHECK(CalledOnValidThread());
-  CHECK_EQ(state_, kCreated);
+  DCHECK_EQ(state_, kCreated);
 
   if (!dispatcher_->OpenStream()) {
-    state_ = kError;
+    state_ = kOpenError;
     return false;
   }
 
@@ -37,10 +37,10 @@ bool AudioOutputProxy::Open() {
 
 void AudioOutputProxy::Start(AudioSourceCallback* callback) {
   DCHECK(CalledOnValidThread());
-  CHECK_EQ(state_, kOpened);
+  DCHECK_EQ(state_, kOpened);
 
   if (!dispatcher_->StartStream(callback, this)) {
-    state_ = kError;
+    state_ = kStartError;
     callback->OnError(this, 0);
     return;
   }
@@ -69,9 +69,12 @@ void AudioOutputProxy::GetVolume(double* volume) {
 
 void AudioOutputProxy::Close() {
   DCHECK(CalledOnValidThread());
-  DCHECK(state_ == kCreated || state_ == kError || state_ == kOpened);
+  DCHECK(state_ == kCreated || state_ == kOpenError || state_ == kOpened ||
+         state_ == kStartError);
 
-  if (state_ != kCreated)
+  // kStartError means OpenStream() succeeded and the stream must be closed
+  // before destruction.
+  if (state_ != kCreated && state_ != kOpenError)
     dispatcher_->CloseStream(this);
 
   state_ = kClosed;

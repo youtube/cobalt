@@ -44,8 +44,10 @@ bool AudioOutputDispatcherImpl::OpenStream() {
   paused_proxies_++;
 
   // Ensure that there is at least one open stream.
-  if (idle_streams_.empty() && !CreateAndOpenStream())
+  if (idle_streams_.empty() && !CreateAndOpenStream()) {
+    paused_proxies_--;
     return false;
+  }
 
   close_timer_.Reset();
   return true;
@@ -84,11 +86,7 @@ void AudioOutputDispatcherImpl::StopStream(AudioOutputProxy* stream_proxy) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   AudioStreamMap::iterator it = proxy_to_physical_map_.find(stream_proxy);
-  // StopStream() may have already been called.
-  // TODO(dalecurtis): StopStream() shouldn't be called twice!  See:
-  // http://crbug.com/149815 and http://crbug.com/150619
-  if (it == proxy_to_physical_map_.end())
-    return;
+  DCHECK(it != proxy_to_physical_map_.end());
   AudioOutputStream* physical_stream = it->second;
   proxy_to_physical_map_.erase(it);
 
