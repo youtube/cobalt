@@ -10,15 +10,15 @@
 #include "build/build_config.h"
 #include "net/base/net_export.h"
 
-#if defined(OS_WIN)
+#if defined(USE_NSS) || defined(OS_IOS)
+#include <list>
+#elif defined(OS_WIN)
 #include <windows.h>
 #include <wincrypt.h>
 #elif defined(OS_MACOSX)
 #include <CoreFoundation/CFArray.h>
 #include <Security/SecTrust.h>
 #include "base/mac/scoped_cftyperef.h"
-#elif defined(USE_NSS)
-#include <list>
 #endif
 
 class FilePath;
@@ -54,7 +54,7 @@ class NET_EXPORT_PRIVATE TestRootCerts {
   // Returns true if there are no certificates that have been marked trusted.
   bool IsEmpty() const;
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) && !defined(OS_IOS)
   CFArrayRef temporary_roots() const { return temporary_roots_; }
 
   // Modifies the root certificates of |trust_ref| to include the
@@ -80,15 +80,15 @@ class NET_EXPORT_PRIVATE TestRootCerts {
   // Performs platform-dependent initialization.
   void Init();
 
-#if defined(OS_MACOSX)
-  base::mac::ScopedCFTypeRef<CFMutableArrayRef> temporary_roots_;
-#elif defined(OS_WIN)
-  HCERTSTORE temporary_roots_;
-#elif defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
   // It is necessary to maintain a cache of the original certificate trust
   // settings, in order to restore them when Clear() is called.
   class TrustEntry;
   std::list<TrustEntry*> trust_cache_;
+#elif defined(OS_WIN)
+  HCERTSTORE temporary_roots_;
+#elif defined(OS_MACOSX)
+  base::mac::ScopedCFTypeRef<CFMutableArrayRef> temporary_roots_;
 #endif
 
 #if defined(OS_WIN) || defined(USE_OPENSSL)
