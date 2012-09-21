@@ -58,9 +58,8 @@ def CheckForMissingDevices(options, adb_online_devs):
     adb_online_devs: A list of serial numbers of the currently visible
                      and online attached devices.
   """
-
-  last_devices_path = os.path.abspath(os.path.join(options.out_dir,
-                                                   '.last_devices'))
+  out_dir = os.path.abspath(options.out_dir)
+  last_devices_path = os.path.join(out_dir, '.last_devices')
   last_devices = []
   try:
     with open(last_devices_path) as f:
@@ -89,8 +88,10 @@ def CheckForMissingDevices(options, adb_online_devs):
       print ('New devices detected %s. And now back to your '
              'regularly scheduled program.' % list(new_devs))
 
-  # Write devices currently visible plus devices previously seen.
+  if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
   with open(last_devices_path, 'w') as f:
+    # Write devices currently visible plus devices previously seen.
     f.write('\n'.join(set(adb_online_devs + last_devices)))
 
 
