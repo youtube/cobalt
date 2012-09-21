@@ -189,8 +189,6 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
   OVERLAPPED write_overlapped_;
 
   // The buffers used in Read() and Write().
-  WSABUF read_buffer_;
-  WSABUF write_buffer_;
   scoped_refptr<IOBuffer> read_iobuffer_;
   scoped_refptr<IOBuffer> write_iobuffer_;
   int write_buffer_length_;
@@ -715,13 +713,14 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
 
   buf_len = core_->ThrottleReadSize(buf_len);
 
-  core_->read_buffer_.len = buf_len;
-  core_->read_buffer_.buf = buf->data();
+  WSABUF read_buffer;
+  read_buffer.len = buf_len;
+  read_buffer.buf = buf->data();
 
   // TODO(wtc): Remove the assertion after enough testing.
   AssertEventNotSignaled(core_->read_overlapped_.hEvent);
   DWORD num, flags = 0;
-  int rv = WSARecv(socket_, &core_->read_buffer_, 1, &num, &flags,
+  int rv = WSARecv(socket_, &read_buffer, 1, &num, &flags,
                    &core_->read_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(core_->read_overlapped_.hEvent)) {
@@ -731,7 +730,7 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       if (num > 0)
         use_history_.set_was_used_to_convey_data();
       net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED, num,
-                                    core_->read_buffer_.buf);
+                                    buf->data());
       return static_cast<int>(num);
     }
   } else {
@@ -763,14 +762,15 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   base::StatsCounter writes("tcp.writes");
   writes.Increment();
 
-  core_->write_buffer_.len = buf_len;
-  core_->write_buffer_.buf = buf->data();
+  WSABUF write_buffer;
+  write_buffer.len = buf_len;
+  write_buffer.buf = buf->data();
   core_->write_buffer_length_ = buf_len;
 
   // TODO(wtc): Remove the assertion after enough testing.
   AssertEventNotSignaled(core_->write_overlapped_.hEvent);
   DWORD num;
-  int rv = WSASend(socket_, &core_->write_buffer_, 1, &num, 0,
+  int rv = WSASend(socket_, &write_buffer, 1, &num, 0,
                    &core_->write_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(core_->write_overlapped_.hEvent)) {
@@ -787,7 +787,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
       if (rv > 0)
         use_history_.set_was_used_to_convey_data();
       net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_SENT, rv,
-                                    core_->write_buffer_.buf);
+                                    buf->data());
       return rv;
     }
   } else {
@@ -907,7 +907,6 @@ void TCPClientSocketWin::DidCompleteRead() {
                                    &num_bytes, FALSE, &flags);
   WSAResetEvent(core_->read_overlapped_.hEvent);
   waiting_read_ = false;
-  core_->read_iobuffer_ = NULL;
   int rv;
   if (ok) {
     base::StatsCounter read_bytes("tcp.read_bytes");
@@ -916,7 +915,7 @@ void TCPClientSocketWin::DidCompleteRead() {
     if (num_bytes > 0)
       use_history_.set_was_used_to_convey_data();
     net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
-                                  num_bytes, core_->read_buffer_.buf);
+                                  num_bytes, core_->read_iobuffer_->data());
     rv = static_cast<int>(num_bytes);
   } else {
     int os_error = WSAGetLastError();
@@ -924,6 +923,7 @@ void TCPClientSocketWin::DidCompleteRead() {
     net_log_.AddEvent(NetLog::TYPE_SOCKET_READ_ERROR,
                       CreateNetLogSocketErrorCallback(rv, os_error));
   }
+  core_->read_iobuffer_ = NULL;
   DoReadCallback(rv);
 }
 
@@ -956,7 +956,7 @@ void TCPClientSocketWin::DidCompleteWrite() {
       if (num_bytes > 0)
         use_history_.set_was_used_to_convey_data();
       net_log_.AddByteTransferEvent(NetLog::TYPE_SOCKET_BYTES_SENT, num_bytes,
-                                    core_->write_buffer_.buf);
+                                    core_->write_iobuffer_->data());
     }
   }
   core_->write_iobuffer_ = NULL;
