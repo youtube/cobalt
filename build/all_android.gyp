@@ -97,6 +97,7 @@
         ['sdk_build==1', {
           'dependencies': [
             '../android_webview/android_webview.gyp:android_webview_test_apk',
+            '../chrome/chrome.gyp:chromium_testshell_test_apk',
           ],
         }],
       ],
