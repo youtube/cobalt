@@ -573,6 +573,15 @@ typedef void* GLeglImageOES;
 /* GL_NV_texture_npot_2D_mipmap */
 /* No new tokens introduced by this extension. */
 
+/* GL_NVX_gpu_memory_info */
+#ifndef GL_NVX_gpu_memory_info
+#define GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX                 0x9047
+#define GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX           0x9048
+#define GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX         0x9049
+#define GL_GPU_MEMORY_INFO_EVICTION_COUNT_NVX                   0x904A
+#define GL_GPU_MEMORY_INFO_EVICTED_MEMORY_NVX                   0x904B
+#endif
+
 /*------------------------------------------------------------------------*
  * QCOM extension tokens
  *------------------------------------------------------------------------*/
