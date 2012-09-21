@@ -869,18 +869,18 @@ bool InfiniteCache::Worker::CanReuse(const Details& old,
   };
   int reason = REUSE_OK;
 
-  if (old.flags & NO_CACHE)
-    reason = REUSE_NO_CACHE;
+  Time expiration = IntToTime(old.expiration);
+  if (expiration < Time::Now())
+    reason = REUSE_EXPIRED;
 
   if (old.flags & EXPIRED)
     reason = REUSE_ALWAYS_EXPIRED;
 
+  if (old.flags & NO_CACHE)
+    reason = REUSE_NO_CACHE;
+
   if (old.flags & TRUNCATED)
     reason = REUSE_TRUNCATED;
-
-  Time expiration = IntToTime(old.expiration);
-  if (expiration < Time::Now())
-    reason = REUSE_EXPIRED;
 
   if (old.vary_hash != current.vary_hash)
     reason = REUSE_VARY;
