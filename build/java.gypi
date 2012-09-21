@@ -29,7 +29,7 @@
 
 {
   'dependencies': [
-    '<(DEPTH)/build/all_android.gyp:build_output_dirs'
+    '<(DEPTH)/build/build_output_dirs_android.gyp:build_output_dirs'
   ],
   'direct_dependent_settings': {
     'variables': {
