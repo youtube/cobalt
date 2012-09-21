@@ -91,7 +91,7 @@ typedef unsigned IPos;
  * save space in the various tables. IPos is used only for parameter passing.
  */
 
-#define Z_COOKIE_HASH_SIZE 64
+#define Z_COOKIE_HASH_SIZE 256
 #define Z_COOKIE_HASH_MASK (Z_COOKIE_HASH_SIZE-1)
 
 typedef struct internal_state {

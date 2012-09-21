@@ -1309,7 +1309,7 @@ local uInt cookie_match(s, start, len)
     unsigned i;
     IPos cookie_location;
 
-    if (len >= MAX_MATCH)
+    if (len >= MAX_MATCH || len == 0)
         return 0;
 
     for (i = 0; i < len; i++)
@@ -1328,6 +1328,13 @@ local uInt cookie_match(s, start, len)
                 class_at(s, cookie_location+i) != 1) {
                 return 0;
             }
+        }
+        /* Check that we aren't matching a prefix of another cookie by ensuring
+         * that the final byte is either a semicolon (which cannot appear in a
+         * cookie value), or the match is followed by non-cookie data. */
+        if (s->window[cookie_location+len-1] != ';' &&
+            class_at(s, cookie_location+len) != 0) {
+          return 0;
         }
         s->match_start = cookie_location;
         return len;
@@ -1862,10 +1869,8 @@ local block_state deflate_slow(s, flush, clas)
                             /* We require that a Z_CLASS_COOKIE match be
                              * preceded by either a semicolon (which cannot be
                              * part of a cookie), or non-cookie data. This is
-                             * to prevent
-                             * a cookie from being a prefix of another.
-                             * spdy_framer.cc ensures that cookies are always
-                             * terminated by a semicolon. */
+                             * to prevent a cookie from being a suffix of
+                             * another. */
                             (class_at(s, s->prev_match-1) == Z_CLASS_STANDARD ||
                              *(s->window + s->prev_match-1) == ';')))) {
             uInt max_insert = s->strstart + s->lookahead - MIN_MATCH;
