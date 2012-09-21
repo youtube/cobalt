@@ -43,6 +43,7 @@ class ProxyScriptFetcher;
 // HTTP(S) URL.  It uses the given ProxyResolver to handle the actual proxy
 // resolution.  See ProxyResolverV8 for example.
 class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
+                                public NetworkChangeNotifier::DNSObserver,
                                 public ProxyConfigService::Observer,
                                 NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
@@ -324,6 +325,10 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // NetworkChangeNotifier::IPAddressObserver
   // When this is called, we re-fetch PAC scripts and re-run WPAD.
   virtual void OnIPAddressChanged() OVERRIDE;
+
+  // NetworkChangeNotifier::DNSObserver
+  // We respond as above.
+  virtual void OnDNSChanged() OVERRIDE;
 
   // ProxyConfigService::Observer
   virtual void OnProxyConfigChanged(
