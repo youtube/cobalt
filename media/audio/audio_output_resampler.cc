@@ -174,7 +174,8 @@ AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
     : AudioOutputDispatcher(audio_manager, input_params),
       io_ratio_(1),
       close_delay_(close_delay),
-      output_params_(output_params) {
+      output_params_(output_params),
+      streams_opened_(false) {
   DCHECK_EQ(output_params_.format(), AudioParameters::AUDIO_PCM_LOW_LATENCY);
 
   // Record UMA statistics for the hardware configuration.
@@ -197,9 +198,14 @@ AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
   Initialize();
 }
 
-AudioOutputResampler::~AudioOutputResampler() {}
+AudioOutputResampler::~AudioOutputResampler() {
+  DCHECK(callbacks_.empty());
+}
 
 void AudioOutputResampler::Initialize() {
+  DCHECK(!streams_opened_);
+  DCHECK(callbacks_.empty());
+
   io_ratio_ = 1;
 
   // TODO(dalecurtis): Add channel remixing.  http://crbug.com/138762
@@ -237,17 +243,27 @@ void AudioOutputResampler::Initialize() {
 }
 
 bool AudioOutputResampler::OpenStream() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
   if (dispatcher_->OpenStream()) {
-    // Only record the UMA statistic if we didn't fallback during construction.
-    if (output_params_.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY)
+    // Only record the UMA statistic if we didn't fallback during construction
+    // and only for the first stream we open.
+    if (!streams_opened_ &&
+        output_params_.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
       UMA_HISTOGRAM_BOOLEAN("Media.FallbackToHighLatencyAudioPath", false);
+    }
+    streams_opened_ = true;
     return true;
   }
 
-  // If we've already tried to open the stream in high latency mode, there's
-  // nothing more to be done.
-  if (output_params_.format() == AudioParameters::AUDIO_PCM_LINEAR)
+  // If we've already tried to open the stream in high latency mode or we've
+  // successfully opened a stream previously, there's nothing more to be done.
+  if (output_params_.format() == AudioParameters::AUDIO_PCM_LINEAR ||
+      streams_opened_ || !callbacks_.empty()) {
     return false;
+  }
+
+  DCHECK_EQ(output_params_.format(), AudioParameters::AUDIO_PCM_LOW_LATENCY);
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableAudioFallback)) {
@@ -255,10 +271,6 @@ bool AudioOutputResampler::OpenStream() {
                << "path is disabled, aborting.";
     return false;
   }
-
-  // TODO(dalecurtis): Is it better to recreate the whole |dispatcher_| ?  See
-  // http://crbug.com/149815
-  dispatcher_->CloseStream(NULL);
 
   DLOG(ERROR) << "Unable to open audio device in low latency mode.  Falling "
               << "back to high latency audio output.";
@@ -276,63 +288,59 @@ bool AudioOutputResampler::OpenStream() {
 bool AudioOutputResampler::StartStream(
     AudioOutputStream::AudioSourceCallback* callback,
     AudioOutputProxy* stream_proxy) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
   OnMoreDataResampler* resampler_callback = NULL;
-  {
-    base::AutoLock auto_lock(callbacks_lock_);
-    CallbackMap::iterator it = callbacks_.find(stream_proxy);
-    if (it == callbacks_.end()) {
-      resampler_callback = new OnMoreDataResampler(
-          io_ratio_, params_, output_params_);
-      callbacks_[stream_proxy] = resampler_callback;
-    } else {
-      resampler_callback = it->second;
-    }
-    resampler_callback->Start(callback);
+  CallbackMap::iterator it = callbacks_.find(stream_proxy);
+  if (it == callbacks_.end()) {
+    resampler_callback = new OnMoreDataResampler(
+        io_ratio_, params_, output_params_);
+    callbacks_[stream_proxy] = resampler_callback;
+  } else {
+    resampler_callback = it->second;
   }
+  resampler_callback->Start(callback);
   return dispatcher_->StartStream(resampler_callback, stream_proxy);
 }
 
 void AudioOutputResampler::StreamVolumeSet(AudioOutputProxy* stream_proxy,
                                            double volume) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   dispatcher_->StreamVolumeSet(stream_proxy, volume);
 }
 
 void AudioOutputResampler::StopStream(AudioOutputProxy* stream_proxy) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   dispatcher_->StopStream(stream_proxy);
 
   // Now that StopStream() has completed the underlying physical stream should
   // be stopped and no longer calling OnMoreData(), making it safe to Stop() the
   // OnMoreDataResampler.
-  {
-    base::AutoLock auto_lock(callbacks_lock_);
-    CallbackMap::iterator it = callbacks_.find(stream_proxy);
-    if (it != callbacks_.end())
-      it->second->Stop();
-  }
+  CallbackMap::iterator it = callbacks_.find(stream_proxy);
+  if (it != callbacks_.end())
+    it->second->Stop();
 }
 
 void AudioOutputResampler::CloseStream(AudioOutputProxy* stream_proxy) {
-  // Force StopStream() before CloseStream().
-  // TODO(dalecurtis): This shouldn't be necessary, but somewhere in the chain
-  // CloseStream() is occurring without a StopStream() which causes the callback
-  // provided by OnMoreDataResampler to go away before the output stream is
-  // ready.  http://crbug.com/150619
-  StopStream(stream_proxy);
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   dispatcher_->CloseStream(stream_proxy);
 
   // We assume that StopStream() is always called prior to CloseStream(), so
   // that it is safe to delete the OnMoreDataResampler here.
-  {
-    base::AutoLock auto_lock(callbacks_lock_);
-    CallbackMap::iterator it = callbacks_.find(stream_proxy);
-    if (it != callbacks_.end()) {
-      delete it->second;
-      callbacks_.erase(it);
-    }
+  CallbackMap::iterator it = callbacks_.find(stream_proxy);
+  if (it != callbacks_.end()) {
+    delete it->second;
+    callbacks_.erase(it);
   }
 }
 
 void AudioOutputResampler::Shutdown() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  // No AudioOutputProxy objects should hold a reference to us when we get
+  // to this stage.
+  DCHECK(HasOneRef()) << "Only the AudioManager should hold a reference";
+
   dispatcher_->Shutdown();
   DCHECK(callbacks_.empty());
 }
