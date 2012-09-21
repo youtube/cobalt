@@ -178,7 +178,6 @@ def JavaParamToJni(param):
       'Lorg/chromium/chrome/browser/ProcessUtils',
       'Lorg/chromium/chrome/browser/component/web_contents_delegate_android/WebContentsDelegateAndroid',
       'Lorg/chromium/content/browser/ContentVideoView',
-      'Lorg/chromium/content/browser/ContentViewClient',
       'Lorg/chromium/content/browser/ContentViewCore',
       'Lorg/chromium/content/browser/DeviceOrientation',
       'Lorg/chromium/content/browser/FindNotificationDetails',
