@@ -1191,15 +1191,16 @@
         }],
         ['OS == "ios"', {
           'sources/': [
-            ['include', 'base/network_change_notifier_mac\\.cc$'],
-            ['include', 'base/network_config_watcher_mac\\.cc$'],
-            ['include', 'base/platform_mime_util_mac\\.mm$'],
-            ['include', 'proxy/proxy_resolver_mac\\.cc$'],
+            ['include', '^base/network_change_notifier_mac\\.cc$'],
+            ['include', '^base/network_config_watcher_mac\\.cc$'],
+            ['include', '^base/platform_mime_util_mac\\.mm$'],
+            ['include', '^proxy/proxy_resolver_mac\\.cc$'],
             # The iOS implementation only partially uses NSS and thus does not
             # defines |use_nss|. In particular the |USE_NSS| preprocessor
             # definition is not used. The following files are needed though:
-            ['include', 'base/x509_util_nss\\.cc$'],
-            ['include', 'base/x509_util_nss\\.h$'],
+            ['include', '^base/test_root_certs_nss\\.cc$'],
+            ['include', '^base/x509_util_nss\\.cc$'],
+            ['include', '^base/x509_util_nss\\.h$'],
           ],
         }],
       ],
