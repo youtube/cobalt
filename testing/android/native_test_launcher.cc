@@ -37,6 +37,11 @@ extern int main(int argc, char** argv);
 
 namespace {
 
+// These two command line flags are supported for DumpRenderTree, which needs
+// three fifos rather than a combined one: one for stderr, stdin and stdout.
+const char kSeparateStderrFifo[] = "separate-stderr-fifo";
+const char kCreateStdinFifo[] = "create-stdin-fifo";
+
 const char kLogTag[] = "chromium";
 const char kCrashedMarker[] = "[ CRASHED      ]\n";
 
@@ -161,14 +166,6 @@ static void RunTests(JNIEnv* env,
   base::android::InitApplicationContext(scoped_context);
   base::android::RegisterJni(env);
 
-  FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
-  // A few options, such "--gtest_list_tests", will just use printf directly
-  // Redirect stdout and stderr to a known file.
-  FilePath fifo_path(files_dir.Append(FilePath("test.fifo")));
-  CreateFIFO(fifo_path.value().c_str());
-  Redirect(stdout, fifo_path.value().c_str(), "w");
-  Redirect(stderr, fifo_path.value().c_str(), "w");
-
   std::vector<std::string> args;
   ParseArgsFromCommandLineFile(&args);
 
@@ -180,6 +177,38 @@ static void RunTests(JNIEnv* env,
   CommandLine::ForCurrentProcess()->AppendArguments(
       CommandLine(argc, &argv[0]), false);
   const CommandLine& command_line = *CommandLine::ForCurrentProcess();
+
+  FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
+
+  // A few options, such "--gtest_list_tests", will just use printf directly
+  // Always redirect stdout to a known file.
+  FilePath fifo_path(files_dir.Append(FilePath("test.fifo")));
+  CreateFIFO(fifo_path.value().c_str());
+
+  FilePath stderr_fifo_path, stdin_fifo_path;
+
+  // DumpRenderTree needs a separate fifo for the stderr output. For all
+  // other tests, insert stderr content to the same fifo we use for stdout.
+  if (command_line.HasSwitch(kSeparateStderrFifo)) {
+    stderr_fifo_path = files_dir.Append(FilePath("stderr.fifo"));
+    CreateFIFO(stderr_fifo_path.value().c_str());
+  }
+
+  // DumpRenderTree uses stdin to receive input about which test to run.
+  if (command_line.HasSwitch(kCreateStdinFifo)) {
+    stdin_fifo_path = files_dir.Append(FilePath("stdin.fifo"));
+    CreateFIFO(stdin_fifo_path.value().c_str());
+  }
+
+  // Only redirect the streams after all fifos have been created.
+  Redirect(stdout, fifo_path.value().c_str(), "w");
+  if (!stdin_fifo_path.empty())
+    Redirect(stdin, stdin_fifo_path.value().c_str(), "r");
+  if (!stderr_fifo_path.empty())
+    Redirect(stderr, stderr_fifo_path.value().c_str(), "w");
+  else
+    dup2(STDOUT_FILENO, STDERR_FILENO);
+
   if (command_line.HasSwitch(switches::kWaitForDebugger)) {
     std::string msg = StringPrintf("Native test waiting for GDB because "
                                    "flag %s was supplied",
