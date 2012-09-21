@@ -740,14 +740,11 @@ void SpdyFramer::WriteHeaderBlockToZ(const SpdyHeaderBlock* headers,
     WriteZ(it->first, kZStandardData, z);
 
     if (it->first == "cookie") {
-      // We require the cookie values to end with a semi-colon and (save for
-      // the first) to start with one too. The values are already separated by
-      // semicolons in the header, but there's usually whitespace in there too.
-      // So we accumulate the values without whitespace in |cookie_values| and
-      // write them out, along with a final semicolon to terminate the last
-      // cookie.
+      // We require the cookie values (save for the last) to end with a
+      // semicolon and (save for the first) to start with a space. This is
+      // typically the format that we are given them in but we reserialize them
+      // to be sure.
 
-      std::string last_cookie;
       std::vector<base::StringPiece> cookie_values;
       size_t cookie_length = 0;
       base::StringPiece cookie_data(it->second);
@@ -766,21 +763,33 @@ void SpdyFramer::WriteHeaderBlockToZ(const SpdyHeaderBlock* headers,
             break;
         }
         if (i < cookie_data.size()) {
-          cookie_values.push_back(cookie_data.substr(0, i+1));
-          cookie_length += i+1;
+          cookie_values.push_back(cookie_data.substr(0, i));
+          cookie_length += i + 2 /* semicolon and space */;
           cookie_data.remove_prefix(i + 1);
         } else {
-          last_cookie = cookie_data.as_string() + ";";
-          cookie_values.push_back(last_cookie);
-          cookie_length += last_cookie.size();
+          cookie_values.push_back(cookie_data);
+          cookie_length += cookie_data.size();
           cookie_data.remove_prefix(i);
         }
       }
 
       WriteLengthZ(cookie_length, length_length, kZStandardData, z);
-      for (std::vector<base::StringPiece>::const_iterator
-           i = cookie_values.begin(); i != cookie_values.end(); i++) {
-        WriteZ(*i, kZCookieData, z);
+      for (size_t i = 0; i < cookie_values.size(); i++) {
+        std::string cookie;
+        // Since zlib will only back-reference complete cookies, a cookie that
+        // is currently last (and so doesn't have a trailing semicolon) won't
+        // match if it's later in a non-final position. The same is true of
+        // the first cookie.
+        if (i == 0 && cookie_values.size() == 1) {
+          cookie = cookie_values[i].as_string();
+        } else if (i == 0) {
+          cookie = cookie_values[i].as_string() + ";";
+        } else if (i < cookie_values.size() - 1) {
+          cookie = " " + cookie_values[i].as_string() + ";";
+        } else {
+          cookie = " " + cookie_values[i].as_string();
+        }
+        WriteZ(cookie, kZCookieData, z);
       }
     } else if (it->first == "accept" ||
                it->first == "accept-charset" ||
