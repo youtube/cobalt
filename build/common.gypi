@@ -989,28 +989,30 @@
         # Location of Android NDK.
         'variables': {
           'variables': {
-            'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
-            # Android uses x86 instead of ia32 for their target_arch
-            # designation.
-            # TODO(wistoch): Adjust the target_arch naming scheme to avoid
-            # confusion.
-            # http://crbug.com/125329
+            'variables': {
+              'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
+            },
+            'android_ndk_root%': '<(android_ndk_root)',
             'conditions': [
               ['target_arch == "ia32"', {
-                'target_arch': 'x86',
                 'android_app_abi%': 'x86',
+                'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-9/arch-x86',
               }],
-              ['target_arch=="arm" and armv7==0', {
-                'android_app_abi%': 'armeabi',
-              }],
-              ['target_arch=="arm" and armv7==1', {
-                'android_app_abi%': 'armeabi-v7a',
+              ['target_arch=="arm"', {
+                'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-9/arch-arm',
+                'conditions': [
+                  ['armv7==0', {
+                    'android_app_abi%': 'armeabi',
+                  }, {
+                    'android_app_abi%': 'armeabi-v7a',
+                  }],
+                ],
               }],
             ],
           },
           'android_ndk_root%': '<(android_ndk_root)',
-          'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-9/arch-<(target_arch)',
           'android_app_abi%': '<(android_app_abi)',
+          'android_ndk_sysroot%': '<(android_ndk_sysroot)',
         },
         'android_ndk_root%': '<(android_ndk_root)',
         'android_ndk_sysroot': '<(android_ndk_sysroot)',
@@ -2581,7 +2583,6 @@
     # Android-specific options; note that most are set above with Linux.
     ['OS=="android"', {
       'variables': {
-        'target_arch%': 'arm',  # target_arch in android terms.
         # This is the id for the archived chrome symbols. Each build that
         # archives symbols is assigned an id which is then added to GYP_DEFINES.
         # This is written to the device log on crashes just prior to dropping a
@@ -2589,10 +2590,6 @@
         # from the id.
         'chrome_symbols_id%': '',
         'conditions': [
-          # Android uses x86 instead of ia32 for their target_arch designation.
-          ['target_arch=="ia32"', {
-            'target_arch%': 'x86',
-          }],
           # Use shared stlport library when system one used.
           # Figure this out early since it needs symbols from libgcc.a, so it
           # has to be before that in the set of libraries.
