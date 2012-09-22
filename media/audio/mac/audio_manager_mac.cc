@@ -32,7 +32,7 @@ static bool HasAudioHardware(AudioObjectPropertySelector selector) {
     kAudioObjectPropertyScopeGlobal,            // mScope
     kAudioObjectPropertyElementMaster           // mElement
   };
-  size_t output_device_id_size = sizeof(output_device_id);
+  UInt32 output_device_id_size = static_cast<UInt32>(sizeof(output_device_id));
   OSStatus err = AudioObjectGetPropertyData(kAudioObjectSystemObject,
                                             &property_address,
                                             0,     // inQualifierDataSize
