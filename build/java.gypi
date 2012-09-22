@@ -39,6 +39,7 @@
   'variables': {
     'input_jars_paths': [],
     'additional_src_dirs': [],
+    'additional_input_paths': [],
   },
   'actions': [
     {
@@ -49,6 +50,7 @@
         'android/ant/chromium-jars.xml',
         '<!@(find <(java_in_dir) -name "*.java")',
         '>@(input_jars_paths)',
+        '>@(additional_input_paths)',
       ],
       'outputs': [
         '<(PRODUCT_DIR)/lib.java/chromium_<(package_name).jar',
