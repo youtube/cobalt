@@ -893,11 +893,23 @@
             }],
             [ 'OS=="mac"', {
               'variables': {
-                'yasm_flags': [
-                  '-DPREFIX',
-                  '-DMACHO',
-                  '-DCHROMIUM',
-                  '-Isimd',
+                'conditions': [
+                  [ 'target_arch=="ia32"', {
+                    'yasm_flags': [
+                      '-DPREFIX',
+                      '-DMACHO',
+                      '-DCHROMIUM',
+                      '-Isimd',
+                    ],
+                  }, {
+                    'yasm_flags': [
+                      '-DPREFIX',
+                      '-DARCH_X86_64',
+                      '-DMACHO',
+                      '-DCHROMIUM',
+                      '-Isimd',
+                    ],
+                  }],
                 ],
               },
             }],
