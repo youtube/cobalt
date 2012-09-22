@@ -26,11 +26,17 @@ ProtectionSystemSpecificHeader::~ProtectionSystemSpecificHeader() {}
 FourCC ProtectionSystemSpecificHeader::BoxType() const { return FOURCC_PSSH; }
 
 bool ProtectionSystemSpecificHeader::Parse(BoxReader* reader) {
+  // Validate the box's contents and hang on to the system ID.
   uint32 size;
-  return reader->ReadFullBoxHeader() &&
+  RCHECK(reader->ReadFullBoxHeader() &&
          reader->ReadVec(&system_id, 16) &&
          reader->Read4(&size) &&
-         reader->ReadVec(&data, size);
+         reader->HasBytes(size));
+
+  // Copy the entire box, including the header, for passing to EME as initData.
+  DCHECK(raw_box.empty());
+  raw_box.assign(reader->data(), reader->data() + reader->size());
+  return true;
 }
 
 SampleAuxiliaryInformationOffset::SampleAuxiliaryInformationOffset() {}
