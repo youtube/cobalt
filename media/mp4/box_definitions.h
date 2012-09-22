@@ -43,7 +43,7 @@ struct MEDIA_EXPORT ProtectionSystemSpecificHeader : Box {
   DECLARE_BOX_METHODS(ProtectionSystemSpecificHeader);
 
   std::vector<uint8> system_id;
-  std::vector<uint8> data;
+  std::vector<uint8> raw_box;
 };
 
 struct MEDIA_EXPORT SampleAuxiliaryInformationOffset : Box {

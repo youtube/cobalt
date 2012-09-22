@@ -54,8 +54,9 @@ class MEDIA_EXPORT BufferReader {
   // Advance the stream by this many bytes.
   bool SkipBytes(int nbytes) WARN_UNUSED_RESULT;
 
-  int size() { return size_; }
-  int pos() { return pos_; }
+  const uint8* data() const { return buf_; }
+  int size() const { return size_; }
+  int pos() const { return pos_; }
 
  protected:
   const uint8* buf_;
