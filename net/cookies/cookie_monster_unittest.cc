@@ -12,6 +12,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/histogram_samples.h"
 #include "base/stringprintf.h"
 #include "base/string_tokenizer.h"
 #include "base/threading/thread.h"
@@ -1928,23 +1929,23 @@ TEST_F(CookieMonsterTest, HistogramCheck) {
           "Cookie.ExpirationDurationMinutes", 1, 10 * 365 * 24 * 60, 50,
           base::Histogram::kUmaTargetedHistogramFlag);
 
-  base::Histogram::SampleSet histogram_set_1;
-  expired_histogram->SnapshotSample(&histogram_set_1);
+  scoped_ptr<base::HistogramSamples> samples1(
+      expired_histogram->SnapshotSamples());
   ASSERT_TRUE(SetCookieWithDetails(
       cm, GURL("http://fake.a.url"), "a", "b", "a.url", "/",
       base::Time::Now() + base::TimeDelta::FromMinutes(59),
       false, false));
 
-  base::Histogram::SampleSet histogram_set_2;
-  expired_histogram->SnapshotSample(&histogram_set_2);
-  EXPECT_EQ(histogram_set_1.TotalCount() + 1,
-            histogram_set_2.TotalCount());
+  scoped_ptr<base::HistogramSamples> samples2(
+      expired_histogram->SnapshotSamples());
+  EXPECT_EQ(samples1->TotalCount() + 1, samples2->TotalCount());
 
   // kValidCookieLine creates a session cookie.
   ASSERT_TRUE(SetCookie(cm, url_google_, kValidCookieLine));
-  expired_histogram->SnapshotSample(&histogram_set_1);
-  EXPECT_EQ(histogram_set_2.TotalCount(),
-            histogram_set_1.TotalCount());
+
+  scoped_ptr<base::HistogramSamples> samples3(
+      expired_histogram->SnapshotSamples());
+  EXPECT_EQ(samples2->TotalCount(), samples3->TotalCount());
 }
 
 namespace {

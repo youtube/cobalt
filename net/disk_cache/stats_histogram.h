@@ -7,7 +7,14 @@
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
+
+namespace base {
+class BucketRanges;
+class HistogramSamples;
+class SampleVector;
+}  // namespace base
 
 namespace disk_cache {
 
@@ -15,41 +22,32 @@ class Stats;
 
 // This class provides support for sending the disk cache size stats as a UMA
 // histogram. We'll provide our own storage and management for the data, and a
-// SampleSet with a copy of our data.
+// SampleVector with a copy of our data.
 //
 // Class derivation of Histogram "deprecated," and should not be copied, and
 // may eventually go away.
 //
 class StatsHistogram : public base::Histogram {
  public:
-  class StatsSamples : public SampleSet {
-   public:
-    Counts* GetCounts() {
-      return &counts_;
-    }
-  };
-
   StatsHistogram(const std::string& name,
                  Sample minimum,
                  Sample maximum,
-                 size_t bucket_count)
-      : Histogram(name, minimum, maximum, bucket_count, NULL), init_(false) {}
+                 size_t bucket_count,
+                 const base::BucketRanges* ranges,
+                 const Stats* stats);
   virtual ~StatsHistogram();
 
-  static StatsHistogram* FactoryGet(const std::string& name);
+  static void InitializeBucketRanges(const Stats* stats,
+                                     base::BucketRanges* ranges);
+  static StatsHistogram* FactoryGet(const std::string& name,
+                                    const Stats* stats);
 
-  // We'll be reporting data from the given set of cache stats.
-  bool Init(const Stats* stats);
-
-  virtual Sample ranges(size_t i) const OVERRIDE;
-  virtual size_t bucket_count() const OVERRIDE;
-  virtual void SnapshotSample(SampleSet* sample) const OVERRIDE;
+  virtual scoped_ptr<base::SampleVector> SnapshotSamples() const OVERRIDE;
   virtual Inconsistencies FindCorruption(
-      const SampleSet& snapshot) const OVERRIDE;
+      const base::HistogramSamples& samples) const OVERRIDE;
 
  private:
-  bool init_;
-  static const Stats* stats_;
+  const Stats* stats_;
   DISALLOW_COPY_AND_ASSIGN(StatsHistogram);
 };
 

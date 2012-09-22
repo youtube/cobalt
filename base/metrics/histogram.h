@@ -68,8 +68,11 @@
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram_base.h"
+#include "base/metrics/histogram_samples.h"
+#include "base/metrics/sample_vector.h"
 #include "base/time.h"
 
 class Pickle;
@@ -338,8 +341,10 @@ class Lock;
 
 //------------------------------------------------------------------------------
 
-class BooleanHistogram;
 class BucketRanges;
+class SampleVector;
+
+class BooleanHistogram;
 class CustomHistogram;
 class Histogram;
 class LinearHistogram;
@@ -383,57 +388,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   };
 
   //----------------------------------------------------------------------------
-  // Statistic values, developed over the life of the histogram.
-
-  class BASE_EXPORT SampleSet {
-   public:
-    explicit SampleSet(size_t size);
-    SampleSet();
-    ~SampleSet();
-
-    void Resize(size_t size);
-
-    // Accessor for histogram to make routine additions.
-    void Accumulate(Sample value, Count count, size_t index);
-
-    // Accessor methods.
-    size_t size() const { return counts_.size(); }
-    Count counts(size_t i) const { return counts_[i]; }
-    Count TotalCount() const;
-    int64 sum() const { return sum_; }
-    int64 redundant_count() const { return redundant_count_; }
-
-    // Arithmetic manipulation of corresponding elements of the set.
-    void Add(const SampleSet& other);
-    void Subtract(const SampleSet& other);
-
-    bool Serialize(Pickle* pickle) const;
-    bool Deserialize(PickleIterator* iter);
-
-   protected:
-    // Actual histogram data is stored in buckets, showing the count of values
-    // that fit into each bucket.
-    Counts counts_;
-
-    // Save simple stats locally.  Note that this MIGHT get done in base class
-    // without shared memory at some point.
-    int64 sum_;         // sum of samples.
-
-   private:
-    // Allow tests to corrupt our innards for testing purposes.
-    FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
-
-    // To help identify memory corruption, we reduntantly save the number of
-    // samples we've accumulated into all of our buckets.  We can compare this
-    // count to the sum of the counts in all buckets, and detect problems.  Note
-    // that due to races in histogram accumulation (if a histogram is indeed
-    // updated on several threads simultaneously), the tallies might mismatch,
-    // and also the snapshotting code may asynchronously get a mismatch (though
-    // generally either race based mismatch cause is VERY rare).
-    int64 redundant_count_;
-  };
-
-  //----------------------------------------------------------------------------
   // For a valid histogram, input should follow these restrictions:
   // minimum > 0 (if a minimum below 1 is specified, it will implicitly be
   //              normalized up to 1)
@@ -473,7 +427,8 @@ class BASE_EXPORT Histogram : public HistogramBase {
     Add(static_cast<int>(time.InMilliseconds()));
   }
 
-  void AddSampleSet(const SampleSet& sample);
+  void AddSamples(const HistogramSamples& samples);
+  bool AddSamplesFromPickle(PickleIterator* iter);
 
   // This method is an interface, used only by LinearHistogram.
   virtual void SetRangeDescriptions(const DescriptionPair descriptions[]);
@@ -491,19 +446,28 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // Serialize the given snapshot of a Histogram into a String. Uses
   // Pickle class to flatten the object.
   static std::string SerializeHistogramInfo(const Histogram& histogram,
-                                            const SampleSet& snapshot);
+                                            const HistogramSamples& snapshot);
 
   // The following method accepts a list of pickled histograms and
   // builds a histogram and updates shadow copy of histogram data in the
   // browser process.
   static bool DeserializeHistogramInfo(const std::string& histogram_info);
 
+  // This constant if for FindCorruption. Since snapshots of histograms are
+  // taken asynchronously relative to sampling, and our counting code currently
+  // does not prevent race conditions, it is pretty likely that we'll catch a
+  // redundant count that doesn't match the sample count.  We allow for a
+  // certain amount of slop before flagging this as an inconsistency. Even with
+  // an inconsistency, we'll snapshot it again (for UMA in about a half hour),
+  // so we'll eventually get the data, if it was not the result of a corruption.
+  static const int kCommonRaceBasedCountMismatch;
+
   // Check to see if bucket ranges, counts and tallies in the snapshot are
   // consistent with the bucket ranges and checksums in our histogram.  This can
   // produce a false-alarm if a race occurred in the reading of the data during
   // a SnapShot process, but should otherwise be false at all times (unless we
   // have memory over-writes, or DRAM failures).
-  virtual Inconsistencies FindCorruption(const SampleSet& snapshot) const;
+  virtual Inconsistencies FindCorruption(const HistogramSamples& samples) const;
 
   //----------------------------------------------------------------------------
   // Accessors for factory constuction, serialization and testing.
@@ -517,7 +481,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
   // Snapshot the current complete set of sample data.
   // Override with atomic/locked snapshot if needed.
-  virtual void SnapshotSample(SampleSet* sample) const;
+  virtual scoped_ptr<SampleVector> SnapshotSamples() const;
 
   virtual bool HasConstructionArguments(Sample minimum,
                                         Sample maximum,
@@ -553,11 +517,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // Method to override to skip the display of the i'th bucket if it's empty.
   virtual bool PrintEmptyBucket(size_t index) const;
 
-  //----------------------------------------------------------------------------
-  // Methods to override to create histogram with different bucket widths.
-  //----------------------------------------------------------------------------
-  // Find bucket to increment for sample value.
-  virtual size_t BucketIndex(Sample value) const;
   // Get normalized size, relative to the ranges(i).
   virtual double GetBucketSize(Count current, size_t i) const;
 
@@ -565,12 +524,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // Most commonly this is the numeric value, but in derived classes it may
   // be a name (or string description) given to the bucket.
   virtual const std::string GetAsciiBucketRange(size_t it) const;
-
-  //----------------------------------------------------------------------------
-  // Methods to override to create thread safe histogram.
-  //----------------------------------------------------------------------------
-  // Update all our internal data, including histogram
-  virtual void Accumulate(Sample value, Count count, size_t index);
 
  private:
   // Allow tests to corrupt our innards for testing purposes.
@@ -589,12 +542,13 @@ class BASE_EXPORT Histogram : public HistogramBase {
                       const std::string& newline,
                       std::string* output) const;
 
-  // Find out how large the (graphically) the largest bucket will appear to be.
-  double GetPeakBucketSize(const SampleSet& snapshot) const;
+  // Find out how large (graphically) the largest bucket will appear to be.
+  double GetPeakBucketSize(const SampleVector& samples) const;
 
   // Write a common header message describing this histogram.
-  void WriteAsciiHeader(const SampleSet& snapshot,
-                        Count sample_count, std::string* output) const;
+  void WriteAsciiHeader(const SampleVector& samples,
+                        Count sample_count,
+                        std::string* output) const;
 
   // Write information about previous, current, and next buckets.
   // Information such as cumulative percentage, etc.
@@ -620,7 +574,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
   // Finally, provide the state that changes with the addition of each new
   // sample.
-  SampleSet sample_;
+  scoped_ptr<SampleVector> samples_;
 
   DISALLOW_COPY_AND_ASSIGN(Histogram);
 };

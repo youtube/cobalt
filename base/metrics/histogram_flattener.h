@@ -14,14 +14,16 @@
 
 namespace base {
 
+class HistogramSamples;
+
 // HistogramFlattener is an interface used by HistogramSnapshotManager, which
 // handles the logistics of gathering up available histograms for recording.
 // The implementors handle the exact lower level recording mechanism, or
 // error report mechanism.
 class BASE_EXPORT HistogramFlattener {
  public:
-  virtual void RecordDelta(const base::Histogram& histogram,
-                           const base::Histogram::SampleSet& snapshot) = 0;
+  virtual void RecordDelta(const Histogram& histogram,
+                           const HistogramSamples& snapshot) = 0;
 
   // Will be called each time a type of Inconsistenies is seen on a histogram,
   // during inspections done internally in HistogramSnapshotManager class.
