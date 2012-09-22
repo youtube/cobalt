@@ -4,10 +4,14 @@
 
 #include "base/metrics/histogram_snapshot_manager.h"
 
+#include "base/memory/scoped_ptr.h"
+#include "base/metrics/histogram_flattener.h"
+#include "base/metrics/histogram_samples.h"
 #include "base/metrics/statistics_recorder.h"
+#include "base/stl_util.h"
 
-using base::Histogram;
-using base::StatisticsRecorder;
+using std::map;
+using std::string;
 
 namespace base {
 
@@ -17,7 +21,9 @@ HistogramSnapshotManager::HistogramSnapshotManager(
   DCHECK(histogram_flattener_);
 }
 
-HistogramSnapshotManager::~HistogramSnapshotManager() {}
+HistogramSnapshotManager::~HistogramSnapshotManager() {
+  STLDeleteValues(&logged_samples_);
+}
 
 void HistogramSnapshotManager::PrepareDeltas(Histogram::Flags flag_to_set,
                                              bool record_only_uma) {
@@ -38,11 +44,10 @@ void HistogramSnapshotManager::PrepareDelta(const Histogram& histogram) {
   DCHECK(histogram_flattener_);
 
   // Get up-to-date snapshot of sample stats.
-  Histogram::SampleSet snapshot;
-  histogram.SnapshotSample(&snapshot);
+  scoped_ptr<HistogramSamples> snapshot(histogram.SnapshotSamples());
   const std::string& histogram_name = histogram.histogram_name();
 
-  int corruption = histogram.FindCorruption(snapshot);
+  int corruption = histogram.FindCorruption(*snapshot);
 
   // Crash if we detect that our histograms have been overwritten.  This may be
   // a fair distance from the memory smasher, but we hope to correlate these
@@ -59,54 +64,54 @@ void HistogramSnapshotManager::PrepareDelta(const Histogram& histogram) {
   // COUNT_LOW_ERROR and they never arise together, so we don't need to extract
   // bits from corruption.
   if (corruption) {
-    NOTREACHED();
+    DLOG(ERROR) << "Histogram: " << histogram_name
+                << " has data corruption: " << corruption;
     histogram_flattener_->InconsistencyDetected(
         static_cast<Histogram::Inconsistencies>(corruption));
-    // Don't record corrupt data to metrics survices.
-    if (NULL == inconsistencies_.get())
-      inconsistencies_.reset(new ProblemMap);
-    int old_corruption = (*inconsistencies_)[histogram_name];
+    // Don't record corrupt data to metrics services.
+    int old_corruption = inconsistencies_[histogram_name];
     if (old_corruption == (corruption | old_corruption))
       return;  // We've already seen this corruption for this histogram.
-    (*inconsistencies_)[histogram_name] |= corruption;
+    inconsistencies_[histogram_name] |= corruption;
     histogram_flattener_->UniqueInconsistencyDetected(
         static_cast<Histogram::Inconsistencies>(corruption));
     return;
   }
 
-  // Find the already recorded stats, or create an empty set. Remove from our
-  // snapshot anything that we've already recorded.
-  LoggedSampleMap::iterator it = logged_samples_.find(histogram_name);
-  Histogram::SampleSet* already_logged;
-  if (logged_samples_.end() == it) {
-    // Add new entry
-    already_logged = &logged_samples_[histogram.histogram_name()];
-    // Complete initialization.
-    already_logged->Resize(histogram.bucket_count());
+  HistogramSamples* to_log;
+  map<string, HistogramSamples*>::iterator it =
+      logged_samples_.find(histogram_name);
+  if (it == logged_samples_.end()) {
+    to_log = snapshot.release();
+
+    // This histogram has not been logged before, add a new entry.
+    logged_samples_[histogram_name] = to_log;
   } else {
-    already_logged = &(it->second);
-    int64 discrepancy(already_logged->TotalCount() -
-                      already_logged->redundant_count());
-    if (discrepancy) {
-      NOTREACHED();  // Already_logged has become corrupt.
-      int problem = static_cast<int>(discrepancy);
-      if (problem != discrepancy)
-        problem = INT_MAX;
-      histogram_flattener_->InconsistencyDetectedInLoggedCount(problem);
-      // With no valid baseline, we'll act like we've recorded everything in our
-      // snapshot.
-      already_logged->Subtract(*already_logged);
-      already_logged->Add(snapshot);
-    }
-    // Deduct any stats we've already logged from our snapshot.
-    snapshot.Subtract(*already_logged);
+    HistogramSamples* already_logged = it->second;
+    InspectLoggedSamplesInconsistency(*snapshot, already_logged);
+    snapshot->Subtract(*already_logged);
+    already_logged->Add(*snapshot);
+    to_log = snapshot.get();
   }
 
-  // Snapshot now contains only a delta to what we've already_logged.
-  if (snapshot.redundant_count() > 0) {
-    histogram_flattener_->RecordDelta(histogram, snapshot);
-    // Add new data into our running total.
-    already_logged->Add(snapshot);
+  if (to_log->redundant_count() > 0)
+    histogram_flattener_->RecordDelta(histogram, *to_log);
+}
+
+void HistogramSnapshotManager::InspectLoggedSamplesInconsistency(
+      const HistogramSamples& new_snapshot,
+      HistogramSamples* logged_samples) {
+  HistogramBase::Count discrepancy =
+      logged_samples->TotalCount() - logged_samples->redundant_count();
+  if (!discrepancy)
+    return;
+
+  histogram_flattener_->InconsistencyDetectedInLoggedCount(discrepancy);
+  if (discrepancy > Histogram::kCommonRaceBasedCountMismatch) {
+    // Fix logged_samples.
+    logged_samples->Subtract(*logged_samples);
+    logged_samples->Add(new_snapshot);
   }
 }
+
 }  // namespace base

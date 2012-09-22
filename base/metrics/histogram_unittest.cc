@@ -4,6 +4,7 @@
 
 // Test of Histogram class
 
+#include <climits>
 #include <algorithm>
 #include <vector>
 
@@ -11,6 +12,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/sample_vector.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -206,14 +208,13 @@ TEST(HistogramTest, BoundsTest) {
   histogram->Add(10000);
 
   // Verify they landed in the underflow, and overflow buckets.
-  Histogram::SampleSet sample;
-  histogram->SnapshotSample(&sample);
-  EXPECT_EQ(2, sample.counts(0));
-  EXPECT_EQ(0, sample.counts(1));
+  scoped_ptr<SampleVector> samples = histogram->SnapshotSamples();
+  EXPECT_EQ(2, samples->GetCountAtIndex(0));
+  EXPECT_EQ(0, samples->GetCountAtIndex(1));
   size_t array_size = histogram->bucket_count();
   EXPECT_EQ(kBucketCount, array_size);
-  EXPECT_EQ(0, sample.counts(array_size - 2));
-  EXPECT_EQ(2, sample.counts(array_size - 1));
+  EXPECT_EQ(0, samples->GetCountAtIndex(array_size - 2));
+  EXPECT_EQ(2, samples->GetCountAtIndex(array_size - 1));
 
   vector<int> custom_ranges;
   custom_ranges.push_back(10);
@@ -227,15 +228,16 @@ TEST(HistogramTest, BoundsTest) {
   test_custom_histogram->Add(-50);
   test_custom_histogram->Add(100);
   test_custom_histogram->Add(1000);
+  test_custom_histogram->Add(INT_MAX);
 
   // Verify they landed in the underflow, and overflow buckets.
-  Histogram::SampleSet custom_sample;
-  test_custom_histogram->SnapshotSample(&custom_sample);
-  EXPECT_EQ(2, custom_sample.counts(0));
-  EXPECT_EQ(0, custom_sample.counts(1));
-  size_t custom_array_size = test_custom_histogram->bucket_count();
-  EXPECT_EQ(0, custom_sample.counts(custom_array_size - 2));
-  EXPECT_EQ(2, custom_sample.counts(custom_array_size - 1));
+  scoped_ptr<SampleVector> custom_samples =
+      test_custom_histogram->SnapshotSamples();
+  EXPECT_EQ(2, custom_samples->GetCountAtIndex(0));
+  EXPECT_EQ(0, custom_samples->GetCountAtIndex(1));
+  size_t bucket_count = test_custom_histogram->bucket_count();
+  EXPECT_EQ(0, custom_samples->GetCountAtIndex(bucket_count - 2));
+  EXPECT_EQ(3, custom_samples->GetCountAtIndex(bucket_count - 1));
 }
 
 // Check to be sure samples land as expected is "correct" buckets.
@@ -253,45 +255,45 @@ TEST(HistogramTest, BucketPlacementTest) {
   }
 
   // Check to see that the bucket counts reflect our additions.
-  Histogram::SampleSet sample;
-  histogram->SnapshotSample(&sample);
+  scoped_ptr<SampleVector> samples = histogram->SnapshotSamples();
   for (int i = 0; i < 8; i++)
-    EXPECT_EQ(i + 1, sample.counts(i));
+    EXPECT_EQ(i + 1, samples->GetCountAtIndex(i));
 }
 
 TEST(HistogramTest, CorruptSampleCounts) {
   Histogram* histogram(Histogram::FactoryGet(
       "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
 
-  EXPECT_EQ(0, histogram->sample_.redundant_count());
-  histogram->Add(20);  // Add some samples.
+  // Add some samples.
+  histogram->Add(20);
   histogram->Add(40);
-  EXPECT_EQ(2, histogram->sample_.redundant_count());
 
-  Histogram::SampleSet snapshot;
-  histogram->SnapshotSample(&snapshot);
-  EXPECT_EQ(Histogram::NO_INCONSISTENCIES, 0);
-  EXPECT_EQ(0, histogram->FindCorruption(snapshot));  // No default corruption.
-  EXPECT_EQ(2, snapshot.redundant_count());
+  scoped_ptr<SampleVector> snapshot = histogram->SnapshotSamples();
+  EXPECT_EQ(Histogram::NO_INCONSISTENCIES,
+            histogram->FindCorruption(*snapshot));
+  EXPECT_EQ(2, snapshot->redundant_count());
+  EXPECT_EQ(2, snapshot->TotalCount());
 
-  snapshot.counts_[3] += 100;  // Sample count won't match redundant count.
-  EXPECT_EQ(Histogram::COUNT_LOW_ERROR, histogram->FindCorruption(snapshot));
-  snapshot.counts_[2] -= 200;
-  EXPECT_EQ(Histogram::COUNT_HIGH_ERROR, histogram->FindCorruption(snapshot));
+  snapshot->counts_[3] += 100;  // Sample count won't match redundant count.
+  EXPECT_EQ(Histogram::COUNT_LOW_ERROR,
+            histogram->FindCorruption(*snapshot));
+  snapshot->counts_[2] -= 200;
+  EXPECT_EQ(Histogram::COUNT_HIGH_ERROR,
+            histogram->FindCorruption(*snapshot));
 
   // But we can't spot a corruption if it is compensated for.
-  snapshot.counts_[1] += 100;
-  EXPECT_EQ(0, histogram->FindCorruption(snapshot));
+  snapshot->counts_[1] += 100;
+  EXPECT_EQ(Histogram::NO_INCONSISTENCIES,
+            histogram->FindCorruption(*snapshot));
 }
 
 TEST(HistogramTest, CorruptBucketBounds) {
   Histogram* histogram(Histogram::FactoryGet(
       "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
 
-  Histogram::SampleSet snapshot;
-  histogram->SnapshotSample(&snapshot);
-  EXPECT_EQ(Histogram::NO_INCONSISTENCIES, 0);
-  EXPECT_EQ(0, histogram->FindCorruption(snapshot));  // No default corruption.
+  scoped_ptr<SampleVector> snapshot = histogram->SnapshotSamples();
+  EXPECT_EQ(Histogram::NO_INCONSISTENCIES,
+            histogram->FindCorruption(*snapshot));
 
   BucketRanges* bucket_ranges =
       const_cast<BucketRanges*>(histogram->bucket_ranges());
@@ -299,20 +301,20 @@ TEST(HistogramTest, CorruptBucketBounds) {
   bucket_ranges->set_range(1, bucket_ranges->range(2));
   bucket_ranges->set_range(2, tmp);
   EXPECT_EQ(Histogram::BUCKET_ORDER_ERROR | Histogram::RANGE_CHECKSUM_ERROR,
-            histogram->FindCorruption(snapshot));
+            histogram->FindCorruption(*snapshot));
 
   bucket_ranges->set_range(2, bucket_ranges->range(1));
   bucket_ranges->set_range(1, tmp);
-  EXPECT_EQ(0, histogram->FindCorruption(snapshot));
-
-  bucket_ranges->set_range(3, bucket_ranges->range(3) + 1);
-  EXPECT_EQ(Histogram::RANGE_CHECKSUM_ERROR,
-            histogram->FindCorruption(snapshot));
+  EXPECT_EQ(0, histogram->FindCorruption(*snapshot));
 
   // Show that two simple changes don't offset each other
+  bucket_ranges->set_range(3, bucket_ranges->range(3) + 1);
+  EXPECT_EQ(Histogram::RANGE_CHECKSUM_ERROR,
+            histogram->FindCorruption(*snapshot));
+
   bucket_ranges->set_range(4, bucket_ranges->range(4) - 1);
   EXPECT_EQ(Histogram::RANGE_CHECKSUM_ERROR,
-            histogram->FindCorruption(snapshot));
+            histogram->FindCorruption(*snapshot));
 
   // Repair histogram so that destructor won't DCHECK().
   bucket_ranges->set_range(3, bucket_ranges->range(3) - 1);

@@ -6,6 +6,7 @@
 
 #include "base/format_macros.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_samples.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "net/disk_cache/backend_impl.h"
@@ -150,9 +151,7 @@ bool Stats::Init(BackendImpl* backend, uint32* storage_addr) {
         backend->ShouldReportAgain()) {
       // Stats may be reused when the cache is re-created, but we want only one
       // histogram at any given time.
-      size_histogram_ =
-          StatsHistogram::FactoryGet("DiskCache.SizeStats");
-      size_histogram_->Init(this);
+      size_histogram_ = StatsHistogram::FactoryGet("DiskCache.SizeStats", this);
     }
   }
 
@@ -264,13 +263,12 @@ int Stats::GetBucketRange(size_t i) const {
   return n;
 }
 
-void Stats::Snapshot(StatsHistogram::StatsSamples* samples) const {
-  samples->GetCounts()->resize(kDataSizesLength);
+void Stats::Snapshot(base::HistogramSamples* samples) const {
   for (int i = 0; i < kDataSizesLength; i++) {
     int count = data_sizes_[i];
     if (count < 0)
       count = 0;
-    samples->GetCounts()->at(i) = count;
+    samples->Accumulate(GetBucketRange(i), count);
   }
 }
 
