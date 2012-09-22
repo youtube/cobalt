@@ -11,6 +11,10 @@
 #include "base/basictypes.h"
 #include "net/disk_cache/stats_histogram.h"
 
+namespace base {
+class HistogramSamples;
+}  // namespace base
+
 namespace disk_cache {
 
 class BackendImpl;
@@ -74,7 +78,7 @@ class Stats {
   // Support for StatsHistograms. Together, these methods allow StatsHistograms
   // to take a snapshot of the data_sizes_ as the histogram data.
   int GetBucketRange(size_t i) const;
-  void Snapshot(StatsHistogram::StatsSamples* samples) const;
+  void Snapshot(base::HistogramSamples* samples) const;
 
  private:
   int GetStatsBucket(int32 size);

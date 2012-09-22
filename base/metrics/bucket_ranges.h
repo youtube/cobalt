@@ -26,7 +26,7 @@
 
 namespace base {
 
-class BASE_EXPORT_PRIVATE BucketRanges {
+class BASE_EXPORT BucketRanges {
  public:
   typedef std::vector<HistogramBase::Sample> Ranges;
 
