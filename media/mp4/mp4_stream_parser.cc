@@ -198,7 +198,6 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         LOG(ERROR) << "Unsupported audio object type.";
         return false;
       }
-      RCHECK(EmitKeyNeeded(entry.sinf.info.track_encryption));
 
       audio_config.Initialize(kCodecAAC, entry.samplesize,
                               aac.channel_layout(),
@@ -219,7 +218,6 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         LOG(ERROR) << "Unsupported video format.";
         return false;
       }
-      RCHECK(EmitKeyNeeded(entry.sinf.info.track_encryption));
 
       // TODO(strobe): Recover correct crop box
       gfx::Size coded_size(entry.width, entry.height);
@@ -253,6 +251,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 
   if (!init_cb_.is_null())
     base::ResetAndReturn(&init_cb_).Run(true, duration);
+
+  RCHECK(EmitNeedKeyIfNecessary(moov_->pssh));
   return true;
 }
 
@@ -261,20 +261,32 @@ bool MP4StreamParser::ParseMoof(BoxReader* reader) {
   MovieFragment moof;
   RCHECK(moof.Parse(reader));
   RCHECK(runs_->Init(moof));
+  RCHECK(EmitNeedKeyIfNecessary(moov_->pssh));
   new_segment_cb_.Run(runs_->GetMinDecodeTimestamp());
   ChangeState(kEmittingSamples);
   return true;
 }
 
-bool MP4StreamParser::EmitKeyNeeded(const TrackEncryption& track_encryption) {
-  // TODO(strobe): Send the correct value for initData. The format of initData
-  // has not yet been defined; see
-  // https://www.w3.org/Bugs/Public/show_bug.cgi?id=17673.
-  if (!track_encryption.is_encrypted) return true;
-  scoped_array<uint8> kid(new uint8[track_encryption.default_kid.size()]);
-  memcpy(kid.get(), &track_encryption.default_kid[0],
-         track_encryption.default_kid.size());
-  return need_key_cb_.Run(kid.Pass(), track_encryption.default_kid.size());
+bool MP4StreamParser::EmitNeedKeyIfNecessary(
+    const std::vector<ProtectionSystemSpecificHeader>& headers) {
+  // TODO(strobe): ensure that the value of init_data (all PSSH headers
+  // concatenated in arbitrary order) matches the EME spec.
+  // See https://www.w3.org/Bugs/Public/show_bug.cgi?id=17673.
+  if (headers.empty())
+    return true;
+
+  size_t total_size = 0;
+  for (size_t i = 0; i < headers.size(); i++)
+    total_size += headers[i].raw_box.size();
+
+  scoped_array<uint8> init_data(new uint8[total_size]);
+  size_t pos = 0;
+  for (size_t i = 0; i < headers.size(); i++) {
+    memcpy(&init_data.get()[pos], &headers[i].raw_box[0],
+           headers[i].raw_box.size());
+    pos += headers[i].raw_box.size();
+  }
+  return need_key_cb_.Run(init_data.Pass(), total_size);
 }
 
 bool MP4StreamParser::PrepareAVCBuffer(
