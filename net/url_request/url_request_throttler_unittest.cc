@@ -6,8 +6,10 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/histogram_samples.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/pickle.h"
+#include "base/stl_util.h"
 #include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/time.h"
@@ -27,6 +29,7 @@ namespace net {
 namespace {
 
 using base::Histogram;
+using base::HistogramSamples;
 using base::StatisticsRecorder;
 
 class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
@@ -172,6 +175,7 @@ class URLRequestThrottlerEntryTest : public testing::Test {
   }
 
   virtual void SetUp();
+  virtual void TearDown();
 
   // After calling this function, histogram snapshots in |samples_| contain
   // only the delta caused by the test case currently running.
@@ -181,8 +185,8 @@ class URLRequestThrottlerEntryTest : public testing::Test {
   MockURLRequestThrottlerManager manager_;  // Dummy object, not used.
   scoped_refptr<MockURLRequestThrottlerEntry> entry_;
 
-  std::map<std::string, Histogram::SampleSet> original_samples_;
-  std::map<std::string, Histogram::SampleSet> samples_;
+  std::map<std::string, HistogramSamples*> original_samples_;
+  std::map<std::string, HistogramSamples*> samples_;
 
   TestURLRequestContext context_;
   TestURLRequest request_;
@@ -207,33 +211,38 @@ void URLRequestThrottlerEntryTest::SetUp() {
     // Must retrieve original samples for each histogram for comparison
     // as other tests may affect them.
     const char* name = kHistogramNames[i];
-    Histogram::SampleSet& original = original_samples_[name];
     Histogram* histogram = StatisticsRecorder::FindHistogram(name);
     if (histogram) {
-      histogram->SnapshotSample(&original);
+      original_samples_[name] = histogram->SnapshotSamples().release();
+    } else {
+      original_samples_[name] = NULL;
     }
   }
+}
+
+void URLRequestThrottlerEntryTest::TearDown() {
+  STLDeleteValues(&original_samples_);
+  STLDeleteValues(&samples_);
 }
 
 void URLRequestThrottlerEntryTest::CalculateHistogramDeltas() {
   for (size_t i = 0; i < arraysize(kHistogramNames); ++i) {
     const char* name = kHistogramNames[i];
-    Histogram::SampleSet& original = original_samples_[name];
-    Histogram::SampleSet& sample = samples_[name];
+    HistogramSamples* original = original_samples_[name];
 
     Histogram* histogram = StatisticsRecorder::FindHistogram(name);
     if (histogram) {
       ASSERT_EQ(Histogram::kUmaTargetedHistogramFlag, histogram->flags());
 
-      histogram->SnapshotSample(&sample);
-      // Ensure |original| size is same as |sample|, then subtract original
-      // values.
-      original.Resize(histogram->bucket_count());
-      sample.Subtract(original);
+      scoped_ptr<HistogramSamples> samples(histogram->SnapshotSamples());
+      if (original)
+        samples->Subtract(*original);
+      samples_[name] = samples.release();
     }
   }
 
   // Ensure we don't accidentally use the originals in our tests.
+  STLDeleteValues(&original_samples_);
   original_samples_.clear();
 }
 
@@ -251,8 +260,8 @@ TEST_F(URLRequestThrottlerEntryTest, InterfaceDuringExponentialBackoff) {
   EXPECT_FALSE(entry_->ShouldRejectRequest(request_));
 
   CalculateHistogramDeltas();
-  ASSERT_EQ(1, samples_["Throttling.RequestThrottled"].counts(0));
-  ASSERT_EQ(1, samples_["Throttling.RequestThrottled"].counts(1));
+  ASSERT_EQ(1, samples_["Throttling.RequestThrottled"]->GetCount(0));
+  ASSERT_EQ(1, samples_["Throttling.RequestThrottled"]->GetCount(1));
 }
 
 TEST_F(URLRequestThrottlerEntryTest, InterfaceNotDuringExponentialBackoff) {
@@ -263,8 +272,8 @@ TEST_F(URLRequestThrottlerEntryTest, InterfaceNotDuringExponentialBackoff) {
   EXPECT_FALSE(entry_->ShouldRejectRequest(request_));
 
   CalculateHistogramDeltas();
-  ASSERT_EQ(2, samples_["Throttling.RequestThrottled"].counts(0));
-  ASSERT_EQ(0, samples_["Throttling.RequestThrottled"].counts(1));
+  ASSERT_EQ(2, samples_["Throttling.RequestThrottled"]->GetCount(0));
+  ASSERT_EQ(0, samples_["Throttling.RequestThrottled"]->GetCount(1));
 }
 
 TEST_F(URLRequestThrottlerEntryTest, InterfaceUpdateFailure) {
