@@ -6,11 +6,12 @@
 #define NET_BASE_CERT_VERIFY_PROC_NSS_H_
 
 #include "net/base/cert_verify_proc.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 // Performs certificate path construction and validation using NSS's libpkix.
-class CertVerifyProcNSS : public CertVerifyProc {
+class NET_EXPORT_PRIVATE CertVerifyProcNSS : public CertVerifyProc {
  public:
   CertVerifyProcNSS();
 
