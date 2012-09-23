@@ -18,7 +18,9 @@ import base64
 import BaseHTTPServer
 import cgi
 import errno
+import hashlib
 import httplib
+import json
 import minica
 import optparse
 import os
@@ -43,18 +45,6 @@ import echo_message
 import pyftpdlib.ftpserver
 import tlslite
 import tlslite.api
-
-try:
-  import hashlib
-  _new_md5 = hashlib.md5
-except ImportError:
-  import md5
-  _new_md5 = md5.new
-
-try:
-  import json
-except ImportError:
-  import simplejson as json
 
 if sys.platform == 'win32':
   import msvcrt
@@ -1318,7 +1308,7 @@ class TestPageHandler(BasePageHandler):
    """
    if force_reset or not self.server.nonce_time:
      self.server.nonce_time = time.time()
-   return _new_md5('privatekey%s%d' %
+   return hashlib.md5('privatekey%s%d' %
                    (self.path, self.server.nonce_time)).hexdigest()
 
   def AuthDigestHandler(self):
@@ -1333,7 +1323,7 @@ class TestPageHandler(BasePageHandler):
 
     stale = 'stale' in self.path
     nonce = self.GetNonce(force_reset=stale)
-    opaque = _new_md5('opaque').hexdigest()
+    opaque = hashlib.md5('opaque').hexdigest()
     password = 'secret'
     realm = 'testrealm'
 
@@ -1355,14 +1345,14 @@ class TestPageHandler(BasePageHandler):
 
       # Check the 'response' value and make sure it matches our magic hash.
       # See http://www.ietf.org/rfc/rfc2617.txt
-      hash_a1 = _new_md5(
+      hash_a1 = hashlib.md5(
           ':'.join([pairs['username'], realm, password])).hexdigest()
-      hash_a2 = _new_md5(':'.join([self.command, pairs['uri']])).hexdigest()
+      hash_a2 = hashlib.md5(':'.join([self.command, pairs['uri']])).hexdigest()
       if 'qop' in pairs and 'nc' in pairs and 'cnonce' in pairs:
-        response = _new_md5(':'.join([hash_a1, nonce, pairs['nc'],
+        response = hashlib.md5(':'.join([hash_a1, nonce, pairs['nc'],
             pairs['cnonce'], pairs['qop'], hash_a2])).hexdigest()
       else:
-        response = _new_md5(':'.join([hash_a1, nonce, hash_a2])).hexdigest()
+        response = hashlib.md5(':'.join([hash_a1, nonce, hash_a2])).hexdigest()
 
       if pairs['response'] != response:
         raise Exception('wrong password')
