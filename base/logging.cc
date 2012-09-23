@@ -394,6 +394,7 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
 
   return InitializeLogFileHandle();
 #else
+  (void) g_vlog_info_prev;
   return true;
 #endif  // !defined(OS_NACL)
 }
