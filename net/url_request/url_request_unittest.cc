@@ -1266,7 +1266,7 @@ class LocalHttpTestServer : public TestServer {
                    FilePath()) {}
 };
 
-TEST_F(URLRequestTest, DelayedCookieCallback) {
+TEST_F(URLRequestTest, FLAKY_DelayedCookieCallback) {
   LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
@@ -4312,7 +4312,7 @@ class URLRequestTestFTP : public URLRequestTest {
 };
 
 // Make sure an FTP request using an unsafe ports fails.
-TEST_F(URLRequestTestFTP, UnsafePort) {
+TEST_F(URLRequestTestFTP, FLAKY_UnsafePort) {
   ASSERT_TRUE(test_server_.Start());
 
   URLRequestJobFactoryImpl job_factory;
