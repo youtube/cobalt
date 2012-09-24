@@ -207,12 +207,10 @@ class TestServerThread(threading.Thread):
     logging.info('Start running the thread!')
     self.wait_event.clear()
     self._GenerateCommandLineArguments()
-    command = '%s %s' % (
-        os.path.join(constants.CHROME_DIR, 'net', 'tools', 'testserver',
-                     'testserver.py'),
-        ' '.join(self.command_line))
-    logging.info(command)
-    self.process = subprocess.Popen(command, shell=True)
+    command = [os.path.join(constants.CHROME_DIR, 'net', 'tools',
+                            'testserver', 'testserver.py')] + self.command_line
+    logging.info('Running: %s', command)
+    self.process = subprocess.Popen(command)
     if self.process:
       if self.pipe_out:
         self.is_ready = self._WaitToStartAndGetPortFromTestServer()
