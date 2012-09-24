@@ -1175,7 +1175,7 @@ public abstract class java.io.InputStream extends java.lang.Object
 }
 """
     jni_from_javap = jni_generator.JNIFromJavaP(contents.split('\n'), None)
-    self.assertEquals(9, len(jni_from_javap.called_by_natives))
+    self.assertEquals(10, len(jni_from_javap.called_by_natives))
     golden_content = """\
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
@@ -1338,6 +1338,18 @@ static jlong Java_InputStream_skip(JNIEnv* env, jobject obj, jlong p0) {
   return ret;
 }
 
+static jmethodID g_InputStream_Constructor = 0;
+static ScopedJavaLocalRef<jobject> Java_InputStream_Constructor(JNIEnv* env) {
+  /* Must call RegisterNativesImpl()  */
+  DCHECK(g_InputStream_clazz);
+  DCHECK(g_InputStream_Constructor);
+  jobject ret =
+    env->NewObject(g_InputStream_clazz,
+      g_InputStream_Constructor);
+  base::android::CheckException(env);
+  return ScopedJavaLocalRef<jobject>(env, ret);
+}
+
 // Step 3: GetMethodIDs and RegisterNatives.
 static void GetMethodIDsImpl(JNIEnv* env) {
   g_InputStream_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
@@ -1428,6 +1440,15 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "J"
 ")"
 "J");
+
+  g_InputStream_Constructor =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "<init>",
+
+"("
+")"
+"V");
 
 }
 
