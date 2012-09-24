@@ -229,12 +229,8 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 void FFmpegVideoDecoder::DoRead(const ReadCB& read_cb) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(!read_cb.is_null());
+  CHECK_NE(state_, kUninitialized);
   CHECK(read_cb_.is_null()) << "Overlapping decodes are not supported.";
-
-  // This can happen during shutdown after Stop() has been called.
-  if (state_ == kUninitialized) {
-    return;
-  }
 
   // Return empty frames if decoding has finished.
   if (state_ == kDecodeFinished) {
@@ -245,7 +241,6 @@ void FFmpegVideoDecoder::DoRead(const ReadCB& read_cb) {
   read_cb_ = read_cb;
   ReadFromDemuxerStream();
 }
-
 
 void FFmpegVideoDecoder::ReadFromDemuxerStream() {
   DCHECK_NE(state_, kUninitialized);
