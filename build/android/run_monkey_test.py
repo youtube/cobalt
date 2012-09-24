@@ -96,7 +96,7 @@ def DispatchPythonTests(options):
   logger = logging.getLogger()
   logger.setLevel(logging.DEBUG)
 
-  available_tests = [MonkeyTest('testMonkey', options)]
+  available_tests = [MonkeyTest('testMonkey')]
   attached_devices = android_commands.GetAttachedDevices()
   if not attached_devices:
     raise Exception('You have no devices attached or visible!')
