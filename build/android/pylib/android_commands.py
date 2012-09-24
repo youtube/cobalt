@@ -219,9 +219,9 @@ class AndroidCommands(object):
   def EnableAdbRoot(self):
     """Enables adb root on the device.
 
-      Returns:
-        True: if output from executing adb reboot was as expected.
-        False: otherwise.
+    Returns:
+      True: if output from executing adb root was as expected.
+      False: otherwise.
     """
     return_value = self._adb.EnableAdbRoot()
     # EnableAdbRoot inserts a call for wait-for-device only when adb logcat
