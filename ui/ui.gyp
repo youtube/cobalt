@@ -835,6 +835,7 @@
            'target_name': 'ui_jni_headers',
            'type': 'none',
            'sources': [
+             'android/java/src/org/chromium/ui/gfx/BitmapHelper.java',
              'android/java/src/org/chromium/ui/gfx/NativeWindow.java',
              'android/java/src/org/chromium/ui/SelectFileDialog.java',
            ],
