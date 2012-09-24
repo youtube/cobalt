@@ -78,10 +78,13 @@ class CalledByNative(object):
     self.static = kwargs['static']
     self.java_class_name = kwargs['java_class_name']
     self.return_type = kwargs['return_type']
-    self.env_call = kwargs['env_call']
     self.name = kwargs['name']
     self.params = kwargs['params']
     self.method_id_var_name = kwargs.get('method_id_var_name', None)
+    self.is_constructor = kwargs.get('is_constructor', False)
+    self.env_call = GetEnvCall(self.is_constructor, self.static,
+                               self.return_type)
+    self.static_cast = GetStaticCastForReturnType(self.return_type)
 
 
 def JavaDataTypeToC(java_type):
@@ -137,6 +140,7 @@ def JavaParamToJni(param):
       'Landroid/graphics/RectF',
       'Landroid/graphics/Matrix',
       'Landroid/graphics/Point',
+      'Landroid/graphics/SurfaceTexture$OnFrameAvailableListener',
       'Landroid/os/Message',
       'Landroid/view/KeyEvent',
       'Landroid/view/Surface',
@@ -211,7 +215,8 @@ def JavaParamToJni(param):
     return prefix + pod_param_map[param]
   for qualified_name in object_param_list + app_param_list:
     if (qualified_name.endswith('/' + param) or
-        qualified_name.endswith('$' + param.replace('.', '$'))):
+        qualified_name.endswith('$' + param.replace('.', '$')) or
+        qualified_name == 'L' + param):
       return prefix + qualified_name + ';'
   else:
     return UNKNOWN_JAVA_TYPE_PREFIX + prefix + param + ';'
@@ -299,21 +304,31 @@ def ExtractNatives(contents):
   return natives
 
 
-def GetEnvCallForReturnType(return_type):
+def GetStaticCastForReturnType(return_type):
+  if return_type == 'String':
+    return 'jstring'
+  return None
+
+
+def GetEnvCall(is_constructor, is_static, return_type):
   """Maps the types availabe via env->Call__Method."""
-  env_call_map = {'boolean': ('Boolean', ''),
-                  'byte': ('Byte', ''),
-                  'char': ('Char', ''),
-                  'short': ('Short', ''),
-                  'int': ('Int', ''),
-                  'long': ('Long', ''),
-                  'float': ('Float', ''),
-                  'void': ('Void', ''),
-                  'double': ('Double', ''),
-                  'String': ('Object', 'jstring'),
-                  'Object': ('Object', ''),
+  if is_constructor:
+    return 'NewObject'
+  env_call_map = {'boolean': 'Boolean',
+                  'byte': 'Byte',
+                  'char': 'Char',
+                  'short': 'Short',
+                  'int': 'Int',
+                  'long': 'Long',
+                  'float': 'Float',
+                  'void': 'Void',
+                  'double': 'Double',
+                  'Object': 'Object',
                  }
-  return env_call_map.get(return_type, ('Object', ''))
+  call = env_call_map.get(return_type, 'Object')
+  if is_static:
+    call = 'Static' + call
+  return 'Call' + call + 'Method'
 
 
 def GetMangledMethodName(name, jni_signature):
@@ -391,7 +406,6 @@ def ExtractCalledByNatives(contents):
         static='static' in match.group('prefix'),
         java_class_name=match.group('annotation') or '',
         return_type=match.group('return_type'),
-        env_call=GetEnvCallForReturnType(match.group('return_type')),
         name=match.group('name'),
         params=ParseParams(match.group('params')))]
   # Check for any @CalledByNative occurrences that weren't matched.
@@ -409,27 +423,43 @@ class JNIFromJavaP(object):
   def __init__(self, contents, namespace):
     self.contents = contents
     self.namespace = namespace
-    self.fully_qualified_class = re.match('.*?class (.*?) ',
-                                          contents[1]).group(1)
+    self.fully_qualified_class = re.match('.*?class (?P<class_name>.*?) ',
+                                          contents[1]).group('class_name')
     self.fully_qualified_class = self.fully_qualified_class.replace('.', '/')
     self.java_class_name = self.fully_qualified_class.split('/')[-1]
     if not self.namespace:
       self.namespace = 'JNI_' + self.java_class_name
-    re_method = re.compile('(.*?)(\w+?) (\w+?)\((.*?)\)')
+    re_method = re.compile('(?P<prefix>.*?)(?P<return_type>\w+?) (?P<name>\w+?)'
+                           '\((?P<params>.*?)\)')
     self.called_by_natives = []
-    for method in contents[2:]:
-      match = re.match(re_method, method)
+    for content in contents[2:]:
+      match = re.match(re_method, content)
       if not match:
         continue
       self.called_by_natives += [CalledByNative(
           system_class=True,
           unchecked=False,
-          static='static' in match.group(1),
+          static='static' in match.group('prefix'),
           java_class_name='',
-          return_type=match.group(2),
-          name=match.group(3),
-          params=ParseParams(match.group(4)),
-          env_call=GetEnvCallForReturnType(match.group(2)))]
+          return_type=match.group('return_type'),
+          name=match.group('name'),
+          params=ParseParams(match.group('params').replace('.', '/')))]
+    re_constructor = re.compile('.*? public ' +
+                                self.fully_qualified_class.replace('/', '.') +
+                                '\((?P<params>.*?)\)')
+    for content in contents[2:]:
+      match = re.match(re_constructor, content)
+      if not match:
+        continue
+      self.called_by_natives += [CalledByNative(
+          system_class=False,
+          unchecked=False,
+          static=False,
+          java_class_name='',
+          return_type=self.fully_qualified_class,
+          name='Constructor',
+          params=ParseParams(match.group('params').replace('.', '/')),
+          is_constructor=True)]
     self.called_by_natives = MangleCalledByNatives(self.called_by_natives)
     self.inl_header_file_generator = InlHeaderFileGenerator(
         self.namespace, self.fully_qualified_class, [], self.called_by_natives)
@@ -748,12 +778,12 @@ ${FUNCTION_HEADER}
   DCHECK(g_${JAVA_CLASS}_clazz);
   DCHECK(g_${JAVA_CLASS}_${METHOD_ID_VAR_NAME});
   ${RETURN_DECLARATION}
-  ${PRE_CALL}env->Call${STATIC}${ENV_CALL}Method(${FIRST_PARAM_IN_CALL},
+  ${PRE_CALL}env->${ENV_CALL}(${FIRST_PARAM_IN_CALL},
       g_${JAVA_CLASS}_${METHOD_ID_VAR_NAME}${PARAMS_IN_CALL})${POST_CALL};
   ${CHECK_EXCEPTION}
   ${RETURN_CLAUSE}
 }""")
-    if called_by_native.static:
+    if called_by_native.static or called_by_native.is_constructor:
       first_param_in_declaration = ''
       first_param_in_call = ('g_%s_clazz' %
                              (called_by_native.java_class_name or
@@ -771,8 +801,8 @@ ${FUNCTION_HEADER}
       params_for_call = ', ' + params_for_call
     pre_call = ''
     post_call = ''
-    if called_by_native.env_call[1]:
-      pre_call = 'static_cast<%s>(' % called_by_native.env_call[1]
+    if called_by_native.static_cast:
+      pre_call = 'static_cast<%s>(' % called_by_native.static_cast
       post_call = ')'
     check_exception = ''
     if not called_by_native.unchecked:
@@ -799,7 +829,7 @@ ${FUNCTION_HEADER}
         'STATIC': 'Static' if called_by_native.static else '',
         'PRE_CALL': pre_call,
         'POST_CALL': post_call,
-        'ENV_CALL': called_by_native.env_call[0],
+        'ENV_CALL': called_by_native.env_call,
         'FIRST_PARAM_IN_CALL': first_param_in_call,
         'PARAMS_IN_CALL': params_for_call,
         'METHOD_ID_VAR_NAME': called_by_native.method_id_var_name,
@@ -876,16 +906,21 @@ jclass g_${JAVA_CLASS}_clazz = NULL;""")
   g_${JAVA_CLASS}_${METHOD_ID_VAR_NAME} =
       base::android::Get${STATIC}MethodID(
           env, g_${JAVA_CLASS}_clazz,
-          "${NAME}",
+          "${JNI_NAME}",
           ${JNI_SIGNATURE});
 """)
+    jni_name = called_by_native.name
+    jni_return_type = called_by_native.return_type
+    if called_by_native.is_constructor:
+      jni_name = '<init>'
+      jni_return_type = 'void'
     values = {
         'JAVA_CLASS': called_by_native.java_class_name or self.class_name,
-        'NAME': called_by_native.name,
+        'JNI_NAME': jni_name,
         'METHOD_ID_VAR_NAME': called_by_native.method_id_var_name,
         'STATIC': 'Static' if called_by_native.static else '',
         'JNI_SIGNATURE': JniSignature(called_by_native.params,
-                                      called_by_native.return_type,
+                                      jni_return_type,
                                       True)
     }
     return template.substitute(values)
