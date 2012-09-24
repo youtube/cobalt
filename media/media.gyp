@@ -1156,6 +1156,7 @@
           'target_name': 'player_android_jni_headers',
           'type': 'none',
           'sources': [
+            'base/android/java/src/org/chromium/media/MediaPlayerBridge.java',
             'base/android/java/src/org/chromium/media/MediaPlayerListener.java',
           ],
           'variables': {
