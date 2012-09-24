@@ -10,16 +10,27 @@ import org.chromium.base.CalledByNative;
 import org.chromium.base.JNINamespace;
 import org.chromium.base.NativeClassQualifiedName;
 
+import java.util.concurrent.CopyOnWriteArrayList;
+
 /**
- * Triggers updates to the underlying network state in native Chrome.
+ * Triggers updates to the underlying network state in Chrome.
  * By default, connectivity is assumed and changes must pushed from
  * the embedder via the forceConnectivityState function.
  * Embedders may choose to have this class auto-detect changes in
  * network connectivity by invoking the autoDetectConnectivityState
  * function.
+ * This class is not thread-safe.
  */
 @JNINamespace("net")
 public class NetworkChangeNotifier {
+    /**
+     * Alerted when the connection type of the network changes.
+     * The alert is fired on the UI thread.
+     */
+    public interface ConnectionTypeObserver {
+        public void onConnectionTypeChanged(int connectionType);
+    }
+
     // These constants must always match the ones in network_change_notifier.h.
     public static final int CONNECTION_UNKNOWN = 0;
     public static final int CONNECTION_ETHERNET = 1;
@@ -31,15 +42,15 @@ public class NetworkChangeNotifier {
 
     private final Context mContext;
     private int mNativeChangeNotifier;
+    private final CopyOnWriteArrayList<ConnectionTypeObserver> mConnectionTypeObservers;
     private NetworkChangeNotifierAutoDetect mAutoDetector;
 
     private static NetworkChangeNotifier sInstance;
 
-    // Private constructor - instances are only created via the create factory
-    // function, which is only called from native.
     private NetworkChangeNotifier(Context context, int nativeChangeNotifier) {
         mContext = context;
         mNativeChangeNotifier = nativeChangeNotifier;
+        mConnectionTypeObservers = new CopyOnWriteArrayList<ConnectionTypeObserver>();
     }
 
     private void destroy() {
@@ -47,6 +58,7 @@ public class NetworkChangeNotifier {
             mAutoDetector.destroy();
         }
         mNativeChangeNotifier = 0;
+        mConnectionTypeObservers.clear();
     }
 
     /**
@@ -142,10 +154,42 @@ public class NetworkChangeNotifier {
         }
     }
 
+    /**
+     * Alerts all observers of a connection change.
+     */
     void notifyObserversOfConnectionTypeChange(int newConnectionType) {
         if (mNativeChangeNotifier != 0) {
             nativeNotifyObserversOfConnectionTypeChange(mNativeChangeNotifier, newConnectionType);
         }
+
+        for (ConnectionTypeObserver observer : mConnectionTypeObservers) {
+            observer.onConnectionTypeChanged(newConnectionType);
+        }
+    }
+
+    /**
+     * Adds an observer for any connection type changes.
+     */
+    public static void addConnectionTypeObserver(ConnectionTypeObserver observer) {
+        assert sInstance != null;
+        sInstance.addConnectionTypeObserverInternal(observer);
+    }
+
+    private void addConnectionTypeObserverInternal(ConnectionTypeObserver observer) {
+        if (!mConnectionTypeObservers.contains(observer))
+            mConnectionTypeObservers.add(observer);
+    }
+
+    /**
+     * Removes an observer for any connection type changes.
+     */
+    public static boolean removeConnectionTypeObserver(ConnectionTypeObserver observer) {
+        assert sInstance != null;
+        return sInstance.removeConnectionTypeObserverInternal(observer);
+    }
+
+    private boolean removeConnectionTypeObserverInternal(ConnectionTypeObserver observer) {
+        return mConnectionTypeObservers.remove(observer);
     }
 
     @NativeClassQualifiedName("NetworkChangeNotifierAndroid")
