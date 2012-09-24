@@ -12,7 +12,7 @@ import android.test.InstrumentationTestCase;
 import android.test.UiThreadTest;
 import android.test.suitebuilder.annotation.MediumTest;
 
-import org.chromium.base.test.Feature;
+import org.chromium.base.test.util.Feature;
 
 public class NetworkChangeNotifierTest extends InstrumentationTestCase {
     /**
