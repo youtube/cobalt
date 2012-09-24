@@ -619,7 +619,6 @@
     'arm_neon%': '<(arm_neon)',
     'sysroot%': '<(sysroot)',
     'system_libdir%': '<(system_libdir)',
-    'disable_sse2%': '<(disable_sse2)',
     'component%': '<(component)',
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
     'use_third_party_translations%': '<(use_third_party_translations)',
@@ -1172,6 +1171,13 @@
         'disable_glibc%': 1,
       }, {
         'disable_glibc%': 0,
+      }],
+
+      # Disable SSE2 when building for ARM or MIPS.
+      ['target_arch=="arm" or target_arch=="mipsel"', {
+        'disable_sse2%': 1,
+      }, {
+        'disable_sse2%': '<(disable_sse2)',
       }],
 
       # Set the relative path from this file to the GYP file of the JPEG
