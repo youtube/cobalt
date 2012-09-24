@@ -96,21 +96,26 @@ if [[ -d $GOMA_DIR ]]; then
 fi
 export ANDROID_GOMA_WRAPPER
 
-# http://crbug.com/143889.
-if ! echo "$GYP_DEFINES" | tr ' ' '\n' | grep -q '^clang=' | tail -n1 | \
-    grep -xq clang=1; then
-  export CC_target="${ANDROID_GOMA_WRAPPER} \
-    $(echo -n ${ANDROID_TOOLCHAIN}/*-gcc)"
-  export CXX_target="${ANDROID_GOMA_WRAPPER} \
+export CXX_target="${ANDROID_GOMA_WRAPPER} \
     $(echo -n ${ANDROID_TOOLCHAIN}/*-g++)"
-  export LINK_target=$(echo -n ${ANDROID_TOOLCHAIN}/*-gcc)
-  export AR_target=$(echo -n ${ANDROID_TOOLCHAIN}/*-ar)
-fi
 
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
   echo "GYP_GENERATORS set to '$GYP_GENERATORS'"
-  "${CHROME_SRC}/build/gyp_chromium" --depth="${CHROME_SRC}" --check "$@"
+  # http://crbug.com/143889.
+  # In case we are doing a Clang build, we have to unset CC_target and
+  # CXX_target. Otherwise GYP ends up generating a gcc build (although we set
+  # 'clang' to 1). This behavior was introduced by
+  # 54d2f6fe6d8a7b9d9786bd1f8540df6b4f46b83f in GYP.
+  (
+    # Fork to avoid side effects on the user's environment variables.
+    if echo "$GYP_DEFINES" | grep -q clang; then
+      if echo "$CXX_target" | grep -q g++; then
+        unset CXX_target
+      fi
+    fi
+    "${CHROME_SRC}/build/gyp_chromium" --depth="${CHROME_SRC}" --check "$@"
+  )
 }
 
 # FLOCK needs to be null on system that has no flock
