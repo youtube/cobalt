@@ -96,6 +96,9 @@ if [[ -d $GOMA_DIR ]]; then
 fi
 export ANDROID_GOMA_WRAPPER
 
+# Declare Android are cross compile.
+export GYP_CROSSCOMPILE=1
+
 export CXX_target="${ANDROID_GOMA_WRAPPER} \
     $(echo -n ${ANDROID_TOOLCHAIN}/*-g++)"
 
