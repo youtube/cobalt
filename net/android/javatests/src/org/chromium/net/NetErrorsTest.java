@@ -11,9 +11,7 @@ package org.chromium.net;
 import android.test.InstrumentationTestCase;
 import android.test.suitebuilder.annotation.SmallTest;
 
-import org.chromium.net.NetError;
-
-import org.chromium.base.test.Feature;
+import org.chromium.base.test.util.Feature;
 
 public class NetErrorsTest extends InstrumentationTestCase {
     // These are manually copied and should be kept in sync with net_error_list.h.

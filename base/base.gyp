@@ -976,7 +976,7 @@
           ],
           'variables': {
             'package_name': 'base_javatests',
-            'java_in_dir': '../base/android/javatests',
+            'java_in_dir': '../base/test/android/javatests',
           },
           'includes': [ '../build/java.gypi' ],
         },
