@@ -1584,10 +1584,16 @@ EVENT_TYPE(DOWNLOAD_ITEM_INTERRUPTED)
 //   }
 EVENT_TYPE(DOWNLOAD_ITEM_RESUMED)
 
-// This event is created when a download item is finished.
+// This event is created when a download item is completing.
 //   {
 //     "bytes_so_far": <Number of bytes received>,
 //     "final_hash": <Final hash, as a hex-encoded binary string>,
+//   }
+EVENT_TYPE(DOWNLOAD_ITEM_COMPLETING)
+
+// This event is created when a download item is finished.
+//   {
+//     "auto_opened": <Whether or not the download was auto-opened>
 //   }
 EVENT_TYPE(DOWNLOAD_ITEM_FINISHED)
 
