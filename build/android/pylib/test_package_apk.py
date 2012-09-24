@@ -4,18 +4,15 @@
 
 
 import os
-import re
-import sys
-
-import cmd_helper
-import constants
-import logging
 import pexpect
 import shlex
-import shutil
+import sys
 import tempfile
-from test_package import TestPackage
 import time
+
+import android_commands
+import constants
+from test_package import TestPackage
 
 
 class TestPackageApk(TestPackage):
@@ -62,7 +59,7 @@ class TestPackageApk(TestPackage):
   def _ClearFifo(self):
     self.adb.RunShellCommand('rm -f ' + self._GetFifo())
 
-  def _WatchFifo(self, timeout):
+  def _WatchFifo(self, timeout, logfile=None):
     for i in range(5):
       if self.adb.FileExistsOnDevice(self._GetFifo()):
         print 'Fifo created...'
@@ -72,7 +69,7 @@ class TestPackageApk(TestPackage):
       raise Exception('Unable to find fifo on device %s ' % self._GetFifo())
     args = shlex.split(self.adb.Adb()._target_arg)
     args += ['shell', 'cat', self._GetFifo()]
-    return pexpect.spawn('adb', args, timeout=timeout, logfile=sys.stdout)
+    return pexpect.spawn('adb', args, timeout=timeout, logfile=logfile)
 
   def GetAllTests(self):
     """Returns a list of all tests available in the test suite."""
@@ -97,8 +94,8 @@ class TestPackageApk(TestPackage):
     return ret
 
   def CreateTestRunnerScript(self, gtest_filter, test_arguments):
-     self._CreateTestRunnerScript('--gtest_filter=%s %s' % (gtest_filter,
-                                                            test_arguments))
+    self._CreateTestRunnerScript('--gtest_filter=%s %s' % (gtest_filter,
+                                                           test_arguments))
 
   def RunTestsAndListResults(self):
     try:
@@ -110,7 +107,8 @@ class TestPackageApk(TestPackage):
         'org.chromium.native_test.ChromeNativeTestActivity')
     finally:
       self.tool.CleanUpEnvironment()
-    return self._WatchTestOutput(self._WatchFifo(timeout=10))
+    logfile = android_commands.NewLineNormalizer(sys.stdout)
+    return self._WatchTestOutput(self._WatchFifo(timeout=10, logfile=logfile))
 
   def StripAndCopyExecutable(self):
     # Always uninstall the previous one (by activity name); we don't

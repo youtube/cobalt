@@ -201,6 +201,7 @@ class AndroidCommands(object):
     if device:
       self._adb.SetTargetSerial(device)
     self._logcat = None
+    self.logcat_process = None
     self._pushed_files = []
     self._device_utc_offset = self.RunShellCommand('date +%z')[0]
     self._md5sum_path = ''
@@ -559,7 +560,7 @@ class AndroidCommands(object):
       if not os.path.exists(md5sum_path):
         md5sum_path = '%s/out/Release/md5sum_bin' % (CHROME_SRC)
         if not os.path.exists(md5sum_path):
-          print >>sys.stderr, 'Please build md5sum.'
+          print >> sys.stderr, 'Please build md5sum.'
           sys.exit(1)
       command = 'push %s %s' % (md5sum_path, MD5SUM_DEVICE_PATH)
       assert _HasAdbPushSucceeded(self._adb.SendCommand(command))
@@ -689,25 +690,6 @@ class AndroidCommands(object):
       args.append('*:v')
 
     if logfile:
-      class NewLineNormalizer(object):
-        """A file-like object to normalize EOLs to '\n'.
-
-        Pexpect runs adb within a pseudo-tty device (see
-        http://www.noah.org/wiki/pexpect), so any '\n' printed by adb is written
-        as '\r\n' to the logfile. Since adb already uses '\r\n' to terminate
-        lines, the log ends up having '\r\r\n' at the end of each line. This
-        filter replaces the above with a single '\n' in the data stream.
-        """
-        def __init__(self, output):
-          self.output = output
-
-        def write(self, data):
-          data = data.replace('\r\r\n', '\n')
-          self.output.write(data)
-
-        def flush(self):
-          self.output.flush()
-
       logfile = NewLineNormalizer(logfile)
 
     # Spawn logcat and syncronize with it.
@@ -1015,3 +997,23 @@ class AndroidCommands(object):
     status = self._adb.SendShellCommand(
         '\'ls "%s" >/dev/null 2>&1; echo $?\'' % (file_name))
     return int(status) == 0
+
+
+class NewLineNormalizer(object):
+  """A file-like object to normalize EOLs to '\n'.
+
+  Pexpect runs adb within a pseudo-tty device (see
+  http://www.noah.org/wiki/pexpect), so any '\n' printed by adb is written
+  as '\r\n' to the logfile. Since adb already uses '\r\n' to terminate
+  lines, the log ends up having '\r\r\n' at the end of each line. This
+  filter replaces the above with a single '\n' in the data stream.
+  """
+  def __init__(self, output):
+    self._output = output
+
+  def write(self, data):
+    data = data.replace('\r\r\n', '\n')
+    self._output.write(data)
+
+  def flush(self):
+    self._output.flush()
