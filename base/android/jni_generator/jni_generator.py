@@ -141,6 +141,7 @@ def JavaParamToJni(param):
       'Landroid/graphics/Matrix',
       'Landroid/graphics/Point',
       'Landroid/graphics/SurfaceTexture$OnFrameAvailableListener',
+      'Landroid/media/MediaPlayer',
       'Landroid/os/Message',
       'Landroid/view/KeyEvent',
       'Landroid/view/Surface',
