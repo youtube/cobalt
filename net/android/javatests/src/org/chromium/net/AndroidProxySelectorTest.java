@@ -24,7 +24,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Properties;
 
-import org.chromium.base.test.Feature;
+import org.chromium.base.test.util.Feature;
 
 public class AndroidProxySelectorTest extends InstrumentationTestCase {
     Properties mProperties;
