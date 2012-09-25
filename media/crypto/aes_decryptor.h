@@ -50,7 +50,7 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
   // |decrypt_cb|.
   virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) OVERRIDE;
-  virtual void Stop() OVERRIDE;
+  virtual void CancelDecrypt() OVERRIDE;
 
  private:
   // TODO(fgalligan): Remove this and change KeyMap to use crypto::SymmetricKey

@@ -229,7 +229,7 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
   decrypt_cb.Run(kSuccess, decrypted);
 }
 
-void AesDecryptor::Stop() {
+void AesDecryptor::CancelDecrypt() {
 }
 
 void AesDecryptor::SetKey(const std::string& key_id,
