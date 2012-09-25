@@ -299,11 +299,10 @@ function bb_check_webview_licenses {
   set +e
   cd "${SRC_ROOT}"
   python android_webview/tools/webview_licenses.py scan
-  local license_exit_code=$?
-  if [[ license_exit_code -ne 0 ]]; then
+  if [[ $? -ne 0 ]]; then
     echo "@@@STEP_FAILURE@@@"
   fi
-  return $license_exit_code
+  return 0
   )
 }
 
