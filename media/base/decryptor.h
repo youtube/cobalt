@@ -81,9 +81,9 @@ class MEDIA_EXPORT Decryptor {
   virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) = 0;
 
-  // Stops the decryptor and fires any pending DecryptCB immediately with kError
-  // and NULL buffer.
-  virtual void Stop() = 0;
+  // Cancel scheduled decryption operations and fires any pending DecryptCB
+  // immediately with kError and NULL buffer.
+  virtual void CancelDecrypt() = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Decryptor);

@@ -179,6 +179,9 @@ void FFmpegVideoDecoder::Reset(const base::Closure& closure) {
     return;
   }
 
+  if (decryptor_)
+    decryptor_->CancelDecrypt();
+
   reset_cb_ = closure;
 
   // Defer the reset if a read is pending.
@@ -205,7 +208,7 @@ void FFmpegVideoDecoder::Stop(const base::Closure& closure) {
   }
 
   if (decryptor_)
-    decryptor_->Stop();
+    decryptor_->CancelDecrypt();
 
   stop_cb_ = closure;
 
@@ -321,6 +324,12 @@ void FFmpegVideoDecoder::DoBufferDecrypted(
   DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kDecodeFinished);
   DCHECK(!read_cb_.is_null());
+
+  if (!stop_cb_.is_null()) {
+    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
+    DoStop();
+    return;
+  }
 
   if (!reset_cb_.is_null()) {
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
