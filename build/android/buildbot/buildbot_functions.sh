@@ -83,7 +83,8 @@ function bb_baseline_setup {
   bb_setup_goma_internal
   . build/android/envsetup.sh
   export GYP_DEFINES+=" fastbuild=1"
-
+  export GYP_DEFINES+=" $(bb_get_json_prop "$FACTORY_PROPERTIES" \
+     extra_gyp_defines)"
   # Should be called only after envsetup is done.
   bb_run_gclient_hooks
 }
@@ -311,5 +312,5 @@ function bb_get_json_prop {
   local JSON="$1"
   local PROP="$2"
 
-  python -c "import json; print json.loads('$JSON').get('$PROP')"
+  python -c "import json; print json.loads('$JSON').get('$PROP', '')"
 }
