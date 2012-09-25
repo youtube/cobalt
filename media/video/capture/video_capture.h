@@ -43,6 +43,7 @@ class MEDIA_EXPORT VideoCapture {
   };
 
   // TODO(wjia): add error codes.
+  // TODO(wjia): support weak ptr.
   // Callbacks provided by client for notification of events.
   class MEDIA_EXPORT EventHandler {
    public:
