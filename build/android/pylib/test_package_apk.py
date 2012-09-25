@@ -60,7 +60,7 @@ class TestPackageApk(TestPackage):
     self.adb.RunShellCommand('rm -f ' + self._GetFifo())
 
   def _WatchFifo(self, timeout, logfile=None):
-    for i in range(5):
+    for i in range(10):
       if self.adb.FileExistsOnDevice(self._GetFifo()):
         print 'Fifo created...'
         break
