@@ -278,14 +278,13 @@ void AudioHardwareUnifiedStream::Stop() {
   if (!is_playing_)
     return;
 
-  source_ = NULL;
-
   if (device_ != kAudioObjectUnknown) {
     OSStatus result = AudioDeviceStop(device_, io_proc_id_);
     OSSTATUS_DCHECK(result == noErr, result);
   }
 
   is_playing_ = false;
+  source_ = NULL;
 }
 
 void AudioHardwareUnifiedStream::SetVolume(double volume) {
