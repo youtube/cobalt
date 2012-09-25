@@ -32,6 +32,7 @@
 #include "media/audio/audio_manager_base.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
+#include "media/base/limits.h"
 #include "media/base/media_switches.h"
 #endif
 
@@ -305,10 +306,13 @@ size_t GetAudioHardwareBufferSize() {
 #if defined(OS_MACOSX)
   return 128;
 #elif defined(OS_WIN)
+  // Buffer size to use when a proper size can't be determined from the system.
+  static const int kFallbackBufferSize = 2048;
+
   if (!IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower
     // and assume 48kHz as default sample rate.
-    return 2048;
+    return kFallbackBufferSize;
   }
 
   // TODO(crogers): tune this size to best possible WebAudio performance.
@@ -324,6 +328,12 @@ size_t GetAudioHardwareBufferSize() {
   int mixing_sample_rate =
       WASAPIAudioOutputStream::HardwareSampleRate(eConsole);
 
+  // Windows will return a sample rate of 0 when no audio output is available
+  // (i.e. via RemoteDesktop with remote audio disabled), but we should never
+  // return a buffer size of zero.
+  if (mixing_sample_rate == 0)
+    return kFallbackBufferSize;
+
   // Use different buffer sizes depening on the sample rate . The existing
   // WASAPI implementation is tuned to provide the most stable callback
   // sequence using these combinations.
@@ -335,8 +345,11 @@ size_t GetAudioHardwareBufferSize() {
     // Use buffer size of 10ms.
     return (80 * (mixing_sample_rate / 8000));
 
+  // Ensure we always return a buffer size which is somewhat appropriate.
   LOG(ERROR) << "Unknown sample rate " << mixing_sample_rate << " detected.";
-  return (mixing_sample_rate / 100);
+  if (mixing_sample_rate > limits::kMinSampleRate)
+    return (mixing_sample_rate / 100);
+  return kFallbackBufferSize;
 #else
   return 2048;
 #endif
