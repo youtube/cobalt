@@ -176,7 +176,7 @@ class Emulator(object):
         '--name', avd_name,
         '--abi', self.abi,
         '--target', 'android-16',
-        '-c', '64M',
+        '-c', '128M',
         '--force',
     ]
     avd_process = subprocess.Popen(args=avd_command,
