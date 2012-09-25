@@ -10,10 +10,6 @@
 # Number of jobs on the compile line; e.g.  make -j"${JOBS}"
 JOBS="${JOBS:-4}"
 
-# Clobber build?  Overridden by bots with BUILDBOT_CLOBBER.
-NEED_CLOBBER="${NEED_CLOBBER:-0}"
-
-
 # Parse named arguments passed into the annotator script
 # and assign them global variable names.
 function bb_parse_args {
@@ -50,25 +46,12 @@ function bb_run_gclient_hooks {
 #   $1: source root.
 #   $2 and beyond: key value pairs which are parsed by bb_parse_args.
 function bb_baseline_setup {
-  echo "@@@BUILD_STEP Environment setup@@@"
   SRC_ROOT="$1"
   # Remove SRC_ROOT param
   shift
-
-  bb_parse_args "$@"
-
   cd $SRC_ROOT
-  if [ ! "$BUILDBOT_CLOBBER" = "" ]; then
-    NEED_CLOBBER=1
-  fi
 
-
-  local BUILDTOOL=$(bb_get_json_prop "$FACTORY_PROPERTIES" buildtool)
-  if [[ $BUILDTOOL = ninja ]]; then
-    export GYP_GENERATORS=ninja
-  fi
-
-  if [ "$NEED_CLOBBER" -eq 1 ]; then
+  if [[ $BUILDBOT_CLOBBER ]]; then
     echo "@@@BUILD_STEP Clobber@@@"
     # Sdk key expires, delete android folder.
     # crbug.com/145860
@@ -80,6 +63,13 @@ function bb_baseline_setup {
     fi
   fi
 
+  echo "@@@BUILD_STEP Environment setup@@@"
+  bb_parse_args "$@"
+
+  local BUILDTOOL=$(bb_get_json_prop "$FACTORY_PROPERTIES" buildtool)
+  if [[ $BUILDTOOL = ninja ]]; then
+    export GYP_GENERATORS=ninja
+  fi
   bb_setup_goma_internal
   . build/android/envsetup.sh
   export GYP_DEFINES+=" fastbuild=1"
