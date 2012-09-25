@@ -72,9 +72,12 @@ function bb_baseline_setup {
   fi
   bb_setup_goma_internal
   . build/android/envsetup.sh
-  export GYP_DEFINES+=" fastbuild=1"
-  export GYP_DEFINES+=" $(bb_get_json_prop "$FACTORY_PROPERTIES" \
+  local extra_gyp_defines="$(bb_get_json_prop "$FACTORY_PROPERTIES" \
      extra_gyp_defines)"
+  export GYP_DEFINES+=" fastbuild=1 $extra_gyp_defines"
+  if echo $extra_gyp_defines | grep -q clang; then
+    unset CXX_target
+  fi
   # Should be called only after envsetup is done.
   bb_run_gclient_hooks
 }
