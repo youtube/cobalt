@@ -207,7 +207,7 @@ class MockDecryptor : public Decryptor {
                                       const std::string& session_id));
   MOCK_METHOD2(Decrypt, void(const scoped_refptr<DecoderBuffer>& encrypted,
                              const DecryptCB& decrypt_cb));
-  MOCK_METHOD0(Stop, void());
+  MOCK_METHOD0(CancelDecrypt, void());
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockDecryptor);
