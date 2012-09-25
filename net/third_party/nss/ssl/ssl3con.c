@@ -69,6 +69,14 @@
 #include "zlib.h"
 #endif
 
+/* DSA_SIGNATURE_LEN is deprecated and replaced by DSA1_SIGNATURE_LEN
+ * in NSS 3.14. Provide a backup definition when compiling against an
+ * older system NSS library.
+ */
+#ifndef DSA1_SIGNATURE_LEN
+#define DSA1_SIGNATURE_LEN 	40	/* Bytes */
+#endif
+
 #ifndef PK11_SETATTRS
 #define PK11_SETATTRS(x,id,v,l) (x)->type = (id); \
 		(x)->pValue=(v); (x)->ulValueLen = (l);
@@ -912,7 +920,7 @@ ssl3_VerifySignedHashes(SSL3Hashes *hash, CERTCertificate *cert,
 	hashItem.data = hash->sha;
 	hashItem.len = sizeof(hash->sha);
 	/* Allow DER encoded DSA signatures in SSL 3.0 */
-	if (isTLS || buf->len != DSA_SIGNATURE_LEN) {
+	if (isTLS || buf->len != DSA1_SIGNATURE_LEN) {
 	    signature = DSAU_DecodeDerSig(buf);
 	    if (!signature) {
 	    	PORT_SetError(SSL_ERROR_BAD_HANDSHAKE_HASH_VALUE);
