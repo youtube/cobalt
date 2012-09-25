@@ -92,7 +92,13 @@ bool PathProviderMac(int key, FilePath* result) {
 #endif
       return true;
     case base::DIR_USER_DESKTOP:
+#if defined(OS_IOS)
+      // iOS does not have desktop directories.
+      NOTIMPLEMENTED();
+      return false;
+#else
       return base::mac::GetUserDirectory(NSDesktopDirectory, result);
+#endif
     case base::DIR_CACHE:
       return base::mac::GetUserDirectory(NSCachesDirectory, result);
     case base::DIR_HOME:
