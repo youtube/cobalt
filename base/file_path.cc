@@ -1232,3 +1232,7 @@ FilePath FilePath::NormalizePathSeparators() const {
   return *this;
 #endif
 }
+
+void PrintTo(const FilePath& path, std::ostream* out) {
+  *out << path.value();
+}
