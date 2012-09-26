@@ -26,9 +26,9 @@ class MEDIA_EXPORT VideoDecoder
     kDecryptError  // Decrypting error happened.
   };
 
-  // Initialize a VideoDecoder with the given DemuxerStream, executing the
-  // callback upon completion.
-  // statistics_cb is used to update global pipeline statistics.
+  // Initializes a VideoDecoder with the given DemuxerStream, executing the
+  // |status_cb| upon completion.
+  // |statistics_cb| is used to update global pipeline statistics.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
                           const PipelineStatusCB& status_cb,
                           const StatisticsCB& statistics_cb) = 0;
@@ -50,13 +50,16 @@ class MEDIA_EXPORT VideoDecoder
   typedef base::Callback<void(Status, const scoped_refptr<VideoFrame>&)> ReadCB;
   virtual void Read(const ReadCB& read_cb) = 0;
 
-  // Reset decoder state, fulfilling all pending ReadCB and dropping extra
+  // Resets decoder state, fulfilling all pending ReadCB and dropping extra
   // queued decoded data. After this call, the decoder is back to an initialized
   // clean state.
   virtual void Reset(const base::Closure& closure) = 0;
 
-  // Stop decoder and set it to an uninitialized state. Note that a VideoDecoder
-  // should/could not be re-initialized after it has been stopped.
+  // Stops decoder, fires any pending callbacks and sets the decoder to an
+  // uninitialized state. A VideoDecoder cannot be re-initialized after it has
+  // been stopped.
+  // Note that if Initialize() has been called, Stop() must be called and
+  // complete before deleting the decoder.
   virtual void Stop(const base::Closure& closure) = 0;
 
   // Returns true if the output format has an alpha channel. Most formats do not
