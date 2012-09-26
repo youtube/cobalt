@@ -23,6 +23,8 @@
           'third_party/xdg_mime/xdgmime.h',
           'allocator/allocator_extension.cc',
           'allocator/allocator_extension.h',
+          'allocator/type_profiler_control.cc',
+          'allocator/type_profiler_control.h',
           'android/base_jni_registrar.cc',
           'android/base_jni_registrar.h',
           'android/build_info.cc',
@@ -558,6 +560,8 @@
           ],
           ['>(nacl_untrusted_build)==1', {
             'sources!': [
+               'allocator/type_profiler_control.cc',
+               'allocator/type_profiler_control.h',
                'base_paths.cc',
                'command_line.cc',
                'cpu.cc',
