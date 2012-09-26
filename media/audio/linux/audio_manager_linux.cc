@@ -350,19 +350,20 @@ AudioParameters AudioManagerLinux::GetPreferredLowLatencyOutputStreamParameters(
   // clients, such as WebRTC, have a more limited use case and work acceptably
   // with a smaller buffer size.  The check below allows clients which want to
   // try a smaller buffer size on Linux to do so.
-  int buffer_size = 0;
-  if (static_cast<size_t>(input_params.frames_per_buffer()) <
-      GetAudioHardwareBufferSize()) {
+  int buffer_size = GetAudioHardwareBufferSize();
+  if (input_params.frames_per_buffer() < buffer_size)
     buffer_size = input_params.frames_per_buffer();
-  } else {
-    buffer_size = GetAudioHardwareBufferSize();
-  }
+
+  int sample_rate = GetAudioHardwareSampleRate();
+  // CRAS will sample rate convert if needed, so pass through input sample rate.
+  if (UseCras())
+    sample_rate = input_params.sample_rate();
 
   // TODO(dalecurtis): This should include bits per channel and channel layout
   // eventually.
   return AudioParameters(
       AudioParameters::AUDIO_PCM_LOW_LATENCY, input_params.channel_layout(),
-      GetAudioHardwareSampleRate(), 16, buffer_size);
+      sample_rate, 16, buffer_size);
 }
 
 }  // namespace media
