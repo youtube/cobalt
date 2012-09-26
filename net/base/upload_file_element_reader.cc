@@ -89,10 +89,12 @@ UploadFileElementReader::UploadFileElementReader(
 }
 
 UploadFileElementReader::~UploadFileElementReader() {
-  // Temporarily allow until fix: http://crbug.com/72001.
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
-  if (file_stream_.get())
-    file_stream_->CloseSync();
+  if (file_stream_.get()) {
+    base::WorkerPool::PostTask(FROM_HERE,
+                               base::Bind(&base::DeletePointer<FileStream>,
+                                          file_stream_.release()),
+                               true /* task_is_slow */);
+  }
 }
 
 int UploadFileElementReader::Init(const CompletionCallback& callback) {
