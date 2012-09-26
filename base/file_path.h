@@ -396,6 +396,9 @@ class BASE_EXPORT FilePath {
   StringType path_;
 };
 
+// This is required by googletest to print a readable output on test failures.
+BASE_EXPORT extern void PrintTo(const FilePath& path, std::ostream* out);
+
 // Macros for string literal initialization of FilePath::CharType[], and for
 // using a FilePath::CharType[] in a printf-style format string.
 #if defined(OS_POSIX)
