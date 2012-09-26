@@ -327,6 +327,11 @@
         ],
       },
       'conditions': [
+        ['arm_neon == 1', {
+          'defines': [
+            'USE_NEON'
+          ],
+        }],
         ['OS != "ios"', {
           'dependencies': [
             '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
@@ -648,6 +653,11 @@
         'webm/webm_parser_unittest.cc',
       ],
       'conditions': [
+        ['arm_neon == 1', {
+          'defines': [
+            'USE_NEON'
+          ],
+        }],
         ['OS != "ios"', {
           'dependencies': [
             'shared_memory_support',
