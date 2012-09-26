@@ -15,6 +15,7 @@ LEGACY_BROWSER_ACTIVITY = 'com.android.browser.BrowserActivity'
 CONTENT_SHELL_PACKAGE = "org.chromium.content_shell"
 CONTENT_SHELL_ACTIVITY = "org.chromium.content_shell.ContentShellActivity"
 CHROME_SHELL_PACKAGE = 'org.chromium.chrome.browser.test'
+CHROMIUM_TEST_SHELL_PACKAGE = 'org.chromium.chrome.testshell'
 
 CHROME_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                           '..', '..', '..'))
