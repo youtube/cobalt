@@ -125,7 +125,6 @@ LONG RegKey::DeleteKey(const wchar_t* name) {
 
 LONG RegKey::DeleteValue(const wchar_t* value_name) {
   DCHECK(key_);
-  DCHECK(value_name);
   LONG result = RegDeleteValue(key_, value_name);
   return result;
 }
