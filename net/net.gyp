@@ -1198,9 +1198,13 @@
             # The iOS implementation only partially uses NSS and thus does not
             # defines |use_nss|. In particular the |USE_NSS| preprocessor
             # definition is not used. The following files are needed though:
+            ['include', '^base/cert_verify_proc_nss\\.cc$'],
+            ['include', '^base/cert_verify_proc_nss\\.h$'],
             ['include', '^base/test_root_certs_nss\\.cc$'],
             ['include', '^base/x509_util_nss\\.cc$'],
             ['include', '^base/x509_util_nss\\.h$'],
+            ['include', '^ocsp/nss_ocsp\\.cc$'],
+            ['include', '^ocsp/nss_ocsp\\.h$'],
           ],
         }],
       ],
