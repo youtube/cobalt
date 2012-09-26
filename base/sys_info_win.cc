@@ -75,8 +75,18 @@ std::string SysInfo::OperatingSystemVersion() {
 
 // static
 std::string SysInfo::CPUArchitecture() {
-  // TODO: Make this vary when we support any other architectures.
-  return "x86";
+  win::OSInfo::WindowsArchitecture arch =
+      win::OSInfo::GetInstance()->architecture();
+  switch (arch) {
+    case win::OSInfo::X86_ARCHITECTURE:
+      return "x86";
+    case win::OSInfo::X64_ARCHITECTURE:
+      return "x86_64";
+    case win::OSInfo::IA64_ARCHITECTURE:
+      return "ia64";
+    default:
+      return "";
+  }
 }
 
 // static
