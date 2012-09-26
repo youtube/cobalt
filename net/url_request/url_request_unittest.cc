@@ -146,106 +146,20 @@ bool FingerprintsEqual(const HashValueVector& a, const HashValueVector& b) {
   return true;
 }
 
-// A network delegate that blocks requests, optionally cancelling or redirecting
-// them.
+// A network delegate that allows the user to choose a subset of request stages
+// to block in. When blocking, the delegate can do one of the following:
+//  * synchronously return a pre-specified error code, or
+//  * asynchronously return that value via an automatically called callback,
+//    or
+//  * block and wait for the user to do a callback.
+// Additionally, the user may also specify a redirect URL -- then each request
+// with the current URL different from the redirect target will be redirected
+// to that target, in the on-before-URL-request stage, independent of whether
+// the delegate blocks in ON_BEFORE_URL_REQUEST or not.
 class BlockingNetworkDelegate : public TestNetworkDelegate {
  public:
-  BlockingNetworkDelegate()
-      : retval_(ERR_IO_PENDING),
-        callback_retval_(OK),
-        auth_retval_(NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING),
-        auth_callback_retval_(
-            NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION),
-        ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
-
-  void set_retval(int retval) { retval_ = retval; }
-  void set_callback_retval(int retval) { callback_retval_ = retval; }
-  void set_redirect_url(const GURL& url) { redirect_url_ = url; }
-  void set_auth_retval(NetworkDelegate::AuthRequiredResponse retval) {
-    auth_retval_ = retval; }
-  void set_auth_callback_retval(NetworkDelegate::AuthRequiredResponse retval) {
-    auth_callback_retval_ = retval; }
-  void set_auth_credentials(const AuthCredentials& auth_credentials) {
-    auth_credentials_ = auth_credentials;
-  }
-
- private:
-  // TestNetworkDelegate implementation.
-  virtual int OnBeforeURLRequest(URLRequest* request,
-                                 const CompletionCallback& callback,
-                                 GURL* new_url) OVERRIDE {
-    if (redirect_url_ == request->url()) {
-      // We've already seen this request and redirected elsewhere.
-      return OK;
-    }
-
-    TestNetworkDelegate::OnBeforeURLRequest(request, callback, new_url);
-
-    if (!redirect_url_.is_empty())
-      *new_url = redirect_url_;
-
-    if (retval_ != ERR_IO_PENDING)
-      return retval_;
-
-    MessageLoop::current()->PostTask(
-        FROM_HERE,
-        base::Bind(&BlockingNetworkDelegate::DoCallback,
-                   weak_factory_.GetWeakPtr(), callback));
-    return ERR_IO_PENDING;
-  }
-
-  virtual NetworkDelegate::AuthRequiredResponse OnAuthRequired(
-      URLRequest* request,
-      const AuthChallengeInfo& auth_info,
-      const AuthCallback& callback,
-      AuthCredentials* credentials) OVERRIDE {
-    TestNetworkDelegate::OnAuthRequired(request, auth_info, callback,
-                                        credentials);
-    switch (auth_retval_) {
-      case NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION:
-        break;
-      case NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH:
-        *credentials = auth_credentials_;
-      case NetworkDelegate::AUTH_REQUIRED_RESPONSE_CANCEL_AUTH:
-        break;
-      case NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING:
-        MessageLoop::current()->PostTask(
-            FROM_HERE,
-            base::Bind(&BlockingNetworkDelegate::DoAuthCallback,
-                       weak_factory_.GetWeakPtr(), callback, credentials));
-        break;
-    }
-    return auth_retval_;
-  }
-
-  void DoCallback(const CompletionCallback& callback) {
-    callback.Run(callback_retval_);
-  }
-
-  void DoAuthCallback(const AuthCallback& callback,
-                      AuthCredentials* credentials) {
-    if (auth_callback_retval_ ==
-        NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH) {
-      *credentials = auth_credentials_;
-    }
-    callback.Run(auth_callback_retval_);
-  }
-
-
-  int retval_;
-  int callback_retval_;
-  GURL redirect_url_;
-  NetworkDelegate::AuthRequiredResponse auth_retval_;
-  NetworkDelegate::AuthRequiredResponse auth_callback_retval_;
-  AuthCredentials auth_credentials_;
-  base::WeakPtrFactory<BlockingNetworkDelegate> weak_factory_;
-};
-
-// A network delegate that allows blocking requests until a callback function is
-// called.
-class BlockingNetworkDelegateWithManualCallback : public TestNetworkDelegate {
- public:
-  enum State {
+  // Stages in which the delegate can block.
+  enum Stage {
     NOT_BLOCKED = 0,
     ON_BEFORE_URL_REQUEST = 1 << 0,
     ON_BEFORE_SEND_HEADERS = 1 << 1,
@@ -253,107 +167,277 @@ class BlockingNetworkDelegateWithManualCallback : public TestNetworkDelegate {
     ON_AUTH_REQUIRED = 1 << 3
   };
 
-  BlockingNetworkDelegateWithManualCallback()
-      : block_on_(0),
-        state_(NOT_BLOCKED) {
+  // Behavior during blocked stages.  During other stages, just
+  // returns net::OK or NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION.
+  enum BlockMode {
+    SYNCHRONOUS,    // No callback, returns specified return values.
+    AUTO_CALLBACK,  // |this| posts a task to run the callback using the
+                    // specified return codes.
+    USER_CALLBACK,  // User takes care of doing a callback.  |retval_| and
+                    // |auth_retval_| are ignored. In every blocking stage the
+                    // message loop is quit.
+  };
+
+  // Creates a delegate which does not block at all.
+  explicit BlockingNetworkDelegate(BlockMode block_mode);
+
+  // For users to trigger a callback returning |response|.
+  // Side-effects: resets |stage_blocked_for_callback_| and stored callbacks.
+  // Only call if |block_mode_| == USER_CALLBACK.
+  void DoCallback(int response);
+  void DoAuthCallback(NetworkDelegate::AuthRequiredResponse response);
+
+  // Setters.
+  void set_retval(int retval) {
+    ASSERT_NE(USER_CALLBACK, block_mode_);
+    ASSERT_NE(ERR_IO_PENDING, retval);
+    ASSERT_NE(OK, retval);
+    retval_ = retval;
   }
 
-  // Activates blocking on |state|.
-  void BlockOn(State state) {
-    block_on_ |= state;
+  // If |auth_retval| == AUTH_REQUIRED_RESPONSE_SET_AUTH, then
+  // |auth_credentials_| will be passed with the response.
+  void set_auth_retval(AuthRequiredResponse auth_retval) {
+    ASSERT_NE(USER_CALLBACK, block_mode_);
+    ASSERT_NE(AUTH_REQUIRED_RESPONSE_IO_PENDING, auth_retval);
+    auth_retval_ = auth_retval;
+  }
+  void set_auth_credentials(const AuthCredentials& auth_credentials) {
+    auth_credentials_ = auth_credentials;
   }
 
-  void DoCallback(int rv) {
-    ASSERT_NE(NOT_BLOCKED, state_);
-    CompletionCallback callback = callback_;
-    Reset();
-    callback.Run(rv);
+  void set_redirect_url(const GURL& url) {
+    redirect_url_ = url;
   }
 
-  void DoAuthCallback(NetworkDelegate::AuthRequiredResponse response) {
-    ASSERT_EQ(ON_AUTH_REQUIRED, state_);
-    AuthCallback auth_callback = auth_callback_;
-    Reset();
-    auth_callback.Run(response);
+  void set_block_on(int block_on) {
+    block_on_ = block_on;
   }
 
-  // Runs the message loop until |state| is reached.
-  void WaitForState(State state) {
-    while (state_ != state)
-      MessageLoop::current()->RunAllPending();
+  // Allows the user to check in which state did we block.
+  Stage stage_blocked_for_callback() const {
+    EXPECT_EQ(USER_CALLBACK, block_mode_);
+    return stage_blocked_for_callback_;
   }
 
  private:
+  void RunCallback(int response, const CompletionCallback& callback);
+  void RunAuthCallback(AuthRequiredResponse response,
+                       const AuthCallback& callback);
+
   // TestNetworkDelegate implementation.
   virtual int OnBeforeURLRequest(URLRequest* request,
                                  const CompletionCallback& callback,
-                                 GURL* new_url) OVERRIDE {
-    TestNetworkDelegate::OnBeforeURLRequest(request, callback, new_url);
-    if ((block_on_ & ON_BEFORE_URL_REQUEST) == 0) {
-      return OK;
-    } else {
-      state_ = ON_BEFORE_URL_REQUEST;
-      callback_ = callback;
-      return ERR_IO_PENDING;
-    }
-  }
+                                 GURL* new_url) OVERRIDE;
 
   virtual int OnBeforeSendHeaders(URLRequest* request,
                                   const CompletionCallback& callback,
-                                  HttpRequestHeaders* headers) OVERRIDE {
-    TestNetworkDelegate::OnBeforeSendHeaders(request, callback, headers);
-    if ((block_on_ & ON_BEFORE_SEND_HEADERS) == 0) {
-      return OK;
-    } else {
-      state_ = ON_BEFORE_SEND_HEADERS;
-      callback_ = callback;
-      return ERR_IO_PENDING;
-    }
-  }
+                                  HttpRequestHeaders* headers) OVERRIDE;
 
   virtual int OnHeadersReceived(
       URLRequest* request,
       const CompletionCallback& callback,
       HttpResponseHeaders* original_response_headers,
-      scoped_refptr<HttpResponseHeaders>* override_response_headers)
-      OVERRIDE {
-    TestNetworkDelegate::OnHeadersReceived(
-        request, callback, original_response_headers,
-        override_response_headers);
-    if ((block_on_ & ON_HEADERS_RECEIVED) == 0) {
-      return OK;
-    } else {
-      state_ = ON_HEADERS_RECEIVED;
-      callback_ = callback;
-      return ERR_IO_PENDING;
-    }
-  }
+      scoped_refptr<HttpResponseHeaders>* override_response_headers) OVERRIDE;
 
   virtual NetworkDelegate::AuthRequiredResponse OnAuthRequired(
       URLRequest* request,
       const AuthChallengeInfo& auth_info,
       const AuthCallback& callback,
-      AuthCredentials* credentials) OVERRIDE {
-    if ((block_on_ & ON_AUTH_REQUIRED) == 0) {
-      return NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
-    } else {
-      state_ = ON_AUTH_REQUIRED;
-      auth_callback_ = callback;
-      return NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING;
-    }
-  }
+      AuthCredentials* credentials) OVERRIDE;
 
-  void Reset() {
-    state_ = NOT_BLOCKED;
-    callback_.Reset();
-    auth_callback_.Reset();
-  }
+  // Resets the callbacks and |stage_blocked_for_callback_|.
+  void Reset();
 
-  int block_on_;  // Bit mask on which states to block.
-  State state_;
+  // Checks whether we should block in |stage|. If yes, returns an error code
+  // and optionally sets up callback based on |block_mode_|. If no, returns OK.
+  int MaybeBlockStage(Stage stage, const CompletionCallback& callback);
+
+  // Configuration parameters, can be adjusted by public methods:
+  const BlockMode block_mode_;
+
+  // Values returned on blocking stages when mode is SYNCHRONOUS or
+  // AUTO_CALLBACK. For USER_CALLBACK these are set automatically to IO_PENDING.
+  int retval_;  // To be returned in non-auth stages.
+  AuthRequiredResponse auth_retval_;
+
+  GURL redirect_url_;  // Used if non-empty.
+  int block_on_;  // Bit mask: in which stages to block.
+
+  // |auth_credentials_| will be copied to |*target_auth_credential_| on
+  // callback.
+  AuthCredentials auth_credentials_;
+  AuthCredentials* target_auth_credentials_;
+
+  // Internal variables, not set by not the user:
+  // Last blocked stage waiting for user callback (unused if |block_mode_| !=
+  // USER_CALLBACK).
+  Stage stage_blocked_for_callback_;
+
+  // Callback objects stored during blocking stages.
   CompletionCallback callback_;
   AuthCallback auth_callback_;
+
+  base::WeakPtrFactory<BlockingNetworkDelegate> weak_factory_;
+
+  DISALLOW_COPY_AND_ASSIGN(BlockingNetworkDelegate);
 };
+
+BlockingNetworkDelegate::BlockingNetworkDelegate(BlockMode block_mode)
+    : block_mode_(block_mode),
+      retval_(OK),
+      auth_retval_(AUTH_REQUIRED_RESPONSE_NO_ACTION),
+      block_on_(0),
+      target_auth_credentials_(NULL),
+      stage_blocked_for_callback_(NOT_BLOCKED),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
+}
+
+void BlockingNetworkDelegate::DoCallback(int response) {
+  ASSERT_EQ(USER_CALLBACK, block_mode_);
+  ASSERT_NE(NOT_BLOCKED, stage_blocked_for_callback_);
+  ASSERT_NE(ON_AUTH_REQUIRED, stage_blocked_for_callback_);
+  CompletionCallback callback = callback_;
+  Reset();
+  RunCallback(response, callback);
+}
+
+void BlockingNetworkDelegate::DoAuthCallback(
+    NetworkDelegate::AuthRequiredResponse response) {
+  ASSERT_EQ(USER_CALLBACK, block_mode_);
+  ASSERT_EQ(ON_AUTH_REQUIRED, stage_blocked_for_callback_);
+  AuthCallback auth_callback = auth_callback_;
+  Reset();
+  RunAuthCallback(response, auth_callback);
+}
+
+void BlockingNetworkDelegate::RunCallback(int response,
+                                          const CompletionCallback& callback) {
+  callback.Run(response);
+}
+
+void BlockingNetworkDelegate::RunAuthCallback(AuthRequiredResponse response,
+                                              const AuthCallback& callback) {
+  if (auth_retval_ == AUTH_REQUIRED_RESPONSE_SET_AUTH) {
+    ASSERT_TRUE(target_auth_credentials_ != NULL);
+    *target_auth_credentials_ = auth_credentials_;
+  }
+  callback.Run(response);
+}
+
+int BlockingNetworkDelegate::OnBeforeURLRequest(
+    URLRequest* request,
+    const CompletionCallback& callback,
+    GURL* new_url) {
+  if (redirect_url_ == request->url())
+    return OK;  // We've already seen this request and redirected elsewhere.
+
+  TestNetworkDelegate::OnBeforeURLRequest(request, callback, new_url);
+
+  if (!redirect_url_.is_empty())
+    *new_url = redirect_url_;
+
+  return MaybeBlockStage(ON_BEFORE_URL_REQUEST, callback);
+}
+
+int BlockingNetworkDelegate::OnBeforeSendHeaders(
+    URLRequest* request,
+    const CompletionCallback& callback,
+    HttpRequestHeaders* headers) {
+  TestNetworkDelegate::OnBeforeSendHeaders(request, callback, headers);
+
+  return MaybeBlockStage(ON_BEFORE_SEND_HEADERS, callback);
+}
+
+int BlockingNetworkDelegate::OnHeadersReceived(
+    URLRequest* request,
+    const CompletionCallback& callback,
+    HttpResponseHeaders* original_response_headers,
+    scoped_refptr<HttpResponseHeaders>* override_response_headers) {
+  TestNetworkDelegate::OnHeadersReceived(
+      request, callback, original_response_headers,
+      override_response_headers);
+
+  return MaybeBlockStage(ON_HEADERS_RECEIVED, callback);
+}
+
+NetworkDelegate::AuthRequiredResponse BlockingNetworkDelegate::OnAuthRequired(
+    URLRequest* request,
+    const AuthChallengeInfo& auth_info,
+    const AuthCallback& callback,
+    AuthCredentials* credentials) {
+  TestNetworkDelegate::OnAuthRequired(request, auth_info, callback,
+                                      credentials);
+  // Check that the user has provided callback for the previous blocked stage.
+  EXPECT_EQ(NOT_BLOCKED, stage_blocked_for_callback_);
+
+  if ((block_on_ & ON_AUTH_REQUIRED) == 0) {
+    return AUTH_REQUIRED_RESPONSE_NO_ACTION;
+  }
+
+  target_auth_credentials_ = credentials;
+
+  switch (block_mode_) {
+    case SYNCHRONOUS:
+      if (auth_retval_ == AUTH_REQUIRED_RESPONSE_SET_AUTH)
+        *target_auth_credentials_ = auth_credentials_;
+      return auth_retval_;
+
+    case AUTO_CALLBACK:
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          base::Bind(&BlockingNetworkDelegate::RunAuthCallback,
+                     weak_factory_.GetWeakPtr(), auth_retval_, callback));
+      return AUTH_REQUIRED_RESPONSE_IO_PENDING;
+
+    case USER_CALLBACK:
+      auth_callback_ = callback;
+      stage_blocked_for_callback_ = ON_AUTH_REQUIRED;
+      MessageLoop::current()->PostTask(FROM_HERE, MessageLoop::QuitClosure());
+      return AUTH_REQUIRED_RESPONSE_IO_PENDING;
+  }
+  NOTREACHED();
+  return AUTH_REQUIRED_RESPONSE_NO_ACTION;  // Dummy value.
+}
+
+void BlockingNetworkDelegate::Reset() {
+  EXPECT_NE(NOT_BLOCKED, stage_blocked_for_callback_);
+  stage_blocked_for_callback_ = NOT_BLOCKED;
+  callback_.Reset();
+  auth_callback_.Reset();
+}
+
+int BlockingNetworkDelegate::MaybeBlockStage(
+    BlockingNetworkDelegate::Stage stage,
+    const CompletionCallback& callback) {
+  // Check that the user has provided callback for the previous blocked stage.
+  EXPECT_EQ(NOT_BLOCKED, stage_blocked_for_callback_);
+
+  if ((block_on_ & stage) == 0) {
+    return OK;
+  }
+
+  switch (block_mode_) {
+    case SYNCHRONOUS:
+      EXPECT_NE(OK, retval_);
+      return retval_;
+
+    case AUTO_CALLBACK:
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          base::Bind(&BlockingNetworkDelegate::RunCallback,
+                     weak_factory_.GetWeakPtr(), retval_, callback));
+      return ERR_IO_PENDING;
+
+    case USER_CALLBACK:
+      callback_ = callback;
+      stage_blocked_for_callback_ = stage;
+      MessageLoop::current()->PostTask(FROM_HERE, MessageLoop::QuitClosure());
+      return ERR_IO_PENDING;
+  }
+  NOTREACHED();
+  return 0;
+}
 
 class TestURLRequestContextWithProxy : public TestURLRequestContext {
  public:
@@ -1909,13 +1993,57 @@ TEST_F(URLRequestTestHTTP, DISABLED_NetworkDelegateTunnelConnectionFailed) {
   }
 }
 
+// Tests that we can block and asynchronously return OK in various stages.
+TEST_F(URLRequestTestHTTP, NetworkDelegateBlockAsynchronously) {
+  static const BlockingNetworkDelegate::Stage blocking_stages[] = {
+    BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST,
+    BlockingNetworkDelegate::ON_BEFORE_SEND_HEADERS,
+    BlockingNetworkDelegate::ON_HEADERS_RECEIVED
+  };
+  static const size_t blocking_stages_length = arraysize(blocking_stages);
+
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::USER_CALLBACK);
+  network_delegate.set_block_on(
+      BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST |
+      BlockingNetworkDelegate::ON_BEFORE_SEND_HEADERS |
+      BlockingNetworkDelegate::ON_HEADERS_RECEIVED);
+
+  TestURLRequestContext context(true);
+  context.set_network_delegate(&network_delegate);
+  context.Init();
+
+  {
+    URLRequest r(test_server_.GetURL("empty.html"), &d, &context);
+
+    r.Start();
+    for (size_t i = 0; i < blocking_stages_length; ++i) {
+      MessageLoop::current()->Run();
+      EXPECT_EQ(blocking_stages[i],
+                network_delegate.stage_blocked_for_callback());
+      network_delegate.DoCallback(OK);
+    }
+    MessageLoop::current()->Run();
+    EXPECT_EQ(200, r.GetResponseCode());
+    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
+    EXPECT_EQ(1, network_delegate.created_requests());
+    EXPECT_EQ(0, network_delegate.destroyed_requests());
+  }
+  EXPECT_EQ(1, network_delegate.destroyed_requests());
+}
+
 // Tests that the network delegate can block and cancel a request.
 TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequest) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
-  network_delegate.set_callback_retval(ERR_EMPTY_RESPONSE);
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::AUTO_CALLBACK);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST);
+  network_delegate.set_retval(ERR_EMPTY_RESPONSE);
 
   TestURLRequestContextWithProxy context(
       test_server_.host_port_pair().ToString(),
@@ -1940,7 +2068,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestSynchronously) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::SYNCHRONOUS);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST);
   network_delegate.set_retval(ERR_EMPTY_RESPONSE);
 
   TestURLRequestContextWithProxy context(
@@ -1967,7 +2097,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequest) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::AUTO_CALLBACK);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST);
   GURL redirect_url(test_server_.GetURL("simple.html"));
   network_delegate.set_redirect_url(redirect_url);
 
@@ -1999,10 +2131,10 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequestSynchronously) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::SYNCHRONOUS);
   GURL redirect_url(test_server_.GetURL("simple.html"));
   network_delegate.set_redirect_url(redirect_url);
-  network_delegate.set_retval(OK);
 
   TestURLRequestContextWithProxy context(
       test_server_.host_port_pair().ToString(),
@@ -2033,7 +2165,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequestPost) {
   const char kData[] = "hello world";
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::AUTO_CALLBACK);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST);
   GURL redirect_url(test_server_.GetURL("echo"));
   network_delegate.set_redirect_url(redirect_url);
 
@@ -2074,9 +2208,8 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredSyncNoAction) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
-  network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION);
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::SYNCHRONOUS);
 
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
@@ -2106,7 +2239,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredSyncSetAuth) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::SYNCHRONOUS);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_AUTH_REQUIRED);
   network_delegate.set_auth_retval(
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH);
 
@@ -2138,7 +2273,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredSyncCancel) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::SYNCHRONOUS);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_AUTH_REQUIRED);
   network_delegate.set_auth_retval(
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_CANCEL_AUTH);
 
@@ -2170,11 +2307,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredAsyncNoAction) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
-  network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING);
-  network_delegate.set_auth_callback_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION);
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::AUTO_CALLBACK);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_AUTH_REQUIRED);
 
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
@@ -2204,10 +2339,10 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredAsyncSetAuth) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::AUTO_CALLBACK);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_AUTH_REQUIRED);
   network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING);
-  network_delegate.set_auth_callback_retval(
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_SET_AUTH);
 
   AuthCredentials auth_credentials(kUser, kSecret);
@@ -2240,10 +2375,10 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredAsyncCancel) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate;
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::AUTO_CALLBACK);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_AUTH_REQUIRED);
   network_delegate.set_auth_retval(
-      NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING);
-  network_delegate.set_auth_callback_retval(
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_CANCEL_AUTH);
 
   TestURLRequestContext context(true);
@@ -2273,9 +2408,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting1) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegateWithManualCallback network_delegate;
-  network_delegate.BlockOn(
-      BlockingNetworkDelegateWithManualCallback::ON_BEFORE_URL_REQUEST);
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::USER_CALLBACK);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST);
 
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
@@ -2285,8 +2420,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting1) {
     URLRequest r(test_server_.GetURL(""), &d, &context);
 
     r.Start();
-    network_delegate.WaitForState(
-        BlockingNetworkDelegateWithManualCallback::ON_BEFORE_URL_REQUEST);
+    MessageLoop::current()->Run();
+    EXPECT_EQ(BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST,
+              network_delegate.stage_blocked_for_callback());
     EXPECT_EQ(0, network_delegate.completed_requests());
     // Cancel before callback.
     r.Cancel();
@@ -2307,9 +2443,10 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting2) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegateWithManualCallback network_delegate;
-  network_delegate.BlockOn(
-      BlockingNetworkDelegateWithManualCallback::ON_BEFORE_SEND_HEADERS);
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::USER_CALLBACK);
+  network_delegate.set_block_on(
+      BlockingNetworkDelegate::ON_BEFORE_SEND_HEADERS);
 
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
@@ -2319,8 +2456,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting2) {
     URLRequest r(test_server_.GetURL(""), &d, &context);
 
     r.Start();
-    network_delegate.WaitForState(
-        BlockingNetworkDelegateWithManualCallback::ON_BEFORE_SEND_HEADERS);
+    MessageLoop::current()->Run();
+    EXPECT_EQ(BlockingNetworkDelegate::ON_BEFORE_SEND_HEADERS,
+              network_delegate.stage_blocked_for_callback());
     EXPECT_EQ(0, network_delegate.completed_requests());
     // Cancel before callback.
     r.Cancel();
@@ -2341,9 +2479,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting3) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegateWithManualCallback network_delegate;
-  network_delegate.BlockOn(
-      BlockingNetworkDelegateWithManualCallback::ON_HEADERS_RECEIVED);
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::USER_CALLBACK);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_HEADERS_RECEIVED);
 
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
@@ -2353,8 +2491,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting3) {
     URLRequest r(test_server_.GetURL(""), &d, &context);
 
     r.Start();
-    network_delegate.WaitForState(
-        BlockingNetworkDelegateWithManualCallback::ON_HEADERS_RECEIVED);
+    MessageLoop::current()->Run();
+    EXPECT_EQ(BlockingNetworkDelegate::ON_HEADERS_RECEIVED,
+              network_delegate.stage_blocked_for_callback());
     EXPECT_EQ(0, network_delegate.completed_requests());
     // Cancel before callback.
     r.Cancel();
@@ -2375,9 +2514,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting4) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
-  BlockingNetworkDelegateWithManualCallback network_delegate;
-  network_delegate.BlockOn(
-      BlockingNetworkDelegateWithManualCallback::ON_AUTH_REQUIRED);
+  BlockingNetworkDelegate network_delegate(
+      BlockingNetworkDelegate::USER_CALLBACK);
+  network_delegate.set_block_on(BlockingNetworkDelegate::ON_AUTH_REQUIRED);
 
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
@@ -2387,8 +2526,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting4) {
     URLRequest r(test_server_.GetURL("auth-basic"), &d, &context);
 
     r.Start();
-    network_delegate.WaitForState(
-        BlockingNetworkDelegateWithManualCallback::ON_AUTH_REQUIRED);
+    MessageLoop::current()->Run();
+    EXPECT_EQ(BlockingNetworkDelegate::ON_AUTH_REQUIRED,
+              network_delegate.stage_blocked_for_callback());
     EXPECT_EQ(0, network_delegate.completed_requests());
     // Cancel before callback.
     r.Cancel();
