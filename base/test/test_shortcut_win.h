@@ -13,24 +13,11 @@
 namespace base {
 namespace win {
 
-enum VerifyShortcutStatus {
-  VERIFY_SHORTCUT_SUCCESS = 0,
-  VERIFY_SHORTCUT_FAILURE_UNEXPECTED,
-  VERIFY_SHORTCUT_FAILURE_FILE_NOT_FOUND,
-  VERIFY_SHORTCUT_FAILURE_TARGET,
-  VERIFY_SHORTCUT_FAILURE_WORKING_DIR,
-  VERIFY_SHORTCUT_FAILURE_ARGUMENTS,
-  VERIFY_SHORTCUT_FAILURE_DESCRIPTION,
-  VERIFY_SHORTCUT_FAILURE_ICON,
-  VERIFY_SHORTCUT_FAILURE_APP_ID,
-  VERIFY_SHORTCUT_FAILURE_DUAL_MODE,
-};
-
-// Verify that a shortcut exists at |shortcut_path| with the expected
+// Validates that a shortcut exists at |shortcut_path| with the expected
 // |properties|.
-VerifyShortcutStatus VerifyShortcut(const FilePath& shortcut_path,
-                                    const ShortcutProperties& properties);
-
+// Logs gtest failures on failed verifications.
+void ValidateShortcut(const FilePath& shortcut_path,
+                      const ShortcutProperties& properties);
 
 }  // namespace win
 }  // namespace base

@@ -122,16 +122,14 @@ TEST_F(ShortcutTest, CreateShortcutWithOnlySomeProperties) {
       link_file_, target_and_args_properties,
       base::win::SHORTCUT_CREATE_ALWAYS));
 
-  ASSERT_EQ(base::win::VERIFY_SHORTCUT_SUCCESS,
-            base::win::VerifyShortcut(link_file_, target_and_args_properties));
+  base::win::ValidateShortcut(link_file_, target_and_args_properties);
 }
 
 TEST_F(ShortcutTest, CreateShortcutVerifyProperties) {
   ASSERT_TRUE(base::win::CreateOrUpdateShortcutLink(
       link_file_, link_properties_, base::win::SHORTCUT_CREATE_ALWAYS));
 
-  ASSERT_EQ(base::win::VERIFY_SHORTCUT_SUCCESS,
-            base::win::VerifyShortcut(link_file_, link_properties_));
+  base::win::ValidateShortcut(link_file_, link_properties_);
 }
 
 TEST_F(ShortcutTest, UpdateShortcutVerifyProperties) {
@@ -141,8 +139,7 @@ TEST_F(ShortcutTest, UpdateShortcutVerifyProperties) {
   ASSERT_TRUE(base::win::CreateOrUpdateShortcutLink(
       link_file_, link_properties_2_, base::win::SHORTCUT_UPDATE_EXISTING));
 
-  ASSERT_EQ(base::win::VERIFY_SHORTCUT_SUCCESS,
-            base::win::VerifyShortcut(link_file_, link_properties_2_));
+  base::win::ValidateShortcut(link_file_, link_properties_2_);
 }
 
 TEST_F(ShortcutTest, UpdateShortcutUpdateOnlyTargetAndResolve) {
@@ -158,8 +155,7 @@ TEST_F(ShortcutTest, UpdateShortcutUpdateOnlyTargetAndResolve) {
 
   base::win::ShortcutProperties expected_properties = link_properties_;
   expected_properties.set_target(link_properties_2_.target);
-  ASSERT_EQ(base::win::VERIFY_SHORTCUT_SUCCESS,
-            base::win::VerifyShortcut(link_file_, expected_properties));
+  base::win::ValidateShortcut(link_file_, expected_properties);
 
   FilePath resolved_name;
   EXPECT_TRUE(base::win::ResolveShortcut(link_file_, &resolved_name, NULL));
@@ -182,8 +178,7 @@ TEST_F(ShortcutTest, UpdateShortcutMakeDualMode) {
 
   base::win::ShortcutProperties expected_properties = link_properties_;
   expected_properties.set_dual_mode(true);
-  ASSERT_EQ(base::win::VERIFY_SHORTCUT_SUCCESS,
-            base::win::VerifyShortcut(link_file_, expected_properties));
+  base::win::ValidateShortcut(link_file_, expected_properties);
 }
 
 TEST_F(ShortcutTest, UpdateShortcutRemoveDualMode) {
@@ -199,8 +194,7 @@ TEST_F(ShortcutTest, UpdateShortcutRemoveDualMode) {
 
   base::win::ShortcutProperties expected_properties = link_properties_2_;
   expected_properties.set_dual_mode(false);
-  ASSERT_EQ(base::win::VERIFY_SHORTCUT_SUCCESS,
-            base::win::VerifyShortcut(link_file_, expected_properties));
+  base::win::ValidateShortcut(link_file_, expected_properties);
 }
 
 TEST_F(ShortcutTest, UpdateShortcutClearArguments) {
@@ -216,6 +210,5 @@ TEST_F(ShortcutTest, UpdateShortcutClearArguments) {
 
   base::win::ShortcutProperties expected_properties = link_properties_;
   expected_properties.set_arguments(string16());
-  ASSERT_EQ(base::win::VERIFY_SHORTCUT_SUCCESS,
-            base::win::VerifyShortcut(link_file_, expected_properties));
+  base::win::ValidateShortcut(link_file_, expected_properties);
 }
