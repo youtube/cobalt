@@ -253,6 +253,12 @@
       # See http://clang.llvm.org/docs/ThreadSanitizer.html
       'tsan%': 0,
 
+      # Use a modified version of Clang to intercept allocated types and sizes
+      # for allocated objects. clang_type_profiler=1 implies clang=1.
+      # See http://dev.chromium.org/developers/deep-memory-profiler/cpp-object-type-identifier
+      # TODO(dmikurube): Support mac.  See http://crbug.com/123758#c11
+      'clang_type_profiler%': 0,
+
       # Set to true to instrument the code with function call logger.
       # See src/third_party/cygprofile/cyg-profile.cc for details.
       'order_profiling%': 0,
@@ -633,6 +639,7 @@
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
     'tsan%': '<(tsan)',
+    'clang_type_profiler%': '<(clang_type_profiler)',
     'order_profiling%': '<(order_profiling)',
     'order_text_section%': '<(order_text_section)',
     'enable_extensions%': '<(enable_extensions)',
@@ -1276,6 +1283,12 @@
         'clang%': 1,
       }],
 
+      ['OS=="linux" and clang_type_profiler==1', {
+        'clang%': 1,
+        'clang_use_chrome_plugins%': 0,
+        'make_clang_dir%': 'third_party/llvm-allocated-type/Linux_x64',
+      }],
+
       # On valgrind bots, override the optimizer settings so we don't inline too
       # much and make the stacks harder to figure out.
       #
@@ -1426,6 +1439,18 @@
       ],
     },
     'conditions': [
+      ['OS=="linux" and linux_use_tcmalloc==1 and clang_type_profiler==1', {
+        'cflags_cc!': ['-fno-rtti'],
+        'cflags_cc+': [
+          '-frtti',
+          '-gline-tables-only',
+          '-fintercept-allocation-functions',
+        ],
+        'defines': ['TYPE_PROFILING'],
+        'dependencies': [
+          '<(DEPTH)/base/allocator/allocator.gyp:type_profiler',
+        ],
+      }],
       ['OS=="win" and "<(msbuild_toolset)"!=""', {
         'msbuild_toolset': '<(msbuild_toolset)',
       }],
