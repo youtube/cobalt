@@ -31,6 +31,7 @@ Modifications:
 - Change the xmlNs struct a little bit, so it looks like it has no children
 if treated as a generic xmlNode object.
 - Fix pretty harmless use-after-free in generate-id function.
+- Merge a clang warning fix http://git.gnome.org/browse/libxml2/commit/?id=713434d2309da469d64b35e163ea6556dadccada
 
 To import a new snapshot of libxml:
 
