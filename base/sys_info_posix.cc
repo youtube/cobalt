@@ -79,7 +79,13 @@ std::string SysInfo::CPUArchitecture() {
     NOTREACHED();
     return "";
   }
-  return std::string(info.machine);
+  std::string arch(info.machine);
+  if (arch == "i386" || arch == "i486" || arch == "i586" || arch == "i686") {
+    arch = "x86";
+  } else if (arch == "amd64") {
+    arch = "x86_64";
+  }
+  return arch;
 }
 
 // static
