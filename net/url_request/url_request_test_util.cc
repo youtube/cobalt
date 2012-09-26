@@ -455,7 +455,8 @@ net::NetworkDelegate::AuthRequiredResponse TestNetworkDelegate::OnAuthRequired(
       kStageHeadersReceived |  // Request canceled by delegate simulates empty
                                // response.
       kStageResponseStarted |  // data: URLs do not trigger sending headers
-      kStageBeforeRedirect;  // a delegate can trigger a redirection
+      kStageBeforeRedirect |   // a delegate can trigger a redirection
+      kStageCompletedError;    // request cancelled before callback
   return net::NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
 }
 
