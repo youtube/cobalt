@@ -9,7 +9,6 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
-#include "build/build_config.h"
 #include "media/base/media_export.h"
 
 namespace media {
@@ -45,8 +44,9 @@ class MEDIA_EXPORT SincResampler {
   void InitializeKernel();
 
   // Compute convolution of |k1| and |k2| over |input_ptr|, resultant sums are
-  // linearly interpolated using |kernel_interpolation_factor|.  The underlying
-  // implementation is chosen at run time based on SSE support.
+  // linearly interpolated using |kernel_interpolation_factor|.  On x86, the
+  // underlying implementation is chosen at run time based on SSE support.  On
+  // ARM, NEON support is chosen at compile time based on compilation flags.
   static float Convolve(const float* input_ptr, const float* k1,
                         const float* k2, double kernel_interpolation_factor);
   static float Convolve_C(const float* input_ptr, const float* k1,
@@ -54,6 +54,9 @@ class MEDIA_EXPORT SincResampler {
   static float Convolve_SSE(const float* input_ptr, const float* k1,
                             const float* k2,
                             double kernel_interpolation_factor);
+  static float Convolve_NEON(const float* input_ptr, const float* k1,
+                             const float* k2,
+                             double kernel_interpolation_factor);
 
   // The ratio of input / output sample rates.
   double io_sample_rate_ratio_;
