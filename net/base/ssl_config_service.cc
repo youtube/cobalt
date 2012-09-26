@@ -38,7 +38,7 @@ SSLConfig::SSLConfig()
       version_min(g_default_version_min),
       version_max(g_default_version_max),
       cached_info_enabled(false),
-      channel_id_enabled(false),
+      channel_id_enabled(true),
       false_start_enabled(true),
       send_client_cert(false),
       verify_ev_cert(false),
