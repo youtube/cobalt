@@ -303,6 +303,19 @@
         },
       },
       'conditions': [
+        ['OS=="linux" and clang_type_profiler==1', {
+          'dependencies': [
+            'type_profiler_tcmalloc',
+          ],
+          # It is undoing dependencies and cflags_cc for type_profiler which
+          # build/common.gypi injects into all targets.
+          'dependencies!': [
+            'type_profiler',
+          ],
+          'cflags_cc!': [
+            '-fintercept-allocation-functions',
+          ],
+        }],
         ['OS=="win"', {
           'defines': [
             'PERFTOOLS_DLL_DECL=',
@@ -467,6 +480,18 @@
       'include_dirs': [
         '../../'
       ],
+      'conditions': [
+        ['OS=="linux" and clang_type_profiler==1', {
+          # It is undoing dependencies and cflags_cc for type_profiler which
+          # build/common.gypi injects into all targets.
+          'dependencies!': [
+            'type_profiler',
+          ],
+          'cflags_cc!': [
+            '-fintercept-allocation-functions',
+          ],
+        }],
+      ],
     },
    ],
   'conditions': [
@@ -547,6 +572,92 @@
           'allocator',
         ],
       },
+      ],
+    }],
+    ['OS=="linux" and clang_type_profiler==1', {
+      # Some targets in this section undo dependencies and cflags_cc for
+      # type_profiler which build/common.gypi injects into all targets.
+      'targets': [
+        {
+          'target_name': 'type_profiler',
+          'type': 'static_library',
+          'dependencies!': [
+            'type_profiler',
+          ],
+          'cflags_cc!': [
+            '-fintercept-allocation-functions',
+          ],
+          'include_dirs': [
+            '../..',
+          ],
+          'sources': [
+            'type_profiler.cc',
+            'type_profiler.h',
+            'type_profiler_control.h',
+          ],
+        },
+        {
+          'target_name': 'type_profiler_tcmalloc',
+          'type': 'static_library',
+          'dependencies!': [
+            'type_profiler',
+          ],
+          'cflags_cc!': [
+            '-fintercept-allocation-functions',
+          ],
+          'include_dirs': [
+            '<(tcmalloc_dir)/src',
+            '../..',
+          ],
+          'sources': [
+            'type_profiler_tcmalloc.cc',
+            'type_profiler_tcmalloc.h',
+            '<(tcmalloc_dir)/src/gperftools/type_profiler_map.h',
+            '<(tcmalloc_dir)/src/type_profiler_map.cc',
+          ],
+        },
+        {
+          'target_name': 'type_profiler_unittests',
+          'type': 'executable',
+          'dependencies': [
+            '../../testing/gtest.gyp:gtest',
+            '../base.gyp:base',
+            'allocator',
+            'type_profiler_tcmalloc',
+          ],
+          'include_dirs': [
+            '../..',
+          ],
+          'sources': [
+            'type_profiler_control.cc',
+            'type_profiler_control.h',
+            'type_profiler_unittests.cc',
+          ],
+        },
+        {
+          'target_name': 'type_profiler_map_unittests',
+          'type': 'executable',
+          'dependencies': [
+            '../../testing/gtest.gyp:gtest',
+            '../base.gyp:base',
+            'allocator',
+          ],
+          'dependencies!': [
+            'type_profiler',
+          ],
+          'cflags_cc!': [
+            '-fintercept-allocation-functions',
+          ],
+          'include_dirs': [
+            '<(tcmalloc_dir)/src',
+            '../..',
+          ],
+          'sources': [
+            'type_profiler_map_unittests.cc',
+            '<(tcmalloc_dir)/src/gperftools/type_profiler_map.h',
+            '<(tcmalloc_dir)/src/type_profiler_map.cc',
+          ],
+        },
       ],
     }],
   ],

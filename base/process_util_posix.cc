@@ -17,6 +17,7 @@
 #include <limits>
 #include <set>
 
+#include "base/allocator/type_profiler_control.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/debug/debugger.h"
@@ -639,6 +640,11 @@ bool LaunchProcess(const std::vector<std::string>& argv,
       }
     }
 
+    // Stop type-profiler.
+    // The profiler should be stopped between fork and exec since it inserts
+    // locks at new/delete expressions.  See http://crbug.com/36678.
+    base::type_profiler::Controller::Stop();
+
     if (options.maximize_rlimits) {
       // Some resource limits need to be maximal in this child.
       std::set<int>::const_iterator resource;
@@ -1106,6 +1112,11 @@ static GetAppOutputInternalResult GetAppOutputInternal(
         int dev_null = open("/dev/null", O_WRONLY);
         if (dev_null < 0)
           _exit(127);
+
+        // Stop type-profiler.
+        // The profiler should be stopped between fork and exec since it inserts
+        // locks at new/delete expressions.  See http://crbug.com/36678.
+        base::type_profiler::Controller::Stop();
 
         fd_shuffle1.push_back(InjectionArc(pipe_fd[1], STDOUT_FILENO, true));
         fd_shuffle1.push_back(InjectionArc(dev_null, STDERR_FILENO, true));
