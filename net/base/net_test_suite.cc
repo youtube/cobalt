@@ -8,10 +8,11 @@
 #include "net/base/network_change_notifier.h"
 #include "net/http/http_stream_factory.h"
 #include "net/spdy/spdy_session.h"
-#if defined(USE_NSS)
+#include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(USE_NSS) || defined(OS_IOS)
 #include "net/ocsp/nss_ocsp.h"
 #endif
-#include "testing/gtest/include/gtest/gtest.h"
 
 class StaticReset : public ::testing::EmptyTestEventListener {
   virtual void OnTestStart(const ::testing::TestInfo& test_info) OVERRIDE {
@@ -38,7 +39,7 @@ void NetTestSuite::Initialize() {
 }
 
 void NetTestSuite::Shutdown() {
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
   net::ShutdownNSSHttpIO();
 #endif
 
