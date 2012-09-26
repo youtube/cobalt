@@ -50,7 +50,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
     kUninitialized,
     kNormal,
     kFlushCodec,
-    kDecodeFinished,
+    kDecodeFinished
   };
 
   // Carries out the reading operation scheduled by Read().
