@@ -59,7 +59,6 @@
             '../third_party/qcms/qcms.gyp:*',
             '../third_party/re2/re2.gyp:re2',
             '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
-            '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:generate_devtools_zip',
             '../v8/tools/gyp/v8.gyp:*',
             '../webkit/compositor_bindings/compositor_bindings_tests.gyp:*',
             '../webkit/webkit.gyp:*',
