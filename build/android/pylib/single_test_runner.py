@@ -230,7 +230,7 @@ class SingleTestRunner(BaseTestRunner):
           ]
     elif self.test_package.test_suite_basename == 'content_unittests':
       return [
-          'chrome/test/gpu/webgl_conformance_test_expectations.txt',
+          'content/test/data/gpu/webgl_conformance_test_expectations.txt',
           'net/data/ssl/certificates/',
           'webkit/data/dom_storage/webcore_test_database.localstorage',
           'third_party/hyphen/hyph_en_US.dic',
