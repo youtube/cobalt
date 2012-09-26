@@ -103,7 +103,11 @@ public class ThreadUtils {
      * @param r The Runnable to run
      */
     public static void runOnUiThread(Runnable r) {
-        runOnUiThread(new FutureTask<Void>(r, null));
+        if (runningOnUiThread()) {
+            r.run();
+        } else {
+            LazyHolder.sUiThreadHandler.post(r);
+        }
     }
 
     /**
@@ -114,7 +118,7 @@ public class ThreadUtils {
      * @return The queried task (to aid inline construction)
      */
     public static <T> FutureTask<T> postOnUiThread(FutureTask<T> task) {
-        new Handler(Looper.getMainLooper()).post(task);
+        LazyHolder.sUiThreadHandler.post(task);
         return task;
     }
 
@@ -130,5 +134,9 @@ public class ThreadUtils {
      */
     public static boolean runningOnUiThread() {
       return Looper.getMainLooper() == Looper.myLooper();
+    }
+
+    private static class LazyHolder {
+        private static Handler sUiThreadHandler = new Handler(Looper.getMainLooper());
     }
 }
