@@ -465,7 +465,7 @@ bool EVRootCAMetadata::RemoveEVCA(const SHA1HashValue& fingerprint) {
 
 EVRootCAMetadata::EVRootCAMetadata() {
   // Constructs the object from the raw metadata in ev_root_ca_metadata.
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
   crypto::EnsureNSSInit();
 
   for (size_t i = 0; i < arraysize(ev_root_ca_metadata); i++) {

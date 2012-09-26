@@ -5,6 +5,7 @@
 #include "net/base/x509_util_ios.h"
 
 #include <cert.h>
+#include <CommonCrypto/CommonDigest.h>
 #include <nss.h>
 #include <prtypes.h>
 
@@ -58,6 +59,44 @@ SecCertificateRef CreateOSCertHandleFromNSSHandle(
       nss_cert_handle->derCert.len);
 }
 
+X509Certificate* CreateCertFromNSSHandles(
+    CERTCertificate* cert_handle,
+    const std::vector<CERTCertificate*>& intermediates) {
+  ScopedCFTypeRef<SecCertificateRef> os_server_cert(
+      CreateOSCertHandleFromNSSHandle(cert_handle));
+  if (!os_server_cert)
+    return NULL;
+  std::vector<SecCertificateRef> os_intermediates;
+  for (size_t i = 0; i < intermediates.size(); ++i) {
+    SecCertificateRef intermediate =
+        CreateOSCertHandleFromNSSHandle(intermediates[i]);
+    if (!intermediate)
+      break;
+    os_intermediates.push_back(intermediate);
+  }
+
+  X509Certificate* cert = NULL;
+  if (intermediates.size() == os_intermediates.size()) {
+    cert = X509Certificate::CreateFromHandle(os_server_cert,
+                                             os_intermediates);
+  }
+
+  for (size_t i = 0; i < os_intermediates.size(); ++i)
+    CFRelease(os_intermediates[i]);
+  return cert;
+}
+
+SHA1HashValue CalculateFingerprintNSS(CERTCertificate* cert) {
+  DCHECK(cert->derCert.data);
+  DCHECK_NE(0U, cert->derCert.len);
+  SHA1HashValue sha1;
+  memset(sha1.data, 0, sizeof(sha1.data));
+  CC_SHA1(cert->derCert.data, cert->derCert.len, sha1.data);
+  return sha1;
+}
+
+// NSSCertificate implementation.
+
 NSSCertificate::NSSCertificate(SecCertificateRef cert_handle) {
   nss_cert_handle_ = CreateNSSCertHandleFromOSHandle(cert_handle);
   DLOG_IF(INFO, cert_handle && !nss_cert_handle_)
@@ -68,8 +107,29 @@ NSSCertificate::~NSSCertificate() {
   CERT_DestroyCertificate(nss_cert_handle_);
 }
 
-CERTCertificate* NSSCertificate::cert_handle() {
+CERTCertificate* NSSCertificate::cert_handle() const {
   return nss_cert_handle_;
+}
+
+// NSSCertChain implementation
+
+NSSCertChain::NSSCertChain(X509Certificate* certificate) {
+  DCHECK(certificate);
+  certs_.push_back(CreateNSSCertHandleFromOSHandle(
+      certificate->os_cert_handle()));
+  const X509Certificate::OSCertHandles& cert_intermediates =
+      certificate->GetIntermediateCertificates();
+  for (size_t i = 0; i < cert_intermediates.size(); ++i)
+    certs_.push_back(CreateNSSCertHandleFromOSHandle(cert_intermediates[i]));
+}
+
+NSSCertChain::~NSSCertChain() {
+  for (size_t i = 0; i < certs_.size(); ++i)
+    CERT_DestroyCertificate(certs_[i]);
+}
+
+CERTCertificate* NSSCertChain::cert_handle() const {
+  return certs_.empty() ? NULL : certs_.front();
 }
 
 }  // namespace x509_util_ios

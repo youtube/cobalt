@@ -14,7 +14,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 #include "net/base/cert_verify_proc_nss.h"
 #elif defined(USE_OPENSSL)
 #include "net/base/cert_verify_proc_openssl.h"
@@ -49,7 +49,7 @@ bool IsWeakKey(X509Certificate::PublicKeyType type, size_t size_bits) {
 
 // static
 CertVerifyProc* CertVerifyProc::CreateDefault() {
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
   return new CertVerifyProcNSS();
 #elif defined(USE_OPENSSL)
   return new CertVerifyProcOpenSSL();
