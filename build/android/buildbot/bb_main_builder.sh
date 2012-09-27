@@ -15,7 +15,6 @@ BB_SRC_ROOT="$(cd  "$BB_DIR/../../.."; pwd)"
 ## bb_force_bot_green_and_exit
 
 bb_baseline_setup "$BB_SRC_ROOT" "$@"
-bb_check_webview_licenses
 bb_compile
 bb_zip_build
 
