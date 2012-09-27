@@ -212,3 +212,46 @@ TEST_F(ShortcutTest, UpdateShortcutClearArguments) {
   expected_properties.set_arguments(string16());
   base::win::ValidateShortcut(link_file_, expected_properties);
 }
+
+TEST_F(ShortcutTest, FailUpdateShortcutThatDoesNotExist) {
+  ASSERT_FALSE(base::win::CreateOrUpdateShortcutLink(
+      link_file_, link_properties_, base::win::SHORTCUT_UPDATE_EXISTING));
+  ASSERT_FALSE(file_util::PathExists(link_file_));
+}
+
+TEST_F(ShortcutTest, TruncateShortcutAllProperties) {
+  ASSERT_TRUE(base::win::CreateOrUpdateShortcutLink(
+      link_file_, link_properties_, base::win::SHORTCUT_CREATE_ALWAYS));
+
+  ASSERT_TRUE(base::win::CreateOrUpdateShortcutLink(
+      link_file_, link_properties_2_, base::win::SHORTCUT_REPLACE_EXISTING));
+
+  base::win::ValidateShortcut(link_file_, link_properties_2_);
+}
+
+TEST_F(ShortcutTest, TruncateShortcutSomeProperties) {
+  ASSERT_TRUE(base::win::CreateOrUpdateShortcutLink(
+      link_file_, link_properties_, base::win::SHORTCUT_CREATE_ALWAYS));
+
+  base::win::ShortcutProperties new_properties;
+  new_properties.set_target(link_properties_2_.target);
+  new_properties.set_description(link_properties_2_.description);
+  ASSERT_TRUE(base::win::CreateOrUpdateShortcutLink(
+      link_file_, new_properties, base::win::SHORTCUT_REPLACE_EXISTING));
+
+  // Expect only properties in |new_properties| to be set, all other properties
+  // should have been overwritten.
+  base::win::ShortcutProperties expected_properties = new_properties;
+  expected_properties.set_working_dir(FilePath());
+  expected_properties.set_arguments(string16());
+  expected_properties.set_icon(FilePath(), 0);
+  expected_properties.set_app_id(string16());
+  expected_properties.set_dual_mode(false);
+  base::win::ValidateShortcut(link_file_, expected_properties);
+}
+
+TEST_F(ShortcutTest, FailTruncateShortcutThatDoesNotExist) {
+  ASSERT_FALSE(base::win::CreateOrUpdateShortcutLink(
+      link_file_, link_properties_, base::win::SHORTCUT_REPLACE_EXISTING));
+  ASSERT_FALSE(file_util::PathExists(link_file_));
+}
