@@ -14,6 +14,10 @@
 
 class FilePath;
 
+namespace base {
+class ScopedPathOverride;
+}  // namespace
+
 // The path service is a global table mapping keys to file system paths.  It is
 // OK to use this service from multiple threads.
 //
@@ -64,6 +68,7 @@ class BASE_EXPORT PathService {
                                int key_end);
 
  private:
+  friend class base::ScopedPathOverride;
   FRIEND_TEST_ALL_PREFIXES(PathServiceTest, RemoveOverride);
 
   // Removes an override for a special directory or file. Returns true if there
