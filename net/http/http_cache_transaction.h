@@ -362,6 +362,11 @@ class HttpCache::Transaction : public HttpTransaction {
   void UpdateTransactionPattern(TransactionPattern new_transaction_pattern);
   void RecordHistograms();
 
+  // Resets cache_io_start_ to the current time, if |return_value| is
+  // ERR_IO_PENDING.
+  // Returns |return_value|.
+  int ResetCacheIOStart(int return_value);
+
   State next_state_;
   const HttpRequestInfo* request_;
   BoundNetLog net_log_;
@@ -407,6 +412,18 @@ class HttpCache::Transaction : public HttpTransaction {
   base::TimeTicks entry_lock_waiting_since_;
   base::TimeTicks first_cache_access_since_;
   base::TimeTicks send_request_since_;
+
+  // For sensitivity analysis (field trials emulating longer cache IO times),
+  // the time at which a cache IO action has started, or base::TimeTicks()
+  // if no cache IO action is currently in progress.
+  base::TimeTicks cache_io_start_;
+
+  // For sensitivity analysis, the simulated increase in cache service times,
+  // in percent.
+  int sensitivity_analysis_percent_increase_;
+
+  void RunDelayedLoop(base::TimeTicks delay_start_time,
+                      base::TimeDelta intended_delay, int result);
 
   HttpTransactionDelegate* transaction_delegate_;
 };
