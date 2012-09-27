@@ -15,13 +15,37 @@
 namespace base {
 namespace win {
 
+namespace {
+
+// Initializes |i_shell_link| and |i_persist_file| (releasing them first if they
+// are already initialized).
+// If |shortcut| is not NULL, loads |shortcut| into |i_persist_file|.
+// If any of the above steps fail, both |i_shell_link| and |i_persist_file| will
+// be released.
+void InitializeShortcutInterfaces(
+    const wchar_t* shortcut,
+    ScopedComPtr<IShellLink>* i_shell_link,
+    ScopedComPtr<IPersistFile>* i_persist_file) {
+  i_shell_link->Release();
+  i_persist_file->Release();
+  if (FAILED(i_shell_link->CreateInstance(CLSID_ShellLink, NULL,
+                                          CLSCTX_INPROC_SERVER)) ||
+      FAILED(i_persist_file->QueryFrom(*i_shell_link)) ||
+      (shortcut && FAILED((*i_persist_file)->Load(shortcut, STGM_READWRITE)))) {
+    i_shell_link->Release();
+    i_persist_file->Release();
+  }
+}
+
+}  // namespace
+
 bool CreateOrUpdateShortcutLink(const FilePath& shortcut_path,
                                 const ShortcutProperties& properties,
                                 ShortcutOperation operation) {
   base::ThreadRestrictions::AssertIOAllowed();
 
-  // A target is required when |operation| is SHORTCUT_CREATE_ALWAYS.
-  if (operation == SHORTCUT_CREATE_ALWAYS &&
+  // A target is required unless |operation| is SHORTCUT_UPDATE_EXISTING.
+  if (operation != SHORTCUT_UPDATE_EXISTING &&
       !(properties.options & ShortcutProperties::PROPERTIES_TARGET)) {
     NOTREACHED();
     return false;
@@ -29,17 +53,31 @@ bool CreateOrUpdateShortcutLink(const FilePath& shortcut_path,
 
   ScopedComPtr<IShellLink> i_shell_link;
   ScopedComPtr<IPersistFile> i_persist_file;
-  if (FAILED(i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
-                                         CLSCTX_INPROC_SERVER)) ||
-      FAILED(i_persist_file.QueryFrom(i_shell_link))) {
-    return false;
+  switch (operation) {
+    case SHORTCUT_CREATE_ALWAYS:
+      InitializeShortcutInterfaces(NULL, &i_shell_link, &i_persist_file);
+      break;
+    case SHORTCUT_UPDATE_EXISTING:
+      InitializeShortcutInterfaces(shortcut_path.value().c_str(), &i_shell_link,
+                                   &i_persist_file);
+      break;
+    case SHORTCUT_REPLACE_EXISTING:
+      InitializeShortcutInterfaces(shortcut_path.value().c_str(), &i_shell_link,
+                                   &i_persist_file);
+      // Confirm |shortcut_path| exists and is a shortcut by verifying
+      // |i_persist_file| was successfully initialized in the call above. If so,
+      // re-initialize the interfaces to begin writing a new shortcut (to
+      // overwrite the current one if successful).
+      if (i_persist_file.get())
+        InitializeShortcutInterfaces(NULL, &i_shell_link, &i_persist_file);
+      break;
+    default:
+      NOTREACHED();
   }
 
-  if (operation == SHORTCUT_UPDATE_EXISTING &&
-      FAILED(i_persist_file->Load(shortcut_path.value().c_str(),
-                                  STGM_READWRITE))) {
+  // Return false immediately upon failure to initialize shortcut interfaces.
+  if (!i_persist_file.get())
     return false;
-  }
 
   if ((properties.options & ShortcutProperties::PROPERTIES_TARGET) &&
       FAILED(i_shell_link->SetPath(properties.target.value().c_str()))) {
