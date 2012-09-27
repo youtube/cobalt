@@ -152,3 +152,4 @@ VariationsUtilTest.NoAssociation
 
 # crbug.com/152599
 SyncSearchEngineDataTypeControllerTest.StartURLServiceNotReady
+SyncSearchEngineDataTypeControllerTest.StartURLServiceReady
