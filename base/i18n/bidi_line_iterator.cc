@@ -32,7 +32,7 @@ bool BiDiLineIterator::Open(const string16& text,
   ubidi_setPara(bidi_, text.data(), static_cast<int>(text.length()),
                 right_to_left ? UBIDI_DEFAULT_RTL : UBIDI_DEFAULT_LTR,
                 NULL, &error);
-  return U_SUCCESS(error) ? true : false;
+  return (U_SUCCESS(error) == TRUE);
 }
 
 int BiDiLineIterator::CountRuns() {
