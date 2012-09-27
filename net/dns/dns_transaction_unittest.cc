@@ -111,6 +111,22 @@ class DnsSocketData {
 
 class TestSocketFactory;
 
+// A variant of MockUDPClientSocket which always fails to Connect.
+class FailingUDPClientSocket : public MockUDPClientSocket {
+ public:
+  FailingUDPClientSocket(SocketDataProvider* data,
+                         net::NetLog* net_log)
+      : MockUDPClientSocket(data, net_log) {
+  }
+  virtual ~FailingUDPClientSocket() {}
+  virtual int Connect(const IPEndPoint& endpoint) OVERRIDE {
+    return ERR_CONNECTION_REFUSED;
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FailingUDPClientSocket);
+};
+
 // A variant of MockUDPClientSocket which notifies the factory OnConnect.
 class TestUDPClientSocket : public MockUDPClientSocket {
  public:
@@ -131,7 +147,7 @@ class TestUDPClientSocket : public MockUDPClientSocket {
 // Creates TestUDPClientSockets and keeps endpoints reported via OnConnect.
 class TestSocketFactory : public MockClientSocketFactory {
  public:
-  TestSocketFactory() {}
+  TestSocketFactory() : create_failing_sockets_(false) {}
   virtual ~TestSocketFactory() {}
 
   virtual DatagramClientSocket* CreateDatagramClientSocket(
@@ -139,6 +155,8 @@ class TestSocketFactory : public MockClientSocketFactory {
       const RandIntCallback& rand_int_cb,
       net::NetLog* net_log,
       const net::NetLog::Source& source) OVERRIDE {
+    if (create_failing_sockets_)
+      return new FailingUDPClientSocket(&empty_data_, net_log);
     SocketDataProvider* data_provider = mock_data().GetNext();
     TestUDPClientSocket* socket = new TestUDPClientSocket(this,
                                                           data_provider,
@@ -148,12 +166,15 @@ class TestSocketFactory : public MockClientSocketFactory {
   }
 
   void OnConnect(const IPEndPoint& endpoint) {
-    remote_endpoints.push_back(endpoint);
+    remote_endpoints_.push_back(endpoint);
   }
 
-  std::vector<IPEndPoint> remote_endpoints;
+  std::vector<IPEndPoint> remote_endpoints_;
+  bool create_failing_sockets_;
 
  private:
+  StaticSocketDataProvider empty_data_;
+
   DISALLOW_COPY_AND_ASSIGN(TestSocketFactory);
 };
 
@@ -379,9 +400,9 @@ class DnsTransactionTest : public testing::Test {
   // Checks if the sockets were connected in the order matching the indices in
   // |servers|.
   void CheckServerOrder(const unsigned* servers, size_t num_attempts) {
-    ASSERT_EQ(num_attempts, socket_factory_->remote_endpoints.size());
+    ASSERT_EQ(num_attempts, socket_factory_->remote_endpoints_.size());
     for (size_t i = 0; i < num_attempts; ++i) {
-      EXPECT_EQ(socket_factory_->remote_endpoints[i],
+      EXPECT_EQ(socket_factory_->remote_endpoints_[i],
                 session_->config().nameservers[servers[i]]);
     }
   }
@@ -799,6 +820,14 @@ TEST_F(DnsTransactionTest, SyncSearchQuery) {
                           kT2ResponseDatagram, arraysize(kT2ResponseDatagram));
 
   TransactionHelper helper0("www", kT2Qtype, kT2RecordCount);
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+}
+
+TEST_F(DnsTransactionTest, ConnectFailure) {
+  socket_factory_->create_failing_sockets_ = true;
+  transaction_ids_.push_back(0);  // Needed to make a DnsUDPAttempt.
+  TransactionHelper helper0("www.chromium.org", dns_protocol::kTypeA,
+                            ERR_CONNECTION_REFUSED);
   EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
 }
 
