@@ -150,6 +150,10 @@ class MEDIA_EXPORT SourceBufferStream {
   // TODO(vrk): This is a little crazy! Ideas for cleanup in crbug.com/129623.
   void UpdateTrackBuffer(const BufferQueue& deleted_buffers);
 
+  // Removes buffers that come before |selected_range_|'s next buffer from the
+  // |track_buffer_|.
+  void PruneTrackBuffer();
+
   // Checks to see if |range_with_new_buffers_itr| can be merged with the range
   // next to it, and merges them if so.
   void MergeWithAdjacentRangeIfNecessary(
