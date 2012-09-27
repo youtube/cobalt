@@ -82,6 +82,7 @@
         'base/cache_type.h',
         'base/cert_database.cc',
         'base/cert_database.h',
+        'base/cert_database_ios.cc',
         'base/cert_database_mac.cc',
         'base/cert_database_nss.cc',
         'base/cert_database_openssl.cc',
