@@ -87,7 +87,7 @@ bool PinMatchesCategory(IPin* pin, REFGUID category) {
     hr = ks_property->Get(AMPROPSETID_Pin, AMPROPERTY_PIN_CATEGORY, NULL, 0,
                           &pin_category, sizeof(pin_category), &return_value);
     if (SUCCEEDED(hr) && (return_value == sizeof(pin_category))) {
-      found = (pin_category == category) ? true : false;
+      found = (pin_category == category);
     }
   }
   return found;
