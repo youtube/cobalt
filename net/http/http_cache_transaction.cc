@@ -17,6 +17,8 @@
 #include "base/memory/ref_counted.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
+#include "base/rand_util.h"
+#include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "net/base/cert_status_flags.h"
@@ -148,6 +150,11 @@ HttpCache::Transaction::Transaction(
   COMPILE_ASSERT(HttpCache::Transaction::kNumValidationHeaders ==
                  arraysize(kValidationHeaders),
                  Invalid_number_of_validation_headers);
+  if (!base::StringToInt(
+          base::FieldTrialList::FindFullName("CacheSensitivityAnalysis"),
+          &sensitivity_analysis_percent_increase_)) {
+    sensitivity_analysis_percent_increase_ = 0;
+  }
 }
 
 HttpCache::Transaction::~Transaction() {
@@ -1088,7 +1095,8 @@ int HttpCache::Transaction::DoStartPartialCacheValidation() {
     return OK;
 
   next_state_ = STATE_COMPLETE_PARTIAL_CACHE_VALIDATION;
-  return partial_->ShouldValidateCache(entry_->disk_entry, io_callback_);
+  return ResetCacheIOStart(
+      partial_->ShouldValidateCache(entry_->disk_entry, io_callback_));
 }
 
 int HttpCache::Transaction::DoCompletePartialCacheValidation(int result) {
@@ -1212,7 +1220,8 @@ int HttpCache::Transaction::DoTruncateCachedData() {
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA);
   ReportCacheActionStart();
   // Truncate the stream.
-  return WriteToEntry(kResponseContentIndex, 0, NULL, 0, io_callback_);
+  return ResetCacheIOStart(
+      WriteToEntry(kResponseContentIndex, 0, NULL, 0, io_callback_));
 }
 
 int HttpCache::Transaction::DoTruncateCachedDataComplete(int result) {
@@ -1236,7 +1245,8 @@ int HttpCache::Transaction::DoTruncateCachedMetadata() {
   if (net_log_.IsLoggingAllEvents())
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO);
   ReportCacheActionStart();
-  return WriteToEntry(kMetadataIndex, 0, NULL, 0, io_callback_);
+  return ResetCacheIOStart(
+      WriteToEntry(kMetadataIndex, 0, NULL, 0, io_callback_));
 }
 
 int HttpCache::Transaction::DoTruncateCachedMetadataComplete(int result) {
@@ -1288,8 +1298,9 @@ int HttpCache::Transaction::DoCacheReadResponse() {
 
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
   ReportCacheActionStart();
-  return entry_->disk_entry->ReadData(kResponseInfoIndex, 0, read_buf_,
-                                      io_buf_len_, io_callback_);
+  return ResetCacheIOStart(
+      entry_->disk_entry->ReadData(kResponseInfoIndex, 0, read_buf_,
+                                   io_buf_len_, io_callback_));
 }
 
 int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
@@ -1386,9 +1397,10 @@ int HttpCache::Transaction::DoCacheReadMetadata() {
 
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
   ReportCacheActionStart();
-  return entry_->disk_entry->ReadData(kMetadataIndex, 0, response_.metadata,
-                                      response_.metadata->size(),
-                                      io_callback_);
+  return ResetCacheIOStart(
+      entry_->disk_entry->ReadData(kMetadataIndex, 0, response_.metadata,
+                                   response_.metadata->size(),
+                                   io_callback_));
 }
 
 int HttpCache::Transaction::DoCacheReadMetadataComplete(int result) {
@@ -1403,7 +1415,8 @@ int HttpCache::Transaction::DoCacheQueryData() {
   next_state_ = STATE_CACHE_QUERY_DATA_COMPLETE;
 
   // Balanced in DoCacheQueryDataComplete.
-  return entry_->disk_entry->ReadyForSparseIO(io_callback_);
+  return ResetCacheIOStart(
+      entry_->disk_entry->ReadyForSparseIO(io_callback_));
 }
 
 int HttpCache::Transaction::DoCacheQueryDataComplete(int result) {
@@ -1425,12 +1438,14 @@ int HttpCache::Transaction::DoCacheReadData() {
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_DATA);
   ReportCacheActionStart();
   if (partial_.get()) {
-    return partial_->CacheRead(entry_->disk_entry, read_buf_, io_buf_len_,
-                               io_callback_);
+    return ResetCacheIOStart(
+        partial_->CacheRead(entry_->disk_entry, read_buf_, io_buf_len_,
+                            io_callback_));
   }
 
-  return entry_->disk_entry->ReadData(kResponseContentIndex, read_offset_,
-                                      read_buf_, io_buf_len_, io_callback_);
+  return ResetCacheIOStart(
+      entry_->disk_entry->ReadData(kResponseContentIndex, read_offset_,
+                                   read_buf_, io_buf_len_, io_callback_));
 }
 
 int HttpCache::Transaction::DoCacheReadDataComplete(int result) {
@@ -1472,7 +1487,8 @@ int HttpCache::Transaction::DoCacheWriteData(int num_bytes) {
     ReportCacheActionStart();
   }
 
-  return AppendResponseDataToEntry(read_buf_, num_bytes, io_callback_);
+  return ResetCacheIOStart(
+      AppendResponseDataToEntry(read_buf_, num_bytes, io_callback_));
 }
 
 int HttpCache::Transaction::DoCacheWriteDataComplete(int result) {
@@ -2143,8 +2159,9 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
   data->Done();
 
   io_buf_len_ = data->pickle()->size();
-  return entry_->disk_entry->WriteData(kResponseInfoIndex, 0, data,
-                                       io_buf_len_, io_callback_, true);
+  return ResetCacheIOStart(
+      entry_->disk_entry->WriteData(kResponseInfoIndex, 0, data,
+                                    io_buf_len_, io_callback_, true));
 }
 
 int HttpCache::Transaction::AppendResponseDataToEntry(
@@ -2264,6 +2281,63 @@ bool HttpCache::Transaction::CanResume(bool has_data) {
 }
 
 void HttpCache::Transaction::OnIOComplete(int result) {
+  if (!cache_io_start_.is_null()) {
+    base::TimeDelta cache_time = base::TimeTicks::Now() - cache_io_start_;
+    cache_io_start_ = base::TimeTicks();
+    if (sensitivity_analysis_percent_increase_ > 0) {
+      cache_time *= 100 + sensitivity_analysis_percent_increase_;
+      cache_time /= 100;
+      MessageLoop::current()->PostDelayedTask(
+          FROM_HERE,
+          base::Bind(&HttpCache::Transaction::RunDelayedLoop,
+                     weak_factory_.GetWeakPtr(),
+                     base::TimeTicks::Now(),
+                     cache_time,
+                     result),
+          cache_time);
+      return;
+    }
+  }
+  DCHECK(cache_io_start_.is_null());
+  DoLoop(result);
+}
+
+void HttpCache::Transaction::RunDelayedLoop(base::TimeTicks delay_start_time,
+                                            base::TimeDelta intended_delay,
+                                            int result) {
+  base::TimeDelta actual_delay = base::TimeTicks::Now() - delay_start_time;
+  int64 ratio;
+  int64 inverse_ratio;
+  if (intended_delay.InMicroseconds() > 0) {
+    ratio =
+        100 * actual_delay.InMicroseconds() / intended_delay.InMicroseconds();
+  } else {
+    ratio = 0;
+  }
+  if (actual_delay.InMicroseconds() > 0) {
+    inverse_ratio =
+        100 * intended_delay.InMicroseconds() / actual_delay.InMicroseconds();
+  } else {
+    inverse_ratio = 0;
+  }
+  bool ratio_sample = base::RandInt(0, 99) < ratio;
+  bool inverse_ratio_sample = base::RandInt(0, 99) < inverse_ratio;
+  int intended_delay_ms = intended_delay.InMilliseconds();
+  UMA_HISTOGRAM_COUNTS_10000(
+      "HttpCache.CacheSensitivityAnalysis_IntendedDelayMs",
+      intended_delay_ms);
+  if (ratio_sample) {
+    UMA_HISTOGRAM_COUNTS_10000(
+        "HttpCache.CacheSensitivityAnalysis_RatioByIntendedDelayMs",
+        intended_delay_ms);
+  }
+  if (inverse_ratio_sample) {
+    UMA_HISTOGRAM_COUNTS_10000(
+        "HttpCache.CacheSensitivityAnalysis_InverseRatioByIntendedDelayMs",
+        intended_delay_ms);
+  }
+
+  DCHECK(cache_io_start_.is_null());
   DoLoop(result);
 }
 
@@ -2408,6 +2482,13 @@ void HttpCache::Transaction::RecordHistograms() {
     default:
       NOTREACHED();
   }
+}
+
+int HttpCache::Transaction::ResetCacheIOStart(int return_value) {
+  DCHECK(cache_io_start_.is_null());
+  if (return_value == ERR_IO_PENDING)
+    cache_io_start_ = base::TimeTicks::Now();
+  return return_value;
 }
 
 }  // namespace net
