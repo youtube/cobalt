@@ -82,7 +82,11 @@ class DnsUDPAttempt {
   // and calls |callback| upon completion.
   int Start() {
     DCHECK_EQ(STATE_NONE, next_state_);
-    next_state_ = STATE_CONNECT;
+    int rv = socket_->Connect(server_);
+    DCHECK_NE(ERR_IO_PENDING, rv);
+    if (rv < 0)
+      return rv;
+    next_state_ = STATE_SEND_QUERY;
     return DoLoop(OK);
   }
 
@@ -116,7 +120,6 @@ class DnsUDPAttempt {
 
  private:
   enum State {
-    STATE_CONNECT,
     STATE_SEND_QUERY,
     STATE_SEND_QUERY_COMPLETE,
     STATE_READ_RESPONSE,
@@ -131,9 +134,6 @@ class DnsUDPAttempt {
       State state = next_state_;
       next_state_ = STATE_NONE;
       switch (state) {
-        case STATE_CONNECT:
-          rv = DoConnect();
-          break;
         case STATE_SEND_QUERY:
           rv = DoSendQuery();
           break;
@@ -156,11 +156,6 @@ class DnsUDPAttempt {
     if (rv == ERR_IO_PENDING && received_malformed_response_)
       return ERR_DNS_MALFORMED_RESPONSE;
     return rv;
-  }
-
-  int DoConnect() {
-    next_state_ = STATE_SEND_QUERY;
-    return socket_->Connect(server_);
   }
 
   int DoSendQuery() {
