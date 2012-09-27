@@ -25,7 +25,6 @@ namespace net {
 
 class NET_EXPORT CertDatabase {
  public:
-
   // A CertDatabase::Observer will be notified on certificate database changes.
   // The change could be either a new user certificate is added or trust on
   // a certificate is changed.  Observers can register themselves
@@ -72,6 +71,13 @@ class NET_EXPORT CertDatabase {
   // on the same thread on which AddObserver() was called.
   void RemoveObserver(Observer* observer);
 
+#if defined(OS_MACOSX) && !defined(OS_IOS)
+  // Configures the current message loop to observe and forward events from
+  // Keychain services. The MessageLoop must have an associated CFRunLoop,
+  // which means that this must be called from a MessageLoop of TYPE_UI.
+  void SetMessageLoopForKeychainEvents();
+#endif
+
  private:
   friend struct DefaultSingletonTraits<CertDatabase>;
 
@@ -85,7 +91,7 @@ class NET_EXPORT CertDatabase {
 
   const scoped_refptr<ObserverListThreadSafe<Observer> > observer_list_;
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || (defined(OS_MACOSX) && !defined(OS_IOS))
   class Notifier;
   friend class Notifier;
   scoped_ptr<Notifier> notifier_;
