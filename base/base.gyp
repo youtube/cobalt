@@ -720,6 +720,8 @@
         'test/perf_test_suite.h',
         'test/scoped_locale.cc',
         'test/scoped_locale.h',
+        'test/scoped_path_override.cc',
+        'test/scoped_path_override.h',
         'test/sequenced_task_runner_test_template.cc',
         'test/sequenced_task_runner_test_template.h',
         'test/task_runner_test_template.cc',
