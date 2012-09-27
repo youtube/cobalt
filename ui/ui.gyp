@@ -218,6 +218,7 @@
         'base/dragdrop/os_exchange_data_provider_win.h',
         'base/events/event.cc',
         'base/events/event.h',
+        'base/events/event_constants.cc',
         'base/events/event_constants.h',
         'base/events/event_functions.cc',
         'base/events/event_functions.h',
