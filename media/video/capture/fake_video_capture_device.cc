@@ -15,6 +15,8 @@ namespace media {
 static const int kFakeCaptureTimeoutMs = 100;
 enum { kNumberOfFakeDevices = 2 };
 
+bool FakeVideoCaptureDevice::fail_next_create_ = false;
+
 void FakeVideoCaptureDevice::GetDeviceNames(Names* const device_names) {
   // Empty the name list.
   device_names->erase(device_names->begin(), device_names->end());
@@ -28,6 +30,10 @@ void FakeVideoCaptureDevice::GetDeviceNames(Names* const device_names) {
 }
 
 VideoCaptureDevice* FakeVideoCaptureDevice::Create(const Name& device_name) {
+  if (fail_next_create_) {
+    fail_next_create_ = false;
+    return NULL;
+  }
   for (int n = 0; n < kNumberOfFakeDevices; ++n) {
     std::string possible_id = StringPrintf("/dev/video%d", n);
     if (device_name.unique_id.compare(possible_id) == 0) {
@@ -35,6 +41,10 @@ VideoCaptureDevice* FakeVideoCaptureDevice::Create(const Name& device_name) {
     }
   }
   return NULL;
+}
+
+void FakeVideoCaptureDevice::SetFailNextCreate() {
+  fail_next_create_ = true;
 }
 
 FakeVideoCaptureDevice::FakeVideoCaptureDevice(const Name& device_name)
