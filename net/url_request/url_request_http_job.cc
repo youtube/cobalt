@@ -329,11 +329,13 @@ void URLRequestHttpJob::StartTransaction() {
         request_, notify_before_headers_sent_callback_,
         &request_info_.extra_headers);
     // If an extension blocks the request, we rely on the callback to
-    // StartTransactionInternal().
+    // MaybeStartTransactionInternal().
     if (rv == ERR_IO_PENDING) {
       SetBlockedOnDelegate();
       return;
     }
+    MaybeStartTransactionInternal(rv);
+    return;
   }
   StartTransactionInternal();
 }
@@ -344,6 +346,10 @@ void URLRequestHttpJob::NotifyBeforeSendHeadersCallback(int result) {
   // Check that there are no callbacks to already canceled requests.
   DCHECK_NE(URLRequestStatus::CANCELED, GetStatus().status());
 
+  MaybeStartTransactionInternal(result);
+}
+
+void URLRequestHttpJob::MaybeStartTransactionInternal(int result) {
   if (result == OK) {
     StartTransactionInternal();
   } else {
@@ -351,6 +357,7 @@ void URLRequestHttpJob::NotifyBeforeSendHeadersCallback(int result) {
     request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
                                  NetLog::StringCallback("source", &source));
     NotifyCanceled();
+    NotifyStartError(URLRequestStatus(URLRequestStatus::FAILED, result));
   }
 }
 
