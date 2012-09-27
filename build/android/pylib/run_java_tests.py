@@ -130,8 +130,7 @@ class TestRunner(BaseTestRunner):
     self.ports_to_forward = ports_to_forward
 
     self.test_results = TestResults()
-    # List of forwarders created by this instance of TestRunner.
-    self.forwarders = []
+    self.forwarder = None
 
     if self.coverage:
       if os.path.exists(TestRunner._COVERAGE_MERGED_FILENAME):
@@ -277,19 +276,17 @@ class TestRunner(BaseTestRunner):
     self.LaunchTestHttpServer(os.path.join(constants.CHROME_DIR),
                               (constants.LIGHTTPD_RANDOM_PORT_FIRST +
                                self.shard_index))
-
     if self.ports_to_forward:
-      for port in self.ports_to_forward:
-        self.forwarders.append(Forwarder(
-            self.adb, [(port, port)], self.tool, '127.0.0.1', self.build_type))
+      port_pairs = [(port, port) for port in self.ports_to_forward]
+      self.forwarder = Forwarder(
+         self.adb, port_pairs, self.tool, '127.0.0.1', self.build_type)
     self.CopyTestFilesOnce()
     self.flags.AddFlags(['--enable-test-intents'])
 
   def TearDown(self):
     """Cleans up the test harness and saves outstanding data from test run."""
-    if self.forwarders:
-      for forwarder in self.forwarders:
-        forwarder.Close()
+    if self.forwarder:
+      self.forwarder.Close()
     self.GenerateCoverageReportIfNeeded()
     super(TestRunner, self).TearDown()
 
