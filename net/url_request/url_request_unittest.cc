@@ -2063,32 +2063,80 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequest) {
   EXPECT_EQ(1, network_delegate.destroyed_requests());
 }
 
-// Tests that the network delegate can cancel a request synchronously.
-TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestSynchronously) {
-  ASSERT_TRUE(test_server_.Start());
-
+// Helper function for NetworkDelegateCancelRequestAsynchronously and
+// NetworkDelegateCancelRequestSynchronously. Sets up a blocking network
+// delegate operating in |block_mode| and a request for |url|. It blocks the
+// request in |stage| and cancels it with ERR_BLOCKED_BY_CLIENT.
+void NetworkDelegateCancelRequest(BlockingNetworkDelegate::BlockMode block_mode,
+                                  BlockingNetworkDelegate::Stage stage,
+                                  const GURL& url) {
   TestDelegate d;
-  BlockingNetworkDelegate network_delegate(
-      BlockingNetworkDelegate::SYNCHRONOUS);
-  network_delegate.set_block_on(BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST);
-  network_delegate.set_retval(ERR_EMPTY_RESPONSE);
+  BlockingNetworkDelegate network_delegate(block_mode);
+  network_delegate.set_retval(ERR_BLOCKED_BY_CLIENT);
+  network_delegate.set_block_on(stage);
 
-  TestURLRequestContextWithProxy context(
-      test_server_.host_port_pair().ToString(),
-      &network_delegate);
+  TestURLRequestContext context(true);
+  context.set_network_delegate(&network_delegate);
+  context.Init();
 
   {
-    URLRequest r(test_server_.GetURL(""), &d, &context);
+    URLRequest r(url, &d, &context);
 
     r.Start();
     MessageLoop::current()->Run();
 
     EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
-    EXPECT_EQ(ERR_EMPTY_RESPONSE, r.status().error());
+    EXPECT_EQ(ERR_BLOCKED_BY_CLIENT, r.status().error());
     EXPECT_EQ(1, network_delegate.created_requests());
     EXPECT_EQ(0, network_delegate.destroyed_requests());
   }
   EXPECT_EQ(1, network_delegate.destroyed_requests());
+}
+
+// The following 3 tests check that the network delegate can cancel a request
+// synchronously in various stages of the request.
+TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestSynchronously1) {
+  ASSERT_TRUE(test_server_.Start());
+  NetworkDelegateCancelRequest(BlockingNetworkDelegate::SYNCHRONOUS,
+                               BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST,
+                               test_server_.GetURL(""));
+}
+
+TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestSynchronously2) {
+  ASSERT_TRUE(test_server_.Start());
+  NetworkDelegateCancelRequest(BlockingNetworkDelegate::SYNCHRONOUS,
+                               BlockingNetworkDelegate::ON_BEFORE_SEND_HEADERS,
+                               test_server_.GetURL(""));
+}
+
+TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestSynchronously3) {
+  ASSERT_TRUE(test_server_.Start());
+  NetworkDelegateCancelRequest(BlockingNetworkDelegate::SYNCHRONOUS,
+                               BlockingNetworkDelegate::ON_HEADERS_RECEIVED,
+                               test_server_.GetURL(""));
+}
+
+// The following 3 tests check that the network delegate can cancel a request
+// asynchronously in various stages of the request.
+TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestAsynchronously1) {
+  ASSERT_TRUE(test_server_.Start());
+  NetworkDelegateCancelRequest(BlockingNetworkDelegate::AUTO_CALLBACK,
+                               BlockingNetworkDelegate::ON_BEFORE_URL_REQUEST,
+                               test_server_.GetURL(""));
+}
+
+TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestAsynchronously2) {
+  ASSERT_TRUE(test_server_.Start());
+  NetworkDelegateCancelRequest(BlockingNetworkDelegate::AUTO_CALLBACK,
+                               BlockingNetworkDelegate::ON_BEFORE_SEND_HEADERS,
+                               test_server_.GetURL(""));
+}
+
+TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestAsynchronously3) {
+  ASSERT_TRUE(test_server_.Start());
+  NetworkDelegateCancelRequest(BlockingNetworkDelegate::AUTO_CALLBACK,
+                               BlockingNetworkDelegate::ON_HEADERS_RECEIVED,
+                               test_server_.GetURL(""));
 }
 
 // Tests that the network delegate can block and redirect a request to a new
