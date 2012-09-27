@@ -221,11 +221,16 @@ bool ShouldCrashOnProcessDetach() {
 bool IsMachineATablet() {
   if (base::win::GetVersion() < base::win::VERSION_WIN7)
     return false;
-  // TODO(ananta): Add keyboard detection logic if it can be made reliable.
-  const int kPenInput = NID_INTEGRATED_PEN | NID_EXTERNAL_PEN;
   const int kMultiTouch = NID_INTEGRATED_TOUCH | NID_MULTI_INPUT | NID_READY;
+  const int kMaxTabletScreenWidth = 1366;
+  const int kMaxTabletScreenHeight = 768;
   int sm = GetSystemMetrics(SM_DIGITIZER);
-  return ((sm & kMultiTouch) == kMultiTouch) && ((sm & kPenInput) == 0);
+  if ((sm & kMultiTouch) == kMultiTouch) {
+    int cx = GetSystemMetrics(SM_CXSCREEN);
+    int cy = GetSystemMetrics(SM_CYSCREEN);
+    return cx <= kMaxTabletScreenWidth && cy <= kMaxTabletScreenHeight;
+  }
+  return false;
 }
 
 }  // namespace win
