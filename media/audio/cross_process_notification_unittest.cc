@@ -133,7 +133,7 @@ struct FlagArray {
   FlagArray() : flags_() {}
 
   bool is_set(size_t index) const {
-    return (flags_[index >> 5] & (1 << (index & 31))) ? true : false;
+    return (flags_[index >> 5] & (1 << (index & 31)));
   }
 
   void set(size_t index) {
