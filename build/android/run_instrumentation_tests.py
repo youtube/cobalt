@@ -77,8 +77,9 @@ def main(argv):
                                                      args)
 
   run_tests_helper.SetLogLevel(options.verbose_count)
-  buildbot_report.PrintNamedStep('Instrumentation tests: %s'
-                                 % ', '.join(options.annotation))
+  buildbot_report.PrintNamedStep(
+      'Instrumentation tests: %s - %s' % (', '.join(options.annotation),
+                                          options.test_apk))
   return DispatchInstrumentationTests(options)
 
 
