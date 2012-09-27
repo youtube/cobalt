@@ -149,3 +149,6 @@ ManifestTest.RestrictedKeys
 VariationsUtilTest.DisableAfterInitialization
 VariationsUtilTest.AssociateGoogleVariationID
 VariationsUtilTest.NoAssociation
+
+# crbug.com/152599
+SyncSearchEngineDataTypeControllerTest.StartURLServiceNotReady
