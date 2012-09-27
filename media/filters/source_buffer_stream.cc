@@ -420,15 +420,23 @@ bool SourceBufferStream::Append(
   if (deleted_next_buffer) {
     DCHECK(!seek_pending_);
     SetSelectedRange(*range_for_new_buffers);
-    if (!deleted_buffers.empty()) {
-      // Seek the range to the keyframe at or after |next_buffer_timestamp|.
+    if (next_buffer_timestamp != kNoTimestamp()) {
+      // Seek ahead to the keyframe at or after |next_buffer_timestamp|, the
+      // timestamp of the deleted next buffer.
       selected_range_->SeekAheadTo(next_buffer_timestamp);
-      UpdateTrackBuffer(deleted_buffers);
+      // Update track buffer with non-keyframe buffers leading up to the current
+      // position of |selected_range_|.
+      PruneTrackBuffer();
+      if (!deleted_buffers.empty())
+        UpdateTrackBuffer(deleted_buffers);
     } else {
-      // If we've deleted the next buffer but |deleted_buffers| is empty,
-      // that means we need to seek past the timestamp of the last buffer in
-      // the range (i.e. the keyframe timestamp needs to be strictly greater
-      // than |end_buffer_timestamp|).
+      // If |next_buffer_timestamp| is kNoTimestamp(), it means the range
+      // we've overlapped didn't actually have the next buffer buffered, and it
+      // was waiting for the next buffer whose timestamp was greater than
+      // |end_buffer_timestamp|. Seek the |selected_range_| to the next keyframe
+      // after |end_buffer_timestamp|.
+      DCHECK(track_buffer_.empty());
+      DCHECK(deleted_buffers.empty());
       selected_range_->SeekAheadPast(end_buffer_timestamp);
     }
   }
@@ -699,23 +707,40 @@ void SourceBufferStream::ResolveEndOverlap(
   SetSelectedRange(NULL);
 }
 
+void SourceBufferStream::PruneTrackBuffer() {
+  DCHECK(selected_range_);
+  DCHECK(selected_range_->HasNextBufferPosition());
+  base::TimeDelta next_timestamp = selected_range_->GetNextTimestamp();
+
+  // If we don't have the next timestamp, we don't have anything to delete.
+  if (next_timestamp == kNoTimestamp())
+    return;
+
+  while (!track_buffer_.empty() &&
+         track_buffer_.back()->GetDecodeTimestamp() >= next_timestamp) {
+    track_buffer_.pop_back();
+  }
+}
+
 void SourceBufferStream::UpdateTrackBuffer(const BufferQueue& deleted_buffers) {
   DCHECK(!deleted_buffers.empty());
   DCHECK(selected_range_);
   DCHECK(selected_range_->HasNextBufferPosition());
 
   base::TimeDelta next_keyframe_timestamp = selected_range_->GetNextTimestamp();
+  base::TimeDelta start_of_deleted =
+      deleted_buffers.front()->GetDecodeTimestamp();
+
+  // |deleted_buffers| should always come after the buffers in |track_buffer|.
+  if (!track_buffer_.empty())
+    DCHECK(track_buffer_.back()->GetDecodeTimestamp() < start_of_deleted);
 
   // If there is no gap between what was deleted and what was added, nothing
   // should be added to the track buffer.
   if (selected_range_->HasNextBuffer() &&
-      (next_keyframe_timestamp ==
-       deleted_buffers.front()->GetDecodeTimestamp())) {
+      next_keyframe_timestamp <= start_of_deleted) {
     return;
   }
-
-  DCHECK(next_keyframe_timestamp >=
-         deleted_buffers.front()->GetDecodeTimestamp());
 
   // If the |selected_range_| is ready to return data, fill the track buffer
   // with all buffers that come before |next_keyframe_timestamp| and return.
@@ -730,7 +755,8 @@ void SourceBufferStream::UpdateTrackBuffer(const BufferQueue& deleted_buffers) {
 
   // Otherwise, the |selected_range_| is not ready to return data, so add all
   // the deleted buffers into the |track_buffer_|.
-  track_buffer_ = deleted_buffers;
+  track_buffer_.insert(track_buffer_.end(),
+                       deleted_buffers.begin(), deleted_buffers.end());
 
   // See if the next range contains the keyframe after the end of the
   // |track_buffer_|, and if so, change |selected_range_|.
@@ -838,6 +864,7 @@ SourceBufferStream::Status SourceBufferStream::GetNextBuffer(
   CHECK(!config_change_pending_);
 
   if (!track_buffer_.empty()) {
+    DCHECK(selected_range_);
     if (track_buffer_.front()->GetConfigId() != current_config_index_) {
       config_change_pending_ = true;
       return kConfigChange;
@@ -861,10 +888,14 @@ SourceBufferStream::Status SourceBufferStream::GetNextBuffer(
 }
 
 base::TimeDelta SourceBufferStream::GetNextBufferTimestamp() {
-  if (!selected_range_)
+  if (!selected_range_) {
+    DCHECK(track_buffer_.empty());
     return kNoTimestamp();
+  }
 
   DCHECK(selected_range_->HasNextBufferPosition());
+  if (!track_buffer_.empty())
+    return track_buffer_.front()->GetDecodeTimestamp();
   return selected_range_->GetNextTimestamp();
 }
 
@@ -1054,7 +1085,7 @@ void SourceBufferRange::AppendBuffersToEnd(const BufferQueue& new_buffers) {
       if (waiting_for_keyframe_ &&
           (*itr)->GetDecodeTimestamp() >= next_keyframe_timestamp_) {
         next_buffer_index_ = buffers_.size() - 1;
-        next_keyframe_timestamp_ = base::TimeDelta();
+        next_keyframe_timestamp_ = kNoTimestamp();
         waiting_for_keyframe_ = false;
       }
     }
@@ -1065,7 +1096,7 @@ void SourceBufferRange::Seek(base::TimeDelta timestamp) {
   DCHECK(CanSeekTo(timestamp));
   DCHECK(!keyframe_map_.empty());
 
-  next_keyframe_timestamp_ = base::TimeDelta();
+  next_keyframe_timestamp_ = kNoTimestamp();
   waiting_for_keyframe_ = false;
 
   KeyframeMap::iterator result = GetFirstKeyframeBefore(timestamp);
@@ -1367,11 +1398,10 @@ base::TimeDelta SourceBufferRange::GetNextTimestamp() const {
   DCHECK(!buffers_.empty());
   DCHECK(HasNextBufferPosition());
 
-  if (waiting_for_keyframe_)
-    return next_keyframe_timestamp_;
-
-  if (next_buffer_index_ >= static_cast<int>(buffers_.size()))
+  if (waiting_for_keyframe_ ||
+      next_buffer_index_ >= static_cast<int>(buffers_.size())) {
     return kNoTimestamp();
+  }
 
   return buffers_.at(next_buffer_index_)->GetDecodeTimestamp();
 }

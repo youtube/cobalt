@@ -1287,6 +1287,131 @@ TEST_F(SourceBufferStreamTest, Overlap_OneByOne_TrackBuffer) {
   CheckExpectedBuffers("0K 30 60 90 120K 130K");
 }
 
+// Overlap the next keyframe after the end of the track buffer with a new
+// keyframe.
+// old  :   10K  40  *70*  100K  125  130K
+// new  : 0K   30   60   90   120K
+// after: 0K   30   60   90  *120K*   130K
+// track:             70   100K
+// new  :                     110K    130
+// after: 0K   30   60   90  *110K*   130
+TEST_F(SourceBufferStreamTest, Overlap_OneByOne_TrackBuffer2) {
+  NewSegmentAppendOneByOne("10K 40 70 100K 125 130K");
+  CheckExpectedRangesByTimestamp("{ [10,160) }");
+
+  // Seek to 70ms.
+  SeekToTimestamp(base::TimeDelta::FromMilliseconds(70));
+  CheckExpectedBuffers("10K 40");
+
+  // Overlap with a new segment from 0 to 120ms; 70ms and 100ms go in track
+  // buffer.
+  NewSegmentAppendOneByOne("0K 30 60 90 120K");
+  CheckExpectedRangesByTimestamp("{ [0,160) }");
+
+  // Now overlap the keyframe at 120ms.
+  NewSegmentAppendOneByOne("110K 130");
+
+  // Should expect buffers 70ms and 100ms from the track buffer. Then it should
+  // return the keyframe after the track buffer, which is at 110ms.
+  CheckExpectedBuffers("70 100K 110K 130");
+}
+
+// Overlap the next keyframe after the end of the track buffer without a
+// new keyframe.
+// old  :   10K  40  *70*  100K  125  130K
+// new  : 0K   30   60   90   120K
+// after: 0K   30   60   90  *120K*   130K
+// track:             70   100K
+// new  :        50K   80   110          140
+// after: 0K   30   50K   80   110   140 * (waiting for keyframe)
+// track:               70   100K   120K   130K
+TEST_F(SourceBufferStreamTest, Overlap_OneByOne_TrackBuffer3) {
+  NewSegmentAppendOneByOne("10K 40 70 100K 125 130K");
+  CheckExpectedRangesByTimestamp("{ [10,160) }");
+
+  // Seek to 70ms.
+  SeekToTimestamp(base::TimeDelta::FromMilliseconds(70));
+  CheckExpectedBuffers("10K 40");
+
+  // Overlap with a new segment from 0 to 120ms; 70ms and 100ms go in track
+  // buffer.
+  NewSegmentAppendOneByOne("0K 30 60 90 120K");
+  CheckExpectedRangesByTimestamp("{ [0,160) }");
+
+  // Now overlap the keyframe at 120ms. There's no keyframe after 70ms, so 120ms
+  // and 130ms go into the track buffer.
+  NewSegmentAppendOneByOne("50K 80 110 140");
+
+  // Should have all the buffers from the track buffer, then stall.
+  CheckExpectedBuffers("70 100K 120K 130K");
+  CheckNoNextBuffer();
+
+  // Appending a keyframe should fulfill the read.
+  AppendBuffersOneByOne("150K");
+  CheckExpectedBuffers("150K");
+  CheckNoNextBuffer();
+}
+
+// Overlap the next keyframe after the end of the track buffer with a keyframe
+// that comes before the end of the track buffer.
+// old  :   10K  40  *70*  100K  125  130K
+// new  : 0K   30   60   90   120K
+// after: 0K   30   60   90  *120K*   130K
+// track:             70   100K
+// new  :              80K  110          140
+// after: 0K   30   60   *80K*  110   140
+// track:               70
+TEST_F(SourceBufferStreamTest, Overlap_OneByOne_TrackBuffer4) {
+  NewSegmentAppendOneByOne("10K 40 70 100K 125 130K");
+  CheckExpectedRangesByTimestamp("{ [10,160) }");
+
+  // Seek to 70ms.
+  SeekToTimestamp(base::TimeDelta::FromMilliseconds(70));
+  CheckExpectedBuffers("10K 40");
+
+  // Overlap with a new segment from 0 to 120ms; 70ms and 100ms go in track
+  // buffer.
+  NewSegmentAppendOneByOne("0K 30 60 90 120K");
+  CheckExpectedRangesByTimestamp("{ [0,160) }");
+
+  // Now append a keyframe at 80ms.
+  NewSegmentAppendOneByOne("80K 110 140");
+
+  CheckExpectedBuffers("70 80K 110 140");
+  CheckNoNextBuffer();
+}
+
+// Overlap the next keyframe after the end of the track buffer with a keyframe
+// that comes before the end of the track buffer, when the selected stream was
+// waiting for the next keyframe.
+// old  :   10K  40  *70*  100K
+// new  : 0K   30   60   90   120
+// after: 0K   30   60   90   120 * (waiting for keyframe)
+// track:             70   100K
+// new  :              80K  110          140
+// after: 0K   30   60   *80K*  110   140
+// track:               70
+TEST_F(SourceBufferStreamTest, Overlap_OneByOne_TrackBuffer5) {
+  NewSegmentAppendOneByOne("10K 40 70 100K");
+  CheckExpectedRangesByTimestamp("{ [10,130) }");
+
+  // Seek to 70ms.
+  SeekToTimestamp(base::TimeDelta::FromMilliseconds(70));
+  CheckExpectedBuffers("10K 40");
+
+  // Overlap with a new segment from 0 to 120ms; 70ms and 100ms go in track
+  // buffer.
+  NewSegmentAppendOneByOne("0K 30 60 90 120");
+  CheckExpectedRangesByTimestamp("{ [0,150) }");
+
+  // Now append a keyframe at 80ms. The buffer at 100ms should be deleted from
+  // the track buffer.
+  NewSegmentAppendOneByOne("80K 110 140");
+
+  CheckExpectedBuffers("70 80K 110 140");
+  CheckNoNextBuffer();
+}
+
 TEST_F(SourceBufferStreamTest, Seek_Keyframe) {
   // Append 6 buffers at positions 0 through 5.
   NewSegmentAppend(0, 6);
