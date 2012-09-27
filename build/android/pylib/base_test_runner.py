@@ -137,7 +137,7 @@ class BaseTestRunner(object):
     # Sometimes the forwarder device port may be already used. We have to kill
     # all forwarder processes to ensure that the forwarder can be started since
     # currently we can not associate the specified port to related pid.
-    self.adb.KillAll('device_forwarder')
+    self.adb.KillAll('forwarder')
     if self._forwarder:
       self._forwarder.Close()
     self._forwarder = Forwarder(
@@ -168,7 +168,7 @@ class BaseTestRunner(object):
     if self._forwarder or self._spawner_forwarder:
       # Kill all forwarders on the device and then kill the process on the host
       # (if it exists)
-      self.adb.KillAll('device_forwarder')
+      self.adb.KillAll('forwarder')
       if self._forwarder:
         self._forwarder.Close()
       if self._spawner_forwarder:
