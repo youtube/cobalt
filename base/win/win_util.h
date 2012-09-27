@@ -106,8 +106,7 @@ BASE_EXPORT void SetShouldCrashOnProcessDetach(bool crash);
 BASE_EXPORT bool ShouldCrashOnProcessDetach();
 
 // A tablet by this definition is something that has integrated multi-touch
-// but is not also pen-enabled. For example a Thinkpad X220 tablet is not
-// considered a tabled while a Samsum 700T tablet is.
+// ready to use and also has screen resolution not greater than 1366x768.
 BASE_EXPORT bool IsMachineATablet();
 
 // Get the size of a struct up to and including the specified member.
