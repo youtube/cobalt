@@ -24,6 +24,7 @@
 
   <path id="javac.srcdirs.additional">
     <filelist files="${ADDITIONAL_SRC_DIRS}"/>
+    <filelist files="${GENERATED_SRC_DIRS}"/>
   </path>
 
   <property-value
