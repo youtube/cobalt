@@ -35,6 +35,7 @@
   self = [super init];
   if (self) {
     frameReceiver_ = frameReceiver;
+    lock_ = [[NSLock alloc] init];
   }
   return self;
 }
@@ -42,8 +43,13 @@
 - (void)dealloc {
   [captureSession_ release];
   [captureDeviceInput_ release];
-  [captureDecompressedOutput_ release];
   [super dealloc];
+}
+
+- (void)setFrameReceiver:(media::VideoCaptureDeviceMac *)frameReceiver {
+  [lock_ lock];
+  frameReceiver_ = frameReceiver;
+  [lock_ unlock];
 }
 
 - (BOOL)setCaptureDevice:(NSString *)deviceId {
@@ -73,10 +79,10 @@
     captureDeviceInput_ = [[QTCaptureDeviceInput alloc] initWithDevice:device];
     captureSession_ = [[QTCaptureSession alloc] init];
 
-    captureDecompressedOutput_ =
-        [[QTCaptureDecompressedVideoOutput alloc] init];
-    [captureDecompressedOutput_ setDelegate:self];
-    if (![captureSession_ addOutput:captureDecompressedOutput_ error:&error]) {
+    QTCaptureDecompressedVideoOutput *captureDecompressedOutput =
+        [[[QTCaptureDecompressedVideoOutput alloc] init] autorelease];
+    [captureDecompressedOutput setDelegate:self];
+    if (![captureSession_ addOutput:captureDecompressedOutput error:&error]) {
       DLOG(ERROR) << "Could not connect video capture output."
                   << [[error localizedDescription] UTF8String];
       return NO;
@@ -92,14 +98,10 @@
       // The device is still running.
       [self stopCapture];
     }
-    [captureDecompressedOutput_ setDelegate:nil];
-    [captureSession_ removeOutput:captureDecompressedOutput_];
     [captureSession_ release];
     captureSession_ = nil;
     [captureDeviceInput_ release];
     captureDeviceInput_ = nil;
-    [captureDecompressedOutput_ release];
-    captureDecompressedOutput_ = nil;
     return YES;
   }
 }
@@ -163,7 +165,9 @@
   didOutputVideoFrame:(CVImageBufferRef)videoFrame
      withSampleBuffer:(QTSampleBuffer *)sampleBuffer
        fromConnection:(QTCaptureConnection *)connection {
+  [lock_ lock];
   if(!frameReceiver_) {
+    [lock_ unlock];
     return;
   }
 
@@ -189,6 +193,7 @@
 
     CVPixelBufferUnlockBaseAddress(videoFrame, kLockFlags);
   }
+  [lock_ unlock];
 }
 
 @end
