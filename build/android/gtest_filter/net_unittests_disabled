@@ -9,7 +9,6 @@ TransportSecurityStateTest.ParseSidePins*
 # BUG=135165
 X509CertificateTest.*
 X509CertificateParseTest.*
-FtpDirectoryListingParserWindowsTest.Good
 HttpNetworkTransactionSpdy2Test.SOCKS4_HTTP_GET
 HttpNetworkTransactionSpdy2Test.SOCKS4_SSL_GET
 HttpNetworkTransactionSpdy21Test.SOCKS4_HTTP_GET
@@ -53,7 +52,6 @@ WebSocketJobTest.ThrottlingWebSocketSpdyEnabled
 WebSocketJobTest.ThrottlingSpdy
 WebSocketJobTest.ThrottlingSpdySpdyEnabled
 X509CertificateWeakDigestTest.*
-FtpDirectoryListingParserTest.*
 */X509CertificateWeakDigestTest.*
 TransportSecurityStateTest.BogusPinsHeaders
 TransportSecurityStateTest.ValidPinsHeadersSHA1
