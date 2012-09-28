@@ -14,7 +14,6 @@ namespace media {
   class VideoCaptureDeviceMac;
 }
 
-@class QTCaptureDecompressedVideoOutput;
 @class QTCaptureDeviceInput;
 @class QTCaptureSession;
 
@@ -25,12 +24,12 @@ namespace media {
   int frameWidth_;
   int frameHeight_;
 
+  NSLock *lock_;
   media::VideoCaptureDeviceMac *frameReceiver_;
 
   // QTKit variables.
   QTCaptureSession *captureSession_;
   QTCaptureDeviceInput *captureDeviceInput_;
-  QTCaptureDecompressedVideoOutput *captureDecompressedOutput_;
 }
 
 // Returns a dictionary of capture devices with friendly name and unique id.
@@ -38,6 +37,9 @@ namespace media {
 
 // Initializes the instance and registers the frame receiver.
 - (id)initWithFrameReceiver:(media::VideoCaptureDeviceMac *)frameReceiver;
+
+// Set the frame receiver.
+- (void)setFrameReceiver:(media::VideoCaptureDeviceMac *)frameReceiver;
 
 // Sets which capture device to use. Returns YES on sucess, NO otherwise.
 - (BOOL)setCaptureDevice:(NSString *)deviceId;
