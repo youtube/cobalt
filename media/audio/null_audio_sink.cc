@@ -121,14 +121,17 @@ std::string NullAudioSink::GetAudioHashForTesting() {
   DCHECK(hash_audio_for_testing_);
 
   // If initialize failed or was never called, ensure we return an empty hash.
+  int channels = 1;
   if (!initialized_) {
     md5_channel_contexts_.reset(new base::MD5Context[1]);
     base::MD5Init(&md5_channel_contexts_[0]);
+  } else {
+    channels = audio_bus_->channels();
   }
 
   // Hash all channels into the first channel.
   base::MD5Digest digest;
-  for (int i = 1; i < audio_bus_->channels(); i++) {
+  for (int i = 1; i < channels; i++) {
     base::MD5Final(&digest, &md5_channel_contexts_[i]);
     base::MD5Update(&md5_channel_contexts_[0], base::StringPiece(
         reinterpret_cast<char*>(&digest), sizeof(base::MD5Digest)));
