@@ -26,13 +26,35 @@
 # content/shell/android/java/content_shell_apk.xml
 # content/shell/android/java/src/chromium/base/Foo.java
 # content/shell/android/java/src/chromium/base/Bar.java
+#
+# Required variables:
+#  package_name - Used to name the intermediate output directory and in the
+#    names of some output files.
+#  apk_name - The final apk will be named <apk_name>-debug.apk (or -release)
+#  java_in_dir - The top-level java directory. The src should be in
+#    <java_in_dir>/src.
+#  resource_dir - The directory for resources.
+# Optional/automatic variables:
+#  additional_input_paths - These paths will be included in the 'inputs' list to
+#    ensure that this target is rebuilt when one of these paths changes.
+#  additional_src_dirs - Additional directories with .java files to be compiled
+#    and included in the output of this target.
+#  generated_src_dirs - Same as additional_src_dirs except used for .java files
+#    that are generated at build time. This should be set automatically by a
+#    target's dependencies. The .java files in these directories are not
+#    included in the 'inputs' list (unlike additional_src_dirs).
+#  input_jars_paths - The path to jars to be included in the classpath. This
+#    should be filled automatically by depending on the appropriate targets.
+#  native_libs_paths - The path to any native library to be included in this
+#    target.
 
 {
   'variables': {
     'input_jars_paths': [],
     'native_libs_paths': [],
-    'additional_src_dirs': [],
     'additional_input_paths': [],
+    'additional_src_dirs': [],
+    'generated_src_dirs': [],
   },
   'actions': [
     {
@@ -43,7 +65,9 @@
         '<(java_in_dir)/AndroidManifest.xml',
         '<(DEPTH)/build/android/ant/common.xml',
         '<(DEPTH)/build/android/ant/sdk-targets.xml',
-        '<!@(find <(java_in_dir) -name "*.java")',
+        # If there is a separate find for additonal_src_dirs, it will find the
+        # wrong .java files when additional_src_dirs is empty.
+        '>!@(find >(java_in_dir) >(additional_src_dirs) -name "*.java")',
         '<!@(find <(java_in_dir)/<(resource_dir) -name "*")',
         '>@(input_jars_paths)',
         '>@(native_libs_paths)',
@@ -54,7 +78,6 @@
       ],
       'action': [
         'ant',
-        '-DPRODUCT_DIR=<(ant_build_out)',
         '-DAPP_ABI=<(android_app_abi)',
         '-DANDROID_GDBSERVER=<(android_gdbserver)',
         '-DANDROID_SDK=<(android_sdk)',
@@ -62,12 +85,16 @@
         '-DANDROID_SDK_TOOLS=<(android_sdk_tools)',
         '-DANDROID_SDK_VERSION=<(android_sdk_version)',
         '-DANDROID_TOOLCHAIN=<(android_toolchain)',
-        '-DPACKAGE_NAME=<(package_name)',
-        '-DCONFIGURATION_NAME=<(CONFIGURATION_NAME)',
-        '-DINPUT_JARS_PATHS=>(input_jars_paths)',
-        '-DADDITIONAL_SRC_DIRS=>(additional_src_dirs)',
         '-DCHROMIUM_SRC=<(ant_build_out)/../..',
+        '-DCONFIGURATION_NAME=<(CONFIGURATION_NAME)',
+        '-DPRODUCT_DIR=<(ant_build_out)',
+
+        '-DADDITIONAL_SRC_DIRS=>(additional_src_dirs)',
+        '-DINPUT_JARS_PATHS=>(input_jars_paths)',
+        '-DGENERATED_SRC_DIRS=>(generated_src_dirs)',
+        '-DPACKAGE_NAME=<(package_name)',
         '-DRESOURCE_DIR=<(resource_dir)',
+
         '-buildfile',
         '<(java_in_dir)/<(package_name)_apk.xml'
       ]
