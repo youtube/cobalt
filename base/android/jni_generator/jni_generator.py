@@ -214,6 +214,9 @@ def JavaParamToJni(param):
     param = param[:param.index('<')]
   if param in pod_param_map:
     return prefix + pod_param_map[param]
+  if '/' in param:
+    # Coming from javap, use the fully qualified param directly.
+    return 'L' + param + ';'
   for qualified_name in object_param_list + app_param_list:
     if (qualified_name.endswith('/' + param) or
         qualified_name.endswith('$' + param.replace('.', '$')) or
@@ -332,22 +335,38 @@ def GetEnvCall(is_constructor, is_static, return_type):
   return 'Call' + call + 'Method'
 
 
-def GetMangledMethodName(name, jni_signature):
-  """Returns a mangled method name for a (name, jni_signature) pair.
+def GetMangledParam(datatype):
+  """Returns a mangled identifier for the datatype."""
+  if len(datatype) <= 2:
+    return datatype.replace('[', 'A')
+  ret = ''
+  for i in range(1, len(datatype)):
+    c = datatype[i]
+    if c == '[':
+      ret += 'A'
+    elif c.isupper() or datatype[i - 1] in ['/', 'L']:
+      ret += c.upper()
+  return ret
+
+
+def GetMangledMethodName(name, params, return_type):
+  """Returns a mangled method name for the given signature.
 
      The returned name can be used as a C identifier and will be unique for all
      valid overloads of the same method.
 
   Args:
      name: string.
-     jni_signature: string.
+     params: list of Param.
+     return_type: string.
 
   Returns:
       A mangled name.
   """
-  sig_translation = string.maketrans('[()/;$', 'apq_xs')
-  mangled_name = name + '_' + string.translate(jni_signature, sig_translation,
-                                               '"')
+  mangled_items = []
+  for datatype in [return_type] + [x.datatype for x in params]:
+    mangled_items += [GetMangledParam(JavaParamToJni(datatype))]
+  mangled_name = name + '_'.join(mangled_items)
   assert re.match(r'[0-9a-zA-Z_]+', mangled_name)
   return mangled_name
 
@@ -365,10 +384,9 @@ def MangleCalledByNatives(called_by_natives):
     method_name = called_by_native.name
     method_id_var_name = method_name
     if method_counts[java_class_name][method_name] > 1:
-      jni_signature = JniSignature(called_by_native.params,
-                                   called_by_native.return_type,
-                                   False)
-      method_id_var_name = GetMangledMethodName(method_name, jni_signature)
+      method_id_var_name = GetMangledMethodName(method_name,
+                                                called_by_native.params,
+                                                called_by_native.return_type)
     called_by_native.method_id_var_name = method_id_var_name
   return called_by_natives
 
@@ -765,7 +783,7 @@ static ${RETURN} ${NAME}(JNIEnv* env, ${PARAMS_IN_DECLARATION}) {
   def GetCalledByNativeMethodStub(self, called_by_native):
     """Returns a string."""
     function_signature_template = Template("""\
-static ${RETURN_TYPE} Java_${JAVA_CLASS}_${METHOD}(\
+static ${RETURN_TYPE} Java_${JAVA_CLASS}_${METHOD_ID_VAR_NAME}(\
 JNIEnv* env${FIRST_PARAM_IN_DECLARATION}${PARAMS_IN_DECLARATION})""")
     function_header_template = Template("""\
 ${FUNCTION_SIGNATURE} {""")
