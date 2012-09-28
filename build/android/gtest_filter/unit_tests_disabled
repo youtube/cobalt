@@ -127,9 +127,9 @@ RenderWidgetTest.OnMsgPaintAtSize
 TopSitesTest.Blacklisting
 
 # crbug.com/139643
-VariationsHelperTest.DisableAfterInitialization
-VariationsHelperTest.AssociateGoogleVariationID
-VariationsHelperTest.NoAssociation
+VariationsUtilTest.DisableAfterInitialization
+VariationsUtilTest.AssociateGoogleVariationID
+VariationsUtilTest.NoAssociation
 
 # crbug.com/141473
 AutofillManagerTest.UpdatePasswordSyncState
@@ -144,11 +144,6 @@ EntropyProviderTest.UseOneTimeRandomizationPermuted
 
 # crbug.com/147500
 ManifestTest.RestrictedKeys
-
-# crbug.com/147504
-VariationsUtilTest.DisableAfterInitialization
-VariationsUtilTest.AssociateGoogleVariationID
-VariationsUtilTest.NoAssociation
 
 # crbug.com/152599
 SyncSearchEngineDataTypeControllerTest.*
