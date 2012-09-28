@@ -37,10 +37,6 @@ function bb_force_bot_green_and_exit {
   exit 0
 }
 
-function bb_run_gclient_hooks {
-  gclient runhooks
-}
-
 # Basic setup for all bots to run after a source tree checkout.
 # Args:
 #   $1: source root.
@@ -70,22 +66,24 @@ function bb_baseline_setup {
   if [[ $BUILDTOOL = ninja ]]; then
     export GYP_GENERATORS=ninja
   fi
-  bb_setup_goma_internal
+  export GOMA_DIR=/b/build/goma
   . build/android/envsetup.sh
+}
+
+function bb_compile_setup {
   local extra_gyp_defines="$(bb_get_json_prop "$FACTORY_PROPERTIES" \
      extra_gyp_defines)"
   export GYP_DEFINES+=" fastbuild=1 $extra_gyp_defines"
   if echo $extra_gyp_defines | grep -q clang; then
     unset CXX_target
   fi
+  bb_setup_goma_internal
   # Should be called only after envsetup is done.
-  bb_run_gclient_hooks
+  gclient runhooks
 }
-
 
 # Setup goma.  Used internally to buildbot_functions.sh.
 function bb_setup_goma_internal {
-  export GOMA_DIR=/b/build/goma
   export GOMA_API_KEY_FILE=${GOMA_DIR}/goma.key
   export GOMA_COMPILER_PROXY_DAEMON_MODE=true
   export GOMA_COMPILER_PROXY_RPC_TIMEOUT_SECS=300
@@ -151,6 +149,7 @@ function bb_goma_ninja {
 
 # Compile step
 function bb_compile {
+  bb_compile_setup
   # This must be named 'compile', not 'Compile', for CQ interaction.
   # Talk to maruel for details.
   echo "@@@BUILD_STEP compile@@@"
