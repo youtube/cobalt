@@ -109,17 +109,12 @@ bool ParseProcStats(const std::string& stats_data,
 // simply |pid|, and the next two values are strings.
 int GetProcStatsFieldAsInt(const std::vector<std::string>& proc_stats,
                            ProcStatsFields field_num) {
-  if (field_num < VM_PPID) {
-    NOTREACHED();
-    return 0;
-  }
+  DCHECK_GE(field_num, VM_PPID);
+  CHECK_LT(static_cast<size_t>(field_num), proc_stats.size());
 
-  if (proc_stats.size() > static_cast<size_t>(field_num)) {
-    int value;
-    if (base::StringToInt(proc_stats[field_num], &value))
-      return value;
-  }
-  NOTREACHED();
+  int value;
+  if (base::StringToInt(proc_stats[field_num], &value))
+    return value;
   return 0;
 }
 
