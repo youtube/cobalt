@@ -2210,7 +2210,7 @@
           'type': 'none',
           'direct_dependent_settings': {
             'variables': {
-              'additional_src_dirs': ['<(SHARED_INTERMEDIATE_DIR)/net/template/'],
+              'generated_src_dirs': ['<(SHARED_INTERMEDIATE_DIR)/net/template/'],
               'additional_input_paths': ['<(SHARED_INTERMEDIATE_DIR)/net/template/NetError.java'],
             },
           },
