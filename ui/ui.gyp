@@ -81,6 +81,10 @@
         'gfx/rect.h',
         'gfx/rect_base.h',
         'gfx/rect_base_impl.h',
+        'gfx/rect_conversions.cc',
+        'gfx/rect_conversions.h',
+        'gfx/safe_floor_ceil.cc',
+        'gfx/safe_floor_ceil.h',
         'gfx/scoped_ui_graphics_push_context_ios.h',
         'gfx/scoped_ui_graphics_push_context_ios.mm',
         'gfx/screen.h',
@@ -94,7 +98,6 @@
         'gfx/size.cc',
         'gfx/size.h',
         'gfx/size_base.h',
-        'gfx/size_base_impl.h',
       ],
       'all_sources': [
         '<@(_common_sources)',
