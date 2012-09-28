@@ -16,6 +16,7 @@
 
 #include "ui/gfx/point.h"
 #include "ui/gfx/rect_base.h"
+#include "ui/gfx/rect_f.h"
 #include "ui/gfx/size.h"
 
 #if defined(OS_WIN)
@@ -66,6 +67,18 @@ class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
   // Construct an equivalent CoreGraphics object.
   CGRect ToCGRect() const;
 #endif
+
+  RectF ToRectF() const WARN_UNUSED_RESULT {
+    return RectF(origin().x(), origin().y(), size().width(), size().height());
+  }
+
+  RectF Scale(float scale) const WARN_UNUSED_RESULT {
+    return Scale(scale, scale);
+  }
+
+  RectF Scale(float x_scale, float y_scale) const WARN_UNUSED_RESULT {
+    return ToRectF().Scale(x_scale, y_scale);
+  }
 
   std::string ToString() const;
 };

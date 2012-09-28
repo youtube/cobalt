@@ -8,7 +8,6 @@
 #include <string>
 
 #include "ui/gfx/point_f.h"
-#include "ui/gfx/rect.h"
 #include "ui/gfx/rect_base.h"
 #include "ui/gfx/size_f.h"
 
@@ -27,7 +26,16 @@ class UI_EXPORT RectF : public RectBase<RectF, PointF, SizeF, InsetsF, float> {
 
   ~RectF();
 
-  Rect ToRect() const;
+  /// Scales the rectangle by |scale|.
+  RectF Scale(float scale) const WARN_UNUSED_RESULT {
+    return Scale(scale, scale);
+  }
+
+  RectF Scale(float x_scale, float y_scale) const WARN_UNUSED_RESULT {
+    SizeF newSize = size().Scale(x_scale, y_scale);
+    newSize.ClampToNonNegative();
+    return RectF(origin().Scale(x_scale, y_scale), newSize);
+  }
 
   std::string ToString() const;
 };
@@ -38,4 +46,4 @@ extern template class RectBase<RectF, PointF, SizeF, InsetsF, float>;
 
 }  // namespace gfx
 
-#endif  // UI_GFX_RECT_H_
+#endif  // UI_GFX_RECT_F_H_
