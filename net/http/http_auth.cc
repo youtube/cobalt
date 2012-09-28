@@ -182,6 +182,7 @@ const char* HttpAuth::SchemeToString(Scheme scheme) {
     "digest",
     "ntlm",
     "negotiate",
+    "spdyproxy",
     "mock",
   };
   COMPILE_ASSERT(arraysize(kSchemeNames) == AUTH_SCHEME_MAX,
