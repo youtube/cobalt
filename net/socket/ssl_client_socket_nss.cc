@@ -1630,6 +1630,30 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
 #endif
 }
 
+#elif defined(OS_IOS)
+
+SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
+    void* arg,
+    PRFileDesc* socket,
+    CERTDistNames* ca_names,
+    CERTCertificate** result_certificate,
+    SECKEYPrivateKey** result_private_key) {
+  Core* core = reinterpret_cast<Core*>(arg);
+  DCHECK(core->OnNSSTaskRunner());
+
+  core->PostOrRunCallback(
+      FROM_HERE,
+      base::Bind(&AddLogEvent, core->weak_net_log_,
+                 NetLog::TYPE_SSL_CLIENT_CERT_REQUESTED));
+
+  // TODO(droger): Support client auth on iOS. See http://crbug.com/145954).
+  LOG(WARNING) << "Client auth is not supported";
+
+  // Never send a certificate.
+  core->AddCertProvidedEvent(0);
+  return SECFailure;
+}
+
 #else  // NSS_PLATFORM_CLIENT_AUTH
 
 // static
