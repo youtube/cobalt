@@ -14,6 +14,7 @@
 #include "media/filters/file_data_source.h"
 
 using ::testing::AnyNumber;
+using ::testing::AtMost;
 
 namespace media {
 
@@ -88,8 +89,10 @@ void PipelineIntegrationTestBase::OnError(PipelineStatus status) {
 
 bool PipelineIntegrationTestBase::Start(const std::string& url,
                                         PipelineStatus expected_status) {
-  EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
-  EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
+  EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata))
+      .Times(AtMost(1));
+  EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted))
+      .Times(AtMost(1));
   pipeline_->Start(
       CreateFilterCollection(url),
       base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),
@@ -109,8 +112,10 @@ bool PipelineIntegrationTestBase::Start(const std::string& url,
 }
 
 bool PipelineIntegrationTestBase::Start(const std::string& url) {
-  EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
-  EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
+  EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata))
+      .Times(AtMost(1));
+  EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted))
+      .Times(AtMost(1));
   pipeline_->Start(
       CreateFilterCollection(url),
       base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),

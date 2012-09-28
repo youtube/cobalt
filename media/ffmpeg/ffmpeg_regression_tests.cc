@@ -93,29 +93,29 @@ class FlakyFFmpegRegressionTest
 // Test cases from issues.
 FFMPEG_TEST_CASE(Cr47325, "security/47325.mp4", PIPELINE_OK, PIPELINE_OK,
                  "2a7a938c6b5979621cec998f02d9bbb6",
-                 "511bbbfd42f5bedc1a11670a5b3299c7");
+                 "efbc63a850c9f8f51942f6a6029eb00f");
 FFMPEG_TEST_CASE(Cr47761, "content/crbug47761.ogg", PIPELINE_OK, PIPELINE_OK,
                  kNullHash,
-                 "7790097fe63d2e95bcc8d4f1ac92168d");
+                 "f45b9d7556f39dd811700ec72cb71483");
 FFMPEG_TEST_CASE(Cr50045, "content/crbug50045.mp4", PIPELINE_OK, PIPELINE_OK,
                  "c345e9ef9ebfc6bfbcbe3f0ddc3125ba",
-                 "d429bc20b7f1eafd0d8179fd128a94ed");
+                 "39cc70f744944eb01da947b8cf6fcd58");
 FFMPEG_TEST_CASE(Cr62127, "content/crbug62127.webm",
                  PIPELINE_OK, PIPELINE_OK,
                  "a064b2776fc5aef3e9cba47967a75db9", kNullHash);
 FFMPEG_TEST_CASE(Cr93620, "security/93620.ogg", PIPELINE_OK, PIPELINE_OK,
                  kNullHash,
-                 "a9a6d483666f3dc029a58a0fd1544002");
+                 "0cff252cd46867d26c42a96e6a2e2376");
 FFMPEG_TEST_CASE(Cr100492, "security/100492.webm", DECODER_ERROR_NOT_SUPPORTED,
                  DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr100543, "security/100543.webm", PIPELINE_OK, PIPELINE_OK,
                  "c16691cc9178db3adbf7e562cadcd6e6",
-                 "51347b4b4ce86562a833df3ff6af0fff");
+                 "816d9a772a449bc29f65f58244ee04c9");
 FFMPEG_TEST_CASE(Cr101458, "security/101458.webm", DECODER_ERROR_NOT_SUPPORTED,
                  DECODER_ERROR_NOT_SUPPORTED, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr108416, "security/108416.webm", PIPELINE_OK, PIPELINE_OK,
                  "5cb3a934795cd552753dec7687928291",
-                 "5ad0c25fb915022824dc65e4fe15bffc");
+                 "3e576c21f83f3c00719dbe62998d71cb");
 FFMPEG_TEST_CASE(Cr110849, "security/110849.mkv",
                  DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
                  DEMUXER_ERROR_NO_SUPPORTED_STREAMS, kNullHash, kNullHash);
@@ -125,16 +125,16 @@ FFMPEG_TEST_CASE(Cr112384, "security/112384.webm",
 FFMPEG_TEST_CASE(Cr112670, "security/112670.mp4", PIPELINE_ERROR_DECODE,
                  PIPELINE_ERROR_DECODE, kNullHash,
                  "59adb24ef3cdbe0297f05b395827453f");
-FFMPEG_TEST_CASE(Cr112976, "security/112976.ogg", PIPELINE_OK, PIPELINE_OK,
-                 kNullHash,
-                 "d23bacec582c94b8a6dc53b0971bf67e");
+FFMPEG_TEST_CASE(Cr112976, "security/112976.ogg", PIPELINE_OK,
+                 PIPELINE_ERROR_DECODE, kNullHash,
+                 "ef79f7c5805561908805eb0bb7097bb4");
 FFMPEG_TEST_CASE(Cr116927, "security/116927.ogv", PIPELINE_ERROR_DECODE,
                  PIPELINE_ERROR_DECODE, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr117912, "security/117912.webm", DEMUXER_ERROR_COULD_NOT_OPEN,
                  DEMUXER_ERROR_COULD_NOT_OPEN, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr123481, "security/123481.ogv", PIPELINE_OK,
                  PIPELINE_OK, "e6dd853fcbd746c8bb2ab2b8fc376fc7",
-                 "da909399f17e8f8ad7f1fcb3c4ccc33a");
+                 "c96a166a09061ca94202903d7824cf04");
 FFMPEG_TEST_CASE(Cr132779, "security/132779.webm",
                  DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE,
                  kNullHash, kNullHash);
@@ -146,15 +146,18 @@ FFMPEG_TEST_CASE(Cr140647, "security/140647.ogv",
                  kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr142738, "content/crbug142738.ogg", PIPELINE_OK, PIPELINE_OK,
                  kNullHash,
-                 "70deafc85a38a6711a3441c8a75414c2");
+                 "03a9591e5b596eb848feeafd7693f371");
+FFMPEG_TEST_CASE(Cr152691, "security/152691.mp3", PIPELINE_ERROR_DECODE,
+                 PIPELINE_ERROR_DECODE, kNullHash,
+                 "59adb24ef3cdbe0297f05b395827453f");
 
 // General MKV test cases.
 FFMPEG_TEST_CASE(MKV_0, "security/nested_tags_lang.mka.627.628", PIPELINE_OK,
                  PIPELINE_ERROR_DECODE, kNullHash,
-                 "abc9702fc46f49d6f26da5c62d118cf7");
+                 "7d1d74b9801002d983e7df3d52dd6db6");
 FFMPEG_TEST_CASE(MKV_1, "security/nested_tags_lang.mka.667.628", PIPELINE_OK,
                  PIPELINE_ERROR_DECODE, kNullHash,
-                 "414669ce405e681bda578f90c6c08951");
+                 "7d04ad131b4b07e04406159a17537a54");
 
 // General MP4 test cases.
 FFMPEG_TEST_CASE(MP4_0, "security/aac.10419.mp4", PIPELINE_OK, PIPELINE_OK,
@@ -163,7 +166,7 @@ FFMPEG_TEST_CASE(MP4_1, "security/clockh264aac_200021889.mp4",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_2, "security/clockh264aac_200701257.mp4", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "d8bee104916f9f10db767d13400296b6");
+                 PIPELINE_OK, kNullHash, "d4fea8297ca1c5ad7bbcd858864f66d9");
 FFMPEG_TEST_CASE(MP4_5, "security/clockh264aac_3022500.mp4",
                  DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
                  DEMUXER_ERROR_NO_SUPPORTED_STREAMS, kNullHash, kNullHash);
@@ -180,7 +183,7 @@ FFMPEG_TEST_CASE(MP4_9, "security/smclockmp4aac_1_0.mp4",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_11, "security/null1.mp4", PIPELINE_OK, PIPELINE_OK,
-                 kNullHash, "f20676c5de9b3c7c174c141762afb957");
+                 kNullHash, "d30daffed220266a133b27e00b892558");
 FFMPEG_TEST_CASE(MP4_16, "security/looping2.mov",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
@@ -250,45 +253,45 @@ FFMPEG_TEST_CASE(WEBM_5, "content/frame_size_change.webm", PIPELINE_OK,
 
 // Audio Functional Tests
 FFMPEG_TEST_CASE(AUDIO_GAMING_0, "content/gaming/a_220_00.mp3", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "5e60018ab1b30a82d53dccb759ab25b2");
+                 PIPELINE_OK, kNullHash, "1693d9a1e498b13c2a7fb8e7e62db880");
 FFMPEG_TEST_CASE(AUDIO_GAMING_1, "content/gaming/a_220_00_v2.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "6a79b3c593609f3bdfbea3727c658c73");
+                 PIPELINE_OK, kNullHash, "2fa0e9fca48759a7de1c22418fba7ea0");
 FFMPEG_TEST_CASE(AUDIO_GAMING_2, "content/gaming/ai_laser1.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "f587bfce23072efaec3d78316a5f2af1");
+                 PIPELINE_OK, kNullHash, "d4f331b0f7f04e94cd70f037a1091c2b");
 FFMPEG_TEST_CASE(AUDIO_GAMING_3, "content/gaming/ai_laser2.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "5dc6dab55a2f80cb17be519d62bd2781");
+                 PIPELINE_OK, kNullHash, "7b0eccb651e5572711f9c8826cc14c3c");
 FFMPEG_TEST_CASE(AUDIO_GAMING_4, "content/gaming/ai_laser3.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "5f913060d01365e9999f81f550f4823f");
+                 PIPELINE_OK, kNullHash, "cd977a2dd4fa570f1a7392fc9948f184");
 FFMPEG_TEST_CASE(AUDIO_GAMING_5, "content/gaming/ai_laser4.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "43be1bdfaa73d0f2cfecca0f4664fe1d");
+                 PIPELINE_OK, kNullHash, "155caa85c878abae43428f424cdc8848");
 FFMPEG_TEST_CASE(AUDIO_GAMING_6, "content/gaming/ai_laser5.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "786af83e7ad2de3c1c31270e7d401a58");
+                 PIPELINE_OK, kNullHash, "c0f7768ac3c72aaf26ac7b6070d2392a");
 FFMPEG_TEST_CASE(AUDIO_GAMING_7, "content/gaming/footstep1.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "2a4a41794b2e0330eb89ac2dce39db41");
+                 PIPELINE_OK, kNullHash, "46fab3db625f0f9b655b9affbb1fff25");
 FFMPEG_TEST_CASE(AUDIO_GAMING_8, "content/gaming/footstep3.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "294d37789cd48c2c043362742f67efd3");
+                 PIPELINE_OK, kNullHash, "38b84b04eb3f1993eb97b5d46fa2a444");
 FFMPEG_TEST_CASE(AUDIO_GAMING_9, "content/gaming/footstep4.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "45cbcc62aff633ef3b5b504db8a6f57c");
+                 PIPELINE_OK, kNullHash, "7a3927c3026fa96562b6c19950df0be0");
 FFMPEG_TEST_CASE(AUDIO_GAMING_10, "content/gaming/laser1.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "7c85c120e78c1b4688517191d368123f");
+                 PIPELINE_OK, kNullHash, "d2750f18ffce52f3763daba52117b66b");
 FFMPEG_TEST_CASE(AUDIO_GAMING_11, "content/gaming/laser2.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "a2a5af1fd64b4451a2a8ae50d94466c2");
+                 PIPELINE_OK, kNullHash, "bb398db9b2873e03a06d486d0a6f6d3a");
 FFMPEG_TEST_CASE(AUDIO_GAMING_12, "content/gaming/laser3.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "7d268f3271670e274b0bed923af4de58");
+                 PIPELINE_OK, kNullHash, "deb996d817e155ecd56766749d856e74");
 FFMPEG_TEST_CASE(AUDIO_GAMING_13, "content/gaming/leg1.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "c2b9710bc58eb0d3d48558bbf60cecce");
+                 PIPELINE_OK, kNullHash, "556e339fd0d1bdcb2d98f69063614067");
 FFMPEG_TEST_CASE(AUDIO_GAMING_14, "content/gaming/leg2.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "d9e28366eec434b6198acd4b6ab8854e");
+                 PIPELINE_OK, kNullHash, "313344cc2c02db5b23e336a9523b0c4a");
 FFMPEG_TEST_CASE(AUDIO_GAMING_15, "content/gaming/leg3.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "80e5314b9bda1a3d83d09cc1d89127b1");
+                 PIPELINE_OK, kNullHash, "25730f36ed51ba07eacca9c2b6235e6c");
 FFMPEG_TEST_CASE(AUDIO_GAMING_16, "content/gaming/lock_on.ogg", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "1d64e8b2642c5e39c40c3a40f7f28dcc");
+                 PIPELINE_OK, kNullHash, "92a3af2fc3597e7aaf5b06748daf5d6a");
 FFMPEG_TEST_CASE(AUDIO_GAMING_17, "content/gaming/enemy_lock_on.ogg",
                  PIPELINE_OK, PIPELINE_OK, kNullHash,
-                 "937fd55ea90cfecea945b3b44ca314bf");
+                 "9670d8f5a668cf85f8ae8d6f8e0fdcdc");
 FFMPEG_TEST_CASE(AUDIO_GAMING_18, "content/gaming/rocket_launcher.mp3",
                  PIPELINE_OK, PIPELINE_OK, kNullHash,
-                 "05289a50acd15fa1357fe6234f82c3fe");
+                 "bd8b70f6452360db7cca5c34b6e72844");
 
 // Allocate gigabytes of memory, likely can't be run on 32bit machines.
 FFMPEG_TEST_CASE(BIG_MEM_1, "security/bigmem1.mov",

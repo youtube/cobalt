@@ -11,6 +11,8 @@
 #include "media/base/test_data_util.h"
 #include "media/crypto/aes_decryptor.h"
 
+using testing::AtMost;
+
 namespace media {
 
 static const char kSourceId[] = "SourceId";
@@ -204,8 +206,10 @@ class PipelineIntegrationTest
       public PipelineIntegrationTestBase {
  public:
   void StartPipelineWithMediaSource(MockMediaSource* source) {
-    EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
-    EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
+    EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata))
+        .Times(AtMost(1));
+    EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted))
+        .Times(AtMost(1));
     pipeline_->Start(
         CreateFilterCollection(source->demuxer(), NULL),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
@@ -220,8 +224,10 @@ class PipelineIntegrationTest
   void StartPipelineWithEncryptedMedia(
       MockMediaSource* source,
       FakeDecryptorClient* encrypted_media) {
-    EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata));
-    EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted));
+    EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata))
+        .Times(AtMost(1));
+    EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted))
+        .Times(AtMost(1));
     pipeline_->Start(
         CreateFilterCollection(source->demuxer(), encrypted_media->decryptor()),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
