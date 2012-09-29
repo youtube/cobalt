@@ -113,9 +113,17 @@ int GetProcStatsFieldAsInt(const std::vector<std::string>& proc_stats,
   CHECK_LT(static_cast<size_t>(field_num), proc_stats.size());
 
   int value;
-  if (base::StringToInt(proc_stats[field_num], &value))
-    return value;
-  return 0;
+  return base::StringToInt(proc_stats[field_num], &value) ? value : 0;
+}
+
+// Same as GetProcStatsFieldAsInt(), but for size_t values.
+size_t GetProcStatsFieldAsSizeT(const std::vector<std::string>& proc_stats,
+                                ProcStatsFields field_num) {
+  DCHECK_GE(field_num, VM_PPID);
+  CHECK_LT(static_cast<size_t>(field_num), proc_stats.size());
+
+  size_t value;
+  return base::StringToSizeT(proc_stats[field_num], &value) ? value : 0;
 }
 
 // Convenience wrapper around GetProcStatsFieldAsInt(), ParseProcStats() and
@@ -128,6 +136,17 @@ int ReadProcStatsAndGetFieldAsInt(pid_t pid, ProcStatsFields field_num) {
   if (!ParseProcStats(stats_data, &proc_stats))
     return 0;
   return GetProcStatsFieldAsInt(proc_stats, field_num);
+}
+
+// Same as ReadProcStatsAndGetFieldAsInt() but for size_t values.
+size_t ReadProcStatsAndGetFieldAsSizeT(pid_t pid, ProcStatsFields field_num) {
+  std::string stats_data;
+  if (!ReadProcStats(pid, &stats_data))
+    return 0;
+  std::vector<std::string> proc_stats;
+  if (!ParseProcStats(stats_data, &proc_stats))
+    return 0;
+  return GetProcStatsFieldAsSizeT(proc_stats, field_num);
 }
 
 // Reads the |field_num|th field from |proc_stats|.
@@ -228,7 +247,7 @@ int GetProcessCPU(pid_t pid) {
 
 // Read /proc/<pid>/status and returns the value for |field|, or 0 on failure.
 // Only works for fields in the form of "Field: value kB".
-int ReadProcStatusAndGetFieldAsInt(pid_t pid, const std::string& field) {
+size_t ReadProcStatusAndGetFieldAsSizeT(pid_t pid, const std::string& field) {
   FilePath stat_file = GetProcPidDir(pid).Append("status");
   std::string status;
   {
@@ -260,8 +279,8 @@ int ReadProcStatusAndGetFieldAsInt(pid_t pid, const std::string& field) {
             NOTREACHED();
             return 0;
           }
-          int value;
-          if (!base::StringToInt(split_value_str[0], &value)) {
+          size_t value;
+          if (!base::StringToSizeT(split_value_str[0], &value)) {
             NOTREACHED();
             return 0;
           }
@@ -392,22 +411,22 @@ ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
 
 // On linux, we return vsize.
 size_t ProcessMetrics::GetPagefileUsage() const {
-  return ReadProcStatsAndGetFieldAsInt(process_, VM_VSIZE);
+  return ReadProcStatsAndGetFieldAsSizeT(process_, VM_VSIZE);
 }
 
 // On linux, we return the high water mark of vsize.
 size_t ProcessMetrics::GetPeakPagefileUsage() const {
-  return ReadProcStatusAndGetFieldAsInt(process_, "VmPeak") * 1024;
+  return ReadProcStatusAndGetFieldAsSizeT(process_, "VmPeak") * 1024;
 }
 
 // On linux, we return RSS.
 size_t ProcessMetrics::GetWorkingSetSize() const {
-  return ReadProcStatsAndGetFieldAsInt(process_, VM_RSS) * getpagesize();
+  return ReadProcStatsAndGetFieldAsSizeT(process_, VM_RSS) * getpagesize();
 }
 
 // On linux, we return the high water mark of RSS.
 size_t ProcessMetrics::GetPeakWorkingSetSize() const {
-  return ReadProcStatusAndGetFieldAsInt(process_, "VmHWM") * 1024;
+  return ReadProcStatusAndGetFieldAsSizeT(process_, "VmHWM") * 1024;
 }
 
 bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
