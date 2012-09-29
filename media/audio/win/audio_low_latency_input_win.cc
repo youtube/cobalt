@@ -276,26 +276,15 @@ HRESULT WASAPIAudioInputStream::GetMixFormat(const std::string& device_id,
     hr = enumerator->GetDevice(UTF8ToUTF16(device_id).c_str(),
                                endpoint_device.Receive());
   }
-  if (FAILED(hr)) {
-    // This will happen if there's no audio capture device found or available
-    // (e.g. some audio cards that have inputs will still report them as
-    // "not found" when no mic is plugged into the input jack).
-    LOG(WARNING) << "No audio end point: " << std::hex << hr;
+  if (FAILED(hr))
     return hr;
-  }
 
   ScopedComPtr<IAudioClient> audio_client;
   hr = endpoint_device->Activate(__uuidof(IAudioClient),
                                  CLSCTX_INPROC_SERVER,
                                  NULL,
                                  audio_client.ReceiveVoid());
-  DCHECK(SUCCEEDED(hr)) << "Failed to activate device: " << std::hex << hr;
-  if (SUCCEEDED(hr)) {
-    hr = audio_client->GetMixFormat(device_format);
-    DCHECK(SUCCEEDED(hr)) << "GetMixFormat: " << std::hex << hr;
-  }
-
-  return hr;
+  return SUCCEEDED(hr) ? audio_client->GetMixFormat(device_format) : hr;
 }
 
 void WASAPIAudioInputStream::Run() {
