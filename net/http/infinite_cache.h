@@ -63,7 +63,6 @@ class NET_EXPORT_PRIVATE InfiniteCacheTransaction {
 
   base::WeakPtr<InfiniteCache> cache_;
   scoped_ptr<ResourceData> resource_data_;
-  bool must_doom_entry_;
   DISALLOW_COPY_AND_ASSIGN(InfiniteCacheTransaction);
 };
 

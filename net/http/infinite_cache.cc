@@ -45,8 +45,13 @@ enum Flags {
   RESUMABLE = 1 << 4,
   REVALIDATEABLE = 1 << 5,
   DOOM_METHOD = 1 << 6,
-  CACHED = 1 << 7
+  CACHED = 1 << 7,
+  GA_JS_HTTP = 1 << 8,
+  GA_JS_HTTPS = 1 << 9,
 };
+
+const char kGaJsHttpUrl[] = "http://www.google-analytics.com/ga.js";
+const char kGaJsHttpsUrl[] = "https://ssl.google-analytics.com/ga.js";
 
 const int kKeySizeBytes = 20;
 COMPILE_ASSERT(base::kSHA1Length == static_cast<unsigned>(kKeySizeBytes),
@@ -236,7 +241,7 @@ struct InfiniteCacheTransaction::ResourceData {
 };
 
 InfiniteCacheTransaction::InfiniteCacheTransaction(InfiniteCache* cache)
-    : cache_(cache->AsWeakPtr()), must_doom_entry_(false) {
+    : cache_(cache->AsWeakPtr()) {
 }
 
 InfiniteCacheTransaction::~InfiniteCacheTransaction() {
@@ -248,15 +253,21 @@ void InfiniteCacheTransaction::OnRequestStart(const HttpRequestInfo* request) {
     return;
 
   std::string method = request->method;
+  resource_data_.reset(new ResourceData);
   if (method == "POST" || method == "DELETE" || method == "PUT") {
-    must_doom_entry_ = true;
+    resource_data_->details.flags |= DOOM_METHOD;
   } else if (method != "GET") {
     cache_.reset();
     return;
   }
+  const std::string cache_key = cache_->GenerateKey(request);
+  if (cache_key == kGaJsHttpUrl) {
+    resource_data_->details.flags |= GA_JS_HTTP;
+  } else if (cache_key == kGaJsHttpsUrl) {
+    resource_data_->details.flags |= GA_JS_HTTPS;
+  }
 
-  resource_data_.reset(new ResourceData);
-  CryptoHash(cache_->GenerateKey(request), &resource_data_->key);
+  CryptoHash(cache_key, &resource_data_->key);
 }
 
 void InfiniteCacheTransaction::OnResponseReceived(
@@ -265,6 +276,10 @@ void InfiniteCacheTransaction::OnResponseReceived(
     return;
 
   Details& details = resource_data_->details;
+
+  // Store the old flag values that we want to preserve.
+  const uint32 kPreserveFlagsBitMask = (GA_JS_HTTP | GA_JS_HTTPS | DOOM_METHOD);
+  uint32 old_flag_values = details.flags & kPreserveFlagsBitMask;
 
   details.expiration = GetExpiration(response);
   details.last_access = TimeToInt(response->request_time);
@@ -276,10 +291,11 @@ void InfiniteCacheTransaction::OnResponseReceived(
       TimeToInt(response->response_time) == details.expiration) {
     details.flags = EXPIRED;
   }
-  details.flags |= GetRevalidationFlags(response);
 
-  if (must_doom_entry_)
-    details.flags |= DOOM_METHOD;
+  // Restore the old flag values we wanted to preserve.
+  details.flags |= old_flag_values;
+
+  details.flags |= GetRevalidationFlags(response);
 
   Pickle pickle;
   response->Persist(&pickle, true, false);  // Skip transient headers.
@@ -772,25 +788,60 @@ void InfiniteCache::Worker::RecordHit(const Details& old, Details* details) {
   header_->num_hits++;
   int access_delta = (IntToTime(details->last_access) -
                       IntToTime(old.last_access)).InMinutes();
-  if (old.use_count)
+  if (old.use_count) {
     UMA_HISTOGRAM_COUNTS("InfiniteCache.ReuseAge", access_delta);
-  else
+    if (details->flags & GA_JS_HTTP) {
+      UMA_HISTOGRAM_COUNTS("InfiniteCache.GaJsHttpReuseAge", access_delta);
+    } else if (details->flags & GA_JS_HTTPS) {
+      UMA_HISTOGRAM_COUNTS("InfiniteCache.GaJsHttpsReuseAge", access_delta);
+    }
+  } else {
     UMA_HISTOGRAM_COUNTS("InfiniteCache.FirstReuseAge", access_delta);
+    if (details->flags & GA_JS_HTTP) {
+      UMA_HISTOGRAM_COUNTS(
+          "InfiniteCache.GaJsHttpFirstReuseAge", access_delta);
+    } else if (details->flags & GA_JS_HTTPS) {
+      UMA_HISTOGRAM_COUNTS(
+          "InfiniteCache.GaJsHttpsFirstReuseAge", access_delta);
+    }
+  }
 
   details->use_count = old.use_count;
   if (details->use_count < kuint8max)
     details->use_count++;
   UMA_HISTOGRAM_CUSTOM_COUNTS("InfiniteCache.UseCount", details->use_count, 0,
                               kuint8max, 25);
+  if (details->flags & GA_JS_HTTP) {
+    UMA_HISTOGRAM_CUSTOM_COUNTS("InfiniteCache.GaJsHttpUseCount",
+                                details->use_count, 0, kuint8max, 25);
+  } else if (details->flags & GA_JS_HTTPS) {
+    UMA_HISTOGRAM_CUSTOM_COUNTS("InfiniteCache.GaJsHttpsUseCount",
+                                details->use_count, 0, kuint8max, 25);
+  }
 }
 
 void InfiniteCache::Worker::RecordUpdate(const Details& old, Details* details) {
   int access_delta = (IntToTime(details->last_access) -
                       IntToTime(old.last_access)).InMinutes();
-  if (old.update_count)
+  if (old.update_count) {
     UMA_HISTOGRAM_COUNTS("InfiniteCache.UpdateAge", access_delta);
-  else
+    if (details->flags & GA_JS_HTTP) {
+      UMA_HISTOGRAM_COUNTS(
+          "InfiniteCache.GaJsHttpUpdateAge", access_delta);
+    } else if (details->flags & GA_JS_HTTPS) {
+      UMA_HISTOGRAM_COUNTS(
+          "InfiniteCache.GaJsHttpsUpdateAge", access_delta);
+    }
+  } else {
     UMA_HISTOGRAM_COUNTS("InfiniteCache.FirstUpdateAge", access_delta);
+    if (details->flags & GA_JS_HTTP) {
+      UMA_HISTOGRAM_COUNTS(
+          "InfiniteCache.GaJsHttpFirstUpdateAge", access_delta);
+    } else if (details->flags & GA_JS_HTTPS) {
+      UMA_HISTOGRAM_COUNTS(
+          "InfiniteCache.GaJsHttpsFirstUpdateAge", access_delta);
+    }
+  }
 
   details->update_count = old.update_count;
   if (details->update_count < kuint8max)
@@ -798,6 +849,13 @@ void InfiniteCache::Worker::RecordUpdate(const Details& old, Details* details) {
 
   UMA_HISTOGRAM_CUSTOM_COUNTS("InfiniteCache.UpdateCount",
                               details->update_count, 0, kuint8max, 25);
+  if (details->flags & GA_JS_HTTP) {
+    UMA_HISTOGRAM_CUSTOM_COUNTS("InfiniteCache.GaJsHttpUpdateCount",
+                                details->update_count, 0, kuint8max, 25);
+  } else if (details->flags & GA_JS_HTTPS) {
+    UMA_HISTOGRAM_CUSTOM_COUNTS("InfiniteCache.GaJsHttpsUpdateCount",
+                                details->update_count, 0, kuint8max, 25);
+  }
   details->use_count = 0;
 }
 
@@ -890,6 +948,13 @@ bool InfiniteCache::Worker::CanReuse(const Details& old,
     reason += REUSE_REVALIDATEABLE;
 
   UMA_HISTOGRAM_ENUMERATION("InfiniteCache.ReuseFailure", reason, 15);
+  if (current.flags & GA_JS_HTTP) {
+    UMA_HISTOGRAM_ENUMERATION(
+        "InfiniteCache.GaJsHttpReuseFailure", reason, 15);
+  } else if (current.flags & GA_JS_HTTPS) {
+    UMA_HISTOGRAM_ENUMERATION(
+        "InfiniteCache.GaJsHttpsReuseFailure", reason, 15);
+  }
   return !reason;
 }
 
