@@ -33,7 +33,7 @@ bool GetInputDeviceNamesWin(AudioDeviceNames* device_names) {
                                  CLSCTX_INPROC_SERVER,
                                  __uuidof(IMMDeviceEnumerator),
                                  enumerator.ReceiveVoid());
-  DCHECK_NE(hr, CO_E_NOTINITIALIZED);
+  DCHECK_NE(CO_E_NOTINITIALIZED, hr);
   if (FAILED(hr)) {
     LOG(WARNING) << "Failed to create IMMDeviceEnumerator: " << std::hex << hr;
     return false;
@@ -62,13 +62,13 @@ bool GetInputDeviceNamesWin(AudioDeviceNames* device_names) {
     // Retrieve unique name of endpoint device.
     // Example: "{0.0.1.00000000}.{8db6020f-18e3-4f25-b6f5-7726c9122574}".
     ScopedComPtr<IMMDevice> audio_device;
-    ScopedCoMem<WCHAR> endpoint_device_id;
     hr = collection->Item(i, audio_device.Receive());
     if (FAILED(hr))
       continue;
-    audio_device->GetId(&endpoint_device_id);
 
     // Store the unique name.
+    ScopedCoMem<WCHAR> endpoint_device_id;
+    audio_device->GetId(&endpoint_device_id);
     device.unique_id = WideToUTF8(static_cast<WCHAR*>(endpoint_device_id));
 
     // Retrieve user-friendly name of endpoint device.

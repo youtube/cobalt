@@ -90,35 +90,22 @@ static HRESULT GetMixFormat(ERole device_role, WAVEFORMATEX** device_format) {
                                 CLSCTX_INPROC_SERVER,
                                 __uuidof(IMMDeviceEnumerator),
                                 enumerator.ReceiveVoid());
-  if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << std::hex << hr;
+  if (FAILED(hr))
     return hr;
-  }
 
   ScopedComPtr<IMMDevice> endpoint_device;
   hr = enumerator->GetDefaultAudioEndpoint(eRender,
                                            device_role,
                                            endpoint_device.Receive());
-  if (FAILED(hr)) {
-    // This will happen if there's no audio output device found or available
-    // (e.g. some audio cards that have outputs will still report them as
-    // "not found" when no speaker is plugged into the output jack).
-    LOG(WARNING) << "No audio end point: " << std::hex << hr;
+  if (FAILED(hr))
     return hr;
-  }
 
   ScopedComPtr<IAudioClient> audio_client;
   hr = endpoint_device->Activate(__uuidof(IAudioClient),
                                  CLSCTX_INPROC_SERVER,
                                  NULL,
                                  audio_client.ReceiveVoid());
-  DCHECK(SUCCEEDED(hr)) << "Failed to activate device: " << std::hex << hr;
-  if (SUCCEEDED(hr)) {
-    hr = audio_client->GetMixFormat(device_format);
-    DCHECK(SUCCEEDED(hr)) << "GetMixFormat: " << std::hex << hr;
-  }
-
-  return hr;
+  return SUCCEEDED(hr) ? audio_client->GetMixFormat(device_format) : hr;
 }
 
 // Retrieves an integer mask which corresponds to the channel layout the
