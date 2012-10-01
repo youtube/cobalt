@@ -55,18 +55,30 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   static bool IsValidConfig(Format format, const gfx::Size& data_size,
                             const gfx::Size& natural_size);
 
+  // CB to write pixels from the texture backing this frame into the
+  // |void*| parameter.
+  typedef base::Callback<void(void*)> ReadPixelsCB;
+
   // Wraps a native texture of the given parameters with a VideoFrame.  When the
   // frame is destroyed |no_longer_needed.Run()| will be called.
   // |data_size| is the width and height of the frame data in pixels.
   // |natural_size| is the width and height of the frame when the frame's aspect
   // ratio is applied to |size|.
+  // |read_pixels_cb| may be used to do (slow!) readbacks from the
+  // texture to main memory.
   static scoped_refptr<VideoFrame> WrapNativeTexture(
       uint32 texture_id,
       uint32 texture_target,
       const gfx::Size& data_size,
       const gfx::Size& natural_size,
       base::TimeDelta timestamp,
+      const ReadPixelsCB& read_pixels_cb,
       const base::Closure& no_longer_needed);
+
+  // Read pixels from the native texture backing |*this| and write
+  // them to |*pixels| as RGBA.  |pixels| must point to a buffer at
+  // least as large as 4*data_size().width()*data_size().height().
+  void ReadPixelsFromNativeTexture(void* pixels);
 
   // Creates a frame with format equals to VideoFrame::EMPTY, width, height,
   // and timestamp are all 0.
@@ -152,6 +164,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // Native texture ID, if this is a NATIVE_TEXTURE frame.
   uint32 texture_id_;
   uint32 texture_target_;
+  ReadPixelsCB read_pixels_cb_;
   base::Closure texture_no_longer_needed_;
 
   base::TimeDelta timestamp_;

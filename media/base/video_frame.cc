@@ -61,13 +61,21 @@ scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
     const gfx::Size& data_size,
     const gfx::Size& natural_size,
     base::TimeDelta timestamp,
+    const ReadPixelsCB& read_pixels_cb,
     const base::Closure& no_longer_needed) {
   scoped_refptr<VideoFrame> frame(
       new VideoFrame(NATIVE_TEXTURE, data_size, natural_size, timestamp));
   frame->texture_id_ = texture_id;
   frame->texture_target_ = texture_target;
+  frame->read_pixels_cb_ = read_pixels_cb;
   frame->texture_no_longer_needed_ = no_longer_needed;
   return frame;
+}
+
+void VideoFrame::ReadPixelsFromNativeTexture(void* pixels) {
+  DCHECK_EQ(format_, NATIVE_TEXTURE);
+  if (!read_pixels_cb_.is_null())
+    read_pixels_cb_.Run(pixels);
 }
 
 // static
