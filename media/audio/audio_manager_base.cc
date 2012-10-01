@@ -7,8 +7,6 @@
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/message_loop_proxy.h"
-#include "base/threading/thread.h"
-#include "base/win/scoped_com_initializer.h"
 #include "media/audio/audio_output_dispatcher_impl.h"
 #include "media/audio/audio_output_proxy.h"
 #include "media/audio/audio_output_resampler.h"
@@ -22,8 +20,6 @@
 #if defined(ENABLE_AUDIO_MIXER)
 #include "media/audio/audio_output_mixer.h"
 #endif
-
-using base::win::ScopedCOMInitializer;
 
 namespace media {
 
@@ -42,35 +38,22 @@ static const int kMaxInputChannels = 2;
 const char AudioManagerBase::kDefaultDeviceName[] = "Default";
 const char AudioManagerBase::kDefaultDeviceId[] = "default";
 
-// Initializes the COM library for use by this thread and sets the thread's
-// COM threading model on Windows to MTA.
-class AudioThread : public base::Thread {
- public:
-  AudioThread();
-  virtual ~AudioThread();
-
- protected:
-  virtual void Init() OVERRIDE;
-  virtual void CleanUp() OVERRIDE;
-
- private:
-  scoped_ptr<ScopedCOMInitializer> com_initializer_;
-  DISALLOW_COPY_AND_ASSIGN(AudioThread);
-};
-
-AudioThread::AudioThread() : base::Thread("AudioThread") {
+#if defined(OS_WIN)
+AudioThread::AudioThread(const char* name) : base::Thread(name) {
 }
 
-AudioThread::~AudioThread() {}
+AudioThread::~AudioThread() {
+}
 
 void AudioThread::Init() {
-  com_initializer_.reset(new ScopedCOMInitializer(ScopedCOMInitializer::kMTA));
-  CHECK(com_initializer_->succeeded());
+  com_initializer_.reset(new base::win::ScopedCOMInitializer(
+      base::win::ScopedCOMInitializer::kMTA));
 }
 
 void AudioThread::CleanUp() {
   com_initializer_.reset();
 }
+#endif
 
 AudioManagerBase::AudioManagerBase()
     : num_active_input_streams_(0),
@@ -96,7 +79,7 @@ AudioManagerBase::~AudioManagerBase() {
 void AudioManagerBase::Init() {
   base::AutoLock lock(audio_thread_lock_);
   DCHECK(!audio_thread_.get());
-  audio_thread_.reset(new media::AudioThread());
+  audio_thread_.reset(new AudioThread("AudioThread"));
   CHECK(audio_thread_->Start());
 }
 
@@ -261,7 +244,7 @@ bool AudioManagerBase::IsRecordingInProcess() {
 void AudioManagerBase::Shutdown() {
   // To avoid running into deadlocks while we stop the thread, shut it down
   // via a local variable while not holding the audio thread lock.
-  scoped_ptr<media::AudioThread> audio_thread;
+  scoped_ptr<AudioThread> audio_thread;
   {
     base::AutoLock lock(audio_thread_lock_);
     audio_thread_.swap(audio_thread);

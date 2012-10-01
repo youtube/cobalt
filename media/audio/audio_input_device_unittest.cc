@@ -4,17 +4,15 @@
 
 #include "base/environment.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/win/scoped_com_initializer.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_manager_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)
+#include "base/win/scoped_com_initializer.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #endif
-
-using base::win::ScopedCOMInitializer;
 
 namespace media {
 
@@ -24,8 +22,11 @@ class AudioInputDeviceTest
     : public ::testing::Test {
  protected:
   AudioInputDeviceTest()
-      : audio_manager_(AudioManager::Create()),
-        com_init_(ScopedCOMInitializer::kMTA) {
+      : audio_manager_(AudioManager::Create())
+#if defined(OS_WIN)
+      , com_init_(base::win::ScopedCOMInitializer::kMTA)
+#endif
+  {
   }
 
 #if defined(OS_WIN)
@@ -92,8 +93,10 @@ class AudioInputDeviceTest
 
   scoped_ptr<AudioManager> audio_manager_;
 
+#if defined(OS_WIN)
   // The MMDevice API requires COM to be initialized on the current thread.
-  ScopedCOMInitializer com_init_;
+  base::win::ScopedCOMInitializer com_init_;
+#endif
 };
 
 // Test that devices can be enumerated.
