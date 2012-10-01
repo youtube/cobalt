@@ -254,6 +254,7 @@ bool CreateDomainBoundCertInternal(
   return true;
 }
 
+#if defined(USE_NSS) || defined(OS_IOS)
 // Callback for CERT_DecodeCertPackage(), used in
 // CreateOSCertHandlesFromBytes().
 SECStatus PR_CALLBACK CollectCertsCallback(void* arg,
@@ -272,6 +273,7 @@ SECStatus PR_CALLBACK CollectCertsCallback(void* arg,
 
   return SECSuccess;
 }
+#endif  // defined(USE_NSS) || defined(OS_IOS)
 
 }  // namespace
 
