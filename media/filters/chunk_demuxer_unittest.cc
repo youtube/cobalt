@@ -101,6 +101,28 @@ static void OnReadDone_EOSExpected(bool* called,
   *called = true;
 }
 
+static void StoreStatusAndBuffer(DemuxerStream::Status* status_out,
+                                 scoped_refptr<DecoderBuffer>* buffer_out,
+                                 DemuxerStream::Status status,
+                                 const scoped_refptr<DecoderBuffer>& buffer) {
+  *status_out = status;
+  *buffer_out = buffer;
+}
+
+static void ReadUntilNotOkOrEndOfStream(
+    const scoped_refptr<DemuxerStream>& stream,
+    DemuxerStream::Status* status,
+    base::TimeDelta* last_timestamp) {
+  scoped_refptr<DecoderBuffer> buffer;
+
+  *last_timestamp = kNoTimestamp();
+  do {
+    stream->Read(base::Bind(&StoreStatusAndBuffer, status, &buffer));
+    if (*status == DemuxerStream::kOk && !buffer->IsEndOfStream())
+      *last_timestamp = buffer->GetTimestamp();
+  } while (*status == DemuxerStream::kOk && !buffer->IsEndOfStream());
+}
+
 class ChunkDemuxerTest : public testing::Test {
  protected:
   enum CodecsIndex {
@@ -236,6 +258,11 @@ class ChunkDemuxerTest : public testing::Test {
 
   bool AppendData(const uint8* data, size_t length) {
     return AppendData(kSourceId, data, length);
+  }
+
+  bool AppendCluster(int timecode, int block_count) {
+    scoped_ptr<Cluster> cluster(GenerateCluster(timecode, block_count));
+    return AppendData(kSourceId, cluster->data(), cluster->size());
   }
 
   bool AppendData(const std::string& source_id,
@@ -1160,6 +1187,54 @@ TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
   end_of_stream_helper_3.CheckIfReadDonesWereCalled(true);
 }
 
+TEST_F(ChunkDemuxerTest, TestEndOfStreamDuringCanceledSeek) {
+  ASSERT_TRUE(InitDemuxer(true, true, false));
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  ASSERT_TRUE(AppendCluster(0, 10));
+  EXPECT_CALL(host_, SetDuration(base::TimeDelta::FromMilliseconds(138)));
+  EXPECT_TRUE(demuxer_->EndOfStream(PIPELINE_OK));
+
+  // Start the first seek.
+  demuxer_->StartWaitingForSeek();
+
+  // Call EndOfStream() before the demuxer is notified of the desired
+  // seek point. This simulates end of stream being called before the
+  // pipeline gets a chance to call Seek().
+  EXPECT_TRUE(demuxer_->EndOfStream(PIPELINE_OK));
+
+  // Simulate the pipeline finally calling Seek().
+  demuxer_->Seek(base::TimeDelta::FromMilliseconds(20),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  // Simulate another seek being requested before the first
+  // seek has finished prerolling.
+  demuxer_->CancelPendingSeek();
+
+  // Call EndOfStream() again since the second seek should clear the
+  // previous end of stream state.
+  EXPECT_TRUE(demuxer_->EndOfStream(PIPELINE_OK));
+
+  // Finish second seek.
+  demuxer_->StartWaitingForSeek();
+  demuxer_->Seek(base::TimeDelta::FromMilliseconds(30),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+  DemuxerStream::Status status;
+  base::TimeDelta last_timestamp;
+
+  // Make sure audio can reach end of stream.
+  ReadUntilNotOkOrEndOfStream(audio, &status, &last_timestamp);
+  ASSERT_EQ(status, DemuxerStream::kOk);
+
+  // Make sure video can reach end of stream.
+  ReadUntilNotOkOrEndOfStream(video, &status, &last_timestamp);
+  ASSERT_EQ(status, DemuxerStream::kOk);
+}
+
 // Make sure AppendData() will accept elements that span multiple calls.
 TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
   EXPECT_CALL(*this, DemuxerOpened());
@@ -1987,29 +2062,6 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamDuringSeek) {
   EndOfStreamHelper end_of_stream_helper(demuxer_);
   end_of_stream_helper.RequestReads();
   end_of_stream_helper.CheckIfReadDonesWereCalled(true);
-}
-
-static void ConfigChangeReadDone(DemuxerStream::Status* status_out,
-                                 scoped_refptr<DecoderBuffer>* buffer_out,
-                                 DemuxerStream::Status status,
-                                 const scoped_refptr<DecoderBuffer>& buffer) {
-  *status_out = status;
-  *buffer_out = buffer;
-}
-
-static void ReadUntilNotOkOrEndOfStream(
-    const scoped_refptr<DemuxerStream>& stream,
-    DemuxerStream::Status* status,
-    base::TimeDelta* last_timestamp) {
-  scoped_refptr<DecoderBuffer> buffer;
-
-  *last_timestamp = kNoTimestamp();
-  do {
-    stream->Read(base::Bind(&ConfigChangeReadDone, status, &buffer));
-    if (*status == DemuxerStream::kOk && !buffer->IsEndOfStream())
-      *last_timestamp = buffer->GetTimestamp();
-
-  } while (*status == DemuxerStream::kOk && !buffer->IsEndOfStream());
 }
 
 TEST_F(ChunkDemuxerTest, TestConfigChange_Video) {
