@@ -179,10 +179,6 @@ int Sum(int a, int b, int c, int d, int e, int f) {
   return a + b + c + d + e + f;
 }
 
-void OutputSum(int* output, int a, int b, int c, int d, int e) {
-  *output = a + b + c + d + e;
-}
-
 const char* CStringIdentity(const char* s) {
   return s;
 }
