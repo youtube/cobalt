@@ -11,25 +11,24 @@
 #include "base/synchronization/lock.h"
 #include "base/test/test_timeouts.h"
 #include "base/time.h"
-#include "base/win/scoped_com_initializer.h"
 #include "build/build_config.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager_base.h"
 #include "media/audio/audio_util.h"
+#include "media/base/seekable_buffer.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
 #if defined(OS_LINUX) || defined(OS_OPENBSD)
 #include "media/audio/linux/audio_manager_linux.h"
 #elif defined(OS_MACOSX)
 #include "media/audio/mac/audio_manager_mac.h"
 #elif defined(OS_WIN)
+#include "base/win/scoped_com_initializer.h"
 #include "media/audio/win/audio_manager_win.h"
 #elif defined(OS_ANDROID)
 #include "media/audio/android/audio_manager_android.h"
 #endif
-#include "media/base/seekable_buffer.h"
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
-
-using base::win::ScopedCOMInitializer;
 
 namespace media {
 
@@ -325,7 +324,10 @@ class StreamWrapper {
   typedef typename StreamTraits::StreamType StreamType;
 
   explicit StreamWrapper(AudioManager* audio_manager)
-      : com_init_(ScopedCOMInitializer::kMTA),
+      :
+#if defined(OS_WIN)
+        com_init_(base::win::ScopedCOMInitializer::kMTA),
+#endif
         audio_manager_(audio_manager),
         format_(AudioParameters::AUDIO_PCM_LOW_LATENCY),
 #if defined(OS_ANDROID)
@@ -389,7 +391,10 @@ class StreamWrapper {
     return stream;
   }
 
-  ScopedCOMInitializer com_init_;
+#if defined(OS_WIN)
+  base::win::ScopedCOMInitializer com_init_;
+#endif
+
   AudioManager* audio_manager_;
   AudioParameters::Format format_;
   ChannelLayout channel_layout_;
