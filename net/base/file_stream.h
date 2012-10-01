@@ -197,10 +197,31 @@ class NET_EXPORT FileStream {
   // not have to be called, it just forces one to happen at the time of
   // calling.
   //
-  /// Returns an error code if the operation could not be performed.
+  // The file must be opened with PLATFORM_FILE_ASYNC, and a non-null
+  // callback must be passed to this method. If the write could not
+  // complete synchronously, then ERR_IO_PENDING is returned, and the
+  // callback will be run on the thread where Flush() was called when
+  // the write has completed.
+  //
+  // It is valid to destroy or close the file stream while there is an
+  // asynchronous flush in progress.  That will cancel the flush and allow
+  // the buffer to be freed.
+  //
+  // It is invalid to request any asynchronous operations while there is an
+  // in-flight asynchronous operation.
   //
   // This method should not be called if the stream was opened READ_ONLY.
-  virtual int Flush();
+  virtual int Flush(const CompletionCallback& callback);
+
+  // Forces out a filesystem sync on this file to make sure that the file was
+  // written out to disk and is not currently sitting in the buffer. This does
+  // not have to be called, it just forces one to happen at the time of
+  // calling.
+  //
+  // Returns an error code if the operation could not be performed.
+  //
+  // This method should not be called if the stream was opened READ_ONLY.
+  virtual int FlushSync();
 
   // Turns on UMA error statistics gathering.
   void EnableErrorStatistics();

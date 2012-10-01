@@ -78,8 +78,12 @@ int64 FileStream::Truncate(int64 bytes) {
   return impl_.Truncate(bytes);
 }
 
-int FileStream::Flush() {
-  return impl_.Flush();
+int FileStream::Flush(const CompletionCallback& callback) {
+  return impl_.Flush(callback);
+}
+
+int FileStream::FlushSync() {
+  return impl_.FlushSync();
 }
 
 void FileStream::EnableErrorStatistics() {
