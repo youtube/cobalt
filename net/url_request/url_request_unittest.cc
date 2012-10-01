@@ -702,25 +702,19 @@ TEST_F(URLRequestTest, ResolveShortcutTest) {
 
   std::wstring lnk_path = app_path.value() + L".lnk";
 
-  HRESULT result;
-  IShellLink* shell = NULL;
-  IPersistFile* persist = NULL;
-
   CoInitialize(NULL);
+
   // Temporarily create a shortcut for test
-  result = CoCreateInstance(CLSID_ShellLink, NULL,
-                            CLSCTX_INPROC_SERVER, IID_IShellLink,
-                            reinterpret_cast<LPVOID*>(&shell));
-  ASSERT_TRUE(SUCCEEDED(result));
-  result = shell->QueryInterface(IID_IPersistFile,
-                                reinterpret_cast<LPVOID*>(&persist));
-  ASSERT_TRUE(SUCCEEDED(result));
-  result = shell->SetPath(app_path.value().c_str());
-  EXPECT_TRUE(SUCCEEDED(result));
-  result = shell->SetDescription(L"ResolveShortcutTest");
-  EXPECT_TRUE(SUCCEEDED(result));
-  result = persist->Save(lnk_path.c_str(), TRUE);
-  EXPECT_TRUE(SUCCEEDED(result));
+  IShellLink* shell = NULL;
+  ASSERT_TRUE(SUCCEEDED(CoCreateInstance(
+      CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink,
+      reinterpret_cast<LPVOID*>(&shell))));
+  IPersistFile* persist = NULL;
+  ASSERT_TRUE(SUCCEEDED(shell->QueryInterface(
+      IID_IPersistFile, reinterpret_cast<LPVOID*>(&persist))));
+  EXPECT_TRUE(SUCCEEDED(shell->SetPath(app_path.value().c_str())));
+  EXPECT_TRUE(SUCCEEDED(shell->SetDescription(L"ResolveShortcutTest")));
+  EXPECT_TRUE(SUCCEEDED(persist->Save(lnk_path.c_str(), TRUE)));
   if (persist)
     persist->Release();
   if (shell)
