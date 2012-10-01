@@ -165,6 +165,7 @@ static const int kAllowedFtpPorts[] = {
   22,   // ssh
 };
 
+#if defined(OS_WIN)
 std::string::size_type CountTrailingChars(
     const std::string& input,
     const std::string::value_type trailing_chars[]) {
@@ -172,6 +173,7 @@ std::string::size_type CountTrailingChars(
   return (last_good_char == std::string::npos) ?
       input.length() : (input.length() - last_good_char - 1);
 }
+#endif
 
 // Similar to Base64Decode. Decodes a Q-encoded string to a sequence
 // of bytes. If input is invalid, return false.
