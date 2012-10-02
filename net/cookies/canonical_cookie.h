@@ -117,8 +117,7 @@ class NET_EXPORT CanonicalCookie {
   static std::string GetCookieSourceFromURL(const GURL& url);
   static std::string CanonPath(const GURL& url, const ParsedCookie& pc);
   static base::Time CanonExpiration(const ParsedCookie& pc,
-                                    const base::Time& current,
-                                    const base::Time& server_time);
+                                    const base::Time& current);
 
  private:
   // The source member of a canonical cookie is the origin of the URL that tried
