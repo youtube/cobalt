@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/android/path_utils.h"
+#include "base/file_path.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -15,24 +16,30 @@ TEST_F(PathUtilsTest, TestGetDataDirectory) {
   // The string comes from the Java side and depends on the APK
   // we are running in. Assumes that we are packaged in
   // org.chromium.native_test
+  FilePath path;
+  GetDataDirectory(&path);
   EXPECT_STREQ("/data/data/org.chromium.native_test/app_chrome",
-               GetDataDirectory().c_str());
+               path.value().c_str());
 }
 
 TEST_F(PathUtilsTest, TestGetCacheDirectory) {
   // The string comes from the Java side and depends on the APK
   // we are running in. Assumes that we are packaged in
   // org.chromium.native_test
+  FilePath path;
+  GetCacheDirectory(&path);
   EXPECT_STREQ("/data/data/org.chromium.native_test/cache",
-               GetCacheDirectory().c_str());
+               path.value().c_str());
 }
 
 TEST_F(PathUtilsTest, TestGetNativeLibraryDirectory) {
   // The string comes from the Java side and depends on the APK
   // we are running in. Assumes that we are packaged in
   // org.chromium.native_test
+  FilePath path;
+  GetNativeLibraryDirectory(&path);
   EXPECT_STREQ("/data/data/org.chromium.native_test/lib",
-               GetNativeLibraryDirectory().c_str());
+               path.value().c_str());
 }
 
 }  // namespace android
