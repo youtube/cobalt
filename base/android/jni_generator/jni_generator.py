@@ -471,7 +471,7 @@ class JNIFromJavaP(object):
       if not match:
         continue
       self.called_by_natives += [CalledByNative(
-          system_class=False,
+          system_class=True,
           unchecked=False,
           static=False,
           java_class_name='',
@@ -923,7 +923,7 @@ jclass g_${JAVA_CLASS}_clazz = NULL;""")
     """Returns the implementation of GetMethodID."""
     template = Template("""\
   g_${JAVA_CLASS}_${METHOD_ID_VAR_NAME} =
-      base::android::Get${STATIC}MethodID(
+      base::android::Get${STATIC}MethodID${SUFFIX}(
           env, g_${JAVA_CLASS}_clazz,
           "${JNI_NAME}",
           ${JNI_SIGNATURE});
@@ -938,6 +938,7 @@ jclass g_${JAVA_CLASS}_clazz = NULL;""")
         'JNI_NAME': jni_name,
         'METHOD_ID_VAR_NAME': called_by_native.method_id_var_name,
         'STATIC': 'Static' if called_by_native.static else '',
+        'SUFFIX': 'OrNull' if called_by_native.system_class else '',
         'JNI_SIGNATURE': JniSignature(called_by_native.params,
                                       jni_return_type,
                                       True)

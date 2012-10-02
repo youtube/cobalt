@@ -71,6 +71,12 @@ jmethodID GetMethodID(JNIEnv* env,
                       const char* method_name,
                       const char* jni_signature);
 
+// Unlike GetMethodID, returns NULL if the method could not be found.
+jmethodID GetMethodIDOrNull(JNIEnv* env,
+                            jclass clazz,
+                            const char* method_name,
+                            const char* jni_signature);
+
 // Returns the method ID for the static method with the specified name and
 // signature.
 // This method triggers a fatal assertion if the method could not be found.
@@ -86,6 +92,11 @@ jmethodID GetStaticMethodID(JNIEnv* env,
                             const char* method_name,
                             const char* jni_signature);
 
+// Unlike GetStaticMethodID, returns NULL if the method could not be found.
+jmethodID GetStaticMethodIDOrNull(JNIEnv* env,
+                                  jclass clazz,
+                                  const char* method_name,
+                                  const char* jni_signature);
 
 // Returns true iff |clazz| has a method with the specified name and signature.
 bool HasMethod(JNIEnv* env,
