@@ -37,10 +37,6 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
  private:
   friend class SparseHistogramTest;  // For constuctor calling.
 
-  virtual void GetParameters(DictionaryValue* params) const OVERRIDE;
-  virtual void GetCountAndBucketData(Count* count,
-                                     ListValue* buckets) const OVERRIDE;
-
   std::map<Sample, Count> samples_;
 
   // Protects access to above map.
