@@ -42,4 +42,13 @@ void SparseHistogram::WriteAscii(string* output) const {
 SparseHistogram::SparseHistogram(const string& name)
     : HistogramBase(name) {}
 
+void SparseHistogram::GetParameters(DictionaryValue* params) const {
+  // TODO(kaiwang): Implement. (See HistogramBase::WriteJSON.)
+}
+
+void SparseHistogram::GetCountAndBucketData(Count* count,
+                                            ListValue* buckets) const {
+  // TODO(kaiwang): Implement. (See HistogramBase::WriteJSON.)
+}
+
 }  // namespace base
