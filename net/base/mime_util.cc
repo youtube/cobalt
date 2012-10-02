@@ -359,6 +359,10 @@ static const char* const unsupported_text_types[] = {
   "text/x-csv",
   "text/x-vcf",
   "text/rtf",
+  "text/comma-separated-values",
+  "text/csv",
+  "text/tab-separated-values",
+  "text/tsv",
 };
 
 //  Mozilla 1.8 and WinIE 7 both accept text/javascript and text/ecmascript.
