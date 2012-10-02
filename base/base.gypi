@@ -54,6 +54,7 @@
           'atomicops.h',
           'atomicops_internals_gcc.h',
           'atomicops_internals_mac.h',
+          'atomicops_internals_tsan.h',
           'atomicops_internals_x86_gcc.cc',
           'atomicops_internals_x86_gcc.h',
           'atomicops_internals_x86_msvc.h',
