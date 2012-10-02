@@ -565,9 +565,6 @@ void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete(int result) {
 
   FetchResponseCookies(&response_cookies_);
 
-  if (!GetResponseHeaders()->GetDateValue(&response_date_))
-    response_date_ = base::Time();
-
   // Now, loop over the response cookies, and attempt to persist each.
   SaveNextCookie();
 }
@@ -594,7 +591,6 @@ void URLRequestHttpJob::SaveNextCookie() {
       response_cookies_.size() > 0) {
     CookieOptions options;
     options.set_include_httponly();
-    options.set_server_time(response_date_);
 
     net::CookieStore::SetCookiesCallback callback(
         base::Bind(&URLRequestHttpJob::OnCookieSaved,
