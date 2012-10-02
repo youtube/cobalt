@@ -160,18 +160,24 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   SequenceToken GetNamedSequenceToken(const std::string& name);
 
   // Returns a SequencedTaskRunner wrapper which posts to this
-  // SequencedWorkerPool using the given sequence token.
+  // SequencedWorkerPool using the given sequence token. Tasks with nonzero
+  // delay are posted with SKIP_ON_SHUTDOWN behavior and tasks with zero delay
+  // are posted with BLOCK_SHUTDOWN behavior.
   scoped_refptr<SequencedTaskRunner> GetSequencedTaskRunner(
       SequenceToken token);
 
   // Returns a SequencedTaskRunner wrapper which posts to this
-  // SequencedWorkerPool using the given sequence token and shutdown behavior.
+  // SequencedWorkerPool using the given sequence token. Tasks with nonzero
+  // delay are posted with SKIP_ON_SHUTDOWN behavior and tasks with zero delay
+  // are posted with the given shutdown behavior.
   scoped_refptr<SequencedTaskRunner> GetSequencedTaskRunnerWithShutdownBehavior(
       SequenceToken token,
       WorkerShutdown shutdown_behavior);
 
   // Returns a TaskRunner wrapper which posts to this SequencedWorkerPool using
-  // the given shutdown behavior.
+  // the given shutdown behavior. Tasks with nonzero delay are posted with
+  // SKIP_ON_SHUTDOWN behavior and tasks with zero delay are posted with the
+  // given shutdown behavior.
   scoped_refptr<TaskRunner> GetTaskRunnerWithShutdownBehavior(
       WorkerShutdown shutdown_behavior);
 
@@ -197,6 +203,19 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   // shutdown regardless of the specified ShutdownBehavior.
   bool PostWorkerTask(const tracked_objects::Location& from_here,
                       const Closure& task);
+
+  // Same as PostWorkerTask but allows a delay to be specified (although doing
+  // so changes the shutdown behavior). The task will be run after the given
+  // delay has elapsed.
+  //
+  // If the delay is nonzero, the task won't be guaranteed to run to completion
+  // before shutdown (SKIP_ON_SHUTDOWN semantics) to avoid shutdown hangs.
+  // If the delay is zero, this behaves exactly like PostWorkerTask, i.e. the
+  // task will be guaranteed to run to completion before shutdown
+  // (BLOCK_SHUTDOWN semantics).
+  bool PostDelayedWorkerTask(const tracked_objects::Location& from_here,
+                             const Closure& task,
+                             TimeDelta delay);
 
   // Same as PostWorkerTask but allows specification of the shutdown behavior.
   bool PostWorkerTaskWithShutdownBehavior(
@@ -225,6 +244,21 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
                                     const tracked_objects::Location& from_here,
                                     const Closure& task);
 
+  // Same as PostSequencedWorkerTask but allows a delay to be specified
+  // (although doing so changes the shutdown behavior). The task will be run
+  // after the given delay has elapsed.
+  //
+  // If the delay is nonzero, the task won't be guaranteed to run to completion
+  // before shutdown (SKIP_ON_SHUTDOWN semantics) to avoid shutdown hangs.
+  // If the delay is zero, this behaves exactly like PostSequencedWorkerTask,
+  // i.e. the task will be guaranteed to run to completion before shutdown
+  // (BLOCK_SHUTDOWN semantics).
+  bool PostDelayedSequencedWorkerTask(
+      SequenceToken sequence_token,
+      const tracked_objects::Location& from_here,
+      const Closure& task,
+      TimeDelta delay);
+
   // Same as PostSequencedWorkerTask but allows specification of the shutdown
   // behavior.
   bool PostSequencedWorkerTaskWithShutdownBehavior(
@@ -233,7 +267,7 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
       const Closure& task,
       WorkerShutdown shutdown_behavior);
 
-  // TaskRunner implementation.  Forwards to PostWorkerTask().
+  // TaskRunner implementation. Forwards to PostDelayedWorkerTask().
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
                                TimeDelta delay) OVERRIDE;
