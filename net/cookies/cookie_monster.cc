@@ -1703,11 +1703,6 @@ bool CookieMonster::SetCookieWithCreationTimeAndOptions(
     creation_time = CurrentTime();
     last_time_seen_ = creation_time;
   }
-  Time server_time;
-  if (options.has_server_time())
-    server_time = options.server_time();
-  else
-    server_time = creation_time;
 
   // Parse the cookie.
   ParsedCookie pc(cookie_line);
@@ -1733,8 +1728,7 @@ bool CookieMonster::SetCookieWithCreationTimeAndOptions(
       pc.MACAlgorithm() : std::string();
 
   scoped_ptr<CanonicalCookie> cc;
-  Time cookie_expires =
-      CanonicalCookie::CanonExpiration(pc, creation_time, server_time);
+  Time cookie_expires = CanonicalCookie::CanonExpiration(pc, creation_time);
 
   cc.reset(new CanonicalCookie(url, pc.Name(), pc.Value(), cookie_domain,
                                cookie_path, mac_key, mac_algorithm,
