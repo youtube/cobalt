@@ -35,28 +35,23 @@ bool PathProviderAndroid(int key, FilePath* result) {
       NOTIMPLEMENTED();
       return false;
     case base::DIR_MODULE:
-      *result = FilePath(base::android::GetNativeLibraryDirectory());
-      return true;
+      return base::android::GetNativeLibraryDirectory(result);
     case base::DIR_SOURCE_ROOT:
       // This const is only used for tests.
-      *result = FilePath(base::android::GetExternalStorageDirectory());
-      return true;
+      return base::android::GetExternalStorageDirectory(result);
     case base::DIR_USER_DESKTOP:
       // Android doesn't support GetUserDesktop.
       NOTIMPLEMENTED();
       return false;
     case base::DIR_CACHE:
-      *result = FilePath(base::android::GetCacheDirectory());
-      return true;
+      return base::android::GetCacheDirectory(result);
     case base::DIR_ANDROID_APP_DATA:
-      *result = FilePath(base::android::GetDataDirectory());
-      return true;
+      return base::android::GetDataDirectory(result);
     case base::DIR_HOME:
       *result = file_util::GetHomeDir();
       return true;
     case base::DIR_ANDROID_EXTERNAL_STORAGE:
-      *result = FilePath(base::android::GetExternalStorageDirectory());
-      return true;
+      return base::android::GetExternalStorageDirectory(result);
     default:
       // Note: the path system expects this function to override the default
       // behavior. So no need to log an error if we don't support a given

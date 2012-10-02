@@ -7,45 +7,56 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/file_path.h"
 
 #include "jni/PathUtils_jni.h"
 
 namespace base {
 namespace android {
 
-std::string GetDataDirectory() {
+bool GetDataDirectory(FilePath* result) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path =
       Java_PathUtils_getDataDirectory(env, GetApplicationContext());
-  return ConvertJavaStringToUTF8(path);
+  FilePath data_path(ConvertJavaStringToUTF8(path));
+  *result = data_path;
+  return true;
 }
 
-std::string GetCacheDirectory() {
+bool GetCacheDirectory(FilePath* result) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path =
       Java_PathUtils_getCacheDirectory(env, GetApplicationContext());
-  return ConvertJavaStringToUTF8(path);
+  FilePath cache_path(ConvertJavaStringToUTF8(path));
+  *result = cache_path;
+  return true;
 }
 
-std::string GetDownloadsDirectory() {
+bool GetDownloadsDirectory(FilePath* result) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path =
       Java_PathUtils_getDownloadsDirectory(env, GetApplicationContext());
-  return ConvertJavaStringToUTF8(path);
+  FilePath downloads_path(ConvertJavaStringToUTF8(path));
+  *result = downloads_path;
+  return true;
 }
 
-std::string GetNativeLibraryDirectory() {
+bool GetNativeLibraryDirectory(FilePath* result) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path =
       Java_PathUtils_getNativeLibraryDirectory(env, GetApplicationContext());
-  return ConvertJavaStringToUTF8(path);
+  FilePath library_path(ConvertJavaStringToUTF8(path));
+  *result = library_path;
+  return true;
 }
 
-std::string GetExternalStorageDirectory() {
+bool GetExternalStorageDirectory(FilePath* result) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jstring> path =
       Java_PathUtils_getExternalStorageDirectory(env);
-  return ConvertJavaStringToUTF8(path);
+  FilePath storage_path(ConvertJavaStringToUTF8(path));
+  *result = storage_path;
+  return true;
 }
 
 bool RegisterPathUtils(JNIEnv* env) {
