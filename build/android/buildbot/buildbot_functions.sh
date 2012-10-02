@@ -207,29 +207,44 @@ function bb_run_unit_tests {
   build/android/run_tests.py --xvfb --verbose
 }
 
-# Run instrumentation test.
-# Args:
-#   $1: TEST_APK.
-#   $2: EXTRA_FLAGS to be passed to run_instrumentation_tests.py.
-function bb_run_instrumentation_test {
-  local TEST_APK=${1}
-  local EXTRA_FLAGS=${2}
-  local INSTRUMENTATION_FLAGS="-vvv"
-  INSTRUMENTATION_FLAGS+=" --test-apk ${TEST_APK}"
-  INSTRUMENTATION_FLAGS+=" ${EXTRA_FLAGS}"
-  build/android/run_instrumentation_tests.py ${INSTRUMENTATION_FLAGS}
+# Run a buildbot step and handle failure.
+function bb_run_step {
+  (
+  set +e
+  "$@"
+  if [[ $? != 0 ]]; then
+    echo "@@@STEP_FAILURE@@@"
+  fi
+  )
 }
 
-# Run content shell instrumentation test on device.
+# Run instrumentation tests for a specific APK.
+# Args:
+#   $1: APK to be installed.
+#   $2: APK_PACKAGE for the APK to be installed.
+#   $3: TEST_APK to run the tests against.
+function bb_run_all_instrumentation_tests_for_apk {
+  local APK=${1}
+  local APK_PACKAGE=${2}
+  local TEST_APK=${3}
+
+  # Install application APK.
+  python build/android/adb_install_apk.py --apk ${APK} \
+      --apk_package ${APK_PACKAGE}
+
+  # Run instrumentation tests. Using -I to install the test apk.
+  bb_run_step python build/android/run_instrumentation_tests.py \
+      -vvv --test-apk ${TEST_APK} -I
+}
+
+# Run instrumentation tests for all relevant APKs on device.
 function bb_run_instrumentation_tests {
-  build/android/adb_install_content_shell
-  local TEST_APK="ContentShellTest"
-  # Use -I to install the test apk only on the first run.
-  # TODO(bulach): remove the second once we have a Smoke test.
-  bb_run_instrumentation_test ${TEST_APK} "-I -A Smoke"
-  bb_run_instrumentation_test ${TEST_APK} "-I -A SmallTest"
-  bb_run_instrumentation_test ${TEST_APK} "-A MediumTest"
-  bb_run_instrumentation_test ${TEST_APK} "-A LargeTest"
+  bb_run_all_instrumentation_tests_for_apk "ContentShell-debug.apk" \
+      "org.chromium.content_shell" "ContentShellTest"
+  bb_run_all_instrumentation_tests_for_apk "ChromiumTestShell-debug.apk" \
+      "org.chromium.chrome.browser" "ChromiumTestShellTest"
+  bb_run_all_instrumentation_tests_for_apk "AndroidWebView-debug.apk" \
+      "org.chromium.android_webview" "AndroidWebViewTest"
 }
 
 # Zip and archive a build.
