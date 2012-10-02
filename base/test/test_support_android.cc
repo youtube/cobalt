@@ -142,13 +142,11 @@ base::MessagePump* CreateMessagePumpForUIStub() {
 bool GetTestProviderPath(int key, FilePath* result) {
   switch (key) {
     case base::DIR_MODULE: {
-      *result = FilePath(base::android::GetExternalStorageDirectory());
-      return true;
+      return base::android::GetExternalStorageDirectory(result);
     }
     case base::DIR_ANDROID_APP_DATA: {
       // For tests, app data is put in external storage.
-      *result = FilePath(base::android::GetExternalStorageDirectory());
-      return true;
+      return base::android::GetExternalStorageDirectory(result);
     }
     default:
       return false;
