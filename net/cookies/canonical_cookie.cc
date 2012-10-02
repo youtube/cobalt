@@ -139,7 +139,7 @@ CanonicalCookie::CanonicalCookie(const GURL& url, const ParsedCookie& pc)
       secure_(pc.IsSecure()),
       httponly_(pc.IsHttpOnly()) {
   if (pc.HasExpires())
-    expiry_date_ = CanonExpiration(pc, creation_date_, creation_date_);
+    expiry_date_ = CanonExpiration(pc, creation_date_);
 
   // Do the best we can with the domain.
   std::string cookie_domain;
@@ -181,8 +181,7 @@ std::string CanonicalCookie::CanonPath(const GURL& url,
 
 // static
 Time CanonicalCookie::CanonExpiration(const ParsedCookie& pc,
-                                      const Time& current,
-                                      const Time& server_time) {
+                                      const Time& current) {
   // First, try the Max-Age attribute.
   uint64 max_age = 0;
   if (pc.HasMaxAge() &&
@@ -196,10 +195,8 @@ Time CanonicalCookie::CanonExpiration(const ParsedCookie& pc,
   }
 
   // Try the Expires attribute.
-  if (pc.HasExpires()) {
-    // Adjust for clock skew between server and host.
-    return current + (cookie_util::ParseCookieTime(pc.Expires()) - server_time);
-  }
+  if (pc.HasExpires())
+    return cookie_util::ParseCookieTime(pc.Expires());
 
   // Invalid or no expiration, persistent cookie.
   return Time();
