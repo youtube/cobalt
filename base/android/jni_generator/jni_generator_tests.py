@@ -1349,6 +1349,8 @@ static jlong Java_InputStream_skip(JNIEnv* env, jobject obj, jlong p0) {
 }
 
 static jmethodID g_InputStream_Constructor = 0;
+static ScopedJavaLocalRef<jobject> Java_InputStream_Constructor(JNIEnv* env)
+__attribute__ ((unused));
 static ScopedJavaLocalRef<jobject> Java_InputStream_Constructor(JNIEnv* env) {
   /* Must call RegisterNativesImpl()  */
   DCHECK(g_InputStream_clazz);
@@ -1365,7 +1367,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
   g_InputStream_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
       base::android::GetUnscopedClass(env, kInputStreamClassPath)));
   g_InputStream_available =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "available",
 
@@ -1374,7 +1376,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "I");
 
   g_InputStream_close =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "close",
 
@@ -1383,7 +1385,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "V");
 
   g_InputStream_mark =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "mark",
 
@@ -1393,7 +1395,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "V");
 
   g_InputStream_markSupported =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "markSupported",
 
@@ -1402,7 +1404,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "Z");
 
   g_InputStream_readI =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "read",
 
@@ -1411,7 +1413,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "I");
 
   g_InputStream_readI_AB =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "read",
 
@@ -1421,7 +1423,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "I");
 
   g_InputStream_readI_AB_I_I =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "read",
 
@@ -1433,7 +1435,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "I");
 
   g_InputStream_reset =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "reset",
 
@@ -1442,7 +1444,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "V");
 
   g_InputStream_skip =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "skip",
 
@@ -1452,7 +1454,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "J");
 
   g_InputStream_Constructor =
-      base::android::GetMethodID(
+      base::android::GetMethodIDOrNull(
           env, g_InputStream_clazz,
           "<init>",
 
