@@ -26,6 +26,14 @@ def AddBuildTypeOption(option_parser):
                            help='If set, run test suites under out/Release. '
                                 'Default is env var BUILDTYPE or Debug.')
 
+def AddInstallAPKOption(option_parser):
+  """Decorates OptionParser with apk option used to install the APK."""
+  option_parser.add_option('--apk',
+                           help=('The name of the apk containing the '
+                                 ' application (with the .apk extension).'))
+  option_parser.add_option('--apk_package',
+                           help=('The package name used by the apk containing '
+                                 'the application.'))
 
 def AddTestRunnerOptions(option_parser, default_timeout=60):
   """Decorates OptionParser with options applicable to all tests."""
