@@ -640,15 +640,16 @@ class SequencedWorkerPoolTaskRunnerTestDelegate {
   }
 
   void StopTaskRunner() {
+    // Make sure all tasks (including delayed ones) are run before shutting
+    // down.
+    pool_owner_->pool()->FlushForTesting();
     pool_owner_->pool()->Shutdown();
     // Don't reset |pool_owner_| here, as the test may still hold a
     // reference to the pool.
   }
 
   bool TaskRunnerHandlesNonZeroDelays() const {
-    // TODO(akalin): Set this to true once SequencedWorkerPool handles
-    // non-zero delays.
-    return false;
+    return true;
   }
 
  private:
@@ -679,6 +680,8 @@ class SequencedWorkerPoolTaskRunnerWithShutdownBehaviorTestDelegate {
   }
 
   void StopTaskRunner() {
+    // Make sure all tasks (including delayed ones) are run before shutting
+    // down.
     pool_owner_->pool()->FlushForTesting();
     pool_owner_->pool()->Shutdown();
     // Don't reset |pool_owner_| here, as the test may still hold a
@@ -686,9 +689,7 @@ class SequencedWorkerPoolTaskRunnerWithShutdownBehaviorTestDelegate {
   }
 
   bool TaskRunnerHandlesNonZeroDelays() const {
-    // TODO(akalin): Set this to true once SequencedWorkerPool handles
-    // non-zero delays.
-    return false;
+    return true;
   }
 
  private:
@@ -720,6 +721,8 @@ class SequencedWorkerPoolSequencedTaskRunnerTestDelegate {
   }
 
   void StopTaskRunner() {
+    // Make sure all tasks (including delayed ones) are run before shutting
+    // down.
     pool_owner_->pool()->FlushForTesting();
     pool_owner_->pool()->Shutdown();
     // Don't reset |pool_owner_| here, as the test may still hold a
@@ -727,9 +730,7 @@ class SequencedWorkerPoolSequencedTaskRunnerTestDelegate {
   }
 
   bool TaskRunnerHandlesNonZeroDelays() const {
-    // TODO(akalin): Set this to true once SequencedWorkerPool handles
-    // non-zero delays.
-    return false;
+    return true;
   }
 
  private:

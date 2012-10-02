@@ -101,10 +101,6 @@ void PrintTo(const TaskEvent& event, std::ostream* os) {
   *os << ")";
 }
 
-void SleepForOneSecond() {
-  base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(1));
-}
-
 namespace {
 
 // Returns the task ordinals for the task event type |type| in the order that
