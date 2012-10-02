@@ -565,12 +565,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   void WriteAsciiBucketGraph(double current_size, double max_size,
                              std::string* output) const;
 
-  // WriteJSON calls these.
-  virtual void GetParameters(DictionaryValue* params) const OVERRIDE;
-
-  virtual void GetCountAndBucketData(Count* count,
-                                     ListValue* buckets) const OVERRIDE;
-
   // Does not own this object. Should get from StatisticsRecorder.
   const BucketRanges* bucket_ranges_;
 
