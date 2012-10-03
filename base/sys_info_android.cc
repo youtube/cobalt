@@ -83,6 +83,10 @@ int GetDalvikHeapSizeMB() {
 
 namespace base {
 
+std::string SysInfo::OperatingSystemName() {
+  return "Android";
+}
+
 std::string SysInfo::GetAndroidBuildCodename() {
   char os_version_codename_str[PROP_VALUE_MAX];
   __system_property_get("ro.build.version.codename", os_version_codename_str);
