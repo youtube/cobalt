@@ -116,9 +116,12 @@ def CheckForMissingDevices(options, adb_online_devs):
            'To: %s' % to_address,
            'Subject: %s' % subject,
            '', body])
-      server = smtplib.SMTP('localhost')
-      server.sendmail(from_address, [to_address], msg_body)
-      server.quit()
+      try:
+        server = smtplib.SMTP('localhost')
+        server.sendmail(from_address, [to_address], msg_body)
+        server.quit()
+      except Exception as e:
+        print 'Failed to send alert email. Error: %s' % e
   else:
     new_devs = set(adb_online_devs) - set(last_devices)
     if new_devs and os.path.exists(last_devices_path):
