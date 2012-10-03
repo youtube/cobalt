@@ -100,7 +100,7 @@ def CheckForMissingDevices(options, adb_online_devs):
     body = '\n'.join(
         ['Current online devices: %s' % adb_online_devs,
          '%s are no longer visible. Were they removed?\n' % missing_devs,
-         'SHERIFF: See go/clank/engineering/buildbots/troubleshooting',
+         'SHERIFF: See go/chrome_device_monitor',
          'Cache file: %s\n\n' % last_devices_path,
          'adb devices: %s' % GetCmdOutput(['adb', 'devices'])])
 
