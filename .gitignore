@@ -256,5 +256,6 @@ v8.log
 /webkit/data/layout_tests/LayoutTests
 /webkit/data/test_shell/plugins
 /webkit/data/xbm_decoder
+/webpagereplay_logs/
 /x86-generic_out/
 /xcodebuild
