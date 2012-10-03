@@ -67,7 +67,8 @@ class MEDIA_EXPORT Decryptor {
   // Decrypts the |encrypted| buffer. The decrypt status and decrypted buffer
   // are returned via the provided callback |decrypt_cb|. The |encrypted| buffer
   // must not be NULL.
-  //
+  // Decrypt() should not be called until any previous DecryptCB has completed.
+  // Thus, only one DecryptCB may be pending at a time.
   // Note that the callback maybe called synchronously or asynchronously.
   //
   // If the returned status is kSuccess, the |encrypted| buffer is successfully
@@ -81,8 +82,9 @@ class MEDIA_EXPORT Decryptor {
   virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) = 0;
 
-  // Cancel scheduled decryption operations and fires any pending DecryptCB
-  // immediately with kError and NULL buffer.
+  // Cancels the scheduled decryption operation and fires the pending DecryptCB
+  // immediately with kSuccess and NULL.
+  // Decrypt() should not be called again before the pending DecryptCB is fired.
   virtual void CancelDecrypt() = 0;
 
  private:
