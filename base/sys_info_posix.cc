@@ -50,7 +50,7 @@ int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
   return static_cast<int64>(stats.f_bavail) * stats.f_frsize;
 }
 
-#if !defined(OS_MACOSX)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
 // static
 std::string SysInfo::OperatingSystemName() {
   struct utsname info;
@@ -60,7 +60,9 @@ std::string SysInfo::OperatingSystemName() {
   }
   return std::string(info.sysname);
 }
+#endif
 
+#if !defined(OS_MACOSX)
 // static
 std::string SysInfo::OperatingSystemVersion() {
   struct utsname info;
