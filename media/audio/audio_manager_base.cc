@@ -43,6 +43,7 @@ AudioThread::AudioThread(const char* name) : base::Thread(name) {
 }
 
 AudioThread::~AudioThread() {
+  Stop();
 }
 
 void AudioThread::Init() {

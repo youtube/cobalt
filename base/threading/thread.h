@@ -20,7 +20,7 @@ namespace base {
 // pending tasks queued on the thread's message loop will run to completion
 // before the thread is terminated.
 //
-// NOTE: Subclasses must call Stop() in their destructor. See ~Thread below.
+// WARNING! SUBCLASSES MUST CALL Stop() IN THEIR DESTRUCTORS!  See ~Thread().
 //
 // After the thread is stopped, the destruction sequence is:
 //
@@ -49,13 +49,12 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
   // Destroys the thread, stopping it if necessary.
   //
-  // NOTE: All subclasses of Thread must call Stop() in their
-  // destructor, or otherwise ensure Stop() is called before the
-  // subclass is destructed.  This is required to avoid a data race
-  // between the destructor modifying the vtable, and the thread's
-  // ThreadMain calling the virtual method Run.  It also ensures that
-  // the CleanUp() virtual method is called on the subclass before it
-  // is destructed.
+  // NOTE: ALL SUBCLASSES OF Thread MUST CALL Stop() IN THEIR DESTRUCTORS (or
+  // guarantee Stop() is explicitly called before the subclass is destroyed).
+  // This is required to avoid a data race between the destructor modifying the
+  // vtable, and the thread's ThreadMain calling the virtual method Run().  It
+  // also ensures that the CleanUp() virtual method is called on the subclass
+  // before it is destructed.
   virtual ~Thread();
 
   // Starts the thread.  Returns true if the thread was successfully started;
@@ -82,10 +81,9 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // Stop may be called multiple times and is simply ignored if the thread is
   // already stopped.
   //
-  // NOTE: This method is optional.  It is not strictly necessary to call this
-  // method as the Thread's destructor will take care of stopping the thread if
-  // necessary.
-  //
+  // NOTE: If you are a consumer of Thread, it is not necessary to call this
+  // before deleting your Thread objects, as the destructor will do it.
+  // IF YOU ARE A SUBCLASS OF Thread, YOU MUST CALL THIS IN YOUR DESTRUCTOR.
   void Stop();
 
   // Signals the thread to exit in the near future.
