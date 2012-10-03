@@ -4,9 +4,6 @@
 
 #include "base/win/shortcut.h"
 
-#include <windows.h>
-#include <objbase.h>
-
 #include <string>
 
 #include "base/file_path.h"
@@ -14,6 +11,7 @@
 #include "base/scoped_temp_dir.h"
 #include "base/test/test_file_util.h"
 #include "base/test/test_shortcut_win.h"
+#include "base/win/scoped_com_initializer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -26,8 +24,6 @@ class ShortcutTest : public testing::Test {
   virtual void SetUp() OVERRIDE {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(temp_dir_2_.CreateUniqueTempDir());
-
-    EXPECT_EQ(S_OK, CoInitialize(NULL));
 
     link_file_ = temp_dir_.path().Append(L"My Link.lnk");
 
@@ -65,10 +61,7 @@ class ShortcutTest : public testing::Test {
     }
   }
 
-  virtual void TearDown() OVERRIDE {
-    CoUninitialize();
-  }
-
+  base::win::ScopedCOMInitializer com_initializer_;
   ScopedTempDir temp_dir_;
   ScopedTempDir temp_dir_2_;
 
