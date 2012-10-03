@@ -242,7 +242,7 @@ function bb_run_instrumentation_tests {
   bb_run_all_instrumentation_tests_for_apk "ContentShell-debug.apk" \
       "org.chromium.content_shell" "ContentShellTest"
   bb_run_all_instrumentation_tests_for_apk "ChromiumTestShell-debug.apk" \
-      "org.chromium.chrome.browser" "ChromiumTestShellTest"
+      "org.chromium.chrome.testshell" "ChromiumTestShellTest"
   bb_run_all_instrumentation_tests_for_apk "AndroidWebView-debug.apk" \
       "org.chromium.android_webview" "AndroidWebViewTest"
 }
