@@ -112,7 +112,7 @@ android_gyp() {
   # 54d2f6fe6d8a7b9d9786bd1f8540df6b4f46b83f in GYP.
   (
     # Fork to avoid side effects on the user's environment variables.
-    if echo "$GYP_DEFINES" | grep -q clang; then
+    if echo "$GYP_DEFINES" | grep -qE '(clang|asan)'; then
       if echo "$CXX_target" | grep -q g++; then
         unset CXX_target
       fi
