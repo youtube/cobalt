@@ -8,6 +8,7 @@
 
 import optparse
 import os
+import smtplib
 import sys
 
 from pylib import buildbot_report
@@ -59,26 +60,65 @@ def CheckForMissingDevices(options, adb_online_devs):
                      and online attached devices.
   """
   out_dir = os.path.abspath(options.out_dir)
+
+  def ReadDeviceList(file_name):
+    devices_path = os.path.join(out_dir, file_name)
+    devices = []
+    try:
+      with open(devices_path) as f:
+        devices = f.read().splitlines()
+    except IOError:
+      # Ignore error, file might not exist
+      pass
+    return devices
+
+  def WriteDeviceList(file_name, device_list):
+    path = os.path.join(out_dir, file_name)
+    if not os.path.exists(out_dir):
+      os.makedirs(out_dir)
+    with open(path, 'w') as f:
+      # Write devices currently visible plus devices previously seen.
+      f.write('\n'.join(set(device_list)))
+
   last_devices_path = os.path.join(out_dir, '.last_devices')
-  last_devices = []
-  try:
-    with open(last_devices_path) as f:
-      last_devices = f.read().splitlines()
-  except IOError:
-    # Ignore error, file might not exist
-    pass
+  last_devices = ReadDeviceList('.last_devices')
 
   missing_devs = list(set(last_devices) - set(adb_online_devs))
   if missing_devs:
+    from_address = 'buildbot@chromium.org'
+    to_address = 'chromium-android-device-alerts@google.com'
+    bot_name = os.environ['BUILDBOT_BUILDERNAME']
+    slave_name = os.environ['BUILDBOT_SLAVENAME']
+    num_online_devs = len(adb_online_devs)
+    subject = 'Devices offline on %s, %s (%d remaining).' % (slave_name,
+                                                             bot_name,
+                                                             num_online_devs)
     buildbot_report.PrintWarning()
-    buildbot_report.PrintSummaryText(
-        '%d devices not detected.' % len(missing_devs))
-    print 'Current online devices: %s' % adb_online_devs
-    print '%s are no longer visible. Were they removed?\n' % missing_devs
-    print 'SHERIFF: See go/chrome_device_monitor'
-    print 'Cache file: %s\n\n' % last_devices_path
-    print 'adb devices'
-    print GetCmdOutput(['adb', 'devices'])
+    devices_missing_msg = '%d devices not detected.' % len(missing_devs)
+    buildbot_report.PrintSummaryText(devices_missing_msg)
+
+    body = '\n'.join(
+        ['Current online devices: %s' % adb_online_devs,
+         '%s are no longer visible. Were they removed?\n' % missing_devs,
+         'SHERIFF: See go/clank/engineering/buildbots/troubleshooting',
+         'Cache file: %s\n\n' % last_devices_path,
+         'adb devices: %s' % GetCmdOutput(['adb', 'devices'])])
+
+    print body
+
+    # Only send email if the first time a particular device goes offline
+    last_missing = ReadDeviceList('.last_missing')
+    new_missing_devs = set(missing_devs) - set(last_missing)
+
+    if new_missing_devs:
+      msg_body = '\r\n'.join(
+          ['From: %s' % from_address,
+           'To: %s' % to_address,
+           'Subject: %s' % subject,
+           '', body])
+      server = smtplib.SMTP('localhost')
+      server.sendmail(from_address, [to_address], msg_body)
+      server.quit()
   else:
     new_devs = set(adb_online_devs) - set(last_devices)
     if new_devs and os.path.exists(last_devices_path):
@@ -87,12 +127,8 @@ def CheckForMissingDevices(options, adb_online_devs):
           '%d new devices detected' % len(new_devs))
       print ('New devices detected %s. And now back to your '
              'regularly scheduled program.' % list(new_devs))
-
-  if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
-  with open(last_devices_path, 'w') as f:
-    # Write devices currently visible plus devices previously seen.
-    f.write('\n'.join(set(adb_online_devs + last_devices)))
+  WriteDeviceList('.last_devices', (adb_online_devs + last_devices))
+  WriteDeviceList('.last_missing', missing_devs)
 
 
 def main():
