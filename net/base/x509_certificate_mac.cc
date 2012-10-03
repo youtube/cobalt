@@ -18,8 +18,10 @@
 #include "base/memory/singleton.h"
 #include "base/pickle.h"
 #include "base/sha1.h"
+#include "base/synchronization/lock.h"
 #include "base/sys_string_conversions.h"
 #include "crypto/cssm_init.h"
+#include "crypto/mac_security_services_lock.h"
 #include "crypto/nss_util.h"
 #include "crypto/rsa_private_key.h"
 #include "net/base/x509_util_mac.h"
@@ -93,6 +95,7 @@ OSStatus CopyCertChain(SecCertificateRef cert_handle,
                        CFArrayRef* out_cert_chain) {
   DCHECK(cert_handle);
   DCHECK(out_cert_chain);
+
   // Create an SSL policy ref configured for client cert evaluation.
   SecPolicyRef ssl_policy;
   OSStatus result = x509_util::CreateSSLClientPolicy(&ssl_policy);
@@ -105,7 +108,11 @@ OSStatus CopyCertChain(SecCertificateRef cert_handle,
       NULL, const_cast<const void**>(reinterpret_cast<void**>(&cert_handle)),
       1, &kCFTypeArrayCallBacks));
   SecTrustRef trust_ref = NULL;
-  result = SecTrustCreateWithCertificates(input_certs, ssl_policy, &trust_ref);
+  {
+    base::AutoLock lock(crypto::GetMacSecurityServicesLock());
+    result = SecTrustCreateWithCertificates(input_certs, ssl_policy,
+                                            &trust_ref);
+  }
   if (result)
     return result;
   ScopedCFTypeRef<SecTrustRef> trust(trust_ref);
@@ -113,10 +120,17 @@ OSStatus CopyCertChain(SecCertificateRef cert_handle,
   // Evaluate trust, which creates the cert chain.
   SecTrustResultType status;
   CSSM_TP_APPLE_EVIDENCE_INFO* status_chain;
-  result = SecTrustEvaluate(trust, &status);
+  {
+    base::AutoLock lock(crypto::GetMacSecurityServicesLock());
+    result = SecTrustEvaluate(trust, &status);
+  }
   if (result)
     return result;
-  return SecTrustGetResult(trust, &status, out_cert_chain, &status_chain);
+  {
+    base::AutoLock lock(crypto::GetMacSecurityServicesLock());
+    result = SecTrustGetResult(trust, &status, out_cert_chain, &status_chain);
+  }
+  return result;
 }
 
 // Returns true if |purpose| is listed as allowed in |usage|. This
@@ -162,8 +176,13 @@ void AddCertificatesFromBytes(const char* data, size_t length,
       kCFAllocatorNull));
 
   CFArrayRef items = NULL;
-  OSStatus status = SecKeychainItemImport(local_data, NULL, &input_format,
-                                          NULL, 0, NULL, NULL, &items);
+  OSStatus status;
+  {
+    base::AutoLock lock(crypto::GetMacSecurityServicesLock());
+    status = SecKeychainItemImport(local_data, NULL, &input_format,
+                                   NULL, 0, NULL, NULL, &items);
+  }
+
   if (status) {
     OSSTATUS_DLOG(WARNING, status)
         << "Unable to import items from data of length " << length;
@@ -693,17 +712,29 @@ bool X509Certificate::GetSSLClientCertificates(
     // argument is ignored and filtering unimplemented. See
     // SecIdentity.cpp in libsecurity_keychain, specifically
     // _SecIdentityCopyPreferenceMatchingName().
-    if (SecIdentityCopyPreference(domain_str, 0, NULL, &identity) == noErr)
-      preferred_identity.reset(identity);
+    {
+      base::AutoLock lock(crypto::GetMacSecurityServicesLock());
+      if (SecIdentityCopyPreference(domain_str, 0, NULL, &identity) == noErr)
+        preferred_identity.reset(identity);
+    }
   }
 
   // Now enumerate the identities in the available keychains.
-  SecIdentitySearchRef search = nil;
-  OSStatus err = SecIdentitySearchCreate(NULL, CSSM_KEYUSE_SIGN, &search);
+  SecIdentitySearchRef search = NULL;
+  OSStatus err;
+  {
+    base::AutoLock lock(crypto::GetMacSecurityServicesLock());
+    err = SecIdentitySearchCreate(NULL, CSSM_KEYUSE_SIGN, &search);
+  }
+  if (err)
+    return false;
   ScopedCFTypeRef<SecIdentitySearchRef> scoped_search(search);
   while (!err) {
     SecIdentityRef identity = NULL;
-    err = SecIdentitySearchCopyNext(search, &identity);
+    {
+      base::AutoLock lock(crypto::GetMacSecurityServicesLock());
+      err = SecIdentitySearchCopyNext(search, &identity);
+    }
     if (err)
       break;
     ScopedCFTypeRef<SecIdentityRef> scoped_identity(identity);
@@ -755,8 +786,11 @@ bool X509Certificate::GetSSLClientCertificates(
 CFArrayRef X509Certificate::CreateClientCertificateChain() const {
   // Initialize the result array with just the IdentityRef of the receiver:
   SecIdentityRef identity;
-  OSStatus result =
-      SecIdentityCreateWithCertificate(NULL, cert_handle_, &identity);
+  OSStatus result;
+  {
+    base::AutoLock lock(crypto::GetMacSecurityServicesLock());
+    result = SecIdentityCreateWithCertificate(NULL, cert_handle_, &identity);
+  }
   if (result) {
     OSSTATUS_LOG(ERROR, result) << "SecIdentityCreateWithCertificate error";
     return NULL;
