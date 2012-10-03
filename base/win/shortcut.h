@@ -38,7 +38,7 @@ struct ShortcutProperties {
     PROPERTIES_DUAL_MODE = 1 << 6,
   };
 
-  ShortcutProperties() : options(0U) {}
+  ShortcutProperties() : icon_index(-1), dual_mode(false), options(0U) {}
 
   void set_target(const FilePath& target_in) {
     target = target_in;
