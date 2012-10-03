@@ -64,6 +64,7 @@
 #include "testing/platform_test.h"
 
 #if defined(OS_WIN)
+#include "base/win/scoped_com_initializer.h"
 #include "base/win/windows_version.h"
 #endif
 
@@ -702,7 +703,7 @@ TEST_F(URLRequestTest, ResolveShortcutTest) {
 
   std::wstring lnk_path = app_path.value() + L".lnk";
 
-  CoInitialize(NULL);
+  base::win::ScopedCOMInitializer com_initializer;
 
   // Temporarily create a shortcut for test
   IShellLink* shell = NULL;
@@ -751,7 +752,6 @@ TEST_F(URLRequestTest, ResolveShortcutTest) {
 
   // Clean the shortcut
   DeleteFile(lnk_path.c_str());
-  CoUninitialize();
 }
 #endif  // defined(OS_WIN)
 
