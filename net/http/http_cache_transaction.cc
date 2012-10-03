@@ -150,11 +150,9 @@ HttpCache::Transaction::Transaction(
   COMPILE_ASSERT(HttpCache::Transaction::kNumValidationHeaders ==
                  arraysize(kValidationHeaders),
                  Invalid_number_of_validation_headers);
-  if (!base::StringToInt(
-          base::FieldTrialList::FindFullName("CacheSensitivityAnalysis"),
-          &sensitivity_analysis_percent_increase_)) {
-    sensitivity_analysis_percent_increase_ = 0;
-  }
+  base::StringToInt(
+      base::FieldTrialList::FindFullName("CacheSensitivityAnalysis"),
+      &sensitivity_analysis_percent_increase_);
 }
 
 HttpCache::Transaction::~Transaction() {
@@ -2285,7 +2283,7 @@ void HttpCache::Transaction::OnIOComplete(int result) {
     base::TimeDelta cache_time = base::TimeTicks::Now() - cache_io_start_;
     cache_io_start_ = base::TimeTicks();
     if (sensitivity_analysis_percent_increase_ > 0) {
-      cache_time *= 100 + sensitivity_analysis_percent_increase_;
+      cache_time *= sensitivity_analysis_percent_increase_;
       cache_time /= 100;
       MessageLoop::current()->PostDelayedTask(
           FROM_HERE,
