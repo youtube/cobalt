@@ -76,7 +76,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       const base::Closure& no_longer_needed);
 
   // Read pixels from the native texture backing |*this| and write
-  // them to |*pixels| as RGBA.  |pixels| must point to a buffer at
+  // them to |*pixels| as BGRA.  |pixels| must point to a buffer at
   // least as large as 4*data_size().width()*data_size().height().
   void ReadPixelsFromNativeTexture(void* pixels);
 
