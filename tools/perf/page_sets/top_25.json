@@ -1,0 +1,140 @@
+{
+    "description": "Pages hand-picked for 2012 CrOS scrolling tuning efforts.",
+    "archive_path": "top_25.wpr",
+    "credentials_path": "credentials.json",
+    "pages": [
+        {
+            "url": "https://www.google.com/#hl=en&q=barack+obama",
+            "why": "top google property; a google tab is often open"
+        },
+        {
+            "url": "https://mail.google.com/mail/",
+            "why": "productivity, top google properties",
+            "credentials": "google",
+            "is_gmail": true
+        },
+        {
+            "url": "https://www.google.com/calendar/",
+            "why": "productivity, top google properties",
+            "credentials": "google"
+        },
+        {
+            "url": "https://drive.google.com",
+            "why": "productivity, top google properties",
+            "credentials": "google"
+        },
+        {
+            "name": "Docs  (1 open document tab)",
+            "url": "https://docs.google.com/document/d/1L2AUaE4tAsOjE9xyqT85TtbDmAiuBNN1Gl32I65HjTE/edit",
+            "why": "productivity, top google properties; Sample doc in the link",
+            "credentials": "google"
+        },
+        {
+            "url": "https://maps.google.com",
+            "why": "top google property",
+            "interactions": "drag"
+        },
+        {
+            "url": "https://plus.google.com/110031535020051778989/posts",
+            "why": "social; top google property; Public profile; infinite scrolls",
+            "scroll_is_infinite": true
+        },
+        {
+            "url": "http://www.youtube.com",
+            "why": "#3 (Alexa global)"
+        },
+        {
+            "name": "Blogger",
+            "url": "http://googlewebmastercentral.blogspot.com/",
+            "why": "#11 (Alexa global), google property; some blogger layouts have infinite scroll but more interesting"
+        },
+        {
+            "name": "Wordpress",
+            "url": "http://en.blog.wordpress.com/2012/09/04/freshly-pressed-editors-picks-for-august-2012/",
+            "why": "#18 (Alexa global), Picked an interesting post"
+        },
+        {
+            "name": "Facebook",
+            "url": "http://www.facebook.com/barackobama",
+            "why": "top social,Public profile",
+            "scroll_is_infinite": true
+        },
+        {
+            "name": "LinkedIn",
+            "url": "http://www.linkedin.com",
+            "why": "#12 (Alexa global),Requires login",
+            "credentials": "linkedin"
+        },
+        {
+            "name": "Wikipedia (1 tab)",
+            "url": "http://en.wikipedia.org/wiki/Wikipedia",
+            "why": "#6 (Alexa) most visited worldwide,Picked an interesting page"
+        },
+        {
+            "name": "Twitter",
+            "url": "http://twitter.com/katyperry",
+            "why": "#8 (Alexa global),Picked an interesting page",
+            "scroll_is_infinite": true
+        },
+        {
+            "name": "Pinterest",
+            "url": "http://pinterest.com",
+            "why": "#37 (Alexa global)",
+            "scroll_is_infinite": true
+        },
+        {
+            "name": "ESPN",
+            "url": "http://espn.go.com",
+            "why": "#1 sports"
+        },
+        {
+            "url": "http://news.yahoo.com",
+            "why": "#1 news worldwide (Alexa global)"
+        },
+        {
+            "url": "http://www.cnn.com",
+            "why": "#2 news worldwide"
+        },
+        {
+            "url": "http://bbc.co.uk",
+            "why": "#5 (Alexa news)"
+        },
+        {
+            "name": "Weather.com",
+            "url": "http://www.weather.com/weather/right-now/Mountain+View+CA+94043",
+            "why": "#7 (Alexa news); #27 total time spent,Picked interesting page"
+        },
+        {
+            "url": "http://www.amazon.com",
+            "why": "#1 world commerce website by visits; #3 commerce in the US by time spent"
+        },
+        {
+            "url": "http://www.ebay.com",
+            "why": "#1 commerce website by time spent by users in US"
+        },
+        {
+            "url": "http://games.yahoo.com",
+            "why": "#1 games according to Alexa (with actual games in it)"
+        },
+        {
+            "url": "http://booking.com",
+            "why": "#1 Alexa recreation"
+        },
+        {
+            "url": "http://www.tripadvisor.com",
+            "why": "#2 Alexa recreation"
+        },
+        {
+            "url": "http://answers.yahoo.com",
+            "why": "#1 Alexa reference"
+        },
+        {
+            "url": "http://sports.yahoo.com/",
+            "why": "#1 Alexa sports"
+        },
+        {
+            "url": "http://techcrunch.com",
+            "why": "top tech blog"
+        }
+    ]
+}
