@@ -14,6 +14,8 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/decryptor_client.h"
+#include "media/base/video_decoder_config.h"
+#include "media/base/video_frame.h"
 
 namespace media {
 
@@ -230,6 +232,27 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
 }
 
 void AesDecryptor::CancelDecrypt() {
+}
+
+void AesDecryptor::InitializeVideoDecoder(const VideoDecoderConfig& config,
+                                          const DecoderInitCB& init_cb) {
+  // AesDecryptor does not support video decoding. Always return false here.
+  init_cb.Run(false);
+}
+
+void AesDecryptor::DecryptAndDecodeVideo(
+    const scoped_refptr<DecoderBuffer>& encrypted,
+    const VideoDecodeCB& video_decode_cb) {
+  NOTREACHED() << "AesDecryptor does not support video decoding";
+  video_decode_cb.Run(kError, NULL);
+}
+
+void AesDecryptor::CancelDecryptAndDecodeVideo() {
+  NOTREACHED() << "AesDecryptor does not support video decoding";
+}
+
+void AesDecryptor::StopVideoDecoder() {
+  NOTREACHED() << "AesDecryptor does not support video decoding";
 }
 
 void AesDecryptor::SetKey(const std::string& key_id,

@@ -208,6 +208,13 @@ class MockDecryptor : public Decryptor {
   MOCK_METHOD2(Decrypt, void(const scoped_refptr<DecoderBuffer>& encrypted,
                              const DecryptCB& decrypt_cb));
   MOCK_METHOD0(CancelDecrypt, void());
+  MOCK_METHOD2(InitializeVideoDecoder, void(const VideoDecoderConfig& config,
+                                            const DecoderInitCB& init_cb));
+  MOCK_METHOD2(DecryptAndDecodeVideo,
+               void(const scoped_refptr<media::DecoderBuffer>& encrypted,
+                    const VideoDecodeCB& video_decode_cb));
+  MOCK_METHOD0(CancelDecryptAndDecodeVideo, void());
+  MOCK_METHOD0(StopVideoDecoder, void());
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockDecryptor);
