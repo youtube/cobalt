@@ -69,6 +69,7 @@ function bb_baseline_setup {
   export GOMA_DIR=/b/build/goma
   . build/android/envsetup.sh
   adb kill-server
+  adb start-server
 }
 
 function bb_compile_setup {
