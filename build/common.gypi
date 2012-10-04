@@ -374,8 +374,8 @@
       # Whether tests targets should be run, archived or just have the
       # dependencies verified. All the tests targets have the '_run' suffix,
       # e.g. base_unittests_run runs the target base_unittests. The test target
-      # always calls tools/isolate/isolate.py. See the script's --help for more
-      # information and the valid --mode values. Meant to be overriden with
+      # always calls tools/swarm_client/isolate.py. See the script's --help for
+      # more information and the valid --mode values. Meant to be overriden with
       # GYP_DEFINES.
       # TODO(maruel): Converted the default from 'check' to 'noop' so work can
       # be done while the builders are being reconfigured to check out test data
