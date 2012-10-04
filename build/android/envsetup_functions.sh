@@ -294,19 +294,31 @@ ${ANDROID_SDK_VERSION}
 # settings specified there.
 #############################################################################
 webview_build_init() {
+  # For the WebView build we always use the NDK and SDK in the Android tree,
+  # and we don't touch ANDROID_TOOLCHAIN which is already set by Android.
+  export ANDROID_NDK_ROOT=${ANDROID_BUILD_TOP}/prebuilts/ndk/8
+  export ANDROID_SDK_ROOT=${ANDROID_BUILD_TOP}/prebuilts/sdk/\
+${ANDROID_SDK_VERSION}
+
+  common_vars_defines
+
   # We need to supply SDK paths relative to the top of the Android tree to make
   # sure the generated Android makefiles are portable, as they will be checked
   # into the Android tree.
   ANDROID_SDK=$(python -c \
-      "import os.path; print os.path.relpath('${ANDROID_SDK_ROOT}', '${TOP}')")
+      "import os.path; print os.path.relpath('${ANDROID_SDK_ROOT}', \
+      '${ANDROID_BUILD_TOP}')")
   ANDROID_SDK_TOOLS=$(python -c \
       "import os.path; \
       print os.path.relpath('${ANDROID_SDK_ROOT}/../tools/linux', \
-      '${TOP}')")
+      '${ANDROID_BUILD_TOP}')")
   DEFINES+=" android_build_type=1"
+  DEFINES+=" sdk_build=0"
+  DEFINES+=" android_src=\${GYP_ABS_ANDROID_TOP_DIR}"
+  DEFINES+=" android_product_out=NOT_USED_ON_WEBVIEW"
   DEFINES+=" android_upstream_bringup=1"
   DEFINES+=" android_sdk=\$(GYP_ABS_ANDROID_TOP_DIR)/${ANDROID_SDK}"
-  DEFINES+=" android_sdk_root=${ANDROID_SDK_ROOT}"
+  DEFINES+=" android_sdk_root=\$(GYP_ABS_ANDROID_TOP_DIR)/${ANDROID_SDK}"
   DEFINES+=" android_sdk_tools=\$(GYP_ABS_ANDROID_TOP_DIR)/${ANDROID_SDK_TOOLS}"
   DEFINES+=" android_sdk_version=${ANDROID_SDK_VERSION}"
   DEFINES+=" android_toolchain=${ANDROID_TOOLCHAIN}"
@@ -314,10 +326,9 @@ webview_build_init() {
 
   export GYP_GENERATORS="android"
 
-  export GYP_GENERATOR_FLAGS="${GYP_GENERATOR_FLAGS} default_target=All"
+  export GYP_GENERATOR_FLAGS="${GYP_GENERATOR_FLAGS} default_target=libwebview"
   export GYP_GENERATOR_FLAGS="${GYP_GENERATOR_FLAGS} limit_to_target_all=1"
   export GYP_GENERATOR_FLAGS="${GYP_GENERATOR_FLAGS} auto_regeneration=0"
 
-  # TODO(torne): This isn't upstream yet. Upstream it or remove this setting.
-  export CHROMIUM_GYP_FILE="${CHROME_SRC}/build/all_android_webview.gyp"
+  export CHROMIUM_GYP_FILE="${CHROME_SRC}/android_webview/android_webview.gyp"
 }
