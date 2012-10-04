@@ -5,7 +5,7 @@
 # found in the LICENSE file.
 
 """A class to keep track of devices across builds and report state."""
-
+import logging
 import optparse
 import os
 import smtplib
@@ -59,6 +59,11 @@ def CheckForMissingDevices(options, adb_online_devs):
     adb_online_devs: A list of serial numbers of the currently visible
                      and online attached devices.
   """
+  # TODO(navabi): remove this once the bug that causes different number
+  # of devices to be detected between calls is fixed.
+  logger = logging.getLogger()
+  logger.setLevel(logging.INFO)
+
   out_dir = os.path.abspath(options.out_dir)
 
   def ReadDeviceList(file_name):
@@ -97,12 +102,15 @@ def CheckForMissingDevices(options, adb_online_devs):
     devices_missing_msg = '%d devices not detected.' % len(missing_devs)
     buildbot_report.PrintSummaryText(devices_missing_msg)
 
+    # TODO(navabi): Debug by printing both output from GetCmdOutput and
+    # GetAttachedDevices to compare results.
     body = '\n'.join(
         ['Current online devices: %s' % adb_online_devs,
          '%s are no longer visible. Were they removed?\n' % missing_devs,
          'SHERIFF: See go/chrome_device_monitor',
          'Cache file: %s\n\n' % last_devices_path,
-         'adb devices: %s' % GetCmdOutput(['adb', 'devices'])])
+         'adb devices: %s' % GetCmdOutput(['adb', 'devices']),
+         'adb devices(GetAttachedDevices): %s' % GetAttachedDevices()])
 
     print body
 
