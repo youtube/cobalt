@@ -26,7 +26,8 @@ AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
       stopped_(false),
       sink_(sink),
       is_initialized_(false),
-      underflow_disabled_(false) {
+      underflow_disabled_(false),
+      preroll_aborted_(false) {
 }
 
 void AudioRendererImpl::Play(const base::Closure& callback) {
@@ -116,6 +117,7 @@ void AudioRendererImpl::Preroll(base::TimeDelta time,
   current_time_ = kNoTimestamp();
   received_end_of_stream_ = false;
   rendered_end_of_stream_ = false;
+  preroll_aborted_ = false;
 
   // |algorithm_| will request more reads.
   algorithm_->FlushBuffers();
@@ -201,7 +203,13 @@ void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
 void AudioRendererImpl::ResumeAfterUnderflow(bool buffer_more_audio) {
   base::AutoLock auto_lock(lock_);
   if (state_ == kUnderflow) {
-    if (buffer_more_audio)
+    // The "&& preroll_aborted_" is a hack. If preroll is aborted, then we
+    // shouldn't even reach the kUnderflow state to begin with. But for now
+    // we're just making sure that the audio buffer capacity (i.e. the
+    // number of bytes that need to be buffered for preroll to complete)
+    // does not increase due to an aborted preroll.
+    // TODO(vrk): Fix this bug correctly! (crbug.com/151352)
+    if (buffer_more_audio && !preroll_aborted_)
       algorithm_->IncreaseQueueCapacity();
 
     state_ = kRebuffering;
@@ -509,6 +517,8 @@ void AudioRendererImpl::HandleAbortedReadOrDecodeError(bool is_decode_error) {
       base::ResetAndReturn(&pause_cb_).Run();
       return;
     case kPrerolling:
+      // This is a signal for abort if it's not an error.
+      preroll_aborted_ = !is_decode_error;
       state_ = kPaused;
       base::ResetAndReturn(&preroll_cb_).Run(status);
       return;
