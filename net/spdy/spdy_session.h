@@ -365,11 +365,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   friend class base::RefCounted<SpdySession>;
 
   // Allow tests to access our innards for testing purposes.
-  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, Ping);
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, ClientPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, GetActivePushStream);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, DeleteExpiredPushStreams);
-  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, Ping);
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, ClientPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, GetActivePushStream);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, DeleteExpiredPushStreams);
