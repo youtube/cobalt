@@ -764,20 +764,20 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
   bool is_crl = strcasecmp(mime_type, "application/x-pkcs7-crl") == 0 ||
                 strcasecmp(mime_type, "application/x-x509-crl") == 0 ||
                 strcasecmp(mime_type, "application/pkix-crl") == 0;
-  bool is_crt =
+  bool is_cert =
       strcasecmp(mime_type, "application/x-x509-ca-cert") == 0 ||
       strcasecmp(mime_type, "application/x-x509-server-cert") == 0 ||
       strcasecmp(mime_type, "application/pkix-cert") == 0 ||
       strcasecmp(mime_type, "application/pkcs7-mime") == 0;
 
-  if (!is_crt && !is_crt && !is_ocsp) {
+  if (!is_cert && !is_crl && !is_ocsp) {
     // We didn't get a hint from the MIME type, so do the best that we can.
     const std::string path = req->url().path();
     const std::string host = req->url().host();
     is_crl = strcasestr(path.c_str(), ".crl") != NULL;
-    is_crt = strcasestr(path.c_str(), ".crt") != NULL ||
-             strcasestr(path.c_str(), ".p7c") != NULL ||
-             strcasestr(path.c_str(), ".cer") != NULL;
+    is_cert = strcasestr(path.c_str(), ".crt") != NULL ||
+              strcasestr(path.c_str(), ".p7c") != NULL ||
+              strcasestr(path.c_str(), ".cer") != NULL;
     is_ocsp = strcasestr(host.c_str(), "ocsp") != NULL ||
               req->http_request_method() == "POST";
   }
@@ -798,7 +798,7 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
       UMA_HISTOGRAM_TIMES("Net.CRLRequestFailedTimeMs", duration);
       UMA_HISTOGRAM_BOOLEAN("Net.CRLRequestSuccess", false);
     }
-  } else if (is_crt) {
+  } else if (is_cert) {
     if (ok)
       UMA_HISTOGRAM_TIMES("Net.CRTRequestTimeMs", duration);
   } else {
