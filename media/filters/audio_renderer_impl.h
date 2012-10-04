@@ -212,6 +212,10 @@ class MEDIA_EXPORT AudioRendererImpl
 
   bool underflow_disabled_;
 
+  // True if the renderer receives a buffer with kAborted status during preroll,
+  // false otherwise. This flag is cleared on the next Preroll() call.
+  bool preroll_aborted_;
+
   DISALLOW_COPY_AND_ASSIGN(AudioRendererImpl);
 };
 
