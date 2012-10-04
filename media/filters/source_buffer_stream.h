@@ -112,6 +112,12 @@ class MEDIA_EXPORT SourceBufferStream {
   // Frees up space if the SourceBufferStream is taking up too much memory.
   void GarbageCollectIfNeeded();
 
+  // Attempts to delete approximately |total_bytes_to_free| amount of data
+  // |ranges_|, starting at the front of |ranges_| and moving linearly forward
+  // through the buffers. Deletes starting from the back if |reverse_direction|
+  // is true. Returns the number of bytes freed.
+  int FreeBuffers(int total_bytes_to_free, bool reverse_direction);
+
   // Appends |new_buffers| into |range_for_new_buffers_itr|, handling start and
   // end overlaps if necessary.
   // |deleted_next_buffer| is an output parameter that is true if the next
