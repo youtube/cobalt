@@ -1046,7 +1046,7 @@
               ],
               'action': [
                 'python',
-                '../tools/isolate/isolate.py',
+                '../tools/swarm_client/isolate.py',
                 '<(test_isolation_mode)',
                 '--outdir', '<(test_isolation_outdir)',
                 '--variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
