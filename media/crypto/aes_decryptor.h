@@ -51,6 +51,13 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
   virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) OVERRIDE;
   virtual void CancelDecrypt() OVERRIDE;
+  virtual void InitializeVideoDecoder(const VideoDecoderConfig& config,
+                                      const DecoderInitCB& init_cb) OVERRIDE;
+  virtual void DecryptAndDecodeVideo(
+      const scoped_refptr<DecoderBuffer>& encrypted,
+      const VideoDecodeCB& video_decode_cb) OVERRIDE;
+  virtual void CancelDecryptAndDecodeVideo() OVERRIDE;
+  virtual void StopVideoDecoder() OVERRIDE;
 
  private:
   // TODO(fgalligan): Remove this and change KeyMap to use crypto::SymmetricKey
