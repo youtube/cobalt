@@ -165,7 +165,7 @@ SpdyFrame* ConstructSpdyCredential(const SpdyCredential& credential);
 
 // Construct a SPDY PING frame.
 // Returns the constructed frame.  The caller takes ownership of the frame.
-SpdyFrame* ConstructSpdyPing();
+SpdyFrame* ConstructSpdyPing(uint32 ping_id);
 
 // Construct a SPDY GOAWAY frame.
 // Returns the constructed frame.  The caller takes ownership of the frame.
