@@ -5,7 +5,7 @@
   'variables': {
     'isolate_dependency_tracked': [
       '../testing/test_env.py',
-      '../tools/isolate/run_test_cases.py',
+      '../tools/swarm_client/run_test_cases.py',
       '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
       'data/json/bom_feff.json',
     ],
@@ -19,7 +19,7 @@
         'command': [
           '../testing/xvfb.py',
           '<(PRODUCT_DIR)',
-          '../tools/isolate/run_test_cases.py',
+          '../tools/swarm_client/run_test_cases.py',
           '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
         ],
         'isolate_dependency_tracked': [
@@ -31,7 +31,7 @@
       'variables': {
         'command': [
           '../testing/test_env.py',
-          '../tools/isolate/run_test_cases.py',
+          '../tools/swarm_client/run_test_cases.py',
           '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
         ],
       },
