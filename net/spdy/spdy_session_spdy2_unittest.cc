@@ -205,17 +205,17 @@ TEST_F(SpdySessionSpdy2Test, GoAway) {
   session2 = NULL;
 }
 
-TEST_F(SpdySessionSpdy2Test, Ping) {
+TEST_F(SpdySessionSpdy2Test, ClientPing) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<SpdyFrame> read_ping(ConstructSpdyPing());
+  scoped_ptr<SpdyFrame> read_ping(ConstructSpdyPing(1));
   MockRead reads[] = {
     CreateMockRead(*read_ping),
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
-  scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing());
+  scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing(1));
   MockWrite writes[] = {
     CreateMockWrite(*write_ping),
   };
@@ -293,6 +293,79 @@ TEST_F(SpdySessionSpdy2Test, Ping) {
   session = NULL;
 }
 
+TEST_F(SpdySessionSpdy2Test, ServerPing) {
+  SpdySessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+
+  MockConnect connect_data(SYNCHRONOUS, OK);
+  scoped_ptr<SpdyFrame> read_ping(ConstructSpdyPing(2));
+  MockRead reads[] = {
+    CreateMockRead(*read_ping),
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
+  };
+  scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing(2));
+  MockWrite writes[] = {
+    CreateMockWrite(*write_ping),
+  };
+  StaticSocketDataProvider data(
+      reads, arraysize(reads), writes, arraysize(writes));
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  static const char kStreamUrl[] = "http://www.google.com/";
+  GURL url(kStreamUrl);
+
+  const std::string kTestHost("www.google.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
+
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(pair, BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                false,
+                                false,
+                                OnHostResolutionCallback()));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(
+                                     HttpNetworkSession::NORMAL_SOCKET_POOL),
+                                 BoundNetLog()));
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
+
+  scoped_refptr<SpdyStream> spdy_stream1;
+  TestCompletionCallback callback1;
+  EXPECT_EQ(OK, session->CreateStream(url,
+                                      MEDIUM,
+                                      &spdy_stream1,
+                                      BoundNetLog(),
+                                      callback1.callback()));
+  scoped_ptr<TestSpdyStreamDelegate> delegate(
+      new TestSpdyStreamDelegate(callback1.callback()));
+  spdy_stream1->SetDelegate(delegate.get());
+
+  // Flush the SpdySession::OnReadComplete() task.
+  MessageLoop::current()->RunAllPending();
+
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+
+  // Delete the session.
+  session = NULL;
+}
+
 TEST_F(SpdySessionSpdy2Test, DeleteExpiredPushStreams) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
@@ -353,18 +426,17 @@ TEST_F(SpdySessionSpdy2Test, DeleteExpiredPushStreams) {
   session = NULL;
 }
 
-
 TEST_F(SpdySessionSpdy2Test, FailedPing) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<SpdyFrame> read_ping(ConstructSpdyPing());
+  scoped_ptr<SpdyFrame> read_ping(ConstructSpdyPing(1));
   MockRead reads[] = {
     CreateMockRead(*read_ping),
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
-  scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing());
+  scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing(1));
   MockWrite writes[] = {
     CreateMockWrite(*write_ping),
   };

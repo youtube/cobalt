@@ -228,9 +228,9 @@ SpdyFrame* ConstructSpdyCredential(
 
 // Construct a SPDY PING frame.
 // Returns the constructed frame.  The caller takes ownership of the frame.
-SpdyFrame* ConstructSpdyPing() {
+SpdyFrame* ConstructSpdyPing(uint32 ping_id) {
   BufferedSpdyFramer framer(2);
-  return framer.CreatePingFrame(1);
+  return framer.CreatePingFrame(ping_id);
 }
 
 // Construct a SPDY GOAWAY frame.
