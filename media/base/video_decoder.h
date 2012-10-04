@@ -28,7 +28,8 @@ class MEDIA_EXPORT VideoDecoder
 
   // Initializes a VideoDecoder with the given DemuxerStream, executing the
   // |status_cb| upon completion.
-  // |statistics_cb| is used to update global pipeline statistics.
+  // |statistics_cb| is used to update the global pipeline statistics.
+  // Note: No VideoDecoder calls should be made before |status_cb| is executed.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
                           const PipelineStatusCB& status_cb,
                           const StatisticsCB& statistics_cb) = 0;
@@ -53,6 +54,7 @@ class MEDIA_EXPORT VideoDecoder
   // Resets decoder state, fulfilling all pending ReadCB and dropping extra
   // queued decoded data. After this call, the decoder is back to an initialized
   // clean state.
+  // Note: No VideoDecoder calls should be made before |closure| is executed.
   virtual void Reset(const base::Closure& closure) = 0;
 
   // Stops decoder, fires any pending callbacks and sets the decoder to an

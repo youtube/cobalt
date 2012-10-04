@@ -71,8 +71,7 @@ void FilterCollection::SelectVideoRenderer(scoped_refptr<VideoRenderer>* out) {
   video_renderers_.pop_front();
 }
 
-FilterCollection::VideoDecoderList*
-FilterCollection::GetVideoDecoders() {
+FilterCollection::VideoDecoderList* FilterCollection::GetVideoDecoders() {
   return &video_decoders_;
 }
 

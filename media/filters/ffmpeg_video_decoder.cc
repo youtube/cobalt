@@ -179,10 +179,11 @@ void FFmpegVideoDecoder::Reset(const base::Closure& closure) {
     return;
   }
 
+  DCHECK(reset_cb_.is_null());
+  reset_cb_ = closure;
+
   if (decryptor_)
     decryptor_->CancelDecrypt();
-
-  reset_cb_ = closure;
 
   // Defer the reset if a read is pending.
   if (!read_cb_.is_null())
@@ -207,15 +208,17 @@ void FFmpegVideoDecoder::Stop(const base::Closure& closure) {
     return;
   }
 
+  DCHECK(stop_cb_.is_null());
+
   if (state_ == kUninitialized) {
     closure.Run();
     return;
   }
 
+  stop_cb_ = closure;
+
   if (decryptor_)
     decryptor_->CancelDecrypt();
-
-  stop_cb_ = closure;
 
   // Defer stopping if a read is pending.
   if (!read_cb_.is_null())
