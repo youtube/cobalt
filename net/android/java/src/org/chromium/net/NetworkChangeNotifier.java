@@ -100,8 +100,7 @@ public class NetworkChangeNotifier {
     public static void setAutoDetectConnectivityState(boolean shouldAutoDetect) {
         // We should only get a call to this after the native object is created and
         // hence the singleton initialised.
-        assert sInstance != null;
-        sInstance.setAutoDetectConnectivityStateInternal(shouldAutoDetect);
+        getInstance().setAutoDetectConnectivityStateInternal(shouldAutoDetect);
     }
 
     private void destroyAutoDetector() {
@@ -137,9 +136,8 @@ public class NetworkChangeNotifier {
      */
     @CalledByNative
     public static void forceConnectivityState(boolean networkAvailable) {
-        assert sInstance != null;
         setAutoDetectConnectivityState(false);
-        sInstance.forceConnectivityStateInternal(networkAvailable);
+        getInstance().forceConnectivityStateInternal(networkAvailable);
     }
 
     private void forceConnectivityStateInternal(boolean forceOnline) {
@@ -171,8 +169,7 @@ public class NetworkChangeNotifier {
      * Adds an observer for any connection type changes.
      */
     public static void addConnectionTypeObserver(ConnectionTypeObserver observer) {
-        assert sInstance != null;
-        sInstance.addConnectionTypeObserverInternal(observer);
+        getInstance().addConnectionTypeObserverInternal(observer);
     }
 
     private void addConnectionTypeObserverInternal(ConnectionTypeObserver observer) {
@@ -184,8 +181,7 @@ public class NetworkChangeNotifier {
      * Removes an observer for any connection type changes.
      */
     public static boolean removeConnectionTypeObserver(ConnectionTypeObserver observer) {
-        assert sInstance != null;
-        return sInstance.removeConnectionTypeObserverInternal(observer);
+        return getInstance().removeConnectionTypeObserverInternal(observer);
     }
 
     private boolean removeConnectionTypeObserverInternal(ConnectionTypeObserver observer) {
@@ -201,7 +197,6 @@ public class NetworkChangeNotifier {
 
     // For testing only.
     public static NetworkChangeNotifierAutoDetect getAutoDetectorForTest() {
-        assert sInstance != null;
-        return sInstance.mAutoDetector;
+        return getInstance().mAutoDetector;
     }
 }
