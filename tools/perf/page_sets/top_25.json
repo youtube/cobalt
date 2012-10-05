@@ -11,8 +11,7 @@
             "url": "https://mail.google.com/mail/",
             "why": "productivity, top google properties",
             "credentials": "google",
-            "is_gmail": true,
-            "wait_for_javascript_expression": "window.gmonkey !== undefined"
+            "scrollable_element_function": "function(callback) { gmonkey.load('2.0', function(api) { callback(api.getScrollableElement()); }); }"
         },
         {
             "url": "https://www.google.com/calendar/",
@@ -28,7 +27,8 @@
             "name": "Docs  (1 open document tab)",
             "url": "https://docs.google.com/document/d/1L2AUaE4tAsOjE9xyqT85TtbDmAiuBNN1Gl32I65HjTE/edit",
             "why": "productivity, top google properties; Sample doc in the link",
-            "credentials": "google"
+            "credentials": "google",
+            "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('kix-appview-editor')[0]); }"
         },
         {
             "url": "https://maps.google.com",
