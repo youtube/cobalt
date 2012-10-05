@@ -11,7 +11,8 @@
             "url": "https://mail.google.com/mail/",
             "why": "productivity, top google properties",
             "credentials": "google",
-            "is_gmail": true
+            "is_gmail": true,
+            "wait_for_javascript_expression": "window.gmonkey !== undefined"
         },
         {
             "url": "https://www.google.com/calendar/",
