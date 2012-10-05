@@ -22,10 +22,12 @@
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/audio/win/audio_manager_win.h"
+#include "media/audio/win/audio_unified_win.h"
 #include "media/audio/win/device_enumeration_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
 #include "media/base/limits.h"
+#include "media/base/media_switches.h"
 
 // Libraries required for the SetupAPI and Wbem APIs used here.
 #pragma comment(lib, "setupapi.lib")
@@ -233,7 +235,7 @@ void AudioManagerWin::GetAudioInputDeviceNames(
 // mode.
 // - PCMWaveOutAudioOutputStream: Based on the waveOut API.
 AudioOutputStream* AudioManagerWin::MakeLinearOutputStream(
-      const AudioParameters& params) {
+    const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   if (params.channels() > kWinMaxChannels)
     return NULL;
@@ -250,23 +252,28 @@ AudioOutputStream* AudioManagerWin::MakeLinearOutputStream(
 // - PCMWaveOutAudioOutputStream: Based on the waveOut API.
 // - WASAPIAudioOutputStream: Based on Core Audio (WASAPI) API.
 AudioOutputStream* AudioManagerWin::MakeLowLatencyOutputStream(
-      const AudioParameters& params) {
+    const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   if (params.channels() > kWinMaxChannels)
     return NULL;
 
-  AudioOutputStream* stream = NULL;
   if (!media::IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower.
     DVLOG(1) << "Using WaveOut since WASAPI requires at least Vista.";
-    stream = new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
-  } else {
-    // TODO(henrika): improve possibility to specify audio endpoint.
-    // Use the default device (same as for Wave) for now to be compatible.
-    stream = new WASAPIAudioOutputStream(this, params, eConsole);
+    return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
   }
 
-  return stream;
+  // TODO(henrika): remove once we properly handle input device selection.
+  if (CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableWebAudioInput)) {
+    if (WASAPIUnifiedStream::HasUnifiedDefaultIO()) {
+      DVLOG(1) << "WASAPIUnifiedStream is created.";
+      return new WASAPIUnifiedStream(this, params);
+    }
+    LOG(WARNING) << "Unified audio I/O is not supported.";
+  }
+
+  return new WASAPIAudioOutputStream(this, params, eConsole);
 }
 
 // Factory for the implementations of AudioInputStream for AUDIO_PCM_LINEAR
