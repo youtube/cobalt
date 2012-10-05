@@ -1,7 +1,7 @@
 {
     "description": "Pages hand-picked for 2012 CrOS scrolling tuning efforts.",
-    "archive_path": "top_25.wpr",
-    "credentials_path": "credentials.json",
+    "archive_path": "../data/top_25.wpr",
+    "credentials_path": "../data/credentials.json",
     "pages": [
         {
             "url": "https://www.google.com/#hl=en&q=barack+obama",

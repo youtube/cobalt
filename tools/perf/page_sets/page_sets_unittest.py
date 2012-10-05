@@ -13,4 +13,7 @@ class PageSetsUnittest(unittest.TestCase):
   def testPageSetsParseCorrectly():
     filenames = page_sets.GetAllPageSetFilenames()
     for filename in filenames:
-      page_set.PageSet.FromFile(filename)
+      try:
+        page_set.PageSet.FromFile(filename)
+      except Exception, ex:
+        raise Exception("Pageset %s: %s" % (filename, str(ex)))
