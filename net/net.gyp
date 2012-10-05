@@ -2273,7 +2273,7 @@
                 '<@(isolate_dependency_tracked)',
               ],
               'outputs': [
-                '<(PRODUCT_DIR)/net_unittests.swarm',
+                '<(PRODUCT_DIR)/net_unittests.isolated',
               ],
               'action': [
                 'python',
