@@ -810,13 +810,6 @@
             '..',
           ],
           'conditions': [
-            ['order_profiling != 0', {
-              'target_conditions' : [
-                ['_toolset=="target"', {
-                  'cflags!': [ '-finstrument-functions' ],
-                }],
-              ],
-            }],
             [ 'target_arch == "ia32" or target_arch == "x64"', {
               'dependencies': [
                 'yuv_convert_simd_x86',
@@ -864,13 +857,6 @@
             'base/simd/yuv_to_rgb_table.h',
           ],
           'conditions': [
-            ['order_profiling != 0', {
-              'target_conditions' : [
-                ['_toolset=="target"', {
-                  'cflags!': [ '-finstrument-functions' ],
-                }],
-              ],
-            }],
             [ 'target_arch == "x64"', {
               # Source files optimized for X64 systems.
               'sources': [
