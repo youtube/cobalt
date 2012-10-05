@@ -5,6 +5,7 @@
 #import <Foundation/Foundation.h>
 
 #include "base/ios/device_util.h"
+#include "base/ios/ios_util.h"
 #include "base/sys_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gtest_mac.h"
@@ -47,7 +48,10 @@ TEST_F(DeviceUtilTest, GetDeviceIdentifier) {
   [defaults synchronize];
 
   std::string new_default_id = ios::device_util::GetDeviceIdentifier(NULL);
-  EXPECT_NE(default_id, new_default_id);
+  if (base::ios::IsRunningOnIOS6OrLater())
+    EXPECT_EQ(default_id, new_default_id);
+  else
+    EXPECT_NE(default_id, new_default_id);
 }
 
 }  // namespace
