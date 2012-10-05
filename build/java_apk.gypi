@@ -39,6 +39,8 @@
 #    ensure that this target is rebuilt when one of these paths changes.
 #  additional_src_dirs - Additional directories with .java files to be compiled
 #    and included in the output of this target.
+#  asset_location - The directory where assets are located (default:
+#    <PRODUCT_DIR>/<package_name>/assets).
 #  generated_src_dirs - Same as additional_src_dirs except used for .java files
 #    that are generated at build time. This should be set automatically by a
 #    target's dependencies. The .java files in these directories are not
@@ -50,9 +52,10 @@
 
 {
   'variables': {
+    'asset_location': '',
+    'additional_input_paths': [],
     'input_jars_paths': [],
     'native_libs_paths': [],
-    'additional_input_paths': [],
     'additional_src_dirs': [],
     'generated_src_dirs': [],
   },
@@ -61,8 +64,8 @@
       'action_name': 'ant_<(package_name)_apk',
       'message': 'Building <(package_name) apk.',
       'inputs': [
-        '<(java_in_dir)/<(package_name)_apk.xml',
         '<(java_in_dir)/AndroidManifest.xml',
+        '<(DEPTH)/build/android/ant/chromium-apk.xml',
         '<(DEPTH)/build/android/ant/common.xml',
         '<(DEPTH)/build/android/ant/sdk-targets.xml',
         # If there is a separate find for additonal_src_dirs, it will find the
@@ -89,14 +92,17 @@
         '-DCONFIGURATION_NAME=<(CONFIGURATION_NAME)',
         '-DPRODUCT_DIR=<(ant_build_out)',
 
+        '-DAPK_NAME=<(apk_name)',
+        '-DASSET_DIR=<(asset_location)',
         '-DADDITIONAL_SRC_DIRS=>(additional_src_dirs)',
-        '-DINPUT_JARS_PATHS=>(input_jars_paths)',
         '-DGENERATED_SRC_DIRS=>(generated_src_dirs)',
+        '-DINPUT_JARS_PATHS=>(input_jars_paths)',
         '-DPACKAGE_NAME=<(package_name)',
         '-DRESOURCE_DIR=<(resource_dir)',
 
+        '-Dbasedir=<(java_in_dir)',
         '-buildfile',
-        '<(java_in_dir)/<(package_name)_apk.xml'
+        '<(DEPTH)/build/android/ant/chromium-apk.xml'
       ]
     },
   ],
