@@ -11,7 +11,9 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram_base.h"
+#include "base/metrics/sample_map.h"
 #include "base/synchronization/lock.h"
 
 namespace base {
@@ -24,23 +26,23 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
 
   virtual ~SparseHistogram();
 
+  // HistogramBase implementation:
   virtual void Add(Sample value) OVERRIDE;
-
-  virtual void SnapshotSample(std::map<Sample, Count>* sample) const;
   virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
   virtual void WriteAscii(std::string* output) const OVERRIDE;
 
- protected:
+  virtual scoped_ptr<SampleMap> SnapshotSamples() const;
+
+ private:
   // Clients should always use FactoryGet to create SparseHistogram.
   SparseHistogram(const std::string& name);
 
- private:
   friend class SparseHistogramTest;  // For constuctor calling.
 
-  std::map<Sample, Count> samples_;
-
-  // Protects access to above map.
+  // Protects access to |sample_counts_| and |redundant_count_|.
   mutable base::Lock lock_;
+  std::map<HistogramBase::Sample, HistogramBase::Count> sample_counts_;
+  HistogramBase::Count redundant_count_;
 
   DISALLOW_COPY_AND_ASSIGN(SparseHistogram);
 };

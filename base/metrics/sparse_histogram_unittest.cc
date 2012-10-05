@@ -5,6 +5,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/metrics/sample_map.h"
 #include "base/metrics/sparse_histogram.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -19,22 +20,21 @@ class SparseHistogramTest : public testing::Test {
 
 TEST_F(SparseHistogramTest, BasicTest) {
   scoped_ptr<SparseHistogram> histogram(NewSparseHistogram("Sparse1"));
-  std::map<HistogramBase::Sample, HistogramBase::Count> sample;
-  histogram->SnapshotSample(&sample);
-
-  ASSERT_EQ(0u, sample.size());
+  scoped_ptr<SampleMap> snapshot(histogram->SnapshotSamples());
+  EXPECT_EQ(0, snapshot->TotalCount());
+  EXPECT_EQ(0, snapshot->sum());
 
   histogram->Add(100);
-  histogram->SnapshotSample(&sample);
-  ASSERT_EQ(1u, sample.size());
-  EXPECT_EQ(1, sample[100]);
+  scoped_ptr<SampleMap> snapshot1(histogram->SnapshotSamples());
+  EXPECT_EQ(1, snapshot1->TotalCount());
+  EXPECT_EQ(1, snapshot1->GetCount(100));
 
   histogram->Add(100);
   histogram->Add(101);
-  histogram->SnapshotSample(&sample);
-  ASSERT_EQ(2u, sample.size());
-  EXPECT_EQ(2, sample[100]);
-  EXPECT_EQ(1, sample[101]);
+  scoped_ptr<SampleMap> snapshot2(histogram->SnapshotSamples());
+  EXPECT_EQ(3, snapshot2->TotalCount());
+  EXPECT_EQ(2, snapshot2->GetCount(100));
+  EXPECT_EQ(1, snapshot2->GetCount(101));
 }
 
 }  // namespace base

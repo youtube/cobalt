@@ -39,7 +39,7 @@ class BASE_EXPORT_PRIVATE SampleVector : public HistogramSamples {
  protected:
   virtual bool AddSubtractImpl(
       SampleCountIterator* iter,
-      HistogramSamples::Instruction instruction) OVERRIDE;
+      HistogramSamples::Operator op) OVERRIDE;  // |op| is ADD or SUBTRACT.
 
   virtual size_t GetBucketIndex(HistogramBase::Sample value) const;
 
@@ -58,6 +58,7 @@ class BASE_EXPORT_PRIVATE SampleVectorIterator : public SampleCountIterator {
  public:
   SampleVectorIterator(const std::vector<HistogramBase::Count>* counts,
                        const BucketRanges* bucket_ranges);
+  virtual ~SampleVectorIterator();
 
   // SampleCountIterator implementation:
   virtual bool Done() const OVERRIDE;
@@ -65,6 +66,8 @@ class BASE_EXPORT_PRIVATE SampleVectorIterator : public SampleCountIterator {
   virtual void Get(HistogramBase::Sample* min,
                    HistogramBase::Sample* max,
                    HistogramBase::Count* count) const OVERRIDE;
+
+  // SampleVector uses predefined buckets, so iterator can return bucket index.
   virtual bool GetBucketIndex(size_t* index) const OVERRIDE;
 
  private:
