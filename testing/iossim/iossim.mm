@@ -451,6 +451,7 @@ BOOL CreateHomeDirSubDirs(NSString* userHomePath) {
   NSArray* subDirsToCreate = [NSArray arrayWithObjects:
                               @"Documents",
                               @"Library/Caches",
+                              @"Library/Preferences",
                               nil];
   for (NSString* subDir in subDirsToCreate) {
     NSString* path = [userHomePath stringByAppendingPathComponent:subDir];
@@ -472,9 +473,18 @@ BOOL CreateHomeDirSubDirs(NSString* userHomePath) {
 // path, then sets the path in the appropriate environment variable.
 // Returns YES if successful, NO if unable to create or initialize the given
 // directory.
-BOOL InitializeSimulatorUserHome(NSString* userHomePath) {
+BOOL InitializeSimulatorUserHome(NSString* userHomePath, NSString* deviceName) {
   if (!CreateHomeDirSubDirs(userHomePath))
     return NO;
+
+  // Set the device to simulate. Note that the iOS Simulator must not be running
+  // for this setting to take effect.
+  NSMutableDictionary* plistDict =
+      [NSMutableDictionary dictionaryWithObject:deviceName
+                                         forKey:@"SimulateDevice"];
+  NSString* plistPath = @"Library/Preferences/com.apple.iphonesimulator.plist";
+  [plistDict writeToFile:[userHomePath stringByAppendingPathComponent:plistPath]
+              atomically:YES];
 
   // Update the environment to use the specified directory as the user home
   // directory.
@@ -489,6 +499,16 @@ BOOL InitializeSimulatorUserHome(NSString* userHomePath) {
   return YES;
 }
 
+// Performs a case-insensitive search to see if |stringToSearch| begins with
+// |prefixToFind|. Returns true if a match is found.
+BOOL CaseInsensitivePrefixSearch(NSString* stringToSearch,
+                                 NSString* prefixToFind) {
+  NSStringCompareOptions options = (NSAnchoredSearch | NSCaseInsensitiveSearch);
+  NSRange range = [stringToSearch rangeOfString:prefixToFind
+                                        options:options];
+  return range.location != 0;
+}
+
 // Prints the usage information to stderr.
 void PrintUsage() {
   fprintf(stderr, "Usage: iossim [-d device] [-s sdkVersion] [-u homeDir] "
@@ -497,8 +517,8 @@ void PrintUsage() {
       " arguments to send the simulated app.\n"
       "\n"
       "Options:\n"
-      "  -d  Specifies the device (either 'iPhone' or 'iPad')."
-      " Defaults to 'iPhone'.\n"
+      "  -d  Specifies the device (must be one of the values from the iOS"
+      " Simulator's Hardware -> Device menu. Defaults to 'iPhone'.\n"
       "  -s  Specifies the SDK version to use (e.g '4.3')."
       " Will use system default if not specified.\n"
       "  -u  Specifies a user home directory for the simulator."
@@ -630,15 +650,15 @@ int main(int argc, char* const argv[]) {
   NSString* outputDir = CreateTempDirectory(@"iossim-XXXXXX");
   NSString* stdioPath = [outputDir stringByAppendingPathComponent:@"stdio.txt"];
 
-  // Make sure the device name is legit.
+  // Determine the deviceFamily based on the deviceName
   NSNumber* deviceFamily = nil;
-  if (!deviceName ||
-      [@"iPhone" caseInsensitiveCompare:deviceName] == NSOrderedSame) {
+  if (!deviceName || CaseInsensitivePrefixSearch(deviceName, @"iPhone")) {
     deviceFamily = [NSNumber numberWithInt:kIPhoneFamily];
-  } else if ([@"iPad" caseInsensitiveCompare:deviceName] == NSOrderedSame) {
+  } else if (CaseInsensitivePrefixSearch(deviceName, @"iPad")) {
     deviceFamily = [NSNumber numberWithInt:kIPadFamily];
   } else {
-    LogError(@"Invalid device name: %@", deviceName);
+    LogError(@"Invalid device name: %@. Must begin with 'iPhone' or 'iPad'",
+             deviceName);
     exit(EXIT_FAILURE);
   }
 
@@ -653,7 +673,7 @@ int main(int argc, char* const argv[]) {
       exit(EXIT_FAILURE);
     }
   }
-  if (!InitializeSimulatorUserHome(simHomePath)) {
+  if (!InitializeSimulatorUserHome(simHomePath, deviceName)) {
     LogError(@"Unable to initialize home directory for simulator: %@",
              simHomePath);
     exit(EXIT_FAILURE);
