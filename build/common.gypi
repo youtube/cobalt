@@ -2548,6 +2548,9 @@
               ['_toolset=="target"', {
                 'cflags': [
                   '-finstrument-functions',
+                  # Allow mmx intrinsics to inline, so that the
+                  # compiler can expand the intrinsics.
+                  '-finstrument-functions-exclude-file-list=mmintrin.h',
                 ],
               }],
             ],
