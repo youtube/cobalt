@@ -34,18 +34,15 @@
       name="-compile"
       depends="-build-setup, -pre-build, -code-gen, -pre-compile">
     <do-only-if-manifest-hasCode elseText="hasCode = false. Skipping..." >
-      <!-- If souce path is not set, then use the default value -->
+      <!-- If javac.srcdirs.additional isn't set, set it to an empty path. -->
       <if>
         <condition>
           <not>
-            <isreference refid="javac.custom.sourcepath"/>
+            <isreference refid="javac.srcdirs.additional"/>
           </not>
         </condition>
         <then>
-          <path id="javac.custom.sourcepath">
-            <pathelement path="${source.absolute.dir}"/>
-            <pathelement path="${gen.absolute.dir}"/>
-          </path>
+          <path id="javac.srcdirs.additional"/>
         </then>
       </if>
       <javac
@@ -63,7 +60,7 @@
         <src path="${source.absolute.dir}"/>
         <src path="${gen.absolute.dir}"/>
         <src>
-          <path refid="javac.custom.sourcepath"/>
+          <path refid="javac.srcdirs.additional"/>
         </src>
         <compilerarg line="${java.compilerargs}"/>
       </javac>
@@ -105,8 +102,10 @@
       <!--
         If the project needs a test jar then generate a jar containing
         all compiled classes and referenced jars.
+        project.is.testapp is set by Android's ant build system based on the
+        target's manifest. It is true only for instrumentation apks.
       -->
-      <if condition="${generate.test.jar}">
+      <if condition="${project.is.testapp}">
         <then>
           <echo level="info">Creating test jar file:
               ${ant.project.name}-debug.jar</echo>
@@ -167,5 +166,39 @@
       </sequential>
     </do-only-if-not-library>
     <record-build-info />
+  </target>
+
+  <path id="native.libs.gdbserver">
+    <fileset file="${android.gdbserver}"/>
+  </path>
+
+  <target name="-post-compile">
+    <!--
+      Copy gdbserver to main libs directory if building a non-instrumentation debug apk.
+      TODO(jrg): For now, Chrome on Android always builds native code
+      as Release and java/ant as Debug, which means we always install
+      gdbserver.  Resolve this discrepancy, possibly by making this
+      Release Official build java/ant as Release.
+    -->
+    <if>
+      <condition>
+        <and>
+          <equals arg1="${build.target}" arg2="debug"/>
+          <isfalse value="${project.is.testapp}"/>
+        </and>
+      </condition>
+      <then>
+        <echo message="Copying gdbserver to the apk to enable native debugging"/>
+        <copy todir="${out.dir}/libs/${target.abi}">
+          <path refid="native.libs.gdbserver"/>
+        </copy>
+      </then>
+    </if>
+
+    <!-- Package all the compiled .class files into a .jar. -->
+    <jar
+      jarfile="${lib.java.dir}/chromium_${PACKAGE_NAME}.jar"
+      basedir="${out.classes.absolute.dir}"
+    />
   </target>
 </project>
