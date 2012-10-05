@@ -62,8 +62,7 @@
         {
             "name": "LinkedIn",
             "url": "http://www.linkedin.com",
-            "why": "#12 (Alexa global),Requires login",
-            "credentials": "linkedin"
+            "why": "#12 (Alexa global),Requires login"
         },
         {
             "name": "Wikipedia (1 tab)",
