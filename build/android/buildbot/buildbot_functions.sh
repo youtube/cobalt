@@ -151,10 +151,10 @@ function bb_goma_ninja {
 
 # Compile step
 function bb_compile {
-  bb_compile_setup
   # This must be named 'compile', not 'Compile', for CQ interaction.
   # Talk to maruel for details.
   echo "@@@BUILD_STEP compile@@@"
+  bb_compile_setup
 
   BUILDTOOL=$(bb_get_json_prop "$FACTORY_PROPERTIES" buildtool)
   if [[ $BUILDTOOL = ninja ]]; then
