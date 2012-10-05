@@ -10,6 +10,7 @@
 #include "build/build_config.h"
 #include "ui/base/ui_export.h"
 #include "ui/gfx/size_base.h"
+#include "ui/gfx/size_f.h"
 
 #if defined(OS_WIN)
 typedef struct tagSIZE SIZE;
@@ -41,6 +42,10 @@ class UI_EXPORT Size : public SizeBase<Size, int> {
 #elif defined(OS_MACOSX)
   CGSize ToCGSize() const;
 #endif
+
+  SizeF ToSizeF() const {
+    return SizeF(width(), height());
+  }
 
   std::string ToString() const;
 };

@@ -68,7 +68,7 @@ class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
   CGRect ToCGRect() const;
 #endif
 
-  RectF ToRectF() const WARN_UNUSED_RESULT {
+  RectF ToRectF() const {
     return RectF(origin().x(), origin().y(), size().width(), size().height());
   }
 
