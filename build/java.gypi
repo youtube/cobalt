@@ -18,7 +18,6 @@
 #
 # The generated jar-file will be:
 #   <(PRODUCT_DIR)/lib.java/chromium_<(package_name).jar
-#
 # Required variables:
 #  package_name - Used to name the intermediate output directory and in the
 #    names of some output files.
@@ -67,6 +66,7 @@
       ],
       'action': [
         'ant',
+        '-DCONFIGURATION_NAME=<(CONFIGURATION_NAME)',
         '-DANDROID_SDK=<(android_sdk)',
         '-DANDROID_SDK_ROOT=<(android_sdk_root)',
         '-DANDROID_SDK_TOOLS=<(android_sdk_tools)',
