@@ -53,7 +53,7 @@ scoped_ptr<SampleCountIterator> SampleVector::Iterator() const {
 }
 
 bool SampleVector::AddSubtractImpl(SampleCountIterator* iter,
-                                   HistogramSamples::Instruction instruction) {
+                                   HistogramSamples::Operator op) {
   HistogramBase::Sample min;
   HistogramBase::Sample max;
   HistogramBase::Count count;
@@ -65,8 +65,7 @@ bool SampleVector::AddSubtractImpl(SampleCountIterator* iter,
     if (min == bucket_ranges_->range(index) &&
         max == bucket_ranges_->range(index + 1)) {
       // Sample matches this bucket!
-      counts_[index] +=
-          (instruction ==  HistogramSamples::ADD) ? count : -count;
+      counts_[index] += (op ==  HistogramSamples::ADD) ? count : -count;
       iter->Next();
     } else if (min > bucket_ranges_->range(index)) {
       // Sample is larger than current bucket range. Try next.
@@ -116,6 +115,8 @@ SampleVectorIterator::SampleVectorIterator(const vector<Count>* counts,
   CHECK_GT(bucket_ranges_->size(), counts_->size());
   SkipEmptyBuckets();
 }
+
+SampleVectorIterator::~SampleVectorIterator() {}
 
 bool SampleVectorIterator::Done() const {
   return index_ >= counts_->size();
