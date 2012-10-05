@@ -29,10 +29,18 @@ class ScopedObserver {
     source->AddObserver(observer_);
   }
 
-  // Removse the object passed to the constructor as an observer from |source|.
+  // Remove the object passed to the constructor as an observer from |source|.
   void Remove(Source* source) {
     sources_.erase(std::find(sources_.begin(), sources_.end(), source));
     source->RemoveObserver(observer_);
+  }
+
+  bool IsObserving(Source* source) const {
+    for (size_t i = 0; i < sources_.size(); ++i) {
+      if (sources_[i] == source)
+        return true;
+    }
+    return false;
   }
 
  private:
