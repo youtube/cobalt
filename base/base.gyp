@@ -1046,7 +1046,7 @@
                 '<@(isolate_dependency_tracked)',
               ],
               'outputs': [
-                '<(PRODUCT_DIR)/base_unittests.swarm',
+                '<(PRODUCT_DIR)/base_unittests.isolated',
               ],
               'action': [
                 'python',
