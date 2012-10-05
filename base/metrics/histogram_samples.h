@@ -42,11 +42,9 @@ class BASE_EXPORT HistogramSamples {
   HistogramBase::Count redundant_count() const { return redundant_count_; }
 
  protected:
-  // Based on |instruction| type, add or subtract sample counts data from the
-  // iterator.
-  enum Instruction { ADD, SUBTRACT };
-  virtual bool AddSubtractImpl(SampleCountIterator* iter,
-                               Instruction instruction) = 0;
+  // Based on |op| type, add or subtract sample counts data from the iterator.
+  enum Operator { ADD, SUBTRACT };
+  virtual bool AddSubtractImpl(SampleCountIterator* iter, Operator op) = 0;
 
   void IncreaseSum(int64 diff);
   void IncreaseRedundantCount(HistogramBase::Count diff);
