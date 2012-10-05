@@ -804,11 +804,15 @@
             'gfx/platform_font_pango.h',
           ],
           'dependencies': [
-            'ui_java',
             'ui_jni_headers',
           ],
           'include_dirs': [
             '<(SHARED_INTERMEDIATE_DIR)/ui',
+          ],
+        }],
+        ['OS=="android" and android_build_type==0', {
+          'dependencies': [
+            'ui_java',
           ],
           'export_dependent_settings': [
             'ui_java',

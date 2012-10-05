@@ -122,7 +122,6 @@
             }],
           ],
           'dependencies': [
-            'base_java',
             'base_jni_headers',
             'symbolize',
             '../third_party/ashmem/ashmem.gyp:ashmem',
@@ -141,6 +140,11 @@
           ],
           'sources!': [
             'debug/stack_trace_posix.cc',
+          ],
+        }],
+        ['OS == "android" and _toolset == "target" and android_build_type == 0', {
+          'dependencies': [
+            'base_java',
           ],
           'export_dependent_settings': [
             'base_java',
