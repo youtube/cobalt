@@ -257,6 +257,8 @@
           'message_pump_default.h',
           'message_pump_win.cc',
           'message_pump_win.h',
+          'metrics/sample_map.cc',
+          'metrics/sample_map.h',
           'metrics/sample_vector.cc',
           'metrics/sample_vector.h',
           'metrics/bucket_ranges.cc',
