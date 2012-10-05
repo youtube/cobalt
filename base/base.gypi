@@ -164,6 +164,8 @@
           'id_map.h',
           'ios/device_util.h',
           'ios/device_util.mm',
+          'ios/ios_util.h',
+          'ios/ios_util.mm',
           'ios/scoped_critical_action.h',
           'ios/scoped_critical_action.mm',
           'json/json_file_value_serializer.cc',

@@ -5,7 +5,7 @@
 #include "base/ios/device_util.h"
 
 #include <CommonCrypto/CommonDigest.h>
-#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 
 #include <ifaddrs.h>
 #include <net/if_dl.h>
@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
+#include "base/ios/ios_util.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -103,7 +104,10 @@ std::string GetDeviceIdentifier(const char* salt) {
   NSString* client_id = [defaults stringForKey:kClientIdPreferenceKey];
 
   if (!client_id) {
-    client_id = base::SysUTF8ToNSString(GetRandomId());
+    if (base::ios::IsRunningOnIOS6OrLater())
+      client_id = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
+    else
+      client_id = base::SysUTF8ToNSString(GetRandomId());
     [defaults setObject:client_id forKey:kClientIdPreferenceKey];
     [defaults synchronize];
   }
