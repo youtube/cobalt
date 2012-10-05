@@ -168,8 +168,8 @@ TEST(SampleVectorDeathTest, AddSubtractBucketNotMatchTest) {
   EXPECT_DEATH(samples1.Subtract(samples2), "");
 }
 
-// (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)) && GTEST_HAS_DEATH_TEST
 #endif
+// (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)) && GTEST_HAS_DEATH_TEST
 
 TEST(SampleVectorIteratorTest, IterateTest) {
   BucketRanges ranges(5);
@@ -258,8 +258,8 @@ TEST(SampleVectorIteratorDeathTest, IterateDoneTest) {
   EXPECT_FALSE(it->Done());
 }
 
-// (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)) && GTEST_HAS_DEATH_TEST
 #endif
+// (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)) && GTEST_HAS_DEATH_TEST
 
 }  // namespace
 }  // namespace base
