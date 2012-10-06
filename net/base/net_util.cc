@@ -1386,6 +1386,11 @@ string16 StripWWW(const string16& text) {
   return StartsWith(text, www, true) ? text.substr(www.length()) : text;
 }
 
+string16 StripWWWFromHost(const GURL& url) {
+  DCHECK(url.is_valid());
+  return StripWWW(ASCIIToUTF16(url.host()));
+}
+
 void GenerateSafeFileName(const std::string& mime_type,
                           bool ignore_extension,
                           FilePath* file_path) {
