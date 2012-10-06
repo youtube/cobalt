@@ -2,7 +2,7 @@
  "chromium-rel-win7-dual/dom_perf/Total/score": {"reva": 158250, "revb": 158364, "improve": 126, "regress": -25, "sha1": "886711e2"},
  "chromium-rel-win7-dual/intl1/times/t": {"reva": 158193, "revb": 158364, "improve": 151, "regress": 292, "sha1": "80717688"},
  "chromium-rel-win7-dual/intl2/times/t": {"reva": 158193, "revb": 158364, "improve": 24, "regress": 208, "sha1": "03be3fbb"},
- "chromium-rel-win7-dual/morejs/times/t": {"reva": 158193, "revb": 158364, "improve": -64, "regress": -34, "sha1": "ce3c42c5"},
+ "chromium-rel-win7-dual/morejs/times/t": {"reva": 160381, "revb": 160431, "improve": -47, "regress": -28, "sha1": "f635707d"},
  "chromium-rel-win7-dual/moz/times/t": {"reva": 158193, "revb": 158364, "improve": -34, "regress": 21, "sha1": "8076ba79"},
  "chromium-rel-win7-dual/startup/warm/t": {"reva": 158193, "revb": 158364, "improve": 17, "regress": 34, "sha1": "9eaca6eb"},
  "chromium-rel-win7-dual/v8_benchmark/score/score": {"reva": 158193, "revb": 158364, "improve": 485, "regress": -615, "sha1": "21a861ff"},
