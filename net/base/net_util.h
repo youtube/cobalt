@@ -246,6 +246,9 @@ NET_EXPORT std::string GetDirectoryListingEntry(const string16& name,
 // unmodified.
 NET_EXPORT string16 StripWWW(const string16& text);
 
+// Runs |url|'s host through StripWWW().  |url| must be valid.
+NET_EXPORT string16 StripWWWFromHost(const GURL& url);
+
 // Generates a filename using the first successful method from the following (in
 // order):
 //
