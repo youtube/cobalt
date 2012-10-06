@@ -231,7 +231,8 @@ v8.log
 /third_party/webgl_conformance
 /third_party/webpagereplay/
 /third_party/webrtc
-/third_party/widevine
+/third_party/widevine/cdm/binaries
+/third_party/widevine/cdm/symbols
 /third_party/wix
 /third_party/xdg-utils
 /third_party/xulrunner-sdk
