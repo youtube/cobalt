@@ -203,6 +203,11 @@ class scoped_ptr {
   }
   C* get() const { return ptr_; }
 
+  // Allow scoped_ptr<C> to be used in boolean expressions, but not
+  // implicitly convertible to a real bool (which is dangerous).
+  typedef C* scoped_ptr::*Testable;
+  operator Testable() const { return ptr_ ? &scoped_ptr::ptr_ : NULL; }
+
   // Comparison operators.
   // These return whether two scoped_ptr refer to the same object, not just to
   // two different but equal objects.
@@ -328,6 +333,11 @@ class scoped_array {
     return array_;
   }
 
+  // Allow scoped_array<C> to be used in boolean expressions, but not
+  // implicitly convertible to a real bool (which is dangerous).
+  typedef C* scoped_array::*Testable;
+  operator Testable() const { return array_ ? &scoped_array::array_ : NULL; }
+
   // Comparison operators.
   // These return whether two scoped_array refer to the same object, not just to
   // two different but equal objects.
@@ -450,6 +460,11 @@ class scoped_ptr_malloc {
   C* get() const {
     return ptr_;
   }
+
+  // Allow scoped_ptr_malloc<C> to be used in boolean expressions, but not
+  // implicitly convertible to a real bool (which is dangerous).
+  typedef C* scoped_ptr_malloc::*Testable;
+  operator Testable() const { return ptr_ ? &scoped_ptr_malloc::ptr_ : NULL; }
 
   // Comparison operators.
   // These return whether a scoped_ptr_malloc and a plain pointer refer
