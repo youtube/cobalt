@@ -179,6 +179,31 @@
     size_t bytesPerRow = CVPixelBufferGetBytesPerRow(videoFrame);
     int frameHeight = CVPixelBufferGetHeight(videoFrame);
     int frameSize = bytesPerRow * frameHeight;
+
+    // TODO(shess): bytesPerRow may not correspond to frameWidth_*4,
+    // but VideoCaptureController::OnIncomingCapturedFrame() requires
+    // it to do so.  Plumbing things through is intrusive, for now
+    // just deliver an adjusted buffer.
+    UInt8* addressToPass = static_cast<UInt8*>(baseAddress);
+    size_t expectedBytesPerRow = frameWidth_ * 4;
+    if (bytesPerRow > expectedBytesPerRow) {
+      // TODO(shess): frameHeight and frameHeight_ are not the same,
+      // try to do what the surrounding code seems to assume.
+      // Ironically, captureCapability and frameSize are ignored
+      // anyhow.
+      adjustedFrame_.resize(expectedBytesPerRow * frameHeight);
+      // std::vector is contiguous according to standard.
+      UInt8* adjustedAddress = &adjustedFrame_[0];
+
+      for (int y = 0; y < frameHeight; ++y) {
+        memcpy(adjustedAddress + y * expectedBytesPerRow,
+               addressToPass + y * bytesPerRow,
+               expectedBytesPerRow);
+      }
+
+      addressToPass = adjustedAddress;
+      frameSize = frameHeight * expectedBytesPerRow;
+    }
     media::VideoCaptureCapability captureCapability;
     captureCapability.width = frameWidth_;
     captureCapability.height = frameHeight_;
@@ -188,8 +213,7 @@
     captureCapability.interlaced = false;
 
     // Deliver the captured video frame.
-    frameReceiver_->ReceiveFrame(static_cast<UInt8*>(baseAddress), frameSize,
-                                 captureCapability);
+    frameReceiver_->ReceiveFrame(addressToPass, frameSize, captureCapability);
 
     CVPixelBufferUnlockBaseAddress(videoFrame, kLockFlags);
   }
