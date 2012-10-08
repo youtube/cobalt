@@ -125,4 +125,16 @@ bool MessagePumpShell::WatchSocket(int s,
   return false;
 }
 
+
+void MessagePumpShell::Watcher::OnFileCanReadWithoutBlocking(int fd)
+{
+  NOTREACHED();
+}
+
+void MessagePumpShell::Watcher::OnFileCanWriteWithoutBlocking(int fd)
+{
+  NOTREACHED();
+}
+
+
 } // namespace base

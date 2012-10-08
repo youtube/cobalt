@@ -13,6 +13,9 @@
 #elif defined(OS_POSIX)
 #include <sys/types.h>
 #include <sys/socket.h>
+#if defined (__LB_SHELL__)
+#include <netinet/in.h>
+#endif
 #endif
 
 #include <list>

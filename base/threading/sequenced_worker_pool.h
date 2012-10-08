@@ -14,6 +14,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/task_runner.h"
+#include "base/sequenced_task_runner.h"
 
 namespace tracked_objects {
 class Location;
