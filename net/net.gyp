@@ -822,6 +822,7 @@
             ['exclude', 'udp'],
             # or file tree access
             ['exclude', 'base/file_stream_posix.cc'],
+            ['exclude', 'base/unix_domain_socket_posix.cc'],
             ['exclude', 'disk_cache/cache_util_posix.cc'],
             ['exclude', 'disk_cache/file_posix.cc'],
             ['exclude', 'disk_cache/mapped_file_posix.cc'],
