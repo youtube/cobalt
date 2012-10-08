@@ -37,6 +37,10 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
   // Clients should always use FactoryGet to create SparseHistogram.
   SparseHistogram(const std::string& name);
 
+  virtual void GetParameters(DictionaryValue* params) const OVERRIDE;
+  virtual void GetCountAndBucketData(Count* count,
+                                     ListValue* buckets) const OVERRIDE;
+
   friend class SparseHistogramTest;  // For constuctor calling.
 
   // Protects access to |sample_counts_| and |redundant_count_|.

@@ -22,9 +22,35 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/lock.h"
+#include "base/values.h"
 
 using std::string;
 using std::vector;
+
+namespace {
+
+std::string ClassTypeToString(base::Histogram::ClassType type) {
+  switch(type) {
+    case base::Histogram::HISTOGRAM:
+      return "HISTOGRAM";
+      break;
+    case base::Histogram::LINEAR_HISTOGRAM:
+      return "LINEAR_HISTOGRAM";
+      break;
+    case base::Histogram::BOOLEAN_HISTOGRAM:
+      return "BOOLEAN_HISTOGRAM";
+      break;
+    case base::Histogram::CUSTOM_HISTOGRAM:
+      return "CUSTOM_HISTOGRAM";
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
+  return "UNKNOWN";
+}
+
+}  // namespace
 
 namespace base {
 
@@ -565,6 +591,31 @@ void Histogram::WriteAsciiBucketGraph(double current_size,
   output->append("O");
   while (0 < x_remainder--)
     output->append(" ");
+}
+
+void Histogram::GetParameters(DictionaryValue* params) const {
+  params->SetString("type", ClassTypeToString(histogram_type()));
+  params->SetInteger("min", declared_min());
+  params->SetInteger("max", declared_max());
+  params->SetInteger("bucket_count", static_cast<int>(bucket_count()));
+}
+
+void Histogram::GetCountAndBucketData(Count* count, ListValue* buckets) const {
+  scoped_ptr<SampleVector> snapshot = SnapshotSamples();
+  *count = snapshot->TotalCount();
+  size_t index = 0;
+  for (size_t i = 0; i < bucket_count(); ++i) {
+    Sample count = snapshot->GetCountAtIndex(i);
+    if (count > 0) {
+      scoped_ptr<DictionaryValue> bucket_value(new DictionaryValue());
+      bucket_value->SetInteger("low", ranges(i));
+      if (i != bucket_count() - 1)
+        bucket_value->SetInteger("high", ranges(i + 1));
+      bucket_value->SetInteger("count", count);
+      buckets->Set(index, bucket_value.release());
+      ++index;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
