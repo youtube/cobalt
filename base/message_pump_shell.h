@@ -43,6 +43,9 @@ class BASE_EXPORT MessagePumpShell : public MessagePump {
     Watcher();
     Watcher(Watcher &);
     // __LB_SHELL__WRITE_ME__
+
+    virtual void OnFileCanReadWithoutBlocking(int fd);
+    virtual void OnFileCanWriteWithoutBlocking(int fd);
   };
 
   // this one only watches sockets, not all file descriptors

@@ -7,6 +7,7 @@
 #include "base/lazy_instance.h"
 #include "base/thread_task_runner_handle.h"
 #include "base/threading/sequenced_worker_pool.h"
+#include "base/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "net/base/cert_database.h"
 #include "net/socket/client_socket_handle.h"
