@@ -403,7 +403,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "[Ljava/lang/String;"
 "Ljava/lang/String;"
 ")"
-"Lcom/google/android/apps/chrome/database/SQLiteCursor;",
+"Lorg/chromium/chrome/browser/database/SQLiteCursor;",
     reinterpret_cast<void*>(QueryBookmarkFromAPI) },
     { "nativeGotOrientation",
 "("
