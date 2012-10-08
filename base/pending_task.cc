@@ -8,6 +8,9 @@
 
 namespace base {
 
+PendingTask::PendingTask() {
+}
+
 PendingTask::PendingTask(const tracked_objects::Location& posted_from,
                          const base::Closure& task)
     : base::TrackingInfo(posted_from, TimeTicks()),
