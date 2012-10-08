@@ -528,6 +528,7 @@
     { "name": "iop.intuit.com", "include_subdomains": true, "mode": "force-https" },
     { "name": "surfeasy.com", "mode": "force-https" },
     { "name": "www.surfeasy.com", "mode": "force-https" },
+    { "name": "packagist.org", "mode": "force-https" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
