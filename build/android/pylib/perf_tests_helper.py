@@ -5,6 +5,7 @@
 import re
 
 import android_commands
+import math
 
 # Valid values of result type.
 RESULT_TYPES = {'unimportant': 'RESULT ',
@@ -46,10 +47,14 @@ def PrintPerfResult(measurement, trace, values, units, result_type='default',
   assert len(values)
   assert '/' not in measurement
   avg = None
+  sd = None
   if len(values) > 1:
     try:
       value = '[%s]' % ','.join([str(v) for v in values])
       avg = sum([float(v) for v in values]) / len(values)
+      sqdiffs = [(float(v) - avg) ** 2 for v in values]
+      variance = sum(sqdiffs) / (len(values) - 1)
+      sd = math.sqrt(variance)
     except ValueError:
       value = ", ".join(values)
   else:
@@ -67,6 +72,8 @@ def PrintPerfResult(measurement, trace, values, units, result_type='default',
     units)
   if avg:
     output += '\nAvg %s: %f%s' % (measurement, avg, units)
+  if sd:
+    output += '\nSd  %s: %f%s' % (measurement, sd, units)
   if print_to_stdout:
     print output
   return output
@@ -87,6 +94,9 @@ class PerfTestSetup(object):
 
   def DropRamCaches(self):
     """Drops the filesystem ram caches for performance testing."""
+    if not self._adb.IsRootEnabled():
+      self._adb.EnableAdbRoot()
+    self._adb.RunShellCommand('sync')
     self._adb.RunShellCommand('echo 3 > ' + PerfTestSetup._DROP_CACHES)
 
   def SetUp(self):

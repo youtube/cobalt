@@ -46,10 +46,6 @@ LOCAL_PROPERTIES_PATH = '/data/local.prop'
 # Property in /data/local.prop that controls Java assertions.
 JAVA_ASSERT_PROPERTY = 'dalvik.vm.enableassertions'
 
-BOOT_COMPLETE_RE = re.compile(
-    'android.intent.action.MEDIA_MOUNTED path: /\w+/sdcard\d?'
-    '|PowerManagerService(\(\s+\d+\))?: bootCompleted')
-
 MEMORY_INFO_RE = re.compile('^(?P<key>\w+):\s+(?P<usage_kb>\d+) kB$')
 NVIDIA_MEMORY_INFO_RE = re.compile('^\s*(?P<user>\S+)\s*(?P<name>\S+)\s*'
                                    '(?P<pid>\d+)\s*(?P<usage_bytes>\d+)$')
@@ -284,9 +280,10 @@ class AndroidCommands(object):
     else:
       self.RestartShell()
       timeout = 120
+    # To run tests we need at least the package manager and the sd card (or
+    # other external storage) to be ready.
     self.WaitForDevicePm()
-    self.StartMonitoringLogcat(timeout=timeout)
-    self.WaitForLogMatch(BOOT_COMPLETE_RE, None)
+    self.WaitForSdCardReady(timeout)
 
   def Uninstall(self, package):
     """Uninstalls the specified package from the device.
@@ -519,6 +516,11 @@ class AndroidCommands(object):
       cmd += ' --start-profiler ' + trace_file_name
     self.RunShellCommand(cmd)
 
+  def GoHome(self):
+    """Tell the device to return to the home screen. Blocks until completion."""
+    self.RunShellCommand('am start -W '
+        '-a android.intent.action.MAIN -c android.intent.category.HOME')
+
   def CloseApplication(self, package):
     """Attempt to close down the application, using increasing violence.
 
@@ -667,6 +669,17 @@ class AndroidCommands(object):
                                               enable and 'all' or ''))
     return True
 
+  def GetBuildId(self):
+    """Returns the build ID of the system (e.g. JRM79C)."""
+    build_id = self.RunShellCommand('getprop ro.build.id')[0]
+    assert build_id
+    return build_id
+
+  def GetBuildType(self):
+    """Returns the build type of the system (e.g. eng)."""
+    build_type = self.RunShellCommand('getprop ro.build.type')[0]
+    assert build_type
+    return build_type
 
   def StartMonitoringLogcat(self, clear=True, timeout=10, logfile=None,
                             filters=None):
@@ -728,31 +741,44 @@ class AndroidCommands(object):
       The re match object if |success_re| is matched first or None if |error_re|
       is matched first.
     """
-    if not self._logcat:
-      self.StartMonitoringLogcat(clear)
     logging.info('<<< Waiting for logcat:' + str(success_re.pattern))
     t0 = time.time()
-    try:
-      while True:
-        # Note this will block for upto the timeout _per log line_, so we need
-        # to calculate the overall timeout remaining since t0.
-        time_remaining = t0 + self._logcat.timeout - time.time()
-        if time_remaining < 0: raise pexpect.TIMEOUT(self._logcat)
-        self._logcat.expect(PEXPECT_LINE_RE, timeout=time_remaining)
-        line = self._logcat.match.group(1)
-        if error_re:
-          error_match = error_re.search(line)
-          if error_match:
-            return None
-        success_match = success_re.search(line)
-        if success_match:
-          return success_match
-        logging.info('<<< Skipped Logcat Line:' + str(line))
-    except pexpect.TIMEOUT:
-      raise pexpect.TIMEOUT(
-          'Timeout (%ds) exceeded waiting for pattern "%s" (tip: use -vv '
-          'to debug)' %
-          (self._logcat.timeout, success_re.pattern))
+    while True:
+      if not self._logcat:
+        self.StartMonitoringLogcat(clear)
+      try:
+        while True:
+          # Note this will block for upto the timeout _per log line_, so we need
+          # to calculate the overall timeout remaining since t0.
+          time_remaining = t0 + self._logcat.timeout - time.time()
+          if time_remaining < 0: raise pexpect.TIMEOUT(self._logcat)
+          self._logcat.expect(PEXPECT_LINE_RE, timeout=time_remaining)
+          line = self._logcat.match.group(1)
+          if error_re:
+            error_match = error_re.search(line)
+            if error_match:
+              return None
+          success_match = success_re.search(line)
+          if success_match:
+            return success_match
+          logging.info('<<< Skipped Logcat Line:' + str(line))
+      except pexpect.TIMEOUT:
+        raise pexpect.TIMEOUT(
+            'Timeout (%ds) exceeded waiting for pattern "%s" (tip: use -vv '
+            'to debug)' %
+            (self._logcat.timeout, success_re.pattern))
+      except pexpect.EOF:
+        # It seems that sometimes logcat can end unexpectedly. This seems
+        # to happen during Chrome startup after a reboot followed by a cache
+        # clean. I don't understand why this happens, but this code deals with
+        # getting EOF in logcat.
+        logging.critical('Found EOF in adb logcat. Restarting...')
+        # Rerun spawn with original arguments. Note that self._logcat.args[0] is
+        # the path of adb, so we don't want it in the arguments.
+        self._logcat = pexpect.spawn('adb',
+                                     self._logcat.args[1:],
+                                     timeout=self._logcat.timeout,
+                                     logfile=self._logcat.logfile)
 
   def StartRecordingLogcat(self, clear=True, filters=['*:v']):
     """Starts recording logcat output to eventually be saved as a string.
@@ -1017,3 +1043,4 @@ class NewLineNormalizer(object):
 
   def flush(self):
     self._output.flush()
+
