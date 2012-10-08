@@ -56,4 +56,13 @@ SparseHistogram::SparseHistogram(const string& name)
     : HistogramBase(name),
       redundant_count_(0) {}
 
+void SparseHistogram::GetParameters(DictionaryValue* params) const {
+  // TODO(kaiwang): Implement. (See HistogramBase::WriteJSON.)
+}
+
+void SparseHistogram::GetCountAndBucketData(Count* count,
+                                            ListValue* buckets) const {
+  // TODO(kaiwang): Implement. (See HistogramBase::WriteJSON.)
+}
+
 }  // namespace base
