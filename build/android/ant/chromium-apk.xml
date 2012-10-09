@@ -3,8 +3,17 @@
   Use of this source code is governed by a BSD-style license that can be
   found in the LICENSE file.
 -->
-<project default="debug">
+<project default="error">
   <property name="ant.project.name" value="${APK_NAME}"/>
+  <!--
+    Gyp will pass CONFIGURATION_NAME as the target for ant to build. These targets will call the
+    appropriate sdk tools target.
+  -->
+  <target name="Debug" depends="debug"/>
+  <target name="Release" depends="release"/>
+  <target name="error">
+    <fail message="CONFIGURATION_NAME should be passed as a target to ant."/>
+  </target>
 
   <description>
     Building ${ant.project.name}.apk
