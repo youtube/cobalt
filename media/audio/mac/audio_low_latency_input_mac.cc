@@ -195,6 +195,11 @@ bool AUAudioInputStream::Open() {
   }
 
   // Set the desired number of frames in the IO buffer (output scope).
+  // WARNING: Setting this value changes the frame size for all audio units in
+  // the current process.  It's imperative that the input and output frame sizes
+  // be the same as audio_util::GetAudioHardwareBufferSize().
+  // TODO(henrika): Due to http://crrev.com/159666 this is currently not true
+  // and should be fixed, a CHECK() should be added at that time.
   result = AudioUnitSetProperty(audio_unit_,
                                 kAudioDevicePropertyBufferFrameSize,
                                 kAudioUnitScope_Output,
@@ -459,6 +464,18 @@ OSStatus AUAudioInputStream::Provide(UInt32 number_of_frames,
   DCHECK(audio_data);
   if (!audio_data)
     return kAudioUnitErr_InvalidElement;
+
+  // Unfortunately AUAudioInputStream and AUAudioOutputStream share the frame
+  // size set by kAudioDevicePropertyBufferFrameSize above on a per process
+  // basis.  What this means is that the |number_of_frames| value may be larger
+  // or smaller than the value set during Configure().  In this case either
+  // audio input or audio output will be broken, so just do nothing.
+  // TODO(henrika): This should never happen so long as we're always using the
+  // hardware sample rate and the input/output streams configure the same frame
+  // size.  This is currently not true.  See http://crbug.com/154352.  Once
+  // fixed, a CHECK() should be added and this wall of text removed.
+  if (number_of_frames != static_cast<UInt32>(number_of_frames_))
+    return noErr;
 
   // Deliver data packet, delay estimation and volume level to the user.
   sink_->OnData(this,
