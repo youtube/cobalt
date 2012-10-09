@@ -17,12 +17,14 @@
         {
             "url": "https://www.google.com/calendar/",
             "why": "productivity, top google properties",
-            "credentials": "google"
+            "credentials": "google",
+            "scrollable_element_function": "function(callback) { callback(document.getElementById('scrolltimedeventswk')); }"
         },
         {
             "url": "https://drive.google.com",
             "why": "productivity, top google properties",
-            "credentials": "google"
+            "credentials": "google",
+            "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('doclistview-list')[0]); }"
         },
         {
             "name": "Docs  (1 open document tab)",
