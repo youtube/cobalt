@@ -29,8 +29,7 @@ namespace {
 
 std::string GetHostname(BaseTestServer::Type type,
                         const BaseTestServer::SSLOptions& options) {
-  if ((type == BaseTestServer::TYPE_HTTPS ||
-       type == BaseTestServer::TYPE_WSS) &&
+  if (BaseTestServer::UsingSSL(type) &&
       options.server_certificate ==
           BaseTestServer::SSLOptions::CERT_MISMATCHED_NAME) {
     // Return a different hostname string that resolves to the same hostname.
@@ -127,7 +126,7 @@ BaseTestServer::BaseTestServer(Type type, const SSLOptions& ssl_options)
       type_(type),
       started_(false),
       log_to_console_(false) {
-  DCHECK(type == TYPE_HTTPS || type == TYPE_WSS);
+  DCHECK(UsingSSL(type));
   Init(GetHostname(type, ssl_options));
 }
 
@@ -309,7 +308,7 @@ bool BaseTestServer::LoadTestRootCert() const {
 bool BaseTestServer::SetupWhenServerStarted() {
   DCHECK(host_port_pair_.port());
 
-  if ((type_ == TYPE_HTTPS || type_ == TYPE_WSS) && !LoadTestRootCert())
+  if (UsingSSL(type_) && !LoadTestRootCert())
       return false;
 
   started_ = true;
