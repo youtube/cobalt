@@ -77,6 +77,8 @@
         '>@(additional_input_paths)',
       ],
       'outputs': [
+        # TODO(cjhopman): Apks are built with a -debug suffix even when they are
+        # built in release. This should be fixed.
         '<(PRODUCT_DIR)/apks/<(apk_name)-debug.apk',
       ],
       'action': [
@@ -102,7 +104,11 @@
 
         '-Dbasedir=<(java_in_dir)',
         '-buildfile',
-        '<(DEPTH)/build/android/ant/chromium-apk.xml'
+        '<(DEPTH)/build/android/ant/chromium-apk.xml',
+
+        # Specify CONFIGURATION_NAME as the target for ant to build. The
+        # buildfile will then build the appropriate SDK tools target.
+        '<(CONFIGURATION_NAME)',
       ]
     },
   ],
