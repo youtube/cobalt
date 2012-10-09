@@ -978,7 +978,22 @@
         'ios_sdk%': '',
         'ios_sdk_path%': '',
         'ios_deployment_target%': '4.3',
-      }],
+
+        'conditions': [
+          # ios_product_name is set to the name of the .app bundle as it should
+          # appear on disk.
+          ['branding=="Chrome"', {
+            'ios_product_name%': 'Chrome',
+          }, { # else: branding!="Chrome"
+            'ios_product_name%': 'Chromium',
+          }],
+          ['branding=="Chrome" and buildtype=="Official"', {
+            'ios_breakpad%': 1,
+          }, { # else: branding!="Chrome" or buildtype!="Official"
+            'ios_breakpad%': 0,
+          }],
+        ],
+      }],  # OS=="ios"
       ['OS=="android"', {
         # Location of Android NDK.
         'variables': {
