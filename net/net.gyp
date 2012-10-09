@@ -1113,9 +1113,6 @@
           'dependencies': [
              'net_java',
           ],
-          'export_dependent_settings': [
-            'net_java',
-          ],
         }],
         [ 'OS == "android"', {
             'dependencies': [
@@ -2149,9 +2146,6 @@
             '../base/base.gyp:base',
             'net_errors_java',
           ],
-          'export_dependent_settings': [
-            '../base/base.gyp:base',
-          ],
           'includes': [ '../build/java.gypi' ],
         },
         {
@@ -2162,11 +2156,6 @@
             'java_in_dir': '../net/android/javatests',
           },
           'dependencies': [
-            '../base/base.gyp:base',
-            '../base/base.gyp:base_java_test_support',
-            'net_java',
-          ],
-          'export_dependent_settings': [
             '../base/base.gyp:base',
             '../base/base.gyp:base_java_test_support',
             'net_java',

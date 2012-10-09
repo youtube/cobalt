@@ -822,9 +822,6 @@
           'dependencies': [
             'ui_java',
           ],
-          'export_dependent_settings': [
-            'ui_java',
-          ],
         }],
         ['OS=="android" or OS=="ios"', {
           'sources!': [
@@ -874,9 +871,6 @@
              'java_in_dir': '../ui/android/java',
            },
            'dependencies': [
-             '../base/base.gyp:base_java',
-           ],
-           'export_dependent_settings': [
              '../base/base.gyp:base_java',
            ],
            'includes': [ '../build/java.gypi' ],
