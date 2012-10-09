@@ -8,8 +8,11 @@
 
 namespace base {
 
-PendingTask::PendingTask() {
+#if _MSC_VER >= 1700
+// This a temporary fix for compiling on VS2012. http://crbug.com/154744
+PendingTask::PendingTask() : sequence_num(-1), nestable(false) {
 }
+#endif
 
 PendingTask::PendingTask(const tracked_objects::Location& posted_from,
                          const base::Closure& task)
