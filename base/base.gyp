@@ -146,9 +146,6 @@
           'dependencies': [
             'base_java',
           ],
-          'export_dependent_settings': [
-            'base_java',
-          ],
         }],
         ['os_bsd==1', {
           'include_dirs': [
