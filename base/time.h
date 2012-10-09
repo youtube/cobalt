@@ -3,18 +3,19 @@
 // found in the LICENSE file.
 
 // Time represents an absolute point in time, internally represented as
-// microseconds (s/1,000,000) since a platform-dependent epoch.  Each
-// platform's epoch, along with other system-dependent clock interface
-// routines, is defined in time_PLATFORM.cc.
+// microseconds (s/1,000,000) since the Windows epoch (1601-01-01 00:00:00 UTC)
+// (See http://crbug.com/14734).  System-dependent clock interface routines are
+// defined in time_PLATFORM.cc.
 //
 // TimeDelta represents a duration of time, internally represented in
 // microseconds.
 //
-// TimeTicks represents an abstract time that is always incrementing for use
-// in measuring time durations. It is internally represented in microseconds.
-// It can not be converted to a human-readable time, but is guaranteed not to
-// decrease (if the user changes the computer clock, Time::Now() may actually
-// decrease or jump).
+// TimeTicks represents an abstract time that is most of the time incrementing
+// for use in measuring time durations. It is internally represented in
+// microseconds.  It can not be converted to a human-readable time, but is
+// guaranteed not to decrease (if the user changes the computer clock,
+// Time::Now() may actually decrease or jump).  But note that TimeTicks may
+// "stand still", for example if the computer suspended.
 //
 // These classes are represented as only a 64-bit value, so they can be
 // efficiently passed by value.
