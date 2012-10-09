@@ -39,7 +39,9 @@
   'dependencies': [
     '<(DEPTH)/build/build_output_dirs_android.gyp:build_output_dirs'
   ],
-  'direct_dependent_settings': {
+  # This all_dependent_settings is used for java targets only. This will add the
+  # chromium_<(package_name) jar to the classpath of dependent java targets.
+  'all_dependent_settings': {
     'variables': {
       'input_jars_paths': ['<(PRODUCT_DIR)/lib.java/chromium_<(package_name).jar'],
     },
