@@ -121,7 +121,7 @@
             ],
           },
         }],
-        ['OS=="android" or (OS=="win" and MSVS_VERSION=="2012")', {
+        ['OS=="android"', {
           # We want gtest features that use tr1::tuple, but we currently
           # don't support the variadic templates used by libstdc++'s
           # implementation. gtest supports this scenario by providing its
@@ -132,6 +132,16 @@
           'direct_dependent_settings': {
             'defines': [
               'GTEST_USE_OWN_TR1_TUPLE=1',
+            ],
+          },
+        }],
+        ['OS=="win" and MSVS_VERSION=="2012"', {
+          'defines': [
+            '_VARIADIC_MAX=10',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              '_VARIADIC_MAX=10',
             ],
           },
         }],
