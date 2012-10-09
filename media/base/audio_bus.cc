@@ -290,8 +290,8 @@ void AudioBus::ToInterleaved(int frames, int bytes_per_sample,
 }
 
 void AudioBus::CopyTo(AudioBus* dest) const {
-  DCHECK_EQ(channels(), dest->channels());
-  DCHECK_EQ(frames(), dest->frames());
+  CHECK_EQ(channels(), dest->channels());
+  CHECK_EQ(frames(), dest->frames());
 
   // Since we don't know if the other AudioBus is wrapped or not (and we don't
   // want to care), just copy using the public channel() accessors.

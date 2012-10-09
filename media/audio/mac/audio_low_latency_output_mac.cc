@@ -154,6 +154,11 @@ bool AUAudioOutputStream::Configure() {
     return false;
 
   // Set the buffer frame size.
+  // WARNING: Setting this value changes the frame size for all audio units in
+  // the current process.  It's imperative that the input and output frame sizes
+  // be the same as audio_util::GetAudioHardwareBufferSize().
+  // TODO(henrika): Due to http://crrev.com/159666 this is currently not true
+  // and should be fixed, a CHECK() should be added at that time.
   UInt32 buffer_size = number_of_frames_;
   result = AudioUnitSetProperty(
       output_unit_,
@@ -222,10 +227,6 @@ void AUAudioOutputStream::GetVolume(double* volume) {
 OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
                                      AudioBufferList* io_data,
                                      const AudioTimeStamp* output_time_stamp) {
-  static const bool kDisableAudioOutputResampler =
-      CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kDisableAudioOutputResampler);
-
   // Update the playout latency.
   double playout_latency_frames = GetPlayoutLatency(output_time_stamp);
 
@@ -234,18 +235,23 @@ OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
   uint32 hardware_pending_bytes = static_cast<uint32>
       ((playout_latency_frames + 0.5) * format_.mBytesPerFrame);
 
-  // If we specify a buffer size which is too low, the OS will ask for more data
-  // to fulfill the hardware request, so resize the AudioBus as appropriate.
-  // This change requires AudioOutputResampler to prevent buffer size mismatches
-  // downstream, so glitch if it's not enabled.
-  if (!kDisableAudioOutputResampler &&
-      static_cast<UInt32>(audio_bus_->frames()) != number_of_frames) {
-    audio_bus_ = AudioBus::Create(audio_bus_->channels(), number_of_frames);
+  // Unfortunately AUAudioInputStream and AUAudioOutputStream share the frame
+  // size set by kAudioDevicePropertyBufferFrameSize above on a per process
+  // basis.  What this means is that the |number_of_frames| value may be larger
+  // or smaller than the value set during Configure().  In this case either
+  // audio input or audio output will be broken, so just output silence.
+  // TODO(henrika): This should never happen so long as we're always using the
+  // hardware sample rate and the input/output streams configure the same frame
+  // size.  This is currently not true.  See http://crbug.com/154352.  Once
+  // fixed, a CHECK() should be added and this wall of text removed.
+  if (number_of_frames != static_cast<UInt32>(audio_bus_->frames())) {
+    memset(audio_data, 0, number_of_frames * format_.mBytesPerFrame);
+    return noErr;
   }
 
-  int frames_filled = std::min(source_->OnMoreData(
-      audio_bus_.get(), AudioBuffersState(0, hardware_pending_bytes)),
-      static_cast<int>(number_of_frames));
+  int frames_filled = source_->OnMoreData(
+      audio_bus_.get(), AudioBuffersState(0, hardware_pending_bytes));
+
   // Note: If this ever changes to output raw float the data must be clipped and
   // sanitized since it may come from an untrusted source such as NaCl.
   audio_bus_->ToInterleaved(
