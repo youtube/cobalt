@@ -10,7 +10,6 @@
 #include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
-#include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_input_mac.h"
 #include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/audio/mac/audio_low_latency_output_mac.h"
@@ -25,9 +24,6 @@ namespace media {
 
 // Maximum number of output streams that can be open simultaneously.
 static const int kMaxOutputStreams = 50;
-
-// Maximum buffer size that CoreAudio can support, used by low latency path.
-static const int kMaxLowLatencyBufferSize = 2047;
 
 static bool HasAudioHardware(AudioObjectPropertySelector selector) {
   AudioDeviceID output_device_id = kAudioObjectUnknown;
@@ -335,24 +331,6 @@ AudioInputStream* AudioManagerMac::MakeLowLatencyInputStream(
 
 AudioManager* CreateAudioManager() {
   return new AudioManagerMac();
-}
-
-AudioParameters AudioManagerMac::GetPreferredLowLatencyOutputStreamParameters(
-    const AudioParameters& params) {
-  // Applications should use their own preferred buffer size when no resampler
-  // is needed, and Apple CoreAudio can accept any buffer size up to 2047.
-  int native_sample_rate = GetAudioHardwareSampleRate();
-  int buffer_size = GetAudioHardwareBufferSize();
-  if (native_sample_rate == params.sample_rate() &&
-      params.frames_per_buffer() <= kMaxLowLatencyBufferSize) {
-    buffer_size = params.frames_per_buffer();
-  }
-
-  return AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                         params.channel_layout(),
-                         native_sample_rate,
-                         16,
-                         buffer_size);
 }
 
 }  // namespace media
