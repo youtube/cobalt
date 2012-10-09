@@ -12,13 +12,15 @@ class FilePath;
 
 namespace base {
 
-// Sets the given |locale| on construction, and restores the previous locale
-// on destruction. This class is intended to be used by tests that need to
-// override paths to ensure their overrides are properly handled and reverted
-// when the scope of the test is left.
+// Sets a path override on construction, and removes it when the object goes out
+// of scope. This class is intended to be used by tests that need to override
+// paths to ensure their overrides are properly handled and reverted when the
+// scope of the test is left.
 class ScopedPathOverride {
  public:
+  // Contructor that intializes the override to a scoped temp directory.
   explicit ScopedPathOverride(int key);
+  // Constructor that would use a path provided by the user.
   ScopedPathOverride(int key, const FilePath& dir);
   ~ScopedPathOverride();
 
