@@ -47,6 +47,14 @@ class UI_EXPORT Size : public SizeBase<Size, int> {
     return SizeF(width(), height());
   }
 
+  SizeF Scale(float scale) const WARN_UNUSED_RESULT {
+    return Scale(scale, scale);
+  }
+
+  SizeF Scale(float x_scale, float y_scale) const WARN_UNUSED_RESULT {
+    return SizeF(width() * x_scale, height() * y_scale);
+  }
+
   std::string ToString() const;
 };
 
