@@ -180,7 +180,10 @@ def JavaParamToJni(param):
       'Lorg/chromium/chrome/browser/FindNotificationDetails',
       'Lorg/chromium/chrome/browser/JavascriptAppModalDialog',
       'Lorg/chromium/chrome/browser/ProcessUtils',
-      'Lorg/chromium/chrome/browser/component/web_contents_delegate_android/WebContentsDelegateAndroid',
+      ('Lorg/chromium/chrome/browser/component/navigation_interception/'
+       'InterceptNavigationDelegate'),
+      ('Lorg/chromium/chrome/browser/component/web_contents_delegate_android/'
+       'WebContentsDelegateAndroid'),
       'Lorg/chromium/chrome/browser/database/SQLiteCursor',
       'Lorg/chromium/content/app/SandboxedProcessService',
       'Lorg/chromium/content/browser/ContentVideoView',
