@@ -52,7 +52,7 @@
 
 {
   'variables': {
-    'asset_location': '',
+    'asset_location%': '',
     'additional_input_paths': [],
     'input_jars_paths': [],
     'native_libs_paths': [],
