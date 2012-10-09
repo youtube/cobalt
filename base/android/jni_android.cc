@@ -52,8 +52,7 @@ JavaVM* g_jvm = NULL;
 // that may still be running at shutdown. There is no harm in doing this.
 base::LazyInstance<base::android::ScopedJavaGlobalRef<jobject> >::Leaky
     g_application_context = LAZY_INSTANCE_INITIALIZER;
-base::LazyInstance<MethodIDMap>::Leaky
-    g_method_id_map = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<MethodIDMap> g_method_id_map = LAZY_INSTANCE_INITIALIZER;
 
 std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
   ScopedJavaLocalRef<jclass> throwable_clazz =
@@ -132,11 +131,10 @@ namespace base {
 namespace android {
 
 JNIEnv* AttachCurrentThread() {
-  if (!g_jvm)
-    return NULL;
+  DCHECK(g_jvm);
   JNIEnv* env = NULL;
   jint ret = g_jvm->AttachCurrentThread(&env, NULL);
-  DCHECK_EQ(ret, JNI_OK);
+  DCHECK_EQ(JNI_OK, ret);
   return env;
 }
 
@@ -349,6 +347,7 @@ void CheckException(JNIEnv* env) {
   }
 
   // Clear the pending exception, since a local reference is now held.
+  env->ExceptionDescribe();
   env->ExceptionClear();
 
   // Set the exception_string in BuildInfo so that breakpad can read it.
