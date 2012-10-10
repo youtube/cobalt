@@ -130,11 +130,8 @@ class NativeTestApkGenerator(object):
         logging.warn('%s --> %s', jar, dest)
         shutil.copyfile(jar, dest)
 
-  def CreateBundle(self, sdk_build):
+  def CreateBundle(self):
     """Create the apk bundle source and assemble components."""
-    if not sdk_build:
-      self._SOURCE_FILES.append('Android.mk')
-      self._REPLACEME_FILES.append('Android.mk')
     self._CopyTemplateFilesAndClearDir()
     self._ReplaceStrings()
     self._CopyLibraryAndJars()
@@ -158,17 +155,6 @@ class NativeTestApkGenerator(object):
     if p.returncode != 0:
       logging.error('Ant return code %d', p.returncode)
       sys.exit(p.returncode)
-
-  def CompileAndroidMk(self):
-    """Build the generated apk within Android source tree using Android.mk."""
-    try:
-      import compile_android_mk  # pylint: disable=F0401
-    except:
-      raise AssertionError('Not in Android source tree. '
-                           'Please use --sdk-build.')
-    compile_android_mk.CompileAndroidMk(self._native_library,
-                                        self._output_directory)
-
 
 def main(argv):
   parser = optparse.OptionParser()
@@ -217,13 +203,8 @@ def main(argv):
                                 strip_binary=options.strip_binary,
                                 output_directory=options.output,
                                 target_abi=options.app_abi)
-  ntag.CreateBundle(options.sdk_build)
-
-  if options.sdk_build:
-    ntag.Compile(options.ant_args)
-  else:
-    ntag.CompileAndroidMk()
-
+  ntag.CreateBundle()
+  ntag.Compile(options.ant_args)
   logging.warn('COMPLETE.')
 
 if __name__ == '__main__':

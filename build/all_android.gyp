@@ -20,15 +20,9 @@
         '../content/content.gyp:content_shell_apk',
         '<@(android_app_targets)',
         'android_builder_tests',
+        '../android_webview/android_webview.gyp:android_webview_apk',
+        '../chrome/chrome.gyp:chromium_testshell',
       ],
-      'conditions': [
-        ['sdk_build==1', {
-          'dependencies': [
-            '../android_webview/android_webview.gyp:android_webview_apk',
-            '../chrome/chrome.gyp:chromium_testshell',
-          ],
-        }],  # sdk_build==1
-      ],  # conditions
     }, # target_name: All
     {
       # The current list of tests for android.  This is temporary
@@ -92,10 +86,6 @@
             '../sql/sql.gyp:sql_unittests_apk',
             '../sync/sync.gyp:sync_unit_tests_apk',
             '../ui/ui.gyp:ui_unittests_apk',
-          ],
-        }],
-        ['sdk_build==1', {
-          'dependencies': [
             '../android_webview/android_webview.gyp:android_webview_test_apk',
             '../chrome/chrome.gyp:chromium_testshell_test_apk',
           ],
