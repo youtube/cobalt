@@ -84,14 +84,18 @@ BASE_EXPORT MetroLaunchType GetMetroLaunchParams(string16* params);
 // Handler function for the buttons on a metro dialog box
 typedef void (*MetroDialogButtonPressedHandler)();
 
+// Handler function invoked when a metro style notification is clicked.
+typedef void (*MetroNotificationClickedHandler)(const wchar_t* context);
+
 // Function to display metro style notifications.
 typedef void (*MetroNotification)(const char* origin_url,
                                   const char* icon_url,
                                   const wchar_t* title,
                                   const wchar_t* body,
                                   const wchar_t* display_source,
-                                  const char* notification_id);
-
+                                  const char* notification_id,
+                                  MetroNotificationClickedHandler handler,
+                                  const wchar_t* handler_context);
 
 }  // namespace win
 }  // namespace base
