@@ -9,7 +9,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/time.h"
 #include "media/webm/webm_content_encodings_client.h"
 #include "media/webm/webm_parser.h"
 
