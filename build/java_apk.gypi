@@ -58,6 +58,10 @@
     'native_libs_paths': [],
     'additional_src_dirs': [],
     'generated_src_dirs': [],
+    'app_manifest_version_name%': '<(android_app_version_name)',
+    'app_manifest_version_code%': '<(android_app_version_code)',
+    'proguard_enabled%': 'false',
+    'proguard_flags%': ''
   },
   'actions': [
     {
@@ -101,6 +105,10 @@
         '-DINPUT_JARS_PATHS=>(input_jars_paths)',
         '-DPACKAGE_NAME=<(package_name)',
         '-DRESOURCE_DIR=<(resource_dir)',
+        '-DAPP_MANIFEST_VERSION_NAME=<(app_manifest_version_name)',
+        '-DAPP_MANIFEST_VERSION_CODE=<(app_manifest_version_code)',
+        '-DPROGUARD_FLAGS=>(proguard_flags)',
+        '-DPROGUARD_ENABLED=>(proguard_enabled)',
 
         '-Dbasedir=<(java_in_dir)',
         '-buildfile',
