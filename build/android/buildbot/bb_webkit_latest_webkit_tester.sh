@@ -15,5 +15,5 @@ bb_spawn_logcat_monitor_and_status
 bb_extract_build
 bb_reboot_phones
 # TODO(peter@): Replace this with a test call
-print "@@@BUILD_STEP TODO Run WebKit tests@@@"
+echo "@@@BUILD_STEP TODO Run WebKit tests@@@"
 bb_print_logcat
