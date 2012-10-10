@@ -105,12 +105,16 @@ class MEDIA_EXPORT Decryptor {
   // - Set to true if initialization was successful. False if an error occurred.
   typedef base::Callback<void(bool)> DecoderInitCB;
 
+  // Indicates that a key has been added to the Decryptor.
+  typedef base::Callback<void()> KeyAddedCB;
+
   // Initializes a video decoder with the given |config|, executing the
   // |init_cb| upon completion.
   // Note: DecryptAndDecodeVideo(), ResetVideoDecoder() and StopVideoDecoder()
   // can only be called after InitializeVideoDecoder() succeeded.
   virtual void InitializeVideoDecoder(const VideoDecoderConfig& config,
-                                      const DecoderInitCB& init_cb) = 0;
+                                      const DecoderInitCB& init_cb,
+                                      const KeyAddedCB& key_added_cb) = 0;
 
   // Indicates completion of video decrypting and decoding operation.
   //
