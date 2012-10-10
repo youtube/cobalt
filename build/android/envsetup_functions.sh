@@ -314,7 +314,7 @@ ${ANDROID_SDK_VERSION}
       '${ANDROID_BUILD_TOP}')")
   DEFINES+=" android_build_type=1"
   DEFINES+=" sdk_build=0"
-  DEFINES+=" android_src=\${GYP_ABS_ANDROID_TOP_DIR}"
+  DEFINES+=" android_src=\$(GYP_ABS_ANDROID_TOP_DIR)"
   DEFINES+=" android_product_out=NOT_USED_ON_WEBVIEW"
   DEFINES+=" android_upstream_bringup=1"
   DEFINES+=" android_sdk=\$(GYP_ABS_ANDROID_TOP_DIR)/${ANDROID_SDK}"
