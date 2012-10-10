@@ -42,7 +42,6 @@
 #include "base/atomicops.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
-#include "base/time.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_input_stream_impl.h"
 #include "media/audio/audio_parameters.h"
