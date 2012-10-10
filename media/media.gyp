@@ -1036,7 +1036,7 @@
         },
       ],
     }],
-    ['OS == "win" or toolkit_uses_gtk == 1', {
+    ['(OS == "win" or toolkit_uses_gtk == 1) and use_aura != 1', {
       'targets': [
         {
           'target_name': 'shader_bench',
