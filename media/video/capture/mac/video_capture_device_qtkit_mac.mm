@@ -100,9 +100,21 @@
     }
     if ([[captureSession_ outputs] count] > 0) {
       // Only one output is set for |captureSession_|.
-      [[[captureSession_ outputs] objectAtIndex:0] setDelegate:nil];
-      [captureSession_ removeOutput:
-          [[captureSession_ outputs] objectAtIndex:0]];
+      id output = [[captureSession_ outputs] objectAtIndex:0];
+      [output setDelegate:nil];
+
+      // TODO(shess): QTKit achieves thread safety by posting messages
+      // to the main thread.  As part of -addOutput:, it posts a
+      // message to the main thread which in turn posts a notification
+      // which will run in a future spin after the original method
+      // returns.  -removeOutput: can post a main-thread message in
+      // between while holding a lock which the notification handler
+      // will need.  Posting either -addOutput: or -removeOutput: to
+      // the main thread should fix it, remove is likely safer.
+      // http://crbug.com/152757
+      [captureSession_ performSelectorOnMainThread:@selector(removeOutput:)
+                                        withObject:output
+                                     waitUntilDone:YES];
     }
     [captureSession_ release];
     captureSession_ = nil;
