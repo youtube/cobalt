@@ -30,7 +30,7 @@ class NET_EXPORT_PRIVATE FtpAuthCache {
     Entry(const GURL& origin, const AuthCredentials& credentials);
     ~Entry();
 
-    const GURL origin;
+    GURL origin;
     AuthCredentials credentials;
   };
 
