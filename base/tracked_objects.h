@@ -18,7 +18,6 @@
 #include "base/location.h"
 #include "base/profiler/alternate_timer.h"
 #include "base/profiler/tracked_time.h"
-#include "base/time.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_local_storage.h"
 #include "base/tracking_info.h"
