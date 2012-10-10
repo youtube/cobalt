@@ -120,17 +120,36 @@ static void GetAudioDeviceInfo(bool is_input,
 
   // Iterate over all available devices to gather information.
   for (int i = 0; i < device_count; ++i) {
+    int channels = 0;
     // Get the number of input or output channels of the device.
     property_address.mScope = is_input ?
         kAudioDevicePropertyScopeInput : kAudioDevicePropertyScopeOutput;
-    property_address.mSelector = kAudioDevicePropertyStreams;
-    size = 0;
+    property_address.mSelector = kAudioDevicePropertyStreamConfiguration;
     result = AudioObjectGetPropertyDataSize(device_ids[i],
                                             &property_address,
                                             0,
                                             NULL,
                                             &size);
-    if (result || !size)
+    if (result)
+      continue;
+
+    scoped_ptr_malloc<AudioBufferList>
+        buffer(reinterpret_cast<AudioBufferList*>(malloc(size)));
+    AudioBufferList* buffer_list = buffer.get();
+    result = AudioObjectGetPropertyData(device_ids[i],
+                                        &property_address,
+                                        0,
+                                        NULL,
+                                        &size,
+                                        buffer_list);
+    if (result)
+      continue;
+
+    for (uint32 j = 0; j < buffer_list->mNumberBuffers; ++j)
+      channels += buffer_list->mBuffers[j].mNumberChannels;
+
+    // Exclude those devices without the type of channel we are interested in.
+    if (!channels)
       continue;
 
     // Get device UID.
@@ -248,6 +267,11 @@ bool AudioManagerMac::HasAudioInputDevices() {
 
 void AudioManagerMac::GetAudioInputDeviceNames(
     media::AudioDeviceNames* device_names) {
+  // This is needed because AudioObjectGetPropertyDataSize has memory leak
+  // when there is no soundcard in the machine.
+  if (!HasAudioInputDevices())
+    return;
+
   GetAudioDeviceInfo(true, device_names);
   if (!device_names->empty()) {
     // Prepend the default device to the list since we always want it to be
