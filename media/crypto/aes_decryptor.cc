@@ -235,7 +235,8 @@ void AesDecryptor::CancelDecrypt() {
 }
 
 void AesDecryptor::InitializeVideoDecoder(const VideoDecoderConfig& config,
-                                          const DecoderInitCB& init_cb) {
+                                          const DecoderInitCB& init_cb,
+                                          const KeyAddedCB& key_added_cb) {
   // AesDecryptor does not support video decoding. Always return false here.
   init_cb.Run(false);
 }

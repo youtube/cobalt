@@ -52,7 +52,8 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
                        const DecryptCB& decrypt_cb) OVERRIDE;
   virtual void CancelDecrypt() OVERRIDE;
   virtual void InitializeVideoDecoder(const VideoDecoderConfig& config,
-                                      const DecoderInitCB& init_cb) OVERRIDE;
+                                      const DecoderInitCB& init_cb,
+                                      const KeyAddedCB& key_added_cb) OVERRIDE;
   virtual void DecryptAndDecodeVideo(
       const scoped_refptr<DecoderBuffer>& encrypted,
       const VideoDecodeCB& video_decode_cb) OVERRIDE;
