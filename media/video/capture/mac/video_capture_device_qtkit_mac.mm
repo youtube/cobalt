@@ -15,17 +15,25 @@
 
 #pragma mark Class methods
 
-+ (NSDictionary *)deviceNames {
-  NSArray *captureDevices =
++ (void)getDeviceNames:(NSMutableDictionary*)deviceNames {
+  NSArray* captureDevices =
       [QTCaptureDevice inputDevicesWithMediaType:QTMediaTypeVideo];
-  NSMutableDictionary *deviceNames =
-      [[[NSMutableDictionary alloc] init] autorelease];
 
   for (QTCaptureDevice* device in captureDevices) {
-    NSString* qtDeviceName = [device localizedDisplayName];
-    NSString* qtUniqueId = [device uniqueID];
-    [deviceNames setObject:qtDeviceName forKey:qtUniqueId];
+    [deviceNames setObject:[device localizedDisplayName]
+                    forKey:[device uniqueID]];
   }
+}
+
++ (NSDictionary*)deviceNames {
+  NSMutableDictionary* deviceNames =
+      [[[NSMutableDictionary alloc] init] autorelease];
+
+  // TODO(shess): Post to the main thread to see if that helps
+  // http://crbug.com/139164
+  [self performSelectorOnMainThread:@selector(getDeviceNames:)
+                         withObject:deviceNames
+                      waitUntilDone:YES];
   return deviceNames;
 }
 
