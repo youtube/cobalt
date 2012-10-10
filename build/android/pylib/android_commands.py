@@ -466,12 +466,37 @@ class AndroidCommands(object):
       process: name of the process to kill off
 
     Returns:
-      the number of processess killed
+      the number of processes killed
     """
     pids = self.ExtractPid(process)
     if pids:
       self.RunShellCommand('kill ' + ' '.join(pids))
     return len(pids)
+
+  def KillAllBlocking(self, process, timeout_sec):
+    """Blocking version of killall, connected via adb.
+
+    This waits until no process matching the corresponding name appears in ps'
+    output anymore.
+
+    Args:
+      process: name of the process to kill off
+      timeout_sec: the timeout in seconds
+
+    Returns:
+      the number of processes killed
+    """
+    processes_killed = self.KillAll(process)
+    if processes_killed:
+      elapsed = 0
+      wait_period = 0.1
+      # Note that this doesn't take into account the time spent in ExtractPid().
+      while self.ExtractPid(process) and elapsed < timeout_sec:
+        time.sleep(wait_period)
+        elapsed += wait_period
+      if elapsed >= timeout_sec:
+        return 0
+    return processes_killed
 
   def StartActivity(self, package, activity, wait_for_completion=False,
                     action='android.intent.action.VIEW',
