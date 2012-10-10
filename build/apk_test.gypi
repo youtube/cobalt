@@ -52,7 +52,6 @@
               '--strip-binary=<(android_strip)',
               '--app_abi',
               '<(android_app_abi)',
-              '--sdk-build=<(sdk_build)',
               '--ant-args',
               '-DPRODUCT_DIR=<(ant_build_out)',
               '--ant-args',
