@@ -9,6 +9,7 @@
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/time.h"
 #include "base/values.h"
 #include "crypto/sha2.h"
 #include "net/base/crl_set.h"
@@ -71,8 +72,8 @@ CRLSet::~CRLSet() {
 // header_bytes consists of a JSON dictionary with the following keys:
 //   Version (int): currently 0
 //   ContentType (string): "CRLSet" or "CRLSetDelta" (magic value)
-//   DeltaFrom (int32): if this is a delta update (see below), then this contains
-//       the sequence number of the base CRLSet.
+//   DeltaFrom (int32): if this is a delta update (see below), then this
+//       contains the sequence number of the base CRLSet.
 //   Sequence (int32): the monotonic sequence number of this CRL set.
 //
 // A delta CRLSet is similar to a CRLSet:
@@ -441,7 +442,7 @@ bool CRLSet::ApplyDelta(const base::StringPiece& in_data,
 
 // static
 bool CRLSet::GetIsDeltaUpdate(const base::StringPiece& in_data,
-                              bool *is_delta) {
+                              bool* is_delta) {
   base::StringPiece data(in_data);
   scoped_ptr<base::DictionaryValue> header_dict(ReadHeader(&data));
   if (!header_dict.get())
