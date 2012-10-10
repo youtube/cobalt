@@ -273,8 +273,8 @@ function bb_extract_build {
   (
   set +e
   python ../../../../scripts/slave/extract_build.py \
-    --build-dir "$SRC_ROOT" \
-    --build-output-dir "out" \
+    --build-dir "$SRC_ROOT/build" \
+    --build-output-dir "../out" \
     --factory-properties "$FACTORY_PROPERTIES" \
     --build-properties "$BUILD_PROPERTIES"
   local extract_exit_code=$?
