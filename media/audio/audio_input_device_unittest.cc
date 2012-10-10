@@ -91,10 +91,6 @@ class AudioInputDeviceTest
     }
   }
 
-  bool CanRunAudioTest() {
-    return audio_manager_->HasAudioInputDevices();
-  }
-
   scoped_ptr<AudioManager> audio_manager_;
 
 #if defined(OS_WIN)
@@ -105,9 +101,6 @@ class AudioInputDeviceTest
 
 // Test that devices can be enumerated.
 TEST_F(AudioInputDeviceTest, EnumerateDevices) {
-  if (!CanRunAudioTest())
-    return;
-
   AudioDeviceNames device_names;
   audio_manager_->GetAudioInputDeviceNames(&device_names);
   CheckDeviceNames(device_names);
@@ -121,9 +114,6 @@ TEST_F(AudioInputDeviceTest, EnumerateDevices) {
 // Override default enumeration API and force usage of Windows MMDevice.
 // This test will only run on Windows Vista and higher.
 TEST_F(AudioInputDeviceTest, EnumerateDevicesWinMMDevice) {
-  if (!CanRunAudioTest())
-    return;
-
   AudioDeviceNames device_names;
   if (!SetMMDeviceEnumeration()) {
     // Usage of MMDevice will fail on XP and lower.
@@ -137,9 +127,6 @@ TEST_F(AudioInputDeviceTest, EnumerateDevicesWinMMDevice) {
 // Override default enumeration API and force usage of Windows Wave.
 // This test will run on Windows XP, Windows Vista and Windows 7.
 TEST_F(AudioInputDeviceTest, EnumerateDevicesWinWave) {
-  if (!CanRunAudioTest())
-    return;
-
   AudioDeviceNames device_names;
   SetWaveEnumeration();
   audio_manager_->GetAudioInputDeviceNames(&device_names);
@@ -147,9 +134,6 @@ TEST_F(AudioInputDeviceTest, EnumerateDevicesWinWave) {
 }
 
 TEST_F(AudioInputDeviceTest, WinXPDeviceIdUnchanged) {
-  if (!CanRunAudioTest())
-    return;
-
   AudioDeviceNames xp_device_names;
   SetWaveEnumeration();
   audio_manager_->GetAudioInputDeviceNames(&xp_device_names);
@@ -164,9 +148,6 @@ TEST_F(AudioInputDeviceTest, WinXPDeviceIdUnchanged) {
 }
 
 TEST_F(AudioInputDeviceTest, ConvertToWinXPDeviceId) {
-  if (!CanRunAudioTest())
-    return;
-
   if (!SetMMDeviceEnumeration()) {
     // Usage of MMDevice will fail on XP and lower.
     LOG(WARNING) << "MM device enumeration is not supported.";
