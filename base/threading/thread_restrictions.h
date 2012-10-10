@@ -60,6 +60,10 @@ class FileStreamWin;
 class NetworkManagerApi;
 }
 
+namespace remoting {
+class AutoThread;
+}
+
 namespace base {
 
 class SequencedWorkerPool;
@@ -164,10 +168,12 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::HistogramSynchronizer;
   friend class ::ScopedAllowWaitForLegacyWebViewApi;
   friend class ::TestingAutomationProvider;
+  friend class remoting::AutoThread;
   friend class SequencedWorkerPool;
   friend class SimpleThread;
   friend class Thread;
   friend class ThreadTestHelper;
+
   // END ALLOWED USAGE.
   // BEGIN USAGE THAT NEEDS TO BE FIXED.
   friend class ::chromeos::AudioMixerAlsa;        // http://crbug.com/125206
