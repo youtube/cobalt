@@ -7,6 +7,7 @@
 #import <QTKit/QTKit.h>
 
 #include "base/logging.h"
+#include "base/mac/crash_logging.h"
 #include "media/video/capture/mac/video_capture_device_mac.h"
 #include "media/video/capture/video_capture_device.h"
 #include "media/video/capture/video_capture_types.h"
@@ -95,6 +96,11 @@
                   << [[error localizedDescription] UTF8String];
       return NO;
     }
+
+    // This key can be used to check if video capture code was related to a
+    // particular crash.
+    base::mac::SetCrashKeyValue(@"VideoCaptureDeviceQTKit", @"OpenedDevice");
+
     return YES;
   } else {
     // Remove the previously set capture device.
