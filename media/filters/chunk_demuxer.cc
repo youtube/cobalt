@@ -713,11 +713,17 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
   stream_parser_map_.erase(id);
   source_info_map_.erase(id);
 
-  if (source_id_audio_ == id && audio_)
-    audio_->Shutdown();
+  if (source_id_audio_ == id) {
+    if (audio_)
+      audio_->Shutdown();
+    source_id_audio_.clear();
+  }
 
-  if (source_id_video_ == id && video_)
-    video_->Shutdown();
+  if (source_id_video_ == id) {
+    if (video_)
+      video_->Shutdown();
+    source_id_video_.clear();
+  }
 }
 
 Ranges<TimeDelta> ChunkDemuxer::GetBufferedRanges(const std::string& id) const {

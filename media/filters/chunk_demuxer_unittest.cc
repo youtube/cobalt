@@ -1551,6 +1551,17 @@ TEST_F(ChunkDemuxerTest, TestRemoveId) {
   GenerateSingleStreamExpectedReads(0, 4, video, kVideoBlockDuration);
 }
 
+// Test that removing an ID immediately after adding it does not interfere with
+// quota for new IDs in the future.
+TEST_F(ChunkDemuxerTest, TestRemoveAndAddId) {
+  std::string audio_id_1 = "audio1";
+  ASSERT_TRUE(AddId(audio_id_1, true, false) == ChunkDemuxer::kOk);
+  demuxer_->RemoveId(audio_id_1);
+
+  std::string audio_id_2 = "audio2";
+  ASSERT_TRUE(AddId(audio_id_2, true, false) == ChunkDemuxer::kOk);
+}
+
 TEST_F(ChunkDemuxerTest, TestSeekCanceled) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
