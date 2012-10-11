@@ -43,7 +43,7 @@ class UI_EXPORT Size : public SizeBase<Size, int> {
   CGSize ToCGSize() const;
 #endif
 
-  SizeF ToSizeF() const {
+  operator SizeF() const {
     return SizeF(width(), height());
   }
 
@@ -57,6 +57,14 @@ class UI_EXPORT Size : public SizeBase<Size, int> {
 
   std::string ToString() const;
 };
+
+inline bool operator==(const Size& lhs, const Size& rhs) {
+  return lhs.width() == rhs.width() && lhs.height() == rhs.height();
+}
+
+inline bool operator!=(const Size& lhs, const Size& rhs) {
+  return !(lhs == rhs);
+}
 
 #if !defined(COMPILER_MSVC)
 extern template class SizeBase<Size, int>;
