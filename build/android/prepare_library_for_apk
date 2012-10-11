@@ -1,0 +1,24 @@
+#!/bin/bash
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Creates a stripped copy of a library and a link to the unstripped copy.
+# The stripped copy is included in the apk and the link is needed for the crash
+# stack annotation tool.
+
+if [[ $# -ne 4 ]]
+then
+  echo "Usage: prepare_library_for_apk android_strip path/to/library stripped/library/output/path link/output/path"
+  exit 1
+fi
+
+ANDROID_STRIP=$1
+LIBRARY=$2
+STRIPPED=$3
+LINK=$4
+
+set -x
+mkdir -p $LINK
+$ANDROID_STRIP --strip-unneeded $LIBRARY -o $STRIPPED
+ln -f $LIBRARY $LINK
