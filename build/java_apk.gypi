@@ -48,21 +48,52 @@
 #  input_jars_paths - The path to jars to be included in the classpath. This
 #    should be filled automatically by depending on the appropriate targets.
 #  native_libs_paths - The path to any native library to be included in this
-#    target.
+#    target. This should be a path in <(SHARED_LIB_DIR). A stripped copy of
+#    the library will be included in the apk and symbolic links to the
+#    unstripped copy will be added to <(android_product_out) to enable native
+#    debugging.
 
 {
   'variables': {
     'asset_location%': '',
     'additional_input_paths': [],
     'input_jars_paths': [],
-    'native_libs_paths': [],
     'additional_src_dirs': [],
     'generated_src_dirs': [],
     'app_manifest_version_name%': '<(android_app_version_name)',
     'app_manifest_version_code%': '<(android_app_version_code)',
     'proguard_enabled%': 'false',
-    'proguard_flags%': ''
+    'proguard_flags%': '',
+    'native_libs_paths': [],
+    'manifest_package_name%': 'unknown.package.name',
   },
+  'sources': [
+      '<@(native_libs_paths)'
+  ],
+  'rules': [
+    {
+      'rule_name': 'copy_and_strip_native_libraries',
+      'extension': 'so',
+      'variables': {
+        'stripped_library_path': '<(PRODUCT_DIR)/<(package_name)/libs/<(android_app_abi)/<(RULE_INPUT_ROOT).so',
+        'link_dir': '<(android_product_out)/symbols/data/data/<(manifest_package_name)/lib/',
+      },
+      'outputs': [
+        '<(stripped_library_path)',
+        '<(link_dir)/<(RULE_INPUT_ROOT).so',
+      ],
+      # There is no way to do 2 actions for each source library in gyp. So to
+      # both strip the library and create the link in <(link_dir) a separate
+      # script is required.
+      'action': [
+        '<(DEPTH)/build/android/prepare_library_for_apk',
+        '<(android_strip)',
+        '<(RULE_INPUT_PATH)',
+        '<(stripped_library_path)',
+        '<(link_dir)',
+      ],
+    },
+  ],
   'actions': [
     {
       'action_name': 'ant_<(package_name)_apk',
@@ -72,7 +103,7 @@
         '<(DEPTH)/build/android/ant/chromium-apk.xml',
         '<(DEPTH)/build/android/ant/common.xml',
         '<(DEPTH)/build/android/ant/sdk-targets.xml',
-        # If there is a separate find for additonal_src_dirs, it will find the
+        # If there is a separate find for additional_src_dirs, it will find the
         # wrong .java files when additional_src_dirs is empty.
         '>!@(find >(java_in_dir) >(additional_src_dirs) -name "*.java")',
         '<!@(find <(java_in_dir)/<(resource_dir) -name "*")',
