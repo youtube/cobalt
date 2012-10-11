@@ -234,10 +234,10 @@ void AesDecryptor::Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
 void AesDecryptor::CancelDecrypt() {
 }
 
-void AesDecryptor::InitializeVideoDecoder(const VideoDecoderConfig& config,
+void AesDecryptor::InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
                                           const DecoderInitCB& init_cb,
                                           const KeyAddedCB& key_added_cb) {
-  // AesDecryptor does not support video decoding. Always return false here.
+  // AesDecryptor does not support video decoding.
   init_cb.Run(false);
 }
 
@@ -245,7 +245,6 @@ void AesDecryptor::DecryptAndDecodeVideo(
     const scoped_refptr<DecoderBuffer>& encrypted,
     const VideoDecodeCB& video_decode_cb) {
   NOTREACHED() << "AesDecryptor does not support video decoding";
-  video_decode_cb.Run(kError, NULL);
 }
 
 void AesDecryptor::CancelDecryptAndDecodeVideo() {

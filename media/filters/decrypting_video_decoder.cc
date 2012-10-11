@@ -196,10 +196,12 @@ void DecryptingVideoDecoder::SetDecryptor(Decryptor* decryptor) {
 
   decryptor_ = decryptor;
 
+  scoped_ptr<VideoDecoderConfig> scoped_config(new VideoDecoderConfig());
+  scoped_config->CopyFrom(demuxer_stream_->video_decoder_config());
+
   state_ = kPendingDecoderInit;
-  const VideoDecoderConfig& config = demuxer_stream_->video_decoder_config();
   decryptor_->InitializeVideoDecoder(
-      config,
+      scoped_config.Pass(),
       BIND_TO_LOOP(&DecryptingVideoDecoder::FinishInitialization),
       BIND_TO_LOOP(&DecryptingVideoDecoder::OnKeyAdded));
 }
