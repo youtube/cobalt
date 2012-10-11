@@ -45,10 +45,12 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_input_stream_impl.h"
 #include "media/audio/audio_parameters.h"
+#include "media/base/seekable_buffer.h"
 
 namespace media {
 
 class AudioManagerMac;
+class DataBuffer;
 
 class AUAudioInputStream : public AudioInputStreamImpl {
  public:
@@ -144,6 +146,17 @@ class AUAudioInputStream : public AudioInputStreamImpl {
   // The number of channels in each frame of audio data, which is used
   // when querying the volume of each channel.
   int number_of_channels_in_frame_;
+
+  // Accumulates recorded data packets until the requested size has been stored.
+  scoped_ptr<media::SeekableBuffer> fifo_;
+
+   // Intermediate storage of data from the FIFO before sending it to the
+   // client using the OnData() callback.
+  scoped_refptr<media::DataBuffer> data_;
+
+  // The client requests that the recorded data shall be delivered using
+  // OnData() callbacks where each callback contains this amount of bytes.
+  int requested_size_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(AUAudioInputStream);
 };
