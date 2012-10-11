@@ -269,8 +269,8 @@
 //
 // By default Bind() will store copies of all bound parameters, and attempt
 // to refcount a target object if the function being bound is a class method.
-// These copies are created even if the function takes parameters as const or
-// non-const references.
+// These copies are created even if the function takes parameters as const
+// references. (Binding to non-const references is forbidden, see bind.h)
 //
 // To change this behavior, we introduce a set of argument wrappers
 // (e.g., Unretained(), and ConstRef()).  These are simple container templates
