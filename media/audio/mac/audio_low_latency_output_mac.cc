@@ -16,6 +16,19 @@
 
 namespace media {
 
+static std::ostream& operator<<(std::ostream& os,
+                                const AudioStreamBasicDescription& format) {
+  os << "sample rate       : " << format.mSampleRate << std::endl
+     << "format ID         : " << format.mFormatID << std::endl
+     << "format flags      : " << format.mFormatFlags << std::endl
+     << "bytes per packet  : " << format.mBytesPerPacket << std::endl
+     << "frames per packet : " << format.mFramesPerPacket << std::endl
+     << "bytes per frame   : " << format.mBytesPerFrame << std::endl
+     << "channels per frame: " << format.mChannelsPerFrame << std::endl
+     << "bits per channel  : " << format.mBitsPerChannel;
+  return os;
+}
+
 // Reorder PCM from AAC layout to Core Audio 5.1 layout.
 // TODO(fbarchard): Switch layout when ffmpeg is updated.
 template<class Format>
@@ -59,6 +72,7 @@ AUAudioOutputStream::AUAudioOutputStream(
       audio_bus_(AudioBus::Create(params)) {
   // We must have a manager.
   DCHECK(manager_);
+
   // A frame is one sample across all channels. In interleaved audio the per
   // frame fields identify the set of n |channels|. In uncompressed audio, a
   // packet is always one frame.
@@ -73,8 +87,12 @@ AUAudioOutputStream::AUAudioOutputStream(
   format_.mBytesPerFrame = format_.mBytesPerPacket;
   format_.mReserved = 0;
 
+  DVLOG(1) << "Desired ouput format: " << format_;
+
   // Calculate the number of sample frames per callback.
   number_of_frames_ = params.GetBytesPerBuffer() / format_.mBytesPerPacket;
+  DVLOG(1) << "Number of frames per callback: " << number_of_frames_;
+  CHECK_EQ(number_of_frames_, GetAudioHardwareBufferSize());
 }
 
 AUAudioOutputStream::~AUAudioOutputStream() {
@@ -157,8 +175,7 @@ bool AUAudioOutputStream::Configure() {
   // WARNING: Setting this value changes the frame size for all audio units in
   // the current process.  It's imperative that the input and output frame sizes
   // be the same as audio_util::GetAudioHardwareBufferSize().
-  // TODO(henrika): Due to http://crrev.com/159666 this is currently not true
-  // and should be fixed, a CHECK() should be added at that time.
+  // See http://crbug.com/154352 for details.
   UInt32 buffer_size = number_of_frames_;
   result = AudioUnitSetProperty(
       output_unit_,
@@ -239,15 +256,9 @@ OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
   // size set by kAudioDevicePropertyBufferFrameSize above on a per process
   // basis.  What this means is that the |number_of_frames| value may be larger
   // or smaller than the value set during Configure().  In this case either
-  // audio input or audio output will be broken, so just output silence.
-  // TODO(henrika): This should never happen so long as we're always using the
-  // hardware sample rate and the input/output streams configure the same frame
-  // size.  This is currently not true.  See http://crbug.com/154352.  Once
-  // fixed, a CHECK() should be added and this wall of text removed.
-  if (number_of_frames != static_cast<UInt32>(audio_bus_->frames())) {
-    memset(audio_data, 0, number_of_frames * format_.mBytesPerFrame);
-    return noErr;
-  }
+  // audio input or audio output will be broken.
+  // See http://crbug.com/154352 for details.
+  CHECK_EQ(number_of_frames, static_cast<UInt32>(audio_bus_->frames()));
 
   int frames_filled = source_->OnMoreData(
       audio_bus_.get(), AudioBuffersState(0, hardware_pending_bytes));

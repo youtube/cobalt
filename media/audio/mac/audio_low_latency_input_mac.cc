@@ -11,6 +11,7 @@
 #include "base/mac/mac_logging.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
+#include "media/base/data_buffer.h"
 
 namespace media {
 
@@ -60,9 +61,14 @@ AUAudioInputStream::AUAudioInputStream(
 
   DVLOG(1) << "Desired ouput format: " << format_;
 
-  // Calculate the number of sample frames per callback.
-  number_of_frames_ = params.GetBytesPerBuffer() / format_.mBytesPerPacket;
-  DVLOG(1) << "Number of frames per callback: " << number_of_frames_;
+  // Set number of sample frames per callback used by the internal audio layer.
+  // An internal FIFO is then utilized to adapt the internal size to the size
+  // requested by the client.
+  // Note that we  use the same native buffer size as for the output side here
+  // since the AUHAL implementation requires that both capture and render side
+  // use the same buffer size. See http://crbug.com/154352 for more details.
+  number_of_frames_ = GetAudioHardwareBufferSize();
+  DVLOG(1) << "Size of data buffer in frames : " << number_of_frames_;
 
   // Derive size (in bytes) of the buffers that we will render to.
   UInt32 data_byte_size = number_of_frames_ * format_.mBytesPerFrame;
@@ -78,6 +84,28 @@ AUAudioInputStream::AUAudioInputStream(
   audio_buffer->mNumberChannels = params.channels();
   audio_buffer->mDataByteSize = data_byte_size;
   audio_buffer->mData = audio_data_buffer_.get();
+
+  // Set up an internal FIFO buffer that will accumulate recorded audio frames
+  // until a requested size is ready to be sent to the client.
+  // It is not possible to ask for less than |kAudioFramesPerCallback| number of
+  // audio frames.
+  const size_t requested_size_frames =
+      params.GetBytesPerBuffer() / format_.mBytesPerPacket;
+  DCHECK_GE(requested_size_frames, number_of_frames_);
+  requested_size_bytes_ = requested_size_frames * format_.mBytesPerFrame;
+  DVLOG(1) << "Requested buffer size in bytes : " << requested_size_bytes_;
+  DLOG_IF(INFO, requested_size_frames > number_of_frames_) << "FIFO is used";
+
+  // Allocate some extra memory to avoid memory reallocations.
+  // Ensure that the size is an even multiple of |number_of_frames_ and
+  // larger than |requested_size_frames|.
+  // Example: number_of_frames_=128, requested_size_frames=480 =>
+  // allocated space equals 4*128=512 audio frames
+  const int max_forward_capacity = format_.mBytesPerFrame * number_of_frames_ *
+      ((requested_size_frames / number_of_frames_) + 1);
+  fifo_.reset(new media::SeekableBuffer(0, max_forward_capacity));
+
+  data_ = new media::DataBuffer(requested_size_bytes_);
 }
 
 AUAudioInputStream::~AUAudioInputStream() {}
@@ -465,24 +493,27 @@ OSStatus AUAudioInputStream::Provide(UInt32 number_of_frames,
   if (!audio_data)
     return kAudioUnitErr_InvalidElement;
 
-  // Unfortunately AUAudioInputStream and AUAudioOutputStream share the frame
-  // size set by kAudioDevicePropertyBufferFrameSize above on a per process
-  // basis.  What this means is that the |number_of_frames| value may be larger
-  // or smaller than the value set during Configure().  In this case either
-  // audio input or audio output will be broken, so just do nothing.
-  // TODO(henrika): This should never happen so long as we're always using the
-  // hardware sample rate and the input/output streams configure the same frame
-  // size.  This is currently not true.  See http://crbug.com/154352.  Once
-  // fixed, a CHECK() should be added and this wall of text removed.
-  if (number_of_frames != static_cast<UInt32>(number_of_frames_))
-    return noErr;
+  // See http://crbug.com/154352 for details.
+  CHECK_EQ(number_of_frames, static_cast<UInt32>(number_of_frames_));
 
-  // Deliver data packet, delay estimation and volume level to the user.
-  sink_->OnData(this,
-                audio_data,
-                buffer.mDataByteSize,
-                capture_delay_bytes,
-                normalized_volume);
+  // Accumulate captured audio in FIFO until we can match the output size
+  // requested by the client.
+  DCHECK_LE(fifo_->forward_bytes(), requested_size_bytes_);
+  fifo_->Append(audio_data, buffer.mDataByteSize);
+
+  // Deliver recorded data to the client as soon as the FIFO contains a
+  // sufficient amount.
+  if (fifo_->forward_bytes() >= requested_size_bytes_) {
+    // Read from FIFO into temporary data buffer.
+    fifo_->Read(data_->GetWritableData(), requested_size_bytes_);
+
+    // Deliver data packet, delay estimation and volume level to the user.
+    sink_->OnData(this,
+                  data_->GetData(),
+                  requested_size_bytes_,
+                  capture_delay_bytes,
+                  normalized_volume);
+  }
 
   return noErr;
 }
