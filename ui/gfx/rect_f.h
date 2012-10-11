@@ -40,6 +40,14 @@ class UI_EXPORT RectF : public RectBase<RectF, PointF, SizeF, InsetsF, float> {
   std::string ToString() const;
 };
 
+inline bool operator==(const RectF& lhs, const RectF& rhs) {
+  return lhs.origin() == rhs.origin() && lhs.size() == rhs.size();
+}
+
+inline bool operator!=(const RectF& lhs, const RectF& rhs) {
+  return !(lhs == rhs);
+}
+
 #if !defined(COMPILER_MSVC)
 extern template class RectBase<RectF, PointF, SizeF, InsetsF, float>;
 #endif
