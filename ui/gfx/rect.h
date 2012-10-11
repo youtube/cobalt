@@ -68,7 +68,7 @@ class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
   CGRect ToCGRect() const;
 #endif
 
-  RectF ToRectF() const {
+  operator RectF() const {
     return RectF(origin().x(), origin().y(), size().width(), size().height());
   }
 
@@ -77,11 +77,20 @@ class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
   }
 
   RectF Scale(float x_scale, float y_scale) const WARN_UNUSED_RESULT {
-    return ToRectF().Scale(x_scale, y_scale);
+    RectF original = *this;
+    return original.Scale(x_scale, y_scale);
   }
 
   std::string ToString() const;
 };
+
+inline bool operator==(const Rect& lhs, const Rect& rhs) {
+  return lhs.origin() == rhs.origin() && lhs.size() == rhs.size();
+}
+
+inline bool operator!=(const Rect& lhs, const Rect& rhs) {
+  return !(lhs == rhs);
+}
 
 #if !defined(COMPILER_MSVC)
 extern template class RectBase<Rect, Point, Size, Insets, int>;
