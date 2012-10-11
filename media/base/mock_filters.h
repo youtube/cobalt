@@ -208,14 +208,22 @@ class MockDecryptor : public Decryptor {
   MOCK_METHOD2(Decrypt, void(const scoped_refptr<DecoderBuffer>& encrypted,
                              const DecryptCB& decrypt_cb));
   MOCK_METHOD0(CancelDecrypt, void());
-  MOCK_METHOD3(InitializeVideoDecoder, void(const VideoDecoderConfig& config,
-                                            const DecoderInitCB& init_cb,
-                                            const KeyAddedCB& key_added_cb));
+  // TODO(xhwang): This is a workaround of the issue that move-only parameters
+  // are not supported in mocked methods. Remove this when the issue is fixed
+  // (http://code.google.com/p/googletest/issues/detail?id=395).
+  MOCK_METHOD3(InitializeVideoDecoderMock,
+               void(const VideoDecoderConfig& config,
+                    const DecoderInitCB& init_cb,
+                    const KeyAddedCB& key_added_cb));
   MOCK_METHOD2(DecryptAndDecodeVideo,
                void(const scoped_refptr<media::DecoderBuffer>& encrypted,
                     const VideoDecodeCB& video_decode_cb));
   MOCK_METHOD0(CancelDecryptAndDecodeVideo, void());
   MOCK_METHOD0(StopVideoDecoder, void());
+
+  virtual void InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
+                                      const DecoderInitCB& init_cb,
+                                      const KeyAddedCB& key_added_cb) OVERRIDE;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockDecryptor);

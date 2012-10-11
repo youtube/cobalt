@@ -44,6 +44,13 @@ MockDecryptor::MockDecryptor() {}
 
 MockDecryptor::~MockDecryptor() {}
 
+void MockDecryptor::InitializeVideoDecoder(
+    scoped_ptr<VideoDecoderConfig> config,
+    const DecoderInitCB& init_cb,
+    const KeyAddedCB& key_added_cb) {
+  InitializeVideoDecoderMock(*config, init_cb, key_added_cb);
+}
+
 MockDecryptorClient::MockDecryptorClient() {}
 
 MockDecryptorClient::~MockDecryptorClient() {}

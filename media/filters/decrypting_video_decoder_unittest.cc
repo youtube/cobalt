@@ -110,7 +110,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
   }
 
   void Initialize() {
-    EXPECT_CALL(*decryptor_, InitializeVideoDecoder(_, _, _))
+    EXPECT_CALL(*decryptor_, InitializeVideoDecoderMock(_, _, _))
         .Times(AtMost(1))
         .WillOnce(DoAll(RunCallback1(true), SaveArg<2>(&key_added_cb_)));
 
@@ -280,7 +280,7 @@ TEST_F(DecryptingVideoDecoderTest, Initialize_InvalidVideoConfig) {
 
 // Ensure decoder handles unsupported video configs without crashing.
 TEST_F(DecryptingVideoDecoderTest, Initialize_UnsupportedVideoConfig) {
-  EXPECT_CALL(*decryptor_, InitializeVideoDecoder(_, _, _))
+  EXPECT_CALL(*decryptor_, InitializeVideoDecoderMock(_, _, _))
       .WillOnce(RunCallback1(false));
 
   VideoDecoderConfig config(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
@@ -461,7 +461,7 @@ TEST_F(DecryptingVideoDecoderTest, Stop_DuringDecryptorRequested) {
 
 // Test stopping when the decoder is in kPendingDecoderInit state.
 TEST_F(DecryptingVideoDecoderTest, Stop_DuringPendingDecoderInit) {
-  EXPECT_CALL(*decryptor_, InitializeVideoDecoder(_, _, _))
+  EXPECT_CALL(*decryptor_, InitializeVideoDecoderMock(_, _, _))
       .WillOnce(SaveArg<1>(&pending_init_cb_));
 
   config_.Initialize(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN, kVideoFormat,

@@ -112,7 +112,7 @@ class MEDIA_EXPORT Decryptor {
   // |init_cb| upon completion.
   // Note: DecryptAndDecodeVideo(), ResetVideoDecoder() and StopVideoDecoder()
   // can only be called after InitializeVideoDecoder() succeeded.
-  virtual void InitializeVideoDecoder(const VideoDecoderConfig& config,
+  virtual void InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
                                       const DecoderInitCB& init_cb,
                                       const KeyAddedCB& key_added_cb) = 0;
 
