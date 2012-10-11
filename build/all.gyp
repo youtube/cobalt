@@ -653,6 +653,7 @@
                 },
               ],
               'dependencies': [
+                '../content/content.gyp:content_unittests',
                 '../chrome/chrome.gyp:crash_service',
                 '../chrome/chrome.gyp:crash_service_win64',
               ],
