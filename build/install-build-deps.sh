@@ -65,9 +65,9 @@ dev_list="apache2.2-bin bison curl elfutils fakeroot flex g++ gperf
           libsqlite3-dev libssl-dev libudev-dev libwww-perl libxslt1-dev
           libxss-dev libxt-dev libxtst-dev mesa-common-dev patch
           perl php5-cgi pkg-config python python-cherrypy3 python-dev
-          python-mod-pywebsocket python-psutil rpm ruby subversion
-          ttf-dejavu-core ttf-indic-fonts ttf-kochi-gothic ttf-kochi-mincho
-          ttf-thai-tlwg wdiff git-core $chromeos_dev_list"
+          python-psutil rpm ruby subversion ttf-dejavu-core ttf-indic-fonts
+          ttf-kochi-gothic ttf-kochi-mincho ttf-thai-tlwg wdiff git-core
+          $chromeos_dev_list"
 
 # 64-bit systems need a minimum set of 32-bit compat packages for the pre-built
 # NaCL binaries. These are always needed, regardless of whether or not we want
