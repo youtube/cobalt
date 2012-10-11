@@ -914,6 +914,16 @@ EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST)
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST_HEADERS)
 
+// Logged when a request body is sent.
+// The following parameters are attached:
+//   {
+//     "did_merge": <True if the body was merged with the headers for writing>,
+//     "is_chunked": <True if chunked>,
+//     "length": <The length of the body.  May not be accurate when body is not
+//                in memory>
+//   }
+EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST_BODY)
+
 // This event is sent for a HTTP request over a SPDY stream.
 // The following parameters are attached:
 //   {
