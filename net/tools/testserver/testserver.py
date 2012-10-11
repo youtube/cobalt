@@ -2252,7 +2252,7 @@ def main(options, args):
     # TODO(toyoshim): Remove following os.chdir. Currently this operation
     # is required to work correctly. It should be fixed from pywebsocket side.
     os.chdir(MakeDataDir())
-    server = WebSocketServer(WebSocketOptions(host, port, MakeDataDir()))
+    server = WebSocketServer(WebSocketOptions(host, port, '.'))
     print 'WebSocket server started on %s:%d...' % (host, server.server_port)
     server_data['port'] = server.server_port
   elif options.server_type == SERVER_SYNC:
