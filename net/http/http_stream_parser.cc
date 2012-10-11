@@ -8,6 +8,7 @@
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
+#include "base/values.h"
 #include "net/base/address_list.h"
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
@@ -54,6 +55,17 @@ bool HeadersContainMultipleCopiesOfField(
       return true;
   }
   return false;
+}
+
+Value* NetLogSendRequestBodyCallback(int length,
+                                     bool is_chunked,
+                                     bool did_merge,
+                                     net::NetLog::LogLevel /* log_level */) {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("length", length);
+  dict->SetBoolean("is_chunked", is_chunked);
+  dict->SetBoolean("did_merge", did_merge);
+  return dict;
 }
 
 }  // namespace
@@ -216,6 +228,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   response_->socket_address = HostPortPair::FromIPEndPoint(ip_endpoint);
 
   std::string request = request_line + headers.ToString();
+
   request_body_.reset(request_body.release());
   if (request_body_ != NULL) {
     request_body_buf_ = new SeekableIOBuffer(kRequestBodyBufferSize);
@@ -255,8 +268,14 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
     DCHECK(request_body_->IsEOF());
     // Reset the offset, so the buffer can be read from the beginning.
     request_headers_->SetOffset(0);
-
     did_merge = true;
+
+    net_log_.AddEvent(
+        NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_BODY,
+        base::Bind(&NetLogSendRequestBodyCallback,
+                   request_body_->size(),
+                   false, /* not chunked */
+                   true /* merged */));
   }
 
   if (!did_merge) {
@@ -429,11 +448,23 @@ int HttpStreamParser::DoSendHeaders(int result) {
                                           bytes_remaining,
                                           io_callback_);
   } else if (request_body_ != NULL && request_body_->is_chunked()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_BODY,
+        base::Bind(&NetLogSendRequestBodyCallback,
+                   request_body_->size(),
+                   true, /* chunked */
+                   false /* not merged */));
     io_state_ = STATE_SENDING_CHUNKED_BODY;
     result = OK;
   } else if (request_body_ != NULL && request_body_->size() > 0 &&
              // !IsEOF() indicates that the body wasn't merged.
              !request_body_->IsEOF()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_BODY,
+        base::Bind(&NetLogSendRequestBodyCallback,
+                   request_body_->size(),
+                   false, /* not chunked */
+                   false /* not merged */));
     io_state_ = STATE_SENDING_NON_CHUNKED_BODY;
     result = OK;
   } else {
