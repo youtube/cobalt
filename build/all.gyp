@@ -633,6 +633,7 @@
             '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:unit_tests',
             '../content/content.gyp:content_browsertests',
+            '../content/content.gyp:content_unittests',
             '../ppapi/ppapi_internal.gyp:ppapi_unittests',
             '../remoting/remoting.gyp:remoting_unittests',
             '../ui/aura/aura.gyp:*',
