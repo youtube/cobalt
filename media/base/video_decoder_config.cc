@@ -134,6 +134,7 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
   std::ostringstream s;
   s << "codec: " << codec()
     << " format: " << format()
+    << " profile: " << profile()
     << " coded size: [" << coded_size().width()
     << "," << coded_size().height() << "]"
     << " visible rect: [" << visible_rect().x()
@@ -142,7 +143,8 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << "," << visible_rect().height() << "]"
     << " natural size: [" << natural_size().width()
     << "," << natural_size().height() << "]"
-    << " encryption: [" << (is_encrypted() ? "true" : "false") << "]";
+    << " has extra data? " << (extra_data() ? "true" : "false")
+    << " encrypted? " << (is_encrypted() ? "true" : "false");
   return s.str();
 }
 
