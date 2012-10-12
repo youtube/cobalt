@@ -61,7 +61,8 @@ static const char* kCounterNames[] = {
   "Fatal error",
   "Last report",
   "Last report timer",
-  "Doom recent entries"
+  "Doom recent entries",
+  "ga.js evicted"
 };
 COMPILE_ASSERT(arraysize(kCounterNames) == disk_cache::Stats::MAX_COUNTER,
                update_the_names);
@@ -88,6 +89,11 @@ bool LoadStats(BackendImpl* backend, Addr address, OnDiskStats* stats) {
   // counter; we keep old data if we can.
   if (static_cast<unsigned int>(stats->size) > sizeof(*stats)) {
     memset(stats, 0, sizeof(*stats));
+    stats->signature = kDiskSignature;
+  } else if (static_cast<unsigned int>(stats->size) != sizeof(*stats)) {
+    size_t delta = sizeof(*stats) - static_cast<unsigned int>(stats->size);
+    memset(reinterpret_cast<char*>(stats) + stats->size, 0, delta);
+    stats->size = sizeof(*stats);
   }
 
   return true;
