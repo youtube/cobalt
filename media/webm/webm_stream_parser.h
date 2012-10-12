@@ -60,6 +60,9 @@ class WebMStreamParser : public StreamParser {
   // Returning > 0 indicates success & the number of bytes parsed.
   int ParseCluster(const uint8* data, int size);
 
+  // Fire needkey event through the |need_key_cb_|.
+  void FireNeedKey(const std::string& key_id);
+
   State state_;
   InitCB init_cb_;
   NewConfigCB config_cb_;

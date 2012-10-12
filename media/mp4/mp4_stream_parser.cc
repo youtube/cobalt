@@ -199,10 +199,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         return false;
       }
 
+      bool is_encrypted = entry.sinf.info.track_encryption.is_encrypted;
       audio_config.Initialize(kCodecAAC, entry.samplesize,
                               aac.channel_layout(),
                               aac.GetOutputSamplesPerSecond(has_sbr_),
-                              NULL, 0, false);
+                              NULL, 0, is_encrypted, false);
       has_audio_ = true;
       audio_track_id_ = track->header.track_id;
     }

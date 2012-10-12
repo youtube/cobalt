@@ -121,13 +121,12 @@ static void AppendToEnd(const WebMClusterParser::BufferQueue& src,
   }
 }
 
-class WebMClusterParserTest  : public testing::Test {
+class WebMClusterParserTest : public testing::Test {
  public:
   WebMClusterParserTest()
       : parser_(new WebMClusterParser(kTimecodeScale,
-                                      kAudioTrackNum,
-                                      kVideoTrackNum,
-                                      std::string())) {
+                                      kAudioTrackNum, kVideoTrackNum,
+                                      "", "")) {
   }
 
  protected:

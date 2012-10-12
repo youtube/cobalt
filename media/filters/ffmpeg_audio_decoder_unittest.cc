@@ -62,6 +62,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
                        44100,
                        vorbis_extradata_->GetData(),
                        vorbis_extradata_->GetDataSize(),
+                       false,  // Not encrypted.
                        true);
   }
 

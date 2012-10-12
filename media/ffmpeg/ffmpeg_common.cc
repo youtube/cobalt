@@ -222,6 +222,7 @@ void AVCodecContextToAudioDecoderConfig(
                      samples_per_second,
                      codec_context->extradata,
                      codec_context->extradata_size,
+                     false,  // Not encrypted.
                      true);
 }
 
@@ -291,7 +292,7 @@ void AVStreamToVideoDecoderConfig(
                      PixelFormatToVideoFormat(stream->codec->pix_fmt),
                      coded_size, visible_rect, natural_size,
                      stream->codec->extradata, stream->codec->extradata_size,
-                     false,
+                     false,  // Not encrypted.
                      true);
 }
 
