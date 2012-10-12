@@ -336,8 +336,11 @@ void InfiniteCacheTransaction::OnServedFromCache(
     return;
 
   resource_data_->details.flags |= CACHED;
-  if (!resource_data_->details.last_access)
+  if (!resource_data_->details.last_access) {
     OnResponseReceived(response);
+    // For cached responses, the request time is the last revalidation time.
+    resource_data_->details.last_access = TimeToInt(Time::Now());
+  }
 }
 
 void InfiniteCacheTransaction::Finish() {
@@ -456,6 +459,7 @@ class InfiniteCache::Worker : public base::RefCountedThreadSafe<Worker> {
 void InfiniteCache::Worker::Init(const FilePath& path) {
   path_ = path;
   LoadData();
+  UMA_HISTOGRAM_BOOLEAN("InfiniteCache.NewSession", true);
 }
 
 void InfiniteCache::Worker::Cleanup() {
@@ -509,9 +513,10 @@ void InfiniteCache::Worker::Process(
   if (data->details.response_size > kMaxTrackingSize)
     return;
 
-  if (header_->num_entries == kMaxNumEntries)
+  if (header_->num_entries == kMaxNumEntries || header_->disabled)
     return;
 
+  UMA_HISTOGRAM_BOOLEAN("InfiniteCache.TotalRequests", true);
   header_->num_requests++;
   KeyMap::iterator i = map_.find(data->key);
   if (i != map_.end()) {
@@ -569,8 +574,10 @@ void InfiniteCache::Worker::LoadData() {
   if (!ReadData(file))
     InitializeData();
   base::ClosePlatformFile(file);
-  if (header_->disabled)
+  if (header_->disabled) {
+    UMA_HISTOGRAM_BOOLEAN("InfiniteCache.Full", true);
     map_.clear();
+  }
 }
 
 void InfiniteCache::Worker::StoreData() {
@@ -789,20 +796,20 @@ void InfiniteCache::Worker::RecordHit(const Details& old, Details* details) {
   int access_delta = (IntToTime(details->last_access) -
                       IntToTime(old.last_access)).InMinutes();
   if (old.use_count) {
-    UMA_HISTOGRAM_COUNTS("InfiniteCache.ReuseAge", access_delta);
+    UMA_HISTOGRAM_COUNTS("InfiniteCache.ReuseAge2", access_delta);
     if (details->flags & GA_JS_HTTP) {
-      UMA_HISTOGRAM_COUNTS("InfiniteCache.GaJsHttpReuseAge", access_delta);
+      UMA_HISTOGRAM_COUNTS("InfiniteCache.GaJsHttpReuseAge2", access_delta);
     } else if (details->flags & GA_JS_HTTPS) {
-      UMA_HISTOGRAM_COUNTS("InfiniteCache.GaJsHttpsReuseAge", access_delta);
+      UMA_HISTOGRAM_COUNTS("InfiniteCache.GaJsHttpsReuseAge2", access_delta);
     }
   } else {
-    UMA_HISTOGRAM_COUNTS("InfiniteCache.FirstReuseAge", access_delta);
+    UMA_HISTOGRAM_COUNTS("InfiniteCache.FirstReuseAge2", access_delta);
     if (details->flags & GA_JS_HTTP) {
       UMA_HISTOGRAM_COUNTS(
-          "InfiniteCache.GaJsHttpFirstReuseAge", access_delta);
+          "InfiniteCache.GaJsHttpFirstReuseAge2", access_delta);
     } else if (details->flags & GA_JS_HTTPS) {
       UMA_HISTOGRAM_COUNTS(
-          "InfiniteCache.GaJsHttpsFirstReuseAge", access_delta);
+          "InfiniteCache.GaJsHttpsFirstReuseAge2", access_delta);
     }
   }
 
@@ -824,22 +831,22 @@ void InfiniteCache::Worker::RecordUpdate(const Details& old, Details* details) {
   int access_delta = (IntToTime(details->last_access) -
                       IntToTime(old.last_access)).InMinutes();
   if (old.update_count) {
-    UMA_HISTOGRAM_COUNTS("InfiniteCache.UpdateAge", access_delta);
+    UMA_HISTOGRAM_COUNTS("InfiniteCache.UpdateAge2", access_delta);
     if (details->flags & GA_JS_HTTP) {
       UMA_HISTOGRAM_COUNTS(
-          "InfiniteCache.GaJsHttpUpdateAge", access_delta);
+          "InfiniteCache.GaJsHttpUpdateAge2", access_delta);
     } else if (details->flags & GA_JS_HTTPS) {
       UMA_HISTOGRAM_COUNTS(
-          "InfiniteCache.GaJsHttpsUpdateAge", access_delta);
+          "InfiniteCache.GaJsHttpsUpdateAge2", access_delta);
     }
   } else {
-    UMA_HISTOGRAM_COUNTS("InfiniteCache.FirstUpdateAge", access_delta);
+    UMA_HISTOGRAM_COUNTS("InfiniteCache.FirstUpdateAge2", access_delta);
     if (details->flags & GA_JS_HTTP) {
       UMA_HISTOGRAM_COUNTS(
-          "InfiniteCache.GaJsHttpFirstUpdateAge", access_delta);
+          "InfiniteCache.GaJsHttpFirstUpdateAge2", access_delta);
     } else if (details->flags & GA_JS_HTTPS) {
       UMA_HISTOGRAM_COUNTS(
-          "InfiniteCache.GaJsHttpsFirstUpdateAge", access_delta);
+          "InfiniteCache.GaJsHttpsFirstUpdateAge2", access_delta);
     }
   }
 
@@ -927,8 +934,7 @@ bool InfiniteCache::Worker::CanReuse(const Details& old,
   };
   int reason = REUSE_OK;
 
-  Time expiration = IntToTime(old.expiration);
-  if (expiration < Time::Now())
+  if (old.expiration < current.last_access)
     reason = REUSE_EXPIRED;
 
   if (old.flags & EXPIRED)
@@ -947,13 +953,13 @@ bool InfiniteCache::Worker::CanReuse(const Details& old,
   if (reason && (old.flags & REVALIDATEABLE) && !have_to_drop)
     reason += REUSE_REVALIDATEABLE;
 
-  UMA_HISTOGRAM_ENUMERATION("InfiniteCache.ReuseFailure", reason, 15);
+  UMA_HISTOGRAM_ENUMERATION("InfiniteCache.ReuseFailure2", reason, 15);
   if (current.flags & GA_JS_HTTP) {
     UMA_HISTOGRAM_ENUMERATION(
-        "InfiniteCache.GaJsHttpReuseFailure", reason, 15);
+        "InfiniteCache.GaJsHttpReuseFailure2", reason, 15);
   } else if (current.flags & GA_JS_HTTPS) {
     UMA_HISTOGRAM_ENUMERATION(
-        "InfiniteCache.GaJsHttpsReuseFailure", reason, 15);
+        "InfiniteCache.GaJsHttpsReuseFailure2", reason, 15);
   }
   return !reason;
 }

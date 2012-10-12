@@ -11,6 +11,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_transaction_unittest.h"
+#include "net/http/http_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::Time;
@@ -22,13 +23,21 @@ namespace {
 
 void StartRequest(const MockTransaction& http_transaction,
                   InfiniteCacheTransaction* transaction) {
+  std::string standard_headers(http_transaction.status);
+  standard_headers.push_back('\n');
+  standard_headers.append(http_transaction.response_headers);
+  std::string raw_headers =
+      net::HttpUtil::AssembleRawHeaders(standard_headers.c_str(),
+                                        standard_headers.size());
+
   scoped_refptr<net::HttpResponseHeaders> headers(
-      new net::HttpResponseHeaders(http_transaction.response_headers));
+      new net::HttpResponseHeaders(raw_headers));
   net::HttpResponseInfo response;
   response.headers = headers;
   response.request_time = http_transaction.request_time.is_null() ?
                           Time::Now() : http_transaction.request_time;
-  response.response_time = Time::Now();
+  response.response_time = http_transaction.response_time.is_null() ?
+                           Time::Now() : http_transaction.response_time;
 
   MockHttpRequest request(http_transaction);
   transaction->OnRequestStart(&request);
@@ -52,6 +61,7 @@ void ProcessRequestWithTime(const MockTransaction& http_transaction,
 
   MockTransaction timed_transaction = http_transaction;
   timed_transaction.request_time = time;
+  timed_transaction.response_time = time;
   StartRequest(timed_transaction, transaction.get());
   transaction->OnDataRead(http_transaction.data, strlen(http_transaction.data));
 }
@@ -202,7 +212,7 @@ TEST(InfiniteCache, DeleteBetween) {
   Time end = start + TimeDelta::FromSeconds(2);
 
   ProcessRequestWithTime(kETagGET_Transaction, cache.get(),
-                          end + TimeDelta::FromSeconds(2));
+                         end + TimeDelta::FromSeconds(2));
 
   EXPECT_EQ(3, cb.GetResult(cache->QueryItemsForTest(cb.callback())));
   EXPECT_EQ(net::OK,
@@ -216,7 +226,8 @@ TEST(InfiniteCache, DeleteBetween) {
   cache->Init(path);
 
   EXPECT_EQ(2, cb.GetResult(cache->QueryItemsForTest(cb.callback())));
-  ProcessRequest(kETagGET_Transaction, cache.get());
+  ProcessRequestWithTime(kETagGET_Transaction, cache.get(),
+                         end + TimeDelta::FromMinutes(5));
   EXPECT_EQ(2, cb.GetResult(cache->QueryItemsForTest(cb.callback())));
 
   EXPECT_EQ(net::OK,
