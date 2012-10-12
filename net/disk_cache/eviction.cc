@@ -281,8 +281,6 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty,
   ReportTrimTimes(entry);
   if (empty || !new_eviction_) {
     entry->DoomImpl();
-    if (!empty)
-      backend_->OnEvent(Stats::TRIM_ENTRY);
   } else {
     entry->DeleteEntryData(false);
     EntryStore* info = entry->entry()->Data();
@@ -292,7 +290,13 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty,
     info->state = ENTRY_EVICTED;
     entry->entry()->Store();
     rankings_->Insert(entry->rankings(), true, Rankings::DELETED);
+  }
+  if (!empty) {
     backend_->OnEvent(Stats::TRIM_ENTRY);
+
+    static const char gajs[] = "http://www.google-analytics.com/ga.js";
+    if (!entry->GetKey().compare(gajs))
+      backend_->OnEvent(Stats::GAJS_EVICTED);
   }
   entry->Release();
 
