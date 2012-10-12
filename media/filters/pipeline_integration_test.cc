@@ -368,7 +368,9 @@ TEST_F(PipelineIntegrationTest, BasicPlayback_16x9AspectRatio) {
   ASSERT_TRUE(WaitUntilOnEnded());
 }
 
-TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
+// TODO(fgalligan): Enable after WebM parser has been updated.
+// http://crbug.com/155641
+TEST_F(PipelineIntegrationTest, DISABLED_EncryptedPlayback) {
   MockMediaSource source("bear-320x240-encrypted.webm", kWebM, 219816);
   FakeDecryptorClient encrypted_media;
   StartPipelineWithEncryptedMedia(&source, &encrypted_media);
