@@ -3569,7 +3569,7 @@ dtoa
 	int denorm;
 	ULong x;
 #endif
-	Bigint *b, *b1, *delta, *mlo, *mhi, *S;
+	Bigint *b, *b1, *delta, *mlo = NULL, *mhi, *S;
 	U d2, eps, u;
 	double ds;
 	char *s, *s0;
