@@ -48,6 +48,7 @@ class Stats {
     LAST_REPORT,  // Time of the last time we sent a report.
     LAST_REPORT_TIMER,  // Timer count of the last time we sent a report.
     DOOM_RECENT,  // The cache was partially cleared.
+    GAJS_EVICTED,  // ga.js was evicted from the cache.
     MAX_COUNTER
   };
 

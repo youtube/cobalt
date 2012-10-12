@@ -1538,6 +1538,7 @@ void BackendImpl::RestartCache(bool failure) {
   int64 errors = stats_.GetCounter(Stats::FATAL_ERROR);
   int64 full_dooms = stats_.GetCounter(Stats::DOOM_CACHE);
   int64 partial_dooms = stats_.GetCounter(Stats::DOOM_RECENT);
+  int64 ga_evictions = stats_.GetCounter(Stats::GAJS_EVICTED);
   int64 last_report = stats_.GetCounter(Stats::LAST_REPORT);
 
   PrepareForRestart();
@@ -1557,6 +1558,7 @@ void BackendImpl::RestartCache(bool failure) {
     stats_.SetCounter(Stats::FATAL_ERROR, errors);
     stats_.SetCounter(Stats::DOOM_CACHE, full_dooms);
     stats_.SetCounter(Stats::DOOM_RECENT, partial_dooms);
+    stats_.SetCounter(Stats::GAJS_EVICTED, ga_evictions);
     stats_.SetCounter(Stats::LAST_REPORT, last_report);
   }
 }
@@ -2013,9 +2015,12 @@ void BackendImpl::ReportStats() {
             static_cast<int>(stats_.GetCounter(Stats::DOOM_CACHE)));
   CACHE_UMA(COUNTS_10000, "TotalDoomRecentEntries", 0,
             static_cast<int>(stats_.GetCounter(Stats::DOOM_RECENT)));
+  CACHE_UMA(COUNTS_10000, "TotalEvictionsGaJs", 0,
+            static_cast<int>(stats_.GetCounter(Stats::GAJS_EVICTED)));
   stats_.SetCounter(Stats::FATAL_ERROR, 0);
   stats_.SetCounter(Stats::DOOM_CACHE, 0);
   stats_.SetCounter(Stats::DOOM_RECENT, 0);
+  stats_.SetCounter(Stats::GAJS_EVICTED, 0);
 
   int64 total_hours = stats_.GetCounter(Stats::TIMER) / 120;
   if (!data_->header.create_time || !data_->header.lru.filled) {
