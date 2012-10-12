@@ -31,9 +31,6 @@
         'src/hb-font.h',
         'src/hb-glib.cc',
         'src/hb-glib.h',
-        'src/hb-gobject-enums.cc',
-        'src/hb-gobject-structs.cc',
-        'src/hb-gobject.h',
         'src/hb-icu.cc',
         'src/hb-icu.h',
         'src/hb-mutex-private.hh',
@@ -96,7 +93,6 @@
       ],
       'sources/': [
         ['exclude', 'src/hb-glib\\.(cc|h)$'],
-        ['exclude', 'src/hb-gobject.*\\.(cc|h)$'],
       ],
       'include_dirs': [
         'src',
@@ -116,7 +112,6 @@
           ],
           'sources/': [
             ['include', 'src/hb-glib\\.(cc|h)$'],
-            ['include', 'src/hb-gobject.*\\.(cc|h)$'],
           ],
           'dependencies': [
             '../../base/base.gyp:base',
