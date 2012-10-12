@@ -333,6 +333,8 @@ static const char* const supported_non_image_types[] = {
   "text/",
   "image/svg+xml",  // SVG is text-based XML, even though it has an image/ type
   "application/xml",
+  "application/atom+xml",
+  "application/rss+xml",
   "application/xhtml+xml",
   "application/json",
   "application/x-x509-user-cert",
