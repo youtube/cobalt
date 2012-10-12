@@ -85,20 +85,23 @@ scoped_refptr<VideoFrame> VideoFrame::CreateEmptyFrame() {
 }
 
 // static
-scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(
-    const gfx::Size& data_size) {
-  DCHECK(IsValidConfig(VideoFrame::YV12, data_size, data_size));
+scoped_refptr<VideoFrame> VideoFrame::CreateColorFrame(
+    const gfx::Size& size,
+    uint8 y, uint8 u, uint8 v,
+    base::TimeDelta timestamp) {
+  DCHECK(IsValidConfig(VideoFrame::YV12, size, size));
+  scoped_refptr<VideoFrame> frame = VideoFrame::CreateFrame(
+      VideoFrame::YV12, size, size, timestamp);
+  FillYUV(frame, y, u, v);
+  return frame;
+}
 
-  // Create our frame.
-  const base::TimeDelta kZero;
-  scoped_refptr<VideoFrame> frame =
-      VideoFrame::CreateFrame(VideoFrame::YV12, data_size, data_size, kZero);
-
-  // Now set the data to YUV(0,128,128).
+// static
+scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(const gfx::Size& size) {
   const uint8 kBlackY = 0x00;
   const uint8 kBlackUV = 0x80;
-  FillYUV(frame, kBlackY, kBlackUV, kBlackUV);
-  return frame;
+  const base::TimeDelta kZero;
+  return CreateColorFrame(size, kBlackY, kBlackUV, kBlackUV, kZero);
 }
 
 static inline size_t RoundUp(size_t value, size_t alignment) {
