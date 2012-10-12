@@ -84,8 +84,14 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // and timestamp are all 0.
   static scoped_refptr<VideoFrame> CreateEmptyFrame();
 
-  // Allocates YV12 frame based on |width| and |height|, and sets its data to
-  // the YUV equivalent of RGB(0,0,0).
+  // Allocates YV12 frame based on |size|, and sets its data to the YUV(y,u,v).
+  static scoped_refptr<VideoFrame> CreateColorFrame(
+      const gfx::Size& data_size,
+      uint8 y, uint8 u, uint8 v,
+      base::TimeDelta timestamp);
+
+  // Allocates YV12 frame based on |size|, and sets its data to the YUV
+  // equivalent of RGB(0,0,0).
   static scoped_refptr<VideoFrame> CreateBlackFrame(const gfx::Size& size);
 
   Format format() const { return format_; }
