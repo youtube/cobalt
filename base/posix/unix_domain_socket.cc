@@ -14,6 +14,8 @@
 #include "base/pickle.h"
 #include "base/stl_util.h"
 
+const size_t UnixDomainSocket::kMaxFileDescriptors = 16;
+
 // static
 bool UnixDomainSocket::SendMsg(int fd,
                                const void* buf,
@@ -52,8 +54,6 @@ ssize_t UnixDomainSocket::RecvMsg(int fd,
                                   void* buf,
                                   size_t length,
                                   std::vector<int>* fds) {
-  static const unsigned kMaxDescriptors = 16;
-
   fds->clear();
 
   struct msghdr msg;
@@ -62,7 +62,7 @@ ssize_t UnixDomainSocket::RecvMsg(int fd,
   msg.msg_iov = &iov;
   msg.msg_iovlen = 1;
 
-  char control_buffer[CMSG_SPACE(sizeof(int) * kMaxDescriptors)];
+  char control_buffer[CMSG_SPACE(sizeof(int) * kMaxFileDescriptors)];
   msg.msg_control = control_buffer;
   msg.msg_controllen = sizeof(control_buffer);
 
