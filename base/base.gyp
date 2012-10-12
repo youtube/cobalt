@@ -580,6 +580,16 @@
             # Unittests that don't pass.
             ['exclude', '^message_loop_unittest\\.cc$'],
           ],
+          'conditions': [
+            ['coverage != 0', {
+              # These sources can't be built with coverage due to a toolchain
+              # bug: http://openradar.appspot.com/radar?id=1499403
+              'sources!': [
+                'json/json_reader_unittest.cc',
+                'string_piece_unittest.cc',
+              ],
+            }],
+          ],
           'actions': [
             {
               'action_name': 'copy_test_data',
