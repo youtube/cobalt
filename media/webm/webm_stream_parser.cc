@@ -351,6 +351,25 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
     return -1;
   }
 
+  bool is_audio_encrypted = !tracks_parser.audio_encryption_key_id().empty();
+  AudioDecoderConfig audio_config;
+  if (is_audio_encrypted) {
+    const AudioDecoderConfig& original_audio_config =
+        config_helper.audio_config();
+
+    audio_config.Initialize(original_audio_config.codec(),
+                            original_audio_config.bits_per_channel(),
+                            original_audio_config.channel_layout(),
+                            original_audio_config.samples_per_second(),
+                            original_audio_config.extra_data(),
+                            original_audio_config.extra_data_size(),
+                            is_audio_encrypted, false);
+
+    FireNeedKey(tracks_parser.audio_encryption_key_id());
+  } else {
+    audio_config.CopyFrom(config_helper.audio_config());
+  }
+
   // TODO(xhwang): Support decryption of audio (see http://crbug.com/123421).
   bool is_video_encrypted = !tracks_parser.video_encryption_key_id().empty();
 
@@ -368,18 +387,12 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
                             original_video_config.extra_data_size(),
                             is_video_encrypted, false);
 
-    // Fire needkey event.
-    std::string key_id = tracks_parser.video_encryption_key_id();
-    int key_id_size = key_id.size();
-    DCHECK_GT(key_id_size, 0);
-    scoped_array<uint8> key_id_array(new uint8[key_id_size]);
-    memcpy(key_id_array.get(), key_id.data(), key_id_size);
-    need_key_cb_.Run(key_id_array.Pass(), key_id_size);
+    FireNeedKey(tracks_parser.video_encryption_key_id());
   } else {
     video_config.CopyFrom(config_helper.video_config());
   }
 
-  if (!config_cb_.Run(config_helper.audio_config(), video_config)) {
+  if (!config_cb_.Run(audio_config, video_config)) {
     DVLOG(1) << "New config data isn't allowed.";
     return -1;
   }
@@ -388,6 +401,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
       info_parser.timecode_scale(),
       tracks_parser.audio_track_num(),
       tracks_parser.video_track_num(),
+      tracks_parser.audio_encryption_key_id(),
       tracks_parser.video_encryption_key_id()));
 
   ChangeState(kParsingClusters);
@@ -453,6 +467,14 @@ int WebMStreamParser::ParseCluster(const uint8* data, int size) {
     end_of_segment_cb_.Run();
 
   return bytes_parsed;
+}
+
+void WebMStreamParser::FireNeedKey(const std::string& key_id) {
+  int key_id_size = key_id.size();
+  DCHECK_GT(key_id_size, 0);
+  scoped_array<uint8> key_id_array(new uint8[key_id_size]);
+  memcpy(key_id_array.get(), key_id.data(), key_id_size);
+  need_key_cb_.Run(key_id_array.Pass(), key_id_size);
 }
 
 }  // namespace media

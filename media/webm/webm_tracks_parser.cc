@@ -25,15 +25,6 @@ WebMTracksParser::WebMTracksParser()
 
 WebMTracksParser::~WebMTracksParser() {}
 
-const std::string& WebMTracksParser::video_encryption_key_id() const {
-  if (!video_content_encodings_client_.get())
-    return EmptyString();
-
-  DCHECK(!video_content_encodings_client_->content_encodings().empty());
-  return video_content_encodings_client_->content_encodings()[0]->
-      encryption_key_id();
-}
-
 int WebMTracksParser::Parse(const uint8* buf, int size) {
   track_type_ =-1;
   track_num_ = -1;
@@ -49,7 +40,6 @@ int WebMTracksParser::Parse(const uint8* buf, int size) {
   // For now we do all or nothing parsing.
   return parser.IsParsingComplete() ? result : 0;
 }
-
 
 WebMParserClient* WebMTracksParser::OnListStart(int id) {
   if (id == kWebMIdContentEncodings) {
@@ -81,21 +71,27 @@ bool WebMTracksParser::OnListEnd(int id) {
       return false;
     }
 
-    if (track_type_ == kWebMTrackTypeVideo) {
-      video_track_num_ = track_num_;
-      if (track_content_encodings_client_.get()) {
-        video_content_encodings_client_ =
-            track_content_encodings_client_.Pass();
-      }
-    } else if (track_type_ == kWebMTrackTypeAudio) {
-      audio_track_num_ = track_num_;
-      if (track_content_encodings_client_.get()) {
-        audio_content_encodings_client_ =
-            track_content_encodings_client_.Pass();
-      }
-    } else {
+    if (track_type_ != kWebMTrackTypeAudio &&
+        track_type_ != kWebMTrackTypeVideo) {
       DVLOG(1) << "Unexpected TrackType " << track_type_;
       return false;
+    }
+
+    std::string encryption_key_id;
+    if (track_content_encodings_client_.get()) {
+      DCHECK(!track_content_encodings_client_->content_encodings().empty());
+      // If we have multiple ContentEncoding in one track. Always choose the
+      // key id in the first ContentEncoding as the key id of the track.
+      encryption_key_id = track_content_encodings_client_->
+          content_encodings()[0]->encryption_key_id();
+    }
+
+    if (track_type_ == kWebMTrackTypeAudio) {
+      audio_track_num_ = track_num_;
+      audio_encryption_key_id_ = encryption_key_id;
+    } else if (track_type_ == kWebMTrackTypeVideo) {
+      video_track_num_ = track_num_;
+      video_encryption_key_id_ = encryption_key_id;
     }
 
     track_type_ = -1;
