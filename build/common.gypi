@@ -1661,11 +1661,13 @@
       }],
       ['coverage!=0', {
         'conditions': [
-          ['OS=="mac"', {
+          ['OS=="mac" or OS=="ios"', {
             'xcode_settings': {
               'GCC_INSTRUMENT_PROGRAM_FLOW_ARCS': 'YES',  # -fprofile-arcs
               'GCC_GENERATE_TEST_COVERAGE_FILES': 'YES',  # -ftest-coverage
             },
+          }],
+          ['OS=="mac"', {
             # Add -lgcov for types executable, shared_library, and
             # loadable_module; not for static_library.
             # This is a delayed conditional.
