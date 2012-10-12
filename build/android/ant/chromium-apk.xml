@@ -40,8 +40,14 @@
   <property-value name="version.code" value="${APP_MANIFEST_VERSION_CODE}"/>
   <property-value name="version.name" value="${APP_MANIFEST_VERSION_NAME}"/>
 
-  <property name="proguard.config" value="${PROGUARD_FLAGS}"/>
-  <property name="proguard.enabled" value="${PROGUARD_ENABLED}"/>
+  <!--
+    We use the PROGUARD_ENABLED flag for enabling proguard. By default proguard is enabled for
+    Release builds if proguard.config is set. Setting proguard.config even to an empty string will
+    enable proguard. Set this property only when we have explicitly enabled proguard.
+  -->
+  <condition property="proguard.config" value="${PROGUARD_FLAGS}">
+    <istrue value="${PROGUARD_ENABLED}"/>
+  </condition>
   <!-- TODO(shashishekhar): Enable emma and code-coverage filters. -->
 
   <condition property="asset.absolute.dir"
