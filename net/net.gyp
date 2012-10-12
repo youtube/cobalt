@@ -1583,6 +1583,15 @@
               # OS is not "linux" or "freebsd" or "openbsd".
               'base/unix_domain_socket_posix_unittest.cc',
             ],
+            'conditions': [
+              ['coverage != 0', {
+                # These sources can't be built with coverage due to a toolchain
+                # bug: http://openradar.appspot.com/radar?id=1499403
+                'sources!': [
+                  'base/transport_security_state_unittest.cc',
+                ],
+              }],
+            ],
         }],
         [ 'OS == "linux"', {
             'dependencies': [
