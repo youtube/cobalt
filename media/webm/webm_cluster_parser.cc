@@ -26,8 +26,10 @@ static std::string GenerateCounterBlock(uint64 iv) {
 WebMClusterParser::WebMClusterParser(int64 timecode_scale,
                                      int audio_track_num,
                                      int video_track_num,
+                                     const std::string& audio_encryption_key_id,
                                      const std::string& video_encryption_key_id)
     : timecode_multiplier_(timecode_scale / 1000.0),
+      audio_encryption_key_id_(audio_encryption_key_id),
       video_encryption_key_id_(video_encryption_key_id),
       parser_(kWebMIdCluster, this),
       last_block_timecode_(-1),
@@ -198,16 +200,23 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     return false;
   }
 
+  Track* track = NULL;
+  std::string encryption_key_id;
+  if (track_num == audio_.track_num()) {
+    track = &audio_;
+    encryption_key_id = audio_encryption_key_id_;
+  } else if (track_num == video_.track_num()) {
+    track = &video_;
+    encryption_key_id = video_encryption_key_id_;
+  } else {
+    DVLOG(1) << "Unexpected track number " << track_num;
+    return false;
+  }
+
   last_block_timecode_ = timecode;
 
   base::TimeDelta timestamp = base::TimeDelta::FromMicroseconds(
       (cluster_timecode_ + timecode) * timecode_multiplier_);
-
-  // Every encrypted Block has a signal byte and IV prepended to it. Current
-  // encrypted WebM request for comments specification is here
-  // http://wiki.webmproject.org/encryption/webm-encryption-rfc
-  bool is_track_encrypted =
-      track_num == video_.track_num() && !video_encryption_key_id_.empty();
 
   // The first bit of the flags is set when the block contains only keyframes.
   // http://www.matroska.org/technical/specs/index.html
@@ -215,7 +224,10 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   scoped_refptr<StreamParserBuffer> buffer =
       StreamParserBuffer::CopyFrom(data, size, is_keyframe);
 
-  if (is_track_encrypted) {
+  // Every encrypted Block has a signal byte and IV prepended to it. Current
+  // encrypted WebM request for comments specification is here
+  // http://wiki.webmproject.org/encryption/webm-encryption-rfc
+  if (!encryption_key_id.empty()) {
     uint8 signal_byte = data[0];
     int data_offset = sizeof(signal_byte);
 
@@ -227,9 +239,8 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     if (signal_byte & kWebMFlagEncryptedFrame) {
       uint64 network_iv;
       memcpy(&network_iv, data + data_offset, sizeof(network_iv));
-      const uint64 iv = base::NetToHost64(network_iv);
-      counter_block = GenerateCounterBlock(iv);
-      data_offset += sizeof(iv);
+      data_offset += sizeof(network_iv);
+      counter_block = GenerateCounterBlock(base::NetToHost64(network_iv));
     }
 
     // TODO(fgalligan): Revisit if DecryptConfig needs to be set on unencrypted
@@ -237,7 +248,7 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     // Unencrypted frames of potentially encrypted streams currently set
     // DecryptConfig.
     buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
-        video_encryption_key_id_,
+        encryption_key_id,
         counter_block,
         data_offset,
         std::vector<SubsampleEntry>())));
@@ -252,14 +263,7 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
         block_duration * timecode_multiplier_));
   }
 
-  if (track_num == audio_.track_num()) {
-    return audio_.AddBuffer(buffer);
-  } else if (track_num == video_.track_num()) {
-    return video_.AddBuffer(buffer);
-  }
-
-  DVLOG(1) << "Unexpected track number " << track_num;
-  return false;
+  return track->AddBuffer(buffer);
 }
 
 WebMClusterParser::Track::Track(int track_num)

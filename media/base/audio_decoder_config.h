@@ -51,7 +51,8 @@ class MEDIA_EXPORT AudioDecoderConfig {
   // |extra_data|, otherwise the memory is copied.
   AudioDecoderConfig(AudioCodec codec, int bits_per_channel,
                      ChannelLayout channel_layout, int samples_per_second,
-                     const uint8* extra_data, size_t extra_data_size);
+                     const uint8* extra_data, size_t extra_data_size,
+                     bool is_encrypted);
 
   ~AudioDecoderConfig();
 
@@ -59,6 +60,7 @@ class MEDIA_EXPORT AudioDecoderConfig {
   void Initialize(AudioCodec codec, int bits_per_channel,
                   ChannelLayout channel_layout, int samples_per_second,
                   const uint8* extra_data, size_t extra_data_size,
+                  bool is_encrypted,
                   bool record_stats);
 
   // Deep copies |audio_config|.
@@ -82,6 +84,11 @@ class MEDIA_EXPORT AudioDecoderConfig {
   uint8* extra_data() const;
   size_t extra_data_size() const;
 
+  // Whether the audio stream is potentially encrypted.
+  // Note that in a potentially encrypted audio stream, individual buffers
+  // can be encrypted or not encrypted.
+  bool is_encrypted() const;
+
  private:
   AudioCodec codec_;
   int bits_per_channel_;
@@ -90,6 +97,8 @@ class MEDIA_EXPORT AudioDecoderConfig {
 
   scoped_array<uint8> extra_data_;
   size_t extra_data_size_;
+
+  bool is_encrypted_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioDecoderConfig);
 };
