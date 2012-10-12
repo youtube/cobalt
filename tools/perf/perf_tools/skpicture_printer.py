@@ -17,7 +17,7 @@ class SkPicturePrinter(multi_page_benchmark.MultiPageBenchmark):
     options.extra_browser_args.extend(['--enable-gpu-benchmarking',
                                        '--no-sandbox'])
 
-  def MeasurePage(self, page, tab):
+  def MeasurePage(self, page, tab, results):
     # Derive output path from the URL. The pattern just replaces all special
     # characters in the url with underscore.
     outpath = re.sub('://|[.~!*\:@&=+$,/?%#]', '_', page.url)
@@ -27,7 +27,7 @@ class SkPicturePrinter(multi_page_benchmark.MultiPageBenchmark):
     # Replace win32 path separator char '\' with '\\'.
     js = _JS.format(outpath.replace('\\', '\\\\'))
     tab.runtime.Evaluate(js)
-    return {'output_path': outpath}
+    results.Add('output_path', 'path', outpath)
 
 def Main():
   return multi_page_benchmark.Main(SkPicturePrinter())

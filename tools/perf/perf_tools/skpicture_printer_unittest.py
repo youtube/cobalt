@@ -30,7 +30,7 @@ class SkPicturePrinterUnitTest(
 
     self.assertEqual(0, len(all_results.page_failures))
     self.assertEqual(1, len(all_results.page_results))
-    results0 = all_results.page_results[0]['results']
+    results0 = all_results.page_results[0]
 
     outdir = results0['output_path']
     self.assertTrue('non_scrollable_page_html' in outdir)
