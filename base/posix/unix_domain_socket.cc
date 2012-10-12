@@ -111,7 +111,7 @@ ssize_t UnixDomainSocket::SendRecvMsg(int fd,
   // This socketpair is only used for the IPC and is cleaned up before
   // returning.
   if (socketpair(AF_UNIX, SOCK_DGRAM, 0, fds) == -1)
-      return false;
+    return -1;
 
   std::vector<int> fd_vector;
   fd_vector.push_back(fds[1]);
