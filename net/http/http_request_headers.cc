@@ -207,8 +207,8 @@ bool HttpRequestHeaders::FromNetLogParam(const base::Value* event_param,
   headers->Clear();
   *request_line = "";
 
-  const base::DictionaryValue* dict;
-  const base::ListValue* header_list;
+  const base::DictionaryValue* dict = NULL;
+  const base::ListValue* header_list = NULL;
 
   if (!event_param ||
       !event_param->GetAsDictionary(&dict) ||

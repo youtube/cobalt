@@ -27,8 +27,8 @@ bool SpdyHeaderBlockFromNetLogParam(
     SpdyHeaderBlock* headers) {
   headers->clear();
 
-  const base::DictionaryValue* dict;
-  const base::DictionaryValue* header_dict;
+  const base::DictionaryValue* dict = NULL;
+  const base::DictionaryValue* header_dict = NULL;
 
   if (!event_param ||
       !event_param->GetAsDictionary(&dict) ||
