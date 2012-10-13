@@ -96,6 +96,11 @@ class scoped_nsprotocol {
     return temp;
   }
 
+  // Shift reference to the autorelease pool to be released later.
+  NST autorelease() {
+    return [release() autorelease];
+  }
+
  private:
   NST object_;
 };
