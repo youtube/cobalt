@@ -1295,8 +1295,8 @@ bool HttpResponseHeaders::FromNetLogParam(
     scoped_refptr<HttpResponseHeaders>* http_response_headers) {
   *http_response_headers = NULL;
 
-  const base::DictionaryValue* dict;
-  const base::ListValue* header_list;
+  const base::DictionaryValue* dict = NULL;
+  const base::ListValue* header_list = NULL;
 
   if (!event_param ||
       !event_param->GetAsDictionary(&dict) ||
