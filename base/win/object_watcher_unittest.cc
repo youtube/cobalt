@@ -70,7 +70,6 @@ void RunTest_BasicCancel(MessageLoop::Type message_loop_type) {
   CloseHandle(event);
 }
 
-
 void RunTest_CancelAfterSet(MessageLoop::Type message_loop_type) {
   MessageLoop message_loop(message_loop_type);
 
@@ -79,7 +78,7 @@ void RunTest_CancelAfterSet(MessageLoop::Type message_loop_type) {
   int counter = 1;
   DecrementCountDelegate delegate(&counter);
 
-    // A manual-reset event that is not yet signaled.
+  // A manual-reset event that is not yet signaled.
   HANDLE event = CreateEvent(NULL, TRUE, FALSE, NULL);
 
   bool ok = watcher.StartWatching(event, &delegate);
@@ -97,6 +96,24 @@ void RunTest_CancelAfterSet(MessageLoop::Type message_loop_type) {
   // Our delegate should not have fired.
   EXPECT_EQ(1, counter);
 
+  CloseHandle(event);
+}
+
+void RunTest_SignalBeforeWatch(MessageLoop::Type message_loop_type) {
+  MessageLoop message_loop(message_loop_type);
+
+  ObjectWatcher watcher;
+
+  // A manual-reset event that is signaled before we begin watching.
+  HANDLE event = CreateEvent(NULL, TRUE, TRUE, NULL);
+
+  QuitDelegate delegate;
+  bool ok = watcher.StartWatching(event, &delegate);
+  EXPECT_TRUE(ok);
+
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(NULL, watcher.GetWatchedObject());
   CloseHandle(event);
 }
 
@@ -137,6 +154,12 @@ TEST(ObjectWatcherTest, CancelAfterSet) {
   RunTest_CancelAfterSet(MessageLoop::TYPE_DEFAULT);
   RunTest_CancelAfterSet(MessageLoop::TYPE_IO);
   RunTest_CancelAfterSet(MessageLoop::TYPE_UI);
+}
+
+TEST(ObjectWatcherTest, SignalBeforeWatch) {
+  RunTest_SignalBeforeWatch(MessageLoop::TYPE_DEFAULT);
+  RunTest_SignalBeforeWatch(MessageLoop::TYPE_IO);
+  RunTest_SignalBeforeWatch(MessageLoop::TYPE_UI);
 }
 
 TEST(ObjectWatcherTest, OutlivesMessageLoop) {
