@@ -821,6 +821,11 @@
           'include_dirs': [
             '<(SHARED_INTERMEDIATE_DIR)/ui',
           ],
+          'link_settings': {
+            'libraries': [
+              '-ljnigraphics',
+            ],
+          },
         }],
         ['OS=="android" and android_build_type==0', {
           'dependencies': [
