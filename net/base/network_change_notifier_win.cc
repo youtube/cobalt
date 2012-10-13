@@ -55,7 +55,8 @@ NetworkChangeNotifierWin::NetworkChangeNotifierWin()
     : is_watching_(false),
       sequential_failures_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-      dns_config_service_thread_(new DnsConfigServiceThread()) {
+      dns_config_service_thread_(new DnsConfigServiceThread()),
+      last_announced_offline_(IsOffline()) {
   memset(&addr_overlapped_, 0, sizeof addr_overlapped_);
   addr_overlapped_.hEvent = WSACreateEvent();
   dns_config_service_thread_->StartWithOptions(
@@ -212,7 +213,9 @@ void NetworkChangeNotifierWin::NotifyObservers() {
   //
   // The one second delay chosen here was determined experimentally
   // by adamk on Windows 7.
-  timer_.Stop();  // cancel any already waiting notification
+  // If after one second we determine we are still offline, we will
+  // delay again.
+  offline_polls_ = 0;
   timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
                &NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange);
 }
@@ -271,6 +274,21 @@ bool NetworkChangeNotifierWin::WatchForAddressChangeInternal() {
 }
 
 void NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange() {
+  bool current_offline = IsOffline();
+  offline_polls_++;
+  // If we continue to appear offline, delay sending out the notification in
+  // case we appear to go online within 20 seconds.  UMA histogram data shows
+  // we may not detect the transition to online state after 1 second but within
+  // 20 seconds we generally do.
+  if (last_announced_offline_ && current_offline && offline_polls_ <= 20) {
+    timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
+                 &NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange);
+    return;
+  }
+  if (last_announced_offline_)
+    UMA_HISTOGRAM_CUSTOM_COUNTS("NCN.OfflinePolls", offline_polls_, 1, 50, 50);
+  last_announced_offline_ = current_offline;
+
   NotifyObserversOfConnectionTypeChange();
 }
 
