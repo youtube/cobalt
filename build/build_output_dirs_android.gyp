@@ -22,9 +22,10 @@
            ]
           },
           'inputs' : [],
-          'outputs': [
-            '<@(output_dirs)'
-          ],
+          # By not specifying any outputs, we ensure that this command isn't
+          # re-run when the output directories are touched (i.e. apks are
+          # written to them).
+          'outputs': [''],
           'action': [
             'mkdir',
             '-p',
