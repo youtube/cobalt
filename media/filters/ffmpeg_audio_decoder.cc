@@ -129,6 +129,12 @@ void FFmpegAudioDecoder::DoInitialize(
     return;
   }
 
+  if (config.is_encrypted()) {
+    DLOG(ERROR) << "Encrypted audio stream not supported";
+    status_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
+    return;
+  }
+
   // Initialize AVCodecContext structure.
   codec_context_ = avcodec_alloc_context3(NULL);
   AudioDecoderConfigToAVCodecContext(config, codec_context_);
