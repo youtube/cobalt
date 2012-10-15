@@ -38,6 +38,7 @@
       'dependencies': [
         '../base/android/jni_generator/jni_generator.gyp:jni_generator_tests',
         '../base/base.gyp:base_unittests',
+        '../cc/cc_tests.gyp:cc_unittests',
         '../chrome/chrome.gyp:unit_tests',
         '../content/content.gyp:content_shell_test_apk',
         '../content/content.gyp:content_unittests',
@@ -77,6 +78,7 @@
             '../testing/android/native_test.gyp:native_test_apk',
             # Unit test bundles packaged as an apk.
             '../base/base.gyp:base_unittests_apk',
+            '../cc/cc_tests.gyp:cc_unittests_apk',
             '../chrome/chrome.gyp:unit_tests_apk',
             '../content/content.gyp:content_unittests_apk',
             '../gpu/gpu.gyp:gpu_unittests_apk',
