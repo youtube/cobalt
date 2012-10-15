@@ -595,6 +595,7 @@
             'type_profiler.h',
             'type_profiler_control.h',
           ],
+          'toolsets': ['host', 'target'],
         },
         {
           'target_name': 'type_profiler_tcmalloc',
