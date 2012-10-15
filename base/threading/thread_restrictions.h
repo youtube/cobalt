@@ -29,6 +29,9 @@ namespace browser_sync {
 class NonFrontendDataTypeController;
 class UIModelWorker;
 }
+namespace cc {
+class CCCompletionEvent;
+}
 namespace chromeos {
 class AudioMixerAlsa;
 class BlockingMethodCaller;
@@ -168,6 +171,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::HistogramSynchronizer;
   friend class ::ScopedAllowWaitForLegacyWebViewApi;
   friend class ::TestingAutomationProvider;
+  friend class cc::CCCompletionEvent;
   friend class remoting::AutoThread;
   friend class SequencedWorkerPool;
   friend class SimpleThread;
