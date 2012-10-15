@@ -11,7 +11,7 @@
             "url": "https://mail.google.com/mail/",
             "why": "productivity, top google properties",
             "credentials": "google",
-            "wait_for_javascript_expression": "window.gmonkey !== undefined",
+            "wait_for_javascript_expression": "window.gmonkey !== undefined && document.getElementById('gb') !== null",
             "scrollable_element_function": "function(callback) { gmonkey.load('2.0', function(api) { callback(api.getScrollableElement()); }); }"
         },
         {
@@ -28,15 +28,10 @@
         },
         {
             "name": "Docs  (1 open document tab)",
-            "url": "https://docs.google.com/document/d/1L2AUaE4tAsOjE9xyqT85TtbDmAiuBNN1Gl32I65HjTE/edit",
+            "url": "https://docs.google.com/document/d/1X-IKNjtEnx-WW5JIKRLsyhz5sbsat3mfTpAPUSX3_s4/view",
             "why": "productivity, top google properties; Sample doc in the link",
             "credentials": "google",
             "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('kix-appview-editor')[0]); }"
-        },
-        {
-            "url": "https://maps.google.com",
-            "why": "top google property",
-            "interactions": "drag"
         },
         {
             "url": "https://plus.google.com/110031535020051778989/posts",
@@ -61,6 +56,7 @@
             "name": "Facebook",
             "url": "http://www.facebook.com/barackobama",
             "why": "top social,Public profile",
+            "credentials": "facebook",
             "scroll_is_infinite": true
         },
         {
@@ -99,10 +95,6 @@
             "why": "#2 news worldwide"
         },
         {
-            "url": "http://bbc.co.uk",
-            "why": "#5 (Alexa news)"
-        },
-        {
             "name": "Weather.com",
             "url": "http://www.weather.com/weather/right-now/Mountain+View+CA+94043",
             "why": "#7 (Alexa news); #27 total time spent,Picked interesting page"
@@ -122,10 +114,6 @@
         {
             "url": "http://booking.com",
             "why": "#1 Alexa recreation"
-        },
-        {
-            "url": "http://www.tripadvisor.com",
-            "why": "#2 Alexa recreation"
         },
         {
             "url": "http://answers.yahoo.com",
