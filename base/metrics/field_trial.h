@@ -401,11 +401,6 @@ class BASE_EXPORT FieldTrialList {
   static const FieldTrial::EntropyProvider*
       GetEntropyProviderForOneTimeRandomization();
 
-  // Returns true if you can call |FieldTrial::UseOneTimeRandomization()|
-  // without error, i.e. if a non-NULL entropy provider was specified when
-  // constructing the FieldTrialList singleton.
-  static bool IsOneTimeRandomizationEnabled();
-
  private:
   // A map from FieldTrial names to the actual instances.
   typedef std::map<std::string, FieldTrial*> RegistrationList;

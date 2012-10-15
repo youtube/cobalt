@@ -444,11 +444,6 @@ const FieldTrial::EntropyProvider*
   return global_->entropy_provider_.get();
 }
 
-// static
-bool FieldTrialList::IsOneTimeRandomizationEnabled() {
-  return GetEntropyProviderForOneTimeRandomization() != NULL;
-}
-
 FieldTrial* FieldTrialList::PreLockedFind(const std::string& name) {
   RegistrationList::iterator it = registered_.find(name);
   if (registered_.end() == it)
