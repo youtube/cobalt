@@ -92,6 +92,8 @@
         'base/ui_export.h',
         'gfx/codec/png_codec.cc',
         'gfx/codec/png_codec.h',
+        'gfx/color_analysis.cc',
+        'gfx/color_analysis.h',
         'gfx/color_utils.cc',
         'gfx/color_utils.h',
         'gfx/display.cc',
@@ -469,8 +471,6 @@
         'gfx/canvas_skia_paint.h',
         'gfx/codec/jpeg_codec.cc',
         'gfx/codec/jpeg_codec.h',
-        'gfx/color_analysis.cc',
-        'gfx/color_analysis.h',
         'gfx/color_profile.cc',
         'gfx/color_profile.h',
         'gfx/color_profile_mac.cc',
@@ -529,7 +529,7 @@
       'target_conditions': [
         ['OS == "ios"', {
           'sources/': [
-            ['include', '^base/l10n/l10n_util_mac\.mm$'],
+            ['include', '^base/l10n/l10n_util_mac\\.mm$'],
           ],
         }],
       ],
