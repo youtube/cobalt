@@ -34,10 +34,10 @@ class ScopedVector {
 
   ScopedVector() {}
   ~ScopedVector() { clear(); }
-  ScopedVector(RValue& other) { swap(other); }
+  ScopedVector(RValue other) { swap(*other.object); }
 
-  ScopedVector& operator=(RValue& rhs) {
-    swap(rhs);
+  ScopedVector& operator=(RValue rhs) {
+    swap(*rhs.object);
     return *this;
   }
 
