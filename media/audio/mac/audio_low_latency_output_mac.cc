@@ -256,9 +256,13 @@ OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
   // size set by kAudioDevicePropertyBufferFrameSize above on a per process
   // basis.  What this means is that the |number_of_frames| value may be larger
   // or smaller than the value set during Configure().  In this case either
-  // audio input or audio output will be broken.
-  // See http://crbug.com/154352 for details.
-  CHECK_EQ(number_of_frames, static_cast<UInt32>(audio_bus_->frames()));
+  // audio input or audio output will be broken, so just output silence.
+  // TODO(crogers): Figure out what can trigger a change in |number_of_frames|.
+  // See http://crbug.com/1543 for details.
+   if (number_of_frames != static_cast<UInt32>(audio_bus_->frames())) {
+     memset(audio_data, 0, number_of_frames * format_.mBytesPerFrame);
+     return noErr;
+   }
 
   int frames_filled = source_->OnMoreData(
       audio_bus_.get(), AudioBuffersState(0, hardware_pending_bytes));
