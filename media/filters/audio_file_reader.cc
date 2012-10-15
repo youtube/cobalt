@@ -35,7 +35,12 @@ int AudioFileReader::sample_rate() const {
 
 base::TimeDelta AudioFileReader::duration() const {
   const AVRational av_time_base = {1, AV_TIME_BASE};
-  return ConvertFromTimeBase(av_time_base, format_context_->duration);
+
+  // Add one microsecond to avoid rounding-down errors which can occur when
+  // |duration| has been calculated from an exact number of sample-frames.
+  // One microsecond is much less than the time of a single sample-frame
+  // at any real-world sample-rate.
+  return ConvertFromTimeBase(av_time_base, format_context_->duration + 1);
 }
 
 int64 AudioFileReader::number_of_frames() const {
@@ -110,13 +115,13 @@ void AudioFileReader::Close() {
   }
 }
 
-bool AudioFileReader::Read(AudioBus* audio_bus) {
+int AudioFileReader::Read(AudioBus* audio_bus) {
   DCHECK(format_context_ && codec_context_) <<
       "AudioFileReader::Read() : reader is not opened!";
 
   DCHECK_EQ(audio_bus->channels(), channels());
   if (audio_bus->channels() != channels())
-    return false;
+    return 0;
 
   size_t bytes_per_sample = av_get_bytes_per_sample(codec_context_->sample_fmt);
 
@@ -187,8 +192,9 @@ bool AudioFileReader::Read(AudioBus* audio_bus) {
   audio_bus->ZeroFramesPartial(
       current_frame, audio_bus->frames() - current_frame);
 
-  // Fail if nothing has been decoded, otherwise return partial data.
-  return current_frame > 0;
+  // Returns the actual number of sample-frames decoded.
+  // Ideally this represents the "true" exact length of the file.
+  return current_frame;
 }
 
 }  // namespace media

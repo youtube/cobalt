@@ -37,12 +37,18 @@ class MEDIA_EXPORT AudioFileReader {
   // |audio_data| must be of the same size as channels().
   // The audio data will be decoded as floating-point linear PCM with
   // a nominal range of -1.0 -> +1.0.
-  // Returns |true| on success.
-  bool Read(AudioBus* audio_bus);
+  // Returns the number of sample-frames actually read which will always be
+  // <= audio_bus->frames()
+  int Read(AudioBus* audio_bus);
 
   // These methods can be called once Open() has been called.
   int channels() const;
   int sample_rate() const;
+
+  // Please note that duration() and number_of_frames() attempt to be accurate,
+  // but are only estimates.  For some encoded formats, the actual duration
+  // of the file can only be determined once all the file data has been read.
+  // The Read() method returns the actual number of sample-frames it has read.
   base::TimeDelta duration() const;
   int64 number_of_frames() const;
 
