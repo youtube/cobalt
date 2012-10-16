@@ -127,6 +127,7 @@ class BaseTestRunner(object):
     else:
       logging.critical('Failed to start http server')
     self.StartForwarderForHttpServer()
+    return (self._forwarder_device_port, self._http_server.port)
 
   def StartForwarder(self, port_pairs):
     """Starts TCP traffic forwarding for the given |port_pairs|.
@@ -134,10 +135,6 @@ class BaseTestRunner(object):
     Args:
       host_port_pairs: A list of (device_port, local_port) tuples to forward.
     """
-    # Sometimes the forwarder device port may be already used. We have to kill
-    # all forwarder processes to ensure that the forwarder can be started since
-    # currently we can not associate the specified port to related pid.
-    self.adb.KillAll('forwarder')
     if self._forwarder:
       self._forwarder.Close()
     self._forwarder = Forwarder(
@@ -168,7 +165,7 @@ class BaseTestRunner(object):
     if self._forwarder or self._spawner_forwarder:
       # Kill all forwarders on the device and then kill the process on the host
       # (if it exists)
-      self.adb.KillAll('forwarder')
+      self.adb.KillAll('device_forwarder')
       if self._forwarder:
         self._forwarder.Close()
       if self._spawner_forwarder:
