@@ -9,6 +9,7 @@
 #include <sys/types.h>
 
 #include "base/android/scoped_java_ref.h"
+#include "base/atomicops.h"
 #include "base/compiler_specific.h"
 
 namespace base {
@@ -57,56 +58,36 @@ jclass GetUnscopedClass(JNIEnv* env, const char* class_name) WARN_UNUSED_RESULT;
 // Returns true iff the class |class_name| could be found.
 bool HasClass(JNIEnv* env, const char* class_name);
 
-// Returns the method ID for the method with the specified name and signature.
-// This method triggers a fatal assertion if the method could not be found.
-// Use HasMethod if you need to check whether a method exists.
-jmethodID GetMethodID(JNIEnv* env,
-                      const JavaRef<jclass>& clazz,
-                      const char* method_name,
-                      const char* jni_signature);
+// This class is a wrapper for JNIEnv Get(Static)MethodID.
+class MethodID {
+ public:
+  enum Type {
+    TYPE_STATIC,
+    TYPE_INSTANCE,
+  };
 
-// Similar to GetMethodID, but takes a raw jclass.
-jmethodID GetMethodID(JNIEnv* env,
-                      jclass clazz,
-                      const char* method_name,
-                      const char* jni_signature);
+  // Returns the method ID for the method with the specified name and signature.
+  // This method triggers a fatal assertion if the method could not be found.
+  template<Type type>
+  static jmethodID Get(JNIEnv* env,
+                       jclass clazz,
+                       const char* method_name,
+                       const char* jni_signature);
 
-// Unlike GetMethodID, returns NULL if the method could not be found.
-jmethodID GetMethodIDOrNull(JNIEnv* env,
-                            jclass clazz,
-                            const char* method_name,
-                            const char* jni_signature);
-
-// Returns the method ID for the static method with the specified name and
-// signature.
-// This method triggers a fatal assertion if the method could not be found.
-// Use HasMethod if you need to check whether a method exists.
-jmethodID GetStaticMethodID(JNIEnv* env,
-                            const JavaRef<jclass>& clazz,
-                            const char* method_name,
-                            const char* jni_signature);
-
-// Similar to the GetStaticMethodID, but takes a raw jclass.
-jmethodID GetStaticMethodID(JNIEnv* env,
-                            jclass clazz,
-                            const char* method_name,
-                            const char* jni_signature);
-
-// Unlike GetStaticMethodID, returns NULL if the method could not be found.
-jmethodID GetStaticMethodIDOrNull(JNIEnv* env,
-                                  jclass clazz,
-                                  const char* method_name,
-                                  const char* jni_signature);
-
-// Returns true iff |clazz| has a method with the specified name and signature.
-bool HasMethod(JNIEnv* env,
-               const JavaRef<jclass>& clazz,
-               const char* method_name,
-               const char* jni_signature);
+  // The caller is responsible to zero-initialize |atomic_method_id|.
+  // It's fine to simultaneously call this on multiple threads referencing the
+  // same |atomic_method_id|.
+  template<Type type>
+  static jmethodID LazyGet(JNIEnv* env,
+                           jclass clazz,
+                           const char* method_name,
+                           const char* jni_signature,
+                           base::subtle::AtomicWord* atomic_method_id);
+};
 
 // Gets the method ID from the class name. Clears the pending Java exception
 // and returns NULL if the method is not found. Caches results. Note that
-// GetMethodID() below avoids a class lookup, but does not cache results.
+// MethodID::Get() above avoids a class lookup, but does not cache results.
 // Strings passed to this function are held in the cache and MUST remain valid
 // beyond the duration of all future calls to this function, across all
 // threads. In practice, this means that the function should only be used with

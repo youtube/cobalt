@@ -28,7 +28,6 @@ using base::android::ConvertUTF8ToJavaString;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::CheckException;
 using base::android::ClearException;
-using base::android::GetMethodID;
 using base::android::ScopedJavaGlobalRef;
 
 namespace net {
