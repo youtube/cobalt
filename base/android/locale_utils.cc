@@ -69,16 +69,17 @@ string16 GetDisplayNameForLocale(const std::string& locale,
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jclass> locale_class = GetClass(env, "java/util/Locale");
-  jmethodID constructor_id = GetMethodID(
-      env, locale_class, "<init>",
+  jmethodID constructor_id = MethodID::Get<MethodID::TYPE_INSTANCE>(
+      env, locale_class.obj(), "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
   ScopedJavaLocalRef<jobject> java_locale = NewJavaLocale(
       env, locale_class, constructor_id, locale);
   ScopedJavaLocalRef<jobject> java_display_locale = NewJavaLocale(
       env, locale_class, constructor_id, display_locale);
 
-  jmethodID method_id = GetMethodID(env, locale_class, "getDisplayName",
-                                    "(Ljava/util/Locale;)Ljava/lang/String;");
+  jmethodID method_id = MethodID::Get<MethodID::TYPE_INSTANCE>(
+      env, locale_class.obj(), "getDisplayName",
+      "(Ljava/util/Locale;)Ljava/lang/String;");
   ScopedJavaLocalRef<jstring> java_result(
       env,
       static_cast<jstring>(env->CallObjectMethod(java_locale.obj(), method_id,
