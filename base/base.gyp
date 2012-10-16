@@ -968,6 +968,7 @@
             'android/java/src/org/chromium/base/PathService.java',
             'android/java/src/org/chromium/base/PathUtils.java',
             'android/java/src/org/chromium/base/SystemMessageHandler.java',
+            'android/java/src/org/chromium/base/SystemMonitor.java',
           ],
           'variables': {
             'jni_gen_dir': 'base',

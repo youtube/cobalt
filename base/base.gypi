@@ -391,6 +391,7 @@
           'system_monitor/system_monitor.cc',
           'system_monitor/system_monitor.h',
           'system_monitor/system_monitor_android.cc',
+          'system_monitor/system_monitor_android.h',
           'system_monitor/system_monitor_ios.mm',
           'system_monitor/system_monitor_mac.mm',
           'system_monitor/system_monitor_posix.cc',
