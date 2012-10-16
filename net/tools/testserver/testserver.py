@@ -43,7 +43,16 @@ import zlib
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import echo_message
-from mod_pywebsocket.standalone import WebSocketServer
+
+# TODO(toyoshim): Some try bots for pyauto don't check out pywebsocket repos
+# unexpectedly. pyauto doesn't use WebSocket module, so just ignore
+# ImportError as a temporal workaround.
+# http://crbug.com/155918
+try:
+  from mod_pywebsocket.standalone import WebSocketServer
+except ImportError:
+  pass
+
 import pyftpdlib.ftpserver
 import tlslite
 import tlslite.api
