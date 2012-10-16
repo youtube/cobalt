@@ -34,6 +34,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/mac/mac_util.h"
+#include "base/mac/scoped_mach_port.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
 #include "base/threading/thread_local.h"
@@ -468,7 +469,7 @@ mach_port_t ProcessMetrics::TaskForPid(ProcessHandle process) const {
 
 // Bytes committed by the system.
 size_t GetSystemCommitCharge() {
-  host_name_port_t host = mach_host_self();
+  base::mac::ScopedMachPort host(mach_host_self());
   mach_msg_type_number_t count = HOST_VM_INFO_COUNT;
   vm_statistics_data_t data;
   kern_return_t kr = host_statistics(host, HOST_VM_INFO,
