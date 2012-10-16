@@ -78,9 +78,8 @@ class TestRunner(BaseTestRunner):
                                           'out/target/common/obj/APPS',
                                           'Chrome_intermediates/coverage.em')
   _HOSTMACHINE_PERF_OUTPUT_FILE = '/tmp/chrome-profile'
-  _DEVICE_PERF_OUTPUT_DIR = '/sdcard/Download/'
-  _DEVICE_PERF_OUTPUT_SEARCH_PREFIX = (_DEVICE_PERF_OUTPUT_DIR +
-                                       'chrome-profile*')
+  _DEVICE_PERF_OUTPUT_SEARCH_PREFIX = (constants.DEVICE_PERF_OUTPUT_DIR +
+                                       '/chrome-profile*')
   _DEVICE_HAS_TEST_FILES = {}
 
   def __init__(self, options, device, tests_iter, coverage, shard_index, apks,
