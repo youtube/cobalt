@@ -42,3 +42,6 @@ TEST_EXECUTABLE_DIR = '/data/local/tmp'
 # These constants are defined in build/android/ant/common.xml
 SDK_BUILD_TEST_JAVALIB_DIR = 'test.lib.java'
 SDK_BUILD_APKS_DIR = 'apks'
+
+# The directory on the device where perf test output gets saved to.
+DEVICE_PERF_OUTPUT_DIR = '/data/data/' + CHROME_PACKAGE + '/files'
