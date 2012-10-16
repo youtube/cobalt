@@ -8,14 +8,13 @@
 
 #include "base/android/build_info.h"
 #include "base/android/jni_string.h"
-#include "base/atomicops.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/threading/platform_thread.h"
 
 namespace {
 using base::android::GetClass;
-using base::android::GetMethodID;
+using base::android::MethodID;
 using base::android::ScopedJavaLocalRef;
 
 struct MethodIdentifier {
@@ -58,17 +57,20 @@ std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
   ScopedJavaLocalRef<jclass> throwable_clazz =
       GetClass(env, "java/lang/Throwable");
   jmethodID throwable_printstacktrace =
-      GetMethodID(env, throwable_clazz, "printStackTrace",
-                  "(Ljava/io/PrintStream;)V");
+      MethodID::Get<MethodID::TYPE_INSTANCE>(
+          env, throwable_clazz.obj(), "printStackTrace",
+          "(Ljava/io/PrintStream;)V");
 
   // Create an instance of ByteArrayOutputStream.
   ScopedJavaLocalRef<jclass> bytearray_output_stream_clazz =
       GetClass(env, "java/io/ByteArrayOutputStream");
   jmethodID bytearray_output_stream_constructor =
-      GetMethodID(env, bytearray_output_stream_clazz, "<init>", "()V");
+      MethodID::Get<MethodID::TYPE_INSTANCE>(
+          env, bytearray_output_stream_clazz.obj(), "<init>", "()V");
   jmethodID bytearray_output_stream_tostring =
-      GetMethodID(env, bytearray_output_stream_clazz, "toString",
-                  "()Ljava/lang/String;");
+      MethodID::Get<MethodID::TYPE_INSTANCE>(
+          env, bytearray_output_stream_clazz.obj(), "toString",
+          "()Ljava/lang/String;");
   ScopedJavaLocalRef<jobject> bytearray_output_stream(env,
       env->NewObject(bytearray_output_stream_clazz.obj(),
                      bytearray_output_stream_constructor));
@@ -77,8 +79,9 @@ std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
   ScopedJavaLocalRef<jclass> printstream_clazz =
       GetClass(env, "java/io/PrintStream");
   jmethodID printstream_constructor =
-      GetMethodID(env, printstream_clazz, "<init>",
-                  "(Ljava/io/OutputStream;)V");
+      MethodID::Get<MethodID::TYPE_INSTANCE>(
+          env, printstream_clazz.obj(), "<init>",
+          "(Ljava/io/OutputStream;)V");
   ScopedJavaLocalRef<jobject> printstream(env,
       env->NewObject(printstream_clazz.obj(), printstream_constructor,
                      bytearray_output_stream.obj()));
@@ -94,35 +97,6 @@ std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
                                 bytearray_output_stream_tostring)));
 
   return ConvertJavaStringToUTF8(exception_string);
-}
-
-enum MethodType {
-  METHODTYPE_STATIC,
-  METHODTYPE_NORMAL,
-};
-
-enum ExceptionCheck {
-  EXCEPTIONCHECK_YES,
-  EXCEPTIONCHECK_NO,
-};
-
-template<MethodType method_type, ExceptionCheck exception_check>
-jmethodID GetMethodIDInternal(JNIEnv* env,
-                              jclass clazz,
-                              const char* method_name,
-                              const char* jni_signature) {
-  jmethodID method_id = method_type == METHODTYPE_STATIC ?
-      env->GetStaticMethodID(clazz, method_name, jni_signature) :
-      env->GetMethodID(clazz, method_name, jni_signature);
-  if (exception_check == EXCEPTIONCHECK_YES) {
-    CHECK(!base::android::ClearException(env) && method_id) <<
-      "Failed to find " <<
-      (method_type == METHODTYPE_STATIC ? "static " : "") <<
-      "method " << method_name << " " << jni_signature;
-  } else if (base::android::HasException(env)) {
-    env->ExceptionClear();
-  }
-  return method_id;
 }
 
 }  // namespace
@@ -181,68 +155,57 @@ bool HasClass(JNIEnv* env, const char* class_name) {
   return true;
 }
 
-jmethodID GetMethodID(JNIEnv* env,
-                      const JavaRef<jclass>& clazz,
-                      const char* method_name,
-                      const char* jni_signature) {
-  // clazz.env() can not be used as that may be from a different thread.
-  return GetMethodID(env, clazz.obj(), method_name, jni_signature);
+template<MethodID::Type type>
+jmethodID MethodID::Get(JNIEnv* env,
+                        jclass clazz,
+                        const char* method_name,
+                        const char* jni_signature) {
+  jmethodID id = type == TYPE_STATIC ?
+      env->GetStaticMethodID(clazz, method_name, jni_signature) :
+      env->GetMethodID(clazz, method_name, jni_signature);
+  CHECK(base::android::ClearException(env) || id) <<
+      "Failed to find " <<
+      (type == TYPE_STATIC ? "static " : "") <<
+      "method " << method_name << " " << jni_signature;
+  return id;
 }
 
-jmethodID GetMethodID(JNIEnv* env,
-                      jclass clazz,
-                      const char* method_name,
-                      const char* jni_signature) {
-  return GetMethodIDInternal<METHODTYPE_NORMAL, EXCEPTIONCHECK_YES>(
-      env, clazz, method_name, jni_signature);
-}
-
-jmethodID GetMethodIDOrNull(JNIEnv* env,
+// If |atomic_method_id| set, it'll return immediately. Otherwise, it'll call
+// into ::Get() above. If there's a race, it's ok since the values are the same
+// (and the duplicated effort will happen only once).
+template<MethodID::Type type>
+jmethodID MethodID::LazyGet(JNIEnv* env,
                             jclass clazz,
                             const char* method_name,
-                            const char* jni_signature) {
-  return GetMethodIDInternal<METHODTYPE_NORMAL, EXCEPTIONCHECK_NO>(
-      env, clazz, method_name, jni_signature);
+                            const char* jni_signature,
+                            base::subtle::AtomicWord* atomic_method_id) {
+  COMPILE_ASSERT(sizeof(subtle::AtomicWord) >= sizeof(jmethodID),
+                 AtomicWord_SmallerThan_jMethodID);
+  subtle::AtomicWord value = base::subtle::Acquire_Load(atomic_method_id);
+  if (value)
+    return reinterpret_cast<jmethodID>(value);
+  jmethodID id = MethodID::Get<type>(env, clazz, method_name, jni_signature);
+  base::subtle::Release_Store(
+      atomic_method_id, reinterpret_cast<subtle::AtomicWord>(id));
+  return id;
 }
 
-jmethodID GetStaticMethodID(JNIEnv* env,
-                            const JavaRef<jclass>& clazz,
-                            const char* method_name,
-                            const char* jni_signature) {
-  return GetStaticMethodID(env, clazz.obj(), method_name,
-      jni_signature);
-}
+// Various template instantiations.
+template jmethodID MethodID::Get<MethodID::TYPE_STATIC>(
+    JNIEnv* env, jclass clazz, const char* method_name,
+    const char* jni_signature);
 
-jmethodID GetStaticMethodID(JNIEnv* env,
-                            jclass clazz,
-                            const char* method_name,
-                            const char* jni_signature) {
-  return GetMethodIDInternal<METHODTYPE_STATIC, EXCEPTIONCHECK_YES>(
-      env, clazz, method_name, jni_signature);
-}
+template jmethodID MethodID::Get<MethodID::TYPE_INSTANCE>(
+    JNIEnv* env, jclass clazz, const char* method_name,
+    const char* jni_signature);
 
-jmethodID GetStaticMethodIDOrNull(JNIEnv* env,
-                                  jclass clazz,
-                                  const char* method_name,
-                                  const char* jni_signature) {
-  return GetMethodIDInternal<METHODTYPE_STATIC, EXCEPTIONCHECK_NO>(
-      env, clazz, method_name, jni_signature);
-}
+template jmethodID MethodID::LazyGet<MethodID::TYPE_STATIC>(
+    JNIEnv* env, jclass clazz, const char* method_name,
+    const char* jni_signature, base::subtle::AtomicWord* atomic_method_id);
 
-bool HasMethod(JNIEnv* env,
-               const JavaRef<jclass>& clazz,
-               const char* method_name,
-               const char* jni_signature) {
-  jmethodID method_id =
-      env->GetMethodID(clazz.obj(), method_name, jni_signature);
-  if (!method_id) {
-    ClearException(env);
-    return false;
-  }
-  bool error = ClearException(env);
-  DCHECK(!error);
-  return true;
-}
+template jmethodID MethodID::LazyGet<MethodID::TYPE_INSTANCE>(
+    JNIEnv* env, jclass clazz, const char* method_name,
+    const char* jni_signature, base::subtle::AtomicWord* atomic_method_id);
 
 jfieldID GetFieldID(JNIEnv* env,
                     const JavaRef<jclass>& clazz,
@@ -308,7 +271,8 @@ jmethodID GetMethodIDFromClassName(JNIEnv* env,
   }
 
   ScopedJavaLocalRef<jclass> clazz(env, env->FindClass(class_name));
-  jmethodID id = GetMethodID(env, clazz, method, jni_signature);
+  jmethodID id = MethodID::Get<MethodID::TYPE_INSTANCE>(
+      env, clazz.obj(), method, jni_signature);
 
   while (base::subtle::Acquire_CompareAndSwap(&g_method_id_map_lock,
                                               kUnlocked,
