@@ -582,11 +582,21 @@
           ],
           'conditions': [
             ['coverage != 0', {
-              # These sources can't be built with coverage due to a toolchain
-              # bug: http://openradar.appspot.com/radar?id=1499403
               'sources!': [
+                # These sources can't be built with coverage due to a toolchain
+                # bug: http://openradar.appspot.com/radar?id=1499403
                 'json/json_reader_unittest.cc',
                 'string_piece_unittest.cc',
+
+                # These tests crash when run with coverage turned on due to an
+                # issue with llvm_gcda_increment_indirect_counter:
+                # http://crbug.com/156058
+                'debug/trace_event_unittest.cc',
+                'debug/trace_event_unittest.h',
+                'logging_unittest.cc',
+                'string_util_unittest.cc',
+                'test/trace_event_analyzer_unittest.cc',
+                'utf_offset_string_conversions_unittest.cc',
               ],
             }],
           ],

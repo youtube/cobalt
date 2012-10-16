@@ -1585,10 +1585,20 @@
             ],
             'conditions': [
               ['coverage != 0', {
-                # These sources can't be built with coverage due to a toolchain
-                # bug: http://openradar.appspot.com/radar?id=1499403
                 'sources!': [
+                  # These sources can't be built with coverage due to a
+                  # toolchain bug: http://openradar.appspot.com/radar?id=1499403
                   'base/transport_security_state_unittest.cc',
+
+                  # These tests crash when run with coverage turned on due to an
+                  # issue with llvm_gcda_increment_indirect_counter:
+                  # http://crbug.com/156058
+                  'cookies/cookie_monster_unittest.cc',
+                  'cookies/cookie_store_unittest.h',
+                  'http/http_auth_controller_unittest.cc',
+                  'http/http_network_layer_unittest.cc',
+                  'http/http_network_transaction_spdy2_unittest.cc',
+                  'http/http_network_transaction_spdy3_unittest.cc',
                 ],
               }],
             ],
