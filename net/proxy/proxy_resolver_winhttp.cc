@@ -76,7 +76,6 @@ int ProxyResolverWinHttp::GetProxyForURL(const GURL& query_url,
     }
     if (!ok) {
       DWORD error = GetLastError();
-      LOG(ERROR) << "WinHttpGetProxyForUrl failed: " << error;
       // If we got here because of RPC timeout during out of process PAC
       // resolution, no further requests on this session are going to work.
       if (ERROR_WINHTTP_TIMEOUT == error ||
