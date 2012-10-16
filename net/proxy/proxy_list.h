@@ -35,6 +35,10 @@ class NET_EXPORT_PRIVATE ProxyList {
   // them to the end of the fallback list.
   void DeprioritizeBadProxies(const ProxyRetryInfoMap& proxy_retry_info);
 
+  // Returns true if this proxy list contains at least one proxy that is
+  // not currently present in |proxy_retry_info|.
+  bool HasUntriedProxies(const ProxyRetryInfoMap& proxy_retry_info) const;
+
   // Delete any entry which doesn't have one of the specified proxy schemes.
   // |scheme_bit_field| is a bunch of ProxyServer::Scheme bitwise ORed together.
   void RemoveProxiesWithoutScheme(int scheme_bit_field);
@@ -69,6 +73,12 @@ class NET_EXPORT_PRIVATE ProxyList {
   // there is another server available in the list.
   bool Fallback(ProxyRetryInfoMap* proxy_retry_info,
                 const BoundNetLog& net_log);
+
+  // Updates |proxy_retry_info| to indicate that the first proxy in the list
+  // is bad. This is distinct from Fallback(), above, to allow updating proxy
+  // retry information without modifying a given transction's proxy list.
+  void UpdateRetryInfoOnFallback(ProxyRetryInfoMap* proxy_retry_info,
+                                 const BoundNetLog& net_log) const;
 
  private:
   // List of proxies.
