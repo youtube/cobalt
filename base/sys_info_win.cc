@@ -74,7 +74,7 @@ std::string SysInfo::OperatingSystemVersion() {
 // See chrome/browser/feedback/feedback_util.h, FeedbackUtil::SetOSVersion.
 
 // static
-std::string SysInfo::CPUArchitecture() {
+std::string SysInfo::OperatingSystemArchitecture() {
   win::OSInfo::WindowsArchitecture arch =
       win::OSInfo::GetInstance()->architecture();
   switch (arch) {
