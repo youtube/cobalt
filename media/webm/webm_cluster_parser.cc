@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/sys_byteorder.h"
 #include "media/base/data_buffer.h"
 #include "media/base/decrypt_config.h"
 #include "media/webm/webm_constants.h"
@@ -16,10 +15,11 @@ namespace media {
 
 // Generates a 16 byte CTR counter block. The CTR counter block format is a
 // CTR IV appended with a CTR block counter. |iv| is an 8 byte CTR IV.
-// Returns a string of kDecryptionKeySize bytes.
-static std::string GenerateCounterBlock(uint64 iv) {
-  std::string counter_block(reinterpret_cast<char*>(&iv), sizeof(iv));
-  counter_block.append(DecryptConfig::kDecryptionKeySize - sizeof(iv), 0);
+// |iv_size| is the size of |iv| in btyes. Returns a string of
+// kDecryptionKeySize bytes.
+static std::string GenerateCounterBlock(const uint8* iv, int iv_size) {
+  std::string counter_block(reinterpret_cast<const char*>(iv), iv_size);
+  counter_block.append(DecryptConfig::kDecryptionKeySize - iv_size, 0);
   return counter_block;
 }
 
@@ -185,6 +185,7 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
                                 int  block_duration,
                                 int flags,
                                 const uint8* data, int size) {
+  DCHECK_GE(size, 0);
   if (cluster_timecode_ == -1) {
     DVLOG(1) << "Got a block before cluster timecode.";
     return false;
@@ -228,6 +229,11 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   // encrypted WebM request for comments specification is here
   // http://wiki.webmproject.org/encryption/webm-encryption-rfc
   if (!encryption_key_id.empty()) {
+    DCHECK_EQ(kWebMSignalByteSize, 1);
+    if (size < kWebMSignalByteSize) {
+      DVLOG(1) << "Got a block from an encrypted stream with no data.";
+      return false;
+    }
     uint8 signal_byte = data[0];
     int data_offset = sizeof(signal_byte);
 
@@ -237,10 +243,12 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
     std::string counter_block;
 
     if (signal_byte & kWebMFlagEncryptedFrame) {
-      uint64 network_iv;
-      memcpy(&network_iv, data + data_offset, sizeof(network_iv));
-      data_offset += sizeof(network_iv);
-      counter_block = GenerateCounterBlock(base::NetToHost64(network_iv));
+      if (size < kWebMSignalByteSize + kWebMIvSize) {
+        DVLOG(1) << "Got an encrypted block with not enough data " << size;
+        return false;
+      }
+      counter_block = GenerateCounterBlock(data + data_offset, kWebMIvSize);
+      data_offset += kWebMIvSize;
     }
 
     // TODO(fgalligan): Revisit if DecryptConfig needs to be set on unencrypted
