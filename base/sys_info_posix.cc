@@ -75,7 +75,7 @@ std::string SysInfo::OperatingSystemVersion() {
 #endif
 
 // static
-std::string SysInfo::CPUArchitecture() {
+std::string SysInfo::OperatingSystemArchitecture() {
   struct utsname info;
   if (uname(&info) < 0) {
     NOTREACHED();
