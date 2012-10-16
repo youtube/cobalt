@@ -1174,6 +1174,12 @@ int ProxyService::ReconsiderProxyAfterError(const GURL& url,
   return did_fallback ? OK : ERR_FAILED;
 }
 
+bool ProxyService::MarkProxyAsBad(const ProxyInfo& result,
+                                  const BoundNetLog& net_log) {
+  result.proxy_list_.UpdateRetryInfoOnFallback(&proxy_retry_info_, net_log);
+  return result.proxy_list_.HasUntriedProxies(proxy_retry_info_);
+}
+
 void ProxyService::ReportSuccess(const ProxyInfo& result) {
   DCHECK(CalledOnValidThread());
 

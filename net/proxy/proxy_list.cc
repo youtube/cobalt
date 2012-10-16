@@ -67,6 +67,26 @@ void ProxyList::DeprioritizeBadProxies(
   proxies_.insert(proxies_.end(), bad_proxies.begin(), bad_proxies.end());
 }
 
+bool ProxyList::HasUntriedProxies(
+    const ProxyRetryInfoMap& proxy_retry_info) const {
+  std::vector<ProxyServer>::const_iterator iter = proxies_.begin();
+  for (; iter != proxies_.end(); ++iter) {
+    ProxyRetryInfoMap::const_iterator bad_proxy =
+        proxy_retry_info.find(iter->ToURI());
+    if (bad_proxy != proxy_retry_info.end()) {
+      // This proxy is bad. Check if it's time to retry.
+      if (bad_proxy->second.bad_until >= TimeTicks::Now()) {
+        continue;
+      }
+    }
+    // Either we've found the entry in the retry map and it's expired or we
+    // didn't find a corresponding entry in the retry map. In either case, we
+    // have a proxy to try.
+    return true;
+  }
+  return false;
+}
+
 void ProxyList::RemoveProxiesWithoutScheme(int scheme_bit_field) {
   for (std::vector<ProxyServer>::iterator it = proxies_.begin();
        it != proxies_.end(); ) {
@@ -126,8 +146,6 @@ std::string ProxyList::ToPacString() const {
 
 bool ProxyList::Fallback(ProxyRetryInfoMap* proxy_retry_info,
                          const BoundNetLog& net_log) {
-  // Number of minutes to wait before retrying a bad proxy server.
-  const TimeDelta kProxyRetryDelay = TimeDelta::FromMinutes(5);
 
   // TODO(eroman): It would be good if instead of removing failed proxies
   // from the list, we simply annotated them with the error code they failed
@@ -147,6 +165,22 @@ bool ProxyList::Fallback(ProxyRetryInfoMap* proxy_retry_info,
     NOTREACHED();
     return false;
   }
+  UpdateRetryInfoOnFallback(proxy_retry_info, net_log);
+
+  // Remove this proxy from our list.
+  proxies_.erase(proxies_.begin());
+  return !proxies_.empty();
+}
+
+void ProxyList::UpdateRetryInfoOnFallback(
+    ProxyRetryInfoMap* proxy_retry_info, const BoundNetLog& net_log) const {
+  // Number of minutes to wait before retrying a bad proxy server.
+  const TimeDelta kProxyRetryDelay = TimeDelta::FromMinutes(5);
+
+  if (proxies_.empty()) {
+    NOTREACHED();
+    return;
+  }
 
   if (!proxies_[0].is_direct()) {
     std::string key = proxies_[0].ToURI();
@@ -165,11 +199,6 @@ bool ProxyList::Fallback(ProxyRetryInfoMap* proxy_retry_info,
     net_log.AddEvent(NetLog::TYPE_PROXY_LIST_FALLBACK,
                      NetLog::StringCallback("bad_proxy", &key));
   }
-
-  // Remove this proxy from our list.
-  proxies_.erase(proxies_.begin());
-
-  return !proxies_.empty();
 }
 
 }  // namespace net
