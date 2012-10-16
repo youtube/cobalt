@@ -146,6 +146,12 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
                                 PacRequest** pac_request,
                                 const BoundNetLog& net_log);
 
+  // Explicitly trigger proxy fallback for the given |results| by updating our
+  // list of bad proxies to include the first entry of |results|. Returns true
+  // if there will be at least one proxy remaining in the list after fallback
+  // and false otherwise.
+  bool MarkProxyAsBad(const ProxyInfo& results, const BoundNetLog& net_log);
+
   // Called to report that the last proxy connection succeeded.  If |proxy_info|
   // has a non empty proxy_retry_info map, the proxies that have been tried (and
   // failed) for this request will be marked as bad.

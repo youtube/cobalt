@@ -862,6 +862,23 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   }
   DCHECK(response_.headers);
 
+  // Server-induced fallback is supported only if this is a PAC configured
+  // proxy. See: http://crbug.com/143712
+  if (response_.was_fetched_via_proxy && proxy_info_.did_use_pac_script()) {
+    if (response_.headers != NULL &&
+        response_.headers->HasHeaderValue("connection", "proxy-bypass")) {
+      ProxyService* proxy_service = session_->proxy_service();
+      if (proxy_service->MarkProxyAsBad(proxy_info_, net_log_)) {
+        // Only retry in the case of GETs. We don't want to resubmit a POST
+        // if the proxy took some action.
+        if (request_->method == "GET") {
+          ResetConnectionAndRequestForResend();
+          return OK;
+        }
+      }
+    }
+  }
+
   // Like Net.HttpResponseCode, but only for MAIN_FRAME loads.
   if (request_->load_flags & LOAD_MAIN_FRAME) {
     const int response_code = response_.headers->response_code();

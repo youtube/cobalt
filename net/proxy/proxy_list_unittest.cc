@@ -89,6 +89,42 @@ TEST(ProxyListTest, RemoveProxiesWithoutScheme) {
   }
 }
 
+TEST(ProxyListTest, HasUntriedProxies) {
+  // As in DeprioritizeBadProxies, we use a lengthy timeout to avoid depending
+  // on the current time.
+  ProxyRetryInfo proxy_retry_info;
+  proxy_retry_info.bad_until =
+      base::TimeTicks::Now() + base::TimeDelta::FromDays(1);
+
+  // An empty list has nothing to try.
+  {
+    ProxyList list;
+    ProxyRetryInfoMap proxy_retry_info;
+    EXPECT_FALSE(list.HasUntriedProxies(proxy_retry_info));
+  }
+
+  // A list with one bad proxy has something to try. With two bad proxies,
+  // there's nothing to try.
+  {
+    ProxyList list;
+    list.SetFromPacString("PROXY bad1:80; PROXY bad2:80");
+    ProxyRetryInfoMap retry_info_map;
+    retry_info_map["bad1:80"] = proxy_retry_info;
+    EXPECT_TRUE(list.HasUntriedProxies(retry_info_map));
+    retry_info_map["bad2:80"] = proxy_retry_info;
+    EXPECT_FALSE(list.HasUntriedProxies(retry_info_map));
+  }
+
+  // A list with one bad proxy and a DIRECT entry has something to try.
+  {
+    ProxyList list;
+    list.SetFromPacString("PROXY bad1:80; DIRECT");
+    ProxyRetryInfoMap retry_info_map;
+    retry_info_map["bad1:80"] = proxy_retry_info;
+    EXPECT_TRUE(list.HasUntriedProxies(retry_info_map));
+  }
+}
+
 TEST(ProxyListTest, DeprioritizeBadProxies) {
   // Retry info that marks a proxy as being bad for a *very* long time (to avoid
   // the test depending on the current time.)
