@@ -129,8 +129,7 @@ class TestRunner(BaseTestRunner):
     self.ports_to_forward = ports_to_forward
 
     self.test_results = TestResults()
-    # List of forwarders created by this instance of TestRunner.
-    self.forwarders = []
+    self.forwarder = None
 
     if self.coverage:
       if os.path.exists(TestRunner._COVERAGE_MERGED_FILENAME):
@@ -269,26 +268,23 @@ class TestRunner(BaseTestRunner):
     # We give different default value to launch HTTP server based on shard index
     # because it may have race condition when multiple processes are trying to
     # launch lighttpd with same port at same time.
-    # This line *must* come before the forwarding below, as it nukes all
-    # the other forwarders. A more comprehensive fix might be to pull the
-    # forwarder-killing line up to here, but that might violate assumptions
-    # implicit in other places.
-    self.LaunchTestHttpServer(os.path.join(constants.CHROME_DIR),
-                              (constants.LIGHTTPD_RANDOM_PORT_FIRST +
-                               self.shard_index))
-
+    http_server_ports = self.LaunchTestHttpServer(
+        os.path.join(constants.CHROME_DIR),
+        (constants.LIGHTTPD_RANDOM_PORT_FIRST + self.shard_index))
     if self.ports_to_forward:
-      for port in self.ports_to_forward:
-        self.forwarders.append(Forwarder(
-            self.adb, [(port, port)], self.tool, '127.0.0.1', self.build_type))
+      port_pairs = [(port, port) for port in self.ports_to_forward]
+      # We need to remember which ports the HTTP server is using, since the
+      # forwarder will stomp on them otherwise.
+      port_pairs.append(http_server_ports)
+      self.forwarder = Forwarder(
+         self.adb, port_pairs, self.tool, '127.0.0.1', self.build_type)
     self.CopyTestFilesOnce()
     self.flags.AddFlags(['--enable-test-intents'])
 
   def TearDown(self):
     """Cleans up the test harness and saves outstanding data from test run."""
-    if self.forwarders:
-      for forwarder in self.forwarders:
-        forwarder.Close()
+    if self.forwarder:
+      self.forwarder.Close()
     self.GenerateCoverageReportIfNeeded()
     super(TestRunner, self).TearDown()
 
