@@ -10,12 +10,14 @@
 
 #include <prerror.h>
 
+#include "net/base/net_export.h"
+
 namespace net {
 
 class BoundNetLog;
 
 // Initalize NSS SSL library.
-void EnsureNSSSSLInit();
+NET_EXPORT void EnsureNSSSSLInit();
 
 // Log a failed NSS funcion call.
 void LogFailedNSSFunction(const BoundNetLog& net_log,
