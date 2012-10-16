@@ -53,8 +53,7 @@ class BASE_EXPORT SysInfo {
   // Exact return value may differ across platforms.
   // e.g. a 32-bit x86 kernel on a 64-bit capable CPU will return "x86",
   //      whereas a x86-64 kernel on the same CPU will return "x86_64"
-  // TODO(thestig) Rename this to OperatingSystemArchitecture().
-  static std::string CPUArchitecture();
+  static std::string OperatingSystemArchitecture();
 
   // Avoid using this. Use base/cpu.h to get information about the CPU instead.
   // http://crbug.com/148884
