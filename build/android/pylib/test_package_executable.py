@@ -5,7 +5,6 @@
 
 import logging
 import os
-import pexpect
 import shutil
 import sys
 import tempfile
@@ -13,6 +12,7 @@ import tempfile
 import cmd_helper
 import constants
 from test_package import TestPackage
+from pylib import pexpect
 
 
 class TestPackageExecutable(TestPackage):
