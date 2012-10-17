@@ -41,4 +41,9 @@ bool UploadElementReader::IsInMemory() const {
   return false;
 }
 
+int UploadElementReader::ReadSync(IOBuffer* buf, int buf_length) {
+  NOTREACHED() << "This instance does not support ReadSync().";
+  return ERR_NOT_IMPLEMENTED;
+}
+
 }  // namespace net
