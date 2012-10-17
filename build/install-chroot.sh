@@ -658,7 +658,8 @@ if [ -x "${script}" ]; then
         # possible, if it lives on a network filesystem that denies
         # access to root.
         tmp_script=
-        if ! sudo "${target%bit}" sh -c "[ -x '${script}' ]" >&/dev/null; then
+        if ! sudo /usr/local/bin/"${target%bit}" \
+            sh -c "[ -x '${script}' ]" >&/dev/null; then
           tmp_script="/tmp/${script##*/}"
           cp "${script}" "${tmp_script}"
         fi
@@ -768,7 +769,7 @@ if [ ! -h "${HOME}/chroot" ] &&
 fi
 
 # Clean up package files
-sudo schroot -c "${target%bit}" -p -- apt-get clean
+sudo schroot -c /usr/local/bin/"${target%bit}" -p -- apt-get clean
 sudo apt-get clean
 
 trap '' INT TERM QUIT HUP
@@ -780,8 +781,8 @@ cat <<EOF
 
 Successfully installed ${distname} ${arch}
 
-You can run programs inside of the chroot by invoking the "${target%bit}"
-command.
+You can run programs inside of the chroot by invoking the
+"/usr/local/bin/${target%bit}" command.
 
 This command can be used with arguments, in order to just run a single
 program inside of the chroot environment (e.g. "${target%bit} make chrome")
