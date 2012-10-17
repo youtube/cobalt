@@ -455,7 +455,8 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     load_state_param_ = param;
   }
 
-  // Returns the current upload progress in bytes.
+  // Returns the current upload progress in bytes. When the upload data is
+  // chunked, size is set to zero, but position will not be.
   UploadProgress GetUploadProgress() const;
 
   // Get response header(s) by ID or name.  These methods may only be called

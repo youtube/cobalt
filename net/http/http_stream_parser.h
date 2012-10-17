@@ -58,6 +58,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
 
   void Close(bool not_reusable);
 
+  // Returns the progress of uploading. When data is chunked, size is set to
+  // zero, but position will not be.
   UploadProgress GetUploadProgress() const;
 
   HttpResponseInfo* GetResponseInfo();
