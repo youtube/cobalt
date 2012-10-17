@@ -28,6 +28,3 @@ class SkPicturePrinter(multi_page_benchmark.MultiPageBenchmark):
     js = _JS.format(outpath.replace('\\', '\\\\'))
     tab.runtime.Evaluate(js)
     results.Add('output_path', 'path', outpath)
-
-def Main():
-  return multi_page_benchmark.Main(SkPicturePrinter())

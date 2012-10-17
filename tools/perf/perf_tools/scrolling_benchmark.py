@@ -83,7 +83,3 @@ class ScrollingBenchmark(multi_page_benchmark.MultiPageBenchmark):
     if self.options.report_all_results:
       for k, v in rendering_stats_deltas.iteritems():
         results.Add(k, '', v)
-
-
-def Main():
-  return multi_page_benchmark.Main(ScrollingBenchmark())
