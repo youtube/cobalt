@@ -128,21 +128,11 @@ CRYPTO_EXPORT int64 BaseTimeToPRTime(base::Time time);
 
 #if defined(USE_NSS)
 // Exposed for unittests only.
-// TODO(mattm): When NSS 3.14 is the minimum version required,
-// switch back to using a separate user DB for each test.
-// Because of https://bugzilla.mozilla.org/show_bug.cgi?id=588269 , the
-// opened user DB is not automatically closed.
-class CRYPTO_EXPORT_PRIVATE ScopedTestNSSDB {
- public:
-  ScopedTestNSSDB();
-  ~ScopedTestNSSDB();
-
-  bool is_open() { return is_open_; }
-
- private:
-  bool is_open_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedTestNSSDB);
-};
+// TODO(mattm): when https://bugzilla.mozilla.org/show_bug.cgi?id=588269 is
+// fixed, switch back to using a separate userdb for each test.  (Maybe refactor
+// to provide a ScopedTestNSSDB instead of open/close methods.)
+CRYPTO_EXPORT bool OpenTestNSSDB();
+// NOTE: due to NSS bug 588269, mentioned above, there is no CloseTestNSSDB.
 
 // NSS has a bug which can cause a deadlock or stall in some cases when writing
 // to the certDB and keyDB. It also has a bug which causes concurrent key pair
