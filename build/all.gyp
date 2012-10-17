@@ -97,6 +97,11 @@
                 '../chrome/chrome.gyp:linux_packages_<(channel)',
               ],
             }],
+            ['chromeos==0', {
+              'dependencies': [
+                '../third_party/cros_dbus_cplusplus/cros_dbus_cplusplus.gyp:*',
+              ],
+            }],
           ],
         }],
         ['toolkit_uses_gtk==1', {
