@@ -24,6 +24,8 @@ namespace sql {
 template <class UniqueT>
 class DiagnosticErrorDelegate : public ErrorDelegate {
  public:
+  DiagnosticErrorDelegate() {}
+  virtual ~DiagnosticErrorDelegate() {}
 
   virtual int OnError(int error, Connection* connection,
                       Statement* stmt) {
@@ -43,6 +45,8 @@ class DiagnosticErrorDelegate : public ErrorDelegate {
     // 26 currently but 50 gives them room to grow.
     UMA_HISTOGRAM_ENUMERATION(UniqueT::name(), error, 50);
   }
+
+ DISALLOW_COPY_AND_ASSIGN(DiagnosticErrorDelegate);
 };
 
 }  // namespace sql
