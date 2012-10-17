@@ -4,7 +4,6 @@
 
 import logging
 import os
-import pexpect
 import re
 import sys
 import time
@@ -13,6 +12,8 @@ import android_commands
 import cmd_helper
 import constants
 import ports
+
+from pylib import pexpect
 
 class Forwarder(object):
   """Class to manage port forwards from the device to the host."""

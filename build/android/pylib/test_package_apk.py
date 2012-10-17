@@ -4,7 +4,6 @@
 
 
 import os
-import pexpect
 import shlex
 import sys
 import tempfile
@@ -13,7 +12,7 @@ import time
 import android_commands
 import constants
 from test_package import TestPackage
-
+from pylib import pexpect
 
 class TestPackageApk(TestPackage):
   """A helper class for running APK-based native tests.
