@@ -6,7 +6,9 @@
 
 #include "base/file_util.h"
 #include "base/scoped_temp_dir.h"
+#include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -15,8 +17,9 @@ namespace net {
 class UploadFileElementReaderTest : public PlatformTest {
  protected:
   virtual void SetUp() OVERRIDE {
+    // Some tests (*.ReadPartially) rely on bytes_.size() being even.
     const char kData[] = "123456789abcdefghi";
-    bytes_.assign(kData, kData + arraysize(kData));
+    bytes_.assign(kData, kData + arraysize(kData) - 1);
 
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
 
@@ -42,29 +45,90 @@ class UploadFileElementReaderTest : public PlatformTest {
 
 TEST_F(UploadFileElementReaderTest, ReadPartially) {
   const size_t kHalfSize = bytes_.size() / 2;
+  ASSERT_EQ(bytes_.size(), kHalfSize * 2);
   std::vector<char> buf(kHalfSize);
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
   EXPECT_EQ(static_cast<int>(buf.size()),
-            reader_->ReadSync(&buf[0], buf.size()));
+            reader_->ReadSync(wrapped_buffer, buf.size()));
   EXPECT_EQ(bytes_.size() - buf.size(), reader_->BytesRemaining());
-  bytes_.resize(kHalfSize);  // Resize to compare.
-  EXPECT_EQ(bytes_, buf);
+  EXPECT_EQ(std::vector<char>(bytes_.begin(), bytes_.begin() + kHalfSize), buf);
+
+  EXPECT_EQ(static_cast<int>(buf.size()),
+            reader_->ReadSync(wrapped_buffer, buf.size()));
+  EXPECT_EQ(0U, reader_->BytesRemaining());
+  EXPECT_EQ(std::vector<char>(bytes_.begin() + kHalfSize, bytes_.end()), buf);
 }
 
 TEST_F(UploadFileElementReaderTest, ReadAll) {
   std::vector<char> buf(bytes_.size());
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
   EXPECT_EQ(static_cast<int>(buf.size()),
-            reader_->ReadSync(&buf[0], buf.size()));
+            reader_->ReadSync(wrapped_buffer, buf.size()));
   EXPECT_EQ(0U, reader_->BytesRemaining());
   EXPECT_EQ(bytes_, buf);
   // Try to read again.
-  EXPECT_EQ(0, reader_->ReadSync(&buf[0], buf.size()));
+  EXPECT_EQ(0, reader_->ReadSync(wrapped_buffer, buf.size()));
 }
 
 TEST_F(UploadFileElementReaderTest, ReadTooMuch) {
   const size_t kTooLargeSize = bytes_.size() * 2;
   std::vector<char> buf(kTooLargeSize);
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
   EXPECT_EQ(static_cast<int>(bytes_.size()),
-            reader_->ReadSync(&buf[0], buf.size()));
+            reader_->ReadSync(wrapped_buffer, buf.size()));
+  EXPECT_EQ(0U, reader_->BytesRemaining());
+  buf.resize(bytes_.size());  // Resize to compare.
+  EXPECT_EQ(bytes_, buf);
+}
+
+TEST_F(UploadFileElementReaderTest, ReadPartiallyAsync) {
+  const size_t kHalfSize = bytes_.size() / 2;
+  ASSERT_EQ(bytes_.size(), kHalfSize * 2);
+  std::vector<char> buf(kHalfSize);
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
+  TestCompletionCallback test_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            reader_->Read(wrapped_buffer, buf.size(),
+                          test_callback.callback()));
+
+  EXPECT_EQ(static_cast<int>(buf.size()), test_callback.WaitForResult());
+  EXPECT_EQ(bytes_.size() - buf.size(), reader_->BytesRemaining());
+  EXPECT_EQ(std::vector<char>(bytes_.begin(), bytes_.begin() + kHalfSize), buf);
+
+  EXPECT_EQ(ERR_IO_PENDING,
+            reader_->Read(wrapped_buffer, buf.size(),
+                          test_callback.callback()));
+
+  EXPECT_EQ(static_cast<int>(buf.size()), test_callback.WaitForResult());
+  EXPECT_EQ(0U, reader_->BytesRemaining());
+  EXPECT_EQ(std::vector<char>(bytes_.begin() + kHalfSize, bytes_.end()), buf);
+}
+
+TEST_F(UploadFileElementReaderTest, ReadAllAsync) {
+  std::vector<char> buf(bytes_.size());
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
+  TestCompletionCallback test_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            reader_->Read(wrapped_buffer, buf.size(),
+                          test_callback.callback()));
+
+  EXPECT_EQ(static_cast<int>(buf.size()), test_callback.WaitForResult());
+  EXPECT_EQ(0U, reader_->BytesRemaining());
+  EXPECT_EQ(bytes_, buf);
+  // Try to read again.
+  EXPECT_EQ(0, reader_->ReadSync(wrapped_buffer, buf.size()));
+}
+
+TEST_F(UploadFileElementReaderTest, ReadTooMuchAsync) {
+  const size_t kTooLargeSize = bytes_.size() * 2;
+  std::vector<char> buf(kTooLargeSize);
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
+  TestCompletionCallback test_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            reader_->Read(wrapped_buffer, buf.size(),
+                          test_callback.callback()));
+
+  EXPECT_EQ(static_cast<int>(bytes_.size()), test_callback.WaitForResult());
   EXPECT_EQ(0U, reader_->BytesRemaining());
   buf.resize(bytes_.size());  // Resize to compare.
   EXPECT_EQ(bytes_, buf);
@@ -79,8 +143,9 @@ TEST_F(UploadFileElementReaderTest, Range) {
   EXPECT_EQ(kLength, reader_->GetContentLength());
   EXPECT_EQ(kLength, reader_->BytesRemaining());
   std::vector<char> buf(kLength);
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
   EXPECT_EQ(static_cast<int>(kLength),
-            reader_->ReadSync(&buf[0], kLength));
+            reader_->ReadSync(wrapped_buffer, kLength));
   const std::vector<char> expected(bytes_.begin() + kOffset,
                                    bytes_.begin() + kOffset + kLength);
   EXPECT_EQ(expected, buf);

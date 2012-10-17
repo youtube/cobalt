@@ -283,7 +283,7 @@ int SpdyHttpStream::SendData() {
   CHECK_EQ(0, request_body_buf_->BytesRemaining());
 
   // Read the data from the request body stream.
-  const int bytes_read = request_body_stream_->Read(
+  const int bytes_read = request_body_stream_->ReadSync(
       raw_request_body_buf_, raw_request_body_buf_->size());
   DCHECK(!waiting_for_chunk_ || bytes_read != ERR_IO_PENDING);
 
