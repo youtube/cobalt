@@ -208,6 +208,11 @@ function bb_run_unit_tests {
   build/android/run_tests.py --xvfb --verbose
 }
 
+# Run experimental unittest bundles.
+function bb_run_experimental_unit_tests {
+  build/android/run_tests.py --xvfb --verbose -s cc_unittests
+}
+
 # Run a buildbot step and handle failure.
 function bb_run_step {
   (
