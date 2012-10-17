@@ -260,7 +260,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
 
     size_t todo = request_body_->size();
     while (todo) {
-      int consumed = request_body_->Read(request_headers_, todo);
+      int consumed = request_body_->ReadSync(request_headers_, todo);
       DCHECK_GT(consumed, 0);  // Read() won't fail if not chunked.
       request_headers_->DidConsume(consumed);
       todo -= consumed;
@@ -490,7 +490,7 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
     return OK;
   }
 
-  const int consumed = request_body_->Read(chunk_buf_, chunk_buf_->size());
+  const int consumed = request_body_->ReadSync(chunk_buf_, chunk_buf_->size());
   if (consumed == 0) {  // Reached the end.
     DCHECK(request_body_->IsEOF());
     request_body_buf_->Clear();
@@ -534,8 +534,8 @@ int HttpStreamParser::DoSendNonChunkedBody(int result) {
   }
 
   request_body_buf_->Clear();
-  const int consumed = request_body_->Read(request_body_buf_,
-                                           request_body_buf_->capacity());
+  const int consumed = request_body_->ReadSync(request_body_buf_,
+                                               request_body_buf_->capacity());
   if (consumed == 0) {  // Reached the end.
     io_state_ = STATE_REQUEST_SENT;
   } else if (consumed > 0) {
