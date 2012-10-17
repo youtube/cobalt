@@ -50,9 +50,6 @@ bool StatementID::operator<(const StatementID& other) const {
   return strcmp(str_, other.str_) < 0;
 }
 
-ErrorDelegate::ErrorDelegate() {
-}
-
 ErrorDelegate::~ErrorDelegate() {
 }
 
@@ -102,7 +99,8 @@ Connection::Connection()
       exclusive_locking_(false),
       transaction_nesting_(0),
       needs_rollback_(false),
-      in_memory_(false) {
+      in_memory_(false),
+      error_delegate_(NULL) {
 }
 
 Connection::~Connection() {
