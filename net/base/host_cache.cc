@@ -11,9 +11,18 @@ namespace net {
 
 //-----------------------------------------------------------------------------
 
+HostCache::Entry::Entry(int error, const AddressList& addrlist,
+                        base::TimeDelta ttl)
+    : error(error),
+      addrlist(addrlist),
+      ttl(ttl) {
+  DCHECK(ttl >= base::TimeDelta());
+}
+
 HostCache::Entry::Entry(int error, const AddressList& addrlist)
     : error(error),
-      addrlist(addrlist) {
+      addrlist(addrlist),
+      ttl(base::TimeDelta::FromSeconds(-1)) {
 }
 
 HostCache::Entry::~Entry() {
@@ -38,15 +47,14 @@ const HostCache::Entry* HostCache::Lookup(const Key& key,
 }
 
 void HostCache::Set(const Key& key,
-                    int error,
-                    const AddressList& addrlist,
+                    const Entry& entry,
                     base::TimeTicks now,
                     base::TimeDelta ttl) {
   DCHECK(CalledOnValidThread());
   if (caching_is_disabled())
     return;
 
-  entries_.Put(key, Entry(error, addrlist), now, now + ttl);
+  entries_.Put(key, entry, now, now + ttl);
 }
 
 void HostCache::clear() {
