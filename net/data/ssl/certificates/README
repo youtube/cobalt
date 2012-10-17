@@ -127,3 +127,12 @@ unit tests.
 - ndn.ca.crt: "New Dream Network Certificate Authority" root certificate.
      This is an X.509 v1 certificate that omits the version field. Used to
      test that the certificate version gets the default value v1.
+
+- websocket_cacert.pem : The testing root CA for testing WebSocket client
+     certificate authentication.
+     This file is used in SSLUITest.TestWSSClientCert.
+
+- websocket_client_cert.p12 : A PKCS #12 file containing a client certificate
+     and a private key created for WebSocket testing. The password is "".
+     This file is used in SSLUITest.TestWSSClientCert.
+
