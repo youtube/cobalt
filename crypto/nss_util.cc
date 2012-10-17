@@ -702,13 +702,8 @@ bool CheckNSSVersion(const char* version) {
 }
 
 #if defined(USE_NSS)
-ScopedTestNSSDB::ScopedTestNSSDB()
-  : is_open_(g_nss_singleton.Get().OpenTestNSSDB()) {
-}
-
-ScopedTestNSSDB::~ScopedTestNSSDB() {
-  // TODO(mattm): Close the dababase once NSS 3.14 is required,
-  // which fixes https://bugzilla.mozilla.org/show_bug.cgi?id=588269
+bool OpenTestNSSDB() {
+  return g_nss_singleton.Get().OpenTestNSSDB();
 }
 
 base::Lock* GetNSSWriteLock() {
