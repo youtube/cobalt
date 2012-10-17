@@ -11,65 +11,70 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/sqlite/sqlite3.h"
 
+namespace {
+
 class StatementErrorHandler : public sql::ErrorDelegate {
  public:
-  StatementErrorHandler() : error_(SQLITE_OK) {}
+  StatementErrorHandler(int* error, std::string* sql_text)
+    : error_(error),
+      sql_text_(sql_text) {}
+
+  virtual ~StatementErrorHandler() {}
 
   virtual int OnError(int error, sql::Connection* connection,
                       sql::Statement* stmt) OVERRIDE {
-    error_ = error;
+    *error_ = error;
     const char* sql_txt = stmt ? stmt->GetSQLStatement() : NULL;
-    sql_text_ = sql_txt ? sql_txt : "no statement available";
+    *sql_text_ = sql_txt ? sql_txt : "no statement available";
     return error;
   }
 
-  int error() const { return error_; }
-
-  void reset_error() {
-    sql_text_.clear();
-    error_ = SQLITE_OK;
-  }
-
-  const char* sql_statement() const { return sql_text_.c_str(); }
-
- protected:
-  virtual ~StatementErrorHandler() {}
-
  private:
-  int error_;
-  std::string sql_text_;
+  int* error_;
+  std::string* sql_text_;
+
+ DISALLOW_COPY_AND_ASSIGN(StatementErrorHandler);
 };
 
 class SQLStatementTest : public testing::Test {
  public:
-  SQLStatementTest() : error_handler_(new StatementErrorHandler) {}
+  SQLStatementTest() : error_(SQLITE_OK) {}
 
   void SetUp() {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(db_.Open(temp_dir_.path().AppendASCII("SQLStatementTest.db")));
-
-    // The |error_handler_| will be called if any sqlite statement operation
-    // returns an error code.
-    db_.set_error_delegate(error_handler_);
+    // The error delegate will set |error_| and |sql_text_| when any sqlite
+    // statement operation returns an error code.
+    db_.set_error_delegate(new StatementErrorHandler(&error_, &sql_text_));
   }
 
   void TearDown() {
     // If any error happened the original sql statement can be found in
-    // error_handler_->sql_statement().
-    EXPECT_EQ(SQLITE_OK, error_handler_->error());
+    // |sql_text_|.
+    EXPECT_EQ(SQLITE_OK, error_);
     db_.Close();
   }
 
   sql::Connection& db() { return db_; }
 
-  int sqlite_error() const { return error_handler_->error(); }
-  void reset_error() const { error_handler_->reset_error(); }
+  int sqlite_error() const { return error_; }
+
+  void ResetError() {
+    error_ = SQLITE_OK;
+    sql_text_.clear();
+  }
 
  private:
   ScopedTempDir temp_dir_;
   sql::Connection db_;
-  scoped_refptr<StatementErrorHandler> error_handler_;
+
+  // The error code of the most recent error.
+  int error_;
+  // Original statement which caused the error.
+  std::string sql_text_;
 };
+
+}  // namespace
 
 TEST_F(SQLStatementTest, Assign) {
   sql::Statement s;
@@ -121,7 +126,7 @@ TEST_F(SQLStatementTest, BasicErrorCallback) {
   s.BindCString(0, "bad bad");
   EXPECT_FALSE(s.Run());
   EXPECT_EQ(SQLITE_MISMATCH, sqlite_error());
-  reset_error();
+  ResetError();
 }
 
 TEST_F(SQLStatementTest, Reset) {
