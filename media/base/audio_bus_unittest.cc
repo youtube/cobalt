@@ -11,13 +11,13 @@
 #include "media/base/channel_layout.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace media {
+
 static const int kChannels = 6;
 static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_5_1;
 // Use a buffer size which is intentionally not a multiple of kChannelAlignment.
 static const int kFrameCount = media::AudioBus::kChannelAlignment * 32 - 1;
 static const int kSampleRate = 48000;
-
-namespace media {
 
 class AudioBusTest : public testing::Test {
  public:

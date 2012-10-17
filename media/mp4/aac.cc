@@ -17,6 +17,8 @@ static const int kFrequencyMap[] = {
   22050, 16000, 12000, 11025, 8000, 7350
 };
 
+namespace media {
+
 static ChannelLayout GetChannelLayout(uint8 channel_config) {
   switch (channel_config) {
     case 1:
@@ -39,8 +41,6 @@ static ChannelLayout GetChannelLayout(uint8 channel_config) {
 
   return CHANNEL_LAYOUT_UNSUPPORTED;
 }
-
-namespace media {
 
 namespace mp4 {
 

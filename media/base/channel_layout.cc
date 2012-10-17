@@ -4,6 +4,11 @@
 
 #include "media/base/channel_layout.h"
 
+#include "base/basictypes.h"
+#include "base/logging.h"
+
+namespace media {
+
 static const int kLayoutToChannels[] = {
     0,   // CHANNEL_LAYOUT_NONE
     0,   // CHANNEL_LAYOUT_UNSUPPORTED
@@ -23,7 +28,13 @@ static const int kLayoutToChannels[] = {
     8,   // CHANNEL_LAYOUT_7POINT1_WIDE
     2};  // CHANNEL_LAYOUT_STEREO_DOWNMIX
 
-const int kChannelOrderings[CHANNEL_LAYOUT_MAX][CHANNELS_MAX] = {
+// The channel orderings for each layout as specified by FFmpeg.  Each value
+// represents the index of each channel in each layout.  Values of -1 mean the
+// channel at that index is not used for that layout.For example, the left side
+// surround sound channel in FFmpeg's 5.1 layout is in the 5th position (because
+// the order is L, R, C, LFE, LS, RS), so
+// kChannelOrderings[CHANNEL_LAYOUT_5POINT1][SIDE_LEFT] = 4;
+static const int kChannelOrderings[CHANNEL_LAYOUT_MAX][CHANNELS_MAX] = {
   // FL | FR | FC | LFE | BL | BR | FLofC | FRofC | BC | SL | SR | StL | StR
 
   // CHANNEL_LAYOUT_NONE
@@ -81,5 +92,14 @@ const int kChannelOrderings[CHANNEL_LAYOUT_MAX][CHANNELS_MAX] = {
   };
 
 int ChannelLayoutToChannelCount(ChannelLayout layout) {
+  DCHECK_LT(static_cast<size_t>(layout), arraysize(kLayoutToChannels));
   return kLayoutToChannels[layout];
 }
+
+int ChannelOrder(ChannelLayout layout, Channels channel) {
+  DCHECK_LT(static_cast<size_t>(layout), arraysize(kChannelOrderings));
+  DCHECK_LT(static_cast<size_t>(channel), arraysize(kChannelOrderings[0]));
+  return kChannelOrderings[layout][channel];
+}
+
+}  // namespace media
