@@ -12,6 +12,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "sql/sql_export.h"
@@ -78,9 +79,9 @@ class Connection;
 // the OnError() callback.
 // The tipical usage is to centralize the code designed to handle database
 // corruption, low-level IO errors or locking violations.
-class SQL_EXPORT ErrorDelegate : public base::RefCounted<ErrorDelegate> {
+class SQL_EXPORT ErrorDelegate {
  public:
-  ErrorDelegate();
+  virtual ~ErrorDelegate();
 
   // |error| is an sqlite result code as seen in sqlite\preprocessed\sqlite3.h
   // |connection| is db connection where the error happened and |stmt| is
@@ -94,11 +95,6 @@ class SQL_EXPORT ErrorDelegate : public base::RefCounted<ErrorDelegate> {
   // re-tried then returning SQLITE_OK is appropiate; otherwise is recomended
   // that you return the original |error| or the appropiae error code.
   virtual int OnError(int error, Connection* connection, Statement* stmt) = 0;
-
- protected:
-  friend class base::RefCounted<ErrorDelegate>;
-
-  virtual ~ErrorDelegate();
 };
 
 class SQL_EXPORT Connection {
@@ -142,8 +138,9 @@ class SQL_EXPORT Connection {
   // Sets the object that will handle errors. Recomended that it should be set
   // before calling Open(). If not set, the default is to ignore errors on
   // release and assert on debug builds.
+  // Takes ownership of |delegate|.
   void set_error_delegate(ErrorDelegate* delegate) {
-    error_delegate_ = delegate;
+    error_delegate_.reset(delegate);
   }
 
   // Initialization ------------------------------------------------------------
@@ -445,7 +442,7 @@ class SQL_EXPORT Connection {
 
   // This object handles errors resulting from all forms of executing sqlite
   // commands or statements. It can be null which means default handling.
-  scoped_refptr<ErrorDelegate> error_delegate_;
+  scoped_ptr<ErrorDelegate> error_delegate_;
 
   DISALLOW_COPY_AND_ASSIGN(Connection);
 };

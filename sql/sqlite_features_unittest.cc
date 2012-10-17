@@ -15,65 +15,63 @@
 
 namespace {
 
-
 class StatementErrorHandler : public sql::ErrorDelegate {
  public:
-  StatementErrorHandler() : error_(SQLITE_OK) {}
+  StatementErrorHandler(int* error, std::string* sql_text)
+    : error_(error),
+      sql_text_(sql_text) {}
+
+  virtual ~StatementErrorHandler() {}
 
   virtual int OnError(int error, sql::Connection* connection,
                       sql::Statement* stmt) OVERRIDE {
-    error_ = error;
+    *error_ = error;
     const char* sql_txt = stmt ? stmt->GetSQLStatement() : NULL;
-    sql_text_ = sql_txt ? sql_txt : "no statement available";
+    *sql_text_ = sql_txt ? sql_txt : "no statement available";
     return error;
   }
 
-  int error() const { return error_; }
-
-  void reset_error() {
-    sql_text_.clear();
-    error_ = SQLITE_OK;
-  }
-
-  const char* sql_statement() const { return sql_text_.c_str(); }
-
- protected:
-  virtual ~StatementErrorHandler() {}
-
  private:
-  int error_;
-  std::string sql_text_;
+  int* error_;
+  std::string* sql_text_;
+
+ DISALLOW_COPY_AND_ASSIGN(StatementErrorHandler);
 };
 
 class SQLiteFeaturesTest : public testing::Test {
  public:
-  SQLiteFeaturesTest() : error_handler_(new StatementErrorHandler) {}
+  SQLiteFeaturesTest() : error_(SQLITE_OK) {}
 
   void SetUp() {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(db_.Open(temp_dir_.path().AppendASCII("SQLStatementTest.db")));
 
-    // The |error_handler_| will be called if any sqlite statement operation
-    // returns an error code.
-    db_.set_error_delegate(error_handler_);
+    // The error delegate will set |error_| and |sql_text_| when any sqlite
+    // statement operation returns an error code.
+    db_.set_error_delegate(new StatementErrorHandler(&error_, &sql_text_));
   }
 
   void TearDown() {
     // If any error happened the original sql statement can be found in
-    // error_handler_->sql_statement().
-    EXPECT_EQ(SQLITE_OK, error_handler_->error());
+    // |sql_text_|.
+    EXPECT_EQ(SQLITE_OK, error_);
     db_.Close();
   }
 
   sql::Connection& db() { return db_; }
 
-  int sqlite_error() const { return error_handler_->error(); }
-  void reset_error() const { error_handler_->reset_error(); }
+  int sqlite_error() const {
+    return error_;
+  }
 
  private:
   ScopedTempDir temp_dir_;
   sql::Connection db_;
-  scoped_refptr<StatementErrorHandler> error_handler_;
+
+  // The error code of the most recent error.
+  int error_;
+  // Original statement which has caused the error.
+  std::string sql_text_;
 };
 
 // Do not include fts1 support, it is not useful, and nobody is
