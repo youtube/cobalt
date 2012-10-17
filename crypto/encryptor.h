@@ -125,7 +125,6 @@ class CRYPTO_EXPORT Encryptor {
   bool CryptCTR(PK11Context* context,
                 const base::StringPiece& input,
                 std::string* output);
-  ScopedPK11Slot slot_;
   ScopedSECItem param_;
 #endif
 };

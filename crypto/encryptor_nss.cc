@@ -53,10 +53,6 @@ bool Encryptor::Init(SymmetricKey* key,
   if (mode == CBC && iv.size() != AES_BLOCK_SIZE)
     return false;
 
-  slot_.reset(PK11_GetBestSlot(GetMechanism(mode), NULL));
-  if (!slot_.get())
-    return false;
-
   switch (mode) {
     case CBC:
       SECItem iv_item;
