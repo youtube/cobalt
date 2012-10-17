@@ -171,7 +171,7 @@ int MockHostResolverBase::ResolveProc(size_t id,
     base::TimeDelta ttl;
     if (rv == OK)
       ttl = base::TimeDelta::FromSeconds(kCacheEntryTTLSeconds);
-    cache_->Set(key, rv, addr, base::TimeTicks::Now(), ttl);
+    cache_->Set(key, HostCache::Entry(rv, addr), base::TimeTicks::Now(), ttl);
   }
   if (rv == OK) {
     *addresses = addr;
