@@ -18,8 +18,8 @@ import sys
 import tempfile
 import time
 
-import pexpect
 import io_stats_parser
+from pylib import pexpect
 
 CHROME_SRC = os.path.join(
     os.path.abspath(os.path.dirname(__file__)), '..', '..', '..')
