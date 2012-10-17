@@ -395,33 +395,75 @@ bool TransportSecurityState::DomainState::ParsePinsHeader(
   return true;
 }
 
-// "Strict-Transport-Security" ":"
-//     "max-age" "=" delta-seconds [ ";" "includeSubDomains" ]
+// Parse the Strict-Transport-Security header, as currently defined in
+// http://tools.ietf.org/html/draft-ietf-websec-strict-transport-sec-14:
+//
+// Strict-Transport-Security = "Strict-Transport-Security" ":"
+//                             [ directive ]  *( ";" [ directive ] )
+//
+// directive                 = directive-name [ "=" directive-value ]
+// directive-name            = token
+// directive-value           = token | quoted-string
+//
+// 1.  The order of appearance of directives is not significant.
+//
+// 2.  All directives MUST appear only once in an STS header field.
+//     Directives are either optional or required, as stipulated in
+//     their definitions.
+//
+// 3.  Directive names are case-insensitive.
+//
+// 4.  UAs MUST ignore any STS header fields containing directives, or
+//     other header field value data, that does not conform to the
+//     syntax defined in this specification.
+//
+// 5.  If an STS header field contains directive(s) not recognized by
+//     the UA, the UA MUST ignore the unrecognized directives and if the
+//     STS header field otherwise satisfies the above requirements (1
+//     through 4), the UA MUST process the recognized directives.
 bool TransportSecurityState::DomainState::ParseSTSHeader(
     const base::Time& now,
     const std::string& value) {
   int max_age_candidate = 0;
+  bool include_subdomains_candidate = false;
+
+  // We must see max-age exactly once.
+  int max_age_observed = 0;
+  // We must see includeSubdomains exactly 0 or 1 times.
+  int include_subdomains_observed = 0;
 
   enum ParserState {
     START,
     AFTER_MAX_AGE_LABEL,
     AFTER_MAX_AGE_EQUALS,
     AFTER_MAX_AGE,
-    AFTER_MAX_AGE_INCLUDE_SUB_DOMAINS_DELIMITER,
     AFTER_INCLUDE_SUBDOMAINS,
+    AFTER_UNKNOWN_LABEL,
+    DIRECTIVE_END
   } state = START;
 
   StringTokenizer tokenizer(value, " \t=;");
   tokenizer.set_options(StringTokenizer::RETURN_DELIMS);
+  tokenizer.set_quote_chars("\"");
+  std::string unquoted;
   while (tokenizer.GetNext()) {
     DCHECK(!tokenizer.token_is_delim() || tokenizer.token().length() == 1);
     switch (state) {
       case START:
+      case DIRECTIVE_END:
         if (IsAsciiWhitespace(*tokenizer.token_begin()))
           continue;
-        if (!LowerCaseEqualsASCII(tokenizer.token(), "max-age"))
-          return false;
-        state = AFTER_MAX_AGE_LABEL;
+        if (LowerCaseEqualsASCII(tokenizer.token(), "max-age")) {
+          state = AFTER_MAX_AGE_LABEL;
+          max_age_observed++;
+        } else if (LowerCaseEqualsASCII(tokenizer.token(),
+                                        "includesubdomains")) {
+          state = AFTER_INCLUDE_SUBDOMAINS;
+          include_subdomains_observed++;
+          include_subdomains_candidate = true;
+        } else {
+          state = AFTER_UNKNOWN_LABEL;
+        }
         break;
 
       case AFTER_MAX_AGE_LABEL:
@@ -436,56 +478,57 @@ bool TransportSecurityState::DomainState::ParseSTSHeader(
       case AFTER_MAX_AGE_EQUALS:
         if (IsAsciiWhitespace(*tokenizer.token_begin()))
           continue;
-        if (!MaxAgeToInt(tokenizer.token_begin(),
-                         tokenizer.token_end(),
+        unquoted = HttpUtil::Unquote(tokenizer.token());
+        if (!MaxAgeToInt(unquoted.begin(),
+                         unquoted.end(),
                          &max_age_candidate))
           return false;
         state = AFTER_MAX_AGE;
         break;
 
       case AFTER_MAX_AGE:
-        if (IsAsciiWhitespace(*tokenizer.token_begin()))
-          continue;
-        if (*tokenizer.token_begin() != ';')
-          return false;
-        state = AFTER_MAX_AGE_INCLUDE_SUB_DOMAINS_DELIMITER;
-        break;
-
-      case AFTER_MAX_AGE_INCLUDE_SUB_DOMAINS_DELIMITER:
-        if (IsAsciiWhitespace(*tokenizer.token_begin()))
-          continue;
-        if (!LowerCaseEqualsASCII(tokenizer.token(), "includesubdomains"))
-          return false;
-        state = AFTER_INCLUDE_SUBDOMAINS;
-        break;
-
       case AFTER_INCLUDE_SUBDOMAINS:
-        if (!IsAsciiWhitespace(*tokenizer.token_begin()))
+        if (IsAsciiWhitespace(*tokenizer.token_begin()))
+          continue;
+        else if (*tokenizer.token_begin() == ';')
+          state = DIRECTIVE_END;
+        else
           return false;
+        break;
+
+      case AFTER_UNKNOWN_LABEL:
+        // Consume and ignore the post-label contents (if any).
+        if (*tokenizer.token_begin() != ';')
+          continue;
+        state = DIRECTIVE_END;
         break;
     }
   }
 
   // We've consumed all the input.  Let's see what state we ended up in.
+  if (max_age_observed != 1 ||
+      (include_subdomains_observed != 0 && include_subdomains_observed != 1)) {
+    return false;
+  }
+
   switch (state) {
+    case AFTER_MAX_AGE:
+    case AFTER_INCLUDE_SUBDOMAINS:
+    case AFTER_UNKNOWN_LABEL:
+      // BUG(156147), TODO(palmer): If max_age_candidate == 0, we should
+      // delete (or, not set) the HSTS record, rather than treat it as a
+      // normal value. However, now + 0 effectively deletes the entry
+      // because it will not be enforced (it expires immediately,
+      // essentially).
+      upgrade_expiry = now + base::TimeDelta::FromSeconds(max_age_candidate);
+      include_subdomains = include_subdomains_candidate;
+      upgrade_mode = MODE_FORCE_HTTPS;
+      return true;
     case START:
+    case DIRECTIVE_END:
     case AFTER_MAX_AGE_LABEL:
     case AFTER_MAX_AGE_EQUALS:
       return false;
-    case AFTER_MAX_AGE:
-      upgrade_expiry =
-          now + base::TimeDelta::FromSeconds(max_age_candidate);
-      include_subdomains = false;
-      upgrade_mode = MODE_FORCE_HTTPS;
-      return true;
-    case AFTER_MAX_AGE_INCLUDE_SUB_DOMAINS_DELIMITER:
-      return false;
-    case AFTER_INCLUDE_SUBDOMAINS:
-      upgrade_expiry =
-          now + base::TimeDelta::FromSeconds(max_age_candidate);
-      include_subdomains = true;
-      upgrade_mode = MODE_FORCE_HTTPS;
-      return true;
     default:
       NOTREACHED();
       return false;
