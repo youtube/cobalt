@@ -238,6 +238,46 @@ TEST_F(TransportSecurityStateTest, ValidSTSHeaders) {
   EXPECT_EQ(expiry, state.upgrade_expiry);
   EXPECT_TRUE(state.include_subdomains);
 
+  EXPECT_TRUE(state.ParseSTSHeader(now, "incLudesUbdOmains; max-age=123"));
+  expiry = now + base::TimeDelta::FromSeconds(123);
+  EXPECT_EQ(expiry, state.upgrade_expiry);
+  EXPECT_TRUE(state.include_subdomains);
+
+  EXPECT_TRUE(state.ParseSTSHeader(now, "   incLudesUbdOmains; max-age=123"));
+  expiry = now + base::TimeDelta::FromSeconds(123);
+  EXPECT_EQ(expiry, state.upgrade_expiry);
+  EXPECT_TRUE(state.include_subdomains);
+
+  EXPECT_TRUE(state.ParseSTSHeader(now,
+      "   incLudesUbdOmains; max-age=123; pumpkin=kitten"));
+  expiry = now + base::TimeDelta::FromSeconds(123);
+  EXPECT_EQ(expiry, state.upgrade_expiry);
+  EXPECT_TRUE(state.include_subdomains);
+
+  EXPECT_TRUE(state.ParseSTSHeader(now,
+      "   pumpkin=894; incLudesUbdOmains; max-age=123  "));
+  expiry = now + base::TimeDelta::FromSeconds(123);
+  EXPECT_EQ(expiry, state.upgrade_expiry);
+  EXPECT_TRUE(state.include_subdomains);
+
+  EXPECT_TRUE(state.ParseSTSHeader(now,
+      "   pumpkin; incLudesUbdOmains; max-age=123  "));
+  expiry = now + base::TimeDelta::FromSeconds(123);
+  EXPECT_EQ(expiry, state.upgrade_expiry);
+  EXPECT_TRUE(state.include_subdomains);
+
+  EXPECT_TRUE(state.ParseSTSHeader(now,
+      "   pumpkin; incLudesUbdOmains; max-age=\"123\"  "));
+  expiry = now + base::TimeDelta::FromSeconds(123);
+  EXPECT_EQ(expiry, state.upgrade_expiry);
+  EXPECT_TRUE(state.include_subdomains);
+
+  EXPECT_TRUE(state.ParseSTSHeader(now,
+      "animal=\"squirrel; distinguished\"; incLudesUbdOmains; max-age=123"));
+  expiry = now + base::TimeDelta::FromSeconds(123);
+  EXPECT_EQ(expiry, state.upgrade_expiry);
+  EXPECT_TRUE(state.include_subdomains);
+
   EXPECT_TRUE(state.ParseSTSHeader(now, "max-age=394082;  incLudesUbdOmains"));
   expiry = now + base::TimeDelta::FromSeconds(394082);
   EXPECT_EQ(expiry, state.upgrade_expiry);
