@@ -15,9 +15,11 @@
 
 namespace net {
 
+class DrainableIOBuffer;
 class IOBuffer;
 class UploadElementReader;
 
+// A class to read all elements from an UploadData object.
 class NET_EXPORT UploadDataStream {
  public:
   explicit UploadDataStream(UploadData* upload_data);
@@ -36,23 +38,30 @@ class NET_EXPORT UploadDataStream {
   int Init(const CompletionCallback& callback);
 
   // Initializes the stream synchronously.
-  // Use this method only in tests and Chrome Frame.
+  // Use this method only if the thread is IO allowed or the data is in-memory.
   int InitSync();
 
-  // Reads up to |buf_len| bytes from the upload data stream to |buf|. The
-  // number of bytes read is returned. Partial reads are allowed.  Zero is
-  // returned on a call to Read when there are no remaining bytes in the
-  // stream, and IsEof() will return true hereafter.
+  // When possible, reads up to |buf_len| bytes synchronously from the upload
+  // data stream to |buf| and returns the number of bytes read; otherwise,
+  // returns ERR_IO_PENDING and calls |callback| with the number of bytes read.
+  // Partial reads are allowed. Zero is returned on a call to Read when there
+  // are no remaining bytes in the stream, and IsEof() will return true
+  // hereafter.
   //
   // If there's less data to read than we initially observed (i.e. the actual
   // upload data is smaller than size()), zeros are padded to ensure that
   // size() bytes can be read, which can happen for TYPE_FILE payloads.
   //
-  // If the upload data stream is chunked (i.e. is_chunked() is true),
-  // ERR_IO_PENDING is returned to indicate there is nothing to read at the
-  // moment, but more data to come at a later time. If not chunked, reads
-  // won't fail.
-  int Read(IOBuffer* buf, int buf_len);
+  // If the data is chunked (i.e. is_chunked() is true) and there is not enough
+  // data ready to be uploaded, ERR_IO_PENDING is returned and the callback set
+  // by set_chunk_callback is called later when data gets available.
+  // When data is available, the data is read synchronously and the number of
+  // bytes read is returned.
+  int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
+
+  // Reads data always synchronously.
+  // Use this method only if the thread is IO allowed or the data is in-memory.
+  int ReadSync(IOBuffer* buf, int buf_len);
 
   // Sets the callback to be invoked when new chunks are available to upload.
   void set_chunk_callback(ChunkCallback* callback) {
@@ -62,7 +71,8 @@ class NET_EXPORT UploadDataStream {
   // Returns the total size of the data stream and the current position.
   // size() is not to be used to determine whether the stream has ended
   // because it is possible for the stream to end before its size is reached,
-  // for example, if the file is truncated.
+  // for example, if the file is truncated. When the data is chunked, size()
+  // always returns zero.
   uint64 size() const { return total_size_; }
   uint64 position() const { return current_position_; }
 
@@ -86,6 +96,7 @@ class NET_EXPORT UploadDataStream {
   FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, InitAsync);
   FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, InitAsyncFailureAsync);
   FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, InitAsyncFailureSync);
+  FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, ReadAsync);
 
   // Runs Init() for all element readers.
   // This method is used to implement Init().
@@ -96,6 +107,13 @@ class NET_EXPORT UploadDataStream {
   // Finalizes the initialization process.
   // This method is used to implement Init().
   void FinalizeInitialization();
+
+  // Reads data from the element readers.
+  // This method is used to implement Read().
+  int ReadInternal(scoped_refptr<DrainableIOBuffer> buf,
+                   bool invoked_asynchronously,
+                   const CompletionCallback& callback,
+                   int previous_result);
 
   // These methods are provided only to be used by unit tests.
   static void ResetMergeChunks();
@@ -110,6 +128,7 @@ class NET_EXPORT UploadDataStream {
   size_t element_index_;
 
   // Size and current read position within the upload data stream.
+  // |total_size_| is set to zero when the data is chunked.
   uint64 total_size_;
   uint64 current_position_;
 

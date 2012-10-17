@@ -31,14 +31,22 @@ class NET_EXPORT_PRIVATE UploadFileElementReader : public UploadElementReader {
   virtual int InitSync() OVERRIDE;
   virtual uint64 GetContentLength() const OVERRIDE;
   virtual uint64 BytesRemaining() const OVERRIDE;
-  virtual int ReadSync(char* buf, int buf_length) OVERRIDE;
+  virtual int Read(IOBuffer* buf,
+                   int buf_length,
+                   const CompletionCallback& callback) OVERRIDE;
+  virtual int ReadSync(IOBuffer* buf, int buf_length) OVERRIDE;
 
  private:
   // This method is used to implement Init().
   void OnInitCompleted(scoped_ptr<FileStream>* file_stream,
                        uint64* content_length,
-                       int* result,
-                       const CompletionCallback& callback);
+                       const CompletionCallback& callback,
+                       int result);
+
+  // This method is used to implement Read().
+  void OnReadCompleted(scoped_ptr<FileStream> file_stream,
+                       const CompletionCallback& callback,
+                       int result);
 
   // Sets an value to override the result for GetContentLength().
   // Used for tests.

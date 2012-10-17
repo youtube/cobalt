@@ -40,6 +40,12 @@ class NET_EXPORT_PRIVATE ChunkCallback {
 // Until there is a more abstract class for this, this one derives from
 // SupportsUserData to allow users to stash random data by
 // key and ensure its destruction when UploadData is finally deleted.
+//
+// Chunked uploads are handled by repeatedly calling AppendChunk() as data
+// becomes available. When more data becomes available, the ChunkCallback's
+// OnChunkAvailable function is called. The UploadData creator is then
+// responsible for checking if the UploadData stream has more data available, if
+// necessary.
 class NET_EXPORT UploadData
     : public base::RefCounted<UploadData>,
       public base::SupportsUserData {
@@ -60,10 +66,11 @@ class NET_EXPORT UploadData
   void set_chunk_callback(ChunkCallback* callback);
 
   // Initializes the object to send chunks of upload data over time rather
-  // than all at once.
+  // than all at once. Chunked data may only contain bytes, not files.
   void set_is_chunked(bool set) { is_chunked_ = set; }
   bool is_chunked() const { return is_chunked_; }
 
+  // set_last_chunk_appended() is only used for serialization.
   void set_last_chunk_appended(bool set) { last_chunk_appended_ = set; }
   bool last_chunk_appended() const { return last_chunk_appended_; }
 

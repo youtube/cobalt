@@ -5,6 +5,7 @@
 #include "net/base/upload_bytes_element_reader.h"
 
 #include "base/logging.h"
+#include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
 namespace net {
@@ -35,7 +36,18 @@ uint64 UploadBytesElementReader::BytesRemaining() const {
   return bytes_length_ - offset_;
 }
 
-int UploadBytesElementReader::ReadSync(char* buf, int buf_length) {
+bool UploadBytesElementReader::IsInMemory() const {
+  return true;
+}
+
+int UploadBytesElementReader::Read(IOBuffer* buf,
+                                   int buf_length,
+                                   const CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
+  return ReadSync(buf, buf_length);
+}
+
+int UploadBytesElementReader::ReadSync(IOBuffer* buf, int buf_length) {
   DCHECK_LT(0, buf_length);
 
   const size_t num_bytes_to_read =
@@ -45,14 +57,10 @@ int UploadBytesElementReader::ReadSync(char* buf, int buf_length) {
   // the address of an element in |bytes_| and that will throw an
   // exception if |bytes_| is an empty vector.
   if (num_bytes_to_read > 0)
-    memcpy(buf, bytes_ + offset_, num_bytes_to_read);
+    memcpy(buf->data(), bytes_ + offset_, num_bytes_to_read);
 
   offset_ += num_bytes_to_read;
   return num_bytes_to_read;
-}
-
-bool UploadBytesElementReader::IsInMemory() const {
-  return true;
 }
 
 }  // namespace net
