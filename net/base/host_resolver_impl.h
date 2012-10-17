@@ -200,8 +200,7 @@ class NET_EXPORT HostResolverImpl
 
   // Records the result in cache if cache is present.
   void CacheResult(const Key& key,
-                   int net_error,
-                   const AddressList& addr_list,
+                   const HostCache::Entry& entry,
                    base::TimeDelta ttl);
 
   // Removes |job| from |jobs_|, only if it exists.
