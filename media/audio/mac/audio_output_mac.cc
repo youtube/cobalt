@@ -138,8 +138,9 @@ bool PCMQueueOutAudioOutputStream::Open() {
     return false;
   }
 
-  num_core_channels_ =
-      static_cast<int>(core_channel_layout->mNumberChannelDescriptions);
+  num_core_channels_ = std::min(
+      static_cast<int>(CHANNELS_MAX),
+      static_cast<int>(core_channel_layout->mNumberChannelDescriptions));
   if (num_core_channels_ == 2 &&
       ChannelLayoutToChannelCount(source_layout_) > 2) {
     should_down_mix_ = true;
@@ -190,47 +191,47 @@ bool PCMQueueOutAudioOutputStream::Open() {
     switch (label) {
       case kAudioChannelLabel_Left:
         core_channel_orderings_[LEFT] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][LEFT];
+        channel_remap_[i] = ChannelOrder(source_layout_, LEFT);
         break;
       case kAudioChannelLabel_Right:
         core_channel_orderings_[RIGHT] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][RIGHT];
+        channel_remap_[i] = ChannelOrder(source_layout_, RIGHT);
         break;
       case kAudioChannelLabel_Center:
         core_channel_orderings_[CENTER] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][CENTER];
+        channel_remap_[i] = ChannelOrder(source_layout_, CENTER);
         break;
       case kAudioChannelLabel_LFEScreen:
         core_channel_orderings_[LFE] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][LFE];
+        channel_remap_[i] = ChannelOrder(source_layout_, LFE);
         break;
       case kAudioChannelLabel_LeftSurround:
         core_channel_orderings_[SIDE_LEFT] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][SIDE_LEFT];
+        channel_remap_[i] = ChannelOrder(source_layout_, SIDE_LEFT);
         break;
       case kAudioChannelLabel_RightSurround:
         core_channel_orderings_[SIDE_RIGHT] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][SIDE_RIGHT];
+        channel_remap_[i] = ChannelOrder(source_layout_, SIDE_RIGHT);
         break;
       case kAudioChannelLabel_LeftCenter:
         core_channel_orderings_[LEFT_OF_CENTER] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][LEFT_OF_CENTER];
+        channel_remap_[i] = ChannelOrder(source_layout_, LEFT_OF_CENTER);
         break;
       case kAudioChannelLabel_RightCenter:
         core_channel_orderings_[RIGHT_OF_CENTER] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][RIGHT_OF_CENTER];
+        channel_remap_[i] = ChannelOrder(source_layout_, RIGHT_OF_CENTER);
         break;
       case kAudioChannelLabel_CenterSurround:
         core_channel_orderings_[BACK_CENTER] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][BACK_CENTER];
+        channel_remap_[i] = ChannelOrder(source_layout_, BACK_CENTER);
         break;
       case kAudioChannelLabel_RearSurroundLeft:
         core_channel_orderings_[BACK_LEFT] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][BACK_LEFT];
+        channel_remap_[i] = ChannelOrder(source_layout_, BACK_LEFT);
         break;
       case kAudioChannelLabel_RearSurroundRight:
         core_channel_orderings_[BACK_RIGHT] = i;
-        channel_remap_[i] = kChannelOrderings[source_layout_][BACK_RIGHT];
+        channel_remap_[i] = ChannelOrder(source_layout_, BACK_RIGHT);
         break;
       default:
         DLOG(WARNING) << "Channel label not supported";
@@ -272,7 +273,8 @@ bool PCMQueueOutAudioOutputStream::Open() {
   // Check if we will need to swizzle from source to device layout (maybe not!).
   should_swizzle_ = false;
   for (int i = 0; i < num_core_channels_; ++i) {
-    if (kChannelOrderings[source_layout_][i] != core_channel_orderings_[i]) {
+    if (ChannelOrder(source_layout_, static_cast<Channels>(i)) !=
+        core_channel_orderings_[i]) {
       should_swizzle_ = true;
       break;
     }
@@ -359,10 +361,10 @@ bool PCMQueueOutAudioOutputStream::CheckForAdjustedLayout(
     Channels output_channel) {
   if (core_channel_orderings_[output_channel] > kEmptyChannel &&
       core_channel_orderings_[input_channel] == kEmptyChannel &&
-      kChannelOrderings[source_layout_][input_channel] > kEmptyChannel &&
-      kChannelOrderings[source_layout_][output_channel] == kEmptyChannel) {
+      ChannelOrder(source_layout_, input_channel) > kEmptyChannel &&
+      ChannelOrder(source_layout_, output_channel) == kEmptyChannel) {
     channel_remap_[core_channel_orderings_[output_channel]] =
-        kChannelOrderings[source_layout_][input_channel];
+        ChannelOrder(source_layout_, input_channel);
     return true;
   }
   return false;

@@ -7,6 +7,8 @@
 
 #include "media/base/media_export.h"
 
+namespace media {
+
 // Enumerates the various representations of the ordering of audio channels.
 // Logged to UMA, so never reuse a value, always add new/greater ones!
 enum ChannelLayout {
@@ -79,16 +81,14 @@ enum Channels {
   CHANNELS_MAX
 };
 
-// The channel orderings for each layout as specified by FFmpeg.
-// Values represent the index of each channel in each layout. For example, the
-// left side surround sound channel in FFmpeg's 5.1 layout is in the 5th
-// position (because the order is L, R, C, LFE, LS, RS), so
-// kChannelOrderings[CHANNEL_LAYOUT_5POINT1][SIDE_LEFT] = 4;
-// Values of -1 mean the channel at that index is not used for that layout.
-MEDIA_EXPORT extern const int
-kChannelOrderings[CHANNEL_LAYOUT_MAX][CHANNELS_MAX];
+// Returns the expected channel position in an interleaved stream.  Values of -1
+// mean the channel at that index is not used for that layout.  Values range
+// from 0 to CHANNELS_MAX - 1.
+MEDIA_EXPORT int ChannelOrder(ChannelLayout layout, Channels channel);
 
 // Returns the number of channels in a given ChannelLayout.
 MEDIA_EXPORT int ChannelLayoutToChannelCount(ChannelLayout layout);
+
+}  // namespace media
 
 #endif  // MEDIA_BASE_CHANNEL_LAYOUT_H_
