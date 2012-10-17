@@ -663,12 +663,13 @@ if [ -x "${script}" ]; then
           cp "${script}" "${tmp_script}"
         fi
         # Some distributions automatically start an instance of the system-
-        # wide dbus daemon or of the logging daemon, when installing the Chrome
-        # build depencies. This prevents the chroot session from being closed.
-        # So, we always try to shut down any running instance of dbus and
-        # rsyslog.
-        sudo "${target%bit}" sh -c "${script} --no-lib32;
+        # wide dbus daemon, cron daemon or of the logging daemon, when
+        # installing the Chrome build depencies. This prevents the chroot
+        # session from being closed.  So, we always try to shut down any running
+        # instance of dbus and rsyslog.
+        sudo /usr/local/bin/"${target%bit}" sh -c "${script} --no-lib32;
               rc=$?;
+              /etc/init.d/cron stop >/dev/null 2>&1 || :;
               /etc/init.d/rsyslog stop >/dev/null 2>&1 || :;
               /etc/init.d/dbus stop >/dev/null 2>&1 || :;
               exit $rc"
