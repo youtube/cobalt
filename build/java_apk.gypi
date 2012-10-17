@@ -33,7 +33,6 @@
 #  apk_name - The final apk will be named <apk_name>-debug.apk (or -release)
 #  java_in_dir - The top-level java directory. The src should be in
 #    <java_in_dir>/src.
-#  resource_dir - The directory for resources.
 # Optional/automatic variables:
 #  additional_input_paths - These paths will be included in the 'inputs' list to
 #    ensure that this target is rebuilt when one of these paths changes.
@@ -52,6 +51,7 @@
 #    the library will be included in the apk and symbolic links to the
 #    unstripped copy will be added to <(android_product_out) to enable native
 #    debugging.
+#  resource_dir - The directory for resources.
 
 {
   'variables': {
@@ -66,6 +66,7 @@
     'proguard_flags%': '',
     'native_libs_paths': [],
     'manifest_package_name%': 'unknown.package.name',
+    'resource_dir%':'',
   },
   'sources': [
       '<@(native_libs_paths)'
@@ -106,10 +107,14 @@
         # If there is a separate find for additional_src_dirs, it will find the
         # wrong .java files when additional_src_dirs is empty.
         '>!@(find >(java_in_dir) >(additional_src_dirs) -name "*.java")',
-        '<!@(find <(java_in_dir)/<(resource_dir) -name "*")',
         '>@(input_jars_paths)',
         '>@(native_libs_paths)',
         '>@(additional_input_paths)',
+      ],
+      'conditions': [
+        ['resource_dir!=""', {
+          'inputs': ['<!@(find <(java_in_dir)/<(resource_dir) -name "*")']
+        }],
       ],
       'outputs': [
         # TODO(cjhopman): Apks are built with a -debug suffix even when they are
