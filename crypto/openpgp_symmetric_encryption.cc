@@ -150,7 +150,7 @@ void SaltedIteratedS2K(unsigned cipher_key_length,
 // in ECB mode and with no IV.
 bool CreateAESContext(const uint8* key, unsigned key_len,
                       ScopedPK11Context* out_decryption_context) {
-  ScopedPK11Slot slot(PK11_GetBestSlot(CKM_AES_ECB, NULL));
+  ScopedPK11Slot slot(PK11_GetInternalSlot());
   if (!slot.get())
     return false;
   SECItem key_item;
