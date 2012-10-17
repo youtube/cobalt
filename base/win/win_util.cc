@@ -23,13 +23,6 @@
 
 namespace {
 
-// TODO(gab): These definitions are temporary and should be removed once the
-// win8 SDK defines them.
-DEFINE_PROPERTYKEY(PKEY_AppUserModel_DualMode, 0x9F4C2855, 0x9F79,
-                   0x4B39, 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3, 11);
-DEFINE_PROPERTYKEY(PKEY_AppUserModel_DualMode_UK, 0x9F4C2855, 0x9F79,
-                   0x4B39, 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3, 18);
-
 // Sets the value of |property_key| to |property_value| in |property_store|.
 // Clears the PropVariant contained in |property_value|.
 bool SetPropVariantValueForPropertyStore(
@@ -139,18 +132,6 @@ bool SetBooleanValueForPropertyStore(IPropertyStore* property_store,
                                              &property_value);
 }
 
-bool SetUInt32ValueForPropertyStore(IPropertyStore* property_store,
-                                    const PROPERTYKEY& property_key,
-                                    uint32 property_uint32_value) {
-  PROPVARIANT property_value;
-  if (FAILED(InitPropVariantFromUInt32(property_uint32_value, &property_value)))
-    return false;
-
-  return SetPropVariantValueForPropertyStore(property_store,
-                                             property_key,
-                                             &property_value);
-}
-
 bool SetStringValueForPropertyStore(IPropertyStore* property_store,
                                     const PROPERTYKEY& property_key,
                                     const wchar_t* property_string_value) {
@@ -178,14 +159,8 @@ bool SetAppIdForPropertyStore(IPropertyStore* property_store,
 bool SetDualModeForPropertyStore(IPropertyStore* property_store,
                                  bool is_dual_mode) {
   return SetBooleanValueForPropertyStore(property_store,
-                                         PKEY_AppUserModel_DualMode,
-                                         is_dual_mode) &&
-         // TODO (gab): This property no longer exists in the final Win8 release
-         // and should be deleted from all shortcuts as it could interfere with
-         // a future (Win9+) property.
-         SetUInt32ValueForPropertyStore(property_store,
-                                        PKEY_AppUserModel_DualMode_UK,
-                                        is_dual_mode ? 1U : 0U);
+                                         PKEY_AppUserModel_IsDualMode,
+                                         is_dual_mode);
 }
 
 static const char16 kAutoRunKeyPath[] =
