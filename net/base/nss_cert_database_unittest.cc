@@ -38,20 +38,10 @@
 
 namespace net {
 
-// TODO(mattm): when https://bugzilla.mozilla.org/show_bug.cgi?id=588269 is
-// fixed, switch back to using a separate userdb for each test.
-// (When doing so, remember to add some standalone tests of DeleteCert since it
-// won't be tested by TearDown anymore.)
 class CertDatabaseNSSTest : public testing::Test {
  public:
-  static void SetUpTestCase() {
-    ASSERT_TRUE(crypto::OpenTestNSSDB());
-    // There is no matching TearDownTestCase call to close the test NSS DB
-    // because that would leave NSS in a potentially broken state for further
-    // tests, due to https://bugzilla.mozilla.org/show_bug.cgi?id=588269
-  }
-
   virtual void SetUp() {
+    ASSERT_TRUE(test_nssdb_.is_open());
     cert_db_ = NSSCertDatabase::GetInstance();
     slot_ = cert_db_->GetPublicModule();
 
@@ -129,6 +119,8 @@ class CertDatabaseNSSTest : public testing::Test {
     }
     return ok;
   }
+
+  crypto::ScopedTestNSSDB test_nssdb_;
 };
 
 TEST_F(CertDatabaseNSSTest, ListCerts) {
