@@ -66,7 +66,7 @@ AudioInputStream* AudioManagerIOS::MakeAudioInputStream(
   if (!params.IsValid() || (params.channels() > kMaxInputChannels))
     return NULL;
 
-  if (params.format() == AudioParameters::AUDIO_MOCK)
+  if (params.format() == AudioParameters::AUDIO_FAKE)
     return FakeAudioInputStream::MakeFakeStream(this, params);
   else if (params.format() == AudioParameters::AUDIO_PCM_LINEAR)
     return new PCMQueueInAudioInputStream(this, params);

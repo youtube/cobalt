@@ -80,7 +80,7 @@ TEST_F(AudioInputControllerTest, CreateAndClose) {
       .WillOnce(QuitMessageLoop(&message_loop_));
 
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
-  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
+  AudioParameters params(AudioParameters::AUDIO_FAKE, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioInputController> controller =
       AudioInputController::Create(audio_manager.get(), &event_handler, params);
@@ -113,7 +113,7 @@ TEST_F(AudioInputControllerTest, RecordAndClose) {
           message_loop_.message_loop_proxy()));
 
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
-  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
+  AudioParameters params(AudioParameters::AUDIO_FAKE, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
 
   // Creating the AudioInputController should render an OnCreated() call.
@@ -159,7 +159,7 @@ TEST_F(AudioInputControllerTest, RecordAndError) {
       .WillOnce(QuitMessageLoop(&message_loop_));
 
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
-  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
+  AudioParameters params(AudioParameters::AUDIO_FAKE, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
 
   // Creating the AudioInputController should render an OnCreated() call.
@@ -192,7 +192,7 @@ TEST_F(AudioInputControllerTest, SamplesPerPacketTooLarge) {
     .Times(Exactly(0));
 
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
-  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
+  AudioParameters params(AudioParameters::AUDIO_FAKE, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket * 1000);
   scoped_refptr<AudioInputController> controller =
       AudioInputController::Create(audio_manager.get(), &event_handler, params);
@@ -211,7 +211,7 @@ TEST_F(AudioInputControllerTest, CloseTwice) {
       .Times(Exactly(1));
 
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
-  AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
+  AudioParameters params(AudioParameters::AUDIO_FAKE, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioInputController> controller =
       AudioInputController::Create(audio_manager.get(), &event_handler, params);

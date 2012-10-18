@@ -4,69 +4,81 @@
 
 #include "media/audio/fake_audio_output_stream.h"
 
-#include "base/at_exit.h"
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "media/audio/audio_manager_base.h"
 
 namespace media {
 
-FakeAudioOutputStream* FakeAudioOutputStream::current_fake_stream_ = NULL;
-
 // static
 AudioOutputStream* FakeAudioOutputStream::MakeFakeStream(
-    AudioManagerBase* manager,
-    const AudioParameters& params) {
-  FakeAudioOutputStream* new_stream = new FakeAudioOutputStream(manager,
-                                                                params);
-  DCHECK(current_fake_stream_ == NULL);
-  current_fake_stream_ = new_stream;
-  return new_stream;
-}
-
-bool FakeAudioOutputStream::Open() {
-  return true;
-}
-
-// static
-FakeAudioOutputStream* FakeAudioOutputStream::GetCurrentFakeStream() {
-  return current_fake_stream_;
-}
-
-void FakeAudioOutputStream::Start(AudioSourceCallback* callback)  {
-  callback_ = callback;
-  audio_bus_->Zero();
-  callback_->OnMoreData(audio_bus_.get(), AudioBuffersState(0, 0));
-}
-
-void FakeAudioOutputStream::Stop() {
-  callback_ = NULL;
-}
-
-void FakeAudioOutputStream::SetVolume(double volume) {
-  volume_ = volume;
-}
-
-void FakeAudioOutputStream::GetVolume(double* volume) {
-  *volume = volume_;
-}
-
-void FakeAudioOutputStream::Close() {
-  closed_ = true;
-  audio_manager_->ReleaseOutputStream(this);
+    AudioManagerBase* manager, const AudioParameters& params) {
+  return new FakeAudioOutputStream(manager, params);
 }
 
 FakeAudioOutputStream::FakeAudioOutputStream(AudioManagerBase* manager,
                                              const AudioParameters& params)
     : audio_manager_(manager),
-      volume_(0),
       callback_(NULL),
-      closed_(false) {
-  audio_bus_ = AudioBus::Create(params);
+      audio_bus_(AudioBus::Create(params)),
+      frames_per_millisecond_(
+          params.sample_rate() / static_cast<float>(
+              base::Time::kMillisecondsPerSecond)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)) {
 }
 
 FakeAudioOutputStream::~FakeAudioOutputStream() {
-  if (current_fake_stream_ == this)
-    current_fake_stream_ = NULL;
+  DCHECK(!callback_);
+}
+
+bool FakeAudioOutputStream::Open() {
+  DCHECK(audio_manager_->GetMessageLoop()->BelongsToCurrentThread());
+  return true;
+}
+
+void FakeAudioOutputStream::Start(AudioSourceCallback* callback)  {
+  DCHECK(audio_manager_->GetMessageLoop()->BelongsToCurrentThread());
+  callback_ = callback;
+  audio_manager_->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
+      &FakeAudioOutputStream::OnMoreDataTask, weak_this_.GetWeakPtr()));
+}
+
+void FakeAudioOutputStream::Stop() {
+  DCHECK(audio_manager_->GetMessageLoop()->BelongsToCurrentThread());
+  callback_ = NULL;
+}
+
+void FakeAudioOutputStream::Close() {
+  DCHECK(!callback_);
+  DCHECK(audio_manager_->GetMessageLoop()->BelongsToCurrentThread());
+  weak_this_.InvalidateWeakPtrs();
+  audio_manager_->ReleaseOutputStream(this);
+}
+
+void FakeAudioOutputStream::SetVolume(double volume) {};
+
+void FakeAudioOutputStream::GetVolume(double* volume) {
+  *volume = 0;
+};
+
+void FakeAudioOutputStream::OnMoreDataTask() {
+  DCHECK(audio_manager_->GetMessageLoop()->BelongsToCurrentThread());
+
+  audio_bus_->Zero();
+  int frames_received = audio_bus_->frames();
+  if (callback_) {
+    frames_received = callback_->OnMoreData(
+        audio_bus_.get(), AudioBuffersState());
+  }
+
+  // Calculate our sleep duration for simulated playback.  Sleep for at least
+  // one millisecond so we don't spin the CPU.
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE, base::Bind(
+          &FakeAudioOutputStream::OnMoreDataTask, weak_this_.GetWeakPtr()),
+      base::TimeDelta::FromMilliseconds(
+          std::max(1.0f, frames_received / frames_per_millisecond_)));
 }
 
 }  // namespace media
