@@ -6,6 +6,7 @@
 
 #include <shellapi.h>
 #include <shlobj.h>
+#include <propkey.h>
 
 #include "base/threading/thread_restrictions.h"
 #include "base/win/scoped_comptr.h"
@@ -121,7 +122,9 @@ bool CreateOrUpdateShortcutLink(const FilePath& shortcut_path,
       return false;
     }
     if (has_dual_mode &&
-        !SetDualModeForPropertyStore(property_store, properties.dual_mode)) {
+        !SetBooleanValueForPropertyStore(property_store,
+                                         PKEY_AppUserModel_IsDualMode,
+                                         properties.dual_mode)) {
       return false;
     }
   }
