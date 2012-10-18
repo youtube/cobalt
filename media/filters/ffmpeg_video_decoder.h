@@ -91,9 +91,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // Reset decoder and call |reset_cb_|.
   void DoReset();
 
-  // Free decoder resources and call |stop_cb_|.
-  void DoStop();
-
   // This is !is_null() iff Initialize() hasn't been called.
   MessageLoopFactoryCB message_loop_factory_cb_;
 
@@ -105,7 +102,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   ReadCB read_cb_;
   base::Closure reset_cb_;
-  base::Closure stop_cb_;
 
   // FFmpeg structures owned by this object.
   AVCodecContext* codec_context_;

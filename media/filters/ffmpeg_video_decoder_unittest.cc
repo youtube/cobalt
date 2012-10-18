@@ -648,9 +648,9 @@ TEST_F(FFmpegVideoDecoderTest, Stop_DuringPendingRead) {
   // Make sure the Read() on the decoder triggers a Read() on the demuxer.
   EXPECT_FALSE(read_cb.is_null());
 
-  Stop();
-
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
+
+  Stop();
 
   read_cb.Run(DemuxerStream::kOk, i_frame_buffer_);
   message_loop_.RunAllPending();
