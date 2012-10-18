@@ -187,11 +187,10 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
       user_read_buf_len_(0),
       connection_(connection),
       net_log_(net_log),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(
-              base::Bind(&HttpStreamParser::OnIOComplete,
-                         base::Unretained(this)))),
-      sent_last_chunk_(false) {
+      sent_last_chunk_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
+  io_callback_ = base::Bind(&HttpStreamParser::OnIOComplete,
+                            weak_ptr_factory_.GetWeakPtr());
 }
 
 HttpStreamParser::~HttpStreamParser() {
@@ -367,8 +366,8 @@ void HttpStreamParser::OnChunkAvailable() {
   // STATE_SENDING_CHUNKED_BODY so nothing to do here.
   DCHECK(io_state_ == STATE_SENDING_HEADERS ||
          io_state_ == STATE_SENDING_CHUNKED_BODY ||
-         io_state_ == STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE);
-  if (io_state_ == STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE)
+         io_state_ == STATE_SEND_REQUEST_READING_CHUNKED_BODY);
+  if (io_state_ == STATE_SEND_REQUEST_READING_CHUNKED_BODY)
     OnIOComplete(OK);
 }
 
@@ -394,8 +393,11 @@ int HttpStreamParser::DoLoop(int result) {
         else
           result = DoSendNonChunkedBody(result);
         break;
-      case STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE:
-        result = DoSendRequestWaitForBodyChunkComplete(result);
+      case STATE_SEND_REQUEST_READING_CHUNKED_BODY:
+        result = DoSendRequestReadingChunkedBody(result);
+        break;
+      case STATE_SEND_REQUEST_READING_NON_CHUNKED_BODY:
+        result = DoSendRequestReadingNonChunkedBody(result);
         break;
       case STATE_REQUEST_SENT:
         DCHECK(result != ERR_IO_PENDING);
@@ -475,7 +477,7 @@ int HttpStreamParser::DoSendHeaders(int result) {
 
 int HttpStreamParser::DoSendChunkedBody(int result) {
   // |result| is the number of bytes sent from the last call to
-  // DoSendChunkedBody(), or 0 (i.e. OK) the first time.
+  // DoSendChunkedBody(), or 0 (i.e. OK).
 
   // Send the remaining data in the request body buffer.
   request_body_buf_->DidConsume(result);
@@ -509,7 +511,7 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
     request_body_buf_->DidAppend(chunk_length);
   } else if (consumed == ERR_IO_PENDING) {
     // Nothing to send. More request data is yet to come.
-    io_state_ = STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE;
+    io_state_ = STATE_SEND_REQUEST_READING_CHUNKED_BODY;
     return ERR_IO_PENDING;
   } else {
     // There won't be other errors.
@@ -523,7 +525,7 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
 
 int HttpStreamParser::DoSendNonChunkedBody(int result) {
   // |result| is the number of bytes sent from the last call to
-  // DoSendNonChunkedBody(), or 0 (i.e. OK) the first time.
+  // DoSendNonChunkedBody(), or 0 (i.e. OK).
 
   // Send the remaining data in the request body buffer.
   request_body_buf_->DidConsume(result);
@@ -534,23 +536,13 @@ int HttpStreamParser::DoSendNonChunkedBody(int result) {
   }
 
   request_body_buf_->Clear();
-  const int consumed = request_body_->ReadSync(request_body_buf_,
-                                               request_body_buf_->capacity());
-  if (consumed == 0) {  // Reached the end.
-    io_state_ = STATE_REQUEST_SENT;
-  } else if (consumed > 0) {
-    request_body_buf_->DidAppend(consumed);
-    result = connection_->socket()->Write(request_body_buf_,
-                                          request_body_buf_->BytesRemaining(),
-                                          io_callback_);
-  } else {
-    // UploadDataStream::Read() won't fail if not chunked.
-    NOTREACHED();
-  }
-  return result;
+  io_state_ = STATE_SEND_REQUEST_READING_NON_CHUNKED_BODY;
+  return request_body_->Read(request_body_buf_,
+                             request_body_buf_->capacity(),
+                             io_callback_);
 }
 
-int HttpStreamParser::DoSendRequestWaitForBodyChunkComplete(int result) {
+int HttpStreamParser::DoSendRequestReadingChunkedBody(int result) {
   if (result != OK) {
     io_state_ = STATE_DONE;
     return result;
@@ -560,6 +552,22 @@ int HttpStreamParser::DoSendRequestWaitForBodyChunkComplete(int result) {
   // arrived.
   io_state_ = STATE_SENDING_CHUNKED_BODY;
   return OK;
+}
+
+int HttpStreamParser::DoSendRequestReadingNonChunkedBody(int result) {
+  // |result| is the result of read from the request body from the last call to
+  // DoSendNonChunkedBody().
+  if (result == 0) {  // Reached the end.
+    io_state_ = STATE_REQUEST_SENT;
+  } else if (result > 0) {
+    request_body_buf_->DidAppend(result);
+    result = 0;
+    io_state_ = STATE_SENDING_NON_CHUNKED_BODY;
+  } else {
+    // UploadDataStream::Read() won't fail.
+    NOTREACHED();
+  }
+  return result;
 }
 
 int HttpStreamParser::DoReadHeaders() {
