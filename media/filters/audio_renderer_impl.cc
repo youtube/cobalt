@@ -25,10 +25,8 @@ AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
       audio_time_buffered_(kNoTimestamp()),
       current_time_(kNoTimestamp()),
       bytes_per_frame_(0),
-      bytes_per_second_(0),
       stopped_(false),
       sink_(sink),
-      is_initialized_(false),
       underflow_disabled_(false),
       preroll_aborted_(false) {
 }
@@ -53,7 +51,6 @@ void AudioRendererImpl::Play(const base::Closure& callback) {
 
 void AudioRendererImpl::DoPlay() {
   earliest_end_time_ = base::Time::Now();
-  DCHECK(sink_.get());
   sink_->Play();
 }
 
@@ -77,7 +74,6 @@ void AudioRendererImpl::Pause(const base::Closure& callback) {
 }
 
 void AudioRendererImpl::DoPause() {
-  DCHECK(sink_.get());
   sink_->Pause(false);
 }
 
@@ -89,9 +85,7 @@ void AudioRendererImpl::Stop(const base::Closure& callback) {
   DCHECK(!callback.is_null());
 
   if (!stopped_) {
-    DCHECK(sink_.get());
     sink_->Stop();
-
     stopped_ = true;
   }
   {
@@ -149,6 +143,7 @@ void AudioRendererImpl::Initialize(const scoped_refptr<DemuxerStream>& stream,
   DCHECK(!decoders.empty());
   DCHECK_EQ(stream->type(), DemuxerStream::AUDIO);
   DCHECK(!init_cb.is_null());
+  DCHECK(!statistics_cb.is_null());
   DCHECK(!underflow_cb.is_null());
   DCHECK(!time_cb.is_null());
   DCHECK(!ended_cb.is_null());
@@ -210,14 +205,9 @@ void AudioRendererImpl::OnDecoderInitDone(
     return;
   }
 
-  // Create a callback so our algorithm can request more reads.
-  base::Closure cb = base::Bind(&AudioRendererImpl::ScheduleRead_Locked, this);
+  // We're all good! Continue initializing the rest of the audio renderer based
+  // on the decoder format.
 
-  // Construct the algorithm.
-  algorithm_.reset(new AudioRendererAlgorithm());
-
-  // Initialize our algorithm with media properties, initial playback rate,
-  // and a callback to request more reads from the data source.
   ChannelLayout channel_layout = decoder_->channel_layout();
   int channels = ChannelLayoutToChannelCount(channel_layout);
   int bits_per_channel = decoder_->bits_per_channel();
@@ -225,15 +215,15 @@ void AudioRendererImpl::OnDecoderInitDone(
   // TODO(vrk): Add method to AudioDecoder to compute bytes per frame.
   bytes_per_frame_ = channels * bits_per_channel / 8;
 
-  bool config_ok = algorithm_->ValidateConfig(channels, sample_rate,
-                                              bits_per_channel);
-  if (!config_ok || is_initialized_) {
+  algorithm_.reset(new AudioRendererAlgorithm());
+  if (!algorithm_->ValidateConfig(channels, sample_rate, bits_per_channel)) {
     base::ResetAndReturn(&init_cb_).Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
 
-  if (config_ok)
-    algorithm_->Initialize(channels, sample_rate, bits_per_channel, 0.0f, cb);
+  algorithm_->Initialize(
+      channels, sample_rate, bits_per_channel, 0.0f,
+      base::Bind(&AudioRendererImpl::ScheduleRead_Locked, this));
 
   // We use the AUDIO_PCM_LINEAR flag because AUDIO_PCM_LOW_LATENCY
   // does not currently support all the sample-rates that we require.
@@ -243,17 +233,9 @@ void AudioRendererImpl::OnDecoderInitDone(
       AudioParameters::AUDIO_PCM_LINEAR, channel_layout, sample_rate,
       bits_per_channel, GetHighLatencyOutputBufferSize(sample_rate));
 
-  bytes_per_second_ = audio_parameters_.GetBytesPerSecond();
-
-  DCHECK(sink_.get());
-  DCHECK(!is_initialized_);
-
   sink_->Initialize(audio_parameters_, this);
-
   sink_->Start();
-  is_initialized_ = true;
 
-  // Finally, execute the start callback.
   state_ = kPaused;
   base::ResetAndReturn(&init_cb_).Run(PIPELINE_OK);
 }
@@ -547,11 +529,10 @@ void AudioRendererImpl::UpdateEarliestEndTime(int bytes_filled,
 }
 
 base::TimeDelta AudioRendererImpl::ConvertToDuration(int bytes) {
-  if (bytes_per_second_) {
-    return base::TimeDelta::FromMicroseconds(
-        base::Time::kMicrosecondsPerSecond * bytes / bytes_per_second_);
-  }
-  return base::TimeDelta();
+  int bytes_per_second = audio_parameters_.GetBytesPerSecond();
+  CHECK(bytes_per_second);
+  return base::TimeDelta::FromMicroseconds(
+      base::Time::kMicrosecondsPerSecond * bytes / bytes_per_second);
 }
 
 void AudioRendererImpl::OnRenderError() {
@@ -559,7 +540,6 @@ void AudioRendererImpl::OnRenderError() {
 }
 
 void AudioRendererImpl::DisableUnderflowForTesting() {
-  DCHECK(!is_initialized_);
   underflow_disabled_ = true;
 }
 
