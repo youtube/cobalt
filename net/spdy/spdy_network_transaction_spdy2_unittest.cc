@@ -9,7 +9,9 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/file_util.h"
 #include "base/memory/scoped_vector.h"
+#include "base/scoped_temp_dir.h"
 #include "net/base/auth.h"
 #include "net/base/net_log_unittest.h"
 #include "net/http/http_network_session_peer.h"
@@ -45,6 +47,7 @@ class SpdyNetworkTransactionSpdy2Test
     google_get_request_initialized_ = false;
     google_post_request_initialized_ = false;
     google_chunked_post_request_initialized_ = false;
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   }
 
   virtual void TearDown() {
@@ -372,6 +375,49 @@ class SpdyNetworkTransactionSpdy2Test
     return google_post_request_;
   }
 
+  const HttpRequestInfo& CreateFilePostRequest() {
+    if (!google_post_request_initialized_) {
+      FilePath file_path;
+      CHECK(file_util::CreateTemporaryFileInDir(temp_dir_.path(), &file_path));
+      CHECK_EQ(static_cast<int>(kUploadDataSize),
+               file_util::WriteFile(file_path, kUploadData, kUploadDataSize));
+
+      google_post_request_.method = "POST";
+      google_post_request_.url = GURL(kDefaultURL);
+      google_post_request_.upload_data = new UploadData();
+      google_post_request_.upload_data->AppendFileRange(
+          file_path, 0, kUploadDataSize, base::Time());
+      google_post_request_initialized_ = true;
+    }
+    return google_post_request_;
+  }
+
+  const HttpRequestInfo& CreateComplexPostRequest() {
+    if (!google_post_request_initialized_) {
+      const int kFileRangeOffset = 1;
+      const int kFileRangeLength = 3;
+      CHECK_LT(kFileRangeOffset + kFileRangeLength, kUploadDataSize);
+
+      FilePath file_path;
+      CHECK(file_util::CreateTemporaryFileInDir(temp_dir_.path(), &file_path));
+      CHECK_EQ(static_cast<int>(kUploadDataSize),
+               file_util::WriteFile(file_path, kUploadData, kUploadDataSize));
+
+      google_post_request_.method = "POST";
+      google_post_request_.url = GURL(kDefaultURL);
+      google_post_request_.upload_data = new UploadData();
+      google_post_request_.upload_data->AppendBytes(
+          kUploadData, kFileRangeOffset);
+      google_post_request_.upload_data->AppendFileRange(
+          file_path, kFileRangeOffset, kFileRangeLength, base::Time());
+      google_post_request_.upload_data->AppendBytes(
+          kUploadData + kFileRangeOffset + kFileRangeLength,
+          kUploadDataSize - (kFileRangeOffset + kFileRangeLength));
+      google_post_request_initialized_ = true;
+    }
+    return google_post_request_;
+  }
+
   const HttpRequestInfo& CreateChunkedPostRequest() {
     if (!google_chunked_post_request_initialized_) {
       google_chunked_post_request_.method = "POST";
@@ -519,6 +565,7 @@ class SpdyNetworkTransactionSpdy2Test
   HttpRequestInfo google_chunked_post_request_;
   HttpRequestInfo google_get_push_request_;
   SpdyTestStateHelper spdy_state_;
+  ScopedTempDir temp_dir_;
 };
 
 //-----------------------------------------------------------------------------
@@ -1564,6 +1611,60 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, Post) {
   DelayedSocketData data(2, reads, arraysize(reads),
                          writes, arraysize(writes));
   NormalSpdyTransactionHelper helper(CreatePostRequest(),
+                                     BoundNetLog(), GetParam(), NULL);
+  helper.RunToCompletion(&data);
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!", out.response_data);
+}
+
+// Test that a POST with a file works.
+TEST_P(SpdyNetworkTransactionSpdy2Test, FilePost) {
+  scoped_ptr<SpdyFrame> req(ConstructSpdyPost(kUploadDataSize, NULL, 0));
+  scoped_ptr<SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockWrite writes[] = {
+    CreateMockWrite(*req),
+    CreateMockWrite(*body),  // POST upload frame
+  };
+
+  scoped_ptr<SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
+  MockRead reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(ASYNC, 0, 0)  // EOF
+  };
+
+  DelayedSocketData data(2, reads, arraysize(reads),
+                         writes, arraysize(writes));
+  NormalSpdyTransactionHelper helper(CreateFilePostRequest(),
+                                     BoundNetLog(), GetParam(), NULL);
+  helper.RunToCompletion(&data);
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!", out.response_data);
+}
+
+// Test that a complex POST works.
+TEST_P(SpdyNetworkTransactionSpdy2Test, ComplexPost) {
+  scoped_ptr<SpdyFrame> req(ConstructSpdyPost(kUploadDataSize, NULL, 0));
+  scoped_ptr<SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockWrite writes[] = {
+    CreateMockWrite(*req),
+    CreateMockWrite(*body),  // POST upload frame
+  };
+
+  scoped_ptr<SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
+  MockRead reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(ASYNC, 0, 0)  // EOF
+  };
+
+  DelayedSocketData data(2, reads, arraysize(reads),
+                         writes, arraysize(writes));
+  NormalSpdyTransactionHelper helper(CreateComplexPostRequest(),
                                      BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(&data);
   TransactionHelperResult out = helper.output();
