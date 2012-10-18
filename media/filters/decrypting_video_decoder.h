@@ -136,7 +136,6 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   StatisticsCB statistics_cb_;
   ReadCB read_cb_;
   base::Closure reset_cb_;
-  base::Closure stop_cb_;
 
   // Pointer to the demuxer stream that will feed us compressed buffers.
   scoped_refptr<DemuxerStream> demuxer_stream_;
