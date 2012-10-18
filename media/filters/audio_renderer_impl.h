@@ -197,17 +197,11 @@ class MEDIA_EXPORT AudioRendererImpl
 
   uint32 bytes_per_frame_;
 
-  // Used to calculate audio delay given bytes.
-  uint32 bytes_per_second_;
-
   // A flag that indicates this filter is called to stop.
   bool stopped_;
 
   // The sink (destination) for rendered audio.
   scoped_refptr<media::AudioRendererSink> sink_;
-
-  // Set to true when OnInitialize() is called.
-  bool is_initialized_;
 
   // We're supposed to know amount of audio data OS or hardware buffered, but
   // that is not always so -- on my Linux box
