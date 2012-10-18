@@ -51,7 +51,8 @@ def AllocateTestServerPort():
     fp_lock = open(constants.TEST_SERVER_PORT_LOCKFILE, 'w')
     fcntl.flock(fp_lock, fcntl.LOCK_EX)
     # Get current valid port and calculate next valid port.
-    assert os.path.exists(constants.TEST_SERVER_PORT_FILE)
+    if not os.path.exists(constants.TEST_SERVER_PORT_FILE):
+      ResetTestServerPortAllocation()
     with open(constants.TEST_SERVER_PORT_FILE, 'r+') as fp:
       port = int(fp.read())
       ports_tried.append(port)
