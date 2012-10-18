@@ -41,8 +41,10 @@ class MEDIA_EXPORT AudioRendererImpl
 
   // Methods called on pipeline thread ----------------------------------------
   // AudioRenderer implementation.
-  virtual void Initialize(const scoped_refptr<AudioDecoder>& decoder,
+  virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
+                          const AudioDecoderList& decoders,
                           const PipelineStatusCB& init_cb,
+                          const StatisticsCB& statistics_cb,
                           const base::Closure& underflow_cb,
                           const TimeCB& time_cb,
                           const base::Closure& ended_cb,
@@ -134,6 +136,18 @@ class MEDIA_EXPORT AudioRendererImpl
   // in the kPrerolling state.
   bool IsBeforePrerollTime(const scoped_refptr<Buffer>& buffer);
 
+  // Pops the front of |decoders|, assigns it to |decoder_| and then
+  // calls initialize on the new decoder.
+  void InitializeNextDecoder(const scoped_refptr<DemuxerStream>& demuxer_stream,
+                             scoped_ptr<AudioDecoderList> decoders);
+
+  // Called when |decoder_| initialization completes.
+  // |demuxer_stream| & |decoders| are used if initialization failed and
+  // InitializeNextDecoder() needs to be called again.
+  void OnDecoderInitDone(const scoped_refptr<DemuxerStream>& demuxer_stream,
+                         scoped_ptr<AudioDecoderList> decoders,
+                         PipelineStatus status);
+
   // Audio decoder.
   scoped_refptr<AudioDecoder> decoder_;
 
@@ -165,6 +179,9 @@ class MEDIA_EXPORT AudioRendererImpl
   // well as the current time that takes current playback delay into account.
   base::TimeDelta audio_time_buffered_;
   base::TimeDelta current_time_;
+
+  PipelineStatusCB init_cb_;
+  StatisticsCB statistics_cb_;
 
   // Filter callbacks.
   base::Closure pause_cb_;

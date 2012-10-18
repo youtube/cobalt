@@ -20,6 +20,10 @@ using ::testing::Return;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 
+ACTION_P(RunPipelineStatusCB1, status) {
+  arg1.Run(status);
+}
+
 namespace media {
 
 // Constants for distinguishing between muted audio and playing audio when using
@@ -32,7 +36,10 @@ class AudioRendererImplTest : public ::testing::Test {
   // Give the decoder some non-garbage media properties.
   AudioRendererImplTest()
       : renderer_(new AudioRendererImpl(new NiceMock<MockAudioRendererSink>())),
+        demuxer_stream_(new MockDemuxerStream()),
         decoder_(new MockAudioDecoder()) {
+    EXPECT_CALL(*demuxer_stream_, type())
+        .WillRepeatedly(Return(DemuxerStream::AUDIO));
 
     // Queue all reads from the decoder by default.
     ON_CALL(*decoder_, Read(_))
@@ -46,6 +53,8 @@ class AudioRendererImplTest : public ::testing::Test {
         .Times(AnyNumber());
     EXPECT_CALL(*decoder_, samples_per_second())
         .Times(AnyNumber());
+
+    decoders_.push_back(decoder_);
   }
 
   virtual ~AudioRendererImplTest() {
@@ -76,6 +85,7 @@ class AudioRendererImplTest : public ::testing::Test {
                       base::Unretained(this));
   }
 
+  MOCK_METHOD1(OnStatistics, void(const PipelineStatistics&));
   MOCK_METHOD0(OnUnderflow, void());
   MOCK_METHOD0(OnEnded, void());
   MOCK_METHOD0(OnDisabled, void());
@@ -87,12 +97,19 @@ class AudioRendererImplTest : public ::testing::Test {
   }
 
   void Initialize() {
+    EXPECT_CALL(*decoder_, Initialize(_, _, _))
+        .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
+
     InitializeWithStatus(PIPELINE_OK);
   }
 
   void InitializeWithStatus(PipelineStatus expected) {
     renderer_->Initialize(
-        decoder_, NewExpectedStatusCB(expected),
+        demuxer_stream_,
+        decoders_,
+        NewExpectedStatusCB(expected),
+        base::Bind(&AudioRendererImplTest::OnStatistics,
+                   base::Unretained(this)),
         base::Bind(&AudioRendererImplTest::OnUnderflow,
                    base::Unretained(this)),
         base::Bind(&AudioRendererImplTest::OnAudioTimeCallback,
@@ -207,7 +224,9 @@ class AudioRendererImplTest : public ::testing::Test {
 
   // Fixture members.
   scoped_refptr<AudioRendererImpl> renderer_;
+  scoped_refptr<MockDemuxerStream> demuxer_stream_;
   scoped_refptr<MockAudioDecoder> decoder_;
+  AudioRendererImpl::AudioDecoderList decoders_;
   AudioDecoder::ReadCB read_cb_;
   base::TimeDelta next_timestamp_;
 
@@ -221,7 +240,10 @@ class AudioRendererImplTest : public ::testing::Test {
 };
 
 TEST_F(AudioRendererImplTest, Initialize_Failed) {
+  EXPECT_CALL(*decoder_, Initialize(_, _, _))
+      .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
   SetUnsupportedAudioDecoderProperties();
+
   InitializeWithStatus(PIPELINE_ERROR_INITIALIZATION_FAILED);
 
   // We should have no reads.
@@ -230,6 +252,29 @@ TEST_F(AudioRendererImplTest, Initialize_Failed) {
 
 TEST_F(AudioRendererImplTest, Initialize_Successful) {
   Initialize();
+
+  // We should have no reads.
+  EXPECT_TRUE(read_cb_.is_null());
+}
+
+TEST_F(AudioRendererImplTest, Initialize_DecoderInitFailure) {
+  EXPECT_CALL(*decoder_, Initialize(_, _, _))
+      .WillOnce(RunPipelineStatusCB1(PIPELINE_ERROR_DECODE));
+  InitializeWithStatus(PIPELINE_ERROR_DECODE);
+
+  // We should have no reads.
+  EXPECT_TRUE(read_cb_.is_null());
+}
+
+TEST_F(AudioRendererImplTest, Initialize_MultipleDecoders) {
+  scoped_refptr<MockAudioDecoder> decoder1 = new MockAudioDecoder();
+  // Insert |decoder1| as the first decoder in the list.
+  decoders_.push_front(decoder1);
+  EXPECT_CALL(*decoder1, Initialize(_, _, _))
+      .WillOnce(RunPipelineStatusCB1(DECODER_ERROR_NOT_SUPPORTED));
+  EXPECT_CALL(*decoder_, Initialize(_, _, _))
+      .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
+  InitializeWithStatus(PIPELINE_OK);
 
   // We should have no reads.
   EXPECT_TRUE(read_cb_.is_null());

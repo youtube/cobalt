@@ -25,6 +25,7 @@ class VideoRenderer;
 // http://crbug.com/110800
 class MEDIA_EXPORT FilterCollection {
  public:
+  typedef std::list<scoped_refptr<AudioDecoder> > AudioDecoderList;
   typedef std::list<scoped_refptr<VideoDecoder> > VideoDecoderList;
 
   FilterCollection();
@@ -46,15 +47,15 @@ class MEDIA_EXPORT FilterCollection {
   // If the required filter cannot be found, NULL is returned.
   // If a filter is returned it is removed from the collection.
   // Filters are selected in FIFO order.
-  void SelectAudioDecoder(scoped_refptr<AudioDecoder>* out);
   void SelectAudioRenderer(scoped_refptr<AudioRenderer>* out);
   void SelectVideoRenderer(scoped_refptr<VideoRenderer>* out);
 
+  AudioDecoderList* GetAudioDecoders();
   VideoDecoderList* GetVideoDecoders();
 
  private:
   scoped_refptr<Demuxer> demuxer_;
-  std::list<scoped_refptr<AudioDecoder> > audio_decoders_;
+  AudioDecoderList audio_decoders_;
   VideoDecoderList video_decoders_;
   std::list<scoped_refptr<AudioRenderer> > audio_renderers_;
   std::list<scoped_refptr<VideoRenderer> > video_renderers_;
