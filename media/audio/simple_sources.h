@@ -34,11 +34,17 @@ class MEDIA_EXPORT SineWaveAudioSource
                            AudioBuffersState audio_buffers) OVERRIDE;
   virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
 
+  // The number of OnMoreData()+OnMoreIOData() and OnError() calls respectively.
+  int callbacks() { return callbacks_; }
+  int errors() { return errors_; }
+
  protected:
   int channels_;
   double f_;
   int time_state_;
   int cap_;
+  int callbacks_;
+  int errors_;
   base::Lock time_lock_;
 };
 

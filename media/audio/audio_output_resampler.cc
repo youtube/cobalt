@@ -176,24 +176,12 @@ AudioOutputResampler::AudioOutputResampler(AudioManager* audio_manager,
       close_delay_(close_delay),
       output_params_(output_params),
       streams_opened_(false) {
+  DCHECK(input_params.IsValid());
+  DCHECK(output_params.IsValid());
   DCHECK_EQ(output_params_.format(), AudioParameters::AUDIO_PCM_LOW_LATENCY);
 
   // Record UMA statistics for the hardware configuration.
   RecordStats(output_params);
-
-  // Immediately fallback if we're given invalid output parameters.  This may
-  // happen if the OS provided us junk values for the hardware configuration.
-  if (!output_params_.IsValid()) {
-    LOG(ERROR) << "Invalid audio output parameters received; using fallback "
-               << "path. Channels: " << output_params_.channels() << ", "
-               << "Sample Rate: " << output_params_.sample_rate() << ", "
-               << "Bits Per Sample: " << output_params_.bits_per_sample()
-               << ", Frames Per Buffer: " << output_params_.frames_per_buffer();
-    // Record UMA statistics about the hardware which triggered the failure so
-    // we can debug and triage later.
-    RecordFallbackStats(output_params);
-    output_params_ = SetupFallbackParams(input_params, output_params);
-  }
 
   Initialize();
 }

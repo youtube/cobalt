@@ -22,7 +22,9 @@ SineWaveAudioSource::SineWaveAudioSource(int channels,
     : channels_(channels),
       f_(freq / sample_freq),
       time_state_(0),
-      cap_(0) {
+      cap_(0),
+      callbacks_(0),
+      errors_(0) {
 }
 
 // The implementation could be more efficient if a lookup table is constructed
@@ -30,6 +32,7 @@ SineWaveAudioSource::SineWaveAudioSource(int channels,
 int SineWaveAudioSource::OnMoreData(AudioBus* audio_bus,
                                     AudioBuffersState audio_buffers) {
   base::AutoLock auto_lock(time_lock_);
+  callbacks_++;
 
   // The table is filled with s(t) = kint16max*sin(Theta*t),
   // where Theta = 2*PI*fs.
@@ -49,12 +52,11 @@ int SineWaveAudioSource::OnMoreData(AudioBus* audio_bus,
 int SineWaveAudioSource::OnMoreIOData(AudioBus* source,
                                       AudioBus* dest,
                                       AudioBuffersState audio_buffers) {
-  NOTREACHED();
-  return 0;
+  return OnMoreData(dest, audio_buffers);
 }
 
 void SineWaveAudioSource::OnError(AudioOutputStream* stream, int code) {
-  NOTREACHED();
+  errors_++;
 }
 
 void SineWaveAudioSource::CapSamples(int cap) {

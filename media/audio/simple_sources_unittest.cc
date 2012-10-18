@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <algorithm>  // std::min
 #include <limits>
 
 #include "base/logging.h"
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/time.h"
-#include "media/audio/audio_manager.h"
-#include "media/audio/fake_audio_output_stream.h"
+#include "media/audio/audio_parameters.h"
 #include "media/audio/simple_sources.h"
 #include "media/base/audio_bus.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -19,46 +16,36 @@ namespace media {
 
 // Validate that the SineWaveAudioSource writes the expected values.
 TEST(SimpleSources, SineWaveAudioSource) {
-  const uint32 samples = 1024;
-  const uint32 bytes_per_sample = 2;
-  const int freq = 200;
+  static const uint32 samples = 1024;
+  static const uint32 bytes_per_sample = 2;
+  static const int freq = 200;
 
-  SineWaveAudioSource source(1, freq, AudioParameters::kTelephoneSampleRate);
-
-  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
   AudioParameters params(
-      AudioParameters::AUDIO_MOCK, CHANNEL_LAYOUT_MONO,
-      AudioParameters::kTelephoneSampleRate, bytes_per_sample * 8, samples);
-  AudioOutputStream* oas = audio_man->MakeAudioOutputStream(params);
-  ASSERT_TRUE(NULL != oas);
-  EXPECT_TRUE(oas->Open());
+        AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_MONO,
+        AudioParameters::kTelephoneSampleRate, bytes_per_sample * 8, samples);
 
-  oas->Start(&source);
-  oas->Stop();
-
-  ASSERT_TRUE(FakeAudioOutputStream::GetCurrentFakeStream());
-  const AudioBus* last_audio_bus =
-      FakeAudioOutputStream::GetCurrentFakeStream()->audio_bus();
-  ASSERT_TRUE(NULL != last_audio_bus);
+  SineWaveAudioSource source(1, freq, params.sample_rate());
+  scoped_ptr<AudioBus> audio_bus = AudioBus::Create(params);
+  source.OnMoreData(audio_bus.get(), AudioBuffersState());
+  EXPECT_EQ(1, source.callbacks());
+  EXPECT_EQ(0, source.errors());
 
   uint32 half_period = AudioParameters::kTelephoneSampleRate / (freq * 2);
 
   // Spot test positive incursion of sine wave.
-  EXPECT_NEAR(0, last_audio_bus->channel(0)[0],
+  EXPECT_NEAR(0, audio_bus->channel(0)[0],
               std::numeric_limits<float>::epsilon());
-  EXPECT_FLOAT_EQ(0.15643446f, last_audio_bus->channel(0)[1]);
-  EXPECT_LT(last_audio_bus->channel(0)[1], last_audio_bus->channel(0)[2]);
-  EXPECT_LT(last_audio_bus->channel(0)[2], last_audio_bus->channel(0)[3]);
+  EXPECT_FLOAT_EQ(0.15643446f, audio_bus->channel(0)[1]);
+  EXPECT_LT(audio_bus->channel(0)[1], audio_bus->channel(0)[2]);
+  EXPECT_LT(audio_bus->channel(0)[2], audio_bus->channel(0)[3]);
   // Spot test negative incursion of sine wave.
-  EXPECT_NEAR(0, last_audio_bus->channel(0)[half_period],
+  EXPECT_NEAR(0, audio_bus->channel(0)[half_period],
               std::numeric_limits<float>::epsilon());
-  EXPECT_FLOAT_EQ(-0.15643446f, last_audio_bus->channel(0)[half_period + 1]);
-  EXPECT_GT(last_audio_bus->channel(0)[half_period + 1],
-            last_audio_bus->channel(0)[half_period + 2]);
-  EXPECT_GT(last_audio_bus->channel(0)[half_period + 2],
-            last_audio_bus->channel(0)[half_period + 3]);
-
-  oas->Close();
+  EXPECT_FLOAT_EQ(-0.15643446f, audio_bus->channel(0)[half_period + 1]);
+  EXPECT_GT(audio_bus->channel(0)[half_period + 1],
+            audio_bus->channel(0)[half_period + 2]);
+  EXPECT_GT(audio_bus->channel(0)[half_period + 2],
+            audio_bus->channel(0)[half_period + 3]);
 }
 
 TEST(SimpleSources, SineWaveAudioCapped) {
@@ -70,10 +57,22 @@ TEST(SimpleSources, SineWaveAudioCapped) {
   scoped_ptr<AudioBus> audio_bus = AudioBus::Create(1, 2 * kSampleCap);
   EXPECT_EQ(source.OnMoreData(
       audio_bus.get(), AudioBuffersState()), kSampleCap);
+  EXPECT_EQ(1, source.callbacks());
   EXPECT_EQ(source.OnMoreData(audio_bus.get(), AudioBuffersState()), 0);
+  EXPECT_EQ(2, source.callbacks());
   source.Reset();
   EXPECT_EQ(source.OnMoreData(
       audio_bus.get(), AudioBuffersState()), kSampleCap);
+  EXPECT_EQ(3, source.callbacks());
+  EXPECT_EQ(0, source.errors());
+}
+
+TEST(SimpleSources, OnError) {
+  SineWaveAudioSource source(1, 200, AudioParameters::kTelephoneSampleRate);
+  source.OnError(NULL, 0);
+  EXPECT_EQ(1, source.errors());
+  source.OnError(NULL, 0);
+  EXPECT_EQ(2, source.errors());
 }
 
 }  // namespace media
