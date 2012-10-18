@@ -166,8 +166,10 @@ class MockAudioRenderer : public AudioRenderer {
   MockAudioRenderer();
 
   // AudioRenderer implementation.
-  MOCK_METHOD7(Initialize, void(const scoped_refptr<AudioDecoder>& decoder,
+  MOCK_METHOD9(Initialize, void(const scoped_refptr<DemuxerStream>& stream,
+                                const AudioDecoderList& decoders,
                                 const PipelineStatusCB& init_cb,
+                                const StatisticsCB& statistics_cb,
                                 const base::Closure& underflow_cb,
                                 const TimeCB& time_cb,
                                 const base::Closure& ended_cb,

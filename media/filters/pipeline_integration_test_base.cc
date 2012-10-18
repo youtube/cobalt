@@ -197,16 +197,17 @@ PipelineIntegrationTestBase::CreateFilterCollection(
     Decryptor* decryptor) {
   scoped_ptr<FilterCollection> collection(new FilterCollection());
   collection->SetDemuxer(demuxer);
-  collection->AddAudioDecoder(new FFmpegAudioDecoder(
+  scoped_refptr<AudioDecoder> audio_decoder = new FFmpegAudioDecoder(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
-                 media::MessageLoopFactory::kDecoder)));
-  scoped_refptr<VideoDecoder> decoder = new FFmpegVideoDecoder(
+                 media::MessageLoopFactory::kDecoder));
+  scoped_refptr<VideoDecoder> video_decoder = new FFmpegVideoDecoder(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
                  media::MessageLoopFactory::kDecoder),
       decryptor);
-  collection->GetVideoDecoders()->push_back(decoder);
+  collection->GetAudioDecoders()->push_back(audio_decoder);
+  collection->GetVideoDecoders()->push_back(video_decoder);
 
   // Disable frame dropping if hashing is enabled.
   renderer_ = new VideoRendererBase(

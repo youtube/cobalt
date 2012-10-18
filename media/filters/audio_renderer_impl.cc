@@ -6,11 +6,14 @@
 
 #include <math.h>
 
+#include <algorithm>
+
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
 #include "media/audio/audio_util.h"
+#include "media/base/demuxer_stream.h"
 
 namespace media {
 
@@ -83,6 +86,8 @@ void AudioRendererImpl::Flush(const base::Closure& callback) {
 }
 
 void AudioRendererImpl::Stop(const base::Closure& callback) {
+  DCHECK(!callback.is_null());
+
   if (!stopped_) {
     DCHECK(sink_.get());
     sink_->Stop();
@@ -93,12 +98,12 @@ void AudioRendererImpl::Stop(const base::Closure& callback) {
     base::AutoLock auto_lock(lock_);
     state_ = kStopped;
     algorithm_.reset(NULL);
-    time_cb_.Reset();
+    init_cb_.Reset();
     underflow_cb_.Reset();
+    time_cb_.Reset();
   }
-  if (!callback.is_null()) {
-    callback.Run();
-  }
+
+  callback.Run();
 }
 
 void AudioRendererImpl::Preroll(base::TimeDelta time,
@@ -130,14 +135,19 @@ void AudioRendererImpl::Preroll(base::TimeDelta time,
   sink_->Pause(true);
 }
 
-void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
+void AudioRendererImpl::Initialize(const scoped_refptr<DemuxerStream>& stream,
+                                   const AudioDecoderList& decoders,
                                    const PipelineStatusCB& init_cb,
+                                   const StatisticsCB& statistics_cb,
                                    const base::Closure& underflow_cb,
                                    const TimeCB& time_cb,
                                    const base::Closure& ended_cb,
                                    const base::Closure& disabled_cb,
                                    const PipelineStatusCB& error_cb) {
-  DCHECK(decoder);
+  base::AutoLock auto_lock(lock_);
+  DCHECK(stream);
+  DCHECK(!decoders.empty());
+  DCHECK_EQ(stream->type(), DemuxerStream::AUDIO);
   DCHECK(!init_cb.is_null());
   DCHECK(!underflow_cb.is_null());
   DCHECK(!time_cb.is_null());
@@ -145,12 +155,60 @@ void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
   DCHECK(!disabled_cb.is_null());
   DCHECK(!error_cb.is_null());
   DCHECK_EQ(kUninitialized, state_);
-  decoder_ = decoder;
+
+  init_cb_ = init_cb;
+  statistics_cb_ = statistics_cb;
   underflow_cb_ = underflow_cb;
   time_cb_ = time_cb;
   ended_cb_ = ended_cb;
   disabled_cb_ = disabled_cb;
   error_cb_ = error_cb;
+
+  scoped_ptr<AudioDecoderList> decoder_list(new AudioDecoderList(decoders));
+  InitializeNextDecoder(stream, decoder_list.Pass());
+}
+
+void AudioRendererImpl::InitializeNextDecoder(
+    const scoped_refptr<DemuxerStream>& demuxer_stream,
+    scoped_ptr<AudioDecoderList> decoders) {
+  lock_.AssertAcquired();
+  DCHECK(!decoders->empty());
+
+  scoped_refptr<AudioDecoder> decoder = decoders->front();
+  decoders->pop_front();
+
+  DCHECK(decoder);
+  decoder_ = decoder;
+
+  base::AutoUnlock auto_unlock(lock_);
+  decoder->Initialize(
+      demuxer_stream,
+      base::Bind(&AudioRendererImpl::OnDecoderInitDone, this,
+                 demuxer_stream,
+                 base::Passed(&decoders)),
+      statistics_cb_);
+}
+
+void AudioRendererImpl::OnDecoderInitDone(
+    const scoped_refptr<DemuxerStream>& demuxer_stream,
+    scoped_ptr<AudioDecoderList> decoders,
+    PipelineStatus status) {
+  base::AutoLock auto_lock(lock_);
+
+  if (state_ == kStopped) {
+    DCHECK(stopped_);
+    return;
+  }
+
+  if (!decoders->empty() && status == DECODER_ERROR_NOT_SUPPORTED) {
+    InitializeNextDecoder(demuxer_stream, decoders.Pass());
+    return;
+  }
+
+  if (status != PIPELINE_OK) {
+    base::ResetAndReturn(&init_cb_).Run(status);
+    return;
+  }
 
   // Create a callback so our algorithm can request more reads.
   base::Closure cb = base::Bind(&AudioRendererImpl::ScheduleRead_Locked, this);
@@ -170,7 +228,7 @@ void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
   bool config_ok = algorithm_->ValidateConfig(channels, sample_rate,
                                               bits_per_channel);
   if (!config_ok || is_initialized_) {
-    init_cb.Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    base::ResetAndReturn(&init_cb_).Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
 
@@ -197,7 +255,7 @@ void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
 
   // Finally, execute the start callback.
   state_ = kPaused;
-  init_cb.Run(PIPELINE_OK);
+  base::ResetAndReturn(&init_cb_).Run(PIPELINE_OK);
 }
 
 void AudioRendererImpl::ResumeAfterUnderflow(bool buffer_more_audio) {
