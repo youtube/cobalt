@@ -2037,6 +2037,22 @@ typedef void (GL_APIENTRYP PFNGLBINDUNIFORMLOCATIONCHROMIUM) (GLuint program, GL
 #endif
 #endif
 
+/* GL_CHROMIUM_texture_from_image */
+#ifndef GL_CHROMIUM_texture_from_image
+#define GL_CHROMIUM_texture_from_image 1
+#ifdef GL_GLEXT_PROTOTYPES
+#define glBindTexImage2DCHROMIUM GLES2_GET_FUN(BindTexImage2DCHROMIUM)
+#define glReleaseTexImage2DCHROMIUM GLES2_GET_FUN(ReleaseTexImage2DCHROMIUM)
+#if !defined(GLES2_USE_CPP_BINDINGS)
+GL_APICALL void GL_APIENTRY glBindTexImage2DCHROMIUM (GLenum target, GLint imageId);
+GL_APICALL void GL_APIENTRY glReleaseTexImage2DCHROMIUM (GLenum target, GLint imageId);
+#endif
+#else
+typedef void (GL_APIENTRYP PFNGLBINDTEXIMAGE2DCHROMIUM) (GLenum target, GLint imageId);
+typedef void (GL_APIENTRYP PFNGLRELEASETEXIMAGE2DCHROMIUM) (GLenum target, GLint imageId);
+#endif
+#endif
+
 #ifdef __cplusplus
 }
 #endif
