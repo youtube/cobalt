@@ -98,6 +98,9 @@ int HttpResponseBodyDrainer::DoDrainResponseBodyComplete(int result) {
   if (result < 0)
     return result;
 
+  if (result == 0)
+    return ERR_CONNECTION_CLOSED;
+
   total_read_ += result;
   if (stream_->IsResponseBodyComplete())
     return OK;
