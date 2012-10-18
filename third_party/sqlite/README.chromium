@@ -72,6 +72,7 @@ test.patch
 mac_time_machine.patch
 system-sqlite.patch
 sqlite-3.7.6.3-fix-out-of-scope-memory-reference.patch
+misalignment.patch
 
 So, e.g. you could do this to apply all our patches to vanilla SQLite:
 
@@ -87,6 +88,7 @@ patch -p0 < ../sqlite/test.patch
 patch -p0 < ../sqlite/mac_time_machine.patch
 patch -p0 < ../sqlite/system-sqlite.patch
 patch -p0 < ../sqlite/sqlite-3.7.6.3-fix-out-of-scope-memory-reference.patch
+patch -p0 < ../sqlite/misalignment.patch
 
 This will only be the case if all changes we make also update the corresponding
 patch files. Therefore please remember to do that whenever you make a change!
