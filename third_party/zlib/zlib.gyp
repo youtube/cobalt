@@ -14,6 +14,7 @@
         'use_system_zlib%': 0,
       }],
     ],
+    'use_system_minizip%': 0,
   },
   'targets': [
     {
@@ -22,14 +23,6 @@
       'conditions': [
         ['use_system_zlib==0', {
           'sources': [
-            'contrib/minizip/ioapi.c',
-            'contrib/minizip/ioapi.h',
-            'contrib/minizip/iowin32.c',
-            'contrib/minizip/iowin32.h',
-            'contrib/minizip/unzip.c',
-            'contrib/minizip/unzip.h',
-            'contrib/minizip/zip.c',
-            'contrib/minizip/zip.h',
             'adler32.c',
             'compress.c',
             'crc32.c',
@@ -56,8 +49,6 @@
           ],
           'include_dirs': [
             '.',
-            # For contrib/minizip
-            '../..',
           ],
           'direct_dependent_settings': {
             'include_dirs': [
@@ -67,9 +58,6 @@
           'conditions': [
             ['OS!="win"', {
               'product_name': 'chrome_zlib',
-              'sources!': [
-                'contrib/minizip/iowin32.c'
-              ],
             }], ['OS=="android"', {
               'toolsets': ['target', 'host'],
             }],
@@ -83,22 +71,60 @@
           'defines': [
             'USE_SYSTEM_ZLIB',
           ],
+          'link_settings': {
+            'libraries': [
+              '-lz',
+            ],
+          },
+        }],
+      ],
+    },
+    {
+      'target_name': 'minizip',
+      'type': 'static_library',
+      'conditions': [
+        ['use_system_minizip==0', {
           'sources': [
             'contrib/minizip/ioapi.c',
             'contrib/minizip/ioapi.h',
+            'contrib/minizip/iowin32.c',
+            'contrib/minizip/iowin32.h',
             'contrib/minizip/unzip.c',
             'contrib/minizip/unzip.h',
             'contrib/minizip/zip.c',
             'contrib/minizip/zip.h',
           ],
+          'include_dirs': [
+            '.',
+            '../..',
+          ],
+          'direct_dependent_settings': {
+            'include_dirs': [
+              '.',
+            ],
+          },
           'conditions': [
+            ['OS!="win"', {
+              'sources!': [
+                'contrib/minizip/iowin32.c'
+              ],
+            }],
             ['OS=="android"', {
               'toolsets': ['target', 'host'],
             }],
           ],
+        }, {
+          'direct_dependent_settings': {
+            'defines': [
+              'USE_SYSTEM_MINIZIP',
+            ],
+          },
+          'defines': [
+            'USE_SYSTEM_MINIZIP',
+          ],
           'link_settings': {
             'libraries': [
-              '-lz',
+              '-lminizip',
             ],
           },
         }],
