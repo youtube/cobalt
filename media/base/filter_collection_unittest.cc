@@ -21,45 +21,45 @@ class FilterCollectionTest : public ::testing::Test {
 };
 
 TEST_F(FilterCollectionTest, SelectXXXMethods) {
-  scoped_refptr<AudioDecoder> audio_decoder;
+  scoped_refptr<AudioRenderer> audio_renderer;
 
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_FALSE(audio_decoder);
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_FALSE(audio_renderer);
 
   // Add an audio decoder.
-  collection_.AddAudioDecoder(mock_filters_.audio_decoder());
+  collection_.AddAudioRenderer(mock_filters_.audio_renderer());
 
   // Verify that we can select the audio decoder.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_TRUE(audio_decoder);
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_TRUE(audio_renderer);
 
   // Verify that we can't select it again since only one has been added.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_FALSE(audio_decoder);
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_FALSE(audio_renderer);
 }
 
 TEST_F(FilterCollectionTest, MultipleFiltersOfSameType) {
-  scoped_refptr<AudioDecoder> audio_decoder_a(new MockAudioDecoder());
-  scoped_refptr<AudioDecoder> audio_decoder_b(new MockAudioDecoder());
+  scoped_refptr<AudioRenderer> audio_renderer_a(new MockAudioRenderer());
+  scoped_refptr<AudioRenderer> audio_renderer_b(new MockAudioRenderer());
 
-  scoped_refptr<AudioDecoder> audio_decoder;
+  scoped_refptr<AudioRenderer> audio_renderer;
 
-  collection_.AddAudioDecoder(audio_decoder_a.get());
-  collection_.AddAudioDecoder(audio_decoder_b.get());
+  collection_.AddAudioRenderer(audio_renderer_a.get());
+  collection_.AddAudioRenderer(audio_renderer_b.get());
 
-  // Verify that first SelectAudioDecoder() returns audio_decoder_a.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_TRUE(audio_decoder);
-  EXPECT_EQ(audio_decoder, audio_decoder_a);
+  // Verify that first SelectAudioRenderer() returns audio_renderer_a.
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_TRUE(audio_renderer);
+  EXPECT_EQ(audio_renderer, audio_renderer_a);
 
-  // Verify that second SelectAudioDecoder() returns audio_decoder_b.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_TRUE(audio_decoder);
-  EXPECT_EQ(audio_decoder, audio_decoder_b);
+  // Verify that second SelectAudioRenderer() returns audio_renderer_b.
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_TRUE(audio_renderer);
+  EXPECT_EQ(audio_renderer, audio_renderer_b);
 
-  // Verify that third SelectAudioDecoder() returns nothing.
-  collection_.SelectAudioDecoder(&audio_decoder);
-  EXPECT_FALSE(audio_decoder);
+  // Verify that third SelectAudioRenderer() returns nothing.
+  collection_.SelectAudioRenderer(&audio_renderer);
+  EXPECT_FALSE(audio_renderer);
 }
 
 }  // namespace media

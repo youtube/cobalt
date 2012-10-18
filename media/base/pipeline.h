@@ -28,7 +28,6 @@ class TimeDelta;
 
 namespace media {
 
-class AudioDecoder;
 class Clock;
 class FilterCollection;
 class MediaLog;
@@ -232,7 +231,6 @@ class MEDIA_EXPORT Pipeline
   enum State {
     kCreated,
     kInitDemuxer,
-    kInitAudioDecoder,
     kInitAudioRenderer,
     kInitVideoRenderer,
     kInitPrerolling,
@@ -323,7 +321,6 @@ class MEDIA_EXPORT Pipeline
   // Kicks off initialization for each media object, executing |done_cb| with
   // the result when completed.
   void InitializeDemuxer(const PipelineStatusCB& done_cb);
-  void InitializeAudioDecoder(const PipelineStatusCB& done_cb);
   void InitializeAudioRenderer(const PipelineStatusCB& done_cb);
   void InitializeVideoRenderer(const PipelineStatusCB& done_cb);
 
@@ -459,12 +456,6 @@ class MEDIA_EXPORT Pipeline
 
   // Demuxer reference used for setting the preload value.
   scoped_refptr<Demuxer> demuxer_;
-
-  // Audio decoder reference used during initialization.
-  //
-  // TODO(scherkus): Remove after renderers do initialization, see
-  // http://crbug.com/145635
-  scoped_refptr<AudioDecoder> audio_decoder_;
 
   PipelineStatistics statistics_;
 

@@ -85,7 +85,7 @@ scoped_ptr<FilterCollection> MockFilterCollection::Create() {
   scoped_ptr<FilterCollection> collection(new FilterCollection());
   collection->SetDemuxer(demuxer_);
   collection->GetVideoDecoders()->push_back(video_decoder_);
-  collection->AddAudioDecoder(audio_decoder_);
+  collection->GetAudioDecoders()->push_back(audio_decoder_);
   collection->AddVideoRenderer(video_renderer_);
   collection->AddAudioRenderer(audio_renderer_);
   return collection.Pass();
