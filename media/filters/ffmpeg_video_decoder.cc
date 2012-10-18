@@ -183,7 +183,7 @@ void FFmpegVideoDecoder::Reset(const base::Closure& closure) {
   reset_cb_ = closure;
 
   if (decryptor_)
-    decryptor_->CancelDecrypt();
+    decryptor_->CancelDecrypt(Decryptor::kVideo);
 
   // Defer the reset if a read is pending.
   if (!read_cb_.is_null())
@@ -214,7 +214,7 @@ void FFmpegVideoDecoder::Stop(const base::Closure& closure) {
   }
 
   if (decryptor_)
-    decryptor_->CancelDecrypt();
+    decryptor_->CancelDecrypt(Decryptor::kVideo);
 
   if (!read_cb_.is_null())
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
@@ -300,7 +300,8 @@ void FFmpegVideoDecoder::DoDecryptOrDecodeBuffer(
   DCHECK_EQ(status, DemuxerStream::kOk);
 
   if (buffer->GetDecryptConfig() && buffer->GetDataSize()) {
-    decryptor_->Decrypt(buffer,
+    decryptor_->Decrypt(Decryptor::kVideo,
+                        buffer,
                         base::Bind(&FFmpegVideoDecoder::BufferDecrypted, this));
     return;
   }

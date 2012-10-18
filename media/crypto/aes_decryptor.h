@@ -45,20 +45,24 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
                       const std::string& session_id) OVERRIDE;
   virtual void CancelKeyRequest(const std::string& key_system,
                                 const std::string& session_id) OVERRIDE;
-  // Decrypts |encrypted| buffer. |encrypted| should not be NULL. Returns a
-  // DecoderBuffer with the decrypted data if the decryption succeeded through
-  // |decrypt_cb|.
-  virtual void Decrypt(const scoped_refptr<DecoderBuffer>& encrypted,
+  virtual void Decrypt(StreamType stream_type,
+                       const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) OVERRIDE;
-  virtual void CancelDecrypt() OVERRIDE;
+  virtual void CancelDecrypt(StreamType stream_type) OVERRIDE;
+  virtual void InitializeAudioDecoder(scoped_ptr<AudioDecoderConfig> config,
+                                      const DecoderInitCB& init_cb,
+                                      const KeyAddedCB& key_added_cb) OVERRIDE;
   virtual void InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
                                       const DecoderInitCB& init_cb,
                                       const KeyAddedCB& key_added_cb) OVERRIDE;
+  virtual void DecryptAndDecodeAudio(
+      const scoped_refptr<DecoderBuffer>& encrypted,
+      const AudioDecodeCB& audio_decode_cb) OVERRIDE;
   virtual void DecryptAndDecodeVideo(
       const scoped_refptr<DecoderBuffer>& encrypted,
       const VideoDecodeCB& video_decode_cb) OVERRIDE;
-  virtual void CancelDecryptAndDecodeVideo() OVERRIDE;
-  virtual void StopVideoDecoder() OVERRIDE;
+  virtual void ResetDecoder(StreamType stream_type) OVERRIDE;
+  virtual void DeinitializeDecoder(StreamType stream_type) OVERRIDE;
 
  private:
   // TODO(fgalligan): Remove this and change KeyMap to use crypto::SymmetricKey
