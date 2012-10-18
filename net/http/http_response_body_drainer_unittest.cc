@@ -38,7 +38,7 @@ class CloseResultWaiter {
         waiting_for_result_(false) {}
 
   int WaitForResult() {
-    CHECK(!waiting_for_result_);
+    DCHECK(!waiting_for_result_);
     while (!have_result_) {
       waiting_for_result_ = true;
       MessageLoop::current()->Run();
@@ -66,12 +66,9 @@ class MockHttpStream : public HttpStream {
  public:
   MockHttpStream(CloseResultWaiter* result_waiter)
       : result_waiter_(result_waiter),
-        buf_len_(0),
         closed_(false),
         stall_reads_forever_(false),
         num_chunks_(0),
-        is_sync_(false),
-        is_last_chunk_zero_size_(false),
         is_complete_(false),
         ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
   virtual ~MockHttpStream() {}
@@ -111,7 +108,7 @@ class MockHttpStream : public HttpStream {
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
                                const CompletionCallback& callback) OVERRIDE;
   virtual void Close(bool not_reusable) OVERRIDE {
-    CHECK(!closed_);
+    DCHECK(!closed_);
     closed_ = true;
     result_waiter_->set_result(not_reusable);
   }
@@ -129,16 +126,11 @@ class MockHttpStream : public HttpStream {
   virtual void Drain(HttpNetworkSession*) OVERRIDE {}
 
   // Methods to tweak/observer mock behavior:
-  void set_stall_reads_forever() { stall_reads_forever_ = true; }
+  void StallReadsForever() { stall_reads_forever_ = true; }
 
   void set_num_chunks(int num_chunks) { num_chunks_ = num_chunks; }
 
-  void set_sync() { is_sync_ = true; }
-
-  void set_is_last_chunk_zero_size() { is_last_chunk_zero_size_ = true; }
-
  private:
-  int ReadResponseBodyImpl(IOBuffer* buf, int buf_len);
   void CompleteRead();
 
   bool closed() const { return closed_; }
@@ -146,50 +138,34 @@ class MockHttpStream : public HttpStream {
   CloseResultWaiter* const result_waiter_;
   scoped_refptr<IOBuffer> user_buf_;
   CompletionCallback callback_;
-  int buf_len_;
   bool closed_;
   bool stall_reads_forever_;
   int num_chunks_;
-  bool is_sync_;
-  bool is_last_chunk_zero_size_;
   bool is_complete_;
   base::WeakPtrFactory<MockHttpStream> weak_factory_;
 };
 
-int MockHttpStream::ReadResponseBody(IOBuffer* buf,
-                                     int buf_len,
-                                     const CompletionCallback& callback) {
-  CHECK(!callback.is_null());
-  CHECK(callback_.is_null());
-  CHECK(buf);
+int MockHttpStream::ReadResponseBody(
+    IOBuffer* buf, int buf_len, const CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
+  DCHECK(callback_.is_null());
+  DCHECK(buf);
 
   if (stall_reads_forever_)
     return ERR_IO_PENDING;
 
-  if (is_complete_)
+  if (num_chunks_ == 0)
     return ERR_UNEXPECTED;
 
-  if (!is_sync_) {
+  if (buf_len > kMagicChunkSize && num_chunks_ > 1) {
     user_buf_ = buf;
-    buf_len_ = buf_len;
     callback_ = callback;
     MessageLoop::current()->PostTask(
         FROM_HERE,
         base::Bind(&MockHttpStream::CompleteRead, weak_factory_.GetWeakPtr()));
     return ERR_IO_PENDING;
-  } else {
-    return ReadResponseBodyImpl(buf, buf_len);
   }
-}
 
-int MockHttpStream::ReadResponseBodyImpl(IOBuffer* buf, int buf_len) {
-  if (is_last_chunk_zero_size_ && num_chunks_ == 1) {
-    buf_len = 0;
-  } else {
-    if (buf_len > kMagicChunkSize)
-      buf_len = kMagicChunkSize;
-    std::memset(buf->data(), 1, buf_len);
-  }
   num_chunks_--;
   if (!num_chunks_)
     is_complete_ = true;
@@ -198,11 +174,14 @@ int MockHttpStream::ReadResponseBodyImpl(IOBuffer* buf, int buf_len) {
 }
 
 void MockHttpStream::CompleteRead() {
-  int result = ReadResponseBodyImpl(user_buf_, buf_len_);
-  user_buf_ = NULL;
   CompletionCallback callback = callback_;
+  std::memset(user_buf_->data(), 1, kMagicChunkSize);
+  user_buf_ = NULL;
   callback_.Reset();
-  callback.Run(result);
+  num_chunks_--;
+  if (!num_chunks_)
+    is_complete_ = true;
+  callback.Run(kMagicChunkSize);
 }
 
 class HttpResponseBodyDrainerTest : public testing::Test {
@@ -234,40 +213,14 @@ class HttpResponseBodyDrainerTest : public testing::Test {
   HttpResponseBodyDrainer* const drainer_;  // Deletes itself.
 };
 
-TEST_F(HttpResponseBodyDrainerTest, DrainBodySyncSingleOK) {
-  mock_stream_->set_num_chunks(1);
-  mock_stream_->set_sync();
-  drainer_->Start(session_);
-  EXPECT_FALSE(result_waiter_.WaitForResult());
-}
-
 TEST_F(HttpResponseBodyDrainerTest, DrainBodySyncOK) {
-  mock_stream_->set_num_chunks(3);
-  mock_stream_->set_sync();
+  mock_stream_->set_num_chunks(1);
   drainer_->Start(session_);
   EXPECT_FALSE(result_waiter_.WaitForResult());
 }
 
 TEST_F(HttpResponseBodyDrainerTest, DrainBodyAsyncOK) {
   mock_stream_->set_num_chunks(3);
-  drainer_->Start(session_);
-  EXPECT_FALSE(result_waiter_.WaitForResult());
-}
-
-// Test the case when the final chunk is 0 bytes. This can happen when
-// the final 0-byte chunk of a chunk-encoded http response is read in a last
-// call to ReadResponseBody, after all data were returned from HttpStream.
-TEST_F(HttpResponseBodyDrainerTest, DrainBodyAsyncEmptyChunk) {
-  mock_stream_->set_num_chunks(4);
-  mock_stream_->set_is_last_chunk_zero_size();
-  drainer_->Start(session_);
-  EXPECT_FALSE(result_waiter_.WaitForResult());
-}
-
-TEST_F(HttpResponseBodyDrainerTest, DrainBodySyncEmptyChunk) {
-  mock_stream_->set_num_chunks(4);
-  mock_stream_->set_sync();
-  mock_stream_->set_is_last_chunk_zero_size();
   drainer_->Start(session_);
   EXPECT_FALSE(result_waiter_.WaitForResult());
 }
@@ -281,14 +234,14 @@ TEST_F(HttpResponseBodyDrainerTest, DrainBodySizeEqualsDrainBuffer) {
 
 TEST_F(HttpResponseBodyDrainerTest, DrainBodyTimeOut) {
   mock_stream_->set_num_chunks(2);
-  mock_stream_->set_stall_reads_forever();
+  mock_stream_->StallReadsForever();
   drainer_->Start(session_);
   EXPECT_TRUE(result_waiter_.WaitForResult());
 }
 
 TEST_F(HttpResponseBodyDrainerTest, CancelledBySession) {
   mock_stream_->set_num_chunks(2);
-  mock_stream_->set_stall_reads_forever();
+  mock_stream_->StallReadsForever();
   drainer_->Start(session_);
   // HttpNetworkSession should delete |drainer_|.
 }
