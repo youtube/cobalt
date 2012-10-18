@@ -30,7 +30,7 @@
 # Required variables:
 #  package_name - Used to name the intermediate output directory and in the
 #    names of some output files.
-#  apk_name - The final apk will be named <apk_name>-debug.apk (or -release)
+#  apk_name - The final apk will be named <apk_name>.apk
 #  java_in_dir - The top-level java directory. The src should be in
 #    <java_in_dir>/src.
 # Optional/automatic variables:
@@ -117,9 +117,7 @@
         }],
       ],
       'outputs': [
-        # TODO(cjhopman): Apks are built with a -debug suffix even when they are
-        # built in release. This should be fixed.
-        '<(PRODUCT_DIR)/apks/<(apk_name)-debug.apk',
+        '<(PRODUCT_DIR)/apks/<(apk_name).apk',
       ],
       'action': [
         'ant',

@@ -245,11 +245,11 @@ function bb_run_all_instrumentation_tests_for_apk {
 
 # Run instrumentation tests for all relevant APKs on device.
 function bb_run_instrumentation_tests {
-  bb_run_all_instrumentation_tests_for_apk "ContentShell-debug.apk" \
+  bb_run_all_instrumentation_tests_for_apk "ContentShell.apk" \
       "org.chromium.content_shell" "ContentShellTest"
-  bb_run_all_instrumentation_tests_for_apk "ChromiumTestShell-debug.apk" \
+  bb_run_all_instrumentation_tests_for_apk "ChromiumTestShell.apk" \
       "org.chromium.chrome.testshell" "ChromiumTestShellTest"
-  bb_run_all_instrumentation_tests_for_apk "AndroidWebView-debug.apk" \
+  bb_run_all_instrumentation_tests_for_apk "AndroidWebView.apk" \
       "org.chromium.android_webview" "AndroidWebViewTest"
 }
 

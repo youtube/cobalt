@@ -58,7 +58,7 @@
 
   <!-- Set the output directory for the final apk to the ${apks.dir}. -->
   <property-location name="out.final.file"
-      location="${apks.dir}/${ant.project.name}-debug.apk"
+      location="${apks.dir}/${ant.project.name}.apk"
       check-exists="false"/>
 
   <!-- Classpath for javac -->
