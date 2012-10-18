@@ -33,42 +33,21 @@ def GetVersion(compiler):
     print >> sys.stderr, e
     return ""
 
-def GetVersionFromEnvironment(compiler_env):
-  """ Returns the version of compiler
-
-  If the compiler was set by the given environment variable and exists,
-  return its version, otherwise None is returned.
-  """
-  cxx = os.getenv(compiler_env, None)
-  if cxx:
-    cxx_version = GetVersion(cxx)
-    if cxx_version != "":
-      return cxx_version
-  return None
-
 def main():
-  # Check if CXX_target or CXX environment variable exists an if it does use
-  # that compiler.
-  # TODO: Fix ninja (see http://crbug.com/140900) instead and remove this code
-  # In ninja's cross compile mode, the CXX_target is target compiler, while
-  # the CXX is host. The CXX_target needs be checked first, though the target
-  # and host compiler have different version, there seems no issue to use the
-  # target compiler's version number as gcc_version in Android.
-  cxx_version = GetVersionFromEnvironment("CXX_target")
-  if cxx_version:
-    print cxx_version
-    return 0
-
-  cxx_version = GetVersionFromEnvironment("CXX")
-  if cxx_version:
-    print cxx_version
-    return 0
-
-  # Otherwise we check the g++ version.
-  gccversion = GetVersion("g++")
-  if gccversion != "":
-    print gccversion
-    return 0
+  # Check if CXX environment variable exists and
+  # if it does use that compiler.
+  cxx = os.getenv("CXX", None)
+  if cxx:
+    cxxversion = GetVersion(cxx)
+    if cxxversion != "":
+      print cxxversion
+      return 0
+  else:
+    # Otherwise we check the g++ version.
+    gccversion = GetVersion("g++")
+    if gccversion != "":
+      print gccversion
+      return 0
 
   return 1
 
