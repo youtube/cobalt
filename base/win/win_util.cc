@@ -156,13 +156,6 @@ bool SetAppIdForPropertyStore(IPropertyStore* property_store,
                                         app_id);
 }
 
-bool SetDualModeForPropertyStore(IPropertyStore* property_store,
-                                 bool is_dual_mode) {
-  return SetBooleanValueForPropertyStore(property_store,
-                                         PKEY_AppUserModel_IsDualMode,
-                                         is_dual_mode);
-}
-
 static const char16 kAutoRunKeyPath[] =
     L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 
