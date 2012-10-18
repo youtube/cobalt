@@ -1377,7 +1377,10 @@
         # Iterator debugging is slow.
         'win_debug_disable_iterator_debugging': '1',
         # Try to disable optimizations that mess up stacks in a release build.
-        'win_release_InlineFunctionExpansion': '0',
+        # DrM-i#1054 (http://code.google.com/p/drmemory/issues/detail?id=1054)
+        # /O2 and /Ob0 (disable inline) cannot be used together because of a
+        # compiler bug, so we use /Ob1 instead.
+        'win_release_InlineFunctionExpansion': '1',
         'win_release_OmitFramePointers': '0',
         # Ditto for debug, to support bumping win_debug_Optimization.
         'win_debug_InlineFunctionExpansion': 0,
