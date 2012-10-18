@@ -56,6 +56,7 @@ void DecryptingVideoDecoder::Reset(const base::Closure& closure) {
     return;
   }
 
+  DVLOG(2) << "Reset() - state: " << state_;
   DCHECK(state_ == kIdle ||
          state_ == kPendingDemuxerRead ||
          state_ == kPendingDecode ||
@@ -95,6 +96,7 @@ void DecryptingVideoDecoder::Stop(const base::Closure& closure) {
     return;
   }
 
+  DVLOG(2) << "Stop() - state: " << state_;
   DCHECK(stop_cb_.is_null());
   stop_cb_ = closure;
 
@@ -154,6 +156,7 @@ void DecryptingVideoDecoder::DoInitialize(
     const scoped_refptr<DemuxerStream>& stream,
     const PipelineStatusCB& status_cb,
     const StatisticsCB& statistics_cb) {
+  DVLOG(2) << "DoInitialize()";
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kUninitialized) << state_;
   DCHECK(stream);
@@ -184,6 +187,7 @@ void DecryptingVideoDecoder::DoInitialize(
 }
 
 void DecryptingVideoDecoder::SetDecryptor(Decryptor* decryptor) {
+  DVLOG(2) << "SetDecryptor()";
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kDecryptorRequested) << state_;
   DCHECK(!init_cb_.is_null());
@@ -207,6 +211,7 @@ void DecryptingVideoDecoder::SetDecryptor(Decryptor* decryptor) {
 }
 
 void DecryptingVideoDecoder::FinishInitialization(bool success) {
+  DVLOG(2) << "FinishInitialization()";
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDecoderInit) << state_;
   DCHECK(!init_cb_.is_null());
@@ -231,6 +236,7 @@ void DecryptingVideoDecoder::FinishInitialization(bool success) {
 }
 
 void DecryptingVideoDecoder::DoRead(const ReadCB& read_cb) {
+  DVLOG(3) << "DoRead()";
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(state_ == kIdle || state_ == kDecodeFinished) << state_;
   DCHECK(!read_cb.is_null());
@@ -271,6 +277,7 @@ void DecryptingVideoDecoder::DecryptAndDecodeBuffer(
 void DecryptingVideoDecoder::DoDecryptAndDecodeBuffer(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
+  DVLOG(3) << "DoDecryptAndDecodeBuffer()";
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDemuxerRead) << state_;
   DCHECK(!read_cb_.is_null());
@@ -286,8 +293,9 @@ void DecryptingVideoDecoder::DoDecryptAndDecodeBuffer(
   }
 
   if (status == DemuxerStream::kAborted) {
-    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
+    DVLOG(2) << "DoDecryptAndDecodeBuffer() - kAborted";
     state_ = kIdle;
+    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
     return;
   }
 
@@ -295,6 +303,7 @@ void DecryptingVideoDecoder::DoDecryptAndDecodeBuffer(
     // TODO(xhwang): Add config change support.
     // The |state_| is chosen to be kDecodeFinished here to be consistent with
     // the implementation of FFmpegVideoDecoder.
+    DVLOG(2) << "DoDecryptAndDecodeBuffer() - kConfigChanged";
     state_ = kDecodeFinished;
     base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
     return;
@@ -332,6 +341,7 @@ void DecryptingVideoDecoder::DoDeliverFrame(
     int buffer_size,
     Decryptor::Status status,
     const scoped_refptr<VideoFrame>& frame) {
+  DVLOG(3) << "DoDeliverFrame()";
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDecode) << state_;
   DCHECK(!read_cb_.is_null());
@@ -389,6 +399,7 @@ void DecryptingVideoDecoder::DoDeliverFrame(
 }
 
 void DecryptingVideoDecoder::OnKeyAdded() {
+  DVLOG(2) << "OnKeyAdded()";
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (state_ == kPendingDecode) {
