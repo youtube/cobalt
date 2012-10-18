@@ -93,10 +93,10 @@ class WebSocketOptions:
     self.allow_draft75 = False
     self.strict = True
 
-    # TODO(toyoshim): Support SSL and authenticates (http://crbug.com/137639)
     self.use_tls = False
     self.private_key = None
     self.certificate = None
+    self.tls_client_auth = False
     self.tls_client_ca = None
     self.use_basic_auth = False
 
@@ -2235,8 +2235,8 @@ def main(options, args):
 
       for ca_cert in options.ssl_client_ca:
         if not os.path.isfile(ca_cert):
-          print 'specified trusted client CA file not found: ' + ca_cert + \
-                ' exiting...'
+          print ('specified trusted client CA file not found: ' + ca_cert +
+                 ' exiting...')
           return
       server = HTTPSServer((host, port), TestPageHandler, pem_cert_and_key,
                            options.ssl_client_auth, options.ssl_client_ca,
@@ -2261,7 +2261,25 @@ def main(options, args):
     # TODO(toyoshim): Remove following os.chdir. Currently this operation
     # is required to work correctly. It should be fixed from pywebsocket side.
     os.chdir(MakeDataDir())
-    server = WebSocketServer(WebSocketOptions(host, port, '.'))
+    websocket_options = WebSocketOptions(host, port, '.')
+    if options.cert_and_key_file:
+      websocket_options.use_tls = True
+      websocket_options.private_key = options.cert_and_key_file
+      websocket_options.certificate = options.cert_and_key_file
+    if options.ssl_client_auth:
+      websocket_options.tls_client_auth = True
+      if len(options.ssl_client_ca) != 1:
+        # TODO(toyoshim): Provide non-zero exit code for these error cases.
+        # Ditto on other paths here and there.
+        # http://crbug.com/156539
+        print 'one trusted client CA file should be specified'
+        return
+      if not os.path.isfile(options.ssl_client_ca[0]):
+        print ('specified trusted client CA file not found: ' +
+               options.ssl_client_ca[0] + ' exiting...')
+        return
+      websocket_options.tls_client_ca = options.ssl_client_ca[0]
+    server = WebSocketServer(websocket_options)
     print 'WebSocket server started on %s:%d...' % (host, server.server_port)
     server_data['port'] = server.server_port
   elif options.server_type == SERVER_SYNC:
