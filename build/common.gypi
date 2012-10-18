@@ -922,6 +922,9 @@
       }, {
         'directx_sdk_path%': '$(DXSDK_DIR)',
       }],
+      ['OS=="win"', {
+        'windows_driver_kit_path%': '$(WDK_DIR)',
+      }],
       # If use_official_google_api_keys is already set (to 0 or 1), we
       # do none of the implicit checking.  If it is set to 1 and the
       # internal keys file is missing, the build will fail at compile
@@ -3365,6 +3368,52 @@
               '_SECURE_ATL',
             ],
           }],
+          ['msvs_express', {
+            'configurations': {
+              'x86_Base': {
+                'msvs_settings': {
+                  'VCLinkerTool': {
+                    'AdditionalLibraryDirectories':
+                      ['<(windows_driver_kit_path)/lib/ATL/i386'],
+                  },
+                  'VCLibrarianTool': {
+                    'AdditionalLibraryDirectories':
+                      ['<(windows_driver_kit_path)/lib/ATL/i386'],
+                  },
+                },
+              },
+              'x64_Base': {
+                'msvs_settings': {
+                  'VCLibrarianTool': {
+                    'AdditionalLibraryDirectories':
+                      ['<(windows_driver_kit_path)/lib/ATL/amd64'],
+                  },
+                  'VCLinkerTool': {
+                    'AdditionalLibraryDirectories':
+                      ['<(windows_driver_kit_path)/lib/ATL/amd64'],
+                  },
+                },
+              },
+            },
+            'msvs_settings': {
+              'VCLinkerTool': {
+                # Explicitly required when using the ATL with express
+                'AdditionalDependencies': ['atlthunk.lib'],
+
+                # ATL 8.0 included in WDK 7.1 makes the linker to generate
+                # almost eight hundred LNK4254 and LNK4078 warnings:
+                #   - warning LNK4254: section 'ATL' (50000040) merged into
+                #     '.rdata' (40000040) with different attributes
+                #   - warning LNK4078: multiple 'ATL' sections found with
+                #     different attributes
+                'AdditionalOptions': ['/ignore:4254', '/ignore:4078'],
+              },
+            },
+            'msvs_system_include_dirs': [
+              '<(windows_driver_kit_path)/inc/atl71',
+              '<(windows_driver_kit_path)/inc/mfc42',
+            ],
+          }],
         ],
         'msvs_system_include_dirs': [
           '<(windows_sdk_path)/Include/shared',
@@ -3421,20 +3470,6 @@
             ],
 
             'conditions': [
-              ['msvs_express', {
-                # Explicitly required when using the ATL with express
-                'AdditionalDependencies': [
-                  'atlthunk.lib',
-                ],
-
-                # ATL 8.0 included in WDK 7.1 makes the linker to generate
-                # almost eight hundred LNK4254 and LNK4078 warnings:
-                #   - warning LNK4254: section 'ATL' (50000040) merged into
-                #     '.rdata' (40000040) with different attributes
-                #   - warning LNK4078: multiple 'ATL' sections found with
-                #     different attributes
-                'AdditionalOptions': ['/ignore:4254', '/ignore:4078'],
-              }],
               ['MSVS_VERSION=="2005e"', {
                 # Non-express versions link automatically to these
                 'AdditionalDependencies': [
