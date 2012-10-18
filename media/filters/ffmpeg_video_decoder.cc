@@ -208,29 +208,20 @@ void FFmpegVideoDecoder::Stop(const base::Closure& closure) {
     return;
   }
 
-  DCHECK(stop_cb_.is_null());
-
   if (state_ == kUninitialized) {
     closure.Run();
     return;
   }
 
-  stop_cb_ = closure;
-
   if (decryptor_)
     decryptor_->CancelDecrypt();
 
-  // Defer stopping if a read is pending.
   if (!read_cb_.is_null())
-    return;
+    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
 
-  DoStop();
-}
-
-void FFmpegVideoDecoder::DoStop() {
   ReleaseFFmpegResources();
   state_ = kUninitialized;
-  base::ResetAndReturn(&stop_cb_).Run();
+  closure.Run();
 }
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder() {
@@ -278,15 +269,12 @@ void FFmpegVideoDecoder::DoDecryptOrDecodeBuffer(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kDecodeFinished);
-  DCHECK(!read_cb_.is_null());
 
-  if (!stop_cb_.is_null()) {
-    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
-    DoStop();
+  if (state_ == kUninitialized)
     return;
-  }
+
+  DCHECK(!read_cb_.is_null());
 
   if (!reset_cb_.is_null()) {
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
@@ -331,15 +319,12 @@ void FFmpegVideoDecoder::DoBufferDecrypted(
     Decryptor::Status decrypt_status,
     const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kDecodeFinished);
-  DCHECK(!read_cb_.is_null());
 
-  if (!stop_cb_.is_null()) {
-    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
-    DoStop();
+  if (state_ == kUninitialized)
     return;
-  }
+
+  DCHECK(!read_cb_.is_null());
 
   if (!reset_cb_.is_null()) {
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);

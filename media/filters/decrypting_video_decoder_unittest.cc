@@ -56,7 +56,8 @@ ACTION(ReturnConfigChanged) {
 }
 
 ACTION_P(RunCallback0, param) {
-  arg0.Run(param);
+  if (!arg0.is_null())
+    arg0.Run(param);
 }
 
 ACTION_P(RunCallback1, param) {
