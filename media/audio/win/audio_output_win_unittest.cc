@@ -167,23 +167,6 @@ class ReadOnlyMappedFile {
   uint32 size_;
 };
 
-// ============================================================================
-// Validate that the AudioManager::AUDIO_MOCK callbacks work.
-TEST(WinAudioTest, MockStreamBasicCallbacks) {
-  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
-  AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
-      AudioParameters(AudioParameters::AUDIO_MOCK, CHANNEL_LAYOUT_STEREO, 8000,
-                      8, 128));
-  ASSERT_TRUE(NULL != oas);
-  EXPECT_TRUE(oas->Open());
-  TestSourceBasic source;
-  oas->Start(&source);
-  EXPECT_GT(source.callback_count(), 0);
-  oas->Stop();
-  oas->Close();
-  EXPECT_EQ(0, source.had_error());
-}
-
 // ===========================================================================
 // Validation of AudioManager::AUDIO_PCM_LINEAR
 //

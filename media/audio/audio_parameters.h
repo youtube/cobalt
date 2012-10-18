@@ -35,8 +35,8 @@ class MEDIA_EXPORT AudioParameters {
   enum Format {
     AUDIO_PCM_LINEAR = 0,     // PCM is 'raw' amplitude samples.
     AUDIO_PCM_LOW_LATENCY,    // Linear PCM, low latency requested.
-    AUDIO_MOCK,               // Creates a dummy AudioOutputStream object.
-    AUDIO_LAST_FORMAT         // Only used for validation of format.y
+    AUDIO_FAKE,               // Creates a fake AudioOutputStream object.
+    AUDIO_LAST_FORMAT         // Only used for validation of format.
   };
 
   enum {

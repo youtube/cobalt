@@ -112,8 +112,14 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStream(
     return NULL;
   }
 
+  // If there are no audio output devices we should use a FakeAudioOutputStream
+  // to ensure video playback continues to work.
+  bool audio_output_disabled =
+      params.format() == AudioParameters::AUDIO_FAKE ||
+      !HasAudioOutputDevices();
+
   AudioOutputStream* stream = NULL;
-  if (params.format() == AudioParameters::AUDIO_MOCK) {
+  if (audio_output_disabled) {
     stream = FakeAudioOutputStream::MakeFakeStream(this, params);
   } else if (params.format() == AudioParameters::AUDIO_PCM_LINEAR) {
     stream = MakeLinearOutputStream(params);
@@ -143,7 +149,7 @@ AudioInputStream* AudioManagerBase::MakeAudioInputStream(
   }
 
   AudioInputStream* stream = NULL;
-  if (params.format() == AudioParameters::AUDIO_MOCK) {
+  if (params.format() == AudioParameters::AUDIO_FAKE) {
     stream = FakeAudioInputStream::MakeFakeStream(this, params);
   } else if (params.format() == AudioParameters::AUDIO_PCM_LINEAR) {
     stream = MakeLinearInputStream(params, device_id);
@@ -176,11 +182,31 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
   const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
   if (!cmd_line->HasSwitch(switches::kDisableAudioOutputResampler) &&
       params.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
-    scoped_refptr<AudioOutputDispatcher> dispatcher = new AudioOutputResampler(
-        this, params, GetPreferredLowLatencyOutputStreamParameters(params),
-        close_delay);
-    output_dispatchers_[params] = dispatcher;
-    return new AudioOutputProxy(dispatcher);
+    AudioParameters output_params =
+        GetPreferredLowLatencyOutputStreamParameters(params);
+
+    // Ensure we only pass on valid output parameters.
+    if (output_params.IsValid()) {
+      scoped_refptr<AudioOutputDispatcher> dispatcher =
+          new AudioOutputResampler(this, params, output_params, close_delay);
+      output_dispatchers_[params] = dispatcher;
+      return new AudioOutputProxy(dispatcher);
+    }
+
+    // We've received invalid audio output parameters, so switch to a mock
+    // output device based on the input parameters.  This may happen if the OS
+    // provided us junk values for the hardware configuration.
+    LOG(ERROR) << "Invalid audio output parameters received; using fake audio "
+               << "path. Channels: " << output_params.channels() << ", "
+               << "Sample Rate: " << output_params.sample_rate() << ", "
+               << "Bits Per Sample: " << output_params.bits_per_sample()
+               << ", Frames Per Buffer: " << output_params.frames_per_buffer();
+
+    // Passing AUDIO_FAKE tells the AudioManager to create a fake output device.
+    output_params = AudioParameters(
+        AudioParameters::AUDIO_FAKE, params.channel_layout(),
+        params.sample_rate(), params.bits_per_sample(),
+        params.frames_per_buffer());
   }
 
 #if defined(ENABLE_AUDIO_MIXER)
