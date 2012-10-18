@@ -4,7 +4,7 @@
 
 /**
  * Combines classes from javac.custom.classpath property and ${out.dir}/classes
- * into a single jar file ${ant.project.name}-debug.jar and places the file in
+ * into a single jar file ${ant.project.name}.jar and places the file in
  * ${lib.java.dir}.
  */
 
@@ -26,7 +26,7 @@ var duplicate = Zip.Duplicate();
 duplicate.setValue("preserve");
 jarTask.setDuplicate(duplicate);
 
-var destFile = project.getProperty("ant.project.name") + "-debug.jar";
+var destFile = project.getProperty("ant.project.name") + ".jar";
 var destPath = File(project.getProperty("test.lib.java.dir") + "/" + destFile);
 jarTask.setDestFile(destPath);
 
