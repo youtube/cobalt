@@ -19,6 +19,8 @@
         'connection.cc',
         'connection.h',
         'diagnostic_error_delegate.h',
+        'error_delegate_util.cc',
+        'error_delegate_util.h',
         'init_status.h',
         'meta_table.cc',
         'meta_table.h',

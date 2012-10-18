@@ -83,17 +83,17 @@ class SQL_EXPORT ErrorDelegate {
  public:
   virtual ~ErrorDelegate();
 
-  // |error| is an sqlite result code as seen in sqlite\preprocessed\sqlite3.h
-  // |connection| is db connection where the error happened and |stmt| is
-  // our best guess at the statement that triggered the error.  Do not store
-  // these pointers.
+  // |error| is an sqlite result code as seen in sqlite3.h. |connection| is the
+  // db connection where the error happened and |stmt| is our best guess at the
+  // statement that triggered the error. Do not store these pointers.
   //
   // |stmt| MAY BE NULL if there is no statement causing the problem (i.e. on
   // initialization).
   //
-  // If the error condition has been fixed an the original statement succesfuly
-  // re-tried then returning SQLITE_OK is appropiate; otherwise is recomended
-  // that you return the original |error| or the appropiae error code.
+  // If the error condition has been fixed and the original statement succesfuly
+  // re-tried then returning SQLITE_OK is appropriate; otherwise it is
+  // recommended that you return the original |error| or the appropriate error
+  // code.
   virtual int OnError(int error, Connection* connection, Statement* stmt) = 0;
 };
 
