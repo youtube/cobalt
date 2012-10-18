@@ -283,28 +283,24 @@ int SpdyHttpStream::SendData() {
   CHECK_EQ(0, request_body_buf_->BytesRemaining());
 
   // Read the data from the request body stream.
-  const int bytes_read = request_body_stream_->ReadSync(
-      raw_request_body_buf_, raw_request_body_buf_->size());
+  const int bytes_read = request_body_stream_->Read(
+      raw_request_body_buf_, raw_request_body_buf_->size(),
+      base::Bind(
+          base::IgnoreResult(&SpdyHttpStream::OnRequestBodyReadCompleted),
+          weak_factory_.GetWeakPtr()));
   DCHECK(!waiting_for_chunk_ || bytes_read != ERR_IO_PENDING);
 
-  if (request_body_stream_->is_chunked() && bytes_read == ERR_IO_PENDING) {
-    waiting_for_chunk_ = true;
+  if (bytes_read == ERR_IO_PENDING) {
+    if (request_body_stream_->is_chunked())
+      waiting_for_chunk_ = true;
     return ERR_IO_PENDING;
   }
 
   waiting_for_chunk_ = false;
 
-  // ERR_IO_PENDING with chunked encoding is the only possible error.
+  // ERR_IO_PENDING is the only possible error.
   DCHECK_GE(bytes_read, 0);
-
-  request_body_buf_ = new DrainableIOBuffer(raw_request_body_buf_,
-                                            bytes_read);
-
-  const bool eof = request_body_stream_->IsEOF();
-  return stream_->WriteStreamData(
-      request_body_buf_,
-      request_body_buf_->BytesRemaining(),
-      eof ? DATA_FLAG_FIN : DATA_FLAG_NONE);
+  return OnRequestBodyReadCompleted(bytes_read);
 }
 
 bool SpdyHttpStream::OnSendHeadersComplete(int status) {
@@ -524,6 +520,17 @@ void SpdyHttpStream::DoCallback(int rv) {
   CompletionCallback c = callback_;
   callback_.Reset();
   c.Run(rv);
+}
+
+int SpdyHttpStream::OnRequestBodyReadCompleted(int status) {
+  DCHECK_GE(status, 0);
+
+  request_body_buf_ = new DrainableIOBuffer(raw_request_body_buf_, status);
+
+  const bool eof = request_body_stream_->IsEOF();
+  return stream_->WriteStreamData(request_body_buf_,
+                                  request_body_buf_->BytesRemaining(),
+                                  eof ? DATA_FLAG_FIN : DATA_FLAG_NONE);
 }
 
 void SpdyHttpStream::GetSSLInfo(SSLInfo* ssl_info) {

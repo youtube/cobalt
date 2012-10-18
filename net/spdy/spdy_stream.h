@@ -54,6 +54,7 @@ class NET_EXPORT_PRIVATE SpdyStream
 
     // Called when stream is ready to send data.
     // Returns network error code. OK when it successfully sent data.
+    // ERR_IO_PENDING when performing operation asynchronously.
     virtual int OnSendBody() = 0;
 
     // Called when data has been sent. |status| indicates network error
