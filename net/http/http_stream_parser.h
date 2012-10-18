@@ -9,6 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/string_piece.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
@@ -117,7 +118,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
     // or not.
     STATE_SENDING_CHUNKED_BODY,
     STATE_SENDING_NON_CHUNKED_BODY,
-    STATE_SEND_REQUEST_WAIT_FOR_BODY_CHUNK_COMPLETE,
+    STATE_SEND_REQUEST_READING_CHUNKED_BODY,
+    STATE_SEND_REQUEST_READING_NON_CHUNKED_BODY,
     STATE_REQUEST_SENT,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
@@ -150,7 +152,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
   int DoSendHeaders(int result);
   int DoSendChunkedBody(int result);
   int DoSendNonChunkedBody(int result);
-  int DoSendRequestWaitForBodyChunkComplete(int result);
+  int DoSendRequestReadingChunkedBody(int result);
+  int DoSendRequestReadingNonChunkedBody(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
   int DoReadBody();
@@ -235,6 +238,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
   scoped_refptr<SeekableIOBuffer> request_body_buf_;
   size_t chunk_length_without_encoding_;
   bool sent_last_chunk_;
+
+  base::WeakPtrFactory<HttpStreamParser> weak_ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpStreamParser);
 };

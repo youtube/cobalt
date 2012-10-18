@@ -106,6 +106,8 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   // Call the user callback.
   void DoCallback(int rv);
 
+  int OnRequestBodyReadCompleted(int status);
+
   void ScheduleBufferedReadCallback();
 
   // Returns true if the callback is invoked.
