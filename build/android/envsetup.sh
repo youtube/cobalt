@@ -107,24 +107,12 @@ export ANDROID_GOMA_WRAPPER
 # Declare Android are cross compile.
 export GYP_CROSSCOMPILE=1
 
-export CXX_target="${ANDROID_GOMA_WRAPPER} \
-    $(echo -n ${ANDROID_TOOLCHAIN}/*-g++)"
-
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
+  # This is just a simple wrapper of gyp_chromium, please don't add anything
+  # in this function.
   echo "GYP_GENERATORS set to '$GYP_GENERATORS'"
-  # http://crbug.com/143889.
-  # In case we are doing a Clang build, we have to unset CC_target and
-  # CXX_target. Otherwise GYP ends up generating a gcc build (although we set
-  # 'clang' to 1). This behavior was introduced by
-  # 54d2f6fe6d8a7b9d9786bd1f8540df6b4f46b83f in GYP.
   (
-    # Fork to avoid side effects on the user's environment variables.
-    if echo "$GYP_DEFINES" | grep -qE '(clang|asan)'; then
-      if echo "$CXX_target" | grep -q g++; then
-        unset CXX_target
-      fi
-    fi
     "${CHROME_SRC}/build/gyp_chromium" --depth="${CHROME_SRC}" --check "$@"
   )
 }
