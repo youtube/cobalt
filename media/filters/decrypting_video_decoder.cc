@@ -67,7 +67,7 @@ void DecryptingVideoDecoder::Reset(const base::Closure& closure) {
 
   reset_cb_ = closure;
 
-  decryptor_->CancelDecryptAndDecodeVideo();
+  decryptor_->ResetDecoder(Decryptor::kVideo);
 
   // Reset() cannot complete if the read callback is still pending.
   // Defer the resetting process in this case. The |reset_cb_| will be fired
@@ -102,7 +102,7 @@ void DecryptingVideoDecoder::Stop(const base::Closure& closure) {
   // render thread to be processing messages to complete (such as PPAPI
   // callbacks).
   if (decryptor_)
-    decryptor_->StopVideoDecoder();
+    decryptor_->DeinitializeDecoder(Decryptor::kVideo);
   if (!request_decryptor_notification_cb_.is_null()) {
     base::ResetAndReturn(&request_decryptor_notification_cb_).Run(
         DecryptorNotificationCB());

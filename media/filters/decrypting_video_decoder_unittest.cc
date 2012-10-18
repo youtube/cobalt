@@ -13,8 +13,8 @@
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
 #include "media/base/video_frame.h"
-#include "media/filters/ffmpeg_decoder_unittest.h"
 #include "media/filters/decrypting_video_decoder.h"
+#include "media/filters/ffmpeg_decoder_unittest.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
@@ -210,8 +210,8 @@ class DecryptingVideoDecoderTest : public testing::Test {
   }
 
   void Reset() {
-    EXPECT_CALL(*decryptor_, CancelDecryptAndDecodeVideo())
-        .WillRepeatedly(Invoke(
+    EXPECT_CALL(*decryptor_, ResetDecoder(Decryptor::kVideo))
+        .WillRepeatedly(InvokeWithoutArgs(
             this, &DecryptingVideoDecoderTest::AbortPendingVideoDecodeCB));
 
     decoder_->Reset(NewExpectedClosure());
@@ -219,8 +219,8 @@ class DecryptingVideoDecoderTest : public testing::Test {
   }
 
   void Stop() {
-    EXPECT_CALL(*decryptor_, StopVideoDecoder())
-        .WillRepeatedly(Invoke(
+    EXPECT_CALL(*decryptor_, DeinitializeDecoder(Decryptor::kVideo))
+        .WillRepeatedly(InvokeWithoutArgs(
             this, &DecryptingVideoDecoderTest::AbortAllPendingCBs));
 
     decoder_->Stop(NewExpectedClosure());
@@ -538,7 +538,7 @@ TEST_F(DecryptingVideoDecoderTest, Stop_DuringPendingReset) {
   Initialize();
   EnterPendingDecodeState();
 
-  EXPECT_CALL(*decryptor_, CancelDecryptAndDecodeVideo());
+  EXPECT_CALL(*decryptor_, ResetDecoder(Decryptor::kVideo));
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
 
   decoder_->Reset(NewExpectedClosure());

@@ -271,7 +271,7 @@ class AesDecryptorTest : public testing::Test {
     EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kSuccess, NotNull()))
         .WillOnce(SaveArg<1>(&decrypted));
 
-    decryptor_.Decrypt(encrypted, decrypt_cb_);
+    decryptor_.Decrypt(Decryptor::kVideo, encrypted, decrypt_cb_);
     ASSERT_TRUE(decrypted);
     ASSERT_EQ(plain_text_size, decrypted->GetDataSize());
     EXPECT_EQ(0, memcmp(plain_text, decrypted->GetData(), plain_text_size));
@@ -284,7 +284,7 @@ class AesDecryptorTest : public testing::Test {
     EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kSuccess, NotNull()))
         .WillOnce(SaveArg<1>(&decrypted));
 
-    decryptor_.Decrypt(encrypted, decrypt_cb_);
+    decryptor_.Decrypt(Decryptor::kVideo, encrypted, decrypt_cb_);
     ASSERT_TRUE(decrypted);
     ASSERT_EQ(plain_text_size, decrypted->GetDataSize());
     EXPECT_NE(0, memcmp(plain_text, decrypted->GetData(), plain_text_size));
@@ -297,7 +297,7 @@ class AesDecryptorTest : public testing::Test {
     EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kSuccess, NotNull()))
         .WillOnce(SaveArg<1>(&decrypted));
 
-    decryptor_.Decrypt(encrypted, decrypt_cb_);
+    decryptor_.Decrypt(Decryptor::kVideo, encrypted, decrypt_cb_);
     ASSERT_TRUE(decrypted);
     EXPECT_NE(plain_text_size, decrypted->GetDataSize());
     EXPECT_NE(0, memcmp(plain_text, decrypted->GetData(), plain_text_size));
@@ -305,7 +305,7 @@ class AesDecryptorTest : public testing::Test {
 
   void DecryptAndExpectToFail(const scoped_refptr<DecoderBuffer>& encrypted) {
     EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kError, IsNull()));
-    decryptor_.Decrypt(encrypted, decrypt_cb_);
+    decryptor_.Decrypt(Decryptor::kVideo, encrypted, decrypt_cb_);
   }
 
   MockDecryptorClient client_;
@@ -370,7 +370,7 @@ TEST_F(AesDecryptorTest, NoKey) {
       CreateWebMEncryptedBuffer(frame.encrypted_data, frame.encrypted_data_size,
                                 frame.key_id, frame.key_id_size);
   EXPECT_CALL(*this, BufferDecrypted(AesDecryptor::kNoKey, IsNull()));
-  decryptor_.Decrypt(encrypted_data, decrypt_cb_);
+  decryptor_.Decrypt(Decryptor::kVideo, encrypted_data, decrypt_cb_);
 }
 
 TEST_F(AesDecryptorTest, KeyReplacement) {
