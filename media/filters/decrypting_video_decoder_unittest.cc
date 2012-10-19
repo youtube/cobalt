@@ -102,7 +102,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
     EXPECT_CALL(*demuxer_, video_decoder_config())
         .WillRepeatedly(ReturnRef(config));
     EXPECT_CALL(*this, RequestDecryptorNotification(_))
-        .WillRepeatedly(RunCallback0(decryptor_.get()));
+        .WillOnce(RunCallback0(decryptor_.get()));
 
     decoder_->Initialize(demuxer_, NewExpectedStatusCB(status),
                          base::Bind(&MockStatisticsCB::OnStatistics,
