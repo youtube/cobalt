@@ -7,11 +7,14 @@
 """Runs both the Python and Java tests."""
 
 import optparse
+import os
 import sys
 import time
 
 from pylib import apk_info
 from pylib import buildbot_report
+from pylib import constants
+from pylib import flakiness_dashboard_results_uploader
 from pylib import ports
 from pylib import run_java_tests
 from pylib import run_python_tests
@@ -71,6 +74,12 @@ def DispatchInstrumentationTests(options):
 
   all_results, summary_string, num_failing = SummarizeResults(
       java_results, python_results, options.annotation, options.build_type)
+
+  if options.flakiness_dashboard_server:
+    flakiness_dashboard_results_uploader.Upload(
+        options.flakiness_dashboard_server, 'Chromium_Android_Instrumentation',
+        TestResults.FromTestResults([java_results, python_results]))
+
   return num_failing
 
 
