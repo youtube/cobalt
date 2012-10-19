@@ -1669,6 +1669,9 @@ TEST_P(SpdyFramerTest, CreateSynStreamUncompressed) {
   }
 }
 
+// TODO(phajdan.jr): Clean up after we no longer need
+// to workaround http://crbug.com/139744.
+#if !defined(USE_SYSTEM_ZLIB)
 TEST_P(SpdyFramerTest, CreateSynStreamCompressed) {
   SpdyFramer framer(spdy_version_);
   framer.set_enable_compression(true);
@@ -1732,6 +1735,7 @@ TEST_P(SpdyFramerTest, CreateSynStreamCompressed) {
                  IsSpdy2() ? arraysize(kV2FrameData) : arraysize(kV3FrameData));
   }
 }
+#endif  // !defined(USE_SYSTEM_ZLIB)
 
 TEST_P(SpdyFramerTest, CreateSynReplyUncompressed) {
   SpdyFramer framer(spdy_version_);
@@ -1857,6 +1861,9 @@ TEST_P(SpdyFramerTest, CreateSynReplyUncompressed) {
   }
 }
 
+// TODO(phajdan.jr): Clean up after we no longer need
+// to workaround http://crbug.com/139744.
+#if !defined(USE_SYSTEM_ZLIB)
 TEST_P(SpdyFramerTest, CreateSynReplyCompressed) {
   SpdyFramer framer(spdy_version_);
   framer.set_enable_compression(true);
@@ -1910,6 +1917,7 @@ TEST_P(SpdyFramerTest, CreateSynReplyCompressed) {
                  IsSpdy2() ? arraysize(kV2FrameData) : arraysize(kV3FrameData));
   }
 }
+#endif  // !defined(USE_SYSTEM_ZLIB)
 
 TEST_P(SpdyFramerTest, CreateRstStream) {
   SpdyFramer framer(spdy_version_);
@@ -2249,6 +2257,9 @@ TEST_P(SpdyFramerTest, CreateHeadersUncompressed) {
   }
 }
 
+// TODO(phajdan.jr): Clean up after we no longer need
+// to workaround http://crbug.com/139744.
+#if !defined(USE_SYSTEM_ZLIB)
 TEST_P(SpdyFramerTest, CreateHeadersCompressed) {
   SpdyFramer framer(spdy_version_);
   framer.set_enable_compression(true);
@@ -2302,6 +2313,7 @@ TEST_P(SpdyFramerTest, CreateHeadersCompressed) {
                  IsSpdy2() ? arraysize(kV2FrameData) : arraysize(kV3FrameData));
   }
 }
+#endif  // !defined(USE_SYSTEM_ZLIB)
 
 TEST_P(SpdyFramerTest, CreateWindowUpdate) {
   SpdyFramer framer(spdy_version_);
