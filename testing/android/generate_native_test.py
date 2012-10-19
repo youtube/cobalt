@@ -170,10 +170,6 @@ def main(argv):
                     help='ABI for native shared library')
   parser.add_option('--strip-binary',
                     help='Binary to use for stripping the native libraries.')
-  parser.add_option('--sdk-build', type='int', default=1,
-                    help='Unless set to 0, build the generated apk with ant. '
-                         'Otherwise assume compiling within the Android '
-                         'source tree using Android.mk.')
   parser.add_option('--ant-args', action='append',
                     help='extra args for ant')
 
