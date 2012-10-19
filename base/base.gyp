@@ -552,10 +552,6 @@
       },
       'conditions': [
         ['OS == "android"', {
-          'sources!': [
-            # TODO(michaelbai): Removed the below once the fix upstreamed.
-            'debug/stack_trace_unittest.cc',
-          ],
           'dependencies': [
             'android/jni_generator/jni_generator.gyp:jni_generator_tests',
           ],
