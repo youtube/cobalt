@@ -8,7 +8,6 @@
 #include "base/file_util.h"
 #include "base/location.h"
 #include "base/task_runner_util.h"
-#include "base/threading/thread_restrictions.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/file_stream.h"
 #include "net/base/io_buffer.h"
@@ -147,9 +146,6 @@ int UploadFileElementReader::Init(const CompletionCallback& callback) {
 }
 
 int UploadFileElementReader::InitSync() {
-  // Temporarily allow until fix: http://crbug.com/72001.
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
-
   scoped_ptr<FileStream> file_stream;
   uint64 content_length = 0;
   const int result = InitInternal(path_, range_offset_, range_length_,
@@ -198,8 +194,6 @@ int UploadFileElementReader::Read(IOBuffer* buf,
 }
 
 int UploadFileElementReader::ReadSync(IOBuffer* buf, int buf_length) {
-  // Temporarily allow until fix: http://crbug.com/72001.
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
   const int result = ReadInternal(buf, buf_length, BytesRemaining(),
                                   file_stream_.get());
   OnReadCompleted(file_stream_.Pass(), CompletionCallback(), result);
