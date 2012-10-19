@@ -159,8 +159,11 @@ class AudioOutputProxyTest : public testing::Test {
   }
 
   virtual void InitDispatcher(base::TimeDelta close_delay) {
+    // Use a low sample rate and large buffer size when testing otherwise the
+    // FakeAudioOutputStream will keep the message loop busy indefinitely; i.e.,
+    // RunAllPending() will never terminate.
     params_ = AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
-                              CHANNEL_LAYOUT_STEREO, 44100, 16, 1024);
+                              CHANNEL_LAYOUT_STEREO, 8000, 16, 2048);
     dispatcher_impl_ = new AudioOutputDispatcherImpl(&manager(),
                                                      params_,
                                                      close_delay);
@@ -460,14 +463,14 @@ class AudioOutputResamplerTest : public AudioOutputProxyTest {
     AudioOutputProxyTest::TearDown();
   }
 
-
   virtual void InitDispatcher(base::TimeDelta close_delay) {
     AudioOutputProxyTest::InitDispatcher(close_delay);
-    // Attempt shutdown of audio thread in case InitDispatcher() was called
-    // previously.
+    // Use a low sample rate and large buffer size when testing otherwise the
+    // FakeAudioOutputStream will keep the message loop busy indefinitely; i.e.,
+    // RunAllPending() will never terminate.
     resampler_params_ = AudioParameters(
         AudioParameters::AUDIO_PCM_LOW_LATENCY, CHANNEL_LAYOUT_STEREO,
-        48000, 16, 128);
+        16000, 16, 1024);
     resampler_ = new AudioOutputResampler(
         &manager(), params_, resampler_params_, close_delay);
   }
