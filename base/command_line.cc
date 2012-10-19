@@ -50,7 +50,8 @@ bool IsSwitch(const CommandLine::StringType& string,
               CommandLine::StringType* switch_value) {
   switch_string->clear();
   switch_value->clear();
-  if (GetSwitchPrefixLength(string) == 0)
+  size_t prefix_length = GetSwitchPrefixLength(string);
+  if (prefix_length == 0 || prefix_length == string.length())
     return false;
 
   const size_t equals_position = string.find(kSwitchValueSeparator);
