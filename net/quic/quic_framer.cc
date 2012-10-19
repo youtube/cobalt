@@ -167,6 +167,7 @@ bool QuicFramer::ProcessPacket(const IPEndPoint& peer_address,
       visitor_->OnFecProtectedPayload(payload);
     }
     if (!ProcessFragmentData()) {
+      DCHECK_NE(QUIC_NO_ERROR, error_);  // ProcessFragmentData sets the error.
       DLOG(WARNING) << "Unable to process fragment data.";
       return false;
     }
@@ -176,7 +177,7 @@ bool QuicFramer::ProcessPacket(const IPEndPoint& peer_address,
     if (!reader_->ReadUInt48(
             &fec_data.first_protected_packet_sequence_number)) {
       set_detailed_error("Unable to read first protected packet.");
-      return false;
+      return RaiseError(QUIC_INVALID_FEC_DATA);
     }
 
     fec_data.redundancy = reader_->ReadRemainingPayload();
@@ -204,6 +205,7 @@ bool QuicFramer::ProcessRevivedPacket(const IPEndPoint& peer_address,
 
   reader_.reset(new QuicDataReader(payload.data(), payload.length()));
   if (!ProcessFragmentData()) {
+    DCHECK_NE(QUIC_NO_ERROR, error_);  // ProcessFragmentData sets the error.
     DLOG(WARNING) << "Unable to process fragment data.";
     return false;
   }
