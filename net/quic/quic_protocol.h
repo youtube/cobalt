@@ -277,19 +277,21 @@ struct NET_EXPORT_PRIVATE QuicAckFragment {
 struct NET_EXPORT_PRIVATE QuicRstStreamFragment {
   QuicRstStreamFragment() {}
   QuicRstStreamFragment(QuicStreamId stream_id, uint64 offset,
-                        QuicErrorCode details)
-      : stream_id(stream_id), offset(offset), details(details) {
-    DCHECK_LE(details, std::numeric_limits<uint8>::max());
+                        QuicErrorCode error_code)
+      : stream_id(stream_id), offset(offset), error_code(error_code) {
+    DCHECK_LE(error_code, std::numeric_limits<uint8>::max());
   }
 
   QuicStreamId stream_id;
   uint64 offset;
-  QuicErrorCode details;
+  QuicErrorCode error_code;
+  std::string error_details;
 };
 
 struct NET_EXPORT_PRIVATE QuicConnectionCloseFragment {
-  QuicErrorCode details;
+  QuicErrorCode error_code;
   QuicAckFragment ack_fragment;
+  std::string error_details;
 };
 
 struct NET_EXPORT_PRIVATE QuicFragment {
