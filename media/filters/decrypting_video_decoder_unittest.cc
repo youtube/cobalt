@@ -47,6 +47,10 @@ static scoped_refptr<DecoderBuffer> CreateFakeEncryptedBuffer() {
   return buffer;
 }
 
+// Use anonymous namespace here to prevent the actions to be defined multiple
+// times across multiple test files. Sadly we can't use static for them.
+namespace {
+
 ACTION_P(ReturnBuffer, buffer) {
   arg0.Run(buffer ? DemuxerStream::kOk : DemuxerStream::kAborted, buffer);
 }
@@ -75,6 +79,8 @@ ACTION_P2(ResetAndRunCallback, callback, param) {
 MATCHER(IsNullCallback, "") {
   return (arg.is_null());
 }
+
+}  // namespace
 
 class DecryptingVideoDecoderTest : public testing::Test {
  public:
