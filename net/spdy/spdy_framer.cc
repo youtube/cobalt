@@ -661,6 +661,10 @@ void SpdyFramer::WriteHeaderBlock(SpdyFrameBuilder* frame,
   }
 }
 
+// TODO(phajdan.jr): Clean up after we no longer need
+// to workaround http://crbug.com/139744.
+#if !defined(USE_SYSTEM_ZLIB)
+
 // These constants are used by zlib to differentiate between normal data and
 // cookie data. Cookie data is handled specially by zlib when compressing.
 enum ZDataClass {
@@ -819,6 +823,7 @@ void SpdyFramer::WriteHeaderBlockToZ(const SpdyHeaderBlock* headers,
   DCHECK_EQ(Z_OK, rv);
   z->clas = kZStandardData;
 }
+#endif  // !defined(USE_SYSTEM_ZLIB)
 
 size_t SpdyFramer::ProcessControlFrameBeforeHeaderBlock(const char* data,
                                                         size_t len) {
@@ -1476,7 +1481,14 @@ SpdyDataFrame* SpdyFramer::CreateDataFrame(
 // The following compression setting are based on Brian Olson's analysis. See
 // https://groups.google.com/group/spdy-dev/browse_thread/thread/dfaf498542fac792
 // for more details.
+#if defined(USE_SYSTEM_ZLIB)
+// System zlib is not expected to have workaround for http://crbug.com/139744,
+// so disable compression in that case.
+// TODO(phajdan.jr): Remove the special case when it's no longer necessary.
+static const int kCompressorLevel = 0;
+#else  // !defined(USE_SYSTEM_ZLIB)
 static const int kCompressorLevel = 9;
+#endif  // !defined(USE_SYSTEM_ZLIB)
 static const int kCompressorWindowSizeInBits = 11;
 static const int kCompressorMemLevel = 1;
 
@@ -1625,10 +1637,27 @@ SpdyControlFrame* SpdyFramer::CompressControlFrame(
   memcpy(new_frame->data(), frame.data(),
          frame.length() + SpdyFrame::kHeaderSize);
 
+  // TODO(phajdan.jr): Clean up after we no longer need
+  // to workaround http://crbug.com/139744.
+#if defined(USE_SYSTEM_ZLIB)
+  compressor->next_in = reinterpret_cast<Bytef*>(const_cast<char*>(payload));
+  compressor->avail_in = payload_length;
+#endif  // defined(USE_SYSTEM_ZLIB)
   compressor->next_out = reinterpret_cast<Bytef*>(new_frame->data()) +
                           header_length;
   compressor->avail_out = compressed_max_size;
+  // TODO(phajdan.jr): Clean up after we no longer need
+  // to workaround http://crbug.com/139744.
+#if defined(USE_SYSTEM_ZLIB)
+  int rv = deflate(compressor, Z_SYNC_FLUSH);
+  if (rv != Z_OK) {  // How can we know that it compressed everything?
+    // This shouldn't happen, right?
+    LOG(WARNING) << "deflate failure: " << rv;
+    return NULL;
+  }
+#else  // !defined(USE_SYSTEM_ZLIB)
   WriteHeaderBlockToZ(headers, compressor);
+#endif  // !defined(USE_SYSTEM_ZLIB)
   int compressed_size = compressed_max_size - compressor->avail_out;
 
   // We trust zlib. Also, we can't do anything about it.
