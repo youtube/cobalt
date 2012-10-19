@@ -51,14 +51,6 @@ class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
   ~Rect();
 
 #if defined(OS_WIN)
-  Rect& operator=(const RECT& r);
-#elif defined(OS_MACOSX)
-  Rect& operator=(const CGRect& r);
-#elif defined(TOOLKIT_GTK)
-  Rect& operator=(const GdkRectangle& r);
-#endif
-
-#if defined(OS_WIN)
   // Construct an equivalent Win32 RECT object.
   RECT ToRECT() const;
 #elif defined(TOOLKIT_GTK)
