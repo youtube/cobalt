@@ -2512,6 +2512,8 @@
 
               # TODO(thakis): Remove this.
               '-Wno-implicit-conversion-floating-point-to-bool',
+              # TODO(thakis): Remove this once http://crbug.com/151927 is fixed.
+              '-Wno-tautological-constant-out-of-range-compare',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
@@ -3070,6 +3072,8 @@
 
                 # TODO(thakis): Remove this.
                 '-Wno-implicit-conversion-floating-point-to-bool',
+                # TODO(thakis): Remove this once http://crbug.com/151927 is fixed.
+                '-Wno-tautological-constant-out-of-range-compare',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
