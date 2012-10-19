@@ -165,6 +165,8 @@ void DecryptingVideoDecoder::SetDecryptor(Decryptor* decryptor) {
 
   DCHECK_EQ(state_, kDecryptorRequested) << state_;
   DCHECK(!init_cb_.is_null());
+  DCHECK(!request_decryptor_notification_cb_.is_null());
+  request_decryptor_notification_cb_.Reset();
 
   decryptor_ = decryptor;
 
