@@ -504,6 +504,11 @@ class NSSInitSingleton {
       }
 
       root_ = InitDefaultRootCerts();
+
+      // MD5 certificate signatures are disabled by default in NSS 3.14.
+      // Enable MD5 certificate signatures until we figure out how to deal
+      // with the weak certificate signature unit tests.
+      NSS_SetAlgorithmPolicy(SEC_OID_MD5, NSS_USE_ALG_IN_CERT_SIGNATURE, 0);
 #endif  // defined(USE_NSS)
     }
   }
