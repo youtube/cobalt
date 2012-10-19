@@ -503,12 +503,19 @@ bool QuicFramer::ProcessRstStreamFragment() {
     return false;
   }
 
-  uint32 details;
-  if (!reader_->ReadUInt32(&details)) {
-    set_detailed_error("Unable to read rst stream details.");
+  uint32 error_code;
+  if (!reader_->ReadUInt32(&error_code)) {
+    set_detailed_error("Unable to read rst stream error code.");
     return false;
   }
-  fragment.details = static_cast<QuicErrorCode>(details);
+  fragment.error_code = static_cast<QuicErrorCode>(error_code);
+
+  StringPiece error_details;
+  if (!reader_->ReadStringPiece16(&error_details)) {
+    set_detailed_error("Unable to read rst stream error details.");
+    return false;
+  }
+  fragment.error_details = error_details.as_string();
 
   visitor_->OnRstStreamFragment(fragment);
   return true;
@@ -517,12 +524,19 @@ bool QuicFramer::ProcessRstStreamFragment() {
 bool QuicFramer::ProcessConnectionCloseFragment() {
   QuicConnectionCloseFragment fragment;
 
-  uint32 details;
-  if (!reader_->ReadUInt32(&details)) {
-    set_detailed_error("Unable to read connection close details.");
+  uint32 error_code;
+  if (!reader_->ReadUInt32(&error_code)) {
+    set_detailed_error("Unable to read connection close error code.");
     return false;
   }
-  fragment.details = static_cast<QuicErrorCode>(details);
+  fragment.error_code = static_cast<QuicErrorCode>(error_code);
+
+  StringPiece error_details;
+  if (!reader_->ReadStringPiece16(&error_details)) {
+    set_detailed_error("Unable to read connection close error details.");
+    return false;
+  }
+  fragment.error_details = error_details.as_string();
 
   if (!ProcessAckFragment(&fragment.ack_fragment)) {
     DLOG(WARNING) << "Unable to process ack fragment.";
@@ -620,10 +634,14 @@ size_t QuicFramer::ComputeFragmentPayloadLength(const QuicFragment& fragment) {
     case RST_STREAM_FRAGMENT:
       len += 4;  // stream id
       len += 8;  // offset
-      len += 4;  // details
+      len += 4;  // error code
+      len += 2;  // error details size
+      len += fragment.rst_stream_fragment->error_details.size();
       break;
     case CONNECTION_CLOSE_FRAGMENT:
-      len += 4;  // details
+      len += 4;  // error code
+      len += 2;  // error details size
+      len += fragment.connection_close_fragment->error_details.size();
       len += ComputeFragmentPayloadLength(
           QuicFragment(&fragment.connection_close_fragment->ack_fragment));
       break;
@@ -755,8 +773,12 @@ bool QuicFramer::AppendRstStreamFragmentPayload(
     return false;
   }
 
-  uint32 details = static_cast<uint32>(fragment.details);
-  if (!writer->WriteUInt32(details)) {
+  uint32 error_code = static_cast<uint32>(fragment.error_code);
+  if (!writer->WriteUInt32(error_code)) {
+    return false;
+  }
+
+  if (!writer->WriteStringPiece16(fragment.error_details)) {
     return false;
   }
   return true;
@@ -765,8 +787,11 @@ bool QuicFramer::AppendRstStreamFragmentPayload(
 bool QuicFramer::AppendConnectionCloseFragmentPayload(
     const QuicConnectionCloseFragment& fragment,
     QuicDataWriter* writer) {
-  uint32 details = static_cast<uint32>(fragment.details);
-  if (!writer->WriteUInt32(details)) {
+  uint32 error_code = static_cast<uint32>(fragment.error_code);
+  if (!writer->WriteUInt32(error_code)) {
+    return false;
+  }
+  if (!writer->WriteStringPiece16(fragment.error_details)) {
     return false;
   }
   AppendAckFragmentPayload(fragment.ack_fragment, writer);
