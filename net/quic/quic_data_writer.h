@@ -64,6 +64,15 @@ class NET_EXPORT_PRIVATE QuicDataWriter {
   bool WriteUInt128(uint128 value) {
     return WriteUInt64(value.lo) && WriteUInt64(value.hi);
   }
+  bool WriteStringPiece16(base::StringPiece val) {
+    if (val.length() > std::numeric_limits<uint16>::max()) {
+      return false;
+    }
+    if (!WriteUInt16(val.size())) {
+      return false;
+    }
+    return WriteBytes(val.data(), val.size());
+  }
 
   bool AdvancePointer(uint32 len);
 

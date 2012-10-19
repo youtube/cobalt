@@ -1079,8 +1079,16 @@ TEST_F(QuicFramerTest, RstStreamFragment) {
     // offset
     0x54, 0x76, 0x10, 0x32,
     0xDC, 0xFE, 0x98, 0xBA,
-    // details
+    // error code
     0x08, 0x07, 0x06, 0x05,
+
+    // error details length
+    0x0d, 0x00,
+    // error details
+    'b',  'e',  'c',  'a',
+    'u',  's',  'e',  ' ',
+    'I',  ' ',  'c',  'a',
+    'n',
   };
 
   EXPECT_TRUE(framer_.ProcessPacket(
@@ -1093,19 +1101,22 @@ TEST_F(QuicFramerTest, RstStreamFragment) {
   ASSERT_EQ(address_, visitor_.address_);
 
   EXPECT_EQ(GG_UINT64_C(0x01020304), visitor_.rst_stream_fragment_.stream_id);
-  EXPECT_EQ(0x05060708, visitor_.rst_stream_fragment_.details);
+  EXPECT_EQ(0x05060708, visitor_.rst_stream_fragment_.error_code);
   EXPECT_EQ(GG_UINT64_C(0xBA98FEDC32107654),
             visitor_.rst_stream_fragment_.offset);
+  EXPECT_EQ("because I can", visitor_.rst_stream_fragment_.error_details);
 
   // Now test framing boundaries
-  for (size_t i = kPacketHeaderSize + 3; i < kPacketHeaderSize + 18; ++i) {
+  for (size_t i = kPacketHeaderSize + 3; i < kPacketHeaderSize + 33; ++i) {
     string expected_error;
     if (i < kPacketHeaderSize + 6) {
       expected_error = "Unable to read stream_id.";
     } else if (i < kPacketHeaderSize + 14) {
       expected_error = "Unable to read offset in rst fragment.";
     } else if (i < kPacketHeaderSize + 18) {
-      expected_error = "Unable to read rst stream details.";
+      expected_error = "Unable to read rst stream error code.";
+    } else if (i < kPacketHeaderSize + 33) {
+      expected_error = "Unable to read rst stream error details.";
     }
     EXPECT_FALSE(framer_.ProcessPacket(
         address_, QuicEncryptedPacket(AsChars(packet), i, false)));
@@ -1137,8 +1148,16 @@ TEST_F(QuicFramerTest, ConnectionCloseFragment) {
     0x01,
     // fragment type (connection close fragment)
     0x04,
-    // details
+    // error code
     0x08, 0x07, 0x06, 0x05,
+
+    // error details length
+    0x0d, 0x00,
+    // error details
+    'b',  'e',  'c',  'a',
+    'u',  's',  'e',  ' ',
+    'I',  ' ',  'c',  'a',
+    'n',
 
     // Ack fragment.
 
@@ -1190,7 +1209,8 @@ TEST_F(QuicFramerTest, ConnectionCloseFragment) {
 
   EXPECT_EQ(0u, visitor_.stream_fragments_.size());
 
-  EXPECT_EQ(0x05060708, visitor_.connection_close_fragment_.details);
+  EXPECT_EQ(0x05060708, visitor_.connection_close_fragment_.error_code);
+  EXPECT_EQ("because I can", visitor_.connection_close_fragment_.error_details);
 
   ASSERT_EQ(1u, visitor_.ack_fragments_.size());
   const QuicAckFragment& fragment = *visitor_.ack_fragments_[0];
@@ -1220,11 +1240,14 @@ TEST_F(QuicFramerTest, ConnectionCloseFragment) {
             fragment.congestion_info.inter_arrival.delta_time);
 
   // Now test framing boundaries
-  for (size_t i = kPacketHeaderSize + 3; i < kPacketHeaderSize + 6; ++i) {
+  for (size_t i = kPacketHeaderSize + 3; i < kPacketHeaderSize + 21; ++i) {
     string expected_error;
     if (i < kPacketHeaderSize + 6) {
-      expected_error = "Unable to read connection close details.";
+      expected_error = "Unable to read connection close error code.";
+    } else if (i < kPacketHeaderSize + 21) {
+      expected_error = "Unable to read connection close error details.";
     }
+
     EXPECT_FALSE(framer_.ProcessPacket(
         address_, QuicEncryptedPacket(AsChars(packet), i, false)));
     EXPECT_EQ(expected_error, framer_.detailed_error());
@@ -1877,8 +1900,9 @@ TEST_F(QuicFramerTest, ConstructRstFragmentPacket) {
 
   QuicRstStreamFragment rst_fragment;
   rst_fragment.stream_id = 0x01020304;
-  rst_fragment.details = static_cast<QuicErrorCode>(0x05060708);
+  rst_fragment.error_code = static_cast<QuicErrorCode>(0x05060708);
   rst_fragment.offset = GG_UINT64_C(0xBA98FEDC32107654);
+  rst_fragment.error_details = "because I can";
 
   unsigned char packet[] = {
     // guid
@@ -1906,8 +1930,15 @@ TEST_F(QuicFramerTest, ConstructRstFragmentPacket) {
     // offset
     0x54, 0x76, 0x10, 0x32,
     0xDC, 0xFE, 0x98, 0xBA,
-    // details
+    // error code
     0x08, 0x07, 0x06, 0x05,
+    // error details length
+    0x0d, 0x00,
+    // error details
+    'b',  'e',  'c',  'a',
+    'u',  's',  'e',  ' ',
+    'I',  ' ',  'c',  'a',
+    'n',
   };
 
   QuicFragment fragment(&rst_fragment);
@@ -1935,7 +1966,8 @@ TEST_F(QuicFramerTest, ConstructCloseFragmentPacket) {
   header.fec_group = 0;
 
   QuicConnectionCloseFragment close_fragment;
-  close_fragment.details = static_cast<QuicErrorCode>(0x05060708);
+  close_fragment.error_code = static_cast<QuicErrorCode>(0x05060708);
+  close_fragment.error_details = "because I can";
 
   QuicAckFragment* ack_fragment = &close_fragment.ack_fragment;
   ack_fragment->received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
@@ -1983,8 +2015,15 @@ TEST_F(QuicFramerTest, ConstructCloseFragmentPacket) {
     0x01,
     // fragment type (connection close fragment)
     0x04,
-    // details
+    // error code
     0x08, 0x07, 0x06, 0x05,
+    // error details length
+    0x0d, 0x00,
+    // error details
+    'b',  'e',  'c',  'a',
+    'u',  's',  'e',  ' ',
+    'I',  ' ',  'c',  'a',
+    'n',
 
     // Ack fragment.
 
