@@ -30,7 +30,7 @@ class NonFrontendDataTypeController;
 class UIModelWorker;
 }
 namespace cc {
-class CompletionEvent;
+class CCCompletionEvent;
 }
 namespace chromeos {
 class AudioMixerAlsa;
@@ -171,7 +171,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::HistogramSynchronizer;
   friend class ::ScopedAllowWaitForLegacyWebViewApi;
   friend class ::TestingAutomationProvider;
-  friend class cc::CompletionEvent;
+  friend class cc::CCCompletionEvent;
   friend class remoting::AutoThread;
   friend class SequencedWorkerPool;
   friend class SimpleThread;
