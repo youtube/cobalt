@@ -29,7 +29,7 @@ using namespace clang;
 namespace {
 
 bool TypeHasNonTrivialDtor(const Type* type) {
-  if (const CXXRecordDecl* cxx_r = type->getCXXRecordDeclForPointerType())
+  if (const CXXRecordDecl* cxx_r = type->getPointeeCXXRecordDecl())
     return cxx_r->hasTrivialDestructor();
 
   return false;
@@ -417,7 +417,7 @@ class FindBadConstructsAction : public PluginASTAction {
         check_virtuals_in_implementations_ = false;
       } else {
         parsed = false;
-        llvm::errs() << "Unknown argument: " << args[i] << "\n";
+        llvm::errs() << "Unknown clang plugin argument: " << args[i] << "\n";
       }
     }
 
