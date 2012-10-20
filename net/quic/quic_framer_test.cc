@@ -205,8 +205,8 @@ class QuicFramerTest : public ::testing::Test {
 
 TEST_F(QuicFramerTest, EmptyPacket) {
   char packet[] = { 0x00 };
-  EXPECT_FALSE(framer_.ProcessPacket(address_,
-                                     QuicEncryptedPacket(packet, 0, false)));
+  QuicEncryptedPacket encrypted(packet, 0, false);
+  EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
   EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
 }
 
@@ -233,9 +233,8 @@ TEST_F(QuicFramerTest, LargePacket) {
 
   memset(packet + kPacketHeaderSize, 0, kMaxPacketSize - kPacketHeaderSize + 1);
 
-  EXPECT_FALSE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
 
   ASSERT_TRUE(visitor_.header_.get());
   // Make sure we've parsed the packet header, so we can send an error.
@@ -263,9 +262,8 @@ TEST_F(QuicFramerTest, PacketHeader) {
     0x00,
   };
 
-  EXPECT_FALSE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
@@ -295,8 +293,8 @@ TEST_F(QuicFramerTest, PacketHeader) {
       expected_error = "Unable to read fec group.";
     }
 
-    EXPECT_FALSE(framer_.ProcessPacket(
-        address_, QuicEncryptedPacket(AsChars(packet), i, false)));
+    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
+    EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
     EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
   }
@@ -339,9 +337,8 @@ TEST_F(QuicFramerTest, StreamFragment) {
     'r',  'l',  'd',  '!',
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -374,8 +371,8 @@ TEST_F(QuicFramerTest, StreamFragment) {
       expected_error = "Unable to read fragment data.";
     }
 
-    EXPECT_FALSE(framer_.ProcessPacket(
-        address_, QuicEncryptedPacket(AsChars(packet), i, false)));
+    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
+    EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
     EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
   }
@@ -420,9 +417,8 @@ TEST_F(QuicFramerTest, RejectPacket) {
     'r',  'l',  'd',  '!',
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -527,9 +523,8 @@ TEST_F(QuicFramerTest, StreamFragmentInFecGroup) {
     'r',  'l',  'd',  '!',
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -603,9 +598,8 @@ TEST_F(QuicFramerTest, AckFragment) {
     0x00,
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -658,8 +652,8 @@ TEST_F(QuicFramerTest, AckFragment) {
       expected_error = "Unable to read congestion info type.";
     }
 
-    EXPECT_FALSE(framer_.ProcessPacket(
-        address_, QuicEncryptedPacket(AsChars(packet), i, false)));
+    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
+    EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
     EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
   }
@@ -723,9 +717,8 @@ TEST_F(QuicFramerTest, AckFragmentTCP) {
     0x03, 0x04,
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -767,8 +760,8 @@ TEST_F(QuicFramerTest, AckFragmentTCP) {
       expected_error = "Unable to read receive window.";
     }
 
-    EXPECT_FALSE(framer_.ProcessPacket(
-        address_, QuicEncryptedPacket(AsChars(packet), i, false)));
+    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
+    EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
     EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
   }
@@ -834,9 +827,8 @@ TEST_F(QuicFramerTest, AckFragmentInterArrival) {
     0x06, 0x07,
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -880,8 +872,8 @@ TEST_F(QuicFramerTest, AckFragmentInterArrival) {
     } else if (i < kCongestionInfoOffset + 7) {
       expected_error = "Unable to read delta time.";
     }
-    EXPECT_FALSE(framer_.ProcessPacket(
-        address_, QuicEncryptedPacket(AsChars(packet), i, false)));
+    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
+    EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
     EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
   }
@@ -943,9 +935,8 @@ TEST_F(QuicFramerTest, AckFragmentFixRate) {
     0x01, 0x02, 0x03, 0x04,
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -983,8 +974,8 @@ TEST_F(QuicFramerTest, AckFragmentFixRate) {
     } else if (i < kCongestionInfoOffset + 5) {
       expected_error = "Unable to read bitrate.";
     }
-    EXPECT_FALSE(framer_.ProcessPacket(
-        address_, QuicEncryptedPacket(AsChars(packet), i, false)));
+    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
+    EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
     EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
   }
@@ -1045,9 +1036,8 @@ TEST_F(QuicFramerTest, AckFragmentInvalidFeedback) {
     0x04,
   };
 
-  EXPECT_FALSE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
 }
@@ -1091,9 +1081,8 @@ TEST_F(QuicFramerTest, RstStreamFragment) {
     'n',
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -1118,8 +1107,8 @@ TEST_F(QuicFramerTest, RstStreamFragment) {
     } else if (i < kPacketHeaderSize + 33) {
       expected_error = "Unable to read rst stream error details.";
     }
-    EXPECT_FALSE(framer_.ProcessPacket(
-        address_, QuicEncryptedPacket(AsChars(packet), i, false)));
+    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
+    EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
     EXPECT_EQ(QUIC_INVALID_RST_STREAM_DATA, framer_.error());
   }
@@ -1199,9 +1188,8 @@ TEST_F(QuicFramerTest, ConnectionCloseFragment) {
     0x06, 0x07,
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -1248,8 +1236,8 @@ TEST_F(QuicFramerTest, ConnectionCloseFragment) {
       expected_error = "Unable to read connection close error details.";
     }
 
-    EXPECT_FALSE(framer_.ProcessPacket(
-        address_, QuicEncryptedPacket(AsChars(packet), i, false)));
+    QuicEncryptedPacket encrypted(AsChars(packet), i, false);
+    EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
     EXPECT_EQ(QUIC_INVALID_CONNECTION_CLOSE_DATA, framer_.error());
   }
@@ -1283,9 +1271,8 @@ TEST_F(QuicFramerTest, FecPacket) {
     'm',  'n',  'o',  'p',
   };
 
-  EXPECT_TRUE(framer_.ProcessPacket(
-      address_, QuicEncryptedPacket(AsChars(packet),
-                                    arraysize(packet), false)));
+  QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(address_, encrypted));
 
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -2216,8 +2203,9 @@ TEST_F(QuicFramerTest, EncryptPacket) {
     'm',  'n',  'o',  'p',
   };
 
-  scoped_ptr<QuicEncryptedPacket> encrypted(framer_.EncryptPacket(
-      QuicPacket(AsChars(packet), arraysize(packet), false)));
+  QuicPacket raw(AsChars(packet), arraysize(packet), false);
+  scoped_ptr<QuicEncryptedPacket> encrypted(framer_.EncryptPacket(raw));
+
   ASSERT_TRUE(encrypted.get() != NULL);
   EXPECT_TRUE(CheckEncryption(StringPiece(AsChars(packet), arraysize(packet))));
 }
