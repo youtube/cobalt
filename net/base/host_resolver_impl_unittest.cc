@@ -1260,8 +1260,7 @@ class HostResolverImplDnsTest : public HostResolverImplTest {
   void AddDnsRule(const std::string& prefix,
                   uint16 qtype,
                   MockDnsClientRule::Result result) {
-    MockDnsClientRule rule = { prefix, qtype, result };
-    dns_rules_.push_back(rule);
+    dns_rules_.push_back(MockDnsClientRule(prefix, qtype, result));
   }
 
   void ChangeDnsConfig(const DnsConfig& config) {

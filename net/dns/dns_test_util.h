@@ -178,9 +178,14 @@ struct MockDnsClientRule {
     OK,          // Return a response with loopback address.
   };
 
+  MockDnsClientRule(const std::string& prefix_arg,
+                    uint16 qtype_arg,
+                    Result result_arg)
+      : result(result_arg), prefix(prefix_arg), qtype(qtype_arg) { }
+
+  Result result;
   std::string prefix;
   uint16 qtype;
-  Result result;
 };
 
 typedef std::vector<MockDnsClientRule> MockDnsClientRuleList;
