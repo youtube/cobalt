@@ -56,7 +56,7 @@ class BasicNetworkDelegate : public NetworkDelegate {
   virtual int OnHeadersReceived(
       URLRequest* request,
       const CompletionCallback& callback,
-      HttpResponseHeaders* original_response_headers,
+      const HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers)
       OVERRIDE {
     return OK;

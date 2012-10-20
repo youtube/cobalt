@@ -238,7 +238,7 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
   virtual int OnHeadersReceived(
       URLRequest* request,
       const CompletionCallback& callback,
-      HttpResponseHeaders* original_response_headers,
+      const HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers) OVERRIDE;
 
   virtual NetworkDelegate::AuthRequiredResponse OnAuthRequired(
@@ -353,7 +353,7 @@ int BlockingNetworkDelegate::OnBeforeSendHeaders(
 int BlockingNetworkDelegate::OnHeadersReceived(
     URLRequest* request,
     const CompletionCallback& callback,
-    HttpResponseHeaders* original_response_headers,
+    const HttpResponseHeaders* original_response_headers,
     scoped_refptr<HttpResponseHeaders>* override_response_headers) {
   TestNetworkDelegate::OnHeadersReceived(
       request, callback, original_response_headers,
