@@ -9,11 +9,14 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
 
 namespace base {
 
 class DictionaryValue;
 class ListValue;
+
+class HistogramSamples;
 
 class BASE_EXPORT HistogramBase {
  public:
@@ -49,6 +52,8 @@ class BASE_EXPORT HistogramBase {
   void ClearFlags(int32 flags);
 
   virtual void Add(Sample value) = 0;
+
+  virtual scoped_ptr<HistogramSamples> SnapshotSamples() const = 0;
 
   // The following methods provide graphical histogram displays.
   virtual void WriteHTMLGraph(std::string* output) const = 0;

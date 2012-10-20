@@ -72,7 +72,7 @@ StatsHistogram* StatsHistogram::FactoryGet(const std::string& name,
   return return_histogram;
 }
 
-scoped_ptr<SampleVector> StatsHistogram::SnapshotSamples() const {
+scoped_ptr<HistogramSamples> StatsHistogram::SnapshotSamples() const {
   scoped_ptr<SampleVector> samples(new SampleVector(bucket_ranges()));
   stats_->Snapshot(samples.get());
 
@@ -80,7 +80,7 @@ scoped_ptr<SampleVector> StatsHistogram::SnapshotSamples() const {
   StatsHistogram* mutable_me = const_cast<StatsHistogram*>(this);
   mutable_me->ClearFlags(kUmaTargetedHistogramFlag);
 
-  return samples.Pass();
+  return samples.PassAs<HistogramSamples>();
 }
 
 Histogram::Inconsistencies StatsHistogram::FindCorruption(
