@@ -13,10 +13,11 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram_base.h"
-#include "base/metrics/sample_map.h"
 #include "base/synchronization/lock.h"
 
 namespace base {
+
+class HistogramSamples;
 
 class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
  public:
@@ -31,7 +32,7 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
   virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
   virtual void WriteAscii(std::string* output) const OVERRIDE;
 
-  virtual scoped_ptr<SampleMap> SnapshotSamples() const;
+  virtual scoped_ptr<HistogramSamples> SnapshotSamples() const OVERRIDE;
 
  private:
   // Clients should always use FactoryGet to create SparseHistogram.

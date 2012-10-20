@@ -72,7 +72,6 @@
 #include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
-#include "base/metrics/sample_vector.h"
 #include "base/time.h"
 
 class Pickle;
@@ -481,7 +480,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
   // Snapshot the current complete set of sample data.
   // Override with atomic/locked snapshot if needed.
-  virtual scoped_ptr<SampleVector> SnapshotSamples() const;
+  virtual scoped_ptr<HistogramSamples> SnapshotSamples() const OVERRIDE;
 
   virtual bool HasConstructionArguments(Sample minimum,
                                         Sample maximum,
@@ -527,13 +526,16 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
  private:
   // Allow tests to corrupt our innards for testing purposes.
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, BoundsTest);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, BucketPlacementTest);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptBucketBounds);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, Crc32SampleHash);
-  FRIEND_TEST_ALL_PREFIXES(HistogramTest, Crc32TableTest);
 
   friend class StatisticsRecorder;  // To allow it to delete duplicates.
   friend class StatisticsRecorderTest;
+
+  // Implementation of SnapshotSamples function.
+  scoped_ptr<SampleVector> SnapshotSampleVector() const;
 
   //----------------------------------------------------------------------------
   // Helpers for emitting Ascii graphic.  Each method appends data to output.

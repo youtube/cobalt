@@ -42,7 +42,7 @@ class StatsHistogram : public base::Histogram {
   static StatsHistogram* FactoryGet(const std::string& name,
                                     const Stats* stats);
 
-  virtual scoped_ptr<base::SampleVector> SnapshotSamples() const OVERRIDE;
+  virtual scoped_ptr<base::HistogramSamples> SnapshotSamples() const OVERRIDE;
   virtual Inconsistencies FindCorruption(
       const base::HistogramSamples& samples) const OVERRIDE;
 
