@@ -1970,7 +1970,7 @@ class SyncPageHandler(BasePageHandler):
     return True;
 
 
-def MakeDataDir():
+def MakeDataDir(options):
   if options.data_dir:
     if not os.path.isdir(options.data_dir):
       print 'specified data dir not found: ' + options.data_dir + ' exiting...'
@@ -2163,10 +2163,7 @@ class FileMultiplexer:
     self.__fd2 = fd2
 
   def __del__(self) :
-    if self.__fd1 != sys.stdout and self.__fd1 != sys.stderr:
-      self.__fd1.close()
-    if self.__fd2 != sys.stdout and self.__fd2 != sys.stderr:
-      self.__fd2.close()
+    self.close()
 
   def write(self, text) :
     self.__fd1.write(text)
@@ -2175,6 +2172,13 @@ class FileMultiplexer:
   def flush(self) :
     self.__fd1.flush()
     self.__fd2.flush()
+
+  def close(self):
+    if self.__fd1 != sys.stdout and self.__fd1 != sys.stderr:
+      self.__fd1.close()
+    if self.__fd2 != sys.stdout and self.__fd2 != sys.stderr:
+      self.__fd2.close()
+
 
 def main(options, args):
   logfile = open('testserver.log', 'w')
@@ -2247,7 +2251,7 @@ def main(options, args):
       server = HTTPServer((host, port), TestPageHandler)
       print 'HTTP server started on %s:%d...' % (host, server.server_port)
 
-    server.data_dir = MakeDataDir()
+    server.data_dir = MakeDataDir(options)
     server.file_root_url = options.file_root_url
     server_data['port'] = server.server_port
     server._device_management_handler = None
@@ -2260,7 +2264,7 @@ def main(options, args):
     logger.addHandler(logging.StreamHandler())
     # TODO(toyoshim): Remove following os.chdir. Currently this operation
     # is required to work correctly. It should be fixed from pywebsocket side.
-    os.chdir(MakeDataDir())
+    os.chdir(MakeDataDir(options))
     websocket_options = WebSocketOptions(host, port, '.')
     if options.cert_and_key_file:
       websocket_options.use_tls = True
@@ -2309,7 +2313,7 @@ def main(options, args):
     server_data['port'] = server.server_port
   # means FTP Server
   else:
-    my_data_dir = MakeDataDir()
+    my_data_dir = MakeDataDir(options)
 
     # Instantiate a dummy authorizer for managing 'virtual' users
     authorizer = pyftpdlib.ftpserver.DummyAuthorizer()

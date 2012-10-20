@@ -323,6 +323,7 @@ ProxyConfigServiceAndroid::ProxyConfigServiceAndroid(
     GetPropertyCallback get_property_callback)
     : delegate_(new Delegate(
         network_task_runner, jni_task_runner, get_property_callback)) {
+  delegate_->SetupJNI();
   delegate_->FetchInitialConfig();
 }
 
