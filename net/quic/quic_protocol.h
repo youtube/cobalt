@@ -401,7 +401,7 @@ class NET_EXPORT_PRIVATE QuicPacket : public QuicData {
  private:
   char* buffer_;
 
-  // TODO(rch): DISALLOW_COPY_AND_ASSIGN
+  DISALLOW_COPY_AND_ASSIGN(QuicPacket);
 };
 
 class NET_EXPORT_PRIVATE QuicEncryptedPacket : public QuicData {
@@ -416,7 +416,8 @@ class NET_EXPORT_PRIVATE QuicEncryptedPacket : public QuicData {
     return base::StringPiece(data() + kStartOfHashData, kStartOfEncryptedData);
   }
 
-  // TODO(rch): DISALLOW_COPY_AND_ASSIGN
+ private:
+  DISALLOW_COPY_AND_ASSIGN(QuicEncryptedPacket);
 };
 
 }  // namespace net
