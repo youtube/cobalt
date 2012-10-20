@@ -1461,6 +1461,13 @@
             'proxy/proxy_config_service_linux_unittest.cc',
           ],
         }],
+        [ 'OS == "android"', {
+          'sources!': [
+            # No res_ninit() et al on Android, so this doesn't make a lot of
+            # sense.
+            'dns/dns_config_service_posix_unittest.cc',
+          ],
+        }],
         [ 'use_glib == 1', {
             'dependencies': [
               '../build/linux/system.gyp:ssl',
