@@ -73,7 +73,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   int NotifyHeadersReceived(
       URLRequest* request,
       const CompletionCallback& callback,
-      HttpResponseHeaders* original_response_headers,
+      const HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers);
   void NotifyBeforeRedirect(URLRequest* request,
                             const GURL& new_location);
@@ -146,7 +146,7 @@ class NetworkDelegate : public base::NonThreadSafe {
   virtual int OnHeadersReceived(
       URLRequest* request,
       const CompletionCallback& callback,
-      HttpResponseHeaders* original_response_headers,
+      const HttpResponseHeaders* original_response_headers,
       scoped_refptr<HttpResponseHeaders>* override_response_headers) = 0;
 
   // Called right after a redirect response code was received.

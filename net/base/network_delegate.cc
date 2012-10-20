@@ -37,7 +37,7 @@ void NetworkDelegate::NotifySendHeaders(URLRequest* request,
 int NetworkDelegate::NotifyHeadersReceived(
     URLRequest* request,
     const CompletionCallback& callback,
-    HttpResponseHeaders* original_response_headers,
+    const HttpResponseHeaders* original_response_headers,
     scoped_refptr<HttpResponseHeaders>* override_response_headers) {
   DCHECK(CalledOnValidThread());
   DCHECK(original_response_headers);
