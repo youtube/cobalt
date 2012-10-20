@@ -174,6 +174,7 @@ test_cases = [
   {
     "name": "HttpProxyHostIPv6",
     "description" : "Test IPv6 https.proxyHost and default port.",
+    "cpp-only" : "",
     "properties" : {
       "http.proxyHost" : "a:b:c::d:1",
     },
@@ -185,6 +186,7 @@ test_cases = [
   {
     "name": "HttpProxyHostAndPortIPv6",
     "description" : "Test IPv6 http.proxyHost and http.proxyPort works.",
+    "cpp-only" : "",
     "properties" : {
       "http.proxyHost" : "a:b:c::d:1",
       "http.proxyPort" : "8080",
@@ -197,6 +199,7 @@ test_cases = [
   {
     "name": "HttpProxyHostAndInvalidPort",
     "description" : "Test invalid http.proxyPort does not crash.",
+    "cpp-only" : "",
     "properties" : {
       "http.proxyHost" : "a:b:c::d:1",
       "http.proxyPort" : "65536",
@@ -302,9 +305,12 @@ class GenerateJava:
 
   def Generate(self):
     for test_case in test_cases:
+      if test_case.has_key("cpp-only"):
+        continue
       if "description" in test_case:
         self._GenerateDescription(test_case["description"]);
       print "    @SmallTest"
+      print "    @Feature({\"Android-WebView\"})"
       print "    public void test%s() throws Exception {" % test_case["name"]
       self._GenerateConfiguration(test_case["properties"])
       self._GenerateMappings(test_case["mappings"])
@@ -325,7 +331,10 @@ class GenerateJava:
 
   def _GenerateMappings(self, mappings):
     for url in sorted(mappings.iterkeys()):
-      print "        checkMapping(\"%s\", \"%s\");" % (url, mappings[url])
+      mapping = mappings[url]
+      if 'HTTPS' in mapping:
+        mapping = mapping.replace('HTTPS', 'PROXY')
+      print "        checkMapping(\"%s\", \"%s\");" % (url, mapping)
 
 
 def main():
