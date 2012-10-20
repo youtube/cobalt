@@ -17,6 +17,7 @@
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
 #include "base/logging.h"
+#include "base/metrics/sample_vector.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/pickle.h"
 #include "base/string_util.h"
@@ -366,10 +367,8 @@ size_t Histogram::bucket_count() const {
   return bucket_count_;
 }
 
-scoped_ptr<SampleVector> Histogram::SnapshotSamples() const {
-  scoped_ptr<SampleVector> samples(new SampleVector(bucket_ranges()));
-  samples->Add(*samples_);
-  return samples.Pass();
+scoped_ptr<HistogramSamples> Histogram::SnapshotSamples() const {
+  return SnapshotSampleVector().PassAs<HistogramSamples>();
 }
 
 bool Histogram::HasConstructionArguments(Sample minimum,
@@ -464,12 +463,18 @@ const string Histogram::GetAsciiBucketRange(size_t i) const {
 //------------------------------------------------------------------------------
 // Private methods
 
+scoped_ptr<SampleVector> Histogram::SnapshotSampleVector() const {
+  scoped_ptr<SampleVector> samples(new SampleVector(bucket_ranges()));
+  samples->Add(*samples_);
+  return samples.Pass();
+}
+
 void Histogram::WriteAsciiImpl(bool graph_it,
                                const string& newline,
                                string* output) const {
   // Get local (stack) copies of all effectively volatile class data so that we
   // are consistent across our output activities.
-  scoped_ptr<SampleVector> snapshot = SnapshotSamples();
+  scoped_ptr<SampleVector> snapshot = SnapshotSampleVector();
   Count sample_count = snapshot->TotalCount();
 
   WriteAsciiHeader(*snapshot, sample_count, output);
@@ -601,7 +606,7 @@ void Histogram::GetParameters(DictionaryValue* params) const {
 }
 
 void Histogram::GetCountAndBucketData(Count* count, ListValue* buckets) const {
-  scoped_ptr<SampleVector> snapshot = SnapshotSamples();
+  scoped_ptr<SampleVector> snapshot = SnapshotSampleVector();
   *count = snapshot->TotalCount();
   size_t index = 0;
   for (size_t i = 0; i < bucket_count(); ++i) {

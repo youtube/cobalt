@@ -208,7 +208,7 @@ TEST(HistogramTest, BoundsTest) {
   histogram->Add(10000);
 
   // Verify they landed in the underflow, and overflow buckets.
-  scoped_ptr<SampleVector> samples = histogram->SnapshotSamples();
+  scoped_ptr<SampleVector> samples = histogram->SnapshotSampleVector();
   EXPECT_EQ(2, samples->GetCountAtIndex(0));
   EXPECT_EQ(0, samples->GetCountAtIndex(1));
   size_t array_size = histogram->bucket_count();
@@ -232,7 +232,7 @@ TEST(HistogramTest, BoundsTest) {
 
   // Verify they landed in the underflow, and overflow buckets.
   scoped_ptr<SampleVector> custom_samples =
-      test_custom_histogram->SnapshotSamples();
+      test_custom_histogram->SnapshotSampleVector();
   EXPECT_EQ(2, custom_samples->GetCountAtIndex(0));
   EXPECT_EQ(0, custom_samples->GetCountAtIndex(1));
   size_t bucket_count = test_custom_histogram->bucket_count();
@@ -255,7 +255,7 @@ TEST(HistogramTest, BucketPlacementTest) {
   }
 
   // Check to see that the bucket counts reflect our additions.
-  scoped_ptr<SampleVector> samples = histogram->SnapshotSamples();
+  scoped_ptr<SampleVector> samples = histogram->SnapshotSampleVector();
   for (int i = 0; i < 8; i++)
     EXPECT_EQ(i + 1, samples->GetCountAtIndex(i));
 }
@@ -268,7 +268,7 @@ TEST(HistogramTest, CorruptSampleCounts) {
   histogram->Add(20);
   histogram->Add(40);
 
-  scoped_ptr<SampleVector> snapshot = histogram->SnapshotSamples();
+  scoped_ptr<SampleVector> snapshot = histogram->SnapshotSampleVector();
   EXPECT_EQ(Histogram::NO_INCONSISTENCIES,
             histogram->FindCorruption(*snapshot));
   EXPECT_EQ(2, snapshot->redundant_count());
@@ -291,7 +291,7 @@ TEST(HistogramTest, CorruptBucketBounds) {
   Histogram* histogram(Histogram::FactoryGet(
       "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
 
-  scoped_ptr<SampleVector> snapshot = histogram->SnapshotSamples();
+  scoped_ptr<SampleVector> snapshot = histogram->SnapshotSampleVector();
   EXPECT_EQ(Histogram::NO_INCONSISTENCIES,
             histogram->FindCorruption(*snapshot));
 
