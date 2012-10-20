@@ -19,6 +19,7 @@
 namespace media {
 
 class AudioManagerMac;
+class ChannelMixer;
 
 // Implementation of AudioOuputStream for Mac OS X using the audio queue service
 // present in OS 10.5 and later. Audioqueue is the successor to the SoundManager
@@ -107,6 +108,10 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
 
   // Container for retrieving data from AudioSourceCallback::OnMoreData().
   scoped_ptr<AudioBus> audio_bus_;
+
+  // Channel mixer and temporary bus for the final mixed channel data.
+  scoped_ptr<ChannelMixer> channel_mixer_;
+  scoped_ptr<AudioBus> mixed_audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };

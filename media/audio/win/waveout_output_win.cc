@@ -334,16 +334,14 @@ void PCMWaveOutAudioOutputStream::HandleError(MMRESULT error) {
 }
 
 void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
+  DCHECK_EQ(channels_, format_.Format.nChannels);
   // Call the source which will fill our buffer with pleasant sounds and
   // return to us how many bytes were used.
-  // If we are down sampling to a smaller number of channels, we need to
-  // scale up the amount of pending bytes.
   // TODO(fbarchard): Handle used 0 by queueing more.
-  uint32 scaled_pending_bytes = pending_bytes_ * channels_ /
-                                format_.Format.nChannels;
+
   // TODO(sergeyu): Specify correct hardware delay for AudioBuffersState.
   int frames_filled = callback_->OnMoreData(
-      audio_bus_.get(), AudioBuffersState(scaled_pending_bytes, 0));
+      audio_bus_.get(), AudioBuffersState(pending_bytes_, 0));
   uint32 used = frames_filled * audio_bus_->channels() *
       format_.Format.wBitsPerSample / 8;
 
@@ -354,16 +352,10 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
         frames_filled, format_.Format.wBitsPerSample / 8, buffer->lpData);
 
     buffer->dwBufferLength = used * format_.Format.nChannels / channels_;
-    if (channels_ > 2 && format_.Format.nChannels == 2) {
-      media::FoldChannels(buffer->lpData, used,
-                          channels_, format_.Format.wBitsPerSample >> 3,
-                          volume_);
-    } else {
-      media::AdjustVolume(buffer->lpData, used,
-                          format_.Format.nChannels,
-                          format_.Format.wBitsPerSample >> 3,
-                          volume_);
-    }
+    media::AdjustVolume(buffer->lpData, used,
+                        format_.Format.nChannels,
+                        format_.Format.wBitsPerSample >> 3,
+                        volume_);
   } else {
     HandleError(0);
     return;

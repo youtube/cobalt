@@ -48,25 +48,6 @@ MEDIA_EXPORT void MixStreams(void* dst,
                              int bytes_per_sample,
                              float volume);
 
-// FoldChannels() does a software multichannel folding down to stereo.
-// Channel order is assumed to be 5.1 Dolby standard which is
-// front left, front right, center, surround left, surround right.
-// The subwoofer is ignored.
-// 6.1 adds a rear center speaker, and 7.1 has 2 rear speakers.  These
-// channels are rare and ignored.
-// After summing the channels, volume is adjusted and the samples are
-// clipped to the maximum value.
-// Volume should normally range from 0.0 (mute) to 1.0 (full volume), but
-// since clamping is performed a value of more than 1 is allowed to increase
-// volume.
-// The buffer is modified in-place to avoid memory management, as this
-// function may be called in performance critical code.
-MEDIA_EXPORT bool FoldChannels(void* buf,
-                               size_t buflen,
-                               int channels,
-                               int bytes_per_sample,
-                               float volume);
-
 // Returns the default audio output hardware sample-rate.
 MEDIA_EXPORT int GetAudioHardwareSampleRate();
 

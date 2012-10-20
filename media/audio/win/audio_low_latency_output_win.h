@@ -72,21 +72,9 @@
 //   supported format (X) and the new default device - to which we would like
 //   to switch - uses another format (Y), which is not supported given the
 //   configured audio parameters.
-// - The audio device is always opened with the same number of channels as
-//   it supports natively (see HardwareChannelCount()). Channel up-mixing will
-//   take place if the |params| parameter in the constructor contains a lower
-//   number of channels than the number of native channels. As an example: if
-//   the clients provides a channel count of 2 and a 7.1 headset is detected,
-//   then 2 -> 7.1 up-mixing will take place for each OnMoreData() callback.
-// - Channel down-mixing is currently not supported. It is possible to create
-//   an instance for this case but calls to Open() will fail.
+// - The audio device must be opened with the same number of channels as it
+//   supports natively (see HardwareChannelCount()) otherwise Open() will fail.
 // - Support for 8-bit audio has not yet been verified and tested.
-// - Open() will fail if channel up-mixing is done for 8-bit audio.
-// - Supported channel up-mixing cases (client config -> endpoint config):
-//    o 1 -> 2
-//    o 1 -> 7.1
-//    o 2 -> 5.1
-//    o 2 -> 7.1
 //
 // Core Audio API details:
 //
@@ -154,7 +142,6 @@
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
@@ -216,9 +203,11 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   bool started() const { return render_thread_.get() != NULL; }
 
- private:
-  FRIEND_TEST_ALL_PREFIXES(WASAPIAudioOutputStreamTest, HardwareChannelCount);
+  // Returns the number of channels the audio engine uses for its internal
+  // processing/mixing of shared-mode streams for the default endpoint device.
+  int GetEndpointChannelCountForTesting() { return format_.Format.nChannels; }
 
+ private:
   // Implementation of IUnknown (trivial in this case). See
   // msdn.microsoft.com/en-us/library/windows/desktop/dd371403(v=vs.85).aspx
   // for details regarding why proper implementations of AddRef(), Release()
@@ -279,17 +268,6 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   // interfaces, creates a new IMMDevice and re-starts rendering using the
   // new default audio device.
   bool RestartRenderingUsingNewDefaultDevice();
-
-  // Returns the number of channels the audio engine uses for its internal
-  // processing/mixing of shared-mode streams for the default endpoint device.
-  int endpoint_channel_count() { return format_.Format.nChannels; }
-
-  // The ratio between the the number of native audio channels used by the
-  // audio device and the number of audio channels from the client.
-  double channel_factor() const {
-    return (format_.Format.nChannels / static_cast<double> (
-        client_channel_count_));
-  }
 
   // Contains the thread ID of the creating thread.
   base::PlatformThreadId creating_thread_id_;
