@@ -101,6 +101,8 @@
             ['chromeos==0', {
               'dependencies': [
                 '../third_party/cros_dbus_cplusplus/cros_dbus_cplusplus.gyp:*',
+                '../third_party/libmtp/libmtp.gyp:*',
+                '../third_party/mtpd/mtpd.gyp:*',
               ],
             }],
           ],
