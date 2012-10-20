@@ -136,6 +136,7 @@ HttpCache::Transaction::Transaction(
       handling_206_(false),
       cache_pending_(false),
       done_reading_(false),
+      io_buf_len_(0),
       read_offset_(0),
       effective_load_flags_(0),
       write_len_(0),
