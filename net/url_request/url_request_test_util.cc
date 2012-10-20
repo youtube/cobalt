@@ -350,7 +350,7 @@ void TestNetworkDelegate::OnSendHeaders(
 int TestNetworkDelegate::OnHeadersReceived(
     net::URLRequest* request,
     const net::CompletionCallback& callback,
-    net::HttpResponseHeaders* original_response_headers,
+    const net::HttpResponseHeaders* original_response_headers,
     scoped_refptr<net::HttpResponseHeaders>* override_response_headers) {
   int req_id = request->identifier();
   event_order_[req_id] += "OnHeadersReceived\n";
