@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "net/quic/quic_protocol.h"
 
+using base::StringPiece;
 using std::numeric_limits;
 
 namespace net {
@@ -25,6 +26,50 @@ QuicDataWriter::~QuicDataWriter() {
   delete[] buffer_;
 }
 
+char* QuicDataWriter::take() {
+  char* rv = buffer_;
+  buffer_ = NULL;
+  capacity_ = 0;
+  length_ = 0;
+  return rv;
+}
+
+bool QuicDataWriter::WriteUInt8(uint8 value) {
+  return WriteBytes(&value, sizeof(value));
+}
+
+bool QuicDataWriter::WriteUInt16(uint16 value) {
+  return WriteBytes(&value, sizeof(value));
+}
+
+bool QuicDataWriter::WriteUInt32(uint32 value) {
+  return WriteBytes(&value, sizeof(value));
+}
+
+bool QuicDataWriter::WriteUInt48(uint64 value) {
+  uint32 hi = value >> 32;
+  uint32 lo = value & GG_UINT64_C(0x00000000FFFFFFFF);
+  return WriteUInt32(lo) && WriteUInt16(hi);
+}
+
+bool QuicDataWriter::WriteUInt64(uint64 value) {
+  return WriteBytes(&value, sizeof(value));
+}
+
+bool QuicDataWriter::WriteUInt128(uint128 value) {
+  return WriteUInt64(value.lo) && WriteUInt64(value.hi);
+}
+
+bool QuicDataWriter::WriteStringPiece16(StringPiece val) {
+  if (val.length() > numeric_limits<uint16>::max()) {
+    return false;
+  }
+  if (!WriteUInt16(val.size())) {
+    return false;
+  }
+  return WriteBytes(val.data(), val.size());
+}
+
 char* QuicDataWriter::BeginWrite(size_t length) {
   if (capacity_ - length_ < length) {
     return NULL;
@@ -35,14 +80,6 @@ char* QuicDataWriter::BeginWrite(size_t length) {
 #endif
 
   return buffer_ + length_;
-}
-
-bool QuicDataWriter::AdvancePointer(uint32 len) {
-  if (!BeginWrite(len)) {
-    return false;
-  }
-  length_ += len;
-  return true;
 }
 
 bool QuicDataWriter::WriteBytes(const void* data, uint32 data_len) {
