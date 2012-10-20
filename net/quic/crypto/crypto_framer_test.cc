@@ -36,8 +36,8 @@ class TestCryptoVisitor : public ::net::CryptoFramerVisitorInterface {
 
   ~TestCryptoVisitor() {}
 
-  virtual void OnError(CryptoFramer* f) {
-    LOG(INFO) << "CryptoFramer Error: " << f->error();
+  virtual void OnError(CryptoFramer* framer) {
+    LOG(ERROR) << "CryptoFramer Error: " << framer->error();
     error_count_++;
   }
 
@@ -56,7 +56,7 @@ class TestCryptoVisitor : public ::net::CryptoFramerVisitorInterface {
   // Counters from the visitor callbacks.
   int error_count_;
 
-  vector<CryptoTag> message_tags_;
+  CryptoTagVector message_tags_;
   vector<map<CryptoTag, string> > message_maps_;
 };
 
@@ -72,7 +72,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessage) {
   unsigned char packet[] = {
     // tag
     0x33, 0x77, 0xAA, 0xFF,
-    // num entires
+    // num entries
     0x03, 0x00,
     // tag 1
     0x78, 0x56, 0x34, 0x12,
@@ -102,12 +102,11 @@ TEST(CryptoFramerTest, ConstructHandshakeMessage) {
   CryptoFramer framer;
   QuicData* data;
   EXPECT_TRUE(framer.ConstructHandshakeMessage(message, &data));
+  scoped_ptr<QuicData> scoped_data(data);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
@@ -119,7 +118,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
   unsigned char packet[] = {
     // tag
     0x33, 0x77, 0xAA, 0xFF,
-    // num entires
+    // num entries
     0x02, 0x00,
     // tag 1
     0x78, 0x56, 0x34, 0x12,
@@ -140,25 +139,25 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
   CryptoFramer framer;
   QuicData* data;
   EXPECT_TRUE(framer.ConstructHandshakeMessage(message, &data));
+  scoped_ptr<QuicData> scoped_data(data);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
-
-  delete data;
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageTooManyEntries) {
   CryptoHandshakeMessage message;
   message.tag = 0xFFAA7733;
-  for (uint32 key = 1; key <= kMaxEntries + 1; key++) {
+  for (uint32 key = 1; key <= kMaxEntries + 1; ++key) {
     message.tag_value_map[key] = "abcdef";
   }
 
   CryptoFramer framer;
-  QuicData* data = NULL;
-  EXPECT_FALSE(framer.ConstructHandshakeMessage(message, &data));
-  delete data;
+
+  QuicData* dummy = NULL;
+  EXPECT_FALSE(framer.ConstructHandshakeMessage(message, &dummy));
+  scoped_ptr<QuicData> scoped_data(dummy);
 }
 
 
@@ -168,15 +167,9 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageInvalidLength) {
   message.tag_value_map[0x12345678] = "";
 
   CryptoFramer framer;
-  QuicData* data = NULL;
-  EXPECT_FALSE(framer.ConstructHandshakeMessage(message, &data));
-  delete data;
-}
-
-TEST(CryptoFramerTest, EmptyPacket) {
-  test::TestCryptoVisitor visitor;
-  CryptoFramer framer;
-  framer.set_visitor(&visitor);
+  QuicData* dummy = NULL;
+  EXPECT_FALSE(framer.ConstructHandshakeMessage(message, &dummy));
+  scoped_ptr<QuicData> scoped_data(dummy);
 }
 
 TEST(CryptoFramerTest, ProcessInput) {
@@ -187,7 +180,7 @@ TEST(CryptoFramerTest, ProcessInput) {
   unsigned char input[] = {
     // tag
     0x33, 0x77, 0xAA, 0xFF,
-    // num entires
+    // num entries
     0x02, 0x00,
     // tag 1
     0x78, 0x56, 0x34, 0x12,
@@ -222,7 +215,7 @@ TEST(CryptoFramerTest, ProcessInputIncrementally) {
   unsigned char input[] = {
     // tag
     0x33, 0x77, 0xAA, 0xFF,
-    // num entires
+    // num entries
     0x02, 0x00,
     // tag 1
     0x78, 0x56, 0x34, 0x12,
@@ -258,7 +251,7 @@ TEST(CryptoFramerTest, ProcessInputTagsOutOfOrder) {
   unsigned char input[] = {
     // tag
     0x33, 0x77, 0xAA, 0xFF,
-    // num entires
+    // num entries
     0x02, 0x00,
     // tag 1
     0x79, 0x56, 0x34, 0x12,
@@ -279,7 +272,7 @@ TEST(CryptoFramerTest, ProcessInputTooManyEntries) {
   unsigned char input[] = {
     // tag
     0x33, 0x77, 0xAA, 0xFF,
-    // num entires
+    // num entries
     0xA0, 0x00,
   };
 
@@ -296,7 +289,7 @@ TEST(CryptoFramerTest, ProcessInputInvalidLength) {
   unsigned char input[] = {
     // tag
     0x33, 0x77, 0xAA, 0xFF,
-    // num entires
+    // num entries
     0x02, 0x00,
     // tag 1
     0x78, 0x56, 0x34, 0x12,
