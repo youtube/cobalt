@@ -39,6 +39,7 @@ namespace media {
 
 class AlsaWrapper;
 class AudioManagerLinux;
+class ChannelMixer;
 class SeekableBuffer;
 
 class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
@@ -131,7 +132,7 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
   snd_pcm_sframes_t GetCurrentDelay();
 
   // Attempts to find the best matching linux audio device for the given number
-  // of channels.  This function will set |device_name_| and |should_downmix_|.
+  // of channels.  This function will set |device_name_| and |channel_mixer_|.
   snd_pcm_t* AutoSelectDevice(uint32 latency);
 
   // Functions to safeguard state transitions.  All changes to the object state
@@ -164,13 +165,13 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
   const std::string requested_device_name_;
   const snd_pcm_format_t pcm_format_;
   const uint32 channels_;
+  const ChannelLayout channel_layout_;
   const uint32 sample_rate_;
   const uint32 bytes_per_sample_;
   const uint32 bytes_per_frame_;
 
   // Device configuration data. Populated after OpenTask() completes.
   std::string device_name_;
-  bool should_downmix_;
   uint32 packet_size_;
   uint32 micros_per_packet_;
   uint32 latency_micros_;
@@ -213,6 +214,10 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
 
   // Container for retrieving data from AudioSourceCallback::OnMoreData().
   scoped_ptr<AudioBus> audio_bus_;
+
+  // Channel mixer and temporary bus for the final mixed channel data.
+  scoped_ptr<ChannelMixer> channel_mixer_;
+  scoped_ptr<AudioBus> mixed_audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmOutputStream);
 };

@@ -17,6 +17,7 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/sample_rates.h"
 #include "media/base/audio_pull_fifo.h"
+#include "media/base/channel_mixer.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 #include "media/base/multi_channel_resampler.h"
@@ -82,8 +83,17 @@ class OnMoreDataResampler : public AudioOutputStream::AudioSourceCallback {
   // Handles resampling.
   scoped_ptr<MultiChannelResampler> resampler_;
 
+  // Handles channel transforms.  |unmixed_audio_| is a temporary destination
+  // for audio data before it goes into the channel mixer.
+  scoped_ptr<ChannelMixer> channel_mixer_;
+  scoped_ptr<AudioBus> unmixed_audio_;
+
   int output_bytes_per_frame_;
   int input_bytes_per_frame_;
+
+  // Since resampling is expensive, figure out if we should downmix channels
+  // before resampling.
+  bool downmix_early_;
 
   DISALLOW_COPY_AND_ASSIGN(OnMoreDataResampler);
 };
@@ -93,18 +103,12 @@ static void RecordStats(const AudioParameters& output_params) {
   UMA_HISTOGRAM_ENUMERATION(
       "Media.HardwareAudioBitsPerChannel", output_params.bits_per_sample(),
       limits::kMaxBitsPerSample);
-// WASAPIAudioOutputStream will record this information for us.
-// TODO(dalecurtis): This should go away when we support channel mixing and will
-// receive the actual hardware channel parameters via |output_params|.  See
-// http://crbug.com/138762
-#if !defined(OS_WIN)
   UMA_HISTOGRAM_ENUMERATION(
       "Media.HardwareAudioChannelLayout", output_params.channel_layout(),
       CHANNEL_LAYOUT_MAX);
   UMA_HISTOGRAM_ENUMERATION(
       "Media.HardwareAudioChannelCount", output_params.channels(),
       limits::kMaxChannels);
-#endif
 
   AudioSampleRate asr = media::AsAudioSampleRate(output_params.sample_rate());
   if (asr != kUnexpectedAudioSampleRate) {
@@ -123,18 +127,12 @@ static void RecordFallbackStats(const AudioParameters& output_params) {
   UMA_HISTOGRAM_ENUMERATION(
       "Media.FallbackHardwareAudioBitsPerChannel",
       output_params.bits_per_sample(), limits::kMaxBitsPerSample);
-// WASAPIAudioOutputStream will record this information for us.
-// TODO(dalecurtis): This should go away when we support channel mixing and will
-// receive the actual hardware channel parameters via |output_params|.  See
-// http://crbug.com/138762
-#if !defined(OS_WIN)
   UMA_HISTOGRAM_ENUMERATION(
       "Media.FallbackHardwareAudioChannelLayout",
       output_params.channel_layout(), CHANNEL_LAYOUT_MAX);
   UMA_HISTOGRAM_ENUMERATION(
       "Media.FallbackHardwareAudioChannelCount",
       output_params.channels(), limits::kMaxChannels);
-#endif
 
   AudioSampleRate asr = media::AsAudioSampleRate(output_params.sample_rate());
   if (asr != kUnexpectedAudioSampleRate) {
@@ -196,8 +194,6 @@ void AudioOutputResampler::Initialize() {
 
   io_ratio_ = 1;
 
-  // TODO(dalecurtis): Add channel remixing.  http://crbug.com/138762
-  DCHECK_EQ(params_.channels(), output_params_.channels());
   // Only resample or rebuffer if the input parameters don't match the output
   // parameters to avoid any unnecessary work.
   if (params_.channels() != output_params_.channels() ||
@@ -340,7 +336,34 @@ OnMoreDataResampler::OnMoreDataResampler(
       source_callback_(NULL),
       outstanding_audio_bytes_(0),
       output_bytes_per_frame_(output_params.GetBytesPerFrame()),
-      input_bytes_per_frame_(input_params.GetBytesPerFrame()) {
+      input_bytes_per_frame_(input_params.GetBytesPerFrame()),
+      downmix_early_(false) {
+  // Handle different input and output channel layouts.
+  if (input_params.channel_layout() != output_params.channel_layout()) {
+    DVLOG(1) << "Remixing channel layout from " << input_params.channel_layout()
+             << " to " << output_params.channel_layout() << "; from "
+             << input_params.channels() << " channels to "
+             << output_params.channels() << " channels.";
+    channel_mixer_.reset(new ChannelMixer(
+        input_params.channel_layout(), output_params.channel_layout()));
+
+    // Pare off data as early as we can for efficiency.
+    downmix_early_ = input_params.channels() > output_params.channels();
+    if (downmix_early_) {
+      DVLOG(1) << "Remixing channel layout prior to resampling.";
+      // If we're downmixing early we need a temporary AudioBus which matches
+      // the the input channel count and input frame size since we're passing
+      // |unmixed_audio_| directly to the |source_callback_|.
+      unmixed_audio_ = AudioBus::Create(input_params);
+    } else {
+      // Instead, if we're not downmixing early we need a temporary AudioBus
+      // which matches the input channel count but uses the output frame size
+      // since we'll mix into the AudioBus from the output stream.
+      unmixed_audio_ = AudioBus::Create(
+          input_params.channels(), output_params.frames_per_buffer());
+    }
+  }
+
   // Only resample if necessary since it's expensive.
   if (input_params.sample_rate() != output_params.sample_rate()) {
     DVLOG(1) << "Resampling from " << input_params.sample_rate() << " to "
@@ -348,7 +371,9 @@ OnMoreDataResampler::OnMoreDataResampler(
     double io_sample_rate_ratio = input_params.sample_rate() /
         static_cast<double>(output_params.sample_rate());
     resampler_.reset(new MultiChannelResampler(
-        output_params.channels(), io_sample_rate_ratio, base::Bind(
+        downmix_early_ ? output_params.channels() :
+            input_params.channels(),
+        io_sample_rate_ratio, base::Bind(
             &OnMoreDataResampler::ProvideInput, base::Unretained(this))));
   }
 
@@ -360,7 +385,9 @@ OnMoreDataResampler::OnMoreDataResampler(
     DVLOG(1) << "Rebuffering from " << input_params.frames_per_buffer()
              << " to " << output_params.frames_per_buffer();
     audio_fifo_.reset(new AudioPullFifo(
-        input_params.channels(), input_params.frames_per_buffer(), base::Bind(
+        downmix_early_ ? output_params.channels() :
+            input_params.channels(),
+        input_params.frames_per_buffer(), base::Bind(
             &OnMoreDataResampler::SourceCallback_Locked,
             base::Unretained(this))));
   }
@@ -379,9 +406,9 @@ void OnMoreDataResampler::Stop() {
   base::AutoLock auto_lock(source_lock_);
   source_callback_ = NULL;
   outstanding_audio_bytes_ = 0;
-  if (audio_fifo_.get())
+  if (audio_fifo_)
     audio_fifo_->Clear();
-  if (resampler_.get())
+  if (resampler_)
     resampler_->Flush();
 }
 
@@ -402,20 +429,27 @@ int OnMoreDataResampler::OnMoreIOData(AudioBus* source,
 
   current_buffers_state_ = buffers_state;
 
-  if (!resampler_.get() && !audio_fifo_.get()) {
+  bool needs_mixing = channel_mixer_ && !downmix_early_;
+  AudioBus* temp_dest = needs_mixing ? unmixed_audio_.get() : dest;
+
+  if (!resampler_ && !audio_fifo_) {
     // We have no internal buffers, so clear any outstanding audio data.
     outstanding_audio_bytes_ = 0;
-    SourceIOCallback_Locked(source, dest);
-    return dest->frames();
+    SourceIOCallback_Locked(source, temp_dest);
+  } else {
+    if (resampler_)
+      resampler_->Resample(temp_dest, temp_dest->frames());
+    else
+      ProvideInput(temp_dest);
+
+    // Calculate how much data is left in the internal FIFO and resampler.
+    outstanding_audio_bytes_ -= temp_dest->frames() * output_bytes_per_frame_;
   }
 
-  if (resampler_.get())
-    resampler_->Resample(dest, dest->frames());
-  else
-    ProvideInput(dest);
-
-  // Calculate how much data is left in the internal FIFO and resampler buffers.
-  outstanding_audio_bytes_ -= dest->frames() * output_bytes_per_frame_;
+  if (needs_mixing) {
+    DCHECK_EQ(temp_dest->frames(), dest->frames());
+    channel_mixer_->Transform(temp_dest, dest);
+  }
 
   // Due to rounding errors while multiplying against |io_ratio_|,
   // |outstanding_audio_bytes_| might (rarely) slip below zero.
@@ -445,15 +479,24 @@ void OnMoreDataResampler::SourceIOCallback_Locked(AudioBus* source,
   new_buffers_state.pending_bytes = io_ratio_ *
       (current_buffers_state_.total_bytes() + outstanding_audio_bytes_);
 
+  bool needs_downmix = channel_mixer_ && downmix_early_;
+  AudioBus* temp_dest = needs_downmix ? unmixed_audio_.get() : dest;
+
   // Retrieve data from the original callback.  Zero any unfilled frames.
-  int frames = source_callback_->OnMoreIOData(source, dest, new_buffers_state);
-  if (frames < dest->frames())
-    dest->ZeroFramesPartial(frames, dest->frames() - frames);
+  int frames = source_callback_->OnMoreIOData(
+      source, temp_dest, new_buffers_state);
+  if (frames < temp_dest->frames())
+    temp_dest->ZeroFramesPartial(frames, temp_dest->frames() - frames);
 
   // Scale the number of frames we got back in terms of input bytes to output
   // bytes accordingly.
   outstanding_audio_bytes_ +=
-      (dest->frames() * input_bytes_per_frame_) / io_ratio_;
+      (temp_dest->frames() * input_bytes_per_frame_) / io_ratio_;
+
+  if (needs_downmix) {
+    DCHECK_EQ(temp_dest->frames(), dest->frames());
+    channel_mixer_->Transform(temp_dest, dest);
+  }
 }
 
 void OnMoreDataResampler::ProvideInput(AudioBus* audio_bus) {

@@ -69,42 +69,6 @@ static int AddSaturated(int val, int adder) {
   return static_cast<int>(sum);
 }
 
-// FoldChannels() downmixes multichannel (ie 5.1 Surround Sound) to Stereo.
-// Left and Right channels are preserved asis, and Center channel is
-// distributed equally to both sides.  To be perceptually 1/2 volume on
-// both channels, 1/sqrt(2) is used instead of 1/2.
-// Fixed point math is used for efficiency.  16 bits of fraction and 8,16 or 32
-// bits of integer are used.
-// 8 bit samples are unsigned and 128 represents 0, so a bias is removed before
-// doing calculations, then readded for the final output.
-template<class Format, class Fixed, int min_value, int max_value, int bias>
-static void FoldChannels(Format* buf_out,
-                         int sample_count,
-                         const float volume,
-                         int channels) {
-  Format* buf_in = buf_out;
-  const int center_volume = static_cast<int>(volume * 0.707f * 65536);
-  const int fixed_volume = static_cast<int>(volume * 65536);
-
-  for (int i = 0; i < sample_count; ++i) {
-    int center = static_cast<int>(buf_in[kChannel_C] - bias);
-    int left = static_cast<int>(buf_in[kChannel_L] - bias);
-    int right = static_cast<int>(buf_in[kChannel_R] - bias);
-
-    center = ScaleChannel<Fixed>(center, center_volume);
-    left = ScaleChannel<Fixed>(left, fixed_volume);
-    right = ScaleChannel<Fixed>(right, fixed_volume);
-
-    buf_out[0] = static_cast<Format>(
-        AddSaturated<Fixed, min_value, max_value>(left, center) + bias);
-    buf_out[1] = static_cast<Format>(
-        AddSaturated<Fixed, min_value, max_value>(right, center) + bias);
-
-    buf_out += 2;
-    buf_in += channels;
-  }
-}
-
 // AdjustVolume() does an in place audio sample change.
 bool AdjustVolume(void* buf,
                   size_t buflen,
@@ -137,42 +101,6 @@ bool AdjustVolume(void* buf,
       AdjustVolume<int32, int64, 0>(reinterpret_cast<int32*>(buf),
                                     sample_count,
                                     fixed_volume);
-      return true;
-    }
-  }
-  return false;
-}
-
-bool FoldChannels(void* buf,
-                  size_t buflen,
-                  int channels,
-                  int bytes_per_sample,
-                  float volume) {
-  DCHECK(buf);
-  if (volume < 0.0f || volume > 1.0f)
-    return false;
-  if (channels > 2 && channels <= 8 && bytes_per_sample > 0) {
-    int sample_count = buflen / (channels * bytes_per_sample);
-    if (bytes_per_sample == 1) {
-      FoldChannels<uint8, int32, -128, 127, 128>(
-          reinterpret_cast<uint8*>(buf),
-          sample_count,
-          volume,
-          channels);
-      return true;
-    } else if (bytes_per_sample == 2) {
-      FoldChannels<int16, int32, -32768, 32767, 0>(
-          reinterpret_cast<int16*>(buf),
-          sample_count,
-          volume,
-          channels);
-      return true;
-    } else if (bytes_per_sample == 4) {
-      FoldChannels<int32, int64, 0x80000000, 0x7fffffff, 0>(
-          reinterpret_cast<int32*>(buf),
-          sample_count,
-          volume,
-          channels);
       return true;
     }
   }
