@@ -12,8 +12,19 @@ using base::StringPiece;
 
 namespace net {
 
+namespace {
+
+const size_t kCryptoTagSize = sizeof(uint32);
+const size_t kNumEntriesSize = sizeof(uint16);
+const size_t kValueLenSize = sizeof(uint16);
+
+}  // namespace
+
 CryptoFramer::CryptoFramer()
-    : visitor_(NULL) {
+    : visitor_(NULL),
+      message_tag_(0),
+      num_entries_(0),
+      values_len_(0) {
   Clear();
 }
 
@@ -30,13 +41,13 @@ bool CryptoFramer::ProcessInput(StringPiece input) {
 
   switch (state_) {
     case STATE_READING_TAG:
-      if (reader.BytesRemaining() < sizeof(uint32)) {
+      if (reader.BytesRemaining() < kCryptoTagSize) {
         break;
       }
       reader.ReadUInt32(&message_tag_);
       state_ = STATE_READING_NUM_ENTRIES;
     case STATE_READING_NUM_ENTRIES:
-      if (reader.BytesRemaining() < sizeof(uint16)) {
+      if (reader.BytesRemaining() < kNumEntriesSize) {
         break;
       }
       reader.ReadUInt16(&num_entries_);
@@ -46,7 +57,7 @@ bool CryptoFramer::ProcessInput(StringPiece input) {
       }
       state_ = STATE_READING_KEY_TAGS;
     case STATE_READING_KEY_TAGS:
-      if (reader.BytesRemaining() < num_entries_ * sizeof(uint32)) {
+      if (reader.BytesRemaining() < num_entries_ * kCryptoTagSize) {
         break;
       }
       for (int i = 0; i < num_entries_; ++i) {
@@ -60,7 +71,7 @@ bool CryptoFramer::ProcessInput(StringPiece input) {
       }
       state_ = STATE_READING_LENGTHS;
     case STATE_READING_LENGTHS:
-      if (reader.BytesRemaining() < num_entries_ * sizeof(uint16)) {
+      if (reader.BytesRemaining() < num_entries_ * kValueLenSize) {
         break;
       }
       values_len_ = 0;
@@ -92,7 +103,7 @@ bool CryptoFramer::ProcessInput(StringPiece input) {
       state_ = STATE_READING_TAG;
       break;
   }
-  // Save any left over data
+  // Save any remaining data.
   buffer_ = reader.PeekRemainingPayload().as_string();
   return true;
 }
@@ -120,26 +131,44 @@ bool CryptoFramer::ConstructHandshakeMessage(
   }
 
   QuicDataWriter writer(len);
-  CHECK(writer.WriteUInt32(message.tag));
-  CHECK(writer.WriteUInt16(message.tag_value_map.size()));
+  if (!writer.WriteUInt32(message.tag)) {
+    DCHECK(false) << "Failed to write message tag.";
+    return false;
+  }
+  if (!writer.WriteUInt16(message.tag_value_map.size())) {
+    DCHECK(false) << "Failed to write size.";
+    return false;
+  }
   // Tags
   for (it = message.tag_value_map.begin();
        it != message.tag_value_map.end(); ++it) {
-    CHECK(writer.WriteUInt32(it->first));
+    if (!writer.WriteUInt32(it->first)) {
+      DCHECK(false) << "Failed to write tag.";
+      return false;
+    }
   }
   // Lengths
   for (it = message.tag_value_map.begin();
        it != message.tag_value_map.end(); ++it) {
-    CHECK(writer.WriteUInt16(it->second.length()));
+    if (!writer.WriteUInt16(it->second.length())) {
+      DCHECK(false) << "Failed to write length.";
+      return false;
+    }
   }
   // Possible padding
   if (message.tag_value_map.size() % 2 == 1) {
-    CHECK(writer.WriteUInt16(0xABAB));
+    if (!writer.WriteUInt16(0xABAB)) {
+      DCHECK(false) << "Failed to write padding.";
+      return false;
+    }
   }
   // Values
   for (it = message.tag_value_map.begin();
        it != message.tag_value_map.end(); ++it) {
-    CHECK(writer.WriteBytes(it->second.data(), it->second.length()));
+    if (!writer.WriteBytes(it->second.data(), it->second.length())) {
+      DCHECK(false) << "Failed to write value.";
+      return false;
+    }
   }
   *packet = new QuicData(writer.take(), len, true);
   return true;

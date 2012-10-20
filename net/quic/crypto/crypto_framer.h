@@ -30,7 +30,8 @@ class NET_EXPORT_PRIVATE CryptoFramerVisitorInterface {
   virtual void OnError(CryptoFramer* framer) = 0;
 
   // Called when a complete handshake message has been parsed.
-  virtual void OnHandshakeMessage(const CryptoHandshakeMessage& message) = 0;
+  virtual void OnHandshakeMessage(
+      const CryptoHandshakeMessage& message) = 0;
 };
 
 // A class for framing the crypto message that are exchanged in a QUIC session.
@@ -41,8 +42,8 @@ class NET_EXPORT_PRIVATE CryptoFramer {
   virtual ~CryptoFramer();
 
   // Set callbacks to be called from the framer.  A visitor must be set, or
-  // else the framer will likely crash.  It is acceptable for the visitor
-  // to do nothing.  If this is called multiple times, only the last visitor
+  // else the framer will crash.  It is acceptable for the visitor to do
+  // nothing.  If this is called multiple times, only the last visitor
   // will be used.  |visitor| will be owned by the framer.
   void set_visitor(CryptoFramerVisitorInterface* visitor) {
     visitor_ = visitor;
@@ -52,7 +53,7 @@ class NET_EXPORT_PRIVATE CryptoFramer {
     return error_;
   }
 
-  // Processes input data, which must be delievered in order.  Returns
+  // Processes input data, which must be delivered in order.  Returns
   // false if there was an error, and true otherwise.
   bool ProcessInput(base::StringPiece input);
 
@@ -69,6 +70,7 @@ class NET_EXPORT_PRIVATE CryptoFramer {
     error_ = error;
   }
 
+  // Represents the current state of the framing state machine.
   enum CryptoFramerState {
     STATE_READING_TAG,
     STATE_READING_NUM_ENTRIES,
@@ -77,7 +79,7 @@ class NET_EXPORT_PRIVATE CryptoFramer {
     STATE_READING_VALUES
   };
 
-  // Visitor to send invoke when messages are parsed.
+  // Visitor to invoke when messages are parsed.
   CryptoFramerVisitorInterface* visitor_;
   // Last error.
   QuicErrorCode error_;
@@ -90,12 +92,11 @@ class NET_EXPORT_PRIVATE CryptoFramer {
   // Number of entires in the message currently being parsed.
   uint16 num_entries_;
   // Vector of tags in the message currently being parsed.
-  std::vector<CryptoTag> tags_;
+  CryptoTagVector tags_;
   // Length of the data associated with each tag in the message currently
   // being parsed.
   std::map<CryptoTag, size_t> tag_length_map_;
-  // Length of the data associated with each tag in the message currently
-  // being parsed.
+  // Data associated with each tag in the message currently being parsed.
   CryptoTagValueMap tag_value_map_;
   // Cumulative length of all values in the message currently being parsed.
   size_t values_len_;

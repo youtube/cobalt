@@ -6,6 +6,7 @@
 #define NET_QUIC_CRYPTO_CRYPTO_PROTOCOL_H_
 
 #include <map>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -15,6 +16,7 @@
 namespace net {
 
 typedef uint32 CryptoTag;
+typedef std::vector<CryptoTag> CryptoTagVector;
 typedef std::map<CryptoTag, base::StringPiece> CryptoTagValueMap;
 struct NET_EXPORT_PRIVATE CryptoHandshakeMessage {
   CryptoHandshakeMessage();
