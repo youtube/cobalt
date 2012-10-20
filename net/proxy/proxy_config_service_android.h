@@ -61,7 +61,6 @@ class NET_EXPORT ProxyConfigServiceAndroid : public ProxyConfigService {
   friend class ProxyConfigServiceAndroidTestBase;
   class Delegate;
 
-
   // For tests.
   ProxyConfigServiceAndroid(base::SequencedTaskRunner* network_task_runner,
                             base::SequencedTaskRunner* jni_task_runner,

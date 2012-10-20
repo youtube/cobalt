@@ -1364,7 +1364,7 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 #elif defined(OS_ANDROID)
   return new ProxyConfigServiceAndroid(
       io_thread_task_runner,
-      MessageLoopForUI::current()->message_loop_proxy());
+      MessageLoop::current()->message_loop_proxy());
 #else
   LOG(WARNING) << "Failed to choose a system proxy settings fetcher "
                   "for this platform.";
