@@ -26,11 +26,6 @@ namespace android {
 VerifyResult VerifyX509CertChain(const std::vector<std::string>& cert_chain,
                                  const std::string& auth_type) {
   JNIEnv* env = AttachCurrentThread();
-  if (!env || !g_AndroidNetworkLibrary_verifyServerCertificates) {
-    // TODO(bulach): Remove when we initialize the JVM in unit tests.
-    LOG(WARNING) << "JNI initialization failed";
-    return VERIFY_INVOCATION_ERROR;
-  }
 
   ScopedJavaLocalRef<jobjectArray> chain_byte_array =
       ToJavaArrayOfByteArray(env, cert_chain);
