@@ -76,8 +76,6 @@ enum Channels {
   BACK_CENTER,
   SIDE_LEFT,
   SIDE_RIGHT,
-  STEREO_LEFT,
-  STEREO_RIGHT,
   CHANNELS_MAX
 };
 
