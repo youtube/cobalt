@@ -12,6 +12,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
+#include "media/base/channel_mixer.h"
 
 namespace media {
 
@@ -51,7 +52,6 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
       source_layout_(params.channel_layout()),
       num_core_channels_(0),
       should_swizzle_(false),
-      should_down_mix_(false),
       stopped_event_(true /* manual reset */, false /* initial state */),
       num_buffers_left_(kNumBuffers),
       audio_bus_(AudioBus::Create(params)) {
@@ -143,14 +143,17 @@ bool PCMQueueOutAudioOutputStream::Open() {
       static_cast<int>(core_channel_layout->mNumberChannelDescriptions));
   if (num_core_channels_ == 2 &&
       ChannelLayoutToChannelCount(source_layout_) > 2) {
-    should_down_mix_ = true;
+    channel_mixer_.reset(new ChannelMixer(
+        source_layout_, CHANNEL_LAYOUT_STEREO));
+    mixed_audio_bus_ = AudioBus::Create(
+        num_core_channels_, audio_bus_->frames());
+
     format_.mChannelsPerFrame = num_core_channels_;
     format_.mBytesPerFrame = (format_.mBitsPerChannel >> 3) *
         format_.mChannelsPerFrame;
     format_.mBytesPerPacket = format_.mBytesPerFrame * format_.mFramesPerPacket;
-  } else {
-    should_down_mix_ = false;
   }
+
   // Create the actual queue object and let the OS use its own thread to
   // run its CFRunLoop.
   err = AudioQueueNewOutput(&format_, RenderCallback, this, NULL,
@@ -421,9 +424,18 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
   int frames_filled = source->OnMoreData(
       audio_bus, AudioBuffersState(audio_stream->pending_bytes_, 0));
   uint32 filled = frames_filled * audio_stream->format_.mBytesPerFrame;
-  // Note: If this ever changes to output raw float the data must be clipped and
-  // sanitized since it may come from an untrusted source such as NaCl.
-  audio_bus->ToInterleaved(
+
+  // TODO(dalecurtis): Channel downmixing, upmixing, should be done in mixer;
+  // volume adjust should use SSE optimized vector_fmul() prior to interleave.
+  AudioBus* output_bus = audio_bus;
+  if (audio_stream->channel_mixer_) {
+    output_bus = audio_stream->mixed_audio_bus_.get();
+    audio_stream->channel_mixer_->Transform(audio_bus, output_bus);
+  }
+
+  // Note: If this ever changes to output raw float the data must be clipped
+  // and sanitized since it may come from an untrusted source such as NaCl.
+  output_bus->ToInterleaved(
       frames_filled, audio_stream->format_.mBitsPerChannel / 8,
       buffer->mAudioData);
 
@@ -451,18 +463,7 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
     static_cast<AudioQueueUserData*>(buffer->mUserData)->empty_buffer = false;
   }
 
-  if (audio_stream->should_down_mix_) {
-    // Downmixes the L, R, C channels to stereo.
-    if (media::FoldChannels(buffer->mAudioData,
-                            filled,
-                            audio_stream->num_source_channels_,
-                            audio_stream->format_.mBitsPerChannel >> 3,
-                            audio_stream->volume_)) {
-      filled = filled * 2 / audio_stream->num_source_channels_;
-    } else {
-      LOG(ERROR) << "Folding failed";
-    }
-  } else if (audio_stream->should_swizzle_) {
+  if (audio_stream->should_swizzle_) {
     // Handle channel order for surround sound audio.
     if (audio_stream->format_.mBitsPerChannel == 8) {
       audio_stream->SwizzleLayout(reinterpret_cast<uint8*>(buffer->mAudioData),
