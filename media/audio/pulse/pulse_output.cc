@@ -48,10 +48,8 @@ static pa_channel_position ChromiumToPAChannelPosition(Channels channel) {
     // PulseAudio does not differentiate between left/right and
     // stereo-left/stereo-right, both translate to front-left/front-right.
     case LEFT:
-    case STEREO_LEFT:
       return PA_CHANNEL_POSITION_FRONT_LEFT;
     case RIGHT:
-    case STEREO_RIGHT:
       return PA_CHANNEL_POSITION_FRONT_RIGHT;
     case CENTER:
       return PA_CHANNEL_POSITION_FRONT_CENTER;
