@@ -4,6 +4,7 @@
 
 #include "base/metrics/sparse_histogram.h"
 
+#include "base/metrics/sample_map.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/synchronization/lock.h"
 
@@ -31,7 +32,7 @@ void SparseHistogram::Add(Sample value) {
   redundant_count_ += 1;
 }
 
-scoped_ptr<SampleMap> SparseHistogram::SnapshotSamples() const {
+scoped_ptr<HistogramSamples> SparseHistogram::SnapshotSamples() const {
   scoped_ptr<SampleMap> snapshot(new SampleMap());
 
   base::AutoLock auto_lock(lock_);
@@ -41,7 +42,7 @@ scoped_ptr<SampleMap> SparseHistogram::SnapshotSamples() const {
     snapshot->Accumulate(it->first, it->second);
   }
   snapshot->ResetRedundantCount(redundant_count_);
-  return snapshot.Pass();
+  return snapshot.PassAs<HistogramSamples>();
 }
 
 void SparseHistogram::WriteHTMLGraph(string* output) const {
