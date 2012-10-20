@@ -26,56 +26,25 @@ namespace net {
 class NET_EXPORT_PRIVATE QuicDataWriter {
  public:
   explicit QuicDataWriter(size_t length);
+
   ~QuicDataWriter();
 
   // Returns the size of the QuicDataWriter's data.
   size_t length() const { return length_; }
 
   // Takes the buffer from the QuicDataWriter.
-  // TODO(rch): move non-trivial methods into .cc file.
-  char* take() {
-    char* rv = buffer_;
-    buffer_ = NULL;
-    capacity_ = 0;
-    length_ = 0;
-    return rv;
-  }
+  char* take();
 
   // Methods for adding to the payload.  These values are appended to the end
   // of the QuicDataWriter payload. Note - binary integers are written in
   // host byte order (little endian) not network byte order (big endian).
-  bool WriteUInt8(uint8 value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteUInt16(uint16 value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteUInt32(uint32 value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteUInt48(uint64 value) {
-    uint32 hi = value >> 32;
-    uint32 lo = value & GG_UINT64_C(0x00000000FFFFFFFF);
-    return WriteUInt32(lo) && WriteUInt16(hi);
-  }
-  bool WriteUInt64(uint64 value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteUInt128(uint128 value) {
-    return WriteUInt64(value.lo) && WriteUInt64(value.hi);
-  }
-  bool WriteStringPiece16(base::StringPiece val) {
-    if (val.length() > std::numeric_limits<uint16>::max()) {
-      return false;
-    }
-    if (!WriteUInt16(val.size())) {
-      return false;
-    }
-    return WriteBytes(val.data(), val.size());
-  }
-
-  bool AdvancePointer(uint32 len);
-
+  bool WriteUInt8(uint8 value);
+  bool WriteUInt16(uint16 value);
+  bool WriteUInt32(uint32 value);
+  bool WriteUInt48(uint64 value);
+  bool WriteUInt64(uint64 value);
+  bool WriteUInt128(uint128 value);
+  bool WriteStringPiece16(base::StringPiece val);
   bool WriteBytes(const void* data, uint32 data_len);
 
   static void WriteUint64ToBuffer(uint64 value, char* buffer);
