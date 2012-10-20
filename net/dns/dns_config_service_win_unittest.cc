@@ -90,7 +90,7 @@ scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> CreateAdapterAddresses(
     adapter->IfType = info.if_type;
     adapter->OperStatus = info.oper_status;
     adapter->DnsSuffix = info.dns_suffix;
-    IP_ADAPTER_DNS_SERVER_ADDRESS* address;
+    IP_ADAPTER_DNS_SERVER_ADDRESS* address = NULL;
     for (size_t j = 0; !info.dns_server_addresses[j].empty(); ++j) {
       --num_addresses;
       if (j == 0) {
