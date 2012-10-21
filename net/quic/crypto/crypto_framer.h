@@ -57,10 +57,9 @@ class NET_EXPORT_PRIVATE CryptoFramer {
   // false if there was an error, and true otherwise.
   bool ProcessInput(base::StringPiece input);
 
-  // Serializes |message| into |packet|.  Returns false if there was an
-  // error, and true otherwise.
-  bool ConstructHandshakeMessage(const CryptoHandshakeMessage& message,
-                                 QuicData** packet);
+  // Returns a new QuicData owned by the caller that contains a serialized
+  // |message|, or NULL if there was an error.
+  QuicData* ConstructHandshakeMessage(const CryptoHandshakeMessage& message);
 
  private:
   // Clears per-message state.  Does not clear the visitor.
