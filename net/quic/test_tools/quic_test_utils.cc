@@ -110,8 +110,7 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
   CryptoHandshakeMessage message;
   message.tag = tag;
   CryptoFramer crypto_framer;
-  QuicData* data;
-  crypto_framer.ConstructHandshakeMessage(message, &data);
+  scoped_ptr<QuicData> data(crypto_framer.ConstructHandshakeMessage(message));
   QuicFramer quic_framer(QuicDecrypter::Create(kNULL),
                          QuicEncrypter::Create(kNULL));
 
@@ -131,7 +130,6 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
   fragments.push_back(fragment);
   QuicPacket* packet;
   quic_framer.ConstructFragementDataPacket(header, fragments, &packet);
-  delete data;
   return packet;
 }
 

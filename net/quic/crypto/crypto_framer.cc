@@ -108,11 +108,10 @@ bool CryptoFramer::ProcessInput(StringPiece input) {
   return true;
 }
 
-bool CryptoFramer::ConstructHandshakeMessage(
-    const CryptoHandshakeMessage& message,
-    QuicData** packet) {
+QuicData* CryptoFramer::ConstructHandshakeMessage(
+    const CryptoHandshakeMessage& message) {
   if (message.tag_value_map.size() > kMaxEntries) {
-    return false;
+    return NULL;
   }
   size_t len = sizeof(uint32);  // message tag
   len += sizeof(uint16);  // number of map entries
@@ -122,7 +121,7 @@ bool CryptoFramer::ConstructHandshakeMessage(
     len += sizeof(uint16);  // value len
     len += it->second.length(); // value
     if (it->second.length() == 0) {
-      return false;
+      return NULL;
     }
     ++it;
   }
@@ -133,18 +132,18 @@ bool CryptoFramer::ConstructHandshakeMessage(
   QuicDataWriter writer(len);
   if (!writer.WriteUInt32(message.tag)) {
     DCHECK(false) << "Failed to write message tag.";
-    return false;
+    return NULL;
   }
   if (!writer.WriteUInt16(message.tag_value_map.size())) {
     DCHECK(false) << "Failed to write size.";
-    return false;
+    return NULL;
   }
   // Tags
   for (it = message.tag_value_map.begin();
        it != message.tag_value_map.end(); ++it) {
     if (!writer.WriteUInt32(it->first)) {
       DCHECK(false) << "Failed to write tag.";
-      return false;
+      return NULL;
     }
   }
   // Lengths
@@ -152,14 +151,14 @@ bool CryptoFramer::ConstructHandshakeMessage(
        it != message.tag_value_map.end(); ++it) {
     if (!writer.WriteUInt16(it->second.length())) {
       DCHECK(false) << "Failed to write length.";
-      return false;
+      return NULL;
     }
   }
   // Possible padding
   if (message.tag_value_map.size() % 2 == 1) {
     if (!writer.WriteUInt16(0xABAB)) {
       DCHECK(false) << "Failed to write padding.";
-      return false;
+      return NULL;
     }
   }
   // Values
@@ -167,11 +166,10 @@ bool CryptoFramer::ConstructHandshakeMessage(
        it != message.tag_value_map.end(); ++it) {
     if (!writer.WriteBytes(it->second.data(), it->second.length())) {
       DCHECK(false) << "Failed to write value.";
-      return false;
+      return NULL;
     }
   }
-  *packet = new QuicData(writer.take(), len, true);
-  return true;
+  return new QuicData(writer.take(), len, true);
 }
 
 void CryptoFramer::Clear() {
