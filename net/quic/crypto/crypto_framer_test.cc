@@ -100,10 +100,8 @@ TEST(CryptoFramerTest, ConstructHandshakeMessage) {
   };
 
   CryptoFramer framer;
-  QuicData* data;
-  EXPECT_TRUE(framer.ConstructHandshakeMessage(message, &data));
-  scoped_ptr<QuicData> scoped_data(data);
-
+  scoped_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  ASSERT_TRUE(data.get() != NULL);
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
                                       AsChars(packet), arraysize(packet));
@@ -137,9 +135,8 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
   };
 
   CryptoFramer framer;
-  QuicData* data;
-  EXPECT_TRUE(framer.ConstructHandshakeMessage(message, &data));
-  scoped_ptr<QuicData> scoped_data(data);
+  scoped_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  ASSERT_TRUE(data.get() != NULL);
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -154,10 +151,8 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageTooManyEntries) {
   }
 
   CryptoFramer framer;
-
-  QuicData* dummy = NULL;
-  EXPECT_FALSE(framer.ConstructHandshakeMessage(message, &dummy));
-  scoped_ptr<QuicData> scoped_data(dummy);
+  scoped_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  EXPECT_TRUE(data.get() == NULL);
 }
 
 
@@ -167,9 +162,8 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageInvalidLength) {
   message.tag_value_map[0x12345678] = "";
 
   CryptoFramer framer;
-  QuicData* dummy = NULL;
-  EXPECT_FALSE(framer.ConstructHandshakeMessage(message, &dummy));
-  scoped_ptr<QuicData> scoped_data(dummy);
+  scoped_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  EXPECT_TRUE(data.get() == NULL);
 }
 
 TEST(CryptoFramerTest, ProcessInput) {
