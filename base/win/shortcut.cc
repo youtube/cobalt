@@ -8,6 +8,7 @@
 #include <shlobj.h>
 #include <propkey.h>
 
+#include "base/file_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/win/scoped_comptr.h"
 #include "base/win/win_util.h"
@@ -51,6 +52,8 @@ bool CreateOrUpdateShortcutLink(const FilePath& shortcut_path,
     NOTREACHED();
     return false;
   }
+
+  bool shortcut_existed = file_util::PathExists(shortcut_path);
 
   ScopedComPtr<IShellLink> i_shell_link;
   ScopedComPtr<IPersistFile> i_persist_file;
@@ -131,17 +134,26 @@ bool CreateOrUpdateShortcutLink(const FilePath& shortcut_path,
 
   HRESULT result = i_persist_file->Save(shortcut_path.value().c_str(), TRUE);
 
-  // If we successfully updated the icon, notify the shell that we have done so.
-  if (operation == SHORTCUT_UPDATE_EXISTING && SUCCEEDED(result)) {
-    // Release the interfaces in case the SHChangeNotify call below depends on
-    // the operations above being fully completed.
-    i_persist_file.Release();
-    i_shell_link.Release();
+  // Release the interfaces in case the SHChangeNotify call below depends on
+  // the operations above being fully completed.
+  i_persist_file.Release();
+  i_shell_link.Release();
 
-    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
+  // If we successfully created/updated the icon, notify the shell that we have
+  // done so.
+  const bool succeeded = SUCCEEDED(result);
+  if (succeeded) {
+    if (shortcut_existed) {
+      // TODO(gab): SHCNE_UPDATEITEM might be sufficient here; further testing
+      // required.
+      SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
+    } else {
+      SHChangeNotify(SHCNE_CREATE, SHCNF_PATH, shortcut_path.value().c_str(),
+                     NULL);
+    }
   }
 
-  return SUCCEEDED(result);
+  return succeeded;
 }
 
 bool ResolveShortcut(const FilePath& shortcut_path,
