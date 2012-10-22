@@ -31,10 +31,15 @@ class FakeAudioRenderCallback : public AudioRendererSink::RenderCallback {
   // Reset the sine state to initial value.
   void reset() { x_ = 0; }
 
+  // Returns the last |audio_delay_milliseconds| provided to Render() or -1 if
+  // no Render() call occurred.
+  int last_audio_delay_milliseconds() { return last_audio_delay_milliseconds_; }
+
  private:
   bool half_fill_;
   double x_;
   double step_;
+  int last_audio_delay_milliseconds_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioRenderCallback);
 };

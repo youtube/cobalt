@@ -13,7 +13,8 @@ namespace media {
 
 FakeAudioRenderCallback::FakeAudioRenderCallback(double step)
     : half_fill_(false),
-      step_(step) {
+      step_(step),
+      last_audio_delay_milliseconds_(-1) {
   reset();
 }
 
@@ -21,6 +22,7 @@ FakeAudioRenderCallback::~FakeAudioRenderCallback() {}
 
 int FakeAudioRenderCallback::Render(AudioBus* audio_bus,
                                     int audio_delay_milliseconds) {
+  last_audio_delay_milliseconds_ = audio_delay_milliseconds;
   int number_of_frames = audio_bus->frames();
   if (half_fill_)
     number_of_frames /= 2;
