@@ -3,6 +3,12 @@
 // found in the LICENSE file.
 
 #include "base/win/registry.h"
+
+#include <cstring>
+#include <vector>
+
+#include "base/compiler_specific.h"
+#include "base/stl_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -17,7 +23,7 @@ class RegistryTest : public testing::Test {
   RegistryTest() {}
 
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     // Create a temporary key.
     RegKey key(HKEY_CURRENT_USER, L"", KEY_ALL_ACCESS);
     key.DeleteKey(kRootKey);
@@ -25,7 +31,7 @@ class RegistryTest : public testing::Test {
     ASSERT_EQ(ERROR_SUCCESS, key.Create(HKEY_CURRENT_USER, kRootKey, KEY_READ));
   }
 
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     // Clean up the temporary key.
     RegKey key(HKEY_CURRENT_USER, L"", KEY_SET_VALUE);
     ASSERT_EQ(ERROR_SUCCESS, key.DeleteKey(kRootKey));
@@ -48,10 +54,10 @@ TEST_F(RegistryTest, ValueTest) {
                                       KEY_READ | KEY_SET_VALUE));
     ASSERT_TRUE(key.Valid());
 
-    const wchar_t* kStringValueName = L"StringValue";
-    const wchar_t* kDWORDValueName = L"DWORDValue";
-    const wchar_t* kInt64ValueName = L"Int64Value";
-    const wchar_t* kStringData = L"string data";
+    const wchar_t kStringValueName[] = L"StringValue";
+    const wchar_t kDWORDValueName[] = L"DWORDValue";
+    const wchar_t kInt64ValueName[] = L"Int64Value";
+    const wchar_t kStringData[] = L"string data";
     const DWORD kDWORDData = 0xdeadbabe;
     const int64 kInt64Data = 0xdeadbabedeadbabeLL;
 
@@ -94,6 +100,62 @@ TEST_F(RegistryTest, ValueTest) {
     EXPECT_FALSE(key.HasValue(kDWORDValueName));
     EXPECT_FALSE(key.HasValue(kInt64ValueName));
   }
+}
+
+TEST_F(RegistryTest, BigValueIteratorTest) {
+  RegKey key;
+  std::wstring foo_key(kRootKey);
+  foo_key += L"\\Foo";
+  ASSERT_EQ(ERROR_SUCCESS, key.Create(HKEY_CURRENT_USER, foo_key.c_str(),
+                                      KEY_READ));
+  ASSERT_EQ(ERROR_SUCCESS, key.Open(HKEY_CURRENT_USER, foo_key.c_str(),
+                                    KEY_READ | KEY_SET_VALUE));
+  ASSERT_TRUE(key.Valid());
+
+  // Create a test value that is larger than MAX_PATH.
+  std::wstring data(MAX_PATH * 2, L'a');
+
+  ASSERT_EQ(ERROR_SUCCESS, key.WriteValue(data.c_str(), data.c_str()));
+
+  RegistryValueIterator iterator(HKEY_CURRENT_USER, foo_key.c_str());
+  ASSERT_TRUE(iterator.Valid());
+  EXPECT_STREQ(data.c_str(), iterator.Name());
+  EXPECT_STREQ(data.c_str(), iterator.Value());
+  // ValueSize() is in bytes, including NUL.
+  EXPECT_EQ((MAX_PATH * 2 + 1) * sizeof(wchar_t), iterator.ValueSize());
+  ++iterator;
+  EXPECT_FALSE(iterator.Valid());
+}
+
+TEST_F(RegistryTest, TruncatedCharTest) {
+  RegKey key;
+  std::wstring foo_key(kRootKey);
+  foo_key += L"\\Foo";
+  ASSERT_EQ(ERROR_SUCCESS, key.Create(HKEY_CURRENT_USER, foo_key.c_str(),
+                                      KEY_READ));
+  ASSERT_EQ(ERROR_SUCCESS, key.Open(HKEY_CURRENT_USER, foo_key.c_str(),
+                                    KEY_READ | KEY_SET_VALUE));
+  ASSERT_TRUE(key.Valid());
+
+  const wchar_t kName[] = L"name";
+  // kData size is not a multiple of sizeof(wchar_t).
+  const uint8 kData[] = { 1, 2, 3, 4, 5 };
+  EXPECT_EQ(5, arraysize(kData));
+  ASSERT_EQ(ERROR_SUCCESS, key.WriteValue(kName, kData,
+                                          arraysize(kData), REG_BINARY));
+
+  RegistryValueIterator iterator(HKEY_CURRENT_USER, foo_key.c_str());
+  ASSERT_TRUE(iterator.Valid());
+  EXPECT_STREQ(kName, iterator.Name());
+  // ValueSize() is in bytes.
+  ASSERT_EQ(arraysize(kData), iterator.ValueSize());
+  // Value() is NUL terminated.
+  int end = (iterator.ValueSize() + sizeof(wchar_t) - 1) / sizeof(wchar_t);
+  EXPECT_NE(L'\0', iterator.Value()[end-1]);
+  EXPECT_EQ(L'\0', iterator.Value()[end]);
+  EXPECT_EQ(0, std::memcmp(kData, iterator.Value(), arraysize(kData)));
+  ++iterator;
+  EXPECT_FALSE(iterator.Valid());
 }
 
 }  // namespace
