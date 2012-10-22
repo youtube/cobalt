@@ -10,6 +10,7 @@
 #include "base/stl_util.h"
 #include "base/values.h"
 #include "net/base/io_buffer.h"
+#include "net/base/upload_data_stream.h"
 #include "net/http/http_pipelined_stream.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_body_drainer.h"

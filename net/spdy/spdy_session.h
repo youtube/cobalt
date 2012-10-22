@@ -21,7 +21,6 @@
 #include "net/base/request_priority.h"
 #include "net/base/ssl_client_cert_type.h"
 #include "net/base/ssl_config_service.h"
-#include "net/base/upload_data_stream.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
