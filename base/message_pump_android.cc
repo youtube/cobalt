@@ -108,8 +108,7 @@ void MessagePumpForUI::Quit() {
 }
 
 void MessagePumpForUI::ScheduleWork() {
-  if (g_system_message_handler_obj.Get().is_null())
-    return;
+  DCHECK(!g_system_message_handler_obj.Get().is_null());
 
   JNIEnv* env = base::android::AttachCurrentThread();
   DCHECK(env);
@@ -119,8 +118,7 @@ void MessagePumpForUI::ScheduleWork() {
 }
 
 void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
-  if (g_system_message_handler_obj.Get().is_null())
-    return;
+  DCHECK(!g_system_message_handler_obj.Get().is_null());
 
   JNIEnv* env = base::android::AttachCurrentThread();
   DCHECK(env);
