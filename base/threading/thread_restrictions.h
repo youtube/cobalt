@@ -18,7 +18,6 @@
 class AcceleratedPresenter;
 class BrowserProcessImpl;
 class HistogramSynchronizer;
-class GpuChannelHost;
 class MetricsService;
 class NativeBackendKWallet;
 class ScopedAllowWaitForLegacyWebViewApi;
@@ -45,6 +44,7 @@ class Predictor;
 namespace content {
 class BrowserGpuChannelHostFactory;
 class GLHelper;
+class GpuChannelHost;
 class RenderWidgetHelper;
 }
 namespace dbus {
@@ -189,6 +189,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class
       content::BrowserGpuChannelHostFactory;      // http://crbug.com/125248
   friend class content::GLHelper;                 // http://crbug.com/125415
+  friend class content::GpuChannelHost;           // http://crbug.com/125264
   friend class dbus::Bus;                         // http://crbug.com/125222
   friend class disk_cache::BackendImpl;           // http://crbug.com/74623
   friend class disk_cache::InFlightIO;            // http://crbug.com/74623
@@ -198,7 +199,6 @@ class BASE_EXPORT ThreadRestrictions {
   friend class net::NetworkManagerApi;            // http://crbug.com/125097
   friend class ::AcceleratedPresenter;            // http://crbug.com/125391
   friend class ::BrowserProcessImpl;              // http://crbug.com/125207
-  friend class ::GpuChannelHost;                  // http://crbug.com/125264
   friend class ::MetricsService;                  // http://crbug.com/124954
   friend class ::TextInputClientMac;              // http://crbug.com/121917
   friend class ::NativeBackendKWallet;            // http://crbug.com/125331
