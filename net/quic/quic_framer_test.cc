@@ -57,7 +57,7 @@ class TestDecrypter : public QuicDecrypter {
 };
 
 // The offset of congestion info in our tests, given the size of our usual ack
-// fragment.  This does NOT work for all packets.
+// frame.  This does NOT work for all packets.
 const int kCongestionInfoOffset = kPacketHeaderSize + 54;
 
 class TestQuicVisitor : public ::net::QuicFramerVisitorInterface {
@@ -65,15 +65,15 @@ class TestQuicVisitor : public ::net::QuicFramerVisitorInterface {
   TestQuicVisitor()
       : error_count_(0),
         packet_count_(0),
-        fragment_count_(0),
+        frame_count_(0),
         fec_count_(0),
         complete_packets_(0),
         accept_packet_(true) {
   }
 
   ~TestQuicVisitor() {
-    STLDeleteElements(&stream_fragments_);
-    STLDeleteElements(&ack_fragments_);
+    STLDeleteElements(&stream_frames_);
+    STLDeleteElements(&ack_frames_);
     STLDeleteElements(&fec_data_);
   }
 
@@ -93,18 +93,18 @@ class TestQuicVisitor : public ::net::QuicFramerVisitorInterface {
     return accept_packet_;
   }
 
-  virtual void OnStreamFragment(const QuicStreamFragment& fragment) {
-    fragment_count_++;
-    stream_fragments_.push_back(new QuicStreamFragment(fragment));
+  virtual void OnStreamFrame(const QuicStreamFrame& frame) {
+    frame_count_++;
+    stream_frames_.push_back(new QuicStreamFrame(frame));
   }
 
   virtual void OnFecProtectedPayload(StringPiece payload) {
     fec_protected_payload_ = payload.as_string();
   }
 
-  virtual void OnAckFragment(const QuicAckFragment& fragment) {
-    fragment_count_++;
-    ack_fragments_.push_back(new QuicAckFragment(fragment));
+  virtual void OnAckFrame(const QuicAckFrame& frame) {
+    frame_count_++;
+    ack_frames_.push_back(new QuicAckFrame(frame));
   }
 
   virtual void OnFecData(const QuicFecData& fec) {
@@ -116,31 +116,31 @@ class TestQuicVisitor : public ::net::QuicFramerVisitorInterface {
     complete_packets_++;
   }
 
-  virtual void OnRstStreamFragment(const QuicRstStreamFragment& fragment) {
-    rst_stream_fragment_ = fragment;
+  virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) {
+    rst_stream_frame_ = frame;
   }
 
-  virtual void OnConnectionCloseFragment(
-      const QuicConnectionCloseFragment& fragment) {
-    connection_close_fragment_ = fragment;
+  virtual void OnConnectionCloseFrame(
+      const QuicConnectionCloseFrame& frame) {
+    connection_close_frame_ = frame;
   }
 
   // Counters from the visitor_ callbacks.
   int error_count_;
   int packet_count_;
-  int fragment_count_;
+  int frame_count_;
   int fec_count_;
   int complete_packets_;
   bool accept_packet_;
 
   IPEndPoint address_;
   scoped_ptr<QuicPacketHeader> header_;
-  vector<QuicStreamFragment*> stream_fragments_;
-  vector<QuicAckFragment*> ack_fragments_;
+  vector<QuicStreamFrame*> stream_frames_;
+  vector<QuicAckFrame*> ack_frames_;
   vector<QuicFecData*> fec_data_;
   string fec_protected_payload_;
-  QuicRstStreamFragment rst_stream_fragment_;
-  QuicConnectionCloseFragment connection_close_fragment_;
+  QuicRstStreamFrame rst_stream_frame_;
+  QuicConnectionCloseFrame connection_close_frame_;
 };
 
 class QuicFramerTest : public ::testing::Test {
@@ -227,7 +227,7 @@ TEST_F(QuicFramerTest, LargePacket) {
     0x00,
     // fec group
     0x00,
-    // fragment count
+    // frame count
     0x01,
   };
 
@@ -265,7 +265,7 @@ TEST_F(QuicFramerTest, PacketHeader) {
   QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
 
-  EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_EQ(GG_UINT64_C(0xFEDCBA9876543210), visitor_.header_->guid);
   EXPECT_EQ(0x1, visitor_.header_->retransmission_count);
@@ -300,7 +300,7 @@ TEST_F(QuicFramerTest, PacketHeader) {
   }
 }
 
-TEST_F(QuicFramerTest, StreamFragment) {
+TEST_F(QuicFramerTest, StreamFrame) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -318,9 +318,9 @@ TEST_F(QuicFramerTest, StreamFragment) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (stream fragment)
+    // frame type (stream frame)
     0x00,
     // stream id
     0x04, 0x03, 0x02, 0x01,
@@ -345,22 +345,22 @@ TEST_F(QuicFramerTest, StreamFragment) {
   ASSERT_TRUE(visitor_.header_.get());
   ASSERT_EQ(address_, visitor_.address_);
 
-  ASSERT_EQ(1u, visitor_.stream_fragments_.size());
-  EXPECT_EQ(0u, visitor_.ack_fragments_.size());
+  ASSERT_EQ(1u, visitor_.stream_frames_.size());
+  EXPECT_EQ(0u, visitor_.ack_frames_.size());
   EXPECT_EQ(static_cast<uint64>(0x01020304),
-            visitor_.stream_fragments_[0]->stream_id);
-  EXPECT_TRUE(visitor_.stream_fragments_[0]->fin);
+            visitor_.stream_frames_[0]->stream_id);
+  EXPECT_TRUE(visitor_.stream_frames_[0]->fin);
   EXPECT_EQ(GG_UINT64_C(0xBA98FEDC32107654),
-            visitor_.stream_fragments_[0]->offset);
-  EXPECT_EQ("hello world!", visitor_.stream_fragments_[0]->data);
+            visitor_.stream_frames_[0]->offset);
+  EXPECT_EQ("hello world!", visitor_.stream_frames_[0]->data);
 
   // Now test framing boundaries
   for (size_t i = kPacketHeaderSize; i < kPacketHeaderSize + 29; ++i) {
     string expected_error;
     if (i < kPacketHeaderSize + 1) {
-      expected_error = "Unable to read fragment count.";
+      expected_error = "Unable to read frame count.";
     } else if (i < kPacketHeaderSize + 2) {
-      expected_error = "Unable to read fragment type.";
+      expected_error = "Unable to read frame type.";
     } else if (i < kPacketHeaderSize + 6) {
       expected_error = "Unable to read stream_id.";
     } else if (i < kPacketHeaderSize + 7) {
@@ -368,13 +368,13 @@ TEST_F(QuicFramerTest, StreamFragment) {
     } else if (i < kPacketHeaderSize + 15) {
       expected_error = "Unable to read offset.";
     } else if (i < kPacketHeaderSize + 29) {
-      expected_error = "Unable to read fragment data.";
+      expected_error = "Unable to read frame data.";
     }
 
     QuicEncryptedPacket encrypted(AsChars(packet), i, false);
     EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
+    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
   }
 }
 
@@ -398,9 +398,9 @@ TEST_F(QuicFramerTest, RejectPacket) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (stream fragment)
+    // frame type (stream frame)
     0x00,
     // stream id
     0x04, 0x03, 0x02, 0x01,
@@ -425,15 +425,15 @@ TEST_F(QuicFramerTest, RejectPacket) {
   ASSERT_TRUE(visitor_.header_.get());
   ASSERT_EQ(address_, visitor_.address_);
 
-  ASSERT_EQ(0u, visitor_.stream_fragments_.size());
-  EXPECT_EQ(0u, visitor_.ack_fragments_.size());
+  ASSERT_EQ(0u, visitor_.stream_frames_.size());
+  EXPECT_EQ(0u, visitor_.ack_frames_.size());
 }
 
-TEST_F(QuicFramerTest, RevivedStreamFragment) {
+TEST_F(QuicFramerTest, RevivedStreamFrame) {
   unsigned char payload[] = {
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (stream fragment)
+    // frame type (stream frame)
     0x00,
     // stream id
     0x04, 0x03, 0x02, 0x01,
@@ -477,16 +477,16 @@ TEST_F(QuicFramerTest, RevivedStreamFragment) {
   EXPECT_EQ(0x00, visitor_.header_->fec_group);
 
 
-  ASSERT_EQ(1u, visitor_.stream_fragments_.size());
-  EXPECT_EQ(0u, visitor_.ack_fragments_.size());
-  EXPECT_EQ(GG_UINT64_C(0x01020304), visitor_.stream_fragments_[0]->stream_id);
-  EXPECT_TRUE(visitor_.stream_fragments_[0]->fin);
+  ASSERT_EQ(1u, visitor_.stream_frames_.size());
+  EXPECT_EQ(0u, visitor_.ack_frames_.size());
+  EXPECT_EQ(GG_UINT64_C(0x01020304), visitor_.stream_frames_[0]->stream_id);
+  EXPECT_TRUE(visitor_.stream_frames_[0]->fin);
   EXPECT_EQ(GG_UINT64_C(0xBA98FEDC32107654),
-            visitor_.stream_fragments_[0]->offset);
-  EXPECT_EQ("hello world!", visitor_.stream_fragments_[0]->data);
+            visitor_.stream_frames_[0]->offset);
+  EXPECT_EQ("hello world!", visitor_.stream_frames_[0]->data);
 }
 
-TEST_F(QuicFramerTest, StreamFragmentInFecGroup) {
+TEST_F(QuicFramerTest, StreamFrameInFecGroup) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -504,9 +504,9 @@ TEST_F(QuicFramerTest, StreamFragmentInFecGroup) {
     // fec group
     0x02,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (stream fragment)
+    // frame type (stream frame)
     0x00,
     // stream id
     0x04, 0x03, 0x02, 0x01,
@@ -535,16 +535,16 @@ TEST_F(QuicFramerTest, StreamFragmentInFecGroup) {
             visitor_.fec_protected_payload_);
   ASSERT_EQ(address_, visitor_.address_);
 
-  ASSERT_EQ(1u, visitor_.stream_fragments_.size());
-  EXPECT_EQ(0u, visitor_.ack_fragments_.size());
-  EXPECT_EQ(GG_UINT64_C(0x01020304), visitor_.stream_fragments_[0]->stream_id);
-  EXPECT_TRUE(visitor_.stream_fragments_[0]->fin);
+  ASSERT_EQ(1u, visitor_.stream_frames_.size());
+  EXPECT_EQ(0u, visitor_.ack_frames_.size());
+  EXPECT_EQ(GG_UINT64_C(0x01020304), visitor_.stream_frames_[0]->stream_id);
+  EXPECT_TRUE(visitor_.stream_frames_[0]->fin);
   EXPECT_EQ(GG_UINT64_C(0xBA98FEDC32107654),
-            visitor_.stream_fragments_[0]->offset);
-  EXPECT_EQ("hello world!", visitor_.stream_fragments_[0]->data);
+            visitor_.stream_frames_[0]->offset);
+  EXPECT_EQ("hello world!", visitor_.stream_frames_[0]->data);
 }
 
-TEST_F(QuicFramerTest, AckFragment) {
+TEST_F(QuicFramerTest, AckFrame) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -562,9 +562,9 @@ TEST_F(QuicFramerTest, AckFragment) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (ack fragment)
+    // frame type (ack frame)
     0x02,
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -605,35 +605,35 @@ TEST_F(QuicFramerTest, AckFragment) {
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
 
-  EXPECT_EQ(0u, visitor_.stream_fragments_.size());
-  ASSERT_EQ(1u, visitor_.ack_fragments_.size());
-  const QuicAckFragment& fragment = *visitor_.ack_fragments_[0];
+  EXPECT_EQ(0u, visitor_.stream_frames_.size());
+  ASSERT_EQ(1u, visitor_.ack_frames_.size());
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
-            fragment.received_info.largest_received);
+            frame.received_info.largest_received);
   EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
-            fragment.received_info.time_received);
+            frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &fragment.received_info.missing_packets;
+      &frame.received_info.missing_packets;
   ASSERT_EQ(2u, sequence_nums->size());
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
-  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), fragment.sent_info.least_unacked);
-  ASSERT_EQ(3u, fragment.sent_info.non_retransmiting.size());
+  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
+  ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
   const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &fragment.sent_info.non_retransmiting;
+      &frame.sent_info.non_retransmiting;
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
-  ASSERT_EQ(kNone, fragment.congestion_info.type);
+  ASSERT_EQ(kNone, frame.congestion_info.type);
 
   // Now test framing boundaries
   for (size_t i = kPacketHeaderSize; i < kPacketHeaderSize + 55; ++i) {
     string expected_error;
     if (i < kPacketHeaderSize + 1) {
-      expected_error = "Unable to read fragment count.";
+      expected_error = "Unable to read frame count.";
     } else if (i < kPacketHeaderSize + 2) {
-      expected_error = "Unable to read fragment type.";
+      expected_error = "Unable to read frame type.";
     } else if (i < kPacketHeaderSize + 8) {
       expected_error = "Unable to read largest received.";
     } else if (i < kPacketHeaderSize + 16) {
@@ -655,11 +655,11 @@ TEST_F(QuicFramerTest, AckFragment) {
     QuicEncryptedPacket encrypted(AsChars(packet), i, false);
     EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
+    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
   }
 }
 
-TEST_F(QuicFramerTest, AckFragmentTCP) {
+TEST_F(QuicFramerTest, AckFrameTCP) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -677,9 +677,9 @@ TEST_F(QuicFramerTest, AckFragmentTCP) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (ack fragment)
+    // frame type (ack frame)
     0x02,
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -711,9 +711,9 @@ TEST_F(QuicFramerTest, AckFragmentTCP) {
     0x34, 0x12,
     // congestion feedback type (tcp)
     0x01,
-    // ack_fragment.congestion_info.tcp.accumulated_number_of_lost_packets
+    // ack_frame.congestion_info.tcp.accumulated_number_of_lost_packets
     0x01, 0x02,
-    // ack_fragment.congestion_info.tcp.receive_window
+    // ack_frame.congestion_info.tcp.receive_window
     0x03, 0x04,
   };
 
@@ -724,30 +724,30 @@ TEST_F(QuicFramerTest, AckFragmentTCP) {
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
 
-  EXPECT_EQ(0u, visitor_.stream_fragments_.size());
-  ASSERT_EQ(1u, visitor_.ack_fragments_.size());
-  const QuicAckFragment& fragment = *visitor_.ack_fragments_[0];
+  EXPECT_EQ(0u, visitor_.stream_frames_.size());
+  ASSERT_EQ(1u, visitor_.ack_frames_.size());
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
-            fragment.received_info.largest_received);
+            frame.received_info.largest_received);
   EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
-            fragment.received_info.time_received);
+            frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &fragment.received_info.missing_packets;
+      &frame.received_info.missing_packets;
   ASSERT_EQ(2u, sequence_nums->size());
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
-  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), fragment.sent_info.least_unacked);
-  ASSERT_EQ(3u, fragment.sent_info.non_retransmiting.size());
+  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
+  ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
   const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &fragment.sent_info.non_retransmiting;
+      &frame.sent_info.non_retransmiting;
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
-  ASSERT_EQ(kTCP, fragment.congestion_info.type);
+  ASSERT_EQ(kTCP, frame.congestion_info.type);
   EXPECT_EQ(0x0201,
-            fragment.congestion_info.tcp.accumulated_number_of_lost_packets);
-  EXPECT_EQ(0x0403, fragment.congestion_info.tcp.receive_window);
+            frame.congestion_info.tcp.accumulated_number_of_lost_packets);
+  EXPECT_EQ(0x0403, frame.congestion_info.tcp.receive_window);
 
   // Now test framing boundaries
   for (size_t i = kCongestionInfoOffset; i < kCongestionInfoOffset + 5; ++i) {
@@ -763,11 +763,11 @@ TEST_F(QuicFramerTest, AckFragmentTCP) {
     QuicEncryptedPacket encrypted(AsChars(packet), i, false);
     EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
+    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
   }
 }
 
-TEST_F(QuicFramerTest, AckFragmentInterArrival) {
+TEST_F(QuicFramerTest, AckFrameInterArrival) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -785,9 +785,9 @@ TEST_F(QuicFramerTest, AckFragmentInterArrival) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (ack fragment)
+    // frame type (ack frame)
     0x02,
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -834,31 +834,31 @@ TEST_F(QuicFramerTest, AckFragmentInterArrival) {
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
 
-  EXPECT_EQ(0u, visitor_.stream_fragments_.size());
-  ASSERT_EQ(1u, visitor_.ack_fragments_.size());
-  const QuicAckFragment& fragment = *visitor_.ack_fragments_[0];
+  EXPECT_EQ(0u, visitor_.stream_frames_.size());
+  ASSERT_EQ(1u, visitor_.ack_frames_.size());
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
-            fragment.received_info.largest_received);
+            frame.received_info.largest_received);
   EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
-            fragment.received_info.time_received);
+            frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &fragment.received_info.missing_packets;
+      &frame.received_info.missing_packets;
   ASSERT_EQ(2u, sequence_nums->size());
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
-  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), fragment.sent_info.least_unacked);
-  ASSERT_EQ(3u, fragment.sent_info.non_retransmiting.size());
+  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
+  ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
   const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &fragment.sent_info.non_retransmiting;
+      &frame.sent_info.non_retransmiting;
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
-  ASSERT_EQ(kInterArrival, fragment.congestion_info.type);
-  EXPECT_EQ(0x0302, fragment.congestion_info.inter_arrival.
+  ASSERT_EQ(kInterArrival, frame.congestion_info.type);
+  EXPECT_EQ(0x0302, frame.congestion_info.inter_arrival.
             accumulated_number_of_lost_packets);
-  EXPECT_EQ(0x0504, fragment.congestion_info.inter_arrival.offset_time);
-  EXPECT_EQ(0x0706, fragment.congestion_info.inter_arrival.delta_time);
+  EXPECT_EQ(0x0504, frame.congestion_info.inter_arrival.offset_time);
+  EXPECT_EQ(0x0706, frame.congestion_info.inter_arrival.delta_time);
 
   // Now test framing boundaries
   for (size_t i = kCongestionInfoOffset; i < kCongestionInfoOffset + 5; ++i) {
@@ -875,11 +875,11 @@ TEST_F(QuicFramerTest, AckFragmentInterArrival) {
     QuicEncryptedPacket encrypted(AsChars(packet), i, false);
     EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
+    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
   }
 }
 
-TEST_F(QuicFramerTest, AckFragmentFixRate) {
+TEST_F(QuicFramerTest, AckFrameFixRate) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -897,9 +897,9 @@ TEST_F(QuicFramerTest, AckFragmentFixRate) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (ack fragment)
+    // frame type (ack frame)
     0x02,
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -942,29 +942,29 @@ TEST_F(QuicFramerTest, AckFragmentFixRate) {
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
 
-  EXPECT_EQ(0u, visitor_.stream_fragments_.size());
-  ASSERT_EQ(1u, visitor_.ack_fragments_.size());
-  const QuicAckFragment& fragment = *visitor_.ack_fragments_[0];
+  EXPECT_EQ(0u, visitor_.stream_frames_.size());
+  ASSERT_EQ(1u, visitor_.ack_frames_.size());
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
-            fragment.received_info.largest_received);
+            frame.received_info.largest_received);
   EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
-            fragment.received_info.time_received);
+            frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &fragment.received_info.missing_packets;
+      &frame.received_info.missing_packets;
   ASSERT_EQ(2u, sequence_nums->size());
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
-  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), fragment.sent_info.least_unacked);
-  ASSERT_EQ(3u, fragment.sent_info.non_retransmiting.size());
+  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
+  ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
   const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &fragment.sent_info.non_retransmiting;
+      &frame.sent_info.non_retransmiting;
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
-  ASSERT_EQ(kFixRate, fragment.congestion_info.type);
+  ASSERT_EQ(kFixRate, frame.congestion_info.type);
   EXPECT_EQ(static_cast<uint32>(0x04030201),
-            fragment.congestion_info.fix_rate.bitrate_in_bytes_per_second);
+            frame.congestion_info.fix_rate.bitrate_in_bytes_per_second);
 
   // Now test framing boundaries
   for (size_t i = kCongestionInfoOffset; i < kCongestionInfoOffset + 5; ++i) {
@@ -977,12 +977,12 @@ TEST_F(QuicFramerTest, AckFragmentFixRate) {
     QuicEncryptedPacket encrypted(AsChars(packet), i, false);
     EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
+    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
   }
 }
 
 
-TEST_F(QuicFramerTest, AckFragmentInvalidFeedback) {
+TEST_F(QuicFramerTest, AckFrameInvalidFeedback) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -1000,9 +1000,9 @@ TEST_F(QuicFramerTest, AckFragmentInvalidFeedback) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (ack fragment)
+    // frame type (ack frame)
     0x02,
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -1039,10 +1039,10 @@ TEST_F(QuicFramerTest, AckFragmentInvalidFeedback) {
   QuicEncryptedPacket encrypted(AsChars(packet), arraysize(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(address_, encrypted));
   EXPECT_TRUE(CheckDecryption(StringPiece(AsChars(packet), arraysize(packet))));
-  EXPECT_EQ(QUIC_INVALID_FRAGMENT_DATA, framer_.error());
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
 }
 
-TEST_F(QuicFramerTest, RstStreamFragment) {
+TEST_F(QuicFramerTest, RstStreamFrame) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -1060,9 +1060,9 @@ TEST_F(QuicFramerTest, RstStreamFragment) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (rst stream fragment)
+    // frame type (rst stream frame)
     0x03,
     // stream id
     0x04, 0x03, 0x02, 0x01,
@@ -1089,11 +1089,11 @@ TEST_F(QuicFramerTest, RstStreamFragment) {
   ASSERT_TRUE(visitor_.header_.get());
   ASSERT_EQ(address_, visitor_.address_);
 
-  EXPECT_EQ(GG_UINT64_C(0x01020304), visitor_.rst_stream_fragment_.stream_id);
-  EXPECT_EQ(0x05060708, visitor_.rst_stream_fragment_.error_code);
+  EXPECT_EQ(GG_UINT64_C(0x01020304), visitor_.rst_stream_frame_.stream_id);
+  EXPECT_EQ(0x05060708, visitor_.rst_stream_frame_.error_code);
   EXPECT_EQ(GG_UINT64_C(0xBA98FEDC32107654),
-            visitor_.rst_stream_fragment_.offset);
-  EXPECT_EQ("because I can", visitor_.rst_stream_fragment_.error_details);
+            visitor_.rst_stream_frame_.offset);
+  EXPECT_EQ("because I can", visitor_.rst_stream_frame_.error_details);
 
   // Now test framing boundaries
   for (size_t i = kPacketHeaderSize + 3; i < kPacketHeaderSize + 33; ++i) {
@@ -1101,7 +1101,7 @@ TEST_F(QuicFramerTest, RstStreamFragment) {
     if (i < kPacketHeaderSize + 6) {
       expected_error = "Unable to read stream_id.";
     } else if (i < kPacketHeaderSize + 14) {
-      expected_error = "Unable to read offset in rst fragment.";
+      expected_error = "Unable to read offset in rst frame.";
     } else if (i < kPacketHeaderSize + 18) {
       expected_error = "Unable to read rst stream error code.";
     } else if (i < kPacketHeaderSize + 33) {
@@ -1114,7 +1114,7 @@ TEST_F(QuicFramerTest, RstStreamFragment) {
   }
 }
 
-TEST_F(QuicFramerTest, ConnectionCloseFragment) {
+TEST_F(QuicFramerTest, ConnectionCloseFrame) {
   unsigned char packet[] = {
     // guid
     0x10, 0x32, 0x54, 0x76,
@@ -1133,9 +1133,9 @@ TEST_F(QuicFramerTest, ConnectionCloseFragment) {
     0x00,
 
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (connection close fragment)
+    // frame type (connection close frame)
     0x04,
     // error code
     0x08, 0x07, 0x06, 0x05,
@@ -1148,7 +1148,7 @@ TEST_F(QuicFramerTest, ConnectionCloseFragment) {
     'I',  ' ',  'c',  'a',
     'n',
 
-    // Ack fragment.
+    // Ack frame.
 
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -1195,37 +1195,37 @@ TEST_F(QuicFramerTest, ConnectionCloseFragment) {
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
 
-  EXPECT_EQ(0u, visitor_.stream_fragments_.size());
+  EXPECT_EQ(0u, visitor_.stream_frames_.size());
 
-  EXPECT_EQ(0x05060708, visitor_.connection_close_fragment_.error_code);
-  EXPECT_EQ("because I can", visitor_.connection_close_fragment_.error_details);
+  EXPECT_EQ(0x05060708, visitor_.connection_close_frame_.error_code);
+  EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
 
-  ASSERT_EQ(1u, visitor_.ack_fragments_.size());
-  const QuicAckFragment& fragment = *visitor_.ack_fragments_[0];
+  ASSERT_EQ(1u, visitor_.ack_frames_.size());
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
-            fragment.received_info.largest_received);
+            frame.received_info.largest_received);
   EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
-            fragment.received_info.time_received);
+            frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &fragment.received_info.missing_packets;
+      &frame.received_info.missing_packets;
   ASSERT_EQ(2u, sequence_nums->size());
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
   EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
-  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), fragment.sent_info.least_unacked);
-  ASSERT_EQ(3u, fragment.sent_info.non_retransmiting.size());
+  EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
+  ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
   const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &fragment.sent_info.non_retransmiting;
+      &frame.sent_info.non_retransmiting;
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
   EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
-  ASSERT_EQ(kInterArrival, fragment.congestion_info.type);
-  EXPECT_EQ(0x0302, fragment.congestion_info.inter_arrival.
+  ASSERT_EQ(kInterArrival, frame.congestion_info.type);
+  EXPECT_EQ(0x0302, frame.congestion_info.inter_arrival.
             accumulated_number_of_lost_packets);
   EXPECT_EQ(0x0504,
-            fragment.congestion_info.inter_arrival.offset_time);
+            frame.congestion_info.inter_arrival.offset_time);
   EXPECT_EQ(0x0706,
-            fragment.congestion_info.inter_arrival.delta_time);
+            frame.congestion_info.inter_arrival.delta_time);
 
   // Now test framing boundaries
   for (size_t i = kPacketHeaderSize + 3; i < kPacketHeaderSize + 21; ++i) {
@@ -1278,8 +1278,8 @@ TEST_F(QuicFramerTest, FecPacket) {
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
 
-  EXPECT_EQ(0u, visitor_.stream_fragments_.size());
-  EXPECT_EQ(0u, visitor_.ack_fragments_.size());
+  EXPECT_EQ(0u, visitor_.stream_frames_.size());
+  EXPECT_EQ(0u, visitor_.ack_frames_.size());
   ASSERT_EQ(1, visitor_.fec_count_);
   const QuicFecData& fec_data = *visitor_.fec_data_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABB),
@@ -1287,7 +1287,7 @@ TEST_F(QuicFramerTest, FecPacket) {
   EXPECT_EQ("abcdefghijklmnop", fec_data.redundancy);
 }
 
-TEST_F(QuicFramerTest, ConstructStreamFragmentPacket) {
+TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.retransmission_count = 0x01;
@@ -1296,18 +1296,18 @@ TEST_F(QuicFramerTest, ConstructStreamFragmentPacket) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicStreamFragment stream_fragment;
-  stream_fragment.stream_id = 0x01020304;
-  stream_fragment.fin = true;
-  stream_fragment.offset = GG_UINT64_C(0xBA98FEDC32107654);
-  stream_fragment.data = "hello world!";
+  QuicStreamFrame stream_frame;
+  stream_frame.stream_id = 0x01020304;
+  stream_frame.fin = true;
+  stream_frame.offset = GG_UINT64_C(0xBA98FEDC32107654);
+  stream_frame.data = "hello world!";
 
-  QuicFragment fragment;
-  fragment.type = STREAM_FRAGMENT;
-  fragment.stream_fragment = &stream_fragment;
+  QuicFrame frame;
+  frame.type = STREAM_FRAME;
+  frame.stream_frame = &stream_frame;
 
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrames frames;
+  frames.push_back(frame);
 
   unsigned char packet[] = {
     // guid
@@ -1326,9 +1326,9 @@ TEST_F(QuicFramerTest, ConstructStreamFragmentPacket) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (stream fragment)
+    // frame type (stream frame)
     0x00,
     // stream id
     0x04, 0x03, 0x02, 0x01,
@@ -1346,7 +1346,7 @@ TEST_F(QuicFramerTest, ConstructStreamFragmentPacket) {
   };
 
   QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFragementDataPacket(header, fragments, &data));
+  ASSERT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1355,7 +1355,7 @@ TEST_F(QuicFramerTest, ConstructStreamFragmentPacket) {
   delete data;
 }
 
-TEST_F(QuicFramerTest, ConstructAckFragmentPacket) {
+TEST_F(QuicFramerTest, ConstructAckFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.retransmission_count = 0x01;
@@ -1364,28 +1364,28 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacket) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicAckFragment ack_fragment;
-  ack_fragment.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_fragment.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
-  ack_fragment.received_info.missing_packets.insert(
+  QuicAckFrame ack_frame;
+  ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
+  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
-  ack_fragment.received_info.missing_packets.insert(
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABA));
-  ack_fragment.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AB0));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAF));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAE));
-  ack_fragment.congestion_info.type = kNone;
+  ack_frame.congestion_info.type = kNone;
 
-  QuicFragment fragment;
-  fragment.type = ACK_FRAGMENT;
-  fragment.ack_fragment = &ack_fragment;
+  QuicFrame frame;
+  frame.type = ACK_FRAME;
+  frame.ack_frame = &ack_frame;
 
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrames frames;
+  frames.push_back(frame);
 
   unsigned char packet[] = {
     // guid
@@ -1404,9 +1404,9 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacket) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (ack fragment)
+    // frame type (ack frame)
     0x02,
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -1462,7 +1462,7 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacket) {
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, fragments, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1471,7 +1471,7 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacket) {
   delete data;
 }
 
-TEST_F(QuicFramerTest, ConstructAckFragmentPacketTCP) {
+TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.retransmission_count = 0x01;
@@ -1480,30 +1480,30 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketTCP) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicAckFragment ack_fragment;
-  ack_fragment.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_fragment.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
-  ack_fragment.received_info.missing_packets.insert(
+  QuicAckFrame ack_frame;
+  ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
+  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
-  ack_fragment.received_info.missing_packets.insert(
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABA));
-  ack_fragment.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AB0));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAF));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAE));
-  ack_fragment.congestion_info.type = kTCP;
-  ack_fragment.congestion_info.tcp.accumulated_number_of_lost_packets = 0x0201;
-  ack_fragment.congestion_info.tcp.receive_window = 0x0403;
+  ack_frame.congestion_info.type = kTCP;
+  ack_frame.congestion_info.tcp.accumulated_number_of_lost_packets = 0x0201;
+  ack_frame.congestion_info.tcp.receive_window = 0x0403;
 
-  QuicFragment fragment;
-  fragment.type = ACK_FRAGMENT;
-  fragment.ack_fragment = &ack_fragment;
+  QuicFrame frame;
+  frame.type = ACK_FRAME;
+  frame.ack_frame = &ack_frame;
 
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrames frames;
+  frames.push_back(frame);
 
   unsigned char packet[] = {
     // guid
@@ -1522,9 +1522,9 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketTCP) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (ack fragment)
+    // frame type (ack frame)
     0x02,
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -1577,14 +1577,14 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketTCP) {
 #endif
     // congestion feedback type (tcp)
     0x01,
-    // ack_fragment.congestion_info.tcp.accumulated_number_of_lost_packets
+    // ack_frame.congestion_info.tcp.accumulated_number_of_lost_packets
     0x01, 0x02,
-    // ack_fragment.congestion_info.tcp.receive_window
+    // ack_frame.congestion_info.tcp.receive_window
     0x03, 0x04,
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, fragments, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1593,7 +1593,7 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketTCP) {
   delete data;
 }
 
-TEST_F(QuicFramerTest, ConstructAckFragmentPacketInterArrival) {
+TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.retransmission_count = 0x01;
@@ -1602,32 +1602,32 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketInterArrival) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicAckFragment ack_fragment;
-  ack_fragment.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_fragment.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
-  ack_fragment.received_info.missing_packets.insert(
+  QuicAckFrame ack_frame;
+  ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
+  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
-  ack_fragment.received_info.missing_packets.insert(
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABA));
-  ack_fragment.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AB0));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAF));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAE));
-  ack_fragment.congestion_info.type = kInterArrival;
-  ack_fragment.congestion_info.inter_arrival.accumulated_number_of_lost_packets
+  ack_frame.congestion_info.type = kInterArrival;
+  ack_frame.congestion_info.inter_arrival.accumulated_number_of_lost_packets
       = 0x0302;
-  ack_fragment.congestion_info.inter_arrival.offset_time = 0x0504;
-  ack_fragment.congestion_info.inter_arrival.delta_time = 0x0706;
+  ack_frame.congestion_info.inter_arrival.offset_time = 0x0504;
+  ack_frame.congestion_info.inter_arrival.delta_time = 0x0706;
 
-  QuicFragment fragment;
-  fragment.type = ACK_FRAGMENT;
-  fragment.ack_fragment = &ack_fragment;
+  QuicFrame frame;
+  frame.type = ACK_FRAME;
+  frame.ack_frame = &ack_frame;
 
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrames frames;
+  frames.push_back(frame);
 
   unsigned char packet[] = {
     // guid
@@ -1646,9 +1646,9 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketInterArrival) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (ack fragment)
+    // frame type (ack frame)
     0x02,
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -1710,7 +1710,7 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketInterArrival) {
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, fragments, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1719,7 +1719,7 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketInterArrival) {
   delete data;
 }
 
-TEST_F(QuicFramerTest, ConstructAckFragmentPacketFixRate) {
+TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.retransmission_count = 0x01;
@@ -1728,30 +1728,30 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketFixRate) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicAckFragment ack_fragment;
-  ack_fragment.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_fragment.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
-  ack_fragment.received_info.missing_packets.insert(
+  QuicAckFrame ack_frame;
+  ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
+  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
-  ack_fragment.received_info.missing_packets.insert(
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABA));
-  ack_fragment.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AB0));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAF));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAE));
-  ack_fragment.congestion_info.type = kFixRate;
-  ack_fragment.congestion_info.fix_rate.bitrate_in_bytes_per_second
+  ack_frame.congestion_info.type = kFixRate;
+  ack_frame.congestion_info.fix_rate.bitrate_in_bytes_per_second
       = 0x04030201;
 
-  QuicFragment fragment;
-  fragment.type = ACK_FRAGMENT;
-  fragment.ack_fragment = &ack_fragment;
+  QuicFrame frame;
+  frame.type = ACK_FRAME;
+  frame.ack_frame = &ack_frame;
 
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrames frames;
+  frames.push_back(frame);
 
   unsigned char packet[] = {
     // guid
@@ -1770,9 +1770,9 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketFixRate) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (ack fragment)
+    // frame type (ack frame)
     0x02,
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -1830,7 +1830,7 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketFixRate) {
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, fragments, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1839,7 +1839,7 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketFixRate) {
   delete data;
 }
 
-TEST_F(QuicFramerTest, ConstructAckFragmentPacketInvalidFeedback) {
+TEST_F(QuicFramerTest, ConstructAckFramePacketInvalidFeedback) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.retransmission_count = 0x01;
@@ -1848,35 +1848,35 @@ TEST_F(QuicFramerTest, ConstructAckFragmentPacketInvalidFeedback) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicAckFragment ack_fragment;
-  ack_fragment.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_fragment.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
-  ack_fragment.received_info.missing_packets.insert(
+  QuicAckFrame ack_frame;
+  ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
+  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
-  ack_fragment.received_info.missing_packets.insert(
+  ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABA));
-  ack_fragment.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AB0));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAF));
-  ack_fragment.sent_info.non_retransmiting.insert(
+  ack_frame.sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAE));
-  ack_fragment.congestion_info.type =
+  ack_frame.congestion_info.type =
       static_cast<CongestionFeedbackType>(kFixRate + 1);
 
-  QuicFragment fragment;
-  fragment.type = ACK_FRAGMENT;
-  fragment.ack_fragment = &ack_fragment;
+  QuicFrame frame;
+  frame.type = ACK_FRAME;
+  frame.ack_frame = &ack_frame;
 
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrames frames;
+  frames.push_back(frame);
 
   QuicPacket* data;
-  EXPECT_FALSE(framer_.ConstructFragementDataPacket(header, fragments, &data));
+  EXPECT_FALSE(framer_.ConstructFragementDataPacket(header, frames, &data));
 }
 
-TEST_F(QuicFramerTest, ConstructRstFragmentPacket) {
+TEST_F(QuicFramerTest, ConstructRstFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.retransmission_count = 0x01;
@@ -1885,11 +1885,11 @@ TEST_F(QuicFramerTest, ConstructRstFragmentPacket) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicRstStreamFragment rst_fragment;
-  rst_fragment.stream_id = 0x01020304;
-  rst_fragment.error_code = static_cast<QuicErrorCode>(0x05060708);
-  rst_fragment.offset = GG_UINT64_C(0xBA98FEDC32107654);
-  rst_fragment.error_details = "because I can";
+  QuicRstStreamFrame rst_frame;
+  rst_frame.stream_id = 0x01020304;
+  rst_frame.error_code = static_cast<QuicErrorCode>(0x05060708);
+  rst_frame.offset = GG_UINT64_C(0xBA98FEDC32107654);
+  rst_frame.error_details = "because I can";
 
   unsigned char packet[] = {
     // guid
@@ -1908,9 +1908,9 @@ TEST_F(QuicFramerTest, ConstructRstFragmentPacket) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (rst stream fragment)
+    // frame type (rst stream frame)
     0x03,
     // stream id
     0x04, 0x03, 0x02, 0x01,
@@ -1928,13 +1928,13 @@ TEST_F(QuicFramerTest, ConstructRstFragmentPacket) {
     'n',
   };
 
-  QuicFragment fragment(&rst_fragment);
+  QuicFrame frame(&rst_frame);
 
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrames frames;
+  frames.push_back(frame);
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, fragments, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1943,7 +1943,7 @@ TEST_F(QuicFramerTest, ConstructRstFragmentPacket) {
   delete data;
 }
 
-TEST_F(QuicFramerTest, ConstructCloseFragmentPacket) {
+TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.retransmission_count = 0x01;
@@ -1952,34 +1952,34 @@ TEST_F(QuicFramerTest, ConstructCloseFragmentPacket) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicConnectionCloseFragment close_fragment;
-  close_fragment.error_code = static_cast<QuicErrorCode>(0x05060708);
-  close_fragment.error_details = "because I can";
+  QuicConnectionCloseFrame close_frame;
+  close_frame.error_code = static_cast<QuicErrorCode>(0x05060708);
+  close_frame.error_details = "because I can";
 
-  QuicAckFragment* ack_fragment = &close_fragment.ack_fragment;
-  ack_fragment->received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_fragment->received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
-  ack_fragment->received_info.missing_packets.insert(
+  QuicAckFrame* ack_frame = &close_frame.ack_frame;
+  ack_frame->received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
+  ack_frame->received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame->received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
-  ack_fragment->received_info.missing_packets.insert(
+  ack_frame->received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABA));
-  ack_fragment->sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
-  ack_fragment->sent_info.non_retransmiting.insert(
+  ack_frame->sent_info.least_unacked = GG_UINT64_C(0x0123456789AA0);
+  ack_frame->sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AB0));
-  ack_fragment->sent_info.non_retransmiting.insert(
+  ack_frame->sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAF));
-  ack_fragment->sent_info.non_retransmiting.insert(
+  ack_frame->sent_info.non_retransmiting.insert(
       GG_UINT64_C(0x0123456789AAE));
-  ack_fragment->congestion_info.type = kInterArrival;
-  ack_fragment->congestion_info.inter_arrival.accumulated_number_of_lost_packets
+  ack_frame->congestion_info.type = kInterArrival;
+  ack_frame->congestion_info.inter_arrival.accumulated_number_of_lost_packets
       = 0x0302;
-  ack_fragment->congestion_info.inter_arrival.offset_time = 0x0504;
-  ack_fragment->congestion_info.inter_arrival.delta_time = 0x0706;
+  ack_frame->congestion_info.inter_arrival.offset_time = 0x0504;
+  ack_frame->congestion_info.inter_arrival.delta_time = 0x0706;
 
-  QuicFragment fragment(&close_fragment);
+  QuicFrame frame(&close_frame);
 
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrames frames;
+  frames.push_back(frame);
 
   unsigned char packet[] = {
     // guid
@@ -1998,9 +1998,9 @@ TEST_F(QuicFramerTest, ConstructCloseFragmentPacket) {
     // fec group
     0x00,
 
-    // fragment count
+    // frame count
     0x01,
-    // fragment type (connection close fragment)
+    // frame type (connection close frame)
     0x04,
     // error code
     0x08, 0x07, 0x06, 0x05,
@@ -2012,7 +2012,7 @@ TEST_F(QuicFramerTest, ConstructCloseFragmentPacket) {
     'I',  ' ',  'c',  'a',
     'n',
 
-    // Ack fragment.
+    // Ack frame.
 
     // largest received packet sequence number
     0xBC, 0x9A, 0x78, 0x56,
@@ -2074,7 +2074,7 @@ TEST_F(QuicFramerTest, ConstructCloseFragmentPacket) {
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, fragments, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -2143,28 +2143,28 @@ TEST_F(QuicFramerTest, IncrementRetransmitCount) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicStreamFragment stream_fragment;
-  stream_fragment.stream_id = 0x01020304;
-  stream_fragment.fin = true;
-  stream_fragment.offset = GG_UINT64_C(0xBA98FEDC32107654);
-  stream_fragment.data = "hello world!";
+  QuicStreamFrame stream_frame;
+  stream_frame.stream_id = 0x01020304;
+  stream_frame.fin = true;
+  stream_frame.offset = GG_UINT64_C(0xBA98FEDC32107654);
+  stream_frame.data = "hello world!";
 
-  QuicFragment fragment;
-  fragment.type = STREAM_FRAGMENT;
-  fragment.stream_fragment = &stream_fragment;
+  QuicFrame frame;
+  frame.type = STREAM_FRAME;
+  frame.stream_frame = &stream_frame;
 
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrames frames;
+  frames.push_back(frame);
 
   QuicPacket *original;
   ASSERT_TRUE(framer_.ConstructFragementDataPacket(
-      header, fragments, &original));
+      header, frames, &original));
   EXPECT_EQ(header.retransmission_count, framer_.GetRetransmitCount(original));
 
   header.retransmission_count = 2;
   QuicPacket *retransmitted;
   ASSERT_TRUE(framer_.ConstructFragementDataPacket(
-      header, fragments, &retransmitted));
+      header, frames, &retransmitted));
 
   framer_.IncrementRetransmitCount(original);
   EXPECT_EQ(header.retransmission_count, framer_.GetRetransmitCount(original));

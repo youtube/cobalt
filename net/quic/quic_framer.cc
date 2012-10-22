@@ -28,15 +28,15 @@ QuicFramer::~QuicFramer() {}
 
 bool QuicFramer::ConstructFragementDataPacket(
     const QuicPacketHeader& header,
-    const QuicFragments& fragments,
+    const QuicFrames& frames,
     QuicPacket** packet) {
   // Compute the length of the packet.  We use "magic numbers" here because
   // sizeof(member_) is not necessairly the same as sizeof(member_wire_format).
   size_t len = kPacketHeaderSize;
-  len += 1;  // fragment count
-  for (size_t i = 0; i < fragments.size(); ++i) {
+  len += 1;  // frame count
+  for (size_t i = 0; i < frames.size(); ++i) {
     len += 1;  // space for the 8 bit type
-    len += ComputeFragmentPayloadLength(fragments[i]);
+    len += ComputeFramePayloadLength(frames[i]);
   }
 
   QuicDataWriter writer(len);
@@ -45,46 +45,48 @@ bool QuicFramer::ConstructFragementDataPacket(
     return false;
   }
 
-  // fragment count
-  DCHECK_GE(256u, fragments.size());
-  if (!writer.WriteUInt8(fragments.size())) {
+  // frame count
+  if (frames.size() > 256u) {
+    return false;
+  }
+  if (!writer.WriteUInt8(frames.size())) {
     return false;
   }
 
-  for (size_t i = 0; i < fragments.size(); ++i) {
-    const QuicFragment& fragment = fragments[i];
-    if (!writer.WriteUInt8(fragment.type)) {
+  for (size_t i = 0; i < frames.size(); ++i) {
+    const QuicFrame& frame = frames[i];
+    if (!writer.WriteUInt8(frame.type)) {
           return false;
     }
 
-    switch (fragment.type) {
-      case STREAM_FRAGMENT:
-        if (!AppendStreamFragmentPayload(*fragment.stream_fragment,
+    switch (frame.type) {
+      case STREAM_FRAME:
+        if (!AppendStreamFramePayload(*frame.stream_frame,
                                          &writer)) {
           return false;
         }
         break;
-      case PDU_FRAGMENT:
-        return RaiseError(QUIC_INVALID_FRAGMENT_DATA);
-      case ACK_FRAGMENT:
-        if (!AppendAckFragmentPayload(*fragment.ack_fragment, &writer)) {
+      case PDU_FRAME:
+        return RaiseError(QUIC_INVALID_FRAME_DATA);
+      case ACK_FRAME:
+        if (!AppendAckFramePayload(*frame.ack_frame, &writer)) {
           return false;
         }
         break;
-      case RST_STREAM_FRAGMENT:
-        if (!AppendRstStreamFragmentPayload(*fragment.rst_stream_fragment,
+      case RST_STREAM_FRAME:
+        if (!AppendRstStreamFramePayload(*frame.rst_stream_frame,
                                             &writer)) {
           return false;
         }
         break;
-      case CONNECTION_CLOSE_FRAGMENT:
-        if (!AppendConnectionCloseFragmentPayload(
-            *fragment.connection_close_fragment, &writer)) {
+      case CONNECTION_CLOSE_FRAME:
+        if (!AppendConnectionCloseFramePayload(
+            *frame.connection_close_frame, &writer)) {
           return false;
         }
         break;
       default:
-        return RaiseError(QUIC_INVALID_FRAGMENT_DATA);
+        return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
   }
 
@@ -166,9 +168,9 @@ bool QuicFramer::ProcessPacket(const IPEndPoint& peer_address,
       StringPiece payload = reader_->PeekRemainingPayload();
       visitor_->OnFecProtectedPayload(payload);
     }
-    if (!ProcessFragmentData()) {
-      DCHECK_NE(QUIC_NO_ERROR, error_);  // ProcessFragmentData sets the error.
-      DLOG(WARNING) << "Unable to process fragment data.";
+    if (!ProcessFrameData()) {
+      DCHECK_NE(QUIC_NO_ERROR, error_);  // ProcessFrameData sets the error.
+      DLOG(WARNING) << "Unable to process frame data.";
       return false;
     }
   } else {
@@ -204,9 +206,9 @@ bool QuicFramer::ProcessRevivedPacket(const IPEndPoint& peer_address,
   }
 
   reader_.reset(new QuicDataReader(payload.data(), payload.length()));
-  if (!ProcessFragmentData()) {
-    DCHECK_NE(QUIC_NO_ERROR, error_);  // ProcessFragmentData sets the error.
-    DLOG(WARNING) << "Unable to process fragment data.";
+  if (!ProcessFrameData()) {
+    DCHECK_NE(QUIC_NO_ERROR, error_);  // ProcessFrameData sets the error.
+    DLOG(WARNING) << "Unable to process frame data.";
     return false;
   }
 
@@ -297,60 +299,60 @@ bool QuicFramer::ProcessPacketHeader(QuicPacketHeader* header,
   return true;
 }
 
-bool QuicFramer::ProcessFragmentData() {
-  uint8 fragment_count;
-  if (!reader_->ReadBytes(&fragment_count, 1)) {
-    set_detailed_error("Unable to read fragment count.");
-    return RaiseError(QUIC_INVALID_FRAGMENT_DATA);
+bool QuicFramer::ProcessFrameData() {
+  uint8 frame_count;
+  if (!reader_->ReadBytes(&frame_count, 1)) {
+    set_detailed_error("Unable to read frame count.");
+    return RaiseError(QUIC_INVALID_FRAME_DATA);
   }
 
-  for (uint8 i = 0; i < fragment_count; ++i) {
-    uint8 fragment_type;
-    if (!reader_->ReadBytes(&fragment_type, 1)) {
-      set_detailed_error("Unable to read fragment type.");
-      return RaiseError(QUIC_INVALID_FRAGMENT_DATA);
+  for (uint8 i = 0; i < frame_count; ++i) {
+    uint8 frame_type;
+    if (!reader_->ReadBytes(&frame_type, 1)) {
+      set_detailed_error("Unable to read frame type.");
+      return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
-    switch (fragment_type) {
-      case STREAM_FRAGMENT:
-        if (!ProcessStreamFragment()) {
-          return RaiseError(QUIC_INVALID_FRAGMENT_DATA);
+    switch (frame_type) {
+      case STREAM_FRAME:
+        if (!ProcessStreamFrame()) {
+          return RaiseError(QUIC_INVALID_FRAME_DATA);
         }
         break;
-      case PDU_FRAGMENT:
-        if (!ProcessPDUFragment()) {
-          return RaiseError(QUIC_INVALID_FRAGMENT_DATA);
+      case PDU_FRAME:
+        if (!ProcessPDUFrame()) {
+          return RaiseError(QUIC_INVALID_FRAME_DATA);
         }
         break;
-      case ACK_FRAGMENT: {
-        QuicAckFragment fragment;
-        if (!ProcessAckFragment(&fragment)) {
-          return RaiseError(QUIC_INVALID_FRAGMENT_DATA);
+      case ACK_FRAME: {
+        QuicAckFrame frame;
+        if (!ProcessAckFrame(&frame)) {
+          return RaiseError(QUIC_INVALID_FRAME_DATA);
         }
         break;
       }
-      case RST_STREAM_FRAGMENT:
-        if (!ProcessRstStreamFragment()) {
+      case RST_STREAM_FRAME:
+        if (!ProcessRstStreamFrame()) {
           return RaiseError(QUIC_INVALID_RST_STREAM_DATA);
         }
         break;
-      case CONNECTION_CLOSE_FRAGMENT:
-        if (!ProcessConnectionCloseFragment()) {
+      case CONNECTION_CLOSE_FRAME:
+        if (!ProcessConnectionCloseFrame()) {
           return RaiseError(QUIC_INVALID_CONNECTION_CLOSE_DATA);
         }
         break;
       default:
-        set_detailed_error("Illegal fragment type.");
-        DLOG(WARNING) << "Illegal fragment type: " << (int)fragment_type;
-        return RaiseError(QUIC_INVALID_FRAGMENT_DATA);
+        set_detailed_error("Illegal frame type.");
+        DLOG(WARNING) << "Illegal frame type: " << (int)frame_type;
+        return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
   }
 
   return true;
 }
 
-bool QuicFramer::ProcessStreamFragment() {
-  QuicStreamFragment fragment;
-  if (!reader_->ReadUInt32(&fragment.stream_id)) {
+bool QuicFramer::ProcessStreamFrame() {
+  QuicStreamFrame frame;
+  if (!reader_->ReadUInt32(&frame.stream_id)) {
     set_detailed_error("Unable to read stream_id.");
     return false;
   }
@@ -364,33 +366,33 @@ bool QuicFramer::ProcessStreamFragment() {
     set_detailed_error("Invalid fin value.");
     return false;
   }
-  fragment.fin = (fin == 1);
+  frame.fin = (fin == 1);
 
-  if (!reader_->ReadUInt64(&fragment.offset)) {
+  if (!reader_->ReadUInt64(&frame.offset)) {
     set_detailed_error("Unable to read offset.");
     return false;
   }
 
-  if (!reader_->ReadStringPiece16(&fragment.data)) {
-    set_detailed_error("Unable to read fragment data.");
+  if (!reader_->ReadStringPiece16(&frame.data)) {
+    set_detailed_error("Unable to read frame data.");
     return false;
   }
 
-  visitor_->OnStreamFragment(fragment);
+  visitor_->OnStreamFrame(frame);
   return true;
 }
 
-bool QuicFramer::ProcessPDUFragment() {
+bool QuicFramer::ProcessPDUFrame() {
   return false;
 }
 
-bool QuicFramer::ProcessAckFragment(QuicAckFragment* fragment) {
-  if (!reader_->ReadUInt48(&fragment->received_info.largest_received)) {
+bool QuicFramer::ProcessAckFrame(QuicAckFrame* frame) {
+  if (!reader_->ReadUInt48(&frame->received_info.largest_received)) {
     set_detailed_error("Unable to read largest received.");
     return false;
   }
 
-  if (!reader_->ReadUInt64(&fragment->received_info.time_received)) {
+  if (!reader_->ReadUInt64(&frame->received_info.time_received)) {
     set_detailed_error("Unable to read time received.");
     return false;
   }
@@ -407,10 +409,10 @@ bool QuicFramer::ProcessAckFragment(QuicAckFragment* fragment) {
       set_detailed_error("Unable to read sequence number in unacked packets.");
       return false;
     }
-    fragment->received_info.missing_packets.insert(sequence_number);
+    frame->received_info.missing_packets.insert(sequence_number);
   }
 
-  if (!reader_->ReadUInt48(&fragment->sent_info.least_unacked)) {
+  if (!reader_->ReadUInt48(&frame->sent_info.least_unacked)) {
     set_detailed_error("Unable to read least unacked.");
     return false;
   }
@@ -427,7 +429,7 @@ bool QuicFramer::ProcessAckFragment(QuicAckFragment* fragment) {
           "Unable to read sequence number in non-retransmitting.");
       return false;
     }
-    fragment->sent_info.non_retransmiting.insert(sequence_number);
+    frame->sent_info.non_retransmiting.insert(sequence_number);
   }
 
   uint8 congestion_info_type;
@@ -435,15 +437,15 @@ bool QuicFramer::ProcessAckFragment(QuicAckFragment* fragment) {
     set_detailed_error("Unable to read congestion info type.");
     return false;
   }
-  fragment->congestion_info.type =
+  frame->congestion_info.type =
       static_cast<CongestionFeedbackType>(congestion_info_type);
 
-  switch (fragment->congestion_info.type) {
+  switch (frame->congestion_info.type) {
     case kNone:
       break;
     case kInterArrival: {
       CongestionFeedbackMessageInterArrival* inter_arrival =
-          &fragment->congestion_info.inter_arrival;
+          &frame->congestion_info.inter_arrival;
       if (!reader_->ReadUInt16(
               &inter_arrival->accumulated_number_of_lost_packets)) {
         set_detailed_error(
@@ -462,7 +464,7 @@ bool QuicFramer::ProcessAckFragment(QuicAckFragment* fragment) {
     }
     case kFixRate: {
       CongestionFeedbackMessageFixRate* fix_rate =
-          &fragment->congestion_info.fix_rate;
+          &frame->congestion_info.fix_rate;
       if (!reader_->ReadUInt32(&fix_rate->bitrate_in_bytes_per_second)) {
         set_detailed_error("Unable to read bitrate.");
         return false;
@@ -470,7 +472,7 @@ bool QuicFramer::ProcessAckFragment(QuicAckFragment* fragment) {
       break;
     }
     case kTCP: {
-      CongestionFeedbackMessageTCP* tcp = &fragment->congestion_info.tcp;
+      CongestionFeedbackMessageTCP* tcp = &frame->congestion_info.tcp;
       if (!reader_->ReadUInt16(&tcp->accumulated_number_of_lost_packets)) {
         set_detailed_error(
             "Unable to read accumulated number of lost packets.");
@@ -485,23 +487,23 @@ bool QuicFramer::ProcessAckFragment(QuicAckFragment* fragment) {
     default:
       set_detailed_error("Illegal congestion info type.");
       DLOG(WARNING) << "Illegal congestion info type: "
-                    << fragment->congestion_info.type;
-      return RaiseError(QUIC_INVALID_FRAGMENT_DATA);
+                    << frame->congestion_info.type;
+      return RaiseError(QUIC_INVALID_FRAME_DATA);
   }
 
-  visitor_->OnAckFragment(*fragment);
+  visitor_->OnAckFrame(*frame);
   return true;
 }
 
-bool QuicFramer::ProcessRstStreamFragment() {
-  QuicRstStreamFragment fragment;
-  if (!reader_->ReadUInt32(&fragment.stream_id)) {
+bool QuicFramer::ProcessRstStreamFrame() {
+  QuicRstStreamFrame frame;
+  if (!reader_->ReadUInt32(&frame.stream_id)) {
     set_detailed_error("Unable to read stream_id.");
     return false;
   }
 
-  if (!reader_->ReadUInt64(&fragment.offset)) {
-    set_detailed_error("Unable to read offset in rst fragment.");
+  if (!reader_->ReadUInt64(&frame.offset)) {
+    set_detailed_error("Unable to read offset in rst frame.");
     return false;
   }
 
@@ -510,42 +512,42 @@ bool QuicFramer::ProcessRstStreamFragment() {
     set_detailed_error("Unable to read rst stream error code.");
     return false;
   }
-  fragment.error_code = static_cast<QuicErrorCode>(error_code);
+  frame.error_code = static_cast<QuicErrorCode>(error_code);
 
   StringPiece error_details;
   if (!reader_->ReadStringPiece16(&error_details)) {
     set_detailed_error("Unable to read rst stream error details.");
     return false;
   }
-  fragment.error_details = error_details.as_string();
+  frame.error_details = error_details.as_string();
 
-  visitor_->OnRstStreamFragment(fragment);
+  visitor_->OnRstStreamFrame(frame);
   return true;
 }
 
-bool QuicFramer::ProcessConnectionCloseFragment() {
-  QuicConnectionCloseFragment fragment;
+bool QuicFramer::ProcessConnectionCloseFrame() {
+  QuicConnectionCloseFrame frame;
 
   uint32 error_code;
   if (!reader_->ReadUInt32(&error_code)) {
     set_detailed_error("Unable to read connection close error code.");
     return false;
   }
-  fragment.error_code = static_cast<QuicErrorCode>(error_code);
+  frame.error_code = static_cast<QuicErrorCode>(error_code);
 
   StringPiece error_details;
   if (!reader_->ReadStringPiece16(&error_details)) {
     set_detailed_error("Unable to read connection close error details.");
     return false;
   }
-  fragment.error_details = error_details.as_string();
+  frame.error_details = error_details.as_string();
 
-  if (!ProcessAckFragment(&fragment.ack_fragment)) {
-    DLOG(WARNING) << "Unable to process ack fragment.";
+  if (!ProcessAckFrame(&frame.ack_frame)) {
+    DLOG(WARNING) << "Unable to process ack frame.";
     return false;
   }
 
-  visitor_->OnConnectionCloseFragment(fragment);
+  visitor_->OnConnectionCloseFrame(frame);
   return true;
 }
 
@@ -589,23 +591,23 @@ bool QuicFramer::DecryptPayload(const QuicEncryptedPacket& packet) {
   return true;
 }
 
-size_t QuicFramer::ComputeFragmentPayloadLength(const QuicFragment& fragment) {
+size_t QuicFramer::ComputeFramePayloadLength(const QuicFrame& frame) {
   size_t len = 0;
   // We use "magic numbers" here because sizeof(member_) is not necessairly the
   // same as sizeof(member_wire_format).
-  switch (fragment.type) {
-    case STREAM_FRAGMENT:
+  switch (frame.type) {
+    case STREAM_FRAME:
       len += 4;  // stream id
       len += 1;  // fin
       len += 8;  // offset
       len += 2;  // space for the 16 bit length
-      len += fragment.stream_fragment->data.size();
+      len += frame.stream_frame->data.size();
       break;
-    case PDU_FRAGMENT:
-      DLOG(INFO) << "PDU_FRAGMENT not yet supported";
+    case PDU_FRAME:
+      DLOG(INFO) << "PDU_FRAME not yet supported";
       break;  // Need to support this eventually :>
-    case ACK_FRAGMENT: {
-      const QuicAckFragment& ack = *fragment.ack_fragment;
+    case ACK_FRAME: {
+      const QuicAckFrame& ack = *frame.ack_frame;
       len += 6;  // largest received packet sequence number
       len += 8;  // time delta
       len += 1;  // num missing packets
@@ -633,101 +635,101 @@ size_t QuicFramer::ComputeFragmentPayloadLength(const QuicFragment& fragment) {
       }
       break;
     }
-    case RST_STREAM_FRAGMENT:
+    case RST_STREAM_FRAME:
       len += 4;  // stream id
       len += 8;  // offset
       len += 4;  // error code
       len += 2;  // error details size
-      len += fragment.rst_stream_fragment->error_details.size();
+      len += frame.rst_stream_frame->error_details.size();
       break;
-    case CONNECTION_CLOSE_FRAGMENT:
+    case CONNECTION_CLOSE_FRAME:
       len += 4;  // error code
       len += 2;  // error details size
-      len += fragment.connection_close_fragment->error_details.size();
-      len += ComputeFragmentPayloadLength(
-          QuicFragment(&fragment.connection_close_fragment->ack_fragment));
+      len += frame.connection_close_frame->error_details.size();
+      len += ComputeFramePayloadLength(
+          QuicFrame(&frame.connection_close_frame->ack_frame));
       break;
     default:
-      set_detailed_error("Illegal fragment type.");
-      DLOG(INFO) << "Illegal fragment type: " << fragment.type;
+      set_detailed_error("Illegal frame type.");
+      DLOG(INFO) << "Illegal frame type: " << frame.type;
       break;
   }
   return len;
 }
 
-bool QuicFramer::AppendStreamFragmentPayload(
-    const QuicStreamFragment& fragment,
+bool QuicFramer::AppendStreamFramePayload(
+    const QuicStreamFrame& frame,
     QuicDataWriter* writer) {
-  if (!writer->WriteUInt32(fragment.stream_id)) {
+  if (!writer->WriteUInt32(frame.stream_id)) {
     return false;
   }
-  if (!writer->WriteUInt8(fragment.fin)) {
+  if (!writer->WriteUInt8(frame.fin)) {
     return false;
   }
-  if (!writer->WriteUInt64(fragment.offset)) {
+  if (!writer->WriteUInt64(frame.offset)) {
     return false;
   }
-  if (!writer->WriteUInt16(fragment.data.size())) {
+  if (!writer->WriteUInt16(frame.data.size())) {
     return false;
   }
-  if (!writer->WriteBytes(fragment.data.data(),
-                           fragment.data.size())) {
+  if (!writer->WriteBytes(frame.data.data(),
+                           frame.data.size())) {
     return false;
   }
   return true;
 }
 
-bool QuicFramer::AppendAckFragmentPayload(
-    const QuicAckFragment& fragment,
+bool QuicFramer::AppendAckFramePayload(
+    const QuicAckFrame& frame,
     QuicDataWriter* writer) {
-  if (!writer->WriteUInt48(fragment.received_info.largest_received)) {
+  if (!writer->WriteUInt48(frame.received_info.largest_received)) {
     return false;
   }
-  if (!writer->WriteUInt64(fragment.received_info.time_received)) {
+  if (!writer->WriteUInt64(frame.received_info.time_received)) {
     return false;
   }
 
-  size_t num_unacked_packets = fragment.received_info.missing_packets.size();
+  size_t num_unacked_packets = frame.received_info.missing_packets.size();
   if (!writer->WriteBytes(&num_unacked_packets, 1)) {
     return false;
   }
 
   hash_set<QuicPacketSequenceNumber>::const_iterator it =
-      fragment.received_info.missing_packets.begin();
-  for (; it != fragment.received_info.missing_packets.end(); ++it) {
+      frame.received_info.missing_packets.begin();
+  for (; it != frame.received_info.missing_packets.end(); ++it) {
     if (!writer->WriteUInt48(*it)) {
       return false;
     }
   }
 
-  if (!writer->WriteUInt48(fragment.sent_info.least_unacked)) {
+  if (!writer->WriteUInt48(frame.sent_info.least_unacked)) {
     return false;
   }
 
   size_t num_non_retransmiting_packets =
-      fragment.sent_info.non_retransmiting.size();
+      frame.sent_info.non_retransmiting.size();
   if (!writer->WriteBytes(&num_non_retransmiting_packets, 1)) {
     return false;
   }
 
-  it = fragment.sent_info.non_retransmiting.begin();
-  while (it != fragment.sent_info.non_retransmiting.end()) {
+  it = frame.sent_info.non_retransmiting.begin();
+  while (it != frame.sent_info.non_retransmiting.end()) {
     if (!writer->WriteUInt48(*it)) {
       return false;
     }
     ++it;
   }
 
-  if (!writer->WriteBytes(&fragment.congestion_info.type, 1)) {
+  if (!writer->WriteBytes(&frame.congestion_info.type, 1)) {
     return false;
   }
 
-  switch (fragment.congestion_info.type) {
+  switch (frame.congestion_info.type) {
     case kNone:
       break;
     case kInterArrival: {
       const CongestionFeedbackMessageInterArrival& inter_arrival =
-          fragment.congestion_info.inter_arrival;
+          frame.congestion_info.inter_arrival;
       if (!writer->WriteUInt16(
               inter_arrival.accumulated_number_of_lost_packets)) {
         return false;
@@ -742,14 +744,14 @@ bool QuicFramer::AppendAckFragmentPayload(
     }
     case kFixRate: {
       const CongestionFeedbackMessageFixRate& fix_rate =
-          fragment.congestion_info.fix_rate;
+          frame.congestion_info.fix_rate;
       if (!writer->WriteUInt32(fix_rate.bitrate_in_bytes_per_second)) {
         return false;
       }
       break;
     }
     case kTCP: {
-      const CongestionFeedbackMessageTCP& tcp = fragment.congestion_info.tcp;
+      const CongestionFeedbackMessageTCP& tcp = frame.congestion_info.tcp;
       if (!writer->WriteUInt16(tcp.accumulated_number_of_lost_packets)) {
         return false;
       }
@@ -765,38 +767,38 @@ bool QuicFramer::AppendAckFragmentPayload(
   return true;
 }
 
-bool QuicFramer::AppendRstStreamFragmentPayload(
-        const QuicRstStreamFragment& fragment,
+bool QuicFramer::AppendRstStreamFramePayload(
+        const QuicRstStreamFrame& frame,
         QuicDataWriter* writer) {
-  if (!writer->WriteUInt32(fragment.stream_id)) {
+  if (!writer->WriteUInt32(frame.stream_id)) {
     return false;
   }
-  if (!writer->WriteUInt64(fragment.offset)) {
+  if (!writer->WriteUInt64(frame.offset)) {
     return false;
   }
 
-  uint32 error_code = static_cast<uint32>(fragment.error_code);
+  uint32 error_code = static_cast<uint32>(frame.error_code);
   if (!writer->WriteUInt32(error_code)) {
     return false;
   }
 
-  if (!writer->WriteStringPiece16(fragment.error_details)) {
+  if (!writer->WriteStringPiece16(frame.error_details)) {
     return false;
   }
   return true;
 }
 
-bool QuicFramer::AppendConnectionCloseFragmentPayload(
-    const QuicConnectionCloseFragment& fragment,
+bool QuicFramer::AppendConnectionCloseFramePayload(
+    const QuicConnectionCloseFrame& frame,
     QuicDataWriter* writer) {
-  uint32 error_code = static_cast<uint32>(fragment.error_code);
+  uint32 error_code = static_cast<uint32>(frame.error_code);
   if (!writer->WriteUInt32(error_code)) {
     return false;
   }
-  if (!writer->WriteStringPiece16(fragment.error_details)) {
+  if (!writer->WriteStringPiece16(frame.error_details)) {
     return false;
   }
-  AppendAckFragmentPayload(fragment.ack_fragment, writer);
+  AppendAckFramePayload(frame.ack_frame, writer);
   return true;
 }
 
