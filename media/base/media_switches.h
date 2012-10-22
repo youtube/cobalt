@@ -33,6 +33,12 @@ MEDIA_EXPORT extern const char kDisableAudioFallback[];
 
 MEDIA_EXPORT extern const char kDisableAudioOutputResampler[];
 
+#if defined(OS_WIN) || defined(OS_MAC)
+MEDIA_EXPORT extern const char kDisableRendererSideMixing[];
+#else
+MEDIA_EXPORT extern const char kEnableRendererSideMixing[];
+#endif
+
 MEDIA_EXPORT extern const char kEnableAudioMixer[];
 
 MEDIA_EXPORT extern const char kEnableWebAudioInput[];
