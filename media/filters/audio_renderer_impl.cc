@@ -11,9 +11,11 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/callback_helpers.h"
+#include "base/command_line.h"
 #include "base/logging.h"
 #include "media/audio/audio_util.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/media_switches.h"
 
 namespace media {
 
@@ -225,13 +227,44 @@ void AudioRendererImpl::OnDecoderInitDone(
       channels, sample_rate, bits_per_channel, 0.0f,
       base::Bind(&AudioRendererImpl::ScheduleRead_Locked, this));
 
-  // We use the AUDIO_PCM_LINEAR flag because AUDIO_PCM_LOW_LATENCY
-  // does not currently support all the sample-rates that we require.
-  // Please see: http://code.google.com/p/chromium/issues/detail?id=103627
-  // for more details.
+  int buffer_size = GetHighLatencyOutputBufferSize(sample_rate);
+  AudioParameters::Format format = AudioParameters::AUDIO_PCM_LINEAR;
+
+  // On Windows and Mac we can use the low latency pipeline because they provide
+  // accurate and smooth delay information.  On other platforms like Linux there
+  // are jitter issues.
+  // TODO(dalecurtis): Fix bugs: http://crbug.com/138098 http://crbug.com/32757
+#if defined(OS_WIN) || defined(OS_MAC)
+  const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
+  // Either AudioOutputResampler or renderer side mixing must be enabled to use
+  // the low latency pipeline.
+  if (!cmd_line->HasSwitch(switches::kDisableRendererSideMixing) ||
+      !cmd_line->HasSwitch(switches::kDisableAudioOutputResampler)) {
+    // There are two cases here:
+    //
+    // 1. Renderer side mixing is enabled and the buffer size is actually
+    //    controlled by the size of the AudioBus provided to Render().  In this
+    //    case the buffer size below is ignored.
+    //
+    // 2. Renderer side mixing is disabled and AudioOutputResampler on the
+    //    browser side is rebuffering to the hardware size on the fly.
+    //
+    // In the second case we need to choose a a buffer size small enough that
+    // the decoder can fulfill the high frequency low latency audio callbacks,
+    // but not so small that it's less than the hardware buffer size (or we'll
+    // run into issues since the shared memory sync is non-blocking).
+    //
+    // The buffer size below is arbitrarily the same size used by Pepper Flash
+    // for consistency.  Since renderer side mixing is only disabled for debug
+    // purposes it's okay that this buffer size might lead to jitter since it's
+    // not a multiple of the hardware buffer size.
+    format = AudioParameters::AUDIO_PCM_LOW_LATENCY;
+    buffer_size = 2048;
+  }
+#endif
+
   audio_parameters_ = AudioParameters(
-      AudioParameters::AUDIO_PCM_LINEAR, channel_layout, sample_rate,
-      bits_per_channel, GetHighLatencyOutputBufferSize(sample_rate));
+      format, channel_layout, sample_rate, bits_per_channel, buffer_size);
 
   sink_->Initialize(audio_parameters_, this);
   sink_->Start();
