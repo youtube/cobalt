@@ -47,8 +47,8 @@ const int kRetransmissionOffset = 14;
 // Index into the transmission time offset in the header.
 const int kTransmissionTimeOffset = 15;
 
-// Size in bytes of all stream fragment fields.
-const size_t kMinStreamFragmentLength = 15;
+// Size in bytes of all stream frame fields.
+const size_t kMinStreamFrameLength = 15;
 
 // Limit on the delta between stream IDs.
 const QuicStreamId kMaxStreamIdDelta = 100;
@@ -61,18 +61,18 @@ typedef std::pair<QuicPacketSequenceNumber, QuicPacket*> PacketPair;
 
 const int64 kDefaultTimeout = 600000000;  // 10 minutes
 
-enum QuicFragmentType {
-  STREAM_FRAGMENT = 0,
-  PDU_FRAGMENT,
-  ACK_FRAGMENT,
-  RST_STREAM_FRAGMENT,
-  CONNECTION_CLOSE_FRAGMENT,
-  NUM_FRAGMENT_TYPES
+enum QuicFrameType {
+  STREAM_FRAME = 0,
+  PDU_FRAME,
+  ACK_FRAME,
+  RST_STREAM_FRAME,
+  CONNECTION_CLOSE_FRAME,
+  NUM_FRAME_TYPES
 };
 
 enum QuicPacketFlags {
   PACKET_FLAGS_NONE = 0,
-  PACKET_FLAGS_FEC = 1,  // Payload is FEC as opposed to fragments.
+  PACKET_FLAGS_FEC = 1,  // Payload is FEC as opposed to frames.
 
   PACKET_FLAGS_MAX = PACKET_FLAGS_FEC
 };
@@ -81,7 +81,7 @@ enum QuicErrorCode {
   // Stream errors.
   QUIC_NO_ERROR = 0,
 
-  // There were data fragments after the a fin or reset.
+  // There were data frames after the a fin or reset.
   QUIC_STREAM_DATA_AFTER_TERMINATION,
   // There was some server error which halted stream processing.
   QUIC_SERVER_ERROR_PROCESSING_STREAM,
@@ -94,8 +94,8 @@ enum QuicErrorCode {
 
   // Control frame is malformed.
   QUIC_INVALID_PACKET_HEADER,
-  // Fragment data is malformed.
-  QUIC_INVALID_FRAGMENT_DATA,
+  // Frame data is malformed.
+  QUIC_INVALID_FRAME_DATA,
   // FEC data is malformed.
   QUIC_INVALID_FEC_DATA,
   // Stream rst data is malformed
@@ -150,9 +150,9 @@ struct NET_EXPORT_PRIVATE QuicPacketHeader {
   QuicFecGroupNumber fec_group;
 };
 
-struct NET_EXPORT_PRIVATE QuicStreamFragment {
-  QuicStreamFragment();
-  QuicStreamFragment(QuicStreamId stream_id,
+struct NET_EXPORT_PRIVATE QuicStreamFrame {
+  QuicStreamFrame();
+  QuicStreamFrame(QuicStreamId stream_id,
                      bool fin,
                      uint64 offset,
                      base::StringPiece data);
@@ -237,9 +237,9 @@ struct NET_EXPORT_PRIVATE CongestionInfo {
   };
 };
 
-struct NET_EXPORT_PRIVATE QuicAckFragment {
-  QuicAckFragment() {}
-  QuicAckFragment(QuicPacketSequenceNumber largest_received,
+struct NET_EXPORT_PRIVATE QuicAckFrame {
+  QuicAckFrame() {}
+  QuicAckFrame(QuicPacketSequenceNumber largest_received,
                   QuicTransmissionTime time_received,
                   QuicPacketSequenceNumber least_unacked) {
     received_info.largest_received = largest_received;
@@ -252,7 +252,7 @@ struct NET_EXPORT_PRIVATE QuicAckFragment {
   ReceivedPacketInfo received_info;
   CongestionInfo congestion_info;
 
-  friend std::ostream& operator<<(std::ostream& os, const QuicAckFragment& s) {
+  friend std::ostream& operator<<(std::ostream& os, const QuicAckFrame& s) {
     os << "largest_received: " << s.received_info.largest_received
        << " time: " << s.received_info.time_received
        << " missing: ";
@@ -274,9 +274,9 @@ struct NET_EXPORT_PRIVATE QuicAckFragment {
   }
 };
 
-struct NET_EXPORT_PRIVATE QuicRstStreamFragment {
-  QuicRstStreamFragment() {}
-  QuicRstStreamFragment(QuicStreamId stream_id, uint64 offset,
+struct NET_EXPORT_PRIVATE QuicRstStreamFrame {
+  QuicRstStreamFrame() {}
+  QuicRstStreamFrame(QuicStreamId stream_id, uint64 offset,
                         QuicErrorCode error_code)
       : stream_id(stream_id), offset(offset), error_code(error_code) {
     DCHECK_LE(error_code, std::numeric_limits<uint8>::max());
@@ -288,39 +288,39 @@ struct NET_EXPORT_PRIVATE QuicRstStreamFragment {
   std::string error_details;
 };
 
-struct NET_EXPORT_PRIVATE QuicConnectionCloseFragment {
+struct NET_EXPORT_PRIVATE QuicConnectionCloseFrame {
   QuicErrorCode error_code;
-  QuicAckFragment ack_fragment;
+  QuicAckFrame ack_frame;
   std::string error_details;
 };
 
-struct NET_EXPORT_PRIVATE QuicFragment {
-  QuicFragment() {}
-  explicit QuicFragment(QuicStreamFragment* stream_fragment)
-      : type(STREAM_FRAGMENT), stream_fragment(stream_fragment) {
+struct NET_EXPORT_PRIVATE QuicFrame {
+  QuicFrame() {}
+  explicit QuicFrame(QuicStreamFrame* stream_frame)
+      : type(STREAM_FRAME), stream_frame(stream_frame) {
   }
-  explicit QuicFragment(QuicAckFragment* fragment)
-      : type(ACK_FRAGMENT), ack_fragment(fragment) {
+  explicit QuicFrame(QuicAckFrame* frame)
+      : type(ACK_FRAME), ack_frame(frame) {
   }
-  explicit QuicFragment(QuicRstStreamFragment* fragment)
-      : type(RST_STREAM_FRAGMENT),
-        rst_stream_fragment(fragment) {
+  explicit QuicFrame(QuicRstStreamFrame* frame)
+      : type(RST_STREAM_FRAME),
+        rst_stream_frame(frame) {
   }
-  explicit QuicFragment(QuicConnectionCloseFragment* fragment)
-      : type(CONNECTION_CLOSE_FRAGMENT),
-        connection_close_fragment(fragment) {
+  explicit QuicFrame(QuicConnectionCloseFrame* frame)
+      : type(CONNECTION_CLOSE_FRAME),
+        connection_close_frame(frame) {
   }
 
-  QuicFragmentType type;
+  QuicFrameType type;
   union {
-    QuicStreamFragment* stream_fragment;
-    QuicAckFragment* ack_fragment;
-    QuicRstStreamFragment* rst_stream_fragment;
-    QuicConnectionCloseFragment* connection_close_fragment;
+    QuicStreamFrame* stream_frame;
+    QuicAckFrame* ack_frame;
+    QuicRstStreamFrame* rst_stream_frame;
+    QuicConnectionCloseFrame* connection_close_frame;
   };
 };
 
-typedef std::vector<QuicFragment> QuicFragments;
+typedef std::vector<QuicFrame> QuicFrames;
 
 struct NET_EXPORT_PRIVATE QuicFecData {
   QuicFecData();

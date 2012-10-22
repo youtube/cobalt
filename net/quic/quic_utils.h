@@ -23,9 +23,9 @@ namespace net {
 
 class NET_EXPORT_PRIVATE QuicUtils {
  public:
-  // The overhead the quic framing will add for a packet with num_fragments
-  // fragments.
-  static int StreamFragmentPacketOverhead(int num_fragments);
+  // The overhead the quic framing will add for a packet with num_frames
+  // frames.
+  static int StreamFramePacketOverhead(int num_frames);
 
   // returns the 128 bit FNV1a hash of the data.  See
   // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
