@@ -894,7 +894,6 @@ bool ProcessMetrics::CalculateFreeMemory(FreeMBytes* free) const {
       return false;
     if (info.State == MEM_FREE) {
       accumulated += info.RegionSize;
-      UINT_PTR end = scan + info.RegionSize;
       if (info.RegionSize > largest.RegionSize)
         largest = info;
     }
