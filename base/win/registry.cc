@@ -8,12 +8,29 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/string_util.h"
 #include "base/threading/thread_restrictions.h"
 
 #pragma comment(lib, "shlwapi.lib")  // for SHDeleteKey
 
 namespace base {
 namespace win {
+
+namespace {
+
+// RegEnumValue() reports the number of characters from the name that were
+// written to the buffer, not how many there are. This constant is the maximum
+// name size, such that a buffer with this size should read any name.
+const DWORD MAX_REGISTRY_NAME_SIZE = 16384;
+
+// Registry values are read as BYTE* but can have wchar_t* data whose last
+// wchar_t is truncated. This function converts the reported |byte_size| to
+// a size in wchar_t that can store a truncated wchar_t if necessary.
+inline DWORD to_wchar_size(DWORD byte_size) {
+  return (byte_size + sizeof(wchar_t) - 1) / sizeof(wchar_t);
+}
+
+}  // namespace
 
 // RegKey ----------------------------------------------------------------------
 
@@ -296,7 +313,9 @@ LONG RegKey::StopWatching() {
 // RegistryValueIterator ------------------------------------------------------
 
 RegistryValueIterator::RegistryValueIterator(HKEY root_key,
-                                             const wchar_t* folder_key) {
+                                             const wchar_t* folder_key)
+    : name_(MAX_PATH, L'\0'),
+      value_(MAX_PATH, L'\0') {
   LONG result = RegOpenKeyEx(root_key, folder_key, 0, KEY_READ, &key_);
   if (result != ERROR_SUCCESS) {
     key_ = NULL;
@@ -342,16 +361,40 @@ void RegistryValueIterator::operator++() {
 
 bool RegistryValueIterator::Read() {
   if (Valid()) {
-    DWORD ncount = arraysize(name_);
-    value_size_ = sizeof(value_);
-    LONG r = ::RegEnumValue(key_, index_, name_, &ncount, NULL, &type_,
-                            reinterpret_cast<BYTE*>(value_), &value_size_);
-    if (ERROR_SUCCESS == r)
+    DWORD capacity = static_cast<DWORD>(name_.capacity());
+    DWORD name_size = capacity;
+    // |value_size_| is in bytes. Reserve the last character for a NUL.
+    value_size_ = static_cast<DWORD>((value_.size() - 1) * sizeof(wchar_t));
+    LONG result = ::RegEnumValue(
+        key_, index_, WriteInto(&name_, name_size), &name_size, NULL, &type_,
+        reinterpret_cast<BYTE*>(vector_as_array(&value_)), &value_size_);
+
+    if (result == ERROR_MORE_DATA) {
+      // Registry key names are limited to 255 characters and fit within
+      // MAX_PATH (which is 260) but registry value names can use up to 16,383
+      // characters and the value itself is not limited
+      // (from http://msdn.microsoft.com/en-us/library/windows/desktop/
+      // ms724872(v=vs.85).aspx).
+      // Resize the buffers and retry if their size caused the failure.
+      DWORD value_size_in_wchars = to_wchar_size(value_size_);
+      if (value_size_in_wchars + 1 > value_.size())
+        value_.resize(value_size_in_wchars + 1, L'\0');
+      value_size_ = static_cast<DWORD>((value_.size() - 1) * sizeof(wchar_t));
+      name_size = name_size == capacity ? MAX_REGISTRY_NAME_SIZE : capacity;
+      result = ::RegEnumValue(
+          key_, index_, WriteInto(&name_, name_size), &name_size, NULL, &type_,
+          reinterpret_cast<BYTE*>(vector_as_array(&value_)), &value_size_);
+    }
+
+    if (result == ERROR_SUCCESS) {
+      DCHECK_LT(to_wchar_size(value_size_), value_.size());
+      value_[to_wchar_size(value_size_)] = L'\0';
       return true;
+    }
   }
 
-  name_[0] = '\0';
-  value_[0] = '\0';
+  name_[0] = L'\0';
+  value_[0] = L'\0';
   value_size_ = 0;
   return false;
 }
