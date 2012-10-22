@@ -12,6 +12,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/request_priority.h"
+#include "net/base/upload_data_stream.h"
 #include "net/http/http_pipelined_stream.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"

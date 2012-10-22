@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "net/base/net_errors.h"
+#include "net/base/upload_data_stream.h"
 #include "net/http/http_pipelined_connection_impl.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"

@@ -13,7 +13,6 @@ namespace net {
 
 UploadData::UploadData()
     : identifier_(0),
-      chunk_callback_(NULL),
       is_chunked_(false),
       last_chunk_appended_(false) {
 }
@@ -43,11 +42,11 @@ void UploadData::AppendChunk(const char* bytes,
   elements_.push_back(UploadElement());
   elements_.back().SetToBytes(bytes, bytes_len);
   last_chunk_appended_ = is_last_chunk;
-  if (chunk_callback_)
-    chunk_callback_->OnChunkAvailable();
+  if (!chunk_callback_.is_null())
+    chunk_callback_.Run();
 }
 
-void UploadData::set_chunk_callback(ChunkCallback* callback) {
+void UploadData::set_chunk_callback(const base::Closure& callback) {
   chunk_callback_ = callback;
 }
 
