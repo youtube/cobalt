@@ -6,6 +6,7 @@
 #define NET_QUIC_QUIC_PROTOCOL_H_
 
 #include <limits>
+#include <ostream>
 #include <utility>
 #include <vector>
 
@@ -248,30 +249,12 @@ struct NET_EXPORT_PRIVATE QuicAckFrame {
     congestion_info.type = kNone;
   }
 
+  NET_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
+                                                     const QuicAckFrame& s);
+
   SentPacketInfo sent_info;
   ReceivedPacketInfo received_info;
   CongestionInfo congestion_info;
-
-  friend std::ostream& operator<<(std::ostream& os, const QuicAckFrame& s) {
-    os << "largest_received: " << s.received_info.largest_received
-       << " time: " << s.received_info.time_received
-       << " missing: ";
-    for (base::hash_set<QuicPacketSequenceNumber>::const_iterator it =
-           s.received_info.missing_packets.begin();
-           it != s.received_info.missing_packets.end(); ++it) {
-      os << *it << " ";
-    }
-
-    os << " least_waiting: " << s.sent_info.least_unacked
-       << " no_retransmit: ";
-    for (base::hash_set<QuicPacketSequenceNumber>::const_iterator it =
-           s.sent_info.non_retransmiting.begin();
-         it != s.sent_info.non_retransmiting.end(); ++it) {
-      os << *it << " ";
-    }
-    os << "\n";
-    return os;
-  }
 };
 
 struct NET_EXPORT_PRIVATE QuicRstStreamFrame {
@@ -329,19 +312,7 @@ struct NET_EXPORT_PRIVATE QuicFecData {
   // The last protected packet's sequence number will be one
   // less than the sequence number of the FEC packet.
   base::StringPiece redundancy;
-  bool operator==(const QuicFecData& other) const {
-    if (fec_group != other.fec_group) {
-      return false;
-    }
-    if (first_protected_packet_sequence_number !=
-        other.first_protected_packet_sequence_number) {
-      return false;
-    }
-    if (redundancy != other.redundancy) {
-      return false;
-    }
-    return true;
-  }
+  bool operator==(const QuicFecData& other) const;
 };
 
 struct NET_EXPORT_PRIVATE QuicPacketData {
