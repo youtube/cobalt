@@ -2523,6 +2523,13 @@
               '-mfpmath=sse',
             ],
           }],
+          ['OS=="android"', {
+            'cflags!': [
+              # Clang ARM does not support the following option.
+              # TODO: Add this flag back http://crbug.com/157195.
+              '-Wno-tautological-constant-out-of-range-compare',
+            ]
+          }],
           ['clang==1 and clang_use_chrome_plugins==1', {
             'cflags': [
               '<@(clang_chrome_plugins_flags)',
