@@ -24,6 +24,7 @@
             "url": "https://drive.google.com",
             "why": "productivity, top google properties",
             "credentials": "google",
+            "wait_for_javascript_expression": "document.getElementsByClassName('doclistview-list').length",
             "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('doclistview-list')[0]); }"
         },
         {
@@ -31,6 +32,7 @@
             "url": "https://docs.google.com/document/d/1X-IKNjtEnx-WW5JIKRLsyhz5sbsat3mfTpAPUSX3_s4/view",
             "why": "productivity, top google properties; Sample doc in the link",
             "credentials": "google",
+            "wait_for_javascript_expression": "document.getElementsByClassName('kix-appview-editor').length",
             "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('kix-appview-editor')[0]); }"
         },
         {
