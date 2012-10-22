@@ -31,18 +31,6 @@ class URLRequestContext;
 
 class NET_EXPORT URLRequestContextBuilder {
  public:
-  struct NET_EXPORT HostResolverParams {
-    HostResolverParams();
-    ~HostResolverParams();
-
-    // The limit on the number of parallel host resolutions.
-    size_t parallelism;
-
-    // When the host resolution is taking too long, we'll retry this many times,
-    // in a backing off manner.
-    size_t retry_attempts;
-  };
-
   struct NET_EXPORT HttpCacheParams {
     enum Type {
       IN_MEMORY,
@@ -89,12 +77,6 @@ class NET_EXPORT URLRequestContextBuilder {
     user_agent_ = user_agent;
   }
 
-  // Allows for overriding the default HostResolver params.
-  void set_host_resolver_params(
-      const HostResolverParams& host_resolver_params) {
-    host_resolver_params_ = host_resolver_params;
-  }
-
   // By default it's disabled.
   void set_ftp_enabled(bool enable) {
     ftp_enabled_ = enable;
@@ -115,7 +97,6 @@ class NET_EXPORT URLRequestContextBuilder {
  private:
   std::string user_agent_;
   bool ftp_enabled_;
-  HostResolverParams host_resolver_params_;
   bool http_cache_enabled_;
   HttpCacheParams http_cache_params_;
   HttpNetworkSessionParams http_network_session_params_;

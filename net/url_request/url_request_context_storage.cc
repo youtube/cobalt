@@ -35,9 +35,10 @@ void URLRequestContextStorage::set_net_log(NetLog* net_log) {
   net_log_.reset(net_log);
 }
 
-void URLRequestContextStorage::set_host_resolver(HostResolver* host_resolver) {
-  context_->set_host_resolver(host_resolver);
-  host_resolver_.reset(host_resolver);
+void URLRequestContextStorage::set_host_resolver(
+    scoped_ptr<HostResolver> host_resolver) {
+  context_->set_host_resolver(host_resolver.get());
+  host_resolver_ = host_resolver.Pass();
 }
 
 void URLRequestContextStorage::set_cert_verifier(CertVerifier* cert_verifier) {

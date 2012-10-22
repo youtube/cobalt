@@ -171,11 +171,6 @@ class BasicURLRequestContext : public URLRequestContext {
 
 }  // namespace
 
-URLRequestContextBuilder::HostResolverParams::HostResolverParams()
-    : parallelism(HostResolver::kDefaultParallelism),
-      retry_attempts(HostResolver::kDefaultRetryAttempts) {}
-URLRequestContextBuilder::HostResolverParams::~HostResolverParams() {}
-
 URLRequestContextBuilder::HttpCacheParams::HttpCacheParams()
     : type(IN_MEMORY),
       max_size(0) {}
@@ -213,14 +208,11 @@ URLRequestContext* URLRequestContextBuilder::Build() {
   BasicNetworkDelegate* network_delegate = new BasicNetworkDelegate;
   storage->set_network_delegate(network_delegate);
 
-  net::HostResolver* host_resolver = net::CreateSystemHostResolver(
-      host_resolver_params_.parallelism,
-      host_resolver_params_.retry_attempts,
-      NULL /* no NetLog */);
-  storage->set_host_resolver(host_resolver);
+  storage->set_host_resolver(net::HostResolver::CreateDefaultResolver(NULL));
 
   if (ftp_enabled_) {
-    storage->set_ftp_transaction_factory(new FtpNetworkLayer(host_resolver));
+    storage->set_ftp_transaction_factory(
+        new FtpNetworkLayer(context->host_resolver()));
   }
 
   context->StartFileThread();
@@ -242,14 +234,15 @@ URLRequestContext* URLRequestContextBuilder::Build() {
           context->net_log()));
   storage->set_ssl_config_service(new net::SSLConfigServiceDefaults);
   storage->set_http_auth_handler_factory(
-      net::HttpAuthHandlerRegistryFactory::CreateDefault(host_resolver));
+      net::HttpAuthHandlerRegistryFactory::CreateDefault(
+          context->host_resolver()));
   storage->set_cookie_store(new CookieMonster(NULL, NULL));
   storage->set_transport_security_state(new net::TransportSecurityState());
   storage->set_http_server_properties(new net::HttpServerPropertiesImpl);
   storage->set_cert_verifier(CertVerifier::CreateDefault());
 
   net::HttpNetworkSession::Params network_session_params;
-  network_session_params.host_resolver = host_resolver;
+  network_session_params.host_resolver = context->host_resolver();
   network_session_params.cert_verifier = context->cert_verifier();
   network_session_params.transport_security_state =
       context->transport_security_state();
