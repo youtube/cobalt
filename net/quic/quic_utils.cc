@@ -10,13 +10,13 @@
 namespace net {
 
 // static
-int QuicUtils::StreamFragmentPacketOverhead(int num_fragments) {
+int QuicUtils::StreamFramePacketOverhead(int num_frames) {
   // TODO(jar): Use sizeof(some name).
   return kPacketHeaderSize +
-         1 +   // fragment count
+         1 +   // frame count
          (1 +  // 8 bit type
           2 +  // 16 bit length
-          kMinStreamFragmentLength) * num_fragments;
+          kMinStreamFrameLength) * num_frames;
 }
 
 // TODO(jar): put into an anonymous namespage.
@@ -52,7 +52,7 @@ const char* QuicUtils::ErrorToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_MULTIPLE_TERMINATION_OFFSETS);
     RETURN_STRING_LITERAL(QUIC_BAD_APPLICATION_PAYLOAD);
     RETURN_STRING_LITERAL(QUIC_INVALID_PACKET_HEADER);
-    RETURN_STRING_LITERAL(QUIC_INVALID_FRAGMENT_DATA);
+    RETURN_STRING_LITERAL(QUIC_INVALID_FRAME_DATA);
     RETURN_STRING_LITERAL(QUIC_INVALID_FEC_DATA);
     RETURN_STRING_LITERAL(QUIC_INVALID_RST_STREAM_DATA);
     RETURN_STRING_LITERAL(QUIC_INVALID_CONNECTION_CLOSE_DATA);

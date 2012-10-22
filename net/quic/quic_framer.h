@@ -45,19 +45,18 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // |payload| is the non-encrypted FEC protected payload of the packet.
   virtual void OnFecProtectedPayload(base::StringPiece payload) = 0;
 
-  // Called when a StreamFragment has been parsed.
-  virtual void OnStreamFragment(const QuicStreamFragment& fragment) = 0;
+  // Called when a StreamFrame has been parsed.
+  virtual void OnStreamFrame(const QuicStreamFrame& frame) = 0;
 
-  // Called when a AckFragment has been parsed.
-  virtual void OnAckFragment(const QuicAckFragment& fragment) = 0;
+  // Called when a AckFrame has been parsed.
+  virtual void OnAckFrame(const QuicAckFrame& frame) = 0;
 
-  // Called when a RstStreamFragment has been parsed.
-  virtual void OnRstStreamFragment(
-      const QuicRstStreamFragment& fragment) = 0;
+  // Called when a RstStreamFrame has been parsed.
+  virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) = 0;
 
-  // Called when a ConnectionCloseFragment has been parsed.
-  virtual void OnConnectionCloseFragment(
-      const QuicConnectionCloseFragment& fragment) = 0;
+  // Called when a ConnectionCloseFrame has been parsed.
+  virtual void OnConnectionCloseFrame(
+      const QuicConnectionCloseFrame& frame) = 0;
 
   // Called when FEC data has been parsed.
   virtual void OnFecData(const QuicFecData& fec) = 0;
@@ -108,7 +107,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
 
   // Pass a UDP packet into the framer for parsing.
   // Return true if the packet was processed succesfully. |packet| must be a
-  // single, complete UDP packet (not a fragment of a packet).  This packet
+  // single, complete UDP packet (not a frame of a packet).  This packet
   // might be null padded past the end of the payload, which will be correctly
   // ignored.
   bool ProcessPacket(const IPEndPoint& client_address,
@@ -123,10 +122,10 @@ class NET_EXPORT_PRIVATE QuicFramer {
                             base::StringPiece payload);
 
   // Creates a new QuicPacket populated with the fields in |header| and
-  // |fragments|.  Assigns |*packet| to the address of the new object.
+  // |frames|.  Assigns |*packet| to the address of the new object.
   // Returns true upon success.
   bool ConstructFragementDataPacket(const QuicPacketHeader& header,
-                                    const QuicFragments& fragments,
+                                    const QuicFrames& frames,
                                     QuicPacket** packet);
 
   // Creates a new QuicPacket populated with the fields in |header| and
@@ -160,29 +159,26 @@ class NET_EXPORT_PRIVATE QuicFramer {
   bool ProcessPacketHeader(QuicPacketHeader* header,
                            const QuicEncryptedPacket& packet);
 
-  bool ProcessFragmentData();
-  bool ProcessStreamFragment();
-  bool ProcessPDUFragment();
-  bool ProcessAckFragment(QuicAckFragment* fragment);
-  bool ProcessRstStreamFragment();
-  bool ProcessConnectionCloseFragment();
+  bool ProcessFrameData();
+  bool ProcessStreamFrame();
+  bool ProcessPDUFrame();
+  bool ProcessAckFrame(QuicAckFrame* frame);
+  bool ProcessRstStreamFrame();
+  bool ProcessConnectionCloseFrame();
 
   bool DecryptPayload(const QuicEncryptedPacket& packet);
 
-  // Computes the wire size in bytes of the payload of |fragment|.
-  size_t ComputeFragmentPayloadLength(const QuicFragment& fragment);
+  // Computes the wire size in bytes of the payload of |frame|.
+  size_t ComputeFramePayloadLength(const QuicFrame& frame);
 
-  bool AppendStreamFragmentPayload(
-      const QuicStreamFragment& fragment,
+  bool AppendStreamFramePayload(const QuicStreamFrame& frame,
       QuicDataWriter* builder);
-  bool AppendAckFragmentPayload(
-      const QuicAckFragment& fragment,
+  bool AppendAckFramePayload(const QuicAckFrame& frame,
       QuicDataWriter* builder);
-  bool AppendRstStreamFragmentPayload(
-      const QuicRstStreamFragment& fragment,
+  bool AppendRstStreamFramePayload(const QuicRstStreamFrame& frame,
       QuicDataWriter* builder);
-  bool AppendConnectionCloseFragmentPayload(
-      const QuicConnectionCloseFragment& fragment,
+  bool AppendConnectionCloseFramePayload(
+      const QuicConnectionCloseFrame& frame,
       QuicDataWriter* builder);
   bool RaiseError(QuicErrorCode error);
 

@@ -36,13 +36,12 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD1(OnPacket, void(const IPEndPoint& client_address));
   MOCK_METHOD1(OnPacketHeader, bool(const QuicPacketHeader& header));
   MOCK_METHOD1(OnFecProtectedPayload, void(base::StringPiece payload));
-  MOCK_METHOD1(OnStreamFragment, void(const QuicStreamFragment& fragment));
-  MOCK_METHOD1(OnAckFragment, void(const QuicAckFragment& fragment));
+  MOCK_METHOD1(OnStreamFrame, void(const QuicStreamFrame& frame));
+  MOCK_METHOD1(OnAckFrame, void(const QuicAckFrame& frame));
   MOCK_METHOD1(OnFecData, void(const QuicFecData& fec));
-  MOCK_METHOD1(OnRstStreamFragment,
-               void(const QuicRstStreamFragment& fragment));
-  MOCK_METHOD1(OnConnectionCloseFragment,
-               void(const QuicConnectionCloseFragment& fragment));
+  MOCK_METHOD1(OnRstStreamFrame, void(const QuicRstStreamFrame& frame));
+  MOCK_METHOD1(OnConnectionCloseFrame,
+               void(const QuicConnectionCloseFrame& frame));
   MOCK_METHOD0(OnPacketComplete, void());
 };
 
@@ -52,13 +51,12 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   virtual void OnPacket(const IPEndPoint& client_address) OVERRIDE {}
   virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;
   virtual void OnFecProtectedPayload(base::StringPiece payload) OVERRIDE {}
-  virtual void OnStreamFragment(const QuicStreamFragment& fragment) OVERRIDE {}
-  virtual void OnAckFragment(const QuicAckFragment& fragment) OVERRIDE {}
+  virtual void OnStreamFrame(const QuicStreamFrame& frame) OVERRIDE {}
+  virtual void OnAckFrame(const QuicAckFrame& frame) OVERRIDE {}
   virtual void OnFecData(const QuicFecData& fec) OVERRIDE {}
-  virtual void OnRstStreamFragment(
-      const QuicRstStreamFragment& fragment) OVERRIDE {}
-  virtual void OnConnectionCloseFragment(
-      const QuicConnectionCloseFragment& fragment) OVERRIDE {}
+  virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) OVERRIDE {}
+  virtual void OnConnectionCloseFrame(
+      const QuicConnectionCloseFrame& frame) OVERRIDE {}
   virtual void OnPacketComplete() OVERRIDE {}
 };
 
