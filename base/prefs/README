@@ -1,0 +1,10 @@
+Prefs is a general-purpose key-value store for application preferences.
+
+At the moment, src/base/prefs has a bunch of dependencies back to
+src/chrome, and thus should only be used by code under src/chrome.
+
+We are working to remove these dependencies; once we do so,
+src/base/prefs will be available as a separate module, 'base_prefs',
+from src/base/base.gyp.
+
+Until that happens, please do not try to reuse outside of chrome/.
