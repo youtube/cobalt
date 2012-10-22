@@ -5,6 +5,9 @@
   'variables': {
     'isolate_dependency_tracked': [
       '../chrome/test/data/animate1.gif',
+      '../chrome/test/data/server-unavailable.html',
+      '../chrome/test/data/server-unavailable.html.mock-http-headers',
+      '../chrome/test/data/simple.html',
       '../testing/test_env.py',
       '../third_party/pyftpdlib/src/pyftpdlib/__init__.py',
       '../third_party/pyftpdlib/src/pyftpdlib/ftpserver.py',
@@ -76,20 +79,6 @@
         ],
         'isolate_dependency_tracked': [
           '../testing/xvfb.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/__init__.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/_stream_base.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/_stream_hixie75.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/_stream_hybi.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/common.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/dispatch.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/extensions.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/http_header_util.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/memorizingfile.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/msgutil.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/mux.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/standalone.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/stream.py',
-          '../third_party/pywebsocket/src/mod_pywebsocket/util.py',
           '../third_party/tlslite/tlslite/utils/PyCrypto_AES.py',
           '../third_party/tlslite/tlslite/utils/PyCrypto_RC4.py',
           '../third_party/tlslite/tlslite/utils/PyCrypto_RSAKey.py',
@@ -180,9 +169,6 @@
           'data/ssl/certificates/punycodetest.der',
           'data/ssl/certificates/spdy_pooling.pem',
         ],
-        'isolate_dependency_untracked': [
-          '../third_party/pywebsocket/src/mod_pywebsocket/handshake/',
-        ],
         'isolate_dependency_touched': [
           'data/ftp/dir-listing-ls-17.expected',
           'data/ftp/dir-listing-ls-23.expected',
@@ -226,9 +212,6 @@
     }, {
       'variables': {
         'isolate_dependency_tracked': [
-          '../chrome/test/data/server-unavailable.html',
-          '../chrome/test/data/server-unavailable.html.mock-http-headers',
-          '../chrome/test/data/simple.html',
           'data/proxy_resolver_v8_unittest/binding_from_global.js',
           'data/proxy_resolver_v8_unittest/bindings.js',
           'data/proxy_resolver_v8_unittest/direct.js',
@@ -445,7 +428,24 @@
     }, {
       'variables': {
         'isolate_dependency_tracked': [
+          '../third_party/pywebsocket/src/mod_pywebsocket/__init__.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/_stream_base.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/_stream_hixie75.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/_stream_hybi.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/common.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/dispatch.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/extensions.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/http_header_util.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/memorizingfile.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/msgutil.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/mux.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/standalone.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/stream.py',
+          '../third_party/pywebsocket/src/mod_pywebsocket/util.py',
           '../third_party/tlslite/tlslite/integration/TLSTwistedProtocolWrapper.py',
+        ],
+        'isolate_dependency_untracked': [
+          '../third_party/pywebsocket/src/mod_pywebsocket/handshake/',
         ],
       },
     }],
