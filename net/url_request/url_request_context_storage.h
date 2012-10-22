@@ -41,10 +41,10 @@ class NET_EXPORT URLRequestContextStorage {
   ~URLRequestContextStorage();
 
   // These setters will set both the member variables and call the setter on the
-  // URLRequestContext object.
+  // URLRequestContext object. In all cases, ownership is passed to |this|.
 
   void set_net_log(NetLog* net_log);
-  void set_host_resolver(HostResolver* host_resolver);
+  void set_host_resolver(scoped_ptr<HostResolver> host_resolver);
   void set_cert_verifier(CertVerifier* cert_verifier);
   void set_server_bound_cert_service(
       ServerBoundCertService* server_bound_cert_service);

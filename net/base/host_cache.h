@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/gtest_prod_util.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
 #include "net/base/address_family.h"
@@ -92,7 +93,7 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   const EntryMap& entries() const;
 
   // Creates a default cache.
-  static HostCache* CreateDefaultCache();
+  static scoped_ptr<HostCache> CreateDefaultCache();
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HostCacheTest, NoCache);

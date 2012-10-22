@@ -63,13 +63,6 @@ const unsigned kCacheEntryTTLSeconds = 60;
 // Default TTL for unsuccessful resolutions with ProcTask.
 const unsigned kNegativeCacheEntryTTLSeconds = 0;
 
-// Maximum of 6 concurrent resolver threads (excluding retries).
-// Some routers (or resolvers) appear to start to provide host-not-found if
-// too many simultaneous resolutions are pending.  This number needs to be
-// further optimized, but 8 is what FF currently does. We found some routers
-// that limit this to 6, so we're temporarily holding it at that level.
-static const size_t kDefaultMaxProcTasks = 6u;
-
 // We use a separate histogram name for each platform to facilitate the
 // display of error codes by their symbolic name (since each platform has
 // different mappings).
@@ -409,69 +402,7 @@ class PriorityTracker {
   size_t counts_[NUM_PRIORITIES];
 };
 
-//-----------------------------------------------------------------------------
-
-HostResolver* CreateHostResolver(size_t max_concurrent_resolves,
-                                 size_t max_retry_attempts,
-                                 HostCache* cache,
-                                 scoped_ptr<DnsClient> dns_client,
-                                 NetLog* net_log) {
-  if (max_concurrent_resolves == HostResolver::kDefaultParallelism)
-    max_concurrent_resolves = kDefaultMaxProcTasks;
-
-  // TODO(szym): Add experiments with reserved slots for higher priority
-  // requests.
-
-  PrioritizedDispatcher::Limits limits(NUM_PRIORITIES, max_concurrent_resolves);
-
-  HostResolverImpl* resolver = new HostResolverImpl(
-      cache,
-      limits,
-      HostResolverImpl::ProcTaskParams(NULL, max_retry_attempts),
-      dns_client.Pass(),
-      net_log);
-
-  return resolver;
-}
-
-}  // anonymous namespace
-
-//-----------------------------------------------------------------------------
-
-HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
-                                       size_t max_retry_attempts,
-                                       NetLog* net_log) {
-  return CreateHostResolver(max_concurrent_resolves,
-                            max_retry_attempts,
-                            HostCache::CreateDefaultCache(),
-                            scoped_ptr<DnsClient>(NULL),
-                            net_log);
-}
-
-HostResolver* CreateNonCachingSystemHostResolver(size_t max_concurrent_resolves,
-                                                 size_t max_retry_attempts,
-                                                 NetLog* net_log) {
-  return CreateHostResolver(max_concurrent_resolves,
-                            max_retry_attempts,
-                            NULL,
-                            scoped_ptr<DnsClient>(NULL),
-                            net_log);
-}
-
-HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
-                                      size_t max_retry_attempts,
-                                      NetLog* net_log) {
-#if !defined(ENABLE_BUILT_IN_DNS)
-  NOTREACHED();
-  return NULL;
-#else
-  return CreateHostResolver(max_concurrent_resolves,
-                            max_retry_attempts,
-                            HostCache::CreateDefaultCache(),
-                            DnsClient::CreateClient(net_log),
-                            net_log);
-#endif  // !defined(ENABLE_BUILT_IN_DNS)
-}
+}  // namespace
 
 //-----------------------------------------------------------------------------
 
@@ -1675,12 +1606,12 @@ HostResolverImpl::ProcTaskParams::ProcTaskParams(
 HostResolverImpl::ProcTaskParams::~ProcTaskParams() {}
 
 HostResolverImpl::HostResolverImpl(
-    HostCache* cache,
+    scoped_ptr<HostCache> cache,
     const PrioritizedDispatcher::Limits& job_limits,
     const ProcTaskParams& proc_params,
     scoped_ptr<DnsClient> dns_client,
     NetLog* net_log)
-    : cache_(cache),
+    : cache_(cache.Pass()),
       dispatcher_(job_limits),
       max_queued_jobs_(job_limits.total_jobs * 100u),
       proc_params_(proc_params),

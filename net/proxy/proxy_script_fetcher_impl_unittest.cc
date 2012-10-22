@@ -73,7 +73,7 @@ class RequestContext : public URLRequestContext {
  public:
   RequestContext() : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this)) {
     ProxyConfig no_proxy;
-    storage_.set_host_resolver(new MockHostResolver);
+    storage_.set_host_resolver(scoped_ptr<HostResolver>(new MockHostResolver));
     storage_.set_cert_verifier(new MockCertVerifier);
     storage_.set_proxy_service(ProxyService::CreateFixed(no_proxy));
     storage_.set_ssl_config_service(new SSLConfigServiceDefaults);
