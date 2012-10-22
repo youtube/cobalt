@@ -19,6 +19,7 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
+#include "net/base/upload_data_stream.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
@@ -40,8 +41,7 @@ SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session,
       user_buffer_len_(0),
       buffered_read_callback_pending_(false),
       more_read_data_pending_(false),
-      direct_(direct),
-      waiting_for_chunk_(false) { }
+      direct_(direct) { }
 
 void SpdyHttpStream::InitializeWithExistingStream(SpdyStream* spdy_stream) {
   stream_ = spdy_stream;
@@ -50,8 +50,6 @@ void SpdyHttpStream::InitializeWithExistingStream(SpdyStream* spdy_stream) {
 }
 
 SpdyHttpStream::~SpdyHttpStream() {
-  if (request_body_stream_ != NULL)
-    request_body_stream_->set_chunk_callback(NULL);
   if (stream_)
     stream_->DetachDelegate();
 }
@@ -219,7 +217,6 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
   if (request_body != NULL) {
     if (request_body->size() || request_body->is_chunked()) {
       request_body_stream_.reset(request_body.release());
-      request_body_stream_->set_chunk_callback(this);
       // Use kMaxSpdyFrameChunkSize as the buffer size, since the request
       // body data is written with this size at a time.
       raw_request_body_buf_ = new IOBufferWithSize(kMaxSpdyFrameChunkSize);
@@ -288,16 +285,9 @@ int SpdyHttpStream::SendData() {
       base::Bind(
           base::IgnoreResult(&SpdyHttpStream::OnRequestBodyReadCompleted),
           weak_factory_.GetWeakPtr()));
-  DCHECK(!waiting_for_chunk_ || bytes_read != ERR_IO_PENDING);
 
-  if (bytes_read == ERR_IO_PENDING) {
-    if (request_body_stream_->is_chunked())
-      waiting_for_chunk_ = true;
+  if (bytes_read == ERR_IO_PENDING)
     return ERR_IO_PENDING;
-  }
-
-  waiting_for_chunk_ = false;
-
   // ERR_IO_PENDING is the only possible error.
   DCHECK_GE(bytes_read, 0);
   return OnRequestBodyReadCompleted(bytes_read);
@@ -431,21 +421,12 @@ void SpdyHttpStream::OnDataSent(int length) {
 
 void SpdyHttpStream::OnClose(int status) {
   bool invoked_callback = false;
-  if (request_body_stream_ != NULL)
-    request_body_stream_->set_chunk_callback(NULL);
   if (status == net::OK) {
     // We need to complete any pending buffered read now.
     invoked_callback = DoBufferedReadCallback();
   }
   if (!invoked_callback && !callback_.is_null())
     DoCallback(status);
-}
-
-void SpdyHttpStream::OnChunkAvailable() {
-  if (!waiting_for_chunk_)
-    return;
-  DCHECK(request_body_stream_->is_chunked());
-  SendData();
 }
 
 void SpdyHttpStream::ScheduleBufferedReadCallback() {

@@ -17,7 +17,6 @@
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
-#include "net/base/upload_data_stream.h"
 #include "net/http/http_pipelined_connection.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_stream_parser.h"
@@ -34,6 +33,7 @@ class HttpResponseInfo;
 class IOBuffer;
 class SSLCertRequestInfo;
 class SSLInfo;
+class UploadDataStream;
 
 // This class manages all of the state for a single pipelined connection. It
 // tracks the order that HTTP requests are sent and enforces that the
