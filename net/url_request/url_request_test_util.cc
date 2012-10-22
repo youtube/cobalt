@@ -61,7 +61,8 @@ void TestURLRequestContext::Init() {
   initialized_ = true;
 
   if (!host_resolver())
-    context_storage_.set_host_resolver(new net::MockCachingHostResolver());
+    context_storage_.set_host_resolver(
+        scoped_ptr<net::HostResolver>(new net::MockCachingHostResolver()));
   if (!proxy_service())
     context_storage_.set_proxy_service(net::ProxyService::CreateDirect());
   if (!cert_verifier())

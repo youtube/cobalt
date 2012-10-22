@@ -24,7 +24,7 @@ std::string FirstAddress(const AddressList& address_list) {
 
 TEST(MappedHostResolverTest, Inclusion) {
   // Create a mock host resolver, with specific hostname to IP mappings.
-  MockHostResolver* resolver_impl(new MockHostResolver());
+  scoped_ptr<MockHostResolver> resolver_impl(new MockHostResolver());
   resolver_impl->rules()->AddSimulatedFailure("*google.com");
   resolver_impl->rules()->AddRule("baz.com", "192.168.1.5");
   resolver_impl->rules()->AddRule("foo.com", "192.168.1.8");
@@ -32,7 +32,7 @@ TEST(MappedHostResolverTest, Inclusion) {
 
   // Create a remapped resolver that uses |resolver_impl|.
   scoped_ptr<MappedHostResolver> resolver(
-      new MappedHostResolver(resolver_impl));
+      new MappedHostResolver(resolver_impl.PassAs<HostResolver>()));
 
   int rv;
   AddressList address_list;
@@ -88,13 +88,13 @@ TEST(MappedHostResolverTest, Inclusion) {
 // Tests that exclusions are respected.
 TEST(MappedHostResolverTest, Exclusion) {
   // Create a mock host resolver, with specific hostname to IP mappings.
-  MockHostResolver* resolver_impl(new MockHostResolver());
+  scoped_ptr<MockHostResolver> resolver_impl(new MockHostResolver());
   resolver_impl->rules()->AddRule("baz", "192.168.1.5");
   resolver_impl->rules()->AddRule("www.google.com", "192.168.1.3");
 
   // Create a remapped resolver that uses |resolver_impl|.
   scoped_ptr<MappedHostResolver> resolver(
-      new MappedHostResolver(resolver_impl));
+      new MappedHostResolver(resolver_impl.PassAs<HostResolver>()));
 
   int rv;
   AddressList address_list;
@@ -129,13 +129,13 @@ TEST(MappedHostResolverTest, Exclusion) {
 
 TEST(MappedHostResolverTest, SetRulesFromString) {
   // Create a mock host resolver, with specific hostname to IP mappings.
-  MockHostResolver* resolver_impl(new MockHostResolver());
+  scoped_ptr<MockHostResolver> resolver_impl(new MockHostResolver());
   resolver_impl->rules()->AddRule("baz", "192.168.1.7");
   resolver_impl->rules()->AddRule("bar", "192.168.1.9");
 
   // Create a remapped resolver that uses |resolver_impl|.
   scoped_ptr<MappedHostResolver> resolver(
-      new MappedHostResolver(resolver_impl));
+      new MappedHostResolver(resolver_impl.PassAs<HostResolver>()));
 
   int rv;
   AddressList address_list;
@@ -167,7 +167,8 @@ TEST(MappedHostResolverTest, SetRulesFromString) {
 
 // Parsing bad rules should silently discard the rule (and never crash).
 TEST(MappedHostResolverTest, ParseInvalidRules) {
-  scoped_ptr<MappedHostResolver> resolver(new MappedHostResolver(NULL));
+  scoped_ptr<MappedHostResolver> resolver(
+      new MappedHostResolver(scoped_ptr<HostResolver>()));
 
   EXPECT_FALSE(resolver->AddRuleFromString("xyz"));
   EXPECT_FALSE(resolver->AddRuleFromString(""));

@@ -115,7 +115,7 @@ class NET_EXPORT HostResolverImpl
   //
   // |net_log| must remain valid for the life of the HostResolverImpl.
   // TODO(szym): change to scoped_ptr<HostCache>.
-  HostResolverImpl(HostCache* cache,
+  HostResolverImpl(scoped_ptr<HostCache> cache,
                    const PrioritizedDispatcher::Limits& job_limits,
                    const ProcTaskParams& proc_params,
                    scoped_ptr<DnsClient> dns_client,
