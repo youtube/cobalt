@@ -106,6 +106,7 @@ v8.log
 /google_apis/internal
 /gpu/gles2_conform_test
 /gyp-mac-tool
+/hideout
 /llvm
 /media/test/data/content
 /media/test/data/security
@@ -177,6 +178,7 @@ v8.log
 /third_party/leveldb
 /third_party/libexif/sources
 /third_party/libjingle/source
+/third_party/libjingle/source_internal
 /third_party/libjpeg_turbo
 /third_party/libmtp/
 /third_party/libphonenumber/libphonenumber.xml
@@ -234,6 +236,10 @@ v8.log
 /third_party/webgl_conformance
 /third_party/webpagereplay/
 /third_party/webrtc
+/third_party/webrtc/common_audio/signal_processing/internal
+/third_party/webrtc/modules/audio_coding/codecs/celt
+/third_party/webrtc/modules/audio_coding/codecs/speex
+/third_party/webrtc/modules/video_coding/codecs/vp8_internal
 /third_party/widevine/cdm/binaries
 /third_party/widevine/cdm/symbols
 /third_party/wix
