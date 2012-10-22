@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/callback_forward.h"
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/supports_user_data.h"
 #include "net/base/net_export.h"
@@ -22,17 +22,6 @@ class Time;
 
 namespace net {
 
-// Interface implemented by callers who require callbacks when new chunks
-// of data are added.
-class NET_EXPORT_PRIVATE ChunkCallback {
- public:
-  // Invoked when a new data chunk was given for a chunked transfer upload.
-  virtual void OnChunkAvailable() = 0;
-
- protected:
-  virtual ~ChunkCallback() {}
-};
-
 //-----------------------------------------------------------------------------
 // A very concrete class representing the data to be uploaded as part of a
 // URLRequest.
@@ -42,10 +31,8 @@ class NET_EXPORT_PRIVATE ChunkCallback {
 // key and ensure its destruction when UploadData is finally deleted.
 //
 // Chunked uploads are handled by repeatedly calling AppendChunk() as data
-// becomes available. When more data becomes available, the ChunkCallback's
-// OnChunkAvailable function is called. The UploadData creator is then
-// responsible for checking if the UploadData stream has more data available, if
-// necessary.
+// becomes available, which adds to |elements_|.  Whenever this happens,
+// |chunk_callback_| is called, if non-NULL.
 class NET_EXPORT UploadData
     : public base::RefCounted<UploadData>,
       public base::SupportsUserData {
@@ -63,7 +50,7 @@ class NET_EXPORT UploadData
   void AppendChunk(const char* bytes, int bytes_len, bool is_last_chunk);
 
   // Sets the callback to be invoked when a new chunk is available to upload.
-  void set_chunk_callback(ChunkCallback* callback);
+  void set_chunk_callback(const base::Closure& callback);
 
   // Initializes the object to send chunks of upload data over time rather
   // than all at once. Chunked data may only contain bytes, not files.
@@ -101,7 +88,7 @@ class NET_EXPORT UploadData
 
   std::vector<UploadElement> elements_;
   int64 identifier_;
-  ChunkCallback* chunk_callback_;
+  base::Closure chunk_callback_;
   bool is_chunked_;
   bool last_chunk_appended_;
 
