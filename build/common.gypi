@@ -1705,6 +1705,9 @@
           '__STD_C',
           '_CRT_SECURE_NO_DEPRECATE',
           '_SCL_SECURE_NO_DEPRECATE',
+          # This define is required to pull in the new Win8 interfaces from
+          # system headers like ShObjIdl.h.
+          'NTDDI_VERSION=0x06020000',
         ],
         'include_dirs': [
           '<(DEPTH)/third_party/wtl/include',
