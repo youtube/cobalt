@@ -541,9 +541,8 @@
         'include_dirs': [
           '..',
         ],
-        # These warnings are needed for the files in third_party\dmg_fp.
         'msvs_disabled_warnings': [
-          4244, 4554, 4018, 4102,
+          4018,
         ],
         'target_conditions': [
           ['<(use_glib)==0 or >(nacl_untrusted_build)==1', {
