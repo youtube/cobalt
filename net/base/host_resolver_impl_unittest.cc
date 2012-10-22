@@ -435,7 +435,7 @@ class HostResolverImplTest : public testing::Test {
         HostCache::CreateDefaultCache(),
         DefaultLimits(),
         DefaultParams(proc_),
-        scoped_ptr<DnsClient>(NULL),
+        scoped_ptr<DnsClient>(),
         NULL));
   }
 
@@ -449,7 +449,7 @@ class HostResolverImplTest : public testing::Test {
         HostCache::CreateDefaultCache(),
         limits,
         params,
-        scoped_ptr<DnsClient>(NULL),
+        scoped_ptr<DnsClient>(),
         NULL));
   }
 
@@ -758,10 +758,10 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
 
   // Turn off caching for this host resolver.
   resolver_.reset(new HostResolverImpl(
-      NULL,
+      scoped_ptr<HostCache>(),
       DefaultLimits(),
       DefaultParams(proc_),
-      scoped_ptr<DnsClient>(NULL),
+      scoped_ptr<DnsClient>(),
       NULL));
 
   for (size_t i = 0; i < 4; ++i) {
@@ -1198,7 +1198,7 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
       new HostResolverImpl(HostCache::CreateDefaultCache(),
                            DefaultLimits(),
                            params,
-                           scoped_ptr<DnsClient>(NULL),
+                           scoped_ptr<DnsClient>(),
                            NULL));
 
   // Resolve "host1".

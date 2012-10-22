@@ -168,10 +168,7 @@ std::string BaseTestServer::GetScheme() const {
 bool BaseTestServer::GetAddressList(AddressList* address_list) const {
   DCHECK(address_list);
 
-  scoped_ptr<HostResolver> resolver(
-      CreateSystemHostResolver(HostResolver::kDefaultParallelism,
-                               HostResolver::kDefaultRetryAttempts,
-                               NULL));
+  scoped_ptr<HostResolver> resolver(HostResolver::CreateDefaultResolver(NULL));
   HostResolver::RequestInfo info(host_port_pair_);
   TestCompletionCallback callback;
   int rv = resolver->Resolve(info, address_list, callback.callback(), NULL,
