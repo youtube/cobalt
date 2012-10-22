@@ -8,12 +8,12 @@ using base::StringPiece;
 
 namespace net {
 
-QuicStreamFragment::QuicStreamFragment() {}
+QuicStreamFrame::QuicStreamFrame() {}
 
-QuicStreamFragment::QuicStreamFragment(QuicStreamId stream_id,
-                                       bool fin,
-                                       uint64 offset,
-                                       StringPiece data)
+QuicStreamFrame::QuicStreamFrame(QuicStreamId stream_id,
+                                 bool fin,
+                                 uint64 offset,
+                                 StringPiece data)
     : stream_id(stream_id),
       fin(fin),
       offset(offset),

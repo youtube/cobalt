@@ -122,14 +122,14 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
-  QuicStreamFragment stream_fragment(kCryptoStreamId, false, 0,
+  QuicStreamFrame stream_frame(kCryptoStreamId, false, 0,
                                      data->AsStringPiece());
 
-  QuicFragment fragment(&stream_fragment);
-  QuicFragments fragments;
-  fragments.push_back(fragment);
+  QuicFrame frame(&stream_frame);
+  QuicFrames frames;
+  frames.push_back(frame);
   QuicPacket* packet;
-  quic_framer.ConstructFragementDataPacket(header, fragments, &packet);
+  quic_framer.ConstructFragementDataPacket(header, frames, &packet);
   return packet;
 }
 
