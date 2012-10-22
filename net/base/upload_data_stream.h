@@ -51,22 +51,11 @@ class NET_EXPORT UploadDataStream {
   // If there's less data to read than we initially observed (i.e. the actual
   // upload data is smaller than size()), zeros are padded to ensure that
   // size() bytes can be read, which can happen for TYPE_FILE payloads.
-  //
-  // If the data is chunked (i.e. is_chunked() is true) and there is not enough
-  // data ready to be uploaded, ERR_IO_PENDING is returned and the callback set
-  // by set_chunk_callback is called later when data gets available.
-  // When data is available, the data is read synchronously and the number of
-  // bytes read is returned.
   int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
 
   // Reads data always synchronously.
   // Use this method only if the thread is IO allowed or the data is in-memory.
   int ReadSync(IOBuffer* buf, int buf_len);
-
-  // Sets the callback to be invoked when new chunks are available to upload.
-  void set_chunk_callback(ChunkCallback* callback) {
-    upload_data_->set_chunk_callback(callback);
-  }
 
   // Returns the total size of the data stream and the current position.
   // size() is not to be used to determine whether the stream has ended
@@ -111,9 +100,15 @@ class NET_EXPORT UploadDataStream {
   // Reads data from the element readers.
   // This method is used to implement Read().
   int ReadInternal(scoped_refptr<DrainableIOBuffer> buf,
-                   bool invoked_asynchronously,
-                   const CompletionCallback& callback,
-                   int previous_result);
+                   const CompletionCallback& callback);
+
+  // Resumes pending read and calls callback with the result when necessary.
+  void ResumePendingRead(scoped_refptr<DrainableIOBuffer> buf,
+                         const CompletionCallback& callback,
+                         int previous_result);
+
+  // This method is called when a new chunk is available.
+  void OnChunkAvailable();
 
   // These methods are provided only to be used by unit tests.
   static void ResetMergeChunks();
@@ -134,6 +129,9 @@ class NET_EXPORT UploadDataStream {
 
   // True if the initialization was successful.
   bool initialized_successfully_;
+
+  // Callback to resume reading chunked data.
+  base::Closure pending_chunked_read_callback_;
 
   base::WeakPtrFactory<UploadDataStream> weak_ptr_factory_;
 
