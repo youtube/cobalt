@@ -19,7 +19,12 @@ import tempfile
 import time
 
 import io_stats_parser
-from pylib import pexpect
+# pexpect is not available on all platforms. We allow this file to be imported
+# on platforms without pexpect and only fail when pexpect is actually used.
+try:
+  from pylib import pexpect
+except:
+  pexpect = None
 
 CHROME_SRC = os.path.join(
     os.path.abspath(os.path.dirname(__file__)), '..', '..', '..')
