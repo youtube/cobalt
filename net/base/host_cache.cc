@@ -79,7 +79,7 @@ const HostCache::EntryMap& HostCache::entries() const {
 }
 
 // static
-HostCache* HostCache::CreateDefaultCache() {
+scoped_ptr<HostCache> HostCache::CreateDefaultCache() {
 #if defined(OS_CHROMEOS)
   // Increase HostCache size for the duration of the async DNS field trial.
   // http://crbug.com/143454
@@ -88,7 +88,7 @@ HostCache* HostCache::CreateDefaultCache() {
 #else
   static const size_t kMaxHostCacheEntries = 100;
 #endif
-  return new HostCache(kMaxHostCacheEntries);
+  return make_scoped_ptr(new HostCache(kMaxHostCacheEntries));
 }
 
 }  // namespace net
