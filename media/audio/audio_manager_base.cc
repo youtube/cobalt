@@ -82,6 +82,7 @@ void AudioManagerBase::Init() {
   DCHECK(!audio_thread_.get());
   audio_thread_.reset(new AudioThread("AudioThread"));
   CHECK(audio_thread_->Start());
+  message_loop_ = audio_thread_->message_loop_proxy();
 }
 
 string16 AudioManagerBase::GetAudioInputDeviceModel() {
@@ -90,6 +91,8 @@ string16 AudioManagerBase::GetAudioInputDeviceModel() {
 
 scoped_refptr<base::MessageLoopProxy> AudioManagerBase::GetMessageLoop() {
   base::AutoLock lock(audio_thread_lock_);
+  // Don't return |message_loop_| here because we don't want any new tasks to
+  // come in once we've started tearing down the audio thread.
   return audio_thread_.get() ? audio_thread_->message_loop_proxy() : NULL;
 }
 
@@ -170,7 +173,7 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
   NOTIMPLEMENTED();
   return NULL;
 #else
-  DCHECK(GetMessageLoop()->BelongsToCurrentThread());
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
   AudioOutputDispatchersMap::iterator it = output_dispatchers_.find(params);
   if (it != output_dispatchers_.end())
@@ -333,6 +336,24 @@ AudioParameters AudioManagerBase::GetPreferredLowLatencyOutputStreamParameters(
       AudioParameters::AUDIO_PCM_LOW_LATENCY, input_params.channel_layout(),
       GetAudioHardwareSampleRate(), 16, GetAudioHardwareBufferSize());
 #endif  // defined(OS_IOS)
+}
+
+void AudioManagerBase::AddOutputDeviceChangeListener(
+    AudioDeviceListener* listener) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  output_listeners_.AddObserver(listener);
+}
+
+void AudioManagerBase::RemoveOutputDeviceChangeListener(
+    AudioDeviceListener* listener) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  output_listeners_.RemoveObserver(listener);
+}
+
+void AudioManagerBase::NotifyAllOutputDeviceChangeListeners() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DVLOG(1) << "Firing OnDeviceChange() notifications.";
+  FOR_EACH_OBSERVER(AudioDeviceListener, output_listeners_, OnDeviceChange());
 }
 
 }  // namespace media

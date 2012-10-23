@@ -11,6 +11,7 @@
 #include "base/atomic_ref_count.h"
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/observer_list.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "media/audio/audio_manager.h"
@@ -110,9 +111,18 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   virtual AudioParameters GetPreferredLowLatencyOutputStreamParameters(
       const AudioParameters& input_params);
 
+  // Listeners will be notified on the AudioManager::GetMessageLoop() loop.
+  virtual void AddOutputDeviceChangeListener(
+      AudioDeviceListener* listener) OVERRIDE;
+  virtual void RemoveOutputDeviceChangeListener(
+      AudioDeviceListener* listener) OVERRIDE;
+
  protected:
   AudioManagerBase();
 
+  // TODO(dalecurtis): This must change to map both input and output parameters
+  // to a single dispatcher, otherwise on a device state change we'll just get
+  // the exact same invalid dispatcher.
   typedef std::map<AudioParameters, scoped_refptr<AudioOutputDispatcher>,
                    AudioParameters::Compare>
       AudioOutputDispatchersMap;
@@ -127,10 +137,10 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
 
   void SetMaxOutputStreamsAllowed(int max) { max_num_output_streams_ = max; }
 
-  // Thread used to interact with AudioOutputStreams created by this
-  // audio manger.
-  scoped_ptr<AudioThread> audio_thread_;
-  mutable base::Lock audio_thread_lock_;
+  // Called by each platform specific AudioManager to notify output state change
+  // listeners that a state change has occurred.  Must be called from the audio
+  // thread.
+  void NotifyAllOutputDeviceChangeListeners();
 
   // Map of cached AudioOutputDispatcher instances.  Must only be touched
   // from the audio thread (no locking).
@@ -153,6 +163,18 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
 
   // Number of currently open input streams.
   int num_input_streams_;
+
+  // Track output state change listeners.
+  ObserverList<AudioDeviceListener> output_listeners_;
+
+  // Thread used to interact with audio streams created by this audio manager.
+  scoped_ptr<AudioThread> audio_thread_;
+  mutable base::Lock audio_thread_lock_;
+
+  // The message loop of the audio thread this object runs on.  Set on Init().
+  // Used for internal tasks which run on the audio thread even after Shutdown()
+  // has been started and GetMessageLoop() starts returning NULL.
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerBase);
 };
