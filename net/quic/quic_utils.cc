@@ -10,7 +10,7 @@
 namespace net {
 
 // static
-int QuicUtils::StreamFramePacketOverhead(int num_frames) {
+size_t QuicUtils::StreamFramePacketOverhead(int num_frames) {
   // TODO(jar): Use sizeof(some name).
   return kPacketHeaderSize +
          1 +   // frame count
