@@ -29,3 +29,4 @@ Local changes:
      0de3096 use 16bit counters for recording proba counts
      7f23678 fix for LevelCost + little speed-up
      7107d54 further speed-up/cleanup of RecordCoeffs() and GetResidualCost()
+ * (Security) fix overflow in ParseOptionalChunks; to be upstreamed.
