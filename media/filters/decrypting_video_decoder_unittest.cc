@@ -80,6 +80,10 @@ MATCHER(IsNullCallback, "") {
   return (arg.is_null());
 }
 
+MATCHER(IsEndOfStream, "") {
+  return (arg->IsEndOfStream());
+}
+
 }  // namespace
 
 class DecryptingVideoDecoderTest : public testing::Test {
@@ -131,7 +135,12 @@ class DecryptingVideoDecoderTest : public testing::Test {
   void ReadAndExpectFrameReadyWith(
       VideoDecoder::Status status,
       const scoped_refptr<VideoFrame>& video_frame) {
-    EXPECT_CALL(*this, FrameReady(status, video_frame));
+    if (status != VideoDecoder::kOk)
+      EXPECT_CALL(*this, FrameReady(status, IsNull()));
+    else if (video_frame && video_frame->IsEndOfStream())
+      EXPECT_CALL(*this, FrameReady(status, IsEndOfStream()));
+    else
+      EXPECT_CALL(*this, FrameReady(status, video_frame));
 
     decoder_->Read(base::Bind(&DecryptingVideoDecoderTest::FrameReady,
                               base::Unretained(this)));
@@ -146,8 +155,8 @@ class DecryptingVideoDecoderTest : public testing::Test {
         .WillRepeatedly(ReturnBuffer(DecoderBuffer::CreateEOSBuffer()));
     EXPECT_CALL(*decryptor_, DecryptAndDecodeVideo(_, _))
         .WillOnce(RunCallback2(Decryptor::kSuccess, decoded_video_frame_))
-        .WillRepeatedly(RunCallback2(Decryptor::kSuccess,
-                                     end_of_stream_video_frame_));
+        .WillRepeatedly(RunCallback2(Decryptor::kNeedMoreData,
+                                     scoped_refptr<VideoFrame>()));
     EXPECT_CALL(statistics_cb_, OnStatistics(_));
 
     ReadAndExpectFrameReadyWith(VideoDecoder::kOk, decoded_video_frame_);

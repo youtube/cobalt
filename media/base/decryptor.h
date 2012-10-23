@@ -47,6 +47,8 @@ class MEDIA_EXPORT Decryptor {
     kMaxKeyError  // Must be last and greater than any legit value.
   };
 
+  // TODO(xhwang): Replace kError with kDecryptError and kDecodeError.
+  // TODO(xhwang): Replace kNeedMoreData with kNotEnoughData.
   enum Status {
     kSuccess,  // Decryption successfully completed. Decrypted buffer ready.
     kNoKey,  // No key is available to decrypt.
