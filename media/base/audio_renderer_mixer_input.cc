@@ -22,7 +22,8 @@ AudioRendererMixerInput::AudioRendererMixerInput(
 
 AudioRendererMixerInput::~AudioRendererMixerInput() {
   // Mixer is no longer safe to use after |remove_mixer_cb_| has been called.
-  remove_mixer_cb_.Run(params_);
+  if (initialized_)
+    remove_mixer_cb_.Run(params_);
 }
 
 void AudioRendererMixerInput::Initialize(
