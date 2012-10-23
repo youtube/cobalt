@@ -154,9 +154,9 @@ struct NET_EXPORT_PRIVATE QuicPacketHeader {
 struct NET_EXPORT_PRIVATE QuicStreamFrame {
   QuicStreamFrame();
   QuicStreamFrame(QuicStreamId stream_id,
-                     bool fin,
-                     uint64 offset,
-                     base::StringPiece data);
+                  bool fin,
+                  uint64 offset,
+                  base::StringPiece data);
 
   QuicStreamId stream_id;
   bool fin;
@@ -241,8 +241,8 @@ struct NET_EXPORT_PRIVATE CongestionInfo {
 struct NET_EXPORT_PRIVATE QuicAckFrame {
   QuicAckFrame() {}
   QuicAckFrame(QuicPacketSequenceNumber largest_received,
-                  QuicTransmissionTime time_received,
-                  QuicPacketSequenceNumber least_unacked) {
+               QuicTransmissionTime time_received,
+               QuicPacketSequenceNumber least_unacked) {
     received_info.largest_received = largest_received;
     received_info.time_received = time_received;
     sent_info.least_unacked = least_unacked;
@@ -307,12 +307,14 @@ typedef std::vector<QuicFrame> QuicFrames;
 
 struct NET_EXPORT_PRIVATE QuicFecData {
   QuicFecData();
+
+  bool operator==(const QuicFecData& other) const;
+
   QuicFecGroupNumber fec_group;
-  QuicPacketSequenceNumber first_protected_packet_sequence_number;
+  QuicPacketSequenceNumber min_protected_packet_sequence_number;
   // The last protected packet's sequence number will be one
   // less than the sequence number of the FEC packet.
   base::StringPiece redundancy;
-  bool operator==(const QuicFecData& other) const;
 };
 
 struct NET_EXPORT_PRIVATE QuicPacketData {
