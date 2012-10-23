@@ -34,13 +34,17 @@ class VideoFrame;
 // asynchronously.
 class MEDIA_EXPORT Decryptor {
  public:
+  // Reported to UMA, so never reuse a value!
+  // Must be kept in sync with WebKit::WebMediaPlayerClient::MediaKeyErrorCode
+  // (enforced in webmediaplayer_impl.cc).
   enum KeyError {
     kUnknownError = 1,
     kClientError,
     kServiceError,
     kOutputError,
     kHardwareChangeError,
-    kDomainError
+    kDomainError,
+    kMaxKeyError  // Must be last and greater than any legit value.
   };
 
   enum Status {
