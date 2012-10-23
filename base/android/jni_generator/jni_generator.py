@@ -153,7 +153,6 @@ def JavaParamToJni(param):
   ]
   app_param_list = [
       'Landroid/graphics/SurfaceTexture',
-      'Lcom/google/android/apps/chrome/AutofillData',
       'Lcom/google/android/apps/chrome/ChromeContextMenuInfo',
       'Lcom/google/android/apps/chrome/ChromeWindow',
       'Lcom/google/android/apps/chrome/OmniboxSuggestion',
@@ -173,6 +172,8 @@ def JavaParamToJni(param):
       'Lorg/chromium/android_webview/JsResultHandler',
       'Lorg/chromium/android_webview/JsResultReceiver',
       'Lorg/chromium/base/SystemMessageHandler',
+      'Lorg/chromium/chrome/browser/autofill/AutofillExternalDelegate',
+      'Lorg/chromium/chrome/browser/autofill/AutofillSuggestion',
       'Lorg/chromium/chrome/browser/ChromeBrowserProvider$BookmarkNode',
       'Lorg/chromium/chrome/browser/ChromeHttpAuthHandler',
       'Lorg/chromium/chrome/browser/ChromeWebContentsDelegateAndroid',
@@ -186,6 +187,7 @@ def JavaParamToJni(param):
        'WebContentsDelegateAndroid'),
       'Lorg/chromium/chrome/browser/database/SQLiteCursor',
       'Lorg/chromium/content/app/SandboxedProcessService',
+      'Lorg/chromium/content/browser/ContainerViewDelegate',
       'Lorg/chromium/content/browser/ContentVideoView',
       'Lorg/chromium/content/browser/ContentViewCore',
       'Lorg/chromium/content/browser/DeviceOrientation',
