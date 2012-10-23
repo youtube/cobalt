@@ -114,7 +114,7 @@ bool QuicFramer::ConstructFecPacket(const QuicPacketHeader& header,
     return false;
   }
 
-  if (!writer.WriteUInt48(fec.first_protected_packet_sequence_number)) {
+  if (!writer.WriteUInt48(fec.min_protected_packet_sequence_number)) {
     return false;
   }
 
@@ -177,7 +177,7 @@ bool QuicFramer::ProcessPacket(const IPEndPoint& peer_address,
     QuicFecData fec_data;
     fec_data.fec_group = header.fec_group;
     if (!reader_->ReadUInt48(
-            &fec_data.first_protected_packet_sequence_number)) {
+            &fec_data.min_protected_packet_sequence_number)) {
       set_detailed_error("Unable to read first protected packet.");
       return RaiseError(QUIC_INVALID_FEC_DATA);
     }
