@@ -228,4 +228,59 @@ TEST_F(AudioOutputControllerTest, PlayPausePlayClose) {
   CloseAudioController(controller);
 }
 
+// Ensure state change events are handled.
+TEST_F(AudioOutputControllerTest, PlayStateChangeClose) {
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
+    return;
+
+  MockAudioOutputControllerEventHandler event_handler;
+  base::WaitableEvent event(false, false);
+  EXPECT_CALL(event_handler, OnCreated(NotNull()))
+      .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
+
+  // OnPlaying() will be called once normally and once after being recreated.
+  base::WaitableEvent play_event(false, false);
+  EXPECT_CALL(event_handler, OnPlaying(NotNull()))
+      .Times(2)
+      .WillRepeatedly(InvokeWithoutArgs(
+          &play_event, &base::WaitableEvent::Signal));
+
+  // OnPaused() should not be called during the state change event.
+  EXPECT_CALL(event_handler, OnPaused(NotNull()))
+      .Times(0);
+
+  MockAudioOutputControllerSyncReader sync_reader;
+  EXPECT_CALL(sync_reader, UpdatePendingBytes(_))
+      .Times(AtLeast(1));
+  EXPECT_CALL(sync_reader, Read(_, _))
+      .WillRepeatedly(DoAll(ClearBuffer(), SignalEvent(&event), Return(4)));
+  EXPECT_CALL(sync_reader, DataReady())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(sync_reader, Close());
+
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
+                         kSampleRate, kBitsPerSample, kSamplesPerPacket);
+  scoped_refptr<AudioOutputController> controller =
+      AudioOutputController::Create(
+          audio_manager.get(), &event_handler, params, &sync_reader);
+  ASSERT_TRUE(controller.get());
+
+  // Wait for OnCreated() to be called.
+  event.Wait();
+
+  ASSERT_FALSE(play_event.IsSignaled());
+  controller->Play();
+  play_event.Wait();
+
+  // Force a state change and wait for the stream to come back to playing state.
+  play_event.Reset();
+  audio_manager->GetMessageLoop()->PostTask(FROM_HERE,
+      base::Bind(&AudioOutputController::OnDeviceChange, controller));
+  play_event.Wait();
+
+  // Now stop the controller.
+  CloseAudioController(controller);
+}
+
 }  // namespace media

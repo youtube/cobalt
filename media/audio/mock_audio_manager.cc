@@ -69,4 +69,12 @@ scoped_refptr<base::MessageLoopProxy> MockAudioManager::GetMessageLoop() {
 void MockAudioManager::Init() {
 }
 
+void MockAudioManager::AddOutputDeviceChangeListener(
+    AudioDeviceListener* listener) {
+}
+
+void MockAudioManager::RemoveOutputDeviceChangeListener(
+    AudioDeviceListener* listener) {
+}
+
 }  // namespace media.

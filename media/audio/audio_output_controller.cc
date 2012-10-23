@@ -23,15 +23,17 @@ namespace media {
 const int AudioOutputController::kPollNumAttempts = 3;
 const int AudioOutputController::kPollPauseInMilliseconds = 3;
 
-AudioOutputController::AudioOutputController(EventHandler* handler,
-                                             SyncReader* sync_reader,
-                                             const AudioParameters& params)
-    : handler_(handler),
+AudioOutputController::AudioOutputController(AudioManager* audio_manager,
+                                             EventHandler* handler,
+                                             const AudioParameters& params,
+                                             SyncReader* sync_reader)
+    : audio_manager_(audio_manager),
+      handler_(handler),
       stream_(NULL),
       volume_(1.0),
       state_(kEmpty),
       sync_reader_(sync_reader),
-      message_loop_(NULL),
+      message_loop_(audio_manager->GetMessageLoop()),
       number_polling_attempts_left_(0),
       params_(params),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)) {
@@ -39,9 +41,8 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
 
 AudioOutputController::~AudioOutputController() {
   DCHECK_EQ(kClosed, state_);
-  DCHECK(message_loop_);
 
-  if (!message_loop_.get() || message_loop_->BelongsToCurrentThread()) {
+  if (message_loop_->BelongsToCurrentThread()) {
     DoStopCloseAndClearStream(NULL);
   } else {
     // http://crbug.com/120973
@@ -70,12 +71,11 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
 
   // Starts the audio controller thread.
   scoped_refptr<AudioOutputController> controller(new AudioOutputController(
-      event_handler, sync_reader, params));
+      audio_manager, event_handler, params, sync_reader));
 
-  controller->message_loop_ = audio_manager->GetMessageLoop();
   controller->message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputController::DoCreate, controller,
-      base::Unretained(audio_manager)));
+      &AudioOutputController::DoCreate, controller));
+
   return controller;
 }
 
@@ -110,23 +110,26 @@ void AudioOutputController::SetVolume(double volume) {
       &AudioOutputController::DoSetVolume, this, volume));
 }
 
-void AudioOutputController::DoCreate(AudioManager* audio_manager) {
+void AudioOutputController::DoCreate() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Close() can be called before DoCreate() is executed.
   if (state_ == kClosed)
     return;
-  DCHECK_EQ(kEmpty, state_);
+  DCHECK(state_ == kEmpty || state_ == kRecreating) << state_;
 
   DoStopCloseAndClearStream(NULL);
-  stream_ = audio_manager->MakeAudioOutputStreamProxy(params_);
+  stream_ = audio_manager_->MakeAudioOutputStreamProxy(params_);
   if (!stream_) {
+    state_ = kError;
+
     // TODO(hclam): Define error types.
     handler_->OnError(this, 0);
     return;
   }
 
   if (!stream_->Open()) {
+    state_ = kError;
     DoStopCloseAndClearStream(NULL);
 
     // TODO(hclam): Define error types.
@@ -134,14 +137,21 @@ void AudioOutputController::DoCreate(AudioManager* audio_manager) {
     return;
   }
 
+  // Everything started okay, so register for state change callbacks if we have
+  // not already done so.
+  if (state_ != kRecreating)
+    audio_manager_->AddOutputDeviceChangeListener(this);
+
   // We have successfully opened the stream. Set the initial volume.
   stream_->SetVolume(volume_);
 
   // Finally set the state to kCreated.
+  State original_state = state_;
   state_ = kCreated;
 
-  // And then report we have been created.
-  handler_->OnCreated(this);
+  // And then report we have been created if we haven't done so already.
+  if (original_state != kRecreating)
+    handler_->OnCreated(this);
 }
 
 void AudioOutputController::DoPlay() {
@@ -328,20 +338,58 @@ void AudioOutputController::OnError(AudioOutputStream* stream, int code) {
       &AudioOutputController::DoReportError, this, code));
 }
 
-void AudioOutputController::DoStopCloseAndClearStream(WaitableEvent *done) {
+void AudioOutputController::DoStopCloseAndClearStream(WaitableEvent* done) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Allow calling unconditionally and bail if we don't have a stream_ to close.
-  if (stream_ != NULL) {
+  if (stream_) {
     stream_->Stop();
     stream_->Close();
     stream_ = NULL;
+
+    audio_manager_->RemoveOutputDeviceChangeListener(this);
+    audio_manager_ = NULL;
+
     weak_this_.InvalidateWeakPtrs();
   }
 
   // Should be last in the method, do not touch "this" from here on.
-  if (done != NULL)
+  if (done)
     done->Signal();
+}
+
+void AudioOutputController::OnDeviceChange() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  // We should always have a stream by this point.
+  CHECK(stream_);
+
+  // Preserve the original state and shutdown the stream.
+  State original_state = state_;
+  stream_->Stop();
+  stream_->Close();
+  stream_ = NULL;
+
+  // Recreate the stream, exit if we ran into an error.
+  state_ = kRecreating;
+  DoCreate();
+  if (!stream_ || state_ == kError)
+    return;
+
+  // Get us back to the original state or an equivalent state.
+  switch (original_state) {
+    case kStarting:
+    case kPlaying:
+      DoPlay();
+      return;
+    case kCreated:
+    case kPausedWhenStarting:
+    case kPaused:
+      // From the outside these three states are equivalent.
+      return;
+    default:
+      NOTREACHED() << "Invalid original state.";
+  }
 }
 
 }  // namespace media

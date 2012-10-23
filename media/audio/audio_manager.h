@@ -112,6 +112,18 @@ class MEDIA_EXPORT AudioManager {
   // Returns message loop used for audio IO.
   virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() = 0;
 
+  // Allows clients to listen for device state changes; e.g. preferred sample
+  // rate or channel layout changes.  The typical response to receiving this
+  // callback is to recreate the stream.
+  class AudioDeviceListener {
+   public:
+    virtual void OnDeviceChange() = 0;
+  };
+
+  virtual void AddOutputDeviceChangeListener(AudioDeviceListener* listener) = 0;
+  virtual void RemoveOutputDeviceChangeListener(
+      AudioDeviceListener* listener) = 0;
+
  protected:
   AudioManager();
 
