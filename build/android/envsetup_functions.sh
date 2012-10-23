@@ -169,11 +169,10 @@ common_gyp_vars() {
 # environment ANDROID_NDK_ROOT must be set to Android NDK's root path.  The
 # ANDROID_SDK_ROOT only needs to be set to override the default SDK which is in
 # the tree under $ROOT/src/third_party/android_tools/sdk.
-# TODO(navabi): Add NDK to $ROOT/src/third_party/android_tools/ndk.
 # To build Chromium for Android with NDK/SDK follow the steps below:
 #  > export ANDROID_NDK_ROOT=<android ndk root>
 #  > export ANDROID_SDK_ROOT=<android sdk root> # to override the default sdk
-#  > . build/android/envsetup.sh --sdk
+#  > . build/android/envsetup.sh
 #  > make
 ################################################################################
 sdk_build_init() {
@@ -192,7 +191,6 @@ sdk_build_init() {
     export ANDROID_SDK_ROOT="${CHROME_SRC}/third_party/android_tools/sdk/"
   fi
 
-  # Makes sure ANDROID_BUILD_TOP is unset if build has option --sdk
   unset ANDROID_BUILD_TOP
 
   # Set default target.
@@ -237,59 +235,6 @@ sdk_build_init() {
     return 1
   fi
 
-}
-
-################################################################################
-# Initializes environment variables for build with android source.  This expects
-# android environment to be set up along with lunch.  To build:
-#  > . build/envsetup.sh
-#  >  lunch <lunch-type>
-#  > . build/android/envsetup.sh
-#  > make
-#############################################################################
-non_sdk_build_init() {
-  # We export "TOP" here so that "mmm" can be run to build Java code without
-  # having to cd to $ANDROID_BUILD_TOP.
-  export TOP="$ANDROID_BUILD_TOP"
-
-  # Set "ANDROID_NDK_ROOT" as checked-in version, if it was not set.
-  if [[ "${ANDROID_NDK_ROOT}" || ! -d "$ANDROID_NDK_ROOT" ]] ; then
-    export ANDROID_NDK_ROOT="${CHROME_SRC}/third_party/android_tools/ndk/"
-  fi
-  if [[ ! -d "${ANDROID_NDK_ROOT}" ]] ; then
-    echo "Can not find Android NDK root ${ANDROID_NDK_ROOT}." >& 2
-    return 1
-  fi
-
-  # We export "ANDROID_SDK_ROOT" for building Java source with the SDK.
-  export ANDROID_SDK_ROOT=${ANDROID_BUILD_TOP}/prebuilts/sdk/\
-${ANDROID_SDK_VERSION}
-  # Needed by android antfiles when creating apks.
-  export ANDROID_SDK_HOME=${ANDROID_SDK_ROOT}
-
-  # Unset ANDROID_TOOLCHAIN, so it could be set to checked-in 64-bit toolchain.
-  # in common_vars_defines
-  unset ANDROID_TOOLCHAIN
-
-  common_vars_defines
-
-  DEFINES+=" sdk_build=0"
-  DEFINES+=" android_product_out=${ANDROID_PRODUCT_OUT}"
-
-  if [[ -n "$CHROME_ANDROID_BUILD_WEBVIEW" ]]; then
-    webview_build_init
-    return
-  fi
-
-  # The non-SDK build currently requires the SDK path to build the framework
-  # Java aidl files. TODO(steveblock): Investigate avoiding this requirement.
-  DEFINES+=" android_sdk=${ANDROID_SDK_ROOT}"
-  DEFINES+=" android_sdk_root=${ANDROID_SDK_ROOT}"
-  DEFINES+=" android_sdk_tools=${ANDROID_SDK_ROOT}/../tools/linux"
-  DEFINES+=" android_sdk_version=${ANDROID_SDK_VERSION}"
-  DEFINES+=" android_toolchain=${ANDROID_TOOLCHAIN}"
-
-  common_gyp_vars
 }
 
 ################################################################################
