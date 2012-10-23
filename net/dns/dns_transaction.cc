@@ -14,6 +14,7 @@
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
+#include "base/metrics/histogram.h"
 #include "base/rand_util.h"
 #include "base/stl_util.h"
 #include "base/string_piece.h"
@@ -36,6 +37,11 @@
 namespace net {
 
 namespace {
+
+// Provide a common macro to simplify code and readability. We must use a
+// macro as the underlying HISTOGRAM macro creates static variables.
+#define DNS_HISTOGRAM(name, time) UMA_HISTOGRAM_CUSTOM_TIMES(name, time, \
+    base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromHours(1), 100)
 
 // Count labels in the fully-qualified name in DNS format.
 int CountLabels(const std::string& name) {
@@ -86,6 +92,7 @@ class DnsUDPAttempt {
     DCHECK_NE(ERR_IO_PENDING, rv);
     if (rv < 0)
       return rv;
+    start_time_ = base::TimeTicks::Now();
     next_state_ = STATE_SEND_QUERY;
     return DoLoop(OK);
   }
@@ -155,6 +162,13 @@ class DnsUDPAttempt {
     // indicate to the transaction that the server might be misbehaving.
     if (rv == ERR_IO_PENDING && received_malformed_response_)
       return ERR_DNS_MALFORMED_RESPONSE;
+    if (rv == OK) {
+      DNS_HISTOGRAM("AsyncDNS.UDPAttemptSuccess",
+                    base::TimeTicks::Now() - start_time_);
+    } else if (rv != ERR_IO_PENDING) {
+      DNS_HISTOGRAM("AsyncDNS.UDPAttemptFail",
+                    base::TimeTicks::Now() - start_time_);
+    }
     return rv;
   }
 
@@ -224,6 +238,7 @@ class DnsUDPAttempt {
 
   State next_state_;
   bool received_malformed_response_;
+  base::TimeTicks start_time_;
 
   scoped_ptr<DatagramClientSocket> socket_;
   IPEndPoint server_;
