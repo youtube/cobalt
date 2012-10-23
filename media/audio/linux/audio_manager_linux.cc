@@ -59,17 +59,13 @@ bool AudioManagerLinux::HasAudioInputDevices() {
   return HasAnyAlsaAudioDevice(kStreamCapture);
 }
 
-AudioManagerLinux::AudioManagerLinux() {
+AudioManagerLinux::AudioManagerLinux()
+    : wrapper_(new AlsaWrapper()) {
   SetMaxOutputStreamsAllowed(kMaxOutputStreams);
 }
 
 AudioManagerLinux::~AudioManagerLinux() {
   Shutdown();
-}
-
-void AudioManagerLinux::Init() {
-  AudioManagerBase::Init();
-  wrapper_.reset(new AlsaWrapper());
 }
 
 bool AudioManagerLinux::CanShowAudioInputSettings() {
