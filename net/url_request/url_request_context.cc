@@ -58,7 +58,6 @@ void URLRequestContext::CopyFrom(const URLRequestContext* other) {
   // FTPAuthCache is unique per context.
   set_accept_language(other->accept_language_);
   set_accept_charset(other->accept_charset_);
-  set_referrer_charset(other->referrer_charset_);
   set_http_transaction_factory(other->http_transaction_factory_);
   set_ftp_transaction_factory(other->ftp_transaction_factory_);
   set_job_factory(other->job_factory_);
