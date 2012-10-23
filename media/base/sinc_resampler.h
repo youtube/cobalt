@@ -16,6 +16,10 @@ namespace media {
 // SincResampler is a high-quality single-channel sample-rate converter.
 class MEDIA_EXPORT SincResampler {
  public:
+  // The maximum number of samples that may be requested from the callback ahead
+  // of the current position in the stream.
+  static const int kMaximumLookAheadSize;
+
   // Callback type for providing more data into the resampler.  Expects |frames|
   // of data to be rendered into |destination|; zero padded if not enough frames
   // are available to satisfy the request.
