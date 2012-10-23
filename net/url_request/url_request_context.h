@@ -189,13 +189,6 @@ class NET_EXPORT URLRequestContext
   // method to provide a UA string.
   virtual const std::string& GetUserAgent(const GURL& url) const;
 
-  // In general, referrer_charset is not known when URLRequestContext is
-  // constructed. So, we need a setter.
-  const std::string& referrer_charset() const { return referrer_charset_; }
-  void set_referrer_charset(const std::string& charset) {
-    referrer_charset_ = charset;
-  }
-
   const URLRequestJobFactory* job_factory() const { return job_factory_; }
   void set_job_factory(const URLRequestJobFactory* job_factory) {
     job_factory_ = job_factory;
@@ -245,7 +238,6 @@ class NET_EXPORT URLRequestContext
   // The charset of the referrer where this request comes from. It's not
   // used in communication with a server but is used to construct a suggested
   // filename for file download.
-  std::string referrer_charset_;
   HttpTransactionFactory* http_transaction_factory_;
   FtpTransactionFactory* ftp_transaction_factory_;
   const URLRequestJobFactory* job_factory_;
