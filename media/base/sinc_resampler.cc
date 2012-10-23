@@ -52,6 +52,8 @@
 
 namespace media {
 
+namespace {
+
 enum {
   // The kernel size can be adjusted for quality (higher is better) at the
   // expense of performance.  Must be a multiple of 32.
@@ -72,6 +74,10 @@ enum {
   // The size (in samples) of the internal buffer used by the resampler.
   kBufferSize = kBlockSize + kKernelSize
 };
+
+}  // namespace
+
+const int SincResampler::kMaximumLookAheadSize = kBufferSize;
 
 SincResampler::SincResampler(double io_sample_rate_ratio, const ReadCB& read_cb)
     : io_sample_rate_ratio_(io_sample_rate_ratio),
