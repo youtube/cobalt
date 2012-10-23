@@ -149,7 +149,8 @@ class Lock;
       base::subtle::Release_Store(&atomic_histogram_pointer, \
           reinterpret_cast<base::subtle::AtomicWord>(histogram_pointer)); \
     } \
-    DCHECK(histogram_pointer->histogram_name() == constant_histogram_name); \
+    DCHECK_EQ(histogram_pointer->histogram_name(), \
+              std::string(constant_histogram_name)); \
     histogram_pointer->histogram_add_method_invocation; \
   } while (0)
 
