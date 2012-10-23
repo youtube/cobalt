@@ -56,7 +56,8 @@ void TCPListenSocketTester::SetUp() {
   int ret = HANDLE_EINTR(
       connect(test_socket_, reinterpret_cast<sockaddr*>(&client),
               sizeof(client)));
-  ASSERT_NE(ret, StreamListenSocket::kSocketError);
+  if (ret == StreamListenSocket::kSocketError)
+    ASSERT_EQ(EISCONN, errno);
 
   NextAction();
   ASSERT_EQ(ACTION_ACCEPT, last_action_.type());
