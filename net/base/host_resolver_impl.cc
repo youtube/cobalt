@@ -1369,7 +1369,8 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     proc_task_ = new ProcTask(
         key_,
         resolver_->proc_params_,
-        base::Bind(&Job::OnProcTaskComplete, base::Unretained(this)),
+        base::Bind(&Job::OnProcTaskComplete, base::Unretained(this),
+                   base::TimeTicks::Now()),
         net_log_);
 
     if (had_non_speculative_request_)
@@ -1380,11 +1381,15 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   }
 
   // Called by ProcTask when it completes.
-  void OnProcTaskComplete(int net_error, const AddressList& addr_list) {
+  void OnProcTaskComplete(base::TimeTicks start_time,
+                          int net_error,
+                          const AddressList& addr_list) {
     DCHECK(is_proc_running());
 
     if (dns_task_error_ != OK) {
+      base::TimeDelta duration = base::TimeTicks::Now() - start_time;
       if (net_error == OK) {
+        DNS_HISTOGRAM("AsyncDNS.FallbackSuccess", duration);
         if ((dns_task_error_ == ERR_NAME_NOT_RESOLVED) &&
             ResemblesNetBIOSName(key_.hostname)) {
           UmaAsyncDnsResolveStatus(RESOLVE_STATUS_SUSPECT_NETBIOS);
@@ -1395,6 +1400,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
                                          std::abs(dns_task_error_),
                                          GetAllErrorCodesForUma());
       } else {
+        DNS_HISTOGRAM("AsyncDNS.FallbackFail", duration);
         UmaAsyncDnsResolveStatus(RESOLVE_STATUS_FAIL);
       }
     }
@@ -1412,7 +1418,8 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     dns_task_.reset(new DnsTask(
         resolver_->dns_client_.get(),
         key_,
-        base::Bind(&Job::OnDnsTaskComplete, base::Unretained(this)),
+        base::Bind(&Job::OnDnsTaskComplete, base::Unretained(this),
+                   base::TimeTicks::Now()),
         net_log_));
 
     int rv = dns_task_->Start();
@@ -1425,12 +1432,16 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   }
 
   // Called by DnsTask when it completes.
-  void OnDnsTaskComplete(int net_error,
+  void OnDnsTaskComplete(base::TimeTicks start_time,
+                         int net_error,
                          const AddressList& addr_list,
                          base::TimeDelta ttl) {
     DCHECK(is_dns_running());
 
+    base::TimeDelta duration = base::TimeTicks::Now() - start_time;
     if (net_error != OK) {
+      DNS_HISTOGRAM("AsyncDNS.ResolveFail", duration);
+
       dns_task_error_ = net_error;
       dns_task_.reset();
 
@@ -1442,6 +1453,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
       StartProcTask();
       return;
     }
+    DNS_HISTOGRAM("AsyncDNS.ResolveSuccess", duration);
 
     UmaAsyncDnsResolveStatus(RESOLVE_STATUS_DNS_SUCCESS);
     RecordTTL(ttl);
