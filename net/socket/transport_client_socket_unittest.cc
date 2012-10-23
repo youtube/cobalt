@@ -257,8 +257,12 @@ TEST_P(TransportClientSocketTest, IsConnected) {
                                  &callback);
   ASSERT_EQ(bytes_read, arraysize(kServerReply) - 2);
 
-  // Once the data is drained, the socket should now be seen as
-  // closed.
+  // Once the data is drained, wait for the server socket to be closed.
+  rv = sock_->Read(buf, 4096, callback.callback());
+  rv = callback.GetResult(rv);
+  EXPECT_EQ(0, rv);
+
+  // The socket should now be seen as not connected.
   EXPECT_FALSE(sock_->IsConnected());
   EXPECT_FALSE(sock_->IsConnectedAndIdle());
 }
