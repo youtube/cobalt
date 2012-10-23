@@ -27,14 +27,15 @@ class UI_EXPORT RectF : public RectBase<RectF, PointF, SizeF, InsetsF, float> {
   ~RectF();
 
   /// Scales the rectangle by |scale|.
-  RectF Scale(float scale) const WARN_UNUSED_RESULT {
-    return Scale(scale, scale);
+  void Scale(float scale) {
+    Scale(scale, scale);
   }
 
-  RectF Scale(float x_scale, float y_scale) const WARN_UNUSED_RESULT {
+  void Scale(float x_scale, float y_scale) {
     SizeF newSize = size().Scale(x_scale, y_scale);
     newSize.ClampToNonNegative();
-    return RectF(origin().Scale(x_scale, y_scale), newSize);
+    set_origin(origin().Scale(x_scale, y_scale));
+    set_size(newSize);
   }
 
   std::string ToString() const;
