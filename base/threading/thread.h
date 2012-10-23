@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_THREAD_H_
-#define BASE_THREAD_H_
+#ifndef BASE_THREADING_THREAD_H_
+#define BASE_THREADING_THREAD_H_
 
 #include <string>
 
@@ -56,6 +56,18 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // also ensures that the CleanUp() virtual method is called on the subclass
   // before it is destructed.
   virtual ~Thread();
+
+#if defined(OS_WIN)
+  // Causes the thread to initialize COM.  This must be called before calling
+  // Start() or StartWithOptions().  If |use_mta| is false, the thread is also
+  // started with a TYPE_UI message loop.  It is an error to call
+  // init_com_with_mta(false) and then StartWithOptions() with any message loop
+  // type other than TYPE_UI.
+  void init_com_with_mta(bool use_mta) {
+    DCHECK(!started_);
+    com_status_ = use_mta ? MTA : STA;
+  }
+#endif
 
   // Starts the thread.  Returns true if the thread was successfully started;
   // otherwise, returns false.  Upon successful return, the message_loop()
@@ -148,10 +160,21 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   }
 
  private:
-  bool thread_was_started() const { return started_; }
+#if defined(OS_WIN)
+  enum ComStatus {
+    NONE,
+    STA,
+    MTA,
+  };
+#endif
 
   // PlatformThread::Delegate methods:
   virtual void ThreadMain() OVERRIDE;
+
+#if defined(OS_WIN)
+  // Whether this thread needs to initialize COM, and if so, in what mode.
+  ComStatus com_status_;
+#endif
 
   // Whether we successfully started the thread.
   bool started_;
@@ -187,4 +210,4 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
 }  // namespace base
 
-#endif  // BASE_THREAD_H_
+#endif  // BASE_THREADING_THREAD_H_
