@@ -191,12 +191,11 @@ bool QuicFramer::ProcessPacket(const IPEndPoint& peer_address,
   return true;
 }
 
-bool QuicFramer::ProcessRevivedPacket(const IPEndPoint& peer_address,
-                                      const QuicPacketHeader& header,
+bool QuicFramer::ProcessRevivedPacket(const QuicPacketHeader& header,
                                       StringPiece payload) {
   DCHECK(!reader_.get());
 
-  visitor_->OnPacket(peer_address);
+  visitor_->OnRevivedPacket();
 
   visitor_->OnPacketHeader(header);
 

@@ -37,6 +37,10 @@ class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // has been validated or processed.
   virtual void OnPacket(const IPEndPoint& peer_address) = 0;
 
+  // Called when a lost packet has been recovered via FEC,
+  // before it has been processed.
+  virtual void OnRevivedPacket() = 0;
+
   // Called when the header of a packet had been parsed.
   // If OnPacketHeader returns false, framing for this packet will cease.
   virtual bool OnPacketHeader(const QuicPacketHeader& header) = 0;
@@ -117,8 +121,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // for parsing.
   // Return true if the packet was processed succesfully. |payload| must be
   // the complete DECRYPTED payload of the revived packet.
-  bool ProcessRevivedPacket(const IPEndPoint& client_address,
-                            const QuicPacketHeader& header,
+  bool ProcessRevivedPacket(const QuicPacketHeader& header,
                             base::StringPiece payload);
 
   // Creates a new QuicPacket populated with the fields in |header| and
