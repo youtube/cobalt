@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/message_loop_proxy.h"
+#include "base/threading/thread.h"
 #include "media/audio/audio_output_dispatcher_impl.h"
 #include "media/audio/audio_output_proxy.h"
 #include "media/audio/audio_output_resampler.h"
@@ -38,24 +39,6 @@ static const int kMaxInputChannels = 2;
 const char AudioManagerBase::kDefaultDeviceName[] = "Default";
 const char AudioManagerBase::kDefaultDeviceId[] = "default";
 
-#if defined(OS_WIN)
-AudioThread::AudioThread(const char* name) : base::Thread(name) {
-}
-
-AudioThread::~AudioThread() {
-  Stop();
-}
-
-void AudioThread::Init() {
-  com_initializer_.reset(new base::win::ScopedCOMInitializer(
-      base::win::ScopedCOMInitializer::kMTA));
-}
-
-void AudioThread::CleanUp() {
-  com_initializer_.reset();
-}
-#endif
-
 AudioManagerBase::AudioManagerBase()
     : num_active_input_streams_(0),
       max_num_output_streams_(kDefaultMaxOutputStreams),
@@ -80,7 +63,10 @@ AudioManagerBase::~AudioManagerBase() {
 void AudioManagerBase::Init() {
   base::AutoLock lock(audio_thread_lock_);
   DCHECK(!audio_thread_.get());
-  audio_thread_.reset(new AudioThread("AudioThread"));
+  audio_thread_.reset(new base::Thread("AudioThread"));
+#if defined(OS_WIN)
+  audio_thread_->init_com_with_mta(true);
+#endif
   CHECK(audio_thread_->Start());
   message_loop_ = audio_thread_->message_loop_proxy();
 }
@@ -274,7 +260,7 @@ bool AudioManagerBase::IsRecordingInProcess() {
 void AudioManagerBase::Shutdown() {
   // To avoid running into deadlocks while we stop the thread, shut it down
   // via a local variable while not holding the audio thread lock.
-  scoped_ptr<AudioThread> audio_thread;
+  scoped_ptr<base::Thread> audio_thread;
   {
     base::AutoLock lock(audio_thread_lock_);
     audio_thread_.swap(audio_thread);

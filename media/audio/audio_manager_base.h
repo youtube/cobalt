@@ -13,36 +13,19 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/observer_list.h"
 #include "base/synchronization/lock.h"
-#include "base/threading/thread.h"
 #include "media/audio/audio_manager.h"
 
 #if defined(OS_WIN)
 #include "base/win/scoped_com_initializer.h"
 #endif
 
+namespace base {
+class Thread;
+}
+
 namespace media {
 
 class AudioOutputDispatcher;
-
-// Thread that enters MTA on Windows.
-#if defined(OS_WIN)
-class AudioThread : public base::Thread {
- public:
-  explicit AudioThread(const char* name);
-  virtual ~AudioThread();
-
- protected:
-  virtual void Init() OVERRIDE;
-  virtual void CleanUp() OVERRIDE;
-
- private:
-  scoped_ptr<base::win::ScopedCOMInitializer> com_initializer_;
-
-  DISALLOW_COPY_AND_ASSIGN(AudioThread);
-};
-#else
-typedef base::Thread AudioThread;
-#endif
 
 // AudioManagerBase provides AudioManager functions common for all platforms.
 class MEDIA_EXPORT AudioManagerBase : public AudioManager {
@@ -168,7 +151,7 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   ObserverList<AudioDeviceListener> output_listeners_;
 
   // Thread used to interact with audio streams created by this audio manager.
-  scoped_ptr<AudioThread> audio_thread_;
+  scoped_ptr<base::Thread> audio_thread_;
   mutable base::Lock audio_thread_lock_;
 
   // The message loop of the audio thread this object runs on.  Set on Init().
