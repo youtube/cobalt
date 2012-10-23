@@ -6,26 +6,17 @@
 
 # Sets up environment for building Chromium on Android.  It can either be
 # compiled with the Android tree or using the Android SDK/NDK. To build with
-# NDK/SDK: ". build/android/envsetup.sh --sdk".  Environment variable
+# NDK/SDK: ". build/android/envsetup.sh".  Environment variable
 # ANDROID_SDK_BUILD=1 will then be defined and used in the rest of the setup to
 # specifiy build type.
 
 # When building WebView as part of Android we can't use the SDK. Other builds
 # default to using the SDK.
-# NOTE(yfriedman): This looks unnecessary but downstream the default value
-# should be 0 until all builds switch to SDK/NDK.
 if [[ "${CHROME_ANDROID_BUILD_WEBVIEW}" -eq 1 ]]; then
   export ANDROID_SDK_BUILD=0
 else
   export ANDROID_SDK_BUILD=1
 fi
-# Loop over args in case we add more arguments in the future.
-while [ "$1" != "" ]; do
-  case $1 in
-    -s | --sdk  ) export ANDROID_SDK_BUILD=1 ; shift ;;
-    *  )          shift ; break ;;
-  esac
-done
 
 if [[ "${ANDROID_SDK_BUILD}" -eq 1 ]]; then
   echo "Using SDK build"
@@ -79,12 +70,10 @@ elif [[ -z "$ANDROID_BUILD_TOP" || \
   echo "  . build/envsetup.sh"
   echo "  lunch"
   echo "Then try this again."
-  echo "Or did you mean NDK/SDK build. Run envsetup.sh with --sdk argument."
+  echo "Or did you mean NDK/SDK build. Run envsetup.sh without any arguments."
   return 1
 elif [[ -n "$CHROME_ANDROID_BUILD_WEBVIEW" ]]; then
   webview_build_init
-else
-  non_sdk_build_init
 fi
 
 # Workaround for valgrind build
