@@ -37,8 +37,6 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
 
   virtual ~AudioManagerBase();
 
-  virtual void Init() OVERRIDE;
-
   virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE;
 
   virtual string16 GetAudioInputDeviceModel() OVERRIDE;
@@ -111,12 +109,10 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
       AudioOutputDispatchersMap;
 
   // Shuts down the audio thread and releases all the audio output dispatchers
-  // on the audio thread.  All audio streams should be freed before
-  // Shutdown is called.
-  // This must be called in the destructor of the AudioManager<Platform>.
+  // on the audio thread.  All audio streams should be freed before Shutdown()
+  // is called.  This must be called in the destructor of every AudioManagerBase
+  // implementation.
   void Shutdown();
-
-  void ShutdownOnAudioThread();
 
   void SetMaxOutputStreamsAllowed(int max) { max_num_output_streams_ = max; }
 
@@ -125,11 +121,17 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   // thread.
   void NotifyAllOutputDeviceChangeListeners();
 
+  // Called on |audio_thread_|'s message loop immediately after construction.
+  virtual void InitializeOnAudioThread();
+
   // Map of cached AudioOutputDispatcher instances.  Must only be touched
   // from the audio thread (no locking).
   AudioOutputDispatchersMap output_dispatchers_;
 
  private:
+  // Called by Shutdown().
+  void ShutdownOnAudioThread();
+
   // Counts the number of active input streams to find out if something else
   // is currently recording in Chrome.
   base::AtomicRefCount num_active_input_streams_;
@@ -154,9 +156,9 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   scoped_ptr<base::Thread> audio_thread_;
   mutable base::Lock audio_thread_lock_;
 
-  // The message loop of the audio thread this object runs on.  Set on Init().
-  // Used for internal tasks which run on the audio thread even after Shutdown()
-  // has been started and GetMessageLoop() starts returning NULL.
+  // The message loop of the audio thread this object runs on. Used for internal
+  // tasks which run on the audio thread even after Shutdown() has been started
+  // and GetMessageLoop() starts returning NULL.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerBase);

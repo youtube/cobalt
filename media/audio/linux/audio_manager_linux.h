@@ -19,9 +19,6 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
  public:
   AudioManagerLinux();
 
-  // Call before using a newly created AudioManagerLinux instance.
-  virtual void Init() OVERRIDE;
-
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices() OVERRIDE;
   virtual bool HasAudioInputDevices() OVERRIDE;

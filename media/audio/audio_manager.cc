@@ -21,9 +21,7 @@ AudioManager::~AudioManager() {
 
 // static
 AudioManager* AudioManager::Create() {
-  AudioManager* ret = CreateAudioManager();
-  ret->Init();
-  return ret;
+  return CreateAudioManager();
 }
 
 }  // namespace media

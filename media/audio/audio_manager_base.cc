@@ -44,7 +44,15 @@ AudioManagerBase::AudioManagerBase()
       max_num_output_streams_(kDefaultMaxOutputStreams),
       max_num_input_streams_(kDefaultMaxInputStreams),
       num_output_streams_(0),
-      num_input_streams_(0) {
+      num_input_streams_(0),
+      audio_thread_(new base::Thread("AudioThread")) {
+#if defined(OS_WIN)
+  audio_thread_->init_com_with_mta(true);
+#endif
+  CHECK(audio_thread_->Start());
+  message_loop_ = audio_thread_->message_loop_proxy();
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &AudioManagerBase::InitializeOnAudioThread, base::Unretained(this)));
 }
 
 AudioManagerBase::~AudioManagerBase() {
@@ -60,15 +68,8 @@ AudioManagerBase::~AudioManagerBase() {
   DCHECK_EQ(0, num_input_streams_);
 }
 
-void AudioManagerBase::Init() {
-  base::AutoLock lock(audio_thread_lock_);
-  DCHECK(!audio_thread_.get());
-  audio_thread_.reset(new base::Thread("AudioThread"));
-#if defined(OS_WIN)
-  audio_thread_->init_com_with_mta(true);
-#endif
-  CHECK(audio_thread_->Start());
-  message_loop_ = audio_thread_->message_loop_proxy();
+void AudioManagerBase::InitializeOnAudioThread() {
+  DCHECK(message_loop_->BelongsToCurrentThread());
 }
 
 string16 AudioManagerBase::GetAudioInputDeviceModel() {
