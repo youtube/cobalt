@@ -85,7 +85,7 @@ void DecryptingAudioDecoder::Reset(const base::Closure& closure) {
   if (state_ == kWaitingForKey) {
     DCHECK(!read_cb_.is_null());
     pending_buffer_to_decode_ = NULL;
-    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
+    base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
   }
 
   DCHECK(read_cb_.is_null());
@@ -240,7 +240,7 @@ void DecryptingAudioDecoder::DoDecryptAndDecodeBuffer(
   DCHECK_EQ(buffer != NULL, status == DemuxerStream::kOk) << status;
 
   if (!reset_cb_.is_null()) {
-    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
+    base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
     DoReset();
     return;
   }
@@ -248,7 +248,7 @@ void DecryptingAudioDecoder::DoDecryptAndDecodeBuffer(
   if (status == DemuxerStream::kAborted) {
     DVLOG(2) << "DoDecryptAndDecodeBuffer() - kAborted";
     state_ = kIdle;
-    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
+    base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
     return;
   }
 
@@ -294,7 +294,7 @@ void DecryptingAudioDecoder::DoDeliverFrame(
     int buffer_size,
     Decryptor::Status status,
     const Decryptor::AudioBuffers& frames) {
-  DVLOG(3) << "DoDeliverFrame()";
+  DVLOG(3) << "DoDeliverFrame() - status: " << status;
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDecode) << state_;
   DCHECK(!read_cb_.is_null());
@@ -304,22 +304,31 @@ void DecryptingAudioDecoder::DoDeliverFrame(
   bool need_to_try_again_if_nokey_is_returned = key_added_while_pending_decode_;
   key_added_while_pending_decode_ = false;
 
+  scoped_refptr<DecoderBuffer> scoped_pending_buffer_to_decode =
+      pending_buffer_to_decode_;
+  pending_buffer_to_decode_ = NULL;
+
   if (!reset_cb_.is_null()) {
-    pending_buffer_to_decode_ = NULL;
-    base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
+    base::ResetAndReturn(&read_cb_).Run(kAborted, NULL);
     DoReset();
     return;
   }
 
+  DCHECK_EQ(status == Decryptor::kSuccess, !frames.empty());
+
   if (status == Decryptor::kError) {
-    DCHECK(frames.empty());
+    DVLOG(2) << "DoDeliverFrame() - kError";
     state_ = kDecodeFinished;
     base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
     return;
   }
 
   if (status == Decryptor::kNoKey) {
-    DCHECK(frames.empty());
+    DVLOG(2) << "DoDeliverFrame() - kNoKey";
+    // Set |pending_buffer_to_decode_| back as we need to try decoding the
+    // pending buffer again when new key is added to the decryptor.
+    pending_buffer_to_decode_ = scoped_pending_buffer_to_decode;
+
     if (need_to_try_again_if_nokey_is_returned) {
       // The |state_| is still kPendingDecode.
       DecodePendingBuffer();
@@ -338,20 +347,28 @@ void DecryptingAudioDecoder::DoDeliverFrame(
   }
 
   if (status == Decryptor::kNeedMoreData) {
-    DCHECK(frames.empty());
+    DVLOG(2) << "DoDeliverFrame() - kNeedMoreData";
+    if (scoped_pending_buffer_to_decode->IsEndOfStream()) {
+      state_ = kDecodeFinished;
+      base::ResetAndReturn(&read_cb_).Run(
+          kOk, scoped_refptr<Buffer>(new DataBuffer(0)));
+      return;
+    }
+
     state_ = kPendingDemuxerRead;
     ReadFromDemuxerStream();
     return;
   }
 
   DCHECK_EQ(status, Decryptor::kSuccess);
-
-  DCHECK(!frames.empty());
   queued_audio_frames_ = frames;
 
   scoped_refptr<Buffer> first_frame = queued_audio_frames_.front();
   queued_audio_frames_.pop_front();
-  state_ = first_frame->IsEndOfStream() ? kDecodeFinished : kIdle;
+  // No frames returned in the list should be an end-of-stream (EOS) frame.
+  // EOS frame should be returned separately as (kNeedMoreData, NULL).
+  DCHECK(!first_frame->IsEndOfStream());
+  state_ = kIdle;
   base::ResetAndReturn(&read_cb_).Run(kOk, first_frame);
 }
 
