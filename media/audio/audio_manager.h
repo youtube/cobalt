@@ -127,9 +127,6 @@ class MEDIA_EXPORT AudioManager {
  protected:
   AudioManager();
 
-  // Called from Create() to initialize the instance.
-  virtual void Init() = 0;
-
  private:
   DISALLOW_COPY_AND_ASSIGN(AudioManager);
 };

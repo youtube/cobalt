@@ -81,10 +81,7 @@ struct AudioDelayState {
 // the main thread instead of the audio thread.
 class MockAudioManager : public AudioManagerAnyPlatform {
  public:
-  MockAudioManager() {
-    Init();
-  }
-
+  MockAudioManager() {}
   virtual ~MockAudioManager() {}
 
   virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE {
@@ -129,7 +126,6 @@ class AudioLowLatencyInputOutputTest : public testing::Test {
 // The total effect is that recorded audio is played out in loop back using
 // a sync buffer as temporary storage.
 class FullDuplexAudioSinkSource
-
     : public AudioInputStream::AudioInputCallback,
       public AudioOutputStream::AudioSourceCallback {
  public:

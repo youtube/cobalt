@@ -16,9 +16,6 @@ class MEDIA_EXPORT AudioManagerOpenBSD : public AudioManagerBase {
  public:
   AudioManagerOpenBSD();
 
-  // Call before using a newly created AudioManagerOpenBSD instance.
-  virtual void Init() OVERRIDE;
-
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices() OVERRIDE;
   virtual bool HasAudioInputDevices() OVERRIDE;

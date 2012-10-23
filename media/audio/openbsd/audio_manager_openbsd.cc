@@ -51,10 +51,6 @@ AudioManagerOpenBSD::~AudioManagerOpenBSD() {
   Shutdown();
 }
 
-void AudioManagerOpenBSD::Init() {
-  AudioManagerBase::Init();
-}
-
 AudioOutputStream* AudioManagerOpenBSD::MakeLinearOutputStream(
     const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
