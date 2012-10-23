@@ -13,4 +13,9 @@ _PEXPECT_PATH = os.path.join(_CHROME_SRC, 'third_party', 'pexpect')
 if _PEXPECT_PATH not in sys.path:
   sys.path.append(_PEXPECT_PATH)
 
-from pexpect import *
+# pexpect is not available on all platforms. We allow this file to be imported
+# on platforms without pexpect and only fail when pexpect is actually used.
+try:
+  from pexpect import *
+except:
+  pass
