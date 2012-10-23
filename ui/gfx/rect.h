@@ -64,15 +64,6 @@ class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
     return RectF(origin().x(), origin().y(), size().width(), size().height());
   }
 
-  RectF Scale(float scale) const WARN_UNUSED_RESULT {
-    return Scale(scale, scale);
-  }
-
-  RectF Scale(float x_scale, float y_scale) const WARN_UNUSED_RESULT {
-    RectF original = *this;
-    return original.Scale(x_scale, y_scale);
-  }
-
   std::string ToString() const;
 };
 
