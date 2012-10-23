@@ -1289,7 +1289,7 @@ TEST_F(QuicFramerTest, FecPacket) {
   ASSERT_EQ(1, visitor_.fec_count_);
   const QuicFecData& fec_data = *visitor_.fec_data_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABB),
-            fec_data.first_protected_packet_sequence_number);
+            fec_data.min_protected_packet_sequence_number);
   EXPECT_EQ("abcdefghijklmnop", fec_data.redundancy);
 }
 
@@ -2100,7 +2100,7 @@ TEST_F(QuicFramerTest, ConstructFecPacket) {
 
   QuicFecData fec_data;
   fec_data.fec_group = 1;
-  fec_data.first_protected_packet_sequence_number =
+  fec_data.min_protected_packet_sequence_number =
       GG_UINT64_C(0x123456789ABB);
   fec_data.redundancy = "abcdefghijklmnop";
 
