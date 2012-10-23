@@ -101,8 +101,10 @@ void DecryptingVideoDecoder::Stop(const base::Closure& closure) {
   // Destroy()), so running |closure| can't wait for anything that requires the
   // render thread to be processing messages to complete (such as PPAPI
   // callbacks).
-  if (decryptor_)
+  if (decryptor_) {
     decryptor_->DeinitializeDecoder(Decryptor::kVideo);
+    decryptor_ = NULL;
+  }
   if (!request_decryptor_notification_cb_.is_null()) {
     base::ResetAndReturn(&request_decryptor_notification_cb_).Run(
         DecryptorNotificationCB());
@@ -311,7 +313,7 @@ void DecryptingVideoDecoder::DoDeliverFrame(
     int buffer_size,
     Decryptor::Status status,
     const scoped_refptr<VideoFrame>& frame) {
-  DVLOG(3) << "DoDeliverFrame()";
+  DVLOG(3) << "DoDeliverFrame() - status: " << status;
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (state_ == kStopped)
@@ -324,23 +326,31 @@ void DecryptingVideoDecoder::DoDeliverFrame(
   bool need_to_try_again_if_nokey_is_returned = key_added_while_pending_decode_;
   key_added_while_pending_decode_ = false;
 
+  scoped_refptr<DecoderBuffer> scoped_pending_buffer_to_decode =
+      pending_buffer_to_decode_;
+  pending_buffer_to_decode_ = NULL;
+
   if (!reset_cb_.is_null()) {
-    pending_buffer_to_decode_ = NULL;
     base::ResetAndReturn(&read_cb_).Run(kOk, NULL);
-    if (!reset_cb_.is_null())
-      DoReset();
+    DoReset();
     return;
   }
 
+  DCHECK_EQ(status == Decryptor::kSuccess, frame != NULL);
+
   if (status == Decryptor::kError) {
-    DCHECK(!frame);
+    DVLOG(2) << "DoDeliverFrame() - kError";
     state_ = kDecodeFinished;
     base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
     return;
   }
 
   if (status == Decryptor::kNoKey) {
-    DCHECK(!frame);
+    DVLOG(2) << "DoDeliverFrame() - kNoKey";
+    // Set |pending_buffer_to_decode_| back as we need to try decoding the
+    // pending buffer again when new key is added to the decryptor.
+    pending_buffer_to_decode_ = scoped_pending_buffer_to_decode;
+
     if (need_to_try_again_if_nokey_is_returned) {
       // The |state_| is still kPendingDecode.
       DecodePendingBuffer();
@@ -359,14 +369,23 @@ void DecryptingVideoDecoder::DoDeliverFrame(
   }
 
   if (status == Decryptor::kNeedMoreData) {
-    DCHECK(!frame);
+    DVLOG(2) << "DoDeliverFrame() - kNeedMoreData";
+    if (scoped_pending_buffer_to_decode->IsEndOfStream()) {
+      state_ = kDecodeFinished;
+      base::ResetAndReturn(&read_cb_).Run(
+          kOk, media::VideoFrame::CreateEmptyFrame());
+      return;
+    }
+
     state_ = kPendingDemuxerRead;
     ReadFromDemuxerStream();
     return;
   }
 
   DCHECK_EQ(status, Decryptor::kSuccess);
-  state_ = frame->IsEndOfStream() ? kDecodeFinished : kIdle;
+  // No frame returned with kSuccess should be end-of-stream frame.
+  DCHECK(!frame->IsEndOfStream());
+  state_ = kIdle;
   base::ResetAndReturn(&read_cb_).Run(kOk, frame);
 }
 
