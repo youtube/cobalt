@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/environment.h"
+#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_manager_base.h"

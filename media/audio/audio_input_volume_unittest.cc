@@ -4,6 +4,7 @@
 
 #include <cmath>
 
+#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager_base.h"
