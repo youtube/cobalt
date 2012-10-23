@@ -2003,6 +2003,13 @@ typedef void (GL_APIENTRYP PFNGLCOPYTEXTURECHROMIUM) (GLenum target, GLenum sour
 #define GL_GET_ERROR_QUERY_CHROMIUM 0x84F3
 #endif
 
+/* GL_CHROMIUM_command_buffer_latency_query */
+#ifndef GL_CHROMIUM_command_buffer_latency_query
+#define GL_CHROMIUM_command_buffer_latency_query 1
+// TODO: Get official numbers for these constants.
+#define GL_LATENCY_QUERY_CHROMIUM 0x84F4
+#endif
+
 /* GL_CHROMIUM_texture_mailbox */
 #ifndef GL_CHROMIUM_texture_mailbox
 #define GL_CHROMIUM_texture_mailbox 1
