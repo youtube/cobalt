@@ -34,6 +34,7 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
 
   MOCK_METHOD1(OnError, void(QuicFramer* framer));
   MOCK_METHOD1(OnPacket, void(const IPEndPoint& client_address));
+  MOCK_METHOD0(OnRevivedPacket, void());
   MOCK_METHOD1(OnPacketHeader, bool(const QuicPacketHeader& header));
   MOCK_METHOD1(OnFecProtectedPayload, void(base::StringPiece payload));
   MOCK_METHOD1(OnStreamFrame, void(const QuicStreamFrame& frame));
@@ -49,6 +50,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
  public:
   virtual void OnError(QuicFramer* framer) OVERRIDE {}
   virtual void OnPacket(const IPEndPoint& client_address) OVERRIDE {}
+  virtual void OnRevivedPacket() OVERRIDE {}
   virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;
   virtual void OnFecProtectedPayload(base::StringPiece payload) OVERRIDE {}
   virtual void OnStreamFrame(const QuicStreamFrame& frame) OVERRIDE {}

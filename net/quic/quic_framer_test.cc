@@ -68,6 +68,7 @@ class TestQuicVisitor : public ::net::QuicFramerVisitorInterface {
         frame_count_(0),
         fec_count_(0),
         complete_packets_(0),
+        revived_packets_(0),
         accept_packet_(true) {
   }
 
@@ -85,6 +86,10 @@ class TestQuicVisitor : public ::net::QuicFramerVisitorInterface {
 
   virtual void OnPacket(const IPEndPoint& client_address) {
     address_ = client_address;
+  }
+
+  virtual void OnRevivedPacket() {
+    revived_packets_++;
   }
 
   virtual bool OnPacketHeader(const QuicPacketHeader& header) {
@@ -131,6 +136,7 @@ class TestQuicVisitor : public ::net::QuicFramerVisitorInterface {
   int frame_count_;
   int fec_count_;
   int complete_packets_;
+  int revived_packets_;
   bool accept_packet_;
 
   IPEndPoint address_;
@@ -459,13 +465,13 @@ TEST_F(QuicFramerTest, RevivedStreamFrame) {
   header.fec_group = 0;
 
   // Do not encrypt the payload because the revived payload is post-encryption.
-  EXPECT_TRUE(framer_.ProcessRevivedPacket(address_,
-                                           header,
+  EXPECT_TRUE(framer_.ProcessRevivedPacket(header,
                                            StringPiece(AsChars(payload),
                                                        arraysize(payload))));
 
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
   ASSERT_EQ(address_, visitor_.address_);
+  ASSERT_EQ(1, visitor_.revived_packets_);
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_EQ(GG_UINT64_C(0xFEDCBA9876543210), visitor_.header_->guid);
   EXPECT_EQ(0x1, visitor_.header_->retransmission_count);
