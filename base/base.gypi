@@ -146,6 +146,8 @@
           'files/file_path_watcher_linux.cc',
           'files/file_path_watcher_stub.cc',
           'files/file_path_watcher_win.cc',
+          'files/important_file_writer.h',
+          'files/important_file_writer.cc',
           'float_util.h',
           'format_macros.h',
           'global_descriptors_posix.cc',
