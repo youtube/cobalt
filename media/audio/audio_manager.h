@@ -127,6 +127,9 @@ class MEDIA_EXPORT AudioManager {
  protected:
   AudioManager();
 
+  // Called on the audio thread's message loop immediately after construction.
+  virtual void InitializeOnAudioThread() = 0;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(AudioManager);
 };

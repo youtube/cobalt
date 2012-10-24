@@ -5,6 +5,8 @@
 #include "media/audio/audio_manager.h"
 
 #include "base/at_exit.h"
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 
@@ -21,7 +23,12 @@ AudioManager::~AudioManager() {
 
 // static
 AudioManager* AudioManager::Create() {
-  return CreateAudioManager();
+  AudioManager* manager = CreateAudioManager();
+  if (manager) {
+    manager->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
+        &AudioManager::InitializeOnAudioThread, base::Unretained(manager)));
+  }
+  return manager;
 }
 
 }  // namespace media
