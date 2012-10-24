@@ -94,7 +94,9 @@ def main(argv):
   buildbot_report.PrintNamedStep(
       'Instrumentation tests: %s - %s' % (', '.join(options.annotation),
                                           options.test_apk))
-  return DispatchInstrumentationTests(options)
+  ret = DispatchInstrumentationTests(options)
+  buildbot_report.PrintStepResultIfNeeded(options, ret)
+  return ret
 
 
 if __name__ == '__main__':
