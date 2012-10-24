@@ -47,6 +47,7 @@
         '<(PRODUCT_DIR)/<(RULE_INPUT_ROOT).isolated',
       ],
       'action': [
+        'python',
         '<(DEPTH)/tools/swarm_client/isolate.py',
         '<(test_isolation_mode)',
         '--outdir', '<(test_isolation_outdir)',
