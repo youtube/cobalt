@@ -651,6 +651,13 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   void set_stack_trace(const base::debug::StackTrace& stack_trace);
   const base::debug::StackTrace* stack_trace() const;
 
+  void set_received_response_content_length(int64 received_content_length) {
+    received_response_content_length_ = received_content_length;
+  }
+  int64 received_response_content_length() {
+    return received_response_content_length_;
+  }
+
  protected:
   // Allow the URLRequestJob class to control the is_pending() flag.
   void set_is_pending(bool value) { is_pending_ = value; }
@@ -827,6 +834,8 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // the authentication challenge being handled by |NotifyAuthRequired|.
   AuthCredentials auth_credentials_;
   scoped_refptr<AuthChallengeInfo> auth_info_;
+
+  int64 received_response_content_length_;
 
   base::TimeTicks creation_time_;
 

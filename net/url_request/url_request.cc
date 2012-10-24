@@ -156,6 +156,7 @@ URLRequest::URLRequest(const GURL& url,
           base::Bind(&URLRequest::BeforeRequestComplete,
                      base::Unretained(this)))),
       has_notified_completion_(false),
+      received_response_content_length_(0),
       creation_time_(base::TimeTicks::Now()) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
@@ -193,6 +194,7 @@ URLRequest::URLRequest(const GURL& url,
           base::Bind(&URLRequest::BeforeRequestComplete,
                      base::Unretained(this)))),
       has_notified_completion_(false),
+      received_response_content_length_(0),
       creation_time_(base::TimeTicks::Now()) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 

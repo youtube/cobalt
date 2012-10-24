@@ -29,6 +29,7 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service.h"
 #include "net/cookies/cookie_monster.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
@@ -1488,10 +1489,11 @@ void URLRequestHttpJob::DoneWithRequest(CompletionCause reason) {
   if (done_)
     return;
   done_ = true;
-
   RecordPerfHistograms(reason);
-  if (reason == FINISHED)
+  if (reason == FINISHED) {
+    request_->set_received_response_content_length(prefilter_bytes_read());
     RecordCompressionHistograms();
+  }
 }
 
 HttpResponseHeaders* URLRequestHttpJob::GetResponseHeaders() const {
