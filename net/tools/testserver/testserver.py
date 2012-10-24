@@ -2203,7 +2203,7 @@ def main(options, args):
         if not os.path.isfile(options.cert_and_key_file):
           print ('specified server cert file not found: ' +
                  options.cert_and_key_file + ' exiting...')
-          return
+          return 1
         pem_cert_and_key = file(options.cert_and_key_file, 'r').read()
       else:
         # generate a new certificate and run an OCSP server for it.
@@ -2226,7 +2226,7 @@ def main(options, args):
           ocsp_state = minica.OCSP_STATE_UNKNOWN
         else:
           print 'unknown OCSP status: ' + options.ocsp_status
-          return
+          return 1
 
         (pem_cert_and_key, ocsp_der) = \
             minica.GenerateCertKeyAndOCSP(
@@ -2241,7 +2241,7 @@ def main(options, args):
         if not os.path.isfile(ca_cert):
           print ('specified trusted client CA file not found: ' + ca_cert +
                  ' exiting...')
-          return
+          return 1
       server = HTTPSServer((host, port), TestPageHandler, pem_cert_and_key,
                            options.ssl_client_auth, options.ssl_client_ca,
                            options.ssl_bulk_cipher, options.record_resume,
@@ -2273,15 +2273,12 @@ def main(options, args):
     if options.ssl_client_auth:
       websocket_options.tls_client_auth = True
       if len(options.ssl_client_ca) != 1:
-        # TODO(toyoshim): Provide non-zero exit code for these error cases.
-        # Ditto on other paths here and there.
-        # http://crbug.com/156539
         print 'one trusted client CA file should be specified'
-        return
+        return 1
       if not os.path.isfile(options.ssl_client_ca[0]):
         print ('specified trusted client CA file not found: ' +
                options.ssl_client_ca[0] + ' exiting...')
-        return
+        return 1
       websocket_options.tls_client_ca = options.ssl_client_ca[0]
     server = WebSocketServer(websocket_options)
     print 'WebSocket server started on %s:%d...' % (host, server.server_port)
@@ -2366,6 +2363,8 @@ def main(options, args):
     if ocsp_server is not None:
       ocsp_server.stop_serving()
     server.stop = True
+
+  return 0
 
 if __name__ == '__main__':
   option_parser = optparse.OptionParser()
