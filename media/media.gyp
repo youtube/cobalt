@@ -26,6 +26,7 @@
         '../base/base.gyp:base',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../crypto/crypto.gyp:crypto',
+        '../skia/skia.gyp:skia',
         '../ui/ui.gyp:ui',
       ],
       'defines': [
@@ -278,6 +279,8 @@
         'filters/h264_to_annex_b_bitstream_converter.h',
         'filters/in_memory_url_protocol.cc',
         'filters/in_memory_url_protocol.h',
+        'filters/skcanvas_video_renderer.cc',
+        'filters/skcanvas_video_renderer.h',
         'filters/source_buffer_stream.cc',
         'filters/source_buffer_stream.h',
         'filters/video_frame_generator.cc',
@@ -431,7 +434,6 @@
         # A simple WebM encoder for animated avatars on ChromeOS.
         ['chromeos==1', {
           'dependencies': [
-            '../skia/skia.gyp:skia',
             '../third_party/libvpx/libvpx.gyp:libvpx',
             '../third_party/libyuv/libyuv.gyp:libyuv',
           ],
@@ -586,6 +588,7 @@
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_base',
+        '../skia/skia.gyp:skia',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../ui/ui.gyp:ui',
@@ -657,6 +660,7 @@
         'filters/h264_to_annex_b_bitstream_converter_unittest.cc',
         'filters/pipeline_integration_test.cc',
         'filters/pipeline_integration_test_base.cc',
+        'filters/skcanvas_video_renderer_unittest.cc',
         'filters/source_buffer_stream_unittest.cc',
         'filters/video_renderer_base_unittest.cc',
         'video/capture/video_capture_device_unittest.cc',
