@@ -174,17 +174,6 @@ void Histogram::InitializeBucketRanges(Sample minimum,
   ranges->ResetChecksum();
 }
 
-void Histogram::Add(int value) {
-  DCHECK_EQ(0, ranges(0));
-  DCHECK_EQ(kSampleType_MAX, ranges(bucket_count_));
-
-  if (value > kSampleType_MAX - 1)
-    value = kSampleType_MAX - 1;
-  if (value < 0)
-    value = 0;
-  samples_->Accumulate(value, 1);
-}
-
 void Histogram::AddBoolean(bool value) {
   DCHECK(false);
 }
@@ -199,18 +188,6 @@ bool Histogram::AddSamplesFromPickle(PickleIterator* iter) {
 
 void Histogram::SetRangeDescriptions(const DescriptionPair descriptions[]) {
   DCHECK(false);
-}
-
-// The following methods provide a graphical histogram display.
-void Histogram::WriteHTMLGraph(string* output) const {
-  // TBD(jar) Write a nice HTML bar chart, with divs an mouse-overs etc.
-  output->append("<PRE>");
-  WriteAsciiImpl(true, "<br>", output);
-  output->append("</PRE>");
-}
-
-void Histogram::WriteAscii(string* output) const {
-  WriteAsciiImpl(true, "\n", output);
 }
 
 // static
@@ -367,39 +344,6 @@ size_t Histogram::bucket_count() const {
   return bucket_count_;
 }
 
-scoped_ptr<HistogramSamples> Histogram::SnapshotSamples() const {
-  return SnapshotSampleVector().PassAs<HistogramSamples>();
-}
-
-bool Histogram::HasConstructionArguments(Sample minimum,
-                                         Sample maximum,
-                                         size_t bucket_count) {
-  return ((minimum == declared_min_) && (maximum == declared_max_) &&
-          (bucket_count == bucket_count_));
-}
-
-Histogram::Histogram(const string& name,
-                     Sample minimum,
-                     Sample maximum,
-                     size_t bucket_count,
-                     const BucketRanges* ranges)
-  : HistogramBase(name),
-    bucket_ranges_(ranges),
-    declared_min_(minimum),
-    declared_max_(maximum),
-    bucket_count_(bucket_count) {
-  if (ranges)
-    samples_.reset(new SampleVector(ranges));
-}
-
-Histogram::~Histogram() {
-  if (StatisticsRecorder::dump_on_exit()) {
-    string output;
-    WriteAsciiImpl(true, "\n", &output);
-    DLOG(INFO) << output;
-  }
-}
-
 // static
 bool Histogram::InspectConstructionArguments(const string& name,
                                              Sample* minimum,
@@ -427,6 +371,62 @@ bool Histogram::InspectConstructionArguments(const string& name,
   if (*bucket_count > static_cast<size_t>(*maximum - *minimum + 2))
     return false;
   return true;
+}
+
+bool Histogram::HasConstructionArguments(Sample minimum,
+                                         Sample maximum,
+                                         size_t bucket_count) const {
+  return ((minimum == declared_min_) && (maximum == declared_max_) &&
+          (bucket_count == bucket_count_));
+}
+
+void Histogram::Add(int value) {
+  DCHECK_EQ(0, ranges(0));
+  DCHECK_EQ(kSampleType_MAX, ranges(bucket_count_));
+
+  if (value > kSampleType_MAX - 1)
+    value = kSampleType_MAX - 1;
+  if (value < 0)
+    value = 0;
+  samples_->Accumulate(value, 1);
+}
+
+scoped_ptr<HistogramSamples> Histogram::SnapshotSamples() const {
+  return SnapshotSampleVector().PassAs<HistogramSamples>();
+}
+
+// The following methods provide a graphical histogram display.
+void Histogram::WriteHTMLGraph(string* output) const {
+  // TBD(jar) Write a nice HTML bar chart, with divs an mouse-overs etc.
+  output->append("<PRE>");
+  WriteAsciiImpl(true, "<br>", output);
+  output->append("</PRE>");
+}
+
+void Histogram::WriteAscii(string* output) const {
+  WriteAsciiImpl(true, "\n", output);
+}
+
+Histogram::Histogram(const string& name,
+                     Sample minimum,
+                     Sample maximum,
+                     size_t bucket_count,
+                     const BucketRanges* ranges)
+  : HistogramBase(name),
+    bucket_ranges_(ranges),
+    declared_min_(minimum),
+    declared_max_(maximum),
+    bucket_count_(bucket_count) {
+  if (ranges)
+    samples_.reset(new SampleVector(ranges));
+}
+
+Histogram::~Histogram() {
+  if (StatisticsRecorder::dump_on_exit()) {
+    string output;
+    WriteAsciiImpl(true, "\n", &output);
+    DLOG(INFO) << output;
+  }
 }
 
 bool Histogram::SerializeRanges(Pickle* pickle) const {
