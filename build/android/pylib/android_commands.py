@@ -657,7 +657,6 @@ class AndroidCommands(object):
         path, self.RunShellCommand('ls -lR %s' % path), re_file,
         self._device_utc_offset)
 
-
   def SetJavaAssertsEnabled(self, enable):
     """Sets or removes the device java assertions property.
 
