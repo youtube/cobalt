@@ -19,7 +19,10 @@ import tempfile
 import time
 
 import io_stats_parser
-import pexpect
+try:
+  import pexpect
+except:
+  pexpect = None
 
 CHROME_SRC = os.path.join(
     os.path.abspath(os.path.dirname(__file__)), '..', '..', '..')
