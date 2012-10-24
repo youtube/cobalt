@@ -236,9 +236,7 @@ v8.log
 /third_party/webgl_conformance
 /third_party/webpagereplay/
 /third_party/webrtc
-/third_party/webrtc/common_audio/signal_processing/internal
-/third_party/webrtc/modules/audio_coding/codecs/celt
-/third_party/webrtc/modules/audio_coding/codecs/speex
+/third_party/webrtc/internal
 /third_party/webrtc/modules/video_coding/codecs/vp8_internal
 /third_party/widevine/cdm/binaries
 /third_party/widevine/cdm/symbols
