@@ -11,7 +11,6 @@
 #define MEDIA_BASE_BIND_TO_LOOP_H_
 
 #include "base/bind.h"
-#include "base/callback_internal.h" // Avoid re-inventing CallbackForward.
 #include "base/location.h"
 #include "base/message_loop_proxy.h"
 
@@ -31,6 +30,28 @@
 
 namespace media {
 
+// Mimic base::internal::CallbackForward, replacing p.Pass() with
+// base::Passed(&p) to account for the extra layer of indirection.
+namespace internal {
+template <typename T>
+T& TrampolineForward(T& t) { return t; }
+
+template <typename T>
+base::internal::PassedWrapper<scoped_ptr<T> > TrampolineForward(
+    scoped_ptr<T>& p) { return base::Passed(&p); }
+
+template <typename T>
+base::internal::PassedWrapper<scoped_array<T> > TrampolineForward(
+    scoped_array<T>& p) { return base::Passed(&p); }
+
+template <typename T, typename R>
+base::internal::PassedWrapper<scoped_ptr_malloc<T, R> > TrampolineForward(
+    scoped_ptr_malloc<T, R>& p) { base::Passed(&p); }
+
+template <typename T>
+base::internal::PassedWrapper<ScopedVector<T> > TrampolineForward(
+    ScopedVector<T>& p) { return base::Passed(&p); }
+
 template <typename T> struct TrampolineHelper;
 
 template <>
@@ -48,8 +69,7 @@ struct TrampolineHelper<void(A1)> {
   static void Run(
       const scoped_refptr<base::MessageLoopProxy>& loop,
       const base::Callback<void(A1)>& cb, A1 a1) {
-    loop->PostTask(FROM_HERE, base::Bind(cb,
-        base::internal::CallbackForward(a1)));
+    loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1)));
   }
 };
 
@@ -59,9 +79,8 @@ struct TrampolineHelper<void(A1, A2)> {
   static void Run(
       const scoped_refptr<base::MessageLoopProxy>& loop,
       const base::Callback<void(A1, A2)>& cb, A1 a1, A2 a2) {
-    loop->PostTask(FROM_HERE, base::Bind(cb,
-        base::internal::CallbackForward(a1),
-        base::internal::CallbackForward(a2)));
+    loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
+        internal::TrampolineForward(a2)));
   }
 };
 
@@ -71,10 +90,8 @@ struct TrampolineHelper<void(A1, A2, A3)> {
   static void Run(
       const scoped_refptr<base::MessageLoopProxy>& loop,
       const base::Callback<void(A1, A2, A3)>& cb, A1 a1, A2 a2, A3 a3) {
-    loop->PostTask(FROM_HERE, base::Bind(cb,
-        base::internal::CallbackForward(a1),
-        base::internal::CallbackForward(a2),
-        base::internal::CallbackForward(a3)));
+    loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
+        internal::TrampolineForward(a2), internal::TrampolineForward(a3)));
   }
 };
 
@@ -85,11 +102,9 @@ struct TrampolineHelper<void(A1, A2, A3, A4)> {
       const scoped_refptr<base::MessageLoopProxy>& loop,
       const base::Callback<void(A1, A2, A3, A4)>& cb, A1 a1, A2 a2, A3 a3,
           A4 a4) {
-    loop->PostTask(FROM_HERE, base::Bind(cb,
-        base::internal::CallbackForward(a1),
-        base::internal::CallbackForward(a2),
-        base::internal::CallbackForward(a3),
-        base::internal::CallbackForward(a4)));
+    loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
+        internal::TrampolineForward(a2), internal::TrampolineForward(a3),
+        internal::TrampolineForward(a4)));
   }
 };
 
@@ -100,12 +115,9 @@ struct TrampolineHelper<void(A1, A2, A3, A4, A5)> {
       const scoped_refptr<base::MessageLoopProxy>& loop,
       const base::Callback<void(A1, A2, A3, A4, A5)>& cb, A1 a1, A2 a2, A3 a3,
           A4 a4, A5 a5) {
-    loop->PostTask(FROM_HERE, base::Bind(cb,
-        base::internal::CallbackForward(a1),
-        base::internal::CallbackForward(a2),
-        base::internal::CallbackForward(a3),
-        base::internal::CallbackForward(a4),
-        base::internal::CallbackForward(a5)));
+    loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
+        internal::TrampolineForward(a2), internal::TrampolineForward(a3),
+        internal::TrampolineForward(a4), internal::TrampolineForward(a5)));
   }
 };
 
@@ -117,13 +129,10 @@ struct TrampolineHelper<void(A1, A2, A3, A4, A5, A6)> {
       const scoped_refptr<base::MessageLoopProxy>& loop,
       const base::Callback<void(A1, A2, A3, A4, A5, A6)>& cb, A1 a1, A2 a2,
           A3 a3, A4 a4, A5 a5, A6 a6) {
-    loop->PostTask(FROM_HERE, base::Bind(cb,
-        base::internal::CallbackForward(a1),
-        base::internal::CallbackForward(a2),
-        base::internal::CallbackForward(a3),
-        base::internal::CallbackForward(a4),
-        base::internal::CallbackForward(a5),
-        base::internal::CallbackForward(a6)));
+    loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
+        internal::TrampolineForward(a2), internal::TrampolineForward(a3),
+        internal::TrampolineForward(a4), internal::TrampolineForward(a5),
+        internal::TrampolineForward(a6)));
   }
 };
 
@@ -135,23 +144,21 @@ struct TrampolineHelper<void(A1, A2, A3, A4, A5, A6, A7)> {
       const scoped_refptr<base::MessageLoopProxy>& loop,
       const base::Callback<void(A1, A2, A3, A4, A5, A6, A7)>& cb, A1 a1, A2 a2,
           A3 a3, A4 a4, A5 a5, A6 a6, A7 a7) {
-    loop->PostTask(FROM_HERE, base::Bind(cb,
-        base::internal::CallbackForward(a1),
-        base::internal::CallbackForward(a2),
-        base::internal::CallbackForward(a3),
-        base::internal::CallbackForward(a4),
-        base::internal::CallbackForward(a5),
-        base::internal::CallbackForward(a6),
-        base::internal::CallbackForward(a7)));
+    loop->PostTask(FROM_HERE, base::Bind(cb, internal::TrampolineForward(a1),
+        internal::TrampolineForward(a2), internal::TrampolineForward(a3),
+        internal::TrampolineForward(a4), internal::TrampolineForward(a5),
+        internal::TrampolineForward(a6), internal::TrampolineForward(a7)));
   }
 };
 
+
+}  // namespace internal
 
 template<typename T>
 static base::Callback<T> BindToLoop(
     const scoped_refptr<base::MessageLoopProxy>& loop,
     const base::Callback<T>& cb) {
-  return base::Bind(&TrampolineHelper<T>::Run, loop, cb);
+  return base::Bind(&internal::TrampolineHelper<T>::Run, loop, cb);
 }
 
 }  // namespace media
