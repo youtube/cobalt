@@ -1140,9 +1140,14 @@ bool HttpResponseHeaders::HasStrongValidators() const {
 // From RFC 2616:
 // Content-Length = "Content-Length" ":" 1*DIGIT
 int64 HttpResponseHeaders::GetContentLength() const {
+  return GetInt64HeaderValue("content-length");
+}
+
+int64 HttpResponseHeaders::GetInt64HeaderValue(
+    const std::string& header) const {
   void* iter = NULL;
   std::string content_length_val;
-  if (!EnumerateHeader(&iter, "content-length", &content_length_val))
+  if (!EnumerateHeader(&iter, header, &content_length_val))
     return -1;
 
   if (content_length_val.empty())
