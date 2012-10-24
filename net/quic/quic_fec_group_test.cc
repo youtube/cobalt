@@ -35,18 +35,12 @@ class QuicFecGroupTest : public ::testing::Test {
     scoped_array<char>redundancy(new char[max_len]);
     for (size_t i = 0; i < max_len; i++) {
       // Initialize to the first packet.
-      DLOG(INFO) << "Setting redundancy[" << i << "]: " << kData[0][i];
       redundancy[i] = kData[0][i];
       // XOR in the remaining packets.
       for (size_t packet = 1; packet < num_packets; packet++) {
         uint8 byte = i > strlen(kData[packet]) ? 0x00 : kData[packet][i];
         redundancy[i] = redundancy[i] ^ byte;
-        DLOG(INFO) << "XORing redundancy[" << i << "]: " << byte;
       }
-    }
-
-    for (size_t i = 0; i < strlen(kData[0]); i++) {
-      DLOG(INFO) << "redundancy[" << i << "]: " << redundancy[i];
     }
 
     QuicFecGroup group;
@@ -61,7 +55,6 @@ class QuicFecGroupTest : public ::testing::Test {
           QuicFecData fec;
           fec.min_protected_packet_sequence_number = 0;
           fec.redundancy = StringPiece(redundancy.get(), strlen(kData[0]));
-          DLOG(INFO) << "fec.redundancy: " << fec.redundancy;
           ASSERT_TRUE(group.UpdateFec(num_packets, fec));
         } else {
           QuicPacketHeader header;
@@ -88,7 +81,6 @@ class QuicFecGroupTest : public ::testing::Test {
       QuicFecData fec;
       fec.min_protected_packet_sequence_number = 0;
       fec.redundancy = StringPiece(redundancy.get(), strlen(kData[0]));
-      DLOG(INFO) << "fec.redundancy: " << fec.redundancy;
 
       ASSERT_TRUE(group.UpdateFec(num_packets, fec));
     }
