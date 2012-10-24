@@ -51,8 +51,17 @@ class BASE_EXPORT HistogramBase {
   void SetFlags(int32 flags);
   void ClearFlags(int32 flags);
 
+  // Whether the histogram has construction arguments as parameters specified.
+  // For histograms that don't have the concept of minimum, maximum or
+  // bucket_count, this function always returns false.
+  virtual bool HasConstructionArguments(Sample minimum,
+                                        Sample maximum,
+                                        size_t bucket_count) const = 0;
+
   virtual void Add(Sample value) = 0;
 
+  // Snapshot the current complete set of sample data.
+  // Override with atomic/locked snapshot if needed.
   virtual scoped_ptr<HistogramSamples> SnapshotSamples() const = 0;
 
   // The following methods provide graphical histogram displays.

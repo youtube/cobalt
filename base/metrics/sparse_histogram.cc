@@ -26,6 +26,13 @@ HistogramBase* SparseHistogram::FactoryGet(const string& name, int32 flags) {
 
 SparseHistogram::~SparseHistogram() {}
 
+bool SparseHistogram::HasConstructionArguments(Sample minimum,
+                                               Sample maximum,
+                                               size_t bucket_count) const {
+  // SparseHistogram never has min/max/bucket_count limit.
+  return false;
+}
+
 void SparseHistogram::Add(Sample value) {
   base::AutoLock auto_lock(lock_);
   sample_counts_[value]++;
