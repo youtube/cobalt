@@ -28,10 +28,12 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
   virtual ~SparseHistogram();
 
   // HistogramBase implementation:
+  virtual bool HasConstructionArguments(Sample minimum,
+                                        Sample maximum,
+                                        size_t bucket_count) const OVERRIDE;
   virtual void Add(Sample value) OVERRIDE;
   virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
   virtual void WriteAscii(std::string* output) const OVERRIDE;
-
   virtual scoped_ptr<HistogramSamples> SnapshotSamples() const OVERRIDE;
 
  private:
