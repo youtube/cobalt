@@ -113,6 +113,12 @@ def AddInstrumentationOptions(option_parser):
                            dest='flakiness_dashboard_server',
                            help=('Address of the server that is hosting the '
                                  'Chrome for Android flakiness dashboard.'))
+  option_parser.add_option('--buildbot-step-failure',
+                           action='store_true',
+                           help=('If present, will set the buildbot status '
+                                 'as STEP_FAILURE, otherwise as STEP_WARNINGS '
+                                 'when test(s) fail.'))
+
 
 def ValidateInstrumentationOptions(option_parser, options, args):
   """Validate options/arguments and populate options with defaults."""
@@ -130,14 +136,18 @@ def ValidateInstrumentationOptions(option_parser, options, args):
   elif options.python_only:
     options.run_java_tests = False
 
-  options.test_apk_path = os.path.join(_SDK_OUT_DIR,
-                                       options.build_type,
-                                       constants.SDK_BUILD_APKS_DIR,
-                                       '%s.apk' % options.test_apk)
-  options.test_apk_jar_path = os.path.join(_SDK_OUT_DIR,
-                                           options.build_type,
-                                           constants.SDK_BUILD_TEST_JAVALIB_DIR,
-                                           '%s.jar' % options.test_apk)
+  if os.path.exists(options.test_apk):
+    # The APK is fully qualified, assume the JAR lives along side.
+    options.test_apk_path = options.test_apk
+    options.test_apk_jar_path = os.path.splitext(options.test_apk_path) + '.jar'
+  else:
+    options.test_apk_path = os.path.join(_SDK_OUT_DIR,
+                                         options.build_type,
+                                         constants.SDK_BUILD_APKS_DIR,
+                                         '%s.apk' % options.test_apk)
+    options.test_apk_jar_path = os.path.join(
+        _SDK_OUT_DIR, options.build_type, constants.SDK_BUILD_TEST_JAVALIB_DIR,
+        '%s.jar' %  options.test_apk)
   if options.annotation_str:
     options.annotation = options.annotation_str.split()
   elif options.test_filter:
