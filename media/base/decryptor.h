@@ -137,6 +137,7 @@ class MEDIA_EXPORT Decryptor {
                                       const KeyAddedCB& key_added_cb) = 0;
 
   // Helper structure for managing multiple decoded audio buffers per input.
+  // TODO(xhwang): Rename this to AudioFrames.
   typedef std::list<scoped_refptr<Buffer> > AudioBuffers;
 
   // Indicates completion of audio/video decrypt-and-decode operation.

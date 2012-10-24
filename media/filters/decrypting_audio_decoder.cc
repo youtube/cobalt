@@ -197,8 +197,8 @@ void DecryptingAudioDecoder::DoRead(const ReadCB& read_cb) {
   }
 
   if (!queued_audio_frames_.empty()) {
-    if (queued_audio_frames_.front()->IsEndOfStream())
-      state_ = kDecodeFinished;
+    DCHECK(!queued_audio_frames_.front()->IsEndOfStream());
+    DCHECK_GT(queued_audio_frames_.front()->GetDataSize(), 0);
     read_cb.Run(kOk, queued_audio_frames_.front());
     queued_audio_frames_.pop_front();
     return;
@@ -368,6 +368,7 @@ void DecryptingAudioDecoder::DoDeliverFrame(
   // No frames returned in the list should be an end-of-stream (EOS) frame.
   // EOS frame should be returned separately as (kNeedMoreData, NULL).
   DCHECK(!first_frame->IsEndOfStream());
+  DCHECK_GT(first_frame->GetDataSize(), 0);
   state_ = kIdle;
   base::ResetAndReturn(&read_cb_).Run(kOk, first_frame);
 }
