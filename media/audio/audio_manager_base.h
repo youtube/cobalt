@@ -121,8 +121,8 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   // thread.
   void NotifyAllOutputDeviceChangeListeners();
 
-  // Called on |audio_thread_|'s message loop immediately after construction.
-  virtual void InitializeOnAudioThread();
+  // AudioManager implementation.
+  virtual void InitializeOnAudioThread() OVERRIDE;
 
   // Map of cached AudioOutputDispatcher instances.  Must only be touched
   // from the audio thread (no locking).

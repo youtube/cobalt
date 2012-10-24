@@ -51,8 +51,6 @@ AudioManagerBase::AudioManagerBase()
 #endif
   CHECK(audio_thread_->Start());
   message_loop_ = audio_thread_->message_loop_proxy();
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioManagerBase::InitializeOnAudioThread, base::Unretained(this)));
 }
 
 AudioManagerBase::~AudioManagerBase() {
