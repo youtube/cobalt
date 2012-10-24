@@ -396,6 +396,7 @@
         'file_util_unittest.cc',
         'file_version_info_unittest.cc',
         'files/dir_reader_posix_unittest.cc',
+        'files/important_file_writer_unittest.cc',
         'gmock_unittest.cc',
         'guid_unittest.cc',
         'hi_res_timer_manager_unittest.cc',

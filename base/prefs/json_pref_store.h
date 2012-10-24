@@ -11,10 +11,11 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
+#include "base/files/important_file_writer.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop_proxy.h"
 #include "base/observer_list.h"
 #include "base/prefs/persistent_pref_store.h"
-#include "chrome/common/important_file_writer.h"
 
 namespace base {
 class DictionaryValue;
@@ -26,7 +27,7 @@ class FilePath;
 
 // A writable PrefStore implementation that is used for user preferences.
 class JsonPrefStore : public PersistentPrefStore,
-                      public ImportantFileWriter::DataSerializer {
+                      public base::ImportantFileWriter::DataSerializer {
  public:
   // |file_message_loop_proxy| is the MessageLoopProxy for a thread on which
   // file I/O can be done.
@@ -76,7 +77,7 @@ class JsonPrefStore : public PersistentPrefStore,
   bool read_only_;
 
   // Helper for safely writing pref data.
-  ImportantFileWriter writer_;
+  base::ImportantFileWriter writer_;
 
   ObserverList<PrefStore::Observer, true> observers_;
 
