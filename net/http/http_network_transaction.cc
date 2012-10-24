@@ -1038,17 +1038,6 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
-
-  static const bool use_conn_impact_histogram =
-      base::FieldTrialList::TrialExists("ConnCountImpact");
-  if (use_conn_impact_histogram) {
-    UMA_HISTOGRAM_CUSTOM_TIMES(
-        base::FieldTrial::MakeName("Net.Transaction_Connected_New_b",
-            "ConnCountImpact"),
-        total_duration,
-        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-        100);
-    }
   }
 
   static const bool use_spdy_histogram =
