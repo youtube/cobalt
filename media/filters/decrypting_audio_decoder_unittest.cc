@@ -96,9 +96,14 @@ class DecryptingAudioDecoderTest : public testing::Test {
         decryptor_(new StrictMock<MockDecryptor>()),
         demuxer_(new StrictMock<MockDemuxerStream>()),
         encrypted_buffer_(CreateFakeEncryptedBuffer()),
-        decoded_frame_(new DataBuffer(kFakeAudioFrameSize)),
+        decoded_frame_(NULL),
         end_of_stream_frame_(new DataBuffer(0)),
-        decoded_frame_list_(1, decoded_frame_) {
+        decoded_frame_list_() {
+    // TODO(xhwang): Fix this after DataBuffer(data, size) is public.
+    scoped_refptr<DataBuffer> buffer = new DataBuffer(kFakeAudioFrameSize);
+    buffer->SetDataSize(kFakeAudioFrameSize);
+    decoded_frame_ = buffer;
+    decoded_frame_list_.push_back(decoded_frame_);
   }
 
   void InitializeAndExpectStatus(const AudioDecoderConfig& config,
@@ -325,10 +330,12 @@ TEST_F(DecryptingAudioDecoderTest, DecryptAndDecode_NeedMoreData) {
 TEST_F(DecryptingAudioDecoderTest, DecryptAndDecode_MultipleFrames) {
   Initialize();
 
-  scoped_refptr<Buffer> decoded_frame_a(new DataBuffer(kFakeAudioFrameSize));
-  scoped_refptr<Buffer> decoded_frame_b(new DataBuffer(kFakeAudioFrameSize));
-  decoded_frame_list_.push_back(decoded_frame_a);
-  decoded_frame_list_.push_back(decoded_frame_b);
+  scoped_refptr<DataBuffer> frame_a = new DataBuffer(kFakeAudioFrameSize);
+  frame_a->SetDataSize(kFakeAudioFrameSize);
+  scoped_refptr<DataBuffer> frame_b = new DataBuffer(kFakeAudioFrameSize);
+  frame_b->SetDataSize(kFakeAudioFrameSize);
+  decoded_frame_list_.push_back(frame_a);
+  decoded_frame_list_.push_back(frame_b);
 
   EXPECT_CALL(*demuxer_, Read(_))
       .WillOnce(ReturnBuffer(encrypted_buffer_));
@@ -337,8 +344,8 @@ TEST_F(DecryptingAudioDecoderTest, DecryptAndDecode_MultipleFrames) {
   EXPECT_CALL(statistics_cb_, OnStatistics(_));
 
   ReadAndExpectFrameReadyWith(AudioDecoder::kOk, decoded_frame_);
-  ReadAndExpectFrameReadyWith(AudioDecoder::kOk, decoded_frame_a);
-  ReadAndExpectFrameReadyWith(AudioDecoder::kOk, decoded_frame_b);
+  ReadAndExpectFrameReadyWith(AudioDecoder::kOk, frame_a);
+  ReadAndExpectFrameReadyWith(AudioDecoder::kOk, frame_b);
 }
 
 // Test the case where the decryptor receives end-of-stream buffer.
@@ -346,34 +353,6 @@ TEST_F(DecryptingAudioDecoderTest, DecryptAndDecode_EndOfStream) {
   Initialize();
   EnterNormalDecodingState();
   EnterEndOfStreamState();
-}
-
-// Test the case where the decryptor returns multiple decoded frames, the last
-// of which is end-of-stream frame.
-TEST_F(DecryptingAudioDecoderTest, DecryptAndDecode_MultipleFramesWithEos) {
-  Initialize();
-
-  scoped_refptr<Buffer> decoded_frame_a(new DataBuffer(kFakeAudioFrameSize));
-  scoped_refptr<Buffer> decoded_frame_b(new DataBuffer(kFakeAudioFrameSize));
-  Decryptor::AudioBuffers second_decoded_frame_list;
-  second_decoded_frame_list.push_back(decoded_frame_a);
-  second_decoded_frame_list.push_back(decoded_frame_b);
-  second_decoded_frame_list.push_back(end_of_stream_frame_);
-
-  EXPECT_CALL(*demuxer_, Read(_))
-      .WillOnce(ReturnBuffer(encrypted_buffer_))
-      .WillOnce(ReturnBuffer(DecoderBuffer::CreateEOSBuffer()));
-  EXPECT_CALL(*decryptor_, DecryptAndDecodeAudio(_, _))
-      .WillOnce(RunCallback2(Decryptor::kSuccess, decoded_frame_list_))
-      .WillOnce(RunCallback2(Decryptor::kSuccess, second_decoded_frame_list));
-  // Expect only one OnStatistics() here because EOS input buffer doesn't
-  // trigger statistics reporting.
-  EXPECT_CALL(statistics_cb_, OnStatistics(_));
-
-  ReadAndExpectFrameReadyWith(AudioDecoder::kOk, decoded_frame_);
-  ReadAndExpectFrameReadyWith(AudioDecoder::kOk, decoded_frame_a);
-  ReadAndExpectFrameReadyWith(AudioDecoder::kOk, decoded_frame_b);
-  ReadAndExpectFrameReadyWith(AudioDecoder::kOk, end_of_stream_frame_);
 }
 
 // Test the case where the a key is added when the decryptor is in
