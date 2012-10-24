@@ -21,7 +21,6 @@ function IsWprRecordMode() {
   var xhr = new XMLHttpRequest();
   var useAsync = false;
   xhr.open("GET", kStatusUrl, useAsync);
-  xhr.timeout = 500;
   xhr.onreadystatechange = function() {
     if (xhr.readyState == 4 && xhr.status == 200) {
       var status = JSON.parse(xhr.responseText);
