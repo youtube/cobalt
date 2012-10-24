@@ -96,15 +96,6 @@ void StreamSocket::UseHistory::EmitPreconnectionHistograms() const {
   else if (subresource_speculation_)
     result += 6;
   UMA_HISTOGRAM_ENUMERATION("Net.PreconnectUtilization2", result, 9);
-
-  static const bool connect_backup_jobs_fieldtrial =
-      base::FieldTrialList::TrialExists("ConnnectBackupJobs");
-  if (connect_backup_jobs_fieldtrial) {
-    UMA_HISTOGRAM_ENUMERATION(
-        base::FieldTrial::MakeName("Net.PreconnectUtilization2",
-                                   "ConnnectBackupJobs"),
-        result, 9);
-  }
 }
 
 }  // namespace net
