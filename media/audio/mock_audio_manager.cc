@@ -74,4 +74,7 @@ void MockAudioManager::RemoveOutputDeviceChangeListener(
     AudioDeviceListener* listener) {
 }
 
+void MockAudioManager::InitializeOnAudioThread() {
+}
+
 }  // namespace media.
