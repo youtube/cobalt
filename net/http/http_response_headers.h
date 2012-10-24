@@ -230,6 +230,10 @@ class NET_EXPORT HttpResponseHeaders
   // no such header in the response.
   int64 GetContentLength() const;
 
+  // Extracts the value of the specified header or returns -1 if there is no
+  // such header in the response.
+  int64 GetInt64HeaderValue(const std::string& header) const;
+
   // Extracts the values in a Content-Range header and returns true if they are
   // valid for a 206 response; otherwise returns false.
   // The following values will be outputted:
