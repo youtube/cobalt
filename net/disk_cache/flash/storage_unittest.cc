@@ -7,6 +7,7 @@
 #include "net/base/io_buffer.h"
 #include "net/disk_cache/disk_cache_test_util.h"
 #include "net/disk_cache/flash/storage.h"
+#include "net/disk_cache/flash/flash_cache_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -17,14 +18,7 @@ const int32 kStorageSize = 16 * 1024 * 1024;
 
 }  // namespace
 
-TEST(FlashCacheTest, StorageReadWrite) {
-  ScopedTempDir tempdir;
-  ASSERT_TRUE(tempdir.CreateUniqueTempDir());
-  const FilePath path(tempdir.path().Append(FILE_PATH_LITERAL("cache")));
-
-  disk_cache::Storage storage(path, kStorageSize);
-  EXPECT_TRUE(storage.Init());
-
+TEST_F(FlashCacheTest, StorageReadWrite) {
   for (size_t i = 0; i < arraysize(kOffsets); ++i) {
     int32 size = kSizes[i];
     int32 offset = kOffsets[i];
@@ -34,10 +28,10 @@ TEST(FlashCacheTest, StorageReadWrite) {
 
     CacheTestFillBuffer(write_buffer->data(), size, false);
 
-    bool rv = storage.Write(write_buffer->data(), size, offset);
+    bool rv = storage_->Write(write_buffer->data(), size, offset);
     EXPECT_TRUE(rv);
 
-    rv = storage.Read(read_buffer->data(), size, offset);
+    rv = storage_->Read(read_buffer->data(), size, offset);
     EXPECT_TRUE(rv);
 
     EXPECT_EQ(0, memcmp(read_buffer->data(), write_buffer->data(), size));
