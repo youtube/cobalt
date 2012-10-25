@@ -110,6 +110,9 @@ def GetAttachedDevices():
     devices.insert(0, preferred_device)
   return devices
 
+def IsDeviceAttached(device):
+  return device in GetAttachedDevices()
+
 def _GetFilesFromRecursiveLsOutput(path, ls_output, re_file, utc_offset=None):
   """Gets a list of files from `ls` command output.
 
@@ -199,6 +202,7 @@ class AndroidCommands(object):
     self._adb = adb_interface.AdbInterface()
     if device:
       self._adb.SetTargetSerial(device)
+    self._device = device
     self._logcat = None
     self.logcat_process = None
     self._pushed_files = []
@@ -1042,14 +1046,20 @@ class AndroidCommands(object):
       True if the file exists, False otherwise.
     """
     assert '"' not in file_name, 'file_name cannot contain double quotes'
-    status = self._adb.SendShellCommand(
-        '\'test -e "%s"; echo $?\'' % (file_name))
-    if 'test: not found' not in status:
-      return int(status) == 0
+    try:
+      status = self._adb.SendShellCommand(
+          '\'test -e "%s"; echo $?\'' % (file_name))
+      if 'test: not found' not in status:
+        return int(status) == 0
 
-    status = self._adb.SendShellCommand(
-        '\'ls "%s" >/dev/null 2>&1; echo $?\'' % (file_name))
-    return int(status) == 0
+      status = self._adb.SendShellCommand(
+          '\'ls "%s" >/dev/null 2>&1; echo $?\'' % (file_name))
+      return int(status) == 0
+    except ValueError:
+      if IsDeviceAttached(self._device):
+        raise errors.DeviceUnresponsiveError('Device may be offline.')
+
+      return False
 
 
 class NewLineNormalizer(object):
