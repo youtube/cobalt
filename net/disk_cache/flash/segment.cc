@@ -18,15 +18,17 @@ Segment::Segment(int32 index, bool read_only, Storage* storage)
       write_offset_(offset_) {
   DCHECK(storage);
   DCHECK(storage->size() % kFlashSegmentSize == 0);
-  DCHECK(offset_ >= 0 && offset_ + kFlashSegmentSize <= storage->size());
 }
 
 Segment::~Segment() {
-  DCHECK(read_only_);
+  DCHECK(!init_ || read_only_);
 }
 
 bool Segment::Init() {
   if (init_)
+    return false;
+
+  if (offset_ < 0 || offset_ + kFlashSegmentSize > storage_->size())
     return false;
 
   if (!read_only_) {
@@ -82,6 +84,7 @@ bool Segment::Close() {
   DCHECK(header_offsets_.size() <= kFlashMaxEntryCount);
 
   int32 summary[kFlashMaxEntryCount + 1];
+  memset(summary, 0, kFlashSummarySize);
   summary[0] = header_offsets_.size();
   std::copy(header_offsets_.begin(), header_offsets_.end(), summary + 1);
   if (!storage_->Write(summary, kFlashSummarySize, summary_offset_))
