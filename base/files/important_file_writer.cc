@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/critical_closure.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
@@ -122,7 +123,7 @@ void ImportantFileWriter::WriteNow(const std::string& data) {
     timer_.Stop();
 
   if (!file_message_loop_proxy_->PostTask(
-      FROM_HERE, Bind(&WriteToDiskTask, path_, data))) {
+      FROM_HERE, MakeCriticalClosure(Bind(&WriteToDiskTask, path_, data)))) {
     // Posting the task to background message loop is not expected
     // to fail, but if it does, avoid losing data and just hit the disk
     // on the current thread.
