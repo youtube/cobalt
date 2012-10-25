@@ -196,6 +196,8 @@ def main(argv=None):
                     help="write last change to FILE")
   parser.add_option("--revision-only", action='store_true',
                     help="just print the SVN revision number")
+  parser.add_option("-s", "--source-dir", metavar="DIR",
+                    help="use repository in the given directory")
   opts, args = parser.parse_args(argv[1:])
 
   out_file = opts.output
@@ -208,8 +210,12 @@ def main(argv=None):
     parser.print_help()
     sys.exit(2)
 
-  version_info = FetchVersionInfo(opts.default_lastchange,
-      os.path.dirname(sys.argv[0]))
+  if opts.source_dir:
+    src_dir = opts.source_dir
+  else:
+    src_dir = os.path.dirname(os.path.abspath(__file__))
+
+  version_info = FetchVersionInfo(opts.default_lastchange, src_dir)
 
   if version_info.revision == None:
     version_info.revision = '0'
