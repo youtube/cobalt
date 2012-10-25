@@ -37,6 +37,12 @@ class RemoteTestServer : public BaseTestServer {
   // Stops the Python test server that is running on the host machine.
   bool Stop();
 
+  // Returns the actual path of document root for the test cases. This function
+  // should be called by test cases to retrieve the actual document root path
+  // on the Android device, otherwise document_root() function is used to get
+  // the document root.
+  FilePath GetDocumentRoot() const;
+
  private:
   bool Init(const FilePath& document_root);
 

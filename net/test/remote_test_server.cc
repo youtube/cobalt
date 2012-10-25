@@ -143,6 +143,16 @@ bool RemoteTestServer::Stop() {
   return stopped;
 }
 
+// On Android, the document root in the device is not the same as the document
+// root in the host machine where the test server is launched. So prepend
+// DIR_SOURCE_ROOT here to get the actual path of document root on the Android
+// device.
+FilePath RemoteTestServer::GetDocumentRoot() const {
+  FilePath src_dir;
+  PathService::Get(base::DIR_SOURCE_ROOT, &src_dir);
+  return src_dir.Append(document_root());
+}
+
 bool RemoteTestServer::Init(const FilePath& document_root) {
   if (document_root.IsAbsolute())
     return false;
