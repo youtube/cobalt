@@ -200,6 +200,8 @@ class SingleTestRunner(BaseTestRunner):
       return test_files
     elif self.test_package.test_suite_basename == 'net_unittests':
       return [
+          'chrome/test/data/animate1.gif',
+          'chrome/test/data/simple.html',
           'net/data/cache_tests',
           'net/data/filter_unittests',
           'net/data/ftp',
