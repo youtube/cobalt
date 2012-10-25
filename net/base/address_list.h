@@ -38,6 +38,9 @@ class NET_EXPORT AddressList
   // Copies the data from |head| and the chained list into an AddressList.
   static AddressList CreateFromAddrinfo(const struct addrinfo* head);
 
+  // Returns a copy of |list| with port on each element set to |port|.
+  static AddressList CopyWithPort(const AddressList& list, uint16 port);
+
   // TODO(szym): Remove all three. http://crbug.com/126134
   const std::string& canonical_name() const {
     return canonical_name_;
@@ -78,9 +81,6 @@ class NET_EXPORT AddressList
   // TODO(szym): Remove. http://crbug.com/126134
   std::string canonical_name_;
 };
-
-// Sets the port on each element in |list| to |port|.
-void NET_EXPORT SetPortOnAddressList(uint16 port, AddressList* list);
 
 }  // namespace net
 
