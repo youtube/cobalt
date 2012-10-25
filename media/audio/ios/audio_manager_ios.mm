@@ -5,6 +5,7 @@
 #include "media/audio/ios/audio_manager_ios.h"
 
 #import <AudioToolbox/AudioToolbox.h>
+#import <AVFoundation/AVFoundation.h>
 
 #include "base/sys_info.h"
 #include "media/audio/fake_audio_input_stream.h"
@@ -20,6 +21,10 @@ enum { kMaxInputChannels = 2 };
 static bool InitAudioSessionInternal() {
   OSStatus error = AudioSessionInitialize(NULL, NULL, NULL, NULL);
   DCHECK(error != kAudioSessionAlreadyInitialized);
+  AVAudioSession* audioSession = [AVAudioSession sharedInstance];
+  BOOL result = [audioSession setCategory:AVAudioSessionCategoryPlayAndRecord
+                                    error:nil];
+  DCHECK(result);
   return error == kAudioSessionNoError;
 }
 
