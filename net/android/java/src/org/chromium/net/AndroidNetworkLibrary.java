@@ -7,6 +7,7 @@ package org.chromium.net;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.security.KeyChain;
 import android.util.Log;
 
 import org.chromium.base.CalledByNative;
@@ -30,24 +31,31 @@ class AndroidNetworkLibrary {
     private static final String TAG = AndroidNetworkLibrary.class.getName();
 
     /**
-     * Stores the key pair into the CertInstaller application.
+     * Stores the key pair through the CertInstaller activity.
+     * @param context: current application context.
+     * @param public_key: The public key bytes as DER-encoded SubjectPublicKeyInfo (X.509)
+     * @param private_key: The private key as DER-encoded PrivateKeyInfo (PKCS#8).
+     * @return: true on success, false on failure.
+     *
+     * Note that failure means that the function could not launch the CertInstaller
+     * activity. Whether the keys are valid or properly installed will be indicated
+     * by the CertInstaller UI itself.
      */
     @CalledByNative
     static public boolean storeKeyPair(Context context, byte[] public_key, byte[] private_key) {
-        // This is based on android.security.Credentials.install()
-        // TODO(joth): Use KeyChain API instead of hard-coding constants here:
-        // http://crbug.com/124660
+        // TODO(digit): Use KeyChain official extra values to pass the public and private
+        // keys when they're available. The "KEY" and "PKEY" hard-coded constants were taken
+        // from the platform sources, since there are no official KeyChain.EXTRA_XXX definitions
+        // for them. b/5859651
         try {
-            Intent intent = new Intent("android.credentials.INSTALL");
-            intent.setClassName("com.android.certinstaller",
-                    "com.android.certinstaller.CertInstallerMain");
-            intent.putExtra("KEY", private_key);
-            intent.putExtra("PKEY", public_key);
+            Intent intent = KeyChain.createInstallIntent();
+            intent.putExtra("PKEY", private_key);
+            intent.putExtra("KEY", public_key);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(intent);
             return true;
         } catch (ActivityNotFoundException e) {
-            Log.w(TAG, "could not store certificate: " + e);
+            Log.w(TAG, "could not store key pair: " + e);
         }
         return false;
     }
