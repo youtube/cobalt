@@ -33,7 +33,14 @@ VerifyResult VerifyX509CertChain(const std::vector<std::string>& cert_chain,
                                  const std::string& auth_type);
 
 // Helper for the <keygen> handler. Passes the DER-encoded key  pair via
-// JNI to the Credentials store.
+// JNI to the Credentials store. Note that the public key must be a DER
+// encoded SubjectPublicKeyInfo (X.509), as returned by i2d_PUBKEY()
+// (and *not* i2d_PublicKey(), which returns a PKCS#1 key).
+//
+// Also, the private key must be in PKCS#8 format, as returned by
+// i2d_PKCS8_PRIV_KEY_INFO(EVP_PKEY2PKCS8(pkey)), which is a different
+// format than what i2d_PrivateKey() returns, so don't use it either.
+//
 bool StoreKeyPair(const uint8* public_key,
                   size_t public_len,
                   const uint8* private_key,
