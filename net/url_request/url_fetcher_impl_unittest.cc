@@ -1087,7 +1087,7 @@ TEST_F(URLFetcherFileTest, SmallGet) {
 
   // Get a small file.
   static const char kFileToFetch[] = "simple.html";
-  expected_file_ = test_server.document_root().AppendASCII(kFileToFetch);
+  expected_file_ = test_server.GetDocumentRoot().AppendASCII(kFileToFetch);
   CreateFetcherForFile(
       test_server.GetURL(std::string(kTestServerFilePrefix) + kFileToFetch),
       temp_dir.path().AppendASCII(kFileToFetch));
@@ -1110,7 +1110,7 @@ TEST_F(URLFetcherFileTest, LargeGet) {
   // Get a file large enough to require more than one read into
   // URLFetcher::Core's IOBuffer.
   static const char kFileToFetch[] = "animate1.gif";
-  expected_file_ = test_server.document_root().AppendASCII(kFileToFetch);
+  expected_file_ = test_server.GetDocumentRoot().AppendASCII(kFileToFetch);
   CreateFetcherForFile(
       test_server.GetURL(std::string(kTestServerFilePrefix) + kFileToFetch),
       temp_dir.path().AppendASCII(kFileToFetch));
@@ -1129,7 +1129,7 @@ TEST_F(URLFetcherFileTest, CanTakeOwnershipOfFile) {
 
   // Get a small file.
   static const char kFileToFetch[] = "simple.html";
-  expected_file_ = test_server.document_root().AppendASCII(kFileToFetch);
+  expected_file_ = test_server.GetDocumentRoot().AppendASCII(kFileToFetch);
   CreateFetcherForFile(
       test_server.GetURL(std::string(kTestServerFilePrefix) + kFileToFetch),
       temp_dir.path().AppendASCII(kFileToFetch));
@@ -1158,7 +1158,7 @@ TEST_F(URLFetcherFileTest, OverwriteExistingFile) {
   const int data_size = arraysize(kData);
   ASSERT_EQ(file_util::WriteFile(file_path_, kData, data_size), data_size);
   ASSERT_TRUE(file_util::PathExists(file_path_));
-  expected_file_ = test_server.document_root().AppendASCII(kFileToFetch);
+  expected_file_ = test_server.GetDocumentRoot().AppendASCII(kFileToFetch);
   ASSERT_FALSE(file_util::ContentsEqual(file_path_, expected_file_));
 
   // Get a small file.
@@ -1186,7 +1186,7 @@ TEST_F(URLFetcherFileTest, TryToOverwriteDirectory) {
 
   // Get a small file.
   expected_file_error_ = base::PLATFORM_FILE_ERROR_ACCESS_DENIED;
-  expected_file_ = test_server.document_root().AppendASCII(kFileToFetch);
+  expected_file_ = test_server.GetDocumentRoot().AppendASCII(kFileToFetch);
   CreateFetcherForFile(
       test_server.GetURL(std::string(kTestServerFilePrefix) + kFileToFetch),
       file_path_);
@@ -1204,7 +1204,7 @@ TEST_F(URLFetcherFileTest, SmallGetToTempFile) {
 
   // Get a small file.
   static const char kFileToFetch[] = "simple.html";
-  expected_file_ = test_server.document_root().AppendASCII(kFileToFetch);
+  expected_file_ = test_server.GetDocumentRoot().AppendASCII(kFileToFetch);
   CreateFetcherForTempFile(
       test_server.GetURL(std::string(kTestServerFilePrefix) + kFileToFetch));
 
@@ -1223,7 +1223,7 @@ TEST_F(URLFetcherFileTest, LargeGetToTempFile) {
   // Get a file large enough to require more than one read into
   // URLFetcher::Core's IOBuffer.
   static const char kFileToFetch[] = "animate1.gif";
-  expected_file_ = test_server.document_root().AppendASCII(kFileToFetch);
+  expected_file_ = test_server.GetDocumentRoot().AppendASCII(kFileToFetch);
   CreateFetcherForTempFile(test_server.GetURL(
       std::string(kTestServerFilePrefix) + kFileToFetch));
 
@@ -1238,7 +1238,7 @@ TEST_F(URLFetcherFileTest, CanTakeOwnershipOfTempFile) {
 
   // Get a small file.
   static const char kFileToFetch[] = "simple.html";
-  expected_file_ = test_server.document_root().AppendASCII(kFileToFetch);
+  expected_file_ = test_server.GetDocumentRoot().AppendASCII(kFileToFetch);
   CreateFetcherForTempFile(test_server.GetURL(
       std::string(kTestServerFilePrefix) + kFileToFetch));
 
