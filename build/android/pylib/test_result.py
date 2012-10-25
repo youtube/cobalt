@@ -54,16 +54,18 @@ class TestResults(object):
     self.unknown = []
     self.timed_out = False
     self.overall_fail = False
+    self.device_exception = None
 
   @staticmethod
   def FromRun(ok=None, failed=None, crashed=None, timed_out=False,
-              overall_fail=False):
+              overall_fail=False, device_exception=None):
     ret = TestResults()
     ret.ok = ok or []
     ret.failed = failed or []
     ret.crashed = crashed or []
     ret.timed_out = timed_out
     ret.overall_fail = overall_fail
+    ret.device_exception = device_exception
     return ret
 
   @staticmethod
@@ -108,6 +110,10 @@ class TestResults(object):
     results = TestResults()
     results.failed.append(exc_result)
     return results
+
+  @staticmethod
+  def DeviceExceptions(results):
+    return set(filter(lambda t: t.device_exception, results))
 
   def _Log(self, sorted_list):
     for t in sorted_list:

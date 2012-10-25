@@ -12,6 +12,7 @@ from perf_tests_helper import PrintPerfResult
 from pylib import pexpect
 from test_result import BaseTestResult, TestResults
 
+from android_commands import errors
 
 # TODO(bulach): TestPackage, TestPackageExecutable and
 # TestPackageApk are a work in progress related to making the native tests
@@ -179,6 +180,7 @@ class TestPackage(object):
         failed_tests += [BaseTestResult(full_test_name, p.before)]
     except pexpect.EOF:
       logging.error('Test terminated - EOF')
+      raise errors.DeviceUnresponsiveError('Device may be offline')
     except pexpect.TIMEOUT:
       logging.error('Test terminated after %d second timeout.',
                     self.timeout)
