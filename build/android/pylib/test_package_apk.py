@@ -11,6 +11,7 @@ import time
 
 import android_commands
 import constants
+from android_commands import errors
 from test_package import TestPackage
 from pylib import pexpect
 
@@ -65,7 +66,8 @@ class TestPackageApk(TestPackage):
         break
       time.sleep(i)
     else:
-      raise Exception('Unable to find fifo on device %s ' % self._GetFifo())
+      raise errors.DeviceUnresponsiveError(
+          'Unable to find fifo on device %s ' % self._GetFifo())
     args = shlex.split(self.adb.Adb()._target_arg)
     args += ['shell', 'cat', self._GetFifo()]
     return pexpect.spawn('adb', args, timeout=timeout, logfile=logfile)

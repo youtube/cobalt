@@ -8,13 +8,15 @@ import os
 import sys
 
 from base_test_runner import BaseTestRunner
+import android_commands
 import debug_info
 import constants
 import perf_tests_helper
 import run_tests_helper
+from android_commands import errors
 from test_package_apk import TestPackageApk
 from test_package_executable import TestPackageExecutable
-from test_result import TestResults
+from test_result import BaseTestResult, TestResults
 
 
 class SingleTestRunner(BaseTestRunner):
@@ -307,14 +309,28 @@ class SingleTestRunner(BaseTestRunner):
     Returns:
       A TestResults object.
     """
-    if self.test_package.rebaseline:
-      self.RebaselineTests()
-    else:
-      if not self._gtest_filter:
-        self._gtest_filter = ('-' + ':'.join(self.GetDisabledTests()) + ':' +
-                             ':'.join(['*.' + x + '*' for x in
-                                     self.test_package.GetDisabledPrefixes()]))
-      self.RunTestsWithFilter()
+    try:
+      if self.test_package.rebaseline:
+        self.RebaselineTests()
+      else:
+        if not self._gtest_filter:
+          self._gtest_filter = ('-' + ':'.join(self.GetDisabledTests()) + ':' +
+                               ':'.join(['*.' + x + '*' for x in
+                                 self.test_package.GetDisabledPrefixes()]))
+        self.RunTestsWithFilter()
+    except errors.DeviceUnresponsiveError as e:
+      # Make sure this device is not attached
+      if android_commands.IsDeviceAttached(self.device):
+        raise e
+
+      # Wrap the results
+      logging.warning(e)
+      failed_tests = []
+      for t in self._gtest_filter.split(':'):
+        failed_tests += [BaseTestResult(t, '')]
+      self.test_results = TestResults.FromRun(
+          failed=failed_tests, device_exception=self.device)
+
     return self.test_results
 
   def SetUp(self):

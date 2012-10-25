@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 
+import android_commands
 import logging
 import multiprocessing
 
@@ -96,8 +97,17 @@ class BaseTestSharder(object):
       # So use map_async instead.
       async_results = pool.map_async(_ShardedTestRunnable, test_runners)
       results_lists = async_results.get(999999)
+
       test_results = TestResults.FromTestResults(results_lists)
-      if retry == self.retries - 1:
+      # Re-check the attached devices for some devices may
+      # become offline
+      retry_devices = set(android_commands.GetAttachedDevices())
+      # Remove devices that had exceptions.
+      retry_devices -= TestResults.DeviceExceptions(results_lists)
+      # Retry on devices that didn't have any exception.
+      self.attached_devices = list(retry_devices)
+      if (retry == self.retries - 1 or
+          len(self.attached_devices) == 0):
         all_passed = final_results.ok + test_results.ok
         final_results = test_results
         final_results.ok = all_passed
