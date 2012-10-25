@@ -58,21 +58,24 @@ class SingleTestRunner(BaseTestRunner):
           test_suite, timeout, rebaseline, performance_test, cleanup_test_files,
           self.tool, self.dump_debug_info)
     else:
+      # Put a copy into the android out/target directory, to allow stack trace
+      # generation.
+      symbols_dir = os.path.join(constants.CHROME_DIR, 'out', build_type,
+                                 'lib.target')
       self.test_package = TestPackageExecutable(
           self.adb, device,
           test_suite, timeout, rebaseline, performance_test, cleanup_test_files,
-          self.tool, self.dump_debug_info)
+          self.tool, self.dump_debug_info, symbols_dir)
     self._performance_test_setup = None
     if performance_test:
       self._performance_test_setup = perf_tests_helper.PerfTestSetup(self.adb)
 
   def _TestSuiteRequiresMockTestServer(self):
     """Returns True if the test suite requires mock test server."""
-    return False
-  # TODO(yfriedman): Disabled because of flakiness.
-  # (self.test_package.test_suite_basename == 'unit_tests' or
-  #          self.test_package.test_suite_basename == 'net_unittests' or
-  #          False)
+    tests_require_net_test_server = ['unit_tests', 'net_unittests',
+                                     'content_unittests']
+    return (self.test_package.test_suite_basename in
+            tests_require_net_test_server)
 
   def _GetFilterFileName(self):
     """Returns the filename of gtest filter."""
@@ -198,6 +201,10 @@ class SingleTestRunner(BaseTestRunner):
         test_files += glob.glob('third_party/hunspell_dictionaries/*.bdic')
         os.chdir(old_cwd)
       return test_files
+    elif self.test_package.test_suite_basename == 'media_unittests':
+      return [
+          'media/test/data',
+      ]
     elif self.test_package.test_suite_basename == 'net_unittests':
       return [
           'chrome/test/data/animate1.gif',
@@ -219,15 +226,6 @@ class SingleTestRunner(BaseTestRunner):
           'chrome/test/perf/sunspider_uitest.js',
           'chrome/test/perf/v8_benchmark_uitest.js',
           ]
-    elif self.test_package.test_suite_basename == 'page_cycler_tests':
-      data = [
-          'tools/page_cycler',
-          'data/page_cycler',
-          ]
-      for d in data:
-        if not os.path.exists(d):
-          raise Exception('Page cycler data not found.')
-      return data
     elif self.test_package.test_suite_basename == 'webkit_unit_tests':
       return [
           'third_party/WebKit/Source/WebKit/chromium/tests/data',

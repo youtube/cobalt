@@ -109,6 +109,12 @@ def AddInstrumentationOptions(option_parser):
                            help='Serial number of device we should use.')
   option_parser.add_option('--python_test_root',
                            help='Root of the python-driven tests.')
+  option_parser.add_option('--keep_test_server_ports',
+                           action='store_true',
+                           help='Indicates the test server ports must be '
+                                'kept. When this is run via a sharder '
+                                'the test server ports should be kept and '
+                                'should not be reset.')
   option_parser.add_option('--flakiness-dashboard-server',
                            dest='flakiness_dashboard_server',
                            help=('Address of the server that is hosting the '
