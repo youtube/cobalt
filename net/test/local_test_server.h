@@ -53,6 +53,10 @@ class LocalTestServer : public BaseTestServer {
   // |command_line|. Returns true on success.
   virtual bool AddCommandLineArguments(CommandLine* command_line) const;
 
+  // Returns the actual path of document root for test cases. This function
+  // should be called by test cases to retrieve the actual document root path.
+  FilePath GetDocumentRoot() const { return document_root(); };
+
  private:
   bool Init(const FilePath& document_root);
 
