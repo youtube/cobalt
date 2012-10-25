@@ -97,6 +97,8 @@ class NET_EXPORT_PRIVATE Segment {
   bool CanHold(int32 size) const;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(SegmentTest, CreateDestroy);
+
   bool read_only_;  // Indicates whether the segment can be written to.
   bool init_;  // Indicates whether segment was initialized.
   Storage* storage_;  // Storage on which the segment resides.
