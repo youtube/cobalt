@@ -409,7 +409,7 @@ class OCSPRequestSession
   int response_code_;             // HTTP status code for the request
   std::string response_content_type_;
   scoped_refptr<HttpResponseHeaders> response_headers_;
-  std::string data_;              // Results of the requst
+  std::string data_;              // Results of the request
 
   // |lock_| protects |finished_| and |io_loop_|.
   mutable base::Lock lock_;
