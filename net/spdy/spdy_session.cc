@@ -462,7 +462,7 @@ int SpdySession::GetPushStream(
   if (is_secure_ && certificate_error_code_ != OK &&
       (url.SchemeIs("https") || url.SchemeIs("wss"))) {
     RecordProtocolErrorHistogram(
-        PROTOCOL_ERROR_REQUST_FOR_SECURE_CONTENT_OVER_INSECURE_SESSION);
+        PROTOCOL_ERROR_REQUEST_FOR_SECURE_CONTENT_OVER_INSECURE_SESSION);
     CloseSessionOnError(
         static_cast<net::Error>(certificate_error_code_),
         true,
@@ -567,7 +567,7 @@ int SpdySession::CreateStreamImpl(
   if (is_secure_ && certificate_error_code_ != OK &&
       (url.SchemeIs("https") || url.SchemeIs("wss"))) {
     RecordProtocolErrorHistogram(
-        PROTOCOL_ERROR_REQUST_FOR_SECURE_CONTENT_OVER_INSECURE_SESSION);
+        PROTOCOL_ERROR_REQUEST_FOR_SECURE_CONTENT_OVER_INSECURE_SESSION);
     CloseSessionOnError(
         static_cast<net::Error>(certificate_error_code_),
         true,
