@@ -41,7 +41,7 @@
         ['exclude', '(^|/)android/'],
       ],
     }],
-    ['OS=="win" and >(nacl_untrusted_build)==0', {
+    ['(OS=="win" and >(nacl_untrusted_build)==0) or OS=="lb_shell"', {
       'sources/': [
         ['exclude', '_posix(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)posix/'],
