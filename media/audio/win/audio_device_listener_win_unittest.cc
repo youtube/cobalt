@@ -10,6 +10,7 @@
 #include "base/win/scoped_com_initializer.h"
 #include "base/utf_string_conversions.h"
 #include "media/audio/audio_manager.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/win/audio_device_listener_win.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -61,6 +62,9 @@ class AudioDeviceListenerWinTest : public testing::Test {
 
 // Simulate a device change events and ensure we get the right callbacks.
 TEST_F(AudioDeviceListenerWinTest, OutputDeviceChange) {
+  if (!media::IsWASAPISupported())
+    return;
+
   SetOutputDeviceId(kNoDevice);
   EXPECT_CALL(*this, OnDeviceChange()).Times(1);
   ASSERT_TRUE(SimulateDefaultOutputDeviceChange(kFirstTestDevice));
@@ -77,6 +81,9 @@ TEST_F(AudioDeviceListenerWinTest, OutputDeviceChange) {
 // Ensure that null output device changes don't crash.  Simulates the situation
 // where we have no output devices.
 TEST_F(AudioDeviceListenerWinTest, NullOutputDeviceChange) {
+  if (!media::IsWASAPISupported())
+    return;
+
   SetOutputDeviceId(kNoDevice);
   EXPECT_CALL(*this, OnDeviceChange()).Times(0);
   ASSERT_TRUE(SimulateNullDefaultOutputDeviceChange());
