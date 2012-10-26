@@ -57,25 +57,6 @@ void ClientSocketPoolHistograms::AddSocketType(int type) const {
 
 void ClientSocketPoolHistograms::AddRequestTime(base::TimeDelta time) const {
   request_time_->AddTime(time);
-
-  static const bool proxy_connection_impact_trial_exists =
-      base::FieldTrialList::TrialExists("ProxyConnectionImpact");
-  if (proxy_connection_impact_trial_exists && is_http_proxy_connection_) {
-    UMA_HISTOGRAM_CUSTOM_TIMES(
-        base::FieldTrial::MakeName("Net.HttpProxySocketRequestTime",
-                             "ProxyConnectionImpact"),
-        time,
-        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-        100);
-  }
-  if (proxy_connection_impact_trial_exists && is_socks_connection_) {
-    UMA_HISTOGRAM_CUSTOM_TIMES(
-        base::FieldTrial::MakeName("Net.SocksSocketRequestTime",
-                             "ProxyConnectionImpact"),
-        time,
-        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-        100);
-  }
 }
 
 void ClientSocketPoolHistograms::AddUnusedIdleTime(base::TimeDelta time) const {
