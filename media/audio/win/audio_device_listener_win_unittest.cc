@@ -30,6 +30,9 @@ class AudioDeviceListenerWinTest : public testing::Test {
   }
 
   virtual void SetUp() {
+    if (!media::IsWASAPISupported())
+      return;
+
     output_device_listener_.reset(new AudioDeviceListenerWin(base::Bind(
         &AudioDeviceListenerWinTest::OnDeviceChange, base::Unretained(this))));
   }
