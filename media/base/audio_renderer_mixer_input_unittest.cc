@@ -25,14 +25,18 @@ class AudioRendererMixerInputTest : public testing::Test {
         AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout, kSampleRate,
         kBitsPerChannel, kBufferSize);
 
+    CreateMixerInput();
+    fake_callback_.reset(new FakeAudioRenderCallback(0));
+    mixer_input_->Initialize(audio_parameters_, fake_callback_.get());
+    EXPECT_CALL(*this, RemoveMixer(testing::_));
+  }
+
+  void CreateMixerInput() {
     mixer_input_ = new AudioRendererMixerInput(
         base::Bind(
             &AudioRendererMixerInputTest::GetMixer, base::Unretained(this)),
         base::Bind(
             &AudioRendererMixerInputTest::RemoveMixer, base::Unretained(this)));
-    fake_callback_.reset(new FakeAudioRenderCallback(0));
-    mixer_input_->Initialize(audio_parameters_, fake_callback_.get());
-    EXPECT_CALL(*this, RemoveMixer(testing::_));
   }
 
   AudioRendererMixer* GetMixer(const AudioParameters& params) {
@@ -92,6 +96,16 @@ TEST_F(AudioRendererMixerInputTest, StartPlayPauseStopPlaying) {
   EXPECT_TRUE(mixer_input_->playing());
   mixer_input_->Stop();
   EXPECT_FALSE(mixer_input_->playing());
+}
+
+// Test that Stop() can be called before Initialize() and Start().
+TEST_F(AudioRendererMixerInputTest, StopBeforeInitializeOrStart) {
+  // |mixer_input_| was initialized during construction.
+  mixer_input_->Stop();
+
+  // Verify Stop() works without Initialize() or Start().
+  CreateMixerInput();
+  mixer_input_->Stop();
 }
 
 }  // namespace media
