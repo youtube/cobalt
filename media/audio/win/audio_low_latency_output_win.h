@@ -158,8 +158,9 @@ namespace media {
 class AudioManagerWin;
 
 // AudioOutputStream implementation using Windows Core Audio APIs.
-// The IMMNotificationClient interface enables device event notifications
-// related to changes in the status of an audio endpoint device.
+// TODO(henrika): Remove IMMNotificationClient implementation now that we have
+// AudioDeviceListenerWin; currently just disabled since extraction is extremely
+// advanced.
 class MEDIA_EXPORT WASAPIAudioOutputStream
     : public IMMNotificationClient,
       public AudioOutputStream,
