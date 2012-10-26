@@ -158,6 +158,7 @@ def JavaParamToJni(param):
       'Lcom/google/android/apps/chrome/OmniboxSuggestion',
       'Lcom/google/android/apps/chrome/PageInfoViewer',
       'Lcom/google/android/apps/chrome/Tab',
+      'Lcom/google/android/apps/chrome/infobar/AutoLogin',
       'Lcom/google/android/apps/chrome/infobar/InfoBarContainer',
       'Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar',
       ('Lcom/google/android/apps/chrome/preferences/ChromeNativePreferences$'
