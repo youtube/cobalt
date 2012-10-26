@@ -760,7 +760,7 @@ namespace {
 
 // From http://www.w3schools.com/media/media_mimeref.asp and
 // http://plugindoc.mozdev.org/winmime.php
-static const char* kStandardImageTypes[] = {
+static const char* const kStandardImageTypes[] = {
   "image/bmp",
   "image/cis-cod",
   "image/gif",
@@ -784,7 +784,7 @@ static const char* kStandardImageTypes[] = {
   "image/x-xpixmap",
   "image/x-xwindowdump"
 };
-static const char* kStandardAudioTypes[] = {
+static const char* const kStandardAudioTypes[] = {
   "audio/aac",
   "audio/aiff",
   "audio/amr",
@@ -803,7 +803,7 @@ static const char* kStandardAudioTypes[] = {
   "audio/vnd.rn-realaudio",
   "audio/vnd.wave"
 };
-static const char* kStandardVideoTypes[] = {
+static const char* const kStandardVideoTypes[] = {
   "video/avi",
   "video/divx",
   "video/flc",
@@ -822,7 +822,7 @@ static const char* kStandardVideoTypes[] = {
 
 struct StandardType {
   const char* leading_mime_type;
-  const char** standard_types;
+  const char* const* standard_types;
   size_t standard_types_len;
 };
 static const StandardType kStandardTypes[] = {
@@ -855,7 +855,7 @@ void GetExtensionsFromHardCodedMappings(
   }
 }
 
-void GetExtensionsHelper(const char** standard_types,
+void GetExtensionsHelper(const char* const* standard_types,
                          size_t standard_types_len,
                          const std::string& leading_mime_type,
                          base::hash_set<FilePath::StringType>* extensions) {
