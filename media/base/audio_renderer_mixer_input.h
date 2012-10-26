@@ -44,6 +44,7 @@ class MEDIA_EXPORT AudioRendererMixerInput
  private:
   bool playing_;
   bool initialized_;
+  bool started_;
   double volume_;
 
   // Callbacks provided during construction which allow AudioRendererMixerInput
