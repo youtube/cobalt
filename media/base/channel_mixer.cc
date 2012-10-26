@@ -186,14 +186,14 @@ ChannelMixer::ChannelMixer(ChannelLayout input, ChannelLayout output)
 
   // Mix LR of center into: front center || front LR.
   if (IsUnaccounted(LEFT_OF_CENTER)) {
-    if (HasOutputChannel(CENTER)) {
-      // Mix LR of center into front center.
-      Mix(LEFT_OF_CENTER, CENTER, kEqualPowerScale);
-      Mix(RIGHT_OF_CENTER, CENTER, kEqualPowerScale);
-    } else {
+    if (HasOutputChannel(LEFT)) {
       // Mix LR of center into front LR.
       Mix(LEFT_OF_CENTER, LEFT, kEqualPowerScale);
       Mix(RIGHT_OF_CENTER, RIGHT, kEqualPowerScale);
+    } else {
+      // Mix LR of center into front center.
+      Mix(LEFT_OF_CENTER, CENTER, kEqualPowerScale);
+      Mix(RIGHT_OF_CENTER, CENTER, kEqualPowerScale);
     }
   }
 
