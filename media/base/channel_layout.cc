@@ -27,6 +27,18 @@ static const int kLayoutToChannels[] = {
     8,   // CHANNEL_LAYOUT_7POINT1
     8,   // CHANNEL_LAYOUT_7POINT1_WIDE
     2,   // CHANNEL_LAYOUT_STEREO_DOWNMIX
+    3,   // CHANNEL_LAYOUT_2POINT1
+    4,   // CHANNEL_LAYOUT_3_1
+    5,   // CHANNEL_LAYOUT_4_1
+    6,   // CHANNEL_LAYOUT_6_0
+    6,   // CHANNEL_LAYOUT_6_0_FRONT
+    6,   // CHANNEL_LAYOUT_HEXAGONAL
+    7,   // CHANNEL_LAYOUT_6_1
+    7,   // CHANNEL_LAYOUT_6_1_BACK
+    7,   // CHANNEL_LAYOUT_6_1_FRONT
+    7,   // CHANNEL_LAYOUT_7_0_FRONT
+    8,   // CHANNEL_LAYOUT_7_1_WIDE_BACK
+    8,   // CHANNEL_LAYOUT_OCTAGONAL
 };
 
 // The channel orderings for each layout as specified by FFmpeg.  Each value
@@ -71,6 +83,8 @@ static const int kChannelOrderings[CHANNEL_LAYOUT_MAX][CHANNELS_MAX] = {
     // CHANNEL_LAYOUT_5POINT1
     {  0  , 1  , 2  , 3   , -1 , -1 , -1    , -1    , -1 , 4  ,  5 },
 
+    // FL | FR | FC | LFE | BL | BR | FLofC | FRofC | BC | SL | SR
+
     // CHANNEL_LAYOUT_5POINT0_BACK
     {  0  , 1  , 2  , -1  , 3  , 4  , -1    , -1    , -1 , -1 , -1 },
 
@@ -84,10 +98,48 @@ static const int kChannelOrderings[CHANNEL_LAYOUT_MAX][CHANNELS_MAX] = {
     {  0  , 1  , 2  , 3   , 6  , 7  , -1    , -1    , -1 , 4  ,  5 },
 
     // CHANNEL_LAYOUT_7POINT1_WIDE
-    {  0  , 1  , 2  , 3   , 4  , 5  , 6     , 7     , -1 , -1 , -1 },
+    {  0  , 1  , 2  , 3   , -1 , -1 , 6     , 7     , -1 , 4  ,  5 },
 
     // CHANNEL_LAYOUT_STEREO_DOWNMIX
     {  0  , 1  , -1 , -1  , -1 , -1 , -1    , -1    , -1 , -1 , -1 },
+
+    // CHANNEL_LAYOUT_2POINT1
+    {  0  , 1  , -1 ,  2  , -1 , -1 , -1    , -1    , -1 , -1 , -1 },
+
+    // CHANNEL_LAYOUT_3_1
+    {  0  , 1  ,  2 ,  3  , -1 , -1 , -1    , -1    , -1 , -1 , -1 },
+
+    // CHANNEL_LAYOUT_4_1
+    {  0  , 1  ,  2 ,  4  , -1 , -1 , -1    , -1    ,  3 , -1 , -1 },
+
+    // CHANNEL_LAYOUT_6_0
+    {  0  , 1  , 2  , -1  , -1 , -1 , -1    , -1    ,  5 , 3  ,  4 },
+
+    // CHANNEL_LAYOUT_6_0_FRONT
+    {  0  , 1  , -1 , -1  , -1 , -1 ,  4    ,  5    , -1 , 2  ,  3 },
+
+    // FL | FR | FC | LFE | BL | BR | FLofC | FRofC | BC | SL | SR
+
+    // CHANNEL_LAYOUT_HEXAGONAL
+    {  0  , 1  , 2  , -1  , 3  , 4  , -1    , -1    ,  5 , -1 , -1 },
+
+    // CHANNEL_LAYOUT_6_1
+    {  0  , 1  , 2  , 3   , -1 , -1 , -1    , -1    ,  6 , 4  ,  5 },
+
+    // CHANNEL_LAYOUT_6_1_BACK
+    {  0  , 1  , 2  , 3   , 4  , 5  , -1    , -1    ,  6 , -1 , -1 },
+
+    // CHANNEL_LAYOUT_6_1_FRONT
+    {  0  , 1  , -1 , 6   , -1 , -1 , 4     , 5     , -1 , 2  ,  3 },
+
+    // CHANNEL_LAYOUT_7_0_FRONT
+    {  0  , 1  , 2  , -1  , -1 , -1 , 5     , 6     , -1 , 3  ,  4 },
+
+    // CHANNEL_LAYOUT_7_1_WIDE_BACK
+    {  0  , 1  , 2  , 3   , 4  , 5  , 6     , 7     , -1 , -1 , -1 },
+
+    // CHANNEL_LAYOUT_OCTAGONAL
+    {  0  , 1  , 2  , -1  , 5  , 6  , -1    , -1    ,  7 , 3  ,  4 },
 
     // FL | FR | FC | LFE | BL | BR | FLofC | FRofC | BC | SL | SR
 };
