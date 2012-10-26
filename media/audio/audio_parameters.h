@@ -26,12 +26,6 @@ struct MEDIA_EXPORT AudioInputBuffer {
 
 class MEDIA_EXPORT AudioParameters {
  public:
-  // Compare is useful when AudioParameters is used as a key in std::map.
-  class MEDIA_EXPORT Compare {
-   public:
-    bool operator()(const AudioParameters& a, const AudioParameters& b) const;
-  };
-
   enum Format {
     AUDIO_PCM_LINEAR = 0,     // PCM is 'raw' amplitude samples.
     AUDIO_PCM_LOW_LATENCY,    // Linear PCM, low latency requested.
@@ -84,6 +78,19 @@ class MEDIA_EXPORT AudioParameters {
   int channels_;                  // Number of channels. Value set based on
                                   // |channel_layout|.
 };
+
+// Comparison is useful when AudioParameters is used with std structures.
+inline bool operator<(const AudioParameters& a, const AudioParameters& b) {
+  if (a.format() != b.format())
+    return a.format() < b.format();
+  if (a.channels() != b.channels())
+    return a.channels() < b.channels();
+  if (a.sample_rate() != b.sample_rate())
+    return a.sample_rate() < b.sample_rate();
+  if (a.bits_per_sample() != b.bits_per_sample())
+    return a.bits_per_sample() < b.bits_per_sample();
+  return a.frames_per_buffer() < b.frames_per_buffer();
+}
 
 }  // namespace media
 

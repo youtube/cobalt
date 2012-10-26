@@ -10,15 +10,18 @@
 #include <mmsystem.h>
 #include <setupapi.h>
 
-#include "base/basictypes.h"
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/command_line.h"
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "media/audio/audio_util.h"
+#include "media/audio/win/audio_device_listener_win.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/audio/win/audio_manager_win.h"
@@ -26,6 +29,7 @@
 #include "media/audio/win/device_enumeration_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
+#include "media/base/bind_to_loop.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
@@ -112,6 +116,10 @@ AudioManagerWin::AudioManagerWin() {
 }
 
 AudioManagerWin::~AudioManagerWin() {
+  // It's safe to post a task here since Shutdown() will wait for all tasks to
+  // complete before returning.
+  GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
+      &AudioManagerWin::DestructOnAudioThread, base::Unretained(this)));
   Shutdown();
 }
 
@@ -121,6 +129,21 @@ bool AudioManagerWin::HasAudioOutputDevices() {
 
 bool AudioManagerWin::HasAudioInputDevices() {
   return (::waveInGetNumDevs() != 0);
+}
+
+void AudioManagerWin::InitializeOnAudioThread() {
+  // AudioDeviceListenerWin must be initialized on a COM thread and should only
+  // be used if WASAPI / Core Audio is supported.
+  if (media::IsWASAPISupported()) {
+    output_device_listener_.reset(new AudioDeviceListenerWin(BindToLoop(
+        GetMessageLoop(), base::Bind(
+            &AudioManagerWin::NotifyAllOutputDeviceChangeListeners,
+            base::Unretained(this)))));
+  }
+}
+
+void AudioManagerWin::DestructOnAudioThread() {
+  output_device_listener_.reset();
 }
 
 string16 AudioManagerWin::GetAudioInputDeviceModel() {
