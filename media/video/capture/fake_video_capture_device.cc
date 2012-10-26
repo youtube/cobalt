@@ -12,7 +12,8 @@
 
 namespace media {
 
-static const int kFakeCaptureTimeoutMs = 100;
+static const int kFakeCaptureTimeoutMs = 50;
+static const int kFakeCaptureBeepCycle = 20;  // Visual beep every 1s.
 enum { kNumberOfFakeDevices = 2 };
 
 bool FakeVideoCaptureDevice::fail_next_create_ = false;
@@ -52,7 +53,8 @@ FakeVideoCaptureDevice::FakeVideoCaptureDevice(const Name& device_name)
       observer_(NULL),
       state_(kIdle),
       capture_thread_("CaptureThread"),
-      frame_size_(0) {
+      frame_size_(0),
+      frame_count_(0) {
 }
 
 FakeVideoCaptureDevice::~FakeVideoCaptureDevice() {
@@ -130,6 +132,15 @@ void FakeVideoCaptureDevice::OnCaptureTask() {
   if (state_ != kCapturing) {
     return;
   }
+
+  bool beep = false;
+  if (frame_count_ % kFakeCaptureBeepCycle == 0) {
+    beep = true;
+    // This will fill the frame in grey.
+    memset(fake_frame_.get(), 128, frame_size_);
+  }
+  frame_count_++;
+
   // Give the captured frame to the observer.
   observer_->OnIncomingCapturedFrame(fake_frame_.get(),
                                      frame_size_,
@@ -140,6 +151,10 @@ void FakeVideoCaptureDevice::OnCaptureTask() {
         base::Bind(&FakeVideoCaptureDevice::OnCaptureTask,
                    base::Unretained(this)),
         base::TimeDelta::FromMilliseconds(kFakeCaptureTimeoutMs));
+
+  if (beep) {
+    memset(fake_frame_.get(), 0, frame_size_);
+  }
 }
 
 }  // namespace media
