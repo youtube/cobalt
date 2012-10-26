@@ -419,7 +419,7 @@ bool GSSAPISharedLibrary::InitImpl() {
 }
 
 base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
-  const char** library_names;
+  const char* const* library_names;
   size_t num_lib_names;
   const char* user_specified_library[1];
   if (!gssapi_library_name_.empty()) {
@@ -427,7 +427,7 @@ base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
     library_names = user_specified_library;
     num_lib_names = 1;
   } else {
-    static const char* kDefaultLibraryNames[] = {
+    static const char* const kDefaultLibraryNames[] = {
 #if defined(OS_MACOSX)
       "libgssapi_krb5.dylib"  // MIT Kerberos
 #elif defined(OS_OPENBSD)
