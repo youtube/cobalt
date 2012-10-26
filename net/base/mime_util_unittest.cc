@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/string_split.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/mime_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -98,6 +99,46 @@ TEST(MimeUtilTest, MatchesMimeType) {
   EXPECT_FALSE(MatchesMimeType("application/*+xml",
                                     "applcation/html+xml"));
   EXPECT_FALSE(MatchesMimeType("aaa*aaa", "aaaaa"));
+
+  EXPECT_TRUE(MatchesMimeType("*", "video/x-mpeg;param=val"));
+  EXPECT_TRUE(MatchesMimeType("video/*", "video/x-mpeg;param=val"));
+  EXPECT_FALSE(MatchesMimeType("video/*;param=val", "video/mpeg"));
+  EXPECT_FALSE(MatchesMimeType("video/*;param=val", "video/mpeg;param=other"));
+  EXPECT_TRUE(MatchesMimeType("video/*;param=val", "video/mpeg;param=val"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg", "video/x-mpeg;param=val"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param=val",
+                              "video/x-mpeg;param=val"));
+  EXPECT_FALSE(MatchesMimeType("video/x-mpeg;param2=val2",
+                               "video/x-mpeg;param=val"));
+  EXPECT_FALSE(MatchesMimeType("video/x-mpeg;param2=val2",
+                               "video/x-mpeg;param2=val"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param=val",
+                              "video/x-mpeg;param=val;param2=val2"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param=val;param2=val2",
+                              "video/x-mpeg;param=val;param2=val2"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param2=val2;param=val",
+                              "video/x-mpeg;param=val;param2=val2"));
+  EXPECT_FALSE(MatchesMimeType("video/x-mpeg;param3=val3;param=val",
+                               "video/x-mpeg;param=val;param2=val2"));
+  EXPECT_TRUE(MatchesMimeType("video/x-mpeg;param=val ;param2=val2 ",
+                              "video/x-mpeg;param=val;param2=val2"));
+
+  EXPECT_TRUE(MatchesMimeType("*/*;param=val", "video/x-mpeg;param=val"));
+  EXPECT_FALSE(MatchesMimeType("*/*;param=val", "video/x-mpeg;param=val2"));
+
+  EXPECT_TRUE(MatchesMimeType("*", "*"));
+  EXPECT_TRUE(MatchesMimeType("*", "*/*"));
+  EXPECT_TRUE(MatchesMimeType("*/*", "*/*"));
+  EXPECT_TRUE(MatchesMimeType("*/*", "*"));
+  EXPECT_TRUE(MatchesMimeType("video/*", "video/*"));
+  EXPECT_FALSE(MatchesMimeType("video/*", "*/*"));
+  EXPECT_FALSE(MatchesMimeType("video/*;param=val", "video/*"));
+  EXPECT_TRUE(MatchesMimeType("video/*;param=val", "video/*;param=val"));
+  EXPECT_FALSE(MatchesMimeType("video/*;param=val", "video/*;param=val2"));
+
+  EXPECT_TRUE(MatchesMimeType("ab*cd", "abxxxcd"));
+  EXPECT_TRUE(MatchesMimeType("ab*cd", "abx/xcd"));
+  EXPECT_TRUE(MatchesMimeType("ab/*cd", "ab/xxxcd"));
 }
 
 // Note: codecs should only be a list of 2 or fewer; hence the restriction of
