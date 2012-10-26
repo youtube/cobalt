@@ -323,10 +323,7 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
           << "Decoder didn't output full frames";
 
       // Copy the audio samples into an output buffer.
-      output = new DataBuffer(decoded_audio_size);
-      output->SetDataSize(decoded_audio_size);
-      uint8* data = output->GetWritableData();
-      memcpy(data, decoded_audio_data, decoded_audio_size);
+      output = new DataBuffer(decoded_audio_data, decoded_audio_size);
 
       base::TimeDelta timestamp = GetNextOutputTimestamp();
       total_frames_decoded_ += decoded_audio_size / bytes_per_frame_;
