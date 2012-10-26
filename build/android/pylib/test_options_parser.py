@@ -134,6 +134,8 @@ def ValidateInstrumentationOptions(option_parser, options, args):
   if options.java_only and options.python_only:
     option_parser.error('Options java_only (-j) and python_only (-p) '
                         'are mutually exclusive.')
+  if not options.test_apk:
+    option_parser.error('--test-apk must be specified.')
 
   options.run_java_tests = True
   options.run_python_tests = True
