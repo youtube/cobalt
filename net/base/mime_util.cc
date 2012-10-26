@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+#include <iterator>
 #include <map>
 #include <string>
 
@@ -511,41 +513,85 @@ bool MimeUtil::IsSupportedMimeType(const std::string& mime_type) const {
          IsSupportedNonImageMimeType(mime_type);
 }
 
+// Tests for MIME parameter equality. Each parameter in the |mime_type_pattern|
+// must be matched by a parameter in the |mime_type|. If there are no
+// parameters in the pattern, the match is a success.
+bool MatchesMimeTypeParameters(const std::string& mime_type_pattern,
+                               const std::string& mime_type) {
+  const std::string::size_type semicolon = mime_type_pattern.find(';');
+  const std::string::size_type test_semicolon = mime_type.find(';');
+  if (semicolon != std::string::npos) {
+    if (test_semicolon == std::string::npos)
+      return false;
+
+    std::vector<std::string> pattern_parameters;
+    base::SplitString(mime_type_pattern.substr(semicolon + 1),
+                      ';', &pattern_parameters);
+
+    std::vector<std::string> test_parameters;
+    base::SplitString(mime_type.substr(test_semicolon + 1),
+                      ';', &test_parameters);
+
+    sort(pattern_parameters.begin(), pattern_parameters.end());
+    sort(test_parameters.begin(), test_parameters.end());
+    std::vector<std::string> difference;
+    std::set_difference(pattern_parameters.begin(), pattern_parameters.end(),
+                        test_parameters.begin(), test_parameters.end(),
+                        std::inserter(difference, difference.begin()));
+
+    return difference.size() == 0;
+  }
+  return true;
+}
+
+// This comparison handles absolute maching and also basic
+// wildcards.  The plugin mime types could be:
+//      application/x-foo
+//      application/*
+//      application/*+xml
+//      *
+// Also tests mime parameters -- all parameters in the pattern must be present
+// in the tested type for a match to succeed.
 bool MimeUtil::MatchesMimeType(const std::string& mime_type_pattern,
                                const std::string& mime_type) const {
-  // verify caller is passing lowercase
+  // Verify caller is passing lowercase strings.
   DCHECK_EQ(StringToLowerASCII(mime_type_pattern), mime_type_pattern);
   DCHECK_EQ(StringToLowerASCII(mime_type), mime_type);
 
-  // This comparison handles absolute maching and also basic
-  // wildcards.  The plugin mime types could be:
-  //      application/x-foo
-  //      application/*
-  //      application/*+xml
-  //      *
   if (mime_type_pattern.empty())
     return false;
 
-  const std::string::size_type star = mime_type_pattern.find('*');
+  std::string::size_type semicolon = mime_type_pattern.find(';');
+  const std::string base_pattern(mime_type_pattern.substr(0, semicolon));
+  semicolon = mime_type.find(';');
+  const std::string base_type(mime_type.substr(0, semicolon));
 
-  if (star == std::string::npos)
-    return mime_type_pattern == mime_type;
+  if (base_pattern == "*" || base_pattern == "*/*")
+    return MatchesMimeTypeParameters(mime_type_pattern, mime_type);
+
+  const std::string::size_type star = base_pattern.find('*');
+  if (star == std::string::npos) {
+    if (base_pattern == base_type)
+      return MatchesMimeTypeParameters(mime_type_pattern, mime_type);
+    else
+      return false;
+  }
 
   // Test length to prevent overlap between |left| and |right|.
-  if (mime_type.length() < mime_type_pattern.length() - 1)
+  if (base_type.length() < base_pattern.length() - 1)
     return false;
 
-  const std::string left(mime_type_pattern.substr(0, star));
-  const std::string right(mime_type_pattern.substr(star + 1));
+  const std::string left(base_pattern.substr(0, star));
+  const std::string right(base_pattern.substr(star + 1));
 
-  if (mime_type.find(left) != 0)
+  if (base_type.find(left) != 0)
     return false;
 
   if (!right.empty() &&
-      mime_type.rfind(right) != mime_type.length() - right.length())
+      base_type.rfind(right) != base_type.length() - right.length())
     return false;
 
-  return true;
+  return MatchesMimeTypeParameters(mime_type_pattern, mime_type);
 }
 
 // See http://www.iana.org/assignments/media-types/index.html
