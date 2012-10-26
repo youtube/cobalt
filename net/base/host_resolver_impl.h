@@ -193,6 +193,9 @@ class NET_EXPORT HostResolverImpl
   // Callback from IPv6 probe activity.
   void IPv6ProbeSetDefaultAddressFamily(AddressFamily address_family);
 
+  // Callback from HaveOnlyLoopbackAddresses probe.
+  void SetHaveOnlyLoopbackAddresses(bool result);
+
   // Returns the (hostname, address_family) key to use for |info|, choosing an
   // "effective" address family by inheriting the resolver's default address
   // family when the request leaves it unspecified.
