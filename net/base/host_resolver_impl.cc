@@ -236,6 +236,42 @@ AddressList EnsurePortOnAddressList(const AddressList& list, uint16 port) {
   return AddressList::CopyWithPort(list, port);
 }
 
+// Wraps a call to HaveOnlyLoopbackAddresses to be executed on the WorkerPool as
+// it takes 40-100ms and should not block initialization.
+class HaveOnlyLoopbackProbeJob
+    : public base::RefCountedThreadSafe<HaveOnlyLoopbackProbeJob> {
+ public:
+  typedef base::Callback<void(bool)> CallbackType;
+  explicit HaveOnlyLoopbackProbeJob(const CallbackType& callback)
+      : result_(false) {
+    const bool kIsSlow = true;
+    base::WorkerPool::PostTaskAndReply(
+        FROM_HERE,
+        base::Bind(&HaveOnlyLoopbackProbeJob::DoProbe, this),
+        base::Bind(&HaveOnlyLoopbackProbeJob::OnProbeComplete, this, callback),
+        kIsSlow);
+  }
+
+ private:
+  friend class base::RefCountedThreadSafe<HaveOnlyLoopbackProbeJob>;
+
+  virtual ~HaveOnlyLoopbackProbeJob() {}
+
+  // Runs on worker thread.
+  void DoProbe() {
+    result_ = HaveOnlyLoopbackAddresses();
+  }
+
+  void OnProbeComplete(const CallbackType& callback) {
+    callback.Run(result_);
+  }
+
+  bool result_;
+
+  DISALLOW_COPY_AND_ASSIGN(HaveOnlyLoopbackProbeJob);
+};
+
+
 // Creates NetLog parameters when the resolve failed.
 base::Value* NetLogProcTaskFailedCallback(uint32 attempt_number,
                                           int net_error,
@@ -1654,8 +1690,9 @@ HostResolverImpl::HostResolverImpl(
   EnsureWinsockInit();
 #endif
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
-  if (HaveOnlyLoopbackAddresses())
-    additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
+  new HaveOnlyLoopbackProbeJob(
+      base::Bind(&HostResolverImpl::SetHaveOnlyLoopbackAddresses,
+                 weak_ptr_factory_.GetWeakPtr()));
 #endif
   NetworkChangeNotifier::AddIPAddressObserver(this);
   NetworkChangeNotifier::AddDNSObserver(this);
@@ -1997,6 +2034,14 @@ void HostResolverImpl::IPv6ProbeSetDefaultAddressFamily(
   DiscardIPv6ProbeJob();
 }
 
+void HostResolverImpl::SetHaveOnlyLoopbackAddresses(bool result) {
+  if (result) {
+    additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
+  } else {
+    additional_resolver_flags_ &= ~HOST_RESOLVER_LOOPBACK_ONLY;
+  }
+}
+
 HostResolverImpl::Key HostResolverImpl::GetEffectiveKeyForRequest(
     const RequestInfo& info) const {
   HostResolverFlags effective_flags =
@@ -2066,11 +2111,8 @@ void HostResolverImpl::OnIPAddressChanged() {
     ipv6_probe_job_->Start();
   }
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
-  if (HaveOnlyLoopbackAddresses()) {
-    additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
-  } else {
-    additional_resolver_flags_ &= ~HOST_RESOLVER_LOOPBACK_ONLY;
-  }
+  // TODO(szym): Use HaveOnlyLoopbackProbeJob. http://crbug.com/157933
+  SetHaveOnlyLoopbackAddresses(HaveOnlyLoopbackAddresses());
 #endif
   AbortAllInProgressJobs();
   // |this| may be deleted inside AbortAllInProgressJobs().
