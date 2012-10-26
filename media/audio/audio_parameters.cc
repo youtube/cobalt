@@ -66,26 +66,4 @@ int AudioParameters::GetBytesPerFrame() const {
   return channels_ * bits_per_sample_ / 8;
 }
 
-bool AudioParameters::Compare::operator()(
-    const AudioParameters& a,
-    const AudioParameters& b) const {
-  if (a.format_ < b.format_)
-    return true;
-  if (a.format_ > b.format_)
-    return false;
-  if (a.channels_ < b.channels_)
-    return true;
-  if (a.channels_ > b.channels_)
-    return false;
-  if (a.sample_rate_ < b.sample_rate_)
-    return true;
-  if (a.sample_rate_ > b.sample_rate_)
-    return false;
-  if (a.bits_per_sample_ < b.bits_per_sample_)
-    return true;
-  if (a.bits_per_sample_ > b.bits_per_sample_)
-    return false;
-  return a.frames_per_buffer_ < b.frames_per_buffer_;
-}
-
 }  // namespace media

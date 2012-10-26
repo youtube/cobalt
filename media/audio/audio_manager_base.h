@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 
 #include "base/atomic_ref_count.h"
 #include "base/compiler_specific.h"
@@ -104,8 +105,8 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   // TODO(dalecurtis): This must change to map both input and output parameters
   // to a single dispatcher, otherwise on a device state change we'll just get
   // the exact same invalid dispatcher.
-  typedef std::map<AudioParameters, scoped_refptr<AudioOutputDispatcher>,
-                   AudioParameters::Compare>
+  typedef std::map<std::pair<AudioParameters, AudioParameters>,
+                   scoped_refptr<AudioOutputDispatcher> >
       AudioOutputDispatchersMap;
 
   // Shuts down the audio thread and releases all the audio output dispatchers

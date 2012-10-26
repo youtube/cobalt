@@ -292,13 +292,8 @@ bool WASAPIAudioOutputStream::Open() {
     return false;
   }
 
-  // Register this client as an IMMNotificationClient implementation.
-  // Only OnDefaultDeviceChanged() and OnDeviceStateChanged() and are
-  // non-trivial.
-  hr = device_enumerator_->RegisterEndpointNotificationCallback(this);
-
   opened_ = true;
-  return SUCCEEDED(hr);
+  return true;
 }
 
 void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
@@ -410,14 +405,6 @@ void WASAPIAudioOutputStream::Close() {
   // It is valid to call Close() before calling open or Start().
   // It is also valid to call Close() after Start() has been called.
   Stop();
-
-  if (opened_ && device_enumerator_) {
-    // De-register the IMMNotificationClient callback interface.
-    HRESULT hr = device_enumerator_->UnregisterEndpointNotificationCallback(
-        this);
-    DLOG_IF(ERROR, FAILED(hr)) << "Failed to disable device notifications: "
-                               << std::hex << hr;
-  }
 
   // Inform the audio manager that we have been closed. This will cause our
   // destruction.
