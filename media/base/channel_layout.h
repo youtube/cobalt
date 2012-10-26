@@ -54,11 +54,47 @@ enum ChannelLayout {
   // Front L, Front R, Front C, Side L, Side R, LFE, Back L, Back R
   CHANNEL_LAYOUT_7_1 = 14,
 
-  // Front L, Front R, Front C, Back L, Back R, LFE, Front LofC, Front RofC
+  // Front L, Front R, Front C, Side L, Side R, LFE, Front LofC, Front RofC
   CHANNEL_LAYOUT_7_1_WIDE = 15,
 
   // Stereo L, Stereo R
   CHANNEL_LAYOUT_STEREO_DOWNMIX = 16,
+
+  // Stereo L, Stereo R, LFE
+  CHANNEL_LAYOUT_2POINT1 = 17,
+
+  // Stereo L, Stereo R, Front C, LFE
+  CHANNEL_LAYOUT_3_1 = 18,
+
+  // Stereo L, Stereo R, Front C, Rear C, LFE
+  CHANNEL_LAYOUT_4_1 = 19,
+
+  // Stereo L, Stereo R, Front C, Side L, Side R, Back C
+  CHANNEL_LAYOUT_6_0 = 20,
+
+  // Stereo L, Stereo R, Side L, Side R, Front LofC, Front RofC
+  CHANNEL_LAYOUT_6_0_FRONT = 21,
+
+  // Stereo L, Stereo R, Side L, Side R, Front C, Rear C.
+  CHANNEL_LAYOUT_HEXAGONAL = 22,
+
+  // Stereo L, Stereo R, Side L, Side R, Front C, Rear Center, LFE
+  CHANNEL_LAYOUT_6_1 = 23,
+
+  // Stereo L, Stereo R, Back L, Back R, Front C, Rear Center, LFE
+  CHANNEL_LAYOUT_6_1_BACK = 24,
+
+  // Stereo L, Stereo R, Side L, Side R, Front LofC, Front RofC, LFE
+  CHANNEL_LAYOUT_6_1_FRONT = 25,
+
+  // Front L, Front R, Front C, Side L, Side R, Front LofC, Front RofC
+  CHANNEL_LAYOUT_7_0_FRONT = 26,
+
+  // Front L, Front R, Front C, Back L, Back R, LFE, Front LofC, Front RofC
+  CHANNEL_LAYOUT_7_1_WIDE_BACK = 27,
+
+  // Front L, Front R, Front C, Side L, Side R, Rear C, Back L, Back R.
+  CHANNEL_LAYOUT_OCTAGONAL = 28,
 
   // Total number of layouts.
   CHANNEL_LAYOUT_MAX  // Must always be last!
