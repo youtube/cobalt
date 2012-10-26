@@ -14,6 +14,7 @@
           'type': 'static_library',
           'defines': [
             'OPUS_BUILD',
+            'OPUS_EXPORT=',
             'WORDS_BIGENDIAN',
           ],
           'conditions': [
@@ -34,8 +35,6 @@
             }],
           ],
           'include_dirs': [
-            '../..',
-            'overrides/include',
             'src/celt',
             'src/include',
             'src/silk',
@@ -43,7 +42,6 @@
           ],
           'direct_dependent_settings': {
             'include_dirs': [
-              'overrides/include',
               'src/include',
             ],
           },
