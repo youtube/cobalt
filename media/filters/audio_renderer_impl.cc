@@ -86,12 +86,13 @@ void AudioRendererImpl::Flush(const base::Closure& callback) {
 void AudioRendererImpl::Stop(const base::Closure& callback) {
   DCHECK(!callback.is_null());
 
-  if (!stopped_) {
-    sink_->Stop();
-    stopped_ = true;
-  }
   {
     base::AutoLock auto_lock(lock_);
+    if (!stopped_) {
+      sink_->Stop();
+      stopped_ = true;
+    }
+
     state_ = kStopped;
     algorithm_.reset(NULL);
     init_cb_.Reset();

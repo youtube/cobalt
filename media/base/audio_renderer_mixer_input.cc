@@ -13,6 +13,7 @@ AudioRendererMixerInput::AudioRendererMixerInput(
     const GetMixerCB& get_mixer_cb, const RemoveMixerCB& remove_mixer_cb)
     : playing_(false),
       initialized_(false),
+      started_(false),
       volume_(1.0f),
       get_mixer_cb_(get_mixer_cb),
       remove_mixer_cb_(remove_mixer_cb),
@@ -38,20 +39,29 @@ void AudioRendererMixerInput::Initialize(
 
 void AudioRendererMixerInput::Start() {
   DCHECK(initialized_);
+  DCHECK(!started_);
   mixer_->AddMixerInput(this);
+  started_ = true;
 }
 
 void AudioRendererMixerInput::Stop() {
-  DCHECK(initialized_);
+  // Stop() may be called at any time, so we can't blindly remove our input.
+  if (started_) {
+    mixer_->RemoveMixerInput(this);
+    started_ = false;
+  }
   playing_ = false;
-  mixer_->RemoveMixerInput(this);
 }
 
 void AudioRendererMixerInput::Play() {
+  DCHECK(initialized_);
+  DCHECK(started_);
   playing_ = true;
 }
 
 void AudioRendererMixerInput::Pause(bool /* flush */) {
+  DCHECK(initialized_);
+  DCHECK(started_);
   // We don't care about flush since Pause() simply indicates we should send
   // silence to AudioRendererMixer.
   playing_ = false;
