@@ -89,9 +89,7 @@ bool SeekableBuffer::Append(Buffer* buffer_in) {
 
 bool SeekableBuffer::Append(const uint8* data, int size) {
   if (size > 0) {
-    DataBuffer* data_buffer = new DataBuffer(size);
-    memcpy(data_buffer->GetWritableData(), data, size);
-    data_buffer->SetDataSize(size);
+    DataBuffer* data_buffer = new DataBuffer(data, size);
     return Append(data_buffer);
   } else {
     // Return true if we have forward capacity.

@@ -9,14 +9,23 @@
 namespace media {
 
 TEST(DataBufferTest, Constructors) {
-  const int kTestSize = 10;
+  const uint8 kTestData[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 };
+  const int kTestDataSize = arraysize(kTestData);
 
   scoped_refptr<DataBuffer> buffer(new DataBuffer(0));
   EXPECT_FALSE(buffer->GetData());
 
-  scoped_refptr<DataBuffer> buffer2(new DataBuffer(kTestSize));
+  scoped_refptr<DataBuffer> buffer2(new DataBuffer(kTestDataSize));
   EXPECT_EQ(0, buffer2->GetDataSize());
-  EXPECT_EQ(kTestSize, buffer2->GetBufferSize());
+  EXPECT_EQ(kTestDataSize, buffer2->GetBufferSize());
+
+  scoped_refptr<DataBuffer> buffer3(new DataBuffer(kTestData, kTestDataSize));
+  EXPECT_EQ(kTestDataSize, buffer3->GetDataSize());
+  EXPECT_EQ(kTestDataSize, buffer3->GetBufferSize());
+  ASSERT_EQ(0, memcmp(buffer3->GetData(), kTestData, kTestDataSize));
+  // Ensure we are copying the data, not just pointing to the original data.
+  buffer3->GetWritableData()[0] = 0xFF;
+  ASSERT_NE(0, memcmp(buffer3->GetData(), kTestData, kTestDataSize));
 }
 
 TEST(DataBufferTest, ReadingWriting) {
