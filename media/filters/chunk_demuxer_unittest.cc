@@ -58,6 +58,8 @@ static const char* kDefaultFirstClusterRange = "{ [0,46) }";
 static const int kDefaultFirstClusterEndTimestamp = 66;
 static const int kDefaultSecondClusterEndTimestamp = 132;
 
+static const char kWebMInitDataType[] = "video/webm";
+
 base::TimeDelta kDefaultDuration() {
   return base::TimeDelta::FromMilliseconds(201224);
 }
@@ -732,9 +734,11 @@ class ChunkDemuxerTest : public testing::Test {
   // are not supported in mocked methods. Remove this when the issue is fixed
   // (http://code.google.com/p/googletest/issues/detail?id=395) or when we use
   // std::string instead of scoped_array<uint8> (http://crbug.com/130689).
-  MOCK_METHOD2(NeedKeyMock, void(const uint8* init_data, int init_data_size));
-  void DemuxerNeedKey(scoped_array<uint8> init_data, int init_data_size) {
-    NeedKeyMock(init_data.get(), init_data_size);
+  MOCK_METHOD3(NeedKeyMock, void(const std::string& type,
+                                 const uint8* init_data, int init_data_size));
+  void DemuxerNeedKey(const std::string& type,
+                      scoped_array<uint8> init_data, int init_data_size) {
+    NeedKeyMock(type, init_data.get(), init_data_size);
   }
 
   MessageLoop message_loop_;
@@ -766,7 +770,7 @@ TEST_F(ChunkDemuxerTest, TestInit) {
     if (is_audio_encrypted || is_video_encrypted) {
       int need_key_count = (is_audio_encrypted ? 1 : 0) +
                            (is_video_encrypted ? 1 : 0);
-      EXPECT_CALL(*this, NeedKeyMock(NotNull(), 16))
+      EXPECT_CALL(*this, NeedKeyMock(kWebMInitDataType, NotNull(), 16))
           .Times(Exactly(need_key_count));
     }
 

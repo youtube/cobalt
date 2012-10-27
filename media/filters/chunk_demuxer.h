@@ -32,7 +32,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
     kReachedIdLimit,  // Reached ID limit. We can't handle any more IDs.
   };
 
-  typedef base::Callback<void(scoped_array<uint8> init_data,
+  typedef base::Callback<void(const std::string& type,
+                              scoped_array<uint8> init_data,
                               int init_data_size)> NeedKeyCB;
 
   // |open_cb| Run when Initialize() is called to signal that the demuxer
@@ -129,7 +130,9 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                     const VideoDecoderConfig& video_config);
   bool OnAudioBuffers(const StreamParser::BufferQueue& buffers);
   bool OnVideoBuffers(const StreamParser::BufferQueue& buffers);
-  bool OnNeedKey(scoped_array<uint8> init_data, int init_data_size);
+  bool OnNeedKey(const std::string& type,
+                 scoped_array<uint8> init_data,
+                 int init_data_size);
   void OnNewMediaSegment(const std::string& source_id,
                          base::TimeDelta start_timestamp);
   void OnEndOfMediaSegment(const std::string& source_id);

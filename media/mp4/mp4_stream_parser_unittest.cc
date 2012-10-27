@@ -23,6 +23,9 @@ using base::TimeDelta;
 namespace media {
 namespace mp4 {
 
+// TODO(xhwang): Figure out the init data type appropriately once it's spec'ed.
+static const char kMp4InitDataType[] = "video/mp4";
+
 class MP4StreamParserTest : public testing::Test {
  public:
   MP4StreamParserTest()
@@ -54,7 +57,7 @@ class MP4StreamParserTest : public testing::Test {
 
   void InitF(bool init_ok, base::TimeDelta duration) {
     DVLOG(1) << "InitF: ok=" << init_ok
-              << ", dur=" << duration.InMilliseconds();
+             << ", dur=" << duration.InMilliseconds();
   }
 
   bool NewConfigF(const AudioDecoderConfig& ac, const VideoDecoderConfig& vc) {
@@ -76,8 +79,12 @@ class MP4StreamParserTest : public testing::Test {
     return true;
   }
 
-  bool KeyNeededF(scoped_array<uint8> init_data, int init_data_size) {
+  bool KeyNeededF(const std::string& type,
+                  scoped_array<uint8> init_data, int init_data_size) {
     DVLOG(1) << "KeyNeededF: " << init_data_size;
+    EXPECT_EQ(kMp4InitDataType, type);
+    EXPECT_TRUE(init_data.get());
+    EXPECT_GT(init_data_size, 0);
     return true;
   }
 
