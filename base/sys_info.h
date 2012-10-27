@@ -22,6 +22,10 @@ class BASE_EXPORT SysInfo {
   // Return the number of bytes of physical memory on the current machine.
   static int64 AmountOfPhysicalMemory();
 
+  // Return the number of bytes of current available physical memory on the
+  // machine.
+  static int64 AmountOfAvailablePhysicalMemory();
+
   // Return the number of megabytes of physical memory on the current machine.
   static int AmountOfPhysicalMemoryMB() {
     return static_cast<int>(AmountOfPhysicalMemory() / 1024 / 1024);
