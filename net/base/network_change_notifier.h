@@ -163,6 +163,9 @@ class NET_EXPORT NetworkChangeNotifier {
     NotifyObserversOfIPAddressChange();
   }
 
+  // Return a string equivalent to |type|.
+  static const char* ConnectionTypeToString(ConnectionType type);
+
   // Let the NetworkChangeNotifier know we received some data.
   // This is used strictly for producing histogram data about the accuracy of
   // the NetworkChangenotifier's online detection.
