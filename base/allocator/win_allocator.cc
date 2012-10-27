@@ -66,7 +66,8 @@ void* win_heap_memalign(size_t alignment, size_t size) {
 }
 
 void win_heap_memalign_free(void* ptr) {
-  win_heap_free(static_cast<void**>(ptr)[-1]);
+  if (ptr)
+    win_heap_free(static_cast<void**>(ptr)[-1]);
 }
 
 }  // extern "C"
