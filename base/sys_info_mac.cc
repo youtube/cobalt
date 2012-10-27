@@ -59,6 +59,12 @@ int64 SysInfo::AmountOfPhysicalMemory() {
 }
 
 // static
+int64 SysInfo::AmountOfAvailablePhysicalMemory() {
+  // TODO(hongbo): Add implementation for Mac.
+  return 0;
+}
+
+// static
 std::string SysInfo::CPUModelName() {
   char name[256];
   size_t len = arraysize(name);
