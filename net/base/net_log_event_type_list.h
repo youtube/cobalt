@@ -1293,9 +1293,16 @@ EVENT_TYPE(APPCACHE_DELIVERING_ERROR_RESPONSE)
 // These are events which are not grouped by source id, as they have no
 // context.
 
-// This event is emitted whenever NetworkChangeNotifier determines that the
-// underlying network has changed.
+// This event is emitted whenever NetworkChangeNotifier determines that an
+// active network adapter's IP address has changed.
 EVENT_TYPE(NETWORK_IP_ADDRESSES_CHANGED)
+
+// This event is emitted whenever NetworkChangeNotifier determines that an
+// active network adapter's connectivity status has changed.
+//   {
+//     "new_connection_type": <Type of the new connection>
+//   }
+EVENT_TYPE(NETWORK_CONNECTIVITY_CHANGED)
 
 
 // This event is emitted whenever HostResolverImpl receives a new DnsConfig
