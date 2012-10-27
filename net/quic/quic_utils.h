@@ -7,13 +7,12 @@
 #ifndef NET_QUIC_QUIC_UTILS_H_
 #define NET_QUIC_QUIC_UTILS_H_
 
-#include <string>
-
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
 #include "net/quic/uint128.h"
 
-class SocketAddress;
+class IPAddress;
+class IPEndPoint;
 
 namespace gfe2 {
   class BalsaHeaders;

@@ -139,11 +139,12 @@ uint8 QuicFramer::GetRetransmitCount(QuicPacket* packet) {
   return packet->mutable_data()[kRetransmissionOffset];
 }
 
-bool QuicFramer::ProcessPacket(const IPEndPoint& peer_address,
+bool QuicFramer::ProcessPacket(const IPEndPoint& self_address,
+                               const IPEndPoint& peer_address,
                                const QuicEncryptedPacket& packet) {
   DCHECK(!reader_.get());
   reader_.reset(new QuicDataReader(packet.data(), packet.length()));
-  visitor_->OnPacket(peer_address);
+  visitor_->OnPacket(self_address, peer_address);
 
   // First parse the packet header.
   QuicPacketHeader header;
