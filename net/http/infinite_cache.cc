@@ -275,6 +275,12 @@ void InfiniteCacheTransaction::OnRequestStart(const HttpRequestInfo* request) {
   CryptoHash(cache_key, &resource_data_->key);
 }
 
+void InfiniteCacheTransaction::OnBackForwardNavigation() {
+  if (!cache_)
+    return;
+  UMA_HISTOGRAM_BOOLEAN("InfiniteCache.BackForwardNavigation", true);
+}
+
 void InfiniteCacheTransaction::OnResponseReceived(
     const HttpResponseInfo* response) {
   if (!cache_)
@@ -522,10 +528,14 @@ void InfiniteCache::Worker::Process(
     return;
 
   UMA_HISTOGRAM_BOOLEAN("InfiniteCache.TotalRequests", true);
+  if (data->details.flags & NO_STORE)
+    UMA_HISTOGRAM_BOOLEAN("InfiniteCache.NoStore", true);
+
   header_->num_requests++;
   KeyMap::iterator i = map_.find(data->key);
   if (i != map_.end()) {
     if (data->details.flags & DOOM_METHOD) {
+      UMA_HISTOGRAM_BOOLEAN("InfiniteCache.DoomMethodHit", true);
       Remove(i->second);
       map_.erase(i);
       return;
@@ -561,8 +571,10 @@ void InfiniteCache::Worker::Process(
   if (data->details.flags & NO_STORE)
     return;
 
-  if (data->details.flags & DOOM_METHOD)
+  if (data->details.flags & DOOM_METHOD) {
+    UMA_HISTOGRAM_BOOLEAN("InfiniteCache.DoomMethodHit", false);
     return;
+  }
 
   map_[data->key] = data->details;
   Add(data->details);
@@ -570,7 +582,7 @@ void InfiniteCache::Worker::Process(
 
 void InfiniteCache::Worker::LoadData() {
   if (path_.empty())
-    return InitializeData();;
+    return InitializeData();
 
   PlatformFile file = base::CreatePlatformFile(
       path_, base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ, NULL, NULL);
