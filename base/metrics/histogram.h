@@ -17,6 +17,11 @@
 // silently clamped to those limits (for backwards compatibility with existing
 // code). Best practice is to not exceed the limits.
 
+// Each use of a histogram with the same name will reference the same underlying
+// data, so it is safe to record to the same histogram from multiple locations
+// in the code. It is a runtime error if all uses of the same histogram do not
+// agree exactly in type, bucket size and range.
+
 // For Histogram and LinearHistogram, the maximum for a declared range should
 // always be larger (not equal) than minmal range. Zero and
 // HistogramBase::kSampleType_MAX are implicitly added as first and last ranges,
@@ -527,6 +532,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, BucketPlacementTest);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptBucketBounds);
   FRIEND_TEST_ALL_PREFIXES(HistogramTest, CorruptSampleCounts);
+  FRIEND_TEST_ALL_PREFIXES(HistogramTest, NameMatchTest);
 
   friend class StatisticsRecorder;  // To allow it to delete duplicates.
   friend class StatisticsRecorderTest;
