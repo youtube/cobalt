@@ -21,8 +21,32 @@ using std::vector;
 
 namespace base {
 
+class HistogramTest : public testing::Test {
+ protected:
+  virtual void SetUp() {
+    // Each test will have a clean state (no Histogram / BucketRanges
+    // registered).
+    InitializeStatisticsRecorder();
+  }
+
+  virtual void TearDown() {
+    UninitializeStatisticsRecorder();
+  }
+
+  void InitializeStatisticsRecorder() {
+    statistics_recorder_ = new StatisticsRecorder();
+  }
+
+  void UninitializeStatisticsRecorder() {
+    delete statistics_recorder_;
+    statistics_recorder_ = NULL;
+  }
+
+  StatisticsRecorder* statistics_recorder_;
+};
+
 // Check for basic syntax and use.
-TEST(HistogramTest, BasicTest) {
+TEST_F(HistogramTest, BasicTest) {
   // Try basic construction
   Histogram* histogram(Histogram::FactoryGet(
       "TestHistogram", 1, 1000, 10, Histogram::kNoFlags));
@@ -49,7 +73,19 @@ TEST(HistogramTest, BasicTest) {
   HISTOGRAM_ENUMERATION("Test6Histogram", 129, 130);
 }
 
-TEST(HistogramTest, ExponentialRangesTest) {
+// Check that the macro correctly matches histograms by name and records their
+// data together.
+TEST_F(HistogramTest, NameMatchTest) {
+  HISTOGRAM_PERCENTAGE("DuplicatedHistogram", 10);
+  HISTOGRAM_PERCENTAGE("DuplicatedHistogram", 10);
+  Histogram* histogram(LinearHistogram::FactoryGet(
+      "DuplicatedHistogram", 1, 101, 102, Histogram::kNoFlags));
+  scoped_ptr<SampleVector> samples = histogram->SnapshotSampleVector();
+  EXPECT_EQ(2, samples->TotalCount());
+  EXPECT_EQ(2, samples->GetCountAtIndex(10));
+}
+
+TEST_F(HistogramTest, ExponentialRangesTest) {
   // Check that we got a nice exponential when there was enough rooom.
   BucketRanges ranges(9);
   Histogram::InitializeBucketRanges(1, 64, 8, &ranges);
@@ -94,7 +130,7 @@ TEST(HistogramTest, ExponentialRangesTest) {
   EXPECT_TRUE(ranges2.Equals(histogram2->bucket_ranges()));
 }
 
-TEST(HistogramTest, LinearRangesTest) {
+TEST_F(HistogramTest, LinearRangesTest) {
   BucketRanges ranges(9);
   LinearHistogram::InitializeBucketRanges(1, 7, 8, &ranges);
   // Gets a nice linear set of bucket ranges.
@@ -121,8 +157,8 @@ TEST(HistogramTest, LinearRangesTest) {
   EXPECT_TRUE(ranges2.Equals(histogram2->bucket_ranges()));
 }
 
-TEST(HistogramTest, ArrayToCustomRangesTest) {
-  const HistogramBase::Sample ranges[3] = {5, 10 ,20};
+TEST_F(HistogramTest, ArrayToCustomRangesTest) {
+  const HistogramBase::Sample ranges[3] = {5, 10, 20};
   vector<HistogramBase::Sample> ranges_vec =
       CustomHistogram::ArrayToCustomRanges(ranges, 3);
   ASSERT_EQ(6u, ranges_vec.size());
@@ -134,7 +170,7 @@ TEST(HistogramTest, ArrayToCustomRangesTest) {
   EXPECT_EQ(21, ranges_vec[5]);
 }
 
-TEST(HistogramTest, CustomHistogramTest) {
+TEST_F(HistogramTest, CustomHistogramTest) {
   // A well prepared custom ranges.
   vector<HistogramBase::Sample> custom_ranges;
   custom_ranges.push_back(1);
@@ -176,7 +212,7 @@ TEST(HistogramTest, CustomHistogramTest) {
   EXPECT_EQ(HistogramBase::kSampleType_MAX, ranges->range(3));
 }
 
-TEST(HistogramTest, CustomHistogramWithOnly2Buckets) {
+TEST_F(HistogramTest, CustomHistogramWithOnly2Buckets) {
   // This test exploits the fact that the CustomHistogram can have 2 buckets,
   // while the base class Histogram is *supposed* to have at least 3 buckets.
   // We should probably change the restriction on the base class (or not inherit
@@ -195,7 +231,7 @@ TEST(HistogramTest, CustomHistogramWithOnly2Buckets) {
 }
 
 // Make sure histogram handles out-of-bounds data gracefully.
-TEST(HistogramTest, BoundsTest) {
+TEST_F(HistogramTest, BoundsTest) {
   const size_t kBucketCount = 50;
   Histogram* histogram(Histogram::FactoryGet(
       "Bounded", 10, 100, kBucketCount, Histogram::kNoFlags));
@@ -241,7 +277,7 @@ TEST(HistogramTest, BoundsTest) {
 }
 
 // Check to be sure samples land as expected is "correct" buckets.
-TEST(HistogramTest, BucketPlacementTest) {
+TEST_F(HistogramTest, BucketPlacementTest) {
   Histogram* histogram(Histogram::FactoryGet(
       "Histogram", 1, 64, 8, Histogram::kNoFlags));
 
@@ -260,7 +296,7 @@ TEST(HistogramTest, BucketPlacementTest) {
     EXPECT_EQ(i + 1, samples->GetCountAtIndex(i));
 }
 
-TEST(HistogramTest, CorruptSampleCounts) {
+TEST_F(HistogramTest, CorruptSampleCounts) {
   Histogram* histogram(Histogram::FactoryGet(
       "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
 
@@ -287,7 +323,7 @@ TEST(HistogramTest, CorruptSampleCounts) {
             histogram->FindCorruption(*snapshot));
 }
 
-TEST(HistogramTest, CorruptBucketBounds) {
+TEST_F(HistogramTest, CorruptBucketBounds) {
   Histogram* histogram(Histogram::FactoryGet(
       "Histogram", 1, 64, 8, Histogram::kNoFlags));  // As per header file.
 
