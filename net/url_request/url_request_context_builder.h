@@ -28,6 +28,7 @@ namespace net {
 class HostMappingRules;
 class ProxyConfigService;
 class URLRequestContext;
+class NetworkDelegate;
 
 class NET_EXPORT URLRequestContextBuilder {
  public:
@@ -67,9 +68,9 @@ class NET_EXPORT URLRequestContextBuilder {
   URLRequestContextBuilder();
   ~URLRequestContextBuilder();
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
   void set_proxy_config_service(ProxyConfigService* proxy_config_service);
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
   // Call this function to specify a hard-coded User-Agent for all requests that
   // don't have a User-Agent already set.
@@ -82,9 +83,21 @@ class NET_EXPORT URLRequestContextBuilder {
     ftp_enabled_ = enable;
   }
 
+  // Uses BasicNetworkDelegate by default. Note that calling Build will unset
+  // any custom delegate in builder, so this must be called each time before
+  // Build is called.
+  void set_network_delegate(NetworkDelegate* delegate) {
+    network_delegate_.reset(delegate);
+  }
+
   // By default HttpCache is enabled with a default constructed HttpCacheParams.
-  void EnableHttpCache(const HttpCacheParams& params);
-  void DisableHttpCache();
+  void EnableHttpCache(const HttpCacheParams& params) {
+    http_cache_params_ = params;
+  }
+
+  void DisableHttpCache() {
+    http_cache_params_ = HttpCacheParams();
+  }
 
   // Override default net::HttpNetworkSession::Params settings.
   void set_http_network_session_params(
@@ -100,9 +113,10 @@ class NET_EXPORT URLRequestContextBuilder {
   bool http_cache_enabled_;
   HttpCacheParams http_cache_params_;
   HttpNetworkSessionParams http_network_session_params_;
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
   scoped_ptr<ProxyConfigService> proxy_config_service_;
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
+  scoped_ptr<NetworkDelegate> network_delegate_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContextBuilder);
 };
