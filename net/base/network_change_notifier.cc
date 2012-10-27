@@ -252,6 +252,29 @@ void NetworkChangeNotifier::GetDnsConfig(DnsConfig* config) {
 }
 
 // static
+const char* NetworkChangeNotifier::ConnectionTypeToString(
+    ConnectionType type) {
+  static const char* kConnectionTypeNames[] = {
+    "CONNECTION_UNKNOWN",
+    "CONNECTION_ETHERNET",
+    "CONNECTION_WIFI",
+    "CONNECTION_2G",
+    "CONNECTION_3G",
+    "CONNECTION_4G",
+    "CONNECTION_NONE"
+  };
+  COMPILE_ASSERT(
+      arraysize(kConnectionTypeNames) ==
+          NetworkChangeNotifier::CONNECTION_NONE + 1,
+      ConnectionType_name_count_mismatch);
+  if (type < CONNECTION_UNKNOWN || type > CONNECTION_NONE) {
+    NOTREACHED();
+    return "CONNECTION_INVALID";
+  }
+  return kConnectionTypeNames[type];
+}
+
+// static
 void NetworkChangeNotifier::NotifyDataReceived(const GURL& source) {
   if (!g_network_change_notifier)
     return;
