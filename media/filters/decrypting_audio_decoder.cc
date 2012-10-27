@@ -4,10 +4,13 @@
 
 #include "media/filters/decrypting_audio_decoder.h"
 
+#include <cstdlib>
+
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/location.h"
 #include "base/message_loop_proxy.h"
+#include "base/logging.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/buffers.h"
@@ -22,6 +25,15 @@ namespace media {
 #define BIND_TO_LOOP(function) \
     media::BindToLoop(message_loop_, base::Bind(function, this))
 
+static inline bool IsOutOfSync(const base::TimeDelta& timestamp_1,
+                               const base::TimeDelta& timestamp_2) {
+  // Out of sync of 100ms would be pretty noticeable and we should keep any
+  // drift below that.
+  const int64 kOutOfSyncThresholdInMicroseconds = 100000;
+  return std::abs(timestamp_1.InMicroseconds() - timestamp_2.InMicroseconds()) >
+         kOutOfSyncThresholdInMicroseconds;
+}
+
 DecryptingAudioDecoder::DecryptingAudioDecoder(
     const MessageLoopFactoryCB& message_loop_factory_cb,
     const RequestDecryptorNotificationCB& request_decryptor_notification_cb)
@@ -32,7 +44,10 @@ DecryptingAudioDecoder::DecryptingAudioDecoder(
       key_added_while_pending_decode_(false),
       bits_per_channel_(0),
       channel_layout_(CHANNEL_LAYOUT_NONE),
-      samples_per_second_(0) {
+      samples_per_second_(0),
+      bytes_per_sample_(0),
+      output_timestamp_base_(kNoTimestamp()),
+      total_samples_decoded_(0) {
 }
 
 void DecryptingAudioDecoder::Initialize(
@@ -179,6 +194,10 @@ void DecryptingAudioDecoder::FinishInitialization(bool success) {
   bits_per_channel_ = config.bits_per_channel();
   channel_layout_ = config.channel_layout();
   samples_per_second_ = config.samples_per_second();
+  const int kBitsPerByte = 8;
+  bytes_per_sample_ = ChannelLayoutToChannelCount(channel_layout_) *
+      bits_per_channel_ / kBitsPerByte;
+
   state_ = kIdle;
   base::ResetAndReturn(&init_cb_).Run(PIPELINE_OK);
 }
@@ -197,8 +216,6 @@ void DecryptingAudioDecoder::DoRead(const ReadCB& read_cb) {
   }
 
   if (!queued_audio_frames_.empty()) {
-    DCHECK(!queued_audio_frames_.front()->IsEndOfStream());
-    DCHECK_GT(queued_audio_frames_.front()->GetDataSize(), 0);
     read_cb.Run(kOk, queued_audio_frames_.front());
     queued_audio_frames_.pop_front();
     return;
@@ -263,6 +280,14 @@ void DecryptingAudioDecoder::DoDecryptAndDecodeBuffer(
   }
 
   DCHECK_EQ(status, DemuxerStream::kOk);
+
+  // Initialize the |next_output_timestamp_| to be the timestamp of the first
+  // non-EOS buffer.
+  if (output_timestamp_base_ == kNoTimestamp() && !buffer->IsEndOfStream()) {
+    DCHECK_EQ(total_samples_decoded_, 0);
+    output_timestamp_base_ = buffer->GetTimestamp();
+  }
+
   pending_buffer_to_decode_ = buffer;
   state_ = kPendingDecode;
   DecodePendingBuffer();
@@ -361,16 +386,12 @@ void DecryptingAudioDecoder::DoDeliverFrame(
   }
 
   DCHECK_EQ(status, Decryptor::kSuccess);
-  queued_audio_frames_ = frames;
+  DCHECK(!frames.empty());
+  EnqueueFrames(frames);
 
-  scoped_refptr<Buffer> first_frame = queued_audio_frames_.front();
-  queued_audio_frames_.pop_front();
-  // No frames returned in the list should be an end-of-stream (EOS) frame.
-  // EOS frame should be returned separately as (kNeedMoreData, NULL).
-  DCHECK(!first_frame->IsEndOfStream());
-  DCHECK_GT(first_frame->GetDataSize(), 0);
   state_ = kIdle;
-  base::ResetAndReturn(&read_cb_).Run(kOk, first_frame);
+  base::ResetAndReturn(&read_cb_).Run(kOk, queued_audio_frames_.front());
+  queued_audio_frames_.pop_front();
 }
 
 void DecryptingAudioDecoder::OnKeyAdded() {
@@ -390,8 +411,51 @@ void DecryptingAudioDecoder::OnKeyAdded() {
 void DecryptingAudioDecoder::DoReset() {
   DCHECK(init_cb_.is_null());
   DCHECK(read_cb_.is_null());
+  output_timestamp_base_ = kNoTimestamp();
+  total_samples_decoded_ = 0;
   state_ = kIdle;
   base::ResetAndReturn(&reset_cb_).Run();
+}
+
+void DecryptingAudioDecoder::EnqueueFrames(
+    const Decryptor::AudioBuffers& frames) {
+  queued_audio_frames_ = frames;
+
+  for (Decryptor::AudioBuffers::iterator iter = queued_audio_frames_.begin();
+      iter != queued_audio_frames_.end();
+      ++iter) {
+    scoped_refptr<Buffer>& frame = *iter;
+
+    DCHECK(!frame->IsEndOfStream()) << "EOS frame returned.";
+    DCHECK_GT(frame->GetDataSize(), 0) << "Empty frame returned.";
+
+    base::TimeDelta cur_timestamp = output_timestamp_base_ +
+        NumberOfSamplesToDuration(total_samples_decoded_);
+    if (IsOutOfSync(cur_timestamp, frame->GetTimestamp())) {
+      DVLOG(1)  << "Timestamp returned by the decoder does not match the input "
+                << "timestamp and number of samples decoded.";
+    }
+    frame->SetTimestamp(cur_timestamp);
+
+    int frame_size = frame->GetDataSize();
+    DCHECK_EQ(frame_size % bytes_per_sample_, 0) <<
+        "Decoder didn't output full samples";
+    int samples_decoded = frame_size / bytes_per_sample_;
+    total_samples_decoded_ += samples_decoded;
+
+    base::TimeDelta next_timestamp = output_timestamp_base_ +
+        NumberOfSamplesToDuration(total_samples_decoded_);
+    base::TimeDelta duration = next_timestamp - cur_timestamp;
+    frame->SetDuration(duration);
+  }
+}
+
+base::TimeDelta DecryptingAudioDecoder::NumberOfSamplesToDuration(
+    int number_of_samples) const {
+  DCHECK(samples_per_second_);
+  return base::TimeDelta::FromMicroseconds(base::Time::kMicrosecondsPerSecond *
+                                           number_of_samples /
+                                           samples_per_second_);
 }
 
 }  // namespace media
