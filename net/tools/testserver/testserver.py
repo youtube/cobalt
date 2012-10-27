@@ -39,9 +39,6 @@ import urlparse
 import warnings
 import zlib
 
-# Ignore deprecation warnings, they make our output more cluttered.
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-
 import echo_message
 
 # TODO(toyoshim): Some try bots for pyauto don't check out pywebsocket repos
