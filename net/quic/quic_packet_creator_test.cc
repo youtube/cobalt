@@ -38,7 +38,7 @@ class QuicPacketCreatorTest : public ::testing::Test {
     for (size_t i = 0; i < packets_.size(); ++i) {
       scoped_ptr<QuicEncryptedPacket> encrypted(
           framer_.EncryptPacket(*packets_[i].second));
-      framer_.ProcessPacket(IPEndPoint(), *encrypted);
+      framer_.ProcessPacket(IPEndPoint(), IPEndPoint(), *encrypted);
     }
   }
 
@@ -59,7 +59,7 @@ TEST_F(QuicPacketCreatorTest, DataToStreamBasic) {
   ASSERT_EQ(1u, utils_.sequence_number());
 
   InSequence s;
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -75,13 +75,13 @@ TEST_F(QuicPacketCreatorTest, DataToStreamFec) {
   ASSERT_EQ(2u, utils_.sequence_number());
 
   InSequence s;
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnFecProtectedPayload(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
 
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnFecData(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -103,14 +103,14 @@ TEST_F(QuicPacketCreatorTest, DataToStreamFecHandled) {
 
   InSequence s;
   // Data packet
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnFecProtectedPayload(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
 
   // FEC packet
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnFecData(fec_data));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -134,7 +134,7 @@ TEST_F(QuicPacketCreatorTest, DataToStreamSkipFin) {
   ASSERT_EQ(1u, utils_.sequence_number());
 
   InSequence s;
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -151,12 +151,12 @@ TEST_F(QuicPacketCreatorTest, DataToStreamSeparateFin) {
   ASSERT_EQ(2u, utils_.sequence_number());
 
   InSequence s;
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
 
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -173,7 +173,7 @@ TEST_F(QuicPacketCreatorTest, NoData) {
   ASSERT_EQ(1u, utils_.sequence_number());
 
   InSequence s;
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -191,7 +191,7 @@ TEST_F(QuicPacketCreatorTest, NoDataSeparateFin) {
   ASSERT_EQ(1u, utils_.sequence_number());
 
   InSequence s;
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -210,12 +210,12 @@ TEST_F(QuicPacketCreatorTest, MultiplePackets) {
   ASSERT_EQ(2u, utils_.sequence_number());
 
   InSequence s;
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
 
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -235,17 +235,17 @@ TEST_F(QuicPacketCreatorTest, MultiplePacketsWithSeparateFin) {
   ASSERT_EQ(3u, utils_.sequence_number());
 
   InSequence s;
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
 
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
 
-  EXPECT_CALL(framer_visitor_, OnPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
