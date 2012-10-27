@@ -90,6 +90,7 @@ class BASE_EXPORT StatisticsRecorder {
   typedef std::map<uint32, std::list<const BucketRanges*>*> RangesMap;
 
   friend struct DefaultLazyInstanceTraits<StatisticsRecorder>;
+  friend class HistogramTest;
   friend class StatisticsRecorderTest;
 
   // The constructor just initializes static members. Usually client code should
