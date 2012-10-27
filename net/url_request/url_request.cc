@@ -516,7 +516,8 @@ void URLRequest::StartJob(URLRequestJob* job) {
   net_log_.BeginEvent(
       NetLog::TYPE_URL_REQUEST_START_JOB,
       base::Bind(&NetLogURLRequestStartCallback,
-                 &url(), &method_, load_flags_, priority_));
+                 &url(), &method_, load_flags_, priority_,
+                 upload_.get() ? upload_->identifier() : -1));
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
