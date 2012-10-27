@@ -134,11 +134,13 @@ AesDecryptor::~AesDecryptor() {
 }
 
 bool AesDecryptor::GenerateKeyRequest(const std::string& key_system,
+                                      const std::string& type,
                                       const uint8* init_data,
                                       int init_data_length) {
   std::string session_id_string(base::UintToString(next_session_id_++));
 
-  // For now, just fire the event with the |init_data| as the request.
+  // For now, the AesDecryptor does not care about |key_system| and |type|;
+  // just fire the event with the |init_data| as the request.
   int message_length = init_data_length;
   scoped_array<uint8> message(new uint8[message_length]);
   memcpy(message.get(), init_data, message_length);

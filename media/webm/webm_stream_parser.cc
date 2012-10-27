@@ -19,6 +19,9 @@
 
 namespace media {
 
+// TODO(xhwang): Figure out the init data type appropriately once it's spec'ed.
+static const char kWebMInitDataType[] = "video/webm";
+
 // Helper class that uses FFmpeg to create AudioDecoderConfig &
 // VideoDecoderConfig objects.
 //
@@ -474,7 +477,7 @@ void WebMStreamParser::FireNeedKey(const std::string& key_id) {
   DCHECK_GT(key_id_size, 0);
   scoped_array<uint8> key_id_array(new uint8[key_id_size]);
   memcpy(key_id_array.get(), key_id.data(), key_id_size);
-  need_key_cb_.Run(key_id_array.Pass(), key_id_size);
+  need_key_cb_.Run(kWebMInitDataType, key_id_array.Pass(), key_id_size);
 }
 
 }  // namespace media

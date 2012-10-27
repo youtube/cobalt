@@ -6,6 +6,7 @@
 #define MEDIA_BASE_STREAM_PARSER_H_
 
 #include <deque>
+#include <string>
 
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
@@ -58,12 +59,15 @@ class MEDIA_EXPORT StreamParser {
   typedef base::Callback<void(base::TimeDelta)> NewMediaSegmentCB;
 
   // A new potentially encrypted stream has been parsed.
-  // First parameter - The initialization data associated with the stream.
-  // Second parameter - Number of bytes of the initialization data.
+  // First parameter - The type of the initialization data associated with the
+  //                   stream.
+  // Second parameter - The initialization data associated with the stream.
+  // Third parameter - Number of bytes of the initialization data.
   // Return value - True indicates that the initialization data is accepted.
   //                False if something was wrong with the initialization data
   //                and a parsing error should be signalled.
-  typedef base::Callback<bool(scoped_array<uint8>, int)> NeedKeyCB;
+  typedef base::Callback<bool(const std::string&,
+                              scoped_array<uint8>, int)> NeedKeyCB;
 
   // Initialize the parser with necessary callbacks. Must be called before any
   // data is passed to Parse(). |init_cb| will be called once enough data has

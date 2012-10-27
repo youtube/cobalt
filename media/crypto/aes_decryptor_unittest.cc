@@ -240,10 +240,10 @@ class AesDecryptorTest : public testing::Test {
 
  protected:
   void GenerateKeyRequest(const uint8* key_id, int key_id_size) {
-    EXPECT_CALL(client_, KeyMessageMock(kClearKeySystem, StrNe(std::string()),
+    EXPECT_CALL(client_, KeyMessageMock(kClearKeySystem, StrNe(""),
                                         NotNull(), Gt(0), ""))
         .WillOnce(SaveArg<1>(&session_id_string_));
-    EXPECT_TRUE(decryptor_.GenerateKeyRequest(kClearKeySystem,
+    EXPECT_TRUE(decryptor_.GenerateKeyRequest(kClearKeySystem, "",
                                               key_id, key_id_size));
   }
 
