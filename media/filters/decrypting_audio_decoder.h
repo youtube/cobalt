@@ -120,8 +120,15 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   // a new key has been added.
   void OnKeyAdded();
 
-  // Reset decoder and call |reset_cb_|.
+  // Resets decoder and calls |reset_cb_|.
   void DoReset();
+
+  // Sets timestamp and duration for |queued_audio_frames_| to make sure the
+  // renderer always receives continuous frames without gaps and overlaps.
+  void EnqueueFrames(const Decryptor::AudioBuffers& frames);
+
+  // Converts number of samples to duration.
+  base::TimeDelta NumberOfSamplesToDuration(int number_of_samples) const;
 
   // This is !is_null() iff Initialize() hasn't been called.
   MessageLoopFactoryCB message_loop_factory_cb_;
@@ -160,6 +167,11 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   int bits_per_channel_;
   ChannelLayout channel_layout_;
   int samples_per_second_;
+
+  int bytes_per_sample_;
+
+  base::TimeDelta output_timestamp_base_;
+  int total_samples_decoded_;
 
   DISALLOW_COPY_AND_ASSIGN(DecryptingAudioDecoder);
 };
