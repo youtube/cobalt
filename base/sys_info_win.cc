@@ -36,6 +36,21 @@ int64 SysInfo::AmountOfPhysicalMemory() {
 }
 
 // static
+int64 SysInfo::AmountOfAvailablePhysicalMemory() {
+  MEMORYSTATUSEX memory_info;
+  memory_info.dwLength = sizeof(memory_info);
+  if (!GlobalMemoryStatusEx(&memory_info)) {
+    NOTREACHED();
+    return 0;
+  }
+
+  int64 rv = static_cast<int64>(memory_info.ullAvailPhys);
+  if (rv < 0)
+    rv = kint64max;
+  return rv;
+}
+
+// static
 int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
   base::ThreadRestrictions::AssertIOAllowed();
 
