@@ -192,12 +192,12 @@ URLRequestContextBuilder::URLRequestContextBuilder()
       http_cache_enabled_(true) {}
 URLRequestContextBuilder::~URLRequestContextBuilder() {}
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
 void URLRequestContextBuilder::set_proxy_config_service(
     ProxyConfigService* proxy_config_service) {
   proxy_config_service_.reset(proxy_config_service);
 }
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
 URLRequestContext* URLRequestContextBuilder::Build() {
   BasicURLRequestContext* context = new BasicURLRequestContext;
@@ -205,8 +205,9 @@ URLRequestContext* URLRequestContextBuilder::Build() {
 
   context->set_user_agent(user_agent_);
 
-  BasicNetworkDelegate* network_delegate = new BasicNetworkDelegate;
-  storage->set_network_delegate(network_delegate);
+  if (!network_delegate_)
+    network_delegate_.reset(new BasicNetworkDelegate);
+  storage->set_network_delegate(network_delegate_.release());
 
   storage->set_host_resolver(net::HostResolver::CreateDefaultResolver(NULL));
 
@@ -219,14 +220,14 @@ URLRequestContext* URLRequestContextBuilder::Build() {
 
   // TODO(willchan): Switch to using this code when
   // ProxyService::CreateSystemProxyConfigService()'s signature doesn't suck.
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
   ProxyConfigService* proxy_config_service = proxy_config_service_.release();
 #else
   ProxyConfigService* proxy_config_service =
       ProxyService::CreateSystemProxyConfigService(
           base::ThreadTaskRunnerHandle::Get(),
           context->file_message_loop());
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_ANDROID)
   storage->set_proxy_service(
       ProxyService::CreateUsingSystemProxyResolver(
           proxy_config_service,
