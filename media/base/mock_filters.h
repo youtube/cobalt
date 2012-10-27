@@ -196,7 +196,8 @@ class MockDecryptor : public Decryptor {
   MockDecryptor();
   virtual ~MockDecryptor();
 
-  MOCK_METHOD3(GenerateKeyRequest, bool(const std::string& key_system,
+  MOCK_METHOD4(GenerateKeyRequest, bool(const std::string& key_system,
+                                        const std::string& type,
                                         const uint8* init_data,
                                         int init_data_length));
   MOCK_METHOD6(AddKey, void(const std::string& key_system,
@@ -259,8 +260,9 @@ class MockDecryptorClient : public DecryptorClient {
                                     const uint8* message,
                                     int message_length,
                                     const std::string& default_url));
-  MOCK_METHOD4(NeedKeyMock, void(const std::string& key_system,
+  MOCK_METHOD5(NeedKeyMock, void(const std::string& key_system,
                                  const std::string& session_id,
+                                 const std::string& type,
                                  const uint8* init_data,
                                  int init_data_length));
   virtual void KeyMessage(const std::string& key_system,
@@ -270,6 +272,7 @@ class MockDecryptorClient : public DecryptorClient {
                           const std::string& default_url) OVERRIDE;
   virtual void NeedKey(const std::string& key_system,
                        const std::string& session_id,
+                       const std::string& type,
                        scoped_array<uint8> init_data,
                        int init_data_length) OVERRIDE;
 

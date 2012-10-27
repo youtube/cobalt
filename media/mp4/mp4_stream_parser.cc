@@ -20,6 +20,9 @@
 namespace media {
 namespace mp4 {
 
+// TODO(xhwang): Figure out the init data type appropriately once it's spec'ed.
+static const char kMp4InitDataType[] = "video/mp4";
+
 MP4StreamParser::MP4StreamParser(bool has_sbr)
     : state_(kWaitingForInit),
       moof_head_(0),
@@ -287,7 +290,7 @@ bool MP4StreamParser::EmitNeedKeyIfNecessary(
            headers[i].raw_box.size());
     pos += headers[i].raw_box.size();
   }
-  return need_key_cb_.Run(init_data.Pass(), total_size);
+  return need_key_cb_.Run(kMp4InitDataType, init_data.Pass(), total_size);
 }
 
 bool MP4StreamParser::PrepareAVCBuffer(

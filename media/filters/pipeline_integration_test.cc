@@ -120,11 +120,12 @@ class MockMediaSource {
     AppendData(initial_append_size_);
   }
 
-  void DemuxerNeedKey(scoped_array<uint8> init_data, int init_data_size) {
+  void DemuxerNeedKey(const std::string& type,
+                      scoped_array<uint8> init_data, int init_data_size) {
     DCHECK(init_data.get());
     DCHECK_GT(init_data_size, 0);
     DCHECK(decryptor_client_);
-    decryptor_client_->NeedKey("", "", init_data.Pass(), init_data_size);
+    decryptor_client_->NeedKey("", "", type, init_data.Pass(), init_data_size);
   }
 
  private:
@@ -175,6 +176,7 @@ class FakeDecryptorClient : public DecryptorClient {
 
   virtual void NeedKey(const std::string& key_system,
                        const std::string& session_id,
+                       const std::string& type,
                        scoped_array<uint8> init_data,
                        int init_data_length) {
     current_key_system_ = key_system;
@@ -186,7 +188,7 @@ class FakeDecryptorClient : public DecryptorClient {
     if (current_key_system_.empty()) {
       DCHECK(current_session_id_.empty());
       EXPECT_TRUE(decryptor_.GenerateKeyRequest(
-          kClearKeySystem, kInitData, arraysize(kInitData)));
+          kClearKeySystem, type, kInitData, arraysize(kInitData)));
     }
 
     EXPECT_FALSE(current_key_system_.empty());

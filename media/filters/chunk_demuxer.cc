@@ -1116,10 +1116,11 @@ bool ChunkDemuxer::OnVideoBuffers(const StreamParser::BufferQueue& buffers) {
 // TODO(acolwell): Remove bool from StreamParser::NeedKeyCB so that
 // this method can be removed and need_key_cb_ can be passed directly
 // to the parser.
-bool ChunkDemuxer::OnNeedKey(scoped_array<uint8> init_data,
+bool ChunkDemuxer::OnNeedKey(const std::string& type,
+                             scoped_array<uint8> init_data,
                              int init_data_size) {
   lock_.AssertAcquired();
-  need_key_cb_.Run(init_data.Pass(), init_data_size);
+  need_key_cb_.Run(type, init_data.Pass(), init_data_size);
   return true;
 }
 
