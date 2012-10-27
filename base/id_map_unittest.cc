@@ -54,6 +54,8 @@ TEST_F(IDMapTest, Basic) {
   map.AddWithID(&obj2, 2);
   EXPECT_EQ(&obj1, map.Lookup(1));
   EXPECT_EQ(&obj2, map.Lookup(2));
+
+  EXPECT_EQ(0, map.iteration_depth());
 }
 
 TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
@@ -69,6 +71,9 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
 
   {
     IDMap<TestObject>::const_iterator iter(&map);
+
+    EXPECT_EQ(1, map.iteration_depth());
+
     while (!iter.IsAtEnd()) {
       map.Remove(iter.GetCurrentKey());
       iter.Advance();
@@ -82,6 +87,8 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
 
   EXPECT_TRUE(map.IsEmpty());
   EXPECT_EQ(0U, map.size());
+
+  EXPECT_EQ(0, map.iteration_depth());
 }
 
 TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
@@ -97,6 +104,8 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
   int counter = 0;
   for (IDMap<TestObject>::const_iterator iter(&map);
        !iter.IsAtEnd(); iter.Advance()) {
+    EXPECT_EQ(1, map.iteration_depth());
+
     switch (counter) {
       case 0:
         EXPECT_EQ(ids[0], iter.GetCurrentKey());
@@ -120,6 +129,66 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
 
     counter++;
   }
+
+  EXPECT_EQ(0, map.iteration_depth());
+}
+
+TEST_F(IDMapTest, CopyIterator) {
+  IDMap<TestObject> map;
+
+  TestObject obj1;
+  TestObject obj2;
+  TestObject obj3;
+
+  map.Add(&obj1);
+  map.Add(&obj2);
+  map.Add(&obj3);
+
+  EXPECT_EQ(0, map.iteration_depth());
+
+  {
+    IDMap<TestObject>::const_iterator iter1(&map);
+    EXPECT_EQ(1, map.iteration_depth());
+
+    // Make sure that copying the iterator correctly increments
+    // map's iteration depth.
+    IDMap<TestObject>::const_iterator iter2(iter1);
+    EXPECT_EQ(2, map.iteration_depth());
+  }
+
+  // Make sure after destroying all iterators the map's iteration depth
+  // returns to initial state.
+  EXPECT_EQ(0, map.iteration_depth());
+}
+
+TEST_F(IDMapTest, AssignIterator) {
+  IDMap<TestObject> map;
+
+  TestObject obj1;
+  TestObject obj2;
+  TestObject obj3;
+
+  map.Add(&obj1);
+  map.Add(&obj2);
+  map.Add(&obj3);
+
+  EXPECT_EQ(0, map.iteration_depth());
+
+  {
+    IDMap<TestObject>::const_iterator iter1(&map);
+    EXPECT_EQ(1, map.iteration_depth());
+
+    IDMap<TestObject>::const_iterator iter2(&map);
+    EXPECT_EQ(2, map.iteration_depth());
+
+    // Make sure that assigning the iterator correctly updates
+    // map's iteration depth (-1 for destruction, +1 for assignment).
+    EXPECT_EQ(2, map.iteration_depth());
+  }
+
+  // Make sure after destroying all iterators the map's iteration depth
+  // returns to initial state.
+  EXPECT_EQ(0, map.iteration_depth());
 }
 
 TEST_F(IDMapTest, OwningPointersDeletesThemOnRemove) {
