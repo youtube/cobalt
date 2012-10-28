@@ -69,4 +69,4 @@ A NAME MEANS A LOT JUST BY ITSELF
 A POSITIVE ATTITUDE MEANS ALL THE DIFFERENCE IN THE WORLD
 A RELAXED MAN IS NOT NECESSARILY A BETTER MAN
 
-This commit will change the world as we know it.
+This commit will change the world as we know it. For the better.
