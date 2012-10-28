@@ -594,6 +594,8 @@
                'threading/sequenced_worker_pool.cc',
                'third_party/dynamic_annotations/dynamic_annotations.c',
             ],
+            # Metrics won't work in the NaCl sandbox.
+            'sources/': [ ['exclude', '^metrics/'] ],
           }],
           ['OS == "android" and >(nacl_untrusted_build)==0', {
             'sources!': [
