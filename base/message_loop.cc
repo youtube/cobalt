@@ -620,6 +620,7 @@ void MessageLoop::AddToIncomingQueue(PendingTask* pending_task) {
 // on each thread.
 
 void MessageLoop::StartHistogrammer() {
+#if !defined(OS_NACL)  // NaCl build has no metrics code.
   if (enable_histogrammer_ && !message_histogram_
       && base::StatisticsRecorder::IsActive()) {
     DCHECK(!thread_name_.empty());
@@ -630,11 +631,14 @@ void MessageLoop::StartHistogrammer() {
         message_histogram_->kHexRangePrintingFlag);
     message_histogram_->SetRangeDescriptions(event_descriptions_);
   }
+#endif
 }
 
 void MessageLoop::HistogramEvent(int event) {
+#if !defined(OS_NACL)
   if (message_histogram_)
     message_histogram_->Add(event);
+#endif
 }
 
 bool MessageLoop::DoWork() {
