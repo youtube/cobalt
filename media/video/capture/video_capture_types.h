@@ -31,7 +31,7 @@ struct VideoCaptureCapability {
     kUYVY,
     kRGB24,
     kARGB,
-    kMJPEG,  // Currently only supported on Windows.
+    kMJPEG,
     kNV21,
     kYV12,
   };
@@ -47,4 +47,3 @@ struct VideoCaptureCapability {
 }  // namespace media
 
 #endif  // MEDIA_VIDEO_CAPTURE_VIDEO_CAPTURE_TYPES_H_
-

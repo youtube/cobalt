@@ -14,6 +14,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
+#include <list>
 #include <string>
 
 #include "base/bind.h"
@@ -43,9 +44,12 @@ enum { kCaptureTimeoutUs = 200000 };
 // Time to wait in milliseconds before v4l2_thread_ reschedules OnCaptureTask
 // if an event is triggered (select) but no video frame is read.
 enum { kCaptureSelectWaitMs = 10 };
+// MJPEG is prefered if the width or height is larger than this.
+enum { kMjpegWidth = 640 };
+enum { kMjpegHeight = 480 };
 
 // V4L2 color formats VideoCaptureDeviceLinux support.
-static const int32 kV4l2Fmts[] = {
+static const int32 kV4l2RawFmts[] = {
   V4L2_PIX_FMT_YUV420,
   V4L2_PIX_FMT_YUYV
 };
@@ -60,6 +64,8 @@ static VideoCaptureCapability::Format V4l2ColorToVideoCaptureColorFormat(
     case V4L2_PIX_FMT_YUYV:
       result = VideoCaptureCapability::kYUY2;
       break;
+    case V4L2_PIX_FMT_MJPEG:
+      result = VideoCaptureCapability::kMJPEG;
   }
   DCHECK_NE(result, VideoCaptureCapability::kColorUnknown);
   return result;
@@ -226,10 +232,21 @@ void VideoCaptureDeviceLinux::OnAllocate(int width,
   // Some device failed in first VIDIOC_TRY_FMT with EBUSY or EIO.
   // But second VIDIOC_TRY_FMT succeeds.
   // See http://crbug.com/94134.
+  // For large resolutions, favour mjpeg over raw formats.
   bool format_match = false;
-  for (unsigned int i = 0; i < arraysize(kV4l2Fmts) && !format_match; i++) {
-    video_fmt.fmt.pix.pixelformat = kV4l2Fmts[i];
-    for (int attempt = 0; attempt < 2 && !format_match; attempt++) {
+  std::list<int> v4l2_formats;
+
+  if (width > kMjpegWidth || height > kMjpegHeight) {
+    v4l2_formats.push_back(V4L2_PIX_FMT_MJPEG);
+  }
+  for (size_t i = 0; i < arraysize(kV4l2RawFmts); ++i) {
+    v4l2_formats.push_back(kV4l2RawFmts[i]);
+  }
+
+  for (std::list<int>::const_iterator it = v4l2_formats.begin();
+       it != v4l2_formats.end() && !format_match; ++it) {
+    video_fmt.fmt.pix.pixelformat = *it;
+    for (int attempt = 0; attempt < 2 && !format_match; ++attempt) {
       ResetCameraByEnumeratingIoctlsHACK(device_fd_);
       if (ioctl(device_fd_, VIDIOC_TRY_FMT, &video_fmt) < 0) {
         if (errno != EIO)
