@@ -9,14 +9,23 @@
 #include "base/threading/thread.h"
 #include "media/video/capture/fake_video_capture_device.h"
 #include "media/video/capture/video_capture_device.h"
+#include "media/video/capture/video_capture_types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_MACOSX)
 // Mac/QTKit will always give you the size you ask for and this case will fail.
 #define MAYBE_AllocateBadSize DISABLED_AllocateBadSize
+// We will always get ARGB from the Mac/QTKit implementation.
+#define MAYBE_MJPEG DISABLED_CaptureMjpeg
+#elif defined(OS_WINDOWS)
+#define MAYBE_AllocateBadSize AllocateBadSizei
+// Windows currently uses DirectShow to convert from MJPEG and a raw format is
+// always delivered.
+#define MAYBE_MJPEG DISABLED_CaptureMjpeg
 #else
 #define MAYBE_AllocateBadSize AllocateBadSize
+#define MAYBE_MJPEG CaptureMjpeg
 #endif
 
 using ::testing::_;
@@ -29,7 +38,8 @@ namespace media {
 class MockFrameObserver : public media::VideoCaptureDevice::EventHandler {
  public:
   MOCK_METHOD0(OnErr, void());
-  MOCK_METHOD3(OnFrameInfo, void(int width, int height, int frame_rate));
+  MOCK_METHOD4(OnFrameInfo, void(int width, int height, int frame_rate,
+                                 VideoCaptureCapability::Format format));
 
   explicit MockFrameObserver(base::WaitableEvent* wait_event)
      : wait_event_(wait_event) {}
@@ -40,7 +50,7 @@ class MockFrameObserver : public media::VideoCaptureDevice::EventHandler {
 
   virtual void OnFrameInfo(
       const VideoCaptureCapability& info) OVERRIDE {
-    OnFrameInfo(info.width, info.height, info.frame_rate);
+    OnFrameInfo(info.width, info.height, info.frame_rate, info.color);
   }
 
   virtual void OnIncomingCapturedFrame(const uint8* data, int length,
@@ -96,7 +106,7 @@ TEST_F(VideoCaptureDeviceTest, CaptureVGA) {
   ASSERT_FALSE(device.get() == NULL);
 
   // Get info about the new resolution.
-  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480, 30))
+  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480, 30, _))
       .Times(1);
 
   EXPECT_CALL(*frame_observer_, OnErr())
@@ -125,7 +135,7 @@ TEST_F(VideoCaptureDeviceTest, Capture720p) {
   // Get info about the new resolution.
   // We don't care about the resulting resolution or frame rate as it might
   // be different from one machine to the next.
-  EXPECT_CALL(*frame_observer_, OnFrameInfo(_, _, _))
+  EXPECT_CALL(*frame_observer_, OnFrameInfo(_, _, _, _))
       .Times(1);
 
   EXPECT_CALL(*frame_observer_, OnErr())
@@ -154,7 +164,7 @@ TEST_F(VideoCaptureDeviceTest, MAYBE_AllocateBadSize) {
       .Times(0);
 
   // get info about the new resolution
-  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480 , _))
+  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480 , _, _))
       .Times(AtLeast(1));
 
   device->Allocate(637, 472, 35, frame_observer_.get());
@@ -173,9 +183,9 @@ TEST_F(VideoCaptureDeviceTest, ReAllocateCamera) {
   EXPECT_CALL(*frame_observer_, OnErr())
       .Times(0);
   // get info about the new resolution
-  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480, _));
+  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480, _, _));
 
-  EXPECT_CALL(*frame_observer_, OnFrameInfo(320, 240, _));
+  EXPECT_CALL(*frame_observer_, OnFrameInfo(320, 240, _, _));
 
   device->Allocate(640, 480, 30, frame_observer_.get());
   device->Start();
@@ -206,7 +216,7 @@ TEST_F(VideoCaptureDeviceTest, DeAllocateCameraWhileRunning) {
   EXPECT_CALL(*frame_observer_, OnErr())
       .Times(0);
   // Get info about the new resolution.
-  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480, 30));
+  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480, 30, _));
 
   device->Allocate(640, 480, 30, frame_observer_.get());
 
@@ -229,7 +239,7 @@ TEST_F(VideoCaptureDeviceTest, TestFakeCapture) {
   ASSERT_TRUE(device.get() != NULL);
 
   // Get info about the new resolution.
-  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480, 30))
+  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480, 30, _))
       .Times(1);
 
   EXPECT_CALL(*frame_observer_, OnErr())
@@ -240,6 +250,33 @@ TEST_F(VideoCaptureDeviceTest, TestFakeCapture) {
   device->Start();
   EXPECT_TRUE(wait_event_.TimedWait(TestTimeouts::action_max_timeout()));
   device->Stop();
+  device->DeAllocate();
+}
+
+// Start the camera in 720p to capture MJPEG instead of a raw format.
+TEST_F(VideoCaptureDeviceTest, CaptureMjpeg) {
+  VideoCaptureDevice::GetDeviceNames(&names_);
+  if (!names_.size()) {
+    DVLOG(1) << "No camera available. Exiting test.";
+    return;
+  }
+  scoped_ptr<VideoCaptureDevice> device(
+      VideoCaptureDevice::Create(names_.front()));
+  ASSERT_TRUE(device.get() != NULL);
+
+  EXPECT_CALL(*frame_observer_, OnErr())
+      .Times(0);
+  // Verify we get MJPEG from the device. Not all devices can capture 1280x720
+  // @ 30 fps, so we don't care about the exact resolution we get.
+  EXPECT_CALL(*frame_observer_,
+              OnFrameInfo(_, _, _, VideoCaptureCapability::kMJPEG));
+
+  device->Allocate(1280, 720, 30, frame_observer_.get());
+
+  device->Start();
+  // Get captured video frames.
+  PostQuitTask();
+  EXPECT_TRUE(wait_event_.TimedWait(TestTimeouts::action_max_timeout()));
   device->DeAllocate();
 }
 
