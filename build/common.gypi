@@ -3019,40 +3019,8 @@
             ['chromium_mac_pch', {'GCC_PRECOMPILE_PREFIX_HEADER': 'YES'},
                                  {'GCC_PRECOMPILE_PREFIX_HEADER': 'NO'}
             ],
-          ],
-        },
-        'target_conditions': [
-          ['_type!="static_library"', {
-            'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-search_paths_first']},
-          }],
-          ['_mac_bundle', {
-            'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
-          }],
-        ],  # target_conditions
-      },  # target_defaults
-    }],  # OS=="mac" or OS=="ios"
-    ['OS=="mac"', {
-      'target_defaults': {
-        'variables': {
-          # These should end with %, but there seems to be a bug with % in
-          # variables that are intended to be set to different values in
-          # different targets, like these.
-          'mac_pie': 1,        # Most executables can be position-independent.
-          'mac_real_dsym': 0,  # Fake .dSYMs are fine in most cases.
-          # Strip debugging symbols from the target.
-          'mac_strip': '<(mac_strip_release)',
-        },
-        'xcode_settings': {
-          'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
-                                                    # (Equivalent to -fPIC)
-          # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
-          'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
-          # Keep pch files below xcodebuild/.
-          'SHARED_PRECOMPS_DIR': '$(CONFIGURATION_BUILD_DIR)/SharedPrecompiledHeaders',
-          'OTHER_CFLAGS': [
-            '-fno-strict-aliasing',  # See http://crbug.com/32204
-          ],
-          'conditions': [
+            # Note that the prebuilt Clang binaries should not be used for iOS
+            # development except for ASan builds.
             ['clang==1', {
               'CC': '$(SOURCE_ROOT)/<(clang_dir)/clang',
               'LDPLUSPLUS': '$(SOURCE_ROOT)/<(clang_dir)/clang++',
@@ -3141,6 +3109,32 @@
           ['_mac_bundle', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
           }],
+        ],  # target_conditions
+      },  # target_defaults
+    }],  # OS=="mac" or OS=="ios"
+    ['OS=="mac"', {
+      'target_defaults': {
+        'variables': {
+          # These should end with %, but there seems to be a bug with % in
+          # variables that are intended to be set to different values in
+          # different targets, like these.
+          'mac_pie': 1,        # Most executables can be position-independent.
+          'mac_real_dsym': 0,  # Fake .dSYMs are fine in most cases.
+          # Strip debugging symbols from the target.
+          'mac_strip': '<(mac_strip_release)',
+        },
+        'xcode_settings': {
+          'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
+                                                    # (Equivalent to -fPIC)
+          # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
+          'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
+          # Keep pch files below xcodebuild/.
+          'SHARED_PRECOMPS_DIR': '$(CONFIGURATION_BUILD_DIR)/SharedPrecompiledHeaders',
+          'OTHER_CFLAGS': [
+            '-fno-strict-aliasing',  # See http://crbug.com/32204
+          ],
+        },
+        'target_conditions': [
           ['_type=="executable"', {
             'postbuilds': [
               {
