@@ -55,6 +55,10 @@ class PythonTestBase(object):
   def TearDown(self):
     pass
 
+  def GetOutDir(self):
+    return os.path.join(os.environ['CHROME_SRC'], 'out',
+        self.options.build_type)
+
   def Run(self):
     logging.warning('Running Python-driven test: %s', self.test_name)
     return getattr(self, self.test_name)()
