@@ -547,6 +547,36 @@ TEST(HttpResponseHeadersTest, EnumerateHeader_DateValued) {
   EXPECT_EQ("Wed, 01 Aug 2007 23:23:45 GMT", value);
 }
 
+TEST(HttpResponseHeadersTest, DefaultDateToGMT) {
+  // Verify we make the best interpretation when parsing dates that incorrectly
+  // do not end in "GMT" as RFC2616 requires.
+  std::string headers =
+      "HTTP/1.1 200 OK\n"
+      "Date: Tue, 07 Aug 2007 23:10:55\n"
+      "Last-Modified: Tue, 07 Aug 2007 19:10:55 EDT\n"
+      "Expires: Tue, 07 Aug 2007 23:10:55 UTC\n";
+  HeadersToRaw(&headers);
+  scoped_refptr<net::HttpResponseHeaders> parsed(
+      new net::HttpResponseHeaders(headers));
+  base::Time expected_value;
+  ASSERT_TRUE(base::Time::FromString("Tue, 07 Aug 2007 23:10:55 GMT",
+                                     &expected_value));
+
+  base::Time value;
+  // When the timezone is missing, GMT is a good guess as its what RFC2616
+  // requires.
+  EXPECT_TRUE(parsed->GetDateValue(&value));
+  EXPECT_EQ(expected_value, value);
+  // If GMT is missing but an RFC822-conforming one is present, use that.
+  EXPECT_TRUE(parsed->GetLastModifiedValue(&value));
+  EXPECT_EQ(expected_value, value);
+  // If an unknown timezone is present, treat like a missing timezone and
+  // default to GMT.  The only example of a web server not specifying "GMT"
+  // used "UTC" which is equivalent to GMT.
+  if (parsed->GetExpiresValue(&value))
+    EXPECT_EQ(expected_value, value);
+}
+
 TEST(HttpResponseHeadersTest, GetMimeType) {
   const ContentTypeTestData tests[] = {
     { "HTTP/1.1 200 OK\n"

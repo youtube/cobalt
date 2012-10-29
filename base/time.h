@@ -355,10 +355,17 @@ class BASE_EXPORT Time {
   // Converts a string representation of time to a Time object.
   // An example of a time string which is converted is as below:-
   // "Tue, 15 Nov 1994 12:45:26 GMT". If the timezone is not specified
-  // in the input string, we assume local time.
+  // in the input string, FromString assumes local time and FromUTCString
+  // assumes UTC. A timezone that cannot be parsed (e.g. "UTC" which is not
+  // specified in RFC822) is treated as if the timezone is not specified.
   // TODO(iyengar) Move the FromString/FromTimeT/ToTimeT/FromFileTime to
   // a new time converter class.
-  static bool FromString(const char* time_string, Time* parsed_time);
+  static bool FromString(const char* time_string, Time* parsed_time) {
+    return FromStringInternal(time_string, true, parsed_time);
+  }
+  static bool FromUTCString(const char* time_string, Time* parsed_time) {
+    return FromStringInternal(time_string, false, parsed_time);
+  }
 
   // For serializing, use FromInternalValue to reconstitute. Please don't use
   // this and do arithmetic on it, as it is more error prone than using the
@@ -441,6 +448,17 @@ class BASE_EXPORT Time {
   // Unexplodes a given time assuming the source is either local time
   // |is_local = true| or UTC |is_local = false|.
   static Time FromExploded(bool is_local, const Exploded& exploded);
+
+  // Converts a string representation of time to a Time object.
+  // An example of a time string which is converted is as below:-
+  // "Tue, 15 Nov 1994 12:45:26 GMT". If the timezone is not specified
+  // in the input string, local time |is_local = true| or
+  // UTC |is_local = false| is assumed. A timezone that cannot be parsed
+  // (e.g. "UTC" which is not specified in RFC822) is treated as if the
+  // timezone is not specified.
+  static bool FromStringInternal(const char* time_string,
+                                 bool is_local,
+                                 Time* parsed_time);
 
   // The representation of Jan 1, 1970 UTC in microseconds since the
   // platform-dependent epoch.
