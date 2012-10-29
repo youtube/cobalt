@@ -35,6 +35,9 @@ class BASE_EXPORT SysInfo {
   // or -1 on failure.
   static int64 AmountOfFreeDiskSpace(const FilePath& path);
 
+  // Returns system uptime in milliseconds.
+  static int64 Uptime();
+
   // Returns the name of the host operating system.
   static std::string OperatingSystemName();
 
