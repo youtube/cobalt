@@ -809,17 +809,6 @@ class HostResolverImpl::ProcTask
 
     UMA_HISTOGRAM_ENUMERATION("DNS.ResolveCategory", category, RESOLVE_MAX);
 
-    static const bool show_speculative_experiment_histograms =
-        base::FieldTrialList::TrialExists("DnsImpact");
-    if (show_speculative_experiment_histograms) {
-      UMA_HISTOGRAM_ENUMERATION(
-          base::FieldTrial::MakeName("DNS.ResolveCategory", "DnsImpact"),
-          category, RESOLVE_MAX);
-      if (RESOLVE_SUCCESS == category) {
-        DNS_HISTOGRAM(base::FieldTrial::MakeName("DNS.ResolveSuccess",
-                                                 "DnsImpact"), duration);
-      }
-    }
     static const bool show_parallelism_experiment_histograms =
         base::FieldTrialList::TrialExists("DnsParallelism");
     if (show_parallelism_experiment_histograms) {
