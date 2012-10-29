@@ -2516,8 +2516,6 @@
               # also contain a default: branch. Chrome is full of that.
               '-Wno-covered-switch-default',
 
-              # TODO(thakis): Remove this.
-              '-Wno-implicit-conversion-floating-point-to-bool',
               # TODO(thakis): Remove this once http://crbug.com/151927 is fixed.
               '-Wno-tautological-constant-out-of-range-compare',
             ],
@@ -3083,8 +3081,6 @@
                 # also contain a default: branch. Chrome is full of that.
                 '-Wno-covered-switch-default',
 
-                # TODO(thakis): Remove this.
-                '-Wno-implicit-conversion-floating-point-to-bool',
                 # TODO(thakis): Remove this once http://crbug.com/151927 is fixed.
                 '-Wno-tautological-constant-out-of-range-compare',
               ],
