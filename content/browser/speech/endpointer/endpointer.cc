@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/browser/speech/audio_buffer.h"
 #include "content/browser/speech/endpointer/endpointer.h"
 
 #include "base/time.h"
+#include "content/browser/speech/audio_buffer.h"
 
 using base::Time;
 
 namespace {
-static const int kFrameRate = 50;  // 1 frame = 20ms of audio.
+const int kFrameRate = 50;  // 1 frame = 20ms of audio.
 }
 
-namespace speech {
+namespace content {
 
 Endpointer::Endpointer(int sample_rate)
     : speech_input_possibly_complete_silence_length_us_(-1),
@@ -166,4 +166,4 @@ EpStatus Endpointer::ProcessAudio(const AudioChunk& raw_audio, float* rms_out) {
   return ep_status;
 }
 
-}  // namespace speech
+}  // namespace content
