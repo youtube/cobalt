@@ -79,8 +79,14 @@ class BASE_EXPORT CommandLine {
   void InitFromArgv(const StringVector& argv);
 
   // Constructs and returns the represented command line string.
-  // CAUTION! This should be avoided because quoting behavior is unclear.
+  // CAUTION! This should be avoided on POSIX because quoting behavior is
+  // unclear.
   StringType GetCommandLineString() const;
+
+  // Constructs and returns the represented arguments string.
+  // CAUTION! This should be avoided on POSIX because quoting behavior is
+  // unclear.
+  StringType GetArgumentsString() const;
 
   // Returns the original command line string as a vector of strings.
   const StringVector& argv() const { return argv_; }

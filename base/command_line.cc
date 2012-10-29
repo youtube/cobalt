@@ -228,31 +228,42 @@ CommandLine::StringType CommandLine::GetCommandLineString() const {
 #if defined(OS_WIN)
   string = QuoteForCommandLineToArgvW(string);
 #endif
+  StringType params(GetArgumentsString());
+  if (!params.empty()) {
+    string.append(StringType(FILE_PATH_LITERAL(" ")));
+    string.append(params);
+  }
+  return string;
+}
+
+CommandLine::StringType CommandLine::GetArgumentsString() const {
+  StringType params;
   // Append switches and arguments.
   bool parse_switches = true;
   for (size_t i = 1; i < argv_.size(); ++i) {
-    CommandLine::StringType arg = argv_[i];
-    CommandLine::StringType switch_string;
-    CommandLine::StringType switch_value;
+    StringType arg = argv_[i];
+    StringType switch_string;
+    StringType switch_value;
     parse_switches &= arg != kSwitchTerminator;
-    string.append(StringType(FILE_PATH_LITERAL(" ")));
+    if (i > 1)
+      params.append(StringType(FILE_PATH_LITERAL(" ")));
     if (parse_switches && IsSwitch(arg, &switch_string, &switch_value)) {
-      string.append(switch_string);
+      params.append(switch_string);
       if (!switch_value.empty()) {
 #if defined(OS_WIN)
         switch_value = QuoteForCommandLineToArgvW(switch_value);
 #endif
-        string.append(kSwitchValueSeparator + switch_value);
+        params.append(kSwitchValueSeparator + switch_value);
       }
     }
     else {
 #if defined(OS_WIN)
       arg = QuoteForCommandLineToArgvW(arg);
 #endif
-      string.append(arg);
+      params.append(arg);
     }
   }
-  return string;
+  return params;
 }
 
 FilePath CommandLine::GetProgram() const {
