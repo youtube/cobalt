@@ -54,8 +54,6 @@
         '../tools/android/forwarder2/forwarder.gyp:forwarder2',
         '../tools/android/md5sum/md5sum.gyp:md5sum',
         '../ui/ui.gyp:ui_unittests',
-        # From here down: not added to run_tests.py yet.
-        '../jingle/jingle.gyp:jingle_unittests',
         # Required by ui_unittests.
         # TODO(wangxianzhu): It'd better let ui_unittests depend on it, but
         # this would cause circular gyp dependency which needs refactoring the
