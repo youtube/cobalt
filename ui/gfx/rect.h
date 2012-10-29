@@ -75,6 +75,10 @@ inline bool operator!=(const Rect& lhs, const Rect& rhs) {
   return !(lhs == rhs);
 }
 
+UI_EXPORT Rect IntersectRects(const Rect& a, const Rect& b);
+UI_EXPORT Rect UnionRects(const Rect& a, const Rect& b);
+UI_EXPORT Rect SubtractRects(const Rect& a, const Rect& b);
+
 #if !defined(COMPILER_MSVC)
 extern template class RectBase<Rect, Point, Size, Insets, int>;
 #endif

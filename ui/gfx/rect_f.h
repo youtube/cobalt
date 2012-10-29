@@ -49,6 +49,15 @@ inline bool operator!=(const RectF& lhs, const RectF& rhs) {
   return !(lhs == rhs);
 }
 
+UI_EXPORT RectF IntersectRects(const RectF& a, const RectF& b);
+UI_EXPORT RectF UnionRects(const RectF& a, const RectF& b);
+UI_EXPORT RectF SubtractRects(const RectF& a, const RectF& b);
+UI_EXPORT RectF ScaleRect(const RectF& r, float x_scale, float y_scale);
+
+inline RectF ScaleRect(const RectF& r, float scale) {
+  return ScaleRect(r, scale, scale);
+}
+
 #if !defined(COMPILER_MSVC)
 extern template class RectBase<RectF, PointF, SizeF, InsetsF, float>;
 #endif
