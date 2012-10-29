@@ -399,7 +399,7 @@ void URLFetcherCore::SetURLRequestUserData(
 }
 
 void URLFetcherCore::SetStopOnRedirect(bool stop_on_redirect) {
-  stop_on_redirect_ = true;
+  stop_on_redirect_ = stop_on_redirect;
 }
 
 void URLFetcherCore::SetAutomaticallyRetryOn5xx(bool retry) {
