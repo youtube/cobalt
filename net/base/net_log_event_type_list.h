@@ -1588,7 +1588,7 @@ EVENT_TYPE(DOWNLOAD_ITEM_RENAMED)
 
 // This event is created when a download item is interrupted.
 //   {
-//     "reason": <The reason for the interruption>,
+//     "interrupt_reason": <The reason for the interruption>,
 //     "bytes_so_far": <Number of bytes received>,
 //     "hash_state": <Current hash state, as a hex-encoded binary string>,
 //   }
@@ -1665,6 +1665,8 @@ EVENT_TYPE(DOWNLOAD_FILE_DELETED)
 //   {
 //     "operation": <open, write, close, etc>,
 //     "net_error": <net::Error code>,
+//     "os_error": <OS depedent error code>
+//     "interrupt_reason": <Download interrupt reason>
 //   }
 EVENT_TYPE(DOWNLOAD_FILE_ERROR)
 
