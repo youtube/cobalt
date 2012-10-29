@@ -16,7 +16,7 @@ const int kFrameSize = kSampleRate / kFrameRate;  // 160 samples.
 COMPILE_ASSERT(kFrameSize == 160, invalid_frame_size);
 }
 
-namespace speech {
+namespace content {
 
 class FrameProcessor {
  public:
@@ -145,4 +145,4 @@ TEST(EndpointerTest, TestEmbeddedEndpointerEvents) {
   endpointer.EndSession();
 }
 
-}  // namespace speech
+}  // namespace content

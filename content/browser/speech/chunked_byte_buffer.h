@@ -13,7 +13,7 @@
 #include "base/memory/scoped_vector.h"
 #include "content/common/content_export.h"
 
-namespace speech {
+namespace content {
 
 // Models a chunk-oriented byte buffer. The term chunk is herein defined as an
 // arbitrary sequence of bytes that is preceeded by N header bytes, indicating
@@ -70,6 +70,6 @@ class CONTENT_EXPORT ChunkedByteBuffer {
 };
 
 
-}  // namespace speech
+}  // namespace content
 
 #endif  // CONTENT_BROWSER_SPEECH_CHUNKED_BYTE_BUFFER_H_

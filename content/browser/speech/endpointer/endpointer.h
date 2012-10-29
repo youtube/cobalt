@@ -11,7 +11,7 @@
 
 class EpStatus;
 
-namespace speech {
+namespace content {
 
 class AudioChunk;
 
@@ -148,6 +148,6 @@ class CONTENT_EXPORT Endpointer {
   int32 frame_size_;
 };
 
-}  // namespace speech
+}  // namespace content
 
 #endif  // CONTENT_BROWSER_SPEECH_ENDPOINTER_ENDPOINTER_H_

@@ -26,7 +26,7 @@ uint32 ReadBigEndian32(const uint8* buffer) {
 
 }  // namespace
 
-namespace speech {
+namespace content {
 
 ChunkedByteBuffer::ChunkedByteBuffer()
     : partial_chunk_(new Chunk()),
@@ -133,4 +133,4 @@ size_t ChunkedByteBuffer::Chunk::ExpectedContentLength() const {
   return static_cast<size_t>(ReadBigEndian32(&header[0]));
 }
 
-}  // namespace speech
+}  // namespace content
