@@ -380,9 +380,6 @@
       # gyp will remove duplicate flags, causing isolate.py to be confused.
       'test_isolation_outdir%': '<(PRODUCT_DIR)/isolate',
 
-       # Force rlz to use chrome's networking stack.
-      'force_rlz_use_chrome_net%': 1,
-
       'sas_dll_path%': '<(DEPTH)/third_party/platformsdk_win7/files/redist/x86',
       'wix_path%': '<(DEPTH)/third_party/wix',
 
@@ -655,7 +652,6 @@
     'enable_printing%': '<(enable_printing)',
     'enable_captive_portal_detection%': '<(enable_captive_portal_detection)',
     'disable_ftp_support%': '<(disable_ftp_support)',
-    'force_rlz_use_chrome_net%': '<(force_rlz_use_chrome_net)',
     'enable_task_manager%': '<(enable_task_manager)',
     'sas_dll_path%': '<(sas_dll_path)',
     'wix_path%': '<(wix_path)',
@@ -910,6 +906,9 @@
 
     'windows_sdk_default_path': '<(DEPTH)/third_party/platformsdk_win8/files',
     'directx_sdk_default_path': '<(DEPTH)/third_party/directxsdk/files',
+
+    # Whether rlz is enabled.
+    'enable_rlz%': 0,
 
     'conditions': [
       ['OS=="win" and "<!(python <(DEPTH)/build/dir_exists.py <(windows_sdk_default_path))"=="True"', {
@@ -1392,6 +1391,11 @@
         # Keep the code under #ifndef NVALGRIND.
         'release_valgrind_build': 1,
       }],
+
+      # Enable RLZ on Win and Mac.
+      ['branding=="Chrome" and (OS=="win" or OS=="mac")', {
+        'enable_rlz%': 1,
+      }],
     ],
 
     # List of default apps to install in new profiles.  The first list contains
@@ -1526,7 +1530,7 @@
           ],
         },
       }],
-      ['branding=="Chrome" and (OS=="win" or OS=="mac")', {
+      ['enable_rlz==1', {
         'defines': ['ENABLE_RLZ'],
       }],
       ['component=="shared_library"', {
