@@ -13,6 +13,10 @@
 #     # The name of a directory used for ninja. This cannot be shared with
 #     # another mac build.
 #     'ninja_output_dir': 'ninja-foo',
+#     # The full path to the location in which the ninja executable should be
+#     # placed. This cannot be shared with another mac build.
+#    'ninja_product_dir':
+#      '<(DEPTH)/xcodebuild/<(ninja_output_dir)/<(CONFIGURATION_NAME)',
 #     # The list of all the gyp files that contain the targets to run.
 #     're_run_targets': [
 #       'foo.gyp',
@@ -35,10 +39,6 @@
 # }
 {
   'variables': {
-    # Convenience variable pointing to the ninja product directory.
-    'ninja_product_dir':
-      '<(DEPTH)/xcodebuild/<(ninja_output_dir)/<(CONFIGURATION_NAME)',
-
     # Common ninja command line flags.
     'ninja_cmd': [
       # Bounce through clean_env to clean up the environment so things
