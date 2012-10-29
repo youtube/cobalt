@@ -22,7 +22,6 @@ class MetricsService;
 class NativeBackendKWallet;
 class ScopedAllowWaitForLegacyWebViewApi;
 class TestingAutomationProvider;
-class TextInputClientMac;
 
 namespace browser_sync {
 class NonFrontendDataTypeController;
@@ -46,6 +45,7 @@ class BrowserGpuChannelHostFactory;
 class GLHelper;
 class GpuChannelHost;
 class RenderWidgetHelper;
+class TextInputClientMac;
 }
 namespace dbus {
 class Bus;
@@ -190,6 +190,7 @@ class BASE_EXPORT ThreadRestrictions {
       content::BrowserGpuChannelHostFactory;      // http://crbug.com/125248
   friend class content::GLHelper;                 // http://crbug.com/125415
   friend class content::GpuChannelHost;           // http://crbug.com/125264
+  friend class content::TextInputClientMac;       // http://crbug.com/121917
   friend class dbus::Bus;                         // http://crbug.com/125222
   friend class disk_cache::BackendImpl;           // http://crbug.com/74623
   friend class disk_cache::InFlightIO;            // http://crbug.com/74623
@@ -200,7 +201,6 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::AcceleratedPresenter;            // http://crbug.com/125391
   friend class ::BrowserProcessImpl;              // http://crbug.com/125207
   friend class ::MetricsService;                  // http://crbug.com/124954
-  friend class ::TextInputClientMac;              // http://crbug.com/121917
   friend class ::NativeBackendKWallet;            // http://crbug.com/125331
   // END USAGE THAT NEEDS TO BE FIXED.
 
