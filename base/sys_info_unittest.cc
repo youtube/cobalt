@@ -4,6 +4,7 @@
 
 #include "base/file_util.h"
 #include "base/sys_info.h"
+#include "base/threading/platform_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -48,6 +49,16 @@ TEST_F(SysInfoTest, OperatingSystemVersionNumbers) {
   EXPECT_GT(os_bugfix_version, -1);
 }
 #endif
+
+TEST_F(SysInfoTest, Uptime) {
+  int64 up_time_1 = base::SysInfo::Uptime();
+  // UpTime() is implemented internally using TimeTicks::Now(), which documents
+  // system resolution as being 1-15ms. Sleep a little longer than that.
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(20));
+  int64 up_time_2 = base::SysInfo::Uptime();
+  EXPECT_GT(up_time_1, 0);
+  EXPECT_GT(up_time_2, up_time_1);
+}
 
 #if defined(OS_CHROMEOS)
 TEST_F(SysInfoTest, GoogleChromeOSVersionNumbers) {
