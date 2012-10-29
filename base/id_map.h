@@ -92,6 +92,17 @@ class IDMap : public base::NonThreadSafe {
     }
   }
 
+  void Clear() {
+    DCHECK(CalledOnValidThread());
+    if (iteration_depth_ == 0) {
+      Releaser<OS, 0>::release_all(&data_);
+    } else {
+      for (typename HashTable::iterator i = data_.begin();
+           i != data_.end(); ++i)
+        removed_ids_.insert(i->first);
+    }
+  }
+
   bool IsEmpty() const {
     DCHECK(CalledOnValidThread());
     return size() == 0u;
