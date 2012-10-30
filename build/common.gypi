@@ -959,6 +959,7 @@
       ['OS=="ios"', {
         'disable_nacl%': 1,
         'enable_gpu%': 0,
+        'enable_task_manager%': 0,
         'icu_use_data_file_flag%': 1,
         'use_system_bzip2%': 1,
         'use_system_libxml%': 1,
@@ -1202,7 +1203,7 @@
         ],
       }],
 
-      ['os_posix==1 and chromeos==0 and OS!="android"', {
+      ['os_posix==1 and chromeos==0 and OS!="android" and OS!="ios"', {
         'use_cups%': 1,
       }, {
         'use_cups%': 0,
