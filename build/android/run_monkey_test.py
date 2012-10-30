@@ -25,7 +25,8 @@ class MonkeyTest(python_test_base.PythonTestBase):
     self.adb.StartActivity(self.options.package_name,
                            self.options.activity_name,
                            wait_for_completion=True,
-                           action='android.intent.action.MAIN')
+                           action='android.intent.action.MAIN',
+                           force_stop=True)
 
     # Chrome crashes are not always caught by Monkey test runner.
     # Verify Chrome has the same PID before and after the test.
@@ -90,7 +91,6 @@ class MonkeyTest(python_test_base.PythonTestBase):
     return self.adb.RunShellCommand(' '.join(cmd), timeout_time=timeout_ms)
 
 
-
 def DispatchPythonTests(options):
   """Dispatches the Monkey tests, sharding it if there multiple devices."""
   logger = logging.getLogger()
@@ -104,12 +104,13 @@ def DispatchPythonTests(options):
   # Actually run the tests.
   logging.debug('Running monkey tests.')
   available_tests *= len(attached_devices)
-  options.ensure_value('shard_retries',1)
+  options.ensure_value('shard_retries', 1)
   sharder = python_test_sharder.PythonTestSharder(
       attached_devices, available_tests, options)
   result = sharder.RunShardedTests()
   result.LogFull('Monkey', 'Monkey', options.build_type)
   result.PrintAnnotation()
+
 
 def main():
   desc = 'Run the Monkey tests on 1 or more devices.'
