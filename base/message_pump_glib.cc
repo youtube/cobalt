@@ -186,7 +186,7 @@ void MessagePumpGlib::RunWithDispatcher(Delegate* delegate,
   // have done something, assume there is likely something more to do.  This
   // will mean that we don't block on the message pump until there was nothing
   // more to do.  We also set this to true to make sure not to block on the
-  // first iteration of the loop, so RunAllPending() works correctly.
+  // first iteration of the loop, so RunUntilIdle() works correctly.
   bool more_work_is_plausible = true;
 
   // We run our own loop instead of using g_main_loop_quit in one of the

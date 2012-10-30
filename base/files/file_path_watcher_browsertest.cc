@@ -156,7 +156,7 @@ class FilePathWatcherTest : public testing::Test {
   virtual ~FilePathWatcherTest() {}
 
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     // Create a separate file thread in order to test proper thread usage.
     base::Thread::Options options(MessageLoop::TYPE_IO, 0);
     ASSERT_TRUE(file_thread_.StartWithOptions(options));
@@ -164,8 +164,8 @@ class FilePathWatcherTest : public testing::Test {
     collector_ = new NotificationCollector();
   }
 
-  virtual void TearDown() {
-    loop_.RunAllPending();
+  virtual void TearDown() OVERRIDE {
+    loop_.RunUntilIdle();
   }
 
   FilePath test_file() {
