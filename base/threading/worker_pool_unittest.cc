@@ -103,7 +103,7 @@ TEST_F(WorkerPoolTest, MAYBE_PostTaskAndReply) {
     // device.
     pthread_yield_np();
 #endif
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
   EXPECT_TRUE(tester->finished());
 }

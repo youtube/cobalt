@@ -80,27 +80,27 @@ TEST_F(SystemMonitorTest, PowerNotifications) {
 
   // Sending resume when not suspended should have no effect.
   system_monitor_->ProcessPowerMessage(SystemMonitor::RESUME_EVENT);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(test[0].resumes(), 0);
 
   // Pretend we suspended.
   system_monitor_->ProcessPowerMessage(SystemMonitor::SUSPEND_EVENT);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(test[0].suspends(), 1);
 
   // Send a second suspend notification.  This should be suppressed.
   system_monitor_->ProcessPowerMessage(SystemMonitor::SUSPEND_EVENT);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(test[0].suspends(), 1);
 
   // Pretend we were awakened.
   system_monitor_->ProcessPowerMessage(SystemMonitor::RESUME_EVENT);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(test[0].resumes(), 1);
 
   // Send a duplicate resume notification.  This should be suppressed.
   system_monitor_->ProcessPowerMessage(SystemMonitor::RESUME_EVENT);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(test[0].resumes(), 1);
 }
 
@@ -130,20 +130,20 @@ TEST_F(SystemMonitorTest, DeviceChangeNotifications) {
   }
 
   system_monitor_->ProcessDevicesChanged(SystemMonitor::DEVTYPE_UNKNOWN);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   system_monitor_->ProcessDevicesChanged(SystemMonitor::DEVTYPE_UNKNOWN);
   system_monitor_->ProcessDevicesChanged(SystemMonitor::DEVTYPE_UNKNOWN);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   system_monitor_->ProcessRemovableStorageAttached(kDeviceId1,
                                                    kDeviceName,
                                                    FILE_PATH_LITERAL("path"));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   system_monitor_->ProcessRemovableStorageDetached(kDeviceId1);
   system_monitor_->ProcessRemovableStorageDetached(kDeviceId2);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 TEST_F(SystemMonitorTest, GetAttachedRemovableStorageEmpty) {
@@ -159,7 +159,7 @@ TEST_F(SystemMonitorTest, GetAttachedRemovableStorageAttachDetach) {
   system_monitor_->ProcessRemovableStorageAttached(kDeviceId1,
                                                    kDeviceName1,
                                                    kDevicePath1.value());
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   std::vector<SystemMonitor::RemovableStorageInfo> devices =
       system_monitor_->GetAttachedRemovableStorage();
   ASSERT_EQ(1U, devices.size());
@@ -173,7 +173,7 @@ TEST_F(SystemMonitorTest, GetAttachedRemovableStorageAttachDetach) {
   system_monitor_->ProcessRemovableStorageAttached(kDeviceId2,
                                                    kDeviceName2,
                                                    kDevicePath2.value());
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   devices = system_monitor_->GetAttachedRemovableStorage();
   ASSERT_EQ(2U, devices.size());
   EXPECT_EQ(kDeviceId1, devices[0].device_id);
@@ -184,7 +184,7 @@ TEST_F(SystemMonitorTest, GetAttachedRemovableStorageAttachDetach) {
   EXPECT_EQ(kDevicePath2.value(), devices[1].location);
 
   system_monitor_->ProcessRemovableStorageDetached(kDeviceId1);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   devices = system_monitor_->GetAttachedRemovableStorage();
   ASSERT_EQ(1U, devices.size());
   EXPECT_EQ(kDeviceId2, devices[0].device_id);
@@ -192,7 +192,7 @@ TEST_F(SystemMonitorTest, GetAttachedRemovableStorageAttachDetach) {
   EXPECT_EQ(kDevicePath2.value(), devices[0].location);
 
   system_monitor_->ProcessRemovableStorageDetached(kDeviceId2);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   devices = system_monitor_->GetAttachedRemovableStorage();
   EXPECT_EQ(0U, devices.size());
 }
