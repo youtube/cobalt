@@ -5,13 +5,12 @@
 #include "base/file_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/message_loop.h"
-#include "base/message_loop_proxy.h"
 #include "base/path_service.h"
 #include "base/prefs/json_pref_store.h"
 #include "base/scoped_temp_dir.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
+#include "base/threading/sequenced_worker_pool.h"
 #include "base/threading/thread.h"
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
@@ -37,9 +36,7 @@ class MockReadErrorDelegate : public PersistentPrefStore::ReadErrorDelegate {
 
 class JsonPrefStoreTest : public testing::Test {
  protected:
-  virtual void SetUp() {
-    message_loop_proxy_ = base::MessageLoopProxy::current();
-
+  virtual void SetUp() OVERRIDE {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
 
     ASSERT_TRUE(PathService::Get(chrome::DIR_TEST_DATA, &data_dir_));
@@ -53,7 +50,6 @@ class JsonPrefStoreTest : public testing::Test {
   FilePath data_dir_;
   // A message loop that we can use as the file thread message loop.
   MessageLoop message_loop_;
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
 };
 
 // Test fallback behavior for a nonexistent file.
@@ -61,7 +57,8 @@ TEST_F(JsonPrefStoreTest, NonExistentFile) {
   FilePath bogus_input_file = data_dir_.AppendASCII("read.txt");
   ASSERT_FALSE(file_util::PathExists(bogus_input_file));
   scoped_refptr<JsonPrefStore> pref_store =
-      new JsonPrefStore(bogus_input_file, message_loop_proxy_.get());
+      new JsonPrefStore(
+          bogus_input_file, message_loop_.message_loop_proxy());
   EXPECT_EQ(PersistentPrefStore::PREF_READ_ERROR_NO_FILE,
             pref_store->ReadPrefs());
   EXPECT_FALSE(pref_store->ReadOnly());
@@ -73,7 +70,8 @@ TEST_F(JsonPrefStoreTest, InvalidFile) {
   FilePath invalid_file = temp_dir_.path().AppendASCII("invalid.json");
   ASSERT_TRUE(file_util::CopyFile(invalid_file_original, invalid_file));
   scoped_refptr<JsonPrefStore> pref_store =
-      new JsonPrefStore(invalid_file, message_loop_proxy_.get());
+      new JsonPrefStore(
+          invalid_file, message_loop_.message_loop_proxy());
   EXPECT_EQ(PersistentPrefStore::PREF_READ_ERROR_JSON_PARSE,
             pref_store->ReadPrefs());
   EXPECT_FALSE(pref_store->ReadOnly());
@@ -88,7 +86,7 @@ TEST_F(JsonPrefStoreTest, InvalidFile) {
 
 // This function is used to avoid code duplication while testing synchronous and
 // asynchronous version of the JsonPrefStore loading.
-void RunBasicJsonPrefStoreTest(JsonPrefStore *pref_store,
+void RunBasicJsonPrefStoreTest(JsonPrefStore* pref_store,
                                const FilePath& output_file,
                                const FilePath& golden_output_file) {
   const char kNewWindowsInTabs[] = "tabs.new_windows_in_tabs";
@@ -166,7 +164,8 @@ TEST_F(JsonPrefStoreTest, Basic) {
   FilePath input_file = temp_dir_.path().AppendASCII("write.json");
   ASSERT_TRUE(file_util::PathExists(input_file));
   scoped_refptr<JsonPrefStore> pref_store =
-      new JsonPrefStore(input_file, message_loop_proxy_.get());
+      new JsonPrefStore(
+          input_file, message_loop_.message_loop_proxy());
   ASSERT_EQ(PersistentPrefStore::PREF_READ_ERROR_NONE, pref_store->ReadPrefs());
   ASSERT_FALSE(pref_store->ReadOnly());
 
@@ -193,21 +192,24 @@ TEST_F(JsonPrefStoreTest, BasicAsync) {
   FilePath input_file = temp_dir_.path().AppendASCII("write.json");
   ASSERT_TRUE(file_util::PathExists(input_file));
   scoped_refptr<JsonPrefStore> pref_store =
-      new JsonPrefStore(input_file, message_loop_proxy_.get());
+      new JsonPrefStore(
+          input_file, message_loop_.message_loop_proxy());
 
-  MockPrefStoreObserver mock_observer;
-  pref_store->AddObserver(&mock_observer);
+  {
+    MockPrefStoreObserver mock_observer;
+    pref_store->AddObserver(&mock_observer);
 
-  MockReadErrorDelegate *mock_error_delegate = new MockReadErrorDelegate;
-  pref_store->ReadPrefsAsync(mock_error_delegate);
+    MockReadErrorDelegate* mock_error_delegate = new MockReadErrorDelegate;
+    pref_store->ReadPrefsAsync(mock_error_delegate);
 
-  EXPECT_CALL(mock_observer, OnInitializationCompleted(true)).Times(1);
-  EXPECT_CALL(*mock_error_delegate,
-              OnError(PersistentPrefStore::PREF_READ_ERROR_NONE)).Times(0);
-  message_loop_.RunUntilIdle();
-  pref_store->RemoveObserver(&mock_observer);
+    EXPECT_CALL(mock_observer, OnInitializationCompleted(true)).Times(1);
+    EXPECT_CALL(*mock_error_delegate,
+                OnError(PersistentPrefStore::PREF_READ_ERROR_NONE)).Times(0);
+    message_loop_.RunUntilIdle();
+    pref_store->RemoveObserver(&mock_observer);
 
-  ASSERT_FALSE(pref_store->ReadOnly());
+    ASSERT_FALSE(pref_store->ReadOnly());
+  }
 
   // The JSON file looks like this:
   // {
@@ -229,7 +231,8 @@ TEST_F(JsonPrefStoreTest, AsyncNonExistingFile) {
   FilePath bogus_input_file = data_dir_.AppendASCII("read.txt");
   ASSERT_FALSE(file_util::PathExists(bogus_input_file));
   scoped_refptr<JsonPrefStore> pref_store =
-      new JsonPrefStore(bogus_input_file, message_loop_proxy_.get());
+      new JsonPrefStore(
+          bogus_input_file, message_loop_.message_loop_proxy());
   MockPrefStoreObserver mock_observer;
   pref_store->AddObserver(&mock_observer);
 
@@ -255,7 +258,8 @@ TEST_F(JsonPrefStoreTest, NeedsEmptyValue) {
   // Test that the persistent value can be loaded.
   ASSERT_TRUE(file_util::PathExists(pref_file));
   scoped_refptr<JsonPrefStore> pref_store =
-      new JsonPrefStore(pref_file, message_loop_proxy_.get());
+      new JsonPrefStore(
+          pref_file, message_loop_.message_loop_proxy());
   ASSERT_EQ(PersistentPrefStore::PREF_READ_ERROR_NONE, pref_store->ReadPrefs());
   ASSERT_FALSE(pref_store->ReadOnly());
 
