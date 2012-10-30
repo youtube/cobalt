@@ -32,6 +32,7 @@ Modifications:
 if treated as a generic xmlNode object.
 - Fix pretty harmless use-after-free in generate-id function.
 - Merge a clang warning fix http://git.gnome.org/browse/libxml2/commit/?id=713434d2309da469d64b35e163ea6556dadccada
+- Import attribute normalization fix http://git.gnome.org/browse/libxml2/commit/?id=6a36fbe3b3e001a8a840b5c1fdd81cefc9947f0d
 
 To import a new snapshot of libxml:
 
