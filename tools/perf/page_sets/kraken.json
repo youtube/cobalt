@@ -1,9 +1,0 @@
-{
-    "description": "Kraken JavaScript benchmark",
-    "archive_path": "../data/kraken.wpr",
-    "pages": [
-        {
-            "url": "http://krakenbenchmark.mozilla.org/kraken-1.1/driver.html"
-        }
-    ]
-}
