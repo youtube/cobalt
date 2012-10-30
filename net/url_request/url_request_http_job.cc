@@ -701,7 +701,16 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   void* iter = NULL;
   base::Time now = base::Time::Now();
 
+  // http://tools.ietf.org/html/draft-ietf-websec-strict-transport-sec:
+  //
+  //   If a UA receives more than one STS header field in a HTTP response
+  //   message over secure transport, then the UA MUST process only the
+  //   first such header field.
+  bool seen_sts = false;
   while (headers->EnumerateHeader(&iter, "Strict-Transport-Security", &value)) {
+    if (seen_sts)
+      return;
+    seen_sts = true;
     TransportSecurityState::DomainState domain_state;
     if (domain_state.ParseSTSHeader(now, value))
       security_state->EnableHost(host, domain_state);
