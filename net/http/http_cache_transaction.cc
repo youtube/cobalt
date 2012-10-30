@@ -162,6 +162,7 @@ HttpCache::Transaction::~Transaction() {
   callback_.Reset();
 
   transaction_delegate_ = NULL;
+  cache_io_start_ = base::TimeTicks();
 
   if (cache_) {
     if (entry_) {
