@@ -244,7 +244,15 @@ class scoped_ptr {
   template <class C2> bool operator!=(scoped_ptr<C2> const& p2) const;
 
 };
-
+/*
+class SkRefCnt;
+template <>
+class scoped_ptr <SkRefCnt> {
+private:
+    scoped_ptr() { }
+    ~scoped_ptr() { };
+};
+*/
 // Free functions
 template <class C>
 void swap(scoped_ptr<C>& p1, scoped_ptr<C>& p2) {
