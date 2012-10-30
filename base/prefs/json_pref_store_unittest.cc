@@ -153,7 +153,7 @@ void RunBasicJsonPrefStoreTest(JsonPrefStore *pref_store,
   // Serialize and compare to expected output.
   ASSERT_TRUE(file_util::PathExists(golden_output_file));
   pref_store->CommitPendingWrite();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_TRUE(file_util::TextContentsEqual(golden_output_file, output_file));
   ASSERT_TRUE(file_util::Delete(output_file, false));
 }
@@ -204,7 +204,7 @@ TEST_F(JsonPrefStoreTest, BasicAsync) {
   EXPECT_CALL(mock_observer, OnInitializationCompleted(true)).Times(1);
   EXPECT_CALL(*mock_error_delegate,
               OnError(PersistentPrefStore::PREF_READ_ERROR_NONE)).Times(0);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   pref_store->RemoveObserver(&mock_observer);
 
   ASSERT_FALSE(pref_store->ReadOnly());
@@ -239,7 +239,7 @@ TEST_F(JsonPrefStoreTest, AsyncNonExistingFile) {
   EXPECT_CALL(mock_observer, OnInitializationCompleted(true)).Times(1);
   EXPECT_CALL(*mock_error_delegate,
               OnError(PersistentPrefStore::PREF_READ_ERROR_NO_FILE)).Times(1);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   pref_store->RemoveObserver(&mock_observer);
 
   EXPECT_FALSE(pref_store->ReadOnly());
@@ -283,7 +283,7 @@ TEST_F(JsonPrefStoreTest, NeedsEmptyValue) {
 
   // Write to file.
   pref_store->CommitPendingWrite();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Compare to expected output.
   FilePath golden_output_file =
