@@ -392,7 +392,10 @@ bool HttpUtil::IsNonCoalescingHeader(string::const_iterator name_begin,
     // The format of auth-challenges mixes both space separated tokens and
     // comma separated properties, so coalescing on comma won't work.
     "www-authenticate",
-    "proxy-authenticate"
+    "proxy-authenticate",
+    // STS specifies that UAs must not process any STS headers after the first
+    // one.
+    "strict-transport-security"
   };
   for (size_t i = 0; i < arraysize(kNonCoalescingHeaders); ++i) {
     if (LowerCaseEqualsASCII(name_begin, name_end, kNonCoalescingHeaders[i]))
