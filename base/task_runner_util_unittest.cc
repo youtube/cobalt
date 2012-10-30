@@ -70,7 +70,7 @@ TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResult) {
       Bind(&ReturnFourtyTwo),
       Bind(&StoreValue, &result));
 
-  message_loop.RunAllPending();
+  message_loop.RunUntilIdle();
 
   EXPECT_EQ(42, result);
 }
@@ -87,7 +87,7 @@ TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultPassed) {
       Bind(&CreateFoo),
       Bind(&ExpectFoo));
 
-  message_loop.RunAllPending();
+  message_loop.RunUntilIdle();
 
   EXPECT_EQ(1, g_foo_destruct_count);
   EXPECT_EQ(0, g_foo_free_count);
@@ -105,7 +105,7 @@ TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultPassedFreeProc) {
       Bind(&CreateScopedFoo),
       Bind(&ExpectScopedFoo));
 
-  message_loop.RunAllPending();
+  message_loop.RunUntilIdle();
 
   EXPECT_EQ(1, g_foo_destruct_count);
   EXPECT_EQ(1, g_foo_free_count);
