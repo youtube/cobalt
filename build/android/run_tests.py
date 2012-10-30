@@ -82,6 +82,7 @@ _TEST_SUITES = ['base_unittests',
                 'sync_unit_tests',
                 'ui_unittests',
                 'unit_tests',
+                'webkit_compositor_bindings_unittests',
                ]
 
 
