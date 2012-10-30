@@ -63,7 +63,7 @@ TEST_F(ImportantFileWriterTest, Basic) {
                              MessageLoopProxy::current());
   EXPECT_FALSE(file_util::PathExists(writer.path()));
   writer.WriteNow("foo");
-  loop_.RunAllPending();
+  loop_.RunUntilIdle();
 
   ASSERT_TRUE(file_util::PathExists(writer.path()));
   EXPECT_EQ("foo", GetFileContent(writer.path()));
