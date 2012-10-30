@@ -85,6 +85,10 @@ void TestURLRequestContext::Init() {
     context_storage_.set_http_server_properties(
         new net::HttpServerPropertiesImpl);
   }
+  if (!transport_security_state()) {
+    context_storage_.set_transport_security_state(
+        new net::TransportSecurityState());
+  }
   net::HttpNetworkSession::Params params;
   params.host_resolver = host_resolver();
   params.cert_verifier = cert_verifier();
