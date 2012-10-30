@@ -13,19 +13,21 @@ import cmd_helper
 
 class ApkInfo(object):
   """Helper class for inspecting APKs."""
-  _PROGUARD_PATH = os.path.join(os.environ['ANDROID_SDK_ROOT'],
-                                'tools/proguard/bin/proguard.sh')
-  if not os.path.exists(_PROGUARD_PATH):
-    _PROGUARD_PATH = os.path.join(os.environ['ANDROID_BUILD_TOP'],
-                                  'external/proguard/bin/proguard.sh')
-  _PROGUARD_CLASS_RE = re.compile(r'\s*?- Program class:\s*([\S]+)$')
-  _PROGUARD_METHOD_RE = re.compile(r'\s*?- Method:\s*(\S*)[(].*$')
-  _PROGUARD_ANNOTATION_RE = re.compile(r'\s*?- Annotation \[L(\S*);\]:$')
-  _PROGUARD_ANNOTATION_CONST_RE = re.compile(r'\s*?- Constant element value.*$')
-  _PROGUARD_ANNOTATION_VALUE_RE = re.compile(r'\s*?- \S+? \[(.*)\]$')
-  _AAPT_PACKAGE_NAME_RE = re.compile(r'package: .*name=\'(\S*)\'')
 
   def __init__(self, apk_path, jar_path):
+    self._PROGUARD_PATH = os.path.join(os.environ['ANDROID_SDK_ROOT'],
+                                       'tools/proguard/bin/proguard.sh')
+    if not os.path.exists(self._PROGUARD_PATH):
+      self._PROGUARD_PATH = os.path.join(os.environ['ANDROID_BUILD_TOP'],
+                                         'external/proguard/bin/proguard.sh')
+    self._PROGUARD_CLASS_RE = re.compile(r'\s*?- Program class:\s*([\S]+)$')
+    self._PROGUARD_METHOD_RE = re.compile(r'\s*?- Method:\s*(\S*)[(].*$')
+    self._PROGUARD_ANNOTATION_RE = re.compile(r'\s*?- Annotation \[L(\S*);\]:$')
+    self._PROGUARD_ANNOTATION_CONST_RE = (
+        re.compile(r'\s*?- Constant element value.*$'))
+    self._PROGUARD_ANNOTATION_VALUE_RE = re.compile(r'\s*?- \S+? \[(.*)\]$')
+    self._AAPT_PACKAGE_NAME_RE = re.compile(r'package: .*name=\'(\S*)\'')
+
     if not os.path.exists(apk_path):
       raise Exception('%s not found, please build it' % apk_path)
     self._apk_path = apk_path

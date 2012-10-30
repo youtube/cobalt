@@ -508,7 +508,8 @@ class AndroidCommands(object):
   def StartActivity(self, package, activity, wait_for_completion=False,
                     action='android.intent.action.VIEW',
                     category=None, data=None,
-                    extras=None, trace_file_name=None):
+                    extras=None, trace_file_name=None,
+                    force_stop=False):
     """Starts |package|'s activity on the device.
 
     Args:
@@ -521,8 +522,12 @@ class AndroidCommands(object):
       data: Data string to pass to activity (e.g. 'http://www.example.com/').
       extras: Dict of extras to pass to activity. Values are significant.
       trace_file_name: If used, turns on and saves the trace to this file name.
+      force_stop: force stop the target app before starting the activity (-S
+        flag).
     """
     cmd = 'am start -a %s' % action
+    if force_stop:
+      cmd += ' -S'
     if wait_for_completion:
       cmd += ' -W'
     if category:
@@ -1080,4 +1085,3 @@ class NewLineNormalizer(object):
 
   def flush(self):
     self._output.flush()
-
