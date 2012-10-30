@@ -3060,6 +3060,61 @@ TEST_F(URLRequestTestHTTP, ResponseHeadersTest) {
   EXPECT_EQ("a, b", header);
 }
 
+TEST_F(URLRequestTestHTTP, ProcessSTS) {
+  TestServer::SSLOptions ssl_options;
+  TestServer https_test_server(
+      TestServer::TYPE_HTTPS,
+      ssl_options,
+      FilePath(FILE_PATH_LITERAL("net/data/url_request_unittest")));
+  ASSERT_TRUE(https_test_server.Start());
+
+  TestDelegate d;
+  URLRequest request(
+      https_test_server.GetURL("files/hsts-headers.html"),
+      &d,
+      &default_context_);
+  request.Start();
+  MessageLoop::current()->Run();
+
+  TransportSecurityState* security_state =
+      default_context_.transport_security_state();
+  bool sni_available = true;
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_TRUE(security_state->GetDomainState(
+      TestServer::kLocalhost, sni_available, &domain_state));
+  EXPECT_EQ(TransportSecurityState::DomainState::MODE_FORCE_HTTPS,
+            domain_state.upgrade_mode);
+  EXPECT_TRUE(domain_state.include_subdomains);
+}
+
+TEST_F(URLRequestTestHTTP, ProcessSTSOnce) {
+  TestServer::SSLOptions ssl_options;
+  TestServer https_test_server(
+      TestServer::TYPE_HTTPS,
+      ssl_options,
+      FilePath(FILE_PATH_LITERAL("net/data/url_request_unittest")));
+  ASSERT_TRUE(https_test_server.Start());
+
+  TestDelegate d;
+  URLRequest request(
+      https_test_server.GetURL("files/hsts-multiple-headers.html"),
+      &d,
+      &default_context_);
+  request.Start();
+  MessageLoop::current()->Run();
+
+  // We should have set parameters from the first header, not the second.
+  TransportSecurityState* security_state =
+      default_context_.transport_security_state();
+  bool sni_available = true;
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_TRUE(security_state->GetDomainState(
+      TestServer::kLocalhost, sni_available, &domain_state));
+  EXPECT_EQ(TransportSecurityState::DomainState::MODE_FORCE_HTTPS,
+            domain_state.upgrade_mode);
+  EXPECT_FALSE(domain_state.include_subdomains);
+}
+
 TEST_F(URLRequestTestHTTP, ContentTypeNormalizationTest) {
   ASSERT_TRUE(test_server_.Start());
 
