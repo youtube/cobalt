@@ -87,7 +87,6 @@ class NET_EXPORT_PRIVATE SpdyStream
     virtual void OnClose(int status) = 0;
 
    protected:
-    friend class base::RefCounted<Delegate>;
     virtual ~Delegate() {}
 
    private:
