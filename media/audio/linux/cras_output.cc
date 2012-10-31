@@ -274,8 +274,15 @@ uint32 CrasOutputStream::Render(size_t frames,
 
   // Determine latency and pass that on to the source.
   cras_client_calc_playback_latency(sample_ts, &latency_ts);
-  uint32 latency_usec = (latency_ts.tv_sec * 1000000) +
-      latency_ts.tv_nsec / 1000;
+
+  // Treat negative latency (if we are too slow to render) as 0.
+  uint32 latency_usec;
+  if (latency_ts.tv_sec < 0 || latency_ts.tv_nsec < 0) {
+    latency_usec = 0;
+  } else {
+    latency_usec = (latency_ts.tv_sec * 1000000) +
+        latency_ts.tv_nsec / 1000;
+  }
 
   uint32 frames_latency = latency_usec * frame_rate_ / 1000000;
   uint32 bytes_latency = frames_latency * bytes_per_frame_;
