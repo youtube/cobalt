@@ -18,6 +18,7 @@
 #include "ui/gfx/rect_base.h"
 #include "ui/gfx/rect_f.h"
 #include "ui/gfx/size.h"
+#include "ui/gfx/vector2d.h"
 
 #if defined(OS_WIN)
 typedef struct tagRECT RECT;
@@ -33,7 +34,8 @@ namespace gfx {
 
 class Insets;
 
-class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
+class UI_EXPORT Rect
+    : public RectBase<Rect, Point, Size, Insets, Vector2d, int> {
  public:
   Rect();
   Rect(int width, int height);
@@ -80,7 +82,7 @@ UI_EXPORT Rect UnionRects(const Rect& a, const Rect& b);
 UI_EXPORT Rect SubtractRects(const Rect& a, const Rect& b);
 
 #if !defined(COMPILER_MSVC)
-extern template class RectBase<Rect, Point, Size, Insets, int>;
+extern template class RectBase<Rect, Point, Size, Insets, Vector2d, int>;
 #endif
 
 }  // namespace gfx
