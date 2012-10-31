@@ -361,22 +361,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
 
   typedef std::vector<Count> Counts;
 
-  // These enums are used to facilitate deserialization of renderer histograms
-  // into the browser.
-  enum ClassType {
-    HISTOGRAM,
-    LINEAR_HISTOGRAM,
-    BOOLEAN_HISTOGRAM,
-    CUSTOM_HISTOGRAM,
-    NOT_VALID_IN_RENDERER,
-  };
-
-  enum BucketLayout {
-    EXPONENTIAL,
-    LINEAR,
-    CUSTOM,
-  };
-
   enum Inconsistencies {
     NO_INCONSISTENCIES = 0x0,
     RANGE_CHECKSUM_ERROR = 0x1,
@@ -433,9 +417,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   void AddSamples(const HistogramSamples& samples);
   bool AddSamplesFromPickle(PickleIterator* iter);
 
-  // This method is an interface, used only by LinearHistogram.
-  virtual void SetRangeDescriptions(const DescriptionPair descriptions[]);
-
   // Convenience methods for serializing/deserializing the histograms.
   // Histograms from Renderer process are serialized and sent to the browser.
   // Browser process reconstructs the histogram from the pickled version
@@ -471,7 +452,6 @@ class BASE_EXPORT Histogram : public HistogramBase {
   //----------------------------------------------------------------------------
   // Accessors for factory constuction, serialization and testing.
   //----------------------------------------------------------------------------
-  virtual ClassType histogram_type() const;
   Sample declared_min() const { return declared_min_; }
   Sample declared_max() const { return declared_max_; }
   virtual Sample ranges(size_t i) const;
@@ -490,6 +470,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                            size_t* bucket_count);
 
   // HistogramBase implementation:
+  virtual HistogramType GetHistogramType() const OVERRIDE;
   virtual bool HasConstructionArguments(Sample minimum,
                                         Sample maximum,
                                         size_t bucket_count) const OVERRIDE;
@@ -611,18 +592,26 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                    size_t bucket_count,
                                    int32 flags);
 
+  // Create a LinearHistogram and store a list of number/text values for use in
+  // writing the histogram graph.
+  // |descriptions| can be NULL, which means no special descriptions to set. If
+  // it's not NULL, the last element in the array must has a NULL in its
+  // "description" field.
+  static Histogram* FactoryGetWithRangeDescription(
+      const std::string& name,
+      Sample minimum,
+      Sample maximum,
+      size_t bucket_count,
+      int32 flags,
+      const DescriptionPair descriptions[]);
+
   static void InitializeBucketRanges(Sample minimum,
                                      Sample maximum,
                                      size_t bucket_count,
                                      BucketRanges* ranges);
 
   // Overridden from Histogram:
-  virtual ClassType histogram_type() const OVERRIDE;
-
-  // Store a list of number/text values for use in rendering the histogram.
-  // The last element in the array has a null in its "description" slot.
-  virtual void SetRangeDescriptions(
-      const DescriptionPair descriptions[]) OVERRIDE;
+  virtual HistogramType GetHistogramType() const OVERRIDE;
 
  protected:
   LinearHistogram(const std::string& name,
@@ -658,7 +647,7 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
  public:
   static Histogram* FactoryGet(const std::string& name, int32 flags);
 
-  virtual ClassType histogram_type() const OVERRIDE;
+  virtual HistogramType GetHistogramType() const OVERRIDE;
 
   virtual void AddBoolean(bool value) OVERRIDE;
 
@@ -682,7 +671,7 @@ class BASE_EXPORT CustomHistogram : public Histogram {
                                int32 flags);
 
   // Overridden from Histogram:
-  virtual ClassType histogram_type() const OVERRIDE;
+  virtual HistogramType GetHistogramType() const OVERRIDE;
 
   // Helper method for transforming an array of valid enumeration values
   // to the std::vector<int> expected by HISTOGRAM_CUSTOM_ENUMERATION.
