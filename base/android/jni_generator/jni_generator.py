@@ -3,10 +3,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# TODO (qinmin): Need to refactor this file as base should not know about
-# higher level concepts. Currently this file has knowledge about higher level
-# java classes.
-
 """Extracts native methods from a Java file and generates the JNI bindings.
 If you change this, please run and update the tests."""
 
@@ -20,8 +16,6 @@ import subprocess
 import sys
 import textwrap
 import zipfile
-
-UNKNOWN_JAVA_TYPE_PREFIX = 'UNKNOWN_JAVA_TYPE: '
 
 
 class ParseError(Exception):
@@ -113,168 +107,142 @@ def JavaDataTypeToC(java_type):
     return 'jobject'
 
 
-def JavaParamToJni(param):
-  """Converts a java param into a JNI signature type."""
-  pod_param_map = {
-      'int': 'I',
-      'boolean': 'Z',
-      'long': 'J',
-      'double': 'D',
-      'float': 'F',
-      'byte': 'B',
-      'void': 'V',
-  }
-  object_param_list = [
-      'Ljava/lang/Boolean',
-      'Ljava/lang/Integer',
-      'Ljava/lang/Long',
-      'Ljava/lang/Object',
-      'Ljava/lang/String',
-      'Ljava/util/ArrayList',
-      'Ljava/util/HashMap',
-      'Ljava/util/List',
-      'Landroid/content/Context',
-      'Landroid/graphics/Bitmap',
-      'Landroid/graphics/Canvas',
-      'Landroid/graphics/Rect',
-      'Landroid/graphics/RectF',
-      'Landroid/graphics/Matrix',
-      'Landroid/graphics/Point',
-      'Landroid/graphics/SurfaceTexture$OnFrameAvailableListener',
-      'Landroid/media/MediaPlayer',
-      'Landroid/os/Message',
-      'Landroid/view/KeyEvent',
-      'Landroid/view/Surface',
-      'Landroid/view/View',
-      'Landroid/webkit/ValueCallback',
-      'Ljava/io/InputStream',
-      'Ljava/nio/ByteBuffer',
-      'Ljava/util/Vector',
-  ]
-  app_param_list = [
-      'Landroid/graphics/SurfaceTexture',
-      'Lcom/google/android/apps/chrome/ChromeContextMenuInfo',
-      'Lcom/google/android/apps/chrome/ChromeWindow',
-      'Lcom/google/android/apps/chrome/GoogleLocationSettingsHelperImpl',
-      'Lcom/google/android/apps/chrome/OmniboxSuggestion',
-      'Lcom/google/android/apps/chrome/PageInfoViewer',
-      'Lcom/google/android/apps/chrome/Tab',
-      'Lcom/google/android/apps/chrome/infobar/AutoLogin',
-      'Lcom/google/android/apps/chrome/infobar/InfoBarContainer',
-      'Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar',
-      ('Lcom/google/android/apps/chrome/preferences/ChromeNativePreferences$'
-       'PasswordListObserver'),
-      'Lorg/chromium/android_webview/AwContents',
-      'Lorg/chromium/android_webview/AwContentsClient',
-      'Lorg/chromium/android_webview/AwHttpAuthHandler',
-      'Lorg/chromium/android_webview/AwContentsIoThreadClient',
-      'Lorg/chromium/android_webview/AwWebContentsDelegate',
-      'Lorg/chromium/android_webview/InterceptedRequestData',
-      'Lorg/chromium/android_webview/JsPromptResultReceiver',
-      'Lorg/chromium/android_webview/JsResultHandler',
-      'Lorg/chromium/android_webview/JsResultReceiver',
-      'Lorg/chromium/base/SystemMessageHandler',
-      'Lorg/chromium/chrome/browser/autofill/AutofillExternalDelegate',
-      'Lorg/chromium/chrome/browser/autofill/AutofillSuggestion',
-      'Lorg/chromium/chrome/browser/ChromeBrowserProvider$BookmarkNode',
-      'Lorg/chromium/chrome/browser/ChromeHttpAuthHandler',
-      'Lorg/chromium/chrome/browser/ChromeWebContentsDelegateAndroid',
-      'Lorg/chromium/chrome/browser/FindMatchRectsDetails',
-      'Lorg/chromium/chrome/browser/FindNotificationDetails',
-      'Lorg/chromium/chrome/browser/GoogleLocationSettingsHelper',
-      'Lorg/chromium/chrome/browser/GoogleLocationSettingsHelperStub',
-      'Lorg/chromium/chrome/browser/JavascriptAppModalDialog',
-      'Lorg/chromium/chrome/browser/ProcessUtils',
-      ('Lorg/chromium/chrome/browser/component/navigation_interception/'
-       'InterceptNavigationDelegate'),
-      ('Lorg/chromium/chrome/browser/component/web_contents_delegate_android/'
-       'WebContentsDelegateAndroid'),
-      'Lorg/chromium/chrome/browser/database/SQLiteCursor',
-      'Lorg/chromium/content/app/SandboxedProcessService',
-      'Lorg/chromium/content/browser/ContainerViewDelegate',
-      'Lorg/chromium/content/browser/ContentVideoView',
-      'Lorg/chromium/content/browser/ContentViewCore',
-      'Lorg/chromium/content/browser/DeviceOrientation',
-      'Lorg/chromium/content/browser/JavaInputStream',
-      'Lorg/chromium/content/browser/LocationProvider',
-      'Lorg/chromium/content/browser/SandboxedProcessArgs',
-      'Lorg/chromium/content/browser/SandboxedProcessConnection',
-      'Lorg/chromium/content/browser/TouchPoint',
-      'Lorg/chromium/content/browser/WaitableNativeEvent',
-      'Lorg/chromium/content/browser/WebContentsObserverAndroid',
-      'Lorg/chromium/content/common/DeviceInfo',
-      'Lorg/chromium/content/common/SurfaceTextureListener',
-      'Lorg/chromium/media/MediaPlayerListener',
-      'Lorg/chromium/net/NetworkChangeNotifier',
-      'Lorg/chromium/net/ProxyChangeListener',
-      'Lorg/chromium/ui/gfx/NativeWindow',
-      'Lorg/chromium/ui/SelectFileDialog',
-  ]
-  if param == 'byte[][]':
-    return '[[B'
-  prefix = ''
-  # Array?
-  if param[-2:] == '[]':
-    prefix = '['
-    param = param[:-2]
-  # Generic?
-  if '<' in param:
-    param = param[:param.index('<')]
-  if param in pod_param_map:
-    return prefix + pod_param_map[param]
-  if '/' in param:
-    # Coming from javap, use the fully qualified param directly.
-    return 'L' + param + ';'
-  for qualified_name in object_param_list + app_param_list:
-    if (qualified_name.endswith('/' + param) or
-        qualified_name.endswith('$' + param.replace('.', '$')) or
-        qualified_name == 'L' + param):
-      return prefix + qualified_name + ';'
-  else:
-    return UNKNOWN_JAVA_TYPE_PREFIX + prefix + param + ';'
+class JniParams(object):
+  _UNKNOWN_JAVA_TYPE_PREFIX = 'UNKNOWN_JAVA_TYPE: '
+  _external_param_files = set()
+  _external_param_list = []
 
+  @staticmethod
+  def ReadExternalParamList(external_param_files):
+    if not external_param_files:
+      return
+    assert not JniParams._external_param_files
+    JniParams._external_param_files = set(external_param_files)
+    for external_param_file in JniParams._external_param_files:
+      with file(external_param_file, 'r') as f:
+        contents = f.read()
+        JniParams._external_param_list += [x.strip()
+                                           for x in contents.splitlines()
+                                           if x and not x.startswith('#')]
 
-def JniSignature(params, returns, wrap):
-  """Returns the JNI signature for the given datatypes."""
-  items = ['(']
-  items += [JavaParamToJni(param.datatype) for param in params]
-  items += [')']
-  items += [JavaParamToJni(returns)]
-  if wrap:
-    return '\n' + '\n'.join(['"' + item + '"' for item in items])
-  else:
-    return '"' + ''.join(items) + '"'
+  @staticmethod
+  def JavaToJni(param):
+    """Converts a java param into a JNI signature type."""
+    pod_param_map = {
+        'int': 'I',
+        'boolean': 'Z',
+        'long': 'J',
+        'double': 'D',
+        'float': 'F',
+        'byte': 'B',
+        'void': 'V',
+    }
+    object_param_list = [
+        'Ljava/lang/Boolean',
+        'Ljava/lang/Integer',
+        'Ljava/lang/Long',
+        'Ljava/lang/Object',
+        'Ljava/lang/String',
+        'Ljava/util/ArrayList',
+        'Ljava/util/HashMap',
+        'Ljava/util/List',
+        'Landroid/content/Context',
+        'Landroid/graphics/Bitmap',
+        'Landroid/graphics/Canvas',
+        'Landroid/graphics/Rect',
+        'Landroid/graphics/RectF',
+        'Landroid/graphics/Matrix',
+        'Landroid/graphics/Point',
+        'Landroid/graphics/SurfaceTexture',
+        'Landroid/graphics/SurfaceTexture$OnFrameAvailableListener',
+        'Landroid/media/MediaPlayer',
+        'Landroid/os/Message',
+        'Landroid/view/KeyEvent',
+        'Landroid/view/Surface',
+        'Landroid/view/View',
+        'Landroid/webkit/ValueCallback',
+        'Ljava/io/InputStream',
+        'Ljava/nio/ByteBuffer',
+        'Ljava/util/Vector',
+    ]
+    if param == 'byte[][]':
+      return '[[B'
+    prefix = ''
+    # Array?
+    if param[-2:] == '[]':
+      prefix = '['
+      param = param[:-2]
+    # Generic?
+    if '<' in param:
+      param = param[:param.index('<')]
+    if param in pod_param_map:
+      return prefix + pod_param_map[param]
+    if '/' in param:
+      # Coming from javap, use the fully qualified param directly.
+      return 'L' + param + ';'
+    for qualified_name in object_param_list + JniParams._external_param_list:
+      if (qualified_name.endswith('/' + param) or
+          qualified_name.endswith('$' + param.replace('.', '$')) or
+          qualified_name == 'L' + param):
+        return prefix + qualified_name + ';'
+    else:
+      return JniParams._UNKNOWN_JAVA_TYPE_PREFIX + prefix + param + ';'
 
+  @staticmethod
+  def Signature(params, returns, wrap):
+    """Returns the JNI signature for the given datatypes."""
+    items = ['(']
+    items += [JniParams.JavaToJni(param.datatype) for param in params]
+    items += [')']
+    items += [JniParams.JavaToJni(returns)]
+    if wrap:
+      return '\n' + '\n'.join(['"' + item + '"' for item in items])
+    else:
+      return '"' + ''.join(items) + '"'
 
-def ParseParams(params):
-  """Parses the params into a list of Param objects."""
-  if not params:
-    return []
-  ret = []
-  for p in [p.strip() for p in params.split(',')]:
-    items = p.split(' ')
-    if 'final' in items:
-      items.remove('final')
-    param = Param(
-        datatype=items[0],
-        name=(items[1] if len(items) > 1 else 'p%s' % len(ret)),
-    )
-    ret += [param]
-  return ret
+  @staticmethod
+  def Parse(params):
+    """Parses the params into a list of Param objects."""
+    if not params:
+      return []
+    ret = []
+    for p in [p.strip() for p in params.split(',')]:
+      items = p.split(' ')
+      if 'final' in items:
+        items.remove('final')
+      param = Param(
+          datatype=items[0],
+          name=(items[1] if len(items) > 1 else 'p%s' % len(ret)),
+      )
+      ret += [param]
+    return ret
 
+  @staticmethod
+  def CheckUnknownDatatypes(fully_qualified_class, items):
+    unknown_datatypes = JniParams._GetUnknownDatatypes(items)
+    if unknown_datatypes:
+      msg = ('There are a few unknown datatypes in %s' %
+             fully_qualified_class)
+      msg += '\nPlease, edit %s' % str(JniParams._external_param_files)
+      msg += '\nand add the JNI type(s):\n'
+      for unknown_datatype in unknown_datatypes:
+        msg += '\n%s in methods:\n' % unknown_datatype
+        msg += '\n '.join(unknown_datatypes[unknown_datatype])
+      raise SyntaxError(msg)
 
-def GetUnknownDatatypes(items):
-  """Returns a list containing the unknown datatypes."""
-  unknown_types = {}
-  for item in items:
-    all_datatypes = ([JavaParamToJni(param.datatype)
-                      for param in item.params] +
-                     [JavaParamToJni(item.return_type)])
-    for d in all_datatypes:
-      if d.startswith(UNKNOWN_JAVA_TYPE_PREFIX):
-        unknown_types[d] = (unknown_types.get(d, []) +
-                            [item.name or 'Unable to parse'])
-  return unknown_types
+  @staticmethod
+  def _GetUnknownDatatypes(items):
+    """Returns a list containing the unknown datatypes."""
+    unknown_types = {}
+    for item in items:
+      all_datatypes = ([JniParams.JavaToJni(param.datatype)
+                        for param in item.params] +
+                       [JniParams.JavaToJni(item.return_type)])
+      for d in all_datatypes:
+        if d.startswith(JniParams._UNKNOWN_JAVA_TYPE_PREFIX):
+          unknown_types[d] = (unknown_types.get(d, []) +
+                              [item.name or 'Unable to parse'])
+    return unknown_types
 
 
 def ExtractJNINamespace(contents):
@@ -311,7 +279,7 @@ def ExtractNatives(contents):
         native_class_name=match.group('native_class_name'),
         return_type=match.group('return'),
         name=match.group('name').replace('native', ''),
-        params=ParseParams(match.group('params')))
+        params=JniParams.Parse(match.group('params')))
     natives += [native]
   return natives
 
@@ -373,7 +341,7 @@ def GetMangledMethodName(name, params, return_type):
   """
   mangled_items = []
   for datatype in [return_type] + [x.datatype for x in params]:
-    mangled_items += [GetMangledParam(JavaParamToJni(datatype))]
+    mangled_items += [GetMangledParam(JniParams.JavaToJni(datatype))]
   mangled_name = name + '_'.join(mangled_items)
   assert re.match(r'[0-9a-zA-Z_]+', mangled_name)
   return mangled_name
@@ -434,7 +402,7 @@ def ExtractCalledByNatives(contents):
         java_class_name=match.group('annotation') or '',
         return_type=match.group('return_type'),
         name=match.group('name'),
-        params=ParseParams(match.group('params')))]
+        params=JniParams.Parse(match.group('params')))]
   # Check for any @CalledByNative occurrences that weren't matched.
   unmatched_lines = re.sub(RE_CALLED_BY_NATIVE, '', contents).split('\n')
   for line1, line2 in zip(unmatched_lines, unmatched_lines[1:]):
@@ -470,7 +438,7 @@ class JNIFromJavaP(object):
           java_class_name='',
           return_type=match.group('return_type'),
           name=match.group('name'),
-          params=ParseParams(match.group('params').replace('.', '/')))]
+          params=JniParams.Parse(match.group('params').replace('.', '/')))]
     re_constructor = re.compile('.*? public ' +
                                 self.fully_qualified_class.replace('/', '.') +
                                 '\((?P<params>.*?)\)')
@@ -485,7 +453,7 @@ class JNIFromJavaP(object):
           java_class_name='',
           return_type=self.fully_qualified_class,
           name='Constructor',
-          params=ParseParams(match.group('params').replace('.', '/')),
+          params=JniParams.Parse(match.group('params').replace('.', '/')),
           is_constructor=True)]
     self.called_by_natives = MangleCalledByNatives(self.called_by_natives)
     self.inl_header_file_generator = InlHeaderFileGenerator(
@@ -561,17 +529,8 @@ class InlHeaderFileGenerator(object):
     self.natives = natives
     self.called_by_natives = called_by_natives
     self.header_guard = fully_qualified_class.replace('/', '_') + '_JNI'
-    unknown_datatypes = GetUnknownDatatypes(self.natives +
-                                            self.called_by_natives)
-    if unknown_datatypes:
-      msg = ('There are a few unknown datatypes in %s' %
-             self.fully_qualified_class)
-      msg += '\nPlease, edit %s' % sys.argv[0]
-      msg += '\nand add the java type to JavaParamToJni()\n'
-      for unknown_datatype in unknown_datatypes:
-        msg += '\n%s in methods:\n' % unknown_datatype
-        msg += '\n '.join(unknown_datatypes[unknown_datatype])
-      raise SyntaxError(msg)
+    JniParams.CheckUnknownDatatypes(self.fully_qualified_class,
+                                    self.natives + self.called_by_natives)
 
   def GetContent(self):
     """Returns the content of the JNI binding file."""
@@ -865,8 +824,9 @@ ${FUNCTION_HEADER}
     template = Template("""\
     { "native${NAME}", ${JNI_SIGNATURE}, reinterpret_cast<void*>(${NAME}) },""")
     values = {'NAME': native.name,
-              'JNI_SIGNATURE': JniSignature(native.params, native.return_type,
-                                            True)}
+              'JNI_SIGNATURE': JniParams.Signature(native.params,
+                                                   native.return_type,
+                                                   True)}
     return template.substitute(values)
 
   def GetUniqueClasses(self, origin):
@@ -937,9 +897,9 @@ jclass g_${JAVA_CLASS}_clazz = NULL;""")
         'JNI_NAME': jni_name,
         'METHOD_ID_VAR_NAME': called_by_native.method_id_var_name,
         'STATIC': 'STATIC' if called_by_native.static else 'INSTANCE',
-        'JNI_SIGNATURE': JniSignature(called_by_native.params,
-                                      jni_return_type,
-                                      True)
+        'JNI_SIGNATURE': JniParams.Signature(called_by_native.params,
+                                             jni_return_type,
+                                             True)
     }
     return template.substitute(values)
 
@@ -1034,7 +994,13 @@ See SampleForTests.java for more details.
   option_parser.add_option('--output_dir',
                            help='The output directory. Must be used with '
                            '--input')
+  option_parser.add_option('--external_param_list',
+                           help='A file name containing a list with extra '
+                           'fully-qualified param names. Can be used multiple '
+                           'times.',
+                           action='append')
   options, args = option_parser.parse_args(argv)
+  JniParams.ReadExternalParamList(options.external_param_list)
   if options.jar_file:
     input_file = ExtractJarInputFile(options.jar_file, options.input_file,
                                      options.output_dir)
