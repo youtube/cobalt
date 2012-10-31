@@ -302,6 +302,12 @@ TEST_F(TransportSecurityStateTest, ValidSTSHeaders) {
   expiry = now + base::TimeDelta::FromSeconds(0);
   EXPECT_EQ(expiry, state.upgrade_expiry);
   EXPECT_TRUE(state.include_subdomains);
+  // When max-age == 0, we downgrade to MODE_DEFAULT rather than deleting
+  // the entire DomainState. (That is because we currently overload
+  // DomainState to also include pins, and we don't want to invalidate any
+  // opportunistic pins that may be in place.)
+  EXPECT_EQ(TransportSecurityState::DomainState::MODE_DEFAULT,
+            state.upgrade_mode);
 
   EXPECT_TRUE(state.ParseSTSHeader(
       now,

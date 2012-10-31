@@ -515,14 +515,14 @@ bool TransportSecurityState::DomainState::ParseSTSHeader(
     case AFTER_MAX_AGE:
     case AFTER_INCLUDE_SUBDOMAINS:
     case AFTER_UNKNOWN_LABEL:
-      // BUG(156147), TODO(palmer): If max_age_candidate == 0, we should
-      // delete (or, not set) the HSTS record, rather than treat it as a
-      // normal value. However, now + 0 effectively deletes the entry
-      // because it will not be enforced (it expires immediately,
-      // essentially).
-      upgrade_expiry = now + base::TimeDelta::FromSeconds(max_age_candidate);
+      if (max_age_candidate > 0) {
+        upgrade_expiry = now + base::TimeDelta::FromSeconds(max_age_candidate);
+        upgrade_mode = MODE_FORCE_HTTPS;
+      } else {
+        upgrade_expiry = now;
+        upgrade_mode = MODE_DEFAULT;
+      }
       include_subdomains = include_subdomains_candidate;
-      upgrade_mode = MODE_FORCE_HTTPS;
       return true;
     case START:
     case DIRECTIVE_END:
