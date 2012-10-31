@@ -141,8 +141,11 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
   if (debug::BeingDebugged())
     debug::BreakDebugger();
 
+#if defined(OS_MACOSX)
+  // TODO(phajdan.jr): Fix async-signal non-safety (http://crbug.com/101155).
   DLOG(ERROR) << "Received signal " << signal;
   debug::StackTrace().PrintBacktrace();
+#endif
 
   // TODO(shess): Port to Linux.
 #if defined(OS_MACOSX)
