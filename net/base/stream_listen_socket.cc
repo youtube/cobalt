@@ -189,6 +189,16 @@ void StreamListenSocket::Read() {
       Close();
 #endif
     } else {
+#if defined(__LB_SHELL__)
+      if (len < 0) {
+        // PS3 returns a negative error code for length instead of a simple -1.
+        // Thus, we must check it in the len < 0 case.
+        if (!LB::Platform::NetWouldBlock()) {
+          Close();
+        }
+        break;
+      }
+#endif
       // TODO(ibrar): maybe change DidRead to take a length instead.
       DCHECK_GT(len, 0);
       DCHECK_LE(len, kReadBufSize);
@@ -213,12 +223,10 @@ void StreamListenSocket::CloseSocket(SocketDescriptor s) {
     UnwatchSocket();
 #if defined(OS_WIN)
     closesocket(s);
-#elif defined(OS_POSIX)
-#if defined(__LB_SHELL__)
+#elif defined(__LB_SHELL__)
     LB::Platform::close_socket(s);
-#else
+#elif defined(OS_POSIX)
     close(s);
-#endif
 #endif
   }
 }
@@ -227,21 +235,21 @@ void StreamListenSocket::WatchSocket(WaitState state) {
 #if defined(OS_WIN)
   WSAEventSelect(socket_, socket_event_, FD_ACCEPT | FD_CLOSE | FD_READ);
   watcher_.StartWatching(socket_event_, this);
+#elif defined(__LB_SHELL__)
+  watcher_.StartWatching(socket_, base::MessagePumpShell::WATCH_READ, this);
+  wait_state_ = state;
 #elif defined(OS_POSIX)
   // Implicitly calls StartWatchingFileDescriptor().
-#if defined(__LB_SHELL__)
-  MessageLoopForIO::current()->WatchSocket(
-      socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
-#else
   MessageLoopForIO::current()->WatchFileDescriptor(
       socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
-#endif
   wait_state_ = state;
 #endif
 }
 
 void StreamListenSocket::UnwatchSocket() {
 #if defined(OS_WIN)
+  watcher_.StopWatching();
+#elif defined(__LB_SHELL__)
   watcher_.StopWatching();
 #elif defined(OS_POSIX)
   watcher_.StopWatchingFileDescriptor();
@@ -278,6 +286,30 @@ void StreamListenSocket::OnObjectSignaled(HANDLE object) {
   }
   if (ev.lNetworkEvents & FD_CLOSE) {
     Close();
+  }
+}
+#elif defined(__LB_SHELL__)
+// MessageLoop watcher callback.
+void StreamListenSocket::OnObjectSignaled(int object) {
+
+  // Object Watcher removes the object whenever it gets signaled, so rewatch it
+  watcher_.StartWatching(object, base::MessagePumpShell::WATCH_READ, this);
+
+  switch (wait_state_) {
+    case WAITING_ACCEPT:
+      Accept();
+      break;
+    case WAITING_READ:
+      if (reads_paused_) {
+        has_pending_reads_ = true;
+      } else {
+        Read();
+      }
+      break;
+    default:
+      // Close() is called by Read() in the Linux case.
+      NOTREACHED();
+      break;
   }
 }
 #elif defined(OS_POSIX)
@@ -358,8 +390,21 @@ void StreamListenSocket::SendData() {
       // The call would block. Don't send any more data at this time.
       break;
     } else {
+#if defined(__LB_SHELL__)
+      // PS3 returns a negative error code for 'sent' instead of a simple -1.
+      // Thus, we must check it in this else case.
+      if (!LB::Platform::NetWouldBlock()) {
+        // Don't try to re-send data after a socket error.
+        send_buffers_.clear();
+        send_pending_size_ = 0;
+        send_error_ = true;
+        return;
+      }
+      break;
+#else
       NOTREACHED();
       break;
+#endif
     }
   }
 
