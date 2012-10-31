@@ -59,6 +59,10 @@ export ANDROID_SDK_VERSION=16
 . "$(dirname $BASH_SOURCE)"/envsetup_functions.sh
 
 if [[ "${ANDROID_SDK_BUILD}" -eq 1 ]]; then
+  process_options "$@"
+  if [[ -z "${TARGET_ARCH}" ]]; then
+    return 1
+  fi
   sdk_build_init
 # Sets up environment for building Chromium for Android with source. Expects
 # android environment setup and lunch.
