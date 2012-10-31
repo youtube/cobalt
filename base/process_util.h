@@ -816,10 +816,6 @@ struct BASE_EXPORT SystemMemoryInfoKB {
   int active_file;
   int inactive_file;
   int shmem;
-
-  // Gem data will be -1 if not supported.
-  int gem_objects;
-  long long gem_size;
 };
 // Retrieves data from /proc/meminfo about system-wide memory consumption.
 // Fills in the provided |meminfo| structure. Returns true on success.
