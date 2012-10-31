@@ -800,6 +800,9 @@ class ProxyService::PacRequest
   int QueryDidComplete(int result_code) {
     DCHECK(!was_cancelled());
 
+    // Note that DidFinishResolvingProxy might modify |results_|.
+    int rv = service_->DidFinishResolvingProxy(results_, result_code, net_log_);
+
     // Make a note in the results which configuration was in use at the
     // time of the resolve.
     results_->config_id_ = config_id_;
@@ -811,7 +814,7 @@ class ProxyService::PacRequest
     config_id_ = ProxyConfig::kInvalidConfigID;
     config_source_ = PROXY_CONFIG_SOURCE_UNKNOWN;
 
-    return service_->DidFinishResolvingProxy(results_, result_code, net_log_);
+    return rv;
   }
 
   BoundNetLog* net_log() { return &net_log_; }

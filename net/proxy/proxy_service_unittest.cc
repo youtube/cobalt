@@ -306,6 +306,42 @@ TEST_F(ProxyServiceTest, PAC_FailoverWithoutDirect) {
   EXPECT_TRUE(info.is_empty());
 }
 
+// Test that if the execution of the PAC script fails (i.e. javascript runtime
+// error), and the PAC settings are non-mandatory, that we fall-back to direct.
+TEST_F(ProxyServiceTest, PAC_RuntimeError) {
+  MockProxyConfigService* config_service =
+      new MockProxyConfigService("http://foopy/proxy.pac");
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+
+  ProxyService service(config_service, resolver, NULL);
+
+  GURL url("http://this-causes-js-error/");
+
+  ProxyInfo info;
+  TestCompletionCallback callback1;
+  int rv = service.ResolveProxy(
+      url, &info, callback1.callback(), NULL, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"),
+            resolver->pending_set_pac_script_request()->script_data()->url());
+  resolver->pending_set_pac_script_request()->CompleteNow(OK);
+
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(url, resolver->pending_requests()[0]->url());
+
+  // Simulate a failure in the PAC executor.
+  resolver->pending_requests()[0]->CompleteNow(ERR_PAC_SCRIPT_FAILED);
+
+  EXPECT_EQ(OK, callback1.WaitForResult());
+
+  // Since the PAC script was non-mandatory, we should have fallen-back to
+  // DIRECT.
+  EXPECT_TRUE(info.is_direct());
+  EXPECT_TRUE(info.did_use_pac_script());
+  EXPECT_EQ(1, info.config_id());
+}
+
 // The proxy list could potentially contain the DIRECT fallback choice
 // in a location other than the very end of the list, and could even
 // specify it multiple times.
