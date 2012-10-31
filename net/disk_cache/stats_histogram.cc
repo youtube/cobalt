@@ -63,7 +63,7 @@ StatsHistogram* StatsHistogram::FactoryGet(const std::string& name,
     histogram = StatisticsRecorder::RegisterOrDeleteDuplicate(stats_histogram);
   }
 
-  DCHECK(HISTOGRAM == histogram->histogram_type());
+  DCHECK(base::HISTOGRAM == histogram->GetHistogramType());
   DCHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
 
   // We're preparing for an otherwise unsafe upcast by ensuring we have the

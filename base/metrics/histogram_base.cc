@@ -6,11 +6,30 @@
 
 #include <climits>
 
+#include "base/logging.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/values.h"
 
 namespace base {
+
+std::string HistogramTypeToString(HistogramType type) {
+  switch(type) {
+    case HISTOGRAM:
+      return "HISTOGRAM";
+    case LINEAR_HISTOGRAM:
+      return "LINEAR_HISTOGRAM";
+    case BOOLEAN_HISTOGRAM:
+      return "BOOLEAN_HISTOGRAM";
+    case CUSTOM_HISTOGRAM:
+      return "CUSTOM_HISTOGRAM";
+    case SPARSE_HISTOGRAM:
+      return "SPARSE_HISTOGRAM";
+    default:
+      NOTREACHED();
+  }
+  return "UNKNOWN";
+}
 
 const HistogramBase::Sample HistogramBase::kSampleType_MAX = INT_MAX;
 
