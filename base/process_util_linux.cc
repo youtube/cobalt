@@ -677,6 +677,24 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
     }
   }
 #endif
+
+  // Check for gem data and report if present.
+  FilePath geminfo_file("/sys/kernel/debug/dri/0/i915_gem_objects");
+  std::string geminfo_data;
+  meminfo->gem_objects = -1;
+  meminfo->gem_size = -1;
+  if (file_util::ReadFileToString(geminfo_file, &geminfo_data)) {
+    int gem_objects = -1;
+    long long gem_size = -1;
+    int num_res = sscanf(geminfo_data.c_str(),
+                         "%d objects, %lld bytes",
+                         &gem_objects, &gem_size);
+    if (num_res == 2) {
+      meminfo->gem_objects = gem_objects;
+      meminfo->gem_size = gem_size;
+    }
+  }
+
   return true;
 }
 
