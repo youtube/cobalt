@@ -1,0 +1,9 @@
+{
+    "description": "RoboHornet Pro benchmark",
+    "archive_path": "../data/robohornetpro.wpr",
+    "pages": [
+        {
+            "url": "http://ie.microsoft.com/testdrive/performance/robohornetpro/"
+        }
+    ]
+}
