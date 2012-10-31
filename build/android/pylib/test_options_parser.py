@@ -124,6 +124,8 @@ def AddInstrumentationOptions(option_parser):
                            help=('If present, will set the buildbot status '
                                  'as STEP_FAILURE, otherwise as STEP_WARNINGS '
                                  'when test(s) fail.'))
+  option_parser.add_option('--disable_assertions', action='store_true',
+                           help='Run with java assertions disabled.')
 
 
 def ValidateInstrumentationOptions(option_parser, options, args):
