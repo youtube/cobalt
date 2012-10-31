@@ -10,13 +10,15 @@
 #include "ui/gfx/point_f.h"
 #include "ui/gfx/rect_base.h"
 #include "ui/gfx/size_f.h"
+#include "ui/gfx/vector2d_f.h"
 
 namespace gfx {
 
 class InsetsF;
 
 // A floating version of gfx::Rect.
-class UI_EXPORT RectF : public RectBase<RectF, PointF, SizeF, InsetsF, float> {
+class UI_EXPORT RectF
+    : public RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float> {
  public:
   RectF();
   RectF(float width, float height);
@@ -59,7 +61,7 @@ inline RectF ScaleRect(const RectF& r, float scale) {
 }
 
 #if !defined(COMPILER_MSVC)
-extern template class RectBase<RectF, PointF, SizeF, InsetsF, float>;
+extern template class RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>;
 #endif
 
 }  // namespace gfx
