@@ -72,6 +72,10 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   virtual bool SetKeepAlive(bool enable, int delay);
   virtual bool SetNoDelay(bool no_delay);
 
+  // Perform reads in non-blocking mode instead of overlapped mode.
+  // Used for experiments.
+  static void DisableOverlappedReads();
+
  private:
   // State machine for connecting the socket.
   enum ConnectState {
@@ -99,11 +103,13 @@ class NET_EXPORT TCPClientSocketWin : public StreamSocket,
   // Called after Connect() has completed with |net_error|.
   void LogConnectCompletion(int net_error);
 
+  int DoRead(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
   void DidCompleteConnect();
   void DidCompleteRead();
   void DidCompleteWrite();
+  void DidSignalRead();
 
   SOCKET socket_;
 

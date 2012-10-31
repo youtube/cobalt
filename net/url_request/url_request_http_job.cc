@@ -1298,6 +1298,15 @@ void URLRequestHttpJob::RecordTimer() {
 
   UMA_HISTOGRAM_MEDIUM_TIMES("Net.HttpTimeToFirstByte", to_start);
 
+  static const bool use_overlapped_read_histogram =
+      base::FieldTrialList::TrialExists("OverlappedReadImpact");
+  if (use_overlapped_read_histogram) {
+    UMA_HISTOGRAM_MEDIUM_TIMES(
+        base::FieldTrial::MakeName("Net.HttpTimeToFirstByte",
+                                   "OverlappedReadImpact"),
+        to_start);
+  }
+
   static const bool use_warm_socket_impact_histogram =
       base::FieldTrialList::TrialExists("WarmSocketImpact");
   if (use_warm_socket_impact_histogram) {
@@ -1488,6 +1497,41 @@ void URLRequestHttpJob::RecordPerfHistograms(CompletionCause reason) {
       UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTimeCached", total_time);
     } else  {
       UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTimeNotCached", total_time);
+    }
+  }
+
+  static const bool use_overlapped_read_histogram =
+      base::FieldTrialList::TrialExists("OverlappedReadImpact");
+  if (use_overlapped_read_histogram) {
+    UMA_HISTOGRAM_TIMES(
+        base::FieldTrial::MakeName("Net.HttpJob.TotalTime",
+                                   "OverlappedReadImpact"),
+        total_time);
+
+    if (reason == FINISHED) {
+      UMA_HISTOGRAM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeSuccess",
+                                     "OverlappedReadImpact"),
+          total_time);
+    } else {
+      UMA_HISTOGRAM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCancel",
+                                     "OverlappedReadImpact"),
+          total_time);
+    }
+
+    if (response_info_) {
+      if (response_info_->was_cached) {
+        UMA_HISTOGRAM_TIMES(
+            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCached",
+                                       "OverlappedReadImpact"),
+            total_time);
+      } else  {
+        UMA_HISTOGRAM_TIMES(
+            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeNotCached",
+                                       "OverlappedReadImpact"),
+            total_time);
+      }
     }
   }
 
