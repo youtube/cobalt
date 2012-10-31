@@ -14,9 +14,25 @@
 namespace base {
 
 class DictionaryValue;
+class HistogramSamples;
 class ListValue;
 
-class HistogramSamples;
+////////////////////////////////////////////////////////////////////////////////
+// These enums are used to facilitate deserialization of histograms from other
+// processes into the browser. If you create another class that inherits from
+// HistogramBase, add new histogram types and names below.
+
+enum BASE_EXPORT HistogramType {
+  HISTOGRAM,
+  LINEAR_HISTOGRAM,
+  BOOLEAN_HISTOGRAM,
+  CUSTOM_HISTOGRAM,
+  SPARSE_HISTOGRAM,
+};
+
+std::string HistogramTypeToString(HistogramType type);
+
+////////////////////////////////////////////////////////////////////////////////
 
 class BASE_EXPORT HistogramBase {
  public:
@@ -40,7 +56,6 @@ class BASE_EXPORT HistogramBase {
     kHexRangePrintingFlag = 0x8000,
   };
 
-
   HistogramBase(const std::string& name);
   virtual ~HistogramBase();
 
@@ -50,6 +65,8 @@ class BASE_EXPORT HistogramBase {
   int32 flags() const { return flags_; }
   void SetFlags(int32 flags);
   void ClearFlags(int32 flags);
+
+  virtual HistogramType GetHistogramType() const = 0;
 
   // Whether the histogram has construction arguments as parameters specified.
   // For histograms that don't have the concept of minimum, maximum or

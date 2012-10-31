@@ -26,6 +26,10 @@ HistogramBase* SparseHistogram::FactoryGet(const string& name, int32 flags) {
 
 SparseHistogram::~SparseHistogram() {}
 
+HistogramType SparseHistogram::GetHistogramType() const {
+  return SPARSE_HISTOGRAM;
+}
+
 bool SparseHistogram::HasConstructionArguments(Sample minimum,
                                                Sample maximum,
                                                size_t bucket_count) const {

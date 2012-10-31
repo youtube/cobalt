@@ -28,6 +28,7 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
   virtual ~SparseHistogram();
 
   // HistogramBase implementation:
+  virtual HistogramType GetHistogramType() const OVERRIDE;
   virtual bool HasConstructionArguments(Sample minimum,
                                         Sample maximum,
                                         size_t bucket_count) const OVERRIDE;
