@@ -210,59 +210,85 @@ void ScaleYUVToRGB32(const uint8* y_buf,
       reinterpret_cast<uint8*>(reinterpret_cast<uintptr_t>(yuvbuf + 15) & ~15);
   uint8* ubuf = ybuf + kFilterBufferSize;
   uint8* vbuf = ubuf + kFilterBufferSize;
+
   // TODO(fbarchard): Fixed point math is off by 1 on negatives.
-  int yscale_fixed = (source_height << kFractionBits) / height;
+
+  // We take a y-coordinate in [0,1] space in the source image space, and
+  // transform to a y-coordinate in [0,1] space in the destination image space.
+  // Note that the coordinate endpoints lie on pixel boundaries, not on pixel
+  // centers: e.g. a two-pixel-high image will have pixel centers at 0.25 and
+  // 0.75.  The formula is as follows (in fixed-point arithmetic):
+  //   y_dst = dst_height * ((y_src + 0.5) / src_height)
+  //   dst_pixel = clamp([0, dst_height - 1], floor(y_dst - 0.5))
+  // Implement this here as an accumulator + delta, to avoid expensive math
+  // in the loop.
+  int source_y_subpixel_accum =
+    ((kFractionMax / 2) * source_height) / height - (kFractionMax / 2);
+  int source_y_subpixel_delta = ((1 << kFractionBits) * source_height) / height;
 
   // TODO(fbarchard): Split this into separate function for better efficiency.
   for (int y = 0; y < height; ++y) {
     uint8* dest_pixel = rgb_buf + y * rgb_pitch;
-    int source_y_subpixel = (y * yscale_fixed);
-    if (yscale_fixed >= (kFractionMax * 2)) {
-      source_y_subpixel += kFractionMax / 2;  // For 1/2 or less, center filter.
-    }
-    int source_y = source_y_subpixel >> kFractionBits;
+    int source_y_subpixel = source_y_subpixel_accum;
+    source_y_subpixel_accum += source_y_subpixel_delta;
+    if (source_y_subpixel < 0)
+      source_y_subpixel = 0;
+    else if (source_y_subpixel > ((source_height - 1) << kFractionBits))
+      source_y_subpixel = (source_height - 1) << kFractionBits;
 
-    const uint8* y0_ptr = y_buf + source_y * y_pitch;
-    const uint8* y1_ptr = y0_ptr + y_pitch;
-
-    const uint8* u0_ptr = u_buf + (source_y >> y_shift) * uv_pitch;
-    const uint8* u1_ptr = u0_ptr + uv_pitch;
-    const uint8* v0_ptr = v_buf + (source_y >> y_shift) * uv_pitch;
-    const uint8* v1_ptr = v0_ptr + uv_pitch;
-
-    // vertical scaler uses 16.8 fixed point
-    int source_y_fraction = (source_y_subpixel & kFractionMask) >> 8;
-    int source_uv_fraction =
-        ((source_y_subpixel >> y_shift) & kFractionMask) >> 8;
-
-    const uint8* y_ptr = y0_ptr;
-    const uint8* u_ptr = u0_ptr;
-    const uint8* v_ptr = v0_ptr;
+    const uint8* y_ptr = NULL;
+    const uint8* u_ptr = NULL;
+    const uint8* v_ptr = NULL;
     // Apply vertical filtering if necessary.
     // TODO(fbarchard): Remove memcpy when not necessary.
     if (filter & media::FILTER_BILINEAR_V) {
-      if (yscale_fixed != kFractionMax &&
-          source_y_fraction && ((source_y + 1) < source_height)) {
-        filter_proc(ybuf, y0_ptr, y1_ptr, source_width, source_y_fraction);
+      int source_y = source_y_subpixel >> kFractionBits;
+      y_ptr = y_buf + source_y * y_pitch;
+      u_ptr = u_buf + (source_y >> y_shift) * uv_pitch;
+      v_ptr = v_buf + (source_y >> y_shift) * uv_pitch;
+
+      // Vertical scaler uses 16.8 fixed point.
+      int source_y_fraction =
+          (source_y_subpixel & kFractionMask) >> 8;
+      if (source_y_fraction != 0) {
+        filter_proc(ybuf, y_ptr, y_ptr + y_pitch, source_width,
+                    source_y_fraction);
       } else {
-        memcpy(ybuf, y0_ptr, source_width);
+        memcpy(ybuf, y_ptr, source_width);
       }
       y_ptr = ybuf;
       ybuf[source_width] = ybuf[source_width-1];
+
       int uv_source_width = (source_width + 1) / 2;
-      if (yscale_fixed != kFractionMax &&
-          source_uv_fraction &&
-          (((source_y >> y_shift) + 1) < (source_height >> y_shift))) {
-        filter_proc(ubuf, u0_ptr, u1_ptr, uv_source_width, source_uv_fraction);
-        filter_proc(vbuf, v0_ptr, v1_ptr, uv_source_width, source_uv_fraction);
+      int source_uv_fraction;
+
+      // For formats with half-height UV planes, each even-numbered pixel row
+      // should not interpolate, since the next row to interpolate from should
+      // be a duplicate of the current row.
+      if (y_shift && (source_y & 0x1) == 0)
+        source_uv_fraction = 0;
+      else
+        source_uv_fraction = source_y_fraction;
+
+      if (source_uv_fraction != 0) {
+        filter_proc(ubuf, u_ptr, u_ptr + uv_pitch, uv_source_width,
+            source_uv_fraction);
+        filter_proc(vbuf, v_ptr, v_ptr + uv_pitch, uv_source_width,
+            source_uv_fraction);
       } else {
-        memcpy(ubuf, u0_ptr, uv_source_width);
-        memcpy(vbuf, v0_ptr, uv_source_width);
+        memcpy(ubuf, u_ptr, uv_source_width);
+        memcpy(vbuf, v_ptr, uv_source_width);
       }
       u_ptr = ubuf;
       v_ptr = vbuf;
       ubuf[uv_source_width] = ubuf[uv_source_width - 1];
       vbuf[uv_source_width] = vbuf[uv_source_width - 1];
+    } else {
+      // Offset by 1/2 pixel for center sampling.
+      int source_y = (source_y_subpixel + (kFractionMax / 2)) >> kFractionBits;
+      y_ptr = y_buf + source_y * y_pitch;
+      u_ptr = u_buf + (source_y >> y_shift) * uv_pitch;
+      v_ptr = v_buf + (source_y >> y_shift) * uv_pitch;
     }
     if (source_dx == kFractionMax) {  // Not scaled
       convert_proc(y_ptr, u_ptr, v_ptr, dest_pixel, width);
