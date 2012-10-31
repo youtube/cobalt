@@ -624,12 +624,12 @@ void MessageLoop::StartHistogrammer() {
   if (enable_histogrammer_ && !message_histogram_
       && base::StatisticsRecorder::IsActive()) {
     DCHECK(!thread_name_.empty());
-    message_histogram_ = base::LinearHistogram::FactoryGet(
+    message_histogram_ = base::LinearHistogram::FactoryGetWithRangeDescription(
         "MsgLoop:" + thread_name_,
         kLeastNonZeroMessageId, kMaxMessageId,
         kNumberOfDistinctMessagesDisplayed,
-        message_histogram_->kHexRangePrintingFlag);
-    message_histogram_->SetRangeDescriptions(event_descriptions_);
+        message_histogram_->kHexRangePrintingFlag,
+        event_descriptions_);
   }
 #endif
 }

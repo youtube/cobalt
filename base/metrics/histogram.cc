@@ -28,31 +28,6 @@
 using std::string;
 using std::vector;
 
-namespace {
-
-std::string ClassTypeToString(base::Histogram::ClassType type) {
-  switch(type) {
-    case base::Histogram::HISTOGRAM:
-      return "HISTOGRAM";
-      break;
-    case base::Histogram::LINEAR_HISTOGRAM:
-      return "LINEAR_HISTOGRAM";
-      break;
-    case base::Histogram::BOOLEAN_HISTOGRAM:
-      return "BOOLEAN_HISTOGRAM";
-      break;
-    case base::Histogram::CUSTOM_HISTOGRAM:
-      return "CUSTOM_HISTOGRAM";
-      break;
-    default:
-      NOTREACHED();
-      break;
-  }
-  return "UNKNOWN";
-}
-
-}  // namespace
-
 namespace base {
 
 typedef HistogramBase::Count Count;
@@ -112,7 +87,7 @@ Histogram* Histogram::FactoryGet(const string& name,
   // TODO(rtenneti): delete this code after debugging.
   CheckCorruption(*histogram, false);
 
-  CHECK_EQ(HISTOGRAM, histogram->histogram_type());
+  CHECK_EQ(HISTOGRAM, histogram->GetHistogramType());
   CHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
   return histogram;
 }
@@ -186,14 +161,9 @@ bool Histogram::AddSamplesFromPickle(PickleIterator* iter) {
   return samples_->AddFromPickle(iter);
 }
 
-void Histogram::SetRangeDescriptions(const DescriptionPair descriptions[]) {
-  DCHECK(false);
-}
-
 // static
 string Histogram::SerializeHistogramInfo(const Histogram& histogram,
                                          const HistogramSamples& snapshot) {
-  DCHECK_NE(NOT_VALID_IN_RENDERER, histogram.histogram_type());
   DCHECK(histogram.bucket_ranges()->HasValidChecksum());
 
   Pickle pickle;
@@ -202,7 +172,7 @@ string Histogram::SerializeHistogramInfo(const Histogram& histogram,
   pickle.WriteInt(histogram.declared_max());
   pickle.WriteUInt64(histogram.bucket_count());
   pickle.WriteUInt32(histogram.bucket_ranges()->checksum());
-  pickle.WriteInt(histogram.histogram_type());
+  pickle.WriteInt(histogram.GetHistogramType());
   pickle.WriteInt(histogram.flags());
 
   histogram.SerializeRanges(&pickle);
@@ -251,8 +221,6 @@ bool Histogram::DeserializeHistogramInfo(const string& histogram_info) {
 
   Flags flags = static_cast<Flags>(pickle_flags & ~kIPCSerializationSourceFlag);
 
-  DCHECK_NE(NOT_VALID_IN_RENDERER, histogram_type);
-
   Histogram* render_histogram(NULL);
 
   if (histogram_type == HISTOGRAM) {
@@ -280,7 +248,7 @@ bool Histogram::DeserializeHistogramInfo(const string& histogram_info) {
   DCHECK_EQ(render_histogram->declared_min(), declared_min);
   DCHECK_EQ(render_histogram->declared_max(), declared_max);
   DCHECK_EQ(render_histogram->bucket_count(), bucket_count);
-  DCHECK_EQ(render_histogram->histogram_type(), histogram_type);
+  DCHECK_EQ(render_histogram->GetHistogramType(), histogram_type);
 
   if (render_histogram->bucket_ranges()->checksum() != range_checksum) {
     return false;
@@ -332,10 +300,6 @@ Histogram::Inconsistencies Histogram::FindCorruption(
   return static_cast<Inconsistencies>(inconsistencies);
 }
 
-Histogram::ClassType Histogram::histogram_type() const {
-  return HISTOGRAM;
-}
-
 Sample Histogram::ranges(size_t i) const {
   return bucket_ranges_->range(i);
 }
@@ -371,6 +335,10 @@ bool Histogram::InspectConstructionArguments(const string& name,
   if (*bucket_count > static_cast<size_t>(*maximum - *minimum + 2))
     return false;
   return true;
+}
+
+HistogramType Histogram::GetHistogramType() const {
+  return HISTOGRAM;
 }
 
 bool Histogram::HasConstructionArguments(Sample minimum,
@@ -599,7 +567,7 @@ void Histogram::WriteAsciiBucketGraph(double current_size,
 }
 
 void Histogram::GetParameters(DictionaryValue* params) const {
-  params->SetString("type", ClassTypeToString(histogram_type()));
+  params->SetString("type", HistogramTypeToString(GetHistogramType()));
   params->SetInteger("min", declared_min());
   params->SetInteger("max", declared_max());
   params->SetInteger("bucket_count", static_cast<int>(bucket_count()));
@@ -635,6 +603,26 @@ Histogram* LinearHistogram::FactoryGet(const string& name,
                                        Sample maximum,
                                        size_t bucket_count,
                                        int32 flags) {
+  return FactoryGetWithRangeDescription(
+      name, minimum, maximum, bucket_count, flags, NULL);
+}
+
+Histogram* LinearHistogram::FactoryTimeGet(const string& name,
+                                           TimeDelta minimum,
+                                           TimeDelta maximum,
+                                           size_t bucket_count,
+                                           int32 flags) {
+  return FactoryGet(name, minimum.InMilliseconds(), maximum.InMilliseconds(),
+                    bucket_count, flags);
+}
+
+Histogram* LinearHistogram::FactoryGetWithRangeDescription(
+      const std::string& name,
+      Sample minimum,
+      Sample maximum,
+      size_t bucket_count,
+      int32 flags,
+      const DescriptionPair descriptions[]) {
   bool valid_arguments = Histogram::InspectConstructionArguments(
       name, &minimum, &maximum, &bucket_count);
   DCHECK(valid_arguments);
@@ -652,6 +640,14 @@ Histogram* LinearHistogram::FactoryGet(const string& name,
                             registered_ranges);
     CheckCorruption(*tentative_histogram, true);
 
+    // Set range descriptions.
+    if (descriptions) {
+      for (int i = 0; descriptions[i].description; ++i) {
+        tentative_histogram->bucket_description_[descriptions[i].sample] =
+            descriptions[i].description;
+      }
+    }
+
     tentative_histogram->SetFlags(flags);
     histogram =
         StatisticsRecorder::RegisterOrDeleteDuplicate(tentative_histogram);
@@ -659,29 +655,13 @@ Histogram* LinearHistogram::FactoryGet(const string& name,
   // TODO(rtenneti): delete this code after debugging.
   CheckCorruption(*histogram, false);
 
-  CHECK_EQ(LINEAR_HISTOGRAM, histogram->histogram_type());
+  CHECK_EQ(LINEAR_HISTOGRAM, histogram->GetHistogramType());
   CHECK(histogram->HasConstructionArguments(minimum, maximum, bucket_count));
   return histogram;
 }
 
-Histogram* LinearHistogram::FactoryTimeGet(const string& name,
-                                           TimeDelta minimum,
-                                           TimeDelta maximum,
-                                           size_t bucket_count,
-                                           int32 flags) {
-  return FactoryGet(name, minimum.InMilliseconds(), maximum.InMilliseconds(),
-                    bucket_count, flags);
-}
-
-Histogram::ClassType LinearHistogram::histogram_type() const {
+HistogramType LinearHistogram::GetHistogramType() const {
   return LINEAR_HISTOGRAM;
-}
-
-void LinearHistogram::SetRangeDescriptions(
-    const DescriptionPair descriptions[]) {
-  for (int i =0; descriptions[i].description; ++i) {
-    bucket_description_[descriptions[i].sample] = descriptions[i].description;
-  }
 }
 
 LinearHistogram::LinearHistogram(const string& name,
@@ -754,11 +734,11 @@ Histogram* BooleanHistogram::FactoryGet(const string& name, int32 flags) {
   // TODO(rtenneti): delete this code after debugging.
   CheckCorruption(*histogram, false);
 
-  CHECK_EQ(BOOLEAN_HISTOGRAM, histogram->histogram_type());
+  CHECK_EQ(BOOLEAN_HISTOGRAM, histogram->GetHistogramType());
   return histogram;
 }
 
-Histogram::ClassType BooleanHistogram::histogram_type() const {
+HistogramType BooleanHistogram::GetHistogramType() const {
   return BOOLEAN_HISTOGRAM;
 }
 
@@ -798,11 +778,11 @@ Histogram* CustomHistogram::FactoryGet(const string& name,
   // TODO(rtenneti): delete this code after debugging.
   CheckCorruption(*histogram, false);
 
-  CHECK_EQ(histogram->histogram_type(), CUSTOM_HISTOGRAM);
+  CHECK_EQ(histogram->GetHistogramType(), CUSTOM_HISTOGRAM);
   return histogram;
 }
 
-Histogram::ClassType CustomHistogram::histogram_type() const {
+HistogramType CustomHistogram::GetHistogramType() const {
   return CUSTOM_HISTOGRAM;
 }
 
