@@ -5,12 +5,15 @@
 import re
 
 import android_commands
+import json
 import math
 
 # Valid values of result type.
 RESULT_TYPES = {'unimportant': 'RESULT ',
                 'default': '*RESULT ',
-                'informational': ''}
+                'informational': '',
+                'unimportant-histogram': 'HISTOGRAM ',
+                'histogram': '*HISTOGRAM '}
 
 
 def _EscapePerfResult(s):
@@ -18,6 +21,47 @@ def _EscapePerfResult(s):
   # Colons (:) and equal signs (=) are not allowed, and we chose an arbitrary
   # limit of 40 chars.
   return re.sub(':|=', '_', s[:40])
+
+
+def GeomMeanAndStdDevFromHistogram(histogram_json):
+  histogram = json.loads(histogram_json)
+  count = 0
+  sum_of_logs = 0
+  for bucket in histogram['buckets']:
+    if 'high' in bucket:
+      bucket['mean'] = (bucket['low'] + bucket['high']) / 2.0
+    else:
+      bucket['mean'] = bucket['low']
+    if bucket['mean'] > 0:
+      sum_of_logs += math.log(bucket['mean']) * bucket['count']
+      count += bucket['count']
+
+  if count == 0:
+    return 0.0, 0.0
+
+  sum_of_squares = 0
+  geom_mean = math.exp(sum_of_logs / count)
+  for bucket in histogram['buckets']:
+    if bucket['mean'] > 0:
+      sum_of_squares += (bucket['mean'] - geom_mean) ** 2 * bucket['count']
+  return geom_mean, math.sqrt(sum_of_squares / count)
+
+
+def _MeanAndStdDevFromList(values):
+  avg = None
+  sd = None
+  if len(values) > 1:
+    try:
+      value = '[%s]' % ','.join([str(v) for v in values])
+      avg = sum([float(v) for v in values]) / len(values)
+      sqdiffs = [(float(v) - avg) ** 2 for v in values]
+      variance = sum(sqdiffs) / (len(values) - 1)
+      sd = math.sqrt(variance)
+    except ValueError:
+      value = ", ".join(values)
+  else:
+    value = values[0]
+  return value, avg, sd
 
 
 def PrintPerfResult(measurement, trace, values, units, result_type='default',
@@ -43,22 +87,17 @@ def PrintPerfResult(measurement, trace, values, units, result_type='default',
   """
   assert result_type in RESULT_TYPES, 'result type: %s is invalid' % result_type
 
-  assert isinstance(values, list)
-  assert len(values)
-  assert '/' not in measurement
-  avg = None
-  sd = None
-  if len(values) > 1:
-    try:
-      value = '[%s]' % ','.join([str(v) for v in values])
-      avg = sum([float(v) for v in values]) / len(values)
-      sqdiffs = [(float(v) - avg) ** 2 for v in values]
-      variance = sum(sqdiffs) / (len(values) - 1)
-      sd = math.sqrt(variance)
-    except ValueError:
-      value = ", ".join(values)
+  if result_type in ['unimportant', 'default', 'informational']:
+    assert isinstance(values, list)
+    assert len(values)
+    assert '/' not in measurement
+    value, avg, sd = _MeanAndStdDevFromList(values)
   else:
     value = values[0]
+    # We can't print the units, otherwise parsing the histogram json output
+    # can't be parsed easily.
+    units = ''
+    avg, sd = GeomMeanAndStdDevFromHistogram(value)
 
   trace_name = _EscapePerfResult(trace)
   output = '%s%s: %s%s%s %s' % (
