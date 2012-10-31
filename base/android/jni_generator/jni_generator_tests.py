@@ -54,7 +54,6 @@ class TestGenerator(unittest.TestCase):
       print '=' * 80
       self.fail('Golden text mismatch')
 
-  # TODO(bulach): Detangle these tests from knowing about classes from Content.
   def testNatives(self):
     test_data = """"
     private native int nativeInit();
@@ -65,7 +64,7 @@ class TestGenerator(unittest.TestCase):
     private static native String nativeGetDomainAndRegistry(String url);
     private static native void nativeCreateHistoricalTabFromState(
             byte[] state, int tab_index);
-    private native byte[] nativeGetStateAsByteArray(ContentViewCore view);
+    private native byte[] nativeGetStateAsByteArray(View view);
     private static native String[] nativeGetAutofillProfileGUIDs();
     private native void nativeSetRecognitionResults(
             int sessionId, String[] results);
@@ -74,8 +73,8 @@ class TestGenerator(unittest.TestCase):
             String url, Long created, Boolean isBookmark,
             Long date, byte[] favicon, String title, Integer visits);
     native int nativeFindAll(String find);
-    private static native BookmarkNode nativeGetDefaultBookmarkFolder();
-    private native SQLiteCursor nativeQueryBookmarkFromAPI(
+    private static native OnFrameAvailableListener nativeGetInnerClass();
+    private native Bitmap nativeQueryBitmap(
             int nativeChromeBrowserProvider,
             String[] projection, String selection,
             String[] selectionArgs, String sortOrder);
@@ -126,7 +125,7 @@ class TestGenerator(unittest.TestCase):
                      type='function'),
         NativeMethod(return_type='byte[]', static=False,
                      name='GetStateAsByteArray',
-                     params=[Param(datatype='ContentViewCore', name='view')],
+                     params=[Param(datatype='View', name='view')],
                      java_class_name=None,
                      type='function'),
         NativeMethod(return_type='String[]', static=True,
@@ -166,14 +165,14 @@ class TestGenerator(unittest.TestCase):
                                    name='find')],
                      java_class_name=None,
                      type='function'),
-        NativeMethod(return_type='BookmarkNode', static=True,
-                     name='GetDefaultBookmarkFolder',
+        NativeMethod(return_type='OnFrameAvailableListener', static=True,
+                     name='GetInnerClass',
                      params=[],
                      java_class_name=None,
                      type='function'),
-        NativeMethod(return_type='SQLiteCursor',
+        NativeMethod(return_type='Bitmap',
                      static=False,
-                     name='QueryBookmarkFromAPI',
+                     name='QueryBitmap',
                      params=[Param(datatype='int',
                                    name='nativeChromeBrowserProvider'),
                              Param(datatype='String[]',
@@ -256,7 +255,7 @@ static void SetRecognitionResults(JNIEnv* env, jobject obj,
 static jint FindAll(JNIEnv* env, jobject obj,
     jstring find);
 
-static jobject GetDefaultBookmarkFolder(JNIEnv* env, jclass clazz);
+static jobject GetInnerClass(JNIEnv* env, jclass clazz);
 
 // Step 2: method stubs.
 static void Destroy(JNIEnv* env, jobject obj,
@@ -295,17 +294,17 @@ static jlong AddBookmarkFromAPI(JNIEnv* env, jobject obj,
       favicon, title, visits);
 }
 
-static jobject QueryBookmarkFromAPI(JNIEnv* env, jobject obj,
+static jobject QueryBitmap(JNIEnv* env, jobject obj,
     jint nativeChromeBrowserProvider,
     jobjectArray projection,
     jstring selection,
     jobjectArray selectionArgs,
     jstring sortOrder) {
-  DCHECK(nativeChromeBrowserProvider) << "QueryBookmarkFromAPI";
+  DCHECK(nativeChromeBrowserProvider) << "QueryBitmap";
   ChromeBrowserProvider* native =
       reinterpret_cast<ChromeBrowserProvider*>(nativeChromeBrowserProvider);
-  return native->QueryBookmarkFromAPI(env, obj, projection, selection,
-      selectionArgs, sortOrder).Release();
+  return native->QueryBitmap(env, obj, projection, selection, selectionArgs,
+      sortOrder).Release();
 }
 
 static void GotOrientation(JNIEnv* env, jobject obj,
@@ -357,7 +356,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "V", reinterpret_cast<void*>(CreateHistoricalTabFromState) },
     { "nativeGetStateAsByteArray",
 "("
-"Lorg/chromium/content/browser/ContentViewCore;"
+"Landroid/view/View;"
 ")"
 "[B", reinterpret_cast<void*>(GetStateAsByteArray) },
     { "nativeGetAutofillProfileGUIDs",
@@ -387,12 +386,12 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "Ljava/lang/String;"
 ")"
 "I", reinterpret_cast<void*>(FindAll) },
-    { "nativeGetDefaultBookmarkFolder",
+    { "nativeGetInnerClass",
 "("
 ")"
-"Lorg/chromium/chrome/browser/ChromeBrowserProvider$BookmarkNode;",
-    reinterpret_cast<void*>(GetDefaultBookmarkFolder) },
-    { "nativeQueryBookmarkFromAPI",
+"Landroid/graphics/SurfaceTexture$OnFrameAvailableListener;",
+    reinterpret_cast<void*>(GetInnerClass) },
+    { "nativeQueryBitmap",
 "("
 "I"
 "[Ljava/lang/String;"
@@ -400,8 +399,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "[Ljava/lang/String;"
 "Ljava/lang/String;"
 ")"
-"Lorg/chromium/chrome/browser/database/SQLiteCursor;",
-    reinterpret_cast<void*>(QueryBookmarkFromAPI) },
+"Landroid/graphics/Bitmap;", reinterpret_cast<void*>(QueryBitmap) },
     { "nativeGotOrientation",
 "("
 "I"
@@ -721,18 +719,16 @@ static bool RegisterNativesImpl(JNIEnv* env) {
   def testCalledByNatives(self):
     test_data = """"
     @CalledByNative
-    NativeInfoBar showConfirmInfoBar(int nativeInfoBar, String buttonOk,
-                                     String buttonCancel, String title,
-                                     Bitmap icon) {
+    OnFrameAvailableListener showConfirmInfoBar(int nativeInfoBar,
+            String buttonOk, String buttonCancel, String title, Bitmap icon) {
         InfoBar infobar = new ConfirmInfoBar(nativeInfoBar, mContext,
                                              buttonOk, buttonCancel,
                                              title, icon);
         return infobar;
     }
     @CalledByNative
-    NativeInfoBar showAutoLoginInfoBar(int nativeInfoBar,
-                                       String realm, String account,
-                                       String args) {
+    OnFrameAvailableListener showAutoLoginInfoBar(int nativeInfoBar,
+            String realm, String account, String args) {
         AutoLoginInfoBar infobar = new AutoLoginInfoBar(nativeInfoBar, mContext,
                 realm, account, args);
         if (infobar.displayedAccountCount() == 0)
@@ -743,7 +739,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     void dismiss();
     @SuppressWarnings("unused")
     @CalledByNative
-    private static boolean shouldShowAutoLogin(ContentViewCore contentView,
+    private static boolean shouldShowAutoLogin(View view,
             String realm, String account, String args) {
         AccountManagerContainer accountManagerContainer =
             new AccountManagerContainer((Activity)contentView.getContext(),
@@ -769,7 +765,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     called_by_natives = jni_generator.ExtractCalledByNatives(test_data)
     golden_called_by_natives = [
         CalledByNative(
-            return_type='NativeInfoBar',
+            return_type='OnFrameAvailableListener',
             system_class=False,
             static=False,
             name='showConfirmInfoBar',
@@ -784,7 +780,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
             unchecked=False,
         ),
         CalledByNative(
-            return_type='NativeInfoBar',
+            return_type='OnFrameAvailableListener',
             system_class=False,
             static=False,
             name='showAutoLoginInfoBar',
@@ -815,7 +811,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
             name='shouldShowAutoLogin',
             method_id_var_name='shouldShowAutoLogin',
             java_class_name='',
-            params=[Param(datatype='ContentViewCore', name='contentView'),
+            params=[Param(datatype='View', name='view'),
                     Param(datatype='String', name='realm'),
                     Param(datatype='String', name='account'),
                     Param(datatype='String', name='args')],
@@ -920,7 +916,7 @@ static ScopedJavaLocalRef<jobject> Java_TestJni_showConfirmInfoBar(JNIEnv* env,
 "Ljava/lang/String;"
 "Landroid/graphics/Bitmap;"
 ")"
-"Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar;",
+"Landroid/graphics/SurfaceTexture$OnFrameAvailableListener;",
       &g_TestJni_showConfirmInfoBar);
 
   jobject ret =
@@ -950,7 +946,7 @@ static ScopedJavaLocalRef<jobject> Java_TestJni_showAutoLoginInfoBar(JNIEnv*
 "Ljava/lang/String;"
 "Ljava/lang/String;"
 ")"
-"Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar;",
+"Landroid/graphics/SurfaceTexture$OnFrameAvailableListener;",
       &g_TestJni_showAutoLoginInfoBar);
 
   jobject ret =
@@ -982,8 +978,7 @@ static void Java_InfoBar_dismiss(JNIEnv* env, jobject obj) {
 }
 
 static base::subtle::AtomicWord g_TestJni_shouldShowAutoLogin = 0;
-static jboolean Java_TestJni_shouldShowAutoLogin(JNIEnv* env, jobject
-    contentView,
+static jboolean Java_TestJni_shouldShowAutoLogin(JNIEnv* env, jobject view,
     jstring realm,
     jstring account,
     jstring args) {
@@ -996,7 +991,7 @@ static jboolean Java_TestJni_shouldShowAutoLogin(JNIEnv* env, jobject
       "shouldShowAutoLogin",
 
 "("
-"Lorg/chromium/content/browser/ContentViewCore;"
+"Landroid/view/View;"
 "Ljava/lang/String;"
 "Ljava/lang/String;"
 "Ljava/lang/String;"
@@ -1006,7 +1001,7 @@ static jboolean Java_TestJni_shouldShowAutoLogin(JNIEnv* env, jobject
 
   jboolean ret =
     env->CallStaticBooleanMethod(g_TestJni_clazz,
-      method_id, contentView, realm, account, args);
+      method_id, view, realm, account, args);
   base::android::CheckException(env);
   return ret;
 }
@@ -1531,6 +1526,16 @@ static bool RegisterNativesImpl(JNIEnv* env) {
                   jni_lines)[0]
     self.assertTrue(len(line) > 80,
                     ('Expected #ifndef line to be > 80 chars: ', line))
+
+  def testExternalParamList(self):
+    script_dir = os.path.dirname(sys.argv[0])
+    external_param_list = [os.path.join(script_dir, 'class_list.jni')]
+    jni_generator.JniParams.ReadExternalParamList(external_param_list)
+    self.assertTrue('Lorg/chromium/base/SystemMessageHandler' in
+                    jni_generator.JniParams._external_param_list)
+    self.assertRaises(AssertionError,
+                      jni_generator.JniParams.ReadExternalParamList,
+                      external_param_list)
 
 if __name__ == '__main__':
   unittest.main()
