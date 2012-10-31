@@ -447,7 +447,7 @@
         'gfx/platform_font_win.h',
         'gfx/point.cc',
         'gfx/point.h',
-        'gfx/point3.h',
+        'gfx/point3_f.h',
         'gfx/point_base.h',
         'gfx/point_conversions.cc',
         'gfx/point_conversions.h',
