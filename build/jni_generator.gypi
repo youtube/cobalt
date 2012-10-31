@@ -30,6 +30,7 @@
 {
   'variables': {
     'jni_generator': '<(DEPTH)/base/android/jni_generator/jni_generator.py',
+    'jni_external_param_list%': '<(DEPTH)/base/android/jni_generator/class_list.jni',
   },
   'rules': [
     {
@@ -37,12 +38,15 @@
       'extension': 'java',
       'inputs': [
         '<(jni_generator)',
+        '<(jni_external_param_list)',
       ],
       'outputs': [
         '<(SHARED_INTERMEDIATE_DIR)/<(jni_gen_dir)/jni/<(RULE_INPUT_ROOT)_jni.h',
       ],
       'action': [
         '<(jni_generator)',
+        '--external_param_list',
+        '<(jni_external_param_list)',
         '--input_file',
         '<(RULE_INPUT_PATH)',
         '--output_dir',
