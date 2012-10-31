@@ -166,7 +166,7 @@
     { "name": "script.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
     { "name": "history.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
 
-    // Other Google related domain that must use HTTPS.
+    // Other Google-related domains that must use HTTPS.
     { "name": "market.android.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
     { "name": "ssl.google-analytics.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
     { "name": "drive.google.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
@@ -176,6 +176,11 @@
     { "name": "chromiumcodereview.appspot.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
     { "name": "codereview.appspot.com", "include_subdomains": true, "mode": "force-https", "pins": "google" },
     { "name": "codereview.chromium.org", "include_subdomains": true, "mode": "force-https", "pins": "google" },
+    // TODO(palmer): include_subdomains must be set to true when the
+    // certificate for uploads.code.google.com is corrected. See
+    // https://code.google.com/p/chromium/issues/detail?id=158594.
+    { "name": "code.google.com", "include_subdomains": false, "mode": "force-https", "pins": "google" },
+    { "name": "googlecode.com", "include_subdomains": true, "pins": "google" },
 
     // chart.apis.google.com is *not* HSTS because the certificate doesn't match
     // and there are lots of links out there that still use the name. The correct
@@ -189,7 +194,6 @@
     { "name": "youtube.com", "include_subdomains": true, "pins": "google" },
     { "name": "googleapis.com", "include_subdomains": true, "pins": "google" },
     { "name": "googleadservices.com", "include_subdomains": true, "pins": "google" },
-    { "name": "googlecode.com", "include_subdomains": true, "pins": "google" },
     { "name": "appspot.com", "include_subdomains": true, "pins": "google" },
     { "name": "googlesyndication.com", "include_subdomains": true, "pins": "google" },
     { "name": "doubleclick.net", "include_subdomains": true, "pins": "google" },
