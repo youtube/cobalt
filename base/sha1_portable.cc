@@ -92,10 +92,12 @@ static inline uint32 K(uint32 t) {
 }
 
 static inline void swapends(uint32* t) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
   *t = ((*t & 0xff000000) >> 24) |
        ((*t & 0xff0000) >> 8) |
        ((*t & 0xff00) << 8) |
        ((*t & 0xff) << 24);
+#endif
 }
 
 const int SecureHashAlgorithm::kDigestSizeBytes = 20;

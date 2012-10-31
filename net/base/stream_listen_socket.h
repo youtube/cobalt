@@ -26,6 +26,8 @@
 #include <string>
 #if defined(OS_WIN)
 #include "base/win/object_watcher.h"
+#elif defined(__LB_SHELL__)
+#include "chromium/base/ps3/object_watcher.h"
 #elif defined(OS_POSIX)
 #include "base/message_loop.h"
 #endif
@@ -51,6 +53,8 @@ class NET_EXPORT StreamListenSocket
     : public base::RefCountedThreadSafe<StreamListenSocket>,
 #if defined(OS_WIN)
       public base::win::ObjectWatcher::Delegate {
+#elif defined(__LB_PS3__)
+      public base::ps3::ObjectWatcher::Delegate {
 #elif defined(OS_POSIX)
       public MessageLoopForIO::Watcher {
 #endif
@@ -119,6 +123,10 @@ class NET_EXPORT StreamListenSocket
   virtual void OnObjectSignaled(HANDLE object);
   base::win::ObjectWatcher watcher_;
   HANDLE socket_event_;
+#elif defined(__LB_SHELL__)
+  virtual void OnObjectSignaled(int object);
+  base::ps3::ObjectWatcher watcher_;
+  WaitState wait_state_;
 #elif defined(OS_POSIX)
   // Called by MessagePumpLibevent when the socket is ready to do I/O.
   virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;
