@@ -25,12 +25,20 @@ common_check_toolchain() {
 # based on CHROME_SRC and ANDROID_TOOLCHAIN, along with DEFINES for GYP_DEFINES.
 ################################################################################
 common_vars_defines() {
-
   # Set toolchain path according to product architecture.
-  toolchain_arch="arm-linux-androideabi"
-  if [[ "${TARGET_PRODUCT}" =~ .*x86.* ]]; then
-    toolchain_arch="x86"
-  fi
+  case "${TARGET_ARCH}" in
+    "arm")
+      toolchain_arch="arm-linux-androideabi"
+      ;;
+    "x86")
+      toolchain_arch="x86"
+      ;;
+    *)
+      echo "TARGET_ARCH: ${TARGET_ARCH} is not supported." >& 2
+      print_usage
+      return 1
+      ;;
+  esac
 
   toolchain_version="4.6"
   # We directly set the gcc_version since we know what we use, and it should
@@ -100,44 +108,24 @@ common_vars_defines() {
 
   # The following defines will affect ARM code generation of both C/C++ compiler
   # and V8 mksnapshot.
-  case "${TARGET_PRODUCT}" in
-    "passion"|"soju"|"sojua"|"sojus"|"yakju"|"mysid"|"nakasi")
-      DEFINES+=" arm_neon=1 armv7=1 arm_thumb=1"
-      DEFINES+=" ${ORDER_DEFINES}"
-      TARGET_ARCH="arm"
-      ;;
-    "trygon"|"tervigon")
+  case "${TARGET_ARCH}" in
+    "arm")
       DEFINES+=" arm_neon=0 armv7=1 arm_thumb=1 arm_fpu=vfpv3-d16"
       DEFINES+=" ${ORDER_DEFINES}"
-      TARGET_ARCH="arm"
+      DEFINES+=" target_arch=arm"
       ;;
-    "full")
-      DEFINES+=" arm_neon=0 armv7=0 arm_thumb=1 arm_fpu=vfp"
-      TARGET_ARCH="arm"
-      ;;
-    *x86*)
+    "x86")
     # TODO(tedbo): The ia32 build fails on ffmpeg, so we disable it here.
       DEFINES+=" use_libffmpeg=0"
 
       host_arch=$(uname -m | sed -e \
         's/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/')
       DEFINES+=" host_arch=${host_arch}"
-      TARGET_ARCH="x86"
-      ;;
-    *)
-      echo "TARGET_PRODUCT: ${TARGET_PRODUCT} is not supported." >& 2
-      return 1
-  esac
-
-  case "${TARGET_ARCH}" in
-    "arm")
-      DEFINES+=" target_arch=arm"
-      ;;
-    "x86")
       DEFINES+=" target_arch=ia32"
       ;;
     *)
       echo "TARGET_ARCH: ${TARGET_ARCH} is not supported." >& 2
+      print_usage
       return 1
   esac
 
@@ -162,6 +150,43 @@ common_gyp_vars() {
   export CHROMIUM_GYP_FILE="${CHROME_SRC}/build/all_android.gyp"
 }
 
+
+################################################################################
+# Prints out help message on usage.
+################################################################################
+print_usage() {
+  echo "usage: ${0##*/} [--target-arch=value] [--help]" >& 2
+  echo "--target-arch=value     target CPU architecture (arm=default, x86)" >& 2
+  echo "--help                  this help" >& 2
+}
+
+################################################################################
+# Process command line options.
+# --target-arch=  Specifices target CPU architecture. Currently supported
+#                 architectures are "arm" (default), and "x86".
+# --help          Prints out help message.
+################################################################################
+process_options() {
+  while [[ $1 ]]; do
+    case "$1" in
+      --target-arch=*)
+        target_arch="$(echo "$1" | sed 's/^[^=]*=//')"
+        ;;
+      --help)
+        print_usage
+        return 1
+        ;;
+      *)
+        # Ignore other command line options
+        echo "Unknown option: $1"
+        ;;
+    esac
+    shift
+  done
+
+  # Sets TARGET_ARCH. Defaults to arm if not specified.
+  TARGET_ARCH=${target_arch:-arm}
+}
 
 ################################################################################
 # Initializes environment variables for NDK/SDK build. Only Android NDK Revision
