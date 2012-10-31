@@ -48,12 +48,18 @@
 {
   'variables': {
     'protoc_wrapper': '<(DEPTH)/tools/protoc_wrapper/protoc_wrapper.py',
-    'protoc': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
     'cc_dir': '<(SHARED_INTERMEDIATE_DIR)/protoc_out/<(proto_out_dir)',
     'py_dir': '<(PRODUCT_DIR)/pyproto/<(proto_out_dir)',
     'cc_generator_options%': '',
     'cc_include%': '',
     'proto_in_dir%': '.',
+    'conditions': [
+      ['use_system_protobuf==0', {
+        'protoc': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
+      }, { # use_system_protobuf==1
+        'protoc': '<!(which protoc)',
+      }],
+    ],
   },
   'rules': [
     {

@@ -664,6 +664,9 @@
     'google_default_client_id%': '<(google_default_client_id)',
     'google_default_client_secret%': '<(google_default_client_secret)',
 
+    # Use system protobuf instead of bundled one.
+    'use_system_protobuf%': 0,
+
     # Use system yasm instead of bundled one.
     'use_system_yasm%': 0,
 
