@@ -60,6 +60,14 @@ inline RectF ScaleRect(const RectF& r, float scale) {
   return ScaleRect(r, scale, scale);
 }
 
+// Constructs a rectangle with |p1| and |p2| as opposite corners.
+//
+// This could also be thought of as "the smallest rect that contains both
+// points", except that we consider points on the right/bottom edges of the
+// rect to be outside the rect.  So technically one or both points will not be
+// contained within the rect, because they will appear on one of these edges.
+UI_EXPORT RectF BoundingRect(const PointF& p1, const PointF& p2);
+
 #if !defined(COMPILER_MSVC)
 extern template class RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>;
 #endif
