@@ -40,6 +40,8 @@ enum {
   DIR_USER_QUICK_LAUNCH,  // Directory for the quick launch shortcuts.
   DIR_DEFAULT_USER_QUICK_LAUNCH,  // Directory for the quick launch shortcuts
                                   // of the Default user.
+  DIR_TASKBAR_PINS,       // Directory for the shortcuts pinned to taskbar via
+                          // base::win::TaskbarPinShortcutLink().
 
   PATH_WIN_END
 };
