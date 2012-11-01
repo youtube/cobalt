@@ -13,16 +13,6 @@
 
 namespace net {
 
-FilePath GetTestCertsDirectory() {
-  FilePath certs_dir;
-  PathService::Get(base::DIR_SOURCE_ROOT, &certs_dir);
-  certs_dir = certs_dir.AppendASCII("net");
-  certs_dir = certs_dir.AppendASCII("data");
-  certs_dir = certs_dir.AppendASCII("ssl");
-  certs_dir = certs_dir.AppendASCII("certificates");
-  return certs_dir;
-}
-
 CertificateList CreateCertificateListFromFile(
     const FilePath& certs_dir,
     const std::string& cert_file,
