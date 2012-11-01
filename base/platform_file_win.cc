@@ -70,6 +70,8 @@ PlatformFile CreatePlatformFile(const FilePath& name,
     create_flags |= FILE_ATTRIBUTE_HIDDEN;
   if (flags & PLATFORM_FILE_DELETE_ON_CLOSE)
     create_flags |= FILE_FLAG_DELETE_ON_CLOSE;
+  if (flags & PLATFORM_FILE_BACKUP_SEMANTICS)
+    create_flags |= FILE_FLAG_BACKUP_SEMANTICS;
 
   HANDLE file = CreateFile(name.value().c_str(), access, sharing, NULL,
                            disposition, create_flags, NULL);

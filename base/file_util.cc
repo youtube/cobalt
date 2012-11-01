@@ -203,11 +203,16 @@ bool IsDotDot(const FilePath& path) {
 bool TouchFile(const FilePath& path,
                const base::Time& last_accessed,
                const base::Time& last_modified) {
-  base::PlatformFile file =
-      base::CreatePlatformFile(path,
-                               base::PLATFORM_FILE_OPEN |
-                               base::PLATFORM_FILE_WRITE_ATTRIBUTES,
-                               NULL, NULL);
+  int flags = base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_WRITE_ATTRIBUTES;
+
+#if defined(OS_WIN)
+  // On Windows, FILE_FLAG_BACKUP_SEMANTICS is needed to open a directory.
+  if (DirectoryExists(path))
+    flags |= base::PLATFORM_FILE_BACKUP_SEMANTICS;
+#endif  // OS_WIN
+
+  const base::PlatformFile file =
+      base::CreatePlatformFile(path, flags, NULL, NULL);
   if (file != base::kInvalidPlatformFileValue) {
     bool result = base::TouchPlatformFile(file, last_accessed, last_modified);
     base::ClosePlatformFile(file);
