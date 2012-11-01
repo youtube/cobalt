@@ -55,9 +55,6 @@ class MockAudioManager : public media::AudioManager {
   virtual void RemoveOutputDeviceChangeListener(
       AudioDeviceListener* listener) OVERRIDE;
 
- protected:
-  virtual void InitializeOnAudioThread() OVERRIDE;
-
  private:
   virtual ~MockAudioManager();
 
