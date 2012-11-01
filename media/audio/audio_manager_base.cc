@@ -66,10 +66,6 @@ AudioManagerBase::~AudioManagerBase() {
   DCHECK_EQ(0, num_input_streams_);
 }
 
-void AudioManagerBase::InitializeOnAudioThread() {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-}
-
 string16 AudioManagerBase::GetAudioInputDeviceModel() {
   return string16();
 }

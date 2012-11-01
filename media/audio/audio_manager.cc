@@ -23,12 +23,7 @@ AudioManager::~AudioManager() {
 
 // static
 AudioManager* AudioManager::Create() {
-  AudioManager* manager = CreateAudioManager();
-  if (manager) {
-    manager->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
-        &AudioManager::InitializeOnAudioThread, base::Unretained(manager)));
-  }
-  return manager;
+  return CreateAudioManager();
 }
 
 }  // namespace media
