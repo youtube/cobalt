@@ -51,6 +51,7 @@
         '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
         '../tools/android/device_stats_monitor/device_stats_monitor.gyp:device_stats_monitor',
         '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
+        '../tools/android/findbugs_plugin/findbugs_plugin.gyp:findbugs_plugin_test',
         '../tools/android/forwarder2/forwarder.gyp:forwarder2',
         '../tools/android/md5sum/md5sum.gyp:md5sum',
         '../ui/ui.gyp:ui_unittests',
