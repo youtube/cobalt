@@ -11,11 +11,8 @@
 #include "base/basictypes.h"
 #include "base/prefs/base_prefs_export.h"
 
+class PrefObserver;
 class PrefServiceBase;
-
-namespace content {
-class NotificationObserver;
-}
 
 // Automatically manages the registration of one or more pref change observers
 // with a PrefStore. Functions much like NotificationRegistrar, but specifically
@@ -34,13 +31,11 @@ class BASE_PREFS_EXPORT PrefChangeRegistrar {
   // object. All registered observers will be automatically unregistered
   // when the registrar's destructor is called unless the observer has been
   // explicitly removed by a call to Remove beforehand.
-  void Add(const char* path,
-           content::NotificationObserver* obs);
+  void Add(const char* path, PrefObserver* obs);
 
   // Removes a preference observer that has previously been added with a call to
   // Add.
-  void Remove(const char* path,
-              content::NotificationObserver* obs);
+  void Remove(const char* path, PrefObserver* obs);
 
   // Removes all observers that have been previously added with a call to Add.
   void RemoveAll();
@@ -55,8 +50,7 @@ class BASE_PREFS_EXPORT PrefChangeRegistrar {
   bool IsManaged();
 
  private:
-  typedef std::pair<std::string, content::NotificationObserver*>
-      ObserverRegistration;
+  typedef std::pair<std::string, PrefObserver*> ObserverRegistration;
 
   std::set<ObserverRegistration> observers_;
   PrefServiceBase* service_;

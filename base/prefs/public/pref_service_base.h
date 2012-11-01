@@ -20,7 +20,6 @@
 
 namespace content {
 class BrowserContext;
-class NotificationObserver;
 }
 
 namespace subtle {
@@ -28,6 +27,7 @@ class PrefMemberBase;
 }
 
 class FilePath;
+class PrefObserver;
 class Profile;
 class TabContents;
 
@@ -259,14 +259,12 @@ class PrefServiceBase {
   // These are protected so they can only be accessed by the friend
   // classes listed above.
   //
-  // If the pref at the given path changes, we call the observer's Observe
-  // method with PREF_CHANGED. Note that observers should not call these methods
-  // directly but rather use a PrefChangeRegistrar to make sure the observer
-  // gets cleaned up properly.
-  virtual void AddPrefObserver(const char* path,
-                               content::NotificationObserver* obs) = 0;
-  virtual void RemovePrefObserver(const char* path,
-                                  content::NotificationObserver* obs) = 0;
+  // If the pref at the given path changes, we call the observer's
+  // OnPreferenceChanged method. Note that observers should not call
+  // these methods directly but rather use a PrefChangeRegistrar to
+  // make sure the observer gets cleaned up properly.
+  virtual void AddPrefObserver(const char* path, PrefObserver* obs) = 0;
+  virtual void RemovePrefObserver(const char* path, PrefObserver* obs) = 0;
 };
 
 #endif  // BASE_PREFS_PUBLIC_PREF_SERVICE_BASE_H_
