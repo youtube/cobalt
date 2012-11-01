@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
+#include "base/prefs/base_prefs_export.h"
 #include "base/prefs/persistent_pref_store.h"
 #include "base/prefs/pref_value_map.h"
 
@@ -18,8 +19,8 @@
 // PrefValueMap. Read operations are first answered by the PrefValueMap.
 // If the PrefValueMap does not contain a value for the requested key,
 // the look-up is passed on to an underlying PersistentPrefStore |underlay_|.
-class OverlayUserPrefStore : public PersistentPrefStore,
-                             public PrefStore::Observer {
+class BASE_PREFS_EXPORT OverlayUserPrefStore : public PersistentPrefStore,
+                                               public PrefStore::Observer {
  public:
   explicit OverlayUserPrefStore(PersistentPrefStore* underlay);
 
