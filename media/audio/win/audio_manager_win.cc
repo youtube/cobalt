@@ -113,13 +113,18 @@ AudioManagerWin::AudioManagerWin() {
   }
 
   SetMaxOutputStreamsAllowed(kMaxOutputStreams);
+
+  // Task must be posted last to avoid races from handing out "this" to the
+  // audio thread.
+  GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
+      &AudioManagerWin::CreateDeviceListener, base::Unretained(this)));
 }
 
 AudioManagerWin::~AudioManagerWin() {
   // It's safe to post a task here since Shutdown() will wait for all tasks to
   // complete before returning.
   GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
-      &AudioManagerWin::DestructOnAudioThread, base::Unretained(this)));
+      &AudioManagerWin::DestroyDeviceListener, base::Unretained(this)));
   Shutdown();
 }
 
@@ -131,7 +136,7 @@ bool AudioManagerWin::HasAudioInputDevices() {
   return (::waveInGetNumDevs() != 0);
 }
 
-void AudioManagerWin::InitializeOnAudioThread() {
+void AudioManagerWin::CreateDeviceListener() {
   // AudioDeviceListenerWin must be initialized on a COM thread and should only
   // be used if WASAPI / Core Audio is supported.
   if (media::IsWASAPISupported()) {
@@ -142,7 +147,7 @@ void AudioManagerWin::InitializeOnAudioThread() {
   }
 }
 
-void AudioManagerWin::DestructOnAudioThread() {
+void AudioManagerWin::DestroyDeviceListener() {
   output_device_listener_.reset();
 }
 

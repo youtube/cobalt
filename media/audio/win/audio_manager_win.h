@@ -44,9 +44,6 @@ class MEDIA_EXPORT AudioManagerWin : public AudioManagerBase {
  protected:
   virtual ~AudioManagerWin();
 
-  // Implementation of AudioManager.
-  virtual void InitializeOnAudioThread() OVERRIDE;
-
  private:
   enum EnumerationType {
     kUninitializedEnumeration = 0,
@@ -72,9 +69,9 @@ class MEDIA_EXPORT AudioManagerWin : public AudioManagerBase {
       const AudioParameters& params,
       const std::string& device_id);
 
-  // |output_device_listener_| must be destructed on the same COM thread it was
-  // initialized on.
-  void DestructOnAudioThread();
+  // Helper methods for constructing AudioDeviceListenerWin on the audio thread.
+  void CreateDeviceListener();
+  void DestroyDeviceListener();
 
   // Listen for output device changes.
   scoped_ptr<AudioDeviceListenerWin> output_device_listener_;
