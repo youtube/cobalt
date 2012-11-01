@@ -7,11 +7,13 @@
 
 #include <jni.h>
 
+#include "base/base_export.h"
+
 namespace base {
 namespace android {
 
 // Register all JNI bindings necessary for base.
-bool RegisterJni(JNIEnv* env);
+BASE_EXPORT bool RegisterJni(JNIEnv* env);
 
 }  // namespace android
 }  // namespace base
