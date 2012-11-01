@@ -9,7 +9,6 @@
 #include "base/bind.h"
 #include "base/debug/leak_annotations.h"
 #include "base/debug/trace_event.h"
-#include "base/file_util.h"
 #include "base/format_macros.h"
 #include "base/lazy_instance.h"
 #include "base/memory/singleton.h"
@@ -69,50 +68,6 @@ int g_category_index = 3; // skip initial 3 categories
 // The most-recently captured name of the current thread
 LazyInstance<ThreadLocalPointer<const char> >::Leaky
     g_current_thread_name = LAZY_INSTANCE_INITIALIZER;
-
-void AppendValueAsJSON(unsigned char type,
-                       TraceEvent::TraceValue value,
-                       std::string* out) {
-  std::string::size_type start_pos;
-  switch (type) {
-    case TRACE_VALUE_TYPE_BOOL:
-      *out += value.as_bool ? "true" : "false";
-      break;
-    case TRACE_VALUE_TYPE_UINT:
-      StringAppendF(out, "%" PRIu64, static_cast<uint64>(value.as_uint));
-      break;
-    case TRACE_VALUE_TYPE_INT:
-      StringAppendF(out, "%" PRId64, static_cast<int64>(value.as_int));
-      break;
-    case TRACE_VALUE_TYPE_DOUBLE:
-      StringAppendF(out, "%f", value.as_double);
-      break;
-    case TRACE_VALUE_TYPE_POINTER:
-      // JSON only supports double and int numbers.
-      // So as not to lose bits from a 64-bit pointer, output as a hex string.
-      StringAppendF(out, "\"%" PRIx64 "\"", static_cast<uint64>(
-                                     reinterpret_cast<intptr_t>(
-                                     value.as_pointer)));
-      break;
-    case TRACE_VALUE_TYPE_STRING:
-    case TRACE_VALUE_TYPE_COPY_STRING:
-      *out += "\"";
-      start_pos = out->size();
-      *out += value.as_string ? value.as_string : "NULL";
-      // insert backslash before special characters for proper json format.
-      while ((start_pos = out->find_first_of("\\\"", start_pos)) !=
-             std::string::npos) {
-        out->insert(start_pos, 1, '\\');
-        // skip inserted escape character and following character.
-        start_pos += 2;
-      }
-      *out += "\"";
-      break;
-    default:
-      NOTREACHED() << "Don't know how to print this value";
-      break;
-  }
-}
 
 }  // namespace
 
@@ -223,6 +178,51 @@ TraceEvent::TraceEvent(int thread_id,
 }
 
 TraceEvent::~TraceEvent() {
+}
+
+// static
+void TraceEvent::AppendValueAsJSON(unsigned char type,
+                                   TraceEvent::TraceValue value,
+                                   std::string* out) {
+  std::string::size_type start_pos;
+  switch (type) {
+    case TRACE_VALUE_TYPE_BOOL:
+      *out += value.as_bool ? "true" : "false";
+      break;
+    case TRACE_VALUE_TYPE_UINT:
+      StringAppendF(out, "%" PRIu64, static_cast<uint64>(value.as_uint));
+      break;
+    case TRACE_VALUE_TYPE_INT:
+      StringAppendF(out, "%" PRId64, static_cast<int64>(value.as_int));
+      break;
+    case TRACE_VALUE_TYPE_DOUBLE:
+      StringAppendF(out, "%f", value.as_double);
+      break;
+    case TRACE_VALUE_TYPE_POINTER:
+      // JSON only supports double and int numbers.
+      // So as not to lose bits from a 64-bit pointer, output as a hex string.
+      StringAppendF(out, "\"%" PRIx64 "\"", static_cast<uint64>(
+                                     reinterpret_cast<intptr_t>(
+                                     value.as_pointer)));
+      break;
+    case TRACE_VALUE_TYPE_STRING:
+    case TRACE_VALUE_TYPE_COPY_STRING:
+      *out += "\"";
+      start_pos = out->size();
+      *out += value.as_string ? value.as_string : "NULL";
+      // insert backslash before special characters for proper json format.
+      while ((start_pos = out->find_first_of("\\\"", start_pos)) !=
+             std::string::npos) {
+        out->insert(start_pos, 1, '\\');
+        // skip inserted escape character and following character.
+        start_pos += 2;
+      }
+      *out += "\"";
+      break;
+    default:
+      NOTREACHED() << "Don't know how to print this value";
+      break;
+  }
 }
 
 void TraceEvent::AppendEventsAsJSON(const std::vector<TraceEvent>& events,
@@ -543,7 +543,9 @@ void TraceLog::SetDisabled() {
   for (int i = 0; i < g_category_index; i++)
     g_category_enabled[i] = 0;
   AddThreadNameMetadataEvents();
+#if defined(OS_ANDROID)
   AddClockSyncMetadataEvents();
+#endif
 }
 
 void TraceLog::SetEnabled(bool enabled) {
@@ -604,6 +606,12 @@ int TraceLog::AddTraceEvent(char phase,
                             long long threshold,
                             unsigned char flags) {
   DCHECK(name);
+
+#if defined(OS_ANDROID)
+  SendToATrace(phase, GetCategoryName(category_enabled), name,
+               num_args, arg_names, arg_types, arg_values);
+#endif
+
   TimeTicks now = TimeTicks::NowFromSystemTraceTime();
   NotificationHelper notifier(this);
   int ret_begin_id = -1;
@@ -739,45 +747,6 @@ void TraceLog::CancelWatchEvent() {
   AutoLock lock(lock_);
   watch_category_ = NULL;
   watch_event_name_ = "";
-}
-
-void TraceLog::AddClockSyncMetadataEvents() {
-#if defined(OS_ANDROID)
-  // Since Android does not support sched_setaffinity, we cannot establish clock
-  // sync unless the scheduler clock is set to global. If the trace_clock file
-  // can't be read, we will assume the kernel doesn't support tracing and do
-  // nothing.
-  std::string clock_mode;
-  if (!file_util::ReadFileToString(
-          FilePath("/sys/kernel/debug/tracing/trace_clock"),
-          &clock_mode))
-    return;
-
-  if (clock_mode != "local [global]\n") {
-    DLOG(WARNING) <<
-        "The kernel's tracing clock must be set to global in order for " <<
-        "trace_event to be synchronized with . Do this by\n" <<
-        "  echo global > /sys/kerel/debug/tracing/trace_clock";
-    return;
-  }
-
-  // Android's kernel trace system has a trace_marker feature: this is a file on
-  // debugfs that takes the written data and pushes it onto the trace
-  // buffer. So, to establish clock sync, we write our monotonic clock into that
-  // trace buffer.
-  TimeTicks now = TimeTicks::NowFromSystemTraceTime();
-
-  double now_in_seconds = now.ToInternalValue() / 1000000.0;
-  std::string marker =
-      StringPrintf("trace_event_clock_sync: parent_ts=%f\n",
-                   now_in_seconds);
-  if (file_util::WriteFile(
-          FilePath("/sys/kernel/debug/tracing/trace_marker"),
-          marker.c_str(), marker.size()) == -1) {
-    DLOG(WARNING) << "Couldn't write to /sys/kernel/debug/tracing/trace_marker";
-    return;
-  }
-#endif
 }
 
 void TraceLog::AddThreadNameMetadataEvents() {
