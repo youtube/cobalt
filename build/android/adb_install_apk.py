@@ -10,27 +10,24 @@ import os
 import sys
 
 from pylib import android_commands
-from pylib import test_options_parser
+from pylib import apk_info
 from pylib import constants
+from pylib import test_options_parser
 
 
-def InstallApk(args):
-  options, device = args
-  apk_path = os.path.join(os.environ['CHROME_SRC'],
-                          'out', options.build_type,
-                          'apks', options.apk)
+def _InstallApk(args):
+  apk_path, apk_package, device = args
   result = android_commands.AndroidCommands(device=device).ManagedInstall(
-      apk_path, False, options.apk_package)
+      apk_path, False, apk_package)
   print '-----  Installed on %s  -----' % device
   print result
 
 
 def main(argv):
   parser = optparse.OptionParser()
-  test_options_parser.AddBuildTypeOption(parser)
   test_options_parser.AddInstallAPKOption(parser)
   options, args = parser.parse_args(argv)
-
+  test_options_parser.ValidateInstallAPKOption(parser, options)
   if len(args) > 1:
     raise Exception('Error: Unknown argument:', args[1:])
 
@@ -38,9 +35,14 @@ def main(argv):
   if not devices:
     raise Exception('Error: no connected devices')
 
+  if not options.apk_package:
+    options.apk_package = apk_info.GetPackageNameForApk(options.apk)
+
   pool = multiprocessing.Pool(len(devices))
-  # Send a tuple (options, device) per instance of DeploySingleDevice.
-  pool.map(InstallApk, zip([options] * len(devices), devices))
+  # Send a tuple (apk_path, apk_package, device) per device.
+  pool.map(_InstallApk, zip([options.apk] * len(devices),
+                            [options.apk_package] * len(devices),
+                            devices))
 
 
 if __name__ == '__main__':

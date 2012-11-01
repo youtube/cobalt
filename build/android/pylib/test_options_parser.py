@@ -28,12 +28,23 @@ def AddBuildTypeOption(option_parser):
 
 def AddInstallAPKOption(option_parser):
   """Decorates OptionParser with apk option used to install the APK."""
+  AddBuildTypeOption(option_parser)
   option_parser.add_option('--apk',
                            help=('The name of the apk containing the '
                                  ' application (with the .apk extension).'))
   option_parser.add_option('--apk_package',
                            help=('The package name used by the apk containing '
                                  'the application.'))
+
+
+def ValidateInstallAPKOption(option_parser, options):
+  if not options.apk:
+    option_parser.error('--apk is mandatory.')
+  if not os.path.exists(options.apk):
+    options.apk = os.path.join(os.environ['CHROME_SRC'],
+                               'out', options.build_type,
+                               'apks', options.apk)
+
 
 def AddTestRunnerOptions(option_parser, default_timeout=60):
   """Decorates OptionParser with options applicable to all tests."""

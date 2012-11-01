@@ -11,6 +11,18 @@ import re
 import cmd_helper
 
 
+def GetPackageNameForApk(apk_path):
+  """Returns the package name of the apk file."""
+  aapt_output = cmd_helper.GetCmdOutput(
+      ['aapt', 'dump', 'badging', apk_path]).split('\n')
+  package_name_re = re.compile(r'package: .*name=\'(\S*)\'')
+  for line in aapt_output:
+    m = package_name_re.match(line)
+    if m:
+      return m.group(1)
+  raise Exception('Failed to determine package name of %s' % apk_path)
+
+
 class ApkInfo(object):
   """Helper class for inspecting APKs."""
 
@@ -26,7 +38,6 @@ class ApkInfo(object):
     self._PROGUARD_ANNOTATION_CONST_RE = (
         re.compile(r'\s*?- Constant element value.*$'))
     self._PROGUARD_ANNOTATION_VALUE_RE = re.compile(r'\s*?- \S+? \[(.*)\]$')
-    self._AAPT_PACKAGE_NAME_RE = re.compile(r'package: .*name=\'(\S*)\'')
 
     if not os.path.exists(apk_path):
       raise Exception('%s not found, please build it' % apk_path)
@@ -99,13 +110,7 @@ class ApkInfo(object):
 
   def GetPackageName(self):
     """Returns the package name of this APK."""
-    aapt_output = cmd_helper.GetCmdOutput(
-        ['aapt', 'dump', 'badging', self._apk_path]).split('\n')
-    for line in aapt_output:
-      m = self._AAPT_PACKAGE_NAME_RE.match(line)
-      if m:
-        return m.group(1)
-    raise Exception('Failed to determine package name of %s' % self._apk_path)
+    return GetPackageNameForApk(self._apk_path)
 
   def GetTestAnnotations(self, test):
     """Returns a list of all annotations for the given |test|. May be empty."""
