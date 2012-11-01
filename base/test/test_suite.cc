@@ -128,11 +128,6 @@ bool TestSuite::IsMarkedFlaky(const testing::TestInfo& test) {
 }
 
 // static
-bool TestSuite::IsMarkedFailing(const testing::TestInfo& test) {
-  return strncmp(test.name(), "FAILS_", 6) == 0;
-}
-
-// static
 bool TestSuite::IsMarkedMaybe(const testing::TestInfo& test) {
   return strncmp(test.name(), "MAYBE_", 6) == 0;
 }
@@ -141,7 +136,7 @@ bool TestSuite::IsMarkedMaybe(const testing::TestInfo& test) {
 bool TestSuite::ShouldIgnoreFailure(const testing::TestInfo& test) {
   if (CommandLine::ForCurrentProcess()->HasSwitch(kStrictFailureHandling))
     return false;
-  return IsMarkedFlaky(test) || IsMarkedFailing(test);
+  return IsMarkedFlaky(test);
 }
 
 // static
@@ -207,13 +202,6 @@ int TestSuite::Run() {
   if (flaky_count) {
     printf("  YOU HAVE %d FLAKY %s\n\n", flaky_count,
            flaky_count == 1 ? "TEST" : "TESTS");
-  }
-
-  // Display the number of tests with ignored failures (FAILS).
-  int failing_count = GetTestCount(&TestSuite::IsMarkedFailing);
-  if (failing_count) {
-    printf("  YOU HAVE %d %s with ignored failures (FAILS prefix)\n\n",
-           failing_count, failing_count == 1 ? "test" : "tests");
   }
 
 #if defined(OS_MACOSX)
