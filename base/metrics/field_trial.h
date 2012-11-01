@@ -142,9 +142,11 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // Return the name of the FieldTrial (excluding the group name).
   std::string name() const { return name_; }
 
-  // Return the randomly selected group number that was assigned.
-  // Note that this will force an instance to participate, and make it illegal
-  // to attempt to probabilistically add any other groups to the trial.
+  // Return the randomly selected group number that was assigned, and notify
+  // any/all observers that this finalized group number has presumably been used
+  // (queried), and will never change. Note that this will force an instance to
+  // participate, and make it illegal to attempt to probabilistically add any
+  // other groups to the trial.
   int group();
 
   // If the group's name is empty, a string version containing the group number
@@ -212,6 +214,11 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // Sets the group_name as well as group_name_hash to make sure they are sync.
   void SetGroupChoice(const std::string& name, int number);
 
+  // Ensures that a group is chosen, if it hasn't yet been. The field trial
+  // might yet be disabled, so this call will *not* notify observers of the
+  // status.
+  void FinalizeGroupChoice();
+
   // Returns the group_name. A winner need not have been chosen.
   std::string group_name_internal() const { return group_name_; }
 
@@ -250,6 +257,9 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // When forced_ is true, we return the chosen group from AppendGroup when
   // appropriate.
   bool forced_;
+
+  // Specifies whether the group choice has been reported to observers.
+  bool group_reported_;
 
   // When benchmarking is enabled, field trials all revert to the 'default'
   // group.
