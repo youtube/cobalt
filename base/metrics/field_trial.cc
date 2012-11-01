@@ -64,7 +64,8 @@ FieldTrial::FieldTrial(const std::string& name,
       next_group_number_(kDefaultGroupNumber + 1),
       group_(kNotFinalized),
       enable_field_trial_(true),
-      forced_(false) {
+      forced_(false),
+      group_reported_(false) {
   DCHECK_GT(total_probability, 0);
   DCHECK(!name_.empty());
   DCHECK(!default_group_name_.empty());
@@ -92,6 +93,7 @@ void FieldTrial::UseOneTimeRandomization() {
 }
 
 void FieldTrial::Disable() {
+  DCHECK(!group_reported_);
   enable_field_trial_ = false;
 
   // In case we are disabled after initialization, we need to switch
@@ -132,25 +134,22 @@ int FieldTrial::AppendGroup(const std::string& name,
   if (group_ == kNotFinalized && accumulated_group_probability_ > random_) {
     // This is the group that crossed the random line, so we do the assignment.
     SetGroupChoice(name, next_group_number_);
-    FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
   }
   return next_group_number_++;
 }
 
 int FieldTrial::group() {
-  if (group_ == kNotFinalized) {
-    accumulated_group_probability_ = divisor_;
-    // Here it's OK to use kDefaultGroupNumber
-    // since we can't be forced and not finalized.
-    DCHECK(!forced_);
-    SetGroupChoice(default_group_name_, kDefaultGroupNumber);
+  FinalizeGroupChoice();
+  if (!group_reported_) {
     FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
+    group_reported_ = true;
   }
   return group_;
 }
 
 std::string FieldTrial::group_name() {
-  group();  // call group() to make sure group assignment was done.
+  // Call |group()| to ensure group gets assigned and observers are notified.
+  group();
   DCHECK(!group_name_.empty());
   return group_name_;
 }
@@ -188,7 +187,7 @@ void FieldTrial::SetForced() {
   DCHECK_GT(next_group_number_, kDefaultGroupNumber + 1);
 
   // And we must finalize the group choice before we mark ourselves as forced.
-  group();
+  FinalizeGroupChoice();
   forced_ = true;
 }
 
@@ -201,6 +200,16 @@ void FieldTrial::SetGroupChoice(const std::string& name, int number) {
   else
     group_name_ = name;
   DVLOG(1) << "Field trial: " << name_ << " Group choice:" << group_name_;
+}
+
+void FieldTrial::FinalizeGroupChoice() {
+  if (group_ != kNotFinalized)
+    return;
+  accumulated_group_probability_ = divisor_;
+  // Here it's OK to use |kDefaultGroupNumber| since we can't be forced and not
+  // finalized.
+  DCHECK(!forced_);
+  SetGroupChoice(default_group_name_, kDefaultGroupNumber);
 }
 
 //------------------------------------------------------------------------------
@@ -400,7 +409,6 @@ FieldTrial* FieldTrialList::CreateFieldTrial(
 void FieldTrialList::AddObserver(Observer* observer) {
   if (!global_)
     return;
-  DCHECK(global_);
   global_->observer_list_->AddObserver(observer);
 }
 
@@ -408,7 +416,6 @@ void FieldTrialList::AddObserver(Observer* observer) {
 void FieldTrialList::RemoveObserver(Observer* observer) {
   if (!global_)
     return;
-  DCHECK(global_);
   global_->observer_list_->RemoveObserver(observer);
 }
 
@@ -418,7 +425,6 @@ void FieldTrialList::NotifyFieldTrialGroupSelection(
     const std::string& group_name) {
   if (!global_)
     return;
-  DCHECK(global_);
   global_->observer_list_->Notify(
       &FieldTrialList::Observer::OnFieldTrialGroupFinalized,
       name,
