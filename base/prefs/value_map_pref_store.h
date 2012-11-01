@@ -10,12 +10,13 @@
 
 #include "base/basictypes.h"
 #include "base/observer_list.h"
+#include "base/prefs/base_prefs_export.h"
 #include "base/prefs/pref_store.h"
 #include "base/prefs/pref_value_map.h"
 
 // A basic PrefStore implementation that uses a simple name-value map for
 // storing the preference values.
-class ValueMapPrefStore : public PrefStore {
+class BASE_PREFS_EXPORT ValueMapPrefStore : public PrefStore {
  public:
   typedef std::map<std::string, base::Value*>::iterator iterator;
   typedef std::map<std::string, base::Value*>::const_iterator const_iterator;

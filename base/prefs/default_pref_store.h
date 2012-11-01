@@ -7,12 +7,13 @@
 
 #include <string>
 
+#include "base/prefs/base_prefs_export.h"
 #include "base/prefs/value_map_pref_store.h"
 #include "base/values.h"
 
 // This PrefStore keeps track of default preference values set when a
 // preference is registered with the PrefService.
-class DefaultPrefStore : public ValueMapPrefStore {
+class BASE_PREFS_EXPORT DefaultPrefStore : public ValueMapPrefStore {
  public:
   DefaultPrefStore();
 
