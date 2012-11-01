@@ -5,19 +5,21 @@
 #ifndef BASE_TEST_TEST_SUPPORT_ANDROID_H_
 #define BASE_TEST_TEST_SUPPORT_ANDROID_H_
 
+#include "base/base_export.h"
+
 namespace base {
 
 // Init logging for tests on Android. Logs will be output into Android's logcat.
-void InitAndroidTestLogging();
+BASE_EXPORT void InitAndroidTestLogging();
 
 // Init path providers for tests on Android.
-void InitAndroidTestPaths();
+BASE_EXPORT void InitAndroidTestPaths();
 
 // Init the message loop for tests on Android.
-void InitAndroidTestMessageLoop();
+BASE_EXPORT void InitAndroidTestMessageLoop();
 
 // Do all of the initializations above.
-void InitAndroidTest();
+BASE_EXPORT void InitAndroidTest();
 
 }  // namespace base
 

@@ -15,7 +15,7 @@ namespace net {
 
 class NetworkChangeNotifierAndroidTest;
 
-class NetworkChangeNotifierAndroid : public NetworkChangeNotifier {
+class NET_EXPORT NetworkChangeNotifierAndroid : public NetworkChangeNotifier {
  public:
   virtual ~NetworkChangeNotifierAndroid();
 

@@ -10,6 +10,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/atomicops.h"
+#include "base/base_export.h"
 #include "base/compiler_specific.h"
 
 namespace base {
@@ -25,41 +26,43 @@ struct RegistrationMethod {
 };
 
 // Attach the current thread to the VM (if necessary) and return the JNIEnv*.
-JNIEnv* AttachCurrentThread();
+BASE_EXPORT JNIEnv* AttachCurrentThread();
 
 // Detach the current thread from VM if it is attached.
-void DetachFromVM();
+BASE_EXPORT void DetachFromVM();
 
 // Initializes the global JVM. It is not necessarily called before
 // InitApplicationContext().
-void InitVM(JavaVM* vm);
+BASE_EXPORT void InitVM(JavaVM* vm);
 
 // Initializes the global application context object. The |context| can be any
 // valid reference to the application context. Internally holds a global ref to
 // the context. InitVM and InitApplicationContext maybe called in either order.
-void InitApplicationContext(const JavaRef<jobject>& context);
+BASE_EXPORT void InitApplicationContext(const JavaRef<jobject>& context);
 
 // Gets a global ref to the application context set with
 // InitApplicationContext(). Ownership is retained by the function - the caller
 // must NOT release it.
-const jobject GetApplicationContext();
+const BASE_EXPORT jobject GetApplicationContext();
 
 // Finds the class named |class_name| and returns it.
 // Use this method instead of invoking directly the JNI FindClass method (to
 // prevent leaking local references).
 // This method triggers a fatal assertion if the class could not be found.
 // Use HasClass if you need to check whether the class exists.
-ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* class_name);
+BASE_EXPORT ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env,
+                                                const char* class_name);
 
 // Similar to the above, but the caller is responsible to manage the jclass
 // lifetime.
-jclass GetUnscopedClass(JNIEnv* env, const char* class_name) WARN_UNUSED_RESULT;
+BASE_EXPORT jclass GetUnscopedClass(JNIEnv* env,
+                                    const char* class_name) WARN_UNUSED_RESULT;
 
 // Returns true iff the class |class_name| could be found.
-bool HasClass(JNIEnv* env, const char* class_name);
+BASE_EXPORT bool HasClass(JNIEnv* env, const char* class_name);
 
 // This class is a wrapper for JNIEnv Get(Static)MethodID.
-class MethodID {
+class BASE_EXPORT MethodID {
  public:
   enum Type {
     TYPE_STATIC,
@@ -92,41 +95,41 @@ class MethodID {
 // beyond the duration of all future calls to this function, across all
 // threads. In practice, this means that the function should only be used with
 // string constants.
-jmethodID GetMethodIDFromClassName(JNIEnv* env,
-                                   const char* class_name,
-                                   const char* method,
-                                   const char* jni_signature);
+BASE_EXPORT jmethodID GetMethodIDFromClassName(JNIEnv* env,
+                                               const char* class_name,
+                                               const char* method,
+                                               const char* jni_signature);
 
 // Gets the field ID for a class field.
 // This method triggers a fatal assertion if the field could not be found.
-jfieldID GetFieldID(JNIEnv* env,
-                    const JavaRef<jclass>& clazz,
-                    const char* field_name,
-                    const char* jni_signature);
+BASE_EXPORT jfieldID GetFieldID(JNIEnv* env,
+                                const JavaRef<jclass>& clazz,
+                                const char* field_name,
+                                const char* jni_signature);
 
 // Returns true if |clazz| as a field with the given name and signature.
 // TODO(jcivelli): Determine whether we explicitly have to pass the environment.
-bool HasField(JNIEnv* env,
-              const JavaRef<jclass>& clazz,
-              const char* field_name,
-              const char* jni_signature);
-
-// Gets the field ID for a static class field.
-// This method triggers a fatal assertion if the field could not be found.
-jfieldID GetStaticFieldID(JNIEnv* env,
+BASE_EXPORT bool HasField(JNIEnv* env,
                           const JavaRef<jclass>& clazz,
                           const char* field_name,
                           const char* jni_signature);
 
+// Gets the field ID for a static class field.
+// This method triggers a fatal assertion if the field could not be found.
+BASE_EXPORT jfieldID GetStaticFieldID(JNIEnv* env,
+                                      const JavaRef<jclass>& clazz,
+                                      const char* field_name,
+                                      const char* jni_signature);
+
 // Returns true if an exception is pending in the provided JNIEnv*.
-bool HasException(JNIEnv* env);
+BASE_EXPORT bool HasException(JNIEnv* env);
 
 // If an exception is pending in the provided JNIEnv*, this function clears it
 // and returns true.
-bool ClearException(JNIEnv* env);
+BASE_EXPORT bool ClearException(JNIEnv* env);
 
 // This function will call CHECK() macro if there's any pending exception.
-void CheckException(JNIEnv* env);
+BASE_EXPORT void CheckException(JNIEnv* env);
 
 }  // namespace android
 }  // namespace base

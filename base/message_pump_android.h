@@ -7,6 +7,7 @@
 
 #include <jni.h>
 
+#include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/message_pump.h"
 
@@ -17,7 +18,7 @@ class TimeTicks;
 
 // This class implements a MessagePump needed for TYPE_UI MessageLoops on
 // OS_ANDROID platform.
-class MessagePumpForUI : public MessagePump {
+class BASE_EXPORT MessagePumpForUI : public MessagePump {
  public:
   MessagePumpForUI();
 
