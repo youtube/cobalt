@@ -26,6 +26,6 @@ decodeURIComponent(formElement.value.split("?")[1]);
     for key in result_dict:
       if key == 'v':
         continue
-      results.Add(key, 'ms', result_dict[key])
+      results.Add(key, 'ms', result_dict[key], data_type='unimportant')
       total += _Mean(result_dict[key])
     results.Add('Total', 'ms', total)
