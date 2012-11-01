@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/prefs/base_prefs_export.h"
 
 class PrefServiceBase;
 
@@ -20,7 +21,7 @@ class NotificationObserver;
 // with a PrefStore. Functions much like NotificationRegistrar, but specifically
 // manages observers of preference changes. When the Registrar is destroyed,
 // all registered observers are automatically unregistered with the PrefStore.
-class PrefChangeRegistrar {
+class BASE_PREFS_EXPORT PrefChangeRegistrar {
  public:
   PrefChangeRegistrar();
   virtual ~PrefChangeRegistrar();

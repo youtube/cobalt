@@ -40,7 +40,7 @@ class BASE_EXPORT ImportantFileWriter : public NonThreadSafe {
  public:
   // Used by ScheduleSave to lazily provide the data to be saved. Allows us
   // to also batch data serializations.
-  class DataSerializer {
+  class BASE_EXPORT DataSerializer {
    public:
     // Should put serialized string in |data| and return true on successful
     // serialization. Will be called on the same thread on which

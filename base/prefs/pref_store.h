@@ -9,6 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "base/prefs/base_prefs_export.h"
 
 namespace base {
 class Value;
@@ -21,10 +22,10 @@ class Value;
 // CommandLinePrefStore, which bridges command line options to preferences and
 // ConfigurationPolicyPrefStore, which is used for hooking up configuration
 // policy with the preference subsystem.
-class PrefStore : public base::RefCounted<PrefStore> {
+class BASE_PREFS_EXPORT PrefStore : public base::RefCounted<PrefStore> {
  public:
   // Observer interface for monitoring PrefStore.
-  class Observer {
+  class BASE_PREFS_EXPORT Observer {
    public:
     // Called when the value for the given |key| in the store changes.
     virtual void OnPrefValueChanged(const std::string& key) = 0;

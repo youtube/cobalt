@@ -10,13 +10,14 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/prefs/base_prefs_export.h"
 
 namespace base {
 class Value;
 }
 
 // A generic string to value map used by the PrefStore implementations.
-class PrefValueMap {
+class BASE_PREFS_EXPORT PrefValueMap {
  public:
   typedef std::map<std::string, base::Value*>::iterator iterator;
   typedef std::map<std::string, base::Value*>::const_iterator const_iterator;
