@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/message_loop.h"
 #include "base/metrics/field_trial.h"
 #include "base/rand_util.h"
 #include "base/stringprintf.h"
@@ -10,18 +11,52 @@
 
 namespace base {
 
+namespace {
+
+// Default group name used by several tests.
+const char kDefaultGroupName[] = "DefaultGroup";
+
+// FieldTrialList::Observer implementation for testing.
+class TestFieldTrialObserver : public FieldTrialList::Observer {
+ public:
+  TestFieldTrialObserver() {
+    FieldTrialList::AddObserver(this);
+  }
+
+  virtual ~TestFieldTrialObserver() {
+    FieldTrialList::RemoveObserver(this);
+  }
+
+  virtual void OnFieldTrialGroupFinalized(const std::string& trial,
+                                          const std::string& group) OVERRIDE {
+    trial_name_ = trial;
+    group_name_ = group;
+  }
+
+  const std::string& trial_name() const { return trial_name_; }
+  const std::string& group_name() const { return group_name_; }
+
+ private:
+  std::string trial_name_;
+  std::string group_name_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestFieldTrialObserver);
+};
+
+}  // namespace
+
 class FieldTrialTest : public testing::Test {
  public:
   FieldTrialTest() : trial_list_(NULL) {
     Time now = Time::NowFromSystemTime();
-    TimeDelta oneYear = TimeDelta::FromDays(365);
+    TimeDelta one_year = TimeDelta::FromDays(365);
     Time::Exploded exploded;
 
-    Time next_year_time = now + oneYear;
+    Time next_year_time = now + one_year;
     next_year_time.LocalExplode(&exploded);
     next_year_ = exploded.year;
 
-    Time last_year_time = now - oneYear;
+    Time last_year_time = now - one_year;
     last_year_time.LocalExplode(&exploded);
     last_year_ = exploded.year;
   }
@@ -29,6 +64,7 @@ class FieldTrialTest : public testing::Test {
  protected:
   int next_year_;
   int last_year_;
+  MessageLoop message_loop_;
 
  private:
   FieldTrialList trial_list_;
@@ -383,7 +419,6 @@ TEST_F(FieldTrialTest, DisableAfterInitialization) {
       FieldTrialList::FactoryGetFieldTrial("trial", 100, "default",
                                             next_year_, 12, 31, NULL);
   trial->AppendGroup("non_default", 100);
-  ASSERT_EQ("non_default", trial->group_name());
   trial->Disable();
   ASSERT_EQ("default", trial->group_name());
 }
@@ -457,6 +492,75 @@ TEST_F(FieldTrialTest, SetForced) {
   int would_win_group = other_hard_coded_trial->AppendGroup("Force", 1);
   EXPECT_EQ(forced_group, other_hard_coded_trial->group());
   EXPECT_EQ(forced_group, would_win_group);
+}
+
+TEST_F(FieldTrialTest, Observe) {
+  const char kTrialName[] = "TrialToObserve1";
+  const char kSecondaryGroupName[] = "SecondaryGroup";
+
+  TestFieldTrialObserver observer;
+  int default_group = -1;
+  FieldTrial* trial =
+      FieldTrialList::FactoryGetFieldTrial(kTrialName, 100, kDefaultGroupName,
+                                           next_year_, 12, 31, &default_group);
+  const int secondary_group = trial->AppendGroup(kSecondaryGroupName, 50);
+  const int chosen_group = trial->group();
+  EXPECT_TRUE(chosen_group == default_group || chosen_group == secondary_group);
+
+  message_loop_.RunAllPending();
+  EXPECT_EQ(kTrialName, observer.trial_name());
+  if (chosen_group == default_group)
+    EXPECT_EQ(kDefaultGroupName, observer.group_name());
+  else
+    EXPECT_EQ(kSecondaryGroupName, observer.group_name());
+}
+
+TEST_F(FieldTrialTest, ObserveDisabled) {
+  const char kTrialName[] = "TrialToObserve2";
+
+  TestFieldTrialObserver observer;
+  FieldTrial* trial =
+      FieldTrialList::FactoryGetFieldTrial(kTrialName, 100, kDefaultGroupName,
+                                           next_year_, 12, 31, NULL);
+  trial->AppendGroup("A", 25);
+  trial->AppendGroup("B", 25);
+  trial->AppendGroup("C", 25);
+  trial->Disable();
+
+  // Observer shouldn't be notified until group() is called.
+  message_loop_.RunAllPending();
+  EXPECT_TRUE(observer.trial_name().empty());
+  EXPECT_TRUE(observer.group_name().empty());
+
+  trial->group();
+  message_loop_.RunAllPending();
+  EXPECT_EQ(kTrialName, observer.trial_name());
+  EXPECT_EQ(kDefaultGroupName, observer.group_name());
+}
+
+TEST_F(FieldTrialTest, ObserveForcedDisabled) {
+  const char kTrialName[] = "TrialToObserve3";
+
+  TestFieldTrialObserver observer;
+  FieldTrial* trial =
+      FieldTrialList::FactoryGetFieldTrial(kTrialName, 100, kDefaultGroupName,
+                                           next_year_, 12, 31, NULL);
+  trial->AppendGroup("A", 25);
+  trial->AppendGroup("B", 25);
+  trial->AppendGroup("C", 25);
+  trial->SetForced();
+  trial->Disable();
+
+  // Observer shouldn't be notified until group() is called, even if SetForced()
+  // was called.
+  message_loop_.RunAllPending();
+  EXPECT_TRUE(observer.trial_name().empty());
+  EXPECT_TRUE(observer.group_name().empty());
+
+  trial->group();
+  message_loop_.RunAllPending();
+  EXPECT_EQ(kTrialName, observer.trial_name());
+  EXPECT_EQ(kDefaultGroupName, observer.group_name());
 }
 
 }  // namespace base
