@@ -1742,6 +1742,104 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
   }
 }
 
+// FixedDateNetworkDelegate swaps out the server's HTTP Date response header
+// value for the |fixed_date| argument given to the constructor.
+class FixedDateNetworkDelegate : public TestNetworkDelegate {
+ public:
+  explicit FixedDateNetworkDelegate(const std::string& fixed_date)
+      : fixed_date_(fixed_date) {}
+  virtual ~FixedDateNetworkDelegate() {}
+
+  // net::NetworkDelegate implementation
+  virtual int OnHeadersReceived(
+      net::URLRequest* request,
+      const net::CompletionCallback& callback,
+      const net::HttpResponseHeaders* original_response_headers,
+      scoped_refptr<net::HttpResponseHeaders>* override_response_headers)
+      OVERRIDE;
+
+ private:
+  std::string fixed_date_;
+
+  DISALLOW_COPY_AND_ASSIGN(FixedDateNetworkDelegate);
+};
+
+int FixedDateNetworkDelegate::OnHeadersReceived(
+    net::URLRequest* request,
+    const net::CompletionCallback& callback,
+    const net::HttpResponseHeaders* original_response_headers,
+    scoped_refptr<net::HttpResponseHeaders>* override_response_headers) {
+  net::HttpResponseHeaders* new_response_headers =
+      new net::HttpResponseHeaders(original_response_headers->raw_headers());
+
+  new_response_headers->RemoveHeader("Date");
+  new_response_headers->AddHeader("Date: " + fixed_date_);
+
+  *override_response_headers = new_response_headers;
+  return TestNetworkDelegate::OnHeadersReceived(request,
+                                                callback,
+                                                original_response_headers,
+                                                override_response_headers);
+}
+
+// Test that cookie expiration times are adjusted for server/client clock
+// skew and that we handle incorrect timezone specifier "UTC" in HTTP Date
+// headers by defaulting to GMT. (crbug.com/135131)
+TEST_F(URLRequestTest, AcceptClockSkewCookieWithWrongDateTimezone) {
+  LocalHttpTestServer test_server;
+  ASSERT_TRUE(test_server.Start());
+
+  // Set up an expired cookie.
+  {
+    TestNetworkDelegate network_delegate;
+    default_context_.set_network_delegate(&network_delegate);
+    TestDelegate d;
+    URLRequest req(test_server.GetURL(
+        "set-cookie?StillGood=1;expires=Mon,18-Apr-1977,22:50:13,GMT"),
+        &d,
+        &default_context_);
+    req.Start();
+    MessageLoop::current()->Run();
+  }
+  // Verify that the cookie is not set.
+  {
+    TestNetworkDelegate network_delegate;
+    default_context_.set_network_delegate(&network_delegate);
+    TestDelegate d;
+    URLRequest req(
+        test_server.GetURL("echoheader?Cookie"), &d, &default_context_);
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_TRUE(d.data_received().find("StillGood=1") == std::string::npos);
+  }
+  // Set up a cookie with clock skew and "UTC" HTTP Date timezone specifier.
+  {
+    FixedDateNetworkDelegate network_delegate("18-Apr-1977 22:49:13 UTC");
+    default_context_.set_network_delegate(&network_delegate);
+    TestDelegate d;
+    URLRequest req(test_server.GetURL(
+        "set-cookie?StillGood=1;expires=Mon,18-Apr-1977,22:50:13,GMT"),
+        &d,
+        &default_context_);
+    req.Start();
+    MessageLoop::current()->Run();
+  }
+  // Verify that the cookie is set.
+  {
+    TestNetworkDelegate network_delegate;
+    default_context_.set_network_delegate(&network_delegate);
+    TestDelegate d;
+    URLRequest req(
+        test_server.GetURL("echoheader?Cookie"), &d, &default_context_);
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_TRUE(d.data_received().find("StillGood=1") != std::string::npos);
+  }
+}
+
+
 // Check that it is impossible to change the referrer in the extra headers of
 // an URLRequest.
 TEST_F(URLRequestTest, DoNotOverrideReferrer) {
