@@ -74,7 +74,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
         demuxer_(new StrictMock<MockDemuxerStream>()),
         read_cb_(base::Bind(&FFmpegVideoDecoderTest::FrameReady,
                             base::Unretained(this))) {
-    CHECK(FFmpegGlue::GetInstance());
+    FFmpegGlue::InitializeFFmpeg();
 
     decoder_ = new FFmpegVideoDecoder(
         base::Bind(&Identity<scoped_refptr<base::MessageLoopProxy> >,

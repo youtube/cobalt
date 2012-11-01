@@ -36,7 +36,6 @@
 #include "media/filters/ffmpeg_glue.h"
 
 // FFmpeg forward declarations.
-struct AVFormatContext;
 struct AVPacket;
 struct AVRational;
 struct AVStream;
@@ -159,7 +158,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
 
   // FFmpegURLProtocol implementation.
-  virtual size_t Read(size_t size, uint8* data) OVERRIDE;
+  virtual int Read(int size, uint8* data) OVERRIDE;
   virtual bool GetPosition(int64* position_out) OVERRIDE;
   virtual bool SetPosition(int64 position) OVERRIDE;
   virtual bool GetSize(int64* size_out) OVERRIDE;
@@ -221,9 +220,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
-  // FFmpeg context handle.
-  AVFormatContext* format_context_;
-
   // |streams_| mirrors the AVStream array in |format_context_|. It contains
   // FFmpegDemuxerStreams encapsluating AVStream objects at the same index.
   //
@@ -267,6 +263,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // Set if we know duration of the audio stream. Used when processing end of
   // stream -- at this moment we definitely know duration.
   bool duration_known_;
+
+  scoped_ptr<FFmpegGlue> glue_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };

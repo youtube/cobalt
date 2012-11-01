@@ -34,7 +34,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
             &Identity<scoped_refptr<base::MessageLoopProxy> >,
             message_loop_.message_loop_proxy()))),
         demuxer_(new StrictMock<MockDemuxerStream>()) {
-    CHECK(FFmpegGlue::GetInstance());
+    FFmpegGlue::InitializeFFmpeg();
 
     vorbis_extradata_ = ReadTestDataFile("vorbis-extradata");
 

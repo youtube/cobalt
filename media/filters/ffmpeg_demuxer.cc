@@ -262,7 +262,6 @@ FFmpegDemuxer::FFmpegDemuxer(
     const scoped_refptr<DataSource>& data_source)
     : host_(NULL),
       message_loop_(message_loop),
-      format_context_(NULL),
       data_source_(data_source),
       read_event_(false, false),
       read_has_failed_(false),
@@ -276,18 +275,7 @@ FFmpegDemuxer::FFmpegDemuxer(
   DCHECK(data_source_);
 }
 
-FFmpegDemuxer::~FFmpegDemuxer() {
-  // In this destructor, we clean up resources held by FFmpeg. It is ugly to
-  // close the codec contexts here because the corresponding codecs are opened
-  // in the decoder filters. By reaching this point, all filters should have
-  // stopped, so this is the only safe place to do the global clean up.
-  // TODO(hclam): close the codecs in the corresponding decoders.
-  if (!format_context_)
-    return;
-
-  DestroyAVFormatContext(format_context_);
-  format_context_ = NULL;
-}
+FFmpegDemuxer::~FFmpegDemuxer() {}
 
 void FFmpegDemuxer::PostDemuxTask() {
   message_loop_->PostTask(FROM_HERE,
@@ -344,7 +332,7 @@ base::TimeDelta FFmpegDemuxer::GetStartTime() const {
   return start_time_;
 }
 
-size_t FFmpegDemuxer::Read(size_t size, uint8* data) {
+int FFmpegDemuxer::Read(int size, uint8* data) {
   DCHECK(host_);
   DCHECK(data_source_);
 
@@ -460,46 +448,34 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
   // see http://crbug.com/122071
   data_source_->set_host(host);
 
-  // Add ourself to Protocol list and get our unique key.
-  std::string key = FFmpegGlue::GetInstance()->AddProtocol(this);
-
-  // Open FFmpeg AVFormatContext.
-  DCHECK(!format_context_);
-  AVFormatContext* context = avformat_alloc_context();
+  glue_.reset(new FFmpegGlue(this));
+  AVFormatContext* format_context = glue_->format_context();
 
   // Disable ID3v1 tag reading to avoid costly seeks to end of file for data we
   // don't use.  FFmpeg will only read ID3v1 tags if no other metadata is
   // available, so add a metadata entry to ensure some is always present.
-  av_dict_set(&context->metadata, "skip_id3v1_tags", "", 0);
+  av_dict_set(&format_context->metadata, "skip_id3v1_tags", "", 0);
 
-  int result = avformat_open_input(&context, key.c_str(), NULL, NULL);
-
-  // Remove ourself from protocol list.
-  FFmpegGlue::GetInstance()->RemoveProtocol(this);
-
-  if (result < 0) {
+  if (!glue_->OpenContext()) {
     status_cb.Run(DEMUXER_ERROR_COULD_NOT_OPEN);
     return;
   }
 
-  DCHECK(context);
-  format_context_ = context;
-
   // Fully initialize AVFormatContext by parsing the stream a little.
-  result = avformat_find_stream_info(format_context_, NULL);
+  int result = avformat_find_stream_info(format_context, NULL);
   if (result < 0) {
     status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
   // Create demuxer stream entries for each possible AVStream.
-  streams_.resize(format_context_->nb_streams);
+  streams_.resize(format_context->nb_streams);
   bool found_audio_stream = false;
   bool found_video_stream = false;
 
   base::TimeDelta max_duration;
-  for (size_t i = 0; i < format_context_->nb_streams; ++i) {
-    AVCodecContext* codec_context = format_context_->streams[i]->codec;
+  for (size_t i = 0; i < format_context->nb_streams; ++i) {
+    AVCodecContext* codec_context = format_context->streams[i]->codec;
     AVMediaType codec_type = codec_context->codec_type;
 
     if (codec_type == AVMEDIA_TYPE_AUDIO) {
@@ -520,7 +496,7 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
       continue;
     }
 
-    AVStream* stream = format_context_->streams[i];
+    AVStream* stream = format_context->streams[i];
     scoped_refptr<FFmpegDemuxerStream> demuxer_stream(
         new FFmpegDemuxerStream(this, stream));
 
@@ -540,13 +516,13 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
     return;
   }
 
-  if (format_context_->duration != static_cast<int64_t>(AV_NOPTS_VALUE)) {
+  if (format_context->duration != static_cast<int64_t>(AV_NOPTS_VALUE)) {
     // If there is a duration value in the container use that to find the
     // maximum between it and the duration from A/V streams.
     const AVRational av_time_base = {1, AV_TIME_BASE};
     max_duration =
         std::max(max_duration,
-                 ConvertFromTimeBase(av_time_base, format_context_->duration));
+                 ConvertFromTimeBase(av_time_base, format_context->duration));
   } else {
     // The duration is unknown, in which case this is likely a live stream.
     max_duration = kInfiniteDuration();
@@ -564,7 +540,7 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
 
   int64 filesize_in_bytes = 0;
   GetSize(&filesize_in_bytes);
-  bitrate_ = CalculateBitrate(format_context_, max_duration, filesize_in_bytes);
+  bitrate_ = CalculateBitrate(format_context, max_duration, filesize_in_bytes);
   if (bitrate_ > 0)
     data_source_->SetBitrate(bitrate_);
 
@@ -587,7 +563,8 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
   // Passing -1 as our stream index lets FFmpeg pick a default stream.  FFmpeg
   // will attempt to use the lowest-index video stream, if present, followed by
   // the lowest-index audio stream.
-  if (av_seek_frame(format_context_, -1, time.InMicroseconds(), flags) < 0) {
+  if (av_seek_frame(glue_->format_context(), -1, time.InMicroseconds(),
+                    flags) < 0) {
     // Use VLOG(1) instead of NOTIMPLEMENTED() to prevent the message being
     // captured from stdout and contaminates testing.
     // TODO(scherkus): Implement this properly and signal error (BUG=23447).
@@ -608,7 +585,7 @@ void FFmpegDemuxer::DemuxTask() {
 
   // Allocate and read an AVPacket from the media.
   scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet(new AVPacket());
-  int result = av_read_frame(format_context_, packet.get());
+  int result = av_read_frame(glue_->format_context(), packet.get());
   if (result < 0) {
     // Update the duration based on the audio stream if
     // it was previously unknown http://crbug.com/86830

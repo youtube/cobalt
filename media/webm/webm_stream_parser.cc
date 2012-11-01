@@ -43,7 +43,7 @@ class FFmpegConfigHelper {
   static const int kSegmentSizeOffset;
   static const uint8 kEmptyCluster[];
 
-  AVFormatContext* CreateFormatContext(const uint8* data, int size);
+  bool OpenFormatContext(const uint8* data, int size);
   bool SetupStreamConfigs();
 
   AudioDecoderConfig audio_config_;
@@ -52,13 +52,11 @@ class FFmpegConfigHelper {
   // Backing buffer for |url_protocol_|.
   scoped_array<uint8> url_protocol_buffer_;
 
-  // Protocol used by |format_context_|. It must outlive the context object.
+  // Protocol used by FFmpegGlue. It must outlive the context object.
   scoped_ptr<InMemoryUrlProtocol> url_protocol_;
 
-  // FFmpeg format context for this demuxer. It is created by
-  // avformat_open_input() during demuxer initialization and cleaned up with
-  // DestroyAVFormatContext() in the destructor.
-  AVFormatContext* format_context_;
+  // Glue for interfacing InMemoryUrlProtocol with FFmpeg.
+  scoped_ptr<FFmpegGlue> glue_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegConfigHelper);
 };
@@ -90,25 +88,20 @@ const uint8 FFmpegConfigHelper::kEmptyCluster[] = {
   0x1F, 0x43, 0xB6, 0x75, 0x80  // CLUSTER (size = 0)
 };
 
-FFmpegConfigHelper::FFmpegConfigHelper() : format_context_(NULL) {}
+FFmpegConfigHelper::FFmpegConfigHelper() {}
 
 FFmpegConfigHelper::~FFmpegConfigHelper() {
-  if (!format_context_)
-    return;
-
-  DestroyAVFormatContext(format_context_);
-  format_context_ = NULL;
-
   if (url_protocol_.get()) {
-    FFmpegGlue::GetInstance()->RemoveProtocol(url_protocol_.get());
     url_protocol_.reset();
     url_protocol_buffer_.reset();
   }
+
+  if (glue_.get())
+    glue_.reset();
 }
 
 bool FFmpegConfigHelper::Parse(const uint8* data, int size) {
-  format_context_ = CreateFormatContext(data, size);
-  return format_context_ && SetupStreamConfigs();
+  return OpenFormatContext(data, size) && SetupStreamConfigs();
 }
 
 const AudioDecoderConfig& FFmpegConfigHelper::audio_config() const {
@@ -119,10 +112,10 @@ const VideoDecoderConfig& FFmpegConfigHelper::video_config() const {
   return video_config_;
 }
 
-AVFormatContext* FFmpegConfigHelper::CreateFormatContext(const uint8* data,
-                                                         int size) {
+bool FFmpegConfigHelper::OpenFormatContext(const uint8* data, int size) {
   DCHECK(!url_protocol_.get());
   DCHECK(!url_protocol_buffer_.get());
+  DCHECK(!glue_.get());
 
   int segment_size = size + sizeof(kEmptyCluster);
   int buf_size = sizeof(kWebMHeader) + segment_size;
@@ -141,27 +134,22 @@ AVFormatContext* FFmpegConfigHelper::CreateFormatContext(const uint8* data,
   }
 
   url_protocol_.reset(new InMemoryUrlProtocol(buf, buf_size, true));
-  std::string key = FFmpegGlue::GetInstance()->AddProtocol(url_protocol_.get());
+  glue_.reset(new FFmpegGlue(url_protocol_.get()));
 
   // Open FFmpeg AVFormatContext.
-  AVFormatContext* context = NULL;
-  int result = avformat_open_input(&context, key.c_str(), NULL, NULL);
-
-  if (result < 0)
-    return NULL;
-
-  return context;
+  return glue_->OpenContext();
 }
 
 bool FFmpegConfigHelper::SetupStreamConfigs() {
-  int result = avformat_find_stream_info(format_context_, NULL);
+  AVFormatContext* format_context = glue_->format_context();
+  int result = avformat_find_stream_info(format_context, NULL);
 
   if (result < 0)
     return false;
 
   bool no_supported_streams = true;
-  for (size_t i = 0; i < format_context_->nb_streams; ++i) {
-    AVStream* stream = format_context_->streams[i];
+  for (size_t i = 0; i < format_context->nb_streams; ++i) {
+    AVStream* stream = format_context->streams[i];
     AVCodecContext* codec_context = stream->codec;
     AVMediaType codec_type = codec_context->codec_type;
 

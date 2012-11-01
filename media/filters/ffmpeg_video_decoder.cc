@@ -133,8 +133,7 @@ static void ReleaseVideoBufferImpl(AVCodecContext* s, AVFrame* frame) {
 void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
                                     const PipelineStatusCB& status_cb,
                                     const StatisticsCB& statistics_cb) {
-  // Ensure FFmpeg has been initialized
-  FFmpegGlue::GetInstance();
+  FFmpegGlue::InitializeFFmpeg();
 
   if (!message_loop_) {
     message_loop_ = base::ResetAndReturn(&message_loop_factory_cb_).Run();
