@@ -7,6 +7,8 @@
 
 #include <jni.h>
 
+#include "base/base_export.h"
+
 class FilePath;
 
 namespace base {
@@ -16,13 +18,13 @@ namespace android {
 // application. The result is placed in the FilePath pointed to by 'result'.
 // This method is dedicated for base_paths_android.c, Using
 // PathService::Get(base::DIR_ANDROID_APP_DATA, ...) gets the data dir.
-bool GetDataDirectory(FilePath* result);
+BASE_EXPORT bool GetDataDirectory(FilePath* result);
 
 // Retrieves the absolute path to the cache directory. The result is placed in
 // the FilePath pointed to by 'result'. This method is dedicated for
 // base_paths_android.c, Using PathService::Get(base::DIR_CACHE, ...) gets the
 // cache dir.
-bool GetCacheDirectory(FilePath* result);
+BASE_EXPORT bool GetCacheDirectory(FilePath* result);
 
 // Retrieves the path to the public downloads directory. The result is placed
 // in the FilePath pointed to by 'result'.
@@ -35,7 +37,7 @@ bool GetNativeLibraryDirectory(FilePath* result);
 
 // Retrieves the absolute path to the external storage directory. The result
 // is placed in the FilePath pointed to by 'result'.
-bool GetExternalStorageDirectory(FilePath* result);
+BASE_EXPORT bool GetExternalStorageDirectory(FilePath* result);
 
 bool RegisterPathUtils(JNIEnv* env);
 

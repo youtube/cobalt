@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "net/base/net_export.h"
 
 namespace net {
 namespace android {
@@ -63,7 +64,7 @@ bool GetMimeTypeFromExtension(const std::string& extension,
                               std::string* result);
 
 // Register JNI methods
-bool RegisterNetworkLibrary(JNIEnv* env);
+NET_EXPORT bool RegisterNetworkLibrary(JNIEnv* env);
 
 }  // namespace android
 }  // namespace net

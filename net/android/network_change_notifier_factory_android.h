@@ -6,6 +6,7 @@
 #define NET_ANDROID_NETWORK_CHANGE_NOTIFIER_FACTORY_ANDROID_H_
 
 #include "base/compiler_specific.h"
+#include "net/base/net_export.h"
 #include "net/base/network_change_notifier_factory.h"
 
 namespace net {
@@ -14,7 +15,7 @@ class NetworkChangeNotifier;
 
 // NetworkChangeNotifierFactory creates Android-specific specialization of
 // NetworkChangeNotifier.
-class NetworkChangeNotifierFactoryAndroid :
+class NET_EXPORT NetworkChangeNotifierFactoryAndroid :
     public NetworkChangeNotifierFactory {
  public:
   NetworkChangeNotifierFactoryAndroid();
