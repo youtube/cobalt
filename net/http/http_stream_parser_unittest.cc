@@ -194,6 +194,15 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
     MockRead(SYNCHRONOUS, 0, 8),  // EOF
   };
 
+  scoped_refptr<UploadData> upload_data(new UploadData);
+  upload_data->set_is_chunked(true);
+
+  upload_data->AppendChunk(kChunk1, arraysize(kChunk1) - 1, false);
+
+  scoped_ptr<UploadDataStream> upload_stream(
+      new UploadDataStream(upload_data));
+  ASSERT_EQ(OK, upload_stream->InitSync());
+
   DeterministicSocketData data(reads, arraysize(reads),
                                writes, arraysize(writes));
   data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
@@ -219,15 +228,6 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
   HttpStreamParser parser(socket_handle.get(), &request_info, read_buffer,
                           BoundNetLog());
 
-  scoped_refptr<UploadData> upload_data(new UploadData);
-  upload_data->set_is_chunked(true);
-
-  upload_data->AppendChunk(kChunk1, arraysize(kChunk1) - 1, false);
-
-  scoped_ptr<UploadDataStream> upload_stream(
-      new UploadDataStream(upload_data));
-  ASSERT_EQ(OK, upload_stream->InitSync());
-
   HttpRequestHeaders request_headers;
   request_headers.SetHeader("Host", "localhost");
   request_headers.SetHeader("Transfer-Encoding", "chunked");
@@ -237,7 +237,7 @@ TEST(HttpStreamParser, AsyncChunkAndAsyncSocket) {
   // This will attempt to Write() the initial request and headers, which will
   // complete asynchronously.
   rv = parser.SendRequest("GET /one.html HTTP/1.1\r\n", request_headers,
-                          upload_stream.Pass(), &response_info,
+                          upload_stream.get(), &response_info,
                           callback.callback());
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
