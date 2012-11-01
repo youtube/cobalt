@@ -18,6 +18,11 @@ struct _EXCEPTION_POINTERS;
 namespace base {
 namespace debug {
 
+// Enables stack dump to console output on exception and signals.
+// When enabled, the process will quit immediately. This is meant to be used in
+// unit_tests only! This is not thread-safe: only call from main thread.
+BASE_EXPORT bool EnableInProcessStackDumping();
+
 // A stacktrace can be helpful in debugging. For example, you can include a
 // stacktrace member in a object (probably around #ifndef NDEBUG) so that you
 // can later see where the given object was created from.
