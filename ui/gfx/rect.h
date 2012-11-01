@@ -81,6 +81,14 @@ UI_EXPORT Rect IntersectRects(const Rect& a, const Rect& b);
 UI_EXPORT Rect UnionRects(const Rect& a, const Rect& b);
 UI_EXPORT Rect SubtractRects(const Rect& a, const Rect& b);
 
+// Constructs a rectangle with |p1| and |p2| as opposite corners.
+//
+// This could also be thought of as "the smallest rect that contains both
+// points", except that we consider points on the right/bottom edges of the
+// rect to be outside the rect.  So technically one or both points will not be
+// contained within the rect, because they will appear on one of these edges.
+UI_EXPORT Rect BoundingRect(const Point& p1, const Point& p2);
+
 #if !defined(COMPILER_MSVC)
 extern template class RectBase<Rect, Point, Size, Insets, Vector2d, int>;
 #endif
