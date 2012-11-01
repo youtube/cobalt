@@ -12,12 +12,26 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
+#include "base/process_util.h"
 #include "base/synchronization/lock.h"
 
 namespace base {
 namespace debug {
 
 namespace {
+
+// Previous unhandled filter. Will be called if not NULL when we intercept an
+// exception. Only used in unit tests.
+LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
+
+// Prints the exception call stack.
+// This is the unit tests exception filter.
+long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
+  debug::StackTrace(info).PrintBacktrace();
+  if (g_previous_filter)
+    return g_previous_filter(info);
+  return EXCEPTION_CONTINUE_SEARCH;
+}
 
 // SymbolContext is a threadsafe singleton that wraps the DbgHelp Sym* family
 // of functions.  The Sym* family of functions may only be invoked by one
@@ -134,6 +148,14 @@ class SymbolContext {
 };
 
 }  // namespace
+
+bool EnableInProcessStackDumping() {
+  // Add stack dumping support on exception on windows. Similar to OS_POSIX
+  // signal() handling in process_util_posix.cc.
+  g_previous_filter = SetUnhandledExceptionFilter(&StackDumpExceptionFilter);
+  RouteStdioToConsole();
+  return true;
+}
 
 // Disable optimizations for the StackTrace::StackTrace function. It is
 // important to disable at least frame pointer optimization ("y"), since

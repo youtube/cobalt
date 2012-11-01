@@ -56,19 +56,6 @@ const DWORD kProcessKilledExitCode = 1;
 // HeapSetInformation function pointer.
 typedef BOOL (WINAPI* HeapSetFn)(HANDLE, HEAP_INFORMATION_CLASS, PVOID, SIZE_T);
 
-// Previous unhandled filter. Will be called if not NULL when we intercept an
-// exception. Only used in unit tests.
-LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
-
-// Prints the exception call stack.
-// This is the unit tests exception filter.
-long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
-  debug::StackTrace(info).PrintBacktrace();
-  if (g_previous_filter)
-    return g_previous_filter(info);
-  return EXCEPTION_CONTINUE_SEARCH;
-}
-
 void OnNoMemory() {
   // Kill the process. This is important for security, since WebKit doesn't
   // NULL-check many memory allocations. If a malloc fails, returns NULL, and
@@ -947,14 +934,6 @@ void EnableTerminationOnHeapCorruption() {
 
 void EnableTerminationOnOutOfMemory() {
   std::set_new_handler(&OnNoMemory);
-}
-
-bool EnableInProcessStackDumping() {
-  // Add stack dumping support on exception on windows. Similar to OS_POSIX
-  // signal() handling in process_util_posix.cc.
-  g_previous_filter = SetUnhandledExceptionFilter(&StackDumpExceptionFilter);
-  RouteStdioToConsole();
-  return true;
 }
 
 void RaiseProcessToHighPriority() {

@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <execinfo.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/param.h>
@@ -145,7 +146,85 @@ bool GetBacktraceStrings(void *const *trace, int size,
   return symbolized;
 }
 
+void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
+  if (BeingDebugged())
+    BreakDebugger();
+
+#if defined(OS_MACOSX)
+  // TODO(phajdan.jr): Fix async-signal non-safety (http://crbug.com/101155).
+  DLOG(ERROR) << "Received signal " << signal;
+  StackTrace().PrintBacktrace();
+#endif
+
+  // TODO(shess): Port to Linux.
+#if defined(OS_MACOSX)
+  // TODO(shess): Port to 64-bit.
+#if ARCH_CPU_X86_FAMILY && ARCH_CPU_32_BITS
+  char buf[1024];
+  size_t len;
+
+  // NOTE: Even |snprintf()| is not on the approved list for signal
+  // handlers, but buffered I/O is definitely not on the list due to
+  // potential for |malloc()|.
+  len = static_cast<size_t>(
+      snprintf(buf, sizeof(buf),
+               "ax: %x, bx: %x, cx: %x, dx: %x\n",
+               context->uc_mcontext->__ss.__eax,
+               context->uc_mcontext->__ss.__ebx,
+               context->uc_mcontext->__ss.__ecx,
+               context->uc_mcontext->__ss.__edx));
+  write(STDERR_FILENO, buf, std::min(len, sizeof(buf) - 1));
+
+  len = static_cast<size_t>(
+      snprintf(buf, sizeof(buf),
+               "di: %x, si: %x, bp: %x, sp: %x, ss: %x, flags: %x\n",
+               context->uc_mcontext->__ss.__edi,
+               context->uc_mcontext->__ss.__esi,
+               context->uc_mcontext->__ss.__ebp,
+               context->uc_mcontext->__ss.__esp,
+               context->uc_mcontext->__ss.__ss,
+               context->uc_mcontext->__ss.__eflags));
+  write(STDERR_FILENO, buf, std::min(len, sizeof(buf) - 1));
+
+  len = static_cast<size_t>(
+      snprintf(buf, sizeof(buf),
+               "ip: %x, cs: %x, ds: %x, es: %x, fs: %x, gs: %x\n",
+               context->uc_mcontext->__ss.__eip,
+               context->uc_mcontext->__ss.__cs,
+               context->uc_mcontext->__ss.__ds,
+               context->uc_mcontext->__ss.__es,
+               context->uc_mcontext->__ss.__fs,
+               context->uc_mcontext->__ss.__gs));
+  write(STDERR_FILENO, buf, std::min(len, sizeof(buf) - 1));
+#endif  // ARCH_CPU_32_BITS
+#endif  // defined(OS_MACOSX)
+  _exit(1);
+}
+
 }  // namespace
+
+#if !defined(OS_IOS)
+bool EnableInProcessStackDumping() {
+  // When running in an application, our code typically expects SIGPIPE
+  // to be ignored.  Therefore, when testing that same code, it should run
+  // with SIGPIPE ignored as well.
+  struct sigaction action;
+  memset(&action, 0, sizeof(action));
+  action.sa_handler = SIG_IGN;
+  sigemptyset(&action.sa_mask);
+  bool success = (sigaction(SIGPIPE, &action, NULL) == 0);
+
+  sig_t handler = reinterpret_cast<sig_t>(&StackDumpSignalHandler);
+  success &= (signal(SIGILL, handler) != SIG_ERR);
+  success &= (signal(SIGABRT, handler) != SIG_ERR);
+  success &= (signal(SIGFPE, handler) != SIG_ERR);
+  success &= (signal(SIGBUS, handler) != SIG_ERR);
+  success &= (signal(SIGSEGV, handler) != SIG_ERR);
+  success &= (signal(SIGSYS, handler) != SIG_ERR);
+
+  return success;
+}
+#endif  // !defined(OS_IOS)
 
 StackTrace::StackTrace() {
   // Though the backtrace API man page does not list any possible negative

@@ -110,6 +110,7 @@
           'debug/stack_trace.cc',
           'debug/stack_trace.h',
           'debug/stack_trace_android.cc',
+          'debug/stack_trace_ios.mm',
           'debug/stack_trace_posix.cc',
           'debug/stack_trace_win.cc',
           'debug/trace_event.cc',
