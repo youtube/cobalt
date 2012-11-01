@@ -141,7 +141,7 @@ class FFmpegDemuxerTest : public testing::Test {
   MessageLoop message_loop_;
 
   AVFormatContext* format_context() {
-    return demuxer_->format_context_;
+    return demuxer_->glue_->format_context();
   }
 
   void ReadUntilEndOfStream() {
@@ -541,12 +541,12 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
 
   // Read 32 bytes from offset zero and verify position.
   uint8 buffer[32];
-  EXPECT_EQ(32u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(32, demuxer_->Read(32, buffer));
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(32, position);
 
   // Read an additional 32 bytes and verify position.
-  EXPECT_EQ(32u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(32, demuxer_->Read(32, buffer));
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(64, position);
 
@@ -554,15 +554,15 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   int64 size = 0;
   EXPECT_TRUE(demuxer_->GetSize(&size));
   EXPECT_TRUE(demuxer_->SetPosition(size - 48));
-  EXPECT_EQ(32u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(32, demuxer_->Read(32, buffer));
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(size - 16, position);
 
-  EXPECT_EQ(16u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(16, demuxer_->Read(32, buffer));
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(size, position);
 
-  EXPECT_EQ(0u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(0, demuxer_->Read(32, buffer));
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(size, position);
 
