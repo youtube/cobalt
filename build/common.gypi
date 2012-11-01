@@ -252,6 +252,7 @@
       # -fthread-sanitizer only works with clang, but tsan=1 implies clang=1
       # See http://clang.llvm.org/docs/ThreadSanitizer.html
       'tsan%': 0,
+      'tsan_blacklist%': '<(PRODUCT_DIR)/../../tools/valgrind/tsan_v2/ignores.txt',
 
       # Use a modified version of Clang to intercept allocated types and sizes
       # for allocated objects. clang_type_profiler=1 implies clang=1.
@@ -631,6 +632,7 @@
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
     'tsan%': '<(tsan)',
+    'tsan_blacklist%': '<(tsan_blacklist)',
     'clang_type_profiler%': '<(clang_type_profiler)',
     'order_profiling%': '<(order_profiling)',
     'order_text_section%': '<(order_text_section)',
@@ -2121,7 +2123,7 @@
           ['msvs_use_common_release', {
             'includes': ['release.gypi'],
           }],
-          ['release_valgrind_build==0', {
+          ['release_valgrind_build==0 and tsan==0', {
             'defines': [
               'NVALGRIND',
               'DYNAMIC_ANNOTATIONS_ENABLED=0',
@@ -2583,6 +2585,7 @@
                   '-fthread-sanitizer',
                   '-fno-omit-frame-pointer',
                   '-fPIE',
+                  '-mllvm', '-tsan-blacklist=<(tsan_blacklist)'
                 ],
                 'ldflags': [
                   '-fthread-sanitizer',
@@ -2590,6 +2593,7 @@
                 'defines': [
                   'THREAD_SANITIZER',
                   'DYNAMIC_ANNOTATIONS_EXTERNAL_IMPL=1',
+                  'WTF_USE_DYNAMIC_ANNOTATIONS_NOIMPL=1',
                 ],
                 'target_conditions': [
                   ['_type=="executable"', {
