@@ -10,6 +10,7 @@
 #include "net/base/asn1_util.h"
 #include "net/base/default_server_bound_cert_store.h"
 #include "net/base/upload_data_stream.h"
+#include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/spdy/spdy_session.h"
@@ -105,9 +106,8 @@ TEST_F(SpdyHttpStreamSpdy2Test, SendRequest) {
       OK,
       http_stream->InitializeStream(&request, net_log, CompletionCallback()));
 
-  EXPECT_EQ(ERR_IO_PENDING,
-            http_stream->SendRequest(headers, scoped_ptr<UploadDataStream>(),
-                                     &response, callback.callback()));
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
+                                                     callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
   // This triggers the MockWrite and read 2
@@ -154,6 +154,11 @@ TEST_F(SpdyHttpStreamSpdy2Test, SendChunkedPost) {
   request.upload_data->set_is_chunked(true);
   request.upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
   request.upload_data->AppendChunk(kUploadData, kUploadDataSize, true);
+
+  scoped_ptr<UploadDataStream> upload_stream(
+      new UploadDataStream(request.upload_data));
+  ASSERT_EQ(OK, upload_stream->InitSync());
+
   TestCompletionCallback callback;
   HttpResponseInfo response;
   HttpRequestHeaders headers;
@@ -163,11 +168,8 @@ TEST_F(SpdyHttpStreamSpdy2Test, SendChunkedPost) {
       OK,
       http_stream.InitializeStream(&request, net_log, CompletionCallback()));
 
-  scoped_ptr<UploadDataStream> upload_stream(
-      new UploadDataStream(request.upload_data));
-  ASSERT_EQ(OK, upload_stream->InitSync());
   EXPECT_EQ(ERR_IO_PENDING, http_stream.SendRequest(
-      headers, upload_stream.Pass(), &response, callback.callback()));
+      headers, upload_stream.get(), &response, callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
   // This triggers the MockWrite and read 2
@@ -250,6 +252,11 @@ TEST_F(SpdyHttpStreamSpdy2Test, DelayedSendChunkedPost) {
   request.upload_data = new UploadData();
   request.upload_data->set_is_chunked(true);
 
+  scoped_ptr<UploadDataStream> upload_stream(
+      new UploadDataStream(request.upload_data));
+  ASSERT_EQ(OK, upload_stream->InitSync());
+  request.upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
+
   BoundNetLog net_log;
   scoped_ptr<SpdyHttpStream> http_stream(
       new SpdyHttpStream(session_.get(), true));
@@ -258,19 +265,13 @@ TEST_F(SpdyHttpStreamSpdy2Test, DelayedSendChunkedPost) {
                                           net_log,
                                           CompletionCallback()));
 
-  scoped_ptr<UploadDataStream> upload_stream(
-      new UploadDataStream(request.upload_data));
-  ASSERT_EQ(OK, upload_stream->InitSync());
-
-  request.upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
-
   HttpRequestHeaders headers;
   HttpResponseInfo response;
   // This will attempt to Write() the initial request and headers, which will
   // complete asynchronously.
   EXPECT_EQ(ERR_IO_PENDING,
             http_stream->SendRequest(headers,
-                                     upload_stream.Pass(),
+                                     upload_stream.get(),
                                      &response,
                                      callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
@@ -357,9 +358,8 @@ TEST_F(SpdyHttpStreamSpdy2Test, SpdyURLTest) {
       OK,
       http_stream->InitializeStream(&request, net_log, CompletionCallback()));
 
-  EXPECT_EQ(ERR_IO_PENDING,
-            http_stream->SendRequest(headers, scoped_ptr<UploadDataStream>(),
-                                     &response, callback.callback()));
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
+                                                     callback.callback()));
 
   const SpdyHeaderBlock& spdy_header =
     http_stream->stream()->spdy_headers();
