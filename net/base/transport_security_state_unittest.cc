@@ -21,6 +21,7 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
+#include "net/base/test_data_directory.h"
 #include "net/base/test_root_certs.h"
 #include "net/base/x509_cert_types.h"
 #include "net/base/x509_certificate.h"

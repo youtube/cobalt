@@ -17,16 +17,13 @@ namespace net {
 
 class EVRootCAMetadata;
 
-// Returns a FilePath object representing the src/net/data/ssl/certificates
-// directory in the source tree.
-FilePath GetTestCertsDirectory();
-
 CertificateList CreateCertificateListFromFile(const FilePath& certs_dir,
                                               const std::string& cert_file,
                                               int format);
 
-// Imports a certificate file in the src/net/data/ssl/certificates directory.
-// certs_dir represents the test certificates directory.  cert_file is the
+// Imports a certificate file in the directory net::GetTestCertsDirectory()
+// returns.
+// |certs_dir| represents the test certificates directory. |cert_file| is the
 // name of the certificate file. If cert_file contains multiple certificates,
 // the first certificate found will be returned.
 scoped_refptr<X509Certificate> ImportCertFromFile(const FilePath& certs_dir,
