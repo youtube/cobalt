@@ -15,6 +15,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/observer_list.h"
+#include "base/prefs/base_prefs_export.h"
 #include "base/prefs/persistent_pref_store.h"
 
 namespace base {
@@ -27,8 +28,9 @@ class Value;
 class FilePath;
 
 // A writable PrefStore implementation that is used for user preferences.
-class JsonPrefStore : public PersistentPrefStore,
-                      public base::ImportantFileWriter::DataSerializer {
+class BASE_PREFS_EXPORT JsonPrefStore
+    : public PersistentPrefStore,
+      public base::ImportantFileWriter::DataSerializer {
  public:
   // Returns instance of SequencedTaskRunner which guarantees that file
   // operations on the same file will be executed in sequenced order.
