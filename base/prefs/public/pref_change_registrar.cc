@@ -22,8 +22,7 @@ void PrefChangeRegistrar::Init(PrefServiceBase* service) {
   service_ = service;
 }
 
-void PrefChangeRegistrar::Add(const char* path,
-                              content::NotificationObserver* obs) {
+void PrefChangeRegistrar::Add(const char* path, PrefObserver* obs) {
   if (!service_) {
     NOTREACHED();
     return;
@@ -37,8 +36,7 @@ void PrefChangeRegistrar::Add(const char* path,
   service_->AddPrefObserver(path, obs);
 }
 
-void PrefChangeRegistrar::Remove(const char* path,
-                                 content::NotificationObserver* obs) {
+void PrefChangeRegistrar::Remove(const char* path, PrefObserver* obs) {
   if (!service_) {
     NOTREACHED();
     return;
