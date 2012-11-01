@@ -7,7 +7,6 @@
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "net/base/net_errors.h"
-#include "net/base/upload_data_stream.h"
 #include "net/http/http_pipelined_connection_impl.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
@@ -38,7 +37,7 @@ int HttpPipelinedStream::InitializeStream(
 
 int HttpPipelinedStream::SendRequest(
     const HttpRequestHeaders& headers,
-    scoped_ptr<UploadDataStream> request_body,
+    UploadDataStream* request_body,
     HttpResponseInfo* response,
     const CompletionCallback& callback) {
   CHECK(pipeline_id_);
@@ -49,7 +48,7 @@ int HttpPipelinedStream::SendRequest(
                                                  request_info_->method.c_str(),
                                                  path.c_str());
   return pipeline_->SendRequest(pipeline_id_, request_line_, headers,
-                                request_body.Pass(), response, callback);
+                                request_body, response, callback);
 }
 
 UploadProgress HttpPipelinedStream::GetUploadProgress() const {

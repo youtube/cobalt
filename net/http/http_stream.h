@@ -13,10 +13,7 @@
 #ifndef NET_HTTP_HTTP_STREAM_H_
 #define NET_HTTP_HTTP_STREAM_H_
 
-#include <string>
-
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_progress.h"
@@ -49,7 +46,7 @@ class NET_EXPORT_PRIVATE HttpStream {
   // synchronously, in which case the result will be passed to the callback
   // when available. Returns OK on success.
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
-                          scoped_ptr<UploadDataStream> request_body,
+                          UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) = 0;
 

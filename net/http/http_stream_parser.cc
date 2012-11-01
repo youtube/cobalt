@@ -6,14 +6,12 @@
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
-#include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/values.h"
-#include "net/base/address_list.h"
-#include "net/base/auth.h"
 #include "net/base/io_buffer.h"
-#include "net/base/ssl_cert_request_info.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/upload_data_stream.h"
+#include "net/http/http_chunked_decoder.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
@@ -199,7 +197,7 @@ HttpStreamParser::~HttpStreamParser() {
 
 int HttpStreamParser::SendRequest(const std::string& request_line,
                                   const HttpRequestHeaders& headers,
-                                  scoped_ptr<UploadDataStream> request_body,
+                                  UploadDataStream* request_body,
                                   HttpResponseInfo* response,
                                   const CompletionCallback& callback) {
   DCHECK_EQ(STATE_NONE, io_state_);
@@ -227,7 +225,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
 
   std::string request = request_line + headers.ToString();
 
-  request_body_.reset(request_body.release());
+  request_body_ = request_body;
   if (request_body_ != NULL) {
     request_body_send_buf_ = new SeekableIOBuffer(kRequestBodyBufferSize);
     if (request_body_->is_chunked()) {
@@ -246,7 +244,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   // If we have a small request body, then we'll merge with the headers into a
   // single write.
   bool did_merge = false;
-  if (ShouldMergeRequestHeadersAndBody(request, request_body_.get())) {
+  if (ShouldMergeRequestHeadersAndBody(request, request_body_)) {
     size_t merged_size = request.size() + request_body_->size();
     scoped_refptr<IOBuffer> merged_request_headers_and_body(
         new IOBuffer(merged_size));
@@ -852,7 +850,7 @@ void HttpStreamParser::CalculateResponseBodySize() {
 }
 
 UploadProgress HttpStreamParser::GetUploadProgress() const {
-  if (!request_body_.get())
+  if (!request_body_)
     return UploadProgress();
 
   return UploadProgress(request_body_->position(), request_body_->size());

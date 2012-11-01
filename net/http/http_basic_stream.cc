@@ -9,7 +9,6 @@
 #include "base/stringprintf.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
-#include "net/base/upload_data_stream.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_body_drainer.h"
@@ -47,7 +46,7 @@ int HttpBasicStream::InitializeStream(
 
 
 int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
-                                 scoped_ptr<UploadDataStream> request_body,
+                                 UploadDataStream* request_body,
                                  HttpResponseInfo* response,
                                  const CompletionCallback& callback) {
   DCHECK(parser_.get());
@@ -59,7 +58,7 @@ int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
                                      request_info_->method.c_str(),
                                      path.c_str());
   response_ = response;
-  return parser_->SendRequest(request_line_, headers, request_body.Pass(),
+  return parser_->SendRequest(request_line_, headers, request_body,
                               response, callback);
 }
 
