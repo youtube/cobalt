@@ -16,7 +16,7 @@ namespace debug {
 // See comments in the #ifdef soup if you intend to change this.
 #if defined(OS_WIN)
 // Always fails on Windows: crbug.com/32070
-#define MAYBE_OutputToStream FAILS_OutputToStream
+#define MAYBE_OutputToStream DISABLED_OutputToStream
 #else
 #define MAYBE_OutputToStream OutputToStream
 #endif
