@@ -30,6 +30,7 @@ HTTPSRequestTest.HTTPSMismatchedTest
 HTTPSRequestTest.HTTPSExpiredTest
 HTTPSRequestTest.HTTPSPreloadedHSTSTest
 HTTPSRequestTest.ClientAuthTest
+URLRequestTest.AcceptClockSkewCookieWithWrongDateTimezone
 URLRequestTest.DelayedCookieCallback
 URLRequestTest.DoNotSendCookies
 URLRequestTest.DoNotSaveCookies
