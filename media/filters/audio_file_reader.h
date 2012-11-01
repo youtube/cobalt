@@ -5,17 +5,18 @@
 #ifndef MEDIA_FILTERS_AUDIO_FILE_READER_H_
 #define MEDIA_FILTERS_AUDIO_FILE_READER_H_
 
-#include <vector>
-#include "media/filters/ffmpeg_glue.h"
+#include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
+#include "media/base/media_export.h"
 
 struct AVCodecContext;
-struct AVFormatContext;
 
 namespace base { class TimeDelta; }
 
 namespace media {
 
 class AudioBus;
+class FFmpegGlue;
 class FFmpegURLProtocol;
 
 class MEDIA_EXPORT AudioFileReader {
@@ -53,10 +54,10 @@ class MEDIA_EXPORT AudioFileReader {
   int64 number_of_frames() const;
 
  private:
-  FFmpegURLProtocol* protocol_;
-  AVFormatContext* format_context_;
+  scoped_ptr<FFmpegGlue> glue_;
   AVCodecContext* codec_context_;
   int stream_index_;
+  FFmpegURLProtocol* protocol_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioFileReader);
 };

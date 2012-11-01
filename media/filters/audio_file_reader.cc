@@ -4,9 +4,7 @@
 
 #include "media/filters/audio_file_reader.h"
 
-#include <string>
-#include "base/basictypes.h"
-#include "base/string_util.h"
+#include "base/logging.h"
 #include "base/time.h"
 #include "media/base/audio_bus.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -15,10 +13,9 @@
 namespace media {
 
 AudioFileReader::AudioFileReader(FFmpegURLProtocol* protocol)
-    : protocol_(protocol),
-      format_context_(NULL),
-      codec_context_(NULL),
-      stream_index_(0) {
+    : codec_context_(NULL),
+      stream_index_(0),
+      protocol_(protocol) {
 }
 
 AudioFileReader::~AudioFileReader() {
@@ -40,7 +37,8 @@ base::TimeDelta AudioFileReader::duration() const {
   // |duration| has been calculated from an exact number of sample-frames.
   // One microsecond is much less than the time of a single sample-frame
   // at any real-world sample-rate.
-  return ConvertFromTimeBase(av_time_base, format_context_->duration + 1);
+  return ConvertFromTimeBase(
+      av_time_base, glue_->format_context()->duration + 1);
 }
 
 int64 AudioFileReader::number_of_frames() const {
@@ -48,33 +46,19 @@ int64 AudioFileReader::number_of_frames() const {
 }
 
 bool AudioFileReader::Open() {
-  // Add our data reader to the protocol list and get our unique key.
-  std::string key = FFmpegGlue::GetInstance()->AddProtocol(protocol_);
+  glue_.reset(new FFmpegGlue(protocol_));
+  AVFormatContext* format_context = glue_->format_context();
 
   // Open FFmpeg AVFormatContext.
-  DCHECK(!format_context_);
-  AVFormatContext* context = NULL;
-
-  int result = avformat_open_input(&context, key.c_str(), NULL, NULL);
-
-  // Remove our data reader from protocol list since avformat_open_input() setup
-  // the AVFormatContext with the data reader.
-  FFmpegGlue::GetInstance()->RemoveProtocol(protocol_);
-
-  if (result) {
-    DLOG(WARNING)
-        << "AudioFileReader::Open() : error in avformat_open_input() -"
-        << " result: " << result;
+  if (!glue_->OpenContext()) {
+    DLOG(WARNING) << "AudioFileReader::Open() : error in avformat_open_input()";
     return false;
   }
 
-  DCHECK(context);
-  format_context_ = context;
-
   // Get the codec context.
   codec_context_ = NULL;
-  for (size_t i = 0; i < format_context_->nb_streams; ++i) {
-    AVCodecContext* c = format_context_->streams[i]->codec;
+  for (size_t i = 0; i < format_context->nb_streams; ++i) {
+    AVCodecContext* c = format_context->streams[i]->codec;
     if (c->codec_type == AVMEDIA_TYPE_AUDIO) {
       codec_context_ = c;
       stream_index_ = i;
@@ -86,7 +70,13 @@ bool AudioFileReader::Open() {
   if (!codec_context_)
     return false;
 
-  avformat_find_stream_info(format_context_, NULL);
+  int result = avformat_find_stream_info(format_context, NULL);
+  if (result < 0) {
+    DLOG(WARNING)
+        << "AudioFileReader::Open() : error in avformat_find_stream_info()";
+    return false;
+  }
+
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
   if (codec) {
     if ((result = avcodec_open2(codec_context_, codec, NULL)) < 0) {
@@ -108,15 +98,10 @@ void AudioFileReader::Close() {
     avcodec_close(codec_context_);
     codec_context_ = NULL;
   }
-
-  if (format_context_) {
-    avformat_close_input(&format_context_);
-    format_context_ = NULL;
-  }
 }
 
 int AudioFileReader::Read(AudioBus* audio_bus) {
-  DCHECK(format_context_ && codec_context_) <<
+  DCHECK(glue_.get() && codec_context_) <<
       "AudioFileReader::Read() : reader is not opened!";
 
   DCHECK_EQ(audio_bus->channels(), channels());
@@ -134,7 +119,7 @@ int AudioFileReader::Read(AudioBus* audio_bus) {
   bool continue_decoding = true;
 
   while (current_frame < audio_bus->frames() && continue_decoding &&
-         av_read_frame(format_context_, &packet) >= 0 &&
+         av_read_frame(glue_->format_context(), &packet) >= 0 &&
          av_dup_packet(&packet) >= 0) {
     // Skip packets from other streams.
     if (packet.stream_index != stream_index_) {

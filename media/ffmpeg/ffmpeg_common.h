@@ -104,10 +104,6 @@ VideoCodec CodecIDToVideoCodec(CodecID codec_id);
 // Converts an FFmpeg audio codec ID into its corresponding supported codec id.
 AudioCodec CodecIDToAudioCodec(CodecID codec_id);
 
-// Closes & destroys all AVStreams in the context and then closes &
-// destroys the AVFormatContext.
-void DestroyAVFormatContext(AVFormatContext* format_context);
-
 }  // namespace media
 
 #endif  // MEDIA_FFMPEG_FFMPEG_COMMON_H_

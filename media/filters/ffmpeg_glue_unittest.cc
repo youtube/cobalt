@@ -5,8 +5,10 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/mock_filters.h"
+#include "media/base/test_data_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_glue.h"
+#include "media/filters/in_memory_url_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -20,10 +22,9 @@ namespace media {
 
 class MockProtocol : public FFmpegURLProtocol {
  public:
-  MockProtocol() {
-  }
+  MockProtocol() {}
 
-  MOCK_METHOD2(Read, size_t(size_t size, uint8* data));
+  MOCK_METHOD2(Read, int(int size, uint8* data));
   MOCK_METHOD1(GetPosition, bool(int64* position_out));
   MOCK_METHOD1(SetPosition, bool(int64 position));
   MOCK_METHOD1(GetSize, bool(int64* size_out));
@@ -35,289 +36,208 @@ class MockProtocol : public FFmpegURLProtocol {
 
 class FFmpegGlueTest : public ::testing::Test {
  public:
-  FFmpegGlueTest() : protocol_(NULL) {}
-
-  static void SetUpTestCase() {
-    // Singleton should initialize FFmpeg.
-    CHECK(FFmpegGlue::GetInstance());
-  }
-
-  virtual void SetUp() {
-    // Assign our static copy of URLProtocol for the rest of the tests.
-    protocol_ = FFmpegGlue::url_protocol();
-    CHECK(protocol_);
-  }
-
-  MOCK_METHOD1(CheckPoint, void(int val));
-
-  // Helper to open a URLContext pointing to the given mocked protocol.
-  // Callers are expected to close the context at the end of their test.
-  virtual void OpenContext(MockProtocol* protocol, URLContext* context) {
+  FFmpegGlueTest()
+      : protocol_(new StrictMock<MockProtocol>()) {
     // IsStreaming() is called when opening.
-    EXPECT_CALL(*protocol, IsStreaming()).WillOnce(Return(true));
+    EXPECT_CALL(*protocol_.get(), IsStreaming()).WillOnce(Return(true));
+    glue_.reset(new FFmpegGlue(protocol_.get()));
+    CHECK(glue_->format_context());
+    CHECK(glue_->format_context()->pb);
+  }
 
-    // Add the protocol to the glue layer and open a context.
-    std::string key = FFmpegGlue::GetInstance()->AddProtocol(protocol);
-    memset(context, 0, sizeof(*context));
-    EXPECT_EQ(0, protocol_->url_open(context, key.c_str(), 0));
-    FFmpegGlue::GetInstance()->RemoveProtocol(protocol);
+  virtual ~FFmpegGlueTest() {
+    // Ensure |glue_| and |protocol_| are still alive.
+    CHECK(glue_.get());
+    CHECK(protocol_.get());
+
+    // |protocol_| should outlive |glue_|, so ensure it's destructed first.
+    glue_.reset();
+  }
+
+  int ReadPacket(int size, uint8* data) {
+    return glue_->format_context()->pb->read_packet(
+        protocol_.get(), data, size);
+  }
+
+  int64 Seek(int64 offset, int whence) {
+    return glue_->format_context()->pb->seek(protocol_.get(), offset, whence);
   }
 
  protected:
-  // Fixture members.
-  URLProtocol* protocol_;
+  scoped_ptr<FFmpegGlue> glue_;
+  scoped_ptr< StrictMock<MockProtocol> > protocol_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FFmpegGlueTest);
 };
 
-TEST_F(FFmpegGlueTest, InitializeFFmpeg) {
-  // Make sure URLProtocol was filled out correctly.
-  EXPECT_STREQ("http", protocol_->name);
-  EXPECT_TRUE(protocol_->url_close);
-  EXPECT_TRUE(protocol_->url_open);
-  EXPECT_TRUE(protocol_->url_read);
-  EXPECT_TRUE(protocol_->url_seek);
-  EXPECT_TRUE(protocol_->url_write);
-}
+class FFmpegGlueDestructionTest : public ::testing::Test {
+ public:
+  FFmpegGlueDestructionTest() {}
 
-TEST_F(FFmpegGlueTest, AddRemoveGetProtocol) {
-  // Prepare testing data.
-  FFmpegGlue* glue = FFmpegGlue::GetInstance();
+  void Initialize(const char* filename) {
+    data_ = ReadTestDataFile(filename);
+    protocol_.reset(new InMemoryUrlProtocol(
+        data_->GetData(), data_->GetDataSize(), false));
+    glue_.reset(new FFmpegGlue(protocol_.get()));
+    CHECK(glue_->format_context());
+    CHECK(glue_->format_context()->pb);
+  }
 
-  // Create our protocols and add them to the glue layer.
-  scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol_a(
-      new StrictMock<Destroyable<MockProtocol> >());
-  scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol_b(
-      new StrictMock<Destroyable<MockProtocol> >());
+  virtual ~FFmpegGlueDestructionTest() {
+    // Ensure Initialize() was called.
+    CHECK(glue_.get());
+    CHECK(protocol_.get());
 
-  // Make sure the keys are unique.
-  std::string key_a = glue->AddProtocol(protocol_a.get());
-  std::string key_b = glue->AddProtocol(protocol_b.get());
-  EXPECT_EQ(0u, key_a.find("http://"));
-  EXPECT_EQ(0u, key_b.find("http://"));
-  EXPECT_NE(key_a, key_b);
+    // |glue_| should be destroyed before |protocol_|.
+    glue_.reset();
 
-  // Our keys should return our protocols.
-  FFmpegURLProtocol* protocol_c;
-  FFmpegURLProtocol* protocol_d;
-  glue->GetProtocol(key_a, &protocol_c);
-  glue->GetProtocol(key_b, &protocol_d);
-  EXPECT_EQ(protocol_a.get(), protocol_c);
-  EXPECT_EQ(protocol_b.get(), protocol_d);
+    // |protocol_| should be destroyed before |data_|.
+    protocol_.reset();
+    data_ = NULL;
+  }
 
-  // Adding the same Protocol should create the same key and not add an extra
-  // reference.
-  std::string key_a2 = glue->AddProtocol(protocol_a.get());
-  EXPECT_EQ(key_a, key_a2);
-  glue->GetProtocol(key_a2, &protocol_c);
-  EXPECT_EQ(protocol_a.get(), protocol_c);
+ protected:
+  scoped_ptr<FFmpegGlue> glue_;
 
-  // Removes the protocols then releases our references.  They should be
-  // destroyed.
-  InSequence s;
-  EXPECT_CALL(*protocol_a, OnDestroy());
-  EXPECT_CALL(*protocol_b, OnDestroy());
-  EXPECT_CALL(*this, CheckPoint(0));
+ private:
+  scoped_ptr<InMemoryUrlProtocol> protocol_;
+  scoped_refptr<DecoderBuffer> data_;
 
-  glue->RemoveProtocol(protocol_a.get());
-  glue->GetProtocol(key_a, &protocol_c);
-  EXPECT_FALSE(protocol_c);
-  glue->GetProtocol(key_b, &protocol_d);
-  EXPECT_EQ(protocol_b.get(), protocol_d);
-  glue->RemoveProtocol(protocol_b.get());
-  glue->GetProtocol(key_b, &protocol_d);
-  EXPECT_FALSE(protocol_d);
-  protocol_a.reset();
-  protocol_b.reset();
+  DISALLOW_COPY_AND_ASSIGN(FFmpegGlueDestructionTest);
+};
 
-  // Data sources should be deleted by this point.
-  CheckPoint(0);
-}
-
-TEST_F(FFmpegGlueTest, OpenClose) {
-  // Prepare testing data.
-  FFmpegGlue* glue = FFmpegGlue::GetInstance();
-
-  // Create our protocol and add them to the glue layer.
-  scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol(
-      new StrictMock<Destroyable<MockProtocol> >());
-  EXPECT_CALL(*protocol, IsStreaming()).WillOnce(Return(true));
-  std::string key = glue->AddProtocol(protocol.get());
-
-  // Prepare FFmpeg URLContext structure.
-  URLContext context;
-  memset(&context, 0, sizeof(context));
-
-  // Test opening a URLContext with a protocol that doesn't exist.
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_open(&context, "foobar", 0));
-
-  // Test opening a URLContext with our protocol.
-  EXPECT_EQ(0, protocol_->url_open(&context, key.c_str(), 0));
-  EXPECT_EQ(AVIO_FLAG_READ, context.flags);
-  EXPECT_EQ(protocol.get(), context.priv_data);
-  EXPECT_TRUE(context.is_streamed);
-
-  // We're going to remove references one by one until the last reference is
-  // held by FFmpeg.  Once we close the URLContext, the protocol should be
-  // destroyed.
-  InSequence s;
-  EXPECT_CALL(*this, CheckPoint(0));
-  EXPECT_CALL(*this, CheckPoint(1));
-  EXPECT_CALL(*protocol, OnDestroy());
-  EXPECT_CALL(*this, CheckPoint(2));
-
-  // Remove the protocol from the glue layer, releasing a reference.
-  glue->RemoveProtocol(protocol.get());
-  CheckPoint(0);
-
-  // Remove our own reference -- URLContext should maintain a reference.
-  CheckPoint(1);
-  protocol.reset();
-
-  // Close the URLContext, which should release the final reference.
-  EXPECT_EQ(0, protocol_->url_close(&context));
-  CheckPoint(2);
-}
-
+// Ensure writing has been disabled.
 TEST_F(FFmpegGlueTest, Write) {
-  scoped_ptr<StrictMock<MockProtocol> > protocol(
-      new StrictMock<MockProtocol>());
-  URLContext context;
-  OpenContext(protocol.get(), &context);
-
-  const int kBufferSize = 16;
-  uint8 buffer[kBufferSize];
-
-  // Writing should always fail and never call the protocol.
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_write(&context, NULL, 0));
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_write(&context, buffer, 0));
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_write(&context, buffer, kBufferSize));
-
-  // Destroy the protocol.
-  protocol_->url_close(&context);
+  ASSERT_FALSE(glue_->format_context()->pb->write_packet);
+  ASSERT_FALSE(glue_->format_context()->pb->write_flag);
 }
 
+// Test both successful and unsuccessful reads pass through correctly.
 TEST_F(FFmpegGlueTest, Read) {
-  scoped_ptr<StrictMock<MockProtocol> > protocol(
-      new StrictMock<MockProtocol>());
-  URLContext context;
-  OpenContext(protocol.get(), &context);
-
   const int kBufferSize = 16;
   uint8 buffer[kBufferSize];
 
   // Reads are for the most part straight-through calls to Read().
   InSequence s;
-  EXPECT_CALL(*protocol, Read(0, buffer))
+  EXPECT_CALL(*protocol_, Read(0, buffer))
       .WillOnce(Return(0));
-  EXPECT_CALL(*protocol, Read(kBufferSize, buffer))
+  EXPECT_CALL(*protocol_, Read(kBufferSize, buffer))
       .WillOnce(Return(kBufferSize));
-  EXPECT_CALL(*protocol, Read(kBufferSize, buffer))
+  EXPECT_CALL(*protocol_, Read(kBufferSize, buffer))
       .WillOnce(Return(DataSource::kReadError));
 
-  EXPECT_EQ(0, protocol_->url_read(&context, buffer, 0));
-  EXPECT_EQ(kBufferSize, protocol_->url_read(&context, buffer, kBufferSize));
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_read(&context, buffer, kBufferSize));
-
-  // Destroy the protocol.
-  protocol_->url_close(&context);
+  EXPECT_EQ(0, ReadPacket(0, buffer));
+  EXPECT_EQ(kBufferSize, ReadPacket(kBufferSize, buffer));
+  EXPECT_EQ(AVERROR(EIO), ReadPacket(kBufferSize, buffer));
 }
 
+// Test a variety of seek operations.
 TEST_F(FFmpegGlueTest, Seek) {
-  scoped_ptr<StrictMock<MockProtocol> > protocol(
-      new StrictMock<MockProtocol>());
-  URLContext context;
-  OpenContext(protocol.get(), &context);
-
   // SEEK_SET should be a straight-through call to SetPosition(), which when
   // successful will return the result from GetPosition().
   InSequence s;
-  EXPECT_CALL(*protocol, SetPosition(-16))
+  EXPECT_CALL(*protocol_, SetPosition(-16))
       .WillOnce(Return(false));
 
-  EXPECT_CALL(*protocol, SetPosition(16))
+  EXPECT_CALL(*protocol_, SetPosition(16))
       .WillOnce(Return(true));
-  EXPECT_CALL(*protocol, GetPosition(_))
+  EXPECT_CALL(*protocol_, GetPosition(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(8), Return(true)));
 
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, -16, SEEK_SET));
-  EXPECT_EQ(8, protocol_->url_seek(&context, 16, SEEK_SET));
+  EXPECT_EQ(AVERROR(EIO), Seek(-16, SEEK_SET));
+  EXPECT_EQ(8, Seek(16, SEEK_SET));
 
   // SEEK_CUR should call GetPosition() first, and if it succeeds add the offset
   // to the result then call SetPosition()+GetPosition().
-  EXPECT_CALL(*protocol, GetPosition(_))
+  EXPECT_CALL(*protocol_, GetPosition(_))
       .WillOnce(Return(false));
 
-  EXPECT_CALL(*protocol, GetPosition(_))
+  EXPECT_CALL(*protocol_, GetPosition(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(8), Return(true)));
-  EXPECT_CALL(*protocol, SetPosition(16))
+  EXPECT_CALL(*protocol_, SetPosition(16))
       .WillOnce(Return(false));
 
-  EXPECT_CALL(*protocol, GetPosition(_))
+  EXPECT_CALL(*protocol_, GetPosition(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(8), Return(true)));
-  EXPECT_CALL(*protocol, SetPosition(16))
+  EXPECT_CALL(*protocol_, SetPosition(16))
       .WillOnce(Return(true));
-  EXPECT_CALL(*protocol, GetPosition(_))
+  EXPECT_CALL(*protocol_, GetPosition(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(16), Return(true)));
 
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, 8, SEEK_CUR));
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, 8, SEEK_CUR));
-  EXPECT_EQ(16, protocol_->url_seek(&context, 8, SEEK_CUR));
+  EXPECT_EQ(AVERROR(EIO), Seek(8, SEEK_CUR));
+  EXPECT_EQ(AVERROR(EIO), Seek(8, SEEK_CUR));
+  EXPECT_EQ(16, Seek(8, SEEK_CUR));
 
   // SEEK_END should call GetSize() first, and if it succeeds add the offset
   // to the result then call SetPosition()+GetPosition().
-  EXPECT_CALL(*protocol, GetSize(_))
+  EXPECT_CALL(*protocol_, GetSize(_))
       .WillOnce(Return(false));
 
-  EXPECT_CALL(*protocol, GetSize(_))
+  EXPECT_CALL(*protocol_, GetSize(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(16), Return(true)));
-  EXPECT_CALL(*protocol, SetPosition(8))
+  EXPECT_CALL(*protocol_, SetPosition(8))
       .WillOnce(Return(false));
 
-  EXPECT_CALL(*protocol, GetSize(_))
+  EXPECT_CALL(*protocol_, GetSize(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(16), Return(true)));
-  EXPECT_CALL(*protocol, SetPosition(8))
+  EXPECT_CALL(*protocol_, SetPosition(8))
       .WillOnce(Return(true));
-  EXPECT_CALL(*protocol, GetPosition(_))
+  EXPECT_CALL(*protocol_, GetPosition(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(8), Return(true)));
 
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, -8, SEEK_END));
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, -8, SEEK_END));
-  EXPECT_EQ(8, protocol_->url_seek(&context, -8, SEEK_END));
+  EXPECT_EQ(AVERROR(EIO), Seek(-8, SEEK_END));
+  EXPECT_EQ(AVERROR(EIO), Seek(-8, SEEK_END));
+  EXPECT_EQ(8, Seek(-8, SEEK_END));
 
   // AVSEEK_SIZE should be a straight-through call to GetSize().
-  EXPECT_CALL(*protocol, GetSize(_))
+  EXPECT_CALL(*protocol_, GetSize(_))
       .WillOnce(Return(false));
 
-  EXPECT_CALL(*protocol, GetSize(_))
+  EXPECT_CALL(*protocol_, GetSize(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(16), Return(true)));
 
-  EXPECT_EQ(AVERROR(EIO), protocol_->url_seek(&context, 0, AVSEEK_SIZE));
-  EXPECT_EQ(16, protocol_->url_seek(&context, 0, AVSEEK_SIZE));
-
-  // Destroy the protocol.
-  protocol_->url_close(&context);
+  EXPECT_EQ(AVERROR(EIO), Seek(0, AVSEEK_SIZE));
+  EXPECT_EQ(16, Seek(0, AVSEEK_SIZE));
 }
 
-TEST_F(FFmpegGlueTest, Destroy) {
-  // Create our protocol and add them to the glue layer.
-  scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol(
-      new StrictMock<Destroyable<MockProtocol> >());
-  std::string key = FFmpegGlue::GetInstance()->AddProtocol(protocol.get());
+// Ensure destruction release the appropriate resources when OpenContext() is
+// never called.
+TEST_F(FFmpegGlueDestructionTest, WithoutOpen) {
+  Initialize("ten_byte_file");
+}
 
-  // We should expect the protocol to get destroyed when the unit test
-  // exits.
-  InSequence s;
-  EXPECT_CALL(*this, CheckPoint(0));
-  EXPECT_CALL(*protocol, OnDestroy());
+// Ensure destruction releases the appropriate resources when
+// avformat_open_input() fails.
+TEST_F(FFmpegGlueDestructionTest, WithOpenFailure) {
+  Initialize("ten_byte_file");
+  ASSERT_FALSE(glue_->OpenContext());
+}
 
-  // Remove our own reference, we shouldn't be destroyed yet.
-  CheckPoint(0);
-  protocol.reset();
+// Ensure destruction release the appropriate resources when OpenContext() is
+// called, but no streams have been opened.
+TEST_F(FFmpegGlueDestructionTest, WithOpenNoStreams) {
+  Initialize("no_streams.webm");
+  ASSERT_TRUE(glue_->OpenContext());
+}
 
-  // ~FFmpegGlue() will be called when this unit test finishes execution.  By
-  // leaving something inside FFmpegGlue's map we get to test our cleanup code.
+// Ensure destruction release the appropriate resources when OpenContext() is
+// called and streams exist.
+TEST_F(FFmpegGlueDestructionTest, WithOpenWithStreams) {
+  Initialize("bear-320x240.webm");
+  ASSERT_TRUE(glue_->OpenContext());
+}
+
+// Ensure destruction release the appropriate resources when OpenContext() is
+// called and streams have been opened.
+TEST_F(FFmpegGlueDestructionTest, WithOpenWithOpenStreams) {
+  Initialize("bear-320x240.webm");
+  ASSERT_TRUE(glue_->OpenContext());
+  ASSERT_GT(glue_->format_context()->nb_streams, 0u);
+
+  AVCodecContext* context = glue_->format_context()->streams[0]->codec;
+  ASSERT_EQ(avcodec_open2(
+      context, avcodec_find_decoder(context->codec_id), NULL), 0);
 }
 
 }  // namespace media

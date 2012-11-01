@@ -5,47 +5,27 @@
 #include "media/filters/ffmpeg_glue.h"
 
 #include "base/logging.h"
-#include "base/stringprintf.h"
+#include "base/synchronization/lock.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
 
-static FFmpegURLProtocol* ToProtocol(void* data) {
-  return reinterpret_cast<FFmpegURLProtocol*>(data);
-}
+// Internal buffer size used by AVIO for reading.
+// TODO(dalecurtis): Experiment with this buffer size and measure impact on
+// performance.  Currently we want to use 32kb to preserve existing behavior
+// with the previous URLProtocol based approach.
+enum { kBufferSize = 32 * 1024 };
 
-// FFmpeg protocol interface.
-static int OpenContext(URLContext* h, const char* filename, int flags) {
-  FFmpegURLProtocol* protocol;
-  FFmpegGlue::GetInstance()->GetProtocol(filename, &protocol);
-  if (!protocol)
-    return AVERROR(EIO);
-
-  h->priv_data = protocol;
-  h->flags = AVIO_FLAG_READ;
-  h->is_streamed = protocol->IsStreaming();
-  return 0;
-}
-
-static int ReadContext(URLContext* h, unsigned char* buf, int size) {
-  FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
-  int result = protocol->Read(size, buf);
+static int AVIOReadOperation(void* opaque, uint8_t* buf, int buf_size) {
+  FFmpegURLProtocol* protocol = reinterpret_cast<FFmpegURLProtocol*>(opaque);
+  int result = protocol->Read(buf_size, buf);
   if (result < 0)
     result = AVERROR(EIO);
   return result;
 }
 
-#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52, 68, 0)
-static int WriteContext(URLContext* h, const unsigned char* buf, int size) {
-#else
-static int WriteContext(URLContext* h, unsigned char* buf, int size) {
-#endif
-  // We don't support writing.
-  return AVERROR(EIO);
-}
-
-static int64 SeekContext(URLContext* h, int64 offset, int whence) {
-  FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
+static int64 AVIOSeekOperation(void* opaque, int64 offset, int whence) {
+  FFmpegURLProtocol* protocol = reinterpret_cast<FFmpegURLProtocol*>(opaque);
   int64 new_offset = AVERROR(EIO);
   switch (whence) {
     case SEEK_SET:
@@ -81,11 +61,6 @@ static int64 SeekContext(URLContext* h, int64 offset, int whence) {
   return new_offset;
 }
 
-static int CloseContext(URLContext* h) {
-  h->priv_data = NULL;
-  return 0;
-}
-
 static int LockManagerOperation(void** lock, enum AVLockOp op) {
   switch (op) {
     case AV_LOCK_CREATE:
@@ -110,83 +85,102 @@ static int LockManagerOperation(void** lock, enum AVLockOp op) {
   return 1;
 }
 
-// Use the HTTP protocol to avoid any file path separator issues.
-static const char kProtocol[] = "http";
-
-// Fill out our FFmpeg protocol definition.
-static URLProtocol kFFmpegURLProtocol = {
-  kProtocol,
-  &OpenContext,
-  NULL,  // url_open2
-  &ReadContext,
-  &WriteContext,
-  &SeekContext,
-  &CloseContext,
-};
-
-FFmpegGlue::FFmpegGlue() {
+static bool InitializeFFmpegInternal() {
   // Before doing anything disable logging as it interferes with layout tests.
   av_log_set_level(AV_LOG_QUIET);
 
   // Register our protocol glue code with FFmpeg.
-  av_register_protocol2(&kFFmpegURLProtocol, sizeof(kFFmpegURLProtocol));
-  av_lockmgr_register(&LockManagerOperation);
+  if (av_lockmgr_register(&LockManagerOperation) != 0)
+    return false;
 
   // Now register the rest of FFmpeg.
   av_register_all();
+  return true;
+}
+
+void FFmpegGlue::InitializeFFmpeg() {
+  // FFmpeg only needs to be initialized once.
+  static const bool kStatus = InitializeFFmpegInternal();
+  CHECK(kStatus);
+}
+
+FFmpegGlue::FFmpegGlue(FFmpegURLProtocol* protocol)
+    : open_called_(false) {
+  InitializeFFmpeg();
+
+  // Initialize an AVIOContext using our custom read and seek operations.  Don't
+  // keep pointers to the buffer since FFmpeg may reallocate it on the fly.  It
+  // will be cleaned up
+  format_context_ = avformat_alloc_context();
+  avio_context_.reset(avio_alloc_context(
+      static_cast<unsigned char*>(av_malloc(kBufferSize)), kBufferSize, 0,
+      protocol, &AVIOReadOperation, NULL, &AVIOSeekOperation));
+
+  // Ensure FFmpeg only tries to seek on resources we know to be seekable.
+  avio_context_->seekable =
+      protocol->IsStreaming() ? 0 : AVIO_SEEKABLE_NORMAL;
+
+  // Ensure writing is disabled.
+  avio_context_->write_flag = 0;
+
+  // Tell the format context about our custom IO context.  avformat_open_input()
+  // will set the AVFMT_FLAG_CUSTOM_IO flag for us, but do so here to ensure an
+  // early error state doesn't cause FFmpeg to free our resources in error.
+  format_context_->flags |= AVFMT_FLAG_CUSTOM_IO;
+  format_context_->pb = avio_context_.get();
+}
+
+bool FFmpegGlue::OpenContext() {
+  DCHECK(!open_called_) << "OpenContext() should't be called twice.";
+
+  // If avformat_open_input() is called we have to take a slightly different
+  // destruction path to avoid double frees.
+  open_called_ = true;
+
+  // By passing NULL for the filename (second parameter) we are telling FFmpeg
+  // to use the AVIO context we setup from the AVFormatContext structure.
+  return avformat_open_input(&format_context_, NULL, NULL, NULL) == 0;
 }
 
 FFmpegGlue::~FFmpegGlue() {
-  av_lockmgr_register(NULL);
-}
-
-// static
-FFmpegGlue* FFmpegGlue::GetInstance() {
-  return Singleton<FFmpegGlue>::get();
-}
-
-// static
-URLProtocol* FFmpegGlue::url_protocol() {
-  return &kFFmpegURLProtocol;
-}
-
-std::string FFmpegGlue::AddProtocol(FFmpegURLProtocol* protocol) {
-  base::AutoLock auto_lock(lock_);
-  std::string key = GetProtocolKey(protocol);
-  if (protocols_.find(key) == protocols_.end()) {
-    protocols_[key] = protocol;
-  }
-  return key;
-}
-
-void FFmpegGlue::RemoveProtocol(FFmpegURLProtocol* protocol) {
-  base::AutoLock auto_lock(lock_);
-  for (ProtocolMap::iterator cur, iter = protocols_.begin();
-       iter != protocols_.end();) {
-    cur = iter;
-    iter++;
-
-    if (cur->second == protocol)
-      protocols_.erase(cur);
-  }
-}
-
-void FFmpegGlue::GetProtocol(const std::string& key,
-                             FFmpegURLProtocol** protocol) {
-  base::AutoLock auto_lock(lock_);
-  ProtocolMap::iterator iter = protocols_.find(key);
-  if (iter == protocols_.end()) {
-    *protocol = NULL;
+  // In the event of avformat_open_input() failure, FFmpeg may sometimes free
+  // our AVFormatContext behind the scenes, but leave the buffer alive.  It will
+  // helpfully set |format_context_| to NULL in this case.
+  if (!format_context_) {
+    av_free(avio_context_->buffer);
     return;
   }
-  *protocol = iter->second;
-}
 
-std::string FFmpegGlue::GetProtocolKey(FFmpegURLProtocol* protocol) {
-  // Use the FFmpegURLProtocol's memory address to generate the unique string.
-  // This also has the nice property that adding the same FFmpegURLProtocol
-  // reference will not generate duplicate entries.
-  return base::StringPrintf("%s://%p", kProtocol, static_cast<void*>(protocol));
+  // If avformat_open_input() hasn't been called, we should simply free the
+  // AVFormatContext and buffer instead of using avformat_close_input().
+  if (!open_called_) {
+    avformat_free_context(format_context_);
+    av_free(avio_context_->buffer);
+    return;
+  }
+
+  // If avformat_open_input() has been called with this context, we need to
+  // close out any codecs/streams before closing the context.
+  if (format_context_->streams) {
+    for (int i = format_context_->nb_streams - 1; i >= 0; --i) {
+      AVStream* stream = format_context_->streams[i];
+
+      // The conditions for calling avcodec_close():
+      // 1. AVStream is alive.
+      // 2. AVCodecContext in AVStream is alive.
+      // 3. AVCodec in AVCodecContext is alive.
+      //
+      // Closing a codec context without prior avcodec_open2() will result in
+      // a crash in FFmpeg.
+      if (stream && stream->codec && stream->codec->codec) {
+        stream->discard = AVDISCARD_ALL;
+        avcodec_close(stream->codec);
+      }
+    }
+  }
+
+  avformat_close_input(&format_context_);
+  av_free(avio_context_->buffer);
 }
 
 }  // namespace media
