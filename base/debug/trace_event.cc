@@ -15,7 +15,7 @@ void TraceEndOnScopeClose::Initialize(const unsigned char* category_enabled,
 
 void TraceEndOnScopeClose::AddEventIfEnabled() {
   // Only called when p_data_ is non-null.
-  if (*p_data_->category_enabled) {
+  if (TRACE_EVENT_API_IS_ATRACE_ENABLED() || *p_data_->category_enabled) {
     TRACE_EVENT_API_ADD_TRACE_EVENT(
         TRACE_EVENT_PHASE_END,
         p_data_->category_enabled,
@@ -39,7 +39,7 @@ void TraceEndOnScopeCloseThreshold::Initialize(
 
 void TraceEndOnScopeCloseThreshold::AddEventIfEnabled() {
   // Only called when p_data_ is non-null.
-  if (*p_data_->category_enabled) {
+  if (TRACE_EVENT_API_IS_ATRACE_ENABLED() || *p_data_->category_enabled) {
     TRACE_EVENT_API_ADD_TRACE_EVENT(
         TRACE_EVENT_PHASE_END,
         p_data_->category_enabled,

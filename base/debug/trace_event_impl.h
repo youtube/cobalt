@@ -82,6 +82,10 @@ class BASE_EXPORT TraceEvent {
                                  std::string* out);
   void AppendAsJSON(std::string* out) const;
 
+  static void AppendValueAsJSON(unsigned char type,
+                                TraceValue value,
+                                std::string* out);
+
   TimeTicks timestamp() const { return timestamp_; }
 
   // Exposed for unittesting:
@@ -203,6 +207,11 @@ class BASE_EXPORT TraceLog {
   // Helper method to enable/disable tracing for all categories.
   void SetEnabled(bool enabled);
   bool IsEnabled() { return enabled_; }
+
+#if defined(OS_ANDROID)
+  static void InitATrace();
+  static bool IsATraceEnabled();
+#endif
 
   // Enabled state listeners give a callback when tracing is enabled or
   // disabled. This can be used to tie into other library's tracing systems
@@ -334,7 +343,17 @@ class BASE_EXPORT TraceLog {
   ~TraceLog();
   const unsigned char* GetCategoryEnabledInternal(const char* name);
   void AddThreadNameMetadataEvents();
+
+#if defined(OS_ANDROID)
+  void SendToATrace(char phase,
+                    const char* category,
+                    const char* name,
+                    int num_args,
+                    const char** arg_names,
+                    const unsigned char* arg_types,
+                    const unsigned long long* arg_values);
   void AddClockSyncMetadataEvents();
+#endif
 
   // TODO(nduca): switch to per-thread trace buffers to reduce thread
   // synchronization.
