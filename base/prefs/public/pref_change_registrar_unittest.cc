@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/prefs/public/pref_change_registrar.h"
+#include "base/prefs/public/pref_observer.h"
 #include "chrome/common/chrome_notification_types.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_pref_service.h"
@@ -18,6 +19,14 @@ using testing::Eq;
 
 namespace {
 
+// TODO(joi): Use PrefObserverMock once it moves to base/prefs/.
+class MockPrefObserver : public PrefObserver {
+ public:
+  virtual ~MockPrefObserver() {}
+
+  MOCK_METHOD2(OnPreferenceChanged, void(PrefServiceBase*, const std::string&));
+};
+
 // A mock provider that allows us to capture pref observer changes.
 class MockPrefService : public TestingPrefService {
  public:
@@ -25,9 +34,9 @@ class MockPrefService : public TestingPrefService {
   virtual ~MockPrefService() {}
 
   MOCK_METHOD2(AddPrefObserver,
-               void(const char*, content::NotificationObserver*));
+               void(const char*, PrefObserver*));
   MOCK_METHOD2(RemovePrefObserver,
-               void(const char*, content::NotificationObserver*));
+               void(const char*, PrefObserver*));
 };
 
 }  // namespace
@@ -40,17 +49,17 @@ class PrefChangeRegistrarTest : public testing::Test {
  protected:
   virtual void SetUp();
 
-  content::NotificationObserver* observer() const { return observer_.get(); }
+  PrefObserver* observer() const { return observer_.get(); }
   MockPrefService* service() const { return service_.get(); }
 
  private:
   scoped_ptr<MockPrefService> service_;
-  scoped_ptr<content::MockNotificationObserver> observer_;
+  scoped_ptr<MockPrefObserver> observer_;
 };
 
 void PrefChangeRegistrarTest::SetUp() {
   service_.reset(new MockPrefService());
-  observer_.reset(new content::MockNotificationObserver());
+  observer_.reset(new MockPrefObserver());
 }
 
 TEST_F(PrefChangeRegistrarTest, AddAndRemove) {
@@ -137,7 +146,7 @@ class ObserveSetOfPreferencesTest : public testing::Test {
   }
 
   PrefChangeRegistrar* CreatePrefChangeRegistrar(
-        content::NotificationObserver* observer) {
+      PrefObserver* observer) {
     PrefChangeRegistrar* pref_set = new PrefChangeRegistrar();
     pref_set->Init(pref_service_.get());
     pref_set->Add(prefs::kHomePage, observer);
@@ -180,27 +189,23 @@ TEST_F(ObserveSetOfPreferencesTest, Observe) {
   using testing::_;
   using testing::Mock;
 
-  content::MockNotificationObserver observer;
+  MockPrefObserver observer;
   scoped_ptr<PrefChangeRegistrar> pref_set(
       CreatePrefChangeRegistrar(&observer));
 
-  EXPECT_CALL(observer,
-              Observe(int(chrome::NOTIFICATION_PREF_CHANGED),
-                      content::Source<PrefService>(pref_service_.get()),
-                      PrefNameDetails(prefs::kHomePage)));
+  EXPECT_CALL(observer, OnPreferenceChanged(pref_service_.get(),
+                                            prefs::kHomePage));
   pref_service_->SetUserPref(prefs::kHomePage,
                              Value::CreateStringValue("http://crbug.com"));
   Mock::VerifyAndClearExpectations(&observer);
 
-  EXPECT_CALL(observer,
-              Observe(int(chrome::NOTIFICATION_PREF_CHANGED),
-                      content::Source<PrefService>(pref_service_.get()),
-                      PrefNameDetails(prefs::kHomePageIsNewTabPage)));
+  EXPECT_CALL(observer, OnPreferenceChanged(pref_service_.get(),
+                                            prefs::kHomePageIsNewTabPage));
   pref_service_->SetUserPref(prefs::kHomePageIsNewTabPage,
                              Value::CreateBooleanValue(true));
   Mock::VerifyAndClearExpectations(&observer);
 
-  EXPECT_CALL(observer, Observe(_, _, _)).Times(0);
+  EXPECT_CALL(observer, OnPreferenceChanged(_, _)).Times(0);
   pref_service_->SetUserPref(prefs::kApplicationLocale,
                              Value::CreateStringValue("en_US.utf8"));
   Mock::VerifyAndClearExpectations(&observer);
