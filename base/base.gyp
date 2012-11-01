@@ -299,6 +299,42 @@
       ],
     },
     {
+      'target_name': 'base_prefs',
+      'type': '<(component)',
+      'variables': {
+        'enable_wexit_time_destructors': 1,
+        'optimize': 'max',
+      },
+      'dependencies': [
+        'base',
+      ],
+      'export_dependent_settings': [
+        'base',
+      ],
+      'defines': [
+        'BASE_PREFS_IMPLEMENTATION',
+      ],
+      'sources': [
+        'prefs/default_pref_store.cc',
+        'prefs/default_pref_store.h',
+        'prefs/json_pref_store.cc',
+        'prefs/json_pref_store.h',
+        'prefs/overlay_user_pref_store.cc',
+        'prefs/overlay_user_pref_store.h',
+        'prefs/persistent_pref_store.h',
+        'prefs/pref_notifier.h',
+        'prefs/pref_store.cc',
+        'prefs/pref_store.h',
+        'prefs/pref_value_map.cc',
+        'prefs/pref_value_map.h',
+        'prefs/public/pref_change_registrar.cc',
+        'prefs/public/pref_change_registrar.h',
+        'prefs/public/pref_service_base.h',
+        'prefs/value_map_pref_store.cc',
+        'prefs/value_map_pref_store.h',
+      ],
+    },
+    {
       # This is the subset of files from base that should not be used with a
       # dynamic library. Note that this library cannot depend on base because
       # base depends on base_static.
