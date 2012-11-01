@@ -10,6 +10,7 @@
 #include "base/command_line.h"
 #include "base/debug/debug_on_start_win.h"
 #include "base/debug/debugger.h"
+#include "base/debug/stack_trace.h"
 #include "base/file_path.h"
 #include "base/i18n/icu_util.h"
 #include "base/logging.h"
@@ -270,7 +271,7 @@ void TestSuite::Initialize() {
   logging::SetLogItems(true, true, true, true);
 #endif  // else defined(OS_ANDROID)
 
-  CHECK(base::EnableInProcessStackDumping());
+  CHECK(base::debug::EnableInProcessStackDumping());
 #if defined(OS_WIN)
   // Make sure we run with high resolution timer to minimize differences
   // between production code and test code.

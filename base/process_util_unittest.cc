@@ -8,6 +8,7 @@
 
 #include "base/command_line.h"
 #include "base/debug/alias.h"
+#include "base/debug/stack_trace.h"
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
@@ -284,7 +285,7 @@ TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
   base::CloseProcessHandle(handle);
 
   // Reset signal handlers back to "normal".
-  base::EnableInProcessStackDumping();
+  base::debug::EnableInProcessStackDumping();
   remove(signal_file.c_str());
 }
 #endif  // !defined(OS_MACOSX)
