@@ -597,6 +597,14 @@
 #define TRACE_EVENT_API_ADD_TRACE_EVENT \
     base::debug::TraceLog::GetInstance()->AddTraceEvent
 
+// Checks if Android ATrace is enabled.
+#if defined(OS_ANDROID)
+#define TRACE_EVENT_API_IS_ATRACE_ENABLED() \
+    base::debug::TraceLog::IsATraceEnabled()
+#else
+#define TRACE_EVENT_API_IS_ATRACE_ENABLED() false
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Implementation detail: trace event macros create temporary variables
@@ -626,12 +634,17 @@
               INTERNAL_TRACE_EVENT_UID(catstatic))); \
     }
 
+// Implementation detail: internal macro to check if Android ATrace or the
+// current category (using the current static category variable) is enabled.
+#define INTERNAL_TRACE_EVENT_IS_ATRACE_OR_CATEGORY_ENABLED() \
+    TRACE_EVENT_API_IS_ATRACE_ENABLED() || *INTERNAL_TRACE_EVENT_UID(catstatic)
+
 // Implementation detail: internal macro to create static category and add
 // event if the category is enabled.
 #define INTERNAL_TRACE_EVENT_ADD(phase, category, name, flags, ...) \
     do { \
       INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
-      if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+      if (INTERNAL_TRACE_EVENT_IS_ATRACE_OR_CATEGORY_ENABLED()) { \
         trace_event_internal::AddTraceEvent( \
             phase, INTERNAL_TRACE_EVENT_UID(catstatic), name, \
             trace_event_internal::kNoEventId, flags, ##__VA_ARGS__); \
@@ -645,7 +658,7 @@
     INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
     trace_event_internal::TraceEndOnScopeClose \
         INTERNAL_TRACE_EVENT_UID(profileScope); \
-    if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+    if (INTERNAL_TRACE_EVENT_IS_ATRACE_OR_CATEGORY_ENABLED()) { \
       trace_event_internal::AddTraceEvent( \
           TRACE_EVENT_PHASE_BEGIN, \
           INTERNAL_TRACE_EVENT_UID(catstatic), \
@@ -663,7 +676,7 @@
     INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
     trace_event_internal::TraceEndOnScopeCloseThreshold \
         INTERNAL_TRACE_EVENT_UID(profileScope); \
-    if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+    if (INTERNAL_TRACE_EVENT_IS_ATRACE_OR_CATEGORY_ENABLED()) { \
       int INTERNAL_TRACE_EVENT_UID(begin_event_id) = \
         trace_event_internal::AddTraceEvent( \
             TRACE_EVENT_PHASE_BEGIN, \
@@ -681,7 +694,7 @@
                                          ...) \
     do { \
       INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
-      if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+      if (INTERNAL_TRACE_EVENT_IS_ATRACE_OR_CATEGORY_ENABLED()) { \
         unsigned char trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID; \
         trace_event_internal::TraceID trace_event_trace_id( \
             id, &trace_event_flags); \
