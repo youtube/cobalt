@@ -14,6 +14,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/test_completion_callback.h"
+#include "net/base/test_data_directory.h"
 #include "net/base/x509_certificate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

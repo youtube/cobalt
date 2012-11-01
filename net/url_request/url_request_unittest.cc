@@ -37,6 +37,7 @@
 #include "net/base/net_module.h"
 #include "net/base/net_util.h"
 #include "net/base/ssl_connection_status_flags.h"
+#include "net/base/test_data_directory.h"
 #include "net/base/test_root_certs.h"
 #include "net/base/upload_data.h"
 #include "net/cookies/cookie_monster.h"
