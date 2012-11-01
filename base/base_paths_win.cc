@@ -192,6 +192,12 @@ bool PathProviderWin(int key, FilePath* result) {
       if (!GetQuickLaunchPath(true, &cur))
         return false;
       break;
+    case base::DIR_TASKBAR_PINS:
+      if (!PathService::Get(base::DIR_USER_QUICK_LAUNCH, &cur))
+        return false;
+      cur = cur.AppendASCII("User Pinned");
+      cur = cur.AppendASCII("TaskBar");
+      break;
     default:
       return false;
   }
