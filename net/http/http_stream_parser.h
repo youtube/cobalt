@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/string_piece.h"
@@ -15,13 +16,13 @@
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/upload_progress.h"
-#include "net/http/http_chunked_decoder.h"
 
 namespace net {
 
 class ClientSocketHandle;
 class DrainableIOBuffer;
 class GrowableIOBuffer;
+class HttpChunkedDecoder;
 struct HttpRequestInfo;
 class HttpRequestHeaders;
 class HttpResponseInfo;
@@ -48,7 +49,7 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   // some additional functionality
   int SendRequest(const std::string& request_line,
                   const HttpRequestHeaders& headers,
-                  scoped_ptr<UploadDataStream> request_body,
+                  UploadDataStream* request_body,
                   HttpResponseInfo* response,
                   const CompletionCallback& callback);
 
@@ -175,7 +176,7 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   scoped_refptr<DrainableIOBuffer> request_headers_;
 
   // The request body data.
-  scoped_ptr<UploadDataStream> request_body_;
+  UploadDataStream* request_body_;
 
   // Temporary buffer for reading.
   scoped_refptr<GrowableIOBuffer> read_buf_;

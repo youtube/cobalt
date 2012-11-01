@@ -6,22 +6,19 @@
 #define NET_SPDY_SPDY_HTTP_STREAM_H_
 
 #include <list>
-#include <string>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
-#include "net/http/http_request_info.h"
 #include "net/http/http_stream.h"
-#include "net/spdy/spdy_protocol.h"
-#include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_stream.h"
 
 namespace net {
 
 class DrainableIOBuffer;
+struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class SpdySession;
@@ -47,7 +44,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
                                const BoundNetLog& net_log,
                                const CompletionCallback& callback) OVERRIDE;
   virtual int SendRequest(const HttpRequestHeaders& headers,
-                          scoped_ptr<UploadDataStream> request_body,
+                          UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE;
   virtual UploadProgress GetUploadProgress() const OVERRIDE;
@@ -115,7 +112,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   // The request to send.
   const HttpRequestInfo* request_info_;
 
-  scoped_ptr<UploadDataStream> request_body_stream_;
+  UploadDataStream* request_body_stream_;
 
   // |response_info_| is the HTTP response data object which is filled in
   // when a SYN_REPLY comes in for the stream.

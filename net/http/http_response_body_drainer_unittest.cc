@@ -14,7 +14,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
-#include "net/base/upload_data_stream.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/http/http_stream.h"
@@ -80,7 +79,7 @@ class MockHttpStream : public HttpStream {
     return ERR_UNEXPECTED;
   }
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
-                          scoped_ptr<UploadDataStream> request_body,
+                          UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE {
     return ERR_UNEXPECTED;
