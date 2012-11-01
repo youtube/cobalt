@@ -114,6 +114,7 @@
           'debug/stack_trace_win.cc',
           'debug/trace_event.cc',
           'debug/trace_event.h',
+          'debug/trace_event_android.cc',
           'debug/trace_event_impl.cc',
           'debug/trace_event_impl.h',
           'debug/trace_event_win.cc',
