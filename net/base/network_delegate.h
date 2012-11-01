@@ -35,7 +35,7 @@ class HttpResponseHeaders;
 class SocketStream;
 class URLRequest;
 
-class NetworkDelegate : public base::NonThreadSafe {
+class NET_EXPORT NetworkDelegate : public base::NonThreadSafe {
  public:
   // AuthRequiredResponse indicates how a NetworkDelegate handles an
   // OnAuthRequired call. It's placed in this file to prevent url_request.h
