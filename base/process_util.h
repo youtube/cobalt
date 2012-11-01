@@ -842,11 +842,6 @@ BASE_EXPORT void EnableTerminationOnHeapCorruption();
 // Turns on process termination if memory runs out.
 BASE_EXPORT void EnableTerminationOnOutOfMemory();
 
-// Enables stack dump to console output on exception and signals.
-// When enabled, the process will quit immediately. This is meant to be used in
-// unit_tests only! This is not thread-safe: only call from main thread.
-BASE_EXPORT bool EnableInProcessStackDumping();
-
 // If supported on the platform, and the user has sufficent rights, increase
 // the current process's scheduling priority to a high priority.
 BASE_EXPORT void RaiseProcessToHighPriority();
