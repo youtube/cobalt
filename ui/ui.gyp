@@ -524,6 +524,8 @@
         'gfx/vector3d_f.h',
         'gfx/video_decode_acceleration_support_mac.h',
         'gfx/video_decode_acceleration_support_mac.mm',
+        'notifications/notification_types.h',
+        'notifications/notification_types.cc',
         'ui_controls/ui_controls.h',
         'ui_controls/ui_controls_aura.cc',
         'ui_controls/ui_controls_gtk.cc',
