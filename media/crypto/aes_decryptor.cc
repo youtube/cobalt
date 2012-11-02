@@ -194,11 +194,32 @@ void AesDecryptor::AddKey(const std::string& key_system,
   }
 
   SetKey(key_id_string, decryption_key.Pass());
+
+  if (!audio_key_added_cb_.is_null())
+    audio_key_added_cb_.Run();
+
+  if (!video_key_added_cb_.is_null())
+    video_key_added_cb_.Run();
+
   client_->KeyAdded(key_system, session_id);
 }
 
 void AesDecryptor::CancelKeyRequest(const std::string& key_system,
                                     const std::string& session_id) {
+}
+
+void AesDecryptor::RegisterKeyAddedCB(StreamType stream_type,
+                                      const KeyAddedCB& key_added_cb) {
+  switch (stream_type) {
+    case kAudio:
+      audio_key_added_cb_ = key_added_cb;
+      break;
+    case kVideo:
+      video_key_added_cb_ = key_added_cb;
+      break;
+    default:
+      NOTREACHED();
+  }
 }
 
 void AesDecryptor::Decrypt(StreamType stream_type,
@@ -240,15 +261,13 @@ void AesDecryptor::CancelDecrypt(StreamType stream_type) {
 }
 
 void AesDecryptor::InitializeAudioDecoder(scoped_ptr<AudioDecoderConfig> config,
-                                          const DecoderInitCB& init_cb,
-                                          const KeyAddedCB& key_added_cb) {
+                                          const DecoderInitCB& init_cb) {
   // AesDecryptor does not support audio decoding.
   init_cb.Run(false);
 }
 
 void AesDecryptor::InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
-                                          const DecoderInitCB& init_cb,
-                                          const KeyAddedCB& key_added_cb) {
+                                          const DecoderInitCB& init_cb) {
   // AesDecryptor does not support video decoding.
   init_cb.Run(false);
 }

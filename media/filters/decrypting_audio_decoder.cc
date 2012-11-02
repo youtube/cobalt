@@ -171,8 +171,7 @@ void DecryptingAudioDecoder::SetDecryptor(Decryptor* decryptor) {
   state_ = kPendingDecoderInit;
   decryptor_->InitializeAudioDecoder(
       scoped_config.Pass(),
-      BIND_TO_LOOP(&DecryptingAudioDecoder::FinishInitialization),
-      BIND_TO_LOOP(&DecryptingAudioDecoder::OnKeyAdded));
+      BIND_TO_LOOP(&DecryptingAudioDecoder::FinishInitialization));
 }
 
 void DecryptingAudioDecoder::FinishInitialization(bool success) {
@@ -197,6 +196,9 @@ void DecryptingAudioDecoder::FinishInitialization(bool success) {
   const int kBitsPerByte = 8;
   bytes_per_sample_ = ChannelLayoutToChannelCount(channel_layout_) *
       bits_per_channel_ / kBitsPerByte;
+
+  decryptor_->RegisterKeyAddedCB(
+      Decryptor::kAudio, BIND_TO_LOOP(&DecryptingAudioDecoder::OnKeyAdded));
 
   state_ = kIdle;
   base::ResetAndReturn(&init_cb_).Run(PIPELINE_OK);

@@ -89,6 +89,17 @@ class MEDIA_EXPORT Decryptor {
   virtual void CancelKeyRequest(const std::string& key_system,
                                 const std::string& session_id) = 0;
 
+  // Indicates that a key has been added to the Decryptor.
+  typedef base::Callback<void()> KeyAddedCB;
+
+  // Registers a KeyAddedCB which should be called when a key is added to the
+  // decryptor. Only one KeyAddedCB can be registered for one |stream_type|.
+  // If this function is called multiple times for the same |stream_type|, the
+  // previously registered callback will be replaced. In other words,
+  // registering a null callback cancels the originally registered callback.
+  virtual void RegisterKeyAddedCB(StreamType stream_type,
+                                  const KeyAddedCB& key_added_cb) = 0;
+
   // Indicates completion of a decryption operation.
   //
   // First parameter: The status of the decryption operation.
@@ -125,18 +136,12 @@ class MEDIA_EXPORT Decryptor {
   // - Set to true if initialization was successful. False if an error occurred.
   typedef base::Callback<void(bool)> DecoderInitCB;
 
-  // Indicates that a key has been added to the Decryptor.
-  typedef base::Callback<void()> KeyAddedCB;
-
   // Initializes a decoder with the given |config|, executing the |init_cb|
   // upon completion.
-  // |key_added_cb| should be called when a key is added to the decryptor.
   virtual void InitializeAudioDecoder(scoped_ptr<AudioDecoderConfig> config,
-                                      const DecoderInitCB& init_cb,
-                                      const KeyAddedCB& key_added_cb) = 0;
+                                      const DecoderInitCB& init_cb) = 0;
   virtual void InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
-                                      const DecoderInitCB& init_cb,
-                                      const KeyAddedCB& key_added_cb) = 0;
+                                      const DecoderInitCB& init_cb) = 0;
 
   // Helper structure for managing multiple decoded audio buffers per input.
   // TODO(xhwang): Rename this to AudioFrames.

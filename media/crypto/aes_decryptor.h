@@ -46,16 +46,16 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
                       const std::string& session_id) OVERRIDE;
   virtual void CancelKeyRequest(const std::string& key_system,
                                 const std::string& session_id) OVERRIDE;
+  virtual void RegisterKeyAddedCB(StreamType stream_type,
+                                  const KeyAddedCB& key_added_cb) OVERRIDE;
   virtual void Decrypt(StreamType stream_type,
                        const scoped_refptr<DecoderBuffer>& encrypted,
                        const DecryptCB& decrypt_cb) OVERRIDE;
   virtual void CancelDecrypt(StreamType stream_type) OVERRIDE;
   virtual void InitializeAudioDecoder(scoped_ptr<AudioDecoderConfig> config,
-                                      const DecoderInitCB& init_cb,
-                                      const KeyAddedCB& key_added_cb) OVERRIDE;
+                                      const DecoderInitCB& init_cb) OVERRIDE;
   virtual void InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
-                                      const DecoderInitCB& init_cb,
-                                      const KeyAddedCB& key_added_cb) OVERRIDE;
+                                      const DecoderInitCB& init_cb) OVERRIDE;
   virtual void DecryptAndDecodeAudio(
       const scoped_refptr<DecoderBuffer>& encrypted,
       const AudioDecodeCB& audio_decode_cb) OVERRIDE;
@@ -112,6 +112,9 @@ class MEDIA_EXPORT AesDecryptor : public Decryptor {
   static uint32 next_session_id_;
 
   DecryptorClient* const client_;
+
+  KeyAddedCB audio_key_added_cb_;
+  KeyAddedCB video_key_added_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(AesDecryptor);
 };
