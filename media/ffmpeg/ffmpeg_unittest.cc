@@ -14,13 +14,15 @@
 #include "base/base_paths.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
 #include "base/perftimer.h"
 #include "base/string_util.h"
 #include "base/test/perf_test_suite.h"
 #include "media/base/media.h"
 #include "media/ffmpeg/ffmpeg_common.h"
-#include "media/ffmpeg/file_protocol.h"
+#include "media/filters/ffmpeg_glue.h"
+#include "media/filters/in_memory_url_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 int main(int argc, char** argv) {
@@ -111,20 +113,16 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
         .AppendASCII("data")
         .AppendASCII("content")
         .AppendASCII(name.c_str());
-    FilePath::StringType raw_path = path.value();
     EXPECT_TRUE(file_util::PathExists(path));
 
-#if defined(OS_WIN)
-    std::string ascii_path = WideToASCII(path.value());
-#else
-    std::string ascii_path = path.value();
-#endif
+    CHECK(file_data_.Initialize(path));
+    protocol_.reset(new InMemoryUrlProtocol(
+        file_data_.data(), file_data_.length(), false));
+    glue_.reset(new FFmpegGlue(protocol_.get()));
 
-    EXPECT_EQ(0, avformat_open_input(&av_format_context_,
-                                     ascii_path.c_str(),
-                                     NULL, NULL))
-        << "Could not open " << path.value();
-    EXPECT_LE(0, avformat_find_stream_info(av_format_context_, NULL))
+    ASSERT_TRUE(glue_->OpenContext()) << "Could not open " << path.value();
+    av_format_context_ = glue_->format_context();
+    ASSERT_LE(0, avformat_find_stream_info(av_format_context_, NULL))
         << "Could not find stream information for " << path.value();
 
     // Determine duration by picking max stream duration.
@@ -141,10 +139,6 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
         ConvertFromTimeBase(av_time_base,
                             av_format_context_->duration).InMicroseconds();
     duration_ = std::max(duration_, duration);
-  }
-
-  void CloseFile() {
-    avformat_close_input(&av_format_context_);
   }
 
   void OpenCodecs() {
@@ -174,14 +168,6 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
       } else {
         ADD_FAILURE() << "Found unknown stream type.";
       }
-    }
-  }
-
-  void CloseCodecs() {
-    for (unsigned int i = 0; i < av_format_context_->nb_streams; ++i) {
-      AVStream* av_stream = av_format_context_->streams[i];
-      av_stream->discard = AVDISCARD_ALL;
-      avcodec_close(av_stream->codec);
     }
   }
 
@@ -389,9 +375,6 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     EXPECT_TRUE(InitializeMediaLibrary(path))
         << "Could not initialize media library.";
 
-    av_log_set_level(AV_LOG_FATAL);
-    av_register_all();
-    av_register_protocol2(&kFFmpegFileProtocol, sizeof(kFFmpegFileProtocol));
     initialized = true;
   }
 
@@ -409,6 +392,10 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
   int64 decoded_video_time_;
   int64 decoded_video_duration_;
   int64 duration_;
+
+  file_util::MemoryMappedFile file_data_;
+  scoped_ptr<InMemoryUrlProtocol> protocol_;
+  scoped_ptr<FFmpegGlue> glue_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegTest);
 };
@@ -462,14 +449,6 @@ TEST_P(FFmpegTest, Perf) {
     PerfTimeLogger timer("Seeking to zero");
     SeekTo(0);
   }
-  {
-    PerfTimeLogger timer("Closing codecs");
-    CloseCodecs();
-  }
-  {
-    PerfTimeLogger timer("Closing file");
-    CloseFile();
-  }
 }
 
 TEST_P(FFmpegTest, Loop_Audio) {
@@ -493,9 +472,6 @@ TEST_P(FFmpegTest, Loop_Audio) {
     EXPECT_EQ(expected_timestamps_[i], decoded_audio_time())
         << "Frame " << i << " had a mismatched timestamp.";
   }
-
-  CloseCodecs();
-  CloseFile();
 }
 
 TEST_P(FFmpegTest, Loop_Video) {
@@ -519,9 +495,6 @@ TEST_P(FFmpegTest, Loop_Video) {
     EXPECT_EQ(expected_timestamps_[i], decoded_video_time())
         << "Frame " << i << " had a mismatched timestamp.";
   }
-
-  CloseCodecs();
-  CloseFile();
 }
 
 TEST_P(FFmpegTest, Seek_Audio) {
@@ -535,9 +508,6 @@ TEST_P(FFmpegTest, Seek_Audio) {
 
   EXPECT_TRUE(StepDecodeAudio());
   EXPECT_NE(static_cast<int64>(AV_NOPTS_VALUE), decoded_audio_time());
-
-  CloseCodecs();
-  CloseFile();
 }
 
 TEST_P(FFmpegTest, Seek_Video) {
@@ -551,9 +521,6 @@ TEST_P(FFmpegTest, Seek_Video) {
 
   EXPECT_TRUE(StepDecodeVideo());
   EXPECT_NE(static_cast<int64>(AV_NOPTS_VALUE), decoded_video_time());
-
-  CloseCodecs();
-  CloseFile();
 }
 
 TEST_P(FFmpegTest, Decode_Audio) {
@@ -567,9 +534,6 @@ TEST_P(FFmpegTest, Decode_Audio) {
     ASSERT_GT(decoded_audio_time(), last_audio_time);
     last_audio_time = decoded_audio_time();
   }
-
-  CloseCodecs();
-  CloseFile();
 }
 
 TEST_P(FFmpegTest, Decode_Video) {
@@ -583,9 +547,6 @@ TEST_P(FFmpegTest, Decode_Video) {
     ASSERT_GT(decoded_video_time(), last_video_time);
     last_video_time = decoded_video_time();
   }
-
-  CloseCodecs();
-  CloseFile();
 }
 
 TEST_P(FFmpegTest, Duration) {
@@ -605,9 +566,6 @@ TEST_P(FFmpegTest, Duration) {
                decoded_video_time() + decoded_video_duration()));
   EXPECT_NEAR(expected, actual, 500000)
       << "Duration is off by more than 0.5 seconds.";
-
-  CloseCodecs();
-  CloseFile();
 }
 
 TEST_F(FFmpegTest, VideoPlayedCollapse) {
@@ -628,9 +586,6 @@ TEST_F(FFmpegTest, VideoPlayedCollapse) {
   ReadRemainingFile();
   EXPECT_TRUE(StepDecodeVideo());
   VLOG(1) << decoded_video_time();
-
-  CloseCodecs();
-  CloseFile();
 }
 
 }  // namespace media
