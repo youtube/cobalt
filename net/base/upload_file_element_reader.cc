@@ -26,7 +26,7 @@ int InitInternal(const FilePath& path,
                  uint64 range_offset,
                  uint64 range_length,
                  const base::Time& expected_modification_time,
-                 scoped_ptr<FileStream>* out_file_stream,
+                 UploadFileElementReader::ScopedFileStreamPtr* out_file_stream,
                  uint64* out_content_length) {
   scoped_ptr<FileStream> file_stream(new FileStream(NULL));
   int64 rv = file_stream->OpenSync(
@@ -54,7 +54,7 @@ int InitInternal(const FilePath& path,
     length = std::min(length - range_offset, range_length);
   }
   *out_content_length = length;
-  out_file_stream->swap(file_stream);
+  out_file_stream->reset(file_stream.release());
 
   // If the underlying file has been changed and the expected file modification
   // time is set, treat it as error. Note that the expected modification time
@@ -100,6 +100,16 @@ int ReadInternal(scoped_refptr<IOBuffer> buf,
 
 }  // namespace
 
+void UploadFileElementReader::FileStreamDeleter::operator() (
+    FileStream* file_stream) const {
+  if (file_stream) {
+    base::WorkerPool::PostTask(FROM_HERE,
+                               base::Bind(&base::DeletePointer<FileStream>,
+                                          file_stream),
+                               true /* task_is_slow */);
+  }
+}
+
 UploadFileElementReader::UploadFileElementReader(
     const FilePath& path,
     uint64 range_offset,
@@ -111,20 +121,16 @@ UploadFileElementReader::UploadFileElementReader(
       expected_modification_time_(expected_modification_time),
       content_length_(0),
       bytes_remaining_(0),
-      weak_ptr_factory_(this) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
 }
 
 UploadFileElementReader::~UploadFileElementReader() {
-  if (file_stream_.get()) {
-    base::WorkerPool::PostTask(FROM_HERE,
-                               base::Bind(&base::DeletePointer<FileStream>,
-                                          file_stream_.release()),
-                               true /* task_is_slow */);
-  }
 }
 
 int UploadFileElementReader::Init(const CompletionCallback& callback) {
-  scoped_ptr<FileStream>* file_stream = new scoped_ptr<FileStream>;
+  Reset();
+
+  ScopedFileStreamPtr* file_stream = new ScopedFileStreamPtr;
   uint64* content_length = new uint64;
   const bool posted = base::PostTaskAndReplyWithResult(
       base::WorkerPool::GetTaskRunner(true /* task_is_slow */),
@@ -146,7 +152,9 @@ int UploadFileElementReader::Init(const CompletionCallback& callback) {
 }
 
 int UploadFileElementReader::InitSync() {
-  scoped_ptr<FileStream> file_stream;
+  Reset();
+
+  ScopedFileStreamPtr file_stream;
   uint64 content_length = 0;
   const int result = InitInternal(path_, range_offset_, range_length_,
                                   expected_modification_time_,
@@ -200,8 +208,15 @@ int UploadFileElementReader::ReadSync(IOBuffer* buf, int buf_length) {
   return result;
 }
 
+void UploadFileElementReader::Reset() {
+  weak_ptr_factory_.InvalidateWeakPtrs();
+  bytes_remaining_ = 0;
+  content_length_ = 0;
+  file_stream_.reset();
+}
+
 void UploadFileElementReader::OnInitCompleted(
-    scoped_ptr<FileStream>* file_stream,
+    ScopedFileStreamPtr* file_stream,
     uint64* content_length,
     const CompletionCallback& callback,
     int result) {
@@ -213,7 +228,7 @@ void UploadFileElementReader::OnInitCompleted(
 }
 
 void UploadFileElementReader::OnReadCompleted(
-    scoped_ptr<FileStream> file_stream,
+    ScopedFileStreamPtr file_stream,
     const CompletionCallback& callback,
     int result) {
   file_stream_.swap(file_stream);
