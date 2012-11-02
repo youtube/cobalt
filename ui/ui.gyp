@@ -454,6 +454,8 @@
         'gfx/point_conversions.h',
         'gfx/point_f.cc',
         'gfx/point_f.h',
+        'gfx/quad_f.cc',
+        'gfx/quad_f.h',
         'gfx/rect.cc',
         'gfx/rect.h',
         'gfx/rect_base.h',
