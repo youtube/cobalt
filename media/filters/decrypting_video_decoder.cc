@@ -6,6 +6,7 @@
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
+#include "base/debug/trace_event.h"
 #include "base/location.h"
 #include "base/message_loop_proxy.h"
 #include "media/base/bind_to_loop.h"
@@ -28,7 +29,8 @@ DecryptingVideoDecoder::DecryptingVideoDecoder(
       state_(kUninitialized),
       request_decryptor_notification_cb_(request_decryptor_notification_cb),
       decryptor_(NULL),
-      key_added_while_pending_decode_(false) {
+      key_added_while_pending_decode_(false),
+      trace_id_(0) {
 }
 
 void DecryptingVideoDecoder::Initialize(
@@ -290,6 +292,8 @@ void DecryptingVideoDecoder::DoDecryptAndDecodeBuffer(
 void DecryptingVideoDecoder::DecodePendingBuffer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK_EQ(state_, kPendingDecode) << state_;
+  TRACE_EVENT_ASYNC_BEGIN0(
+      "eme", "DecryptingVideoDecoder::DecodePendingBuffer", ++trace_id_);
   decryptor_->DecryptAndDecodeVideo(
       pending_buffer_to_decode_,
       base::Bind(&DecryptingVideoDecoder::DeliverFrame, this,
@@ -315,6 +319,8 @@ void DecryptingVideoDecoder::DoDeliverFrame(
     const scoped_refptr<VideoFrame>& frame) {
   DVLOG(3) << "DoDeliverFrame() - status: " << status;
   DCHECK(message_loop_->BelongsToCurrentThread());
+  TRACE_EVENT_ASYNC_END0(
+      "eme", "DecryptingVideoDecoder::DecodePendingBuffer", trace_id_);
 
   if (state_ == kStopped)
     return;
