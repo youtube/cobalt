@@ -155,6 +155,10 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   // decryption key.
   bool key_added_while_pending_decode_;
 
+  // A unique ID to trace Decryptor::DecryptAndDecodeVideo() call and the
+  // matching DecryptCB call (in DoDeliverFrame()).
+  uint32 trace_id_;
+
   DISALLOW_COPY_AND_ASSIGN(DecryptingVideoDecoder);
 };
 
