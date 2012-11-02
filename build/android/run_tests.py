@@ -49,6 +49,7 @@ loaded. We don't care about the rare testcases which succeeded on emuatlor, but
 failed on device.
 """
 
+import copy
 import fnmatch
 import logging
 import optparse
@@ -362,8 +363,10 @@ def Dispatch(options):
                                              options.build_type)
   failures = 0
   for suite in all_test_suites:
-    options.test_suite = suite
-    failures += _RunATestSuite(options)
+    # Give each test suite its own copy of options.
+    test_options = copy.deepcopy(options)
+    test_options.test_suite = suite
+    failures += _RunATestSuite(test_options)
 
   if options.use_xvfb:
     xvfb.Stop()
