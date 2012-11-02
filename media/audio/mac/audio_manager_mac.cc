@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/command_line.h"
 #include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
@@ -17,6 +18,7 @@
 #include "media/audio/mac/audio_output_mac.h"
 #include "media/audio/mac/audio_synchronized_mac.h"
 #include "media/audio/mac/audio_unified_mac.h"
+#include "media/base/bind_to_loop.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
@@ -230,11 +232,56 @@ static AudioDeviceID GetAudioDeviceIdByUId(bool is_input,
   return audio_device_id;
 }
 
+// Property address to monitor for device changes.
+static const AudioObjectPropertyAddress kDeviceChangePropertyAddress = {
+  kAudioHardwarePropertyDefaultOutputDevice,
+  kAudioObjectPropertyScopeGlobal,
+  kAudioObjectPropertyElementMaster
+};
+
+// Callback from the system when the default device changes.  This can be called
+// either on the main thread or on an audio thread managed by the system
+// depending on what kAudioHardwarePropertyRunLoop is set to.
+static OSStatus OnDefaultDeviceChangedCallback(
+    AudioObjectID object,
+    UInt32 size,
+    const AudioObjectPropertyAddress addresses[],
+    void* context) {
+  static_cast<base::Closure*>(context)->Run();
+  return noErr;
+}
+
 AudioManagerMac::AudioManagerMac() {
   SetMaxOutputStreamsAllowed(kMaxOutputStreams);
+
+  // Register a callback for device changes.
+  listener_cb_ = BindToLoop(GetMessageLoop(), base::Bind(
+      &AudioManagerMac::NotifyAllOutputDeviceChangeListeners,
+      base::Unretained(this)));
+
+  OSStatus result = AudioObjectAddPropertyListener(
+      kAudioObjectSystemObject,
+      &kDeviceChangePropertyAddress,
+      &OnDefaultDeviceChangedCallback,
+      &listener_cb_);
+
+  if (result != noErr) {
+    OSSTATUS_DLOG(ERROR, result) << "AudioObjectAddPropertyListener() failed!";
+    listener_cb_.Reset();
+  }
 }
 
 AudioManagerMac::~AudioManagerMac() {
+  if (!listener_cb_.is_null()) {
+    OSStatus result = AudioObjectRemovePropertyListener(
+        kAudioObjectSystemObject,
+        &kDeviceChangePropertyAddress,
+        &OnDefaultDeviceChangedCallback,
+        &listener_cb_);
+    OSSTATUS_DLOG_IF(ERROR, result != noErr, result)
+        << "AudioObjectRemovePropertyListener() failed!";
+  }
+
   Shutdown();
 }
 
