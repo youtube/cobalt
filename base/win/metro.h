@@ -56,14 +56,14 @@ BASE_EXPORT bool IsProcessImmersive(HANDLE process);
 
 // Returns true if this process is running under Text Services Framework (TSF)
 // and browser must be TSF-aware.
-BASE_EXPORT bool IsTsfAwareRequired();
+BASE_EXPORT bool IsTSFAwareRequired();
 
-// Sets browser to use Text Service Framework (TSF) regardless of process
+// Sets browser to use Text Services Framework (TSF) regardless of process
 // status. On Windows 8, this function also disables CUAS (Cicero Unaware
 // Application Support) to emulate Windows Metro mode in terms of IME
 // functionality. This should be beneficial in QA process because on can test
 // IME functionality in Windows 8 desktop mode.
-BASE_EXPORT void SetForceToUseTsf();
+BASE_EXPORT void SetForceToUseTSF();
 
 // Allocates and returns the destination string via the LocalAlloc API after
 // copying the src to it.
