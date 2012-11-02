@@ -89,7 +89,7 @@ bool QuicFramer::ConstructFragementDataPacket(
         return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
   }
-
+  DCHECK_EQ(len, writer.length());
   *packet = new QuicPacket(writer.take(), len, true);
   if (fec_builder_) {
     fec_builder_->OnBuiltFecProtectedPayload(header,
