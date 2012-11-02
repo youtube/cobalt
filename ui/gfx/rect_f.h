@@ -40,6 +40,12 @@ class UI_EXPORT RectF
     set_size(newSize);
   }
 
+  // This method reports if the RectF can be safely converted to an integer
+  // Rect. When it is false, some dimension of the RectF is outside the bounds
+  // of what an integer can represent, and converting it to a Rect will require
+  // clamping.
+  bool IsExpressibleAsRect() const;
+
   std::string ToString() const;
 };
 
