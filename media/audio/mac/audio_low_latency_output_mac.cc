@@ -117,18 +117,18 @@ bool AUAudioOutputStream::Open() {
     return false;
 
   // Open and initialize the DefaultOutputUnit.
-  Component comp;
-  ComponentDescription desc;
+  AudioComponent comp;
+  AudioComponentDescription desc;
 
   desc.componentType = kAudioUnitType_Output;
   desc.componentSubType = kAudioUnitSubType_DefaultOutput;
   desc.componentManufacturer = kAudioUnitManufacturer_Apple;
   desc.componentFlags = 0;
   desc.componentFlagsMask = 0;
-  comp = FindNextComponent(0, &desc);
+  comp = AudioComponentFindNext(0, &desc);
   DCHECK(comp);
 
-  result = OpenAComponent(comp, &output_unit_);
+  result = AudioComponentInstanceNew(comp, &output_unit_);
   OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
@@ -193,7 +193,7 @@ bool AUAudioOutputStream::Configure() {
 
 void AUAudioOutputStream::Close() {
   if (output_unit_)
-    CloseComponent(output_unit_);
+    AudioComponentInstanceDispose(output_unit_);
 
   // Inform the audio manager that we have been closed. This can cause our
   // destruction.
