@@ -614,8 +614,6 @@
           'sources/': [
             ['exclude', 'base/dragdrop/os_exchange_data_provider_win.cc'],
             ['exclude', 'base/dragdrop/os_exchange_data_provider_win.h'],
-            ['exclude', 'base/native_theme/native_theme_win.cc'],
-            ['exclude', 'base/native_theme/native_theme_win.h'],
           ],
         }],
         ['use_aura==0 and toolkit_views==0', {
