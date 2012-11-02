@@ -25,9 +25,11 @@ class NET_EXPORT UploadDataStream {
   explicit UploadDataStream(UploadData* upload_data);
   ~UploadDataStream();
 
-  // Initializes the stream. This function must be called exactly once,
-  // before calling any other method. It is not valid to call any method
-  // (other than the destructor) if Init() returns a failure.
+  // Initializes the stream. This function must be called before calling any
+  // other method. It is not valid to call any method (other than the
+  // destructor) if Init() returns a failure. This method can be called multiple
+  // times. Calling this method after a Init() success results in resetting the
+  // state.
   //
   // Does the initialization synchronously and returns the result if possible,
   // otherwise returns ERR_IO_PENDING and runs the callback with the result.
@@ -87,11 +89,17 @@ class NET_EXPORT UploadDataStream {
   FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, InitAsyncFailureSync);
   FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, ReadAsync);
 
+  // Resets this instance to the uninitialized state.
+  void Reset();
+
   // Runs Init() for all element readers.
   // This method is used to implement Init().
-  void InitInternal(int start_index,
-                    const CompletionCallback& callback,
-                    int previous_result);
+  int InitInternal(int start_index, const CompletionCallback& callback);
+
+  // Resumes initialization and runs callback with the result when necessary.
+  void ResumePendingInit(int start_index,
+                         const CompletionCallback& callback,
+                         int previous_result);
 
   // Finalizes the initialization process.
   // This method is used to implement Init().
@@ -134,6 +142,8 @@ class NET_EXPORT UploadDataStream {
   base::Closure pending_chunked_read_callback_;
 
   base::WeakPtrFactory<UploadDataStream> weak_ptr_factory_;
+
+  base::WeakPtrFactory<UploadDataStream> weak_ptr_factory_for_chunks_;
 
   // TODO(satish): Remove this once we have a better way to unit test POST
   // requests with chunked uploads.
