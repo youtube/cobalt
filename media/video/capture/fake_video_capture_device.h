@@ -56,6 +56,8 @@ class MEDIA_EXPORT FakeVideoCaptureDevice : public VideoCaptureDevice {
   int frame_size_;
   scoped_array<uint8> fake_frame_;
   int frame_count_;
+  int frame_width_;
+  int frame_height_;
 
   static bool fail_next_create_;
 
