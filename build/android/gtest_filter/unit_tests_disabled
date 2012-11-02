@@ -40,8 +40,6 @@ CreditCardTest.SetInfoExpirationMonth
 DownloadItemModelTest.InterruptTooltip
 
 # Tests crashing in the APK
-# DEATH test, forking and doing bad stuff, not supported yet.
-IncognitoModePrefsDeathTest.GetAvailabilityBadValue
 # l10n_util.cc(655)] Check failed: std::string::npos != pos
 DownloadItemModelTest.InterruptStatus
 # l10n_util.cc(655)] Check failed: std::string::npos != pos
@@ -147,3 +145,6 @@ ManifestTest.RestrictedKeys
 
 # crbug.com/152599
 SyncSearchEngineDataTypeControllerTest.*
+
+# Death tests are not supported with apks.
+*DeathTest*
