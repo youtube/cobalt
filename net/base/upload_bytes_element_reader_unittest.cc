@@ -62,4 +62,26 @@ TEST_F(UploadBytesElementReaderTest, ReadTooMuch) {
   EXPECT_EQ(bytes_, buf);
 }
 
+TEST_F(UploadBytesElementReaderTest, MultipleInit) {
+  std::vector<char> buf(bytes_.size());
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
+
+  // Read all.
+  EXPECT_EQ(static_cast<int>(buf.size()),
+            reader_->ReadSync(wrapped_buffer, buf.size()));
+  EXPECT_EQ(0U, reader_->BytesRemaining());
+  EXPECT_EQ(bytes_, buf);
+
+  // Call Init() again to reset the state.
+  ASSERT_EQ(OK, reader_->InitSync());
+  EXPECT_EQ(bytes_.size(), reader_->GetContentLength());
+  EXPECT_EQ(bytes_.size(), reader_->BytesRemaining());
+
+  // Read again.
+  EXPECT_EQ(static_cast<int>(buf.size()),
+            reader_->ReadSync(wrapped_buffer, buf.size()));
+  EXPECT_EQ(0U, reader_->BytesRemaining());
+  EXPECT_EQ(bytes_, buf);
+}
+
 }  // namespace net

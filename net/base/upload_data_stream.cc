@@ -25,41 +25,37 @@ UploadDataStream::UploadDataStream(UploadData* upload_data)
       total_size_(0),
       current_position_(0),
       initialized_successfully_(false),
-      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
+      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
+      weak_ptr_factory_for_chunks_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
   const std::vector<UploadElement>& elements = *upload_data_->elements();
   for (size_t i = 0; i < elements.size(); ++i)
     element_readers_.push_back(UploadElementReader::Create(elements[i]));
 
   upload_data_->set_chunk_callback(
       base::Bind(&UploadDataStream::OnChunkAvailable,
-                 weak_ptr_factory_.GetWeakPtr()));
+                 weak_ptr_factory_for_chunks_.GetWeakPtr()));
 }
 
 UploadDataStream::~UploadDataStream() {
 }
 
 int UploadDataStream::Init(const CompletionCallback& callback) {
-  DCHECK(!initialized_successfully_);
-
+  Reset();
   // Use fast path when initialization can be done synchronously.
   if (IsInMemory())
     return InitSync();
 
-  InitInternal(0, callback, OK);
-  return ERR_IO_PENDING;
+  return InitInternal(0, callback);
 }
 
 int UploadDataStream::InitSync() {
-  DCHECK(!initialized_successfully_);
-
+  Reset();
   // Initialize all readers synchronously.
   for (size_t i = 0; i < element_readers_.size(); ++i) {
     UploadElementReader* reader = element_readers_[i];
     const int result = reader->InitSync();
-    if (result != OK) {
-      element_readers_.clear();
+    if (result != OK)
       return result;
-    }
   }
 
   FinalizeInitialization();
@@ -109,41 +105,54 @@ bool UploadDataStream::IsInMemory() const {
   return true;
 }
 
-void UploadDataStream::InitInternal(int start_index,
-                                    const CompletionCallback& callback,
-                                    int previous_result) {
-  DCHECK(!initialized_successfully_);
-  DCHECK_NE(ERR_IO_PENDING, previous_result);
+void UploadDataStream::Reset() {
+  weak_ptr_factory_.InvalidateWeakPtrs();
+  pending_chunked_read_callback_.Reset();
+  initialized_successfully_ = false;
+  current_position_ = 0;
+  total_size_ = 0;
+  element_index_ = 0;
+}
 
-  // Check the last result.
-  if (previous_result != OK) {
-    element_readers_.clear();
-    callback.Run(previous_result);
-    return;
-  }
+int UploadDataStream::InitInternal(int start_index,
+                                   const CompletionCallback& callback) {
+  DCHECK(!initialized_successfully_);
 
   // Call Init() for all elements.
   for (size_t i = start_index; i < element_readers_.size(); ++i) {
     UploadElementReader* reader = element_readers_[i];
     // When new_result is ERR_IO_PENDING, InitInternal() will be called
     // with start_index == i + 1 when reader->Init() finishes.
-    const int new_result = reader->Init(
-        base::Bind(&UploadDataStream::InitInternal,
+    const int result = reader->Init(
+        base::Bind(&UploadDataStream::ResumePendingInit,
                    weak_ptr_factory_.GetWeakPtr(),
                    i + 1,
                    callback));
-    if (new_result != OK) {
-      if (new_result != ERR_IO_PENDING) {
-        element_readers_.clear();
-        callback.Run(new_result);
-      }
-      return;
-    }
+    if (result != OK)
+      return result;
   }
 
   // Finalize initialization.
   FinalizeInitialization();
-  callback.Run(OK);
+  return OK;
+}
+
+void UploadDataStream::ResumePendingInit(int start_index,
+                                         const CompletionCallback& callback,
+                                         int previous_result) {
+  DCHECK(!initialized_successfully_);
+  DCHECK(!callback.is_null());
+  DCHECK_NE(ERR_IO_PENDING, previous_result);
+
+  // Check the last result.
+  if (previous_result != OK) {
+    callback.Run(previous_result);
+    return;
+  }
+
+  const int result = InitInternal(start_index, callback);
+  if (result != ERR_IO_PENDING)
+    callback.Run(result);
 }
 
 void UploadDataStream::FinalizeInitialization() {
