@@ -65,8 +65,6 @@ static int LockManagerOperation(void** lock, enum AVLockOp op) {
   switch (op) {
     case AV_LOCK_CREATE:
       *lock = new base::Lock();
-      if (!*lock)
-        return 1;
       return 0;
 
     case AV_LOCK_OBTAIN:
