@@ -10,14 +10,15 @@
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "base/time.h"
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_parameters.h"
 
 namespace media {
 
 class AudioManagerBase;
-class AudioParameters;
 
 class MEDIA_EXPORT FakeAudioInputStream
     : public AudioInputStream {
@@ -35,6 +36,17 @@ class MEDIA_EXPORT FakeAudioInputStream
   virtual void SetAutomaticGainControl(bool enabled) OVERRIDE;
   virtual bool GetAutomaticGainControl() OVERRIDE;
 
+  // Generate one beep sound. This method is called by
+  // FakeVideoCaptureDevice to test audio/video synchronization.
+  // This is a static method because FakeVideoCaptureDevice is
+  // disconnected from an audio device. This means only one instance of
+  // this class gets to respond, which is okay because we assume there's
+  // only one stream for this testing purpose.
+  // TODO(hclam): Make this non-static. To do this we'll need to fix
+  // crbug.com/159053 such that video capture device is aware of audio
+  // input stream.
+  static void BeepOnce();
+
  private:
   FakeAudioInputStream(AudioManagerBase* manager,
                        const AudioParameters& params);
@@ -47,9 +59,14 @@ class MEDIA_EXPORT FakeAudioInputStream
   AudioInputCallback* callback_;
   scoped_array<uint8> buffer_;
   int buffer_size_;
+  AudioParameters params_;
   base::Thread thread_;
   base::Time last_callback_time_;
   base::TimeDelta callback_interval_;
+  int beep_duration_in_buffers_;
+  int beep_generated_in_buffers_;
+  int beep_period_in_frames_;
+  int frames_elapsed_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioInputStream);
 };
