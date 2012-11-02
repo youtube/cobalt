@@ -39,7 +39,9 @@ def main():
                   os.path.join(outdir, 'libcmt.pdb'))
   vspaths = [
     'build\\intel\\mt_obj\\',
-    'f:\\dd\\vctools\\crt_bld\\SELF_X86\\crt\\src\\build\\INTEL\\mt_obj\\'
+    'f:\\dd\\vctools\\crt_bld\\SELF_X86\\crt\\src\\build\\INTEL\\mt_obj\\',
+    'F:\\dd\\vctools\\crt_bld\\SELF_X86\\crt\\src\\build\\INTEL\\mt_obj\\nativec\\\\',
+    'F:\\dd\\vctools\\crt_bld\\SELF_X86\\crt\\src\\build\\INTEL\\mt_obj\\nativecpp\\\\',
   ]
   objfiles = ['malloc', 'free', 'realloc', 'new', 'delete', 'new2', 'delete2',
               'align', 'msize', 'heapinit', 'expand', 'heapchk', 'heapwalk',
