@@ -2525,21 +2525,11 @@
               # Warns on switches on enums that cover all enum values but
               # also contain a default: branch. Chrome is full of that.
               '-Wno-covered-switch-default',
-
-              # TODO(thakis): Remove this once http://crbug.com/151927 is fixed.
-              '-Wno-tautological-constant-out-of-range-compare',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
               '-mfpmath=sse',
             ],
-          }],
-          ['OS=="android"', {
-            'cflags!': [
-              # Clang ARM does not support the following option.
-              # TODO: Add this flag back http://crbug.com/157195.
-              '-Wno-tautological-constant-out-of-range-compare',
-            ]
           }],
           ['clang==1 and clang_use_chrome_plugins==1', {
             'cflags': [
@@ -3060,9 +3050,6 @@
                 # Warns on switches on enums that cover all enum values but
                 # also contain a default: branch. Chrome is full of that.
                 '-Wno-covered-switch-default',
-
-                # TODO(thakis): Remove this once http://crbug.com/151927 is fixed.
-                '-Wno-tautological-constant-out-of-range-compare',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
