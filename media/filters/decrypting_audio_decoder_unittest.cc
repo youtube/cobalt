@@ -118,11 +118,13 @@ class DecryptingAudioDecoderTest : public testing::Test {
   }
 
   void Initialize() {
-    EXPECT_CALL(*decryptor_, InitializeAudioDecoderMock(_, _, _))
+    EXPECT_CALL(*decryptor_, InitializeAudioDecoderMock(_, _))
         .Times(AtMost(1))
-        .WillOnce(DoAll(RunCallback1(true), SaveArg<2>(&key_added_cb_)));
+        .WillOnce(RunCallback1(true));
     EXPECT_CALL(*this, RequestDecryptorNotification(_))
         .WillOnce(RunCallback0(decryptor_.get()));
+    EXPECT_CALL(*decryptor_, RegisterKeyAddedCB(Decryptor::kAudio, _))
+        .WillOnce(SaveArg<1>(&key_added_cb_));
 
     config_.Initialize(kCodecVorbis, 16, CHANNEL_LAYOUT_STEREO, 44100,
                        NULL, 0, true, true);
@@ -278,7 +280,7 @@ TEST_F(DecryptingAudioDecoderTest, Initialize_InvalidAudioConfig) {
 
 // Ensure decoder handles unsupported audio configs without crashing.
 TEST_F(DecryptingAudioDecoderTest, Initialize_UnsupportedAudioConfig) {
-  EXPECT_CALL(*decryptor_, InitializeAudioDecoderMock(_, _, _))
+  EXPECT_CALL(*decryptor_, InitializeAudioDecoderMock(_, _))
       .WillOnce(RunCallback1(false));
   EXPECT_CALL(*this, RequestDecryptorNotification(_))
       .WillOnce(RunCallback0(decryptor_.get()));
