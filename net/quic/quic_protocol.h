@@ -60,7 +60,7 @@ const QuicStreamId kCryptoStreamId = 1;
 
 typedef std::pair<QuicPacketSequenceNumber, QuicPacket*> PacketPair;
 
-const int64 kDefaultTimeout = 600000000;  // 10 minutes
+const uint64 kDefaultTimeout = 600000000;  // 10 minutes
 
 enum QuicFrameType {
   STREAM_FRAME = 0,

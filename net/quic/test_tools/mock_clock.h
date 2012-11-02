@@ -20,6 +20,10 @@ class MockClock : public QuicClock {
 
   virtual uint64 NowInUsec() OVERRIDE;
 
+  void AdvanceTimeInMicroseconds(uint64 delta_in_us) {
+    now_ += delta_in_us;
+  }
+
   void AdvanceTime(WallTime delta) {
     uint64 delta_us = delta * base::Time::kMicrosecondsPerSecond;
     now_ += delta_us;
