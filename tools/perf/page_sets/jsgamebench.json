@@ -1,0 +1,9 @@
+{
+    "description": "Facebook's JSGameBench benchmark",
+    "archive_path": "../data/jsgamebench.wpr",
+    "pages": [
+        {
+            "url": "http://localhost/"
+        }
+    ]
+}
