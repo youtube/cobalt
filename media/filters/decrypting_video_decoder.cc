@@ -104,6 +104,7 @@ void DecryptingVideoDecoder::Stop(const base::Closure& closure) {
   // render thread to be processing messages to complete (such as PPAPI
   // callbacks).
   if (decryptor_) {
+    decryptor_->RegisterKeyAddedCB(Decryptor::kVideo, Decryptor::KeyAddedCB());
     decryptor_->DeinitializeDecoder(Decryptor::kVideo);
     decryptor_ = NULL;
   }
@@ -180,8 +181,7 @@ void DecryptingVideoDecoder::SetDecryptor(Decryptor* decryptor) {
   state_ = kPendingDecoderInit;
   decryptor_->InitializeVideoDecoder(
       scoped_config.Pass(),
-      BIND_TO_LOOP(&DecryptingVideoDecoder::FinishInitialization),
-      BIND_TO_LOOP(&DecryptingVideoDecoder::OnKeyAdded));
+      BIND_TO_LOOP(&DecryptingVideoDecoder::FinishInitialization));
 }
 
 void DecryptingVideoDecoder::FinishInitialization(bool success) {
@@ -201,6 +201,9 @@ void DecryptingVideoDecoder::FinishInitialization(bool success) {
     state_ = kStopped;
     return;
   }
+
+  decryptor_->RegisterKeyAddedCB(
+      Decryptor::kVideo, BIND_TO_LOOP(&DecryptingVideoDecoder::OnKeyAdded));
 
   // Success!
   state_ = kIdle;

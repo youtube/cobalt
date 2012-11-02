@@ -208,6 +208,8 @@ class MockDecryptor : public Decryptor {
                             const std::string& session_id));
   MOCK_METHOD2(CancelKeyRequest, void(const std::string& key_system,
                                       const std::string& session_id));
+  MOCK_METHOD2(RegisterKeyAddedCB, void(StreamType stream_type,
+                                        const KeyAddedCB& key_added_cb));
   MOCK_METHOD3(Decrypt, void(StreamType stream_type,
                              const scoped_refptr<DecoderBuffer>& encrypted,
                              const DecryptCB& decrypt_cb));
@@ -215,14 +217,12 @@ class MockDecryptor : public Decryptor {
   // TODO(xhwang): The following two methods are workarounds of the issue that
   // move-only parameters are not supported in mocked methods. Remove when the
   // issue is fixed: http://code.google.com/p/googletest/issues/detail?id=395
-  MOCK_METHOD3(InitializeAudioDecoderMock,
+  MOCK_METHOD2(InitializeAudioDecoderMock,
                void(const AudioDecoderConfig& config,
-                    const DecoderInitCB& init_cb,
-                    const KeyAddedCB& key_added_cb));
-  MOCK_METHOD3(InitializeVideoDecoderMock,
+                    const DecoderInitCB& init_cb));
+  MOCK_METHOD2(InitializeVideoDecoderMock,
                void(const VideoDecoderConfig& config,
-                    const DecoderInitCB& init_cb,
-                    const KeyAddedCB& key_added_cb));
+                    const DecoderInitCB& init_cb));
   MOCK_METHOD2(DecryptAndDecodeAudio,
                void(const scoped_refptr<media::DecoderBuffer>& encrypted,
                     const AudioDecodeCB& audio_decode_cb));
@@ -233,11 +233,9 @@ class MockDecryptor : public Decryptor {
   MOCK_METHOD1(DeinitializeDecoder, void(StreamType stream_type));
 
   virtual void InitializeAudioDecoder(scoped_ptr<AudioDecoderConfig> config,
-                                      const DecoderInitCB& init_cb,
-                                      const KeyAddedCB& key_added_cb) OVERRIDE;
+                                      const DecoderInitCB& init_cb) OVERRIDE;
   virtual void InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
-                                      const DecoderInitCB& init_cb,
-                                      const KeyAddedCB& key_added_cb) OVERRIDE;
+                                      const DecoderInitCB& init_cb) OVERRIDE;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockDecryptor);
