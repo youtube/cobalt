@@ -4,6 +4,8 @@
 
 #include "net/ftp/ftp_directory_listing_parser.h"
 
+#include "base/bind.h"
+#include "base/callback.h"
 #include "base/i18n/icu_encoding_detection.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/stl_util.h"
@@ -46,36 +48,39 @@ int ParseListing(const string16& text,
   std::vector<string16> lines;
   base::SplitString(text, '\n', &lines);
 
-  // TODO(phajdan.jr): Use a table of callbacks instead of repeating code.
+  struct {
+    base::Callback<bool(void)> callback;
+    FtpServerType server_type;
+  } parsers[] = {
+    {
+      base::Bind(&ParseFtpDirectoryListingLs, lines, current_time, entries),
+      SERVER_LS
+    },
+    {
+      base::Bind(&ParseFtpDirectoryListingWindows, lines, entries),
+      SERVER_WINDOWS
+    },
+    {
+      base::Bind(&ParseFtpDirectoryListingVms, lines, entries),
+      SERVER_VMS
+    },
+    {
+      base::Bind(&ParseFtpDirectoryListingNetware,
+                 lines, current_time, entries),
+      SERVER_NETWARE
+    },
+    {
+      base::Bind(&ParseFtpDirectoryListingOS2, lines, entries),
+      SERVER_OS2
+    }
+  };
 
-  entries->clear();
-  if (ParseFtpDirectoryListingLs(lines, current_time, entries)) {
-    *server_type = SERVER_LS;
-    return FillInRawName(encoding, entries);
-  }
-
-  entries->clear();
-  if (ParseFtpDirectoryListingWindows(lines, entries)) {
-    *server_type = SERVER_WINDOWS;
-    return FillInRawName(encoding, entries);
-  }
-
-  entries->clear();
-  if (ParseFtpDirectoryListingVms(lines, entries)) {
-    *server_type = SERVER_VMS;
-    return FillInRawName(encoding, entries);
-  }
-
-  entries->clear();
-  if (ParseFtpDirectoryListingNetware(lines, current_time, entries)) {
-    *server_type = SERVER_NETWARE;
-    return FillInRawName(encoding, entries);
-  }
-
-  entries->clear();
-  if (ParseFtpDirectoryListingOS2(lines, entries)) {
-    *server_type = SERVER_OS2;
-    return FillInRawName(encoding, entries);
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(parsers); i++) {
+    entries->clear();
+    if (parsers[i].callback.Run()) {
+      *server_type = parsers[i].server_type;
+      return FillInRawName(encoding, entries);
+    }
   }
 
   entries->clear();
