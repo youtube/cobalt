@@ -13,9 +13,11 @@
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
+#include "base/scoped_temp_dir.h"
 #include "base/time.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/test_completion_callback.h"
 #include "net/base/upload_data.h"
 #include "net/base/upload_file_element_reader.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -128,9 +130,15 @@ class UploadDataStreamTest : public PlatformTest {
  public:
   UploadDataStreamTest() : upload_data_(new UploadData) { }
 
+  virtual void SetUp() OVERRIDE {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+  }
+
   void FileChangedHelper(const FilePath& file_path,
                          const base::Time& time,
                          bool error_expected);
+
+  ScopedTempDir temp_dir_;
 
   scoped_refptr<UploadData> upload_data_;
 };
@@ -164,7 +172,8 @@ TEST_F(UploadDataStreamTest, ConsumeAllBytes) {
 
 TEST_F(UploadDataStreamTest, File) {
   FilePath temp_file_path;
-  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
   ASSERT_EQ(static_cast<int>(kTestDataSize),
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
 
@@ -187,12 +196,12 @@ TEST_F(UploadDataStreamTest, File) {
   }
   EXPECT_EQ(kTestDataSize, stream.position());
   ASSERT_TRUE(stream.IsEOF());
-  file_util::Delete(temp_file_path, false);
 }
 
 TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   FilePath temp_file_path;
-  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
   ASSERT_EQ(static_cast<int>(kTestDataSize),
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
   const uint64 kFakeSize = kTestDataSize*2;
@@ -224,13 +233,12 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   // transaction doesn't hang.  Therefore we expected the full size.
   EXPECT_EQ(kFakeSize, read_counter);
   EXPECT_EQ(read_counter, stream.position());
-
-  file_util::Delete(temp_file_path, false);
 }
 
 TEST_F(UploadDataStreamTest, FileAndBytes) {
   FilePath temp_file_path;
-  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
   ASSERT_EQ(static_cast<int>(kTestDataSize),
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
 
@@ -255,8 +263,6 @@ TEST_F(UploadDataStreamTest, FileAndBytes) {
   }
   EXPECT_EQ(kStreamSize, stream.position());
   ASSERT_TRUE(stream.IsEOF());
-
-  file_util::Delete(temp_file_path, false);
 }
 
 TEST_F(UploadDataStreamTest, Chunk) {
@@ -455,7 +461,8 @@ void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,
 
 TEST_F(UploadDataStreamTest, FileChanged) {
   FilePath temp_file_path;
-  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
   ASSERT_EQ(static_cast<int>(kTestDataSize),
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
 
@@ -469,13 +476,12 @@ TEST_F(UploadDataStreamTest, FileChanged) {
   FileChangedHelper(temp_file_path,
                     file_info.last_modified - base::TimeDelta::FromSeconds(1),
                     true);
-
-  file_util::Delete(temp_file_path, false);
 }
 
 TEST_F(UploadDataStreamTest, UploadDataReused) {
   FilePath temp_file_path;
-  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
   ASSERT_EQ(static_cast<int>(kTestDataSize),
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
 
@@ -502,8 +508,218 @@ TEST_F(UploadDataStreamTest, UploadDataReused) {
     EXPECT_EQ(kTestDataSize, stream.size());
     EXPECT_EQ(kTestData, ReadFromUploadDataStream(&stream));
   }
+}
 
-  file_util::Delete(temp_file_path, false);
+TEST_F(UploadDataStreamTest, MultipleInit) {
+  FilePath temp_file_path;
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
+  ASSERT_EQ(static_cast<int>(kTestDataSize),
+            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
+
+  // Prepare data.
+  upload_data_->AppendBytes(kTestData, kTestDataSize);
+  upload_data_->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
+  UploadDataStream stream(upload_data_);
+
+  std::string expected_data(kTestData, kTestData + kTestDataSize);
+  expected_data += expected_data;
+
+  // Call InitSync().
+  ASSERT_EQ(OK, stream.InitSync());
+  EXPECT_FALSE(stream.IsEOF());
+  EXPECT_EQ(kTestDataSize*2, stream.size());
+
+  // Read.
+  EXPECT_EQ(expected_data, ReadFromUploadDataStream(&stream));
+  EXPECT_TRUE(stream.IsEOF());
+
+  // Call InitSync() again to reset.
+  ASSERT_EQ(OK, stream.InitSync());
+  EXPECT_FALSE(stream.IsEOF());
+  EXPECT_EQ(kTestDataSize*2, stream.size());
+
+  // Read again.
+  EXPECT_EQ(expected_data, ReadFromUploadDataStream(&stream));
+  EXPECT_TRUE(stream.IsEOF());
+}
+
+TEST_F(UploadDataStreamTest, MultipleInitAsync) {
+  FilePath temp_file_path;
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
+  ASSERT_EQ(static_cast<int>(kTestDataSize),
+            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
+  TestCompletionCallback test_callback;
+
+  // Prepare data.
+  upload_data_->AppendBytes(kTestData, kTestDataSize);
+  upload_data_->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
+  UploadDataStream stream(upload_data_);
+
+  std::string expected_data(kTestData, kTestData + kTestDataSize);
+  expected_data += expected_data;
+
+  // Call Init().
+  ASSERT_EQ(ERR_IO_PENDING, stream.Init(test_callback.callback()));
+  EXPECT_EQ(OK, test_callback.WaitForResult());
+  EXPECT_FALSE(stream.IsEOF());
+  EXPECT_EQ(kTestDataSize*2, stream.size());
+
+  // Read.
+  EXPECT_EQ(expected_data, ReadFromUploadDataStream(&stream));
+  EXPECT_TRUE(stream.IsEOF());
+
+  // Call Init() again to reset.
+  ASSERT_EQ(ERR_IO_PENDING, stream.Init(test_callback.callback()));
+  EXPECT_EQ(OK, test_callback.WaitForResult());
+  EXPECT_FALSE(stream.IsEOF());
+  EXPECT_EQ(kTestDataSize*2, stream.size());
+
+  // Read again.
+  EXPECT_EQ(expected_data, ReadFromUploadDataStream(&stream));
+  EXPECT_TRUE(stream.IsEOF());
+}
+
+TEST_F(UploadDataStreamTest, InitToReset) {
+  FilePath temp_file_path;
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
+  ASSERT_EQ(static_cast<int>(kTestDataSize),
+            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
+
+  // Prepare data.
+  upload_data_->AppendBytes(kTestData, kTestDataSize);
+  upload_data_->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
+  UploadDataStream stream(upload_data_);
+
+  std::vector<char> expected_data(kTestData, kTestData + kTestDataSize);
+  expected_data.insert(expected_data.end(), expected_data.begin(),
+                       expected_data.begin() + kTestDataSize);
+
+  // Call Init().
+  TestCompletionCallback init_callback1;
+  ASSERT_EQ(ERR_IO_PENDING, stream.Init(init_callback1.callback()));
+  EXPECT_EQ(OK, init_callback1.WaitForResult());
+  EXPECT_FALSE(stream.IsEOF());
+  EXPECT_EQ(kTestDataSize*2, stream.size());
+
+  // Read some.
+  TestCompletionCallback read_callback1;
+  std::vector<char> buf(kTestDataSize + kTestDataSize/2);
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
+  EXPECT_EQ(ERR_IO_PENDING, stream.Read(wrapped_buffer, buf.size(),
+                                        read_callback1.callback()));
+  EXPECT_EQ(static_cast<int>(buf.size()), read_callback1.WaitForResult());
+  EXPECT_EQ(buf.size(), stream.position());
+
+  // Call Init to reset the state.
+  TestCompletionCallback init_callback2;
+  ASSERT_EQ(ERR_IO_PENDING, stream.Init(init_callback2.callback()));
+  EXPECT_EQ(OK, init_callback2.WaitForResult());
+  EXPECT_FALSE(stream.IsEOF());
+  EXPECT_EQ(kTestDataSize*2, stream.size());
+
+  // Read.
+  TestCompletionCallback read_callback2;
+  std::vector<char> buf2(kTestDataSize*2);
+  scoped_refptr<IOBuffer> wrapped_buffer2 = new WrappedIOBuffer(&buf2[0]);
+  EXPECT_EQ(ERR_IO_PENDING, stream.Read(wrapped_buffer2, buf2.size(),
+                                        read_callback2.callback()));
+  EXPECT_EQ(static_cast<int>(buf2.size()), read_callback2.WaitForResult());
+  EXPECT_EQ(expected_data, buf2);
+}
+
+TEST_F(UploadDataStreamTest, InitDuringAsyncInit) {
+  FilePath temp_file_path;
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
+  ASSERT_EQ(static_cast<int>(kTestDataSize),
+            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
+
+  // Prepare data.
+  upload_data_->AppendBytes(kTestData, kTestDataSize);
+  upload_data_->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
+  UploadDataStream stream(upload_data_);
+
+  std::vector<char> expected_data(kTestData, kTestData + kTestDataSize);
+  expected_data.insert(expected_data.end(), expected_data.begin(),
+                       expected_data.begin() + kTestDataSize);
+
+  // Start Init.
+  TestCompletionCallback init_callback1;
+  EXPECT_EQ(ERR_IO_PENDING, stream.Init(init_callback1.callback()));
+
+  // Call Init again to cancel the previous init.
+  TestCompletionCallback init_callback2;
+  EXPECT_EQ(ERR_IO_PENDING, stream.Init(init_callback2.callback()));
+  EXPECT_EQ(OK, init_callback2.WaitForResult());
+  EXPECT_FALSE(stream.IsEOF());
+  EXPECT_EQ(kTestDataSize*2, stream.size());
+
+  // Read.
+  TestCompletionCallback read_callback2;
+  std::vector<char> buf2(kTestDataSize*2);
+  scoped_refptr<IOBuffer> wrapped_buffer2 = new WrappedIOBuffer(&buf2[0]);
+  EXPECT_EQ(ERR_IO_PENDING, stream.Read(wrapped_buffer2, buf2.size(),
+                                        read_callback2.callback()));
+  EXPECT_EQ(static_cast<int>(buf2.size()), read_callback2.WaitForResult());
+  EXPECT_EQ(expected_data, buf2);
+  EXPECT_TRUE(stream.IsEOF());
+
+  // Make sure callbacks are not called for cancelled operations.
+  EXPECT_FALSE(init_callback1.have_result());
+}
+
+TEST_F(UploadDataStreamTest, InitDuringAsyncRead) {
+  FilePath temp_file_path;
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir_.path(),
+                                                  &temp_file_path));
+  ASSERT_EQ(static_cast<int>(kTestDataSize),
+            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
+
+  // Prepare data.
+  upload_data_->AppendBytes(kTestData, kTestDataSize);
+  upload_data_->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
+  UploadDataStream stream(upload_data_);
+
+  std::vector<char> expected_data(kTestData, kTestData + kTestDataSize);
+  expected_data.insert(expected_data.end(), expected_data.begin(),
+                       expected_data.begin() + kTestDataSize);
+
+  // Call Init().
+  TestCompletionCallback init_callback1;
+  ASSERT_EQ(ERR_IO_PENDING, stream.Init(init_callback1.callback()));
+  EXPECT_EQ(OK, init_callback1.WaitForResult());
+  EXPECT_FALSE(stream.IsEOF());
+  EXPECT_EQ(kTestDataSize*2, stream.size());
+
+  // Start reading.
+  TestCompletionCallback read_callback1;
+  std::vector<char> buf(kTestDataSize*2);
+  scoped_refptr<IOBuffer> wrapped_buffer = new WrappedIOBuffer(&buf[0]);
+  EXPECT_EQ(ERR_IO_PENDING, stream.Read(wrapped_buffer, buf.size(),
+                                        read_callback1.callback()));
+
+  // Call Init to cancel the previous read.
+  TestCompletionCallback init_callback2;
+  EXPECT_EQ(ERR_IO_PENDING, stream.Init(init_callback2.callback()));
+  EXPECT_EQ(OK, init_callback2.WaitForResult());
+  EXPECT_FALSE(stream.IsEOF());
+  EXPECT_EQ(kTestDataSize*2, stream.size());
+
+  // Read.
+  TestCompletionCallback read_callback2;
+  std::vector<char> buf2(kTestDataSize*2);
+  scoped_refptr<IOBuffer> wrapped_buffer2 = new WrappedIOBuffer(&buf2[0]);
+  EXPECT_EQ(ERR_IO_PENDING, stream.Read(wrapped_buffer2, buf2.size(),
+                                        read_callback2.callback()));
+  EXPECT_EQ(static_cast<int>(buf2.size()), read_callback2.WaitForResult());
+  EXPECT_EQ(expected_data, buf2);
+  EXPECT_TRUE(stream.IsEOF());
+
+  // Make sure callbacks are not called for cancelled operations.
+  EXPECT_FALSE(read_callback1.have_result());
 }
 
 }  // namespace net

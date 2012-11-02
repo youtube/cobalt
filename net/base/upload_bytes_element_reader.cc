@@ -21,10 +21,11 @@ UploadBytesElementReader::~UploadBytesElementReader() {
 }
 
 int UploadBytesElementReader::Init(const CompletionCallback& callback) {
-  return OK;
+  return InitSync();
 }
 
 int UploadBytesElementReader::InitSync() {
+  offset_ = 0;
   return OK;
 }
 
