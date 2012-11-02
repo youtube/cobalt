@@ -7,6 +7,8 @@
 #ifndef NET_QUIC_TEST_TOOLS_QUIC_TEST_UTILS_H_
 #define NET_QUIC_TEST_TOOLS_QUIC_TEST_UTILS_H_
 
+#include "net/quic/congestion_control/quic_send_scheduler.h"
+#include "net/quic/quic_connection.h"
 #include "net/quic/quic_framer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -62,6 +64,43 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   virtual void OnConnectionCloseFrame(
       const QuicConnectionCloseFrame& frame) OVERRIDE {}
   virtual void OnPacketComplete() OVERRIDE {}
+};
+
+
+class FramerVisitorCapturingAcks : public NoOpFramerVisitor {
+ public:
+  // NoOpFramerVisitor
+  virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;
+  virtual void OnAckFrame(const QuicAckFrame& frame) OVERRIDE;
+
+  QuicPacketHeader* header() { return &header_; }
+  QuicAckFrame* frame() { return &frame_; }
+ private:
+  QuicPacketHeader header_;
+  QuicAckFrame frame_;
+};
+
+class MockConnectionVisitor : public QuicConnectionVisitorInterface {
+ public:
+  MockConnectionVisitor();
+  ~MockConnectionVisitor();
+  MOCK_METHOD4(OnPacket, bool(const IPEndPoint& self_address,
+                              const IPEndPoint& peer_address,
+                              const QuicPacketHeader& header,
+                              const std::vector<QuicStreamFrame>& frame));
+  MOCK_METHOD1(OnRstStream, void(const QuicRstStreamFrame& frame));
+  MOCK_METHOD2(ConnectionClose, void(QuicErrorCode error, bool from_peer));
+  MOCK_METHOD1(OnAck, void(AckedPackets acked_packets));
+};
+
+class MockScheduler : public QuicSendScheduler {
+ public:
+  MockScheduler();
+  virtual ~MockScheduler();
+
+  MOCK_METHOD1(TimeUntilSend, int(bool));
+  MOCK_METHOD1(OnIncomingAckFrame, void(const QuicAckFrame&));
+  MOCK_METHOD3(SentPacket, void(QuicPacketSequenceNumber, size_t, bool));
 };
 
 }  // namespace test

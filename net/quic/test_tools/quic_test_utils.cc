@@ -24,6 +24,29 @@ bool NoOpFramerVisitor::OnPacketHeader(const QuicPacketHeader& header) {
   return true;
 }
 
+bool FramerVisitorCapturingAcks::OnPacketHeader(
+    const QuicPacketHeader& header) {
+  header_ = header;
+  return true;
+}
+
+void FramerVisitorCapturingAcks::OnAckFrame(const QuicAckFrame& frame) {
+  frame_ = frame;
+}
+
+MockConnectionVisitor::MockConnectionVisitor() {
+}
+
+MockConnectionVisitor::~MockConnectionVisitor() {
+}
+
+MockScheduler::MockScheduler()
+    : QuicSendScheduler(NULL, kFixRate) {
+}
+
+MockScheduler::~MockScheduler() {
+}
+
 namespace {
 
 string HexDumpWithMarks(const char* data, int length,
