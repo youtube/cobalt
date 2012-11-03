@@ -37,7 +37,8 @@ std::string GetResponseHeaderLines(const net::HttpResponseHeaders& headers) {
   return cr_separated_headers;
 }
 
-// Return true if |headers| contain multiple |field_name| fields.
+// Return true if |headers| contain multiple |field_name| fields with different
+// values.
 bool HeadersContainMultipleCopiesOfField(
     const net::HttpResponseHeaders& headers,
     const std::string& field_name) {
@@ -46,8 +47,7 @@ bool HeadersContainMultipleCopiesOfField(
   if (!headers.EnumerateHeader(&it, field_name, &field_value))
     return false;
   // There's at least one |field_name| header.  Check if there are any more
-  // such headers, and if so, return true if they have different values or
-  // |count_same_value| is true.
+  // such headers, and if so, return true if they have different values.
   std::string field_value2;
   while (headers.EnumerateHeader(&it, field_name, &field_value2)) {
     if (field_value != field_value2)
