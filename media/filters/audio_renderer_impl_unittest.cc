@@ -5,6 +5,7 @@
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/gtest_prod_util.h"
+#include "base/message_loop.h"
 #include "base/stl_util.h"
 #include "media/base/data_buffer.h"
 #include "media/base/mock_audio_renderer_sink.h"
@@ -58,6 +59,7 @@ class AudioRendererImplTest : public ::testing::Test {
   }
 
   virtual ~AudioRendererImplTest() {
+    message_loop_.RunUntilIdle();
     renderer_->Stop(NewExpectedClosure());
   }
 
@@ -101,6 +103,7 @@ class AudioRendererImplTest : public ::testing::Test {
         .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
 
     InitializeWithStatus(PIPELINE_OK);
+    message_loop_.RunUntilIdle();
   }
 
   void InitializeWithStatus(PipelineStatus expected) {
@@ -127,6 +130,7 @@ class AudioRendererImplTest : public ::testing::Test {
     EXPECT_CALL(*decoder_, Read(_));
     renderer_->Preroll(base::TimeDelta(), NewPrerollCB());
     EXPECT_CALL(*this, OnPrerollComplete(PIPELINE_OK));
+    message_loop_.RunUntilIdle();
     DeliverRemainingAudio();
   }
 
@@ -193,7 +197,7 @@ class AudioRendererImplTest : public ::testing::Test {
         ChannelLayoutToChannelCount(decoder_->channel_layout());
     uint32 requested_frames = size / bytes_per_frame;
     uint32 frames_read = renderer_->FillBuffer(
-        buffer.get(), requested_frames, base::TimeDelta());
+        buffer.get(), requested_frames, 0);
 
     if (frames_read > 0 && muted) {
       *muted = (buffer[0] == kMutedAudio);
@@ -229,6 +233,7 @@ class AudioRendererImplTest : public ::testing::Test {
   AudioRendererImpl::AudioDecoderList decoders_;
   AudioDecoder::ReadCB read_cb_;
   base::TimeDelta next_timestamp_;
+  MessageLoop message_loop_;
 
  private:
   void SaveReadCallback(const AudioDecoder::ReadCB& callback) {
@@ -301,8 +306,20 @@ TEST_F(AudioRendererImplTest, EndOfStream) {
   Play();
 
   // Drain internal buffer, we should have a pending read.
+  int audio_bytes_filled = bytes_buffered();
   EXPECT_CALL(*decoder_, Read(_));
-  EXPECT_TRUE(ConsumeBufferedData(bytes_buffered(), NULL));
+  EXPECT_TRUE(ConsumeBufferedData(audio_bytes_filled, NULL));
+
+  // Check and clear |earliest_end_time_| so the ended event fires on the next
+  // ConsumeBufferedData() call.
+  base::TimeDelta audio_play_time = base::TimeDelta::FromMicroseconds(
+      audio_bytes_filled * base::Time::kMicrosecondsPerSecond /
+      static_cast<float>(renderer_->audio_parameters_.GetBytesPerSecond()));
+  base::TimeDelta time_until_ended =
+      renderer_->earliest_end_time_ - base::Time::Now();
+  EXPECT_TRUE(time_until_ended > base::TimeDelta());
+  EXPECT_TRUE(time_until_ended <= audio_play_time);
+  renderer_->earliest_end_time_ = base::Time();
 
   // Fulfill the read with an end-of-stream packet, we shouldn't report ended
   // nor have a read until we drain the internal buffer.
@@ -389,6 +406,10 @@ TEST_F(AudioRendererImplTest, Underflow_EndOfStream) {
   // fired the ended callback http://crbug.com/106641
   DeliverEndOfStream();
   EXPECT_CALL(*this, OnEnded());
+
+  // Clear |earliest_end_time_| so ended fires on the next ConsumeBufferedData()
+  // call.
+  renderer_->earliest_end_time_ = base::Time();
 
   EXPECT_FALSE(ConsumeBufferedData(kDataSize, &muted));
   EXPECT_FALSE(muted);
