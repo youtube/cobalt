@@ -520,7 +520,7 @@
           'linux_use_gold_flags%': 0,
         }],
 
-        ['OS=="android"', {
+        ['OS=="android" or OS=="ios"', {
           'enable_captive_portal_detection%': 0,
         }, {
           'enable_captive_portal_detection%': 1,
@@ -963,6 +963,7 @@
       }],  # os_posix==1 and OS!="mac" and OS!="ios"
       ['OS=="ios"', {
         'disable_nacl%': 1,
+        'enable_background%': 0,
         'enable_gpu%': 0,
         'enable_task_manager%': 0,
         'icu_use_data_file_flag%': 1,
