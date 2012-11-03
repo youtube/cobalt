@@ -4,6 +4,7 @@
 
 #include "media/filters/ffmpeg_glue.h"
 
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -83,23 +84,42 @@ static int LockManagerOperation(void** lock, enum AVLockOp op) {
   return 1;
 }
 
-static bool InitializeFFmpegInternal() {
-  // Before doing anything disable logging as it interferes with layout tests.
-  av_log_set_level(AV_LOG_QUIET);
+// FFmpeg must only be initialized once, so use a LazyInstance to ensure this.
+class FFmpegInitializer {
+ public:
+  bool initialized() { return initialized_; }
 
-  // Register our protocol glue code with FFmpeg.
-  if (av_lockmgr_register(&LockManagerOperation) != 0)
-    return false;
+ private:
+  friend struct base::DefaultLazyInstanceTraits<FFmpegInitializer>;
 
-  // Now register the rest of FFmpeg.
-  av_register_all();
-  return true;
-}
+  FFmpegInitializer()
+      : initialized_(false) {
+    // Before doing anything disable logging as it interferes with layout tests.
+    av_log_set_level(AV_LOG_QUIET);
+
+    // Register our protocol glue code with FFmpeg.
+    if (av_lockmgr_register(&LockManagerOperation) != 0)
+      return;
+
+    // Now register the rest of FFmpeg.
+    av_register_all();
+
+    initialized_ = true;
+  }
+
+  ~FFmpegInitializer() {
+    NOTREACHED() << "FFmpegInitializer should be leaky!";
+  }
+
+  bool initialized_;
+
+  DISALLOW_COPY_AND_ASSIGN(FFmpegInitializer);
+};
 
 void FFmpegGlue::InitializeFFmpeg() {
-  // FFmpeg only needs to be initialized once.
-  static const bool kStatus = InitializeFFmpegInternal();
-  CHECK(kStatus);
+  static base::LazyInstance<FFmpegInitializer>::Leaky li =
+      LAZY_INSTANCE_INITIALIZER;
+  CHECK(li.Get().initialized());
 }
 
 FFmpegGlue::FFmpegGlue(FFmpegURLProtocol* protocol)
