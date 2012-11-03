@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "net/quic/test_tools/quic_test_utils.h"
-
 #include "net/quic/crypto/crypto_framer.h"
 
 using std::max;
@@ -33,16 +32,6 @@ bool FramerVisitorCapturingAcks::OnPacketHeader(
 
 void FramerVisitorCapturingAcks::OnAckFrame(const QuicAckFrame& frame) {
   frame_ = frame;
-}
-
-MockHelper::MockHelper() {
-}
-
-MockHelper::~MockHelper() {
-}
-
-QuicClock* MockHelper::GetClock() {
-  return &clock_;
 }
 
 MockConnectionVisitor::MockConnectionVisitor() {
@@ -165,36 +154,6 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
   QuicPacket* packet;
   quic_framer.ConstructFragementDataPacket(header, frames, &packet);
   return packet;
-}
-
-MockConnection::MockConnection(QuicGuid guid, IPEndPoint address)
-    : QuicConnection(guid, address, new MockHelper()) {
-}
-
-MockConnection::~MockConnection() {
-}
-
-PacketSavingConnection::PacketSavingConnection(QuicGuid guid,
-                                               IPEndPoint address)
-    : MockConnection(guid, address) {
-}
-
-PacketSavingConnection::~PacketSavingConnection() {
-}
-
-bool PacketSavingConnection::SendPacket(QuicPacketSequenceNumber number,
-                                        QuicPacket* packet,
-                                        bool resend,
-                                        bool force) {
-  packets_.push_back(packet);
-  return true;
-}
-
-MockSession::MockSession(QuicConnection* connection, bool is_server)
-    : QuicSession(connection, is_server) {
-}
-
-MockSession::~MockSession() {
 }
 
 }  // namespace test
