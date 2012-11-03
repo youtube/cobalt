@@ -5,8 +5,8 @@
 #ifndef MEDIA_AUDIO_FAKE_AUDIO_OUTPUT_STREAM_H_
 #define MEDIA_AUDIO_FAKE_AUDIO_OUTOUT_STREAM_H_
 
+#include "base/cancelable_callback.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -45,7 +45,7 @@ class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
   float frames_per_millisecond_;
 
   // Used to post delayed tasks to the AudioThread that we can cancel.
-  base::WeakPtrFactory<FakeAudioOutputStream> weak_this_;
+  base::CancelableClosure on_more_data_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioOutputStream);
 };
