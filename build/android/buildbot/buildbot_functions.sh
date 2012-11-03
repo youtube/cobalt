@@ -217,6 +217,18 @@ echo '@@@BUILD_STEP experimental_unit_tests@@@'
 
 }
 
+# Run findbugs.
+function bb_run_findbugs_diff {
+  echo "@@@BUILD_STEP findbugs_diff@@@"
+  build/android/findbugs_diff.py
+}
+
+# Run findbugs plugin tests.
+function bb_run_findbugs_plugin_tests {
+  echo "@@@BUILD_STEP findbugs_plugin_tests@@@"
+  tools/android/findbugs_plugin/test/run_findbugs_plugin_tests.py
+}
+
 # Run a buildbot step and handle failure.
 function bb_run_step {
   (
