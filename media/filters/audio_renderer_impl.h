@@ -23,6 +23,7 @@
 #include <deque>
 
 #include "base/synchronization/lock.h"
+#include "base/threading/thread_checker.h"
 #include "media/base/audio_decoder.h"
 #include "media/base/audio_renderer.h"
 #include "media/base/audio_renderer_sink.h"
@@ -96,31 +97,25 @@ class MEDIA_EXPORT AudioRendererImpl
   // not called at the same rate as audio samples are played, then the reported
   // timestamp in the pipeline will be ahead of the actual audio playback. In
   // this case |playback_delay| should be used to indicate when in the future
-  // should the filled buffer be played. If FillBuffer() is called as the audio
-  // hardware plays the buffer, then |playback_delay| should be zero.
+  // should the filled buffer be played.
   //
   // Safe to call on any thread.
   uint32 FillBuffer(uint8* dest,
                     uint32 requested_frames,
-                    const base::TimeDelta& playback_delay);
-
-  // Get the playback rate of |algorithm_|.
-  float GetPlaybackRate();
-
-  // Convert number of bytes to duration of time using information about the
-  // number of channels, sample rate and sample bits.
-  base::TimeDelta ConvertToDuration(int bytes);
+                    int audio_delay_milliseconds);
 
   // Estimate earliest time when current buffer can stop playing.
-  void UpdateEarliestEndTime(int bytes_filled,
-                             base::TimeDelta request_delay,
-                             base::Time time_now);
+  void UpdateEarliestEndTime_Locked(int frames_filled,
+                                    float playback_rate,
+                                    base::TimeDelta playback_delay,
+                                    base::Time time_now);
 
   // Methods called on pipeline thread ----------------------------------------
   void DoPlay();
   void DoPause();
 
-  // media::AudioRendererSink::RenderCallback implementation.
+  // media::AudioRendererSink::RenderCallback implementation.  Called on the
+  // AudioDevice thread.
   virtual int Render(AudioBus* audio_bus,
                      int audio_delay_milliseconds) OVERRIDE;
   virtual void OnRenderError() OVERRIDE;
@@ -151,10 +146,39 @@ class MEDIA_EXPORT AudioRendererImpl
   // Audio decoder.
   scoped_refptr<AudioDecoder> decoder_;
 
+  // The sink (destination) for rendered audio.  |sink_| must only be accessed
+  // on the pipeline thread (verify with |pipeline_thread_checker_|).  |sink_|
+  // must never be called under |lock_| or the 3-way thread bridge between the
+  // audio, pipeline, and decoder threads may deadlock.
+  scoped_refptr<media::AudioRendererSink> sink_;
+
+  // Ensures certain methods are always called on the pipeline thread.
+  base::ThreadChecker pipeline_thread_checker_;
+
+  // AudioParameters constructed during Initialize() based on |decoder_|.
+  AudioParameters audio_parameters_;
+
+  // Callbacks provided during Initialize().
+  PipelineStatusCB init_cb_;
+  StatisticsCB statistics_cb_;
+  base::Closure underflow_cb_;
+  TimeCB time_cb_;
+  base::Closure ended_cb_;
+  base::Closure disabled_cb_;
+  PipelineStatusCB error_cb_;
+
+  // Callback provided to Pause().
+  base::Closure pause_cb_;
+
+  // Callback provided to Preroll().
+  PipelineStatusCB preroll_cb_;
+
+  // After Initialize() has completed, all variables below must be accessed
+  // under |lock_|. ------------------------------------------------------------
+  base::Lock lock_;
+
   // Algorithm for scaling audio.
   scoped_ptr<AudioRendererAlgorithm> algorithm_;
-
-  base::Lock lock_;
 
   // Simple state tracking variable.
   enum State {
@@ -180,28 +204,7 @@ class MEDIA_EXPORT AudioRendererImpl
   base::TimeDelta audio_time_buffered_;
   base::TimeDelta current_time_;
 
-  PipelineStatusCB init_cb_;
-  StatisticsCB statistics_cb_;
-
-  // Filter callbacks.
-  base::Closure pause_cb_;
-  PipelineStatusCB preroll_cb_;
-
-  base::Closure underflow_cb_;
-  TimeCB time_cb_;
-  base::Closure ended_cb_;
-  base::Closure disabled_cb_;
-  PipelineStatusCB error_cb_;
-
   base::TimeDelta preroll_timestamp_;
-
-  uint32 bytes_per_frame_;
-
-  // A flag that indicates this filter is called to stop.
-  bool stopped_;
-
-  // The sink (destination) for rendered audio.
-  scoped_refptr<media::AudioRendererSink> sink_;
 
   // We're supposed to know amount of audio data OS or hardware buffered, but
   // that is not always so -- on my Linux box
@@ -219,13 +222,17 @@ class MEDIA_EXPORT AudioRendererImpl
   // than nothing.
   base::Time earliest_end_time_;
 
-  AudioParameters audio_parameters_;
-
   bool underflow_disabled_;
 
   // True if the renderer receives a buffer with kAborted status during preroll,
   // false otherwise. This flag is cleared on the next Preroll() call.
   bool preroll_aborted_;
+
+  // End variables which must be accessed under |lock_|. ----------------------
+
+  // Variables used only on the audio thread. ---------------------------------
+  int actual_frames_per_buffer_;
+  scoped_array<uint8> audio_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioRendererImpl);
 };
