@@ -265,7 +265,7 @@ bool MP4StreamParser::ParseMoof(BoxReader* reader) {
   MovieFragment moof;
   RCHECK(moof.Parse(reader));
   RCHECK(runs_->Init(moof));
-  RCHECK(EmitNeedKeyIfNecessary(moov_->pssh));
+  RCHECK(EmitNeedKeyIfNecessary(moof.pssh));
   new_segment_cb_.Run(runs_->GetMinDecodeTimestamp());
   ChangeState(kEmittingSamples);
   return true;
