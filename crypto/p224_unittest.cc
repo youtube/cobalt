@@ -9,7 +9,8 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-using namespace crypto;
+namespace crypto {
+
 using p224::Point;
 
 // kBasePointExternal is the P224 base point in external representation.
@@ -819,3 +820,5 @@ TEST(P224, Infinity) {
   // We shouldn't allow ∞ to be imported.
   EXPECT_FALSE(a.SetFromString(std::string(zeros, sizeof(zeros))));
 }
+
+}  // namespace crypto
