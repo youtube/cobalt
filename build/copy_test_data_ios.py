@@ -16,10 +16,9 @@ class WrongNumberOfArgumentsException(Exception):
 def ListFilesForPath(path):
   """Returns a list of all the files under a given path."""
   output = []
-  # Ignore dotfiles and dot directories.
-  # TODO(rohitrao): This will fail to exclude cases where the initial argument
-  # is a relative path that starts with a dot.
-  if os.path.basename(path).startswith('.'):
+  # Ignore revision control metadata directories.
+  if (os.path.basename(path).startswith('.git') or
+      os.path.basename(path).startswith('.svn')):
     return output
 
   # Files get returned without modification.
