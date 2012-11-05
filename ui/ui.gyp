@@ -167,6 +167,7 @@
         'base/events/event_handler.h',
         'base/events/event_target.cc',
         'base/events/event_target.h',
+        'base/events/event_utils.h',
         'base/gestures/gesture_configuration.cc',
         'base/gestures/gesture_configuration.h',
         'base/gestures/gesture_point.cc',
