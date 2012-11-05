@@ -1621,35 +1621,57 @@
         'defines': ['ENABLE_HIDPI=1'],
       }],
       ['fastbuild!=0', {
-
+        # Clang creates chubby debug information, which makes linking very
+        # slow. For now, don't create debug information with clang.  See
+        # http://crbug.com/70000
         'conditions': [
-          # For Windows and Mac, we don't genererate debug information.
-          ['OS=="win" or OS=="mac"', {
-            'msvs_settings': {
-              'VCLinkerTool': {
-                'GenerateDebugInformation': 'false',
-              },
-              'VCCLCompilerTool': {
-                'DebugInformationFormat': '0',
-              }
-            },
-            'xcode_settings': {
-              'GCC_GENERATE_DEBUGGING_SYMBOLS': 'NO',
-            },
-          }, { # else: OS != "win", generate less debug information.
-            'variables': {
-              'debug_extra_cflags': '-g1',
-            },
-          }],
-          # Clang creates chubby debug information, which makes linking very
-          # slow. For now, don't create debug information with clang.  See
-          # http://crbug.com/70000
-          ['(OS=="linux" or OS=="android") and clang==1', {
-            'variables': {
-              'debug_extra_cflags': '-g0',
-            },
-          }],
-        ],  # conditions for fastbuild.
+          ['clang==1', {
+            'conditions': [
+              ['OS=="linux"', {
+                'variables': {
+                  'debug_extra_cflags': '-g0',
+                },
+              }],
+              # Android builds symbols on release by default, disable them.
+              ['OS=="android"', {
+                'variables': {
+                  'debug_extra_cflags': '-g0',
+                  'release_extra_cflags': '-g0',
+                },
+              }],
+            ],
+          }, { # else clang!=1
+            'conditions': [
+              # For Windows and Mac, we don't genererate debug information.
+              ['OS=="win"', {
+                'msvs_settings': {
+                  'VCLinkerTool': {
+                    'GenerateDebugInformation': 'false',
+                  },
+                  'VCCLCompilerTool': {
+                    'DebugInformationFormat': '0',
+                  },
+                },
+              }],
+              ['OS=="mac"', {
+                'xcode_settings': {
+                  'GCC_GENERATE_DEBUGGING_SYMBOLS': 'NO',
+                },
+              }],
+              ['OS=="linux"', {
+                'variables': {
+                  'debug_extra_cflags': '-g1',
+                },
+              }],
+              ['OS=="android"', {
+                'variables': {
+                  'debug_extra_cflags': '-g1',
+                  'release_extra_cflags': '-g1',
+                },
+              }],
+            ],
+          }], # clang!=1
+        ],
       }],  # fastbuild!=0
       ['dcheck_always_on!=0', {
         'defines': ['DCHECK_ALWAYS_ON=1'],
@@ -2149,7 +2171,7 @@
           ['win_use_allocator_shim==0', {
             'defines': ['NO_TCMALLOC'],
           }],
-          ['OS=="linux"', {
+          ['OS=="linux" or OS=="android"', {
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': [
