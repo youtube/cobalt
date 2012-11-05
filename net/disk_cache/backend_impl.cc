@@ -486,9 +486,6 @@ int BackendImpl::SyncInit() {
 
   disabled_ = !rankings_.Init(this, new_eviction_);
 
-  if (!disabled_ && !(user_flags_ & kNoRandom) && base::RandInt(0, 99) < 2)
-    rankings_.SelfCheck();  // Ignore return value for now.
-
 #if defined(STRESS_CACHE_EXTENDED_VALIDATION)
   trace_object_->EnableTracing(false);
   int sc = SelfCheck();
