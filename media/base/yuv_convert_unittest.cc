@@ -171,6 +171,7 @@ class YUVScaleTest : public ::testing::TestWithParam<YUVScaleTestData> {
 };
 
 TEST_P(YUVScaleTest, NoScale) {
+  // Disabling filtering for NoScale tests: see http://crbug.com/158462
   media::ScaleYUVToRGB32(y_plane(),                    // Y
                          u_plane(),                    // U
                          v_plane(),                    // V
@@ -182,7 +183,7 @@ TEST_P(YUVScaleTest, NoScale) {
                          kSourceWidth * kBpp,          // RgbStride
                          GetParam().yuv_type,
                          media::ROTATE_0,
-                         GetParam().scale_filter);
+                         media::FILTER_NONE);
 
   uint32 yuv_hash = DJB2Hash(rgb_bytes_.get(), kRGBSize, kDJB2HashSeed);
 
@@ -273,7 +274,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(
         YUVScaleTestData(media::YV12, media::FILTER_NONE, 4136904952u),
         YUVScaleTestData(media::YV16, media::FILTER_NONE, 1501777547u),
-        YUVScaleTestData(media::YV12, media::FILTER_BILINEAR, 3164274689u),
+        YUVScaleTestData(media::YV12, media::FILTER_BILINEAR, 1658385967u),
         YUVScaleTestData(media::YV16, media::FILTER_BILINEAR, 3095878046u)));
 
 // This tests a known worst case YUV value, and for overflow.
