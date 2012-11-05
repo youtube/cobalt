@@ -39,6 +39,9 @@ mac_only=
 run_tests=
 bootstrap=
 with_android=yes
+if [[ "${OS}" = "Darwin" ]]; then
+  with_android=
+fi
 
 while [[ $# > 0 ]]; do
   case $1 in
