@@ -65,25 +65,35 @@ def _RemoveKeys(plist, *keys):
       pass
 
 
-def _AddVersionKeys(plist):
+def _AddVersionKeys(plist, version=None):
   """Adds the product version number into the plist. Returns True on success and
   False on error. The error will be printed to stderr."""
-  # Pull in the Chrome version number.
-  VERSION_TOOL = os.path.join(TOP, 'chrome/tools/build/version.py')
-  VERSION_FILE = os.path.join(TOP, 'chrome/VERSION')
+  if version:
+    match = re.match('\d+\.\d+\.(\d+\.\d+)$', version)
+    if not match:
+      print >>sys.stderr, 'Invalid version string specified: "%s"' % version
+      return False
 
-  (stdout, retval1) = _GetOutput([VERSION_TOOL, '-f', VERSION_FILE, '-t',
-                                  '@MAJOR@.@MINOR@.@BUILD@.@PATCH@'])
-  full_version = stdout.rstrip()
+    full_version = match.group(0)
+    bundle_version = match.group(1)
 
-  (stdout, retval2) = _GetOutput([VERSION_TOOL, '-f', VERSION_FILE, '-t',
-                                  '@BUILD@.@PATCH@'])
-  bundle_version = stdout.rstrip()
+  else:
+    # Pull in the Chrome version number.
+    VERSION_TOOL = os.path.join(TOP, 'chrome/tools/build/version.py')
+    VERSION_FILE = os.path.join(TOP, 'chrome/VERSION')
 
-  # If either of the two version commands finished with non-zero returncode,
-  # report the error up.
-  if retval1 or retval2:
-    return False
+    (stdout, retval1) = _GetOutput([VERSION_TOOL, '-f', VERSION_FILE, '-t',
+                                    '@MAJOR@.@MINOR@.@BUILD@.@PATCH@'])
+    full_version = stdout.rstrip()
+
+    (stdout, retval2) = _GetOutput([VERSION_TOOL, '-f', VERSION_FILE, '-t',
+                                    '@BUILD@.@PATCH@'])
+    bundle_version = stdout.rstrip()
+
+    # If either of the two version commands finished with non-zero returncode,
+    # report the error up.
+    if retval1 or retval2:
+      return False
 
   # Add public version info so "Get Info" works.
   plist['CFBundleShortVersionString'] = full_version
@@ -229,6 +239,8 @@ def Main(argv):
   parser.add_option('--bundle_id', dest='bundle_identifier',
       action='store', type='string', default=None,
       help='The bundle id of the binary')
+  parser.add_option('--version', dest='version', action='store', type='string',
+      default=None, help='The version string [major.minor.build.patch]')
   (options, args) = parser.parse_args(argv)
 
   if len(args) > 0:
@@ -240,7 +252,7 @@ def Main(argv):
   plist = plistlib.readPlist(DEST_INFO_PLIST)
 
   # Insert the product version.
-  if not _AddVersionKeys(plist):
+  if not _AddVersionKeys(plist, version=options.version):
     return 2
 
   # Add Breakpad if configured to do so.
