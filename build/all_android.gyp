@@ -36,6 +36,7 @@
       'target_name': 'android_builder_tests',
       'type': 'none',
       'dependencies': [
+        '../android_webview/android_webview.gyp:android_webview_unittests',
         '../base/android/jni_generator/jni_generator.gyp:jni_generator_tests',
         '../base/base.gyp:base_unittests',
         '../cc/cc_tests.gyp:cc_unittests',
@@ -75,6 +76,7 @@
             # target.
             '../testing/android/native_test.gyp:native_test_apk',
             # Unit test bundles packaged as an apk.
+            '../android_webview/android_webview.gyp:android_webview_unittests_apk',
             '../base/base.gyp:base_unittests_apk',
             '../cc/cc_tests.gyp:cc_unittests_apk',
             '../chrome/chrome.gyp:unit_tests_apk',
