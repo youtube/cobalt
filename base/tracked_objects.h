@@ -421,7 +421,7 @@ class BASE_EXPORT ThreadData {
       const TrackedTime& start_of_run,
       const TrackedTime& end_of_run);
 
-  const std::string thread_name() const;
+  const std::string& thread_name() const { return thread_name_; }
 
   // Hack: asynchronously clear all birth counts and death tallies data values
   // in all ThreadData instances.  The numerical (zeroing) part is done without

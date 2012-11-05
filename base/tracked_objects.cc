@@ -552,8 +552,6 @@ void ThreadData::TallyRunInAScopedRegionIfTracking(
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
 }
 
-const std::string ThreadData::thread_name() const { return thread_name_; }
-
 // static
 void ThreadData::SnapshotAllExecutedTasks(bool reset_max,
                                           ProcessDataSnapshot* process_data,
