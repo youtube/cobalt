@@ -238,6 +238,7 @@ class QuicConnectionTest : public ::testing::Test {
     // redundancy.
     scoped_ptr<QuicPacket> data_packet(ConstructDataPacket(number, 1));
 
+    header_.guid = guid_;
     header_.packet_sequence_number = number;
     header_.flags = PACKET_FLAGS_FEC;
     header_.fec_group = 1;
