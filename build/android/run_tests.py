@@ -209,25 +209,47 @@ class TestSharder(BaseTestSharder):
     self.log_dump_name = log_dump_name
     self.fast_and_loose = fast_and_loose
     self.build_type = build_type
-    test = SingleTestRunner(self.attached_devices[0], test_suite, gtest_filter,
-                            test_arguments, timeout, rebaseline,
-                            performance_test, cleanup_test_files, tool, 0,
-                            not not self.log_dump_name, fast_and_loose,
-                            build_type)
     self.tests = []
     if not self.gtest_filter:
       # No filter has been specified, let's add all tests then.
-      # The executable/apk needs to be copied before we can call GetAllTests.
-      test.test_package.StripAndCopyExecutable()
-      all_tests = test.test_package.GetAllTests()
-      if not rebaseline:
-        disabled_list = test.GetDisabledTests()
-        # Only includes tests that do not have any match in the disabled list.
-        all_tests = filter(lambda t:
-                           not any([fnmatch.fnmatch(t, disabled_pattern)
-                                    for disabled_pattern in disabled_list]),
-                           all_tests)
-      self.tests = all_tests
+      self.tests, self.attached_devices = self._GetTests()
+
+  def _GetTests(self):
+    """Returns a tuple of (all_tests, available_devices).
+
+    Tries to obtain the list of available tests.
+    Raises Exception if all devices failed.
+    """
+    available_devices = list(self.attached_devices)
+    while available_devices:
+      try:
+        logging.info('Obtaining tests from %s', available_devices[-1])
+        all_tests = self._GetTestsFromDevice(available_devices[-1])
+        return all_tests, available_devices
+      except Exception as e:
+        logging.info('Failed obtaining tests from %s %s',
+                     available_devices[-1], e)
+        available_devices.pop()
+    raise Exception('No device available to get the list of tests.')
+
+  def _GetTestsFromDevice(self, device):
+    test = SingleTestRunner(device, self.test_suite, self.gtest_filter,
+                            self.test_arguments, self.timeout, self.rebaseline,
+                            self.performance_test, self.cleanup_test_files,
+                            self.tool, 0,
+                            not not self.log_dump_name, self.fast_and_loose,
+                            self.build_type)
+    # The executable/apk needs to be copied before we can call GetAllTests.
+    test.test_package.StripAndCopyExecutable()
+    all_tests = test.test_package.GetAllTests()
+    if not self.rebaseline:
+      disabled_list = test.GetDisabledTests()
+      # Only includes tests that do not have any match in the disabled list.
+      all_tests = filter(lambda t:
+                         not any([fnmatch.fnmatch(t, disabled_pattern)
+                                  for disabled_pattern in disabled_list]),
+                         all_tests)
+    return all_tests
 
   def CreateShardedTestRunner(self, device, index):
     """Creates a suite-specific test runner.
