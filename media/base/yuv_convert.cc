@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -136,11 +136,25 @@ void ScaleYUVToRGB32(const uint8* y_buf,
   if (!linear_scale_proc)
     linear_scale_proc = ChooseLinearScaleYUVToRGB32RowProc();
 
-  // Handle zero sized sources and destinations.
-  if ((yuv_type == YV12 && (source_width < 2 || source_height < 2)) ||
-      (yuv_type == YV16 && (source_width < 2 || source_height < 1)) ||
-      width == 0 || height == 0)
+  // Handle format-specific checks, zero sized sources and destinations.
+  int y_shift;
+  int source_uv_height;
+  if (width == 0 || height == 0) {
     return;
+  }
+  if (yuv_type == YV12) {
+    if (source_width < 2 || source_height < 2) {
+      return;
+    }
+    y_shift = 1;
+    source_uv_height = (source_height + 1) >> 1;
+  } else {
+    if (source_width < 2 || source_height < 1) {
+      return;
+    }
+    y_shift = 0;
+    source_uv_height = source_height;
+  }
 
   // 4096 allows 3 buffers to fit in 12k.
   // Helps performance on CPU with 16K L1 cache.
@@ -153,7 +167,6 @@ void ScaleYUVToRGB32(const uint8* y_buf,
   if (source_width > kFilterBufferSize || view_rotate)
     filter = FILTER_NONE;
 
-  unsigned int y_shift = yuv_type;
   // Diagram showing origin and direction of source sampling.
   // ->0   4<-
   // 7       3
@@ -176,8 +189,8 @@ void ScaleYUVToRGB32(const uint8* y_buf,
       (view_rotate == MIRROR_ROTATE_90) ||
       (view_rotate == MIRROR_ROTATE_180)) {
     y_buf += (source_height - 1) * y_pitch;
-    u_buf += ((source_height >> y_shift) - 1) * uv_pitch;
-    v_buf += ((source_height >> y_shift) - 1) * uv_pitch;
+    u_buf += ((source_uv_height) - 1) * uv_pitch;
+    v_buf += ((source_uv_height) - 1) * uv_pitch;
     source_height = -source_height;
   }
 
@@ -213,28 +226,43 @@ void ScaleYUVToRGB32(const uint8* y_buf,
 
   // TODO(fbarchard): Fixed point math is off by 1 on negatives.
 
-  // We take a y-coordinate in [0,1] space in the source image space, and
-  // transform to a y-coordinate in [0,1] space in the destination image space.
-  // Note that the coordinate endpoints lie on pixel boundaries, not on pixel
-  // centers: e.g. a two-pixel-high image will have pixel centers at 0.25 and
-  // 0.75.  The formula is as follows (in fixed-point arithmetic):
-  //   y_dst = dst_height * ((y_src + 0.5) / src_height)
-  //   dst_pixel = clamp([0, dst_height - 1], floor(y_dst - 0.5))
-  // Implement this here as an accumulator + delta, to avoid expensive math
-  // in the loop.
-  int source_y_subpixel_accum =
-    ((kFractionMax / 2) * source_height) / height - (kFractionMax / 2);
-  int source_y_subpixel_delta = ((1 << kFractionBits) * source_height) / height;
+  // We want to be able to take a row coordinate on [0. dst_height - 1] in
+  // the destination image space, and find the corresponding row coordinate
+  // on [0, src_height - 1] in the source image space.
+  // Conceptually, we have the transformation first from destination row
+  // coordinate to [0, 1] texture coordinate space:
+  //   tex_y = (dst_row + 0.5) / dst_height
+  // Then from texture coordinate space to source row coordinate:
+  //   src_row = clamp([0, src_height - 1], (tex_y * src_height) - 0.5)
+  // We will be linearly interpolating rows, so the integral part of src_row
+  // is the "base" row, and the fraction part is the interpolation amount.
+
+  // We do the math here as an accumulator + delta in 16.16 fixed-point, to
+  // avoid expensive math in the loop.
+  // * source_y_subpixel_delta: texture coordinate step per destination row,
+  //   scaled to source image height
+  // * source_y_subpixel_accum: current texture coordinate, scaled to source
+  //   image height
+  const int source_y_subpixel_delta = (kFractionMax * source_height) / height;
+  int source_y_subpixel_accum = source_y_subpixel_delta / 2;
+  uint8* dest_pixel = rgb_buf;
 
   // TODO(fbarchard): Split this into separate function for better efficiency.
   for (int y = 0; y < height; ++y) {
-    uint8* dest_pixel = rgb_buf + y * rgb_pitch;
-    int source_y_subpixel = source_y_subpixel_accum;
-    source_y_subpixel_accum += source_y_subpixel_delta;
-    if (source_y_subpixel < 0)
+    int source_y_subpixel = source_y_subpixel_accum - (kFractionMax / 2);
+    if (source_y_subpixel < 0) {
       source_y_subpixel = 0;
-    else if (source_y_subpixel > ((source_height - 1) << kFractionBits))
+    } else if (source_y_subpixel > ((source_height - 1) << kFractionBits)) {
       source_y_subpixel = (source_height - 1) << kFractionBits;
+    }
+
+    int source_uv_subpixel = (source_y_subpixel_accum >> y_shift) -
+        (kFractionMax / 2);
+    if (source_uv_subpixel < 0) {
+      source_uv_subpixel = 0;
+    } else if (source_uv_subpixel > ((source_uv_height - 1) << kFractionBits)) {
+      source_uv_subpixel = ((source_uv_height - 1) << kFractionBits);
+    }
 
     const uint8* y_ptr = NULL;
     const uint8* u_ptr = NULL;
@@ -242,14 +270,14 @@ void ScaleYUVToRGB32(const uint8* y_buf,
     // Apply vertical filtering if necessary.
     // TODO(fbarchard): Remove memcpy when not necessary.
     if (filter & media::FILTER_BILINEAR_V) {
-      int source_y = source_y_subpixel >> kFractionBits;
+      const int source_y = source_y_subpixel >> kFractionBits;
+      const int source_uv = source_uv_subpixel >> kFractionBits;
       y_ptr = y_buf + source_y * y_pitch;
-      u_ptr = u_buf + (source_y >> y_shift) * uv_pitch;
-      v_ptr = v_buf + (source_y >> y_shift) * uv_pitch;
+      u_ptr = u_buf + source_uv * uv_pitch;
+      v_ptr = v_buf + source_uv * uv_pitch;
 
       // Vertical scaler uses 16.8 fixed point.
-      int source_y_fraction =
-          (source_y_subpixel & kFractionMask) >> 8;
+      const int source_y_fraction = (source_y_subpixel & kFractionMask) >> 8;
       if (source_y_fraction != 0) {
         filter_proc(ybuf, y_ptr, y_ptr + y_pitch, source_width,
                     source_y_fraction);
@@ -257,19 +285,11 @@ void ScaleYUVToRGB32(const uint8* y_buf,
         memcpy(ybuf, y_ptr, source_width);
       }
       y_ptr = ybuf;
-      ybuf[source_width] = ybuf[source_width-1];
+      ybuf[source_width] = ybuf[source_width - 1];
 
-      int uv_source_width = (source_width + 1) / 2;
-      int source_uv_fraction;
-
-      // For formats with half-height UV planes, each even-numbered pixel row
-      // should not interpolate, since the next row to interpolate from should
-      // be a duplicate of the current row.
-      if (y_shift && (source_y & 0x1) == 0)
-        source_uv_fraction = 0;
-      else
-        source_uv_fraction = source_y_fraction;
-
+      const int uv_source_width = (source_width + 1) / 2;
+      // Vertical scaler uses 16.8 fixed point.
+      const int source_uv_fraction = (source_uv_subpixel & kFractionMask) >> 8;
       if (source_uv_fraction != 0) {
         filter_proc(ubuf, u_ptr, u_ptr + uv_pitch, uv_source_width,
             source_uv_fraction);
@@ -284,11 +304,14 @@ void ScaleYUVToRGB32(const uint8* y_buf,
       ubuf[uv_source_width] = ubuf[uv_source_width - 1];
       vbuf[uv_source_width] = vbuf[uv_source_width - 1];
     } else {
-      // Offset by 1/2 pixel for center sampling.
-      int source_y = (source_y_subpixel + (kFractionMax / 2)) >> kFractionBits;
+      // Offset by 1/2 pixel for nearest-neighbor rounding.
+      const int source_y =
+          (source_y_subpixel + (kFractionMax / 2)) >> kFractionBits;
+      const int source_uv =
+          ((source_uv_subpixel) + (kFractionMax / 2)) >> kFractionBits;
       y_ptr = y_buf + source_y * y_pitch;
-      u_ptr = u_buf + (source_y >> y_shift) * uv_pitch;
-      v_ptr = v_buf + (source_y >> y_shift) * uv_pitch;
+      u_ptr = u_buf + source_uv * uv_pitch;
+      v_ptr = v_buf + source_uv * uv_pitch;
     }
     if (source_dx == kFractionMax) {  // Not scaled
       convert_proc(y_ptr, u_ptr, v_ptr, dest_pixel, width);
@@ -299,6 +322,8 @@ void ScaleYUVToRGB32(const uint8* y_buf,
         scale_proc(y_ptr, u_ptr, v_ptr, dest_pixel, width, source_dx);
       }
     }
+    source_y_subpixel_accum += source_y_subpixel_delta;
+    dest_pixel += rgb_pitch;
   }
 
   EmptyRegisterState();
