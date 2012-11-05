@@ -1,5 +1,5 @@
 
-#line 1 "hb-ot-shape-complex-indic-machine.rl"
+#line 1 "../../src/hb-ot-shape-complex-indic-machine.rl"
 /*
  * Copyright © 2011,2012  Google, Inc.
  *
@@ -32,7 +32,7 @@
 #include "hb-private.hh"
 
 
-#line 36 "hb-ot-shape-complex-indic-machine.hh.tmp"
+#line 36 "../../src/hb-ot-shape-complex-indic-machine.hh.tmp"
 static const unsigned char _indic_syllable_machine_trans_keys[] = {
 	1u, 16u, 13u, 13u, 5u, 7u, 5u, 7u, 7u, 7u, 5u, 7u, 5u, 7u, 7u, 7u, 
 	5u, 7u, 5u, 7u, 7u, 7u, 5u, 7u, 5u, 7u, 7u, 7u, 4u, 4u, 6u, 6u, 
@@ -1125,11 +1125,11 @@ static const int indic_syllable_machine_error = -1;
 static const int indic_syllable_machine_en_main = 143;
 
 
-#line 36 "hb-ot-shape-complex-indic-machine.rl"
+#line 36 "../../src/hb-ot-shape-complex-indic-machine.rl"
 
 
 
-#line 90 "hb-ot-shape-complex-indic-machine.rl"
+#line 90 "../../src/hb-ot-shape-complex-indic-machine.rl"
 
 
 #define found_syllable(syllable_type) \
@@ -1149,7 +1149,7 @@ find_syllables (hb_buffer_t *buffer)
   int cs;
   hb_glyph_info_t *info = buffer->info;
   
-#line 1153 "hb-ot-shape-complex-indic-machine.hh.tmp"
+#line 1153 "../../src/hb-ot-shape-complex-indic-machine.hh.tmp"
 	{
 	cs = indic_syllable_machine_start;
 	ts = 0;
@@ -1157,7 +1157,7 @@ find_syllables (hb_buffer_t *buffer)
 	act = 0;
 	}
 
-#line 111 "hb-ot-shape-complex-indic-machine.rl"
+#line 111 "../../src/hb-ot-shape-complex-indic-machine.rl"
 
 
   p = 0;
@@ -1166,7 +1166,7 @@ find_syllables (hb_buffer_t *buffer)
   unsigned int last = 0;
   unsigned int syllable_serial = 1;
   
-#line 1170 "hb-ot-shape-complex-indic-machine.hh.tmp"
+#line 1170 "../../src/hb-ot-shape-complex-indic-machine.hh.tmp"
 	{
 	int _slen;
 	int _trans;
@@ -1177,10 +1177,10 @@ find_syllables (hb_buffer_t *buffer)
 _resume:
 	switch ( _indic_syllable_machine_from_state_actions[cs] ) {
 	case 9:
-#line 1 "hb-ot-shape-complex-indic-machine.rl"
+#line 1 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{ts = p;}
 	break;
-#line 1184 "hb-ot-shape-complex-indic-machine.hh.tmp"
+#line 1184 "../../src/hb-ot-shape-complex-indic-machine.hh.tmp"
 	}
 
 	_keys = _indic_syllable_machine_trans_keys + (cs<<1);
@@ -1199,67 +1199,67 @@ _eof_trans:
 
 	switch ( _indic_syllable_machine_trans_actions[_trans] ) {
 	case 2:
-#line 1 "hb-ot-shape-complex-indic-machine.rl"
+#line 1 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p+1;}
 	break;
 	case 13:
-#line 82 "hb-ot-shape-complex-indic-machine.rl"
+#line 82 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p+1;{ found_syllable (consonant_syllable); }}
 	break;
 	case 15:
-#line 83 "hb-ot-shape-complex-indic-machine.rl"
+#line 83 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p+1;{ found_syllable (vowel_syllable); }}
 	break;
 	case 20:
-#line 84 "hb-ot-shape-complex-indic-machine.rl"
+#line 84 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p+1;{ found_syllable (standalone_cluster); }}
 	break;
 	case 17:
-#line 85 "hb-ot-shape-complex-indic-machine.rl"
+#line 85 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p+1;{ found_syllable (broken_cluster); }}
 	break;
 	case 10:
-#line 86 "hb-ot-shape-complex-indic-machine.rl"
+#line 86 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p+1;{ found_syllable (non_indic_cluster); }}
 	break;
 	case 12:
-#line 82 "hb-ot-shape-complex-indic-machine.rl"
+#line 82 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p;p--;{ found_syllable (consonant_syllable); }}
 	break;
 	case 14:
-#line 83 "hb-ot-shape-complex-indic-machine.rl"
+#line 83 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p;p--;{ found_syllable (vowel_syllable); }}
 	break;
 	case 19:
-#line 84 "hb-ot-shape-complex-indic-machine.rl"
+#line 84 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p;p--;{ found_syllable (standalone_cluster); }}
 	break;
 	case 16:
-#line 85 "hb-ot-shape-complex-indic-machine.rl"
+#line 85 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p;p--;{ found_syllable (broken_cluster); }}
 	break;
 	case 18:
-#line 86 "hb-ot-shape-complex-indic-machine.rl"
+#line 86 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p;p--;{ found_syllable (non_indic_cluster); }}
 	break;
 	case 1:
-#line 82 "hb-ot-shape-complex-indic-machine.rl"
+#line 82 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{{p = ((te))-1;}{ found_syllable (consonant_syllable); }}
 	break;
 	case 3:
-#line 83 "hb-ot-shape-complex-indic-machine.rl"
+#line 83 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{{p = ((te))-1;}{ found_syllable (vowel_syllable); }}
 	break;
 	case 7:
-#line 84 "hb-ot-shape-complex-indic-machine.rl"
+#line 84 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{{p = ((te))-1;}{ found_syllable (standalone_cluster); }}
 	break;
 	case 4:
-#line 85 "hb-ot-shape-complex-indic-machine.rl"
+#line 85 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{{p = ((te))-1;}{ found_syllable (broken_cluster); }}
 	break;
 	case 5:
-#line 1 "hb-ot-shape-complex-indic-machine.rl"
+#line 1 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{	switch( act ) {
 	case 4:
 	{{p = ((te))-1;} found_syllable (broken_cluster); }
@@ -1271,27 +1271,27 @@ _eof_trans:
 	}
 	break;
 	case 6:
-#line 1 "hb-ot-shape-complex-indic-machine.rl"
+#line 1 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p+1;}
-#line 85 "hb-ot-shape-complex-indic-machine.rl"
+#line 85 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{act = 4;}
 	break;
 	case 11:
-#line 1 "hb-ot-shape-complex-indic-machine.rl"
+#line 1 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{te = p+1;}
-#line 86 "hb-ot-shape-complex-indic-machine.rl"
+#line 86 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{act = 5;}
 	break;
-#line 1286 "hb-ot-shape-complex-indic-machine.hh.tmp"
+#line 1286 "../../src/hb-ot-shape-complex-indic-machine.hh.tmp"
 	}
 
 _again:
 	switch ( _indic_syllable_machine_to_state_actions[cs] ) {
 	case 8:
-#line 1 "hb-ot-shape-complex-indic-machine.rl"
+#line 1 "../../src/hb-ot-shape-complex-indic-machine.rl"
 	{ts = 0;}
 	break;
-#line 1295 "hb-ot-shape-complex-indic-machine.hh.tmp"
+#line 1295 "../../src/hb-ot-shape-complex-indic-machine.hh.tmp"
 	}
 
 	if ( ++p != pe )
@@ -1307,7 +1307,7 @@ _again:
 
 	}
 
-#line 120 "hb-ot-shape-complex-indic-machine.rl"
+#line 120 "../../src/hb-ot-shape-complex-indic-machine.rl"
 
 }
 
