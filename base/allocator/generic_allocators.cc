@@ -149,6 +149,10 @@ void* _malloc_dbg(size_t size, int , const char*, int) {
   return malloc(size);
 }
 
+void* _realloc_dbg(void* ptr, size_t size, int, const char*, int) {
+  return realloc(ptr, size);
+}
+
 void _free_dbg(void* ptr, int) {
   free(ptr);
 }
