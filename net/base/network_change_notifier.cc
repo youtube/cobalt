@@ -298,6 +298,30 @@ NetworkChangeNotifier::GetAddressTracker() {
 #endif
 
 // static
+bool NetworkChangeNotifier::IsOffline() {
+   return GetConnectionType() == CONNECTION_NONE;
+}
+
+// static
+bool NetworkChangeNotifier::IsConnectionCellular(ConnectionType type) {
+  bool is_cellular = false;
+  switch (type) {
+    case CONNECTION_2G:
+    case CONNECTION_3G:
+    case CONNECTION_4G:
+      is_cellular =  true;
+      break;
+    case CONNECTION_UNKNOWN:
+    case CONNECTION_ETHERNET:
+    case CONNECTION_WIFI:
+    case CONNECTION_NONE:
+      is_cellular = false;
+      break;
+  }
+  return is_cellular;
+}
+
+// static
 NetworkChangeNotifier* NetworkChangeNotifier::CreateMock() {
   return new MockNetworkChangeNotifier();
 }
