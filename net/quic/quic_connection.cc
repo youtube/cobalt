@@ -307,14 +307,16 @@ void QuicConnection::OnConnectionCloseFrame(
 }
 
 void QuicConnection::OnPacketComplete() {
-  DLOG(INFO) << "Got packet " << last_header_.packet_sequence_number
-             << " with " << frames_.size()
-             << " frames for " << last_header_.guid;
   if (!last_packet_revived_) {
+    DLOG(INFO) << "Got packet " << last_header_.packet_sequence_number
+               << " with " << frames_.size()
+               << " frames for " << last_header_.guid;
     collector_->RecordIncomingPacket(last_size_,
                                      last_header_.packet_sequence_number,
                                      clock_->NowInUsec(),
                                      last_packet_revived_);
+  } else {
+    DLOG(INFO) << "Got revived packet with " << frames_.size();
   }
 
   if (frames_.size()) {
