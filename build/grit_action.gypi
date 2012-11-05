@@ -16,19 +16,16 @@
 {
   'variables': {
     'grit_cmd': ['python', '<(DEPTH)/tools/grit/grit.py'],
-    'grit_resource_ids%': 'GRIT_DIR/../gritsettings/resource_ids',
   },
   'inputs': [
-    '<!@pymod_do_main(grit_info <@(grit_defines) --inputs <(grit_grd_file) '
-        '-f "<(grit_resource_ids)")',
+    '<!@pymod_do_main(grit_info <@(grit_defines) --inputs <(grit_grd_file))',
   ],
   'outputs': [
-    '<!@pymod_do_main(grit_info <@(grit_defines) --outputs \'<(grit_out_dir)\' '
-        '<(grit_grd_file) -f "<(grit_resource_ids)")',
+    '<!@pymod_do_main(grit_info <@(grit_defines) --outputs \'<(grit_out_dir)\' <(grit_grd_file))',
   ],
   'action': ['<@(grit_cmd)',
              '-i', '<(grit_grd_file)', 'build',
-             '-f<(grit_resource_ids)',
+             '-fGRIT_DIR/../gritsettings/resource_ids',
              '-o', '<(grit_out_dir)',
              '<@(grit_defines)' ],
   'msvs_cygwin_shell': 0,
