@@ -111,6 +111,10 @@ class NET_EXPORT NetworkChangeNotifier {
   // value doesn't imply that the user will be able to connect to remote sites;
   // even if some link is up, it is uncertain whether a particular connection
   // attempt to a particular remote site will be successful.
+  // The returned value only describes the connection currently used by the
+  // device, and does not take into account other machines on the network. For
+  // example, if the device is connected using Wifi to a 3G gateway to access
+  // the internet, the connection type is CONNECTION_WIFI.
   static ConnectionType GetConnectionType();
 
   // Retrieve the last read DnsConfig. This could be expensive if the system has
@@ -130,9 +134,14 @@ class NET_EXPORT NetworkChangeNotifier {
   // |false| is inconclusive; even if some link is up, it is uncertain
   // whether a particular connection attempt to a particular remote site
   // will be successfully.
-  static bool IsOffline() {
-    return GetConnectionType() == CONNECTION_NONE;
-  }
+  static bool IsOffline();
+
+  // Returns true if |type| is a cellular connection.
+  // Returns false if |type| is CONNECTION_UNKNOWN, and thus, depending on the
+  // implementation of GetConnectionType(), it is possible that
+  // IsConnectionCellular(GetConnectionType()) returns false even if the
+  // current connection is cellular.
+  static bool IsConnectionCellular(ConnectionType type);
 
   // Like Create(), but for use in tests.  The mock object doesn't monitor any
   // events, it merely rebroadcasts notifications when requested.
