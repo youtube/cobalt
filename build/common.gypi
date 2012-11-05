@@ -472,10 +472,12 @@
           'enable_automation%': 0,
           'enable_extensions%': 0,
           'enable_printing%': 0,
+          'enable_session_service%': 0,
           'enable_themes%': 0,
           'enable_webrtc%': 0,
           'notifications%': 0,
           'remoting%': 0,
+          'safe_browsing%': 0,
         }],
 
         # Use GPU accelerated cross process image transport by default
@@ -3283,6 +3285,12 @@
                   'STRIP_INSTALLED_PRODUCT': 'YES',
                 },
               },
+              'Debug_Base': {
+                'xcode_settings': {
+                  # Remove dSYM to reduce build time.
+                  'DEBUG_INFORMATION_FORMAT': 'dwarf',
+                },
+              },
             },
             'xcode_settings': {
               'conditions': [
@@ -3652,8 +3660,9 @@
         ],
       }],
       ['OS=="ios"', {
-        # Just build armv7 since iOS 4.3+ only supports armv7.
         'ARCHS': '$(ARCHS_UNIVERSAL_IPHONE_OS)',
+        # Just build armv7, until armv7s is correctly tested.
+        'VALID_ARCHS': 'armv7 i386',
         'IPHONEOS_DEPLOYMENT_TARGET': '<(ios_deployment_target)',
         # Target both iPhone and iPad.
         'TARGETED_DEVICE_FAMILY': '1,2',
