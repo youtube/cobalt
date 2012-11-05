@@ -237,10 +237,8 @@ hb_set_unicode_props (hb_buffer_t *buffer)
 static void
 hb_insert_dotted_circle (hb_buffer_t *buffer, hb_font_t *font)
 {
-  /* TODO One day, when we keep _before_ text for the buffer, take
-   * that into consideration.  For now, insert dotted-circle if the
-   * very first character is a non-spacing mark. */
-  if (_hb_glyph_info_get_general_category (&buffer->info[0]) !=
+  if (buffer->context_len[0] ||
+      _hb_glyph_info_get_general_category (&buffer->info[0]) !=
       HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK)
     return;
 
@@ -521,7 +519,7 @@ hb_ot_hide_zerowidth (hb_ot_shape_context_t *c)
   unsigned int count = c->buffer->len;
   for (unsigned int i = 0; i < count; i++)
     if (unlikely (!is_a_ligature (c->buffer->info[i]) &&
-		  _hb_glyph_info_is_zero_width (&c->buffer->info[i])))
+		  _hb_glyph_info_is_default_ignorable (&c->buffer->info[i])))
     {
       if (!space) {
         /* We assume that the space glyph is not gid0. */
@@ -591,7 +589,7 @@ hb_ot_map_glyphs_dumb (hb_font_t    *font,
 {
   unsigned int count = buffer->len;
   for (unsigned int i = 0; i < count; i++)
-    font->get_glyph (buffer->cur().codepoint, 0, &buffer->cur().codepoint);
+    font->get_glyph (buffer->info[i].codepoint, 0, &buffer->info[i].codepoint);
 }
 
 void
