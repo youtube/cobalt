@@ -85,6 +85,7 @@
         'src/hb-unicode-private.hh',
         'src/hb-unicode.cc',
         'src/hb-unicode.h',
+        'src/hb-utf-private.hh',
         'src/hb-version.h',
         'src/hb-warning.cc',
         'src/hb.h',
