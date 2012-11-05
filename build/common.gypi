@@ -286,6 +286,9 @@
       # Enable browser automation.
       'enable_automation%': 1,
 
+      # Enable language detection.
+      'enable_language_detection%': 1,
+
       # Enable printing support and UI.
       'enable_printing%': 1,
 
@@ -459,6 +462,7 @@
 
         ['OS=="android"', {
           'enable_extensions%': 0,
+          'enable_language_detection%': 0,
           'enable_printing%': 0,
           'enable_themes%': 0,
           'enable_webrtc%': 0,
@@ -471,6 +475,7 @@
           'disable_ftp_support%': 1,
           'enable_automation%': 0,
           'enable_extensions%': 0,
+          'enable_language_detection%': 0,
           'enable_printing%': 0,
           'enable_session_service%': 0,
           'enable_themes%': 0,
@@ -654,6 +659,7 @@
     'test_isolation_outdir%': '<(test_isolation_outdir)',
     'enable_automation%': '<(enable_automation)',
     'enable_printing%': '<(enable_printing)',
+    'enable_language_detection%': '<(enable_language_detection)',
     'enable_captive_portal_detection%': '<(enable_captive_portal_detection)',
     'disable_ftp_support%': '<(disable_ftp_support)',
     'enable_task_manager%': '<(enable_task_manager)',
@@ -1781,6 +1787,9 @@
       }],
       ['enable_automation==1', {
         'defines': ['ENABLE_AUTOMATION=1'],
+      }],
+      ['enable_language_detection==1', {
+        'defines': ['ENABLE_LANGUAGE_DETECTION=1'],
       }],
       ['enable_printing==1', {
         'defines': ['ENABLE_PRINTING=1'],
