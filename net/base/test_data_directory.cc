@@ -15,4 +15,9 @@ FilePath GetTestCertsDirectory() {
   return certs_dir.Append(FILE_PATH_LITERAL("net/data/ssl/certificates"));
 }
 
+FilePath GetWebSocketTestDataDirectory() {
+  FilePath data_dir(FILE_PATH_LITERAL("net/data/websocket"));
+  return data_dir;
+}
+
 }  // namespace net
