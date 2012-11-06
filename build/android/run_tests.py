@@ -275,7 +275,7 @@ class TestSharder(BaseTestSharder):
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
     test_results.LogFull('Unit test', os.path.basename(self.test_suite),
-                         self.build_type)
+                         self.build_type, self.tests)
     test_results.PrintAnnotation()
     if test_results.failed and self.rebaseline:
       test_runners[0].UpdateFilter(test_results.failed)
@@ -349,15 +349,6 @@ def _RunATestSuite(options):
   for buildbot_emulator in buildbot_emulators:
     buildbot_emulator.Shutdown()
 
-  # Another chance if we timed out?  At this point It is safe(r) to
-  # run fast and loose since we just uploaded all the test data and
-  # binary.
-  if test_results.timed_out and options.repeat:
-    logging.critical('Timed out; repeating in fast_and_loose mode.')
-    options.fast_and_loose = True
-    options.repeat -= 1
-    logging.critical('Repeats left: ' + str(options.repeat))
-    return _RunATestSuite(options)
   return len(test_results.failed)
 
 
