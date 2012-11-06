@@ -27,7 +27,7 @@ FontTest.LoadArialBold
 FontTest.Widths
 L10nUtilTest.GetDisplayNameForCountry
 L10nUtilTest.GetDisplayNameForLocale
-ResourceBundle.DelegateGetFont
+ResourceBundleTest.DelegateGetFont
 TextEliderTest.ElideEmail
 TextEliderTest.ElideEmailMoreSpace
 TextEliderTest.ElideRectangleText
