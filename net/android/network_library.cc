@@ -81,11 +81,8 @@ bool GetMimeTypeFromExtension(const std::string& extension,
       Java_AndroidNetworkLibrary_getMimeTypeFromExtension(
           env, extension_string.obj());
 
-  if (!ret.obj()) {
-    LOG(WARNING) << "Call to getMimeTypeFromExtension failed for extension: "
-        << extension;
+  if (!ret.obj())
     return false;
-  }
   *result = ConvertJavaStringToUTF8(ret);
   return true;
 }
