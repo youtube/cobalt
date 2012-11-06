@@ -2892,6 +2892,43 @@ TEST_F(URLRequestTestHTTP, MultipleRedirectTest) {
   EXPECT_EQ(destination_url, req.url_chain()[2]);
 }
 
+namespace {
+
+const char kExtraHeader[] = "Allow-Snafu";
+const char kExtraValue[] = "fubar";
+
+class RedirectWithAdditionalHeadersDelegate : public TestDelegate {
+  void OnReceivedRedirect(net::URLRequest* request,
+                          const GURL& new_url,
+                          bool* defer_redirect) {
+    TestDelegate::OnReceivedRedirect(request, new_url, defer_redirect);
+    request->SetExtraRequestHeaderByName(kExtraHeader, kExtraValue, false);
+  }
+};
+
+}  // namespace
+
+TEST_F(URLRequestTestHTTP, RedirectWithAdditionalHeadersTest) {
+  ASSERT_TRUE(test_server_.Start());
+
+  GURL destination_url = test_server_.GetURL(
+      "echoheader?" + std::string(kExtraHeader));
+  GURL original_url = test_server_.GetURL(
+      "server-redirect?" + destination_url.spec());
+  RedirectWithAdditionalHeadersDelegate d;
+  URLRequest req(original_url, &d, &default_context_);
+  req.Start();
+  MessageLoop::current()->Run();
+
+  std::string value;
+  const HttpRequestHeaders& headers = req.extra_request_headers();
+  EXPECT_TRUE(headers.GetHeader(kExtraHeader, &value));
+  EXPECT_EQ(kExtraValue, value);
+  EXPECT_FALSE(req.is_pending());
+  EXPECT_FALSE(req.is_redirecting());
+  EXPECT_EQ(kExtraValue, d.data_received());
+}
+
 TEST_F(URLRequestTestHTTP, CancelTest) {
   TestDelegate d;
   {

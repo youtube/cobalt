@@ -180,6 +180,7 @@ TestDelegate::~TestDelegate() {}
 void TestDelegate::OnReceivedRedirect(net::URLRequest* request,
                                       const GURL& new_url,
                                       bool* defer_redirect) {
+  EXPECT_TRUE(request->is_redirecting());
   received_redirect_count_++;
   if (quit_on_redirect_) {
     *defer_redirect = true;
@@ -216,6 +217,7 @@ void TestDelegate::OnSSLCertificateError(net::URLRequest* request,
 void TestDelegate::OnResponseStarted(net::URLRequest* request) {
   // It doesn't make sense for the request to have IO pending at this point.
   DCHECK(!request->status().is_io_pending());
+  EXPECT_FALSE(request->is_redirecting());
 
   response_started_count_++;
   if (cancel_in_rs_) {
