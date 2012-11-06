@@ -243,19 +243,9 @@ class TestRunner(BaseTestRunner):
 
   def _TakeScreenshot(self, test):
     """Takes a screenshot from the device."""
-    screenshot_tool = os.path.join(constants.CHROME_DIR,
-        'third_party/android_tools/sdk/tools/monkeyrunner')
-    screenshot_script = os.path.join(constants.CHROME_DIR,
-        'build/android/monkeyrunner_screenshot.py')
-    screenshot_path = os.path.join(constants.CHROME_DIR,
-                                   'out_screenshots')
-    if not os.path.exists(screenshot_path):
-      os.mkdir(screenshot_path)
-    screenshot_name = os.path.join(screenshot_path, test + '.png')
+    screenshot_name = os.path.join(constants.SCREENSHOTS_DIR, test + '.png')
     logging.info('Taking screenshot named %s', screenshot_name)
-    cmd_helper.RunCmd([screenshot_tool, screenshot_script,
-                       '--serial', self.device,
-                       '--file', screenshot_name])
+    self.adb.TakeScreenshot(screenshot_name)
 
   def SetUp(self):
     """Sets up the test harness and device before all tests are run."""
