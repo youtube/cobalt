@@ -79,6 +79,13 @@ enum PlatformFileError {
   PLATFORM_FILE_ERROR_INVALID_URL = -15,
 };
 
+// This explicit mapping matches both FILE_ on Windows and SEEK_ on Linux.
+enum PlatformFileWhence {
+  PLATFORM_FILE_FROM_BEGIN   = 0,
+  PLATFORM_FILE_FROM_CURRENT = 1,
+  PLATFORM_FILE_FROM_END     = 2
+};
+
 // Used to hold information about a given file.
 // If you add more fields to this structure (platform-specific fields are OK),
 // make sure to update all functions that use it in file_util_{win|posix}.cc
@@ -119,6 +126,13 @@ BASE_EXPORT PlatformFile CreatePlatformFile(const FilePath& name,
 // Closes a file handle. Returns |true| on success and |false| otherwise.
 BASE_EXPORT bool ClosePlatformFile(PlatformFile file);
 
+// Changes current position in the file to an |offset| relative to an origin
+// defined by |whence|. Returns the resultant current position in the file
+// (relative to the start) or -1 in case of error.
+BASE_EXPORT int64 SeekPlatformFile(PlatformFile file,
+                                   PlatformFileWhence whence,
+                                   int64 offset);
+
 // Reads the given number of bytes (or until EOF is reached) starting with the
 // given offset. Returns the number of bytes read, or -1 on error. Note that
 // this function makes a best effort to read all data on all platforms, so it is
@@ -137,6 +151,10 @@ BASE_EXPORT int ReadPlatformFileAtCurrentPos(PlatformFile file,
 BASE_EXPORT int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
                                              char* data, int size);
 
+// Same as above but without seek.
+BASE_EXPORT int ReadPlatformFileCurPosNoBestEffort(PlatformFile file,
+                                                   char* data, int size);
+
 // Writes the given buffer into the file at the given offset, overwritting any
 // data that was previously there. Returns the number of bytes written, or -1
 // on error. Note that this function makes a best effort to write all data on
@@ -147,6 +165,11 @@ BASE_EXPORT int WritePlatformFile(PlatformFile file, int64 offset,
 // Save as above but without seek.
 BASE_EXPORT int WritePlatformFileAtCurrentPos(PlatformFile file,
                                               const char* data, int size);
+
+// Save as above but does not make any effort to write all data on all
+// platforms. Returns the number of bytes written, or -1 on error.
+BASE_EXPORT int WritePlatformFileCurPosNoBestEffort(PlatformFile file,
+                                                    const char* data, int size);
 
 // Truncates the given file to the given length. If |length| is greater than
 // the current size of the file, the file is extended with zeros. If the file

@@ -1702,10 +1702,6 @@ EVENT_TYPE(FILE_STREAM_BOUND_TO_OWNER)
 //   }
 EVENT_TYPE(FILE_STREAM_OPEN)
 
-// This event is created when a file stream's Close() is called.
-// This may occur even when the file is not open.
-EVENT_TYPE(FILE_STREAM_CLOSE)
-
 // This event is created when a file stream operation has an error.
 //   {
 //     "operation": <open, write, close, etc>,

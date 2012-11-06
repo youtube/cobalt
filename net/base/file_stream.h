@@ -15,11 +15,6 @@
 #include "net/base/file_stream_whence.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
-#if defined(OS_WIN)
-#include "net/base/file_stream_win.h"
-#elif defined(OS_POSIX)
-#include "net/base/file_stream_posix.h"
-#endif
 
 class FilePath;
 
@@ -39,31 +34,12 @@ class NET_EXPORT FileStream {
   // opened.
   // |net_log| is the net log pointer to use to create a |BoundNetLog|.  May be
   // NULL if logging is not needed.
-  // The already opened file will not be automatically closed when FileStream
-  // is destructed.
+  // Note: the new FileStream object takes ownership of the PlatformFile and
+  // will close it on destruction.
   FileStream(base::PlatformFile file, int flags, net::NetLog* net_log);
 
-  // If the file stream was opened with Open() or OpenSync(), the underlying
-  // file will be closed automatically by the destructor, if not closed
-  // manually.
+  // The underlying file is closed automatically.
   virtual ~FileStream();
-
-  // Call this method to close the FileStream, which was previously opened in
-  // the async mode (PLATFORM_FILE_ASYNC) asynchronously.
-  //
-  // Once the operation is done, |callback| will be run on the thread where
-  // Close() was called, with OK (i.e. an error is not propagated just like
-  // CloseSync() does not).
-  //
-  // It is not OK to call Close() multiple times. The behavior is not defined.
-  // Note that there must never be any pending async operations.
-  virtual void Close(const CompletionCallback& callback);
-
-  // Call this method to close the FileStream synchronously.
-  // It is OK to call CloseSync() multiple times.  Redundant calls are
-  // ignored. Note that if there are any pending async operations, they'll
-  // be aborted.
-  virtual void CloseSync();
 
   // Call this method to open the FileStream asynchronously.  The remaining
   // methods cannot be used unless the file is opened successfully. Returns
@@ -237,11 +213,20 @@ class NET_EXPORT FileStream {
   base::PlatformFile GetPlatformFileForTesting();
 
  private:
-#if defined(OS_WIN)
-  FileStreamWin impl_;
-#elif defined(OS_POSIX)
-  FileStreamPosix impl_;
-#endif
+  class Context;
+
+  bool is_async() const { return !!(open_flags_ & base::PLATFORM_FILE_ASYNC); }
+
+  int open_flags_;
+  net::BoundNetLog bound_net_log_;
+
+  // Context performing I/O operations. It was extracted into separate class
+  // to perform asynchronous operations because FileStream can be destroyed
+  // before completion of async operation. Also if async FileStream is destroyed
+  // without explicit closing file should be closed asynchronously without
+  // delaying FileStream's destructor. To perform all that separate object is
+  // necessary.
+  scoped_ptr<Context> context_;
 
   DISALLOW_COPY_AND_ASSIGN(FileStream);
 };
