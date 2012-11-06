@@ -26,6 +26,7 @@
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 #include "net/base/x509_certificate_net_log_param.h"
+#include "net/base/x509_util.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/ssl_error_params.h"
 
@@ -777,6 +778,10 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
   X509Certificate::GetSSLClientCertificates(host_and_port_.host(),
                                             valid_issuers,
                                             &cert_request_info->client_certs);
+  std::sort(cert_request_info->client_certs.begin(),
+            cert_request_info->client_certs.end(),
+            x509_util::ClientCertSorter());
+
   VLOG(1) << "Asking user to choose between "
           << cert_request_info->client_certs.size() << " client certs...";
 }
