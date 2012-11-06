@@ -125,7 +125,7 @@ class TestResults(object):
     """Returns the all broken tests including failed, crashed, unknown."""
     return self.failed + self.crashed + self.unknown
 
-  def LogFull(self, test_group, test_suite, build_type):
+  def LogFull(self, test_group, test_suite, build_type, tests_to_run):
     """Output broken test logs, summarize in a log file and the test output."""
     # Output all broken tests or 'passed' if none broken.
     logging.critical('*' * 80)
@@ -176,24 +176,33 @@ class TestResults(object):
         print >> json_file, json.dumps(content)
 
     # Summarize in the test output.
-    summary_string = 'Summary:\n'
-    summary_string += 'RAN=%d\n' % (len(self.ok) + len(self.failed) +
-                                    len(self.crashed) + len(self.unknown))
-    summary_string += 'PASSED=%d\n' % (len(self.ok))
-    summary_string += 'FAILED=%d %s\n' % (len(self.failed),
-                                          [t.name for t in self.failed])
-    summary_string += 'CRASHED=%d %s\n' % (len(self.crashed),
-                                           [t.name for t in self.crashed])
-    summary_string += 'UNKNOWN=%d %s\n' % (len(self.unknown),
-                                           [t.name for t in self.unknown])
+    summary = ['Summary:\n']
+    summary += ['TESTS_TO_RUN=%d\n' % (len(tests_to_run))]
+    num_tests_ran = (len(self.ok) + len(self.failed) +
+                     len(self.crashed) + len(self.unknown))
+    tests_passed = [t.name for t in self.ok]
+    tests_failed = [t.name for t in self.failed]
+    tests_crashed = [t.name for t in self.crashed]
+    tests_unknown = [t.name for t in self.unknown]
+    summary += ['RAN=%d\n' % (num_tests_ran),
+                'PASSED=%d\n' % len(tests_passed),
+                'FAILED=%d %s\n' % (len(tests_failed), tests_failed),
+                'CRASHED=%d %s\n' % (len(tests_crashed), tests_crashed),
+                'UNKNOWN=%d %s\n' % (len(tests_unknown), tests_unknown)]
+    if num_tests_ran != len(tests_to_run):
+      # Add the list of tests we failed to run.
+      tests_failed_to_run = list(set(tests_to_run) - set(tests_passed) -
+                            set(tests_failed) - set(tests_crashed) -
+                            set(tests_unknown))
+      summary += ['FAILED_TO_RUN=%d %s\n' % (len(tests_failed_to_run),
+                                             tests_failed_to_run)]
+    summary_string = ''.join(summary)
     logging.critical(summary_string)
     return summary_string
 
   def PrintAnnotation(self):
     """Print buildbot annotations for test results."""
-    if self.timed_out:
-      buildbot_report.PrintWarning()
-    elif self.failed or self.crashed or self.overall_fail:
+    if self.failed or self.crashed or self.overall_fail or self.timed_out:
       buildbot_report.PrintError()
     else:
       print 'Step success!'  # No annotation needed
