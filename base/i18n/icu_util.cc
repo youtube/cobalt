@@ -93,7 +93,11 @@ bool Initialize() {
   FilePath data_path;
   bool path_ok = PathService::Get(base::DIR_EXE, &data_path);
   DCHECK(path_ok);
+#if U_IS_BIG_ENDIAN
   data_path = data_path.Append("icu/icudt46b");
+#else
+  data_path = data_path.Append("icu/icudt46l");
+#endif
   // set this as the data directory.
   u_setDataDirectory(data_path.value().c_str());
   UErrorCode err = U_ZERO_ERROR;

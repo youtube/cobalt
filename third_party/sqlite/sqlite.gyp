@@ -118,7 +118,7 @@
                 '-Wno-pointer-to-int-cast',
               ],
             }],
-            ['OS=="lb_shell"', {
+            ['OS=="lb_shell" and target_arch != "linux"', {
               'include_dirs': [
                 '../..'
               ],

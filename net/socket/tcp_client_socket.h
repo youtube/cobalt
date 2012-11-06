@@ -11,7 +11,7 @@
 #if defined(OS_WIN)
 #include "net/socket/tcp_client_socket_win.h"
 #elif defined(__LB_SHELL__)
-#include "chromium/net/socket/tcp_client_socket_shell.h"
+#include "tcp_client_socket_shell.h"
 #elif defined(OS_POSIX)
 #include "net/socket/tcp_client_socket_libevent.h"
 #endif
