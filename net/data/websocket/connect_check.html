@@ -12,7 +12,7 @@ var portBegin = hostEnd + 1;
 var portEnd = href.lastIndexOf('/');
 var port = href.slice(portBegin, portEnd);
 var scheme = href.indexOf('https') >= 0 ? 'wss' : 'ws';
-var url = scheme + '://' + host + ':' + port + '/echo';
+var url = scheme + '://' + host + ':' + port + '/echo-with-no-extension';
 
 // Do connection test.
 var ws = new WebSocket(url);
