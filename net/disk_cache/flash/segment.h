@@ -9,6 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
 
 namespace disk_cache {
@@ -56,7 +57,7 @@ class Storage;
 // ReadData can be called over the range that was previously written with
 // WriteData.  Reading from area that was not written will fail.
 
-class NET_EXPORT_PRIVATE Segment {
+class NET_EXPORT_PRIVATE Segment : public base::RefCounted<Segment> {
  public:
   // |index| is the index of this segment on |storage|.  If the storage size is
   // X and the segment size is Y, where X >> Y and X % Y == 0, then the valid
@@ -64,7 +65,6 @@ class NET_EXPORT_PRIVATE Segment {
   // |index| is given value Z, then it covers bytes on storage starting at the
   // offset Z*Y and ending at the offset Z*Y+Y-1.
   Segment(int32 index, bool read_only, Storage* storage);
-  ~Segment();
 
   std::vector<int32> GetOffsets() const { return offsets_; }
 
@@ -92,6 +92,9 @@ class NET_EXPORT_PRIVATE Segment {
   bool CanHold(int32 size) const;
 
  private:
+  friend class base::RefCounted<Segment>;
+  ~Segment();
+
   bool read_only_;  // Indicates whether the segment can be written to.
   bool init_;  // Indicates whether segment was initialized.
   Storage* storage_;  // Storage on which the segment resides.
