@@ -21,6 +21,11 @@
 
 namespace base {
 
+// Make sure our Whence mappings match the system headers.
+COMPILE_ASSERT(PLATFORM_FILE_FROM_BEGIN   == SEEK_SET &&
+               PLATFORM_FILE_FROM_CURRENT == SEEK_CUR &&
+               PLATFORM_FILE_FROM_END     == SEEK_END, whence_matches_system);
+
 #if defined(OS_BSD) || defined(OS_MACOSX)
 typedef struct stat stat_wrapper_t;
 static int CallFstat(int fd, stat_wrapper_t *sb) {
@@ -158,6 +163,16 @@ bool ClosePlatformFile(PlatformFile file) {
   return !HANDLE_EINTR(close(file));
 }
 
+int64 SeekPlatformFile(PlatformFile file,
+                       PlatformFileWhence whence,
+                       int64 offset) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || offset < 0)
+    return -1;
+
+  return lseek(file, static_cast<off_t>(offset), static_cast<int>(whence));
+}
+
 int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
   if (file < 0 || size < 0)
@@ -204,6 +219,15 @@ int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
   return HANDLE_EINTR(pread(file, data, size, offset));
 }
 
+int ReadPlatformFileCurPosNoBestEffort(PlatformFile file,
+                                       char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || size < 0)
+    return -1;
+
+  return HANDLE_EINTR(read(file, data, size));
+}
+
 int WritePlatformFile(PlatformFile file, int64 offset,
                       const char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -241,6 +265,15 @@ int WritePlatformFileAtCurrentPos(PlatformFile file,
   } while (bytes_written < size);
 
   return bytes_written ? bytes_written : rv;
+}
+
+int WritePlatformFileCurPosNoBestEffort(PlatformFile file,
+                                        const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || size < 0)
+    return -1;
+
+  return HANDLE_EINTR(write(file, data, size));
 }
 
 bool TruncatePlatformFile(PlatformFile file, int64 length) {
