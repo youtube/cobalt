@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/memory/ref_counted.h"
 #include "base/time.h"
 #include "net/base/net_export.h"
 
@@ -15,6 +16,8 @@ class ECPrivateKey;
 }
 
 namespace net {
+
+class X509Certificate;
 
 namespace x509_util {
 
@@ -40,6 +43,22 @@ bool NET_EXPORT_PRIVATE CreateDomainBoundCertEC(
     base::Time not_valid_before,
     base::Time not_valid_after,
     std::string* der_cert);
+
+// Comparator for use in STL algorithms that will sort client certificates by
+// order of preference.
+// Returns true if |a| is more preferable than |b|, allowing it to be used
+// with any algorithm that compares according to strict weak ordering.
+//
+// Criteria include:
+// - Prefer certificates that have a longer validity period (later
+//   expiration dates)
+// - If equal, prefer certificates that were issued more recently
+// - If equal, prefer shorter chains (if available)
+struct NET_EXPORT_PRIVATE ClientCertSorter {
+  bool operator()(
+      const scoped_refptr<X509Certificate>& a,
+      const scoped_refptr<X509Certificate>& b) const;
+};
 
 } // namespace x509_util
 
