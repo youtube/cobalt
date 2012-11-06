@@ -101,6 +101,7 @@
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 #include "net/base/x509_certificate_net_log_param.h"
+#include "net/base/x509_util.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/nss_ssl_util.h"
@@ -1509,6 +1510,10 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
     }
   }
 
+  std::sort(core->nss_handshake_state_.client_certs.begin(),
+            core->nss_handshake_state_.client_certs.end(),
+            x509_util::ClientCertSorter());
+
   BOOL ok = CertCloseStore(my_cert_store, CERT_CLOSE_STORE_CHECK_FLAG);
   DCHECK(ok);
 
@@ -1615,6 +1620,10 @@ SECStatus SSLClientSocketNSS::Core::PlatformClientAuthHandler(
   X509Certificate::GetSSLClientCertificates(
       core->host_and_port_.host(), valid_issuers,
       &core->nss_handshake_state_.client_certs);
+
+  std::sort(core->nss_handshake_state_.client_certs.begin(),
+            core->nss_handshake_state_.client_certs.end(),
+            x509_util::ClientCertSorter());
 
   // Update the network task runner's view of the handshake state now that
   // client certs have been detected.
@@ -1732,6 +1741,10 @@ SECStatus SSLClientSocketNSS::Core::ClientAuthHandler(
     }
     CERT_DestroyCertList(client_certs);
   }
+
+  std::sort(core->nss_handshake_state_.client_certs.begin(),
+            core->nss_handshake_state_.client_certs.end(),
+            x509_util::ClientCertSorter());
 
   // Update the network task runner's view of the handshake state now that
   // client certs have been detected.
