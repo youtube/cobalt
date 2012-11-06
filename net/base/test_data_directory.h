@@ -13,6 +13,11 @@ namespace net {
 // tree that contains certificates for testing.
 FilePath GetTestCertsDirectory();
 
+// Returns the FilePath object representing the relative path containing
+// resource files for testing WebSocket. Typically the FilePath will be used as
+// document root argument for net::TestServer with TYPE_WS or TYPE_WSS.
+FilePath GetWebSocketTestDataDirectory();
+
 }  // namespace net
 
 #endif  // NET_BASE_TEST_DATA_DIRECTORY_H_
