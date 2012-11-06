@@ -114,7 +114,6 @@ class NET_EXPORT HostResolverImpl
   // |dns_client|, if set, will be used to resolve requests.
   //
   // |net_log| must remain valid for the life of the HostResolverImpl.
-  // TODO(szym): change to scoped_ptr<HostCache>.
   HostResolverImpl(scoped_ptr<HostCache> cache,
                    const PrioritizedDispatcher::Limits& job_limits,
                    const ProcTaskParams& proc_params,
@@ -151,6 +150,7 @@ class NET_EXPORT HostResolverImpl
   class Job;
   class ProcTask;
   class IPv6ProbeJob;
+  class LoopbackProbeJob;
   class DnsTask;
   class Request;
   typedef HostCache::Key Key;
@@ -186,9 +186,6 @@ class NET_EXPORT HostResolverImpl
   bool ServeFromHosts(const Key& key,
                       const RequestInfo& info,
                       AddressList* addresses);
-
-  // Notifies IPv6ProbeJob not to call back, and discard reference to the job.
-  void DiscardIPv6ProbeJob();
 
   // Callback from IPv6 probe activity.
   void IPv6ProbeSetDefaultAddressFamily(AddressFamily address_family);
@@ -251,6 +248,8 @@ class NET_EXPORT HostResolverImpl
 
   base::WeakPtrFactory<HostResolverImpl> weak_ptr_factory_;
 
+  base::WeakPtrFactory<HostResolverImpl> probe_weak_ptr_factory_;
+
   // If present, used by DnsTask and ServeFromHosts to resolve requests.
   scoped_ptr<DnsClient> dns_client_;
 
@@ -259,11 +258,9 @@ class NET_EXPORT HostResolverImpl
   bool received_dns_config_;
 
   // Indicate if probing is done after each network change event to set address
-  // family. When false, explicit setting of address family is used.
+  // family. When false, explicit setting of address family is used and results
+  // of the IPv6 probe job are ignored.
   bool ipv6_probe_monitoring_;
-
-  // The last un-cancelled IPv6ProbeJob (if any).
-  scoped_refptr<IPv6ProbeJob> ipv6_probe_job_;
 
   // Any resolver flags that should be added to a request by default.
   HostResolverFlags additional_resolver_flags_;
