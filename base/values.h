@@ -297,6 +297,8 @@ class BASE_EXPORT DictionaryValue : public Value {
   bool GetWithoutPathExpansion(const std::string& key,
                                const Value** out_value) const;
   bool GetWithoutPathExpansion(const std::string& key, Value** out_value);
+  bool GetBooleanWithoutPathExpansion(const std::string& key,
+                                      bool* out_value) const;
   bool GetIntegerWithoutPathExpansion(const std::string& key,
                                       int* out_value) const;
   bool GetDoubleWithoutPathExpansion(const std::string& key,
