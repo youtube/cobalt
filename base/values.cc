@@ -633,6 +633,15 @@ bool DictionaryValue::GetWithoutPathExpansion(const std::string& key,
       const_cast<const Value**>(out_value));
 }
 
+bool DictionaryValue::GetBooleanWithoutPathExpansion(const std::string& key,
+                                                     bool* out_value) const {
+  const Value* value;
+  if (!GetWithoutPathExpansion(key, &value))
+    return false;
+
+  return value->GetAsBoolean(out_value);
+}
+
 bool DictionaryValue::GetIntegerWithoutPathExpansion(const std::string& key,
                                                      int* out_value) const {
   const Value* value;
