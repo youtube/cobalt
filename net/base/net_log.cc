@@ -108,7 +108,7 @@ bool NetLog::Source::FromEventParameters(Value* event_params, Source* source) {
 Value* NetLog::Entry::ToValue() const {
   DictionaryValue* entry_dict(new DictionaryValue());
 
-  entry_dict->SetString("time", TickCountToString(base::TimeTicks::Now()));
+  entry_dict->SetString("time", TickCountToString(time_));
 
   // Set the entry source.
   DictionaryValue* source_dict = new DictionaryValue();
@@ -140,11 +140,13 @@ NetLog::Entry::Entry(
     EventType type,
     Source source,
     EventPhase phase,
+    base::TimeTicks time,
     const ParametersCallback* parameters_callback,
     LogLevel log_level)
     : type_(type),
       source_(source),
       phase_(phase),
+      time_(time),
       parameters_callback_(parameters_callback),
       log_level_(log_level) {
 };
@@ -307,7 +309,8 @@ void NetLog::AddEntry(EventType type,
                       const Source& source,
                       EventPhase phase,
                       const NetLog::ParametersCallback* parameters_callback) {
-  Entry entry(type, source, phase, parameters_callback, GetLogLevel());
+  Entry entry(type, source, phase, base::TimeTicks::Now(),
+              parameters_callback, GetLogLevel());
   OnAddEntry(entry);
 }
 

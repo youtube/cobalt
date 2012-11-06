@@ -11,11 +11,11 @@
 #include "base/callback_forward.h"
 #include "base/compiler_specific.h"
 #include "base/string16.h"
+#include "base/time.h"
 #include "net/base/net_export.h"
 
 namespace base {
 class DictionaryValue;
-class TimeTicks;
 class Value;
 }
 
@@ -112,6 +112,7 @@ class NET_EXPORT NetLog {
     Entry(EventType type,
           Source source,
           EventPhase phase,
+          base::TimeTicks time,
           const ParametersCallback* parameters_callback,
           LogLevel log_level);
     ~Entry();
@@ -121,7 +122,8 @@ class NET_EXPORT NetLog {
     EventPhase phase() const { return phase_; }
 
     // Serializes the specified event to a Value.  The Value also includes the
-    // current time.  Caller takes ownership of returned Value.
+    // current time.  Caller takes ownership of returned Value.  Takes in a time
+    // to allow back-dating entries.
     base::Value* ToValue() const;
 
     // Returns the parameters as a Value.  Returns NULL if there are no
@@ -132,6 +134,7 @@ class NET_EXPORT NetLog {
     const EventType type_;
     const Source source_;
     const EventPhase phase_;
+    const base::TimeTicks time_;
     const ParametersCallback* parameters_callback_;
 
     // Log level when the event occurred.
