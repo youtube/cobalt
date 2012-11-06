@@ -40,16 +40,7 @@ import warnings
 import zlib
 
 import echo_message
-
-# TODO(toyoshim): Some try bots for pyauto don't check out pywebsocket repos
-# unexpectedly. pyauto doesn't use WebSocket module, so just ignore
-# ImportError as a temporal workaround.
-# http://crbug.com/155918
-try:
-  from mod_pywebsocket.standalone import WebSocketServer
-except ImportError:
-  pass
-
+from mod_pywebsocket.standalone import WebSocketServer
 import pyftpdlib.ftpserver
 import tlslite
 import tlslite.api
@@ -2493,4 +2484,3 @@ if __name__ == '__main__':
   main_options, main_args = option_parser.parse_args()
 
   sys.exit(main(main_options, main_args))
-
