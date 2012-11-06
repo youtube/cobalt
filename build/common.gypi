@@ -2978,6 +2978,16 @@
                   # Do not add any libraries after this!
                   '<(android_ndk_lib)/crtend_android.o',
                 ],
+                'conditions': [
+                  ['asan==1', {
+                    'cflags': [
+                      '-fPIE',
+                    ],
+                    'ldflags': [
+                      '-pie',
+                    ],
+                  }],
+                ],
               }],
               ['_type=="shared_library" or _type=="loadable_module"', {
                 'ldflags': [
