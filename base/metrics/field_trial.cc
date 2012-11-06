@@ -154,14 +154,6 @@ std::string FieldTrial::group_name() {
   return group_name_;
 }
 
-bool FieldTrial::GetSelectedGroup(SelectedGroup* selected_group) {
-  if (group_ == kNotFinalized)
-    return false;
-  selected_group->trial = name_;
-  selected_group->group = group_name_;
-  return true;
-}
-
 // static
 std::string FieldTrial::MakeName(const std::string& name_prefix,
                                  const std::string& trial_name) {
@@ -210,6 +202,15 @@ void FieldTrial::FinalizeGroupChoice() {
   // finalized.
   DCHECK(!forced_);
   SetGroupChoice(default_group_name_, kDefaultGroupNumber);
+}
+
+bool FieldTrial::GetActiveGroup(ActiveGroup* active_group) const {
+  if (!group_reported_)
+    return false;
+  DCHECK_NE(group_, kNotFinalized);
+  active_group->trial = name_;
+  active_group->group = group_name_;
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -336,18 +337,18 @@ void FieldTrialList::StatesToString(std::string* output) {
 }
 
 // static
-void FieldTrialList::GetFieldTrialSelectedGroups(
-    FieldTrial::SelectedGroups* selected_groups) {
-  DCHECK(selected_groups->empty());
+void FieldTrialList::GetActiveFieldTrialGroups(
+    FieldTrial::ActiveGroups* active_groups) {
+  DCHECK(active_groups->empty());
   if (!global_)
     return;
   AutoLock auto_lock(global_->lock_);
 
   for (RegistrationList::iterator it = global_->registered_.begin();
        it != global_->registered_.end(); ++it) {
-    FieldTrial::SelectedGroup selected_group;
-    if (it->second->GetSelectedGroup(&selected_group))
-      selected_groups->push_back(selected_group);
+    FieldTrial::ActiveGroup active_group;
+    if (it->second->GetActiveGroup(&active_group))
+      active_groups->push_back(active_group);
   }
 }
 

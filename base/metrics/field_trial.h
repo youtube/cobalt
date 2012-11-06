@@ -108,12 +108,12 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   };
 
   // A pair representing a Field Trial and its selected group.
-  struct SelectedGroup {
+  struct ActiveGroup {
     std::string trial;
     std::string group;
   };
 
-  typedef std::vector<SelectedGroup> SelectedGroups;
+  typedef std::vector<ActiveGroup> ActiveGroups;
 
   // A return value to indicate that a given instance has not yet had a group
   // assignment (and hence is not yet participating in the trial).
@@ -153,12 +153,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // is used as the group name. This causes a winner to be chosen if none was.
   std::string group_name();
 
-  // Gets the SelectedGroup of the Field Trial, but only if a group was
-  // officially chosen, otherwise name_group_id is left untouched and false
-  // is returned. When true is returned, the trial and group names were
-  // successfully set in selected_group.
-  bool GetSelectedGroup(SelectedGroup* selected_group);
-
   // Helper function for the most common use: as an argument to specify the
   // name of a HISTOGRAM.  Use the original histogram name as the name_prefix.
   static std::string MakeName(const std::string& name_prefix,
@@ -186,6 +180,8 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, MiddleProbabilities);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, OneWinner);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, DisableProbability);
+  FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, ActiveGroups);
+  FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, ActiveGroupsNotFinalized);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, Save);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, DuplicateRestore);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, MakeName);
@@ -218,6 +214,13 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // might yet be disabled, so this call will *not* notify observers of the
   // status.
   void FinalizeGroupChoice();
+
+  // Returns the trial name and selected group name for this field trial via
+  // the output parameter |active_group|, but only if the group has already
+  // been chosen and has been externally observed via |group()|. In that case,
+  // true is returned and |active_group| is filled in; otherwise, the result
+  // is false and |active_group| is left untouched.
+  bool GetActiveGroup(ActiveGroup* active_group) const;
 
   // Returns the group_name. A winner need not have been chosen.
   std::string group_name_internal() const { return group_name_; }
@@ -355,12 +358,11 @@ class BASE_EXPORT FieldTrialList {
   // string is parsed by CreateTrialsFromString().
   static void StatesToString(std::string* output);
 
-  // Fills in the supplied vector |selected_groups| (which must be empty when
-  // called) with a snapshot of all existing FieldTrials for which a group has
-  // been chosen (if the group is not yet known, then it excluded from the
-  // vector).
-  static void GetFieldTrialSelectedGroups(
-      FieldTrial::SelectedGroups* selected_groups);
+  // Fills in the supplied vector |active_groups| (which must be empty when
+  // called) with a snapshot of all registered FieldTrials for which the group
+  // has been chosen and externally observed (via |group()|).
+  static void GetActiveFieldTrialGroups(
+      FieldTrial::ActiveGroups* active_groups);
 
   // Use a state string (re: StatesToString()) to augment the current list of
   // field tests to include the supplied tests, and using a 100% probability for
