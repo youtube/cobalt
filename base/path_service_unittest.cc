@@ -28,32 +28,41 @@ namespace {
 bool ReturnsValidPath(int dir_type) {
   FilePath path;
   bool result = PathService::Get(dir_type, &path);
+  // Some paths might not exist on some platforms in which case confirming
+  // |result| is true and !path.empty() is the best we can do.
+  bool check_path_exists = true;
 #if defined(OS_POSIX)
   // If chromium has never been started on this account, the cache path may not
   // exist.
   if (dir_type == base::DIR_CACHE)
-    return result && !path.empty();
+    check_path_exists = false;
 #endif
 #if defined(OS_LINUX)
   // On the linux try-bots: a path is returned (e.g. /home/chrome-bot/Desktop),
   // but it doesn't exist.
   if (dir_type == base::DIR_USER_DESKTOP)
-    return result && !path.empty();
+    check_path_exists = false;
 #endif
 #if defined(OS_WIN)
-  // On Windows XP, the Quick Launch folder for the "Default User" doesn't exist
-  // by default. At least confirm that the path returned begins with the
-  // Default User's profile path.
-  if (dir_type == base::DIR_DEFAULT_USER_QUICK_LAUNCH &&
-      base::win::GetVersion() < base::win::VERSION_VISTA) {
-    wchar_t default_profile_path[MAX_PATH];
-    DWORD size = arraysize(default_profile_path);
-    return (result &&
-            ::GetDefaultUserProfileDirectory(default_profile_path, &size) &&
-            StartsWith(path.value(), default_profile_path, false));
+  if (dir_type == base::DIR_DEFAULT_USER_QUICK_LAUNCH) {
+    // On Windows XP, the Quick Launch folder for the "Default User" doesn't
+    // exist by default. At least confirm that the path returned begins with the
+    // Default User's profile path.
+    if (base::win::GetVersion() < base::win::VERSION_VISTA) {
+      wchar_t default_profile_path[MAX_PATH];
+      DWORD size = arraysize(default_profile_path);
+      return (result &&
+              ::GetDefaultUserProfileDirectory(default_profile_path, &size) &&
+              StartsWith(path.value(), default_profile_path, false));
+    }
+  } else if (dir_type == base::DIR_TASKBAR_PINS) {
+    // There is no pinned-to-taskbar shortcuts prior to Win7.
+    if(base::win::GetVersion() < base::win::VERSION_WIN7)
+      check_path_exists = false;
   }
 #endif
-  return result && !path.empty() && file_util::PathExists(path);
+  return result && !path.empty() && (!check_path_exists ||
+                                     file_util::PathExists(path));
 }
 
 #if defined(OS_WIN)
