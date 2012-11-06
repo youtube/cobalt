@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include "base/logging.h"
 #include "base/eintr_wrapper.h"
@@ -83,6 +84,16 @@ class DirReaderLinux {
 
   static bool IsFallback() {
     return false;
+  }
+
+  //**************** extra convenience methods
+
+  // returns true if the current enumerated object is a file
+  bool IsFile() const {
+    if (!IsValid()) return false;
+    const linux_dirent* dirent =
+        reinterpret_cast<const linux_dirent*>(&buf_[offset_]);
+    return (dirent->d_type == DT_REG);
   }
 
  private:
