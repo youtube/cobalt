@@ -41,7 +41,6 @@ int InitInternal(const FilePath& path,
     if (rv < 0) {
       DLOG(WARNING) << "Failed to seek \"" << path.value()
                     << "\" to offset: " << range_offset << " (" << rv << ")";
-      file_stream->CloseSync();
       file_stream.reset();
     }
   }

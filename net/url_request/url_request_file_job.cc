@@ -29,6 +29,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/file_stream.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/mime_util.h"
@@ -90,7 +91,6 @@ URLRequestFileJob::URLRequestFileJob(URLRequest* request,
                                      const FilePath& file_path)
     : URLRequestJob(request, network_delegate),
       file_path_(file_path),
-      stream_(NULL),
       is_directory_(false),
       remaining_bytes_(0) {
 }
@@ -133,10 +133,7 @@ void URLRequestFileJob::Start() {
 }
 
 void URLRequestFileJob::Kill() {
-  // URL requests should not block on the disk!
-  //   http://code.google.com/p/chromium/issues/detail?id=59849
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
-  stream_.CloseSync();
+  stream_.reset();
 
   if (async_resolver_) {
     async_resolver_->Cancel();
@@ -162,9 +159,9 @@ bool URLRequestFileJob::ReadRawData(IOBuffer* dest, int dest_size,
     return true;
   }
 
-  int rv = stream_.Read(dest, dest_size,
-                        base::Bind(&URLRequestFileJob::DidRead,
-                                   base::Unretained(this)));
+  int rv = stream_->Read(dest, dest_size,
+                         base::Bind(&URLRequestFileJob::DidRead,
+                                    base::Unretained(this)));
   if (rv >= 0) {
     // Data is immediately available.
     *bytes_read = rv;
@@ -281,6 +278,8 @@ void URLRequestFileJob::DidResolve(
   if (!exists) {
     rv = ERR_FILE_NOT_FOUND;
   } else if (!is_directory_) {
+    stream_.reset(new FileStream(NULL));
+
     // URL requests should not block on the disk!
     //   http://code.google.com/p/chromium/issues/detail?id=59849
     base::ThreadRestrictions::ScopedAllowIO allow_io;
@@ -288,7 +287,7 @@ void URLRequestFileJob::DidResolve(
     int flags = base::PLATFORM_FILE_OPEN |
                 base::PLATFORM_FILE_READ |
                 base::PLATFORM_FILE_ASYNC;
-    rv = stream_.OpenSync(file_path_, flags);
+    rv = stream_->OpenSync(file_path_, flags);
   }
 
   if (rv != OK) {
@@ -314,7 +313,7 @@ void URLRequestFileJob::DidResolve(
     if (remaining_bytes_ > 0 &&
         byte_range_.first_byte_position() != 0 &&
         byte_range_.first_byte_position() !=
-        stream_.SeekSync(FROM_BEGIN, byte_range_.first_byte_position())) {
+        stream_->SeekSync(FROM_BEGIN, byte_range_.first_byte_position())) {
       NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
                                   ERR_REQUEST_RANGE_NOT_SATISFIABLE));
       return;
