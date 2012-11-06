@@ -27,6 +27,7 @@
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 #include "net/base/x509_certificate_net_log_param.h"
+#include "net/base/x509_util.h"
 #include "net/socket/client_socket_handle.h"
 
 #pragma comment(lib, "secur32.lib")
@@ -539,6 +540,10 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
     for (size_t i = 0; i < intermediates.size(); ++i)
       CertFreeCertificateContext(intermediates[i]);
   }
+
+  std::sort(cert_request_info->client_certs.begin(),
+            cert_request_info->client_certs.end(),
+            x509_util::ClientCertSorter());
 
   FreeContextBuffer(issuer_list.aIssuers);
 
