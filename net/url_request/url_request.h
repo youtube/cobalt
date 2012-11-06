@@ -538,6 +538,10 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // and the response has not yet been called).
   bool is_pending() const { return is_pending_; }
 
+  // Returns true if the request is in the process of redirecting to a new
+  // URL but has not yet initiated the new request.
+  bool is_redirecting() const { return is_redirecting_; }
+
   // Returns the error status of the request.
   const URLRequestStatus& status() const { return status_; }
 
@@ -783,6 +787,11 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // Start() is called to the time we dispatch RequestComplete and indicates
   // whether the job is active.
   bool is_pending_;
+
+  // Indicates if the request is in the process of redirecting to a new
+  // location.  It is true from the time the headers complete until a
+  // new request begins.
+  bool is_redirecting_;
 
   // Number of times we're willing to redirect.  Used to guard against
   // infinite redirects.

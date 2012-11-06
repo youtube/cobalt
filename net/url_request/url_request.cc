@@ -148,6 +148,7 @@ URLRequest::URLRequest(const GURL& url,
       load_flags_(LOAD_NORMAL),
       delegate_(delegate),
       is_pending_(false),
+      is_redirecting_(false),
       redirect_limit_(kMaxRedirects),
       priority_(LOWEST),
       identifier_(GenerateURLRequestIdentifier()),
@@ -186,6 +187,7 @@ URLRequest::URLRequest(const GURL& url,
       load_flags_(LOAD_NORMAL),
       delegate_(delegate),
       is_pending_(false),
+      is_redirecting_(false),
       redirect_limit_(kMaxRedirects),
       priority_(LOWEST),
       identifier_(GenerateURLRequestIdentifier()),
@@ -294,14 +296,14 @@ bool URLRequest::has_upload() const {
 
 void URLRequest::SetExtraRequestHeaderById(int id, const string& value,
                                            bool overwrite) {
-  DCHECK(!is_pending_);
+  DCHECK(!is_pending_ || is_redirecting_);
   NOTREACHED() << "implement me!";
 }
 
 void URLRequest::SetExtraRequestHeaderByName(const string& name,
                                              const string& value,
                                              bool overwrite) {
-  DCHECK(!is_pending_);
+  DCHECK(!is_pending_ || is_redirecting_);
   if (overwrite) {
     extra_request_headers_.SetHeader(name, value);
   } else {
@@ -526,6 +528,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
     job_->SetUpload(upload_.get());
 
   is_pending_ = true;
+  is_redirecting_ = false;
 
   response_info_.was_cached = false;
 
@@ -634,6 +637,8 @@ void URLRequest::StopCaching() {
 
 void URLRequest::NotifyReceivedRedirect(const GURL& location,
                                         bool* defer_redirect) {
+  is_redirecting_ = true;
+
   URLRequestJob* job =
       URLRequestJobManager::GetInstance()->MaybeInterceptRedirect(
           this, network_delegate_, location);
@@ -946,6 +951,7 @@ void URLRequest::NotifyRequestCompleted() {
     return;
 
   is_pending_ = false;
+  is_redirecting_ = false;
   has_notified_completion_ = true;
   if (network_delegate_)
     network_delegate_->NotifyCompleted(this, job_ != NULL);
