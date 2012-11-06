@@ -1066,6 +1066,20 @@ class AndroidCommands(object):
 
       return False
 
+  def TakeScreenshot(self, host_file):
+    """Saves a screenshot image to |host_file| on the host.
+
+    Args:
+      host_file: Absolute path to the image file to store on the host.
+    """
+    host_dir = os.path.dirname(host_file)
+    if not os.path.exists(host_dir):
+      os.mkdir(host_dir)
+    device_file = '%s/screenshot.png' % self.GetExternalStorage()
+    self.RunShellCommand('/system/bin/screencap -p %s' % device_file)
+    assert self._adb.Pull(device_file, host_file)
+    assert os.path.exists(host_file)
+
 
 class NewLineNormalizer(object):
   """A file-like object to normalize EOLs to '\n'.
