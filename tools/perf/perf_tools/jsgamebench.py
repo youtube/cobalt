@@ -12,7 +12,7 @@ class JsGameBench(multi_page_benchmark.MultiPageBenchmark):
     js_is_done = 'document.getElementById("perfscore0") != null'
     def _IsDone():
       return bool(tab.runtime.Evaluate(js_is_done))
-    util.WaitFor(_IsDone, 600)
+    util.WaitFor(_IsDone, 900)
 
     js_get_results = 'document.getElementById("perfscore0").innerHTML'
     result = int(tab.runtime.Evaluate(js_get_results))
