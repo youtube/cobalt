@@ -9,17 +9,21 @@
 #include <vector>
 
 #include "base/file_path.h"
-#include "net/base/file_stream.h"
 #include "net/base/net_export.h"
 #include "net/http/http_byte_range.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
+namespace base{
+struct PlatformFileInfo;
+}
 namespace file_util {
 struct FileInfo;
 }
 
 namespace net {
+
+class FileStream;
 
 // A request job that handles reading file URLs
 class NET_EXPORT URLRequestFileJob : public URLRequestJob {
@@ -56,7 +60,7 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
   // Callback after data is asynchronously read from the file.
   void DidRead(int result);
 
-  FileStream stream_;
+  scoped_ptr<FileStream> stream_;
   bool is_directory_;
 
   HttpByteRange byte_range_;
