@@ -236,42 +236,6 @@ AddressList EnsurePortOnAddressList(const AddressList& list, uint16 port) {
   return AddressList::CopyWithPort(list, port);
 }
 
-// Wraps a call to HaveOnlyLoopbackAddresses to be executed on the WorkerPool as
-// it takes 40-100ms and should not block initialization.
-class HaveOnlyLoopbackProbeJob
-    : public base::RefCountedThreadSafe<HaveOnlyLoopbackProbeJob> {
- public:
-  typedef base::Callback<void(bool)> CallbackType;
-  explicit HaveOnlyLoopbackProbeJob(const CallbackType& callback)
-      : result_(false) {
-    const bool kIsSlow = true;
-    base::WorkerPool::PostTaskAndReply(
-        FROM_HERE,
-        base::Bind(&HaveOnlyLoopbackProbeJob::DoProbe, this),
-        base::Bind(&HaveOnlyLoopbackProbeJob::OnProbeComplete, this, callback),
-        kIsSlow);
-  }
-
- private:
-  friend class base::RefCountedThreadSafe<HaveOnlyLoopbackProbeJob>;
-
-  virtual ~HaveOnlyLoopbackProbeJob() {}
-
-  // Runs on worker thread.
-  void DoProbe() {
-    result_ = HaveOnlyLoopbackAddresses();
-  }
-
-  void OnProbeComplete(const CallbackType& callback) {
-    callback.Run(result_);
-  }
-
-  bool result_;
-
-  DISALLOW_COPY_AND_ASSIGN(HaveOnlyLoopbackProbeJob);
-};
-
-
 // Creates NetLog parameters when the resolve failed.
 base::Value* NetLogProcTaskFailedCallback(uint32 attempt_number,
                                           int net_error,
@@ -918,87 +882,89 @@ class HostResolverImpl::ProcTask
 
 //-----------------------------------------------------------------------------
 
-// Represents a request to the worker pool for a "probe for IPv6 support" call.
-//
-// TODO(szym): This could also be replaced with PostTaskAndReply and Callbacks.
-class HostResolverImpl::IPv6ProbeJob
-    : public base::RefCountedThreadSafe<HostResolverImpl::IPv6ProbeJob> {
+// Wraps a call to TestIPv6Support to be executed on the WorkerPool as it takes
+// 40-100ms.
+class HostResolverImpl::IPv6ProbeJob {
  public:
-  IPv6ProbeJob(HostResolverImpl* resolver, NetLog* net_log)
+  IPv6ProbeJob(const base::WeakPtr<HostResolverImpl>& resolver, NetLog* net_log)
       : resolver_(resolver),
-        origin_loop_(base::MessageLoopProxy::current()),
-        net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_IPV6_PROBE_JOB)) {
+        net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_IPV6_PROBE_JOB)),
+        result_(false, IPV6_SUPPORT_MAX, OK) {
     DCHECK(resolver);
-  }
-
-  void Start() {
-    DCHECK(origin_loop_->BelongsToCurrentThread());
-    if (was_canceled())
-      return;
     net_log_.BeginEvent(NetLog::TYPE_IPV6_PROBE_RUNNING);
     const bool kIsSlow = true;
-    base::WorkerPool::PostTask(
-        FROM_HERE, base::Bind(&IPv6ProbeJob::DoProbe, this), kIsSlow);
+    base::WorkerPool::PostTaskAndReply(
+        FROM_HERE,
+        base::Bind(&IPv6ProbeJob::DoProbe, base::Unretained(this)),
+        base::Bind(&IPv6ProbeJob::OnProbeComplete, base::Owned(this)),
+        kIsSlow);
   }
 
-  // Cancels the current job.
-  void Cancel() {
-    DCHECK(origin_loop_->BelongsToCurrentThread());
-    if (was_canceled())
-      return;
-    net_log_.AddEvent(NetLog::TYPE_CANCELLED);
-    resolver_ = NULL;  // Read/write ONLY on origin thread.
-  }
+  virtual ~IPv6ProbeJob() {}
 
  private:
-  friend class base::RefCountedThreadSafe<HostResolverImpl::IPv6ProbeJob>;
-
-  ~IPv6ProbeJob() {
-  }
-
-  // Returns true if cancelled or if probe results have already been received
-  // on the origin thread.
-  bool was_canceled() const {
-    DCHECK(origin_loop_->BelongsToCurrentThread());
-    return !resolver_;
-  }
-
-  // Run on worker thread.
+  // Runs on worker thread.
   void DoProbe() {
-    // Do actual testing on this thread, as it takes 40-100ms.
-    origin_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&IPv6ProbeJob::OnProbeComplete, this, TestIPv6Support()));
+    result_ = TestIPv6Support();
   }
 
-  // Callback for when DoProbe() completes.
-  void OnProbeComplete(const IPv6SupportResult& support_result) {
-    DCHECK(origin_loop_->BelongsToCurrentThread());
-    net_log_.EndEvent(
-        NetLog::TYPE_IPV6_PROBE_RUNNING,
-        base::Bind(&IPv6SupportResult::ToNetLogValue,
-                   base::Unretained(&support_result)));
-    if (was_canceled())
+  void OnProbeComplete() {
+    net_log_.EndEvent(NetLog::TYPE_IPV6_PROBE_RUNNING,
+                      base::Bind(&IPv6SupportResult::ToNetLogValue,
+                                 base::Unretained(&result_)));
+    if (!resolver_)
       return;
-
-    // Clear |resolver_| so that no cancel event is logged.
-    HostResolverImpl* resolver = resolver_;
-    resolver_ = NULL;
-
-    resolver->IPv6ProbeSetDefaultAddressFamily(
-        support_result.ipv6_supported ? ADDRESS_FAMILY_UNSPECIFIED
+    resolver_->IPv6ProbeSetDefaultAddressFamily(
+        result_.ipv6_supported ? ADDRESS_FAMILY_UNSPECIFIED
                                       : ADDRESS_FAMILY_IPV4);
   }
 
   // Used/set only on origin thread.
-  HostResolverImpl* resolver_;
-
-  // Used to post ourselves onto the origin thread.
-  scoped_refptr<base::MessageLoopProxy> origin_loop_;
+  base::WeakPtr<HostResolverImpl> resolver_;
 
   BoundNetLog net_log_;
 
+  IPv6SupportResult result_;
+
   DISALLOW_COPY_AND_ASSIGN(IPv6ProbeJob);
+};
+
+// Wraps a call to HaveOnlyLoopbackAddresses to be executed on the WorkerPool as
+// it takes 40-100ms and should not block initialization.
+class HostResolverImpl::LoopbackProbeJob {
+ public:
+  explicit LoopbackProbeJob(const base::WeakPtr<HostResolverImpl>& resolver)
+      : resolver_(resolver),
+        result_(false) {
+    DCHECK(resolver);
+    const bool kIsSlow = true;
+    base::WorkerPool::PostTaskAndReply(
+        FROM_HERE,
+        base::Bind(&LoopbackProbeJob::DoProbe, base::Unretained(this)),
+        base::Bind(&LoopbackProbeJob::OnProbeComplete, base::Owned(this)),
+        kIsSlow);
+  }
+
+  virtual ~LoopbackProbeJob() {}
+
+ private:
+  // Runs on worker thread.
+  void DoProbe() {
+    result_ = HaveOnlyLoopbackAddresses();
+  }
+
+  void OnProbeComplete() {
+    if (!resolver_)
+      return;
+    resolver_->SetHaveOnlyLoopbackAddresses(result_);
+  }
+
+  // Used/set only on origin thread.
+  base::WeakPtr<HostResolverImpl> resolver_;
+
+  bool result_;
+
+  DISALLOW_COPY_AND_ASSIGN(LoopbackProbeJob);
 };
 
 //-----------------------------------------------------------------------------
@@ -1181,11 +1147,11 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
  public:
   // Creates new job for |key| where |request_net_log| is bound to the
   // request that spawned it.
-  Job(HostResolverImpl* resolver,
+  Job(const base::WeakPtr<HostResolverImpl>& resolver,
       const Key& key,
       RequestPriority priority,
       const BoundNetLog& request_net_log)
-      : resolver_(resolver->weak_ptr_factory_.GetWeakPtr()),
+      : resolver_(resolver),
         key_(key),
         priority_tracker_(priority),
         had_non_speculative_request_(false),
@@ -1661,6 +1627,7 @@ HostResolverImpl::HostResolverImpl(
       proc_params_(proc_params),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
       weak_ptr_factory_(this),
+      probe_weak_ptr_factory_(this),
       dns_client_(dns_client.Pass()),
       received_dns_config_(false),
       ipv6_probe_monitoring_(false),
@@ -1679,9 +1646,7 @@ HostResolverImpl::HostResolverImpl(
   EnsureWinsockInit();
 #endif
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
-  new HaveOnlyLoopbackProbeJob(
-      base::Bind(&HostResolverImpl::SetHaveOnlyLoopbackAddresses,
-                 weak_ptr_factory_.GetWeakPtr()));
+  new LoopbackProbeJob(weak_ptr_factory_.GetWeakPtr());
 #endif
   NetworkChangeNotifier::AddIPAddressObserver(this);
   NetworkChangeNotifier::AddDNSObserver(this);
@@ -1694,8 +1659,6 @@ HostResolverImpl::HostResolverImpl(
 }
 
 HostResolverImpl::~HostResolverImpl() {
-  DiscardIPv6ProbeJob();
-
   // This will also cancel all outstanding requests.
   STLDeleteValues(&jobs_);
 
@@ -1780,8 +1743,8 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
                                 AF_WASTE_MAX);
     }
 
-    // Create new Job.
-    job = new Job(this, key, info.priority(), request_net_log);
+    job = new Job(weak_ptr_factory_.GetWeakPtr(), key, info.priority(),
+                  request_net_log);
     job->Schedule();
 
     // Check for queue overflow.
@@ -1871,9 +1834,8 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
 
 void HostResolverImpl::SetDefaultAddressFamily(AddressFamily address_family) {
   DCHECK(CalledOnValidThread());
-  ipv6_probe_monitoring_ = false;
-  DiscardIPv6ProbeJob();
   default_address_family_ = address_family;
+  ipv6_probe_monitoring_ = false;
 }
 
 AddressFamily HostResolverImpl::GetDefaultAddressFamily() const {
@@ -1884,7 +1846,7 @@ void HostResolverImpl::ProbeIPv6Support() {
   DCHECK(CalledOnValidThread());
   DCHECK(!ipv6_probe_monitoring_);
   ipv6_probe_monitoring_ = true;
-  OnIPAddressChanged();  // Give initial setup call.
+  OnIPAddressChanged();
 }
 
 HostCache* HostResolverImpl::GetHostCache() {
@@ -2002,25 +1964,18 @@ void HostResolverImpl::RemoveJob(Job* job) {
     jobs_.erase(it);
 }
 
-void HostResolverImpl::DiscardIPv6ProbeJob() {
-  if (ipv6_probe_job_.get()) {
-    ipv6_probe_job_->Cancel();
-    ipv6_probe_job_ = NULL;
-  }
-}
-
 void HostResolverImpl::IPv6ProbeSetDefaultAddressFamily(
     AddressFamily address_family) {
   DCHECK(address_family == ADDRESS_FAMILY_UNSPECIFIED ||
          address_family == ADDRESS_FAMILY_IPV4);
+  if (!ipv6_probe_monitoring_)
+    return;
   if (default_address_family_ != address_family) {
     VLOG(1) << "IPv6Probe forced AddressFamily setting to "
             << ((address_family == ADDRESS_FAMILY_UNSPECIFIED) ?
                 "ADDRESS_FAMILY_UNSPECIFIED" : "ADDRESS_FAMILY_IPV4");
   }
   default_address_family_ = address_family;
-  // Drop reference since the job has called us back.
-  DiscardIPv6ProbeJob();
 }
 
 void HostResolverImpl::SetHaveOnlyLoopbackAddresses(bool result) {
@@ -2092,16 +2047,14 @@ void HostResolverImpl::TryServingAllJobsFromHosts() {
 }
 
 void HostResolverImpl::OnIPAddressChanged() {
+  // Abandon all ProbeJobs.
+  probe_weak_ptr_factory_.InvalidateWeakPtrs();
   if (cache_.get())
     cache_->clear();
-  if (ipv6_probe_monitoring_) {
-    DiscardIPv6ProbeJob();
-    ipv6_probe_job_ = new IPv6ProbeJob(this, net_log_);
-    ipv6_probe_job_->Start();
-  }
+  if (ipv6_probe_monitoring_)
+    new IPv6ProbeJob(probe_weak_ptr_factory_.GetWeakPtr(), net_log_);
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
-  // TODO(szym): Use HaveOnlyLoopbackProbeJob. http://crbug.com/157933
-  SetHaveOnlyLoopbackAddresses(HaveOnlyLoopbackAddresses());
+  new LoopbackProbeJob(probe_weak_ptr_factory_.GetWeakPtr());
 #endif
   AbortAllInProgressJobs();
   // |this| may be deleted inside AbortAllInProgressJobs().
