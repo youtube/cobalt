@@ -2,9 +2,12 @@
 # Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+import os
 import sys
 
-import perf_tools.multipage_benchmark_runner
+import perf_tools
+from chrome_remote_control import multi_page_benchmark_runner
 
 if __name__ == '__main__':
-  sys.exit(perf_tools.multipage_benchmark_runner.Main())
+  benchmark_dir = os.path.join(os.path.dirname(__file__), 'perf_tools')
+  sys.exit(multi_page_benchmark_runner.Main(benchmark_dir))
