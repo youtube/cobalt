@@ -44,7 +44,7 @@ bool Segment::Init() {
   DCHECK_LE(entry_count, kFlashMaxEntryCount);
 
   std::vector<int32> tmp(summary + 1, summary + 1 + entry_count);
-  header_offsets_.swap(tmp);
+  offsets_.swap(tmp);
   init_ = true;
   return true;
 }
@@ -61,14 +61,9 @@ bool Segment::WriteData(const void* buffer, int32 size, int32* offset) {
   return true;
 }
 
-bool Segment::WriteHeader(const void* header, int32 size, int32* offset) {
-  int32 my_offset;
-  if (!WriteData(header, size, &my_offset))
-    return false;
-  if (offset)
-    *offset = my_offset;
-  header_offsets_.push_back(my_offset);
-  return true;
+void Segment::StoreOffset(int32 offset) {
+  DCHECK(offsets_.size() < kFlashMaxEntryCount);
+  offsets_.push_back(offset);
 }
 
 bool Segment::ReadData(void* buffer, int32 size, int32 offset) const {
@@ -81,12 +76,12 @@ bool Segment::Close() {
   if (read_only_)
     return true;
 
-  DCHECK(header_offsets_.size() <= kFlashMaxEntryCount);
+  DCHECK(offsets_.size() <= kFlashMaxEntryCount);
 
   int32 summary[kFlashMaxEntryCount + 1];
   memset(summary, 0, kFlashSummarySize);
-  summary[0] = header_offsets_.size();
-  std::copy(header_offsets_.begin(), header_offsets_.end(), summary + 1);
+  summary[0] = offsets_.size();
+  std::copy(offsets_.begin(), offsets_.end(), summary + 1);
   if (!storage_->Write(summary, kFlashSummarySize, summary_offset_))
     return false;
 
@@ -95,7 +90,7 @@ bool Segment::Close() {
 }
 
 bool Segment::CanHold(int32 size) const {
-  return header_offsets_.size() < kFlashMaxEntryCount &&
+  return offsets_.size() < kFlashMaxEntryCount &&
       write_offset_ + size <= summary_offset_;
 }
 
