@@ -22,8 +22,8 @@ bool ClientCertSorter::operator()(
   base::Time now = base::Time::Now();
   bool a_is_valid = now >= a->valid_start() && now <= a->valid_expiry();
   bool b_is_valid = now >= b->valid_start() && now <= b->valid_expiry();
-  if (a_is_valid && !b_is_valid)
-    return true;
+  if (a_is_valid != b_is_valid)
+    return a_is_valid && !b_is_valid;
 
   // Certificates with longer expirations appear as higher priority (less
   // than) certificates with shorter expirations.
