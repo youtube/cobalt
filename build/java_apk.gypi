@@ -77,11 +77,9 @@
       'extension': 'so',
       'variables': {
         'stripped_library_path': '<(PRODUCT_DIR)/<(package_name)/libs/<(android_app_abi)/<(RULE_INPUT_ROOT).so',
-        'link_dir': '<(android_product_out)/symbols/data/data/<(manifest_package_name)/lib/',
       },
       'outputs': [
         '<(stripped_library_path)',
-        '<(link_dir)/<(RULE_INPUT_ROOT).so',
       ],
       # There is no way to do 2 actions for each source library in gyp. So to
       # both strip the library and create the link in <(link_dir) a separate
@@ -91,7 +89,6 @@
         '<(android_strip)',
         '<(RULE_INPUT_PATH)',
         '<(stripped_library_path)',
-        '<(link_dir)',
       ],
     },
   ],
