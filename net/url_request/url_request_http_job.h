@@ -24,6 +24,7 @@ namespace net {
 class HttpResponseHeaders;
 class HttpResponseInfo;
 class HttpTransaction;
+class HttpUserAgentSettings;
 class URLRequestContext;
 
 // A URLRequestJob subclass that is built on top of HttpTransaction.  It
@@ -35,7 +36,9 @@ class URLRequestHttpJob : public URLRequestJob {
                                 const std::string& scheme);
 
  protected:
-  URLRequestHttpJob(URLRequest* request, NetworkDelegate* network_delegate);
+  URLRequestHttpJob(URLRequest* request,
+                    NetworkDelegate* network_delegate,
+                    const HttpUserAgentSettings* http_user_agent_settings);
 
   // Shadows URLRequestJob's version of this method so we can grab cookies.
   void NotifyHeadersComplete();
@@ -243,6 +246,8 @@ class URLRequestHttpJob : public URLRequestJob {
   bool awaiting_callback_;
 
   scoped_ptr<HttpTransactionDelegateImpl> http_transaction_delegate_;
+
+  const HttpUserAgentSettings* http_user_agent_settings_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
 };

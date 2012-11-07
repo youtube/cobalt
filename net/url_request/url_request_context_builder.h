@@ -72,8 +72,15 @@ class NET_EXPORT URLRequestContextBuilder {
   void set_proxy_config_service(ProxyConfigService* proxy_config_service);
 #endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
-  // Call this function to specify a hard-coded User-Agent for all requests that
-  // don't have a User-Agent already set.
+  // Call these functions to specify hard-coded Accept-Language,
+  // Accept-Charset, or User-Agent header values for all requests that don't
+  // have the headers already set.
+  void set_accept_language(const std::string& accept_language) {
+    accept_language_ = accept_language;
+  }
+  void set_accept_charset(const std::string& accept_charset) {
+    accept_charset_ = accept_charset;
+  }
   void set_user_agent(const std::string& user_agent) {
     user_agent_ = user_agent;
   }
@@ -108,6 +115,8 @@ class NET_EXPORT URLRequestContextBuilder {
   URLRequestContext* Build();
 
  private:
+  std::string accept_language_;
+  std::string accept_charset_;
   std::string user_agent_;
   bool ftp_enabled_;
   bool http_cache_enabled_;

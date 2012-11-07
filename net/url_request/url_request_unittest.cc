@@ -54,6 +54,7 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/test/test_server.h"
 #include "net/url_request/ftp_protocol_handler.h"
+#include "net/url_request/static_http_user_agent_settings.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_file_dir_job.h"
 #include "net/url_request/url_request_http_job.h"
@@ -3668,10 +3669,11 @@ TEST_F(URLRequestTestHTTP, InterceptPost307RedirectPost) {
 TEST_F(URLRequestTestHTTP, DefaultAcceptLanguage) {
   ASSERT_TRUE(test_server_.Start());
 
+  StaticHttpUserAgentSettings settings("en", EmptyString(), EmptyString());
   TestNetworkDelegate network_delegate;  // must outlive URLRequests
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
-  context.set_accept_language("en");
+  context.set_http_user_agent_settings(&settings);
   context.Init();
 
   TestDelegate d;
@@ -3686,13 +3688,15 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptLanguage) {
 TEST_F(URLRequestTestHTTP, EmptyAcceptLanguage) {
   ASSERT_TRUE(test_server_.Start());
 
+  StaticHttpUserAgentSettings settings(
+      EmptyString(), EmptyString(), EmptyString());
   TestNetworkDelegate network_delegate;  // must outlive URLRequests
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
   context.Init();
   // We override the language after initialization because empty entries
   // get overridden by Init().
-  context.set_accept_language("");
+  context.set_http_user_agent_settings(&settings);
 
   TestDelegate d;
   URLRequest req(
@@ -3756,10 +3760,11 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptEncoding) {
 TEST_F(URLRequestTestHTTP, DefaultAcceptCharset) {
   ASSERT_TRUE(test_server_.Start());
 
+  StaticHttpUserAgentSettings settings(EmptyString(), "en", EmptyString());
   TestNetworkDelegate network_delegate;  // must outlive URLRequests
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
-  context.set_accept_charset("en");
+  context.set_http_user_agent_settings(&settings);
   context.Init();
 
   TestDelegate d;
@@ -3775,13 +3780,15 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptCharset) {
 TEST_F(URLRequestTestHTTP, EmptyAcceptCharset) {
   ASSERT_TRUE(test_server_.Start());
 
+  StaticHttpUserAgentSettings settings(
+      EmptyString(), EmptyString(), EmptyString());
   TestNetworkDelegate network_delegate;  // must outlive URLRequests
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
   context.Init();
   // We override the accepted charset after initialization because empty
   // entries get overridden otherwise.
-  context.set_accept_charset("");
+  context.set_http_user_agent_settings(&settings);
 
   TestDelegate d;
   URLRequest req(test_server_.GetURL("echoheader?Accept-Charset"),
@@ -3840,6 +3847,37 @@ TEST_F(URLRequestTestHTTP, OverrideUserAgent) {
   // the 'chromeframe' suffix which is added to the user agent before the
   // closing parentheses.
   EXPECT_TRUE(StartsWithASCII(d.data_received(), "Lynx (textmode", true));
+}
+
+// Check that a NULL HttpUserAgentSettings causes the corresponding empty
+// User-Agent header to be sent but does not send the Accept-Language and
+// Accept-Charset headers.
+TEST_F(URLRequestTestHTTP, EmptyHttpUserAgentSettings) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestNetworkDelegate network_delegate;  // must outlive URLRequests
+  TestURLRequestContext context(true);
+  context.set_network_delegate(&network_delegate);
+  context.Init();
+  // We override the HttpUserAgentSettings after initialization because empty
+  // entries get overridden by Init().
+  context.set_http_user_agent_settings(NULL);
+
+  struct {
+    const char* request;
+    const char* expected_response;
+  } tests[] = { { "echoheader?Accept-Language", "None" },
+                { "echoheader?Accept-Charset", "None" },
+                { "echoheader?User-Agent", "" } };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); i++) {
+    TestDelegate d;
+    URLRequest req(test_server_.GetURL(tests[i].request), &d, &context);
+    req.Start();
+    MessageLoop::current()->Run();
+    EXPECT_EQ(tests[i].expected_response, d.data_received())
+        << " Request = \"" << tests[i].request << "\"";
+  }
 }
 
 class HTTPSRequestTest : public testing::Test {
