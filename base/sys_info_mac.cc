@@ -60,8 +60,19 @@ int64 SysInfo::AmountOfPhysicalMemory() {
 
 // static
 int64 SysInfo::AmountOfAvailablePhysicalMemory() {
-  // TODO(hongbo): Add implementation for Mac.
-  return 0;
+  base::mac::ScopedMachPort host(mach_host_self());
+  vm_statistics_data_t vm_info;
+  mach_msg_type_number_t count = HOST_VM_INFO_COUNT;
+
+  if (host_statistics(host.get(),
+                      HOST_VM_INFO,
+                      reinterpret_cast<host_info_t>(&vm_info),
+                      &count) != KERN_SUCCESS) {
+    NOTREACHED();
+    return 0;
+  }
+
+  return static_cast<int64>(vm_info.free_count) * PAGE_SIZE;
 }
 
 // static
