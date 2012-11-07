@@ -13,7 +13,7 @@ if [[ $ANDROID_SDK_VERSION || $PWD =~ [Aa]ndroid ]]; then
   # http://crbug.com/156947
   CLANG_REVISION=163674
 else
-  CLANG_REVISION=167488
+  CLANG_REVISION=165787
 fi
 
 THIS_DIR="$(dirname "${0}")"
