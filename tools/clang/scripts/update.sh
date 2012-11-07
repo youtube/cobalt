@@ -8,13 +8,7 @@
 # Do NOT CHANGE this if you don't know what you're doing -- see
 # https://code.google.com/p/chromium/wiki/UpdatingClang
 # Reverting problematic clang rolls is safe, though.
-if [[ $ANDROID_SDK_VERSION || $PWD =~ [Aa]ndroid ]]; then
-  # Temporarily revert the last clang roll on android due to
-  # http://crbug.com/156947
-  CLANG_REVISION=163674
-else
-  CLANG_REVISION=167488
-fi
+CLANG_REVISION=167488
 
 THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
