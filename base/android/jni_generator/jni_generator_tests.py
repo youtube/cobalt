@@ -56,6 +56,7 @@ class TestGenerator(unittest.TestCase):
 
   def testNatives(self):
     test_data = """"
+    interface OnFrameAvailableListener {}
     private native int nativeInit();
     private native void nativeDestroy(int nativeChromeBrowserProvider);
     private native long nativeAddBookmark(
@@ -82,6 +83,7 @@ class TestGenerator(unittest.TestCase):
             int nativeDataFetcherImplAndroid,
             double alpha, double beta, double gamma);
     """
+    jni_generator.JniParams.ExtractImportsAndInnerClasses(test_data)
     natives = jni_generator.ExtractNatives(test_data)
     golden_natives = [
         NativeMethod(return_type='int', static=False,
@@ -389,7 +391,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     { "nativeGetInnerClass",
 "("
 ")"
-"Landroid/graphics/SurfaceTexture$OnFrameAvailableListener;",
+"Lorg/chromium/example/jni_generator/SampleForTests$OnFrameAvailableListener;",
     reinterpret_cast<void*>(GetInnerClass) },
     { "nativeQueryBitmap",
 "("
@@ -718,8 +720,14 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 
   def testCalledByNatives(self):
     test_data = """"
+    import android.graphics.Bitmap;
+    import android.view.View;
+    import java.io.InputStream;
+
+    class InnerClass {}
+
     @CalledByNative
-    OnFrameAvailableListener showConfirmInfoBar(int nativeInfoBar,
+    InnerClass showConfirmInfoBar(int nativeInfoBar,
             String buttonOk, String buttonCancel, String title, Bitmap icon) {
         InfoBar infobar = new ConfirmInfoBar(nativeInfoBar, mContext,
                                              buttonOk, buttonCancel,
@@ -727,7 +735,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
         return infobar;
     }
     @CalledByNative
-    OnFrameAvailableListener showAutoLoginInfoBar(int nativeInfoBar,
+    InnerClass showAutoLoginInfoBar(int nativeInfoBar,
             String realm, String account, String args) {
         AutoLoginInfoBar infobar = new AutoLoginInfoBar(nativeInfoBar, mContext,
                 realm, account, args);
@@ -762,10 +770,12 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     @CalledByNativeUnchecked
     private void uncheckedCall(int iParam);
     """
+    jni_generator.JniParams.SetFullyQualifiedClass('org/chromium/Foo')
+    jni_generator.JniParams.ExtractImportsAndInnerClasses(test_data)
     called_by_natives = jni_generator.ExtractCalledByNatives(test_data)
     golden_called_by_natives = [
         CalledByNative(
-            return_type='OnFrameAvailableListener',
+            return_type='InnerClass',
             system_class=False,
             static=False,
             name='showConfirmInfoBar',
@@ -780,7 +790,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
             unchecked=False,
         ),
         CalledByNative(
-            return_type='OnFrameAvailableListener',
+            return_type='InnerClass',
             system_class=False,
             static=False,
             name='showAutoLoginInfoBar',
@@ -916,7 +926,7 @@ static ScopedJavaLocalRef<jobject> Java_TestJni_showConfirmInfoBar(JNIEnv* env,
 "Ljava/lang/String;"
 "Landroid/graphics/Bitmap;"
 ")"
-"Landroid/graphics/SurfaceTexture$OnFrameAvailableListener;",
+"Lorg/chromium/Foo$InnerClass;",
       &g_TestJni_showConfirmInfoBar);
 
   jobject ret =
@@ -946,7 +956,7 @@ static ScopedJavaLocalRef<jobject> Java_TestJni_showAutoLoginInfoBar(JNIEnv*
 "Ljava/lang/String;"
 "Ljava/lang/String;"
 ")"
-"Landroid/graphics/SurfaceTexture$OnFrameAvailableListener;",
+"Lorg/chromium/Foo$InnerClass;",
       &g_TestJni_showAutoLoginInfoBar);
 
   jobject ret =
@@ -1480,16 +1490,6 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     """
     jni_from_java = jni_generator.JNIFromJavaSource(test_data, 'foo/bar')
 
-  def testRaisesOnUnknownDatatype(self):
-    test_data = """
-    class MyInnerClass {
-      private native int nativeInit(AnUnknownDatatype p0);
-    }
-    """
-    self.assertRaises(SyntaxError,
-                      jni_generator.JNIFromJavaSource,
-                      test_data, 'foo/bar')
-
   def testRaisesOnNonJNIMethod(self):
     test_data = """
     class MyInnerClass {
@@ -1527,15 +1527,57 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     self.assertTrue(len(line) > 80,
                     ('Expected #ifndef line to be > 80 chars: ', line))
 
-  def testExternalParamList(self):
-    script_dir = os.path.dirname(sys.argv[0])
-    external_param_list = [os.path.join(script_dir, 'class_list.jni')]
-    jni_generator.JniParams.ReadExternalParamList(external_param_list)
-    self.assertTrue('Lorg/chromium/base/SystemMessageHandler' in
-                    jni_generator.JniParams._external_param_list)
-    self.assertRaises(AssertionError,
-                      jni_generator.JniParams.ReadExternalParamList,
-                      external_param_list)
+  def testImports(self):
+    import_header = """
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.content.app;
+
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.SurfaceTexture;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
+import android.os.Process;
+import android.os.RemoteException;
+import android.util.Log;
+import android.view.Surface;
+
+import java.util.ArrayList;
+
+import org.chromium.base.CalledByNative;
+import org.chromium.base.JNINamespace;
+import org.chromium.content.app.ContentMain;
+import org.chromium.content.browser.SandboxedProcessConnection;
+import org.chromium.content.common.ISandboxedProcessCallback;
+import org.chromium.content.common.ISandboxedProcessService;
+import org.chromium.content.common.SurfaceCallback;
+
+import static org.chromium.Bar.Zoo;
+
+class Foo {
+  public static class BookmarkNode implements Parcelable {
+  }
+  public interface PasswordListObserver {
+  }
+}
+    """
+    jni_generator.JniParams.SetFullyQualifiedClass(
+        'org/chromium/content/app/Foo')
+    jni_generator.JniParams.ExtractImportsAndInnerClasses(import_header)
+    self.assertTrue('Lorg/chromium/content/common/ISandboxedProcessService' in
+                    jni_generator.JniParams._imports)
+    self.assertTrue('Lorg/chromium/Bar/Zoo' in
+                    jni_generator.JniParams._imports)
+    self.assertTrue('Lorg/chromium/content/app/Foo$BookmarkNode' in
+                    jni_generator.JniParams._inner_classes)
+    self.assertTrue('Lorg/chromium/content/app/Foo$PasswordListObserver' in
+                    jni_generator.JniParams._inner_classes)
+
 
 if __name__ == '__main__':
   unittest.main()

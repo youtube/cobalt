@@ -4,6 +4,8 @@
 
 package org.chromium.example.jni_generator;
 
+import android.graphics.Rect;
+
 // This class serves as a reference test for the bindings generator, and as example documentation
 // for how to use the jni generator.
 // The C++ counter-part is sample_for_tests.cc.
