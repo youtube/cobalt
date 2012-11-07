@@ -18,9 +18,6 @@
 // storing the preference values.
 class BASE_PREFS_EXPORT ValueMapPrefStore : public PrefStore {
  public:
-  typedef std::map<std::string, base::Value*>::iterator iterator;
-  typedef std::map<std::string, base::Value*>::const_iterator const_iterator;
-
   ValueMapPrefStore();
 
   // PrefStore overrides:
@@ -29,11 +26,6 @@ class BASE_PREFS_EXPORT ValueMapPrefStore : public PrefStore {
   virtual void AddObserver(PrefStore::Observer* observer) OVERRIDE;
   virtual void RemoveObserver(PrefStore::Observer* observer) OVERRIDE;
   virtual size_t NumberOfObservers() const OVERRIDE;
-
-  iterator begin();
-  iterator end();
-  const_iterator begin() const;
-  const_iterator end() const;
 
  protected:
   virtual ~ValueMapPrefStore();
