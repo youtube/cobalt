@@ -2857,6 +2857,15 @@
                   }],
                 ],
               }],
+              ['asan==1', {
+                'cflags': [
+                  # Android build relies on -Wl,--gc-sections removing
+                  # unreachable code. ASan instrumentation for globals inhibits
+                  # this and results in a library with unresolvable relocations.
+                  # TODO(eugenis): find a way to reenable this.
+                  '-mllvm -asan-globals=0',
+                ],
+              }],
               ['android_build_type==0', {
                 'defines': [
                   # The NDK has these things, but doesn't define the constants
