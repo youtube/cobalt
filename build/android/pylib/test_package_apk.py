@@ -112,6 +112,7 @@ class TestPackageApk(TestPackage):
     return self._WatchTestOutput(self._WatchFifo(timeout=10, logfile=logfile))
 
   def StripAndCopyExecutable(self):
+    self.tool.CopyFiles()
     # Always uninstall the previous one (by activity name); we don't
     # know what was embedded in it.
     self.adb.ManagedInstall(self.test_suite_full, False,
