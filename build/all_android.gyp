@@ -66,6 +66,12 @@
         ['linux_breakpad==1', {
           'dependencies': [
             '../breakpad/breakpad.gyp:breakpad_unittests',
+            # Also compile the tools needed to deal with minidumps, they are
+            # needed to run minidump tests upstream.
+            '../breakpad/breakpad.gyp:dump_syms#host',
+            '../breakpad/breakpad.gyp:symupload#host',
+            '../breakpad/breakpad.gyp:minidump_dump#host',
+            '../breakpad/breakpad.gyp:minidump_stackwalk#host'
           ],
         }],
         ['"<(gtest_target_type)"=="shared_library"', {
