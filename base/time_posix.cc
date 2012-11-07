@@ -193,7 +193,7 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
 
 // TimeTicks ------------------------------------------------------------------
 // FreeBSD 6 has CLOCK_MONOLITHIC but defines _POSIX_MONOTONIC_CLOCK to -1.
-#if (defined(OS_POSIX) && !defined(OS_NACL) &&                          \
+#if (defined(OS_POSIX) &&                          \
      defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
      defined(OS_BSD) || defined(OS_ANDROID)
 
@@ -213,16 +213,6 @@ TimeTicks TimeTicks::Now() {
 
   return TimeTicks(absolute_micro);
 }
-
-#elif defined(OS_NACL)
-
-TimeTicks TimeTicks::Now() {
-  // Sadly, Native Client does not have _POSIX_TIMERS enabled in sys/features.h
-  // Apparently NaCl only has CLOCK_REALTIME:
-  // http://code.google.com/p/nativeclient/issues/detail?id=1159
-  return TimeTicks(clock());
-}
-
 #else  // _POSIX_MONOTONIC_CLOCK
 #error No usable tick clock function on this platform.
 #endif  // _POSIX_MONOTONIC_CLOCK
