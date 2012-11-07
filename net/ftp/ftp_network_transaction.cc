@@ -12,6 +12,7 @@
 #include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "base/values.h"
 #include "net/base/address_list.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/escape.h"
@@ -212,7 +213,7 @@ FtpNetworkTransaction::FtpNetworkTransaction(
       request_(NULL),
       resolver_(session->host_resolver()),
       read_ctrl_buf_(new IOBuffer(kCtrlBufLen)),
-      ctrl_response_buffer_(new FtpCtrlResponseBuffer()),
+      ctrl_response_buffer_(NULL),
       read_data_buf_len_(0),
       last_error_(OK),
       system_type_(SYSTEM_TYPE_UNKNOWN),
@@ -248,6 +249,8 @@ int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
                                  const BoundNetLog& net_log) {
   net_log_ = net_log;
   request_ = request_info;
+
+  ctrl_response_buffer_.reset(new FtpCtrlResponseBuffer(net_log_));
 
   if (request_->url.has_username()) {
     string16 username;
@@ -333,7 +336,7 @@ void FtpNetworkTransaction::ResetStateForRestart() {
   user_callback_.Reset();
   response_ = FtpResponseInfo();
   read_ctrl_buf_ = new IOBuffer(kCtrlBufLen);
-  ctrl_response_buffer_.reset(new FtpCtrlResponseBuffer());
+  ctrl_response_buffer_.reset(new FtpCtrlResponseBuffer(net_log_));
   read_data_buf_ = NULL;
   read_data_buf_len_ = 0;
   if (write_buf_)
@@ -434,6 +437,7 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
 
 // Used to prepare and send FTP command.
 int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
+                                          const std::string& command_for_log,
                                           Command cmd) {
   // If we send a new command when we still have unprocessed responses
   // for previous commands, the response receiving code will have no way to know
@@ -457,6 +461,9 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
                                      write_command_buf_->size());
   memcpy(write_command_buf_->data(), command.data(), command.length());
   memcpy(write_command_buf_->data() + command.length(), kCRLF, 2);
+
+  net_log_.AddEvent(NetLog::TYPE_FTP_COMMAND_SENT,
+                    NetLog::StringCallback("command", &command_for_log));
 
   next_state_ = STATE_CTRL_WRITE;
   return OK;
@@ -645,6 +652,9 @@ int FtpNetworkTransaction::DoCtrlConnect() {
   next_state_ = STATE_CTRL_CONNECT_COMPLETE;
   ctrl_socket_.reset(socket_factory_->CreateTransportClientSocket(
         addresses_, net_log_.net_log(), net_log_.source()));
+  net_log_.AddEvent(
+      NetLog::TYPE_FTP_CONTROL_CONNECTION,
+      ctrl_socket_->NetLog().source().ToEventParametersCallback());
   return ctrl_socket_->Connect(io_callback_);
 }
 
@@ -726,7 +736,7 @@ int FtpNetworkTransaction::DoCtrlWriteUSER() {
     return Stop(ERR_MALFORMED_IDENTITY);
 
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_USER);
+  return SendFtpCommand(command, "USER ***", COMMAND_USER);
 }
 
 int FtpNetworkTransaction::ProcessResponseUSER(
@@ -757,7 +767,7 @@ int FtpNetworkTransaction::DoCtrlWritePASS() {
     return Stop(ERR_MALFORMED_IDENTITY);
 
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_PASS);
+  return SendFtpCommand(command, "PASS ***", COMMAND_PASS);
 }
 
 int FtpNetworkTransaction::ProcessResponsePASS(
@@ -783,7 +793,7 @@ int FtpNetworkTransaction::ProcessResponsePASS(
 int FtpNetworkTransaction::DoCtrlWriteSYST() {
   std::string command = "SYST";
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_SYST);
+  return SendFtpCommand(command, command, COMMAND_SYST);
 }
 
 int FtpNetworkTransaction::ProcessResponseSYST(
@@ -836,7 +846,7 @@ int FtpNetworkTransaction::ProcessResponseSYST(
 int FtpNetworkTransaction::DoCtrlWritePWD() {
   std::string command = "PWD";
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_PWD);
+  return SendFtpCommand(command, command, COMMAND_PWD);
 }
 
 int FtpNetworkTransaction::ProcessResponsePWD(const FtpCtrlResponse& response) {
@@ -889,7 +899,7 @@ int FtpNetworkTransaction::DoCtrlWriteTYPE() {
     return Stop(ERR_UNEXPECTED);
   }
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_TYPE);
+  return SendFtpCommand(command, command, COMMAND_TYPE);
 }
 
 int FtpNetworkTransaction::ProcessResponseTYPE(
@@ -917,7 +927,7 @@ int FtpNetworkTransaction::ProcessResponseTYPE(
 int FtpNetworkTransaction::DoCtrlWriteEPSV() {
   const std::string command = "EPSV";
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_EPSV);
+  return SendFtpCommand(command, command, COMMAND_EPSV);
 }
 
 int FtpNetworkTransaction::ProcessResponseEPSV(
@@ -951,7 +961,7 @@ int FtpNetworkTransaction::ProcessResponseEPSV(
 int FtpNetworkTransaction::DoCtrlWritePASV() {
   std::string command = "PASV";
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_PASV);
+  return SendFtpCommand(command, command, COMMAND_PASV);
 }
 
 int FtpNetworkTransaction::ProcessResponsePASV(
@@ -984,7 +994,7 @@ int FtpNetworkTransaction::ProcessResponsePASV(
 int FtpNetworkTransaction::DoCtrlWriteRETR() {
   std::string command = "RETR " + GetRequestPathForFtpCommand(false);
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_RETR);
+  return SendFtpCommand(command, command, COMMAND_RETR);
 }
 
 int FtpNetworkTransaction::ProcessResponseRETR(
@@ -1035,7 +1045,7 @@ int FtpNetworkTransaction::ProcessResponseRETR(
 int FtpNetworkTransaction::DoCtrlWriteSIZE() {
   std::string command = "SIZE " + GetRequestPathForFtpCommand(false);
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_SIZE);
+  return SendFtpCommand(command, command, COMMAND_SIZE);
 }
 
 int FtpNetworkTransaction::ProcessResponseSIZE(
@@ -1085,7 +1095,7 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
 int FtpNetworkTransaction::DoCtrlWriteCWD() {
   std::string command = "CWD " + GetRequestPathForFtpCommand(true);
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_CWD);
+  return SendFtpCommand(command, command, COMMAND_CWD);
 }
 
 int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
@@ -1141,7 +1151,7 @@ int FtpNetworkTransaction::ProcessResponseCWDNotADirectory() {
 int FtpNetworkTransaction::DoCtrlWriteLIST() {
   std::string command(system_type_ == SYSTEM_TYPE_VMS ? "LIST *.*;0" : "LIST");
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_LIST);
+  return SendFtpCommand(command, command, COMMAND_LIST);
 }
 
 int FtpNetworkTransaction::ProcessResponseLIST(
@@ -1175,7 +1185,7 @@ int FtpNetworkTransaction::ProcessResponseLIST(
 int FtpNetworkTransaction::DoCtrlWriteQUIT() {
   std::string command = "QUIT";
   next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_QUIT);
+  return SendFtpCommand(command, command, COMMAND_QUIT);
 }
 
 int FtpNetworkTransaction::ProcessResponseQUIT(
@@ -1199,6 +1209,9 @@ int FtpNetworkTransaction::DoDataConnect() {
       ip_endpoint.address(), data_connection_port_);
   data_socket_.reset(socket_factory_->CreateTransportClientSocket(
         data_address, net_log_.net_log(), net_log_.source()));
+  net_log_.AddEvent(
+      NetLog::TYPE_FTP_DATA_CONNECTION,
+      data_socket_->NetLog().source().ToEventParametersCallback());
   return data_socket_->Connect(io_callback_);
 }
 
