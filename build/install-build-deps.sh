@@ -225,27 +225,33 @@ fi
 
 # Install 32bit backwards compatibility support for 64bit systems
 if [ "$(uname -m)" = "x86_64" ]; then
-  if test "$do_inst_lib32" = ""
-  then
-    echo "We no longer recommend that you use this script to install"
-    echo "32bit libraries on a 64bit system. Instead, consider using"
-    echo "the install-chroot.sh script to help you set up a 32bit"
-    echo "environment for building and testing 32bit versions of Chrome."
-    echo
-    echo "If you nonetheless want to try installing 32bit libraries"
-    echo "directly, you can do so by explicitly passing the --lib32"
-    echo "option to install-build-deps.sh."
-  fi
   if test "$do_inst_lib32" != "1"
   then
-    echo "Exiting without installing any 32bit libraries."
+    echo "NOTE: If you were expecting the option to install 32bit libs,"
+    echo "please run with the --lib32 flag."
+    echo
+    echo "Installation complete."
     exit 0
   fi
 
-  echo "N.B. the code for installing 32bit libraries on a 64bit"
-  echo "     system is no longer actively maintained and might"
-  echo "     not work with modern versions of Ubuntu or Debian."
+  echo "WARNING"
   echo
+  echo "We no longer recommend that you use this script to install"
+  echo "32bit libraries on a 64bit system. Instead, consider using the"
+  echo "install-chroot.sh script to help you set up a 32bit environment"
+  echo "for building and testing 32bit versions of Chrome."
+  echo
+  echo "The code for installing 32bit libraries on a 64bit system is"
+  echo "unmaintained and might not work with modern versions of Ubuntu"
+  echo "or Debian."
+  echo
+  echo -n "Are you sure you want to proceed (y/N) "
+  if yes_no 1; then
+    do_inst_lib32=1
+  fi
+  if test "$do_inst_lib32" != "1"
+    exit 0
+  fi
 
   # Standard 32bit compatibility libraries
   echo "First, installing the limited existing 32-bit support..."
