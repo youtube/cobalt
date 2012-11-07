@@ -6,6 +6,7 @@
 
 #include "base/build_time.h"
 #include "base/logging.h"
+#include "base/metrics/histogram.h"
 #include "base/rand_util.h"
 #include "base/sha1.h"
 #include "base/stringprintf.h"
@@ -84,6 +85,9 @@ void FieldTrial::UseOneTimeRandomization() {
       FieldTrialList::GetEntropyProviderForOneTimeRandomization();
   if (!entropy_provider) {
     NOTREACHED();
+    // TODO(stevet): Remove this temporary histogram when logging
+    // investigations are complete.
+    UMA_HISTOGRAM_BOOLEAN("Variations.DisabledNoEntropyProvider", true);
     Disable();
     return;
   }
