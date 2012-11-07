@@ -29,8 +29,7 @@ LocalSyncTestServer::~LocalSyncTestServer() {}
 
 bool LocalSyncTestServer::AddCommandLineArguments(
     CommandLine* command_line) const {
-  if (!LocalTestServer::AddCommandLineArguments(command_line))
-    return false;
+  LocalTestServer::AddCommandLineArguments(command_line);
   if (xmpp_port_ != 0) {
     std::string xmpp_port_str = base::IntToString(xmpp_port_);
     command_line->AppendArg("--xmpp-port=" + xmpp_port_str);
