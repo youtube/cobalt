@@ -132,7 +132,9 @@ class NET_EXPORT_PRIVATE FtpNetworkTransaction : public FtpTransaction {
   // issued command. Returns error code.
   int ProcessCtrlResponse();
 
-  int SendFtpCommand(const std::string& command, Command cmd);
+  int SendFtpCommand(const std::string& command,
+                     const std::string& command_for_log,
+                     Command cmd);
 
   // Returns request path suitable to be included in an FTP command. If the path
   // will be used as a directory, |is_directory| should be true.
