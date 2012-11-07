@@ -11,6 +11,7 @@
 #define NET_URL_REQUEST_URL_REQUEST_CONTEXT_H_
 
 #include <set>
+#include <string>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -33,6 +34,7 @@ class FtpTransactionFactory;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpTransactionFactory;
+class HttpUserAgentSettings;
 class NetworkDelegate;
 class ServerBoundCertService;
 class ProxyService;
@@ -172,22 +174,18 @@ class NET_EXPORT URLRequestContext
 #endif
   }
 
+  // ---------------------------------------------------------------------------
+  // Legacy accessors that delegate to http_user_agent_settings_.
+  // TODO(pauljensen): Remove after all clients are updated to directly access
+  // http_user_agent_settings_.
   // Gets the value of 'Accept-Charset' header field.
-  const std::string& accept_charset() const { return accept_charset_; }
-  void set_accept_charset(const std::string& accept_charset) {
-    accept_charset_ = accept_charset;
-  }
-
+  std::string GetAcceptCharset() const;
   // Gets the value of 'Accept-Language' header field.
-  const std::string& accept_language() const { return accept_language_; }
-  void set_accept_language(const std::string& accept_language) {
-    accept_language_ = accept_language;
-  }
-
+  std::string GetAcceptLanguage() const;
   // Gets the UA string to use for the given URL.  Pass an invalid URL (such as
-  // GURL()) to get the default UA string.  Subclasses should override this
-  // method to provide a UA string.
-  virtual const std::string& GetUserAgent(const GURL& url) const;
+  // GURL()) to get the default UA string.
+  std::string GetUserAgent(const GURL& url) const;
+  // ---------------------------------------------------------------------------
 
   const URLRequestJobFactory* job_factory() const { return job_factory_; }
   void set_job_factory(const URLRequestJobFactory* job_factory) {
@@ -210,6 +208,16 @@ class NET_EXPORT URLRequestContext
 
   void AssertNoURLRequests() const;
 
+  // Get the underlying |HttpUserAgentSettings| implementation that provides
+  // the HTTP Accept-Language, Accept-Charset and User-Agent header values.
+  const HttpUserAgentSettings* http_user_agent_settings() const {
+    return http_user_agent_settings_;
+  }
+  void set_http_user_agent_settings(
+      HttpUserAgentSettings* http_user_agent_settings) {
+    http_user_agent_settings_ = http_user_agent_settings;
+  }
+
  private:
   // ---------------------------------------------------------------------------
   // Important: When adding any new members below, consider whether they need to
@@ -228,13 +236,12 @@ class NET_EXPORT URLRequestContext
   scoped_refptr<SSLConfigService> ssl_config_service_;
   NetworkDelegate* network_delegate_;
   HttpServerProperties* http_server_properties_;
+  HttpUserAgentSettings* http_user_agent_settings_;
   scoped_refptr<CookieStore> cookie_store_;
   TransportSecurityState* transport_security_state_;
 #if !defined(DISABLE_FTP_SUPPORT)
   scoped_ptr<FtpAuthCache> ftp_auth_cache_;
 #endif
-  std::string accept_language_;
-  std::string accept_charset_;
   // The charset of the referrer where this request comes from. It's not
   // used in communication with a server but is used to construct a suggested
   // filename for file download.
