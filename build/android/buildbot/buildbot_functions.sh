@@ -229,7 +229,7 @@ function bb_run_webkit_layout_tests {
   local BUILDNUMBER="$(bb_get_json_prop "$BUILD_PROPERTIES" buildnumber)"
   local MASTERNAME="$(bb_get_json_prop "$BUILD_PROPERTIES" mastername)"
   local RESULTSERVER=\
-      "$(bb_get_json_prop "$FACTORY_PROPERTIES" test_results_server)"
+"$(bb_get_json_prop "$FACTORY_PROPERTIES" test_results_server)"
 
   bb_run_step python webkit/tools/layout_tests/run_webkit_tests.py \
       --no-show-results \
