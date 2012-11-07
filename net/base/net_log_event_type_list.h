@@ -1725,3 +1725,36 @@ EVENT_TYPE(FILE_STREAM_ERROR)
 //                  if any>
 //   }
 EVENT_TYPE(IPV6_PROBE_RUNNING)
+
+// -----------------------------------------------------------------------------
+// FTP events.
+// -----------------------------------------------------------------------------
+
+// This event is created when an FTP command is sent. It contains following
+// parameters:
+//   {
+//     "command": <String - the command sent to remote server>
+//   }
+EVENT_TYPE(FTP_COMMAND_SENT)
+
+// This event is created when FTP control connection is made. It contains
+// following parameters:
+//   {
+//     "source_dependency": <id of log for control connection socket>
+//   }
+EVENT_TYPE(FTP_CONTROL_CONNECTION)
+
+// This event is created when FTP data connection is made. It contains
+// following parameters:
+//   {
+//     "source_dependency": <id of log for data connection socket>
+//   }
+EVENT_TYPE(FTP_DATA_CONNECTION)
+
+// This event is created when FTP control connection response is processed.
+// It contains following parameters:
+//   {
+//     "lines": <list of strings - each representing a line of the response>
+//     "status_code": <numeric status code of the response>
+//   }
+EVENT_TYPE(FTP_CONTROL_RESPONSE)
