@@ -94,6 +94,7 @@ def JavaDataTypeToC(java_type):
   java_type_map = {
       'void': 'void',
       'String': 'jstring',
+      'java/lang/String': 'jstring',
   }
   if java_type in java_pod_type_map:
     return java_pod_type_map[java_type]
@@ -108,22 +109,29 @@ def JavaDataTypeToC(java_type):
 
 
 class JniParams(object):
-  _UNKNOWN_JAVA_TYPE_PREFIX = 'UNKNOWN_JAVA_TYPE: '
-  _external_param_files = set()
-  _external_param_list = []
+  _imports = []
+  _fully_qualified_class = ''
+  _package = ''
+  _inner_classes = []
 
   @staticmethod
-  def ReadExternalParamList(external_param_files):
-    if not external_param_files:
-      return
-    assert not JniParams._external_param_files
-    JniParams._external_param_files = set(external_param_files)
-    for external_param_file in JniParams._external_param_files:
-      with file(external_param_file, 'r') as f:
-        contents = f.read()
-        JniParams._external_param_list += [x.strip()
-                                           for x in contents.splitlines()
-                                           if x and not x.startswith('#')]
+  def SetFullyQualifiedClass(fully_qualified_class):
+    JniParams._fully_qualified_class = 'L' + fully_qualified_class
+    JniParams._package = '/'.join(fully_qualified_class.split('/')[:-1])
+
+  @staticmethod
+  def ExtractImportsAndInnerClasses(contents):
+    contents = contents.replace('\n', '')
+    re_import = re.compile(r'import.*?(?P<class>\S*?);')
+    for match in re.finditer(re_import, contents):
+      JniParams._imports += ['L' + match.group('class').replace('.', '/')]
+
+    re_inner = re.compile(r'(class|interface)\s+?(?P<name>\w+?)\W')
+    for match in re.finditer(re_inner, contents):
+      inner = match.group('name')
+      if not JniParams._fully_qualified_class.endswith(inner):
+        JniParams._inner_classes += [JniParams._fully_qualified_class + '$' +
+                                     inner]
 
   @staticmethod
   def JavaToJni(param):
@@ -143,27 +151,6 @@ class JniParams(object):
         'Ljava/lang/Long',
         'Ljava/lang/Object',
         'Ljava/lang/String',
-        'Ljava/util/ArrayList',
-        'Ljava/util/HashMap',
-        'Ljava/util/List',
-        'Landroid/content/Context',
-        'Landroid/graphics/Bitmap',
-        'Landroid/graphics/Canvas',
-        'Landroid/graphics/Rect',
-        'Landroid/graphics/RectF',
-        'Landroid/graphics/Matrix',
-        'Landroid/graphics/Point',
-        'Landroid/graphics/SurfaceTexture',
-        'Landroid/graphics/SurfaceTexture$OnFrameAvailableListener',
-        'Landroid/media/MediaPlayer',
-        'Landroid/os/Message',
-        'Landroid/view/KeyEvent',
-        'Landroid/view/Surface',
-        'Landroid/view/View',
-        'Landroid/webkit/ValueCallback',
-        'Ljava/io/InputStream',
-        'Ljava/nio/ByteBuffer',
-        'Ljava/util/Vector',
     ]
     if param == 'byte[][]':
       return '[[B'
@@ -180,13 +167,16 @@ class JniParams(object):
     if '/' in param:
       # Coming from javap, use the fully qualified param directly.
       return 'L' + param + ';'
-    for qualified_name in object_param_list + JniParams._external_param_list:
+    for qualified_name in (object_param_list +
+                           JniParams._imports +
+                           [JniParams._fully_qualified_class] +
+                           JniParams._inner_classes):
       if (qualified_name.endswith('/' + param) or
           qualified_name.endswith('$' + param.replace('.', '$')) or
           qualified_name == 'L' + param):
         return prefix + qualified_name + ';'
-    else:
-      return JniParams._UNKNOWN_JAVA_TYPE_PREFIX + prefix + param + ';'
+    # Type not found, falling back to same package as this class.
+    return prefix + 'L' + JniParams._package + '/' + param + ';'
 
   @staticmethod
   def Signature(params, returns, wrap):
@@ -216,33 +206,6 @@ class JniParams(object):
       )
       ret += [param]
     return ret
-
-  @staticmethod
-  def CheckUnknownDatatypes(fully_qualified_class, items):
-    unknown_datatypes = JniParams._GetUnknownDatatypes(items)
-    if unknown_datatypes:
-      msg = ('There are a few unknown datatypes in %s' %
-             fully_qualified_class)
-      msg += '\nPlease, edit %s' % str(JniParams._external_param_files)
-      msg += '\nand add the JNI type(s):\n'
-      for unknown_datatype in unknown_datatypes:
-        msg += '\n%s in methods:\n' % unknown_datatype
-        msg += '\n '.join(unknown_datatypes[unknown_datatype])
-      raise SyntaxError(msg)
-
-  @staticmethod
-  def _GetUnknownDatatypes(items):
-    """Returns a list containing the unknown datatypes."""
-    unknown_types = {}
-    for item in items:
-      all_datatypes = ([JniParams.JavaToJni(param.datatype)
-                        for param in item.params] +
-                       [JniParams.JavaToJni(item.return_type)])
-      for d in all_datatypes:
-        if d.startswith(JniParams._UNKNOWN_JAVA_TYPE_PREFIX):
-          unknown_types[d] = (unknown_types.get(d, []) +
-                              [item.name or 'Unable to parse'])
-    return unknown_types
 
 
 def ExtractJNINamespace(contents):
@@ -285,8 +248,10 @@ def ExtractNatives(contents):
 
 
 def GetStaticCastForReturnType(return_type):
-  if return_type == 'String':
+  if return_type in ['String', 'java/lang/String']:
     return 'jstring'
+  elif return_type.endswith('[]'):
+    return 'jobjectArray'
   return None
 
 
@@ -421,10 +386,11 @@ class JNIFromJavaP(object):
     self.fully_qualified_class = re.match('.*?class (?P<class_name>.*?) ',
                                           contents[1]).group('class_name')
     self.fully_qualified_class = self.fully_qualified_class.replace('.', '/')
+    JniParams.SetFullyQualifiedClass(self.fully_qualified_class)
     self.java_class_name = self.fully_qualified_class.split('/')[-1]
     if not self.namespace:
       self.namespace = 'JNI_' + self.java_class_name
-    re_method = re.compile('(?P<prefix>.*?)(?P<return_type>\w+?) (?P<name>\w+?)'
+    re_method = re.compile('(?P<prefix>.*?)(?P<return_type>\S+?) (?P<name>\w+?)'
                            '\((?P<params>.*?)\)')
     self.called_by_natives = []
     for content in contents[2:]:
@@ -436,7 +402,7 @@ class JNIFromJavaP(object):
           unchecked=False,
           static='static' in match.group('prefix'),
           java_class_name='',
-          return_type=match.group('return_type'),
+          return_type=match.group('return_type').replace('.', '/'),
           name=match.group('name'),
           params=JniParams.Parse(match.group('params').replace('.', '/')))]
     re_constructor = re.compile('.*? public ' +
@@ -479,6 +445,8 @@ class JNIFromJavaSource(object):
 
   def __init__(self, contents, fully_qualified_class):
     contents = self._RemoveComments(contents)
+    JniParams.SetFullyQualifiedClass(fully_qualified_class)
+    JniParams.ExtractImportsAndInnerClasses(contents)
     jni_namespace = ExtractJNINamespace(contents)
     natives = ExtractNatives(contents)
     called_by_natives = ExtractCalledByNatives(contents)
@@ -529,8 +497,6 @@ class InlHeaderFileGenerator(object):
     self.natives = natives
     self.called_by_natives = called_by_natives
     self.header_guard = fully_qualified_class.replace('/', '_') + '_JNI'
-    JniParams.CheckUnknownDatatypes(self.fully_qualified_class,
-                                    self.natives + self.called_by_natives)
 
   def GetContent(self):
     """Returns the content of the JNI binding file."""
@@ -994,13 +960,7 @@ See SampleForTests.java for more details.
   option_parser.add_option('--output_dir',
                            help='The output directory. Must be used with '
                            '--input')
-  option_parser.add_option('--external_param_list',
-                           help='A file name containing a list with extra '
-                           'fully-qualified param names. Can be used multiple '
-                           'times.',
-                           action='append')
   options, args = option_parser.parse_args(argv)
-  JniParams.ReadExternalParamList(options.external_param_list)
   if options.jar_file:
     input_file = ExtractJarInputFile(options.jar_file, options.input_file,
                                      options.output_dir)
