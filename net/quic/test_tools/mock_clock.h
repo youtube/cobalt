@@ -8,6 +8,7 @@
 #include "net/quic/quic_clock.h"
 
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/time.h"
 
 namespace net {
@@ -20,11 +21,19 @@ class MockClock : public QuicClock {
 
   virtual uint64 NowInUsec() OVERRIDE;
 
+  base::TimeTicks Now();
+
   void AdvanceTimeInMicroseconds(uint64 delta_in_us) {
     now_ += delta_in_us;
   }
 
+  void AdvanceTimeByDelta(base::TimeDelta delta) {
+    CHECK_LE(0, delta.InMicroseconds());
+    now_ += delta.InMicroseconds();
+  }
+
   void AdvanceTime(WallTime delta) {
+    CHECK_LE(0, delta);;
     uint64 delta_us = delta * base::Time::kMicrosecondsPerSecond;
     now_ += delta_us;
   }
