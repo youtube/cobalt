@@ -16,4 +16,9 @@ uint64 MockClock::NowInUsec() {
   return now_;
 }
 
+base::TimeTicks MockClock::Now() {
+  base::TimeTicks now;
+  return now + base::TimeDelta::FromMicroseconds(now_);
+}
+
 }  // namespace net
