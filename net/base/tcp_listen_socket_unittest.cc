@@ -56,8 +56,15 @@ void TCPListenSocketTester::SetUp() {
   int ret = HANDLE_EINTR(
       connect(test_socket_, reinterpret_cast<sockaddr*>(&client),
               sizeof(client)));
+#if defined(OS_POSIX)
+  // The connect() call may be interrupted by a signal. When connect()
+  // is retried on EINTR, it fails with EISCONN.
   if (ret == StreamListenSocket::kSocketError)
     ASSERT_EQ(EISCONN, errno);
+#else
+  // Don't have signals.
+  ASSERT_NE(StreamListenSocket::kSocketError, ret);
+#endif
 
   NextAction();
   ASSERT_EQ(ACTION_ACCEPT, last_action_.type());
