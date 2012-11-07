@@ -208,13 +208,53 @@ function bb_run_unit_tests {
   build/android/run_tests.py --xvfb --verbose
 }
 
+# Run WebKit's test suites: webkit_unit_tests and TestWebKitAPI
+function bb_run_webkit_unit_tests {
+  build/android/run_tests.py --xvfb --verbose -s webkit_unit_tests
+  build/android/run_tests.py --xvfb --verbose -s TestWebKitAPI
+}
+
+# Lint WebKit's TestExpectation files.
+function bb_lint_webkit_expectation_files {
+  echo "@@@BUILD_STEP webkit_lint@@@"
+  bb_run_step python webkit/tools/layout_tests/run_webkit_tests.py \
+    --lint-test-files \
+    --chromium
+}
+
+# Run layout tests on an actual device.
+function bb_run_webkit_layout_tests {
+  echo "@@@BUILD_STEP webkit_tests@@@"
+  local BUILDERNAME="$(bb_get_json_prop "$BUILD_PROPERTIES" buildername)"
+  local BUILDNUMBER="$(bb_get_json_prop "$BUILD_PROPERTIES" buildnumber)"
+  local MASTERNAME="$(bb_get_json_prop "$BUILD_PROPERTIES" mastername)"
+  local RESULTSERVER=\
+      "$(bb_get_json_prop "$FACTORY_PROPERTIES" test_results_server)"
+
+  bb_run_step python webkit/tools/layout_tests/run_webkit_tests.py \
+      --no-show-results \
+      --no-new-test-results \
+      --full-results-html \
+      --clobber-old-results \
+      --exit-after-n-failures 5000 \
+      --exit-after-n-crashes-or-timeouts 100 \
+      --debug-rwt-logging \
+      --results-directory "../layout-test-results" \
+      --target "$BUILDTYPE" \
+      --builder-name "$BUILDERNAME" \
+      --build-number "$BUILDNUMBER" \
+      --master-name "$MASTERNAME" \
+      --build-name "$BUILDERNAME" \
+      --platform=chromium-android \
+      --test-results-server "$RESULTSERVER"
+}
+
 # Run experimental unittest bundles.
 function bb_run_experimental_unit_tests {
-# This build step was added because bash does not allow empty functions.
-# run_tests.py echoes a build step, comment/remove this build step when you
-# add tests to the experimental step.
-echo '@@@BUILD_STEP experimental_unit_tests@@@'
-
+  # This build step was added because bash does not allow empty functions.
+  # run_tests.py echoes a build step, comment/remove this build step when you
+  # add tests to the experimental step.
+  echo '@@@BUILD_STEP experimental_unit_tests@@@'
 }
 
 # Run findbugs.
