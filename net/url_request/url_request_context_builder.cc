@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/string_util.h"
 #include "base/threading/thread.h"
 #include "base/thread_task_runner_handle.h"
 #include "net/base/cert_verifier.h"
@@ -25,6 +26,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/proxy/proxy_service.h"
+#include "net/url_request/static_http_user_agent_settings.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_storage.h"
 
@@ -129,10 +131,6 @@ class BasicURLRequestContext : public URLRequestContext {
     return &storage_;
   }
 
-  void set_user_agent(const std::string& user_agent) {
-    user_agent_ = user_agent;
-  }
-
   void StartCacheThread() {
     cache_thread_.StartWithOptions(
         base::Thread::Options(MessageLoop::TYPE_IO, 0));
@@ -153,16 +151,10 @@ class BasicURLRequestContext : public URLRequestContext {
     return file_thread_.message_loop();
   }
 
-  virtual const std::string& GetUserAgent(
-      const GURL& /* url */) const OVERRIDE {
-    return user_agent_;
-  }
-
  protected:
   virtual ~BasicURLRequestContext() {}
 
  private:
-  std::string user_agent_;
   base::Thread cache_thread_;
   base::Thread file_thread_;
   URLRequestContextStorage storage_;
@@ -203,7 +195,8 @@ URLRequestContext* URLRequestContextBuilder::Build() {
   BasicURLRequestContext* context = new BasicURLRequestContext;
   URLRequestContextStorage* storage = context->storage();
 
-  context->set_user_agent(user_agent_);
+  storage->set_http_user_agent_settings(new StaticHttpUserAgentSettings(
+      accept_language_, accept_charset_, user_agent_));
 
   if (!network_delegate_)
     network_delegate_.reset(new BasicNetworkDelegate);
