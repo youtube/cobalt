@@ -359,6 +359,8 @@ TEST_F(FieldTrialTest, Save) {
 
   // Create a winning group.
   trial->AppendGroup("Winner", 10);
+  // Finalize the group selection by accessing the selected group.
+  trial->group();
   FieldTrialList::StatesToString(&save_string);
   EXPECT_EQ("Some name/Winner/", save_string);
   save_string.clear();
@@ -367,10 +369,22 @@ TEST_F(FieldTrialTest, Save) {
   FieldTrial* trial2 = FieldTrialList::FactoryGetFieldTrial(
       "xxx", 10, "Default xxx", next_year_, 12, 31, NULL);
   trial2->AppendGroup("yyyy", 10);
+  // Finalize the group selection by accessing the selected group.
+  trial2->group();
 
   FieldTrialList::StatesToString(&save_string);
   // We assume names are alphabetized... though this is not critical.
   EXPECT_EQ("Some name/Winner/xxx/yyyy/", save_string);
+  save_string.clear();
+
+  // Create a third trial with only the default group.
+  FieldTrial* trial3 = FieldTrialList::FactoryGetFieldTrial(
+      "zzz", 10, "default", next_year_, 12, 31, NULL);
+  // Finalize the group selection by accessing the selected group.
+  trial3->group();
+
+  FieldTrialList::StatesToString(&save_string);
+  EXPECT_EQ("Some name/Winner/xxx/yyyy/zzz/default/", save_string);
 }
 
 TEST_F(FieldTrialTest, Restore) {
@@ -403,6 +417,8 @@ TEST_F(FieldTrialTest, DuplicateRestore) {
   FieldTrial* trial = FieldTrialList::FactoryGetFieldTrial(
       "Some name", 10, "Default some name", next_year_, 12, 31, NULL);
   trial->AppendGroup("Winner", 10);
+  // Finalize the group selection by accessing the selected group.
+  trial->group();
   std::string save_string;
   FieldTrialList::StatesToString(&save_string);
   EXPECT_EQ("Some name/Winner/", save_string);
