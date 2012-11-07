@@ -16,6 +16,7 @@
 #include "net/base/server_bound_cert_service.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties_impl.h"
+#include "net/url_request/static_http_user_agent_settings.h"
 #include "net/url_request/url_request_job_factory_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -113,10 +114,11 @@ void TestURLRequestContext::Init() {
             new net::DefaultServerBoundCertStore(NULL),
             base::WorkerPool::GetTaskRunner(true)));
   }
-  if (accept_language().empty())
-    set_accept_language("en-us,fr");
-  if (accept_charset().empty())
-    set_accept_charset("iso-8859-1,*,utf-8");
+  if (!http_user_agent_settings()) {
+    context_storage_.set_http_user_agent_settings(
+        new net::StaticHttpUserAgentSettings(
+            "en-us,fr", "iso-8859-1,*,utf-8", EmptyString()));
+  }
   if (!job_factory())
     context_storage_.set_job_factory(new net::URLRequestJobFactoryImpl);
 }

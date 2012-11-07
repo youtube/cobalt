@@ -20,6 +20,7 @@ class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpServerProperties;
 class HttpTransactionFactory;
+class HttpUserAgentSettings;
 class NetLog;
 class NetworkDelegate;
 class ServerBoundCertService;
@@ -65,6 +66,8 @@ class NET_EXPORT URLRequestContextStorage {
       FtpTransactionFactory* ftp_transaction_factory);
   void set_job_factory(URLRequestJobFactory* job_factory);
   void set_throttler_manager(URLRequestThrottlerManager* throttler_manager);
+  void set_http_user_agent_settings(
+      HttpUserAgentSettings* http_user_agent_settings);
 
  private:
   // We use a raw pointer to prevent reference cycles, since
@@ -84,6 +87,7 @@ class NET_EXPORT URLRequestContextStorage {
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_ptr<NetworkDelegate> network_delegate_;
   scoped_ptr<HttpServerProperties> http_server_properties_;
+  scoped_ptr<HttpUserAgentSettings> http_user_agent_settings_;
   scoped_refptr<CookieStore> cookie_store_;
   scoped_ptr<TransportSecurityState> transport_security_state_;
 

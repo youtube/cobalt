@@ -17,6 +17,7 @@
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/url_request/fraudulent_certificate_reporter.h"
+#include "net/url_request/http_user_agent_settings.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_job_factory.h"
 #include "net/url_request/url_request_throttler_manager.h"
@@ -121,6 +122,12 @@ void URLRequestContextStorage::set_throttler_manager(
     URLRequestThrottlerManager* throttler_manager) {
   context_->set_throttler_manager(throttler_manager);
   throttler_manager_.reset(throttler_manager);
+}
+
+void URLRequestContextStorage::set_http_user_agent_settings(
+    HttpUserAgentSettings* http_user_agent_settings) {
+  context_->set_http_user_agent_settings(http_user_agent_settings);
+  http_user_agent_settings_.reset(http_user_agent_settings);
 }
 
 }  // namespace net
