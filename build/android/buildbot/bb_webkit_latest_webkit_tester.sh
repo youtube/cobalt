@@ -14,6 +14,7 @@ bb_baseline_setup "$BB_SRC_ROOT" "$@"
 bb_spawn_logcat_monitor_and_status
 bb_extract_build
 bb_reboot_phones
-# TODO(peter@): Replace this with a test call
-echo "@@@BUILD_STEP TODO Run WebKit tests@@@"
+bb_run_webkit_unit_tests
+bb_lint_webkit_expectation_files
+bb_run_webkit_layout_tests
 bb_print_logcat
