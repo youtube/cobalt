@@ -18,6 +18,9 @@ function bb_parse_args {
       --factory-properties=*)
         FACTORY_PROPERTIES="$(echo "$1" | sed 's/^[^=]*=//')"
         BUILDTYPE=$(bb_get_json_prop "$FACTORY_PROPERTIES" target)
+        if [[ $BUILDTYPE = Release ]]; then
+          BUILDFLAG="--release"
+        fi
         ;;
       --build-properties=*)
         BUILD_PROPERTIES="$(echo "$1" | sed 's/^[^=]*=//')"
@@ -210,8 +213,8 @@ function bb_run_unit_tests {
 
 # Run WebKit's test suites: webkit_unit_tests and TestWebKitAPI
 function bb_run_webkit_unit_tests {
-  build/android/run_tests.py --xvfb --verbose -s webkit_unit_tests
-  build/android/run_tests.py --xvfb --verbose -s TestWebKitAPI
+  build/android/run_tests.py --xvfb --verbose $BUILDFLAG -s webkit_unit_tests
+  build/android/run_tests.py --xvfb --verbose $BUILDFLAG -s TestWebKitAPI
 }
 
 # Lint WebKit's TestExpectation files.
