@@ -2592,6 +2592,8 @@
                 'cflags': [
                   '-faddress-sanitizer',
                   '-fno-omit-frame-pointer',
+                  # See http://crbug.com/159580
+                  '-w',
                 ],
                 'ldflags': [
                   '-faddress-sanitizer',
@@ -2610,6 +2612,8 @@
                   '-fno-omit-frame-pointer',
                   '-fPIE',
                   '-mllvm', '-tsan-blacklist=<(tsan_blacklist)'
+                  # See http://crbug.com/159580
+                  '-w',
                 ],
                 'ldflags': [
                   '-fthread-sanitizer',
@@ -3010,6 +3014,8 @@
               # binaries on x86_64 host is problematic.
               # TODO(eugenis): re-enable.
               '-faddress-sanitizer',
+              # See http://crbug.com/159580
+              '-w',
             ],
             'ldflags!': [
               '-faddress-sanitizer',
@@ -3129,6 +3135,8 @@
             'xcode_settings': {
               'OTHER_CFLAGS': [
                 '-faddress-sanitizer',
+                # See http://crbug.com/159580
+                '-w',
               ],
             },
             'defines': [
