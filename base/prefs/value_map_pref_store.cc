@@ -28,22 +28,6 @@ size_t ValueMapPrefStore::NumberOfObservers() const {
   return observers_.size();
 }
 
-ValueMapPrefStore::iterator ValueMapPrefStore::begin() {
-  return prefs_.begin();
-}
-
-ValueMapPrefStore::iterator ValueMapPrefStore::end() {
-  return prefs_.end();
-}
-
-ValueMapPrefStore::const_iterator ValueMapPrefStore::begin() const {
-  return prefs_.begin();
-}
-
-ValueMapPrefStore::const_iterator ValueMapPrefStore::end() const {
-  return prefs_.end();
-}
-
 ValueMapPrefStore::~ValueMapPrefStore() {}
 
 void ValueMapPrefStore::SetValue(const std::string& key, Value* value) {
