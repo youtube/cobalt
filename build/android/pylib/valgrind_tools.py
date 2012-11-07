@@ -84,7 +84,8 @@ class BaseTool(object):
 class AddressSanitizerTool(BaseTool):
   """AddressSanitizer tool."""
 
-  WRAPPER_PATH = '/system/bin/asanwrapper'
+  TMP_DIR = '/data/local/tmp/asan'
+  WRAPPER_NAME = 'asanwrapper.sh'
 
   def __init__(self, adb):
     self._adb = adb
@@ -93,18 +94,17 @@ class AddressSanitizerTool(BaseTool):
 
   def CopyFiles(self):
     """Copies ASan tools to the device."""
-    files = ['system/lib/libasan_preload.so',
-             'system/bin/asanwrapper',
-             'system/bin/asan/app_process',
-             'system/bin/linker']
-    android_product_out = os.environ['ANDROID_PRODUCT_OUT']
-    self._adb.MakeSystemFolderWritable()
+    files = ['tools/android/asan/asanwrapper.sh',
+             'third_party/llvm-build/Release+Asserts/lib/clang/3.2/lib/linux/' +
+                 'libclang_rt.asan-arm-android.so']
     for f in files:
-      self._adb.PushIfNeeded(os.path.join(android_product_out, f),
-                             os.path.join('/', f))
+      self._adb.PushIfNeeded(os.path.join(CHROME_DIR, f),
+                             os.path.join(AddressSanitizerTool.TMP_DIR,
+                                          os.path.basename(f)))
 
   def GetTestWrapper(self):
-    return AddressSanitizerTool.WRAPPER_PATH
+    return os.path.join(AddressSanitizerTool.TMP_DIR,
+                        AddressSanitizerTool.WRAPPER_NAME)
 
   def GetUtilWrapper(self):
     """Returns the wrapper for utilities, such as forwarder.
@@ -112,9 +112,10 @@ class AddressSanitizerTool(BaseTool):
     AddressSanitizer wrapper must be added to all instrumented binaries,
     including forwarder and the like. This can be removed if such binaries
     were built without instrumentation. """
-    return AddressSanitizerTool.WRAPPER_PATH
+    return self.GetTestWrapper()
 
   def SetupEnvironment(self):
+    self._adb.EnableAdbRoot()
     for prop in self._wrap_properties:
       self._adb.RunShellCommand('setprop %s "logwrapper %s"' % (
           prop, self.GetTestWrapper()))
