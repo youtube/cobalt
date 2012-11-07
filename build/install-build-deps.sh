@@ -250,6 +250,7 @@ if [ "$(uname -m)" = "x86_64" ]; then
     do_inst_lib32=1
   fi
   if test "$do_inst_lib32" != "1"
+  then
     exit 0
   fi
 
