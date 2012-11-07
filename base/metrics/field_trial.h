@@ -350,12 +350,13 @@ class BASE_EXPORT FieldTrialList {
   // Returns true if the named trial has been registered.
   static bool TrialExists(const std::string& name);
 
-  // Creates a persistent representation of all FieldTrial instances for
+  // Creates a persistent representation of active FieldTrial instances for
   // resurrection in another process. This allows randomization to be done in
   // one process, and secondary processes can be synchronized on the result.
-  // The resulting string contains the name and group name pairs for all trials,
-  // with "/" used to separate all names and to terminate the string. This
-  // string is parsed by CreateTrialsFromString().
+  // The resulting string contains the name and group name pairs of all
+  // registered FieldTrials for which the group has been chosen and externally
+  // observed (via |group()|), with "/" used to separate all names and to
+  // terminate the string. This string is parsed by |CreateTrialsFromString()|.
   static void StatesToString(std::string* output);
 
   // Fills in the supplied vector |active_groups| (which must be empty when

@@ -320,22 +320,15 @@ bool FieldTrialList::TrialExists(const std::string& name) {
 
 // static
 void FieldTrialList::StatesToString(std::string* output) {
-  DCHECK(output->empty());
-  if (!global_)
-    return;
-  AutoLock auto_lock(global_->lock_);
-
-  for (RegistrationList::iterator it = global_->registered_.begin();
-       it != global_->registered_.end(); ++it) {
-    const std::string& name = it->first;
-    std::string group_name = it->second->group_name_internal();
-    if (group_name.empty())
-      continue;  // Should not include uninitialized trials.
-    DCHECK_EQ(name.find(kPersistentStringSeparator), std::string::npos);
-    DCHECK_EQ(group_name.find(kPersistentStringSeparator), std::string::npos);
-    output->append(name);
+  FieldTrial::ActiveGroups active_groups;
+  GetActiveFieldTrialGroups(&active_groups);
+  for (FieldTrial::ActiveGroups::const_iterator it = active_groups.begin();
+       it != active_groups.end(); ++it) {
+    DCHECK_EQ(std::string::npos, it->trial.find(kPersistentStringSeparator));
+    DCHECK_EQ(std::string::npos, it->group.find(kPersistentStringSeparator));
+    output->append(it->trial);
     output->append(1, kPersistentStringSeparator);
-    output->append(group_name);
+    output->append(it->group);
     output->append(1, kPersistentStringSeparator);
   }
 }
