@@ -1930,9 +1930,10 @@
            # Rules for excluding e.g. foo_win.cc from the build on non-Windows.
           'filename_rules.gypi',
         ],
-        # In Chromium code, we define __STDC_FORMAT_MACROS in order to get the
+        # In Chromium code, we define __STDC_foo_MACROS in order to get the
         # C99 macros on Mac and Linux.
         'defines': [
+          '__STDC_CONSTANT_MACROS',
           '__STDC_FORMAT_MACROS',
         ],
         'conditions': [
