@@ -61,6 +61,8 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
 
   QuicSession* session() { return session_; }
 
+  bool write_side_closed() { return write_side_closed_; }
+
  private:
   friend class ReliableQuicStreamPeer;
 
