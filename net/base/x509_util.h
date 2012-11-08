@@ -54,10 +54,16 @@ bool NET_EXPORT_PRIVATE CreateDomainBoundCertEC(
 //   expiration dates)
 // - If equal, prefer certificates that were issued more recently
 // - If equal, prefer shorter chains (if available)
-struct NET_EXPORT_PRIVATE ClientCertSorter {
+class NET_EXPORT_PRIVATE ClientCertSorter {
+ public:
+  ClientCertSorter();
+
   bool operator()(
       const scoped_refptr<X509Certificate>& a,
       const scoped_refptr<X509Certificate>& b) const;
+
+ private:
+  base::Time now_;
 };
 
 } // namespace x509_util
