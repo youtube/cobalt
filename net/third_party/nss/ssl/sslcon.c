@@ -658,7 +658,8 @@ ssl2_SendServerFinishedMessage(sslSocket *ss)
 
 	if (sent < 0) {
 	    /* If send failed, it is now a bogus  session-id */
-	    (*ss->sec.uncache)(sid);
+	    if (ss->sec.uncache)
+		(*ss->sec.uncache)(sid);
 	    rv = (SECStatus)sent;
 	} else if (!ss->opt.noCache) {
 	    /* Put the sid in session-id cache, (may already be there) */
@@ -2891,7 +2892,8 @@ ssl2_HandleServerHelloMessage(sslSocket *ss)
 	    /* Forget our session-id - server didn't like it */
 	    SSL_TRC(7, ("%d: SSL[%d]: server forgot me, uncaching session-id",
 			SSL_GETPID(), ss->fd));
-	    (*ss->sec.uncache)(sid);
+	    if (ss->sec.uncache)
+		(*ss->sec.uncache)(sid);
 	    ssl_FreeSID(sid);
 	    ss->sec.ci.sid = sid = (sslSessionID*) PORT_ZAlloc(sizeof(sslSessionID));
 	    if (!sid) {
@@ -3065,7 +3067,8 @@ ssl2_BeginClientHandshake(sslSocket *ss)
 
 	/* if we're not doing this SID's protocol any more, drop it. */
 	if (!sidVersionEnabled) {
-	    ss->sec.uncache(sid);
+	    if (ss->sec.uncache)
+		ss->sec.uncache(sid);
 	    ssl_FreeSID(sid);
 	    sid = NULL;
 	    break;
@@ -3077,7 +3080,8 @@ ssl2_BeginClientHandshake(sslSocket *ss)
 		    break;
 	    }
 	    if (i >= ss->sizeCipherSpecs) {
-		ss->sec.uncache(sid);
+		if (ss->sec.uncache)
+		    ss->sec.uncache(sid);
 		ssl_FreeSID(sid);
 		sid = NULL;
 		break;
