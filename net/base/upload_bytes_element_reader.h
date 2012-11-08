@@ -28,8 +28,8 @@ class NET_EXPORT_PRIVATE UploadBytesElementReader : public UploadElementReader {
   virtual int ReadSync(IOBuffer* buf, int buf_length) OVERRIDE;
 
  private:
-  const char* bytes_;
-  int bytes_length_;
+  const char* const bytes_;
+  const int bytes_length_;
   int offset_;
 
   DISALLOW_COPY_AND_ASSIGN(UploadBytesElementReader);
