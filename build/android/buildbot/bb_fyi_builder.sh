@@ -14,6 +14,5 @@ bb_baseline_setup "$BB_SRC_ROOT" "$@"
 bb_check_webview_licenses
 bb_compile
 bb_compile_experimental
-bb_run_findbugs_diff
-bb_run_findbugs_plugin_tests
+bb_run_findbugs
 bb_zip_build
