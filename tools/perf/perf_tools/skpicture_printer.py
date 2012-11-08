@@ -5,7 +5,7 @@
 import os
 import re
 
-from chrome_remote_control import multi_page_benchmark
+from telemetry import multi_page_benchmark
 
 _JS = 'chrome.gpuBenchmarking.printToSkPicture("{0}");'
 

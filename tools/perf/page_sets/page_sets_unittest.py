@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 import unittest
 
-from chrome_remote_control import page_set
+from telemetry import page_set
 import page_sets
 
 class PageSetsUnittest(unittest.TestCase):

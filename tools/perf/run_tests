@@ -12,17 +12,17 @@ import os
 import sys
 
 import perf_tools
-import chrome_remote_control.run_tests
+import telemetry.run_tests
 
 if __name__ == '__main__':
   top_level_dir = os.path.abspath(
     os.path.dirname(__file__))
   start_dir = 'perf_tools'
-  ret = chrome_remote_control.run_tests.Main(
+  ret = telemetry.run_tests.Main(
     sys.argv[1:], start_dir, top_level_dir)
 
   start_dir = 'page_sets'
-  ret = chrome_remote_control.run_tests.Main(
+  ret = telemetry.run_tests.Main(
     sys.argv[1:], start_dir, top_level_dir)
 
   sys.exit(ret)

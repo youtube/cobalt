@@ -3,8 +3,8 @@
 # found in the LICENSE file.
 import os
 
-from chrome_remote_control import multi_page_benchmark
-from chrome_remote_control import util
+from telemetry import multi_page_benchmark
+from telemetry import util
 
 class DidNotScrollException(multi_page_benchmark.MeasurementFailure):
   def __init__(self):
