@@ -11,6 +11,8 @@ namespace net {
 
 namespace x509_util {
 
+ClientCertSorter::ClientCertSorter() : now_(base::Time::Now()) {}
+
 bool ClientCertSorter::operator()(
     const scoped_refptr<X509Certificate>& a,
     const scoped_refptr<X509Certificate>& b) const {
@@ -19,9 +21,8 @@ bool ClientCertSorter::operator()(
     return a.get() && !b.get();
 
   // Certificates that are expired/not-yet-valid are sorted last.
-  base::Time now = base::Time::Now();
-  bool a_is_valid = now >= a->valid_start() && now <= a->valid_expiry();
-  bool b_is_valid = now >= b->valid_start() && now <= b->valid_expiry();
+  bool a_is_valid = now_ >= a->valid_start() && now_ <= a->valid_expiry();
+  bool b_is_valid = now_ >= b->valid_start() && now_ <= b->valid_expiry();
   if (a_is_valid != b_is_valid)
     return a_is_valid && !b_is_valid;
 
