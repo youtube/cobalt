@@ -5,6 +5,7 @@
   'variables': {
     'isolate_dependency_tracked': [
       '../testing/test_env.py',
+      '../tools/swarm_client/run_isolated.py',
       '../tools/swarm_client/run_test_cases.py',
       '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
       'data/json/bom_feff.json',
