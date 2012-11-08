@@ -18,9 +18,6 @@ function bb_parse_args {
       --factory-properties=*)
         FACTORY_PROPERTIES="$(echo "$1" | sed 's/^[^=]*=//')"
         BUILDTYPE=$(bb_get_json_prop "$FACTORY_PROPERTIES" target)
-        if [[ $BUILDTYPE = Release ]]; then
-          BUILDFLAG="--release"
-        fi
         ;;
       --build-properties=*)
         BUILD_PROPERTIES="$(echo "$1" | sed 's/^[^=]*=//')"
@@ -213,6 +210,9 @@ function bb_run_unit_tests {
 
 # Run WebKit's test suites: webkit_unit_tests and TestWebKitAPI
 function bb_run_webkit_unit_tests {
+  if [[ $BUILDTYPE = Release ]]; then
+    local BUILDFLAG="--release"
+  fi
   build/android/run_tests.py --xvfb --verbose $BUILDFLAG -s webkit_unit_tests
   build/android/run_tests.py --xvfb --verbose $BUILDFLAG -s TestWebKitAPI
 }
@@ -258,18 +258,17 @@ function bb_run_experimental_unit_tests {
 }
 
 # Run findbugs.
-function bb_run_findbugs_diff {
-  echo "@@@BUILD_STEP findbugs_diff@@@"
-  build/android/findbugs_diff.py
+function bb_run_findbugs {
+  echo "@@@BUILD_STEP findbugs@@@"
+  if [[ $BUILDTYPE = Release ]]; then
+    local BUILDFLAG="--release-build"
+  fi
+  bb_run_step build/android/findbugs_diff.py $BUILDFLAG
+  bb_run_step tools/android/findbugs_plugin/test/run_findbugs_plugin_tests.py \
+    $BUILDFLAG
 }
 
-# Run findbugs plugin tests.
-function bb_run_findbugs_plugin_tests {
-  echo "@@@BUILD_STEP findbugs_plugin_tests@@@"
-  tools/android/findbugs_plugin/test/run_findbugs_plugin_tests.py
-}
-
-# Run a buildbot step and handle failure.
+# Run a buildbot step and handle failure (failure will not halt build).
 function bb_run_step {
   (
   set +e

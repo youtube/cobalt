@@ -16,6 +16,5 @@ BB_SRC_ROOT="$(cd  "$BB_DIR/../../.."; pwd)"
 
 bb_baseline_setup "$BB_SRC_ROOT" "$@"
 bb_compile
-bb_run_findbugs_diff
-bb_run_findbugs_plugin_tests
+bb_run_findbugs
 bb_zip_build
