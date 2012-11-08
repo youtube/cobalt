@@ -69,6 +69,7 @@
       '../third_party/tlslite/tlslite/utils/keyfactory.py',
       '../third_party/tlslite/tlslite/utils/rijndael.py',
       '../third_party/tlslite/tlslite/utils/xmltools.py',
+      '../tools/swarm_client/run_isolated.py',
       '../tools/swarm_client/run_test_cases.py',
       '<(PRODUCT_DIR)/net_unittests<(EXECUTABLE_SUFFIX)',
       'tools/testserver/asn1.py',
