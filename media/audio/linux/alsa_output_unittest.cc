@@ -447,7 +447,11 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
       .WillRepeatedly(Return(kTestFramesPerPacket));
 
   test_stream->Start(&mock_callback);
-  message_loop_.RunAllPending();
+  // Start() will issue a WriteTask() directly and then schedule the next one,
+  // call Stop() immediately after to ensure we don't run the message loop
+  // forever.
+  test_stream->Stop();
+  message_loop_.RunUntilIdle();
 
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
       .WillOnce(Return(0));
