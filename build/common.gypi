@@ -302,7 +302,7 @@
       # PPAPI by default does not support plugins making calls off the main
       # thread. Set to 1 to turn on experimental support for out-of-process
       # plugins to make call of the main thread.
-      'enable_pepper_threading%': 0,
+      'enable_pepper_threading%': 1,
 
       # Enables use of the session service, which is enabled by default.
       # Support for disabling depends on the platform.
