@@ -899,7 +899,7 @@ void GetExtensionsForMimeType(const std::string& unsafe_mime_type,
   base::hash_set<FilePath::StringType> unique_extensions;
 
   if (EndsWith(mime_type, "/*", true)) {
-    std::string leading_mime_type = mime_type.substr(0, mime_type.length() - 2);
+    std::string leading_mime_type = mime_type.substr(0, mime_type.length() - 1);
 
     // Find the matching StandardType from within kStandardTypes, or fall
     // through to the last (default) StandardType.
