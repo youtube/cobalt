@@ -17,7 +17,7 @@
 
 namespace base {
 
-class MessageLoopProxy;
+class SequencedTaskRunner;
 class Thread;
 
 // Helper to ensure that a file won't be corrupted by the write (for example on
@@ -53,11 +53,11 @@ class BASE_EXPORT ImportantFileWriter : public NonThreadSafe {
 
   // Initialize the writer.
   // |path| is the name of file to write.
-  // |file_message_loop_proxy| is the MessageLoopProxy for a thread on which
-  // file I/O can be done.
+  // |task_runner| is the SequencedTaskRunner instance where on which we will
+  // execute file I/O operations.
   // All non-const methods, ctor and dtor must be called on the same thread.
   ImportantFileWriter(const FilePath& path,
-                      MessageLoopProxy* file_message_loop_proxy);
+                      base::SequencedTaskRunner* task_runner);
 
   // You have to ensure that there are no pending writes at the moment
   // of destruction.
@@ -96,8 +96,8 @@ class BASE_EXPORT ImportantFileWriter : public NonThreadSafe {
   // Path being written to.
   const FilePath path_;
 
-  // MessageLoopProxy for the thread on which file I/O can be done.
-  scoped_refptr<MessageLoopProxy> file_message_loop_proxy_;
+  // TaskRunner for the thread on which file I/O can be done.
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // Timer used to schedule commit after ScheduleWrite.
   OneShotTimer<ImportantFileWriter> timer_;
