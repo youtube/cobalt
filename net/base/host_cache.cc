@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/metrics/field_trial.h"
+#include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
 #include "net/base/net_errors.h"
 
@@ -90,6 +91,27 @@ scoped_ptr<HostCache> HostCache::CreateDefaultCache() {
     max_entries = 100;
   }
   return make_scoped_ptr(new HostCache(max_entries));
+}
+
+void HostCache::EvictionHandler::Handle(
+    const Key& key,
+    const Entry& entry,
+    const base::TimeTicks& expiration,
+    const base::TimeTicks& now,
+    bool on_get) const {
+  if (on_get) {
+    DCHECK(now >= expiration);
+    UMA_HISTOGRAM_CUSTOM_TIMES("DNS.CacheExpiredOnGet", now - expiration,
+        base::TimeDelta::FromSeconds(1), base::TimeDelta::FromDays(1), 100);
+    return;
+  }
+  if (expiration > now) {
+    UMA_HISTOGRAM_CUSTOM_TIMES("DNS.CacheEvicted", expiration - now,
+        base::TimeDelta::FromSeconds(1), base::TimeDelta::FromDays(1), 100);
+  } else {
+    UMA_HISTOGRAM_CUSTOM_TIMES("DNS.CacheExpired", now - expiration,
+        base::TimeDelta::FromSeconds(1), base::TimeDelta::FromDays(1), 100);
+  }
 }
 
 }  // namespace net
