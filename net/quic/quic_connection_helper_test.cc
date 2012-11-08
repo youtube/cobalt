@@ -92,7 +92,8 @@ class TestConnectionHelper : public QuicConnectionHelper {
 class QuicConnectionHelperTest : public ::testing::Test {
  protected:
   QuicConnectionHelperTest()
-      : framer_(QuicDecrypter::Create(kNULL), QuicEncrypter::Create(kNULL)),
+      : guid_(0),
+        framer_(QuicDecrypter::Create(kNULL), QuicEncrypter::Create(kNULL)),
         creator_(guid_, &framer_),
         net_log_(BoundNetLog()),
         scheduler_(new MockScheduler()),
@@ -107,7 +108,10 @@ class QuicConnectionHelperTest : public ::testing::Test {
 
   QuicPacket* ConstructDataPacket(QuicPacketSequenceNumber number,
                                   QuicFecGroupNumber fec_group) {
+    header_.guid = guid_;
     header_.packet_sequence_number = number;
+    header_.transmission_time = 0;
+    header_.retransmission_count = 0;
     header_.flags = PACKET_FLAGS_NONE;
     header_.fec_group = fec_group;
 
