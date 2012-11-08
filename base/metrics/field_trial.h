@@ -394,18 +394,6 @@ class BASE_EXPORT FieldTrialList {
   static void NotifyFieldTrialGroupSelection(const std::string& name,
                                              const std::string& group_name);
 
-  // The time of construction of the global map is recorded in a static variable
-  // and is commonly used by experiments to identify the time since the start
-  // of the application.  In some experiments it may be useful to discount
-  // data that is gathered before the application has reached sufficient
-  // stability (example: most DLL have loaded, etc.)
-  static TimeTicks application_start_time() {
-    if (global_)
-      return global_->application_start_time_;
-    // For testing purposes only, or when we don't yet have a start time.
-    return TimeTicks::Now();
-  }
-
   // Return the number of active field trials.
   static size_t GetFieldTrialCount();
 
@@ -433,11 +421,6 @@ class BASE_EXPORT FieldTrialList {
   // creating the FieldTrialList. This is not an error, unless a
   // FieldTrialList is created after that.
   static bool used_without_global_;
-
-  // A helper value made available to users, that shows when the FieldTrialList
-  // was initialized.  Note that this is a singleton instance, and hence is a
-  // good approximation to the start of the process.
-  TimeTicks application_start_time_;
 
   // Lock for access to registered_.
   base::Lock lock_;
