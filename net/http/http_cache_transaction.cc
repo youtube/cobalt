@@ -923,7 +923,7 @@ int HttpCache::Transaction::DoOpenEntry() {
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
   first_cache_access_since_ = TimeTicks::Now();
   ReportCacheActionStart();
-  return cache_->OpenEntry(cache_key_, &new_entry_, this);
+  return ResetCacheIOStart(cache_->OpenEntry(cache_key_, &new_entry_, this));
 }
 
 int HttpCache::Transaction::DoOpenEntryComplete(int result) {
@@ -975,7 +975,7 @@ int HttpCache::Transaction::DoCreateEntry() {
   cache_pending_ = true;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
   ReportCacheActionStart();
-  return cache_->CreateEntry(cache_key_, &new_entry_, this);
+  return ResetCacheIOStart(cache_->CreateEntry(cache_key_, &new_entry_, this));
 }
 
 int HttpCache::Transaction::DoCreateEntryComplete(int result) {
@@ -1014,7 +1014,7 @@ int HttpCache::Transaction::DoDoomEntry() {
     first_cache_access_since_ = TimeTicks::Now();
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
   ReportCacheActionStart();
-  return cache_->DoomEntry(cache_key_, this);
+  return ResetCacheIOStart(cache_->DoomEntry(cache_key_, this));
 }
 
 int HttpCache::Transaction::DoDoomEntryComplete(int result) {
