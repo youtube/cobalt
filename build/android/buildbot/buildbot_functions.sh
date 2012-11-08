@@ -254,10 +254,7 @@ function bb_run_webkit_layout_tests {
 
 # Run experimental unittest bundles.
 function bb_run_experimental_unit_tests {
-  # This build step was added because bash does not allow empty functions.
-  # run_tests.py echoes a build step, comment/remove this build step when you
-  # add tests to the experimental step.
-  echo '@@@BUILD_STEP experimental_unit_tests@@@'
+  build/android/run_tests.py --xvfb --verbose -s android_webview_unittests
 }
 
 # Run findbugs.
