@@ -302,8 +302,8 @@ void QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
 void QuicConnection::OnConnectionCloseFrame(
     const QuicConnectionCloseFrame& frame) {
   DLOG(INFO) << "Connection closed with error " << frame.error_code;
-  visitor_->ConnectionClose(frame.error_code, true);
   connected_ = false;
+  visitor_->ConnectionClose(frame.error_code, true);
 }
 
 void QuicConnection::OnPacketComplete() {
@@ -554,8 +554,8 @@ void QuicConnection::SendConnectionClose(QuicErrorCode error) {
   PacketPair packetpair = packet_creator_.CloseConnection(&frame);
   // There's no point in resending this: we're closing the connection.
   SendPacket(packetpair.first, packetpair.second, false, true);
-  visitor_->ConnectionClose(error, false);
   connected_ = false;
+  visitor_->ConnectionClose(error, false);
 }
 
 void QuicConnection::CloseFecGroupsBefore(
