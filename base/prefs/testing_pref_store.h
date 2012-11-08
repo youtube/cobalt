@@ -21,16 +21,16 @@ class TestingPrefStore : public PersistentPrefStore {
   TestingPrefStore();
 
   // Overriden from PrefStore.
-  virtual ReadResult GetValue(const std::string& key,
-                              const base::Value** result) const OVERRIDE;
+  virtual bool GetValue(const std::string& key,
+                        const base::Value** result) const OVERRIDE;
   virtual void AddObserver(PrefStore::Observer* observer) OVERRIDE;
   virtual void RemoveObserver(PrefStore::Observer* observer) OVERRIDE;
   virtual size_t NumberOfObservers() const OVERRIDE;
   virtual bool IsInitializationComplete() const OVERRIDE;
 
   // PersistentPrefStore overrides:
-  virtual ReadResult GetMutableValue(const std::string& key,
-                                     base::Value** result) OVERRIDE;
+  virtual bool GetMutableValue(const std::string& key,
+                               base::Value** result) OVERRIDE;
   virtual void ReportValueChanged(const std::string& key) OVERRIDE;
   virtual void SetValue(const std::string& key, base::Value* value) OVERRIDE;
   virtual void SetValueSilently(const std::string& key,

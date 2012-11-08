@@ -41,8 +41,8 @@ class BASE_PREFS_EXPORT PersistentPrefStore : public PrefStore {
   };
 
   // Equivalent to PrefStore::GetValue but returns a mutable value.
-  virtual ReadResult GetMutableValue(const std::string& key,
-                                     base::Value** result) = 0;
+  virtual bool GetMutableValue(const std::string& key,
+                               base::Value** result) = 0;
 
   // Triggers a value changed notification. This function needs to be called
   // if one retrieves a list or dictionary with GetMutableValue and change its

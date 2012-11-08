@@ -9,25 +9,25 @@ using base::Value;
 
 DefaultPrefStore::DefaultPrefStore() {}
 
-PrefStore::ReadResult DefaultPrefStore::GetValue(
+bool DefaultPrefStore::GetValue(
     const std::string& key,
     const base::Value** result) const {
-  return prefs_.GetValue(key, result) ? READ_OK : READ_NO_VALUE;
+  return prefs_.GetValue(key, result);
 }
 
 void DefaultPrefStore::SetDefaultValue(const std::string& key, Value* value) {
-  CHECK(GetValue(key, NULL) == READ_NO_VALUE);
+  DCHECK(!GetValue(key, NULL));
   prefs_.SetValue(key, value);
 }
 
 void DefaultPrefStore::RemoveDefaultValue(const std::string& key) {
-  CHECK(GetValue(key, NULL) == READ_OK);
+  DCHECK(GetValue(key, NULL));
   prefs_.RemoveValue(key);
 }
 
 base::Value::Type DefaultPrefStore::GetType(const std::string& key) const {
-  const Value* value;
-  return GetValue(key, &value) == READ_OK ? value->GetType() : Value::TYPE_NULL;
+  const Value* value = NULL;
+  return GetValue(key, &value) ? value->GetType() : Value::TYPE_NULL;
 }
 
 DefaultPrefStore::const_iterator DefaultPrefStore::begin() const {
