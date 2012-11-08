@@ -68,9 +68,9 @@ TEST_F(PrefChangeRegistrarTest, AddAndRemove) {
 
   // Test adding.
   EXPECT_CALL(*service(),
-              AddPrefObserver(Eq(std::string("test.pref.1")), observer()));
+              AddPrefObserver(Eq(std::string("test.pref.1")), &registrar));
   EXPECT_CALL(*service(),
-              AddPrefObserver(Eq(std::string("test.pref.2")), observer()));
+              AddPrefObserver(Eq(std::string("test.pref.2")), &registrar));
   registrar.Add("test.pref.1", observer());
   registrar.Add("test.pref.2", observer());
   EXPECT_FALSE(registrar.IsEmpty());
@@ -78,11 +78,11 @@ TEST_F(PrefChangeRegistrarTest, AddAndRemove) {
   // Test removing.
   Mock::VerifyAndClearExpectations(service());
   EXPECT_CALL(*service(),
-              RemovePrefObserver(Eq(std::string("test.pref.1")), observer()));
+              RemovePrefObserver(Eq(std::string("test.pref.1")), &registrar));
   EXPECT_CALL(*service(),
-              RemovePrefObserver(Eq(std::string("test.pref.2")), observer()));
-  registrar.Remove("test.pref.1", observer());
-  registrar.Remove("test.pref.2", observer());
+              RemovePrefObserver(Eq(std::string("test.pref.2")), &registrar));
+  registrar.Remove("test.pref.1");
+  registrar.Remove("test.pref.2");
   EXPECT_TRUE(registrar.IsEmpty());
 
   // Explicitly check the expectations now to make sure that the Removes
@@ -96,14 +96,14 @@ TEST_F(PrefChangeRegistrarTest, AutoRemove) {
 
   // Setup of auto-remove.
   EXPECT_CALL(*service(),
-              AddPrefObserver(Eq(std::string("test.pref.1")), observer()));
+              AddPrefObserver(Eq(std::string("test.pref.1")), &registrar));
   registrar.Add("test.pref.1", observer());
   Mock::VerifyAndClearExpectations(service());
   EXPECT_FALSE(registrar.IsEmpty());
 
   // Test auto-removing.
   EXPECT_CALL(*service(),
-              RemovePrefObserver(Eq(std::string("test.pref.1")), observer()));
+              RemovePrefObserver(Eq(std::string("test.pref.1")), &registrar));
 }
 
 TEST_F(PrefChangeRegistrarTest, RemoveAll) {
@@ -111,17 +111,17 @@ TEST_F(PrefChangeRegistrarTest, RemoveAll) {
   registrar.Init(service());
 
   EXPECT_CALL(*service(),
-              AddPrefObserver(Eq(std::string("test.pref.1")), observer()));
+              AddPrefObserver(Eq(std::string("test.pref.1")), &registrar));
   EXPECT_CALL(*service(),
-              AddPrefObserver(Eq(std::string("test.pref.2")), observer()));
+              AddPrefObserver(Eq(std::string("test.pref.2")), &registrar));
   registrar.Add("test.pref.1", observer());
   registrar.Add("test.pref.2", observer());
   Mock::VerifyAndClearExpectations(service());
 
   EXPECT_CALL(*service(),
-              RemovePrefObserver(Eq(std::string("test.pref.1")), observer()));
+              RemovePrefObserver(Eq(std::string("test.pref.1")), &registrar));
   EXPECT_CALL(*service(),
-              RemovePrefObserver(Eq(std::string("test.pref.2")), observer()));
+              RemovePrefObserver(Eq(std::string("test.pref.2")), &registrar));
   registrar.RemoveAll();
   EXPECT_TRUE(registrar.IsEmpty());
 
@@ -130,7 +130,8 @@ TEST_F(PrefChangeRegistrarTest, RemoveAll) {
   Mock::VerifyAndClearExpectations(service());
 }
 
-class ObserveSetOfPreferencesTest : public testing::Test {
+class ObserveSetOfPreferencesTest : public testing::Test,
+                                    public PrefObserver {
  public:
   virtual void SetUp() {
     pref_service_.reset(new TestingPrefService);
@@ -147,11 +148,19 @@ class ObserveSetOfPreferencesTest : public testing::Test {
 
   PrefChangeRegistrar* CreatePrefChangeRegistrar(
       PrefObserver* observer) {
+    if (!observer)
+      observer = this;
     PrefChangeRegistrar* pref_set = new PrefChangeRegistrar();
     pref_set->Init(pref_service_.get());
     pref_set->Add(prefs::kHomePage, observer);
     pref_set->Add(prefs::kHomePageIsNewTabPage, observer);
     return pref_set;
+  }
+
+  // PrefObserver (used to enable NULL as parameter to
+  // CreatePrefChangeRegistrar above).
+  virtual void OnPreferenceChanged(PrefServiceBase* service,
+                                   const std::string& pref_name) OVERRIDE {
   }
 
   scoped_ptr<TestingPrefService> pref_service_;
