@@ -11,9 +11,9 @@
 
 ValueMapPrefStore::ValueMapPrefStore() {}
 
-PrefStore::ReadResult ValueMapPrefStore::GetValue(const std::string& key,
-                                                  const Value** value) const {
-  return prefs_.GetValue(key, value) ? READ_OK : READ_NO_VALUE;
+bool ValueMapPrefStore::GetValue(const std::string& key,
+                                 const Value** value) const {
+  return prefs_.GetValue(key, value);
 }
 
 void ValueMapPrefStore::AddObserver(PrefStore::Observer* observer) {

@@ -33,41 +33,37 @@ bool OverlayUserPrefStore::IsInitializationComplete() const {
   return underlay_->IsInitializationComplete();
 }
 
-PrefStore::ReadResult OverlayUserPrefStore::GetValue(
-    const std::string& key,
-    const Value** result) const {
+bool OverlayUserPrefStore::GetValue(const std::string& key,
+                                    const Value** result) const {
   // If the |key| shall NOT be stored in the overlay store, there must not
   // be an entry.
   DCHECK(ShallBeStoredInOverlay(key) || !overlay_.GetValue(key, NULL));
 
   if (overlay_.GetValue(key, result))
-    return READ_OK;
+    return true;
   return underlay_->GetValue(GetUnderlayKey(key), result);
 }
 
-PrefStore::ReadResult OverlayUserPrefStore::GetMutableValue(
-    const std::string& key,
-    Value** result) {
+bool OverlayUserPrefStore::GetMutableValue(const std::string& key,
+                                           Value** result) {
   if (!ShallBeStoredInOverlay(key))
     return underlay_->GetMutableValue(GetUnderlayKey(key), result);
 
   if (overlay_.GetValue(key, result))
-    return READ_OK;
+    return true;
 
   // Try to create copy of underlay if the overlay does not contain a value.
   Value* underlay_value = NULL;
-  PrefStore::ReadResult read_result =
-      underlay_->GetMutableValue(GetUnderlayKey(key), &underlay_value);
-  if (read_result != READ_OK)
-    return read_result;
+  if (!underlay_->GetMutableValue(GetUnderlayKey(key), &underlay_value))
+    return false;
 
   *result = underlay_value->DeepCopy();
   overlay_.SetValue(key, *result);
-  return READ_OK;
+  return true;
 }
 
 void OverlayUserPrefStore::SetValue(const std::string& key,
-                                      Value* value) {
+                                    Value* value) {
   if (!ShallBeStoredInOverlay(key)) {
     underlay_->SetValue(GetUnderlayKey(key), value);
     return;
@@ -78,7 +74,7 @@ void OverlayUserPrefStore::SetValue(const std::string& key,
 }
 
 void OverlayUserPrefStore::SetValueSilently(const std::string& key,
-                                              Value* value) {
+                                            Value* value) {
   if (!ShallBeStoredInOverlay(key)) {
     underlay_->SetValueSilently(GetUnderlayKey(key), value);
     return;
