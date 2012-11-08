@@ -244,10 +244,21 @@ static const AudioObjectPropertyAddress kDeviceChangePropertyAddress = {
 // depending on what kAudioHardwarePropertyRunLoop is set to.
 static OSStatus OnDefaultDeviceChangedCallback(
     AudioObjectID object,
-    UInt32 size,
+    UInt32 num_addresses,
     const AudioObjectPropertyAddress addresses[],
     void* context) {
-  static_cast<base::Closure*>(context)->Run();
+  if (object != kAudioObjectSystemObject)
+    return noErr;
+
+  for (UInt32 i = 0; i < num_addresses; ++i) {
+    if (addresses[i].mSelector == kDeviceChangePropertyAddress.mSelector &&
+        addresses[i].mScope == kDeviceChangePropertyAddress.mScope &&
+        addresses[i].mElement == kDeviceChangePropertyAddress.mElement &&
+        context) {
+      static_cast<base::Closure*>(context)->Run();
+    }
+  }
+
   return noErr;
 }
 
