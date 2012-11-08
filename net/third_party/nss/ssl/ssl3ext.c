@@ -1204,7 +1204,8 @@ ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
 	 * renegotiation.)
 	 */
 	if (ss->sec.ci.sid != NULL) {
-	    ss->sec.uncache(ss->sec.ci.sid);
+	    if (ss->sec.uncache)
+		ss->sec.uncache(ss->sec.ci.sid);
 	    ssl_FreeSID(ss->sec.ci.sid);
 	    ss->sec.ci.sid = NULL;
 	}

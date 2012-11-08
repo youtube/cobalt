@@ -2666,7 +2666,8 @@ ssl3_HandleNoCertificate(sslSocket *ss)
 	 (ss->opt.requireCertificate == SSL_REQUIRE_FIRST_HANDSHAKE))) {
 	PRFileDesc * lower;
 
-	ss->sec.uncache(ss->sec.ci.sid);
+	if (ss->sec.uncache)
+            ss->sec.uncache(ss->sec.ci.sid);
 	SSL3_SendAlert(ss, alert_fatal, bad_certificate);
 
 	lower = ss->fd->lower;
@@ -2721,7 +2722,7 @@ SSL3_SendAlert(sslSocket *ss, SSL3AlertLevel level, SSL3AlertDescription desc)
 
     ssl_GetSSL3HandshakeLock(ss);
     if (level == alert_fatal) {
-	if (ss->sec.ci.sid) {
+	if (!ss->opt.noCache && ss->sec.ci.sid && ss->sec.uncache) {
 	    ss->sec.uncache(ss->sec.ci.sid);
 	}
     }
@@ -2891,8 +2892,10 @@ ssl3_HandleAlert(sslSocket *ss, sslBuffer *buf)
     default: 		error = SSL_ERROR_RX_UNKNOWN_ALERT;               break;
     }
     if (level == alert_fatal) {
-	if (!ss->opt.noCache)
-	    ss->sec.uncache(ss->sec.ci.sid);
+	if (!ss->opt.noCache) {
+	    if (ss->sec.uncache)
+                ss->sec.uncache(ss->sec.ci.sid);
+	}
 	if ((ss->ssl3.hs.ws == wait_server_hello) &&
 	    (desc == handshake_failure)) {
 	    /* XXX This is a hack.  We're assuming that any handshake failure
@@ -4152,7 +4155,8 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
 
 	if (!sidOK) {
 	    SSL_AtomicIncrementLong(& ssl3stats.sch_sid_cache_not_ok );
-	    (*ss->sec.uncache)(sid);
+	    if (ss->sec.uncache)
+                (*ss->sec.uncache)(sid);
 	    ssl_FreeSID(sid);
 	    sid = NULL;
 	}
@@ -4457,7 +4461,8 @@ ssl3_HandleHelloRequest(sslSocket *ss)
     }
 
     if (sid) {
-	ss->sec.uncache(sid);
+	if (ss->sec.uncache)
+            ss->sec.uncache(sid);
 	ssl_FreeSID(sid);
 	ss->sec.ci.sid = NULL;
     }
@@ -5588,7 +5593,8 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 
     /* throw the old one away */
     sid->u.ssl3.keys.resumable = PR_FALSE;
-    (*ss->sec.uncache)(sid);
+    if (ss->sec.uncache)
+        (*ss->sec.uncache)(sid);
     ssl_FreeSID(sid);
 
     /* get a new sid */
@@ -6851,7 +6857,8 @@ ssl3_HandleClientHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	      && !ss->firstHsDone))) {
 
 	    SSL_AtomicIncrementLong(& ssl3stats.hch_sid_cache_not_ok );
-	    ss->sec.uncache(sid);
+	    if (ss->sec.uncache)
+                ss->sec.uncache(sid);
 	    ssl_FreeSID(sid);
 	    sid = NULL;
 	}
@@ -6998,7 +7005,8 @@ compression_found:
 	}
 
 	if (ss->sec.ci.sid) {
-	    ss->sec.uncache(ss->sec.ci.sid);
+	    if (ss->sec.uncache)
+                ss->sec.uncache(ss->sec.ci.sid);
 	    PORT_Assert(ss->sec.ci.sid != sid);  /* should be impossible, but ... */
 	    if (ss->sec.ci.sid != sid) {
 		ssl_FreeSID(ss->sec.ci.sid);
@@ -7167,7 +7175,8 @@ compression_found:
 
     if (sid) { 	/* we had a sid, but it's no longer valid, free it */
 	SSL_AtomicIncrementLong(& ssl3stats.hch_sid_cache_not_ok );
-	ss->sec.uncache(sid);
+	if (ss->sec.uncache)
+            ss->sec.uncache(sid);
 	ssl_FreeSID(sid);
 	sid = NULL;
     }
@@ -10782,7 +10791,8 @@ ssl3_RedoHandshake(sslSocket *ss, PRBool flushCache)
 	return SECFailure;
     }
     if (sid && flushCache) {
-	ss->sec.uncache(sid);	/* remove it from whichever cache it's in. */
+        if (ss->sec.uncache)
+            ss->sec.uncache(sid); /* remove it from whichever cache it's in. */
 	ssl_FreeSID(sid);	/* dec ref count and free if zero. */
 	ss->sec.ci.sid = NULL;
     }
