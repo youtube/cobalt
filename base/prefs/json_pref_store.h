@@ -20,7 +20,8 @@
 
 namespace base {
 class DictionaryValue;
-class MessageLoopProxy;
+class SequencedWorkerPool;
+class SequencedTaskRunner;
 class Value;
 }
 
@@ -31,10 +32,16 @@ class BASE_PREFS_EXPORT JsonPrefStore
     : public PersistentPrefStore,
       public base::ImportantFileWriter::DataSerializer {
  public:
-  // |file_message_loop_proxy| is the MessageLoopProxy for a thread on which
-  // file I/O can be done.
+  // Returns instance of SequencedTaskRunner which guarantees that file
+  // operations on the same file will be executed in sequenced order.
+  static scoped_refptr<base::SequencedTaskRunner> GetTaskRunnerForFile(
+      const FilePath& pref_filename,
+      base::SequencedWorkerPool* worker_pool);
+
+  // |sequenced_task_runner| is must be a shutdown-blocking task runner, ideally
+  // created by GetTaskRunnerForFile() method above.
   JsonPrefStore(const FilePath& pref_filename,
-                base::MessageLoopProxy* file_message_loop_proxy);
+                base::SequencedTaskRunner* sequenced_task_runner);
 
   // PrefStore overrides:
   virtual ReadResult GetValue(const std::string& key,
@@ -72,7 +79,7 @@ class BASE_PREFS_EXPORT JsonPrefStore
   virtual bool SerializeData(std::string* output) OVERRIDE;
 
   FilePath path_;
-  scoped_refptr<base::MessageLoopProxy> file_message_loop_proxy_;
+  const scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner_;
 
   scoped_ptr<base::DictionaryValue> prefs_;
 
