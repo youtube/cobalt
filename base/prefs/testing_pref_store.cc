@@ -12,14 +12,14 @@ TestingPrefStore::TestingPrefStore()
       init_complete_(false) {
 }
 
-PrefStore::ReadResult TestingPrefStore::GetValue(const std::string& key,
-                                                 const Value** value) const {
-  return prefs_.GetValue(key, value) ? READ_OK : READ_NO_VALUE;
+bool TestingPrefStore::GetValue(const std::string& key,
+                                const Value** value) const {
+  return prefs_.GetValue(key, value);
 }
 
-PrefStore::ReadResult TestingPrefStore::GetMutableValue(const std::string& key,
-                                                        Value** value) {
-  return prefs_.GetValue(key, value) ? READ_OK : READ_NO_VALUE;
+bool TestingPrefStore::GetMutableValue(const std::string& key,
+                                       Value** value) {
+  return prefs_.GetValue(key, value);
 }
 
 void TestingPrefStore::AddObserver(PrefStore::Observer* observer) {

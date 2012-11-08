@@ -96,15 +96,14 @@ void RunBasicJsonPrefStoreTest(JsonPrefStore* pref_store,
   std::string cnn("http://www.cnn.com");
 
   const Value* actual;
-  EXPECT_EQ(PrefStore::READ_OK,
-            pref_store->GetValue(prefs::kHomePage, &actual));
+  EXPECT_TRUE(pref_store->GetValue(prefs::kHomePage, &actual));
   std::string string_value;
   EXPECT_TRUE(actual->GetAsString(&string_value));
   EXPECT_EQ(cnn, string_value);
 
   const char kSomeDirectory[] = "some_directory";
 
-  EXPECT_EQ(PrefStore::READ_OK, pref_store->GetValue(kSomeDirectory, &actual));
+  EXPECT_TRUE(pref_store->GetValue(kSomeDirectory, &actual));
   FilePath::StringType path;
   EXPECT_TRUE(actual->GetAsString(&path));
   EXPECT_EQ(FilePath::StringType(FILE_PATH_LITERAL("/usr/local/")), path);
@@ -112,37 +111,35 @@ void RunBasicJsonPrefStoreTest(JsonPrefStore* pref_store,
 
   pref_store->SetValue(kSomeDirectory,
                        Value::CreateStringValue(some_path.value()));
-  EXPECT_EQ(PrefStore::READ_OK, pref_store->GetValue(kSomeDirectory, &actual));
+  EXPECT_TRUE(pref_store->GetValue(kSomeDirectory, &actual));
   EXPECT_TRUE(actual->GetAsString(&path));
   EXPECT_EQ(some_path.value(), path);
 
   // Test reading some other data types from sub-dictionaries.
-  EXPECT_EQ(PrefStore::READ_OK,
-            pref_store->GetValue(kNewWindowsInTabs, &actual));
+  EXPECT_TRUE(pref_store->GetValue(kNewWindowsInTabs, &actual));
   bool boolean = false;
   EXPECT_TRUE(actual->GetAsBoolean(&boolean));
   EXPECT_TRUE(boolean);
 
   pref_store->SetValue(kNewWindowsInTabs,
                       Value::CreateBooleanValue(false));
-  EXPECT_EQ(PrefStore::READ_OK,
-            pref_store->GetValue(kNewWindowsInTabs, &actual));
+  EXPECT_TRUE(pref_store->GetValue(kNewWindowsInTabs, &actual));
   EXPECT_TRUE(actual->GetAsBoolean(&boolean));
   EXPECT_FALSE(boolean);
 
-  EXPECT_EQ(PrefStore::READ_OK, pref_store->GetValue(kMaxTabs, &actual));
+  EXPECT_TRUE(pref_store->GetValue(kMaxTabs, &actual));
   int integer = 0;
   EXPECT_TRUE(actual->GetAsInteger(&integer));
   EXPECT_EQ(20, integer);
   pref_store->SetValue(kMaxTabs, Value::CreateIntegerValue(10));
-  EXPECT_EQ(PrefStore::READ_OK, pref_store->GetValue(kMaxTabs, &actual));
+  EXPECT_TRUE(pref_store->GetValue(kMaxTabs, &actual));
   EXPECT_TRUE(actual->GetAsInteger(&integer));
   EXPECT_EQ(10, integer);
 
   pref_store->SetValue(kLongIntPref,
                       Value::CreateStringValue(
                           base::Int64ToString(214748364842LL)));
-  EXPECT_EQ(PrefStore::READ_OK, pref_store->GetValue(kLongIntPref, &actual));
+  EXPECT_TRUE(pref_store->GetValue(kLongIntPref, &actual));
   EXPECT_TRUE(actual->GetAsString(&string_value));
   int64 value;
   base::StringToInt64(string_value, &value);

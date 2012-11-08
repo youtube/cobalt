@@ -20,8 +20,8 @@ class BASE_PREFS_EXPORT DefaultPrefStore : public PrefStore {
 
   DefaultPrefStore();
 
-  virtual ReadResult GetValue(const std::string& key,
-                              const base::Value** result) const OVERRIDE;
+  virtual bool GetValue(const std::string& key,
+                        const base::Value** result) const OVERRIDE;
 
   // Stores a new |value| for |key|. Assumes ownership of |value|.
   void SetDefaultValue(const std::string& key, Value* value);
