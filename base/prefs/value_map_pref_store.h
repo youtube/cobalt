@@ -21,8 +21,8 @@ class BASE_PREFS_EXPORT ValueMapPrefStore : public PrefStore {
   ValueMapPrefStore();
 
   // PrefStore overrides:
-  virtual ReadResult GetValue(const std::string& key,
-                              const base::Value** value) const OVERRIDE;
+  virtual bool GetValue(const std::string& key,
+                        const base::Value** value) const OVERRIDE;
   virtual void AddObserver(PrefStore::Observer* observer) OVERRIDE;
   virtual void RemoveObserver(PrefStore::Observer* observer) OVERRIDE;
   virtual size_t NumberOfObservers() const OVERRIDE;
