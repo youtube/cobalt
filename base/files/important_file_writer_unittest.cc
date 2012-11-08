@@ -105,8 +105,7 @@ TEST_F(ImportantFileWriterTest, DoScheduledWrite) {
   EXPECT_EQ("foo", GetFileContent(writer.path()));
 }
 
-// Flaky - http://crbug.com/109292
-TEST_F(ImportantFileWriterTest, DISABLED_BatchingWrites) {
+TEST_F(ImportantFileWriterTest, BatchingWrites) {
   ImportantFileWriter writer(file_,
                              MessageLoopProxy::current());
   writer.set_commit_interval(TimeDelta::FromMilliseconds(25));
