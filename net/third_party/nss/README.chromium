@@ -104,6 +104,10 @@ Patches:
     https://bugzilla.mozilla.org/show_bug.cgi?id=783448
     patches/renegoclientversion.patch
 
+  * Fix remaining crashes when SSL session caching is off.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=770057
+    patches/checkuncache.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 
