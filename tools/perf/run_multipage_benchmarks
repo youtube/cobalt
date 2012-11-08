@@ -6,7 +6,7 @@ import os
 import sys
 
 import perf_tools
-from chrome_remote_control import multi_page_benchmark_runner
+from telemetry import multi_page_benchmark_runner
 
 if __name__ == '__main__':
   benchmark_dir = os.path.join(os.path.dirname(__file__), 'perf_tools')

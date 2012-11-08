@@ -2,8 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from chrome_remote_control import multi_page_benchmark
-from chrome_remote_control import util
+from telemetry import multi_page_benchmark
+from telemetry import util
 
 class SpaceportBenchmark(multi_page_benchmark.MultiPageBenchmark):
   def CustomizeBrowserOptions(self, options):

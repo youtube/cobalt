@@ -6,9 +6,9 @@ import os
 import sys
 
 def Init():
-  crc_path = os.path.join(os.path.dirname(__file__),
-                          '..', '..', 'chrome_remote_control')
-  absolute_crc_path = os.path.abspath(crc_path)
-  sys.path.append(absolute_crc_path)
+  telemetry_path = os.path.join(os.path.dirname(__file__),
+                          '..', '..', 'telemetry')
+  absolute_telemetry_path = os.path.abspath(telemetry_path)
+  sys.path.append(absolute_telemetry_path)
 
 Init()
