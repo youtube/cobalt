@@ -89,35 +89,33 @@ TEST_F(OverlayUserPrefStoreTest, Observer) {
 
 TEST_F(OverlayUserPrefStoreTest, GetAndSet) {
   const Value* value = NULL;
-  EXPECT_EQ(PrefStore::READ_NO_VALUE,
-            overlay_->GetValue(overlay_key, &value));
-  EXPECT_EQ(PrefStore::READ_NO_VALUE,
-            underlay_->GetValue(overlay_key, &value));
+  EXPECT_FALSE(overlay_->GetValue(overlay_key, &value));
+  EXPECT_FALSE(underlay_->GetValue(overlay_key, &value));
 
   underlay_->SetValue(overlay_key, Value::CreateIntegerValue(42));
 
   // Value shines through:
-  EXPECT_EQ(PrefStore::READ_OK, overlay_->GetValue(overlay_key, &value));
+  EXPECT_TRUE(overlay_->GetValue(overlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(42).Equals(value));
 
-  EXPECT_EQ(PrefStore::READ_OK, underlay_->GetValue(overlay_key, &value));
+  EXPECT_TRUE(underlay_->GetValue(overlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(42).Equals(value));
 
   overlay_->SetValue(overlay_key, Value::CreateIntegerValue(43));
 
-  EXPECT_EQ(PrefStore::READ_OK, overlay_->GetValue(overlay_key, &value));
+  EXPECT_TRUE(overlay_->GetValue(overlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(43).Equals(value));
 
-  EXPECT_EQ(PrefStore::READ_OK, underlay_->GetValue(overlay_key, &value));
+  EXPECT_TRUE(underlay_->GetValue(overlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(42).Equals(value));
 
   overlay_->RemoveValue(overlay_key);
 
   // Value shines through:
-  EXPECT_EQ(PrefStore::READ_OK, overlay_->GetValue(overlay_key, &value));
+  EXPECT_TRUE(overlay_->GetValue(overlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(42).Equals(value));
 
-  EXPECT_EQ(PrefStore::READ_OK, underlay_->GetValue(overlay_key, &value));
+  EXPECT_TRUE(underlay_->GetValue(overlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(42).Equals(value));
 }
 
@@ -126,22 +124,19 @@ TEST_F(OverlayUserPrefStoreTest, ModifyDictionaries) {
   underlay_->SetValue(overlay_key, new DictionaryValue);
 
   Value* modify = NULL;
-  EXPECT_EQ(PrefStore::READ_OK,
-            overlay_->GetMutableValue(overlay_key, &modify));
+  EXPECT_TRUE(overlay_->GetMutableValue(overlay_key, &modify));
   ASSERT_TRUE(modify);
   ASSERT_TRUE(modify->IsType(Value::TYPE_DICTIONARY));
   static_cast<DictionaryValue*>(modify)->SetInteger(overlay_key, 42);
 
   Value* original_in_underlay = NULL;
-  EXPECT_EQ(PrefStore::READ_OK,
-            underlay_->GetMutableValue(overlay_key, &original_in_underlay));
+  EXPECT_TRUE(underlay_->GetMutableValue(overlay_key, &original_in_underlay));
   ASSERT_TRUE(original_in_underlay);
   ASSERT_TRUE(original_in_underlay->IsType(Value::TYPE_DICTIONARY));
   EXPECT_TRUE(static_cast<DictionaryValue*>(original_in_underlay)->empty());
 
   Value* modified = NULL;
-  EXPECT_EQ(PrefStore::READ_OK,
-            overlay_->GetMutableValue(overlay_key, &modified));
+  EXPECT_TRUE(overlay_->GetMutableValue(overlay_key, &modified));
   ASSERT_TRUE(modified);
   ASSERT_TRUE(modified->IsType(Value::TYPE_DICTIONARY));
   EXPECT_TRUE(Value::Equals(modify, static_cast<DictionaryValue*>(modified)));
@@ -165,7 +160,7 @@ TEST_F(OverlayUserPrefStoreTest, GlobalPref) {
   Mock::VerifyAndClearExpectations(&obs);
 
   // Check that we get this value from the overlay
-  EXPECT_EQ(PrefStore::READ_OK, overlay_->GetValue(regular_key, &value));
+  EXPECT_TRUE(overlay_->GetValue(regular_key, &value));
   EXPECT_TRUE(base::FundamentalValue(43).Equals(value));
 
   // Check that overwriting change in overlay is reported.
@@ -174,9 +169,9 @@ TEST_F(OverlayUserPrefStoreTest, GlobalPref) {
   Mock::VerifyAndClearExpectations(&obs);
 
   // Check that we get this value from the overlay and the underlay.
-  EXPECT_EQ(PrefStore::READ_OK, overlay_->GetValue(regular_key, &value));
+  EXPECT_TRUE(overlay_->GetValue(regular_key, &value));
   EXPECT_TRUE(base::FundamentalValue(44).Equals(value));
-  EXPECT_EQ(PrefStore::READ_OK, underlay_->GetValue(regular_key, &value));
+  EXPECT_TRUE(underlay_->GetValue(regular_key, &value));
   EXPECT_TRUE(base::FundamentalValue(44).Equals(value));
 
   // Check that overlay remove is reported.
@@ -185,8 +180,8 @@ TEST_F(OverlayUserPrefStoreTest, GlobalPref) {
   Mock::VerifyAndClearExpectations(&obs);
 
   // Check that value was removed from overlay and underlay
-  EXPECT_EQ(PrefStore::READ_NO_VALUE, overlay_->GetValue(regular_key, &value));
-  EXPECT_EQ(PrefStore::READ_NO_VALUE, underlay_->GetValue(regular_key, &value));
+  EXPECT_FALSE(overlay_->GetValue(regular_key, &value));
+  EXPECT_FALSE(underlay_->GetValue(regular_key, &value));
 
   // Check respecting of silence.
   EXPECT_CALL(obs, OnPrefValueChanged(StrEq(regular_key))).Times(0);
@@ -221,11 +216,10 @@ TEST_F(OverlayUserPrefStoreTest, NamesMapping) {
   Mock::VerifyAndClearExpectations(&obs);
 
   // Check that we get this value from the overlay with both keys
-  EXPECT_EQ(PrefStore::READ_OK, overlay_->GetValue(mapped_overlay_key, &value));
+  EXPECT_TRUE(overlay_->GetValue(mapped_overlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(43).Equals(value));
   // In this case, overlay reads directly from the underlay.
-  EXPECT_EQ(PrefStore::READ_OK,
-            overlay_->GetValue(mapped_underlay_key, &value));
+  EXPECT_TRUE(overlay_->GetValue(mapped_underlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(43).Equals(value));
 
   // Check that overwriting change in overlay is reported.
@@ -235,13 +229,11 @@ TEST_F(OverlayUserPrefStoreTest, NamesMapping) {
 
   // Check that we get an overriden value from overlay, while reading the
   // value from underlay still holds an old value.
-  EXPECT_EQ(PrefStore::READ_OK, overlay_->GetValue(mapped_overlay_key, &value));
+  EXPECT_TRUE(overlay_->GetValue(mapped_overlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(44).Equals(value));
-  EXPECT_EQ(PrefStore::READ_OK,
-            overlay_->GetValue(mapped_underlay_key, &value));
+  EXPECT_TRUE(overlay_->GetValue(mapped_underlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(43).Equals(value));
-  EXPECT_EQ(PrefStore::READ_OK,
-            underlay_->GetValue(mapped_underlay_key, &value));
+  EXPECT_TRUE(underlay_->GetValue(mapped_underlay_key, &value));
   EXPECT_TRUE(base::FundamentalValue(43).Equals(value));
 
   // Check that hidden underlay change is not reported.
@@ -260,10 +252,8 @@ TEST_F(OverlayUserPrefStoreTest, NamesMapping) {
   Mock::VerifyAndClearExpectations(&obs);
 
   // Check that value was removed.
-  EXPECT_EQ(PrefStore::READ_NO_VALUE,
-            overlay_->GetValue(mapped_overlay_key, &value));
-  EXPECT_EQ(PrefStore::READ_NO_VALUE,
-            overlay_->GetValue(mapped_underlay_key, &value));
+  EXPECT_FALSE(overlay_->GetValue(mapped_overlay_key, &value));
+  EXPECT_FALSE(overlay_->GetValue(mapped_underlay_key, &value));
 
   // Check respecting of silence.
   EXPECT_CALL(obs, OnPrefValueChanged(StrEq(mapped_overlay_key))).Times(0);

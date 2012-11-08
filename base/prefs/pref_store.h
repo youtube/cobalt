@@ -36,16 +36,6 @@ class BASE_PREFS_EXPORT PrefStore : public base::RefCounted<PrefStore> {
     virtual ~Observer() {}
   };
 
-  // Return values for GetValue().
-  enum ReadResult {
-    // Value found and returned.
-    READ_OK,
-    // No value present, but skip other pref stores and use default.
-    READ_USE_DEFAULT,
-    // No value present.
-    READ_NO_VALUE,
-  };
-
   PrefStore() {}
 
   // Add and remove observers.
@@ -57,10 +47,10 @@ class BASE_PREFS_EXPORT PrefStore : public base::RefCounted<PrefStore> {
   virtual bool IsInitializationComplete() const;
 
   // Get the value for a given preference |key| and stores it in |*result|.
-  // |*result| is only modified if the return value is READ_OK and if |result|
+  // |*result| is only modified if the return value is true and if |result|
   // is not NULL. Ownership of the |*result| value remains with the PrefStore.
-  virtual ReadResult GetValue(const std::string& key,
-                              const base::Value** result) const = 0;
+  virtual bool GetValue(const std::string& key,
+                        const base::Value** result) const = 0;
 
  protected:
   friend class base::RefCounted<PrefStore>;
