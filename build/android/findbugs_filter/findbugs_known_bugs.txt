@@ -179,7 +179,6 @@ M M Wa: Wait not in loop in org.chromium.content.browser.VSyncMonitorTest.testVS
 M P SIC: Should org.chromium.android_webview.test.AwSettingsTest$ViewPair be a _static_ inner class?  At AwSettingsTest.java
 M P SIC: Should org.chromium.android_webview.test.TestAwContentsClient$AddMessageToConsoleHelper be a _static_ inner class?  At TestAwContentsClient.java
 M P SIC: Should org.chromium.android_webview.test.TestContentProvider$ProviderStateCursor be a _static_ inner class?  At TestContentProvider.java
-M P SIC: Should org.chromium.content.browser.ContentVideoView$ProgressView be a _static_ inner class?  At ContentVideoView.java
 M P SIC: Should org.chromium.content.browser.ContentViewGestureHandlerTest$GestureRecordingMotionEventDelegate$GestureEvent be a _static_ inner class?  At ContentViewGestureHandlerTest.java
 M P SIC: Should org.chromium.content.browser.JavaBridgeArrayCoercionTest$CustomType be a _static_ inner class?  At JavaBridgeArrayCoercionTest.java
 M P SIC: Should org.chromium.content.browser.JavaBridgeFieldsTest$CustomType be a _static_ inner class?  At JavaBridgeFieldsTest.java
