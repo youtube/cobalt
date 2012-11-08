@@ -46,6 +46,14 @@ class NET_EXPORT_PRIVATE UploadFileElementReader : public UploadElementReader {
   virtual int ReadSync(IOBuffer* buf, int buf_length) OVERRIDE;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, FileSmallerThanLength);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
+                           UploadFileSmallerThanLength);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy2Test,
+                           UploadFileSmallerThanLength);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy3Test,
+                           UploadFileSmallerThanLength);
+
   // Resets this instance to the uninitialized state.
   void Reset();
 
@@ -67,22 +75,14 @@ class NET_EXPORT_PRIVATE UploadFileElementReader : public UploadElementReader {
     ~ScopedOverridingContentLengthForTests();
   };
 
-  FilePath path_;
-  uint64 range_offset_;
-  uint64 range_length_;
-  base::Time expected_modification_time_;
+  const FilePath path_;
+  const uint64 range_offset_;
+  const uint64 range_length_;
+  const base::Time expected_modification_time_;
   ScopedFileStreamPtr file_stream_;
   uint64 content_length_;
   uint64 bytes_remaining_;
   base::WeakPtrFactory<UploadFileElementReader> weak_ptr_factory_;
-
-  FRIEND_TEST_ALL_PREFIXES(UploadDataStreamTest, FileSmallerThanLength);
-  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
-                           UploadFileSmallerThanLength);
-  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy2Test,
-                           UploadFileSmallerThanLength);
-  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy3Test,
-                           UploadFileSmallerThanLength);
 
   DISALLOW_COPY_AND_ASSIGN(UploadFileElementReader);
 };
