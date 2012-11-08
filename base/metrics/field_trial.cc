@@ -231,8 +231,7 @@ FieldTrialList::Observer::~Observer() {
 
 FieldTrialList::FieldTrialList(
     const FieldTrial::EntropyProvider* entropy_provider)
-    : application_start_time_(TimeTicks::Now()),
-      entropy_provider_(entropy_provider),
+    : entropy_provider_(entropy_provider),
       observer_list_(new ObserverListThreadSafe<FieldTrialList::Observer>(
           ObserverListBase<FieldTrialList::Observer>::NOTIFY_EXISTING_ONLY)) {
   DCHECK(!global_);
