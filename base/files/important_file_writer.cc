@@ -13,7 +13,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
-#include "base/message_loop_proxy.h"
+#include "base/task_runner.h"
 #include "base/metrics/histogram.h"
 #include "base/string_number_conversions.h"
 #include "base/threading/thread.h"
@@ -90,14 +90,14 @@ void WriteToDiskTask(const FilePath& path, const std::string& data) {
 }  // namespace
 
 ImportantFileWriter::ImportantFileWriter(
-    const FilePath& path, MessageLoopProxy* file_message_loop_proxy)
+    const FilePath& path, base::SequencedTaskRunner* task_runner)
         : path_(path),
-          file_message_loop_proxy_(file_message_loop_proxy),
+          task_runner_(task_runner),
           serializer_(NULL),
           commit_interval_(TimeDelta::FromMilliseconds(
               kDefaultCommitIntervalMs)) {
   DCHECK(CalledOnValidThread());
-  DCHECK(file_message_loop_proxy_.get());
+  DCHECK(task_runner_.get());
 }
 
 ImportantFileWriter::~ImportantFileWriter() {
@@ -122,8 +122,8 @@ void ImportantFileWriter::WriteNow(const std::string& data) {
   if (HasPendingWrite())
     timer_.Stop();
 
-  if (!file_message_loop_proxy_->PostTask(
-      FROM_HERE, MakeCriticalClosure(Bind(&WriteToDiskTask, path_, data)))) {
+  if (!task_runner_->PostTask(FROM_HERE,
+          MakeCriticalClosure(Bind(&WriteToDiskTask, path_, data)))) {
     // Posting the task to background message loop is not expected
     // to fail, but if it does, avoid losing data and just hit the disk
     // on the current thread.
