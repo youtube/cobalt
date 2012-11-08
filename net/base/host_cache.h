@@ -61,8 +61,17 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     HostResolverFlags host_resolver_flags;
   };
 
+  struct EvictionHandler {
+    void Handle(const Key& key,
+                const Entry& entry,
+                const base::TimeTicks& expiration,
+                const base::TimeTicks& now,
+                bool onGet) const;
+  };
+
   typedef ExpiringCache<Key, Entry, base::TimeTicks,
-                        std::less<base::TimeTicks> > EntryMap;
+                        std::less<base::TimeTicks>,
+                        EvictionHandler> EntryMap;
 
   // Constructs a HostCache that stores up to |max_entries|.
   explicit HostCache(size_t max_entries);
