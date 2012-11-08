@@ -177,7 +177,8 @@ class TestResults(object):
 
     # Summarize in the test output.
     summary = ['Summary:\n']
-    summary += ['TESTS_TO_RUN=%d\n' % (len(tests_to_run))]
+    if tests_to_run:
+      summary += ['TESTS_TO_RUN=%d\n' % (len(tests_to_run))]
     num_tests_ran = (len(self.ok) + len(self.failed) +
                      len(self.crashed) + len(self.unknown))
     tests_passed = [t.name for t in self.ok]
@@ -189,7 +190,7 @@ class TestResults(object):
                 'FAILED=%d %s\n' % (len(tests_failed), tests_failed),
                 'CRASHED=%d %s\n' % (len(tests_crashed), tests_crashed),
                 'UNKNOWN=%d %s\n' % (len(tests_unknown), tests_unknown)]
-    if num_tests_ran != len(tests_to_run):
+    if tests_to_run and num_tests_ran != len(tests_to_run):
       # Add the list of tests we failed to run.
       tests_failed_to_run = list(set(tests_to_run) - set(tests_passed) -
                             set(tests_failed) - set(tests_crashed) -
