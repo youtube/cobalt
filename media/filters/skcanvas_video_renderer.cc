@@ -68,9 +68,12 @@ static void FastPaint(
             video_frame->stride(media::VideoFrame::kVPlane));
 
   const SkBitmap& bitmap = canvas->getDevice()->accessBitmap(true);
-  media::YUVType yuv_type = (video_frame->format() == media::VideoFrame::YV12) ?
-                            media::YV12 : media::YV16;
-  int y_shift = yuv_type;  // 1 for YV12, 0 for YV16.
+  media::YUVType yuv_type = media::YV16;
+  int y_shift = 0;
+  if (video_frame->format() == media::VideoFrame::YV12) {
+    yuv_type = media::YV12;
+    y_shift = 1;
+  }
 
   // Transform the destination rectangle to local coordinates.
   const SkMatrix& local_matrix = canvas->getTotalMatrix();
@@ -109,27 +112,29 @@ static void FastPaint(
   DCHECK_NE(0, dest_rect.width());
   DCHECK_NE(0, dest_rect.height());
   size_t frame_clip_width = local_dest_irect.width() *
-      video_frame->data_size().width() / local_dest_irect_saved.width();
+      video_frame->visible_rect().width() / local_dest_irect_saved.width();
   size_t frame_clip_height = local_dest_irect.height() *
-      video_frame->data_size().height() / local_dest_irect_saved.height();
+      video_frame->visible_rect().height() / local_dest_irect_saved.height();
 
   // Project the "left" and "top" of the final destination rect to local
   // coordinates of the video frame, use these values to find the offsets
   // in the video frame to start reading.
   size_t frame_clip_left =
+      video_frame->visible_rect().x() +
       (local_dest_irect.fLeft - local_dest_irect_saved.fLeft) *
-      video_frame->data_size().width() / local_dest_irect_saved.width();
+      video_frame->visible_rect().width() / local_dest_irect_saved.width();
   size_t frame_clip_top =
+      video_frame->visible_rect().y() +
       (local_dest_irect.fTop - local_dest_irect_saved.fTop) *
-      video_frame->data_size().height() / local_dest_irect_saved.height();
+      video_frame->visible_rect().height() / local_dest_irect_saved.height();
 
   // Use the "left" and "top" of the destination rect to locate the offset
   // in Y, U and V planes.
-  size_t y_offset = video_frame->stride(media::VideoFrame::kYPlane) *
-      frame_clip_top + frame_clip_left;
+  size_t y_offset = (video_frame->stride(media::VideoFrame::kYPlane) *
+                     frame_clip_top) + frame_clip_left;
 
   // For format YV12, there is one U, V value per 2x2 block.
-  // For format YV16, there is one u, V value per 2x1 block.
+  // For format YV16, there is one U, V value per 2x1 block.
   size_t uv_offset = (video_frame->stride(media::VideoFrame::kUPlane) *
                       (frame_clip_top >> y_shift)) + (frame_clip_left >> 1);
   uint8* frame_clip_y =
@@ -174,26 +179,48 @@ static void ConvertVideoFrameToBitmap(
 
   // Check if |bitmap| needs to be (re)allocated.
   if (bitmap->isNull() ||
-      bitmap->width() != video_frame->data_size().width() ||
-      bitmap->height() != video_frame->data_size().height()) {
+      bitmap->width() != video_frame->visible_rect().width() ||
+      bitmap->height() != video_frame->visible_rect().height()) {
     bitmap->setConfig(SkBitmap::kARGB_8888_Config,
-                      video_frame->data_size().width(),
-                      video_frame->data_size().height());
+                      video_frame->visible_rect().width(),
+                      video_frame->visible_rect().height());
     bitmap->allocPixels();
     bitmap->setIsVolatile(true);
   }
 
   bitmap->lockPixels();
   if (IsEitherYV12OrYV16(video_frame->format())) {
-    media::YUVType yuv_type =
-        (video_frame->format() == media::VideoFrame::YV12) ?
-        media::YV12 : media::YV16;
-    media::ConvertYUVToRGB32(video_frame->data(media::VideoFrame::kYPlane),
-                             video_frame->data(media::VideoFrame::kUPlane),
-                             video_frame->data(media::VideoFrame::kVPlane),
+    media::YUVType yuv_type = media::YV16;
+    int y_shift = 0;
+    if (video_frame->format() == media::VideoFrame::YV12) {
+      yuv_type = media::YV12;
+      y_shift = 1;
+    }
+
+    // Use the "left" and "top" of the destination rect to locate the offset
+    // in Y, U and V planes.
+    size_t y_offset = (video_frame->stride(media::VideoFrame::kYPlane) *
+                       video_frame->visible_rect().y()) +
+                      video_frame->visible_rect().x();
+
+    // For format YV12, there is one U, V value per 2x2 block.
+    // For format YV16, there is one U, V value per 2x1 block.
+    size_t uv_offset = (video_frame->stride(media::VideoFrame::kUPlane) *
+                        (video_frame->visible_rect().y() >> y_shift)) +
+                       (video_frame->visible_rect().x() >> 1);
+    uint8* frame_clip_y =
+        video_frame->data(media::VideoFrame::kYPlane) + y_offset;
+    uint8* frame_clip_u =
+        video_frame->data(media::VideoFrame::kUPlane) + uv_offset;
+    uint8* frame_clip_v =
+        video_frame->data(media::VideoFrame::kVPlane) + uv_offset;
+
+    media::ConvertYUVToRGB32(frame_clip_y,
+                             frame_clip_u,
+                             frame_clip_v,
                              static_cast<uint8*>(bitmap->getPixels()),
-                             video_frame->data_size().width(),
-                             video_frame->data_size().height(),
+                             video_frame->visible_rect().width(),
+                             video_frame->visible_rect().height(),
                              video_frame->stride(media::VideoFrame::kYPlane),
                              video_frame->stride(media::VideoFrame::kUPlane),
                              bitmap->rowBytes(),
