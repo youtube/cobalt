@@ -25,6 +25,9 @@ static bool InitAudioSessionInternal() {
   BOOL result = [audioSession setCategory:AVAudioSessionCategoryPlayAndRecord
                                     error:nil];
   DCHECK(result);
+  UInt32 allowMixing = true;
+  AudioSessionSetProperty(kAudioSessionProperty_OverrideCategoryMixWithOthers,
+                          sizeof(allowMixing), &allowMixing);
   return error == kAudioSessionNoError;
 }
 
