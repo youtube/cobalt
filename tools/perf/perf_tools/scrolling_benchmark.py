@@ -10,6 +10,16 @@ class DidNotScrollException(multi_page_benchmark.MeasurementFailure):
   def __init__(self):
     super(DidNotScrollException, self).__init__('Page did not scroll')
 
+def GetOrZero(stat, rendering_stats_deltas):
+  if stat in rendering_stats_deltas:
+    return rendering_stats_deltas[stat]
+  return 0
+
+def DivideIfPossibleOrZero(numerator, denominator):
+  if denominator == 0:
+    return 0
+  return numerator / denominator
+
 def CalcScrollResults(rendering_stats_deltas, results):
   num_frames_sent_to_screen = rendering_stats_deltas['numFramesSentToScreen']
 
@@ -21,8 +31,38 @@ def CalcScrollResults(rendering_stats_deltas, results):
     rendering_stats_deltas['droppedFrameCount'] /
     float(num_frames_sent_to_screen))
 
+
+  totalPaintTime = GetOrZero('totalPaintTimeInSeconds',
+                                   rendering_stats_deltas)
+
+  totalRasterizeTime = GetOrZero('totalRasterizeTimeInSeconds',
+                                       rendering_stats_deltas)
+
+  totalPixelsPainted = GetOrZero('totalPixelsPainted',
+                                       rendering_stats_deltas)
+
+  totalPixelsRasterized = GetOrZero('totalPixelsRasterized',
+                                          rendering_stats_deltas)
+
+
+  megapixelsPaintedPerSecond = DivideIfPossibleOrZero(
+      (totalPixelsPainted / 1000000.0), totalPaintTime)
+
+  megapixelsRasterizedPerSecond = DivideIfPossibleOrZero(
+      (totalPixelsRasterized / 1000000.0), totalRasterizeTime)
+
   results.Add('mean_frame_time', 'ms', round(mean_frame_time_seconds * 1000, 3))
   results.Add('dropped_percent', '%', round(dropped_percent * 100, 1))
+
+  results.Add('total_paint_time', 'seconds', totalPaintTime)
+  results.Add('total_rasterize_time', 'seconds', totalRasterizeTime)
+  results.Add('total_pixels_painted', '', totalPixelsPainted)
+  results.Add('total_pixels_rasterized', '', totalPixelsRasterized)
+  results.Add('megapixels_painted_per_second', '', megapixelsPaintedPerSecond)
+  results.Add('megapixels_rasterized_per_second', '',
+              megapixelsRasterizedPerSecond)
+  results.Add('total_paint_and_rasterize_time', 'seconds', totalPaintTime +
+              totalRasterizeTime)
 
 class ScrollingBenchmark(multi_page_benchmark.MultiPageBenchmark):
   def __init__(self):
