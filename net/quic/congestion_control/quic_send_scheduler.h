@@ -5,7 +5,7 @@
 // The is the base class for QUIC send side congestion control.
 // It decides when we can send a QUIC packet to the wire.
 // This class handles the basic bookkeeping of sent bitrate and packet loss.
-// The actual send side algorithm is implemented via the
+// The acctual send side algorithm is implemented via the
 // SendAlgorithmInterface.
 
 #ifndef NET_QUIC_CONGESTION_CONTROL_QUIC_SEND_SCHEDULER_H_
@@ -28,6 +28,10 @@ const uint32 kBitrateSmoothingBuckets = 300;
 // implementation due to overflow resulting in a potential divide by zero.
 const uint32 kBitrateSmoothingPeriod = 10000;
 
+// When kUnknownWaitTime is returned, there is no need to poll the function
+// again until we receive a new event.
+const int kUnknownWaitTime = -1;
+
 class NET_EXPORT_PRIVATE QuicSendScheduler {
  public:
   class PendingPacket {
@@ -45,10 +49,6 @@ class NET_EXPORT_PRIVATE QuicSendScheduler {
   };
   typedef std::map<QuicPacketSequenceNumber, PendingPacket*> PendingPacketsMap;
 
-  // Enable pacing to prevent a large congestion window to be sent all at once,
-  // when pacing is enabled a large congestion window will be sent in multiple
-  // bursts of packet(s) instead of one big burst that might introduce packet
-  // loss.
   QuicSendScheduler(QuicClock* clock, CongestionFeedbackType congestion_type);
   virtual ~QuicSendScheduler();
 
@@ -89,6 +89,7 @@ class NET_EXPORT_PRIVATE QuicSendScheduler {
   QuicClock* clock_;
   int current_estimated_bandwidth_;
   int max_estimated_bandwidth_;
+  uint64 last_sent_packet_us_;
   // To keep track of the real sent bitrate we keep track of the last sent bytes
   // by keeping an array containing the number of bytes sent in a short timespan
   // kBitrateSmoothingPeriod; multiple of these buckets kBitrateSmoothingBuckets
