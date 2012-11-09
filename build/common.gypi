@@ -248,8 +248,8 @@
       # See https://sites.google.com/a/chromium.org/dev/developers/testing/addresssanitizer
       'asan%': 0,
 
-      # Enable building with TSAN (Clang's -fthread-sanitizer option).
-      # -fthread-sanitizer only works with clang, but tsan=1 implies clang=1
+      # Enable building with TSAN (Clang's -fsanitize=thread option).
+      # -fsanitize=thread only works with clang, but tsan=1 implies clang=1
       # See http://clang.llvm.org/docs/ThreadSanitizer.html
       'tsan%': 0,
       'tsan_blacklist%': '<(PRODUCT_DIR)/../../tools/valgrind/tsan_v2/ignores.txt',
@@ -2609,15 +2609,13 @@
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': [
-                  '-fthread-sanitizer',
+                  '-fsanitize=thread',
                   '-fno-omit-frame-pointer',
                   '-fPIE',
-                  '-mllvm', '-tsan-blacklist=<(tsan_blacklist)'
-                  # See http://crbug.com/159580
-                  '-w',
+                  '-mllvm', '-tsan-blacklist=<(tsan_blacklist)',
                 ],
                 'ldflags': [
-                  '-fthread-sanitizer',
+                  '-fsanitize=thread',
                 ],
                 'defines': [
                   'THREAD_SANITIZER',
