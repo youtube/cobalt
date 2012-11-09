@@ -2514,10 +2514,6 @@
                           '-fuse-ld=gold',
                           '-Wno-psabi',
                         ],
-                        'cflags': [
-                          # TODO(hans): Remove when crbug.com/159452 is fixed.
-                          '-Wno-asm-operand-widths',
-                        ],
                       }],
                     ],
                   }],
