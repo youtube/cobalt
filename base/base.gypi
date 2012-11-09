@@ -670,10 +670,10 @@
             ],
             'sources!': [
               'event_recorder_stubs.cc',
-              'file_descriptor_shuffle.cc',
               'files/file_path_watcher_kqueue.cc',
               'files/file_path_watcher_stub.cc',
               'message_pump_libevent.cc',
+              'posix/file_descriptor_shuffle.cc',
               # Not using sha1_win.cc because it may have caused a
               # regression to page cycler moz.
               'sha1_win.cc',

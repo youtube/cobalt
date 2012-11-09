@@ -37,9 +37,12 @@ typedef struct _malloc_zone_t malloc_zone_t;
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/file_descriptor_shuffle.h"
 #include "base/file_path.h"
 #include "base/process.h"
+
+#if defined(OS_POSIX)
+#include "base/posix/file_descriptor_shuffle.h"
+#endif
 
 class CommandLine;
 
