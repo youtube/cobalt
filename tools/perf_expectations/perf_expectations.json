@@ -1,5 +1,5 @@
 {"chromium-rel-win7-dual/dhtml/times/t": {"reva": 158193, "revb": 158364, "improve": -1339, "regress": 1295, "sha1": "9c4c56bf"},
- "chromium-rel-win7-dual/dom_perf/Total/score": {"reva": 158250, "revb": 158364, "improve": 126, "regress": -25, "sha1": "886711e2"},
+ "chromium-rel-win7-dual/dom_perf/Total/score": {"reva": 166785, "revb": 166791, "improve": -244, "regress": -286, "sha1": "0e49a534"},
  "chromium-rel-win7-dual/intl1/times/t": {"reva": 165939, "revb": 166315, "improve": 296, "regress": 453, "sha1": "e9ccbe24"},
  "chromium-rel-win7-dual/intl2/times/t": {"reva": 165939, "revb": 166315, "improve": 56, "regress": 260, "sha1": "b0835d70"},
  "chromium-rel-win7-dual/morejs/times/t": {"reva": 160381, "revb": 160431, "improve": -47, "regress": -28, "sha1": "f635707d"},
