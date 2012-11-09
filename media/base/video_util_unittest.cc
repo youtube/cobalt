@@ -39,7 +39,7 @@ class VideoUtilTest : public testing::Test {
   void CreateDestinationFrame(int width, int height) {
     gfx::Size size(width, height);
     destination_frame_ =
-        VideoFrame::CreateFrame(VideoFrame::YV12, size, size,
+        VideoFrame::CreateFrame(VideoFrame::YV12, size, gfx::Rect(size), size,
                                 base::TimeDelta());
   }
 

@@ -20,19 +20,19 @@ using base::MD5DigestToBase16;
 // frame will be black, if 1 then the entire frame will be white.
 void InitializeYV12Frame(VideoFrame* frame, double white_to_black) {
   EXPECT_EQ(VideoFrame::YV12, frame->format());
-  int first_black_row = static_cast<int>(frame->data_size().height() *
+  int first_black_row = static_cast<int>(frame->coded_size().height() *
                                          white_to_black);
   uint8* y_plane = frame->data(VideoFrame::kYPlane);
-  for (int row = 0; row < frame->data_size().height(); ++row) {
+  for (int row = 0; row < frame->coded_size().height(); ++row) {
     int color = (row < first_black_row) ? 0xFF : 0x00;
-    memset(y_plane, color, frame->data_size().width());
+    memset(y_plane, color, frame->stride(VideoFrame::kYPlane));
     y_plane += frame->stride(VideoFrame::kYPlane);
   }
   uint8* u_plane = frame->data(VideoFrame::kUPlane);
   uint8* v_plane = frame->data(VideoFrame::kVPlane);
-  for (int row = 0; row < frame->data_size().height(); row += 2) {
-    memset(u_plane, 0x80, frame->data_size().width() / 2);
-    memset(v_plane, 0x80, frame->data_size().width() / 2);
+  for (int row = 0; row < frame->coded_size().height(); row += 2) {
+    memset(u_plane, 0x80, frame->stride(VideoFrame::kUPlane));
+    memset(v_plane, 0x80, frame->stride(VideoFrame::kVPlane));
     u_plane += frame->stride(VideoFrame::kUPlane);
     v_plane += frame->stride(VideoFrame::kVPlane);
   }
@@ -47,29 +47,32 @@ void ExpectFrameColor(media::VideoFrame* yv12_frame, uint32 expect_rgb_color) {
 
   scoped_refptr<media::VideoFrame> rgb_frame;
   rgb_frame = media::VideoFrame::CreateFrame(VideoFrame::RGB32,
-                                             yv12_frame->data_size(),
+                                             yv12_frame->coded_size(),
+                                             yv12_frame->visible_rect(),
                                              yv12_frame->natural_size(),
                                              yv12_frame->GetTimestamp());
 
-  ASSERT_EQ(yv12_frame->data_size().width(), rgb_frame->data_size().width());
-  ASSERT_EQ(yv12_frame->data_size().height(), rgb_frame->data_size().height());
+  ASSERT_EQ(yv12_frame->coded_size().width(),
+      rgb_frame->coded_size().width());
+  ASSERT_EQ(yv12_frame->coded_size().height(),
+      rgb_frame->coded_size().height());
 
   media::ConvertYUVToRGB32(yv12_frame->data(VideoFrame::kYPlane),
                            yv12_frame->data(VideoFrame::kUPlane),
                            yv12_frame->data(VideoFrame::kVPlane),
                            rgb_frame->data(VideoFrame::kRGBPlane),
-                           rgb_frame->data_size().width(),
-                           rgb_frame->data_size().height(),
+                           rgb_frame->coded_size().width(),
+                           rgb_frame->coded_size().height(),
                            yv12_frame->stride(VideoFrame::kYPlane),
                            yv12_frame->stride(VideoFrame::kUPlane),
                            rgb_frame->stride(VideoFrame::kRGBPlane),
                            media::YV12);
 
-  for (int row = 0; row < rgb_frame->data_size().height(); ++row) {
+  for (int row = 0; row < rgb_frame->coded_size().height(); ++row) {
     uint32* rgb_row_data = reinterpret_cast<uint32*>(
         rgb_frame->data(VideoFrame::kRGBPlane) +
         (rgb_frame->stride(VideoFrame::kRGBPlane) * row));
-    for (int col = 0; col < rgb_frame->data_size().width(); ++col) {
+    for (int col = 0; col < rgb_frame->coded_size().width(); ++col) {
       SCOPED_TRACE(
           base::StringPrintf("Checking (%d, %d)", row, col));
       EXPECT_EQ(expect_rgb_color, rgb_row_data[col]);
@@ -89,7 +92,7 @@ void ExpectFrameExtents(VideoFrame::Format format, int planes,
 
   gfx::Size size(kWidth, kHeight);
   scoped_refptr<VideoFrame> frame = VideoFrame::CreateFrame(
-      format, size, size, kTimestamp);
+      format, size, gfx::Rect(size), size, kTimestamp);
   ASSERT_TRUE(frame);
 
   for(int plane = 0; plane < planes; plane++) {
@@ -124,7 +127,8 @@ TEST(VideoFrame, CreateFrame) {
   // Create a YV12 Video Frame.
   gfx::Size size(kWidth, kHeight);
   scoped_refptr<media::VideoFrame> frame =
-      VideoFrame::CreateFrame(media::VideoFrame::YV12, size, size, kTimestamp);
+      VideoFrame::CreateFrame(media::VideoFrame::YV12, size, gfx::Rect(size),
+                              size, kTimestamp);
   ASSERT_TRUE(frame);
 
   // Test VideoFrame implementation.
@@ -171,19 +175,19 @@ TEST(VideoFrame, CreateBlackFrame) {
 
   // Test |frame| properties.
   EXPECT_EQ(VideoFrame::YV12, frame->format());
-  EXPECT_EQ(kWidth, frame->data_size().width());
-  EXPECT_EQ(kHeight, frame->data_size().height());
+  EXPECT_EQ(kWidth, frame->coded_size().width());
+  EXPECT_EQ(kHeight, frame->coded_size().height());
 
   // Test frames themselves.
   uint8* y_plane = frame->data(VideoFrame::kYPlane);
-  for (int y = 0; y < frame->data_size().height(); ++y) {
+  for (int y = 0; y < frame->coded_size().height(); ++y) {
     EXPECT_EQ(0, memcmp(kExpectedYRow, y_plane, arraysize(kExpectedYRow)));
     y_plane += frame->stride(VideoFrame::kYPlane);
   }
 
   uint8* u_plane = frame->data(VideoFrame::kUPlane);
   uint8* v_plane = frame->data(VideoFrame::kVPlane);
-  for (int y = 0; y < frame->data_size().height() / 2; ++y) {
+  for (int y = 0; y < frame->coded_size().height() / 2; ++y) {
     EXPECT_EQ(0, memcmp(kExpectedUVRow, u_plane, arraysize(kExpectedUVRow)));
     EXPECT_EQ(0, memcmp(kExpectedUVRow, v_plane, arraysize(kExpectedUVRow)));
     u_plane += frame->stride(VideoFrame::kUPlane);

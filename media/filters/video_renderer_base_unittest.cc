@@ -287,7 +287,8 @@ class VideoRendererBaseTest : public ::testing::Test {
   // Creates a frame with given timestamp.
   scoped_refptr<VideoFrame> CreateFrame(int timestamp) {
     scoped_refptr<VideoFrame> frame =
-        VideoFrame::CreateFrame(VideoFrame::RGB32, kNaturalSize, kNaturalSize,
+        VideoFrame::CreateFrame(VideoFrame::RGB32, kNaturalSize,
+                                gfx::Rect(kNaturalSize), kNaturalSize,
                                 base::TimeDelta::FromMilliseconds(timestamp));
     return frame;
   }

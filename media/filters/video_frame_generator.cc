@@ -72,7 +72,8 @@ void VideoFrameGenerator::ReadOnDecoderThread(const ReadCB& read_cb) {
   //
   // TODO(scherkus): migrate this to proper buffer recycling.
   scoped_refptr<VideoFrame> video_frame =
-      VideoFrame::CreateFrame(VideoFrame::YV12, size_, size_, current_time_);
+      VideoFrame::CreateFrame(VideoFrame::YV12, size_, gfx::Rect(size_), size_,
+                              current_time_);
   current_time_ += frame_duration_;
 
   // TODO(wjia): set pixel data to pre-defined patterns if it's desired to
