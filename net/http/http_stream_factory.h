@@ -33,7 +33,7 @@ class HostPortPair;
 class HttpAuthController;
 class HttpResponseInfo;
 class HttpServerProperties;
-class HttpStream;
+class HttpStreamBase;
 class ProxyInfo;
 class SSLCertRequestInfo;
 class SSLInfo;
@@ -64,7 +64,7 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
     virtual void OnStreamReady(
         const SSLConfig& used_ssl_config,
         const ProxyInfo& used_proxy_info,
-        HttpStream* stream) = 0;
+        HttpStreamBase* stream) = 0;
 
     // This is the failure to create a stream case.
     // |used_ssl_config| indicates the actual SSL configuration used for this
@@ -127,7 +127,7 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
         const HttpResponseInfo& response_info,
         const SSLConfig& used_ssl_config,
         const ProxyInfo& used_proxy_info,
-        HttpStream* stream) = 0;
+        HttpStreamBase* stream) = 0;
   };
 
   virtual ~HttpStreamRequest() {}
