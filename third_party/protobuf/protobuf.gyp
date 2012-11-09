@@ -392,7 +392,9 @@
           'type': 'none',
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(pkg-config --cflags protobuf-lite)',
+              # Use full protobuf, because vanilla protobuf doesn't have
+              # our custom patch to retain unknown fields in lite mode.
+              '<!@(pkg-config --cflags protobuf)',
             ],
             'defines': [
               # This macro must be defined to suppress the use
@@ -402,11 +404,13 @@
             ],
           },
           'link_settings': {
+            # Use full protobuf, because vanilla protobuf doesn't have
+            # our custom patch to retain unknown fields in lite mode.
             'ldflags': [
-              '<!@(pkg-config --libs-only-L --libs-only-other protobuf-lite)',
+              '<!@(pkg-config --libs-only-L --libs-only-other protobuf)',
             ],
             'libraries': [
-              '<!@(pkg-config --libs-only-l protobuf-lite)',
+              '<!@(pkg-config --libs-only-l protobuf)',
             ],
           },
         },
