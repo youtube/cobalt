@@ -50,6 +50,7 @@ M B Nm: The class name org.chromium.android_webview.test.R$attr doesn't start wi
 M B Nm: The class name org.chromium.android_webview.test.R$drawable doesn't start with an upper case letter  At R.java
 M B Nm: The class name org.chromium.android_webview.test.R$raw doesn't start with an upper case letter  At R.java
 M B Nm: The class name org.chromium.android_webview.test.R$string doesn't start with an upper case letter  At R.java
+M B Nm: The class name org.chromium.chrome.browser.component.navigation_interception.InterceptNavigationDelegate shadows the simple name of implemented interface org.chromium.content.components.navigation_interception.InterceptNavigationDelegate  In InterceptNavigationDelegate.java
 M B Nm: The class name org.chromium.chrome.testshell.Manifest$permission doesn't start with an upper case letter  At Manifest.java
 M B Nm: The class name org.chromium.chrome.testshell.R$attr doesn't start with an upper case letter  At R.java
 M B Nm: The class name org.chromium.chrome.testshell.R$dimen doesn't start with an upper case letter  At R.java
