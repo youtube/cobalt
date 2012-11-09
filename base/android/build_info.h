@@ -67,6 +67,10 @@ class BuildInfo {
     return package_label_;
   }
 
+  const char* package_name() const {
+    return package_name_;
+  }
+
   const char* java_exception_info() const {
     return java_exception_info_;
   }
@@ -92,6 +96,7 @@ class BuildInfo {
   const char* const package_version_code_;
   const char* const package_version_name_;
   const char* const package_label_;
+  const char* const package_name_;
   // This is set via set_java_exception_info, not at constructor time.
   const char* java_exception_info_;
 

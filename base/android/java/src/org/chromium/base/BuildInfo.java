@@ -100,4 +100,10 @@ public class BuildInfo {
             return "";
         }
     }
+
+    @CalledByNative
+    public static String getPackageName(Context context) {
+        String packageName = context != null ? context.getPackageName() : null;
+        return packageName != null ? packageName : "";
+    }
 }
