@@ -126,7 +126,7 @@
  "linux-release/media_tests_av_perf/memory/tulip2.ogv": {"reva": 161526, "revb": 161817, "type": "absolute", "better": "lower", "improve": 43711, "regress": 48884, "sha1": "ebb829b4"},
  "linux-release/media_tests_av_perf/memory/tulip2.wav": {"reva": 161526, "revb": 161817, "type": "absolute", "better": "lower", "improve": 34116, "regress": 38057, "sha1": "75f23dc1"},
  "linux-release/media_tests_av_perf/memory/tulip2.webm": {"reva": 161526, "revb": 161817, "type": "absolute", "better": "lower", "improve": 45702, "regress": 50820, "sha1": "3bd59fe4"},
- "linux-release/media_tests_av_perf/scrubbing/tulip2.m4a_backward": {"reva": 161029, "revb": 161120, "type": "absolute", "better": "lower", "improve": 12, "regress": 51, "sha1": "d4bc87bc"},
+ "linux-release/media_tests_av_perf/scrubbing/tulip2.m4a_backward": {"reva": 166121, "revb": 166945, "type": "absolute", "better": "lower", "improve": 3, "regress": 23, "sha1": "f9b24229"},
  "linux-release/media_tests_av_perf/scrubbing/tulip2.m4a_forward": {"reva": 161029, "revb": 161120, "type": "absolute", "better": "lower", "improve": 2, "regress": 7, "sha1": "85180a44"},
  "linux-release/media_tests_av_perf/scrubbing/tulip2.m4a_mixed": {"reva": 161029, "revb": 161120, "type": "absolute", "better": "lower", "improve": 3, "regress": 8, "sha1": "c1907194"},
  "linux-release/media_tests_av_perf/scrubbing/tulip2.mp3_backward": {"reva": 161029, "revb": 161120, "type": "absolute", "better": "lower", "improve": 6, "regress": 12, "sha1": "53010a2e"},
