@@ -26,18 +26,24 @@ void FillCanvas(SkCanvas* canvas, SkColor color) {
 }
 
 // Helper for returning the color of a solid |canvas|.
-SkColor GetColor(SkCanvas* canvas) {
+SkColor GetColorAt(SkCanvas* canvas, int x, int y) {
   const SkBitmap& bitmap = canvas->getDevice()->accessBitmap(false);
   bitmap.lockPixels();
-  SkColor c = bitmap.getColor(0, 0);
+  SkColor c = bitmap.getColor(x, y);
   bitmap.unlockPixels();
   return c;
+}
+
+SkColor GetColor(SkCanvas* canvas) {
+  return GetColorAt(canvas, 0, 0);
 }
 
 class SkCanvasVideoRendererTest : public testing::Test {
  public:
   enum Color {
+    kNone,
     kRed,
+    kGreen,
     kBlue,
   };
 
@@ -55,6 +61,7 @@ class SkCanvasVideoRendererTest : public testing::Test {
   VideoFrame* natural_frame() { return natural_frame_; }
   VideoFrame* larger_frame() { return larger_frame_; }
   VideoFrame* smaller_frame() { return smaller_frame_; }
+  VideoFrame* cropped_frame() { return cropped_frame_; }
 
   // Getters for canvases that trigger the various painting paths.
   SkCanvas* fast_path_canvas() { return &fast_path_canvas_; }
@@ -66,6 +73,7 @@ class SkCanvasVideoRendererTest : public testing::Test {
   scoped_refptr<VideoFrame> natural_frame_;
   scoped_refptr<VideoFrame> larger_frame_;
   scoped_refptr<VideoFrame> smaller_frame_;
+  scoped_refptr<VideoFrame> cropped_frame_;
 
   SkDevice fast_path_device_;
   SkCanvas fast_path_canvas_;
@@ -81,6 +89,12 @@ SkCanvasVideoRendererTest::SkCanvasVideoRendererTest()
           gfx::Size(kWidth * 2, kHeight * 2))),
       smaller_frame_(VideoFrame::CreateBlackFrame(
           gfx::Size(kWidth / 2, kHeight / 2))),
+      cropped_frame_(VideoFrame::CreateFrame(
+          VideoFrame::YV12,
+          gfx::Size(16, 16),
+          gfx::Rect(6, 6, 8, 6),
+          gfx::Size(8, 6),
+          base::TimeDelta::FromMilliseconds(4))),
       fast_path_device_(SkBitmap::kARGB_8888_Config, kWidth, kHeight, true),
       fast_path_canvas_(&fast_path_device_),
       slow_path_device_(SkBitmap::kARGB_8888_Config, kWidth, kHeight, false),
@@ -89,6 +103,86 @@ SkCanvasVideoRendererTest::SkCanvasVideoRendererTest()
   natural_frame_->SetTimestamp(base::TimeDelta::FromMilliseconds(1));
   larger_frame_->SetTimestamp(base::TimeDelta::FromMilliseconds(2));
   smaller_frame_->SetTimestamp(base::TimeDelta::FromMilliseconds(3));
+
+  // Make sure the cropped video frame's aspect ratio matches the output device.
+  // Update cropped_frame_'s crop dimensions if this is not the case.
+  EXPECT_EQ(cropped_frame()->natural_size().width() * kHeight,
+      cropped_frame()->natural_size().height() * kWidth);
+
+  // Fill in the cropped frame's entire data with colors:
+  //
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //
+  // The visible crop of the frame (as set by its visible_rect_) has contents:
+  //
+  //   Bl Bl R  R  R  R  R  R
+  //   Bl Bl R  R  R  R  R  R
+  //   G  G  B  B  B  B  B  B
+  //   G  G  B  B  B  B  B  B
+  //   G  G  B  B  B  B  B  B
+  //   G  G  B  B  B  B  B  B
+  //
+  // Each color region in the cropped frame is on a 2x2 block granularity, to
+  // avoid sharing UV samples between regions.
+
+  static const uint8 cropped_y_plane[] = {
+      0,   0,   0,   0,   0,   0,   0,   0, 76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0, 76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0, 76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0, 76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0, 76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0, 76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0, 76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0, 76, 76, 76, 76, 76, 76, 76, 76,
+    149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+    149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+    149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+    149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+    149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+    149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+    149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+    149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+  };
+
+  static const uint8 cropped_u_plane[] = {
+    128, 128, 128, 128,  84,  84,  84,  84,
+    128, 128, 128, 128,  84,  84,  84,  84,
+    128, 128, 128, 128,  84,  84,  84,  84,
+    128, 128, 128, 128,  84,  84,  84,  84,
+     43,  43,  43,  43, 255, 255, 255, 255,
+     43,  43,  43,  43, 255, 255, 255, 255,
+     43,  43,  43,  43, 255, 255, 255, 255,
+     43,  43,  43,  43, 255, 255, 255, 255,
+  };
+  static const uint8 cropped_v_plane[] = {
+    128, 128, 128, 128, 255, 255, 255, 255,
+    128, 128, 128, 128, 255, 255, 255, 255,
+    128, 128, 128, 128, 255, 255, 255, 255,
+    128, 128, 128, 128, 255, 255, 255, 255,
+     21,  21,  21,  21, 107, 107, 107, 107,
+     21,  21,  21,  21, 107, 107, 107, 107,
+     21,  21,  21,  21, 107, 107, 107, 107,
+     21,  21,  21,  21, 107, 107, 107, 107,
+  };
+
+  media::CopyYPlane(cropped_y_plane, 16, 16, cropped_frame());
+  media::CopyUPlane(cropped_u_plane, 8, 8, cropped_frame());
+  media::CopyVPlane(cropped_v_plane, 8, 8, cropped_frame());
 }
 
 SkCanvasVideoRendererTest::~SkCanvasVideoRendererTest() {}
@@ -101,8 +195,13 @@ void SkCanvasVideoRendererTest::Paint(VideoFrame* video_frame,
                                       SkCanvas* canvas,
                                       Color color) {
   switch (color) {
+    case kNone:
+      break;
     case kRed:
       media::FillYUV(video_frame, 76, 84, 255);
+      break;
+    case kGreen:
+      media::FillYUV(video_frame, 149, 43, 21);
       break;
     case kBlue:
       media::FillYUV(video_frame, 29, 255, 107);
@@ -197,6 +296,53 @@ TEST_F(SkCanvasVideoRendererTest, SlowPaint_SameVideoFrame) {
   // Slow paints can get cached, expect the old color value.
   Paint(natural_frame(), slow_path_canvas(), kBlue);
   EXPECT_EQ(SK_ColorRED, GetColor(slow_path_canvas()));
+}
+
+TEST_F(SkCanvasVideoRendererTest, FastPaint_CroppedFrame) {
+  Paint(cropped_frame(), fast_path_canvas(), kNone);
+  // Check the corners.
+  EXPECT_EQ(SK_ColorBLACK, GetColorAt(fast_path_canvas(), 0, 0));
+  EXPECT_EQ(SK_ColorRED,   GetColorAt(fast_path_canvas(), kWidth - 1, 0));
+  EXPECT_EQ(SK_ColorGREEN, GetColorAt(fast_path_canvas(), 0, kHeight - 1));
+  EXPECT_EQ(SK_ColorBLUE,  GetColorAt(fast_path_canvas(), kWidth - 1,
+                                                          kHeight - 1));
+  // Check the interior along the border between color regions.  Note that we're
+  // bilinearly upscaling, so we'll need to take care to pick sample points that
+  // are just outside the "zone of resampling".
+  // TODO(sheu): commenting out two checks due to http://crbug.com/158462.
+#if 0
+  EXPECT_EQ(SK_ColorBLACK, GetColorAt(fast_path_canvas(), kWidth  * 1 / 8 - 1,
+                                                          kHeight * 1 / 6 - 1));
+#endif
+  EXPECT_EQ(SK_ColorRED,   GetColorAt(fast_path_canvas(), kWidth  * 3 / 8,
+                                                          kHeight * 1 / 6 - 1));
+#if 0
+  EXPECT_EQ(SK_ColorGREEN, GetColorAt(fast_path_canvas(), kWidth  * 1 / 8 - 1,
+                                                          kHeight * 3 / 6));
+#endif
+  EXPECT_EQ(SK_ColorBLUE,  GetColorAt(fast_path_canvas(), kWidth  * 3 / 8,
+                                                          kHeight * 3 / 6));
+}
+
+TEST_F(SkCanvasVideoRendererTest, SlowPaint_CroppedFrame) {
+  Paint(cropped_frame(), slow_path_canvas(), kNone);
+  // Check the corners.
+  EXPECT_EQ(SK_ColorBLACK, GetColorAt(slow_path_canvas(), 0, 0));
+  EXPECT_EQ(SK_ColorRED,   GetColorAt(slow_path_canvas(), kWidth - 1, 0));
+  EXPECT_EQ(SK_ColorGREEN, GetColorAt(slow_path_canvas(), 0, kHeight - 1));
+  EXPECT_EQ(SK_ColorBLUE,  GetColorAt(slow_path_canvas(), kWidth - 1,
+                                                          kHeight - 1));
+  // Check the interior along the border between color regions.  Note that we're
+  // bilinearly upscaling, so we'll need to take care to pick sample points that
+  // are just outside the "zone of resampling".
+  EXPECT_EQ(SK_ColorBLACK, GetColorAt(slow_path_canvas(), kWidth  * 1 / 8 - 1,
+                                                          kHeight * 1 / 6 - 1));
+  EXPECT_EQ(SK_ColorRED,   GetColorAt(slow_path_canvas(), kWidth  * 3 / 8,
+                                                          kHeight * 1 / 6 - 1));
+  EXPECT_EQ(SK_ColorGREEN, GetColorAt(slow_path_canvas(), kWidth  * 1 / 8 - 1,
+                                                          kHeight * 3 / 6));
+  EXPECT_EQ(SK_ColorBLUE,  GetColorAt(slow_path_canvas(), kWidth  * 3 / 8,
+                                                          kHeight * 3 / 6));
 }
 
 }  // namespace media
