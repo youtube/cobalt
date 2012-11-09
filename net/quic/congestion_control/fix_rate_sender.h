@@ -11,6 +11,8 @@
 #include "base/compiler_specific.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_clock.h"
+#include "net/quic/congestion_control/leaky_bucket.h"
+#include "net/quic/congestion_control/paced_sender.h"
 #include "net/quic/congestion_control/send_algorithm_interface.h"
 
 namespace net {
@@ -34,10 +36,11 @@ class NET_EXPORT_PRIVATE FixRateSender : public SendAlgorithmInterface {
   // End implementation of SendAlgorithmInterface.
 
  private:
-  uint32 bitrate_in_bytes_per_second_;
-  QuicClock* clock_;
-  uint64 time_last_sent_us_;
-  int bytes_last_sent_;
+  size_t CongestionWindow();
+
+  uint32 bitrate_in_bytes_per_s_;
+  LeakyBucket fix_rate_leaky_bucket_;
+  PacedSender paced_sender_;
   size_t bytes_in_flight_;
 };
 
