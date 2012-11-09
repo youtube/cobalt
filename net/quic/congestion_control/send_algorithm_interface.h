@@ -14,9 +14,6 @@
 
 namespace net {
 
-const int kNoValidEstimate = -1;
-const int kUnknownWaitTime = -1;
-
 class NET_EXPORT_PRIVATE SendAlgorithmInterface {
  public:
   static SendAlgorithmInterface* Create(QuicClock* clock,
@@ -50,7 +47,6 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
   virtual size_t AvailableCongestionWindow() = 0;
 
   // What's the current estimated bandwidth in bytes per second.
-  // Returns KNoValidEstimate when it does not have an estimate.
   virtual int BandwidthEstimate() = 0;
 };
 
