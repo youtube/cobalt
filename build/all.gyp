@@ -192,6 +192,7 @@
           'dependencies': [
             '../cc/cc_tests.gyp:cc_unittests',
             '../chrome/chrome.gyp:browser_tests',
+            '../chrome/chrome.gyp:chromedriver2_unittests',
             '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
@@ -308,6 +309,7 @@
           'type': 'none',
           'dependencies': [
             '../chrome/chrome.gyp:chromedriver',
+            '../chrome/chrome.gyp:chromedriver2',
             # Dependencies of pyauto_functional tests.
             '../remoting/remoting.gyp:remoting_webapp',
           ],
@@ -602,6 +604,7 @@
               'type': 'none',
               'dependencies': [
                 '../chrome/chrome.gyp:chromedriver',
+                '../chrome/chrome.gyp:chromedriver2',
                 '../chrome/chrome.gyp:crash_service',
                 '../chrome/chrome.gyp:crash_service_win64',
                 '../chrome/chrome.gyp:performance_ui_tests',
