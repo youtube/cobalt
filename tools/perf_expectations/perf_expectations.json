@@ -782,7 +782,7 @@
  "xp-release-dual-core/intl1/times/t": {"reva": 166855, "revb": 166912, "improve": 251, "regress": 411, "sha1": "c1b8418d"},
  "xp-release-dual-core/intl2/times/t": {"reva": 166857, "revb": 166912, "improve": 100, "regress": 202, "sha1": "abe03598"},
  "xp-release-dual-core/morejs/times/t": {"reva": 131574, "revb": 127228, "improve": -452, "regress": 456, "sha1": "21ef0dc0"},
- "xp-release-dual-core/moz/times/t": {"reva": 165939, "revb": 166031, "improve": 43, "regress": 128, "sha1": "55d0e0e2"},
+ "xp-release-dual-core/moz/times/t": {"reva": 166855, "revb": 166912, "improve": 16, "regress": 91, "sha1": "2ca61c5a"},
  "xp-release-dual-core/moz/total_byte_b/IO_b": {"reva": 166140, "revb": 166315, "improve": 1558, "regress": 3439, "sha1": "4972ab65"},
  "xp-release-dual-core/moz/total_byte_r/IO_r": {"reva": 160304, "revb": 160388, "improve": 598, "regress": 828, "sha1": "531d729e"},
  "xp-release-dual-core/moz/total_op_b/IO_op_b": {"reva": 166140, "revb": 166315, "improve": 3950, "regress": 5682, "sha1": "1ac9d6d9"},
