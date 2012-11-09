@@ -78,6 +78,20 @@ class OCSPIOLoop {
   void AddRequest(OCSPRequestSession* request);
   void RemoveRequest(OCSPRequestSession* request);
 
+  // Clears internal state and calls |StartUsing()|. Should be called only in
+  // the context of testing.
+  void ReuseForTesting() {
+    {
+      base::AutoLock autolock(lock_);
+      DCHECK(MessageLoopForIO::current());
+      thread_checker_.DetachFromThread();
+      thread_checker_.CalledOnValidThread();
+      shutdown_ = false;
+      used_ = false;
+    }
+    StartUsing();
+  }
+
  private:
   friend struct base::DefaultLazyInstanceTraits<OCSPIOLoop>;
 
@@ -932,6 +946,10 @@ void EnsureNSSHttpIOInit() {
 
 void ShutdownNSSHttpIO() {
   g_ocsp_io_loop.Get().Shutdown();
+}
+
+void ResetNSSHttpIOForTesting() {
+  g_ocsp_io_loop.Get().ReuseForTesting();
 }
 
 // This function would be called before NSS initialization.
