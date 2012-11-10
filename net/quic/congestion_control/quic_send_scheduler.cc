@@ -24,7 +24,6 @@ QuicSendScheduler::QuicSendScheduler(
     : clock_(clock),
       current_estimated_bandwidth_(-1),
       max_estimated_bandwidth_(-1),
-      last_sent_packet_us_(0),
       current_packet_bucket_(-1),
       first_packet_bucket_(-1),
       send_algorithm_(SendAlgorithmInterface::Create(clock, type)) {
@@ -68,11 +67,10 @@ void QuicSendScheduler::SentPacket(QuicPacketSequenceNumber sequence_number,
                                    bool retransmit) {
   int bucket = UpdatePacketHistory();
   packet_history_[bucket] += bytes;
-  last_sent_packet_us_ = clock_->NowInUsec();
   send_algorithm_->SentPacket(sequence_number, bytes, retransmit);
   if (!retransmit) {
     pending_packets_[sequence_number] = new PendingPacket(bytes,
-                                                          last_sent_packet_us_);
+                                                          clock_->NowInUsec());
   }
   DLOG(INFO) << "Sent sequence number:" << sequence_number;
 }
@@ -127,23 +125,16 @@ int QuicSendScheduler::TimeUntilSend(bool retransmit) {
 }
 
 size_t QuicSendScheduler::AvailableCongestionWindow() {
-  size_t available_congestion_window =
-      send_algorithm_->AvailableCongestionWindow();
-  DLOG(INFO) << "Available congestion window:" << available_congestion_window;
-
-  // Should we limit the window to pace the data?
-  if (available_congestion_window > kMinPacketBurstSize * kMaxPacketSize) {
-    // TODO(pwestin): implement pacing.
-    // will depend on estimated bandwidth; higher bandwidth => larger burst
-    // we need to consider our timing accuracy here too.
-    // an accuracy of 1ms will allow us to send up to 19.2Mbit/s with 2 packets
-    // per burst.
-  }
-  return available_congestion_window;
+  return send_algorithm_->AvailableCongestionWindow();
 }
 
 int QuicSendScheduler::BandwidthEstimate() {
-  return send_algorithm_->BandwidthEstimate();
+  int bandwidth_estimate = send_algorithm_->BandwidthEstimate();
+  if (bandwidth_estimate == kNoValidEstimate) {
+    // If we don't have a valid estimate use the send rate.
+    return SentBandwidth();
+  }
+  return bandwidth_estimate;
 }
 
 bool QuicSendScheduler::HasSentPacket() {
