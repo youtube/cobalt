@@ -230,6 +230,8 @@ TEST_F(QuicFramerTest, LargePacket) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -261,6 +263,8 @@ TEST_F(QuicFramerTest, PacketHeader) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -276,6 +280,7 @@ TEST_F(QuicFramerTest, PacketHeader) {
   EXPECT_EQ(QUIC_INVALID_FRAME_DATA, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_EQ(GG_UINT64_C(0xFEDCBA9876543210), visitor_.header_->guid);
+  EXPECT_EQ(0x1, visitor_.header_->retransmission_count);
   EXPECT_EQ(GG_UINT64_C(0x123456789ABC),
             visitor_.header_->packet_sequence_number);
   EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
@@ -284,17 +289,19 @@ TEST_F(QuicFramerTest, PacketHeader) {
   EXPECT_EQ(0x00, visitor_.header_->fec_group);
 
   // Now test framing boundaries
-  for (int i = 0; i < 24; ++i) {
+  for (int i = 0; i < 25; ++i) {
     string expected_error;
     if (i < 8) {
       expected_error = "Unable to read GUID.";
     } else if (i < 14) {
       expected_error = "Unable to read sequence number.";
-    } else if (i < 22) {
-      expected_error = "Unable to read transmission time.";
+    } else if (i < 15) {
+      expected_error = "Unable to read retransmission count.";
     } else if (i < 23) {
-      expected_error = "Unable to read flags.";
+      expected_error = "Unable to read transmission time.";
     } else if (i < 24) {
+      expected_error = "Unable to read flags.";
+    } else if (i < 25) {
       expected_error = "Unable to read fec group.";
     }
 
@@ -314,6 +321,8 @@ TEST_F(QuicFramerTest, StreamFrame) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -394,6 +403,8 @@ TEST_F(QuicFramerTest, RejectPacket) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -456,6 +467,7 @@ TEST_F(QuicFramerTest, RevivedStreamFrame) {
 
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 0x01;
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
   header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
@@ -470,6 +482,7 @@ TEST_F(QuicFramerTest, RevivedStreamFrame) {
   ASSERT_EQ(1, visitor_.revived_packets_);
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_EQ(GG_UINT64_C(0xFEDCBA9876543210), visitor_.header_->guid);
+  EXPECT_EQ(0x1, visitor_.header_->retransmission_count);
   EXPECT_EQ(GG_UINT64_C(0x123456789ABC),
             visitor_.header_->packet_sequence_number);
   EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
@@ -495,6 +508,8 @@ TEST_F(QuicFramerTest, StreamFrameInFecGroup) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x12, 0x34,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -551,6 +566,8 @@ TEST_F(QuicFramerTest, AckFrame) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -665,6 +682,8 @@ TEST_F(QuicFramerTest, AckFrameTCP) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -772,6 +791,8 @@ TEST_F(QuicFramerTest, AckFrameInterArrival) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -883,6 +904,8 @@ TEST_F(QuicFramerTest, AckFrameFixRate) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -985,6 +1008,8 @@ TEST_F(QuicFramerTest, AckFrameInvalidFeedback) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1043,6 +1068,8 @@ TEST_F(QuicFramerTest, RstStreamFrame) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1114,6 +1141,8 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1242,6 +1271,8 @@ TEST_F(QuicFramerTest, FecPacket) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1279,6 +1310,7 @@ TEST_F(QuicFramerTest, FecPacket) {
 TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 0x01;
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
   header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
@@ -1304,6 +1336,8 @@ TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1332,7 +1366,7 @@ TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
   };
 
   QuicPacket* data;
-  ASSERT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  ASSERT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1344,6 +1378,7 @@ TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
 TEST_F(QuicFramerTest, ConstructAckFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 0x01;
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
   header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
@@ -1379,6 +1414,8 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1445,7 +1482,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1457,6 +1494,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
 TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 0x01;
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
   header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
@@ -1494,6 +1532,8 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1564,7 +1604,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1576,6 +1616,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
 TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 0x01;
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
   header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
@@ -1615,6 +1656,8 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1687,7 +1730,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1699,6 +1742,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
 TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 0x01;
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
   header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
@@ -1736,6 +1780,8 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1804,7 +1850,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1816,6 +1862,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
 TEST_F(QuicFramerTest, ConstructAckFramePacketInvalidFeedback) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 0x01;
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
   header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
@@ -1846,15 +1893,15 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInvalidFeedback) {
   frames.push_back(frame);
 
   QuicPacket* data;
-  EXPECT_FALSE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  EXPECT_FALSE(framer_.ConstructFragementDataPacket(header, frames, &data));
 }
 
 TEST_F(QuicFramerTest, ConstructRstFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
-  header.guid = 0xFEDCBA9876543210;
-  header.packet_sequence_number = 0x123456789ABC;
-  header.transmission_time = 0xF0E1D2C3B4A59687;
+  header.retransmission_count = 0x01;
+  header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
+  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
@@ -1871,6 +1918,8 @@ TEST_F(QuicFramerTest, ConstructRstFramePacket) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -1905,7 +1954,7 @@ TEST_F(QuicFramerTest, ConstructRstFramePacket) {
   frames.push_back(frame);
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -1917,6 +1966,7 @@ TEST_F(QuicFramerTest, ConstructRstFramePacket) {
 TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 0x01;
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
   header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
@@ -1958,6 +2008,8 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -2042,7 +2094,7 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
   };
 
   QuicPacket* data;
-  EXPECT_TRUE(framer_.ConstructFrameDataPacket(header, frames, &data));
+  EXPECT_TRUE(framer_.ConstructFragementDataPacket(header, frames, &data));
 
   test::CompareCharArraysWithHexError("constructed packet",
                                       data->data(), data->length(),
@@ -2054,6 +2106,7 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
 TEST_F(QuicFramerTest, ConstructFecPacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 0x01;
   header.packet_sequence_number = (GG_UINT64_C(0x123456789ABC));
   header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_FEC;
@@ -2072,6 +2125,8 @@ TEST_F(QuicFramerTest, ConstructFecPacket) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -2099,6 +2154,48 @@ TEST_F(QuicFramerTest, ConstructFecPacket) {
   delete data;
 }
 
+TEST_F(QuicFramerTest, IncrementRetransmitCount) {
+  QuicPacketHeader header;
+  header.guid = GG_UINT64_C(0xFEDCBA9876543210);
+  header.retransmission_count = 1;
+  header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
+  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.flags = PACKET_FLAGS_NONE;
+  header.fec_group = 0;
+
+  QuicStreamFrame stream_frame;
+  stream_frame.stream_id = 0x01020304;
+  stream_frame.fin = true;
+  stream_frame.offset = GG_UINT64_C(0xBA98FEDC32107654);
+  stream_frame.data = "hello world!";
+
+  QuicFrame frame;
+  frame.type = STREAM_FRAME;
+  frame.stream_frame = &stream_frame;
+
+  QuicFrames frames;
+  frames.push_back(frame);
+
+  QuicPacket *original;
+  ASSERT_TRUE(framer_.ConstructFragementDataPacket(
+      header, frames, &original));
+  EXPECT_EQ(header.retransmission_count, framer_.GetRetransmitCount(original));
+
+  header.retransmission_count = 2;
+  QuicPacket *retransmitted;
+  ASSERT_TRUE(framer_.ConstructFragementDataPacket(
+      header, frames, &retransmitted));
+
+  framer_.IncrementRetransmitCount(original);
+  EXPECT_EQ(header.retransmission_count, framer_.GetRetransmitCount(original));
+
+  test::CompareCharArraysWithHexError(
+      "constructed packet", original->data(), original->length(),
+      retransmitted->data(), retransmitted->length());
+  delete original;
+  delete retransmitted;
+}
+
 TEST_F(QuicFramerTest, EncryptPacket) {
   unsigned char packet[] = {
     // guid
@@ -2107,6 +2204,8 @@ TEST_F(QuicFramerTest, EncryptPacket) {
     // packet id
     0xBC, 0x9A, 0x78, 0x56,
     0x34, 0x12,
+    // retransmission count
+    0x01,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
     0xC3, 0xD2, 0xE1, 0xF0,
@@ -2124,7 +2223,7 @@ TEST_F(QuicFramerTest, EncryptPacket) {
     'm',  'n',  'o',  'p',
   };
 
-  QuicPacket raw(AsChars(packet), arraysize(packet), false, PACKET_FLAGS_NONE);
+  QuicPacket raw(AsChars(packet), arraysize(packet), false);
   scoped_ptr<QuicEncryptedPacket> encrypted(framer_.EncryptPacket(raw));
 
   ASSERT_TRUE(encrypted.get() != NULL);
