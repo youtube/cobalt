@@ -58,6 +58,13 @@ inline bool operator!=(const RectF& lhs, const RectF& rhs) {
   return !(lhs == rhs);
 }
 
+UI_EXPORT RectF operator+(const RectF& lhs, const Vector2dF& rhs);
+UI_EXPORT RectF operator-(const RectF& lhs, const Vector2dF& rhs);
+
+inline RectF operator+(const Vector2dF& lhs, const RectF& rhs) {
+  return rhs + lhs;
+}
+
 UI_EXPORT RectF IntersectRects(const RectF& a, const RectF& b);
 UI_EXPORT RectF UnionRects(const RectF& a, const RectF& b);
 UI_EXPORT RectF SubtractRects(const RectF& a, const RectF& b);
