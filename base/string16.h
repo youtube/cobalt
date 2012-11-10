@@ -37,6 +37,10 @@
 typedef wchar_t char16;
 typedef std::wstring string16;
 
+namespace base {
+typedef std::char_traits<wchar_t> string16_char_traits;
+}
+
 #elif defined(WCHAR_T_IS_UTF32)
 
 typedef uint16 char16;
