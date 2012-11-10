@@ -19,9 +19,9 @@ class MockClock : public QuicClock {
 
   virtual ~MockClock();
 
-  virtual uint64 NowInUsec() OVERRIDE;
+  virtual uint64 NowInUsec() const OVERRIDE;
 
-  base::TimeTicks Now();
+  base::TimeTicks Now() const;
 
   void AdvanceTimeInMicroseconds(uint64 delta_in_us) {
     now_ += delta_in_us;

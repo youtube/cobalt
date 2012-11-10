@@ -19,7 +19,7 @@ const int kMinPacketBurstSize = 2;
 const int64 kNumMicrosPerSecond = base::Time::kMicrosecondsPerSecond;
 
 QuicSendScheduler::QuicSendScheduler(
-    QuicClock* clock,
+    const QuicClock* clock,
     CongestionFeedbackType type)
     : clock_(clock),
       current_estimated_bandwidth_(-1),

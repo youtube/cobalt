@@ -12,11 +12,11 @@ MockClock::MockClock() : now_(0) {
 MockClock::~MockClock() {
 }
 
-uint64 MockClock::NowInUsec() {
+uint64 MockClock::NowInUsec() const {
   return now_;
 }
 
-base::TimeTicks MockClock::Now() {
+base::TimeTicks MockClock::Now() const {
   base::TimeTicks now;
   return now + base::TimeDelta::FromMicroseconds(now_);
 }
