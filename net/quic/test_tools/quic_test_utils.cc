@@ -150,6 +150,7 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
 
   QuicPacketHeader header;
   header.guid = guid;
+  header.retransmission_count = 0;
   header.packet_sequence_number = 1;
   header.transmission_time = 0;
   header.flags = PACKET_FLAGS_NONE;
@@ -162,7 +163,7 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
   QuicFrames frames;
   frames.push_back(frame);
   QuicPacket* packet;
-  quic_framer.ConstructFrameDataPacket(header, frames, &packet);
+  quic_framer.ConstructFragementDataPacket(header, frames, &packet);
   return packet;
 }
 
@@ -183,9 +184,8 @@ PacketSavingConnection::~PacketSavingConnection() {
 
 bool PacketSavingConnection::SendPacket(QuicPacketSequenceNumber number,
                                         QuicPacket* packet,
-                                        bool should_resend,
-                                        bool force,
-                                        bool is_retransmit) {
+                                        bool resend,
+                                        bool force) {
   packets_.push_back(packet);
   return true;
 }
