@@ -35,7 +35,7 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
 
   virtual void OnIncomingLoss(int number_of_lost_packets) = 0;
 
-  // Inform that we sent x bytest to the wire, and if that was a retransmission.
+  // Inform that we sent x bytes to the wire, and if that was a retransmission.
   // Note: this function must be called for every packet sent to the wire.
   virtual void SentPacket(QuicPacketSequenceNumber sequence_number,
                           size_t bytes,

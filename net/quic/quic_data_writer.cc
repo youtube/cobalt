@@ -94,6 +94,25 @@ bool QuicDataWriter::WriteBytes(const void* data, uint32 data_len) {
   return true;
 }
 
+void QuicDataWriter::WriteUint8ToBuffer(uint8 value, char* buffer) {
+  memcpy(buffer, &value, sizeof(value));
+}
+
+void QuicDataWriter::WriteUint16ToBuffer(uint16 value, char* buffer) {
+  memcpy(buffer, &value, sizeof(value));
+}
+
+void QuicDataWriter::WriteUint32ToBuffer(uint32 value, char* buffer) {
+  memcpy(buffer, &value, sizeof(value));
+}
+
+void QuicDataWriter::WriteUint48ToBuffer(uint64 value, char* buffer) {
+  uint16 hi = value >> 32;
+  uint32 lo = value & 0x00000000FFFFFFFF;
+  WriteUint32ToBuffer(lo, buffer);
+  WriteUint16ToBuffer(hi, buffer + sizeof(lo));
+}
+
 void QuicDataWriter::WriteUint64ToBuffer(uint64 value, char* buffer) {
   memcpy(buffer, &value, sizeof(value));
 }
