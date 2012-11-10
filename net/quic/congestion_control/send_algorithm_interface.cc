@@ -13,7 +13,7 @@ const bool kUseReno = true;
 
 // Factory for send side congestion control algorithm.
 SendAlgorithmInterface* SendAlgorithmInterface::Create(
-    QuicClock* clock,
+    const QuicClock* clock,
     CongestionFeedbackType type) {
   switch (type) {
     case kNone:

@@ -19,7 +19,7 @@ const int kUnknownWaitTime = -1;
 
 class NET_EXPORT_PRIVATE SendAlgorithmInterface {
  public:
-  static SendAlgorithmInterface* Create(QuicClock* clock,
+  static SendAlgorithmInterface* Create(const QuicClock* clock,
                                         CongestionFeedbackType type);
 
   virtual ~SendAlgorithmInterface() {}

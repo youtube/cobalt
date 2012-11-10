@@ -17,7 +17,7 @@ namespace {
 
 namespace net {
 
-FixRateSender::FixRateSender(QuicClock* clock)
+FixRateSender::FixRateSender(const QuicClock* clock)
     : bitrate_in_bytes_per_s_(kInitialBitrate),
       fix_rate_leaky_bucket_(clock, kInitialBitrate),
       paced_sender_(clock, kInitialBitrate),
