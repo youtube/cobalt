@@ -35,18 +35,21 @@ const size_t kMaxPacketSize = 1200;  // Maximum size in bytes of a QUIC packet.
 const size_t kDefaultMaxStreamsPerConnection = 100;
 
 // Size in bytes of the packet header common across all packets.
-const size_t kPacketHeaderSize = 25;
+const size_t kPacketHeaderSize = 24;
 // Index of the first byte in a QUIC packet of FEC protected data.
 const size_t kStartOfFecProtectedData = kPacketHeaderSize;
 // Index of the first byte in a QUIC packet of encrypted data.
 const size_t kStartOfEncryptedData = kPacketHeaderSize - 1;
 // Index of the first byte in a QUIC packet which is hashed.
 const size_t kStartOfHashData = 0;
-// Index into the retransmission offset in the header.
-// (After GUID and sequence number.)
-const int kRetransmissionOffset = 14;
+// Index into the sequence number offset in the header.
+const int kSequenceNumberOffset = 8;
 // Index into the transmission time offset in the header.
-const int kTransmissionTimeOffset = 15;
+const int kTransmissionTimeOffset = 14;
+// Index into the flags offset in the header.
+const int kFlagsOffset = 22;
+// Index into the fec group offset in the header.
+const int kFecGroupOffset = 23;
 
 // Size in bytes of all stream frame fields.
 const size_t kMinStreamFrameLength = 15;
@@ -145,7 +148,6 @@ struct NET_EXPORT_PRIVATE QuicPacketHeader {
   // from the design docs, as well as some elements of DecryptedData.
   QuicGuid guid;
   QuicPacketSequenceNumber packet_sequence_number;
-  uint8 retransmission_count;
   QuicTransmissionTime transmission_time;
   QuicPacketFlags flags;
   QuicFecGroupNumber fec_group;
@@ -352,9 +354,11 @@ class NET_EXPORT_PRIVATE QuicData {
 
 class NET_EXPORT_PRIVATE QuicPacket : public QuicData {
  public:
-  QuicPacket(char* buffer, size_t length, bool owns_buffer)
+  QuicPacket(
+      char* buffer, size_t length, bool owns_buffer, QuicPacketFlags flags)
       : QuicData(buffer, length, owns_buffer),
-        buffer_(buffer) { }
+        buffer_(buffer),
+        flags_(flags) { }
 
   base::StringPiece FecProtectedData() const {
     return base::StringPiece(data() + kStartOfFecProtectedData,
@@ -369,10 +373,16 @@ class NET_EXPORT_PRIVATE QuicPacket : public QuicData {
     return base::StringPiece(data() + kStartOfEncryptedData,
                              length() - kStartOfEncryptedData);
   }
+
+  bool IsFecPacket() const {
+    return flags_ == PACKET_FLAGS_FEC;
+  }
+
   char* mutable_data() { return buffer_; }
 
  private:
   char* buffer_;
+  const QuicPacketFlags flags_;
 
   DISALLOW_COPY_AND_ASSIGN(QuicPacket);
 };

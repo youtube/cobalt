@@ -26,7 +26,7 @@ QuicFramer::QuicFramer(QuicDecrypter* decrypter, QuicEncrypter* encrypter)
 
 QuicFramer::~QuicFramer() {}
 
-bool QuicFramer::ConstructFragementDataPacket(
+bool QuicFramer::ConstructFrameDataPacket(
     const QuicPacketHeader& header,
     const QuicFrames& frames,
     QuicPacket** packet) {
@@ -89,8 +89,9 @@ bool QuicFramer::ConstructFragementDataPacket(
         return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
   }
+
   DCHECK_EQ(len, writer.length());
-  *packet = new QuicPacket(writer.take(), len, true);
+  *packet = new QuicPacket(writer.take(), len, true, PACKET_FLAGS_NONE);
   if (fec_builder_) {
     fec_builder_->OnBuiltFecProtectedPayload(header,
                                              (*packet)->FecProtectedData());
@@ -122,21 +123,9 @@ bool QuicFramer::ConstructFecPacket(const QuicPacketHeader& header,
     return false;
   }
 
-  *packet = new QuicPacket(writer.take(), len, true);
+  *packet = new QuicPacket(writer.take(), len, true, PACKET_FLAGS_FEC);
 
   return true;
-}
-
-void QuicFramer::IncrementRetransmitCount(QuicPacket* packet) {
-  CHECK_GT(packet->length(), kPacketHeaderSize);
-
-  ++packet->mutable_data()[kRetransmissionOffset];
-}
-
-uint8 QuicFramer::GetRetransmitCount(QuicPacket* packet) {
-  CHECK_GT(packet->length(), kPacketHeaderSize);
-
-  return packet->mutable_data()[kRetransmissionOffset];
 }
 
 bool QuicFramer::ProcessPacket(const IPEndPoint& self_address,
@@ -228,10 +217,6 @@ bool QuicFramer::WritePacketHeader(const QuicPacketHeader& header,
     return false;
   }
 
-  if (!writer->WriteBytes(&header.retransmission_count, 1)) {
-    return false;
-  }
-
   // CongestionMonitoredHeader
   if (!writer->WriteUInt64(header.transmission_time)) {
     return false;
@@ -259,11 +244,6 @@ bool QuicFramer::ProcessPacketHeader(QuicPacketHeader* header,
 
   if (!reader_->ReadUInt48(&header->packet_sequence_number)) {
     set_detailed_error("Unable to read sequence number.");
-    return false;
-  }
-
-  if (!reader_->ReadBytes(&header->retransmission_count, 1)) {
-    set_detailed_error("Unable to read retransmission count.");
     return false;
   }
 
@@ -555,6 +535,18 @@ void QuicFramer::WriteTransmissionTime(QuicTransmissionTime time,
                                        QuicPacket* packet) {
   QuicDataWriter::WriteUint64ToBuffer(
       time, packet->mutable_data() + kTransmissionTimeOffset);
+}
+
+void QuicFramer::WriteSequenceNumber(QuicPacketSequenceNumber sequence_number,
+                                     QuicPacket* packet) {
+  QuicDataWriter::WriteUint48ToBuffer(
+      sequence_number, packet->mutable_data() + kSequenceNumberOffset);
+}
+
+void QuicFramer::WriteFecGroup(QuicFecGroupNumber fec_group,
+                               QuicPacket* packet) {
+  QuicDataWriter::WriteUint8ToBuffer(
+      fec_group, packet->mutable_data() + kFecGroupOffset);
 }
 
 QuicEncryptedPacket* QuicFramer::EncryptPacket(const QuicPacket& packet) {
