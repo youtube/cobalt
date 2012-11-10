@@ -145,7 +145,8 @@ int FieldTrial::AppendGroup(const std::string& name,
 int FieldTrial::group() {
   FinalizeGroupChoice();
   if (!group_reported_) {
-    FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
+    if (enable_field_trial_)
+      FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
     group_reported_ = true;
   }
   return group_;
@@ -209,7 +210,7 @@ void FieldTrial::FinalizeGroupChoice() {
 }
 
 bool FieldTrial::GetActiveGroup(ActiveGroup* active_group) const {
-  if (!group_reported_)
+  if (!group_reported_ || !enable_field_trial_)
     return false;
   DCHECK_NE(group_, kNotFinalized);
   active_group->trial = name_;
