@@ -172,11 +172,8 @@ M M IS: Inconsistent synchronization of org.chromium.content.browser.SandboxedPr
 M M LI: Incorrect lazy initialization and update of static field org.chromium.content.browser.ContentVideoView.sContentVideoView in org.chromium.content.browser.ContentVideoView.createContentVideoView(int)  At ContentVideoView.java
 M M LI: Incorrect lazy initialization and update of static field org.chromium.net.test.util.TestWebServer.sReasons in org.chromium.net.test.util.TestWebServer.createResponse(int)  At TestWebServer.java
 M M LI: Incorrect lazy initialization of static field org.chromium.net.NetworkChangeNotifier.sInstance in org.chromium.net.NetworkChangeNotifier.createInstance(Context, int)  At NetworkChangeNotifier.java
-M M NN: Naked notify in org.chromium.content.browser.VSyncMonitorTest$VSyncDataCollector.onVSync(VSyncMonitor, long)  At VSyncMonitorTest.java
 M M UG: org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.getBooleanValue() is unsynchronized, org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.setBooleanValue(boolean) is synchronized  At JavaBridgeReturnValuesTest.java
 M M UG: org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.getStringValue() is unsynchronized, org.chromium.content.browser.JavaBridgeReturnValuesTest$TestObject.setStringValue(String) is synchronized  At JavaBridgeReturnValuesTest.java
-M M UW: Unconditional wait in org.chromium.content.browser.VSyncMonitorTest.testVSyncPeriod()  At VSyncMonitorTest.java
-M M Wa: Wait not in loop in org.chromium.content.browser.VSyncMonitorTest.testVSyncPeriod()  At VSyncMonitorTest.java
 M P SIC: Should org.chromium.android_webview.test.AwSettingsTest$ViewPair be a _static_ inner class?  At AwSettingsTest.java
 M P SIC: Should org.chromium.android_webview.test.TestAwContentsClient$AddMessageToConsoleHelper be a _static_ inner class?  At TestAwContentsClient.java
 M P SIC: Should org.chromium.android_webview.test.TestContentProvider$ProviderStateCursor be a _static_ inner class?  At TestContentProvider.java
@@ -185,9 +182,6 @@ M P SIC: Should org.chromium.content.browser.JavaBridgeArrayCoercionTest$CustomT
 M P SIC: Should org.chromium.content.browser.JavaBridgeFieldsTest$CustomType be a _static_ inner class?  At JavaBridgeFieldsTest.java
 M P SIC: Should org.chromium.content.browser.JavaBridgeReturnValuesTest$CustomType be a _static_ inner class?  At JavaBridgeReturnValuesTest.java
 M P SIC: Should org.chromium.content.browser.PopupZoomerTest$CustomCanvasPopupZoomer be a _static_ inner class?  At PopupZoomerTest.java
-M P SIC: Should org.chromium.content.browser.VSyncMonitorTest$TestTimeSource be a _static_ inner class?  At VSyncMonitorTest.java
-M P SIC: Should org.chromium.content.browser.VSyncMonitorTest$TestView be a _static_ inner class?  At VSyncMonitorTest.java
-M P SIC: Should org.chromium.content.browser.VSyncMonitorTest$VSyncDataCollector be a _static_ inner class?  At VSyncMonitorTest.java
 M P SS: Unread field: org.chromium.android_webview.test.AwSettingsTest$AwSettingsTextZoomTestHelper.mInitialTextZoom; should this field be static?  At AwSettingsTest.java
 M P SS: Unread field: org.chromium.android_webview.test.util.ImagePageGenerator.IMAGE_PREFIX; should this field be static?  At ImagePageGenerator.java
 M P SS: Unread field: org.chromium.android_webview.test.util.ImagePageGenerator.IMAGE_SUFFIX; should this field be static?  At ImagePageGenerator.java
