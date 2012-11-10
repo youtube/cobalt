@@ -195,6 +195,19 @@ class SQL_EXPORT Connection {
   // Since Raze() is expected to be called in unexpected situations,
   // these all return false, since it is unlikely that the caller
   // could fix them.
+  //
+  // The database's page size is taken from |page_size_|.  The
+  // existing database's |auto_vacuum| setting is lost (the
+  // possibility of corruption makes it unreliable to pull it from the
+  // existing database).  To re-enable on the empty database requires
+  // running "PRAGMA auto_vacuum = 1;" then "VACUUM".
+  //
+  // NOTE(shess): For Android, SQLITE_DEFAULT_AUTOVACUUM is set to 1,
+  // so Raze() sets auto_vacuum to 1.
+  //
+  // TODO(shess): Raze() needs a connection so cannot clear SQLITE_NOTADB.
+  // TODO(shess): Bake auto_vacuum into Connection's API so it can
+  // just pick up the default.
   bool Raze();
   bool RazeWithTimout(base::TimeDelta timeout);
 

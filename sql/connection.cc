@@ -40,6 +40,26 @@ class ScopedBusyTimeout {
   sqlite3* db_;
 };
 
+// Helper to "safely" enable writable_schema.  No error checking
+// because it is reasonable to just forge ahead in case of an error.
+// If turning it on fails, then most likely nothing will work, whereas
+// if turning it off fails, it only matters if some code attempts to
+// continue working with the database and tries to modify the
+// sqlite_master table (none of our code does this).
+class ScopedWritableSchema {
+ public:
+  explicit ScopedWritableSchema(sqlite3* db)
+      : db_(db) {
+    sqlite3_exec(db_, "PRAGMA writable_schema=1", NULL, NULL, NULL);
+  }
+  ~ScopedWritableSchema() {
+    sqlite3_exec(db_, "PRAGMA writable_schema=0", NULL, NULL, NULL);
+  }
+
+ private:
+  sqlite3* db_;
+};
+
 }  // namespace
 
 namespace sql {
@@ -196,29 +216,27 @@ bool Connection::Raze() {
     return false;
   }
 
-  // Get the page size from the current connection, then propagate it
-  // to the null database.
-  {
-    Statement s(GetUniqueStatement("PRAGMA page_size"));
-    if (!s.Step())
-      return false;
-    const std::string sql = StringPrintf("PRAGMA page_size=%d",
-                                         s.ColumnInt(0));
+  if (page_size_) {
+    // Enforce SQLite restrictions on |page_size_|.
+    DCHECK(!(page_size_ & (page_size_ - 1)))
+        << " page_size_ " << page_size_ << " is not a power of two.";
+    const int kSqliteMaxPageSize = 32768;  // from sqliteLimit.h
+    DCHECK_LE(page_size_, kSqliteMaxPageSize);
+    const std::string sql = StringPrintf("PRAGMA page_size=%d", page_size_);
     if (!null_db.Execute(sql.c_str()))
       return false;
   }
 
-  // Get the value of auto_vacuum from the current connection, then propagate it
-  // to the null database.
-  {
-    Statement s(GetUniqueStatement("PRAGMA auto_vacuum"));
-    if (!s.Step())
-      return false;
-    const std::string sql = StringPrintf("PRAGMA auto_vacuum=%d",
-                                         s.ColumnInt(0));
-    if (!null_db.Execute(sql.c_str()))
-      return false;
-  }
+#if defined(OS_ANDROID)
+  // Android compiles with SQLITE_DEFAULT_AUTOVACUUM.  Unfortunately,
+  // in-memory databases do not respect this define.
+  // TODO(shess): Figure out a way to set this without using platform
+  // specific code.  AFAICT from sqlite3.c, the only way to do it
+  // would be to create an actual filesystem database, which is
+  // unfortunate.
+  if (!null_db.Execute("PRAGMA auto_vacuum = 1"))
+    return false;
+#endif
 
   // The page size doesn't take effect until a database has pages, and
   // at this point the null database has none.  Changing the schema
@@ -229,6 +247,17 @@ bool Connection::Raze() {
   // so that other readers see the schema change and act accordingly.
   if (!null_db.Execute("PRAGMA schema_version = 1"))
     return false;
+
+  // SQLite tracks the expected number of database pages in the first
+  // page, and if it does not match the total retrieved from a
+  // filesystem call, treats the database as corrupt.  This situation
+  // breaks almost all SQLite calls.  "PRAGMA writable_schema" can be
+  // used to hint to SQLite to soldier on in that case, specifically
+  // for purposes of recovery.  [See SQLITE_CORRUPT_BKPT case in
+  // sqlite3.c lockBtree().]
+  // TODO(shess): With this, "PRAGMA auto_vacuum" and "PRAGMA
+  // page_size" can be used to query such a database.
+  ScopedWritableSchema writable_schema(db_);
 
   sqlite3_backup* backup = sqlite3_backup_init(db_, "main",
                                                null_db.db_, "main");
@@ -549,7 +578,7 @@ bool Connection::OpenInternal(const std::string& file_name) {
     // Enforce SQLite restrictions on |page_size_|.
     DCHECK(!(page_size_ & (page_size_ - 1)))
         << " page_size_ " << page_size_ << " is not a power of two.";
-    static const int kSqliteMaxPageSize = 32768;  // from sqliteLimit.h
+    const int kSqliteMaxPageSize = 32768;  // from sqliteLimit.h
     DCHECK_LE(page_size_, kSqliteMaxPageSize);
     const std::string sql = StringPrintf("PRAGMA page_size=%d", page_size_);
     if (!ExecuteWithTimeout(sql.c_str(), kBusyTimeout))

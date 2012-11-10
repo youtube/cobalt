@@ -186,7 +186,7 @@ TEST_F(SQLConnectionTest, Raze) {
   {
     sql::Statement s(db().GetUniqueStatement("PRAGMA auto_vacuum"));
     ASSERT_TRUE(s.Step());
-    // auto_vacuum must be preserved across a Raze.
+    // The new database has the same auto_vacuum as a fresh database.
     EXPECT_EQ(pragma_auto_vacuum, s.ColumnInt(0));
   }
 }
