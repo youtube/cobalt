@@ -368,6 +368,9 @@ int Connection::ExecuteAndReturnErrorCode(const char* sql) {
 
 bool Connection::Execute(const char* sql) {
   int error = ExecuteAndReturnErrorCode(sql);
+  if (error != SQLITE_OK)
+    error = OnSqliteError(error, NULL);
+
   // This needs to be a FATAL log because the error case of arriving here is
   // that there's a malformed SQL statement. This can arise in development if
   // a change alters the schema but not all queries adjust.
@@ -417,9 +420,13 @@ scoped_refptr<Connection::StatementRef> Connection::GetUniqueStatement(
     return new StatementRef();  // Return inactive statement.
 
   sqlite3_stmt* stmt = NULL;
-  if (sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL) != SQLITE_OK) {
+  int rc = sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL);
+  if (rc != SQLITE_OK) {
     // This is evidence of a syntax error in the incoming SQL.
     DLOG(FATAL) << "SQL compile error " << GetErrorMessage();
+
+    // It could also be database corruption.
+    OnSqliteError(rc, NULL);
     return new StatementRef();
   }
   return new StatementRef(this, stmt);
