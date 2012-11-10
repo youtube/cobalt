@@ -169,11 +169,9 @@ class TestConnection : public QuicConnection {
 
   bool SendPacket(QuicPacketSequenceNumber sequence_number,
                   QuicPacket* packet,
-                  bool should_resend,
-                  bool force,
-                  bool is_retransmit) {
-    return QuicConnection::SendPacket(
-        sequence_number, packet, should_resend, force, is_retransmit);
+                  bool resend,
+                  bool force) {
+    return QuicConnection::SendPacket(sequence_number, packet, resend, force);
   }
 };
 
@@ -297,6 +295,7 @@ class QuicConnectionTest : public ::testing::Test {
                                   QuicFecGroupNumber fec_group) {
     header_.guid = guid_;
     header_.packet_sequence_number = number;
+    header_.retransmission_count = 0;
     header_.transmission_time = 0;
     header_.flags = PACKET_FLAGS_NONE;
     header_.fec_group = fec_group;
@@ -305,7 +304,7 @@ class QuicConnectionTest : public ::testing::Test {
     QuicFrame frame(&frame1_);
     frames.push_back(frame);
     QuicPacket* packet = NULL;
-    EXPECT_TRUE(framer_.ConstructFrameDataPacket(header_, frames, &packet));
+    EXPECT_TRUE(framer_.ConstructFragementDataPacket(header_, frames, &packet));
     return packet;
   }
 
@@ -689,7 +688,7 @@ TEST_F(QuicConnectionTest, TestResend) {
   const uint64 kDefaultResendTimeMs = 500u;
 
   connection_.SendStreamData(1, "foo", 0, false, NULL);
-  EXPECT_EQ(1u, last_header()->packet_sequence_number);
+  EXPECT_EQ(0u, last_header()->retransmission_count);
   EXPECT_EQ(0u, last_header()->transmission_time);
   EXPECT_EQ(1u, helper_->resend_alarms().size());
   EXPECT_EQ(kDefaultResendTimeMs * 1000,
@@ -697,10 +696,11 @@ TEST_F(QuicConnectionTest, TestResend) {
   // Simulate the resend alarm firing
   clock_.AdvanceTimeInMicroseconds(kDefaultResendTimeMs * 1000);
   connection_.MaybeResendPacket(1);
-  EXPECT_EQ(2u, last_header()->packet_sequence_number);
+  EXPECT_EQ(1u, last_header()->retransmission_count);
   EXPECT_EQ(kDefaultResendTimeMs * 1000,
             last_header()->transmission_time);
 }
+
 
 TEST_F(QuicConnectionTest, TestQueued) {
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
@@ -806,12 +806,11 @@ TEST_F(QuicConnectionTest, TimeoutAfterSend) {
   EXPECT_FALSE(connection_.connected());
 }
 
-// TODO(ianswett): Add scheduler tests when resend is false.
 TEST_F(QuicConnectionTest, SendScheduler) {
   // Test that if we send a packet without delay, it is not queued.
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(0));
-  connection_.SendPacket(1, packet.get(), true, false, false);
+  connection_.SendPacket(1, packet.get(), true, false);
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
 
@@ -820,7 +819,7 @@ TEST_F(QuicConnectionTest, SendSchedulerDelay) {
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(1));
   EXPECT_CALL(*scheduler_, SentPacket(1, _, _)).Times(0);
-  connection_.SendPacket(1, packet.get(), true, false, false);
+  connection_.SendPacket(1, packet.get(), true, false);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 }
 
@@ -828,7 +827,7 @@ TEST_F(QuicConnectionTest, SendSchedulerForce) {
   // Test that if we force send a packet, it is not queued.
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).Times(0);
-  connection_.SendPacket(1, packet.get(), true, true, false);
+  connection_.SendPacket(1, packet.get(), true, true);
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
 
@@ -837,7 +836,7 @@ TEST_F(QuicConnectionTest, SendSchedulerEAGAIN) {
   helper_->set_blocked(true);
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(0));
   EXPECT_CALL(*scheduler_, SentPacket(1, _, _)).Times(0);
-  connection_.SendPacket(1, packet.get(), true, false, false);
+  connection_.SendPacket(1, packet.get(), true, false);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 }
 
@@ -845,31 +844,12 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenSend) {
   // Test that if we send a packet with a delay, it ends up queued.
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(1));
-  connection_.SendPacket(1, packet.get(), true, false, false);
+  connection_.SendPacket(1, packet.get(), true, false);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
   // Advance the clock to fire the alarm, and configure the scheduler
   // to permit the packet to be sent.
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(0));
-  clock_.AdvanceTimeInMicroseconds(1);
-  connection_.OnCanWrite();
-  EXPECT_EQ(0u, connection_.NumQueuedPackets());
-}
-
-TEST_F(QuicConnectionTest, SendSchedulerDelayThenRetransmit) {
-  // Test that if we send a retransmit with a delay, it ends up queued.
-  scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
-  EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(1));
-  connection_.SendPacket(1, packet.get(), true, false, true);
-  EXPECT_EQ(1u, connection_.NumQueuedPackets());
-
-  // Advance the clock to fire the alarm, and configure the scheduler
-  // to permit the packet to be sent.
-  EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(0));
-  clock_.AdvanceTimeInMicroseconds(1);
-
-  // Ensure the scheduler is notified this is a retransmit.
-  EXPECT_CALL(*scheduler_, SentPacket(1, _, true));
   clock_.AdvanceTimeInMicroseconds(1);
   connection_.OnCanWrite();
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
@@ -878,18 +858,18 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenRetransmit) {
 TEST_F(QuicConnectionTest, SendSchedulerDelayAndQueue) {
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(1));
-  connection_.SendPacket(1, packet.get(), true, false, false);
+  connection_.SendPacket(1, packet.get(), true, false);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
   // Attempt to send another packet and make sure that it gets queued.
-  connection_.SendPacket(2, packet.get(), true, false, false);
+  connection_.SendPacket(2, packet.get(), true, false);
   EXPECT_EQ(2u, connection_.NumQueuedPackets());
 }
 
 TEST_F(QuicConnectionTest, SendSchedulerDelayThenAckAndSend) {
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(10));
-  connection_.SendPacket(1, packet.get(), true, false, false);
+  connection_.SendPacket(1, packet.get(), true, false);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
   // Now send non-retransmitting information, that we're not going to resend 3.
@@ -909,7 +889,7 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenAckAndSend) {
 TEST_F(QuicConnectionTest, SendSchedulerDelayThenAckAndHold) {
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(10));
-  connection_.SendPacket(1, packet.get(), true, false, false);
+  connection_.SendPacket(1, packet.get(), true, false);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
   // Now send non-resending information, that we're not going to resend 3.
@@ -926,7 +906,7 @@ TEST_F(QuicConnectionTest, SendSchedulerDelayThenAckAndHold) {
 TEST_F(QuicConnectionTest, SendSchedulerDelayThenOnCanWrite) {
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(10));
-  connection_.SendPacket(1, packet.get(), true, false, false);
+  connection_.SendPacket(1, packet.get(), true, false);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
   // OnCanWrite should not send the packet (because of the delay)

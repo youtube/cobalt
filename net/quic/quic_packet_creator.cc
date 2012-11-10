@@ -81,7 +81,7 @@ void QuicPacketCreator::DataToStream(QuicStreamId id,
       data_to_send -= frame_len;
 
       // Produce the data packet (which might fin the stream).
-      framer_->ConstructFrameDataPacket(header, frames, &packet);
+      framer_->ConstructFragementDataPacket(header, frames, &packet);
       DCHECK_GE(options_.max_packet_length, packet->length());
       packets->push_back(make_pair(header.packet_sequence_number, packet));
       frames.clear();
@@ -93,7 +93,7 @@ void QuicPacketCreator::DataToStream(QuicStreamId id,
     FillPacketHeader(current_fec_group, PACKET_FLAGS_NONE, &header);
     QuicStreamFrame frame(id, true, offset, "");
     frames.push_back(QuicFrame(&frame));
-    framer_->ConstructFrameDataPacket(header, frames, &packet);
+    framer_->ConstructFragementDataPacket(header, frames, &packet);
     packets->push_back(make_pair(header.packet_sequence_number, packet));
     frames.clear();
   }
@@ -138,7 +138,7 @@ QuicPacketCreator::PacketPair QuicPacketCreator::ResetStream(
   QuicPacket* packet;
   QuicFrames frames;
   frames.push_back(QuicFrame(&close_frame));
-  framer_->ConstructFrameDataPacket(header, frames, &packet);
+  framer_->ConstructFragementDataPacket(header, frames, &packet);
   return make_pair(header.packet_sequence_number, packet);
 }
 
@@ -151,7 +151,7 @@ QuicPacketCreator::PacketPair QuicPacketCreator::CloseConnection(
   QuicPacket* packet;
   QuicFrames frames;
   frames.push_back(QuicFrame(close_frame));
-  framer_->ConstructFrameDataPacket(header, frames, &packet);
+  framer_->ConstructFragementDataPacket(header, frames, &packet);
   return make_pair(header.packet_sequence_number, packet);
 }
 
@@ -164,15 +164,8 @@ QuicPacketCreator::PacketPair QuicPacketCreator::AckPacket(
   QuicPacket* packet;
   QuicFrames frames;
   frames.push_back(QuicFrame(ack_frame));
-  framer_->ConstructFrameDataPacket(header, frames, &packet);
+  framer_->ConstructFragementDataPacket(header, frames, &packet);
   return make_pair(header.packet_sequence_number, packet);
-}
-
-QuicPacketSequenceNumber QuicPacketCreator::SetNewSequenceNumber(
-    QuicPacket* packet) {
-  ++sequence_number_;
-  framer_->WriteSequenceNumber(sequence_number_, packet);
-  return sequence_number_;
 }
 
 void QuicPacketCreator::FillPacketHeader(QuicFecGroupNumber fec_group,
@@ -183,6 +176,9 @@ void QuicPacketCreator::FillPacketHeader(QuicFecGroupNumber fec_group,
   header->packet_sequence_number = ++sequence_number_;
   header->fec_group = fec_group;
 
+  // Default to zero - the sender should increment this as packets are
+  // retransmitted.
+  header->retransmission_count = 0;
   header->transmission_time = 0;
 }
 

@@ -47,10 +47,6 @@ class NET_EXPORT_PRIVATE QuicDataWriter {
   bool WriteStringPiece16(base::StringPiece val);
   bool WriteBytes(const void* data, uint32 data_len);
 
-  static void WriteUint8ToBuffer(uint8 value, char* buffer);
-  static void WriteUint16ToBuffer(uint16 value, char* buffer);
-  static void WriteUint32ToBuffer(uint32 value, char* buffer);
-  static void WriteUint48ToBuffer(uint64 value, char* buffer);
   static void WriteUint64ToBuffer(uint64 value, char* buffer);
   static void WriteUint128ToBuffer(uint128 value, char* buffer);
 
