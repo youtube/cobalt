@@ -186,16 +186,14 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   bool ShouldSimulateLostPacket();
 
  protected:
-  // Send a packet to the peer.  If should_resend is true, this packet contains
-  // data, and contents will be resent with a new sequence number if we don't
-  // get an ack.  If force is true, then the packet will be sent immediately and
-  // the send scheduler will not be consulted.  If is_retransmit is true, this
-  // packet is being retransmitted with a new sequence number.
+  // Send a packet to the peer.  If resend is true, this packet contains data,
+  // and will be resent if we don't get an ack.  If force is true, then the
+  // packet will be sent immediately and the send scheduler will not be
+  // consulted.
   virtual bool SendPacket(QuicPacketSequenceNumber number,
                           QuicPacket* packet,
-                          bool should_resend,
-                          bool force,
-                          bool is_retransmit);
+                          bool resend,
+                          bool force);
 
   // Make sure an ack we got from our peer is sane.
   bool ValidateAckFrame(const QuicAckFrame& incoming_ack);
@@ -262,16 +260,13 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
     QuicPacketSequenceNumber sequence_number;
     QuicPacket* packet;
     bool resend;
-    bool retransmit;
 
     QueuedPacket(QuicPacketSequenceNumber sequence_number,
                  QuicPacket* packet,
-                 bool resend,
-                 bool retransmit) {
+                 bool resend) {
       this->sequence_number = sequence_number;
       this->packet = packet;
       this->resend = resend;
-      this->retransmit = retransmit;
     }
   };
   typedef std::list<QueuedPacket> QueuedPacketList;

@@ -54,11 +54,9 @@ class TestConnection : public QuicConnection {
 
   bool SendPacket(QuicPacketSequenceNumber sequence_number,
                   QuicPacket* packet,
-                  bool should_resend,
-                  bool force,
-                  bool is_retransmit) {
-    return QuicConnection::SendPacket(
-        sequence_number, packet, should_resend, force, is_retransmit);
+                  bool resend,
+                  bool force) {
+    return QuicConnection::SendPacket(sequence_number, packet, resend, force);
   }
 };
 
@@ -113,6 +111,7 @@ class QuicConnectionHelperTest : public ::testing::Test {
     header_.guid = guid_;
     header_.packet_sequence_number = number;
     header_.transmission_time = 0;
+    header_.retransmission_count = 0;
     header_.flags = PACKET_FLAGS_NONE;
     header_.fec_group = fec_group;
 
@@ -120,7 +119,7 @@ class QuicConnectionHelperTest : public ::testing::Test {
     QuicFrame frame(&frame1_);
     frames.push_back(frame);
     QuicPacket* packet;
-    framer_.ConstructFrameDataPacket(header_, frames, &packet);
+    framer_.ConstructFragementDataPacket(header_, frames, &packet);
     return packet;
   }
 
@@ -166,10 +165,12 @@ TEST_F(QuicConnectionHelperTest, TestResend) {
   const uint64 kDefaultResendTimeMs = 500;
 
   connection_.SendStreamData(1, "foo", 0, false, NULL);
+  EXPECT_EQ(0u, helper_->header()->retransmission_count);
   EXPECT_EQ(0u, helper_->header()->transmission_time);
 
   runner_->RunNextTask();
-  EXPECT_EQ(2u, helper_->header()->packet_sequence_number);
+
+  EXPECT_EQ(1u, helper_->header()->retransmission_count);
   EXPECT_EQ(kDefaultResendTimeMs * 1000,
             helper_->header()->transmission_time);
 }
@@ -216,11 +217,9 @@ TEST_F(QuicConnectionHelperTest, SendSchedulerDelayThenSend) {
   // Test that if we send a packet with a delay, it ends up queued.
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(1));
-
-  bool should_resend = true;
+  bool resend = true;
   bool force = false;
-  bool is_retransmit = false;
-  connection_.SendPacket(1, packet.get(), should_resend, force, is_retransmit);
+  connection_.SendPacket(1, packet.get(), resend, force);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
   // Advance the clock to fire the alarm, and configure the scheduler

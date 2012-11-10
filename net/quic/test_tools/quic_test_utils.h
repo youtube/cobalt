@@ -149,9 +149,8 @@ class PacketSavingConnection : public MockConnection {
 
   virtual bool SendPacket(QuicPacketSequenceNumber number,
                           QuicPacket* packet,
-                          bool should_resend,
-                          bool force,
-                          bool is_retransmit) OVERRIDE;
+                          bool resend,
+                          bool force) OVERRIDE;
 
   std::vector<QuicPacket*> packets_;
 };
