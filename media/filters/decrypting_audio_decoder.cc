@@ -434,8 +434,10 @@ void DecryptingAudioDecoder::EnqueueFrames(
     base::TimeDelta cur_timestamp = output_timestamp_base_ +
         NumberOfSamplesToDuration(total_samples_decoded_);
     if (IsOutOfSync(cur_timestamp, frame->GetTimestamp())) {
-      DVLOG(1)  << "Timestamp returned by the decoder does not match the input "
-                << "timestamp and number of samples decoded.";
+      DVLOG(1)  << "Timestamp returned by the decoder ("
+                << frame->GetTimestamp().InMilliseconds() << " ms)"
+                << " does not match the input timestamp and number of samples"
+                << " decoded (" << cur_timestamp.InMilliseconds() << " ms).";
     }
     frame->SetTimestamp(cur_timestamp);
 
