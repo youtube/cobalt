@@ -10,7 +10,7 @@ namespace net {
 
 // Factory for receive side congestion control algorithm.
 ReceiveAlgorithmInterface* ReceiveAlgorithmInterface::Create(
-    QuicClock* clock,
+    const QuicClock* clock,
     CongestionFeedbackType type) {
   switch (type) {
     case kNone:

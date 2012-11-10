@@ -49,7 +49,8 @@ class NET_EXPORT_PRIVATE QuicSendScheduler {
   // when pacing is enabled a large congestion window will be sent in multiple
   // bursts of packet(s) instead of one big burst that might introduce packet
   // loss.
-  QuicSendScheduler(QuicClock* clock, CongestionFeedbackType congestion_type);
+  QuicSendScheduler(const QuicClock* clock,
+                    CongestionFeedbackType congestion_type);
   virtual ~QuicSendScheduler();
 
   // Called when we have received an ack frame from remote peer.
@@ -86,7 +87,7 @@ class NET_EXPORT_PRIVATE QuicSendScheduler {
   bool HasSentPacket();
   int UpdatePacketHistory();
 
-  QuicClock* clock_;
+  const QuicClock* clock_;
   int current_estimated_bandwidth_;
   int max_estimated_bandwidth_;
   // To keep track of the real sent bitrate we keep track of the last sent bytes

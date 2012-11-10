@@ -16,7 +16,7 @@ namespace net {
 
 class NET_EXPORT_PRIVATE PacedSender {
  public:
-  PacedSender(QuicClock* clock, int bandwidth_estimate_bytes_per_s);
+  PacedSender(const QuicClock* clock, int bandwidth_estimate_bytes_per_s);
 
   // The estimated bandidth from the congestion algorithm changed.
   void UpdateBandwidthEstimate(int bytes_per_s);

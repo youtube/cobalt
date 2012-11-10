@@ -15,7 +15,7 @@ const size_t kMinPacketBurstSize = 2;
 // AvailableCongestionWindow.
 const int kMaxSchedulingDelayUs = 2000;
 
-PacedSender::PacedSender(QuicClock* clock, int bytes_per_s)
+PacedSender::PacedSender(const QuicClock* clock, int bytes_per_s)
     : leaky_bucket_(clock, bytes_per_s),
       pace_in_bytes_per_s_(bytes_per_s) {
 }
