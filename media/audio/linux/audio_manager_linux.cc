@@ -39,6 +39,7 @@ static const char* kInvalidAudioInputDevices[] = {
   "null",
   "pulse",
   "dmix",
+  "surround",
 };
 
 static const char kCrasAutomaticDeviceName[] = "Automatic";
@@ -203,19 +204,15 @@ void AudioManagerLinux::GetAlsaDevicesInfo(
 }
 
 bool AudioManagerLinux::IsAlsaDeviceAvailable(const char* device_name) {
-  static const char kNotWantedSurroundDevices[] = "surround";
-
   if (!device_name)
     return false;
 
   // Check if the device is in the list of invalid devices.
   for (size_t i = 0; i < arraysize(kInvalidAudioInputDevices); ++i) {
-    if ((strcmp(kInvalidAudioInputDevices[i], device_name) == 0) ||
-        (strncmp(kNotWantedSurroundDevices, device_name,
-            arraysize(kNotWantedSurroundDevices) - 1) == 0))
+    if (strncmp(kInvalidAudioInputDevices[i], device_name,
+                strlen(kInvalidAudioInputDevices[i])) == 0)
       return false;
   }
-
   // The only way to check if the device is available is to open/close the
   // device. Return false if it fails either of operations.
   snd_pcm_t* device_handle = NULL;
