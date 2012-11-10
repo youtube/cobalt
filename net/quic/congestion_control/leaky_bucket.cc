@@ -11,6 +11,7 @@ namespace net {
 LeakyBucket::LeakyBucket(QuicClock* clock, int bytes_per_second)
     : clock_(clock),
       bytes_(0),
+      time_last_updated_us_(0),
       draining_rate_bytes_per_s_(bytes_per_second) {
 }
 
