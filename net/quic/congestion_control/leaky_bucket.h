@@ -19,7 +19,7 @@ namespace net {
 class NET_EXPORT_PRIVATE LeakyBucket {
  public:
   // clock is not owned by this class.
-  LeakyBucket(QuicClock* clock, int bytes_per_second);
+  LeakyBucket(const QuicClock* clock, int bytes_per_second);
 
   // Set the rate at which the bytes leave the buffer.
   void SetDrainingRate(int bytes_per_second);
@@ -36,7 +36,7 @@ class NET_EXPORT_PRIVATE LeakyBucket {
  private:
   void Update();
 
-  QuicClock* clock_;
+  const QuicClock* clock_;
   size_t bytes_;
   uint64 time_last_updated_us_;
   int draining_rate_bytes_per_s_;

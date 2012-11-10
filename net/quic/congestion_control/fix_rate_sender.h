@@ -19,7 +19,7 @@ namespace net {
 
 class NET_EXPORT_PRIVATE FixRateSender : public SendAlgorithmInterface {
  public:
-  explicit FixRateSender(QuicClock* clock);
+  explicit FixRateSender(const QuicClock* clock);
 
   // Start implementation of SendAlgorithmInterface.
   virtual void OnIncomingCongestionInfo(

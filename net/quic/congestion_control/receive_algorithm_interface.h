@@ -16,7 +16,7 @@ namespace net {
 
 class NET_EXPORT_PRIVATE ReceiveAlgorithmInterface {
  public:
-  static ReceiveAlgorithmInterface* Create(QuicClock* clock,
+  static ReceiveAlgorithmInterface* Create(const QuicClock* clock,
                                            CongestionFeedbackType type);
 
   virtual ~ReceiveAlgorithmInterface() {}
