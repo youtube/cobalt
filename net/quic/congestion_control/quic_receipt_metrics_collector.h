@@ -22,7 +22,7 @@ namespace net {
 
 class NET_EXPORT_PRIVATE QuicReceiptMetricsCollector {
  public:
-  QuicReceiptMetricsCollector(QuicClock* clock,
+  QuicReceiptMetricsCollector(const QuicClock* clock,
                               CongestionFeedbackType congestion_type);
 
   virtual ~QuicReceiptMetricsCollector();

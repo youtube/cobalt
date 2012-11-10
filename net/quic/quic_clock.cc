@@ -13,7 +13,7 @@ QuicClock::QuicClock() {
 
 QuicClock::~QuicClock() {}
 
-uint64 QuicClock::NowInUsec() {
+uint64 QuicClock::NowInUsec() const {
   base::TimeDelta delta = base::Time::Now() - base::Time::UnixEpoch();
   return delta.InMicroseconds();
 }

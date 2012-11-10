@@ -8,7 +8,7 @@
 
 namespace net {
 
-LeakyBucket::LeakyBucket(QuicClock* clock, int bytes_per_second)
+LeakyBucket::LeakyBucket(const QuicClock* clock, int bytes_per_second)
     : clock_(clock),
       bytes_(0),
       time_last_updated_us_(0),

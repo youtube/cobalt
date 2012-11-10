@@ -21,7 +21,7 @@ class NET_EXPORT_PRIVATE QuicClock {
 
   // Returns the approximate current time as the number of microseconds
   // since the Unix epoch.
-  virtual uint64 NowInUsec();
+  virtual uint64 NowInUsec() const;
 };
 
 }  // namespace net
