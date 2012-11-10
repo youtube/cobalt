@@ -50,7 +50,7 @@ void TraceLog::SendToATrace(char phase,
     case TRACE_EVENT_PHASE_INSTANT: {
       std::string out = StringPrintf("B|%d|%s-%s", getpid(), category, name);
       for (int i = 0; i < num_args; ++i) {
-        out += '|';
+        out += (i == 0 ? '|' : ';');
         out += arg_names[i];
         out += '=';
         TraceEvent::TraceValue value;
@@ -60,6 +60,9 @@ void TraceLog::SendToATrace(char phase,
         // Remove the quotes which may confuse the atrace script.
         ReplaceSubstringsAfterOffset(&out, value_start, "\\\"", "'");
         ReplaceSubstringsAfterOffset(&out, value_start, "\"", "");
+        // Replace chars used for separators with similar chars in the value.
+        std::replace(out.begin() + value_start, out.end(), ';', ',');
+        std::replace(out.begin() + value_start, out.end(), '|', '!');
       }
       write(g_atrace_fd, out.c_str(), out.size());
 
