@@ -36,9 +36,9 @@ class UI_EXPORT RectF
   void Scale(float x_scale, float y_scale) {
     set_origin(ScalePoint(origin(), x_scale, y_scale));
 
-    SizeF newSize = size().Scale(x_scale, y_scale);
-    newSize.ClampToNonNegative();
-    set_size(newSize);
+    SizeF new_size = size().Scale(x_scale, y_scale);
+    new_size.ClampToNonNegative();
+    set_size(new_size);
   }
 
   // This method reports if the RectF can be safely converted to an integer
