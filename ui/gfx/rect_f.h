@@ -37,7 +37,6 @@ class UI_EXPORT RectF
     set_origin(ScalePoint(origin(), x_scale, y_scale));
 
     SizeF new_size = size().Scale(x_scale, y_scale);
-    new_size.ClampToNonNegative();
     set_size(new_size);
   }
 
