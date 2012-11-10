@@ -388,8 +388,8 @@ TEST_F(FieldTrialTest, Save) {
 }
 
 TEST_F(FieldTrialTest, Restore) {
-  EXPECT_TRUE(FieldTrialList::Find("Some_name") == NULL);
-  EXPECT_TRUE(FieldTrialList::Find("xxx") == NULL);
+  ASSERT_FALSE(FieldTrialList::TrialExists("Some_name"));
+  ASSERT_FALSE(FieldTrialList::TrialExists("xxx"));
 
   FieldTrialList::CreateTrialsFromString("Some_name/Winner/xxx/yyyy/");
 
@@ -431,7 +431,7 @@ TEST_F(FieldTrialTest, DuplicateRestore) {
 }
 
 TEST_F(FieldTrialTest, CreateFieldTrial) {
-  EXPECT_TRUE(FieldTrialList::Find("Some_name") == NULL);
+  ASSERT_FALSE(FieldTrialList::TrialExists("Some_name"));
 
   FieldTrialList::CreateFieldTrial("Some_name", "Winner");
 
@@ -577,48 +577,73 @@ TEST_F(FieldTrialTest, ObserveDisabled) {
   const char kTrialName[] = "TrialToObserve2";
 
   TestFieldTrialObserver observer;
+  int default_group = -1;
   FieldTrial* trial =
       FieldTrialList::FactoryGetFieldTrial(kTrialName, 100, kDefaultGroupName,
-                                           next_year_, 12, 31, NULL);
+                                           next_year_, 12, 31, &default_group);
   trial->AppendGroup("A", 25);
   trial->AppendGroup("B", 25);
   trial->AppendGroup("C", 25);
   trial->Disable();
 
-  // Observer shouldn't be notified until group() is called.
+  // Observer shouldn't be notified of a disabled trial.
   message_loop_.RunAllPending();
   EXPECT_TRUE(observer.trial_name().empty());
   EXPECT_TRUE(observer.group_name().empty());
 
-  trial->group();
+  // Observer shouldn't be notified even after a |group()| call.
+  EXPECT_EQ(default_group, trial->group());
   message_loop_.RunAllPending();
-  EXPECT_EQ(kTrialName, observer.trial_name());
-  EXPECT_EQ(kDefaultGroupName, observer.group_name());
+  EXPECT_TRUE(observer.trial_name().empty());
+  EXPECT_TRUE(observer.group_name().empty());
 }
 
 TEST_F(FieldTrialTest, ObserveForcedDisabled) {
   const char kTrialName[] = "TrialToObserve3";
 
   TestFieldTrialObserver observer;
+  int default_group = -1;
   FieldTrial* trial =
       FieldTrialList::FactoryGetFieldTrial(kTrialName, 100, kDefaultGroupName,
-                                           next_year_, 12, 31, NULL);
+                                           next_year_, 12, 31, &default_group);
   trial->AppendGroup("A", 25);
   trial->AppendGroup("B", 25);
   trial->AppendGroup("C", 25);
   trial->SetForced();
   trial->Disable();
 
-  // Observer shouldn't be notified until group() is called, even if SetForced()
-  // was called.
+  // Observer shouldn't be notified of a disabled trial, even when forced.
   message_loop_.RunAllPending();
   EXPECT_TRUE(observer.trial_name().empty());
   EXPECT_TRUE(observer.group_name().empty());
 
-  trial->group();
+  // Observer shouldn't be notified even after a |group()| call.
+  EXPECT_EQ(default_group, trial->group());
   message_loop_.RunAllPending();
-  EXPECT_EQ(kTrialName, observer.trial_name());
-  EXPECT_EQ(kDefaultGroupName, observer.group_name());
+  EXPECT_TRUE(observer.trial_name().empty());
+  EXPECT_TRUE(observer.group_name().empty());
 }
+
+TEST_F(FieldTrialTest, DisabledTrialNotActive) {
+  const char kTrialName[] = "DisabledTrial";
+  ASSERT_FALSE(FieldTrialList::TrialExists(kTrialName));
+
+  FieldTrial* trial =
+      FieldTrialList::FactoryGetFieldTrial(kTrialName, 100, kDefaultGroupName,
+                                           next_year_, 12, 31, NULL);
+  trial->AppendGroup("X", 50);
+  trial->Disable();
+
+  // Ensure the trial is not listed as active.
+  FieldTrial::ActiveGroups active_groups;
+  FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
+  EXPECT_TRUE(active_groups.empty());
+
+  // Ensure the trial is not listed in the |StatesToString()| result.
+  std::string states;
+  FieldTrialList::StatesToString(&states);
+  EXPECT_TRUE(states.empty());
+}
+
 
 }  // namespace base

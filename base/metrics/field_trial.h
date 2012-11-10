@@ -217,9 +217,10 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
 
   // Returns the trial name and selected group name for this field trial via
   // the output parameter |active_group|, but only if the group has already
-  // been chosen and has been externally observed via |group()|. In that case,
-  // true is returned and |active_group| is filled in; otherwise, the result
-  // is false and |active_group| is left untouched.
+  // been chosen and has been externally observed via |group()| and the trial
+  // has not been disabled. In that case, true is returned and |active_group|
+  // is filled in; otherwise, the result is false and |active_group| is left
+  // untouched.
   bool GetActiveGroup(ActiveGroup* active_group) const;
 
   // Returns the group_name. A winner need not have been chosen.
@@ -355,13 +356,15 @@ class BASE_EXPORT FieldTrialList {
   // one process, and secondary processes can be synchronized on the result.
   // The resulting string contains the name and group name pairs of all
   // registered FieldTrials for which the group has been chosen and externally
-  // observed (via |group()|), with "/" used to separate all names and to
-  // terminate the string. This string is parsed by |CreateTrialsFromString()|.
+  // observed (via |group()|) and which have not been disabled, with "/" used
+  // to separate all names and to terminate the string. This string is parsed
+  // by |CreateTrialsFromString()|.
   static void StatesToString(std::string* output);
 
   // Fills in the supplied vector |active_groups| (which must be empty when
   // called) with a snapshot of all registered FieldTrials for which the group
-  // has been chosen and externally observed (via |group()|).
+  // has been chosen and externally observed (via |group()|) and which have
+  // not been disabled.
   static void GetActiveFieldTrialGroups(
       FieldTrial::ActiveGroups* active_groups);
 
