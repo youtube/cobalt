@@ -129,7 +129,7 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // Creates a new QuicPacket populated with the fields in |header| and
   // |frames|.  Assigns |*packet| to the address of the new object.
   // Returns true upon success.
-  bool ConstructFragementDataPacket(const QuicPacketHeader& header,
+  bool ConstructFrameDataPacket(const QuicPacketHeader& header,
                                     const QuicFrames& frames,
                                     QuicPacket** packet);
 
@@ -140,13 +140,12 @@ class NET_EXPORT_PRIVATE QuicFramer {
                           const QuicFecData& fec,
                           QuicPacket** packet);
 
-  // Increments the retransmission count by one, and updates the authentication
-  // hash accordingly.
-  void IncrementRetransmitCount(QuicPacket* packet);
-
-  uint8 GetRetransmitCount(QuicPacket* packet);
-
   void WriteTransmissionTime(QuicTransmissionTime time, QuicPacket* packet);
+
+  void WriteSequenceNumber(QuicPacketSequenceNumber sequence_number,
+                           QuicPacket* packet);
+
+  void WriteFecGroup(QuicFecGroupNumber fec_group, QuicPacket* packet);
 
   // Returns a new encrypted packet, owned by the caller.
   QuicEncryptedPacket* EncryptPacket(const QuicPacket& packet);
