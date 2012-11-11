@@ -42,7 +42,7 @@ class NET_EXPORT_PRIVATE QuicReceiptMetricsCollector {
   // FEC packet.
   virtual void RecordIncomingPacket(size_t bytes,
                                     QuicPacketSequenceNumber sequence_number,
-                                    uint64 timestamp_us,
+                                    QuicTime timestamp,
                                     bool revived);
 
   // TODO(pwestin) Keep track of the number of FEC recovered packets.

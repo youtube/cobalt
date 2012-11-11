@@ -16,6 +16,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/quic/quic_clock.h"
 #include "net/quic/quic_protocol.h"
+#include "net/quic/quic_time.h"
 #include "net/udp/datagram_client_socket.h"
 
 namespace base {
@@ -30,6 +31,7 @@ class NET_EXPORT_PRIVATE QuicConnectionHelper
   QuicConnectionHelper(base::TaskRunner* task_runner,
                        QuicClock* clock,
                        DatagramClientSocket* socket);
+
   virtual ~QuicConnectionHelper();
 
   // QuicConnectionHelperInterface
@@ -40,9 +42,9 @@ class NET_EXPORT_PRIVATE QuicConnectionHelper
                                 bool resend,
                                 int* error) OVERRIDE;
   virtual void SetResendAlarm(QuicPacketSequenceNumber sequence_number,
-                              uint64 delay_in_us) OVERRIDE;
-  virtual void SetSendAlarm(uint64 delay_in_us) OVERRIDE;
-  virtual void SetTimeoutAlarm(uint64 delay_in_us) OVERRIDE;
+                              QuicTime::Delta delay) OVERRIDE;
+  virtual void SetSendAlarm(QuicTime::Delta delay) OVERRIDE;
+  virtual void SetTimeoutAlarm(QuicTime::Delta delay) OVERRIDE;
   virtual bool IsSendAlarmSet() OVERRIDE;
   virtual void UnregisterSendAlarmIfRegistered() OVERRIDE;
 

@@ -81,17 +81,17 @@ class NET_EXPORT_PRIVATE QuicConnectionHelperInterface {
   // invoke MaybeResendPacket when the alarm fires.  Implementations must also
   // handle the case where |this| is deleted before the alarm fires.
   virtual void SetResendAlarm(QuicPacketSequenceNumber sequence_number,
-                              uint64 delay_in_us) = 0;
+                              QuicTime::Delta delay) = 0;
 
   // Sets an alarm to send packets after |delay_in_us|.  Implementations must
   // invoke OnCanWrite when the alarm fires.  Implementations must also
   // handle the case where |this| is deleted before the alarm fires.
-  virtual void SetSendAlarm(uint64 delay_in_us) = 0;
+  virtual void SetSendAlarm(QuicTime::Delta delay) = 0;
 
   // Sets An alarm which fires when the connection may have timed out.
   // Implementations must call CheckForTimeout() and then reregister the alarm
   // if the connection has not yet timed out.
-  virtual void SetTimeoutAlarm(uint64 delay_in_us) = 0;
+  virtual void SetTimeoutAlarm(QuicTime::Delta delay) = 0;
 
   // Returns true if a send alarm is currently set.
   virtual bool IsSendAlarmSet() = 0;
@@ -234,6 +234,11 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
       QuicPacket*> UnackedPacketMap;
   typedef std::map<QuicFecGroupNumber, QuicFecGroup*> FecGroupMap;
 
+  // The amount of time we wait before resending a packet.
+  static const QuicTime::Delta DefaultResendTime() {
+    return QuicTime::Delta::FromMilliseconds(500);
+  }
+
   // Sets up a packet with an QuicAckFrame and sends it out.
   void SendAck();
 
@@ -293,11 +298,10 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   QuicConnectionVisitorInterface* visitor_;
   QuicPacketCreator packet_creator_;
 
-  // The number of usec of idle network before we kill of this connection.
-  uint64 timeout_us_;
-  // The time (since the epoch) that we got or tried to send a packet for this
-  // connection.
-  uint64 time_of_last_packet_us_;
+  // Network idle time before we kill of this connection.
+  const QuicTime::Delta timeout_;
+  // The time that we got or tried to send a packet for this connection.
+  QuicTime time_of_last_packet_;
 
   scoped_ptr<QuicReceiptMetricsCollector> collector_;
 

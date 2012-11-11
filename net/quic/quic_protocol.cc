@@ -32,7 +32,7 @@ SentPacketInfo::~SentPacketInfo() {}
 
 ostream& operator<<(ostream& os, const QuicAckFrame& s) {
   os << "largest_received: " << s.received_info.largest_received
-     << " time: " << s.received_info.time_received
+     << " time: " << s.received_info.time_received.ToMicroseconds()
      << " missing: ";
   for (hash_set<QuicPacketSequenceNumber>::const_iterator it =
            s.received_info.missing_packets.begin();

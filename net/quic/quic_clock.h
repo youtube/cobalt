@@ -7,6 +7,7 @@
 
 #include "base/basictypes.h"
 #include "net/base/net_export.h"
+#include "net/quic/quic_time.h"
 
 namespace net {
 
@@ -19,9 +20,8 @@ class NET_EXPORT_PRIVATE QuicClock {
   QuicClock();
   virtual ~QuicClock();
 
-  // Returns the approximate current time as the number of microseconds
-  // since the Unix epoch.
-  virtual uint64 NowInUsec() const;
+  // Returns the approximate current time as a QuicTime object.
+  virtual QuicTime Now() const;
 };
 
 }  // namespace net

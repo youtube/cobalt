@@ -11,11 +11,11 @@
 #include "net/base/net_export.h"
 #include "net/quic/quic_clock.h"
 #include "net/quic/quic_protocol.h"
+#include "net/quic/quic_time.h"
 
 namespace net {
 
 const int kNoValidEstimate = -1;
-const int kUnknownWaitTime = -1;
 
 class NET_EXPORT_PRIVATE SendAlgorithmInterface {
  public:
@@ -31,7 +31,7 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
   // Called for each received ACK, with sequence number from remote peer.
   virtual void OnIncomingAck(QuicPacketSequenceNumber acked_sequence_number,
                              size_t acked_bytes,
-                             uint64 rtt_us) = 0;
+                             QuicTime::Delta rtt) = 0;
 
   virtual void OnIncomingLoss(int number_of_lost_packets) = 0;
 
@@ -44,7 +44,7 @@ class NET_EXPORT_PRIVATE SendAlgorithmInterface {
   // Calculate the time until we can send the next packet.
   // Usage: When this returns 0, CongestionWindow returns the number of bytes
   // of the congestion window.
-  virtual int TimeUntilSend(bool retransmit) = 0;
+  virtual QuicTime::Delta TimeUntilSend(bool retransmit) = 0;
 
   // The current available congestion window in bytes.
   virtual size_t AvailableCongestionWindow() = 0;

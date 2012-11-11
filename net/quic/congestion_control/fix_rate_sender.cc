@@ -40,7 +40,8 @@ void FixRateSender::OnIncomingCongestionInfo(
 
 void FixRateSender::OnIncomingAck(
     QuicPacketSequenceNumber /*acked_sequence_number*/,
-    size_t bytes_acked, uint64 /*rtt_us*/) {
+    size_t bytes_acked,
+    QuicTime::Delta /*rtt*/) {
   bytes_in_flight_ -= bytes_acked;
 }
 
@@ -58,18 +59,21 @@ void FixRateSender::SentPacket(QuicPacketSequenceNumber /*sequence_number*/,
   }
 }
 
-int FixRateSender::TimeUntilSend(bool /*retransmit*/) {
+QuicTime::Delta FixRateSender::TimeUntilSend(bool /*retransmit*/) {
   if (CongestionWindow() > fix_rate_leaky_bucket_.BytesPending()) {
     if (CongestionWindow() <= bytes_in_flight_) {
-      return kUnknownWaitTime;  // We need an ack before we send more.
+      // We need an ack before we send more.
+      return QuicTime::Delta::Infinite();
     }
-    return paced_sender_.TimeUntilSend(0);
+    QuicTime::Delta zero_time;
+    return paced_sender_.TimeUntilSend(zero_time);
   }
-  uint64 time_remaining_us = fix_rate_leaky_bucket_.TimeRemaining();
-  if (time_remaining_us == 0) {
-    return kUnknownWaitTime;  // We need an ack before we send more.
+  QuicTime::Delta time_remaining = fix_rate_leaky_bucket_.TimeRemaining();
+  if (time_remaining.IsZero()) {
+    // We need an ack before we send more.
+    return QuicTime::Delta::Infinite();
   }
-  return paced_sender_.TimeUntilSend(time_remaining_us);
+  return paced_sender_.TimeUntilSend(time_remaining);
 }
 
 size_t FixRateSender::CongestionWindow() {
