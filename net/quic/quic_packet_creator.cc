@@ -182,8 +182,6 @@ void QuicPacketCreator::FillPacketHeader(QuicFecGroupNumber fec_group,
   header->flags = flags;
   header->packet_sequence_number = ++sequence_number_;
   header->fec_group = fec_group;
-
-  header->transmission_time = 0;
 }
 
 }  // namespace net
