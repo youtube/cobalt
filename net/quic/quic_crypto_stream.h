@@ -52,6 +52,8 @@ class NET_EXPORT_PRIVATE QuicCryptoStream
  private:
   CryptoFramer crypto_framer_;
   bool handshake_complete_;
+
+  DISALLOW_COPY_AND_ASSIGN(QuicCryptoStream);
 };
 
 }  // namespace net

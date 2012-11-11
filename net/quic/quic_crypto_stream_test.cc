@@ -35,8 +35,19 @@ class MockQuicCryptoStream : public QuicCryptoStream {
     }
   }
 
+  std::vector<CryptoTag>* message_tags() {
+    return &message_tags_;
+  }
+
+  std::vector<std::map<CryptoTag, string> >* message_maps() {
+    return &message_maps_;
+  }
+
+ private:
   std::vector<CryptoTag> message_tags_;
-  std::vector<map<CryptoTag, string> > message_maps_;
+  std::vector<std::map<CryptoTag, string> > message_maps_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockQuicCryptoStream);
 };
 
 class QuicCryptoStreamTest : public ::testing::Test {
@@ -57,12 +68,16 @@ class QuicCryptoStreamTest : public ::testing::Test {
     message_data_.reset(framer.ConstructHandshakeMessage(message_));
   }
 
+ protected:
   IPEndPoint addr_;
   MockConnection* connection_;
   MockSession session_;
   MockQuicCryptoStream stream_;
   CryptoHandshakeMessage message_;
   scoped_ptr<QuicData> message_data_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(QuicCryptoStreamTest);
 };
 
 TEST_F(QuicCryptoStreamTest, NotInitiallyConected) {
@@ -79,11 +94,11 @@ TEST_F(QuicCryptoStreamTest, ProcessData) {
   EXPECT_EQ(message_data_->length(),
             stream_.ProcessData(message_data_->data(),
                                 message_data_->length()));
-  ASSERT_EQ(1u, stream_.message_tags_.size());
-  EXPECT_EQ(kSHLO, stream_.message_tags_[0]);
-  EXPECT_EQ(2u, stream_.message_maps_[0].size());
-  EXPECT_EQ("abc",stream_.message_maps_[0][1]);
-  EXPECT_EQ("def", stream_.message_maps_[0][2]);
+  ASSERT_EQ(1u, stream_.message_tags()->size());
+  EXPECT_EQ(kSHLO, (*stream_.message_tags())[0]);
+  EXPECT_EQ(2u, (*stream_.message_maps())[0].size());
+  EXPECT_EQ("abc", (*stream_.message_maps())[0][1]);
+  EXPECT_EQ("def", (*stream_.message_maps())[0][2]);
 }
 
 TEST_F(QuicCryptoStreamTest, ProcessBadData) {
