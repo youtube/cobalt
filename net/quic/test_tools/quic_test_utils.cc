@@ -151,7 +151,6 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
   QuicPacketHeader header;
   header.guid = guid;
   header.packet_sequence_number = 1;
-  header.transmission_time = 0;
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
