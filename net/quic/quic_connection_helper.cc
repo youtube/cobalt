@@ -56,33 +56,33 @@ int QuicConnectionHelper::WritePacketToWire(
 
 void QuicConnectionHelper::SetResendAlarm(
     QuicPacketSequenceNumber sequence_number,
-    uint64 delay_in_us) {
+    QuicTime::Delta delay) {
   // TODO(rch): Coalesce these alarms.
   task_runner_->PostDelayedTask(
       FROM_HERE,
       base::Bind(&QuicConnectionHelper::OnResendAlarm,
                  weak_factory_.GetWeakPtr(), sequence_number),
-      base::TimeDelta::FromMicroseconds(delay_in_us));
+      base::TimeDelta::FromMicroseconds(delay.ToMicroseconds()));
 }
 
-void QuicConnectionHelper::SetSendAlarm(uint64 delay_in_us) {
+void QuicConnectionHelper::SetSendAlarm(QuicTime::Delta delay) {
   DCHECK(!send_alarm_registered_);
   send_alarm_registered_ = true;
   task_runner_->PostDelayedTask(
       FROM_HERE,
       base::Bind(&QuicConnectionHelper::OnSendAlarm,
                  weak_factory_.GetWeakPtr()),
-      base::TimeDelta::FromMicroseconds(delay_in_us));
+      base::TimeDelta::FromMicroseconds(delay.ToMicroseconds()));
 }
 
-void QuicConnectionHelper::SetTimeoutAlarm(uint64 delay_in_us) {
+void QuicConnectionHelper::SetTimeoutAlarm(QuicTime::Delta delay) {
   DCHECK(!timeout_alarm_registered_);
   timeout_alarm_registered_ = true;
   task_runner_->PostDelayedTask(
       FROM_HERE,
       base::Bind(&QuicConnectionHelper::OnTimeoutAlarm,
                  weak_factory_.GetWeakPtr()),
-      base::TimeDelta::FromMicroseconds(delay_in_us));
+      base::TimeDelta::FromMicroseconds(delay.ToMicroseconds()));
 }
 
 bool QuicConnectionHelper::IsSendAlarmSet() {

@@ -13,6 +13,7 @@
 #include "base/basictypes.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_clock.h"
+#include "net/quic/quic_time.h"
 
 namespace net {
 
@@ -28,7 +29,7 @@ class NET_EXPORT_PRIVATE LeakyBucket {
   void Add(size_t bytes);
 
   // Time until the buffer is empty in us.
-  uint64 TimeRemaining();
+  QuicTime::Delta TimeRemaining();
 
   // Number of bytes in the buffer.
   size_t BytesPending();
@@ -38,7 +39,7 @@ class NET_EXPORT_PRIVATE LeakyBucket {
 
   const QuicClock* clock_;
   size_t bytes_;
-  uint64 time_last_updated_us_;
+  QuicTime time_last_updated_;
   int draining_rate_bytes_per_s_;
 };
 

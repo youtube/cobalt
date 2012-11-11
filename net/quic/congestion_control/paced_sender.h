@@ -11,6 +11,7 @@
 #include "net/base/net_export.h"
 #include "net/quic/congestion_control/leaky_bucket.h"
 #include "net/quic/quic_clock.h"
+#include "net/quic/quic_time.h"
 
 namespace net {
 
@@ -25,7 +26,7 @@ class NET_EXPORT_PRIVATE PacedSender {
   void SentPacket(size_t bytes);
 
   // Return time until we can send based on the pacing.
-  int TimeUntilSend(int time_until_send_us);
+  QuicTime::Delta TimeUntilSend(QuicTime::Delta time_until_send);
 
   // Return the amount of data in bytes we can send based on the pacing.
   // available_congestion_window is the congestion algorithms available

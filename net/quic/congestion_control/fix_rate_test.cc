@@ -1,8 +1,8 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-#include <cmath>
+//
+// Test for FixRate sender and receiver.
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
@@ -10,21 +10,24 @@
 #include "net/quic/congestion_control/fix_rate_sender.h"
 #include "net/quic/test_tools/mock_clock.h"
 #include "net/quic/quic_protocol.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace {
-  const int rtt_us = 30000;
-}
-
 namespace net {
+namespace testing {
 
 class FixRateTest : public ::testing::Test {
  protected:
+  FixRateTest()
+      : rtt_(QuicTime::Delta::FromMilliseconds(30)) {
+  }
   void SetUp() {
     sender_.reset(new FixRateSender(&clock_));
     receiver_.reset(new FixRateReceiver());
-    clock_.AdvanceTime(0.002);  // Make sure clock does not start at 0.
+    // Make sure clock does not start at 0.
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(2));
   }
+  const QuicTime::Delta rtt_;
   MockClock clock_;
   scoped_ptr<FixRateSender> sender_;
   scoped_ptr<FixRateReceiver> receiver_;
@@ -32,8 +35,9 @@ class FixRateTest : public ::testing::Test {
 
 TEST_F(FixRateTest, ReceiverAPI) {
   CongestionInfo info;
+  QuicTime timestamp;
   receiver_->SetBitrate(300000);  // Bytes per second.
-  receiver_->RecordIncomingPacket(1, 1, 1, false);
+  receiver_->RecordIncomingPacket(1, 1, timestamp, false);
   ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
   EXPECT_EQ(kFixRate, info.type);
   EXPECT_EQ(300000u, info.fix_rate.bitrate_in_bytes_per_second);
@@ -45,45 +49,50 @@ TEST_F(FixRateTest, SenderAPI) {
   info.fix_rate.bitrate_in_bytes_per_second = 300000;
   sender_->OnIncomingCongestionInfo(info);
   EXPECT_EQ(300000, sender_->BandwidthEstimate());
-  EXPECT_EQ(0, sender_->TimeUntilSend(false));
-  EXPECT_EQ(kMaxPacketSize * 2, sender_->AvailableCongestionWindow());
+  EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
+  EXPECT_EQ(kMaxPacketSize * 2u, sender_->AvailableCongestionWindow());
   sender_->SentPacket(1, kMaxPacketSize, false);
-  EXPECT_EQ(3000-kMaxPacketSize, sender_->AvailableCongestionWindow());
-  EXPECT_EQ(0, sender_->TimeUntilSend(false));
+  EXPECT_EQ(3000u - kMaxPacketSize, sender_->AvailableCongestionWindow());
+  EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
   sender_->SentPacket(2, kMaxPacketSize, false);
   sender_->SentPacket(3, 600, false);
-  EXPECT_EQ(10000, sender_->TimeUntilSend(false));
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(10),
+            sender_->TimeUntilSend(false));
   EXPECT_EQ(0u, sender_->AvailableCongestionWindow());
-  clock_.AdvanceTime(0.002);
-  EXPECT_EQ(kUnknownWaitTime, sender_->TimeUntilSend(false));
-  clock_.AdvanceTime(0.008);
-  sender_->OnIncomingAck(1, kMaxPacketSize, rtt_us);
-  sender_->OnIncomingAck(2, kMaxPacketSize, rtt_us);
-  sender_->OnIncomingAck(3, 600, rtt_us);
-  EXPECT_EQ(0, sender_->TimeUntilSend(false));
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(2));
+  EXPECT_EQ(QuicTime::Delta::Infinite(), sender_->TimeUntilSend(false));
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(8));
+  sender_->OnIncomingAck(1, kMaxPacketSize, rtt_);
+  sender_->OnIncomingAck(2, kMaxPacketSize, rtt_);
+  sender_->OnIncomingAck(3, 600, rtt_);
+  EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
 }
 
 TEST_F(FixRateTest, FixRatePacing) {
-  const int packet_size = 1200;
+  const uint64 packet_size = 1200;
+  const uint64 bit_rate = 240000;
+  const uint64 num_packets = 200;
   CongestionInfo info;
   receiver_->SetBitrate(240000);  // Bytes per second.
   ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
   sender_->OnIncomingCongestionInfo(info);
-  double acc_advance_time = 0.0;
+  QuicTime acc_advance_time;
   QuicPacketSequenceNumber sequence_number = 0;
-  for (int i = 0; i < 100; ++i) {
-    EXPECT_EQ(0, sender_->TimeUntilSend(false));
-    EXPECT_EQ(kMaxPacketSize * 2u, sender_->AvailableCongestionWindow());
+  for (size_t i = 0; i < num_packets; i += 2) {
+    EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
+    EXPECT_EQ(kMaxPacketSize * 2, sender_->AvailableCongestionWindow());
     sender_->SentPacket(sequence_number++, packet_size, false);
-    EXPECT_EQ(0, sender_->TimeUntilSend(false));
+    EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
     sender_->SentPacket(sequence_number++, packet_size, false);
-    double advance_time = sender_->TimeUntilSend(false) / 1000000.0;
+    QuicTime::Delta advance_time = sender_->TimeUntilSend(false);
     clock_.AdvanceTime(advance_time);
-    sender_->OnIncomingAck(sequence_number - 1, packet_size, rtt_us);
-    sender_->OnIncomingAck(sequence_number - 2, packet_size, rtt_us);
-    acc_advance_time += advance_time;
+    sender_->OnIncomingAck(sequence_number - 1, packet_size, rtt_);
+    sender_->OnIncomingAck(sequence_number - 2, packet_size, rtt_);
+    acc_advance_time = acc_advance_time.Add(advance_time);
   }
-  EXPECT_EQ(1000, floor((acc_advance_time * 1000) + 0.5));
+  EXPECT_EQ(num_packets * packet_size * 1000000 / bit_rate,
+            acc_advance_time.ToMicroseconds());
 }
 
+}  // namespace testing
 }  // namespace net

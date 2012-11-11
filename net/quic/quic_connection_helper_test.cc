@@ -106,6 +106,8 @@ class QuicConnectionHelperTest : public ::testing::Test {
         frame1_(1, false, 0, data1) {
     connection_.set_visitor(&visitor_);
     connection_.SetScheduler(scheduler_);
+    EXPECT_CALL(*scheduler_, TimeUntilSend(_)).WillRepeatedly(testing::Return(
+        QuicTime::Delta()));
   }
 
   QuicPacket* ConstructDataPacket(QuicPacketSequenceNumber number,
@@ -151,12 +153,12 @@ TEST_F(QuicConnectionHelperTest, IsSendAlarmSet) {
 }
 
 TEST_F(QuicConnectionHelperTest, SetSendAlarm) {
-  helper_->SetSendAlarm(0);
+  helper_->SetSendAlarm(QuicTime::Delta());
   EXPECT_TRUE(helper_->IsSendAlarmSet());
 }
 
 TEST_F(QuicConnectionHelperTest, UnregisterSendAlarmIfRegistered) {
-  helper_->SetSendAlarm(0);
+  helper_->SetSendAlarm(QuicTime::Delta());
   helper_->UnregisterSendAlarmIfRegistered() ;
   EXPECT_FALSE(helper_->IsSendAlarmSet());
 }
@@ -177,24 +179,24 @@ TEST_F(QuicConnectionHelperTest, TestResend) {
 TEST_F(QuicConnectionHelperTest, InitialTimeout) {
   // Verify that a single task was posted.
   EXPECT_EQ(1u, runner_->tasks()->size());
-  EXPECT_EQ(base::TimeDelta::FromMicroseconds(kDefaultTimeout),
+  EXPECT_EQ(base::TimeDelta::FromMicroseconds(kDefaultTimeoutUs),
             runner_->GetTask(0).delta);
 
   // After we run the next task, we should close the connection.
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_CONNECTION_TIMED_OUT, false));
 
   runner_->RunNextTask();
-  EXPECT_EQ(kDefaultTimeout, clock_.NowInUsec());
+  EXPECT_EQ(QuicTime::FromMicroseconds(kDefaultTimeoutUs), clock_.Now());
   EXPECT_FALSE(connection_.connected());
 }
 
 TEST_F(QuicConnectionHelperTest, TimeoutAfterSend) {
   EXPECT_TRUE(connection_.connected());
-  EXPECT_EQ(0u, clock_.NowInUsec());
+  EXPECT_EQ(0u, clock_.Now().ToMicroseconds());
 
   // When we send a packet, the timeout will change to 5000 + kDefaultTimeout.
-  clock_.AdvanceTimeInMicroseconds(5000);
-  EXPECT_EQ(5000u, clock_.NowInUsec());
+  clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(5000));
+  EXPECT_EQ(5000u, clock_.Now().ToMicroseconds());
 
   // Send an ack so we don't set the resend alarm.
   connection_.SendAck();
@@ -203,19 +205,20 @@ TEST_F(QuicConnectionHelperTest, TimeoutAfterSend) {
   // network event at t=5000.  The alarm will reregister.
   runner_->RunNextTask();
 
-  EXPECT_EQ(kDefaultTimeout, clock_.NowInUsec());
+  EXPECT_EQ(QuicTime::FromMicroseconds(kDefaultTimeoutUs), clock_.Now());
 
   // This time, we should time out.
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_CONNECTION_TIMED_OUT, false));
   runner_->RunNextTask();
-  EXPECT_EQ(kDefaultTimeout + 5000, clock_.NowInUsec());
+  EXPECT_EQ(uint64(kDefaultTimeoutUs + 5000), clock_.Now().ToMicroseconds());
   EXPECT_FALSE(connection_.connected());
 }
 
 TEST_F(QuicConnectionHelperTest, SendSchedulerDelayThenSend) {
   // Test that if we send a packet with a delay, it ends up queued.
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
-  EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(1));
+  EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(
+      QuicTime::Delta::FromMicroseconds(1)));
 
   bool should_resend = true;
   bool force = false;
@@ -225,7 +228,8 @@ TEST_F(QuicConnectionHelperTest, SendSchedulerDelayThenSend) {
 
   // Advance the clock to fire the alarm, and configure the scheduler
   // to permit the packet to be sent.
-  EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(0));
+  EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(
+      QuicTime::Delta()));
   runner_->RunNextTask();
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }

@@ -25,9 +25,9 @@ bool QuicReceiptMetricsCollector::GenerateCongestionInfo(
 void QuicReceiptMetricsCollector::RecordIncomingPacket(
     size_t bytes,
     QuicPacketSequenceNumber sequence_number,
-    uint64 timestamp_us,
+    QuicTime timestamp,
     bool revived) {
-  receive_algorithm_->RecordIncomingPacket(bytes, sequence_number, timestamp_us,
+  receive_algorithm_->RecordIncomingPacket(bytes, sequence_number, timestamp,
                                            revived);
 }
 

@@ -25,10 +25,10 @@ bool FixRateReceiver::GenerateCongestionInfo(CongestionInfo* congestion_info) {
 }
 
 void FixRateReceiver::RecordIncomingPacket(
-    size_t bytes,
-    QuicPacketSequenceNumber sequence_number,
-    uint64 timestamp_us,
-    bool recovered) {
+    size_t /*bytes*/,
+    QuicPacketSequenceNumber /*sequence_number*/,
+    QuicTime /*timestamp*/,
+    bool /*recovered*/) {
   // Nothing to do for this simple implementation.
 }
 

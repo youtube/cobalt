@@ -46,7 +46,8 @@ bool TestTaskRunner::PostDelayedTask(const tracked_objects::Location& location,
                                      const base::Closure& closure,
                                      base::TimeDelta delta) {
   EXPECT_GE(delta, base::TimeDelta());
-  tasks_.push_back(PostedTask(location, closure, delta, clock_->Now() + delta));
+  tasks_.push_back(PostedTask(location, closure, delta,
+                              clock_->NowInTicks() + delta));
   return false;
 }
 
@@ -75,7 +76,8 @@ void TestTaskRunner::RunNextTask() {
   // and then run the task.
   std::vector<PostedTask>::iterator next = FindNextTask();
   DCHECK(next != tasks_.end());
-  clock_->AdvanceTimeByDelta(next->time - clock_->Now());
+  clock_->AdvanceTime(QuicTime::Delta::FromMicroseconds(
+      (next->time - clock_->NowInTicks()).InMicroseconds()));
   PostedTask task = *next;
   tasks_.erase(next);
   task.closure.Run();
