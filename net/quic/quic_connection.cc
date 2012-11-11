@@ -477,9 +477,6 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
     }
   }
 
-  // Just before we send the packet to the wire, update the transmission time.
-  framer_.WriteTransmissionTime(clock_->Now(), packet);
-
   scoped_ptr<QuicEncryptedPacket> encrypted(framer_.EncryptPacket(*packet));
   int error;
   int rv = helper_->WritePacketToWire(sequence_number, *encrypted,

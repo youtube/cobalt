@@ -208,17 +208,11 @@ bool QuicFramer::ProcessRevivedPacket(const QuicPacketHeader& header,
 
 bool QuicFramer::WritePacketHeader(const QuicPacketHeader& header,
                                    QuicDataWriter* writer) {
-  // ConnectionHeader
   if (!writer->WriteUInt64(header.guid)) {
     return false;
   }
 
   if (!writer->WriteUInt48(header.packet_sequence_number)) {
-    return false;
-  }
-
-  // CongestionMonitoredHeader
-  if (!writer->WriteUInt64(header.transmission_time)) {
     return false;
   }
 
@@ -236,7 +230,6 @@ bool QuicFramer::WritePacketHeader(const QuicPacketHeader& header,
 
 bool QuicFramer::ProcessPacketHeader(QuicPacketHeader* header,
                                      const QuicEncryptedPacket& packet) {
-  // ConnectionHeader
   if (!reader_->ReadUInt64(&header->guid)) {
     set_detailed_error("Unable to read GUID.");
     return false;
@@ -244,12 +237,6 @@ bool QuicFramer::ProcessPacketHeader(QuicPacketHeader* header,
 
   if (!reader_->ReadUInt48(&header->packet_sequence_number)) {
     set_detailed_error("Unable to read sequence number.");
-    return false;
-  }
-
-  // CongestionMonitoredHeader
-  if (!reader_->ReadUInt64(&header->transmission_time)) {
-    set_detailed_error("Unable to read transmission time.");
     return false;
   }
 
@@ -531,12 +518,6 @@ bool QuicFramer::ProcessConnectionCloseFrame() {
 
   visitor_->OnConnectionCloseFrame(frame);
   return true;
-}
-
-void QuicFramer::WriteTransmissionTime(QuicTime time,
-                                       QuicPacket* packet) {
-  QuicDataWriter::WriteUint64ToBuffer(
-      time.ToMicroseconds(), packet->mutable_data() + kTransmissionTimeOffset);
 }
 
 void QuicFramer::WriteSequenceNumber(QuicPacketSequenceNumber sequence_number,

@@ -114,7 +114,6 @@ class QuicConnectionHelperTest : public ::testing::Test {
                                   QuicFecGroupNumber fec_group) {
     header_.guid = guid_;
     header_.packet_sequence_number = number;
-    header_.transmission_time = 0;
     header_.flags = PACKET_FLAGS_NONE;
     header_.fec_group = fec_group;
 
@@ -165,15 +164,15 @@ TEST_F(QuicConnectionHelperTest, UnregisterSendAlarmIfRegistered) {
 
 TEST_F(QuicConnectionHelperTest, TestResend) {
   //FLAGS_fake_packet_loss_percentage = 100;
-  const uint64 kDefaultResendTimeMs = 500;
+  QuicTime::Delta kDefaultResendTime = QuicTime::Delta::FromMilliseconds(500);
 
   connection_.SendStreamData(1, "foo", 0, false, NULL);
-  EXPECT_EQ(0u, helper_->header()->transmission_time);
+  EXPECT_EQ(1u, helper_->header()->packet_sequence_number);
 
+  QuicTime start = clock_.Now();
   runner_->RunNextTask();
+  EXPECT_EQ(kDefaultResendTime, clock_.Now().Subtract(start));
   EXPECT_EQ(2u, helper_->header()->packet_sequence_number);
-  EXPECT_EQ(kDefaultResendTimeMs * 1000,
-            helper_->header()->transmission_time);
 }
 
 TEST_F(QuicConnectionHelperTest, InitialTimeout) {

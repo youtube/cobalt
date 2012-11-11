@@ -26,7 +26,6 @@ typedef uint64 QuicGuid;
 typedef uint32 QuicStreamId;
 typedef uint64 QuicStreamOffset;
 typedef uint64 QuicPacketSequenceNumber;
-typedef uint64 QuicTransmissionTime;
 typedef uint8 QuicFecGroupNumber;
 
 // TODO(rch): Consider Quic specific names for these constants.
@@ -36,7 +35,7 @@ const size_t kMaxPacketSize = 1200;  // Maximum size in bytes of a QUIC packet.
 const size_t kDefaultMaxStreamsPerConnection = 100;
 
 // Size in bytes of the packet header common across all packets.
-const size_t kPacketHeaderSize = 24;
+const size_t kPacketHeaderSize = 16;
 // Index of the first byte in a QUIC packet of FEC protected data.
 const size_t kStartOfFecProtectedData = kPacketHeaderSize;
 // Index of the first byte in a QUIC packet of encrypted data.
@@ -45,12 +44,10 @@ const size_t kStartOfEncryptedData = kPacketHeaderSize - 1;
 const size_t kStartOfHashData = 0;
 // Index into the sequence number offset in the header.
 const int kSequenceNumberOffset = 8;
-// Index into the transmission time offset in the header.
-const int kTransmissionTimeOffset = 14;
 // Index into the flags offset in the header.
-const int kFlagsOffset = 22;
+const int kFlagsOffset = 14;
 // Index into the fec group offset in the header.
-const int kFecGroupOffset = 23;
+const int kFecGroupOffset = 15;
 
 // Size in bytes of all stream frame fields.
 const size_t kMinStreamFrameLength = 15;
@@ -149,7 +146,6 @@ struct NET_EXPORT_PRIVATE QuicPacketHeader {
   // from the design docs, as well as some elements of DecryptedData.
   QuicGuid guid;
   QuicPacketSequenceNumber packet_sequence_number;
-  QuicTransmissionTime transmission_time;
   QuicPacketFlags flags;
   QuicFecGroupNumber fec_group;
 };

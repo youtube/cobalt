@@ -303,7 +303,6 @@ class QuicConnectionTest : public ::testing::Test {
                                   QuicFecGroupNumber fec_group) {
     header_.guid = guid_;
     header_.packet_sequence_number = number;
-    header_.transmission_time = 0;
     header_.flags = PACKET_FLAGS_NONE;
     header_.fec_group = fec_group;
 
@@ -705,7 +704,6 @@ TEST_F(QuicConnectionTest, TestResend) {
 
   connection_.SendStreamData(1, "foo", 0, false, NULL);
   EXPECT_EQ(1u, last_header()->packet_sequence_number);
-  EXPECT_EQ(0u, last_header()->transmission_time);
   EXPECT_EQ(1u, helper_->resend_alarms().size());
   EXPECT_EQ(default_resend_time,
             helper_->resend_alarms().find(1)->second);
@@ -713,8 +711,6 @@ TEST_F(QuicConnectionTest, TestResend) {
   clock_.AdvanceTime(kDefaultResendTime);
   connection_.MaybeResendPacket(1);
   EXPECT_EQ(2u, last_header()->packet_sequence_number);
-  EXPECT_EQ(default_resend_time.ToMicroseconds(),
-            last_header()->transmission_time);
 }
 
 TEST_F(QuicConnectionTest, TestQueued) {
