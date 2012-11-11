@@ -140,8 +140,6 @@ class NET_EXPORT_PRIVATE QuicFramer {
                           const QuicFecData& fec,
                           QuicPacket** packet);
 
-  void WriteTransmissionTime(QuicTime time, QuicPacket* packet);
-
   void WriteSequenceNumber(QuicPacketSequenceNumber sequence_number,
                            QuicPacket* packet);
 
