@@ -58,7 +58,7 @@ bool ReliableQuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
 void ReliableQuicStream::OnStreamReset(QuicErrorCode error,
                                        QuicStreamOffset offset) {
   error_ = error;
-  sequencer_.CloseStreamAtOffset(offset, false);  // Full close
+  sequencer_.CloseStreamAtOffset(offset, false);  // Full close.
 }
 
 void ReliableQuicStream::ConnectionClose(QuicErrorCode error, bool from_peer) {
@@ -83,11 +83,11 @@ void ReliableQuicStream::Close(QuicErrorCode error) {
   session()->SendRstStream(id(), error, offset_);
 }
 
-bool ReliableQuicStream::IsHalfClosed() {
+bool ReliableQuicStream::IsHalfClosed() const {
   return sequencer_.IsHalfClosed();
 }
 
-bool ReliableQuicStream::HasBytesToRead() {
+bool ReliableQuicStream::HasBytesToRead() const {
   return sequencer_.HasBytesToRead();
 }
 
