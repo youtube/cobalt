@@ -116,7 +116,7 @@ class MockScheduler : public QuicSendScheduler {
   MockScheduler();
   virtual ~MockScheduler();
 
-  MOCK_METHOD1(TimeUntilSend, int(bool));
+  MOCK_METHOD1(TimeUntilSend, QuicTime::Delta(bool));
   MOCK_METHOD1(OnIncomingAckFrame, void(const QuicAckFrame&));
   MOCK_METHOD3(SentPacket, void(QuicPacketSequenceNumber, size_t, bool));
 
@@ -137,9 +137,9 @@ class MockHelper : public QuicConnectionHelperInterface {
                                       bool resend,
                                       int* error));
   MOCK_METHOD2(SetResendAlarm, void(QuicPacketSequenceNumber sequence_number,
-                                    uint64 delay_in_us));
-  MOCK_METHOD1(SetSendAlarm, void(uint64 delay_in_us));
-  MOCK_METHOD1(SetTimeoutAlarm, void(uint64 delay_in_us));
+                                    QuicTime::Delta delay));
+  MOCK_METHOD1(SetSendAlarm, void(QuicTime::Delta delay));
+  MOCK_METHOD1(SetTimeoutAlarm, void(QuicTime::Delta delay));
   MOCK_METHOD0(IsSendAlarmSet, bool());
   MOCK_METHOD0(UnregisterSendAlarmIfRegistered, void());
  private:

@@ -9,9 +9,8 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using ::testing::_;
-
 namespace net {
+namespace testing {
 
 class LeakyBucketTest : public ::testing::Test {
  protected:
@@ -27,29 +26,32 @@ TEST_F(LeakyBucketTest, Basic) {
   leaky_bucket_->SetDrainingRate(bytes_per_second);
   leaky_bucket_->Add(2000);
   EXPECT_EQ(2000u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(10000u, leaky_bucket_->TimeRemaining());
-  clock_.AdvanceTime(0.005);
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(10),
+            leaky_bucket_->TimeRemaining());
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_EQ(1000u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(5000u, leaky_bucket_->TimeRemaining());
-  clock_.AdvanceTime(0.005);
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(5),
+            leaky_bucket_->TimeRemaining());
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_EQ(0u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(0u, leaky_bucket_->TimeRemaining());
-  clock_.AdvanceTime(0.005);
+  EXPECT_TRUE(leaky_bucket_->TimeRemaining().IsZero());
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_EQ(0u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(0u, leaky_bucket_->TimeRemaining());
+  EXPECT_TRUE(leaky_bucket_->TimeRemaining().IsZero());
   leaky_bucket_->Add(2000);
-  clock_.AdvanceTime(0.011);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(11));
   EXPECT_EQ(0u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(0u, leaky_bucket_->TimeRemaining());
+  EXPECT_TRUE(leaky_bucket_->TimeRemaining().IsZero());
   leaky_bucket_->Add(2000);
-  clock_.AdvanceTime(0.005);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   leaky_bucket_->Add(2000);
-  clock_.AdvanceTime(0.005);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_EQ(2000u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(10000u, leaky_bucket_->TimeRemaining());
-  clock_.AdvanceTime(0.010);
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(10),
+            leaky_bucket_->TimeRemaining());
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   EXPECT_EQ(0u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(0u, leaky_bucket_->TimeRemaining());
+  EXPECT_TRUE(leaky_bucket_->TimeRemaining().IsZero());
 }
 
 TEST_F(LeakyBucketTest, ChangeDrainRate) {
@@ -57,14 +59,18 @@ TEST_F(LeakyBucketTest, ChangeDrainRate) {
   leaky_bucket_->SetDrainingRate(bytes_per_second);
   leaky_bucket_->Add(2000);
   EXPECT_EQ(2000u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(10000u, leaky_bucket_->TimeRemaining());
-  clock_.AdvanceTime(0.005);
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(10),
+            leaky_bucket_->TimeRemaining());
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_EQ(1000u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(5000u, leaky_bucket_->TimeRemaining());
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(5),
+            leaky_bucket_->TimeRemaining());
   bytes_per_second = 100000;  // Cut drain rate in half.
   leaky_bucket_->SetDrainingRate(bytes_per_second);
   EXPECT_EQ(1000u, leaky_bucket_->BytesPending());
-  EXPECT_EQ(10000u, leaky_bucket_->TimeRemaining());
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(10),
+            leaky_bucket_->TimeRemaining());
 }
 
+}  // namespace testing
 }  // namespace net

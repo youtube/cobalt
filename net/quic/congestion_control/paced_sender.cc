@@ -13,7 +13,7 @@ namespace net {
 const size_t kMinPacketBurstSize = 2;
 // Max estimated time between calls to TimeUntilSend and
 // AvailableCongestionWindow.
-const int kMaxSchedulingDelayUs = 2000;
+const int64 kMaxSchedulingDelayUs = 2000;
 
 PacedSender::PacedSender(const QuicClock* clock, int bytes_per_s)
     : leaky_bucket_(clock, bytes_per_s),
@@ -29,8 +29,8 @@ void PacedSender::SentPacket(size_t bytes) {
   leaky_bucket_.Add(bytes);
 }
 
-int PacedSender::TimeUntilSend(int time_until_send_us) {
-  if (time_until_send_us < kMaxSchedulingDelayUs) {
+QuicTime::Delta PacedSender::TimeUntilSend(QuicTime::Delta time_until_send) {
+  if (time_until_send.ToMicroseconds() < kMaxSchedulingDelayUs) {
     // Pace the data.
     size_t pacing_window = kMaxSchedulingDelayUs * pace_in_bytes_per_s_ /
         base::Time::kMicrosecondsPerSecond;
@@ -39,11 +39,11 @@ int PacedSender::TimeUntilSend(int time_until_send_us) {
 
     if (pacing_window > leaky_bucket_.BytesPending()) {
       // We have not filled our pacing window yet.
-      return time_until_send_us;
+      return time_until_send;
     }
     return leaky_bucket_.TimeRemaining();
   }
-  return time_until_send_us;
+  return time_until_send;
 }
 
 size_t PacedSender::AvailableWindow(size_t available_congestion_window) {

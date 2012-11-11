@@ -21,13 +21,6 @@ using std::min;
 using std::vector;
 using std::set;
 
-/*
-DEFINE_int32(fake_packet_loss_percentage, 0,
-            "The percentage of packets to drop.");
-DEFINE_int32(negotiated_timeout_us, net::kDefaultTimeout,
-             "The default timeout for connections being closed");
-*/
-
 namespace net {
 
 // An arbitrary number we'll probably want to tune.
@@ -53,18 +46,17 @@ QuicConnection::QuicConnection(QuicGuid guid,
       least_packet_awaiting_ack_(0),
       write_blocked_(false),
       packet_creator_(guid_, &framer_),
-      timeout_us_(kDefaultTimeout),
-      time_of_last_packet_us_(clock_->NowInUsec()),
+      timeout_(QuicTime::Delta::FromMicroseconds(kDefaultTimeoutUs)),
+      time_of_last_packet_(clock_->Now()),
       collector_(new QuicReceiptMetricsCollector(clock_, kFixRate)),
       scheduler_(new QuicSendScheduler(clock_, kFixRate)),
       connected_(true) {
   helper_->SetConnection(this);
-  helper_->SetTimeoutAlarm(timeout_us_);
+  helper_->SetTimeoutAlarm(timeout_);
   framer_.set_visitor(this);
   memset(&last_header_, 0, sizeof(last_header_));
   outgoing_ack_.sent_info.least_unacked = 0;
   outgoing_ack_.received_info.largest_received = 0;
-  outgoing_ack_.received_info.time_received = 0;
   outgoing_ack_.congestion_info.type = kNone;
   /*
   if (FLAGS_fake_packet_loss_percentage > 0) {
@@ -92,8 +84,8 @@ void QuicConnection::OnError(QuicFramer* framer) {
 
 void QuicConnection::OnPacket(const IPEndPoint& self_address,
                               const IPEndPoint& peer_address) {
-  time_of_last_packet_us_ = clock_->NowInUsec();
-  DVLOG(1) << "last packet: " << time_of_last_packet_us_;
+  time_of_last_packet_ = clock_->Now();
+  DVLOG(1) << "last packet: " << time_of_last_packet_.ToMicroseconds();
 
   // TODO(alyssar, rch) handle migration!
   self_address_ = self_address;
@@ -154,16 +146,17 @@ void QuicConnection::OnAckFrame(const QuicAckFrame& incoming_ack) {
   if (queued_packets_.empty()) {
     return;
   }
-    int delay = scheduler_->TimeUntilSend(false);
-    if (delay == 0) {
-      helper_->UnregisterSendAlarmIfRegistered();
-      if (!write_blocked_) {
-        OnCanWrite();
-      }
-    } else {
-      helper_->SetSendAlarm(delay);
+
+  QuicTime::Delta delay = scheduler_->TimeUntilSend(false);
+  if (delay.IsZero()) {
+    helper_->UnregisterSendAlarmIfRegistered();
+    if (!write_blocked_) {
+      OnCanWrite();
     }
+  } else {
+    helper_->SetSendAlarm(delay);
   }
+}
 
 bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
   if (incoming_ack.received_info.largest_received >
@@ -310,7 +303,7 @@ void QuicConnection::OnPacketComplete() {
                << " frames for " << last_header_.guid;
     collector_->RecordIncomingPacket(last_size_,
                                      last_header_.packet_sequence_number,
-                                     clock_->NowInUsec(),
+                                     clock_->Now(),
                                      last_packet_revived_);
   } else {
     DLOG(INFO) << "Got revived packet with " << frames_.size();
@@ -410,7 +403,7 @@ void QuicConnection::AckPacket(const QuicPacketHeader& header) {
       outgoing_ack_.received_info.missing_packets.insert(i);
     }
     outgoing_ack_.received_info.largest_received = sequence_number;
-    outgoing_ack_.received_info.time_received = clock_->NowInUsec();
+    outgoing_ack_.received_info.time_received = clock_->Now();
   } else {
     // We've gotten one of the out of order packets - remove it from our
     // "missing packets" list.
@@ -459,9 +452,10 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
       return false;
     }
 
-    int delay = scheduler_->TimeUntilSend(should_resend);
+    QuicTime::Delta delay = scheduler_->TimeUntilSend(should_resend);
     // If the scheduler requires a delay, then we can not send this packet now.
-    if (delay > 0) {
+    if (!delay.IsZero() && !delay.IsInfinite()) {
+      // TODO(pwestin): we need to handle delay.IsInfinite() seperately.
       helper_->SetSendAlarm(delay);
       queued_packets_.push_back(
           QueuedPacket(sequence_number, packet, should_resend, is_retransmit));
@@ -469,7 +463,7 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
     }
   }
   if (should_resend) {
-    helper_->SetResendAlarm(sequence_number, kDefaultResendTimeMs * 1000);
+    helper_->SetResendAlarm(sequence_number, DefaultResendTime());
     // The second case should never happen in the real world, but does here
     // because we sometimes send out of order to validate corner cases.
     if (outgoing_ack_.sent_info.least_unacked == 0 ||
@@ -484,7 +478,7 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
   }
 
   // Just before we send the packet to the wire, update the transmission time.
-  framer_.WriteTransmissionTime(clock_->NowInUsec(), packet);
+  framer_.WriteTransmissionTime(clock_->Now(), packet);
 
   scoped_ptr<QuicEncryptedPacket> encrypted(framer_.EncryptPacket(*packet));
   int error;
@@ -502,8 +496,8 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
     }
   }
 
-  time_of_last_packet_us_ = clock_->NowInUsec();
-  DVLOG(1) << "last packet: " << time_of_last_packet_us_;
+  time_of_last_packet_ = clock_->Now();
+  DVLOG(1) << "last packet: " << time_of_last_packet_.ToMicroseconds();
 
   scheduler_->SentPacket(sequence_number, packet->length(), is_retransmit);
   if (!should_resend) delete packet;
@@ -595,16 +589,16 @@ void QuicConnection::CloseFecGroupsBefore(
 }
 
 bool QuicConnection::CheckForTimeout() {
-  uint64 now_in_us = clock_->NowInUsec();
-  uint64 delta_in_us = now_in_us - time_of_last_packet_us_;
-  DVLOG(1) << "last_packet " << time_of_last_packet_us_
-           << " now:" << now_in_us
-           << " delta:" << delta_in_us;
-  if (delta_in_us >= timeout_us_) {
+  QuicTime now = clock_->Now();
+  QuicTime::Delta delta = now.Subtract(time_of_last_packet_);
+  DVLOG(1) << "last_packet " << time_of_last_packet_.ToMicroseconds()
+           << " now:" << now.ToMicroseconds()
+           << " delta:" << delta.ToMicroseconds();
+  if (delta >= timeout_) {
     SendConnectionClose(QUIC_CONNECTION_TIMED_OUT);
     return true;
   }
-  helper_->SetTimeoutAlarm(timeout_us_ - delta_in_us);
+  helper_->SetTimeoutAlarm(timeout_.Subtract(delta));
   return false;
 }
 

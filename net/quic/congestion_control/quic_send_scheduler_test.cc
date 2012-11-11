@@ -2,18 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/quic/congestion_control/quic_send_scheduler.h"
-
-#include <cmath>
-
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/quic/congestion_control/quic_receipt_metrics_collector.h"
+#include "net/quic/congestion_control/quic_send_scheduler.h"
 #include "net/quic/test_tools/mock_clock.h"
 #include "net/quic/quic_protocol.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
+namespace testing {
 
 class QuicSendSchedulerTest : public ::testing::Test {
  protected:
@@ -31,15 +30,17 @@ TEST_F(QuicSendSchedulerTest, FixedRateSenderAPI) {
   ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 30000;
   sender_->OnIncomingAckFrame(ack);
   EXPECT_EQ(-1, sender_->PeakSustainedBandwidth());
-  EXPECT_EQ(0, sender_->TimeUntilSend(false));
+  EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
   EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
   sender_->SentPacket(1, kMaxPacketSize, false);
-  EXPECT_EQ(0u, sender_->AvailableCongestionWindow());
-  EXPECT_EQ(40000, sender_->TimeUntilSend(false));
-  clock_.AdvanceTime(0.035);
-  EXPECT_EQ(kUnknownWaitTime, sender_->TimeUntilSend(false));
-  clock_.AdvanceTime(0.005);
-  EXPECT_EQ(kUnknownWaitTime, sender_->TimeUntilSend(false));
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(40),
+            sender_->TimeUntilSend(false));
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(35));
+  EXPECT_EQ(QuicTime::Delta::Infinite(),
+            sender_->TimeUntilSend(false));
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  EXPECT_EQ(QuicTime::Delta::Infinite(),
+            sender_->TimeUntilSend(false));
 }
 
 TEST_F(QuicSendSchedulerTest, FixedRatePacing) {
@@ -49,32 +50,31 @@ TEST_F(QuicSendSchedulerTest, FixedRatePacing) {
   ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
   ack.received_info.largest_received = 0;
   sender_->OnIncomingAckFrame(ack);
-  double acc_advance_time = 0.0;
+  QuicTime acc_advance_time;
   for (int i = 0; i < 100; ++i) {
-    EXPECT_EQ(0, sender_->TimeUntilSend(false));
+    EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
     EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
     sender_->SentPacket(i, kMaxPacketSize, false);
-    double advance_time = sender_->TimeUntilSend(false) / 1000000.0;
+    QuicTime::Delta advance_time = sender_->TimeUntilSend(false);
     clock_.AdvanceTime(advance_time);
-    acc_advance_time += advance_time;
+    acc_advance_time = acc_advance_time.Add(advance_time);
     // Ack the packet we sent.
     ack.received_info.largest_received = i;
     sender_->OnIncomingAckFrame(ack);
   }
-  EXPECT_EQ(1200, floor((acc_advance_time * 1000) + 0.5));
+  EXPECT_EQ(QuicTime::FromMilliseconds(1200), acc_advance_time);
 }
 
-// TODO(rch): fix this on linux32
-TEST_F(QuicSendSchedulerTest, DISABLED_AvailableCongestionWindow) {
+TEST_F(QuicSendSchedulerTest, AvailableCongestionWindow) {
   SetUpCongestionType(kFixRate);
   QuicAckFrame ack;
   ack.congestion_info.type = kFixRate;
   ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
   sender_->OnIncomingAckFrame(ack);
-  EXPECT_EQ(0, sender_->TimeUntilSend(false));
+  EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
   EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
   for (int i = 1; i <= 12; i++) {
-    EXPECT_EQ(0, sender_->TimeUntilSend(false));
+    EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
     sender_->SentPacket(i, 100, false);
     EXPECT_EQ(kMaxPacketSize - (i * 100), sender_->AvailableCongestionWindow());
   }
@@ -91,9 +91,9 @@ TEST_F(QuicSendSchedulerTest, FixedRateBandwidth) {
   ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
   sender_->OnIncomingAckFrame(ack);
   for (int i = 0; i < 100; ++i) {
-    double advance_time = sender_->TimeUntilSend(false) / 1000000.0;
+    QuicTime::Delta advance_time = sender_->TimeUntilSend(false);
     clock_.AdvanceTime(advance_time);
-    EXPECT_EQ(0, sender_->TimeUntilSend(false));
+    EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
     EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
     sender_->SentPacket(i, 1000, false);
     // Ack the packet we sent.
@@ -112,8 +112,8 @@ TEST_F(QuicSendSchedulerTest, BandwidthWith3SecondGap) {
   ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 100000;
   sender_->OnIncomingAckFrame(ack);
   for (int i = 0; i < 100; ++i) {
-    clock_.AdvanceTime(0.010);
-    EXPECT_EQ(0, sender_->TimeUntilSend(false));
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+    EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
     EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
     sender_->SentPacket(i, 1000, false);
     // Ack the packet we sent.
@@ -123,17 +123,17 @@ TEST_F(QuicSendSchedulerTest, BandwidthWith3SecondGap) {
   EXPECT_EQ(100000, sender_->BandwidthEstimate());
   EXPECT_EQ(100000, sender_->PeakSustainedBandwidth());
   EXPECT_EQ(100000, sender_->SentBandwidth());
-  clock_.AdvanceTime(1.0);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1000));
   EXPECT_EQ(50000, sender_->SentBandwidth());
-  clock_.AdvanceTime(2.1);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(2100));
   EXPECT_EQ(100000, sender_->BandwidthEstimate());
   EXPECT_EQ(100000, sender_->PeakSustainedBandwidth());
   EXPECT_EQ(0, sender_->SentBandwidth());
   for (int i = 0; i < 150; ++i) {
-    EXPECT_EQ(0, sender_->TimeUntilSend(false));
+    EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
     EXPECT_EQ(kMaxPacketSize, sender_->AvailableCongestionWindow());
     sender_->SentPacket(i + 100, 1000, false);
-    clock_.AdvanceTime(0.010);
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
     // Ack the packet we sent.
     ack.received_info.largest_received = i + 100;
     sender_->OnIncomingAckFrame(ack);
@@ -151,23 +151,24 @@ TEST_F(QuicSendSchedulerTest, Pacing) {
   ack.congestion_info.fix_rate.bitrate_in_bytes_per_second = 1000000;
   ack.received_info.largest_received = 0;
   sender_->OnIncomingAckFrame(ack);
-  double acc_advance_time = 0.0;
+  QuicTime acc_advance_time;
   for (int i = 0; i < 100;) {
-    EXPECT_EQ(0, sender_->TimeUntilSend(false));
+    EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
     EXPECT_EQ(kMaxPacketSize * 2, sender_->AvailableCongestionWindow());
     sender_->SentPacket(i++, kMaxPacketSize, false);
-    EXPECT_EQ(0, sender_->TimeUntilSend(false));
+    EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
     sender_->SentPacket(i++, kMaxPacketSize, false);
-    double advance_time = sender_->TimeUntilSend(false) / 1000000.0;
+    QuicTime::Delta advance_time = sender_->TimeUntilSend(false);
     clock_.AdvanceTime(advance_time);
-    acc_advance_time += advance_time;
+    acc_advance_time = acc_advance_time.Add(advance_time);
     // Ack the packets we sent.
     ack.received_info.largest_received = i - 2;
     sender_->OnIncomingAckFrame(ack);
     ack.received_info.largest_received = i - 1;
     sender_->OnIncomingAckFrame(ack);
   }
-  EXPECT_EQ(120, floor((acc_advance_time * 1000) + 0.5));
+  EXPECT_EQ(QuicTime::FromMilliseconds(120), acc_advance_time);
 }
 
+}  // namespace testing
 }  // namespace net

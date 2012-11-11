@@ -24,6 +24,7 @@ QuicSendScheduler::QuicSendScheduler(
     : clock_(clock),
       current_estimated_bandwidth_(-1),
       max_estimated_bandwidth_(-1),
+      last_sent_packet_(QuicTime::FromMicroseconds(0)),
       current_packet_bucket_(-1),
       first_packet_bucket_(-1),
       send_algorithm_(SendAlgorithmInterface::Create(clock, type)) {
@@ -36,9 +37,8 @@ QuicSendScheduler::~QuicSendScheduler() {
 }
 
 int QuicSendScheduler::UpdatePacketHistory() {
-  uint64 now_us = clock_->NowInUsec();
-  int timestamp_scaled = now_us / kBitrateSmoothingPeriod;
-
+  int timestamp_scaled = clock_->Now().ToMicroseconds() /
+      kBitrateSmoothingPeriod;
   int bucket = timestamp_scaled % kBitrateSmoothingBuckets;
   if (!HasSentPacket()) {
     // First packet.
@@ -69,8 +69,8 @@ void QuicSendScheduler::SentPacket(QuicPacketSequenceNumber sequence_number,
   packet_history_[bucket] += bytes;
   send_algorithm_->SentPacket(sequence_number, bytes, retransmit);
   if (!retransmit) {
-    pending_packets_[sequence_number] = new PendingPacket(bytes,
-                                                          clock_->NowInUsec());
+    pending_packets_[sequence_number] =
+        new PendingPacket(bytes, clock_->Now());
   }
   DLOG(INFO) << "Sent sequence number:" << sequence_number;
 }
@@ -84,7 +84,7 @@ void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
   //   from pending_packets_.
   // * Remove all missing packets.
   // * Send each ACK in the list to send_algorithm_.
-  uint64 last_timestamp_us = 0;
+  QuicTime last_timestamp(QuicTime::FromMicroseconds(0));
   std::map<QuicPacketSequenceNumber, size_t> acked_packets;
 
   PendingPacketsMap::iterator it, it_upper;
@@ -99,7 +99,7 @@ void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
       // Not missing, hence implicitly acked.
       scoped_ptr<PendingPacket> pending_packet_cleaner(it->second);
       acked_packets[sequence_number] = pending_packet_cleaner->BytesSent();
-      last_timestamp_us = pending_packet_cleaner->SendTimestamp();
+      last_timestamp = pending_packet_cleaner->SendTimestamp();
       pending_packets_.erase(it++);  // Must be incremented post to work.
     } else {
       ++it;
@@ -107,7 +107,7 @@ void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
   }
   // We calculate the RTT based on the highest ACKed sequence number, the lower
   // sequence numbers will include the ACK aggregation delay.
-  uint64 rtt_us = clock_->NowInUsec() - last_timestamp_us;
+  QuicTime::Delta rtt = clock_->Now().Subtract(last_timestamp);
 
   std::map<QuicPacketSequenceNumber, size_t>::iterator it_acked_packets;
   for (it_acked_packets = acked_packets.begin();
@@ -115,12 +115,12 @@ void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
       ++it_acked_packets) {
     send_algorithm_->OnIncomingAck(it_acked_packets->first,
                                    it_acked_packets->second,
-                                   rtt_us);
+                                   rtt);
     DLOG(INFO) << "ACKed sequence number:" << it_acked_packets->first;
   }
 }
 
-int QuicSendScheduler::TimeUntilSend(bool retransmit) {
+QuicTime::Delta QuicSendScheduler::TimeUntilSend(bool retransmit) {
   return send_algorithm_->TimeUntilSend(retransmit);
 }
 
