@@ -49,10 +49,15 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD1(OnConnectionCloseFrame,
                void(const QuicConnectionCloseFrame& frame));
   MOCK_METHOD0(OnPacketComplete, void());
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockFramerVisitor);
 };
 
 class NoOpFramerVisitor : public QuicFramerVisitorInterface {
  public:
+  NoOpFramerVisitor() {}
+
   virtual void OnError(QuicFramer* framer) OVERRIDE {}
   virtual void OnPacket(const IPEndPoint& self_address,
                         const IPEndPoint& peer_address) OVERRIDE {}
@@ -66,25 +71,34 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   virtual void OnConnectionCloseFrame(
       const QuicConnectionCloseFrame& frame) OVERRIDE {}
   virtual void OnPacketComplete() OVERRIDE {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NoOpFramerVisitor);
 };
 
 class FramerVisitorCapturingAcks : public NoOpFramerVisitor {
  public:
+  FramerVisitorCapturingAcks() {}
+
   // NoOpFramerVisitor
   virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;
   virtual void OnAckFrame(const QuicAckFrame& frame) OVERRIDE;
 
   QuicPacketHeader* header() { return &header_; }
   QuicAckFrame* frame() { return &frame_; }
+
  private:
   QuicPacketHeader header_;
   QuicAckFrame frame_;
+
+  DISALLOW_COPY_AND_ASSIGN(FramerVisitorCapturingAcks);
 };
 
 class MockConnectionVisitor : public QuicConnectionVisitorInterface {
  public:
   MockConnectionVisitor();
   virtual ~MockConnectionVisitor();
+
   MOCK_METHOD4(OnPacket, bool(const IPEndPoint& self_address,
                               const IPEndPoint& peer_address,
                               const QuicPacketHeader& header,
@@ -92,6 +106,9 @@ class MockConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD1(OnRstStream, void(const QuicRstStreamFrame& frame));
   MOCK_METHOD2(ConnectionClose, void(QuicErrorCode error, bool from_peer));
   MOCK_METHOD1(OnAck, void(AckedPackets acked_packets));
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockConnectionVisitor);
 };
 
 class MockScheduler : public QuicSendScheduler {
@@ -102,7 +119,11 @@ class MockScheduler : public QuicSendScheduler {
   MOCK_METHOD1(TimeUntilSend, int(bool));
   MOCK_METHOD1(OnIncomingAckFrame, void(const QuicAckFrame&));
   MOCK_METHOD3(SentPacket, void(QuicPacketSequenceNumber, size_t, bool));
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockScheduler);
 };
+
 
 class MockHelper : public QuicConnectionHelperInterface {
  public:
@@ -140,6 +161,9 @@ class MockConnection : public QuicConnection {
                                    QuicStreamOffset offset));
 
   MOCK_METHOD0(OnCanWrite, bool());
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockConnection);
 };
 
 class PacketSavingConnection : public MockConnection {
@@ -154,6 +178,9 @@ class PacketSavingConnection : public MockConnection {
                           bool is_retransmit) OVERRIDE;
 
   std::vector<QuicPacket*> packets_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(PacketSavingConnection);
 };
 
 class MockSession : public QuicSession {
@@ -175,6 +202,9 @@ class MockSession : public QuicSession {
   MOCK_METHOD4(WriteData, int(QuicStreamId id, base::StringPiece data,
                               QuicStreamOffset offset, bool fin));
   MOCK_METHOD0(IsHandshakeComplete, bool());
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockSession);
 };
 
 }  // namespace test
