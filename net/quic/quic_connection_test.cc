@@ -39,6 +39,7 @@ class QuicConnectionPeer {
                            QuicSendScheduler* scheduler) {
     connection->scheduler_.reset(scheduler);
   }
+  DISALLOW_COPY_AND_ASSIGN(QuicConnectionPeer);
 };
 
 namespace test {
@@ -68,6 +69,8 @@ class TestCollector : public QuicReceiptMetricsCollector {
  private:
   MockClock clock_;
   CongestionInfo* info_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestCollector);
 };
 
 class TestConnectionHelper : public QuicConnectionHelperInterface {
@@ -145,6 +148,8 @@ class TestConnectionHelper : public QuicConnectionHelperInterface {
   QuicPacketHeader header_;
   QuicAckFrame frame_;
   bool blocked_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestConnectionHelper);
 };
 
 class TestConnection : public QuicConnection {
@@ -175,6 +180,9 @@ class TestConnection : public QuicConnection {
     return QuicConnection::SendPacket(
         sequence_number, packet, should_resend, force, is_retransmit);
   }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(TestConnection);
 };
 
 class QuicConnectionTest : public ::testing::Test {
@@ -227,7 +235,7 @@ class QuicConnectionTest : public ::testing::Test {
     connection_.ProcessUdpPacket(IPEndPoint(), IPEndPoint(), *encrypted);
   }
 
-  // Sends an FEC packet that convers the packets that would have been sent.
+  // Sends an FEC packet that covers the packets that would have been sent.
   void ProcessFecPacket(QuicPacketSequenceNumber number,
                         QuicPacketSequenceNumber min_protected_packet,
                         bool expect_revival) {
@@ -288,8 +296,7 @@ class QuicConnectionTest : public ::testing::Test {
   }
 
   bool NonRetransmitting(QuicPacketSequenceNumber number) {
-    return last_frame()->sent_info.non_retransmiting.find(
-        number) !=
+    return last_frame()->sent_info.non_retransmiting.find(number) !=
         last_frame()->sent_info.non_retransmiting.end();
   }
 
@@ -323,6 +330,9 @@ class QuicConnectionTest : public ::testing::Test {
   QuicStreamFrame frame1_;
   QuicStreamFrame frame2_;
   bool accept_packet_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(QuicConnectionTest);
 };
 
 TEST_F(QuicConnectionTest, PacketsInOrder) {
@@ -388,7 +398,10 @@ TEST_F(QuicConnectionTest, LatePacketMarkedWillNotResend) {
   ProcessPacket(5);
   // Now send non-resending information, that we're not going to resend 3.
   // The far end should stop waiting for it.
-  QuicAckFrame frame(0, 0, 1);
+  QuicPacketSequenceNumber largest_received = 0;
+  QuicTransmissionTime time_received = 0;
+  QuicPacketSequenceNumber least_unacked = 1;
+  QuicAckFrame frame(largest_received, time_received, least_unacked);
   frame.sent_info.non_retransmiting.insert(3);
   SendAckPacket(&frame);
   // Force an ack to be sent.
@@ -503,7 +516,7 @@ TEST_F(QuicConnectionTest, LeastUnackedLower) {
 }
 
 TEST_F(QuicConnectionTest, AckUnsentData) {
-  // Ack a packet which has not been sent
+  // Ack a packet which has not been sent.
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_INVALID_ACK_DATA, false));
   QuicAckFrame frame(1, 0, 0);
   SendAckPacket(&frame);
@@ -651,32 +664,32 @@ TEST_F(QuicConnectionTest, MultipleAcks) {
 }
 
 TEST_F(QuicConnectionTest, ReviveMissingPacketAfterFecPacket) {
-  // Don't send missing packet 1
+  // Don't send missing packet 1.
   ProcessFecPacket(2, 1, true);
 }
 
 TEST_F(QuicConnectionTest, ReviveMissingPacketAfterDataPacketThenFecPacket) {
   ProcessFecProtectedPacket(1, false);
-  // Don't send missing packet 2
+  // Don't send missing packet 2.
   ProcessFecPacket(3, 1, true);
 }
 
 TEST_F(QuicConnectionTest, ReviveMissingPacketAfterDataPacketsThenFecPacket) {
   ProcessFecProtectedPacket(1, false);
-  // Don't send missing packet 2
+  // Don't send missing packet 2.
   ProcessFecProtectedPacket(3, false);
   ProcessFecPacket(4, 1, true);
 }
 
 TEST_F(QuicConnectionTest, ReviveMissingPacketAfterDataPacket) {
-  // Don't send missing packet 1
+  // Don't send missing packet 1.
   ProcessFecPacket(3, 1, false);  // out of order
   ProcessFecProtectedPacket(2, true);
 }
 
 TEST_F(QuicConnectionTest, ReviveMissingPacketAfterDataPackets) {
   ProcessFecProtectedPacket(1, false);
-  // Don't send missing packet 2
+  // Don't send missing packet 2.
   ProcessFecPacket(6, 1, false);
   ProcessFecProtectedPacket(3, false);
   ProcessFecProtectedPacket(4, false);

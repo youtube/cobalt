@@ -212,6 +212,27 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
  private:
   friend class QuicConnectionPeer;
   typedef base::hash_set<QuicPacketSequenceNumber> SequenceSet;
+  // Packets which have not been written to the wire.
+  struct QueuedPacket {
+    QueuedPacket(QuicPacketSequenceNumber sequence_number,
+                 QuicPacket* packet,
+                 bool resend,
+                 bool retransmit)
+        : sequence_number(sequence_number),
+          packet(packet),
+          resend(resend),
+          retransmit(retransmit) {
+    }
+
+    QuicPacketSequenceNumber sequence_number;
+    QuicPacket* packet;
+    bool resend;
+    bool retransmit;
+  };
+  typedef std::list<QueuedPacket> QueuedPacketList;
+  typedef base::hash_map<QuicPacketSequenceNumber,
+      QuicPacket*> UnackedPacketMap;
+  typedef std::map<QuicFecGroupNumber, QuicFecGroup*> FecGroupMap;
 
   // Sets up a packet with an QuicAckFrame and sends it out.
   void SendAck();
@@ -237,8 +258,8 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   IPEndPoint self_address_;
   IPEndPoint peer_address_;
 
-  bool last_packet_revived_;  // true if the last packet was revived from FEC.
-  size_t last_size_;  // size of the last received packet.
+  bool last_packet_revived_;  // True if the last packet was revived from FEC.
+  size_t last_size_;  // Size of the last received packet.
   QuicPacketHeader last_header_;
   std::vector<QuicStreamFrame> frames_;
 
@@ -246,35 +267,13 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
 
   // Track some client state so we can do less bookkeeping
   //
-  // The largest packet we've seen which contained an ack frame.
   QuicPacketSequenceNumber largest_seen_packet_with_ack_;
-  // The largest seen value for least_packet_awaiting_ack from the client.
-  QuicPacketSequenceNumber largest_seen_least_packet_awaiting_ack_;
+  QuicPacketSequenceNumber least_packet_awaiting_ack_;
 
-  typedef base::hash_map<QuicPacketSequenceNumber,
-                         QuicPacket*> UnackedPacketMap;
   // When new packets are created which may be resent, they are added
   // to this map, which contains owning pointers.
   UnackedPacketMap unacked_packets_;
 
-  // Packets which have not been written to the wire.
-  struct QueuedPacket {
-    QuicPacketSequenceNumber sequence_number;
-    QuicPacket* packet;
-    bool resend;
-    bool retransmit;
-
-    QueuedPacket(QuicPacketSequenceNumber sequence_number,
-                 QuicPacket* packet,
-                 bool resend,
-                 bool retransmit) {
-      this->sequence_number = sequence_number;
-      this->packet = packet;
-      this->resend = resend;
-      this->retransmit = retransmit;
-    }
-  };
-  typedef std::list<QueuedPacket> QueuedPacketList;
   // When packets could not be sent because the socket was not writable,
   // they are added to this list.  For packets that are not resendable, this
   // list contains owning pointers, since they are not added to
@@ -284,7 +283,6 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   // True when the socket becomes unwritable.
   bool write_blocked_;
 
-  typedef std::map<QuicFecGroupNumber, QuicFecGroup*> FecGroupMap;
   FecGroupMap group_map_;
   QuicPacketHeader revived_header_;
   scoped_array<char> revived_payload_;
@@ -309,6 +307,8 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   // True by default.  False if we've received or sent an explicit connection
   // close.
   bool connected_;
+
+  DISALLOW_COPY_AND_ASSIGN(QuicConnection);
 };
 
 }  // namespace net
