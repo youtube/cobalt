@@ -41,17 +41,17 @@ QuicStreamSequencer::~QuicStreamSequencer() {
 
 bool QuicStreamSequencer::WillAcceptStreamFrame(
     const QuicStreamFrame& frame) const {
-  QuicStreamOffset byte_offset = frame.offset;
   size_t data_len = frame.data.size();
   DCHECK_LE(data_len, max_frame_memory_);
 
+  uint64 byte_offset = frame.offset;
   if (byte_offset < num_bytes_consumed_ ||
       frames_.find(byte_offset) != frames_.end()) {
     return false;
   }
   if (data_len > max_frame_memory_) {
-    // We're never going to buffer this frame and we can't pass it up the
-    // stream might only consume part of it and we'd need a partial ack.
+    // We're never going to buffer this frame and we can't pass it up.
+    // The stream might only consume part of it and we'd need a partial ack.
     //
     // Ideally this should never happen, as we check that
     // max_frame_memory_ > kMaxPacketSize and lower levels should reject
@@ -67,16 +67,15 @@ bool QuicStreamSequencer::WillAcceptStreamFrame(
 }
 
 bool QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
-  QuicStreamOffset byte_offset = frame.offset;
-  const char* data = frame.data.data();
-  size_t data_len = frame.data.size();
-
   if (!WillAcceptStreamFrame(frame)) {
     // This should not happen, as WillAcceptFrame should be called before
     // OnStreamFrame.  Error handling should be done by the caller.
     return false;
   }
 
+  QuicStreamOffset byte_offset = frame.offset;
+  const char* data = frame.data.data();
+  size_t data_len = frame.data.size();
   if (byte_offset == num_bytes_consumed_) {
     DVLOG(1) << "Processing byte offset " << byte_offset;
     size_t bytes_consumed = stream_->ProcessData(data, data_len);
@@ -137,41 +136,17 @@ bool QuicStreamSequencer::MaybeCloseStream() {
   return false;
 }
 
-void QuicStreamSequencer::AdvanceReadablePtr(size_t data_read) {
-  FrameMap::iterator it = frames_.begin();
-
-  while (data_read) {
-    if (it->first != num_bytes_consumed_ || it == frames_.end()) {
-      stream_->Close(QUIC_SERVER_ERROR_PROCESSING_STREAM);  // Programming error
-      return;
-    }
-
-    if (data_read >= it->second.size()) {
-      data_read -= it->second.size();
-      num_bytes_consumed_ += it->second.size();
-      frames_.erase(it);
-      it = frames_.begin();
-    } else {
-      frames_.insert(make_pair(it->first + data_read,
-                                  it->second.substr(data_read)));
-      frames_.erase(frames_.begin());
-      num_bytes_consumed_ += data_read;
-      data_read = 0;
-    }
-  }
-}
-
-bool QuicStreamSequencer::HasBytesToRead() {
-  FrameMap::iterator it = frames_.begin();
+bool QuicStreamSequencer::HasBytesToRead() const {
+  FrameMap::const_iterator it = frames_.begin();
 
   return it != frames_.end() && it->first == num_bytes_consumed_;
 }
 
-bool QuicStreamSequencer::IsHalfClosed() {
+bool QuicStreamSequencer::IsHalfClosed() const {
   return num_bytes_consumed_ >= close_offset_;
 }
 
-bool QuicStreamSequencer::IsClosed() {
+bool QuicStreamSequencer::IsClosed() const {
   return num_bytes_consumed_ >= close_offset_ && half_close_ == false;
 }
 
