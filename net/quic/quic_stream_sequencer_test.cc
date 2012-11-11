@@ -47,11 +47,11 @@ class QuicStreamSequencerPeer : public QuicStreamSequencer {
     max_frame_memory_ = limit;
   }
 
-  ReliableQuicStream* stream() { return stream_; }
-  uint64 num_bytes_consumed() { return num_bytes_consumed_; }
-  FrameMap* frames() { return &frames_; }
-  int32 max_frame_memory() { return max_frame_memory_; }
-  QuicStreamOffset close_offset() { return close_offset_; }
+  const ReliableQuicStream* stream() const { return stream_; }
+  uint64 num_bytes_consumed() const { return num_bytes_consumed_; }
+  const FrameMap* frames() const { return &frames_; }
+  int32 max_frame_memory() const { return max_frame_memory_; }
+  QuicStreamOffset close_offset() const { return close_offset_; }
 };
 
 class MockStream : public ReliableQuicStream {

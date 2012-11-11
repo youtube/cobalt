@@ -50,27 +50,24 @@ class NET_EXPORT_PRIVATE QuicStreamSequencer {
   // Once data is buffered, it's up to the stream to read it when the stream
   // can handle more data.  The following three functions make that possible.
 
-  // Advances the readable pointer num_bytes bytes, releasing any buffered data
-  // which is no longer in uses
-  void AdvanceReadablePtr(size_t num_bytes);
-
   // Returns true if the sequncer has bytes available for reading.
-  bool HasBytesToRead();
+  bool HasBytesToRead() const;
 
   // Returns true if the sequencer has delivered a half close.
-  bool IsHalfClosed();
+  bool IsHalfClosed() const;
 
   // Returns true if the sequencer has delivered a full close.
-  bool IsClosed();
+  bool IsClosed() const;
 
  private:
-  bool MaybeCloseStream();
-
   friend class QuicStreamSequencerPeer;
+
   // TODO(alyssar) use something better than strings.
   typedef map<QuicStreamOffset, string> FrameMap;
 
   void FlushBufferedFrames();
+
+  bool MaybeCloseStream();
 
   ReliableQuicStream* stream_;  // The stream which owns this sequencer.
   QuicStreamOffset num_bytes_consumed_;  // The last data consumed by the stream

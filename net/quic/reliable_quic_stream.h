@@ -45,12 +45,12 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
 
   // This block of functions wraps the sequencer's functions of the same
   // name.
-  virtual bool IsHalfClosed();
-  virtual bool HasBytesToRead();
+  virtual bool IsHalfClosed() const;
+  virtual bool HasBytesToRead() const;
 
-  QuicStreamId id() { return id_; }
+  QuicStreamId id() const { return id_; }
 
-  QuicErrorCode error() { return error_; }
+  QuicErrorCode error() const { return error_; }
 
  protected:
   virtual int WriteData(base::StringPiece data, bool fin);
