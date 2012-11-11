@@ -176,17 +176,15 @@ bool QuicSession::IsClosedStream(QuicStreamId id) {
     return false;
   }
   if (id % 2 == next_stream_id_ % 2) {
-    // If the stream was locally initiated we strictly in-order creation.
-    // If the id is in the range of created streams and it's not active, it
-    // must have been closed.
+    // Locally created streams are strictly in-order.  If the id is in the
+    // range of created streams and it's not active, it must have been closed.
     return id < next_stream_id_;
-  } else {
-    // For peer created streams, we also need to consider
-    // implicitly created streams.
+  }
+  // For peer created streams, we also need to consider implicitly created
+  // streams.
     return id <= largest_peer_created_stream_id_ &&
         implicitly_created_streams_.count(id) == 0;
   }
-}
 
 size_t QuicSession::GetNumOpenStreams() {
   return stream_map_.size() + implicitly_created_streams_.size();

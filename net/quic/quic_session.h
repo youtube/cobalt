@@ -81,6 +81,8 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   QuicStreamId GetNextStreamId();
 
   // Returns true if the stream existed previously and has been closed.
+  // Returns false if the stream is still active or if the stream has
+  // not yet been created.
   bool IsClosedStream(QuicStreamId id);
 
   ReliableQuicStream* GetIncomingReliableStream(QuicStreamId stream_id);
