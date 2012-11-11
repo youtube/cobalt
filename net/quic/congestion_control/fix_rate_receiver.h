@@ -24,7 +24,7 @@ class NET_EXPORT_PRIVATE FixRateReceiver : public ReceiveAlgorithmInterface {
   // Implements ReceiveAlgorithmInterface.
   virtual void RecordIncomingPacket(size_t bytes,
                                     QuicPacketSequenceNumber sequence_number,
-                                    uint64 timestamp_us,
+                                    QuicTime timestamp,
                                     bool recovered) OVERRIDE;
 
   void SetBitrate(int bytes_per_second);  // Used for testing only.

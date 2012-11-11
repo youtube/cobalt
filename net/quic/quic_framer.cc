@@ -371,11 +371,13 @@ bool QuicFramer::ProcessAckFrame(QuicAckFrame* frame) {
     set_detailed_error("Unable to read largest received.");
     return false;
   }
-
-  if (!reader_->ReadUInt64(&frame->received_info.time_received)) {
+  uint64 time_received;
+  if (!reader_->ReadUInt64(&time_received)) {
     set_detailed_error("Unable to read time received.");
     return false;
   }
+  frame->received_info.time_received =
+      QuicTime::FromMicroseconds(time_received);
 
   uint8 num_unacked_packets;
   if (!reader_->ReadBytes(&num_unacked_packets, 1)) {
@@ -531,10 +533,10 @@ bool QuicFramer::ProcessConnectionCloseFrame() {
   return true;
 }
 
-void QuicFramer::WriteTransmissionTime(QuicTransmissionTime time,
+void QuicFramer::WriteTransmissionTime(QuicTime time,
                                        QuicPacket* packet) {
   QuicDataWriter::WriteUint64ToBuffer(
-      time, packet->mutable_data() + kTransmissionTimeOffset);
+      time.ToMicroseconds(), packet->mutable_data() + kTransmissionTimeOffset);
 }
 
 void QuicFramer::WriteSequenceNumber(QuicPacketSequenceNumber sequence_number,
@@ -677,7 +679,9 @@ bool QuicFramer::AppendAckFramePayload(
   if (!writer->WriteUInt48(frame.received_info.largest_received)) {
     return false;
   }
-  if (!writer->WriteUInt64(frame.received_info.time_received)) {
+
+  if (!writer->WriteUInt64(
+      frame.received_info.time_received.ToMicroseconds())) {
     return false;
   }
 

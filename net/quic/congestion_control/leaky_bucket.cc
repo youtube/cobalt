@@ -11,7 +11,6 @@ namespace net {
 LeakyBucket::LeakyBucket(const QuicClock* clock, int bytes_per_second)
     : clock_(clock),
       bytes_(0),
-      time_last_updated_us_(0),
       draining_rate_bytes_per_s_(bytes_per_second) {
 }
 
@@ -25,11 +24,11 @@ void LeakyBucket::Add(size_t bytes) {
   bytes_ += bytes;
 }
 
-uint64 LeakyBucket::TimeRemaining() {
+QuicTime::Delta LeakyBucket::TimeRemaining() {
   Update();
-  uint64 time_remaining_us = (bytes_ * base::Time::kMicrosecondsPerSecond) /
-      draining_rate_bytes_per_s_;
-  return time_remaining_us;
+  return QuicTime::Delta::FromMicroseconds(
+      (bytes_ * base::Time::kMicrosecondsPerSecond) /
+      draining_rate_bytes_per_s_);
 }
 
 size_t LeakyBucket::BytesPending() {
@@ -38,15 +37,16 @@ size_t LeakyBucket::BytesPending() {
 }
 
 void LeakyBucket::Update() {
-  uint64 elapsed_time_us = clock_->NowInUsec() - time_last_updated_us_;
-  size_t bytes_cleared = (elapsed_time_us * draining_rate_bytes_per_s_) /
+  QuicTime::Delta elapsed_time = clock_->Now().Subtract(time_last_updated_);
+  size_t bytes_cleared =
+      (elapsed_time.ToMicroseconds() * draining_rate_bytes_per_s_) /
       base::Time::kMicrosecondsPerSecond;
   if (bytes_cleared >= bytes_) {
     bytes_ = 0;
   } else {
     bytes_ -= bytes_cleared;
   }
-  time_last_updated_us_ = clock_->NowInUsec();
+  time_last_updated_ = clock_->Now();
 }
 
 }  // namespace net
