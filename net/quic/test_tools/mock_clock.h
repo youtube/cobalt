@@ -19,27 +19,16 @@ class MockClock : public QuicClock {
 
   virtual ~MockClock();
 
-  virtual uint64 NowInUsec() const OVERRIDE;
+  void AdvanceTime(QuicTime::Delta delta);
 
-  base::TimeTicks Now() const;
+  virtual QuicTime Now() const OVERRIDE;
 
-  void AdvanceTimeInMicroseconds(uint64 delta_in_us) {
-    now_ += delta_in_us;
-  }
+  base::TimeTicks NowInTicks() const;
 
-  void AdvanceTimeByDelta(base::TimeDelta delta) {
-    CHECK_LE(0, delta.InMicroseconds());
-    now_ += delta.InMicroseconds();
-  }
-
-  void AdvanceTime(WallTime delta) {
-    CHECK_LE(0, delta);;
-    uint64 delta_us = delta * base::Time::kMicrosecondsPerSecond;
-    now_ += delta_us;
-  }
+  void AdvanceTime(QuicTime delta);
 
  private:
-  uint64 now_;
+  QuicTime now_;
 };
 
 }  // namespace net

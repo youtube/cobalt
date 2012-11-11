@@ -15,6 +15,7 @@
 #include "base/logging.h"
 #include "base/string_piece.h"
 #include "net/base/net_export.h"
+#include "net/quic/quic_time.h"
 #include "net/quic/uint128.h"
 
 namespace net {
@@ -63,7 +64,7 @@ const QuicStreamId kCryptoStreamId = 1;
 
 typedef std::pair<QuicPacketSequenceNumber, QuicPacket*> PacketPair;
 
-const uint64 kDefaultTimeout = 600000000;  // 10 minutes
+const int64 kDefaultTimeoutUs = 600000000;  // 10 minutes.
 
 enum QuicFrameType {
   STREAM_FRAME = 0,
@@ -172,7 +173,7 @@ struct NET_EXPORT_PRIVATE ReceivedPacketInfo {
   // The highest packet sequence number we've received from the peer.
   QuicPacketSequenceNumber largest_received;
   // The time at which we received the above packet.
-  QuicTransmissionTime time_received;
+  QuicTime time_received;
   // The set of packets which we're expecting and have not received.
   // This includes any packets between the lowest and largest_received
   // which we have neither seen nor been informed are non-retransmitting.
@@ -243,7 +244,7 @@ struct NET_EXPORT_PRIVATE CongestionInfo {
 struct NET_EXPORT_PRIVATE QuicAckFrame {
   QuicAckFrame() {}
   QuicAckFrame(QuicPacketSequenceNumber largest_received,
-               QuicTransmissionTime time_received,
+               QuicTime time_received,
                QuicPacketSequenceNumber least_unacked) {
     received_info.largest_received = largest_received;
     received_info.time_received = time_received;

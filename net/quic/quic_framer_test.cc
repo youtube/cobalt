@@ -553,7 +553,7 @@ TEST_F(QuicFramerTest, AckFrame) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -568,7 +568,7 @@ TEST_F(QuicFramerTest, AckFrame) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
     // unacked packet sequence number
@@ -607,7 +607,7 @@ TEST_F(QuicFramerTest, AckFrame) {
   const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
             frame.received_info.largest_received);
-  EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
@@ -667,7 +667,7 @@ TEST_F(QuicFramerTest, AckFrameTCP) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -682,7 +682,7 @@ TEST_F(QuicFramerTest, AckFrameTCP) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
     // unacked packet sequence number
@@ -725,7 +725,7 @@ TEST_F(QuicFramerTest, AckFrameTCP) {
   const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
             frame.received_info.largest_received);
-  EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
@@ -774,7 +774,7 @@ TEST_F(QuicFramerTest, AckFrameInterArrival) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -789,7 +789,7 @@ TEST_F(QuicFramerTest, AckFrameInterArrival) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
     // unacked packet sequence number
@@ -834,7 +834,7 @@ TEST_F(QuicFramerTest, AckFrameInterArrival) {
   const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
             frame.received_info.largest_received);
-  EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
@@ -885,7 +885,7 @@ TEST_F(QuicFramerTest, AckFrameFixRate) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -900,7 +900,7 @@ TEST_F(QuicFramerTest, AckFrameFixRate) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
     // unacked packet sequence number
@@ -941,7 +941,7 @@ TEST_F(QuicFramerTest, AckFrameFixRate) {
   const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
             frame.received_info.largest_received);
-  EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
@@ -987,7 +987,7 @@ TEST_F(QuicFramerTest, AckFrameInvalidFeedback) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1002,7 +1002,7 @@ TEST_F(QuicFramerTest, AckFrameInvalidFeedback) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
     // unacked packet sequence number
@@ -1045,7 +1045,7 @@ TEST_F(QuicFramerTest, RstStreamFrame) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1116,7 +1116,7 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1145,7 +1145,7 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
     // unacked packet sequence number
@@ -1194,7 +1194,7 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
   const QuicAckFrame& frame = *visitor_.ack_frames_[0];
   EXPECT_EQ(GG_UINT64_C(0x0123456789ABC),
             frame.received_info.largest_received);
-  EXPECT_EQ(GG_UINT64_C(0xF0E1D2C3B4A59687),
+  EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
   const hash_set<QuicPacketSequenceNumber>* sequence_nums =
@@ -1244,7 +1244,7 @@ TEST_F(QuicFramerTest, FecPacket) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags (FEC)
     0x01,
     // fec group
@@ -1280,7 +1280,7 @@ TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
-  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.transmission_time = GG_UINT64_C(0x07E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
@@ -1306,7 +1306,7 @@ TEST_F(QuicFramerTest, ConstructStreamFramePacket) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1345,13 +1345,14 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
-  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.transmission_time = GG_UINT64_C(0x07E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
   QuicAckFrame ack_frame;
   ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.time_received =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687));
   ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
   ack_frame.received_info.missing_packets.insert(
@@ -1381,7 +1382,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1396,7 +1397,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
@@ -1458,13 +1459,14 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
-  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.transmission_time = GG_UINT64_C(0x07E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
   QuicAckFrame ack_frame;
   ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.time_received =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687));
   ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
   ack_frame.received_info.missing_packets.insert(
@@ -1496,7 +1498,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1511,7 +1513,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
@@ -1577,13 +1579,14 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
-  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.transmission_time = GG_UINT64_C(0x07E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
   QuicAckFrame ack_frame;
   ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.time_received =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687));
   ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
   ack_frame.received_info.missing_packets.insert(
@@ -1617,7 +1620,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1632,7 +1635,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
@@ -1700,13 +1703,14 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
-  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.transmission_time = GG_UINT64_C(0x07E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
   QuicAckFrame ack_frame;
   ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.time_received =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687));
   ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
   ack_frame.received_info.missing_packets.insert(
@@ -1738,7 +1742,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1753,7 +1757,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
@@ -1817,13 +1821,14 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInvalidFeedback) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
-  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.transmission_time = GG_UINT64_C(0x07E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
   QuicAckFrame ack_frame;
   ack_frame.received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_frame.received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame.received_info.time_received =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687));
   ack_frame.received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
   ack_frame.received_info.missing_packets.insert(
@@ -1853,7 +1858,7 @@ TEST_F(QuicFramerTest, ConstructRstFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
-  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.transmission_time = GG_UINT64_C(0x07E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
@@ -1872,7 +1877,7 @@ TEST_F(QuicFramerTest, ConstructRstFramePacket) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1917,7 +1922,7 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = GG_UINT64_C(0x123456789ABC);
-  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.transmission_time = GG_UINT64_C(0x07E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_NONE;
   header.fec_group = 0;
 
@@ -1927,7 +1932,8 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
 
   QuicAckFrame* ack_frame = &close_frame.ack_frame;
   ack_frame->received_info.largest_received = GG_UINT64_C(0x0123456789ABC);
-  ack_frame->received_info.time_received = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  ack_frame->received_info.time_received =
+      QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687));
   ack_frame->received_info.missing_packets.insert(
       GG_UINT64_C(0x0123456789ABB));
   ack_frame->received_info.missing_packets.insert(
@@ -1959,7 +1965,7 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x00,
     // fec group
@@ -1986,7 +1992,7 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
     0x34, 0x12,
     // time delta
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
@@ -2054,7 +2060,7 @@ TEST_F(QuicFramerTest, ConstructFecPacket) {
   QuicPacketHeader header;
   header.guid = GG_UINT64_C(0xFEDCBA9876543210);
   header.packet_sequence_number = (GG_UINT64_C(0x123456789ABC));
-  header.transmission_time = GG_UINT64_C(0xF0E1D2C3B4A59687);
+  header.transmission_time = GG_UINT64_C(0x07E1D2C3B4A59687);
   header.flags = PACKET_FLAGS_FEC;
   header.fec_group = 1;
 
@@ -2073,7 +2079,7 @@ TEST_F(QuicFramerTest, ConstructFecPacket) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x01,
     // fec group
@@ -2108,7 +2114,7 @@ TEST_F(QuicFramerTest, EncryptPacket) {
     0x34, 0x12,
     // transmission time
     0x87, 0x96, 0xA5, 0xB4,
-    0xC3, 0xD2, 0xE1, 0xF0,
+    0xC3, 0xD2, 0xE1, 0x07,
     // flags
     0x01,
     // fec group

@@ -11,6 +11,7 @@
 #include "base/compiler_specific.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_clock.h"
+#include "net/quic/quic_time.h"
 #include "net/quic/congestion_control/leaky_bucket.h"
 #include "net/quic/congestion_control/paced_sender.h"
 #include "net/quic/congestion_control/send_algorithm_interface.h"
@@ -26,11 +27,12 @@ class NET_EXPORT_PRIVATE FixRateSender : public SendAlgorithmInterface {
       const CongestionInfo& congestion_info) OVERRIDE;
   virtual void OnIncomingAck(QuicPacketSequenceNumber acked_sequence_number,
                              size_t acked_bytes,
-                             uint64 rtt_us) OVERRIDE;
+                             QuicTime::Delta rtt) OVERRIDE;
   virtual void OnIncomingLoss(int number_of_lost_packets) OVERRIDE;
   virtual void SentPacket(QuicPacketSequenceNumber equence_number,
-                          size_t bytes, bool retransmit) OVERRIDE;
-  virtual int TimeUntilSend(bool retransmit) OVERRIDE;
+                          size_t bytes,
+                          bool retransmit) OVERRIDE;
+  virtual QuicTime::Delta TimeUntilSend(bool retransmit) OVERRIDE;
   virtual size_t AvailableCongestionWindow() OVERRIDE;
   virtual int BandwidthEstimate() OVERRIDE;
   // End implementation of SendAlgorithmInterface.

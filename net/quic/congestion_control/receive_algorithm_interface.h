@@ -11,6 +11,7 @@
 #include "net/base/net_export.h"
 #include "net/quic/quic_clock.h"
 #include "net/quic/quic_protocol.h"
+#include "net/quic/quic_time.h"
 
 namespace net {
 
@@ -28,12 +29,12 @@ class NET_EXPORT_PRIVATE ReceiveAlgorithmInterface {
   // Should be called for each incoming packet.
   // bytes: is the packet size in bytes including IP headers.
   // sequence_number: is the unique sequence number from the QUIC packet header.
-  // timestamp_us: is the sent timestamp from the QUIC packet header.
+  // timestamp: is the sent timestamp from the QUIC packet header.
   // revived: is set if the packet is lost and then recovered with help of FEC
   // (Forward Error Correction) packet(s).
   virtual void RecordIncomingPacket(size_t bytes,
                                     QuicPacketSequenceNumber sequence_number,
-                                    uint64 timestamp_us,
+                                    QuicTime timestamp,
                                     bool revived) = 0;
 };
 

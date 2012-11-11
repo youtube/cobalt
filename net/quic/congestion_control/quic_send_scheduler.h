@@ -19,6 +19,7 @@
 #include "net/quic/congestion_control/quic_receipt_metrics_collector.h"
 #include "net/quic/congestion_control/send_algorithm_interface.h"
 #include "net/quic/quic_clock.h"
+#include "net/quic/quic_time.h"
 
 namespace net {
 
@@ -32,16 +33,16 @@ class NET_EXPORT_PRIVATE QuicSendScheduler {
  public:
   class PendingPacket {
    public:
-    PendingPacket(size_t bytes, uint64 timestamp_us)
+    PendingPacket(size_t bytes, QuicTime timestamp)
         : bytes_sent_(bytes),
-          send_timestamp_us_(timestamp_us) {
+          send_timestamp_(timestamp) {
     }
     size_t BytesSent() { return bytes_sent_; }
-    uint64 SendTimestamp() { return send_timestamp_us_; }
+    QuicTime& SendTimestamp() { return send_timestamp_; }
 
    private:
     size_t bytes_sent_;
-    uint64 send_timestamp_us_;
+    QuicTime send_timestamp_;
   };
   typedef std::map<QuicPacketSequenceNumber, PendingPacket*> PendingPacketsMap;
 
@@ -67,7 +68,7 @@ class NET_EXPORT_PRIVATE QuicSendScheduler {
   // TimeUntilSend again until we receive an OnIncomingAckFrame event.
   // Note 2: Send algorithms may or may not use |retransmit| in their
   // calculations.
-  virtual int TimeUntilSend(bool retransmit);
+  virtual QuicTime::Delta TimeUntilSend(bool retransmit);
 
   // Returns the current available congestion window in bytes, the number of
   // bytes that can be sent now.
@@ -90,6 +91,7 @@ class NET_EXPORT_PRIVATE QuicSendScheduler {
   const QuicClock* clock_;
   int current_estimated_bandwidth_;
   int max_estimated_bandwidth_;
+  QuicTime last_sent_packet_;
   // To keep track of the real sent bitrate we keep track of the last sent bytes
   // by keeping an array containing the number of bytes sent in a short timespan
   // kBitrateSmoothingPeriod; multiple of these buckets kBitrateSmoothingBuckets
