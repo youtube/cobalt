@@ -18,7 +18,7 @@ TEST(QuicClockTest, Now) {
   QuicTime end(base::TimeTicks::Now());
 
   EXPECT_LE(start, now);
-  EXPECT_GE(now, end);
+  EXPECT_LE(now, end);
 }
 
 }  // namespace test
