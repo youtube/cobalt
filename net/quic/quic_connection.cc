@@ -31,7 +31,7 @@ DEFINE_int32(negotiated_timeout_us, net::kDefaultTimeout,
 namespace net {
 
 // An arbitrary number we'll probably want to tune.
-const size_t kMaxUnackedPackets = 5000u;
+const QuicPacketSequenceNumber kMaxUnackedPackets = 5000u;
 
 // The amount of time we wait before resending a packet.
 const int64 kDefaultResendTimeMs = 500;
@@ -50,7 +50,7 @@ QuicConnection::QuicConnection(QuicGuid guid,
       guid_(guid),
       peer_address_(address),
       largest_seen_packet_with_ack_(0),
-      largest_seen_least_packet_awaiting_ack_(0),
+      least_packet_awaiting_ack_(0),
       write_blocked_(false),
       packet_creator_(guid_, &framer_),
       timeout_us_(kDefaultTimeout),
@@ -110,7 +110,6 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
     return false;
   }
 
-  last_header_ = header;
   ReceivedPacketInfo info = outgoing_ack_.received_info;
   // If this packet has already been seen, or that the sender
   // has told us will not be resent, then stop processing the packet.
@@ -118,6 +117,8 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
       info.missing_packets.count(header.packet_sequence_number) != 1) {
     return false;
   }
+
+  last_header_ = header;
   return true;
 }
 
@@ -148,8 +149,11 @@ void QuicConnection::OnAckFrame(const QuicAckFrame& incoming_ack) {
   UpdatePacketInformationReceivedByPeer(incoming_ack);
   UpdatePacketInformationSentByPeer(incoming_ack);
   scheduler_->OnIncomingAckFrame(incoming_ack);
+
   // Now the we have received an ack, we might be able to send queued packets.
-  if (!queued_packets_.empty()) {
+  if (queued_packets_.empty()) {
+    return;
+  }
     int delay = scheduler_->TimeUntilSend(false);
     if (delay == 0) {
       helper_->UnregisterSendAlarmIfRegistered();
@@ -160,7 +164,6 @@ void QuicConnection::OnAckFrame(const QuicAckFrame& incoming_ack) {
       helper_->SetSendAlarm(delay);
     }
   }
-}
 
 bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
   if (incoming_ack.received_info.largest_received >
@@ -179,7 +182,7 @@ bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
 
   if (incoming_ack.sent_info.least_unacked != 0 &&
       incoming_ack.sent_info.least_unacked <
-      largest_seen_least_packet_awaiting_ack_) {
+      least_packet_awaiting_ack_) {
     DLOG(INFO) << "Client sent low least_unacked";
     // We never process old ack frames, so this number should only increase.
     return false;
@@ -205,8 +208,7 @@ void QuicConnection::UpdatePacketInformationReceivedByPeer(
     if ((it->first < incoming_ack.received_info.largest_received &&
          !ContainsKey(incoming_ack.received_info.missing_packets, it->first)) ||
         it->first == incoming_ack.received_info.largest_received) {
-      // This was either explicitly or implicitly acked.  Remove it from our
-      // unacked packet list.
+      // Packet was acked, so remove it from our unacked packet list.
       DVLOG(1) << "Got an ack for " << it->first;
       // TODO(rch): This is inefficient and should be sped up.
       // The acked packet might be queued (if a resend had been attempted).
@@ -268,14 +270,14 @@ void QuicConnection::UpdatePacketInformationSentByPeer(
   }
 
   // Make sure we also don't expect any packets lower than the peer's
-  // last-packet-awaiting-ack
+  // last-packet-awaiting-ack.
   if (incoming_ack.sent_info.least_unacked >
-      largest_seen_least_packet_awaiting_ack_) {
-    for (QuicPacketSequenceNumber i = largest_seen_least_packet_awaiting_ack_;
+      least_packet_awaiting_ack_) {
+    for (QuicPacketSequenceNumber i = least_packet_awaiting_ack_;
          i < incoming_ack.sent_info.least_unacked; ++i) {
       outgoing_ack_.received_info.missing_packets.erase(i);
     }
-    largest_seen_least_packet_awaiting_ack_ =
+    least_packet_awaiting_ack_ =
         incoming_ack.sent_info.least_unacked;
   }
 
