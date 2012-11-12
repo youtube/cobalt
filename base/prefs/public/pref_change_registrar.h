@@ -5,21 +5,26 @@
 #ifndef BASE_PREFS_PUBLIC_PREF_CHANGE_REGISTRAR_H_
 #define BASE_PREFS_PUBLIC_PREF_CHANGE_REGISTRAR_H_
 
-#include <set>
+#include <map>
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/prefs/base_prefs_export.h"
+#include "base/prefs/public/pref_observer.h"
 
-class PrefObserver;
 class PrefServiceBase;
 
 // Automatically manages the registration of one or more pref change observers
 // with a PrefStore. Functions much like NotificationRegistrar, but specifically
 // manages observers of preference changes. When the Registrar is destroyed,
 // all registered observers are automatically unregistered with the PrefStore.
-class BASE_PREFS_EXPORT PrefChangeRegistrar {
+class BASE_PREFS_EXPORT PrefChangeRegistrar : public PrefObserver {
  public:
+  // You can register this type of callback if you need to know the
+  // path of the preference that is changing.
+  typedef base::Callback<void(const std::string&)> NamedChangeCallback;
+
   PrefChangeRegistrar();
   virtual ~PrefChangeRegistrar();
 
@@ -27,15 +32,19 @@ class BASE_PREFS_EXPORT PrefChangeRegistrar {
   // than once as long as the value of |service| doesn't change.
   void Init(PrefServiceBase* service);
 
-  // Adds an pref observer for the specified pref |path| and |obs| observer
+  // Adds a pref observer for the specified pref |path| and |obs| observer
   // object. All registered observers will be automatically unregistered
-  // when the registrar's destructor is called unless the observer has been
-  // explicitly removed by a call to Remove beforehand.
+  // when the registrar's destructor is called.
+  //
+  // Only one observer may be registered per path.
+  void Add(const char* path, const base::Closure& obs);
+  void Add(const char* path, const NamedChangeCallback& obs);
+
+  // Deprecated version of Add, soon to be removed.
   void Add(const char* path, PrefObserver* obs);
 
-  // Removes a preference observer that has previously been added with a call to
-  // Add.
-  void Remove(const char* path, PrefObserver* obs);
+  // Removes the pref observer registered for |path|.
+  void Remove(const char* path);
 
   // Removes all observers that have been previously added with a call to Add.
   void RemoveAll();
@@ -50,9 +59,16 @@ class BASE_PREFS_EXPORT PrefChangeRegistrar {
   bool IsManaged();
 
  private:
-  typedef std::pair<std::string, PrefObserver*> ObserverRegistration;
+  // PrefObserver:
+  virtual void OnPreferenceChanged(PrefServiceBase* service,
+                                   const std::string& pref_name) OVERRIDE;
 
-  std::set<ObserverRegistration> observers_;
+  static void InvokeUnnamedCallback(const base::Closure& callback,
+                                    const std::string& pref_name);
+
+  typedef std::map<std::string, NamedChangeCallback> ObserverMap;
+
+  ObserverMap observers_;
   PrefServiceBase* service_;
 
   DISALLOW_COPY_AND_ASSIGN(PrefChangeRegistrar);
