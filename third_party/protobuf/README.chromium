@@ -15,9 +15,7 @@ descriptor2_pb.py
 A protobuf.gyp file has been added for building with Chromium.
 
 This code has been patched to support unknown field retention in protobuf-lite.
-See r62331 for the patch. Defaults have been changed to allow building
-with unpatched system protobuf: default for optimize_for option is now
-LITE_RUNTIME, and default for retain_unknown_fields is true.
+See r62331 for the patch.
 
 Revision r427 was cherry-picked from upstream.
 
