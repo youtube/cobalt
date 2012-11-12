@@ -1149,7 +1149,13 @@ int FtpNetworkTransaction::ProcessResponseCWDNotADirectory() {
 
 // LIST command
 int FtpNetworkTransaction::DoCtrlWriteLIST() {
-  std::string command(system_type_ == SYSTEM_TYPE_VMS ? "LIST *.*;0" : "LIST");
+  // Use the -l option for mod_ftp configured in LISTIsNLST mode: the option
+  // forces LIST output instead of NLST (which would be ambiguous for us
+  // to parse).
+  std::string command("LIST -l");
+  if (system_type_ == SYSTEM_TYPE_VMS)
+    command = "LIST *.*;0";
+
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, command, COMMAND_LIST);
 }
