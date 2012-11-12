@@ -268,8 +268,8 @@ class TestRunner(BaseTestRunner):
       # We need to remember which ports the HTTP server is using, since the
       # forwarder will stomp on them otherwise.
       port_pairs.append(http_server_ports)
-      self.forwarder = Forwarder(
-         self.adb, port_pairs, self.tool, '127.0.0.1', self.build_type)
+      self.forwarder = Forwarder(self.adb, self.build_type)
+      self.forwarder.Run(port_pairs, self.tool, '127.0.0.1')
     self.CopyTestFilesOnce()
     self.flags.AddFlags(['--enable-test-intents'])
 
@@ -490,7 +490,7 @@ class TestSharder(BaseTestSharder):
   """Responsible for sharding the tests on the connected devices."""
 
   def __init__(self, attached_devices, options, tests, apks):
-    BaseTestSharder.__init__(self, attached_devices)
+    BaseTestSharder.__init__(self, attached_devices, options.build_type)
     self.options = options
     self.tests = tests
     self.apks = apks
