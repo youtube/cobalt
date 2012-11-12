@@ -4,6 +4,7 @@
 
 #include "base/prefs/public/pref_change_registrar.h"
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/prefs/public/pref_service_base.h"
 
@@ -23,43 +24,42 @@ void PrefChangeRegistrar::Init(PrefServiceBase* service) {
 }
 
 void PrefChangeRegistrar::Add(const char* path, PrefObserver* obs) {
-  if (!service_) {
-    NOTREACHED();
-    return;
-  }
-  ObserverRegistration registration(path, obs);
-  if (observers_.find(registration) != observers_.end()) {
-    NOTREACHED();
-    return;
-  }
-  observers_.insert(registration);
-  service_->AddPrefObserver(path, obs);
+  DCHECK(obs);
+  return Add(path, base::Bind(&PrefObserver::OnPreferenceChanged,
+                              base::Unretained(obs), service_));
 }
 
-void PrefChangeRegistrar::Remove(const char* path, PrefObserver* obs) {
+void PrefChangeRegistrar::Add(const char* path,
+                              const base::Closure& obs) {
+  Add(path, base::Bind(&PrefChangeRegistrar::InvokeUnnamedCallback, obs));
+}
+
+void PrefChangeRegistrar::Add(const char* path,
+                              const NamedChangeCallback& obs) {
   if (!service_) {
     NOTREACHED();
     return;
   }
-  ObserverRegistration registration(path, obs);
-  std::set<ObserverRegistration>::iterator it =
-       observers_.find(registration);
-  if (it == observers_.end()) {
-    NOTREACHED();
-    return;
-  }
-  service_->RemovePrefObserver(it->first.c_str(), it->second);
-  observers_.erase(it);
+  DCHECK(!IsObserved(path)) << "Already had this pref registered.";
+
+  service_->AddPrefObserver(path, this);
+  observers_[path] = obs;
+}
+
+void PrefChangeRegistrar::Remove(const char* path) {
+  DCHECK(IsObserved(path));
+
+  observers_.erase(path);
+  service_->RemovePrefObserver(path, this);
 }
 
 void PrefChangeRegistrar::RemoveAll() {
-  if (service_) {
-    for (std::set<ObserverRegistration>::const_iterator it = observers_.begin();
-         it != observers_.end(); ++it) {
-      service_->RemovePrefObserver(it->first.c_str(), it->second);
-    }
-    observers_.clear();
+  for (ObserverMap::const_iterator it = observers_.begin();
+       it != observers_.end(); ++it) {
+    service_->RemovePrefObserver(it->first.c_str(), this);
   }
+
+  observers_.clear();
 }
 
 bool PrefChangeRegistrar::IsEmpty() const {
@@ -67,16 +67,11 @@ bool PrefChangeRegistrar::IsEmpty() const {
 }
 
 bool PrefChangeRegistrar::IsObserved(const std::string& pref) {
-  for (std::set<ObserverRegistration>::const_iterator it = observers_.begin();
-       it != observers_.end(); ++it) {
-    if (it->first == pref)
-      return true;
-  }
-  return false;
+  return observers_.find(pref) != observers_.end();
 }
 
 bool PrefChangeRegistrar::IsManaged() {
-  for (std::set<ObserverRegistration>::const_iterator it = observers_.begin();
+  for (ObserverMap::const_iterator it = observers_.begin();
        it != observers_.end(); ++it) {
     const PrefServiceBase::Preference* pref =
         service_->FindPreference(it->first.c_str());
@@ -84,4 +79,15 @@ bool PrefChangeRegistrar::IsManaged() {
       return true;
   }
   return false;
+}
+
+void PrefChangeRegistrar::OnPreferenceChanged(PrefServiceBase* service,
+                                              const std::string& pref) {
+  if (IsObserved(pref))
+    observers_[pref].Run(pref);
+}
+
+void PrefChangeRegistrar::InvokeUnnamedCallback(const base::Closure& callback,
+                                                const std::string& pref_name) {
+  callback.Run();
 }
