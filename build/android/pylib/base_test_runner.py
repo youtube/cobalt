@@ -82,7 +82,7 @@ class BaseTestRunner(object):
 
   def SetUp(self):
     """Called before tests run."""
-    pass
+    Forwarder.KillDevice(self.adb)
 
   def HasTests(self):
     """Whether the test suite has tests to run."""
@@ -129,6 +129,13 @@ class BaseTestRunner(object):
     self.StartForwarderForHttpServer()
     return (self._forwarder_device_port, self._http_server.port)
 
+  def _CreateAndRunForwarder(
+      self, adb, port_pairs, tool, host_name, build_type):
+    """Creates and run a forwarder."""
+    forwarder = Forwarder(adb, build_type)
+    forwarder.Run(port_pairs, tool, host_name)
+    return forwarder
+
   def StartForwarder(self, port_pairs):
     """Starts TCP traffic forwarding for the given |port_pairs|.
 
@@ -137,7 +144,7 @@ class BaseTestRunner(object):
     """
     if self._forwarder:
       self._forwarder.Close()
-    self._forwarder = Forwarder(
+    self._forwarder = self._CreateAndRunForwarder(
         self.adb, port_pairs, self.tool, '127.0.0.1', self.build_type)
 
   def StartForwarderForHttpServer(self):
@@ -162,14 +169,7 @@ class BaseTestRunner(object):
     # Forwarders should be killed before the actual servers they're forwarding
     # to as they are clients potentially with open connections and to allow for
     # proper hand-shake/shutdown.
-    if self._forwarder or self._spawner_forwarder:
-      # Kill all forwarders on the device and then kill the process on the host
-      # (if it exists)
-      self.adb.KillAll('device_forwarder')
-      if self._forwarder:
-        self._forwarder.Close()
-      if self._spawner_forwarder:
-        self._spawner_forwarder.Close()
+    Forwarder.KillDevice(self.adb)
     if self._http_server:
       self._http_server.ShutdownHttpServer()
     if self._spawning_server:
@@ -204,7 +204,7 @@ class BaseTestRunner(object):
       logging.error(';'.join(error_msgs))
       raise Exception('Can not start the test spawner server.')
     self._PushTestServerPortInfoToDevice()
-    self._spawner_forwarder = Forwarder(
+    self._spawner_forwarder = self._CreateAndRunForwarder(
         self.adb,
         [(self.test_server_spawner_port, self.test_server_spawner_port)],
         self.tool, '127.0.0.1', self.build_type)

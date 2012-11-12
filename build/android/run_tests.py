@@ -196,7 +196,7 @@ class TestSharder(BaseTestSharder):
                test_arguments, timeout, rebaseline, performance_test,
                cleanup_test_files, tool, log_dump_name, fast_and_loose,
                build_type):
-    BaseTestSharder.__init__(self, attached_devices)
+    BaseTestSharder.__init__(self, attached_devices, build_type)
     self.test_suite = test_suite
     self.test_suite_basename = os.path.basename(test_suite)
     self.gtest_filter = gtest_filter or ''
