@@ -341,6 +341,16 @@
             '../webkit/webkit.gyp:pull_in_DumpRenderTree',  # to run layout tests
           ],
         },  # target_name: chromium_builder_perf_av
+        {
+          'target_name': 'chromium_builder_webrtc',
+          'type': 'none',
+          'dependencies': [
+            'chromium_builder_qa',  # needed for perf pyauto tests
+            '../third_party/libjingle/libjingle.gyp:peerconnection_server',
+            '../third_party/webrtc/tools/tools.gyp:frame_analyzer',
+            '../third_party/webrtc/tools/tools.gyp:rgba_to_i420_converter',
+          ],
+        },  # target_name: chromium_builder_webrtc
       ],  # targets
     }],
     ['OS=="mac"', {
