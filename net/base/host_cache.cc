@@ -86,10 +86,10 @@ scoped_ptr<HostCache> HostCache::CreateDefaultCache() {
   // Cache capacity is determined by the field trial.
   const size_t kSaneMaxEntries = 1 << 20;
   size_t max_entries = 0;
-  if (!base::StringToSizeT(base::FieldTrialList::FindFullName("HostCacheSize"),
-                           &max_entries) || max_entries > kSaneMaxEntries) {
+  base::StringToSizeT(base::FieldTrialList::FindFullName("HostCacheSize"),
+                      &max_entries);
+  if ((max_entries == 0) || (max_entries > kSaneMaxEntries))
     max_entries = 100;
-  }
   return make_scoped_ptr(new HostCache(max_entries));
 }
 
