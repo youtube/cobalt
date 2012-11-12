@@ -393,15 +393,17 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
     return false;
   }
 
-  DWORD path_len = GetLongPathName(temp_name, temp_name, MAX_PATH);
-  if (path_len > MAX_PATH + 1 || path_len == 0) {
-    DPLOG(WARNING) << "Failed to get long path name for " << temp_name;
-    return false;
+  wchar_t long_temp_name[MAX_PATH + 1];
+  DWORD long_name_len = GetLongPathName(temp_name, long_temp_name, MAX_PATH);
+  if (long_name_len > MAX_PATH || long_name_len == 0) {
+    // GetLongPathName() failed, but we still have a temporary file.
+    *temp_file = FilePath(temp_name);
+    return true;
   }
 
-  std::wstring temp_file_str;
-  temp_file_str.assign(temp_name, path_len);
-  *temp_file = FilePath(temp_file_str);
+  FilePath::StringType long_temp_name_str;
+  long_temp_name_str.assign(long_temp_name, long_name_len);
+  *temp_file = FilePath(long_temp_name_str);
   return true;
 }
 
