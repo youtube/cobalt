@@ -849,6 +849,8 @@ enum SecondLevelDomainName {
   DOMAIN_GOOGLE_VU,
   DOMAIN_GOOGLE_WS,
 
+  DOMAIN_CHROMIUM_ORG,
+
   // Boundary value for UMA_HISTOGRAM_ENUMERATION:
   DOMAIN_NUM_EVENTS
 };
