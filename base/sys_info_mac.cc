@@ -72,7 +72,8 @@ int64 SysInfo::AmountOfAvailablePhysicalMemory() {
     return 0;
   }
 
-  return static_cast<int64>(vm_info.free_count) * PAGE_SIZE;
+  return static_cast<int64>(
+      vm_info.free_count - vm_info.speculative_count) * PAGE_SIZE;
 }
 
 // static
