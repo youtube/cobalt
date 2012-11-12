@@ -1478,7 +1478,7 @@ class LIBPROTOBUF_EXPORT FileOptions : public ::google::protobuf::Message {
   inline bool java_multiple_files() const;
   inline void set_java_multiple_files(bool value);
   
-  // optional bool retain_unknown_fields = 11 [default = true];
+  // optional bool retain_unknown_fields = 11 [default = false];
   inline bool has_retain_unknown_fields() const;
   inline void clear_retain_unknown_fields();
   static const int kRetainUnknownFieldsFieldNumber = 11;
@@ -1492,7 +1492,7 @@ class LIBPROTOBUF_EXPORT FileOptions : public ::google::protobuf::Message {
   inline bool java_generate_equals_and_hash() const;
   inline void set_java_generate_equals_and_hash(bool value);
   
-  // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = LITE_RUNTIME];
+  // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = SPEED];
   inline bool has_optimize_for() const;
   inline void clear_optimize_for();
   static const int kOptimizeForFieldNumber = 9;
@@ -4283,7 +4283,7 @@ inline void FileOptions::set_java_multiple_files(bool value) {
   java_multiple_files_ = value;
 }
 
-// optional bool retain_unknown_fields = 11 [default = true];
+// optional bool retain_unknown_fields = 11 [default = false];
 inline bool FileOptions::has_retain_unknown_fields() const {
   return (_has_bits_[0] & 0x00000008u) != 0;
 }
@@ -4294,7 +4294,7 @@ inline void FileOptions::clear_has_retain_unknown_fields() {
   _has_bits_[0] &= ~0x00000008u;
 }
 inline void FileOptions::clear_retain_unknown_fields() {
-  retain_unknown_fields_ = true;
+  retain_unknown_fields_ = false;
   clear_has_retain_unknown_fields();
 }
 inline bool FileOptions::retain_unknown_fields() const {
@@ -4327,7 +4327,7 @@ inline void FileOptions::set_java_generate_equals_and_hash(bool value) {
   java_generate_equals_and_hash_ = value;
 }
 
-// optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = LITE_RUNTIME];
+// optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = SPEED];
 inline bool FileOptions::has_optimize_for() const {
   return (_has_bits_[0] & 0x00000020u) != 0;
 }
@@ -4338,7 +4338,7 @@ inline void FileOptions::clear_has_optimize_for() {
   _has_bits_[0] &= ~0x00000020u;
 }
 inline void FileOptions::clear_optimize_for() {
-  optimize_for_ = 3;
+  optimize_for_ = 1;
   clear_has_optimize_for();
 }
 inline ::google::protobuf::FileOptions_OptimizeMode FileOptions::optimize_for() const {
