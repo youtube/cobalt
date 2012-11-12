@@ -147,7 +147,6 @@ HttpCache::Transaction::Transaction(
       transaction_pattern_(PATTERN_UNDEFINED),
       bytes_read_from_cache_(0),
       bytes_read_from_network_(0),
-      defer_cache_sensitivity_delay_(false),
       transaction_delegate_(transaction_delegate) {
   COMPILE_ASSERT(HttpCache::Transaction::kNumValidationHeaders ==
                  arraysize(kValidationHeaders),
@@ -164,7 +163,6 @@ HttpCache::Transaction::~Transaction() {
 
   transaction_delegate_ = NULL;
   cache_io_start_ = base::TimeTicks();
-  deferred_cache_sensitivity_delay_ = base::TimeDelta();
 
   if (cache_) {
     if (entry_) {
@@ -925,8 +923,7 @@ int HttpCache::Transaction::DoOpenEntry() {
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
   first_cache_access_since_ = TimeTicks::Now();
   ReportCacheActionStart();
-  defer_cache_sensitivity_delay_ = true;
-  return ResetCacheIOStart(cache_->OpenEntry(cache_key_, &new_entry_, this));
+  return cache_->OpenEntry(cache_key_, &new_entry_, this);
 }
 
 int HttpCache::Transaction::DoOpenEntryComplete(int result) {
@@ -978,8 +975,7 @@ int HttpCache::Transaction::DoCreateEntry() {
   cache_pending_ = true;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
   ReportCacheActionStart();
-  defer_cache_sensitivity_delay_ = true;
-  return ResetCacheIOStart(cache_->CreateEntry(cache_key_, &new_entry_, this));
+  return cache_->CreateEntry(cache_key_, &new_entry_, this);
 }
 
 int HttpCache::Transaction::DoCreateEntryComplete(int result) {
@@ -1018,7 +1014,7 @@ int HttpCache::Transaction::DoDoomEntry() {
     first_cache_access_since_ = TimeTicks::Now();
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
   ReportCacheActionStart();
-  return ResetCacheIOStart(cache_->DoomEntry(cache_key_, this));
+  return cache_->DoomEntry(cache_key_, this);
 }
 
 int HttpCache::Transaction::DoDoomEntryComplete(int result) {
@@ -1044,15 +1040,7 @@ int HttpCache::Transaction::DoAddToEntry() {
 int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY,
                                     result);
-  if (deferred_cache_sensitivity_delay_ != base::TimeDelta()) {
-    next_state_ = STATE_ADD_TO_ENTRY_COMPLETE;
-    base::TimeDelta delay = deferred_cache_sensitivity_delay_;
-    deferred_cache_sensitivity_delay_ = base::TimeDelta();
-    ScheduleDelayedLoop(delay, result);
-    return ERR_IO_PENDING;
-  }
-  DCHECK(defer_cache_sensitivity_delay_);
-  defer_cache_sensitivity_delay_ = false;
+
   const TimeDelta entry_lock_wait =
       TimeTicks::Now() - entry_lock_waiting_since_;
   UMA_HISTOGRAM_TIMES("HttpCache.EntryLockWait", entry_lock_wait);
@@ -2301,28 +2289,19 @@ void HttpCache::Transaction::OnIOComplete(int result) {
     if (sensitivity_analysis_percent_increase_ > 0) {
       cache_time *= sensitivity_analysis_percent_increase_;
       cache_time /= 100;
-      if (!defer_cache_sensitivity_delay_) {
-        ScheduleDelayedLoop(cache_time, result);
-        return;
-      } else {
-        deferred_cache_sensitivity_delay_ += cache_time;
-      }
+      MessageLoop::current()->PostDelayedTask(
+          FROM_HERE,
+          base::Bind(&HttpCache::Transaction::RunDelayedLoop,
+                     weak_factory_.GetWeakPtr(),
+                     base::TimeTicks::Now(),
+                     cache_time,
+                     result),
+          cache_time);
+      return;
     }
   }
   DCHECK(cache_io_start_.is_null());
   DoLoop(result);
-}
-
-void HttpCache::Transaction::ScheduleDelayedLoop(base::TimeDelta delay,
-                                                 int result) {
-  MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&HttpCache::Transaction::RunDelayedLoop,
-                 weak_factory_.GetWeakPtr(),
-                 base::TimeTicks::Now(),
-                 delay,
-                 result),
-      delay);
 }
 
 void HttpCache::Transaction::RunDelayedLoop(base::TimeTicks delay_start_time,
@@ -2361,7 +2340,6 @@ void HttpCache::Transaction::RunDelayedLoop(base::TimeTicks delay_start_time,
   }
 
   DCHECK(cache_io_start_.is_null());
-  DCHECK(deferred_cache_sensitivity_delay_ == base::TimeDelta());
   DoLoop(result);
 }
 
