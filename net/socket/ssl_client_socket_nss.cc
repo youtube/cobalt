@@ -279,6 +279,7 @@ enum DNSValidationResult {
 //    server_cert_nss: the server's leaf certificate.
 //    rrdatas: the CAA records for the current domain.
 //    port: the TCP port number that we connected to.
+// TODO(agl): remove once DANE support has been released.
 DNSValidationResult VerifyCAARecords(
     CERTCertificate* server_cert_nss,
     const std::vector<base::StringPiece>& rrdatas,
@@ -324,6 +325,56 @@ DNSValidationResult VerifyCAARecords(
   return DNSVR_FAILURE;
 }
 
+// VerifyTLSARecords processes DNSSEC validated RRDATA for a number of DNS TLSA
+// records and checks them against the given chain.
+//    server_cert_nss: the server's leaf certificate.
+//    rrdatas: the TLSA records for the current domain.
+DNSValidationResult VerifyTLSARecords(
+    CERTCertificate* server_cert_nss,
+    const std::vector<base::StringPiece>& rrdatas) {
+  std::vector<DnsTLSARecord::Match> matches;
+  DnsTLSARecord::Parse(rrdatas, &matches);
+
+  for (std::vector<DnsTLSARecord::Match>::const_iterator
+       i = matches.begin(); i != matches.end(); ++i) {
+    SECItem matched_data;
+    switch (i->target) {
+      case DnsTLSARecord::Match::CERTIFICATE:
+        matched_data = server_cert_nss->derCert;
+        break;
+      case DnsTLSARecord::Match::SUBJECT_PUBLIC_KEY_INFO:
+        matched_data = server_cert_nss->derPublicKey;
+        break;
+      default:
+        continue;
+    }
+
+    uint8 calculated_hash[HASH_LENGTH_MAX];
+    SECItem processed_data;
+    if (i->algorithm == HASH_AlgNULL) {
+      processed_data = matched_data;
+    } else {
+      SECStatus rv = HASH_HashBuf(
+          static_cast<HASH_HashType>(i->algorithm),
+          calculated_hash,
+          matched_data.data,
+          matched_data.len);
+      if (rv != SECSuccess)
+        continue;
+      processed_data.data = calculated_hash;
+      processed_data.len = i->data.size();
+    }
+
+    if (processed_data.len == i->data.size() &&
+        memcmp(processed_data.data, i->data.data(), i->data.size()) == 0) {
+      return DNSVR_SUCCESS;
+    }
+  }
+
+  // No TLSA records matched so we reject the certificate.
+  return DNSVR_FAILURE;
+}
+
 // CheckDNSSECChain tries to validate a DNSSEC chain embedded in
 // |server_cert_nss|. It returns true iff a chain is found that proves the
 // value of a CAA record that contains a valid public key fingerprint.
@@ -364,27 +415,50 @@ DNSValidationResult CheckDNSSECChain(
   if (rv != SECSuccess)
     return DNSVR_CONTINUE;
 
-  base::StringPiece chain(
+  std::string chain(
       reinterpret_cast<char*>(dnssec_embedded_chain.data),
       dnssec_embedded_chain.len);
+  SECITEM_FreeItem(&dnssec_embedded_chain, PR_FALSE);
   std::string dns_hostname;
   if (!DNSDomainFromDot(hostname, &dns_hostname))
     return DNSVR_CONTINUE;
+
   DNSSECChainVerifier verifier(dns_hostname, chain);
   DNSSECChainVerifier::Error err = verifier.Verify();
+  bool is_tlsa = false;
+  if (err == DNSSECChainVerifier::BAD_TARGET) {
+    // We might have failed because this is a DANE chain, not a CAA chain.
+    // DANE stores records in a subdomain of the name that includes the port
+    // and protocol, i.e. _443._tcp.www.example.com. We have to construct
+    // such a name for |hostname|.
+    const std::string port_str = base::UintToString(port);
+    char port_label_len = 1 + static_cast<char>(port_str.size());
+    const std::string tlsa_domain =
+      std::string(&port_label_len, 1) + "_" + port_str +
+      "\x04_tcp" +
+      dns_hostname;
+
+    verifier = DNSSECChainVerifier(tlsa_domain, chain);
+    err = verifier.Verify();
+    is_tlsa = true;
+  }
+
   if (err != DNSSECChainVerifier::OK) {
     LOG(ERROR) << "DNSSEC chain verification failed: " << err;
     return DNSVR_CONTINUE;
   }
 
+  if (is_tlsa) {
+    if (verifier.rrtype() != kDNS_TLSA)
+      return DNSVR_CONTINUE;
+
+    return VerifyTLSARecords(server_cert_nss, verifier.rrdatas());
+  }
+
   if (verifier.rrtype() != kDNS_CAA)
     return DNSVR_CONTINUE;
 
-  DNSValidationResult r = VerifyCAARecords(
-      server_cert_nss, verifier.rrdatas(), port);
-  SECITEM_FreeItem(&dnssec_embedded_chain, PR_FALSE);
-
-  return r;
+  return VerifyCAARecords(server_cert_nss, verifier.rrdatas(), port);
 }
 
 void DestroyCertificates(CERTCertificate** certs, size_t len) {
