@@ -260,7 +260,7 @@ message FileOptions {
   // reserializing a message will retain them. This is the default behaviour
   // unless LITE_RUNTIME is specified. Therefore, this option only makes sense
   // when LITE_RUNTIME is in use.
-  optional bool retain_unknown_fields = 11 [default=true];
+  optional bool retain_unknown_fields = 11 [default=false];
 
   // If set true, then the Java code generator will generate equals() and
   // hashCode() methods for all messages defined in the .proto file. This is
@@ -275,7 +275,7 @@ message FileOptions {
     CODE_SIZE = 2;    // Use ReflectionOps to implement these methods.
     LITE_RUNTIME = 3; // Generate code using MessageLite and the lite runtime.
   }
-  optional OptimizeMode optimize_for = 9 [default=LITE_RUNTIME];
+  optional OptimizeMode optimize_for = 9 [default=SPEED];
 
 
 

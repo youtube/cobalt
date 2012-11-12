@@ -608,53 +608,53 @@ void protobuf_AddDesc_google_2fprotobuf_2fdescriptor_2eproto() {
     "e.protobuf.ServiceOptions\"\177\n\025MethodDescr"
     "iptorProto\022\014\n\004name\030\001 \001(\t\022\022\n\ninput_type\030\002"
     " \001(\t\022\023\n\013output_type\030\003 \001(\t\022/\n\007options\030\004 \001"
-    "(\0132\036.google.protobuf.MethodOptions\"\201\004\n\013F"
+    "(\0132\036.google.protobuf.MethodOptions\"\373\003\n\013F"
     "ileOptions\022\024\n\014java_package\030\001 \001(\t\022\034\n\024java"
     "_outer_classname\030\010 \001(\t\022\"\n\023java_multiple_"
-    "files\030\n \001(\010:\005false\022#\n\025retain_unknown_fie"
-    "lds\030\013 \001(\010:\004true\022,\n\035java_generate_equals_"
-    "and_hash\030\024 \001(\010:\005false\022M\n\014optimize_for\030\t "
-    "\001(\0162).google.protobuf.FileOptions.Optimi"
-    "zeMode:\014LITE_RUNTIME\022\"\n\023cc_generic_servi"
-    "ces\030\020 \001(\010:\005false\022$\n\025java_generic_service"
-    "s\030\021 \001(\010:\005false\022\"\n\023py_generic_services\030\022 "
-    "\001(\010:\005false\022C\n\024uninterpreted_option\030\347\007 \003("
-    "\0132$.google.protobuf.UninterpretedOption\""
-    ":\n\014OptimizeMode\022\t\n\005SPEED\020\001\022\r\n\tCODE_SIZE\020"
-    "\002\022\020\n\014LITE_RUNTIME\020\003*\t\010\350\007\020\200\200\200\200\002\"\270\001\n\016Messa"
-    "geOptions\022&\n\027message_set_wire_format\030\001 \001"
-    "(\010:\005false\022.\n\037no_standard_descriptor_acce"
-    "ssor\030\002 \001(\010:\005false\022C\n\024uninterpreted_optio"
-    "n\030\347\007 \003(\0132$.google.protobuf.Uninterpreted"
-    "Option*\t\010\350\007\020\200\200\200\200\002\"\224\002\n\014FieldOptions\022:\n\005ct"
-    "ype\030\001 \001(\0162#.google.protobuf.FieldOptions"
-    ".CType:\006STRING\022\016\n\006packed\030\002 \001(\010\022\031\n\ndeprec"
-    "ated\030\003 \001(\010:\005false\022\034\n\024experimental_map_ke"
-    "y\030\t \001(\t\022C\n\024uninterpreted_option\030\347\007 \003(\0132$"
-    ".google.protobuf.UninterpretedOption\"/\n\005"
-    "CType\022\n\n\006STRING\020\000\022\010\n\004CORD\020\001\022\020\n\014STRING_PI"
-    "ECE\020\002*\t\010\350\007\020\200\200\200\200\002\"]\n\013EnumOptions\022C\n\024unint"
-    "erpreted_option\030\347\007 \003(\0132$.google.protobuf"
-    ".UninterpretedOption*\t\010\350\007\020\200\200\200\200\002\"b\n\020EnumV"
-    "alueOptions\022C\n\024uninterpreted_option\030\347\007 \003"
+    "files\030\n \001(\010:\005false\022$\n\025retain_unknown_fie"
+    "lds\030\013 \001(\010:\005false\022,\n\035java_generate_equals"
+    "_and_hash\030\024 \001(\010:\005false\022F\n\014optimize_for\030\t"
+    " \001(\0162).google.protobuf.FileOptions.Optim"
+    "izeMode:\005SPEED\022\"\n\023cc_generic_services\030\020 "
+    "\001(\010:\005false\022$\n\025java_generic_services\030\021 \001("
+    "\010:\005false\022\"\n\023py_generic_services\030\022 \001(\010:\005f"
+    "alse\022C\n\024uninterpreted_option\030\347\007 \003(\0132$.go"
+    "ogle.protobuf.UninterpretedOption\":\n\014Opt"
+    "imizeMode\022\t\n\005SPEED\020\001\022\r\n\tCODE_SIZE\020\002\022\020\n\014L"
+    "ITE_RUNTIME\020\003*\t\010\350\007\020\200\200\200\200\002\"\270\001\n\016MessageOpti"
+    "ons\022&\n\027message_set_wire_format\030\001 \001(\010:\005fa"
+    "lse\022.\n\037no_standard_descriptor_accessor\030\002"
+    " \001(\010:\005false\022C\n\024uninterpreted_option\030\347\007 \003"
     "(\0132$.google.protobuf.UninterpretedOption"
-    "*\t\010\350\007\020\200\200\200\200\002\"`\n\016ServiceOptions\022C\n\024uninter"
-    "preted_option\030\347\007 \003(\0132$.google.protobuf.U"
-    "ninterpretedOption*\t\010\350\007\020\200\200\200\200\002\"_\n\rMethodO"
-    "ptions\022C\n\024uninterpreted_option\030\347\007 \003(\0132$."
-    "google.protobuf.UninterpretedOption*\t\010\350\007"
-    "\020\200\200\200\200\002\"\236\002\n\023UninterpretedOption\022;\n\004name\030\002"
-    " \003(\0132-.google.protobuf.UninterpretedOpti"
-    "on.NamePart\022\030\n\020identifier_value\030\003 \001(\t\022\032\n"
-    "\022positive_int_value\030\004 \001(\004\022\032\n\022negative_in"
-    "t_value\030\005 \001(\003\022\024\n\014double_value\030\006 \001(\001\022\024\n\014s"
-    "tring_value\030\007 \001(\014\022\027\n\017aggregate_value\030\010 \001"
-    "(\t\0323\n\010NamePart\022\021\n\tname_part\030\001 \002(\t\022\024\n\014is_"
-    "extension\030\002 \002(\010\"|\n\016SourceCodeInfo\022:\n\010loc"
-    "ation\030\001 \003(\0132(.google.protobuf.SourceCode"
-    "Info.Location\032.\n\010Location\022\020\n\004path\030\001 \003(\005B"
-    "\002\020\001\022\020\n\004span\030\002 \003(\005B\002\020\001B)\n\023com.google.prot"
-    "obufB\020DescriptorProtosH\001", 3984);
+    "*\t\010\350\007\020\200\200\200\200\002\"\224\002\n\014FieldOptions\022:\n\005ctype\030\001 "
+    "\001(\0162#.google.protobuf.FieldOptions.CType"
+    ":\006STRING\022\016\n\006packed\030\002 \001(\010\022\031\n\ndeprecated\030\003"
+    " \001(\010:\005false\022\034\n\024experimental_map_key\030\t \001("
+    "\t\022C\n\024uninterpreted_option\030\347\007 \003(\0132$.googl"
+    "e.protobuf.UninterpretedOption\"/\n\005CType\022"
+    "\n\n\006STRING\020\000\022\010\n\004CORD\020\001\022\020\n\014STRING_PIECE\020\002*"
+    "\t\010\350\007\020\200\200\200\200\002\"]\n\013EnumOptions\022C\n\024uninterpret"
+    "ed_option\030\347\007 \003(\0132$.google.protobuf.Unint"
+    "erpretedOption*\t\010\350\007\020\200\200\200\200\002\"b\n\020EnumValueOp"
+    "tions\022C\n\024uninterpreted_option\030\347\007 \003(\0132$.g"
+    "oogle.protobuf.UninterpretedOption*\t\010\350\007\020"
+    "\200\200\200\200\002\"`\n\016ServiceOptions\022C\n\024uninterpreted"
+    "_option\030\347\007 \003(\0132$.google.protobuf.Uninter"
+    "pretedOption*\t\010\350\007\020\200\200\200\200\002\"_\n\rMethodOptions"
+    "\022C\n\024uninterpreted_option\030\347\007 \003(\0132$.google"
+    ".protobuf.UninterpretedOption*\t\010\350\007\020\200\200\200\200\002"
+    "\"\236\002\n\023UninterpretedOption\022;\n\004name\030\002 \003(\0132-"
+    ".google.protobuf.UninterpretedOption.Nam"
+    "ePart\022\030\n\020identifier_value\030\003 \001(\t\022\032\n\022posit"
+    "ive_int_value\030\004 \001(\004\022\032\n\022negative_int_valu"
+    "e\030\005 \001(\003\022\024\n\014double_value\030\006 \001(\001\022\024\n\014string_"
+    "value\030\007 \001(\014\022\027\n\017aggregate_value\030\010 \001(\t\0323\n\010"
+    "NamePart\022\021\n\tname_part\030\001 \002(\t\022\024\n\014is_extens"
+    "ion\030\002 \002(\010\"|\n\016SourceCodeInfo\022:\n\010location\030"
+    "\001 \003(\0132(.google.protobuf.SourceCodeInfo.L"
+    "ocation\032.\n\010Location\022\020\n\004path\030\001 \003(\005B\002\020\001\022\020\n"
+    "\004span\030\002 \003(\005B\002\020\001B)\n\023com.google.protobufB\020"
+    "DescriptorProtosH\001", 3978);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "google/protobuf/descriptor.proto", &protobuf_RegisterTypes);
   FileDescriptorSet::default_instance_ = new FileDescriptorSet();
@@ -4279,9 +4279,9 @@ void FileOptions::SharedCtor() {
   java_package_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   java_outer_classname_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
   java_multiple_files_ = false;
-  retain_unknown_fields_ = true;
+  retain_unknown_fields_ = false;
   java_generate_equals_and_hash_ = false;
-  optimize_for_ = 3;
+  optimize_for_ = 1;
   cc_generic_services_ = false;
   java_generic_services_ = false;
   py_generic_services_ = false;
@@ -4338,9 +4338,9 @@ void FileOptions::Clear() {
       }
     }
     java_multiple_files_ = false;
-    retain_unknown_fields_ = true;
+    retain_unknown_fields_ = false;
     java_generate_equals_and_hash_ = false;
-    optimize_for_ = 3;
+    optimize_for_ = 1;
     cc_generic_services_ = false;
     java_generic_services_ = false;
   }
@@ -4391,7 +4391,7 @@ bool FileOptions::MergePartialFromCodedStream(
         break;
       }
       
-      // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = LITE_RUNTIME];
+      // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = SPEED];
       case 9: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -4428,7 +4428,7 @@ bool FileOptions::MergePartialFromCodedStream(
         break;
       }
       
-      // optional bool retain_unknown_fields = 11 [default = true];
+      // optional bool retain_unknown_fields = 11 [default = false];
       case 11: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
@@ -4563,7 +4563,7 @@ void FileOptions::SerializeWithCachedSizes(
       8, this->java_outer_classname(), output);
   }
   
-  // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = LITE_RUNTIME];
+  // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = SPEED];
   if (has_optimize_for()) {
     ::google::protobuf::internal::WireFormatLite::WriteEnum(
       9, this->optimize_for(), output);
@@ -4574,7 +4574,7 @@ void FileOptions::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteBool(10, this->java_multiple_files(), output);
   }
   
-  // optional bool retain_unknown_fields = 11 [default = true];
+  // optional bool retain_unknown_fields = 11 [default = false];
   if (has_retain_unknown_fields()) {
     ::google::protobuf::internal::WireFormatLite::WriteBool(11, this->retain_unknown_fields(), output);
   }
@@ -4637,7 +4637,7 @@ void FileOptions::SerializeWithCachedSizes(
         8, this->java_outer_classname(), target);
   }
   
-  // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = LITE_RUNTIME];
+  // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = SPEED];
   if (has_optimize_for()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
       9, this->optimize_for(), target);
@@ -4648,7 +4648,7 @@ void FileOptions::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(10, this->java_multiple_files(), target);
   }
   
-  // optional bool retain_unknown_fields = 11 [default = true];
+  // optional bool retain_unknown_fields = 11 [default = false];
   if (has_retain_unknown_fields()) {
     target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(11, this->retain_unknown_fields(), target);
   }
@@ -4714,7 +4714,7 @@ int FileOptions::ByteSize() const {
       total_size += 1 + 1;
     }
     
-    // optional bool retain_unknown_fields = 11 [default = true];
+    // optional bool retain_unknown_fields = 11 [default = false];
     if (has_retain_unknown_fields()) {
       total_size += 1 + 1;
     }
@@ -4724,7 +4724,7 @@ int FileOptions::ByteSize() const {
       total_size += 2 + 1;
     }
     
-    // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = LITE_RUNTIME];
+    // optional .google.protobuf.FileOptions.OptimizeMode optimize_for = 9 [default = SPEED];
     if (has_optimize_for()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::EnumSize(this->optimize_for());
