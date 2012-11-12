@@ -21,6 +21,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/scoped_temp_dir.h"
+#include "base/test/test_file_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -624,6 +625,56 @@ TEST_F(FileUtilTest, GetPlatformFileInfoForDirectory) {
   EXPECT_TRUE(info.is_directory);
   EXPECT_FALSE(info.is_symbolic_link);
   EXPECT_EQ(0, info.size);
+}
+
+TEST_F(FileUtilTest, CreateTemporaryFileInDirLongPathTest) {
+  // Test that CreateTemporaryFileInDir() creates a path and returns a long path
+  // if it is available. This test requires that:
+  // - the filesystem at |temp_dir_| supports long filenames.
+  // - the account has FILE_LIST_DIRECTORY permission for all ancestor
+  //   directories of |temp_dir_|.
+  const FilePath::CharType kLongDirName[] = FPL("A long path");
+  const FilePath::CharType kTestSubDirName[] = FPL("test");
+  FilePath long_test_dir = temp_dir_.path().Append(kLongDirName);
+  ASSERT_TRUE(file_util::CreateDirectory(long_test_dir));
+
+  // kLongDirName is not a 8.3 component. So GetShortName() should give us a
+  // different short name.
+  WCHAR path_buffer[MAX_PATH];
+  DWORD path_buffer_length = GetShortPathName(long_test_dir.value().c_str(),
+                                              path_buffer, MAX_PATH);
+  ASSERT_LT(path_buffer_length, DWORD(MAX_PATH));
+  ASSERT_NE(DWORD(0), path_buffer_length);
+  FilePath short_test_dir(path_buffer);
+  ASSERT_STRNE(kLongDirName, short_test_dir.BaseName().value().c_str());
+
+  FilePath temp_file;
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(short_test_dir, &temp_file));
+  EXPECT_STREQ(kLongDirName, temp_file.DirName().BaseName().value().c_str());
+  EXPECT_TRUE(file_util::PathExists(temp_file));
+
+  // Create a subdirectory of |long_test_dir| and make |long_test_dir|
+  // unreadable. We should still be able to create a temp file in the
+  // subdirectory, but we won't be able to determine the long path for it. This
+  // mimics the environment that some users run where their user profiles reside
+  // in a location where the don't have full access to the higher level
+  // directories. (Note that this assumption is true for NTFS, but not for some
+  // network file systems. E.g. AFS).
+  FilePath access_test_dir = long_test_dir.Append(kTestSubDirName);
+  ASSERT_TRUE(file_util::CreateDirectory(access_test_dir));
+  file_util::PermissionRestorer long_test_dir_restorer(long_test_dir);
+  ASSERT_TRUE(file_util::MakeFileUnreadable(long_test_dir));
+
+  // Use the short form of the directory to create a temporary filename.
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(
+      short_test_dir.Append(kTestSubDirName), &temp_file));
+  EXPECT_TRUE(file_util::PathExists(temp_file));
+  EXPECT_TRUE(short_test_dir.IsParent(temp_file.DirName()));
+
+  // Check that the long path can't be determined for |temp_file|.
+  path_buffer_length = GetLongPathName(temp_file.value().c_str(),
+                                       path_buffer, MAX_PATH);
+  EXPECT_EQ(DWORD(0), path_buffer_length);
 }
 
 #endif  // defined(OS_WIN)
