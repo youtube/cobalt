@@ -217,9 +217,9 @@ class TestServerThread(threading.Thread):
       else:
         self.is_ready = _CheckPortStatus(self.host_port, True)
     if self.is_ready:
-      self._test_server_forwarder = Forwarder(
-          self.adb, [(0, self.host_port)], self.tool, '127.0.0.1',
-          self.build_type)
+      self._test_server_forwarder = Forwarder(self.adb, self.build_type)
+      self._test_server_forwarder.Run(
+          [(0, self.host_port)], self.tool, '127.0.0.1')
       # Check whether the forwarder is ready on the device.
       self.is_ready = False
       device_port = self._test_server_forwarder.DevicePortForHostPort(

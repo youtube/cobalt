@@ -8,6 +8,7 @@ import logging
 import multiprocessing
 
 from android_commands import errors
+from forwarder import Forwarder
 from test_result import TestResults
 
 
@@ -23,6 +24,7 @@ def _ShardedTestRunnable(test):
     return test.Run()
   except SystemExit:
     return TestResults()
+
 
 def SetTestsContainer(tests_container):
   """Sets tests container.
@@ -42,12 +44,13 @@ class BaseTestSharder(object):
   # See more in SetTestsContainer.
   tests_container = None
 
-  def __init__(self, attached_devices):
+  def __init__(self, attached_devices, build_type='Debug'):
     self.attached_devices = attached_devices
     # Worst case scenario: a device will drop offline per run, so we need
     # to retry until we're out of devices.
     self.retries = len(self.attached_devices)
     self.tests = []
+    self.build_type = build_type
 
   def CreateShardedTestRunner(self, device, index):
     """Factory function to create a suite-specific test runner.
@@ -63,11 +66,11 @@ class BaseTestSharder(object):
 
   def SetupSharding(self, tests):
     """Called before starting the shards."""
-    pass
+    Forwarder.KillHost(self.build_type)
 
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
-    pass
+    Forwarder.KillHost(self.build_type)
 
   def RunShardedTests(self):
     """Runs the tests in all connected devices.
