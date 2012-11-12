@@ -191,7 +191,7 @@ class FtpSocketDataProviderDirectoryListing : public FtpSocketDataProvider {
       case PRE_CWD:
         return Verify("CWD /\r\n", data, PRE_LIST, "200 OK\r\n");
       case PRE_LIST:
-        return Verify("LIST\r\n", data, PRE_QUIT, "200 OK\r\n");
+        return Verify("LIST -l\r\n", data, PRE_QUIT, "200 OK\r\n");
       default:
         return FtpSocketDataProvider::OnWrite(data);
     }
@@ -572,7 +572,7 @@ class FtpSocketDataProviderDirectoryListingTransferStarting
       return MockWriteResult(ASYNC, data.length());
     switch (state()) {
       case PRE_LIST:
-        return Verify("LIST\r\n", data, PRE_QUIT,
+        return Verify("LIST -l\r\n", data, PRE_QUIT,
                       "125-Data connection already open.\r\n"
                       "125  Transfer starting.\r\n"
                       "226 Transfer complete.\r\n");
