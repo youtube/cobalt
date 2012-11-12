@@ -1074,7 +1074,7 @@ class AndroidCommands(object):
     """
     host_dir = os.path.dirname(host_file)
     if not os.path.exists(host_dir):
-      os.mkdir(host_dir)
+      os.makedirs(host_dir)
     device_file = '%s/screenshot.png' % self.GetExternalStorage()
     self.RunShellCommand('/system/bin/screencap -p %s' % device_file)
     assert self._adb.Pull(device_file, host_file)
