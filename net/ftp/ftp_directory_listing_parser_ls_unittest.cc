@@ -116,6 +116,14 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "drwxrwx   2       10     4096 Jul 28 02:41 tmp",
       FtpDirectoryListingEntry::DIRECTORY, "tmp", -1,
       1994, 7, 28, 2, 41 },
+
+    // Completely different date format (YYYY-MM-DD).
+    { "drwxrwxrwx 2 root root  4096 2012-02-07 00:31 notas_servico",
+      FtpDirectoryListingEntry::DIRECTORY, "notas_servico", -1,
+      2012, 2, 7, 0, 31 },
+    { "-rwxrwxrwx 2 root root  4096 2012-02-07 00:31 notas_servico",
+      FtpDirectoryListingEntry::FILE, "notas_servico", 4096,
+      2012, 2, 7, 0, 31 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
@@ -172,6 +180,9 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "drwxrwxrwx   1 owner    group               1024 Sep 13  0:3 audio",
 
     "-qqqqqqqqq+  2 sys          512 Mar 27  2009 pub",
+
+    // Invalid month value (30).
+    "drwxrwxrwx 2 root root  4096 2012-30-07 00:31 notas_servico",
   };
   for (size_t i = 0; i < arraysize(bad_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
