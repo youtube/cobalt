@@ -588,6 +588,42 @@ TEST_F(FieldTrialTest, SetForced) {
   EXPECT_EQ(forced_group, would_win_group);
 }
 
+TEST_F(FieldTrialTest, SetForcedDefaultOnly) {
+  const char kTrialName[] = "SetForcedDefaultOnly";
+  ASSERT_FALSE(FieldTrialList::TrialExists(kTrialName));
+
+  int default_group = -1;
+  FieldTrial* trial =
+      FieldTrialList::FactoryGetFieldTrial(kTrialName, 100, kDefaultGroupName,
+                                           next_year_, 12, 31, &default_group);
+  trial->SetForced();
+
+  trial = FieldTrialList::FactoryGetFieldTrial(kTrialName, 100,
+                                               kDefaultGroupName, next_year_,
+                                               12, 31, NULL);
+  EXPECT_EQ(default_group, trial->group());
+  EXPECT_EQ(kDefaultGroupName, trial->group_name());
+}
+
+TEST_F(FieldTrialTest, SetForcedDefaultWithExtraGroup) {
+  const char kTrialName[] = "SetForcedDefaultWithExtraGroup";
+  ASSERT_FALSE(FieldTrialList::TrialExists(kTrialName));
+
+  int default_group = -1;
+  FieldTrial* trial =
+      FieldTrialList::FactoryGetFieldTrial(kTrialName, 100, kDefaultGroupName,
+                                           next_year_, 12, 31, &default_group);
+  trial->SetForced();
+
+  trial = FieldTrialList::FactoryGetFieldTrial(kTrialName, 100,
+                                               kDefaultGroupName, next_year_,
+                                               12, 31, NULL);
+  const int extra_group = trial->AppendGroup("Extra", 100);
+  EXPECT_EQ(default_group, trial->group());
+  EXPECT_NE(extra_group, trial->group());
+  EXPECT_EQ(kDefaultGroupName, trial->group_name());
+}
+
 TEST_F(FieldTrialTest, Observe) {
   const char kTrialName[] = "TrialToObserve1";
   const char kSecondaryGroupName[] = "SecondaryGroup";
