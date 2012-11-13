@@ -10,7 +10,6 @@
 #include "net/quic/congestion_control/fix_rate_sender.h"
 #include "net/quic/test_tools/mock_clock.h"
 #include "net/quic/quic_protocol.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -50,7 +49,7 @@ TEST_F(FixRateTest, SenderAPI) {
   sender_->OnIncomingCongestionInfo(info);
   EXPECT_EQ(300000, sender_->BandwidthEstimate());
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
-  EXPECT_EQ(kMaxPacketSize * 2u, sender_->AvailableCongestionWindow());
+  EXPECT_EQ(kMaxPacketSize * 2, sender_->AvailableCongestionWindow());
   sender_->SentPacket(1, kMaxPacketSize, false);
   EXPECT_EQ(3000u - kMaxPacketSize, sender_->AvailableCongestionWindow());
   EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());

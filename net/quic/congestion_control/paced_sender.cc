@@ -30,20 +30,20 @@ void PacedSender::SentPacket(size_t bytes) {
 }
 
 QuicTime::Delta PacedSender::TimeUntilSend(QuicTime::Delta time_until_send) {
-  if (time_until_send.ToMicroseconds() < kMaxSchedulingDelayUs) {
-    // Pace the data.
-    size_t pacing_window = kMaxSchedulingDelayUs * pace_in_bytes_per_s_ /
-        base::Time::kMicrosecondsPerSecond;
-    size_t min_window_size = kMinPacketBurstSize *  kMaxPacketSize;
-    pacing_window = std::max(pacing_window, min_window_size);
-
-    if (pacing_window > leaky_bucket_.BytesPending()) {
-      // We have not filled our pacing window yet.
-      return time_until_send;
-    }
-    return leaky_bucket_.TimeRemaining();
+  if (time_until_send.ToMicroseconds() >= kMaxSchedulingDelayUs) {
+    return time_until_send;
   }
-  return time_until_send;
+  // Pace the data.
+  size_t pacing_window = kMaxSchedulingDelayUs * pace_in_bytes_per_s_ /
+      base::Time::kMicrosecondsPerSecond;
+  size_t min_window_size = kMinPacketBurstSize *  kMaxPacketSize;
+  pacing_window = std::max(pacing_window, min_window_size);
+
+  if (pacing_window > leaky_bucket_.BytesPending()) {
+    // We have not filled our pacing window yet.
+    return time_until_send;
+  }
+  return leaky_bucket_.TimeRemaining();
 }
 
 size_t PacedSender::AvailableWindow(size_t available_congestion_window) {

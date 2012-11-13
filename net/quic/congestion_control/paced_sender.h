@@ -4,8 +4,8 @@
 //
 // Helper class that limits the congestion window to pace the packets.
 
-#ifndef GFE_QUIC_CONGESTION_CONTROL_PACED_SENDER_H_
-#define GFE_QUIC_CONGESTION_CONTROL_PACED_SENDER_H_
+#ifndef NET_QUIC_CONGESTION_CONTROL_PACED_SENDER_H_
+#define NET_QUIC_CONGESTION_CONTROL_PACED_SENDER_H_
 
 #include "base/basictypes.h"
 #include "net/base/net_export.h"
@@ -41,4 +41,4 @@ class NET_EXPORT_PRIVATE PacedSender {
 
 }  // namespace net
 
-#endif  // GFE_QUIC_CONGESTION_CONTROL_PACED_SENDER_H_
+#endif  // NET_QUIC_CONGESTION_CONTROL_PACED_SENDER_H_

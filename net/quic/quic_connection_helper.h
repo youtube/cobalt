@@ -37,9 +37,7 @@ class NET_EXPORT_PRIVATE QuicConnectionHelper
   // QuicConnectionHelperInterface
   virtual void SetConnection(QuicConnection* connection) OVERRIDE;
   virtual QuicClock* GetClock() OVERRIDE;
-  virtual int WritePacketToWire(QuicPacketSequenceNumber number,
-                                const QuicEncryptedPacket& packet,
-                                bool resend,
+  virtual int WritePacketToWire(const QuicEncryptedPacket& packet,
                                 int* error) OVERRIDE;
   virtual void SetResendAlarm(QuicPacketSequenceNumber sequence_number,
                               QuicTime::Delta delay) OVERRIDE;

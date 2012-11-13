@@ -44,7 +44,7 @@ bool QuicStreamSequencer::WillAcceptStreamFrame(
   size_t data_len = frame.data.size();
   DCHECK_LE(data_len, max_frame_memory_);
 
-  uint64 byte_offset = frame.offset;
+  QuicStreamOffset byte_offset = frame.offset;
   if (byte_offset < num_bytes_consumed_ ||
       frames_.find(byte_offset) != frames_.end()) {
     return false;
@@ -76,6 +76,7 @@ bool QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   QuicStreamOffset byte_offset = frame.offset;
   const char* data = frame.data.data();
   size_t data_len = frame.data.size();
+
   if (byte_offset == num_bytes_consumed_) {
     DVLOG(1) << "Processing byte offset " << byte_offset;
     size_t bytes_consumed = stream_->ProcessData(data, data_len);
@@ -104,7 +105,7 @@ bool QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
 }
 
 void QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset,
-                                            bool half_close) {
+                                              bool half_close) {
   const QuicStreamOffset kMaxOffset = numeric_limits<QuicStreamOffset>::max();
 
   // If we have a scheduled termination or close, any new offset should match

@@ -7,8 +7,8 @@
 #include "net/base/net_errors.h"
 #include "net/quic/congestion_control/quic_receipt_metrics_collector.h"
 #include "net/quic/congestion_control/quic_send_scheduler.h"
+#include "net/quic/crypto/quic_decrypter.h"
 #include "net/quic/crypto/quic_encrypter.h"
-#include "net/quic/crypto/null_encrypter.h"
 #include "net/quic/test_tools/mock_clock.h"
 #include "net/quic/test_tools/quic_test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -87,9 +87,7 @@ class TestConnectionHelper : public QuicConnectionHelperInterface {
     return clock_;
   }
 
-  virtual int WritePacketToWire(QuicPacketSequenceNumber number,
-                                const QuicEncryptedPacket& packet,
-                                bool resend,
+  virtual int WritePacketToWire(const QuicEncryptedPacket& packet,
                                 int* error) {
     QuicFramer framer(QuicDecrypter::Create(kNULL),
                       QuicEncrypter::Create(kNULL));

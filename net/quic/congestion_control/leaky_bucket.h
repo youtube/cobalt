@@ -7,8 +7,8 @@
 // the buffer.
 // See http://en.wikipedia.org/wiki/Leaky_bucket for more details.
 
-#ifndef GFE_QUIC_CONGESTION_CONTROL_LEAKY_BUCKET_H_
-#define GFE_QUIC_CONGESTION_CONTROL_LEAKY_BUCKET_H_
+#ifndef NET_QUIC_CONGESTION_CONTROL_LEAKY_BUCKET_H_
+#define NET_QUIC_CONGESTION_CONTROL_LEAKY_BUCKET_H_
 
 #include "base/basictypes.h"
 #include "net/base/net_export.h"
@@ -45,4 +45,4 @@ class NET_EXPORT_PRIVATE LeakyBucket {
 
 }  // namespace net
 
-#endif  // GFE_QUIC_CONGESTION_CONTROL_LEAKY_BUCKET_H_
+#endif  // NET_QUIC_CONGESTION_CONTROL_LEAKY_BUCKET_H_

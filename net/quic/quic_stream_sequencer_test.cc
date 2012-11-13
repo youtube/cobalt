@@ -34,8 +34,8 @@ class QuicStreamSequencerPeer : public QuicStreamSequencer {
       : QuicStreamSequencer(max_mem, stream) {}
 
   virtual bool OnFrame(QuicStreamOffset byte_offset,
-                          const char* data,
-                          uint32 data_len) {
+                       const char* data,
+                       uint32 data_len) {
     QuicStreamFrame frame;
     frame.stream_id = 1;
     frame.offset = byte_offset;
@@ -125,8 +125,7 @@ TEST_F(QuicStreamSequencerTest, RejectBufferedFrame) {
 }
 
 TEST_F(QuicStreamSequencerTest, FullFrameConsumed) {
-  EXPECT_CALL(stream_, ProcessData(StrEq("abc"), 3))
-            .WillOnce(Return(3));
+  EXPECT_CALL(stream_, ProcessData(StrEq("abc"), 3)).WillOnce(Return(3));
 
   EXPECT_TRUE(sequencer_->OnFrame(0, "abc", 3));
   EXPECT_EQ(0u, sequencer_->frames()->size());
@@ -134,8 +133,7 @@ TEST_F(QuicStreamSequencerTest, FullFrameConsumed) {
 }
 
 TEST_F(QuicStreamSequencerTest, PartialFrameConsumed) {
-  EXPECT_CALL(stream_, ProcessData(StrEq("abc"), 3))
-            .WillOnce(Return(2));
+  EXPECT_CALL(stream_, ProcessData(StrEq("abc"), 3)).WillOnce(Return(2));
 
   EXPECT_TRUE(sequencer_->OnFrame(0, "abc", 3));
   EXPECT_EQ(1u, sequencer_->frames()->size());
@@ -144,8 +142,7 @@ TEST_F(QuicStreamSequencerTest, PartialFrameConsumed) {
 }
 
 TEST_F(QuicStreamSequencerTest, NextxFrameNotConsumed) {
-  EXPECT_CALL(stream_, ProcessData(StrEq("abc"), 3))
-            .WillOnce(Return(0));
+  EXPECT_CALL(stream_, ProcessData(StrEq("abc"), 3)).WillOnce(Return(0));
 
   EXPECT_TRUE(sequencer_->OnFrame(0, "abc", 3));
   EXPECT_EQ(1u, sequencer_->frames()->size());
@@ -279,7 +276,7 @@ TEST_F(QuicStreamSequencerTest, BasicHalfUnordered) {
   EXPECT_TRUE(sequencer_->OnFrame(0, "abc", 3));
 }
 
-TEST_F(QuicStreamSequencerTest, CloseStreamBeforeCloseEqual) {
+TEST_F(QuicStreamSequencerTest, TerminateStreamBeforeCloseEqual) {
   sequencer_->CloseStreamAtOffset(3, true);
   EXPECT_EQ(3u, sequencer_->close_offset());
 
@@ -331,17 +328,13 @@ class QuicSequencerRandomTest : public QuicStreamSequencerTest {
     int remaining_payload = payload_size;
     while (remaining_payload != 0) {
       int size = min(OneToN(6), remaining_payload);
-      int idx = payload_size - remaining_payload;
-      list_.push_back(make_pair(idx, string(kPayload + idx, size)));
+      int index = payload_size - remaining_payload;
+      list_.push_back(make_pair(index, string(kPayload + index, size)));
       remaining_payload -= size;
     }
   }
 
   QuicSequencerRandomTest() {
-    //int32 seed = ACMRandom::HostnamePidTimeSeed();
-    //LOG(INFO) << "**** The current seed is " << seed << " ****";
-    //random_.reset(new ACMRandom(seed));
-
     CreateFrames();
   }
 
@@ -355,12 +348,10 @@ class QuicSequencerRandomTest : public QuicStreamSequencerTest {
       to_process = base::RandInt(0, len);
     }
     output_.append(data, to_process);
-    LOG(ERROR) << output_;
     return to_process;
   }
 
   string output_;
-  //scoped_ptr<ACMRandom> random_;
   FrameList list_;
 };
 
@@ -375,12 +366,13 @@ TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingNoBackup) {
   }
 
   while (list_.size() != 0) {
-    int idx = OneToN(list_.size()) - 1;
-    LOG(ERROR) << "Sending index " << idx << " " << list_[idx].second.c_str();
+    int index = OneToN(list_.size()) - 1;
+    LOG(ERROR) << "Sending index " << index << " "
+               << list_[index].second.data();
     EXPECT_TRUE(sequencer_->OnFrame(
-        list_[idx].first, list_[idx].second.c_str(),
-        list_[idx].second.size()));
-    list_.erase(list_.begin() + idx);
+        list_[index].first, list_[index].second.data(),
+        list_[index].second.size()));
+    list_.erase(list_.begin() + index);
   }
 }
 
@@ -397,13 +389,14 @@ TEST_F(QuicSequencerRandomTest, RandomFramesDroppingNoBackup) {
   }
 
   while (list_.size() != 0) {
-    int idx = OneToN(list_.size()) - 1;
-    LOG(ERROR) << "Sending index " << idx << " " << list_[idx].second.c_str();
+    int index = OneToN(list_.size()) - 1;
+    LOG(ERROR) << "Sending index " << index << " "
+               << list_[index].second.data();
     bool acked = sequencer_->OnFrame(
-        list_[idx].first, list_[idx].second.c_str(),
-        list_[idx].second.size());
+        list_[index].first, list_[index].second.data(),
+        list_[index].second.size());
     if (acked) {
-      list_.erase(list_.begin() + idx);
+      list_.erase(list_.begin() + index);
     }
   }
 }
