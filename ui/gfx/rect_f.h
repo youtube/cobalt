@@ -35,7 +35,10 @@ class UI_EXPORT RectF
 
   void Scale(float x_scale, float y_scale) {
     set_origin(ScalePoint(origin(), x_scale, y_scale));
-    set_size(ScaleSize(size(), x_scale, y_scale));
+
+    SizeF new_size = gfx::ScaleSize(size(), x_scale, y_scale);
+    new_size.ClampToNonNegative();
+    set_size(new_size);
   }
 
   // This method reports if the RectF can be safely converted to an integer
