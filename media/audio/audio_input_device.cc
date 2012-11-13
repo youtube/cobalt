@@ -13,6 +13,9 @@
 
 namespace media {
 
+AudioInputDevice::CaptureCallback::~CaptureCallback() {}
+AudioInputDevice::CaptureEventHandler::~CaptureEventHandler() {}
+
 // Takes care of invoking the capture callback on the audio thread.
 // An instance of this class is created for each capture stream in
 // OnLowLatencyCreated().
