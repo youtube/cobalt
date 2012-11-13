@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "build/build_config.h"
+#include "base/compiler_specific.h"
 #include "ui/base/ui_export.h"
 #include "ui/gfx/size_base.h"
 #include "ui/gfx/size_f.h"
