@@ -3168,7 +3168,7 @@ int SSLClientSocketNSS::Init() {
   EnsureNSSSSLInit();
   if (!NSS_IsInitialized())
     return ERR_UNEXPECTED;
-#if !defined(OS_MACOSX) && !defined(OS_WIN)
+#if defined(USE_NSS) || defined(OS_IOS)
   if (ssl_config_.cert_io_enabled) {
     // We must call EnsureNSSHttpIOInit() here, on the IO thread, to get the IO
     // loop by MessageLoopForIO::current().
