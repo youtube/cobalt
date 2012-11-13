@@ -1556,6 +1556,8 @@ import org.chromium.content.browser.SandboxedProcessConnection;
 import org.chromium.content.common.ISandboxedProcessCallback;
 import org.chromium.content.common.ISandboxedProcessService;
 import org.chromium.content.common.SurfaceCallback;
+import org.chromium.content.common.WillNotRaise.AnException;
+import org.chromium.content.common.WillRaise.AnException;
 
 import static org.chromium.Bar.Zoo;
 
@@ -1577,6 +1579,11 @@ class Foo {
                     jni_generator.JniParams._inner_classes)
     self.assertTrue('Lorg/chromium/content/app/Foo$PasswordListObserver' in
                     jni_generator.JniParams._inner_classes)
+    self.assertEquals('Lorg/chromium/content/app/ContentMain$Inner',
+                      jni_generator.JniParams.JavaToJni('ContentMain.Inner'))
+    self.assertRaises(SyntaxError,
+                      jni_generator.JniParams.JavaToJni,
+                      'AnException')
 
 
 if __name__ == '__main__':
