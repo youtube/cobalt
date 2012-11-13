@@ -1,22 +1,7 @@
-diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
---- a/src/net/third_party/nss/ssl/ssl.h	2012-02-29 17:49:08.431530583 -0800
-+++ b/src/net/third_party/nss/ssl/ssl.h	2012-02-29 19:07:19.298439815 -0800
-@@ -306,6 +306,11 @@ SSL_IMPORT SECStatus SSL_ForceHandshake(
- SSL_IMPORT SECStatus SSL_ForceHandshakeWithTimeout(PRFileDesc *fd,
-                                                    PRIntervalTime timeout);
- 
-+SSL_IMPORT SECStatus SSL_RestartHandshakeAfterCertReq(PRFileDesc *fd,
-+					    CERTCertificate *cert,
-+					    SECKEYPrivateKey *key,
-+					    CERTCertificateList *certChain);
-+
- /*
- ** Query security status of socket. *on is set to one if security is
- ** enabled. *keySize will contain the stream key size used. *issuer will
-diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/ssl3con.c
---- a/src/net/third_party/nss/ssl/ssl3con.c	2012-02-29 17:49:08.431530583 -0800
-+++ b/src/net/third_party/nss/ssl/ssl3con.c	2012-02-29 18:55:27.038466043 -0800
-@@ -5769,6 +5769,85 @@ done:
+diff -pu -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
+--- a/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:48:41.260860199 -0800
++++ b/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:49:25.751511020 -0800
+@@ -6148,6 +6148,85 @@ done:
      return rv;
  }
  
@@ -102,10 +87,25 @@ diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/s
  PRBool
  ssl3_CanFalseStart(sslSocket *ss) {
      PRBool rv;
-diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/sslimpl.h
---- a/src/net/third_party/nss/ssl/sslimpl.h	2012-02-29 17:49:08.431530583 -0800
-+++ b/src/net/third_party/nss/ssl/sslimpl.h	2012-02-29 19:05:27.766882356 -0800
-@@ -1392,15 +1392,16 @@ extern  SECStatus ssl3_MasterKeyDeriveBy
+diff -pu -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
+--- a/net/third_party/nss/ssl/ssl.h	2012-11-09 15:48:41.260860199 -0800
++++ b/net/third_party/nss/ssl/ssl.h	2012-11-09 15:49:25.751511020 -0800
+@@ -367,6 +367,11 @@ SSL_IMPORT SECStatus SSL_ForceHandshake(
+ SSL_IMPORT SECStatus SSL_ForceHandshakeWithTimeout(PRFileDesc *fd,
+                                                    PRIntervalTime timeout);
+ 
++SSL_IMPORT SECStatus SSL_RestartHandshakeAfterCertReq(PRFileDesc *fd,
++					    CERTCertificate *cert,
++					    SECKEYPrivateKey *key,
++					    CERTCertificateList *certChain);
++
+ /*
+ ** Query security status of socket. *on is set to one if security is
+ ** enabled. *keySize will contain the stream key size used. *issuer will
+diff -pu -r a/net/third_party/nss/ssl/sslimpl.h b/net/third_party/nss/ssl/sslimpl.h
+--- a/net/third_party/nss/ssl/sslimpl.h	2012-11-09 15:48:41.260860199 -0800
++++ b/net/third_party/nss/ssl/sslimpl.h	2012-11-09 15:51:26.623278555 -0800
+@@ -1484,16 +1484,17 @@ extern  SECStatus ssl3_MasterKeyDeriveBy
  /* These functions are called from secnav, even though they're "private". */
  
  extern int ssl2_SendErrorMessage(struct sslSocketStr *ss, int error);
@@ -117,6 +117,7 @@ diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/s
  extern void ssl_FreeSocket(struct sslSocketStr *ssl);
  extern SECStatus SSL3_SendAlert(sslSocket *ss, SSL3AlertLevel level,
  				SSL3AlertDescription desc);
+ extern SECStatus ssl3_DecodeError(sslSocket *ss);
  
 +extern SECStatus ssl3_RestartHandshakeAfterCertReq(sslSocket *    ss,
 +					     CERTCertificate *    cert, 
@@ -126,10 +127,10 @@ diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/s
  extern SECStatus ssl3_AuthCertificateComplete(sslSocket *ss, PRErrorCode error);
  
  /*
-diff -up a/src/net/third_party/nss/ssl/sslsecur.c b/src/net/third_party/nss/ssl/sslsecur.c
---- a/src/net/third_party/nss/ssl/sslsecur.c	2012-02-28 16:15:34.790321976 -0800
-+++ b/src/net/third_party/nss/ssl/sslsecur.c	2012-02-29 19:01:32.303586125 -0800
-@@ -1468,17 +1468,70 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERT
+diff -pu -r a/net/third_party/nss/ssl/sslsecur.c b/net/third_party/nss/ssl/sslsecur.c
+--- a/net/third_party/nss/ssl/sslsecur.c	2012-11-09 15:17:00.432983977 -0800
++++ b/net/third_party/nss/ssl/sslsecur.c	2012-11-09 15:49:25.751511020 -0800
+@@ -1437,17 +1437,70 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERT
      return SECSuccess;
  }
  
