@@ -12,6 +12,7 @@
 #include "base/string_util.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
+#include "media/base/gmock_callback_support.h"
 #include "media/base/limits.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
@@ -60,10 +61,6 @@ static scoped_refptr<DecoderBuffer> CreateFakeEncryptedBuffer() {
 
 ACTION_P(ReturnBuffer, buffer) {
   arg0.Run(buffer ? DemuxerStream::kOk : DemuxerStream::kAborted, buffer);
-}
-
-ACTION_P2(RunDecryptCB, status, buffer) {
-  arg2.Run(status, buffer);
 }
 
 class FFmpegVideoDecoderTest : public testing::Test {
@@ -471,7 +468,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_Normal) {
   // Simulate decoding a single encrypted frame.
   EXPECT_CALL(*decryptor_,
               Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillRepeatedly(RunDecryptCB(Decryptor::kSuccess, i_frame_buffer_));
+      .WillRepeatedly(RunCallback<2>(Decryptor::kSuccess, i_frame_buffer_));
 
   VideoDecoder::Status status;
   scoped_refptr<VideoFrame> video_frame;
@@ -491,8 +488,8 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_DecryptError) {
       .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
   EXPECT_CALL(*decryptor_,
               Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillRepeatedly(RunDecryptCB(Decryptor::kError,
-                                   scoped_refptr<media::DecoderBuffer>()));
+      .WillRepeatedly(RunCallback<2>(Decryptor::kError,
+                                     scoped_refptr<media::DecoderBuffer>()));
 
   // Our read should still get satisfied with end of stream frame during an
   // error.
@@ -514,8 +511,8 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoDecryptionKey) {
       .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
   EXPECT_CALL(*decryptor_,
               Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillRepeatedly(RunDecryptCB(Decryptor::kNoKey,
-                                   scoped_refptr<media::DecoderBuffer>()));
+      .WillRepeatedly(RunCallback<2>(Decryptor::kNoKey,
+                                     scoped_refptr<media::DecoderBuffer>()));
 
   // Our read should still get satisfied with end of stream frame during an
   // error.
@@ -538,8 +535,8 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_CorruptedBufferReturned) {
       .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
   EXPECT_CALL(*decryptor_,
               Decrypt(Decryptor::kVideo, encrypted_i_frame_buffer_, _))
-      .WillRepeatedly(RunDecryptCB(Decryptor::kSuccess,
-                                   corrupt_i_frame_buffer_));
+      .WillRepeatedly(RunCallback<2>(Decryptor::kSuccess,
+                                     corrupt_i_frame_buffer_));
   // The decoder only detects the error at the second decoding call. So
   // |statistics_cb_| still gets called once.
   EXPECT_CALL(statistics_cb_, OnStatistics(_));

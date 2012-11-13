@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/stl_util.h"
@@ -11,6 +13,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/test/test_timeouts.h"
 #include "media/base/data_buffer.h"
+#include "media/base/gmock_callback_support.h"
 #include "media/base/limits.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
@@ -33,10 +36,6 @@ static const int kFrameDuration = 10;
 static const int kVideoDuration = kFrameDuration * 100;
 static const int kEndOfStream = -1;
 static const gfx::Size kNaturalSize(16u, 16u);
-
-ACTION_P(RunPipelineStatusCB1, status) {
-  arg1.Run(status);
-}
 
 class VideoRendererBaseTest : public ::testing::Test {
  public:
@@ -61,7 +60,7 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     // We expect these to be called but we don't care how/when.
     EXPECT_CALL(*decoder_, Stop(_))
-        .WillRepeatedly(RunClosure());
+        .WillRepeatedly(RunClosure<0>());
     EXPECT_CALL(statistics_cb_object_, OnStatistics(_))
         .Times(AnyNumber());
     EXPECT_CALL(*this, OnTimeUpdate(_))
@@ -107,7 +106,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     InSequence s;
 
     EXPECT_CALL(*decoder_, Initialize(_, _, _))
-        .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
+        .WillOnce(RunCallback<1>(PIPELINE_OK));
 
     // Set playback rate before anything else happens.
     renderer_->SetPlaybackRate(1.0f);
@@ -695,7 +694,7 @@ TEST_F(VideoRendererBaseTest, VideoDecoder_InitFailure) {
   InSequence s;
 
   EXPECT_CALL(*decoder_, Initialize(_, _, _))
-      .WillOnce(RunPipelineStatusCB1(PIPELINE_ERROR_DECODE));
+      .WillOnce(RunCallback<1>(PIPELINE_ERROR_DECODE));
   InitializeRenderer(PIPELINE_ERROR_DECODE);
 }
 
