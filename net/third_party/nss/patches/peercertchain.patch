@@ -1,52 +1,7 @@
-Index: mozilla/security/nss/lib/ssl/ssl.h
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl.h,v
-retrieving revision 1.49
-diff -u -p -8 -r1.49 ssl.h
---- mozilla/security/nss/lib/ssl/ssl.h	15 Feb 2012 21:52:08 -0000	1.49
-+++ mozilla/security/nss/lib/ssl/ssl.h	29 Feb 2012 02:12:05 -0000
-@@ -331,16 +331,28 @@ SSL_IMPORT SECStatus SSL_SecurityStatus(
- ** it will always return the server's certificate. If the server calls
- ** this, it may return NULL if client authentication is not enabled or
- ** if the client had no certificate when asked.
- **	"fd" the socket "file" descriptor
- */
- SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
- 
- /*
-+** Return references to the certificates presented by the SSL peer.
-+** |maxNumCerts| must contain the size of the |certs| array. On successful
-+** return, |*numCerts| contains the number of certificates available and
-+** |certs| will contain references to as many certificates as would fit.
-+** Therefore if |*numCerts| contains a value less than or equal to
-+** |maxNumCerts|, then all certificates were returned.
-+*/
-+SSL_IMPORT SECStatus SSL_PeerCertificateChain(
-+	PRFileDesc *fd, CERTCertificate **certs,
-+	unsigned int *numCerts, unsigned int maxNumCerts);
-+
-+/*
- ** Authenticate certificate hook. Called when a certificate comes in
- ** (because of SSL_REQUIRE_CERTIFICATE in SSL_Enable) to authenticate the
- ** certificate.
- **
- ** The authenticate certificate hook must return SECSuccess to indicate the
- ** certificate is valid, SECFailure to indicate the certificate is invalid,
- ** or SECWouldBlock if the application will authenticate the certificate
- ** asynchronously. SECWouldBlock is only supported for non-blocking sockets.
-Index: mozilla/security/nss/lib/ssl/sslauth.c
-===================================================================
-RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslauth.c,v
-retrieving revision 1.17
-diff -u -p -8 -r1.17 sslauth.c
---- mozilla/security/nss/lib/ssl/sslauth.c	3 Aug 2010 18:48:45 -0000	1.17
-+++ mozilla/security/nss/lib/ssl/sslauth.c	29 Feb 2012 02:12:05 -0000
-@@ -55,16 +55,51 @@ SSL_PeerCertificate(PRFileDesc *fd)
-     }
-     if (ss->opt.useSecurity && ss->sec.peerCert) {
- 	return CERT_DupCertificate(ss->sec.peerCert);
-     }
-     return 0;
+diff -pu -r a/net/third_party/nss/ssl/sslauth.c b/net/third_party/nss/ssl/sslauth.c
+--- a/net/third_party/nss/ssl/sslauth.c	2012-04-25 07:50:12.000000000 -0700
++++ b/net/third_party/nss/ssl/sslauth.c	2012-11-09 15:22:49.448098805 -0800
+@@ -28,6 +28,41 @@ SSL_PeerCertificate(PRFileDesc *fd)
  }
  
  /* NEED LOCKS IN HERE.  */
@@ -88,8 +43,25 @@ diff -u -p -8 -r1.17 sslauth.c
  CERTCertificate *
  SSL_LocalCertificate(PRFileDesc *fd)
  {
-     sslSocket *ss;
+diff -pu -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
+--- a/net/third_party/nss/ssl/ssl.h	2012-09-21 14:58:43.000000000 -0700
++++ b/net/third_party/nss/ssl/ssl.h	2012-11-09 15:22:49.448098805 -0800
+@@ -398,6 +398,18 @@ SSL_IMPORT SECStatus SSL_SecurityStatus(
+ SSL_IMPORT CERTCertificate *SSL_PeerCertificate(PRFileDesc *fd);
  
-     ss = ssl_FindSocket(fd);
-     if (!ss) {
- 	SSL_DBG(("%d: SSL[%d]: bad socket in PeerCertificate",
+ /*
++** Return references to the certificates presented by the SSL peer.
++** |maxNumCerts| must contain the size of the |certs| array. On successful
++** return, |*numCerts| contains the number of certificates available and
++** |certs| will contain references to as many certificates as would fit.
++** Therefore if |*numCerts| contains a value less than or equal to
++** |maxNumCerts|, then all certificates were returned.
++*/
++SSL_IMPORT SECStatus SSL_PeerCertificateChain(
++	PRFileDesc *fd, CERTCertificate **certs,
++	unsigned int *numCerts, unsigned int maxNumCerts);
++
++/*
+ ** Authenticate certificate hook. Called when a certificate comes in
+ ** (because of SSL_REQUIRE_CERTIFICATE in SSL_Enable) to authenticate the
+ ** certificate.
