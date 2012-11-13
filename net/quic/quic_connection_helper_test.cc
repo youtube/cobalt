@@ -209,7 +209,7 @@ TEST_F(QuicConnectionHelperTest, TimeoutAfterSend) {
   // This time, we should time out.
   EXPECT_CALL(visitor_, ConnectionClose(QUIC_CONNECTION_TIMED_OUT, false));
   runner_->RunNextTask();
-  EXPECT_EQ(uint64(kDefaultTimeoutUs + 5000), clock_.Now().ToMicroseconds());
+  EXPECT_EQ(kDefaultTimeoutUs + 5000, clock_.Now().ToMicroseconds());
   EXPECT_FALSE(connection_.connected());
 }
 

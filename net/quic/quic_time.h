@@ -60,14 +60,14 @@ class NET_EXPORT_PRIVATE QuicTime {
   explicit QuicTime(base::TimeTicks ticks);
 
   // Create a new QuicTime holding the time_ms.
-  static QuicTime FromMilliseconds(uint64 time_ms);
+  static QuicTime FromMilliseconds(int64 time_ms);
 
   // Create a new QuicTime holding the time_us.
-  static QuicTime FromMicroseconds(uint64 time_us);
+  static QuicTime FromMicroseconds(int64 time_us);
 
-  uint64 ToMilliseconds() const;
+  int64 ToMilliseconds() const;
 
-  uint64 ToMicroseconds() const;
+  int64 ToMicroseconds() const;
 
   bool IsInitialized() const;
 
