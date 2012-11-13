@@ -11,6 +11,7 @@ using std::min;
 using std::string;
 
 namespace net {
+
 namespace test {
 
 MockFramerVisitor::MockFramerVisitor() {
@@ -19,7 +20,8 @@ MockFramerVisitor::MockFramerVisitor() {
       .WillByDefault(testing::Return(true));
 }
 
-MockFramerVisitor::~MockFramerVisitor() {}
+MockFramerVisitor::~MockFramerVisitor() {
+}
 
 bool NoOpFramerVisitor::OnPacketHeader(const QuicPacketHeader& header) {
   return true;
@@ -56,6 +58,37 @@ MockScheduler::MockScheduler()
 }
 
 MockScheduler::~MockScheduler() {
+}
+
+MockConnection::MockConnection(QuicGuid guid, IPEndPoint address)
+    : QuicConnection(guid, address, new MockHelper()) {
+}
+
+MockConnection::~MockConnection() {
+}
+
+PacketSavingConnection::PacketSavingConnection(QuicGuid guid,
+                                               IPEndPoint address)
+    : MockConnection(guid, address) {
+}
+
+PacketSavingConnection::~PacketSavingConnection() {
+}
+
+bool PacketSavingConnection::SendPacket(QuicPacketSequenceNumber number,
+                                        QuicPacket* packet,
+                                        bool should_resend,
+                                        bool force,
+                                        bool is_retransmit) {
+  packets_.push_back(packet);
+  return true;
+}
+
+MockSession::MockSession(QuicConnection* connection, bool is_server)
+    : QuicSession(connection, is_server) {
+}
+
+MockSession::~MockSession() {
 }
 
 namespace {
@@ -155,7 +188,7 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
   header.fec_group = 0;
 
   QuicStreamFrame stream_frame(kCryptoStreamId, false, 0,
-                                     data->AsStringPiece());
+                               data->AsStringPiece());
 
   QuicFrame frame(&stream_frame);
   QuicFrames frames;
@@ -163,37 +196,6 @@ QuicPacket* ConstructHandshakePacket(QuicGuid guid, CryptoTag tag) {
   QuicPacket* packet;
   quic_framer.ConstructFrameDataPacket(header, frames, &packet);
   return packet;
-}
-
-MockConnection::MockConnection(QuicGuid guid, IPEndPoint address)
-    : QuicConnection(guid, address, new MockHelper()) {
-}
-
-MockConnection::~MockConnection() {
-}
-
-PacketSavingConnection::PacketSavingConnection(QuicGuid guid,
-                                               IPEndPoint address)
-    : MockConnection(guid, address) {
-}
-
-PacketSavingConnection::~PacketSavingConnection() {
-}
-
-bool PacketSavingConnection::SendPacket(QuicPacketSequenceNumber number,
-                                        QuicPacket* packet,
-                                        bool should_resend,
-                                        bool force,
-                                        bool is_retransmit) {
-  packets_.push_back(packet);
-  return true;
-}
-
-MockSession::MockSession(QuicConnection* connection, bool is_server)
-    : QuicSession(connection, is_server) {
-}
-
-MockSession::~MockSession() {
 }
 
 }  // namespace test

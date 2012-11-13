@@ -10,6 +10,7 @@
 namespace net {
 
 class QuicSession;
+struct CryptoHandshakeMessage;
 
 class NET_EXPORT_PRIVATE QuicCryptoClientStream : public QuicCryptoStream {
 

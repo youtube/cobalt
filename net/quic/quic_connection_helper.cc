@@ -37,15 +37,10 @@ QuicClock* QuicConnectionHelper::GetClock() {
 }
 
 int QuicConnectionHelper::WritePacketToWire(
-    QuicPacketSequenceNumber sequence_number,
     const QuicEncryptedPacket& packet,
-    bool resend,
     int* error) {
   if (connection_->ShouldSimulateLostPacket()) {
-    DLOG(INFO) << "Dropping "
-               << (resend ? "data bearing " : " ack only ")
-               << "packet " << sequence_number
-               << " due to fake packet loss.";
+    DLOG(INFO) << "Dropping packet due to fake packet loss.";
     *error = 0;
     return packet.length();
   }

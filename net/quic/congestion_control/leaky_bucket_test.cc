@@ -6,7 +6,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/quic/congestion_control/leaky_bucket.h"
 #include "net/quic/test_tools/mock_clock.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

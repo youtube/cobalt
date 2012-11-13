@@ -32,6 +32,7 @@ namespace net {
 class QuicClock;
 class QuicConnection;
 class QuicEncrypter;
+class QuicFecGroup;
 class QuicReceiptMetricsCollector;
 class QuicSendScheduler;
 
@@ -71,9 +72,7 @@ class NET_EXPORT_PRIVATE QuicConnectionHelperInterface {
   // Sends the packet out to the peer, possibly simulating packet
   // loss if FLAGS_fake_packet_loss_percentage is set.  If the write failed
   // errno will be copied to |*error|.
-  virtual int WritePacketToWire(QuicPacketSequenceNumber number,
-                                const QuicEncryptedPacket& packet,
-                                bool resend,
+  virtual int WritePacketToWire(const QuicEncryptedPacket& packet,
                                 int* error) = 0;
 
   // Sets up an alarm to resend the packet with the given sequence number if we
@@ -112,10 +111,10 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
 
   // Send the data payload to the peer.
   size_t SendStreamData(QuicStreamId id,
-                       base::StringPiece data,
-                       QuicStreamOffset offset,
-                       bool fin,
-                       QuicPacketSequenceNumber* last_packet);
+                        base::StringPiece data,
+                        QuicStreamOffset offset,
+                        bool fin,
+                        QuicPacketSequenceNumber* last_packet);
   // Send a stream reset frame to the peer.
   virtual void SendRstStream(QuicStreamId id,
                              QuicErrorCode error,
@@ -211,7 +210,6 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
 
  private:
   friend class QuicConnectionPeer;
-  typedef base::hash_set<QuicPacketSequenceNumber> SequenceSet;
   // Packets which have not been written to the wire.
   struct QueuedPacket {
     QueuedPacket(QuicPacketSequenceNumber sequence_number,
@@ -291,9 +289,6 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   FecGroupMap group_map_;
   QuicPacketHeader revived_header_;
   scoped_array<char> revived_payload_;
-
-  // Only set if we configure fake packet loss.
-  //scoped_ptr<MTRandom> random_;
 
   QuicConnectionVisitorInterface* visitor_;
   QuicPacketCreator packet_creator_;

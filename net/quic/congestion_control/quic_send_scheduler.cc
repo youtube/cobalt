@@ -5,17 +5,20 @@
 
 #include "net/quic/congestion_control/quic_send_scheduler.h"
 
+#include <algorithm>
 #include <cmath>
+#include <map>
 
 #include "base/stl_util.h"
 #include "base/time.h"
 #include "net/quic/congestion_control/send_algorithm_interface.h"
 //#include "util/gtl/map-util.h"
 
+using std::map;
+using std::max;
+
 namespace net {
 
-// To prevent too aggressive pacing we allow the following packet burst size.
-const int kMinPacketBurstSize = 2;
 const int64 kNumMicrosPerSecond = base::Time::kMicrosecondsPerSecond;
 
 QuicSendScheduler::QuicSendScheduler(
@@ -85,7 +88,7 @@ void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
   // * Remove all missing packets.
   // * Send each ACK in the list to send_algorithm_.
   QuicTime last_timestamp(QuicTime::FromMicroseconds(0));
-  std::map<QuicPacketSequenceNumber, size_t> acked_packets;
+  map<QuicPacketSequenceNumber, size_t> acked_packets;
 
   PendingPacketsMap::iterator it, it_upper;
   it = pending_packets_.begin();
@@ -109,7 +112,7 @@ void QuicSendScheduler::OnIncomingAckFrame(const QuicAckFrame& ack_frame) {
   // sequence numbers will include the ACK aggregation delay.
   QuicTime::Delta rtt = clock_->Now().Subtract(last_timestamp);
 
-  std::map<QuicPacketSequenceNumber, size_t>::iterator it_acked_packets;
+  map<QuicPacketSequenceNumber, size_t>::iterator it_acked_packets;
   for (it_acked_packets = acked_packets.begin();
       it_acked_packets != acked_packets.end();
       ++it_acked_packets) {
@@ -168,8 +171,8 @@ int QuicSendScheduler::SentBandwidth() {
     current_estimated_bandwidth_ = (sum * (kNumMicrosPerSecond /
         kBitrateSmoothingPeriod)) / kBitrateSmoothingBuckets;
   }
-  max_estimated_bandwidth_ = std::max(max_estimated_bandwidth_,
-                                      current_estimated_bandwidth_);
+  max_estimated_bandwidth_ = max(max_estimated_bandwidth_,
+                                 current_estimated_bandwidth_);
   return current_estimated_bandwidth_;
 }
 

@@ -15,38 +15,11 @@ QuicDataReader::QuicDataReader(const char* data, const size_t len)
 }
 
 bool QuicDataReader::ReadUInt16(uint16* result) {
-  // Make sure that we have the whole uint16.
-  // TODO(rch): use sizeof instead of magic numbers.
-  // Refactor to use a common Read(void* buffer, size_t len)
-  // method that will do the memcpy and the advancement of pos_.
-  if (!CanRead(2)) {
-    OnFailure();
-    return false;
-  }
-
-  // Read into result.
-  memcpy(result, data_ + pos_, 2);
-
-  // Iterate.
-  pos_ += 2;
-
-  return true;
+  return ReadBytes(result, sizeof(*result));
 }
 
 bool QuicDataReader::ReadUInt32(uint32* result) {
-  // Make sure that we have the whole uint32.
-  if (!CanRead(4)) {
-    OnFailure();
-    return false;
-  }
-
-  // Read into result.
-  memcpy(result, data_ + pos_, 4);
-
-  // Iterate.
-  pos_ += 4;
-
-  return true;
+  return ReadBytes(result, sizeof(*result));
 }
 
 bool QuicDataReader::ReadUInt48(uint64* result) {
@@ -68,19 +41,7 @@ bool QuicDataReader::ReadUInt48(uint64* result) {
 }
 
 bool QuicDataReader::ReadUInt64(uint64* result) {
-  // Make sure that we have the whole uint64.
-  if (!CanRead(8)) {
-    OnFailure();
-    return false;
-  }
-
-  // Read into result.
-  memcpy(result, data_ + pos_, 8);
-
-  // Iterate.
-  pos_ += 8;
-
-  return true;
+  return ReadBytes(result, sizeof(*result));
 }
 
 bool QuicDataReader::ReadUInt128(uint128* result) {
@@ -109,23 +70,6 @@ bool QuicDataReader::ReadStringPiece16(StringPiece* result) {
   return ReadStringPiece(result, result_len);
 }
 
-bool QuicDataReader::ReadBytes(void* result, size_t size) {
-  // Make sure that we have enough data to read.
-  if (!CanRead(size)) {
-    OnFailure();
-    return false;
-  }
-
-  // Read into result.
-  memcpy(result, data_ + pos_, size);
-
-  // Iterate.
-  pos_ += size;
-
-  return true;
-}
-
-
 bool QuicDataReader::ReadStringPiece(StringPiece* result, size_t size) {
   // Make sure that we have enough data to read.
   if (!CanRead(size)) {
@@ -142,14 +86,30 @@ bool QuicDataReader::ReadStringPiece(StringPiece* result, size_t size) {
   return true;
 }
 
-StringPiece QuicDataReader::PeekRemainingPayload() {
-  return StringPiece(data_ + pos_, len_ - pos_);
-}
-
 StringPiece QuicDataReader::ReadRemainingPayload() {
   StringPiece payload = PeekRemainingPayload();
   pos_ = len_;
   return payload;
+}
+
+StringPiece QuicDataReader::PeekRemainingPayload() {
+  return StringPiece(data_ + pos_, len_ - pos_);
+}
+
+bool QuicDataReader::ReadBytes(void* result, size_t size) {
+  // Make sure that we have enough data to read.
+  if (!CanRead(size)) {
+    OnFailure();
+    return false;
+  }
+
+  // Read into result.
+  memcpy(result, data_ + pos_, size);
+
+  // Iterate.
+  pos_ += size;
+
+  return true;
 }
 
 bool QuicDataReader::IsDoneReading() const {

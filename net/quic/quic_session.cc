@@ -76,7 +76,7 @@ void QuicSession::ConnectionClose(QuicErrorCode error, bool from_peer) {
 }
 
 int QuicSession::WriteData(QuicStreamId id, StringPiece data,
-                               QuicStreamOffset offset, bool fin) {
+                           QuicStreamOffset offset, bool fin) {
   return connection_->SendStreamData(id, data, offset, fin, NULL);
 }
 
@@ -159,7 +159,6 @@ ReliableQuicStream* QuicSession::GetIncomingReliableStream(
   }
   ReliableQuicStream* stream = CreateIncomingReliableStream(stream_id);
   if (stream == NULL) {
-    connection()->SendConnectionClose(QUIC_TOO_MANY_OPEN_STREAMS);
     return NULL;
   }
   ActivateStream(stream);
@@ -182,9 +181,9 @@ bool QuicSession::IsClosedStream(QuicStreamId id) {
   }
   // For peer created streams, we also need to consider implicitly created
   // streams.
-    return id <= largest_peer_created_stream_id_ &&
-        implicitly_created_streams_.count(id) == 0;
-  }
+  return id <= largest_peer_created_stream_id_ &&
+      implicitly_created_streams_.count(id) == 0;
+}
 
 size_t QuicSession::GetNumOpenStreams() {
   return stream_map_.size() + implicitly_created_streams_.size();

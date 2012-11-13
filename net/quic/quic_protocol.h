@@ -163,6 +163,8 @@ struct NET_EXPORT_PRIVATE QuicStreamFrame {
   base::StringPiece data;
 };
 
+typedef base::hash_set<QuicPacketSequenceNumber> SequenceSet;
+
 struct NET_EXPORT_PRIVATE ReceivedPacketInfo {
   ReceivedPacketInfo();
   ~ReceivedPacketInfo();
@@ -173,7 +175,7 @@ struct NET_EXPORT_PRIVATE ReceivedPacketInfo {
   // The set of packets which we're expecting and have not received.
   // This includes any packets between the lowest and largest_received
   // which we have neither seen nor been informed are non-retransmitting.
-  base::hash_set<QuicPacketSequenceNumber> missing_packets;
+  SequenceSet missing_packets;
 };
 
 struct NET_EXPORT_PRIVATE SentPacketInfo {
@@ -183,7 +185,7 @@ struct NET_EXPORT_PRIVATE SentPacketInfo {
   QuicPacketSequenceNumber least_unacked;
   // The set of packets between least_unacked and the last packet we have sent
   // which we will not resend.
-  base::hash_set<QuicPacketSequenceNumber> non_retransmiting;
+  SequenceSet non_retransmiting;
 };
 
 // Defines for all types of congestion feedback that will be negotiated in QUIC,
