@@ -168,13 +168,37 @@ class JniParams(object):
       # Coming from javap, use the fully qualified param directly.
       return 'L' + param + ';'
     for qualified_name in (object_param_list +
-                           JniParams._imports +
                            [JniParams._fully_qualified_class] +
                            JniParams._inner_classes):
       if (qualified_name.endswith('/' + param) or
           qualified_name.endswith('$' + param.replace('.', '$')) or
           qualified_name == 'L' + param):
         return prefix + qualified_name + ';'
+
+    # Is it from an import? (e.g. referecing Class from import pkg.Class;
+    # note that referencing an inner class Inner from import pkg.Class.Inner
+    # is not supported).
+    for qualified_name in JniParams._imports:
+      if qualified_name.endswith('/' + param):
+        # Ensure it's not an inner class.
+        components = qualified_name.split('/')
+        if len(components) > 2 and components[-2][0].isupper():
+          raise SyntaxError('Inner class (%s) can not be imported '
+                            'and used by JNI (%s). Please import the outer '
+                            'class and use Outer.Inner instead.' %
+                            (qualified_name, param))
+        return prefix + qualified_name + ';'
+
+    # Is it an inner class from an outer class import? (e.g. referencing
+    # Class.Inner from import pkg.Class).
+    if '.' in param:
+      components = param.split('.')
+      outer = '/'.join(components[:-1])
+      inner = components[-1]
+      for qualified_name in JniParams._imports:
+        if qualified_name.endswith('/' + outer):
+          return prefix + qualified_name + '$' + inner
+
     # Type not found, falling back to same package as this class.
     return prefix + 'L' + JniParams._package + '/' + param + ';'
 
