@@ -36,6 +36,9 @@ class BASE_PREFS_EXPORT PrefChangeRegistrar : public PrefObserver {
   // object. All registered observers will be automatically unregistered
   // when the registrar's destructor is called.
   //
+  // The second version binds a callback that will receive the path of
+  // the preference that is changing as its parameter.
+  //
   // Only one observer may be registered per path.
   void Add(const char* path, const base::Closure& obs);
   void Add(const char* path, const NamedChangeCallback& obs);
