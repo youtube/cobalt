@@ -161,7 +161,9 @@ void QuicConnection::OnAckFrame(const QuicAckFrame& incoming_ack) {
 bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
   if (incoming_ack.received_info.largest_received >
       packet_creator_.sequence_number()) {
-    DLOG(ERROR) << "Client acked unsent packet";
+    DLOG(ERROR) << "Client acked unsent packet:"
+                << incoming_ack.received_info.largest_received << " vs "
+                << packet_creator_.sequence_number();
     // We got an error for data we have not sent.  Error out.
     return false;
   }
@@ -174,8 +176,7 @@ bool QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
             kMaxUnackedPackets);
 
   if (incoming_ack.sent_info.least_unacked != 0 &&
-      incoming_ack.sent_info.least_unacked <
-      least_packet_awaiting_ack_) {
+      incoming_ack.sent_info.least_unacked < least_packet_awaiting_ack_) {
     DLOG(INFO) << "Client sent low least_unacked";
     // We never process old ack frames, so this number should only increase.
     return false;
@@ -255,23 +256,21 @@ void QuicConnection::UpdatePacketInformationSentByPeer(
     const QuicAckFrame& incoming_ack) {
   // Iteratate through the packets which will the peer will not resend and
   // remove them from our missing list.
-  for (hash_set<QuicPacketSequenceNumber>::const_iterator it =
+  for (SequenceSet::const_iterator it =
            incoming_ack.sent_info.non_retransmiting.begin();
        it != incoming_ack.sent_info.non_retransmiting.end(); ++it) {
-     DVLOG(1) << "no longer expecting " << *it;
-     outgoing_ack_.received_info.missing_packets.erase(*it);
+    DVLOG(1) << "no longer expecting " << *it;
+    outgoing_ack_.received_info.missing_packets.erase(*it);
   }
 
   // Make sure we also don't expect any packets lower than the peer's
   // last-packet-awaiting-ack.
-  if (incoming_ack.sent_info.least_unacked >
-      least_packet_awaiting_ack_) {
+  if (incoming_ack.sent_info.least_unacked > least_packet_awaiting_ack_) {
     for (QuicPacketSequenceNumber i = least_packet_awaiting_ack_;
          i < incoming_ack.sent_info.least_unacked; ++i) {
       outgoing_ack_.received_info.missing_packets.erase(i);
     }
-    least_packet_awaiting_ack_ =
-        incoming_ack.sent_info.least_unacked;
+    least_packet_awaiting_ack_ = incoming_ack.sent_info.least_unacked;
   }
 
   // Possibly close any FecGroups which are now irrelevant
@@ -285,13 +284,15 @@ void QuicConnection::OnFecData(const QuicFecData& fec) {
 }
 
 void QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
-  DLOG(INFO) << "Stream reset with error " << frame.error_code;
+  DLOG(INFO) << "Stream reset with error "
+             << QuicUtils::ErrorToString(frame.error_code);
   visitor_->OnRstStream(frame);
 }
 
 void QuicConnection::OnConnectionCloseFrame(
     const QuicConnectionCloseFrame& frame) {
-  DLOG(INFO) << "Connection closed with error " << frame.error_code;
+  DLOG(INFO) << "Connection closed with error "
+             << QuicUtils::ErrorToString(frame.error_code);
   connected_ = false;
   visitor_->ConnectionClose(frame.error_code, true);
 }
@@ -306,7 +307,7 @@ void QuicConnection::OnPacketComplete() {
                                      clock_->Now(),
                                      last_packet_revived_);
   } else {
-    DLOG(INFO) << "Got revived packet with " << frames_.size();
+    DLOG(INFO) << "Got revived packet with " << frames_.size() << " frames.";
   }
 
   if (frames_.size()) {
@@ -471,7 +472,7 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
       outgoing_ack_.sent_info.least_unacked = sequence_number;
     }
   } else {
-    if (outgoing_ack_.sent_info.least_unacked!= 0 &&
+    if (outgoing_ack_.sent_info.least_unacked != 0 &&
         sequence_number > outgoing_ack_.sent_info.least_unacked) {
       outgoing_ack_.sent_info.non_retransmiting.insert(sequence_number);
     }
@@ -479,11 +480,10 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
 
   scoped_ptr<QuicEncryptedPacket> encrypted(framer_.EncryptPacket(*packet));
   int error;
-  int rv = helper_->WritePacketToWire(sequence_number, *encrypted,
-                                      should_resend, &error);
   DLOG(INFO) << "Sending packet : "
              << (should_resend ? "data bearing " : " ack only ")
              << "packet " << sequence_number;
+  int rv = helper_->WritePacketToWire(*encrypted, &error);
   if (rv == -1) {
     if (error == ERR_IO_PENDING) {
       write_blocked_ = true;
@@ -535,7 +535,7 @@ void QuicConnection::MaybeProcessRevivedPacket() {
   last_packet_revived_ = true;
   framer_.ProcessRevivedPacket(revived_header_,
                                StringPiece(revived_payload_.get(), len));
-  revived_payload_.reset(NULL);
+  revived_payload_.reset();
 }
 
 QuicFecGroup* QuicConnection::GetFecGroup() {

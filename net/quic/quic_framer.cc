@@ -11,7 +11,6 @@
 #include "net/quic/quic_data_writer.h"
 #include "net/quic/quic_utils.h"
 
-using base::hash_set;
 using base::StringPiece;
 
 namespace net {
@@ -671,8 +670,7 @@ bool QuicFramer::AppendAckFramePayload(
     return false;
   }
 
-  hash_set<QuicPacketSequenceNumber>::const_iterator it =
-      frame.received_info.missing_packets.begin();
+  SequenceSet::const_iterator it = frame.received_info.missing_packets.begin();
   for (; it != frame.received_info.missing_packets.end(); ++it) {
     if (!writer->WriteUInt48(*it)) {
       return false;
