@@ -311,6 +311,11 @@ void URLRequest::SetExtraRequestHeaderByName(const string& name,
   }
 }
 
+void URLRequest::RemoveRequestHeaderByName(const string& name) {
+  DCHECK(!is_pending_ || is_redirecting_);
+  extra_request_headers_.RemoveHeader(name);
+}
+
 void URLRequest::SetExtraRequestHeaders(
     const HttpRequestHeaders& headers) {
   DCHECK(!is_pending_);
