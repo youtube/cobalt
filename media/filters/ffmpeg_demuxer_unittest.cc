@@ -72,17 +72,13 @@ class FFmpegDemuxerTest : public testing::Test {
   }
 
   void CreateDemuxer(const std::string& name) {
-    CreateDemuxer(name, false);
-  }
-
-  void CreateDemuxer(const std::string& name, bool disable_file_size) {
     CHECK(!demuxer_);
 
     EXPECT_CALL(host_, SetTotalBytes(_)).Times(AnyNumber());
     EXPECT_CALL(host_, AddBufferedByteRange(_, _)).Times(AnyNumber());
     EXPECT_CALL(host_, AddBufferedTimeRange(_, _)).Times(AnyNumber());
 
-    CreateDataSource(name, disable_file_size);
+    CreateDataSource(name);
     demuxer_ = new FFmpegDemuxer(message_loop_.message_loop_proxy(),
                                  data_source_);
   }
@@ -160,7 +156,7 @@ class FFmpegDemuxerTest : public testing::Test {
   }
 
  private:
-  void CreateDataSource(const std::string& name, bool disable_file_size) {
+  void CreateDataSource(const std::string& name) {
     CHECK(!data_source_);
 
     FilePath file_path;
@@ -171,7 +167,7 @@ class FFmpegDemuxerTest : public testing::Test {
         .Append(FILE_PATH_LITERAL("data"))
         .AppendASCII(name);
 
-    data_source_ = new FileDataSource(disable_file_size);
+    data_source_ = new FileDataSource();
     EXPECT_TRUE(data_source_->Initialize(file_path.MaybeAsASCII()));
   }
 
@@ -191,7 +187,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
 // avformat_open_input(), but has avformat_find_stream_info() fail.
 //
 //TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
-//  CreateDemuxer("find_stream_info_fail.webm");
+//  ("find_stream_info_fail.webm");
 //  demuxer_->Initialize(
 //      &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_PARSE));
 //  message_loop_.RunAllPending();
@@ -347,7 +343,7 @@ TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
 
 TEST_F(FFmpegDemuxerTest, Read_EndOfStream_NoDuration) {
   // Verify that end of stream buffers are created.
-  CreateDemuxer("bear-320x240.webm", false);
+  CreateDemuxer("bear-320x240.webm");
   InitializeDemuxer();
   set_duration_known(false);
   EXPECT_CALL(host_, SetDuration(_));
@@ -527,86 +523,6 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
   bool got_eos_buffer = false;
   audio->Read(base::Bind(&EosOnReadDone, &got_eos_buffer));
   EXPECT_TRUE(got_eos_buffer);
-}
-
-TEST_F(FFmpegDemuxerTest, ProtocolRead) {
-  CreateDemuxer("bear-320x240.webm");
-  InitializeDemuxer();
-
-  // Set read head to zero as Initialize() will have parsed a bit of the file.
-  int64 position = 0;
-  EXPECT_TRUE(demuxer_->SetPosition(0));
-  EXPECT_TRUE(demuxer_->GetPosition(&position));
-  EXPECT_EQ(0, position);
-
-  // Read 32 bytes from offset zero and verify position.
-  uint8 buffer[32];
-  EXPECT_EQ(32, demuxer_->Read(32, buffer));
-  EXPECT_TRUE(demuxer_->GetPosition(&position));
-  EXPECT_EQ(32, position);
-
-  // Read an additional 32 bytes and verify position.
-  EXPECT_EQ(32, demuxer_->Read(32, buffer));
-  EXPECT_TRUE(demuxer_->GetPosition(&position));
-  EXPECT_EQ(64, position);
-
-  // Seek to end and read until EOF.
-  int64 size = 0;
-  EXPECT_TRUE(demuxer_->GetSize(&size));
-  EXPECT_TRUE(demuxer_->SetPosition(size - 48));
-  EXPECT_EQ(32, demuxer_->Read(32, buffer));
-  EXPECT_TRUE(demuxer_->GetPosition(&position));
-  EXPECT_EQ(size - 16, position);
-
-  EXPECT_EQ(16, demuxer_->Read(32, buffer));
-  EXPECT_TRUE(demuxer_->GetPosition(&position));
-  EXPECT_EQ(size, position);
-
-  EXPECT_EQ(0, demuxer_->Read(32, buffer));
-  EXPECT_TRUE(demuxer_->GetPosition(&position));
-  EXPECT_EQ(size, position);
-
-  demuxer_->Stop(NewExpectedClosure());
-  message_loop_.RunAllPending();
-}
-
-TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {
-  CreateDemuxer("bear-320x240.webm");
-  InitializeDemuxer();
-
-  InSequence s;
-
-  int64 size;
-  int64 position;
-  EXPECT_TRUE(demuxer_->GetSize(&size));
-  EXPECT_TRUE(demuxer_->GetPosition(&position));
-
-  EXPECT_TRUE(demuxer_->SetPosition(512));
-  EXPECT_FALSE(demuxer_->SetPosition(size));
-  EXPECT_FALSE(demuxer_->SetPosition(size + 1));
-  EXPECT_FALSE(demuxer_->SetPosition(-1));
-  EXPECT_TRUE(demuxer_->GetPosition(&position));
-  EXPECT_EQ(512, position);
-}
-
-TEST_F(FFmpegDemuxerTest, ProtocolGetSize) {
-  CreateDemuxer("bear-320x240.webm");
-  InitializeDemuxer();
-
-  int64 data_source_size = 0;
-  int64 demuxer_size = 0;
-  EXPECT_TRUE(data_source_->GetSize(&data_source_size));
-  EXPECT_TRUE(demuxer_->GetSize(&demuxer_size));
-  EXPECT_NE(0, data_source_size);
-  EXPECT_EQ(data_source_size, demuxer_size);
-}
-
-TEST_F(FFmpegDemuxerTest, ProtocolIsStreaming) {
-  CreateDemuxer("bear-320x240.webm");
-  InitializeDemuxer();
-
-  EXPECT_FALSE(data_source_->IsStreaming());
-  EXPECT_FALSE(demuxer_->IsStreaming());
 }
 
 // Verify that seek works properly when the WebM cues data is at the start of
