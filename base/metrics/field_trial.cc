@@ -369,8 +369,13 @@ bool FieldTrialList::CreateTrialsFromString(const std::string& trials_string) {
                            group_name_end - name_end - 1);
     next_item = group_name_end + 1;
 
-    if (!CreateFieldTrial(name, group_name))
+    FieldTrial* trial = CreateFieldTrial(name, group_name);
+    if (!trial)
       return false;
+    // Call |group()| to mark the trial as "used" and notify observers, if any.
+    // This is needed to ensure the trial is properly reported in child process
+    // crash reports.
+    trial->group();
   }
   return true;
 }
