@@ -3,44 +3,10 @@
  * SSLSockets supported.  Only one type is still supported.
  * Various other functions.
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Stephen Henson <stephen.henson@gemplus.com>
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: sslsock.c,v 1.86 2012/03/18 00:31:20 wtc%google.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* $Id: sslsock.c,v 1.96 2012/09/24 23:57:42 wtc%google.com Exp $ */
 #include "seccomon.h"
 #include "cert.h"
 #include "keyhi.h"
@@ -49,7 +15,9 @@
 #include "sslproto.h"
 #include "nspr.h"
 #include "private/pprio.h"
+#ifndef NO_PKCS11_BYPASS
 #include "blapi.h"
+#endif
 #include "nss.h"
 
 #define SET_ERROR_CODE   /* reminder */
@@ -289,7 +257,7 @@ ssl_FindSocket(PRFileDesc *fd)
     return ss;
 }
 
-sslSocket *
+static sslSocket *
 ssl_DupSocket(sslSocket *os)
 {
     sslSocket *ss;
@@ -490,11 +458,6 @@ ssl_DestroySocketContents(sslSocket *ss)
 void
 ssl_FreeSocket(sslSocket *ss)
 {
-#ifdef DEBUG
-    sslSocket *fs;
-    sslSocket  lSock;
-#endif
-
 /* Get every lock you can imagine!
 ** Caller already holds these:
 **  SSL_LOCK_READER(ss);
@@ -506,31 +469,25 @@ ssl_FreeSocket(sslSocket *ss)
     ssl_GetXmitBufLock(ss);
     ssl_GetSpecWriteLock(ss);
 
-#ifdef DEBUG
-    fs = &lSock;
-    *fs = *ss;				/* Copy the old socket structure, */
-    PORT_Memset(ss, 0x1f, sizeof *ss);  /* then blast the old struct ASAP. */
-#else
-#define fs ss
-#endif
-
-    ssl_DestroySocketContents(fs);
+    ssl_DestroySocketContents(ss);
 
     /* Release all the locks acquired above.  */
-    SSL_UNLOCK_READER(fs);
-    SSL_UNLOCK_WRITER(fs);
-    ssl_Release1stHandshakeLock(fs);
-    ssl_ReleaseRecvBufLock(fs);
-    ssl_ReleaseSSL3HandshakeLock(fs);
-    ssl_ReleaseXmitBufLock(fs);
-    ssl_ReleaseSpecWriteLock(fs);
+    SSL_UNLOCK_READER(ss);
+    SSL_UNLOCK_WRITER(ss);
+    ssl_Release1stHandshakeLock(ss);
+    ssl_ReleaseRecvBufLock(ss);
+    ssl_ReleaseSSL3HandshakeLock(ss);
+    ssl_ReleaseXmitBufLock(ss);
+    ssl_ReleaseSpecWriteLock(ss);
 
-    ssl_DestroyLocks(fs);
+    ssl_DestroyLocks(ss);
 
-    PORT_Free(ss);	/* free the caller's copy, not ours. */
+#ifdef DEBUG
+    PORT_Memset(ss, 0x1f, sizeof *ss);
+#endif
+    PORT_Free(ss);
     return;
 }
-#undef fs
 
 /************************************************************************/
 SECStatus 
@@ -574,6 +531,7 @@ SSL_Enable(PRFileDesc *fd, int which, PRBool on)
     return SSL_OptionSet(fd, which, on);
 }
 
+#ifndef NO_PKCS11_BYPASS
 static const PRCallOnceType pristineCallOnce;
 static PRCallOnceType setupBypassOnce;
 
@@ -591,10 +549,16 @@ static PRStatus SSL_BypassRegisterShutdown(void)
     PORT_Assert(SECSuccess == rv);
     return SECSuccess == rv ? PR_SUCCESS : PR_FAILURE;
 }
+#endif
 
 static PRStatus SSL_BypassSetup(void)
 {
+#ifdef NO_PKCS11_BYPASS
+    /* Guarantee binary compatibility */
+    return PR_SUCCESS;
+#else
     return PR_CallOnce(&setupBypassOnce, &SSL_BypassRegisterShutdown);
+#endif
 }
 
 /* Implements the semantics for SSL_OptionSet(SSL_ENABLE_TLS, on) described in
@@ -813,7 +777,11 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 which, PRBool on)
 	} else {
             if (PR_FALSE != on) {
                 if (PR_SUCCESS == SSL_BypassSetup() ) {
+#ifdef NO_PKCS11_BYPASS
+                    ss->opt.bypassPKCS11   = PR_FALSE;
+#else
                     ss->opt.bypassPKCS11   = on;
+#endif
                 } else {
                     rv = SECFailure;
                 }
@@ -1113,7 +1081,11 @@ SSL_OptionSetDefault(PRInt32 which, PRBool on)
       case SSL_BYPASS_PKCS11:
         if (PR_FALSE != on) {
             if (PR_SUCCESS == SSL_BypassSetup()) {
+#ifdef NO_PKCS11_BYPASS
+                ssl_defaults.bypassPKCS11   = PR_FALSE;
+#else
                 ssl_defaults.bypassPKCS11   = on;
+#endif
             } else {
                 return SECFailure;
             }
@@ -1604,7 +1576,7 @@ SECStatus SSL_SetSRTPCiphers(PRFileDesc *fd,
 			     unsigned int numCiphers)
 {
     sslSocket *ss;
-    int i;
+    unsigned int i;
 
     ss = ssl_FindSocket(fd);
     if (!ss || !IS_DTLS(ss)) {
@@ -2941,15 +2913,17 @@ ssl_SetDefaultsFromEnvironment(void)
 		    fputs("# SSL/TLS secrets log file, generated by NSS\n",
 			  ssl_keylog_iob);
 		}
-		SSL_TRACE(("SSL: logging pre-master secrets to %s", ev));
+		SSL_TRACE(("SSL: logging SSL/TLS secrets to %s", ev));
 	    }
 	}
+#ifndef NO_PKCS11_BYPASS
 	ev = getenv("SSLBYPASS");
 	if (ev && ev[0]) {
 	    ssl_defaults.bypassPKCS11 = (ev[0] == '1');
 	    SSL_TRACE(("SSL: bypass default set to %d", \
 		      ssl_defaults.bypassPKCS11));
 	}
+#endif /* NO_PKCS11_BYPASS */
 	ev = getenv("SSLFORCELOCKS");
 	if (ev && ev[0] == '1') {
 	    ssl_force_locks = PR_TRUE;

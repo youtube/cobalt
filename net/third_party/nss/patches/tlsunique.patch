@@ -1,40 +1,7 @@
-diff --git a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
-index bb8c0b7..518cb21 100644
---- a/net/third_party/nss/ssl/ssl.h
-+++ b/net/third_party/nss/ssl/ssl.h
-@@ -282,6 +282,27 @@ SSL_IMPORT SECStatus SSL_CipherPrefGetDefault(PRInt32 cipher, PRBool *enabled);
- SSL_IMPORT SECStatus SSL_CipherPolicySet(PRInt32 cipher, PRInt32 policy);
- SSL_IMPORT SECStatus SSL_CipherPolicyGet(PRInt32 cipher, PRInt32 *policy);
- 
-+/* SSLChannelBindingType enumerates the types of supported channel binding
-+ * values. See RFC 5929. */
-+typedef enum SSLChannelBindingType {
-+    SSL_CHANNEL_BINDING_TLS_UNIQUE = 1,
-+} SSLChannelBindingType;
-+
-+/* SSL_GetChannelBinding copies the requested channel binding value, as defined
-+ * in RFC 5929, into |out|. The full length of the binding value is written
-+ * into |*outLen|.
-+ *
-+ * At most |outLenMax| bytes of data are copied. If |outLenMax| is
-+ * insufficient then the function returns SECFailure and sets the error to
-+ * SEC_ERROR_OUTPUT_LEN, but |*outLen| is still set.
-+ *
-+ * This call will fail if made during a renegotiation. */
-+SSL_IMPORT SECStatus SSL_GetChannelBinding(PRFileDesc *fd,
-+					   SSLChannelBindingType binding_type,
-+					   unsigned char *out,
-+					   unsigned int *outLen,
-+					   unsigned int outLenMax);
-+
- /* SSL Version Range API
- **
- ** This API should be used to control SSL 3.0 & TLS support instead of the
-diff --git a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
-index 0f1cdc6..1f6def2 100644
---- a/net/third_party/nss/ssl/ssl3con.c
-+++ b/net/third_party/nss/ssl/ssl3con.c
-@@ -10539,6 +10539,68 @@ ssl3_InitSocketPolicy(sslSocket *ss)
+diff -pu -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
+--- a/net/third_party/nss/ssl/ssl3con.c	2012-11-09 16:13:22.012407752 -0800
++++ b/net/third_party/nss/ssl/ssl3con.c	2012-11-09 16:14:14.123162240 -0800
+@@ -10719,6 +10719,68 @@ ssl3_InitSocketPolicy(sslSocket *ss)
      PORT_Memcpy(ss->cipherSuites, cipherSuites, sizeof cipherSuites);
  }
  
@@ -103,11 +70,41 @@ index 0f1cdc6..1f6def2 100644
  /* ssl3_config_match_init must have already been called by
   * the caller of this function.
   */
-diff --git a/net/third_party/nss/ssl/sslimpl.h b/net/third_party/nss/ssl/sslimpl.h
-index adad5d0..eda1885 100644
---- a/net/third_party/nss/ssl/sslimpl.h
-+++ b/net/third_party/nss/ssl/sslimpl.h
-@@ -1775,6 +1775,11 @@ extern PRBool ssl_GetSessionTicketKeysPKCS11(SECKEYPrivateKey *svrPrivKey,
+diff -pu -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
+--- a/net/third_party/nss/ssl/ssl.h	2012-11-09 16:13:22.062408475 -0800
++++ b/net/third_party/nss/ssl/ssl.h	2012-11-09 16:14:14.123162240 -0800
+@@ -250,6 +250,27 @@ SSL_IMPORT SECStatus SSL_CipherPrefGetDe
+ SSL_IMPORT SECStatus SSL_CipherPolicySet(PRInt32 cipher, PRInt32 policy);
+ SSL_IMPORT SECStatus SSL_CipherPolicyGet(PRInt32 cipher, PRInt32 *policy);
+ 
++/* SSLChannelBindingType enumerates the types of supported channel binding
++ * values. See RFC 5929. */
++typedef enum SSLChannelBindingType {
++    SSL_CHANNEL_BINDING_TLS_UNIQUE = 1,
++} SSLChannelBindingType;
++
++/* SSL_GetChannelBinding copies the requested channel binding value, as defined
++ * in RFC 5929, into |out|. The full length of the binding value is written
++ * into |*outLen|.
++ *
++ * At most |outLenMax| bytes of data are copied. If |outLenMax| is
++ * insufficient then the function returns SECFailure and sets the error to
++ * SEC_ERROR_OUTPUT_LEN, but |*outLen| is still set.
++ *
++ * This call will fail if made during a renegotiation. */
++SSL_IMPORT SECStatus SSL_GetChannelBinding(PRFileDesc *fd,
++					   SSLChannelBindingType binding_type,
++					   unsigned char *out,
++					   unsigned int *outLen,
++					   unsigned int outLenMax);
++
+ /* SSL Version Range API
+ **
+ ** This API should be used to control SSL 3.0 & TLS support instead of the
+diff -pu -r a/net/third_party/nss/ssl/sslimpl.h b/net/third_party/nss/ssl/sslimpl.h
+--- a/net/third_party/nss/ssl/sslimpl.h	2012-11-09 16:13:22.062408475 -0800
++++ b/net/third_party/nss/ssl/sslimpl.h	2012-11-09 16:14:14.123162240 -0800
+@@ -1732,6 +1732,11 @@ extern PRBool ssl_GetSessionTicketKeysPK
  extern SECStatus ssl3_ValidateNextProtoNego(const unsigned char* data,
  					    unsigned int length);
  
@@ -119,11 +116,10 @@ index adad5d0..eda1885 100644
  /* Construct a new NSPR socket for the app to use */
  extern PRFileDesc *ssl_NewPRSocket(sslSocket *ss, PRFileDesc *fd);
  extern void ssl_FreePRSocket(PRFileDesc *fd);
-diff --git a/net/third_party/nss/ssl/sslsock.c b/net/third_party/nss/ssl/sslsock.c
-index 9387a21..1823a1c 100644
---- a/net/third_party/nss/ssl/sslsock.c
-+++ b/net/third_party/nss/ssl/sslsock.c
-@@ -1382,6 +1382,27 @@ NSS_SetFrancePolicy(void)
+diff -pu -r a/net/third_party/nss/ssl/sslsock.c b/net/third_party/nss/ssl/sslsock.c
+--- a/net/third_party/nss/ssl/sslsock.c	2012-11-09 16:13:22.062408475 -0800
++++ b/net/third_party/nss/ssl/sslsock.c	2012-11-09 16:14:14.123162240 -0800
+@@ -1354,6 +1354,27 @@ NSS_SetFrancePolicy(void)
      return NSS_SetDomesticPolicy();
  }
  
