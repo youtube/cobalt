@@ -1,18 +1,7 @@
-From 9a71b466147bcd334243d62996558a609657c07c Mon Sep 17 00:00:00 2001
-From: Adam Langley <agl@chromium.org>
-Date: Mon, 3 Oct 2011 12:19:48 -0400
-Subject: [PATCH] versionskew.patch
-
----
- mozilla/security/nss/lib/ssl/sslsecur.c |    5 +++++
- mozilla/security/nss/lib/ssl/sslsock.c  |    6 ++++++
- 2 files changed, 11 insertions(+), 0 deletions(-)
-
-diff --git a/mozilla/security/nss/lib/ssl/sslsecur.c b/mozilla/security/nss/lib/ssl/sslsecur.c
-index a0cae54..816b8f6 100644
---- a/mozilla/security/nss/lib/ssl/sslsecur.c
-+++ b/mozilla/security/nss/lib/ssl/sslsecur.c
-@@ -1316,6 +1316,10 @@ SSL_SetURL(PRFileDesc *fd, const char *url)
+diff -pu -r a/net/third_party/nss/ssl/sslsecur.c b/net/third_party/nss/ssl/sslsecur.c
+--- a/net/third_party/nss/ssl/sslsecur.c	2012-05-24 13:34:51.000000000 -0700
++++ b/net/third_party/nss/ssl/sslsecur.c	2012-11-09 15:15:21.901558709 -0800
+@@ -1312,6 +1312,10 @@ SSL_SetURL(PRFileDesc *fd, const char *u
  SECStatus
  SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *certList)
  {
@@ -23,7 +12,7 @@ index a0cae54..816b8f6 100644
      sslSocket *   ss = ssl_FindSocket(fd);
      CERTDistNames *names = NULL;
  
-@@ -1343,6 +1347,7 @@ SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *certList)
+@@ -1339,6 +1343,7 @@ SSL_SetTrustAnchors(PRFileDesc *fd, CERT
      ssl_Release1stHandshakeLock(ss);
  
      return SECSuccess;
@@ -31,11 +20,10 @@ index a0cae54..816b8f6 100644
  }
  
  /*
-diff --git a/mozilla/security/nss/lib/ssl/sslsock.c b/mozilla/security/nss/lib/ssl/sslsock.c
-index 4c8fbfd..b7e32a2 100644
---- a/mozilla/security/nss/lib/ssl/sslsock.c
-+++ b/mozilla/security/nss/lib/ssl/sslsock.c
-@@ -1343,6 +1343,11 @@ SSL_GetNextProto(PRFileDesc *fd, int *state, unsigned char *buf,
+diff -pu -r a/net/third_party/nss/ssl/sslsock.c b/net/third_party/nss/ssl/sslsock.c
+--- a/net/third_party/nss/ssl/sslsock.c	2012-09-24 16:57:42.000000000 -0700
++++ b/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:15:21.901558709 -0800
+@@ -1603,6 +1603,11 @@ SSL_GetSRTPCipher(PRFileDesc *fd, PRUint
  PRFileDesc *
  SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
  {
@@ -46,12 +34,12 @@ index 4c8fbfd..b7e32a2 100644
 +#if 0
      sslSocket * sm = NULL, *ss = NULL;
      int i;
-     sslServerCerts * mc = sm->serverCerts;
-@@ -1445,6 +1450,7 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
+     sslServerCerts * mc = NULL;
+@@ -1711,6 +1716,7 @@ SSL_ReconfigFD(PRFileDesc *model, PRFile
      return fd;
  loser:
      return NULL;
 +#endif
  }
  
- /************************************************************************/
+ PRBool

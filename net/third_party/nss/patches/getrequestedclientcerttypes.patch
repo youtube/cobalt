@@ -1,7 +1,28 @@
-diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
---- a/src/net/third_party/nss/ssl/ssl.h	2012-02-29 17:23:52.089678011 -0800
-+++ b/src/net/third_party/nss/ssl/ssl.h	2012-02-29 17:43:25.796676478 -0800
-@@ -648,6 +648,16 @@ SSL_IMPORT SECStatus SSL_ReHandshakeWith
+diff -pu -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3con.c
+--- a/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:39:36.842891686 -0800
++++ b/net/third_party/nss/ssl/ssl3con.c	2012-11-09 15:47:24.309734248 -0800
+@@ -5946,6 +5946,9 @@ ssl3_HandleCertificateRequest(sslSocket 
+     if (rv != SECSuccess)
+     	goto loser;		/* malformed, alert has been sent */
+ 
++    PORT_Assert(!ss->requestedCertTypes);
++    ss->requestedCertTypes = &cert_types;
++
+     arena = ca_list.arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+     if (arena == NULL)
+     	goto no_mem;
+@@ -6135,6 +6138,7 @@ loser:
+     PORT_SetError(errCode);
+     rv = SECFailure;
+ done:
++    ss->requestedCertTypes = NULL;
+     if (arena != NULL)
+     	PORT_FreeArena(arena, PR_FALSE);
+ #ifdef NSS_PLATFORM_CLIENT_AUTH
+diff -pu -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
+--- a/net/third_party/nss/ssl/ssl.h	2012-11-09 15:44:43.337377864 -0800
++++ b/net/third_party/nss/ssl/ssl.h	2012-11-09 15:47:24.309734248 -0800
+@@ -709,6 +709,16 @@ SSL_IMPORT SECStatus SSL_ReHandshakeWith
                                                  PRBool flushCache,
                                                  PRIntervalTime timeout);
  
@@ -18,31 +39,10 @@ diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
  
  #ifdef SSL_DEPRECATED_FUNCTION 
  /* deprecated!
-diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/ssl3con.c
---- a/src/net/third_party/nss/ssl/ssl3con.c	2012-02-29 17:23:52.089678011 -0800
-+++ b/src/net/third_party/nss/ssl/ssl3con.c	2012-02-29 17:43:25.796676478 -0800
-@@ -5567,6 +5567,9 @@ ssl3_HandleCertificateRequest(sslSocket 
-     if (rv != SECSuccess)
-     	goto loser;		/* malformed, alert has been sent */
- 
-+    PORT_Assert(!ss->requestedCertTypes);
-+    ss->requestedCertTypes = &cert_types;
-+
-     arena = ca_list.arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
-     if (arena == NULL)
-     	goto no_mem;
-@@ -5756,6 +5759,7 @@ loser:
-     PORT_SetError(errCode);
-     rv = SECFailure;
- done:
-+    ss->requestedCertTypes = NULL;
-     if (arena != NULL)
-     	PORT_FreeArena(arena, PR_FALSE);
- #ifdef NSS_PLATFORM_CLIENT_AUTH
-diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/sslimpl.h
---- a/src/net/third_party/nss/ssl/sslimpl.h	2012-02-29 17:23:52.089678011 -0800
-+++ b/src/net/third_party/nss/ssl/sslimpl.h	2012-02-29 17:43:25.796676478 -0800
-@@ -1097,6 +1097,10 @@ struct sslSocketStr {
+diff -pu -r a/net/third_party/nss/ssl/sslimpl.h b/net/third_party/nss/ssl/sslimpl.h
+--- a/net/third_party/nss/ssl/sslimpl.h	2012-11-09 15:39:36.942893150 -0800
++++ b/net/third_party/nss/ssl/sslimpl.h	2012-11-09 15:47:24.309734248 -0800
+@@ -1141,6 +1141,10 @@ struct sslSocketStr {
      unsigned int     sizeCipherSpecs;
  const unsigned char *  preferredCipher;
  
@@ -53,10 +53,10 @@ diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/s
      ssl3KeyPair *         stepDownKeyPair;	/* RSA step down keys */
  
      /* Callbacks */
-diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/sslsock.c
---- a/src/net/third_party/nss/ssl/sslsock.c	2012-02-29 17:12:15.750044671 -0800
-+++ b/src/net/third_party/nss/ssl/sslsock.c	2012-02-29 17:43:25.796676478 -0800
-@@ -1615,6 +1615,20 @@ SSL_HandshakeResumedSession(PRFileDesc *
+diff -pu -r a/net/third_party/nss/ssl/sslsock.c b/net/third_party/nss/ssl/sslsock.c
+--- a/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:44:43.337377864 -0800
++++ b/net/third_party/nss/ssl/sslsock.c	2012-11-09 15:47:24.309734248 -0800
+@@ -1926,6 +1926,20 @@ SSL_HandshakeResumedSession(PRFileDesc *
      return SECSuccess;
  }
  
@@ -77,7 +77,7 @@ diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/s
  /************************************************************************/
  /* The following functions are the TOP LEVEL SSL functions.
  ** They all get called through the NSPRIOMethods table below.
-@@ -2643,6 +2657,7 @@ ssl_NewSocket(PRBool makeLocks)
+@@ -2957,6 +2971,7 @@ ssl_NewSocket(PRBool makeLocks, SSLProto
  	    sc->serverKeyPair   = NULL;
  	    sc->serverKeyBits   = 0;
  	}

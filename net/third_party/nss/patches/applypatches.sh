@@ -10,48 +10,34 @@
 # chromium source tree.
 patches_dir=/Users/wtc/chrome1/src/net/third_party/nss/patches
 
-patch -p6 < $patches_dir/versionskew.patch
+patch -p5 < $patches_dir/versionskew.patch
 
-patch -p6 < $patches_dir/renegoscsv.patch
+patch -p5 < $patches_dir/renegoscsv.patch
 
-patch -p6 < $patches_dir/cachecerts.patch
+patch -p5 < $patches_dir/cachecerts.patch
 
 patch -p5 < $patches_dir/peercertchain.patch
 
-patch -p6 < $patches_dir/ocspstapling.patch
+patch -p5 < $patches_dir/ocspstapling.patch
 
-patch -p6 < $patches_dir/clientauth.patch
+patch -p5 < $patches_dir/clientauth.patch
 
-patch -p6 < $patches_dir/didhandshakeresume.patch
+patch -p5 < $patches_dir/didhandshakeresume.patch
 
-patch -p6 < $patches_dir/negotiatedextension.patch
+patch -p5 < $patches_dir/negotiatedextension.patch
 
-patch -p6 < $patches_dir/getrequestedclientcerttypes.patch
+patch -p5 < $patches_dir/getrequestedclientcerttypes.patch
 
-patch -p6 < $patches_dir/restartclientauth.patch
-
-patch -p4 < $patches_dir/dtls.patch
+patch -p5 < $patches_dir/restartclientauth.patch
 
 patch -p5 < $patches_dir/falsestartnpn.patch
 
-patch -p5 < $patches_dir/dhvalues.patch
-
 patch -p5 < $patches_dir/channelid.patch
-
-patch -p4 < $patches_dir/dtlssrtp.patch
-
-patch -p5 < $patches_dir/keylog.patch
-
-patch -p4 < $patches_dir/getchannelinfo.patch
 
 patch -p5 < $patches_dir/tlsunique.patch
 
 patch -p5 < $patches_dir/sslkeylogerror.patch
 
-patch -p5 < $patches_dir/recordlayerversion.patch
+patch -p5 < $patches_dir/ecpointform.patch
 
-patch -p5 < $patches_dir/sslprotocolvariant.patch
-
-patch -p5 < $patches_dir/renegoclientversion.patch
-
-patch -p4 < $patches_dir/checkuncache.patch
+patch -p5 < $patches_dir/secretexporterlocks.patch
