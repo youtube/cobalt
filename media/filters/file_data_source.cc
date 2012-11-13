@@ -88,7 +88,7 @@ bool FileDataSource::GetSize(int64* size_out) {
   DCHECK(file_);
   base::AutoLock l(lock_);
   *size_out = file_size_;
-  return file_;
+  return true;
 }
 
 bool FileDataSource::IsStreaming() {
