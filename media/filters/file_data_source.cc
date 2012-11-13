@@ -15,13 +15,8 @@ namespace media {
 FileDataSource::FileDataSource()
     : file_(NULL),
       file_size_(0),
-      disable_file_size_(false) {
-}
-
-FileDataSource::FileDataSource(bool disable_file_size)
-    : file_(NULL),
-      file_size_(0),
-      disable_file_size_(disable_file_size) {
+      force_read_errors_(false),
+      force_streaming_(false) {
 }
 
 bool FileDataSource::Initialize(const std::string& url) {
@@ -63,7 +58,8 @@ void FileDataSource::Read(int64 position, int size, uint8* data,
                           const DataSource::ReadCB& read_cb) {
   DCHECK(file_);
   base::AutoLock l(lock_);
-  if (file_) {
+
+  if (!force_read_errors_ && file_) {
 #if defined(OS_WIN)
     if (_fseeki64(file_, position, SEEK_SET)) {
       read_cb.Run(DataSource::kReadError);
@@ -92,11 +88,11 @@ bool FileDataSource::GetSize(int64* size_out) {
   DCHECK(file_);
   base::AutoLock l(lock_);
   *size_out = file_size_;
-  return (NULL != file_ && !disable_file_size_);
+  return file_;
 }
 
 bool FileDataSource::IsStreaming() {
-  return false;
+  return force_streaming_;
 }
 
 void FileDataSource::SetBitrate(int bitrate) {}
