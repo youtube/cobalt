@@ -2930,6 +2930,42 @@ TEST_F(URLRequestTestHTTP, RedirectWithAdditionalHeadersTest) {
   EXPECT_EQ(kExtraValue, d.data_received());
 }
 
+namespace {
+
+const char kExtraHeaderToRemove[] = "To-Be-Removed";
+
+class RedirectWithHeaderRemovalDelegate : public TestDelegate {
+  void OnReceivedRedirect(net::URLRequest* request,
+                          const GURL& new_url,
+                          bool* defer_redirect) {
+    TestDelegate::OnReceivedRedirect(request, new_url, defer_redirect);
+    request->RemoveRequestHeaderByName(kExtraHeaderToRemove);
+  }
+};
+
+}  // namespace
+
+TEST_F(URLRequestTestHTTP, RedirectWithHeaderRemovalTest) {
+  ASSERT_TRUE(test_server_.Start());
+
+  GURL destination_url = test_server_.GetURL(
+      "echoheader?" + std::string(kExtraHeaderToRemove));
+  GURL original_url = test_server_.GetURL(
+      "server-redirect?" + destination_url.spec());
+  RedirectWithHeaderRemovalDelegate d;
+  URLRequest req(original_url, &d, &default_context_);
+  req.SetExtraRequestHeaderByName(kExtraHeaderToRemove, "dummy", false);
+  req.Start();
+  MessageLoop::current()->Run();
+
+  std::string value;
+  const HttpRequestHeaders& headers = req.extra_request_headers();
+  EXPECT_FALSE(headers.GetHeader(kExtraHeaderToRemove, &value));
+  EXPECT_FALSE(req.is_pending());
+  EXPECT_FALSE(req.is_redirecting());
+  EXPECT_EQ("None", d.data_received());
+}
+
 TEST_F(URLRequestTestHTTP, CancelTest) {
   TestDelegate d;
   {
