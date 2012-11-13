@@ -431,12 +431,14 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // Returns true if the request has a non-empty message body to upload.
   bool has_upload() const;
 
-  // Set an extra request header by ID or name.  These methods may only be
-  // called before Start() is called.  It is an error to call it later.
+  // Set an extra request header by ID or name, or remove one by name.  These
+  // methods may only be called before Start() is called, or before a new
+  // redirect in the request chain.
   void SetExtraRequestHeaderById(int header_id, const std::string& value,
                                  bool overwrite);
   void SetExtraRequestHeaderByName(const std::string& name,
                                    const std::string& value, bool overwrite);
+  void RemoveRequestHeaderByName(const std::string& name);
 
   // Sets all extra request headers.  Any extra request headers set by other
   // methods are overwritten by this method.  This method may only be called
