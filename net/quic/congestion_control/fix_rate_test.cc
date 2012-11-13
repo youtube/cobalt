@@ -69,16 +69,16 @@ TEST_F(FixRateTest, SenderAPI) {
 }
 
 TEST_F(FixRateTest, FixRatePacing) {
-  const uint64 packet_size = 1200;
-  const uint64 bit_rate = 240000;
-  const uint64 num_packets = 200;
+  const int64 packet_size = 1200;
+  const int64 bit_rate = 240000;
+  const int64 num_packets = 200;
   CongestionInfo info;
   receiver_->SetBitrate(240000);  // Bytes per second.
   ASSERT_TRUE(receiver_->GenerateCongestionInfo(&info));
   sender_->OnIncomingCongestionInfo(info);
   QuicTime acc_advance_time;
   QuicPacketSequenceNumber sequence_number = 0;
-  for (size_t i = 0; i < num_packets; i += 2) {
+  for (int i = 0; i < num_packets; i += 2) {
     EXPECT_TRUE(sender_->TimeUntilSend(false).IsZero());
     EXPECT_EQ(kMaxPacketSize * 2, sender_->AvailableCongestionWindow());
     sender_->SentPacket(sequence_number++, packet_size, false);
