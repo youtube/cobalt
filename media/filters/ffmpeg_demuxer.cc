@@ -263,14 +263,12 @@ FFmpegDemuxer::FFmpegDemuxer(
     : host_(NULL),
       message_loop_(message_loop),
       data_source_(data_source),
-      read_event_(false, false),
-      read_has_failed_(false),
-      last_read_bytes_(0),
-      read_position_(0),
       bitrate_(0),
       start_time_(kNoTimestamp()),
       audio_disabled_(false),
-      duration_known_(false) {
+      duration_known_(false),
+      url_protocol_(data_source, base::Bind(
+          &FFmpegDemuxer::OnDataSourceError, base::Unretained(this))) {
   DCHECK(message_loop_);
   DCHECK(data_source_);
 }
@@ -287,8 +285,10 @@ void FFmpegDemuxer::Stop(const base::Closure& callback) {
   message_loop_->PostTask(FROM_HERE,
                           base::Bind(&FFmpegDemuxer::StopTask, this, callback));
 
-  // Then wakes up the thread from reading.
-  SignalReadCompleted(DataSource::kReadError);
+  // TODO(scherkus): This should be on |message_loop_| but today that thread is
+  // potentially blocked. Move to StopTask() after all blocking calls are
+  // guaranteed to run on a separate thread.
+  url_protocol_.Abort();
 }
 
 void FFmpegDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
@@ -330,73 +330,6 @@ scoped_refptr<FFmpegDemuxerStream> FFmpegDemuxer::GetFFmpegStream(
 
 base::TimeDelta FFmpegDemuxer::GetStartTime() const {
   return start_time_;
-}
-
-int FFmpegDemuxer::Read(int size, uint8* data) {
-  DCHECK(host_);
-  DCHECK(data_source_);
-
-  // If read has ever failed, return with an error.
-  // TODO(hclam): use a more meaningful constant as error.
-  if (read_has_failed_)
-    return AVERROR(EIO);
-
-  // Even though FFmpeg defines AVERROR_EOF, it's not to be used with I/O
-  // routines.  Instead return 0 for any read at or past EOF.
-  int64 file_size;
-  if (data_source_->GetSize(&file_size) && read_position_ >= file_size)
-    return 0;
-
-  // Asynchronous read from data source.
-  data_source_->Read(read_position_, size, data, base::Bind(
-      &FFmpegDemuxer::SignalReadCompleted, this));
-
-  // TODO(hclam): The method is called on the demuxer thread and this method
-  // call will block the thread. We need to implemented an additional thread to
-  // let FFmpeg demuxer methods to run on.
-  int last_read_bytes = WaitForRead();
-  if (last_read_bytes == DataSource::kReadError) {
-    host_->OnDemuxerError(PIPELINE_ERROR_READ);
-
-    // Returns with a negative number to signal an error to FFmpeg.
-    read_has_failed_ = true;
-    return AVERROR(EIO);
-  }
-  read_position_ += last_read_bytes;
-
-  return last_read_bytes;
-}
-
-bool FFmpegDemuxer::GetPosition(int64* position_out) {
-  DCHECK(host_);
-  *position_out = read_position_;
-  return true;
-}
-
-bool FFmpegDemuxer::SetPosition(int64 position) {
-  DCHECK(host_);
-  DCHECK(data_source_);
-
-  int64 file_size;
-  if ((data_source_->GetSize(&file_size) && position >= file_size) ||
-      position < 0) {
-    return false;
-  }
-
-  read_position_ = position;
-  return true;
-}
-
-bool FFmpegDemuxer::GetSize(int64* size_out) {
-  DCHECK(host_);
-  DCHECK(data_source_);
-  return data_source_->GetSize(size_out);
-}
-
-bool FFmpegDemuxer::IsStreaming() {
-  DCHECK(host_);
-  DCHECK(data_source_);
-  return data_source_->IsStreaming();
 }
 
 scoped_refptr<base::MessageLoopProxy> FFmpegDemuxer::message_loop() {
@@ -448,7 +381,7 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
   // see http://crbug.com/122071
   data_source_->set_host(host);
 
-  glue_.reset(new FFmpegGlue(this));
+  glue_.reset(new FFmpegGlue(&url_protocol_));
   AVFormatContext* format_context = glue_->format_context();
 
   // Disable ID3v1 tag reading to avoid costly seeks to end of file for data we
@@ -539,7 +472,7 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
   duration_known_ = (max_duration != kInfiniteDuration());
 
   int64 filesize_in_bytes = 0;
-  GetSize(&filesize_in_bytes);
+  url_protocol_.GetSize(&filesize_in_bytes);
   bitrate_ = CalculateBitrate(format_context, max_duration, filesize_in_bytes);
   if (bitrate_ > 0)
     data_source_->SetBitrate(bitrate_);
@@ -683,16 +616,6 @@ void FFmpegDemuxer::StreamHasEnded() {
   }
 }
 
-int FFmpegDemuxer::WaitForRead() {
-  read_event_.Wait();
-  return last_read_bytes_;
-}
-
-void FFmpegDemuxer::SignalReadCompleted(int size) {
-  last_read_bytes_ = size;
-  read_event_.Signal();
-}
-
 void FFmpegDemuxer::NotifyBufferingChanged() {
   DCHECK(message_loop_->BelongsToCurrentThread());
   Ranges<base::TimeDelta> buffered;
@@ -710,6 +633,10 @@ void FFmpegDemuxer::NotifyBufferingChanged() {
   }
   for (size_t i = 0; i < buffered.size(); ++i)
     host_->AddBufferedTimeRange(buffered.start(i), buffered.end(i));
+}
+
+void FFmpegDemuxer::OnDataSourceError() {
+  host_->OnDemuxerError(PIPELINE_ERROR_READ);
 }
 
 }  // namespace media

@@ -27,13 +27,12 @@
 
 #include "base/callback.h"
 #include "base/gtest_prod_util.h"
-#include "base/synchronization/waitable_event.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer.h"
 #include "media/base/pipeline.h"
 #include "media/base/video_decoder_config.h"
-#include "media/filters/ffmpeg_glue.h"
+#include "media/filters/blocking_url_protocol.h"
 
 // FFmpeg forward declarations.
 struct AVPacket;
@@ -43,6 +42,7 @@ struct AVStream;
 namespace media {
 
 class FFmpegDemuxer;
+class FFmpegGlue;
 class FFmpegH264ToAnnexBBitstreamConverter;
 class ScopedPtrAVFreePacket;
 
@@ -138,7 +138,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerStream);
 };
 
-class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
+class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
  public:
   FFmpegDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                 const scoped_refptr<DataSource>& data_source);
@@ -156,13 +156,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
-
-  // FFmpegURLProtocol implementation.
-  virtual int Read(int size, uint8* data) OVERRIDE;
-  virtual bool GetPosition(int64* position_out) OVERRIDE;
-  virtual bool SetPosition(int64 position) OVERRIDE;
-  virtual bool GetSize(int64* size_out) OVERRIDE;
-  virtual bool IsStreaming() OVERRIDE;
 
   // Provide access to FFmpegDemuxerStream.
   scoped_refptr<base::MessageLoopProxy> message_loop();
@@ -204,12 +197,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // Must be called on the demuxer thread.
   void StreamHasEnded();
 
-  // Wait for asynchronous read to complete and return number of bytes read.
-  virtual int WaitForRead();
-
-  // Signal the blocked thread that the read has completed, with |size| bytes
-  // read or kReadError in case of error.
-  virtual void SignalReadCompleted(int size);
+  // Called by |url_protocol_| whenever |data_source_| returns a read error.
+  void OnDataSourceError();
 
   // Returns the stream from |streams_| that matches |type| as an
   // FFmpegDemuxerStream.
@@ -236,18 +225,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // this object.
   scoped_refptr<DataSource> data_source_;
 
-  // This member is used to block on read method calls from FFmpeg and wait
-  // until the asynchronous reads in the data source to complete. It is also
-  // signaled when the demuxer is being stopped.
-  base::WaitableEvent read_event_;
-
-  // Flag to indicate if read has ever failed. Once set to true, it will
-  // never be reset. This flag is set true and accessed in Read().
-  bool read_has_failed_;
-
-  int last_read_bytes_;
-  int64 read_position_;
-
   // Derived bitrate after initialization has completed.
   int bitrate_;
 
@@ -264,6 +241,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // stream -- at this moment we definitely know duration.
   bool duration_known_;
 
+  // FFmpegURLProtocol implementation and corresponding glue bits.
+  BlockingUrlProtocol url_protocol_;
   scoped_ptr<FFmpegGlue> glue_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
