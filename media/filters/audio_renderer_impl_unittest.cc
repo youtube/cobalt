@@ -8,6 +8,7 @@
 #include "base/message_loop.h"
 #include "base/stl_util.h"
 #include "media/base/data_buffer.h"
+#include "media/base/gmock_callback_support.h"
 #include "media/base/mock_audio_renderer_sink.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
@@ -20,10 +21,6 @@ using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::NiceMock;
 using ::testing::StrictMock;
-
-ACTION_P(RunPipelineStatusCB1, status) {
-  arg1.Run(status);
-}
 
 namespace media {
 
@@ -100,7 +97,7 @@ class AudioRendererImplTest : public ::testing::Test {
 
   void Initialize() {
     EXPECT_CALL(*decoder_, Initialize(_, _, _))
-        .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
+        .WillOnce(RunCallback<1>(PIPELINE_OK));
 
     InitializeWithStatus(PIPELINE_OK);
     message_loop_.RunUntilIdle();
@@ -246,7 +243,7 @@ class AudioRendererImplTest : public ::testing::Test {
 
 TEST_F(AudioRendererImplTest, Initialize_Failed) {
   EXPECT_CALL(*decoder_, Initialize(_, _, _))
-      .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
+      .WillOnce(RunCallback<1>(PIPELINE_OK));
   SetUnsupportedAudioDecoderProperties();
 
   InitializeWithStatus(PIPELINE_ERROR_INITIALIZATION_FAILED);
@@ -264,7 +261,7 @@ TEST_F(AudioRendererImplTest, Initialize_Successful) {
 
 TEST_F(AudioRendererImplTest, Initialize_DecoderInitFailure) {
   EXPECT_CALL(*decoder_, Initialize(_, _, _))
-      .WillOnce(RunPipelineStatusCB1(PIPELINE_ERROR_DECODE));
+      .WillOnce(RunCallback<1>(PIPELINE_ERROR_DECODE));
   InitializeWithStatus(PIPELINE_ERROR_DECODE);
 
   // We should have no reads.
@@ -276,9 +273,9 @@ TEST_F(AudioRendererImplTest, Initialize_MultipleDecoders) {
   // Insert |decoder1| as the first decoder in the list.
   decoders_.push_front(decoder1);
   EXPECT_CALL(*decoder1, Initialize(_, _, _))
-      .WillOnce(RunPipelineStatusCB1(DECODER_ERROR_NOT_SUPPORTED));
+      .WillOnce(RunCallback<1>(DECODER_ERROR_NOT_SUPPORTED));
   EXPECT_CALL(*decoder_, Initialize(_, _, _))
-      .WillOnce(RunPipelineStatusCB1(PIPELINE_OK));
+      .WillOnce(RunCallback<1>(PIPELINE_OK));
   InitializeWithStatus(PIPELINE_OK);
 
   // We should have no reads.

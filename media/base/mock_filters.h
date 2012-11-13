@@ -305,10 +305,6 @@ class MockFilterCollection {
   DISALLOW_COPY_AND_ASSIGN(MockFilterCollection);
 };
 
-ACTION(RunClosure) {
-  arg0.Run();
-}
-
 // Helper mock statistics callback.
 class MockStatisticsCB {
  public:
