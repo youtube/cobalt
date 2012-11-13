@@ -369,7 +369,7 @@ function bb_check_webview_licenses {
   cd "${SRC_ROOT}"
   python android_webview/tools/webview_licenses.py scan
   if [[ $? -ne 0 ]]; then
-    echo "@@@STEP_FAILURE@@@"
+    echo "@@@STEP_WARNINGS@@@"
   fi
   return 0
   )
