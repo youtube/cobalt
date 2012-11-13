@@ -72,9 +72,7 @@ class TestConnectionHelper : public QuicConnectionHelper {
 
   virtual ~TestConnectionHelper() {}
 
-  virtual int WritePacketToWire(QuicPacketSequenceNumber number,
-                                const QuicEncryptedPacket& packet,
-                                bool resend,
+  virtual int WritePacketToWire(const QuicEncryptedPacket& packet,
                                 int* error) {
     QuicFramer framer(QuicDecrypter::Create(kNULL),
                       QuicEncrypter::Create(kNULL));

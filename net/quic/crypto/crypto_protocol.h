@@ -16,8 +16,8 @@
 namespace net {
 
 typedef uint32 CryptoTag;
-typedef std::vector<CryptoTag> CryptoTagVector;
 typedef std::map<CryptoTag, base::StringPiece> CryptoTagValueMap;
+typedef std::vector<CryptoTag> CryptoTagVector;
 struct NET_EXPORT_PRIVATE CryptoHandshakeMessage {
   CryptoHandshakeMessage();
   ~CryptoHandshakeMessage();
@@ -31,7 +31,7 @@ struct NET_EXPORT_PRIVATE CryptoHandshakeMessage {
 // following 4 bytes: 'C' 'H' 'L' 'O'.  Since it is
 // stored in memory as a little endian uint32, we need
 // to reverse the order of the bytes.
-#define MAKE_TAG(a,b,c,d) (d << 24) + (c << 16) + (b << 8) + a
+#define MAKE_TAG(a, b, c, d) (d << 24) + (c << 16) + (b << 8) + a
 
 const CryptoTag kCHLO = MAKE_TAG('C', 'H', 'L', 'O');  // Client hello
 const CryptoTag kSHLO = MAKE_TAG('S', 'H', 'L', 'O');  // Server hello

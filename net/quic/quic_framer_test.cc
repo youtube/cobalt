@@ -292,7 +292,7 @@ TEST_F(QuicFramerTest, PacketHeader) {
     EXPECT_FALSE(framer_.ProcessPacket(self_address_, peer_address_,
                                        encrypted));
     EXPECT_EQ(expected_error, framer_.detailed_error());
-    EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+    EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error()) << " i: " << i;
   }
 }
 
@@ -585,18 +585,16 @@ TEST_F(QuicFramerTest, AckFrame) {
   EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
-  const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &frame.received_info.missing_packets;
-  ASSERT_EQ(2u, sequence_nums->size());
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
+  const SequenceSet& sequence_nums = frame.received_info.missing_packets;
+  ASSERT_EQ(2u, sequence_nums.size());
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABB)));
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABA)));
   EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
   ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
-  const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &frame.sent_info.non_retransmiting;
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
+  const SequenceSet& non_retrans = frame.sent_info.non_retransmiting;
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AB0)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAF)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAE)));
   ASSERT_EQ(kNone, frame.congestion_info.type);
 
   // Now test framing boundaries
@@ -700,18 +698,16 @@ TEST_F(QuicFramerTest, AckFrameTCP) {
   EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
-  const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &frame.received_info.missing_packets;
-  ASSERT_EQ(2u, sequence_nums->size());
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
+  const SequenceSet& sequence_nums = frame.received_info.missing_packets;
+  ASSERT_EQ(2u, sequence_nums.size());
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABB)));
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABA)));
   EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
   ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
-  const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &frame.sent_info.non_retransmiting;
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
+  const SequenceSet& non_retrans = frame.sent_info.non_retransmiting;
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AB0)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAF)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAE)));
   ASSERT_EQ(kTCP, frame.congestion_info.type);
   EXPECT_EQ(0x0201,
             frame.congestion_info.tcp.accumulated_number_of_lost_packets);
@@ -806,18 +802,16 @@ TEST_F(QuicFramerTest, AckFrameInterArrival) {
   EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
-  const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &frame.received_info.missing_packets;
-  ASSERT_EQ(2u, sequence_nums->size());
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
+  const SequenceSet& sequence_nums = frame.received_info.missing_packets;
+  ASSERT_EQ(2u, sequence_nums.size());
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABB)));
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABA)));
   EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
   ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
-  const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &frame.sent_info.non_retransmiting;
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
+  const SequenceSet& non_retrans = frame.sent_info.non_retransmiting;
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AB0)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAF)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAE)));
   ASSERT_EQ(kInterArrival, frame.congestion_info.type);
   EXPECT_EQ(0x0302, frame.congestion_info.inter_arrival.
             accumulated_number_of_lost_packets);
@@ -910,18 +904,16 @@ TEST_F(QuicFramerTest, AckFrameFixRate) {
   EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
-  const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &frame.received_info.missing_packets;
-  ASSERT_EQ(2u, sequence_nums->size());
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
+  const SequenceSet& sequence_nums = frame.received_info.missing_packets;
+  ASSERT_EQ(2u, sequence_nums.size());
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABB)));
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABA)));
   EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
   ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
-  const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &frame.sent_info.non_retransmiting;
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
+  const SequenceSet& non_retrans = frame.sent_info.non_retransmiting;
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AB0)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAF)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAE)));
   ASSERT_EQ(kFixRate, frame.congestion_info.type);
   EXPECT_EQ(static_cast<uint32>(0x04030201),
             frame.congestion_info.fix_rate.bitrate_in_bytes_per_second);
@@ -1154,18 +1146,16 @@ TEST_F(QuicFramerTest, ConnectionCloseFrame) {
   EXPECT_EQ(QuicTime::FromMicroseconds(GG_UINT64_C(0x07E1D2C3B4A59687)),
             frame.received_info.time_received);
 
-  const hash_set<QuicPacketSequenceNumber>* sequence_nums =
-      &frame.received_info.missing_packets;
-  ASSERT_EQ(2u, sequence_nums->size());
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABB)));
-  EXPECT_EQ(1u, sequence_nums->count(GG_UINT64_C(0x0123456789ABA)));
+  const SequenceSet& sequence_nums = frame.received_info.missing_packets;
+  ASSERT_EQ(2u, sequence_nums.size());
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABB)));
+  EXPECT_EQ(1u, sequence_nums.count(GG_UINT64_C(0x0123456789ABA)));
   EXPECT_EQ(GG_UINT64_C(0x0123456789AA0), frame.sent_info.least_unacked);
   ASSERT_EQ(3u, frame.sent_info.non_retransmiting.size());
-  const hash_set<QuicPacketSequenceNumber>* non_retrans =
-      &frame.sent_info.non_retransmiting;
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AB0)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAF)));
-  EXPECT_EQ(1u, non_retrans->count(GG_UINT64_C(0x0123456789AAE)));
+  const SequenceSet& non_retrans = frame.sent_info.non_retransmiting;
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AB0)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAF)));
+  EXPECT_EQ(1u, non_retrans.count(GG_UINT64_C(0x0123456789AAE)));
   ASSERT_EQ(kInterArrival, frame.congestion_info.type);
   EXPECT_EQ(0x0302, frame.congestion_info.inter_arrival.
             accumulated_number_of_lost_packets);
@@ -1347,6 +1337,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // unacked packet sequence number
     0xBB, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1367,6 +1358,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacket) {
     // num non retransmitting packets
     0x03,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // non retransmitting packet sequence number
     0xB0, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1459,6 +1451,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // unacked packet sequence number
     0xBB, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1479,6 +1472,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketTCP) {
     // num non retransmitting packets
     0x03,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // non retransmitting packet sequence number
     0xB0, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1577,6 +1571,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // unacked packet sequence number
     0xBB, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1597,6 +1592,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketInterArrival) {
     // num non retransmitting packets
     0x03,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // non retransmitting packet sequence number
     0xB0, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1695,6 +1691,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // unacked packet sequence number
     0xBB, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1715,6 +1712,7 @@ TEST_F(QuicFramerTest, ConstructAckFramePacketFixRate) {
     // num non retransmitting packets
     0x03,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // non retransmitting packet sequence number
     0xB0, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1921,6 +1919,7 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
     // num_unacked_packets
     0x02,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // unacked packet sequence number
     0xBB, 0x9A, 0x78, 0x56,
     0x34, 0x12,
@@ -1941,6 +1940,7 @@ TEST_F(QuicFramerTest, ConstructCloseFramePacket) {
     // num non retransmitting packets
     0x03,
 #if defined(OS_WIN)
+    // Windows hash_set order is different.
     // non retransmitting packet sequence number
     0xB0, 0x9A, 0x78, 0x56,
     0x34, 0x12,

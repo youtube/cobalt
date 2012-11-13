@@ -6,11 +6,13 @@
 #define NET_QUIC_QUIC_CRYPTO_STREAM_H_
 
 #include "net/quic/crypto/crypto_framer.h"
+#include "net/quic/quic_protocol.h"
 #include "net/quic/reliable_quic_stream.h"
 
 namespace net {
 
 class QuicSession;
+struct CryptoHandshakeMessage;
 
 // Crypto handshake messages in QUIC take place over a reserved
 // reliable stream with the id 1.  Each endpoint (client and server)

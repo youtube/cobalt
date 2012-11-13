@@ -22,7 +22,7 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   virtual ~ReliableQuicStream();
 
   bool WillAcceptStreamFrame(const QuicStreamFrame& frame) const;
-  bool OnStreamFrame(const QuicStreamFrame& frame);
+  virtual bool OnStreamFrame(const QuicStreamFrame& frame);
 
   // Called when we get a stream reset from the client.
   // The rst will be passed through the sequencer, which will call
@@ -52,6 +52,9 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
 
   QuicErrorCode error() const { return error_; }
 
+  bool read_side_closed() const { return read_side_closed_; }
+  bool write_side_closed() const { return write_side_closed_; }
+
  protected:
   virtual int WriteData(base::StringPiece data, bool fin);
   // Close the read side of the socket.  Further frames will not be accepted.
@@ -60,8 +63,6 @@ class NET_EXPORT_PRIVATE ReliableQuicStream {
   void CloseWriteSide();
 
   QuicSession* session() { return session_; }
-
-  bool write_side_closed() { return write_side_closed_; }
 
  private:
   friend class ReliableQuicStreamPeer;

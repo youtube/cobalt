@@ -40,6 +40,7 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD2(OnPacket, void(const IPEndPoint& self_address,
                               const IPEndPoint& peer_address));
   MOCK_METHOD0(OnRevivedPacket, void());
+  // The constructor set this up to return true by default.
   MOCK_METHOD1(OnPacketHeader, bool(const QuicPacketHeader& header));
   MOCK_METHOD1(OnFecProtectedPayload, void(base::StringPiece payload));
   MOCK_METHOD1(OnStreamFrame, void(const QuicStreamFrame& frame));
@@ -111,20 +112,6 @@ class MockConnectionVisitor : public QuicConnectionVisitorInterface {
   DISALLOW_COPY_AND_ASSIGN(MockConnectionVisitor);
 };
 
-class MockScheduler : public QuicSendScheduler {
- public:
-  MockScheduler();
-  virtual ~MockScheduler();
-
-  MOCK_METHOD1(TimeUntilSend, QuicTime::Delta(bool));
-  MOCK_METHOD1(OnIncomingAckFrame, void(const QuicAckFrame&));
-  MOCK_METHOD3(SentPacket, void(QuicPacketSequenceNumber, size_t, bool));
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MockScheduler);
-};
-
-
 class MockHelper : public QuicConnectionHelperInterface {
  public:
   MockHelper();
@@ -132,9 +119,7 @@ class MockHelper : public QuicConnectionHelperInterface {
 
   MOCK_METHOD1(SetConnection, void(QuicConnection* connection));
   QuicClock* GetClock();
-  MOCK_METHOD4(WritePacketToWire, int(QuicPacketSequenceNumber number,
-                                      const QuicEncryptedPacket& packet,
-                                      bool resend,
+  MOCK_METHOD2(WritePacketToWire, int(const QuicEncryptedPacket& packet,
                                       int* error));
   MOCK_METHOD2(SetResendAlarm, void(QuicPacketSequenceNumber sequence_number,
                                     QuicTime::Delta delay));
@@ -186,9 +171,9 @@ class PacketSavingConnection : public MockConnection {
 class MockSession : public QuicSession {
  public:
   MockSession(QuicConnection* connection, bool is_server);
-  ~MockSession();
+  virtual ~MockSession();
 
-  MOCK_METHOD4(OnPacket, bool(const IPEndPoint& seld_address,
+  MOCK_METHOD4(OnPacket, bool(const IPEndPoint& self_address,
                               const IPEndPoint& peer_address,
                               const QuicPacketHeader& header,
                               const std::vector<QuicStreamFrame>& frame));
@@ -205,6 +190,19 @@ class MockSession : public QuicSession {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockSession);
+};
+
+class MockScheduler : public QuicSendScheduler {
+ public:
+  MockScheduler();
+  virtual ~MockScheduler();
+
+  MOCK_METHOD1(TimeUntilSend, QuicTime::Delta(bool));
+  MOCK_METHOD1(OnIncomingAckFrame, void(const QuicAckFrame&));
+  MOCK_METHOD3(SentPacket, void(QuicPacketSequenceNumber, size_t, bool));
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockScheduler);
 };
 
 }  // namespace test

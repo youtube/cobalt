@@ -18,13 +18,13 @@
 
 namespace net {
 
-class QuicEncrypter;
-class QuicDecrypter;
-class QuicFramer;
 class QuicDataReader;
 class QuicDataWriter;
+class QuicDecrypter;
+class QuicEncrypter;
+class QuicFramer;
 
-// Class that receives callbacks from the framer when packets
+// This class receives callbacks from the framer when packets
 // are processed.
 class NET_EXPORT_PRIVATE QuicFramerVisitorInterface {
  public:
@@ -80,9 +80,9 @@ class NET_EXPORT_PRIVATE QuicFecBuilderInterface {
                                           base::StringPiece payload) = 0;
 };
 
-// Class for parsing and constructing QUIC packets.  Has a
+// Class for parsing and constructing QUIC packets.  It has a
 // QuicFramerVisitorInterface that is called when packets are parsed.
-// Also has a QuicFecBuilder that is called when packets are constructed
+// It also has a QuicFecBuilder that is called when packets are constructed
 // in order to generate FEC data for subsequently building FEC packets.
 class NET_EXPORT_PRIVATE QuicFramer {
  public:
@@ -130,8 +130,8 @@ class NET_EXPORT_PRIVATE QuicFramer {
   // |frames|.  Assigns |*packet| to the address of the new object.
   // Returns true upon success.
   bool ConstructFrameDataPacket(const QuicPacketHeader& header,
-                                    const QuicFrames& frames,
-                                    QuicPacket** packet);
+                                const QuicFrames& frames,
+                                QuicPacket** packet);
 
   // Creates a new QuicPacket populated with the fields in |header| and
   // |fec|.  Assigns |*packet| to the address of the new object.
@@ -174,11 +174,11 @@ class NET_EXPORT_PRIVATE QuicFramer {
   size_t ComputeFramePayloadLength(const QuicFrame& frame);
 
   bool AppendStreamFramePayload(const QuicStreamFrame& frame,
-      QuicDataWriter* builder);
+                                QuicDataWriter* builder);
   bool AppendAckFramePayload(const QuicAckFrame& frame,
-      QuicDataWriter* builder);
+                             QuicDataWriter* builder);
   bool AppendRstStreamFramePayload(const QuicRstStreamFrame& frame,
-      QuicDataWriter* builder);
+                                   QuicDataWriter* builder);
   bool AppendConnectionCloseFramePayload(
       const QuicConnectionCloseFrame& frame,
       QuicDataWriter* builder);

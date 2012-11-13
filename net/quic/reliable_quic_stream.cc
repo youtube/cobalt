@@ -27,7 +27,7 @@ ReliableQuicStream::~ReliableQuicStream() {
 bool ReliableQuicStream::WillAcceptStreamFrame(
     const QuicStreamFrame& frame) const {
   if (read_side_closed_) {
-    return false;
+    return true;
   }
   if (frame.stream_id != id_) {
     LOG(ERROR) << "Error!";
@@ -39,10 +39,9 @@ bool ReliableQuicStream::WillAcceptStreamFrame(
 bool ReliableQuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK_EQ(frame.stream_id, id_);
   if (read_side_closed_) {
-    // This can only happen if a client sends data after sending a fin or stream
-    // reset.
-    Close(QUIC_STREAM_DATA_AFTER_TERMINATION);
-    return false;
+    DLOG(INFO) << "Ignoring frame " << frame.stream_id;
+    // We don't want to be reading: blackhole the data.
+    return true;
   }
 
   bool accepted = sequencer_.OnStreamFrame(frame);
@@ -106,6 +105,9 @@ int ReliableQuicStream::WriteData(StringPiece data, bool fin) {
 }
 
 void ReliableQuicStream::CloseReadSide() {
+  if (read_side_closed_) {
+    return;
+  }
   DLOG(INFO) << "Done reading from stream " << id();
 
   read_side_closed_ = true;
@@ -115,6 +117,9 @@ void ReliableQuicStream::CloseReadSide() {
 }
 
 void ReliableQuicStream::CloseWriteSide() {
+  if (write_side_closed_) {
+    return;
+  }
   DLOG(INFO) << "Done writing to stream " << id();
 
   write_side_closed_ = true;

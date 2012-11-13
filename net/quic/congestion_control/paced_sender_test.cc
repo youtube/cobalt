@@ -23,7 +23,7 @@ class PacedSenderTest : public ::testing::Test {
 
   const QuicTime::Delta zero_time_;
   MockClock clock_;
-  scoped_ptr<net::PacedSender> paced_sender_;
+  scoped_ptr<PacedSender> paced_sender_;
 };
 
 TEST_F(PacedSenderTest, Basic) {
@@ -34,7 +34,7 @@ TEST_F(PacedSenderTest, Basic) {
   paced_sender_->SentPacket(kMaxPacketSize);
   EXPECT_TRUE(paced_sender_->TimeUntilSend(zero_time_).IsZero());
   paced_sender_->SentPacket(kMaxPacketSize);
-  EXPECT_EQ(static_cast<int>(kMaxPacketSize * 2),
+  EXPECT_EQ(static_cast<int64>(kMaxPacketSize * 2),
             paced_sender_->TimeUntilSend(zero_time_).ToMicroseconds());
   EXPECT_EQ(0u, paced_sender_->AvailableWindow(kMaxPacketSize * 4));
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(24));
@@ -51,7 +51,7 @@ TEST_F(PacedSenderTest, LowRate) {
   paced_sender_->SentPacket(kMaxPacketSize);
   EXPECT_TRUE(paced_sender_->TimeUntilSend(zero_time_).IsZero());
   paced_sender_->SentPacket(kMaxPacketSize);
-  EXPECT_EQ(static_cast<int>(kMaxPacketSize * 20),
+  EXPECT_EQ(static_cast<int64>(kMaxPacketSize * 20),
             paced_sender_->TimeUntilSend(zero_time_).ToMicroseconds());
   EXPECT_EQ(0u, paced_sender_->AvailableWindow(kMaxPacketSize * 4));
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(24));

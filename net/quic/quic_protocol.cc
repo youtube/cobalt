@@ -5,7 +5,6 @@
 #include "net/quic/quic_protocol.h"
 
 using base::StringPiece;
-using base::hash_set;
 using std::ostream;
 
 namespace net {
@@ -34,16 +33,14 @@ ostream& operator<<(ostream& os, const QuicAckFrame& s) {
   os << "largest_received: " << s.received_info.largest_received
      << " time: " << s.received_info.time_received.ToMicroseconds()
      << " missing: ";
-  for (hash_set<QuicPacketSequenceNumber>::const_iterator it =
-           s.received_info.missing_packets.begin();
+  for (SequenceSet::const_iterator it = s.received_info.missing_packets.begin();
        it != s.received_info.missing_packets.end(); ++it) {
     os << *it << " ";
   }
 
   os << " least_waiting: " << s.sent_info.least_unacked
      << " no_retransmit: ";
-  for (hash_set<QuicPacketSequenceNumber>::const_iterator it =
-           s.sent_info.non_retransmiting.begin();
+  for (SequenceSet::const_iterator it = s.sent_info.non_retransmiting.begin();
        it != s.sent_info.non_retransmiting.end(); ++it) {
     os << *it << " ";
   }

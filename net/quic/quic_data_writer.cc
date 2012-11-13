@@ -9,7 +9,6 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "net/quic/quic_protocol.h"
 
 using base::StringPiece;
 using std::numeric_limits;
