@@ -499,7 +499,6 @@
         'gfx/size.cc',
         'gfx/size.h',
         'gfx/size_base.h',
-        'gfx/size_base_impl.h',
         'gfx/size_conversions.cc',
         'gfx/size_conversions.h',
         'gfx/size_f.cc',
