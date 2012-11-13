@@ -430,6 +430,31 @@ TEST_F(FieldTrialTest, DuplicateRestore) {
   EXPECT_FALSE(FieldTrialList::CreateTrialsFromString("Some name/Loser/"));
 }
 
+TEST_F(FieldTrialTest, CreateTrialsFromStringAreActive) {
+  ASSERT_FALSE(FieldTrialList::TrialExists("Abc"));
+  ASSERT_FALSE(FieldTrialList::TrialExists("Xyz"));
+  ASSERT_TRUE(FieldTrialList::CreateTrialsFromString("Abc/def/Xyz/zyx/"));
+
+  FieldTrial::ActiveGroups active_groups;
+  FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
+  ASSERT_EQ(2U, active_groups.size());
+  EXPECT_EQ("Abc", active_groups[0].trial);
+  EXPECT_EQ("def", active_groups[0].group);
+  EXPECT_EQ("Xyz", active_groups[1].trial);
+  EXPECT_EQ("zyx", active_groups[1].group);
+}
+
+TEST_F(FieldTrialTest, CreateTrialsFromStringObserver) {
+  ASSERT_FALSE(FieldTrialList::TrialExists("Abc"));
+
+  TestFieldTrialObserver observer;
+  ASSERT_TRUE(FieldTrialList::CreateTrialsFromString("Abc/def/"));
+
+  message_loop_.RunUntilIdle();
+  EXPECT_EQ("Abc", observer.trial_name());
+  EXPECT_EQ("def", observer.group_name());
+}
+
 TEST_F(FieldTrialTest, CreateFieldTrial) {
   ASSERT_FALSE(FieldTrialList::TrialExists("Some_name"));
 
@@ -439,6 +464,17 @@ TEST_F(FieldTrialTest, CreateFieldTrial) {
   ASSERT_NE(static_cast<FieldTrial*>(NULL), trial);
   EXPECT_EQ("Winner", trial->group_name());
   EXPECT_EQ("Some_name", trial->name());
+}
+
+TEST_F(FieldTrialTest, CreateFieldTrialIsNotActive) {
+  const char kTrialName[] = "CreateFieldTrialIsActiveTrial";
+  const char kWinnerGroup[] = "Winner";
+  ASSERT_FALSE(FieldTrialList::TrialExists(kTrialName));
+  FieldTrialList::CreateFieldTrial(kTrialName, kWinnerGroup);
+
+  FieldTrial::ActiveGroups active_groups;
+  FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
+  EXPECT_TRUE(active_groups.empty());
 }
 
 TEST_F(FieldTrialTest, DuplicateFieldTrial) {
@@ -565,7 +601,7 @@ TEST_F(FieldTrialTest, Observe) {
   const int chosen_group = trial->group();
   EXPECT_TRUE(chosen_group == default_group || chosen_group == secondary_group);
 
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_EQ(kTrialName, observer.trial_name());
   if (chosen_group == default_group)
     EXPECT_EQ(kDefaultGroupName, observer.group_name());
@@ -587,13 +623,13 @@ TEST_F(FieldTrialTest, ObserveDisabled) {
   trial->Disable();
 
   // Observer shouldn't be notified of a disabled trial.
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_TRUE(observer.trial_name().empty());
   EXPECT_TRUE(observer.group_name().empty());
 
   // Observer shouldn't be notified even after a |group()| call.
   EXPECT_EQ(default_group, trial->group());
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_TRUE(observer.trial_name().empty());
   EXPECT_TRUE(observer.group_name().empty());
 }
@@ -613,13 +649,13 @@ TEST_F(FieldTrialTest, ObserveForcedDisabled) {
   trial->Disable();
 
   // Observer shouldn't be notified of a disabled trial, even when forced.
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_TRUE(observer.trial_name().empty());
   EXPECT_TRUE(observer.group_name().empty());
 
   // Observer shouldn't be notified even after a |group()| call.
   EXPECT_EQ(default_group, trial->group());
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   EXPECT_TRUE(observer.trial_name().empty());
   EXPECT_TRUE(observer.group_name().empty());
 }
