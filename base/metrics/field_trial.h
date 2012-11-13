@@ -369,11 +369,12 @@ class BASE_EXPORT FieldTrialList {
       FieldTrial::ActiveGroups* active_groups);
 
   // Use a state string (re: StatesToString()) to augment the current list of
-  // field tests to include the supplied tests, and using a 100% probability for
-  // each test, force them to have the same group string.  This is commonly used
-  // in a non-browser process, to carry randomly selected state in a browser
-  // process into this non-browser process, but could also be invoked through a
-  // command line argument to the browser process.
+  // field trials to include the supplied trials, and using a 100% probability
+  // for each trial, force them to have the same group string. This is commonly
+  // used in a non-browser process, to carry randomly selected state in a
+  // browser process into this non-browser process, but could also be invoked
+  // through a command line argument to the browser process. The created field
+  // trials are marked as "used" for the purposes of active trial reporting.
   static bool CreateTrialsFromString(const std::string& prior_trials);
 
   // Create a FieldTrial with the given |name| and using 100% probability for
