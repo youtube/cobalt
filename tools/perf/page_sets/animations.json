@@ -1,0 +1,7 @@
+{
+  "description": "A collection of animation performance tests",
+  "pages": [
+    {"url": "file://animations/keyframed_animations.html"},
+    {"url": "file://animations/transform_transitions.html"}
+  ]
+}
