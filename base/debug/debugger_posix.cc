@@ -79,14 +79,21 @@ bool SpawnDebuggerOnProcess(unsigned process_id) {
 // Based on Apple's recommended method as described in
 // http://developer.apple.com/qa/qa2004/qa1361.html
 bool BeingDebugged() {
+  // NOTE: This code MUST be async-signal safe (it's used by in-process
+  // stack dumping signal handler). NO malloc or stdio is allowed here.
+  //
+  // While some code used below may be async-signal unsafe, note how
+  // the result is cached (see |is_set| and |being_debugged| static variables
+  // right below). If this code is properly warmed-up early
+  // in the start-up process, it should be safe to use later.
+
   // If the process is sandboxed then we can't use the sysctl, so cache the
   // value.
   static bool is_set = false;
   static bool being_debugged = false;
 
-  if (is_set) {
+  if (is_set)
     return being_debugged;
-  }
 
   // Initialize mib, which tells sysctl what info we want.  In this case,
   // we're looking for information about a specific process ID.
@@ -141,6 +148,9 @@ bool BeingDebugged() {
 // can't detach without forking(), and that's not so great.
 // static
 bool BeingDebugged() {
+  // NOTE: This code MUST be async-signal safe (it's used by in-process
+  // stack dumping signal handler). NO malloc or stdio is allowed here.
+
   int status_fd = open("/proc/self/status", O_RDONLY);
   if (status_fd == -1)
     return false;
@@ -229,6 +239,9 @@ bool BeingDebugged() {
 #endif
 
 void BreakDebugger() {
+  // NOTE: This code MUST be async-signal safe (it's used by in-process
+  // stack dumping signal handler). NO malloc or stdio is allowed here.
+
   DEBUG_BREAK();
 #if defined(OS_ANDROID) && !defined(OFFICIAL_BUILD)
   // For Android development we always build release (debug builds are
