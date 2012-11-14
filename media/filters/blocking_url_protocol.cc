@@ -15,8 +15,8 @@ BlockingUrlProtocol::BlockingUrlProtocol(
     const base::Closure& error_cb)
     : data_source_(data_source),
       error_cb_(error_cb),
-      read_event_(false, false),
-      read_has_failed_(false),
+      aborted_(true, false),  // We never want to reset |aborted_|.
+      read_complete_(false, false),
       last_read_bytes_(0),
       read_position_(0) {
 }
@@ -24,12 +24,12 @@ BlockingUrlProtocol::BlockingUrlProtocol(
 BlockingUrlProtocol::~BlockingUrlProtocol() {}
 
 void BlockingUrlProtocol::Abort() {
-  SignalReadCompleted(DataSource::kReadError);
+  aborted_.Signal();
 }
 
 int BlockingUrlProtocol::Read(int size, uint8* data) {
   // Read errors are unrecoverable.
-  if (read_has_failed_)
+  if (aborted_.IsSignaled())
     return AVERROR(EIO);
 
   // Even though FFmpeg defines AVERROR_EOF, it's not to be used with I/O
@@ -38,16 +38,21 @@ int BlockingUrlProtocol::Read(int size, uint8* data) {
   if (data_source_->GetSize(&file_size) && read_position_ >= file_size)
     return 0;
 
-  // Blocking read from data source until |last_read_bytes_| is set and event is
-  // signalled.
+  // Blocking read from data source until either:
+  //   1) |last_read_bytes_| is set and |read_complete_| is signalled
+  //   2) |aborted_| is signalled
   data_source_->Read(read_position_, size, data, base::Bind(
       &BlockingUrlProtocol::SignalReadCompleted, base::Unretained(this)));
-  read_event_.Wait();
+
+  base::WaitableEvent* events[] = { &aborted_, &read_complete_ };
+  size_t index = base::WaitableEvent::WaitMany(events, arraysize(events));
+
+  if (events[index] == &aborted_)
+    return AVERROR(EIO);
 
   if (last_read_bytes_ == DataSource::kReadError) {
-    // TODO(scherkus): We shouldn't fire |error_cb_| if it was due to Abort().
+    aborted_.Signal();
     error_cb_.Run();
-    read_has_failed_ = true;
     return AVERROR(EIO);
   }
 
@@ -81,7 +86,7 @@ bool BlockingUrlProtocol::IsStreaming() {
 
 void BlockingUrlProtocol::SignalReadCompleted(int size) {
   last_read_bytes_ = size;
-  read_event_.Signal();
+  read_complete_.Signal();
 }
 
 }  // namespace media
