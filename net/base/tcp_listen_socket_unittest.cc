@@ -8,7 +8,7 @@
 #include <sys/types.h>
 
 #include "base/bind.h"
-#include "base/eintr_wrapper.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/sys_byteorder.h"
 #include "net/base/net_util.h"
 #include "testing/platform_test.h"

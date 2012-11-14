@@ -5,7 +5,8 @@
 #include "media/audio/async_socket_io_handler.h"
 
 #include <fcntl.h>
-#include "base/eintr_wrapper.h"
+
+#include "base/posix/eintr_wrapper.h"
 
 namespace media {
 

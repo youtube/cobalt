@@ -13,10 +13,10 @@
 #include <netinet/in.h>
 #endif
 
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/string_util.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
