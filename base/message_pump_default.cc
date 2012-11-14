@@ -5,6 +5,7 @@
 #include "base/message_pump_default.h"
 
 #include "base/logging.h"
+#include "base/threading/thread_restrictions.h"
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
@@ -43,6 +44,7 @@ void MessagePumpDefault::Run(Delegate* delegate) {
     if (did_work)
       continue;
 
+    base::ThreadRestrictions::ScopedAllowWait allow_wait;
     if (delayed_work_time_.is_null()) {
       event_.Wait();
     } else {
