@@ -173,6 +173,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::TestingAutomationProvider;
   friend class cc::CompletionEvent;
   friend class remoting::AutoThread;
+  friend class MessagePumpDefault;
   friend class SequencedWorkerPool;
   friend class SimpleThread;
   friend class Thread;
