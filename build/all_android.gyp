@@ -22,6 +22,10 @@
         'android_builder_tests',
         '../android_webview/android_webview.gyp:android_webview_apk',
         '../chrome/chrome.gyp:chromium_testshell',
+        # TODO(nyquist) This should instead by a target for sync when all of
+        # the sync-related code for Android has been upstreamed.
+        # See http://crbug.com/159203
+        '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_javalib',
       ],
     }, # target_name: All
     {
