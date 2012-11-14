@@ -91,3 +91,7 @@ void PrefChangeRegistrar::InvokeUnnamedCallback(const base::Closure& callback,
                                                 const std::string& pref_name) {
   callback.Run();
 }
+
+PrefServiceBase* PrefChangeRegistrar::prefs() {
+  return service_;
+}
