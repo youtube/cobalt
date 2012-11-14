@@ -116,6 +116,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
           base::Bind(&HttpNetworkTransaction::OnIOComplete,
                      base::Unretained(this)))),
+      request_body_(NULL),
       session_(session),
       request_(NULL),
       headers_valid_(false),
@@ -716,7 +717,7 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
   }
 
   // Add a content length header?
-  if (request_body_.get()) {
+  if (request_body_) {
     if (request_body_->is_chunked()) {
       request_headers_.SetHeader(
           HttpRequestHeaders::kTransferEncoding, "chunked");
@@ -754,12 +755,10 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
 
 int HttpNetworkTransaction::DoInitRequestBody() {
   next_state_ = STATE_INIT_REQUEST_BODY_COMPLETE;
-  request_body_.reset(NULL);
+  request_body_ = request_->upload_data_stream;
   int rv = OK;
-  if (request_->upload_data) {
-    request_body_.reset(new UploadDataStream(request_->upload_data));
+  if (request_body_)
     rv = request_body_->Init(io_callback_);
-  }
   return rv;
 }
 
@@ -767,7 +766,7 @@ int HttpNetworkTransaction::DoInitRequestBodyComplete(int result) {
   if (result == OK)
     next_state_ = STATE_BUILD_REQUEST;
   else
-    request_body_.reset(NULL);
+    request_body_ = NULL;
   return result;
 }
 
@@ -796,7 +795,7 @@ int HttpNetworkTransaction::DoSendRequest() {
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
 
   return stream_->SendRequest(
-      request_headers_, request_body_.get(), &response_, io_callback_);
+      request_headers_, request_body_, &response_, io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {

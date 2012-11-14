@@ -11,12 +11,12 @@
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
-#include "net/base/upload_data.h"
 
 namespace net {
 
 class DrainableIOBuffer;
 class IOBuffer;
+class UploadData;
 class UploadElementReader;
 
 // A class to read all elements from an UploadData object.
@@ -59,6 +59,11 @@ class NET_EXPORT UploadDataStream {
   // Use this method only if the thread is IO allowed or the data is in-memory.
   int ReadSync(IOBuffer* buf, int buf_len);
 
+  // Identifies a particular upload instance, which is used by the cache to
+  // formulate a cache key.  This value should be unique across browser
+  // sessions.  A value of 0 is used to indicate an unspecified identifier.
+  int64 identifier() const;
+
   // Returns the total size of the data stream and the current position.
   // size() is not to be used to determine whether the stream has ended
   // because it is possible for the stream to end before its size is reached,
@@ -67,7 +72,7 @@ class NET_EXPORT UploadDataStream {
   uint64 size() const { return total_size_; }
   uint64 position() const { return current_position_; }
 
-  bool is_chunked() const { return upload_data_->is_chunked(); }
+  bool is_chunked() const;
 
   // Returns true if all data has been consumed from this upload data
   // stream.

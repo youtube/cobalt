@@ -14,6 +14,7 @@
 #include "base/scoped_temp_dir.h"
 #include "net/base/auth.h"
 #include "net/base/net_log_unittest.h"
+#include "net/base/upload_data.h"
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_network_session_peer.h"
 #include "net/http/http_transaction_unittest.h"
@@ -366,11 +367,13 @@ class SpdyNetworkTransactionSpdy2Test
 
   const HttpRequestInfo& CreatePostRequest() {
     if (!google_post_request_initialized_) {
+      scoped_refptr<UploadData> upload_data(new UploadData());
+      upload_data->AppendBytes(kUploadData, kUploadDataSize);
+      upload_data_stream_.reset(new UploadDataStream(upload_data));
+
       google_post_request_.method = "POST";
       google_post_request_.url = GURL(kDefaultURL);
-      google_post_request_.upload_data = new UploadData();
-      google_post_request_.upload_data->AppendBytes(kUploadData,
-                                                    kUploadDataSize);
+      google_post_request_.upload_data_stream = upload_data_stream_.get();
       google_post_request_initialized_ = true;
     }
     return google_post_request_;
@@ -383,11 +386,13 @@ class SpdyNetworkTransactionSpdy2Test
       CHECK_EQ(static_cast<int>(kUploadDataSize),
                file_util::WriteFile(file_path, kUploadData, kUploadDataSize));
 
+      scoped_refptr<UploadData> upload_data(new UploadData());
+      upload_data->AppendFileRange(file_path, 0, kUploadDataSize, base::Time());
+      upload_data_stream_.reset(new UploadDataStream(upload_data));
+
       google_post_request_.method = "POST";
       google_post_request_.url = GURL(kDefaultURL);
-      google_post_request_.upload_data = new UploadData();
-      google_post_request_.upload_data->AppendFileRange(
-          file_path, 0, kUploadDataSize, base::Time());
+      google_post_request_.upload_data_stream = upload_data_stream_.get();
       google_post_request_initialized_ = true;
     }
     return google_post_request_;
@@ -404,16 +409,18 @@ class SpdyNetworkTransactionSpdy2Test
       CHECK_EQ(static_cast<int>(kUploadDataSize),
                file_util::WriteFile(file_path, kUploadData, kUploadDataSize));
 
-      google_post_request_.method = "POST";
-      google_post_request_.url = GURL(kDefaultURL);
-      google_post_request_.upload_data = new UploadData();
-      google_post_request_.upload_data->AppendBytes(
-          kUploadData, kFileRangeOffset);
-      google_post_request_.upload_data->AppendFileRange(
+      scoped_refptr<UploadData> upload_data(new UploadData());
+      upload_data->AppendBytes(kUploadData, kFileRangeOffset);
+      upload_data->AppendFileRange(
           file_path, kFileRangeOffset, kFileRangeLength, base::Time());
-      google_post_request_.upload_data->AppendBytes(
+      upload_data->AppendBytes(
           kUploadData + kFileRangeOffset + kFileRangeLength,
           kUploadDataSize - (kFileRangeOffset + kFileRangeLength));
+      upload_data_stream_.reset(new UploadDataStream(upload_data));
+
+      google_post_request_.method = "POST";
+      google_post_request_.url = GURL(kDefaultURL);
+      google_post_request_.upload_data_stream = upload_data_stream_.get();
       google_post_request_initialized_ = true;
     }
     return google_post_request_;
@@ -421,14 +428,16 @@ class SpdyNetworkTransactionSpdy2Test
 
   const HttpRequestInfo& CreateChunkedPostRequest() {
     if (!google_chunked_post_request_initialized_) {
+      scoped_refptr<UploadData> upload_data(new UploadData());
+      upload_data->set_is_chunked(true);
+      upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
+      upload_data->AppendChunk(kUploadData, kUploadDataSize, true);
+      upload_data_stream_.reset(new UploadDataStream(upload_data));
+
       google_chunked_post_request_.method = "POST";
       google_chunked_post_request_.url = GURL(kDefaultURL);
-      google_chunked_post_request_.upload_data = new UploadData();
-      google_chunked_post_request_.upload_data->set_is_chunked(true);
-      google_chunked_post_request_.upload_data->AppendChunk(
-          kUploadData, kUploadDataSize, false);
-      google_chunked_post_request_.upload_data->AppendChunk(
-          kUploadData, kUploadDataSize, true);
+      google_chunked_post_request_.upload_data_stream =
+          upload_data_stream_.get();
       google_chunked_post_request_initialized_ = true;
     }
     return google_chunked_post_request_;
@@ -558,6 +567,7 @@ class SpdyNetworkTransactionSpdy2Test
   }
 
  private:
+  scoped_ptr<UploadDataStream> upload_data_stream_;
   bool google_get_request_initialized_;
   bool google_post_request_initialized_;
   bool google_chunked_post_request_initialized_;
@@ -1713,9 +1723,9 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, NullPost) {
   request.method = "POST";
   request.url = GURL("http://www.google.com/");
   // Create an empty UploadData.
-  request.upload_data = NULL;
+  request.upload_data_stream = NULL;
 
-  // When request.upload_data is NULL for post, content-length is
+  // When request.upload_data_stream is NULL for post, content-length is
   // expected to be 0.
   scoped_ptr<SpdyFrame> req(ConstructSpdyPost(0, NULL, 0));
   // Set the FIN bit since there will be no body.
@@ -1746,20 +1756,16 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, NullPost) {
 
 // Test that a simple POST works.
 TEST_P(SpdyNetworkTransactionSpdy2Test, EmptyPost) {
+  // Create an empty UploadDataStream.
+  UploadDataStream stream(new UploadData());
+
   // Setup the request
   HttpRequestInfo request;
   request.method = "POST";
   request.url = GURL("http://www.google.com/");
-  // Create an empty UploadData.
-  request.upload_data = new UploadData();
+  request.upload_data_stream = &stream;
 
-  // Http POST Content-Length is using UploadDataStream::size().
   const uint64 kContentLength = 0;
-  scoped_ptr<UploadDataStream> stream(
-      new UploadDataStream(request.upload_data));
-  ASSERT_EQ(OK, stream->InitSync());
-  ASSERT_EQ(kContentLength, stream->size());
-
   scoped_ptr<SpdyFrame> req(ConstructSpdyPost(kContentLength, NULL, 0));
   // Set the FIN bit since there will be no body.
   req->set_flags(CONTROL_FLAG_FIN);
@@ -1790,20 +1796,16 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, EmptyPost) {
 // While we're doing a post, the server sends back a SYN_REPLY.
 TEST_P(SpdyNetworkTransactionSpdy2Test, PostWithEarlySynReply) {
   static const char upload[] = { "hello!" };
+  scoped_refptr<UploadData> upload_data(new UploadData());
+  upload_data->AppendBytes(upload, sizeof(upload));
+  UploadDataStream stream(upload_data);
 
   // Setup the request
   HttpRequestInfo request;
   request.method = "POST";
   request.url = GURL("http://www.google.com/");
-  request.upload_data = new UploadData();
-  request.upload_data->AppendBytes(upload, sizeof(upload));
+  request.upload_data_stream = &stream;
 
-  // Http POST Content-Length is using UploadDataStream::size().
-  const uint64 kContentLength = sizeof(upload);
-  scoped_ptr<UploadDataStream> stream(
-      new UploadDataStream(request.upload_data));
-  ASSERT_EQ(OK, stream->InitSync());
-  ASSERT_EQ(kContentLength, stream->size());
   scoped_ptr<SpdyFrame> stream_reply(ConstructSpdyPostSynReply(NULL, 0));
   scoped_ptr<SpdyFrame> stream_body(ConstructSpdyBodyFrame(1, true));
   MockRead reads[] = {

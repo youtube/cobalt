@@ -7,7 +7,8 @@
 namespace net {
 
 HttpRequestInfo::HttpRequestInfo()
-    : load_flags(0),
+    : upload_data_stream(NULL),
+      load_flags(0),
       priority(LOWEST),
       motivation(NORMAL_MOTIVATION),
       request_id(0) {

@@ -6,14 +6,16 @@
 #define NET_HTTP_HTTP_REQUEST_INFO_H__
 
 #include <string>
-#include "base/memory/ref_counted.h"
+
+#include "base/basictypes.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
-#include "net/base/upload_data.h"
 #include "net/http/http_request_headers.h"
 
 namespace net {
+
+class UploadDataStream;
 
 struct NET_EXPORT HttpRequestInfo {
   enum RequestMotivation{
@@ -39,7 +41,7 @@ struct NET_EXPORT HttpRequestInfo {
   HttpRequestHeaders extra_headers;
 
   // Any upload data.
-  scoped_refptr<UploadData> upload_data;
+  UploadDataStream* upload_data_stream;
 
   // Any load flags (see load_flags.h).
   int load_flags;

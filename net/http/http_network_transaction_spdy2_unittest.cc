@@ -34,6 +34,8 @@
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/test_data_directory.h"
+#include "net/base/upload_data.h"
+#include "net/base/upload_data_stream.h"
 #include "net/base/upload_file_element_reader.h"
 #include "net/http/http_auth_handler_digest.h"
 #include "net/http/http_auth_handler_mock.h"
@@ -909,11 +911,14 @@ TEST_F(HttpNetworkTransactionSpdy2Test, ReuseConnection) {
 }
 
 TEST_F(HttpNetworkTransactionSpdy2Test, Ignores100) {
+  scoped_refptr<UploadData> upload_data(new UploadData());
+  upload_data->AppendBytes("foo", 3);
+  UploadDataStream upload_data_stream(upload_data);
+
   HttpRequestInfo request;
   request.method = "POST";
   request.url = GURL("http://www.foo.com/");
-  request.upload_data = new UploadData;
-  request.upload_data->AppendBytes("foo", 3);
+  request.upload_data_stream = &upload_data_stream;
   request.load_flags = 0;
 
   SessionDependencies session_deps;
@@ -3737,6 +3742,10 @@ TEST_F(HttpNetworkTransactionSpdy2Test, RecycleSocketAfterZeroContentLength) {
 }
 
 TEST_F(HttpNetworkTransactionSpdy2Test, ResendRequestOnWriteBodyError) {
+  scoped_refptr<UploadData> upload_data(new UploadData());
+  upload_data->AppendBytes("foo", 3);
+  UploadDataStream upload_data_stream(upload_data);
+
   HttpRequestInfo request[2];
   // Transaction 1: a GET request that succeeds.  The socket is recycled
   // after use.
@@ -3749,8 +3758,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, ResendRequestOnWriteBodyError) {
   // attempt succeeds.
   request[1].method = "POST";
   request[1].url = GURL("http://www.google.com/login.cgi");
-  request[1].upload_data = new UploadData;
-  request[1].upload_data->AppendBytes("foo", 3);
+  request[1].upload_data_stream = &upload_data_stream;
   request[1].load_flags = 0;
 
   SessionDependencies session_deps;
@@ -6567,24 +6575,25 @@ TEST_F(HttpNetworkTransactionSpdy2Test, LargeContentLengthThenClose) {
 }
 
 TEST_F(HttpNetworkTransactionSpdy2Test, UploadFileSmallerThanLength) {
-  HttpRequestInfo request;
-  request.method = "POST";
-  request.url = GURL("http://www.google.com/upload");
-  request.upload_data = new UploadData;
-  request.load_flags = 0;
-
-  SessionDependencies session_deps;
-  scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(CreateSession(&session_deps)));
-
   FilePath temp_file_path;
   ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
   const uint64 kFakeSize = 100000;  // file is actually blank
   UploadFileElementReader::ScopedOverridingContentLengthForTests
       overriding_content_length(kFakeSize);
 
-  request.upload_data->AppendFileRange(
-      temp_file_path, 0, kuint64max, base::Time());
+  scoped_refptr<UploadData> upload_data(new UploadData());
+  upload_data->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
+  UploadDataStream upload_data_stream(upload_data);
+
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/upload");
+  request.upload_data_stream = &upload_data_stream;
+  request.load_flags = 0;
+
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\n\r\n"),
@@ -6617,18 +6626,6 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UploadFileSmallerThanLength) {
 }
 
 TEST_F(HttpNetworkTransactionSpdy2Test, UploadUnreadableFile) {
-  HttpRequestInfo request;
-  request.method = "POST";
-  request.url = GURL("http://www.google.com/upload");
-  request.upload_data = new UploadData;
-  request.load_flags = 0;
-
-  // If we try to upload an unreadable file, the network stack should report
-  // the file size as zero and upload zero bytes for that file.
-  SessionDependencies session_deps;
-  scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(CreateSession(&session_deps)));
-
   FilePath temp_file;
   ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file));
   std::string temp_file_content("Unreadable file.");
@@ -6636,7 +6633,21 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UploadUnreadableFile) {
                                    temp_file_content.length()));
   ASSERT_TRUE(file_util::MakeFileUnreadable(temp_file));
 
-  request.upload_data->AppendFileRange(temp_file, 0, kuint64max, base::Time());
+  scoped_refptr<UploadData> upload_data(new UploadData());
+  upload_data->AppendFileRange(temp_file, 0, kuint64max, base::Time());
+  UploadDataStream upload_data_stream(upload_data);
+
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/upload");
+  request.upload_data_stream = &upload_data_stream;
+  request.load_flags = 0;
+
+  // If we try to upload an unreadable file, the network stack should report
+  // the file size as zero and upload zero bytes for that file.
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\n\r\n"),
@@ -6670,16 +6681,6 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UploadUnreadableFile) {
 }
 
 TEST_F(HttpNetworkTransactionSpdy2Test, UnreadableUploadFileAfterAuthRestart) {
-  HttpRequestInfo request;
-  request.method = "POST";
-  request.url = GURL("http://www.google.com/upload");
-  request.upload_data = new UploadData;
-  request.load_flags = 0;
-
-  SessionDependencies session_deps;
-  scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(CreateSession(&session_deps)));
-
   FilePath temp_file;
   ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file));
   std::string temp_file_contents("Unreadable file.");
@@ -6687,7 +6688,19 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UnreadableUploadFileAfterAuthRestart) {
   ASSERT_TRUE(file_util::WriteFile(temp_file, temp_file_contents.c_str(),
                                    temp_file_contents.length()));
 
-  request.upload_data->AppendFileRange(temp_file, 0, kuint64max, base::Time());
+  scoped_refptr<UploadData> upload_data(new UploadData());
+  upload_data->AppendFileRange(temp_file, 0, kuint64max, base::Time());
+  UploadDataStream upload_data_stream(upload_data);
+
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/upload");
+  request.upload_data_stream = &upload_data_stream;
+  request.load_flags = 0;
+
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 401 Unauthorized\r\n"),
