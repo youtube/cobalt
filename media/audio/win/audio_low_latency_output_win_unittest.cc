@@ -18,6 +18,7 @@
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
+#include "media/audio/win/core_audio_util_win.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/seekable_buffer.h"
 #include "media/base/test_data_util.h"
@@ -168,7 +169,7 @@ static bool ExclusiveModeIsEnabled() {
 // verify that we are not running on XP since the low-latency (WASAPI-
 // based) version requires Windows Vista or higher.
 static bool CanRunAudioTests(AudioManager* audio_man) {
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     LOG(WARNING) << "This test requires Windows Vista or higher.";
     return false;
   }
