@@ -38,6 +38,12 @@
     check-exists="false"
   />
 
+    <condition property="javac_includes_message"
+               value=""
+               else="Include filter: ${JAVAC_INCLUDES}">
+        <equals arg1="${JAVAC_INCLUDES}" arg2=""/>
+    </condition>
+
   <target name="init">
     <!-- Create the time stamp -->
     <tstamp/>
@@ -64,6 +70,7 @@
 
     <echo>
       Compiling ${javac.srcdir}, classpath: ${toString:javac.custom.classpath}
+      ${javac_includes_message}
     </echo>
 
     <javac
@@ -72,6 +79,7 @@
       classpathref="javac.custom.classpath"
       debug="true"
       includeantruntime="false"
+      includes="${JAVAC_INCLUDES}"
     />
   </target>
 

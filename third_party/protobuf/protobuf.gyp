@@ -67,6 +67,52 @@
             },
           ],
         }],
+        ['OS=="android"', {
+          'targets': [
+            {
+              'target_name': 'protobuf_lite_java',
+              'type' : 'none',
+              'dependencies': [
+                'protoc#host',
+              ],
+              'variables': {
+                'script_descriptors': './protobuf_lite_java_descriptor_proto.py',
+                'script_pom': './protobuf_lite_java_parse_pom.py',
+                'protoc': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)protoc<(EXECUTABLE_SUFFIX)',
+                # Variables needed by java.gypi below.
+                'java_out_dir': '<(PRODUCT_DIR)/java_proto/protobuf_lite_java_descriptor_proto',
+                'generated_src_dirs': ['<(java_out_dir)'],
+                'package_name': '<(_target_name)',
+                'java_in_dir': 'java',
+                'maven_pom': '<(java_in_dir)/pom.xml',
+                'javac_includes': ['<!@(<(script_pom) <(maven_pom))'],
+              },
+              'actions': [
+                {
+                  'action_name': 'protobuf_lite_java_gen_descriptor_proto',
+                  'inputs': [
+                    '<(script_descriptors)',
+                    '<(protoc)',
+                    'src/google/protobuf/descriptor.proto',
+                  ],
+                  'outputs': [
+                    '<(java_out_dir)/com/google/protobuf/DescriptorProtos.java',
+                  ],
+                  'action': [
+                    '<(script_descriptors)',
+                    '<(protoc)',
+                    '<(java_out_dir)',
+                    'src',
+                    'src/google/protobuf/descriptor.proto',
+                  ],
+                  'message': 'Generating descriptor protos for Java',
+                },
+              ],
+              # Now that we have generated DescriptorProtos.java, build jar.
+              'includes': ['../../build/java.gypi'],
+            },
+          ]
+        }],
       ],
       'targets': [
         # The "lite" lib is about 1/7th the size of the heavy lib,
