@@ -5,11 +5,10 @@
 #ifndef NET_BASE_UPLOAD_DATA_H_
 #define NET_BASE_UPLOAD_DATA_H_
 
-#include <vector>
-
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_vector.h"
 #include "base/supports_user_data.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_element.h"
@@ -61,17 +60,15 @@ class NET_EXPORT UploadData
   void set_last_chunk_appended(bool set) { last_chunk_appended_ = set; }
   bool last_chunk_appended() const { return last_chunk_appended_; }
 
-  const std::vector<UploadElement>* elements() const {
+  const ScopedVector<UploadElement>& elements() const {
+    return elements_;
+  }
+
+  ScopedVector<UploadElement>* elements_mutable() {
     return &elements_;
   }
 
-  std::vector<UploadElement>* elements_mutable() {
-    return &elements_;
-  }
-
-  void SetElements(const std::vector<UploadElement>& elements);
-
-  void swap_elements(std::vector<UploadElement>* elements) {
+  void swap_elements(ScopedVector<UploadElement>* elements) {
     elements_.swap(*elements);
   }
 
@@ -86,7 +83,7 @@ class NET_EXPORT UploadData
 
   virtual ~UploadData();
 
-  std::vector<UploadElement> elements_;
+  ScopedVector<UploadElement> elements_;
   int64 identifier_;
   base::Closure chunk_callback_;
   bool is_chunked_;

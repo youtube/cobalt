@@ -177,11 +177,7 @@ TEST_F(UploadDataStreamTest, File) {
   ASSERT_EQ(static_cast<int>(kTestDataSize),
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
 
-  std::vector<UploadElement> elements;
-  UploadElement element;
-  element.SetToFilePath(temp_file_path);
-  elements.push_back(element);
-  upload_data_->SetElements(elements);
+  upload_data_->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
 
   UploadDataStream stream(upload_data_);
   ASSERT_EQ(OK, stream.InitSync());
@@ -209,11 +205,7 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   UploadFileElementReader::ScopedOverridingContentLengthForTests
       overriding_content_length(kFakeSize);
 
-  std::vector<UploadElement> elements;
-  UploadElement element;
-  element.SetToFilePath(temp_file_path);
-  elements.push_back(element);
-  upload_data_->SetElements(elements);
+  upload_data_->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
 
   UploadDataStream stream(upload_data_);
   ASSERT_EQ(OK, stream.InitSync());
@@ -442,14 +434,10 @@ TEST_F(UploadDataStreamTest, ReadAsync) {
 void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,
                                              const base::Time& time,
                                              bool error_expected) {
-  std::vector<UploadElement> elements;
-  UploadElement element;
-  element.SetToFilePathRange(file_path, 1, 2, time);
-  elements.push_back(element);
   // Don't use upload_data_ here, as this function is called twice, and
   // reusing upload_data_ is wrong.
   scoped_refptr<UploadData> upload_data(new UploadData);
-  upload_data->SetElements(elements);
+  upload_data->AppendFileRange(file_path, 1, 2, time);
 
   UploadDataStream stream(upload_data);
   int error_code = stream.InitSync();
@@ -486,11 +474,7 @@ TEST_F(UploadDataStreamTest, UploadDataReused) {
             file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
 
   // Prepare |upload_data_| that contains a file.
-  std::vector<UploadElement> elements;
-  UploadElement element;
-  element.SetToFilePath(temp_file_path);
-  elements.push_back(element);
-  upload_data_->SetElements(elements);
+  upload_data_->AppendFileRange(temp_file_path, 0, kuint64max, base::Time());
 
   // Confirm that the file is read properly.
   {
