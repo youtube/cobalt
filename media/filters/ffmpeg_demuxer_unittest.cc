@@ -168,7 +168,7 @@ class FFmpegDemuxerTest : public testing::Test {
         .AppendASCII(name);
 
     data_source_ = new FileDataSource();
-    EXPECT_TRUE(data_source_->Initialize(file_path));
+    EXPECT_TRUE(data_source_->Initialize(file_path.MaybeAsASCII()));
   }
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerTest);

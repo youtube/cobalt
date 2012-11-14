@@ -15,8 +15,6 @@
 #include "media/filters/video_renderer_base.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-class FilePath;
-
 namespace media {
 
 class Decryptor;
@@ -40,22 +38,21 @@ class PipelineIntegrationTestBase {
 
   bool WaitUntilOnEnded();
   PipelineStatus WaitUntilEndedOrError();
-  bool Start(const FilePath& file_path, PipelineStatus expected_status);
+  bool Start(const std::string& url, PipelineStatus expected_status);
   // Enable playback with audio and video hashing enabled.  Frame dropping and
   // audio underflow will be disabled to ensure consistent hashes.
-  bool Start(const FilePath& file_path, PipelineStatus expected_status,
+  bool Start(const std::string& url, PipelineStatus expected_status,
              bool hashing_enabled);
   // Initialize the pipeline and ignore any status updates.  Useful for testing
   // invalid audio/video clips which don't have deterministic results.
-  bool Start(const FilePath& file_path);
+  bool Start(const std::string& url);
 
   void Play();
   void Pause();
   bool Seek(base::TimeDelta seek_time);
   void Stop();
   bool WaitUntilCurrentTimeIsAfter(const base::TimeDelta& wait_time);
-  scoped_ptr<FilterCollection> CreateFilterCollection(
-      const FilePath& file_path);
+  scoped_ptr<FilterCollection> CreateFilterCollection(const std::string& url);
 
   // Returns the MD5 hash of all video frames seen.  Should only be called once
   // after playback completes.  First time hashes should be generated with

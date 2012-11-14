@@ -34,14 +34,18 @@ class ReadCBHandler {
 // FilePath class are unicode, and the pipeline wants char strings.  Convert
 // the string to UTF8 under Windows.  For Mac and Linux, file paths are already
 // chars so just return the string from the FilePath.
-FilePath TestFileURL() {
+std::string TestFileURL() {
   FilePath data_dir;
   EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
   data_dir = data_dir.Append(FILE_PATH_LITERAL("media"))
                      .Append(FILE_PATH_LITERAL("test"))
                      .Append(FILE_PATH_LITERAL("data"))
                      .Append(FILE_PATH_LITERAL("ten_byte_file"));
-  return data_dir;
+#if defined (OS_WIN)
+  return WideToUTF8(data_dir.value());
+#else
+  return data_dir.value();
+#endif
 }
 
 // Test that FileDataSource call the appropriate methods on its filter host.
@@ -79,11 +83,6 @@ TEST(FileDataSourceTest, ReadData) {
   EXPECT_EQ('0', ten_bytes[0]);
   EXPECT_EQ('5', ten_bytes[5]);
   EXPECT_EQ('9', ten_bytes[9]);
-
-  EXPECT_CALL(handler, ReadCB(1));
-  filter->Read(9, 1, ten_bytes, base::Bind(
-      &ReadCBHandler::ReadCB, base::Unretained(&handler)));
-  EXPECT_EQ('9', ten_bytes[0]);
 
   EXPECT_CALL(handler, ReadCB(0));
   filter->Read(10, 10, ten_bytes, base::Bind(
