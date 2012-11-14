@@ -19,7 +19,7 @@ A protobuf.gyp file has been added for building with Chromium.
 This code has been patched to support unknown field retention in protobuf-lite.
 See r62331 for the patch.
 
-Revision r427 was cherry-picked from upstream.
+Revisions r427 and r430 were cherry-picked from upstream.
 
 Cherry-pick patch from http://code.google.com/p/protobuf/issues/detail?id=425.
 
