@@ -6583,11 +6583,8 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UploadFileSmallerThanLength) {
   UploadFileElementReader::ScopedOverridingContentLengthForTests
       overriding_content_length(kFakeSize);
 
-  std::vector<UploadElement> elements;
-  UploadElement element;
-  element.SetToFilePath(temp_file_path);
-  elements.push_back(element);
-  request.upload_data->SetElements(elements);
+  request.upload_data->AppendFileRange(
+      temp_file_path, 0, kuint64max, base::Time());
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\n\r\n"),
@@ -6639,11 +6636,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UploadUnreadableFile) {
                                    temp_file_content.length()));
   ASSERT_TRUE(file_util::MakeFileUnreadable(temp_file));
 
-  std::vector<UploadElement> elements;
-  UploadElement element;
-  element.SetToFilePath(temp_file);
-  elements.push_back(element);
-  request.upload_data->SetElements(elements);
+  request.upload_data->AppendFileRange(temp_file, 0, kuint64max, base::Time());
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\n\r\n"),
@@ -6694,11 +6687,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, UnreadableUploadFileAfterAuthRestart) {
   ASSERT_TRUE(file_util::WriteFile(temp_file, temp_file_contents.c_str(),
                                    temp_file_contents.length()));
 
-  std::vector<UploadElement> elements;
-  UploadElement element;
-  element.SetToFilePath(temp_file);
-  elements.push_back(element);
-  request.upload_data->SetElements(elements);
+  request.upload_data->AppendFileRange(temp_file, 0, kuint64max, base::Time());
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 401 Unauthorized\r\n"),
