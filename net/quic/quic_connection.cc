@@ -487,8 +487,13 @@ bool QuicConnection::SendPacket(QuicPacketSequenceNumber sequence_number,
   if (rv == -1) {
     if (error == ERR_IO_PENDING) {
       write_blocked_ = true;
+
+      // TODO(rch): uncomment when we get non-blocking (and non-retrying)
+      // UDP sockets.
+      /*
       queued_packets_.push_front(
           QueuedPacket(sequence_number, packet, should_resend, is_retransmit));
+      */
       return false;
     }
   }
