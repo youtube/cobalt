@@ -7,6 +7,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/synchronization/waitable_event.h"
+#include "media/base/test_data_util.h"
 #include "media/filters/blocking_url_protocol.h"
 #include "media/filters/file_data_source.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -18,15 +19,8 @@ namespace media {
 class BlockingUrlProtocolTest : public testing::Test {
  public:
   BlockingUrlProtocolTest() {
-    FilePath file_path;
-    EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
-    file_path = file_path.Append(FILE_PATH_LITERAL("media"))
-        .Append(FILE_PATH_LITERAL("test"))
-        .Append(FILE_PATH_LITERAL("data"))
-        .AppendASCII("bear-320x240.webm");
-
     data_source_ = new FileDataSource();
-    CHECK(data_source_->Initialize(file_path.MaybeAsASCII()));
+    CHECK(data_source_->Initialize(GetTestDataURL("bear-320x240.webm")));
 
     url_protocol_.reset(new BlockingUrlProtocol(data_source_, base::Bind(
         &BlockingUrlProtocolTest::OnDataSourceError, base::Unretained(this))));

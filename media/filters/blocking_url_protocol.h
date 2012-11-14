@@ -16,9 +16,6 @@ class DataSource;
 
 // An implementation of FFmpegURLProtocol that blocks until the underlying
 // asynchronous DataSource::Read() operation completes.
-//
-// TODO(scherkus): Should be more thread-safe as |last_read_bytes_| is updated
-// from multiple threads without any protection.
 class MEDIA_EXPORT BlockingUrlProtocol : public FFmpegURLProtocol {
  public:
   // Implements FFmpegURLProtocol using the given |data_source|. |error_cb| is
@@ -32,8 +29,6 @@ class MEDIA_EXPORT BlockingUrlProtocol : public FFmpegURLProtocol {
 
   // Aborts any pending reads by returning a read error. After this method
   // returns all subsequent calls to Read() will immediately fail.
-  //
-  // TODO(scherkus): Currently this will cause |error_cb| to fire. Fix.
   void Abort();
 
   // FFmpegURLProtocol implementation.
@@ -51,13 +46,9 @@ class MEDIA_EXPORT BlockingUrlProtocol : public FFmpegURLProtocol {
   scoped_refptr<DataSource> data_source_;
   base::Closure error_cb_;
 
-  // Used to convert an asynchronous DataSource::Read() into a blocking
-  // FFmpegUrlProtocol::Read().
-  base::WaitableEvent read_event_;
-
-  // Read errors and aborts are unrecoverable. Any subsequent reads will
-  // immediately fail when this is set to true.
-  bool read_has_failed_;
+  // Used to unblock the thread during shutdown and when reads complete.
+  base::WaitableEvent aborted_;
+  base::WaitableEvent read_complete_;
 
   // Cached number of bytes last read from the data source.
   int last_read_bytes_;
