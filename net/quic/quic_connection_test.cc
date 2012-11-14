@@ -711,7 +711,8 @@ TEST_F(QuicConnectionTest, TestResend) {
   EXPECT_EQ(2u, last_header()->packet_sequence_number);
 }
 
-TEST_F(QuicConnectionTest, TestQueued) {
+// TODO(rch): Enable after we get non-blocking sockets.
+TEST_F(QuicConnectionTest, DISABLED_TestQueued) {
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   helper_->set_blocked(true);
   connection_.SendStreamData(1, "foo", 0, false, NULL);
@@ -851,7 +852,8 @@ TEST_F(QuicConnectionTest, SendSchedulerForce) {
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
 
-TEST_F(QuicConnectionTest, SendSchedulerEAGAIN) {
+// TODO(rch): Enable after we get non-blocking sockets.
+TEST_F(QuicConnectionTest, DISABLED_SendSchedulerEAGAIN) {
   scoped_ptr<QuicPacket> packet(ConstructDataPacket(1, 0));
   helper_->set_blocked(true);
   EXPECT_CALL(*scheduler_, TimeUntilSend(true)).WillOnce(testing::Return(
