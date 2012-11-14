@@ -102,7 +102,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
     decoder_->Initialize(demuxer_, NewExpectedStatusCB(status),
                          base::Bind(&MockStatisticsCB::OnStatistics,
                                     base::Unretained(&statistics_cb_)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   void Initialize() {
@@ -131,7 +131,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
 
     decoder_->Read(base::Bind(&DecryptingVideoDecoderTest::FrameReady,
                               base::Unretained(this)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   // Sets up expectations and actions to put DecryptingVideoDecoder in an
@@ -163,7 +163,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
         .WillOnce(SaveArg<0>(&pending_demuxer_read_cb_));
     decoder_->Read(base::Bind(&DecryptingVideoDecoderTest::FrameReady,
                               base::Unretained(this)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
     // Make sure the Read() on the decoder triggers a Read() on the demuxer.
     EXPECT_FALSE(pending_demuxer_read_cb_.is_null());
   }
@@ -178,7 +178,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
 
     decoder_->Read(base::Bind(&DecryptingVideoDecoderTest::FrameReady,
                               base::Unretained(this)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
     // Make sure the Read() on the decoder triggers a DecryptAndDecode() on the
     // decryptor.
     EXPECT_FALSE(pending_video_decode_cb_.is_null());
@@ -191,7 +191,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
         .WillRepeatedly(RunCallback<1>(Decryptor::kNoKey, null_video_frame_));
     decoder_->Read(base::Bind(&DecryptingVideoDecoderTest::FrameReady,
                               base::Unretained(this)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   void AbortPendingVideoDecodeCB() {
@@ -217,7 +217,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
             this, &DecryptingVideoDecoderTest::AbortPendingVideoDecodeCB));
 
     decoder_->Reset(NewExpectedClosure());
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   void Stop() {
@@ -229,7 +229,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
             this, &DecryptingVideoDecoderTest::AbortAllPendingCBs));
 
     decoder_->Stop(NewExpectedClosure());
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   MOCK_METHOD1(RequestDecryptorNotification,
@@ -355,7 +355,7 @@ TEST_F(DecryptingVideoDecoderTest, KeyAdded_DuringWaitingForKey) {
   EXPECT_CALL(statistics_cb_, OnStatistics(_));
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, decoded_video_frame_));
   key_added_cb_.Run();
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test the case where the a key is added when the decryptor is in
@@ -374,7 +374,7 @@ TEST_F(DecryptingVideoDecoderTest, KeyAdded_DruingPendingDecode) {
   key_added_cb_.Run();
   base::ResetAndReturn(&pending_video_decode_cb_).Run(Decryptor::kNoKey,
                                                       null_video_frame_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test resetting when the decoder is in kIdle state but has not decoded any
@@ -402,7 +402,7 @@ TEST_F(DecryptingVideoDecoderTest, Reset_DuringPendingDemuxerRead) {
   Reset();
   base::ResetAndReturn(&pending_demuxer_read_cb_).Run(DemuxerStream::kOk,
                                                       encrypted_buffer_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test resetting when the decoder is in kPendingDecode state.
@@ -456,7 +456,7 @@ TEST_F(DecryptingVideoDecoderTest, Stop_DuringDecryptorRequested) {
                        NewExpectedStatusCB(DECODER_ERROR_NOT_SUPPORTED),
                        base::Bind(&MockStatisticsCB::OnStatistics,
                                   base::Unretained(&statistics_cb_)));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   // |decryptor_notification_cb| is saved but not called here.
   EXPECT_FALSE(decryptor_notification_cb.is_null());
 
@@ -507,7 +507,7 @@ TEST_F(DecryptingVideoDecoderTest, Stop_DuringPendingDemuxerRead) {
   Stop();
   base::ResetAndReturn(&pending_demuxer_read_cb_).Run(DemuxerStream::kOk,
                                                       encrypted_buffer_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test stopping when the decoder is in kPendingDecode state.
@@ -591,7 +591,7 @@ TEST_F(DecryptingVideoDecoderTest, DemuxerRead_AbortedDuringReset) {
   Reset();
   base::ResetAndReturn(&pending_demuxer_read_cb_).Run(DemuxerStream::kAborted,
                                                       NULL);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test config change on the demuxer stream.

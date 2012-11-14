@@ -106,10 +106,10 @@ TEST(AsyncSocketIoHandlerTest, SynchronousReadWithMessageLoop) {
   // We've now verified that the read happened synchronously, but it's not
   // guaranteed that the callback has been issued since the callback will be
   // called asynchronously even though the read may have been done.
-  // So we call RunAllPending() to allow any event notifications or APC's on
+  // So we call RunUntilIdle() to allow any event notifications or APC's on
   // Windows, to execute before checking the count of how many callbacks we've
   // received.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(1, reader.callbacks_received());
 }
 

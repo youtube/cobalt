@@ -157,13 +157,13 @@ class AudioOutputProxyTest : public testing::Test {
 
     // This is necessary to free all proxy objects that have been
     // closed by the test.
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   virtual void InitDispatcher(base::TimeDelta close_delay) {
     // Use a low sample rate and large buffer size when testing otherwise the
     // FakeAudioOutputStream will keep the message loop busy indefinitely; i.e.,
-    // RunAllPending() will never terminate.
+    // RunUntilIdle() will never terminate.
     params_ = AudioParameters(AudioParameters::AUDIO_PCM_LINEAR,
                               CHANNEL_LAYOUT_STEREO, 8000, 16, 2048);
     dispatcher_impl_ = new AudioOutputDispatcherImpl(&manager(),
@@ -186,10 +186,10 @@ class AudioOutputProxyTest : public testing::Test {
 
   // Wait for the close timer to fire.
   void WaitForCloseTimer(const int timer_delay_ms) {
-    message_loop_.RunAllPending();  // OpenTask() may reset the timer.
+    message_loop_.RunUntilIdle();  // OpenTask() may reset the timer.
     base::PlatformThread::Sleep(
         base::TimeDelta::FromMilliseconds(timer_delay_ms) * 2);
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   // Methods that do actual tests.
@@ -324,7 +324,7 @@ class AudioOutputProxyTest : public testing::Test {
     // Simulate a delay.
     base::PlatformThread::Sleep(
         base::TimeDelta::FromMilliseconds(kTestCloseDelayMs) * 2);
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
 
     // Verify expectation before calling Close().
     Mock::VerifyAndClear(&stream);
@@ -360,7 +360,7 @@ class AudioOutputProxyTest : public testing::Test {
     EXPECT_TRUE(proxy2->Open());
 
     proxy1->Start(&callback_);
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
     OnStart();
     proxy1->Stop();
 
@@ -429,7 +429,7 @@ class AudioOutputProxyTest : public testing::Test {
     // Simulate a delay.
     base::PlatformThread::Sleep(
         base::TimeDelta::FromMilliseconds(kTestCloseDelayMs) * 2);
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
 
     // Verify expectation before calling Close().
     Mock::VerifyAndClear(&stream);
@@ -469,7 +469,7 @@ class AudioOutputResamplerTest : public AudioOutputProxyTest {
     AudioOutputProxyTest::InitDispatcher(close_delay);
     // Use a low sample rate and large buffer size when testing otherwise the
     // FakeAudioOutputStream will keep the message loop busy indefinitely; i.e.,
-    // RunAllPending() will never terminate.
+    // RunUntilIdle() will never terminate.
     resampler_params_ = AudioParameters(
         AudioParameters::AUDIO_PCM_LOW_LATENCY, CHANNEL_LAYOUT_STEREO,
         16000, 16, 1024);
@@ -479,7 +479,7 @@ class AudioOutputResamplerTest : public AudioOutputProxyTest {
 
   virtual void OnStart() {
     // Let start run for a bit.
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
     base::PlatformThread::Sleep(
         base::TimeDelta::FromMilliseconds(kStartRunTimeMs));
   }
