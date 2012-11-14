@@ -32,29 +32,6 @@
 //    o Endpoint buffer (~20 ms to ensure glitch-free rendering).
 // - Note that, if the user selects a packet size of e.g. 100 ms, the total
 //   delay will be approximately 115 ms (10 + 5 + 100).
-// - Supports device events using the IMMNotificationClient Interface. If
-//   streaming has started, a so-called stream switch will take place in the
-//   following situations:
-//    o The user enables or disables an audio endpoint device from Device
-//      Manager or from the Windows multimedia control panel, Mmsys.cpl.
-//    o The user adds an audio adapter to the system or removes an audio
-//      adapter from the system.
-//    o The user plugs an audio endpoint device into an audio jack with
-//      jack-presence detection, or removes an audio endpoint device from
-//      such a jack.
-//    o The user changes the device role that is assigned to a device.
-//    o The value of a property of a device changes.
-//   Practical/typical example: A user has two audio devices A and B where
-//   A is a built-in device configured as Default Communication and B is a
-//   USB device set as Default device. Audio rendering starts and audio is
-//   played through the device B since the eConsole role is used by the audio
-//   manager in Chrome today. If the user now removes the USB device (B), it
-//   will be detected and device A will instead be defined as the new default
-//   device. Rendering will automatically stop, all resources will be released
-//   and a new session will be initialized and started using device A instead.
-//   The net effect for the user is that audio will automatically switch from
-//   device B to device A. Same thing will happen if the user now re-inserts
-//   the USB device again.
 //
 // Implementation notes:
 //
@@ -94,9 +71,6 @@
 // - Audio-rendering endpoint devices can have three roles:
 //   Console (eConsole), Communications (eCommunications), and Multimedia
 //   (eMultimedia). Search for "Device Roles" on MSDN for more details.
-// - The actual stream-switch is executed on the audio-render thread but it
-//   is triggered by an internal MMDevice thread using callback methods
-//   in the IMMNotificationClient interface.
 //
 // Threading details:
 //
@@ -108,8 +82,6 @@
 //   class, and the AudioSourceCallback::OnMoreData() method will be called
 //   from this thread. Stream switching also takes place on the audio-render
 //   thread.
-// - All callback methods from the IMMNotificationClient interface will be
-//   called on a Windows-internal MMDevice thread.
 //
 // Experimental exclusive mode:
 //
@@ -136,7 +108,6 @@
 #define MEDIA_AUDIO_WIN_AUDIO_LOW_LATENCY_OUTPUT_WIN_H_
 
 #include <Audioclient.h>
-#include <audiopolicy.h>
 #include <MMDeviceAPI.h>
 
 #include <string>
@@ -158,11 +129,7 @@ namespace media {
 class AudioManagerWin;
 
 // AudioOutputStream implementation using Windows Core Audio APIs.
-// TODO(henrika): Remove IMMNotificationClient implementation now that we have
-// AudioDeviceListenerWin; currently just disabled since extraction is extremely
-// advanced.
-class MEDIA_EXPORT WASAPIAudioOutputStream
-    : public IMMNotificationClient,
+class MEDIA_EXPORT WASAPIAudioOutputStream :
       public AudioOutputStream,
       public base::DelegateSimpleThread::Delegate {
  public:
@@ -171,6 +138,7 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   WASAPIAudioOutputStream(AudioManagerWin* manager,
                           const AudioParameters& params,
                           ERole device_role);
+
   // The dtor is typically called by the AudioManager only and it is usually
   // triggered by calling AudioOutputStream::Close().
   virtual ~WASAPIAudioOutputStream();
@@ -209,37 +177,6 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   int GetEndpointChannelCountForTesting() { return format_.Format.nChannels; }
 
  private:
-  // Implementation of IUnknown (trivial in this case). See
-  // msdn.microsoft.com/en-us/library/windows/desktop/dd371403(v=vs.85).aspx
-  // for details regarding why proper implementations of AddRef(), Release()
-  // and QueryInterface() are not needed here.
-  STDMETHOD_(ULONG, AddRef)();
-  STDMETHOD_(ULONG, Release)();
-  STDMETHOD(QueryInterface)(REFIID iid, void** object);
-
-  // Implementation of the abstract interface IMMNotificationClient.
-  // Provides notifications when an audio endpoint device is added or removed,
-  // when the state or properties of a device change, or when there is a
-  // change in the default role assigned to a device. See
-  // msdn.microsoft.com/en-us/library/windows/desktop/dd371417(v=vs.85).aspx
-  // for more details about the IMMNotificationClient interface.
-
-  // The default audio endpoint device for a particular role has changed.
-  // This method is only used for diagnostic purposes.
-  STDMETHOD(OnDeviceStateChanged)(LPCWSTR device_id, DWORD new_state);
-
-  // Indicates that the state of an audio endpoint device has changed.
-  STDMETHOD(OnDefaultDeviceChanged)(EDataFlow flow, ERole role,
-                                    LPCWSTR new_default_device_id);
-
-  // These IMMNotificationClient methods are currently not utilized.
-  STDMETHOD(OnDeviceAdded)(LPCWSTR device_id) { return S_OK; }
-  STDMETHOD(OnDeviceRemoved)(LPCWSTR device_id) { return S_OK; }
-  STDMETHOD(OnPropertyValueChanged)(LPCWSTR device_id,
-                                    const PROPERTYKEY key) {
-    return S_OK;
-  }
-
   // DelegateSimpleThread::Delegate implementation.
   virtual void Run() OVERRIDE;
 
@@ -262,13 +199,6 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // Converts unique endpoint ID to user-friendly device name.
   std::string GetDeviceName(LPCWSTR device_id) const;
-
-  // Called on the audio render thread when the current audio stream must
-  // be re-initialized because the default audio device has changed. This
-  // method: stops the current renderer, releases and re-creates all WASAPI
-  // interfaces, creates a new IMMDevice and re-starts rendering using the
-  // new default audio device.
-  bool RestartRenderingUsingNewDefaultDevice();
 
   // Contains the thread ID of the creating thread.
   base::PlatformThreadId creating_thread_id_;
@@ -357,9 +287,6 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // This event will be signaled when rendering shall stop.
   base::win::ScopedHandle stop_render_event_;
-
-  // This event will be signaled when stream switching shall take place.
-  base::win::ScopedHandle stream_switch_event_;
 
   // Container for retrieving data from AudioSourceCallback::OnMoreData().
   scoped_ptr<AudioBus> audio_bus_;

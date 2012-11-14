@@ -239,10 +239,6 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
   // Create the event which will be set in Stop() when capturing shall stop.
   stop_render_event_.Set(CreateEvent(NULL, FALSE, FALSE, NULL));
   DCHECK(stop_render_event_.IsValid());
-
-  // Create the event which will be set when a stream switch shall take place.
-  stream_switch_event_.Set(CreateEvent(NULL, FALSE, FALSE, NULL));
-  DCHECK(stream_switch_event_.IsValid());
 }
 
 WASAPIAudioOutputStream::~WASAPIAudioOutputStream() {}
@@ -484,7 +480,6 @@ void WASAPIAudioOutputStream::Run() {
   bool playing = true;
   bool error = false;
   HANDLE wait_array[] = { stop_render_event_,
-                          stream_switch_event_,
                           audio_samples_render_event_ };
   UINT64 device_frequency = 0;
 
@@ -518,15 +513,6 @@ void WASAPIAudioOutputStream::Run() {
         playing = false;
         break;
       case WAIT_OBJECT_0 + 1:
-        // |stream_switch_event_| has been set. Stop rendering and try to
-        // re-start the session using a new endpoint device.
-        if (!RestartRenderingUsingNewDefaultDevice()) {
-          // Abort the thread since stream switching failed.
-          playing = false;
-          error = true;
-        }
-        break;
-      case WAIT_OBJECT_0 + 2:
         {
           // |audio_samples_render_event_| has been set.
           UINT32 num_queued_frames = 0;
@@ -942,82 +928,6 @@ HRESULT WASAPIAudioOutputStream::ExclusiveModeInitialization() {
   return hr;
 }
 
-ULONG WASAPIAudioOutputStream::AddRef() {
-  NOTREACHED() << "IMMNotificationClient should not use this method.";
-  return 1;
-}
-
-ULONG WASAPIAudioOutputStream::Release() {
-  NOTREACHED() << "IMMNotificationClient should not use this method.";
-  return 1;
-}
-
-HRESULT WASAPIAudioOutputStream::QueryInterface(REFIID iid, void** object) {
-  NOTREACHED() << "IMMNotificationClient should not use this method.";
-  if (iid == IID_IUnknown || iid == __uuidof(IMMNotificationClient)) {
-    *object = static_cast < IMMNotificationClient*>(this);
-  } else {
-    return E_NOINTERFACE;
-  }
-  return S_OK;
-}
-
-STDMETHODIMP WASAPIAudioOutputStream::OnDeviceStateChanged(LPCWSTR device_id,
-                                                           DWORD new_state) {
-#ifndef NDEBUG
-  std::string device_name = GetDeviceName(device_id);
-  std::string device_state;
-
-  switch (new_state) {
-    case DEVICE_STATE_ACTIVE:
-      device_state = "ACTIVE";
-      break;
-    case DEVICE_STATE_DISABLED:
-      device_state = "DISABLED";
-      break;
-    case DEVICE_STATE_NOTPRESENT:
-      device_state = "NOTPRESENT";
-      break;
-    case DEVICE_STATE_UNPLUGGED:
-      device_state = "UNPLUGGED";
-      break;
-    default:
-      break;
-  }
-
-  DVLOG(1) << "-> State changed to " << device_state
-           << " for device: " << device_name;
-#endif
-  return S_OK;
-}
-
-HRESULT WASAPIAudioOutputStream::OnDefaultDeviceChanged(
-    EDataFlow flow, ERole role, LPCWSTR new_default_device_id) {
-  if (new_default_device_id == NULL) {
-    // The user has removed or disabled the default device for our
-    // particular role, and no other device is available to take that role.
-    DLOG(ERROR) << "All devices are disabled.";
-    return E_FAIL;
-  }
-
-  if (flow ==  eRender && role == device_role_) {
-    // Log the name of the new default device for our configured role.
-    std::string new_default_device = GetDeviceName(new_default_device_id);
-    DVLOG(1) << "-> New default device: "  << new_default_device;
-
-    // Initiate a stream switch if not already initiated by signaling the
-    // stream-switch event to inform the render thread that it is OK to
-    // re-initialize the active audio renderer. All the action takes place
-    // on the WASAPI render thread.
-    if (!restart_rendering_mode_) {
-      restart_rendering_mode_ = true;
-      SetEvent(stream_switch_event_.Get());
-    }
-  }
-
-  return S_OK;
-}
-
 std::string WASAPIAudioOutputStream::GetDeviceName(LPCWSTR device_id) const {
   std::string name;
   ScopedComPtr<IMMDevice> audio_device;
@@ -1041,69 +951,6 @@ std::string WASAPIAudioOutputStream::GetDeviceName(LPCWSTR device_id) const {
     }
   }
   return name;
-}
-
-bool WASAPIAudioOutputStream::RestartRenderingUsingNewDefaultDevice() {
-  DCHECK(base::PlatformThread::CurrentId() == render_thread_->tid());
-  DCHECK(restart_rendering_mode_);
-
-  // The |restart_rendering_mode_| event has been signaled which means that
-  // we must stop the current renderer and start a new render session using
-  // the new default device with the configured role.
-
-  // Stop the current rendering.
-  HRESULT hr = audio_client_->Stop();
-  if (FAILED(hr)) {
-    restart_rendering_mode_ = false;
-    return false;
-  }
-
-  // Release acquired interfaces (IAudioRenderClient, IAudioClient, IMMDevice).
-  audio_render_client_.Release();
-  audio_client_.Release();
-  endpoint_device_.Release();
-
-  // Retrieve the new default render audio endpoint (IMMDevice) for the
-  // specified role.
-  hr = device_enumerator_->GetDefaultAudioEndpoint(
-      eRender, device_role_, endpoint_device_.Receive());
-  if (FAILED(hr)) {
-    restart_rendering_mode_ = false;
-    return false;
-  }
-
-  // Re-create an IAudioClient interface.
-  hr = ActivateRenderDevice();
-  if (FAILED(hr)) {
-    restart_rendering_mode_ = false;
-    return false;
-  }
-
-  // Retrieve the new mix format and ensure that it is supported given
-  // the predefined format set at construction.
-  base::win::ScopedCoMem<WAVEFORMATEX> new_audio_engine_mix_format;
-  hr = audio_client_->GetMixFormat(&new_audio_engine_mix_format);
-  if (FAILED(hr) || !DesiredFormatIsSupported()) {
-    restart_rendering_mode_ = false;
-    return false;
-  }
-
-  // Re-initialize the audio engine using the new audio endpoint.
-  // This method will create a new IAudioRenderClient interface.
-  hr = InitializeAudioEngine();
-  if (FAILED(hr)) {
-    restart_rendering_mode_ = false;
-    return false;
-  }
-
-  // All released interfaces (IAudioRenderClient, IAudioClient, IMMDevice)
-  // are now re-initiated and it is now possible to re-start audio rendering.
-
-  // Start rendering again using the new default audio endpoint.
-  hr = audio_client_->Start();
-
-  restart_rendering_mode_ = false;
-  return SUCCEEDED(hr);
 }
 
 }  // namespace media
