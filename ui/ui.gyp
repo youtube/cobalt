@@ -509,6 +509,8 @@
         'gfx/skia_util.h',
         'gfx/skia_utils_gtk.cc',
         'gfx/skia_utils_gtk.h',
+        'gfx/switches.cc',
+        'gfx/switches.h',
         'gfx/sys_color_change_listener.cc',
         'gfx/sys_color_change_listener.h',
         'gfx/text_constants.h',
