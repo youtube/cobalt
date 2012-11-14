@@ -34,6 +34,10 @@
 #    included in the 'inputs' list (unlike additional_src_dirs).
 #  input_jars_paths - The path to jars to be included in the classpath. This
 #    should be filled automatically by depending on the appropriate targets.
+#  include_files - A list of specific files to include. This is by default
+#    empty, which leads to inclusion of all files specified. May include
+#    wildcard, and supports '**/' for recursive path wildcards, ie.:
+#    '**/MyFileRegardlessOfDirectory.java', '**/IncludedPrefix*.java'.
 
 {
   'dependencies': [
@@ -51,6 +55,7 @@
     'additional_src_dirs': [],
     'additional_input_paths': [],
     'generated_src_dirs': [],
+    'javac_includes': [],
   },
   'actions': [
     {
@@ -80,6 +85,7 @@
         '-DGENERATED_SRC_DIRS=>(generated_src_dirs)',
         '-DINPUT_JARS_PATHS=>(input_jars_paths)',
         '-DPACKAGE_NAME=<(package_name)',
+        '-DJAVAC_INCLUDES=>(javac_includes)',
 
         '-Dbasedir=<(java_in_dir)',
         '-buildfile',
