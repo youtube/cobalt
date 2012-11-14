@@ -28,13 +28,13 @@
 #include <string>
 
 #include "base/debug/debugger.h"
-#include "base/eintr_wrapper.h"
 #include "base/file_util.h"
 #include "base/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/mac/mac_util.h"
 #include "base/mac/scoped_mach_port.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
 #include "base/threading/thread_local.h"

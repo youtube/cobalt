@@ -40,9 +40,9 @@
 #include <ostream>
 
 #include "base/basictypes.h"
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/safe_strerror_posix.h"
 #include "base/string_piece.h"
 #include "base/stringprintf.h"

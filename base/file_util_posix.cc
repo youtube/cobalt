@@ -32,12 +32,12 @@
 #include <fstream>
 
 #include "base/basictypes.h"
-#include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/path_service.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
