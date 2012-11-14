@@ -813,8 +813,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
       if (error != net::OK) {
         if (error == net::ERR_IO_PENDING) {
           awaiting_callback_ = true;
-          request_->net_log().BeginEvent(
-              NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE);
+          SetBlockedOnDelegate();
         } else {
           std::string source("delegate");
           request_->net_log().AddEvent(NetLog::TYPE_CANCELLED,
@@ -849,7 +848,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
 }
 
 void URLRequestHttpJob::OnHeadersReceivedCallback(int result) {
-  request_->net_log().EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE);
+  SetUnblockedOnDelegate();
   awaiting_callback_ = false;
 
   // Check that there are no callbacks to already canceled requests.
