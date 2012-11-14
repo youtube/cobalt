@@ -28,6 +28,7 @@
 #include "net/base/sdch_manager.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service.h"
+#include "net/base/upload_data_stream.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"
@@ -895,7 +896,8 @@ void URLRequestHttpJob::RestartTransactionWithAuth(
 
 void URLRequestHttpJob::SetUpload(UploadData* upload) {
   DCHECK(!transaction_.get()) << "cannot change once started";
-  request_info_.upload_data = upload;
+  upload_data_stream_.reset(new UploadDataStream(upload));
+  request_info_.upload_data_stream = upload_data_stream_.get();
 }
 
 void URLRequestHttpJob::SetExtraRequestHeaders(
