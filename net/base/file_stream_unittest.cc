@@ -240,7 +240,7 @@ TEST_F(FileStreamTest, AsyncRead_EarlyDelete) {
   if (rv < 0) {
     EXPECT_EQ(ERR_IO_PENDING, rv);
     // The callback should not be called if the request is cancelled.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
     EXPECT_FALSE(callback.have_result());
   } else {
     EXPECT_EQ(std::string(kTestData, rv), std::string(buf->data(), rv));
@@ -458,7 +458,7 @@ TEST_F(FileStreamTest, AsyncWrite_EarlyDelete) {
   if (rv < 0) {
     EXPECT_EQ(ERR_IO_PENDING, rv);
     // The callback should not be called if the request is cancelled.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
     EXPECT_FALSE(callback.have_result());
   } else {
     ok = file_util::GetFileSize(temp_file_path(), &file_size);

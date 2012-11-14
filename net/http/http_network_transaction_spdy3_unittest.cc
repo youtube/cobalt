@@ -202,17 +202,17 @@ class HttpNetworkTransactionSpdy3Test : public PlatformTest {
   virtual void SetUp() {
     SpdySession::set_default_protocol(kProtoSPDY3);
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   virtual void TearDown() {
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
     // Empty the current queue.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
     PlatformTest::TearDown();
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   // Either |write_failure| specifies a write failure or |read_failure|
@@ -3464,13 +3464,13 @@ TEST_F(HttpNetworkTransactionSpdy3Test,
 
   // Empty the current queue.  This is necessary because idle sockets are
   // added to the connection pool asynchronously with a PostTask.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // We now check to make sure the TCPClientSocket was not added back to
   // the pool.
   EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session));
   trans.reset();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   // Make sure that the socket didn't get recycled after calling the destructor.
   EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session));
 }
@@ -3524,7 +3524,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSocket) {
 
   // Empty the current queue.  This is necessary because idle sockets are
   // added to the connection pool asynchronously with a PostTask.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // We now check to make sure the socket was added back to the pool.
   EXPECT_EQ(1, GetIdleSocketCountInTransportSocketPool(session));
@@ -3583,7 +3583,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSSLSocket) {
 
   // Empty the current queue.  This is necessary because idle sockets are
   // added to the connection pool asynchronously with a PostTask.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // We now check to make sure the socket was added back to the pool.
   EXPECT_EQ(1, GetIdleSocketCountInSSLSocketPool(session));
@@ -3651,7 +3651,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleDeadSSLSocket) {
 
   // Empty the current queue.  This is necessary because idle sockets are
   // added to the connection pool asynchronously with a PostTask.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // We now check to make sure the socket was added back to the pool.
   EXPECT_EQ(1, GetIdleSocketCountInSSLSocketPool(session));
@@ -3678,7 +3678,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleDeadSSLSocket) {
 
   // Empty the current queue.  This is necessary because idle sockets are
   // added to the connection pool asynchronously with a PostTask.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // We now check to make sure the socket was added back to the pool.
   EXPECT_EQ(1, GetIdleSocketCountInSSLSocketPool(session));
@@ -3735,7 +3735,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSocketAfterZeroContentLength) {
 
   // Empty the current queue.  This is necessary because idle sockets are
   // added to the connection pool asynchronously with a PostTask.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // We now check to make sure the socket was added back to the pool.
   EXPECT_EQ(1, GetIdleSocketCountInTransportSocketPool(session));
@@ -3906,7 +3906,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, AuthIdentityInURL) {
   EXPECT_EQ(100, response->headers->GetContentLength());
 
   // Empty the current queue.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 // Test the request-challenge-retry sequence for basic auth when there is an
@@ -4016,7 +4016,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, WrongAuthIdentityInURL) {
   EXPECT_EQ(100, response->headers->GetContentLength());
 
   // Empty the current queue.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 // Test that previously tried username/passwords for a realm get re-used.
@@ -8856,7 +8856,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, SimpleCancel) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   trans.reset();  // Cancel the transaction here.
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 // Test a basic GET request through a proxy.
@@ -9921,7 +9921,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, DoNotUseSpdySessionForHttp) {
   TestCompletionCallback callback1;
   EXPECT_EQ(ERR_IO_PENDING,
             trans1.Start(&request1, callback1.callback(), BoundNetLog()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(OK, callback1.WaitForResult());
   EXPECT_TRUE(trans1.GetResponseInfo()->was_fetched_via_spdy);
@@ -9936,7 +9936,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, DoNotUseSpdySessionForHttp) {
   TestCompletionCallback callback2;
   EXPECT_EQ(ERR_IO_PENDING,
             trans2.Start(&request2, callback2.callback(), BoundNetLog()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(OK, callback2.WaitForResult());
   EXPECT_FALSE(trans2.GetResponseInfo()->was_fetched_via_spdy);
@@ -10006,7 +10006,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, DoNotUseSpdySessionForHttpOverTunnel) {
   TestCompletionCallback callback1;
   EXPECT_EQ(ERR_IO_PENDING,
             trans1.Start(&request1, callback1.callback(), BoundNetLog()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   data1.RunFor(4);
 
   EXPECT_EQ(OK, callback1.WaitForResult());
@@ -10022,7 +10022,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, DoNotUseSpdySessionForHttpOverTunnel) {
   TestCompletionCallback callback2;
   EXPECT_EQ(ERR_IO_PENDING,
             trans2.Start(&request2, callback2.callback(), BoundNetLog()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   data1.RunFor(3);
 
   EXPECT_EQ(OK, callback2.WaitForResult());
@@ -10079,7 +10079,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UseSpdySessionForHttpWhenForced) {
   TestCompletionCallback callback1;
   EXPECT_EQ(ERR_IO_PENDING,
             trans1.Start(&request1, callback1.callback(), BoundNetLog()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(OK, callback1.WaitForResult());
   EXPECT_TRUE(trans1.GetResponseInfo()->was_fetched_via_spdy);
@@ -10094,7 +10094,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, UseSpdySessionForHttpWhenForced) {
   TestCompletionCallback callback2;
   EXPECT_EQ(ERR_IO_PENDING,
             trans2.Start(&request2, callback2.callback(), BoundNetLog()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(OK, callback2.WaitForResult());
   EXPECT_TRUE(trans2.GetResponseInfo()->was_fetched_via_spdy);
@@ -10218,7 +10218,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, DoNotUseSpdySessionIfCertDoesNotMatch) {
   TestCompletionCallback callback2;
   EXPECT_EQ(ERR_IO_PENDING,
             trans2.Start(&request2, callback2.callback(), BoundNetLog()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   data2->RunFor(3);
 
   ASSERT_TRUE(callback2.have_result());

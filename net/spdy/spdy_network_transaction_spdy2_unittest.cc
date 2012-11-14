@@ -55,7 +55,7 @@ class SpdyNetworkTransactionSpdy2Test
   virtual void TearDown() {
     UploadDataStream::ResetMergeChunks();
     // Empty the current queue.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   void set_merge_chunks(bool merge) {
@@ -462,7 +462,7 @@ class SpdyNetworkTransactionSpdy2Test
         // reads until we complete our callback.
         while (!callback.have_result()) {
           data->CompleteRead();
-          MessageLoop::current()->RunAllPending();
+          MessageLoop::current()->RunUntilIdle();
         }
         rv = callback.WaitForResult();
       } else if (rv <= 0) {
@@ -516,7 +516,7 @@ class SpdyNetworkTransactionSpdy2Test
     rv = trans2->Start(
         &CreateGetPushRequest(), callback.callback(), BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
 
     // The data for the pushed path may be coming in more than 1 packet. Compile
     // the results into a single string.
@@ -2019,7 +2019,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, CancelledTransaction) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     // This following read isn't used by the test, except during the
-    // RunAllPending() call at the end since the SpdySession survives the
+    // RunUntilIdle() call at the end since the SpdySession survives the
     // HttpNetworkTransaction and still tries to continue Read()'ing.  Any
     // MockRead will do here.
     MockRead(ASYNC, 0, 0)  // EOF
@@ -2042,7 +2042,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, CancelledTransaction) {
 
   // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   helper.VerifyDataNotConsumed();
 }
 
@@ -2193,7 +2193,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, DeleteSessionOnReadCallback) {
   data.CompleteRead();
 
   // Finish running rest of tasks.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   helper.VerifyDataConsumed();
 }
 
@@ -3729,7 +3729,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, BufferFull) {
 
   // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Verify that we consumed all test data.
   helper.VerifyDataConsumed();
@@ -3825,7 +3825,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, Buffering) {
 
   // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Verify that we consumed all test data.
   helper.VerifyDataConsumed();
@@ -3916,7 +3916,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, BufferedAll) {
 
   // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Verify that we consumed all test data.
   helper.VerifyDataConsumed();
@@ -4010,7 +4010,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, BufferedClosed) {
 
   // Flush the MessageLoop while the SpdySessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Verify that we consumed all test data.
   helper.VerifyDataConsumed();
@@ -4080,7 +4080,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, BufferedCancelled) {
 
   // Flush the MessageLoop; this will cause the buffered IO task
   // to run for the final time.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Verify that we consumed all test data.
   helper.VerifyDataConsumed();
@@ -4694,7 +4694,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, VerifyRetryOnConnectionReset) {
         if (variant == VARIANT_RST_DURING_READ_COMPLETION) {
           // Writes to the socket complete asynchronously on SPDY by running
           // through the message loop.  Complete the write here.
-          MessageLoop::current()->RunAllPending();
+          MessageLoop::current()->RunUntilIdle();
         }
 
         // Now schedule the ERR_CONNECTION_RESET.
@@ -5032,7 +5032,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ServerPushClaimBeforeHeaders) {
       &CreateGetPushRequest(), callback.callback(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   data.RunFor(3);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Read the server push body.
   std::string result2;
@@ -5183,7 +5183,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ServerPushWithTwoHeaderFrames) {
       &CreateGetPushRequest(), callback.callback(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   data.RunFor(3);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Read the server push body.
   std::string result2;
@@ -5321,7 +5321,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ServerPushWithNoStatusHeaderFrames) {
       &CreateGetPushRequest(), callback.callback(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   data.RunFor(2);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Read the server push body.
   std::string result2;
@@ -5740,7 +5740,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, OutOfOrderSynStream) {
   // Run the message loop, but do not allow the write to complete.
   // This leaves the SpdySession with a write pending, which prevents
   // SpdySession from attempting subsequent writes until this write completes.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Now, start both new transactions
   HttpRequestInfo info2 = CreateGetRequest();
@@ -5750,7 +5750,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, OutOfOrderSynStream) {
         new HttpNetworkTransaction(helper.session()));
   rv = trans2->Start(&info2, callback2.callback(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   HttpRequestInfo info3 = CreateGetRequest();
   info3.priority = HIGHEST;
@@ -5759,7 +5759,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, OutOfOrderSynStream) {
       new HttpNetworkTransaction(helper.session()));
   rv = trans3->Start(&info3, callback3.callback(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // We now have two SYN_STREAM frames queued up which will be
   // dequeued only once the first write completes, which we

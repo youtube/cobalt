@@ -190,7 +190,7 @@ TEST_F(SpdySessionSpdy2Test, GoAway) {
   EXPECT_EQ(2, session->GetProtocolVersion());
 
   // Flush the SpdySession::OnReadComplete() task.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 
@@ -358,7 +358,7 @@ TEST_F(SpdySessionSpdy2Test, ServerPing) {
   spdy_stream1->SetDelegate(delegate.get());
 
   // Flush the SpdySession::OnReadComplete() task.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 
@@ -838,7 +838,7 @@ TEST_F(SpdySessionSpdy2Test, CancelPendingCreateStream) {
   callback.reset();
 
   // Should not crash when running the pending callback.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 TEST_F(SpdySessionSpdy2Test, SendInitialSettingsOnNewSession) {
@@ -899,7 +899,7 @@ TEST_F(SpdySessionSpdy2Test, SendInitialSettingsOnNewSession) {
                                      HttpNetworkSession::NORMAL_SOCKET_POOL),
                                  BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_TRUE(data.at_write_eof());
 }
 
@@ -967,7 +967,7 @@ TEST_F(SpdySessionSpdy2Test, SendSettingsOnNewSession) {
                                      HttpNetworkSession::NORMAL_SOCKET_POOL),
                                  BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_TRUE(data.at_write_eof());
 }
 
@@ -1050,7 +1050,7 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
   pool_peer.AddAlias(test_hosts[0].addresses.front(), test_hosts[0].pair);
 
   // Flush the SpdySession::OnReadComplete() task.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // The third host has no overlap with the first, so it can't pool IPs.
   EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[2].pair));
@@ -1203,7 +1203,7 @@ TEST_F(SpdySessionSpdy2Test, NeedsCredentials) {
   EXPECT_FALSE(session->NeedsCredentials());
 
   // Flush the SpdySession::OnReadComplete() task.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   spdy_session_pool->Remove(session);
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
@@ -1258,7 +1258,7 @@ TEST_F(SpdySessionSpdy2Test, CloseSessionOnError) {
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // Flush the SpdySession::OnReadComplete() task.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 
@@ -1373,7 +1373,7 @@ TEST_F(SpdySessionSpdy2Test, OutOfOrderSynStreams) {
 
   spdy_stream1->SendRequest(false);
   spdy_stream2->SendRequest(false);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(3u, spdy_stream1->stream_id());
   EXPECT_EQ(1u, spdy_stream2->stream_id());

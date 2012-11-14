@@ -99,9 +99,9 @@ class RealFetchTester {
 
   void WaitUntilDone() {
     while (!finished_) {
-      MessageLoop::current()->RunAllPending();
+      MessageLoop::current()->RunUntilIdle();
     }
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   // Attempts to give worker threads time to finish.  This is currently
@@ -145,7 +145,7 @@ TEST(DhcpProxyScriptFetcherWin, RealFetchWithCancel) {
   // exercises the code without stubbing out dependencies.
   RealFetchTester fetcher;
   fetcher.RunTestWithCancel();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Attempt to avoid Valgrind leak reports in case worker thread is
   // still running.
@@ -387,16 +387,16 @@ public:
 
   void RunMessageLoopUntilComplete() {
     while (!finished_) {
-      MessageLoop::current()->RunAllPending();
+      MessageLoop::current()->RunUntilIdle();
     }
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   void RunMessageLoopUntilWorkerDone() {
     DCHECK(fetcher_.adapter_query_.get());
     while (!fetcher_.worker_finished_event_.TimedWait(
         base::TimeDelta::FromMilliseconds(10))) {
-      MessageLoop::current()->RunAllPending();
+      MessageLoop::current()->RunUntilIdle();
     }
   }
 

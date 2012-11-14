@@ -41,7 +41,7 @@ bool DiskCacheTest::CleanupCacheDir() {
 }
 
 void DiskCacheTest::TearDown() {
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 DiskCacheTestWithCache::DiskCacheTestWithCache()
@@ -222,7 +222,7 @@ void DiskCacheTestWithCache::AddDelay() {
 }
 
 void DiskCacheTestWithCache::TearDown() {
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   delete cache_;
   if (cache_thread_.IsRunning())
     cache_thread_.Stop();

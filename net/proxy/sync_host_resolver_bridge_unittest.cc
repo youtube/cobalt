@@ -200,7 +200,7 @@ class IOThread : public base::Thread {
 
     // (There may have been a completion posted back to origin thread, avoid
     // leaking it by running).
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
 
     // During the teardown sequence of the single threaded proxy resolver,
     // the outstanding host resolve should have been cancelled.
