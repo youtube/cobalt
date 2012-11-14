@@ -59,7 +59,7 @@ class CertDatabaseNSSTest : public testing::Test {
     // Run the message loop to process any observer callbacks (e.g. for the
     // ClientSocketFactory singleton) so that the scoped ref ptrs created in
     // NSSCertDatabase::NotifyObservers* get released.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
 
     EXPECT_EQ(0U, ListCertsInSlot(slot_->os_module_handle()).size());
   }

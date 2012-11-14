@@ -39,7 +39,7 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
   virtual void TearDown() {
     crypto::ECSignatureCreator::SetFactoryForTesting(NULL);
     UploadDataStream::ResetMergeChunks();
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   void set_merge_chunks(bool merge) {
@@ -188,7 +188,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendChunkedPost) {
 
   // This triggers read 3. The empty read causes the session to shut down.
   data()->CompleteRead();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Because we abandoned the stream, we don't expect to find a session in the
   // pool anymore.

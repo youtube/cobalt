@@ -1841,7 +1841,7 @@ void DiskCacheEntryTest::DoomSparseEntry() {
   // Make sure we do all needed work. This may fail for entry2 if between Close
   // and DoomEntry the system decides to remove all traces of the file from the
   // system cache so we don't see that there is pending IO.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   if (memory_only_) {
     EXPECT_EQ(0, cache_->GetEntryCount());
@@ -1851,7 +1851,7 @@ void DiskCacheEntryTest::DoomSparseEntry() {
       // (it's always async on Posix so it is easy to miss). Unfortunately we
       // don't have any signal to watch for so we can only wait.
       base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(500));
-      MessageLoop::current()->RunAllPending();
+      MessageLoop::current()->RunUntilIdle();
     }
     EXPECT_EQ(0, cache_->GetEntryCount());
   }

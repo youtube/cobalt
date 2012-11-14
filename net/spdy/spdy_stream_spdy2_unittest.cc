@@ -49,7 +49,7 @@ class SpdyStreamSpdy2Test : public testing::Test {
   }
 
   virtual void TearDown() {
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   scoped_refptr<HttpNetworkSession> session_;

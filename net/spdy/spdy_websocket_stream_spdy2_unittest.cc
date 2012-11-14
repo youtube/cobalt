@@ -202,7 +202,7 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   }
 
   virtual void TearDown() {
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   void Prepare(SpdyStreamId stream_id) {

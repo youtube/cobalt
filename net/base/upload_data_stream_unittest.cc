@@ -310,7 +310,7 @@ TEST_F(UploadDataStreamTest, InitAsync) {
   MockCompletionCallback mock_callback;
   EXPECT_CALL(mock_callback, Run(OK)).Times(1);
   EXPECT_EQ(stream.Init(mock_callback.CreateCallback()), ERR_IO_PENDING);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 // Init() of a reader fails asynchronously.
@@ -329,7 +329,7 @@ TEST_F(UploadDataStreamTest, InitAsyncFailureAsync) {
   MockCompletionCallback mock_callback;
   EXPECT_CALL(mock_callback, Run(ERR_FAILED)).Times(1);
   EXPECT_EQ(stream.Init(mock_callback.CreateCallback()), ERR_IO_PENDING);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 // Init() of a reader fails synchronously.
@@ -352,7 +352,7 @@ TEST_F(UploadDataStreamTest, InitAsyncFailureSync) {
   MockCompletionCallback mock_callback;
   EXPECT_CALL(mock_callback, Run(ERR_FAILED)).Times(1);
   EXPECT_EQ(stream.Init(mock_callback.CreateCallback()), ERR_IO_PENDING);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 // Read with a buffer whose size is same as the data.
@@ -408,7 +408,7 @@ TEST_F(UploadDataStreamTest, ReadAsync) {
   MockCompletionCallback mock_callback;
   EXPECT_CALL(mock_callback, Run(OK)).Times(1);
   EXPECT_EQ(ERR_IO_PENDING, stream.Init(mock_callback.CreateCallback()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   scoped_refptr<IOBuffer> buf = new IOBuffer(kTestBufferSize);
 
@@ -416,19 +416,19 @@ TEST_F(UploadDataStreamTest, ReadAsync) {
   EXPECT_CALL(mock_callback, Run(kTestDataSize)).Times(0);
   EXPECT_EQ(static_cast<int>(kTestDataSize),
             stream.Read(buf, kTestDataSize, mock_callback.CreateCallback()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Consume the second element.
   EXPECT_CALL(mock_callback, Run(kTestDataSize)).Times(1);
   EXPECT_EQ(ERR_IO_PENDING,
             stream.Read(buf, kTestDataSize, mock_callback.CreateCallback()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Consume the third and the fourth elements.
   EXPECT_CALL(mock_callback, Run(kTestDataSize*2)).Times(1);
   EXPECT_EQ(ERR_IO_PENDING,
             stream.Read(buf, kTestDataSize*2, mock_callback.CreateCallback()));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,

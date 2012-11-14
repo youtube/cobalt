@@ -65,7 +65,7 @@ class BaseCallback {
     // Therefore, callbacks will actually always complete synchronously. If the
     // tests get more advanced we need to add other means of signaling
     // completion.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
     EXPECT_TRUE(has_run_);
     has_run_ = false;
   }
@@ -164,7 +164,7 @@ TEST_F(CookieMonsterTest, TestAddCookiesOnSingleHost) {
 
   PerfTimeLogger timer3("Cookie_monster_deleteall_single_host");
   cm->DeleteAllAsync(CookieMonster::DeleteCallback());
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   timer3.Done();
 }
 
@@ -197,7 +197,7 @@ TEST_F(CookieMonsterTest, TestAddCookieOnManyHosts) {
 
   PerfTimeLogger timer3("Cookie_monster_deleteall_many_hosts");
   cm->DeleteAllAsync(CookieMonster::DeleteCallback());
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   timer3.Done();
 }
 

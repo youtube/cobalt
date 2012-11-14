@@ -68,7 +68,7 @@ TEST(FtpProtocolHandlerTest, CreateTransactionFails) {
   ftp_job->Start();
   EXPECT_CALL(delegate, OnResponseStarted(_))
       .WillOnce(HandleOnResponseStarted(URLRequestStatus::FAILED));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_FALSE(url_request.is_pending());
 }
 
