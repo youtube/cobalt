@@ -113,7 +113,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
                          base::Bind(&MockStatisticsCB::OnStatistics,
                                     base::Unretained(&statistics_cb_)));
 
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   void InitializeWithConfig(const VideoDecoderConfig& config) {
@@ -131,7 +131,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     EXPECT_CALL(*decryptor_, CancelDecrypt(Decryptor::kVideo))
         .WillOnce(Invoke(this, &FFmpegVideoDecoderTest::CancelDecrypt));
     decoder_->Reset(NewExpectedClosure());
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   void Stop() {
@@ -142,7 +142,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
         .Times(AtMost(1))
         .WillRepeatedly(Invoke(this, &FFmpegVideoDecoderTest::CancelDecrypt));
     decoder_->Stop(NewExpectedClosure());
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   // Sets up expectations and actions to put FFmpegVideoDecoder in an active
@@ -230,7 +230,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
 
     decoder_->Read(read_cb_);
 
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   MOCK_METHOD2(FrameReady, void(VideoDecoder::Status,
@@ -418,7 +418,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_DecodeError) {
   EXPECT_EQ(VideoDecoder::kDecodeError, status);
   EXPECT_FALSE(video_frame);
 
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Multi-threaded decoders have different behavior than single-threaded
@@ -499,7 +499,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_DecryptError) {
   EXPECT_EQ(VideoDecoder::kDecryptError, status);
   EXPECT_FALSE(video_frame);
 
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test the case that the decryptor has no key to decrypt the encrypted buffer.
@@ -522,7 +522,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoDecryptionKey) {
   EXPECT_EQ(VideoDecoder::kDecryptError, status);
   EXPECT_FALSE(video_frame);
 
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test the case that the decryptor fails to decrypt the encrypted buffer but
@@ -549,7 +549,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_CorruptedBufferReturned) {
   EXPECT_EQ(VideoDecoder::kDecodeError, status);
   EXPECT_FALSE(video_frame);
 
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test resetting when decoder has initialized but not decoded.
@@ -582,7 +582,7 @@ TEST_F(FFmpegVideoDecoderTest, Reset_DuringPendingRead) {
       .WillOnce(SaveArg<0>(&read_cb));
 
   decoder_->Read(read_cb_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Make sure the Read() on the decoder triggers a Read() on
   // the demuxer.
@@ -594,7 +594,7 @@ TEST_F(FFmpegVideoDecoderTest, Reset_DuringPendingRead) {
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
 
   read_cb.Run(DemuxerStream::kOk, i_frame_buffer_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test resetting when there is a pending decrypt on the decryptor.
@@ -608,13 +608,13 @@ TEST_F(FFmpegVideoDecoderTest, Reset_DuringPendingDecrypt) {
       .WillOnce(SaveArg<2>(&decrypt_cb_));
 
   decoder_->Read(read_cb_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   // Make sure the Read() on the decoder triggers a Decrypt() on the decryptor.
   EXPECT_FALSE(decrypt_cb_.is_null());
 
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
   Reset();
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test stopping when decoder has initialized but not decoded.
@@ -647,7 +647,7 @@ TEST_F(FFmpegVideoDecoderTest, Stop_DuringPendingRead) {
       .WillOnce(SaveArg<0>(&read_cb));
 
   decoder_->Read(read_cb_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Make sure the Read() on the decoder triggers a Read() on the demuxer.
   EXPECT_FALSE(read_cb.is_null());
@@ -657,7 +657,7 @@ TEST_F(FFmpegVideoDecoderTest, Stop_DuringPendingRead) {
   Stop();
 
   read_cb.Run(DemuxerStream::kOk, i_frame_buffer_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test stopping when there is a pending decrypt on the decryptor.
@@ -671,13 +671,13 @@ TEST_F(FFmpegVideoDecoderTest, Stop_DuringPendingDecrypt) {
       .WillOnce(SaveArg<2>(&decrypt_cb_));
 
   decoder_->Read(read_cb_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   // Make sure the Read() on the decoder triggers a Decrypt() on the decryptor.
   EXPECT_FALSE(decrypt_cb_.is_null());
 
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
   Stop();
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test aborted read on the demuxer stream.
@@ -707,7 +707,7 @@ TEST_F(FFmpegVideoDecoderTest, AbortPendingReadDuringReset) {
   decoder_->Read(read_cb_);
   EXPECT_CALL(*demuxer_, Read(_))
       .WillOnce(SaveArg<0>(&read_cb));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
   ASSERT_FALSE(read_cb.is_null());
 
   // Reset while there is still an outstanding read on the demuxer.
@@ -718,7 +718,7 @@ TEST_F(FFmpegVideoDecoderTest, AbortPendingReadDuringReset) {
 
   // Make sure we get a NULL video frame returned.
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 }  // namespace media

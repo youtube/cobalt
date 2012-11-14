@@ -66,7 +66,7 @@ class FFmpegDemuxerTest : public testing::Test {
     }
 
     // Finish up any remaining tasks.
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
     // Release the reference to the demuxer.
     demuxer_ = NULL;
   }
@@ -88,7 +88,7 @@ class FFmpegDemuxerTest : public testing::Test {
   void InitializeDemuxer() {
     EXPECT_CALL(host_, SetDuration(_));
     demuxer_->Initialize(&host_, NewExpectedStatusCB(PIPELINE_OK));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   MOCK_METHOD2(OnReadDoneCalled, void(int, int64));
@@ -149,7 +149,7 @@ class FFmpegDemuxerTest : public testing::Test {
     const int kMaxBuffers = 170;
     for (int i = 0; !got_eos_buffer && i < kMaxBuffers; i++) {
       audio->Read(base::Bind(&EosOnReadDone, &got_eos_buffer));
-      message_loop_.RunAllPending();
+      message_loop_.RunUntilIdle();
     }
 
     EXPECT_TRUE(got_eos_buffer);
@@ -180,7 +180,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   demuxer_->Initialize(
       &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
 
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // TODO(acolwell): Uncomment this test when we discover a file that passes
@@ -190,7 +190,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
 //  ("find_stream_info_fail.webm");
 //  demuxer_->Initialize(
 //      &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_PARSE));
-//  message_loop_.RunAllPending();
+//  message_loop_.RunUntilIdle();
 //}
 
 TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
@@ -198,7 +198,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
   CreateDemuxer("no_streams.webm");
   demuxer_->Initialize(
       &host_, NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 TEST_F(FFmpegDemuxerTest, Initialize_NoAudioVideo) {
@@ -206,7 +206,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoAudioVideo) {
   CreateDemuxer("no_audio_video.webm");
   demuxer_->Initialize(
       &host_, NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
@@ -289,10 +289,10 @@ TEST_F(FFmpegDemuxerTest, Read_Audio) {
       demuxer_->GetStream(DemuxerStream::AUDIO);
 
   audio->Read(NewReadCB(FROM_HERE, 29, 0));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   audio->Read(NewReadCB(FROM_HERE, 27, 3000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 TEST_F(FFmpegDemuxerTest, Read_Video) {
@@ -305,10 +305,10 @@ TEST_F(FFmpegDemuxerTest, Read_Video) {
       demuxer_->GetStream(DemuxerStream::VIDEO);
 
   video->Read(NewReadCB(FROM_HERE, 22084, 0));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   video->Read(NewReadCB(FROM_HERE, 1057, 33000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
@@ -324,11 +324,11 @@ TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
 
   // Check first buffer in video stream.
   video->Read(NewReadCB(FROM_HERE, 5636, 400000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Check first buffer in audio stream.
   audio->Read(NewReadCB(FROM_HERE, 165, 396000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Verify that the start time is equal to the lowest timestamp (ie the audio).
   EXPECT_EQ(demuxer_->GetStartTime().InMicroseconds(), 396000);
@@ -366,28 +366,28 @@ TEST_F(FFmpegDemuxerTest, Seek) {
 
   // Read a video packet and release it.
   video->Read(NewReadCB(FROM_HERE, 22084, 0));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Issue a simple forward seek, which should discard queued packets.
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(1000000),
                  NewExpectedStatusCB(PIPELINE_OK));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Audio read #1.
   audio->Read(NewReadCB(FROM_HERE, 145, 803000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Audio read #2.
   audio->Read(NewReadCB(FROM_HERE, 148, 826000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Video read #1.
   video->Read(NewReadCB(FROM_HERE, 5425, 801000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Video read #2.
   video->Read(NewReadCB(FROM_HERE, 1906, 834000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // A mocked callback specialization for calling Read().  Since RunWithParams()
@@ -440,7 +440,7 @@ TEST_F(FFmpegDemuxerTest, Stop) {
   // Attempt the read...
   audio->Read(base::Bind(&MockReadCB::Run, callback));
 
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // ...and verify that |callback| was deleted.
   CheckPoint(1);
@@ -462,7 +462,7 @@ TEST_F(FFmpegDemuxerTest, StreamReadAfterStopAndDemuxerDestruction) {
   demuxer_->Stop(NewExpectedClosure());
 
   // Finish up any remaining tasks.
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Expect all calls in sequence.
   InSequence s;
@@ -484,7 +484,7 @@ TEST_F(FFmpegDemuxerTest, StreamReadAfterStopAndDemuxerDestruction) {
   // Attempt the read...
   audio->Read(base::Bind(&MockReadCB::Run, callback));
 
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // ...and verify that |callback| was deleted.
   CheckPoint(1);
@@ -500,7 +500,7 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
 
   // Submit a "disable audio stream" message to the demuxer.
   demuxer_->OnAudioRendererDisabled();
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Get our streams.
   scoped_refptr<DemuxerStream> video =
@@ -516,7 +516,7 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
 
   // Attempt a read from the video stream: it should return valid data.
   video->Read(NewReadCB(FROM_HERE, 22084, 0));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Attempt a read from the audio stream: it should immediately return end of
   // stream without requiring the message loop to read data.
@@ -541,28 +541,28 @@ TEST_F(FFmpegDemuxerTest, SeekWithCuesBeforeFirstCluster) {
 
   // Read a video packet and release it.
   video->Read(NewReadCB(FROM_HERE, 22084, 0));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Issue a simple forward seek, which should discard queued packets.
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(2500000),
                  NewExpectedStatusCB(PIPELINE_OK));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Audio read #1.
   audio->Read(NewReadCB(FROM_HERE, 40, 2403000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Audio read #2.
   audio->Read(NewReadCB(FROM_HERE, 42, 2406000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Video read #1.
   video->Read(NewReadCB(FROM_HERE, 5276, 2402000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 
   // Video read #2.
   video->Read(NewReadCB(FROM_HERE, 1740, 2436000));
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Ensure ID3v1 tag reading is disabled.  id3_test.mp3 has an ID3v1 tag with the

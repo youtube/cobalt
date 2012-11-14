@@ -455,7 +455,7 @@ TEST_F(AudioLowLatencyInputOutputTest, DISABLED_FullDuplexDelayMeasurement) {
   // All Close() operations that run on the mocked audio thread,
   // should be synchronous and not post additional close tasks to
   // mocked the audio thread. Hence, there is no need to call
-  // message_loop()->RunAllPending() after the Close() methods.
+  // message_loop()->RunUntilIdle() after the Close() methods.
   aos->Close();
   ais->Close();
 }

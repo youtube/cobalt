@@ -77,7 +77,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
                          base::Bind(&MockStatisticsCB::OnStatistics,
                                     base::Unretained(&statistics_cb_)));
 
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   void ReadPacket(const DemuxerStream::ReadCB& read_cb) {
@@ -93,7 +93,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
   void Read() {
     decoder_->Read(base::Bind(
         &FFmpegAudioDecoderTest::DecodeFinished, base::Unretained(this)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   void DecodeFinished(AudioDecoder::Status status,

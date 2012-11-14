@@ -99,7 +99,7 @@ class DecryptingAudioDecoderTest : public testing::Test {
     decoder_->Initialize(demuxer_, NewExpectedStatusCB(status),
                          base::Bind(&MockStatisticsCB::OnStatistics,
                                     base::Unretained(&statistics_cb_)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   void Initialize() {
@@ -132,7 +132,7 @@ class DecryptingAudioDecoderTest : public testing::Test {
 
     decoder_->Read(base::Bind(&DecryptingAudioDecoderTest::FrameReady,
                               base::Unretained(this)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   // Sets up expectations and actions to put DecryptingAudioDecoder in an
@@ -166,7 +166,7 @@ class DecryptingAudioDecoderTest : public testing::Test {
         .WillOnce(SaveArg<0>(&pending_demuxer_read_cb_));
     decoder_->Read(base::Bind(&DecryptingAudioDecoderTest::FrameReady,
                               base::Unretained(this)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
     // Make sure the Read() on the decoder triggers a Read() on the demuxer.
     EXPECT_FALSE(pending_demuxer_read_cb_.is_null());
   }
@@ -181,7 +181,7 @@ class DecryptingAudioDecoderTest : public testing::Test {
 
     decoder_->Read(base::Bind(&DecryptingAudioDecoderTest::FrameReady,
                               base::Unretained(this)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
     // Make sure the Read() on the decoder triggers a DecryptAndDecode() on the
     // decryptor.
     EXPECT_FALSE(pending_audio_decode_cb_.is_null());
@@ -195,7 +195,7 @@ class DecryptingAudioDecoderTest : public testing::Test {
                                        Decryptor::AudioBuffers()));
     decoder_->Read(base::Bind(&DecryptingAudioDecoderTest::FrameReady,
                               base::Unretained(this)));
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   void AbortPendingAudioDecodeCB() {
@@ -211,7 +211,7 @@ class DecryptingAudioDecoderTest : public testing::Test {
             this, &DecryptingAudioDecoderTest::AbortPendingAudioDecodeCB));
 
     decoder_->Reset(NewExpectedClosure());
-    message_loop_.RunAllPending();
+    message_loop_.RunUntilIdle();
   }
 
   MOCK_METHOD1(RequestDecryptorNotification,
@@ -352,7 +352,7 @@ TEST_F(DecryptingAudioDecoderTest, KeyAdded_DuringWaitingForKey) {
   EXPECT_CALL(statistics_cb_, OnStatistics(_));
   EXPECT_CALL(*this, FrameReady(AudioDecoder::kOk, decoded_frame_));
   key_added_cb_.Run();
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test the case where the a key is added when the decryptor is in
@@ -370,7 +370,7 @@ TEST_F(DecryptingAudioDecoderTest, KeyAdded_DruingPendingDecode) {
   key_added_cb_.Run();
   base::ResetAndReturn(&pending_audio_decode_cb_).Run(
       Decryptor::kNoKey, Decryptor::AudioBuffers());
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test resetting when the decoder is in kIdle state but has not decoded any
@@ -398,7 +398,7 @@ TEST_F(DecryptingAudioDecoderTest, Reset_DuringPendingDemuxerRead) {
   Reset();
   base::ResetAndReturn(&pending_demuxer_read_cb_).Run(DemuxerStream::kOk,
                                                       encrypted_buffer_);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test resetting when the decoder is in kPendingDecode state.
@@ -460,7 +460,7 @@ TEST_F(DecryptingAudioDecoderTest, DemuxerRead_AbortedDuringReset) {
   Reset();
   base::ResetAndReturn(&pending_demuxer_read_cb_).Run(DemuxerStream::kAborted,
                                                       NULL);
-  message_loop_.RunAllPending();
+  message_loop_.RunUntilIdle();
 }
 
 // Test config change on the demuxer stream.
