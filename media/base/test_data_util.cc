@@ -11,7 +11,7 @@
 
 namespace media {
 
-std::string GetTestDataURL(const std::string& name) {
+FilePath GetTestDataFilePath(const std::string& name) {
   FilePath file_path;
   CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
 
@@ -19,7 +19,7 @@ std::string GetTestDataURL(const std::string& name) {
       .Append(FILE_PATH_LITERAL("test"))
       .Append(FILE_PATH_LITERAL("data"))
       .AppendASCII(name);
-  return file_path.MaybeAsASCII();
+  return file_path;
 }
 
 scoped_refptr<DecoderBuffer> ReadTestDataFile(const std::string& name) {
