@@ -601,6 +601,10 @@
               ],
             }],
           ],
+          'sources!': [
+            # Broken on Android, and already disabled there.
+            'debug/stack_trace_unittest.cc',
+          ],
         }],
         ['OS == "ios"', {
           'sources/': [
