@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/upload_data.h"
 #include "net/base/upload_element_reader.h"
 
 namespace net {
@@ -76,6 +77,14 @@ int UploadDataStream::ReadSync(IOBuffer* buf, int buf_len) {
   DCHECK_GT(buf_len, 0);
   return ReadInternal(new DrainableIOBuffer(buf, buf_len),
                       CompletionCallback());
+}
+
+int64 UploadDataStream::identifier() const {
+  return upload_data_->identifier();
+}
+
+bool UploadDataStream::is_chunked() const {
+  return upload_data_->is_chunked();
 }
 
 bool UploadDataStream::IsEOF() const {

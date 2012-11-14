@@ -1961,13 +1961,12 @@ class URLRequestTestHTTP : public URLRequestTest {
 
       MessageLoop::current()->Run();
 
-      ASSERT_EQ(1, d.response_started_count()) << "request failed: " <<
-          (int) r.status().status() << ", os error: " << r.status().error();
+      ASSERT_EQ(1, d.response_started_count())
+          << "request failed: " << r.status().status()
+          << ", os error: " << r.status().error();
 
       EXPECT_FALSE(d.received_data_before_response());
       EXPECT_EQ(uploadBytes, d.data_received());
-      EXPECT_EQ(memcmp(uploadBytes, d.data_received().c_str(), kMsgSize), 0);
-      EXPECT_EQ(d.data_received().compare(uploadBytes), 0);
     }
     delete[] uploadBytes;
   }
@@ -1983,17 +1982,17 @@ class URLRequestTestHTTP : public URLRequestTest {
 
   void VerifyReceivedDataMatchesChunks(URLRequest* r, TestDelegate* d) {
     // This should match the chunks sent by AddChunksToUpload().
-    const char* expected_data =
+    const std::string expected_data =
         "abcdthis is a longer chunk than before.\r\n\r\n02323";
 
-    ASSERT_EQ(1, d->response_started_count()) << "request failed: " <<
-        (int) r->status().status() << ", os error: " << r->status().error();
+    ASSERT_EQ(1, d->response_started_count())
+        << "request failed: " << r->status().status()
+        << ", os error: " << r->status().error();
 
     EXPECT_FALSE(d->received_data_before_response());
 
-    ASSERT_EQ(strlen(expected_data), static_cast<size_t>(d->bytes_received()));
-    EXPECT_EQ(0, memcmp(d->data_received().c_str(), expected_data,
-                        strlen(expected_data)));
+    EXPECT_EQ(expected_data.size(), static_cast<size_t>(d->bytes_received()));
+    EXPECT_EQ(expected_data, d->data_received());
   }
 
   bool DoManyCookiesRequest(int num_cookies) {
@@ -3106,8 +3105,9 @@ TEST_F(URLRequestTestHTTP, PostEmptyTest) {
 
     MessageLoop::current()->Run();
 
-    ASSERT_EQ(1, d.response_started_count()) << "request failed: " <<
-        (int) r.status().status() << ", error: " << r.status().error();
+    ASSERT_EQ(1, d.response_started_count())
+        << "request failed: " << r.status().status()
+        << ", error: " << r.status().error();
 
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_TRUE(d.data_received().empty());
@@ -3148,22 +3148,20 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
 
     MessageLoop::current()->Run();
 
-    int64 longsize;
-    ASSERT_EQ(true, file_util::GetFileSize(path, &longsize));
-    int size = static_cast<int>(longsize);
+    int64 size = 0;
+    ASSERT_EQ(true, file_util::GetFileSize(path, &size));
     scoped_array<char> buf(new char[size]);
 
-    int size_read = static_cast<int>(file_util::ReadFile(path,
-        buf.get(), size));
-    ASSERT_EQ(size, size_read);
+    ASSERT_EQ(size, file_util::ReadFile(path, buf.get(), size));
 
-    ASSERT_EQ(1, d.response_started_count()) << "request failed: " <<
-        (int) r.status().status() << ", error: " << r.status().error();
+    ASSERT_EQ(1, d.response_started_count())
+        << "request failed: " << r.status().status()
+        << ", error: " << r.status().error();
 
     EXPECT_FALSE(d.received_data_before_response());
 
-    ASSERT_EQ(size, d.bytes_received());
-    EXPECT_EQ(0, memcmp(d.data_received().c_str(), buf.get(), size));
+    EXPECT_EQ(size, d.bytes_received());
+    EXPECT_EQ(std::string(&buf[0], size), d.data_received());
   }
 }
 
@@ -3179,6 +3177,23 @@ TEST_F(URLRequestTestHTTP, TestPostChunkedDataBeforeStart) {
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
+    MessageLoop::current()->Run();
+
+    VerifyReceivedDataMatchesChunks(&r, &d);
+  }
+}
+
+TEST_F(URLRequestTestHTTP, TestPostChunkedDataJustAfterStart) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  {
+    URLRequest r(test_server_.GetURL("echo"), &d, &default_context_);
+    r.EnableChunkedUpload();
+    r.set_method("POST");
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+    AddChunksToUpload(&r);
     MessageLoop::current()->Run();
 
     VerifyReceivedDataMatchesChunks(&r, &d);

@@ -25,6 +25,7 @@ class HttpResponseHeaders;
 class HttpResponseInfo;
 class HttpTransaction;
 class HttpUserAgentSettings;
+class UploadDataStream;
 class URLRequestContext;
 
 // A URLRequestJob subclass that is built on top of HttpTransaction.  It
@@ -95,6 +96,8 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual void DoneReading() OVERRIDE;
   virtual HostPortPair GetSocketAddress() const OVERRIDE;
   virtual void NotifyURLRequestDestroyed() OVERRIDE;
+
+  scoped_ptr<UploadDataStream> upload_data_stream_;
 
   HttpRequestInfo request_info_;
   const HttpResponseInfo* response_info_;
