@@ -166,7 +166,7 @@ void AudioOutputDeviceTest::Initialize() {
     audio_device_->Initialize(default_audio_parameters_,
                               &callback_);
   }
-  io_loop_.RunAllPending();
+  io_loop_.RunUntilIdle();
 }
 
 void AudioOutputDeviceTest::StartAudioDevice() {
@@ -176,7 +176,7 @@ void AudioOutputDeviceTest::StartAudioDevice() {
       .WillOnce(Return(kStreamId));
   EXPECT_CALL(audio_output_ipc_, CreateStream(kStreamId, _, _));
 
-  io_loop_.RunAllPending();
+  io_loop_.RunUntilIdle();
 }
 
 void AudioOutputDeviceTest::CreateStream() {
@@ -200,7 +200,7 @@ void AudioOutputDeviceTest::CreateStream() {
 
   audio_device_->OnStreamCreated(duplicated_memory_handle, audio_device_socket,
                                  PacketSizeInBytes(kMemorySize));
-  io_loop_.RunAllPending();
+  io_loop_.RunUntilIdle();
 }
 
 void AudioOutputDeviceTest::ExpectRenderCallback() {
@@ -247,7 +247,7 @@ void AudioOutputDeviceTest::StopAudioDevice() {
   EXPECT_CALL(audio_output_ipc_, CloseStream(kStreamId));
   EXPECT_CALL(audio_output_ipc_, RemoveDelegate(kStreamId));
 
-  io_loop_.RunAllPending();
+  io_loop_.RunUntilIdle();
 }
 
 TEST_P(AudioOutputDeviceTest, Initialize) {
