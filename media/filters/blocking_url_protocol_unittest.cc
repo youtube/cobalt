@@ -20,7 +20,7 @@ class BlockingUrlProtocolTest : public testing::Test {
  public:
   BlockingUrlProtocolTest() {
     data_source_ = new FileDataSource();
-    CHECK(data_source_->Initialize(GetTestDataFilePath("bear-320x240.webm")));
+    CHECK(data_source_->Initialize(GetTestDataURL("bear-320x240.webm")));
 
     url_protocol_.reset(new BlockingUrlProtocol(data_source_, base::Bind(
         &BlockingUrlProtocolTest::OnDataSourceError, base::Unretained(this))));

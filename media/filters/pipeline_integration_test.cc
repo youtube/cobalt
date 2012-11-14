@@ -38,7 +38,7 @@ class MockMediaSource {
  public:
   MockMediaSource(const std::string& filename, const std::string& mimetype,
                   int initial_append_size)
-      : file_path_(GetTestDataFilePath(filename)),
+      : url_(GetTestDataURL(filename)),
         current_position_(0),
         initial_append_size_(initial_append_size),
         mimetype_(mimetype) {
@@ -129,7 +129,7 @@ class MockMediaSource {
   }
 
  private:
-  FilePath file_path_;
+  std::string url_;
   scoped_refptr<DecoderBuffer> file_data_;
   int current_position_;
   int initial_append_size_;
@@ -277,7 +277,7 @@ class PipelineIntegrationTest
 
 
 TEST_F(PipelineIntegrationTest, BasicPlayback) {
-  ASSERT_TRUE(Start(GetTestDataFilePath("bear-320x240.webm"), PIPELINE_OK));
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK));
 
   Play();
 
@@ -285,8 +285,7 @@ TEST_F(PipelineIntegrationTest, BasicPlayback) {
 }
 
 TEST_F(PipelineIntegrationTest, BasicPlaybackHashed) {
-  ASSERT_TRUE(Start(GetTestDataFilePath("bear-320x240.webm"),
-                    PIPELINE_OK, true));
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK, true));
 
   Play();
 
@@ -365,7 +364,7 @@ TEST_F(PipelineIntegrationTest, MediaSource_ConfigChange_MP4) {
 #endif
 
 TEST_F(PipelineIntegrationTest, BasicPlayback_16x9AspectRatio) {
-  ASSERT_TRUE(Start(GetTestDataFilePath("bear-320x240-16x9-aspect.webm"),
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240-16x9-aspect.webm"),
                     PIPELINE_OK));
   Play();
   ASSERT_TRUE(WaitUntilOnEnded());
@@ -388,7 +387,7 @@ TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
 
 // TODO(acolwell): Fix flakiness http://crbug.com/117921
 TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePaused) {
-  ASSERT_TRUE(Start(GetTestDataFilePath("bear-320x240.webm"), PIPELINE_OK));
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK));
 
   base::TimeDelta duration(pipeline_->GetMediaDuration());
   base::TimeDelta start_seek_time(duration / 4);
@@ -412,7 +411,7 @@ TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePaused) {
 
 // TODO(acolwell): Fix flakiness http://crbug.com/117921
 TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePlaying) {
-  ASSERT_TRUE(Start(GetTestDataFilePath("bear-320x240.webm"), PIPELINE_OK));
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK));
 
   base::TimeDelta duration(pipeline_->GetMediaDuration());
   base::TimeDelta start_seek_time(duration / 4);

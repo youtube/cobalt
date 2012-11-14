@@ -7,8 +7,7 @@
 
 #include <string>
 
-#include "base/file_path.h"
-#include "base/file_util.h"
+#include "base/synchronization/lock.h"
 #include "media/base/data_source.h"
 
 namespace media {
@@ -19,7 +18,7 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
  public:
   FileDataSource();
 
-  bool Initialize(const FilePath& file_path);
+  bool Initialize(const std::string& url);
 
   // Implementation of DataSource.
   virtual void set_host(DataSourceHost* host) OVERRIDE;
@@ -41,7 +40,14 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
   // Informs the host of changes in total and buffered bytes.
   void UpdateHostBytes();
 
-  file_util::MemoryMappedFile file_;
+  // File handle.  NULL if not initialized or an error occurs.
+  FILE* file_;
+
+  // Size of the file in bytes.
+  int64 file_size_;
+
+  // Serialize all operations to prevent stopping during reads.
+  base::Lock lock_;
 
   bool force_read_errors_;
   bool force_streaming_;

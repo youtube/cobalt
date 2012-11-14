@@ -4,24 +4,37 @@
 
 #include "media/filters/file_data_source.h"
 
-#include <algorithm>
+#include <limits>
 
+#include "base/file_util.h"
 #include "base/logging.h"
+#include "base/utf_string_conversions.h"
 
 namespace media {
 
 FileDataSource::FileDataSource()
-    : force_read_errors_(false),
+    : file_(NULL),
+      file_size_(0),
+      force_read_errors_(false),
       force_streaming_(false) {
 }
 
-bool FileDataSource::Initialize(const FilePath& file_path) {
-  DCHECK(!file_.IsValid());
-
-  if (!file_.Initialize(file_path))
+bool FileDataSource::Initialize(const std::string& url) {
+  DCHECK(!file_);
+#if defined(OS_WIN)
+  FilePath file_path(UTF8ToWide(url));
+#else
+  FilePath file_path(url);
+#endif
+  if (file_util::GetFileSize(file_path, &file_size_)) {
+    file_ = file_util::OpenFile(file_path, "rb");
+  }
+  if (!file_) {
+    file_size_ = 0;
     return false;
-
+  }
   UpdateHostBytes();
+
   return true;
 }
 
@@ -31,32 +44,50 @@ void FileDataSource::set_host(DataSourceHost* host) {
 }
 
 void FileDataSource::Stop(const base::Closure& callback) {
-  callback.Run();
+  base::AutoLock l(lock_);
+  if (file_) {
+    file_util::CloseFile(file_);
+    file_ = NULL;
+    file_size_ = 0;
+  }
+  if (!callback.is_null())
+    callback.Run();
 }
 
 void FileDataSource::Read(int64 position, int size, uint8* data,
                           const DataSource::ReadCB& read_cb) {
-  if (force_read_errors_ || !file_.IsValid()) {
-    read_cb.Run(kReadError);
-    return;
+  DCHECK(file_);
+  base::AutoLock l(lock_);
+
+  if (!force_read_errors_ && file_) {
+#if defined(OS_WIN)
+    if (_fseeki64(file_, position, SEEK_SET)) {
+      read_cb.Run(DataSource::kReadError);
+      return;
+    }
+#else
+    CHECK(position <= std::numeric_limits<int32>::max());
+    // TODO(hclam): Change fseek() to support 64-bit position.
+    if (fseek(file_, static_cast<int32>(position), SEEK_SET)) {
+      read_cb.Run(DataSource::kReadError);
+      return;
+    }
+#endif
+    int size_read = fread(data, 1, size, file_);
+    if (size_read == size || !ferror(file_)) {
+      read_cb.Run(size_read);
+      return;
+    }
   }
 
-  int64 file_size = file_.length();
-
-  CHECK_GE(file_size, 0);
-  CHECK_GE(position, 0);
-  CHECK_GE(size, 0);
-
-  // Cap position and size within bounds.
-  position = std::min(position, file_size);
-  int64 clamped_size = std::min(static_cast<int64>(size), file_size - position);
-
-  memcpy(data, file_.data() + position, clamped_size);
-  read_cb.Run(clamped_size);
+  read_cb.Run(kReadError);
 }
 
 bool FileDataSource::GetSize(int64* size_out) {
-  *size_out = file_.length();
+  DCHECK(size_out);
+  DCHECK(file_);
+  base::AutoLock l(lock_);
+  *size_out = file_size_;
   return true;
 }
 
@@ -66,12 +97,14 @@ bool FileDataSource::IsStreaming() {
 
 void FileDataSource::SetBitrate(int bitrate) {}
 
-FileDataSource::~FileDataSource() {}
+FileDataSource::~FileDataSource() {
+  DCHECK(!file_);
+}
 
 void FileDataSource::UpdateHostBytes() {
-  if (host() && file_.IsValid()) {
-    host()->SetTotalBytes(file_.length());
-    host()->AddBufferedByteRange(0, file_.length());
+  if (host() && file_) {
+    host()->SetTotalBytes(file_size_);
+    host()->AddBufferedByteRange(0, file_size_);
   }
 }
 
