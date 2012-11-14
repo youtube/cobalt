@@ -590,6 +590,8 @@ class ThreadLocalBooleanAutoReset {
 base::LazyInstance<ThreadLocalBoolean>::Leaky
     g_unchecked_malloc = LAZY_INSTANCE_INITIALIZER;
 
+// NOTE(shess): This is called when the malloc library noticed that the heap
+// is fubar.  Avoid calls which will re-enter the malloc library.
 void CrMallocErrorBreak() {
   g_original_malloc_error_break();
 
@@ -602,8 +604,18 @@ void CrMallocErrorBreak() {
     return;
 
   // A unit test checks this error message, so it needs to be in release builds.
-  PLOG(ERROR) <<
-      "Terminating process due to a potential for future heap corruption";
+  char buf[1024] =
+      "Terminating process due to a potential for future heap corruption: "
+      "errno=";
+  char errnobuf[] = {
+    '0' + ((errno / 100) % 10),
+    '0' + ((errno / 10) % 10),
+    '0' + (errno % 10),
+    '\000'
+  };
+  COMPILE_ASSERT(ELAST <= 999, errno_too_large_to_encode);
+  strlcat(buf, errnobuf, sizeof(buf));
+  RAW_LOG(ERROR, buf);
 
   // Crash by writing to NULL+errno to allow analyzing errno from
   // crash dump info (setting a breakpad key would re-enter the malloc
@@ -628,6 +640,10 @@ void EnableTerminationOnHeapCorruption() {
     DLOG(WARNING) << "Could not find malloc_error_break";
     return;
   }
+
+  // Warm this up so that it doesn't require allocation when
+  // |CrMallocErrorBreak()| calls it.
+  ignore_result(g_unchecked_malloc.Get().Get());
 
   mach_error_t err = mach_override_ptr(
      (void*)malloc_error_break,
