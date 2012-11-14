@@ -37,13 +37,15 @@ import urlparse
 import zlib
 
 import echo_message
-from mod_pywebsocket.standalone import WebSocketServer
 import pyftpdlib.ftpserver
 import testserver_base
 import tlslite
 import tlslite.api
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(
+    0, os.path.join(BASE_DIR, '..', '..', '..', 'third_party/pywebsocket/src'))
+from mod_pywebsocket.standalone import WebSocketServer
 
 SERVER_HTTP = 0
 SERVER_FTP = 1
