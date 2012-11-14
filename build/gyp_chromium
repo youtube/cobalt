@@ -8,6 +8,7 @@
 # is invoked by Chromium beyond what can be done in the gclient hooks.
 
 import glob
+import gyp_helper
 import os
 import shlex
 import subprocess
@@ -43,36 +44,6 @@ if sys.platform == 'win32':
     psyco = None
 else:
   psyco = None
-
-def apply_gyp_environment(file_path=None):
-  """
-  Reads in a *.gyp_env file and applies the valid keys to os.environ.
-  """
-  if not file_path or not os.path.exists(file_path):
-    return
-  file_contents = open(file_path).read()
-  try:
-    file_data = eval(file_contents, {'__builtins__': None}, None)
-  except SyntaxError, e:
-    e.filename = os.path.abspath(file_path)
-    raise
-  supported_vars = ( 'CC',
-                     'CHROMIUM_GYP_FILE',
-                     'CHROMIUM_GYP_SYNTAX_CHECK',
-                     'CXX',
-                     'GYP_DEFINES',
-                     'GYP_GENERATOR_FLAGS',
-                     'GYP_GENERATOR_OUTPUT',
-                     'GYP_GENERATORS', )
-  for var in supported_vars:
-    val = file_data.get(var)
-    if val:
-      if var in os.environ:
-        print 'INFO: Environment value for "%s" overrides value in %s.' % (
-            var, os.path.abspath(file_path)
-        )
-      else:
-        os.environ[var] = val
 
 def additional_include_files(args=[]):
   """
@@ -124,10 +95,7 @@ if __name__ == '__main__':
     p.communicate()
     sys.exit(p.returncode)
 
-  if 'SKIP_CHROMIUM_GYP_ENV' not in os.environ:
-    # Update the environment based on chromium.gyp_env
-    gyp_env_path = os.path.join(os.path.dirname(chrome_src), 'chromium.gyp_env')
-    apply_gyp_environment(gyp_env_path)
+  gyp_helper.apply_chromium_gyp_env()
 
   # This could give false positives since it doesn't actually do real option
   # parsing.  Oh well.
