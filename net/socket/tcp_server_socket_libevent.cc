@@ -15,7 +15,7 @@
 #include <netinet/in.h>
 #endif
 
-#include "base/eintr_wrapper.h"
+#include "base/posix/eintr_wrapper.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"

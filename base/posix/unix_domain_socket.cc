@@ -9,9 +9,9 @@
 #include <sys/uio.h>
 #include <sys/socket.h>
 
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/pickle.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/stl_util.h"
 
 const size_t UnixDomainSocket::kMaxFileDescriptors = 16;

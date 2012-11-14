@@ -27,9 +27,9 @@
 
 #include "base/basictypes.h"
 #include "base/debug/debugger.h"
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/string_number_conversions.h"
 
 #if defined(USE_SYMBOLIZE)
