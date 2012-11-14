@@ -3,7 +3,8 @@
 # found in the LICENSE file.
 
 # This file is meant to be included into a target to provide a rule
-# to invoke protoc in a consistent manner.
+# to invoke protoc in a consistent manner. For Java-targets, see
+# protoc_java.gypi.
 #
 # To use this, create a gyp target with the following form:
 # {

@@ -70,7 +70,7 @@
         ['OS=="android"', {
           'targets': [
             {
-              'target_name': 'protobuf_lite_java',
+              'target_name': 'protobuf_lite_javalib',
               'type' : 'none',
               'dependencies': [
                 'protoc#host',
