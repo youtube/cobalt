@@ -26,6 +26,7 @@
 #include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/audio_unified_win.h"
+#include "media/audio/win/core_audio_util_win.h"
 #include "media/audio/win/device_enumeration_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
@@ -104,7 +105,7 @@ static string16 GetDeviceAndDriverInfo(HDEVINFO device_info,
 }
 
 AudioManagerWin::AudioManagerWin() {
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     // Use the Wave API for device enumeration if XP or lower.
     enumeration_type_ = kWaveEnumeration;
   } else {
@@ -139,7 +140,7 @@ bool AudioManagerWin::HasAudioInputDevices() {
 void AudioManagerWin::CreateDeviceListener() {
   // AudioDeviceListenerWin must be initialized on a COM thread and should only
   // be used if WASAPI / Core Audio is supported.
-  if (media::IsWASAPISupported()) {
+  if (CoreAudioUtil::IsSupported()) {
     output_device_listener_.reset(new AudioDeviceListenerWin(BindToLoop(
         GetMessageLoop(), base::Bind(
             &AudioManagerWin::NotifyAllOutputDeviceChangeListeners,
@@ -222,7 +223,7 @@ bool AudioManagerWin::CanShowAudioInputSettings() {
 void AudioManagerWin::ShowAudioInputSettings() {
   std::wstring program;
   std::string argument;
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     program = L"sndvol32.exe";
     argument = "-R";
   } else {
@@ -285,7 +286,7 @@ AudioOutputStream* AudioManagerWin::MakeLowLatencyOutputStream(
   if (params.channels() > kWinMaxChannels)
     return NULL;
 
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower.
     DVLOG(1) << "Using WaveOut since WASAPI requires at least Vista.";
     return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
@@ -318,7 +319,7 @@ AudioInputStream* AudioManagerWin::MakeLowLatencyInputStream(
     const AudioParameters& params, const std::string& device_id) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   AudioInputStream* stream = NULL;
-  if (!media::IsWASAPISupported()) {
+  if (!CoreAudioUtil::IsSupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower.
     DVLOG(1) << "Using WaveIn since WASAPI requires at least Vista.";
     stream = CreatePCMWaveInAudioInputStream(params, device_id);
@@ -361,7 +362,7 @@ AudioParameters AudioManagerWin::GetPreferredLowLatencyOutputStreamParameters(
   int sample_rate = input_params.sample_rate();
   int bits_per_sample = input_params.bits_per_sample();
   ChannelLayout channel_layout = input_params.channel_layout();
-  if (IsWASAPISupported()) {
+  if (CoreAudioUtil::IsSupported()) {
     sample_rate = GetAudioHardwareSampleRate();
     bits_per_sample = 16;
     channel_layout = WASAPIAudioOutputStream::HardwareChannelLayout();

@@ -70,10 +70,6 @@ MEDIA_EXPORT size_t GetHighLatencyOutputBufferSize(int sample_rate);
 
 #if defined(OS_WIN)
 
-// Does Windows support WASAPI? We are checking in lot of places, and
-// sometimes check was written incorrectly, so move into separate function.
-MEDIA_EXPORT bool IsWASAPISupported();
-
 // Returns number of buffers to be used by wave out.
 MEDIA_EXPORT int NumberOfWaveOutBuffers();
 
