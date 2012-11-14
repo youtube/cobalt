@@ -29,5 +29,5 @@ not support unknown field retention.
 
 The list of Java files included in the lite profile for Java is parsed from the
 maven java/pom.xml by the script protobuf_lite_java_parse_pom.py. See
-'javac_includes' variable in protobuf_lite_java GYP target.
+'javac_includes' variable in protobuf_lite_javalib GYP target.
 
