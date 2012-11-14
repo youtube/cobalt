@@ -80,7 +80,7 @@ DeterministicSocketDataTest::DeterministicSocketDataTest()
 
 void DeterministicSocketDataTest::TearDown() {
   // Empty the current queue.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   PlatformTest::TearDown();
 }
 

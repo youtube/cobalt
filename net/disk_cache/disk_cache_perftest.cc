@@ -179,7 +179,7 @@ TEST_F(DiskCacheTest, CacheBackendPerformance) {
 
   EXPECT_TRUE(TimeWrite(num_entries, cache, &entries));
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   delete cache;
 
   ASSERT_TRUE(file_util::EvictFileFromSystemCache(
@@ -202,7 +202,7 @@ TEST_F(DiskCacheTest, CacheBackendPerformance) {
 
   EXPECT_TRUE(TimeRead(num_entries, cache, entries, false));
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   delete cache;
 }
 
@@ -245,6 +245,6 @@ TEST_F(DiskCacheTest, BlockFilesPerformance) {
   }
 
   timer2.Done();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   delete[] address;
 }

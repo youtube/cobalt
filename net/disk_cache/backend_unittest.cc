@@ -237,7 +237,7 @@ TEST_F(DiskCacheTest, CreateBackend) {
     delete cache;
   }
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 // Testst that re-creating the cache performs the expected cleanup.
@@ -331,7 +331,7 @@ void DiskCacheBackendTest::BackendShutdownWithPendingFileIO(bool fast) {
     }
   }
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
 #if defined(OS_WIN)
   // Wait for the actual operation to complete, or we'll keep a file handle that
@@ -383,7 +383,7 @@ void DiskCacheBackendTest::BackendShutdownWithPendingIO(bool fast) {
     delete cache;
   }
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 TEST_F(DiskCacheBackendTest, ShutdownWithPendingIO) {
@@ -424,7 +424,7 @@ void DiskCacheBackendTest::BackendShutdownWithPendingCreate(bool fast) {
     EXPECT_FALSE(cb.have_result());
   }
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 TEST_F(DiskCacheBackendTest, ShutdownWithPendingCreate) {
@@ -876,7 +876,7 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry() {
   // If we evicted the entry in less than 20mS, we have one entry in the cache;
   // if it took more than that, we posted a task and we'll delete the second
   // entry too.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // This may be not thread-safe in general, but for now it's OK so add some
   // ThreadSanitizer annotations to ignore data races on cache_.
@@ -943,7 +943,7 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry2() {
   FlushQueueForTest();
 
   // We may abort the eviction before cleaning up everything.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   FlushQueueForTest();
   // If it's not clear enough: we may still have eviction tasks running at this
   // time, so the number of entries is changing while we read it.
@@ -2277,7 +2277,7 @@ void DiskCacheBackendTest::BackendDoomAll() {
   ASSERT_EQ(0, cache_->GetEntryCount());
 
   // We should stop posting tasks at some point (if we post any).
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   disk_cache::Entry *entry3, *entry4;
   ASSERT_EQ(net::OK, CreateEntry("third", &entry3));

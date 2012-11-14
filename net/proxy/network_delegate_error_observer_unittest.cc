@@ -107,7 +107,7 @@ TEST(NetworkDelegateErrorObserverTest, CallOnThread) {
       base::Bind(&NetworkDelegateErrorObserver::OnPACScriptError,
                  base::Unretained(&observer), 42, string16()));
   thread.Stop();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   ASSERT_TRUE(network_delegate.got_pac_error());
 }
 
@@ -122,7 +122,7 @@ TEST(NetworkDelegateErrorObserverTest, NoDelegate) {
       base::Bind(&NetworkDelegateErrorObserver::OnPACScriptError,
                  base::Unretained(&observer), 42, string16()));
   thread.Stop();
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   // Shouldn't have crashed until here...
 }
 
