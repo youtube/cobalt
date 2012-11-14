@@ -1136,7 +1136,7 @@ TEST_F(URLFetcherFileTest, CanTakeOwnershipOfFile) {
 
   MessageLoop::current()->Run();  // OnURLFetchComplete() will Quit().
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   ASSERT_FALSE(file_util::PathExists(file_path_))
       << file_path_.value() << " not removed.";
 }
@@ -1193,7 +1193,7 @@ TEST_F(URLFetcherFileTest, TryToOverwriteDirectory) {
 
   MessageLoop::current()->Run();  // OnURLFetchComplete() will Quit().
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 }
 
 TEST_F(URLFetcherFileTest, SmallGetToTempFile) {
@@ -1244,7 +1244,7 @@ TEST_F(URLFetcherFileTest, CanTakeOwnershipOfTempFile) {
 
   MessageLoop::current()->Run();  // OnURLFetchComplete() will Quit().
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   ASSERT_FALSE(file_util::PathExists(file_path_))
       << file_path_.value() << " not removed.";
 }

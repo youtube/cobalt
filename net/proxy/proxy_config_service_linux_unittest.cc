@@ -322,7 +322,7 @@ class SynchConfigGetter {
 
   // [Runs on |io_thread_|] Signals |event_| on cleanup completion.
   void CleanUp() {
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
     event_.Signal();
   }
 

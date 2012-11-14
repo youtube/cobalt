@@ -80,21 +80,21 @@ TEST_F(NetworkChangeNotifierAndroidTest, ObserverNotified) {
       observer()->current_connection());
 
   ForceConnectivityState(false);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(1, observer()->times_connection_type_has_been_changed());
   EXPECT_EQ(NetworkChangeNotifier::CONNECTION_NONE,
       observer()->current_connection());
 
   ForceConnectivityState(false);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(1, observer()->times_connection_type_has_been_changed());
   EXPECT_EQ(NetworkChangeNotifier::CONNECTION_NONE,
       observer()->current_connection());
 
   ForceConnectivityState(true);
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(2, observer()->times_connection_type_has_been_changed());
   EXPECT_EQ(NetworkChangeNotifier::CONNECTION_UNKNOWN,

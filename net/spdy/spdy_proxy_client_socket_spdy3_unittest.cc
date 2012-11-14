@@ -165,7 +165,7 @@ void SpdyProxyClientSocketSpdy3Test::TearDown() {
     session_->spdy_session_pool()->CloseAllSessions();
 
   // Empty the current queue.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   PlatformTest::TearDown();
 }
 
