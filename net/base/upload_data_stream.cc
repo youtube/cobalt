@@ -27,9 +27,9 @@ UploadDataStream::UploadDataStream(UploadData* upload_data)
       initialized_successfully_(false),
       weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
       weak_ptr_factory_for_chunks_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
-  const std::vector<UploadElement>& elements = *upload_data_->elements();
+  const ScopedVector<UploadElement>& elements = upload_data_->elements();
   for (size_t i = 0; i < elements.size(); ++i)
-    element_readers_.push_back(UploadElementReader::Create(elements[i]));
+    element_readers_.push_back(UploadElementReader::Create(*elements[i]));
 
   upload_data_->set_chunk_callback(
       base::Bind(&UploadDataStream::OnChunkAvailable,
@@ -241,13 +241,13 @@ void UploadDataStream::OnChunkAvailable() {
   DCHECK(is_chunked());
 
   // Initialize a reader for the newly appended chunk.
-  const std::vector<UploadElement>& elements = *upload_data_->elements();
+  const ScopedVector<UploadElement>& elements = upload_data_->elements();
   DCHECK_EQ(elements.size(), element_readers_.size() + 1);
 
   // We can initialize the reader synchronously here because only bytes can be
   // appended for chunked data. We leave |total_size_| at zero, since for
   // chunked uploads, we may not know the total size.
-  const UploadElement& element = elements.back();
+  const UploadElement& element = *elements.back();
   DCHECK_EQ(UploadElement::TYPE_BYTES, element.type());
   UploadElementReader* reader = UploadElementReader::Create(element);
   const int rv = reader->InitSync();

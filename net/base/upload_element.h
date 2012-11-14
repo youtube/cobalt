@@ -77,6 +77,8 @@ class NET_EXPORT UploadElement {
   uint64 file_range_offset_;
   uint64 file_range_length_;
   base::Time expected_file_modification_time_;
+
+  DISALLOW_COPY_AND_ASSIGN(UploadElement);
 };
 
 #if defined(UNIT_TEST)
