@@ -87,14 +87,14 @@ void PipelineIntegrationTestBase::OnError(PipelineStatus status) {
   message_loop_.PostTask(FROM_HERE, MessageLoop::QuitClosure());
 }
 
-bool PipelineIntegrationTestBase::Start(const FilePath& file_path,
+bool PipelineIntegrationTestBase::Start(const std::string& url,
                                         PipelineStatus expected_status) {
   EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata))
       .Times(AtMost(1));
   EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted))
       .Times(AtMost(1));
   pipeline_->Start(
-      CreateFilterCollection(file_path),
+      CreateFilterCollection(url),
       base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnError, base::Unretained(this)),
       QuitOnStatusCB(expected_status),
@@ -104,20 +104,20 @@ bool PipelineIntegrationTestBase::Start(const FilePath& file_path,
   return (pipeline_status_ == PIPELINE_OK);
 }
 
-bool PipelineIntegrationTestBase::Start(const FilePath& file_path,
+bool PipelineIntegrationTestBase::Start(const std::string& url,
                                         PipelineStatus expected_status,
                                         bool hashing_enabled) {
   hashing_enabled_ = hashing_enabled;
-  return Start(file_path, expected_status);
+  return Start(url, expected_status);
 }
 
-bool PipelineIntegrationTestBase::Start(const FilePath& file_path) {
+bool PipelineIntegrationTestBase::Start(const std::string& url) {
   EXPECT_CALL(*this, OnBufferingState(Pipeline::kHaveMetadata))
       .Times(AtMost(1));
   EXPECT_CALL(*this, OnBufferingState(Pipeline::kPrerollCompleted))
       .Times(AtMost(1));
   pipeline_->Start(
-      CreateFilterCollection(file_path),
+      CreateFilterCollection(url),
       base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnError, base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnStatusCallback,
@@ -183,9 +183,9 @@ bool PipelineIntegrationTestBase::WaitUntilCurrentTimeIsAfter(
 }
 
 scoped_ptr<FilterCollection>
-PipelineIntegrationTestBase::CreateFilterCollection(const FilePath& file_path) {
+PipelineIntegrationTestBase::CreateFilterCollection(const std::string& url) {
   scoped_refptr<FileDataSource> data_source = new FileDataSource();
-  CHECK(data_source->Initialize(file_path));
+  CHECK(data_source->Initialize(url));
   return CreateFilterCollection(
       new FFmpegDemuxer(message_loop_.message_loop_proxy(), data_source),
       NULL);

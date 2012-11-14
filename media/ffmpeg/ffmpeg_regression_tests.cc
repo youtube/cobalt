@@ -334,7 +334,7 @@ FLAKY_FFMPEG_TEST_CASE(MP4_10, "security/null1.m4a");
 
 TEST_P(FFmpegRegressionTest, BasicPlayback) {
   if (GetParam().init_status == PIPELINE_OK) {
-    ASSERT_TRUE(Start(GetTestDataFilePath(GetParam().filename),
+    ASSERT_TRUE(Start(GetTestDataURL(GetParam().filename),
                       GetParam().init_status, true));
     Play();
     ASSERT_EQ(WaitUntilEndedOrError(), GetParam().end_status);
@@ -349,7 +349,7 @@ TEST_P(FFmpegRegressionTest, BasicPlayback) {
       Seek(base::TimeDelta::FromMilliseconds(0));
     }
   } else {
-    ASSERT_FALSE(Start(GetTestDataFilePath(GetParam().filename),
+    ASSERT_FALSE(Start(GetTestDataURL(GetParam().filename),
                        GetParam().init_status, true));
     EXPECT_EQ(GetVideoHash(), GetParam().video_md5);
     EXPECT_EQ(GetAudioHash(), GetParam().audio_md5);

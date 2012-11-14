@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/file_path.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 
@@ -16,8 +15,8 @@ namespace media {
 
 class DecoderBuffer;
 
-// Returns a file path for a file in the media/test/data directory.
-FilePath GetTestDataFilePath(const std::string& name);
+// Returns a URL path for a file in the media/test/data directory.
+std::string GetTestDataURL(const std::string& name);
 
 // Reads a test file from media/test/data directory and stores it in
 // a DecoderBuffer.  Use DecoderBuffer vs DataBuffer to ensure no matter
