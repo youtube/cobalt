@@ -47,18 +47,6 @@ function bb_baseline_setup {
   shift
   cd $SRC_ROOT
 
-  if [[ $BUILDBOT_CLOBBER ]]; then
-    echo "@@@BUILD_STEP Clobber@@@"
-    # Sdk key expires, delete android folder.
-    # crbug.com/145860
-    rm -rf ~/.android
-    rm -rf "${SRC_ROOT}"/out
-    if [ -e "${SRC_ROOT}"/out ] ; then
-      echo "Clobber appeared to fail?  ${SRC_ROOT}/out still exists."
-      echo "@@@STEP_WARNINGS@@@"
-    fi
-  fi
-
   echo "@@@BUILD_STEP Environment setup@@@"
   bb_parse_args "$@"
 
@@ -68,17 +56,44 @@ function bb_baseline_setup {
   fi
   export GOMA_DIR=/b/build/goma
   . build/android/envsetup.sh
-  adb kill-server
-  adb start-server
-}
 
-function bb_compile_setup {
   local extra_gyp_defines="$(bb_get_json_prop "$FACTORY_PROPERTIES" \
      extra_gyp_defines)"
   export GYP_DEFINES+=" fastbuild=1 $extra_gyp_defines"
   if echo $extra_gyp_defines | grep -q clang; then
     unset CXX_target
   fi
+
+  adb kill-server
+  adb start-server
+
+  local build_path="${SRC_ROOT}/out/${BUILDTYPE}"
+  local landmines_triggered_path="$build_path/.landmines_triggered"
+  python "$SRC_ROOT/build/landmines.py"
+
+  if [[ $BUILDBOT_CLOBBER || -f "$landmines_triggered_path" ]]; then
+    echo "@@@BUILD_STEP Clobber@@@"
+
+    if [[ -z $BUILDBOT_CLOBBER ]]; then
+      echo "Clobbering due to triggered landmines: "
+      cat "$landmines_triggered_path"
+    else
+      # Also remove all the files under out/ on an explicit clobber
+      find "${SRC_ROOT}/out" -maxdepth 1 -type f -exec rm -f {} +
+    fi
+
+    # Sdk key expires, delete android folder.
+    # crbug.com/145860
+    rm -rf ~/.android
+    rm -rf "$build_path"
+    if [[ -e $build_path ]] ; then
+      echo "Clobber appeared to fail?  $build_path still exists."
+      echo "@@@STEP_WARNINGS@@@"
+    fi
+  fi
+}
+
+function bb_compile_setup {
   bb_setup_goma_internal
   # Should be called only after envsetup is done.
   gclient runhooks
