@@ -61,6 +61,9 @@ class BASE_PREFS_EXPORT PrefChangeRegistrar : public PrefObserver {
   // Check whether any of the observed preferences has the managed bit set.
   bool IsManaged();
 
+  // Return the PrefServiceBase for this registrar.
+  PrefServiceBase* prefs();
+
  private:
   // PrefObserver:
   virtual void OnPreferenceChanged(PrefServiceBase* service,
