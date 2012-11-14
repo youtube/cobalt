@@ -11,60 +11,46 @@
 #include "base/win/scoped_co_mem.h"
 #include "base/win/windows_version.h"
 #include "media/audio/audio_util.h"
+#include "media/audio/win/core_audio_util_win.h"
 
 using base::win::ScopedCoMem;
 
 namespace media {
 
-// TODO(henrika): Move to CoreAudioUtil class.
-static ScopedComPtr<IMMDeviceEnumerator> CreateDeviceEnumerator() {
-  ScopedComPtr<IMMDeviceEnumerator> device_enumerator;
-  HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator),
-                                NULL,
-                                CLSCTX_INPROC_SERVER,
-                                __uuidof(IMMDeviceEnumerator),
-                                device_enumerator.ReceiveVoid());
-  DLOG_IF(ERROR, FAILED(hr)) << "CoCreateInstance(IMMDeviceEnumerator): "
-                             << std::hex << hr;
-  return device_enumerator;
-}
-
 AudioDeviceListenerWin::AudioDeviceListenerWin(const base::Closure& listener_cb)
     : listener_cb_(listener_cb) {
-  CHECK(media::IsWASAPISupported());
+  CHECK(CoreAudioUtil::IsSupported());
 
-  device_enumerator_ = CreateDeviceEnumerator();
-  if (!device_enumerator_)
-  return;
+  ScopedComPtr<IMMDeviceEnumerator> device_enumerator(
+      CoreAudioUtil::CreateDeviceEnumerator());
+  if (!device_enumerator)
+    return;
 
-  HRESULT hr = device_enumerator_->RegisterEndpointNotificationCallback(this);
+  HRESULT hr = device_enumerator->RegisterEndpointNotificationCallback(this);
   if (FAILED(hr)) {
     DLOG(ERROR)  << "RegisterEndpointNotificationCallback failed: "
                  << std::hex << hr;
-    device_enumerator_ = NULL;
     return;
   }
 
-  ScopedComPtr<IMMDevice> endpoint_render_device;
-  hr = device_enumerator_->GetDefaultAudioEndpoint(
-      eRender, eConsole, endpoint_render_device.Receive());
-  // This will fail if there are no audio devices currently plugged in, so we
-  // still want to keep our endpoint registered.
+  device_enumerator_ = device_enumerator;
+
+  ScopedComPtr<IMMDevice> device =
+      CoreAudioUtil::CreateDefaultDevice(eRender, eConsole);
+  if (!device) {
+    // Most probable reason for ending up here is that all audio devices are
+    // disabled or unplugged.
+    DVLOG(1)  << "CoreAudioUtil::CreateDefaultDevice failed. No device?";
+    return;
+  }
+
+  AudioDeviceName device_name;
+  hr = CoreAudioUtil::GetDeviceName(device, &device_name);
   if (FAILED(hr)) {
-    DVLOG(1) << "GetDefaultAudioEndpoint() failed.  No devices?  Error: "
-             << std::hex << hr;
+    DVLOG(1)  << "Failed to retrieve the device id: " << std::hex << hr;
     return;
   }
-
-  ScopedCoMem<WCHAR> render_device_id;
-  hr = endpoint_render_device->GetId(&render_device_id);
-  if (FAILED(hr)) {
-    DLOG(ERROR) << "GetId() failed: " << std::hex << hr;
-    return;
-  }
-
-  default_render_device_id_ = WideToUTF8(static_cast<WCHAR*>(render_device_id));
-  DVLOG(1) << "Default render device: " << default_render_device_id_;
+  default_render_device_id_ = device_name.unique_id;
 }
 
 AudioDeviceListenerWin::~AudioDeviceListenerWin() {
