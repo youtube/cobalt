@@ -326,7 +326,8 @@ void URLRequest::SetExtraRequestHeaders(
 }
 
 LoadStateWithParam URLRequest::GetLoadState() const {
-  if (blocked_on_delegate_) {
+  // Only return LOAD_STATE_WAITING_FOR_DELEGATE if there's a load state param.
+  if (blocked_on_delegate_ && !load_state_param_.empty()) {
     return LoadStateWithParam(LOAD_STATE_WAITING_FOR_DELEGATE,
                               load_state_param_);
   }
@@ -651,6 +652,7 @@ void URLRequest::NotifyReceivedRedirect(const GURL& location,
     RestartWithJob(job);
   } else if (delegate_) {
     delegate_->OnReceivedRedirect(this, location, defer_redirect);
+    // |this| may be have been destroyed here.
   }
 }
 
@@ -964,7 +966,12 @@ void URLRequest::NotifyRequestCompleted() {
 
 void URLRequest::SetBlockedOnDelegate() {
   blocked_on_delegate_ = true;
-  net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE);
+  if (!load_state_param_.empty()) {
+    net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE,
+                        NetLog::StringCallback("delegate", &load_state_param_));
+  } else {
+    net_log_.BeginEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE);
+  }
 }
 
 void URLRequest::SetUnblockedOnDelegate() {

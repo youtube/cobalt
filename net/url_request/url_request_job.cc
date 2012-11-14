@@ -191,6 +191,8 @@ void URLRequestJob::FollowDeferredRedirect() {
   // It is also possible that FollowRedirect will drop the last reference to
   // this job, so we need to reset our members before calling it.
 
+  SetUnblockedOnDelegate();
+
   GURL redirect_url = deferred_redirect_url_;
   int redirect_status_code = deferred_redirect_status_code_;
 
@@ -307,6 +309,7 @@ void URLRequestJob::NotifyHeadersComplete() {
       if (defer_redirect) {
         deferred_redirect_url_ = new_location;
         deferred_redirect_status_code_ = http_status_code;
+        SetBlockedOnDelegate();
       } else {
         FollowRedirect(new_location, http_status_code);
       }
