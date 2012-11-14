@@ -252,7 +252,7 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
 
   CompletionCallback io_callback_;
   CompletionCallback callback_;
-  scoped_ptr<UploadDataStream> request_body_;
+  UploadDataStream* request_body_;
 
   scoped_refptr<HttpNetworkSession> session_;
 

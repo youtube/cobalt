@@ -28,6 +28,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
+#include "net/base/upload_data_stream.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache_transaction.h"
 #include "net/http/http_network_layer.h"
@@ -480,9 +481,10 @@ std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
   if (mode_ == NORMAL) {
     // No valid URL can begin with numerals, so we should not have to worry
     // about collisions with normal URLs.
-    if (request->upload_data && request->upload_data->identifier()) {
-      url.insert(0, base::StringPrintf("%" PRId64 "/",
-                                       request->upload_data->identifier()));
+    if (request->upload_data_stream &&
+        request->upload_data_stream->identifier()) {
+      url.insert(0, base::StringPrintf(
+          "%" PRId64 "/", request->upload_data_stream->identifier()));
     }
     return url;
   }

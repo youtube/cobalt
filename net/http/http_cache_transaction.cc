@@ -29,6 +29,7 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service.h"
+#include "net/base/upload_data_stream.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
@@ -1662,12 +1663,12 @@ bool HttpCache::Transaction::ShouldPassThrough() {
   if (request_->method == "GET")
     return false;
 
-  if (request_->method == "POST" &&
-      request_->upload_data && request_->upload_data->identifier()) {
+  if (request_->method == "POST" && request_->upload_data_stream &&
+      request_->upload_data_stream->identifier()) {
     return false;
   }
 
-  if (request_->method == "PUT" && request_->upload_data)
+  if (request_->method == "PUT" && request_->upload_data_stream)
     return false;
 
   if (request_->method == "DELETE")
