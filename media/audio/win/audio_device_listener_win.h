@@ -20,10 +20,9 @@ namespace media {
 
 // IMMNotificationClient implementation for listening for default device changes
 // and forwarding to AudioManagerWin so it can notify downstream clients.  Only
-// output (eRender) device changes are supported currently.  WASAPI support is
-// required to construct this object.  Must be constructed and destructed on a
-// single COM initialized thread.
-// TODO(henrika): Refactor based on upcoming CoreAudioUtil class for windows.
+// output (eRender) device changes are supported currently.  Core Audio support
+// is required to construct this object.  Must be constructed and destructed on
+// a single COM initialized thread.
 // TODO(dalecurtis, henrika): Support input device changes.
 class MEDIA_EXPORT AudioDeviceListenerWin : public IMMNotificationClient {
  public:

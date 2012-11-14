@@ -32,7 +32,7 @@
 #include "media/audio/audio_manager_base.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
-#include "media/audio/win/audio_unified_win.h"
+#include "media/audio/win/core_audio_util_win.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 #endif
@@ -252,13 +252,13 @@ size_t GetAudioHardwareBufferSize() {
     return 256;
   }
 
-  // TODO(henrika): remove when HardwareBufferSize() has been tested well
-  // enough to be moved from WASAPIUnifiedStream to WASAPIAudioOutputStream.
+  // TODO(henrika): remove when the --enable-webaudio-input flag is no longer
+  // utilized.
   if (cmd_line->HasSwitch(switches::kEnableWebAudioInput)) {
-    int buffer_size = WASAPIUnifiedStream::HardwareBufferSize(eRender);
-    // |buffer_size| can be zero if we use e.g. remote desktop or if all
-    // audio devices are disabled.
-    return (buffer_size > 0) ? buffer_size : kFallbackBufferSize;
+    AudioParameters params;
+    HRESULT hr = CoreAudioUtil::GetPreferredAudioParameters(eRender, eConsole,
+                                                            &params);
+    return FAILED(hr) ? kFallbackBufferSize : params.frames_per_buffer();
   }
 
   // This call must be done on a COM thread configured as MTA.

@@ -5,6 +5,8 @@
 // Utility methods for the Core Audio API on Windows.
 // Always ensure that Core Audio is supported before using these methods.
 // Use media::CoreAudioIsSupported() for this purpose.
+// Also, all methods must be called on a valid COM thread. This can be done
+// by using the base::win::ScopedCOMInitializer helper class.
 
 #ifndef MEDIA_AUDIO_WIN_CORE_AUDIO_UTIL_WIN_H_
 #define MEDIA_AUDIO_WIN_CORE_AUDIO_UTIL_WIN_H_
@@ -16,6 +18,7 @@
 #include "base/basictypes.h"
 #include "base/win/scoped_comptr.h"
 #include "media/audio/audio_device_name.h"
+#include "media/audio/audio_parameters.h"
 #include "media/base/media_export.h"
 
 using base::win::ScopedComPtr;
@@ -27,11 +30,15 @@ class MEDIA_EXPORT CoreAudioUtil {
   // Returns true if Windows Core Audio is supported.
   static bool IsSupported();
 
+  // Returns AUDCLNT_SHAREMODE_EXCLUSIVE if --enable-exclusive-mode is used
+  // as command-line flag and AUDCLNT_SHAREMODE_SHARED otherwise (default).
+  static AUDCLNT_SHAREMODE GetShareMode();
+
   // The Windows Multimedia Device (MMDevice) API enables audio clients to
   // discover audio endpoint devices and determine their capabilities.
 
   // Number of active audio devices in the specified flow data flow direction.
-  // Set |data_flow| to eAll to retrive the total number of active audio
+  // Set |data_flow| to eAll to retrieve the total number of active audio
   // devices.
   static int NumberOfActiveDevices(EDataFlow data_flow);
 
@@ -39,12 +46,12 @@ class MEDIA_EXPORT CoreAudioUtil {
   // enumerating audio endpoint devices.
   static ScopedComPtr<IMMDeviceEnumerator> CreateDeviceEnumerator();
 
-  // Create a default endpoint device that is specified by a data-flow
+  // Creates a default endpoint device that is specified by a data-flow
   // direction and role, e.g. default render device.
   static ScopedComPtr<IMMDevice> CreateDefaultDevice(
       EDataFlow data_flow, ERole role);
 
-  // Create an endpoint device that is specified by a unique endpoint device-
+  // Creates an endpoint device that is specified by a unique endpoint device-
   // identification string.
   static ScopedComPtr<IMMDevice> CreateDevice(const std::string& device_id);
 
@@ -53,11 +60,11 @@ class MEDIA_EXPORT CoreAudioUtil {
   //          "Microphone (Realtek High Definition Audio)".
   static HRESULT GetDeviceName(IMMDevice* device, AudioDeviceName* name);
 
-  // Gets the user-friendly name of the endpoint devcice which is represented
-  // by a uniqe id in |device_id|.
+  // Gets the user-friendly name of the endpoint device which is represented
+  // by a unique id in |device_id|.
   static std::string GetFriendlyName(const std::string& device_id);
 
-  // Returns true if the provided uniqe |device_id| correspinds to the current
+  // Returns true if the provided unique |device_id| corresponds to the current
   // default device for the specified by a data-flow direction and role.
   static bool DeviceIsDefault(
       EDataFlow flow, ERole role, std::string device_id);
@@ -69,13 +76,77 @@ class MEDIA_EXPORT CoreAudioUtil {
   // manage the flow of audio data between the application and an audio endpoint
   // device.
 
-  // Create an IAudioClient interface for an existing IMMDevice given by
-  // |audio_device|. Flow direction and role is define by the |audio_device|.
+  // Create an IAudioClient interface for the default IMMDevice where
+  // flow direction and role is define by |data_flow| and |role|.
   // The IAudioClient interface enables a client to create and initialize an
   // audio stream between an audio application and the audio engine (for a
   // shared-mode stream) or the hardware buffer of an audio endpoint device
   // (for an exclusive-mode stream).
+  static ScopedComPtr<IAudioClient> CreateDefaultClient(EDataFlow data_flow,
+                                                        ERole role);
+
+  // Create an IAudioClient interface for an existing IMMDevice given by
+  // |audio_device|. Flow direction and role is define by the |audio_device|.
   static ScopedComPtr<IAudioClient> CreateClient(IMMDevice* audio_device);
+
+  // Get the mix format that the audio engine uses internally for processing
+  // of shared-mode streams. This format is not necessarily a format that the
+  // audio endpoint device supports. Thus, the caller might not succeed in
+  // creating an exclusive-mode stream with a format obtained by this method.
+  static HRESULT GetSharedModeMixFormat(IAudioClient* client,
+                                        WAVEFORMATPCMEX* format);
+
+  // Returns true if the specified |client| supports the format in |format|
+  // for the given |share_mode| (shared or exclusive).
+  static bool IsFormatSupported(IAudioClient* client,
+                                AUDCLNT_SHAREMODE share_mode,
+                                const WAVEFORMATPCMEX* format);
+
+  // For a shared-mode stream, the audio engine periodically processes the
+  // data in the endpoint buffer at the period obtained in |device_period|.
+  // For an exclusive mode stream, |device_period| corresponds to the minimum
+  // time interval between successive processing by the endpoint device.
+  // This period plus the stream latency between the buffer and endpoint device
+  // represents the minimum possible latency that an audio application can
+  // achieve. The time in |device_period| is expressed in 100-nanosecond units.
+  static HRESULT GetDevicePeriod(IAudioClient* client,
+                                 AUDCLNT_SHAREMODE share_mode,
+                                 REFERENCE_TIME* device_period);
+
+  // Get the preferred audio parameters for the specified |client| or the
+  // given direction and role is define by |data_flow| and |role|.
+  // The acquired values should only be utilized for shared mode streamed since
+  // there are no preferred settings for an exclusive mode stream.
+  static HRESULT GetPreferredAudioParameters(IAudioClient* client,
+                                             AudioParameters* params);
+  static HRESULT GetPreferredAudioParameters(EDataFlow data_flow, ERole role,
+                                             AudioParameters* params);
+
+  // After activating an IAudioClient interface on an audio endpoint device,
+  // the client must initialize it once, and only once, to initialize the audio
+  // stream between the client and the device. In shared mode, the client
+  // connects indirectly through the audio engine which does the mixing.
+  // In exclusive mode, the client connects directly to the audio hardware.
+  // If a valid event is provided in |event_handle|, the client will be
+  // initialized for event-driven buffer handling. If |event_handle| is set to
+  // NULL, event-driven buffer handling is not utilized.
+  static HRESULT SharedModeInitialize(IAudioClient* client,
+                                      const WAVEFORMATPCMEX* format,
+                                      HANDLE event_handle,
+                                      size_t* endpoint_buffer_size);
+  // TODO(henrika): add ExclusiveModeInitialize(...)
+
+  // Create an IAudioRenderClient client for an existing IAudioClient given by
+  // |client|. The IAudioRenderClient interface enables a client to write
+  // output data to a rendering endpoint buffer.
+  static ScopedComPtr<IAudioRenderClient> CreateRenderClient(
+      IAudioClient* client);
+
+  // Create an IAudioCaptureClient client for an existing IAudioClient given by
+  // |client|. The IAudioCaptureClient interface enables a client to read
+  // input data from a capture endpoint buffer.
+  static ScopedComPtr<IAudioCaptureClient> CreateCaptureClient(
+      IAudioClient* client);
 
  private:
   CoreAudioUtil() {}

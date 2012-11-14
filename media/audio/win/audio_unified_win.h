@@ -25,19 +25,19 @@ namespace media {
 
 class AudioManagerWin;
 
-// Implementation of AudioOutputStream for Windows using the WASAPI Core
-// Audio interface where both capturing and rendering takes place on the
-// same thread to enable audio I/O.
+// Implementation of AudioOutputStream for Windows using the Core Audio API
+// where both capturing and rendering takes place on the same thread to enable
+// audio I/O.
 //
-// Best performance is achieved by using a buffer size given by the static
-// HardwareBufferSize() method. The user should also ensure that audio I/O
-// is supported by calling HasUnifiedDefaultIO().
+// The user should also ensure that audio I/O is supported by calling
+// HasUnifiedDefaultIO().
 //
 // Implementation notes:
 //
 // - Certain conditions must be fulfilled to support audio I/O:
 //    o Both capture and render side must use the same sample rate.
 //    o Both capture and render side must use the same channel count.
+//    o Both capture and render side must use the same channel configuration.
 //    o See HasUnifiedDefaultIO() for more details.
 //
 // TODO(henrika):
@@ -73,26 +73,6 @@ class MEDIA_EXPORT WASAPIUnifiedStream
   // channel count.
   static bool HasUnifiedDefaultIO();
 
-  // Retrieves the number of channels the audio engine uses for its internal
-  // processing/mixing of shared-mode streams for the default endpoint device
-  // and in the given direction.
-  static int HardwareChannelCount(EDataFlow data_flow);
-
-  // Retrieves the sample rate the audio engine uses for its internal
-  // processing/mixing of shared-mode streams for the default endpoint device
-  // and in the given direction.
-  static int HardwareSampleRate(EDataFlow data_flow);
-
-  // Retrieves the preferred buffer size for the default endpoint device and
-  // in the given direction. The recommended size is given by the mixing
-  // sample rate and the native device period for the audio device.
-  // Unit is in number of audio frames.
-  // Examples:
-  //  fs = 96000 Hz => 960
-  //  fs = 48000 Hz => 480
-  //  fs = 44100 Hz => 441 or 448 (depends on the audio hardware)
-  static int HardwareBufferSize(EDataFlow data_flow);
-
   bool started() const {
     return audio_io_thread_.get() != NULL;
   }
@@ -107,13 +87,6 @@ class MEDIA_EXPORT WASAPIUnifiedStream
   // Stops and joins the audio thread in case of an error.
   void StopAndJoinThread(HRESULT err);
 
-  // Helper methods which uses an IAudioClient to create and setup
-  // IAudio[Render|Capture]Clients.
-  base::win::ScopedComPtr<IAudioRenderClient> CreateAudioRenderClient(
-      IAudioClient* audio_client);
-  base::win::ScopedComPtr<IAudioCaptureClient> CreateAudioCaptureClient(
-      IAudioClient* audio_client);
-
   // Converts unique endpoint ID to user-friendly device name.
   std::string GetDeviceName(LPCWSTR device_id) const;
 
@@ -126,6 +99,11 @@ class MEDIA_EXPORT WASAPIUnifiedStream
 
   // Our creator, the audio manager needs to be notified when we close.
   AudioManagerWin* manager_;
+
+  // The sharing mode for the streams.
+  // Valid values are AUDCLNT_SHAREMODE_SHARED and AUDCLNT_SHAREMODE_EXCLUSIVE
+  // where AUDCLNT_SHAREMODE_SHARED is the default.
+  AUDCLNT_SHAREMODE share_mode_;
 
   // Rendering and capturing is driven by this thread (no message loop).
   // All OnMoreIOData() callbacks will be called from this thread.

@@ -5,6 +5,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/win/scoped_com_initializer.h"
+#include "base/win/scoped_handle.h"
 #include "media/audio/win/core_audio_util_win.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -179,18 +180,210 @@ TEST_F(CoreAudioUtilWinTest, DeviceIsDefault) {
   EXPECT_FALSE(CoreAudioUtil::DeviceIsDefault(eCapture, eConsole, id));
 }
 
+TEST_F(CoreAudioUtilWinTest, CreateDefaultClient) {
+  if (!CanRunAudioTest())
+    return;
+
+  EDataFlow data[] = {eRender, eCapture};
+
+  for (int i = 0; i < arraysize(data); ++i) {
+    ScopedComPtr<IAudioClient> client;
+    client = CoreAudioUtil::CreateDefaultClient(data[i], eConsole);
+    EXPECT_TRUE(client);
+  }
+}
+
 TEST_F(CoreAudioUtilWinTest, CreateClient) {
   if (!CanRunAudioTest())
     return;
 
   EDataFlow data[] = {eRender, eCapture};
-  ScopedComPtr<IMMDevice> device;
 
   for (int i = 0; i < arraysize(data); ++i) {
+    ScopedComPtr<IMMDevice> device;
+    ScopedComPtr<IAudioClient> client;
     device = CoreAudioUtil::CreateDefaultDevice(data[i], eConsole);
     EXPECT_TRUE(device);
     EXPECT_EQ(data[i], CoreAudioUtil::GetDataFlow(device));
+    client = CoreAudioUtil::CreateClient(device);
+    EXPECT_TRUE(client);
   }
 }
+
+TEST_F(CoreAudioUtilWinTest, GetSharedModeMixFormat) {
+  if (!CanRunAudioTest())
+    return;
+
+  ScopedComPtr<IMMDevice> device;
+  ScopedComPtr<IAudioClient> client;
+  device = CoreAudioUtil::CreateDefaultDevice(eRender, eConsole);
+  EXPECT_TRUE(device);
+  client = CoreAudioUtil::CreateClient(device);
+  EXPECT_TRUE(client);
+
+  // Perform a simple sanity test of the aquired format structure.
+  WAVEFORMATPCMEX format;
+  EXPECT_TRUE(SUCCEEDED(CoreAudioUtil::GetSharedModeMixFormat(client,
+                                                              &format)));
+  EXPECT_GE(format.Format.nChannels, 1);
+  EXPECT_GE(format.Format.nSamplesPerSec, 8000u);
+  EXPECT_GE(format.Format.wBitsPerSample, 16);
+  EXPECT_GE(format.Samples.wValidBitsPerSample, 16);
+  EXPECT_EQ(format.Format.wFormatTag, WAVE_FORMAT_EXTENSIBLE);
+}
+
+TEST_F(CoreAudioUtilWinTest, GetDevicePeriod) {
+  if (!CanRunAudioTest())
+    return;
+
+  EDataFlow data[] = {eRender, eCapture};
+
+  // Verify that the device periods are valid for the default render and
+  // capture devices.
+  for (int i = 0; i < arraysize(data); ++i) {
+    ScopedComPtr<IAudioClient> client;
+    REFERENCE_TIME shared_time_period = 0;
+    REFERENCE_TIME exclusive_time_period = 0;
+    client = CoreAudioUtil::CreateDefaultClient(data[i], eConsole);
+    EXPECT_TRUE(client);
+    EXPECT_TRUE(SUCCEEDED(CoreAudioUtil::GetDevicePeriod(
+        client, AUDCLNT_SHAREMODE_SHARED, &shared_time_period)));
+    EXPECT_GT(shared_time_period, 0);
+    EXPECT_TRUE(SUCCEEDED(CoreAudioUtil::GetDevicePeriod(
+        client, AUDCLNT_SHAREMODE_EXCLUSIVE, &exclusive_time_period)));
+    EXPECT_GT(exclusive_time_period, 0);
+    EXPECT_LE(exclusive_time_period, shared_time_period);
+  }
+}
+
+TEST_F(CoreAudioUtilWinTest, GetPreferredAudioParameters) {
+  if (!CanRunAudioTest())
+    return;
+
+  EDataFlow data[] = {eRender, eCapture};
+
+  // Verify that the preferred audio parameters are OK for the default render
+  // and capture devices.
+  for (int i = 0; i < arraysize(data); ++i) {
+    ScopedComPtr<IAudioClient> client;
+    AudioParameters params;
+    client = CoreAudioUtil::CreateDefaultClient(data[i], eConsole);
+    EXPECT_TRUE(client);
+    EXPECT_TRUE(SUCCEEDED(CoreAudioUtil::GetPreferredAudioParameters(client,
+                                                                     &params)));
+    EXPECT_TRUE(params.IsValid());
+  }
+}
+
+TEST_F(CoreAudioUtilWinTest, SharedModeInitialize) {
+  if (!CanRunAudioTest())
+    return;
+
+  ScopedComPtr<IAudioClient> client;
+  client = CoreAudioUtil::CreateDefaultClient(eRender, eConsole);
+  EXPECT_TRUE(client);
+
+  WAVEFORMATPCMEX format;
+  EXPECT_TRUE(SUCCEEDED(CoreAudioUtil::GetSharedModeMixFormat(client,
+                                                              &format)));
+
+  // Perform a shared-mode initialization without event-driven buffer handling.
+  size_t endpoint_buffer_size = 0;
+  HRESULT hr = CoreAudioUtil::SharedModeInitialize(client, &format, NULL,
+                                                   &endpoint_buffer_size);
+  EXPECT_TRUE(SUCCEEDED(hr));
+  EXPECT_GT(endpoint_buffer_size, 0u);
+
+  // It is only possible to create a client once.
+  hr = CoreAudioUtil::SharedModeInitialize(client, &format, NULL,
+                                           &endpoint_buffer_size);
+  EXPECT_FALSE(SUCCEEDED(hr));
+  EXPECT_EQ(hr, AUDCLNT_E_ALREADY_INITIALIZED);
+
+  // Verify that it is possible to reinitialize the client after releasing it.
+  client = CoreAudioUtil::CreateDefaultClient(eRender, eConsole);
+  EXPECT_TRUE(client);
+  hr = CoreAudioUtil::SharedModeInitialize(client, &format, NULL,
+                                           &endpoint_buffer_size);
+  EXPECT_TRUE(SUCCEEDED(hr));
+  EXPECT_GT(endpoint_buffer_size, 0u);
+
+  // Use a non-supported format and verify that initialization fails.
+  // A simple way to emulate an invalid format is to use the shared-mode
+  // mixing format and modify the preferred sample.
+  client = CoreAudioUtil::CreateDefaultClient(eRender, eConsole);
+  EXPECT_TRUE(client);
+  format.Format.nSamplesPerSec = format.Format.nSamplesPerSec + 1;
+  EXPECT_FALSE(CoreAudioUtil::IsFormatSupported(
+                  client, AUDCLNT_SHAREMODE_SHARED, &format));
+  hr = CoreAudioUtil::SharedModeInitialize(client, &format, NULL,
+                                           &endpoint_buffer_size);
+  EXPECT_TRUE(FAILED(hr));
+  EXPECT_EQ(hr, E_INVALIDARG);
+
+  // Finally, perform a shared-mode initialization using event-driven buffer
+  // handling. The event handle will be signaled when an audio buffer is ready
+  // to be processed by the client (not verified here).
+  // The event handle should be in the nonsignaled state.
+  base::win::ScopedHandle event_handle(::CreateEvent(NULL, TRUE, FALSE, NULL));
+  client = CoreAudioUtil::CreateDefaultClient(eRender, eConsole);
+  EXPECT_TRUE(client);
+  EXPECT_TRUE(SUCCEEDED(CoreAudioUtil::GetSharedModeMixFormat(client,
+                                                              &format)));
+  EXPECT_TRUE(CoreAudioUtil::IsFormatSupported(
+                  client, AUDCLNT_SHAREMODE_SHARED, &format));
+  hr = CoreAudioUtil::SharedModeInitialize(client, &format, event_handle.Get(),
+                                           &endpoint_buffer_size);
+  EXPECT_TRUE(SUCCEEDED(hr));
+  EXPECT_GT(endpoint_buffer_size, 0u);
+}
+
+TEST_F(CoreAudioUtilWinTest, CreateRenderAndCaptureClients) {
+  if (!CanRunAudioTest())
+    return;
+
+  EDataFlow data[] = {eRender, eCapture};
+
+  WAVEFORMATPCMEX format;
+  size_t endpoint_buffer_size = 0;
+
+  for (int i = 0; i < arraysize(data); ++i) {
+    ScopedComPtr<IAudioClient> client;
+    ScopedComPtr<IAudioRenderClient> render_client;
+    ScopedComPtr<IAudioCaptureClient> capture_client;
+
+    client = CoreAudioUtil::CreateDefaultClient(data[i], eConsole);
+    EXPECT_TRUE(client);
+    EXPECT_TRUE(SUCCEEDED(CoreAudioUtil::GetSharedModeMixFormat(client,
+                                                                &format)));
+    if (data[i] == eRender) {
+      // It is not possible to create a render client using an unitialized
+      // client interface.
+      render_client = CoreAudioUtil::CreateRenderClient(client);
+      EXPECT_FALSE(render_client);
+
+      // Do a proper initialization and verify that it works this time.
+      CoreAudioUtil::SharedModeInitialize(client, &format, NULL,
+                                          &endpoint_buffer_size);
+      render_client = CoreAudioUtil::CreateRenderClient(client);
+      EXPECT_TRUE(render_client);
+      EXPECT_GT(endpoint_buffer_size, 0u);
+    } else if (data[i] == eCapture) {
+      // It is not possible to create a capture client using an unitialized
+      // client interface.
+      capture_client = CoreAudioUtil::CreateCaptureClient(client);
+      EXPECT_FALSE(capture_client);
+
+      // Do a proper initialization and verify that it works this time.
+      CoreAudioUtil::SharedModeInitialize(client, &format, NULL,
+                                          &endpoint_buffer_size);
+      capture_client = CoreAudioUtil::CreateCaptureClient(client);
+      EXPECT_TRUE(capture_client);
+      EXPECT_GT(endpoint_buffer_size, 0u);
+    }
+  }
+}
+
+//
 
 }  // namespace media
