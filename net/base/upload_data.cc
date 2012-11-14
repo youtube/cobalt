@@ -20,8 +20,8 @@ UploadData::UploadData()
 void UploadData::AppendBytes(const char* bytes, int bytes_len) {
   DCHECK(!is_chunked_);
   if (bytes_len > 0) {
-    elements_.push_back(UploadElement());
-    elements_.back().SetToBytes(bytes, bytes_len);
+    elements_.push_back(new UploadElement());
+    elements_.back()->SetToBytes(bytes, bytes_len);
   }
 }
 
@@ -29,9 +29,9 @@ void UploadData::AppendFileRange(const FilePath& file_path,
                                  uint64 offset, uint64 length,
                                  const base::Time& expected_modification_time) {
   DCHECK(!is_chunked_);
-  elements_.push_back(UploadElement());
-  elements_.back().SetToFilePathRange(file_path, offset, length,
-                                      expected_modification_time);
+  elements_.push_back(new UploadElement());
+  elements_.back()->SetToFilePathRange(file_path, offset, length,
+                                       expected_modification_time);
 }
 
 void UploadData::AppendChunk(const char* bytes,
@@ -39,8 +39,8 @@ void UploadData::AppendChunk(const char* bytes,
                              bool is_last_chunk) {
   DCHECK(is_chunked_);
   DCHECK(!last_chunk_appended_);
-  elements_.push_back(UploadElement());
-  elements_.back().SetToBytes(bytes, bytes_len);
+  elements_.push_back(new UploadElement());
+  elements_.back()->SetToBytes(bytes, bytes_len);
   last_chunk_appended_ = is_last_chunk;
   if (!chunk_callback_.is_null())
     chunk_callback_.Run();
@@ -48,10 +48,6 @@ void UploadData::AppendChunk(const char* bytes,
 
 void UploadData::set_chunk_callback(const base::Closure& callback) {
   chunk_callback_ = callback;
-}
-
-void UploadData::SetElements(const std::vector<UploadElement>& elements) {
-  elements_ = elements;
 }
 
 UploadData::~UploadData() {
