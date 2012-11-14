@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <ostream>
 
-#include "base/eintr_wrapper.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/logging.h"
 
 namespace base {

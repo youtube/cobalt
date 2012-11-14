@@ -10,13 +10,13 @@
 
 #include "base/auto_reset.h"
 #include "base/compiler_specific.h"
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
 #endif
 #include "base/memory/scoped_ptr.h"
 #include "base/observer_list.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/time.h"
 #if defined(USE_SYSTEM_LIBEVENT)
 #include <event.h>

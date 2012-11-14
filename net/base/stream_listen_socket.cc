@@ -17,10 +17,10 @@
 #include "net/base/net_errors.h"
 #endif
 
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/sys_byteorder.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
