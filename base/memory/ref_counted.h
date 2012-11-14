@@ -154,11 +154,12 @@ class RefCountedThreadSafe : public subtle::RefCountedThreadSafeBase {
 };
 
 //
-// A wrapper for some piece of data so we can place other things in
-// scoped_refptrs<>.
+// A thread-safe wrapper for some piece of data so we can place other
+// things in scoped_refptrs<>.
 //
 template<typename T>
-class RefCountedData : public base::RefCounted< base::RefCountedData<T> > {
+class RefCountedData
+    : public base::RefCountedThreadSafe< base::RefCountedData<T> > {
  public:
   RefCountedData() : data() {}
   RefCountedData(const T& in_value) : data(in_value) {}
@@ -166,7 +167,7 @@ class RefCountedData : public base::RefCounted< base::RefCountedData<T> > {
   T data;
 
  private:
-  friend class base::RefCounted<base::RefCountedData<T> >;
+  friend class base::RefCountedThreadSafe<base::RefCountedData<T> >;
   ~RefCountedData() {}
 };
 
