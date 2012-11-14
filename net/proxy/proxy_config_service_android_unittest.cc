@@ -64,7 +64,7 @@ class ProxyConfigServiceAndroidTestBase : public testing::Test {
 
   // testing::Test:
   virtual void SetUp() OVERRIDE {
-    message_loop_->RunAllPending();
+    message_loop_->RunUntilIdle();
     service_.AddObserver(&observer_);
   }
 
@@ -89,7 +89,7 @@ class ProxyConfigServiceAndroidTestBase : public testing::Test {
 
   void ProxySettingsChanged() {
     service_.ProxySettingsChanged();
-    message_loop_->RunAllPending();
+    message_loop_->RunUntilIdle();
   }
 
   void TestMapping(const std::string& url, const std::string& expected) {

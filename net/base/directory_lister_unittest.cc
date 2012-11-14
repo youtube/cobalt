@@ -126,7 +126,7 @@ TEST(DirectoryListerTest, CancelTest) {
 
   lister.Cancel();
 
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(num_files, delegate.num_files());
 }

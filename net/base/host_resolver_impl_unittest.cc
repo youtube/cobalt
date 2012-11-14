@@ -823,7 +823,7 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
 
   // Flush cache by triggering an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-  MessageLoop::current()->RunAllPending();  // Notification happens async.
+  MessageLoop::current()->RunUntilIdle();  // Notification happens async.
 
   // Resolve "host1" again -- this time it won't be served from cache, so it
   // will complete asynchronously.
@@ -840,7 +840,7 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
   EXPECT_TRUE(proc_->WaitFor(1u));
   // Triggering an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-  MessageLoop::current()->RunAllPending();  // Notification happens async.
+  MessageLoop::current()->RunUntilIdle();  // Notification happens async.
   proc_->SignalAll();
 
   EXPECT_EQ(ERR_ABORTED, req->WaitForResult());
@@ -858,7 +858,7 @@ TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
   EXPECT_TRUE(proc_->WaitFor(1u));
   // Triggering an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
-  MessageLoop::current()->RunAllPending();  // Notification happens async.
+  MessageLoop::current()->RunUntilIdle();  // Notification happens async.
   proc_->SignalMultiple(3u);  // Let the false-start go so that we can catch it.
 
   EXPECT_EQ(ERR_ABORTED, requests_[0]->WaitForResult());
@@ -902,7 +902,7 @@ TEST_F(HostResolverImplTest, AbortOnlyExistingRequestsOnIPAddressChange) {
   // Trigger an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
   // This should abort all running jobs.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
   EXPECT_EQ(ERR_ABORTED, requests_[0]->result());
   EXPECT_EQ(ERR_ABORTED, requests_[1]->result());
   EXPECT_EQ(ERR_ABORTED, requests_[2]->result());
@@ -1211,7 +1211,7 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
 
   resolver_proc->WaitForAllAttemptsToFinish(
       base::TimeDelta::FromMilliseconds(60000));
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   EXPECT_EQ(resolver_proc->total_attempts_resolved(), kTotalAttempts);
   EXPECT_EQ(resolver_proc->resolved_attempt_number(), kAttemptNumberToResolve);
@@ -1266,7 +1266,7 @@ class HostResolverImplDnsTest : public HostResolverImplTest {
   void ChangeDnsConfig(const DnsConfig& config) {
     NetworkChangeNotifier::SetDnsConfig(config);
     // Notification is delivered asynchronously.
-    MessageLoop::current()->RunAllPending();
+    MessageLoop::current()->RunUntilIdle();
   }
 
   MockDnsClientRuleList dns_rules_;

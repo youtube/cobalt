@@ -346,7 +346,7 @@ TEST_F(ServerBoundCertServiceTest, CancelRequest) {
   sequenced_worker_pool_->FlushForTesting();
   // Wait for reply from ServerBoundCertServiceWorker to be posted back to the
   // ServerBoundCertService.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // Even though the original request was cancelled, the service will still
   // store the result, it just doesn't call the callback.
@@ -381,7 +381,7 @@ TEST_F(ServerBoundCertServiceTest, DestructionWithPendingRequest) {
   // ServerBoundCertServiceWorker should not post anything back to the
   // non-existant ServerBoundCertService, but run the loop just to be sure it
   // doesn't.
-  MessageLoop::current()->RunAllPending();
+  MessageLoop::current()->RunUntilIdle();
 
   // If we got here without crashing or a valgrind error, it worked.
 }
