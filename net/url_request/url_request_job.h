@@ -241,8 +241,8 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
   // Should only be called if the job has not started a resposne.
   void NotifyRestartRequired();
 
-  // Called when the delegate blocks or unblocks this request when intercepting
-  // certain requests.
+  // Called when the network delegate blocks or unblocks this request when
+  // intercepting certain requests.
   void SetBlockedOnDelegate();
   void SetUnblockedOnDelegate();
 
