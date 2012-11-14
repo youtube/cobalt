@@ -55,6 +55,8 @@ class NET_EXPORT_PRIVATE QuicConnectionHelper
   void OnSendAlarm();
   // An alarm which fires when the connection may have timed out.
   void OnTimeoutAlarm();
+  // A completion callback invoked when a write completes.
+  void OnWriteComplete(int result);
 
  private:
   friend class QuicConnectionHelperPeer;

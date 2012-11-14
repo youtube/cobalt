@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "base/task_runner.h"
 #include "base/time.h"
+#include "net/base/io_buffer.h"
 #include "net/quic/congestion_control/quic_receipt_metrics_collector.h"
 #include "net/quic/congestion_control/quic_send_scheduler.h"
 #include "net/quic/quic_utils.h"
@@ -45,8 +46,12 @@ int QuicConnectionHelper::WritePacketToWire(
     return packet.length();
   }
 
-  // TODO(rch): add udp socket write
-  return packet.length();
+  scoped_refptr<StringIOBuffer> buf(
+      new StringIOBuffer(std::string(packet.data(),
+                                     packet.length())));
+  return socket_->Write(buf, packet.length(),
+                        base::Bind(&QuicConnectionHelper::OnWriteComplete,
+                                   weak_factory_.GetWeakPtr()));
 }
 
 void QuicConnectionHelper::SetResendAlarm(
@@ -103,6 +108,11 @@ void QuicConnectionHelper::OnSendAlarm() {
 void QuicConnectionHelper::OnTimeoutAlarm() {
   timeout_alarm_registered_ = false;
   connection_->CheckForTimeout();
+}
+
+void QuicConnectionHelper::OnWriteComplete(int result) {
+  // TODO(rch): Inform the connection about the result.
+  connection_->OnCanWrite();
 }
 
 }  // namespace net
