@@ -2180,8 +2180,11 @@ TEST_F(MultiThreadedCookieMonsterTest, ThreadCheckDeleteCanonicalCookie) {
 }
 
 TEST_F(CookieMonsterTest, InvalidExpiryTime) {
-  ParsedCookie pc(std::string(kValidCookieLine) + "; expires=Blarg arg arg");
-  scoped_ptr<CanonicalCookie> cookie(CanonicalCookie::Create(url_google_, pc));
+  std::string cookie_line =
+      std::string(kValidCookieLine) + "; expires=Blarg arg arg";
+  scoped_ptr<CanonicalCookie> cookie(
+      CanonicalCookie::Create(url_google_, cookie_line, Time::Now(),
+                              CookieOptions()));
   ASSERT_FALSE(cookie->IsPersistent());
 }
 
