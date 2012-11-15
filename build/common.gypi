@@ -2553,7 +2553,7 @@
               # removed when we change to that.  (This is also why we don't
               # bother fixing all these cases today.)
               '-Wno-unnamed-type-template-args',
-              # This (rightyfully) complains about 'override', which we use
+              # This (rightfully) complains about 'override', which we use
               # heavily.
               '-Wno-c++11-extensions',
 
@@ -3086,11 +3086,12 @@
               'LDPLUSPLUS': '$(SOURCE_ROOT)/<(clang_dir)/clang++',
 
               # Don't use -Wc++0x-extensions, which Xcode 4 enables by default
-              # when buliding with clang. This warning is triggered when the
+              # when building with clang. This warning is triggered when the
               # override keyword is used via the OVERRIDE macro from
               # base/compiler_specific.h.
               'CLANG_WARN_CXX0X_EXTENSIONS': 'NO',
-
+              # Warn if automatic synthesis is triggered.
+              'CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS': 'YES',
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'WARNING_CFLAGS': [
                 '-Wheader-hygiene',
@@ -3101,7 +3102,7 @@
                 '-Wno-unused-function',
                 # See comments on this flag higher up in this file.
                 '-Wno-unnamed-type-template-args',
-                # This (rightyfully) complains about 'override', which we use
+                # This (rightfully) complains about 'override', which we use
                 # heavily.
                 '-Wno-c++11-extensions',
 
@@ -3315,10 +3316,12 @@
           # also seems to mean using the custom build of clang.
 
           # Don't use -Wc++0x-extensions, which Xcode 4 enables by default
-          # when buliding with clang. This warning is triggered when the
+          # when building with clang. This warning is triggered when the
           # override keyword is used via the OVERRIDE macro from
           # base/compiler_specific.h.
           'CLANG_WARN_CXX0X_EXTENSIONS': 'NO',
+          # Warn if automatic synthesis is triggered.
+          'CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS': 'YES',
           'WARNING_CFLAGS': [
             '-Wheader-hygiene',
             # Don't die on dtoa code that uses a char as an array index.
@@ -3328,7 +3331,7 @@
             '-Wno-unused-function',
             # See comments on this flag higher up in this file.
             '-Wno-unnamed-type-template-args',
-            # This (rightyfully) complains about 'override', which we use
+            # This (rightfully) complains about 'override', which we use
             # heavily.
             '-Wno-c++11-extensions',
           ],
