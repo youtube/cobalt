@@ -46,7 +46,6 @@ int HttpBasicStream::InitializeStream(
 
 
 int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
-                                 UploadDataStream* request_body,
                                  HttpResponseInfo* response,
                                  const CompletionCallback& callback) {
   DCHECK(parser_.get());
@@ -58,8 +57,7 @@ int HttpBasicStream::SendRequest(const HttpRequestHeaders& headers,
                                      request_info_->method.c_str(),
                                      path.c_str());
   response_ = response;
-  return parser_->SendRequest(request_line_, headers, request_body,
-                              response, callback);
+  return parser_->SendRequest(request_line_, headers, response, callback);
 }
 
 UploadProgress HttpBasicStream::GetUploadProgress() const {

@@ -116,7 +116,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendRequest) {
       OK,
       http_stream->InitializeStream(&request, net_log, CompletionCallback()));
 
-  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, &response,
                                                      callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
@@ -180,7 +180,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendChunkedPost) {
       http_stream.InitializeStream(&request, net_log, CompletionCallback()));
 
   EXPECT_EQ(ERR_IO_PENDING, http_stream.SendRequest(
-      headers, &upload_stream, &response, callback.callback()));
+      headers, &response, callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
   // This triggers the MockWrite and read 2
@@ -257,7 +257,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPost) {
   EXPECT_EQ(OK,
             session_->InitializeWithSocket(connection.release(), false, OK));
 
-  scoped_refptr<UploadData> upload_data(new UploadData);
+  scoped_refptr<UploadData> upload_data(new UploadData());
   upload_data->set_is_chunked(true);
   UploadDataStream upload_stream(upload_data);
 
@@ -280,11 +280,8 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPost) {
   HttpResponseInfo response;
   // This will attempt to Write() the initial request and headers, which will
   // complete asynchronously.
-  EXPECT_EQ(ERR_IO_PENDING,
-            http_stream->SendRequest(headers,
-                                     &upload_stream,
-                                     &response,
-                                     callback.callback()));
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, &response,
+                                                     callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
   // Complete the initial request write and the first chunk.
@@ -414,9 +411,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, DelayedSendChunkedPostWithWindowUpdate) {
   HttpResponseInfo response;
   // This will attempt to Write() the initial request and headers, which will
   // complete asynchronously.
-  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers,
-                                                     &upload_stream,
-                                                     &response,
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, &response,
                                                      callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
@@ -490,7 +485,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, SpdyURLTest) {
       OK,
       http_stream->InitializeStream(&request, net_log, CompletionCallback()));
 
-  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, &response,
                                                      callback.callback()));
 
   const SpdyHeaderBlock& spdy_header =
@@ -694,7 +689,7 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
   //  GURL new_origin(kUrl2);
   //  EXPECT_TRUE(session_->NeedsCredentials(new_origin));
 
-  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, &response,
                                                      callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
@@ -708,7 +703,7 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
   ASSERT_EQ(
       OK,
       http_stream2->InitializeStream(&request, net_log, CompletionCallback()));
-  EXPECT_EQ(ERR_IO_PENDING, http_stream2->SendRequest(headers, NULL, &response,
+  EXPECT_EQ(ERR_IO_PENDING, http_stream2->SendRequest(headers, &response,
                                                       callback.callback()));
   data.RunFor(2);
   callback.WaitForResult();

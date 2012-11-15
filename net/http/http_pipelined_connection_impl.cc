@@ -174,7 +174,6 @@ int HttpPipelinedConnectionImpl::SendRequest(
     int pipeline_id,
     const std::string& request_line,
     const HttpRequestHeaders& headers,
-    UploadDataStream* request_body,
     HttpResponseInfo* response,
     const CompletionCallback& callback) {
   CHECK(ContainsKey(stream_info_map_, pipeline_id));
@@ -187,7 +186,6 @@ int HttpPipelinedConnectionImpl::SendRequest(
   send_request->pipeline_id = pipeline_id;
   send_request->request_line = request_line;
   send_request->headers = headers;
-  send_request->request_body = request_body;
   send_request->response = response;
   send_request->callback = callback;
   pending_send_request_queue_.push(send_request);
@@ -277,7 +275,6 @@ int HttpPipelinedConnectionImpl::DoSendActiveRequest(int result) {
   int rv = stream_info_map_[active_send_request_->pipeline_id].parser->
       SendRequest(active_send_request_->request_line,
                   active_send_request_->headers,
-                  active_send_request_->request_body,
                   active_send_request_->response,
                   base::Bind(&HttpPipelinedConnectionImpl::OnSendIOCallback,
                              base::Unretained(this)));
@@ -826,7 +823,6 @@ NextProto HttpPipelinedConnectionImpl::protocol_negotiated()
 
 HttpPipelinedConnectionImpl::PendingSendRequest::PendingSendRequest()
     : pipeline_id(0),
-      request_body(NULL),
       response(NULL) {
 }
 

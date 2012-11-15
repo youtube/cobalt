@@ -20,7 +20,6 @@
 namespace net {
 
 class IOBuffer;
-class UploadDataStream;
 
 class NET_EXPORT_PRIVATE HttpStream : public HttpStreamBase {
  public:
