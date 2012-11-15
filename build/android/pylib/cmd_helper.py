@@ -4,10 +4,11 @@
 
 """A wrapper for subprocess to make calling shell commands easier."""
 
-
+import os
 import logging
 import subprocess
 
+import constants
 
 def RunCmd(args, cwd=None):
   """Opens a subprocess to execute a program and returns its return value.
@@ -65,3 +66,12 @@ def GetCmdStatusAndOutput(args, cwd=None, shell=False):
     logging.critical(stderr)
   logging.info(stdout[:4096])  # Truncate output longer than 4k.
   return (exit_code, stdout)
+
+class OutDirectory(object):
+  _out_directory = constants.CHROME_DIR
+  @staticmethod
+  def set(out_directory):
+    OutDirectory._out_directory = out_directory
+  @staticmethod
+  def get():
+    return OutDirectory._out_directory
