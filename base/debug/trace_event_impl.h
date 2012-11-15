@@ -210,7 +210,6 @@ class BASE_EXPORT TraceLog {
 
 #if defined(OS_ANDROID)
   static void InitATrace();
-  static bool IsATraceEnabled();
 #endif
 
   // Enabled state listeners give a callback when tracing is enabled or
@@ -316,6 +315,17 @@ class BASE_EXPORT TraceLog {
   // by the Singleton class.
   friend struct StaticMemorySingletonTraits<TraceLog>;
 
+  // The pointer returned from GetCategoryEnabledInternal() points to a value
+  // with zero or more of the following bits. Used in this class only.
+  // The TRACE_EVENT macros should only use the value as a bool.
+  enum CategoryEnabledFlags {
+    // Normal enabled flag for categories enabled with Enable().
+    CATEGORY_ENABLED = 1 << 0,
+    // On Android if ATrace is enabled, all categories will have this bit.
+    // Not used on other platforms.
+    ATRACE_ENABLED = 1 << 1
+  };
+
   // Helper class for managing notification_thread_count_ and running
   // notification callbacks. This is very similar to a reader-writer lock, but
   // shares the lock with TraceLog and manages the notification flags.
@@ -353,6 +363,7 @@ class BASE_EXPORT TraceLog {
                     const unsigned char* arg_types,
                     const unsigned long long* arg_values);
   void AddClockSyncMetadataEvents();
+  static void ApplyATraceEnabledFlag(unsigned char* category_enabled);
 #endif
 
   // TODO(nduca): switch to per-thread trace buffers to reduce thread

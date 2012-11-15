@@ -395,7 +395,8 @@ const char* TraceLog::GetCategoryName(const unsigned char* category_enabled) {
 
 static void EnableMatchingCategory(int category_index,
                                    const std::vector<std::string>& patterns,
-                                   unsigned char is_included) {
+                                   unsigned char matched_value,
+                                   unsigned char unmatched_value) {
   std::vector<std::string>::const_iterator ci = patterns.begin();
   bool is_match = false;
   for (; ci != patterns.end(); ++ci) {
@@ -404,53 +405,67 @@ static void EnableMatchingCategory(int category_index,
       break;
   }
   g_category_enabled[category_index] = is_match ?
-      is_included : (is_included ^ 1);
+      matched_value : unmatched_value;
 }
 
 // Enable/disable each category based on the category filters in |patterns|.
 // If the category name matches one of the patterns, its enabled status is set
-// to |is_included|. Otherwise its enabled status is set to !|is_included|.
+// to |matched_value|. Otherwise its enabled status is set to |unmatched_value|.
 static void EnableMatchingCategories(const std::vector<std::string>& patterns,
-                                     unsigned char is_included) {
+                                     unsigned char matched_value,
+                                     unsigned char unmatched_value) {
   for (int i = 0; i < g_category_index; i++)
-    EnableMatchingCategory(i, patterns, is_included);
+    EnableMatchingCategory(i, patterns, matched_value, unmatched_value);
 }
 
 const unsigned char* TraceLog::GetCategoryEnabledInternal(const char* name) {
   AutoLock lock(lock_);
   DCHECK(!strchr(name, '"')) << "Category names may not contain double quote";
 
+  unsigned char* category_enabled = NULL;
   // Search for pre-existing category matching this name
   for (int i = 0; i < g_category_index; i++) {
-    if (strcmp(g_categories[i], name) == 0)
-      return &g_category_enabled[i];
+    if (strcmp(g_categories[i], name) == 0) {
+      category_enabled = &g_category_enabled[i];
+      break;
+    }
   }
 
-  // Create a new category
-  DCHECK(g_category_index < TRACE_EVENT_MAX_CATEGORIES) <<
-      "must increase TRACE_EVENT_MAX_CATEGORIES";
-  if (g_category_index < TRACE_EVENT_MAX_CATEGORIES) {
-    int new_index = g_category_index++;
-    // Don't hold on to the name pointer, so that we can create categories with
-    // strings not known at compile time (this is required by SetWatchEvent).
-    const char* new_name = base::strdup(name);
-    ANNOTATE_LEAKING_OBJECT_PTR(new_name);
-    g_categories[new_index] = new_name;
-    DCHECK(!g_category_enabled[new_index]);
-    if (enabled_) {
-      // Note that if both included and excluded_categories are empty, the else
-      // clause below excludes nothing, thereby enabling this category.
-      if (!included_categories_.empty())
-        EnableMatchingCategory(new_index, included_categories_, 1);
-      else
-        EnableMatchingCategory(new_index, excluded_categories_, 0);
+  if (!category_enabled) {
+    // Create a new category
+    DCHECK(g_category_index < TRACE_EVENT_MAX_CATEGORIES) <<
+        "must increase TRACE_EVENT_MAX_CATEGORIES";
+    if (g_category_index < TRACE_EVENT_MAX_CATEGORIES) {
+      int new_index = g_category_index++;
+      // Don't hold on to the name pointer, so that we can create categories
+      // with strings not known at compile time (this is required by
+      // SetWatchEvent).
+      const char* new_name = base::strdup(name);
+      ANNOTATE_LEAKING_OBJECT_PTR(new_name);
+      g_categories[new_index] = new_name;
+      DCHECK(!g_category_enabled[new_index]);
+      if (enabled_) {
+        // Note that if both included and excluded_categories are empty, the
+        // else clause below excludes nothing, thereby enabling this category.
+        if (!included_categories_.empty()) {
+          EnableMatchingCategory(new_index, included_categories_,
+                                 CATEGORY_ENABLED, 0);
+        } else {
+          EnableMatchingCategory(new_index, excluded_categories_,
+                                 0, CATEGORY_ENABLED);
+        }
+      } else {
+        g_category_enabled[new_index] = 0;
+      }
+      category_enabled = &g_category_enabled[new_index];
     } else {
-      g_category_enabled[new_index] = 0;
+      category_enabled = &g_category_enabled[g_category_categories_exhausted];
     }
-    return &g_category_enabled[new_index];
-  } else {
-    return &g_category_enabled[g_category_categories_exhausted];
   }
+#if defined(OS_ANDROID)
+  ApplyATraceEnabledFlag(category_enabled);
+#endif
+  return category_enabled;
 }
 
 void TraceLog::GetKnownCategories(std::vector<std::string>* categories) {
@@ -483,9 +498,9 @@ void TraceLog::SetEnabled(const std::vector<std::string>& included_categories,
   // Note that if both included and excluded_categories are empty, the else
   // clause below excludes nothing, thereby enabling all categories.
   if (!included_categories_.empty())
-    EnableMatchingCategories(included_categories_, 1);
+    EnableMatchingCategories(included_categories_, CATEGORY_ENABLED, 0);
   else
-    EnableMatchingCategories(excluded_categories_, 0);
+    EnableMatchingCategories(excluded_categories_, 0, CATEGORY_ENABLED);
 }
 
 void TraceLog::SetEnabled(const std::string& categories) {
@@ -617,7 +632,7 @@ int TraceLog::AddTraceEvent(char phase,
   int ret_begin_id = -1;
   {
     AutoLock lock(lock_);
-    if (!*category_enabled)
+    if (*category_enabled != CATEGORY_ENABLED)
       return -1;
     if (logged_events_.size() >= kTraceEventBufferSize)
       return -1;
