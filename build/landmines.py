@@ -20,6 +20,8 @@ build is clobbered.
 import difflib
 import functools
 import gyp_helper
+import logging
+import optparse
 import os
 import shlex
 import sys
@@ -36,7 +38,8 @@ def memoize(default=None):
       if not val:
         ret = func()
         val.append(ret if ret is not None else default)
-        print '%s -> %r' % (func.__name__, val[0])
+        if logging.getLogger().isEnabledFor(logging.INFO):
+          print '%s -> %r' % (func.__name__, val[0])
       return val[0]
     return inner
   return memoizer
@@ -167,44 +170,58 @@ def get_target_build_dir(build_tool, target, is_iphone=False):
   return os.path.abspath(ret)
 
 
-def main(argv):
-  if len(argv) > 1:
-    print('Unknown arguments %s' % argv[1:])
-    return 1
+def set_up_landmines(target):
+  """Does the work of setting, planting, and triggering landmines."""
+  out_dir = get_target_build_dir(builder(), target, platform() == 'ios')
+
+  landmines_path = os.path.join(out_dir, '.landmines')
+  if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
+
+  new_landmines = get_landmines(target)
+
+  if not os.path.exists(landmines_path):
+    with open(landmines_path, 'w') as f:
+      f.writelines(new_landmines)
+  else:
+    triggered = os.path.join(out_dir, '.landmines_triggered')
+    with open(landmines_path, 'r') as f:
+      old_landmines = f.readlines()
+    if old_landmines != new_landmines:
+      old_date = time.ctime(os.stat(landmines_path).st_ctime)
+      diff = difflib.unified_diff(old_landmines, new_landmines,
+          fromfile='old_landmines', tofile='new_landmines',
+          fromfiledate=old_date, tofiledate=time.ctime(), n=0)
+
+      with open(triggered, 'w') as f:
+        f.writelines(diff)
+    elif os.path.exists(triggered):
+      # Remove false triggered landmines.
+      os.remove(triggered)
+
+
+def main():
+  parser = optparse.OptionParser()
+  parser.add_option('-v', '--verbose', action='store_true',
+      default=('LANDMINES_VERBOSE' in os.environ),
+      help=('Emit some extra debugging information (default off). This option '
+          'is also enabled by the presence of a LANDMINES_VERBOSE environment '
+          'variable.'))
+  options, args = parser.parse_args()
+
+  if args:
+    parser.error('Unknown arguments %s' % args)
+
+  logging.basicConfig(
+      level=logging.DEBUG if options.verbose else logging.ERROR)
 
   gyp_helper.apply_chromium_gyp_env()
 
   for target in ('Debug', 'Release'):
-    out_dir = get_target_build_dir(builder(), target,
-                                   platform() == 'ios')
-
-    landmines_path = os.path.join(out_dir, '.landmines')
-    if not os.path.exists(out_dir):
-      os.makedirs(out_dir)
-
-    new_landmines = get_landmines(target)
-
-    if not os.path.exists(landmines_path):
-      with open(landmines_path, 'w') as f:
-        f.writelines(new_landmines)
-    else:
-      triggered = os.path.join(out_dir, '.landmines_triggered')
-      with open(landmines_path, 'r') as f:
-        old_landmines = f.readlines()
-      if old_landmines != new_landmines:
-        old_date = time.ctime(os.stat(landmines_path).st_ctime)
-        diff = difflib.unified_diff(old_landmines, new_landmines,
-            fromfile='old_landmines', tofile='new_landmines',
-            fromfiledate=old_date, tofiledate=time.ctime(), n=0)
-
-        with open(triggered, 'w') as f:
-          f.writelines(diff)
-      elif os.path.exists(triggered):
-        # Remove false triggered landmines.
-        os.remove(triggered)
+    set_up_landmines(target)
 
   return 0
 
 
 if __name__ == '__main__':
-  sys.exit(main(sys.argv))
+  sys.exit(main())
