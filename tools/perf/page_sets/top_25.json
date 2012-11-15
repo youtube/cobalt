@@ -61,18 +61,18 @@
             "credentials": "facebook",
             "scroll_is_infinite": true,
             "stress_memory": {
-                "action": "compound",
+                "action": "compound_interaction",
                 "actions": [
                     {
-                        "action": "click_to_navigate",
+                        "action": "click_to_navigate_interaction",
                         "selector": "a[href=\"http://www.facebook.com/WomenforObama\"]"
                     },
                     {
-                        "action": "click_to_navigate",
+                        "action": "click_to_navigate_interaction",
                         "selector": "a[href=\"http://www.facebook.com/WomenforObama/info\"]"
                     },
                     {
-                        "action": "click_to_navigate",
+                        "action": "click_to_navigate_interaction",
                         "selector": "a[href=\"http://www.facebook.com/?ref=tn_tnmn\"]"
                     }
                 ]
