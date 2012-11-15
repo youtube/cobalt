@@ -1,0 +1,8 @@
+{
+    "description": "Octane JavaScript benchmark",
+    "pages": [
+        {
+            "url": "file:///../data/octane/index.html?auto=1"
+        }
+    ]
+}
