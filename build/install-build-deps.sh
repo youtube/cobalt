@@ -13,6 +13,7 @@ usage() {
   echo "Options:"
   echo "--[no-]syms: enable or disable installation of debugging symbols"
   echo "--[no-]lib32: enable or disable installation of 32 bit libraries"
+  echo "--[no-]arm: enable or disable installation of arm cross toolchain"
   echo "--no-prompt: silently select standard options/defaults"
   echo "Script will prompt interactively if options not given."
   exit 1
@@ -25,6 +26,8 @@ do
   --no-syms)                do_inst_syms=0;;
   --lib32)                  do_inst_lib32=1;;
   --no-lib32)               do_inst_lib32=0;;
+  --arm)                    do_inst_arm=1;;
+  --no-arm)                 do_inst_arm=0;;
   --no-prompt)              do_default=1
                             do_quietly="-qq --assume-yes"
     ;;
@@ -33,10 +36,11 @@ do
   shift
 done
 
-if ! egrep -q \
-    'Ubuntu (10\.04|10\.10|11\.04|11\.10|12\.04|lucid|maverick|natty|oneiric|precise)' \
-    /etc/issue; then
-  echo "Only Ubuntu 10.04 (lucid) through 12.04 (precise) are currently" \
+ubuntu_versions="10\.04|10\.10|11\.04|11\.10|12\.04"
+ubuntu_codenames="lucid|maverick|natty|oneiric|precise"
+
+if ! egrep -q "Ubuntu ($ubuntu_versions|$ubuntu_codenames)" /etc/issue; then
+  echo "ERROR: Only Ubuntu 10.04 (lucid) through 12.04 (precise) are currently"\
       "supported" >&2
   exit 1
 fi
@@ -94,6 +98,15 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg libfontconfig1-dbg
           libxcb1-dbg libxcomposite1-dbg libxcursor1-dbg libxdamage1-dbg
           libxdmcp6-dbg libxext6-dbg libxfixes3-dbg libxi6-dbg libxinerama1-dbg
           libxrandr2-dbg libxrender1-dbg libxtst6-dbg zlib1g-dbg"
+
+# arm cross toolchain packages needed to build chrome on arm
+arm_list="libc6-armel-cross libc6-dev-armel-cross libgcc1-armel-cross
+          libgomp1-armel-cross linux-libc-dev-armel-cross
+          libgcc1-dbg-armel-cross libgomp1-dbg-armel-cross
+          binutils-arm-linux-gnueabi cpp-arm-linux-gnueabi
+          gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+          cpp-4.5-arm-linux-gnueabi gcc-4.5-arm-linux-gnueabi
+          g++-4.5-arm-linux-gnueabi libmudflap0-dbg-armel-cross"
 
 # Plugin lists needed for tests.
 plugin_list="flashplugin-installer"
@@ -180,6 +193,19 @@ else
   dbg_list=
 fi
 
+if test "$do_inst_arm" = "1"; then
+  . /etc/lsb-release
+  if test "$DISTRIB_CODENAME" != "precise"; then
+    echo "ERROR: Installing the ARM cross toolchain is only available on" \
+         "Ubuntu precise." >&2
+    exit 1
+  fi
+  echo "Installing ARM cross toolchain."
+else
+  echo "Skipping installation of ARM cross toolchain."
+  arm_list=
+fi
+
 sudo apt-get update
 
 # We initially run "apt-get" with the --reinstall option and parse its output.
@@ -187,7 +213,7 @@ sudo apt-get update
 # without accidentally promoting any packages from "auto" to "manual".
 # We then re-run "apt-get" with just the list of missing packages.
 echo "Finding missing packages..."
-packages="${dev_list} ${lib_list} ${dbg_list} ${plugin_list}"
+packages="${dev_list} ${lib_list} ${dbg_list} ${plugin_list} ${arm_list}"
 # Intentionally leaving $packages unquoted so it's more readable.
 echo "Packages required: " $packages
 echo
