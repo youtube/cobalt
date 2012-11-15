@@ -158,7 +158,7 @@ def get_target_build_dir(build_tool, target, is_iphone=False):
     ret = os.path.join(SRC_DIR, 'out', target)
   elif build_tool == 'ninja':
     ret = os.path.join(SRC_DIR, 'out', target)
-  elif build_tool == 'msvs':
+  elif build_tool in ['msvs', 'vs', 'ib']:
     ret = os.path.join(SRC_DIR, 'build', target)
   elif build_tool == 'scons':
     ret = os.path.join(SRC_DIR, 'sconsbuild', target)
