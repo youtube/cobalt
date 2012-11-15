@@ -17,7 +17,7 @@ from pylib import pexpect
 
 
 def _MakeBinaryPath(build_type, binary_name):
-  return os.path.join(constants.CHROME_DIR, 'out', build_type, binary_name)
+  return os.path.join(cmd_helper.OutDirectory.get(), build_type, binary_name)
 
 
 class Forwarder(object):

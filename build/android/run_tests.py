@@ -62,6 +62,7 @@ import time
 from pylib import android_commands
 from pylib.base_test_sharder import BaseTestSharder
 from pylib import buildbot_report
+from pylib import cmd_helper
 from pylib import constants
 from pylib import debug_info
 import emulator
@@ -87,10 +88,6 @@ _TEST_SUITES = ['base_unittests',
                ]
 
 
-def TestSuiteDir(build_type):
-  """Return the base directory of test suites."""
-  return os.path.abspath(os.path.join(constants.CHROME_DIR, 'out', build_type))
-
 def FullyQualifiedTestSuites(exe, option_test_suite, build_type):
   """Return a fully qualified list
 
@@ -99,7 +96,7 @@ def FullyQualifiedTestSuites(exe, option_test_suite, build_type):
     option_test_suite: the test_suite specified as an option.
     build_type: 'Release' or 'Debug'.
   """
-  test_suite_dir = TestSuiteDir(build_type)
+  test_suite_dir = os.path.join(cmd_helper.OutDirectory.get(), build_type)
   if option_test_suite:
     all_test_suites = [option_test_suite]
   else:
@@ -195,7 +192,7 @@ class TestSharder(BaseTestSharder):
   def __init__(self, attached_devices, test_suite, gtest_filter,
                test_arguments, timeout, rebaseline, performance_test,
                cleanup_test_files, tool, log_dump_name, fast_and_loose,
-               build_type):
+               build_type, in_webkit_checkout):
     BaseTestSharder.__init__(self, attached_devices, build_type)
     self.test_suite = test_suite
     self.test_suite_basename = os.path.basename(test_suite)
@@ -209,6 +206,7 @@ class TestSharder(BaseTestSharder):
     self.log_dump_name = log_dump_name
     self.fast_and_loose = fast_and_loose
     self.build_type = build_type
+    self.in_webkit_checkout = in_webkit_checkout
     self.tests = []
     if not self.gtest_filter:
       # No filter has been specified, let's add all tests then.
@@ -238,7 +236,7 @@ class TestSharder(BaseTestSharder):
                             self.performance_test, self.cleanup_test_files,
                             self.tool, 0,
                             not not self.log_dump_name, self.fast_and_loose,
-                            self.build_type)
+                            self.build_type, self.in_webkit_checkout)
     # The executable/apk needs to be copied before we can call GetAllTests.
     test.test_package.StripAndCopyExecutable()
     all_tests = test.test_package.GetAllTests()
@@ -270,7 +268,7 @@ class TestSharder(BaseTestSharder):
                             self.rebaseline, self.performance_test,
                             self.cleanup_test_files, self.tool, index,
                             not not self.log_dump_name, self.fast_and_loose,
-                            self.build_type)
+                            self.build_type, self.in_webkit_checkout)
 
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
@@ -282,7 +280,8 @@ class TestSharder(BaseTestSharder):
     if self.log_dump_name:
       # Zip all debug info outputs into a file named by log_dump_name.
       debug_info.GTestDebugInfo.ZipAndCleanResults(
-          os.path.join(TestSuiteDir(self.build_type), 'debug_info_dumps'),
+          os.path.join(cmd_helper.OutDirectory.get(), self.build_type,
+              'debug_info_dumps'),
           self.log_dump_name)
 
 
@@ -343,7 +342,7 @@ def _RunATestSuite(options):
                         options.performance_test,
                         options.cleanup_test_files, options.tool,
                         options.log_dump, options.fast_and_loose,
-                        options.build_type)
+                        options.build_type, options.webkit)
   test_results = sharder.RunShardedTests()
 
   for buildbot_emulator in buildbot_emulators:
@@ -399,6 +398,9 @@ def main(argv):
   option_parser.add_option('-s', '--suite', dest='test_suite',
                            help='Executable name of the test suite to run '
                            '(use -s help to list them)')
+  option_parser.add_option('--out-directory', dest='out_directory',
+                           help='Path to the out/ directory, irrespective of '
+                           'the build type. Only for non-Chromium uses.')
   option_parser.add_option('-d', '--device', dest='test_device',
                            help='Target device the test suite to run ')
   option_parser.add_option('-r', dest='rebaseline',
@@ -425,6 +427,8 @@ def main(argv):
   option_parser.add_option('-x', '--xvfb', dest='use_xvfb',
                            action='store_true',
                            help='Use Xvfb around tests (ignored if not Linux)')
+  option_parser.add_option('--webkit', action='store_true',
+                           help='Run the tests from a WebKit checkout.')
   option_parser.add_option('--fast', '--fast_and_loose', dest='fast_and_loose',
                            action='store_true',
                            help='Go faster (but be less stable), '
@@ -449,6 +453,8 @@ def main(argv):
     option_parser.print_usage()
     sys.exit(1)
   run_tests_helper.SetLogLevel(options.verbose_count)
+  if options.out_directory:
+    cmd_helper.OutDirectory.set(options.out_directory)
   emulator.DeleteAllTempAVDs()
   failed_tests_count = Dispatch(options)
 
