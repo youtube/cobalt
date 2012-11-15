@@ -13,6 +13,7 @@
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/test/test_timeouts.h"
@@ -1414,6 +1415,71 @@ TEST_F(HostResolverImplDnsTest, BypassDnsTask) {
 
   for (size_t i = 2; i < requests_.size(); ++i)
     EXPECT_EQ(OK, requests_[i]->WaitForResult()) << i;
+}
+
+TEST_F(HostResolverImplDnsTest, DisableDnsClientOnPersistentFailure) {
+  ChangeDnsConfig(CreateValidDnsConfig());
+
+  proc_->AddRuleForAllFamilies("", "");  // Default to failures.
+
+  // Check that DnsTask works.
+  Request* req = CreateRequest("ok_1", 80);
+  EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
+  EXPECT_EQ(OK, req->WaitForResult());
+
+  for (unsigned i = 0; i < 20; ++i) {
+    // Use custom names to require separate Jobs.
+    std::string hostname = base::StringPrintf("err_%u", i);
+    // Ensure fallback to ProcTask succeeds.
+    proc_->AddRuleForAllFamilies(hostname, "192.168.1.101");
+    EXPECT_EQ(ERR_IO_PENDING, CreateRequest(hostname, 80)->Resolve()) << i;
+  }
+
+  proc_->SignalMultiple(requests_.size());
+
+  for (size_t i = 0; i < requests_.size(); ++i)
+    EXPECT_EQ(OK, requests_[i]->WaitForResult()) << i;
+
+  ASSERT_FALSE(proc_->HasBlockedRequests());
+
+  // DnsTask should be disabled by now.
+  req = CreateRequest("ok_2", 80);
+  EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
+  proc_->SignalMultiple(1u);
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, req->WaitForResult());
+
+  // Check that it is re-enabled after DNS change.
+  ChangeDnsConfig(CreateValidDnsConfig());
+  req = CreateRequest("ok_3", 80);
+  EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
+  EXPECT_EQ(OK, req->WaitForResult());
+}
+
+TEST_F(HostResolverImplDnsTest, DontDisableDnsClientOnSporadicFailure) {
+  ChangeDnsConfig(CreateValidDnsConfig());
+
+  // |proc_| defaults to successes.
+
+  // 20 failures interleaved with 20 successes.
+  for (unsigned i = 0; i < 40; ++i) {
+    // Use custom names to require separate Jobs.
+    std::string hostname = (i % 2) == 0 ? base::StringPrintf("err_%u", i)
+                                        : base::StringPrintf("ok_%u", i);
+    EXPECT_EQ(ERR_IO_PENDING, CreateRequest(hostname, 80)->Resolve()) << i;
+  }
+
+  proc_->SignalMultiple(requests_.size());
+
+  for (size_t i = 0; i < requests_.size(); ++i)
+    EXPECT_EQ(OK, requests_[i]->WaitForResult()) << i;
+
+  // Make |proc_| default to failures.
+  proc_->AddRuleForAllFamilies("", "");
+
+  // DnsTask should still be enabled.
+  Request* req = CreateRequest("ok_last", 80);
+  EXPECT_EQ(ERR_IO_PENDING, req->Resolve());
+  EXPECT_EQ(OK, req->WaitForResult());
 }
 
 }  // namespace net
