@@ -1769,7 +1769,8 @@ class SyncPageHandler(BasePageHandler):
                     self.ChromiumSyncTransientErrorOpHandler,
                     self.ChromiumSyncErrorOpHandler,
                     self.ChromiumSyncSyncTabFaviconsOpHandler,
-                    self.ChromiumSyncCreateSyncedBookmarksOpHandler]
+                    self.ChromiumSyncCreateSyncedBookmarksOpHandler,
+                    self.ChromiumSyncEnableKeystoreEncryptionOpHandler]
 
     post_handlers = [self.ChromiumSyncCommandHandler,
                      self.ChromiumSyncTimeHandler]
@@ -1976,6 +1977,19 @@ class SyncPageHandler(BasePageHandler):
     if not self._ShouldHandleRequest(test_name):
       return False
     result, raw_reply = self.server._sync_handler.HandleCreateSyncedBookmarks()
+    self.send_response(result)
+    self.send_header('Content-Type', 'text/html')
+    self.send_header('Content-Length', len(raw_reply))
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True
+
+  def ChromiumSyncEnableKeystoreEncryptionOpHandler(self):
+    test_name = "/chromiumsync/enablekeystoreencryption"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+    result, raw_reply = (
+        self.server._sync_handler.HandleEnableKeystoreEncryption())
     self.send_response(result)
     self.send_header('Content-Type', 'text/html')
     self.send_header('Content-Length', len(raw_reply))
