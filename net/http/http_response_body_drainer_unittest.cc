@@ -82,7 +82,6 @@ class MockHttpStream : public HttpStream {
     return ERR_UNEXPECTED;
   }
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
-                          UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE {
     return ERR_UNEXPECTED;
