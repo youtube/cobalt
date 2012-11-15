@@ -1703,43 +1703,9 @@ bool CookieMonster::SetCookieWithCreationTimeAndOptions(
     creation_time = CurrentTime();
     last_time_seen_ = creation_time;
   }
-  Time server_time;
-  if (options.has_server_time())
-    server_time = options.server_time();
-  else
-    server_time = creation_time;
 
-  // Parse the cookie.
-  ParsedCookie pc(cookie_line);
-
-  if (!pc.IsValid()) {
-    VLOG(kVlogSetCookies) << "WARNING: Couldn't parse cookie";
-    return false;
-  }
-
-  if (options.exclude_httponly() && pc.IsHttpOnly()) {
-    VLOG(kVlogSetCookies) << "SetCookie() not setting httponly cookie";
-    return false;
-  }
-
-  std::string cookie_domain;
-  if (!GetCookieDomain(url, pc, &cookie_domain)) {
-    return false;
-  }
-
-  std::string cookie_path = CanonicalCookie::CanonPath(url, pc);
-  std::string mac_key = pc.HasMACKey() ? pc.MACKey() : std::string();
-  std::string mac_algorithm = pc.HasMACAlgorithm() ?
-      pc.MACAlgorithm() : std::string();
-
-  scoped_ptr<CanonicalCookie> cc;
-  Time cookie_expires =
-      CanonicalCookie::CanonExpiration(pc, creation_time, server_time);
-
-  cc.reset(new CanonicalCookie(url, pc.Name(), pc.Value(), cookie_domain,
-                               cookie_path, mac_key, mac_algorithm,
-                               creation_time, cookie_expires,
-                               creation_time, pc.IsSecure(), pc.IsHttpOnly()));
+  scoped_ptr<CanonicalCookie> cc(
+      CanonicalCookie::Create(url, cookie_line, creation_time, options));
 
   if (!cc.get()) {
     VLOG(kVlogSetCookies) << "WARNING: Failed to allocate CanonicalCookie";

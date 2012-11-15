@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/time.h"
 #include "net/base/net_export.h"
+#include "net/cookies/cookie_options.h"
 
 class GURL;
 
@@ -47,11 +48,13 @@ class NET_EXPORT CanonicalCookie {
 
   // Supports the default copy constructor.
 
-  // Creates a canonical cookie from parsed cookie.
-  // Canonicalizes and validates inputs.  May return NULL if an attribute
-  // value is invalid.
+  // Creates a new |CanonicalCookie| from the |cookie_line| and the
+  // |creation_time|. Canonicalizes and validates inputs. May return NULL if
+  // an attribut value is invalid.
   static CanonicalCookie* Create(const GURL& url,
-                                 const ParsedCookie& pc);
+                                 const std::string& cookie_line,
+                                 const base::Time& creation_time,
+                                 const CookieOptions& options);
 
   // Creates a canonical cookie from unparsed attribute values.
   // Canonicalizes and validates inputs.  May return NULL if an attribute
