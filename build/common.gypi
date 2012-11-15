@@ -2647,6 +2647,18 @@
           ['linux_breakpad==1', {
             'cflags': [ '-g' ],
             'defines': ['USE_LINUX_BREAKPAD'],
+            'conditions': [
+              ['target_arch=="ia32"', {
+                'target_conditions': [
+                  ['_toolset=="target"', {
+                    'ldflags': [
+                      # Workaround for linker OOM. http://crbug.com/160253.
+                      '-Wl,--no-keep-files-mapped',
+                    ],
+                  }],
+                ],
+              }],
+            ],
           }],
           ['linux_use_heapchecker==1', {
             'variables': {'linux_use_tcmalloc%': 1},
