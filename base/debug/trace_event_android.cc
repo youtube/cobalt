@@ -30,11 +30,6 @@ void TraceLog::InitATrace() {
     LOG(WARNING) << "Couldn't open " << kATraceMarkerFile;
 }
 
-// static
-bool TraceLog::IsATraceEnabled() {
-  return g_atrace_fd != -1;
-}
-
 void TraceLog::SendToATrace(char phase,
                             const char* category,
                             const char* name,
@@ -42,7 +37,7 @@ void TraceLog::SendToATrace(char phase,
                             const char** arg_names,
                             const unsigned char* arg_types,
                             const unsigned long long* arg_values) {
-  if (!IsATraceEnabled())
+  if (g_atrace_fd == -1)
     return;
 
   switch (phase) {
@@ -137,6 +132,12 @@ void TraceLog::AddClockSyncMetadataEvents() {
 
   if (g_atrace_fd == -1)
     close(atrace_fd);
+}
+
+// Must be called with lock_ locked.
+void TraceLog::ApplyATraceEnabledFlag(unsigned char* category_enabled) {
+  if (g_atrace_fd != -1)
+    *category_enabled |= ATRACE_ENABLED;
 }
 
 }  // namespace debug
