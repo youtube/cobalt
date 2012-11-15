@@ -93,14 +93,12 @@ diff -puN -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3c
  
      isTLS = (PRBool)(ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0);
      rv = ssl3_ConsumeHandshakeVariable(ss, &cert_types, 1, &b, &length);
-@@ -5983,6 +6006,20 @@ ssl3_HandleCertificateRequest(sslSocket 
+@@ -5983,6 +6006,18 @@ ssl3_HandleCertificateRequest(sslSocket 
      desc = no_certificate;
      ss->ssl3.hs.ws = wait_hello_done;
  
 +#ifdef NSS_PLATFORM_CLIENT_AUTH
-+    if (ss->getPlatformClientAuthData == NULL) {
-+	rv = SECFailure; /* force it to send a no_certificate alert */
-+    } else {
++    if (ss->getPlatformClientAuthData != NULL) {
 +	/* XXX Should pass cert_types in this call!! */
 +        rv = (SECStatus)(*ss->getPlatformClientAuthData)(
 +                                        ss->getPlatformClientAuthDataArg,
@@ -109,8 +107,8 @@ diff -puN -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3c
 +                                        (void**)&ss->ssl3.platformClientKey,
 +                                        &ss->ssl3.clientCertificate,
 +                                        &ss->ssl3.clientPrivateKey);
-+    }
-+#else
++    } else
++#endif
      if (ss->getClientAuthData == NULL) {
  	rv = SECFailure; /* force it to send a no_certificate alert */
      } else {
@@ -118,7 +116,7 @@ diff -puN -r a/net/third_party/nss/ssl/ssl3con.c b/net/third_party/nss/ssl/ssl3c
  						 &ss->ssl3.clientCertificate,
  						 &ss->ssl3.clientPrivateKey);
      }
-+#endif   /* NSS_PLATFORM_CLIENT_AUTH */
++
      switch (rv) {
      case SECWouldBlock:	/* getClientAuthData has put up a dialog box. */
  	ssl3_SetAlwaysBlock(ss);
@@ -247,7 +245,7 @@ diff -puN -r a/net/third_party/nss/ssl/sslauth.c b/net/third_party/nss/ssl/sslau
 diff -puN -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
 --- a/net/third_party/nss/ssl/ssl.h	2012-11-09 15:34:12.258133766 -0800
 +++ b/net/third_party/nss/ssl/ssl.h	2012-11-09 15:35:08.488958561 -0800
-@@ -483,6 +483,45 @@ typedef SECStatus (PR_CALLBACK *SSLGetCl
+@@ -483,6 +483,48 @@ typedef SECStatus (PR_CALLBACK *SSLGetCl
  SSL_IMPORT SECStatus SSL_GetClientAuthDataHook(PRFileDesc *fd, 
  			                       SSLGetClientAuthData f, void *a);
  
@@ -283,6 +281,9 @@ diff -puN -r a/net/third_party/nss/ssl/ssl.h b/net/third_party/nss/ssl/ssl.h
 +/*
 + * Set the client side callback for SSL to retrieve user's private key
 + * and certificate.
++ * Note: If a platform client auth callback is set, the callback configured by
++ * SSL_GetClientAuthDataHook, if any, will not be called.
++ *
 + *	fd - the file descriptor for the connection in question
 + *	f - the application's callback that delivers the key and cert
 + *	a - application specific data
