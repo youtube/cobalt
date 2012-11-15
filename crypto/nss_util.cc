@@ -23,6 +23,7 @@
 
 #include <vector>
 
+#include "base/debug/alias.h"
 #include "base/environment.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -223,6 +224,13 @@ base::LazyInstance<NSPRInitSingleton>::Leaky
 // unittest exits.  NSSInitSingleton is a LeakySingleton, so it would not be
 // deleted if it were a regular member.
 base::LazyInstance<ScopedTempDir> g_test_nss_db_dir = LAZY_INSTANCE_INITIALIZER;
+
+// Force a crash to debug http://crbug.com/153281.
+void CrashWithErrors(int nss_error, int os_error) {
+  base::debug::Alias(&nss_error);
+  base::debug::Alias(&os_error);
+  CHECK(false) << "nss_error=" << nss_error << ", os_error=" << os_error;
+}
 
 class NSSInitSingleton {
  public:
@@ -449,8 +457,13 @@ class NSSInitSingleton {
     if (nodb_init) {
       status = NSS_NoDB_Init(NULL);
       if (status != SECSuccess) {
+        // Force a crash with error info to debug http://crbug.com/153281.
+        int nss_error = PR_GetError();
+        int os_error = PR_GetOSError();
         LOG(ERROR) << "Error initializing NSS without a persistent "
                       "database: " << GetNSSErrorMessage();
+        CrashWithErrors(nss_error, os_error);
+        return;
       }
 #if defined(OS_IOS)
       root_ = InitDefaultRootCerts();
