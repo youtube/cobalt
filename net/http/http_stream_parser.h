@@ -49,7 +49,6 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
   // some additional functionality
   int SendRequest(const std::string& request_line,
                   const HttpRequestHeaders& headers,
-                  UploadDataStream* request_body,
                   HttpResponseInfo* response,
                   const CompletionCallback& callback);
 
@@ -174,9 +173,6 @@ class NET_EXPORT_PRIVATE HttpStreamParser {
 
   // The request header data.
   scoped_refptr<DrainableIOBuffer> request_headers_;
-
-  // The request body data.
-  UploadDataStream* request_body_;
 
   // Temporary buffer for reading.
   scoped_refptr<GrowableIOBuffer> read_buf_;

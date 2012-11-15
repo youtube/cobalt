@@ -28,7 +28,6 @@ class HttpResponseInfo;
 class IOBuffer;
 class SSLCertRequestInfo;
 class SSLInfo;
-class UploadDataStream;
 
 class NET_EXPORT_PRIVATE HttpStreamBase {
  public:
@@ -46,7 +45,6 @@ class NET_EXPORT_PRIVATE HttpStreamBase {
   // synchronously, in which case the result will be passed to the callback
   // when available. Returns OK on success.
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
-                          UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) = 0;
 

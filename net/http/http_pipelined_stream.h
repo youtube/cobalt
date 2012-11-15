@@ -22,7 +22,6 @@ struct HttpRequestInfo;
 class IOBuffer;
 class ProxyInfo;
 struct SSLConfig;
-class UploadDataStream;
 
 // HttpPipelinedStream is the pipelined implementation of HttpStream. It has
 // very little code in it. Instead, it serves as the client's interface to the
@@ -43,7 +42,6 @@ class HttpPipelinedStream : public HttpStream {
                                const CompletionCallback& callback) OVERRIDE;
 
   virtual int SendRequest(const HttpRequestHeaders& headers,
-                          UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE;
 

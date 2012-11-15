@@ -116,7 +116,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
           base::Bind(&HttpNetworkTransaction::OnIOComplete,
                      base::Unretained(this)))),
-      request_body_(NULL),
       session_(session),
       request_(NULL),
       headers_valid_(false),
@@ -717,14 +716,14 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
   }
 
   // Add a content length header?
-  if (request_body_) {
-    if (request_body_->is_chunked()) {
+  if (request_->upload_data_stream) {
+    if (request_->upload_data_stream->is_chunked()) {
       request_headers_.SetHeader(
           HttpRequestHeaders::kTransferEncoding, "chunked");
     } else {
       request_headers_.SetHeader(
           HttpRequestHeaders::kContentLength,
-          base::Uint64ToString(request_body_->size()));
+          base::Uint64ToString(request_->upload_data_stream->size()));
     }
   } else if (request_->method == "POST" || request_->method == "PUT" ||
              request_->method == "HEAD") {
@@ -755,18 +754,15 @@ void HttpNetworkTransaction::BuildRequestHeaders(bool using_proxy) {
 
 int HttpNetworkTransaction::DoInitRequestBody() {
   next_state_ = STATE_INIT_REQUEST_BODY_COMPLETE;
-  request_body_ = request_->upload_data_stream;
   int rv = OK;
-  if (request_body_)
-    rv = request_body_->Init(io_callback_);
+  if (request_->upload_data_stream)
+    rv = request_->upload_data_stream->Init(io_callback_);
   return rv;
 }
 
 int HttpNetworkTransaction::DoInitRequestBodyComplete(int result) {
   if (result == OK)
     next_state_ = STATE_BUILD_REQUEST;
-  else
-    request_body_ = NULL;
   return result;
 }
 
@@ -794,8 +790,7 @@ int HttpNetworkTransaction::DoBuildRequestComplete(int result) {
 int HttpNetworkTransaction::DoSendRequest() {
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
 
-  return stream_->SendRequest(
-      request_headers_, request_body_, &response_, io_callback_);
+  return stream_->SendRequest(request_headers_, &response_, io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
