@@ -65,7 +65,7 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   // For a detailed state diagram please see this link: http://goo.gl/8jAok
   // TODO(xhwang): Add a ASCII state diagram in this file after this class
   // stabilizes.
-  enum DecoderState {
+  enum State {
     kUninitialized = 0,
     kDecryptorRequested,
     kPendingDecoderInit,
@@ -114,8 +114,8 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
                       Decryptor::Status status,
                       const scoped_refptr<VideoFrame>& frame);
 
-  // Callback for the |decryptor_| to notify the DecryptingVideoDecoder that
-  // a new key has been added.
+  // Callback for the |decryptor_| to notify this object that a new key has been
+  // added.
   void OnKeyAdded();
 
   // Reset decoder and call |reset_cb_|.
@@ -129,8 +129,7 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
-  // Current state of the DecryptingVideoDecoder.
-  DecoderState state_;
+  State state_;
 
   PipelineStatusCB init_cb_;
   StatisticsCB statistics_cb_;
@@ -153,7 +152,7 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   // If this variable is true and kNoKey is returned then we need to try
   // decrypting/decoding again in case the newly added key is the correct
   // decryption key.
-  bool key_added_while_pending_decode_;
+  bool key_added_while_decode_pending_;
 
   // A unique ID to trace Decryptor::DecryptAndDecodeVideo() call and the
   // matching DecryptCB call (in DoDeliverFrame()).
