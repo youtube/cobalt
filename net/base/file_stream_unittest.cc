@@ -91,7 +91,6 @@ TEST_F(FileStreamTest, FileHandleNotLeftOpen) {
   base::PlatformFileInfo info;
   // The file should be closed.
   EXPECT_FALSE(base::GetPlatformFileInfo(file, &info));
-  EXPECT_FALSE(base::ClosePlatformFile(file));
 }
 
 // Test the use of FileStream with a file handle provided at construction.
