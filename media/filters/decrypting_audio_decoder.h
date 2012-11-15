@@ -68,7 +68,7 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   // TODO(xhwang): Add a ASCII state diagram in this file after this class
   // stabilizes.
   // TODO(xhwang): Update this diagram for DecryptingAudioDecoder.
-  enum DecoderState {
+  enum State {
     kUninitialized = 0,
     kDecryptorRequested,
     kPendingDecoderInit,
@@ -116,8 +116,8 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
                       Decryptor::Status status,
                       const Decryptor::AudioBuffers& frames);
 
-  // Callback for the |decryptor_| to notify the DecryptingAudioDecoder that
-  // a new key has been added.
+  // Callback for the |decryptor_| to notify this object that a new key has been
+  // added.
   void OnKeyAdded();
 
   // Resets decoder and calls |reset_cb_|.
@@ -135,8 +135,7 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
-  // Current state of the DecryptingAudioDecoder.
-  DecoderState state_;
+  State state_;
 
   PipelineStatusCB init_cb_;
   StatisticsCB statistics_cb_;
@@ -159,7 +158,7 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   // If this variable is true and kNoKey is returned then we need to try
   // decrypting/decoding again in case the newly added key is the correct
   // decryption key.
-  bool key_added_while_pending_decode_;
+  bool key_added_while_decode_pending_;
 
   Decryptor::AudioBuffers queued_audio_frames_;
 

@@ -56,6 +56,7 @@ class MEDIA_EXPORT Decryptor {
     kError  // Key is available but an error occurred during decryption.
   };
 
+  // TODO(xhwang): Unify this with DemuxerStream::Type.
   enum StreamType {
     kAudio,
     kVideo
