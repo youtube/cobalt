@@ -35,11 +35,13 @@ class SingleTestRunner(BaseTestRunner):
     shard_index: index number of the shard on which the test suite will run.
     dump_debug_info: Whether or not to dump debug information.
     build_type: 'Release' or 'Debug'.
+    in_webkit_checkout: Whether the suite is being run from a WebKit checkout.
   """
 
   def __init__(self, device, test_suite, gtest_filter, test_arguments, timeout,
                rebaseline, performance_test, cleanup_test_files, tool_name,
-               shard_index, dump_debug_info, fast_and_loose, build_type):
+               shard_index, dump_debug_info, fast_and_loose, build_type,
+               in_webkit_checkout):
     BaseTestRunner.__init__(self, device, tool_name, shard_index, build_type)
     self._running_on_emulator = self.device.startswith('emulator')
     self._gtest_filter = gtest_filter
@@ -51,6 +53,7 @@ class SingleTestRunner(BaseTestRunner):
     else:
       self.dump_debug_info = None
     self.fast_and_loose = fast_and_loose
+    self.in_webkit_checkout = in_webkit_checkout
 
     logging.warning('Test suite: ' + test_suite)
     if os.path.splitext(test_suite)[1] == '.apk':
@@ -226,10 +229,6 @@ class SingleTestRunner(BaseTestRunner):
           'chrome/test/perf/sunspider_uitest.js',
           'chrome/test/perf/v8_benchmark_uitest.js',
           ]
-    elif self.test_package.test_suite_basename == 'webkit_unit_tests':
-      return [
-          'third_party/WebKit/Source/WebKit/chromium/tests/data',
-          ]
     elif self.test_package.test_suite_basename == 'content_unittests':
       return [
           'content/test/data/gpu/webgl_conformance_test_expectations.txt',
@@ -263,6 +262,23 @@ class SingleTestRunner(BaseTestRunner):
       self.adb.WaitForSdCardReady(20)
       for data in test_data:
         self.CopyTestData([data], self.adb.GetExternalStorage())
+    if self.test_package.test_suite_basename == 'webkit_unit_tests':
+      self.PushWebKitUnitTestsData()
+
+  def PushWebKitUnitTestsData(self):
+    """Pushes the webkit_unit_tests data files to the device.
+
+    The path of this directory is different when the suite is being run as
+    part of a WebKit check-out.
+    """
+    webkit_src = os.path.join(constants.CHROME_DIR, 'third_party', 'WebKit')
+    if self.in_webkit_checkout:
+      webkit_src = os.path.join(constants.CHROME_DIR, '..', '..', '..')
+
+    self.adb.PushIfNeeded(
+        os.path.join(webkit_src, 'Source/WebKit/chromium/tests/data'),
+        os.path.join(self.adb.GetExternalStorage(),
+            'third_party/WebKit/Source/WebKit/chromium/tests/data'))
 
   def RunTestsWithFilter(self):
     """Runs a tests via a small, temporary shell script."""

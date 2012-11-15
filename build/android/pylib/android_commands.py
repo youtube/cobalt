@@ -595,9 +595,10 @@ class AndroidCommands(object):
 
     if not self._md5sum_path:
       default_build_type = os.environ.get('BUILD_TYPE', 'Debug')
-      md5sum_path = '%s/out/%s/md5sum_bin' % (CHROME_SRC, default_build_type)
+      md5sum_path = '%s/%s/md5sum_bin' % (cmd_helper.OutDirectory.get(),
+          default_build_type)
       if not os.path.exists(md5sum_path):
-        md5sum_path = '%s/out/Release/md5sum_bin' % (CHROME_SRC)
+        md5sum_path = '%s/Release/md5sum_bin' % cmd_helper.OutDirectory.get()
         if not os.path.exists(md5sum_path):
           print >> sys.stderr, 'Please build md5sum.'
           sys.exit(1)
