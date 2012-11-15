@@ -6041,9 +6041,7 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     ss->ssl3.hs.ws = wait_hello_done;
 
 #ifdef NSS_PLATFORM_CLIENT_AUTH
-    if (ss->getPlatformClientAuthData == NULL) {
-	rv = SECFailure; /* force it to send a no_certificate alert */
-    } else {
+    if (ss->getPlatformClientAuthData != NULL) {
 	/* XXX Should pass cert_types in this call!! */
         rv = (SECStatus)(*ss->getPlatformClientAuthData)(
                                         ss->getPlatformClientAuthDataArg,
@@ -6052,8 +6050,8 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
                                         (void**)&ss->ssl3.platformClientKey,
                                         &ss->ssl3.clientCertificate,
                                         &ss->ssl3.clientPrivateKey);
-    }
-#else
+    } else
+#endif
     if (ss->getClientAuthData == NULL) {
 	rv = SECFailure; /* force it to send a no_certificate alert */
     } else {
@@ -6063,7 +6061,7 @@ ssl3_HandleCertificateRequest(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 						 &ss->ssl3.clientCertificate,
 						 &ss->ssl3.clientPrivateKey);
     }
-#endif   /* NSS_PLATFORM_CLIENT_AUTH */
+
     switch (rv) {
     case SECWouldBlock:	/* getClientAuthData has put up a dialog box. */
 	ssl3_SetAlwaysBlock(ss);
