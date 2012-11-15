@@ -57,7 +57,7 @@ bool ReturnsValidPath(int dir_type) {
     }
   } else if (dir_type == base::DIR_TASKBAR_PINS) {
     // There is no pinned-to-taskbar shortcuts prior to Win7.
-    if(base::win::GetVersion() < base::win::VERSION_WIN7)
+    if (base::win::GetVersion() < base::win::VERSION_WIN7)
       check_path_exists = false;
   }
 #endif
