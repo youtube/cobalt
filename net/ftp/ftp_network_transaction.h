@@ -125,6 +125,9 @@ class NET_EXPORT_PRIVATE FtpNetworkTransaction : public FtpTransaction {
   // Resets the members of the transaction so it can be restarted.
   void ResetStateForRestart();
 
+  // Resets the data connection after an error and switches to |next_state|.
+  void ResetDataConnectionAfterError(State next_state);
+
   void DoCallback(int result);
   void OnIOComplete(int result);
 
@@ -249,6 +252,9 @@ class NET_EXPORT_PRIVATE FtpNetworkTransaction : public FtpTransaction {
   scoped_ptr<StreamSocket> data_socket_;
 
   State next_state_;
+
+  // State to switch to after data connection is complete.
+  State state_after_data_connect_complete_;
 };
 
 }  // namespace net
