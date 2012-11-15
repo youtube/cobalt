@@ -66,10 +66,9 @@ class BASE_EXPORT Value {
 
   virtual ~Value();
 
-  // Convenience methods for creating Value objects for various
-  // kinds of values without thinking about which class implements them.
-  // These can always be expected to return a valid Value*.
   static Value* CreateNullValue();
+  // DEPRECATED: Do not use the following 5 functions. Instead, use
+  // new FundamentalValue or new StringValue.
   static FundamentalValue* CreateBooleanValue(bool in_value);
   static FundamentalValue* CreateIntegerValue(int in_value);
   static FundamentalValue* CreateDoubleValue(double in_value);
