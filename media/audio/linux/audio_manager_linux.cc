@@ -213,16 +213,6 @@ bool AudioManagerLinux::IsAlsaDeviceAvailable(const char* device_name) {
                 strlen(kInvalidAudioInputDevices[i])) == 0)
       return false;
   }
-  // The only way to check if the device is available is to open/close the
-  // device. Return false if it fails either of operations.
-  snd_pcm_t* device_handle = NULL;
-  if (wrapper_->PcmOpen(&device_handle,
-                        device_name,
-                        SND_PCM_STREAM_CAPTURE,
-                        SND_PCM_NONBLOCK))
-    return false;
-  if (wrapper_->PcmClose(device_handle))
-    return false;
 
   return true;
 }
