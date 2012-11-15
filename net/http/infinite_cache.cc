@@ -967,7 +967,7 @@ bool InfiniteCache::Worker::CanReuse(const Details& old,
     reason = REUSE_VARY;
 
   bool have_to_drop  = (old.flags & TRUNCATED) && !(old.flags & RESUMABLE);
-  if (reason && (old.flags & REVALIDATEABLE) && !have_to_drop)
+  if (reason && (old.flags & (REVALIDATEABLE | RESUMABLE)) && !have_to_drop)
     reason += REUSE_REVALIDATEABLE;
 
   UMA_HISTOGRAM_ENUMERATION("InfiniteCache.ReuseFailure2", reason, 15);
