@@ -851,6 +851,8 @@ enum SecondLevelDomainName {
 
   DOMAIN_CHROMIUM_ORG,
 
+  DOMAIN_CRYPTO_CAT,
+
   // Boundary value for UMA_HISTOGRAM_ENUMERATION:
   DOMAIN_NUM_EVENTS
 };
