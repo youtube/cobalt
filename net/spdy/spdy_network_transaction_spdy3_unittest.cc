@@ -1790,11 +1790,9 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, EmptyPost) {
     MockRead(ASYNC, 0, 0)  // EOF
   };
 
-  DelayedSocketData data(1, reads, arraysize(reads),
-                         writes, arraysize(writes));
+  DelayedSocketData data(1, reads, arraysize(reads), writes, arraysize(writes));
 
-  NormalSpdyTransactionHelper helper(request,
-                                     BoundNetLog(), GetParam(), NULL);
+  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(&data);
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -2290,7 +2288,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FlowControlStallResume) {
   // All the body data should have been read.
   // TODO(satorux): This is because of the weirdness in reading the request
   // body in OnSendBodyComplete(). See crbug.com/113107.
-  EXPECT_TRUE(stream->request_body_stream_->IsEOF());
+  EXPECT_TRUE(upload_data_stream.IsEOF());
   // But the body is not yet fully sent (kUploadData is not yet sent).
   EXPECT_FALSE(stream->stream()->body_sent());
 
@@ -2389,7 +2387,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FlowControlStallResumeAfterSettings) {
   // All the body data should have been read.
   // TODO(satorux): This is because of the weirdness in reading the request
   // body in OnSendBodyComplete(). See crbug.com/113107.
-  EXPECT_TRUE(stream->request_body_stream_->IsEOF());
+  EXPECT_TRUE(upload_data_stream.IsEOF());
   // But the body is not yet fully sent (kUploadData is not yet sent).
   EXPECT_FALSE(stream->stream()->body_sent());
   EXPECT_TRUE(stream->stream()->stalled_by_flow_control());
@@ -2496,7 +2494,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FlowControlNegativeSendWindowSize) {
   // All the body data should have been read.
   // TODO(satorux): This is because of the weirdness in reading the request
   // body in OnSendBodyComplete(). See crbug.com/113107.
-  EXPECT_TRUE(stream->request_body_stream_->IsEOF());
+  EXPECT_TRUE(upload_data_stream.IsEOF());
   // But the body is not yet fully sent (kUploadData is not yet sent).
   EXPECT_FALSE(stream->stream()->body_sent());
 

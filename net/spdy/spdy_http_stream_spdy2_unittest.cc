@@ -107,7 +107,7 @@ TEST_F(SpdyHttpStreamSpdy2Test, SendRequest) {
       OK,
       http_stream->InitializeStream(&request, net_log, CompletionCallback()));
 
-  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, &response,
                                                      callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
@@ -171,7 +171,7 @@ TEST_F(SpdyHttpStreamSpdy2Test, SendChunkedPost) {
       http_stream.InitializeStream(&request, net_log, CompletionCallback()));
 
   EXPECT_EQ(ERR_IO_PENDING, http_stream.SendRequest(
-      headers, &upload_stream, &response, callback.callback()));
+      headers, &response, callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
   // This triggers the MockWrite and read 2
@@ -271,11 +271,8 @@ TEST_F(SpdyHttpStreamSpdy2Test, DelayedSendChunkedPost) {
   HttpResponseInfo response;
   // This will attempt to Write() the initial request and headers, which will
   // complete asynchronously.
-  EXPECT_EQ(ERR_IO_PENDING,
-            http_stream->SendRequest(headers,
-                                     &upload_stream,
-                                     &response,
-                                     callback.callback()));
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, &response,
+                                                     callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
   // Complete the initial request write and the first chunk.
@@ -360,7 +357,7 @@ TEST_F(SpdyHttpStreamSpdy2Test, SpdyURLTest) {
       OK,
       http_stream->InitializeStream(&request, net_log, CompletionCallback()));
 
-  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, &response,
                                                      callback.callback()));
 
   const SpdyHeaderBlock& spdy_header =

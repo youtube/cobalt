@@ -1781,11 +1781,9 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, EmptyPost) {
     MockRead(ASYNC, 0, 0)  // EOF
   };
 
-  DelayedSocketData data(1, reads, arraysize(reads),
-                         writes, arraysize(writes));
+  DelayedSocketData data(1, reads, arraysize(reads), writes, arraysize(writes));
 
-  NormalSpdyTransactionHelper helper(request,
-                                     BoundNetLog(), GetParam(), NULL);
+  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(&data);
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);

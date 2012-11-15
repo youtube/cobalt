@@ -35,11 +35,9 @@ int HttpPipelinedStream::InitializeStream(
 }
 
 
-int HttpPipelinedStream::SendRequest(
-    const HttpRequestHeaders& headers,
-    UploadDataStream* request_body,
-    HttpResponseInfo* response,
-    const CompletionCallback& callback) {
+int HttpPipelinedStream::SendRequest(const HttpRequestHeaders& headers,
+                                     HttpResponseInfo* response,
+                                     const CompletionCallback& callback) {
   CHECK(pipeline_id_);
   CHECK(request_info_);
   // TODO(simonjam): Proxy support will be needed here.
@@ -47,8 +45,8 @@ int HttpPipelinedStream::SendRequest(
   std::string request_line_ = base::StringPrintf("%s %s HTTP/1.1\r\n",
                                                  request_info_->method.c_str(),
                                                  path.c_str());
-  return pipeline_->SendRequest(pipeline_id_, request_line_, headers,
-                                request_body, response, callback);
+  return pipeline_->SendRequest(pipeline_id_, request_line_, headers, response,
+                                callback);
 }
 
 UploadProgress HttpPipelinedStream::GetUploadProgress() const {

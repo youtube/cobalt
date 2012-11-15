@@ -29,7 +29,6 @@ class HttpNetworkSession;
 class HttpStreamBase;
 class HttpStreamRequest;
 class IOBuffer;
-class UploadDataStream;
 struct HttpRequestInfo;
 
 class NET_EXPORT_PRIVATE HttpNetworkTransaction
@@ -252,7 +251,6 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
 
   CompletionCallback io_callback_;
   CompletionCallback callback_;
-  UploadDataStream* request_body_;
 
   scoped_refptr<HttpNetworkSession> session_;
 
