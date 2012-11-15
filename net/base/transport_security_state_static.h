@@ -584,10 +584,12 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {10, false, "\004neg9\003org", true, kNoPins, DOMAIN_NOT_PINNED },
   {12, true, "\006riseup\003net", true, kNoPins, DOMAIN_NOT_PINNED },
   {11, false, "\006factor\002cc", true, kNoPins, DOMAIN_NOT_PINNED },
-  {22, false, "\007members\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
-  {22, false, "\007support\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
-  {17, false, "\002id\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
-  {20, false, "\005lists\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {22, true, "\007members\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {22, true, "\007support\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {17, true, "\002id\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {20, true, "\005lists\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {22, true, "\007webmail\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {24, true, "\011roundcube\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
   {28, false, "\016aladdinschools\007appspot\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {14, true, "\011ottospora\002nl", true, kNoPins, DOMAIN_NOT_PINNED },
   {25, false, "\003www\017paycheckrecords\003com", true, kNoPins, DOMAIN_NOT_PINNED },
@@ -697,6 +699,9 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {22, true, "\011openshift\006redhat\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {18, true, "\014therapynotes\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {9, true, "\003wiz\003biz", true, kNoPins, DOMAIN_NOT_PINNED },
+  {14, true, "\002my\006onlime\002ch", true, kNoPins, DOMAIN_NOT_PINNED },
+  {19, true, "\007webmail\006onlime\002ch", true, kNoPins, DOMAIN_NOT_PINNED },
+  {15, true, "\003crm\006onlime\002ch", true, kNoPins, DOMAIN_NOT_PINNED },
 };
 static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
