@@ -163,6 +163,9 @@ static const char kSPKIHash_Tor2web[] =
 static const char kSPKIHash_AlphaSSL_G2[] =
     "sha1/5STpjjF9yPytkFN8kecNpHCTkF8=";
 
+static const char kSPKIHash_CryptoCat1[] =
+    "sha1/TIfOhSz0wE1nqeDsUQx/OxSz6ck=";
+
 // The following is static data describing the hosts that are hardcoded with
 // certificate pins or HSTS information.
 
@@ -291,6 +294,16 @@ static const char* const kTor2webAcceptableCerts[] = {
 };
 #define kTor2webPins { \
   kTor2webAcceptableCerts, \
+  kNoRejectedPublicKeys, \
+}
+
+static const char* const kCryptoCatAcceptableCerts[] = {
+  kSPKIHash_DigiCertEVRoot,
+  kSPKIHash_CryptoCat1,
+  NULL,
+};
+#define kCryptoCatPins { \
+  kCryptoCatAcceptableCerts, \
   kNoRejectedPublicKeys, \
 }
 
@@ -624,7 +637,7 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {30, false, "\003www\011developer\012mydigipass\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {24, false, "\007sandbox\012mydigipass\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {28, false, "\003www\007sandbox\012mydigipass\003com", true, kNoPins, DOMAIN_NOT_PINNED },
-  {12, true, "\006crypto\003cat", true, kNoPins, DOMAIN_NOT_PINNED },
+  {12, true, "\006crypto\003cat", true, kCryptoCatPins, DOMAIN_CRYPTO_CAT },
   {25, true, "\014bigshinylock\006minazo\003net", true, kNoPins, DOMAIN_NOT_PINNED },
   {10, true, "\005crate\002io", true, kNoPins, DOMAIN_NOT_PINNED },
   {13, false, "\007twitter\003com", true, kTwitterComPins, DOMAIN_TWITTER_COM },
