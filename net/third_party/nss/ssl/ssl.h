@@ -541,6 +541,9 @@ typedef SECStatus (PR_CALLBACK *SSLGetPlatformClientAuthData)(void *arg,
 /*
  * Set the client side callback for SSL to retrieve user's private key
  * and certificate.
+ * Note: If a platform client auth callback is set, the callback configured by
+ * SSL_GetClientAuthDataHook, if any, will not be called.
+ *
  *	fd - the file descriptor for the connection in question
  *	f - the application's callback that delivers the key and cert
  *	a - application specific data
