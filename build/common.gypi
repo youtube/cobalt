@@ -134,6 +134,13 @@
           ['OS=="win"', {
             'enable_touch_ui%': 1,
           }],
+
+          # Enable App Launcher only on ChromeOS and Windows for now.
+          ['use_ash==1 or OS=="win"', {
+            'enable_app_list%': 1,
+          }, {
+            'enable_app_list%': 0,
+          }],
         ],
       },
 
@@ -151,6 +158,7 @@
       'enable_touch_ui%': '<(enable_touch_ui)',
       'android_upstream_bringup%': '<(android_upstream_bringup)',
       'android_build_type%': '<(android_build_type)',
+      'enable_app_list%': '<(enable_app_list)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -552,6 +560,13 @@
           # where possible to reduce ROM size.
           'use_system_libjpeg%': '<(android_build_type)',
         }],
+
+        # Enable Settings App only on Windows.
+        ['enable_app_list==1 and OS=="win"', {
+          'enable_settings_app%': 1,
+        }, {
+          'enable_settings_app%': 0,
+        }],
       ],
 
       # Set this to 1 to use the Google-internal file containing
@@ -669,6 +684,8 @@
     'use_libjpeg_turbo%': '<(use_libjpeg_turbo)',
     'use_system_libjpeg%': '<(use_system_libjpeg)',
     'android_build_type%': '<(android_build_type)',
+    'enable_app_list%': '<(enable_app_list)',
+    'enable_settings_app%': '<(enable_settings_app)',
     'use_official_google_api_keys%': '<(use_official_google_api_keys)',
     'google_api_key%': '<(google_api_key)',
     'google_default_client_id%': '<(google_default_client_id)',
@@ -1327,6 +1344,9 @@
       ['use_oem_wallpaper==1', {
         'grit_defines': ['-D', 'use_oem_wallpaper'],
       }],
+      ['enable_settings_app==1', {
+        'grit_defines': ['-D', 'enable_settings_app'],
+      }],
       ['clang_use_chrome_plugins==1 and OS!="win"', {
         'clang_chrome_plugins_flags': [
           '<!@(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)'
@@ -1818,6 +1838,12 @@
       }],
       ['enable_captive_portal_detection==1', {
         'defines': ['ENABLE_CAPTIVE_PORTAL_DETECTION=1'],
+      }],
+      ['enable_app_list==1', {
+        'defines': ['ENABLE_APP_LIST=1'],
+      }],
+      ['enable_settings_app==1', {
+        'defines': ['ENABLE_SETTINGS_APP=1'],
       }],
       ['disable_ftp_support==1', {
         'defines': ['DISABLE_FTP_SUPPORT=1'],
