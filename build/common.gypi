@@ -1512,6 +1512,17 @@
       # Targets are by default not nacl untrusted code.
       'nacl_untrusted_build%': 0,
 
+      'pnacl_compile_flags': [
+        # pnacl uses the clang compiler so we need to supress all the
+        # same warnings as we do for clang.
+        # TODO(sbc): Remove these if/when they are removed from the clang
+        # build.
+        '-Wno-unused-function',
+        '-Wno-char-subscripts',
+        '-Wno-c++11-extensions',
+        '-Wno-unnamed-type-template-args',
+      ],
+
       'conditions': [
         ['OS=="win" and component=="shared_library"', {
           # See http://msdn.microsoft.com/en-us/library/aa652367.aspx
