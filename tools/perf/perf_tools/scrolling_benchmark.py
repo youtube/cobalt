@@ -68,7 +68,7 @@ class ScrollingBenchmark(multi_page_benchmark.MultiPageBenchmark):
   def __init__(self):
     super(ScrollingBenchmark, self).__init__()
 
-  def AddOptions(self, parser):
+  def AddCommandLineOptions(self, parser):
     parser.add_option('--no-gpu-benchmarking-extension', action='store_true',
         dest='no_gpu_benchmarking_extension',
         help='Disable the chrome.gpuBenchmarking extension.')
