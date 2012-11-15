@@ -202,9 +202,14 @@ TEST_F(UDPSocketTest, Connect) {
       client_entries, 5, NetLog::TYPE_SOCKET_ALIVE));
 }
 
+#if defined(OS_MACOSX)
 // UDPSocketPrivate_Broadcast is disabled for OSX because it requires
 // root permissions on OSX 10.7+.
-#if defined(OS_MACOSX)
+TEST_F(UDPSocketTest, DISABLED_Broadcast) {
+#elif defined(OS_ANDROID)
+// It is also disabled for Android because it is extremely flaky.
+// The first call to SendToSocket returns -109 (Address not reachable)
+// in some unpredictable cases. crbug.com/139144.
 TEST_F(UDPSocketTest, DISABLED_Broadcast) {
 #else
 TEST_F(UDPSocketTest, Broadcast) {
@@ -233,14 +238,14 @@ TEST_F(UDPSocketTest, Broadcast) {
   EXPECT_EQ(OK, rv);
 
   rv = SendToSocket(server1.get(), first_message, broadcast_address);
-  EXPECT_EQ(static_cast<int>(first_message.size()), rv);
+  ASSERT_EQ(static_cast<int>(first_message.size()), rv);
   std::string str = RecvFromSocket(server1.get());
   ASSERT_EQ(first_message, str);
   str = RecvFromSocket(server2.get());
   ASSERT_EQ(first_message, str);
 
   rv = SendToSocket(server2.get(), second_message, broadcast_address);
-  EXPECT_EQ(static_cast<int>(second_message.size()), rv);
+  ASSERT_EQ(static_cast<int>(second_message.size()), rv);
   str = RecvFromSocket(server1.get());
   ASSERT_EQ(second_message, str);
   str = RecvFromSocket(server2.get());
@@ -281,7 +286,12 @@ class TestPrng {
   DISALLOW_COPY_AND_ASSIGN(TestPrng);
 };
 
+#if defined(OS_ANDROID)
+// Disabled on Android for lack of 192.168.1.13. crbug.com/161245
+TEST_F(UDPSocketTest, DISABLED_ConnectRandomBind) {
+#else
 TEST_F(UDPSocketTest, ConnectRandomBind) {
+#endif
   std::vector<UDPClientSocket*> sockets;
   IPEndPoint peer_address;
   CreateUDPAddress("192.168.1.13", 53, &peer_address);
@@ -400,9 +410,12 @@ TEST_F(UDPSocketTest, ClientGetLocalPeerAddresses) {
     bool may_fail;
   } tests[] = {
     { "127.0.00.1", "127.0.0.1", false },
-    { "192.168.1.1", "127.0.0.1", false },
     { "::1", "::1", true },
+#if !defined(OS_ANDROID)
+    // Addresses below are disabled on Android. See crbug.com/161248
+    { "192.168.1.1", "127.0.0.1", false },
     { "2001:db8:0::42", "::1", true },
+#endif
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); i++) {
     SCOPED_TRACE(std::string("Connecting from ") +  tests[i].local_address +
