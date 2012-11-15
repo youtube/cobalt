@@ -80,7 +80,6 @@ M B Nm: The class name org.chromium.content_shell.tests.R$string doesn't start w
 M B Nm: The class name org.chromium.native_test.R$attr doesn't start with an upper case letter  At R.java
 M B Nm: The class name org.chromium.native_test.R$string doesn't start with an upper case letter  At R.java
 M B Nm: The method name org.chromium.base.test.util.ScalableTimeout.ScaleTimeout(long) doesn't start with a lower case letter  At ScalableTimeout.java
-M B Nm: The method name org.chromium.content.browser.ContentViewCore.UpdateVSync(long, long) doesn't start with a lower case letter  At ContentViewCore.java
 M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.doArchiveTest(AwContents, String, boolean, String)  At ArchiveTest.java
 M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.testAutoBadPath()  At ArchiveTest.java
 M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.testExplicitBadPath()  At ArchiveTest.java
