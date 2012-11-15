@@ -44,7 +44,6 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
                                const BoundNetLog& net_log,
                                const CompletionCallback& callback) OVERRIDE;
   virtual int SendRequest(const HttpRequestHeaders& headers,
-                          UploadDataStream* request_body,
                           HttpResponseInfo* response,
                           const CompletionCallback& callback) OVERRIDE;
   virtual UploadProgress GetUploadProgress() const OVERRIDE;
@@ -81,15 +80,6 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   virtual void OnClose(int status) OVERRIDE;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
-                           FlowControlStallResume);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
-                           FlowControlStallResume);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
-                           FlowControlStallResumeAfterSettings);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
-                           FlowControlNegativeSendWindowSize);
-
   // Reads the data (whether chunked or not) from the request body stream and
   // sends the data by calling WriteStreamData on the underlying SpdyStream.
   int SendData();
@@ -112,7 +102,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   // The request to send.
   const HttpRequestInfo* request_info_;
 
-  UploadDataStream* request_body_stream_;
+  bool has_upload_data_;
 
   // |response_info_| is the HTTP response data object which is filled in
   // when a SYN_REPLY comes in for the stream.

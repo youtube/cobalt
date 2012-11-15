@@ -434,7 +434,7 @@ int HttpProxyClientSocket::DoSendRequest() {
   http_stream_parser_.reset(
       new HttpStreamParser(transport_.get(), &request_, parser_buf_, net_log_));
   return http_stream_parser_->SendRequest(
-      request_line_, request_headers_, NULL, &response_, io_callback_);
+      request_line_, request_headers_, &response_, io_callback_);
 }
 
 int HttpProxyClientSocket::DoSendRequestComplete(int result) {
