@@ -20,7 +20,6 @@
 
 using ::testing::_;
 using ::testing::AtMost;
-using ::testing::Invoke;
 using ::testing::IsNull;
 using ::testing::ReturnRef;
 using ::testing::SaveArg;
@@ -74,7 +73,7 @@ MATCHER(IsEndOfStream, "end of stream") {
 class DecryptingVideoDecoderTest : public testing::Test {
  public:
   DecryptingVideoDecoderTest()
-      : decoder_(new StrictMock<DecryptingVideoDecoder>(
+      : decoder_(new DecryptingVideoDecoder(
             base::Bind(&Identity<scoped_refptr<base::MessageLoopProxy> >,
                        message_loop_.message_loop_proxy()),
             base::Bind(
@@ -239,7 +238,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
                                 const scoped_refptr<VideoFrame>&));
 
   MessageLoop message_loop_;
-  scoped_refptr<StrictMock<DecryptingVideoDecoder> > decoder_;
+  scoped_refptr<DecryptingVideoDecoder> decoder_;
   scoped_ptr<StrictMock<MockDecryptor> > decryptor_;
   scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
   MockStatisticsCB statistics_cb_;

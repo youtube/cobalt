@@ -9,8 +9,8 @@
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/location.h"
-#include "base/message_loop_proxy.h"
 #include "base/logging.h"
+#include "base/message_loop_proxy.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/bind_to_loop.h"
 #include "media/base/buffers.h"
@@ -41,7 +41,7 @@ DecryptingAudioDecoder::DecryptingAudioDecoder(
       state_(kUninitialized),
       request_decryptor_notification_cb_(request_decryptor_notification_cb),
       decryptor_(NULL),
-      key_added_while_pending_decode_(false),
+      key_added_while_decode_pending_(false),
       bits_per_channel_(0),
       channel_layout_(CHANNEL_LAYOUT_NONE),
       samples_per_second_(0),
@@ -328,8 +328,8 @@ void DecryptingAudioDecoder::DoDeliverFrame(
   DCHECK(pending_buffer_to_decode_);
   DCHECK(queued_audio_frames_.empty());
 
-  bool need_to_try_again_if_nokey_is_returned = key_added_while_pending_decode_;
-  key_added_while_pending_decode_ = false;
+  bool need_to_try_again_if_nokey_is_returned = key_added_while_decode_pending_;
+  key_added_while_decode_pending_ = false;
 
   scoped_refptr<DecoderBuffer> scoped_pending_buffer_to_decode =
       pending_buffer_to_decode_;
@@ -400,7 +400,7 @@ void DecryptingAudioDecoder::OnKeyAdded() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (state_ == kPendingDecode) {
-    key_added_while_pending_decode_ = true;
+    key_added_while_decode_pending_ = true;
     return;
   }
 
