@@ -223,6 +223,11 @@ class NET_EXPORT HostResolverImpl
   // True if have a DnsClient with a valid DnsConfig.
   bool HaveDnsConfig() const;
 
+  // Called when a host name is successfully resolved and DnsTask was run on it.
+  // |success| is false iff the DnsTask failed to resolve it, but getaddrinfo
+  // succeeded.
+  void OnDnsTaskResolve(bool success);
+
   // Allows the tests to catch slots leaking out of the dispatcher.
   size_t num_running_jobs_for_tests() const {
     return dispatcher_.num_running_jobs();
@@ -256,6 +261,9 @@ class NET_EXPORT HostResolverImpl
   // True if received valid config from |dns_config_service_|. Temporary, used
   // to measure performance of DnsConfigService: http://crbug.com/125599
   bool received_dns_config_;
+
+  // Number of consecutive failures of DnsTask, counted when fallback succeeds.
+  unsigned num_dns_failures_;
 
   // Indicate if probing is done after each network change event to set address
   // family. When false, explicit setting of address family is used and results
