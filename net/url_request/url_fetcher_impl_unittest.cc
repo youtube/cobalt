@@ -8,8 +8,8 @@
 
 #include "base/bind.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/message_loop_proxy.h"
-#include "base/scoped_temp_dir.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
@@ -1082,7 +1082,7 @@ TEST_F(URLFetcherFileTest, SmallGet) {
                          FilePath(kDocRoot));
   ASSERT_TRUE(test_server.Start());
 
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
   // Get a small file.
@@ -1104,7 +1104,7 @@ TEST_F(URLFetcherFileTest, LargeGet) {
                          FilePath(kDocRoot));
   ASSERT_TRUE(test_server.Start());
 
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
   // Get a file large enough to require more than one read into
@@ -1124,7 +1124,7 @@ TEST_F(URLFetcherFileTest, CanTakeOwnershipOfFile) {
                          FilePath(kDocRoot));
   ASSERT_TRUE(test_server.Start());
 
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
   // Get a small file.
@@ -1148,7 +1148,7 @@ TEST_F(URLFetcherFileTest, OverwriteExistingFile) {
                          FilePath(kDocRoot));
   ASSERT_TRUE(test_server.Start());
 
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
   // Create a file before trying to fetch.
@@ -1175,7 +1175,7 @@ TEST_F(URLFetcherFileTest, TryToOverwriteDirectory) {
                          FilePath(kDocRoot));
   ASSERT_TRUE(test_server.Start());
 
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
   // Create a directory before trying to fetch.

@@ -2356,7 +2356,7 @@ TEST_F(DiskCacheBackendTest, NewEvictionDoomAll2) {
 // We should be able to create the same entry on multiple simultaneous instances
 // of the cache.
 TEST_F(DiskCacheTest, MultipleInstances) {
-  ScopedTempDir store1, store2;
+  base::ScopedTempDir store1, store2;
   ASSERT_TRUE(store1.CreateUniqueTempDir());
   ASSERT_TRUE(store2.CreateUniqueTempDir());
 
