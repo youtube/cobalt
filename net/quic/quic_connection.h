@@ -67,7 +67,7 @@ class NET_EXPORT_PRIVATE QuicConnectionHelperInterface {
   virtual void SetConnection(QuicConnection* connection) = 0;
 
   // Returns a QuicClock to be used for all time related functions.
-  virtual QuicClock* GetClock() = 0;
+  virtual const QuicClock* GetClock() const = 0;
 
   // Sends the packet out to the peer, possibly simulating packet
   // loss if FLAGS_fake_packet_loss_percentage is set.  If the write failed
@@ -255,7 +255,7 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
 
   scoped_ptr<QuicConnectionHelperInterface> helper_;
   QuicFramer framer_;
-  QuicClock* clock_;
+  const QuicClock* clock_;
 
   QuicGuid guid_;
   IPEndPoint self_address_;
