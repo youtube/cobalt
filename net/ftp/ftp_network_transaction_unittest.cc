@@ -892,9 +892,9 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransaction) {
 
   EXPECT_TRUE(transaction_.GetResponseInfo()->is_directory_listing);
   EXPECT_EQ(-1, transaction_.GetResponseInfo()->expected_content_size);
-  EXPECT_EQ("192.0.2.33",
+  EXPECT_EQ("127.0.0.1",
             transaction_.GetResponseInfo()->socket_address.host());
-  EXPECT_EQ(0, transaction_.GetResponseInfo()->socket_address.port());
+  EXPECT_EQ(21, transaction_.GetResponseInfo()->socket_address.port());
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionWithPasvFallback) {
@@ -968,9 +968,9 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransaction) {
 
   // We pass an artificial value of 18 as a response to the SIZE command.
   EXPECT_EQ(18, transaction_.GetResponseInfo()->expected_content_size);
-  EXPECT_EQ("192.0.2.33",
+  EXPECT_EQ("127.0.0.1",
             transaction_.GetResponseInfo()->socket_address.host());
-  EXPECT_EQ(0, transaction_.GetResponseInfo()->socket_address.port());
+  EXPECT_EQ(21, transaction_.GetResponseInfo()->socket_address.port());
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionWithPasvFallback) {
