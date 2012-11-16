@@ -86,6 +86,7 @@ ExternalPolicyProviderTest.*
 MenuManagerTest.*
 PageActionControllerTest.*
 PermissionsUpdaterTest.*
+ImageLoaderTest.*
 ImageLoadingTrackerTest.*
 ScriptBadgeControllerTest.*
 ExtensionSettingsFrontendTest.*
