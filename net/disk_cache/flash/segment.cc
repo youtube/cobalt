@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "net/disk_cache/flash/format.h"
 #include "net/disk_cache/flash/segment.h"
@@ -10,7 +12,9 @@
 namespace disk_cache {
 
 Segment::Segment(int32 index, bool read_only, Storage* storage)
-    : read_only_(read_only),
+    : index_(index),
+      num_users_(0),
+      read_only_(read_only),
       init_(false),
       storage_(storage),
       offset_(index * kFlashSegmentSize),
@@ -22,11 +26,32 @@ Segment::Segment(int32 index, bool read_only, Storage* storage)
 
 Segment::~Segment() {
   DCHECK(!init_ || read_only_);
+  if (num_users_ != 0)
+    LOG(WARNING) << "Users exist, but we don't care? " << num_users_;
+}
+
+bool Segment::HaveOffset(int32 offset) const {
+  DCHECK(init_);
+  return std::binary_search(offsets_.begin(), offsets_.end(), offset);
+}
+
+void Segment::AddUser() {
+  DCHECK(init_);
+  ++num_users_;
+}
+
+void Segment::ReleaseUser() {
+  DCHECK(init_);
+  --num_users_;
+}
+
+bool Segment::HasNoUsers() const {
+  DCHECK(init_);
+  return num_users_ == 0;
 }
 
 bool Segment::Init() {
-  if (init_)
-    return false;
+  DCHECK(!init_);
 
   if (offset_ < 0 || offset_ + kFlashSegmentSize > storage_->size())
     return false;
@@ -49,24 +74,23 @@ bool Segment::Init() {
   return true;
 }
 
-bool Segment::WriteData(const void* buffer, int32 size, int32* offset) {
+bool Segment::WriteData(const void* buffer, int32 size) {
   DCHECK(init_ && !read_only_);
-  DCHECK(CanHold(size));
-
+  DCHECK(write_offset_ + size <= summary_offset_);
   if (!storage_->Write(buffer, size, write_offset_))
     return false;
-  if (offset)
-    *offset = write_offset_;
   write_offset_ += size;
   return true;
 }
 
 void Segment::StoreOffset(int32 offset) {
+  DCHECK(init_ && !read_only_);
   DCHECK(offsets_.size() < kFlashMaxEntryCount);
   offsets_.push_back(offset);
 }
 
 bool Segment::ReadData(void* buffer, int32 size, int32 offset) const {
+  DCHECK(init_);
   DCHECK(offset >= offset_ && offset + size <= offset_ + kFlashSegmentSize);
   return storage_->Read(buffer, size, offset);
 }
@@ -90,6 +114,7 @@ bool Segment::Close() {
 }
 
 bool Segment::CanHold(int32 size) const {
+  DCHECK(init_);
   return offsets_.size() < kFlashMaxEntryCount &&
       write_offset_ + size <= summary_offset_;
 }
