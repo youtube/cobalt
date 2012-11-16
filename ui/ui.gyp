@@ -253,18 +253,6 @@
         'base/models/tree_model.h',
         'base/models/tree_node_iterator.h',
         'base/models/tree_node_model.h',
-        'base/native_theme/native_theme.cc',
-        'base/native_theme/native_theme.h',
-        'base/native_theme/native_theme_android.cc',
-        'base/native_theme/native_theme_android.h',
-        'base/native_theme/native_theme_aura.cc',
-        'base/native_theme/native_theme_aura.h',
-        'base/native_theme/native_theme_base.cc',
-        'base/native_theme/native_theme_base.h',
-        'base/native_theme/native_theme_gtk.cc',
-        'base/native_theme/native_theme_gtk.h',
-        'base/native_theme/native_theme_win.cc',
-        'base/native_theme/native_theme_win.h',
         'base/range/range.cc',
         'base/range/range.h',
         'base/range/range_mac.mm',
@@ -619,8 +607,6 @@
             'base/cursor/cursor_loader_x11.h',
             'base/cursor/cursor_win.cc',
             'base/cursor/cursor_x11.cc',
-            'base/native_theme/native_theme_aura.cc',
-            'base/native_theme/native_theme_aura.h',
           ]
         }],
         ['use_aura==1 and OS=="win"', {
@@ -699,11 +685,6 @@
             'gfx/image/cairo_cached_surface.cc',
             'gfx/image/cairo_cached_surface.h',
           ],
-        }, {  # toolkit_uses_gtk != 1
-          'sources!': [
-            'base/native_theme/native_theme_gtk.cc',
-            'base/native_theme/native_theme_gtk.h',
-          ]
         }],
         ['chromeos==1', {
           'sources!': [
@@ -716,8 +697,6 @@
             'gfx/gdi_util.h',
             'gfx/icon_util.cc',
             'gfx/icon_util.h',
-            'base/native_theme/native_theme_win.cc',
-            'base/native_theme/native_theme_win.h',
             'base/touch/touch_device_win.cc',
             'base/touch/touch_device_win.h',
           ],
@@ -771,8 +750,6 @@
             'base/dragdrop/drop_target.cc',
             'base/dragdrop/drop_target.h',
             'base/dragdrop/os_exchange_data.cc',
-            'base/native_theme/native_theme_win.cc',
-            'base/native_theme/native_theme_win.h',
           ],
           'sources/': [
             ['exclude', '^base/win/*'],
