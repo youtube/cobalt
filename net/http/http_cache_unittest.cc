@@ -772,6 +772,52 @@ TEST(HttpCache, SimpleGET_LoadPreferringCache_Miss) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
 
+// Tests LOAD_PREFERRING_CACHE in the presence of vary headers.
+TEST(HttpCache, SimpleGET_LoadPreferringCache_VaryMatch) {
+  MockHttpCache cache;
+
+  // Write to the cache.
+  MockTransaction transaction(kSimpleGET_Transaction);
+  transaction.request_headers = "Foo: bar\n";
+  transaction.response_headers = "Cache-Control: max-age=10000\n"
+                                 "Vary: Foo\n";
+  AddMockTransaction(&transaction);
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  // Read from the cache.
+  transaction.load_flags |= net::LOAD_PREFERRING_CACHE;
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  RemoveMockTransaction(&transaction);
+}
+
+// Tests LOAD_PREFERRING_CACHE in the presence of vary headers.
+TEST(HttpCache, SimpleGET_LoadPreferringCache_VaryMismatch) {
+  MockHttpCache cache;
+
+  // Write to the cache.
+  MockTransaction transaction(kSimpleGET_Transaction);
+  transaction.request_headers = "Foo: bar\n";
+  transaction.response_headers = "Cache-Control: max-age=10000\n"
+                                 "Vary: Foo\n";
+  AddMockTransaction(&transaction);
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  // Attempt to read from the cache... this is a vary mismatch that must reach
+  // the network again.
+  transaction.load_flags |= net::LOAD_PREFERRING_CACHE;
+  transaction.request_headers = "Foo: none\n";
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  RemoveMockTransaction(&transaction);
+}
+
 TEST(HttpCache, SimpleGET_LoadBypassCache) {
   MockHttpCache cache;
 
