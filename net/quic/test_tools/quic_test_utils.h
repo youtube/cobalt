@@ -118,7 +118,7 @@ class MockHelper : public QuicConnectionHelperInterface {
   virtual ~MockHelper();
 
   MOCK_METHOD1(SetConnection, void(QuicConnection* connection));
-  QuicClock* GetClock();
+  const QuicClock* GetClock() const;
   MOCK_METHOD2(WritePacketToWire, int(const QuicEncryptedPacket& packet,
                                       int* error));
   MOCK_METHOD2(SetResendAlarm, void(QuicPacketSequenceNumber sequence_number,
@@ -128,7 +128,7 @@ class MockHelper : public QuicConnectionHelperInterface {
   MOCK_METHOD0(IsSendAlarmSet, bool());
   MOCK_METHOD0(UnregisterSendAlarmIfRegistered, void());
  private:
-  MockClock clock_;
+  const MockClock clock_;
 };
 
 class MockConnection : public QuicConnection {

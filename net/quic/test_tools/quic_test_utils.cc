@@ -43,7 +43,7 @@ MockHelper::MockHelper() {
 MockHelper::~MockHelper() {
 }
 
-QuicClock* MockHelper::GetClock() {
+const QuicClock* MockHelper::GetClock() const {
   return &clock_;
 }
 
