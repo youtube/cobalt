@@ -115,7 +115,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
     STATE_NONE,
     STATE_HANDSHAKE,
     STATE_HANDSHAKE_COMPLETE,
-    STATE_VERIFY_DNSSEC,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
   };
@@ -135,7 +134,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoHandshakeLoop(int last_io_result);
   int DoHandshake();
   int DoHandshakeComplete(int result);
-  int DoVerifyDNSSEC(int result);
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
 
