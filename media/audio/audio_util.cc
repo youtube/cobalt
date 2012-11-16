@@ -18,26 +18,41 @@
 #include <limits>
 
 #include "base/basictypes.h"
+#include "base/command_line.h"
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 #include "base/time.h"
 #include "media/audio/audio_parameters.h"
 #include "media/base/audio_bus.h"
+#include "media/base/media_switches.h"
 
 #if defined(OS_MACOSX)
 #include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/audio/mac/audio_low_latency_output_mac.h"
 #elif defined(OS_WIN)
-#include "base/command_line.h"
 #include "base/win/windows_version.h"
 #include "media/audio/audio_manager_base.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/audio/win/core_audio_util_win.h"
 #include "media/base/limits.h"
-#include "media/base/media_switches.h"
 #endif
 
 namespace media {
+
+// Returns user buffer size as specified on the command line or 0 if no buffer
+// size has been specified.
+static int GetUserBufferSize() {
+  const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
+  int buffer_size = 0;
+  std::string buffer_size_str(cmd_line->GetSwitchValueASCII(
+      switches::kAudioBufferSize));
+  if (base::StringToInt(buffer_size_str, &buffer_size) && buffer_size > 0) {
+    return buffer_size;
+  }
+
+  return 0;
+}
 
 // TODO(fbarchard): Convert to intrinsics for better efficiency.
 template<class Fixed>
@@ -225,6 +240,10 @@ int GetAudioInputHardwareSampleRate(const std::string& device_id) {
 }
 
 size_t GetAudioHardwareBufferSize() {
+  int user_buffer_size = GetUserBufferSize();
+  if (user_buffer_size)
+    return user_buffer_size;
+
   // The sizes here were determined by experimentation and are roughly
   // the lowest value (for low latency) that still allowed glitch-free
   // audio under high loads.
@@ -236,7 +255,7 @@ size_t GetAudioHardwareBufferSize() {
   return 128;
 #elif defined(OS_WIN)
   // Buffer size to use when a proper size can't be determined from the system.
-  static const int kFallbackBufferSize = 2048;
+  static const int kFallbackBufferSize = 4096;
 
   if (!CoreAudioUtil::IsSupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower
@@ -314,6 +333,10 @@ ChannelLayout GetAudioInputHardwareChannelLayout(const std::string& device_id) {
 // Computes a buffer size based on the given |sample_rate|. Must be used in
 // conjunction with AUDIO_PCM_LINEAR.
 size_t GetHighLatencyOutputBufferSize(int sample_rate) {
+  int user_buffer_size = GetUserBufferSize();
+  if (user_buffer_size)
+    return user_buffer_size;
+
   // TODO(vrk/crogers): The buffer sizes that this function computes is probably
   // overly conservative. However, reducing the buffer size to 2048-8192 bytes
   // caused crbug.com/108396. This computation should be revisited while making

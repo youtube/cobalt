@@ -6,6 +6,9 @@
 
 namespace switches {
 
+// Allow users to specify a custom buffer size for debugging purpose.
+const char kAudioBufferSize[] = "audio-buffer-size";
+
 #if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_SOLARIS)
 // The Alsa device to use when opening an audio stream.
 const char kAlsaOutputDevice[] = "alsa-output-device";
