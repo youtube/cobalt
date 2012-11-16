@@ -56,7 +56,7 @@ bool QuicDataWriter::WriteUInt64(uint64 value) {
 }
 
 bool QuicDataWriter::WriteUInt128(uint128 value) {
-  return WriteUInt64(value.lo) && WriteUInt64(value.hi);
+  return WriteUInt64(Uint128Low64(value)) && WriteUInt64(Uint128High64(value));
 }
 
 bool QuicDataWriter::WriteStringPiece16(StringPiece val) {
@@ -117,8 +117,10 @@ void QuicDataWriter::WriteUint64ToBuffer(uint64 value, char* buffer) {
 }
 
 void QuicDataWriter::WriteUint128ToBuffer(uint128 value, char* buffer) {
-  WriteUint64ToBuffer(value.lo, buffer);
-  WriteUint64ToBuffer(value.hi, buffer + sizeof(value.lo));
+  uint64 high = Uint128High64(value);
+  uint64 low = Uint128Low64(value);
+  WriteUint64ToBuffer(low, buffer);
+  WriteUint64ToBuffer(high, buffer + sizeof(low));
 }
 
 }  // namespace net
