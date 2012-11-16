@@ -496,7 +496,6 @@ void Rankings::TrackRankingsBlock(CacheRankingsBlock* node,
 int Rankings::SelfCheck() {
   int total = 0;
   int error = 0;
-  base::TimeTicks start = base::TimeTicks::Now();
   for (int i = 0; i < LAST_ELEMENT; i++) {
     int partial = CheckList(static_cast<List>(i));
     if (partial < 0 && !error)
@@ -504,9 +503,7 @@ int Rankings::SelfCheck() {
     else if (partial > 0)
       total += partial;
   }
-  CACHE_UMA(AGE_MS, "ListSelfCheckTime", 0, start);
 
-  QuickListCheck();
   return error ? error : total;
 }
 
@@ -803,65 +800,6 @@ int Rankings::CheckList(List list) {
   if (rv == ERR_NO_ERROR)
     return head_items;
 
-  DetailedCheck(list);
-
-  Addr last3, last4;
-  int tail_items;
-  int rv2 = CheckListSection(list, last1, last2, false,  // Tail to head.
-                             &last3, &last4, &tail_items);
-
-  if (!head_items && rv != ERR_INVALID_NEXT)
-    rv = ERR_INVALID_HEAD;
-
-  if (!tail_items && rv2 != ERR_INVALID_NEXT)
-    rv2 = ERR_INVALID_HEAD;
-
-  int expected = control_data_->sizes[list];
-  int total_items = head_items + tail_items;
-
-  if (!count_lists_) {
-    // There's no expected value, so we'll use something else. If it looks like
-    // we can rebuild the list, we lost at least one entry.
-    if (last3 == last1 || last3 == last2 || last4 == last1 || last4 == last2)
-      expected = total_items + 1;
-  }
-
-  if (expected) {
-    // This histogram has an offset so that we can see small negative values. In
-    // practice, it is linear from -9 to +8.
-    UMA_HISTOGRAM_CUSTOM_COUNTS("DiskCache.LostItems(Plus10)",
-                                expected - total_items + 10, 0, 2000, 75);
-  }
-
-  const int kInvalidHead = 1;
-  const int kInvalidTail = 2;
-  const int kInvalidHeadAndTail = 3;
-  const int kOneInvalidEntry = 4;
-  const int kTwoInvalidEntries = 5;
-  const int kOneInvalidLink = 6;
-  const int kTwoInvalidLinks = 7;
-  const int kOneInvalidEntryOneInvalidLink = 8;
-
-  int error = list * 10;
-  if (rv == ERR_INVALID_HEAD && rv2 != ERR_INVALID_HEAD) {
-    error += kInvalidHead;
-  } else if (rv == ERR_INVALID_HEAD && rv2 == ERR_INVALID_HEAD) {
-    error += kInvalidHeadAndTail;
-  } else if (rv != ERR_INVALID_HEAD && rv2 == ERR_INVALID_HEAD) {
-    error += kInvalidTail;
-  } else if (rv == ERR_INVALID_ENTRY && rv2 == ERR_INVALID_ENTRY) {
-    error += kTwoInvalidEntries;
-  } else if (rv == ERR_INVALID_ENTRY && rv2 == 0) {
-    error += kOneInvalidEntry;
-  } else if (rv == ERR_INVALID_ENTRY || rv2 == ERR_INVALID_ENTRY) {
-    error += kOneInvalidEntryOneInvalidLink;
-  } else if (rv2 != ERR_NO_ERROR) {
-    error += kTwoInvalidLinks;
-  } else {
-    error += kOneInvalidLink;
-  }
-  CACHE_UMA(CACHE_ERROR, "ListErrorWithListId", 0, error);
-
   return rv;
 }
 
@@ -910,156 +848,6 @@ int Rankings::CheckListSection(List list, Addr end1, Addr end2, bool forward,
       return ERR_INVALID_TAIL;
     }
   } while (current != end1 && current != end2);
-  return ERR_NO_ERROR;
-}
-
-// TODO(rvargas): remove when we figure why we have corrupt heads.
-// This is basically the same code as CheckListSection except that it starts
-// at a random node and it iterates until it finds something looking like the
-// last node.
-int Rankings::CheckListSegment(Addr start,
-                               bool forward,
-                               Addr* last,
-                               int* num_items) {
-  Addr current = start;
-  *last = current;
-  *num_items = 0;
-  if (!current.is_initialized())
-    return ERR_NO_ERROR;
-
-  if (!current.SanityCheckForRankings())
-    return ERR_INVALID_HEAD;
-
-  scoped_ptr<CacheRankingsBlock> node;
-  Addr prev_addr;
-  const int kMaxItemsToCheck = 100000;
-  do {
-    node.reset(new CacheRankingsBlock(backend_->File(current), current));
-    node->Load();
-    // The head may point to the wrong node so don't use SanityCheck().
-    if (ExplodedSanityCheck(node.get()))
-      return ERR_INVALID_ENTRY;
-
-    CacheAddr next = forward ? node->Data()->next : node->Data()->prev;
-    CacheAddr prev = forward ? node->Data()->prev : node->Data()->next;
-
-    if (prev_addr.is_initialized() && prev != prev_addr.value())
-      return ERR_INVALID_PREV;
-
-    Addr next_addr(next);
-    if (!next_addr.SanityCheckForRankings())
-      return ERR_INVALID_NEXT;
-
-    prev_addr = current;
-    current = next_addr;
-    *last = current;
-    (*num_items)++;
-
-    if (next_addr == prev_addr)
-      return ERR_NO_ERROR;
-  } while (*num_items < kMaxItemsToCheck);
-  return ERR_NO_ERROR;
-}
-
-// TODO(rvargas): remove when we figure why we have corrupt heads.
-void Rankings::DetailedCheck(List list) {
-  int rv = CheckHeadAndTail(list);
-  Addr last;
-  int num_items = 0;
-  int error = ERR_NO_ERROR;
-  if (rv == ERR_INVALID_PREV) {
-    error = CheckListSegment(heads_[list], false, &last, &num_items);
-  } else if (rv == ERR_INVALID_NEXT) {
-    error = CheckListSegment(tails_[list], true, &last, &num_items);
-  } else if (rv == ERR_INVALID_ENTRY) {
-    scoped_ptr<CacheRankingsBlock> head;
-    head.reset(new CacheRankingsBlock(backend_->File(heads_[list]),
-                                      heads_[list]));
-    head->Load();
-    int result = ExplodedSanityCheck(head.get());
-    if (!result) {
-      scoped_ptr<CacheRankingsBlock> tail;
-      tail.reset(new CacheRankingsBlock(backend_->File(tails_[list]),
-                                        tails_[list]));
-      tail->Load();
-      result = ExplodedSanityCheck(tail.get());
-    }
-    CACHE_UMA(CACHE_ERROR, "DetailedListCheckSanity", 0, result);
-    return;
-  }
-  CACHE_UMA(CACHE_ERROR, "DetailedListCheck", 0, -error);
-  CACHE_UMA(COUNTS, "DetailedListCheckCount", 0, num_items);
-}
-
-// TODO(rvargas): remove when we figure why we have corrupt heads.
-// This is basically SanityCheck().
-int Rankings::ExplodedSanityCheck(CacheRankingsBlock* node) {
-  int error = 0;
-  const int kBlockHashFailed = 1;
-  if (!node->VerifyHash())
-    error = kBlockHashFailed;
-
-  const RankingsNode* data = node->Data();
-  const int kHasOnlyOneOfNextAndPrev = 2;
-  if ((!data->next && data->prev) || (data->next && !data->prev))
-    error += kHasOnlyOneOfNextAndPrev;
-
-  const int kHasNeitherNextNorPrev = 4;
-  if (!data->next && !data->prev)
-    error += kHasNeitherNextNorPrev;
-
-  Addr next_addr(data->next);
-  Addr prev_addr(data->prev);
-  const int kFailsSanityCheck = 8;
-  if ((data->next &&
-       (!next_addr.SanityCheck() || next_addr.file_type() != RANKINGS)) ||
-      (data->prev &&
-       (!prev_addr.SanityCheck() || prev_addr.file_type() != RANKINGS))) {
-    error += kFailsSanityCheck;
-  }
-
-  return error;
-}
-
-// TODO(rvargas): remove when we figure why we have corrupt heads.
-void Rankings::QuickListCheck() {
-  for (int i = 0; i < LAST_ELEMENT; i++) {
-    int rv = CheckHeadAndTail(static_cast<List>(i));
-    CACHE_UMA(CACHE_ERROR, "QuickListCheck", 0, rv * -1);
-  }
-}
-
-int Rankings::CheckHeadAndTail(List list) {
-  Addr head_addr = heads_[list];
-  Addr tail_addr = tails_[list];
-
-  if (!head_addr.is_initialized() && !tail_addr.is_initialized())
-    return ERR_NO_ERROR;
-
-  if (!head_addr.SanityCheckForRankings())
-    return ERR_INVALID_HEAD;
-
-  if (!tail_addr.SanityCheckForRankings())
-    return ERR_INVALID_TAIL;
-
-  scoped_ptr<CacheRankingsBlock> head;
-  head.reset(new CacheRankingsBlock(backend_->File(head_addr), head_addr));
-  head->Load();
-  if (!SanityCheck(head.get(), true))  // From list.
-      return ERR_INVALID_ENTRY;
-
-  scoped_ptr<CacheRankingsBlock> tail;
-  tail.reset(new CacheRankingsBlock(backend_->File(tail_addr), tail_addr));
-  tail->Load();
-  if (!SanityCheck(tail.get(), true))  // From list.
-    return ERR_INVALID_ENTRY;
-
-  if (head->Data()->prev != head_addr.value())
-    return ERR_INVALID_PREV;
-
-  if (tail->Data()->next != tail_addr.value())
-    return ERR_INVALID_NEXT;
-
   return ERR_NO_ERROR;
 }
 
