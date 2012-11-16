@@ -61,8 +61,8 @@ static void FromInterleavedInternal(const void* src, int start_frame,
 // |Format| is the destination type, |Fixed| is a type larger than |Format|
 // such that operations can be made without overflowing.
 template<class Format, class Fixed>
-static void ToInterleavedInternal(const AudioBus* source, int frames,
-                                  void* dst) {
+static void ToInterleavedInternal(const AudioBus* source, int start_frame,
+                                  int frames, void* dst) {
   Format* dest = static_cast<Format*>(dst);
 
   static const Format kBias = std::numeric_limits<Format>::is_signed ? 0 :
@@ -75,7 +75,8 @@ static void ToInterleavedInternal(const AudioBus* source, int frames,
   int channels = source->channels();
   for (int ch = 0; ch < channels; ++ch) {
     const float* channel_data = source->channel(ch);
-    for (int i = 0, offset = ch; i < frames; ++i, offset += channels) {
+    for (int i = start_frame, offset = ch; i < frames;
+         ++i, offset += channels) {
       float v = channel_data[i];
       Fixed sample = v * (v < 0 ? -kMinValue : kMaxValue);
 
@@ -268,19 +269,24 @@ void AudioBus::FromInterleaved(const void* source, int frames,
   FromInterleavedPartial(source, 0, frames, bytes_per_sample);
 }
 
-// TODO(dalecurtis): See if intrinsic optimizations help any here.
 void AudioBus::ToInterleaved(int frames, int bytes_per_sample,
                              void* dest) const {
-  CheckOverflow(0, frames, frames_);
+  ToInterleavedPartial(0, frames, bytes_per_sample, dest);
+}
+
+// TODO(dalecurtis): See if intrinsic optimizations help any here.
+void AudioBus::ToInterleavedPartial(int start_frame, int frames,
+                                    int bytes_per_sample, void* dest) const {
+  CheckOverflow(start_frame, frames, frames_);
   switch (bytes_per_sample) {
     case 1:
-      ToInterleavedInternal<uint8, int16>(this, frames, dest);
+      ToInterleavedInternal<uint8, int16>(this, start_frame, frames, dest);
       break;
     case 2:
-      ToInterleavedInternal<int16, int32>(this, frames, dest);
+      ToInterleavedInternal<int16, int32>(this, start_frame, frames, dest);
       break;
     case 4:
-      ToInterleavedInternal<int32, int64>(this, frames, dest);
+      ToInterleavedInternal<int32, int64>(this, start_frame, frames, dest);
       break;
     default:
       NOTREACHED() << "Unsupported bytes per sample encountered.";
