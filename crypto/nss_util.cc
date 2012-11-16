@@ -229,7 +229,7 @@ base::LazyInstance<ScopedTempDir> g_test_nss_db_dir = LAZY_INSTANCE_INITIALIZER;
 void CrashWithErrors(int nss_error, int os_error) {
   base::debug::Alias(&nss_error);
   base::debug::Alias(&os_error);
-  CHECK(false) << "nss_error=" << nss_error << ", os_error=" << os_error;
+  LOG(FATAL) << "nss_error=" << nss_error << ", os_error=" << os_error;
 }
 
 class NSSInitSingleton {
