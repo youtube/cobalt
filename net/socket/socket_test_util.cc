@@ -881,7 +881,11 @@ bool MockTCPClientSocket::IsConnectedAndIdle() const {
 }
 
 int MockTCPClientSocket::GetPeerAddress(IPEndPoint* address) const {
-  return MockClientSocket::GetPeerAddress(address);
+  if (addresses_.empty())
+    return MockClientSocket::GetPeerAddress(address);
+
+  *address = addresses_[0];
+  return OK;
 }
 
 bool MockTCPClientSocket::WasEverUsed() const {

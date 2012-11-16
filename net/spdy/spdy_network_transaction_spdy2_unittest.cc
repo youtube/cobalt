@@ -78,24 +78,24 @@ class SpdyNetworkTransactionSpdy2Test
                                 SpdySessionDependencies* session_deps)
         : request_(request),
           session_deps_(session_deps == NULL ?
-              new SpdySessionDependencies() : session_deps),
+                        new SpdySessionDependencies() : session_deps),
           session_(SpdySessionDependencies::SpdyCreateSession(
-              session_deps_.get())),
+                       session_deps_.get())),
           log_(log),
           test_type_(test_type),
           deterministic_(false),
           spdy_enabled_(true) {
-            switch (test_type_) {
-              case SPDYNOSSL:
-              case SPDYSSL:
-                port_ = 80;
-                break;
-              case SPDYNPN:
-                port_ = 443;
-                break;
-              default:
-                NOTREACHED();
-            }
+      switch (test_type_) {
+        case SPDYNOSSL:
+        case SPDYSSL:
+          port_ = 80;
+          break;
+        case SPDYNPN:
+          port_ = 443;
+          break;
+        default:
+          NOTREACHED();
+      }
     }
 
     ~NormalSpdyTransactionHelper() {
@@ -118,6 +118,7 @@ class SpdyNetworkTransactionSpdy2Test
 
     void SetSpdyDisabled() {
       spdy_enabled_ = false;
+      port_ = 80;
     }
 
     void RunPreTestSetup() {
@@ -190,8 +191,8 @@ class SpdyNetworkTransactionSpdy2Test
         EXPECT_EQ(request_.url.SchemeIs("https"),
                   response->was_npn_negotiated);
       }
-      EXPECT_EQ("192.0.2.33", response->socket_address.host());
-      EXPECT_EQ(0, response->socket_address.port());
+      EXPECT_EQ("127.0.0.1", response->socket_address.host());
+      EXPECT_EQ(port_, response->socket_address.port());
       output_.status_line = response->headers->GetStatusLine();
       output_.response_info = *response;  // Make a copy so we can verify.
       output_.rv = ReadTransaction(trans_.get(), &output_.response_data);
