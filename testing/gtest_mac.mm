@@ -4,6 +4,8 @@
 
 #import "gtest_mac.h"
 
+#include <string>
+
 #include <gtest/internal/gtest-port.h>
 #include <gtest/internal/gtest-string.h>
 #include <gtest/gtest.h>
@@ -26,8 +28,8 @@ GTEST_API_ AssertionResult CmpHelperNSEQ(const char* expected_expression,
   }
   return EqFailure(expected_expression,
                    actual_expression,
-                   String([[expected description] UTF8String]),
-                   String([[actual description] UTF8String]),
+                   std::string([[expected description] UTF8String]),
+                   std::string([[actual description] UTF8String]),
                    false);
 }
 
@@ -42,8 +44,8 @@ GTEST_API_ AssertionResult CmpHelperNSNE(const char* expected_expression,
   }
   Message msg;
   msg << "Expected: (" << expected_expression << ") != (" << actual_expression
-      << "), actual: " << String([[expected description] UTF8String])
-      << " vs " << String([[actual description] UTF8String]);
+      << "), actual: " << std::string([[expected description] UTF8String])
+      << " vs " << std::string([[actual description] UTF8String]);
   return AssertionFailure(msg);
 }
 
