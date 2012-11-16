@@ -3139,7 +3139,8 @@
               # override keyword is used via the OVERRIDE macro from
               # base/compiler_specific.h.
               'CLANG_WARN_CXX0X_EXTENSIONS': 'NO',
-              # Warn if automatic synthesis is triggered.
+              # Warn if automatic synthesis is triggered with
+              # the -Wobjc-missing-property-synthesis flag.
               'CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS': 'YES',
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'WARNING_CFLAGS': [
@@ -3369,7 +3370,8 @@
           # override keyword is used via the OVERRIDE macro from
           # base/compiler_specific.h.
           'CLANG_WARN_CXX0X_EXTENSIONS': 'NO',
-          # Warn if automatic synthesis is triggered.
+          # Warn if automatic synthesis is triggered with
+          # the -Wobjc-missing-property-synthesis flag.
           'CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS': 'YES',
           'WARNING_CFLAGS': [
             '-Wheader-hygiene',
