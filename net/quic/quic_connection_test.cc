@@ -83,7 +83,7 @@ class TestConnectionHelper : public QuicConnectionHelperInterface {
   // QuicConnectionHelperInterface
   virtual void SetConnection(QuicConnection* connection) {}
 
-  virtual QuicClock* GetClock() {
+  virtual const QuicClock* GetClock() const {
     return clock_;
   }
 

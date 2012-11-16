@@ -16,7 +16,7 @@
 namespace net {
 
 QuicConnectionHelper::QuicConnectionHelper(base::TaskRunner* task_runner,
-                                           QuicClock* clock,
+                                           const QuicClock* clock,
                                            DatagramClientSocket* socket)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       task_runner_(task_runner),
@@ -33,7 +33,7 @@ void QuicConnectionHelper::SetConnection(QuicConnection* connection) {
   connection_ = connection;
 }
 
-QuicClock* QuicConnectionHelper::GetClock() {
+const QuicClock* QuicConnectionHelper::GetClock() const {
   return clock_;
 }
 
@@ -49,9 +49,9 @@ int QuicConnectionHelper::WritePacketToWire(
   scoped_refptr<StringIOBuffer> buf(
       new StringIOBuffer(std::string(packet.data(),
                                      packet.length())));
-  return socket_->Write(buf, packet.length(),
-                        base::Bind(&QuicConnectionHelper::OnWriteComplete,
-                                   weak_factory_.GetWeakPtr()));
+   return socket_->Write(buf, packet.length(),
+                         base::Bind(&QuicConnectionHelper::OnWriteComplete,
+                                    weak_factory_.GetWeakPtr()));
 }
 
 void QuicConnectionHelper::SetResendAlarm(
