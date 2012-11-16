@@ -91,7 +91,6 @@
 #include "net/base/cert_verifier.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/dns_util.h"
-#include "net/base/dnssec_chain_verifier.h"
 #include "net/base/transport_security_state.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -265,201 +264,6 @@ BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
 }
 
 #endif
-
-// DNSValidationResult enumerates the possible outcomes from processing a
-// set of DNS records.
-enum DNSValidationResult {
-  DNSVR_SUCCESS,   // the cert is immediately acceptable.
-  DNSVR_FAILURE,   // the cert is unconditionally rejected.
-  DNSVR_CONTINUE,  // perform CA validation as usual.
-};
-
-// VerifyCAARecords processes DNSSEC validated RRDATA for a number of DNS CAA
-// records and checks them against the given chain.
-//    server_cert_nss: the server's leaf certificate.
-//    rrdatas: the CAA records for the current domain.
-//    port: the TCP port number that we connected to.
-// TODO(agl): remove once DANE support has been released.
-DNSValidationResult VerifyCAARecords(
-    CERTCertificate* server_cert_nss,
-    const std::vector<base::StringPiece>& rrdatas,
-    uint16 port) {
-  DnsCAARecord::Policy policy;
-  const DnsCAARecord::ParseResult r = DnsCAARecord::Parse(rrdatas, &policy);
-  if (r == DnsCAARecord::SYNTAX_ERROR || r == DnsCAARecord::UNKNOWN_CRITICAL)
-    return DNSVR_FAILURE;
-  if (r == DnsCAARecord::DISCARD)
-    return DNSVR_CONTINUE;
-  DCHECK(r == DnsCAARecord::SUCCESS);
-
-  for (std::vector<DnsCAARecord::Policy::Hash>::const_iterator
-       hash = policy.authorized_hashes.begin();
-       hash != policy.authorized_hashes.end();
-       ++hash) {
-    if (hash->target == DnsCAARecord::Policy::SUBJECT_PUBLIC_KEY_INFO &&
-        (hash->port == 0 || hash->port == port)) {
-      CHECK_LE(hash->data.size(), static_cast<unsigned>(SHA512_LENGTH));
-      uint8 calculated_hash[SHA512_LENGTH];  // SHA512 is the largest.
-      SECStatus rv = HASH_HashBuf(
-          static_cast<HASH_HashType>(hash->algorithm),
-          calculated_hash,
-          server_cert_nss->derPublicKey.data,
-          server_cert_nss->derPublicKey.len);
-      DCHECK(rv == SECSuccess);
-      const std::string actual_digest(reinterpret_cast<char*>(calculated_hash),
-                                      hash->data.size());
-
-      // Note that the parser ensures that hash->data.size() is correct for the
-      // given algorithm. An attacker cannot give a zero length hash that
-      // always matches.
-      if (actual_digest == hash->data) {
-        // A DNSSEC secure hash over the public key of the leaf-certificate
-        // is sufficient.
-        return DNSVR_SUCCESS;
-      }
-    }
-  }
-
-  // If a CAA record was found, but nothing matched, then we reject the
-  // certificate.
-  return DNSVR_FAILURE;
-}
-
-// VerifyTLSARecords processes DNSSEC validated RRDATA for a number of DNS TLSA
-// records and checks them against the given chain.
-//    server_cert_nss: the server's leaf certificate.
-//    rrdatas: the TLSA records for the current domain.
-DNSValidationResult VerifyTLSARecords(
-    CERTCertificate* server_cert_nss,
-    const std::vector<base::StringPiece>& rrdatas) {
-  std::vector<DnsTLSARecord::Match> matches;
-  DnsTLSARecord::Parse(rrdatas, &matches);
-
-  for (std::vector<DnsTLSARecord::Match>::const_iterator
-       i = matches.begin(); i != matches.end(); ++i) {
-    SECItem matched_data;
-    switch (i->target) {
-      case DnsTLSARecord::Match::CERTIFICATE:
-        matched_data = server_cert_nss->derCert;
-        break;
-      case DnsTLSARecord::Match::SUBJECT_PUBLIC_KEY_INFO:
-        matched_data = server_cert_nss->derPublicKey;
-        break;
-      default:
-        continue;
-    }
-
-    uint8 calculated_hash[HASH_LENGTH_MAX];
-    SECItem processed_data;
-    if (i->algorithm == HASH_AlgNULL) {
-      processed_data = matched_data;
-    } else {
-      SECStatus rv = HASH_HashBuf(
-          static_cast<HASH_HashType>(i->algorithm),
-          calculated_hash,
-          matched_data.data,
-          matched_data.len);
-      if (rv != SECSuccess)
-        continue;
-      processed_data.data = calculated_hash;
-      processed_data.len = i->data.size();
-    }
-
-    if (processed_data.len == i->data.size() &&
-        memcmp(processed_data.data, i->data.data(), i->data.size()) == 0) {
-      return DNSVR_SUCCESS;
-    }
-  }
-
-  // No TLSA records matched so we reject the certificate.
-  return DNSVR_FAILURE;
-}
-
-// CheckDNSSECChain tries to validate a DNSSEC chain embedded in
-// |server_cert_nss|. It returns true iff a chain is found that proves the
-// value of a CAA record that contains a valid public key fingerprint.
-// |port| contains the TCP port number that we connected to as CAA records can
-// be specific to a given port.
-DNSValidationResult CheckDNSSECChain(
-    const std::string& hostname,
-    CERTCertificate* server_cert_nss,
-    uint16 port) {
-  if (!server_cert_nss)
-    return DNSVR_CONTINUE;
-
-  // CERT_FindCertExtensionByOID isn't exported so we have to install an OID,
-  // get a tag for it and find the extension by using that tag.
-  static SECOidTag dnssec_chain_tag;
-  static bool dnssec_chain_tag_valid;
-  if (!dnssec_chain_tag_valid) {
-    // It's harmless if multiple threads enter this block concurrently.
-    static const uint8 kDNSSECChainOID[] =
-        // 1.3.6.1.4.1.11129.2.1.4
-        // (iso.org.dod.internet.private.enterprises.google.googleSecurity.
-        //  certificateExtensions.dnssecEmbeddedChain)
-        {0x2b, 0x06, 0x01, 0x04, 0x01, 0xd6, 0x79, 0x02, 0x01, 0x04};
-    SECOidData oid_data;
-    memset(&oid_data, 0, sizeof(oid_data));
-    oid_data.oid.data = const_cast<uint8*>(kDNSSECChainOID);
-    oid_data.oid.len = sizeof(kDNSSECChainOID);
-    oid_data.desc = "DNSSEC chain";
-    oid_data.supportedExtension = SUPPORTED_CERT_EXTENSION;
-    dnssec_chain_tag = SECOID_AddEntry(&oid_data);
-    DCHECK_NE(SEC_OID_UNKNOWN, dnssec_chain_tag);
-    dnssec_chain_tag_valid = true;
-  }
-
-  SECItem dnssec_embedded_chain;
-  SECStatus rv = CERT_FindCertExtension(server_cert_nss,
-      dnssec_chain_tag, &dnssec_embedded_chain);
-  if (rv != SECSuccess)
-    return DNSVR_CONTINUE;
-
-  std::string chain(
-      reinterpret_cast<char*>(dnssec_embedded_chain.data),
-      dnssec_embedded_chain.len);
-  SECITEM_FreeItem(&dnssec_embedded_chain, PR_FALSE);
-  std::string dns_hostname;
-  if (!DNSDomainFromDot(hostname, &dns_hostname))
-    return DNSVR_CONTINUE;
-
-  DNSSECChainVerifier verifier(dns_hostname, chain);
-  DNSSECChainVerifier::Error err = verifier.Verify();
-  bool is_tlsa = false;
-  if (err == DNSSECChainVerifier::BAD_TARGET) {
-    // We might have failed because this is a DANE chain, not a CAA chain.
-    // DANE stores records in a subdomain of the name that includes the port
-    // and protocol, i.e. _443._tcp.www.example.com. We have to construct
-    // such a name for |hostname|.
-    const std::string port_str = base::UintToString(port);
-    char port_label_len = 1 + static_cast<char>(port_str.size());
-    const std::string tlsa_domain =
-      std::string(&port_label_len, 1) + "_" + port_str +
-      "\x04_tcp" +
-      dns_hostname;
-
-    verifier = DNSSECChainVerifier(tlsa_domain, chain);
-    err = verifier.Verify();
-    is_tlsa = true;
-  }
-
-  if (err != DNSSECChainVerifier::OK) {
-    LOG(ERROR) << "DNSSEC chain verification failed: " << err;
-    return DNSVR_CONTINUE;
-  }
-
-  if (is_tlsa) {
-    if (verifier.rrtype() != kDNS_TLSA)
-      return DNSVR_CONTINUE;
-
-    return VerifyTLSARecords(server_cert_nss, verifier.rrdatas());
-  }
-
-  if (verifier.rrtype() != kDNS_CAA)
-    return DNSVR_CONTINUE;
-
-  return VerifyCAARecords(server_cert_nss, verifier.rrdatas(), port);
-}
 
 void DestroyCertificates(CERTCertificate** certs, size_t len) {
   for (size_t i = 0; i < len; i++)
@@ -3399,9 +3203,6 @@ int SSLClientSocketNSS::DoHandshakeLoop(int last_io_result) {
       case STATE_HANDSHAKE_COMPLETE:
         rv = DoHandshakeComplete(rv);
         break;
-      case STATE_VERIFY_DNSSEC:
-        rv = DoVerifyDNSSEC(rv);
-        break;
       case STATE_VERIFY_CERT:
         DCHECK(rv == OK);
         rv = DoVerifyCert(rv);
@@ -3436,7 +3237,7 @@ int SSLClientSocketNSS::DoHandshakeComplete(int result) {
 
   if (result == OK) {
     // SSL handshake is completed. Let's verify the certificate.
-    GotoState(STATE_VERIFY_DNSSEC);
+    GotoState(STATE_VERIFY_CERT);
     // Done!
   }
   set_channel_id_sent(core_->state().channel_id_sent);
@@ -3445,25 +3246,6 @@ int SSLClientSocketNSS::DoHandshakeComplete(int result) {
   return result;
 }
 
-
-int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
-  DCHECK(!core_->state().server_cert_chain.empty());
-  DCHECK(core_->state().server_cert_chain[0]);
-
-  DNSValidationResult r = CheckDNSSECChain(
-      host_and_port_.host(), core_->state().server_cert_chain[0],
-      host_and_port_.port());
-  if (r == DNSVR_SUCCESS) {
-    server_cert_verify_result_.cert_status |= CERT_STATUS_IS_DNSSEC;
-    server_cert_verify_result_.verified_cert = core_->state().server_cert;
-    GotoState(STATE_VERIFY_CERT_COMPLETE);
-    return OK;
-  }
-
-  GotoState(STATE_VERIFY_CERT);
-
-  return OK;
-}
 
 int SSLClientSocketNSS::DoVerifyCert(int result) {
   DCHECK(!core_->state().server_cert_chain.empty());
