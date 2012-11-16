@@ -123,10 +123,6 @@
         'base/dns_util.h',
         'base/dnsrr_resolver.cc',
         'base/dnsrr_resolver.h',
-        'base/dnssec_chain_verifier.cc',
-        'base/dnssec_chain_verifier.h',
-        'base/dnssec_keyset.cc',
-        'base/dnssec_keyset.h',
         'base/escape.cc',
         'base/escape.h',
         'base/ev_root_ca_metadata.cc',
@@ -999,8 +995,6 @@
               'base/cert_verify_proc_nss.cc',
               'base/cert_verify_proc_nss.h',
               'base/crypto_module_nss.cc',
-              'base/dnssec_keyset.cc',
-              'base/dnssec_keyset.h',
               'base/keygen_handler_nss.cc',
               'base/nss_cert_database.cc',
               'base/nss_cert_database.h',
@@ -1193,7 +1187,6 @@
               'net_jni_headers',
             ],
             'sources!': [
-              'base/dnssec_chain_verifier.cc',
               'base/openssl_memory_private_key_store.cc',
             ],
           }, {  # else OS! = "android"
@@ -1269,7 +1262,6 @@
         'base/data_url_unittest.cc',
         'base/default_server_bound_cert_store_unittest.cc',
         'base/directory_lister_unittest.cc',
-        'base/dnssec_unittest.cc',
         'base/dns_util_unittest.cc',
         'base/dnsrr_resolver_unittest.cc',
         'base/escape_unittest.cc',
@@ -1588,7 +1580,6 @@
             #               functionality is ported to OpenSSL.
             'sources!': [
               'base/x509_util_nss_unittest.cc',
-              'base/dnssec_unittest.cc',
               'base/nss_cert_database_unittest.cc',
             ],
           }, {  # else !use_openssl: remove the unneeded files
@@ -2005,17 +1996,6 @@
           ],
           'sources': [
             'tools/dns_fuzz_stub/dns_fuzz_stub.cc',
-          ],
-        },
-        {
-          'target_name': 'dnssec_chain_verify',
-          'type': 'executable',
-          'dependencies': [
-            '../base/base.gyp:base',
-            'net',
-          ],
-          'sources': [
-            'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
           ],
         },
         {
