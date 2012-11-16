@@ -85,9 +85,12 @@
 
   <target name="dist" depends="compile"
       description="Generate chromium_${PACKAGE_NAME}.jar.">
-    <!-- Create the distribution directory -->
+    <!-- Create the distribution directory.  We exclude R.class and R$*.class
+         files since new versions of these files with the correct resource -> ID
+         mapping will be provided when we build each individual apk. -->
     <jar
       jarfile="${lib.java.dir}/chromium_${PACKAGE_NAME}.jar"
+      excludes="**/R.class **/R$*.class"
       basedir="${dest.dir}"
     />
 
