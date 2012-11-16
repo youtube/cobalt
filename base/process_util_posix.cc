@@ -154,6 +154,15 @@ void ResetChildSignalHandlersToDefaults() {
 
 }  // anonymous namespace
 
+bool IgnoreSigPipe() {
+  struct sigaction action;
+  memset(&action, 0, sizeof(action));
+  action.sa_handler = SIG_IGN;
+  if (sigemptyset(&action.sa_mask) != 0)
+    return false;
+  return (sigaction(SIGPIPE, &action, NULL) == 0);
+}
+
 ProcessId GetCurrentProcId() {
   return getpid();
 }
