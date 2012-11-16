@@ -30,6 +30,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/posix/eintr_wrapper.h"
+#include "base/process_util.h"
 #include "base/string_number_conversions.h"
 
 #if defined(USE_SYMBOLIZE)
@@ -301,11 +302,7 @@ bool EnableInProcessStackDumping() {
   // When running in an application, our code typically expects SIGPIPE
   // to be ignored.  Therefore, when testing that same code, it should run
   // with SIGPIPE ignored as well.
-  struct sigaction action;
-  memset(&action, 0, sizeof(action));
-  action.sa_handler = SIG_IGN;
-  sigemptyset(&action.sa_mask);
-  bool success = (sigaction(SIGPIPE, &action, NULL) == 0);
+  bool success = base::IgnoreSigPipe();
 
   // Avoid hangs during backtrace initialization, see above.
   WarmUpBacktrace();
