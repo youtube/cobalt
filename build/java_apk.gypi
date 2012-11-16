@@ -24,8 +24,8 @@
 # like:
 #
 # content/shell/android/java/content_shell_apk.xml
-# content/shell/android/java/src/chromium/base/Foo.java
-# content/shell/android/java/src/chromium/base/Bar.java
+# content/shell/android/java/src/org/chromium/base/Foo.java
+# content/shell/android/java/src/org/chromium/base/Bar.java
 #
 # Required variables:
 #  package_name - Used to name the intermediate output directory and in the
@@ -36,6 +36,9 @@
 # Optional/automatic variables:
 #  additional_input_paths - These paths will be included in the 'inputs' list to
 #    ensure that this target is rebuilt when one of these paths changes.
+#  additional_res_dirs - Additional directories containing Android resources.
+#  additional_res_packages - Package names of the R.java files corresponding to
+#    each directory in additional_res_dirs.
 #  additional_src_dirs - Additional directories with .java files to be compiled
 #    and included in the output of this target.
 #  asset_location - The directory where assets are located (default:
@@ -46,6 +49,8 @@
 #    included in the 'inputs' list (unlike additional_src_dirs).
 #  input_jars_paths - The path to jars to be included in the classpath. This
 #    should be filled automatically by depending on the appropriate targets.
+#  is_test_apk - Set to 1 if building a test apk.  This prevents resources from
+#    dependencies from being re-included.
 #  native_libs_paths - The path to any native library to be included in this
 #    target. This should be a path in <(SHARED_LIB_DIR). A stripped copy of
 #    the library will be included in the apk and symbolic links to the
@@ -68,6 +73,9 @@
     'manifest_package_name%': 'unknown.package.name',
     'resource_dir%':'',
     'jar_name%': 'chromium_apk_<(package_name).jar',
+    'additional_res_dirs': [],
+    'additional_res_packages': [],
+    'is_test_apk%': 0,
   },
   'sources': [
       '<@(native_libs_paths)'
@@ -121,6 +129,12 @@
         ['resource_dir!=""', {
           'inputs': ['<!@(find <(java_in_dir)/<(resource_dir) -name "*")']
         }],
+        ['is_test_apk == 1', {
+          'variables': {
+            'additional_res_dirs=': [],
+            'additional_res_packages=': [],
+          }
+        }],
       ],
       'outputs': [
         '<(PRODUCT_DIR)/apks/<(apk_name).apk',
@@ -146,6 +160,8 @@
         '-DJAR_NAME=<(jar_name)',
         '-DPACKAGE_NAME=<(package_name)',
         '-DRESOURCE_DIR=<(resource_dir)',
+        '-DADDITIONAL_RES_DIRS=>(additional_res_dirs)',
+        '-DADDITIONAL_RES_PACKAGES=>(additional_res_packages)',
         '-DAPP_MANIFEST_VERSION_NAME=<(app_manifest_version_name)',
         '-DAPP_MANIFEST_VERSION_CODE=<(app_manifest_version_code)',
         '-DPROGUARD_FLAGS=>(proguard_flags)',
