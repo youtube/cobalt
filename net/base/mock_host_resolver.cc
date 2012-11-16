@@ -121,7 +121,6 @@ HostCache* MockHostResolverBase::GetHostCache() {
 MockHostResolverBase::MockHostResolverBase(bool use_caching)
     : synchronous_mode_(false), next_request_id_(1) {
   rules_ = CreateCatchAllHostResolverProc();
-  proc_ = rules_;
 
   if (use_caching) {
     cache_.reset(new HostCache(kMaxCacheEntries));
@@ -156,11 +155,11 @@ int MockHostResolverBase::ResolveProc(size_t id,
                                       const RequestInfo& info,
                                       AddressList* addresses) {
   AddressList addr;
-  int rv = proc_->Resolve(info.hostname(),
-                          info.address_family(),
-                          info.host_resolver_flags(),
-                          &addr,
-                          NULL);
+  int rv = rules_->Resolve(info.hostname(),
+                           info.address_family(),
+                           info.host_resolver_flags(),
+                           &addr,
+                           NULL);
   if (cache_.get()) {
     HostCache::Key key(info.hostname(),
                        info.address_family(),
