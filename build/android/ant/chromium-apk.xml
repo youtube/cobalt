@@ -31,6 +31,21 @@
     <filelist files="${GENERATED_SRC_DIRS}"/>
   </path>
 
+  <!--
+    Include additional resource folders in the apk, e.g. content/.../res.  We
+    list the res folders in project.library.res.folder.path and the
+    corresponding java packages in project.library.packages, which must be
+    semicolon-delimited while ADDITIONAL_RES_PACKAGES is space-delimited, hence
+    the javascript task.
+  -->
+  <path id="project.library.res.folder.path">
+    <filelist files="${ADDITIONAL_RES_DIRS}"/>
+  </path>
+  <script language="javascript">
+    var before = project.getProperty("ADDITIONAL_RES_PACKAGES");
+    project.setProperty("project.library.packages", before.replaceAll(" ", ";"));
+  </script>
+
   <property-value name="target.abi" value="${APP_ABI}"/>
   <property name="resource.absolute.dir" value="${RESOURCE_DIR}"/>
   <property-value name="gen.absolute.dir" value="${out.dir}/gen"/>
