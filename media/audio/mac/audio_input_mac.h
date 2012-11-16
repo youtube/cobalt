@@ -62,7 +62,7 @@ class PCMQueueInAudioInputStream : public AudioInputStream {
                          UInt32 num_packets,
                          const AudioStreamPacketDescription* packet_desc);
 
-  static const int kNumberBuffers = 3;
+  static const int kNumberBuffers = 1;
 
   // Manager that owns this stream, used for closing down.
   AudioManagerBase* manager_;
