@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/file_util.h"
-#include "base/scoped_temp_dir.h"
+#include "base/files/scoped_temp_dir.h"
 #include "net/disk_cache/cache_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -34,7 +34,7 @@ class CacheUtilTest : public PlatformTest {
   }
 
  protected:
-  ScopedTempDir tmp_dir_;
+  base::ScopedTempDir tmp_dir_;
   FilePath cache_dir_;
   FilePath file1_;
   FilePath file2_;
