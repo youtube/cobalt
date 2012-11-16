@@ -5,7 +5,7 @@
 #include "net/disk_cache/flash/flash_cache_test_base.h"
 
 #include "base/file_path.h"
-#include "base/scoped_temp_dir.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/time.h"
 #include "net/disk_cache/flash/format.h"
 #include "net/disk_cache/flash/log_structured_store.h"

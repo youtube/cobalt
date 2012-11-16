@@ -5,11 +5,11 @@
 #include <string>
 
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/scoped_temp_dir.h"
 #include "base/string_util.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"

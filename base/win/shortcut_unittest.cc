@@ -8,7 +8,7 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/scoped_temp_dir.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/test/test_file_util.h"
 #include "base/test/test_shortcut_win.h"
 #include "base/win/scoped_com_initializer.h"
@@ -62,8 +62,8 @@ class ShortcutTest : public testing::Test {
   }
 
   base::win::ScopedCOMInitializer com_initializer_;
-  ScopedTempDir temp_dir_;
-  ScopedTempDir temp_dir_2_;
+  base::ScopedTempDir temp_dir_;
+  base::ScopedTempDir temp_dir_2_;
 
   // The link file to be created/updated in the shortcut tests below.
   FilePath link_file_;

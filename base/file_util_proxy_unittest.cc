@@ -7,11 +7,11 @@
 #include <map>
 
 #include "base/bind.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/platform_file.h"
-#include "base/scoped_temp_dir.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

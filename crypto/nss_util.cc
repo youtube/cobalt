@@ -6,11 +6,11 @@
 #include "crypto/nss_util_internal.h"
 
 #include <nss.h>
+#include <pk11pub.h>
 #include <plarena.h>
 #include <prerror.h>
 #include <prinit.h>
 #include <prtime.h>
-#include <pk11pub.h>
 #include <secmod.h>
 
 #if defined(OS_LINUX)
@@ -27,11 +27,11 @@
 #include "base/environment.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/native_library.h"
-#include "base/scoped_temp_dir.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
@@ -223,7 +223,8 @@ base::LazyInstance<NSPRInitSingleton>::Leaky
 // This is a LazyInstance so that it will be deleted automatically when the
 // unittest exits.  NSSInitSingleton is a LeakySingleton, so it would not be
 // deleted if it were a regular member.
-base::LazyInstance<ScopedTempDir> g_test_nss_db_dir = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<base::ScopedTempDir> g_test_nss_db_dir =
+    LAZY_INSTANCE_INITIALIZER;
 
 // Force a crash to debug http://crbug.com/153281.
 void CrashWithErrors(int nss_error, int os_error) {
