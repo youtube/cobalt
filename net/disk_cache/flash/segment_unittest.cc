@@ -36,40 +36,59 @@ const int32 kSegmentFreeSpace = disk_cache::kFlashSegmentSize -
 
 }  // namespace
 
-TEST_F(FlashCacheTest, CreateDestroy) {
+TEST_F(FlashCacheTest, SegmentUserTracking) {
+  scoped_ptr<disk_cache::Segment> segment(
+      new disk_cache::Segment(0, false, storage_.get()));
+  EXPECT_TRUE(segment->Init());
+
+  EXPECT_TRUE(segment->HasNoUsers());
+  segment->AddUser();
+  segment->AddUser();
+  EXPECT_FALSE(segment->HasNoUsers());
+
+  segment->ReleaseUser();
+  EXPECT_FALSE(segment->HasNoUsers());
+  segment->ReleaseUser();
+  EXPECT_TRUE(segment->HasNoUsers());
+
+  EXPECT_TRUE(segment->Close());
+}
+
+TEST_F(FlashCacheTest, SegmentCreateDestroy) {
   int32 index = 0;
-  scoped_refptr<disk_cache::Segment> segment(
+  scoped_ptr<disk_cache::Segment> segment(
       new disk_cache::Segment(index, false, storage_.get()));
   EXPECT_TRUE(segment->Init());
   EXPECT_TRUE(segment->Close());
 
   index = num_segments_in_storage_ - 1;
-  segment = new disk_cache::Segment(index, false, storage_.get());
+  segment.reset(new disk_cache::Segment(index, false, storage_.get()));
   EXPECT_TRUE(segment->Init());
   EXPECT_TRUE(segment->Close());
 
   int32 invalid_index = num_segments_in_storage_;
-  segment = new disk_cache::Segment(invalid_index, false, storage_.get());
+  segment.reset(new disk_cache::Segment(invalid_index, false, storage_.get()));
   EXPECT_FALSE(segment->Init());
 
   invalid_index = -1;
-  segment = new disk_cache::Segment(invalid_index, false, storage_.get());
+  segment.reset(new disk_cache::Segment(invalid_index, false, storage_.get()));
   EXPECT_FALSE(segment->Init());
 }
 
-TEST_F(FlashCacheTest, WriteDataReadData) {
+TEST_F(FlashCacheTest, SegmentWriteDataReadData) {
   int32 index = rand() % num_segments_in_storage_;
-  scoped_refptr<disk_cache::Segment> segment(
+  scoped_ptr<disk_cache::Segment> segment(
       new disk_cache::Segment(index, false, storage_.get()));
 
   EXPECT_TRUE(segment->Init());
   SmallEntry entry1;
   EXPECT_TRUE(segment->CanHold(entry1.size));
-  int32 offset;
-  EXPECT_TRUE(segment->WriteData(entry1.data, entry1.size, &offset));
+  int32 offset = segment->write_offset();
+  EXPECT_TRUE(segment->WriteData(entry1.data, entry1.size));
+  segment->StoreOffset(offset);
   EXPECT_TRUE(segment->Close());
 
-  segment = new disk_cache::Segment(index, true, storage_.get());
+  segment.reset(new disk_cache::Segment(index, true, storage_.get()));
   EXPECT_TRUE(segment->Init());
   SmallEntry entry2;
   EXPECT_TRUE(segment->ReadData(entry2.data, entry2.size, offset));
@@ -77,17 +96,17 @@ TEST_F(FlashCacheTest, WriteDataReadData) {
   EXPECT_TRUE(segment->Close());
 }
 
-TEST_F(FlashCacheTest, FillWithSmallEntries) {
+TEST_F(FlashCacheTest, SegmentFillWithSmallEntries) {
   int32 index = rand() % num_segments_in_storage_;
-  scoped_refptr<disk_cache::Segment> segment(
+  scoped_ptr<disk_cache::Segment> segment(
       new disk_cache::Segment(index, false, storage_.get()));
 
   EXPECT_TRUE(segment->Init());
   SmallEntry entry;
   int32 num_bytes_written = 0;
-  int32 offset;
   while (segment->CanHold(entry.size)) {
-    EXPECT_TRUE(segment->WriteData(entry.data, entry.size, &offset));
+    int32 offset = segment->write_offset();
+    EXPECT_TRUE(segment->WriteData(entry.data, entry.size));
     segment->StoreOffset(offset);
     num_bytes_written += entry.size;
   }
@@ -97,17 +116,17 @@ TEST_F(FlashCacheTest, FillWithSmallEntries) {
   EXPECT_TRUE(segment->Close());
 }
 
-TEST_F(FlashCacheTest, FillWithLargeEntries) {
+TEST_F(FlashCacheTest, SegmentFillWithLargeEntries) {
   int32 index = rand() % num_segments_in_storage_;
-  scoped_refptr<disk_cache::Segment> segment(
+  scoped_ptr<disk_cache::Segment> segment(
       new disk_cache::Segment(index, false, storage_.get()));
 
   EXPECT_TRUE(segment->Init());
   scoped_ptr<LargeEntry> entry(new LargeEntry);
   int32 num_bytes_written = 0;
-  int32 offset;
   while (segment->CanHold(entry->size)) {
-    EXPECT_TRUE(segment->WriteData(entry->data, entry->size, &offset));
+    int32 offset = segment->write_offset();
+    EXPECT_TRUE(segment->WriteData(entry->data, entry->size));
     segment->StoreOffset(offset);
     num_bytes_written += entry->size;
   }
