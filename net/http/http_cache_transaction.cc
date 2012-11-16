@@ -1698,8 +1698,7 @@ int HttpCache::Transaction::BeginCacheRead() {
 int HttpCache::Transaction::BeginCacheValidation() {
   DCHECK(mode_ == READ_WRITE);
 
-  bool skip_validation = effective_load_flags_ & LOAD_PREFERRING_CACHE ||
-                         !RequiresValidation();
+  bool skip_validation = !RequiresValidation();
 
   if (truncated_) {
     // Truncated entries can cause partial gets, so we shouldn't record this
@@ -1869,8 +1868,17 @@ bool HttpCache::Transaction::RequiresValidation() {
   // TODO(darin): need to do more work here:
   //  - make sure we have a matching request method
   //  - watch out for cached responses that depend on authentication
+
   // In playback mode, nothing requires validation.
   if (cache_->mode() == net::HttpCache::PLAYBACK)
+    return false;
+
+  if (response_.vary_data.is_valid() &&
+      !response_.vary_data.MatchesRequest(*request_, *response_.headers)) {
+    return true;
+  }
+
+  if (effective_load_flags_ & LOAD_PREFERRING_CACHE)
     return false;
 
   if (effective_load_flags_ & LOAD_VALIDATE_CACHE)
@@ -1881,12 +1889,6 @@ bool HttpCache::Transaction::RequiresValidation() {
 
   if (response_.headers->RequiresValidation(
           response_.request_time, response_.response_time, Time::Now())) {
-    return true;
-  }
-
-  // Since Vary header computation is fairly expensive, we save it for last.
-  if (response_.vary_data.is_valid() &&
-      !response_.vary_data.MatchesRequest(*request_, *response_.headers)) {
     return true;
   }
 

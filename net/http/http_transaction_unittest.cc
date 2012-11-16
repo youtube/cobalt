@@ -251,6 +251,7 @@ int MockNetworkTransaction::Start(const net::HttpRequestInfo* request,
     response_.response_time = t->response_time;
 
   response_.headers = new net::HttpResponseHeaders(header_data);
+  response_.vary_data.Init(*request, *response_.headers);
   response_.ssl_info.cert_status = t->cert_status;
   data_ = resp_data;
   test_mode_ = t->test_mode;
