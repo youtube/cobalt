@@ -278,6 +278,9 @@ void PCMWaveOutAudioOutputStream::Stop() {
     return;
   }
 
+  // Wait for lock to ensure all outstanding callbacks have completed.
+  base::AutoLock auto_lock(lock_);
+
   // waveOutReset() leaves buffers in the unpredictable state, causing
   // problems if we want to close, release, or reuse them. Fix the states.
   for (int ix = 0; ix != num_buffers_; ++ix) {
