@@ -259,8 +259,8 @@ class HttpNetworkTransactionSpdy3Test : public PlatformTest {
     }
     out.status_line = response->headers->GetStatusLine();
 
-    EXPECT_EQ("192.0.2.33", response->socket_address.host());
-    EXPECT_EQ(0, response->socket_address.port());
+    EXPECT_EQ("127.0.0.1", response->socket_address.host());
+    EXPECT_EQ(80, response->socket_address.port());
 
     rv = ReadTransaction(trans.get(), &out.response_data);
     EXPECT_EQ(OK, rv);

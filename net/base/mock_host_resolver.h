@@ -55,6 +55,7 @@ class MockHostResolverBase : public HostResolver,
   virtual ~MockHostResolverBase();
 
   RuleBasedHostResolverProc* rules() { return rules_; }
+  void set_rules(RuleBasedHostResolverProc* rules) { rules_ = rules; }
 
   // Controls whether resolutions complete synchronously or asynchronously.
   void set_synchronous_mode(bool is_synchronous) {
@@ -91,7 +92,6 @@ class MockHostResolverBase : public HostResolver,
 
   bool synchronous_mode_;
   scoped_refptr<RuleBasedHostResolverProc> rules_;
-  scoped_refptr<HostResolverProc> proc_;
   scoped_ptr<HostCache> cache_;
   RequestMap requests_;
   size_t next_request_id_;
