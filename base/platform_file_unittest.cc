@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/platform_file.h"
-#include "base/scoped_temp_dir.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,7 +26,7 @@ int WriteFully(base::PlatformFile file, int64 offset,
 } // namespace
 
 TEST(PlatformFile, CreatePlatformFile) {
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath file_path = temp_dir.path().AppendASCII("create_file_1");
 
@@ -95,7 +95,7 @@ TEST(PlatformFile, CreatePlatformFile) {
 }
 
 TEST(PlatformFile, DeleteOpenFile) {
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath file_path = temp_dir.path().AppendASCII("create_file_1");
 
@@ -131,7 +131,7 @@ TEST(PlatformFile, DeleteOpenFile) {
 }
 
 TEST(PlatformFile, ReadWritePlatformFile) {
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath file_path = temp_dir.path().AppendASCII("read_write_file");
   base::PlatformFile file = base::CreatePlatformFile(
@@ -210,7 +210,7 @@ TEST(PlatformFile, ReadWritePlatformFile) {
 }
 
 TEST(PlatformFile, TruncatePlatformFile) {
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath file_path = temp_dir.path().AppendASCII("truncate_file");
   base::PlatformFile file = base::CreatePlatformFile(
@@ -261,7 +261,7 @@ TEST(PlatformFile, TruncatePlatformFile) {
 
 // Flakily fails: http://crbug.com/86494
 TEST(PlatformFile, DISABLED_TouchGetInfoPlatformFile) {
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   base::PlatformFile file = base::CreatePlatformFile(
       temp_dir.path().AppendASCII("touch_get_info_file"),

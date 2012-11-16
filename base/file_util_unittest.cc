@@ -19,8 +19,8 @@
 #include "base/base_paths.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
-#include "base/scoped_temp_dir.h"
 #include "base/test/test_file_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/utf_string_conversions.h"
@@ -143,7 +143,7 @@ class FileUtilTest : public PlatformTest {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   }
 
-  ScopedTempDir temp_dir_;
+  base::ScopedTempDir temp_dir_;
 };
 
 // Collects all the results from the given file enumerator, and provides an

@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include "base/file_path.h"
-#include "base/scoped_temp_dir.h"
+#include "base/files/scoped_temp_dir.h"
 #include "net/base/io_buffer.h"
 #include "net/disk_cache/disk_cache_test_util.h"
-#include "net/disk_cache/flash/storage.h"
 #include "net/disk_cache/flash/flash_cache_test_base.h"
+#include "net/disk_cache/flash/storage.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

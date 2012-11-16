@@ -10,8 +10,8 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/memory/scoped_vector.h"
-#include "base/scoped_temp_dir.h"
 #include "net/base/auth.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/upload_data.h"
@@ -578,7 +578,7 @@ class SpdyNetworkTransactionSpdy3Test
   HttpRequestInfo google_chunked_post_request_;
   HttpRequestInfo google_get_push_request_;
   SpdyTestStateHelper spdy_state_;
-  ScopedTempDir temp_dir_;
+  base::ScopedTempDir temp_dir_;
 };
 
 //-----------------------------------------------------------------------------

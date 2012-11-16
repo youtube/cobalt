@@ -11,9 +11,9 @@
 #include "base/bind.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
-#include "base/scoped_temp_dir.h"
 #include "base/time.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -138,7 +138,7 @@ class UploadDataStreamTest : public PlatformTest {
                          const base::Time& time,
                          bool error_expected);
 
-  ScopedTempDir temp_dir_;
+  base::ScopedTempDir temp_dir_;
 
   scoped_refptr<UploadData> upload_data_;
 };

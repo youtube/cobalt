@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
 #include "base/prefs/json_pref_store.h"
-#include "base/scoped_temp_dir.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/threading/sequenced_worker_pool.h"
@@ -45,7 +45,7 @@ class JsonPrefStoreTest : public testing::Test {
   }
 
   // The path to temporary directory used to contain the test operations.
-  ScopedTempDir temp_dir_;
+  base::ScopedTempDir temp_dir_;
   // The path to the directory where the test data is stored.
   FilePath data_dir_;
   // A message loop that we can use as the file thread message loop.

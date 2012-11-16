@@ -5,7 +5,7 @@
 #include "net/http/infinite_cache.h"
 
 #include "base/file_util.h"
-#include "base/scoped_temp_dir.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "net/base/net_errors.h"
@@ -113,7 +113,7 @@ TEST(InfiniteCache, Basics) {
 }
 
 TEST(InfiniteCache, Save_Restore) {
-  ScopedTempDir dir;
+  base::ScopedTempDir dir;
   ASSERT_TRUE(dir.CreateUniqueTempDir());
   FilePath path = dir.path().Append(FILE_PATH_LITERAL("infinite"));
 
@@ -165,7 +165,7 @@ TEST(InfiniteCache, DoomMethod) {
 }
 
 TEST(InfiniteCache, Delete) {
-  ScopedTempDir dir;
+  base::ScopedTempDir dir;
   ASSERT_TRUE(dir.CreateUniqueTempDir());
   FilePath path = dir.path().Append(FILE_PATH_LITERAL("infinite"));
 
@@ -191,7 +191,7 @@ TEST(InfiniteCache, Delete) {
 
 TEST(InfiniteCache, DeleteBetween) {
 #if !defined(OS_ANDROID)
-  ScopedTempDir dir;
+  base::ScopedTempDir dir;
   ASSERT_TRUE(dir.CreateUniqueTempDir());
   FilePath path = dir.path().Append(FILE_PATH_LITERAL("infinite"));
 

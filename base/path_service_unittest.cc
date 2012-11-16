@@ -5,13 +5,13 @@
 #include "base/path_service.h"
 
 #include "base/basictypes.h"
-#include "base/file_util.h"
 #include "base/file_path.h"
-#include "base/scoped_temp_dir.h"
+#include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/string_util.h"
 #include "build/build_config.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "testing/gtest/include/gtest/gtest-spi.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
 #if defined(OS_WIN)
@@ -139,7 +139,7 @@ TEST_F(PathServiceTest, Get) {
 // are supposed to do.
 TEST_F(PathServiceTest, Override) {
   int my_special_key = 666;
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath fake_cache_dir(temp_dir.path().AppendASCII("cache"));
   // PathService::Override should always create the path provided if it doesn't
@@ -162,7 +162,7 @@ TEST_F(PathServiceTest, Override) {
 // Check if multiple overrides can co-exist.
 TEST_F(PathServiceTest, OverrideMultiple) {
   int my_special_key = 666;
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath fake_cache_dir1(temp_dir.path().AppendASCII("1"));
   EXPECT_TRUE(PathService::Override(my_special_key, fake_cache_dir1));
@@ -192,7 +192,7 @@ TEST_F(PathServiceTest, RemoveOverride) {
   EXPECT_TRUE(PathService::Get(base::DIR_TEMP, &original_user_data_dir));
   EXPECT_FALSE(PathService::RemoveOverride(base::DIR_TEMP));
 
-  ScopedTempDir temp_dir;
+  base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   EXPECT_TRUE(PathService::Override(base::DIR_TEMP, temp_dir.path()));
   FilePath new_user_data_dir;
