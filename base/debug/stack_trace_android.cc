@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "base/logging.h"
+#include "base/process_util.h"
 
 namespace base {
 namespace debug {
@@ -17,12 +18,8 @@ bool EnableInProcessStackDumping() {
   // When running in an application, our code typically expects SIGPIPE
   // to be ignored.  Therefore, when testing that same code, it should run
   // with SIGPIPE ignored as well.
-  // TODO(phajdan.jr): De-duplicate this SIGPIPE code.
-  struct sigaction action;
-  memset(&action, 0, sizeof(action));
-  action.sa_handler = SIG_IGN;
-  sigemptyset(&action.sa_mask);
-  return (sigaction(SIGPIPE, &action, NULL) == 0);
+  // TODO(phajdan.jr): Ignoring SIGPIPE has nothing to do with stack dumping.
+  return base::IgnoreSigPipe();
 }
 
 StackTrace::StackTrace() {

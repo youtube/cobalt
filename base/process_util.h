@@ -147,6 +147,12 @@ BASE_EXPORT extern size_t g_oom_size;
 BASE_EXPORT void RouteStdioToConsole();
 #endif
 
+#if defined(OS_POSIX)
+// Ignores SIGPIPE signal. We handle pipe errors in a different way.
+// Returns true on success.
+BASE_EXPORT bool IgnoreSigPipe() WARN_UNUSED_RESULT;
+#endif
+
 // Returns the id of the current process.
 BASE_EXPORT ProcessId GetCurrentProcId();
 
