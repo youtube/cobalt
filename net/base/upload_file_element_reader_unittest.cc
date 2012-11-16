@@ -5,7 +5,7 @@
 #include "net/base/upload_file_element_reader.h"
 
 #include "base/file_util.h"
-#include "base/scoped_temp_dir.h"
+#include "base/files/scoped_temp_dir.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -39,7 +39,7 @@ class UploadFileElementReaderTest : public PlatformTest {
 
   std::vector<char> bytes_;
   scoped_ptr<UploadElementReader> reader_;
-  ScopedTempDir temp_dir_;
+  base::ScopedTempDir temp_dir_;
   FilePath temp_file_path_;
 };
 

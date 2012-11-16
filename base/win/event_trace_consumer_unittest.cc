@@ -12,9 +12,9 @@
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
 #include "base/process.h"
-#include "base/scoped_temp_dir.h"
 #include "base/stringprintf.h"
 #include "base/win/event_trace_controller.h"
 #include "base/win/event_trace_provider.h"
@@ -356,7 +356,7 @@ class EtwTraceConsumerDataTest: public EtwTraceConsumerBaseTest {
   }
 
   EventQueue events_;
-  ScopedTempDir temp_dir_;
+  base::ScopedTempDir temp_dir_;
   FilePath temp_file_;
 };
 
