@@ -11,6 +11,7 @@
       'dependencies': [
         'some.gyp:*',
         '../base/base.gyp:*',
+        '../chrome/chrome.gyp:*',
         '../content/content.gyp:*',
         '../crypto/crypto.gyp:*',
         '../media/media.gyp:*',
@@ -33,7 +34,6 @@
         ['OS!="ios"', {
           'dependencies': [
             '../cc/cc_tests.gyp:*',
-            '../chrome/chrome.gyp:*',
             '../device/device.gyp:*',
             '../gpu/gpu.gyp:*',
             '../gpu/tools/tools.gyp:*',
@@ -180,6 +180,7 @@
       'type': 'none',
       'dependencies': [
         '../base/base.gyp:base_unittests',
+        '../chrome/chrome.gyp:unit_tests',
         '../crypto/crypto.gyp:crypto_unittests',
         '../media/media.gyp:media_unittests',
         '../net/net.gyp:net_unittests',
@@ -196,7 +197,6 @@
             '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
-            '../chrome/chrome.gyp:unit_tests',
             '../cloud_print/cloud_print.gyp:cloud_print_unittests',
             '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
