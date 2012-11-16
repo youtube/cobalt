@@ -7,9 +7,9 @@
 #ifndef NET_QUIC_QUIC_UTILS_H_
 #define NET_QUIC_QUIC_UTILS_H_
 
+#include "net/base/int128.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
-#include "net/quic/uint128.h"
 
 class IPAddress;
 class IPEndPoint;

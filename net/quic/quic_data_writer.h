@@ -11,9 +11,9 @@
 #include "base/logging.h"
 #include "base/port.h"
 #include "base/string_piece.h"
+#include "net/base/int128.h"
 #include "net/base/net_export.h"
 #include "net/quic/quic_protocol.h"
-#include "net/quic/uint128.h"
 
 namespace net {
 

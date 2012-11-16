@@ -7,8 +7,8 @@
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"
+#include "net/base/int128.h"
 #include "net/base/net_export.h"
-#include "net/quic/uint128.h"
 
 namespace net {
 
