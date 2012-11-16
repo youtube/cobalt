@@ -90,7 +90,8 @@ class MEDIA_EXPORT AudioOutputStream {
 
   virtual ~AudioOutputStream() {}
 
-  // Open the stream. false is returned if the stream cannot be opened.
+  // Open the stream. false is returned if the stream cannot be opened.  Open()
+  // must always be followed by a call to Close() even if Open() fails.
   virtual bool Open() = 0;
 
   // Starts playing audio and generating AudioSourceCallback::OnMoreData().

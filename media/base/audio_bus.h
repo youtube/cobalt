@@ -62,6 +62,8 @@ class MEDIA_EXPORT AudioBus {
   // any unfilled frames when |frames| is less than frames().
   void FromInterleaved(const void* source, int frames, int bytes_per_sample);
   void ToInterleaved(int frames, int bytes_per_sample, void* dest) const;
+  void ToInterleavedPartial(int start_frame, int frames, int bytes_per_sample,
+                            void* dest) const;
 
   // Similar to FromInterleaved() above, but meant for streaming sources.  Does
   // not zero out remaining frames, the caller is responsible for doing so using

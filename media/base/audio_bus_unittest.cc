@@ -334,4 +334,26 @@ TEST_F(AudioBusTest, ToInterleaved) {
   }
 }
 
+// Verify ToInterleavedPartial() interleaves audio correctly.
+TEST_F(AudioBusTest, ToInterleavedPartial) {
+  // Only interleave the middle two frames in each channel.
+  static const int kPartialStart = 1;
+  static const int kPartialFrames = 2;
+  ASSERT_LE(kPartialStart + kPartialFrames, kTestVectorFrames);
+
+  scoped_ptr<AudioBus> expected = AudioBus::Create(
+      kTestVectorChannels, kTestVectorFrames);
+  for (int ch = 0; ch < kTestVectorChannels; ++ch) {
+    memcpy(expected->channel(ch), kTestVectorResult[ch],
+           kTestVectorFrames * sizeof(*expected->channel(ch)));
+  }
+
+  int16 test_array[arraysize(kTestVectorInt16)];
+  expected->ToInterleavedPartial(
+      kPartialStart, kPartialFrames, sizeof(*kTestVectorInt16), test_array);
+  ASSERT_EQ(memcmp(
+      test_array, kTestVectorInt16 + kPartialStart * kTestVectorChannels,
+      kPartialFrames * sizeof(*kTestVectorInt16)), 0);
+}
+
 }  // namespace media
