@@ -67,10 +67,19 @@
     'native_libs_paths': [],
     'manifest_package_name%': 'unknown.package.name',
     'resource_dir%':'',
+    'jar_name%': 'chromium_apk_<(package_name).jar',
   },
   'sources': [
       '<@(native_libs_paths)'
   ],
+  # Pass the jar path to the apk's "fake" jar target.  This would be better as
+  # direct_dependent_settings, but a variable set by a direct_dependent_settings
+  # cannot be lifted in a dependent to all_dependent_settings.
+  'all_dependent_settings': {
+    'variables': {
+      'apk_output_jar_path': '<(PRODUCT_DIR)/lib.java/<(jar_name)',
+    },
+  },
   'rules': [
     {
       'rule_name': 'copy_and_strip_native_libraries',
@@ -134,6 +143,7 @@
         '-DADDITIONAL_SRC_DIRS=>(additional_src_dirs)',
         '-DGENERATED_SRC_DIRS=>(generated_src_dirs)',
         '-DINPUT_JARS_PATHS=>(input_jars_paths)',
+        '-DJAR_NAME=<(jar_name)',
         '-DPACKAGE_NAME=<(package_name)',
         '-DRESOURCE_DIR=<(resource_dir)',
         '-DAPP_MANIFEST_VERSION_NAME=<(app_manifest_version_name)',
