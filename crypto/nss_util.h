@@ -36,6 +36,16 @@ CRYPTO_EXPORT void EarlySetupForNSSInit();
 // thread-safe, and NSPR will only ever be initialized once.
 CRYPTO_EXPORT void EnsureNSPRInit();
 
+// Initialize NSS safely for strict sandboxing.  This function makes sure that
+// NSS is initialized safely and will have proper entropy in a restricted,
+// sandboxed environment.
+//
+// As a defense in depth measure, this function should be called in a sandboxed
+// environment to make sure NSS will not load security modules that could
+// expose private data and keys.  Make sure to get an LGTM from Security
+// if you use this.
+CRYPTO_EXPORT void WarmUpNSSSafely();
+
 // Initialize NSS if it isn't already initialized.  This must be called before
 // any other NSS functions.  This function is thread-safe, and NSS will only
 // ever be initialized once.
@@ -58,7 +68,7 @@ CRYPTO_EXPORT void EnsureNSSInit();
 // WARNING: Use this with caution.
 CRYPTO_EXPORT void ForceNSSNoDBInit();
 
-// This methods is used to disable checks in NSS when used in a forked process.
+// This method is used to disable checks in NSS when used in a forked process.
 // NSS checks whether it is running a forked process to avoid problems when
 // using user security modules in a forked process.  However if we are sure
 // there are no modules loaded before the process is forked then there is no
