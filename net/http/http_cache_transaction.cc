@@ -846,8 +846,10 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     return OK;
   }
 
-  if (mode_ == WRITE)
+  if (mode_ == WRITE &&
+      transaction_pattern_ != PATTERN_ENTRY_CANT_CONDITIONALIZE) {
     UpdateTransactionPattern(PATTERN_ENTRY_NOT_CACHED);
+  }
 
   if (mode_ == WRITE &&
       (request_->method == "PUT" || request_->method == "DELETE")) {
@@ -1738,7 +1740,7 @@ int HttpCache::Transaction::BeginCacheValidation() {
     // Our mode remains READ_WRITE for a conditional request.  We'll switch to
     // either READ or WRITE mode once we hear back from the server.
     if (!ConditionalizeRequest()) {
-      UpdateTransactionPattern(PATTERN_NOT_COVERED);
+      UpdateTransactionPattern(PATTERN_ENTRY_CANT_CONDITIONALIZE);
       if (partial_.get())
         return DoRestartPartialRequest();
 
@@ -2382,8 +2384,8 @@ void HttpCache::Transaction::RecordHistograms() {
       cache_->mode() != NORMAL || request_->method != "GET") {
     return;
   }
-  UMA_HISTOGRAM_BOOLEAN("HttpCache.HasPattern",
-                        transaction_pattern_ != PATTERN_NOT_COVERED);
+  UMA_HISTOGRAM_ENUMERATION(
+      "HttpCache.Pattern", transaction_pattern_, PATTERN_MAX);
   if (transaction_pattern_ == PATTERN_NOT_COVERED)
     return;
   DCHECK(!range_requested_);
@@ -2395,14 +2397,17 @@ void HttpCache::Transaction::RecordHistograms() {
 
   bool did_send_request = !send_request_since_.is_null();
   DCHECK(
-      (did_send_request && (transaction_pattern_ == PATTERN_ENTRY_NOT_CACHED ||
-                            transaction_pattern_ == PATTERN_ENTRY_VALIDATED ||
-                            transaction_pattern_ == PATTERN_ENTRY_UPDATED)) ||
+      (did_send_request &&
+       (transaction_pattern_ == PATTERN_ENTRY_NOT_CACHED ||
+        transaction_pattern_ == PATTERN_ENTRY_VALIDATED ||
+        transaction_pattern_ == PATTERN_ENTRY_UPDATED ||
+        transaction_pattern_ == PATTERN_ENTRY_CANT_CONDITIONALIZE)) ||
       (!did_send_request && transaction_pattern_ == PATTERN_ENTRY_USED));
 
   int resource_size;
   if (transaction_pattern_ == PATTERN_ENTRY_NOT_CACHED ||
-      transaction_pattern_ == PATTERN_ENTRY_UPDATED) {
+      transaction_pattern_ == PATTERN_ENTRY_UPDATED ||
+      transaction_pattern_ == PATTERN_ENTRY_CANT_CONDITIONALIZE) {
       resource_size = bytes_read_from_network_;
   } else {
       DCHECK(transaction_pattern_ == PATTERN_ENTRY_VALIDATED ||
@@ -2418,8 +2423,8 @@ void HttpCache::Transaction::RecordHistograms() {
     DCHECK(transaction_pattern_ == PATTERN_ENTRY_USED);
     UMA_HISTOGRAM_TIMES("HttpCache.AccessToDone.Used", total_time);
     if (is_small_resource) {
-      UMA_HISTOGRAM_TIMES(
-          "HttpCache.AccessToDone.Used.SmallResource", total_time);
+      UMA_HISTOGRAM_TIMES("HttpCache.AccessToDone.Used.SmallResource",
+                          total_time);
     }
     return;
   }
@@ -2435,36 +2440,36 @@ void HttpCache::Transaction::RecordHistograms() {
   UMA_HISTOGRAM_TIMES("HttpCache.BeforeSend", before_send_time);
   UMA_HISTOGRAM_PERCENTAGE("HttpCache.PercentBeforeSend", before_send_percent);
   if (is_small_resource) {
-    UMA_HISTOGRAM_TIMES(
-        "HttpCache.AccessToDone.SentRequest.SmallResource", total_time);
+    UMA_HISTOGRAM_TIMES("HttpCache.AccessToDone.SentRequest.SmallResource",
+                        total_time);
     UMA_HISTOGRAM_TIMES("HttpCache.BeforeSend.SmallResource", before_send_time);
-    UMA_HISTOGRAM_PERCENTAGE(
-        "HttpCache.PercentBeforeSend.SmallResource", before_send_percent);
+    UMA_HISTOGRAM_PERCENTAGE("HttpCache.PercentBeforeSend.SmallResource",
+                             before_send_percent);
   }
 
   // TODO(gavinp): Remove or minimize these histograms, particularly the ones
   // below this comment after we have received initial data.
   switch (transaction_pattern_) {
+    case PATTERN_ENTRY_CANT_CONDITIONALIZE: {
+      UMA_HISTOGRAM_TIMES("HttpCache.BeforeSend.CantConditionalize",
+                          before_send_time);
+      UMA_HISTOGRAM_PERCENTAGE("HttpCache.PercentBeforeSend.CantConditionalize",
+                               before_send_percent);
+      break;
+    }
     case PATTERN_ENTRY_NOT_CACHED: {
       UMA_HISTOGRAM_TIMES("HttpCache.BeforeSend.NotCached", before_send_time);
-      UMA_HISTOGRAM_PERCENTAGE(
-          "HttpCache.PercentBeforeSend.NotCached", before_send_percent);
-      if (is_small_resource) {
-        UMA_HISTOGRAM_TIMES(
-            "HttpCache.BeforeSend.NotCached.SmallResource", before_send_time);
-        UMA_HISTOGRAM_PERCENTAGE(
-            "HttpCache.PercentBeforeSend.NotCached.SmallResource",
-            before_send_percent);
-      }
+      UMA_HISTOGRAM_PERCENTAGE("HttpCache.PercentBeforeSend.NotCached",
+                               before_send_percent);
       break;
     }
     case PATTERN_ENTRY_VALIDATED: {
       UMA_HISTOGRAM_TIMES("HttpCache.BeforeSend.Validated", before_send_time);
-      UMA_HISTOGRAM_PERCENTAGE(
-          "HttpCache.PercentBeforeSend.Validated", before_send_percent);
+      UMA_HISTOGRAM_PERCENTAGE("HttpCache.PercentBeforeSend.Validated",
+                               before_send_percent);
       if (is_small_resource) {
-        UMA_HISTOGRAM_TIMES(
-            "HttpCache.BeforeSend.Validated.SmallResource", before_send_time);
+        UMA_HISTOGRAM_TIMES("HttpCache.BeforeSend.Validated.SmallResource",
+                            before_send_time);
         UMA_HISTOGRAM_PERCENTAGE(
             "HttpCache.PercentBeforeSend.Validated.SmallResource",
             before_send_percent);
@@ -2473,11 +2478,11 @@ void HttpCache::Transaction::RecordHistograms() {
     }
     case PATTERN_ENTRY_UPDATED: {
       UMA_HISTOGRAM_TIMES("HttpCache.BeforeSend.Updated", before_send_time);
-      UMA_HISTOGRAM_PERCENTAGE(
-          "HttpCache.PercentBeforeSend.Updated", before_send_percent);
+      UMA_HISTOGRAM_PERCENTAGE("HttpCache.PercentBeforeSend.Updated",
+                               before_send_percent);
       if (is_small_resource) {
-      UMA_HISTOGRAM_TIMES(
-          "HttpCache.BeforeSend.Updated.SmallResource", before_send_time);
+        UMA_HISTOGRAM_TIMES("HttpCache.BeforeSend.Updated.SmallResource",
+                            before_send_time);
         UMA_HISTOGRAM_PERCENTAGE(
             "HttpCache.PercentBeforeSend.Updated.SmallResource",
             before_send_percent);
