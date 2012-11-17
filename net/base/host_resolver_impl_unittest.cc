@@ -436,7 +436,6 @@ class HostResolverImplTest : public testing::Test {
         HostCache::CreateDefaultCache(),
         DefaultLimits(),
         DefaultParams(proc_),
-        scoped_ptr<DnsClient>(),
         NULL));
   }
 
@@ -450,7 +449,6 @@ class HostResolverImplTest : public testing::Test {
         HostCache::CreateDefaultCache(),
         limits,
         params,
-        scoped_ptr<DnsClient>(),
         NULL));
   }
 
@@ -762,7 +760,6 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
       scoped_ptr<HostCache>(),
       DefaultLimits(),
       DefaultParams(proc_),
-      scoped_ptr<DnsClient>(),
       NULL));
 
   for (size_t i = 0; i < 4; ++i) {
@@ -1199,7 +1196,6 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
       new HostResolverImpl(HostCache::CreateDefaultCache(),
                            DefaultLimits(),
                            params,
-                           scoped_ptr<DnsClient>(),
                            NULL));
 
   // Resolve "host1".
@@ -1253,8 +1249,8 @@ class HostResolverImplDnsTest : public HostResolverImplTest {
         HostCache::CreateDefaultCache(),
         DefaultLimits(),
         DefaultParams(proc_),
-        CreateMockDnsClient(DnsConfig(), dns_rules_),
         NULL));
+    resolver_->SetDnsClient(CreateMockDnsClient(DnsConfig(), dns_rules_));
   }
 
   // Adds a rule to |dns_rules_|. Must be followed by |CreateResolver| to apply.
