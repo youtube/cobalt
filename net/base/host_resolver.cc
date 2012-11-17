@@ -25,8 +25,7 @@ const size_t kDefaultMaxProcTasks = 6u;
 HostResolver::Options::Options()
     : max_concurrent_resolves(kDefaultParallelism),
       max_retry_attempts(kDefaultRetryAttempts),
-      enable_caching(true),
-      enable_async(false) {
+      enable_caching(true) {
 }
 
 HostResolver::RequestInfo::RequestInfo(const HostPortPair& host_port_pair)
@@ -48,6 +47,9 @@ AddressFamily HostResolver::GetDefaultAddressFamily() const {
 void HostResolver::ProbeIPv6Support() {
 }
 
+void HostResolver::SetDnsClientEnabled(bool enabled) {
+}
+
 HostCache* HostResolver::GetHostCache() {
   return NULL;
 }
@@ -66,22 +68,11 @@ HostResolver::CreateSystemResolver(const Options& options, NetLog* net_log) {
   scoped_ptr<HostCache> cache;
   if (options.enable_caching)
     cache = HostCache::CreateDefaultCache();
-  scoped_ptr<DnsClient> dns_client;
-  if (options.enable_async) {
-#if !defined(ENABLE_BUILT_IN_DNS)
-    NOTREACHED();
-    return scoped_ptr<HostResolver>();
-#else
-    dns_client = DnsClient::CreateClient(net_log);
-#endif
-  }
-
   return scoped_ptr<HostResolver>(new HostResolverImpl(
       cache.Pass(),
       PrioritizedDispatcher::Limits(NUM_PRIORITIES,
                                     max_concurrent_resolves),
       HostResolverImpl::ProcTaskParams(NULL, options.max_retry_attempts),
-      dns_client.Pass(),
       net_log));
 }
 
