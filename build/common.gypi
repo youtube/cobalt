@@ -1800,6 +1800,16 @@
               }
             }
           }],
+          ['"<(GENERATOR)"=="msvs"', {
+            'msvs_settings': {
+              'VCLinkerTool': {
+                # Make the pdb name sane. Otherwise foo.exe and foo.dll both
+                # have foo.pdb. The ninja generator already defaults to this and
+                # can't handle the $(TargetPath) macro.
+                'ProgramDatabaseFile': '$(TargetPath).pdb',
+              }
+            },
+          }],
         ],  # win_z7!=0
       }],  # OS==win
       ['enable_task_manager==1', {
