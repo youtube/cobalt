@@ -11,6 +11,10 @@
 #include "base/base_export.h"
 #include "build/build_config.h"
 
+#if defined(OS_POSIX)
+#include <unistd.h>
+#endif
+
 #if defined(OS_WIN)
 struct _EXCEPTION_POINTERS;
 #endif
