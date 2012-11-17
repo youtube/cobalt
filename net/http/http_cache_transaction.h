@@ -181,6 +181,8 @@ class HttpCache::Transaction : public HttpTransaction {
   // cover relatively common use cases being measured and considered for
   // optimization. Many use cases that are more complex or uncommon are binned
   // as PATTERN_NOT_COVERED, and details are not reported.
+  // NOTE: This enumeration is used in histograms, so please do not add entries
+  // in the middle.
   enum TransactionPattern {
     PATTERN_UNDEFINED,
     PATTERN_NOT_COVERED,
@@ -188,6 +190,8 @@ class HttpCache::Transaction : public HttpTransaction {
     PATTERN_ENTRY_USED,
     PATTERN_ENTRY_VALIDATED,
     PATTERN_ENTRY_UPDATED,
+    PATTERN_ENTRY_CANT_CONDITIONALIZE,
+    PATTERN_MAX,
   };
 
   // This is a helper function used to trigger a completion callback.  It may
