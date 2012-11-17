@@ -21,28 +21,24 @@
     if (!setup())
       testComplete(SETUP_FAILED);
 
-    var request = indexedDB.open('idb_basic_insert');
-    request.onsuccess = onOpen;
+    var request = indexedDB.deleteDatabase('idb_basic_insert');
+    request.onsuccess = onDelete;
     request.onerror = error;
+    request.onblocked = error;
   }
 
-  function onOpen() {
-    // TODO(jorlow): Remove the old non-event.target part.
-    window.db = event.result || event.target.result;
-
-    var request = db.setVersion('1');
+  function onDelete() {
+    request = indexedDB.open('idb_basic_insert');
+    request.onblocked = error;
     request.onerror = error;
-    request.onsuccess = onSetVersion;
+    request.onupgradeneeded = onSetVersion;
+    request.onsuccess = storeCreated;
   }
 
   function onSetVersion() {
-    // TODO(jorlow): Remove the old non-event.target part.
-    var transaction = event.result || event.target.result;
+    db = event.target.result;
+    var transaction = event.target.transaction;
     transaction.onerror = error;
-    transaction.oncomplete = storeCreated;
-
-    while (db.objectStoreNames.length)
-      db.deleteObjectStore(db.objectStoreNames[0]);
 
     db.createObjectStore('store');
   }
