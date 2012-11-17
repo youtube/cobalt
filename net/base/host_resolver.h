@@ -45,14 +45,12 @@ class NET_EXPORT HostResolver {
   // resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
   // value.
   // |enable_caching| controls whether a HostCache is used.
-  // |enable_async| controls whether a DnsClient is used.
   struct NET_EXPORT Options {
     Options();
 
     size_t max_concurrent_resolves;
     size_t max_retry_attempts;
     bool enable_caching;
-    bool enable_async;
   };
 
   // The parameters for doing a Resolve(). A hostname and port are required,
@@ -175,6 +173,9 @@ class NET_EXPORT HostResolver {
   // Continuously observe whether IPv6 is supported, and set the allowable
   // address family to IPv4 iff IPv6 is not supported.
   virtual void ProbeIPv6Support();
+
+  // Enable or disable the built-in asynchronous DnsClient.
+  virtual void SetDnsClientEnabled(bool enabled);
 
   // Returns the HostResolverCache |this| uses, or NULL if there isn't one.
   // Used primarily to clear the cache and for getting debug information.
