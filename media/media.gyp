@@ -1019,6 +1019,17 @@
             'tools/seek_tester/seek_tester.cc',
           ],
         },
+        {
+          'target_name': 'demuxer_bench',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+          ],
+          'sources': [
+            'tools/demuxer_bench/demuxer_bench.cc',
+          ],
+        },
       ],
     }],
     ['OS=="win"', {
