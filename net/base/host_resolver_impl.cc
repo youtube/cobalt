@@ -1635,7 +1635,6 @@ HostResolverImpl::HostResolverImpl(
     scoped_ptr<HostCache> cache,
     const PrioritizedDispatcher::Limits& job_limits,
     const ProcTaskParams& proc_params,
-    scoped_ptr<DnsClient> dns_client,
     NetLog* net_log)
     : cache_(cache.Pass()),
       dispatcher_(job_limits),
@@ -1644,7 +1643,6 @@ HostResolverImpl::HostResolverImpl(
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
       weak_ptr_factory_(this),
       probe_weak_ptr_factory_(this),
-      dns_client_(dns_client.Pass()),
       received_dns_config_(false),
       num_dns_failures_(0),
       ipv6_probe_monitoring_(false),
@@ -1667,8 +1665,6 @@ HostResolverImpl::HostResolverImpl(
 #endif
   NetworkChangeNotifier::AddIPAddressObserver(this);
   NetworkChangeNotifier::AddDNSObserver(this);
-  if (!HaveDnsConfig())
-    OnDNSChanged();
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && \
     !defined(OS_ANDROID)
   EnsureDnsReloaderInit();
@@ -1864,6 +1860,17 @@ void HostResolverImpl::ProbeIPv6Support() {
   DCHECK(!ipv6_probe_monitoring_);
   ipv6_probe_monitoring_ = true;
   OnIPAddressChanged();
+}
+
+void HostResolverImpl::SetDnsClientEnabled(bool enabled) {
+  DCHECK(CalledOnValidThread());
+#if defined(ENABLE_BUILT_IN_DNS)
+  if (enabled && !dns_client_) {
+    SetDnsClient(DnsClient::CreateClient(net_log_));
+  } else if (!enabled && dns_client_) {
+    SetDnsClient(scoped_ptr<DnsClient>());
+  }
+#endif
 }
 
 HostCache* HostResolverImpl::GetHostCache() {
@@ -2089,14 +2096,14 @@ void HostResolverImpl::OnDNSChanged() {
   // TODO(szym): Remove once http://crbug.com/137914 is resolved.
   received_dns_config_ = dns_config.IsValid();
 
+  num_dns_failures_ = 0;
+
   // We want a new DnsSession in place, before we Abort running Jobs, so that
   // the newly started jobs use the new config.
   if (dns_client_.get()) {
     dns_client_->SetConfig(dns_config);
-    if (dns_config.IsValid()) {
+    if (dns_config.IsValid())
       UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DnsClientEnabled", true);
-      num_dns_failures_ = 0;
-    }
   }
 
   // If the DNS server has changed, existing cached info could be wrong so we
@@ -2136,6 +2143,24 @@ void HostResolverImpl::OnDnsTaskResolve(bool success) {
     it->second->AbortDnsTask();
   dns_client_->SetConfig(DnsConfig());
   UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DnsClientEnabled", false);
+}
+
+void HostResolverImpl::SetDnsClient(scoped_ptr<DnsClient> dns_client) {
+  if (HaveDnsConfig()) {
+    for (JobMap::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
+      it->second->AbortDnsTask();
+  }
+  dns_client_ = dns_client.Pass();
+  if (!dns_client_ || dns_client_->GetConfig() ||
+      num_dns_failures_ >= kMaximumDnsFailures) {
+    return;
+  }
+  DnsConfig dns_config;
+  NetworkChangeNotifier::GetDnsConfig(&dns_config);
+  dns_client_->SetConfig(dns_config);
+  num_dns_failures_ = 0;
+  if (dns_config.IsValid())
+    UMA_HISTOGRAM_BOOLEAN("AsyncDNS.DnsClientEnabled", true);
 }
 
 }  // namespace net
