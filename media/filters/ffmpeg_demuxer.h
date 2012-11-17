@@ -27,6 +27,7 @@
 
 #include "base/callback.h"
 #include "base/gtest_prod_util.h"
+#include "base/threading/thread.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer.h"
@@ -46,6 +47,8 @@ class FFmpegGlue;
 class FFmpegH264ToAnnexBBitstreamConverter;
 class ScopedPtrAVFreePacket;
 
+typedef scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> ScopedAVPacket;
+
 class FFmpegDemuxerStream : public DemuxerStream {
  public:
   // Keeps a copy of |demuxer| and initializes itself using information
@@ -59,7 +62,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
   // Enqueues the given AVPacket.  If |packet| is NULL an end of stream packet
   // is enqueued.
-  void EnqueuePacket(scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet);
+  void EnqueuePacket(ScopedAVPacket packet);
 
   // Signals to empty the buffer queue and mark next packet as discontinuous.
   void FlushBuffers();
@@ -172,15 +175,20 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
 
   // Carries out initialization on the demuxer thread.
   void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
+  void OnOpenContextDone(const PipelineStatusCB& status_cb, bool result);
+  void OnFindStreamInfoDone(const PipelineStatusCB& status_cb, int result);
 
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
+  void OnSeekFrameDone(const PipelineStatusCB& cb, int result);
 
   // Carries out demuxing and satisfying stream reads on the demuxer thread.
   void DemuxTask();
+  void OnReadFrameDone(ScopedAVPacket packet, int result);
 
   // Carries out stopping the demuxer streams on the demuxer thread.
   void StopTask(const base::Closure& callback);
+  void OnDataSourceStopped(const base::Closure& callback);
 
   // Carries out disabling the audio stream on the demuxer thread.
   void DisableAudioStreamTask();
@@ -208,6 +216,9 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
   DemuxerHost* host_;
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
+
+  // Thread on which all blocking FFmpeg operations are executed.
+  base::Thread blocking_thread_;
 
   // |streams_| mirrors the AVStream array in |format_context_|. It contains
   // FFmpegDemuxerStreams encapsluating AVStream objects at the same index.

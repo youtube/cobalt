@@ -39,6 +39,9 @@ MATCHER(IsEndOfStreamBuffer,
 static void EosOnReadDone(bool* got_eos_buffer,
                           DemuxerStream::Status status,
                           const scoped_refptr<DecoderBuffer>& buffer) {
+  MessageLoop::current()->PostTask(
+      FROM_HERE, MessageLoop::QuitWhenIdleClosure());
+
   EXPECT_EQ(status, DemuxerStream::kOk);
   if (buffer->IsEndOfStream()) {
     *got_eos_buffer = true;
@@ -61,13 +64,10 @@ class FFmpegDemuxerTest : public testing::Test {
 
   virtual ~FFmpegDemuxerTest() {
     if (demuxer_) {
-      // Call Stop() to shut down internal threads.
-      demuxer_->Stop(NewExpectedClosure());
+      demuxer_->Stop(MessageLoop::QuitWhenIdleClosure());
+      message_loop_.Run();
     }
 
-    // Finish up any remaining tasks.
-    message_loop_.RunUntilIdle();
-    // Release the reference to the demuxer.
     demuxer_ = NULL;
   }
 
@@ -87,8 +87,8 @@ class FFmpegDemuxerTest : public testing::Test {
 
   void InitializeDemuxer() {
     EXPECT_CALL(host_, SetDuration(_));
-    demuxer_->Initialize(&host_, NewExpectedStatusCB(PIPELINE_OK));
-    message_loop_.RunUntilIdle();
+    demuxer_->Initialize(&host_, NewStatusCB(PIPELINE_OK));
+    message_loop_.Run();
   }
 
   MOCK_METHOD2(OnReadDoneCalled, void(int, int64));
@@ -110,6 +110,9 @@ class FFmpegDemuxerTest : public testing::Test {
     EXPECT_EQ(size, buffer->GetDataSize());
     EXPECT_EQ(base::TimeDelta::FromMicroseconds(timestampInMicroseconds),
               buffer->GetTimestamp());
+
+    DCHECK_EQ(&message_loop_, MessageLoop::current());
+    message_loop_.PostTask(FROM_HERE, MessageLoop::QuitWhenIdleClosure());
   }
 
   DemuxerStream::ReadCB NewReadCB(const tracked_objects::Location& location,
@@ -117,6 +120,18 @@ class FFmpegDemuxerTest : public testing::Test {
     EXPECT_CALL(*this, OnReadDoneCalled(size, timestampInMicroseconds));
     return base::Bind(&FFmpegDemuxerTest::OnReadDone, base::Unretained(this),
                       location, size, timestampInMicroseconds);
+  }
+
+  PipelineStatusCB NewStatusCB(PipelineStatus expected) {
+    return base::Bind(&FFmpegDemuxerTest::OnStatusDone,
+                      base::Unretained(this), expected);
+  }
+
+  void OnStatusDone(PipelineStatus expected, PipelineStatus status) {
+    EXPECT_EQ(expected, status);
+
+    DCHECK_EQ(&message_loop_, MessageLoop::current());
+    message_loop_.PostTask(FROM_HERE, MessageLoop::QuitWhenIdleClosure());
   }
 
   // Accessor to demuxer internals.
@@ -149,7 +164,7 @@ class FFmpegDemuxerTest : public testing::Test {
     const int kMaxBuffers = 170;
     for (int i = 0; !got_eos_buffer && i < kMaxBuffers; i++) {
       audio->Read(base::Bind(&EosOnReadDone, &got_eos_buffer));
-      message_loop_.RunUntilIdle();
+      message_loop_.Run();
     }
 
     EXPECT_TRUE(got_eos_buffer);
@@ -176,11 +191,9 @@ class FFmpegDemuxerTest : public testing::Test {
 
 TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   // Simulate avformat_open_input() failing.
-  CreateDemuxer("ten_byte_file"),
-  demuxer_->Initialize(
-      &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
-
-  message_loop_.RunUntilIdle();
+  CreateDemuxer("ten_byte_file");
+  demuxer_->Initialize(&host_, NewStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+  message_loop_.Run();
 }
 
 // TODO(acolwell): Uncomment this test when we discover a file that passes
@@ -196,17 +209,15 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
 TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
   // Open a file with no streams whatsoever.
   CreateDemuxer("no_streams.webm");
-  demuxer_->Initialize(
-      &host_, NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  message_loop_.RunUntilIdle();
+  demuxer_->Initialize(&host_, NewStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
+  message_loop_.Run();
 }
 
 TEST_F(FFmpegDemuxerTest, Initialize_NoAudioVideo) {
   // Open a file containing streams but none of which are audio/video streams.
   CreateDemuxer("no_audio_video.webm");
-  demuxer_->Initialize(
-      &host_, NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  message_loop_.RunUntilIdle();
+  demuxer_->Initialize(&host_, NewStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
+  message_loop_.Run();
 }
 
 TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
@@ -289,10 +300,10 @@ TEST_F(FFmpegDemuxerTest, Read_Audio) {
       demuxer_->GetStream(DemuxerStream::AUDIO);
 
   audio->Read(NewReadCB(FROM_HERE, 29, 0));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   audio->Read(NewReadCB(FROM_HERE, 27, 3000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 }
 
 TEST_F(FFmpegDemuxerTest, Read_Video) {
@@ -305,10 +316,10 @@ TEST_F(FFmpegDemuxerTest, Read_Video) {
       demuxer_->GetStream(DemuxerStream::VIDEO);
 
   video->Read(NewReadCB(FROM_HERE, 22084, 0));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   video->Read(NewReadCB(FROM_HERE, 1057, 33000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 }
 
 TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
@@ -324,11 +335,11 @@ TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
 
   // Check first buffer in video stream.
   video->Read(NewReadCB(FROM_HERE, 5636, 400000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Check first buffer in audio stream.
   audio->Read(NewReadCB(FROM_HERE, 165, 396000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Verify that the start time is equal to the lowest timestamp (ie the audio).
   EXPECT_EQ(demuxer_->GetStartTime().InMicroseconds(), 396000);
@@ -366,28 +377,28 @@ TEST_F(FFmpegDemuxerTest, Seek) {
 
   // Read a video packet and release it.
   video->Read(NewReadCB(FROM_HERE, 22084, 0));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Issue a simple forward seek, which should discard queued packets.
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(1000000),
-                 NewExpectedStatusCB(PIPELINE_OK));
-  message_loop_.RunUntilIdle();
+                 NewStatusCB(PIPELINE_OK));
+  message_loop_.Run();
 
   // Audio read #1.
   audio->Read(NewReadCB(FROM_HERE, 145, 803000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Audio read #2.
   audio->Read(NewReadCB(FROM_HERE, 148, 826000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Video read #1.
   video->Read(NewReadCB(FROM_HERE, 5425, 801000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Video read #2.
   video->Read(NewReadCB(FROM_HERE, 1906, 834000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 }
 
 // A mocked callback specialization for calling Read().  Since RunWithParams()
@@ -459,10 +470,8 @@ TEST_F(FFmpegDemuxerTest, StreamReadAfterStopAndDemuxerDestruction) {
       demuxer_->GetStream(DemuxerStream::AUDIO);
   ASSERT_TRUE(audio);
 
-  demuxer_->Stop(NewExpectedClosure());
-
-  // Finish up any remaining tasks.
-  message_loop_.RunUntilIdle();
+  demuxer_->Stop(MessageLoop::QuitWhenIdleClosure());
+  message_loop_.Run();
 
   // Expect all calls in sequence.
   InSequence s;
@@ -516,7 +525,7 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
 
   // Attempt a read from the video stream: it should return valid data.
   video->Read(NewReadCB(FROM_HERE, 22084, 0));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Attempt a read from the audio stream: it should immediately return end of
   // stream without requiring the message loop to read data.
@@ -541,28 +550,28 @@ TEST_F(FFmpegDemuxerTest, SeekWithCuesBeforeFirstCluster) {
 
   // Read a video packet and release it.
   video->Read(NewReadCB(FROM_HERE, 22084, 0));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Issue a simple forward seek, which should discard queued packets.
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(2500000),
-                 NewExpectedStatusCB(PIPELINE_OK));
-  message_loop_.RunUntilIdle();
+                 NewStatusCB(PIPELINE_OK));
+  message_loop_.Run();
 
   // Audio read #1.
   audio->Read(NewReadCB(FROM_HERE, 40, 2403000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Audio read #2.
   audio->Read(NewReadCB(FROM_HERE, 42, 2406000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Video read #1.
   video->Read(NewReadCB(FROM_HERE, 5276, 2402000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 
   // Video read #2.
   video->Read(NewReadCB(FROM_HERE, 1740, 2436000));
-  message_loop_.RunUntilIdle();
+  message_loop_.Run();
 }
 
 // Ensure ID3v1 tag reading is disabled.  id3_test.mp3 has an ID3v1 tag with the

@@ -14,8 +14,10 @@
 #include "base/message_loop.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
+#include "base/task_runner_util.h"
 #include "base/time.h"
 #include "media/base/audio_decoder_config.h"
+#include "media/base/bind_to_loop.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
@@ -72,8 +74,7 @@ bool FFmpegDemuxerStream::HasPendingReads() {
   return !read_queue_.empty();
 }
 
-void FFmpegDemuxerStream::EnqueuePacket(
-    scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet) {
+void FFmpegDemuxerStream::EnqueuePacket(ScopedAVPacket packet) {
   DCHECK(demuxer_->message_loop()->BelongsToCurrentThread());
 
   base::AutoLock auto_lock(lock_);
@@ -262,13 +263,14 @@ FFmpegDemuxer::FFmpegDemuxer(
     const scoped_refptr<DataSource>& data_source)
     : host_(NULL),
       message_loop_(message_loop),
+      blocking_thread_("FFmpegDemuxer"),
       data_source_(data_source),
       bitrate_(0),
       start_time_(kNoTimestamp()),
       audio_disabled_(false),
       duration_known_(false),
-      url_protocol_(data_source, base::Bind(
-          &FFmpegDemuxer::OnDataSourceError, base::Unretained(this))) {
+      url_protocol_(data_source, BindToLoop(message_loop_, base::Bind(
+          &FFmpegDemuxer::OnDataSourceError, base::Unretained(this)))) {
   DCHECK(message_loop_);
   DCHECK(data_source_);
 }
@@ -284,11 +286,6 @@ void FFmpegDemuxer::Stop(const base::Closure& callback) {
   // Post a task to notify the streams to stop as well.
   message_loop_->PostTask(FROM_HERE,
                           base::Bind(&FFmpegDemuxer::StopTask, this, callback));
-
-  // TODO(scherkus): This should be on |message_loop_| but today that thread is
-  // potentially blocked. Move to StopTask() after all blocking calls are
-  // guaranteed to run on a separate thread.
-  url_protocol_.Abort();
 }
 
 void FFmpegDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
@@ -389,19 +386,50 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
   // available, so add a metadata entry to ensure some is always present.
   av_dict_set(&format_context->metadata, "skip_id3v1_tags", "", 0);
 
-  if (!glue_->OpenContext()) {
+  // Open the AVFormatContext using our glue layer.
+  CHECK(blocking_thread_.Start());
+  base::PostTaskAndReplyWithResult(
+      blocking_thread_.message_loop_proxy(), FROM_HERE,
+      base::Bind(&FFmpegGlue::OpenContext, base::Unretained(glue_.get())),
+      base::Bind(&FFmpegDemuxer::OnOpenContextDone, this, status_cb));
+}
+
+void FFmpegDemuxer::OnOpenContextDone(const PipelineStatusCB& status_cb,
+                                      bool result) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  if (!blocking_thread_.IsRunning()) {
+    status_cb.Run(PIPELINE_ERROR_ABORT);
+    return;
+  }
+
+  if (!result) {
     status_cb.Run(DEMUXER_ERROR_COULD_NOT_OPEN);
     return;
   }
 
   // Fully initialize AVFormatContext by parsing the stream a little.
-  int result = avformat_find_stream_info(format_context, NULL);
+  base::PostTaskAndReplyWithResult(
+      blocking_thread_.message_loop_proxy(), FROM_HERE,
+      base::Bind(&avformat_find_stream_info, glue_->format_context(),
+                 static_cast<AVDictionary**>(NULL)),
+      base::Bind(&FFmpegDemuxer::OnFindStreamInfoDone, this, status_cb));
+}
+
+void FFmpegDemuxer::OnFindStreamInfoDone(const PipelineStatusCB& status_cb,
+                                         int result) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  if (!blocking_thread_.IsRunning()) {
+    status_cb.Run(PIPELINE_ERROR_ABORT);
+    return;
+  }
+
   if (result < 0) {
     status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
   // Create demuxer stream entries for each possible AVStream.
+  AVFormatContext* format_context = glue_->format_context();
   streams_.resize(format_context->nb_streams);
   bool found_audio_stream = false;
   bool found_video_stream = false;
@@ -483,25 +511,38 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
 void FFmpegDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  // Tell streams to flush buffers due to seeking.
-  StreamVector::iterator iter;
-  for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
-    if (*iter)
-      (*iter)->FlushBuffers();
-  }
-
   // Always seek to a timestamp less than or equal to the desired timestamp.
   int flags = AVSEEK_FLAG_BACKWARD;
 
   // Passing -1 as our stream index lets FFmpeg pick a default stream.  FFmpeg
   // will attempt to use the lowest-index video stream, if present, followed by
   // the lowest-index audio stream.
-  if (av_seek_frame(glue_->format_context(), -1, time.InMicroseconds(),
-                    flags) < 0) {
+  base::PostTaskAndReplyWithResult(
+      blocking_thread_.message_loop_proxy(), FROM_HERE,
+      base::Bind(&av_seek_frame, glue_->format_context(), -1,
+                 time.InMicroseconds(), flags),
+      base::Bind(&FFmpegDemuxer::OnSeekFrameDone, this, cb));
+}
+
+void FFmpegDemuxer::OnSeekFrameDone(const PipelineStatusCB& cb, int result) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  if (!blocking_thread_.IsRunning()) {
+    cb.Run(PIPELINE_ERROR_ABORT);
+    return;
+  }
+
+  if (result < 0) {
     // Use VLOG(1) instead of NOTIMPLEMENTED() to prevent the message being
     // captured from stdout and contaminates testing.
     // TODO(scherkus): Implement this properly and signal error (BUG=23447).
     VLOG(1) << "Not implemented";
+  }
+
+  // Tell streams to flush buffers due to seeking.
+  StreamVector::iterator iter;
+  for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
+    if (*iter)
+      (*iter)->FlushBuffers();
   }
 
   // Notify we're finished seeking.
@@ -516,9 +557,24 @@ void FFmpegDemuxer::DemuxTask() {
     return;
   }
 
-  // Allocate and read an AVPacket from the media.
-  scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet(new AVPacket());
-  int result = av_read_frame(glue_->format_context(), packet.get());
+  // Allocate and read an AVPacket from the media. Save |packet_ptr| since
+  // evaluation order of packet.get() and base::Passed(&packet) is
+  // undefined.
+  ScopedAVPacket packet(new AVPacket());
+  AVPacket* packet_ptr = packet.get();
+
+  base::PostTaskAndReplyWithResult(
+      blocking_thread_.message_loop_proxy(), FROM_HERE,
+      base::Bind(&av_read_frame, glue_->format_context(), packet_ptr),
+      base::Bind(&FFmpegDemuxer::OnReadFrameDone, this, base::Passed(&packet)));
+}
+
+void FFmpegDemuxer::OnReadFrameDone(ScopedAVPacket packet, int result) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  if (!blocking_thread_.IsRunning()) {
+    return;
+  }
+
   if (result < 0) {
     // Update the duration based on the audio stream if
     // it was previously unknown http://crbug.com/86830
@@ -574,11 +630,20 @@ void FFmpegDemuxer::StopTask(const base::Closure& callback) {
     if (*iter)
       (*iter)->Stop();
   }
-  if (data_source_) {
-    data_source_->Stop(callback);
-  } else {
-    callback.Run();
-  }
+
+  url_protocol_.Abort();
+  data_source_->Stop(BindToLoop(message_loop_, base::Bind(
+      &FFmpegDemuxer::OnDataSourceStopped, this, callback)));
+}
+
+void FFmpegDemuxer::OnDataSourceStopped(const base::Closure& callback) {
+  // This will block until all tasks complete. Note that after this returns it's
+  // possible for reply tasks (e.g., OnReadFrameDone()) to be queued on this
+  // thread. Each of the reply task methods must check whether we've stopped the
+  // thread and drop their results on the floor.
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  blocking_thread_.Stop();
+  callback.Run();
 }
 
 void FFmpegDemuxer::DisableAudioStreamTask() {
@@ -611,8 +676,7 @@ void FFmpegDemuxer::StreamHasEnded() {
         (audio_disabled_ && (*iter)->type() == DemuxerStream::AUDIO)) {
       continue;
     }
-    (*iter)->EnqueuePacket(
-        scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket>());
+    (*iter)->EnqueuePacket(ScopedAVPacket());
   }
 }
 
