@@ -108,16 +108,10 @@ class NET_EXPORT HostResolverImpl
   // run at once. This upper-bounds the total number of outstanding
   // DNS transactions (not counting retransmissions and retries).
   //
-  // |dns_config_service| will be used to detect changes to DNS configuration
-  // and obtain DnsConfig for DnsClient.
-  //
-  // |dns_client|, if set, will be used to resolve requests.
-  //
   // |net_log| must remain valid for the life of the HostResolverImpl.
   HostResolverImpl(scoped_ptr<HostCache> cache,
                    const PrioritizedDispatcher::Limits& job_limits,
                    const ProcTaskParams& proc_params,
-                   scoped_ptr<DnsClient> dns_client,
                    NetLog* net_log);
 
   // If any completion callbacks are pending when the resolver is destroyed,
@@ -128,6 +122,12 @@ class NET_EXPORT HostResolverImpl
   // Configures maximum number of Jobs in the queue. Exposed for testing.
   // Only allowed when the queue is empty.
   void SetMaxQueuedJobs(size_t value);
+
+  // Set the DnsClient to be used for resolution. In case of failure, the
+  // HostResolverProc from ProcTaskParams will be queried. If the DnsClient is
+  // not pre-configured with a valid DnsConfig, a new config is fetched from
+  // NetworkChangeNotifier.
+  void SetDnsClient(scoped_ptr<DnsClient> dns_client);
 
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
@@ -142,6 +142,7 @@ class NET_EXPORT HostResolverImpl
   virtual void SetDefaultAddressFamily(AddressFamily address_family) OVERRIDE;
   virtual AddressFamily GetDefaultAddressFamily() const OVERRIDE;
   virtual void ProbeIPv6Support() OVERRIDE;
+  virtual void SetDnsClientEnabled(bool enabled) OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
   virtual base::Value* GetDnsConfigAsValue() const OVERRIDE;
 
