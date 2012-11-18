@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <CoreAudio/AudioHardware.h>
+#include "media/audio/mac/audio_manager_mac.h"
 
+#include <CoreAudio/AudioHardware.h>
 #include <string>
 
 #include "base/bind.h"
@@ -14,7 +15,6 @@
 #include "media/audio/mac/audio_input_mac.h"
 #include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/audio/mac/audio_low_latency_output_mac.h"
-#include "media/audio/mac/audio_manager_mac.h"
 #include "media/audio/mac/audio_output_mac.h"
 #include "media/audio/mac/audio_synchronized_mac.h"
 #include "media/audio/mac/audio_unified_mac.h"
@@ -239,9 +239,8 @@ static const AudioObjectPropertyAddress kDeviceChangePropertyAddress = {
   kAudioObjectPropertyElementMaster
 };
 
-// Callback from the system when the default device changes.  This can be called
-// either on the main thread or on an audio thread managed by the system
-// depending on what kAudioHardwarePropertyRunLoop is set to.
+// Callback from the system when the default device changes; this must be called
+// on the MessageLoop that created the AudioManager.
 static OSStatus OnDefaultDeviceChangedCallback(
     AudioObjectID object,
     UInt32 num_addresses,
@@ -255,40 +254,49 @@ static OSStatus OnDefaultDeviceChangedCallback(
         addresses[i].mScope == kDeviceChangePropertyAddress.mScope &&
         addresses[i].mElement == kDeviceChangePropertyAddress.mElement &&
         context) {
-      static_cast<base::Closure*>(context)->Run();
+      static_cast<AudioManagerMac*>(context)->OnDeviceChange();
+      break;
     }
   }
 
   return noErr;
 }
 
-AudioManagerMac::AudioManagerMac() {
+AudioManagerMac::AudioManagerMac()
+    : listener_registered_(false),
+      creating_message_loop_(base::MessageLoopProxy::current()) {
   SetMaxOutputStreamsAllowed(kMaxOutputStreams);
 
-  // Register a callback for device changes.
-  listener_cb_ = BindToLoop(GetMessageLoop(), base::Bind(
-      &AudioManagerMac::NotifyAllOutputDeviceChangeListeners,
-      base::Unretained(this)));
+  // AudioManagerMac is expected to be created by the root platform thread, this
+  // is generally BrowserMainLoop, it's MessageLoop will drive the NSApplication
+  // pump which in turn fires the property listener callbacks.
+  if (!creating_message_loop_)
+    return;
 
   OSStatus result = AudioObjectAddPropertyListener(
       kAudioObjectSystemObject,
       &kDeviceChangePropertyAddress,
       &OnDefaultDeviceChangedCallback,
-      &listener_cb_);
+      this);
 
   if (result != noErr) {
     OSSTATUS_DLOG(ERROR, result) << "AudioObjectAddPropertyListener() failed!";
-    listener_cb_.Reset();
+    return;
   }
+
+  listener_registered_ = true;
 }
 
 AudioManagerMac::~AudioManagerMac() {
-  if (!listener_cb_.is_null()) {
+  if (listener_registered_) {
+    // TODO(dalecurtis): CHECK destruction happens on |creating_message_loop_|,
+    // should be true, but currently several unit tests perform destruction in
+    // odd places so we can't CHECK here currently.
     OSStatus result = AudioObjectRemovePropertyListener(
         kAudioObjectSystemObject,
         &kDeviceChangePropertyAddress,
         &OnDefaultDeviceChangedCallback,
-        &listener_cb_);
+        this);
     OSSTATUS_DLOG_IF(ERROR, result != noErr, result)
         << "AudioObjectRemovePropertyListener() failed!";
   }
@@ -361,6 +369,18 @@ AudioInputStream* AudioManagerMac::MakeLowLatencyInputStream(
     stream = new AUAudioInputStream(this, params, audio_device_id);
 
   return stream;
+}
+
+void AudioManagerMac::OnDeviceChange() {
+  CHECK(creating_message_loop_->BelongsToCurrentThread());
+
+  // Post the task to the |creating_message_loop_| to execute our listener
+  // callback.  The callback is created using BindToLoop() so will hop over
+  // to the audio thread upon execution.
+  creating_message_loop_->PostTask(FROM_HERE, BindToLoop(
+      GetMessageLoop(), base::Bind(
+          &AudioManagerMac::NotifyAllOutputDeviceChangeListeners,
+          base::Unretained(this))));
 }
 
 AudioManager* CreateAudioManager() {
