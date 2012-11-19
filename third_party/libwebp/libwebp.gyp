@@ -44,9 +44,8 @@
           ],
           'conditions': [
             ['OS == "android"', {
-              'include_dirs': ['./dsp'],
-              'sources': [
-                'dsp/cpu-features.c',
+              'dependencies': [
+                '<(android_ndk_root)/android_tools_ndk.gyp:cpu_features',
               ],
             }],
             ['order_profiling != 0', {
