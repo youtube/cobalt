@@ -2795,7 +2795,13 @@
           ['use_system_stlport==1', {
             'android_stlport_library': 'stlport',
           }, {
-            'android_stlport_library': 'stlport_static',
+            'conditions': [
+              ['component=="shared_library"', {
+                  'android_stlport_library': 'stlport_shared',
+              }, {
+                  'android_stlport_library': 'stlport_static',
+              }],
+            ],
           }],
         ],
 
@@ -2889,6 +2895,11 @@
               '-lm',
             ],
             'conditions': [
+              ['component=="shared_library"', {
+                'libraries': [
+                  '-lgnustl_shared',
+                ],
+              }],
               ['android_upstream_bringup==1', {
                 'defines': ['ANDROID_UPSTREAM_BRINGUP=1',],
               }],
@@ -3010,16 +3021,19 @@
                   ['target_arch=="arm" and armv7==1', {
                     'ldflags': [
                       '-L<(android_ndk_root)/sources/cxx-stl/stlport/libs/armeabi-v7a',
+                      '-L<(android_ndk_root)/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi-v7a',
                     ],
                   }],
                   ['target_arch=="arm" and armv7==0', {
                     'ldflags': [
                       '-L<(android_ndk_root)/sources/cxx-stl/stlport/libs/armeabi',
+                      '-L<(android_ndk_root)/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi',
                     ],
                   }],
                   ['target_arch=="ia32"', {
                     'ldflags': [
                       '-L<(android_ndk_root)/sources/cxx-stl/stlport/libs/x86',
+                      '-L<(android_ndk_root)/sources/cxx-stl/gnu-libstdc++/4.6/libs/x86',
                     ],
                   }],
                 ],
