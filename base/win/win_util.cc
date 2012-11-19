@@ -196,7 +196,10 @@ bool IsMachineATablet() {
   if ((sm & kMultiTouch) == kMultiTouch) {
     int cx = GetSystemMetrics(SM_CXSCREEN);
     int cy = GetSystemMetrics(SM_CYSCREEN);
-    return cx <= kMaxTabletScreenWidth && cy <= kMaxTabletScreenHeight;
+    // Handle landscape and portrait modes.
+    return cx > cy ?
+        (cx <= kMaxTabletScreenWidth && cy <= kMaxTabletScreenHeight) :
+        (cy <= kMaxTabletScreenWidth && cx <= kMaxTabletScreenHeight);
   }
   return false;
 }
