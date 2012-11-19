@@ -126,6 +126,7 @@ v8.log
 /ppapi/native_client/src/shared/ppapi_proxy/ppruntime_lib.xml
 /ppapi/native_client/src/trusted/plugin/ppGoogleNaClPluginChrome.xml
 /remoting/appengine/
+/remoting/host/installer/linux/internal/
 /remoting/proto/chromotocol_proto_lib.xml
 /remoting/proto/trace_proto_lib.xml
 /remoting/remoting_elevated_controller.xml
