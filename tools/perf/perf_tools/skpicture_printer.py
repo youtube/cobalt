@@ -10,7 +10,7 @@ from telemetry import multi_page_benchmark
 _JS = 'chrome.gpuBenchmarking.printToSkPicture("{0}");'
 
 class SkPicturePrinter(multi_page_benchmark.MultiPageBenchmark):
-  def AddOptions(self, parser):
+  def AddCommandLineOptions(self, parser):
     parser.add_option('-o', '--outdir', help='Output directory')
 
   def CustomizeBrowserOptions(self, options):
