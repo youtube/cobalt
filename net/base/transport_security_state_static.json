@@ -559,6 +559,9 @@
     { "name": "my.onlime.ch", "include_subdomains": true, "mode": "force-https" },
     { "name": "webmail.onlime.ch", "include_subdomains": true, "mode": "force-https" },
     { "name": "crm.onlime.ch", "include_subdomains": true, "mode": "force-https" },
+    { "name": "www.gov.uk", "include_subdomains": true, "mode": "force-https" },
+    { "name": "silentcircle.com", "include_subdomains": true, "mode": "force-https" },
+    { "name": "silentcircle.org", "include_subdomains": true, "mode": "force-https" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
