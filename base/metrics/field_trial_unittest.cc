@@ -81,7 +81,7 @@ TEST_F(FieldTrialTest, Registration) {
   FieldTrial* trial1 = FieldTrialList::FactoryGetFieldTrial(
       name1, 10, "default name 1 test", next_year_, 12, 31, NULL);
   EXPECT_EQ(FieldTrial::kNotFinalized, trial1->group_);
-  EXPECT_EQ(name1, trial1->name());
+  EXPECT_EQ(name1, trial1->trial_name());
   EXPECT_EQ("", trial1->group_name_internal());
 
   trial1->AppendGroup("", 7);
@@ -92,7 +92,7 @@ TEST_F(FieldTrialTest, Registration) {
   FieldTrial* trial2 = FieldTrialList::FactoryGetFieldTrial(
       name2, 10, "default name 2 test", next_year_, 12, 31, NULL);
   EXPECT_EQ(FieldTrial::kNotFinalized, trial2->group_);
-  EXPECT_EQ(name2, trial2->name());
+  EXPECT_EQ(name2, trial2->trial_name());
   EXPECT_EQ("", trial2->group_name_internal());
 
   trial2->AppendGroup("a first group", 7);
@@ -277,8 +277,8 @@ TEST_F(FieldTrialTest, ActiveGroups) {
   // Finalize the group selection by accessing the selected group.
   trial->group();
   EXPECT_TRUE(trial->GetActiveGroup(&active_group));
-  EXPECT_EQ(one_winner, active_group.trial);
-  EXPECT_EQ(winner, active_group.group);
+  EXPECT_EQ(one_winner, active_group.trial_name);
+  EXPECT_EQ(winner, active_group.group_name);
 
   std::string multi_group("MultiGroup");
   scoped_refptr<FieldTrial> multi_group_trial =
@@ -292,8 +292,8 @@ TEST_F(FieldTrialTest, ActiveGroups) {
   // Finalize the group selection by accessing the selected group.
   multi_group_trial->group();
   EXPECT_TRUE(multi_group_trial->GetActiveGroup(&active_group));
-  EXPECT_EQ(multi_group, active_group.trial);
-  EXPECT_EQ(multi_group_trial->group_name(), active_group.group);
+  EXPECT_EQ(multi_group, active_group.trial_name);
+  EXPECT_EQ(multi_group_trial->group_name(), active_group.group_name);
 
   // Now check if the list is built properly...
   FieldTrial::ActiveGroups active_groups;
@@ -301,11 +301,11 @@ TEST_F(FieldTrialTest, ActiveGroups) {
   EXPECT_EQ(2U, active_groups.size());
   for (size_t i = 0; i < active_groups.size(); ++i) {
     // Order is not guaranteed, so check all values.
-    EXPECT_NE(no_group, active_groups[i].trial);
-    EXPECT_TRUE(one_winner != active_groups[i].trial ||
-                winner == active_groups[i].group);
-    EXPECT_TRUE(multi_group != active_groups[i].trial ||
-                multi_group_trial->group_name() == active_groups[i].group);
+    EXPECT_NE(no_group, active_groups[i].trial_name);
+    EXPECT_TRUE(one_winner != active_groups[i].trial_name ||
+                winner == active_groups[i].group_name);
+    EXPECT_TRUE(multi_group != active_groups[i].trial_name ||
+                multi_group_trial->group_name() == active_groups[i].group_name);
   }
 }
 
@@ -333,16 +333,16 @@ TEST_F(FieldTrialTest, ActiveGroupsNotFinalized) {
   EXPECT_TRUE(chosen_group == default_group || chosen_group == secondary_group);
 
   EXPECT_TRUE(trial->GetActiveGroup(&active_group));
-  EXPECT_EQ(kTrialName, active_group.trial);
+  EXPECT_EQ(kTrialName, active_group.trial_name);
   if (chosen_group == default_group)
-    EXPECT_EQ(kDefaultGroupName, active_group.group);
+    EXPECT_EQ(kDefaultGroupName, active_group.group_name);
   else
-    EXPECT_EQ(kSecondaryGroupName, active_group.group);
+    EXPECT_EQ(kSecondaryGroupName, active_group.group_name);
 
   FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
   ASSERT_EQ(1U, active_groups.size());
-  EXPECT_EQ(kTrialName, active_groups[0].trial);
-  EXPECT_EQ(active_group.group, active_groups[0].group);
+  EXPECT_EQ(kTrialName, active_groups[0].trial_name);
+  EXPECT_EQ(active_group.group_name, active_groups[0].group_name);
 }
 
 TEST_F(FieldTrialTest, Save) {
@@ -396,12 +396,12 @@ TEST_F(FieldTrialTest, Restore) {
   FieldTrial* trial = FieldTrialList::Find("Some_name");
   ASSERT_NE(static_cast<FieldTrial*>(NULL), trial);
   EXPECT_EQ("Winner", trial->group_name());
-  EXPECT_EQ("Some_name", trial->name());
+  EXPECT_EQ("Some_name", trial->trial_name());
 
   trial = FieldTrialList::Find("xxx");
   ASSERT_NE(static_cast<FieldTrial*>(NULL), trial);
   EXPECT_EQ("yyyy", trial->group_name());
-  EXPECT_EQ("xxx", trial->name());
+  EXPECT_EQ("xxx", trial->trial_name());
 }
 
 TEST_F(FieldTrialTest, BogusRestore) {
@@ -438,10 +438,10 @@ TEST_F(FieldTrialTest, CreateTrialsFromStringAreActive) {
   FieldTrial::ActiveGroups active_groups;
   FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
   ASSERT_EQ(2U, active_groups.size());
-  EXPECT_EQ("Abc", active_groups[0].trial);
-  EXPECT_EQ("def", active_groups[0].group);
-  EXPECT_EQ("Xyz", active_groups[1].trial);
-  EXPECT_EQ("zyx", active_groups[1].group);
+  EXPECT_EQ("Abc", active_groups[0].trial_name);
+  EXPECT_EQ("def", active_groups[0].group_name);
+  EXPECT_EQ("Xyz", active_groups[1].trial_name);
+  EXPECT_EQ("zyx", active_groups[1].group_name);
 }
 
 TEST_F(FieldTrialTest, CreateTrialsFromStringObserver) {
@@ -463,7 +463,7 @@ TEST_F(FieldTrialTest, CreateFieldTrial) {
   FieldTrial* trial = FieldTrialList::Find("Some_name");
   ASSERT_NE(static_cast<FieldTrial*>(NULL), trial);
   EXPECT_EQ("Winner", trial->group_name());
-  EXPECT_EQ("Some_name", trial->name());
+  EXPECT_EQ("Some_name", trial->trial_name());
 }
 
 TEST_F(FieldTrialTest, CreateFieldTrialIsNotActive) {
