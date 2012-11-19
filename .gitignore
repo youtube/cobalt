@@ -1,6 +1,6 @@
 *.Makefile
 *.gypcmd
-*.host.mk
+*.mk
 *.ncb
 *.ninja
 *.opensdf
@@ -10,7 +10,6 @@
 *.sdf
 *.sln
 *.suo
-*.target.mk
 *.targets
 *.user
 *.vcproj
@@ -24,6 +23,7 @@
 *_proto.xml
 *_proto_cpp.xml
 *~
+!Android.mk
 .*.sw?
 .DS_Store
 .classpath

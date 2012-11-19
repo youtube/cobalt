@@ -279,9 +279,6 @@ webview_build_init() {
   export ANDROID_SDK_ROOT=${ANDROID_BUILD_TOP}/prebuilts/sdk/\
 ${ANDROID_SDK_VERSION}
 
-  # For now, TARGET_ARCH is always ARM in this config.
-  TARGET_ARCH=arm
-
   common_vars_defines
 
   # We need to supply SDK paths relative to the top of the Android tree to make
