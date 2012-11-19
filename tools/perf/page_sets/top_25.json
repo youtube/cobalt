@@ -5,27 +5,39 @@
     "pages": [
         {
             "url": "https://www.google.com/#hl=en&q=barack+obama",
-            "why": "top google property; a google tab is often open"
+            "why": "top google property; a google tab is often open",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "https://mail.google.com/mail/",
             "why": "productivity, top google properties",
             "credentials": "google",
             "wait_for_javascript_expression": "window.gmonkey !== undefined && document.getElementById('gb') !== null",
-            "scrollable_element_function": "function(callback) { gmonkey.load('2.0', function(api) { callback(api.getScrollableElement()); }); }"
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { gmonkey.load('2.0', function(api) { callback(api.getScrollableElement()); }); }"
+            }
         },
         {
             "url": "https://www.google.com/calendar/",
             "why": "productivity, top google properties",
             "credentials": "google",
-            "scrollable_element_function": "function(callback) { callback(document.getElementById('scrolltimedeventswk')); }"
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { callback(document.getElementById('scrolltimedeventswk')); }"
+            }
         },
         {
             "url": "https://drive.google.com",
             "why": "productivity, top google properties",
             "credentials": "google",
             "wait_for_javascript_expression": "document.getElementsByClassName('doclistview-list').length",
-            "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('doclistview-list')[0]); }"
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('doclistview-list')[0]); }"
+            }
         },
         {
             "name": "Docs  (1 open document tab)",
@@ -33,33 +45,51 @@
             "why": "productivity, top google properties; Sample doc in the link",
             "credentials": "google",
             "wait_for_javascript_expression": "document.getElementsByClassName('kix-appview-editor').length",
-            "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('kix-appview-editor')[0]); }"
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { callback(document.getElementsByClassName('kix-appview-editor')[0]); }"
+            }
         },
         {
             "url": "https://plus.google.com/110031535020051778989/posts",
             "why": "social; top google property; Public profile; infinite scrolls",
-            "scroll_is_infinite": true
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            }
         },
         {
             "url": "http://www.youtube.com",
-            "why": "#3 (Alexa global)"
+            "why": "#3 (Alexa global)",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Blogger",
             "url": "http://googlewebmastercentral.blogspot.com/",
-            "why": "#11 (Alexa global), google property; some blogger layouts have infinite scroll but more interesting"
+            "why": "#11 (Alexa global), google property; some blogger layouts have infinite scroll but more interesting",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Wordpress",
             "url": "http://en.blog.wordpress.com/2012/09/04/freshly-pressed-editors-picks-for-august-2012/",
-            "why": "#18 (Alexa global), Picked an interesting post"
+            "why": "#18 (Alexa global), Picked an interesting post",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Facebook",
             "url": "http://www.facebook.com/barackobama",
             "why": "top social,Public profile",
             "credentials": "facebook",
-            "scroll_is_infinite": true,
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            },
             "stress_memory": {
                 "action": "compound_interaction",
                 "actions": [
@@ -81,70 +111,115 @@
         {
             "name": "LinkedIn",
             "url": "http://www.linkedin.com/in/linustorvalds",
-            "why": "#12 (Alexa global),Public profile"
+            "why": "#12 (Alexa global),Public profile",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Wikipedia (1 tab)",
             "url": "http://en.wikipedia.org/wiki/Wikipedia",
-            "why": "#6 (Alexa) most visited worldwide,Picked an interesting page"
+            "why": "#6 (Alexa) most visited worldwide,Picked an interesting page",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Twitter",
             "url": "http://twitter.com/katyperry",
             "why": "#8 (Alexa global),Picked an interesting page",
-            "scroll_is_infinite": true
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            }
         },
         {
             "name": "Pinterest",
             "url": "http://pinterest.com",
             "why": "#37 (Alexa global)",
-            "scroll_is_infinite": true
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            }
         },
         {
             "name": "ESPN",
             "url": "http://espn.go.com",
-            "why": "#1 sports"
+            "why": "#1 sports",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://news.yahoo.com",
-            "why": "#1 news worldwide (Alexa global)"
+            "why": "#1 news worldwide (Alexa global)",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://www.cnn.com",
-            "why": "#2 news worldwide"
+            "why": "#2 news worldwide",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Weather.com",
             "url": "http://www.weather.com/weather/right-now/Mountain+View+CA+94043",
-            "why": "#7 (Alexa news); #27 total time spent,Picked interesting page"
+            "why": "#7 (Alexa news); #27 total time spent,Picked interesting page",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://www.amazon.com",
-            "why": "#1 world commerce website by visits; #3 commerce in the US by time spent"
+            "why": "#1 world commerce website by visits; #3 commerce in the US by time spent",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://www.ebay.com",
-            "why": "#1 commerce website by time spent by users in US"
+            "why": "#1 commerce website by time spent by users in US",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://games.yahoo.com",
-            "why": "#1 games according to Alexa (with actual games in it)"
+            "why": "#1 games according to Alexa (with actual games in it)",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://booking.com",
-            "why": "#1 Alexa recreation"
+            "why": "#1 Alexa recreation",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://answers.yahoo.com",
-            "why": "#1 Alexa reference"
+            "why": "#1 Alexa reference",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://sports.yahoo.com/",
-            "why": "#1 Alexa sports"
+            "why": "#1 Alexa sports",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://techcrunch.com",
-            "why": "top tech blog"
+            "why": "top tech blog",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         }
     ]
 }
