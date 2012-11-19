@@ -78,6 +78,7 @@
     }],
     ['<(use_aura)==0 or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_aura(_unittest)?\\.(h|cc)$'],
+                    ['exclude', '_aura(_browsertest)?\\.(h|cc)$'],
                     ['exclude', '(^|/)aura/'],
       ]
     }],
