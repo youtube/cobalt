@@ -21,6 +21,10 @@
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_service.h"
 
+#if defined(OS_LINUX) || defined(OS_OPENBSD)
+#include <glib-object.h>
+#endif
+
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
 #endif
@@ -118,6 +122,11 @@ class NetWatcher :
 int main(int argc, char* argv[]) {
 #if defined(OS_MACOSX)
   base::mac::ScopedNSAutoreleasePool pool;
+#endif
+#if defined(OS_LINUX) || defined(OS_OPENBSD)
+  // Needed so ProxyConfigServiceLinux can use gconf.
+  // Normally handled by BrowserMainLoop::InitializeToolkit().
+  g_type_init();
 #endif
   base::AtExitManager exit_manager;
   CommandLine::Init(argc, argv);
