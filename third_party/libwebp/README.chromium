@@ -20,7 +20,6 @@ Local changes:
  * Removed examples/, documentation and build related files, keeping only
    the contents of src/ less mux/ which is unused.
  * Merged COPYING/PATENTS to LICENSE
- * Added cpu-features.[hc] from the Android NDK to dsp/.
  * Revert VP8 encoder changes to avoid WebKit layout test conflicts
    (fast/canvas/canvas-toDataURL)
    WebKit bug tracking test update:
