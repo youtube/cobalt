@@ -109,8 +109,8 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
 
   // A pair representing a Field Trial and its selected group.
   struct ActiveGroup {
-    std::string trial;
-    std::string group;
+    std::string trial_name;
+    std::string group_name;
   };
 
   typedef std::vector<ActiveGroup> ActiveGroups;
@@ -140,7 +140,7 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   int AppendGroup(const std::string& name, Probability group_probability);
 
   // Return the name of the FieldTrial (excluding the group name).
-  std::string name() const { return name_; }
+  const std::string& trial_name() const { return trial_name_; }
 
   // Return the randomly selected group number that was assigned, and notify
   // any/all observers that this finalized group number has presumably been used
@@ -151,7 +151,7 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
 
   // If the group's name is empty, a string version containing the group number
   // is used as the group name. This causes a winner to be chosen if none was.
-  std::string group_name();
+  const std::string& group_name();
 
   // Helper function for the most common use: as an argument to specify the
   // name of a HISTOGRAM.  Use the original histogram name as the name_prefix.
@@ -207,8 +207,8 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // Return the default group name of the FieldTrial.
   std::string default_group_name() const { return default_group_name_; }
 
-  // Sets the group_name as well as group_name_hash to make sure they are sync.
-  void SetGroupChoice(const std::string& name, int number);
+  // Sets the chosen group name and number.
+  void SetGroupChoice(const std::string& group_name, int number);
 
   // Ensures that a group is chosen, if it hasn't yet been. The field trial
   // might yet be disabled, so this call will *not* notify observers of the
@@ -227,7 +227,7 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   std::string group_name_internal() const { return group_name_; }
 
   // The name of the field trial, as can be found via the FieldTrialList.
-  const std::string name_;
+  const std::string trial_name_;
 
   // The maximum sum of all probabilities supplied, which corresponds to 100%.
   // This is the scaling factor used to adjust supplied probabilities.
@@ -315,7 +315,7 @@ class BASE_EXPORT FieldTrialList {
   // name). |default_group_name| is the name of the default group which will
   // be chosen if none of the subsequent appended groups get to be chosen.
   // |default_group_number| can receive the group number of the default group as
-  // AppendGroup returns the number of the subsequence groups. |name| and
+  // AppendGroup returns the number of the subsequence groups. |trial_name| and
   // |default_group_name| may not be empty but |default_group_number| can be
   // NULL if the value is not needed.
   //
@@ -328,7 +328,7 @@ class BASE_EXPORT FieldTrialList {
   // previously created forced FieldTrial. If you want a one-time randomized
   // trial, call UseOneTimeRandomization() right after creation.
   static FieldTrial* FactoryGetFieldTrial(
-      const std::string& name,
+      const std::string& trial_name,
       FieldTrial::Probability total_probability,
       const std::string& default_group_name,
       const int year,
@@ -395,7 +395,7 @@ class BASE_EXPORT FieldTrialList {
   static void RemoveObserver(Observer* observer);
 
   // Notify all observers that a group is finalized for the named Trial.
-  static void NotifyFieldTrialGroupSelection(const std::string& name,
+  static void NotifyFieldTrialGroupSelection(const std::string& trial_name,
                                              const std::string& group_name);
 
   // Return the number of active field trials.
