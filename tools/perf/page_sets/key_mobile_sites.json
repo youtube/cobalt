@@ -1,0 +1,201 @@
+{
+    "description": "Mobile sites for M25",
+    "credentials_path": "../data/credentials.json",
+    "pages": [
+        {
+            "url": "http://www.androidpolice.com/2012/10/03/rumor-evidence-mounts-that-an-lg-optimus-g-nexus-is-coming-along-with-a-nexus-phone-certification-program/"
+        },
+        {
+            "url": "http://nytimes.com/"
+        },
+        {
+            "url": "http://iphone.capitolvolkswagen.com/index.htm#new-inventory_p_2Fsb-new_p_2Ehtm_p_3Freset_p_3DInventoryListing"
+        },
+        {
+            "url": "http://gsp.ro "
+        },
+        {
+            "url": "http://uk.wsj.com"
+        },
+        {
+            "url": "http://cuteoverload.com"
+        },
+        {
+            "url": "http://theverge.com"
+        },
+        {
+            "url": "http://www.theverge.com/2012/10/28/3568746/amazon-7-inch-fire-hd-ipad-mini-add-balsy"
+        },
+        {
+            "url": "http://www.cnn.com/2012/10/03/politics/michelle-obama-debate/index.html"
+        },
+        {
+            "url": "http://en.m.wikipedia.org/wiki/Google"
+        },
+        {
+            "url": "http://googleblog.blogspot.co.uk/"
+        },
+        {
+            "url": "http://digg.com "
+        },
+        {
+            "url": "http://www.hs.fi/"
+        },
+        {
+            "url": "https://www.google.com/#hl=en&q=barack+obama",
+            "why": "top google property; a google tab is often open"
+        },
+        {
+            "url": "https://plus.google.com/110031535020051778989/posts",
+            "why": "social; top google property; Public profile; infinite scrolls",
+            "scroll_is_infinite": true
+        },
+        {
+            "url": "http://www.youtube.com",
+            "why": "#3 (Alexa global)"
+        },
+        {
+            "name": "Blogger",
+            "url": "http://googlewebmastercentral.blogspot.com/",
+            "why": "#11 (Alexa global), google property; some blogger layouts have infinite scroll but more interesting"
+        },
+        {
+            "name": "Wordpress",
+            "url": "http://en.blog.wordpress.com/2012/09/04/freshly-pressed-editors-picks-for-august-2012/",
+            "why": "#18 (Alexa global), Picked an interesting post"
+        },
+        {
+            "name": "LinkedIn",
+            "url": "http://www.linkedin.com/in/linustorvalds",
+            "why": "#12 (Alexa global),Public profile"
+        },
+        {
+            "name": "Wikipedia (1 tab)",
+            "url": "http://en.wikipedia.org/wiki/Wikipedia",
+            "why": "#6 (Alexa) most visited worldwide,Picked an interesting page"
+        },
+        {
+            "name": "Twitter",
+            "url": "http://twitter.com/katyperry",
+            "why": "#8 (Alexa global),Picked an interesting page",
+            "scroll_is_infinite": true
+        },
+        {
+            "name": "Pinterest",
+            "url": "http://pinterest.com",
+            "why": "#37 (Alexa global)",
+            "scroll_is_infinite": true
+        },
+        {
+            "name": "ESPN",
+            "url": "http://espn.go.com",
+            "why": "#1 sports"
+        },
+        {
+            "url": "http://news.yahoo.com",
+            "why": "#1 news worldwide (Alexa global)"
+        },
+        {
+            "url": "http://www.cnn.com",
+            "why": "#2 news worldwide"
+        },
+        {
+            "name": "Weather.com",
+            "url": "http://www.weather.com/weather/right-now/Mountain+View+CA+94043",
+            "why": "#7 (Alexa news); #27 total time spent,Picked interesting page"
+        },
+        {
+            "url": "http://www.amazon.com",
+            "why": "#1 world commerce website by visits; #3 commerce in the US by time spent"
+        },
+        {
+            "url": "http://www.ebay.com",
+            "why": "#1 commerce website by time spent by users in US"
+        },
+        {
+            "url": "http://games.yahoo.com",
+            "why": "#1 games according to Alexa (with actual games in it)"
+        },
+        {
+            "url": "http://booking.com",
+            "why": "#1 Alexa recreation"
+        },
+        {
+            "url": "http://answers.yahoo.com",
+            "why": "#1 Alexa reference"
+        },
+        {
+            "url": "http://sports.yahoo.com/",
+            "why": "#1 Alexa sports"
+        },
+        {
+            "url": "http://techcrunch.com",
+            "why": "top tech blog"
+        },
+        {
+            "url": "ttp://br.337.com/pages/196/DDTank"
+        },
+        {
+            "url": "http://culturalsolutions.co.uk/"
+        },
+        {
+            "url": "http://www.frantzen-lindeberg.com/se/"
+        },
+        {
+            "url": "http://game.deksiam.in.th/"
+        },
+        {
+            "url": "https://mail.google.com/mail/",
+            "why": "productivity, top google properties",
+            "credentials": "google",
+            "wait_for_javascript_expression": "window.gmonkey !== undefined && document.getElementById('gb') !== null",
+            "scrollable_element_function": "function(callback) { gmonkey.load('2.0', function(api) { callback(api.getScrollableElement()); }); }"
+        },
+        {
+            "url": "https://www.google.com/calendar/",
+            "why": "productivity, top google properties",
+            "credentials": "google",
+            "scrollable_element_function": "function(callback) { callback(document.getElementById('scrolltimedeventswk')); }"
+        },
+        {
+            "url": "http://mlb.mlb.com/index.jsp"
+        },
+        {
+            "url": "http://nofolo.com/"
+        },
+        {
+            "url": "http://planet.mozilla.org/"
+        },
+        {
+            "url": "http://www.pravda.ru/"
+        },
+        {
+            "url": "http://www.sahadan.com/"
+        },
+        {
+            "url": "http://www.sfgate.com/"
+        },
+        {
+            "url": "http://slashdot.org/"
+        },
+        {
+            "url": "http://www.transformice.com/"
+        },
+        {
+            "url": "http://worldjournal.com/"
+        },
+        {
+            "url": "http://www.wowwiki.com/World_of_Warcraft:_Mists_of_Pandaria"
+        },
+        {
+            "url": "http://online.wsj.com/home-page"
+        },
+        {
+            "url": "http://www.deviantart.com/"
+        },
+        {
+            "url": "http://www.baidu.com/s?wd=barack+obama&rsv_bp=0&rsv_spt=3&rsv_sug3=9&rsv_sug=0&rsv_sug4=3824&rsv_sug1=3&inputT=4920"
+        }
+    ]
+}
+
