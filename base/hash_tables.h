@@ -113,6 +113,8 @@ DEFINE_STRING_HASH(string16);
 
 namespace base {
 using BASE_HASH_NAMESPACE::hash_map;
+using BASE_HASH_NAMESPACE::hash_multimap;
+using BASE_HASH_NAMESPACE::hash_multiset;
 using BASE_HASH_NAMESPACE::hash_set;
 }
 
