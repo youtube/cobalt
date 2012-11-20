@@ -18,4 +18,5 @@ bb_spawn_logcat_monitor_and_status
 bb_extract_build
 bb_reboot_phones
 bb_run_unit_tests
+bb_run_instrumentation_tests
 bb_print_logcat

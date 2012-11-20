@@ -319,6 +319,10 @@ function bb_run_instrumentation_tests {
       "org.chromium.content_shell" "ContentShellTest"
   bb_run_all_instrumentation_tests_for_apk "ChromiumTestShell.apk" \
       "org.chromium.chrome.testshell" "ChromiumTestShellTest"
+}
+
+# Run instrumentation tests for experimental APKs on device.
+function bb_run_experimental_instrumentation_tests {
   bb_run_all_instrumentation_tests_for_apk "AndroidWebView.apk" \
       "org.chromium.android_webview" "AndroidWebViewTest"
 }
