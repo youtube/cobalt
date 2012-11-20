@@ -48,6 +48,7 @@ cp buildlog.txt $PDIR/
 # Copy clang into pdir, symlink clang++ to it.
 cp "${LLVM_BIN_DIR}/clang" $PDIR/bin/
 (cd $PDIR/bin && ln -sf clang clang++ && cd -)
+cp "${LLVM_BIN_DIR}/llvm-symbolizer" $PDIR/bin/
 
 # Copy plugins. Some of the dylibs are pretty big, so copy only the ones we
 # care about.
