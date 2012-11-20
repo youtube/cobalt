@@ -27,7 +27,7 @@ class TestCryptoStream : public QuicCryptoStream {
   }
 
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) {
-    set_handshake_complete(true);
+    SetHandshakeComplete(QUIC_NO_ERROR);
   }
 };
 
@@ -105,11 +105,11 @@ class QuicSessionTest : public ::testing::Test {
   set<QuicStreamId> closed_streams_;
 };
 
-TEST_F(QuicSessionTest, IsHandshakeComplete) {
-  EXPECT_FALSE(session_.IsHandshakeComplete());
+TEST_F(QuicSessionTest, IsCryptoHandshakeComplete) {
+  EXPECT_FALSE(session_.IsCryptoHandshakeComplete());
   CryptoHandshakeMessage message;
   session_.crypto_stream_.OnHandshakeMessage(message);
-  EXPECT_TRUE(session_.IsHandshakeComplete());
+  EXPECT_TRUE(session_.IsCryptoHandshakeComplete());
 }
 
 TEST_F(QuicSessionTest, IsClosedStreamDefault) {

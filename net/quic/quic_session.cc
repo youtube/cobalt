@@ -98,8 +98,12 @@ void QuicSession::CloseStream(QuicStreamId stream_id) {
   stream_map_.erase(it);
 }
 
-bool QuicSession::IsHandshakeComplete() {
+bool QuicSession::IsCryptoHandshakeComplete() {
   return GetCryptoStream()->handshake_complete();
+}
+
+void QuicSession::OnCryptoHandshakeComplete(QuicErrorCode error) {
+  // TODO(rch): tear down the connection if error != QUIC_NO_ERROR.
 }
 
 void QuicSession::ActivateStream(ReliableQuicStream* stream) {
