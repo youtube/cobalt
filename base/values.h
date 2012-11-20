@@ -66,10 +66,9 @@ class BASE_EXPORT Value {
 
   virtual ~Value();
 
-  // Convenience methods for creating Value objects for various
-  // kinds of values without thinking about which class implements them.
-  // These can always be expected to return a valid Value*.
   static Value* CreateNullValue();
+  // DEPRECATED: Do not use the following 5 functions. Instead, use
+  // new FundamentalValue or new StringValue.
   static FundamentalValue* CreateBooleanValue(bool in_value);
   static FundamentalValue* CreateIntegerValue(int in_value);
   static FundamentalValue* CreateDoubleValue(double in_value);
@@ -115,16 +114,13 @@ class BASE_EXPORT Value {
   static bool Equals(const Value* a, const Value* b);
 
  protected:
-  // This isn't safe for end-users (they should use the Create*Value()
-  // static methods above), but it's useful for subclasses.
+  // These aren't safe for end-users, but they are useful for subclasses.
   explicit Value(Type type);
+  Value(const Value& that);
+  Value& operator=(const Value& that);
 
  private:
-  Value();
-
   Type type_;
-
-  DISALLOW_COPY_AND_ASSIGN(Value);
 };
 
 // FundamentalValue represents the simple fundamental types of values.
@@ -148,8 +144,6 @@ class BASE_EXPORT FundamentalValue : public Value {
     int integer_value_;
     double double_value_;
   };
-
-  DISALLOW_COPY_AND_ASSIGN(FundamentalValue);
 };
 
 class BASE_EXPORT StringValue : public Value {
@@ -170,8 +164,6 @@ class BASE_EXPORT StringValue : public Value {
 
  private:
   std::string value_;
-
-  DISALLOW_COPY_AND_ASSIGN(StringValue);
 };
 
 class BASE_EXPORT BinaryValue: public Value {
