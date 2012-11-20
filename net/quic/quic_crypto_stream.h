@@ -47,9 +47,7 @@ class NET_EXPORT_PRIVATE QuicCryptoStream
   // Closes the connection
   void CloseConnection(QuicErrorCode error);
 
-  void set_handshake_complete(bool complete) {
-    handshake_complete_ = complete;
-  }
+  void SetHandshakeComplete(QuicErrorCode error);
 
  private:
   CryptoFramer crypto_framer_;

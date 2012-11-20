@@ -28,7 +28,7 @@ void QuicCryptoClientStream::OnHandshakeMessage(
   }
 
   // TODO(rch): correctly validate the message
-  set_handshake_complete(true);
+  SetHandshakeComplete(QUIC_NO_ERROR);
   return;
 }
 
