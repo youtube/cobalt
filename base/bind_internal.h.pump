@@ -258,6 +258,7 @@ MakeRunnable(const IgnoreResultHelper<T>& t) {
 template <typename T>
 const typename FunctorTraits<Callback<T> >::RunnableType&
 MakeRunnable(const Callback<T>& t) {
+  DCHECK(!t.is_null());
   return t;
 }
 
