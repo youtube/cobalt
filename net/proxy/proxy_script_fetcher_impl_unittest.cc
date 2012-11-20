@@ -319,6 +319,7 @@ TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
   EXPECT_EQ(ASCIIToUTF16("-downloadable.pac-\n"), text);
 }
 
+// Verifies that PAC scripts are not being cached.
 TEST_F(ProxyScriptFetcherImplTest, NoCache) {
   ASSERT_TRUE(test_server_.Start());
 
@@ -335,18 +336,27 @@ TEST_F(ProxyScriptFetcherImplTest, NoCache) {
     EXPECT_EQ(ASCIIToUTF16("-cacheable_1hr.pac-\n"), text);
   }
 
-  // Now kill the HTTP server.
+  // Kill the HTTP server.
   ASSERT_TRUE(test_server_.Stop());
 
-  // Try to fetch the file again -- if should fail, since the server is not
-  // running anymore. (If it were instead being loaded from cache, we would
-  // get a success.
+  // Try to fetch the file again. Since the server is not running anymore, the
+  // call should fail, thus indicating that the file was not fetched from the
+  // local cache.
   {
     string16 text;
     TestCompletionCallback callback;
     int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
+
+#if defined(OS_ANDROID)
+    // On Android platform, the tests are run on the device while the server
+    // runs on the host machine. After killing the server, port forwarder
+    // running on the device is still active, which produces error message
+    // "Connection reset by peer" rather than "Connection refused".
+    EXPECT_EQ(ERR_CONNECTION_RESET, callback.WaitForResult());
+#else
     EXPECT_EQ(ERR_CONNECTION_REFUSED, callback.WaitForResult());
+#endif
   }
 }
 
