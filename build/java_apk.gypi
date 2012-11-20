@@ -57,6 +57,8 @@
 #    unstripped copy will be added to <(android_product_out) to enable native
 #    debugging.
 #  resource_dir - The directory for resources.
+#  R_package - A custom Java package to generate the resource file R.java in.
+#    By default, the package given in AndroidManifest.xml will be used.
 
 {
   'variables': {
@@ -70,9 +72,9 @@
     'proguard_enabled%': 'false',
     'proguard_flags%': '',
     'native_libs_paths': [],
-    'manifest_package_name%': 'unknown.package.name',
-    'resource_dir%':'',
     'jar_name%': 'chromium_apk_<(package_name).jar',
+    'resource_dir%':'',
+    'R_package%':'',
     'additional_res_dirs': [],
     'additional_res_packages': [],
     'is_test_apk%': 0,
@@ -176,5 +178,15 @@
         '<(CONFIGURATION_NAME)',
       ]
     },
+  ],
+  'conditions': [
+    ['R_package != ""', {
+      'variables': {
+        # We generate R.java in package R_package (in addition to the package
+        # listed in the AndroidManifest.xml, which is unavoidable).
+        'additional_res_dirs': ['<(DEPTH)/build/android/ant/empty/res'],
+        'additional_res_packages': ['<(R_package)'],
+      },
+    }],
   ],
 }
