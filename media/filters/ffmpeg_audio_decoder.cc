@@ -189,12 +189,17 @@ void FFmpegAudioDecoder::DoRead(const ReadCB& read_cb) {
 void FFmpegAudioDecoder::DoDecodeBuffer(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& input) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
+  if (!message_loop_->BelongsToCurrentThread()) {
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &FFmpegAudioDecoder::DoDecodeBuffer, this, status, input));
+    return;
+  }
+
   DCHECK(!read_cb_.is_null());
   DCHECK(queued_audio_.empty());
+  DCHECK_EQ(status != DemuxerStream::kOk, !input) << status;
 
   if (status != DemuxerStream::kOk) {
-    DCHECK(!input);
     // TODO(acolwell): Add support for reinitializing the decoder when
     // |status| == kConfigChanged. For now we just trigger a decode error.
     AudioDecoder::Status decoder_status =
@@ -365,18 +370,7 @@ void FFmpegAudioDecoder::DoDecodeBuffer(
 void FFmpegAudioDecoder::ReadFromDemuxerStream() {
   DCHECK(!read_cb_.is_null());
 
-  demuxer_stream_->Read(base::Bind(&FFmpegAudioDecoder::DecodeBuffer, this));
-}
-
-void FFmpegAudioDecoder::DecodeBuffer(
-    DemuxerStream::Status status,
-    const scoped_refptr<DecoderBuffer>& buffer) {
-  DCHECK_EQ(status != DemuxerStream::kOk, !buffer) << status;
-
-  // TODO(scherkus): fix FFmpegDemuxerStream::Read() to not execute our read
-  // callback on the same execution stack so we can get rid of forced task post.
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &FFmpegAudioDecoder::DoDecodeBuffer, this, status, buffer));
+  demuxer_stream_->Read(base::Bind(&FFmpegAudioDecoder::DoDecodeBuffer, this));
 }
 
 base::TimeDelta FFmpegAudioDecoder::GetNextOutputTimestamp() const {
@@ -385,4 +379,5 @@ base::TimeDelta FFmpegAudioDecoder::GetNextOutputTimestamp() const {
       base::Time::kMicrosecondsPerSecond;
   return output_timestamp_base_ + base::TimeDelta::FromMicroseconds(decoded_us);
 }
+
 }  // namespace media
