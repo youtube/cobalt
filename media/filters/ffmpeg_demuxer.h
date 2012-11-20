@@ -56,8 +56,6 @@ class FFmpegDemuxerStream : public DemuxerStream {
   FFmpegDemuxerStream(FFmpegDemuxer* demuxer, AVStream* stream);
 
   // Returns true is this stream has pending reads, false otherwise.
-  //
-  // Safe to call on any thread.
   bool HasPendingReads();
 
   // Enqueues the given AVPacket.  If |packet| is NULL an end of stream packet
@@ -75,13 +73,6 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
   // DemuxerStream implementation.
   virtual Type type() OVERRIDE;
-
-  // If |buffer_queue_| is not empty will execute on caller's thread, otherwise
-  // will post ReadTask to execute on demuxer's thread. Read will acquire
-  // |lock_| for the life of the function so that means |read_cb| must
-  // not make calls into FFmpegDemuxerStream directly or that may cause a
-  // deadlock. |read_cb| should execute as quickly as possible because
-  // |lock_| is held throughout the life of the callback.
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
@@ -100,19 +91,16 @@ class FFmpegDemuxerStream : public DemuxerStream {
  private:
   friend class FFmpegDemuxerTest;
 
-  // Carries out enqueuing a pending read on the demuxer thread.
-  void ReadTask(const ReadCB& read_cb);
-
-  // Attempts to fulfill a single pending read by dequeueing a buffer and read
-  // callback pair and executing the callback. The calling function must
-  // acquire |lock_| before calling this function.
-  void FulfillPendingRead();
+  // Runs callbacks in |read_queue_| for each available |buffer_queue_|, calling
+  // NotifyHasPendingRead() if there are still pending items in |read_queue_|.
+  void SatisfyPendingReads();
 
   // Converts an FFmpeg stream timestamp into a base::TimeDelta.
   static base::TimeDelta ConvertStreamTimestamp(const AVRational& time_base,
                                                 int64 timestamp);
 
   FFmpegDemuxer* demuxer_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
   AVStream* stream_;
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
@@ -131,13 +119,6 @@ class FFmpegDemuxerStream : public DemuxerStream {
   scoped_ptr<FFmpegH264ToAnnexBBitstreamConverter> bitstream_converter_;
   bool bitstream_converter_enabled_;
 
-  // Used to synchronize access to |buffer_queue_|, |read_queue_|, and
-  // |stopped_|. This is so other threads can get access to buffers that have
-  // already been demuxed without having the demuxer thread sending the
-  // buffers. |lock_| must be acquired before any access to |buffer_queue_|,
-  // |read_queue_|, or |stopped_|.
-  mutable base::Lock lock_;
-
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerStream);
 };
 
@@ -145,9 +126,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
  public:
   FFmpegDemuxer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                 const scoped_refptr<DataSource>& data_source);
-
-  // Posts a task to perform additional demuxing.
-  virtual void PostDemuxTask();
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
@@ -160,11 +138,9 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
 
-  // Provide access to FFmpegDemuxerStream.
-  scoped_refptr<base::MessageLoopProxy> message_loop();
-
-  // Allow FFmpegDemuxerStream to notify us when there is updated information
-  // about what buffered data is available.
+  // Allow FFmpegDemuxerStream to notify us when it requires more data or has
+  // updated information about what buffered data is available.
+  void NotifyHasPendingRead();
   void NotifyBufferingChanged();
 
  private:

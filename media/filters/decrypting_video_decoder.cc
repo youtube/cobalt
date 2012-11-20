@@ -235,26 +235,20 @@ void DecryptingVideoDecoder::ReadFromDemuxerStream() {
   DCHECK(!read_cb_.is_null());
 
   demuxer_stream_->Read(
-      base::Bind(&DecryptingVideoDecoder::DecryptAndDecodeBuffer, this));
-}
-
-void DecryptingVideoDecoder::DecryptAndDecodeBuffer(
-    DemuxerStream::Status status,
-    const scoped_refptr<DecoderBuffer>& buffer) {
-  // In theory, we don't need to force post the task here, because we do a
-  // force task post in DeliverFrame(). Therefore, even if
-  // demuxer_stream_->Read() execute the read callback on the same execution
-  // stack we are still fine. But it looks like a force post task makes the
-  // logic more understandable and manageable, so why not?
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &DecryptingVideoDecoder::DoDecryptAndDecodeBuffer, this, status, buffer));
+      base::Bind(&DecryptingVideoDecoder::DoDecryptAndDecodeBuffer, this));
 }
 
 void DecryptingVideoDecoder::DoDecryptAndDecodeBuffer(
     DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
+  if (!message_loop_->BelongsToCurrentThread()) {
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &DecryptingVideoDecoder::DoDecryptAndDecodeBuffer, this,
+        status, buffer));
+    return;
+  }
+
   DVLOG(3) << "DoDecryptAndDecodeBuffer()";
-  DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (state_ == kStopped)
     return;

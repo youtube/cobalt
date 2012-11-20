@@ -713,12 +713,9 @@ TEST_F(FFmpegVideoDecoderTest, AbortPendingReadDuringReset) {
   // Reset while there is still an outstanding read on the demuxer.
   Reset();
 
-  // Signal an aborted demuxer read.
-  read_cb.Run(DemuxerStream::kAborted, NULL);
-
-  // Make sure we get a NULL video frame returned.
+  // Signal an aborted demuxer read: a NULL video frame should be returned.
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk, IsNull()));
-  message_loop_.RunUntilIdle();
+  read_cb.Run(DemuxerStream::kAborted, NULL);
 }
 
 }  // namespace media

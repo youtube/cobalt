@@ -56,10 +56,8 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // Carries out the reading operation scheduled by Read().
   void DoRead(const ReadCB& read_cb);
 
-  // Reads from the demuxer stream with corresponding callback method.
+  // Reads from the demuxer stream.
   void ReadFromDemuxerStream();
-  void DecryptOrDecodeBuffer(DemuxerStream::Status status,
-                             const scoped_refptr<DecoderBuffer>& buffer);
 
   // Carries out the buffer processing operation scheduled by
   // DecryptOrDecodeBuffer().
