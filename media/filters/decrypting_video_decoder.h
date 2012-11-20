@@ -94,11 +94,6 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
   void ReadFromDemuxerStream();
 
   // Callback for DemuxerStream::Read().
-  void DecryptAndDecodeBuffer(DemuxerStream::Status status,
-                              const scoped_refptr<DecoderBuffer>& buffer);
-
-  // Carries out the buffer decrypting/decoding operation scheduled by
-  // DecryptAndDecodeBuffer().
   void DoDecryptAndDecodeBuffer(DemuxerStream::Status status,
                                 const scoped_refptr<DecoderBuffer>& buffer);
 

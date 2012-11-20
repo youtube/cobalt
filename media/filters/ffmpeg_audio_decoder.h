@@ -56,8 +56,6 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
 
   // Reads from the demuxer stream with corresponding callback method.
   void ReadFromDemuxerStream();
-  void DecodeBuffer(DemuxerStream::Status status,
-                    const scoped_refptr<DecoderBuffer>& buffer);
 
   // Returns the timestamp that should be used for the next buffer returned
   // via |read_cb_|. It is calculated from |output_timestamp_base_| and
