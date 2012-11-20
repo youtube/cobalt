@@ -47,7 +47,7 @@ void PipelineIntegrationTestBase::OnStatusCallback(
 void PipelineIntegrationTestBase::OnStatusCallbackChecked(
     PipelineStatus expected_status,
     PipelineStatus status) {
-  EXPECT_EQ(status, expected_status);
+  EXPECT_EQ(expected_status, status);
   OnStatusCallback(status);
 }
 
