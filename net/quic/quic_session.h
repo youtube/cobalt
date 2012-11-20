@@ -51,7 +51,12 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   virtual void CloseStream(QuicStreamId stream_id);
 
   // Returns true once the crypto handshake is complete.
-  virtual bool IsHandshakeComplete();
+  virtual bool IsCryptoHandshakeComplete();
+
+  // Called by the QuicCryptoStream when the handshake completes.
+  // If |error| is QUIC_NO_ERROR then the handshake was succesful,
+  // otherwise it failed.
+  virtual void OnCryptoHandshakeComplete(QuicErrorCode error);
 
   // Returns true if the stream existed previously and has been closed.
   // Returns false if the stream is still active or if the stream has

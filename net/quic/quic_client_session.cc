@@ -4,6 +4,8 @@
 
 #include "net/quic/quic_client_session.h"
 
+#include "net/base/net_errors.h"
+
 namespace net {
 
 QuicClientSession::QuicClientSession(QuicConnection* connection)
@@ -35,16 +37,29 @@ QuicCryptoClientStream* QuicClientSession::GetCryptoStream() {
   return &crypto_stream_;
 };
 
-void QuicClientSession::CryptoConnect() {
+int QuicClientSession::CryptoConnect(const CompletionCallback& callback) {
   CryptoHandshakeMessage message;
   message.tag = kCHLO;
   crypto_stream_.SendHandshakeMessage(message);
+
+  if (IsCryptoHandshakeComplete()) {
+    return OK;
+  }
+
+  callback_ = callback;
+  return ERR_IO_PENDING;
 }
 
 ReliableQuicStream* QuicClientSession::CreateIncomingReliableStream(
     QuicStreamId id) {
   DLOG(ERROR) << "Server push not supported";
   return NULL;
+}
+
+void QuicClientSession::OnCryptoHandshakeComplete(QuicErrorCode error) {
+  if (!callback_.is_null()) {
+    callback_.Run(error == QUIC_NO_ERROR ? OK : ERR_UNEXPECTED);
+  }
 }
 
 }  // namespace net
