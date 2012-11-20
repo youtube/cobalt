@@ -890,13 +890,19 @@ const WeakDigestTestData kVerifyIntermediateCATestData[] = {
   { "weak_digest_sha1_root.pem", "weak_digest_md4_intermediate.pem",
     "weak_digest_sha1_ee.pem", false, true, false, false, false },
 #endif
-#if !defined(USE_NSS) && !defined(OS_IOS)  // MD2 is disabled by default.
   { "weak_digest_sha1_root.pem", "weak_digest_md2_intermediate.pem",
     "weak_digest_sha1_ee.pem", false, false, true, false, true },
-#endif
 };
-INSTANTIATE_TEST_CASE_P(VerifyIntermediate, CertVerifyProcWeakDigestTest,
-                        testing::ValuesIn(kVerifyIntermediateCATestData));
+// Disabled on NSS - MD4 is not supported, and MD2 and MD5 are disabled.
+#if defined(USE_NSS) || defined(OS_IOS)
+#define MAYBE_VerifyIntermediate DISABLED_VerifyIntermediate
+#else
+#define MAYBE_VerifyIntermediate VerifyIntermediate
+#endif
+WRAPPED_INSTANTIATE_TEST_CASE_P(
+    MAYBE_VerifyIntermediate,
+    CertVerifyProcWeakDigestTest,
+    testing::ValuesIn(kVerifyIntermediateCATestData));
 
 // The signature algorithm of end-entity should be properly detected.
 const WeakDigestTestData kVerifyEndEntityTestData[] = {
@@ -907,10 +913,8 @@ const WeakDigestTestData kVerifyEndEntityTestData[] = {
   { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_md4_ee.pem", false, true, false, false, false },
 #endif
-#if !defined(USE_NSS) && !defined(OS_IOS)  // MD2 is disabled by default.
   { "weak_digest_sha1_root.pem", "weak_digest_sha1_intermediate.pem",
     "weak_digest_md2_ee.pem", false, false, true, false, false },
-#endif
 };
 // Disabled on NSS - NSS caches chains/signatures in such a way that cannot
 // be cleared until NSS is cleanly shutdown, which is not presently supported
