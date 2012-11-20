@@ -141,6 +141,13 @@
           }, {
             'enable_app_list%': 0,
           }],
+
+          ['use_aura==1 or (OS!="win" and OS!="mac" and OS!="ios" and OS!="android")', {
+            # TODO(sky): make this 1 when corresponding webkit pieces land.
+            'use_default_render_theme%': 0,
+          }, {
+            'use_default_render_theme%': 0,
+          }],
         ],
       },
 
@@ -159,6 +166,7 @@
       'android_upstream_bringup%': '<(android_upstream_bringup)',
       'android_build_type%': '<(android_build_type)',
       'enable_app_list%': '<(enable_app_list)',
+      'use_default_render_theme%': '<(use_default_render_theme)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -685,6 +693,7 @@
     'use_system_libjpeg%': '<(use_system_libjpeg)',
     'android_build_type%': '<(android_build_type)',
     'enable_app_list%': '<(enable_app_list)',
+    'use_default_render_theme%': '<(use_default_render_theme)',
     'enable_settings_app%': '<(enable_settings_app)',
     'use_official_google_api_keys%': '<(use_official_google_api_keys)',
     'google_api_key%': '<(google_api_key)',
@@ -1593,6 +1602,9 @@
       }],
       ['use_ash==1', {
         'defines': ['USE_ASH=1'],
+      }],
+      ['use_default_render_theme==1', {
+        'defines': ['USE_DEFAULT_RENDER_THEME=1'],
       }],
       ['use_libjpeg_turbo==1', {
         'defines': ['USE_LIBJPEG_TURBO=1'],
