@@ -17,8 +17,8 @@ for GLES2/*.
 Local Modifications:
 
 GLES2/gl2.h
- - Added macros for C++ binding generation.
  - Added GL_CONTEXT_LOST constant.
+ - Added include of gl2chromium.h
 GLES2/gl2ext.h
  - Added Chromium and Angle extensions.
  - Added ANGLE_instanced_arrays
@@ -30,5 +30,11 @@ GLES2/gl2ext.h
  - Added GL_CHROMIUM_get_error_query
  - Added GL_CHROMIUM_texture_from_image
  - Added GL_NVX_gpu_memory_info
+ - Added include of gl2chromium.h
+GLES2/glchromium.h
+ - Added This file defines macros to change glXXX to GLES2XXX
+   since Chromium includes the system GL there are conflicts
+   otherwise.
 EGL/eglplatform.h
  - Added EGLNative*Type for Mac.
+
