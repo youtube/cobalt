@@ -625,12 +625,6 @@ void FFmpegDemuxer::OnReadFrameDone(ScopedAVPacket packet, int result) {
 
 void FFmpegDemuxer::StopTask(const base::Closure& callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
-  StreamVector::iterator iter;
-  for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
-    if (*iter)
-      (*iter)->Stop();
-  }
-
   url_protocol_.Abort();
   data_source_->Stop(BindToLoop(message_loop_, base::Bind(
       &FFmpegDemuxer::OnDataSourceStopped, this, callback)));
@@ -643,6 +637,13 @@ void FFmpegDemuxer::OnDataSourceStopped(const base::Closure& callback) {
   // thread and drop their results on the floor.
   DCHECK(message_loop_->BelongsToCurrentThread());
   blocking_thread_.Stop();
+
+  StreamVector::iterator iter;
+  for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
+    if (*iter)
+      (*iter)->Stop();
+  }
+
   callback.Run();
 }
 
