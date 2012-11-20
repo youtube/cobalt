@@ -10,7 +10,6 @@ H V MS: org.chromium.content.browser.ContentViewTestBase.WAIT_TIMEOUT_SECONDS is
 H V MS: org.chromium.content.browser.test.util.CallbackHelper.WAIT_TIMEOUT_SECONDS isn't final but should be  At CallbackHelper.java
 H V MS: org.chromium.content.browser.test.util.HistoryUtils.WAIT_TIMEOUT_SECONDS isn't final but should be  At HistoryUtils.java
 M B FS: Format string should use %n rather than \n in org.chromium.android_webview.test.AwSettingsTest.testUserAgentStringDefault()  At AwSettingsTest.java
-M B Nm: The class name org.chromium.chrome.browser.component.navigation_interception.InterceptNavigationDelegate shadows the simple name of implemented interface org.chromium.content.components.navigation_interception.InterceptNavigationDelegate  In InterceptNavigationDelegate.java
 M B Nm: The method name org.chromium.base.test.util.ScalableTimeout.ScaleTimeout(long) doesn't start with a lower case letter  At ScalableTimeout.java
 M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.doArchiveTest(AwContents, String, boolean, String)  At ArchiveTest.java
 M B RV: exceptional return value of java.io.File.delete() ignored in org.chromium.android_webview.test.ArchiveTest.testAutoBadPath()  At ArchiveTest.java
