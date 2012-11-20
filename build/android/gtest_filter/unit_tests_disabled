@@ -5,9 +5,6 @@ BrowserMainTest.WarmConnectionFieldTrial_Invalid
 BrowserMainTest.WarmConnectionFieldTrial_Random
 BrowserMainTest.WarmConnectionFieldTrial_WarmestSocket
 
-# crbug.com/139431
-ChromePaths.UserCacheDir
-
 # The UDP related tests currently do not work on Android because
 # we lack a UDP forwarder tool.
 NetworkStatsTestUDP.*
