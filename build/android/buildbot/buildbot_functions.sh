@@ -294,6 +294,22 @@ function bb_run_step {
   )
 }
 
+# Install a specific APK.
+# Args:
+#   $1: APK to be installed.
+#   $2: APK_PACKAGE for the APK to be installed.
+function bb_install_apk {
+  local APK=${1}
+  local APK_PACKAGE=${2}
+  if [[ $BUILDTYPE = Release ]]; then
+    local BUILDFLAG="--release"
+  fi
+
+  echo "@@@BUILD_STEP Install ${APK}@@@"
+  python build/android/adb_install_apk.py --apk ${APK} \
+      --apk_package ${APK_PACKAGE} ${BUILDFLAG}
+}
+
 # Run instrumentation tests for a specific APK.
 # Args:
 #   $1: APK to be installed.
@@ -305,10 +321,10 @@ function bb_run_all_instrumentation_tests_for_apk {
   local TEST_APK=${3}
 
   # Install application APK.
-  python build/android/adb_install_apk.py --apk ${APK} \
-      --apk_package ${APK_PACKAGE}
+  bb_install_apk ${APK} ${APK_PACKAGE}
 
   # Run instrumentation tests. Using -I to install the test apk.
+  echo "@@@BUILD_STEP Run instrumentation tests ${TEST_APK}@@@"
   bb_run_step python build/android/run_instrumentation_tests.py \
       -vvv --test-apk ${TEST_APK} -I
 }
