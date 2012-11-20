@@ -42,11 +42,15 @@
     'java_out_dir': '<(PRODUCT_DIR)/java_proto/<(_target_name)/src',
     'proto_in_dir%': '.',
     'stamp_file': '<(java_out_dir).stamp',
-    # Variables needed by java.gypi below.
+    'script': '<(DEPTH)/build/protoc_java.py',
+
+    # The rest of the variables here are for the java.gypi include.
     'package_name': '<(_target_name)',
     'java_in_dir': '<(DEPTH)/build/android/empty',
-    'script': '<(DEPTH)/build/protoc_java.py',
     'generated_src_dirs': ['<(java_out_dir)'],
+    # Adding the |stamp_file| to |additional_input_paths| makes the actions in
+    # the include of java.gypi depend on the genproto_java action.
+    'additional_input_paths': ['<(stamp_file)'],
   },
   'actions': [
     {
