@@ -2253,6 +2253,29 @@
     },
   },
   'conditions': [
+    ['os_posix==1', {
+      'target_defaults': {
+        'cflags': [
+          # TODO(phajdan.jr): Use -fstack-protector-strong when our gcc
+          # supports it.
+          '-fstack-protector',
+          '--param=ssp-buffer-size=4',
+        ],
+        'ldflags': [
+          '-Wl,-z,now',
+          '-Wl,-z,relro',
+        ],
+        'conditions': [
+          ['chromium_code==1', {
+            # Non-chromium code is not guaranteed to compile cleanly
+            # with _FORTIFY_SOURCE.
+            'defines': [
+              '_FORTIFY_SOURCE=2',
+            ],
+          }],
+        ],
+      },
+    }],
     ['os_posix==1 and OS!="mac" and OS!="ios"', {
       'target_defaults': {
         # Enable -Werror by default, but put it in a variable so it can
