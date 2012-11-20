@@ -13,5 +13,5 @@ bb_baseline_setup "$BB_SRC_ROOT" "$@"
 bb_spawn_logcat_monitor_and_status
 bb_extract_build
 bb_reboot_phones
-echo "@@@BUILD_STEP TODO: Perf tests@@@"
+bb_install_apk "ContentShell.apk" "org.chromium.content_shell"
 bb_print_logcat
