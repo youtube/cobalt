@@ -86,6 +86,9 @@
                 'java_in_dir': 'java',
                 'maven_pom': '<(java_in_dir)/pom.xml',
                 'javac_includes': ['<!@(<(script_pom) <(maven_pom))'],
+                'additional_input_paths': [
+                  '<(java_out_dir)/com/google/protobuf/DescriptorProtos.java'
+                ],
               },
               'actions': [
                 {
