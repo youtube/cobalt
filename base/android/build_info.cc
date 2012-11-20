@@ -55,6 +55,7 @@ BuildInfo::BuildInfo(JNIEnv* env)
           env, GetApplicationContext()))),
       package_name_(StrDupJString(Java_BuildInfo_getPackageName(
           env, GetApplicationContext()))),
+      sdk_int_(Java_BuildInfo_getSdkInt(env)),
       java_exception_info_(NULL) {
 }
 

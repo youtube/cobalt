@@ -106,4 +106,9 @@ public class BuildInfo {
         String packageName = context != null ? context.getPackageName() : null;
         return packageName != null ? packageName : "";
     }
+
+    @CalledByNative
+    public static int getSdkInt() {
+        return Build.VERSION.SDK_INT;
+    }
 }
