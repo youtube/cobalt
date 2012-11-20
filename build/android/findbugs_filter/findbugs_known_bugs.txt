@@ -74,7 +74,6 @@ M D DLS: Dead store to testUrl in org.chromium.android_webview.test.ClientOnPage
 M D DLS: Dead store to time in org.chromium.net.test.util.TestWebServer.setDateHeaders(HttpResponse)  At TestWebServer.java
 M D DMI: Hard coded reference to an absolute pathname in org.chromium.android_webview.test.ArchiveTest.testAutoBadPath()  At ArchiveTest.java
 M D DMI: Hard coded reference to an absolute pathname in org.chromium.android_webview.test.ArchiveTest.testExplicitBadPath()  At ArchiveTest.java
-M D ICAST: Result of integer multiplication cast to long in org.chromium.android_webview.test.AwContentsClientShouldIgnoreNavigationTest.testShouldIgnoreNavigationNotCalledForPostNavigations()  At AwContentsClientShouldIgnoreNavigationTest.java
 M D ICAST: Result of integer multiplication cast to long in org.chromium.android_webview.test.AwSettingsTest.testBlockNetworkImagesBlocksNetworkImageAndReloadInPlace()  At AwSettingsTest.java
 M D ICAST: integral division result cast to double or float in org.chromium.content.browser.HandleView.setOrientation(int)  At HandleView.java
 M D REC: Exception is caught when Exception is not thrown in org.chromium.content.browser.test.util.UiUtils.findParentViewForIdAcrossActivities(int)  At UiUtils.java
