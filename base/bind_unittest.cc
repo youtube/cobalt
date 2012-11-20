@@ -798,5 +798,17 @@ TEST_F(BindTest, WindowsCallingConventions) {
 }
 #endif
 
+#if (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)) && GTEST_HAS_DEATH_TEST
+
+// Test null callbacks cause a DCHECK.
+TEST(BindDeathTest, NullCallback) {
+  base::Callback<void(int)> null_cb;
+  ASSERT_TRUE(null_cb.is_null());
+  EXPECT_DEATH(base::Bind(null_cb, 42), "");
+}
+
+#endif  // (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)) &&
+        //     GTEST_HAS_DEATH_TEST
+
 }  // namespace
 }  // namespace base
