@@ -6,42 +6,6 @@ H D ST: Write to static field org.chromium.content.app.SandboxedProcessService.s
 H D ST: Write to static field org.chromium.net.test.util.TestWebServer.sInstance from instance method org.chromium.net.test.util.TestWebServer.shutdown()  At TestWebServer.java
 H V MS: org.chromium.android_webview.test.AndroidWebViewTestBase.WAIT_TIMEOUT_SECONDS isn't final but should be  At AndroidWebViewTestBase.java
 H V MS: org.chromium.android_webview.test.LoadDataWithBaseUrlTest.WAIT_TIMEOUT_SECONDS isn't final but should be  At LoadDataWithBaseUrlTest.java
-H V MS: org.chromium.content.app.AppResource.ARRAY_OFFICIAL_COMMAND_LINE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DIMENSION_FAVICON_COLORSTRIP_CORNER_RADII isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DIMENSION_FAVICON_COLORSTRIP_HEIGHT isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DIMENSION_FAVICON_COLORSTRIP_PADDING isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DIMENSION_FAVICON_COLORSTRIP_WIDTH isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DIMENSION_FAVICON_FOLD_BORDER isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DIMENSION_FAVICON_FOLD_CORNER_RADII isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DIMENSION_FAVICON_FOLD_SHADOW isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DIMENSION_FAVICON_FOLD_SIZE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DIMENSION_FAVICON_SIZE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DRAWABLE_ICON_APP_ICON isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.DRAWABLE_ICON_DEFAULT_FAVICON isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_DATE_PICKER isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_JS_MODAL_DIALOG_BUTTON_CANCEL isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_JS_MODAL_DIALOG_BUTTON_CONFIRM isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_JS_MODAL_DIALOG_CHECKBOX_SUPPRESS_DIALOGS isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_JS_MODAL_DIALOG_TEXT_MESSAGE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_JS_MODAL_DIALOG_TEXT_PROMPT isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_JS_MODAL_DIALOG_TEXT_TITLE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_MONTH_PICKER isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_MONTH_YEAR_PICKERS_CONTAINER isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_TIME_PICKER isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.ID_YEAR_PICKER isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.LAYOUT_DATE_TIME_PICKER_DIALOG isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.LAYOUT_JS_MODAL_DIALOG isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.LAYOUT_MONTH_PICKER isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.LAYOUT_MONTH_PICKER_DIALOG isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.MIPMAP_BOOKMARK_SHORTCUT_BACKGROUND isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.STRING_DATE_PICKER_DIALOG_CLEAR isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.STRING_DATE_PICKER_DIALOG_SET isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.STRING_DATE_TIME_PICKER_DIALOG_TITLE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.STRING_JS_MODAL_DIALOG_DONT_RELOAD_THIS_PAGE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.STRING_JS_MODAL_DIALOG_LEAVE_THIS_PAGE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.STRING_JS_MODAL_DIALOG_RELOAD_THIS_PAGE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.STRING_JS_MODAL_DIALOG_STAY_ON_THIS_PAGE isn't final but should be  In AppResource.java
-H V MS: org.chromium.content.app.AppResource.STRING_MONTH_PICKER_DIALOG_TITLE isn't final but should be  In AppResource.java
 H V MS: org.chromium.content.browser.ContentViewTestBase.WAIT_TIMEOUT_SECONDS isn't final but should be  At ContentViewTestBase.java
 H V MS: org.chromium.content.browser.test.util.CallbackHelper.WAIT_TIMEOUT_SECONDS isn't final but should be  At CallbackHelper.java
 H V MS: org.chromium.content.browser.test.util.HistoryUtils.WAIT_TIMEOUT_SECONDS isn't final but should be  At HistoryUtils.java
@@ -172,21 +136,6 @@ M V EI: org.chromium.chrome.browser.ChromeBrowserProvider$BookmarkNode.thumbnail
 M V MS: org.chromium.android_webview.AwResource.RAW_LOAD_ERROR isn't final and can't be protected from malicious code   In AwResource.java
 M V MS: org.chromium.android_webview.AwResource.RAW_NO_DOMAIN isn't final and can't be protected from malicious code   In AwResource.java
 M V MS: org.chromium.android_webview.AwResource.STRING_DEFAULT_TEXT_ENCODING isn't final and can't be protected from malicious code   In AwResource.java
-M V MS: org.chromium.content.app.AppResource.DIMENSION_LINK_PREVIEW_OVERLAY_RADIUS isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.DRAWABLE_ICON_ACTION_BAR_SHARE isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.DRAWABLE_ICON_ACTION_BAR_WEB_SEARCH isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.DRAWABLE_LINK_PREVIEW_POPUP_OVERLAY isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.ID_AUTOFILL_LABEL isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.ID_AUTOFILL_NAME isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.LAYOUT_AUTOFILL_TEXT isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.STRING_ACTION_BAR_SHARE isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.STRING_ACTION_BAR_WEB_SEARCH isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.STRING_CONTENT_VIEW_CONTENT_DESCRIPTION isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.STRING_MEDIA_PLAYER_ERROR_BUTTON isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.STRING_MEDIA_PLAYER_ERROR_TITLE isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.STRING_MEDIA_PLAYER_LOADING_VIDEO isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.STRING_MEDIA_PLAYER_MESSAGE_PLAYBACK_ERROR isn't final and can't be protected from malicious code   In AppResource.java
-M V MS: org.chromium.content.app.AppResource.STRING_MEDIA_PLAYER_MESSAGE_UNKNOWN_ERROR isn't final and can't be protected from malicious code   In AppResource.java
 M V MS: org.chromium.content.browser.LoadUrlParams.LOAD_TYPE_BROWSER_INITIATED_HTTP_POST should be package protected  In LoadUrlParams.java
 M V MS: org.chromium.content.browser.LoadUrlParams.LOAD_TYPE_DATA isn't final and can't be protected from malicious code   In LoadUrlParams.java
 M V MS: org.chromium.content.browser.LoadUrlParams.LOAD_TYPE_DEFAULT should be package protected  In LoadUrlParams.java
