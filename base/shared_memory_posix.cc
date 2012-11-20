@@ -366,7 +366,11 @@ bool SharedMemory::ShareToProcessCommon(ProcessHandle process,
                                         SharedMemoryHandle *new_handle,
                                         bool close_self) {
   const int new_fd = dup(mapped_file_);
-  DCHECK_GE(new_fd, 0);
+  if (new_fd < 0) {
+    DPLOG(ERROR) << "dup() failed.";
+    return false;
+  }
+
   new_handle->fd = new_fd;
   new_handle->auto_close = true;
 
