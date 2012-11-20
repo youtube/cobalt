@@ -79,7 +79,7 @@ const HttpResponseInfo* SpdyHttpStream::GetResponseInfo() const {
 }
 
 UploadProgress SpdyHttpStream::GetUploadProgress() const {
-  if (!request_info_->upload_data_stream)
+  if (!request_info_ || !request_info_->upload_data_stream)
     return UploadProgress();
 
   return UploadProgress(request_info_->upload_data_stream->position(),
@@ -271,7 +271,7 @@ void SpdyHttpStream::Cancel() {
 }
 
 int SpdyHttpStream::SendData() {
-  CHECK(request_info_->upload_data_stream);
+  CHECK(request_info_ && request_info_->upload_data_stream);
   CHECK_EQ(0, request_body_buf_->BytesRemaining());
 
   // Read the data from the request body stream.
@@ -295,7 +295,7 @@ bool SpdyHttpStream::OnSendHeadersComplete(int status) {
 }
 
 int SpdyHttpStream::OnSendBody() {
-  CHECK(request_info_->upload_data_stream);
+  CHECK(request_info_ && request_info_->upload_data_stream);
   const bool eof = request_info_->upload_data_stream->IsEOF();
   if (request_body_buf_->BytesRemaining() > 0) {
     return stream_->WriteStreamData(
@@ -313,7 +313,7 @@ int SpdyHttpStream::OnSendBody() {
 
 int SpdyHttpStream::OnSendBodyComplete(int status, bool* eof) {
   // |status| is the number of bytes written to the SPDY stream.
-  CHECK(request_info_->upload_data_stream);
+  CHECK(request_info_ && request_info_->upload_data_stream);
   *eof = false;
 
   if (status > 0) {
