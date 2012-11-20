@@ -26,11 +26,11 @@
 //    MD5 hashing code.  The error occurs due to some problematic error
 //    resilence code for H264 inside of FFmpeg.  See http://crbug.com/119020
 //
-//    FLAKY_OGV_0 may run out of memory under ASAN on IA32 Linux/Mac.
-//
 //    Some OGG files leak ~30 bytes of memory, upstream tracking bug:
 //    https://ffmpeg.org/trac/ffmpeg/ticket/1244
 //
+//    Some OGG files leak hundreds of kilobytes of memory, upstream bug:
+//    https://ffmpeg.org/trac/ffmpeg/ticket/1931
 
 #include "media/filters/pipeline_integration_test_base.h"
 
@@ -99,10 +99,10 @@ FFMPEG_TEST_CASE(Cr47761, "content/crbug47761.ogg", PIPELINE_OK, PIPELINE_OK,
                  "f45b9d7556f39dd811700ec72cb71483");
 FFMPEG_TEST_CASE(Cr50045, "content/crbug50045.mp4", PIPELINE_OK, PIPELINE_OK,
                  "c345e9ef9ebfc6bfbcbe3f0ddc3125ba",
-                 "39cc70f744944eb01da947b8cf6fcd58");
-FFMPEG_TEST_CASE(Cr62127, "content/crbug62127.webm",
-                 PIPELINE_OK, PIPELINE_OK,
-                 "a064b2776fc5aef3e9cba47967a75db9", kNullHash);
+                 "73d65d9cc6ce25060b7510bd74678c26");
+FFMPEG_TEST_CASE(Cr62127, "content/crbug62127.webm", PIPELINE_ERROR_DECODE,
+                 PIPELINE_ERROR_DECODE, "d41d8cd98f00b204e9800998ecf8427e",
+                 kNullHash);
 FFMPEG_TEST_CASE(Cr93620, "security/93620.ogg", PIPELINE_OK, PIPELINE_OK,
                  kNullHash,
                  "0cff252cd46867d26c42a96e6a2e2376");
@@ -128,8 +128,8 @@ FFMPEG_TEST_CASE(Cr112670, "security/112670.mp4", PIPELINE_ERROR_DECODE,
 FFMPEG_TEST_CASE(Cr112976, "security/112976.ogg", PIPELINE_OK,
                  PIPELINE_ERROR_DECODE, kNullHash,
                  "ef79f7c5805561908805eb0bb7097bb4");
-FFMPEG_TEST_CASE(Cr116927, "security/116927.ogv", PIPELINE_ERROR_DECODE,
-                 PIPELINE_ERROR_DECODE, kNullHash, kNullHash);
+FFMPEG_TEST_CASE(Cr116927, "security/116927.ogv", DEMUXER_ERROR_COULD_NOT_OPEN,
+                 DEMUXER_ERROR_COULD_NOT_OPEN, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr117912, "security/117912.webm", DEMUXER_ERROR_COULD_NOT_OPEN,
                  DEMUXER_ERROR_COULD_NOT_OPEN, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr123481, "security/123481.ogv", PIPELINE_OK,
@@ -141,32 +141,33 @@ FFMPEG_TEST_CASE(Cr132779, "security/132779.webm",
 FFMPEG_TEST_CASE(Cr140165, "security/140165.ogg", PIPELINE_ERROR_DECODE,
                  PIPELINE_ERROR_DECODE, kNullHash,
                  "bd42757e42bdada18cb9441ee4ef8313");
-FFMPEG_TEST_CASE(Cr140647, "security/140647.ogv",
-                 DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
-                 kNullHash, kNullHash);
+FFMPEG_TEST_CASE(Cr140647, "security/140647.ogv", DEMUXER_ERROR_COULD_NOT_OPEN,
+                 DEMUXER_ERROR_COULD_NOT_OPEN, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(Cr142738, "content/crbug142738.ogg", PIPELINE_OK, PIPELINE_OK,
                  kNullHash,
                  "03a9591e5b596eb848feeafd7693f371");
 FFMPEG_TEST_CASE(Cr152691, "security/152691.mp3", PIPELINE_ERROR_DECODE,
                  PIPELINE_ERROR_DECODE, kNullHash,
                  "59adb24ef3cdbe0297f05b395827453f");
+FFMPEG_TEST_CASE(Cr161639, "security/161639.m4a", PIPELINE_OK, PIPELINE_OK,
+                 kNullHash, "97ae2fa2a2e9ff3c2cf17be96b08bbe8");
 
 // General MKV test cases.
 FFMPEG_TEST_CASE(MKV_0, "security/nested_tags_lang.mka.627.628", PIPELINE_OK,
                  PIPELINE_ERROR_DECODE, kNullHash,
-                 "7d1d74b9801002d983e7df3d52dd6db6");
+                 "3fc4e8ef212df08c61acce3db34b2d09");
 FFMPEG_TEST_CASE(MKV_1, "security/nested_tags_lang.mka.667.628", PIPELINE_OK,
                  PIPELINE_ERROR_DECODE, kNullHash,
-                 "7d04ad131b4b07e04406159a17537a54");
+                 "2f5ad3e7dd25fa5c0e8f26879953ef0f");
 
 // General MP4 test cases.
-FFMPEG_TEST_CASE(MP4_0, "security/aac.10419.mp4", PIPELINE_OK, PIPELINE_OK,
-                 kNullHash, kNullHash);
+FFMPEG_TEST_CASE(MP4_0, "security/aac.10419.mp4", DEMUXER_ERROR_COULD_NOT_OPEN,
+                 DEMUXER_ERROR_COULD_NOT_OPEN, kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_1, "security/clockh264aac_200021889.mp4",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_2, "security/clockh264aac_200701257.mp4", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "d4fea8297ca1c5ad7bbcd858864f66d9");
+                 PIPELINE_OK, kNullHash, "d41d8cd98f00b204e9800998ecf8427e");
 FFMPEG_TEST_CASE(MP4_5, "security/clockh264aac_3022500.mp4",
                  DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
                  DEMUXER_ERROR_NO_SUPPORTED_STREAMS, kNullHash, kNullHash);
@@ -183,7 +184,7 @@ FFMPEG_TEST_CASE(MP4_9, "security/smclockmp4aac_1_0.mp4",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
 FFMPEG_TEST_CASE(MP4_11, "security/null1.mp4", PIPELINE_OK, PIPELINE_OK,
-                 kNullHash, "d30daffed220266a133b27e00b892558");
+                 kNullHash, "7397188f229211987268f39ef5a45b3c");
 FFMPEG_TEST_CASE(MP4_16, "security/looping2.mov",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
@@ -253,7 +254,7 @@ FFMPEG_TEST_CASE(WEBM_5, "content/frame_size_change.webm", PIPELINE_OK,
 
 // Audio Functional Tests
 FFMPEG_TEST_CASE(AUDIO_GAMING_0, "content/gaming/a_220_00.mp3", PIPELINE_OK,
-                 PIPELINE_OK, kNullHash, "1693d9a1e498b13c2a7fb8e7e62db880");
+                 PIPELINE_OK, kNullHash, "3c2e03569e2af83415a8f32065425f8c");
 FFMPEG_TEST_CASE(AUDIO_GAMING_1, "content/gaming/a_220_00_v2.ogg", PIPELINE_OK,
                  PIPELINE_OK, kNullHash, "2fa0e9fca48759a7de1c22418fba7ea0");
 FFMPEG_TEST_CASE(AUDIO_GAMING_2, "content/gaming/ai_laser1.ogg", PIPELINE_OK,
@@ -291,17 +292,17 @@ FFMPEG_TEST_CASE(AUDIO_GAMING_17, "content/gaming/enemy_lock_on.ogg",
                  "9670d8f5a668cf85f8ae8d6f8e0fdcdc");
 FFMPEG_TEST_CASE(AUDIO_GAMING_18, "content/gaming/rocket_launcher.mp3",
                  PIPELINE_OK, PIPELINE_OK, kNullHash,
-                 "bd8b70f6452360db7cca5c34b6e72844");
+                 "91354320606584f4404514d914d01ee0");
 
 // Allocate gigabytes of memory, likely can't be run on 32bit machines.
 FFMPEG_TEST_CASE(BIG_MEM_1, "security/bigmem1.mov",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
 FFMPEG_TEST_CASE(BIG_MEM_2, "security/looping1.mov",
-                 DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE,
+                 DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
 FFMPEG_TEST_CASE(BIG_MEM_5, "security/looping5.mov",
-                 DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE,
+                 DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN,
                  kNullHash, kNullHash);
 FLAKY_FFMPEG_TEST_CASE(BIG_MEM_3, "security/looping3.mov");
 FLAKY_FFMPEG_TEST_CASE(BIG_MEM_4, "security/looping4.mov");
@@ -338,8 +339,8 @@ TEST_P(FFmpegRegressionTest, BasicPlayback) {
                       GetParam().init_status, true));
     Play();
     ASSERT_EQ(WaitUntilEndedOrError(), GetParam().end_status);
-    EXPECT_EQ(GetVideoHash(), GetParam().video_md5);
-    EXPECT_EQ(GetAudioHash(), GetParam().audio_md5);
+    EXPECT_EQ(GetParam().video_md5, GetVideoHash());
+    EXPECT_EQ(GetParam().audio_md5, GetAudioHash());
 
     // Check for ended if the pipeline is expected to finish okay.
     if (GetParam().end_status == PIPELINE_OK) {
@@ -351,8 +352,8 @@ TEST_P(FFmpegRegressionTest, BasicPlayback) {
   } else {
     ASSERT_FALSE(Start(GetTestDataFilePath(GetParam().filename),
                        GetParam().init_status, true));
-    EXPECT_EQ(GetVideoHash(), GetParam().video_md5);
-    EXPECT_EQ(GetAudioHash(), GetParam().audio_md5);
+    EXPECT_EQ(GetParam().video_md5, GetVideoHash());
+    EXPECT_EQ(GetParam().audio_md5, GetAudioHash());
   }
 }
 
