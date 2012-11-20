@@ -21,7 +21,7 @@
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_service.h"
 
-#if defined(OS_LINUX) || defined(OS_OPENBSD)
+#if (defined(OS_LINUX) || defined(OS_OPENBSD)) && !defined(OS_CHROMEOS)
 #include <glib-object.h>
 #endif
 
@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
 #if defined(OS_MACOSX)
   base::mac::ScopedNSAutoreleasePool pool;
 #endif
-#if defined(OS_LINUX) || defined(OS_OPENBSD)
+#if (defined(OS_LINUX) || defined(OS_OPENBSD)) && !defined(OS_CHROMEOS)
   // Needed so ProxyConfigServiceLinux can use gconf.
   // Normally handled by BrowserMainLoop::InitializeToolkit().
   g_type_init();
