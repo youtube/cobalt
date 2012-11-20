@@ -534,8 +534,7 @@ int AUAudioInputStream::HardwareSampleRate() {
                                                0,
                                                &info_size,
                                                &device_id);
-  OSSTATUS_DCHECK(result == noErr, result);
-  if (result)
+  if (result != noErr)
     return 0.0;
 
   Float64 nominal_sample_rate;
@@ -552,8 +551,7 @@ int AUAudioInputStream::HardwareSampleRate() {
                                       0,
                                       &info_size,
                                       &nominal_sample_rate);
-  DCHECK_EQ(result, 0);
-  if (result)
+  if (result != noErr)
     return 0.0;
 
   return static_cast<int>(nominal_sample_rate);
