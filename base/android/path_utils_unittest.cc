@@ -4,6 +4,7 @@
 
 #include "base/android/path_utils.h"
 #include "base/file_path.h"
+#include "base/file_util.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -34,12 +35,11 @@ TEST_F(PathUtilsTest, TestGetCacheDirectory) {
 
 TEST_F(PathUtilsTest, TestGetNativeLibraryDirectory) {
   // The string comes from the Java side and depends on the APK
-  // we are running in. Assumes that we are packaged in
-  // org.chromium.native_test
+  // we are running in. Assumes that the directory contains
+  // the base tests shared object.
   FilePath path;
   GetNativeLibraryDirectory(&path);
-  EXPECT_STREQ("/data/data/org.chromium.native_test/lib",
-               path.value().c_str());
+  EXPECT_TRUE(file_util::PathExists(path.Append(("libbase_unittests.so"))));
 }
 
 }  // namespace android
