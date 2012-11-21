@@ -34,9 +34,6 @@ base::Thread* MessageLoopFactory::GetThread(Type type) {
 
   const char* name = NULL;
   switch (type) {
-    case kDecoder:
-      name = "MediaDecoder";
-      break;
     case kPipeline:
       name = "MediaPipeline";
       break;
