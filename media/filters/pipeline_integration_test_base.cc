@@ -200,11 +200,11 @@ PipelineIntegrationTestBase::CreateFilterCollection(
   scoped_refptr<AudioDecoder> audio_decoder = new FFmpegAudioDecoder(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
-                 media::MessageLoopFactory::kDecoder));
+                 media::MessageLoopFactory::kPipeline));
   scoped_refptr<VideoDecoder> video_decoder = new FFmpegVideoDecoder(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
-                 media::MessageLoopFactory::kDecoder),
+                 media::MessageLoopFactory::kPipeline),
       decryptor);
   collection->GetAudioDecoders()->push_back(audio_decoder);
   collection->GetVideoDecoders()->push_back(video_decoder);
