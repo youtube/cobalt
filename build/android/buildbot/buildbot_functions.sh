@@ -228,8 +228,10 @@ function bb_run_webkit_unit_tests {
   if [[ $BUILDTYPE = Release ]]; then
     local BUILDFLAG="--release"
   fi
-  build/android/run_tests.py --xvfb --verbose $BUILDFLAG -s webkit_unit_tests
-  build/android/run_tests.py --xvfb --verbose $BUILDFLAG -s TestWebKitAPI
+  bb_run_step build/android/run_tests.py --xvfb --verbose $BUILDFLAG \
+      -s webkit_unit_tests
+  bb_run_step build/android/run_tests.py --xvfb --verbose $BUILDFLAG \
+      -s TestWebKitAPI
 }
 
 # Lint WebKit's TestExpectation files.
