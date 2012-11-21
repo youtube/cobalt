@@ -1366,7 +1366,7 @@
         'grit_defines': ['-D', 'enable_web_intents_tag'],
       }],
 
-      ['asan==1', {
+      ['asan==1 and OS!="win"', {
         'clang%': 1,
       }],
       ['asan==1 and OS=="mac"', {
@@ -1749,6 +1749,15 @@
           'USE_SKIA=1',
         ],
       }],
+      ['asan==1 and OS=="win"', {
+        # Since asan on windows uses Syzygy, we need /PROFILE turned on to
+        # produce appropriate pdbs.
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'Profile': 'true',
+          },
+        },
+      }],  # asan==1 and OS=="win"
       ['coverage!=0', {
         'conditions': [
           ['OS=="mac" or OS=="ios"', {
