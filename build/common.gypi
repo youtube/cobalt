@@ -2993,6 +2993,11 @@
                   '<(android_src)/frameworks/wilhelm/include',
                 ],
                 'cflags': [
+                  # Android predefines this as 1; undefine it here so Chromium
+                  # can redefine it later to be 2 for chromium code and unset
+                  # for third party code. This works because cflags are added
+                  # before defines.
+                  '-U_FORTIFY_SOURCE',
                   # Chromium builds its own (non-third-party) code with
                   # -Werror to make all warnings into errors. However, Android
                   # enables warnings that Chromium doesn't, so some of these
