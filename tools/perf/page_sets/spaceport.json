@@ -2,7 +2,7 @@
     "description": "Spaceport.io benchmark.",
     "pages": [
         {
-            "url": "../../../chrome/test/data/third_party/spaceport/index.html"
+            "url": "file:///../../../chrome/test/data/third_party/spaceport/index.html"
         }
     ]
 }
