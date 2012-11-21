@@ -30,7 +30,6 @@
 #include "base/threading/thread.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
-#include "media/base/decoder_buffer_queue.h"
 #include "media/base/demuxer.h"
 #include "media/base/pipeline.h"
 #include "media/base/video_decoder_config.h"
@@ -56,15 +55,14 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // inside |stream|.  Both parameters must outlive |this|.
   FFmpegDemuxerStream(FFmpegDemuxer* demuxer, AVStream* stream);
 
-  // Enqueues the given AVPacket. It is invalid to queue a |packet| after
-  // SetEndOfStream() has been called.
+  // Returns true is this stream has pending reads, false otherwise.
+  bool HasPendingReads();
+
+  // Enqueues the given AVPacket.  If |packet| is NULL an end of stream packet
+  // is enqueued.
   void EnqueuePacket(ScopedAVPacket packet);
 
-  // Enters the end of stream state. After delivering remaining queued buffers
-  // only end of stream buffers will be delivered.
-  void SetEndOfStream();
-
-  // Drops queued buffers and clears end of stream state.
+  // Signals to empty the buffer queue and mark next packet as discontinuous.
   void FlushBuffers();
 
   // Empties the queues and ignores any additional calls to Read().
@@ -86,9 +84,6 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // Returns elapsed time based on the already queued packets.
   // Used to determine stream duration when it's not known ahead of time.
   base::TimeDelta GetElapsedTime() const;
-
-  // Returns true if this stream has capacity for additional data.
-  bool HasAvailableCapacity();
 
  protected:
   virtual ~FFmpegDemuxerStream();
@@ -112,11 +107,11 @@ class FFmpegDemuxerStream : public DemuxerStream {
   Type type_;
   base::TimeDelta duration_;
   bool stopped_;
-  bool end_of_stream_;
   base::TimeDelta last_packet_timestamp_;
   Ranges<base::TimeDelta> buffered_ranges_;
 
-  DecoderBufferQueue buffer_queue_;
+  typedef std::deque<scoped_refptr<DecoderBuffer> > BufferQueue;
+  BufferQueue buffer_queue_;
 
   typedef std::deque<ReadCB> ReadQueue;
   ReadQueue read_queue_;
@@ -143,9 +138,9 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
 
-  // Allow FFmpegDemuxerStream to notify us when there is updated information
-  // about capacity and what buffered data is available.
-  void NotifyCapacityAvailable();
+  // Allow FFmpegDemuxerStream to notify us when it requires more data or has
+  // updated information about what buffered data is available.
+  void NotifyHasPendingRead();
   void NotifyBufferingChanged();
 
  private:
@@ -174,11 +169,16 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
   // Carries out disabling the audio stream on the demuxer thread.
   void DisableAudioStreamTask();
 
-  // Returns true iff any stream has additional capacity. Note that streams can
-  // go over capacity depending on how the file is muxed.
-  bool StreamsHaveAvailableCapacity();
+  // Returns true if any of the streams have pending reads.  Since we lazily
+  // post a DemuxTask() for every read, we use this method to quickly terminate
+  // the tasks if there is no work to do.
+  //
+  // Must be called on the demuxer thread.
+  bool StreamsHavePendingReads();
 
-  // Signal all FFmpegDemuxerStreams that the stream has ended.
+  // Signal all FFmpegDemuxerStream that the stream has ended.
+  //
+  // Must be called on the demuxer thread.
   void StreamHasEnded();
 
   // Called by |url_protocol_| whenever |data_source_| returns a read error.
