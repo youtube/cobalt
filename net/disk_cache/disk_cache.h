@@ -172,31 +172,27 @@ class NET_EXPORT Entry {
   // Returns the size of the cache data with the given index.
   virtual int32 GetDataSize(int index) const = 0;
 
-  // Copies cache data into the given buffer of length |buf_len|.  If
-  // completion_callback is null, then this call blocks until the read
-  // operation is complete.  Otherwise, completion_callback will be
-  // called on the current thread once the read completes.  Returns the
-  // number of bytes read or a network error code. If a completion callback is
-  // provided then it will be called if this function returns ERR_IO_PENDING,
-  // and a reference to |buf| will be retained until the callback is called.
-  // Note that the callback will be invoked in any case, even after Close has
-  // been called; in other words, the caller may close this entry without
-  // having to wait for all the callbacks, and still rely on the cleanup
-  // performed from the callback code.
+  // Copies cached data into the given buffer of length |buf_len|. Returns the
+  // number of bytes read or a network error code. If this function returns
+  // ERR_IO_PENDING, the completion callback will be called on the current
+  // thread when the operation completes, and a reference to |buf| will be
+  // retained until the callback is called. Note that as long as the function
+  // does not complete immediately, the callback will always be invoked, even
+  // after Close has been called; in other words, the caller may close this
+  // entry without having to wait for all the callbacks, and still rely on the
+  // cleanup performed from the callback code.
   virtual int ReadData(int index, int offset, IOBuffer* buf, int buf_len,
                        const CompletionCallback& callback) = 0;
 
-  // Copies cache data from the given buffer of length |buf_len|.  If
-  // completion_callback is null, then this call blocks until the write
-  // operation is complete.  Otherwise, completion_callback will be
-  // called on the current thread once the write completes.  Returns the
-  // number of bytes written or a network error code. If a completion callback
-  // is provided then it will be called if this function returns ERR_IO_PENDING,
-  // and a reference to |buf| will be retained until the callback is called.
-  // Note that the callback will be invoked in any case, even after Close has
-  // been called; in other words, the caller may close this entry without
-  // having to wait for all the callbacks, and still rely on the cleanup
-  // performed from the callback code.
+  // Copies data from the given buffer of length |buf_len| into the cache.
+  // Returns the number of bytes written or a network error code. If this
+  // function returns ERR_IO_PENDING, the completion callback will be called
+  // on the current thread when the operation completes, and a reference to
+  // |buf| will be retained until the callback is called. Note that as long as
+  // the function does not complete immediately, the callback will always be
+  // invoked, even after Close has been called; in other words, the caller may
+  // close this entry without having to wait for all the callbacks, and still
+  // rely on the cleanup performed from the callback code.
   // If truncate is true, this call will truncate the stored data at the end of
   // what we are writing here.
   virtual int WriteData(int index, int offset, IOBuffer* buf, int buf_len,
