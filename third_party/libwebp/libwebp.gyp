@@ -44,9 +44,7 @@
           ],
           'conditions': [
             ['OS == "android"', {
-              'dependencies': [
-                '<(android_ndk_root)/android_tools_ndk.gyp:cpu_features',
-              ],
+              'includes': [ '../../build/android/cpufeatures.gypi' ],
             }],
             ['order_profiling != 0', {
               'target_conditions' : [
