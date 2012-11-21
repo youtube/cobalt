@@ -23,7 +23,7 @@ class SpaceportBenchmark(multi_page_benchmark.MultiPageBenchmark):
 
     js_get_results = 'JSON.stringify(window.__results)'
     def _IsDone():
-      num_tests_in_benchmark = 30
+      num_tests_in_benchmark = 24
       result_dict = eval(tab.runtime.Evaluate(js_get_results))
       return num_tests_in_benchmark == len(result_dict)
     util.WaitFor(_IsDone, 1200)
