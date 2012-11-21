@@ -15,7 +15,8 @@ MultiChannelResampler::MultiChannelResampler(int channels,
                                              double io_sample_rate_ratio,
                                              const ReadCB& read_cb)
     : last_frame_count_(0),
-      read_cb_(read_cb) {
+      read_cb_(read_cb),
+      output_frames_ready_(0) {
   // Allocate each channel's resampler.
   resamplers_.reserve(channels);
   for (int i = 0; i < channels; ++i) {
@@ -33,10 +34,10 @@ void MultiChannelResampler::Resample(AudioBus* audio_bus, int frames) {
   // channel.  To ensure this, we chunk the number of requested frames into
   // SincResampler::ChunkSize() sized chunks.  SincResampler guarantees it will
   // only call ProvideInput() once when we resample this way.
-  int frames_done = 0;
+  output_frames_ready_ = 0;
   int chunk_size = resamplers_[0]->ChunkSize();
-  while (frames_done < frames) {
-    int frames_this_time = std::min(frames - frames_done, chunk_size);
+  while (output_frames_ready_ < frames) {
+    int frames_this_time = std::min(frames - output_frames_ready_, chunk_size);
 
     // Resample each channel.
     for (size_t i = 0; i < resamplers_.size(); ++i) {
@@ -49,10 +50,10 @@ void MultiChannelResampler::Resample(AudioBus* audio_bus, int frames) {
       // since they all buffer in the same way and are processing the same
       // number of frames.
       resamplers_[i]->Resample(
-          audio_bus->channel(i) + frames_done, frames_this_time);
+          audio_bus->channel(i) + output_frames_ready_, frames_this_time);
     }
 
-    frames_done += frames_this_time;
+    output_frames_ready_ += frames_this_time;
   }
 }
 
@@ -82,7 +83,7 @@ void MultiChannelResampler::ProvideInput(int channel, float* destination,
     }
 
     last_frame_count_ = frames;
-    read_cb_.Run(wrapped_resampler_audio_bus_.get());
+    read_cb_.Run(output_frames_ready_, wrapped_resampler_audio_bus_.get());
   } else {
     // All channels must ask for the same amount.  This should always be the
     // case, but let's just make sure.

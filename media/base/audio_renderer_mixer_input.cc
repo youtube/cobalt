@@ -18,7 +18,8 @@ AudioRendererMixerInput::AudioRendererMixerInput(
       get_mixer_cb_(get_mixer_cb),
       remove_mixer_cb_(remove_mixer_cb),
       mixer_(NULL),
-      callback_(NULL) {
+      callback_(NULL),
+      current_audio_delay_milliseconds_(0) {
 }
 
 AudioRendererMixerInput::~AudioRendererMixerInput() {
@@ -72,8 +73,27 @@ bool AudioRendererMixerInput::SetVolume(double volume) {
   return true;
 }
 
-void AudioRendererMixerInput::GetVolume(double* volume) {
-  *volume = volume_;
+double AudioRendererMixerInput::ProvideInput(AudioBus* audio_bus,
+                                             base::TimeDelta buffer_delay) {
+  int frames_filled = 0;
+
+  if (playing_) {
+    frames_filled = callback_->Render(
+        audio_bus,
+        current_audio_delay_milliseconds_ + buffer_delay.InMilliseconds());
+
+    // AudioConverter expects unfilled frames to be zeroed.
+    if (frames_filled < audio_bus->frames()) {
+      audio_bus->ZeroFramesPartial(
+          frames_filled, audio_bus->frames() - frames_filled);
+    }
+  }
+
+  return frames_filled > 0 ? volume_ : 0;
+}
+
+void AudioRendererMixerInput::OnRenderError() {
+  callback_->OnRenderError();
 }
 
 }  // namespace media
