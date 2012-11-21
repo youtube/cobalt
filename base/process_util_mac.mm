@@ -567,7 +567,7 @@ class ScopedClearErrno {
 };
 
 // Combines ThreadLocalBoolean with AutoReset.  It would be convenient
-// to compose ThreadLocalPointer<bool> with AutoReset<bool>, but that
+// to compose ThreadLocalPointer<bool> with base::AutoReset<bool>, but that
 // would require allocating some storage for the bool.
 class ThreadLocalBooleanAutoReset {
  public:
