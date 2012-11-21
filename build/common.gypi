@@ -2934,6 +2934,9 @@
                 'libraries': [
                   '-lgnustl_shared',
                 ],
+                'ldflags!': [
+                  '-Wl,--exclude-libs=ALL',
+                ],
               }],
               ['android_upstream_bringup==1', {
                 'defines': ['ANDROID_UPSTREAM_BRINGUP=1',],
