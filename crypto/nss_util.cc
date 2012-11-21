@@ -226,10 +226,14 @@ base::LazyInstance<NSPRInitSingleton>::Leaky
 base::LazyInstance<base::ScopedTempDir> g_test_nss_db_dir =
     LAZY_INSTANCE_INITIALIZER;
 
-// Force a crash to debug http://crbug.com/153281.
-void CrashWithErrors(int nss_error, int os_error) {
+// Force a crash with error info on NSS_NoDB_Init failure.
+void CrashOnNSSInitFailure() {
+  int nss_error = PR_GetError();
+  int os_error = PR_GetOSError();
   base::debug::Alias(&nss_error);
   base::debug::Alias(&os_error);
+  LOG(ERROR) << "Error initializing NSS without a persistent database: "
+             << GetNSSErrorMessage();
   LOG(FATAL) << "nss_error=" << nss_error << ", os_error=" << os_error;
 }
 
@@ -458,12 +462,7 @@ class NSSInitSingleton {
     if (nodb_init) {
       status = NSS_NoDB_Init(NULL);
       if (status != SECSuccess) {
-        // Force a crash with error info to debug http://crbug.com/153281.
-        int nss_error = PR_GetError();
-        int os_error = PR_GetOSError();
-        LOG(ERROR) << "Error initializing NSS without a persistent "
-                      "database: " << GetNSSErrorMessage();
-        CrashWithErrors(nss_error, os_error);
+        CrashOnNSSInitFailure();
         return;
       }
 #if defined(OS_IOS)
@@ -497,8 +496,7 @@ class NSSInitSingleton {
         VLOG(1) << "Initializing NSS without a persistent database.";
         status = NSS_NoDB_Init(NULL);
         if (status != SECSuccess) {
-          LOG(ERROR) << "Error initializing NSS without a persistent "
-                        "database: " << GetNSSErrorMessage();
+          CrashOnNSSInitFailure();
           return;
         }
       }
