@@ -446,6 +446,8 @@
               '<!@(pkg-config --cflags protobuf)',
             ],
             'defines': [
+              'USE_SYSTEM_PROTOBUF',
+
               # This macro must be defined to suppress the use
               # of dynamic_cast<>, which requires RTTI.
               'GOOGLE_PROTOBUF_NO_RTTI',
