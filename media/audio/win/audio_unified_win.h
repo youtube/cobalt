@@ -42,9 +42,9 @@ class AudioManagerWin;
 //
 // TODO(henrika):
 //
+//  - Add support for exclusive mode.
 //  - Add multi-channel support.
 //  - Add support for non-matching sample rates.
-//  - Add support for exclusive mode.
 //
 class MEDIA_EXPORT WASAPIUnifiedStream
     : public AudioOutputStream,
@@ -128,6 +128,15 @@ class MEDIA_EXPORT WASAPIUnifiedStream
   // Length of the audio endpoint buffer.
   size_t endpoint_render_buffer_size_frames_;
   size_t endpoint_capture_buffer_size_frames_;
+
+  // Counts the number of audio frames written to the endpoint buffer.
+  uint64 num_written_frames_;
+
+  // Time stamp for last delay measurement.
+  base::TimeTicks last_delay_sample_time_;
+
+  // Contains the total (sum of render and capture) delay in milliseconds.
+  double total_delay_ms_;
 
   // Pointer to the client that will deliver audio samples to be played out.
   AudioSourceCallback* source_;

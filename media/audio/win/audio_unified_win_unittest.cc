@@ -32,6 +32,12 @@ namespace media {
 static const size_t kMaxDeltaSamples = 1000;
 static const char* kDeltaTimeMsFileName = "unified_delta_times_ms.txt";
 
+// Verify that the delay estimate in the OnMoreIOData() callback is larger
+// than an expected minumum value.
+MATCHER_P(DelayGreaterThan, value, "") {
+  return (arg.hardware_delay_bytes > value.hardware_delay_bytes);
+}
+
 // Used to terminate a loop from a different thread than the loop belongs to.
 // |loop| should be a MessageLoopProxy.
 ACTION_P(QuitLoop, loop) {
@@ -173,6 +179,7 @@ class AudioUnifiedStreamWrapper {
   int bits_per_sample() const { return params_.bits_per_sample(); }
   int sample_rate() const { return params_.sample_rate(); }
   int frames_per_buffer() const { return params_.frames_per_buffer(); }
+  int bytes_per_buffer() const { return params_.GetBytesPerBuffer(); }
 
  private:
   AudioOutputStream* CreateOutputStream() {
@@ -235,10 +242,16 @@ TEST(WASAPIUnifiedStreamTest, StartLoopbackAudio) {
   AudioUnifiedStreamWrapper ausw(audio_manager.get());
   WASAPIUnifiedStream* wus = ausw.Create();
 
+  // Set up expected minimum delay estimation where we use a minium delay
+  // which is equal to the sum of render and capture sizes. We can never
+  // reach a delay lower than this value.
+  AudioBuffersState min_total_audio_delay(0, 2 * ausw.bytes_per_buffer());
+
   EXPECT_TRUE(wus->Open());
   EXPECT_CALL(source, OnError(wus, _))
       .Times(0);
-  EXPECT_CALL(source, OnMoreIOData(NotNull(), NotNull(), _))
+  EXPECT_CALL(source, OnMoreIOData(
+      NotNull(), NotNull(), DelayGreaterThan(min_total_audio_delay)))
       .Times(AtLeast(2))
       .WillOnce(Return(ausw.frames_per_buffer()))
       .WillOnce(DoAll(
