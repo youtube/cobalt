@@ -22,9 +22,6 @@ TemplateURLPrepopulateDataTest.*
 TemplateURLServiceSyncTest.*
 SearchHostToURLsMapTest.*
 
-# crbug.com/139427
-TemplateURLFetcherTest.*
-
 # crbug.com/139433
 AutofillTableTest.AutofillProfile*
 AutofillTableTest.UpdateAutofillProfile
