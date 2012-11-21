@@ -29,6 +29,7 @@ GLES2/gl2ext.h
  - Added GL_CHROMIUM_bind_uniform_location
  - Added GL_CHROMIUM_get_error_query
  - Added GL_CHROMIUM_texture_from_image
+ - Added GL_CHROMIUM_pixel_transfer_buffer_object
  - Added GL_NVX_gpu_memory_info
  - Added include of gl2chromium.h
 GLES2/glchromium.h
