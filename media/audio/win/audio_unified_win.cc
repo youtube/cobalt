@@ -7,6 +7,7 @@
 #include <Functiondiscoverykeys_devpkey.h>
 
 #include "base/debug/trace_event.h"
+#include "base/time.h"
 #include "base/win/scoped_com_initializer.h"
 #include "media/audio/win/audio_manager_win.h"
 #include "media/audio/win/avrt_wrapper_win.h"
@@ -16,20 +17,57 @@ using base::win::ScopedComPtr;
 using base::win::ScopedCOMInitializer;
 using base::win::ScopedCoMem;
 
-namespace media {
+// Time in milliseconds between two successive delay measurements.
+// We save resources by not updating the delay estimates for each capture
+// event (typically 100Hz rate).
+static const size_t kTimeDiffInMillisecondsBetweenDelayMeasurements = 1000;
 
 // Compare two sets of audio parameters and return true if they are equal.
 // Note that bits_per_sample() is excluded from this comparison since Core
 // Audio can deal with most bit depths. As an example, if the native/mixing
 // bit depth is 32 bits (default), opening at 16 or 24 still works fine and
 // the audio engine will do the required conversion for us.
-static bool CompareAudioParameters(const AudioParameters& a,
-                                   const AudioParameters& b) {
+static bool CompareAudioParameters(const media::AudioParameters& a,
+                                   const media::AudioParameters& b) {
   return (a.format() == b.format() &&
           a.channels() == b.channels() &&
           a.sample_rate() == b.sample_rate() &&
           a.frames_per_buffer() == b.frames_per_buffer());
 }
+
+// Use the acquired IAudioClock interface to derive a time stamp of the audio
+// sample which is currently playing through the speakers.
+static double SpeakerStreamPosInMilliseconds(IAudioClock* clock) {
+  UINT64 device_frequency = 0, position = 0;
+  if (FAILED(clock->GetFrequency(&device_frequency)) ||
+      FAILED(clock->GetPosition(&position, NULL))) {
+    return 0.0;
+  }
+
+  return base::Time::kMillisecondsPerSecond *
+      (static_cast<double>(position) / device_frequency);
+}
+
+// Get a time stamp in milliseconds given number of audio frames in |num_frames|
+// using the current sample rate |fs| as scale factor.
+// Example: |num_frames| = 960 and |fs| = 48000 => 20 [ms].
+static double CurrentStreamPosInMilliseconds(UINT64 num_frames, DWORD fs) {
+  return base::Time::kMillisecondsPerSecond *
+      (static_cast<double>(num_frames) / fs);
+}
+
+// Convert a timestamp in milliseconds to byte units given the audio format
+// in |format|.
+// Example: |ts_milliseconds| equals 10, sample rate is 48000 and frame size
+// is 4 bytes per audio frame => 480 * 4 = 1920 [bytes].
+static int MillisecondsToBytes(double ts_milliseconds,
+                               const WAVEFORMATPCMEX& format) {
+  double seconds = ts_milliseconds / base::Time::kMillisecondsPerSecond;
+  return static_cast<int>(seconds * format.Format.nSamplesPerSec *
+      format.Format.nBlockAlign + 0.5);
+}
+
+namespace media {
 
 WASAPIUnifiedStream::WASAPIUnifiedStream(AudioManagerWin* manager,
                                          const AudioParameters& params)
@@ -40,6 +78,8 @@ WASAPIUnifiedStream::WASAPIUnifiedStream(AudioManagerWin* manager,
       opened_(false),
       endpoint_render_buffer_size_frames_(0),
       endpoint_capture_buffer_size_frames_(0),
+      num_written_frames_(0),
+      total_delay_ms_(0.0),
       source_(NULL),
       capture_bus_(AudioBus::Create(params)),
       render_bus_(AudioBus::Create(params)) {
@@ -206,6 +246,13 @@ void WASAPIUnifiedStream::Start(AudioSourceCallback* callback) {
     return;
   }
 
+  // Reset the counter for number of rendered frames taking into account the
+  // fact that we always initialize the render side with silence.
+  UINT32 num_queued_frames = 0;
+  audio_output_client_->GetCurrentPadding(&num_queued_frames);
+  DCHECK_EQ(num_queued_frames, endpoint_render_buffer_size_frames_);
+  num_written_frames_ = num_queued_frames;
+
   // Start output streaming data between the endpoint buffer and the audio
   // engine.
   hr = audio_output_client_->Start();
@@ -327,7 +374,19 @@ void WASAPIUnifiedStream::Run() {
     LOG(WARNING) << "Failed to enable MMCSS (error code=" << err << ").";
   }
 
-  HRESULT hr = S_FALSE;
+  // The IAudioClock interface enables us to monitor a stream's data
+  // rate and the current position in the stream. Allocate it before we
+  // start spinning.
+  ScopedComPtr<IAudioClock> audio_output_clock;
+  HRESULT hr = audio_output_client_->GetService(
+      __uuidof(IAudioClock), audio_output_clock.ReceiveVoid());
+  LOG_IF(WARNING, FAILED(hr)) << "Failed to create IAudioClock: "
+                              << std::hex << hr;
+
+  // Stores a delay measurement (unit is in bytes). This variable is not
+  // updated at each event, but the update frequency is set by a constant
+  // called |kTimeDiffInMillisecondsBetweenDelayMeasurements|.
+  int total_delay_bytes = 0;
 
   bool streaming = true;
   bool error = false;
@@ -363,14 +422,19 @@ void WASAPIUnifiedStream::Run() {
           UINT32 num_captured_frames = 0;
           DWORD flags = 0;
           UINT64 device_position = 0;
-          UINT64 first_audio_frame_timestamp = 0;
+          UINT64 capture_time_stamp = 0;
+
+          base::TimeTicks now_tick = base::TimeTicks::HighResNow();
 
           // Retrieve the amount of data in the capture endpoint buffer.
+          // |endpoint_capture_time_stamp| is the value of the performance
+          // counter at the time that the audio endpoint device recorded
+          // the device position of the first audio frame in the data packet.
           hr = audio_capture_client_->GetBuffer(&data_ptr,
                                                 &num_captured_frames,
                                                 &flags,
                                                 &device_position,
-                                                &first_audio_frame_timestamp);
+                                                &capture_time_stamp);
           if (FAILED(hr)) {
             DLOG(ERROR) << "Failed to get data from the capture buffer";
             continue;
@@ -391,14 +455,50 @@ void WASAPIUnifiedStream::Run() {
           hr = audio_capture_client_->ReleaseBuffer(num_captured_frames);
           DLOG_IF(ERROR, FAILED(hr)) << "Failed to release capture buffer";
 
+          // Save resource by not asking for new delay estimates each time.
+          // These estimates are fairly stable and it is perfectly safe to only
+          // sample at a rate of ~1Hz.
+          // TODO(henrika): it might be possible to use a fixed delay instead.
+          if ((now_tick - last_delay_sample_time_).InMilliseconds() >
+              kTimeDiffInMillisecondsBetweenDelayMeasurements) {
+            // Calculate the estimated capture delay, i.e., the latency between
+            // the recording time and the time we when we are notified about
+            // the recorded data. Note that the capture time stamp is given in
+            // 100-nanosecond (0.1 microseconds) units.
+            base::TimeDelta diff = now_tick -
+                base::TimeTicks::FromInternalValue(0.1 * capture_time_stamp);
+            const double capture_delay_ms = diff.InMillisecondsF();
+
+            // Calculate the estimated render delay, i.e., the time difference
+            // between the time when data is added to the endpoint buffer and
+            // when the data is played out on the actual speaker.
+            const double stream_pos = CurrentStreamPosInMilliseconds(
+                num_written_frames_ + packet_size_frames_,
+                format_.Format.nSamplesPerSec);
+            const double speaker_pos =
+                SpeakerStreamPosInMilliseconds(audio_output_clock);
+            const double render_delay_ms = stream_pos - speaker_pos;
+
+            // Derive the total delay, i.e., the sum of the input and output
+            // delays. Also convert the value into byte units.
+            total_delay_ms_ = capture_delay_ms + render_delay_ms;
+            last_delay_sample_time_ = now_tick;
+            DVLOG(3) << "total_delay_ms  : " << total_delay_ms_;
+            total_delay_bytes = MillisecondsToBytes(total_delay_ms_, format_);
+          }
+
           // Prepare for rendering by calling OnMoreIOData().
           int frames_filled = source_->OnMoreIOData(
               capture_bus_.get(),
               render_bus_.get(),
-              AudioBuffersState(0, 0));
+              AudioBuffersState(0, total_delay_bytes));
           DCHECK_EQ(frames_filled, render_bus_->frames());
 
           // --- Render ---
+
+          // Keep track of number of rendered frames since we need it for
+          // our delay calculations.
+          num_written_frames_ += frames_filled;
 
           // Derive the the amount of available space in the endpoint buffer.
           // Avoid render attempt if there is no room for a captured packet.

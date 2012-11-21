@@ -15,7 +15,6 @@
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
 #include "media/base/media_switches.h"
-#include "base/time.h"
 
 using base::win::ScopedCoMem;
 using base::win::ScopedHandle;
@@ -67,16 +66,6 @@ static ChannelLayout ChannelConfigToChannelLayout(ChannelConfig config) {
   }
 }
 
-static double RefererenceTimeToMilliseconds(REFERENCE_TIME time) {
-  //  Each unit of reference time is 100 nanoseconds <=> 0.1 microsecond.
-  return base::TimeDelta::FromMicroseconds(0.1 * time + 0.5).InMillisecondsF();
-}
-
-static double RefererenceTimeToSeconds(REFERENCE_TIME time) {
-  //  Each unit of reference time is 100 nanoseconds <=> 0.1 microsecond.
-  return base::TimeDelta::FromMicroseconds(0.1 * time + 0.5).InSecondsF();
-}
-
 // Scoped PROPVARIANT class for automatically freeing a COM PROPVARIANT
 // structure at the end of a scope.
 class ScopedPropertyVariant {
@@ -115,6 +104,11 @@ bool CoreAudioUtil::IsSupported() {
   // with earlier versions of Windows, including Microsoft Windows Server 2003,
   // Windows XP, Windows Millennium Edition, Windows 2000, and Windows 98.
   return (base::win::GetVersion() >= base::win::VERSION_VISTA);
+}
+
+base::TimeDelta CoreAudioUtil::RefererenceTimeToTimeDelta(REFERENCE_TIME time) {
+  // Each unit of reference time is 100 nanoseconds <=> 0.1 microsecond.
+  return base::TimeDelta::FromMicroseconds(0.1 * time + 0.5);
 }
 
 AUDCLNT_SHAREMODE CoreAudioUtil::GetShareMode() {
@@ -397,7 +391,8 @@ HRESULT CoreAudioUtil::GetDevicePeriod(IAudioClient* client,
   *device_period = (share_mode == AUDCLNT_SHAREMODE_SHARED) ? default_period :
       minimum_period;
   DVLOG(2) << "device_period: "
-           << RefererenceTimeToMilliseconds(*device_period) << " [ms]";
+           << RefererenceTimeToTimeDelta(*device_period).InMillisecondsF()
+           << " [ms]";
   return hr;
 }
 
@@ -427,13 +422,19 @@ HRESULT CoreAudioUtil::GetPreferredAudioParameters(
   // Convert Microsoft's channel configuration to genric ChannelLayout.
   ChannelLayout channel_layout = ChannelConfigToChannelLayout(channel_config);
 
-  // Store preferred sample rate, bit depth and buffer size.
+  // Store preferred sample rate and buffer size.
   int sample_rate = format.Format.nSamplesPerSec;
-  int bits_per_sample = format.Format.wBitsPerSample;
-  int frames_per_buffer = static_cast<int>(
-      sample_rate * RefererenceTimeToSeconds(default_period) + 0.5);
+  int frames_per_buffer = static_cast<int>(sample_rate *
+      RefererenceTimeToTimeDelta(default_period).InSecondsF() + 0.5);
+
+  // TODO(henrika): possibly use format.Format.wBitsPerSample here instead.
+  // We use a hard-coded value of 16 bits per sample today even if most audio
+  // engines does the actual mixing in 32 bits per sample.
+  int bits_per_sample = 16;
 
   DVLOG(2) << "channel_layout   : " << channel_layout;
+  DVLOG(2) << "sample_rate      : " << sample_rate;
+  DVLOG(2) << "bits_per_sample  : " << bits_per_sample;
   DVLOG(2) << "frames_per_buffer: " << frames_per_buffer;
 
   AudioParameters audio_params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
@@ -512,7 +513,7 @@ HRESULT CoreAudioUtil::SharedModeInitialize(IAudioClient* client,
   REFERENCE_TIME  latency = 0;
   hr = client->GetStreamLatency(&latency);
   DVLOG(2) << "stream latency: "
-           << RefererenceTimeToMilliseconds(latency) << " [ms]";
+           << RefererenceTimeToTimeDelta(latency).InMillisecondsF() << " [ms]";
   return hr;
 }
 

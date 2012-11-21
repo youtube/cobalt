@@ -16,6 +16,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/time.h"
 #include "base/win/scoped_comptr.h"
 #include "media/audio/audio_device_name.h"
 #include "media/audio/audio_parameters.h"
@@ -28,7 +29,14 @@ namespace media {
 class MEDIA_EXPORT CoreAudioUtil {
  public:
   // Returns true if Windows Core Audio is supported.
+  // Always verify that this method returns true before using any of the
+  // methods in this class.
   static bool IsSupported();
+
+  // Converts between reference time to base::TimeDelta.
+  // One reference-time unit is 100 nanoseconds.
+  // Example: double s = RefererenceTimeToTimeDelta(t).InMillisecondsF();
+  static base::TimeDelta RefererenceTimeToTimeDelta(REFERENCE_TIME time);
 
   // Returns AUDCLNT_SHAREMODE_EXCLUSIVE if --enable-exclusive-mode is used
   // as command-line flag and AUDCLNT_SHAREMODE_SHARED otherwise (default).
