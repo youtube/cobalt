@@ -41,13 +41,6 @@ DownloadItemModelTest.InterruptTooltip
 DownloadItemModelTest.InterruptStatus
 # l10n_util.cc(655)] Check failed: std::string::npos != pos
 WebsiteSettingsTest.OnSiteDataAccessed
-# Tests failing in the APK (mostly failing to create files out of the Application dir).
-DiagnosticsModelTest.RunAll
-FirstRunTest.RemoveSentinel
-GoogleUpdateTest.StatsConsent
-URLFixerUpperTest.FixupFile
-URLFixerUpperTest.FixupRelativeFile
-DownloadPathReservationTrackerTest.CreateDefaultDownloadPath
 
 # crbug.com/139423
 ValueStoreFrontendTest.GetExistingData
@@ -100,12 +93,7 @@ HistoryContentsProviderTest.*
 HQPOrderingTest.*
 SearchProviderTest.*
 
-# Test server and forwarder and not ready yet.
 ProtocolHandlerRegistryTest.TestOSRegistrationFailure
-ConnectionTesterTest.*
-HttpPipeliningCompatibilityClientTest.*
-NetworkStatsTestTCP.*
-ConnectionTesterTest.RunAllTests
 
 # crbug.com/139418
 SQLiteServerBoundCertStoreTest.TestUpgradeV1
