@@ -29,6 +29,7 @@ class AudioRendererMixerInputTest : public testing::Test {
     fake_callback_.reset(new FakeAudioRenderCallback(0));
     mixer_input_->Initialize(audio_parameters_, fake_callback_.get());
     EXPECT_CALL(*this, RemoveMixer(testing::_));
+    audio_bus_ = AudioBus::Create(audio_parameters_);
   }
 
   void CreateMixerInput() {
@@ -51,6 +52,14 @@ class AudioRendererMixerInputTest : public testing::Test {
     return mixer_.get();
   }
 
+  double ProvideInput() {
+    return mixer_input_->ProvideInput(audio_bus_.get(), base::TimeDelta());
+  }
+
+  int GetAudioDelayMilliseconds() {
+    return mixer_input_->current_audio_delay_milliseconds_;
+  }
+
   MOCK_METHOD1(RemoveMixer, void(const AudioParameters&));
 
  protected:
@@ -60,26 +69,25 @@ class AudioRendererMixerInputTest : public testing::Test {
   scoped_ptr<AudioRendererMixer> mixer_;
   scoped_refptr<AudioRendererMixerInput> mixer_input_;
   scoped_ptr<FakeAudioRenderCallback> fake_callback_;
+  scoped_ptr<AudioBus> audio_bus_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioRendererMixerInputTest);
 };
 
-// Test callback() works as expected.
-TEST_F(AudioRendererMixerInputTest, GetCallback) {
-  EXPECT_EQ(mixer_input_->callback(), fake_callback_.get());
-}
-
-// Test that getting and setting the volume work as expected.
+// Test that getting and setting the volume work as expected.  The volume is
+// returned from ProvideInput() only when playing.
 TEST_F(AudioRendererMixerInputTest, GetSetVolume) {
-  // Starting volume should be 0.
-  double volume = 1.0f;
-  mixer_input_->GetVolume(&volume);
-  EXPECT_EQ(volume, 1.0f);
+  mixer_input_->Start();
+  mixer_input_->Play();
 
-  const double kVolume = 0.5f;
+  // Starting volume should be 1.0.
+  EXPECT_DOUBLE_EQ(ProvideInput(), 1);
+
+  const double kVolume = 0.5;
   EXPECT_TRUE(mixer_input_->SetVolume(kVolume));
-  mixer_input_->GetVolume(&volume);
-  EXPECT_EQ(volume, kVolume);
+  EXPECT_DOUBLE_EQ(ProvideInput(), kVolume);
+
+  mixer_input_->Stop();
 }
 
 // Test Start()/Play()/Pause()/Stop()/playing() all work as expected.  Also
@@ -87,15 +95,15 @@ TEST_F(AudioRendererMixerInputTest, GetSetVolume) {
 // crashing; functional tests for these methods are in AudioRendererMixerTest.
 TEST_F(AudioRendererMixerInputTest, StartPlayPauseStopPlaying) {
   mixer_input_->Start();
-  EXPECT_FALSE(mixer_input_->playing());
+  EXPECT_DOUBLE_EQ(ProvideInput(), 0);
   mixer_input_->Play();
-  EXPECT_TRUE(mixer_input_->playing());
+  EXPECT_DOUBLE_EQ(ProvideInput(), 1);
   mixer_input_->Pause(false);
-  EXPECT_FALSE(mixer_input_->playing());
+  EXPECT_DOUBLE_EQ(ProvideInput(), 0);
   mixer_input_->Play();
-  EXPECT_TRUE(mixer_input_->playing());
+  EXPECT_DOUBLE_EQ(ProvideInput(), 1);
   mixer_input_->Stop();
-  EXPECT_FALSE(mixer_input_->playing());
+  EXPECT_DOUBLE_EQ(ProvideInput(), 0);
 }
 
 // Test that Stop() can be called before Initialize() and Start().

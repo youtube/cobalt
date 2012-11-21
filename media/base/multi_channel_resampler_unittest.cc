@@ -37,7 +37,9 @@ static const double kHighLatencyMaxError = 0.04;
 class MultiChannelResamplerTest
     : public testing::TestWithParam<int> {
  public:
-  MultiChannelResamplerTest() {}
+  MultiChannelResamplerTest()
+      : last_frame_delay_(-1) {
+  }
   virtual ~MultiChannelResamplerTest() {}
 
   void InitializeAudioData(int channels, int frames) {
@@ -47,7 +49,10 @@ class MultiChannelResamplerTest
 
   // MultiChannelResampler::MultiChannelAudioSourceProvider implementation, just
   // fills the provided audio_data with |kFillValue|.
-  virtual void ProvideInput(AudioBus* audio_bus) {
+  virtual void ProvideInput(int frame_delay, AudioBus* audio_bus) {
+    EXPECT_GT(frame_delay, last_frame_delay_);
+    last_frame_delay_ = frame_delay;
+
     float fill_value = fill_junk_values_ ? (1 / kFillValue) : kFillValue;
     EXPECT_EQ(audio_bus->channels(), audio_bus_->channels());
     for (int i = 0; i < audio_bus->channels(); ++i)
@@ -58,15 +63,19 @@ class MultiChannelResamplerTest
   void MultiChannelTest(int channels, int frames, double expected_max_rms_error,
                         double expected_max_error) {
     InitializeAudioData(channels, frames);
-    MultiChannelResampler resampler(
-        channels, kScaleFactor, base::Bind(
-            &MultiChannelResamplerTest::ProvideInput,
-            base::Unretained(this)));
+    MultiChannelResampler resampler(channels, kScaleFactor, base::Bind(
+        &MultiChannelResamplerTest::ProvideInput, base::Unretained(this)));
+
     // First prime the resampler with some junk data, so we can verify Flush().
     fill_junk_values_ = true;
     resampler.Resample(audio_bus_.get(), 1);
     resampler.Flush();
     fill_junk_values_ = false;
+
+    // The last frame delay should be strictly less than the total frame count.
+    EXPECT_LT(last_frame_delay_, audio_bus_->frames());
+    last_frame_delay_ = -1;
+
     // If Flush() didn't work, the rest of the tests will fail.
     resampler.Resample(audio_bus_.get(), frames);
     TestValues(expected_max_rms_error, expected_max_error);
@@ -108,6 +117,7 @@ class MultiChannelResamplerTest
   int frames_;
   bool fill_junk_values_;
   scoped_ptr<AudioBus> audio_bus_;
+  int last_frame_delay_;
 
   DISALLOW_COPY_AND_ASSIGN(MultiChannelResamplerTest);
 };

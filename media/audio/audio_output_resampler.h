@@ -17,31 +17,24 @@
 
 namespace media {
 
-class OnMoreDataResampler;
+class OnMoreDataConverter;
 
-// AudioOutputResampler is a browser-side resampling and rebuffering solution
-// which ensures audio data is always output at given parameters.  The rough
-// flow is: Client -> [FIFO] -> [Resampler] -> Output Device.
-//
-// The FIFO and resampler are only used when necessary.  To be clear:
-//   - The resampler is only used if the input and output sample rates differ.
-//   - The FIFO is only used if the input and output frame sizes differ or if
-//     the resampler is used.
+// AudioOutputResampler is a browser-side resampling and buffering solution
+// which ensures audio data is always output at given parameters.  See the
+// AudioConverter class for details on the conversion process.
 //
 // AOR works by intercepting the AudioSourceCallback provided to StartStream()
-// and redirecting to the appropriate resampling or FIFO callback which passes
-// through to the original callback only when necessary.
+// and redirecting it through an AudioConverter instance.  AudioBuffersState is
+// adjusted for buffer delay caused by the conversion process.
 //
 // AOR will automatically fall back from AUDIO_PCM_LOW_LATENCY to
 // AUDIO_PCM_LINEAR if the output device fails to open at the requested output
 // parameters.
+//
 // TODO(dalecurtis): Ideally the low latency path will be as reliable as the
 // high latency path once we have channel mixing and support querying for the
 // hardware's configured bit depth.  Monitor the UMA stats for fallback and
 // remove fallback support once it's stable.  http://crbug.com/148418
-//
-// Currently channel downmixing and upmixing is not supported.
-// TODO(dalecurtis): Add channel remixing.  http://crbug.com/138762
 class MEDIA_EXPORT AudioOutputResampler : public AudioOutputDispatcher {
  public:
   AudioOutputResampler(AudioManager* audio_manager,
@@ -63,20 +56,16 @@ class MEDIA_EXPORT AudioOutputResampler : public AudioOutputDispatcher {
   friend class base::RefCountedThreadSafe<AudioOutputResampler>;
   virtual ~AudioOutputResampler();
 
-  // Used to initialize the FIFO and resamplers.
+  // Used to initialize and reinitialize |dispatcher_|.
   void Initialize();
 
   // Dispatcher to proxy all AudioOutputDispatcher calls too.
   scoped_refptr<AudioOutputDispatcher> dispatcher_;
 
-  // Map of outstanding OnMoreDataResampler objects.  A new object is created
+  // Map of outstanding OnMoreDataConverter objects.  A new object is created
   // on every StartStream() call and destroyed on CloseStream().
-  typedef std::map<AudioOutputProxy*, OnMoreDataResampler*> CallbackMap;
+  typedef std::map<AudioOutputProxy*, OnMoreDataConverter*> CallbackMap;
   CallbackMap callbacks_;
-
-  // Ratio of input bytes to output bytes used to correct playback delay with
-  // regard to buffering and resampling.
-  double io_ratio_;
 
   // Used by AudioOutputDispatcherImpl; kept so we can reinitialize on the fly.
   base::TimeDelta close_delay_;

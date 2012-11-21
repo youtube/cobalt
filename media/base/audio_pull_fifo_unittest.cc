@@ -29,7 +29,8 @@ class AudioPullFifoTest
     : pull_fifo_(kChannels, kMaxFramesInFifo, base::Bind(
           &AudioPullFifoTest::ProvideInput, base::Unretained(this))),
       audio_bus_(AudioBus::Create(kChannels, kMaxFramesInFifo)),
-      fill_value_(0) {}
+      fill_value_(0),
+      last_frame_delay_(-1) {}
   virtual ~AudioPullFifoTest() {}
 
   void VerifyValue(const float data[], int size, float start_value) {
@@ -51,12 +52,16 @@ class AudioPullFifoTest
       VerifyValue(audio_bus_->channel(j), frames_to_consume, start_value);
     }
     start_value += frames_to_consume;
+    EXPECT_LT(last_frame_delay_, audio_bus_->frames());
   }
 
   // AudioPullFifo::ReadCB implementation where we increase a value for each
   // audio frame that we provide. Note that all channels are given the same
   // value to simplify the verification.
-  virtual void ProvideInput(AudioBus* audio_bus) {
+  virtual void ProvideInput(int frame_delay, AudioBus* audio_bus) {
+    ASSERT_GT(frame_delay, last_frame_delay_);
+    last_frame_delay_ = frame_delay;
+
     EXPECT_EQ(audio_bus->channels(), audio_bus_->channels());
     EXPECT_EQ(audio_bus->frames(), kMaxFramesInFifo);
     for (int i = 0; i < audio_bus->frames(); ++i) {
@@ -72,6 +77,7 @@ class AudioPullFifoTest
   AudioPullFifo pull_fifo_;
   scoped_ptr<AudioBus> audio_bus_;
   int fill_value_;
+  int last_frame_delay_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioPullFifoTest);
 };

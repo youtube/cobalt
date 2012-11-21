@@ -33,7 +33,7 @@ void AudioPullFifo::Consume(AudioBus* destination, int frames_to_consume) {
   // Get the remaining audio frames from the producer using the callback.
   while (remaining_frames_to_provide > 0) {
     // Fill up the FIFO by acquiring audio data from the producer.
-    read_cb_.Run(bus_.get());
+    read_cb_.Run(write_pos, bus_.get());
     fifo_->Push(bus_.get());
 
     // Try to fulfill the request using what's available in the FIFO.

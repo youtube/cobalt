@@ -5,16 +5,17 @@
 // MSVC++ requires this to be set before any other includes to get M_PI.
 #define _USE_MATH_DEFINES
 
-#include "media/base/fake_audio_render_callback.h"
-
 #include <cmath>
+
+#include "media/base/fake_audio_render_callback.h"
 
 namespace media {
 
 FakeAudioRenderCallback::FakeAudioRenderCallback(double step)
     : half_fill_(false),
       step_(step),
-      last_audio_delay_milliseconds_(-1) {
+      last_audio_delay_milliseconds_(-1),
+      volume_(1) {
   reset();
 }
 
@@ -38,6 +39,12 @@ int FakeAudioRenderCallback::Render(AudioBus* audio_bus,
            number_of_frames * sizeof(*audio_bus->channel(i)));
 
   return number_of_frames;
+}
+
+double FakeAudioRenderCallback::ProvideInput(AudioBus* audio_bus,
+                                             base::TimeDelta buffer_delay) {
+  Render(audio_bus, buffer_delay.InMilliseconds());
+  return volume_;
 }
 
 }  // namespace media
