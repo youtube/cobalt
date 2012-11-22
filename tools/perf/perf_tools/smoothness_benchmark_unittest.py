@@ -86,6 +86,7 @@ class SmoothnessBenchmarkUnitTest(
         parsed_url = urlparse.urlparse(ps.pages[0].url)
         path = os.path.join(parsed_url.netloc, parsed_url.path)
         dirname, filename = os.path.split(path)
+        dirname = os.path.join(ps.base_dir, dirname[1:])
         browser.SetHTTPServerDirectory(dirname)
         target_side_url = browser.http_server.UrlOf(filename)
         tab.page.Navigate(target_side_url)
