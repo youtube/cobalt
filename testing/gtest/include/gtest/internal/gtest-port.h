@@ -627,7 +627,7 @@ using ::std::tuple_size;
 #ifndef GTEST_HAS_STREAM_REDIRECTION
 // By default, we assume that stream redirection is supported on all
 // platforms except known mobile ones.
-# if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_SYMBIAN
+# if GTEST_OS_WINDOWS_MOBILE || GTEST_OS_SYMBIAN || defined(__LB_SHELL__)
 #  define GTEST_HAS_STREAM_REDIRECTION 0
 # else
 #  define GTEST_HAS_STREAM_REDIRECTION 1
@@ -1725,6 +1725,18 @@ inline bool IsDir(const StatStruct& st) {
 }
 # endif  // GTEST_OS_WINDOWS_MOBILE
 
+#elif defined(__LB_SHELL__)
+typedef struct stat StatStruct;
+
+inline int FileNo(FILE* file) { return fileno(file); }
+inline int IsATTY(int fd) { return 0; }
+inline int Stat(const char* path, StatStruct* buf) { return stat(path, buf); }
+inline int StrCaseCmp(const char* s1, const char* s2) {
+  return strcasecmp(s1, s2);
+}
+inline char* StrDup(const char* src) { return strdup(src); }
+inline int RmDir(const char* dir) { return rmdir(dir); }
+inline bool IsDir(const StatStruct& st) { return S_ISDIR(st.st_mode); }
 #else
 
 typedef struct stat StatStruct;
@@ -1757,7 +1769,12 @@ inline const char* StrNCpy(char* dest, const char* src, size_t n) {
 // StrError() aren't needed on Windows CE at this time and thus not
 // defined there.
 
-#if !GTEST_OS_WINDOWS_MOBILE
+#if defined(__LB_SHELL__)
+inline int ChDir(const char* dir) {
+  // Not implemented
+  return 0;
+}
+#elif !GTEST_OS_WINDOWS_MOBILE
 inline int ChDir(const char* dir) { return chdir(dir); }
 #endif
 inline FILE* FOpen(const char* path, const char* mode) {
