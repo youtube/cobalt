@@ -146,14 +146,10 @@ class scoped_ptr {
   // The input parameter must be allocated with new.
   explicit scoped_ptr(C* p = NULL) : ptr_(p) { }
 
-  // The compiler tries to use this constructor when it should use the
-  // next one down.
-#if !defined(__LB_PS3__)
   // Constructor.  Allows construction from a scoped_ptr rvalue for a
   // convertible type.
   template <typename U>
   scoped_ptr(scoped_ptr<U> other) : ptr_(other.release()) { }
-#endif
 
   // Constructor.  Move constructor for C++03 move emulation of this type.
   scoped_ptr(RValue& other)
