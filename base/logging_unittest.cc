@@ -238,6 +238,10 @@ TEST_F(LoggingTest, Dcheck) {
   EXPECT_TRUE(DLOG_IS_ON(DCHECK));
 #endif  // defined(LOGGING_IS_OFFICIAL_BUILD)
 
+#if defined(__LB_SHELL__) && defined(NDEBUG)
+  // These only break when the Logging class thinks a debugger is attached.
+  // Unfortunately, LB_SHELL assumes a debugger is attached as long as
+  // NDEBUG is not defined (see debugger_posix.cc:BeingDebugged()).
   EXPECT_EQ(0, log_sink_call_count);
   DCHECK(false);
   EXPECT_EQ(DCHECK_IS_ON() ? 1 : 0, log_sink_call_count);
@@ -245,6 +249,7 @@ TEST_F(LoggingTest, Dcheck) {
   EXPECT_EQ(DCHECK_IS_ON() ? 2 : 0, log_sink_call_count);
   DCHECK_EQ(0, 1);
   EXPECT_EQ(DCHECK_IS_ON() ? 3 : 0, log_sink_call_count);
+#endif
 }
 
 TEST_F(LoggingTest, DcheckReleaseBehavior) {
