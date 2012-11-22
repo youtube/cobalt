@@ -12,16 +12,17 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
+#include "media/base/channel_layout.h"
 #include "media/base/data_buffer.h"
 #include "media/filters/audio_renderer_algorithm.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace media {
+
 static const size_t kRawDataSize = 10 * 1024;
 static const int kSamplesPerSecond = 44100;
-static const int kDefaultChannels = 2;
+static const ChannelLayout kDefaultChannelLayout = CHANNEL_LAYOUT_STEREO;
 static const int kDefaultSampleBits = 16;
-
-namespace media {
 
 class AudioRendererAlgorithmTest : public testing::Test {
  public:
@@ -32,14 +33,16 @@ class AudioRendererAlgorithmTest : public testing::Test {
   ~AudioRendererAlgorithmTest() {}
 
   void Initialize() {
-    Initialize(kDefaultChannels, kDefaultSampleBits);
+    Initialize(kDefaultChannelLayout, kDefaultSampleBits);
   }
 
-  void Initialize(int channels, int bits_per_channel) {
-    algorithm_.Initialize(
-        channels, kSamplesPerSecond, bits_per_channel, 1.0f,
-        base::Bind(&AudioRendererAlgorithmTest::EnqueueData,
-                   base::Unretained(this)));
+  void Initialize(ChannelLayout channel_layout, int bits_per_channel) {
+    AudioParameters params(
+        media::AudioParameters::AUDIO_PCM_LINEAR, channel_layout,
+        kSamplesPerSecond, bits_per_channel, kRawDataSize);
+
+    algorithm_.Initialize(1, params, base::Bind(
+        &AudioRendererAlgorithmTest::EnqueueData, base::Unretained(this)));
     EnqueueData();
   }
 
@@ -267,18 +270,18 @@ TEST_F(AudioRendererAlgorithmTest, FillBuffer_SmallBufferSize) {
 }
 
 TEST_F(AudioRendererAlgorithmTest, FillBuffer_LowerQualityAudio) {
-  static const int kChannels = 1;
+  static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_MONO;
   static const int kSampleBits = 8;
-  Initialize(kChannels, kSampleBits);
+  Initialize(kChannelLayout, kSampleBits);
   TestPlaybackRate(1.0);
   TestPlaybackRate(0.5);
   TestPlaybackRate(1.5);
 }
 
 TEST_F(AudioRendererAlgorithmTest, FillBuffer_HigherQualityAudio) {
-  static const int kChannels = 2;
+  static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
   static const int kSampleBits = 32;
-  Initialize(kChannels, kSampleBits);
+  Initialize(kChannelLayout, kSampleBits);
   TestPlaybackRate(1.0);
   TestPlaybackRate(0.5);
   TestPlaybackRate(1.5);

@@ -23,7 +23,7 @@
 #define MEDIA_FILTERS_AUDIO_RENDERER_ALGORITHM_H_
 
 #include "base/callback.h"
-#include "base/gtest_prod_util.h"
+#include "media/audio/audio_parameters.h"
 #include "media/base/seekable_buffer.h"
 
 namespace media {
@@ -35,20 +35,11 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   AudioRendererAlgorithm();
   ~AudioRendererAlgorithm();
 
-  // Call prior to Initialize() to validate configuration.  Returns false if the
-  // configuration is invalid.  Detailed error information will be DVLOG'd.
-  static bool ValidateConfig(int channels,
-                             int samples_per_second,
-                             int bits_per_channel);
-
   // Initializes this object with information about the audio stream.
-  // |samples_per_second| is in Hz. |read_request_callback| is called to
-  // request more data from the client, requests that are fulfilled through
-  // calls to EnqueueBuffer().
-  void Initialize(int channels,
-                  int samples_per_second,
-                  int bits_per_channel,
-                  float initial_playback_rate,
+  // |request_read_cb| is called to request more data from the client, requests
+  // that are fulfilled through calls to EnqueueBuffer().
+  void Initialize(float initial_playback_rate,
+                  const AudioParameters& params,
                   const base::Closure& request_read_cb);
 
   // Tries to fill |requested_frames| frames into |dest| with possibly scaled

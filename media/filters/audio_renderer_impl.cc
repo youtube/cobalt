@@ -220,24 +220,7 @@ void AudioRendererImpl::OnDecoderInitDone(
     return;
   }
 
-  // We're all good! Continue initializing the rest of the audio renderer based
-  // on the decoder format.
-
-  ChannelLayout channel_layout = decoder_->channel_layout();
-  int channels = ChannelLayoutToChannelCount(channel_layout);
-  int bits_per_channel = decoder_->bits_per_channel();
   int sample_rate = decoder_->samples_per_second();
-
-  algorithm_.reset(new AudioRendererAlgorithm());
-  if (!algorithm_->ValidateConfig(channels, sample_rate, bits_per_channel)) {
-    base::ResetAndReturn(&init_cb_).Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    return;
-  }
-
-  algorithm_->Initialize(
-      channels, sample_rate, bits_per_channel, 0.0f,
-      base::Bind(&AudioRendererImpl::ScheduleRead_Locked, this));
-
   int buffer_size = GetHighLatencyOutputBufferSize(sample_rate);
   AudioParameters::Format format = AudioParameters::AUDIO_PCM_LINEAR;
 
@@ -275,7 +258,18 @@ void AudioRendererImpl::OnDecoderInitDone(
 #endif
 
   audio_parameters_ = AudioParameters(
-      format, channel_layout, sample_rate, bits_per_channel, buffer_size);
+      format, decoder_->channel_layout(), sample_rate,
+      decoder_->bits_per_channel(), buffer_size);
+  if (!audio_parameters_.IsValid()) {
+    base::ResetAndReturn(&init_cb_).Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    return;
+  }
+
+  // We're all good! Continue initializing the rest of the audio renderer based
+  // on the decoder format.
+  algorithm_.reset(new AudioRendererAlgorithm());
+  algorithm_->Initialize(0, audio_parameters_, base::Bind(
+      &AudioRendererImpl::ScheduleRead_Locked, this));
 
   state_ = kPaused;
 
