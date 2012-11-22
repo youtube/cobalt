@@ -1901,6 +1901,7 @@ class QuitDelegate : public MessageLoopForIO::Watcher {
   }
 };
 
+#if !defined(__LB_PS3__)  // pipe() doesn't exist on PS3
 TEST(MessageLoopTest, FileDescriptorWatcherOutlivesMessageLoop) {
   // Simulate a MessageLoop that dies before an FileDescriptorWatcher.
   // This could happen when people use the Singleton pattern or atexit.
@@ -1954,6 +1955,7 @@ TEST(MessageLoopTest, FileDescriptorWatcherDoubleStop) {
   if (HANDLE_EINTR(close(pipefds[1])) < 0)
     PLOG(ERROR) << "close";
 }
+#endif
 
 }  // namespace
 

@@ -15,10 +15,18 @@
 #include "net/android/net_jni_registrar.h"
 #endif
 
+#if defined(__LB_SHELL__)
+#include "lb_shell_platform_delegate.h"
+#endif
+
 using net::internal::ClientSocketPoolBaseHelper;
 using net::SpdySession;
 
 int main(int argc, char** argv) {
+#if defined(__LB_SHELL__)
+  LBShellPlatformDelegate::PlatformInit();
+#endif
+
   // Record histograms, so we can get histograms data in tests.
   base::StatisticsRecorder recorder;
 
