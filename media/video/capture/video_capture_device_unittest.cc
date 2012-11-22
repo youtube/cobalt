@@ -13,12 +13,16 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if defined(OS_WIN)
+#include "base/win/scoped_com_initializer.h"
+#endif
+
 #if defined(OS_MACOSX)
 // Mac/QTKit will always give you the size you ask for and this case will fail.
 #define MAYBE_AllocateBadSize DISABLED_AllocateBadSize
 // We will always get ARGB from the Mac/QTKit implementation.
 #define MAYBE_MJPEG DISABLED_CaptureMjpeg
-#elif defined(OS_WINDOWS)
+#elif defined(OS_WIN)
 #define MAYBE_AllocateBadSize AllocateBadSizei
 // Windows currently uses DirectShow to convert from MJPEG and a raw format is
 // always delivered.
@@ -80,6 +84,9 @@ class VideoCaptureDeviceTest : public testing::Test {
   virtual void TearDown() {
   }
 
+#if defined(OS_WIN)
+  base::win::ScopedCOMInitializer initialize_com_;
+#endif
   base::WaitableEvent wait_event_;
   scoped_ptr<MockFrameObserver> frame_observer_;
   VideoCaptureDevice::Names names_;
