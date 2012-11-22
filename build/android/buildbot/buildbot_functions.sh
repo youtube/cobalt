@@ -317,10 +317,12 @@ function bb_install_apk {
 #   $1: APK to be installed.
 #   $2: APK_PACKAGE for the APK to be installed.
 #   $3: TEST_APK to run the tests against.
+#   $4: TEST_DATA in format destination:source
 function bb_run_all_instrumentation_tests_for_apk {
   local APK=${1}
   local APK_PACKAGE=${2}
   local TEST_APK=${3}
+  local TEST_DATA=${4}
 
   # Install application APK.
   bb_install_apk ${APK} ${APK_PACKAGE}
@@ -328,21 +330,24 @@ function bb_run_all_instrumentation_tests_for_apk {
   # Run instrumentation tests. Using -I to install the test apk.
   echo "@@@BUILD_STEP Run instrumentation tests ${TEST_APK}@@@"
   bb_run_step python build/android/run_instrumentation_tests.py \
-      -vvv --test-apk ${TEST_APK} -I
+      -vvv --test-apk ${TEST_APK} -I --test_data ${TEST_DATA}
 }
 
 # Run instrumentation tests for all relevant APKs on device.
 function bb_run_instrumentation_tests {
   bb_run_all_instrumentation_tests_for_apk "ContentShell.apk" \
-      "org.chromium.content_shell" "ContentShellTest"
+      "org.chromium.content_shell" "ContentShellTest" \
+      "content:content/test/data/android/device_files"
   bb_run_all_instrumentation_tests_for_apk "ChromiumTestShell.apk" \
-      "org.chromium.chrome.testshell" "ChromiumTestShellTest"
+      "org.chromium.chrome.testshell" "ChromiumTestShellTest" \
+      "chrome:chrome/test/data/android/device_files"
 }
 
 # Run instrumentation tests for experimental APKs on device.
 function bb_run_experimental_instrumentation_tests {
   bb_run_all_instrumentation_tests_for_apk "AndroidWebView.apk" \
-      "org.chromium.android_webview" "AndroidWebViewTest"
+      "org.chromium.android_webview" "AndroidWebViewTest" \
+      "webview:android_webview/test/data/device_files"
 }
 
 # Zip and archive a build.

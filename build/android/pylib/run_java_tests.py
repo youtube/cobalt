@@ -118,6 +118,7 @@ class TestRunner(BaseTestRunner):
 
     self.build_type = options.build_type
     self.install_apk = options.install_apk
+    self.test_data = options.test_data
     self.save_perf_json = options.save_perf_json
     self.screenshot_failures = options.screenshot_failures
     self.wait_for_debugger = options.wait_for_debugger
@@ -162,12 +163,10 @@ class TestRunner(BaseTestRunner):
       logging.warning('Already copied test files to device %s, skipping.',
                       self.device)
       return
-    host_test_files = [
-        ('android_webview/test/data/device_files', 'webview'),
-        ('content/test/data/android/device_files', 'content'),
-        ('chrome/test/data/android/device_files', 'chrome')
-    ]
-    for (host_src, dst_layer) in host_test_files:
+    for dest_host_pair in self.test_data:
+      dst_src = dest_host_pair.split(':',1)
+      dst_layer = dst_src[0]
+      host_src = dst_src[1]
       host_test_files_path = constants.CHROME_DIR + '/' + host_src
       if os.path.exists(host_test_files_path):
         self.adb.PushIfNeeded(host_test_files_path,
