@@ -1,0 +1,8 @@
+{
+    "description": "SunSpider JavaScript benchmark",
+    "pages": [
+        {
+            "url": "file:///../../../chrome/test/data/sunspider/sunspider-driver.html"
+        }
+    ]
+}
