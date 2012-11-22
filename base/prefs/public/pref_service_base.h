@@ -28,8 +28,6 @@ class PrefMemberBase;
 
 class FilePath;
 class PrefObserver;
-class Profile;
-class TabContents;
 
 class PrefServiceBase {
  public:
