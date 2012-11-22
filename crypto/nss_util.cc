@@ -519,13 +519,11 @@ class NSSInitSingleton {
 #endif  // defined(USE_NSS)
     }
 
-#if defined(USE_NSS) || defined(OS_IOS)
     // Disable MD5 certificate signatures. (They are disabled by default in
     // NSS 3.14.)
     NSS_SetAlgorithmPolicy(SEC_OID_MD5, 0, NSS_USE_ALG_IN_CERT_SIGNATURE);
     NSS_SetAlgorithmPolicy(SEC_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION,
                            0, NSS_USE_ALG_IN_CERT_SIGNATURE);
-#endif  // defined(USE_NSS) || defined(OS_IOS)
   }
 
   // NOTE(willchan): We don't actually execute this code since we leak NSS to
