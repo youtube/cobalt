@@ -137,6 +137,10 @@
 # define vsnprintf _vsnprintf
 #endif  // GTEST_OS_WINDOWS
 
+#if defined(__LB_SHELL__)
+const char *LB_URL = "";
+#endif
+
 namespace testing {
 
 using internal::CountIf;
