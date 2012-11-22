@@ -1781,17 +1781,25 @@
                         '-fprofile-arcs' ],
             'link_settings': { 'libraries': [ '-lgcov' ] },
           }],
-          # Finally, for Windows, we simply turn on profiling.
           ['OS=="win"', {
+            'variables': {
+              # Disable incremental linking for all modules.
+              # 0: inherit, 1: disabled, 2: enabled.
+              'msvs_debug_link_incremental': '1',
+              'msvs_large_module_debug_link_mode': '1',
+            },
+            'defines': [
+              # Disable iterator debugging (huge speed boost without any
+              # change in coverage results).
+              '_HAS_ITERATOR_DEBUGGING=0',
+            ],
             'msvs_settings': {
               'VCLinkerTool': {
+                # Enable profile information (necessary for coverage
+                # instrumentation). This is incompatible with incremental
+                # linking.
                 'Profile': 'true',
               },
-              'VCCLCompilerTool': {
-                # /Z7, not /Zi, so coverage is happyb
-                'DebugInformationFormat': '1',
-                'AdditionalOptions': ['/Yd'],
-              }
             }
          }],  # OS==win
         ],  # conditions for coverage
@@ -1968,7 +1976,7 @@
               }],
             ],
           }],
-          # TODO(darin): Unfortunately, some third_party code depends on base/
+          # TODO(darin): Unfortunately, some third_party code depends on base.
           [ 'OS=="win" and component=="shared_library"', {
             'msvs_disabled_warnings': [
               4251,  # class 'std::xx' needs to have dll-interface.
