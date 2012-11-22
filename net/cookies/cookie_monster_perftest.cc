@@ -16,7 +16,18 @@
 #include "net/cookies/parsed_cookie.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace net {
+
 namespace {
+
+const int kNumCookies = 20000;
+const char kCookieLine[] = "A  = \"b=;\\\"\"  ;secure;;;";
+const char kGoogleURL[] = "http://www.google.izzle";
+
+int CountInString(const std::string& str, char c) {
+  return std::count(str.begin(), str.end(), c);
+}
+
 class CookieMonsterTest : public testing::Test {
  public:
   CookieMonsterTest() : message_loop_(new MessageLoopForIO()) {}
@@ -24,35 +35,6 @@ class CookieMonsterTest : public testing::Test {
  private:
   scoped_ptr<MessageLoop> message_loop_;
 };
-}
-
-static const int kNumCookies = 20000;
-static const char kCookieLine[] = "A  = \"b=;\\\"\"  ;secure;;;";
-
-namespace net {
-
-TEST(ParsedCookieTest, TestParseCookies) {
-  std::string cookie(kCookieLine);
-  PerfTimeLogger timer("Parsed_cookie_parse_cookies");
-  for (int i = 0; i < kNumCookies; ++i) {
-    ParsedCookie pc(cookie);
-    EXPECT_TRUE(pc.IsValid());
-  }
-  timer.Done();
-}
-
-TEST(ParsedCookieTest, TestParseBigCookies) {
-  std::string cookie(3800, 'z');
-  cookie += kCookieLine;
-  PerfTimeLogger timer("Parsed_cookie_parse_big_cookies");
-  for (int i = 0; i < kNumCookies; ++i) {
-    ParsedCookie pc(cookie);
-    EXPECT_TRUE(pc.IsValid());
-  }
-  timer.Done();
-}
-
-static const GURL kUrlGoogle("http://www.google.izzle");
 
 class BaseCallback {
  public:
@@ -76,7 +58,6 @@ class BaseCallback {
 
   bool has_run_;
 };
-
 
 class SetCookieCallback  : public BaseCallback {
  public:
@@ -123,9 +104,8 @@ class GetCookiesWithInfoCallback : public BaseCallback {
   }
 
  private:
-  void Run(
-    const std::string& cookie_line,
-    const std::vector<CookieStore::CookieInfo>& cookie_infos) {
+  void Run(const std::string& cookie_line,
+           const std::vector<CookieStore::CookieInfo>& cookie_infos) {
     cookies_ = cookie_line;
     BaseCallback::Run();
   }
@@ -134,6 +114,28 @@ class GetCookiesWithInfoCallback : public BaseCallback {
   net::CookieOptions options_;
 };
 
+}  // namespace
+
+TEST(ParsedCookieTest, TestParseCookies) {
+  std::string cookie(kCookieLine);
+  PerfTimeLogger timer("Parsed_cookie_parse_cookies");
+  for (int i = 0; i < kNumCookies; ++i) {
+    ParsedCookie pc(cookie);
+    EXPECT_TRUE(pc.IsValid());
+  }
+  timer.Done();
+}
+
+TEST(ParsedCookieTest, TestParseBigCookies) {
+  std::string cookie(3800, 'z');
+  cookie += kCookieLine;
+  PerfTimeLogger timer("Parsed_cookie_parse_big_cookies");
+  for (int i = 0; i < kNumCookies; ++i) {
+    ParsedCookie pc(cookie);
+    EXPECT_TRUE(pc.IsValid());
+  }
+  timer.Done();
+}
 
 TEST_F(CookieMonsterTest, TestAddCookiesOnSingleHost) {
   scoped_refptr<CookieMonster> cm(new CookieMonster(NULL, NULL));
@@ -149,7 +151,7 @@ TEST_F(CookieMonsterTest, TestAddCookiesOnSingleHost) {
 
   for (std::vector<std::string>::const_iterator it = cookies.begin();
        it != cookies.end(); ++it) {
-    setCookieCallback.SetCookie(cm, kUrlGoogle, *it);
+    setCookieCallback.SetCookie(cm, GURL(kGoogleURL), *it);
   }
   timer.Done();
 
@@ -158,7 +160,7 @@ TEST_F(CookieMonsterTest, TestAddCookiesOnSingleHost) {
   PerfTimeLogger timer2("Cookie_monster_query_single_host");
   for (std::vector<std::string>::const_iterator it = cookies.begin();
        it != cookies.end(); ++it) {
-    getCookiesCallback.GetCookies(cm, kUrlGoogle);
+    getCookiesCallback.GetCookies(cm, GURL(kGoogleURL));
   }
   timer2.Done();
 
@@ -223,10 +225,6 @@ TEST_F(CookieMonsterTest, TestGetCookiesWithInfo) {
     getCookiesCallback.GetCookiesWithInfo(cm, *it);
   }
   timer.Done();
-}
-
-static int CountInString(const std::string& str, char c) {
-  return std::count(str.begin(), str.end(), c);
 }
 
 TEST_F(CookieMonsterTest, TestDomainTree) {
@@ -429,4 +427,4 @@ TEST_F(CookieMonsterTest, TestGCTimes) {
   }
 }
 
-}  // namespace
+}  // namespace net
