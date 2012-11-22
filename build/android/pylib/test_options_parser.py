@@ -137,7 +137,14 @@ def AddInstrumentationOptions(option_parser):
                                  'when test(s) fail.'))
   option_parser.add_option('--disable_assertions', action='store_true',
                            help='Run with java assertions disabled.')
-
+  option_parser.add_option('--test_data', action='append',
+                           help=('Each instance defines a directory of test '
+                                 'data that should be copied to the target(s) '
+                                 'before running the tests. The argument '
+                                 'should be of the form <target>:<source>, '
+                                 '<target> is relative to the device data'
+                                 'directory, and <source> is relative to the '
+                                 'chromium build directory.'))
 
 def ValidateInstrumentationOptions(option_parser, options, args):
   """Validate options/arguments and populate options with defaults."""
