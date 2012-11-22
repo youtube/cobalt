@@ -6,7 +6,6 @@
 #include "base/prefs/pref_store_observer_mock.h"
 #include "base/prefs/testing_pref_store.h"
 #include "base/values.h"
-#include "chrome/common/pref_names.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -15,8 +14,11 @@ using ::testing::StrEq;
 
 namespace {
 
-const char* overlay_key = prefs::kBrowserWindowPlacement;
-const char* regular_key = prefs::kShowBookmarkBar;
+const char kBrowserWindowPlacement[] = "browser.window_placement";
+const char kShowBookmarkBar[] = "bookmark_bar.show_on_all_tabs";
+
+const char* overlay_key = kBrowserWindowPlacement;
+const char* regular_key = kShowBookmarkBar;
 // With the removal of the kWebKitGlobalXXX prefs, we'll no longer have real
 // prefs using the overlay pref store, so make up keys here.
 const char* mapped_overlay_key = "test.per_tab.javascript_enabled";
