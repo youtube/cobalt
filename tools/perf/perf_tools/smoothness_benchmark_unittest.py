@@ -75,7 +75,7 @@ class SmoothnessBenchmarkUnitTest(
     self.assertAlmostEquals(1000/60., res.page_results[0]['mean_frame_time'], 2)
 
   def testBoundingClientRect(self):
-    options = options_for_unittests.Get()
+    options = options_for_unittests.GetCopy()
     browser_to_create = browser_finder.FindBrowser(options)
     if not browser_to_create:
       raise Exception('No browser found, cannot continue test.')
