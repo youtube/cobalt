@@ -15,11 +15,12 @@
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/common/chrome_paths.h"
-#include "chrome/common/pref_names.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
+
+const char kHomePage[] = "homepage";
 
 class MockPrefStoreObserver : public PrefStore::Observer {
  public:
@@ -96,7 +97,7 @@ void RunBasicJsonPrefStoreTest(JsonPrefStore* pref_store,
   std::string cnn("http://www.cnn.com");
 
   const Value* actual;
-  EXPECT_TRUE(pref_store->GetValue(prefs::kHomePage, &actual));
+  EXPECT_TRUE(pref_store->GetValue(kHomePage, &actual));
   std::string string_value;
   EXPECT_TRUE(actual->GetAsString(&string_value));
   EXPECT_EQ(cnn, string_value);
