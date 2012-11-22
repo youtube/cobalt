@@ -17,9 +17,34 @@ namespace x509_util {
 
 bool IsSupportedValidityRange(base::Time not_valid_before,
                               base::Time not_valid_after) {
-  // TODO(mattm): The validity field of a certificate can only encode years
-  // 1-9999.
-  NOTIMPLEMENTED();
+  if (not_valid_before > not_valid_after)
+    return false;
+
+  // The validity field of a certificate can only encode years 1-9999.
+
+  // Compute the base::Time values corresponding to Jan 1st,0001 and
+  // Jan 1st, 10000 respectively. Done by using the pre-computed numbers
+  // of days between these dates and the Unix epoch, i.e. Jan 1st, 1970,
+  // using the following Python script:
+  //
+  //     from datetime import date as D
+  //     print (D(1970,1,1)-D(1,1,1))        # -> 719162 days
+  //     print (D(9999,12,31)-D(1970,1,1))   # -> 2932896 days
+  //
+  // Note: This ignores leap seconds, but should be enough in practice.
+  //
+  const int64 kDaysFromYear0001ToUnixEpoch = 719162;
+  const int64 kDaysFromUnixEpochToYear10000 = 2932896 + 1;
+  const base::Time kEpoch = base::Time::UnixEpoch();
+  const base::Time kYear0001 = kEpoch -
+      base::TimeDelta::FromDays(kDaysFromYear0001ToUnixEpoch);
+  const base::Time kYear10000 = kEpoch +
+      base::TimeDelta::FromDays(kDaysFromUnixEpochToYear10000);
+
+  if (not_valid_before < kYear0001 || not_valid_before >= kYear10000 ||
+      not_valid_after < kYear0001 || not_valid_after >= kYear10000)
+    return false;
+
   return true;
 }
 
