@@ -110,4 +110,87 @@ TEST(CanonicalCookieTest, Create) {
   EXPECT_FALSE(cookie->IsSecure());
 }
 
+TEST(CanonicalCookieTest, IsEquivalent) {
+  GURL url("http://www.example.com/");
+  std::string cookie_name = "A";
+  std::string cookie_value = "2EDA-EF";
+  std::string cookie_domain = ".www.example.com";
+  std::string cookie_path = "/";
+  std::string mac_key;
+  std::string mac_algorithm;
+  base::Time creation_time = base::Time::Now();
+  base::Time last_access_time = creation_time;
+  base::Time expiration_time = creation_time + base::TimeDelta::FromDays(2);
+  bool secure(false);
+  bool httponly(false);
+
+  // Test that a cookie is equivalent to itself.
+  scoped_ptr<CanonicalCookie> cookie(
+      new CanonicalCookie(url, cookie_name, cookie_value, cookie_domain,
+                          cookie_path, mac_key, mac_algorithm, creation_time,
+                          expiration_time, last_access_time, secure, httponly));
+  EXPECT_TRUE(cookie->IsEquivalent(*cookie));
+
+  // Test that two identical cookies are equivalent.
+  scoped_ptr<CanonicalCookie> other_cookie(
+      new CanonicalCookie(url, cookie_name, cookie_value, cookie_domain,
+                          cookie_path, mac_key, mac_algorithm, creation_time,
+                          expiration_time, last_access_time, secure, httponly));
+  EXPECT_TRUE(cookie->IsEquivalent(*other_cookie));
+
+  // Tests that use different variations of attribute values that
+  // DON'T affect cookie equivalence.
+  other_cookie.reset(new CanonicalCookie(url, cookie_name, "2", cookie_domain,
+                                         cookie_path, mac_key, mac_algorithm,
+                                         creation_time, expiration_time,
+                                         last_access_time, secure, httponly));
+  EXPECT_TRUE(cookie->IsEquivalent(*other_cookie));
+
+  base::Time other_creation_time =
+      creation_time + base::TimeDelta::FromMinutes(2);
+  other_cookie.reset(new CanonicalCookie(url, cookie_name, "2", cookie_domain,
+                                         cookie_path, mac_key, mac_algorithm,
+                                         other_creation_time, expiration_time,
+                                         last_access_time, secure, httponly));
+  EXPECT_TRUE(cookie->IsEquivalent(*other_cookie));
+
+  other_cookie.reset(new CanonicalCookie(url, cookie_name, cookie_name,
+                                         cookie_domain, cookie_path, mac_key,
+                                         mac_algorithm, creation_time,
+                                         expiration_time, last_access_time,
+                                         true, httponly));
+  EXPECT_TRUE(cookie->IsEquivalent(*other_cookie));
+
+  // Tests that use different variations of attribute values that
+  // DO affect cookie equivalence.
+  other_cookie.reset(new CanonicalCookie(url, "B", cookie_value, cookie_domain,
+                                         cookie_path, mac_key, mac_algorithm,
+                                         creation_time, expiration_time,
+                                         last_access_time, secure, httponly));
+  EXPECT_FALSE(cookie->IsEquivalent(*other_cookie));
+
+  other_cookie.reset(new CanonicalCookie(url, cookie_name, cookie_value,
+                                         "www.example.com", cookie_path,
+                                         mac_key, mac_algorithm, creation_time,
+                                         expiration_time, last_access_time,
+                                         secure, httponly));
+  EXPECT_TRUE(cookie->IsDomainCookie());
+  EXPECT_FALSE(other_cookie->IsDomainCookie());
+  EXPECT_FALSE(cookie->IsEquivalent(*other_cookie));
+
+  other_cookie.reset(new CanonicalCookie(url, cookie_name, cookie_value,
+                                         ".example.com", cookie_path, mac_key,
+                                         mac_algorithm, creation_time,
+                                         expiration_time, last_access_time,
+                                         secure, httponly));
+  EXPECT_FALSE(cookie->IsEquivalent(*other_cookie));
+
+  other_cookie.reset(new CanonicalCookie(url, cookie_name, cookie_value,
+                                         cookie_domain, "/test/0", mac_key,
+                                         mac_algorithm, creation_time,
+                                         expiration_time, last_access_time,
+                                         secure, httponly));
+  EXPECT_FALSE(cookie->IsEquivalent(*other_cookie));
+}
+
 }  // namespace net
