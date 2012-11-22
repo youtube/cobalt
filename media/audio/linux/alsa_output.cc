@@ -73,10 +73,6 @@ static const int kPcmRecoverIsSilent = 1;
 static const int kPcmRecoverIsSilent = 0;
 #endif
 
-// ALSA is currently limited to 48kHz.
-// TODO(fbarchard): Resample audio from higher frequency to 48000.
-static const int kAlsaMaxSampleRate = 48000;
-
 // While the "default" device may support multi-channel audio, in Alsa, only
 // the device names surround40, surround41, surround50, etc, have a defined
 // channel mapping according to Lennart:
@@ -182,15 +178,8 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
   DCHECK_EQ(audio_bus_->frames() * bytes_per_frame_, packet_size_);
 
   // Sanity check input values.
-  if (params.sample_rate() > kAlsaMaxSampleRate ||
-      params.sample_rate() <= 0) {
-    LOG(WARNING) << "Unsupported audio frequency.";
-    TransitionTo(kInError);
-  }
-
-  if (AudioParameters::AUDIO_PCM_LINEAR != params.format() &&
-      AudioParameters::AUDIO_PCM_LOW_LATENCY != params.format()) {
-    LOG(WARNING) << "Unsupported audio format";
+  if (!params.IsValid()) {
+    LOG(WARNING) << "Unsupported audio parameters.";
     TransitionTo(kInError);
   }
 

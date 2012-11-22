@@ -32,7 +32,7 @@ enum {
   //     restriction.
   //   - Most PC audio hardware is limited to 192 KHz.
   kMaxSampleRate = 192000,
-  kMinSampleRate = 8000,
+  kMinSampleRate = 3000,
   kMaxChannels = 32,
   kMaxBitsPerSample = 64,
   kMaxSamplesPerPacket = kMaxSampleRate,

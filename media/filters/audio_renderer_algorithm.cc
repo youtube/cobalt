@@ -52,44 +52,16 @@ AudioRendererAlgorithm::AudioRendererAlgorithm()
 
 AudioRendererAlgorithm::~AudioRendererAlgorithm() {}
 
-bool AudioRendererAlgorithm::ValidateConfig(
-    int channels,
-    int samples_per_second,
-    int bits_per_channel) {
-  bool status = true;
-
-  if (channels <= 0 || channels > 8) {
-    DVLOG(1) << "We only support audio with between 1 and 8 channels.";
-    status = false;
-  }
-
-  if (samples_per_second <= 0 || samples_per_second > 256000) {
-    DVLOG(1) << "We only support sample rates between 1 and 256000Hz.";
-    status = false;
-  }
-
-  if (bits_per_channel != 8 && bits_per_channel != 16 &&
-      bits_per_channel != 32) {
-    DVLOG(1) << "We only support 8, 16, 32 bit audio.";
-    status = false;
-  }
-
-  return status;
-}
-
-void AudioRendererAlgorithm::Initialize(
-    int channels,
-    int samples_per_second,
-    int bits_per_channel,
-    float initial_playback_rate,
-    const base::Closure& callback) {
+void AudioRendererAlgorithm::Initialize(float initial_playback_rate,
+                                        const AudioParameters& params,
+                                        const base::Closure& callback) {
+  CHECK(params.IsValid());
   DCHECK(!callback.is_null());
-  DCHECK(ValidateConfig(channels, samples_per_second, bits_per_channel));
 
-  channels_ = channels;
-  samples_per_second_ = samples_per_second;
-  bytes_per_channel_ = bits_per_channel / 8;
-  bytes_per_frame_ = bytes_per_channel_ * channels_;
+  channels_ = params.channels();
+  samples_per_second_ = params.sample_rate();
+  bytes_per_channel_ = params.bits_per_sample() / 8;
+  bytes_per_frame_ = params.GetBytesPerFrame();
   request_read_cb_ = callback;
   SetPlaybackRate(initial_playback_rate);
 
