@@ -21,15 +21,15 @@
 // Mac/QTKit will always give you the size you ask for and this case will fail.
 #define MAYBE_AllocateBadSize DISABLED_AllocateBadSize
 // We will always get ARGB from the Mac/QTKit implementation.
-#define MAYBE_MJPEG DISABLED_CaptureMjpeg
+#define MAYBE_CaptureMjpeg DISABLED_CaptureMjpeg
 #elif defined(OS_WIN)
-#define MAYBE_AllocateBadSize AllocateBadSizei
+#define MAYBE_AllocateBadSize AllocateBadSize
 // Windows currently uses DirectShow to convert from MJPEG and a raw format is
 // always delivered.
-#define MAYBE_MJPEG DISABLED_CaptureMjpeg
+#define MAYBE_CaptureMjpeg DISABLED_CaptureMjpeg
 #else
 #define MAYBE_AllocateBadSize AllocateBadSize
-#define MAYBE_MJPEG CaptureMjpeg
+#define MAYBE_CaptureMjpeg CaptureMjpeg
 #endif
 
 using ::testing::_;
@@ -261,7 +261,7 @@ TEST_F(VideoCaptureDeviceTest, TestFakeCapture) {
 }
 
 // Start the camera in 720p to capture MJPEG instead of a raw format.
-TEST_F(VideoCaptureDeviceTest, CaptureMjpeg) {
+TEST_F(VideoCaptureDeviceTest, MAYBE_CaptureMjpeg) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     DVLOG(1) << "No camera available. Exiting test.";
