@@ -23,11 +23,11 @@ def _MakeBinaryPath(build_type, binary_name):
 class Forwarder(object):
   """Class to manage port forwards from the device to the host."""
 
-  _DEVICE_FORWARDER_PATH = constants.TEST_EXECUTABLE_DIR + '/device_forwarder'
-
   # Unix Abstract socket path:
   _DEVICE_ADB_CONTROL_PORT = 'chrome_device_forwarder'
   _TIMEOUT_SECS = 30
+
+  _DEVICE_FORWARDER_PATH = constants.TEST_EXECUTABLE_DIR + '/device_forwarder'
 
   def __init__(self, adb, build_type):
     """Forwards TCP ports on the device back to the host.
@@ -66,8 +66,8 @@ class Forwarder(object):
     host_adb_control_port = ports.AllocateTestServerPort()
     if not host_adb_control_port:
       raise Exception('Failed to allocate a TCP port in the host machine.')
-    self._adb.PushIfNeeded(self._device_forwarder_path,
-                           Forwarder._DEVICE_FORWARDER_PATH)
+    self._adb.PushIfNeeded(
+        self._device_forwarder_path, Forwarder._DEVICE_FORWARDER_PATH)
     redirection_commands = [
         '%d:%d:%d:%s' % (host_adb_control_port, device, host,
                          host_name) for device, host in port_pairs]
@@ -80,48 +80,19 @@ class Forwarder(object):
          'localabstract:%s' % Forwarder._DEVICE_ADB_CONTROL_PORT]) != 0:
       raise Exception('Error while running adb forward.')
 
-    if not self._adb.ExtractPid('device_forwarder'):
-      # TODO(pliard): Get rid of pexpect here and make device_forwarder a daemon
-      # with a blocking CLI process that exits with a proper exit code and not
-      # while the daemon is still setting up. This would be similar to how
-      # host_forwarder works.
-      self._device_process = pexpect.spawn(
-          'adb', ['-s',
-                  self._adb._adb.GetSerialNumber(),
-                  'shell',
-                  '%s %s -D --adb_sock=%s' % (
-                      tool.GetUtilWrapper(),
-                      Forwarder._DEVICE_FORWARDER_PATH,
-                      Forwarder._DEVICE_ADB_CONTROL_PORT)])
-      device_success_re = re.compile('Starting Device Forwarder.')
-      device_failure_re = re.compile('.*:ERROR:(.*)')
-      index = self._device_process.expect([device_success_re,
-                                           device_failure_re,
-                                           pexpect.EOF,
-                                           pexpect.TIMEOUT],
-                                           Forwarder._TIMEOUT_SECS)
-      if index == 1:
-        error_msg = str(self._device_process.match.group(1))
-        logging.error(self._device_process.before)
-        self._device_process.close()
-        raise Exception('Failed to start Device Forwarder with Error: %s' %
-                        error_msg)
-      elif index == 2:
-        logging.error(self._device_process.before)
-        self._device_process.close()
-        raise Exception(
-            'Unexpected EOF while trying to start Device Forwarder.')
-      elif index == 3:
-        logging.error(self._device_process.before)
-        self._device_process.close()
-        raise Exception('Timeout while trying start Device Forwarder')
+    (exit_code, output) = self._adb.GetShellCommandStatusAndOutput(
+        '%s %s' % (Forwarder._DEVICE_FORWARDER_PATH,
+                   Forwarder._DEVICE_ADB_CONTROL_PORT))
+    if exit_code != 0:
+      raise Exception(
+          'Failed to start device forwarder:\n%s' % '\n'.join(output))
 
     for redirection_command in redirection_commands:
       (exit_code, output) = cmd_helper.GetCmdStatusAndOutput(
           [self._host_forwarder_path, redirection_command])
       if exit_code != 0:
-        raise Exception('%s exited with %d: %s' % (self._host_forwarder_path,
-                                                   exit_code, output))
+        raise Exception('%s exited with %d:\n%s' % (
+            self._host_forwarder_path, exit_code, '\n'.join(output)))
       tokens = output.split(':')
       if len(tokens) != 2:
         raise Exception('Unexpected host forwarder output "%s", ' +
@@ -138,12 +109,19 @@ class Forwarder(object):
     (exit_code, output) = cmd_helper.GetCmdStatusAndOutput(
         [host_forwarder_path, 'kill-server'])
     if exit_code != 0:
-      raise Exception('%s exited with %d: %s' % (host_forwarder_path,
-                                                 exit_code, output))
+      raise Exception('%s exited with %d:\n%s' % (host_forwarder_path,
+                                                  exit_code, '\n'.join(output)))
 
   @staticmethod
   def KillDevice(adb):
     logging.info('Killing device_forwarder.')
+    if not adb.FileExistsOnDevice(Forwarder._DEVICE_FORWARDER_PATH):
+      return
+    (exit_code, output) = adb.GetShellCommandStatusAndOutput(
+        '%s kill-server' % Forwarder._DEVICE_FORWARDER_PATH)
+    # TODO(pliard): Remove the following call to KillAllBlocking() when we are
+    # sure that the old version of device_forwarder (not supporting
+    # 'kill-server') is not running on the bots anymore.
     timeout_sec = 5
     processes_killed = adb.KillAllBlocking('device_forwarder', timeout_sec)
     if not processes_killed:

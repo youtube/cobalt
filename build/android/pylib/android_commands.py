@@ -466,6 +466,25 @@ class AndroidCommands(object):
       logging.info('\n>>> '.join(result))
     return result
 
+  def GetShellCommandStatusAndOutput(self, command, timeout_time=20,
+                                     log_result=False):
+    """See RunShellCommand() above.
+
+    Returns:
+      The tuple (exit code, list of output lines).
+    """
+    lines = self.RunShellCommand(
+        command + '; echo %$?', timeout_time, log_result)
+    last_line = lines[-1]
+    status_pos = last_line.rfind('%')
+    assert status_pos >= 0
+    status = int(last_line[status_pos + 1:])
+    if status_pos == 0:
+      lines = lines[:-1]
+    else:
+      lines = lines[:-1] + last_line[:status_pos]
+    return (status, lines)
+
   def KillAll(self, process):
     """Android version of killall, connected via adb.
 
