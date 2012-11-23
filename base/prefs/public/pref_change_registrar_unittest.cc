@@ -5,10 +5,6 @@
 #include "base/prefs/public/pref_change_registrar.h"
 #include "base/prefs/public/pref_observer.h"
 #include "chrome/test/base/testing_pref_service.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_source.h"
-#include "content/public/browser/notification_types.h"
-#include "content/public/test/mock_notification_observer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -188,12 +184,6 @@ TEST_F(ObserveSetOfPreferencesTest, IsManaged) {
   EXPECT_TRUE(pref_set->IsManaged());
   pref_service_->RemoveManagedPref(kHomePageIsNewTabPage);
   EXPECT_FALSE(pref_set->IsManaged());
-}
-
-MATCHER_P(PrefNameDetails, name, "details references named preference") {
-  std::string* pstr =
-      reinterpret_cast<const content::Details<std::string>&>(arg).ptr();
-  return pstr && *pstr == name;
 }
 
 TEST_F(ObserveSetOfPreferencesTest, Observe) {
