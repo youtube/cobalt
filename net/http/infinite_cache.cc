@@ -451,6 +451,8 @@ class InfiniteCache::Worker : public base::RefCountedThreadSafe<Worker> {
   // Bulk of report generation methods.
   void RecordHit(const Details& old, Details* details);
   void RecordUpdate(const Details& old, Details* details);
+  void RecordComparison(bool infinite_used_or_validated,
+                        bool http_used_or_validated) const;
   void GenerateHistograms();
 
   // Cache logic methods.
@@ -531,6 +533,11 @@ void InfiniteCache::Worker::Process(
   if (data->details.flags & NO_STORE)
     UMA_HISTOGRAM_BOOLEAN("InfiniteCache.NoStore", true);
 
+  // True if the first range of the http request was validated or used
+  // unconditionally, false if it was not found in the cache, was updated,
+  // or was found but was unconditionalizable.
+  bool http_used_or_validated = (data->details.flags & CACHED) == CACHED;
+
   header_->num_requests++;
   KeyMap::iterator i = map_.find(data->key);
   if (i != map_.end()) {
@@ -545,6 +552,8 @@ void InfiniteCache::Worker::Process(
     bool reused = CanReuse(i->second, data->details);
     bool data_changed = DataChanged(i->second, data->details);
     bool headers_changed = HeadersChanged(i->second, data->details);
+
+    RecordComparison(reused, http_used_or_validated);
 
     if (reused && data_changed)
       header_->num_bad_hits++;
@@ -566,6 +575,8 @@ void InfiniteCache::Worker::Process(
 
     map_[data->key] = data->details;
     return;
+  } else {
+    RecordComparison(false, http_used_or_validated);
   }
 
   if (data->details.flags & NO_STORE)
@@ -881,6 +892,42 @@ void InfiniteCache::Worker::RecordUpdate(const Details& old, Details* details) {
                                 details->update_count, 0, kuint8max, 25);
   }
   details->use_count = 0;
+}
+
+void InfiniteCache::Worker::RecordComparison(
+    bool infinite_used_or_validated,
+    bool http_used_or_validated) const {
+  enum Comparison {
+    INFINITE_NOT_STRONG_HIT_HTTP_NOT_STRONG_HIT,
+    INFINITE_NOT_STRONG_HIT_HTTP_STRONG_HIT,
+    INFINITE_STRONG_HIT_HTTP_NOT_STRONG_HIT,
+    INFINITE_STRONG_HIT_HTTP_STRONG_HIT,
+    COMPARISON_ENUM_MAX,
+  };
+
+  Comparison comparison;
+  if (infinite_used_or_validated) {
+    if (http_used_or_validated)
+      comparison = INFINITE_STRONG_HIT_HTTP_STRONG_HIT;
+    else
+      comparison = INFINITE_STRONG_HIT_HTTP_NOT_STRONG_HIT;
+  } else {
+    if (http_used_or_validated)
+      comparison = INFINITE_NOT_STRONG_HIT_HTTP_STRONG_HIT;
+    else
+      comparison = INFINITE_NOT_STRONG_HIT_HTTP_NOT_STRONG_HIT;
+  }
+
+  UMA_HISTOGRAM_ENUMERATION("InfiniteCache.Comparison",
+                            comparison, COMPARISON_ENUM_MAX);
+  const int size_bucket =
+      static_cast<int>(header_->total_size / kReportSizeStep);
+  const int kComparisonBuckets = 50;
+  UMA_HISTOGRAM_ENUMERATION(
+      "InfiniteCache.ComparisonBySize",
+      comparison * kComparisonBuckets + std::min(size_bucket,
+                                                 kComparisonBuckets-1),
+      kComparisonBuckets * COMPARISON_ENUM_MAX);
 }
 
 void InfiniteCache::Worker::GenerateHistograms() {
