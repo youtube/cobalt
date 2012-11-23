@@ -8,6 +8,67 @@
             "why": "top google property; a google tab is often open",
             "scrolling": {
                 "action": "scrolling_interaction"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Next",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Next",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Next",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Previous",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Previous",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Previous",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Images",
+                        "wait_for_href_change": true
+                    }
+                ]
             }
         },
         {
@@ -18,6 +79,21 @@
             "scrolling": {
                 "action": "scrolling_interaction",
                 "scrollable_element_function": "function(callback) { gmonkey.load('2.0', function(api) { callback(api.getScrollableElement()); }); }"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"https://mail.google.com/mail/u/0/?shva=1#starred\"]",
+                        "wait_for_href_change": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"https://mail.google.com/mail/u/0/?shva=1#inbox\"]",
+                        "wait_for_href_change": true
+                    }
+                ]
             }
         },
         {
@@ -27,6 +103,51 @@
             "scrolling": {
                 "action": "scrolling_interaction",
                 "scrollable_element_function": "function(callback) { callback(document.getElementById('scrolltimedeventswk')); }"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navForward\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navForward\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navForward\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navForward\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navBack\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navBack\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navBack\"]",
+                        "wait_for_seconds": 0.1
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "div[class~=\"navBack\"]",
+                        "wait_for_seconds": 0.1
+                    }
+                ]
             }
         },
         {
@@ -94,16 +215,19 @@
                 "action": "compound_interaction",
                 "actions": [
                     {
-                        "action": "click_to_navigate_interaction",
-                        "selector": "a[href=\"http://www.facebook.com/WomenforObama\"]"
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"http://www.facebook.com/WomenforObama\"]",
+                        "wait_for_navigate": true
                     },
                     {
-                        "action": "click_to_navigate_interaction",
-                        "selector": "a[href=\"http://www.facebook.com/WomenforObama/info\"]"
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"http://www.facebook.com/WomenforObama/info\"]",
+                        "wait_for_navigate": true
                     },
                     {
-                        "action": "click_to_navigate_interaction",
-                        "selector": "a[href=\"http://www.facebook.com/?ref=tn_tnmn\"]"
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"http://www.facebook.com/?ref=tn_tnmn\"]",
+                        "wait_for_navigate": true
                     }
                 ]
             }
