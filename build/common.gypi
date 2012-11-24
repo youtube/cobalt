@@ -2615,6 +2615,16 @@
                         ],
                       }],
                     ],
+                    'target_conditions': [
+                      # ndk-build copies .a's around the filesystem, breaking
+                      # relative paths in thin archives.  Disable using thin
+                      # archives to avoid problems until one of these is fixed:
+                      # http://code.google.com/p/android/issues/detail?id=40302
+                      # http://code.google.com/p/android/issues/detail?id=40303
+                      ['_type=="static_library"', {
+                        'standalone_static_library': 1,
+                      }],
+                    ],
                   }],
                 ],
               }],
