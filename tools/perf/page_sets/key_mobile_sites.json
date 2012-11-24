@@ -3,198 +3,354 @@
     "credentials_path": "../data/credentials.json",
     "pages": [
         {
-            "url": "http://www.androidpolice.com/2012/10/03/rumor-evidence-mounts-that-an-lg-optimus-g-nexus-is-coming-along-with-a-nexus-phone-certification-program/"
+            "url": "http://www.androidpolice.com/2012/10/03/rumor-evidence-mounts-that-an-lg-optimus-g-nexus-is-coming-along-with-a-nexus-phone-certification-program/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://nytimes.com/"
+            "url": "http://nytimes.com/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://iphone.capitolvolkswagen.com/index.htm#new-inventory_p_2Fsb-new_p_2Ehtm_p_3Freset_p_3DInventoryListing"
+            "url": "http://iphone.capitolvolkswagen.com/index.htm#new-inventory_p_2Fsb-new_p_2Ehtm_p_3Freset_p_3DInventoryListing",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://gsp.ro "
+            "url": "http://gsp.ro",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://uk.wsj.com"
+            "url": "http://uk.wsj.com",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://cuteoverload.com"
+            "url": "http://cuteoverload.com",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://theverge.com"
+            "url": "http://theverge.com",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.theverge.com/2012/10/28/3568746/amazon-7-inch-fire-hd-ipad-mini-add-balsy"
+            "url": "http://www.theverge.com/2012/10/28/3568746/amazon-7-inch-fire-hd-ipad-mini-add-balsy",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.cnn.com/2012/10/03/politics/michelle-obama-debate/index.html"
+            "url": "http://www.cnn.com/2012/10/03/politics/michelle-obama-debate/index.html",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://en.m.wikipedia.org/wiki/Google"
+            "url": "http://en.m.wikipedia.org/wiki/Google",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://googleblog.blogspot.co.uk/"
+            "url": "http://googleblog.blogspot.co.uk/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://digg.com "
+            "url": "http://digg.com ",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.hs.fi/"
+            "url": "http://www.hs.fi/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "https://www.google.com/#hl=en&q=barack+obama",
-            "why": "top google property; a google tab is often open"
+            "why": "top google property; a google tab is often open",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "https://plus.google.com/110031535020051778989/posts",
             "why": "social; top google property; Public profile; infinite scrolls",
-            "scroll_is_infinite": true
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            }
         },
         {
             "url": "http://www.youtube.com",
-            "why": "#3 (Alexa global)"
+            "why": "#3 (Alexa global)",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Blogger",
             "url": "http://googlewebmastercentral.blogspot.com/",
-            "why": "#11 (Alexa global), google property; some blogger layouts have infinite scroll but more interesting"
+            "why": "#11 (Alexa global), google property; some blogger layouts have infinite scroll but more interesting",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Wordpress",
             "url": "http://en.blog.wordpress.com/2012/09/04/freshly-pressed-editors-picks-for-august-2012/",
-            "why": "#18 (Alexa global), Picked an interesting post"
+            "why": "#18 (Alexa global), Picked an interesting post",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "LinkedIn",
             "url": "http://www.linkedin.com/in/linustorvalds",
-            "why": "#12 (Alexa global),Public profile"
+            "why": "#12 (Alexa global),Public profile",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Wikipedia (1 tab)",
             "url": "http://en.wikipedia.org/wiki/Wikipedia",
-            "why": "#6 (Alexa) most visited worldwide,Picked an interesting page"
+            "why": "#6 (Alexa) most visited worldwide,Picked an interesting page",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Twitter",
             "url": "http://twitter.com/katyperry",
             "why": "#8 (Alexa global),Picked an interesting page",
-            "scroll_is_infinite": true
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            }
         },
         {
             "name": "Pinterest",
             "url": "http://pinterest.com",
             "why": "#37 (Alexa global)",
-            "scroll_is_infinite": true
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scroll_is_infinite": true
+            }
         },
         {
             "name": "ESPN",
             "url": "http://espn.go.com",
-            "why": "#1 sports"
+            "why": "#1 sports",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://news.yahoo.com",
-            "why": "#1 news worldwide (Alexa global)"
+            "why": "#1 news worldwide (Alexa global)",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://www.cnn.com",
-            "why": "#2 news worldwide"
+            "why": "#2 news worldwide",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "name": "Weather.com",
             "url": "http://www.weather.com/weather/right-now/Mountain+View+CA+94043",
-            "why": "#7 (Alexa news); #27 total time spent,Picked interesting page"
+            "why": "#7 (Alexa news); #27 total time spent,Picked interesting page",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://www.amazon.com",
-            "why": "#1 world commerce website by visits; #3 commerce in the US by time spent"
+            "why": "#1 world commerce website by visits; #3 commerce in the US by time spent",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://www.ebay.com",
-            "why": "#1 commerce website by time spent by users in US"
+            "why": "#1 commerce website by time spent by users in US",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://games.yahoo.com",
-            "why": "#1 games according to Alexa (with actual games in it)"
+            "why": "#1 games according to Alexa (with actual games in it)",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://booking.com",
-            "why": "#1 Alexa recreation"
+            "why": "#1 Alexa recreation",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://answers.yahoo.com",
-            "why": "#1 Alexa reference"
+            "why": "#1 Alexa reference",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://sports.yahoo.com/",
-            "why": "#1 Alexa sports"
+            "why": "#1 Alexa sports",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "http://techcrunch.com",
-            "why": "top tech blog"
+            "why": "top tech blog",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "ttp://br.337.com/pages/196/DDTank"
+            "url": "ttp://br.337.com/pages/196/DDTank",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://culturalsolutions.co.uk/"
+            "url": "http://culturalsolutions.co.uk/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.frantzen-lindeberg.com/se/"
+            "url": "http://www.frantzen-lindeberg.com/se/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://game.deksiam.in.th/"
+            "url": "http://game.deksiam.in.th/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
             "url": "https://mail.google.com/mail/",
             "why": "productivity, top google properties",
             "credentials": "google",
             "wait_for_javascript_expression": "window.gmonkey !== undefined && document.getElementById('gb') !== null",
-            "scrollable_element_function": "function(callback) { gmonkey.load('2.0', function(api) { callback(api.getScrollableElement()); }); }"
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { gmonkey.load('2.0', function(api) { callback(api.getScrollableElement()); }); }"
+            }
         },
         {
             "url": "https://www.google.com/calendar/",
             "why": "productivity, top google properties",
             "credentials": "google",
-            "scrollable_element_function": "function(callback) { callback(document.getElementById('scrolltimedeventswk')); }"
+            "scrolling": {
+                "action": "scrolling_interaction",
+                "scrollable_element_function": "function(callback) { callback(document.getElementById('scrolltimedeventswk')); }"
+            }
         },
         {
-            "url": "http://mlb.mlb.com/index.jsp"
+            "url": "http://mlb.mlb.com/index.jsp",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://nofolo.com/"
+            "url": "http://nofolo.com/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://planet.mozilla.org/"
+            "url": "http://planet.mozilla.org/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.pravda.ru/"
+            "url": "http://www.pravda.ru/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.sahadan.com/"
+            "url": "http://www.sahadan.com/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.sfgate.com/"
+            "url": "http://www.sfgate.com/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://slashdot.org/"
+            "url": "http://slashdot.org/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.transformice.com/"
+            "url": "http://www.transformice.com/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://worldjournal.com/"
+            "url": "http://worldjournal.com/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.wowwiki.com/World_of_Warcraft:_Mists_of_Pandaria"
+            "url": "http://www.wowwiki.com/World_of_Warcraft:_Mists_of_Pandaria",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://online.wsj.com/home-page"
+            "url": "http://online.wsj.com/home-page",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.deviantart.com/"
+            "url": "http://www.deviantart.com/",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         },
         {
-            "url": "http://www.baidu.com/s?wd=barack+obama&rsv_bp=0&rsv_spt=3&rsv_sug3=9&rsv_sug=0&rsv_sug4=3824&rsv_sug1=3&inputT=4920"
+            "url": "http://www.baidu.com/s?wd=barack+obama&rsv_bp=0&rsv_spt=3&rsv_sug3=9&rsv_sug=0&rsv_sug4=3824&rsv_sug1=3&inputT=4920",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         }
     ]
 }
