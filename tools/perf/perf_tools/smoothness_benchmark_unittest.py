@@ -102,7 +102,8 @@ class SmoothnessBenchmarkUnitTest(
         # result in a scroll location outside of the viewport bounds.
         tab.runtime.Execute("""document.body.style.height =
                                (2 * window.innerHeight + 1) + 'px';""")
-        scroll_js_path = os.path.join(os.path.dirname(__file__), 'scroll.js')
+        scroll_js_path = os.path.join(os.path.dirname(__file__), '..', '..',
+                                      'telemetry', 'telemetry', 'scroll.js')
         scroll_js = open(scroll_js_path, 'r').read()
         tab.runtime.Evaluate(scroll_js)
 
