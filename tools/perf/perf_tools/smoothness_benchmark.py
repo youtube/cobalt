@@ -8,11 +8,6 @@ class DidNotScrollException(multi_page_benchmark.MeasurementFailure):
   def __init__(self):
     super(DidNotScrollException, self).__init__('Page did not scroll')
 
-def GetOrZero(stat, rendering_stats_deltas):
-  if stat in rendering_stats_deltas:
-    return rendering_stats_deltas[stat]
-  return 0
-
 def DivideIfPossibleOrZero(numerator, denominator):
   if denominator == 0:
     return 0
@@ -29,11 +24,10 @@ def CalcScrollResults(rendering_stats_deltas, results):
     rendering_stats_deltas['droppedFrameCount'] /
     float(num_frames_sent_to_screen))
 
-  num_impl_thread_scrolls = GetOrZero('numImplThreadScrolls',
-                                      rendering_stats_deltas)
-
-  num_main_thread_scrolls = GetOrZero('numMainThreadScrolls',
-                                      rendering_stats_deltas)
+  num_impl_thread_scrolls = rendering_stats_deltas.get(
+    'numImplThreadScrolls', 0)
+  num_main_thread_scrolls = rendering_stats_deltas.get(
+    'numMainThreadScrolls', 0)
 
   percent_impl_scrolled = DivideIfPossibleOrZero(
     float(num_impl_thread_scrolls),
@@ -47,17 +41,11 @@ def CalcScrollResults(rendering_stats_deltas, results):
               data_type='unimportant')
 
 def CalcPaintingResults(rendering_stats_deltas, results):
-  totalPaintTime = GetOrZero('totalPaintTimeInSeconds',
-                                   rendering_stats_deltas)
-
-  totalRasterizeTime = GetOrZero('totalRasterizeTimeInSeconds',
-                                       rendering_stats_deltas)
-
-  totalPixelsPainted = GetOrZero('totalPixelsPainted',
-                                       rendering_stats_deltas)
-
-  totalPixelsRasterized = GetOrZero('totalPixelsRasterized',
-                                          rendering_stats_deltas)
+  totalPaintTime = rendering_stats_deltas.get('totalPaintTimeInSeconds', 0)
+  totalRasterizeTime = rendering_stats_deltas.get(
+    'totalRasterizeTimeInSeconds', 0)
+  totalPixelsPainted = rendering_stats_deltas.get('totalPixelsPainted', 0)
+  totalPixelsRasterized = rendering_stats_deltas.get('totalPixelsRasterized', 0)
 
   megapixelsPaintedPerSecond = DivideIfPossibleOrZero(
       (totalPixelsPainted / 1000000.0), totalPaintTime)
@@ -89,7 +77,7 @@ def CalcTextureUploadResults(rendering_stats_deltas, results):
         rendering_stats_deltas['totalCommitCount'])
 
   results.Add('texture_upload_count', 'count',
-              GetOrZero('textureUploadCount', rendering_stats_deltas))
+              rendering_stats_deltas.get('textureUploadCount', 0))
   results.Add('average_commit_time', 'ms', averageCommitTimeMs,
               data_type='unimportant')
 
