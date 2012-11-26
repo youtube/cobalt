@@ -2421,6 +2421,24 @@ void SSLClientSocketNSS::Core::UpdateConnectionStatus() {
     }
     UMA_HISTOGRAM_ENUMERATION("Net.RenegotiationExtensionSupported",
                               peer_supports_renego_ext, 2);
+
+    // We would like to eliminate fallback to SSLv3 for non-buggy servers
+    // because of security concerns. For example, Google offers forward
+    // secrecy with ECDHE but that requires TLS 1.0. An attacker can block
+    // TLSv1 connections and force us to downgrade to SSLv3 and remove forward
+    // secrecy.
+    //
+    // Yngve from Opera has suggested using the renegotiation extension as an
+    // indicator that SSLv3 fallback was mistaken:
+    // tools.ietf.org/html/draft-pettersen-tls-version-rollback-removal-00 .
+    //
+    // As a first step, measure how often clients perform version fallback
+    // while the server advertises support secure renegotiation.
+    if (ssl_config_.version_fallback &&
+        channel_info.protocolVersion == SSL_LIBRARY_VERSION_3_0) {
+      UMA_HISTOGRAM_BOOLEAN("Net.SSLv3FallbackToRenegoPatchedServer",
+                            peer_supports_renego_ext == PR_TRUE);
+    }
   }
 #endif
 
