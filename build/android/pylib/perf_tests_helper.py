@@ -61,7 +61,6 @@ def _MeanAndStdDevFromList(values):
       value = ", ".join(values)
   else:
     value = values[0]
-    avg = values[0]
   return value, avg, sd
 
 
@@ -77,7 +76,9 @@ def PrintPerfResult(measurement, trace, values, units, result_type='default',
     trace: A description of the particular data point, e.g. "reference".
     values: A list of numeric measured values.
     units: A description of the units of measure, e.g. "bytes".
-    result_type: Accepts values of RESULT_TYPES.
+    result_type: A  tri-state that accepts values of ['unimportant', 'default',
+        'informational']. 'unimportant' prints RESULT, 'default' prints *RESULT
+        and 'informational' prints nothing.
     print_to_stdout: If True, prints the output in stdout instead of returning
         the output to caller.
 
@@ -86,43 +87,28 @@ def PrintPerfResult(measurement, trace, values, units, result_type='default',
   """
   assert result_type in RESULT_TYPES, 'result type: %s is invalid' % result_type
 
-  trace_name = _EscapePerfResult(trace)
-
   if result_type in ['unimportant', 'default', 'informational']:
     assert isinstance(values, list)
     assert len(values)
     assert '/' not in measurement
     value, avg, sd = _MeanAndStdDevFromList(values)
-    output = '%s%s: %s%s%s %s' % (
-        RESULT_TYPES[result_type],
-        _EscapePerfResult(measurement),
-        trace_name,
-        # Do not show equal sign if the trace is empty. Usually it happens when
-        # measurement is enough clear to describe the result.
-        '= ' if trace_name else '',
-        value,
-        units)
   else:
-    assert(result_type in ['histogram', 'unimportant-histogram'])
-    assert isinstance(values, list)
-    assert len(values)
-    # Print out each histogram separately. We can't print the units, otherwise
-    # the histogram json output can't be parsed easily.
-    output = ''
-    ix = 1
-    for value in values:
-      name = '%s.%s_%d' % (_EscapePerfResult(measurement), trace_name, ix)
-      output += '%s%s%s : %s = %s' % (
-          '\n' if ix > 1 else '',
-          RESULT_TYPES[result_type],
-          name,
-          name,
-          value)
-      ix += 1
-    measurement = '%s.%s' % (measurement, trace_name)
-    means_and_sds = [GeomMeanAndStdDevFromHistogram(value) for value in values]
-    _, avg, sd = _MeanAndStdDevFromList([mean for (mean, _) in means_and_sds ])
+    value = values[0]
+    # We can't print the units, otherwise parsing the histogram json output
+    # can't be parsed easily.
+    units = ''
+    avg, sd = GeomMeanAndStdDevFromHistogram(value)
 
+  trace_name = _EscapePerfResult(trace)
+  output = '%s%s: %s%s%s %s' % (
+    RESULT_TYPES[result_type],
+    _EscapePerfResult(measurement),
+    trace_name,
+    # Do not show equal sign if the trace is empty. Usually it happens when
+    # measurement is enough clear to describe the result.
+    '= ' if trace_name else '',
+    value,
+    units)
   if avg:
     output += '\nAvg %s: %f%s' % (measurement, avg, units)
   if sd:
