@@ -350,6 +350,26 @@
             '../third_party/webrtc/tools/tools.gyp:rgba_to_i420_converter',
           ],
         },  # target_name: chromium_builder_webrtc
+        {
+          'target_name': 'chromium_builder_nacl_sdk',
+          'type': 'none',
+          'dependencies': [
+            '../chrome/chrome.gyp:chrome',
+          ],
+          'conditions': [
+            ['disable_nacl==0 and OS!="win"', {
+              'dependencies': [
+                '../native_client_sdk/src/build_tools/nacl_ppapi_sdk.gyp:*',
+              ],
+            }],
+            ['disable_nacl==0 and OS=="win"', {
+              'dependencies': [
+                '../native_client_sdk/src/build_tools/nacl_ppapi_sdk.gyp:*',
+                '../chrome/chrome.gyp:chrome_nacl_win64',
+              ],
+            }],
+          ],
+        },  # target_name: chromium_builder_nacl_sdk
       ],  # targets
     }],
     ['OS=="mac"', {
