@@ -29,10 +29,22 @@ def CalcScrollResults(rendering_stats_deltas, results):
     rendering_stats_deltas['droppedFrameCount'] /
     float(num_frames_sent_to_screen))
 
+  num_impl_thread_scrolls = GetOrZero('numImplThreadScrolls',
+                                      rendering_stats_deltas)
+
+  num_main_thread_scrolls = GetOrZero('numMainThreadScrolls',
+                                      rendering_stats_deltas)
+
+  percent_impl_scrolled = DivideIfPossibleOrZero(
+    float(num_impl_thread_scrolls),
+    num_impl_thread_scrolls + num_main_thread_scrolls)
+
   results.Add('mean_frame_time', 'ms', round(mean_frame_time_seconds * 1000, 3))
   results.Add('dropped_percent', '%', round(dropped_percent * 100, 1),
               data_type='unimportant')
-
+  results.Add('percent_impl_scrolled', '%',
+              round(percent_impl_scrolled * 100, 1),
+              data_type='unimportant')
 
 def CalcPaintingResults(rendering_stats_deltas, results):
   totalPaintTime = GetOrZero('totalPaintTimeInSeconds',
@@ -103,18 +115,19 @@ def CalcFirstPaintTimeResults(results, tab):
 class SmoothnessBenchmark(multi_page_benchmark.MultiPageBenchmark):
   def __init__(self):
     super(SmoothnessBenchmark, self).__init__('scrolling')
+    self.force_enable_threaded_compositing = False
+    self.use_gpu_benchmarking_extension = True
 
   def AddCommandLineOptions(self, parser):
-    parser.add_option('--no-gpu-benchmarking-extension', action='store_true',
-        dest='no_gpu_benchmarking_extension',
-        help='Disable the chrome.gpuBenchmarking extension.')
     parser.add_option('--report-all-results', dest='report_all_results',
                       action='store_true',
                       help='Reports all data collected, not just FPS')
 
   def CustomizeBrowserOptions(self, options):
-    if not options.no_gpu_benchmarking_extension:
+    if self.use_gpu_benchmarking_extension:
       options.extra_browser_args.append('--enable-gpu-benchmarking')
+    if self.force_enable_threaded_compositing:
+      options.extra_browser_args.append('--enable-threaded-compositing')
 
   def CanRunForPage(self, page):
     return hasattr(page, 'scrolling')

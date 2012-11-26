@@ -119,18 +119,21 @@ class SmoothnessBenchmarkUnitTest(
         self.assertTrue(rect_bottom <= viewport_height)
         self.assertTrue(rect_right <= viewport_width)
 
-class SmoothnessBenchmarkWithoutGpuBenchmarkingUnitTest(
-  multi_page_benchmark_unittest_base.MultiPageBenchmarkUnitTestBase):
+  def testDoesImplThreadScroll(self):
+    ps = self.CreatePageSetFromFileInUnittestDataDir('scrollable_page.html')
 
-  def CustomizeOptionsForTest(self, options):
-    options.no_gpu_benchmarking_extension = True
+    benchmark = smoothness_benchmark.SmoothnessBenchmark()
+    benchmark.force_enable_threaded_compositing = True
+    all_results = self.RunBenchmark(benchmark, ps)
+
+    results0 = all_results.page_results[0]
+    self.assertTrue(results0['percent_impl_scrolled'] > 0)
 
   def testScrollingWithoutGpuBenchmarkingExtension(self):
     ps = self.CreatePageSetFromFileInUnittestDataDir('scrollable_page.html')
 
     benchmark = smoothness_benchmark.SmoothnessBenchmark()
     benchmark.use_gpu_benchmarking_extension = False
-
     all_results = self.RunBenchmark(benchmark, ps)
 
     self.assertEqual(0, len(all_results.page_failures))
