@@ -204,7 +204,7 @@ fi
 
 if [[ -n "${with_android}" ]] && ! [[ -d "${ANDROID_NDK_DIR}" ]]; then
   echo "Android NDK not found at ${ANDROID_NDK_DIR}"
-  echo "The Android NDK is needed to build a Clang whose -faddress-sanitizer"
+  echo "The Android NDK is needed to build a Clang whose -fsanitize=address"
   echo "works on Android. See "
   echo "http://code.google.com/p/chromium/wiki/AndroidBuildInstructions for how"
   echo "to install the NDK, or pass --without-android."
