@@ -74,7 +74,13 @@ class ScopedVector {
   }
 
   void reserve(size_t capacity) { v_.reserve(capacity); }
-  void resize(size_t new_size) { v_.resize(new_size); }
+
+  // Resize, deleting elements in the disappearing range if we are shrinking.
+  void resize(size_t new_size) {
+    if (v_.size() > new_size)
+      STLDeleteContainerPointers(v_.begin() + new_size, v_.end());
+    v_.resize(new_size);
+  }
 
   template<typename InputIterator>
   void assign(InputIterator begin, InputIterator end) {
