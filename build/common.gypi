@@ -2700,12 +2700,13 @@
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': [
-                  '-fsanitize=address',
+                  '-faddress-sanitizer',
                   '-fno-omit-frame-pointer',
-                  '-w',  # http://crbug.com/162783
+                  # See http://crbug.com/159580
+                  '-w',
                 ],
                 'ldflags': [
-                  '-fsanitize=address',
+                  '-faddress-sanitizer',
                 ],
                 'defines': [
                   'ADDRESS_SANITIZER',
@@ -3163,8 +3164,9 @@
               # Due to issues in Clang build system, using ASan on 32-bit
               # binaries on x86_64 host is problematic.
               # TODO(eugenis): re-enable.
-              '-fsanitize=address',
-              '-w',  # http://crbug.com/162783
+              '-faddress-sanitizer',
+              # See http://crbug.com/159580
+              '-w',
             ],
             'ldflags!': [
               '-faddress-sanitizer',
@@ -3285,8 +3287,9 @@
           ['asan==1', {
             'xcode_settings': {
               'OTHER_CFLAGS': [
-                '-fsanitize=address',
-                '-w',  # http://crbug.com/162783
+                '-faddress-sanitizer',
+                # See http://crbug.com/159580
+                '-w',
               ],
             },
             'defines': [
