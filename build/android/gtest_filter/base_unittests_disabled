@@ -20,8 +20,6 @@ FieldTrialTest.*
 StackContainer.BufferAlignment
 # Failed on bot since it was first introduced.
 FileUtilProxyTest.Touch
-# Failing because FD remapping not supported in multiprocess_test_android.cc yet.
-ProcessUtilTest.FDRemapping
 # Flaky?
 ScopedJavaRefTest.RefCounts
 # Death tests are not supported with apks.
