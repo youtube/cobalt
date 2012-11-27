@@ -157,6 +157,7 @@ class SingleTestRunner(BaseTestRunner):
       test_files = [
           'base/data/file_util_unittest',
           'base/data/json/bom_feff.json',
+          'base/prefs/test/data/pref_service',
           'chrome/test/data/download-test1.lib',
           'chrome/test/data/extensions/bad_magic.crx',
           'chrome/test/data/extensions/good.crx',
