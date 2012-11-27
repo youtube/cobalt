@@ -11,6 +11,7 @@
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
 #include "base/time.h"
+#include "build/build_config.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_output_dispatcher_impl.h"
 #include "media/audio/audio_output_proxy.h"
@@ -19,6 +20,10 @@
 #include "media/base/audio_converter.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
+
+#if defined(OS_WIN)
+#include "media/audio/win/core_audio_util_win.h"
+#endif
 
 namespace media {
 
@@ -71,6 +76,10 @@ class OnMoreDataConverter
   // Handles resampling, buffering, and channel mixing between input and output
   // parameters.
   AudioConverter audio_converter_;
+
+  // If we're using WaveOut on Windows' we always have to wait for DataReady()
+  // before calling |source_callback_|.
+  bool waveout_wait_hack_;
 
   DISALLOW_COPY_AND_ASSIGN(OnMoreDataConverter);
 };
@@ -278,10 +287,22 @@ OnMoreDataConverter::OnMoreDataConverter(const AudioParameters& input_params,
     : source_callback_(NULL),
       source_bus_(NULL),
       input_bytes_per_second_(input_params.GetBytesPerSecond()),
-      audio_converter_(input_params, output_params, false) {
+      audio_converter_(input_params, output_params, false),
+      waveout_wait_hack_(false) {
   io_ratio_ =
       static_cast<double>(input_params.GetBytesPerSecond()) /
       output_params.GetBytesPerSecond();
+
+  // TODO(dalecurtis): We should require all render side clients to use a
+  // buffer size that's a multiple of the hardware buffer size scaled by the
+  // request_sample_rate / hw_sample_rate.  Doing so ensures each hardware
+  // request for audio data results in only a single render side callback and
+  // would allow us to remove this hack.  See http://crbug.com/162207.
+#if defined(OS_WIN)
+  waveout_wait_hack_ =
+      output_params.format() == AudioParameters::AUDIO_PCM_LINEAR ||
+      !CoreAudioUtil::IsSupported();
+#endif
 }
 
 OnMoreDataConverter::~OnMoreDataConverter() {}
@@ -339,6 +360,9 @@ double OnMoreDataConverter::ProvideInput(AudioBus* dest,
   new_buffers_state.pending_bytes =
       io_ratio_ * (current_buffers_state_.total_bytes() +
                    buffer_delay.InSecondsF() * input_bytes_per_second_);
+
+  if (waveout_wait_hack_)
+    source_callback_->WaitTillDataReady();
 
   // Retrieve data from the original callback.
   int frames = source_callback_->OnMoreIOData(
