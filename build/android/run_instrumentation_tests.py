@@ -96,8 +96,11 @@ def main(argv):
   buildbot_report.PrintNamedStep(
       'Instrumentation tests: %s - %s' % (', '.join(options.annotation),
                                           options.test_apk))
-  ret = DispatchInstrumentationTests(options)
-  buildbot_report.PrintStepResultIfNeeded(options, ret)
+  ret = 1
+  try:
+    ret = DispatchInstrumentationTests(options)
+  finally:
+    buildbot_report.PrintStepResultIfNeeded(options, ret)
   return ret
 
 
