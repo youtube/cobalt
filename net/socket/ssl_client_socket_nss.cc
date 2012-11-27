@@ -66,7 +66,6 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/build_time.h"
 #include "base/callback_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -3371,13 +3370,8 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
         domain_state.HasPins()) {
       if (!domain_state.IsChainOfPublicKeysPermitted(
                server_cert_verify_result_.public_key_hashes)) {
-        const base::Time build_time = base::GetBuildTime();
-        // Pins are not enforced if the build is sufficiently old. Chrome
-        // users should get updates every six weeks or so, but it's possible
-        // that some users will stop getting updates for some reason. We
-        // don't want those users building up as a pool of people with bad
-        // pins.
-        if ((base::Time::Now() - build_time).InDays() < 70 /* 10 weeks */) {
+        // Pins are not enforced if the build is too old.
+        if (TransportSecurityState::IsBuildTimely()) {
           result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
           UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", false);
           TransportSecurityState::ReportUMAOnPinFailure(host);
