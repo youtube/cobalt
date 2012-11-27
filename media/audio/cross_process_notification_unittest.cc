@@ -12,9 +12,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
-#if defined(OS_POSIX)
 #include <utility>  // NOLINT
-#endif
 
 namespace {
 
@@ -75,6 +73,7 @@ class SingleNotifierWorker : public base::PlatformThread::Delegate {
   }
   virtual ~SingleNotifierWorker() {}
 
+  // base::PlatformThread::Delegate:
   virtual void ThreadMain() OVERRIDE {
     for (size_t i = 0; i < repeats_; ++i) {
       notifier_->Wait();
@@ -102,6 +101,7 @@ class MultiNotifierWorker : public base::PlatformThread::Delegate {
   }
   virtual ~MultiNotifierWorker() {}
 
+  // base::PlatformThread::Delegate:
   virtual void ThreadMain() OVERRIDE {
     CrossProcessNotification::WaitForMultiple waiter(notifiers_);
     for (size_t i = 0; i < repeats_; ++i) {
@@ -163,6 +163,7 @@ class MultiNotifierWorkerFlagArray : public base::PlatformThread::Delegate {
   }
   virtual ~MultiNotifierWorkerFlagArray() {}
 
+  // base::PlatformThread::Delegate:
   virtual void ThreadMain() OVERRIDE {
     for (size_t i = 0; i < repeats_; ++i) {
       notifier_->Wait();
@@ -362,25 +363,10 @@ TEST(CrossProcessNotification, DISABLED_MultipleWaits1000) {
 }
 
 class CrossProcessNotificationMultiProcessTest : public base::MultiProcessTest {
- public:
-  static const char kSharedMemName[];
-  static const size_t kSharedMemSize = 1024;
-
- protected:
-  virtual void SetUp() OVERRIDE {
-    base::MultiProcessTest::SetUp();
-  }
-
-  virtual void TearDown() OVERRIDE {
-    base::MultiProcessTest::TearDown();
-  }
 };
 
-// static
-const char CrossProcessNotificationMultiProcessTest::kSharedMemName[] =
-    "CrossProcessNotificationMultiProcessTest";
-
 namespace {
+
 // A very crude IPC mechanism that we use to set up the spawned child process
 // and the parent process.
 struct CrudeIpc {
@@ -388,24 +374,31 @@ struct CrudeIpc {
   CrossProcessNotification::IPCHandle handle_1;
   CrossProcessNotification::IPCHandle handle_2;
 };
-}  // end namespace
+
+#if defined(OS_POSIX)
+const int kPosixChildSharedMem = 30;
+#else
+const char kSharedMemName[] = "CrossProcessNotificationMultiProcessTest";
+#endif
+
+const size_t kSharedMemSize = 1024;
+
+}  // namespace
 
 // The main routine of the child process.  Waits for the parent process
 // to copy handles over to the child and then uses a CrossProcessNotification to
 // wait and signal to the parent process.
 MULTIPROCESS_TEST_MAIN(CrossProcessNotificationChildMain) {
+#if defined(OS_POSIX)
+  base::SharedMemory mem(
+      base::SharedMemoryHandle(kPosixChildSharedMem, true /* auto close */),
+      false);
+#else
   base::SharedMemory mem;
-  bool ok = mem.CreateNamed(
-      CrossProcessNotificationMultiProcessTest::kSharedMemName,
-      true,
-      CrossProcessNotificationMultiProcessTest::kSharedMemSize);
-  DCHECK(ok);
-  if (!ok) {
-    LOG(ERROR) << "Failed to open shared memory segment.";
-    return -1;
-  }
+  CHECK(mem.CreateNamed(kSharedMemName, true, kSharedMemSize));
+#endif
 
-  mem.Map(CrossProcessNotificationMultiProcessTest::kSharedMemSize);
+  CHECK(mem.Map(kSharedMemSize));
   CrudeIpc* ipc = reinterpret_cast<CrudeIpc*>(mem.memory());
 
   while (!ipc->ready)
@@ -422,17 +415,20 @@ MULTIPROCESS_TEST_MAIN(CrossProcessNotificationChildMain) {
 // new process.  Once that's done, it waits for the child process to signal
 // it's end and quits.
 TEST_F(CrossProcessNotificationMultiProcessTest, Basic) {
-  base::SharedMemory mem;
-  mem.Delete(kSharedMemName);  // In case a previous run was unsuccessful.
-  bool ok = mem.CreateNamed(kSharedMemName, false, kSharedMemSize);
-  ASSERT_TRUE(ok);
-
-  ASSERT_TRUE(mem.Map(kSharedMemSize));
-
   CrossProcessNotification a, b;
   ASSERT_TRUE(CrossProcessNotification::InitializePair(&a, &b));
   EXPECT_TRUE(a.IsValid());
   EXPECT_TRUE(b.IsValid());
+
+  base::SharedMemory mem;
+
+#if defined(OS_POSIX)
+  ASSERT_TRUE(mem.CreateAndMapAnonymous(kSharedMemSize));
+#else
+  mem.Delete(kSharedMemName);  // In case a previous run was unsuccessful.
+  ASSERT_TRUE(mem.CreateNamed(kSharedMemName, false, kSharedMemSize));
+  ASSERT_TRUE(mem.Map(kSharedMemSize));
+#endif
 
   CrudeIpc* ipc = reinterpret_cast<CrudeIpc*>(mem.memory());
   ipc->ready = false;
@@ -442,8 +438,9 @@ TEST_F(CrossProcessNotificationMultiProcessTest, Basic) {
   EXPECT_TRUE(b.ShareToProcess(
         base::kNullProcessHandle, &ipc->handle_1, &ipc->handle_2));
   base::FileHandleMappingVector fd_mapping_vec;
-  fd_mapping_vec.push_back(std::pair<int, int>(ipc->handle_1.fd,
-                                               kPosixChildSocket));
+  fd_mapping_vec.push_back(std::make_pair(ipc->handle_1.fd, kPosixChildSocket));
+  fd_mapping_vec.push_back(
+      std::make_pair(mem.handle().fd, kPosixChildSharedMem));
   ipc->handle_1.fd = kPosixChildSocket;
   base::ProcessHandle process = SpawnChild("CrossProcessNotificationChildMain",
                                            fd_mapping_vec, false);
