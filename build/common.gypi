@@ -259,8 +259,8 @@
       # Has no effect if 'clang' is not set as well.
       'clang_use_chrome_plugins%': 1,
 
-      # Enable building with ASAN (Clang's -faddress-sanitizer option).
-      # -faddress-sanitizer only works with clang, but asan=1 implies clang=1
+      # Enable building with ASAN (Clang's -fsanitize=address option).
+      # -fsanitize=address only works with clang, but asan=1 implies clang=1
       # See https://sites.google.com/a/chromium.org/dev/developers/testing/addresssanitizer
       'asan%': 0,
 
@@ -3167,7 +3167,7 @@
               '-w',  # http://crbug.com/162783
             ],
             'ldflags!': [
-              '-faddress-sanitizer',
+              '-fsanitize=address',
               '-Wl,-z,noexecstack',
               '-Wl,--gc-sections',
               '-Wl,-O1',
@@ -3301,7 +3301,7 @@
               ['asan==1', {
                 'xcode_settings': {
                   'OTHER_LDFLAGS': [
-                    '-faddress-sanitizer',
+                    '-fsanitize=address',
                   ],
                 },
               }],
