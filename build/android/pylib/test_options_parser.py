@@ -137,7 +137,7 @@ def AddInstrumentationOptions(option_parser):
                                  'when test(s) fail.'))
   option_parser.add_option('--disable_assertions', action='store_true',
                            help='Run with java assertions disabled.')
-  option_parser.add_option('--test_data', action='append',
+  option_parser.add_option('--test_data', action='append', default=[],
                            help=('Each instance defines a directory of test '
                                  'data that should be copied to the target(s) '
                                  'before running the tests. The argument '
