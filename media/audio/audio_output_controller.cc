@@ -11,6 +11,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
+#include "build/build_config.h"
 #include "media/audio/shared_memory_util.h"
 
 using base::Time;
@@ -319,17 +320,21 @@ int AudioOutputController::OnMoreIOData(AudioBus* source,
 }
 
 void AudioOutputController::WaitTillDataReady() {
-  if (!sync_reader_->DataReady()) {
-    // In the different place we use different mechanism to poll, get max
-    // polling delay from constants used there.
-    const base::TimeDelta kMaxPollingDelay = TimeDelta::FromMilliseconds(
-        kPollNumAttempts * kPollPauseInMilliseconds);
-    Time start_time = Time::Now();
-    do {
-      base::PlatformThread::Sleep(TimeDelta::FromMilliseconds(1));
-    } while (!sync_reader_->DataReady() &&
-             Time::Now() - start_time < kMaxPollingDelay);
+#if defined(OS_WIN) || defined(OS_MACOSX)
+  base::Time start = base::Time::Now();
+  // Wait for up to 1.5 seconds for DataReady().  1.5 seconds was chosen because
+  // it's larger than the playback time of the WaveOut buffer size using the
+  // minimum supported sample rate: 4096 / 3000 = ~1.4 seconds.  Even a client
+  // expecting real time playout should be able to fill in this time.
+  const base::TimeDelta max_wait = base::TimeDelta::FromMilliseconds(1500);
+  while (!sync_reader_->DataReady() &&
+         ((base::Time::Now() - start) < max_wait)) {
+    base::PlatformThread::YieldCurrentThread();
   }
+#else
+  // WaitTillDataReady() is deprecated and should not be used.
+  CHECK(false);
+#endif
 }
 
 void AudioOutputController::OnError(AudioOutputStream* stream, int code) {

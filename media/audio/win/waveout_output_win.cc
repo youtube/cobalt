@@ -76,7 +76,6 @@ inline WAVEHDR* PCMWaveOutAudioOutputStream::GetBuffer(int n) const {
   return reinterpret_cast<WAVEHDR*>(&buffers_[n * BufferSize()]);
 }
 
-
 PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
     AudioManagerWin* manager, const AudioParameters& params, int num_buffers,
     UINT device_id)
@@ -341,6 +340,13 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
   // Call the source which will fill our buffer with pleasant sounds and
   // return to us how many bytes were used.
   // TODO(fbarchard): Handle used 0 by queueing more.
+
+  // HACK: Yield if Read() is called too often.  On older platforms which are
+  // still using the WaveOut backend, we run into synchronization issues where
+  // the renderer has not finished filling the shared memory when Read() is
+  // called.  Reading too early will lead to clicks and pops.  See issues:
+  // http://crbug.com/161307 and http://crbug.com/61022
+  callback_->WaitTillDataReady();
 
   // TODO(sergeyu): Specify correct hardware delay for AudioBuffersState.
   int frames_filled = callback_->OnMoreData(
