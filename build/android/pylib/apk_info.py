@@ -5,11 +5,15 @@
 """Gathers information about APKs."""
 
 import collections
+import logging
 import os
+import pickle
 import re
 
 import cmd_helper
 
+# If you change the cached output of proguard, increment this number
+PICKLE_FORMAT_VERSION = 1
 
 def GetPackageNameForApk(apk_path):
   """Returns the package name of the apk file."""
@@ -46,10 +50,32 @@ class ApkInfo(object):
       raise Exception('%s not found, please build it' % jar_path)
     self._jar_path = jar_path
     self._annotation_map = collections.defaultdict(list)
+    self._pickled_proguard_name = self._jar_path + '-proguard.pickle'
     self._test_methods = []
     self._Initialize()
 
   def _Initialize(self):
+    if not self._GetCachedProguardData():
+      self._GetProguardData()
+
+  def _GetCachedProguardData(self):
+    if (os.path.exists(self._pickled_proguard_name) and
+        (os.path.getmtime(self._pickled_proguard_name) >
+         os.path.getmtime(self._jar_path))):
+      logging.info('Loading cached proguard output from %s',
+                   self._pickled_proguard_name)
+      try:
+        with open(self._pickled_proguard_name, 'r') as r:
+          d = pickle.loads(r.read())
+        if d['VERSION'] == PICKLE_FORMAT_VERSION:
+          self._annotation_map = d['ANNOTATION_MAP']
+          self._test_methods = d['TEST_METHODS']
+          return True
+      except:
+        logging.warning('PICKLE_FORMAT_VERSION has changed, ignoring cache')
+    return False
+
+  def _GetProguardData(self):
     proguard_output = cmd_helper.GetCmdOutput([self._PROGUARD_PATH,
                                                '-injars', self._jar_path,
                                                '-dontshrink',
@@ -97,6 +123,13 @@ class ApkInfo(object):
             self._annotation_map[qualified_method].append(
                 annotation + ':' + value)
             has_value = False
+
+    logging.info('Storing proguard output to %s', self._pickled_proguard_name)
+    d = {'VERSION': PICKLE_FORMAT_VERSION,
+         'ANNOTATION_MAP': self._annotation_map,
+         'TEST_METHODS': self._test_methods}
+    with open(self._pickled_proguard_name, 'w') as f:
+      f.write(pickle.dumps(d))
 
   def _GetAnnotationMap(self):
     return self._annotation_map
