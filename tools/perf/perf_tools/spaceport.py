@@ -10,6 +10,9 @@ class SpaceportBenchmark(multi_page_benchmark.MultiPageBenchmark):
     options.extra_browser_args.extend(['--disable-gpu-vsync'])
 
   def MeasurePage(self, _, tab, results):
+    util.WaitFor(lambda: tab.runtime.Evaluate(
+        '!document.getElementById("start-performance-tests").disabled'), 60)
+
     tab.runtime.Execute("""
         window.__results = {};
         window.console.log = function(str) {
