@@ -174,16 +174,98 @@
         {
             "url": "https://plus.google.com/110031535020051778989/posts",
             "why": "social; top google property; Public profile; infinite scrolls",
+            "credentials": "google",
             "scrolling": {
                 "action": "scrolling_interaction",
                 "scroll_is_infinite": true
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Home",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Profile",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Explore",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Events",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Photos",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Circles",
+                        "wait_for_navigate": true
+                    }
+                ]
             }
         },
         {
             "url": "http://www.youtube.com",
             "why": "#3 (Alexa global)",
+            "credentials": "google",
             "scrolling": {
                 "action": "scrolling_interaction"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Browse",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"/recommended\"]",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"/trending\"]",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"/autos\"]",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"/entertainment\"]",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"/film\"]",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"/gaming\"]",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"/howto\"]",
+                        "wait_for_navigate": true
+                    }
+                ]
             }
         },
         {
@@ -192,6 +274,40 @@
             "why": "#11 (Alexa global), google property; some blogger layouts have infinite scroll but more interesting",
             "scrolling": {
                 "action": "scrolling_interaction"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "click_element_interaction",
+                        "text": "accessibility",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "advanced",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "beginner",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Home",
+                        "wait_for_navigate": true
+                    }
+                ]
             }
         },
         {
@@ -200,6 +316,38 @@
             "why": "#18 (Alexa global), Picked an interesting post",
             "scrolling": {
                 "action": "scrolling_interaction"
+            },
+            "stress_memory": {
+                "action": "compound_interaction",
+                "actions": [
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "selector": "a[href=\"http://en.blog.wordpress.com/2012/08/30/new-themes-able-and-sight/\"]",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Features",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "News",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "scrolling_interaction"
+                    }
+                ]
             }
         },
         {
@@ -216,17 +364,32 @@
                 "actions": [
                     {
                         "action": "click_element_interaction",
-                        "selector": "a[href=\"http://www.facebook.com/WomenforObama\"]",
+                        "text": "About",
                         "wait_for_navigate": true
                     },
                     {
                         "action": "click_element_interaction",
-                        "selector": "a[href=\"http://www.facebook.com/WomenforObama/info\"]",
+                        "text": "The Audacity of Hope",
                         "wait_for_navigate": true
                     },
                     {
                         "action": "click_element_interaction",
-                        "selector": "a[href=\"http://www.facebook.com/?ref=tn_tnmn\"]",
+                        "text": "Back to Barack Obama's Timeline",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "About",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Elected to U.S. Senate",
+                        "wait_for_navigate": true
+                    },
+                    {
+                        "action": "click_element_interaction",
+                        "text": "Home",
                         "wait_for_navigate": true
                     }
                 ]
