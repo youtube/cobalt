@@ -56,6 +56,7 @@ class ScopedURLFetcherFactory : public base::NonThreadSafe {
 // might want to use the FakeURLFetcher and FakeURLFetcherFactory classes
 // below.
 
+class TestURLFetcherFactory;
 class TestURLFetcher : public URLFetcher {
  public:
   // Interface for tests to intercept production code classes using URLFetcher.
@@ -135,6 +136,11 @@ class TestURLFetcher : public URLFetcher {
   virtual bool GetResponseAsFilePath(
       bool take_ownership, FilePath* out_response_path) const OVERRIDE;
 
+  // Sets owner of this class.  Set it to a non-NULL value if you want
+  // to automatically unregister this fetcher from the owning factory
+  // upon destruction.
+  void set_owner(TestURLFetcherFactory* owner) { owner_ = owner; }
+
   // Unique ID in our factory.
   int id() const { return id_; }
 
@@ -173,6 +179,7 @@ class TestURLFetcher : public URLFetcher {
     TEMP_FILE  // Write to a temp file
   };
 
+  TestURLFetcherFactory* owner_;
   const int id_;
   const GURL original_url_;
   URLFetcherDelegate* delegate_;
@@ -206,6 +213,8 @@ typedef TestURLFetcher::DelegateForTests TestURLFetcherDelegateForTests;
 
 // Simple URLFetcherFactory method that creates TestURLFetchers. All fetchers
 // are registered in a map by the id passed to the create method.
+// Optionally, a fetcher may be automatically unregistered from the map upon
+// its destruction.
 class TestURLFetcherFactory : public URLFetcherFactory,
                               public ScopedURLFetcherFactory {
  public:
@@ -220,12 +229,18 @@ class TestURLFetcherFactory : public URLFetcherFactory,
   TestURLFetcher* GetFetcherByID(int id) const;
   void RemoveFetcherFromMap(int id);
   void SetDelegateForTests(TestURLFetcherDelegateForTests* delegate_for_tests);
+  void set_remove_fetcher_on_delete(bool remove_fetcher_on_delete) {
+    remove_fetcher_on_delete_ = remove_fetcher_on_delete;
+  }
 
  private:
   // Maps from id passed to create to the returned URLFetcher.
   typedef std::map<int, TestURLFetcher*> Fetchers;
   Fetchers fetchers_;
   TestURLFetcherDelegateForTests* delegate_for_tests_;
+  // Whether to automatically unregister a fetcher from this factory upon its
+  // destruction, false by default.
+  bool remove_fetcher_on_delete_;
 
   DISALLOW_COPY_AND_ASSIGN(TestURLFetcherFactory);
 };
