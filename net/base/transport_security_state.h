@@ -274,6 +274,11 @@ class NET_EXPORT TransportSecurityState
 
   static const char* HashValueLabel(const HashValue& hash_value);
 
+  // IsBuildTimely returns true if the current build is new enough ensure that
+  // built in security information (i.e. HSTS preloading and pinning
+  // information) is timely.
+  static bool IsBuildTimely();
+
  private:
   // If a Delegate is present, notify it that the internal state has
   // changed.
