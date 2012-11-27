@@ -1,8 +1,5 @@
 # List of suppressions
 
-# crbug.com/136720
-CrossProcessNotificationMultiProcessTest.Basic
-
 # Death tests are not supported on APK
 # http://crbug.com/138855
 CompositeFilterDeathTest.*
