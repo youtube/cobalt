@@ -130,6 +130,40 @@ TEST(ScopedVectorTest, WeakClear) {
   EXPECT_EQ(static_cast<size_t>(0), scoped_vector.size());
 }
 
+TEST(ScopedVectorTest, ResizeShrink) {
+  LifeCycleWatcher first_watcher;
+  EXPECT_EQ(LC_INITIAL, first_watcher.life_cycle_state());
+  LifeCycleWatcher second_watcher;
+  EXPECT_EQ(LC_INITIAL, second_watcher.life_cycle_state());
+  ScopedVector<LifeCycleObject> scoped_vector;
+
+  scoped_vector.push_back(first_watcher.NewLifeCycleObject());
+  EXPECT_EQ(LC_CONSTRUCTED, first_watcher.life_cycle_state());
+  EXPECT_EQ(LC_INITIAL, second_watcher.life_cycle_state());
+
+  scoped_vector.push_back(second_watcher.NewLifeCycleObject());
+  EXPECT_EQ(LC_CONSTRUCTED, first_watcher.life_cycle_state());
+  EXPECT_EQ(LC_CONSTRUCTED, second_watcher.life_cycle_state());
+
+  // Test that shrinking a vector deletes elements in the dissapearing range.
+  scoped_vector.resize(1);
+  EXPECT_EQ(LC_CONSTRUCTED, first_watcher.life_cycle_state());
+  EXPECT_EQ(LC_DESTROYED, second_watcher.life_cycle_state());
+  EXPECT_EQ(1u, scoped_vector.size());
+}
+
+TEST(ScopedVectorTest, ResizeGrow) {
+  LifeCycleWatcher watcher;
+  EXPECT_EQ(LC_INITIAL, watcher.life_cycle_state());
+  ScopedVector<LifeCycleObject> scoped_vector;
+  scoped_vector.push_back(watcher.NewLifeCycleObject());
+  EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
+
+  scoped_vector.resize(5);
+  EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
+  EXPECT_EQ(5u, scoped_vector.size());
+}
+
 TEST(ScopedVectorTest, Scope) {
   LifeCycleWatcher watcher;
   EXPECT_EQ(LC_INITIAL, watcher.life_cycle_state());
