@@ -1552,6 +1552,41 @@ void URLRequestHttpJob::RecordPerfHistograms(CompletionCause reason) {
     }
   }
 
+  static const bool cache_sensitivity_analysis =
+      base::FieldTrialList::TrialExists("CacheSensitivityAnalysis");
+  if (cache_sensitivity_analysis) {
+    UMA_HISTOGRAM_TIMES(
+        base::FieldTrial::MakeName("Net.HttpJob.TotalTime",
+                                   "CacheSensitivityAnalysis"),
+        total_time);
+
+    if (reason == FINISHED) {
+      UMA_HISTOGRAM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeSuccess",
+                                     "CacheSensitivityAnalysis"),
+          total_time);
+    } else {
+      UMA_HISTOGRAM_TIMES(
+          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCancel",
+                                     "CacheSensitivityAnalysis"),
+          total_time);
+    }
+
+    if (response_info_) {
+      if (response_info_->was_cached) {
+        UMA_HISTOGRAM_TIMES(
+            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCached",
+                                       "CacheSensitivityAnalysis"),
+            total_time);
+      } else  {
+        UMA_HISTOGRAM_TIMES(
+            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeNotCached",
+                                       "CacheSensitivityAnalysis"),
+            total_time);
+      }
+    }
+  }
+
   start_time_ = base::TimeTicks();
 }
 
