@@ -33,11 +33,17 @@ def CalcScrollResults(rendering_stats_deltas, results):
     float(num_impl_thread_scrolls),
     num_impl_thread_scrolls + num_main_thread_scrolls)
 
+  num_layers = (
+      rendering_stats_deltas['numLayersInLayerTree'] /
+      float(num_frames_sent_to_screen))
+
   results.Add('mean_frame_time', 'ms', round(mean_frame_time_seconds * 1000, 3))
   results.Add('dropped_percent', '%', round(dropped_percent * 100, 1),
               data_type='unimportant')
   results.Add('percent_impl_scrolled', '%',
               round(percent_impl_scrolled * 100, 1),
+              data_type='unimportant')
+  results.Add('average_num_layers_in_layer_tree', '', round(num_layers, 1),
               data_type='unimportant')
 
 def CalcPaintingResults(rendering_stats_deltas, results):
