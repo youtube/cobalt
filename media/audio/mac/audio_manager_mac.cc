@@ -12,6 +12,7 @@
 #include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_input_mac.h"
 #include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/audio/mac/audio_low_latency_output_mac.h"
@@ -369,6 +370,23 @@ AudioInputStream* AudioManagerMac::MakeLowLatencyInputStream(
     stream = new AUAudioInputStream(this, params, audio_device_id);
 
   return stream;
+}
+
+AudioParameters AudioManagerMac::GetPreferredLowLatencyOutputStreamParameters(
+    const AudioParameters& input_params) {
+  if (CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kEnableWebAudioInput)) {
+    // TODO(crogers): given the limitations of the AudioOutputStream
+    // back-ends used with kEnableWebAudioInput, we hard-code to stereo.
+    // Specifically, this is a limitation of AudioSynchronizedStream which
+    // can be removed as part of the work to consolidate these back-ends.
+    return AudioParameters(
+        AudioParameters::AUDIO_PCM_LOW_LATENCY, CHANNEL_LAYOUT_STEREO,
+        GetAudioHardwareSampleRate(), 16, GetAudioHardwareBufferSize());
+  }
+
+  return AudioManagerBase::GetPreferredLowLatencyOutputStreamParameters(
+      input_params);
 }
 
 void AudioManagerMac::OnDeviceChange() {
