@@ -102,11 +102,7 @@ class MEDIA_EXPORT AudioOutputController
     // Close this synchronous reader.
     virtual void Close() = 0;
 
-    // Poll if data is ready.
-    // Not reliable, as there is no guarantee that renderer is "new-style"
-    // renderer that writes metadata into buffer. After several unsuccessful
-    // attempts caller should assume the data is ready even if that function
-    // returns false.
+    // Check if data is ready.
     virtual bool DataReady() = 0;
   };
 
