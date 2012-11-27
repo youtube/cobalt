@@ -32,7 +32,8 @@ ScopedURLFetcherFactory::~ScopedURLFetcherFactory() {
 TestURLFetcher::TestURLFetcher(int id,
                                const GURL& url,
                                URLFetcherDelegate* d)
-    : id_(id),
+    : owner_(NULL),
+      id_(id),
       original_url_(url),
       delegate_(d),
       delegate_for_tests_(NULL),
@@ -47,6 +48,8 @@ TestURLFetcher::TestURLFetcher(int id,
 TestURLFetcher::~TestURLFetcher() {
   if (delegate_for_tests_)
     delegate_for_tests_->OnRequestEnd(id_);
+  if (owner_)
+    owner_->RemoveFetcherFromMap(id_);
 }
 
 void TestURLFetcher::SetUploadData(const std::string& upload_content_type,
@@ -231,7 +234,8 @@ void TestURLFetcher::SetResponseFilePath(const FilePath& path) {
 
 TestURLFetcherFactory::TestURLFetcherFactory()
     : ScopedURLFetcherFactory(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
-      delegate_for_tests_(NULL) {
+      delegate_for_tests_(NULL),
+      remove_fetcher_on_delete_(false) {
 }
 
 TestURLFetcherFactory::~TestURLFetcherFactory() {}
@@ -242,6 +246,8 @@ URLFetcher* TestURLFetcherFactory::CreateURLFetcher(
     URLFetcher::RequestType request_type,
     URLFetcherDelegate* d) {
   TestURLFetcher* fetcher = new TestURLFetcher(id, url, d);
+  if (remove_fetcher_on_delete_)
+    fetcher->set_owner(this);
   fetcher->SetDelegateForTests(delegate_for_tests_);
   fetchers_[id] = fetcher;
   return fetcher;
@@ -270,11 +276,10 @@ class FakeURLFetcher : public TestURLFetcher {
   FakeURLFetcher(const GURL& url,
                  URLFetcherDelegate* d,
                  const std::string& response_data, bool success)
-    : TestURLFetcher(0, url, d),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
+      : TestURLFetcher(0, url, d),
+        ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
     set_status(URLRequestStatus(
-        success ? URLRequestStatus::SUCCESS :
-            URLRequestStatus::FAILED,
+        success ? URLRequestStatus::SUCCESS : URLRequestStatus::FAILED,
         0));
     set_response_code(success ? 200 : 500);
     SetResponseString(response_data);
