@@ -215,7 +215,7 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
 #endif
 
   scoped_refptr<AudioOutputDispatcher> dispatcher =
-      new AudioOutputDispatcherImpl(this, params, close_delay);
+      new AudioOutputDispatcherImpl(this, output_params, close_delay);
   output_dispatchers_[dispatcher_key] = dispatcher;
   return new AudioOutputProxy(dispatcher);
 #endif  // defined(OS_IOS)
