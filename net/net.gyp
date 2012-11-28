@@ -60,6 +60,8 @@
         'android/net_jni_registrar.h',
         'android/network_change_notifier_android.cc',
         'android/network_change_notifier_android.h',
+        'android/network_change_notifier_delegate_android.cc',
+        'android/network_change_notifier_delegate_android.h',
         'android/network_change_notifier_factory_android.cc',
         'android/network_change_notifier_factory_android.h',
         'android/network_library.cc',
