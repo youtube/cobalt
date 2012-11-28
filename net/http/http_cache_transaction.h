@@ -152,6 +152,7 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_DOOM_ENTRY_COMPLETE,
     STATE_ADD_TO_ENTRY,
     STATE_ADD_TO_ENTRY_COMPLETE,
+    STATE_ADD_TO_ENTRY_COMPLETE_AFTER_DELAY,
     STATE_START_PARTIAL_CACHE_VALIDATION,
     STATE_COMPLETE_PARTIAL_CACHE_VALIDATION,
     STATE_UPDATE_CACHED_RESPONSE,
@@ -223,6 +224,7 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoDoomEntryComplete(int result);
   int DoAddToEntry();
   int DoAddToEntryComplete(int result);
+  int DoAddToEntryCompleteAfterDelay(int result);
   int DoStartPartialCacheValidation();
   int DoCompletePartialCacheValidation(int result);
   int DoUpdateCachedResponse();
@@ -371,6 +373,10 @@ class HttpCache::Transaction : public HttpTransaction {
   // Returns |return_value|.
   int ResetCacheIOStart(int return_value);
 
+  void ScheduleDelayedLoop(base::TimeDelta delay, int result);
+  void RunDelayedLoop(base::TimeTicks delay_start_time,
+                      base::TimeDelta intended_delay, int result);
+
   State next_state_;
   const HttpRequestInfo* request_;
   BoundNetLog net_log_;
@@ -422,12 +428,15 @@ class HttpCache::Transaction : public HttpTransaction {
   // if no cache IO action is currently in progress.
   base::TimeTicks cache_io_start_;
 
+  // For OpenEntry and CreateEntry, if sensitivity analysis would mandate
+  // a delay on return, we must defer that delay until AddToEntry has been
+  // called, to avoid a race condition on the address returned.
+  base::TimeDelta deferred_cache_sensitivity_delay_;
+  bool defer_cache_sensitivity_delay_;
+
   // For sensitivity analysis, the simulated increase in cache service times,
   // in percent.
   int sensitivity_analysis_percent_increase_;
-
-  void RunDelayedLoop(base::TimeTicks delay_start_time,
-                      base::TimeDelta intended_delay, int result);
 
   HttpTransactionDelegate* transaction_delegate_;
 };
