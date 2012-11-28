@@ -19,7 +19,9 @@ namespace net {
 class NET_EXPORT URLRequestRedirectJob : public URLRequestJob {
  public:
   // Valid status codes for the redirect job. Other 30x codes are theoretically
-  // valid, but unused so far.
+  // valid, but unused so far.  Both 302 and 307 are temporary redirects, with
+  // the difference being that 302 converts POSTs to GETs and removes upload
+  // data.
   enum StatusCode {
     REDIRECT_302_FOUND = 302,
     REDIRECT_307_TEMPORARY_REDIRECT = 307,
@@ -28,13 +30,8 @@ class NET_EXPORT URLRequestRedirectJob : public URLRequestJob {
   // Constructs a job that redirects to the specified URL.
   URLRequestRedirectJob(URLRequest* request,
                         NetworkDelegate* network_delegate,
-                        const GURL& redirect_destination);
-
-  // Change the HTTP status code to use for the redirect. Default is
-  // REDIRECT_302_FOUND.
-  void set_redirect_code(StatusCode code) {
-    http_status_code_ = static_cast<int>(code);
-  }
+                        const GURL& redirect_destination,
+                        StatusCode http_status_code);
 
   virtual void Start() OVERRIDE;
   virtual bool IsRedirectResponse(GURL* location,
@@ -45,8 +42,8 @@ class NET_EXPORT URLRequestRedirectJob : public URLRequestJob {
 
   void StartAsync();
 
-  GURL redirect_destination_;
-  int http_status_code_;
+  const GURL redirect_destination_;
+  const int http_status_code_;
 
   base::WeakPtrFactory<URLRequestRedirectJob> weak_factory_;
 };
