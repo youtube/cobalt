@@ -31,9 +31,6 @@ class Decryptor;
 // DecryptingVideoDecoder for video decoding.
 class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
  public:
-  // Callback to get a message loop.
-  typedef base::Callback<
-      scoped_refptr<base::MessageLoopProxy>()> MessageLoopFactoryCB;
   // Callback to notify decryptor creation.
   typedef base::Callback<void(Decryptor*)> DecryptorNotificationCB;
   // Callback to request/cancel decryptor creation notification.
@@ -47,7 +44,7 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
       RequestDecryptorNotificationCB;
 
   DecryptingVideoDecoder(
-      const MessageLoopFactoryCB& message_loop_factory_cb,
+      const scoped_refptr<base::MessageLoopProxy>& message_loop,
       const RequestDecryptorNotificationCB& request_decryptor_notification_cb);
 
   // VideoDecoder implementation.
@@ -118,9 +115,6 @@ class MEDIA_EXPORT DecryptingVideoDecoder : public VideoDecoder {
 
   // Free decoder resources and call |stop_cb_|.
   void DoStop();
-
-  // This is !is_null() iff Initialize() hasn't been called.
-  MessageLoopFactoryCB message_loop_factory_cb_;
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 

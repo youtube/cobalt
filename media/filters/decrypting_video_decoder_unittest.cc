@@ -15,7 +15,6 @@
 #include "media/base/mock_filters.h"
 #include "media/base/video_frame.h"
 #include "media/filters/decrypting_video_decoder.h"
-#include "media/filters/ffmpeg_decoder_unittest.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
@@ -74,8 +73,7 @@ class DecryptingVideoDecoderTest : public testing::Test {
  public:
   DecryptingVideoDecoderTest()
       : decoder_(new DecryptingVideoDecoder(
-            base::Bind(&Identity<scoped_refptr<base::MessageLoopProxy> >,
-                       message_loop_.message_loop_proxy()),
+            message_loop_.message_loop_proxy(),
             base::Bind(
                 &DecryptingVideoDecoderTest::RequestDecryptorNotification,
                 base::Unretained(this)))),

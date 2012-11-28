@@ -664,7 +664,6 @@
         'filters/decrypting_demuxer_stream_unittest.cc',
         'filters/decrypting_video_decoder_unittest.cc',
         'filters/ffmpeg_audio_decoder_unittest.cc',
-        'filters/ffmpeg_decoder_unittest.h',
         'filters/ffmpeg_demuxer_unittest.cc',
         'filters/ffmpeg_glue_unittest.cc',
         'filters/ffmpeg_h264_to_annex_b_bitstream_converter_unittest.cc',

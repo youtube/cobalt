@@ -16,7 +16,6 @@
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
 #include "media/filters/decrypting_audio_decoder.h"
-#include "media/filters/ffmpeg_decoder_unittest.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
@@ -72,8 +71,7 @@ class DecryptingAudioDecoderTest : public testing::Test {
  public:
   DecryptingAudioDecoderTest()
       : decoder_(new DecryptingAudioDecoder(
-            base::Bind(&Identity<scoped_refptr<base::MessageLoopProxy> >,
-                       message_loop_.message_loop_proxy()),
+            message_loop_.message_loop_proxy(),
             base::Bind(
                 &DecryptingAudioDecoderTest::RequestDecryptorNotification,
                 base::Unretained(this)))),

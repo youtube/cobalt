@@ -24,10 +24,6 @@ class DecoderBuffer;
 // that no locks are required for thread safety.
 class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
  public:
-  // Callback to get a message loop.
-  typedef base::Callback<
-      scoped_refptr<base::MessageLoopProxy>()> MessageLoopFactoryCB;
-
   // Callback to notify decryptor creation.
   typedef base::Callback<void(Decryptor*)> DecryptorNotificationCB;
 
@@ -42,7 +38,7 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
       RequestDecryptorNotificationCB;
 
   DecryptingDemuxerStream(
-      const MessageLoopFactoryCB& message_loop_factory_cb,
+      const scoped_refptr<base::MessageLoopProxy>& message_loop,
       const RequestDecryptorNotificationCB& request_decryptor_notification_cb);
 
   void Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -107,9 +103,6 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
 
   // Returns Decryptor::StreamType converted from |stream_type_|.
   Decryptor::StreamType GetDecryptorStreamType() const;
-
-  // This is !is_null() iff Initialize() hasn't been called.
-  MessageLoopFactoryCB message_loop_factory_cb_;
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 

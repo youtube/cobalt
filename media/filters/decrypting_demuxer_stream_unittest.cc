@@ -14,7 +14,6 @@
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
 #include "media/filters/decrypting_demuxer_stream.h"
-#include "media/filters/ffmpeg_decoder_unittest.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using ::testing::_;
@@ -73,8 +72,7 @@ class DecryptingDemuxerStreamTest : public testing::Test {
  public:
   DecryptingDemuxerStreamTest()
       : demuxer_stream_(new DecryptingDemuxerStream(
-            base::Bind(&Identity<scoped_refptr<base::MessageLoopProxy> >,
-                       message_loop_.message_loop_proxy()),
+            message_loop_.message_loop_proxy(),
             base::Bind(
                 &DecryptingDemuxerStreamTest::RequestDecryptorNotification,
                 base::Unretained(this)))),

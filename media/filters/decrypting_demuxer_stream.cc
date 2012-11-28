@@ -23,9 +23,9 @@ namespace media {
     media::BindToLoop(message_loop_, base::Bind(function, this))
 
 DecryptingDemuxerStream::DecryptingDemuxerStream(
-    const MessageLoopFactoryCB& message_loop_factory_cb,
+    const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const RequestDecryptorNotificationCB& request_decryptor_notification_cb)
-    : message_loop_factory_cb_(message_loop_factory_cb),
+    : message_loop_(message_loop),
       state_(kUninitialized),
       stream_type_(UNKNOWN),
       request_decryptor_notification_cb_(request_decryptor_notification_cb),
@@ -36,11 +36,12 @@ DecryptingDemuxerStream::DecryptingDemuxerStream(
 void DecryptingDemuxerStream::Initialize(
     const scoped_refptr<DemuxerStream>& stream,
     const PipelineStatusCB& status_cb) {
-  DCHECK(!message_loop_);
-  message_loop_ = base::ResetAndReturn(&message_loop_factory_cb_).Run();
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &DecryptingDemuxerStream::DoInitialize, this,
-      stream, status_cb));
+  if (!message_loop_->BelongsToCurrentThread()) {
+    message_loop_->PostTask(FROM_HERE, base::Bind(
+        &DecryptingDemuxerStream::DoInitialize, this, stream, status_cb));
+    return;
+  }
+  DoInitialize(stream, status_cb);
 }
 
 void DecryptingDemuxerStream::Read(const ReadCB& read_cb) {
