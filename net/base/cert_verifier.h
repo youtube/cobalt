@@ -86,9 +86,8 @@ class NET_EXPORT CertVerifier {
   // could not be completed synchronously, in which case the result code will
   // be passed to the callback when available.
   //
-  // If |out_req| is non-NULL, then |*out_req| will be filled with a handle to
-  // the async request. This handle is not valid after the request has
-  // completed.
+  // |*out_req| will be filled with a handle to the async request.
+  // This handle is not valid after the request has completed.
   //
   // TODO(rsleevi): Move CRLSet* out of the CertVerifier signature.
   virtual int Verify(X509Certificate* cert,
