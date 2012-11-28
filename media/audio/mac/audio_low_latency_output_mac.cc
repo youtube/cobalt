@@ -46,6 +46,12 @@ static void SwizzleCoreAudioLayout5_1(Format* b, uint32 filled) {
   }
 }
 
+static AudioObjectPropertyAddress kDefaultOutputDeviceAddress = {
+  kAudioHardwarePropertyDefaultOutputDevice,
+  kAudioObjectPropertyScopeGlobal,
+  kAudioObjectPropertyElementMaster
+};
+
 // Overview of operation:
 // 1) An object of AUAudioOutputStream is created by the AudioManager
 // factory: audio_man->MakeAudioStream().
@@ -101,20 +107,17 @@ AUAudioOutputStream::~AUAudioOutputStream() {
 bool AUAudioOutputStream::Open() {
   // Obtain the current input device selected by the user.
   UInt32 size = sizeof(output_device_id_);
-  AudioObjectPropertyAddress default_output_device_address = {
-    kAudioHardwarePropertyDefaultOutputDevice,
-    kAudioObjectPropertyScopeGlobal,
-    kAudioObjectPropertyElementMaster
-  };
   OSStatus result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
-                                               &default_output_device_address,
+                                               &kDefaultOutputDeviceAddress,
                                                0,
                                                0,
                                                &size,
                                                &output_device_id_);
-  OSSTATUS_DCHECK(result == noErr, result);
-  if (result)
+  if (result != noErr || output_device_id_ == kAudioObjectUnknown) {
+    OSSTATUS_DLOG(WARNING, result)
+        << "Could not get default audio output device.";
     return false;
+  }
 
   // Open and initialize the DefaultOutputUnit.
   AudioComponent comp;
@@ -126,17 +129,20 @@ bool AUAudioOutputStream::Open() {
   desc.componentFlags = 0;
   desc.componentFlagsMask = 0;
   comp = AudioComponentFindNext(0, &desc);
-  DCHECK(comp);
+  if (!comp)
+    return false;
 
   result = AudioComponentInstanceNew(comp, &output_unit_);
-  OSSTATUS_DCHECK(result == noErr, result);
-  if (result)
+  if (result != noErr) {
+    OSSTATUS_DLOG(WARNING, result) << "AudioComponentInstanceNew() failed.";
     return false;
+  }
 
   result = AudioUnitInitialize(output_unit_);
-  OSSTATUS_DCHECK(result == noErr, result);
-  if (result)
+  if (result != noErr) {
+    OSSTATUS_DLOG(WARNING, result) << "AudioUnitInitialize() failed.";
     return false;
+  }
 
   hardware_latency_frames_ = GetHardwareLatency();
 
@@ -155,9 +161,11 @@ bool AUAudioOutputStream::Configure() {
       0,
       &input,
       sizeof(input));
-  OSSTATUS_DCHECK(result == noErr, result);
-  if (result)
+  if (result != noErr) {
+    OSSTATUS_DLOG(WARNING, result)
+      << "AudioUnitSetProperty(kAudioUnitProperty_SetRenderCallback) failed.";
     return false;
+  }
 
   // Set the stream format.
   result = AudioUnitSetProperty(
@@ -167,9 +175,11 @@ bool AUAudioOutputStream::Configure() {
       0,
       &format_,
       sizeof(format_));
-  OSSTATUS_DCHECK(result == noErr, result);
-  if (result)
+  if (result != noErr) {
+    OSSTATUS_DLOG(WARNING, result)
+        << "AudioUnitSetProperty(kAudioUnitProperty_StreamFormat) failed.";
     return false;
+  }
 
   // Set the buffer frame size.
   // WARNING: Setting this value changes the frame size for all audio units in
@@ -184,9 +194,11 @@ bool AUAudioOutputStream::Configure() {
       0,
       &buffer_size,
       sizeof(buffer_size));
-  OSSTATUS_DCHECK(result == noErr, result);
-  if (result)
+  if (result != noErr) {
+    OSSTATUS_DLOG(WARNING, result)
+        << "AudioUnitSetProperty(kAudioDevicePropertyBufferFrameSize) failed.";
     return false;
+  }
 
   return true;
 }
@@ -202,9 +214,10 @@ void AUAudioOutputStream::Close() {
 
 void AUAudioOutputStream::Start(AudioSourceCallback* callback) {
   DCHECK(callback);
-  DLOG_IF(ERROR, !output_unit_) << "Open() has not been called successfully";
-  if (!output_unit_)
+  if (!output_unit_) {
+    DLOG(ERROR) << "Open() has not been called successfully";
     return;
+  }
 
   stopped_ = false;
   source_ = callback;
@@ -298,7 +311,6 @@ OSStatus AUAudioOutputStream::InputProc(void* user_data,
                                         AudioBufferList* io_data) {
   AUAudioOutputStream* audio_output =
       static_cast<AUAudioOutputStream*>(user_data);
-  DCHECK(audio_output);
   if (!audio_output)
     return -1;
 
@@ -309,21 +321,17 @@ int AUAudioOutputStream::HardwareSampleRate() {
   // Determine the default output device's sample-rate.
   AudioDeviceID device_id = kAudioObjectUnknown;
   UInt32 info_size = sizeof(device_id);
-
-  AudioObjectPropertyAddress default_output_device_address = {
-      kAudioHardwarePropertyDefaultOutputDevice,
-      kAudioObjectPropertyScopeGlobal,
-      kAudioObjectPropertyElementMaster
-  };
   OSStatus result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
-                                               &default_output_device_address,
+                                               &kDefaultOutputDeviceAddress,
                                                0,
                                                0,
                                                &info_size,
                                                &device_id);
-  OSSTATUS_DCHECK(result == noErr, result);
-  if (result)
-    return 0.0;  // error
+  if (result != noErr || device_id == kAudioObjectUnknown) {
+    OSSTATUS_DLOG(WARNING, result)
+        << "Could not get default audio output device.";
+    return 0;
+  }
 
   Float64 nominal_sample_rate;
   info_size = sizeof(nominal_sample_rate);
@@ -339,9 +347,11 @@ int AUAudioOutputStream::HardwareSampleRate() {
                                       0,
                                       &info_size,
                                       &nominal_sample_rate);
-  OSSTATUS_DCHECK(result == noErr, result);
-  if (result)
-    return 0.0;  // error
+  if (result != noErr) {
+    OSSTATUS_DLOG(WARNING, result)
+        << "Could not get default sample rate for device: " << device_id;
+    return 0;
+  }
 
   return static_cast<int>(nominal_sample_rate);
 }
@@ -361,8 +371,10 @@ double AUAudioOutputStream::GetHardwareLatency() {
                                          0,
                                          &audio_unit_latency_sec,
                                          &size);
-  OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
-      << "Could not get audio unit latency";
+  if (result != noErr) {
+    OSSTATUS_DLOG(WARNING, result) << "Could not get audio unit latency";
+    return 0.0;
+  }
 
   // Get output audio device latency.
   AudioObjectPropertyAddress property_address = {
@@ -378,8 +390,10 @@ double AUAudioOutputStream::GetHardwareLatency() {
                                       NULL,
                                       &size,
                                       &device_latency_frames);
-  OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
-      << "Could not get audio device latency";
+  if (result != noErr) {
+    OSSTATUS_DLOG(WARNING, result) << "Could not get audio unit latency";
+    return 0.0;
+  }
 
   return static_cast<double>((audio_unit_latency_sec *
       format_.mSampleRate) + device_latency_frames);
