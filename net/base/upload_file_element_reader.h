@@ -35,7 +35,15 @@ class NET_EXPORT_PRIVATE UploadFileElementReader : public UploadElementReader {
                           const base::Time& expected_modification_time);
   virtual ~UploadFileElementReader();
 
+  const FilePath& path() const { return path_; }
+  uint64 range_offset() const { return range_offset_; }
+  uint64 range_length() const { return range_length_; }
+  const base::Time& expected_modification_time() const {
+    return expected_modification_time_;
+  }
+
   // UploadElementReader overrides:
+  virtual const UploadFileElementReader* AsFileReader() const OVERRIDE;
   virtual int Init(const CompletionCallback& callback) OVERRIDE;
   virtual int InitSync() OVERRIDE;
   virtual uint64 GetContentLength() const OVERRIDE;
