@@ -1942,30 +1942,6 @@
         'server/web_socket.h',
       ],
     },
-    {
-      'target_name': 'dump_cache',
-      'type': 'executable',
-      'dependencies': [
-        '../base/base.gyp:base',
-        'net',
-        'net_test_support',
-      ],
-      'sources': [
-        'tools/dump_cache/cache_dumper.cc',
-        'tools/dump_cache/cache_dumper.h',
-        'tools/dump_cache/dump_cache.cc',
-        'tools/dump_cache/dump_files.cc',
-        'tools/dump_cache/dump_files.h',
-        'tools/dump_cache/simple_cache_dumper.cc',
-        'tools/dump_cache/simple_cache_dumper.h',
-        'tools/dump_cache/upgrade_win.cc',
-        'tools/dump_cache/upgrade_win.h',
-        'tools/dump_cache/url_to_filename_encoder.cc',
-        'tools/dump_cache/url_to_filename_encoder.h',
-        'tools/dump_cache/url_utilities.h',
-        'tools/dump_cache/url_utilities.cc',
-      ],
-    },
   ],
   'conditions': [
     ['use_v8_in_net == 1', {
@@ -2327,6 +2303,31 @@
             'input_shlib_path': '<(SHARED_LIB_DIR)/<(SHARED_LIB_PREFIX)net_unittests<(SHARED_LIB_SUFFIX)',
           },
           'includes': [ '../build/apk_test.gypi' ],
+        },
+      ],
+    }],
+    ['OS=="win"', {
+      'targets': [
+        {
+          # TODO(port): dump_cache is still Windows-specific.
+          'target_name': 'dump_cache',
+          'type': 'executable',
+          'dependencies': [
+            '../base/base.gyp:base',
+            'net',
+            'net_test_support',
+          ],
+          'sources': [
+            'tools/dump_cache/cache_dumper.cc',
+            'tools/dump_cache/cache_dumper.h',
+            'tools/dump_cache/dump_cache.cc',
+            'tools/dump_cache/dump_files.cc',
+            'tools/dump_cache/upgrade.cc',
+            'tools/dump_cache/url_to_filename_encoder.cc',
+            'tools/dump_cache/url_to_filename_encoder.h',
+            'tools/dump_cache/url_utilities.h',
+            'tools/dump_cache/url_utilities.cc',
+          ],
         },
       ],
     }],
