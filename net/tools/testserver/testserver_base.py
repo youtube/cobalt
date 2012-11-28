@@ -44,6 +44,19 @@ class FileMultiplexer(object):
     self.__fd2.flush()
 
 
+def MultiplexerHack(std_fd, log_fd):
+  """Creates a FileMultiplexer that will write to both specified files.
+
+  When running on Windows XP bots, stdout and stderr will be invalid file
+  handles, so log_fd will be returned directly.  (This does not occur if you
+  run the test suite directly from a console, but only if the output of the
+  test executable is redirected.)
+  """
+  if std_fd.fileno() <= 0:
+    return log_fd
+  return FileMultiplexer(std_fd, log_fd)
+
+
 class TestServerRunner(object):
   """Runs a test server and communicates with the controlling C++ test code.
 
@@ -59,9 +72,9 @@ class TestServerRunner(object):
     self.options, self.args = self.option_parser.parse_args()
 
     logfile = open('testserver.log', 'w')
-    sys.stderr = FileMultiplexer(sys.stderr, logfile)
+    sys.stderr = MultiplexerHack(sys.stderr, logfile)
     if self.options.log_to_console:
-      sys.stdout = FileMultiplexer(sys.stdout, logfile)
+      sys.stdout = MultiplexerHack(sys.stdout, logfile)
     else:
       sys.stdout = logfile
 
