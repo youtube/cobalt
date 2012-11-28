@@ -157,7 +157,7 @@ public class NetworkChangeNotifier {
      */
     void notifyObserversOfConnectionTypeChange(int newConnectionType) {
         if (mNativeChangeNotifier != 0) {
-            nativeNotifyObserversOfConnectionTypeChange(mNativeChangeNotifier, newConnectionType);
+            nativeNotifyConnectionTypeChanged(mNativeChangeNotifier, newConnectionType);
         }
 
         for (ConnectionTypeObserver observer : mConnectionTypeObservers) {
@@ -188,11 +188,10 @@ public class NetworkChangeNotifier {
         return mConnectionTypeObservers.remove(observer);
     }
 
-    @NativeClassQualifiedName("NetworkChangeNotifierAndroid")
-    private native void nativeNotifyObserversOfConnectionTypeChange(
-            int nativePtr, int newConnectionType);
+    @NativeClassQualifiedName("NetworkChangeNotifierDelegateAndroid")
+    private native void nativeNotifyConnectionTypeChanged(int nativePtr, int newConnectionType);
 
-    @NativeClassQualifiedName("NetworkChangeNotifierAndroid")
+    @NativeClassQualifiedName("NetworkChangeNotifierDelegateAndroid")
     private native int nativeGetConnectionType(int nativePtr);
 
     // For testing only.
