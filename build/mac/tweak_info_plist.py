@@ -31,9 +31,6 @@ import tempfile
 
 TOP = os.path.join(env['SRCROOT'], '..')
 
-sys.path.insert(0, os.path.join(TOP, "build/util"))
-import lastchange
-
 
 def _GetOutput(args):
   """Runs a subprocess and waits for termination. Returns (stdout, returncode)
@@ -116,9 +113,14 @@ def _DoSCMKeys(plist, add_keys):
   |add_keys| is True, it will insert the keys, otherwise it will remove them."""
   scm_revision = None
   if add_keys:
-    version_info = lastchange.FetchVersionInfo(
-        default_lastchange=None, directory=TOP)
-    scm_revision = version_info.revision
+    # Pull in the Chrome revision number.
+    VERSION_TOOL = os.path.join(TOP, 'chrome/tools/build/version.py')
+    LASTCHANGE_FILE = os.path.join(TOP, 'build/util/LASTCHANGE')
+    (stdout, retval) = _GetOutput([VERSION_TOOL, '-f', LASTCHANGE_FILE, '-t',
+                                  '@LASTCHANGE@'])
+    if retval:
+      return False
+    scm_revision = stdout.rstrip()
 
   # See if the operation failed.
   _RemoveKeys(plist, 'SCMRevision')
@@ -129,6 +131,7 @@ def _DoSCMKeys(plist, add_keys):
 
   # TODO(thakis): Remove this once m25 has reached stable.
   _RemoveKeys(plist, 'SCMPath')
+  return True
 
 
 def _DoPDFKeys(plist, add_keys):
@@ -282,7 +285,8 @@ def Main(argv):
     _RemoveKeystoneKeys(plist)
 
   # Adds or removes any SCM keys.
-  _DoSCMKeys(plist, options.add_scm_info)
+  if not _DoSCMKeys(plist, options.add_scm_info):
+    return 3
 
   # Adds or removes the PDF file handler entry.
   _DoPDFKeys(plist, options.add_pdf_support)
