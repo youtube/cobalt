@@ -737,11 +737,11 @@ int CertVerifyProcWin::VerifyInternal(X509Certificate* cert,
     verify_result->cert_status &= ~CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
   }
 
-  if (IsCertStatusError(verify_result->cert_status))
-    return MapCertStatusToNetError(verify_result->cert_status);
-
   AppendPublicKeyHashes(chain_context, &verify_result->public_key_hashes);
   verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(chain_context);
+
+  if (IsCertStatusError(verify_result->cert_status))
+    return MapCertStatusToNetError(verify_result->cert_status);
 
   if (ev_policy_oid &&
       CheckEV(chain_context, rev_checking_enabled, ev_policy_oid)) {
