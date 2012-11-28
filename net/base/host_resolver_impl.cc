@@ -1669,6 +1669,14 @@ HostResolverImpl::HostResolverImpl(
     !defined(OS_ANDROID)
   EnsureDnsReloaderInit();
 #endif
+
+  // TODO(szym): Remove when received_dns_config_ is removed, once
+  // http://crbug.com/137914 is resolved.
+  {
+    DnsConfig dns_config;
+    NetworkChangeNotifier::GetDnsConfig(&dns_config);
+    received_dns_config_ = dns_config.IsValid();
+  }
 }
 
 HostResolverImpl::~HostResolverImpl() {
