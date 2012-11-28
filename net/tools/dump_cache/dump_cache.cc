@@ -13,14 +13,8 @@
 #include "base/process_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "net/disk_cache/disk_format.h"
-#include "net/tools/dump_cache/dump_files.h"
-#include "net/tools/dump_cache/simple_cache_dumper.h"
-
-#if defined(OS_WIN)
 #include "base/win/scoped_handle.h"
-#include "net/tools/dump_cache/upgrade_win.h"
-#endif
+#include "net/disk_cache/disk_format.h"
 
 enum Errors {
   GENERIC = -1,
@@ -30,6 +24,13 @@ enum Errors {
   UNKNOWN_VERSION,
   TOOL_NOT_FOUND,
 };
+
+int GetMajorVersion(const FilePath& input_path);
+int DumpContents(const FilePath& input_path);
+int DumpHeaders(const FilePath& input_path);
+int RunSlave(const FilePath& input_path, const std::wstring& pipe_number);
+int CopyCache(const FilePath& output_path, HANDLE pipe, bool copy_to_text);
+HANDLE CreateServer(std::wstring* pipe_number);
 
 const char kUpgradeHelp[] =
     "\nIn order to use the upgrade function, a version of this tool that\n"
@@ -69,6 +70,31 @@ int Help() {
   return INVALID_ARGUMENT;
 }
 
+// Starts a new process, to generate the files.
+int LaunchSlave(CommandLine command_line,
+                const std::wstring& pipe_number,
+                int version) {
+  bool do_upgrade = command_line.HasSwitch(kUpgrade);
+  bool do_convert_to_text = command_line.HasSwitch(kDumpToFiles);
+
+  if (do_upgrade) {
+    FilePath program(base::StringPrintf(L"%ls%d", L"dump_cache", version));
+    command_line.SetProgram(program);
+  }
+
+  if (do_upgrade || do_convert_to_text)
+    command_line.AppendSwitch(kSlave);
+
+  command_line.AppendSwitchNative(kPipe, pipe_number);
+  if (!base::LaunchProcess(command_line, base::LaunchOptions(), NULL)) {
+    printf("Unable to launch the needed version of this tool: %ls\n",
+           command_line.GetProgram().value().c_str());
+    printf(kUpgradeHelp);
+    return TOOL_NOT_FOUND;
+  }
+  return ALL_GOOD;
+}
+
 // -----------------------------------------------------------------------
 
 int main(int argc, const char* argv[]) {
@@ -83,24 +109,16 @@ int main(int argc, const char* argv[]) {
     return Help();
 
   bool upgrade = false;
+  bool slave_required = false;
   bool copy_to_text = false;
   FilePath output_path = command_line.GetSwitchValuePath(kOutputPath);
 
   if (command_line.HasSwitch(kUpgrade))
     upgrade = true;
-
   if (command_line.HasSwitch(kDumpToFiles))
     copy_to_text = true;
 
-  if (copy_to_text) {
-    net::SimpleCacheDumper dumper(input_path, output_path);
-    dumper.Run();
-    return 0;
-  }
-
-#if defined(OS_WIN)
-  bool slave_required = false;
-  if (upgrade) {
+  if (upgrade || copy_to_text) {
     if (output_path.empty())
       return Help();
     slave_required = true;
@@ -135,10 +153,8 @@ int main(int argc, const char* argv[]) {
       return ret;
   }
 
-  // TODO(rch): Remove the logic from CopyCache that is redundant with
-  // SimpleCacheDumper.
-  if (upgrade)
-    return CopyCache(output_path, server, false);
+  if (upgrade || copy_to_text)
+    return CopyCache(output_path, server, copy_to_text);
 
   if (slave_required) {
     // Wait until the slave starts dumping data before we quit. Lazy "fix" for a
@@ -151,6 +167,5 @@ int main(int argc, const char* argv[]) {
     return DumpContents(input_path);
   if (command_line.HasSwitch(kDumpHeaders))
     return DumpHeaders(input_path);
-#endif
   return Help();
 }
