@@ -1034,44 +1034,6 @@
         },
       ],
     }],
-    ['OS=="win"', {
-      'targets': [
-        {
-          'target_name': 'player_wtl',
-          'type': 'executable',
-          'dependencies': [
-            'media',
-            'yuv_convert',
-            '../base/base.gyp:base',
-            '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-            '../ui/ui.gyp:ui',
-          ],
-          'include_dirs': [
-            '<(DEPTH)/third_party/wtl/include',
-          ],
-          'sources': [
-            'tools/player_wtl/list.h',
-            'tools/player_wtl/mainfrm.h',
-            'tools/player_wtl/movie.cc',
-            'tools/player_wtl/movie.h',
-            'tools/player_wtl/player_wtl.cc',
-            'tools/player_wtl/player_wtl.rc',
-            'tools/player_wtl/props.h',
-            'tools/player_wtl/resource.h',
-            'tools/player_wtl/seek.h',
-            'tools/player_wtl/view.h',
-          ],
-          'msvs_settings': {
-            'VCLinkerTool': {
-              'SubSystem': '2',         # Set /SUBSYSTEM:WINDOWS
-            },
-          },
-          'defines': [
-            '_CRT_SECURE_NO_WARNINGS=1',
-          ],
-        },
-      ],
-    }],
     ['(OS == "win" or toolkit_uses_gtk == 1) and use_aura != 1', {
       'targets': [
         {
