@@ -3684,7 +3684,8 @@ TEST_F(URLRequestTestHTTP, InterceptPost302RedirectGet) {
   req.SetExtraRequestHeaders(headers);
 
   URLRequestRedirectJob* job = new URLRequestRedirectJob(
-      &req, default_context_.network_delegate(), test_server_.GetURL("echo"));
+      &req, default_context_.network_delegate(), test_server_.GetURL("echo"),
+      URLRequestRedirectJob::REDIRECT_302_FOUND);
   AddTestInterceptor()->set_main_intercept_job(job);
 
   req.Start();
@@ -3707,8 +3708,7 @@ TEST_F(URLRequestTestHTTP, InterceptPost307RedirectPost) {
   req.SetExtraRequestHeaders(headers);
 
   URLRequestRedirectJob* job = new URLRequestRedirectJob(
-      &req, default_context_.network_delegate(), test_server_.GetURL("echo"));
-  job->set_redirect_code(
+      &req, default_context_.network_delegate(), test_server_.GetURL("echo"),
       URLRequestRedirectJob::REDIRECT_307_TEMPORARY_REDIRECT);
   AddTestInterceptor()->set_main_intercept_job(job);
 
@@ -4179,6 +4179,58 @@ TEST_F(HTTPSRequestTest, HTTPSErrorsNoClobberTSSTest) {
                                 domain_state.dynamic_spki_hashes));
   EXPECT_TRUE(FingerprintsEqual(new_domain_state.bad_static_spki_hashes,
                                 domain_state.bad_static_spki_hashes));
+}
+
+// Make sure HSTS preserves a POST request's method and body.
+TEST_F(HTTPSRequestTest, HSTSPreservesPosts) {
+  static const char kData[] = "hello world";
+
+  TestServer::SSLOptions ssl_options(TestServer::SSLOptions::CERT_OK);
+  TestServer test_server(TestServer::TYPE_HTTPS,
+                         ssl_options,
+                         FilePath(FILE_PATH_LITERAL("net/data/ssl")));
+  ASSERT_TRUE(test_server.Start());
+
+
+  // Per spec, TransportSecurityState expects a domain name, rather than an IP
+  // address, so a MockHostResolver is needed to redirect www.somewhere.com to
+  // the TestServer.
+  MockHostResolver host_resolver;
+  host_resolver.rules()->AddRule("www.somewhere.com", "127.0.0.1");
+
+  // Force https for www.somewhere.com.
+  TransportSecurityState transport_security_state;
+  net::TransportSecurityState::DomainState domain_state;
+  domain_state.upgrade_expiry =
+      domain_state.created + base::TimeDelta::FromDays(1000);
+  transport_security_state.EnableHost("www.somewhere.com", domain_state);
+
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequest.
+
+  TestURLRequestContext context(true);
+  context.set_host_resolver(&host_resolver);
+  context.set_transport_security_state(&transport_security_state);
+  context.set_network_delegate(&network_delegate);
+  context.Init();
+
+  TestDelegate d;
+  // Navigating to https://www.somewhere.com instead of https://127.0.0.1 will
+  // cause a certificate error.  Ignore the error.
+  d.set_allow_certificate_errors(true);
+
+  URLRequest req(GURL(StringPrintf("http://www.somewhere.com:%d/echo",
+                                   test_server.host_port_pair().port())),
+                 &d,
+                 &context);
+  req.set_method("POST");
+  req.set_upload(CreateSimpleUploadData(kData).get());
+
+  req.Start();
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ("https", req.url().scheme());
+  EXPECT_EQ("POST", req.method());
+  EXPECT_EQ(kData, d.data_received());
 }
 
 TEST_F(HTTPSRequestTest, SSLv3Fallback) {

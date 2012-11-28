@@ -210,8 +210,12 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
   }
 
   GURL redirect_url;
-  if (request->GetHSTSRedirect(&redirect_url))
-    return new URLRequestRedirectJob(request, network_delegate, redirect_url);
+  if (request->GetHSTSRedirect(&redirect_url)) {
+    return new URLRequestRedirectJob(
+        request, network_delegate, redirect_url,
+        // Use status code 307 to preserve the method, so POST requests work.
+        URLRequestRedirectJob::REDIRECT_307_TEMPORARY_REDIRECT);
+  }
   return new URLRequestHttpJob(request,
                                network_delegate,
                                request->context()->http_user_agent_settings());

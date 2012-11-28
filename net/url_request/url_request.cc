@@ -497,9 +497,8 @@ void URLRequest::BeforeRequestComplete(int error) {
     new_url.Swap(&delegate_redirect_url_);
 
     URLRequestRedirectJob* job = new URLRequestRedirectJob(
-        this, network_delegate_, new_url);
-    // Use status code 307 to preserve the method, so POST requests work.
-    job->set_redirect_code(
+        this, network_delegate_, new_url,
+        // Use status code 307 to preserve the method, so POST requests work.
         URLRequestRedirectJob::REDIRECT_307_TEMPORARY_REDIRECT);
     StartJob(job);
   } else {
