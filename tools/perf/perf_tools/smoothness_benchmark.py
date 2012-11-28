@@ -34,7 +34,7 @@ def CalcScrollResults(rendering_stats_deltas, results):
     num_impl_thread_scrolls + num_main_thread_scrolls)
 
   num_layers = (
-      rendering_stats_deltas['numLayersInLayerTree'] /
+      rendering_stats_deltas.get('numLayersInLayerTree', 0) /
       float(num_frames_sent_to_screen))
 
   results.Add('mean_frame_time', 'ms', round(mean_frame_time_seconds * 1000, 3))
