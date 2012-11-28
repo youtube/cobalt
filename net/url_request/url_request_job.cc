@@ -39,7 +39,7 @@ URLRequestJob::URLRequestJob(URLRequest* request,
     base::SystemMonitor::Get()->AddPowerObserver(this);
 }
 
-void URLRequestJob::SetUpload(UploadData* upload) {
+void URLRequestJob::SetUpload(UploadDataStream* upload) {
 }
 
 void URLRequestJob::SetExtraRequestHeaders(const HttpRequestHeaders& headers) {

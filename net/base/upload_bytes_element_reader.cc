@@ -11,13 +11,18 @@
 namespace net {
 
 UploadBytesElementReader::UploadBytesElementReader(const char* bytes,
-                                                   int bytes_length)
+                                                   int length)
     : bytes_(bytes),
-      bytes_length_(bytes_length),
+      length_(length),
       offset_(0) {
 }
 
 UploadBytesElementReader::~UploadBytesElementReader() {
+}
+
+const UploadBytesElementReader*
+UploadBytesElementReader::AsBytesReader() const {
+  return this;
 }
 
 int UploadBytesElementReader::Init(const CompletionCallback& callback) {
@@ -30,11 +35,11 @@ int UploadBytesElementReader::InitSync() {
 }
 
 uint64 UploadBytesElementReader::GetContentLength() const {
-  return bytes_length_;
+  return length_;
 }
 
 uint64 UploadBytesElementReader::BytesRemaining() const {
-  return bytes_length_ - offset_;
+  return length_ - offset_;
 }
 
 bool UploadBytesElementReader::IsInMemory() const {
