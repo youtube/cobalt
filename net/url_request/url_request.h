@@ -92,6 +92,7 @@ class IOBuffer;
 class SSLCertRequestInfo;
 class SSLInfo;
 class UploadData;
+class UploadDataStream;
 class URLRequestContext;
 class URLRequestJob;
 class X509Certificate;
@@ -398,16 +399,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // and it is permissible for it to be null.
   void set_delegate(Delegate* delegate);
 
-  // The data comprising the request message body is specified as a sequence of
-  // data segments and/or files containing data to upload.  These methods may
-  // be called to construct the data sequence to upload, and they may only be
-  // called before Start() is called.  For POST requests, the user must call
-  // SetRequestHeaderBy{Id,Name} to set the Content-Type of the request to the
-  // appropriate value before calling Start().
-  //
-  // When uploading data, bytes_len must be non-zero.
-  void AppendBytesToUpload(const char* bytes, int bytes_len);  // takes a copy
-
   // Indicates that the request body should be sent using chunked transfer
   // encoding. This method may only be called before Start() is called.
   void EnableChunkedUpload();
@@ -425,8 +416,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   void set_upload(UploadData* upload);
 
   // Get the upload data directly.
-  const UploadData* get_upload() const;
-  UploadData* get_upload_mutable();
+  const UploadDataStream* get_upload() const;
 
   // Returns true if the request has a non-empty message body to upload.
   bool has_upload() const;
@@ -763,6 +753,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
 
   scoped_refptr<URLRequestJob> job_;
   scoped_refptr<UploadData> upload_;
+  scoped_ptr<UploadDataStream> upload_data_stream_;
   std::vector<GURL> url_chain_;
   GURL first_party_for_cookies_;
   GURL delegate_redirect_url_;

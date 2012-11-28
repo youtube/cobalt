@@ -24,6 +24,7 @@
 #include "net/base/network_delegate.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/upload_data.h"
+#include "net/base/upload_data_stream.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request_context.h"
@@ -253,18 +254,12 @@ void URLRequest::UnregisterRequestInterceptor(Interceptor* interceptor) {
       interceptor);
 }
 
-void URLRequest::AppendBytesToUpload(const char* bytes, int bytes_len) {
-  DCHECK(bytes_len > 0 && bytes);
-  if (!upload_)
-    upload_ = new UploadData();
-  upload_->AppendBytes(bytes, bytes_len);
-}
-
 void URLRequest::EnableChunkedUpload() {
   DCHECK(!upload_ || upload_->is_chunked());
   if (!upload_) {
     upload_ = new UploadData();
     upload_->set_is_chunked(true);
+    upload_data_stream_.reset(new UploadDataStream(upload_));
   }
 }
 
@@ -279,19 +274,15 @@ void URLRequest::AppendChunkToUpload(const char* bytes,
 
 void URLRequest::set_upload(UploadData* upload) {
   upload_ = upload;
+  upload_data_stream_.reset(new UploadDataStream(upload_));
 }
 
-// Get the upload data directly.
-const UploadData* URLRequest::get_upload() const {
-  return upload_.get();
-}
-
-UploadData* URLRequest::get_upload_mutable() {
-  return upload_.get();
+const UploadDataStream* URLRequest::get_upload() const {
+  return upload_data_stream_.get();
 }
 
 bool URLRequest::has_upload() const {
-  return upload_ != NULL;
+  return upload_data_stream_.get() != NULL;
 }
 
 void URLRequest::SetExtraRequestHeaderById(int id, const string& value,
@@ -530,8 +521,8 @@ void URLRequest::StartJob(URLRequestJob* job) {
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
 
-  if (upload_.get())
-    job_->SetUpload(upload_.get());
+  if (upload_data_stream_.get())
+    job_->SetUpload(upload_data_stream_.get());
 
   is_pending_ = true;
   is_redirecting_ = false;
@@ -773,6 +764,10 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     return ERR_UNSAFE_REDIRECT;
   }
 
+  if (!final_upload_progress_.position())
+    final_upload_progress_ = job_->GetUploadProgress();
+  PrepareToRestart();
+
   // For 303 redirects, all request methods except HEAD are converted to GET,
   // as per the latest httpbis draft.  The draft also allows POST requests to
   // be converted to GETs when following 301/302 redirects, for historical
@@ -785,7 +780,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
   if ((http_status_code == 303 && method_ != "HEAD") ||
       ((http_status_code == 301 || http_status_code == 302) && was_post)) {
     method_ = "GET";
-    upload_ = NULL;
+    upload_data_stream_.reset();
     if (was_post) {
       // If being switched from POST to GET, must remove headers that were
       // specific to the POST and don't have meaning in GET. For example
@@ -806,10 +801,6 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
   url_chain_.push_back(location);
   --redirect_limit_;
 
-  if (!final_upload_progress_.position())
-    final_upload_progress_ = job_->GetUploadProgress();
-
-  PrepareToRestart();
   Start();
   return OK;
 }

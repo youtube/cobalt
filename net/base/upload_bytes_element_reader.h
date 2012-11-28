@@ -13,10 +13,14 @@ namespace net {
 // An UploadElementReader implementation for bytes.
 class NET_EXPORT_PRIVATE UploadBytesElementReader : public UploadElementReader {
  public:
-  UploadBytesElementReader(const char* bytes, int bytes_length);
+  UploadBytesElementReader(const char* bytes, int length);
   virtual ~UploadBytesElementReader();
 
+  const char* bytes() const { return bytes_; }
+  int length() const { return length_; }
+
   // UploadElementReader overrides:
+  virtual const UploadBytesElementReader* AsBytesReader() const OVERRIDE;
   virtual int Init(const CompletionCallback& callback) OVERRIDE;
   virtual int InitSync() OVERRIDE;
   virtual uint64 GetContentLength() const OVERRIDE;
@@ -29,7 +33,7 @@ class NET_EXPORT_PRIVATE UploadBytesElementReader : public UploadElementReader {
 
  private:
   const char* const bytes_;
-  const int bytes_length_;
+  const int length_;
   int offset_;
 
   DISALLOW_COPY_AND_ASSIGN(UploadBytesElementReader);

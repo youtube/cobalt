@@ -32,7 +32,7 @@ class NetworkDelegate;
 class SSLCertRequestInfo;
 class SSLInfo;
 class URLRequest;
-class UploadData;
+class UploadDataStream;
 class URLRequestStatus;
 class X509Certificate;
 
@@ -50,7 +50,7 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
 
   // Sets the upload data, most requests have no upload data, so this is a NOP.
   // Job types supporting upload data will override this.
-  virtual void SetUpload(UploadData* upload);
+  virtual void SetUpload(UploadDataStream* upload_data_stream);
 
   // Sets extra request headers for Job types that support request headers.
   virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);

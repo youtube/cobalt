@@ -32,6 +32,14 @@ UploadElementReader* UploadElementReader::Create(const UploadElement& element) {
   return reader;
 }
 
+const UploadBytesElementReader* UploadElementReader::AsBytesReader() const {
+  return NULL;
+}
+
+const UploadFileElementReader* UploadElementReader::AsFileReader() const {
+  return NULL;
+}
+
 int UploadElementReader::InitSync() {
   NOTREACHED() << "This instance does not support InitSync().";
   return ERR_NOT_IMPLEMENTED;
