@@ -15,36 +15,24 @@ namespace base {
 
 namespace internal {
 
-// Helper class for TaskRunner::PostTaskAndReplyWithResult.
+// Adapts a function that produces a result via a return value to
+// one that returns via an output parameter.
 template <typename ReturnType>
 void ReturnAsParamAdapter(const Callback<ReturnType(void)>& func,
                           ReturnType* result) {
-  if (!func.is_null())
-    *result = func.Run();
+  *result = func.Run();
 }
 
-// Helper class for TaskRunner::PostTaskAndReplyWithResult.
-template <typename ReturnType>
-Closure ReturnAsParam(const Callback<ReturnType(void)>& func,
-                      ReturnType* result) {
-  DCHECK(result);
-  return Bind(&ReturnAsParamAdapter<ReturnType>, func, result);
-}
-
-// Helper class for TaskRunner::PostTaskAndReplyWithResult.
-template <typename ReturnType>
-void ReplyAdapter(const Callback<void(ReturnType)>& callback,
-                  ReturnType* result) {
-  DCHECK(result);
-  if(!callback.is_null())
+// Adapts a T* result to a callblack that expects a T.
+template <typename TaskReturnType, typename ReplyArgType>
+void ReplyAdapter(const Callback<void(ReplyArgType)>& callback,
+                  TaskReturnType* result) {
+  // TODO(ajwong): Remove this conditional and add a DCHECK to enforce that
+  // |reply| must be non-null in PostTaskAndReplyWithResult() below after
+  // current code that relies on this API softness has been removed.
+  // http://crbug.com/162712
+  if (!callback.is_null())
     callback.Run(CallbackForward(*result));
-}
-
-// Helper class for TaskRunner::PostTaskAndReplyWithResult.
-template <typename ReturnType, typename OwnedType>
-Closure ReplyHelper(const Callback<void(ReturnType)>& callback,
-                    OwnedType result) {
-  return Bind(&ReplyAdapter<ReturnType>, callback, result);
 }
 
 }  // namespace internal
@@ -63,17 +51,19 @@ Closure ReplyHelper(const Callback<void(ReturnType)>& callback,
 //     FROM_HERE,
 //     Bind(&DoWorkAndReturn),
 //     Bind(&Callback));
-template <typename ReturnType>
+template <typename TaskReturnType, typename ReplyArgType>
 bool PostTaskAndReplyWithResult(
     TaskRunner* task_runner,
     const tracked_objects::Location& from_here,
-    const Callback<ReturnType(void)>& task,
-    const Callback<void(ReturnType)>& reply) {
-  ReturnType* result = new ReturnType;
+    const Callback<TaskReturnType(void)>& task,
+    const Callback<void(ReplyArgType)>& reply) {
+  TaskReturnType* result = new TaskReturnType();
   return task_runner->PostTaskAndReply(
       from_here,
-      internal::ReturnAsParam<ReturnType>(task, result),
-      internal::ReplyHelper(reply, Owned(result)));
+      base::Bind(&internal::ReturnAsParamAdapter<TaskReturnType>, task,
+                 result),
+      base::Bind(&internal::ReplyAdapter<TaskReturnType, ReplyArgType>, reply,
+                 base::Owned(result)));
 }
 
 }  // namespace base
