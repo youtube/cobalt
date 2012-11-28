@@ -267,9 +267,9 @@ int CertVerifyProcOpenSSL::VerifyInternal(X509Certificate* cert,
     }
 
     GetCertChainInfo(ctx.get(), verify_result);
+    AppendPublicKeyHashes(ctx.get(), &verify_result->public_key_hashes);
     if (IsCertStatusError(verify_result->cert_status))
       return MapCertStatusToNetError(verify_result->cert_status);
-    AppendPublicKeyHashes(ctx.get(), &verify_result->public_key_hashes);
   }
 
   // Currently we only ues OpenSSL's default root CA paths, so treat all

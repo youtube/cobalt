@@ -754,6 +754,19 @@ int CertVerifyProcNSS::VerifyInternal(X509Certificate* cert,
   status = PKIXVerifyCert(cert_handle, check_revocation, cert_io_enabled,
                           NULL, 0, cvout);
 
+  if (status == SECSuccess) {
+    AppendPublicKeyHashes(cvout[cvout_cert_list_index].value.pointer.chain,
+                          cvout[cvout_trust_anchor_index].value.pointer.cert,
+                          &verify_result->public_key_hashes);
+
+    verify_result->is_issued_by_known_root =
+        IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
+
+    GetCertChainInfo(cvout[cvout_cert_list_index].value.pointer.chain,
+                     cvout[cvout_trust_anchor_index].value.pointer.cert,
+                     verify_result);
+  }
+
   if (crl_set) {
     CRLSetResult crl_set_result = CheckRevocationWithCRLSet(
         cvout[cvout_cert_list_index].value.pointer.chain,
@@ -783,18 +796,8 @@ int CertVerifyProcNSS::VerifyInternal(X509Certificate* cert,
     return MapSecurityError(err);
   }
 
-  GetCertChainInfo(cvout[cvout_cert_list_index].value.pointer.chain,
-                   cvout[cvout_trust_anchor_index].value.pointer.cert,
-                   verify_result);
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
-
-  AppendPublicKeyHashes(cvout[cvout_cert_list_index].value.pointer.chain,
-                        cvout[cvout_trust_anchor_index].value.pointer.cert,
-                        &verify_result->public_key_hashes);
-
-  verify_result->is_issued_by_known_root =
-      IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
 
   if ((flags & CertVerifier::VERIFY_EV_CERT) && is_ev_candidate &&
       VerifyEV(cert_handle, flags, crl_set, metadata, ev_policy_oid)) {
