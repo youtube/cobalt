@@ -22,7 +22,6 @@ const char kNullHash[] = "d41d8cd98f00b204e9800998ecf8427e";
 
 PipelineIntegrationTestBase::PipelineIntegrationTestBase()
     : hashing_enabled_(false),
-      message_loop_factory_(new MessageLoopFactory()),
       pipeline_(new Pipeline(message_loop_.message_loop_proxy(),
                              new MediaLog())),
       ended_(false),
@@ -198,13 +197,9 @@ PipelineIntegrationTestBase::CreateFilterCollection(
   scoped_ptr<FilterCollection> collection(new FilterCollection());
   collection->SetDemuxer(demuxer);
   scoped_refptr<AudioDecoder> audio_decoder = new FFmpegAudioDecoder(
-      base::Bind(&MessageLoopFactory::GetMessageLoop,
-                 base::Unretained(message_loop_factory_.get()),
-                 media::MessageLoopFactory::kPipeline));
+      message_loop_.message_loop_proxy());
   scoped_refptr<VideoDecoder> video_decoder = new FFmpegVideoDecoder(
-      base::Bind(&MessageLoopFactory::GetMessageLoop,
-                 base::Unretained(message_loop_factory_.get()),
-                 media::MessageLoopFactory::kPipeline),
+      message_loop_.message_loop_proxy(),
       decryptor);
   collection->GetAudioDecoders()->push_back(audio_decoder);
   collection->GetVideoDecoders()->push_back(video_decoder);

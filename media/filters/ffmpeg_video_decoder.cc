@@ -55,10 +55,9 @@ static int GetThreadCount(CodecID codec_id) {
 }
 
 FFmpegVideoDecoder::FFmpegVideoDecoder(
-    const MessageLoopFactoryCB& message_loop_factory_cb,
+    const scoped_refptr<base::MessageLoopProxy>& message_loop,
     Decryptor* decryptor)
-    : message_loop_factory_cb_(message_loop_factory_cb),
-      message_loop_(NULL),
+    : message_loop_(message_loop),
       state_(kUninitialized),
       codec_context_(NULL),
       av_frame_(NULL),
@@ -134,18 +133,15 @@ static void ReleaseVideoBufferImpl(AVCodecContext* s, AVFrame* frame) {
 void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
                                     const PipelineStatusCB& status_cb,
                                     const StatisticsCB& statistics_cb) {
-  FFmpegGlue::InitializeFFmpeg();
-
-  if (!message_loop_) {
-    message_loop_ = base::ResetAndReturn(&message_loop_factory_cb_).Run();
+  if (!message_loop_->BelongsToCurrentThread()) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &FFmpegVideoDecoder::Initialize, this,
         stream, status_cb, statistics_cb));
     return;
   }
 
-  DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(!demuxer_stream_);
+  FFmpegGlue::InitializeFFmpeg();
+  DCHECK(!demuxer_stream_) << "Already initialized.";
 
   if (!stream) {
     status_cb.Run(PIPELINE_ERROR_DECODE);

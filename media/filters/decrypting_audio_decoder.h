@@ -31,9 +31,6 @@ class Decryptor;
 // DecryptingAudioDecoder for audio decoding.
 class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
  public:
-  // Callback to get a message loop.
-  typedef base::Callback<
-      scoped_refptr<base::MessageLoopProxy>()> MessageLoopFactoryCB;
   // Callback to notify decryptor creation.
   typedef base::Callback<void(Decryptor*)> DecryptorNotificationCB;
   // Callback to request/cancel decryptor creation notification.
@@ -47,7 +44,7 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
       RequestDecryptorNotificationCB;
 
   DecryptingAudioDecoder(
-      const MessageLoopFactoryCB& message_loop_factory_cb,
+      const scoped_refptr<base::MessageLoopProxy>& message_loop,
       const RequestDecryptorNotificationCB& request_decryptor_notification_cb);
 
   // AudioDecoder implementation.
@@ -124,9 +121,6 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
 
   // Converts number of samples to duration.
   base::TimeDelta NumberOfSamplesToDuration(int number_of_samples) const;
-
-  // This is !is_null() iff Initialize() hasn't been called.
-  MessageLoopFactoryCB message_loop_factory_cb_;
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
