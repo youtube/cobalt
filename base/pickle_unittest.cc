@@ -20,6 +20,7 @@ const int testdatalen = arraysize(testdata) - 1;
 const bool testbool1 = false;
 const bool testbool2 = true;
 const uint16 testuint16 = 32123;
+const float testfloat = 3.1415926935f;
 
 // checks that the result
 void VerifyResult(const Pickle& pickle) {
@@ -47,6 +48,10 @@ void VerifyResult(const Pickle& pickle) {
   EXPECT_TRUE(pickle.ReadUInt16(&iter, &outuint16));
   EXPECT_EQ(testuint16, outuint16);
 
+  float outfloat;
+  EXPECT_TRUE(pickle.ReadFloat(&iter, &outfloat));
+  EXPECT_EQ(testfloat, outfloat);
+
   const char* outdata;
   int outdatalen;
   EXPECT_TRUE(pickle.ReadData(&iter, &outdata, &outdatalen));
@@ -72,6 +77,7 @@ TEST(PickleTest, EncodeDecode) {
   EXPECT_TRUE(pickle.WriteBool(testbool1));
   EXPECT_TRUE(pickle.WriteBool(testbool2));
   EXPECT_TRUE(pickle.WriteUInt16(testuint16));
+  EXPECT_TRUE(pickle.WriteFloat(testfloat));
   EXPECT_TRUE(pickle.WriteData(testdata, testdatalen));
 
   // Over allocate BeginWriteData so we can test TrimWriteData.
