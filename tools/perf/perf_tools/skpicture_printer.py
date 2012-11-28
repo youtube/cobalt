@@ -3,7 +3,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 import os
-import re
 
 from telemetry import multi_page_benchmark
 
@@ -18,11 +17,8 @@ class SkPicturePrinter(multi_page_benchmark.MultiPageBenchmark):
                                        '--no-sandbox'])
 
   def MeasurePage(self, page, tab, results):
-    # Derive output path from the URL. The pattern just replaces all special
-    # characters in the url with underscore.
-    outpath = re.sub('://|[.~!*\:@&=+$,/?%#]', '_', page.url)
     if self.options.outdir is not None:
-      outpath = os.path.join(self.options.outdir, outpath)
+      outpath = os.path.join(self.options.outdir, page.url_as_file_safe_name)
     outpath = os.path.abspath(outpath)
     # Replace win32 path separator char '\' with '\\'.
     js = _JS.format(outpath.replace('\\', '\\\\'))
