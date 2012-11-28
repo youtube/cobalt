@@ -114,11 +114,11 @@ def _AddVersionKeys(plist, version=None):
 def _DoSCMKeys(plist, add_keys):
   """Adds the SCM information, visible in about:version, to property list. If
   |add_keys| is True, it will insert the keys, otherwise it will remove them."""
-  scm_path, scm_revision = None, None
+  scm_revision = None
   if add_keys:
     version_info = lastchange.FetchVersionInfo(
         default_lastchange=None, directory=TOP)
-    scm_path, scm_revision = version_info.url, version_info.revision
+    scm_revision = version_info.revision
 
   # See if the operation failed.
   _RemoveKeys(plist, 'SCMRevision')
@@ -127,10 +127,8 @@ def _DoSCMKeys(plist, add_keys):
   elif add_keys:
     print >>sys.stderr, 'Could not determine SCM revision.  This may be OK.'
 
-  if scm_path != None:
-    plist['SCMPath'] = scm_path
-  else:
-    _RemoveKeys(plist, 'SCMPath')
+  # TODO(thakis): Remove this once m25 has reached stable.
+  _RemoveKeys(plist, 'SCMPath')
 
 
 def _DoPDFKeys(plist, add_keys):
