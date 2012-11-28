@@ -15,6 +15,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
+#include "net/base/upload_data.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_fetcher_delegate.h"
 #include "net/url_request/url_request_context.h"
@@ -702,8 +703,10 @@ void URLFetcherCore::StartURLRequest() {
       extra_request_headers_.SetHeader(HttpRequestHeaders::kContentType,
                                        upload_content_type_);
       if (!upload_content_.empty()) {
-        request_->AppendBytesToUpload(
-            upload_content_.data(), static_cast<int>(upload_content_.length()));
+        scoped_refptr<UploadData> upload_data(new UploadData());
+        upload_data->AppendBytes(upload_content_.data(),
+                                 upload_content_.length());
+        request_->set_upload(upload_data);
       }
 
       current_upload_bytes_ = -1;

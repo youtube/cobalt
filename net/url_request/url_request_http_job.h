@@ -70,7 +70,7 @@ class URLRequestHttpJob : public URLRequestJob {
   void RestartTransactionWithAuth(const AuthCredentials& credentials);
 
   // Overridden from URLRequestJob:
-  virtual void SetUpload(UploadData* upload) OVERRIDE;
+  virtual void SetUpload(UploadDataStream* upload) OVERRIDE;
   virtual void SetExtraRequestHeaders(
       const HttpRequestHeaders& headers) OVERRIDE;
   virtual void Start() OVERRIDE;
@@ -96,8 +96,6 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual void DoneReading() OVERRIDE;
   virtual HostPortPair GetSocketAddress() const OVERRIDE;
   virtual void NotifyURLRequestDestroyed() OVERRIDE;
-
-  scoped_ptr<UploadDataStream> upload_data_stream_;
 
   HttpRequestInfo request_info_;
   const HttpResponseInfo* response_info_;

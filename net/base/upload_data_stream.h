@@ -74,6 +74,10 @@ class NET_EXPORT UploadDataStream {
 
   bool is_chunked() const;
 
+  const ScopedVector<UploadElementReader>& element_readers() const {
+    return element_readers_;
+  }
+
   // Returns true if all data has been consumed from this upload data
   // stream.
   bool IsEOF() const;

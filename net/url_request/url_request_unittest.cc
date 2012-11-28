@@ -1954,7 +1954,9 @@ class URLRequestTestHTTP : public URLRequestTest {
       URLRequest r(test_server_.GetURL("echo"), &d, &default_context_);
       r.set_method(method.c_str());
 
-      r.AppendBytesToUpload(uploadBytes, kMsgSize);
+      scoped_refptr<UploadData> upload_data(new UploadData());
+      upload_data->AppendBytes(uploadBytes, kMsgSize);
+      r.set_upload(upload_data);
 
       r.Start();
       EXPECT_TRUE(r.is_pending());
