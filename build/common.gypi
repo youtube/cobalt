@@ -143,8 +143,7 @@
           }],
 
           ['use_aura==1 or (OS!="win" and OS!="mac" and OS!="ios" and OS!="android")', {
-            # TODO(sky): make this 1 when corresponding webkit pieces land.
-            'use_default_render_theme%': 0,
+            'use_default_render_theme%': 1,
           }, {
             'use_default_render_theme%': 0,
           }],
