@@ -50,9 +50,8 @@ namespace media {
 // Maximum number of output streams that can be open simultaneously.
 static const int kMaxOutputStreams = 50;
 
-// Up to 8 channels can be passed to the driver.
-// This should work, given the right drivers, but graceful error handling is
-// needed.
+// Up to 8 channels can be passed to the driver.  This should work, given the
+// right drivers, but graceful error handling is needed.
 static const int kWinMaxChannels = 8;
 
 // We use 3 buffers for recording audio so that if a recording callback takes
