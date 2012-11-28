@@ -5,24 +5,52 @@
 #ifndef NET_ANDROID_NETWORK_CHANGE_NOTIFIER_ANDROID_H_
 #define NET_ANDROID_NETWORK_CHANGE_NOTIFIER_ANDROID_H_
 
-#include "base/android/scoped_java_ref.h"
+#include "base/android/jni_android.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
+#include "net/android/network_change_notifier_delegate_android.h"
 #include "net/base/network_change_notifier.h"
 
 namespace net {
 
 class NetworkChangeNotifierAndroidTest;
+class NetworkChangeNotifierFactoryAndroid;
 
-class NET_EXPORT NetworkChangeNotifierAndroid : public NetworkChangeNotifier {
+// NetworkChangeNotifierAndroid observes network events from the Android
+// notification system and forwards them to observers.
+//
+// The implementation is complicated by the differing lifetime and thread
+// affinity requirements of Android notifications and of NetworkChangeNotifier.
+//
+// High-level overview:
+// NetworkChangeNotifier.java - Receives notifications from Android system, and
+// notifies native code via JNI (on the main application thread).
+// NetworkChangeNotifierDelegateAndroid ('Delegate') - Listens for notifications
+//   sent via JNI on the main application thread, and forwards them to observers
+//   on their threads. Owned by Factory, lives exclusively on main application
+//   thread.
+// NetworkChangeNotifierFactoryAndroid ('Factory') - Creates the Delegate on the
+//   main thread to receive JNI events, and vends Notifiers. Lives exclusively
+//   on main application thread, and outlives all other classes.
+// NetworkChangeNotifierAndroid ('Notifier') - Receives event notifications from
+//   the Delegate. Processes and forwards these events to the
+//   NetworkChangeNotifier observers on their threads. May live on any thread
+//   and be called by any thread.
+//
+// For more details, see the implementation file.
+class NetworkChangeNotifierAndroid
+    : public NetworkChangeNotifier,
+      public NetworkChangeNotifierDelegateAndroid::Observer {
  public:
   virtual ~NetworkChangeNotifierAndroid();
 
-  // Called from Java on the UI thread.
-  void NotifyObserversOfConnectionTypeChange(
-      JNIEnv* env, jobject obj, jint new_connection_type);
-  jint GetConnectionType(JNIEnv* env, jobject obj);
+  // NetworkChangeNotifier:
+  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
+
+  // NetworkChangeNotifierDelegateAndroid::Observer:
+  virtual void OnConnectionTypeChanged(
+      ConnectionType new_connection_type) OVERRIDE;
 
   static bool Register(JNIEnv* env);
 
@@ -30,22 +58,14 @@ class NET_EXPORT NetworkChangeNotifierAndroid : public NetworkChangeNotifier {
   friend class NetworkChangeNotifierAndroidTest;
   friend class NetworkChangeNotifierFactoryAndroid;
 
-  NetworkChangeNotifierAndroid();
+  explicit NetworkChangeNotifierAndroid(
+      NetworkChangeNotifierDelegateAndroid* delegate);
 
-  void SetConnectionType(int connection_type);
+  void SetConnectionType(ConnectionType new_connection_type);
 
-  void ForceConnectivityState(bool state);
-
-  // NetworkChangeNotifier:
-  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
-
-  base::android::ScopedJavaGlobalRef<jobject> java_network_change_notifier_;
-  // TODO(pliard): http://crbug.com/150867. Use an atomic integer for the
-  // connection type without the lock once a non-subtle atomic integer is
-  // available under base/. That might never happen though.
-  mutable base::Lock lock_;  // Protects the state below.
-  // Written from the UI thread, read from any thread.
-  int connection_type_;
+  NetworkChangeNotifierDelegateAndroid* const delegate_;
+  mutable base::Lock connection_type_lock_;  // Protects the state below.
+  ConnectionType connection_type_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierAndroid);
 };

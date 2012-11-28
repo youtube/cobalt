@@ -5,6 +5,7 @@
 #include "net/android/network_change_notifier_factory_android.h"
 
 #include "net/android/network_change_notifier_android.h"
+#include "net/android/network_change_notifier_delegate_android.h"
 
 namespace net {
 
@@ -13,7 +14,7 @@ NetworkChangeNotifierFactoryAndroid::NetworkChangeNotifierFactoryAndroid() {}
 NetworkChangeNotifierFactoryAndroid::~NetworkChangeNotifierFactoryAndroid() {}
 
 NetworkChangeNotifier* NetworkChangeNotifierFactoryAndroid::CreateInstance() {
-  return new NetworkChangeNotifierAndroid();
+  return new NetworkChangeNotifierAndroid(&delegate_);
 }
 
 }  // namespace net
