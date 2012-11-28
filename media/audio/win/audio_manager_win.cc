@@ -37,8 +37,8 @@
 // Libraries required for the SetupAPI and Wbem APIs used here.
 #pragma comment(lib, "setupapi.lib")
 
-// The following are defined in various DDK headers, and we (re)define them
-// here to avoid adding the DDK as a chrome dependency.
+// The following are defined in various DDK headers, and we (re)define them here
+// to avoid adding the DDK as a chrome dependency.
 #define DRV_QUERYDEVICEINTERFACE 0x80c
 #define DRVM_MAPPER_PREFERRED_GET 0x2015
 #define DRV_QUERYDEVICEINTERFACESIZE 0x80d
