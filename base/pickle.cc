@@ -90,6 +90,10 @@ bool PickleIterator::ReadUInt64(uint64* result) {
   return ReadBuiltinType(result);
 }
 
+bool PickleIterator::ReadFloat(float* result) {
+  return ReadBuiltinType(result);
+}
+
 bool PickleIterator::ReadString(std::string* result) {
   int len;
   if (!ReadInt(&len))
