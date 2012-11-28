@@ -126,6 +126,10 @@ UploadFileElementReader::UploadFileElementReader(
 UploadFileElementReader::~UploadFileElementReader() {
 }
 
+const UploadFileElementReader* UploadFileElementReader::AsFileReader() const {
+  return this;
+}
+
 int UploadFileElementReader::Init(const CompletionCallback& callback) {
   Reset();
 

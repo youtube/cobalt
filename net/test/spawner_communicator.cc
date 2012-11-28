@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_util.h"
+#include "net/base/upload_data.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request_test_util.h"
 
@@ -183,7 +184,9 @@ void SpawnerCommunicator::SendCommandAndWaitForResultOnIOThread(
     cur_request_->set_method("GET");
   } else {
     cur_request_->set_method("POST");
-    cur_request_->AppendBytesToUpload(post_data.c_str(), post_data.size());
+    scoped_refptr<UploadData> upload_data(new UploadData());
+    upload_data->AppendBytes(post_data.c_str(), post_data.size());
+    cur_request_->set_upload(upload_data);
     net::HttpRequestHeaders headers;
     headers.SetHeader(net::HttpRequestHeaders::kContentType,
                       "application/json");

@@ -12,7 +12,9 @@
 namespace net {
 
 class IOBuffer;
+class UploadBytesElementReader;
 class UploadElement;
+class UploadFileElementReader;
 
 // An interface to read an upload data element.
 class NET_EXPORT UploadElementReader {
@@ -22,6 +24,14 @@ class NET_EXPORT UploadElementReader {
 
   // Creates an appropriate UploadElementReader instance for the given element.
   static UploadElementReader* Create(const UploadElement& element);
+
+  // Returns this instance's pointer as UploadBytesElementReader when possible,
+  // otherwise returns NULL.
+  virtual const UploadBytesElementReader* AsBytesReader() const;
+
+  // Returns this instance's pointer as UploadFileElementReader when possible,
+  // otherwise returns NULL.
+  virtual const UploadFileElementReader* AsFileReader() const;
 
   // Initializes the instance synchronously when possible, otherwise does
   // initialization aynschronously, returns ERR_IO_PENDING and runs callback.
