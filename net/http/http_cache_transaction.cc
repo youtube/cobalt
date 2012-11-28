@@ -148,6 +148,7 @@ HttpCache::Transaction::Transaction(
       transaction_pattern_(PATTERN_UNDEFINED),
       bytes_read_from_cache_(0),
       bytes_read_from_network_(0),
+      defer_cache_sensitivity_delay_(false),
       transaction_delegate_(transaction_delegate) {
   COMPILE_ASSERT(HttpCache::Transaction::kNumValidationHeaders ==
                  arraysize(kValidationHeaders),
@@ -164,6 +165,7 @@ HttpCache::Transaction::~Transaction() {
 
   transaction_delegate_ = NULL;
   cache_io_start_ = base::TimeTicks();
+  deferred_cache_sensitivity_delay_ = base::TimeDelta();
 
   if (cache_) {
     if (entry_) {
@@ -603,6 +605,9 @@ int HttpCache::Transaction::DoLoop(int result) {
       case STATE_ADD_TO_ENTRY_COMPLETE:
         rv = DoAddToEntryComplete(rv);
         break;
+      case STATE_ADD_TO_ENTRY_COMPLETE_AFTER_DELAY:
+        rv = DoAddToEntryCompleteAfterDelay(rv);
+        break;
       case STATE_START_PARTIAL_CACHE_VALIDATION:
         DCHECK_EQ(OK, rv);
         rv = DoStartPartialCacheValidation();
@@ -926,7 +931,8 @@ int HttpCache::Transaction::DoOpenEntry() {
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
   first_cache_access_since_ = TimeTicks::Now();
   ReportCacheActionStart();
-  return cache_->OpenEntry(cache_key_, &new_entry_, this);
+  defer_cache_sensitivity_delay_ = true;
+  return ResetCacheIOStart(cache_->OpenEntry(cache_key_, &new_entry_, this));
 }
 
 int HttpCache::Transaction::DoOpenEntryComplete(int result) {
@@ -978,7 +984,8 @@ int HttpCache::Transaction::DoCreateEntry() {
   cache_pending_ = true;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
   ReportCacheActionStart();
-  return cache_->CreateEntry(cache_key_, &new_entry_, this);
+  defer_cache_sensitivity_delay_ = true;
+  return ResetCacheIOStart(cache_->CreateEntry(cache_key_, &new_entry_, this));
 }
 
 int HttpCache::Transaction::DoCreateEntryComplete(int result) {
@@ -1017,7 +1024,7 @@ int HttpCache::Transaction::DoDoomEntry() {
     first_cache_access_since_ = TimeTicks::Now();
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
   ReportCacheActionStart();
-  return cache_->DoomEntry(cache_key_, this);
+  return ResetCacheIOStart(cache_->DoomEntry(cache_key_, this));
 }
 
 int HttpCache::Transaction::DoDoomEntryComplete(int result) {
@@ -1041,9 +1048,10 @@ int HttpCache::Transaction::DoAddToEntry() {
 }
 
 int HttpCache::Transaction::DoAddToEntryComplete(int result) {
+  DCHECK(defer_cache_sensitivity_delay_);
+  defer_cache_sensitivity_delay_ = false;
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_ADD_TO_ENTRY,
                                     result);
-
   const TimeDelta entry_lock_wait =
       TimeTicks::Now() - entry_lock_waiting_since_;
   UMA_HISTOGRAM_TIMES("HttpCache.EntryLockWait", entry_lock_wait);
@@ -1066,21 +1074,33 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   DCHECK(new_entry_);
   cache_pending_ = false;
 
+  if (result == OK)
+    entry_ = new_entry_;
+
+  // If there is a failure, the cache should have taken care of new_entry_.
+  new_entry_ = NULL;
+
+  next_state_ = STATE_ADD_TO_ENTRY_COMPLETE_AFTER_DELAY;
+
+  if (deferred_cache_sensitivity_delay_ == base::TimeDelta())
+    return result;
+
+  base::TimeDelta delay = deferred_cache_sensitivity_delay_;
+  deferred_cache_sensitivity_delay_ = base::TimeDelta();
+  ScheduleDelayedLoop(delay, result);
+  return ERR_IO_PENDING;
+}
+
+int HttpCache::Transaction::DoAddToEntryCompleteAfterDelay(int result) {
   if (result == ERR_CACHE_RACE) {
-    new_entry_ = NULL;
     next_state_ = STATE_INIT_ENTRY;
     return OK;
   }
 
   if (result != OK) {
-    // If there is a failure, the cache should have taken care of new_entry_.
     NOTREACHED();
-    new_entry_ = NULL;
     return result;
   }
-
-  entry_ = new_entry_;
-  new_entry_ = NULL;
 
   if (mode_ == WRITE) {
     if (partial_.get())
@@ -2294,19 +2314,28 @@ void HttpCache::Transaction::OnIOComplete(int result) {
     if (sensitivity_analysis_percent_increase_ > 0) {
       cache_time *= sensitivity_analysis_percent_increase_;
       cache_time /= 100;
-      MessageLoop::current()->PostDelayedTask(
-          FROM_HERE,
-          base::Bind(&HttpCache::Transaction::RunDelayedLoop,
-                     weak_factory_.GetWeakPtr(),
-                     base::TimeTicks::Now(),
-                     cache_time,
-                     result),
-          cache_time);
-      return;
+      if (!defer_cache_sensitivity_delay_) {
+        ScheduleDelayedLoop(cache_time, result);
+        return;
+      } else {
+        deferred_cache_sensitivity_delay_ += cache_time;
+      }
     }
   }
   DCHECK(cache_io_start_.is_null());
   DoLoop(result);
+}
+
+void HttpCache::Transaction::ScheduleDelayedLoop(base::TimeDelta delay,
+                                                 int result) {
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&HttpCache::Transaction::RunDelayedLoop,
+                 weak_factory_.GetWeakPtr(),
+                 base::TimeTicks::Now(),
+                 delay,
+                 result),
+      delay);
 }
 
 void HttpCache::Transaction::RunDelayedLoop(base::TimeTicks delay_start_time,
@@ -2345,6 +2374,7 @@ void HttpCache::Transaction::RunDelayedLoop(base::TimeTicks delay_start_time,
   }
 
   DCHECK(cache_io_start_.is_null());
+  DCHECK(deferred_cache_sensitivity_delay_ == base::TimeDelta());
   DoLoop(result);
 }
 
