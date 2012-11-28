@@ -119,11 +119,9 @@ bool GetPythonCommand(CommandLine* python_cmd) {
 
   python_cmd->SetProgram(dir);
 
-#if defined(OS_POSIX)
   // Launch python in unbuffered mode, so that python output doesn't mix with
   // gtest output in buildbot log files. See http://crbug.com/147368.
   python_cmd->AppendArg("-u");
-#endif
 
   return true;
 }
