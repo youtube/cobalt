@@ -12,10 +12,11 @@ namespace net {
 
 URLRequestRedirectJob::URLRequestRedirectJob(URLRequest* request,
                                              NetworkDelegate* network_delegate,
-                                             const GURL& redirect_destination)
+                                             const GURL& redirect_destination,
+                                             StatusCode http_status_code)
     : URLRequestJob(request, network_delegate),
       redirect_destination_(redirect_destination),
-      http_status_code_(302),
+      http_status_code_(http_status_code),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
 void URLRequestRedirectJob::Start() {
