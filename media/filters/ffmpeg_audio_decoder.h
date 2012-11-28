@@ -26,10 +26,8 @@ struct QueuedAudioBuffer;
 
 class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  public:
-  typedef base::Callback<
-      scoped_refptr<base::MessageLoopProxy>()> MessageLoopFactoryCB;
   explicit FFmpegAudioDecoder(
-      const MessageLoopFactoryCB& message_loop_factory_cb);
+      const scoped_refptr<base::MessageLoopProxy>& message_loop);
 
   // AudioDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -61,9 +59,6 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   // via |read_cb_|. It is calculated from |output_timestamp_base_| and
   // |total_frames_decoded_|.
   base::TimeDelta GetNextOutputTimestamp() const;
-
-  // This is !is_null() iff Initialize() hasn't been called.
-  MessageLoopFactoryCB message_loop_factory_cb_;
 
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 

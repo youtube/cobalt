@@ -9,7 +9,6 @@
 #include "base/md5.h"
 #include "media/audio/null_audio_sink.h"
 #include "media/base/filter_collection.h"
-#include "media/base/message_loop_factory.h"
 #include "media/base/pipeline.h"
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/video_renderer_base.h"
@@ -72,7 +71,6 @@ class PipelineIntegrationTestBase {
   MessageLoop message_loop_;
   base::MD5Context md5_context_;
   bool hashing_enabled_;
-  scoped_ptr<MessageLoopFactory> message_loop_factory_;
   scoped_refptr<Pipeline> pipeline_;
   scoped_refptr<VideoRendererBase> renderer_;
   scoped_refptr<NullAudioSink> audio_sink_;

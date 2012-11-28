@@ -21,7 +21,6 @@
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
-#include "media/filters/ffmpeg_decoder_unittest.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "media/filters/ffmpeg_video_decoder.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -74,8 +73,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     FFmpegGlue::InitializeFFmpeg();
 
     decoder_ = new FFmpegVideoDecoder(
-        base::Bind(&Identity<scoped_refptr<base::MessageLoopProxy> >,
-                   message_loop_.message_loop_proxy()),
+        message_loop_.message_loop_proxy(),
         decryptor_.get());
 
     // Initialize various test buffers.
