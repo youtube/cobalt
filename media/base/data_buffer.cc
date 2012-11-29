@@ -5,6 +5,10 @@
 #include "base/logging.h"
 #include "media/base/data_buffer.h"
 
+#if defined(__LB_LINUX__)
+#include <malloc.h>
+#endif
+
 namespace media {
 
 DataBuffer::DataBuffer(scoped_array<uint8> buffer, int buffer_size)
