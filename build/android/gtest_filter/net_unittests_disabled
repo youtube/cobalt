@@ -14,7 +14,6 @@ HTTPSRequestTest.SSLSessionCacheShardTest
 PythonUtils.PythonRunTime
 TransportSecurityStateTest.ValidPinsHeadersSHA1
 TransportSecurityStateTest.ValidPinsHeadersSHA256
-URLFetcherDownloadProgressTest.Basic
 URLRequestTestHTTP.ProcessSTS
 URLRequestTestHTTP.ProcessSTSOnce
 VerifyEndEntity/CertVerifyProcWeakDigestTest.Verify/0
