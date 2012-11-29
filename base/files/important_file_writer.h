@@ -51,6 +51,11 @@ class BASE_EXPORT ImportantFileWriter : public NonThreadSafe {
     virtual ~DataSerializer() {}
   };
 
+  // Save |data| to |path| in an atomic manner (see the class comment above).
+  // Blocks and writes data on the current thread.
+  static bool WriteFileAtomically(const FilePath& path,
+                                  const std::string& data);
+
   // Initialize the writer.
   // |path| is the name of file to write.
   // |task_runner| is the SequencedTaskRunner instance where on which we will
