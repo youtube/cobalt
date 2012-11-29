@@ -16,9 +16,12 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/hash_tables.h"
 #include "base/message_loop.h"
+#include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "net/base/net_util.h"
+#include "net/base/network_change_notifier.h"
 
 namespace net {
 namespace internal {
@@ -30,8 +33,10 @@ class NET_EXPORT_PRIVATE AddressTrackerLinux
  public:
   typedef std::map<IPAddressNumber, struct ifaddrmsg> AddressMap;
 
-  // Will run |callback| when the AddressMap changes.
-  explicit AddressTrackerLinux(const base::Closure& callback);
+  // Will run |address_callback| when the AddressMap changes and will run
+  // |link_callback| when the list of online links changes.
+  AddressTrackerLinux(const base::Closure& address_callback,
+                      const base::Closure& link_callback);
   virtual ~AddressTrackerLinux();
 
   // Starts watching system configuration for changes. The current thread must
@@ -40,26 +45,52 @@ class NET_EXPORT_PRIVATE AddressTrackerLinux
 
   AddressMap GetAddressMap() const;
 
+  // Implementation of NetworkChangeNotifierLinux::GetCurrentConnectionType().
+  // Safe to call from any thread, but will block until Init() has completed.
+  NetworkChangeNotifier::ConnectionType GetCurrentConnectionType();
+
  private:
   friend class AddressTrackerLinuxTest;
 
-  // Returns true if |map_| changed while reading messages from |netlink_fd_|.
-  bool ReadMessages();
+  // Sets |*address_changed| to indicate whether |address_map_| changed and
+  // sets |*link_changed| to indicate if |online_links_| changed while reading
+  // messages from |netlink_fd_|.
+  void ReadMessages(bool* address_changed, bool* link_changed);
 
-  // Returns true if |map_| changed while reading the message from |buffer|.
-  bool HandleMessage(const char* buffer, size_t length);
+  // Sets |*address_changed| to true if |address_map_| changed, sets
+  // |*link_changed| to true if |online_links_| changed while reading the
+  // message from |buffer|.
+  void HandleMessage(const char* buffer,
+                     size_t length,
+                     bool* address_changed,
+                     bool* link_changed);
+
+  // Call when some part of initialization failed; forces online and unblocks.
+  void AbortAndForceOnline();
 
   // MessageLoopForIO::Watcher:
   virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;
   virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE;
 
-  base::Closure callback_;
+  // Close |netlink_fd_|
+  void CloseSocket();
+
+  base::Closure address_callback_;
+  base::Closure link_callback_;
 
   int netlink_fd_;
   MessageLoopForIO::FileDescriptorWatcher watcher_;
 
-  mutable base::Lock lock_;
-  AddressMap map_;
+  mutable base::Lock address_map_lock_;
+  AddressMap address_map_;
+
+  // Set of interface indices for links that are currently online.
+  base::hash_set<int> online_links_;
+
+  base::Lock is_offline_lock_;
+  bool is_offline_;
+  bool is_offline_initialized_;
+  base::ConditionVariable is_offline_initialized_cv_;
 };
 
 }  // namespace internal
