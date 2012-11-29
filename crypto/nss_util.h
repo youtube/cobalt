@@ -36,15 +36,16 @@ CRYPTO_EXPORT void EarlySetupForNSSInit();
 // thread-safe, and NSPR will only ever be initialized once.
 CRYPTO_EXPORT void EnsureNSPRInit();
 
-// Initialize NSS safely for strict sandboxing.  This function makes sure that
-// NSS is initialized safely and will have proper entropy in a restricted,
-// sandboxed environment.
+// Initialize NSS safely for strict sandboxing.  This function tells NSS to not
+// load user security modules, and makes sure NSS will have proper entropy in a
+// restricted, sandboxed environment.
 //
 // As a defense in depth measure, this function should be called in a sandboxed
-// environment to make sure NSS will not load security modules that could
-// expose private data and keys.  Make sure to get an LGTM from Security
-// if you use this.
-CRYPTO_EXPORT void WarmUpNSSSafely();
+// environment.  That way, in the event of a bug, NSS will still not be able to
+// load security modules that could expose private data and keys.
+//
+// Make sure to get an LGTM from the Chrome Security Team if you use this.
+CRYPTO_EXPORT void InitNSSSafely();
 
 // Initialize NSS if it isn't already initialized.  This must be called before
 // any other NSS functions.  This function is thread-safe, and NSS will only
