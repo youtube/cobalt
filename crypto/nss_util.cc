@@ -650,15 +650,15 @@ void EnsureNSPRInit() {
   g_nspr_singleton.Get();
 }
 
-void WarmUpNSSSafely() {
+void InitNSSSafely() {
   // We might fork, but we haven't loaded any security modules.
-  crypto::DisableNSSForkCheck();
+  DisableNSSForkCheck();
   // If we're sandboxed, we shouldn't be able to open user security modules,
   // but it's more correct to tell NSS to not even try.
   // Loading user security modules would have security implications.
-  crypto::ForceNSSNoDBInit();
+  ForceNSSNoDBInit();
   // Initialize NSS.
-  crypto::EnsureNSSInit();
+  EnsureNSSInit();
 }
 
 void EnsureNSSInit() {
