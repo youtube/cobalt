@@ -104,9 +104,6 @@ ImageOperations.ResizeShouldAverageColors
 PrerenderTest.*
 RenderWidgetTest.OnMsgPaintAtSize
 
-# crbug.com/146857
-TopSitesTest.Blacklisting
-
 # crbug.com/139643
 VariationsUtilTest.DisableAfterInitialization
 VariationsUtilTest.AssociateGoogleVariationID
