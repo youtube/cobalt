@@ -1291,7 +1291,6 @@
         'base/multi_threaded_cert_verifier_unittest.cc',
         'base/net_log_unittest.h',
         'base/net_util_unittest.cc',
-        'base/network_change_notifier_linux_unittest.cc',
         'base/network_change_notifier_win_unittest.cc',
         'base/nss_cert_database_unittest.cc',
         'base/pem_tokenizer_unittest.cc',

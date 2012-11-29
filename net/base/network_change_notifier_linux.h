@@ -11,10 +11,6 @@
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
 
-namespace dbus {
-class Bus;
-}
-
 namespace net {
 
 class NET_EXPORT_PRIVATE NetworkChangeNotifierLinux
@@ -22,13 +18,10 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierLinux
  public:
   static NetworkChangeNotifierLinux* Create();
 
-  // Unittests inject a mock bus.
-  static NetworkChangeNotifierLinux* CreateForTest(dbus::Bus* bus);
-
  private:
   class Thread;
 
-  explicit NetworkChangeNotifierLinux(dbus::Bus* bus);
+  NetworkChangeNotifierLinux();
   virtual ~NetworkChangeNotifierLinux();
 
   // NetworkChangeNotifier:
