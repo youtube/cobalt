@@ -2608,6 +2608,12 @@
                           '__ARM_ARCH_5TE__',
                         ],
                       }],
+                      ['profiling==1', {
+                        'cflags': [
+                          '-marm', # Probably reduntant, but recommend by "perf" docs.
+                          '-mapcs-frame', # Seems required by -fno-omit-frame-pointer.
+                        ],
+                      }],
                       ['clang==1', {
                         'cflags!': [
                           # Clang does not support the following options.
