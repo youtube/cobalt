@@ -46,6 +46,9 @@ int ParseAddressList(const std::string& host_list,
 //
 // Replacement doesn't have to be string representing an IP address. It can
 // re-map one hostname to another as well.
+//
+// By default, MockHostResolvers include a single rule that maps all hosts to
+// 127.0.0.1.
 
 // Base class shared by MockHostResolver and MockCachingHostResolver.
 class MockHostResolverBase : public HostResolver,
