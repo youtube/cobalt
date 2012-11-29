@@ -160,21 +160,23 @@ void MixStreams(void* dst,
   DCHECK_LE(volume, 1.0f);
   switch (bytes_per_sample) {
     case 1:
-      MixStreams<uint8, int32, -128, 127, 128>(static_cast<uint8*>(dst),
-                                               static_cast<uint8*>(src),
-                                               buflen,
-                                               volume);
+      MixStreams<uint8, int32, kint8min, kint8max, 128>(
+          static_cast<uint8*>(dst),
+          static_cast<uint8*>(src),
+          buflen,
+          volume);
       break;
     case 2:
       DCHECK_EQ(0u, buflen % 2);
-      MixStreams<int16, int32, -32768, 32767, 0>(static_cast<int16*>(dst),
-                                                 static_cast<int16*>(src),
-                                                 buflen / 2,
-                                                 volume);
+      MixStreams<int16, int32, kint16min, kint16max, 0>(
+          static_cast<int16*>(dst),
+          static_cast<int16*>(src),
+          buflen / 2,
+          volume);
       break;
     case 4:
       DCHECK_EQ(0u, buflen % 4);
-      MixStreams<int32, int64, 0x80000000, 0x7fffffff, 0>(
+      MixStreams<int32, int64, kint32min, kint32max, 0>(
           static_cast<int32*>(dst),
           static_cast<int32*>(src),
           buflen / 4,
