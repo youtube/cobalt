@@ -7,7 +7,6 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/message_loop_proxy.h"
 #include "media/audio/audio_manager_base.h"
 
 namespace media {
@@ -46,7 +45,6 @@ class MEDIA_EXPORT AudioManagerMac : public AudioManagerBase {
 
  private:
   bool listener_registered_;
-  scoped_refptr<base::MessageLoopProxy> creating_message_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerMac);
 };
