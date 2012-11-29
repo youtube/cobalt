@@ -279,8 +279,12 @@ FieldTrial* FieldTrialList::FactoryGetFieldTrial(
 
   FieldTrial* field_trial =
       new FieldTrial(name, total_probability, default_group_name);
-  if (GetBuildTime() > CreateTimeFromParams(year, month, day_of_month))
+  if (GetBuildTime() > CreateTimeFromParams(year, month, day_of_month)) {
+    // TODO(asvitkine): Temporary histogram. Remove this once it is not needed.
+    if (name == "UMA-Uniformity-Trial-1-Percent")
+      UMA_HISTOGRAM_BOOLEAN("Variations.UniformityTrialExpired", true);
     field_trial->Disable();
+  }
   FieldTrialList::Register(field_trial);
   return field_trial;
 }
