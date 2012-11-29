@@ -474,7 +474,7 @@ class URLRequestTest : public PlatformTest {
   }
 
  protected:
-  TestNetworkDelegate default_network_delegate_;  // must outlive URLRequest
+  TestNetworkDelegate default_network_delegate_;  // Must outlive URLRequest.
   URLRequestJobFactoryImpl job_factory_;
   TestURLRequestContext default_context_;
 };
@@ -1298,7 +1298,7 @@ TEST_F(URLRequestTest, NetworkDelegateProxyError) {
   MockHostResolver host_resolver;
   host_resolver.rules()->AddSimulatedFailure("*");
 
-  TestNetworkDelegate network_delegate;  // must outlive URLRequests
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequests.
   TestURLRequestContextWithProxy context("myproxy:70", &network_delegate);
 
   TestDelegate d;
@@ -2036,7 +2036,7 @@ class URLRequestTestHTTP : public URLRequestTest {
 TEST_F(URLRequestTestHTTP, FLAKY_ProxyTunnelRedirectTest) {
   ASSERT_TRUE(test_server_.Start());
 
-  TestNetworkDelegate network_delegate;  // must outlive URLRequest
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequest.
   TestURLRequestContextWithProxy context(
       test_server_.host_port_pair().ToString(),
       &network_delegate);
@@ -2064,7 +2064,7 @@ TEST_F(URLRequestTestHTTP, FLAKY_ProxyTunnelRedirectTest) {
 TEST_F(URLRequestTestHTTP, DISABLED_NetworkDelegateTunnelConnectionFailed) {
   ASSERT_TRUE(test_server_.Start());
 
-  TestNetworkDelegate network_delegate;  // must outlive URLRequest
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequest.
   TestURLRequestContextWithProxy context(
       test_server_.host_port_pair().ToString(),
       &network_delegate);
@@ -2691,7 +2691,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting4) {
 TEST_F(URLRequestTestHTTP, UnexpectedServerAuthTest) {
   ASSERT_TRUE(test_server_.Start());
 
-  TestNetworkDelegate network_delegate;  // must outlive URLRequest
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequest.
   TestURLRequestContextWithProxy context(
       test_server_.host_port_pair().ToString(),
       &network_delegate);
@@ -2816,7 +2816,7 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
           base::StringPrintf("compressedfiles/BullRunSpeech.txt?%c",
                              test_parameters[i]);
 
-      TestNetworkDelegate network_delegate;  // must outlive URLRequest
+      TestNetworkDelegate network_delegate;  // Must outlive URLRequest.
       TestURLRequestContext context(true);
       context.set_network_delegate(&network_delegate);
       context.Init();
@@ -3528,7 +3528,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   // Request a page that will give a 401 containing a Set-Cookie header.
   // Verify that when the transaction is restarted, it includes the new cookie.
   {
-    TestNetworkDelegate network_delegate;  // must outlive URLRequest
+    TestNetworkDelegate network_delegate;  // Must outlive URLRequest.
     TestURLRequestContext context(true);
     context.set_network_delegate(&network_delegate);
     context.Init();
@@ -3551,7 +3551,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   // Same test as above, except this time the restart is initiated earlier
   // (without user intervention since identity is embedded in the URL).
   {
-    TestNetworkDelegate network_delegate;  // must outlive URLRequest
+    TestNetworkDelegate network_delegate;  // Must outlive URLRequest.
     TestURLRequestContext context(true);
     context.set_network_delegate(&network_delegate);
     context.Init();
@@ -3723,7 +3723,7 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptLanguage) {
   ASSERT_TRUE(test_server_.Start());
 
   StaticHttpUserAgentSettings settings("en", EmptyString(), EmptyString());
-  TestNetworkDelegate network_delegate;  // must outlive URLRequests
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequests.
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
   context.set_http_user_agent_settings(&settings);
@@ -3743,7 +3743,7 @@ TEST_F(URLRequestTestHTTP, EmptyAcceptLanguage) {
 
   StaticHttpUserAgentSettings settings(
       EmptyString(), EmptyString(), EmptyString());
-  TestNetworkDelegate network_delegate;  // must outlive URLRequests
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequests.
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
   context.Init();
@@ -3814,7 +3814,7 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptCharset) {
   ASSERT_TRUE(test_server_.Start());
 
   StaticHttpUserAgentSettings settings(EmptyString(), "en", EmptyString());
-  TestNetworkDelegate network_delegate;  // must outlive URLRequests
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequests.
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
   context.set_http_user_agent_settings(&settings);
@@ -3835,7 +3835,7 @@ TEST_F(URLRequestTestHTTP, EmptyAcceptCharset) {
 
   StaticHttpUserAgentSettings settings(
       EmptyString(), EmptyString(), EmptyString());
-  TestNetworkDelegate network_delegate;  // must outlive URLRequests
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequests.
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
   context.Init();
@@ -3908,7 +3908,7 @@ TEST_F(URLRequestTestHTTP, OverrideUserAgent) {
 TEST_F(URLRequestTestHTTP, EmptyHttpUserAgentSettings) {
   ASSERT_TRUE(test_server_.Start());
 
-  TestNetworkDelegate network_delegate;  // must outlive URLRequests
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequests.
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
   context.Init();
@@ -3942,7 +3942,7 @@ class HTTPSRequestTest : public testing::Test {
   virtual ~HTTPSRequestTest() {}
 
  protected:
-  TestNetworkDelegate default_network_delegate_;  // must outlive URLRequest
+  TestNetworkDelegate default_network_delegate_;  // Must outlive URLRequest.
   TestURLRequestContext default_context_;
 };
 
@@ -4091,11 +4091,10 @@ TEST_F(HTTPSRequestTest, HTTPSPreloadedHSTSTest) {
   // We require that the URL be www.google.com in order to pick up the
   // preloaded HSTS entries in the TransportSecurityState. This means that we
   // have to use a MockHostResolver in order to direct www.google.com to the
-  // testserver.
+  // testserver. By default, MockHostResolver maps all hosts to 127.0.0.1.
 
   MockHostResolver host_resolver;
-  host_resolver.rules()->AddRule("www.google.com", "127.0.0.1");
-  TestNetworkDelegate network_delegate;  // must outlive URLRequest
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequest.
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
   context.set_host_resolver(&host_resolver);
@@ -4136,10 +4135,10 @@ TEST_F(HTTPSRequestTest, HTTPSErrorsNoClobberTSSTest) {
   // preloaded and dynamic HSTS and public key pin entries in the
   // TransportSecurityState. This means that we have to use a
   // MockHostResolver in order to direct www.google.com to the testserver.
+  // By default, MockHostResolver maps all hosts to 127.0.0.1.
 
   MockHostResolver host_resolver;
-  host_resolver.rules()->AddRule("www.google.com", "127.0.0.1");
-  TestNetworkDelegate network_delegate;  // must outlive URLRequest
+  TestNetworkDelegate network_delegate;  // Must outlive URLRequest.
   TestURLRequestContext context(true);
   context.set_network_delegate(&network_delegate);
   context.set_host_resolver(&host_resolver);
@@ -4194,9 +4193,8 @@ TEST_F(HTTPSRequestTest, HSTSPreservesPosts) {
 
   // Per spec, TransportSecurityState expects a domain name, rather than an IP
   // address, so a MockHostResolver is needed to redirect www.somewhere.com to
-  // the TestServer.
+  // the TestServer.  By default, MockHostResolver maps all hosts to 127.0.0.1.
   MockHostResolver host_resolver;
-  host_resolver.rules()->AddRule("www.somewhere.com", "127.0.0.1");
 
   // Force https for www.somewhere.com.
   TransportSecurityState transport_security_state;
