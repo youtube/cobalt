@@ -22,7 +22,7 @@ namespace net {
 // Specification of WebSocket frame format is available at
 // <http://tools.ietf.org/html/rfc6455#section-5>.
 
-class NET_EXPORT_PRIVATE WebSocketFrameParser {
+class NET_EXPORT WebSocketFrameParser {
  public:
   WebSocketFrameParser();
   ~WebSocketFrameParser();
