@@ -193,4 +193,61 @@ TEST(CanonicalCookieTest, IsEquivalent) {
   EXPECT_FALSE(cookie->IsEquivalent(*other_cookie));
 }
 
+TEST(CanonicalCookieTest, IsDomainMatch) {
+  GURL url("http://www.example.com/test/foo.html");
+  base::Time creation_time = base::Time::Now();
+  CookieOptions options;
+
+  scoped_ptr<CanonicalCookie> cookie(
+      CanonicalCookie::Create(url, "A=2", creation_time, options));
+  EXPECT_TRUE(cookie->IsHostCookie());
+  EXPECT_TRUE(cookie->IsDomainMatch("http", "www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("https", "www.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("http", "foo.www.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("http", "www0.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("http", "example.com"));
+
+  cookie.reset(
+      CanonicalCookie::Create(url, "A=2; Domain=www.example.com", creation_time,
+                              options));
+  EXPECT_TRUE(cookie->IsDomainCookie());
+  EXPECT_TRUE(cookie->IsDomainMatch("http", "www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("https", "www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("http", "foo.www.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("http", "www0.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("http", "example.com"));
+
+  cookie.reset(
+      CanonicalCookie::Create(url, "A=2; Domain=.www.example.com",
+                              creation_time, options));
+  EXPECT_TRUE(cookie->IsDomainMatch("http", "www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("https", "www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("http", "foo.www.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("http", "www0.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("http", "example.com"));
+}
+
+TEST(CanonicalCookieTest, IsOnPath) {
+  base::Time creation_time = base::Time::Now();
+  CookieOptions options;
+
+  scoped_ptr<CanonicalCookie> cookie(
+      CanonicalCookie::Create(GURL("http://www.example.com"),
+                              "A=2", creation_time, options));
+  EXPECT_TRUE(cookie->IsOnPath("/"));
+  EXPECT_TRUE(cookie->IsOnPath("/test"));
+  EXPECT_TRUE(cookie->IsOnPath("/test/bar.html"));
+
+  // Test the empty string edge case.
+  EXPECT_FALSE(cookie->IsOnPath(""));
+
+  cookie.reset(
+      CanonicalCookie::Create(GURL("http://www.example.com/test/foo.html"),
+                              "A=2", creation_time, options));
+  EXPECT_FALSE(cookie->IsOnPath("/"));
+  EXPECT_TRUE(cookie->IsOnPath("/test"));
+  EXPECT_TRUE(cookie->IsOnPath("/test/bar.html"));
+  EXPECT_TRUE(cookie->IsOnPath("/test/sample/bar.html"));
+}
+
 }  // namespace net
