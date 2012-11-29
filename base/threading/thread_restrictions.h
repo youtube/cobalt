@@ -60,7 +60,9 @@ class AudioOutputController;
 namespace net {
 class FileStreamPosix;
 class FileStreamWin;
-class NetworkManagerApi;
+namespace internal {
+class AddressTrackerLinux;
+}
 }
 
 namespace remoting {
@@ -198,7 +200,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class media::AudioOutputController;      // http://crbug.com/120973
   friend class net::FileStreamPosix;              // http://crbug.com/115067
   friend class net::FileStreamWin;                // http://crbug.com/115067
-  friend class net::NetworkManagerApi;            // http://crbug.com/125097
+  friend class net::internal::AddressTrackerLinux;  // http://crbug.com/125097
   friend class ::AcceleratedPresenter;            // http://crbug.com/125391
   friend class ::BrowserProcessImpl;              // http://crbug.com/125207
   friend class ::MetricsService;                  // http://crbug.com/124954
