@@ -10,6 +10,10 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 #endif
 
+#if defined (__LB_LINUX__)
+#include <malloc.h>
+#endif
+
 namespace media {
 
 DecoderBuffer::DecoderBuffer(int buffer_size)
