@@ -243,7 +243,12 @@
       # Configuration policy is enabled by default. Set to 0 to disable.
       'configuration_policy%': 1,
 
-      # Safe browsing is compiled in by default. Set to 0 to disable.
+      # Variable safe_browsing is used to control the build time configuration
+      # for safe browsing feature. Safe browsing can be compiled in 3 different
+      # levels: 0 disables it, 1 enables it fully, and 2 enables only UI and
+      # reporting features without enabling phishing and malware detection. This
+      # is useful to integrate a third party phishing/malware detection to
+      # existing safe browsing logic.
       'safe_browsing%': 1,
 
       # Speech input is compiled in by default. Set to 0 to disable.
