@@ -20,7 +20,7 @@ class IOBufferWithSize;
 //
 // Members of this class correspond to each element in WebSocket frame header
 // (see http://tools.ietf.org/html/rfc6455#section-5.2).
-struct NET_EXPORT_PRIVATE WebSocketFrameHeader {
+struct NET_EXPORT WebSocketFrameHeader {
   typedef int OpCode;
   static const OpCode kOpCodeContinuation;
   static const OpCode kOpCodeText;
@@ -65,7 +65,7 @@ struct NET_EXPORT_PRIVATE WebSocketFrameHeader {
 //
 // This struct is used for reading WebSocket frame data (created by
 // WebSocketFrameParser). To construct WebSocket frames, use functions below.
-struct NET_EXPORT_PRIVATE WebSocketFrameChunk {
+struct NET_EXPORT WebSocketFrameChunk {
   WebSocketFrameChunk();
   ~WebSocketFrameChunk();
 
@@ -89,7 +89,7 @@ struct WebSocketMaskingKey {
 // Returns the size of WebSocket frame header. The size of WebSocket frame
 // header varies from 2 bytes to 14 bytes depending on the payload length
 // and maskedness.
-NET_EXPORT_PRIVATE int GetWebSocketFrameHeaderSize(
+NET_EXPORT int GetWebSocketFrameHeaderSize(
     const WebSocketFrameHeader& header);
 
 // Writes wire format of a WebSocket frame header into |output|, and returns
@@ -108,14 +108,14 @@ NET_EXPORT_PRIVATE int GetWebSocketFrameHeaderSize(
 // GetWebSocketFrameHeaderSize() can be used to know the size of header
 // beforehand. If the size of |buffer| is insufficient, this function returns
 // ERR_INVALID_ARGUMENT and does not write any data to |buffer|.
-NET_EXPORT_PRIVATE int WriteWebSocketFrameHeader(
+NET_EXPORT int WriteWebSocketFrameHeader(
     const WebSocketFrameHeader& header,
     const WebSocketMaskingKey* masking_key,
     char* buffer,
     int buffer_size);
 
 // Generates a masking key suitable for use in a new WebSocket frame.
-NET_EXPORT_PRIVATE WebSocketMaskingKey GenerateWebSocketMaskingKey();
+NET_EXPORT WebSocketMaskingKey GenerateWebSocketMaskingKey();
 
 // Masks WebSocket frame payload.
 //
@@ -129,7 +129,7 @@ NET_EXPORT_PRIVATE WebSocketMaskingKey GenerateWebSocketMaskingKey();
 //
 // Since frame masking is a reversible operation, this function can also be
 // used for unmasking a WebSocket frame.
-NET_EXPORT_PRIVATE void MaskWebSocketFramePayload(
+NET_EXPORT void MaskWebSocketFramePayload(
     const WebSocketMaskingKey& masking_key,
     uint64 frame_offset,
     char* data,
