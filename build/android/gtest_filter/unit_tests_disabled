@@ -16,12 +16,6 @@ HistoryProfileTest.TypicalProfileVersion
 SQLitePersistentCookieStoreTest.TestDontLoadOldSessionCookies
 SQLitePersistentCookieStoreTest.PersistIsPersistent
 
-# http://crbug.com/117940
-TemplateURLTest.*
-TemplateURLPrepopulateDataTest.*
-TemplateURLServiceSyncTest.*
-SearchHostToURLsMapTest.*
-
 # crbug.com/139433
 AutofillTableTest.AutofillProfile*
 AutofillTableTest.UpdateAutofillProfile
