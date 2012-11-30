@@ -24,6 +24,7 @@ class SecureHashSHA256NSS : public SecureHash {
   }
 
   virtual ~SecureHashSHA256NSS() {
+    memset(&ctx_, 0, sizeof(ctx_));
   }
 
   // SecureHash implementation:
