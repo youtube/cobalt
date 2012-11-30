@@ -351,6 +351,12 @@
             "scrolling": {
                 "action": "scrolling_interaction"
             }
+        },
+        {
+            "url": "http://www.sueddeutsche.de",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         }
     ]
 }
