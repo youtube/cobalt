@@ -105,12 +105,16 @@ class Forwarder(object):
 
   @staticmethod
   def KillHost(build_type):
+    logging.info('Killing host_forwarder.')
     host_forwarder_path = _MakeBinaryPath(build_type, 'host_forwarder')
     (exit_code, output) = cmd_helper.GetCmdStatusAndOutput(
         [host_forwarder_path, 'kill-server'])
     if exit_code != 0:
-      raise Exception('%s exited with %d:\n%s' % (host_forwarder_path,
-                                                  exit_code, '\n'.join(output)))
+      (exit_code, output) = cmd_helper.GetCmdStatusAndOutput(
+          ['pkill', 'host_forwarder'])
+      if exit_code != 0:
+        raise Exception('%s exited with %d:\n%s' % (
+              host_forwarder_path, exit_code, '\n'.join(output)))
 
   @staticmethod
   def KillDevice(adb):
