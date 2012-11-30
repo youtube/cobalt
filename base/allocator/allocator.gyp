@@ -12,7 +12,6 @@
     {
       'target_name': 'allocator',
       'type': 'static_library',
-      'toolsets': ['host', 'target'],
       # Make sure the allocation library is optimized to
       # the hilt in official builds.
       'variables': {
