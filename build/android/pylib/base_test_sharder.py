@@ -66,10 +66,13 @@ class BaseTestSharder(object):
 
   def SetupSharding(self, tests):
     """Called before starting the shards."""
-    Forwarder.KillHost(self.build_type)
+    pass
 
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
+    pass
+
+  def _KillHostForwarder(self):
     Forwarder.KillHost(self.build_type)
 
   def RunShardedTests(self):
@@ -85,6 +88,7 @@ class BaseTestSharder(object):
     logging.warning('Look for the "Final result" banner in the end.')
     logging.warning('*' * 80)
     final_results = TestResults()
+    self._KillHostForwarder()
     for retry in xrange(self.retries):
       logging.warning('Try %d of %d', retry + 1, self.retries)
       self.SetupSharding(self.tests)
@@ -142,4 +146,5 @@ class BaseTestSharder(object):
       # There's no recovery at this point.
       raise Exception('Unrecoverable error while retrying test runs.')
     self.OnTestsCompleted(test_runners, final_results)
+    self._KillHostForwarder()
     return final_results
