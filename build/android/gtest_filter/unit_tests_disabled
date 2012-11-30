@@ -48,9 +48,6 @@ ChromeSelectFilePolicyTest.ExpectAsynchronousListenerCall
 # http://crbug.com/139033
 ChromeDownloadManagerDelegateTest.StartDownload_PromptAlways
 
-# http://crbug.com/139165
-KeywordEditorControllerTest.*
-
 # Extension support is limited on Android.
 # Some of these can be enabled if we register extension related prefs in
 # browser_prefs.cc
