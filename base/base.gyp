@@ -194,7 +194,7 @@
             ],
           },
         }],
-        ['OS != "win"', {
+        ['OS != "win" and OS != "ios"', {
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
         },],
         ['component=="shared_library"', {
@@ -227,6 +227,8 @@
         'message_pump_glib.h',
         'message_pump_gtk.cc',
         'message_pump_gtk.h',
+        'message_pump_io_ios.cc',
+        'message_pump_io_ios.h',
         'message_pump_observer.h',
         'message_pump_aurax11.cc',
         'message_pump_aurax11.h',
@@ -481,6 +483,7 @@
         'message_loop_proxy_unittest.cc',
         'message_loop_unittest.cc',
         'message_pump_glib_unittest.cc',
+        'message_pump_io_ios_unittest.cc',
         'message_pump_libevent_unittest.cc',
         'metrics/sample_map_unittest.cc',
         'metrics/sample_vector_unittest.cc',
@@ -613,9 +616,11 @@
             ['include', '^process_util_unittest_ios\\.cc$'],
             # Requires spawning processes.
             ['exclude', '^metrics/stats_table_unittest\\.cc$'],
+            # iOS does not use message_pump_libevent.
+            ['exclude', '^message_pump_libevent_unittest\\.cc$'],
             # TODO(ios): Remove these as base/ is unforked.
-            # For now, exclude everything that doesn't build as-is, just to
-            # get a minimal target building.
+            # For now, exclude everything that doesn't build as-is, just to get
+            # a minimal target building.
             # Unittests that don't pass.
             ['exclude', '^message_loop_unittest\\.cc$'],
           ],
