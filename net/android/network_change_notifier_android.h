@@ -39,7 +39,7 @@ class NetworkChangeNotifierFactoryAndroid;
 //   and be called by any thread.
 //
 // For more details, see the implementation file.
-class NetworkChangeNotifierAndroid
+class NET_EXPORT_PRIVATE NetworkChangeNotifierAndroid
     : public NetworkChangeNotifier,
       public NetworkChangeNotifierDelegateAndroid::Observer {
  public:
