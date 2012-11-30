@@ -111,7 +111,7 @@ class NET_EXPORT CanonicalCookie {
   }
 
   bool IsOnPath(const std::string& url_path) const;
-  bool IsDomainMatch(const std::string& scheme, const std::string& host) const;
+  bool IsDomainMatch(const std::string& host) const;
 
   std::string DebugString() const;
 
