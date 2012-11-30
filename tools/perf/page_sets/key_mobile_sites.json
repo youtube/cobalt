@@ -1,6 +1,7 @@
 {
     "description": "Mobile sites for M25",
     "credentials_path": "../data/credentials.json",
+    "user_agent_type": "mobile",
     "pages": [
         {
             "url": "http://www.androidpolice.com/2012/10/03/rumor-evidence-mounts-that-an-lg-optimus-g-nexus-is-coming-along-with-a-nexus-phone-certification-program/",
@@ -232,7 +233,7 @@
             }
         },
         {
-            "url": "ttp://br.337.com/pages/196/DDTank",
+            "url": "http://br.337.com/pages/196/DDTank",
             "scrolling": {
                 "action": "scrolling_interaction"
             }
