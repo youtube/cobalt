@@ -4268,6 +4268,12 @@
             "scrolling": {
                 "action": "scrolling_interaction"
             }
+        },
+        {
+            "url": "http://habrahabr.ru/post/149892/#habracut",
+            "scrolling": {
+                "action": "scrolling_interaction"
+            }
         }
     ]
 }
