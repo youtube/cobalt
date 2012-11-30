@@ -2154,6 +2154,13 @@ typedef void (GL_APIENTRYP PFNGLRELEASETEXIMAGE2DCHROMIUM) (GLenum target, GLint
 #define GL_PIXEL_UNPACK_TRANSFER_BUFFER_BINDING_CHROMIUM 0x88EF
 #endif
 
+/* GL_CHROMIUM_async_pixel_transfers */
+#ifndef GL_CHROMIUM_async_pixel_transfers
+#define GL_CHROMIUM_async_pixel_transfers 1
+// TODO: Get official numbers for these constants.
+#define GL_ASYNC_PIXEL_TRANSFERS_COMPLETED_CHROMIUM 0x84F5
+#endif
+
 #ifdef __cplusplus
 }
 #endif
