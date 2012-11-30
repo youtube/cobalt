@@ -338,8 +338,7 @@ bool CanonicalCookie::IsOnPath(const std::string& url_path) const {
   return true;
 }
 
-bool CanonicalCookie::IsDomainMatch(const std::string& scheme,
-                                    const std::string& host) const {
+bool CanonicalCookie::IsDomainMatch(const std::string& host) const {
   // Can domain match in two ways; as a domain cookie (where the cookie
   // domain begins with ".") or as a host cookie (where it doesn't).
 
