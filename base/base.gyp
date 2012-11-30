@@ -50,13 +50,6 @@
                 ],
               },
             }],
-            # From debug/leak_annotations.h.
-            [ 'linux_use_tcmalloc==1', {
-                'dependencies': [
-                  'allocator/allocator.gyp:allocator',
-                ],
-              },
-            ],
             ['toolkit_uses_gtk==1', {
               'dependencies': [
                 '../build/linux/system.gyp:gtk',
@@ -665,6 +658,12 @@
             'file_version_info_unittest.cc',
           ],
           'conditions': [
+            [ 'linux_use_tcmalloc==1', {
+                'dependencies': [
+                  'allocator/allocator.gyp:allocator',
+                ],
+              },
+            ],
             [ 'toolkit_uses_gtk==1', {
               'sources': [
                 'nix/xdg_util_unittest.cc',
@@ -673,13 +672,6 @@
                 '../build/linux/system.gyp:gtk',
               ]
             }],
-            # From process_util_unittest.cc.
-            [ 'linux_use_tcmalloc==1', {
-                'dependencies': [
-                  'allocator/allocator.gyp:allocator',
-                ],
-              },
-            ],
           ],
           'dependencies': [
             '../build/linux/system.gyp:glib',
