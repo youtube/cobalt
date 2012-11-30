@@ -113,11 +113,10 @@ def FullyQualifiedTestSuites(exe, option_test_suite, build_type):
                              for t in all_test_suites]
   for t, q in zip(all_test_suites, qualified_test_suites):
     if not os.path.exists(q):
-      logging.critical('Test suite %s not found in %s.\n'
-                       'Supported test suites:\n %s\n'
-                       'Ensure it has been built.\n',
-                       t, q, _TEST_SUITES)
-      return []
+      raise Exception('Test suite %s not found in %s.\n'
+                      'Supported test suites:\n %s\n'
+                      'Ensure it has been built.\n' %
+                      (t, q, _TEST_SUITES))
   return qualified_test_suites
 
 
