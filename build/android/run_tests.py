@@ -75,7 +75,6 @@ from pylib.test_result import BaseTestResult, TestResults
 
 _TEST_SUITES = ['base_unittests',
                 'cc_unittests',
-                'cc_perftests',
                 'content_unittests',
                 'gpu_unittests',
                 'ipc_tests',
