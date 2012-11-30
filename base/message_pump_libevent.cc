@@ -144,7 +144,7 @@ MessagePumpLibevent::~MessagePumpLibevent() {
 
 bool MessagePumpLibevent::WatchFileDescriptor(int fd,
                                               bool persistent,
-                                              Mode mode,
+                                              int mode,
                                               FileDescriptorWatcher *controller,
                                               Watcher *delegate) {
   DCHECK_GE(fd, 0);
@@ -156,10 +156,10 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
   DCHECK(watch_file_descriptor_caller_checker_.CalledOnValidThread());
 
   int event_mask = persistent ? EV_PERSIST : 0;
-  if ((mode & WATCH_READ) != 0) {
+  if (mode & WATCH_READ) {
     event_mask |= EV_READ;
   }
-  if ((mode & WATCH_WRITE) != 0) {
+  if (mode & WATCH_WRITE) {
     event_mask |= EV_WRITE;
   }
 
@@ -190,12 +190,12 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
   event_set(evt.get(), fd, event_mask, OnLibeventNotification, controller);
 
   // Tell libevent which message pump this socket will belong to when we add it.
-  if (event_base_set(event_base_, evt.get()) != 0) {
+  if (event_base_set(event_base_, evt.get())) {
     return false;
   }
 
   // Add this socket to the list of monitored sockets.
-  if (event_add(evt.get(), NULL) != 0) {
+  if (event_add(evt.get(), NULL)) {
     return false;
   }
 
