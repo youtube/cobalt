@@ -26,8 +26,8 @@ namespace x509_util {
 // limited the range to 1950-9999
 // (https://bugzilla.mozilla.org/show_bug.cgi?id=786531).  This function will
 // return whether it is supported by the currently used crypto library.
-bool IsSupportedValidityRange(base::Time not_valid_before,
-                              base::Time not_valid_after);
+NET_EXPORT_PRIVATE bool IsSupportedValidityRange(base::Time not_valid_before,
+                                                 base::Time not_valid_after);
 
 // Creates a server bound certificate containing the public key in |key|.
 // Domain, serial number and validity period are given as
@@ -36,7 +36,7 @@ bool IsSupportedValidityRange(base::Time not_valid_before,
 //
 // See Internet Draft draft-balfanz-tls-obc-00 for more details:
 // http://tools.ietf.org/html/draft-balfanz-tls-obc-00
-bool NET_EXPORT_PRIVATE CreateDomainBoundCertEC(
+NET_EXPORT_PRIVATE bool CreateDomainBoundCertEC(
     crypto::ECPrivateKey* key,
     const std::string& domain,
     uint32 serial_number,
