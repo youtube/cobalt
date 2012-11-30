@@ -9,12 +9,6 @@
 #if defined(USE_GCONF)
 #include <gconf/gconf-client.h>
 #endif  // defined(USE_GCONF)
-#if defined(USE_GIO)
-#include <gio/gio.h>
-#if defined(DLOPEN_GSETTINGS)
-#include <dlfcn.h>
-#endif  // defined(DLOPEN_GSETTINGS)
-#endif  // defined(USE_GIO)
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +36,10 @@
 #include "net/http/http_util.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_server.h"
+
+#if defined(USE_GIO)
+#include "library_loaders/libgio.h"
+#endif  // defined(USE_GIO)
 
 namespace net {
 
@@ -515,16 +513,6 @@ class SettingGetterImplGSettings
     : public ProxyConfigServiceLinux::SettingGetter {
  public:
   SettingGetterImplGSettings() :
-#if defined(DLOPEN_GSETTINGS)
-    g_settings_new(NULL),
-    g_settings_get_child(NULL),
-    g_settings_get_boolean(NULL),
-    g_settings_get_string(NULL),
-    g_settings_get_int(NULL),
-    g_settings_get_strv(NULL),
-    g_settings_list_schemas(NULL),
-    gio_handle_(NULL),
-#endif
     client_(NULL),
     http_client_(NULL),
     https_client_(NULL),
@@ -554,16 +542,10 @@ class SettingGetterImplGSettings
       }
     }
     DCHECK(!client_);
-#if defined(DLOPEN_GSETTINGS)
-    if (gio_handle_) {
-      dlclose(gio_handle_);
-      gio_handle_ = NULL;
-    }
-#endif
   }
 
   bool SchemaExists(const char* schema_name) {
-    const gchar* const* schemas = g_settings_list_schemas();
+    const gchar* const* schemas = libgio_loader_.g_settings_list_schemas();
     while (*schemas) {
       if (strcmp(schema_name, static_cast<const char*>(*schemas)) == 0)
         return true;
@@ -582,17 +564,17 @@ class SettingGetterImplGSettings
     DCHECK(!task_runner_);
 
     if (!SchemaExists("org.gnome.system.proxy") ||
-        !(client_ = g_settings_new("org.gnome.system.proxy"))) {
+        !(client_ = libgio_loader_.g_settings_new("org.gnome.system.proxy"))) {
       // It's not clear whether/when this can return NULL.
       LOG(ERROR) << "Unable to create a gsettings client";
       return false;
     }
     task_runner_ = glib_thread_task_runner;
     // We assume these all work if the above call worked.
-    http_client_ = g_settings_get_child(client_, "http");
-    https_client_ = g_settings_get_child(client_, "https");
-    ftp_client_ = g_settings_get_child(client_, "ftp");
-    socks_client_ = g_settings_get_child(client_, "socks");
+    http_client_ = libgio_loader_.g_settings_get_child(client_, "http");
+    https_client_ = libgio_loader_.g_settings_get_child(client_, "https");
+    ftp_client_ = libgio_loader_.g_settings_get_child(client_, "ftp");
+    socks_client_ = libgio_loader_.g_settings_get_child(client_, "socks");
     DCHECK(http_client_ && https_client_ && ftp_client_ && socks_client_);
     return true;
   }
@@ -713,41 +695,10 @@ class SettingGetterImplGSettings
   }
 
  private:
-#if defined(DLOPEN_GSETTINGS)
-  // We replicate the prototypes for the g_settings APIs we need. We may not
-  // even be compiling on a system that has them. If we are, these won't
-  // conflict both because they are identical and also due to scoping. The
-  // scoping will also ensure that these get used instead of the global ones.
-  struct _GSettings;
-  typedef struct _GSettings GSettings;
-  GSettings* (*g_settings_new)(const gchar* schema);
-  GSettings* (*g_settings_get_child)(GSettings* settings, const gchar* name);
-  gboolean (*g_settings_get_boolean)(GSettings* settings, const gchar* key);
-  gchar* (*g_settings_get_string)(GSettings* settings, const gchar* key);
-  gint (*g_settings_get_int)(GSettings* settings, const gchar* key);
-  gchar** (*g_settings_get_strv)(GSettings* settings, const gchar* key);
-  const gchar* const* (*g_settings_list_schemas)();
-
-  // The library handle.
-  void* gio_handle_;
-
-  // Load a symbol from |gio_handle_| and store it into |*func_ptr|.
-  bool LoadSymbol(const char* name, void** func_ptr) {
-    dlerror();
-    *func_ptr = dlsym(gio_handle_, name);
-    const char* error = dlerror();
-    if (error) {
-      VLOG(1) << "Unable to load symbol " << name << ": " << error;
-      return false;
-    }
-    return true;
-  }
-#endif  // defined(DLOPEN_GSETTINGS)
-
   bool GetStringByPath(GSettings* client, const char* key,
                        std::string* result) {
     DCHECK(task_runner_->BelongsToCurrentThread());
-    gchar* value = g_settings_get_string(client, key);
+    gchar* value = libgio_loader_.g_settings_get_string(client, key);
     if (!value)
       return false;
     *result = value;
@@ -756,18 +707,19 @@ class SettingGetterImplGSettings
   }
   bool GetBoolByPath(GSettings* client, const char* key, bool* result) {
     DCHECK(task_runner_->BelongsToCurrentThread());
-    *result = static_cast<bool>(g_settings_get_boolean(client, key));
+    *result = static_cast<bool>(
+        libgio_loader_.g_settings_get_boolean(client, key));
     return true;
   }
   bool GetIntByPath(GSettings* client, const char* key, int* result) {
     DCHECK(task_runner_->BelongsToCurrentThread());
-    *result = g_settings_get_int(client, key);
+    *result = libgio_loader_.g_settings_get_int(client, key);
     return true;
   }
   bool GetStringListByPath(GSettings* client, const char* key,
                            std::vector<std::string>* result) {
     DCHECK(task_runner_->BelongsToCurrentThread());
-    gchar** list = g_settings_get_strv(client, key);
+    gchar** list = libgio_loader_.g_settings_get_strv(client, key);
     if (!list)
       return false;
     for (size_t i = 0; list[i]; ++i) {
@@ -818,6 +770,8 @@ class SettingGetterImplGSettings
   // thread. Only for assertions.
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
+  LibGioLoader libgio_loader_;
+
   DISALLOW_COPY_AND_ASSIGN(SettingGetterImplGSettings);
 };
 
@@ -838,40 +792,16 @@ bool SettingGetterImplGSettings::LoadAndCheckVersion(
   // but don't use gsettings for proxy settings, but they do have the old
   // binary, so we detect these systems that way.
 
-#ifdef DLOPEN_GSETTINGS
-  gio_handle_ = dlopen("libgio-2.0.so.0", RTLD_NOW | RTLD_GLOBAL);
-  if (!gio_handle_) {
-    // Try again without .0 at the end; on some systems this may be required.
-    gio_handle_ = dlopen("libgio-2.0.so", RTLD_NOW | RTLD_GLOBAL);
-    if (!gio_handle_) {
-      VLOG(1) << "Cannot load gio library. Will fall back to gconf.";
-      return false;
-    }
-  }
-  if (!LoadSymbol("g_settings_new",
-                  reinterpret_cast<void**>(&g_settings_new)) ||
-      !LoadSymbol("g_settings_get_child",
-                  reinterpret_cast<void**>(&g_settings_get_child)) ||
-      !LoadSymbol("g_settings_get_string",
-                  reinterpret_cast<void**>(&g_settings_get_string)) ||
-      !LoadSymbol("g_settings_get_boolean",
-                  reinterpret_cast<void**>(&g_settings_get_boolean)) ||
-      !LoadSymbol("g_settings_get_int",
-                  reinterpret_cast<void**>(&g_settings_get_int)) ||
-      !LoadSymbol("g_settings_get_strv",
-                  reinterpret_cast<void**>(&g_settings_get_strv)) ||
-      !LoadSymbol("g_settings_list_schemas",
-                  reinterpret_cast<void**>(&g_settings_list_schemas))) {
-    VLOG(1) << "Cannot load gsettings API. Will fall back to gconf.";
-    dlclose(gio_handle_);
-    gio_handle_ = NULL;
+  // Try also without .0 at the end; on some systems this may be required.
+  if (!libgio_loader_.Load("libgio-2.0.so.0") &&
+      !libgio_loader_.Load("libgio-2.0.so")) {
+    VLOG(1) << "Cannot load gio library. Will fall back to gconf.";
     return false;
   }
-#endif
 
   GSettings* client;
   if (!SchemaExists("org.gnome.system.proxy") ||
-      !(client = g_settings_new("org.gnome.system.proxy"))) {
+      !(client = libgio_loader_.g_settings_new("org.gnome.system.proxy"))) {
     VLOG(1) << "Cannot create gsettings client. Will fall back to gconf.";
     return false;
   }
