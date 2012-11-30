@@ -201,30 +201,30 @@ TEST(CanonicalCookieTest, IsDomainMatch) {
   scoped_ptr<CanonicalCookie> cookie(
       CanonicalCookie::Create(url, "A=2", creation_time, options));
   EXPECT_TRUE(cookie->IsHostCookie());
-  EXPECT_TRUE(cookie->IsDomainMatch("http", "www.example.com"));
-  EXPECT_TRUE(cookie->IsDomainMatch("https", "www.example.com"));
-  EXPECT_FALSE(cookie->IsDomainMatch("http", "foo.www.example.com"));
-  EXPECT_FALSE(cookie->IsDomainMatch("http", "www0.example.com"));
-  EXPECT_FALSE(cookie->IsDomainMatch("http", "example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("www.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("foo.www.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("www0.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("example.com"));
 
   cookie.reset(
       CanonicalCookie::Create(url, "A=2; Domain=www.example.com", creation_time,
                               options));
   EXPECT_TRUE(cookie->IsDomainCookie());
-  EXPECT_TRUE(cookie->IsDomainMatch("http", "www.example.com"));
-  EXPECT_TRUE(cookie->IsDomainMatch("https", "www.example.com"));
-  EXPECT_TRUE(cookie->IsDomainMatch("http", "foo.www.example.com"));
-  EXPECT_FALSE(cookie->IsDomainMatch("http", "www0.example.com"));
-  EXPECT_FALSE(cookie->IsDomainMatch("http", "example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("foo.www.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("www0.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("example.com"));
 
   cookie.reset(
       CanonicalCookie::Create(url, "A=2; Domain=.www.example.com",
                               creation_time, options));
-  EXPECT_TRUE(cookie->IsDomainMatch("http", "www.example.com"));
-  EXPECT_TRUE(cookie->IsDomainMatch("https", "www.example.com"));
-  EXPECT_TRUE(cookie->IsDomainMatch("http", "foo.www.example.com"));
-  EXPECT_FALSE(cookie->IsDomainMatch("http", "www0.example.com"));
-  EXPECT_FALSE(cookie->IsDomainMatch("http", "example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("www.example.com"));
+  EXPECT_TRUE(cookie->IsDomainMatch("foo.www.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("www0.example.com"));
+  EXPECT_FALSE(cookie->IsDomainMatch("example.com"));
 }
 
 TEST(CanonicalCookieTest, IsOnPath) {

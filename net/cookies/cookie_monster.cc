@@ -1133,7 +1133,6 @@ int CookieMonster::DeleteAllForHost(const GURL& url) {
   if (!HasCookieableScheme(url))
     return 0;
 
-  const std::string scheme(url.scheme());
   const std::string host(url.host());
 
   // We store host cookies in the store by their canonical host name;
@@ -1148,7 +1147,7 @@ int CookieMonster::DeleteAllForHost(const GURL& url) {
     const CanonicalCookie* const cc = curit->second;
 
     // Delete only on a match as a host cookie.
-    if (cc->IsHostCookie() && cc->IsDomainMatch(scheme, host)) {
+    if (cc->IsHostCookie() && cc->IsDomainMatch(host)) {
       num_deleted++;
 
       InternalDeleteCookie(curit, true, DELETE_COOKIE_EXPLICIT);
@@ -1603,7 +1602,6 @@ void CookieMonster::FindCookiesForKey(
     std::vector<CanonicalCookie*>* cookies) {
   lock_.AssertAcquired();
 
-  const std::string scheme(url.scheme());
   const std::string host(url.host());
   bool secure = url.SchemeIsSecure();
 
@@ -1628,7 +1626,7 @@ void CookieMonster::FindCookiesForKey(
       continue;
 
     // Filter out cookies that don't apply to this domain.
-    if (!cc->IsDomainMatch(scheme, host))
+    if (!cc->IsDomainMatch(host))
       continue;
 
     if (!cc->IsOnPath(url.path()))
