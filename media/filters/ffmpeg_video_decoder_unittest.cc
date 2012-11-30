@@ -265,7 +265,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_UnsupportedDecoder) {
                             kVideoFormat,
                             kCodedSize, kVisibleRect, kNaturalSize,
                             NULL, 0, false);
-  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
+  InitializeWithConfigAndStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_UnsupportedPixelFormat) {
@@ -274,7 +274,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_UnsupportedPixelFormat) {
                             VideoFrame::INVALID,
                             kCodedSize, kVisibleRect, kNaturalSize,
                             NULL, 0, false);
-  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
+  InitializeWithConfigAndStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_OpenDecoderFails) {
@@ -283,7 +283,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_OpenDecoderFails) {
                             kVideoFormat,
                             kCodedSize, kVisibleRect, kNaturalSize,
                             NULL, 0, false);
-  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
+  InitializeWithConfigAndStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioNumeratorZero) {
@@ -292,7 +292,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioNumeratorZero) {
                             kVideoFormat,
                             kCodedSize, kVisibleRect, natural_size,
                             NULL, 0, false);
-  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
+  InitializeWithConfigAndStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioDenominatorZero) {
@@ -301,7 +301,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioDenominatorZero) {
                             kVideoFormat,
                             kCodedSize, kVisibleRect, natural_size,
                             NULL, 0, false);
-  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
+  InitializeWithConfigAndStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioNumeratorNegative) {
@@ -310,7 +310,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioNumeratorNegative) {
                             kVideoFormat,
                             kCodedSize, kVisibleRect, natural_size,
                             NULL, 0, false);
-  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
+  InitializeWithConfigAndStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioDenominatorNegative) {
@@ -319,7 +319,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioDenominatorNegative) {
                             kVideoFormat,
                             kCodedSize, kVisibleRect, natural_size,
                             NULL, 0, false);
-  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
+  InitializeWithConfigAndStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioNumeratorTooLarge) {
@@ -330,7 +330,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioNumeratorTooLarge) {
                             kVideoFormat,
                             kCodedSize, kVisibleRect, natural_size,
                             NULL, 0, false);
-  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
+  InitializeWithConfigAndStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioDenominatorTooLarge) {
@@ -340,7 +340,7 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_AspectRatioDenominatorTooLarge) {
                             kVideoFormat,
                             kCodedSize, kVisibleRect, natural_size,
                             NULL, 0, false);
-  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
+  InitializeWithConfigAndStatus(config, DECODER_ERROR_NOT_SUPPORTED);
 }
 
 TEST_F(FFmpegVideoDecoderTest, DecodeFrame_Normal) {

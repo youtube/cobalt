@@ -152,7 +152,7 @@ void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
   statistics_cb_ = statistics_cb;
 
   if (!ConfigureDecoder()) {
-    status_cb.Run(PIPELINE_ERROR_DECODE);
+    status_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
     return;
   }
 
@@ -495,6 +495,11 @@ bool FFmpegVideoDecoder::ConfigureDecoder() {
 
   if (!config.IsValidConfig()) {
     DLOG(ERROR) << "Invalid video stream - " << config.AsHumanReadableString();
+    return false;
+  }
+
+  if (config.is_encrypted() && !decryptor_) {
+    DLOG(ERROR) << "Encrypted video stream not supported.";
     return false;
   }
 
