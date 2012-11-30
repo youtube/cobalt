@@ -19,7 +19,7 @@ namespace net {
 // JNI thread).
 // All the methods exposed below must be called exclusively on the JNI thread
 // unless otherwise stated (e.g. AddObserver()/RemoveObserver()).
-class NetworkChangeNotifierDelegateAndroid {
+class NET_EXPORT_PRIVATE NetworkChangeNotifierDelegateAndroid {
  public:
   enum ConnectivityState {
     OFFLINE,
