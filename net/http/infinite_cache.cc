@@ -82,10 +82,10 @@ const size_t kRecordSize = sizeof(Key) + sizeof(Details);
 
 // Some constants related to the database file.
 uint32 kMagicSignature = 0x1f00cace;
-uint32 kCurrentVersion = 0x10001;
+uint32 kCurrentVersion = 0x10002;
 
 // Basic limits for the experiment.
-int kMaxNumEntries = 500 * 1000;
+int kMaxNumEntries = 200 * 1000;
 int kMaxTrackingSize = 40 * 1024 * 1024;
 
 // Settings that control how we generate histograms.
@@ -604,7 +604,7 @@ void InfiniteCache::Worker::LoadData() {
   base::ClosePlatformFile(file);
   if (header_->disabled) {
     UMA_HISTOGRAM_BOOLEAN("InfiniteCache.Full", true);
-    map_.clear();
+    InitializeData();
   }
 }
 
@@ -639,6 +639,7 @@ void InfiniteCache::Worker::InitializeData() {
   header_->magic = kMagicSignature;
   header_->version = kCurrentVersion;
   header_->creation_time = Time::Now().ToInternalValue();
+  map_.clear();
 
   UMA_HISTOGRAM_BOOLEAN("InfiniteCache.Initialize", true);
   init_ = true;
@@ -653,7 +654,7 @@ bool InfiniteCache::Worker::ReadData(PlatformFile file) {
   uint32 hash = adler32(0, Z_NULL, 0);
 
   for (int remaining_records = header_->num_entries; remaining_records;) {
-    int num_records = std::min(header_->num_entries,
+    int num_records = std::min(remaining_records,
                                static_cast<int>(kMaxRecordsToRead));
     size_t num_bytes = num_records * kRecordSize;
     remaining_records -= num_records;
@@ -703,7 +704,7 @@ bool InfiniteCache::Worker::WriteData(PlatformFile file) {
   DCHECK_EQ(header_->num_entries, static_cast<int32>(map_.size()));
   KeyMap::iterator iterator = map_.begin();
   for (int remaining_records = header_->num_entries; remaining_records;) {
-    int num_records = std::min(header_->num_entries,
+    int num_records = std::min(remaining_records,
                                static_cast<int>(kMaxRecordsToRead));
     size_t num_bytes = num_records * kRecordSize;
     remaining_records -= num_records;
@@ -804,6 +805,7 @@ void InfiniteCache::Worker::Add(const Details& details) {
     int entry_size = static_cast<int>(header_->total_size / kMaxNumEntries);
     UMA_HISTOGRAM_COUNTS("InfiniteCache.FinalAvgEntrySize", entry_size);
     header_->disabled = 1;
+    header_->num_entries = 0;
     map_.clear();
   }
 }
