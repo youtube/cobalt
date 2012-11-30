@@ -37,9 +37,16 @@ class Insets;
 class UI_EXPORT Rect
     : public RectBase<Rect, Point, Size, Insets, Vector2d, int> {
  public:
-  Rect();
-  Rect(int width, int height);
-  Rect(int x, int y, int width, int height);
+  Rect() : RectBase<Rect, Point, Size, Insets, Vector2d, int>(Point()) {}
+
+  Rect(int width, int height)
+      : RectBase<Rect, Point, Size, Insets, Vector2d, int>
+            (Size(width, height)) {}
+
+  Rect(int x, int y, int width, int height)
+      : RectBase<Rect, Point, Size, Insets, Vector2d, int>
+            (Point(x, y), Size(width, height)) {}
+
 #if defined(OS_WIN)
   explicit Rect(const RECT& r);
 #elif defined(OS_MACOSX)
@@ -47,10 +54,14 @@ class UI_EXPORT Rect
 #elif defined(TOOLKIT_GTK)
   explicit Rect(const GdkRectangle& r);
 #endif
-  explicit Rect(const gfx::Size& size);
-  Rect(const gfx::Point& origin, const gfx::Size& size);
 
-  ~Rect();
+  explicit Rect(const gfx::Size& size)
+      : RectBase<Rect, Point, Size, Insets, Vector2d, int>(size) {}
+
+  Rect(const gfx::Point& origin, const gfx::Size& size)
+      : RectBase<Rect, Point, Size, Insets, Vector2d, int>(origin, size) {}
+
+  ~Rect() {}
 
 #if defined(OS_WIN)
   // Construct an equivalent Win32 RECT object.

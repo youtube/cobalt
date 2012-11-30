@@ -20,13 +20,27 @@ class InsetsF;
 class UI_EXPORT RectF
     : public RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float> {
  public:
-  RectF();
-  RectF(float width, float height);
-  RectF(float x, float y, float width, float height);
-  explicit RectF(const gfx::SizeF& size);
-  RectF(const gfx::PointF& origin, const gfx::SizeF& size);
+  RectF()
+      : RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>
+            (SizeF()) {}
 
-  ~RectF();
+  RectF(float width, float height)
+      : RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>
+            (SizeF(width, height)) {}
+
+  RectF(float x, float y, float width, float height)
+      : RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>
+            (PointF(x, y), SizeF(width, height)) {}
+
+  explicit RectF(const SizeF& size)
+      : RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>
+            (size) {}
+
+  RectF(const PointF& origin, const SizeF& size)
+      : RectBase<RectF, PointF, SizeF, InsetsF, Vector2dF, float>
+            (origin, size) {}
+
+  ~RectF() {}
 
   // Scales the rectangle by |scale|.
   void Scale(float scale) {
