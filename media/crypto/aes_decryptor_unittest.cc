@@ -24,6 +24,10 @@ using ::testing::StrNe;
 
 namespace media {
 
+MATCHER_P2(ArrayEq, array, size, "") {
+  return !memcmp(arg, array, size);
+}
+
 // |encrypted_data| is encrypted from |plain_text| using |key|. |key_id| is
 // used to distinguish |key|.
 struct WebmEncryptedData {
@@ -59,8 +63,7 @@ const WebmEncryptedData kWebmEncryptedFrames[] = {
       0xff, 0xf0, 0xd1, 0x12, 0xd5, 0x24, 0x81, 0x96,
       0x55, 0x1b, 0x68, 0x9f, 0x38, 0x91, 0x85
       }, 23
-  },
-  {
+  }, {
     // plaintext
     "Changed Original data.", 22,
     // key_id
@@ -78,8 +81,7 @@ const WebmEncryptedData kWebmEncryptedFrames[] = {
       0x79, 0x1c, 0x8e, 0x25, 0xd7, 0x17, 0xe7, 0x5e,
       0x16, 0xe3, 0x40, 0x08, 0x27, 0x11, 0xe9
       }, 31
-  },
-  {
+  }, {
     // plaintext
     "Original data.", 14,
     // key_id
@@ -95,8 +97,7 @@ const WebmEncryptedData kWebmEncryptedFrames[] = {
       0x00, 0x9c, 0x71, 0x26, 0x57, 0x3e, 0x25, 0x37,
       0xf7, 0x31, 0x81, 0x19, 0x64, 0xce, 0xbc
       }, 23
-  },
-  {
+  }, {
     // plaintext
     "Changed Original data.", 22,
     // key_id
@@ -114,8 +115,6 @@ const WebmEncryptedData kWebmEncryptedFrames[] = {
       }, 23
   }
 };
-
-
 
 static const uint8 kWebmWrongSizedKey[] = { 0x20, 0x20 };
 
@@ -241,7 +240,8 @@ class AesDecryptorTest : public testing::Test {
  protected:
   void GenerateKeyRequest(const uint8* key_id, int key_id_size) {
     EXPECT_CALL(client_, KeyMessageMock(kClearKeySystem, StrNe(""),
-                                        NotNull(), Gt(0), ""))
+                                        ArrayEq(key_id, key_id_size),
+                                        key_id_size, ""))
         .WillOnce(SaveArg<1>(&session_id_string_));
     EXPECT_TRUE(decryptor_.GenerateKeyRequest(kClearKeySystem, "",
                                               key_id, key_id_size));
@@ -314,6 +314,10 @@ class AesDecryptorTest : public testing::Test {
   AesDecryptor::DecryptCB decrypt_cb_;
   std::vector<SubsampleEntry> subsample_entries_;
 };
+
+TEST_F(AesDecryptorTest, GenerateKeyRequestWithNullInitData) {
+  EXPECT_FALSE(decryptor_.GenerateKeyRequest(kClearKeySystem, "", NULL, 0));
+}
 
 TEST_F(AesDecryptorTest, NormalWebMDecryption) {
   const WebmEncryptedData& frame = kWebmEncryptedFrames[0];
