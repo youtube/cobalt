@@ -10,7 +10,7 @@
 namespace media {
 
 // Android implemention of AudioManager.
-class AudioManagerAndroid : public AudioManagerBase {
+class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
  public:
   AudioManagerAndroid();
 
