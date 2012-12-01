@@ -22,7 +22,7 @@
 #include "net/url_request/url_request_throttler_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
 #include "net/ocsp/nss_ocsp.h"
 #endif
 
@@ -113,14 +113,14 @@ class URLFetcherTest : public testing::Test,
 
     io_message_loop_proxy_ = base::MessageLoopProxy::current();
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
     crypto::EnsureNSSInit();
     EnsureNSSHttpIOInit();
 #endif
   }
 
   virtual void TearDown() OVERRIDE {
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_IOS)
     ShutdownNSSHttpIO();
 #endif
   }
