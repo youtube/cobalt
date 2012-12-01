@@ -11,8 +11,5 @@ BB_SRC_ROOT="$(cd  "$BB_DIR/../../.."; pwd)"
 . "$BB_DIR/buildbot_functions.sh"
 
 bb_baseline_setup "$BB_SRC_ROOT" "$@"
-bb_check_webview_licenses
 bb_compile
-bb_compile_experimental
-bb_run_findbugs
 bb_zip_build
