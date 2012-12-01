@@ -801,6 +801,12 @@
           'sources!': [
             'base/events/event.cc',
             'base/events/event.h',
+            'base/events/event_dispatcher.cc',
+            'base/events/event_dispatcher.h',
+            'base/events/event_handler.cc',
+            'base/events/event_handler.h',
+            'base/events/event_target.cc',
+            'base/events/event_target.h',
             'base/x/events_x.cc',
           ],
         }],
