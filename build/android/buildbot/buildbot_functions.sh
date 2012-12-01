@@ -60,7 +60,7 @@ function bb_baseline_setup {
   local extra_gyp_defines="$(bb_get_json_prop "$FACTORY_PROPERTIES" \
      extra_gyp_defines)"
   export GYP_DEFINES+=" fastbuild=1 $extra_gyp_defines"
-  if echo $extra_gyp_defines | grep -q clang; then
+  if echo $extra_gyp_defines | grep -qE 'clang|asan'; then
     unset CXX_target
   fi
 
