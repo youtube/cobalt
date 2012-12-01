@@ -139,6 +139,8 @@ def get_landmines(target):
   if (distributor() == 'goma' and platform() == 'win32' and
       builder() == 'ninja'):
     add('Need to clobber winja goma due to backend cwd cache fix.')
+  if platform() == 'android':
+    add('Clean android out directories to reduce zip size.')
 
   return landmines
 
