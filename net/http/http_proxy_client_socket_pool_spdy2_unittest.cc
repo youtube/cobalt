@@ -8,17 +8,11 @@
 #include "base/compiler_specific.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "net/base/mock_cert_verifier.h"
-#include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
-#include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
-#include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_response_headers.h"
-#include "net/http/http_server_properties_impl.h"
-#include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
@@ -64,26 +58,21 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
         transport_socket_pool_(
             kMaxSockets, kMaxSocketsPerGroup,
             &tcp_histograms_,
-            &socket_factory_),
+            session_deps_.deterministic_socket_factory.get()),
         ssl_histograms_("MockSSL"),
-        cert_verifier_(new MockCertVerifier),
-        proxy_service_(ProxyService::CreateDirect()),
-        ssl_config_service_(new SSLConfigServiceDefaults),
         ssl_socket_pool_(kMaxSockets, kMaxSocketsPerGroup,
                          &ssl_histograms_,
-                         &host_resolver_,
-                         cert_verifier_.get(),
+                         session_deps_.host_resolver.get(),
+                         session_deps_.cert_verifier.get(),
                          NULL /* server_bound_cert_store */,
                          NULL /* transport_security_state */,
                          ""   /* ssl_session_cache_shard */,
-                         &socket_factory_,
+                         session_deps_.deterministic_socket_factory.get(),
                          &transport_socket_pool_,
                          NULL,
                          NULL,
-                         ssl_config_service_.get(),
+                         session_deps_.ssl_config_service.get(),
                          BoundNetLog().net_log()),
-        http_auth_handler_factory_(
-            HttpAuthHandlerFactory::CreateDefault(&host_resolver_)),
         session_(CreateNetworkSession()),
         http_proxy_histograms_("HttpProxyUnitTest"),
         ssl_data_(NULL),
@@ -148,7 +137,7 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
   }
 
   DeterministicMockClientSocketFactory& socket_factory() {
-    return socket_factory_;
+    return *session_deps_.deterministic_socket_factory.get();
   }
 
   void Initialize(MockRead* reads, size_t reads_count,
@@ -166,14 +155,14 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
     data_->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     data_->StopAfter(2);  // Request / Response
 
-    socket_factory_.AddSocketDataProvider(data_.get());
+    socket_factory().AddSocketDataProvider(data_.get());
 
     if (GetParam() != HTTP) {
       ssl_data_.reset(new SSLSocketDataProvider(SYNCHRONOUS, OK));
       if (GetParam() == SPDY) {
         InitializeSpdySsl();
       }
-      socket_factory_.AddSSLSocketDataProvider(ssl_data_.get());
+      socket_factory().AddSSLSocketDataProvider(ssl_data_.get());
     }
   }
 
@@ -182,37 +171,23 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
   }
 
   HttpNetworkSession* CreateNetworkSession() {
-    HttpNetworkSession::Params params;
-    params.host_resolver = &host_resolver_;
-    params.cert_verifier = cert_verifier_.get();
-    params.proxy_service = proxy_service_.get();
-    params.client_socket_factory = &socket_factory_;
-    params.ssl_config_service = ssl_config_service_;
-    params.http_auth_handler_factory = http_auth_handler_factory_.get();
-    params.http_server_properties = &http_server_properties_;
-    HttpNetworkSession* session = new HttpNetworkSession(params);
-    SpdySessionPoolPeer pool_peer(session->spdy_session_pool());
-    pool_peer.EnableSendingInitialSettings(false);
-    return session;
+    return SpdySessionDependencies::SpdyCreateSessionDeterministic(
+        &session_deps_);
   }
 
  private:
+  SpdySessionDependencies session_deps_;
   SSLConfig ssl_config_;
 
   scoped_refptr<TransportSocketParams> ignored_transport_socket_params_;
   scoped_refptr<SSLSocketParams> ignored_ssl_socket_params_;
   ClientSocketPoolHistograms tcp_histograms_;
-  DeterministicMockClientSocketFactory socket_factory_;
   MockTransportClientSocketPool transport_socket_pool_;
   ClientSocketPoolHistograms ssl_histograms_;
   MockHostResolver host_resolver_;
   scoped_ptr<CertVerifier> cert_verifier_;
-  const scoped_ptr<ProxyService> proxy_service_;
-  const scoped_refptr<SSLConfigService> ssl_config_service_;
   SSLClientSocketPool ssl_socket_pool_;
 
-  const scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
-  HttpServerPropertiesImpl http_server_properties_;
   const scoped_refptr<HttpNetworkSession> session_;
   ClientSocketPoolHistograms http_proxy_histograms_;
   SpdyTestStateHelper spdy_state_;
