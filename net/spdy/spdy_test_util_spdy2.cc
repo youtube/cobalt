@@ -905,7 +905,8 @@ SpdySessionDependencies::SpdySessionDependencies()
       socket_factory(new MockClientSocketFactory),
       deterministic_socket_factory(new DeterministicMockClientSocketFactory),
       http_auth_handler_factory(
-          HttpAuthHandlerFactory::CreateDefault(host_resolver.get())) {
+          HttpAuthHandlerFactory::CreateDefault(host_resolver.get())),
+      net_log(NULL) {
   // Note: The CancelledTransaction test does cleanup by running all
   // tasks in the message loop (RunAllPending).  Unfortunately, that
   // doesn't clean up tasks on the host resolver thread; and
@@ -923,24 +924,16 @@ SpdySessionDependencies::SpdySessionDependencies(ProxyService* proxy_service)
       socket_factory(new MockClientSocketFactory),
       deterministic_socket_factory(new DeterministicMockClientSocketFactory),
       http_auth_handler_factory(
-          HttpAuthHandlerFactory::CreateDefault(host_resolver.get())) {}
+          HttpAuthHandlerFactory::CreateDefault(host_resolver.get())),
+      net_log(NULL) {}
 
 SpdySessionDependencies::~SpdySessionDependencies() {}
 
 // static
 HttpNetworkSession* SpdySessionDependencies::SpdyCreateSession(
     SpdySessionDependencies* session_deps) {
-  net::HttpNetworkSession::Params params;
+  net::HttpNetworkSession::Params params = CreateSessionParams(session_deps);
   params.client_socket_factory = session_deps->socket_factory.get();
-  params.host_resolver = session_deps->host_resolver.get();
-  params.cert_verifier = session_deps->cert_verifier.get();
-  params.proxy_service = session_deps->proxy_service.get();
-  params.ssl_config_service = session_deps->ssl_config_service;
-  params.http_auth_handler_factory =
-      session_deps->http_auth_handler_factory.get();
-  params.http_server_properties = &session_deps->http_server_properties;
-  params.trusted_spdy_proxy =
-      session_deps->trusted_spdy_proxy;
   HttpNetworkSession* http_session = new HttpNetworkSession(params);
   SpdySessionPoolPeer pool_peer(http_session->spdy_session_pool());
   pool_peer.EnableSendingInitialSettings(false);
@@ -950,9 +943,19 @@ HttpNetworkSession* SpdySessionDependencies::SpdyCreateSession(
 // static
 HttpNetworkSession* SpdySessionDependencies::SpdyCreateSessionDeterministic(
     SpdySessionDependencies* session_deps) {
-  net::HttpNetworkSession::Params params;
+  net::HttpNetworkSession::Params params = CreateSessionParams(session_deps);
   params.client_socket_factory =
       session_deps->deterministic_socket_factory.get();
+  HttpNetworkSession* http_session = new HttpNetworkSession(params);
+  SpdySessionPoolPeer pool_peer(http_session->spdy_session_pool());
+  pool_peer.EnableSendingInitialSettings(false);
+  return http_session;
+}
+
+// static
+net::HttpNetworkSession::Params SpdySessionDependencies::CreateSessionParams(
+    SpdySessionDependencies* session_deps) {
+  net::HttpNetworkSession::Params params;
   params.host_resolver = session_deps->host_resolver.get();
   params.cert_verifier = session_deps->cert_verifier.get();
   params.proxy_service = session_deps->proxy_service.get();
@@ -960,10 +963,9 @@ HttpNetworkSession* SpdySessionDependencies::SpdyCreateSessionDeterministic(
   params.http_auth_handler_factory =
       session_deps->http_auth_handler_factory.get();
   params.http_server_properties = &session_deps->http_server_properties;
-  HttpNetworkSession* http_session = new HttpNetworkSession(params);
-  SpdySessionPoolPeer pool_peer(http_session->spdy_session_pool());
-  pool_peer.EnableSendingInitialSettings(false);
-  return http_session;
+  params.trusted_spdy_proxy = session_deps->trusted_spdy_proxy;
+  params.net_log = session_deps->net_log;
+  return params;
 }
 
 SpdyURLRequestContext::SpdyURLRequestContext()
