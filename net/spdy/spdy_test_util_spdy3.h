@@ -345,8 +345,7 @@ int CombineFrames(const SpdyFrame** frames, int num_frames,
 
 // Helper to manage the lifetimes of the dependencies for a
 // HttpNetworkTransaction.
-class SpdySessionDependencies {
- public:
+struct SpdySessionDependencies {
   // Default set of dependencies -- "null" proxy service.
   SpdySessionDependencies();
 
@@ -359,6 +358,8 @@ class SpdySessionDependencies {
       SpdySessionDependencies* session_deps);
   static HttpNetworkSession* SpdyCreateSessionDeterministic(
       SpdySessionDependencies* session_deps);
+  static HttpNetworkSession::Params CreateSessionParams(
+      SpdySessionDependencies* session_deps);
 
   // NOTE: host_resolver must be ordered before http_auth_handler_factory.
   scoped_ptr<MockHostResolverBase> host_resolver;
@@ -370,6 +371,7 @@ class SpdySessionDependencies {
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   HttpServerPropertiesImpl http_server_properties;
   std::string trusted_spdy_proxy;
+  NetLog* net_log;
 };
 
 class SpdyURLRequestContext : public URLRequestContext {
