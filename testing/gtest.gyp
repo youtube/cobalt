@@ -128,10 +128,15 @@
           # own implementation but we must opt in to it.
           'defines': [
             'GTEST_USE_OWN_TR1_TUPLE=1',
+            # GTEST_USE_OWN_TR1_TUPLE only works if GTEST_HAS_TR1_TUPLE is set.
+            # gtest r625 made it so that GTEST_HAS_TR1_TUPLE is set to 0
+            # automatically on android, so it has to be set explicitly here.
+            'GTEST_HAS_TR1_TUPLE=1',
           ],
           'direct_dependent_settings': {
             'defines': [
               'GTEST_USE_OWN_TR1_TUPLE=1',
+              'GTEST_HAS_TR1_TUPLE=1',
             ],
           },
         }],
