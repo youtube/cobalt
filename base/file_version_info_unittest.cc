@@ -14,9 +14,6 @@
 
 namespace {
 
-class FileVersionInfoTest : public testing::Test {
-};
-
 #if defined(OS_WIN)
 FilePath GetTestDataPath() {
   FilePath path;

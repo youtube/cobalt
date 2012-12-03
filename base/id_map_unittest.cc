@@ -8,9 +8,6 @@
 
 namespace {
 
-class IDMapTest : public testing::Test {
-};
-
 class TestObject {
 };
 
@@ -18,11 +15,12 @@ class DestructorCounter {
  public:
   explicit DestructorCounter(int* counter) : counter_(counter) {}
   ~DestructorCounter() { ++(*counter_); }
+
  private:
   int* counter_;
 };
 
-TEST_F(IDMapTest, Basic) {
+TEST(IDMapTest, Basic) {
   IDMap<TestObject> map;
   EXPECT_TRUE(map.IsEmpty());
   EXPECT_EQ(0U, map.size());
@@ -58,7 +56,7 @@ TEST_F(IDMapTest, Basic) {
   EXPECT_EQ(0, map.iteration_depth());
 }
 
-TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
+TEST(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
   IDMap<TestObject> map;
 
   TestObject obj1;
@@ -91,7 +89,7 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
   EXPECT_EQ(0, map.iteration_depth());
 }
 
-TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
+TEST(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
   IDMap<TestObject> map;
 
   const int kCount = 5;
@@ -133,7 +131,7 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
   EXPECT_EQ(0, map.iteration_depth());
 }
 
-TEST_F(IDMapTest, CopyIterator) {
+TEST(IDMapTest, CopyIterator) {
   IDMap<TestObject> map;
 
   TestObject obj1;
@@ -161,7 +159,7 @@ TEST_F(IDMapTest, CopyIterator) {
   EXPECT_EQ(0, map.iteration_depth());
 }
 
-TEST_F(IDMapTest, AssignIterator) {
+TEST(IDMapTest, AssignIterator) {
   IDMap<TestObject> map;
 
   TestObject obj1;
@@ -191,7 +189,7 @@ TEST_F(IDMapTest, AssignIterator) {
   EXPECT_EQ(0, map.iteration_depth());
 }
 
-TEST_F(IDMapTest, IteratorRemainsValidWhenClearing) {
+TEST(IDMapTest, IteratorRemainsValidWhenClearing) {
   IDMap<TestObject> map;
 
   const int kCount = 5;
@@ -227,7 +225,7 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenClearing) {
   EXPECT_EQ(0U, map.size());
 }
 
-TEST_F(IDMapTest, OwningPointersDeletesThemOnRemove) {
+TEST(IDMapTest, OwningPointersDeletesThemOnRemove) {
   const int kCount = 3;
 
   int external_del_count = 0;
@@ -265,7 +263,7 @@ TEST_F(IDMapTest, OwningPointersDeletesThemOnRemove) {
   EXPECT_EQ(owned_del_count, kCount);
 }
 
-TEST_F(IDMapTest, OwningPointersDeletesThemOnClear) {
+TEST(IDMapTest, OwningPointersDeletesThemOnClear) {
   const int kCount = 3;
 
   int external_del_count = 0;
@@ -302,7 +300,7 @@ TEST_F(IDMapTest, OwningPointersDeletesThemOnClear) {
   EXPECT_EQ(owned_del_count, kCount);
 }
 
-TEST_F(IDMapTest, OwningPointersDeletesThemOnDestruct) {
+TEST(IDMapTest, OwningPointersDeletesThemOnDestruct) {
   const int kCount = 3;
 
   int external_del_count = 0;
