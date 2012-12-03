@@ -604,7 +604,7 @@ bool IsOSMountainLionOrLater() {
 #endif
 
 #if !defined(BASE_MAC_MAC_UTIL_H_INLINED_GT_10_8)
-bool IsOSLaterThanMountainLion_DontCallThis() {
+bool IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement() {
   return MacOSXMinorVersion() > MOUNTAIN_LION_MINOR_VERSION;
 }
 #endif
