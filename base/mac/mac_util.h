@@ -140,8 +140,9 @@ BASE_EXPORT bool IsOSMountainLionOrLater();
 
 // This should be infrequently used. It only makes sense to use this to avoid
 // codepaths that are very likely to break on future (unreleased, untested,
-// unborn) OS releases, or to log when the OS is newer than any known version.
-BASE_EXPORT bool IsOSLaterThanMountainLion_DontCallThis();
+// unborn) OS releases.
+BASE_EXPORT
+    bool IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement();
 
 // When the deployment target is set, the code produced cannot run on earlier
 // OS releases. That enables some of the IsOS* family to be implemented as
@@ -172,7 +173,8 @@ inline bool IsOSMountainLionOrLater() { return true; }
     MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_8
 #define BASE_MAC_MAC_UTIL_H_INLINED_GT_10_8
 inline bool IsOSMountainLion() { return false; }
-inline bool IsOSLaterThanMountainLion_DontCallThis() {
+inline bool IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement()
+{
   return true;
 }
 #endif
