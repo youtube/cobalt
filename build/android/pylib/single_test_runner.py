@@ -227,7 +227,6 @@ class SingleTestRunner(BaseTestRunner):
           'chrome/test/data/json2.js',
           'chrome/test/data/sunspider',
           'chrome/test/data/v8_benchmark',
-          'chrome/test/perf/sunspider_uitest.js',
           'chrome/test/perf/v8_benchmark_uitest.js',
           ]
     elif self.test_package.test_suite_basename == 'content_unittests':
