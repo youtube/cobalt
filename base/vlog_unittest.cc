@@ -14,10 +14,7 @@ namespace logging {
 
 namespace {
 
-class VlogTest : public testing::Test {
-};
-
-TEST_F(VlogTest, NoVmodule) {
+TEST(VlogTest, NoVmodule) {
   int min_log_level = 0;
   EXPECT_EQ(0, VlogInfo("", "", &min_log_level).GetVlogLevel("test1"));
   EXPECT_EQ(0, VlogInfo("0", "", &min_log_level).GetVlogLevel("test2"));
@@ -27,7 +24,7 @@ TEST_F(VlogTest, NoVmodule) {
   EXPECT_EQ(5, VlogInfo("5", "", &min_log_level).GetVlogLevel("test6"));
 }
 
-TEST_F(VlogTest, MatchVlogPattern) {
+TEST(VlogTest, MatchVlogPattern) {
   // Degenerate cases.
   EXPECT_TRUE(MatchVlogPattern("", ""));
   EXPECT_TRUE(MatchVlogPattern("", "****"));
@@ -75,7 +72,7 @@ TEST_F(VlogTest, MatchVlogPattern) {
   EXPECT_TRUE(MatchVlogPattern("\\b/lah", "/b\\lah"));
 }
 
-TEST_F(VlogTest, VmoduleBasic) {
+TEST(VlogTest, VmoduleBasic) {
   const char kVSwitch[] = "-1";
   const char kVModuleSwitch[] =
       "foo=,bar=0,baz=blah,,qux=0blah1,quux=1,corge.ext=5";
@@ -91,7 +88,7 @@ TEST_F(VlogTest, VmoduleBasic) {
   EXPECT_EQ(5, vlog_info.GetVlogLevel("c:\\path/to/corge.ext.h"));
 }
 
-TEST_F(VlogTest, VmoduleDirs) {
+TEST(VlogTest, VmoduleDirs) {
   const char kVModuleSwitch[] =
       "foo/bar.cc=1,baz\\*\\qux.cc=2,*quux/*=3,*/*-inl.h=4";
   int min_log_level = 0;
