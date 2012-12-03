@@ -3,13 +3,11 @@
 // found in the LICENSE file.
 
 #include "base/prefs/pref_value_map.h"
+
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-class PrefValueMapTest : public testing::Test {
-};
-
-TEST_F(PrefValueMapTest, SetValue) {
+TEST(PrefValueMapTest, SetValue) {
   PrefValueMap map;
   const Value* result = NULL;
   EXPECT_FALSE(map.GetValue("key", &result));
@@ -23,7 +21,7 @@ TEST_F(PrefValueMapTest, SetValue) {
   EXPECT_TRUE(StringValue("hi mom!").Equals(result));
 }
 
-TEST_F(PrefValueMapTest, GetAndSetIntegerValue) {
+TEST(PrefValueMapTest, GetAndSetIntegerValue) {
   PrefValueMap map;
   ASSERT_TRUE(map.SetValue("key", Value::CreateIntegerValue(5)));
 
@@ -36,7 +34,7 @@ TEST_F(PrefValueMapTest, GetAndSetIntegerValue) {
   EXPECT_EQ(-14, int_value);
 }
 
-TEST_F(PrefValueMapTest, RemoveValue) {
+TEST(PrefValueMapTest, RemoveValue) {
   PrefValueMap map;
   EXPECT_FALSE(map.RemoveValue("key"));
 
@@ -49,7 +47,7 @@ TEST_F(PrefValueMapTest, RemoveValue) {
   EXPECT_FALSE(map.RemoveValue("key"));
 }
 
-TEST_F(PrefValueMapTest, Clear) {
+TEST(PrefValueMapTest, Clear) {
   PrefValueMap map;
   EXPECT_TRUE(map.SetValue("key", Value::CreateStringValue("test")));
   EXPECT_TRUE(map.GetValue("key", NULL));
@@ -59,7 +57,7 @@ TEST_F(PrefValueMapTest, Clear) {
   EXPECT_FALSE(map.GetValue("key", NULL));
 }
 
-TEST_F(PrefValueMapTest, GetDifferingKeys) {
+TEST(PrefValueMapTest, GetDifferingKeys) {
   PrefValueMap reference;
   EXPECT_TRUE(reference.SetValue("b", Value::CreateStringValue("test")));
   EXPECT_TRUE(reference.SetValue("c", Value::CreateStringValue("test")));
@@ -88,7 +86,7 @@ TEST_F(PrefValueMapTest, GetDifferingKeys) {
   EXPECT_EQ(expected_differing_paths, differing_paths);
 }
 
-TEST_F(PrefValueMapTest, SwapTwoMaps) {
+TEST(PrefValueMapTest, SwapTwoMaps) {
   PrefValueMap first_map;
   EXPECT_TRUE(first_map.SetValue("a", Value::CreateStringValue("test")));
   EXPECT_TRUE(first_map.SetValue("b", Value::CreateStringValue("test")));
