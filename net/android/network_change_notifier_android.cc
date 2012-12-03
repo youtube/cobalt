@@ -74,6 +74,7 @@ NetworkChangeNotifierAndroid::GetCurrentConnectionType() const {
 void NetworkChangeNotifierAndroid::OnConnectionTypeChanged(
     ConnectionType new_connection_type) {
   SetConnectionType(new_connection_type);
+  NetworkChangeNotifier::NotifyObserversOfIPAddressChange();
   NetworkChangeNotifier::NotifyObserversOfConnectionTypeChange();
 }
 
