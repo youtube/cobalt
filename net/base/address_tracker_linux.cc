@@ -116,7 +116,7 @@ void AddressTrackerLinux::Init() {
     struct rtgenmsg msg;
   } request = {};
 
-  request.header.nlmsg_len = NLMSG_LENGTH(sizeof(request));
+  request.header.nlmsg_len = NLMSG_LENGTH(sizeof(request.msg));
   request.header.nlmsg_type = RTM_GETADDR;
   request.header.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
   request.header.nlmsg_pid = getpid();
