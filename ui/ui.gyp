@@ -468,7 +468,6 @@
         'gfx/render_text_mac.h',
         'gfx/render_text_win.cc',
         'gfx/render_text_win.h',
-        'gfx/safe_integer_conversions.cc',
         'gfx/safe_integer_conversions.h',
         'gfx/scoped_cg_context_save_gstate_mac.h',
         'gfx/scoped_ns_graphics_context_save_gstate_mac.h',
