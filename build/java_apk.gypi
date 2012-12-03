@@ -137,6 +137,9 @@
             'additional_res_packages=': [],
           }
         }],
+        ['proguard_enabled == "true" and proguard_flags != ""', {
+          'inputs': ['<(java_in_dir)/<(proguard_flags)']
+        }]
       ],
       'outputs': [
         '<(PRODUCT_DIR)/apks/<(apk_name).apk',
