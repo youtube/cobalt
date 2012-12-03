@@ -33,8 +33,6 @@ using base::TimeTicks;
 
 namespace {
 
-class MessageLoopTest : public testing::Test {};
-
 class Foo : public base::RefCounted<Foo> {
  public:
   Foo() : test_count_(0) {
