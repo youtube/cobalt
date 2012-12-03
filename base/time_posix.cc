@@ -6,6 +6,9 @@
 
 #include <sys/time.h>
 #include <time.h>
+#if defined(OS_ANDROID)
+#include <time64.h>
+#endif
 #include <unistd.h>
 
 #include <limits>
@@ -18,6 +21,48 @@
 #elif defined(OS_NACL)
 #include "base/os_compat_nacl.h"
 #endif
+
+namespace {
+
+// Define a system-specific SysTime that wraps either to a time_t or
+// a time64_t depending on the host system, and associated convertion.
+// See crbug.com/162007
+#if defined(OS_ANDROID)
+typedef time64_t SysTime;
+
+SysTime SysTimeFromTimeStruct(struct tm* timestruct, bool is_local) {
+  if (is_local)
+    return mktime64(timestruct);
+  else
+    return timegm64(timestruct);
+}
+
+void SysTimeToTimeStruct(SysTime t, struct tm* timestruct, bool is_local) {
+  if (is_local)
+    localtime64_r(&t, timestruct);
+  else
+    gmtime64_r(&t, timestruct);
+}
+
+#else  // OS_ANDROID
+typedef time_t SysTime;
+
+SysTime SysTimeFromTimeStruct(struct tm* timestruct, bool is_local) {
+  if (is_local)
+    return mktime(timestruct);
+  else
+    return timegm(timestruct);
+}
+
+void SysTimeToTimeStruct(SysTime t, struct tm* timestruct, bool is_local) {
+  if (is_local)
+    localtime_r(&t, timestruct);
+  else
+    gmtime_r(&t, timestruct);
+}
+#endif  // OS_ANDROID
+
+}  // namespace
 
 namespace base {
 
@@ -95,7 +140,7 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
   int64 microseconds = us_ - kWindowsEpochDeltaMicroseconds;
   // The following values are all rounded towards -infinity.
   int64 milliseconds;  // Milliseconds since epoch.
-  time_t seconds;  // Seconds since epoch.
+  SysTime seconds;  // Seconds since epoch.
   int millisecond;  // Exploded millisecond value (0-999).
   if (microseconds >= 0) {
     // Rounding towards -infinity <=> rounding towards 0, in this case.
@@ -115,10 +160,7 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
   }
 
   struct tm timestruct;
-  if (is_local)
-    localtime_r(&seconds, &timestruct);
-  else
-    gmtime_r(&seconds, &timestruct);
+  SysTimeToTimeStruct(seconds, &timestruct, is_local);
 
   exploded->year         = timestruct.tm_year + 1900;
   exploded->month        = timestruct.tm_mon + 1;
@@ -147,11 +189,7 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
   timestruct.tm_zone   = NULL;  // not a POSIX field, so mktime/timegm ignore
 #endif
 
-  time_t seconds;
-  if (is_local)
-    seconds = mktime(&timestruct);
-  else
-    seconds = timegm(&timestruct);
+  SysTime seconds = SysTimeFromTimeStruct(&timestruct, is_local);
 
   int64 milliseconds;
   // Handle overflow.  Clamping the range to what mktime and timegm might
@@ -175,10 +213,10 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
     // 999ms to avoid the time being less than any other possible value that
     // this function can return.
     if (exploded.year < 1969) {
-      milliseconds = std::numeric_limits<time_t>::min() *
+      milliseconds = std::numeric_limits<SysTime>::min() *
                      kMillisecondsPerSecond;
     } else {
-      milliseconds = (std::numeric_limits<time_t>::max() *
+      milliseconds = (std::numeric_limits<SysTime>::max() *
                       kMillisecondsPerSecond) +
                      kMillisecondsPerSecond - 1;
     }
