@@ -111,6 +111,7 @@ common_vars_defines() {
   case "${TARGET_ARCH}" in
     "arm")
       DEFINES+=" arm_neon=0 armv7=1 arm_thumb=1 arm_fpu=vfpv3-d16"
+      DEFINES+=" arm_neon_optional=1"  # Enable dynamic NEON support.
       DEFINES+=" ${ORDER_DEFINES}"
       DEFINES+=" target_arch=arm"
       ;;
