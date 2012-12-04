@@ -151,6 +151,7 @@ v8.log
 /third_party/angle
 /third_party/android_tools/
 /third_party/aosp
+/third_party/apache-mime4j
 /third_party/asan
 /third_party/bidichecker
 /third_party/bison
@@ -163,6 +164,7 @@ v8.log
 /third_party/cygwin
 /third_party/directxsdk
 /third_party/drmemory
+/third_party/findbugs
 /third_party/ffmpeg
 /third_party/flac
 /third_party/freetype
@@ -172,9 +174,12 @@ v8.log
 /third_party/googlemac
 /third_party/gperf
 /third_party/guava/src
+/third_party/httpcomponents-client
+/third_party/httpcomponents-core
 /third_party/hunspell
 /third_party/hunspell_dictionaries
 /third_party/icu
+/third_party/jarjar
 /third_party/jsoncpp/source
 /third_party/jsr-305/src
 /third_party/leveldatabase/src
