@@ -407,6 +407,8 @@
       'sas_dll_path%': '<(DEPTH)/third_party/platformsdk_win7/files/redist/x86',
       'wix_path%': '<(DEPTH)/third_party/wix',
 
+      'enable_settings_app%': 0,
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -571,13 +573,6 @@
           # When building as part of the Android system, use system libraries
           # where possible to reduce ROM size.
           'use_system_libjpeg%': '<(android_build_type)',
-        }],
-
-        # Enable Settings App only on Windows.
-        ['enable_app_list==1 and OS=="win"', {
-          'enable_settings_app%': 1,
-        }, {
-          'enable_settings_app%': 0,
         }],
       ],
 
