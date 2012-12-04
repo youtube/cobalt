@@ -9,6 +9,8 @@
 #include <wpcapi.h>
 
 #include "base/base_export.h"
+#include "base/callback.h"
+#include "base/file_path.h"
 #include "base/string16.h"
 
 namespace base {
@@ -34,6 +36,26 @@ enum MetroPreviousExecutionState {
   TERMINATED,
   CLOSEDBYUSER,
   LASTEXECUTIONSTATE,
+};
+
+// Enum values for UMA histogram reporting of site-specific tile pinning.
+// TODO(tapted): Move this to win8/util when ready (http://crbug.com/160288).
+enum MetroSecondaryTilePinUmaResult {
+  METRO_PIN_STATE_NONE,
+  METRO_PIN_INITIATED,
+  METRO_PIN_LOGO_READY,
+  METRO_PIN_REQUEST_SHOW_ERROR,
+  METRO_PIN_RESULT_CANCEL,
+  METRO_PIN_RESULT_OK,
+  METRO_PIN_RESULT_OTHER,
+  METRO_PIN_RESULT_ERROR,
+  METRO_UNPIN_INITIATED,
+  METRO_UNPIN_REQUEST_SHOW_ERROR,
+  METRO_UNPIN_RESULT_CANCEL,
+  METRO_UNPIN_RESULT_OK,
+  METRO_UNPIN_RESULT_OTHER,
+  METRO_UNPIN_RESULT_ERROR,
+  METRO_PIN_STATE_LIMIT
 };
 
 // Contains information about the currently displayed tab in metro mode.
@@ -96,6 +118,23 @@ typedef void (*MetroNotification)(const char* origin_url,
                                   const char* notification_id,
                                   MetroNotificationClickedHandler handler,
                                   const wchar_t* handler_context);
+
+// Callback for UMA invoked by Metro Pin and UnPin functions after user gesture.
+typedef base::Callback<void(MetroSecondaryTilePinUmaResult)>
+    MetroPinUmaResultCallback;
+
+// Function to pin a site-specific tile (bookmark) to the start screen.
+typedef void (*MetroPinToStartScreen)(
+    const string16& tile_id,
+    const string16& title,
+    const string16& url,
+    const FilePath& logo_path,
+    const MetroPinUmaResultCallback& callback);
+
+// Function to un-pin a site-specific tile (bookmark) from the start screen.
+typedef void (*MetroUnPinFromStartScreen)(
+    const string16& title_id,
+    const MetroPinUmaResultCallback& callback);
 
 }  // namespace win
 }  // namespace base
