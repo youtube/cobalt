@@ -23,16 +23,18 @@ class LifeCycleObject {
     virtual ~Observer() {}
   };
 
-  explicit LifeCycleObject(Observer* observer)
-      : observer_(observer) {
-    observer_->OnLifeCycleConstruct(this);
-  }
-
   ~LifeCycleObject() {
     observer_->OnLifeCycleDestroy(this);
   }
 
  private:
+  friend class LifeCycleWatcher;
+
+  explicit LifeCycleObject(Observer* observer)
+      : observer_(observer) {
+    observer_->OnLifeCycleConstruct(this);
+  }
+
   Observer* observer_;
 
   DISALLOW_COPY_AND_ASSIGN(LifeCycleObject);
@@ -115,19 +117,18 @@ TEST(ScopedVectorTest, Clear) {
   EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
   scoped_vector.clear();
   EXPECT_EQ(LC_DESTROYED, watcher.life_cycle_state());
-  EXPECT_EQ(static_cast<size_t>(0), scoped_vector.size());
+  EXPECT_TRUE(scoped_vector.empty());
 }
 
 TEST(ScopedVectorTest, WeakClear) {
   LifeCycleWatcher watcher;
   EXPECT_EQ(LC_INITIAL, watcher.life_cycle_state());
   ScopedVector<LifeCycleObject> scoped_vector;
-  scoped_ptr<LifeCycleObject> object(watcher.NewLifeCycleObject());
-  scoped_vector.push_back(object.get());
+  scoped_vector.push_back(watcher.NewLifeCycleObject());
   EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
   scoped_vector.weak_clear();
   EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
-  EXPECT_EQ(static_cast<size_t>(0), scoped_vector.size());
+  EXPECT_TRUE(scoped_vector.empty());
 }
 
 TEST(ScopedVectorTest, ResizeShrink) {
