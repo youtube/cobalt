@@ -3247,20 +3247,41 @@
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'WARNING_CFLAGS': [
                 '-Wheader-hygiene',
+
+                # This warns on using ints as initializers for floats in
+                # initializer lists (e.g. |int a = f(); CGSize s = { a, a };|),
+                # which happens in several places in chrome code. Not sure if
+                # this is worth fixing.
+                '-Wno-c++11-narrowing',
+
+                # This warns about code like |"0x%08"NACL_PRIxPTR| -- with C++11
+                # user-defined literals, this is now a string literal with a UD
+                # suffix. However, this is used heavily in NaCl code, so disable
+                # the warning for now.
+                '-Wno-reserved-user-defined-literal',
+
                 # Don't die on dtoa code that uses a char as an array index.
                 # This is required solely for base/third_party/dmg_fp/dtoa.cc.
                 '-Wno-char-subscripts',
                 # Clang spots more unused functions.
                 '-Wno-unused-function',
-                # See comments on this flag higher up in this file.
-                '-Wno-unnamed-type-template-args',
-                # This (rightfully) complains about 'override', which we use
-                # heavily.
-                '-Wno-c++11-extensions',
 
                 # Warns on switches on enums that cover all enum values but
                 # also contain a default: branch. Chrome is full of that.
                 '-Wno-covered-switch-default',
+              ],
+              'OTHER_CPLUSPLUSFLAGS': [
+                # gnu++11 instead of c++11 so that __ANSI_C__ doesn't get
+                # defined.  (Else e.g. finite() in base/float_util.h needs to
+                # be isfinite() which doesn't exist on the android bots.)
+                # typeof() is also disabled in c++11 (but we could use
+                # decltype() instead).
+                # TODO(thakis): Use CLANG_CXX_LANGUAGE_STANDARD instead once all
+                # bots use xcode 4 -- http://crbug.com/147515).
+                # TODO(thakis): Eventually switch this to c++11 instead of
+                # gnu++11 (once typeof can be removed, which is blocked on c++11
+                # being available everywhere).
+                '$(inherited)', '-std=gnu++11',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
