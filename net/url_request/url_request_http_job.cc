@@ -518,7 +518,7 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
           base::Bind(&URLRequestHttpJob::CheckCookiePolicyAndLoad,
                      weak_factory_.GetWeakPtr()));
     } else {
-      DoLoadCookies();
+      CheckCookiePolicyAndLoad(CookieList());
     }
   } else {
     DoStartTransaction();
