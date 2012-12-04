@@ -45,7 +45,6 @@ class SpdyNetworkTransactionSpdy3Test
  protected:
 
   virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY3);
     google_get_request_initialized_ = false;
     google_post_request_initialized_ = false;
     google_chunked_post_request_initialized_ = false;
@@ -577,7 +576,6 @@ class SpdyNetworkTransactionSpdy3Test
   HttpRequestInfo google_post_request_;
   HttpRequestInfo google_chunked_post_request_;
   HttpRequestInfo google_get_push_request_;
-  SpdyTestStateHelper spdy_state_;
   base::ScopedTempDir temp_dir_;
 };
 
@@ -4104,9 +4102,6 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, PartialWrite) {
 // In this test, we enable compression, but get a uncompressed SynReply from
 // the server.  Verify that teardown is all clean.
 TEST_P(SpdyNetworkTransactionSpdy3Test, DecompressFailureOnSynReply) {
-  // For this test, we turn on the normal compression.
-  BufferedSpdyFramer::set_enable_compression_default(true);
-
   scoped_ptr<SpdyFrame> compressed(
       ConstructSpdyGet(NULL, 0, true, 1, LOWEST));
   scoped_ptr<SpdyFrame> rst(
@@ -4123,8 +4118,10 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, DecompressFailureOnSynReply) {
 
   DelayedSocketData data(1, reads, arraysize(reads),
                          writes, arraysize(writes));
+  SpdySessionDependencies* session_deps = new SpdySessionDependencies();
+  session_deps->enable_compression = true;
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam(), NULL);
+                                     BoundNetLog(), GetParam(), session_deps);
   helper.RunToCompletion(&data);
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
@@ -4220,7 +4217,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, NetLog) {
 // on the network, but issued a Read for only 5 of those bytes) that the data
 // flow still works correctly.
 TEST_P(SpdyNetworkTransactionSpdy3Test, BufferFull) {
-  BufferedSpdyFramer framer(3);
+  BufferedSpdyFramer framer(3, false);
 
   scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = { CreateMockWrite(*req) };
@@ -4313,7 +4310,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, BufferFull) {
 // at the same time, ensure that we don't notify a read completion for
 // each data frame individually.
 TEST_P(SpdyNetworkTransactionSpdy3Test, Buffering) {
-  BufferedSpdyFramer framer(3);
+  BufferedSpdyFramer framer(3, false);
 
   scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = { CreateMockWrite(*req) };
@@ -4407,7 +4404,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Buffering) {
 
 // Verify the case where we buffer data but read it after it has been buffered.
 TEST_P(SpdyNetworkTransactionSpdy3Test, BufferedAll) {
-  BufferedSpdyFramer framer(3);
+  BufferedSpdyFramer framer(3, false);
 
   scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = { CreateMockWrite(*req) };
@@ -4498,7 +4495,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, BufferedAll) {
 
 // Verify the case where we buffer data and close the connection.
 TEST_P(SpdyNetworkTransactionSpdy3Test, BufferedClosed) {
-  BufferedSpdyFramer framer(3);
+  BufferedSpdyFramer framer(3, false);
 
   scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = { CreateMockWrite(*req) };
@@ -4588,7 +4585,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, BufferedClosed) {
 
 // Verify the case where we buffer data and cancel the transaction.
 TEST_P(SpdyNetworkTransactionSpdy3Test, BufferedCancelled) {
-  BufferedSpdyFramer framer(3);
+  BufferedSpdyFramer framer(3, false);
 
   scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = { CreateMockWrite(*req) };

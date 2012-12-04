@@ -23,7 +23,7 @@ namespace net {
 namespace {
 
 SpdyFrame* ConstructSpdyBodyFrame(const char* data, int length) {
-  BufferedSpdyFramer framer(2);
+  BufferedSpdyFramer framer(2, false);
   return framer.CreateDataFrame(1, data, length, DATA_FLAG_NONE);
 }
 
@@ -44,18 +44,11 @@ class SpdyStreamSpdy2Test : public testing::Test {
     return session;
   }
 
-  virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY2);
-  }
-
   virtual void TearDown() {
     MessageLoop::current()->RunUntilIdle();
   }
 
   scoped_refptr<HttpNetworkSession> session_;
-
- private:
-  SpdyTestStateHelper spdy_state_;
 };
 
 TEST_F(SpdyStreamSpdy2Test, SendDataAfterOpen) {

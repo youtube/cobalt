@@ -21,6 +21,7 @@
 #include "net/base/ssl_config_service.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_server.h"
+#include "net/socket/next_proto.h"
 
 namespace net {
 
@@ -45,9 +46,22 @@ class NET_EXPORT SpdySessionPool
       public SSLConfigService::Observer,
       public CertDatabase::Observer {
  public:
+  typedef base::TimeTicks (*TimeFunc)(void);
+
   SpdySessionPool(HostResolver* host_resolver,
                   SSLConfigService* ssl_config_service,
                   HttpServerProperties* http_server_properties,
+                  size_t max_sessions_per_domain,
+                  bool force_single_domain,
+                  bool enable_ip_pooling,
+                  bool enable_credential_frames,
+                  bool enable_compression,
+                  bool enable_ping_based_connection_checking,
+                  NextProto default_protocol,
+                  size_t default_initial_recv_window_size,
+                  size_t initial_max_concurrent_streams,
+                  size_t max_concurrent_streams_limit,
+                  SpdySessionPool::TimeFunc time_func,
                   const std::string& trusted_spdy_proxy);
   virtual ~SpdySessionPool();
 
@@ -61,12 +75,6 @@ class NET_EXPORT SpdySessionPool
   scoped_refptr<SpdySession> GetIfExists(
       const HostPortProxyPair& host_port_proxy_pair,
       const BoundNetLog& net_log);
-
-  // Set the maximum concurrent sessions per domain.
-  static void set_max_sessions_per_domain(int max) {
-    if (max >= 1)
-      g_max_sessions_per_domain = max;
-  }
 
   // Builds a SpdySession from an existing SSL socket.  Users should try
   // calling Get() first to use an existing SpdySession so we don't get
@@ -125,13 +133,6 @@ class NET_EXPORT SpdySessionPool
 
   // We perform the same flushing as described above when SSL settings change.
   virtual void OnSSLConfigChanged() OVERRIDE;
-
-  // A debugging mode where we compress all accesses through a single domain.
-  static void ForceSingleDomain() { g_force_single_domain = true; }
-
-  // Controls whether the pool allows use of a common session for domains
-  // which share IP address resolutions.
-  static void enable_ip_pooling(bool value) { g_enable_ip_pooling = value; }
 
   // CertDatabase::Observer methods:
   virtual void OnCertAdded(const X509Certificate* cert) OVERRIDE;
@@ -197,17 +198,25 @@ class NET_EXPORT SpdySessionPool
   // A map of IPEndPoint aliases for sessions.
   SpdyAliasMap aliases_;
 
-  static size_t g_max_sessions_per_domain;
   static bool g_force_single_domain;
-  static bool g_enable_ip_pooling;
 
   const scoped_refptr<SSLConfigService> ssl_config_service_;
   HostResolver* const resolver_;
 
   // Defaults to true. May be controlled via SpdySessionPoolPeer for tests.
   bool verify_domain_authentication_;
-
   bool enable_sending_initial_settings_;
+  size_t max_sessions_per_domain_;
+  bool force_single_domain_;
+  bool enable_ip_pooling_;
+  bool enable_credential_frames_;
+  bool enable_compression_;
+  bool enable_ping_based_connection_checking_;
+  NextProto default_protocol_;
+  size_t initial_recv_window_size_;
+  size_t initial_max_concurrent_streams_;
+  size_t max_concurrent_streams_limit_;
+  TimeFunc time_func_;
 
   // This SPDY proxy is allowed to push resources from origins that are
   // different from those of their associated streams.
