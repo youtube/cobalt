@@ -618,11 +618,6 @@
             ['exclude', '^metrics/stats_table_unittest\\.cc$'],
             # iOS does not use message_pump_libevent.
             ['exclude', '^message_pump_libevent_unittest\\.cc$'],
-            # TODO(ios): Remove these as base/ is unforked.
-            # For now, exclude everything that doesn't build as-is, just to get
-            # a minimal target building.
-            # Unittests that don't pass.
-            ['exclude', '^message_loop_unittest\\.cc$'],
           ],
           'conditions': [
             ['coverage != 0', {

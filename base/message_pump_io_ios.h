@@ -8,6 +8,7 @@
 #include "base/base_export.h"
 #include "base/mac/scoped_cffiledescriptorref.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "base/memory/ref_counted.h"
 #include "base/message_pump_mac.h"
 #include "base/observer_list.h"
 
@@ -81,7 +82,7 @@ class BASE_EXPORT MessagePumpIOSForIO : public MessagePumpNSRunLoop {
     base::mac::ScopedCFFileDescriptorRef fdref_;
     CFOptionFlags callback_types_;
     base::mac::ScopedCFTypeRef<CFRunLoopSourceRef> fd_source_;
-    MessagePumpIOSForIO* pump_;
+    scoped_refptr<MessagePumpIOSForIO> pump_;
     Watcher* watcher_;
 
     DISALLOW_COPY_AND_ASSIGN(FileDescriptorWatcher);
