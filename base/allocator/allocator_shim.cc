@@ -56,7 +56,7 @@ static const char secondary_name[] = "CHROME_ALLOCATOR_2";
 
 // We include tcmalloc and the win_allocator to get as much inlining as
 // possible.
-#include "tcmalloc.cc"
+#include "debugallocation_shim.cc"
 #include "win_allocator.cc"
 
 // Forward declarations from jemalloc.
