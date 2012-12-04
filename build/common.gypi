@@ -2750,7 +2750,7 @@
               }],
             ],
           }],
-          ['order_profiling!=0 and (chromeos==1 or OS=="linux")', {
+          ['order_profiling!=0 and (chromeos==1 or OS=="linux" or OS=="android")', {
             'target_conditions' : [
               ['_toolset=="target"', {
                 'cflags': [
