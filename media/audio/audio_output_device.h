@@ -99,8 +99,6 @@ class MEDIA_EXPORT AudioOutputDevice
 
   // Creates an uninitialized AudioOutputDevice. Clients must call Initialize()
   // before using.
-  // TODO(tommi): When all dependencies on |content| have been removed
-  // from AudioOutputDevice, move this class over to media/audio.
   AudioOutputDevice(AudioOutputIPC* ipc,
                     const scoped_refptr<base::MessageLoopProxy>& io_loop);
 
@@ -110,7 +108,20 @@ class MEDIA_EXPORT AudioOutputDevice
   friend class base::RefCountedThreadSafe<AudioOutputDevice>;
   virtual ~AudioOutputDevice();
 
+  // Accessors for subclasses (via IO thread only).
+  int stream_id() const { return stream_id_; }
+  AudioOutputIPC* audio_output_ipc() const { return ipc_; }
+
  private:
+  // Note: The ordering of members in this enum is critical to correct behavior!
+  enum State {
+    IPC_CLOSED,  // No more IPCs can take place.
+    IDLE,  // Not started.
+    CREATING_STREAM,  // Waiting for OnStreamCreated() to be called back.
+    PAUSED,  // Paused.  OnStreamCreated() has been called.  Can Play()/Stop().
+    PLAYING,  // Playing back.  Can Pause()/Stop().
+  };
+
   // Methods called on IO thread ----------------------------------------------
   // The following methods are tasks posted on the IO thread that needs to
   // be executed on that thread. They interact with AudioMessageFilter and
@@ -142,14 +153,12 @@ class MEDIA_EXPORT AudioOutputDevice
   // Must only be modified on the IO thread.
   int stream_id_;
 
+  // Current state (must only be accessed from the IO thread).  See comments for
+  // State enum above.
+  State state_;
+
   // State of Play() / Pause() calls before OnStreamCreated() is called.
   bool play_on_start_;
-
-  // Set to |true| when OnStreamCreated() is called.
-  // Set to |false| when ShutDownOnIOThread() is called.
-  // This is for use with play_on_start_ to track Play() / Pause() state.
-  // Must only be touched from the IO thread.
-  bool is_started_;
 
   // Our audio thread callback class.  See source file for details.
   class AudioThreadCallback;
