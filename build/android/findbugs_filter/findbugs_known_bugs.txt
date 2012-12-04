@@ -73,7 +73,6 @@ M D DLS: Dead store to testUrl in org.chromium.android_webview.test.ClientOnPage
 M D DLS: Dead store to time in org.chromium.net.test.util.TestWebServer.setDateHeaders(HttpResponse)  At TestWebServer.java
 M D DMI: Hard coded reference to an absolute pathname in org.chromium.android_webview.test.ArchiveTest.testAutoBadPath()  At ArchiveTest.java
 M D DMI: Hard coded reference to an absolute pathname in org.chromium.android_webview.test.ArchiveTest.testExplicitBadPath()  At ArchiveTest.java
-M D ICAST: Result of integer multiplication cast to long in org.chromium.android_webview.test.AwSettingsTest.testBlockNetworkImagesBlocksNetworkImageAndReloadInPlace()  At AwSettingsTest.java
 M D ICAST: integral division result cast to double or float in org.chromium.content.browser.HandleView.setOrientation(int)  At HandleView.java
 M D REC: Exception is caught when Exception is not thrown in org.chromium.content.browser.test.util.UiUtils.findParentViewForIdAcrossActivities(int)  At UiUtils.java
 M D SF: Switch statement found in org.chromium.chrome.browser.ChromeBrowserProvider.insert(Uri, ContentValues) where one case falls through to the next case  At ChromeBrowserProvider.java
@@ -141,3 +140,4 @@ M V MS: org.chromium.content.browser.LoadUrlParams.UA_OVERRIDE_INHERIT should be
 M V MS: org.chromium.content.browser.LoadUrlParams.UA_OVERRIDE_TRUE should be package protected  In LoadUrlParams.java
 M C RCN: Nullcheck of GestureDetector.mVelocityTracker at line 630 of value previously dereferenced in org.chromium.content.browser.third_party.GestureDetector.onTouchEvent(MotionEvent)  At GestureDetector.java
 M D SF: Switch statement found in org.chromium.content.browser.third_party.GestureDetector.onTouchEvent(MotionEvent) where default case is missing  At GestureDetector.java
+M D ST: Write to static field org.chromium.content.browser.ContentSettings.sAppCachePathIsSet from instance method org.chromium.content.browser.ContentSettings.setAppCachePath(String)  At ContentSettings.java
