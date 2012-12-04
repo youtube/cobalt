@@ -830,9 +830,6 @@
     # Enable TCMalloc.
     'linux_use_tcmalloc%': 1,
 
-    # Disable TCMalloc's debugallocation.
-    'linux_use_debugallocation%': 0,
-
     # Disable TCMalloc's heapchecker.
     'linux_use_heapchecker%': 0,
 
