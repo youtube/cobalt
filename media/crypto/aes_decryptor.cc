@@ -139,16 +139,16 @@ bool AesDecryptor::GenerateKeyRequest(const std::string& key_system,
                                       int init_data_length) {
   std::string session_id_string(base::UintToString(next_session_id_++));
 
-  if (!init_data || !init_data_length) {
-    DVLOG(1) << "init_data required to generate a key request.";
-    return false;
-  }
-
   // For now, the AesDecryptor does not care about |key_system| and |type|;
   // just fire the event with the |init_data| as the request.
-  int message_length = init_data_length;
-  scoped_array<uint8> message(new uint8[message_length]);
-  memcpy(message.get(), init_data, message_length);
+  scoped_array<uint8> message;
+  int message_length = 0;
+
+  if (init_data && init_data_length) {
+    message_length = init_data_length;
+    message.reset(new uint8[message_length]);
+    memcpy(message.get(), init_data, message_length);
+  }
 
   client_->KeyMessage(key_system, session_id_string,
                       message.Pass(), message_length, "");

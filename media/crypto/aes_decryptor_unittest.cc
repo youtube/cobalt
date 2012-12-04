@@ -316,7 +316,9 @@ class AesDecryptorTest : public testing::Test {
 };
 
 TEST_F(AesDecryptorTest, GenerateKeyRequestWithNullInitData) {
-  EXPECT_FALSE(decryptor_.GenerateKeyRequest(kClearKeySystem, "", NULL, 0));
+  EXPECT_CALL(client_, KeyMessageMock(kClearKeySystem, StrNe(""),
+                                      IsNull(), 0, ""));
+  EXPECT_TRUE(decryptor_.GenerateKeyRequest(kClearKeySystem, "", NULL, 0));
 }
 
 TEST_F(AesDecryptorTest, NormalWebMDecryption) {
