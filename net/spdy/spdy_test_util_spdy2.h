@@ -19,6 +19,7 @@
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/socket_test_util.h"
+#include "net/spdy/spdy_session.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_storage.h"
 
@@ -364,6 +365,10 @@ struct SpdySessionDependencies {
   scoped_ptr<DeterministicMockClientSocketFactory> deterministic_socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   HttpServerPropertiesImpl http_server_properties;
+  bool enable_ip_pooling;
+  bool enable_compression;
+  bool enable_ping;
+  SpdySession::TimeFunc time_func;
   std::string trusted_spdy_proxy;
   NetLog* net_log;
 };
@@ -411,16 +416,6 @@ class SpdySessionPoolPeer {
   SpdySessionPool* const pool_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPoolPeer);
-};
-
-// Helper to manage the state of a number of SPDY global variables.
-class SpdyTestStateHelper {
- public:
-  SpdyTestStateHelper();
-  ~SpdyTestStateHelper();
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SpdyTestStateHelper);
 };
 
 }  // namespace test_spdy2

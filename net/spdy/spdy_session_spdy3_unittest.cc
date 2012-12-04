@@ -21,9 +21,9 @@ namespace net {
 
 namespace {
 
-base::TimeTicks the_near_future() {
-  return base::TimeTicks::Now() +
-      base::TimeDelta::FromSeconds(301);
+static int g_delta_seconds = 0;
+base::TimeTicks TheNearFuture() {
+  return base::TimeTicks::Now() + base::TimeDelta::FromSeconds(g_delta_seconds);
 }
 
 class ClosingDelegate : public SpdyStream::Delegate {
@@ -99,17 +99,13 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
 
 } // namespace
 
-// TODO(cbentzel): Expose compression setter/getter in public SpdySession
-//                 interface rather than going through all these contortions.
 class SpdySessionSpdy3Test : public PlatformTest {
  protected:
-  virtual void SetUp() {
-    SpdySession::set_default_protocol(kProtoSPDY3);
+  void SetUp() {
+    g_delta_seconds = 0;
   }
-
- private:
-  SpdyTestStateHelper spdy_state_;
 };
+
 // Test the SpdyIOBuffer class.
 TEST_F(SpdySessionSpdy3Test, SpdyIOBuffer) {
   std::priority_queue<SpdyIOBuffer> queue_;
@@ -208,6 +204,7 @@ TEST_F(SpdySessionSpdy3Test, GoAway) {
 
 TEST_F(SpdySessionSpdy3Test, ClientPing) {
   SpdySessionDependencies session_deps;
+  session_deps.enable_ping = true;
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockConnect connect_data(SYNCHRONOUS, OK);
@@ -272,8 +269,6 @@ TEST_F(SpdySessionSpdy3Test, ClientPing) {
 
   base::TimeTicks before_ping_time = base::TimeTicks::Now();
 
-  // Enable sending of PING.
-  SpdySession::set_enable_ping_based_connection_checking(true);
   session->set_connection_at_risk_of_loss_time(base::TimeDelta::FromSeconds(0));
   session->set_hung_interval(base::TimeDelta::FromMilliseconds(50));
 
@@ -373,6 +368,7 @@ TEST_F(SpdySessionSpdy3Test, DeleteExpiredPushStreams) {
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+  session_deps.time_func = TheNearFuture;
 
   scoped_refptr<HttpNetworkSession> http_session(
       SpdySessionDependencies::SpdyCreateSession(&session_deps));
@@ -389,7 +385,7 @@ TEST_F(SpdySessionSpdy3Test, DeleteExpiredPushStreams) {
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
 
   // Give the session a SPDY3 framer.
-  session->buffered_spdy_framer_.reset(new BufferedSpdyFramer(3));
+  session->buffered_spdy_framer_.reset(new BufferedSpdyFramer(3, false));
 
   // Create the associated stream and add to active streams.
   scoped_ptr<SpdyHeaderBlock> request_headers(new SpdyHeaderBlock);
@@ -415,7 +411,7 @@ TEST_F(SpdySessionSpdy3Test, DeleteExpiredPushStreams) {
   EXPECT_TRUE(session->unclaimed_pushed_streams_.end() != iter);
 
   // Shift time.
-  SpdySession::set_time_func(the_near_future);
+  g_delta_seconds = 301;
 
   headers[":scheme"] = "http";
   headers[":host"] = "www.google.com";
@@ -495,8 +491,6 @@ TEST_F(SpdySessionSpdy3Test, FailedPing) {
       new TestSpdyStreamDelegate(callback1.callback()));
   spdy_stream1->SetDelegate(delegate.get());
 
-  // Enable sending of PING.
-  SpdySession::set_enable_ping_based_connection_checking(true);
   session->set_connection_at_risk_of_loss_time(base::TimeDelta::FromSeconds(0));
   session->set_hung_interval(base::TimeDelta::FromSeconds(0));
 
@@ -867,7 +861,7 @@ TEST_F(SpdySessionSpdy3Test, SendInitialSettingsOnNewSession) {
   MockWrite writes[] = {
     CreateMockWrite(*settings_frame),
   };
-  SpdySession::set_default_initial_recv_window_size(kInitialRecvWindowSize);
+  session_deps.initial_recv_window_size = kInitialRecvWindowSize;
 
   StaticSocketDataProvider data(
       reads, arraysize(reads), writes, arraysize(writes));

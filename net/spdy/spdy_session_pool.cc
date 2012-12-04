@@ -36,20 +36,41 @@ bool HostPortProxyPairsAreEqual(const HostPortProxyPair& a,
 // The maximum number of sessions to open to a single domain.
 static const size_t kMaxSessionsPerDomain = 1;
 
-size_t SpdySessionPool::g_max_sessions_per_domain = kMaxSessionsPerDomain;
-bool SpdySessionPool::g_force_single_domain = false;
-bool SpdySessionPool::g_enable_ip_pooling = true;
-
 SpdySessionPool::SpdySessionPool(
     HostResolver* resolver,
     SSLConfigService* ssl_config_service,
     HttpServerProperties* http_server_properties,
+    size_t max_sessions_per_domain,
+    bool force_single_domain,
+    bool enable_ip_pooling,
+    bool enable_credential_frames,
+    bool enable_compression,
+    bool enable_ping_based_connection_checking,
+    NextProto default_protocol,
+    size_t initial_recv_window_size,
+    size_t initial_max_concurrent_streams,
+    size_t max_concurrent_streams_limit,
+    SpdySessionPool::TimeFunc time_func,
     const std::string& trusted_spdy_proxy)
     : http_server_properties_(http_server_properties),
       ssl_config_service_(ssl_config_service),
       resolver_(resolver),
       verify_domain_authentication_(true),
       enable_sending_initial_settings_(true),
+      max_sessions_per_domain_(max_sessions_per_domain == 0 ?
+                               kMaxSessionsPerDomain :
+                               max_sessions_per_domain),
+      force_single_domain_(force_single_domain),
+      enable_ip_pooling_(enable_ip_pooling),
+      enable_credential_frames_(enable_credential_frames),
+      enable_compression_(enable_compression),
+      enable_ping_based_connection_checking_(
+          enable_ping_based_connection_checking),
+      default_protocol_(default_protocol),
+      initial_recv_window_size_(initial_recv_window_size),
+      initial_max_concurrent_streams_(initial_max_concurrent_streams),
+      max_concurrent_streams_limit_(max_concurrent_streams_limit),
+      time_func_(time_func),
       trusted_spdy_proxy_(
           HostPortPair::FromString(trusted_spdy_proxy)) {
   NetworkChangeNotifier::AddIPAddressObserver(this);
@@ -107,7 +128,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
   }
 
   DCHECK(list);
-  if (list->size() && list->size() == g_max_sessions_per_domain) {
+  if (list->size() && list->size() == max_sessions_per_domain_) {
     UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionGet",
                               FOUND_EXISTING,
                               SPDY_SESSION_GET_MAX);
@@ -124,6 +145,14 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
                                  http_server_properties_,
                                  verify_domain_authentication_,
                                  enable_sending_initial_settings_,
+                                 enable_credential_frames_,
+                                 enable_compression_,
+                                 enable_ping_based_connection_checking_,
+                                 default_protocol_,
+                                 initial_recv_window_size_,
+                                 initial_max_concurrent_streams_,
+                                 max_concurrent_streams_limit_,
+                                 time_func_,
                                  trusted_spdy_proxy_,
                                  net_log.net_log());
   UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionGet",
@@ -133,7 +162,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
   net_log.AddEvent(
       NetLog::TYPE_SPDY_SESSION_POOL_CREATED_NEW_SESSION,
       spdy_session->net_log().source().ToEventParametersCallback());
-  DCHECK_LE(list->size(), g_max_sessions_per_domain);
+  DCHECK_LE(list->size(), max_sessions_per_domain_);
   return spdy_session;
 }
 
@@ -152,6 +181,14 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
                                   http_server_properties_,
                                   verify_domain_authentication_,
                                   enable_sending_initial_settings_,
+                                  enable_credential_frames_,
+                                  enable_compression_,
+                                  enable_ping_based_connection_checking_,
+                                  default_protocol_,
+                                  initial_recv_window_size_,
+                                  initial_max_concurrent_streams_,
+                                  max_concurrent_streams_limit_,
+                                  time_func_,
                                   trusted_spdy_proxy_,
                                   net_log.net_log());
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
@@ -169,7 +206,7 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
   // potentially be pooled with this one. Because GetPeerAddress() reports the
   // proxy's address instead of the origin server, check to see if this is a
   // direct connection.
-  if (g_enable_ip_pooling  && host_port_proxy_pair.second.is_direct()) {
+  if (enable_ip_pooling_  && host_port_proxy_pair.second.is_direct()) {
     IPEndPoint address;
     if (connection->socket()->GetPeerAddress(&address) == OK)
       AddAlias(address, host_port_proxy_pair);
@@ -267,7 +304,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetFromAlias(
   // We should only be checking aliases when there is no direct session.
   DCHECK(!GetSessionList(host_port_proxy_pair));
 
-  if (!g_enable_ip_pooling)
+  if (!enable_ip_pooling_)
     return NULL;
 
   AddressList addresses;
@@ -323,7 +360,7 @@ void SpdySessionPool::OnCertTrustChanged(const X509Certificate* cert) {
 
 const HostPortProxyPair& SpdySessionPool::NormalizeListPair(
     const HostPortProxyPair& host_port_proxy_pair) const {
-  if (!g_force_single_domain)
+  if (!force_single_domain_)
     return host_port_proxy_pair;
 
   static HostPortProxyPair* single_domain_pair = NULL;
@@ -379,7 +416,7 @@ bool SpdySessionPool::LookupAddresses(const HostPortProxyPair& pair,
 
 void SpdySessionPool::AddAlias(const IPEndPoint& endpoint,
                                const HostPortProxyPair& pair) {
-  DCHECK(g_enable_ip_pooling);
+  DCHECK(enable_ip_pooling_);
   aliases_[endpoint] = pair;
 }
 
