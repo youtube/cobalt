@@ -24,12 +24,13 @@ bool LooksLikeUnixPermission(const string16& text) {
   // r - file is readable
   // w - file is writable
   // x - file is executable
-  // s or S - setuid/setgid bit set
+  // s, S or l - setuid/setgid bit set
   // t or T - "sticky" bit set
   return ((text[0] == 'r' || text[0] == '-') &&
           (text[1] == 'w' || text[1] == '-') &&
-          (text[2] == 'x' || text[2] == 's' || text[2] == 'S' ||
-           text[2] == 't' || text[2] == 'T' || text[2] == '-'));
+          (text[2] == 'x' || text[2] == '-' ||
+           text[2] == 's' || text[2] == 'S' || text[2] == 'l' ||
+           text[2] == 't' || text[2] == 'T'));
 }
 
 bool LooksLikeUnixPermissionsListing(const string16& text) {
@@ -180,8 +181,8 @@ bool ParseFtpDirectoryListingLs(
     if (columns.size() == 2 && !received_total_line) {
       received_total_line = true;
 
-      int total_number;
-      if (!base::StringToInt(columns[1], &total_number))
+      int64 total_number;
+      if (!base::StringToInt64(columns[1], &total_number))
         return false;
       if (total_number < 0)
         return false;
