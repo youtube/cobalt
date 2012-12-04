@@ -109,7 +109,7 @@ HMAC::HMAC(HashAlgorithm hash_alg)
   DCHECK(hash_alg_ == SHA1 || hash_alg_ == SHA256);
 }
 
-bool HMAC::Init(const unsigned char* key, int key_length) {
+bool HMAC::Init(const unsigned char* key, size_t key_length) {
   if (plat_->provider_ || plat_->key_ || !plat_->raw_key_.empty()) {
     // Init must not be called more than once on the same HMAC object.
     NOTREACHED();
@@ -147,7 +147,7 @@ bool HMAC::Init(const unsigned char* key, int key_length) {
   key_blob->header.bVersion = CUR_BLOB_VERSION;
   key_blob->header.reserved = 0;
   key_blob->header.aiKeyAlg = CALG_RC2;
-  key_blob->key_size = key_length;
+  key_blob->key_size = static_cast<DWORD>(key_length);
   memcpy(key_blob->key_data, key, key_length);
 
   if (!CryptImportKey(plat_->provider_, &key_blob_storage[0],
@@ -168,7 +168,7 @@ HMAC::~HMAC() {
 
 bool HMAC::Sign(const base::StringPiece& data,
                 unsigned char* digest,
-                int digest_length) const {
+                size_t digest_length) const {
   if (hash_alg_ == SHA256) {
     if (plat_->raw_key_.empty())
       return false;
@@ -202,7 +202,7 @@ bool HMAC::Sign(const base::StringPiece& data,
                      static_cast<DWORD>(data.size()), 0))
     return false;
 
-  DWORD sha1_size = digest_length;
+  DWORD sha1_size = static_cast<DWORD>(digest_length);
   return !!CryptGetHashParam(hash, HP_HASHVAL, digest, &sha1_size, 0);
 }
 
